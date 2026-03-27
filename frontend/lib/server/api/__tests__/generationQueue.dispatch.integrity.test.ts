@@ -16,7 +16,7 @@ const markQueueItemExhaustedMock = vi.fn();
 const releaseQueueLeaseBackToQueuedMock = vi.fn();
 const removeQueueItemMock = vi.fn();
 const updateQueueItemForRetryMock = vi.fn();
-const ensureAcceptedGenerationAttemptMock = vi.fn();
+const ensureAcceptedRunningGenerationAttemptMock = vi.fn();
 const updateGenerationAttemptStateMock = vi.fn();
 
 vi.mock("../supabaseAdmin", () => ({
@@ -66,8 +66,8 @@ vi.mock("../generationQueue/service", () => ({
 }));
 
 vi.mock("../generationAttempts", () => ({
-  ensureAcceptedGenerationAttempt: (...args: unknown[]) =>
-    ensureAcceptedGenerationAttemptMock(...args),
+  ensureAcceptedRunningGenerationAttempt: (...args: unknown[]) =>
+    ensureAcceptedRunningGenerationAttemptMock(...args),
   updateGenerationAttemptState: (...args: unknown[]) => updateGenerationAttemptStateMock(...args),
 }));
 
@@ -204,7 +204,7 @@ describe("generationQueue/dispatch transition integrity", () => {
     releaseQueueLeaseBackToQueuedMock.mockResolvedValue(mutationSuccess("release"));
     removeQueueItemMock.mockResolvedValue(mutationSuccess("remove"));
     updateQueueItemForRetryMock.mockResolvedValue(mutationSuccess("retry"));
-    ensureAcceptedGenerationAttemptMock.mockResolvedValue({
+    ensureAcceptedRunningGenerationAttemptMock.mockResolvedValue({
       ok: true,
       attemptId: "attempt-1",
       attemptNumber: 1,
@@ -290,13 +290,14 @@ describe("generationQueue/dispatch transition integrity", () => {
     );
     expect(releaseGenerationReservationBySourceRefMock).not.toHaveBeenCalled();
     expect(updateQueueItemForRetryMock).not.toHaveBeenCalled();
-    expect(ensureAcceptedGenerationAttemptMock).not.toHaveBeenCalled();
+    expect(ensureAcceptedRunningGenerationAttemptMock).not.toHaveBeenCalled();
   });
 
   it("exhausts without releasing reservation when generation attempt write fails post-submit", async () => {
-    ensureAcceptedGenerationAttemptMock.mockResolvedValueOnce({
+    ensureAcceptedRunningGenerationAttemptMock.mockResolvedValueOnce({
       ok: false,
       error: "attempt_insert_failed",
+      stage: "record",
     });
 
     const result = await dispatchGenerationSubmitQueueBatch({
@@ -323,9 +324,10 @@ describe("generationQueue/dispatch transition integrity", () => {
   });
 
   it("exhausts without releasing reservation when generation attempt running update fails post-submit", async () => {
-    updateGenerationAttemptStateMock.mockResolvedValueOnce({
+    ensureAcceptedRunningGenerationAttemptMock.mockResolvedValueOnce({
       ok: false,
       error: "attempt_running_update_failed",
+      stage: "running",
     });
 
     const result = await dispatchGenerationSubmitQueueBatch({
@@ -415,7 +417,7 @@ describe("generationQueue/dispatch transition integrity", () => {
         status: "running",
       })
     );
-    expect(ensureAcceptedGenerationAttemptMock).not.toHaveBeenCalled();
+    expect(ensureAcceptedRunningGenerationAttemptMock).not.toHaveBeenCalled();
     expect(removeQueueItemMock).toHaveBeenCalledTimes(1);
     expect(dispatchProviderSubmitMock).not.toHaveBeenCalled();
   });
@@ -587,11 +589,12 @@ describe("generationQueue/dispatch transition integrity", () => {
     );
     expect(withWebhookTargetsMock).not.toHaveBeenCalled();
     expect(markQueueItemExhaustedMock).not.toHaveBeenCalled();
-    expect(updateGenerationAttemptStateMock).toHaveBeenCalledWith(
+    expect(ensureAcceptedRunningGenerationAttemptMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        providerRequestId: "req-1",
+        generationId: "gen-1",
         userId: "user-1",
-        status: "running",
+        providerRequestId: "req-1",
+        dispatchSource: "queued_submit",
       })
     );
 
@@ -640,11 +643,12 @@ describe("generationQueue/dispatch transition integrity", () => {
         targets: [{ submitUrl: "https://api.kie.ai/api/v1/veo/generate" }],
       })
     );
-    expect(updateGenerationAttemptStateMock).toHaveBeenCalledWith(
+    expect(ensureAcceptedRunningGenerationAttemptMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        providerRequestId: "req-1",
+        generationId: "gen-1",
         userId: "user-1",
-        status: "running",
+        providerRequestId: "req-1",
+        dispatchSource: "queued_submit",
       })
     );
 

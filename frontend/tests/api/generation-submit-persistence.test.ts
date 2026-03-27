@@ -2,17 +2,15 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ensureSubmittedGenerationRecord } from "../../lib/server/api/generationSubmitPersistence";
 
 const getSupabaseAdminMock = vi.fn();
-const ensureAcceptedGenerationAttemptMock = vi.fn();
-const updateGenerationAttemptStateMock = vi.fn();
+const ensureAcceptedRunningGenerationAttemptMock = vi.fn();
 
 vi.mock("../../lib/server/api/supabaseAdmin", () => ({
   getSupabaseAdmin: (...args: unknown[]) => getSupabaseAdminMock(...args),
 }));
 
 vi.mock("../../lib/server/api/generationAttempts", () => ({
-  ensureAcceptedGenerationAttempt: (...args: unknown[]) =>
-    ensureAcceptedGenerationAttemptMock(...args),
-  updateGenerationAttemptState: (...args: unknown[]) => updateGenerationAttemptStateMock(...args),
+  ensureAcceptedRunningGenerationAttempt: (...args: unknown[]) =>
+    ensureAcceptedRunningGenerationAttemptMock(...args),
 }));
 
 type TableMockConfig = {
@@ -65,12 +63,11 @@ const createAiGenerationsTableMock = (config: TableMockConfig) => {
 describe("ensureSubmittedGenerationRecord", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    ensureAcceptedGenerationAttemptMock.mockResolvedValue({
+    ensureAcceptedRunningGenerationAttemptMock.mockResolvedValue({
       ok: true,
       attemptId: "attempt-1",
       attemptNumber: 1,
     });
-    updateGenerationAttemptStateMock.mockResolvedValue({ ok: true });
   });
 
   it("queues recovery metadata and scheduling fields when inserting a fresh generation row", async () => {
@@ -102,19 +99,12 @@ describe("ensureSubmittedGenerationRecord", () => {
     });
 
     expect(result).toEqual({ ok: true, generationId: "gen-1" });
-    expect(ensureAcceptedGenerationAttemptMock).toHaveBeenCalledWith(
+    expect(ensureAcceptedRunningGenerationAttemptMock).toHaveBeenCalledWith(
       expect.objectContaining({
         generationId: "gen-1",
         userId: "user-1",
         providerRequestId: "req-1",
         dispatchSource: "direct_submit",
-      })
-    );
-    expect(updateGenerationAttemptStateMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        providerRequestId: "req-1",
-        userId: "user-1",
-        status: "running",
       })
     );
     expect(aiGenerations.insertPayloads).toHaveLength(1);
@@ -146,7 +136,7 @@ describe("ensureSubmittedGenerationRecord", () => {
       selectResponses: [{ data: [], error: null }],
       insertResponses: [{ data: { id: "gen-1" }, error: null }],
     });
-    ensureAcceptedGenerationAttemptMock.mockResolvedValueOnce({
+    ensureAcceptedRunningGenerationAttemptMock.mockResolvedValueOnce({
       ok: false,
       error: "attempt_insert_failed",
     });
@@ -172,12 +162,12 @@ describe("ensureSubmittedGenerationRecord", () => {
     expect(result).toEqual({ ok: false, error: "attempt_insert_failed" });
   });
 
-  it("fails when the accepted generation attempt cannot be marked running", async () => {
+  it("fails when the accepted generation attempt transition cannot be completed", async () => {
     const aiGenerations = createAiGenerationsTableMock({
       selectResponses: [{ data: [], error: null }],
       insertResponses: [{ data: { id: "gen-1" }, error: null }],
     });
-    updateGenerationAttemptStateMock.mockResolvedValueOnce({
+    ensureAcceptedRunningGenerationAttemptMock.mockResolvedValueOnce({
       ok: false,
       error: "attempt_running_update_failed",
     });

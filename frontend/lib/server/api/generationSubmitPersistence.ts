@@ -1,10 +1,8 @@
 import { getModelConfig } from "../../model-runtime/pricing";
 import { getSupabaseAdmin } from "./supabaseAdmin";
 import { resolveProviderFromModelId } from "../providerIntegration/providerRuntimeConfig";
-import {
-  ensureAcceptedGenerationAttempt,
-  updateGenerationAttemptState,
-} from "./generationAttempts";
+import { ensureAcceptedRunningGenerationAttempt } from "./generationAttempts";
+import { buildAcceptedRunningGenerationUpdate } from "./generationRequestTransitions";
 
 type JsonObject = Record<string, unknown>;
 
@@ -152,35 +150,6 @@ const insertGenerationWithRecoveryFallback = async (payload: JsonObject) => {
   return supabaseAdmin.from("ai_generations").insert(payload).select("id").single();
 };
 
-const ensureRunningGenerationAttemptState = async ({
-  providerRequestId,
-  userId,
-  sourceRef,
-  submitTargetUrl,
-  submitTargetIndex,
-}: {
-  providerRequestId: string;
-  userId: string;
-  sourceRef: string;
-  submitTargetUrl: string;
-  submitTargetIndex: number;
-}): Promise<{ ok: true } | { ok: false; error: string }> => {
-  const observedAt = new Date().toISOString();
-  return updateGenerationAttemptState({
-    providerRequestId,
-    userId,
-    status: "running",
-    observedAt,
-    metadata: {
-      source_ref: sourceRef,
-      submit_target_url: submitTargetUrl,
-      submit_target_index: submitTargetIndex,
-      direct_submit_at: observedAt,
-      dispatch_source: "direct_submit",
-    },
-  });
-};
-
 /**
  * Ensures a durable ai_generations row exists as soon as submit returns request_id.
  * Callers decide whether persistence failure is recoverable or must fail closed.
@@ -246,18 +215,13 @@ export const ensureSubmittedGenerationRecord = async (
         };
         const updatePayload: JsonObject = {
           mode,
-          provider,
-          model_id: input.modelId,
-          request_id: input.providerRequestId,
-          status: "running",
-          completed_at: null,
-          failure_reason_code: null,
-          recovery_state: "queued",
-          recovery_attempts: 0,
-          last_recovery_at: null,
-          next_recovery_at: nextRecoveryAtIso,
-          last_media_detected_at: null,
-          metadata: nextMetadata,
+          ...buildAcceptedRunningGenerationUpdate({
+            provider,
+            modelId: input.modelId,
+            providerRequestId: input.providerRequestId,
+            nextRecoveryAtIso,
+            metadata: nextMetadata,
+          }),
         };
         const { error } = await updateGenerationWithRecoveryFallback({
           userId: input.userId,
@@ -270,7 +234,7 @@ export const ensureSubmittedGenerationRecord = async (
             error: error.message ?? "update_existing_generation_failed",
           };
         }
-        const attemptResult = await ensureAcceptedGenerationAttempt({
+        const attemptResult = await ensureAcceptedRunningGenerationAttempt({
           generationId: existingId,
           userId: input.userId,
           provider,
@@ -278,29 +242,19 @@ export const ensureSubmittedGenerationRecord = async (
           providerRequestId: input.providerRequestId,
           dispatchSource: "direct_submit",
           submitRoute: input.routeLabel,
+          observedAt: nowIso,
           metadata: {
             source_ref: input.sourceRef,
             submit_target_url: input.submitTargetUrl,
             submit_target_index: input.submitTargetIndex,
+            direct_submit_at: nowIso,
+            dispatch_source: "direct_submit",
           },
         });
         if (!attemptResult.ok) {
           return {
             ok: false,
             error: attemptResult.error,
-          };
-        }
-        const runningAttemptResult = await ensureRunningGenerationAttemptState({
-          providerRequestId: input.providerRequestId,
-          userId: input.userId,
-          sourceRef: input.sourceRef,
-          submitTargetUrl: input.submitTargetUrl,
-          submitTargetIndex: input.submitTargetIndex,
-        });
-        if (!runningAttemptResult.ok) {
-          return {
-            ok: false,
-            error: runningAttemptResult.error,
           };
         }
         return { ok: true, generationId: existingId };
@@ -310,22 +264,17 @@ export const ensureSubmittedGenerationRecord = async (
     const insertPayload: JsonObject = {
       user_id: input.userId,
       mode,
-      provider,
-      model_id: input.modelId,
       prompt_text: promptText,
       aspect: aspect ?? null,
       duration_seconds: durationSeconds,
       resolution: resolution ?? null,
-      request_id: input.providerRequestId,
-      status: "running",
-      completed_at: null,
-      failure_reason_code: null,
-      recovery_state: "queued",
-      recovery_attempts: 0,
-      last_recovery_at: null,
-      next_recovery_at: nextRecoveryAtIso,
-      last_media_detected_at: null,
-      metadata: metadataPatch,
+      ...buildAcceptedRunningGenerationUpdate({
+        provider,
+        modelId: input.modelId,
+        providerRequestId: input.providerRequestId,
+        nextRecoveryAtIso,
+        metadata: metadataPatch,
+      }),
     };
     const { data, error } = await insertGenerationWithRecoveryFallback(insertPayload);
 
@@ -352,7 +301,7 @@ export const ensureSubmittedGenerationRecord = async (
       };
     }
 
-    const attemptResult = await ensureAcceptedGenerationAttempt({
+    const attemptResult = await ensureAcceptedRunningGenerationAttempt({
       generationId: insertedGenerationId,
       userId: input.userId,
       provider,
@@ -360,29 +309,19 @@ export const ensureSubmittedGenerationRecord = async (
       providerRequestId: input.providerRequestId,
       dispatchSource: "direct_submit",
       submitRoute: input.routeLabel,
+      observedAt: nowIso,
       metadata: {
         source_ref: input.sourceRef,
         submit_target_url: input.submitTargetUrl,
         submit_target_index: input.submitTargetIndex,
+        direct_submit_at: nowIso,
+        dispatch_source: "direct_submit",
       },
     });
     if (!attemptResult.ok) {
       return {
         ok: false,
         error: attemptResult.error,
-      };
-    }
-    const runningAttemptResult = await ensureRunningGenerationAttemptState({
-      providerRequestId: input.providerRequestId,
-      userId: input.userId,
-      sourceRef: input.sourceRef,
-      submitTargetUrl: input.submitTargetUrl,
-      submitTargetIndex: input.submitTargetIndex,
-    });
-    if (!runningAttemptResult.ok) {
-      return {
-        ok: false,
-        error: runningAttemptResult.error,
       };
     }
 

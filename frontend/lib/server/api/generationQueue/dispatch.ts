@@ -41,9 +41,10 @@ import {
 } from "../videoSubmitContracts";
 import type { GenerationControlPlaneLogContext } from "../../generationControlPlane/types";
 import {
-  ensureAcceptedGenerationAttempt,
+  ensureAcceptedRunningGenerationAttempt,
   updateGenerationAttemptState,
 } from "../generationAttempts";
+import { buildAcceptedRunningGenerationUpdate } from "../generationRequestTransitions";
 
 type JsonObject = Record<string, unknown>;
 
@@ -935,32 +936,28 @@ const processClaimedQueueItem = async ({
     const nextRecoveryAtIso = new Date(Date.now() + 2 * 60 * 1000).toISOString();
     const generationUpdate = await getSupabaseAdmin()
       .from("ai_generations")
-      .update({
-        provider,
-        request_id: providerRequestId,
-        status: "running",
-        failure_reason_code: null,
-        error_message: null,
-        completed_at: null,
-        recovery_state: "queued",
-        recovery_attempts: 0,
-        last_recovery_at: null,
-        next_recovery_at: nextRecoveryAtIso,
-        metadata: mergeGenerationMetadata(generationRow.metadata, {
-          source_ref: item.sourceRef,
-          queue_dispatched_at: dispatchAtIso,
-          queue_id: item.queueId,
-          queue_attempts: attemptNumber,
+      .update(
+        buildAcceptedRunningGenerationUpdate({
           provider,
-          provider_request_id: providerRequestId,
-          upstream_target_url: submitResult.targetUrl,
-          upstream_target_index: submitResult.targetIndex,
-          submit_webhook_url: isFalProviderKey(provider) ? webhookCallbackUrl : null,
-          submit_webhook_registered: isFalProviderKey(provider)
-            ? Boolean(webhookCallbackUrl)
-            : false,
-        }),
-      })
+          modelId: item.modelId,
+          providerRequestId,
+          nextRecoveryAtIso,
+          metadata: mergeGenerationMetadata(generationRow.metadata, {
+            source_ref: item.sourceRef,
+            queue_dispatched_at: dispatchAtIso,
+            queue_id: item.queueId,
+            queue_attempts: attemptNumber,
+            provider,
+            provider_request_id: providerRequestId,
+            upstream_target_url: submitResult.targetUrl,
+            upstream_target_index: submitResult.targetIndex,
+            submit_webhook_url: isFalProviderKey(provider) ? webhookCallbackUrl : null,
+            submit_webhook_registered: isFalProviderKey(provider)
+              ? Boolean(webhookCallbackUrl)
+              : false,
+          }),
+        })
+      )
       .eq("id", item.generationId)
       .eq("user_id", item.userId)
       .select("id");
@@ -969,7 +966,7 @@ const processClaimedQueueItem = async ({
       errorMessage: generationUpdate.error?.message ?? null,
     });
 
-    const attemptResult = await ensureAcceptedGenerationAttempt({
+    const attemptResult = await ensureAcceptedRunningGenerationAttempt({
       generationId: item.generationId,
       userId: item.userId,
       provider,
@@ -978,32 +975,32 @@ const processClaimedQueueItem = async ({
       dispatchSource: "queued_submit",
       submitRoute: item.submitRoute,
       queueId: item.queueId,
+      observedAt: dispatchAtIso,
       metadata: {
         source_ref: item.sourceRef,
+        queue_dispatch_at: dispatchAtIso,
+        queue_id: item.queueId,
         queue_attempts: attemptNumber,
+        dispatch_source: "queued_submit",
         upstream_target_url: submitResult.targetUrl,
         upstream_target_index: submitResult.targetIndex,
       },
     });
     assertGenerationAttemptRecorded({
-      ok: attemptResult.ok,
-      errorMessage: attemptResult.ok ? null : attemptResult.error,
-    });
-    const attemptRunningResult = await updateGenerationAttemptState({
-      providerRequestId,
-      userId: item.userId,
-      status: "running",
-      observedAt: dispatchAtIso,
-      metadata: {
-        queue_dispatch_at: dispatchAtIso,
-        queue_id: item.queueId,
-        queue_attempts: attemptNumber,
-        dispatch_source: "queued_submit",
-      },
+      ok: attemptResult.ok || attemptResult.stage === "running",
+      errorMessage: attemptResult.ok
+        ? null
+        : attemptResult.stage === "record"
+          ? attemptResult.error
+          : null,
     });
     assertGenerationAttemptMarkedRunning({
-      ok: attemptRunningResult.ok,
-      errorMessage: attemptRunningResult.ok ? null : attemptRunningResult.error,
+      ok: attemptResult.ok || attemptResult.stage === "record",
+      errorMessage: attemptResult.ok
+        ? null
+        : attemptResult.stage === "running"
+          ? attemptResult.error
+          : null,
     });
 
     const removeResult = await removeQueueItem(item.queueId);

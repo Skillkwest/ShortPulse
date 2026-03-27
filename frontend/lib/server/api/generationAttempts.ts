@@ -64,6 +64,25 @@ type UpdateGenerationAttemptStateInput = {
   metadata?: JsonObject;
 };
 
+type EnsureAcceptedRunningGenerationAttemptInput = EnsureAcceptedGenerationAttemptInput & {
+  observedAt?: string | null;
+  completedAt?: string | null;
+  failureReasonCode?: string | null;
+  errorMessage?: string | null;
+};
+
+export type EnsureAcceptedRunningGenerationAttemptResult =
+  | {
+      ok: true;
+      attemptId: string | null;
+      attemptNumber: number | null;
+    }
+  | {
+      ok: false;
+      error: string;
+      stage: "record" | "running";
+    };
+
 const asString = (value: unknown): string | null => {
   if (typeof value !== "string") return null;
   const trimmed = value.trim();
@@ -351,6 +370,44 @@ export const ensureAcceptedGenerationAttempt = async ({
       error: String(error),
     };
   }
+};
+
+export const ensureAcceptedRunningGenerationAttempt = async ({
+  observedAt = null,
+  completedAt = null,
+  failureReasonCode = null,
+  errorMessage = null,
+  ...attemptInput
+}: EnsureAcceptedRunningGenerationAttemptInput): Promise<EnsureAcceptedRunningGenerationAttemptResult> => {
+  const attemptResult = await ensureAcceptedGenerationAttempt(attemptInput);
+  if (!attemptResult.ok) {
+    return {
+      ok: false,
+      error: attemptResult.error,
+      stage: "record",
+    };
+  }
+
+  const runningResult = await updateGenerationAttemptState({
+    providerRequestId: attemptInput.providerRequestId,
+    userId: attemptInput.userId,
+    status: "running",
+    observedAt,
+    completedAt,
+    failureReasonCode,
+    errorMessage,
+    metadata: attemptInput.metadata,
+  });
+
+  if (!runningResult.ok) {
+    return {
+      ok: false,
+      error: runningResult.error,
+      stage: "running",
+    };
+  }
+
+  return attemptResult;
 };
 
 export const updateGenerationAttemptState = async ({

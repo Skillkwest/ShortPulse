@@ -202,7 +202,7 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
 - `id` (uuid, pk, default `gen_random_uuid()`)
 - `user_id` (uuid, default `auth.uid()`): Owner for RLS scoping.
 - `mode` (text): image | video.
-- `provider` (text): fal | kei (legacy) | ...
+- `provider` (text): fal | kie | ... (`kei` may still appear in older historical rows or legacy docs)
 - `model_id` (text): Model used to generate.
 - `prompt_text` (text): Prompt used for the generation.
 - `aspect` (text, nullable)

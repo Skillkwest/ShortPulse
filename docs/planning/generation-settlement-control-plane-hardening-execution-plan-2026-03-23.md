@@ -3,10 +3,18 @@
 Date: 2026-03-23  
 Authority: Working  
 Owner: Engineering  
-Status: Planned (implementation gated; no behavior changes executed)
+Status: Partially superseded on `working-development`
 
 ## Summary
 This plan sequences the next corrective pass for the generation pipeline after the queue/recovery audit.
+
+Branch update on 2026-03-27:
+1. `GET /api/fal/queue-status` is already read-only in runtime, so the `GSCP-S4` objective is no longer future work on this branch.
+2. Current forward execution for the canonical rebuild should follow:
+   - `docs/adr/0050-generation-pipeline-canonical-request-output-architecture.md`
+   - `docs/planning/generation-pipeline-rebuild-blueprint-2026-03-27.md`
+   - `docs/planning/generation-pipeline-rebuild-phase-1-stabilization-plan-2026-03-27.md`
+3. This document remains useful as historical context for settlement/control-plane hardening, but it is no longer the primary execution artifact for the next generation-pipeline phase on `working-development`.
 
 Primary objectives:
 1. Close accepted-submit settlement gaps so provider acceptance cannot strand a reservation or leave credits in an ambiguous state.

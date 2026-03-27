@@ -165,6 +165,8 @@ Start here for all repository documentation.
 - `docs/planning/generation-pipeline-hardening-contact-map-2026-03-16.md`
 - `docs/planning/generation-pipeline-hardening-execution-plan-2026-03-16.md`
 - `docs/planning/generation-settlement-control-plane-hardening-execution-plan-2026-03-23.md`
+- `docs/planning/generation-pipeline-rebuild-blueprint-2026-03-27.md`
+- `docs/planning/generation-pipeline-rebuild-phase-1-stabilization-plan-2026-03-27.md`
 - `docs/planning/generation-reliability-hardening-master-plan-2026-03-20.md`
 - `docs/planning/generation-reliability-hardening-master-roadmap-2026-03-20.md`
 - `docs/planning/generation-reliability-hardening-master-tracker-2026-03-20.md`
@@ -188,6 +190,7 @@ Start here for all repository documentation.
 - `docs/adr/0047-ai-studio-generation-recovery-timing-and-failure-threshold-contract.md`
 - `docs/adr/0048-generation-pipeline-control-plane-mutation-ownership.md`
 - `docs/adr/0049-ai-studio-right-rail-surface-ownership-and-media-resolution-contract.md`
+- `docs/adr/0050-generation-pipeline-canonical-request-output-architecture.md`
 - `docs/planning/media-rendering-hardening-v2-master-plan-2026-03-16.md`
 - `docs/planning/media-rendering-hardening-v2-master-roadmap-2026-03-16.md`
 - `docs/planning/media-rendering-hardening-v2-execution-tracker-2026-03-16.md`

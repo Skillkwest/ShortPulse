@@ -44,6 +44,8 @@ Purpose: active planning artifacts and current execution backlogs.
 - `generation-pipeline-hardening-tracker-spec-2026-03-16.md`: required tracker schema and evidence contract for Track P1 generation pipeline hardening slices.
 - `generation-pipeline-hardening-contact-map-2026-03-16.md`: owner/escalation contact map for Track P1, sourced from `docs/operator-map.md`.
 - `generation-pipeline-hardening-execution-plan-2026-03-16.md`: concrete Track P1 slice sequencing with command bundles, acceptance criteria, and evidence packet outputs.
+- `generation-pipeline-rebuild-blueprint-2026-03-27.md`: branch-aware target architecture and migration path for the canonical request/output rebuild on `working-development`.
+- `generation-pipeline-rebuild-phase-1-stabilization-plan-2026-03-27.md`: execution tracker for the immediate fail-closed submit and durable-linkage hardening slices.
 - `generation-reliability-hardening-master-plan-2026-03-20.md`: reliability hardening program contract focused on scheduler/control-plane health, bounded recovery behavior, and operations governance.
 - `generation-reliability-hardening-master-roadmap-2026-03-20.md`: canonical sequencing/dependency roadmap for reliability workstreams (`WR-1` through `WR-7`).
 - `generation-reliability-hardening-master-tracker-2026-03-20.md`: master tracker for reliability planning gates, workstream status, and row-level evidence readiness.

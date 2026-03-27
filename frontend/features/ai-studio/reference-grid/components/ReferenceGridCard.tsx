@@ -5,6 +5,7 @@
 import React from "react";
 import { ArrowClockwise, CheckCircle, DownloadSimple, FloppyDisk, X } from "phosphor-react";
 import { canRerollOutput } from "../../logic/generationReplay";
+import { canDragReferenceOutput } from "../../logic/referenceOutputAuthority";
 import {
   canDownloadReferenceOutput,
   canSaveReferenceOutput,
@@ -140,6 +141,8 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
     shouldShowSaveAction ||
     (onDownload && canDownloadReference && (isImagePreview || isVideoPreview))
   );
+  const canDragReference =
+    Boolean(item.previewText) || (!!cardPreviewUrl && canDragReferenceOutput(item));
   const dragPreviewKind = isImagePreview ? "image" : isVideoPreview ? "video" : "text";
   const dragImageSrc =
     dragPreviewKind === "image" ? (imageSrc ?? cardPreviewUrl ?? undefined) : undefined;
@@ -174,7 +177,7 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
         }
       }}
       onDoubleClick={() => onOpenDetails(item.id)}
-      draggable={!!cardPreviewUrl || !!item.previewText}
+      draggable={canDragReference}
       onDragStart={(event) => {
         onCardDragStart(event, item, dragSourceSurface);
       }}

@@ -1,4 +1,5 @@
 import { StudioOutput } from "../types";
+import { canExposeDirectReferenceUrls } from "../logic/referenceOutputAuthority";
 import { isVideoUrl } from "../logic/stateParsers";
 import { isRenderableAdaptiveUrl } from "../../../lib/adaptive-media";
 import { INTERNAL_REFERENCE_DRAG_ORIGIN } from "../../../lib/internalReferenceDragPayload";
@@ -662,8 +663,13 @@ export const prepareReferenceDrag = (
   const promptText = dedupeText(output.prompt ?? output.previewText);
   const dragNode = options?.dragImage ?? (event.currentTarget as HTMLElement);
   const previewDataset = readReferenceDragPreviewDataset(dragNode);
-  const previewUrl = resolveReferenceTransferUrl(output, output.mode === "video" ? "video" : "any");
-  const imagePreviewUrl = resolveReferenceTransferUrl(output, "image");
+  const allowDirectReferenceUrls = canExposeDirectReferenceUrls(output);
+  const previewUrl = allowDirectReferenceUrls
+    ? resolveReferenceTransferUrl(output, output.mode === "video" ? "video" : "any")
+    : null;
+  const imagePreviewUrl = allowDirectReferenceUrls
+    ? resolveReferenceTransferUrl(output, "image")
+    : null;
   const datasetImageUrl = normalizeReferenceTransferUrlCandidate(previewDataset.imageSrc);
   const datasetPreviewUrl = normalizeReferenceTransferUrlCandidate(previewDataset.previewUrl);
   const datasetSnapshotUrl = normalizeReferenceTransferUrlCandidate(previewDataset.snapshotSrc);
@@ -704,8 +710,8 @@ export const prepareReferenceDrag = (
     outputId: output.id?.trim() || null,
     imageIndex,
     mediaId: referenceMediaId ?? null,
-    referenceUrl: resolvedReferenceTransferUrl ?? null,
-    referenceRenderUrl: resolvedRenderedTransferUrl ?? null,
+    referenceUrl: allowDirectReferenceUrls ? (resolvedReferenceTransferUrl ?? null) : null,
+    referenceRenderUrl: allowDirectReferenceUrls ? (resolvedRenderedTransferUrl ?? null) : null,
     sourceSurface,
     ...(naturalWidth > 0 ? { width: naturalWidth } : {}),
     ...(naturalHeight > 0 ? { height: naturalHeight } : {}),
@@ -715,14 +721,14 @@ export const prepareReferenceDrag = (
   }
   transfer.setData(INTERNAL_REFERENCE_DRAG_SESSION_TYPE, dragSessionToken);
   transfer.setData(INTERNAL_REFERENCE_DRAG_SESSION_TEXT_TYPE, dragSessionToken);
-  if (resolvedReferenceTransferUrl) {
+  if (allowDirectReferenceUrls && resolvedReferenceTransferUrl) {
     transfer.setData("text/uri-list", resolvedReferenceTransferUrl);
     transfer.setData("text/reference-url", resolvedReferenceTransferUrl);
   }
-  if (resolvedImageTransferUrl) {
+  if (allowDirectReferenceUrls && resolvedImageTransferUrl) {
     transfer.setData("image/url", resolvedImageTransferUrl);
   }
-  if (resolvedRenderedTransferUrl) {
+  if (allowDirectReferenceUrls && resolvedRenderedTransferUrl) {
     transfer.setData(REFERENCE_TRANSFER_RENDER_URL_TYPE, resolvedRenderedTransferUrl);
   }
   if (output.id) {
@@ -743,7 +749,7 @@ export const prepareReferenceDrag = (
   if (promptText) {
     transfer.setData("text/plain", promptText);
     transfer.setData("text/prompt", promptText);
-  } else if (resolvedReferenceTransferUrl) {
+  } else if (allowDirectReferenceUrls && resolvedReferenceTransferUrl) {
     transfer.setData("text/plain", resolvedReferenceTransferUrl);
   }
 

@@ -492,6 +492,81 @@ describe("dragDrop payload extraction", () => {
     clearDragState(event as unknown as Parameters<typeof clearDragState>[0]);
   });
 
+  it("does not export raw provider urls for generated outputs without storage authority", () => {
+    const { event, dragNode, setData } = makeDragEvent();
+    dragNode.dataset.dragPreviewKind = "image";
+    dragNode.dataset.dragImageSrc = "data:image/jpeg;base64,generated-render";
+
+    prepareReferenceDrag(
+      event,
+      {
+        id: "out-generated-tracked",
+        prompt: "Prompt",
+        mode: "image",
+        aspect: "1:1",
+        model: "Model",
+        status: "ready",
+        timestamp: "Now",
+        mediaSource: "generated",
+        generationId: "gen-1",
+        previewUrl: "https://provider.example.com/generated.png",
+      },
+      { sourceSurface: "all-refs" }
+    );
+
+    expect(setData).not.toHaveBeenCalledWith(
+      "text/reference-url",
+      "https://provider.example.com/generated.png"
+    );
+    expect(setData).not.toHaveBeenCalledWith("image/url", expect.any(String));
+
+    const dragSessionToken = setData.mock.calls.find(
+      ([type]) => type === INTERNAL_REFERENCE_DRAG_SESSION_TYPE
+    )?.[1];
+    const payload = extractInternalReferenceDragPayload({
+      files: emptyFileList,
+      types: [INTERNAL_REFERENCE_DRAG_SESSION_TYPE],
+      getData: (type: string) =>
+        type === INTERNAL_REFERENCE_DRAG_SESSION_TYPE ? dragSessionToken : "",
+    } as unknown as DataTransfer);
+
+    expect(payload?.outputId).toBe("out-generated-tracked");
+    expect(payload?.referenceUrl).toBeNull();
+    expect(payload?.referenceRenderUrl).toBeNull();
+
+    clearDragState(event as unknown as Parameters<typeof clearDragState>[0]);
+  });
+
+  it("continues exporting direct urls for storage-backed generated outputs", () => {
+    const { event, setData } = makeDragEvent();
+
+    prepareReferenceDrag(
+      event,
+      {
+        id: "out-generated-storage",
+        prompt: "Prompt",
+        mode: "image",
+        aspect: "1:1",
+        model: "Model",
+        status: "ready",
+        timestamp: "Now",
+        mediaSource: "generated",
+        generationId: "gen-2",
+        previewStoragePath: "https://example.com/storage-preview.png",
+        fullStoragePath: "https://example.com/storage-full.png",
+      },
+      { sourceSurface: "all-refs" }
+    );
+
+    expect(setData).toHaveBeenCalledWith(
+      "text/reference-url",
+      "https://example.com/storage-full.png"
+    );
+    expect(setData).toHaveBeenCalledWith("image/url", "https://example.com/storage-full.png");
+
+    clearDragState(event as unknown as Parameters<typeof clearDragState>[0]);
+  });
+
   it("extracts optional dimension metadata from internal reference payloads", () => {
     const transfer = makeTransfer({
       "text/reference-origin": INTERNAL_REFERENCE_DRAG_ORIGIN,

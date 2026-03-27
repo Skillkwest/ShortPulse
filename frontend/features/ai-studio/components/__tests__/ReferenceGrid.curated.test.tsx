@@ -216,6 +216,34 @@ describe("ReferenceGrid curated split", () => {
     expect(telemetryRoot?.getAttribute("data-grid-adaptive-preview-enabled")).toBe("false");
   });
 
+  it("keeps weakly tracked generated outputs previewable but not draggable", () => {
+    const generatedOutput: StudioOutput = {
+      id: "out-generated-weak",
+      prompt: "Generated weak output",
+      mode: "image",
+      aspect: "1:1",
+      model: "Model",
+      status: "ready",
+      timestamp: "Now",
+      mediaSource: "generated",
+      previewUrl: "https://provider.example.com/generated-weak.png",
+    };
+
+    const { container } = render(
+      <ReferenceGrid
+        {...createProps({
+          outputs: [generatedOutput],
+          activeOutputId: "out-generated-weak",
+        })}
+      />
+    );
+
+    const card = container.querySelector(".reference-card") as HTMLDivElement | null;
+    expect(card).toBeTruthy();
+    expect(card?.classList.contains("has-preview")).toBe(true);
+    expect(card?.draggable).toBe(false);
+  });
+
   it("renders a top warning row above all reference cards when provided", () => {
     const message = "4 max concurrent generations. Wait for one to finish before starting another.";
     const { container } = render(<ReferenceGrid {...createProps({ topNotice: message })} />);

@@ -150,7 +150,7 @@ const insertGenerationWithRecoveryFallback = async (payload: JsonObject) => {
 
 /**
  * Ensures a durable ai_generations row exists as soon as submit returns request_id.
- * This is server-authoritative and intentionally best-effort to avoid user-facing regressions.
+ * Callers decide whether persistence failure is recoverable or must fail closed.
  */
 export const ensureSubmittedGenerationRecord = async (
   input: SubmitPersistenceInput

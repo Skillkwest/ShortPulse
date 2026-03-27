@@ -105,11 +105,18 @@ Safety checks:
 - Admission enforcement is authoritative only in reservation billing mode.
 - Queue mode (`SHORTPULSE_FAL_QUEUE_ENABLED=true`) accepts over-cap submits as `202 GENERATION_QUEUED` and holds reservations until queue dispatch succeeds or exhausts.
 - Submit rejection/transport failure auto-releases reservation (no debit posted).
+- Admission evaluation failures after reservation now fail closed with:
+  - `503`
+  - `code: GENERATION_ADMISSION_UNAVAILABLE`
+  - immediate refund and `Retry-After`
 - If admission mode is `enforce` and billing falls back to direct debit, submit fails closed with:
   - `503`
   - `code: GENERATION_ADMISSION_UNAVAILABLE`
   - immediate refund and `Retry-After`.
 - Successful submit records `provider_request_id` on the reservation/charge context.
+- Accepted submit returns success only when both the charge context and `ai_generations` row are durably linked to the provider request id; otherwise submit compensates and returns:
+  - `500`
+  - `code: GENERATION_SUBMIT_TRACKING_FAILED`
 - Kie submit routes also persist `taskId` as `provider_request_id` on the charge context for ownership checks during status polling.
 - Status polling denies requests unless provider request ownership resolves as `owned` for the caller.
 - Webhook/recovery routes settle generation outcomes idempotently by `provider_request_id`:

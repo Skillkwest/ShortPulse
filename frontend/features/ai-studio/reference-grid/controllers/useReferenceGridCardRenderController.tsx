@@ -4,12 +4,14 @@
  */
 import React, { useCallback } from "react";
 import { ReferenceGridCard } from "../components/ReferenceGridCard";
+import type { ReferenceGridMediaAuthorityTier } from "../../logic/referenceGridMedia";
 import type { StudioOutput } from "../../types";
 import type { ReferenceDragSourceSurface } from "../../utils/dragDrop";
 import { isReferenceOutputFailing } from "../logic/referenceGridLoadingState";
 
 export type ReferenceGridVisibleCard = {
   item: StudioOutput;
+  authorityTier: ReferenceGridMediaAuthorityTier;
   cardPreviewUrl: string | null;
   isVideoPreview: boolean;
   isImagePreview: boolean;
@@ -142,6 +144,7 @@ export const useReferenceGridCardRenderController = ({
           dragSourceSurface={options.surface}
           videoNodeKey={videoNodeKey}
           activeOutputId={activeOutputId}
+          authorityTier={card.authorityTier}
           isLoading={isCardLoading}
           loadingVisual={loadingVisual}
           cardPreviewUrl={card.cardPreviewUrl}

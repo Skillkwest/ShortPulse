@@ -10,11 +10,13 @@ import {
   canDownloadReferenceOutput,
   canSaveReferenceOutput,
 } from "../../logic/referenceActionAvailability";
+import type { ReferenceGridMediaAuthorityTier } from "../../logic/referenceGridMedia";
 import type { ReferenceDragSourceSurface } from "../../utils/dragDrop";
 import type { StudioOutput } from "../../types";
 
 export type ReferenceGridCardProps = {
   item: StudioOutput;
+  authorityTier: ReferenceGridMediaAuthorityTier;
   dragSourceSurface: ReferenceDragSourceSurface;
   videoNodeKey: string;
   activeOutputId: string | null;
@@ -86,6 +88,7 @@ const renderSaveChip = (item: StudioOutput, isSelected: boolean) => {
  */
 export const ReferenceGridCard = React.memo(function ReferenceGridCard({
   item,
+  authorityTier,
   dragSourceSurface,
   videoNodeKey,
   activeOutputId,
@@ -159,6 +162,7 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
       role="button"
       aria-busy={isLoading}
       data-loading={isLoading ? "true" : "false"}
+      data-reference-authority-tier={authorityTier}
       data-drag-preview-url={cardPreviewUrl ?? undefined}
       data-drag-image-src={dragImageSrc}
       data-drag-preview-kind={dragPreviewKind}

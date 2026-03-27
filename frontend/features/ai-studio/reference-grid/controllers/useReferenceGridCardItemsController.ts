@@ -3,7 +3,10 @@
  * Resolves card URLs and hydration-aware image sources for visible card rows.
  */
 import { useCallback, useMemo } from "react";
-import type { ReferenceGridPreviewQualityBand } from "../../logic/referenceGridMedia";
+import type {
+  ReferenceGridMediaAuthorityTier,
+  ReferenceGridPreviewQualityBand,
+} from "../../logic/referenceGridMedia";
 import type { StudioOutput } from "../../types";
 import {
   hasAdaptiveQueryParams,
@@ -17,6 +20,7 @@ export type ReferenceGridVisibleCardItem = {
   item: StudioOutput;
   surface: "all-refs" | "curated";
   mediaSurface: "reference-grid" | "quick-slot";
+  authorityTier: ReferenceGridMediaAuthorityTier;
   cardPreviewUrl: string | null;
   fallbackUrl: string | null;
   previewQualityBand: ReferenceGridPreviewQualityBand;
@@ -129,6 +133,7 @@ export const useReferenceGridCardItemsController = ({
           item,
           surface: options.visualSurface,
           mediaSurface: options.mediaSurface,
+          authorityTier: resolvedMedia.authorityTier,
           cardPreviewUrl: resolvedMedia.previewUrl,
           fallbackUrl: resolvedMedia.fallbackUrl,
           previewQualityBand: resolvedMedia.previewQualityBand,

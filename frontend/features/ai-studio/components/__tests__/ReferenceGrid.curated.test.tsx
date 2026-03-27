@@ -242,6 +242,7 @@ describe("ReferenceGrid curated split", () => {
     expect(card).toBeTruthy();
     expect(card?.classList.contains("has-preview")).toBe(true);
     expect(card?.draggable).toBe(false);
+    expect(card?.getAttribute("data-reference-authority-tier")).toBe("preview-only");
   });
 
   it("renders a top warning row above all reference cards when provided", () => {

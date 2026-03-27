@@ -13,6 +13,11 @@ type MediaFileRow = {
   filename?: unknown;
 };
 
+type GenerationOutputRow = {
+  media_file_id?: unknown;
+  output_index?: unknown;
+};
+
 export type ResolvedReferenceDownloadTarget = {
   fileRecord: {
     storagePath: string;
@@ -192,6 +197,29 @@ const resolveLatestMediaFileByGenerationId = async (
   return toMediaFileRecord(row);
 };
 
+const resolveLatestMediaFileByCanonicalGenerationOutputs = async (
+  supabase: SupabaseClient,
+  generationId: string
+): Promise<ResolvedReferenceDownloadTarget["fileRecord"]> => {
+  const { data, error } = await supabase
+    .from("ai_generation_outputs")
+    .select("media_file_id, output_index")
+    .eq("generation_id", generationId)
+    .order("output_index", { ascending: true })
+    .limit(50);
+  if (error) {
+    throw new Error(error.message || "Failed to resolve canonical generated media output.");
+  }
+  const mediaIds = (Array.isArray(data) ? data : [])
+    .map((row) => {
+      const outputRow = row as GenerationOutputRow;
+      return asTrimmedString(outputRow.media_file_id);
+    })
+    .filter((value): value is string => Boolean(value));
+  if (!mediaIds.length) return null;
+  return await resolveLatestMediaFileBySavedIds(supabase, mediaIds);
+};
+
 /**
  * Resolve the best available storage-backed download target for a reference output.
  */
@@ -238,6 +266,23 @@ export const resolveReferenceDownloadTarget = async ({
     return {
       fileRecord: null,
       generationId: null,
+      directUrl,
+    };
+  }
+
+  let canonicalGeneratedFileRecord: ResolvedReferenceDownloadTarget["fileRecord"] = null;
+  try {
+    canonicalGeneratedFileRecord = await resolveLatestMediaFileByCanonicalGenerationOutputs(
+      supabase,
+      generationId
+    );
+  } catch {
+    canonicalGeneratedFileRecord = null;
+  }
+  if (canonicalGeneratedFileRecord) {
+    return {
+      fileRecord: canonicalGeneratedFileRecord,
+      generationId,
       directUrl,
     };
   }

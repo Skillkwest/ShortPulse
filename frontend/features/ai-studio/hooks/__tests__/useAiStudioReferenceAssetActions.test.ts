@@ -31,6 +31,7 @@ type MockQueryResult = {
 type SupabaseMockConfig = {
   mediaResults?: MockQueryResult[];
   generationResults?: MockQueryResult[];
+  generationOutputResults?: MockQueryResult[];
   storageDownloadResult?: {
     data: Blob | null;
     error: { message: string } | null;
@@ -40,6 +41,7 @@ type SupabaseMockConfig = {
 const createSupabaseMock = ({
   mediaResults = [],
   generationResults = [],
+  generationOutputResults = [],
   storageDownloadResult = { data: new Blob(["file"], { type: "image/png" }), error: null },
 }: SupabaseMockConfig = {}) => {
   const createBuilder = (result: MockQueryResult) => {
@@ -64,7 +66,9 @@ const createSupabaseMock = ({
       const result =
         table === "ai_generations"
           ? (generationResults.shift() ?? { data: [], error: null })
-          : (mediaResults.shift() ?? { data: [], error: null });
+          : table === "ai_generation_outputs"
+            ? (generationOutputResults.shift() ?? { data: [], error: null })
+            : (mediaResults.shift() ?? { data: [], error: null });
       return createBuilder(result);
     }),
   }));
@@ -192,6 +196,17 @@ describe("useAiStudioReferenceAssetActions", () => {
 
   it("downloads media via generation id when saved ids are absent", async () => {
     const { supabase, from, storageDownload } = createSupabaseMock({
+      generationOutputResults: [
+        {
+          data: [
+            {
+              media_file_id: "media-generation-output-1",
+              output_index: 0,
+            },
+          ],
+          error: null,
+        },
+      ],
       mediaResults: [
         {
           data: [
@@ -225,6 +240,7 @@ describe("useAiStudioReferenceAssetActions", () => {
     });
 
     expect(from).toHaveBeenCalledWith("media_files");
+    expect(from).toHaveBeenCalledWith("ai_generation_outputs");
     expect(storageDownload).toHaveBeenCalledWith("user-1/generations/images/by-generation.jpg");
     expect(click).toHaveBeenCalledTimes(1);
   });

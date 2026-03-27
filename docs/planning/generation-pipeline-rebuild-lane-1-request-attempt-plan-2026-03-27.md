@@ -158,10 +158,11 @@ Lane 1 is complete when:
 ## Implementation Done State
 Lane 1 implementation is done when:
 1. accepted submit and queued dispatch write canonical attempt lineage
-2. billing ownership and settlement prefer attempts over legacy request-id repair
-3. request-id repair and recovery lookup prefer attempts over legacy `ai_generations.request_id`
-4. queue status and active-capacity reads prefer attempts where provider request ownership matters
-5. any remaining direct dependence on `ai_generations.request_id` is explicitly categorized as:
+2. direct submit, queued dispatch, queue reconcile, and recovery all mutate attempt state explicitly where provider lifecycle state is known
+3. billing ownership and settlement prefer attempts over legacy request-id repair
+4. request-id repair and recovery lookup prefer attempts over legacy `ai_generations.request_id`
+5. queue status and active-capacity reads prefer attempts where provider request ownership matters
+6. any remaining direct dependence on `ai_generations.request_id` is explicitly categorized as:
    - compatibility-only, or
    - part of a later state-transition refactor
 
@@ -169,17 +170,26 @@ Lane 1 implementation is done when:
 Current implemented coverage:
 1. direct submit accepted-path attempt writes
 2. queued dispatch accepted-path attempt writes
-3. billing ownership and settlement prefer attempts
-4. request-id repair prefers attempts
-5. recovery lookup prefers attempts
-6. active-capacity reads prefer attempts
-7. queue-status reads prefer attempts
+3. direct submit promotes attempts to `running`
+4. queued dispatch promotes attempts to `running`
+5. queue reconcile reasserts attempt `running` state when `request_id` already exists
+6. recovery updates attempts through `running | succeeded | failed | timed_out`
+7. billing ownership and settlement prefer attempts
+8. request-id repair prefers attempts
+9. recovery lookup prefers attempts
+10. active-capacity reads prefer attempts
+11. queue-status reads prefer attempts
 
 Open question before more implementation:
-1. whether the remaining `ai_generations.request_id` seams are still Lane 1 authority work
-2. or whether they belong to the broader request/attempt state-transition refactor that should be treated as the next milestone rather than another narrow compatibility slice
+1. whether the next step should be a centralized request/attempt transition helper
+2. or whether Lane 1 should stop here and treat that helper/state-machine work as the next milestone rather than more seam-by-seam mutation cleanup
+
+Current judgment:
+1. Lane 1 has crossed its “narrow seam” threshold
+2. further small compatibility or per-callsite attempt updates would have lower ROI than a broader transition-helper refactor
+3. the next Lane 1 implementation should proceed only if it centralizes request-state and attempt-state mutation more materially than the slices already landed
 
 ## Lane 1 Status
 1. Planning-complete
-2. Implementation checkpoint complete
-3. Paused at done-state boundary pending broader state-transition refactor decision
+2. Implementation checkpoint refreshed
+3. Paused at the boundary between seam hardening and broader state-transition refactor

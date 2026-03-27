@@ -45,6 +45,8 @@ Purpose: active planning artifacts and current execution backlogs.
 - `generation-pipeline-hardening-contact-map-2026-03-16.md`: owner/escalation contact map for Track P1, sourced from `docs/operator-map.md`.
 - `generation-pipeline-hardening-execution-plan-2026-03-16.md`: concrete Track P1 slice sequencing with command bundles, acceptance criteria, and evidence packet outputs.
 - `generation-pipeline-rebuild-blueprint-2026-03-27.md`: branch-aware target architecture and migration path for the canonical request/output rebuild on `working-development`.
+- `generation-pipeline-rebuild-master-roadmap-2026-03-27.md`: lightweight master roadmap for the remaining rebuild lanes after runtime-authority hardening.
+- `generation-pipeline-rebuild-lane-1-request-attempt-plan-2026-03-27.md`: active planning lane for the request/attempt state-machine redesign that must precede backfill and broad read-model cutover.
 - `generation-pipeline-rebuild-phase-1-stabilization-plan-2026-03-27.md`: completed checkpoint for the initial fail-closed submit and durable-linkage hardening slices.
 - `generation-pipeline-rebuild-phase-2-read-authority-plan-2026-03-27.md`: completed execution tracker for generated-output read-authority tightening before schema introduction.
 - `generation-pipeline-rebuild-phase-3-canonical-output-plan-2026-03-27.md`: active execution tracker for additive canonical output schema introduction and server-read cutover.

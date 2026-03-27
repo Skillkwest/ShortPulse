@@ -83,6 +83,13 @@ describe("createFalStatusHandler", () => {
   });
 
   it("forces terminal completed status when media is recovered from response_url payload", async () => {
+    persistedGenerationRows = [
+      {
+        id: "gen-1",
+        status: "processing",
+        metadata: {},
+      },
+    ];
     const fetchMock = vi
       .fn()
       .mockResolvedValueOnce(
@@ -127,11 +134,13 @@ describe("createFalStatusHandler", () => {
       status: string;
       state: string;
       request_id: string;
+      generationId?: string;
       data?: { images?: Array<{ url?: string }> };
     };
     expect(payload.status).toBe("completed");
     expect(payload.state).toBe("completed");
     expect(payload.request_id).toBe("req-1");
+    expect(payload.generationId).toBe("gen-1");
     expect(payload.data?.images?.[0]?.url).toBe("https://cdn.shortpulse.test/seedream-image.png");
     expect(logGenerationFailureMock).not.toHaveBeenCalled();
   });
@@ -140,6 +149,7 @@ describe("createFalStatusHandler", () => {
     process.env.KIE_API_KEY = "test-kie-key";
     persistedGenerationRows = [
       {
+        id: "gen-persisted-success-1",
         status: "success",
         metadata: {
           result_urls: ["https://cdn.shortpulse.test/persisted-result.mp4"],
@@ -171,6 +181,7 @@ describe("createFalStatusHandler", () => {
     expect(res.json).toHaveBeenCalledWith(
       expect.objectContaining({
         request_id: "req-persisted-success",
+        generationId: "gen-persisted-success-1",
         status: "completed",
         state: "completed",
         resultUrls: ["https://cdn.shortpulse.test/persisted-result.mp4"],
@@ -185,6 +196,7 @@ describe("createFalStatusHandler", () => {
     delete process.env.SHORTPULSE_KIE_API_KEY;
     persistedGenerationRows = [
       {
+        id: "gen-persisted-without-key-1",
         status: "success",
         metadata: {
           result_urls: ["https://cdn.shortpulse.test/persisted-no-key.mp4"],
@@ -216,6 +228,7 @@ describe("createFalStatusHandler", () => {
     expect(res.json).toHaveBeenCalledWith(
       expect.objectContaining({
         request_id: "req-persisted-without-key",
+        generationId: "gen-persisted-without-key-1",
         status: "completed",
         state: "completed",
         resultUrls: ["https://cdn.shortpulse.test/persisted-no-key.mp4"],

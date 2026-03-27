@@ -7,6 +7,8 @@ import type { StudioOutput } from "../../types";
 export type PollStatus = {
   status?: unknown;
   state?: unknown;
+  generationId?: unknown;
+  generation_id?: unknown;
   data?: { status?: unknown; state?: unknown; result?: { status?: unknown; state?: unknown } };
   result?: { status?: unknown; state?: unknown };
   output?: { status?: unknown; state?: unknown };
@@ -193,6 +195,34 @@ export const resolveProviderStatusState = (status: PollStatus): ProviderStatusSt
     status?.data?.result?.status != null ||
     status?.data?.result?.state != null;
   return { state, hasExplicitState };
+};
+
+export const resolvePollStatusGenerationId = (status: PollStatus): string | null => {
+  const readCandidate = (value: unknown): string | null =>
+    typeof value === "string" && value.trim().length > 0 ? value.trim() : null;
+  const dataRecord =
+    status?.data && typeof status.data === "object"
+      ? (status.data as Record<string, unknown>)
+      : null;
+  const resultRecord =
+    status?.result && typeof status.result === "object"
+      ? (status.result as Record<string, unknown>)
+      : null;
+  const outputRecord =
+    status?.output && typeof status.output === "object"
+      ? (status.output as Record<string, unknown>)
+      : null;
+  return (
+    readCandidate(status?.generationId) ??
+    readCandidate(status?.generation_id) ??
+    readCandidate(dataRecord?.generationId) ??
+    readCandidate(dataRecord?.generation_id) ??
+    readCandidate(resultRecord?.generationId) ??
+    readCandidate(resultRecord?.generation_id) ??
+    readCandidate(outputRecord?.generationId) ??
+    readCandidate(outputRecord?.generation_id) ??
+    null
+  );
 };
 
 type ProviderSuccessClassificationInput = {

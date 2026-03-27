@@ -73,28 +73,38 @@ export const buildFalStatusErrorPayload = ({
   requestId,
   error,
   detail,
+  generationId,
 }: {
   requestId: string;
   error: string;
   detail?: unknown;
+  generationId?: string | null;
 }): JsonObject => ({
   status: "error",
   state: "error",
   error,
   detail: detail ?? error,
   request_id: requestId,
+  ...(typeof generationId === "string" && generationId.trim().length > 0
+    ? { generationId: generationId.trim() }
+    : {}),
 });
 
 export const buildFalStatusTransientPayload = ({
   requestId,
   detail,
+  generationId,
 }: {
   requestId: string;
   detail?: unknown;
+  generationId?: string | null;
 }): JsonObject => ({
   status: "IN_PROGRESS",
   state: "running",
   request_id: requestId,
+  ...(typeof generationId === "string" && generationId.trim().length > 0
+    ? { generationId: generationId.trim() }
+    : {}),
   ...(detail !== undefined ? { transient_detail: detail } : {}),
 });
 

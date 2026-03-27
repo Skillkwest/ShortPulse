@@ -9,7 +9,7 @@ import { readFalRuntimeFlags } from "./falRuntimeFlags";
 import { resolveProviderRequestOwnership } from "./generationBilling";
 import {
   buildPersistedCompletedPayload,
-  readPersistedSuccessResultUrls,
+  readPersistedGenerationStatusContext,
 } from "./falStatusPersistedResults";
 import type { ResultProbeCandidate, StatusProbeCandidate } from "../falIntegration/contracts";
 import {
@@ -60,6 +60,7 @@ const respondError = ({
   detail,
   alwaysHttp200,
   statusCode,
+  generationId,
 }: {
   res: NextApiResponse;
   requestId: string;
@@ -67,9 +68,12 @@ const respondError = ({
   detail?: unknown;
   alwaysHttp200: boolean;
   statusCode?: number;
+  generationId?: string | null;
 }) => {
   const code = alwaysHttp200 ? 200 : (statusCode ?? 500);
-  return res.status(code).json(buildFalStatusErrorPayload({ requestId, error, detail }));
+  return res
+    .status(code)
+    .json(buildFalStatusErrorPayload({ requestId, error, detail, generationId }));
 };
 
 /**
@@ -127,15 +131,26 @@ export const createFalStatusHandler = ({
       return res.status(403).json({ error: "Forbidden" });
     }
 
-    const persistedResultUrls = await readPersistedSuccessResultUrls({
+    const persistedGenerationContext = await readPersistedGenerationStatusContext({
       userId: user.id,
       requestId,
     });
-    if (persistedResultUrls.length > 0) {
+    const generationId = persistedGenerationContext.generationId;
+    const attachGenerationId = (payload: JsonObject): JsonObject => {
+      if (!generationId) return payload;
+      const existingGenerationId = asProviderString(payload.generationId);
+      if (existingGenerationId) return payload;
+      return {
+        ...payload,
+        generationId,
+      };
+    };
+    if (persistedGenerationContext.resultUrls.length > 0) {
       return res.status(200).json(
         buildPersistedCompletedPayload({
           requestId,
-          resultUrls: persistedResultUrls,
+          resultUrls: persistedGenerationContext.resultUrls,
+          generationId,
         })
       );
     }
@@ -190,6 +205,7 @@ export const createFalStatusHandler = ({
         detail,
         alwaysHttp200,
         statusCode,
+        generationId,
       });
     };
 
@@ -278,6 +294,7 @@ export const createFalStatusHandler = ({
           detail: {
             stage,
           },
+          generationId,
         })
       );
     };
@@ -306,7 +323,7 @@ export const createFalStatusHandler = ({
         payloadStatus: string;
       }) => {
         return res.status(200).json({
-          ...payload,
+          ...attachGenerationId(payload),
           status: payloadStatus,
           state: payloadStatus,
           request_id: requestId,
@@ -490,7 +507,9 @@ export const createFalStatusHandler = ({
             payload: statusData.json,
           })
         ) {
-          return res.status(alwaysHttp200 ? 200 : statusResp.status).json(statusData.json);
+          return res
+            .status(alwaysHttp200 ? 200 : statusResp.status)
+            .json(attachGenerationId(statusData.json));
         }
         return respondErrorWithLogging({
           requestId,
@@ -544,7 +563,9 @@ export const createFalStatusHandler = ({
             payloadStatus: "completed",
           });
         }
-        return res.status(alwaysHttp200 ? 200 : statusResp.status).json(statusData.json);
+        return res
+          .status(alwaysHttp200 ? 200 : statusResp.status)
+          .json(attachGenerationId(statusData.json));
       }
 
       // Some Fal models return terminal status payloads that already include media while
@@ -629,7 +650,9 @@ export const createFalStatusHandler = ({
       // Treat a full sweep of retryable alias responses (404/405) as
       // transient so polling can continue instead of settling terminal failure.
       if (!resultCandidates.length) {
-        return res.status(alwaysHttp200 ? 200 : statusResp.status).json(statusData.json);
+        return res
+          .status(alwaysHttp200 ? 200 : statusResp.status)
+          .json(attachGenerationId(statusData.json));
       }
 
       const bestResultProbe = selectBestProviderResultCandidate({
@@ -662,7 +685,9 @@ export const createFalStatusHandler = ({
             payload: resultData.json,
           })
         ) {
-          return res.status(alwaysHttp200 ? 200 : statusResp.status).json(statusData.json);
+          return res
+            .status(alwaysHttp200 ? 200 : statusResp.status)
+            .json(attachGenerationId(statusData.json));
         }
         if (statusTransientFailuresEnabled) {
           return respondTransientWithTelemetry({
@@ -705,7 +730,9 @@ export const createFalStatusHandler = ({
             payload: resultData.json,
           })
         ) {
-          return res.status(alwaysHttp200 ? 200 : statusResp.status).json(statusData.json);
+          return res
+            .status(alwaysHttp200 ? 200 : statusResp.status)
+            .json(attachGenerationId(statusData.json));
         }
         return respondErrorWithLogging({
           requestId,

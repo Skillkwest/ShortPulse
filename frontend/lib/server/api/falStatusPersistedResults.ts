@@ -6,6 +6,11 @@ type PersistedResultsParams = {
   supabaseAdmin?: ReturnType<typeof getSupabaseAdmin>;
 };
 
+export type PersistedGenerationStatusContext = {
+  generationId: string | null;
+  resultUrls: string[];
+};
+
 const toResultUrlList = (value: unknown): string[] => {
   if (!Array.isArray(value)) return [];
   return value
@@ -44,11 +49,16 @@ export const readPersistedResultUrlsFromMetadata = (metadata: unknown): string[]
 export const buildPersistedCompletedPayload = ({
   requestId,
   resultUrls,
+  generationId,
 }: {
   requestId: string;
   resultUrls: string[];
+  generationId?: string | null;
 }) => ({
   request_id: requestId,
+  ...(typeof generationId === "string" && generationId.trim().length > 0
+    ? { generationId: generationId.trim() }
+    : {}),
   status: "completed",
   state: "completed",
   resultUrls,
@@ -56,40 +66,59 @@ export const buildPersistedCompletedPayload = ({
   videos: resultUrls.map((url) => ({ url })),
 });
 
-export const readPersistedSuccessResultUrls = async ({
+export const readPersistedGenerationStatusContext = async ({
   userId,
   requestId,
   supabaseAdmin,
-}: PersistedResultsParams): Promise<string[]> => {
+}: PersistedResultsParams): Promise<PersistedGenerationStatusContext> => {
   let adminClient = supabaseAdmin;
   if (!adminClient) {
     try {
       adminClient = getSupabaseAdmin();
     } catch {
-      return [];
+      return { generationId: null, resultUrls: [] };
     }
   }
 
   try {
     const { data, error } = await adminClient
       .from("ai_generations")
-      .select("status, metadata, created_at")
+      .select("id, status, metadata, created_at")
       .eq("user_id", userId)
       .eq("request_id", requestId)
       .order("created_at", { ascending: false })
       .limit(5);
-    if (error || !Array.isArray(data) || !data.length) return [];
+    if (error || !Array.isArray(data) || !data.length) {
+      return { generationId: null, resultUrls: [] };
+    }
 
+    let generationId: string | null = null;
     for (const item of data) {
       if (!item || typeof item !== "object" || Array.isArray(item)) continue;
       const row = item as Record<string, unknown>;
+      if (!generationId && typeof row.id === "string" && row.id.trim().length > 0) {
+        generationId = row.id.trim();
+      }
       const status = typeof row.status === "string" ? row.status.trim().toLowerCase() : null;
       if (status !== "success") continue;
       const urls = readPersistedResultUrlsFromMetadata(row.metadata);
-      if (urls.length) return urls;
+      if (urls.length) return { generationId, resultUrls: urls };
     }
-    return [];
+    return { generationId, resultUrls: [] };
   } catch {
-    return [];
+    return { generationId: null, resultUrls: [] };
   }
+};
+
+export const readPersistedSuccessResultUrls = async ({
+  userId,
+  requestId,
+  supabaseAdmin,
+}: PersistedResultsParams): Promise<string[]> => {
+  const context = await readPersistedGenerationStatusContext({
+    userId,
+    requestId,
+    supabaseAdmin,
+  });
+  return context.resultUrls;
 };

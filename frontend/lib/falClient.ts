@@ -88,6 +88,7 @@ export type FalQueueStatusResponse =
 
 export type FalStatusResponse = {
   status?: string;
+  generationId?: string;
   error?: string;
   data?: {
     images?: { url: string; content_type?: string; width?: number; height?: number }[];

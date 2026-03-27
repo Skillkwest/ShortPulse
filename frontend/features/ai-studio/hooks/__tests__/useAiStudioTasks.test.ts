@@ -85,6 +85,7 @@ describe("useAiStudioTasks", () => {
   it("runs a 2-minute background recovery check and restores preview URL when it appears later", async () => {
     fetchFalStatusMock.mockResolvedValueOnce({ status: "completed" }).mockResolvedValueOnce({
       status: "completed",
+      generationId: "gen-recovered-1",
       data: { images: [{ url: "https://cdn.test/recovered.png" }] },
     });
 
@@ -145,6 +146,40 @@ describe("useAiStudioTasks", () => {
       })
     );
     expect(output.previewUrl).toBe("https://cdn.test/recovered.png");
+    expect(output.generationId).toBe("gen-recovered-1");
+    expect(output.taskState).toBe("success");
+  });
+
+  it("backfills generation id from status polling when provider returns it", async () => {
+    fetchFalStatusMock.mockResolvedValueOnce({
+      status: "completed",
+      generationId: "gen-polled-1",
+      data: { images: [{ url: "https://cdn.test/polled.png" }] },
+    });
+
+    let output = makeOutput();
+    const updateOutputById = vi.fn((id: string, updater: (item: StudioOutput) => StudioOutput) => {
+      if (id === output.id) {
+        output = updater(output);
+      }
+    });
+
+    const { result } = renderHook(() =>
+      useAiStudioTasks({
+        updateOutputById,
+        notifyGenerationFailure: vi.fn(),
+      })
+    );
+
+    act(() => {
+      result.current.startPollingTask("task-status-gen-1", "out-1", 0, "fal", Date.now(), 20);
+    });
+
+    await vi.advanceTimersByTimeAsync(2_300);
+    await flushQueuedOutputUpdates();
+
+    expect(output.previewUrl).toBe("https://cdn.test/polled.png");
+    expect(output.generationId).toBe("gen-polled-1");
     expect(output.taskState).toBe("success");
   });
 

@@ -57,6 +57,7 @@ import {
   looksLikeFailureMessage,
   normalizeProviderStateToTaskState,
   type PollStatus,
+  resolvePollStatusGenerationId,
   resolveProviderStatusState,
   terminalFailureStates,
 } from "./taskPolling/providerStatusPolicy";
@@ -566,6 +567,25 @@ export function useAiStudioTasks({
             delete outputLookupHardStopNotifiedRef.current[outputId];
 
             const status = (await fetchStatusByProvider(provider, taskId)) as PollStatus;
+            const statusGenerationId = resolvePollStatusGenerationId(status);
+            if (statusGenerationId) {
+              queueOutputUpdate(
+                outputId,
+                (item) => {
+                  if (
+                    typeof item.generationId === "string" &&
+                    item.generationId.trim().length > 0
+                  ) {
+                    return item;
+                  }
+                  return {
+                    ...item,
+                    generationId: statusGenerationId,
+                  };
+                },
+                { nonUrgent: true }
+              );
+            }
             const { state, hasExplicitState } = resolveProviderStatusState(status);
 
             const outputMode = findOutputById?.(outputId)?.mode ?? null;

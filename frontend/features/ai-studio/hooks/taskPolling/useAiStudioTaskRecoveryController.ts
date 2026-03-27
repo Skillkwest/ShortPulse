@@ -8,7 +8,7 @@ import {
   getBackgroundRecoveryMaxAttempts,
   type BackgroundRecoveryReasonCode,
 } from "./backgroundRecoveryPolicy";
-import type { PollStatus } from "./providerStatusPolicy";
+import { resolvePollStatusGenerationId, type PollStatus } from "./providerStatusPolicy";
 
 type OutputLookupHardStopPayload = {
   outputId: string;
@@ -117,6 +117,25 @@ export const useAiStudioTaskRecoveryController = ({
 
           try {
             const status = (await fetchStatusByProvider(provider, taskId)) as PollStatus;
+            const statusGenerationId = resolvePollStatusGenerationId(status);
+            if (statusGenerationId) {
+              queueOutputUpdate(
+                outputId,
+                (item) => {
+                  if (
+                    typeof item.generationId === "string" &&
+                    item.generationId.trim().length > 0
+                  ) {
+                    return item;
+                  }
+                  return {
+                    ...item,
+                    generationId: statusGenerationId,
+                  };
+                },
+                { nonUrgent: true }
+              );
+            }
             const outputMode = findOutputById?.(outputId)?.mode ?? null;
             const recoveredUrls = extractMediaUrls(provider, status, { outputMode }).filter(
               Boolean

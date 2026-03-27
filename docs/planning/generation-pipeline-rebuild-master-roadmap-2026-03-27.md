@@ -180,6 +180,6 @@ Stop the current lane when:
 3. cleanup does not proceed until compatibility-path retirement evidence is complete
 
 ## Immediate Next Move
-1. audit Lane 1 implementation against its done state before opening more request-id slices
-2. only continue Lane 1 if the next step materially changes lifecycle authority rather than adding another narrow compatibility read
-3. if Lane 1 is good enough, open Lane 2 with a concrete historical backfill and fallback-retirement execution plan
+1. execute `GPR-L2-S1` from the Lane 2 backfill execution plan
+2. produce the historical row classification query set and fallback-reader inventory
+3. do not reopen Lane 1 narrow compatibility reads unless a missing authority seam clearly blocks Lane 2

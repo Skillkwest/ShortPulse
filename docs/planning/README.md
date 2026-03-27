@@ -52,6 +52,7 @@ Purpose: active planning artifacts and current execution backlogs.
 - `generation-pipeline-rebuild-lane-1-schema-delta-and-compatibility-contract-2026-03-27.md`: target request/attempt schema delta and explicit transition posture for `ai_generations`, queue rows, outputs, reservations, and webhook rows.
 - `generation-pipeline-rebuild-lane-1-billing-replay-provider-event-contract-2026-03-27.md`: explicit billing ownership, replay/idempotency, and provider-event durability contract completing Lane 1.
 - `generation-pipeline-rebuild-lane-2-historical-data-quality-gates-2026-03-27.md`: required row classes, inconsistency buckets, and evidence gates before historical backfill and fallback retirement.
+- `generation-pipeline-rebuild-lane-2-backfill-execution-plan-2026-03-27.md`: concrete Lane 2 execution plan for historical row classification, canonical backfill, quarantine handling, and fallback-retirement order.
 - `generation-pipeline-rebuild-lane-3-cutover-gates-2026-03-27.md`: explicit cutover gates protecting drag/drop, reuse, and delivery contracts before broad read-model migration.
 - `generation-pipeline-rebuild-phase-1-stabilization-plan-2026-03-27.md`: completed checkpoint for the initial fail-closed submit and durable-linkage hardening slices.
 - `generation-pipeline-rebuild-phase-2-read-authority-plan-2026-03-27.md`: completed execution tracker for generated-output read-authority tightening before schema introduction.

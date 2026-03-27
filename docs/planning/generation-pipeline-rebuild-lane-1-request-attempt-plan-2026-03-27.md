@@ -181,4 +181,5 @@ Open question before more implementation:
 
 ## Lane 1 Status
 1. Planning-complete
-2. Implementation checkpoint in progress
+2. Implementation checkpoint complete
+3. Paused at done-state boundary pending broader state-transition refactor decision

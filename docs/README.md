@@ -168,6 +168,8 @@ Start here for all repository documentation.
 - `docs/planning/generation-pipeline-rebuild-blueprint-2026-03-27.md`
 - `docs/planning/generation-pipeline-rebuild-master-roadmap-2026-03-27.md`
 - `docs/planning/generation-pipeline-rebuild-lane-1-request-attempt-plan-2026-03-27.md`
+- `docs/planning/generation-pipeline-rebuild-lane-1-identity-authority-matrix-2026-03-27.md`
+- `docs/planning/generation-pipeline-rebuild-lane-1-transition-matrix-2026-03-27.md`
 - `docs/planning/generation-pipeline-rebuild-phase-1-stabilization-plan-2026-03-27.md`
 - `docs/planning/generation-pipeline-rebuild-phase-2-read-authority-plan-2026-03-27.md`
 - `docs/planning/generation-pipeline-rebuild-phase-3-canonical-output-plan-2026-03-27.md`

@@ -84,5 +84,5 @@ Stop the current lane when:
 3. the remaining work becomes operational backfill/governance rather than implementation in the active lane
 
 ## Immediate Next Move
-1. start Lane 1 with a dedicated request/attempt state-machine plan
-2. do not open Lane 2 migration work until that model is locked
+1. advance Lane 1 into `GPR-L1-S3` and define target schema deltas plus compatibility posture with `ai_generations`
+2. do not open Lane 2 migration work until the request/attempt target model is locked

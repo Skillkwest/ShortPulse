@@ -87,13 +87,21 @@ Owns:
 
 ## Execution Slices
 ### `GPR-L1-S1`
+Status:
+1. Completed
+
 Goal:
 1. inventory current lifecycle entities, identities, and state transitions
 
 Exit gate:
 1. one source-of-truth matrix exists for request, attempt, output, and billing identities
+2. `generation-pipeline-rebuild-lane-1-identity-authority-matrix-2026-03-27.md` exists
+3. `generation-pipeline-rebuild-lane-1-transition-matrix-2026-03-27.md` exists
 
 ### `GPR-L1-S2`
+Status:
+1. Completed
+
 Goal:
 1. define the legal request and attempt transitions
 2. define which module is allowed to trigger each transition
@@ -102,6 +110,9 @@ Exit gate:
 1. transition matrix is explicit and fail-closed
 
 ### `GPR-L1-S3`
+Status:
+1. Next
+
 Goal:
 1. define target schema deltas for request/attempt modeling
 2. define compatibility posture with existing `ai_generations`
@@ -121,6 +132,10 @@ Exit gate:
 1. docs parity checks
 2. explicit transition matrix review against current runtime modules
 3. self-audit that the model reduces authority overlap instead of renaming it
+
+## Lane 1 Working Artifacts
+1. `docs/planning/generation-pipeline-rebuild-lane-1-identity-authority-matrix-2026-03-27.md`
+2. `docs/planning/generation-pipeline-rebuild-lane-1-transition-matrix-2026-03-27.md`
 
 ## Completion Gate
 Lane 1 is complete when:

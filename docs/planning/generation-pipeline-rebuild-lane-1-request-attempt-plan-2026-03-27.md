@@ -155,5 +155,30 @@ Lane 1 is complete when:
 4. replay/idempotency and provider-event durability rules are defined
 5. Lane 2 backfill planning can proceed without guessing the target lifecycle
 
+## Implementation Done State
+Lane 1 implementation is done when:
+1. accepted submit and queued dispatch write canonical attempt lineage
+2. billing ownership and settlement prefer attempts over legacy request-id repair
+3. request-id repair and recovery lookup prefer attempts over legacy `ai_generations.request_id`
+4. queue status and active-capacity reads prefer attempts where provider request ownership matters
+5. any remaining direct dependence on `ai_generations.request_id` is explicitly categorized as:
+   - compatibility-only, or
+   - part of a later state-transition refactor
+
+## Lane 1 Checkpoint Audit
+Current implemented coverage:
+1. direct submit accepted-path attempt writes
+2. queued dispatch accepted-path attempt writes
+3. billing ownership and settlement prefer attempts
+4. request-id repair prefers attempts
+5. recovery lookup prefers attempts
+6. active-capacity reads prefer attempts
+7. queue-status reads prefer attempts
+
+Open question before more implementation:
+1. whether the remaining `ai_generations.request_id` seams are still Lane 1 authority work
+2. or whether they belong to the broader request/attempt state-transition refactor that should be treated as the next milestone rather than another narrow compatibility slice
+
 ## Lane 1 Status
 1. Planning-complete
+2. Implementation checkpoint in progress

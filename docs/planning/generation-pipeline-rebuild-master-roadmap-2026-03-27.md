@@ -13,6 +13,27 @@ It is intentionally lightweight. It exists to:
 2. prevent adjacency drift
 3. define stop/go gates between lanes
 
+## Done State Hierarchy
+### Lane done
+A lane is done when:
+1. its exit gate is satisfied by implemented behavior or locked execution evidence
+2. the next remaining step would materially widen into another lane
+3. rollback and compatibility posture are explicit enough to stop safely
+
+### Milestone done
+A milestone is done when:
+1. the grouped lanes are strong enough to change runtime authority safely
+2. remaining compatibility reads are narrow and explicitly temporary
+3. the next work is migration, backfill, or user-facing cutover rather than more authority discovery
+
+### Roadmap done
+The rebuild is done when:
+1. requests, attempts, and outputs are the canonical runtime authority
+2. historical rows are backfilled or intentionally quarantined
+3. legacy metadata and request-id fallbacks are not primary runtime paths
+4. user-facing read and reuse surfaces rely on canonical output/storage authority
+5. billing, replay, recovery, and operator tooling converge on the same model
+
 ## Remaining Lanes
 ### Lane 1: Request/Attempt State Machine
 Goal:
@@ -28,6 +49,13 @@ Primary surfaces:
 
 Exit gate:
 1. request state, attempt lineage, and billing linkage are modeled explicitly enough that submit, queue, webhook, recovery, and status no longer act as competing lifecycle authorities
+
+Done state:
+1. accepted submit and queued dispatch write canonical attempt lineage
+2. billing ownership and settlement prefer attempts over legacy request-id repair
+3. request-id repair and recovery lookup prefer attempts over legacy request-id reads
+4. queue/admission/control-plane readers prefer attempts where provider ownership matters
+5. remaining `ai_generations.request_id` use is compatibility-only or part of a later explicit state-transition refactor
 
 ### Lane 2: Historical Backfill And Legacy Fallback Retirement
 Goal:
@@ -45,6 +73,12 @@ Primary surfaces:
 Exit gate:
 1. historical generations can be read from canonical output rows with bounded, explicit fallback only where backfill has not yet completed
 
+Done state:
+1. historical success generations are classified and measurable by row class
+2. canonical output backfill and media-link backfill can run safely
+3. legacy output fallbacks are retained only where coverage evidence requires them
+4. ambiguous historical rows are quarantined rather than silently guessed
+
 ### Lane 3: Delivery And Read-Model Cutover
 Goal:
 1. make canonical output records and storage-backed media the main reusable/readable authority across user-facing surfaces
@@ -58,6 +92,11 @@ Primary surfaces:
 Exit gate:
 1. generated output display, reuse, and drag/drop rely on canonical output/storage authority rather than mixed heuristics
 
+Done state:
+1. generated delivery, save, download, drag/drop, and reuse flows read canonical output/storage authority first
+2. protected downstream surfaces have explicit regression coverage
+3. any remaining compatibility path is narrow, temporary, and rollback-aware
+
 ### Lane 4: Migration Safety, Ops, And Cleanup
 Goal:
 1. finish the rebuild with safe rollout, traceability, cleanup, and legacy removal
@@ -70,6 +109,11 @@ Primary surfaces:
 
 Exit gate:
 1. old compatibility paths can be removed intentionally with rollback evidence and operator clarity
+
+Done state:
+1. operator trace and SOP surfaces reflect the rebuilt request/attempt/output model
+2. rollout and rollback evidence exists for legacy removal
+3. compatibility cleanup is intentional rather than opportunistic
 
 ## Cross-Cutting Contracts
 ### Replay and idempotency
@@ -136,5 +180,6 @@ Stop the current lane when:
 3. cleanup does not proceed until compatibility-path retirement evidence is complete
 
 ## Immediate Next Move
-1. open Lane 2 with a concrete historical backfill and fallback-retirement execution plan
-2. do not broaden Lane 3 UI cutover work until Lane 2 canonical-coverage planning is explicit
+1. audit Lane 1 implementation against its done state before opening more request-id slices
+2. only continue Lane 1 if the next step materially changes lifecycle authority rather than adding another narrow compatibility read
+3. if Lane 1 is good enough, open Lane 2 with a concrete historical backfill and fallback-retirement execution plan

@@ -203,6 +203,29 @@ describe("POST /api/media/copy-from-url", () => {
     });
   });
 
+  it("rejects ai_studio copy requests that do not include a generation id", async () => {
+    const req = {
+      method: "POST",
+      headers: { host: "app.shortpulse.test", "x-forwarded-proto": "https" },
+      body: {
+        url: "https://trusted.example.com/reference.png",
+        source: "ai_studio",
+        index: 0,
+      },
+    };
+    const res = createMockResponse();
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    await handler(req as never, res as never);
+
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Generated media is missing durable generation tracking.",
+    });
+  });
+
   it("returns an existing ai_studio media row without re-fetching or re-uploading", async () => {
     const supabase = createSupabaseAdmin({
       existingRow: {

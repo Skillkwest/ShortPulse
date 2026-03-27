@@ -1,11 +1,16 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { saveMediaUrlToLibrary } from "../mediaLibraryPersistence";
+import {
+  GENERATED_MEDIA_REQUIRES_GENERATION_ID_ERROR,
+  saveMediaUrlToLibrary,
+} from "../mediaLibraryPersistence";
 
-const ensureSupabaseClientMock = vi.hoisted(() => vi.fn());
+const ensureSupabaseQueryClientMock = vi.hoisted(() => vi.fn());
+const readSupabaseUserIdMock = vi.hoisted(() => vi.fn());
 const fetchWithAuthMock = vi.hoisted(() => vi.fn());
 
 vi.mock("../../../../lib/supabaseClient", () => ({
-  ensureSupabaseClient: ensureSupabaseClientMock,
+  ensureSupabaseQueryClient: ensureSupabaseQueryClientMock,
+  readSupabaseUserId: readSupabaseUserIdMock,
 }));
 
 vi.mock("../../../../lib/authenticatedFetch", () => ({
@@ -28,6 +33,7 @@ const createMediaFileSelectBuilder = (maybeSingle: ReturnType<typeof vi.fn>) => 
 describe("saveMediaUrlToLibrary", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    readSupabaseUserIdMock.mockResolvedValue("user-1");
   });
 
   afterEach(() => {
@@ -48,13 +54,7 @@ describe("saveMediaUrlToLibrary", () => {
     const insert = vi.fn();
     const upload = vi.fn();
 
-    ensureSupabaseClientMock.mockReturnValue({
-      auth: {
-        getSession: vi.fn().mockResolvedValue({
-          data: { session: { user: { id: "user-1" } } },
-          error: null,
-        }),
-      },
+    ensureSupabaseQueryClientMock.mockReturnValue({
       from: vi.fn((table: string) => {
         if (table !== "media_files") throw new Error(`Unexpected table: ${table}`);
         return {
@@ -121,13 +121,7 @@ describe("saveMediaUrlToLibrary", () => {
     const upload = vi.fn().mockResolvedValue({ error: null });
     const remove = vi.fn().mockResolvedValue({ error: null });
 
-    ensureSupabaseClientMock.mockReturnValue({
-      auth: {
-        getSession: vi.fn().mockResolvedValue({
-          data: { session: { user: { id: "user-1" } } },
-          error: null,
-        }),
-      },
+    ensureSupabaseQueryClientMock.mockReturnValue({
       from: vi.fn((table: string) => {
         if (table !== "media_files") throw new Error(`Unexpected table: ${table}`);
         return {
@@ -176,13 +170,7 @@ describe("saveMediaUrlToLibrary", () => {
     const insert = vi.fn();
     const upload = vi.fn();
 
-    ensureSupabaseClientMock.mockReturnValue({
-      auth: {
-        getSession: vi.fn().mockResolvedValue({
-          data: { session: { user: { id: "user-1" } } },
-          error: null,
-        }),
-      },
+    ensureSupabaseQueryClientMock.mockReturnValue({
       from: vi.fn((table: string) => {
         if (table !== "media_files") throw new Error(`Unexpected table: ${table}`);
         return {
@@ -236,13 +224,7 @@ describe("saveMediaUrlToLibrary", () => {
   });
 
   it("does not use server copy fallback for explicit HTTP download failures", async () => {
-    ensureSupabaseClientMock.mockReturnValue({
-      auth: {
-        getSession: vi.fn().mockResolvedValue({
-          data: { session: { user: { id: "user-1" } } },
-          error: null,
-        }),
-      },
+    ensureSupabaseQueryClientMock.mockReturnValue({
       from: vi.fn(() => ({
         select: vi.fn(() =>
           createMediaFileSelectBuilder(
@@ -307,13 +289,7 @@ describe("saveMediaUrlToLibrary", () => {
     }));
     const upload = vi.fn().mockResolvedValue({ error: null });
 
-    ensureSupabaseClientMock.mockReturnValue({
-      auth: {
-        getSession: vi.fn().mockResolvedValue({
-          data: { session: { user: { id: "user-1" } } },
-          error: null,
-        }),
-      },
+    ensureSupabaseQueryClientMock.mockReturnValue({
       from: vi.fn((table: string) => {
         if (table !== "media_files") throw new Error(`Unexpected table: ${table}`);
         return {
@@ -366,5 +342,23 @@ describe("saveMediaUrlToLibrary", () => {
         custom_flag: true,
       })
     );
+  });
+
+  it("rejects ai_studio saves without a durable generation id", async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(
+      saveMediaUrlToLibrary({
+        url: "https://cdn.shortpulse.test/output.png",
+        mode: "image",
+        source: "ai_studio",
+        index: 0,
+      })
+    ).rejects.toThrow(GENERATED_MEDIA_REQUIRES_GENERATION_ID_ERROR);
+
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(ensureSupabaseQueryClientMock).not.toHaveBeenCalled();
+    expect(fetchWithAuthMock).not.toHaveBeenCalled();
   });
 });

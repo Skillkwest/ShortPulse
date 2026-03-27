@@ -56,6 +56,8 @@ const CONTENT_TYPE_EXTENSION: Record<string, string> = {
   "video/quicktime": "mov",
   "video/x-m4v": "m4v",
 };
+const GENERATED_MEDIA_REQUIRES_GENERATION_ID_ERROR =
+  "Generated media is missing durable generation tracking.";
 
 type CopyFromUrlRequest = {
   url?: unknown;
@@ -556,6 +558,10 @@ export default async function handler(
   const provider = asOptionalString(input.provider);
   const modelId = asOptionalString(input.modelId);
   const metadata = asObjectMetadata(input.metadata);
+
+  if (source === "ai_studio" && !generationId) {
+    return res.status(400).json({ error: GENERATED_MEDIA_REQUIRES_GENERATION_ID_ERROR });
+  }
 
   try {
     if (source === "ai_studio" && generationId) {

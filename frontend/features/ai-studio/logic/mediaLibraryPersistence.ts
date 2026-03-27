@@ -16,6 +16,8 @@ const BUCKET = "media_library";
 const FETCH_TIMEOUT_MS = 60000;
 const FETCH_RETRY_ATTEMPTS = 2;
 const SERVER_COPY_ROUTE = "/api/media/copy-from-url";
+export const GENERATED_MEDIA_REQUIRES_GENERATION_ID_ERROR =
+  "Generated media is missing durable generation tracking.";
 
 const CONTENT_TYPE_EXTENSION: Record<string, string> = {
   "image/png": "png",
@@ -97,7 +99,7 @@ const fetchBlobWithTimeout = async (url: string) => {
   let lastError: unknown = null;
   for (let attempt = 1; attempt <= FETCH_RETRY_ATTEMPTS; attempt += 1) {
     const controller = new AbortController();
-    const timeoutId = window.setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+    const timeoutId = globalThis.setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
     try {
       const response = await fetch(url, { signal: controller.signal });
       if (!response.ok) {
@@ -120,7 +122,7 @@ const fetchBlobWithTimeout = async (url: string) => {
       }
       throw error;
     } finally {
-      window.clearTimeout(timeoutId);
+      globalThis.clearTimeout(timeoutId);
     }
   }
   throw lastError instanceof Error ? lastError : new Error("Failed to fetch media.");
@@ -362,6 +364,9 @@ export const logMediaEvent = async (input: MediaEventInput) => {
  * Upload a media URL to storage and insert a media_files row.
  */
 export const saveMediaUrlToLibrary = async (input: SaveMediaUrlInput) => {
+  if (input.source === "ai_studio" && !input.generationId) {
+    throw new Error(GENERATED_MEDIA_REQUIRES_GENERATION_ID_ERROR);
+  }
   const { supabase, userId } = await resolveSupabaseContext();
   if (input.source === "ai_studio" && input.generationId) {
     const existingRow = await readExistingAiStudioMediaRowByOutputIndex({

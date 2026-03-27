@@ -6,6 +6,7 @@ import { randomId } from "../logic/ids";
 import { isVideoUrl, resolveModelLabel, type Provider } from "../logic/stateParsers";
 import type { StudioOutput } from "../types";
 import {
+  GENERATED_MEDIA_REQUIRES_GENERATION_ID_ERROR,
   logMediaEvent,
   saveMediaUrlToLibrary,
   savePromptRecord,
@@ -218,6 +219,13 @@ export const useAiStudioPersistenceActions = ({
       errors: string[];
       delivery: PersistedMediaDelivery | null;
     }> => {
+      if (source === "ai_studio" && !generationId) {
+        return {
+          mediaFileIds: [],
+          errors: [GENERATED_MEDIA_REQUIRES_GENERATION_ID_ERROR],
+          delivery: null,
+        };
+      }
       const output = findOutputById(outputId);
       if (!output) return { mediaFileIds: [], errors: ["Output not found"], delivery: null };
       const mediaFileIds: string[] = [];
@@ -381,16 +389,26 @@ export const useAiStudioPersistenceActions = ({
             };
           }
           const provider = (output.provider ?? "fal") as Provider;
-          const source = output.generationId || output.taskId ? "ai_studio" : "upload";
-          const generationId =
-            source === "ai_studio"
-              ? (output.generationId ??
-                (await ensureGenerationRecord({
-                  outputId,
-                  provider,
-                  taskId: output.taskId,
-                })))
-              : null;
+          const generatedOutput = Boolean(output.generationId || output.taskId);
+          const source = generatedOutput ? "ai_studio" : "upload";
+          const generationId = generatedOutput
+            ? (output.generationId ??
+              (await ensureGenerationRecord({
+                outputId,
+                provider,
+                taskId: output.taskId,
+              })))
+            : null;
+          if (generatedOutput && !generationId) {
+            markOutputSaveFailed(outputId, GENERATED_MEDIA_REQUIRES_GENERATION_ID_ERROR);
+            setUiError(GENERATED_MEDIA_REQUIRES_GENERATION_ID_ERROR);
+            return {
+              ok: false,
+              mediaFileIds: [],
+              delivery: null,
+              error: GENERATED_MEDIA_REQUIRES_GENERATION_ID_ERROR,
+            };
+          }
           const { mediaFileIds, errors, delivery } = await persistMediaUrls({
             outputId,
             urls,

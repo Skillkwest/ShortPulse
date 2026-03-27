@@ -2,6 +2,15 @@ import { getSupabaseAdmin } from "./supabaseAdmin";
 
 type JsonObject = Record<string, unknown>;
 
+type GenerationAttemptStatus =
+  | "created"
+  | "submitted"
+  | "running"
+  | "succeeded"
+  | "failed"
+  | "timed_out"
+  | "abandoned";
+
 type EnsureAcceptedGenerationAttemptInput = {
   generationId: string;
   userId: string;
@@ -42,6 +51,17 @@ export type GenerationAttemptLookupRow = {
   attemptNumber: number | null;
   providerRequestId: string | null;
   metadata: JsonObject;
+};
+
+type UpdateGenerationAttemptStateInput = {
+  providerRequestId: string;
+  userId: string;
+  status: Exclude<GenerationAttemptStatus, "created" | "submitted" | "abandoned">;
+  observedAt?: string | null;
+  completedAt?: string | null;
+  failureReasonCode?: string | null;
+  errorMessage?: string | null;
+  metadata?: JsonObject;
 };
 
 const asString = (value: unknown): string | null => {
@@ -325,6 +345,80 @@ export const ensureAcceptedGenerationAttempt = async ({
       attemptId: asString(retryRow.id),
       attemptNumber: asNumber(retryRow.attempt_number),
     };
+  } catch (error) {
+    return {
+      ok: false,
+      error: String(error),
+    };
+  }
+};
+
+export const updateGenerationAttemptState = async ({
+  providerRequestId,
+  userId,
+  status,
+  observedAt = null,
+  completedAt = null,
+  failureReasonCode = null,
+  errorMessage = null,
+  metadata = {},
+}: UpdateGenerationAttemptStateInput): Promise<{ ok: true } | { ok: false; error: string }> => {
+  try {
+    const lookup = await lookupGenerationAttemptByProviderRequest({
+      providerRequestId,
+      userId,
+    });
+    if (lookup.error) {
+      return {
+        ok: false,
+        error: lookup.error.message ?? "attempt_provider_request_lookup_failed",
+      };
+    }
+
+    const attemptId = asString(lookup.data?.id);
+    if (!attemptId) {
+      return {
+        ok: false,
+        error: "attempt_not_found",
+      };
+    }
+
+    const nowIso = observedAt ?? new Date().toISOString();
+    const nextMetadata = {
+      ...asObject(lookup.data?.metadata),
+      ...metadata,
+    };
+    const updatePayload: Record<string, unknown> = {
+      status,
+      last_observed_at: nowIso,
+      updated_at: nowIso,
+      metadata: nextMetadata,
+    };
+
+    if (status === "running") {
+      updatePayload.started_at = nowIso;
+      updatePayload.failure_reason_code = null;
+      updatePayload.error_message = null;
+    } else {
+      updatePayload.completed_at = completedAt ?? nowIso;
+      updatePayload.failure_reason_code = failureReasonCode;
+      updatePayload.error_message = errorMessage;
+    }
+
+    const { error } = await getSupabaseAdmin()
+      .from("generation_attempts")
+      .update(updatePayload)
+      .eq("id", attemptId)
+      .eq("user_id", userId);
+
+    if (error) {
+      return {
+        ok: false,
+        error: error.message ?? "attempt_state_update_failed",
+      };
+    }
+
+    return { ok: true };
   } catch (error) {
     return {
       ok: false,

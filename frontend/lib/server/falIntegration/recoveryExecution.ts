@@ -4,6 +4,7 @@
  */
 import { settleGenerationOutcome } from "../api/generationBilling";
 import { persistGenerationOutputRecords } from "../api/generationOutputs";
+import { updateGenerationAttemptState } from "../api/generationAttempts";
 import { readFalRuntimeFlags } from "../api/falRuntimeFlags";
 import { writeAppErrorLog } from "../api/appErrorLogs";
 import { getSupabaseAdmin } from "../api/supabaseAdmin";
@@ -155,6 +156,39 @@ const updateGenerationRecoveryState = async ({
   if (error) throw error;
 };
 
+const updateAttemptStateBestEffort = async ({
+  generation,
+  status,
+  nowIso,
+  completedAt = null,
+  failureReasonCode = null,
+  errorMessage = null,
+  metadata = {},
+}: {
+  generation: GenerationRow;
+  status: "running" | "succeeded" | "failed" | "timed_out";
+  nowIso: string;
+  completedAt?: string | null;
+  failureReasonCode?: string | null;
+  errorMessage?: string | null;
+  metadata?: Record<string, unknown>;
+}) => {
+  if (!generation.request_id) return;
+  const result = await updateGenerationAttemptState({
+    providerRequestId: generation.request_id,
+    userId: generation.user_id,
+    status,
+    observedAt: nowIso,
+    completedAt,
+    failureReasonCode,
+    errorMessage,
+    metadata,
+  });
+  if (!result.ok && result.error !== "attempt_not_found") {
+    throw new Error(result.error);
+  }
+};
+
 /**
  * Execute shared recovery flow for reconciler, admin replay, webhook, and status proxy.
  */
@@ -192,6 +226,16 @@ export const executeGenerationRecovery = async ({
   if (generation.status.toLowerCase() === "success") {
     const existingRows = await readExistingRecoveryMediaRows(generation.id);
     if (existingRows.length) {
+      await updateAttemptStateBestEffort({
+        generation,
+        status: "succeeded",
+        nowIso,
+        completedAt: generation.completed_at ?? nowIso,
+        metadata: {
+          recovery_actor: actor,
+          recovery_outcome: "already_persisted",
+        },
+      });
       return {
         ok: true,
         state: "already_persisted",
@@ -275,6 +319,18 @@ export const executeGenerationRecovery = async ({
     const hardTimeoutReached =
       runningHardTimeoutSeconds > 0 && generationAgeSeconds >= runningHardTimeoutSeconds;
     if (hardTimeoutReached) {
+      await updateAttemptStateBestEffort({
+        generation,
+        status: "timed_out",
+        nowIso,
+        completedAt: nowIso,
+        failureReasonCode: "provider_running_timeout",
+        errorMessage: "Provider exceeded running hard-timeout during recovery execution.",
+        metadata: {
+          recovery_actor: actor,
+          recovery_outcome: "running_timeout",
+        },
+      });
       try {
         await writeAppErrorLog({
           source: GENERATION_RECOVERY_RUNNING_TIMEOUT_TELEMETRY_SOURCE,
@@ -358,6 +414,20 @@ export const executeGenerationRecovery = async ({
             : queuePlanBase.nextRecoveryAt
           : queuePlanBase.nextRecoveryAt,
     };
+    await updateAttemptStateBestEffort({
+      generation,
+      status: queuePlan.isExhausted ? "timed_out" : "running",
+      nowIso,
+      completedAt: queuePlan.isExhausted ? nowIso : null,
+      failureReasonCode: queuePlan.isExhausted ? "recovery_exhausted" : null,
+      errorMessage: queuePlan.isExhausted
+        ? "Provider remained running after recovery attempts were exhausted."
+        : null,
+      metadata: {
+        recovery_actor: actor,
+        recovery_outcome: queuePlan.isExhausted ? "running_exhausted" : "provider_running",
+      },
+    });
     if (queuePlan.isExhausted) {
       await settleGenerationOutcome({
         userId: generation.user_id,
@@ -389,6 +459,18 @@ export const executeGenerationRecovery = async ({
   }
 
   if (currentObservation.state === "failed") {
+    await updateAttemptStateBestEffort({
+      generation,
+      status: "failed",
+      nowIso,
+      completedAt: nowIso,
+      failureReasonCode: "provider_error",
+      errorMessage: "Provider reported failed state during recovery execution.",
+      metadata: {
+        recovery_actor: actor,
+        recovery_outcome: "provider_failed",
+      },
+    });
     await settleGenerationOutcome({
       userId: generation.user_id,
       providerRequestId: generation.request_id,
@@ -416,6 +498,18 @@ export const executeGenerationRecovery = async ({
   }
 
   if (!recoveredUrls.length) {
+    await updateAttemptStateBestEffort({
+      generation,
+      status: "succeeded",
+      nowIso,
+      completedAt: nowIso,
+      failureReasonCode: "terminal_success_no_media",
+      errorMessage: "Provider terminal success without media payload.",
+      metadata: {
+        recovery_actor: actor,
+        recovery_outcome: "terminal_success_no_media",
+      },
+    });
     await settleGenerationOutcome({
       userId: generation.user_id,
       providerRequestId: generation.request_id,
@@ -476,6 +570,18 @@ export const executeGenerationRecovery = async ({
     mediaAutosaveEnabled,
   });
   if (!autosavePolicyDecision.allowed) {
+    await updateAttemptStateBestEffort({
+      generation,
+      status: "succeeded",
+      nowIso,
+      completedAt: nowIso,
+      metadata: {
+        recovery_actor: actor,
+        recovery_outcome: "recovered_success",
+        autosave_decision: "autosave_skipped",
+        autosave_decision_reason: autosavePolicyDecision.reason,
+      },
+    });
     await persistGenerationOutputRecords({
       generationId: generation.id,
       userId: generation.user_id,
@@ -539,6 +645,19 @@ export const executeGenerationRecovery = async ({
   const mediaFileIds = await persistRecoveryMediaFilesForGeneration({
     generation,
     mediaUrls: recoveredUrls,
+  });
+  await updateAttemptStateBestEffort({
+    generation,
+    status: "succeeded",
+    nowIso,
+    completedAt: nowIso,
+    metadata: {
+      recovery_actor: actor,
+      recovery_outcome: "recovered_success",
+      autosave_decision: "auto_persisted",
+      autosave_decision_reason: autosavePolicyDecision.reason,
+      media_file_count: mediaFileIds.length,
+    },
   });
   await persistGenerationOutputRecords({
     generationId: generation.id,

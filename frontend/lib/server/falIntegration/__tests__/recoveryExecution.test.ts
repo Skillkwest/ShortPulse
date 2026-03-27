@@ -4,6 +4,7 @@ import { executeGenerationRecovery } from "../recoveryExecution";
 const getSupabaseAdminMock = vi.fn();
 const readFalRuntimeFlagsMock = vi.fn();
 const settleGenerationOutcomeMock = vi.fn();
+const updateGenerationAttemptStateMock = vi.fn();
 const writeAppErrorLogMock = vi.fn();
 const readExistingRecoveryMediaRowsMock = vi.fn();
 const persistRecoveryMediaFilesForGenerationMock = vi.fn();
@@ -20,6 +21,10 @@ vi.mock("../../api/falRuntimeFlags", () => ({
 
 vi.mock("../../api/generationBilling", () => ({
   settleGenerationOutcome: (...args: unknown[]) => settleGenerationOutcomeMock(...args),
+}));
+
+vi.mock("../../api/generationAttempts", () => ({
+  updateGenerationAttemptState: (...args: unknown[]) => updateGenerationAttemptStateMock(...args),
 }));
 
 vi.mock("../../api/generationOutputs", () => ({
@@ -139,6 +144,7 @@ describe("executeGenerationRecovery", () => {
       runningHardTimeoutSeconds: 0,
     });
     settleGenerationOutcomeMock.mockResolvedValue(undefined);
+    updateGenerationAttemptStateMock.mockResolvedValue({ ok: true });
     writeAppErrorLogMock.mockResolvedValue({ ok: true, skipped: false, id: "evt-1" });
     readExistingRecoveryMediaRowsMock.mockResolvedValue([]);
     persistRecoveryMediaFilesForGenerationMock.mockResolvedValue(["media-1"]);
@@ -178,6 +184,13 @@ describe("executeGenerationRecovery", () => {
     expect(scenario.updatePayloads).toHaveLength(0);
     expect(settleGenerationOutcomeMock).not.toHaveBeenCalled();
     expect(probeGenerationProviderResultMock).not.toHaveBeenCalled();
+    expect(updateGenerationAttemptStateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        providerRequestId: "req-1",
+        userId: "user-1",
+        status: "succeeded",
+      })
+    );
   });
 
   it("marks running recovery as exhausted when attempts reached max", async () => {
@@ -317,6 +330,13 @@ describe("executeGenerationRecovery", () => {
         severity: "high",
       })
     );
+    expect(updateGenerationAttemptStateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        providerRequestId: "req-1",
+        status: "timed_out",
+        failureReasonCode: "provider_running_timeout",
+      })
+    );
   });
 
   it("caps next recovery check at running hard-timeout deadline", async () => {
@@ -363,6 +383,12 @@ describe("executeGenerationRecovery", () => {
     expect(Number.isFinite(scheduledMs)).toBe(true);
     expect(scheduledMs).toBeLessThanOrEqual(hardDeadlineMs);
     expect(settleGenerationOutcomeMock).not.toHaveBeenCalled();
+    expect(updateGenerationAttemptStateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        providerRequestId: "req-1",
+        status: "running",
+      })
+    );
   });
 
   it("keeps monotonic behavior by skipping fail->success when transition is not allowed", async () => {
@@ -475,6 +501,16 @@ describe("executeGenerationRecovery", () => {
         }),
       })
     );
+    expect(updateGenerationAttemptStateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        providerRequestId: "req-1",
+        status: "succeeded",
+        metadata: expect.objectContaining({
+          recovery_outcome: "recovered_success",
+          autosave_decision: "auto_persisted",
+        }),
+      })
+    );
   });
 
   it("skips persistence when media autosave preference is off and still settles success", async () => {
@@ -560,6 +596,15 @@ describe("executeGenerationRecovery", () => {
         }),
       })
     );
+    expect(updateGenerationAttemptStateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        providerRequestId: "req-1",
+        status: "succeeded",
+        metadata: expect.objectContaining({
+          autosave_decision: "autosave_skipped",
+        }),
+      })
+    );
   });
 
   it("records no-media terminal outcome and schedules another attempt when under max", async () => {
@@ -605,6 +650,13 @@ describe("executeGenerationRecovery", () => {
       })
     );
     expect(typeof scenario.updatePayloads[0]?.next_recovery_at).toBe("string");
+    expect(updateGenerationAttemptStateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        providerRequestId: "req-1",
+        status: "succeeded",
+        failureReasonCode: "terminal_success_no_media",
+      })
+    );
   });
 
   it("defers no-media exhaustion when attempts reached max but generation age is below no-media minimum threshold", async () => {
@@ -766,6 +818,13 @@ describe("executeGenerationRecovery", () => {
       last_recovery_at: expect.any(String),
       next_recovery_at: null,
     });
+    expect(updateGenerationAttemptStateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        providerRequestId: "req-1",
+        status: "failed",
+        failureReasonCode: "provider_error",
+      })
+    );
   });
 
   it("records no-media as exhausted when attempts hit max threshold", async () => {

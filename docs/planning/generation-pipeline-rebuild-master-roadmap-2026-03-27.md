@@ -39,6 +39,9 @@ The rebuild is done when:
 Goal:
 1. replace the current split lifecycle authority with one server-owned request/attempt model
 
+Status:
+1. Checkpoint-complete for the current milestone
+
 Primary surfaces:
 1. `frontend/lib/server/api/falSubmitProxy.ts`
 2. `frontend/lib/server/api/generationBilling.ts`
@@ -52,10 +55,11 @@ Exit gate:
 
 Done state:
 1. accepted submit and queued dispatch write canonical attempt lineage
-2. billing ownership and settlement prefer attempts over legacy request-id repair
-3. request-id repair and recovery lookup prefer attempts over legacy request-id reads
-4. queue/admission/control-plane readers prefer attempts where provider ownership matters
-5. remaining `ai_generations.request_id` use is compatibility-only or part of a later explicit state-transition refactor
+2. direct submit, queued dispatch, queue reconcile, and recovery mutate attempt state explicitly where provider lifecycle state is known
+3. billing ownership and settlement prefer attempts over legacy request-id repair
+4. request-id repair and recovery lookup prefer attempts over legacy request-id reads
+5. queue/admission/control-plane readers prefer attempts where provider ownership matters
+6. remaining `ai_generations.request_id` use is compatibility-only or part of a later explicit state-transition refactor
 
 ### Lane 2: Historical Compatibility Containment
 Goal:
@@ -180,6 +184,7 @@ Stop the current lane when:
 3. cleanup does not proceed until compatibility-path retirement evidence is complete
 
 ## Immediate Next Move
-1. keep Lane 2 limited to compatibility containment and evidence, not broad historical normalization
-2. return to forward-path work through the broader Lane 1 request/attempt state-transition refactor
-3. only reopen historical repair if evidence shows a concrete forward-pipeline risk
+1. treat Lane 1 as done for the current milestone and stop narrow seam work there
+2. checkpoint and promote this branch through the normal development -> staging preview path
+3. do not auto-open Lane 3; only start it if we choose a bounded read-authority objective with regression protection
+4. only reopen Lane 1 or Lane 2 if a concrete forward-pipeline risk justifies it

@@ -112,6 +112,44 @@ describe("media runtime store", () => {
     ).toBeUndefined();
   });
 
+  it("treats semantically identical ordered media rows and cache state as a no-op", () => {
+    const initialRow = makeMediaRow("shared", {
+      signedUrl: "https://signed/shared.png",
+      preview_storage_path: "user/uploads/shared.png",
+    });
+
+    let state = createMediaLibraryRuntimeState();
+    state = replaceSurfaceMediaTabRows(state, {
+      surface: "route",
+      tab: "uploaded_images",
+      rows: [initialRow],
+      cache: {
+        loaded: true,
+        loading: false,
+        pagesLoaded: 1,
+        query: "",
+      },
+    });
+
+    const nextState = replaceSurfaceMediaTabRows(state, {
+      surface: "route",
+      tab: "uploaded_images",
+      rows: [
+        {
+          ...initialRow,
+        },
+      ],
+      cache: {
+        loaded: true,
+        loading: false,
+        pagesLoaded: 1,
+        query: "",
+      },
+    });
+
+    expect(nextState).toBe(state);
+  });
+
   it("tracks prompts, selection, aspect ratio, and deduped byte totals per surface", () => {
     let state = createMediaLibraryRuntimeState();
     state = replaceSurfaceMediaTabRows(state, {

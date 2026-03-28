@@ -100,6 +100,48 @@ const cloneSurfaceState = (state: MediaLibrarySurfaceState): MediaLibrarySurface
   };
 };
 
+const areShallowObjectsEqual = (
+  left: Record<string, unknown>,
+  right: Record<string, unknown>
+): boolean => {
+  if (left === right) return true;
+  const leftKeys = Object.keys(left);
+  const rightKeys = Object.keys(right);
+  if (leftKeys.length !== rightKeys.length) return false;
+  for (const key of leftKeys) {
+    if (!Object.prototype.hasOwnProperty.call(right, key)) return false;
+    if (!Object.is(left[key], right[key])) return false;
+  }
+  return true;
+};
+
+const areOrderedRowsEqual = <TRow extends Record<string, unknown>>(
+  left: TRow[],
+  right: TRow[]
+): boolean => {
+  if (left === right) return true;
+  if (left.length !== right.length) return false;
+  for (let index = 0; index < left.length; index += 1) {
+    if (!areShallowObjectsEqual(left[index], right[index])) {
+      return false;
+    }
+  }
+  return true;
+};
+
+const areTabCacheStatesEqual = (
+  left: MediaLibraryTabCacheState,
+  right: MediaLibraryTabCacheState
+): boolean =>
+  left.nextCursor === right.nextCursor &&
+  left.pagesLoaded === right.pagesLoaded &&
+  left.query === right.query &&
+  left.loadedAtMs === right.loadedAtMs &&
+  left.hasMore === right.hasMore &&
+  left.loading === right.loading &&
+  left.loaded === right.loaded &&
+  left.error === right.error;
+
 export const replaceSurfaceMediaTabRows = <
   TMedia extends MediaLibraryMediaRow,
   TPrompt extends MediaLibraryPromptRow,
@@ -117,6 +159,15 @@ export const replaceSurfaceMediaTabRows = <
     cache?: Partial<MediaLibraryTabCacheState>;
   }
 ): MediaLibraryRuntimeState<TMedia, TPrompt> => {
+  const currentRows = selectSurfaceMediaRows(state, { surface, tab });
+  const currentCache = state.surfaceStateByKind[surface].cacheByTab[tab];
+  const nextCache = {
+    ...currentCache,
+    ...cache,
+  };
+  if (areOrderedRowsEqual(currentRows, rows) && areTabCacheStatesEqual(currentCache, nextCache)) {
+    return state;
+  }
   const next: MediaLibraryRuntimeState<TMedia, TPrompt> = {
     ...state,
     mediaById: { ...state.mediaById },
@@ -127,10 +178,7 @@ export const replaceSurfaceMediaTabRows = <
     next.mediaById[row.id] = row;
   }
   surfaceState.orderedViews.mediaIdsByTab[tab] = rows.map((row) => row.id);
-  surfaceState.cacheByTab[tab] = {
-    ...surfaceState.cacheByTab[tab],
-    ...cache,
-  };
+  surfaceState.cacheByTab[tab] = nextCache;
   next.surfaceStateByKind[surface] = surfaceState;
   return next;
 };

@@ -90,7 +90,7 @@ Artifact:
 
 ### `GPR-GX-S2`
 Status:
-1. In progress
+1. Done
 
 Goal:
 1. align internal reference drop resolution and media-library drop resolution with the canonical generated reuse policy
@@ -103,13 +103,17 @@ Current checkpoint:
 
 ### `GPR-GX-S3`
 Status:
-1. Pending
+1. In progress
 
 Goal:
 1. align style/canvas/character generated reuse consumers with the same policy
 
 Exit gate:
 1. generated downstream consumers behave consistently across style, canvas, character, and media-library intake without reopening broad UI redesign
+
+Current checkpoint:
+1. canvas and character internal generated drops no longer promote bare payload URLs into durable reuse when canonical identity-backed media cannot be resolved
+2. style-library internal drops continue to rely on the shared internal reference resolver and do not need a separate consumer-local fallback ladder
 
 ## Validation Bundle
 1. internal drop resolver tests

@@ -314,6 +314,20 @@ vi.mock("../../../../components/DashboardNavPrefab", () => ({
 }));
 
 vi.mock("../../../../lib/supabaseClient", () => ({
+  ensureSupabaseQueryClient: () => ({
+    from: () => ({
+      select: () => ({
+        eq: () => ({
+          maybeSingle: supabaseClientMockState.mediaLookupMaybeSingle,
+        }),
+      }),
+    }),
+    storage: {
+      from: () => ({
+        download: supabaseClientMockState.storageDownload,
+      }),
+    },
+  }),
   ensureSupabaseClient: () => ({
     auth: {
       getUser: async () => ({ data: { user: null } }),
@@ -331,6 +345,11 @@ vi.mock("../../../../lib/supabaseClient", () => ({
         download: supabaseClientMockState.storageDownload,
       }),
     },
+  }),
+  useSupabaseSessionState: () => ({
+    user: null,
+    session: null,
+    loading: false,
   }),
 }));
 
@@ -1197,7 +1216,7 @@ describe("CharacterManagerShell behavior", () => {
     }
   });
 
-  it("accepts an internal reference-grid drop without media id into a Character Sheet zone", async () => {
+  it("fails closed for internal Character Sheet drops without media id or canonical preview", async () => {
     const fetchMock = vi.fn(async () => ({
       ok: true,
       blob: async () => new Blob(["internal-no-media"], { type: "image/png" }),
@@ -1232,10 +1251,8 @@ describe("CharacterManagerShell behavior", () => {
 
       await waitFor(() => {
         expect(resolveCharacterDropReference).toHaveBeenCalled();
-        expect(fetchMock).toHaveBeenCalledWith(
-          "https://example.com/internal-no-media-character-sheet.png"
-        );
-        expect(getZoneImageSrc("Portrait")).toBe("https://example.com/preset-1-portrait-1.png");
+        expect(fetchMock).not.toHaveBeenCalled();
+        expect(getZoneImageSrc("Portrait")).toBeNull();
       });
     } finally {
       vi.unstubAllGlobals();
@@ -1383,7 +1400,7 @@ describe("CharacterManagerShell behavior", () => {
     }
   });
 
-  it("accepts an internal reference-grid drop into QuickSwap without media id", async () => {
+  it("fails closed for internal QuickSwap drops without media id or canonical preview", async () => {
     const fetchMock = vi.fn(async () => ({
       ok: true,
       blob: async () => new Blob(["internal-no-media"], { type: "image/png" }),
@@ -1422,10 +1439,8 @@ describe("CharacterManagerShell behavior", () => {
 
       await waitFor(() => {
         expect(resolveCharacterDropReference).toHaveBeenCalled();
-        expect(fetchMock).toHaveBeenCalledWith(
-          "https://example.com/internal-no-media-quickswap.png"
-        );
-        expect(screen.getAllByRole("button", { name: /Remove reference/i })).toHaveLength(3);
+        expect(fetchMock).not.toHaveBeenCalled();
+        expect(screen.getAllByRole("button", { name: /Remove reference/i })).toHaveLength(2);
       });
     } finally {
       vi.unstubAllGlobals();

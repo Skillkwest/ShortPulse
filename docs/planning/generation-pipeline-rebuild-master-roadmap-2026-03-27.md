@@ -207,5 +207,5 @@ Stop the current lane when:
 7. keep the admin trace and health alignment job closed at its current checkpoint
 8. treat the bounded generated reuse and drag/drop lane as complete at its checkpoint
 9. complete the generated reuse authority cutover by aligning internal drop resolution and downstream generated reuse consumers under one identity-first contract
-10. the broader generated reuse authority cutover is now active, with internal resolver identity-first alignment underway
+10. the broader generated reuse authority cutover is now active, with downstream canvas/character consumer alignment underway
 11. notify the user when the broader rebuild reaches the roadmap done state; otherwise treat any future continuation as a newly scoped follow-on job

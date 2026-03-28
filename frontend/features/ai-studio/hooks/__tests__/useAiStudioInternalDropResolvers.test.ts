@@ -308,6 +308,46 @@ describe("useAiStudioInternalDropResolvers", () => {
     expect(styleArgs.resolveSavedMediaIdFromOutput(output, 1)).toBe("media-1");
   });
 
+  it("does not promote unresolved generated character drops from payload URLs alone", async () => {
+    const output = makeOutput();
+    resolveInternalReferenceSourceMock.mockResolvedValueOnce(null);
+
+    const { result } = renderHook(() =>
+      useAiStudioInternalDropResolvers({
+        getOutputById: () => output,
+        getOutputSnapshot: () => ({
+          outputOrder: ["out-1"],
+          archivedOutputOrder: [],
+          outputById: { "out-1": output },
+          archivedOutputById: {},
+        }),
+        ensureOutputPersisted: vi.fn(async () => ({
+          ok: true,
+          mediaFileIds: ["media-0", "media-1"],
+          delivery: null,
+          error: null,
+        })),
+        saveReferenceToLibrary: vi.fn(),
+      })
+    );
+
+    await expect(
+      result.current.resolveCharacterDropReference(
+        makePayload({
+          mediaId: null,
+          referenceUrl: "https://payload.example.com/generated-only.png",
+        })
+      )
+    ).resolves.toEqual(
+      expect.objectContaining({
+        mediaId: "",
+        outputId: "out-1",
+        imageIndex: 0,
+        previewUrl: null,
+      })
+    );
+  });
+
   it("drops invalid source-surface strings from resolved provenance", async () => {
     const output = makeOutput();
     resolveInternalReferenceSourceMock.mockResolvedValueOnce({

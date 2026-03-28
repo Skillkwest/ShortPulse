@@ -1,4 +1,4 @@
-import { updateGenerationAttemptState } from "../api/generationAttempts";
+import { applyGenerationLifecycleTransition } from "../api/generationLifecycleTransitionService";
 import { getSupabaseAdmin } from "../api/supabaseAdmin";
 import type { RecoveryGenerationRow } from "./recoveryGenerationLookup";
 
@@ -34,44 +34,49 @@ const applyGenerationRecoveryUpdates = async ({
   if (error) throw error;
 };
 
-const applyAttemptTransitionBestEffort = async ({
-  generation,
-  transition,
-}: {
-  generation: RecoveryGenerationRow;
-  transition: RecoveryAttemptTransition;
-}) => {
-  if (!generation.request_id) return;
-  const result = await updateGenerationAttemptState({
-    providerRequestId: generation.request_id,
-    userId: generation.user_id,
-    status: transition.status,
-    observedAt: transition.observedAt,
-    completedAt: transition.completedAt ?? null,
-    failureReasonCode: transition.failureReasonCode ?? null,
-    errorMessage: transition.errorMessage ?? null,
-    metadata: transition.metadata ?? {},
-  });
-  if (!result.ok && result.error !== "attempt_not_found") {
-    throw new Error(result.error);
-  }
-};
-
 export const applyRecoveryTransition = async ({
   generation,
   generationUpdates = null,
   attemptTransition = null,
 }: ApplyRecoveryTransitionInput): Promise<void> => {
-  if (attemptTransition) {
-    await applyAttemptTransitionBestEffort({
-      generation,
-      transition: attemptTransition,
-    });
-  }
-  if (generationUpdates) {
-    await applyGenerationRecoveryUpdates({
-      generation,
-      updates: generationUpdates,
-    });
+  const result = await applyGenerationLifecycleTransition({
+    order: "attempt_first",
+    applyGenerationMutation: generationUpdates
+      ? async () => {
+          try {
+            await applyGenerationRecoveryUpdates({
+              generation,
+              updates: generationUpdates,
+            });
+            return { ok: true };
+          } catch (error) {
+            return {
+              ok: false,
+              error: error instanceof Error ? error.message : String(error),
+            };
+          }
+        }
+      : null,
+    attemptMutation:
+      attemptTransition && generation.request_id
+        ? {
+            kind: "state_update",
+            input: {
+              providerRequestId: generation.request_id,
+              userId: generation.user_id,
+              status: attemptTransition.status,
+              observedAt: attemptTransition.observedAt,
+              completedAt: attemptTransition.completedAt ?? null,
+              failureReasonCode: attemptTransition.failureReasonCode ?? null,
+              errorMessage: attemptTransition.errorMessage ?? null,
+              metadata: attemptTransition.metadata ?? {},
+            },
+            allowMissingAttempt: true,
+          }
+        : null,
+  });
+
+  if (!result.ok) {
+    throw new Error(result.error);
   }
 };

@@ -2,7 +2,7 @@
  * Coordinates accepted submit transitions so forward-path callers do not each
  * hand-roll the same generation-row and attempt-running mutation sequence.
  */
-import { ensureAcceptedRunningGenerationAttempt } from "./generationAttempts";
+import { applyGenerationLifecycleTransition } from "./generationLifecycleTransitionService";
 
 type ApplyGenerationMutationResult =
   | {
@@ -15,7 +15,9 @@ type ApplyGenerationMutationResult =
 
 type ApplyAcceptedRunningGenerationTransitionInput = {
   applyGenerationMutation?: (() => Promise<ApplyGenerationMutationResult>) | null;
-  attemptInput: Parameters<typeof ensureAcceptedRunningGenerationAttempt>[0];
+  attemptInput: Parameters<
+    typeof import("./generationAttempts").ensureAcceptedRunningGenerationAttempt
+  >[0];
 };
 
 export type AcceptedRunningGenerationTransitionResult =
@@ -32,25 +34,12 @@ export const applyAcceptedRunningGenerationTransition = async ({
   applyGenerationMutation = null,
   attemptInput,
 }: ApplyAcceptedRunningGenerationTransitionInput): Promise<AcceptedRunningGenerationTransitionResult> => {
-  if (applyGenerationMutation) {
-    const generationResult = await applyGenerationMutation();
-    if (!generationResult.ok) {
-      return {
-        ok: false,
-        stage: "generation",
-        error: generationResult.error,
-      };
-    }
-  }
-
-  const attemptResult = await ensureAcceptedRunningGenerationAttempt(attemptInput);
-  if (!attemptResult.ok) {
-    return {
-      ok: false,
-      stage: attemptResult.stage,
-      error: attemptResult.error,
-    };
-  }
-
-  return { ok: true };
+  return applyGenerationLifecycleTransition({
+    order: "generation_first",
+    applyGenerationMutation,
+    attemptMutation: {
+      kind: "accepted_running",
+      input: attemptInput,
+    },
+  });
 };

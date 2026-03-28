@@ -183,6 +183,7 @@ Current implemented coverage:
 13. request-id repair request-state mutation uses shared transition helpers and backfills attempts before repairing legacy request ids
 14. recovery-side paired request-state and attempt-state mutation now routes through a shared transition service
 15. accepted submit and queued dispatch now share one accepted-transition service for generation-running plus attempt-running orchestration
+16. accepted submit, request-id repair, and recovery now share one broader lifecycle transition orchestrator that supports both generation-first and attempt-first ordering
 
 Open question before more implementation:
 1. whether the next step should be one larger shared request/attempt transition service or state-machine step across the remaining forward paths

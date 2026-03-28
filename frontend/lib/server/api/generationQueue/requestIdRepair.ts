@@ -1,8 +1,6 @@
-import {
-  ensureAcceptedRunningGenerationAttempt,
-  lookupLatestGenerationAttempt,
-} from "../generationAttempts";
+import { lookupLatestGenerationAttempt } from "../generationAttempts";
 import { isMissingGenerationAttemptSchemaError } from "../generationBilling/errorGuards";
+import { applyGenerationLifecycleTransition } from "../generationLifecycleTransitionService";
 import { buildRequestIdRepairGenerationUpdate } from "../generationRequestTransitions";
 import { getSupabaseAdmin } from "../supabaseAdmin";
 
@@ -234,7 +232,7 @@ const readAttemptProviderRequestId = async ({
   };
 };
 
-const applyRequestIdRepair = async ({
+const applyRequestIdRepairGenerationMutation = async ({
   candidate,
   providerRequestId,
   repairSource,
@@ -242,7 +240,7 @@ const applyRequestIdRepair = async ({
   candidate: RepairCandidate;
   providerRequestId: string;
   repairSource: "attempt_backfill" | "reservation_backfill";
-}): Promise<GenerationRequestIdRepairResult> => {
+}): Promise<{ ok: true } | { ok: false; error: string }> => {
   const nextRecoveryAtIso = new Date(Date.now() + 2 * 60 * 1000).toISOString();
   const { data, error } = await getSupabaseAdmin()
     .from("ai_generations")
@@ -265,69 +263,31 @@ const applyRequestIdRepair = async ({
     .select("id, request_id");
 
   if (error) {
-    return {
-      repaired: false,
-      generationId: candidate.id,
-      requestId: null,
-      sourceRef: candidate.sourceRef,
-      reason: "db_error",
-      errorMessage: error.message ?? "request_id_repair_failed",
-    };
+    return { ok: false, error: error.message ?? "request_id_repair_failed" };
   }
 
   const repairedRequestId = asString((Array.isArray(data) ? data[0] : data)?.request_id);
   if (repairedRequestId) {
-    return {
-      repaired: true,
-      generationId: candidate.id,
-      requestId: repairedRequestId,
-      sourceRef: candidate.sourceRef,
-      reason: "repaired",
-      errorMessage: null,
-    };
+    return { ok: true };
   }
 
-  return {
-    repaired: false,
-    generationId: candidate.id,
-    requestId: null,
-    sourceRef: candidate.sourceRef,
-    reason: "db_error",
-    errorMessage: "request_id_repair_not_applied",
-  };
+  return { ok: false, error: "request_id_repair_not_applied" };
 };
 
-const ensureAttemptForReservationRepair = async ({
+const buildRepairedResult = ({
   candidate,
   providerRequestId,
 }: {
   candidate: RepairCandidate;
   providerRequestId: string;
-}): Promise<{ ok: true } | { ok: false; errorMessage: string }> => {
-  const repairedAt = new Date().toISOString();
-  const attemptResult = await ensureAcceptedRunningGenerationAttempt({
-    generationId: candidate.id,
-    userId: candidate.userId,
-    provider: candidate.provider,
-    modelId: candidate.modelId,
-    providerRequestId,
-    dispatchSource: "reconciler",
-    observedAt: repairedAt,
-    metadata: {
-      source_ref: candidate.sourceRef,
-      request_id_repaired_at: repairedAt,
-      request_id_repair_source: "reservation_backfill",
-      repair_origin: "request_id_repair",
-    },
-  });
-  if (!attemptResult.ok) {
-    return {
-      ok: false,
-      errorMessage: attemptResult.error,
-    };
-  }
-  return { ok: true };
-};
+}): GenerationRequestIdRepairResult => ({
+  repaired: true,
+  generationId: candidate.id,
+  requestId: providerRequestId,
+  sourceRef: candidate.sourceRef,
+  reason: "repaired",
+  errorMessage: null,
+});
 
 export const repairGenerationRequestIdFromReservation = async ({
   userId,
@@ -445,10 +405,24 @@ export const repairGenerationRequestIdFromReservation = async ({
     };
   }
   if (attemptLookup.providerRequestId) {
-    return applyRequestIdRepair({
+    const generationResult = await applyRequestIdRepairGenerationMutation({
       candidate,
       providerRequestId: attemptLookup.providerRequestId,
       repairSource: "attempt_backfill",
+    });
+    if (!generationResult.ok) {
+      return {
+        repaired: false,
+        generationId: candidate.id,
+        requestId: null,
+        sourceRef: candidate.sourceRef,
+        reason: "db_error",
+        errorMessage: generationResult.error,
+      };
+    }
+    return buildRepairedResult({
+      candidate,
+      providerRequestId: attemptLookup.providerRequestId,
     });
   }
 
@@ -477,25 +451,47 @@ export const repairGenerationRequestIdFromReservation = async ({
     };
   }
 
-  const attemptEnsureResult = await ensureAttemptForReservationRepair({
-    candidate,
-    providerRequestId: reservationLookup.providerRequestId,
+  const repairedAt = new Date().toISOString();
+  const transitionResult = await applyGenerationLifecycleTransition({
+    order: "attempt_first",
+    applyGenerationMutation: async () =>
+      applyRequestIdRepairGenerationMutation({
+        candidate,
+        providerRequestId: reservationLookup.providerRequestId,
+        repairSource: "reservation_backfill",
+      }),
+    attemptMutation: {
+      kind: "accepted_running",
+      input: {
+        generationId: candidate.id,
+        userId: candidate.userId,
+        provider: candidate.provider,
+        modelId: candidate.modelId,
+        providerRequestId: reservationLookup.providerRequestId,
+        dispatchSource: "reconciler",
+        observedAt: repairedAt,
+        metadata: {
+          source_ref: candidate.sourceRef,
+          request_id_repaired_at: repairedAt,
+          request_id_repair_source: "reservation_backfill",
+          repair_origin: "request_id_repair",
+        },
+      },
+    },
   });
-  if (!attemptEnsureResult.ok) {
+  if (!transitionResult.ok) {
     return {
       repaired: false,
       generationId: candidate.id,
       requestId: null,
       sourceRef: candidate.sourceRef,
       reason: "db_error",
-      errorMessage: attemptEnsureResult.errorMessage,
+      errorMessage: transitionResult.error,
     };
   }
-
-  return applyRequestIdRepair({
+  return buildRepairedResult({
     candidate,
     providerRequestId: reservationLookup.providerRequestId,
-    repairSource: "reservation_backfill",
   });
 };
 

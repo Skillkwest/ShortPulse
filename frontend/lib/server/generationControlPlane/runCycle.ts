@@ -2,26 +2,12 @@ import { logApiRouteException } from "../api/appErrorLogs";
 import { readFalRuntimeFlags } from "../api/falRuntimeFlags";
 import { dispatchGenerationSubmitQueueBatch } from "../api/generationQueue/dispatch";
 import { repairGenerationRequestIdsFromReservations } from "../api/generationQueue/requestIdRepair";
-import {
-  resolveSupportedRecoveryProviderFamily,
-  tryClaimRecoveryCandidate,
-} from "../api/generationRecoveryClaimPolicy";
 import { getSupabaseAdmin } from "../api/supabaseAdmin";
 import { executeGenerationRecovery } from "../falIntegration/recoveryExecution";
+import { claimGenerationRecoveryBatch, type ClaimedGeneration } from "./recoveryBatchAcquisition";
 import type { GenerationControlPlaneCycleResult, GenerationControlPlaneLogContext } from "./types";
 
 type JsonObject = Record<string, unknown>;
-
-type ClaimedGeneration = {
-  id: string;
-  user_id: string;
-  request_id: string | null;
-  provider: string | null;
-  model_id: string;
-  status: string;
-  recovery_state: string | null;
-  recovery_attempts: number | null;
-};
 
 type ReservationCleanupMetrics = {
   scanned: number;
@@ -30,12 +16,6 @@ type ReservationCleanupMetrics = {
 };
 
 const ALLOWLIST_SKIP_RETRY_DELAY_SECONDS = 15 * 60;
-
-const asString = (value: unknown): string | null => {
-  if (typeof value !== "string") return null;
-  const trimmed = value.trim();
-  return trimmed.length ? trimmed : null;
-};
 
 const asNumber = (value: unknown): number | null => {
   if (typeof value === "number" && Number.isFinite(value)) return value;
@@ -67,26 +47,6 @@ const parseCleanupMetrics = (value: unknown): ReservationCleanupMetrics => {
   };
 };
 
-const parseClaimedGeneration = (value: unknown): ClaimedGeneration | null => {
-  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
-  const row = value as JsonObject;
-  const id = asString(row.id);
-  const userId = asString(row.user_id);
-  const modelId = asString(row.model_id);
-  const status = asString(row.status);
-  if (!id || !userId || !modelId || !status) return null;
-  return {
-    id,
-    user_id: userId,
-    request_id: asString(row.request_id),
-    provider: asString(row.provider),
-    model_id: modelId,
-    status,
-    recovery_state: asString(row.recovery_state),
-    recovery_attempts: asNumber(row.recovery_attempts),
-  };
-};
-
 const isAllowedModel = (modelId: string, allowlist: Set<string>): boolean => {
   if (!allowlist.size) return true;
   for (const item of allowlist) {
@@ -95,69 +55,6 @@ const isAllowedModel = (modelId: string, allowlist: Set<string>): boolean => {
     if (item === modelId) return true;
   }
   return false;
-};
-
-const claimFallback = async ({
-  batchSize,
-  maxAttempts,
-  minAgeSeconds,
-  leaseSeconds,
-}: {
-  batchSize: number;
-  maxAttempts: number;
-  minAgeSeconds: number;
-  leaseSeconds: number;
-}): Promise<ClaimedGeneration[]> => {
-  const supabaseAdmin = getSupabaseAdmin();
-  const oldestCreatedAtIso = new Date(Date.now() - minAgeSeconds * 1000).toISOString();
-  const nowIso = new Date().toISOString();
-  const leaseUntilIso = new Date(Date.now() + leaseSeconds * 1000).toISOString();
-  const { data, error } = await supabaseAdmin
-    .from("ai_generations")
-    .select(
-      "id, user_id, request_id, provider, model_id, status, recovery_state, recovery_attempts"
-    )
-    .in("recovery_state", ["queued", "recovering"])
-    .lte("created_at", oldestCreatedAtIso)
-    .or(`next_recovery_at.is.null,next_recovery_at.lte.${nowIso}`)
-    .lt("recovery_attempts", maxAttempts)
-    .order("next_recovery_at", { ascending: true, nullsFirst: true })
-    .order("created_at", { ascending: true })
-    .limit(batchSize);
-  if (error || !Array.isArray(data)) return [];
-
-  const claimed: ClaimedGeneration[] = [];
-  for (const raw of data) {
-    const row = parseClaimedGeneration(raw);
-    if (!row) continue;
-    if (!resolveSupportedRecoveryProviderFamily(row.provider)) continue;
-    const claimResult = await tryClaimRecoveryCandidate({
-      candidate: {
-        id: row.id,
-        userId: row.user_id,
-        requestId: row.request_id,
-        provider: row.provider,
-        status: row.status,
-        recoveryState: row.recovery_state,
-        recoveryAttempts: row.recovery_attempts,
-      },
-      maxAttempts,
-      oldestAllowedIso: oldestCreatedAtIso,
-      nowIso,
-      leaseUntilIso,
-      supabaseAdmin,
-    });
-    if (claimResult.claimed) {
-      claimed.push({
-        ...row,
-        request_id: claimResult.requestId,
-        recovery_attempts: (row.recovery_attempts ?? 0) + 1,
-        recovery_state: "recovering",
-      });
-    }
-  }
-
-  return claimed;
 };
 
 const requeueAllowlistSkippedGeneration = async ({
@@ -302,34 +199,23 @@ export const runGenerationControlPlaneCycle = async ({
     });
   }
 
-  const claimResponse = await supabaseAdmin.rpc("claim_generation_recovery_batch", {
-    p_limit: flags.reconcilerBatchSize,
-    p_max_attempts: flags.reconcilerMaxAttempts,
-    p_min_age_seconds: flags.reconcilerMinAgeSeconds,
-    p_lease_seconds: flags.reconcilerLeaseSeconds,
+  const claimBatch = await claimGenerationRecoveryBatch({
+    supabaseAdmin,
+    batchSize: flags.reconcilerBatchSize,
+    maxAttempts: flags.reconcilerMaxAttempts,
+    minAgeSeconds: flags.reconcilerMinAgeSeconds,
+    leaseSeconds: flags.reconcilerLeaseSeconds,
   });
-  let claimedRows: ClaimedGeneration[] = [];
-  if (!claimResponse.error && Array.isArray(claimResponse.data)) {
-    claimedRows = claimResponse.data
-      .map((row) => parseClaimedGeneration(row))
-      .filter((row): row is ClaimedGeneration => Boolean(row));
-  } else {
-    if (claimResponse.error) {
-      await logControlPlaneException({
-        context,
-        error: claimResponse.error,
-        metadata: {
-          stage: "claim_generation_recovery_batch_rpc",
-        },
-      });
-    }
-    claimedRows = await claimFallback({
-      batchSize: flags.reconcilerBatchSize,
-      maxAttempts: flags.reconcilerMaxAttempts,
-      minAgeSeconds: flags.reconcilerMinAgeSeconds,
-      leaseSeconds: flags.reconcilerLeaseSeconds,
+  if (claimBatch.rpcError) {
+    await logControlPlaneException({
+      context,
+      error: claimBatch.rpcError,
+      metadata: {
+        stage: "claim_generation_recovery_batch_rpc",
+      },
     });
   }
+  const claimedRows = claimBatch.rows;
 
   let recovered = 0;
   let requeued = 0;

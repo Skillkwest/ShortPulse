@@ -6,6 +6,7 @@ const logApiRouteExceptionMock = vi.fn();
 const dispatchGenerationSubmitQueueBatchMock = vi.fn();
 const repairGenerationRequestIdsFromReservationsMock = vi.fn();
 const executeGenerationRecoveryMock = vi.fn();
+const claimGenerationRecoveryBatchMock = vi.fn();
 
 vi.mock("../../api/supabaseAdmin", () => ({
   getSupabaseAdmin: (...args: unknown[]) => getSupabaseAdminMock(...args),
@@ -27,6 +28,10 @@ vi.mock("../../api/generationQueue/requestIdRepair", () => ({
 
 vi.mock("../../falIntegration/recoveryExecution", () => ({
   executeGenerationRecovery: (...args: unknown[]) => executeGenerationRecoveryMock(...args),
+}));
+
+vi.mock("../recoveryBatchAcquisition", () => ({
+  claimGenerationRecoveryBatch: (...args: unknown[]) => claimGenerationRecoveryBatchMock(...args),
 }));
 
 type SupabaseMock = {
@@ -83,6 +88,11 @@ describe("runGenerationControlPlaneCycle", () => {
       processed: false,
       state: "skipped",
     });
+    claimGenerationRecoveryBatchMock.mockResolvedValue({
+      rows: [],
+      claimSource: "rpc",
+      rpcError: null,
+    });
   });
 
   it("supports a worker-style invocation without a request object", async () => {
@@ -105,6 +115,13 @@ describe("runGenerationControlPlaneCycle", () => {
     });
     expect(repairGenerationRequestIdsFromReservationsMock).toHaveBeenCalledWith({
       limit: 10,
+    });
+    expect(claimGenerationRecoveryBatchMock).toHaveBeenCalledWith({
+      supabaseAdmin: expect.any(Object),
+      batchSize: 10,
+      maxAttempts: 5,
+      minAgeSeconds: 0,
+      leaseSeconds: expect.any(Number),
     });
     expect(result).toEqual(
       expect.objectContaining({

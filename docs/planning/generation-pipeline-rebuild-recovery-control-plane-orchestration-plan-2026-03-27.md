@@ -93,13 +93,20 @@ Implemented checkpoint:
 
 ### `GPR-CP-S2`
 Status:
-1. Planned
+1. Completed at the current checkpoint
 
 Goal:
 1. isolate recovery batch acquisition from the main cycle routine
 
 Exit gate:
 1. RPC-first claim and fallback claim live behind one explicit acquisition boundary rather than inline orchestration logic
+
+Implemented checkpoint:
+1. Stage 4 recovery batch acquisition now lives in `frontend/lib/server/generationControlPlane/recoveryBatchAcquisition.ts`
+2. `runCycle.ts` now orchestrates over one explicit acquisition boundary instead of hand-rolling RPC-first and fallback claim logic inline
+3. the claimed-row shape is now shared by the acquisition boundary and the cycle orchestrator
+4. focused tests now cover both the RPC path and fallback claim path
+5. Stage 6 remains deferred until this extraction is audited for ROI
 
 ### `GPR-CP-S3`
 Status:
@@ -124,8 +131,8 @@ Stop this job when:
 3. the next step would widen into queue-status/UI read-model work
 4. remaining work is mostly operational observability rather than control-plane ownership reduction
 
-## Recommended First Move
-Start `GPR-CP-S2`:
-1. extract the recovery batch acquisition boundary from `runCycle.ts`
-2. keep `runCycle.ts` as the orchestrator over the new acquisition service
-3. audit that diff before deciding whether Stage 6 extraction is still worth doing
+## Recommended Next Move
+Audit `GPR-CP-S2` before opening `GPR-CP-S3`:
+1. confirm the Stage 4 extraction materially reduced orchestration sprawl
+2. only open Stage 6 extraction if the remaining inline execution loop is still a better ROI than stopping
+3. otherwise checkpoint this job here

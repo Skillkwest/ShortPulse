@@ -114,4 +114,41 @@ describe("useReferenceGridResolvedMediaController", () => {
     expect(resolved.fullUrl).toBeNull();
     expect(resolved.fallbackUrl).toBe("https://provider.example.com/generated-preview.png");
   });
+
+  it("trusts canonical resolved card urls before raw generated fallback fields", () => {
+    vi.mocked(resolveReferenceCardUrls).mockReturnValueOnce({
+      previewUrl: "https://storage.example.com/generated-preview.png",
+      fullUrl: "https://storage.example.com/generated-full.png",
+      authorityTier: "tracked",
+      previewQualityBand: "high",
+      targetLongEdgePx: 960,
+    });
+
+    const output = {
+      ...createImageOutput("out-generated-tracked"),
+      mediaSource: "generated",
+      generationId: "gen-1",
+      previewStoragePath: null,
+      fullStoragePath: null,
+      previewUrl: "https://provider.example.com/generated-preview.png",
+      resultUrls: ["https://provider.example.com/generated-full.png"],
+    } as StudioOutput;
+    const { result } = renderHook(() =>
+      useReferenceGridResolvedMediaController({
+        previewQualityPressureLevel: 0,
+        strictPreviewLadder: true,
+        adaptivePreviewRoutingEnabled: true,
+      })
+    );
+
+    const resolved = result.current.resolveCardMedia({
+      item: output,
+      mediaSurface: "reference-grid",
+      cardLongEdgePx: 512,
+    });
+
+    expect(resolved.previewUrl).toBe("https://storage.example.com/generated-preview.png");
+    expect(resolved.fullUrl).toBe("https://storage.example.com/generated-full.png");
+    expect(resolved.fallbackUrl).toBe("https://storage.example.com/generated-full.png");
+  });
 });

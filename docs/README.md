@@ -184,6 +184,7 @@ Start here for all repository documentation.
 - `docs/planning/generation-pipeline-rebuild-admin-trace-health-alignment-plan-2026-03-27.md`
 - `docs/planning/generation-pipeline-rebuild-admin-trace-health-alignment-contract-2026-03-27.md`
 - `docs/planning/generation-pipeline-rebuild-generated-reuse-dragdrop-authority-plan-2026-03-27.md`
+- `docs/planning/generation-pipeline-rebuild-generated-reuse-dragdrop-authority-contract-2026-03-27.md`
 - `docs/planning/generation-pipeline-rebuild-lane-2-historical-data-quality-gates-2026-03-27.md`
 - `docs/planning/generation-pipeline-rebuild-lane-2-backfill-execution-plan-2026-03-27.md`
 - `docs/planning/generation-pipeline-rebuild-lane-2-classification-query-set-and-fallback-inventory-2026-03-27.md`

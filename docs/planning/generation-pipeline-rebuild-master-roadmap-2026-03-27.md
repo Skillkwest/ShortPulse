@@ -193,7 +193,7 @@ Stop the current lane when:
 6. The provider-event ingress and replay job is done at its current checkpoint.
 7. Lane 4 operator-map, SOP, monitoring, and internal-route alignment is closed at its current checkpoint.
 8. The admin trace and health alignment job is done at its current checkpoint.
-9. The next explicit follow-on job is generated reuse and drag/drop authority.
+9. The generated reuse and drag/drop authority job is done at its current bounded checkpoint.
 10. The broader rebuild roadmap remains active, but each follow-on lane must still reopen under an explicit objective with a better ROI than stopping.
 
 ## Immediate Next Move
@@ -204,5 +204,5 @@ Stop the current lane when:
 5. treat the recovery control-plane orchestration job as done at its current checkpoint
 6. treat the provider-event ingress/replay job as done at its current checkpoint
 7. keep the admin trace and health alignment job closed at its current checkpoint
-8. start the generated reuse and drag/drop authority job so remaining user-facing generated reference reuse no longer depends primarily on transient provider URLs
+8. keep the generated reuse and drag/drop authority lane closed at the current bounded checkpoint unless a broader cross-surface reuse objective is explicitly reopened
 9. notify the user when the broader rebuild reaches the roadmap done state; otherwise treat any future continuation as a newly scoped follow-on job

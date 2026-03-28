@@ -3,7 +3,7 @@
 Date: 2026-03-27  
 Authority: Working  
 Owner: Engineering  
-Status: Active
+Status: Done at current checkpoint
 
 ## Purpose
 This document defines the next explicit follow-on job after the current admin trace/health checkpoint.
@@ -69,7 +69,7 @@ This job is done when:
 ## Proposed Execution Slices
 ### `GPR-GR-S1`
 Status:
-1. Pending
+1. Done
 
 Goal:
 1. write the generated reuse and drag/drop authority contract from current repo behavior
@@ -82,7 +82,7 @@ Artifact:
 
 ### `GPR-GR-S2`
 Status:
-1. Pending
+1. Done
 
 Goal:
 1. align Reference Grid generated resolved-media derivation with canonical output/storage authority
@@ -90,9 +90,12 @@ Goal:
 Exit gate:
 1. generated resolved-media no longer depends primarily on transient `previewUrl` / `resultUrls` when canonical output/storage evidence exists
 
+Current note:
+1. preview-only generated outputs must remain viewable without being upgraded into reusable authority
+
 ### `GPR-GR-S3`
 Status:
-1. Pending
+1. Done
 
 Goal:
 1. align generated drag/drop URL exposure with canonical reuse authority
@@ -111,3 +114,9 @@ Stop this job when:
 1. the next step would widen into downstream consumer redesign
 2. the next step would widen into broad Reference Grid cutover
 3. remaining work is mostly optional UI polish rather than authority reduction
+
+## Checkpoint Note
+This job is done at the current bounded checkpoint:
+1. generated resolved-media now trusts canonical resolved authority before raw fallback ladders
+2. generated drag/drop direct URL exposure now requires output-level storage paths instead of `savedMediaIds` alone
+3. remaining work would widen into broader cross-surface drag/drop or Reference Grid redesign

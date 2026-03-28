@@ -5,13 +5,16 @@ export type ReferenceOutputAuthorityTier = "reusable" | "tracked" | "preview-onl
 const hasText = (value: string | null | undefined): boolean =>
   typeof value === "string" && value.trim().length > 0;
 
+export const hasOutputStoragePaths = (
+  output: Pick<StudioOutput, "previewStoragePath" | "fullStoragePath">
+): boolean => hasText(output.previewStoragePath) || hasText(output.fullStoragePath);
+
 export const hasSavedMediaIds = (output: Pick<StudioOutput, "savedMediaIds">): boolean =>
   Array.isArray(output.savedMediaIds) && output.savedMediaIds.some((id) => hasText(id));
 
 export const hasStorageAuthority = (
   output: Pick<StudioOutput, "previewStoragePath" | "fullStoragePath" | "savedMediaIds">
-): boolean =>
-  hasText(output.previewStoragePath) || hasText(output.fullStoragePath) || hasSavedMediaIds(output);
+): boolean => hasOutputStoragePaths(output) || hasSavedMediaIds(output);
 
 export const isGeneratedOutput = (output: Pick<StudioOutput, "mediaSource">): boolean =>
   output.mediaSource === "generated";
@@ -40,7 +43,7 @@ export const canExposeDirectReferenceUrls = (
   >
 ): boolean => {
   if (!isGeneratedOutput(output)) return true;
-  return hasStorageAuthority(output);
+  return hasOutputStoragePaths(output);
 };
 
 export const resolveReferenceOutputAuthorityTier = (

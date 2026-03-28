@@ -114,10 +114,7 @@ export const useReferenceGridResolvedMediaController = ({
             ) ?? null)
           : (resolveFirstRenderableUrl(
               resolvedCardUrls.fullUrl ?? null,
-              item.previewUrl ?? null,
-              item.fullStoragePath ?? null,
-              item.previewStoragePath ?? null,
-              item.resultUrls?.[0] ?? null
+              resolvedCardUrls.previewUrl ?? null
             ) ?? null);
       const isVideoPreview = isOutputVideoPreview(item, previewUrl);
 

@@ -91,4 +91,35 @@ describe("resolveMediaLibraryInternalDropResolver", () => {
     expect(saveReferenceToLibrary).toHaveBeenCalledTimes(1);
     expect(sleep).not.toHaveBeenCalled();
   });
+
+  it("fails closed when only a reference url is present without internal identity", async () => {
+    const output = makeImageOutput({
+      id: "out-stale",
+      previewUrl: "https://cdn.example.com/stale-reference.png",
+      resultUrls: ["https://cdn.example.com/stale-reference.png"],
+    });
+    const saveReferenceToLibrary = vi.fn();
+
+    const result = await resolveMediaLibraryInternalDropResolver({
+      payload: makePayload({
+        outputId: null,
+        referenceId: null,
+        referenceUrl: "https://cdn.example.com/stale-reference.png",
+      }),
+      getOutputById: () => null,
+      getOutputSnapshot: () => ({
+        outputOrder: ["out-stale"],
+        archivedOutputOrder: [],
+        outputById: { "out-stale": output },
+        archivedOutputById: {},
+      }),
+      resolveSavedMediaIdFromOutput: () => null,
+      saveReferenceToLibrary,
+      persistTimeoutMs: 350,
+      pollIntervalMs: 120,
+    });
+
+    expect(result).toBeNull();
+    expect(saveReferenceToLibrary).not.toHaveBeenCalled();
+  });
 });

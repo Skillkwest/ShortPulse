@@ -338,28 +338,9 @@ const defaultResolveStoragePathFromMediaId = async (mediaId: string): Promise<st
   return resolveCanonicalMediaStoragePath(data);
 };
 
-const resolvePayloadOutputId = ({
-  payload,
-  getOutputSnapshot,
-}: {
-  payload: InternalReferenceDragPayload;
-  getOutputSnapshot: () => OutputSnapshot;
-}): string => {
+const resolvePayloadOutputId = ({ payload }: { payload: InternalReferenceDragPayload }): string => {
   const explicitOutputId = (payload.outputId ?? payload.referenceId ?? "").trim();
-  if (explicitOutputId) return explicitOutputId;
-
-  const droppedReferenceUrl = (payload.referenceUrl ?? "").trim();
-  if (!droppedReferenceUrl) return "";
-  const snapshot = getOutputSnapshot();
-  const candidateIds = [...snapshot.outputOrder, ...snapshot.archivedOutputOrder];
-  return (
-    candidateIds.find((candidateId) => {
-      const output = snapshot.outputById[candidateId] ?? snapshot.archivedOutputById[candidateId];
-      if (!output) return false;
-      if ((output.previewUrl ?? "").trim() === droppedReferenceUrl) return true;
-      return (output.resultUrls ?? []).some((url) => (url ?? "").trim() === droppedReferenceUrl);
-    }) ?? ""
-  );
+  return explicitOutputId;
 };
 
 const fetchMaybeAuthenticated = async (url: string): Promise<Response> => {
@@ -427,14 +408,13 @@ const resolveSharedSourceKind = (
 export const resolveInternalReferenceSource = async ({
   payload,
   getOutputById,
-  getOutputSnapshot,
   ensureOutputPersisted,
   resolveSavedMediaIdFromOutput,
   resolveStoragePathFromMediaId = defaultResolveStoragePathFromMediaId,
   resolveStoragePathFromGenerationOutput = defaultResolveStoragePathFromGenerationOutput,
 }: ResolveInternalReferenceSourceArgs): Promise<ResolvedInternalReferenceSource | null> => {
   const imageIndex = Math.max(0, Math.floor(payload.imageIndex ?? 0));
-  const resolvedOutputId = resolvePayloadOutputId({ payload, getOutputSnapshot });
+  const resolvedOutputId = resolvePayloadOutputId({ payload });
   const initialOutput = resolvedOutputId ? getOutputById(resolvedOutputId) : null;
   let resolvedOutput = initialOutput?.mode === "image" ? initialOutput : null;
   let resolvedMediaId =
@@ -541,6 +521,7 @@ export const resolveInternalReferenceSource = async ({
 
   const localObjectUrl =
     asTrimmedString(resolvedOutput?.localObjectUrl)?.replace(/#video=1$/i, "") ?? null;
+  const hasInternalIdentity = Boolean(resolvedOutputId || resolvedMediaId);
   const missingDurableGeneratedIdentity =
     resolveSharedSourceKind(resolvedOutput, resolvedMediaId) === "generated_output" &&
     !(
@@ -549,11 +530,12 @@ export const resolveInternalReferenceSource = async ({
       fullStoragePath ||
       asTrimmedString(resolvedOutput?.generationId)
     );
-  const compatibilityHintUrl = missingDurableGeneratedIdentity
-    ? null
-    : (asTrimmedString(payload.referenceUrl) ??
-      asTrimmedString(resolvedOutput?.previewUrl) ??
-      null);
+  const compatibilityHintUrl =
+    !hasInternalIdentity || missingDurableGeneratedIdentity
+      ? null
+      : (asTrimmedString(payload.referenceUrl) ??
+        asTrimmedString(resolvedOutput?.previewUrl) ??
+        null);
   const previewUrl =
     asTrimmedString(resolvedOutput?.previewUrl) ??
     asTrimmedString(payload.referenceRenderUrl) ??

@@ -90,13 +90,16 @@ Artifact:
 
 ### `GPR-GX-S2`
 Status:
-1. Ready
+1. In progress
 
 Goal:
 1. align internal reference drop resolution and media-library drop resolution with the canonical generated reuse policy
 
 Exit gate:
 1. internal generated drops no longer rely on mixed provider-URL authority when internal identity plus persistence resolution should be used
+
+Current checkpoint:
+1. shared internal source resolution and media-library internal drop resolution no longer infer durable generated identity from `payload.referenceUrl` alone
 
 ### `GPR-GX-S3`
 Status:

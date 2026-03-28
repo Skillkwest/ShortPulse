@@ -41,7 +41,6 @@ const defaultSleep = async (ms: number): Promise<void> =>
 export const resolveMediaLibraryInternalDropResolver = async ({
   payload,
   getOutputById,
-  getOutputSnapshot,
   resolveSavedMediaIdFromOutput,
   saveReferenceToLibrary,
   persistTimeoutMs,
@@ -54,25 +53,7 @@ export const resolveMediaLibraryInternalDropResolver = async ({
     return { kind: "media", id: payloadMediaId };
   }
 
-  const explicitOutputId = (payload.outputId ?? payload.referenceId ?? "").trim();
-  let resolvedOutputId = explicitOutputId;
-  if (!resolvedOutputId) {
-    const droppedReferenceUrl = (payload.referenceUrl ?? "").trim();
-    if (droppedReferenceUrl) {
-      const snapshot = getOutputSnapshot();
-      const candidateIds = [...snapshot.outputOrder, ...snapshot.archivedOutputOrder];
-      resolvedOutputId =
-        candidateIds.find((candidateId) => {
-          const output =
-            snapshot.outputById[candidateId] ?? snapshot.archivedOutputById[candidateId];
-          if (!output) return false;
-          if ((output.previewUrl ?? "").trim() === droppedReferenceUrl) return true;
-          return (output.resultUrls ?? []).some(
-            (url) => (url ?? "").trim() === droppedReferenceUrl
-          );
-        }) ?? "";
-    }
-  }
+  const resolvedOutputId = (payload.outputId ?? payload.referenceId ?? "").trim();
 
   if (!resolvedOutputId) return null;
 

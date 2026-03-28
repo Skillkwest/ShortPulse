@@ -236,6 +236,43 @@ describe("resolveInternalReferenceSource", () => {
     expect(resolved?.provenance.resolutionReason).toBe("payload_reference_url");
   });
 
+  it("fails closed when only a stale generated reference url is present without internal identity", async () => {
+    const matchingOutput = makeImageOutput({
+      id: "out-stale-generated",
+      savedMediaIds: ["media-1"],
+      previewStoragePath: "user-1/generations/images/out-stale-preview.png",
+      fullStoragePath: "user-1/generations/images/out-stale-full.png",
+      previewUrl: "https://cdn.example.com/stale-reference.png",
+      resultUrls: ["https://cdn.example.com/stale-reference.png"],
+      mediaSource: "generated",
+    });
+
+    const resolved = await resolveInternalReferenceSource({
+      payload: makePayload({
+        outputId: null,
+        referenceId: null,
+        mediaId: null,
+        referenceUrl: "https://cdn.example.com/stale-reference.png",
+      }),
+      getOutputById: () => null,
+      getOutputSnapshot: () => ({
+        outputOrder: ["out-stale-generated"],
+        archivedOutputOrder: [],
+        outputById: { "out-stale-generated": matchingOutput },
+        archivedOutputById: {},
+      }),
+      ensureOutputPersisted: async () => ({
+        ok: false,
+        mediaFileIds: [],
+        delivery: null,
+        error: "missing",
+      }),
+      resolveSavedMediaIdFromOutput: () => null,
+    });
+
+    expect(resolved).toBeNull();
+  });
+
   it("returns null when no internal identity or compatibility hint can be resolved", async () => {
     const resolved = await resolveInternalReferenceSource({
       payload: makePayload({

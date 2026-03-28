@@ -193,6 +193,8 @@ Stop the current lane when:
 ## Immediate Next Move
 1. keep Lane 1 closed at the current stronger checkpoint
 2. keep Lane 3 paused at the bounded preview/detail checkpoint
-3. treat the post-submit state-machine service job as the active follow-on lane for forward-path rebuild work
-4. start `GPR-SM-S4` now that the post-submit mutation-path migration checkpoint is effectively complete
+3. treat the mutation-focused state-machine service lane as complete at the current checkpoint
+4. only reopen under a new explicit objective with better ROI than stopping, most likely:
+   - a dedicated lifecycle read-model job for queue/status observers, or
+   - a broader control-plane convergence job
 5. notify the user when the broader rebuild reaches the roadmap done state; otherwise treat any future continuation as a newly scoped follow-on job

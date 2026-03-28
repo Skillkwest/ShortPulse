@@ -146,6 +146,9 @@ Implemented checkpoint:
 6. no higher-value post-submit mutation seam remains outside the canonical service boundary on the current branch
 
 ### `GPR-SM-S4`
+Status:
+1. Completed at the current checkpoint
+
 Goal:
 1. classify the remaining control-plane readers and enrichers against the new service boundary
 
@@ -155,6 +158,15 @@ Exit gate:
    - read-only observer
    - compatibility seam
 2. no major forward-path lifecycle authority remains implicit
+
+Implemented checkpoint:
+1. `generationQueue/service.ts` is explicitly classified as a read-only queue observer with bounded request-id/source-ref compatibility seams
+2. `falStatusPersistedResults.ts` is explicitly classified as a read-only persisted-success observer with canonical output authority and metadata URL fallback only
+3. `falStatusProxy.ts` is explicitly classified as a read-only observer/enricher over persisted success context and provider polling
+4. the remaining queue/status read surfaces do not justify reopening mutation-path cleanup on the current branch
+
+Artifact:
+1. `docs/planning/generation-pipeline-rebuild-state-machine-read-model-posture-2026-03-27.md`
 
 ## Validation Bundle
 1. targeted unit coverage for legal transition acceptance/rejection
@@ -170,7 +182,7 @@ Stop this job when:
 3. the remaining work is mostly governance wording rather than real lifecycle centralization
 
 ## Recommended First Move
-Start `GPR-SM-S4`:
-1. classify queue-status and persisted-status against the canonical lifecycle service boundary
-2. decide which surfaces remain read-only observers versus lifecycle-read-model consumers
+Stop at the current checkpoint:
+1. keep the mutation-focused state-machine lane closed
+2. treat queue-status and persisted-status as explicitly classified read-only observers unless a future dedicated read-model job is opened
 3. do not reopen mutation-path cleanup unless a concrete bypass is found

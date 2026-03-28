@@ -97,6 +97,7 @@ Purpose: active planning artifacts and current execution backlogs.
 - `generation-settlement-control-plane-hardening-execution-plan-2026-03-23.md`: focused execution plan for accepted-submit settlement hardening first, then queue-status/fleet mutation-ownership cleanup with bounded rollout and rollback gates.
 - `media-library-runtime-rebuild-master-plan-2026-03-28.md`: canonical rebuild plan for replacing the distributed Media Library client runtime with a shared surface controller and store while preserving server contracts and product behavior.
 - `media-library-runtime-rebuild-tracker-2026-03-28.md`: active tracker for Media Library runtime rebuild phases, slice sequencing, risks, rollback notes, and evidence readiness.
+- `media-library-ui-redesign-plan-2026-03-28.md`: next-lane redesign contract for `/media-library`, the AI Studio Media Library modal, and the AI Studio Media Library panel on top of the completed runtime rebuild.
 - `media-rendering-hardening-v2-master-plan-2026-03-16.md`: canonical no-regression/no-bloat master plan for media rendering hardening (`P0` through `P9`) with locked constraints, contracts, and exit criteria.
 - `media-rendering-hardening-v2-master-roadmap-2026-03-16.md`: canonical sequencing/dependency roadmap for media rendering hardening workstreams and rollout rings.
 - `media-rendering-hardening-v2-execution-tracker-2026-03-16.md`: required tracker schema and seeded slice backlog for media rendering hardening execution.

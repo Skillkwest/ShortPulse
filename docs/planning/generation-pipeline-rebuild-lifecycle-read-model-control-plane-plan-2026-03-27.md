@@ -112,7 +112,7 @@ Implemented checkpoint:
 
 ### `GPR-RM-S3`
 Status:
-1. In progress
+1. Completed at the current checkpoint
 
 Goal:
 1. apply the contract to status-triggered recovery and background control-plane recovery entry points
@@ -124,6 +124,10 @@ Implemented checkpoint:
 1. shared recovery claim compare-and-set policy now lives in `frontend/lib/server/api/generationRecoveryClaimPolicy.ts`
 2. `statusRecoveryKick.ts` and `runCycle.ts` now share supported-provider and claim-mutation policy instead of duplicating that query/update logic
 3. `executeGenerationRecovery()` remains the sole shared recovery engine
+4. remaining eligibility differences are entry-point specific:
+   - `statusRecoveryKick.ts` still owns user-scoped denial reasons such as `not_due`, `too_recent`, and `missing_request_id`
+   - `runCycle.ts` still owns batch-oriented allowlist/requeue orchestration and RPC-first claiming
+5. no further shared-helper extraction is justified here without widening into broader control-plane redesign
 
 ## Validation Bundle
 1. targeted queue-status and persisted-status tests

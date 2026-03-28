@@ -195,5 +195,5 @@ Stop the current lane when:
 1. keep Lane 1 closed at the current stronger checkpoint
 2. keep Lane 3 paused at the bounded preview/detail checkpoint
 3. treat the mutation-focused state-machine service lane as complete at the current checkpoint
-4. continue the explicit lifecycle read-model/control-plane job with `GPR-RM-S3`
+4. treat the current lifecycle read-model/control-plane lane as at a good checkpoint after shared recovery claim policy extraction
 5. notify the user when the broader rebuild reaches the roadmap done state; otherwise treat any future continuation as a newly scoped follow-on job

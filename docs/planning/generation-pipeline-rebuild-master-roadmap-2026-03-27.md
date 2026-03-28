@@ -187,8 +187,9 @@ Stop the current lane when:
 ## Current Checkpoint
 1. Lane 1 is closed at the current stronger checkpoint.
 2. The bounded Lane 3 preview/detail read-authority slice is closed.
-3. The current scoped job should stop here rather than widening into broader grid, drag/drop, or reuse cutover by momentum.
-4. The broader rebuild roadmap remains active, but any next step must reopen under a new explicit objective with a better ROI than stopping here.
+3. The post-submit state-machine service job is done at its current checkpoint.
+4. That job should stop here rather than widening into broader grid, drag/drop, reuse, or control-plane work by momentum.
+5. The broader rebuild roadmap remains active, but any next step must reopen under a new explicit objective with a better ROI than stopping here.
 
 ## Immediate Next Move
 1. keep Lane 1 closed at the current stronger checkpoint

@@ -85,6 +85,21 @@ This job is done when:
 4. remaining read-only or compatibility seams are explicitly categorized instead of silently bypassing the transition model
 5. the next remaining work would be broader control-plane convergence, provider-event durability expansion, or user-facing cutover
 
+## Job Done State
+Treat this state-machine job as done when all of the following are true:
+1. post-submit mutation paths no longer bypass the canonical lifecycle transition service
+2. accepted submit, queue reconcile, request-id repair, recovery, and queue terminal exhaustion/failure all route through explicit lifecycle intents or intentionally remain outside scope
+3. queue-status and persisted-status surfaces are explicitly classified as:
+   - read-only observer
+   - transition-service consumer
+   - compatibility seam
+4. no remaining high-value post-submit mutation or reader seam can be closed without widening into a different job
+5. the next credible improvement would be one of:
+   - a dedicated lifecycle read-model job
+   - broader control-plane convergence
+   - provider-event durability expansion
+   - user-facing Lane 3 cutover work
+
 ## Done State
 1. post-submit lifecycle surfaces no longer own bespoke transition choreography
 2. recovery and request-id repair no longer compose local mutation ordering separately
@@ -167,6 +182,10 @@ Implemented checkpoint:
 
 Artifact:
 1. `docs/planning/generation-pipeline-rebuild-state-machine-read-model-posture-2026-03-27.md`
+
+Current assessment:
+1. `GPR-SM-S4` satisfies the job done state at the current checkpoint
+2. further work in this area should only continue under a newly scoped follow-on job, not by momentum inside this one
 
 ## Validation Bundle
 1. targeted unit coverage for legal transition acceptance/rejection

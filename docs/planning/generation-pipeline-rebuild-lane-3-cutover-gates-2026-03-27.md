@@ -61,6 +61,11 @@ Current checkpoint:
 3. regression coverage exists for preview hook gating, preview-authority preference, and detail-modal canonical preview/full preference
 4. the next remaining seam would move closer to broader Reference Grid behavior, so it should not be opened casually
 
+Pause decision:
+1. Lane 3 is intentionally paused at this checkpoint.
+2. The current scoped job stops here rather than widening into broader grid, drag/drop, or reuse cutover by sequence alone.
+3. Lane 3 should reopen only under a new explicit objective with regression protection for the affected downstream surfaces.
+
 ## Required Cutover Gates
 No surface may move to canonical-only authority unless:
 1. canonical output coverage is sufficient for that surface's historical rows

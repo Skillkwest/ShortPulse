@@ -184,8 +184,14 @@ Stop the current lane when:
 2. rollback rules exist before legacy contracts are removed
 3. cleanup does not proceed until compatibility-path retirement evidence is complete
 
+## Current Checkpoint
+1. Lane 1 is closed at the current stronger checkpoint.
+2. The bounded Lane 3 preview/detail read-authority slice is closed.
+3. The current scoped job should stop here rather than widening into broader grid, drag/drop, or reuse cutover by momentum.
+4. The broader rebuild roadmap remains active, but any next step must reopen under a new explicit objective with a better ROI than stopping here.
+
 ## Immediate Next Move
 1. keep Lane 1 closed at the current stronger checkpoint
-2. continue Lane 3 only within the bounded preview/detail read-authority slice
-3. move the remaining detail-media derivation seam onto canonical preview/full authority before touching broader grid or drag/drop behavior
-4. do not broaden Lane 3 into grid-wide cutover until the preview/detail slice is closed with regression coverage
+2. keep Lane 3 paused at the bounded preview/detail checkpoint
+3. do not broaden Lane 3 into grid-wide cutover until a new explicit objective justifies the regression risk
+4. notify the user when the broader rebuild reaches the roadmap done state; otherwise treat any future continuation as a newly scoped follow-on job

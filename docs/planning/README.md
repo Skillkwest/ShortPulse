@@ -248,6 +248,8 @@ Purpose: active planning artifacts and current execution backlogs.
 - `evidence/lane-e/README.md`: evidence packet schema and naming contract for Lane E docs/ADR governance slices.
 - `evidence/lane-f/README.md`: evidence packet schema and naming contract for Lane F CI/release governance slices.
 - `evidence/generation-pipeline-hardening/README.md`: evidence packet schema and naming contract for Track P1 generation-pipeline hardening slices.
+- `evidence/media-library-runtime-rebuild/README.md`: evidence packet schema and closeout rule for Media Library runtime rebuild slices.
+- `evidence/media-library-runtime-rebuild/2026-03-28-mlr-0-s2-characterization-and-freeze-repro-baseline.md`: initial characterization and freeze-repro baseline packet for `MLR-0-S2`.
 - `evidence/media-rendering-hardening-v2/README.md`: evidence index and packet naming contract for media rendering hardening v2 slices.
 - `evidence/media-rendering-hardening-v2/slice-evidence-packet-template.md`: reusable evidence packet template for media rendering hardening v2 slices.
 - `evidence/agent-pipeline-remediation/README.md`: evidence index and packet minimums for the AI Studio agent pipeline regression remediation program.

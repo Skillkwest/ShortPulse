@@ -364,6 +364,8 @@ Start here for all repository documentation.
 - `docs/planning/evidence/lane-e/README.md`
 - `docs/planning/evidence/lane-f/README.md`
 - `docs/planning/evidence/generation-pipeline-hardening/README.md`
+- `docs/planning/evidence/media-library-runtime-rebuild/README.md`
+- `docs/planning/evidence/media-library-runtime-rebuild/2026-03-28-mlr-0-s2-characterization-and-freeze-repro-baseline.md`
 - `docs/planning/evidence/agent-pipeline-remediation/README.md`
 - `docs/planning/evidence/agent-pipeline-remediation/master/2026-03-20-phase-1-entry-gate-signoff.md`
 - `docs/planning/evidence/agent-pipeline-remediation/phase-1/README.md`

@@ -194,7 +194,8 @@ Stop the current lane when:
 7. Lane 4 operator-map, SOP, monitoring, and internal-route alignment is closed at its current checkpoint.
 8. The admin trace and health alignment job is done at its current checkpoint.
 9. The generated reuse and drag/drop authority job is done at its current bounded checkpoint.
-10. The broader rebuild roadmap remains active, but each follow-on lane must still reopen under an explicit objective with a better ROI than stopping.
+10. The next explicit follow-on job is the broader generated reuse authority cutover across downstream consumers.
+11. The broader rebuild roadmap remains active, but each follow-on lane must still reopen under an explicit objective with a better ROI than stopping.
 
 ## Immediate Next Move
 1. keep Lane 1 closed at the current stronger checkpoint
@@ -204,5 +205,6 @@ Stop the current lane when:
 5. treat the recovery control-plane orchestration job as done at its current checkpoint
 6. treat the provider-event ingress/replay job as done at its current checkpoint
 7. keep the admin trace and health alignment job closed at its current checkpoint
-8. keep the generated reuse and drag/drop authority lane closed at the current bounded checkpoint unless a broader cross-surface reuse objective is explicitly reopened
-9. notify the user when the broader rebuild reaches the roadmap done state; otherwise treat any future continuation as a newly scoped follow-on job
+8. treat the bounded generated reuse and drag/drop lane as complete at its checkpoint
+9. complete the generated reuse authority cutover by aligning internal drop resolution and downstream generated reuse consumers under one identity-first contract
+10. notify the user when the broader rebuild reaches the roadmap done state; otherwise treat any future continuation as a newly scoped follow-on job

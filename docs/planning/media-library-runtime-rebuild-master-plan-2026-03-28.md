@@ -1,6 +1,6 @@
 # Media Library Runtime Rebuild Master Plan (2026-03-28)
 
-Status: Planning complete, implementation not started  
+Status: Implementation active  
 Owner: Frontend Engineering  
 Scope: Media Library route, AI Studio Media Library modal, AI Studio Media Library panel  
 Primary branch: `generation-pipeline-rebuild`
@@ -50,12 +50,12 @@ Do not block this work on UI redesign. The runtime must be corrected first.
 | Criterion | Status | Evidence | Notes |
 | --- | --- | --- | --- |
 | Contract lock completed | Pass | Existing SOPs and ADRs | `ADR 0032`, `0033`, `0035`, `0036`, `0037`, `0038`, `0039`, `0044` plus media SOPs already lock current product and delivery contracts. |
-| Characterization baseline captured | Pass with follow-up | Repo audit and existing tests | Existing tests cover route hooks, modal behavior, panel behavior, and many shared helpers. `MLR-0` must convert that into an explicit characterization inventory before behavior changes. |
+| Characterization baseline captured | Pass with follow-up | Repo audit and existing tests | Existing tests cover route hooks, modal behavior, panel behavior, and many shared helpers. `MLR-0-S2` must convert that into an explicit characterization inventory before closeout and freeze-signoff. |
 | Do-not-rebuild criteria evaluated | Pass | Current audit | This is not a styling issue, docs drift issue, or narrow seam extraction candidate. |
 | Incremental strangler cutover defined | Pass | Phases below | Route first, modal second, panel third, legacy adapters retained until green. |
 | Rollback within release window defined | Pass | Rollback section | Surface adapters preserve rollback to legacy implementation. |
 | Security boundary verification defined | Pass | Existing APIs preserved | User-scoped auth, storage scope, and sign/list/resolve contracts remain server authoritative. |
-| Performance parity baseline and thresholds defined | Pass with follow-up | Acceptance section | `MLR-0-S2` must produce the baseline packet before behavior-changing work starts. |
+| Performance parity baseline and thresholds defined | Pass with follow-up | Acceptance section | `MLR-0-S2` must produce the baseline packet before closeout and freeze-signoff. |
 | One-seam PR slicing policy accepted | Pass | Execution policy | No mixed runtime plus UI redesign PRs. |
 
 ## Non-Goals
@@ -195,7 +195,7 @@ Folder canvas may consume shared preview helpers, but its scene, persistence, an
 - Prefer extracting stable interfaces before moving behavior.
 
 ## Characterization Baseline Requirements
-Before the first behavior-changing slice, capture:
+Before tracker closeout and freeze-signoff, capture:
 - current route hot-path behavior
 - current modal hot-path behavior
 - current panel hot-path behavior
@@ -277,7 +277,7 @@ Exit gate:
 
 ### Phase `MLR-5`: Legacy removal and closeout
 Goals:
-- remove dead surface-owned runtime paths
+- remove genuinely dead surface-owned runtime paths as they appear
 - complete docs and evidence
 - leave UI redesign as a separate next lane
 
@@ -354,7 +354,11 @@ This track is done only when all of the following are true:
 
 6. The hot path is structurally improved:
    - no broad array rewrite is required for steady-state single-row preview updates
-   - no parallel duplicated observer ownership remains across route, modal, and panel for equivalent browse behavior
+    - no parallel duplicated observer ownership remains across route, modal, and panel for equivalent browse behavior
+
+7. The characterization and repro evidence are complete:
+   - `MLR-0-S2` baseline packet is complete
+   - heavy media-library repro coverage has been executed for route, modal, and panel before declaring the rebuild done
    - route, modal, and panel consume the shared runtime instead of reimplementing equivalent logic
 
 7. Validation and evidence are complete:

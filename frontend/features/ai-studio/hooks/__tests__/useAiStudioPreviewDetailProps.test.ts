@@ -130,4 +130,28 @@ describe("useAiStudioPreviewDetailProps", () => {
       "https://example.com/out-hidden.png"
     );
   });
+
+  it("prefers canonical preview authority when storage-backed preview media exists", () => {
+    const storageBackedOutput: StudioOutput = {
+      ...output,
+      id: "out-storage",
+      previewUrl: "https://example.com/transient.png",
+      previewStoragePath: "https://example.com/canonical-preview.png",
+      fullStoragePath: "https://example.com/full.png",
+    };
+
+    const { result } = renderHook(() =>
+      useAiStudioPreviewDetailProps(
+        createParams({
+          activeOutput: storageBackedOutput,
+          detailOutput: storageBackedOutput,
+          referenceGridReadyOutputIds: new Set<string>(["out-storage"]),
+        })
+      )
+    );
+
+    expect(result.current.studioPreviewProps.activeOutputPreviewUrl).toBe(
+      "https://example.com/canonical-preview.png"
+    );
+  });
 });

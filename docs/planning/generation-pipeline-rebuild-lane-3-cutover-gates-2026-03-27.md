@@ -37,6 +37,29 @@ Lane 3 should cut over in this order:
 
 The order matters because downstream consumers depend on drag/drop and reference payload stability.
 
+## Current Entry Target
+Lane 3 should open with the preview/detail derivation layer, not a broad grid rewrite.
+
+The first bounded surface is:
+1. `frontend/features/ai-studio/hooks/useAiStudioPreviewDetailProps.ts`
+2. `frontend/features/ai-studio/hooks/useAiStudioOutputDerivations.ts`
+3. `frontend/features/ai-studio/components/DetailModal.tsx`
+
+Reason:
+1. this path still promotes raw `previewUrl` plus readiness flags as if they were durable authority
+2. it is safer than broad Reference Grid or drag/drop cutover
+3. it can be regression-tested without changing downstream payload contracts
+
+Initial cutover objective:
+1. preview/detail should use canonical output/storage authority first
+2. preview-only generated outputs may remain viewable
+3. preview/detail should not imply durable reusability or saved authority when only transient preview state exists
+
+Current checkpoint:
+1. active-output preview authority now resolves through canonical preview/storage preference in `useAiStudioState.ts` and `useAiStudioPreviewDetailProps.ts`
+2. regression coverage exists for preview hook gating and preview-authority preference
+3. the remaining bounded seam is detail-modal media derivation, not drag/drop or broad Reference Grid behavior
+
 ## Required Cutover Gates
 No surface may move to canonical-only authority unless:
 1. canonical output coverage is sufficient for that surface's historical rows

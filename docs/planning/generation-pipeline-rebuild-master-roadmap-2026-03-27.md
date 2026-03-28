@@ -40,7 +40,7 @@ Goal:
 1. replace the current split lifecycle authority with one server-owned request/attempt model
 
 Status:
-1. Reopened and active on the current branch
+1. Done at the current stronger checkpoint
 
 Primary surfaces:
 1. `frontend/lib/server/api/falSubmitProxy.ts`
@@ -185,7 +185,7 @@ Stop the current lane when:
 3. cleanup does not proceed until compatibility-path retirement evidence is complete
 
 ## Immediate Next Move
-1. treat the earlier Lane 1 milestone checkpoint as surpassed on the current branch
-2. stop taking narrow seam slices inside Lane 1 by momentum alone
-3. choose deliberately between a larger shared request/attempt state-machine step and a hard Lane 1 stop at the current stronger checkpoint
-4. do not auto-open Lane 2 or Lane 3 unless a concrete forward-pipeline risk justifies it
+1. keep Lane 1 closed at the current stronger checkpoint
+2. continue Lane 3 only within the bounded preview/detail read-authority slice
+3. move the remaining detail-media derivation seam onto canonical preview/full authority before touching broader grid or drag/drop behavior
+4. do not broaden Lane 3 into grid-wide cutover until the preview/detail slice is closed with regression coverage

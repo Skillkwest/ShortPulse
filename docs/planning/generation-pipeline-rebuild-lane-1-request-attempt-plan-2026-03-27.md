@@ -3,7 +3,7 @@
 Date: 2026-03-27  
 Authority: Working  
 Owner: Engineering  
-Status: Active checkpoint
+Status: Strong checkpoint complete
 
 ## Purpose
 Lane 1 defines the future request/attempt state machine for the generation pipeline.
@@ -197,6 +197,6 @@ Current judgment:
 
 ## Lane 1 Status
 1. Planning-complete
-2. Implementation reopened on the current branch for shared transition-helper work
-3. The current branch is now at a stronger checkpoint than the earlier milestone closeout
-4. Do not continue with more small seam slices; the next move must be a broader transition-helper/state-machine step or a deliberate stop
+2. Implementation reached a stronger checkpoint than the earlier milestone closeout
+3. Lane 1 is done for the current milestone at this stronger checkpoint
+4. Reopen only if we deliberately choose a larger request/attempt state-machine step rather than more seam cleanup

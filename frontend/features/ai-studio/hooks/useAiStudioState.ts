@@ -42,6 +42,7 @@ import { useAiStudioSessionSnapshotController } from "./useAiStudioSessionSnapsh
 import { useAiStudioSessionReferenceDurability } from "./useAiStudioSessionReferenceDurability";
 import { useAiStudioStableTextSetters } from "./useAiStudioStableTextSetters";
 import { useAiStudioSubmissionReferenceResolver } from "./useAiStudioSubmissionReferenceResolver";
+import { resolveActiveOutputPreviewUrl } from "../logic/activeOutputPreviewAuthority";
 import type { ExpertEditSessionState } from "../components/edit/expertEditSessionState";
 import {
   createEmptyReferenceProjectionState,
@@ -122,6 +123,14 @@ export const useAiStudioState = ({
     () => (activeOutputId ? (activeOutputById[activeOutputId] ?? null) : null),
     [activeOutputById, activeOutputId]
   );
+  const activeOutputPreviewUrl = useMemo(
+    () =>
+      resolveActiveOutputPreviewUrl({
+        activeOutput,
+        referenceGridReadyOutputIds: visibleReferenceGridReadyOutputIds,
+      }),
+    [activeOutput, visibleReferenceGridReadyOutputIds]
+  );
   // UI selections and references (tracked per workflow)
   const {
     selectedTool,
@@ -151,7 +160,7 @@ export const useAiStudioState = ({
     openModelModal,
     closeModelModal,
   } = useAiStudioReferenceSelectionState({
-    activeOutputPreviewUrl: activeOutput?.previewUrl ?? null,
+    activeOutputPreviewUrl,
   });
 
   const [videoReferenceMode, setVideoReferenceMode] = useState<
@@ -286,7 +295,7 @@ export const useAiStudioState = ({
     promptRef,
     aspect,
     setAspect,
-    activeOutputPreviewUrl: activeOutput?.previewUrl,
+    activeOutputPreviewUrl,
     setUseReferenceImageIndicator,
     model,
     selectedTool,
@@ -450,7 +459,7 @@ export const useAiStudioState = ({
     selectedTool,
     videoReferenceMode,
     useReferenceImageIndicator,
-    activeOutputPreviewUrl: activeOutput?.previewUrl ?? null,
+    activeOutputPreviewUrl,
     resolveReferenceInputsForTool: resolveSubmissionReferenceInputsForTool,
     submitTask,
   });

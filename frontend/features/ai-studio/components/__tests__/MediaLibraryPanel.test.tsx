@@ -85,24 +85,14 @@ vi.mock("../MediaLibraryFolderCanvas", () => ({
 }));
 
 vi.mock("../../../../lib/supabaseClient", () => ({
-  ensureSupabaseClient: () => ({
-    auth: {
-      getSession: async () => ({
-        data: {
-          session: {
-            user: {
-              id: "user-1",
-            },
-          },
-        },
-      }),
-    },
+  ensureSupabaseQueryClient: () => ({
     storage: {
       from: () => ({
         download: (...args: unknown[]) => storageDownloadMock(...args),
       }),
     },
   }),
+  readSupabaseUserId: async () => "user-1",
 }));
 
 vi.mock("../../../../lib/useVisibleErrorTelemetry", () => ({

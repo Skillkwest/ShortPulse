@@ -5,30 +5,19 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { FolderSimple } from "phosphor-react";
 import { isAdaptiveSurfaceEnabled } from "../../../lib/adaptive-media";
-import {
-  MEDIA_PREVIEW_SIGN_BATCH_MAX_ATTEMPTS_PER_ITEM,
-  resolveMediaPreviewSignBudget,
-  type MediaSignBudget,
-} from "../../../lib/mediaPreviewRuntimePolicy";
-import type { MediaPreviewTransformProfile } from "../../../lib/mediaPreviewTransformProfile";
+import { MEDIA_PREVIEW_SIGN_BATCH_MAX_ATTEMPTS_PER_ITEM } from "../../../lib/mediaPreviewRuntimePolicy";
 import { ensureSupabaseQueryClient, readSupabaseUserId } from "../../../lib/supabaseClient";
 import { useVisibleErrorTelemetry } from "../../../lib/useVisibleErrorTelemetry";
 import { useMediaAdaptivePressure } from "../../media-library/hooks/useMediaAdaptivePressure";
-import { useMediaPreviewRecoveryController } from "../../media-library/hooks/useMediaPreviewRecoveryController";
 import { useMediaPreviewSigningController } from "../../media-library/hooks/useMediaPreviewSigningController";
+import { useMediaSurfacePreviewRuntime } from "../../media-library/hooks/useMediaSurfacePreviewRuntime";
 import {
   MEDIA_LIBRARY_PANEL_CONSTANT_COMPRESSION_ENABLED,
   MEDIA_LIBRARY_SIGN_PREFETCH_ENABLED,
 } from "../../media-library/logic/mediaLibraryFeatureFlags";
 import { resolveSignedSelectionUrl } from "../../media-library/logic/mediaPreviewResolver";
 import {
-  hydrateMediaPreviewViaStorageDownload,
-  resolveAndApplySignedPreviewUrlsByRows,
-  signMediaStoragePath,
-} from "../../media-library/logic/mediaPreviewRuntimeShared";
-import {
   BUCKET,
-  createMediaTabBooleanState,
   getMediaDataTabForRow,
   isNextImageOptimizerUrl,
   isVideoFile,
@@ -41,6 +30,7 @@ import {
   type MediaTab,
   type PromptRow,
 } from "../logic/mediaLibraryModalModel";
+import { getMediaLibrarySurfaceConfig } from "../../media-library/runtime";
 import { MEDIA_LIBRARY_ROOT_FOLDER_ID } from "../logic/mediaLibraryPanelApi";
 import { resolveMediaDragDimensions } from "../logic/mediaLibraryAspectRatio";
 import {
@@ -101,22 +91,6 @@ const FOLDER_CONTEXT_MENU_WIDTH_PX = 156;
 const FOLDER_CONTEXT_MENU_HEIGHT_PX = 84;
 const FOLDER_CONTEXT_MENU_VIEWPORT_PADDING_PX = 10;
 const SUPABASE_RENDER_IMAGE_PATH = "/storage/v1/render/image/";
-const MEDIA_LIBRARY_PANEL_SIGN_SMALL_SCREEN_QUERY = "(max-width: 900px)";
-const MEDIA_LIBRARY_PANEL_SIGN_BUDGET_DESKTOP: MediaSignBudget = {
-  initialSignLimit: 4,
-  prefetchWindow: 4,
-  signBatchSize: 4,
-};
-const MEDIA_LIBRARY_PANEL_SIGN_BUDGET_SMALL_SCREEN: MediaSignBudget = {
-  initialSignLimit: 3,
-  prefetchWindow: 3,
-  signBatchSize: 3,
-};
-const MEDIA_LIBRARY_PANEL_SIGN_BUDGET_CONSTRAINED: MediaSignBudget = {
-  initialSignLimit: 2,
-  prefetchWindow: 2,
-  signBatchSize: 2,
-};
 
 const setTransferDataSafe = (transfer: DataTransfer, type: string, value: string): void => {
   try {
@@ -138,20 +112,13 @@ const resolveSigningTab = (itemType: MediaLibraryPanelItemType): MediaDataTab =>
   return "uploaded_images";
 };
 
-const resolvePanelSignBudget = (): MediaSignBudget =>
-  resolveMediaPreviewSignBudget({
-    desktop: MEDIA_LIBRARY_PANEL_SIGN_BUDGET_DESKTOP,
-    smallScreen: MEDIA_LIBRARY_PANEL_SIGN_BUDGET_SMALL_SCREEN,
-    constrained: MEDIA_LIBRARY_PANEL_SIGN_BUDGET_CONSTRAINED,
-    smallScreenQuery: MEDIA_LIBRARY_PANEL_SIGN_SMALL_SCREEN_QUERY,
-  });
-
 export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
   onSelectMedia,
   onSelectPrompt,
   resolveInternalDropItem,
   resolveCanvasDropReference,
 }: MediaLibraryPanelProps) {
+  const panelSurfaceConfig = getMediaLibrarySurfaceConfig("panel");
   const {
     folders,
     orderedFolders,
@@ -181,30 +148,11 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
   const [folderContextMenu, setFolderContextMenu] = useState<FolderContextMenuState | null>(null);
 
-  const signedUrlRetryRef = useRef<Record<string, number>>({});
-  const signAttemptRef = useRef<Record<string, number>>({});
-  const downloadFallbackInFlightRef = useRef<Record<string, boolean>>({});
   const mediaDownloadInFlightRef = useRef<Record<string, boolean>>({});
-  const objectUrlByMediaIdRef = useRef<Record<string, string>>({});
-  const currentUserIdRef = useRef<string | null>(null);
-  const isMountedRef = useRef(true);
-
-  const activeTabRef = useRef<MediaTab>("uploaded_images");
-  const activeMediaQueryRef = useRef("");
-  const mediaSignInFlightRef = useRef(createMediaTabBooleanState());
 
   const panelBodyRef = useRef<HTMLDivElement | null>(null);
   const splitContainerRef = useRef<HTMLDivElement | null>(null);
-  const mediaCardNodesRef = useRef<Map<string, HTMLButtonElement>>(new Map());
-  const mediaCardRefCallbacksRef = useRef<Record<string, (node: HTMLButtonElement | null) => void>>(
-    {}
-  );
-  const mediaCardObserverRef = useRef<IntersectionObserver | null>(null);
-  const visibleMediaIdsRef = useRef<Set<string>>(new Set());
-  const [visibleMediaVersion, setVisibleMediaVersion] = useState(0);
   const folderContextMenuRef = useRef<HTMLDivElement | null>(null);
-  const [signPassNonce, setSignPassNonce] = useState(0);
-  const [signBudget, setSignBudget] = useState<MediaSignBudget>(resolvePanelSignBudget);
   const [folderCanvasFullSignedById, setFolderCanvasFullSignedById] = useState<
     Record<string, string>
   >({});
@@ -284,6 +232,62 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
     if (!shouldShowMedia || mediaRows.length === 0) return null;
     return resolveSigningTab(itemType);
   }, [itemType, mediaRows.length, shouldShowMedia]);
+  const applySignedUrlsToMediaRows = useCallback(
+    (_tab: MediaDataTab, signedById: Map<string, string>) => {
+      if (!signedById.size) return;
+      setMediaRows((previous) =>
+        previous.map((row) => {
+          const signedUrl = signedById.get(row.id);
+          if (!signedUrl || row.signedUrl === signedUrl) return row;
+          return { ...row, signedUrl };
+        })
+      );
+    },
+    [setMediaRows]
+  );
+  const {
+    activeMediaQueryRef,
+    activeTabRef,
+    currentUserIdRef,
+    getMediaCardRef,
+    handleMediaPreviewError,
+    hydrateViaStorageDownload,
+    isMountedRef,
+    mediaSignInFlightRef,
+    refreshSignedUrl,
+    resolveSignedUrlsByMediaIds,
+    setSignPassNonce,
+    signAttemptRef,
+    signBudget,
+    signPassNonce,
+    signStoragePath,
+    signedUrlRetryRef,
+    visibleMediaIdsRef,
+    visibleMediaVersion,
+  } = useMediaSurfacePreviewRuntime<MediaFileRow, MediaTab, HTMLButtonElement>({
+    activeMediaQuery: normalizedSearch,
+    activeTab: activeMediaTab ?? "saved_prompts",
+    firstMediaPaintEventName: "media.modal.first_media_paint",
+    previewProfile: panelSurfaceConfig.imageCardPreviewProfile,
+    signBudgetResolver: panelSurfaceConfig.signBudgetResolver,
+    surface: panelSurfaceConfig.listSurface,
+    visibilityRootMargin: panelSurfaceConfig.visibilityRootMargin,
+    visibilityRootRef: panelBodyRef as React.MutableRefObject<HTMLElement | null>,
+    applySignedUrlsToSurface: applySignedUrlsToMediaRows,
+    setFiles: setMediaRows,
+    beforeRetry: ({ row, failedUrl }) => {
+      if (!isNextImageOptimizerUrl(failedUrl)) return;
+      const sourceUrl = resolveNextImageOptimizerSourceUrl(failedUrl);
+      if (!sourceUrl) return;
+      applySignedUrlsToMediaRows(getMediaDataTabForRow(row), new Map([[row.id, sourceUrl]]));
+      setOptimizerFallbackMediaIds((previous) => {
+        if (previous.has(row.id)) return previous;
+        const next = new Set(previous);
+        next.add(row.id);
+        return next;
+      });
+    },
+  });
   const foldersSplit = useReferenceGridHorizontalSplit({
     enabled: true,
     containerRef: splitContainerRef as React.MutableRefObject<HTMLElement | null>,
@@ -317,10 +321,6 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
   }, [search]);
 
   useEffect(() => {
-    activeMediaQueryRef.current = normalizedSearch;
-  }, [normalizedSearch]);
-
-  useEffect(() => {
     setMembershipMessage(null);
   }, [activeFolderId, itemType, normalizedSearch]);
 
@@ -331,32 +331,6 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
   useEffect(() => {
     setError(dataError);
   }, [dataError]);
-
-  useEffect(() => {
-    activeTabRef.current = activeMediaTab ?? "saved_prompts";
-  }, [activeMediaTab]);
-
-  useEffect(() => {
-    if (typeof window === "undefined" || typeof navigator === "undefined") return;
-    const refreshBudget = () => {
-      setSignBudget((prev) => {
-        const next = resolvePanelSignBudget();
-        if (
-          prev.initialSignLimit === next.initialSignLimit &&
-          prev.prefetchWindow === next.prefetchWindow &&
-          prev.signBatchSize === next.signBatchSize
-        ) {
-          return prev;
-        }
-        return next;
-      });
-    };
-    refreshBudget();
-    window.addEventListener("resize", refreshBudget);
-    return () => {
-      window.removeEventListener("resize", refreshBudget);
-    };
-  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -372,23 +346,12 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
     return () => {
       cancelled = true;
     };
-  }, []);
-
-  useEffect(
-    () => () => {
-      for (const objectUrl of Object.values(objectUrlByMediaIdRef.current)) {
-        URL.revokeObjectURL(objectUrl);
-      }
-      objectUrlByMediaIdRef.current = {};
-      isMountedRef.current = false;
-    },
-    []
-  );
+  }, [currentUserIdRef]);
 
   useEffect(() => {
     signAttemptRef.current = {};
     setOptimizerFallbackMediaIds(new Set());
-  }, [activeFolderId, itemType, normalizedSearch]);
+  }, [activeFolderId, itemType, normalizedSearch, signAttemptRef]);
 
   useEffect(() => {
     if (!folderContextMenu) return;
@@ -418,119 +381,6 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
       window.removeEventListener("scroll", dismissContextMenu, true);
     };
   }, [folderContextMenu]);
-
-  const applySignedUrlsToMediaRows = useCallback(
-    (_tab: MediaDataTab, signedById: Map<string, string>) => {
-      if (!signedById.size) return;
-      setMediaRows((previous) =>
-        previous.map((row) => {
-          const signedUrl = signedById.get(row.id);
-          if (!signedUrl || row.signedUrl === signedUrl) return row;
-          return { ...row, signedUrl };
-        })
-      );
-    },
-    [setMediaRows]
-  );
-
-  const setObjectUrlForMediaRow = useCallback(
-    (row: MediaFileRow, objectUrl: string) => {
-      const previousObjectUrl = objectUrlByMediaIdRef.current[row.id];
-      if (previousObjectUrl && previousObjectUrl !== objectUrl) {
-        URL.revokeObjectURL(previousObjectUrl);
-      }
-      objectUrlByMediaIdRef.current[row.id] = objectUrl;
-      applySignedUrlsToMediaRows(resolveSigningTab(itemType), new Map([[row.id, objectUrl]]));
-    },
-    [applySignedUrlsToMediaRows, itemType]
-  );
-
-  const hydrateViaStorageDownload = useCallback(
-    async (row: MediaFileRow): Promise<string | null> => {
-      if (downloadFallbackInFlightRef.current[row.id]) return null;
-      downloadFallbackInFlightRef.current[row.id] = true;
-      try {
-        const supabase = ensureSupabaseQueryClient();
-        return await hydrateMediaPreviewViaStorageDownload({
-          row,
-          currentUserId: currentUserIdRef.current,
-          downloadFromStoragePath: async (storagePath) => {
-            const { data, error: downloadError } = await supabase.storage
-              .from(BUCKET)
-              .download(storagePath);
-            if (downloadError || !data) return null;
-            return data as Blob;
-          },
-          applyObjectUrlForRow: setObjectUrlForMediaRow,
-        });
-      } catch {
-        return null;
-      } finally {
-        downloadFallbackInFlightRef.current[row.id] = false;
-      }
-    },
-    [setObjectUrlForMediaRow]
-  );
-
-  const resolveSignedUrlsByMediaIds = useCallback(
-    async (_tab: MediaDataTab, rows: MediaFileRow[]): Promise<Set<string>> => {
-      const rowsByTab = new Map<MediaDataTab, MediaFileRow[]>();
-      for (const row of rows) {
-        const tab = getMediaDataTabForRow(row);
-        const bucketRows = rowsByTab.get(tab) ?? [];
-        bucketRows.push(row);
-        rowsByTab.set(tab, bucketRows);
-      }
-      const unresolved = new Set<string>();
-      for (const [tab, tabRows] of rowsByTab.entries()) {
-        const unresolvedInTab = await resolveAndApplySignedPreviewUrlsByRows({
-          tab,
-          rows: tabRows,
-          applySignedUrlsToTab: applySignedUrlsToMediaRows,
-          surface: "media-library-panel",
-        });
-        unresolvedInTab.forEach((id) => unresolved.add(id));
-      }
-      return unresolved;
-    },
-    [applySignedUrlsToMediaRows]
-  );
-
-  const signStoragePath = useCallback(
-    (
-      storagePath: string,
-      options?: {
-        forceRefresh?: boolean;
-        previewProfile?: MediaPreviewTransformProfile;
-      }
-    ): Promise<string | null> => signMediaStoragePath(storagePath, options),
-    []
-  );
-
-  const { refreshSignedUrl, handleMediaPreviewError } =
-    useMediaPreviewRecoveryController<MediaFileRow>({
-      applySignedUrlsToTab: applySignedUrlsToMediaRows,
-      currentUserIdRef,
-      resolveSignedUrlsByMediaIds,
-      hydrateViaStorageDownload,
-      signStoragePath,
-      signedUrlRetryRef,
-      objectUrlByMediaIdRef,
-      resolveTabForRow: getMediaDataTabForRow,
-      previewProfile: "media-library-panel-image-card",
-      beforeRetry: ({ row, failedUrl }) => {
-        if (!isNextImageOptimizerUrl(failedUrl)) return;
-        const sourceUrl = resolveNextImageOptimizerSourceUrl(failedUrl);
-        if (!sourceUrl) return;
-        applySignedUrlsToMediaRows(getMediaDataTabForRow(row), new Map([[row.id, sourceUrl]]));
-        setOptimizerFallbackMediaIds((previous) => {
-          if (previous.has(row.id)) return previous;
-          const next = new Set(previous);
-          next.add(row.id);
-          return next;
-        });
-      },
-    });
 
   const {
     previewModalFile,
@@ -608,7 +458,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
     return () => {
       cancelled = true;
     };
-  }, [mediaRows, showFolderCanvas, signStoragePath]);
+  }, [currentUserIdRef, mediaRows, showFolderCanvas, signStoragePath]);
 
   useMediaPreviewSigningController({
     activeMediaTab,
@@ -636,70 +486,6 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
     maxSignCandidatesPerRow: 4,
     isSignPrefetchEnabled: MEDIA_LIBRARY_SIGN_PREFETCH_ENABLED,
   });
-
-  const getMediaCardRef = useCallback((fileId: string) => {
-    const existing = mediaCardRefCallbacksRef.current[fileId];
-    if (existing) return existing;
-    const callback = (node: HTMLButtonElement | null) => {
-      const previousNode = mediaCardNodesRef.current.get(fileId);
-      if (previousNode && previousNode !== node) {
-        mediaCardObserverRef.current?.unobserve(previousNode);
-      }
-      if (!node) {
-        mediaCardNodesRef.current.delete(fileId);
-        if (visibleMediaIdsRef.current.delete(fileId)) {
-          setVisibleMediaVersion((previousVersion) => previousVersion + 1);
-        }
-        return;
-      }
-      node.dataset.mediaId = fileId;
-      mediaCardNodesRef.current.set(fileId, node);
-      mediaCardObserverRef.current?.observe(node);
-    };
-    mediaCardRefCallbacksRef.current[fileId] = callback;
-    return callback;
-  }, []);
-
-  useEffect(() => {
-    if (typeof IntersectionObserver === "undefined") return;
-    const visibleIds = visibleMediaIdsRef.current;
-    const observer = new IntersectionObserver(
-      (entries) => {
-        let changed = false;
-        for (const entry of entries) {
-          const mediaId = (entry.target as HTMLElement).dataset.mediaId;
-          if (!mediaId) continue;
-          if (entry.isIntersecting) {
-            if (!visibleIds.has(mediaId)) {
-              visibleIds.add(mediaId);
-              changed = true;
-            }
-            continue;
-          }
-          if (visibleIds.delete(mediaId)) {
-            changed = true;
-          }
-        }
-        if (changed) {
-          setVisibleMediaVersion((previousVersion) => previousVersion + 1);
-        }
-      },
-      {
-        root: panelBodyRef.current,
-        rootMargin: "460px 0px",
-        threshold: 0.01,
-      }
-    );
-    mediaCardObserverRef.current = observer;
-    for (const node of mediaCardNodesRef.current.values()) {
-      observer.observe(node);
-    }
-    return () => {
-      observer.disconnect();
-      mediaCardObserverRef.current = null;
-      visibleIds.clear();
-    };
-  }, []);
 
   useEffect(() => {
     resetDeleteConfirmState();
@@ -1013,6 +799,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
       mediaAdaptivePressure.previewPressureLevel,
       optimizerFallbackMediaIds,
       resolvePanelCardPreviewUrl,
+      signedUrlRetryRef,
       setPendingLibraryDelete,
       selectedIds,
       activeFolderId,

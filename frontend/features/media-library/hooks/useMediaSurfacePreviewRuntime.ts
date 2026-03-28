@@ -56,8 +56,9 @@ type UseMediaSurfacePreviewRuntimeArgs<TRow extends PreviewRuntimeRowBase, TTab 
   beforeRetry?: (params: { row: TRow; failedUrl?: string | null }) => void;
   setFiles: Dispatch<SetStateAction<TRow[]>>;
   setFocusedFile?: Dispatch<SetStateAction<TRow | null>>;
-  setMediaTabCache: Dispatch<SetStateAction<Record<MediaDataTab, MediaTabCache<TRow>>>>;
+  setMediaTabCache?: Dispatch<SetStateAction<Record<MediaDataTab, MediaTabCache<TRow>>>>;
   shouldApplySignedUrlsToActiveRows?: (tab: MediaDataTab) => boolean;
+  visibilityRootRef?: MutableRefObject<HTMLElement | null>;
 };
 
 type UseMediaSurfacePreviewRuntimeResult<
@@ -116,6 +117,7 @@ export const useMediaSurfacePreviewRuntime = <
   setFocusedFile,
   setMediaTabCache,
   shouldApplySignedUrlsToActiveRows,
+  visibilityRootRef,
 }: UseMediaSurfacePreviewRuntimeArgs<TRow, TTab>): UseMediaSurfacePreviewRuntimeResult<
   TRow,
   TTab,
@@ -241,7 +243,7 @@ export const useMediaSurfacePreviewRuntime = <
         }
       },
       {
-        root: null,
+        root: visibilityRootRef?.current ?? null,
         rootMargin: visibilityRootMargin,
         threshold: 0.01,
       }
@@ -255,7 +257,7 @@ export const useMediaSurfacePreviewRuntime = <
       mediaCardObserverRef.current = null;
       visibleIds.clear();
     };
-  }, [visibilityRootMargin]);
+  }, [visibilityRootMargin, visibilityRootRef]);
 
   const signStoragePath = useCallback(
     (
@@ -270,7 +272,7 @@ export const useMediaSurfacePreviewRuntime = <
       if (!signedById.size) return;
       if (applySignedUrlsToSurface) {
         applySignedUrlsToSurface(tab, signedById);
-      } else {
+      } else if (setMediaTabCache) {
         setMediaTabCache((prev) => {
           const cache = prev[tab];
           let changed = false;

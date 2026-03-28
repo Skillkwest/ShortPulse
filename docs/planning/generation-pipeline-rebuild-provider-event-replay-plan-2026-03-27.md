@@ -3,7 +3,7 @@
 Date: 2026-03-27  
 Authority: Working  
 Owner: Engineering  
-Status: Active
+Status: Done at the current checkpoint
 
 ## Purpose
 This document defines the next explicit follow-on job after the recovery control-plane orchestration checkpoint.
@@ -88,13 +88,19 @@ Implemented checkpoint:
 
 ### `GPR-PE-S2`
 Status:
-1. Planned
+1. Completed at the current checkpoint
 
 Goal:
 1. extract route-local webhook inbox/replay handling into an explicit ingress boundary
 
 Exit gate:
 1. `fal/webhook.ts` becomes a thin route over a dedicated ingress/replay service
+
+Implemented checkpoint:
+1. route-local webhook inbox, duplicate handling, ignore outcomes, and recovery handoff now live in `frontend/lib/server/falIntegration/falWebhookIngress.ts`
+2. `frontend/pages/api/fal/webhook.ts` is now a thin verification/parsing route over that ingress boundary
+3. targeted route and ingress tests cover duplicate, ignore, and processed outcomes
+4. the next remaining work would widen into generic provider-event infrastructure or non-Fal callback redesign
 
 ## Validation Bundle
 1. targeted webhook route and signature tests
@@ -108,8 +114,8 @@ Stop this job when:
 2. the next step would widen into non-Fal callback infrastructure without a concrete repo-backed need
 3. the next step would widen into broader provider rollout or UI work
 
-## Recommended Next Move
-Start `GPR-PE-S2`:
-1. extract route-local webhook inbox/replay handling into a dedicated ingress boundary
-2. keep `frontend/pages/api/fal/webhook.ts` as a thin route over that boundary
-3. do not widen into a generic provider-events table in this slice
+## Current Checkpoint
+1. `GPR-PE-S1` is completed.
+2. `GPR-PE-S2` is completed at the current checkpoint.
+3. this job is now done at the current checkpoint.
+4. any future continuation should reopen as a larger provider-event durability job, not more Fal-only route cleanup.

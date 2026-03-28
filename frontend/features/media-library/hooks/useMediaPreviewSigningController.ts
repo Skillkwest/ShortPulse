@@ -152,6 +152,7 @@ export const useMediaPreviewSigningController = <TRow extends PreviewSigningRowB
 
     const signBatch = prioritizedRows.slice(0, signBudget.signBatchSize);
     if (!signBatch.length) return;
+    const shouldScheduleFollowupPass = prioritizedRows.length > signBatch.length;
 
     const tabForBatch = activeMediaTab;
     const queryForBatch = activeMediaQueryRef.current;
@@ -348,7 +349,7 @@ export const useMediaPreviewSigningController = <TRow extends PreviewSigningRowB
       })
       .finally(() => {
         mediaSignInFlightRef.current[tabForBatch] = false;
-        if (isMountedRef.current) {
+        if (shouldScheduleFollowupPass && isMountedRef.current) {
           setSignPassNonce((prev) => prev + 1);
         }
       });

@@ -3,7 +3,7 @@ import { useRef, useState } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useMediaTabDataController } from "../useMediaTabDataController";
 import { resolveMediaSigningStoragePaths } from "../../../../lib/mediaPreviewPath";
-import { ensureSupabaseClient } from "../../../../lib/supabaseClient";
+import { ensureSupabaseQueryClient, readSupabaseUserId } from "../../../../lib/supabaseClient";
 import {
   createMediaTabCacheState,
   createMediaTabRequestState,
@@ -15,7 +15,8 @@ vi.mock("../../../../lib/mediaPreviewPath", () => ({
 }));
 
 vi.mock("../../../../lib/supabaseClient", () => ({
-  ensureSupabaseClient: vi.fn(),
+  ensureSupabaseQueryClient: vi.fn(),
+  readSupabaseUserId: vi.fn(),
 }));
 
 vi.mock("../../logic/mediaLibraryFeatureFlags", () => ({
@@ -27,7 +28,8 @@ vi.mock("../../logic/mediaListApi", () => ({
 }));
 
 const resolveMediaSigningStoragePathsMock = vi.mocked(resolveMediaSigningStoragePaths);
-const ensureSupabaseClientMock = vi.mocked(ensureSupabaseClient);
+const ensureSupabaseQueryClientMock = vi.mocked(ensureSupabaseQueryClient);
+const readSupabaseUserIdMock = vi.mocked(readSupabaseUserId);
 
 type Row = {
   id: string;
@@ -71,17 +73,6 @@ const createMediaClient = (rows: Row[]) => {
   };
 
   return {
-    auth: {
-      getSession: vi.fn(async () => ({
-        data: {
-          session: {
-            user: {
-              id: "user-1",
-            },
-          },
-        },
-      })),
-    },
     from: vi.fn((table: string) => {
       if (table === "media_files") {
         return {
@@ -118,6 +109,7 @@ describe("useMediaTabDataController", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.useRealTimers();
+    readSupabaseUserIdMock.mockResolvedValue("user-1");
     resolveMediaSigningStoragePathsMock.mockImplementation(
       (row: { storage_path?: string | null }) => [row.storage_path ?? ""]
     );
@@ -288,7 +280,7 @@ describe("useMediaTabDataController", () => {
         source: undefined,
       }),
     ]);
-    ensureSupabaseClientMock.mockReturnValue(supabaseClient as never);
+    ensureSupabaseQueryClientMock.mockReturnValue(supabaseClient as never);
 
     const { result } = renderHook(() => {
       const [files, setFiles] = useState<Row[]>([]);
@@ -379,16 +371,7 @@ describe("useMediaTabDataController", () => {
       or: vi.fn().mockReturnThis(),
       order: vi.fn().mockReturnThis(),
     };
-    ensureSupabaseClientMock.mockReturnValue({
-      auth: {
-        getSession: vi.fn(async () => ({
-          data: {
-            session: {
-              user: { id: "user-1" },
-            },
-          },
-        })),
-      },
+    ensureSupabaseQueryClientMock.mockReturnValue({
       from: vi.fn((table: string) => {
         if (table === "media_files") {
           return {
@@ -508,18 +491,7 @@ describe("useMediaTabDataController", () => {
       or: vi.fn().mockReturnThis(),
       order: vi.fn().mockReturnThis(),
     };
-    ensureSupabaseClientMock.mockReturnValue({
-      auth: {
-        getSession: vi.fn(async () => ({
-          data: {
-            session: {
-              user: {
-                id: "user-1",
-              },
-            },
-          },
-        })),
-      },
+    ensureSupabaseQueryClientMock.mockReturnValue({
       from: vi.fn((table: string) => {
         if (table === "media_files") {
           return {
@@ -631,11 +603,10 @@ describe("useMediaTabDataController", () => {
       or: vi.fn().mockReturnThis(),
       order: vi.fn().mockReturnThis(),
     };
-    const getSessionMock = vi.fn(() => sessionDeferred.promise);
-    ensureSupabaseClientMock.mockReturnValue({
-      auth: {
-        getSession: getSessionMock,
-      },
+    readSupabaseUserIdMock.mockImplementation(() =>
+      sessionDeferred.promise.then((value) => value.data.session.user.id)
+    );
+    ensureSupabaseQueryClientMock.mockReturnValue({
       from: vi.fn((table: string) => {
         if (table === "media_files") {
           return {
@@ -713,7 +684,7 @@ describe("useMediaTabDataController", () => {
       });
     });
 
-    expect(getSessionMock).toHaveBeenCalledTimes(1);
+    expect(readSupabaseUserIdMock).toHaveBeenCalledTimes(1);
 
     sessionDeferred.resolve({
       data: {
@@ -732,10 +703,37 @@ describe("useMediaTabDataController", () => {
   it("requires scroll intent plus sentinel exit before next auto-pagination trigger", async () => {
     type IoCallback = (entries: Array<{ isIntersecting: boolean }>) => void;
     let callback: IoCallback | null = null;
+    let scrollHandler: EventListener | null = null;
     const observeMock = vi.fn();
     const disconnectMock = vi.fn();
     const observerRoot = document.createElement("div");
     observerRoot.scrollTop = 0;
+    const originalAddEventListener = observerRoot.addEventListener.bind(observerRoot);
+    const originalRemoveEventListener = observerRoot.removeEventListener.bind(observerRoot);
+    observerRoot.addEventListener = ((
+      type: string,
+      listener: EventListenerOrEventListenerObject
+    ) => {
+      if (type === "scroll") {
+        scrollHandler =
+          typeof listener === "function" ? listener : listener.handleEvent.bind(listener);
+      }
+      originalAddEventListener(type, listener);
+    }) as typeof observerRoot.addEventListener;
+    observerRoot.removeEventListener = ((
+      type: string,
+      listener: EventListenerOrEventListenerObject
+    ) => {
+      if (
+        type === "scroll" &&
+        scrollHandler &&
+        (listener === scrollHandler ||
+          (typeof listener === "object" && listener.handleEvent === scrollHandler))
+      ) {
+        scrollHandler = null;
+      }
+      originalRemoveEventListener(type, listener);
+    }) as typeof observerRoot.removeEventListener;
     const previousObserver = globalThis.IntersectionObserver;
     vi.stubGlobal(
       "IntersectionObserver",
@@ -750,13 +748,19 @@ describe("useMediaTabDataController", () => {
     );
 
     try {
-      const getSessionMock = vi.fn(async () => ({
-        data: {
-          session: {
-            user: { id: "user-1" },
-          },
-        },
-      }));
+      const firstSessionDeferred = createDeferred<{
+        data: { session: { user: { id: string } } };
+      }>();
+      const secondSessionDeferred = createDeferred<{
+        data: { session: { user: { id: string } } };
+      }>();
+      readSupabaseUserIdMock
+        .mockImplementationOnce(() =>
+          firstSessionDeferred.promise.then((value) => value.data.session.user.id)
+        )
+        .mockImplementationOnce(() =>
+          secondSessionDeferred.promise.then((value) => value.data.session.user.id)
+        );
       const queryBuilder = {
         eq: vi.fn().mockReturnThis(),
         ilike: vi.fn().mockReturnThis(),
@@ -765,10 +769,7 @@ describe("useMediaTabDataController", () => {
         or: vi.fn().mockReturnThis(),
         order: vi.fn().mockReturnThis(),
       };
-      ensureSupabaseClientMock.mockReturnValue({
-        auth: {
-          getSession: getSessionMock,
-        },
+      ensureSupabaseQueryClientMock.mockReturnValue({
         from: vi.fn((table: string) => {
           if (table === "media_files") {
             return {
@@ -790,7 +791,7 @@ describe("useMediaTabDataController", () => {
         }),
       } as never);
 
-      renderHook(() => {
+      const { result } = renderHook(() => {
         const [files, setFiles] = useState<Row[]>([]);
         const [prompts, setPrompts] = useState<Prompt[]>([]);
         const [promptsLoaded, setPromptsLoaded] = useState(true);
@@ -857,42 +858,62 @@ describe("useMediaTabDataController", () => {
       await act(async () => {
         await Promise.resolve();
       });
-      expect(getSessionMock).toHaveBeenCalledTimes(0);
+      expect(readSupabaseUserIdMock).toHaveBeenCalledTimes(0);
 
       await act(async () => {
         observerRoot.scrollTop = 80;
-        observerRoot.dispatchEvent(new Event("scroll"));
+        scrollHandler?.(new Event("scroll"));
         callback?.([{ isIntersecting: true }]);
       });
-      await waitFor(() => {
-        expect(getSessionMock).toHaveBeenCalledTimes(1);
-      });
+      expect(readSupabaseUserIdMock).toHaveBeenCalledTimes(1);
+      expect(result.current.mediaTabCache.uploaded_images.loading).toBe(true);
 
       await act(async () => {
         callback?.([{ isIntersecting: true }]);
       });
-      await act(async () => {
-        await Promise.resolve();
-      });
-      expect(getSessionMock).toHaveBeenCalledTimes(1);
+      expect(readSupabaseUserIdMock).toHaveBeenCalledTimes(1);
 
       await act(async () => {
         callback?.([{ isIntersecting: false }]);
         callback?.([{ isIntersecting: true }]);
       });
+      expect(readSupabaseUserIdMock).toHaveBeenCalledTimes(1);
+
       await act(async () => {
+        firstSessionDeferred.resolve({
+          data: {
+            session: {
+              user: { id: "user-1" },
+            },
+          },
+        });
         await Promise.resolve();
       });
-      expect(getSessionMock).toHaveBeenCalledTimes(1);
+      await waitFor(() => {
+        expect(result.current.mediaTabCache.uploaded_images.loading).toBe(false);
+      });
 
       await act(async () => {
         await new Promise((resolve) => setTimeout(resolve, 500));
         observerRoot.scrollTop = 160;
-        observerRoot.dispatchEvent(new Event("scroll"));
+        scrollHandler?.(new Event("scroll"));
         callback?.([{ isIntersecting: true }]);
       });
+      expect(readSupabaseUserIdMock).toHaveBeenCalledTimes(2);
+      expect(result.current.mediaTabCache.uploaded_images.loading).toBe(true);
+
+      await act(async () => {
+        secondSessionDeferred.resolve({
+          data: {
+            session: {
+              user: { id: "user-1" },
+            },
+          },
+        });
+        await Promise.resolve();
+      });
       await waitFor(() => {
-        expect(getSessionMock).toHaveBeenCalledTimes(2);
+        expect(result.current.mediaTabCache.uploaded_images.loading).toBe(false);
       });
     } finally {
       if (previousObserver) {
@@ -918,18 +939,7 @@ describe("useMediaTabDataController", () => {
       or: vi.fn().mockReturnThis(),
       order: vi.fn().mockReturnThis(),
     };
-    ensureSupabaseClientMock.mockReturnValue({
-      auth: {
-        getSession: vi.fn(async () => ({
-          data: {
-            session: {
-              user: {
-                id: "user-1",
-              },
-            },
-          },
-        })),
-      },
+    ensureSupabaseQueryClientMock.mockReturnValue({
       from: vi.fn((table: string) => {
         if (table === "media_files") {
           return {
@@ -1085,22 +1095,22 @@ describe("useMediaTabDataController", () => {
       });
     });
 
-    expect(ensureSupabaseClientMock).not.toHaveBeenCalled();
+    expect(ensureSupabaseQueryClientMock).not.toHaveBeenCalled();
+    expect(readSupabaseUserIdMock).not.toHaveBeenCalled();
     expect(result.current.mediaTabCache.uploaded_images.rows).toEqual([]);
   });
 
   it("unblocks loading and surfaces timeout error when fetch hangs", async () => {
-    ensureSupabaseClientMock.mockReturnValue({
-      auth: {
-        getSession: vi.fn(
-          () =>
-            new Promise(() => {
-              // Intentionally unresolved to simulate a hanging request.
-            })
-        ),
-      },
+    vi.useFakeTimers();
+    ensureSupabaseQueryClientMock.mockReturnValue({
       from: vi.fn(),
     } as never);
+    readSupabaseUserIdMock.mockImplementation(
+      () =>
+        new Promise(() => {
+          // Intentionally unresolved to simulate a hanging request.
+        })
+    );
 
     const { result } = renderHook(() => {
       const [files, setFiles] = useState<Row[]>([]);
@@ -1149,32 +1159,26 @@ describe("useMediaTabDataController", () => {
       };
     });
 
-    await waitFor(() => {
-      expect(result.current.mediaTabCache.uploaded_images.loading).toBe(true);
-    });
-    await waitFor(
-      () => {
-        expect(result.current.mediaTabCache.uploaded_images.loading).toBe(false);
-        expect(result.current.error).toBe("Media refresh timed out. Showing cached media.");
-      },
-      { timeout: 2_500 }
-    );
-
     await act(async () => {
       await Promise.resolve();
     });
+    expect(result.current.mediaTabCache.uploaded_images.loading).toBe(true);
+    await act(async () => {
+      vi.advanceTimersByTime(1_000);
+      await Promise.resolve();
+    });
+    expect(result.current.mediaTabCache.uploaded_images.loading).toBe(false);
+    expect(result.current.error).toBe("Media refresh timed out. Showing cached media.");
   });
 
   it("clears in-flight loading state when controller is disabled", async () => {
-    const pendingSession = new Promise(() => {
+    const pendingSession = new Promise<string>(() => {
       // Intentionally unresolved to keep the request in-flight.
     });
-    ensureSupabaseClientMock.mockReturnValue({
-      auth: {
-        getSession: vi.fn(() => pendingSession),
-      },
+    ensureSupabaseQueryClientMock.mockReturnValue({
       from: vi.fn(),
     } as never);
+    readSupabaseUserIdMock.mockImplementation(() => pendingSession);
 
     const { result } = renderHook(() => {
       const [files, setFiles] = useState<Row[]>([]);

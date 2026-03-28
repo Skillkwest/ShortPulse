@@ -57,8 +57,9 @@ Initial cutover objective:
 
 Current checkpoint:
 1. active-output preview authority now resolves through canonical preview/storage preference in `useAiStudioState.ts` and `useAiStudioPreviewDetailProps.ts`
-2. regression coverage exists for preview hook gating and preview-authority preference
-3. the remaining bounded seam is detail-modal media derivation, not drag/drop or broad Reference Grid behavior
+2. detail-modal media derivation now keeps canonical preview/full authority ahead of transient preview URLs
+3. regression coverage exists for preview hook gating, preview-authority preference, and detail-modal canonical preview/full preference
+4. the next remaining seam would move closer to broader Reference Grid behavior, so it should not be opened casually
 
 ## Required Cutover Gates
 No surface may move to canonical-only authority unless:

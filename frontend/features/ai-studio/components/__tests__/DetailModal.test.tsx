@@ -442,4 +442,28 @@ describe("DetailModal", () => {
     expect(image).not.toBeNull();
     expect(image?.getAttribute("src")).toBe("https://cdn.test/full-quality.jpg");
   });
+
+  it("prefers canonical preview media over transient preview url in detail rendering", () => {
+    const { container } = render(
+      <DetailModal
+        output={{
+          ...baseOutput,
+          previewStoragePath: "https://cdn.test/canonical-preview.jpg",
+          fullStoragePath: null,
+          previewUrl: "https://cdn.test/transient-preview.jpg",
+          resultUrls: ["https://cdn.test/transient-preview.jpg"],
+          mediaSource: "generated",
+          generationId: "gen-1",
+          savedMediaIds: [],
+        }}
+        onClose={vi.fn()}
+        onUpdatePrompt={vi.fn()}
+        onDeleteOutput={vi.fn()}
+      />
+    );
+
+    const image = container.querySelector(".art-hero-image") as HTMLImageElement | null;
+    expect(image).not.toBeNull();
+    expect(image?.getAttribute("src")).toBe("https://cdn.test/canonical-preview.jpg");
+  });
 });

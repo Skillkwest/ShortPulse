@@ -112,12 +112,16 @@ export function DetailModal({
   }, []);
 
   const outputId = output?.id ?? null;
-  const preferredDetailMediaUrl = useMemo(() => {
+  const resolvedDetailMedia = useMemo(() => {
     if (!output) return null;
-    const resolved = resolveReferenceCardUrls(
+    return resolveReferenceCardUrls(
       {
         previewStoragePath: output.previewStoragePath,
         fullStoragePath: output.fullStoragePath,
+        mediaSource: output.mediaSource,
+        generationId: output.generationId,
+        savedMediaIds: output.savedMediaIds,
+        mode: output.mode,
         previewUrl: output.previewUrl,
         resultUrls: output.resultUrls,
       },
@@ -127,8 +131,9 @@ export function DetailModal({
         surface: "detail-modal",
       }
     );
-    return resolved.fullUrl ?? resolved.previewUrl ?? null;
   }, [output]);
+  const preferredDetailMediaUrl =
+    resolvedDetailMedia?.fullUrl ?? resolvedDetailMedia?.previewUrl ?? null;
 
   useEffect(() => {
     if (!output || !preferredDetailMediaUrl) return;
@@ -139,14 +144,24 @@ export function DetailModal({
   }, [output, preferredDetailMediaUrl]);
   const previewCandidates = useMemo(() => {
     const uniqueUrls = new Set<string>();
-    const maybeUrls = [preferredDetailMediaUrl, output?.previewUrl, ...(output?.resultUrls ?? [])];
+    const maybeUrls = [
+      preferredDetailMediaUrl,
+      resolvedDetailMedia?.previewUrl ?? null,
+      output?.previewUrl,
+      ...(output?.resultUrls ?? []),
+    ];
     maybeUrls.forEach((url) => {
       const trimmed = url?.trim();
       if (!trimmed) return;
       uniqueUrls.add(trimmed);
     });
     return Array.from(uniqueUrls);
-  }, [output?.previewUrl, output?.resultUrls, preferredDetailMediaUrl]);
+  }, [
+    output?.previewUrl,
+    output?.resultUrls,
+    preferredDetailMediaUrl,
+    resolvedDetailMedia?.previewUrl,
+  ]);
   const activePreviewCandidateIndex =
     previewCandidateByOutput && outputId && previewCandidateByOutput.outputId === outputId
       ? Math.min(previewCandidateByOutput.index, Math.max(0, previewCandidates.length - 1))

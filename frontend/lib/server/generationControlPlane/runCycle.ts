@@ -2,6 +2,10 @@ import { logApiRouteException } from "../api/appErrorLogs";
 import { readFalRuntimeFlags } from "../api/falRuntimeFlags";
 import { dispatchGenerationSubmitQueueBatch } from "../api/generationQueue/dispatch";
 import { repairGenerationRequestIdsFromReservations } from "../api/generationQueue/requestIdRepair";
+import {
+  resolveSupportedRecoveryProviderFamily,
+  tryClaimRecoveryCandidate,
+} from "../api/generationRecoveryClaimPolicy";
 import { getSupabaseAdmin } from "../api/supabaseAdmin";
 import { executeGenerationRecovery } from "../falIntegration/recoveryExecution";
 import type { GenerationControlPlaneCycleResult, GenerationControlPlaneLogContext } from "./types";
@@ -93,12 +97,6 @@ const isAllowedModel = (modelId: string, allowlist: Set<string>): boolean => {
   return false;
 };
 
-const isSupportedRecoveryProvider = (provider: string | null): boolean => {
-  if (!provider) return false;
-  const normalized = provider.trim().toLowerCase();
-  return normalized.startsWith("fal") || normalized.startsWith("kie");
-};
-
 const claimFallback = async ({
   batchSize,
   maxAttempts,
@@ -132,29 +130,30 @@ const claimFallback = async ({
   for (const raw of data) {
     const row = parseClaimedGeneration(raw);
     if (!row) continue;
-    if (!isSupportedRecoveryProvider(row.provider)) continue;
-    const nextAttempts = (row.recovery_attempts ?? 0) + 1;
-    let updateQuery = supabaseAdmin
-      .from("ai_generations")
-      .update({
+    if (!resolveSupportedRecoveryProviderFamily(row.provider)) continue;
+    const claimResult = await tryClaimRecoveryCandidate({
+      candidate: {
+        id: row.id,
+        userId: row.user_id,
+        requestId: row.request_id,
+        provider: row.provider,
+        status: row.status,
+        recoveryState: row.recovery_state,
+        recoveryAttempts: row.recovery_attempts,
+      },
+      maxAttempts,
+      oldestAllowedIso: oldestCreatedAtIso,
+      nowIso,
+      leaseUntilIso,
+      supabaseAdmin,
+    });
+    if (claimResult.claimed) {
+      claimed.push({
+        ...row,
+        request_id: claimResult.requestId,
+        recovery_attempts: (row.recovery_attempts ?? 0) + 1,
         recovery_state: "recovering",
-        recovery_attempts: nextAttempts,
-        last_recovery_at: nowIso,
-        next_recovery_at: leaseUntilIso,
-      })
-      .eq("id", row.id)
-      .eq("user_id", row.user_id)
-      .eq("status", row.status)
-      .eq("recovery_state", row.recovery_state ?? "queued");
-    if (row.recovery_attempts === null) {
-      updateQuery = updateQuery.is("recovery_attempts", null);
-    } else {
-      updateQuery = updateQuery.eq("recovery_attempts", row.recovery_attempts);
-    }
-
-    const { data: updateRows, error: updateError } = await updateQuery.select("id");
-    if (!updateError && Array.isArray(updateRows) && updateRows.length === 1) {
-      claimed.push({ ...row, recovery_attempts: nextAttempts, recovery_state: "recovering" });
+      });
     }
   }
 

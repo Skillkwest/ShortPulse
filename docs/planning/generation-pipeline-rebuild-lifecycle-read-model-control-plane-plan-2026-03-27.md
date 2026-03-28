@@ -95,18 +95,35 @@ Implemented checkpoint:
 6. `executeGenerationRecovery()` is explicitly locked as the sole shared recovery engine
 
 ### `GPR-RM-S2`
+Status:
+1. Completed at the current checkpoint
+
 Goal:
 1. apply the contract to queue-status and persisted-status surfaces
 
 Exit gate:
 1. these surfaces either share an explicit read-model helper or are intentionally left as documented observers without competing authority
 
+Implemented checkpoint:
+1. `generationQueue/service.ts`, `falStatusPersistedResults.ts`, and `falStatusProxy.ts` were audited for a shared lifecycle read-model helper
+2. no strong shared-helper extraction was justified because those surfaces already hold distinct observer responsibilities
+3. the branch now explicitly carries the “no helper yet” decision instead of leaving that question open
+4. the next higher-ROI move is recovery-entry claim-policy convergence, not another queue/persisted-status wrapper
+
 ### `GPR-RM-S3`
+Status:
+1. In progress
+
 Goal:
 1. apply the contract to status-triggered recovery and background control-plane recovery entry points
 
 Exit gate:
 1. status-triggered recovery and background recovery no longer present competing control-plane authority on the same lifecycle state
+
+Implemented checkpoint:
+1. shared recovery claim compare-and-set policy now lives in `frontend/lib/server/api/generationRecoveryClaimPolicy.ts`
+2. `statusRecoveryKick.ts` and `runCycle.ts` now share supported-provider and claim-mutation policy instead of duplicating that query/update logic
+3. `executeGenerationRecovery()` remains the sole shared recovery engine
 
 ## Validation Bundle
 1. targeted queue-status and persisted-status tests

@@ -453,7 +453,7 @@ export const repairGenerationRequestIdFromReservation = async ({
 
   const repairedAt = new Date().toISOString();
   const transitionResult = await applyGenerationLifecycleTransition({
-    order: "attempt_first",
+    intent: "request_id_repaired",
     applyGenerationMutation: async () =>
       applyRequestIdRepairGenerationMutation({
         candidate,

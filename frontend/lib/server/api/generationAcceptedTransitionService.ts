@@ -34,12 +34,24 @@ export const applyAcceptedRunningGenerationTransition = async ({
   applyGenerationMutation = null,
   attemptInput,
 }: ApplyAcceptedRunningGenerationTransitionInput): Promise<AcceptedRunningGenerationTransitionResult> => {
-  return applyGenerationLifecycleTransition({
-    order: "generation_first",
+  const result = await applyGenerationLifecycleTransition({
+    intent: "provider_submit_accepted",
     applyGenerationMutation,
     attemptMutation: {
       kind: "accepted_running",
       input: attemptInput,
     },
   });
+
+  if (result.ok) return result;
+  return {
+    ok: false,
+    stage:
+      result.stage === "request"
+        ? "generation"
+        : result.stage === "attempt_record"
+          ? "record"
+          : "running",
+    error: result.error,
+  };
 };

@@ -112,12 +112,20 @@ Artifact:
 1. `docs/planning/generation-pipeline-rebuild-state-machine-runtime-transition-contract-2026-03-27.md`
 
 ### `GPR-SM-S2`
+Status:
+1. Completed
+
 Goal:
 1. implement the canonical post-submit transition service boundary under the current helper layer
 
 Exit gate:
 1. the new service owns legal transition validation and mutation ordering
 2. existing callers can route through it without broad behavior change yet
+
+Implemented checkpoint:
+1. `generationLifecycleTransitionService.ts` is now intent-driven and runtime-validated
+2. accepted-path, queue-reconcile, request-id repair, and recovery adapters now route through explicit lifecycle intents
+3. thin adapters still exist where useful, but ordering policy now lives in the canonical service boundary
 
 ### `GPR-SM-S3`
 Goal:
@@ -151,7 +159,7 @@ Stop this job when:
 3. the remaining work is mostly governance wording rather than real lifecycle centralization
 
 ## Recommended First Move
-Start `GPR-SM-S2`:
-1. make `generationLifecycleTransitionService.ts` the canonical post-submit transition boundary
-2. route accepted-path and recovery-specific orchestration through that boundary or thin adapters over it
+Start `GPR-SM-S3`:
+1. finish migrating the remaining post-submit mutation paths onto the canonical service boundary
+2. remove any leftover local orchestration that still bypasses the intent-driven service
 3. keep queue-status and persisted-status surfaces read-only until the canonical lifecycle read model is ready

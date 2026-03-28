@@ -41,7 +41,7 @@ import {
 } from "../videoSubmitContracts";
 import type { GenerationControlPlaneLogContext } from "../../generationControlPlane/types";
 import { applyAcceptedRunningGenerationTransition } from "../generationAcceptedTransitionService";
-import { updateGenerationAttemptState } from "../generationAttempts";
+import { applyGenerationLifecycleTransition } from "../generationLifecycleTransitionService";
 import { buildAcceptedRunningGenerationUpdate } from "../generationRequestTransitions";
 
 type JsonObject = Record<string, unknown>;
@@ -120,19 +120,26 @@ const markAttemptRunningForExistingRequestId = async ({
   attemptNumber: number;
 }) => {
   const observedAt = new Date().toISOString();
-  const result = await updateGenerationAttemptState({
-    providerRequestId,
-    userId,
-    status: "running",
-    observedAt,
-    metadata: {
-      queue_reconcile_at: observedAt,
-      queue_id: queueId,
-      queue_attempts: attemptNumber,
-      queue_reconcile_reason: "existing_request_id",
+  const result = await applyGenerationLifecycleTransition({
+    intent: "queue_reconcile_running",
+    attemptMutation: {
+      kind: "state_update",
+      input: {
+        providerRequestId,
+        userId,
+        status: "running",
+        observedAt,
+        metadata: {
+          queue_reconcile_at: observedAt,
+          queue_id: queueId,
+          queue_attempts: attemptNumber,
+          queue_reconcile_reason: "existing_request_id",
+        },
+      },
+      allowMissingAttempt: true,
     },
   });
-  if (result.ok || result.error === "attempt_not_found") {
+  if (result.ok) {
     return;
   }
   throw new QueueTransitionError({

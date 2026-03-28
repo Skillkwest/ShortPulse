@@ -39,8 +39,20 @@ export const applyRecoveryTransition = async ({
   generationUpdates = null,
   attemptTransition = null,
 }: ApplyRecoveryTransitionInput): Promise<void> => {
+  const intent =
+    attemptTransition?.status === "running"
+      ? "provider_running_observed"
+      : attemptTransition?.status === "succeeded"
+        ? "provider_completed_observed"
+        : attemptTransition?.status === "failed"
+          ? "provider_failed_observed"
+          : attemptTransition?.status === "timed_out"
+            ? "provider_timed_out"
+            : generationUpdates
+              ? "completion_finalized"
+              : "outputs_recorded";
   const result = await applyGenerationLifecycleTransition({
-    order: "attempt_first",
+    intent,
     applyGenerationMutation: generationUpdates
       ? async () => {
           try {

@@ -42,8 +42,8 @@ Applies one legal post-submit lifecycle transition.
 Required contract shape:
 ```ts
 type LifecycleTransitionIntent =
+  | "provider_submit_accepted"
   | "queue_dispatch_started"
-  | "queue_dispatch_accepted"
   | "queue_dispatch_retry"
   | "queue_dispatch_exhausted"
   | "queue_reconcile_running"
@@ -102,7 +102,7 @@ type LifecycleReadModel = {
 | Intent | Allowed from | To | Notes |
 | --- | --- | --- | --- |
 | `queue_dispatch_started` | `queued` | `dispatching` | Queue lease is now explicit lifecycle movement |
-| `queue_dispatch_accepted` | `dispatching` | `submitted` | Provider accepted and attempt linkage exists |
+| `provider_submit_accepted` | `admission_pending`, `dispatching` | `submitted` | Provider accepted and attempt linkage exists for direct or queued submit paths |
 | `queue_dispatch_retry` | `dispatching` | `queued` | Retryable pre-accept dispatch failure |
 | `queue_dispatch_exhausted` | `queued`, `dispatching` | `exhausted` | Irrecoverable or budget-exhausted before acceptance |
 | `queue_reconcile_running` | `submitted`, `running` | `running` | Idempotent promotion/reassertion when request already exists |
@@ -117,7 +117,7 @@ type LifecycleReadModel = {
 ## Legal Attempt-State Transitions
 | Intent | Allowed from | To | Notes |
 | --- | --- | --- | --- |
-| `queue_dispatch_accepted` | `created` | `submitted` | Provider handle linked successfully |
+| `provider_submit_accepted` | `created` | `submitted` | Provider handle linked successfully |
 | `queue_reconcile_running` | `submitted`, `running` | `running` | Idempotent reconciliation |
 | `request_id_repaired` | none or missing | `created` or `submitted` | Repair path may backfill or attach attempt lineage before other transitions |
 | `provider_running_observed` | `submitted`, `running` | `running` | Idempotent running observation |
@@ -136,7 +136,7 @@ Use when:
 
 Applies to:
 1. queue dispatch start
-2. queue dispatch accepted
+2. provider submit accepted
 3. queue dispatch retry
 4. queue dispatch exhausted
 

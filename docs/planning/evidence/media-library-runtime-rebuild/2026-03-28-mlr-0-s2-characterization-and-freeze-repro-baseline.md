@@ -41,6 +41,7 @@ Lock the characterization inventory for the rebuilt media-library runtime and re
 2. `cd frontend && npm run docs:check`
 3. Live browser repro against `http://127.0.0.1:3000/media-library` using the configured Playwright audit account
 4. Live browser repro against `http://127.0.0.1:3000/ai-studio` panel path using the configured Playwright audit account
+5. Live browser repro against `http://127.0.0.1:3001/ai-studio` on an isolated local copy started with `NEXT_PUBLIC_AI_STUDIO_MEDIA_LIBRARY_PANEL_ENABLED=false` and the configured Playwright audit account
 
 ## Results
 1. Targeted characterization bundle passed:
@@ -55,6 +56,7 @@ Lock the characterization inventory for the rebuilt media-library runtime and re
    - route remained rendered but was in the same overload class reported by the user
 6. After adding a no-op guard for semantically identical ordered row/cache writes in `frontend/features/media-library/runtime/store.ts`, the same live route repro no longer emitted the max-depth warning.
 7. A live AI Studio panel repro on the current server (`NEXT_PUBLIC_AI_STUDIO_MEDIA_LIBRARY_PANEL_ENABLED=true`) showed the panel surface opening normally with no matching max-depth warning.
+8. A live AI Studio modal repro on the isolated server (`NEXT_PUBLIC_AI_STUDIO_MEDIA_LIBRARY_PANEL_ENABLED=false`) showed the fallback modal opening normally, switching across all five tabs, paginating repeatedly, and surviving repeated scroll churn without any browser console errors or matching max-depth warning. The only warning observed was the pre-existing webpack/HMR `isrManifest` dev-message warning on the isolated server.
 
 ## Current Freeze-Risk Assessment
 - Confidence gained:
@@ -64,8 +66,8 @@ Lock the characterization inventory for the rebuilt media-library runtime and re
   4. The route’s live browser max-depth loop now has a concrete root cause and an in-repo fix candidate validated against the same audit account.
   5. The current AI Studio panel path does not show the same immediate max-depth warning in the live browser repro.
 - Residual gap:
-  1. This packet still lacks a live heavy-data modal repro, because the current local server is panel-enabled and does not expose the fallback modal path.
-  2. This packet still lacks a full large-dataset watchdog-style browser run across route, modal, and panel under one repeatable audit harness.
+  1. This packet still lacks a full large-dataset watchdog-style browser run across route, modal, and panel under one repeatable audit harness.
+  2. The current modal live repro is a real browser interaction pass, but it is still a focused stress pass rather than a unified heavy-data packet shared with route and panel.
   3. Because the original bug was a browser unresponsive watchdog event, automated unit/component coverage is necessary but not sufficient for final signoff.
 
 ## Validation Status
@@ -73,14 +75,14 @@ Lock the characterization inventory for the rebuilt media-library runtime and re
 - Full docs/index validation outcome: `pass`
 - Live route repro outcome: `pass after fix`
 - Live panel repro outcome: `pass`
-- Live modal repro outcome: `pending`
+- Live modal repro outcome: `pass`
 - Heavy browser repro outcome: `in progress`
 
 ## Risk And Rollback
 - `risk_class`: `Low`
 - Risk delta:
   1. Reduced planning drift by turning the implied characterization baseline into an explicit evidence artifact.
-  2. Reduced false confidence risk by recording the remaining manual/browser gap instead of marking `MLR-0-S2` complete prematurely.
+  2. Reduced false confidence risk by recording the remaining unified heavy-browser gap instead of marking `MLR-0-S2` complete prematurely.
 - `rollback_note`:
   1. Revert this packet, namespace index entries, and tracker status update if the evidence contract is rejected.
 
@@ -95,19 +97,19 @@ Lock the characterization inventory for the rebuilt media-library runtime and re
 ## Audit Findings
 ### blocking
 1. The rebuild still needs a real heavy media-library browser repro across route, modal, and panel before the freeze bug can be claimed closed.
-2. Modal live-browser verification is still pending because the current local server is running with panel mode enabled.
 
 ### non-blocking
 1. Current evidence is weighted toward targeted automated coverage; there is still no large-dataset runtime timing/profile packet in this namespace.
 2. The panel live repro was a smoke verification, not a deliberately overloaded watchdog scenario.
+3. The modal live repro used an isolated local copy on port `3001`; the shared route/panel packet still needs one unified repeatable harness.
 
 ### deferred
 1. If the live browser repro still shows tab unresponsiveness after the shared seam cutovers, the next packet should target controller-internal churn inside `frontend/features/media-library/hooks/useMediaPreviewSigningController.ts`.
 
 ## Follow-up Actions
-1. Run the modal repro on a local server started with `NEXT_PUBLIC_AI_STUDIO_MEDIA_LIBRARY_PANEL_ENABLED=false` and record the outcome in this namespace.
-2. Run the heavy media-library browser repro packet against route, modal, and panel with large media sets and record pass/fail evidence in this namespace.
-3. If the repro fails after the route-loop fix, instrument and reduce the remaining churn inside the shared signing controller rather than opening a new architecture lane.
+1. Run the heavy media-library browser repro packet against route, modal, and panel with large media sets and record pass/fail evidence in this namespace.
+2. If the repro fails after the route-loop fix, instrument and reduce the remaining churn inside the shared signing controller rather than opening a new architecture lane.
+3. Convert the current isolated modal stress pass into the shared repeatable harness only if that materially reduces closeout risk.
 
 ## Linked PR Or Commit
 - `linked_pr_or_commit`: `pending current slice commit`

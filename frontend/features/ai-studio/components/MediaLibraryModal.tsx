@@ -28,7 +28,7 @@ import {
 import { MediaLibraryPromptGrid } from "./media-library-modal/MediaLibraryPromptGrid";
 import { MediaLibraryMediaGrid } from "./media-library-modal/MediaLibraryMediaGrid";
 import { MediaLibraryModalControls } from "./media-library-modal/MediaLibraryModalControls";
-import { useMediaPreviewSigningController } from "../../media-library/hooks/useMediaPreviewSigningController";
+import { useMediaSurfacePreviewSigning } from "../../media-library/hooks/useMediaSurfacePreviewSigning";
 import { useMediaSurfacePreviewRuntime } from "../../media-library/hooks/useMediaSurfacePreviewRuntime";
 import { useMediaAdaptivePressure } from "../../media-library/hooks/useMediaAdaptivePressure";
 import { useMediaTabDataController } from "../../media-library/hooks/useMediaTabDataController";
@@ -117,29 +117,7 @@ export function MediaLibraryModal({
     isOpenRef.current = isOpen;
   }, [isOpen]);
 
-  const {
-    activeMediaQueryRef,
-    activeTabRef,
-    applySignedUrlsToTab,
-    currentUserIdRef,
-    getMediaCardRef,
-    handleMediaPreviewError,
-    hydrateViaStorageDownload,
-    isMountedRef,
-    markFirstMediaPaint: markSurfaceFirstMediaPaint,
-    mediaSignInFlightRef,
-    mediaTabRequestRef,
-    refreshSignedUrl,
-    resolveSignedUrlsByMediaIds,
-    setSignPassNonce,
-    signAttemptRef,
-    signBudget,
-    signPassNonce,
-    signStoragePath,
-    signedUrlRetryRef,
-    visibleMediaIdsRef,
-    visibleMediaVersion,
-  } = useMediaSurfacePreviewRuntime<MediaFileRow, MediaTab, HTMLButtonElement>({
+  const previewRuntime = useMediaSurfacePreviewRuntime<MediaFileRow, MediaTab, HTMLButtonElement>({
     activeMediaQuery,
     activeTab,
     firstMediaPaintEventName: "media.modal.first_media_paint",
@@ -165,6 +143,19 @@ export function MediaLibraryModal({
       });
     },
   });
+  const {
+    activeMediaQueryRef,
+    activeTabRef,
+    currentUserIdRef,
+    getMediaCardRef,
+    handleMediaPreviewError,
+    markFirstMediaPaint: markSurfaceFirstMediaPaint,
+    mediaTabRequestRef,
+    refreshSignedUrl,
+    signStoragePath,
+    signedUrlRetryRef,
+    applySignedUrlsToTab,
+  } = previewRuntime;
 
   const markFirstMediaPaint = useCallback(
     (assetKind: "image" | "video") => {
@@ -259,33 +250,21 @@ export function MediaLibraryModal({
     });
   }, [activeMediaTab, files, mediaSearchTerm]);
   const effectiveSignBudget = useMemo(() => {
-    if (activeMediaTab !== "private") return signBudget;
+    if (activeMediaTab !== "private") return previewRuntime.signBudget;
     return {
-      ...signBudget,
-      prefetchWindow: Math.min(signBudget.prefetchWindow, 8),
-      signBatchSize: Math.min(signBudget.signBatchSize, 3),
+      ...previewRuntime.signBudget,
+      prefetchWindow: Math.min(previewRuntime.signBudget.prefetchWindow, 8),
+      signBatchSize: Math.min(previewRuntime.signBudget.signBatchSize, 3),
     };
-  }, [activeMediaTab, signBudget]);
+  }, [activeMediaTab, previewRuntime.signBudget]);
 
-  useMediaPreviewSigningController({
+  useMediaSurfacePreviewSigning<MediaFileRow, MediaTab>({
+    runtime: previewRuntime,
     activeMediaTab,
     activeMediaCacheLoading: Boolean(activeMediaCache?.loading),
     activeMediaCachePagesLoaded: activeMediaCache?.pagesLoaded ?? 0,
-    activeMediaQueryRef,
-    activeTabRef,
-    applySignedUrlsToTab,
-    currentUserIdRef,
     filteredMedia: activeMedia,
-    hydrateViaStorageDownload,
-    isMountedRef,
-    mediaSignInFlightRef,
-    resolveSignedUrlsByMediaIds,
-    setSignPassNonce,
-    signAttemptRef,
-    signBudget: effectiveSignBudget,
-    signPassNonce,
-    visibleMediaIdsRef,
-    visibleMediaVersion,
+    signBudgetOverride: effectiveSignBudget,
     isSigningPassEnabled: isOpen,
     surface: "media-library-modal",
     unresolvedWarningPrefix: "[media-library-modal]",

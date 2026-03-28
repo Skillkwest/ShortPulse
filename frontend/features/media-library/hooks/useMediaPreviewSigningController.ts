@@ -12,7 +12,6 @@ import {
   resolveMediaSigningStoragePaths,
 } from "../../../lib/mediaPreviewPath";
 import { getSignedMediaUrlsBatch } from "../../../lib/mediaSignedUrlCache";
-import type { MediaTab } from "../logic/mediaMoveRouting";
 import {
   BUCKET,
   type MediaDataTab,
@@ -29,12 +28,15 @@ type PreviewSigningRowBase = {
   signedUrl?: string | null;
 };
 
-type UseMediaPreviewSigningControllerArgs<TRow extends PreviewSigningRowBase> = {
+type UseMediaPreviewSigningControllerArgs<
+  TRow extends PreviewSigningRowBase,
+  TTab extends string,
+> = {
   activeMediaTab: MediaDataTab | null;
   activeMediaCacheLoading: boolean;
   activeMediaCachePagesLoaded: number;
   activeMediaQueryRef: MutableRefObject<string>;
-  activeTabRef: MutableRefObject<MediaTab>;
+  activeTabRef: MutableRefObject<TTab>;
   applySignedUrlsToTab: (tab: MediaDataTab, signedById: Map<string, string>) => void;
   currentUserIdRef: MutableRefObject<string | null>;
   filteredMedia: TRow[];
@@ -64,7 +66,10 @@ type UseMediaPreviewSigningControllerArgs<TRow extends PreviewSigningRowBase> = 
  * Output: none (effect-only hook).
  * Side effects: signs preview URLs, updates failure telemetry, and bumps sign pass nonce.
  */
-export const useMediaPreviewSigningController = <TRow extends PreviewSigningRowBase>({
+export const useMediaPreviewSigningController = <
+  TRow extends PreviewSigningRowBase,
+  TTab extends string,
+>({
   activeMediaTab,
   activeMediaCacheLoading,
   activeMediaCachePagesLoaded,
@@ -91,7 +96,7 @@ export const useMediaPreviewSigningController = <TRow extends PreviewSigningRowB
   maxSignAttemptsPerItem,
   maxSignCandidatesPerRow = 4,
   backgroundHydrateFallbackEnabled = false,
-}: UseMediaPreviewSigningControllerArgs<TRow>) => {
+}: UseMediaPreviewSigningControllerArgs<TRow, TTab>) => {
   useEffect(() => {
     if (!isSigningPassEnabled) return;
     if (!activeMediaTab) return;

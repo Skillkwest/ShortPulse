@@ -61,7 +61,7 @@ type UseMediaSurfacePreviewRuntimeArgs<TRow extends PreviewRuntimeRowBase, TTab 
   visibilityRootRef?: MutableRefObject<HTMLElement | null>;
 };
 
-type UseMediaSurfacePreviewRuntimeResult<
+export type UseMediaSurfacePreviewRuntimeResult<
   TRow extends PreviewRuntimeRowBase,
   TTab extends string,
   TElement extends HTMLElement = HTMLDivElement,

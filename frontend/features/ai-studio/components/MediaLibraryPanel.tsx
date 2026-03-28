@@ -9,7 +9,7 @@ import { MEDIA_PREVIEW_SIGN_BATCH_MAX_ATTEMPTS_PER_ITEM } from "../../../lib/med
 import { ensureSupabaseQueryClient, readSupabaseUserId } from "../../../lib/supabaseClient";
 import { useVisibleErrorTelemetry } from "../../../lib/useVisibleErrorTelemetry";
 import { useMediaAdaptivePressure } from "../../media-library/hooks/useMediaAdaptivePressure";
-import { useMediaPreviewSigningController } from "../../media-library/hooks/useMediaPreviewSigningController";
+import { useMediaSurfacePreviewSigning } from "../../media-library/hooks/useMediaSurfacePreviewSigning";
 import { useMediaSurfacePreviewRuntime } from "../../media-library/hooks/useMediaSurfacePreviewRuntime";
 import {
   MEDIA_LIBRARY_PANEL_CONSTANT_COMPRESSION_ENABLED,
@@ -233,26 +233,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
     },
     [setMediaRows]
   );
-  const {
-    activeMediaQueryRef,
-    activeTabRef,
-    currentUserIdRef,
-    getMediaCardRef,
-    handleMediaPreviewError,
-    hydrateViaStorageDownload,
-    isMountedRef,
-    mediaSignInFlightRef,
-    refreshSignedUrl,
-    resolveSignedUrlsByMediaIds,
-    setSignPassNonce,
-    signAttemptRef,
-    signBudget,
-    signPassNonce,
-    signStoragePath,
-    signedUrlRetryRef,
-    visibleMediaIdsRef,
-    visibleMediaVersion,
-  } = useMediaSurfacePreviewRuntime<MediaFileRow, MediaTab, HTMLButtonElement>({
+  const previewRuntime = useMediaSurfacePreviewRuntime<MediaFileRow, MediaTab, HTMLButtonElement>({
     activeMediaQuery: normalizedSearch,
     activeTab: activeMediaTab ?? "saved_prompts",
     firstMediaPaintEventName: "media.modal.first_media_paint",
@@ -276,6 +257,15 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
       });
     },
   });
+  const {
+    currentUserIdRef,
+    getMediaCardRef,
+    handleMediaPreviewError,
+    refreshSignedUrl,
+    signAttemptRef,
+    signStoragePath,
+    signedUrlRetryRef,
+  } = previewRuntime;
   const { folderCanvasDataReady, folderCanvasMediaRows } =
     useMediaLibraryPanelFolderCanvasController({
       currentUserIdRef,
@@ -424,25 +414,12 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
     [handleSelectMediaFile]
   );
 
-  useMediaPreviewSigningController({
+  useMediaSurfacePreviewSigning<MediaFileRow, MediaTab>({
+    runtime: previewRuntime,
     activeMediaTab,
     activeMediaCacheLoading: mediaLoading,
     activeMediaCachePagesLoaded: 1,
-    activeMediaQueryRef,
-    activeTabRef,
-    applySignedUrlsToTab: applySignedUrlsToMediaRows,
-    currentUserIdRef,
     filteredMedia: mediaRows,
-    hydrateViaStorageDownload,
-    isMountedRef,
-    mediaSignInFlightRef,
-    resolveSignedUrlsByMediaIds,
-    setSignPassNonce,
-    signAttemptRef,
-    signBudget,
-    signPassNonce,
-    visibleMediaIdsRef,
-    visibleMediaVersion,
     isSigningPassEnabled: shouldShowMedia,
     surface: "media-library-panel",
     unresolvedWarningPrefix: "[media-library-panel]",

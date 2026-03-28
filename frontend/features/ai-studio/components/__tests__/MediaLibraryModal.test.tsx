@@ -5,7 +5,7 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { MediaLibraryModal } from "../MediaLibraryModal";
-import { ensureSupabaseClient } from "../../../../lib/supabaseClient";
+import { ensureSupabaseQueryClient, readSupabaseUserId } from "../../../../lib/supabaseClient";
 
 type MediaRow = {
   id: string;
@@ -78,10 +78,12 @@ vi.mock("../../../media-library/logic/mediaListApi", () => ({
 }));
 
 vi.mock("../../../../lib/supabaseClient", () => ({
-  ensureSupabaseClient: vi.fn(),
+  ensureSupabaseQueryClient: vi.fn(),
+  readSupabaseUserId: vi.fn(),
 }));
 
-const ensureSupabaseClientMock = vi.mocked(ensureSupabaseClient);
+const ensureSupabaseQueryClientMock = vi.mocked(ensureSupabaseQueryClient);
+const readSupabaseUserIdMock = vi.mocked(readSupabaseUserId);
 
 const createSupabaseClientMock = (options?: {
   mediaLimitImpl?: () => Promise<{ data: MediaRow[]; error: null }>;
@@ -100,11 +102,6 @@ const createSupabaseClientMock = (options?: {
   };
 
   return {
-    auth: {
-      getSession: vi.fn(async () => ({
-        data: { session: { user: { id: "user-1" } } },
-      })),
-    },
     from: vi.fn((table: string) => {
       if (table === "media_files") {
         return {
@@ -124,6 +121,11 @@ const createSupabaseClientMock = (options?: {
       }
       throw new Error(`Unexpected table: ${table}`);
     }),
+    storage: {
+      from: vi.fn(() => ({
+        download: vi.fn(async () => ({ data: null, error: new Error("download not mocked") })),
+      })),
+    },
   };
 };
 
@@ -140,8 +142,10 @@ const createDeferred = <T,>() => {
 describe("MediaLibraryModal", () => {
   beforeEach(() => {
     mockMediaRows.length = 0;
-    ensureSupabaseClientMock.mockReset();
-    ensureSupabaseClientMock.mockImplementation(() => createSupabaseClientMock() as never);
+    ensureSupabaseQueryClientMock.mockReset();
+    ensureSupabaseQueryClientMock.mockImplementation(() => createSupabaseClientMock() as never);
+    readSupabaseUserIdMock.mockReset();
+    readSupabaseUserIdMock.mockResolvedValue("user-1");
     mockFetchWithAuth.mockClear();
     mockResolveMediaDirectPreviewUrls.mockClear();
     mockResolveMediaSigningStoragePaths.mockReset();
@@ -201,7 +205,7 @@ describe("MediaLibraryModal", () => {
 
   it("shows blocking loading state on initial empty media fetch", async () => {
     const deferred = createDeferred<{ data: MediaRow[]; error: null }>();
-    ensureSupabaseClientMock.mockImplementation(
+    ensureSupabaseQueryClientMock.mockImplementation(
       () =>
         createSupabaseClientMock({
           mediaLimitImpl: () => deferred.promise,
@@ -245,7 +249,7 @@ describe("MediaLibraryModal", () => {
       },
     };
     let mediaFetchCount = 0;
-    ensureSupabaseClientMock.mockImplementation(
+    ensureSupabaseQueryClientMock.mockImplementation(
       () =>
         createSupabaseClientMock({
           mediaLimitImpl: async () => {
@@ -311,7 +315,7 @@ describe("MediaLibraryModal", () => {
       mockResolveMediaSigningStoragePaths.mockImplementation(() => ["user-1/upload/stale.png"]);
       let fetchCount = 0;
       const deferred = createDeferred<{ data: MediaRow[]; error: null }>();
-      ensureSupabaseClientMock.mockImplementation(
+      ensureSupabaseQueryClientMock.mockImplementation(
         () =>
           createSupabaseClientMock({
             mediaLimitImpl: async () => {
@@ -370,7 +374,7 @@ describe("MediaLibraryModal", () => {
     }
   });
 
-  it("caps unresolved preview signing retries to avoid continuous render churn", async () => {
+  it("does not self-pulse unresolved preview signing without backlog", async () => {
     const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => undefined);
     try {
       mockMediaRows.push({
@@ -397,13 +401,13 @@ describe("MediaLibraryModal", () => {
       );
 
       await waitFor(() => {
-        expect(mockGetSignedMediaUrlsBatch).toHaveBeenCalledTimes(3);
+        expect(mockGetSignedMediaUrlsBatch).toHaveBeenCalledTimes(1);
       });
 
       await act(async () => {
         await new Promise((resolve) => setTimeout(resolve, 80));
       });
-      expect(mockGetSignedMediaUrlsBatch).toHaveBeenCalledTimes(3);
+      expect(mockGetSignedMediaUrlsBatch).toHaveBeenCalledTimes(1);
     } finally {
       warnSpy.mockRestore();
     }
@@ -495,7 +499,7 @@ describe("MediaLibraryModal", () => {
         source: "private_upload",
       },
     },
-  ])("applies signing retry cap on $tabLabel tab", async ({ tabLabel, row }) => {
+  ])("does not self-pulse signing without backlog on $tabLabel tab", async ({ tabLabel, row }) => {
     const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => undefined);
     try {
       mockMediaRows.push({
@@ -522,13 +526,13 @@ describe("MediaLibraryModal", () => {
       }
 
       await waitFor(() => {
-        expect(mockGetSignedMediaUrlsBatch).toHaveBeenCalledTimes(3);
+        expect(mockGetSignedMediaUrlsBatch).toHaveBeenCalledTimes(1);
       });
 
       await act(async () => {
         await new Promise((resolve) => setTimeout(resolve, 80));
       });
-      expect(mockGetSignedMediaUrlsBatch).toHaveBeenCalledTimes(3);
+      expect(mockGetSignedMediaUrlsBatch).toHaveBeenCalledTimes(1);
     } finally {
       warnSpy.mockRestore();
     }

@@ -24,7 +24,7 @@ type PreviewRuntimeRowBase = {
   thumb_variant_path?: string | null;
   poster_variant_path?: string | null;
   preview_variant_path?: string | null;
-  signedUrl?: string;
+  signedUrl?: string | null;
 };
 
 type MediaCardRefCallback = (node: HTMLDivElement | null) => void;

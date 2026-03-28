@@ -41,10 +41,8 @@ type PreviewRuntimeRowBase = {
   thumb_variant_path?: string | null;
   poster_variant_path?: string | null;
   preview_variant_path?: string | null;
-  signedUrl?: string;
+  signedUrl?: string | null;
 };
-
-type MediaCardRefCallback = (node: HTMLDivElement | null) => void;
 
 type UseMediaSurfacePreviewRuntimeArgs<TRow extends PreviewRuntimeRowBase, TTab extends string> = {
   activeMediaQuery: string;
@@ -65,18 +63,20 @@ type UseMediaSurfacePreviewRuntimeArgs<TRow extends PreviewRuntimeRowBase, TTab 
 type UseMediaSurfacePreviewRuntimeResult<
   TRow extends PreviewRuntimeRowBase,
   TTab extends string,
+  TElement extends HTMLElement = HTMLDivElement,
 > = {
   activeMediaQueryRef: MutableRefObject<string>;
   activeTabRef: MutableRefObject<TTab>;
   applySignedUrlsToTab: (tab: MediaDataTab, signedById: Map<string, string>) => void;
   currentUserIdRef: MutableRefObject<string | null>;
-  getMediaCardRef: (fileId: string) => MediaCardRefCallback;
+  getMediaCardRef: (fileId: string) => (node: TElement | null) => void;
   handleMediaPreviewError: (row: TRow) => void;
   hydrateViaStorageDownload: (row: TRow) => Promise<string | null>;
   isMountedRef: MutableRefObject<boolean>;
   markFirstMediaPaint: (assetKind: "image" | "video") => void;
   mediaSignInFlightRef: MutableRefObject<MediaTabBooleanState>;
   mediaTabRequestRef: MutableRefObject<MediaTabRequestState>;
+  refreshSignedUrl: (row: TRow) => Promise<string | null>;
   resolveSignedUrlsByMediaIds: (tab: MediaDataTab, rows: TRow[]) => Promise<Set<string>>;
   setSignPassNonce: Dispatch<SetStateAction<number>>;
   signAttemptRef: MutableRefObject<Record<string, number>>;
@@ -101,6 +101,7 @@ type NavigatorWithConnection = Navigator & {
 export const useMediaSurfacePreviewRuntime = <
   TRow extends PreviewRuntimeRowBase,
   TTab extends string,
+  TElement extends HTMLElement = HTMLDivElement,
 >({
   activeMediaQuery,
   activeTab,
@@ -117,7 +118,8 @@ export const useMediaSurfacePreviewRuntime = <
   shouldApplySignedUrlsToActiveRows,
 }: UseMediaSurfacePreviewRuntimeArgs<TRow, TTab>): UseMediaSurfacePreviewRuntimeResult<
   TRow,
-  TTab
+  TTab,
+  TElement
 > => {
   const activeTabRef = useRef<TTab>(activeTab);
   const activeMediaQueryRef = useRef(activeMediaQuery);
@@ -130,8 +132,8 @@ export const useMediaSurfacePreviewRuntime = <
   const downloadFallbackInFlightRef = useRef<Record<string, boolean>>({});
   const objectUrlByMediaIdRef = useRef<Record<string, string>>({});
   const firstMediaPaintLoggedRef = useRef(false);
-  const mediaCardNodesRef = useRef<Map<string, HTMLDivElement>>(new Map());
-  const mediaCardRefCallbacksRef = useRef<Record<string, MediaCardRefCallback>>({});
+  const mediaCardNodesRef = useRef<Map<string, TElement>>(new Map());
+  const mediaCardRefCallbacksRef = useRef<Record<string, (node: TElement | null) => void>>({});
   const mediaCardObserverRef = useRef<IntersectionObserver | null>(null);
   const visibleMediaIdsRef = useRef<Set<string>>(new Set());
   const [visibleMediaVersion, setVisibleMediaVersion] = useState(0);
@@ -191,10 +193,10 @@ export const useMediaSurfacePreviewRuntime = <
     []
   );
 
-  const getMediaCardRef = useCallback((fileId: string): MediaCardRefCallback => {
+  const getMediaCardRef = useCallback((fileId: string) => {
     const existing = mediaCardRefCallbacksRef.current[fileId];
     if (existing) return existing;
-    const callback: MediaCardRefCallback = (node) => {
+    const callback = (node: TElement | null) => {
       const previousNode = mediaCardNodesRef.current.get(fileId);
       if (previousNode && previousNode !== node) {
         mediaCardObserverRef.current?.unobserve(previousNode);
@@ -361,7 +363,7 @@ export const useMediaSurfacePreviewRuntime = <
     [applySignedUrlsToTab, surface]
   );
 
-  const { handleMediaPreviewError } = useMediaPreviewRecoveryController<TRow>({
+  const { handleMediaPreviewError, refreshSignedUrl } = useMediaPreviewRecoveryController<TRow>({
     applySignedUrlsToTab,
     beforeRetry,
     currentUserIdRef,
@@ -399,6 +401,7 @@ export const useMediaSurfacePreviewRuntime = <
     markFirstMediaPaint,
     mediaSignInFlightRef,
     mediaTabRequestRef,
+    refreshSignedUrl,
     resolveSignedUrlsByMediaIds,
     setSignPassNonce,
     signAttemptRef,

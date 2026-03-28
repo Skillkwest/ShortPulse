@@ -33,3 +33,4 @@ Use dated packet names:
 
 ## Packets
 1. `docs/planning/evidence/media-library-runtime-rebuild/2026-03-28-mlr-0-s2-characterization-and-freeze-repro-baseline.md`
+2. `docs/planning/evidence/media-library-runtime-rebuild/2026-03-28-mlr-0-s2-heavy-browser-repro-packet.md`

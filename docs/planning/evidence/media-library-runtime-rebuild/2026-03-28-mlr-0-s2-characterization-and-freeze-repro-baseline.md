@@ -76,13 +76,13 @@ Lock the characterization inventory for the rebuilt media-library runtime and re
 - Live route repro outcome: `pass after fix`
 - Live panel repro outcome: `pass`
 - Live modal repro outcome: `pass`
-- Heavy browser repro outcome: `in progress`
+- Heavy browser repro outcome: `pass in dedicated packet`
 
 ## Risk And Rollback
 - `risk_class`: `Low`
 - Risk delta:
   1. Reduced planning drift by turning the implied characterization baseline into an explicit evidence artifact.
-  2. Reduced false confidence risk by recording the remaining unified heavy-browser gap instead of marking `MLR-0-S2` complete prematurely.
+  2. Reduced false confidence risk by keeping the characterization baseline separate from the dedicated heavy-browser packet.
 - `rollback_note`:
   1. Revert this packet, namespace index entries, and tracker status update if the evidence contract is rejected.
 
@@ -96,20 +96,20 @@ Lock the characterization inventory for the rebuilt media-library runtime and re
 
 ## Audit Findings
 ### blocking
-1. The rebuild still needs a real heavy media-library browser repro across route, modal, and panel before the freeze bug can be claimed closed.
+1. None in this baseline packet after the dedicated heavy-browser repro completed in `2026-03-28-mlr-0-s2-heavy-browser-repro-packet.md`.
 
 ### non-blocking
 1. Current evidence is weighted toward targeted automated coverage; there is still no large-dataset runtime timing/profile packet in this namespace.
 2. The panel live repro was a smoke verification, not a deliberately overloaded watchdog scenario.
-3. The modal live repro used an isolated local copy on port `3001`; the shared route/panel packet still needs one unified repeatable harness.
+3. The modal live repro used an isolated local copy on port `3001`; the shared route/panel/modal packet now lives in `2026-03-28-mlr-0-s2-heavy-browser-repro-packet.md`.
 
 ### deferred
 1. If the live browser repro still shows tab unresponsiveness after the shared seam cutovers, the next packet should target controller-internal churn inside `frontend/features/media-library/hooks/useMediaPreviewSigningController.ts`.
 
 ## Follow-up Actions
-1. Run the heavy media-library browser repro packet against route, modal, and panel with large media sets and record pass/fail evidence in this namespace.
-2. If the repro fails after the route-loop fix, instrument and reduce the remaining churn inside the shared signing controller rather than opening a new architecture lane.
-3. Convert the current isolated modal stress pass into the shared repeatable harness only if that materially reduces closeout risk.
+1. Use the dedicated heavy-browser packet as the closeout proof for `MLR-0-S2`.
+2. If a future repro fails after the route-loop fix, instrument and reduce the remaining churn inside the shared signing controller rather than opening a new architecture lane.
+3. Keep modal-path validation on a panel-disabled server when rerunning the unified packet.
 
 ## Linked PR Or Commit
 - `linked_pr_or_commit`: `pending current slice commit`
@@ -118,3 +118,4 @@ Lock the characterization inventory for the rebuilt media-library runtime and re
 1. `docs/planning/media-library-runtime-rebuild-master-plan-2026-03-28.md`
 2. `docs/planning/media-library-runtime-rebuild-tracker-2026-03-28.md`
 3. `docs/planning/evidence/media-library-runtime-rebuild/README.md`
+4. `docs/planning/evidence/media-library-runtime-rebuild/2026-03-28-mlr-0-s2-heavy-browser-repro-packet.md`

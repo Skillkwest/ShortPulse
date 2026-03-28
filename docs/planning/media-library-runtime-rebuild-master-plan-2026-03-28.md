@@ -50,12 +50,12 @@ Do not block this work on UI redesign. The runtime must be corrected first.
 | Criterion | Status | Evidence | Notes |
 | --- | --- | --- | --- |
 | Contract lock completed | Pass | Existing SOPs and ADRs | `ADR 0032`, `0033`, `0035`, `0036`, `0037`, `0038`, `0039`, `0044` plus media SOPs already lock current product and delivery contracts. |
-| Characterization baseline captured | Pass with follow-up | Repo audit and existing tests | Existing tests cover route hooks, modal behavior, panel behavior, and many shared helpers. `MLR-0-S2` must convert that into an explicit characterization inventory before closeout and freeze-signoff. |
+| Characterization baseline captured | Pass | Repo audit, targeted tests, and `MLR-0-S2` evidence packet set | Existing tests cover route hooks, modal behavior, panel behavior, and many shared helpers, and `MLR-0-S2` now includes both the characterization baseline and unified heavy browser packet. |
 | Do-not-rebuild criteria evaluated | Pass | Current audit | This is not a styling issue, docs drift issue, or narrow seam extraction candidate. |
 | Incremental strangler cutover defined | Pass | Phases below | Route first, modal second, panel third, legacy adapters retained until green. |
 | Rollback within release window defined | Pass | Rollback section | Surface adapters preserve rollback to legacy implementation. |
 | Security boundary verification defined | Pass | Existing APIs preserved | User-scoped auth, storage scope, and sign/list/resolve contracts remain server authoritative. |
-| Performance parity baseline and thresholds defined | Pass with follow-up | Acceptance section | `MLR-0-S2` must produce the baseline packet before closeout and freeze-signoff. |
+| Performance parity baseline and thresholds defined | Pass | Acceptance section plus `MLR-0-S2` heavy browser packet | The track now has a repeatable route/modal/panel heavy browser audit for closeout verification. |
 | One-seam PR slicing policy accepted | Pass | Execution policy | No mixed runtime plus UI redesign PRs. |
 
 ## Non-Goals

@@ -1,38 +1,19 @@
 /**
- * Media Library preview runtime hook.
- * Owns tab/query refs, preview signing fallbacks, and viewport visibility tracking for media cards.
+ * Route wrapper around the shared Media Library surface preview runtime.
+ * Preserves the existing route contract while moving the reusable preview engine behind a shared hook.
  */
-import {
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-  type Dispatch,
-  type MutableRefObject,
-  type SetStateAction,
-} from "react";
-import { logMediaPerf } from "../../../lib/mediaPerfTelemetry";
-import { type MediaPreviewTransformProfile } from "../../../lib/mediaPreviewTransformProfile";
-import { ensureSupabaseQueryClient } from "../../../lib/supabaseClient";
-import {
-  hydrateMediaPreviewViaStorageDownload,
-  resolveAndApplySignedPreviewUrlsByRows,
-  signMediaStoragePath,
-} from "../logic/mediaPreviewRuntimeShared";
-import { useMediaPreviewRecoveryController } from "./useMediaPreviewRecoveryController";
+import type { Dispatch, MutableRefObject, SetStateAction } from "react";
+import type { MediaPreviewTransformProfile } from "../../../lib/mediaPreviewTransformProfile";
 import type { MediaTab } from "../logic/mediaMoveRouting";
 import {
-  BUCKET,
-  createMediaTabBooleanState,
-  createMediaTabRequestState,
-  getMediaDataTabForRow,
-  resolveRouteSignBudget,
   type MediaDataTab,
   type MediaSignBudget,
   type MediaTabBooleanState,
   type MediaTabCache,
   type MediaTabRequestState,
 } from "../logic/mediaLibraryPageHelpers";
+import { getMediaLibrarySurfaceConfig } from "../runtime";
+import { useMediaSurfacePreviewRuntime } from "./useMediaSurfacePreviewRuntime";
 
 type PreviewRuntimeRowBase = {
   id: string;
@@ -83,19 +64,8 @@ type UseMediaPreviewRuntimeResult<TRow extends PreviewRuntimeRowBase> = {
   visibleMediaVersion: number;
 };
 
-type NavigatorWithConnection = Navigator & {
-  connection?: {
-    addEventListener?: (type: string, listener: EventListenerOrEventListenerObject) => void;
-    removeEventListener?: (type: string, listener: EventListenerOrEventListenerObject) => void;
-  };
-};
+const ROUTE_SURFACE_CONFIG = getMediaLibrarySurfaceConfig("route");
 
-/**
- * Provides preview runtime refs and handlers for Media Library page orchestration.
- * Inputs: active tab/query + state setters for files/focus/cache.
- * Output: refs and callbacks used by tab data, signing pass, and gallery rendering.
- * Side effects: manages IntersectionObserver lifecycle, object URL cleanup, and preview signing retries.
- */
 export const useMediaPreviewRuntime = <TRow extends PreviewRuntimeRowBase>({
   activeMediaQuery,
   activeTab,
@@ -104,285 +74,18 @@ export const useMediaPreviewRuntime = <TRow extends PreviewRuntimeRowBase>({
   setFocusedFile,
   setMediaTabCache,
 }: UseMediaPreviewRuntimeArgs<TRow>): UseMediaPreviewRuntimeResult<TRow> => {
-  const activeTabRef = useRef<MediaTab>(activeTab);
-  const activeMediaQueryRef = useRef(activeMediaQuery);
-  const currentUserIdRef = useRef<string | null>(null);
-  const isMountedRef = useRef(true);
-  const mediaTabRequestRef = useRef<MediaTabRequestState>(createMediaTabRequestState());
-  const mediaSignInFlightRef = useRef<MediaTabBooleanState>(createMediaTabBooleanState());
-  const signedUrlRetryRef = useRef<Record<string, number>>({});
-  const signAttemptRef = useRef<Record<string, number>>({});
-  const downloadFallbackInFlightRef = useRef<Record<string, boolean>>({});
-  const objectUrlByMediaIdRef = useRef<Record<string, string>>({});
-  const firstMediaPaintLoggedRef = useRef(false);
-  const mediaCardNodesRef = useRef<Map<string, HTMLDivElement>>(new Map());
-  const mediaCardRefCallbacksRef = useRef<Record<string, MediaCardRefCallback>>({});
-  const mediaCardObserverRef = useRef<IntersectionObserver | null>(null);
-  const visibleMediaIdsRef = useRef<Set<string>>(new Set());
-  const [visibleMediaVersion, setVisibleMediaVersion] = useState(0);
-  const [signPassNonce, setSignPassNonce] = useState(0);
-  const [signBudget, setSignBudget] = useState<MediaSignBudget>(resolveRouteSignBudget);
-
-  useEffect(() => {
-    activeTabRef.current = activeTab;
-  }, [activeTab]);
-
-  useEffect(() => {
-    activeMediaQueryRef.current = activeMediaQuery;
-  }, [activeMediaQuery]);
-
-  useEffect(() => {
-    if (typeof window === "undefined" || typeof navigator === "undefined") return;
-    const nav = navigator as NavigatorWithConnection;
-    const connection = nav.connection;
-    const refreshBudget = () => {
-      setSignBudget((prev) => {
-        const next = resolveRouteSignBudget();
-        if (
-          prev.initialSignLimit === next.initialSignLimit &&
-          prev.prefetchWindow === next.prefetchWindow &&
-          prev.signBatchSize === next.signBatchSize
-        ) {
-          return prev;
-        }
-        return next;
-      });
-    };
-    refreshBudget();
-    window.addEventListener("resize", refreshBudget);
-    connection?.addEventListener?.("change", refreshBudget);
-    return () => {
-      window.removeEventListener("resize", refreshBudget);
-      connection?.removeEventListener?.("change", refreshBudget);
-    };
-  }, []);
-
-  useEffect(() => {
-    signAttemptRef.current = {};
-  }, [activeMediaQuery, activeTab]);
-
-  useEffect(() => {
-    firstMediaPaintLoggedRef.current = false;
-  }, [activeMediaQuery, activeTab]);
-
-  useEffect(
-    () => () => {
-      for (const objectUrl of Object.values(objectUrlByMediaIdRef.current)) {
-        URL.revokeObjectURL(objectUrl);
-      }
-      objectUrlByMediaIdRef.current = {};
-      isMountedRef.current = false;
-    },
-    []
-  );
-
-  const getMediaCardRef = useCallback((fileId: string): MediaCardRefCallback => {
-    const existing = mediaCardRefCallbacksRef.current[fileId];
-    if (existing) return existing;
-    const callback: MediaCardRefCallback = (node) => {
-      const previousNode = mediaCardNodesRef.current.get(fileId);
-      if (previousNode && previousNode !== node) {
-        mediaCardObserverRef.current?.unobserve(previousNode);
-      }
-      if (!node) {
-        mediaCardNodesRef.current.delete(fileId);
-        if (visibleMediaIdsRef.current.delete(fileId)) {
-          setVisibleMediaVersion((prev) => prev + 1);
-        }
-        return;
-      }
-      node.dataset.mediaId = fileId;
-      mediaCardNodesRef.current.set(fileId, node);
-      mediaCardObserverRef.current?.observe(node);
-    };
-    mediaCardRefCallbacksRef.current[fileId] = callback;
-    return callback;
-  }, []);
-
-  useEffect(() => {
-    if (typeof IntersectionObserver === "undefined") return;
-    const visibleIds = visibleMediaIdsRef.current;
-    const observer = new IntersectionObserver(
-      (entries) => {
-        let changed = false;
-        for (const entry of entries) {
-          const fileId = (entry.target as HTMLElement).dataset.mediaId;
-          if (!fileId) continue;
-          if (entry.isIntersecting) {
-            if (!visibleIds.has(fileId)) {
-              visibleIds.add(fileId);
-              changed = true;
-            }
-            continue;
-          }
-          if (visibleIds.delete(fileId)) {
-            changed = true;
-          }
-        }
-        if (changed) {
-          setVisibleMediaVersion((prev) => prev + 1);
-        }
-      },
-      {
-        root: null,
-        rootMargin: "520px 0px",
-        threshold: 0.01,
-      }
-    );
-    mediaCardObserverRef.current = observer;
-    for (const node of mediaCardNodesRef.current.values()) {
-      observer.observe(node);
-    }
-    return () => {
-      observer.disconnect();
-      mediaCardObserverRef.current = null;
-      visibleIds.clear();
-    };
-  }, []);
-
-  const signStoragePath = useCallback(
-    (
-      storagePath: string,
-      options?: { forceRefresh?: boolean; previewProfile?: MediaPreviewTransformProfile }
-    ): Promise<string | null> => signMediaStoragePath(storagePath, options),
-    []
-  );
-
-  const applySignedUrlsToTab = useCallback(
-    (tab: MediaDataTab, signedById: Map<string, string>) => {
-      if (!signedById.size) return;
-      if (applySignedUrlsToSurface) {
-        applySignedUrlsToSurface(tab, signedById);
-      } else {
-        setMediaTabCache((prev) => {
-          const cache = prev[tab];
-          let changed = false;
-          const nextRows = cache.rows.map((row) => {
-            const signedUrl = signedById.get(row.id);
-            if (!signedUrl || row.signedUrl === signedUrl) return row;
-            changed = true;
-            return { ...row, signedUrl };
-          });
-          if (!changed) return prev;
-          return {
-            ...prev,
-            [tab]: {
-              ...cache,
-              rows: nextRows,
-            },
-          };
-        });
-        if (activeTabRef.current === tab) {
-          setFiles((prev) =>
-            prev.map((file) => {
-              const signedUrl = signedById.get(file.id);
-              return signedUrl ? { ...file, signedUrl } : file;
-            })
-          );
-        }
-      }
-      setFocusedFile((prev) => {
-        if (!prev) return prev;
-        const signedUrl = signedById.get(prev.id);
-        return signedUrl ? { ...prev, signedUrl } : prev;
-      });
-    },
-    [applySignedUrlsToSurface, setFiles, setFocusedFile, setMediaTabCache]
-  );
-
-  const setObjectUrlForMediaRow = useCallback(
-    (row: TRow, objectUrl: string) => {
-      const previousObjectUrl = objectUrlByMediaIdRef.current[row.id];
-      if (previousObjectUrl && previousObjectUrl !== objectUrl) {
-        URL.revokeObjectURL(previousObjectUrl);
-      }
-      objectUrlByMediaIdRef.current[row.id] = objectUrl;
-      applySignedUrlsToTab(getMediaDataTabForRow(row), new Map([[row.id, objectUrl]]));
-    },
-    [applySignedUrlsToTab]
-  );
-
-  const hydrateViaStorageDownload = useCallback(
-    async (row: TRow): Promise<string | null> => {
-      if (downloadFallbackInFlightRef.current[row.id]) return null;
-      downloadFallbackInFlightRef.current[row.id] = true;
-      try {
-        const supabase = ensureSupabaseQueryClient();
-        return await hydrateMediaPreviewViaStorageDownload({
-          row,
-          currentUserId: currentUserIdRef.current,
-          downloadFromStoragePath: async (storagePath) => {
-            const { data, error } = await supabase.storage.from(BUCKET).download(storagePath);
-            if (error || !data) return null;
-            return data as Blob;
-          },
-          applyObjectUrlForRow: setObjectUrlForMediaRow,
-        });
-      } catch {
-        return null;
-      } finally {
-        downloadFallbackInFlightRef.current[row.id] = false;
-      }
-    },
-    [setObjectUrlForMediaRow]
-  );
-
-  const resolveSignedUrlsByMediaIds = useCallback(
-    (tab: MediaDataTab, rows: TRow[]): Promise<Set<string>> =>
-      resolveAndApplySignedPreviewUrlsByRows({
-        tab,
-        rows,
-        applySignedUrlsToTab,
-        surface: "media-library-route",
-      }),
-    [applySignedUrlsToTab]
-  );
-
-  const { handleMediaPreviewError } = useMediaPreviewRecoveryController<TRow>({
-    applySignedUrlsToTab,
-    currentUserIdRef,
-    resolveSignedUrlsByMediaIds,
-    hydrateViaStorageDownload,
-    signStoragePath,
-    signedUrlRetryRef,
-    objectUrlByMediaIdRef,
-    resolveTabForRow: getMediaDataTabForRow,
-    previewProfile: "media-library-route-image-card",
+  return useMediaSurfacePreviewRuntime<TRow, MediaTab>({
+    activeMediaQuery,
+    activeTab,
+    applySignedUrlsToSurface,
+    firstMediaPaintEventName: "media.route.first_media_paint",
+    previewProfile: ROUTE_SURFACE_CONFIG.imageCardPreviewProfile,
+    setFiles,
+    setFocusedFile,
+    setMediaTabCache,
+    shouldApplySignedUrlsToActiveRows: (tab) => activeTab === tab,
+    signBudgetResolver: ROUTE_SURFACE_CONFIG.signBudgetResolver,
+    surface: ROUTE_SURFACE_CONFIG.listSurface,
+    visibilityRootMargin: ROUTE_SURFACE_CONFIG.visibilityRootMargin,
   });
-
-  const markFirstMediaPaint = useCallback(
-    (assetKind: "image" | "video") => {
-      if (firstMediaPaintLoggedRef.current) return;
-      firstMediaPaintLoggedRef.current = true;
-      logMediaPerf("media.route.first_media_paint", {
-        surface: "media-library-route",
-        tab: activeTab,
-        asset_kind: assetKind,
-      });
-    },
-    [activeTab]
-  );
-
-  return {
-    activeMediaQueryRef,
-    activeTabRef,
-    applySignedUrlsToTab,
-    currentUserIdRef,
-    getMediaCardRef,
-    handleMediaPreviewError,
-    hydrateViaStorageDownload,
-    isMountedRef,
-    markFirstMediaPaint,
-    mediaSignInFlightRef,
-    mediaTabRequestRef,
-    resolveSignedUrlsByMediaIds,
-    setSignPassNonce,
-    signAttemptRef,
-    signBudget,
-    signPassNonce,
-    signStoragePath,
-    signedUrlRetryRef,
-    visibleMediaIdsRef,
-    visibleMediaVersion,
-  };
 };

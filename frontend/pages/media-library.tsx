@@ -23,14 +23,17 @@ import {
 import { useMediaFileModalCrud } from "../features/media-library/hooks/useMediaFileModalCrud";
 import { useMediaModalImageZoom } from "../features/media-library/hooks/useMediaModalImageZoom";
 import { useMediaPromptModalCrud } from "../features/media-library/hooks/useMediaPromptModalCrud";
-import { useMediaPreviewRuntime } from "../features/media-library/hooks/useMediaPreviewRuntime";
 import { useMediaPreviewSigningController } from "../features/media-library/hooks/useMediaPreviewSigningController";
+import { useMediaSurfacePreviewRuntime } from "../features/media-library/hooks/useMediaSurfacePreviewRuntime";
 import { useMediaSingleMoveController } from "../features/media-library/hooks/useMediaSingleMoveController";
 import { useMediaAdaptivePressure } from "../features/media-library/hooks/useMediaAdaptivePressure";
 import { useMediaTabDataController } from "../features/media-library/hooks/useMediaTabDataController";
 import { useMediaUploadController } from "../features/media-library/hooks/useMediaUploadController";
 import { MEDIA_LIBRARY_SIGN_PREFETCH_ENABLED } from "../features/media-library/logic/mediaLibraryFeatureFlags";
-import { useMediaLibraryRouteRuntime } from "../features/media-library/runtime";
+import {
+  getMediaLibrarySurfaceConfig,
+  useMediaLibraryRouteRuntime,
+} from "../features/media-library/runtime";
 import {
   BUCKET,
   formatDate,
@@ -75,6 +78,7 @@ type PromptRow = {
 
 const MEDIA_LIBRARY_PAGE_SIZE = 60;
 const MEDIA_LIBRARY_CACHE_TTL_MS = 30_000;
+const ROUTE_SURFACE_CONFIG = getMediaLibrarySurfaceConfig("route");
 
 export default function MediaLibrary() {
   const [loading, setLoading] = useState(true);
@@ -166,10 +170,16 @@ export default function MediaLibrary() {
     signedUrlRetryRef,
     visibleMediaIdsRef,
     visibleMediaVersion,
-  } = useMediaPreviewRuntime<MediaRow>({
+  } = useMediaSurfacePreviewRuntime<MediaRow, MediaTab>({
     activeMediaQuery,
     activeTab,
     applySignedUrlsToSurface: (_tab, signedById) => setSignedUrls(signedById),
+    firstMediaPaintEventName: "media.route.first_media_paint",
+    previewProfile: ROUTE_SURFACE_CONFIG.imageCardPreviewProfile,
+    shouldApplySignedUrlsToActiveRows: (tab) => activeTab === tab,
+    signBudgetResolver: ROUTE_SURFACE_CONFIG.signBudgetResolver,
+    surface: ROUTE_SURFACE_CONFIG.listSurface,
+    visibilityRootMargin: ROUTE_SURFACE_CONFIG.visibilityRootMargin,
     setFiles,
     setFocusedFile,
     setMediaTabCache,

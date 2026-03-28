@@ -90,7 +90,6 @@ These parts are worth preserving:
 - `frontend/features/ai-studio/components/MediaLibraryPanel.tsx`
 
 ### Duplicated preview runtime
-- `frontend/features/media-library/hooks/useMediaPreviewRuntime.ts`
 - `frontend/features/media-library/hooks/useMediaPreviewSigningController.ts`
 - `frontend/features/media-library/hooks/useMediaPreviewRecoveryController.ts`
 
@@ -177,7 +176,6 @@ Folder canvas may consume shared preview helpers, but its scene, persistence, an
 - server APIs under `frontend/pages/api/media/*`
 
 ### Replace or absorb into shared runtime
-- `frontend/features/media-library/hooks/useMediaPreviewRuntime.ts`
 - `frontend/features/media-library/hooks/useMediaPreviewSigningController.ts`
 - `frontend/features/media-library/hooks/useMediaTabDataController.ts`
 - `frontend/features/ai-studio/hooks/useMediaLibraryPanelDataController.ts`
@@ -249,7 +247,7 @@ Deliverables:
 - route cutover to shared preview engine
 
 Exit gate:
-- route no longer depends on `useMediaPreviewRuntime` and `useMediaPreviewSigningController` as primary hot-path owners
+- route no longer depends on a route-specific preview wrapper or `useMediaPreviewSigningController` as primary hot-path owners
 
 ### Phase `MLR-3`: Shared viewport engine on route and modal
 Goals:
@@ -332,7 +330,6 @@ This track is done only when all of the following are true:
    - visibility and load-more signaling
 
 2. The legacy distributed hot-path ownership is removed or reduced to non-authoritative compatibility glue:
-   - `frontend/features/media-library/hooks/useMediaPreviewRuntime.ts`
    - `frontend/features/media-library/hooks/useMediaPreviewSigningController.ts`
    - `frontend/features/media-library/hooks/useMediaTabDataController.ts`
    - `frontend/features/ai-studio/hooks/useMediaLibraryPanelDataController.ts`

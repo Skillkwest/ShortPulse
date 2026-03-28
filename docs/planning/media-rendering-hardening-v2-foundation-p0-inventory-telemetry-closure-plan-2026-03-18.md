@@ -31,7 +31,7 @@ The current telemetry truth spec correctly blocks `preview_delivery_mode` and `o
 
 Trusted or partially trusted timing/sign emitters currently come from:
 1. [media-library route timing](../../frontend/pages/media-library.tsx)
-2. [media-library route first-media paint](../../frontend/features/media-library/hooks/useMediaPreviewRuntime.ts)
+2. [media-library route first-media paint](../../frontend/features/media-library/hooks/useMediaSurfacePreviewRuntime.ts)
 3. [media-library modal timing](../../frontend/features/ai-studio/components/MediaLibraryModal.tsx)
 4. [route/modal/panel sign/fallback counts](../../frontend/features/media-library/hooks/useMediaPreviewSigningController.ts)
 5. [reference-grid render pressure telemetry](../../frontend/features/ai-studio/reference-grid/controllers/useReferenceGridTelemetryController.ts)

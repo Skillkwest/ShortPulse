@@ -89,7 +89,7 @@ Operational rules:
    - high `riskScore`,
    - large `costWithoutSuccessCents`.
 4. Drill into `/admin/user-health` for selected user (`lookup=email|userId`).
-5. Use `/admin/generation-trace` for affected `source_ref`/`request_id` evidence.
+5. Use `/admin/generation-trace` for affected generation, attempt, output, `source_ref`, and `request_id` evidence.
 6. If customer-impacting leakage is confirmed, coordinate manual credit adjustments through standard billing SOP.
 
 ## Incident Escalation Policy

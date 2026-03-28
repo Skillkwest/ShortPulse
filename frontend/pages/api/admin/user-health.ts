@@ -17,11 +17,13 @@ import {
   type DeepQueryError as QueryError,
 } from "../../../lib/server/adminUserHealth/deep";
 import {
+  type AttemptRow,
   buildAdminHealthResponse,
   type AdminHealthResponse,
   type BalanceRow,
   type GenerationRow,
   type NormalizedLedgerRow,
+  type OutputRow,
   type QueueRow,
   type ReservationRow,
 } from "../../../lib/server/adminUserHealth/deepReport";
@@ -300,6 +302,60 @@ export default async function handler(
       throw new Error(balanceResult.error.message || "Failed to load ai_credit_balance.");
     }
     const balanceRows = (balanceResult.data ?? []) as BalanceRow[];
+    const generationIds = generationsResult.rows.map((row) => row.id).filter(Boolean);
+
+    const attemptsResult = generationIds.length
+      ? await fetchAllRowsForSelect<AttemptRow>(async (from, to) => {
+          const query = supabaseAdmin
+            .from("generation_attempts")
+            .select("id,generation_id,provider_request_id,status,created_at")
+            .in("generation_id", generationIds)
+            .order("created_at", { ascending: false })
+            .range(from, to);
+          const { data, error } = await query;
+          return {
+            data: (data as AttemptRow[] | null) ?? null,
+            error: normalizeQueryError(error),
+          };
+        })
+      : { rows: [] as AttemptRow[], error: null };
+
+    if (attemptsResult.error) {
+      if (isSchemaCompatibilityError(attemptsResult.error)) {
+        compatibilityWarnings.push(
+          "generation_attempts is unavailable in this environment; provider-linkage diagnostics are partial."
+        );
+      } else {
+        throw new Error(attemptsResult.error.message || "Failed to load generation_attempts.");
+      }
+    }
+
+    const outputsResult = generationIds.length
+      ? await fetchAllRowsForSelect<OutputRow>(async (from, to) => {
+          const query = supabaseAdmin
+            .from("ai_generation_outputs")
+            .select("id,generation_id,media_file_id,created_at")
+            .in("generation_id", generationIds)
+            .order("created_at", { ascending: false })
+            .range(from, to);
+          const { data, error } = await query;
+          return {
+            data: (data as OutputRow[] | null) ?? null,
+            error: normalizeQueryError(error),
+          };
+        })
+      : { rows: [] as OutputRow[], error: null };
+
+    if (outputsResult.error) {
+      if (isSchemaCompatibilityError(outputsResult.error)) {
+        compatibilityWarnings.push(
+          "ai_generation_outputs is unavailable in this environment; persisted-success diagnostics are partial."
+        );
+      } else {
+        throw new Error(outputsResult.error.message || "Failed to load ai_generation_outputs.");
+      }
+    }
+
     const response = buildAdminHealthResponse({
       lookup,
       lookupMode,
@@ -312,6 +368,8 @@ export default async function handler(
       compatibilityWarnings,
       balance: balanceRows[0] ?? null,
       generations: generationsResult.rows,
+      attempts: attemptsResult.error ? [] : attemptsResult.rows,
+      outputs: outputsResult.error ? [] : outputsResult.rows,
       reservations: reservationsResult.rows,
       queueRows: queueResult.rows,
       ledger: ledgerResult.rows,

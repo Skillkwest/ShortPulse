@@ -60,6 +60,8 @@ Purpose: active planning artifacts and current execution backlogs.
 - `generation-pipeline-rebuild-recovery-control-plane-stage-contract-2026-03-27.md`: stage map and ownership contract for the background recovery control plane, completing `GPR-CP-S1`.
 - `generation-pipeline-rebuild-provider-event-replay-plan-2026-03-27.md`: next explicit follow-on job for Fal webhook ingress, duplicate/replay semantics, and bounded provider-event durability over the existing inbox.
 - `generation-pipeline-rebuild-provider-event-replay-contract-2026-03-27.md`: ingress/replay contract for `fal_webhook_events`, duplicate semantics, and route-vs-recovery ownership completing `GPR-PE-S1`.
+- `generation-pipeline-rebuild-admin-trace-health-alignment-plan-2026-03-27.md`: next explicit follow-on job for aligning admin trace and user-health surfaces with canonical attempts and outputs.
+- `generation-pipeline-rebuild-admin-trace-health-alignment-contract-2026-03-27.md`: canonical-vs-compatibility contract for admin generation trace and health surfaces, completing `GPR-AH-S1`.
 - `generation-pipeline-rebuild-lane-2-historical-data-quality-gates-2026-03-27.md`: required row classes, inconsistency buckets, and evidence gates before historical backfill and fallback retirement.
 - `generation-pipeline-rebuild-lane-2-backfill-execution-plan-2026-03-27.md`: concrete Lane 2 execution plan for historical row classification, canonical backfill, quarantine handling, and fallback-retirement order.
 - `generation-pipeline-rebuild-lane-2-classification-query-set-and-fallback-inventory-2026-03-27.md`: baseline Lane 2 query set for historical row classes, inconsistency checks, and the bounded legacy fallback-reader inventory.

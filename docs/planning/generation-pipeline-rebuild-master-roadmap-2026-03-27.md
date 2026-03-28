@@ -191,8 +191,9 @@ Stop the current lane when:
 4. The lifecycle read-model/control-plane convergence job is done at its current checkpoint.
 5. The recovery control-plane orchestration job is done at its current checkpoint.
 6. The provider-event ingress and replay job is done at its current checkpoint.
-7. Lane 4 ops and trace alignment is the active low-risk follow-on slice.
-8. The broader rebuild roadmap remains active, but each follow-on lane must still reopen under an explicit objective with a better ROI than stopping.
+7. Lane 4 operator-map, SOP, monitoring, and internal-route alignment is closed at its current checkpoint.
+8. The admin trace and health alignment job is done at its current checkpoint.
+9. The broader rebuild roadmap remains active, but each follow-on lane must still reopen under an explicit objective with a better ROI than stopping.
 
 ## Immediate Next Move
 1. keep Lane 1 closed at the current stronger checkpoint
@@ -201,5 +202,5 @@ Stop the current lane when:
 4. treat the lifecycle read-model/control-plane lane as done at its current checkpoint after shared recovery claim policy extraction
 5. treat the recovery control-plane orchestration job as done at its current checkpoint
 6. treat the provider-event ingress/replay job as done at its current checkpoint
-7. finish Lane 4 operator-map, SOP, monitoring, and internal-route alignment for the rebuilt request/attempt/output and staged control-plane model
+7. keep the admin trace and health alignment job closed at its current checkpoint
 8. notify the user when the broader rebuild reaches the roadmap done state; otherwise treat any future continuation as a newly scoped follow-on job

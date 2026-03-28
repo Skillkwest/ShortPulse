@@ -200,3 +200,4 @@ Current judgment:
 2. Implementation reached a stronger checkpoint than the earlier milestone closeout
 3. Lane 1 is done for the current milestone at this stronger checkpoint
 4. Reopen only if we deliberately choose a larger request/attempt state-machine step rather than more seam cleanup
+5. The next such follow-on is tracked in `docs/planning/generation-pipeline-rebuild-state-machine-service-plan-2026-03-27.md`

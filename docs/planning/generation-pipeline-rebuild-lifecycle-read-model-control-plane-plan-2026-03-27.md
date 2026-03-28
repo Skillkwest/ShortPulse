@@ -74,11 +74,25 @@ This job is done when:
 
 ## Execution Slices
 ### `GPR-RM-S1`
+Status:
+1. Completed
+
 Goal:
 1. write the lifecycle read-model/control-plane contract and classify each surface
 
 Exit gate:
 1. one planning artifact defines posture, ownership, and stop/go rules for queue status, persisted status, and recovery-entry surfaces
+
+Artifact:
+1. `docs/planning/generation-pipeline-rebuild-lifecycle-read-model-control-plane-contract-2026-03-27.md`
+
+Implemented checkpoint:
+1. `generationQueue/service.ts` is locked as a read-only lifecycle observer
+2. `falStatusPersistedResults.ts` is locked as a canonical-output-first persisted-success observer
+3. `falStatusProxy.ts` is locked as a read-only provider polling observer/enricher
+4. `statusRecoveryKick.ts` is locked as a queue-status scoped recovery claim helper, not a second recovery engine
+5. `runCycle.ts` is locked as the background control-plane orchestrator
+6. `executeGenerationRecovery()` is explicitly locked as the sole shared recovery engine
 
 ### `GPR-RM-S2`
 Goal:

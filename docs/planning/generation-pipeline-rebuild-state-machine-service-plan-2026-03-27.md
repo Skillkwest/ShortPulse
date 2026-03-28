@@ -128,11 +128,21 @@ Implemented checkpoint:
 3. thin adapters still exist where useful, but ordering policy now lives in the canonical service boundary
 
 ### `GPR-SM-S3`
+Status:
+1. Completed at the current checkpoint
+
 Goal:
 1. migrate queue dispatch/reconcile, request-id repair, and recovery onto the canonical service
 
 Exit gate:
 1. post-submit mutation modules no longer hand-roll or locally orchestrate lifecycle transitions
+
+Implemented checkpoint:
+1. queue dispatch accepted-path orchestration routes through the canonical service boundary via the accepted-transition adapter
+2. queue reconcile running reassertion routes through explicit lifecycle intent instead of direct attempt mutation
+3. request-id repair routes through explicit lifecycle intent
+4. recovery routes through explicit provider-observation intents
+5. no higher-value post-submit mutation seam remains outside the canonical service boundary on the current branch
 
 ### `GPR-SM-S4`
 Goal:
@@ -159,7 +169,7 @@ Stop this job when:
 3. the remaining work is mostly governance wording rather than real lifecycle centralization
 
 ## Recommended First Move
-Start `GPR-SM-S3`:
-1. finish migrating the remaining post-submit mutation paths onto the canonical service boundary
-2. remove any leftover local orchestration that still bypasses the intent-driven service
-3. keep queue-status and persisted-status surfaces read-only until the canonical lifecycle read model is ready
+Start `GPR-SM-S4`:
+1. classify queue-status and persisted-status against the canonical lifecycle service boundary
+2. decide which surfaces remain read-only observers versus lifecycle-read-model consumers
+3. do not reopen mutation-path cleanup unless a concrete bypass is found

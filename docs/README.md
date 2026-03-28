@@ -165,6 +165,8 @@ Start here for all repository documentation.
 - `docs/planning/generation-pipeline-hardening-contact-map-2026-03-16.md`
 - `docs/planning/generation-pipeline-hardening-execution-plan-2026-03-16.md`
 - `docs/planning/generation-settlement-control-plane-hardening-execution-plan-2026-03-23.md`
+- `docs/planning/media-library-runtime-rebuild-master-plan-2026-03-28.md`
+- `docs/planning/media-library-runtime-rebuild-tracker-2026-03-28.md`
 - `docs/planning/generation-pipeline-rebuild-blueprint-2026-03-27.md`
 - `docs/planning/generation-pipeline-rebuild-master-roadmap-2026-03-27.md`
 - `docs/planning/generation-pipeline-rebuild-lane-1-request-attempt-plan-2026-03-27.md`

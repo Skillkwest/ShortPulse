@@ -51,6 +51,7 @@ type MediaCardRefCallback = (node: HTMLDivElement | null) => void;
 type UseMediaPreviewRuntimeArgs<TRow extends PreviewRuntimeRowBase> = {
   activeMediaQuery: string;
   activeTab: MediaTab;
+  applySignedUrlsToSurface?: (tab: MediaDataTab, signedById: Map<string, string>) => void;
   setFiles: Dispatch<SetStateAction<TRow[]>>;
   setFocusedFile: Dispatch<SetStateAction<TRow | null>>;
   setMediaTabCache: Dispatch<SetStateAction<Record<MediaDataTab, MediaTabCache<TRow>>>>;
@@ -98,6 +99,7 @@ type NavigatorWithConnection = Navigator & {
 export const useMediaPreviewRuntime = <TRow extends PreviewRuntimeRowBase>({
   activeMediaQuery,
   activeTab,
+  applySignedUrlsToSurface,
   setFiles,
   setFocusedFile,
   setMediaTabCache,
@@ -249,31 +251,35 @@ export const useMediaPreviewRuntime = <TRow extends PreviewRuntimeRowBase>({
   const applySignedUrlsToTab = useCallback(
     (tab: MediaDataTab, signedById: Map<string, string>) => {
       if (!signedById.size) return;
-      setMediaTabCache((prev) => {
-        const cache = prev[tab];
-        let changed = false;
-        const nextRows = cache.rows.map((row) => {
-          const signedUrl = signedById.get(row.id);
-          if (!signedUrl || row.signedUrl === signedUrl) return row;
-          changed = true;
-          return { ...row, signedUrl };
+      if (applySignedUrlsToSurface) {
+        applySignedUrlsToSurface(tab, signedById);
+      } else {
+        setMediaTabCache((prev) => {
+          const cache = prev[tab];
+          let changed = false;
+          const nextRows = cache.rows.map((row) => {
+            const signedUrl = signedById.get(row.id);
+            if (!signedUrl || row.signedUrl === signedUrl) return row;
+            changed = true;
+            return { ...row, signedUrl };
+          });
+          if (!changed) return prev;
+          return {
+            ...prev,
+            [tab]: {
+              ...cache,
+              rows: nextRows,
+            },
+          };
         });
-        if (!changed) return prev;
-        return {
-          ...prev,
-          [tab]: {
-            ...cache,
-            rows: nextRows,
-          },
-        };
-      });
-      if (activeTabRef.current === tab) {
-        setFiles((prev) =>
-          prev.map((file) => {
-            const signedUrl = signedById.get(file.id);
-            return signedUrl ? { ...file, signedUrl } : file;
-          })
-        );
+        if (activeTabRef.current === tab) {
+          setFiles((prev) =>
+            prev.map((file) => {
+              const signedUrl = signedById.get(file.id);
+              return signedUrl ? { ...file, signedUrl } : file;
+            })
+          );
+        }
       }
       setFocusedFile((prev) => {
         if (!prev) return prev;
@@ -281,7 +287,7 @@ export const useMediaPreviewRuntime = <TRow extends PreviewRuntimeRowBase>({
         return signedUrl ? { ...prev, signedUrl } : prev;
       });
     },
-    [setFiles, setFocusedFile, setMediaTabCache]
+    [applySignedUrlsToSurface, setFiles, setFocusedFile, setMediaTabCache]
   );
 
   const setObjectUrlForMediaRow = useCallback(

@@ -15,7 +15,6 @@ import {
   MEDIA_LIBRARY_PANEL_CONSTANT_COMPRESSION_ENABLED,
   MEDIA_LIBRARY_SIGN_PREFETCH_ENABLED,
 } from "../../media-library/logic/mediaLibraryFeatureFlags";
-import { resolveSignedSelectionUrl } from "../../media-library/logic/mediaPreviewResolver";
 import {
   BUCKET,
   getMediaDataTabForRow,
@@ -41,6 +40,7 @@ import { writeMediaLibraryDragPayload } from "../logic/mediaLibraryDragPayload";
 import { resolveMediaLibraryPanelCardPreviewUrl } from "../logic/mediaLibraryPanelPreviewResolver";
 import { downloadBlobToFile } from "../logic/referenceDownload";
 import { useMediaLibraryPanelDataController } from "../hooks/useMediaLibraryPanelDataController";
+import { useMediaLibraryPanelFolderCanvasController } from "../hooks/useMediaLibraryPanelFolderCanvasController";
 import { useReferenceGridHorizontalSplit } from "../hooks/useReferenceGridHorizontalSplit";
 import { useMediaLibraryFoldersState } from "../hooks/useMediaLibraryFoldersState";
 import { useMediaLibraryFolderDropController } from "../hooks/useMediaLibraryFolderDropController";
@@ -90,7 +90,6 @@ const ROOT_FOLDER_LABEL = "All Media";
 const FOLDER_CONTEXT_MENU_WIDTH_PX = 156;
 const FOLDER_CONTEXT_MENU_HEIGHT_PX = 84;
 const FOLDER_CONTEXT_MENU_VIEWPORT_PADDING_PX = 10;
-const SUPABASE_RENDER_IMAGE_PATH = "/storage/v1/render/image/";
 
 const setTransferDataSafe = (transfer: DataTransfer, type: string, value: string): void => {
   try {
@@ -98,13 +97,6 @@ const setTransferDataSafe = (transfer: DataTransfer, type: string, value: string
   } catch {
     // Some browser engines reject specific transfer MIME types; keep drag active.
   }
-};
-
-const isTransformedImagePreviewUrl = (value: string | null | undefined): boolean => {
-  const normalized = (value ?? "").trim();
-  if (!normalized) return false;
-  if (isNextImageOptimizerUrl(normalized)) return true;
-  return normalized.includes(SUPABASE_RENDER_IMAGE_PATH);
 };
 
 const resolveSigningTab = (itemType: MediaLibraryPanelItemType): MediaDataTab => {
@@ -153,9 +145,6 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
   const panelBodyRef = useRef<HTMLDivElement | null>(null);
   const splitContainerRef = useRef<HTMLDivElement | null>(null);
   const folderContextMenuRef = useRef<HTMLDivElement | null>(null);
-  const [folderCanvasFullSignedById, setFolderCanvasFullSignedById] = useState<
-    Record<string, string>
-  >({});
   const [optimizerFallbackMediaIds, setOptimizerFallbackMediaIds] = useState<Set<string>>(
     () => new Set()
   );
@@ -227,7 +216,6 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
     () => mediaRows.filter((row) => isVideoFile(row.file_type)),
     [mediaRows]
   );
-  const folderCanvasDataReady = showFolderCanvas && mediaScopeResolved && promptScopeResolved;
   const activeMediaTab = useMemo<MediaDataTab | null>(() => {
     if (!shouldShowMedia || mediaRows.length === 0) return null;
     return resolveSigningTab(itemType);
@@ -288,6 +276,15 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
       });
     },
   });
+  const { folderCanvasDataReady, folderCanvasMediaRows } =
+    useMediaLibraryPanelFolderCanvasController({
+      currentUserIdRef,
+      mediaRows,
+      mediaScopeResolved,
+      promptScopeResolved,
+      showFolderCanvas,
+      signStoragePath,
+    });
   const foldersSplit = useReferenceGridHorizontalSplit({
     enabled: true,
     containerRef: splitContainerRef as React.MutableRefObject<HTMLElement | null>,
@@ -426,39 +423,6 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
     },
     [handleSelectMediaFile]
   );
-
-  useEffect(() => {
-    let cancelled = false;
-    if (!showFolderCanvas) {
-      setFolderCanvasFullSignedById({});
-      return () => {
-        cancelled = true;
-      };
-    }
-
-    const hydrateFolderCanvasFullUrls = async () => {
-      const nextById: Record<string, string> = {};
-      await Promise.all(
-        mediaRows.map(async (row) => {
-          const resolvedUrl = await resolveSignedSelectionUrl({
-            row,
-            currentUserId: currentUserIdRef.current,
-            signStoragePath,
-          }).catch(() => null);
-          const normalized = (resolvedUrl ?? "").trim();
-          if (!normalized) return;
-          nextById[row.id] = normalized;
-        })
-      );
-      if (cancelled) return;
-      setFolderCanvasFullSignedById(nextById);
-    };
-
-    void hydrateFolderCanvasFullUrls();
-    return () => {
-      cancelled = true;
-    };
-  }, [currentUserIdRef, mediaRows, showFolderCanvas, signStoragePath]);
 
   useMediaPreviewSigningController({
     activeMediaTab,
@@ -700,21 +664,6 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
 
   const activeFolderName =
     orderedFolders.find((folder) => folder.id === activeFolderId)?.name || ROOT_FOLDER_LABEL;
-  const folderCanvasMediaRows = useMemo(
-    () =>
-      showFolderCanvas
-        ? mediaRows.map((row) => ({
-            ...row,
-            signedUrl: (() => {
-              const fullSignedUrl = folderCanvasFullSignedById[row.id] ?? null;
-              if (fullSignedUrl) return fullSignedUrl;
-              if (isVideoFile(row.file_type)) return row.signedUrl ?? null;
-              return isTransformedImagePreviewUrl(row.signedUrl) ? null : (row.signedUrl ?? null);
-            })(),
-          }))
-        : mediaRows,
-    [folderCanvasFullSignedById, mediaRows, showFolderCanvas]
-  );
   const canShowFolderItemRemoveAction = !isRootFolderSelected;
   const resolvePanelCardPreviewUrl = useCallback(
     ({

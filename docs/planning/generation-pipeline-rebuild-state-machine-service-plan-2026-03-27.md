@@ -3,7 +3,7 @@
 Date: 2026-03-27  
 Authority: Working  
 Owner: Engineering  
-Status: Planned
+Status: Active
 
 ## Purpose
 This document defines the next explicitly scoped follow-on job after the current generation rebuild checkpoint.
@@ -97,6 +97,9 @@ This job is done when:
 
 ## Execution Slices
 ### `GPR-SM-S1`
+Status:
+1. Completed
+
 Goal:
 1. define the runtime post-submit transition API and legal transition table for the service boundary
 
@@ -104,6 +107,9 @@ Exit gate:
 1. one concrete contract exists for transition intents, allowed from/to states, ordering, and failure stages
 2. the contract names which existing helpers survive, merge, or disappear
 3. the contract defines the lifecycle read model used by queue-status and persisted-status readers
+
+Artifact:
+1. `docs/planning/generation-pipeline-rebuild-state-machine-runtime-transition-contract-2026-03-27.md`
 
 ### `GPR-SM-S2`
 Goal:
@@ -145,7 +151,7 @@ Stop this job when:
 3. the remaining work is mostly governance wording rather than real lifecycle centralization
 
 ## Recommended First Move
-Start `GPR-SM-S1`:
-1. write the concrete runtime transition API contract
-2. define the legal request/attempt transition table that the code will enforce
-3. map the current helpers and callers onto that future service boundary before implementation
+Start `GPR-SM-S2`:
+1. make `generationLifecycleTransitionService.ts` the canonical post-submit transition boundary
+2. route accepted-path and recovery-specific orchestration through that boundary or thin adapters over it
+3. keep queue-status and persisted-status surfaces read-only until the canonical lifecycle read model is ready

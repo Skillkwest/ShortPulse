@@ -188,14 +188,12 @@ Stop the current lane when:
 1. Lane 1 is closed at the current stronger checkpoint.
 2. The bounded Lane 3 preview/detail read-authority slice is closed.
 3. The post-submit state-machine service job is done at its current checkpoint.
-4. That job should stop here rather than widening into broader grid, drag/drop, reuse, or control-plane work by momentum.
-5. The broader rebuild roadmap remains active, but any next step must reopen under a new explicit objective with a better ROI than stopping here.
+4. The next explicit follow-on job is lifecycle read-model/control-plane convergence for queue status, persisted status, and recovery-entry surfaces.
+5. The broader rebuild roadmap remains active, but each follow-on lane must still reopen under an explicit objective with a better ROI than stopping.
 
 ## Immediate Next Move
 1. keep Lane 1 closed at the current stronger checkpoint
 2. keep Lane 3 paused at the bounded preview/detail checkpoint
 3. treat the mutation-focused state-machine service lane as complete at the current checkpoint
-4. only reopen under a new explicit objective with better ROI than stopping, most likely:
-   - a dedicated lifecycle read-model job for queue/status observers, or
-   - a broader control-plane convergence job
+4. start the explicit lifecycle read-model/control-plane job on the current branch
 5. notify the user when the broader rebuild reaches the roadmap done state; otherwise treat any future continuation as a newly scoped follow-on job

@@ -119,7 +119,11 @@ Fal reliability rollout controls (when enabled):
    - Validate cleanup metrics in response: `reservationCleanupScanned`, `reservationCleanupReleased`, `reservationCleanupErrors`.
 4. For exhausted/edge cases, use admin replay (`/api/admin/generation-recovery/replay`).
 5. If webhook ingestion is unhealthy, keep polling fallback active and verify `/api/fal/webhook` signature errors before disabling webhook mode.
-6. For controlled webhook canary:
+6. Webhook ingress ownership is now explicitly split:
+   - route verification/parsing stays in `frontend/pages/api/fal/webhook.ts`
+   - durable event insert, duplicate handling, ignore outcomes, and shared recovery handoff live in `frontend/lib/server/falIntegration/falWebhookIngress.ts`
+   - treat failures in that service as provider-event ingress issues, not as a second lifecycle engine
+7. For controlled webhook canary:
    - keep `SHORTPULSE_FAL_WEBHOOK_ENABLED=true`,
    - scope callback registration with `SHORTPULSE_FAL_WEBHOOK_CANARY_USER_ALLOWLIST` and/or `SHORTPULSE_FAL_WEBHOOK_CANARY_MODEL_ALLOWLIST`,
    - keep allowlists empty for full cohort only after canary windows are green.

@@ -43,6 +43,10 @@ Purpose: define how runtime incidents are captured, triaged, and resolved.
 - Local dev queue mode requires `npm -C frontend run dev:generation-worker`; localhost queued submits now fail closed when the worker heartbeat is stale/missing.
 - Use `scripts/run_generation_drain_cycle.mjs` to run controlled all-user drain loops via `/api/internal/generation-recovery/run`.
 - Use `docs/sops/sop_generation_recovery_diagnostics.md` as the canonical drain/remediation sequence.
+- Background control-plane ownership is now explicitly split into:
+  - stage orchestration: `frontend/lib/server/generationControlPlane/runCycle.ts`
+  - recovery batch acquisition: `frontend/lib/server/generationControlPlane/recoveryBatchAcquisition.ts`
+  - recovery batch execution: `frontend/lib/server/generationControlPlane/recoveryBatchExecution.ts`
 - Treat these response fields as hard health signals during drain:
   - recovery: `claimed`, `processed`, `recovered`, `requeued`, `exhausted`, `errors`
   - queue dispatch: `queueClaimed`, `queueSubmitted`, `queueRetried`, `queueExhausted`, `queueDispatchErrors`
@@ -72,6 +76,9 @@ Purpose: define how runtime incidents are captured, triaged, and resolved.
 - Scheduler/cron diagnostics: `sql/check_control_plane_scheduler_health.sql`.
 - `pg_net` diagnostics taxonomy: `sql/check_pg_net_failure_taxonomy.sql`.
 - Use these scripts as the canonical R1 control-plane checks before and during incident escalation.
+- Fal webhook ingress is now explicitly thin-route + ingress-service:
+  - route verification/parsing: `frontend/pages/api/fal/webhook.ts`
+  - durable inbox / duplicate / ignore / recovery handoff: `frontend/lib/server/falIntegration/falWebhookIngress.ts`
 
 ## Admin triage controls
 - `app_error_events` is append-only telemetry. Do not delete rows during troubleshooting; preserve forensic history.

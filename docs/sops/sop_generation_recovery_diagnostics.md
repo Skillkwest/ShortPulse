@@ -6,11 +6,20 @@ Purpose: canonical operator runbook for queue dispatch, recovery execution, and 
 - Fal/Kie queued-submit + recovery execution behavior.
 - Reservation/ledger settlement integrity across success/fail/recovery convergence.
 - Read-only diagnostics first; guarded remediation only after explicit stale confirmation.
+- Current staged control-plane ownership:
+  - worker heartbeat/cadence: `frontend/lib/server/generationControlPlane/workerLoop.ts`
+  - background stage orchestration: `frontend/lib/server/generationControlPlane/runCycle.ts`
+  - recovery batch acquisition: `frontend/lib/server/generationControlPlane/recoveryBatchAcquisition.ts`
+  - recovery batch execution: `frontend/lib/server/generationControlPlane/recoveryBatchExecution.ts`
+  - shared recovery engine: `frontend/lib/server/falIntegration/recoveryExecution.ts`
 
 ## Prerequisites
 - DB read access for:
   - `public.ai_generation_submit_queue`
   - `public.ai_generations`
+  - `public.generation_attempts`
+  - `public.ai_generation_outputs`
+  - `public.fal_webhook_events`
   - `public.ai_credit_reservations`
   - `public.ai_credit_ledger`
 - SQL diagnostics/scripts:
@@ -43,7 +52,7 @@ Purpose: canonical operator runbook for queue dispatch, recovery execution, and 
 2. Client polling (`/api/fal/queue-status`) is UX convenience only; it is not the execution authority.
 3. Recovery execution is server-authoritative and can be driven by:
    - scheduler/reconciler (`/api/internal/generation-recovery/run`)
-   - webhook ingestion (`/api/fal/webhook`) when enabled.
+   - webhook ingestion (`/api/fal/webhook`) when enabled, now via the explicit ingress boundary in `frontend/lib/server/falIntegration/falWebhookIngress.ts`.
 4. Queue dispatch and recovery claim flows use lease-based claim semantics to prevent duplicate concurrent processing.
 
 ## Credit Settlement Invariants
@@ -115,8 +124,13 @@ Use this path when local `SUPABASE_DB_URL` is unavailable.
    - recovery: `claimed`, `processed`, `recovered`, `requeued`, `exhausted`, `errors`
    - queue dispatch: `queueClaimed`, `queueSubmitted`, `queueRetried`, `queueExhausted`, `queueDispatchErrors`
    - cleanup (aggregated pre-submit + provider-attached): `reservationCleanupScanned`, `reservationCleanupReleased`, `reservationCleanupErrors`.
-3. Re-run blocker diagnostics after each pass until counts stabilize and trend down.
-4. Treat control-plane enforce diagnostics as the contract check for hosted scheduler drift:
+3. Treat the control-plane stage ownership as:
+   - `runCycle.ts` decides stage order,
+   - `recoveryBatchAcquisition.ts` owns RPC-first vs fallback claim semantics,
+   - `recoveryBatchExecution.ts` owns claimed-row iteration, allowlist deferral, and error requeue,
+   - `executeGenerationRecovery(...)` owns shared recovery business logic.
+4. Re-run blocker diagnostics after each pass until counts stabilize and trend down.
+5. Treat control-plane enforce diagnostics as the contract check for hosted scheduler drift:
    - `check_control_plane_enforce_gate.sql` now fails when the live scheduler functions are missing either the Vault read for `shortpulse_vercel_protection_bypass_token` or the `x-vercel-protection-bypass` header send.
    - This specifically catches stale hosted `invoke_generation_recovery_scheduler()` bodies that can leave `pg_cron` green while `pg_net` still returns Vercel `401 Authentication Required`.
 
@@ -135,7 +149,7 @@ Use this path when local `SUPABASE_DB_URL` is unavailable.
 2. Re-run `sql/check_pg_net_failure_taxonomy.sql`.
 3. Run `sql/check_generation_settlement_integrity.sql`.
 4. Run `sql/check_runtime_sql_security_audit.sql`.
-3. Require:
+5. Require:
    - no missing/duplicate settlement keys
    - security audit summary `failing_checks = 0`.
 

@@ -217,3 +217,12 @@ Purpose: document the first-party Next.js API surface in `frontend/pages/api/` (
 3. If billing settlement behavior changes, update `docs/sops/sop_billing_credits_operations.md` and `docs/data-dictionary.md`.
 4. If operational route ownership/scheduler/runbook mappings change, update `docs/operator-map.md` in the same change.
 5. Run `npm -C frontend run docs:check` after doc updates.
+
+## Generation Pipeline Rebuild Runtime Notes
+- Background generation recovery control plane is now staged:
+  - `frontend/lib/server/generationControlPlane/runCycle.ts` orchestrates stage order and metrics
+  - `frontend/lib/server/generationControlPlane/recoveryBatchAcquisition.ts` owns recovery-batch claim semantics
+  - `frontend/lib/server/generationControlPlane/recoveryBatchExecution.ts` owns claimed-row execution, allowlist deferral, and error requeue
+- Fal webhook ingress is now thin-route based:
+  - `frontend/pages/api/fal/webhook.ts` handles verification/parsing
+  - `frontend/lib/server/falIntegration/falWebhookIngress.ts` handles durable inbox insert, duplicate/ignore outcomes, and handoff to shared recovery execution

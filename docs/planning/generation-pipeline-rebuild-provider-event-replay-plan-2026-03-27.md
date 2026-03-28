@@ -69,13 +69,22 @@ This job is done when:
 ## Execution Slices
 ### `GPR-PE-S1`
 Status:
-1. Planned
+1. Completed
 
 Goal:
 1. write the provider-event ingress/replay contract from current repo behavior
 
 Exit gate:
 1. one planning artifact defines ownership, duplicate/replay semantics, and stop/go rules for webhook ingress
+
+Artifact:
+1. `docs/planning/generation-pipeline-rebuild-provider-event-replay-contract-2026-03-27.md`
+
+Implemented checkpoint:
+1. `fal/webhook.ts` is explicitly classified as an ingress route, not a lifecycle authority
+2. `fal_webhook_events` is explicitly classified as the current durable Fal inbox and event-id replay key
+3. duplicate insert conflicts, ignore outcomes, and downstream recovery execution handoff are now explicitly classified
+4. the next bounded implementation target is a thin-route extraction over the existing inbox, not a generic event ledger
 
 ### `GPR-PE-S2`
 Status:
@@ -99,8 +108,8 @@ Stop this job when:
 2. the next step would widen into non-Fal callback infrastructure without a concrete repo-backed need
 3. the next step would widen into broader provider rollout or UI work
 
-## Recommended First Move
-Start `GPR-PE-S1`:
-1. lock the current webhook inbox/replay contract from `frontend/pages/api/fal/webhook.ts`
-2. identify the clean extraction point for event ingest + duplicate/replay handling
-3. do not edit runtime code until that contract is explicit
+## Recommended Next Move
+Start `GPR-PE-S2`:
+1. extract route-local webhook inbox/replay handling into a dedicated ingress boundary
+2. keep `frontend/pages/api/fal/webhook.ts` as a thin route over that boundary
+3. do not widen into a generic provider-events table in this slice

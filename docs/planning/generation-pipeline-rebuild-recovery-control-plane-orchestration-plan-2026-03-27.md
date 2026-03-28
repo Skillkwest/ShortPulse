@@ -3,7 +3,7 @@
 Date: 2026-03-27  
 Authority: Working  
 Owner: Engineering  
-Status: Active
+Status: Done at the current checkpoint
 
 ## Purpose
 This document defines the next explicit follow-on job after the lifecycle read-model/control-plane checkpoint.
@@ -110,13 +110,19 @@ Implemented checkpoint:
 
 ### `GPR-CP-S3`
 Status:
-1. Planned
+1. Completed at the current checkpoint
 
 Goal:
 1. isolate recovery batch execution and requeue/error handling from the main cycle routine
 
 Exit gate:
 1. claimed-row execution and error requeue policy live behind one explicit execution boundary rather than inline loop logic
+
+Implemented checkpoint:
+1. Stage 6 recovery batch execution now lives in `frontend/lib/server/generationControlPlane/recoveryBatchExecution.ts`
+2. `runCycle.ts` now orchestrates over one explicit execution boundary instead of hand-rolling claimed-row iteration and error requeue behavior inline
+3. allowlist deferral and execution-error requeue semantics are covered by focused control-plane tests
+4. the remaining work would widen into broader scheduler/control-plane redesign rather than one more narrow ownership extraction
 
 ## Validation Bundle
 1. targeted `runCycle` and `workerLoop` tests
@@ -131,8 +137,9 @@ Stop this job when:
 3. the next step would widen into queue-status/UI read-model work
 4. remaining work is mostly operational observability rather than control-plane ownership reduction
 
-## Recommended Next Move
-Audit `GPR-CP-S2` before opening `GPR-CP-S3`:
-1. confirm the Stage 4 extraction materially reduced orchestration sprawl
-2. only open Stage 6 extraction if the remaining inline execution loop is still a better ROI than stopping
-3. otherwise checkpoint this job here
+## Current Checkpoint
+1. `GPR-CP-S1` is completed.
+2. `GPR-CP-S2` is completed at the current checkpoint.
+3. `GPR-CP-S3` is completed at the current checkpoint.
+4. this job is now done at its current checkpoint.
+5. any future continuation should reopen as a new explicit follow-on job, not more control-plane orchestration momentum.

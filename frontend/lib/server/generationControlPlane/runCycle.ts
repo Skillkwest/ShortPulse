@@ -3,8 +3,8 @@ import { readFalRuntimeFlags } from "../api/falRuntimeFlags";
 import { dispatchGenerationSubmitQueueBatch } from "../api/generationQueue/dispatch";
 import { repairGenerationRequestIdsFromReservations } from "../api/generationQueue/requestIdRepair";
 import { getSupabaseAdmin } from "../api/supabaseAdmin";
-import { executeGenerationRecovery } from "../falIntegration/recoveryExecution";
-import { claimGenerationRecoveryBatch, type ClaimedGeneration } from "./recoveryBatchAcquisition";
+import { claimGenerationRecoveryBatch } from "./recoveryBatchAcquisition";
+import { executeClaimedRecoveryBatch } from "./recoveryBatchExecution";
 import type { GenerationControlPlaneCycleResult, GenerationControlPlaneLogContext } from "./types";
 
 type JsonObject = Record<string, unknown>;
@@ -14,8 +14,6 @@ type ReservationCleanupMetrics = {
   released: number;
   errors: number;
 };
-
-const ALLOWLIST_SKIP_RETRY_DELAY_SECONDS = 15 * 60;
 
 const asNumber = (value: unknown): number | null => {
   if (typeof value === "number" && Number.isFinite(value)) return value;
@@ -45,36 +43,6 @@ const parseCleanupMetrics = (value: unknown): ReservationCleanupMetrics => {
     released: Math.max(0, Math.trunc(released)),
     errors: Math.max(0, Math.trunc(errors)),
   };
-};
-
-const isAllowedModel = (modelId: string, allowlist: Set<string>): boolean => {
-  if (!allowlist.size) return true;
-  for (const item of allowlist) {
-    if (item === "*") return true;
-    if (item.endsWith("*") && modelId.startsWith(item.slice(0, -1))) return true;
-    if (item === modelId) return true;
-  }
-  return false;
-};
-
-const requeueAllowlistSkippedGeneration = async ({
-  supabaseAdmin,
-  row,
-}: {
-  supabaseAdmin: ReturnType<typeof getSupabaseAdmin>;
-  row: ClaimedGeneration;
-}) => {
-  const previousAttempts = Math.max((row.recovery_attempts ?? 1) - 1, 0);
-  const retryAtIso = new Date(Date.now() + ALLOWLIST_SKIP_RETRY_DELAY_SECONDS * 1000).toISOString();
-  return supabaseAdmin
-    .from("ai_generations")
-    .update({
-      recovery_state: "queued",
-      recovery_attempts: previousAttempts,
-      next_recovery_at: retryAtIso,
-    })
-    .eq("id", row.id)
-    .eq("user_id", row.user_id);
 };
 
 const logControlPlaneException = async ({
@@ -217,87 +185,20 @@ export const runGenerationControlPlaneCycle = async ({
   }
   const claimedRows = claimBatch.rows;
 
-  let recovered = 0;
-  let requeued = 0;
-  let exhausted = 0;
-  let skipped = 0;
-  let duplicates = 0;
-  let processed = 0;
-  let errors = 0;
-
-  for (const row of claimedRows) {
-    if (!isAllowedModel(row.model_id, flags.modelAllowlist)) {
-      skipped += 1;
-      try {
-        await requeueAllowlistSkippedGeneration({
-          supabaseAdmin,
-          row,
-        });
-      } catch (error) {
-        errors += 1;
-        await logControlPlaneException({
+  const { recovered, requeued, exhausted, skipped, duplicates, processed, errors } =
+    await executeClaimedRecoveryBatch({
+      supabaseAdmin,
+      rows: claimedRows,
+      modelAllowlist: flags.modelAllowlist,
+      maxAttempts: flags.reconcilerMaxAttempts,
+      routeLabel: context.routeLabel,
+      logException: ({ error, metadata }) =>
+        logControlPlaneException({
           context,
           error,
-          metadata: {
-            stage: "allowlist_skip_requeue",
-            generation_id: row.id,
-            model_id: row.model_id,
-          },
-        });
-      }
-      continue;
-    }
-    try {
-      const result = await executeGenerationRecovery({
-        actor: "reconciler",
-        generationId: row.id,
-        requestId: row.request_id,
-        maxAttempts: flags.reconcilerMaxAttempts,
-        routeLabel: context.routeLabel,
-      });
-      if (result.processed) processed += 1;
-      if (result.state === "recovered") {
-        recovered += 1;
-        continue;
-      }
-      if (result.state === "already_persisted") {
-        duplicates += 1;
-        recovered += 1;
-        continue;
-      }
-      if (result.state === "provider_running" || result.state === "no_media") {
-        requeued += 1;
-        continue;
-      }
-      if (result.state === "exhausted" || result.state === "provider_failed") {
-        exhausted += 1;
-        continue;
-      }
-      if (result.state === "skipped") {
-        skipped += 1;
-      }
-    } catch (error) {
-      errors += 1;
-      await logControlPlaneException({
-        context,
-        error,
-        metadata: {
-          stage: "execute_generation_recovery",
-          generation_id: row.id,
-          request_id: row.request_id,
-        },
-      });
-      const retryAt = new Date(Date.now() + 2 * 60 * 1000).toISOString();
-      await supabaseAdmin
-        .from("ai_generations")
-        .update({
-          recovery_state: "queued",
-          next_recovery_at: retryAt,
-        })
-        .eq("id", row.id)
-        .eq("user_id", row.user_id);
-    }
-  }
+          metadata,
+        }),
+    });
 
   return {
     ok: true,

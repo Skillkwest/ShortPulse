@@ -189,7 +189,7 @@ Stop the current lane when:
 2. The bounded Lane 3 preview/detail read-authority slice is closed.
 3. The post-submit state-machine service job is done at its current checkpoint.
 4. The lifecycle read-model/control-plane convergence job is done at its current checkpoint.
-5. The next explicit follow-on job is broader recovery control-plane orchestration for staged background-cycle ownership.
+5. The recovery control-plane orchestration job is done at its current checkpoint.
 6. The broader rebuild roadmap remains active, but each follow-on lane must still reopen under an explicit objective with a better ROI than stopping.
 
 ## Immediate Next Move
@@ -197,5 +197,5 @@ Stop the current lane when:
 2. keep Lane 3 paused at the bounded preview/detail checkpoint
 3. treat the mutation-focused state-machine service lane as complete at the current checkpoint
 4. treat the lifecycle read-model/control-plane lane as done at its current checkpoint after shared recovery claim policy extraction
-5. treat the next follow-on work, if reopened, as broader recovery control-plane orchestration rather than more observer/helper cleanup
+5. treat the recovery control-plane orchestration job as done at its current checkpoint
 6. notify the user when the broader rebuild reaches the roadmap done state; otherwise treat any future continuation as a newly scoped follow-on job

@@ -187,6 +187,9 @@ Start here for all repository documentation.
 - `docs/planning/generation-pipeline-rebuild-generated-reuse-dragdrop-authority-contract-2026-03-27.md`
 - `docs/planning/generation-pipeline-rebuild-generated-reuse-authority-cutover-plan-2026-03-27.md`
 - `docs/planning/generation-pipeline-rebuild-generated-reuse-authority-cutover-contract-2026-03-27.md`
+- `docs/planning/generation-pipeline-rebuild-compatibility-retirement-evidence-plan-2026-03-27.md`
+- `docs/planning/generation-pipeline-rebuild-compatibility-retirement-inventory-2026-03-27.md`
+- `docs/planning/generation-pipeline-rebuild-compatibility-retirement-classification-2026-03-27.md`
 - `docs/planning/generation-pipeline-rebuild-lane-2-historical-data-quality-gates-2026-03-27.md`
 - `docs/planning/generation-pipeline-rebuild-lane-2-backfill-execution-plan-2026-03-27.md`
 - `docs/planning/generation-pipeline-rebuild-lane-2-classification-query-set-and-fallback-inventory-2026-03-27.md`

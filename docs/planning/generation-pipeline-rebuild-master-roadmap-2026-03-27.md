@@ -3,7 +3,7 @@
 Date: 2026-03-27  
 Authority: Working  
 Owner: Engineering  
-Status: Active
+Status: Done at the current checkpoint
 
 ## Purpose
 This roadmap defines the remaining rebuild lanes after Phase 3 runtime-authority hardening.
@@ -33,6 +33,11 @@ The rebuild is done when:
 3. legacy metadata and request-id fallbacks are not primary runtime paths
 4. user-facing read and reuse surfaces rely on canonical output/storage authority
 5. billing, replay, recovery, and operator tooling converge on the same model
+
+Current decision:
+1. this roadmap is done at the current checkpoint
+2. remaining compatibility logic is bounded carry-forward, not unresolved authority drift
+3. any future removal work should open as a separate cleanup lane rather than continue this rebuild by momentum
 
 ## Remaining Lanes
 ### Lane 1: Request/Attempt State Machine
@@ -195,7 +200,8 @@ Stop the current lane when:
 8. The admin trace and health alignment job is done at its current checkpoint.
 9. The generated reuse and drag/drop authority job is done at its current bounded checkpoint.
 10. The broader generated reuse authority cutover across downstream consumers is done at its current checkpoint.
-11. The broader rebuild roadmap remains active, but each follow-on lane must still reopen under an explicit objective with a better ROI than stopping.
+11. The compatibility-retirement evidence lane is done at the current checkpoint, with the remaining compatibility paths classified as bounded carry-forward.
+12. The broader rebuild roadmap is done at the current checkpoint; any future continuation must reopen as a newly scoped cleanup or removal job.
 
 ## Immediate Next Move
 1. keep Lane 1 closed at the current stronger checkpoint
@@ -207,4 +213,5 @@ Stop the current lane when:
 7. keep the admin trace and health alignment job closed at its current checkpoint
 8. treat the bounded generated reuse and drag/drop lane as complete at its checkpoint
 9. treat the broader generated reuse authority cutover as done at its current checkpoint after downstream consumer alignment
-10. notify the user when the broader rebuild reaches the roadmap done state; otherwise treat any future continuation as a newly scoped follow-on job
+10. notify the user that the broader rebuild is done at the current checkpoint
+11. stop this job and do not continue unless a new explicitly scoped cleanup or removal lane is opened

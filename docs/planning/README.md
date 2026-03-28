@@ -51,10 +51,12 @@ Purpose: active planning artifacts and current execution backlogs.
 - `generation-pipeline-rebuild-lane-1-transition-matrix-2026-03-27.md`: legal transition and mutation-ownership matrix for the future request/attempt state machine in Lane 1.
 - `generation-pipeline-rebuild-lane-1-schema-delta-and-compatibility-contract-2026-03-27.md`: target request/attempt schema delta and explicit transition posture for `ai_generations`, queue rows, outputs, reservations, and webhook rows.
 - `generation-pipeline-rebuild-lane-1-billing-replay-provider-event-contract-2026-03-27.md`: explicit billing ownership, replay/idempotency, and provider-event durability contract completing Lane 1.
+- `generation-pipeline-rebuild-state-machine-service-plan-2026-03-27.md`: next explicitly scoped follow-on job for turning the current transition helpers into one legal request/attempt state-machine service.
 - `generation-pipeline-rebuild-lane-2-historical-data-quality-gates-2026-03-27.md`: required row classes, inconsistency buckets, and evidence gates before historical backfill and fallback retirement.
 - `generation-pipeline-rebuild-lane-2-backfill-execution-plan-2026-03-27.md`: concrete Lane 2 execution plan for historical row classification, canonical backfill, quarantine handling, and fallback-retirement order.
 - `generation-pipeline-rebuild-lane-2-classification-query-set-and-fallback-inventory-2026-03-27.md`: baseline Lane 2 query set for historical row classes, inconsistency checks, and the bounded legacy fallback-reader inventory.
 - `generation-pipeline-rebuild-lane-3-cutover-gates-2026-03-27.md`: explicit cutover gates protecting drag/drop, reuse, and delivery contracts before broad read-model migration.
+- `generation-pipeline-rebuild-state-machine-service-plan-2026-03-27.md`: follow-on scoped job for consolidating the remaining lifecycle transition helpers into one shared state-machine service.
 - `generation-pipeline-rebuild-phase-1-stabilization-plan-2026-03-27.md`: completed checkpoint for the initial fail-closed submit and durable-linkage hardening slices.
 - `generation-pipeline-rebuild-phase-2-read-authority-plan-2026-03-27.md`: completed execution tracker for generated-output read-authority tightening before schema introduction.
 - `generation-pipeline-rebuild-phase-3-canonical-output-plan-2026-03-27.md`: active execution tracker for additive canonical output schema introduction and server-read cutover.

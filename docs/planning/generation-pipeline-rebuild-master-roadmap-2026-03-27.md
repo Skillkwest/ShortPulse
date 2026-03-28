@@ -40,7 +40,7 @@ Goal:
 1. replace the current split lifecycle authority with one server-owned request/attempt model
 
 Status:
-1. Checkpoint-complete for the current milestone
+1. Reopened and active on the current branch
 
 Primary surfaces:
 1. `frontend/lib/server/api/falSubmitProxy.ts`
@@ -60,6 +60,7 @@ Done state:
 4. request-id repair and recovery lookup prefer attempts over legacy request-id reads
 5. queue/admission/control-plane readers prefer attempts where provider ownership matters
 6. remaining `ai_generations.request_id` use is compatibility-only or part of a later explicit state-transition refactor
+7. accepted submit, request-id repair, and recovery use shared transition helpers/services instead of hand-rolled lifecycle mutation at each callsite
 
 ### Lane 2: Historical Compatibility Containment
 Goal:
@@ -184,7 +185,7 @@ Stop the current lane when:
 3. cleanup does not proceed until compatibility-path retirement evidence is complete
 
 ## Immediate Next Move
-1. treat Lane 1 as done for the current milestone and stop narrow seam work there
-2. checkpoint and promote this branch through the normal development -> staging preview path
-3. do not auto-open Lane 3; only start it if we choose a bounded read-authority objective with regression protection
-4. only reopen Lane 1 or Lane 2 if a concrete forward-pipeline risk justifies it
+1. treat the earlier Lane 1 milestone checkpoint as surpassed on the current branch
+2. stop taking narrow seam slices inside Lane 1 by momentum alone
+3. choose deliberately between a larger shared request/attempt state-machine step and a hard Lane 1 stop at the current stronger checkpoint
+4. do not auto-open Lane 2 or Lane 3 unless a concrete forward-pipeline risk justifies it

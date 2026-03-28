@@ -192,4 +192,42 @@ describe("ensureSubmittedGenerationRecord", () => {
 
     expect(result).toEqual({ ok: false, error: "attempt_running_update_failed" });
   });
+
+  it("reasserts accepted-running attempt state after duplicate insert fallback resolves an existing generation", async () => {
+    const aiGenerations = createAiGenerationsTableMock({
+      selectResponses: [
+        { data: [], error: null },
+        { data: [{ id: "gen-existing", status: "running", metadata: {} }], error: null },
+      ],
+      insertResponses: [{ data: null, error: { code: "23505", message: "duplicate key value" } }],
+    });
+
+    getSupabaseAdminMock.mockReturnValue({
+      from: (tableName: string) => {
+        if (tableName === "ai_generations") return aiGenerations.table;
+        throw new Error(`unexpected table ${tableName}`);
+      },
+    });
+
+    const result = await ensureSubmittedGenerationRecord({
+      userId: "user-1",
+      modelId: "fal-ai/nano-banana-pro",
+      routeLabel: "Fal Nano Banana Pro",
+      payload: { prompt: "Portrait" },
+      providerRequestId: "req-1",
+      sourceRef: "source-1",
+      submitTargetUrl: "https://queue.fal.run/fal-ai/nano-banana-pro",
+      submitTargetIndex: 0,
+    });
+
+    expect(result).toEqual({ ok: true, generationId: "gen-existing" });
+    expect(ensureAcceptedRunningGenerationAttemptMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        generationId: "gen-existing",
+        userId: "user-1",
+        providerRequestId: "req-1",
+        dispatchSource: "direct_submit",
+      })
+    );
+  });
 });

@@ -1,7 +1,7 @@
 import { getModelConfig } from "../../model-runtime/pricing";
 import { getSupabaseAdmin } from "./supabaseAdmin";
 import { resolveProviderFromModelId } from "../providerIntegration/providerRuntimeConfig";
-import { ensureAcceptedRunningGenerationAttempt } from "./generationAttempts";
+import { applyAcceptedRunningGenerationTransition } from "./generationAcceptedTransitionService";
 import { buildAcceptedRunningGenerationUpdate } from "./generationRequestTransitions";
 
 type JsonObject = Record<string, unknown>;
@@ -223,38 +223,43 @@ export const ensureSubmittedGenerationRecord = async (
             metadata: nextMetadata,
           }),
         };
-        const { error } = await updateGenerationWithRecoveryFallback({
-          userId: input.userId,
-          generationId: existingId,
-          payload: updatePayload,
-        });
-        if (error) {
-          return {
-            ok: false,
-            error: error.message ?? "update_existing_generation_failed",
-          };
-        }
-        const attemptResult = await ensureAcceptedRunningGenerationAttempt({
-          generationId: existingId,
-          userId: input.userId,
-          provider,
-          modelId: input.modelId,
-          providerRequestId: input.providerRequestId,
-          dispatchSource: "direct_submit",
-          submitRoute: input.routeLabel,
-          observedAt: nowIso,
-          metadata: {
-            source_ref: input.sourceRef,
-            submit_target_url: input.submitTargetUrl,
-            submit_target_index: input.submitTargetIndex,
-            direct_submit_at: nowIso,
-            dispatch_source: "direct_submit",
+        const transitionResult = await applyAcceptedRunningGenerationTransition({
+          applyGenerationMutation: async () => {
+            const { error } = await updateGenerationWithRecoveryFallback({
+              userId: input.userId,
+              generationId: existingId,
+              payload: updatePayload,
+            });
+            if (error) {
+              return {
+                ok: false,
+                error: error.message ?? "update_existing_generation_failed",
+              };
+            }
+            return { ok: true };
+          },
+          attemptInput: {
+            generationId: existingId,
+            userId: input.userId,
+            provider,
+            modelId: input.modelId,
+            providerRequestId: input.providerRequestId,
+            dispatchSource: "direct_submit",
+            submitRoute: input.routeLabel,
+            observedAt: nowIso,
+            metadata: {
+              source_ref: input.sourceRef,
+              submit_target_url: input.submitTargetUrl,
+              submit_target_index: input.submitTargetIndex,
+              direct_submit_at: nowIso,
+              dispatch_source: "direct_submit",
+            },
           },
         });
-        if (!attemptResult.ok) {
+        if (!transitionResult.ok) {
           return {
             ok: false,
-            error: attemptResult.error,
+            error: transitionResult.error,
           };
         }
         return { ok: true, generationId: existingId };
@@ -285,7 +290,34 @@ export const ensureSubmittedGenerationRecord = async (
           providerRequestId: input.providerRequestId,
         });
         const existingId = asString(postInsertLookup.row?.id);
-        if (existingId) return { ok: true, generationId: existingId };
+        if (existingId) {
+          const transitionResult = await applyAcceptedRunningGenerationTransition({
+            attemptInput: {
+              generationId: existingId,
+              userId: input.userId,
+              provider,
+              modelId: input.modelId,
+              providerRequestId: input.providerRequestId,
+              dispatchSource: "direct_submit",
+              submitRoute: input.routeLabel,
+              observedAt: nowIso,
+              metadata: {
+                source_ref: input.sourceRef,
+                submit_target_url: input.submitTargetUrl,
+                submit_target_index: input.submitTargetIndex,
+                direct_submit_at: nowIso,
+                dispatch_source: "direct_submit",
+              },
+            },
+          });
+          if (!transitionResult.ok) {
+            return {
+              ok: false,
+              error: transitionResult.error,
+            };
+          }
+          return { ok: true, generationId: existingId };
+        }
       }
       return {
         ok: false,
@@ -301,27 +333,29 @@ export const ensureSubmittedGenerationRecord = async (
       };
     }
 
-    const attemptResult = await ensureAcceptedRunningGenerationAttempt({
-      generationId: insertedGenerationId,
-      userId: input.userId,
-      provider,
-      modelId: input.modelId,
-      providerRequestId: input.providerRequestId,
-      dispatchSource: "direct_submit",
-      submitRoute: input.routeLabel,
-      observedAt: nowIso,
-      metadata: {
-        source_ref: input.sourceRef,
-        submit_target_url: input.submitTargetUrl,
-        submit_target_index: input.submitTargetIndex,
-        direct_submit_at: nowIso,
-        dispatch_source: "direct_submit",
+    const transitionResult = await applyAcceptedRunningGenerationTransition({
+      attemptInput: {
+        generationId: insertedGenerationId,
+        userId: input.userId,
+        provider,
+        modelId: input.modelId,
+        providerRequestId: input.providerRequestId,
+        dispatchSource: "direct_submit",
+        submitRoute: input.routeLabel,
+        observedAt: nowIso,
+        metadata: {
+          source_ref: input.sourceRef,
+          submit_target_url: input.submitTargetUrl,
+          submit_target_index: input.submitTargetIndex,
+          direct_submit_at: nowIso,
+          dispatch_source: "direct_submit",
+        },
       },
     });
-    if (!attemptResult.ok) {
+    if (!transitionResult.ok) {
       return {
         ok: false,
-        error: attemptResult.error,
+        error: transitionResult.error,
       };
     }
 

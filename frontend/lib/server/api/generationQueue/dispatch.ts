@@ -40,10 +40,8 @@ import {
   normalizeVideoQueueDispatchPayload,
 } from "../videoSubmitContracts";
 import type { GenerationControlPlaneLogContext } from "../../generationControlPlane/types";
-import {
-  ensureAcceptedRunningGenerationAttempt,
-  updateGenerationAttemptState,
-} from "../generationAttempts";
+import { applyAcceptedRunningGenerationTransition } from "../generationAcceptedTransitionService";
+import { updateGenerationAttemptState } from "../generationAttempts";
 import { buildAcceptedRunningGenerationUpdate } from "../generationRequestTransitions";
 
 type JsonObject = Record<string, unknown>;
@@ -934,72 +932,93 @@ const processClaimedQueueItem = async ({
     });
 
     const nextRecoveryAtIso = new Date(Date.now() + 2 * 60 * 1000).toISOString();
-    const generationUpdate = await getSupabaseAdmin()
-      .from("ai_generations")
-      .update(
-        buildAcceptedRunningGenerationUpdate({
-          provider,
-          modelId: item.modelId,
-          providerRequestId,
-          nextRecoveryAtIso,
-          metadata: mergeGenerationMetadata(generationRow.metadata, {
-            source_ref: item.sourceRef,
-            queue_dispatched_at: dispatchAtIso,
-            queue_id: item.queueId,
-            queue_attempts: attemptNumber,
-            provider,
-            provider_request_id: providerRequestId,
-            upstream_target_url: submitResult.targetUrl,
-            upstream_target_index: submitResult.targetIndex,
-            submit_webhook_url: isFalProviderKey(provider) ? webhookCallbackUrl : null,
-            submit_webhook_registered: isFalProviderKey(provider)
-              ? Boolean(webhookCallbackUrl)
-              : false,
-          }),
-        })
-      )
-      .eq("id", item.generationId)
-      .eq("user_id", item.userId)
-      .select("id");
-    assertGenerationMarkedRunning({
-      affectedCount: Array.isArray(generationUpdate.data) ? generationUpdate.data.length : 0,
-      errorMessage: generationUpdate.error?.message ?? null,
-    });
-
-    const attemptResult = await ensureAcceptedRunningGenerationAttempt({
-      generationId: item.generationId,
-      userId: item.userId,
-      provider,
-      modelId: item.modelId,
-      providerRequestId,
-      dispatchSource: "queued_submit",
-      submitRoute: item.submitRoute,
-      queueId: item.queueId,
-      observedAt: dispatchAtIso,
-      metadata: {
-        source_ref: item.sourceRef,
-        queue_dispatch_at: dispatchAtIso,
-        queue_id: item.queueId,
-        queue_attempts: attemptNumber,
-        dispatch_source: "queued_submit",
-        upstream_target_url: submitResult.targetUrl,
-        upstream_target_index: submitResult.targetIndex,
+    const transitionResult = await applyAcceptedRunningGenerationTransition({
+      applyGenerationMutation: async () => {
+        const generationUpdate = await getSupabaseAdmin()
+          .from("ai_generations")
+          .update(
+            buildAcceptedRunningGenerationUpdate({
+              provider,
+              modelId: item.modelId,
+              providerRequestId,
+              nextRecoveryAtIso,
+              metadata: mergeGenerationMetadata(generationRow.metadata, {
+                source_ref: item.sourceRef,
+                queue_dispatched_at: dispatchAtIso,
+                queue_id: item.queueId,
+                queue_attempts: attemptNumber,
+                provider,
+                provider_request_id: providerRequestId,
+                upstream_target_url: submitResult.targetUrl,
+                upstream_target_index: submitResult.targetIndex,
+                submit_webhook_url: isFalProviderKey(provider) ? webhookCallbackUrl : null,
+                submit_webhook_registered: isFalProviderKey(provider)
+                  ? Boolean(webhookCallbackUrl)
+                  : false,
+              }),
+            })
+          )
+          .eq("id", item.generationId)
+          .eq("user_id", item.userId)
+          .select("id");
+        const affectedCount = Array.isArray(generationUpdate.data)
+          ? generationUpdate.data.length
+          : 0;
+        if (generationUpdate.error) {
+          return {
+            ok: false,
+            error: generationUpdate.error.message ?? "generation_mark_running_failed",
+          };
+        }
+        if (affectedCount !== 1) {
+          return {
+            ok: false,
+            error: `Expected one generation row update, received ${affectedCount}.`,
+          };
+        }
+        return { ok: true };
+      },
+      attemptInput: {
+        generationId: item.generationId,
+        userId: item.userId,
+        provider,
+        modelId: item.modelId,
+        providerRequestId,
+        dispatchSource: "queued_submit",
+        submitRoute: item.submitRoute,
+        queueId: item.queueId,
+        observedAt: dispatchAtIso,
+        metadata: {
+          source_ref: item.sourceRef,
+          queue_dispatch_at: dispatchAtIso,
+          queue_id: item.queueId,
+          queue_attempts: attemptNumber,
+          dispatch_source: "queued_submit",
+          upstream_target_url: submitResult.targetUrl,
+          upstream_target_index: submitResult.targetIndex,
+        },
       },
     });
+    if (!transitionResult.ok && transitionResult.stage === "generation") {
+      assertGenerationMarkedRunning({
+        affectedCount: 0,
+        errorMessage: transitionResult.error,
+      });
+    }
     assertGenerationAttemptRecorded({
-      ok: attemptResult.ok || attemptResult.stage === "running",
-      errorMessage: attemptResult.ok
+      ok: transitionResult.ok || transitionResult.stage === "running",
+      errorMessage: transitionResult.ok
         ? null
-        : attemptResult.stage === "record"
-          ? attemptResult.error
+        : transitionResult.stage === "record"
+          ? transitionResult.error
           : null,
     });
     assertGenerationAttemptMarkedRunning({
-      ok: attemptResult.ok || attemptResult.stage === "record",
-      errorMessage: attemptResult.ok
+      ok: transitionResult.ok || transitionResult.stage === "record",
+      errorMessage: transitionResult.ok
         ? null
-        : attemptResult.stage === "running"
-          ? attemptResult.error
+        : transitionResult.stage === "running"
+          ? transitionResult.error
           : null,
     });
 

@@ -142,7 +142,8 @@ Implemented checkpoint:
 2. queue reconcile running reassertion routes through explicit lifecycle intent instead of direct attempt mutation
 3. request-id repair routes through explicit lifecycle intent
 4. recovery routes through explicit provider-observation intents
-5. no higher-value post-submit mutation seam remains outside the canonical service boundary on the current branch
+5. queue terminal exhaustion/failure request mutation now routes through explicit `queue_dispatch_exhausted` lifecycle intent
+6. no higher-value post-submit mutation seam remains outside the canonical service boundary on the current branch
 
 ### `GPR-SM-S4`
 Goal:

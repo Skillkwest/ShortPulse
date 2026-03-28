@@ -42,7 +42,10 @@ import {
 import type { GenerationControlPlaneLogContext } from "../../generationControlPlane/types";
 import { applyAcceptedRunningGenerationTransition } from "../generationAcceptedTransitionService";
 import { applyGenerationLifecycleTransition } from "../generationLifecycleTransitionService";
-import { buildAcceptedRunningGenerationUpdate } from "../generationRequestTransitions";
+import {
+  buildAcceptedRunningGenerationUpdate,
+  buildQueueDispatchExhaustedGenerationUpdate,
+} from "../generationRequestTransitions";
 
 type JsonObject = Record<string, unknown>;
 
@@ -306,19 +309,38 @@ const setGenerationFailed = async ({
   userId: string;
   message: string;
 }) => {
-  const response = await getSupabaseAdmin()
-    .from("ai_generations")
-    .update({
-      status: "fail",
-      error_message: message,
-      failure_reason_code: "queue_dispatch_exhausted",
-      completed_at: new Date().toISOString(),
-      recovery_state: "exhausted",
-      next_recovery_at: null,
-    })
-    .eq("id", generationId)
-    .eq("user_id", userId);
-  if (response.error) throw response.error;
+  const completedAtIso = new Date().toISOString();
+  const result = await applyGenerationLifecycleTransition({
+    intent: "queue_dispatch_exhausted",
+    applyGenerationMutation: async () => {
+      const response = await getSupabaseAdmin()
+        .from("ai_generations")
+        .update(
+          buildQueueDispatchExhaustedGenerationUpdate({
+            message,
+            completedAtIso,
+          })
+        )
+        .eq("id", generationId)
+        .eq("user_id", userId)
+        .select("id");
+      const affectedCount = Array.isArray(response.data) ? response.data.length : 0;
+      if (response.error) {
+        return {
+          ok: false,
+          error: response.error.message ?? "generation_mark_failed_failed",
+        };
+      }
+      if (affectedCount !== 1) {
+        return {
+          ok: false,
+          error: `Expected one generation row update, received ${affectedCount}.`,
+        };
+      }
+      return { ok: true };
+    },
+  });
+  if (!result.ok) throw new Error(result.error);
 };
 
 const mergeGenerationMetadata = (existing: unknown, patch: JsonObject): JsonObject => {

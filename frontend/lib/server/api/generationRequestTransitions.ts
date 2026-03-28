@@ -14,6 +14,11 @@ type BuildRequestIdRepairGenerationUpdateInput = {
   metadata: JsonObject;
 };
 
+type BuildQueueDispatchExhaustedGenerationUpdateInput = {
+  message: string;
+  completedAtIso: string;
+};
+
 export const buildAcceptedRunningGenerationUpdate = ({
   provider,
   modelId,
@@ -49,4 +54,16 @@ export const buildRequestIdRepairGenerationUpdate = ({
   recovery_state: "queued",
   next_recovery_at: nextRecoveryAtIso,
   metadata,
+});
+
+export const buildQueueDispatchExhaustedGenerationUpdate = ({
+  message,
+  completedAtIso,
+}: BuildQueueDispatchExhaustedGenerationUpdateInput): Record<string, unknown> => ({
+  status: "fail",
+  error_message: message,
+  failure_reason_code: "queue_dispatch_exhausted",
+  completed_at: completedAtIso,
+  recovery_state: "exhausted",
+  next_recovery_at: null,
 });

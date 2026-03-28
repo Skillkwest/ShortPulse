@@ -738,6 +738,20 @@ describe("generationQueue/dispatch transition integrity", () => {
         }),
       })
     );
+
+    const supabaseAdmin = getSupabaseAdminMock.mock.results.at(-1)?.value as {
+      from: (tableName: string) => { update: ReturnType<typeof vi.fn> };
+    };
+    const aiGenerationsUpdateMock = supabaseAdmin.from("ai_generations").update;
+    expect(aiGenerationsUpdateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        status: "fail",
+        failure_reason_code: "queue_dispatch_exhausted",
+        error_message: "Generation failed queue contract validation before provider submit.",
+        recovery_state: "exhausted",
+        next_recovery_at: null,
+      })
+    );
   });
 
   it("applies deterministic jittered retry backoff within bounded delay", async () => {

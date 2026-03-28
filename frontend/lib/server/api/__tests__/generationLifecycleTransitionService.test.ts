@@ -147,4 +147,21 @@ describe("applyGenerationLifecycleTransition", () => {
       })
     );
   });
+
+  it("allows queue dispatch exhausted transitions without attempt mutation", async () => {
+    const events: string[] = [];
+
+    const result = await applyGenerationLifecycleTransition({
+      intent: "queue_dispatch_exhausted",
+      applyGenerationMutation: async () => {
+        events.push("generation");
+        return { ok: true };
+      },
+    });
+
+    expect(result).toEqual({ ok: true });
+    expect(events).toEqual(["generation"]);
+    expect(ensureAcceptedRunningGenerationAttemptMock).not.toHaveBeenCalled();
+    expect(updateGenerationAttemptStateMock).not.toHaveBeenCalled();
+  });
 });

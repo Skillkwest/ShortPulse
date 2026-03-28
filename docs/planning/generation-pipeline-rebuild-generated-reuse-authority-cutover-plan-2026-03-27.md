@@ -3,7 +3,7 @@
 Date: 2026-03-27  
 Authority: Working  
 Owner: Engineering  
-Status: Active
+Status: Checkpoint complete
 
 ## Purpose
 This document defines the next larger Lane 3 job after the bounded generated reuse/drag-drop checkpoint.
@@ -103,7 +103,7 @@ Current checkpoint:
 
 ### `GPR-GX-S3`
 Status:
-1. In progress
+1. Done
 
 Goal:
 1. align style/canvas/character generated reuse consumers with the same policy
@@ -114,6 +114,7 @@ Exit gate:
 Current checkpoint:
 1. canvas and character internal generated drops no longer promote bare payload URLs into durable reuse when canonical identity-backed media cannot be resolved
 2. style-library internal drops continue to rely on the shared internal reference resolver and do not need a separate consumer-local fallback ladder
+3. style and media-library regression coverage confirms the downstream generated reuse consumers in this lane now follow the same identity-first contract
 
 ## Validation Bundle
 1. internal drop resolver tests
@@ -128,3 +129,11 @@ Stop this job when:
 1. the next step requires broad downstream consumer redesign rather than authority cutover
 2. the next step would materially widen into UI/layout work
 3. remaining work is mostly polish instead of generated reuse authority reduction
+
+## Current Decision
+Stop this lane here.
+
+Reason:
+1. the main downstream generated reuse consumers now resolve through one consistent identity-first policy
+2. remaining generic media-library ingestion URL refresh behavior is not, by itself, a generated reuse authority ambiguity
+3. the next credible work would be a different job, not more continuation inside this lane

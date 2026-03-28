@@ -450,6 +450,7 @@ export const repairGenerationRequestIdFromReservation = async ({
       errorMessage: null,
     };
   }
+  const providerRequestId = reservationLookup.providerRequestId;
 
   const repairedAt = new Date().toISOString();
   const transitionResult = await applyGenerationLifecycleTransition({
@@ -457,7 +458,7 @@ export const repairGenerationRequestIdFromReservation = async ({
     applyGenerationMutation: async () =>
       applyRequestIdRepairGenerationMutation({
         candidate,
-        providerRequestId: reservationLookup.providerRequestId,
+        providerRequestId,
         repairSource: "reservation_backfill",
       }),
     attemptMutation: {
@@ -467,7 +468,7 @@ export const repairGenerationRequestIdFromReservation = async ({
         userId: candidate.userId,
         provider: candidate.provider,
         modelId: candidate.modelId,
-        providerRequestId: reservationLookup.providerRequestId,
+        providerRequestId,
         dispatchSource: "reconciler",
         observedAt: repairedAt,
         metadata: {
@@ -491,7 +492,7 @@ export const repairGenerationRequestIdFromReservation = async ({
   }
   return buildRepairedResult({
     candidate,
-    providerRequestId: reservationLookup.providerRequestId,
+    providerRequestId,
   });
 };
 

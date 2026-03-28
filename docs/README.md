@@ -177,6 +177,7 @@ Start here for all repository documentation.
 - `docs/planning/generation-pipeline-rebuild-state-machine-read-model-posture-2026-03-27.md`
 - `docs/planning/generation-pipeline-rebuild-lifecycle-read-model-control-plane-plan-2026-03-27.md`
 - `docs/planning/generation-pipeline-rebuild-lifecycle-read-model-control-plane-contract-2026-03-27.md`
+- `docs/planning/generation-pipeline-rebuild-recovery-control-plane-orchestration-plan-2026-03-27.md`
 - `docs/planning/generation-pipeline-rebuild-lane-2-historical-data-quality-gates-2026-03-27.md`
 - `docs/planning/generation-pipeline-rebuild-lane-2-backfill-execution-plan-2026-03-27.md`
 - `docs/planning/generation-pipeline-rebuild-lane-2-classification-query-set-and-fallback-inventory-2026-03-27.md`

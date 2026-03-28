@@ -56,6 +56,7 @@ Purpose: active planning artifacts and current execution backlogs.
 - `generation-pipeline-rebuild-state-machine-read-model-posture-2026-03-27.md`: explicit queue-status and persisted-status reader classification completing `GPR-SM-S4`.
 - `generation-pipeline-rebuild-lifecycle-read-model-control-plane-plan-2026-03-27.md`: next explicit follow-on job for queue-status, persisted-status, and recovery-entry control-plane convergence after the mutation-focused state-machine checkpoint.
 - `generation-pipeline-rebuild-lifecycle-read-model-control-plane-contract-2026-03-27.md`: repo-backed contract for observer/control-plane posture and shared recovery-engine boundaries completing `GPR-RM-S1`.
+- `generation-pipeline-rebuild-recovery-control-plane-orchestration-plan-2026-03-27.md`: next explicit follow-on job for staged background control-plane ownership, recovery-batch acquisition, and recovery-batch execution boundaries.
 - `generation-pipeline-rebuild-lane-2-historical-data-quality-gates-2026-03-27.md`: required row classes, inconsistency buckets, and evidence gates before historical backfill and fallback retirement.
 - `generation-pipeline-rebuild-lane-2-backfill-execution-plan-2026-03-27.md`: concrete Lane 2 execution plan for historical row classification, canonical backfill, quarantine handling, and fallback-retirement order.
 - `generation-pipeline-rebuild-lane-2-classification-query-set-and-fallback-inventory-2026-03-27.md`: baseline Lane 2 query set for historical row classes, inconsistency checks, and the bounded legacy fallback-reader inventory.

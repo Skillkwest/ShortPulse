@@ -3,7 +3,7 @@
 Date: 2026-03-27  
 Authority: Working  
 Owner: Engineering  
-Status: Active
+Status: Done at the current checkpoint
 
 ## Purpose
 This document defines the next explicitly scoped follow-on job after the post-submit state-machine service checkpoint.
@@ -71,6 +71,13 @@ This job is done when:
 2. persisted/completed status short-circuit rules are explicit and canonical-output-first
 3. status-triggered recovery claim behavior and background control-plane recovery no longer feel like separate implicit authorities
 4. remaining compatibility or observer seams are intentional and documented
+
+## Current Checkpoint
+1. `GPR-RM-S1` is completed.
+2. `GPR-RM-S2` is completed at the current checkpoint with an explicit “no shared helper yet” decision for queue-status and persisted-status observers.
+3. `GPR-RM-S3` is completed at the current checkpoint with shared recovery claim compare-and-set policy extracted.
+4. the next credible work is not more read-model/control-plane helper extraction.
+5. the next explicit follow-on job is broader recovery control-plane orchestration.
 
 ## Execution Slices
 ### `GPR-RM-S1`
@@ -141,8 +148,5 @@ Stop this job when:
 2. the next step would widen into Lane 3 user-facing read-model cutover
 3. remaining work is mostly operational governance rather than lifecycle authority reduction
 
-## Recommended First Move
-Start `GPR-RM-S1`:
-1. lock the lifecycle read-model/control-plane contract from current repo behavior
-2. identify whether `statusRecoveryKick.ts` and `runCycle.ts` are truly competing authorities or merely separate entry points over the same recovery engine
-3. do not edit runtime code until that contract is explicit
+## Follow-On Job
+1. `docs/planning/generation-pipeline-rebuild-recovery-control-plane-orchestration-plan-2026-03-27.md`

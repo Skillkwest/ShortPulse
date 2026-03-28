@@ -74,13 +74,22 @@ This job is done when:
 ## Execution Slices
 ### `GPR-CP-S1`
 Status:
-1. Planned
+1. Completed
 
 Goal:
 1. write the control-plane orchestration contract and stage map from current repo behavior
 
 Exit gate:
 1. one planning artifact defines the stage order, ownership boundaries, and stop/go rules for the background control plane
+
+Artifact:
+1. `docs/planning/generation-pipeline-rebuild-recovery-control-plane-stage-contract-2026-03-27.md`
+
+Implemented checkpoint:
+1. `runCycle.ts` is now explicitly classified as the sole background orchestrator entry point
+2. `workerLoop.ts` is now explicitly classified as a cadence/heartbeat wrapper only
+3. Stage 4 recovery batch acquisition is locked as the next extraction target
+4. Stage 6 recovery batch execution is explicitly deferred until after Stage 4 is implemented and audited
 
 ### `GPR-CP-S2`
 Status:
@@ -116,7 +125,7 @@ Stop this job when:
 4. remaining work is mostly operational observability rather than control-plane ownership reduction
 
 ## Recommended First Move
-Start `GPR-CP-S1`:
-1. lock the current control-plane stage map from `runCycle.ts` and `workerLoop.ts`
-2. identify the clean extraction point for recovery batch acquisition
-3. do not edit runtime code until that stage contract is explicit
+Start `GPR-CP-S2`:
+1. extract the recovery batch acquisition boundary from `runCycle.ts`
+2. keep `runCycle.ts` as the orchestrator over the new acquisition service
+3. audit that diff before deciding whether Stage 6 extraction is still worth doing

@@ -1,5 +1,5 @@
 import React from "react";
-import { FolderSimple, Folders, MagnifyingGlass, Plus } from "phosphor-react";
+import { FolderSimple, Folders, Plus } from "phosphor-react";
 import { AiStudioModalLayer } from "./modal-layer/AiStudioModalLayer";
 
 type FolderRow = {
@@ -15,8 +15,6 @@ type FolderContextMenuState = {
 };
 
 type MediaLibraryPanelFoldersSectionProps = {
-  search: string;
-  onSearchChange: (value: string) => void;
   folders: FolderRow[];
   activeFolderId: string;
   setActiveFolderId: (folderId: string) => void;
@@ -45,8 +43,6 @@ type MediaLibraryPanelFoldersSectionProps = {
 };
 
 export function MediaLibraryPanelFoldersSection({
-  search,
-  onSearchChange,
   folders,
   activeFolderId,
   setActiveFolderId,
@@ -71,18 +67,6 @@ export function MediaLibraryPanelFoldersSection({
 }: MediaLibraryPanelFoldersSectionProps) {
   return (
     <>
-      <div className="media-library-panel-controls">
-        <div className="search-input media-library-panel-search">
-          <MagnifyingGlass size={15} weight="bold" aria-hidden />
-          <input
-            type="text"
-            value={search}
-            placeholder="Search media and prompts"
-            onChange={(event) => onSearchChange(event.target.value)}
-          />
-        </div>
-      </div>
-
       <div className="media-library-panel-folders">
         <div className="media-library-panel-folders-head">
           <span className="tiny subdued">

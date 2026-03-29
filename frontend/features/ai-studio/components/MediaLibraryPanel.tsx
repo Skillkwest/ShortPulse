@@ -20,7 +20,6 @@ import {
   getMediaDataTabForRow,
   isNextImageOptimizerUrl,
   isVideoFile,
-  normalizeMediaSearchTerm,
   resolveMediaMetadataPromptText,
   resolveNextImageOptimizerSourceUrl,
   sortByCreatedAtDesc,
@@ -133,8 +132,6 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
   const isRootFolderSelected = activeFolderId === MEDIA_LIBRARY_ROOT_FOLDER_ID;
   const [rootTab, setRootTab] = useState<RootMediaLibraryTab>("all");
   const itemType: MediaLibraryPanelItemType = isRootFolderSelected ? rootTab : "all";
-  const [search, setSearch] = useState("");
-  const [debouncedSearch, setDebouncedSearch] = useState("");
 
   const [error, setError] = useState<string | null>(null);
   const [, setMembershipMessage] = useState<string | null>(null);
@@ -156,10 +153,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
     enabled: adaptivePreviewQualityEnabled,
   });
 
-  const normalizedSearch = useMemo(
-    () => normalizeMediaSearchTerm(debouncedSearch),
-    [debouncedSearch]
-  );
+  const normalizedSearch = "";
   const shouldShowMedia = itemType !== "prompts";
   const shouldShowPrompts = itemType === "prompts" || (!isRootFolderSelected && itemType === "all");
   const showFolderCanvas =
@@ -301,13 +295,6 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
       has_prompt_rows: promptRows.length > 0,
     },
   });
-
-  useEffect(() => {
-    const timeoutId = window.setTimeout(() => {
-      setDebouncedSearch(search);
-    }, 220);
-    return () => window.clearTimeout(timeoutId);
-  }, [search]);
 
   useEffect(() => {
     setMembershipMessage(null);
@@ -817,8 +804,6 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
       <div ref={splitContainerRef} className="media-library-panel-split">
         <div className="media-library-panel-folders-panel" style={foldersSplit.topSectionStyle}>
           <MediaLibraryPanelFoldersSection
-            search={search}
-            onSearchChange={setSearch}
             folders={customFolders}
             activeFolderId={activeFolderId}
             setActiveFolderId={setActiveFolderId}

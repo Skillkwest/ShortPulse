@@ -48,16 +48,6 @@
   padding: 2px 0;
 }
 
-.media-library-panel-controls {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.media-library-panel-search .search-input {
-  width: 100%;
-}
-
 .media-library-panel-folders {
   border: 1px solid transparent;
   background: transparent;

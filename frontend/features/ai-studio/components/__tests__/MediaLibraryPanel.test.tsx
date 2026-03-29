@@ -1482,6 +1482,45 @@ describe("MediaLibraryPanel", () => {
     expect(screen.getByRole("button", { name: "Go to parent folder" })).toBeInTheDocument();
   });
 
+  it("keeps parent folders hidden when renaming a child folder from its parent view", async () => {
+    listMediaFoldersMock.mockResolvedValueOnce([
+      {
+        id: "folder-parent",
+        name: "Parent",
+        parentFolderId: null,
+        createdAt: "2026-03-01T00:00:00.000Z",
+        updatedAt: "2026-03-01T00:00:00.000Z",
+      },
+      {
+        id: "folder-child",
+        name: "Child",
+        parentFolderId: "folder-parent",
+        createdAt: "2026-03-02T00:00:00.000Z",
+        updatedAt: "2026-03-02T00:00:00.000Z",
+      },
+    ]);
+
+    render(<MediaLibraryPanel onSelectMedia={vi.fn()} onSelectPrompt={vi.fn()} />);
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Parent folder" })).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Parent folder" }));
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Child folder" })).toBeInTheDocument();
+    });
+
+    fireEvent.doubleClick(screen.getByRole("button", { name: "Child name" }));
+
+    await waitFor(() => {
+      expect(screen.getByDisplayValue("Child")).toBeInTheDocument();
+    });
+    expect(screen.queryByRole("button", { name: "Parent folder" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Parent" })).toBeInTheDocument();
+  });
+
   it("retries with an incremented folder name when the default collides", async () => {
     createMediaFolderMock
       .mockRejectedValueOnce(new Error("Folder name already exists"))

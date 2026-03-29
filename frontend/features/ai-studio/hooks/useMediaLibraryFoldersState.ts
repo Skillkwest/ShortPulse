@@ -141,20 +141,16 @@ export const useMediaLibraryFoldersState = (): UseMediaLibraryFoldersStateResult
     return chain;
   }, [activeFolder, foldersById]);
   const visibleFolders = useMemo(() => {
-    // When the active folder is being renamed, keep showing its sibling strip so the inline editor
-    // remains visible instead of switching immediately to the active folder's child scope.
-    const isEditingActiveFolder =
-      editingFolderId !== null &&
-      activeFolderId !== MEDIA_LIBRARY_ROOT_FOLDER_ID &&
-      editingFolderId === activeFolderId;
-    const currentParentId =
-      activeFolderId === MEDIA_LIBRARY_ROOT_FOLDER_ID
-        ? null
-        : isEditingActiveFolder
-          ? activeFolderParentId
-          : activeFolderId;
-    return customFolders.filter((folder) => folder.parentFolderId === currentParentId);
-  }, [activeFolderId, activeFolderParentId, customFolders, editingFolderId]);
+    if (activeFolderId === MEDIA_LIBRARY_ROOT_FOLDER_ID) {
+      return customFolders.filter((folder) => folder.parentFolderId === null);
+    }
+    const childFolders = customFolders.filter((folder) => folder.parentFolderId === activeFolderId);
+    const isEditingActiveFolder = editingFolderId !== null && editingFolderId === activeFolderId;
+    if (!isEditingActiveFolder || !activeFolder) {
+      return childFolders;
+    }
+    return [activeFolder, ...childFolders];
+  }, [activeFolder, activeFolderId, customFolders, editingFolderId]);
 
   const refreshFolders = useCallback(async () => {
     const requestToken = foldersRequestTokenRef.current + 1;

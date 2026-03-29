@@ -644,6 +644,12 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
     if (!canNavigateUp) return;
     setActiveFolderId(MEDIA_LIBRARY_ROOT_FOLDER_ID);
   }, [canNavigateUp, setActiveFolderId]);
+  const handleNavigateToRoot = useCallback(() => {
+    setActiveFolderId(MEDIA_LIBRARY_ROOT_FOLDER_ID);
+  }, [setActiveFolderId]);
+  const handleNavigateToActiveFolder = useCallback(() => {
+    setActiveFolderId(activeFolderId);
+  }, [activeFolderId, setActiveFolderId]);
   const canShowFolderItemRemoveAction = !isRootFolderSelected;
   const resolvePanelCardPreviewUrl = useCallback(
     ({
@@ -851,6 +857,8 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
             activeFolderId={activeFolderId}
             canNavigateUp={canNavigateUp}
             onNavigateUp={handleNavigateUp}
+            onNavigateToRoot={handleNavigateToRoot}
+            onNavigateToActiveFolder={handleNavigateToActiveFolder}
             setActiveFolderId={setActiveFolderId}
             editingFolderId={editingFolderId}
             editingFolderName={editingFolderName}

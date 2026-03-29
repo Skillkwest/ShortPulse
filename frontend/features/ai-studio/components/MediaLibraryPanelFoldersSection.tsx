@@ -23,6 +23,8 @@ type MediaLibraryPanelFoldersSectionProps = {
   activeFolderId: string;
   canNavigateUp: boolean;
   onNavigateUp: () => void;
+  onNavigateToRoot: () => void;
+  onNavigateToActiveFolder: () => void;
   setActiveFolderId: (folderId: string) => void;
   editingFolderId: string | null;
   editingFolderName: string;
@@ -54,6 +56,8 @@ export function MediaLibraryPanelFoldersSection({
   activeFolderId,
   canNavigateUp,
   onNavigateUp,
+  onNavigateToRoot,
+  onNavigateToActiveFolder,
   setActiveFolderId,
   editingFolderId,
   editingFolderName,
@@ -80,16 +84,26 @@ export function MediaLibraryPanelFoldersSection({
         <div className="media-library-panel-folders-head">
           <span className="tiny subdued">
             <Folders size={14} weight="bold" aria-hidden />
-            <span className="media-library-panel-folders-root-label">Media</span>
+            <button
+              type="button"
+              className="media-library-panel-folders-breadcrumb-button media-library-panel-folders-root-label"
+              onClick={onNavigateToRoot}
+            >
+              Media
+            </button>
             <CaretRight
               className="media-library-panel-folders-breadcrumb-caret"
               size={11}
               weight="bold"
               aria-hidden
             />
-            <span className="media-library-panel-folders-root-label">
+            <button
+              type="button"
+              className="media-library-panel-folders-breadcrumb-button media-library-panel-folders-root-label"
+              onClick={onNavigateToActiveFolder}
+            >
               {activeFolderName || ROOT_FOLDER_LABEL}
-            </span>
+            </button>
           </span>
         </div>
         <div className="media-library-panel-folder-strip" role="list" aria-label="Media folders">

@@ -92,7 +92,7 @@
   border: 1px solid transparent;
   background: transparent;
   border-radius: 0;
-  padding: 3px 8px 14px;
+  padding: 0 8px 14px;
   display: flex;
   flex-direction: column;
   gap: 12px;

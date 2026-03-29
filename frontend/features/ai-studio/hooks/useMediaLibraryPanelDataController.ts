@@ -4,6 +4,7 @@ import {
   type MediaListCursor,
   type MediaListMediaKind,
 } from "../../media-library/logic/mediaListApi";
+import { shouldAutoLoadNearBottom } from "../../media-library/logic/mediaLoadMoreGating";
 import { mergePageRows } from "../../media-library/logic/mediaLibraryPageHelpers";
 import { useMediaLibraryPanelRuntime } from "../../media-library/runtime";
 import { fetchMediaPromptListPage, type PromptListCursor } from "../logic/mediaLibraryPanelApi";
@@ -339,12 +340,21 @@ export const useMediaLibraryPanelDataController = ({
 
   const maybeAutoLoadMore = React.useCallback(() => {
     const container = panelBodyRef.current;
-    if (!container || showFolderCanvas) return;
-    if (container.clientHeight <= 0 || container.scrollHeight <= 0) return;
-    const remaining = container.scrollHeight - (container.scrollTop + container.clientHeight);
-    if (!Number.isFinite(remaining) || remaining > INFINITE_LOAD_BOTTOM_THRESHOLD_PX) return;
+    if (!container) return;
 
-    if (shouldShowMedia && mediaHasMore && !mediaLoading && !autoLoadInFlightRef.current.media) {
+    if (
+      shouldShowMedia &&
+      shouldAutoLoadNearBottom({
+        clientHeight: container.clientHeight,
+        hasMore: mediaHasMore,
+        inFlight: autoLoadInFlightRef.current.media,
+        loading: mediaLoading,
+        scrollHeight: container.scrollHeight,
+        scrollTop: container.scrollTop,
+        surfaceBlocked: showFolderCanvas,
+        thresholdPx: INFINITE_LOAD_BOTTOM_THRESHOLD_PX,
+      })
+    ) {
       autoLoadInFlightRef.current.media = true;
       void loadMediaPage({ reset: false }).finally(() => {
         autoLoadInFlightRef.current.media = false;
@@ -354,9 +364,16 @@ export const useMediaLibraryPanelDataController = ({
 
     if (
       shouldShowPrompts &&
-      promptHasMore &&
-      !promptLoading &&
-      !autoLoadInFlightRef.current.prompts
+      shouldAutoLoadNearBottom({
+        clientHeight: container.clientHeight,
+        hasMore: promptHasMore,
+        inFlight: autoLoadInFlightRef.current.prompts,
+        loading: promptLoading,
+        scrollHeight: container.scrollHeight,
+        scrollTop: container.scrollTop,
+        surfaceBlocked: showFolderCanvas,
+        thresholdPx: INFINITE_LOAD_BOTTOM_THRESHOLD_PX,
+      })
     ) {
       autoLoadInFlightRef.current.prompts = true;
       void loadPromptPage({ reset: false }).finally(() => {

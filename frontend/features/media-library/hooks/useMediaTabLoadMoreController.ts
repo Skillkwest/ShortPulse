@@ -1,5 +1,9 @@
 import { useEffect, type MutableRefObject } from "react";
 import {
+  shouldAutoLoadFromObserver,
+  shouldEnableObserverLoadMore,
+} from "../logic/mediaLoadMoreGating";
+import {
   type MediaDataTab,
   type MediaTabBooleanState,
   type MediaTabCache,
@@ -99,9 +103,17 @@ export const useMediaTabLoadMoreController = <TRow extends { id: string }>({
   ]);
 
   useEffect(() => {
-    if (!fetchEnabled) return;
     if (!activeMediaTab) return;
-    if (!activeMediaCache?.loaded || activeMediaCache.loading || !activeMediaCache.hasMore) return;
+    if (
+      !shouldEnableObserverLoadMore({
+        fetchEnabled,
+        hasMore: activeMediaCache?.hasMore === true,
+        loaded: activeMediaCache?.loaded === true,
+        loading: activeMediaCache?.loading === true,
+      })
+    ) {
+      return;
+    }
     if (typeof IntersectionObserver === "undefined") return;
     const node = loadMoreSentinelRef.current;
     if (!node) return;
@@ -131,11 +143,23 @@ export const useMediaTabLoadMoreController = <TRow extends { id: string }>({
           tabLoadMoreAwaitExitRef.current[activeMediaTab] = false;
           return;
         }
-        if (tabLoadMoreAwaitExitRef.current[activeMediaTab]) return;
-        if (!tabLoadMoreScrollIntentArmedRef.current[activeMediaTab]) return;
         const now = Date.now();
         const lastAutoLoadAtMs = tabLoadMoreLastAutoLoadAtMsRef.current[activeMediaTab];
-        if (now - lastAutoLoadAtMs < LOAD_MORE_COOLDOWN_MS) return;
+        if (
+          !shouldAutoLoadFromObserver({
+            awaitExit: tabLoadMoreAwaitExitRef.current[activeMediaTab],
+            cooldownMs: LOAD_MORE_COOLDOWN_MS,
+            fetchEnabled,
+            hasMore: activeMediaCache?.hasMore === true,
+            lastAutoLoadAtMs,
+            loaded: activeMediaCache?.loaded === true,
+            loading: activeMediaCache?.loading === true,
+            now,
+            scrollIntentArmed: tabLoadMoreScrollIntentArmedRef.current[activeMediaTab],
+          })
+        ) {
+          return;
+        }
         tabLoadMoreLastAutoLoadAtMsRef.current[activeMediaTab] = now;
         tabLoadMoreScrollIntentArmedRef.current[activeMediaTab] = false;
         void fetchMediaTabPage(activeMediaTab, {

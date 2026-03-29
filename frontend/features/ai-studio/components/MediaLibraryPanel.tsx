@@ -807,8 +807,6 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
     onProjectNameCommit?.(projectNameDraft);
   }, [onProjectNameCommit, projectNameDraft]);
 
-  const rootFolderTitle = projectNameDraft.trim() || "Untitled project";
-
   return (
     <section className="media-library-panel" aria-label="Media library panel">
       <header className="media-library-panel-header">
@@ -843,7 +841,6 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
       <div ref={splitContainerRef} className="media-library-panel-split">
         <div className="media-library-panel-folders-panel" style={foldersSplit.topSectionStyle}>
           <MediaLibraryPanelFoldersSection
-            rootLabel={rootFolderTitle}
             folders={customFolders}
             activeFolderId={activeFolderId}
             setActiveFolderId={setActiveFolderId}

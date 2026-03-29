@@ -289,8 +289,8 @@
   justify-content: flex-start;
   gap: 12px;
   padding: 8px 0 12px;
-  background: rgba(18, 19, 21, 0.98);
-  border-bottom: 1px solid rgba(150, 155, 164, 0.1);
+  background: rgba(17, 19, 24, 0.98);
+  border-bottom: 1px solid rgba(142, 150, 166, 0.11);
 }
 
 .media-library-panel-root-count {

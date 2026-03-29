@@ -8,6 +8,7 @@ import {
   deleteMediaFolder,
   listMediaFolders,
   MEDIA_LIBRARY_ROOT_FOLDER_ID,
+  moveMediaFolder,
   renameMediaFolder,
   type MediaFolder,
   type MediaFolderId,
@@ -93,6 +94,7 @@ type UseMediaLibraryFoldersStateResult = {
   startFolderRename: (folderId: string, currentName: string) => void;
   cancelFolderRename: () => void;
   commitFolderRename: () => Promise<void>;
+  moveFolder: (folderId: string, parentFolderId: string | null) => Promise<void>;
   deleteFolder: (folderId: string) => Promise<void>;
   refreshFolders: () => Promise<void>;
 };
@@ -297,6 +299,23 @@ export const useMediaLibraryFoldersState = (): UseMediaLibraryFoldersStateResult
     [editingFolderId]
   );
 
+  const moveFolder = useCallback(async (folderId: string, parentFolderId: string | null) => {
+    const normalizedFolderId = folderId.trim();
+    if (!normalizedFolderId || normalizedFolderId === MEDIA_LIBRARY_ROOT_FOLDER_ID) return;
+    setFolderError(null);
+    try {
+      const moved = await moveMediaFolder({
+        folderId: normalizedFolderId,
+        parentFolderId,
+      });
+      setFolders((previous) =>
+        previous.map((folder) => (folder.id === normalizedFolderId ? moved : folder))
+      );
+    } catch (moveError) {
+      setFolderError(toMediaLibraryErrorText(moveError, "Unable to move folder."));
+    }
+  }, []);
+
   return {
     folders,
     customFolders,
@@ -317,6 +336,7 @@ export const useMediaLibraryFoldersState = (): UseMediaLibraryFoldersStateResult
     startFolderRename,
     cancelFolderRename,
     commitFolderRename,
+    moveFolder,
     deleteFolder,
     refreshFolders,
   };

@@ -5,6 +5,7 @@ import { MediaLibraryPanel } from "../MediaLibraryPanel";
 
 const listMediaFoldersMock = vi.fn();
 const createMediaFolderMock = vi.fn();
+const moveMediaFolderMock = vi.fn();
 const renameMediaFolderMock = vi.fn();
 const deleteMediaFolderMock = vi.fn();
 const applyMediaFolderMembershipBatchMock = vi.fn();
@@ -107,6 +108,7 @@ vi.mock("../../logic/mediaLibraryPanelApi", async () => {
     ...actual,
     listMediaFolders: (...args: unknown[]) => listMediaFoldersMock(...args),
     createMediaFolder: (...args: unknown[]) => createMediaFolderMock(...args),
+    moveMediaFolder: (...args: unknown[]) => moveMediaFolderMock(...args),
     renameMediaFolder: (...args: unknown[]) => renameMediaFolderMock(...args),
     deleteMediaFolder: (...args: unknown[]) => deleteMediaFolderMock(...args),
     applyMediaFolderMembershipBatch: (...args: unknown[]) =>
@@ -349,6 +351,21 @@ describe("MediaLibraryPanel", () => {
         parentFolderId,
         createdAt: "2026-03-03T00:00:00.000Z",
         updatedAt: "2026-03-03T00:00:00.000Z",
+      })
+    );
+    moveMediaFolderMock.mockImplementation(
+      async ({
+        folderId,
+        parentFolderId,
+      }: {
+        folderId: string;
+        parentFolderId: string | null;
+      }) => ({
+        id: folderId,
+        name: "Child A1",
+        parentFolderId,
+        createdAt: "2026-03-02T00:00:00.000Z",
+        updatedAt: "2026-03-04T00:00:00.000Z",
       })
     );
     renameMediaFolderMock.mockImplementation(
@@ -1378,6 +1395,56 @@ describe("MediaLibraryPanel", () => {
       expect(screen.getByRole("button", { name: "Root A folder" })).toBeInTheDocument();
       expect(screen.getByRole("button", { name: "Root B folder" })).toBeInTheDocument();
     });
+  });
+
+  it("moves a visible child folder to All Media from the context menu without navigating into it", async () => {
+    listMediaFoldersMock.mockResolvedValueOnce([
+      {
+        id: "folder-parent",
+        name: "Parent",
+        parentFolderId: null,
+        createdAt: "2026-03-01T00:00:00.000Z",
+        updatedAt: "2026-03-01T00:00:00.000Z",
+      },
+      {
+        id: "folder-child",
+        name: "Child A1",
+        parentFolderId: "folder-parent",
+        createdAt: "2026-03-02T00:00:00.000Z",
+        updatedAt: "2026-03-02T00:00:00.000Z",
+      },
+    ]);
+
+    render(<MediaLibraryPanel onSelectMedia={vi.fn()} onSelectPrompt={vi.fn()} />);
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Parent folder" })).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Parent folder" }));
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Child A1 folder" })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Parent" })).toBeInTheDocument();
+    });
+
+    const folderButton = screen.getByRole("button", { name: "Child A1 folder" });
+    const folderTile = folderButton.closest(
+      ".media-library-panel-folder-strip-item"
+    ) as HTMLElement;
+    fireEvent.contextMenu(folderTile);
+
+    expect(screen.getByRole("button", { name: "Parent" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("menuitem", { name: "Move to All Media" }));
+
+    await waitFor(() => {
+      expect(moveMediaFolderMock).toHaveBeenCalledWith({
+        folderId: "folder-child",
+        parentFolderId: null,
+      });
+    });
+    expect(screen.queryByRole("button", { name: "Child A1 folder" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Parent" })).toBeInTheDocument();
   });
 
   it("creates a new folder inside the active folder", async () => {

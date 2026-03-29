@@ -46,6 +46,9 @@ type MediaLibraryPanelFoldersSectionProps = {
     isRoot: boolean
   ) => void;
   onContextRename: () => void;
+  canContextMoveFolder: boolean;
+  contextMoveLabel: string;
+  onContextMove: () => Promise<void>;
   onContextDelete: () => Promise<void>;
 };
 
@@ -74,6 +77,9 @@ export function MediaLibraryPanelFoldersSection({
   folderContextMenuRef,
   openFolderContextMenu,
   onContextRename,
+  canContextMoveFolder,
+  contextMoveLabel,
+  onContextMove,
   onContextDelete,
 }: MediaLibraryPanelFoldersSectionProps) {
   return (
@@ -246,6 +252,18 @@ export function MediaLibraryPanelFoldersSection({
             >
               Rename folder
             </button>
+            {canContextMoveFolder ? (
+              <button
+                type="button"
+                className="media-library-panel-folder-context-menu-item"
+                role="menuitem"
+                onClick={() => {
+                  void onContextMove();
+                }}
+              >
+                {contextMoveLabel}
+              </button>
+            ) : null}
             <button
               type="button"
               className="media-library-panel-folder-context-menu-item is-destructive"

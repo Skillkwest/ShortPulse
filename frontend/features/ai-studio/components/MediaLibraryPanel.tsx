@@ -129,6 +129,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
     startFolderRename,
     cancelFolderRename,
     commitFolderRename,
+    moveFolder,
     deleteFolder,
   } = useMediaLibraryFoldersState();
 
@@ -593,7 +594,6 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
         setFolderContextMenu(null);
         return;
       }
-      setActiveFolderId(folder.id);
       const boundedX = Math.min(
         event.clientX,
         window.innerWidth - FOLDER_CONTEXT_MENU_WIDTH_PX - FOLDER_CONTEXT_MENU_VIEWPORT_PADDING_PX
@@ -624,6 +624,14 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
     setFolderContextMenu(null);
     await deleteFolder(folderId);
   }, [deleteFolder, folderContextMenu]);
+  const canContextMoveFolder = canNavigateUp;
+  const contextMoveLabel = activeFolderParentId ? "Move up one level" : "Move to All Media";
+  const handleContextMove = useCallback(async () => {
+    if (!folderContextMenu || !canContextMoveFolder) return;
+    const folderId = folderContextMenu.folderId;
+    setFolderContextMenu(null);
+    await moveFolder(folderId, activeFolderParentId ?? null);
+  }, [activeFolderParentId, canContextMoveFolder, folderContextMenu, moveFolder]);
 
   const handleNavigateUp = useCallback(() => {
     if (!canNavigateUp) return;
@@ -869,6 +877,9 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
             folderContextMenuRef={folderContextMenuRef}
             openFolderContextMenu={openFolderContextMenu}
             onContextRename={handleContextRename}
+            canContextMoveFolder={canContextMoveFolder}
+            contextMoveLabel={contextMoveLabel}
+            onContextMove={handleContextMove}
             onContextDelete={handleContextDelete}
           />
         </div>

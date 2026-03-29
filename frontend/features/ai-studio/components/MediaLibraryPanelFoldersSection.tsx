@@ -99,7 +99,7 @@ export function MediaLibraryPanelFoldersSection({
                       onClick={() => setActiveFolderId(folder.id)}
                       aria-label={`${folder.name} folder`}
                     >
-                      <FolderSimple size={28} weight="regular" aria-hidden />
+                      <FolderSimple size={34} weight="regular" aria-hidden />
                     </button>
                     <div className="media-library-panel-folder-chip-edit">
                       <input
@@ -130,7 +130,7 @@ export function MediaLibraryPanelFoldersSection({
                       onClick={() => setActiveFolderId(folder.id)}
                       aria-label={`${folder.name} folder`}
                     >
-                      <FolderSimple size={28} weight="regular" aria-hidden />
+                      <FolderSimple size={34} weight="regular" aria-hidden />
                     </button>
                     <button
                       type="button"
@@ -158,7 +158,7 @@ export function MediaLibraryPanelFoldersSection({
               }}
               disabled={creatingFolder}
             >
-              <Plus size={26} weight="bold" aria-hidden />
+              <Plus size={30} weight="bold" aria-hidden />
             </button>
             <p className="media-library-panel-folder-chip-name tiny">New Folder</p>
           </div>

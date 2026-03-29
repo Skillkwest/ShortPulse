@@ -680,7 +680,15 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
           label: buildFolderPath(folder.id),
         });
       }
-      return options;
+      if (options.length <= 1) return options;
+      const [rootOption, ...folderOptions] = options;
+      if (rootOption?.id !== null) {
+        return [...options].sort((left, right) => left.label.localeCompare(right.label));
+      }
+      return [
+        rootOption,
+        ...folderOptions.sort((left, right) => left.label.localeCompare(right.label)),
+      ];
     },
     [collectDescendantIds, folders, foldersById]
   );

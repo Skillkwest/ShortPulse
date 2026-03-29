@@ -93,7 +93,7 @@ export function MediaLibraryPanelFoldersSection({
             >
               {ROOT_FOLDER_LABEL}
             </button>
-            {ancestorFolders.map((folder) => (
+            {ancestorFolders.map((folder, index) => (
               <React.Fragment key={folder.id}>
                 <CaretRight
                   className="media-library-panel-folders-breadcrumb-caret"
@@ -101,13 +101,22 @@ export function MediaLibraryPanelFoldersSection({
                   weight="bold"
                   aria-hidden
                 />
-                <button
-                  type="button"
-                  className="media-library-panel-folders-breadcrumb-button media-library-panel-folders-root-label"
-                  onClick={() => onNavigateToFolder(folder.id)}
-                >
-                  {folder.name}
-                </button>
+                {index === ancestorFolders.length - 1 ? (
+                  <span
+                    className="media-library-panel-folders-breadcrumb-current media-library-panel-folders-root-label"
+                    aria-current="location"
+                  >
+                    {folder.name}
+                  </span>
+                ) : (
+                  <button
+                    type="button"
+                    className="media-library-panel-folders-breadcrumb-button media-library-panel-folders-root-label"
+                    onClick={() => onNavigateToFolder(folder.id)}
+                  >
+                    {folder.name}
+                  </button>
+                )}
               </React.Fragment>
             ))}
           </span>

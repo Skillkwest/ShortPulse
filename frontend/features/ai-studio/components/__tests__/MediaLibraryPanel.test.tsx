@@ -1449,6 +1449,69 @@ describe("MediaLibraryPanel", () => {
     expect(screen.getByRole("button", { name: "Parent" })).toBeInTheDocument();
   });
 
+  it("shows sorted deep move destinations and excludes the current parent and descendants", async () => {
+    listMediaFoldersMock.mockResolvedValueOnce([
+      {
+        id: "folder-a",
+        name: "A",
+        parentFolderId: null,
+        createdAt: "2026-03-01T00:00:00.000Z",
+        updatedAt: "2026-03-01T00:00:00.000Z",
+      },
+      {
+        id: "folder-b",
+        name: "B",
+        parentFolderId: "folder-a",
+        createdAt: "2026-03-02T00:00:00.000Z",
+        updatedAt: "2026-03-02T00:00:00.000Z",
+      },
+      {
+        id: "folder-c",
+        name: "C",
+        parentFolderId: "folder-b",
+        createdAt: "2026-03-03T00:00:00.000Z",
+        updatedAt: "2026-03-03T00:00:00.000Z",
+      },
+      {
+        id: "folder-d",
+        name: "D",
+        parentFolderId: null,
+        createdAt: "2026-03-04T00:00:00.000Z",
+        updatedAt: "2026-03-04T00:00:00.000Z",
+      },
+    ]);
+
+    render(<MediaLibraryPanel onSelectMedia={vi.fn()} onSelectPrompt={vi.fn()} />);
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "A folder" })).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "A folder" }));
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "B folder" })).toBeInTheDocument();
+    });
+
+    const folderButton = screen.getByRole("button", { name: "B folder" });
+    const folderTile = folderButton.closest(
+      ".media-library-panel-folder-strip-item"
+    ) as HTMLElement;
+    fireEvent.contextMenu(folderTile);
+    fireEvent.click(screen.getByRole("menuitem", { name: "Move to..." }));
+
+    const moveDialog = screen.getByRole("dialog", { name: "Move B" });
+    const moveButtons = within(moveDialog).getAllByRole("button");
+    expect(moveButtons[0]).toHaveTextContent("All Media");
+    expect(within(moveDialog).getByRole("button", { name: "All Media > D" })).toBeInTheDocument();
+    expect(
+      within(moveDialog).queryByRole("button", { name: "All Media > A" })
+    ).not.toBeInTheDocument();
+    expect(
+      within(moveDialog).queryByRole("button", { name: "All Media > A > B > C" })
+    ).not.toBeInTheDocument();
+  });
+
   it("creates a new folder inside the active folder", async () => {
     listMediaFoldersMock.mockResolvedValueOnce([
       {
@@ -1519,6 +1582,49 @@ describe("MediaLibraryPanel", () => {
     });
     expect(screen.queryByRole("button", { name: "Parent folder" })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Parent" })).toBeInTheDocument();
+  });
+
+  it("renders the current breadcrumb segment as a non-clickable location indicator", async () => {
+    listMediaFoldersMock.mockResolvedValueOnce([
+      {
+        id: "folder-parent",
+        name: "Parent",
+        parentFolderId: null,
+        createdAt: "2026-03-01T00:00:00.000Z",
+        updatedAt: "2026-03-01T00:00:00.000Z",
+      },
+      {
+        id: "folder-child",
+        name: "Child",
+        parentFolderId: "folder-parent",
+        createdAt: "2026-03-02T00:00:00.000Z",
+        updatedAt: "2026-03-02T00:00:00.000Z",
+      },
+    ]);
+
+    render(<MediaLibraryPanel onSelectMedia={vi.fn()} onSelectPrompt={vi.fn()} />);
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Parent folder" })).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Parent folder" }));
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Child folder" })).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Child folder" }));
+
+    await waitFor(() => {
+      expect(screen.getByLabelText("Go to parent folder")).toBeInTheDocument();
+    });
+
+    expect(screen.getByRole("button", { name: "All Media" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Parent" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Child" })).not.toBeInTheDocument();
+    const currentCrumb = document.querySelector(".media-library-panel-folders-breadcrumb-current");
+    expect(currentCrumb).toHaveAttribute("aria-current", "location");
+    expect(currentCrumb).toHaveTextContent("Child");
   });
 
   it("retries with an incremented folder name when the default collides", async () => {

@@ -143,6 +143,20 @@
   justify-content: center;
 }
 
+.media-library-panel-folder-chip--image {
+  border: 0;
+  background: transparent;
+  width: 104px;
+  height: 72px;
+}
+
+.media-library-panel-folder-chip-image {
+  display: block;
+  width: 100%;
+  height: auto;
+  object-fit: contain;
+}
+
 .media-library-panel-folder-chip-name {
   width: 104px;
   text-align: center;
@@ -175,6 +189,12 @@
   border-color: rgba(100, 209, 230, 0.35);
   box-shadow: none;
   background: rgba(201, 205, 214, 0.02);
+}
+
+.media-library-panel-folder-chip--image.is-active {
+  border: 0;
+  background: transparent;
+  filter: brightness(1.08);
 }
 
 .media-library-panel-folder-chip.is-create {

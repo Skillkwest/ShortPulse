@@ -1,6 +1,8 @@
 import React from "react";
-import { FolderSimple, Folders, Plus } from "phosphor-react";
+import { Folders, Plus } from "phosphor-react";
 import { AiStudioModalLayer } from "./modal-layer/AiStudioModalLayer";
+
+const FOLDER_TILE_IMAGE_SRC = "/Folder.png";
 
 type FolderRow = {
   id: string;
@@ -95,11 +97,16 @@ export function MediaLibraryPanelFoldersSection({
                   <>
                     <button
                       type="button"
-                      className="media-library-panel-folder-chip is-active is-editing"
+                      className="media-library-panel-folder-chip media-library-panel-folder-chip--image is-active is-editing"
                       onClick={() => setActiveFolderId(folder.id)}
                       aria-label={`${folder.name} folder`}
                     >
-                      <FolderSimple size={42} weight="thin" aria-hidden />
+                      <img
+                        className="media-library-panel-folder-chip-image"
+                        src={FOLDER_TILE_IMAGE_SRC}
+                        alt=""
+                        aria-hidden="true"
+                      />
                     </button>
                     <div className="media-library-panel-folder-chip-edit">
                       <input
@@ -126,11 +133,18 @@ export function MediaLibraryPanelFoldersSection({
                   <>
                     <button
                       type="button"
-                      className={`media-library-panel-folder-chip ${isActive ? "is-active" : ""}`}
+                      className={`media-library-panel-folder-chip media-library-panel-folder-chip--image ${
+                        isActive ? "is-active" : ""
+                      }`}
                       onClick={() => setActiveFolderId(folder.id)}
                       aria-label={`${folder.name} folder`}
                     >
-                      <FolderSimple size={42} weight="thin" aria-hidden />
+                      <img
+                        className="media-library-panel-folder-chip-image"
+                        src={FOLDER_TILE_IMAGE_SRC}
+                        alt=""
+                        aria-hidden="true"
+                      />
                     </button>
                     <button
                       type="button"

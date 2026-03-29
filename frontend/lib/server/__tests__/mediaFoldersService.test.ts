@@ -6,6 +6,7 @@ import {
   isCustomMediaFolderId,
   MEDIA_LIBRARY_ROOT_FOLDER_ID,
   sanitizeMediaFolderName,
+  sanitizeMediaFolderParentId,
 } from "../mediaFoldersService";
 
 vi.mock("../api/supabaseAdmin", () => ({
@@ -249,6 +250,17 @@ describe("mediaFoldersService helpers", () => {
     expect(sanitizeMediaFolderName("  Campaign  ")).toBe("Campaign");
     expect(sanitizeMediaFolderName("   ")).toBeNull();
     expect(sanitizeMediaFolderName("x".repeat(65))).toBeNull();
+  });
+
+  it("normalizes parent folder ids to root/null or canonical uuids", () => {
+    expect(sanitizeMediaFolderParentId(undefined)).toBeNull();
+    expect(sanitizeMediaFolderParentId(null)).toBeNull();
+    expect(sanitizeMediaFolderParentId("")).toBeNull();
+    expect(sanitizeMediaFolderParentId(MEDIA_LIBRARY_ROOT_FOLDER_ID)).toBeNull();
+    expect(sanitizeMediaFolderParentId("2d6fc803-2289-47a9-9a07-063ebf2eec4f")).toBe(
+      "2d6fc803-2289-47a9-9a07-063ebf2eec4f"
+    );
+    expect(sanitizeMediaFolderParentId("not-a-folder")).toBeUndefined();
   });
 
   it("rejects membership batch when any media/prompt id is not owned by the user", async () => {

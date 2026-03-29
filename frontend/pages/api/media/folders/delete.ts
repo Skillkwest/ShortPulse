@@ -1,6 +1,6 @@
 /**
- * Deletes a custom media folder for the authenticated user.
- * Junction memberships are removed via cascading FK deletes.
+ * Deletes a custom media folder subtree for the authenticated user.
+ * Descendants and junction memberships are removed via cascading FK deletes.
  */
 import type { NextApiRequest, NextApiResponse } from "next";
 import { requireApiUser } from "../../../../lib/server/api/auth";

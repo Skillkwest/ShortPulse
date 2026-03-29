@@ -7,12 +7,14 @@ import { logApiRouteException } from "../../../../lib/server/api/appErrorLogs";
 import {
   createMediaFolderForUser,
   sanitizeMediaFolderName,
+  sanitizeMediaFolderParentId,
 } from "../../../../lib/server/mediaFoldersService";
 
 type CreateFolderSuccessResponse = {
   folder: {
     id: string;
     name: string;
+    parentFolderId: string | null;
     createdAt: string;
     updatedAt: string;
   };
@@ -58,22 +60,30 @@ export default async function handler(
   try {
     const body = toRequestBody(req.body);
     const name = sanitizeMediaFolderName(body.name);
+    const parentFolderId = sanitizeMediaFolderParentId(body.parentFolderId);
     if (!name) {
       return res.status(400).json({
         error: "Invalid folder name",
         details: "Folder names must be 1-64 non-whitespace characters.",
       });
     }
+    if (parentFolderId === undefined) {
+      return res.status(400).json({
+        error: "Invalid parent folder id",
+      });
+    }
 
     const folder = await createMediaFolderForUser({
       userId: user.id,
       name,
+      parentFolderId,
     });
 
     return res.status(200).json({
       folder: {
         id: folder.id,
         name: folder.name,
+        parentFolderId: folder.parent_folder_id,
         createdAt: folder.created_at,
         updatedAt: folder.updated_at,
       },
@@ -82,6 +92,11 @@ export default async function handler(
     if (error instanceof Error && error.message === "Folder name already exists") {
       return res.status(409).json({
         error: "Folder name already exists",
+      });
+    }
+    if (error instanceof Error && error.message === "Parent folder not found") {
+      return res.status(404).json({
+        error: "Parent folder not found",
       });
     }
 

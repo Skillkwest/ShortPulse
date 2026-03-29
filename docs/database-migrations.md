@@ -184,7 +184,8 @@ If enabling AI Studio Fal reliability rollout (modular submit/retrieval + reconc
 70. `sql/migrations/070_harden_queue_claim_collision_advisory_lock.sql`
 71. `sql/migrations/071_add_ai_generation_outputs.sql`
 72. `sql/migrations/072_add_generation_attempts.sql`
-72. Rollback files:
+73. `sql/migrations/073_add_media_folder_hierarchy.sql`
+74. Rollback files:
     - `sql/migrations/rollback/019_add_generation_recovery_fields_rollback.sql`
     - `sql/migrations/rollback/020_generation_runtime_convergence_rollback.sql`
     - `sql/migrations/rollback/021_generation_state_machine_constraints_rollback.sql`
@@ -218,6 +219,7 @@ If enabling AI Studio Fal reliability rollout (modular submit/retrieval + reconc
     - `sql/migrations/rollback/068_add_character_media_assets_isolation_rollback.sql`
     - `sql/migrations/rollback/069_harden_provider_attached_stale_cleanup_execute_grants_rollback.sql`
     - `sql/migrations/rollback/070_harden_queue_claim_collision_advisory_lock_rollback.sql`
+    - `sql/migrations/rollback/073_add_media_folder_hierarchy_rollback.sql`
 
 Billing safety note:
 - Migration `013_fix_generation_reservation_rpc_ambiguity.sql` is required to avoid
@@ -253,6 +255,7 @@ Billing safety note:
 - Migration `044_add_ai_studio_sessions_persistence.sql` adds durable AI Studio session snapshot persistence (`ai_studio_sessions`) with service-role-only save/get/list/prune RPCs and deterministic per-user cap/TTL pruning semantics.
 - Migration `045_add_character_quickswap_deck.sql` adds dynamic Character Manager QuickSwap persistence (`character_quick_swap_items`), `character_quickswap` media-source integrity checks, and deterministic legacy backfill with 500-active archive behavior.
 - Migration `046_fix_character_quickswap_storage_scope_check.sql` corrects the `character_quick_swap_items` storage-scope check to allow user-scoped character paths used by deterministic legacy backfill (not only `/quickswap/`-prefixed paths).
+- Migration `073_add_media_folder_hierarchy.sql` adds explicit parent/child ancestry support to `media_folders` (`parent_folder_id`), sibling-scoped name uniqueness, same-user parent FK enforcement, and recursive cycle protection. Current panel UI may still use proxy navigation until the ancestry cutover lands.
 - Migration `047_add_agent_safety_policy_control_plane.sql` adds agent safety policy version/runtime/event persistence with service-role RPCs for active/read, activate, and rollback operations.
 - Migration `048_harden_agent_safety_policy_control_plane_grants.sql` hardens control-plane RPC execute posture to service-role-only.
 - Migration `049_enforce_expert_default_beginner_mode.sql` forces expert-first mode defaults by setting `user_preferences.beginner_mode` default to `false` and backfilling existing rows to `false`; rollback restores only the new-row default (`true`).

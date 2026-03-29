@@ -23,6 +23,7 @@ const TEMP_FOLDER_ID_PREFIX = "__pending_new_folder__";
 const ROOT_FOLDER: MediaFolder = {
   id: MEDIA_LIBRARY_ROOT_FOLDER_ID,
   name: ROOT_FOLDER_LABEL,
+  parentFolderId: null,
   createdAt: "",
   updatedAt: "",
 };
@@ -158,6 +159,7 @@ export const useMediaLibraryFoldersState = (): UseMediaLibraryFoldersStateResult
       {
         id: pendingFolderId,
         name: nextName,
+        parentFolderId: null,
         createdAt: "",
         updatedAt: "",
       },

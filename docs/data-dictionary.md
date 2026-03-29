@@ -172,11 +172,15 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
 - `id` (uuid, pk, default `gen_random_uuid()`)
 - `user_id` (uuid, references `auth.users.id`): Owner for RLS scoping.
 - `name` (text): Custom folder display name (`btrim(name)`, length `1..64`).
+- `parent_folder_id` (uuid, nullable): Parent custom folder id. `NULL` means the folder lives directly under the virtual `All Media` root.
 - `created_at` / `updated_at` (timestamptz, default now)
 - RLS: select/insert/update/delete allowed only when `user_id = auth.uid()`.
 - Integrity:
-  - Per-user case-insensitive uniqueness on folder name (`unique (user_id, lower(name))`).
+  - Sibling-scoped case-insensitive uniqueness on folder name (`unique (user_id, parent_folder_id, lower(name))`, with `NULL` parent representing root-level children of `All Media`).
   - `(id, user_id)` unique index is used by scoped membership foreign keys.
+  - `(parent_folder_id, user_id)` references `media_folders (id, user_id)` so parent ancestry is same-user only.
+  - Self-parenting is rejected.
+  - Recursive cycle guard trigger rejects folder hierarchies that would introduce ancestry loops.
 
 ### media_folder_media_items
 - `folder_id` (uuid, pk segment): References `media_folders.id` with cascade delete.
@@ -186,7 +190,8 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
 - RLS: select/insert/delete allowed only when `user_id = auth.uid()`.
 - Integrity:
   - Composite scoped FKs enforce same-user ownership for both folder and media row via `(folder_id, user_id)` and `(media_file_id, user_id)`.
-  - Supports multi-folder membership without deleting `media_files` on unassign.
+  - Current runtime still supports multi-folder membership without deleting `media_files` on unassign.
+  - Real nested hierarchy work now lives on `media_folders.parent_folder_id`; membership semantics remain a compatibility/runtime concern until the folder-contents cutover lands.
 
 ### media_folder_prompt_items
 - `folder_id` (uuid, pk segment): References `media_folders.id` with cascade delete.
@@ -196,7 +201,8 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
 - RLS: select/insert/delete allowed only when `user_id = auth.uid()`.
 - Integrity:
   - Composite scoped FKs enforce same-user ownership for both folder and prompt row via `(folder_id, user_id)` and `(prompt_id, user_id)`.
-  - Supports multi-folder membership without deleting `media_prompts` on unassign.
+  - Current runtime still supports multi-folder membership without deleting `media_prompts` on unassign.
+  - Real nested hierarchy work now lives on `media_folders.parent_folder_id`; prompt membership semantics remain a compatibility/runtime concern until the folder-contents cutover lands.
 
 ### ai_generations
 - `id` (uuid, pk, default `gen_random_uuid()`)

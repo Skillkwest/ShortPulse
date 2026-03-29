@@ -12,7 +12,7 @@ Define the authoritative AI Studio Media Library panel UX contract (`toolId: med
 - In scope:
   - AI Studio left-panel Media Library under `frontend/features/ai-studio/components/MediaLibraryPanel.tsx`.
   - `all_items` (`All Media`) master-folder semantics.
-  - Folder CRUD, membership operations, and drag/drop flows.
+  - Folder CRUD, hierarchy, membership operations, and drag/drop flows.
   - Cross-surface ingestion into Reference Grid, Quick Slot Inventory, and Canvas.
   - Folder-canvas interaction contract and persistence boundary.
 - Out of scope:
@@ -56,14 +56,21 @@ Define the authoritative AI Studio Media Library panel UX contract (`toolId: med
 2. `All Media` (`all_items`) is always visible, always first, and cannot be deleted or renamed.
 3. `All Media` is the master set for all saved media/prompt items owned by the user.
 
-### 2) Folder model and membership semantics
-1. Custom folders are organizational memberships only.
-2. Dragging an item from `All Media` into a custom folder assigns membership to that folder while preserving the `All Media` master item.
-3. Dragging an item from one custom folder to another custom folder moves membership from source to target.
-4. Dragging an item from a custom folder into `All Media` removes that custom-folder membership only.
-5. This model never creates duplicate underlying media/prompt rows for folder moves/assignments.
+### 2) Folder model and navigation semantics
+1. `All Media` is the virtual aggregate root and is never stored as a `media_folders` row.
+2. Custom folders are true structural containers and may reference a real parent folder.
+3. Breadcrumbs represent actual ancestry from `All Media` to the active folder.
+4. The back/up control moves to the active folder’s real parent.
+5. The folder strip shows direct children of the current folder only.
+6. The current folder never appears in its own child list.
 
-### 3) `all_media` display contract
+### 3) Item placement semantics
+1. `All Media` remains the aggregate master view across all user-owned media/prompt items.
+2. Folder navigation should not rely on creation-order proxies once real ancestry is active.
+3. Current membership APIs remain compatibility behavior until the folder-contents cutover lands.
+4. Folder moves/assignments must not create duplicate underlying media/prompt rows.
+
+### 4) `all_media` display contract
 1. `All Media` renders one root-level tab strip with three tabs:
    - `Images` tab: masonry grid preserving each image’s true aspect ratio.
    - `Videos` tab: masonry grid preserving each video’s true aspect ratio.
@@ -72,7 +79,7 @@ Define the authoritative AI Studio Media Library panel UX contract (`toolId: med
 3. `All Media` media tabs auto-load the next page when scrolling near the bottom, with one global footer control retained as manual fallback.
 4. Panel card previews may use balanced-fast image compaction for browse speed when adaptive media + panel compression flags are enabled; detail modal stays full-quality.
 
-### 4) Drag/drop and ingest contract
+### 5) Drag/drop and ingest contract
 1. Users can drag images, videos, and prompts from any folder into any folder (subject to membership semantics above).
 2. Users can drag images, videos, and prompts from any Media Library folder into:
    - Reference Grid,
@@ -81,25 +88,27 @@ Define the authoritative AI Studio Media Library panel UX contract (`toolId: med
 3. Drag interactions must show a visible drag ghost image for tactile feedback.
 4. Internal Reference Grid -> Media Library drops remain supported through `text/reference-*` payload resolution.
 
-### 5) Right-click behaviors
+### 6) Right-click behaviors
 1. Right-clicking media (image/video) in `All Media` sends that media to the Reference Grid.
 2. For folder-canvas spaces, right-clicking media sends a copy to Reference Grid (source item remains in the folder canvas).
 3. Double-clicking media (image/video) in `All Media` opens a preview-only detail modal (no ingest side effects).
 
-### 6) Deletion behavior
+### 7) Deletion behavior
 1. Deleting a custom folder removes that folder and its memberships; master items remain in `All Media`.
-2. Removing an item from a custom folder removes only that folder membership.
-3. Deleting an item from `All Media` permanently deletes it from the Media Library and Supabase storage/metadata.
-4. Root delete actions initiated from the item `X` button require explicit confirm/cancel before mutation.
+2. Once nested folders are active, delete behavior must follow explicit subtree policy instead of silent leaf-only assumptions.
+3. Removing an item from a custom folder removes only that folder membership.
+4. Deleting an item from `All Media` permanently deletes it from the Media Library and Supabase storage/metadata.
+5. Root delete actions initiated from the item `X` button require explicit confirm/cancel before mutation.
 
-### 7) Folder-canvas spaces
-1. Each user-created folder owns a unique canvas space.
-2. Each folder canvas has independent scene and camera state.
-3. Folder-canvas state persists durably by `user + folder` across sessions.
-4. Folder canvases follow main-canvas interaction constraints (marquee-select/zoom/place media/double-click text, with pan on `Space` + drag or middle-mouse drag).
-5. Because drag and pan overlap in canvas contexts, holding `Shift` while clicking/dragging enables drag-export.
+### 8) Folder-canvas spaces
+1. Folder-canvas is a secondary domain and must not define the core folder-navigation mental model.
+2. If retained, each user-created folder owns a unique canvas space.
+3. Each folder canvas has independent scene and camera state.
+4. Folder-canvas state persists durably by `user + folder` across sessions.
+5. Folder canvases follow main-canvas interaction constraints (marquee-select/zoom/place media/double-click text, with pan on `Space` + drag or middle-mouse drag).
+6. Because drag and pan overlap in canvas contexts, holding `Shift` while clicking/dragging enables drag-export.
 
-### 8) `All Media` completeness policy
+### 9) `All Media` completeness policy
 1. `All Media` should include durable user-scoped media represented by `media_files` rows.
 2. Durable storage path classes targeted for backfill:
    - `<uid>/private/images/*` -> `source=private_upload`, `file_type=image`
@@ -115,6 +124,7 @@ Define the authoritative AI Studio Media Library panel UX contract (`toolId: med
 
 ## Server Contract Invariants
 - `all_items` is virtual root and cannot be passed as a mutation target to `/api/media/folders/membership-batch`.
+- Real folder ancestry is carried by `media_folders.parent_folder_id`; same-user parent ownership, sibling-scoped uniqueness, self-parent rejection, and cycle prevention are enforced in the database contract.
 - `membership-batch` supports `assign`, `unassign`, and `move` actions with ownership validation.
 - Character-scoped media (`<uid>/characters/%`) is excluded from Media Library list APIs when `SHORTPULSE_MEDIA_LIBRARY_EXCLUDE_CHARACTER_SCOPE=true`.
 - Folder membership/move APIs must reject character-scoped media ids (`409`) to prevent cross-surface coupling drift.
@@ -147,29 +157,33 @@ Define the authoritative AI Studio Media Library panel UX contract (`toolId: med
    - Status: Partially aligned.
    - Current: Custom folders mount dedicated canvas spaces with durable per-folder snapshot persistence (`user + folder`) and right-click/Shift-drag export behavior.
    - Gap: Folder-canvas linked-item removal currently follows canvas delete/selection interactions; dedicated explicit remove controls are deferred.
-9. Folder-strip hierarchy proxy:
+9. Folder hierarchy foundation:
+   - Status: Backend aligned, UI cutover pending.
+   - Current: `media_folders` now carries explicit `parent_folder_id` ancestry with sibling-scoped uniqueness and cycle prevention.
+   - Gap: The AI Studio panel still uses a proxy folder-strip navigation model and has not yet cut over to real breadcrumb/child-folder traversal.
+10. Folder-strip hierarchy proxy:
    - Status: Partially aligned.
    - Current: The folder strip uses folder creation order as the current nesting proxy; when a deeper folder is selected, older/higher-level folders are hidden while the current folder stays visible as the active level, and later-created folders remain visible to the right. Breadcrumb + back-caret navigation still handle moving upward.
-10. `All Media` completeness backfill:
+11. `All Media` completeness backfill:
    - Status: Pending rollout.
    - Current: Backfill and diagnostics exist in SQL (`064` + drift check) but require environment application/runbook execution to converge legacy missing rows.
-11. `All Media` panel preview compaction activation:
+12. `All Media` panel preview compaction activation:
    - Status: Aligned.
    - Current: Adaptive panel compaction activates when either `media-library-grid` or `media-library-modal-grid` adaptive surface is enabled, with default surface fallback including both media-library surfaces when the allowlist env is unset/blank.
-12. Browser-blocked URL persistence fallback:
+13. Browser-blocked URL persistence fallback:
    - Status: Aligned.
    - Current: `POST /api/media/copy-from-url` provides authenticated trusted-host server-side URL fetch/persist fallback when browser media fetch is blocked by CORS/security/network conditions.
    - Current: generated AI Studio saves fail closed unless the output already has a durable `generationId`; server copy no longer downgrades generated media into weakly linked library rows.
-13. Signed preview delivery for media-library card surfaces:
+14. Signed preview delivery for media-library card surfaces:
    - Status: Aligned.
    - Current: Route/modal/panel card previews use Supabase signed URLs with surface-aware preview-profile telemetry, do not route signed object URLs through `/_next/image`, and keep signed transforms dual-flag gated (disabled by default). The AI Studio panel now owns a panel-specific signing budget (`4/4/4` desktop, `3/3/3` small-screen, `2/2/2` constrained) instead of borrowing the modal budget. `/api/media/sign-batch` now batches untransformed paths through Supabase multi-signing while preserving per-item signing for transform-backed image paths.
-14. Derivative worker pipeline for image thumbs:
+15. Derivative worker pipeline for image thumbs:
    - Status: In rollout.
    - Current: `065`/`066` add media derivative retry/lease controls and service-role claim/update RPCs, with worker route `POST /api/internal/media-derivatives/run` generating `thumb_240`/`thumb_480` variant rows and promoting `media_files.thumb_variant_path` on success.
-15. Character-scope containment in Media Library APIs:
+16. Character-scope containment in Media Library APIs:
    - Status: Aligned.
    - Current: `POST /api/media/list` excludes character-scoped rows by default (`SHORTPULSE_MEDIA_LIBRARY_EXCLUDE_CHARACTER_SCOPE=true`) and folder membership/move routes reject character-scoped media ids with deterministic `409` responses.
-16. Media Library panel expand affordance:
+17. Media Library panel expand affordance:
    - Status: Aligned.
    - Current: The root saved-media count row includes a small expand control that expands the left panel to its maximum practical shell width and snaps the folder/reference split to its maximum top height for a larger media browsing viewport.
 
@@ -217,3 +231,4 @@ Define the authoritative AI Studio Media Library panel UX contract (`toolId: med
 - `docs/adr/0035-media-library-all-media-completeness-and-preview-contract.md`
 - `docs/adr/0037-media-library-supabase-first-derivative-worker-and-claim-rpcs.md`
 - `docs/adr/0038-ai-studio-media-library-all-media-inline-tabs.md`
+- `docs/adr/0052-ai-studio-media-library-real-folder-hierarchy-foundation.md`

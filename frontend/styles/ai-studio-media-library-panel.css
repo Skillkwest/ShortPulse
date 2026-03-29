@@ -110,6 +110,7 @@
 .media-library-panel-folder-chip-name {
   width: 84px;
   text-align: center;
+  font-size: 11px;
   line-height: 1.2;
   color: rgba(209, 222, 246, 0.84);
   overflow: hidden;

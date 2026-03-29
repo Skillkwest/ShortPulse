@@ -3,7 +3,7 @@
  * Computes bounds/defaults for the properties-vs-reference split layout.
  */
 
-export const AI_SHELL_LEFT_MIN_PX = 540;
+export const AI_SHELL_LEFT_MIN_PX = 640;
 export const AI_SHELL_LEFT_EXPERT_CREATE_MIN_PX = 840;
 export const AI_SHELL_LEFT_EXPERT_EDIT_MIN_PX = 930;
 export const AI_SHELL_LEFT_EXPERT_CREATE_MAX_PX = 1000;

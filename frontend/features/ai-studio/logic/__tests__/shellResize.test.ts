@@ -89,7 +89,7 @@ describe("clampAiShellLeftWidth", () => {
 
 describe("getDefaultAiShellLeftWidth", () => {
   it("computes a clamped ratio-based default", () => {
-    expect(getDefaultAiShellLeftWidth(1500)).toBe(600);
+    expect(getDefaultAiShellLeftWidth(1500)).toBe(AI_SHELL_LEFT_MIN_PX);
     expect(getDefaultAiShellLeftWidth(900)).toBe(clampAiShellLeftWidth(900 * 0.4, 900));
   });
 

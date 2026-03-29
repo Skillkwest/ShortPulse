@@ -5,6 +5,7 @@ import {
   applyFolderMembershipBatch,
   isCustomMediaFolderId,
   MEDIA_LIBRARY_ROOT_FOLDER_ID,
+  moveMediaFolderForUser,
   sanitizeMediaFolderName,
   sanitizeMediaFolderParentId,
 } from "../mediaFoldersService";
@@ -232,6 +233,63 @@ const createBatchInput = (
   ...overrides,
 });
 
+const createSupabaseMoveMock = ({
+  folderExists = true,
+  parentExists = true,
+  currentParentFolderId = null as string | null,
+  updateError = null as { message?: string | null; code?: string | null } | null,
+  updatedParentFolderId = TARGET_FOLDER_ID,
+} = {}) => {
+  const selectMaybeSingleMock = vi
+    .fn()
+    .mockResolvedValueOnce({
+      data: folderExists ? { id: SOURCE_FOLDER_ID, parent_folder_id: currentParentFolderId } : null,
+      error: null,
+    })
+    .mockResolvedValueOnce({
+      data: parentExists ? { id: updatedParentFolderId } : null,
+      error: null,
+    });
+  const updateMaybeSingleMock = vi.fn().mockResolvedValue({
+    data: updateError
+      ? null
+      : {
+          id: SOURCE_FOLDER_ID,
+          user_id: "user-1",
+          name: "Folder A",
+          parent_folder_id: updatedParentFolderId,
+          created_at: "2026-03-01T00:00:00.000Z",
+          updated_at: "2026-03-02T00:00:00.000Z",
+        },
+    error: updateError,
+  });
+
+  const supabaseMock = {
+    from: vi.fn(() => ({
+      select: vi.fn(() => ({
+        eq: vi.fn(() => ({
+          eq: vi.fn(() => ({
+            maybeSingle: selectMaybeSingleMock,
+          })),
+        })),
+      })),
+      update: vi.fn(() => ({
+        eq: vi.fn(() => ({
+          eq: vi.fn(() => ({
+            select: vi.fn(() => ({
+              maybeSingle: updateMaybeSingleMock,
+            })),
+          })),
+        })),
+      })),
+    })),
+  };
+
+  getSupabaseAdminMock.mockReturnValue(
+    supabaseMock as unknown as ReturnType<typeof getSupabaseAdmin>
+  );
+};
+
 describe("mediaFoldersService helpers", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -261,6 +319,49 @@ describe("mediaFoldersService helpers", () => {
       "2d6fc803-2289-47a9-9a07-063ebf2eec4f"
     );
     expect(sanitizeMediaFolderParentId("not-a-folder")).toBeUndefined();
+  });
+
+  it("returns null when moving a missing folder", async () => {
+    createSupabaseMoveMock({ folderExists: false });
+
+    await expect(
+      moveMediaFolderForUser({
+        userId: "user-1",
+        folderId: SOURCE_FOLDER_ID,
+        parentFolderId: TARGET_FOLDER_ID,
+      })
+    ).resolves.toBeNull();
+  });
+
+  it("moves a folder to a new owned parent", async () => {
+    createSupabaseMoveMock();
+
+    await expect(
+      moveMediaFolderForUser({
+        userId: "user-1",
+        folderId: SOURCE_FOLDER_ID,
+        parentFolderId: TARGET_FOLDER_ID,
+      })
+    ).resolves.toMatchObject({
+      id: SOURCE_FOLDER_ID,
+      parent_folder_id: TARGET_FOLDER_ID,
+    });
+  });
+
+  it("maps hierarchy trigger failures to a deterministic error", async () => {
+    createSupabaseMoveMock({
+      updateError: {
+        message: "Folder hierarchy cannot contain cycles",
+      },
+    });
+
+    await expect(
+      moveMediaFolderForUser({
+        userId: "user-1",
+        folderId: SOURCE_FOLDER_ID,
+        parentFolderId: TARGET_FOLDER_ID,
+      })
+    ).rejects.toThrow("Invalid folder hierarchy");
   });
 
   it("rejects membership batch when any media/prompt id is not owned by the user", async () => {

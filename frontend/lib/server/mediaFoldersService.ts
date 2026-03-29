@@ -11,6 +11,8 @@ const FOLDER_ID_REGEX =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 type DbErrorLike = { code?: string | null; message?: string | null };
+const MEDIA_FOLDER_SELECT_COLUMNS =
+  "id, user_id, name, parent_folder_id, created_at, updated_at" as const;
 
 export type MediaFolderRow = {
   id: string;
@@ -85,6 +87,15 @@ export const sanitizeMediaFolderParentId = (value: unknown): string | null | und
 const isUniqueViolation = (error: unknown): boolean => {
   const dbError = error as DbErrorLike;
   return dbError?.code === "23505";
+};
+
+const isHierarchyConflict = (error: unknown): boolean => {
+  const dbError = error as DbErrorLike;
+  const message = dbError?.message?.toLowerCase() ?? "";
+  return (
+    message.includes("folder cannot be its own parent") ||
+    message.includes("folder hierarchy cannot contain cycles")
+  );
 };
 
 const assertOwnedFolderExists = async ({
@@ -181,7 +192,7 @@ export const listMediaFoldersForUser = async (userId: string): Promise<MediaFold
   const supabaseAdmin = getSupabaseAdmin();
   const { data, error } = await supabaseAdmin
     .from("media_folders")
-    .select("id, user_id, name, parent_folder_id, created_at, updated_at")
+    .select(MEDIA_FOLDER_SELECT_COLUMNS)
     .eq("user_id", userId)
     .order("created_at", { ascending: true })
     .order("id", { ascending: true });
@@ -227,7 +238,7 @@ export const createMediaFolderForUser = async ({
       created_at: timestamp,
       updated_at: timestamp,
     })
-    .select("id, user_id, name, parent_folder_id, created_at, updated_at")
+    .select(MEDIA_FOLDER_SELECT_COLUMNS)
     .maybeSingle();
 
   if (error) {
@@ -264,7 +275,7 @@ export const renameMediaFolderForUser = async ({
     })
     .eq("id", folderId)
     .eq("user_id", userId)
-    .select("id, user_id, name, parent_folder_id, created_at, updated_at")
+    .select(MEDIA_FOLDER_SELECT_COLUMNS)
     .maybeSingle();
 
   if (error) {
@@ -272,6 +283,91 @@ export const renameMediaFolderForUser = async ({
       throw new Error("Folder name already exists");
     }
     throw new Error(error.message || "Failed to rename folder");
+  }
+
+  return (data as MediaFolderRow | null) ?? null;
+};
+
+/**
+ * Moves a custom folder to a new parent.
+ */
+export const moveMediaFolderForUser = async ({
+  userId,
+  folderId,
+  parentFolderId,
+}: {
+  userId: string;
+  folderId: string;
+  parentFolderId: string | null;
+}): Promise<MediaFolderRow | null> => {
+  const supabaseAdmin = getSupabaseAdmin();
+  if (!isCustomMediaFolderId(folderId)) {
+    throw new Error("Invalid folder id");
+  }
+  if (parentFolderId != null && !isCustomMediaFolderId(parentFolderId)) {
+    throw new Error("Invalid parent folder id");
+  }
+  if (parentFolderId === folderId) {
+    throw new Error("Folder cannot be its own parent");
+  }
+
+  const { data: folderRow, error: folderError } = await supabaseAdmin
+    .from("media_folders")
+    .select("id, parent_folder_id")
+    .eq("id", folderId)
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (folderError) {
+    throw new Error(folderError.message || "Failed to load folder");
+  }
+  if (!folderRow) {
+    return null;
+  }
+  const currentParentFolderId =
+    typeof (folderRow as Record<string, unknown>).parent_folder_id === "string"
+      ? ((folderRow as Record<string, unknown>).parent_folder_id as string).trim() || null
+      : null;
+  if (currentParentFolderId === parentFolderId) {
+    const { data: existingRow, error: existingError } = await supabaseAdmin
+      .from("media_folders")
+      .select(MEDIA_FOLDER_SELECT_COLUMNS)
+      .eq("id", folderId)
+      .eq("user_id", userId)
+      .maybeSingle();
+    if (existingError) {
+      throw new Error(existingError.message || "Failed to load folder");
+    }
+    return (existingRow as MediaFolderRow | null) ?? null;
+  }
+
+  if (parentFolderId) {
+    await assertOwnedFolderExists({
+      supabaseAdmin,
+      userId,
+      folderId: parentFolderId,
+      missingMessage: "Parent folder not found",
+    });
+  }
+
+  const { data, error } = await supabaseAdmin
+    .from("media_folders")
+    .update({
+      parent_folder_id: parentFolderId,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", folderId)
+    .eq("user_id", userId)
+    .select(MEDIA_FOLDER_SELECT_COLUMNS)
+    .maybeSingle();
+
+  if (error) {
+    if (isUniqueViolation(error)) {
+      throw new Error("Folder name already exists");
+    }
+    if (isHierarchyConflict(error)) {
+      throw new Error("Invalid folder hierarchy");
+    }
+    throw new Error(error.message || "Failed to move folder");
   }
 
   return (data as MediaFolderRow | null) ?? null;

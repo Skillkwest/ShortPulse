@@ -297,6 +297,44 @@ export const renameMediaFolder = async ({
 };
 
 /**
+ * Moves a folder to a new parent.
+ */
+export const moveMediaFolder = async ({
+  folderId,
+  parentFolderId,
+}: {
+  folderId: string;
+  parentFolderId: string | null;
+}): Promise<MediaFolder> => {
+  const response = await fetchWithAuth("/api/media/folders/move", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ folderId, parentFolderId }),
+    shortpulseLogScope: "app",
+  });
+  if (!response.ok) {
+    const payload = asRecord(await response.json().catch(() => ({})));
+    throw new Error(asString(payload.error) || "Unable to move folder.");
+  }
+  const payload = asRecord(await response.json().catch(() => ({})));
+  const folder = asRecord(payload.folder);
+  const id = asString(folder.id);
+  const folderName = asString(folder.name);
+  if (!id || !folderName) {
+    throw new Error("Unable to move folder.");
+  }
+  return {
+    id,
+    name: folderName,
+    parentFolderId: folder.parentFolderId == null ? null : asString(folder.parentFolderId) || null,
+    createdAt: asString(folder.createdAt),
+    updatedAt: asString(folder.updatedAt),
+  };
+};
+
+/**
  * Deletes a folder.
  */
 export const deleteMediaFolder = async (folderId: string): Promise<void> => {

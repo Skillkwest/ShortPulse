@@ -34,6 +34,7 @@ Define the authoritative AI Studio Media Library panel UX contract (`toolId: med
 - Server endpoints:
   - `frontend/pages/api/media/folders/list.ts`
   - `frontend/pages/api/media/folders/create.ts`
+  - `frontend/pages/api/media/folders/move.ts`
   - `frontend/pages/api/media/folders/rename.ts`
   - `frontend/pages/api/media/folders/delete.ts`
   - `frontend/pages/api/media/folders/membership-batch.ts`
@@ -125,6 +126,7 @@ Define the authoritative AI Studio Media Library panel UX contract (`toolId: med
 ## Server Contract Invariants
 - `all_items` is virtual root and cannot be passed as a mutation target to `/api/media/folders/membership-batch`.
 - Real folder ancestry is carried by `media_folders.parent_folder_id`; same-user parent ownership, sibling-scoped uniqueness, self-parent rejection, and cycle prevention are enforced in the database contract.
+- `/api/media/folders/move` reparents one user-owned custom folder under a new optional parent (`null` = `All Media` root) and must reject cross-user parents, sibling-name conflicts, self-parenting, and cyclic ancestry.
 - `membership-batch` supports `assign`, `unassign`, and `move` actions with ownership validation.
 - Character-scoped media (`<uid>/characters/%`) is excluded from Media Library list APIs when `SHORTPULSE_MEDIA_LIBRARY_EXCLUDE_CHARACTER_SCOPE=true`.
 - Folder membership/move APIs must reject character-scoped media ids (`409`) to prevent cross-surface coupling drift.
@@ -159,7 +161,7 @@ Define the authoritative AI Studio Media Library panel UX contract (`toolId: med
    - Gap: Folder-canvas linked-item removal currently follows canvas delete/selection interactions; dedicated explicit remove controls are deferred.
 9. Folder hierarchy foundation:
    - Status: Backend aligned, UI cutover pending.
-   - Current: `media_folders` now carries explicit `parent_folder_id` ancestry with sibling-scoped uniqueness and cycle prevention.
+   - Current: `media_folders` now carries explicit `parent_folder_id` ancestry with sibling-scoped uniqueness, cycle prevention, and a reparent API (`/api/media/folders/move`).
    - Gap: The AI Studio panel still uses a proxy folder-strip navigation model and has not yet cut over to real breadcrumb/child-folder traversal.
 10. Folder-strip hierarchy proxy:
    - Status: Partially aligned.

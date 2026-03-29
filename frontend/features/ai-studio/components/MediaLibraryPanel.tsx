@@ -811,7 +811,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
     <section className="media-library-panel" aria-label="Media library panel">
       <header className="media-library-panel-header">
         <div className="media-library-panel-header-title-group">
-          <p className="eyebrow">Media Library</p>
+          <p className="eyebrow">Media</p>
         </div>
         <label className="media-library-panel-project-name-field">
           <span className="sr-only">Project name</span>

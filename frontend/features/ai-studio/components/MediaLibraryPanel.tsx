@@ -797,7 +797,6 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
       <header className="media-library-panel-header">
         <div>
           <p className="eyebrow">Media Library</p>
-          <p className="tiny subdued helper-text">Drag references to the grid.</p>
         </div>
       </header>
 

@@ -228,9 +228,11 @@
   display: flex;
   flex-direction: column;
   align-items: stretch;
+  justify-content: flex-start;
   gap: 0;
   width: 104px;
   min-width: 104px;
+  min-height: calc(12px * 1.1 * 2);
   padding: 0;
   border: 0;
   border-radius: 0;
@@ -238,6 +240,7 @@
 }
 
 .media-library-panel-folder-chip-input {
+  display: block;
   width: 100%;
   border: 0;
   background: transparent;
@@ -245,8 +248,13 @@
   font-size: 12px;
   line-height: 1.1;
   text-align: center;
+  margin: 0;
+  font-family: inherit;
+  font-weight: 400;
   padding: 0;
   box-shadow: none;
+  appearance: none;
+  -webkit-appearance: none;
 }
 
 .media-library-panel-folder-chip-input:focus {

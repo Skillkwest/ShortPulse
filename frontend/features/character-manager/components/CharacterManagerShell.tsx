@@ -81,10 +81,7 @@ const CHARACTER_CHIP_AVATAR_SIZE = 44;
 const CHARACTER_DESCRIPTION_MAX_LENGTH = 150;
 const CHARACTER_DESCRIPTION_HELPER_TEXT =
   "Tip: Character description will be used as part of consistency generation.";
-const CHARACTER_REFERENCES_HELPER_TEXT =
-  "These are the exact reference images sent to the model for character training and consistency generation.";
-const CHARACTER_LIBRARY_PANEL_TITLE = "Characters Library";
-const CHARACTER_LIBRARY_PANEL_HELPER_TEXT = "Create and manage character references.";
+const CHARACTER_LIBRARY_PANEL_TITLE = "Characters";
 const DEFAULT_REFERENCE_PREVIEW_ASPECT_RATIO = 4 / 5;
 const DEFAULT_PLAN_TIER = "business";
 const DND_REFERENCE_SLOT_KEY = "application/x-shortpulse-reference-slot-key";
@@ -659,41 +656,70 @@ export function CharacterManagerShell({
         {isEmbeddedSurface ? (
           <header className="character-library-panel-header">
             <p className="eyebrow">{CHARACTER_LIBRARY_PANEL_TITLE}</p>
-            <p className="tiny subdued helper-text">{CHARACTER_LIBRARY_PANEL_HELPER_TEXT}</p>
+            <div
+              className="character-mode-tab-row character-mode-tab-row--embedded-header"
+              role="tablist"
+              aria-label="Character workflow mode"
+            >
+              <button
+                type="button"
+                role="tab"
+                aria-selected={activeTab === "manage"}
+                className={`character-mode-tab character-mode-tab--manage ${
+                  activeTab === "manage" ? "is-active" : ""
+                }`}
+                onClick={() => setActiveTab("manage")}
+              >
+                Manage Characters
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={activeTab === "create"}
+                className={`character-mode-tab character-mode-tab--profile ${
+                  activeTab === "create" ? "is-active" : ""
+                }`}
+                onClick={() => setActiveTab("create")}
+              >
+                Character Profile
+              </button>
+            </div>
           </header>
         ) : null}
         <div className="character-mode-row">
           {!isEmbeddedSurface ? (
             <DashboardNavPrefab variant="inline" className="character-mode-dashboard-link" />
           ) : null}
-          <div
-            className="character-mode-tab-row"
-            role="tablist"
-            aria-label="Character workflow mode"
-          >
-            <button
-              type="button"
-              role="tab"
-              aria-selected={activeTab === "manage"}
-              className={`character-mode-tab character-mode-tab--manage ${
-                activeTab === "manage" ? "is-active" : ""
-              }`}
-              onClick={() => setActiveTab("manage")}
+          {!isEmbeddedSurface ? (
+            <div
+              className="character-mode-tab-row"
+              role="tablist"
+              aria-label="Character workflow mode"
             >
-              Manage Characters
-            </button>
-            <button
-              type="button"
-              role="tab"
-              aria-selected={activeTab === "create"}
-              className={`character-mode-tab character-mode-tab--profile ${
-                activeTab === "create" ? "is-active" : ""
-              }`}
-              onClick={() => setActiveTab("create")}
-            >
-              Character Profile
-            </button>
-          </div>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={activeTab === "manage"}
+                className={`character-mode-tab character-mode-tab--manage ${
+                  activeTab === "manage" ? "is-active" : ""
+                }`}
+                onClick={() => setActiveTab("manage")}
+              >
+                Manage Characters
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={activeTab === "create"}
+                className={`character-mode-tab character-mode-tab--profile ${
+                  activeTab === "create" ? "is-active" : ""
+                }`}
+                onClick={() => setActiveTab("create")}
+              >
+                Character Profile
+              </button>
+            </div>
+          ) : null}
           {activeTab === "create" && !isEmbeddedSurface && showBeginnerModeToggle ? (
             <div className="toolbar-beginner-toggle character-mode-beginner-toggle">
               <div className="toolbar-beginner-copy">
@@ -713,13 +739,6 @@ export function CharacterManagerShell({
                 </span>
               </button>
             </div>
-          ) : null}
-          {activeTab === "create" && !isEmbeddedSurface ? (
-            <p className="character-mode-guidance" role="note">
-              <span className="character-mode-guidance-label">Tip:</span>
-              Swap out your character&apos;s style on the fly by dragging and dropping references
-              from the QuickSwap Deck into the Character References.
-            </p>
           ) : null}
           {activeTab === "manage" && !isEmbeddedSurface ? (
             <button
@@ -928,10 +947,6 @@ export function CharacterManagerShell({
                       ) : null}
                       <div className="character-section-title-copy">
                         <h3 className="character-section-title">Character Sheet</h3>
-                        <p className="character-section-helper tiny subdued">
-                          Drag or upload references into each slot. These images are used to train
-                          your character generations.
-                        </p>
                       </div>
                     </div>
                   </div>
@@ -1147,10 +1162,11 @@ export function CharacterManagerShell({
                     />
                     <div className="character-sheet-references-title-row character-profile-fields character-profile-fields--label-serif">
                       <p className="input-label">Character References:</p>
-                      <p className="character-sheet-references-helper tiny subdued">
-                        {CHARACTER_REFERENCES_HELPER_TEXT}
-                      </p>
                     </div>
+                    <p className="character-sheet-references-helper tiny subdued">
+                      Drag or upload references into each slot. These images are used to train your
+                      character generations.
+                    </p>
                     <div className="character-reference-empty-grid">
                       {CHARACTER_SHEET_DROP_ZONES.map((dropZone) => {
                         const assignedReference =
@@ -1252,15 +1268,6 @@ export function CharacterManagerShell({
                     </div>
                   </div>
                 </section>
-              }
-              panelGuidance={
-                isEmbeddedSurface && !isQuickSwapTipHidden ? (
-                  <p className="character-mode-guidance character-mode-guidance--sheet" role="note">
-                    <span className="character-mode-guidance-label">Tip:</span>
-                    Swap out your character&apos;s style on the fly by dragging and dropping
-                    references from the QuickSwap Deck into the Character References.
-                  </p>
-                ) : undefined
               }
             />
           )}

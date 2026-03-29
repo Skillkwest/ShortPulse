@@ -1831,7 +1831,7 @@ describe("CharacterManagerShell behavior", () => {
   });
 
   it("persists hidden QuickSwap guidance once the deck reaches four rows", async () => {
-    quickSwapDeckMockState.initialActiveItems = createQuickSwapItems(11);
+    quickSwapDeckMockState.initialActiveItems = createQuickSwapItems(12);
 
     render(<CharacterManagerShell surface="panel" beginnerModeOverride={false} />);
 
@@ -1987,7 +1987,7 @@ describe("CharacterManagerShell behavior", () => {
     });
   });
 
-  it("keeps helper text and tips visible in expert mode while hiding numbered badges", async () => {
+  it("keeps helper text visible in expert mode while hiding numbered badges", async () => {
     render(<CharacterManagerShell />);
 
     expect(document.querySelectorAll(".character-step-badge")).toHaveLength(2);
@@ -2001,10 +2001,7 @@ describe("CharacterManagerShell behavior", () => {
         "Drag or upload references into each slot. These images are used to train your character generations."
       )
     ).toBeInTheDocument();
-    expect(document.querySelector(".character-mode-guidance")).toBeInTheDocument();
-    expect(document.querySelector(".character-mode-guidance")).toHaveTextContent(
-      /Swap out your character's style on the fly by dragging and dropping references from the QuickSwap Deck into the Character References\./i
-    );
+    expect(document.querySelector(".character-mode-guidance")).toBeNull();
     expect(
       screen.getByText("Tip: Character description will be used as part of consistency generation.")
     ).toBeInTheDocument();
@@ -2023,7 +2020,6 @@ describe("CharacterManagerShell behavior", () => {
           "Drag or upload references into each slot. These images are used to train your character generations."
         )
       ).toBeInTheDocument();
-      expect(document.querySelector(".character-mode-guidance")).toBeInTheDocument();
       expect(
         screen.getByText(
           "Tip: Character description will be used as part of consistency generation."
@@ -2045,10 +2041,7 @@ describe("CharacterManagerShell behavior", () => {
           "Drag or upload references into each slot. These images are used to train your character generations."
         )
       ).toBeInTheDocument();
-      expect(document.querySelector(".character-mode-guidance")).toBeInTheDocument();
-      expect(document.querySelector(".character-mode-guidance")).toHaveTextContent(
-        /Swap out your character's style on the fly by dragging and dropping references from the QuickSwap Deck into the Character References\./i
-      );
+      expect(document.querySelector(".character-mode-guidance")).toBeNull();
       expect(
         screen.getByText(
           "Tip: Character description will be used as part of consistency generation."

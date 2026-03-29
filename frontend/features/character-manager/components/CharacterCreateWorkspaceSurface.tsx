@@ -10,13 +10,9 @@ type CharacterCreateWorkspaceSurfaceProps = {
   surface: CharacterManagerShellSurface;
   quickSwap: React.ReactNode;
   characterSheet: React.ReactNode;
-  panelGuidance?: React.ReactNode;
 };
 
-type CharacterCreateWorkspaceLayoutProps = Omit<
-  CharacterCreateWorkspaceSurfaceProps,
-  "surface" | "panelGuidance"
->;
+type CharacterCreateWorkspaceLayoutProps = Omit<CharacterCreateWorkspaceSurfaceProps, "surface">;
 
 function CharacterCreateWorkspacePage({
   quickSwap,
@@ -28,20 +24,8 @@ function CharacterCreateWorkspacePage({
 function CharacterCreateWorkspacePanel({
   quickSwap,
   characterSheet,
-  panelGuidance,
-}: CharacterCreateWorkspaceLayoutProps &
-  Pick<CharacterCreateWorkspaceSurfaceProps, "panelGuidance">) {
-  return (
-    <CharacterCreateWorkspaceLayout
-      quickSwap={
-        <>
-          {quickSwap}
-          {panelGuidance}
-        </>
-      }
-      characterSheet={characterSheet}
-    />
-  );
+}: CharacterCreateWorkspaceLayoutProps) {
+  return <CharacterCreateWorkspaceLayout quickSwap={quickSwap} characterSheet={characterSheet} />;
 }
 
 /**
@@ -51,16 +35,9 @@ export function CharacterCreateWorkspaceSurface({
   surface,
   quickSwap,
   characterSheet,
-  panelGuidance,
 }: CharacterCreateWorkspaceSurfaceProps) {
   if (surface === "panel") {
-    return (
-      <CharacterCreateWorkspacePanel
-        quickSwap={quickSwap}
-        characterSheet={characterSheet}
-        panelGuidance={panelGuidance}
-      />
-    );
+    return <CharacterCreateWorkspacePanel quickSwap={quickSwap} characterSheet={characterSheet} />;
   }
 
   return <CharacterCreateWorkspacePage quickSwap={quickSwap} characterSheet={characterSheet} />;

@@ -944,23 +944,7 @@ describe("MediaLibraryPanel", () => {
     expect(screen.queryByRole("tablist", { name: "All Media type tabs" })).not.toBeInTheDocument();
   });
 
-  it("preserves panel scroll position after custom-folder refresh flows", async () => {
-    const deferredRefresh = createDeferred<{
-      rows: Array<{
-        id: string;
-        filename: string;
-        storage_path: string;
-        preview_storage_path: string;
-        file_type: string;
-        source: string;
-        created_at: string;
-        metadata: null;
-        signedUrl: string;
-      }>;
-      nextCursor: null;
-      hasMore: boolean;
-      signedById: Map<string, string>;
-    }>();
+  it("removes custom-folder prompt membership without forcing a list refresh", async () => {
     const mediaRowsPayload = {
       rows: [
         {
@@ -980,38 +964,12 @@ describe("MediaLibraryPanel", () => {
       signedById: new Map<string, string>(),
     };
     fetchMediaListPageMock.mockReset();
-    fetchMediaListPageMock
-      .mockResolvedValueOnce(mediaRowsPayload)
-      .mockResolvedValueOnce(mediaRowsPayload)
-      .mockImplementationOnce(async () => deferredRefresh.promise);
+    fetchMediaListPageMock.mockResolvedValue(mediaRowsPayload);
 
-    const { container } = render(
-      <MediaLibraryPanel onSelectMedia={vi.fn()} onSelectPrompt={vi.fn()} />
-    );
+    render(<MediaLibraryPanel onSelectMedia={vi.fn()} onSelectPrompt={vi.fn()} />);
 
     await waitFor(() => {
       expect(screen.getByRole("button", { name: "Campaign folder" })).toBeInTheDocument();
-    });
-
-    const scrollContainer = container.querySelector(".media-library-panel-body") as HTMLElement;
-    expect(scrollContainer).toBeTruthy();
-
-    let scrollTopValue = 740;
-    const scrollHeightValue = 2600;
-    Object.defineProperty(scrollContainer, "clientHeight", {
-      configurable: true,
-      value: 560,
-    });
-    Object.defineProperty(scrollContainer, "scrollHeight", {
-      configurable: true,
-      get: () => scrollHeightValue,
-    });
-    Object.defineProperty(scrollContainer, "scrollTop", {
-      configurable: true,
-      get: () => scrollTopValue,
-      set: (value: number) => {
-        scrollTopValue = value;
-      },
     });
 
     fireEvent.click(screen.getByRole("button", { name: "Campaign folder" }));
@@ -1028,17 +986,12 @@ describe("MediaLibraryPanel", () => {
         promptIds: ["prompt-1"],
       });
     });
-
-    // Simulate the browser snapping to top while rows are being refreshed.
-    scrollTopValue = 0;
-
-    await act(async () => {
-      deferredRefresh.resolve(mediaRowsPayload);
-    });
-
     await waitFor(() => {
-      expect(scrollTopValue).toBe(740);
+      expect(
+        screen.queryByRole("button", { name: "Remove prompt Prompt One" })
+      ).not.toBeInTheDocument();
     });
+    expect(fetchMediaListPageMock).toHaveBeenCalledTimes(2);
   });
 
   it("uploads desktop files dropped on a folder tile and assigns them to that folder", async () => {
@@ -1508,7 +1461,6 @@ describe("MediaLibraryPanel", () => {
       resolveCreate?.({
         id: "folder-created-3",
         name: "New Folder",
-        parentFolderId: null,
         createdAt: "2026-03-03T00:00:00.000Z",
         updatedAt: "2026-03-03T00:00:00.000Z",
       });
@@ -1542,7 +1494,8 @@ describe("MediaLibraryPanel", () => {
         name: "Campaign Assets",
       });
     });
-    expect(screen.getByRole("button", { name: "Campaign Assets folder" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Campaign Assets" })).toBeInTheDocument();
+    expect(screen.getAllByText("Campaign Assets")).toHaveLength(2);
     expect(screen.queryByRole("button", { name: "Rename active folder" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Delete active folder" })).not.toBeInTheDocument();
   });

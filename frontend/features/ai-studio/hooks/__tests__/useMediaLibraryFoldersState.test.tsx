@@ -54,8 +54,8 @@ describe("useMediaLibraryFoldersState", () => {
         "Newer",
       ]);
     });
-    expect(result.current.orderedFolders.map((folder) => folder.name)).toEqual([
-      "All Media",
+    expect(result.current.activeFolderName).toBe("All Media");
+    expect(result.current.visibleFolders.map((folder) => folder.name)).toEqual([
       "Older",
       "Middle",
       "Newer",

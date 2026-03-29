@@ -33,6 +33,11 @@ vi.mock("../../../../lib/supabaseClient", () => ({
       onAuthStateChange: () => ({ data: { subscription: { unsubscribe: () => undefined } } }),
     },
   }),
+  useSupabaseSessionState: () => ({
+    user: null,
+    session: null,
+    initialized: true,
+  }),
 }));
 
 vi.mock("../../hooks/useCharacterManagerDraft", () => ({
@@ -146,12 +151,11 @@ describe("CharacterManagerShell layout", () => {
     expect(screen.getByRole("heading", { name: "Character Sheet" })).toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Identity" })).not.toBeInTheDocument();
 
-    const guidance = container.querySelector(".character-mode-guidance");
     const quickSwapRegion = container.querySelector("[data-layout-region='quickswap']");
     const sheetRegion = container.querySelector("[data-layout-region='sheet']");
 
-    expect(guidance).toBeInTheDocument();
-    expect(guidance?.closest("[data-layout-region]")).toBe(quickSwapRegion);
+    expect(container.querySelector(".character-mode-guidance")).toBeNull();
+    expect(quickSwapRegion).toBeInTheDocument();
     expect(sheetRegion?.querySelector(".character-mode-guidance")).toBeNull();
   });
 

@@ -33,6 +33,11 @@ vi.mock("../../../../lib/supabaseClient", () => ({
       onAuthStateChange: () => ({ data: { subscription: { unsubscribe: () => undefined } } }),
     },
   }),
+  useSupabaseSessionState: () => ({
+    user: null,
+    session: null,
+    initialized: true,
+  }),
 }));
 
 vi.mock("../../hooks/useCharacterManagerDraft", () => ({
@@ -121,10 +126,5 @@ describe("CharacterManagerShell copy", () => {
     render(<CharacterManagerShell />);
 
     expect(screen.getByRole("heading", { name: "Character Sheet" })).toBeInTheDocument();
-    expect(
-      screen.getByText(
-        "These are the exact reference images sent to the model for character training and consistency generation."
-      )
-    ).toBeInTheDocument();
   });
 });

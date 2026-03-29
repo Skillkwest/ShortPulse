@@ -76,9 +76,9 @@ const clampReferencePreviewAspectRatio = (value: number | null | undefined): num
 };
 
 const resolveInitialQuickSwapGridColumnCount = (): number => {
-  if (typeof window === "undefined") return 3;
-  if (typeof window.matchMedia !== "function") return 3;
-  return window.matchMedia("(max-width: 860px)").matches ? 2 : 3;
+  if (typeof window === "undefined") return 4;
+  if (typeof window.matchMedia !== "function") return 4;
+  return window.matchMedia("(max-width: 860px)").matches ? 2 : 4;
 };
 
 const resolveInitialQuickSwapArchiveGridColumnCount = (): number => {
@@ -135,7 +135,7 @@ export const useCharacterManagerShellViewState = ({
     const mediaQuery = window.matchMedia("(max-width: 860px)");
     const archiveMediaQuery = window.matchMedia("(max-width: 900px)");
     const applyColumnCount = () => {
-      setQuickSwapGridColumnCount(mediaQuery.matches ? 2 : 3);
+      setQuickSwapGridColumnCount(mediaQuery.matches ? 2 : 4);
       setQuickSwapArchiveGridColumnCount(archiveMediaQuery.matches ? 2 : 4);
     };
     applyColumnCount();

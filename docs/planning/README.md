@@ -217,7 +217,7 @@ Purpose: active planning artifacts and current execution backlogs.
 - `adaptive-media-v2-migration-checklist.md`: staged migration checklist for adaptive-media v2 parity cutover across AI Studio, Media Library, and Character surfaces.
 - `media-optimization-phase0-measurement-spec.md`: baseline instrumentation, dataset profiles, and phase gates for media performance.
 - `media-optimization-schema-and-migration-spec.md`: proposed schema/storage migration design for derivative-first media delivery.
-- `ai-studio-primary-character-panel-build-plan.md`: execution plan for embedding the Character Manager workflow body into AI Studio's primary Character toolbar panel.
+- `ai-studio-primary-character-panel-build-plan.md`: execution plan for making the AI Studio Character panel the primary management surface, with Media Library-informed image-performance guidance.
 - `ai-studio-shell-render-isolation-v3-plan.md`: selector-store + shell-boundary isolation execution and rollout plan for 50-60 reference shell responsiveness.
 - `expert-workflow-hardening-css-reorg-plan.md`: execution tracker for expert workflow hardening and expert CSS reorganization.
 - `tooling-audit-2026-02-16.md`: comprehensive tooling and framework audit with prioritized recommendations for masonry layout, image optimization, DnD, toasts, lightbox, date formatting, state management, and schema validation.

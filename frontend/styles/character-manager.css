@@ -48,7 +48,7 @@ body.character-manager-body {
 }
 
 .character-manager-header-right {
-  --header-card-height: 82px;
+  --header-card-height: 72px;
   margin-left: auto;
   display: flex;
   align-items: center;
@@ -68,11 +68,49 @@ body.character-manager-body {
   place-items: center;
   color: inherit;
   text-decoration: none;
+  border: 1px solid rgba(201, 205, 214, 0.52);
+  background: linear-gradient(
+    135deg,
+    rgba(31, 35, 40, 0.98) 0%,
+    rgba(201, 205, 214, 0.1) 54%,
+    rgba(201, 205, 214, 0.17) 100%
+  );
+  box-shadow:
+    0 0 0 2px rgba(201, 205, 214, 0.24),
+    0 6px 14px rgba(0, 0, 0, 0.32),
+    inset 0 0 0 1px rgba(201, 205, 214, 0.22),
+    inset 0 1px 0 rgba(201, 205, 214, 0.14);
+  transition:
+    transform 0.16s ease,
+    border-color 0.16s ease,
+    box-shadow 0.16s ease,
+    background 0.16s ease;
 }
 
 .character-manager-profile-link:focus-visible {
-  outline: 2px solid rgba(201, 205, 214, 0.55);
-  outline-offset: 2px;
+  outline: none;
+  border-color: rgba(201, 205, 214, 0.7);
+  box-shadow:
+    0 0 0 2px rgba(201, 205, 214, 0.32),
+    0 0 0 5px rgba(201, 205, 214, 0.12),
+    0 8px 18px rgba(0, 0, 0, 0.34),
+    inset 0 0 0 1px rgba(201, 205, 214, 0.24),
+    inset 0 1px 0 rgba(201, 205, 214, 0.16);
+}
+
+.character-manager-profile-link:hover {
+  transform: translateY(-2px);
+  border-color: rgba(201, 205, 214, 0.36);
+  background: linear-gradient(
+    135deg,
+    rgba(28, 32, 37, 0.98) 0%,
+    rgba(201, 205, 214, 0.05) 58%,
+    rgba(201, 205, 214, 0.12) 100%
+  );
+  box-shadow:
+    0 9px 20px rgba(0, 0, 0, 0.32),
+    0 4px 12px rgba(201, 205, 214, 0.12),
+    0 0 0 1px rgba(201, 205, 214, 0.14);
 }
 
 .character-mode-create-btn {
@@ -225,38 +263,17 @@ body.character-manager-body {
 }
 
 .character-mode-tab-row {
+  --character-mode-tab-width: 156px;
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  width: 25%;
-  max-width: 440px;
+  grid-auto-flow: column;
+  grid-auto-columns: var(--character-mode-tab-width);
+  width: fit-content;
+  max-width: none;
   margin-right: auto;
   gap: 10px;
-}
-
-.character-mode-guidance {
-  margin: 0 0 0 10px;
-  max-width: 420px;
-  display: inline-flex;
   align-items: center;
-  gap: 8px;
-  min-height: 40px;
-  padding: 8px 12px;
-  border-radius: 999px;
-  border: 1px solid rgba(43, 232, 121, 0.5);
-  background: linear-gradient(135deg, rgba(11, 88, 46, 0.42), rgba(9, 55, 29, 0.4));
-  line-height: 1.35;
-  font-size: 0.8rem;
-  font-style: italic;
-  color: rgba(116, 255, 169, 0.96);
-  box-shadow:
-    0 8px 18px rgba(7, 143, 64, 0.22),
-    inset 0 1px 0 rgba(171, 255, 209, 0.36);
-}
-
-.character-mode-guidance-label {
-  color: rgba(116, 255, 169, 0.96);
-  font-weight: 800;
-  letter-spacing: 0.01em;
+  justify-content: start;
+  flex: 0 0 auto;
 }
 
 .character-manager-page[data-beginner-mode="off"] .character-step-badge {
@@ -264,14 +281,19 @@ body.character-manager-body {
 }
 
 .character-mode-tab {
-  border: 1px solid rgba(201, 205, 214, 0.2);
-  background: rgba(201, 205, 214, 0.06);
-  color: #dce6f6;
+  border: 1px solid rgba(201, 205, 214, 0.14);
+  background: rgba(201, 205, 214, 0.035);
+  color: rgba(214, 220, 228, 0.72);
   border-radius: 999px;
-  min-height: 42px;
+  min-height: 38px;
+  width: 100%;
+  min-width: 0;
+  padding-inline: 12px;
   font-weight: 700;
   letter-spacing: 0.01em;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
   transition:
+    background 0.25s cubic-bezier(0.4, 0, 0.2, 1),
     border-color 0.18s ease,
     color 0.18s ease,
     box-shadow 0.18s ease,
@@ -279,8 +301,29 @@ body.character-manager-body {
 }
 
 .character-mode-tab:hover {
-  border-color: rgba(43, 232, 134, 0.34);
+  border-color: rgba(201, 205, 214, 0.22);
+  background: rgba(201, 205, 214, 0.06);
+  color: rgba(228, 233, 239, 0.84);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.05),
+    0 1px 0 rgba(0, 0, 0, 0.2);
   cursor: pointer;
+}
+
+.character-mode-tab.is-active {
+  border-color: rgba(201, 205, 214, 0.52);
+  background: linear-gradient(
+    135deg,
+    rgba(31, 35, 40, 0.98) 0%,
+    rgba(201, 205, 214, 0.1) 54%,
+    rgba(201, 205, 214, 0.17) 100%
+  );
+  color: #f4f8fc;
+  box-shadow:
+    0 0 0 2px rgba(201, 205, 214, 0.24),
+    0 6px 14px rgba(0, 0, 0, 0.32),
+    inset 0 0 0 1px rgba(201, 205, 214, 0.22),
+    inset 0 1px 0 rgba(201, 205, 214, 0.14);
 }
 
 .character-section {
@@ -308,7 +351,7 @@ body.character-manager-body {
 .character-sheet-preset-tab-row {
   --character-preset-inactive-bg: rgba(201, 205, 214, 0.03);
   --character-preset-active-border: rgba(93, 223, 255, 0.78);
-  --character-preset-tab-width: clamp(108px, 12vw, 152px);
+  --character-preset-tab-width: clamp(96px, 10vw, 128px);
   display: flex;
   align-items: flex-end;
   flex: 1 1 auto;
@@ -317,7 +360,7 @@ body.character-manager-body {
   max-width: 100%;
   min-width: 0;
   margin: 0;
-  padding: 8px 8px 0;
+  padding: 6px 8px 0;
   border-radius: 14px 14px 0 0;
   border: 0;
   background: #0e0f13b8;
@@ -342,7 +385,7 @@ body.character-manager-body {
   max-width: 100%;
   min-width: 0;
   flex: 1 1 auto;
-  padding-top: 2px;
+  padding-top: 1px;
   overflow-x: auto;
   overflow-y: hidden;
   scrollbar-width: none;
@@ -373,7 +416,7 @@ body.character-manager-body {
   width: var(--character-preset-tab-width);
   min-width: var(--character-preset-tab-width);
   max-width: var(--character-preset-tab-width);
-  padding-top: 8px;
+  padding-top: 6px;
 }
 
 .character-sheet-preset-tab {
@@ -383,7 +426,7 @@ body.character-manager-body {
   isolation: isolate;
   width: 100%;
   min-width: 0;
-  min-height: 42px;
+  min-height: 38px;
   padding: 0 12px;
   border: 1px solid rgba(201, 205, 214, 0);
   border-bottom-color: rgba(201, 205, 214, 0);
@@ -897,7 +940,7 @@ body.character-manager-body {
   line-height: 1.16;
   font-weight: 500;
   letter-spacing: 0.015em;
-  color: rgba(206, 216, 227, 0.66);
+  color: var(--ai-accent);
 }
 
 .character-profile-fields.character-profile-fields--label-serif .input-label {
@@ -905,7 +948,7 @@ body.character-manager-body {
   font-size: clamp(0.9rem, 0.86rem + 0.28vw, 1.02rem);
   font-weight: 400;
   letter-spacing: 0.08em;
-  color: rgba(206, 216, 227, 0.58);
+  color: var(--ai-accent);
   margin-bottom: 3px;
 }
 
@@ -920,7 +963,7 @@ body.character-manager-body {
   font-weight: 500;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: rgba(206, 216, 227, 0.62);
+  color: var(--ai-accent);
 }
 
 .character-profile-adjuster {
@@ -1238,7 +1281,7 @@ body.character-manager-body {
 }
 
 .character-quickswap-active-scroll {
-  --character-quickswap-columns: 3;
+  --character-quickswap-columns: 4;
   --character-quickswap-visible-rows: 4;
   --character-quickswap-grid-gap: 4px;
   --character-quickswap-max-height-cap: 62vh;
@@ -1356,8 +1399,8 @@ body.character-manager-body {
 
 .character-sheet-references-title-row {
   display: grid;
-  gap: 4px;
-  margin: 8px 0 12px;
+  gap: 2px;
+  margin: 2px 0 4px;
 }
 
 .character-sheet-references-title-row .input-label {
@@ -1365,9 +1408,12 @@ body.character-manager-body {
 }
 
 .character-sheet-references-helper {
-  margin: 0;
-  color: rgba(206, 216, 227, 0.5);
-  line-height: 1.45;
+  margin: 0 0 16px;
+  color: rgba(142, 154, 167, 0.38);
+  line-height: 1.25;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.001em;
 }
 
 .character-character-sheet-card {
@@ -1502,7 +1548,7 @@ body.character-manager-body {
 }
 
 .character-reference-upload-grid--drop-card {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(var(--character-quickswap-columns), minmax(0, 1fr));
   gap: 4px;
   justify-items: center;
 }
@@ -2572,16 +2618,15 @@ body.character-manager-body {
   }
 
   .character-mode-tab-row {
-    grid-template-columns: 1fr;
     width: 100%;
     max-width: none;
     min-width: 0;
     margin-right: 0;
-  }
-
-  .character-mode-guidance {
-    margin: 0;
-    max-width: none;
+    display: grid;
+    flex: 1 1 auto;
+    grid-auto-flow: row;
+    grid-template-columns: 1fr;
+    grid-auto-columns: initial;
   }
 
   .character-section-head {
@@ -2657,15 +2702,16 @@ body.character-manager-body {
 
 @media (max-width: 860px) {
   .character-sheet-preset-tab-row {
-    --character-preset-tab-width: 96px;
+    --character-preset-tab-width: 92px;
     gap: 6px;
     padding-left: 6px;
     padding-right: 6px;
+    padding-top: 5px;
   }
 
   .character-sheet-preset-tab {
     min-width: var(--character-preset-tab-width);
-    min-height: 40px;
+    min-height: 36px;
     font-size: 12px;
     padding-inline: 10px;
   }

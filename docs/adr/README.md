@@ -64,3 +64,4 @@ ADRs capture **important, durable decisions** so the repo stays coherent as it g
 - `docs/adr/0049-ai-studio-right-rail-surface-ownership-and-media-resolution-contract.md`
 - `docs/adr/0051-generation-pipeline-lifecycle-state-machine-service.md`
 - `docs/adr/0052-ai-studio-media-library-real-folder-hierarchy-foundation.md`
+- `docs/adr/0053-ai-studio-character-surface-ownership-and-image-performance-contract.md`

@@ -365,6 +365,17 @@ describe("AiStudioPageContent right column drop router", () => {
     expect(screen.getByRole("button", { name: "Styles visibility" })).toBeInTheDocument();
   });
 
+  it("hides the canvas header shortcut when the character properties panel is open", () => {
+    render(<AiStudioPageContent {...createProps({ selectedTool: "character" })} />);
+
+    const shortcutButtons = within(screen.getByLabelText("AI Studio header shortcuts"));
+    expect(shortcutButtons.queryByRole("button", { name: "Canvas" })).not.toBeInTheDocument();
+    expect(
+      shortcutButtons.getByRole("button", { name: "Quick Slot Inventory" })
+    ).toBeInTheDocument();
+    expect(shortcutButtons.getByRole("button", { name: "Reference Grid" })).toBeInTheDocument();
+  });
+
   it("disables the quick-slot toggle when curated split is unavailable", () => {
     render(<AiStudioPageContent {...createProps({ selectedTool: "create" })} />);
     const shortcutButtons = within(screen.getByLabelText("AI Studio header shortcuts"));
@@ -472,14 +483,12 @@ describe("AiStudioPageContent right column drop router", () => {
     );
 
     const shortcutButtons = within(screen.getByLabelText("AI Studio header shortcuts"));
-    const canvasButton = shortcutButtons.getByRole("button", { name: "Canvas" });
     const quickSlotButton = shortcutButtons.getByRole("button", { name: "Quick Slot Inventory" });
     const referenceGridButton = shortcutButtons.getByRole("button", { name: "Reference Grid" });
 
-    expect(canvasButton).toBeDisabled();
+    expect(shortcutButtons.queryByRole("button", { name: "Canvas" })).not.toBeInTheDocument();
     expect(quickSlotButton).not.toBeDisabled();
     expect(referenceGridButton).not.toBeDisabled();
-    expect(canvasButton).toHaveAttribute("aria-pressed", "false");
     expect(quickSlotButton).toHaveAttribute("aria-pressed", "true");
     expect(referenceGridButton).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByTestId("reference-grid")).toHaveAttribute("data-panel-canvas", "hidden");

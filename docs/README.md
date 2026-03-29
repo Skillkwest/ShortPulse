@@ -26,6 +26,7 @@ Start here for all repository documentation.
 - `docs/architecture-overview.md`
 - `docs/frontend-architecture.md`
 - `docs/styles-structure.md`
+- `docs/adr/README.md`
 - `docs/prefabs.md`
 - `docs/routes.md`
 - `docs/local-development.md`

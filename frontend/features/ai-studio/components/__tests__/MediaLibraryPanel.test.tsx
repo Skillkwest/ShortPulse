@@ -1407,6 +1407,10 @@ describe("MediaLibraryPanel", () => {
     await waitFor(() => {
       expect(createMediaFolderMock).toHaveBeenCalledWith("New Folder", "folder-parent");
     });
+    expect(screen.getByDisplayValue("New Folder")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Parent" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "New Folder" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Go to parent folder" })).toBeInTheDocument();
   });
 
   it("retries with an incremented folder name when the default collides", async () => {

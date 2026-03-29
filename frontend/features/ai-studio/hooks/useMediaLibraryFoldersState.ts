@@ -215,7 +215,6 @@ export const useMediaLibraryFoldersState = (): UseMediaLibraryFoldersStateResult
             );
             return [...withoutPending, folder];
           });
-          setActiveFolderId(folder.id);
           setEditingFolderId(folder.id);
           setEditingFolderName(folder.name);
           return;

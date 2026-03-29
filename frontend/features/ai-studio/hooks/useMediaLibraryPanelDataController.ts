@@ -8,7 +8,7 @@ import { fetchMediaPromptListPage, type PromptListCursor } from "../logic/mediaL
 import { toMediaLibraryErrorText } from "../logic/mediaLibraryErrorText";
 import type { MediaFileRow, PromptRow } from "../logic/mediaLibraryModalModel";
 
-type MediaLibraryPanelItemType = "all" | "images" | "videos" | "prompts";
+type MediaLibraryPanelItemType = "all" | "images" | "videos" | "audio" | "prompts";
 
 type UseMediaLibraryPanelDataControllerParams = {
   activeFolderId: string;

@@ -54,8 +54,8 @@ import { MediaLibraryPanelPreviewModal } from "./media-library-modal/MediaLibrar
 import { MediaLibraryPromptGrid } from "./media-library-modal/MediaLibraryPromptGrid";
 import { AiStudioModalLayer, useAiStudioModalActivity } from "./modal-layer/AiStudioModalLayer";
 
-type MediaLibraryPanelItemType = "all" | "images" | "videos" | "prompts";
-type RootMediaLibraryTab = "all" | "images" | "videos" | "prompts";
+type MediaLibraryPanelItemType = "all" | "images" | "videos" | "audio" | "prompts";
+type RootMediaLibraryTab = "all" | "images" | "videos" | "audio" | "prompts";
 
 type FolderContextMenuState = {
   folderId: string;
@@ -154,7 +154,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
   });
 
   const normalizedSearch = "";
-  const shouldShowMedia = itemType !== "prompts";
+  const shouldShowMedia = itemType !== "prompts" && itemType !== "audio";
   const shouldShowPrompts = itemType === "prompts" || (!isRootFolderSelected && itemType === "all");
   const showFolderCanvas =
     activeFolderId !== MEDIA_LIBRARY_ROOT_FOLDER_ID && shouldShowMedia && shouldShowPrompts;
@@ -907,6 +907,16 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
                   <button
                     type="button"
                     role="tab"
+                    className={`media-library-panel-root-tab${rootTab === "audio" ? " is-active" : ""}`}
+                    aria-selected={rootTab === "audio"}
+                    aria-controls="media-library-panel-audio-section"
+                    onClick={() => setRootTab("audio")}
+                  >
+                    Audio
+                  </button>
+                  <button
+                    type="button"
+                    role="tab"
                     className={`media-library-panel-root-tab${rootTab === "prompts" ? " is-active" : ""}`}
                     aria-selected={rootTab === "prompts"}
                     aria-controls="media-library-panel-prompts-section"
@@ -990,6 +1000,14 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
             {!showFolderCanvas && shouldShowPrompts && isRootFolderSelected
               ? renderPromptsSection()
               : null}
+
+            {!showFolderCanvas && isRootFolderSelected && itemType === "audio" ? (
+              <section className="media-library-panel-section">
+                <div id="media-library-panel-audio-section">
+                  <p className="tiny subdued">Audio browsing is not available yet.</p>
+                </div>
+              </section>
+            ) : null}
 
             {!showFolderCanvas && shouldShowMedia && isRootFolderSelected ? (
               <section

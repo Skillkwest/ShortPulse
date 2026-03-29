@@ -1298,7 +1298,7 @@ describe("MediaLibraryPanel", () => {
     expect(latestCanvasProps?.promptRows.map((row) => row.id)).toEqual(["prompt-folder-1"]);
   });
 
-  it("switches All Media root tabs between all media, images, videos, and prompts", async () => {
+  it("switches All Media root tabs between all media, images, videos, audio, and prompts", async () => {
     render(<MediaLibraryPanel onSelectMedia={vi.fn()} onSelectPrompt={vi.fn()} />);
 
     await waitFor(() => {
@@ -1307,6 +1307,7 @@ describe("MediaLibraryPanel", () => {
       expect(screen.getByRole("tab", { name: "Prompts" })).toBeInTheDocument();
       expect(screen.getByRole("tab", { name: "Images" })).toBeInTheDocument();
       expect(screen.getByRole("tab", { name: "Videos" })).toBeInTheDocument();
+      expect(screen.getByRole("tab", { name: "Audio" })).toBeInTheDocument();
       expect(screen.getByRole("button", { name: "Select media ref-1.png" })).toBeInTheDocument();
       expect(screen.getByRole("button", { name: "Select media clip-1.mp4" })).toBeInTheDocument();
     });
@@ -1356,6 +1357,20 @@ describe("MediaLibraryPanel", () => {
         folderId: "all_items",
       })
     );
+
+    fireEvent.click(screen.getByRole("tab", { name: "Audio" }));
+    await waitFor(() => {
+      expect(screen.getByText("Audio browsing is not available yet.")).toBeInTheDocument();
+    });
+    expect(
+      screen.queryByRole("button", { name: "Select media ref-1.png" })
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Select media clip-1.mp4" })
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Select prompt Prompt One" })
+    ).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("tab", { name: "Prompts" }));
     await waitFor(() => {

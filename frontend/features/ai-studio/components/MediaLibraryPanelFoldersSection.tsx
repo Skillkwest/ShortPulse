@@ -1,6 +1,7 @@
 import React from "react";
 import { CaretLeft, CaretRight, Folders, Plus } from "phosphor-react";
 import { AiStudioModalLayer } from "./modal-layer/AiStudioModalLayer";
+import { MEDIA_LIBRARY_ROOT_FOLDER_ID } from "../logic/mediaLibraryPanelApi";
 
 const FOLDER_TILE_IMAGE_SRC = "/Folder 1.png";
 const ROOT_FOLDER_LABEL = "All Media";
@@ -78,7 +79,13 @@ export function MediaLibraryPanelFoldersSection({
   onContextRename,
   onContextDelete,
 }: MediaLibraryPanelFoldersSectionProps) {
-  const visibleFolders = folders.filter((folder) => folder.id !== activeFolderId);
+  const activeFolderIndex = folders.findIndex((folder) => folder.id === activeFolderId);
+  const visibleFolders =
+    activeFolderId === MEDIA_LIBRARY_ROOT_FOLDER_ID
+      ? folders.filter((folder) => folder.id !== activeFolderId)
+      : activeFolderIndex < 0
+        ? folders.filter((folder) => folder.id !== activeFolderId)
+        : folders.slice(activeFolderIndex);
 
   return (
     <>

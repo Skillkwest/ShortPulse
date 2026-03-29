@@ -1473,6 +1473,45 @@ describe("MediaLibraryPanel", () => {
     expect(screen.getByDisplayValue("New Folder")).toBeInTheDocument();
   });
 
+  it("hides higher-level folders when navigating into a newer folder", async () => {
+    listMediaFoldersMock.mockResolvedValueOnce([
+      {
+        id: "folder-older",
+        name: "Older",
+        createdAt: "2026-03-01T00:00:00.000Z",
+        updatedAt: "2026-03-01T00:00:00.000Z",
+      },
+      {
+        id: "folder-active",
+        name: "Active",
+        createdAt: "2026-03-02T00:00:00.000Z",
+        updatedAt: "2026-03-02T00:00:00.000Z",
+      },
+      {
+        id: "folder-newer",
+        name: "Newer",
+        createdAt: "2026-03-03T00:00:00.000Z",
+        updatedAt: "2026-03-03T00:00:00.000Z",
+      },
+    ]);
+
+    render(<MediaLibraryPanel onSelectMedia={vi.fn()} onSelectPrompt={vi.fn()} />);
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Older folder" })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Active folder" })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Newer folder" })).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Active folder" }));
+
+    await waitFor(() => {
+      expect(screen.queryByRole("button", { name: "Older folder" })).not.toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Active folder" })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Newer folder" })).toBeInTheDocument();
+    });
+  });
+
   it("retries with an incremented folder name when the default collides", async () => {
     createMediaFolderMock
       .mockRejectedValueOnce(new Error("Folder name already exists"))

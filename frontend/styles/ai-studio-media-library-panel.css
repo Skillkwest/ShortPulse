@@ -210,13 +210,9 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 2px 0 8px;
-  background: linear-gradient(
-    180deg,
-    rgba(16, 18, 22, 0.98) 0%,
-    rgba(16, 18, 22, 0.98) 72%,
-    rgba(16, 18, 22, 0) 100%
-  );
+  padding: 8px 0 12px;
+  background: rgba(16, 18, 22, 0.98);
+  border-bottom: 1px solid rgba(137, 156, 178, 0.12);
 }
 
 .media-library-panel-root-count {

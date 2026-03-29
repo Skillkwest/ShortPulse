@@ -89,7 +89,7 @@ export function MediaLibraryPanelFoldersSection({
               className="media-library-panel-folders-breadcrumb-button media-library-panel-folders-root-label"
               onClick={onNavigateToRoot}
             >
-              Media
+              {ROOT_FOLDER_LABEL}
             </button>
             <CaretRight
               className="media-library-panel-folders-breadcrumb-caret"

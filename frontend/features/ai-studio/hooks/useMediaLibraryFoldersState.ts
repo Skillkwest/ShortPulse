@@ -67,6 +67,19 @@ const toNormalizedFolderNames = (rows: MediaFolder[]): Set<string> => {
 const buildPendingFolderId = () =>
   `${TEMP_FOLDER_ID_PREFIX}${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 
+const folderSortKey = (folder: MediaFolder): number => {
+  const createdAt = Date.parse(folder.createdAt);
+  return Number.isFinite(createdAt) ? createdAt : Number.POSITIVE_INFINITY;
+};
+
+const compareFoldersByCreatedAt = (left: MediaFolder, right: MediaFolder): number => {
+  const createdDelta = folderSortKey(left) - folderSortKey(right);
+  if (createdDelta !== 0) return createdDelta;
+  const nameDelta = left.name.localeCompare(right.name, undefined, { sensitivity: "accent" });
+  if (nameDelta !== 0) return nameDelta;
+  return left.id.localeCompare(right.id, undefined, { sensitivity: "accent" });
+};
+
 type UseMediaLibraryFoldersStateResult = {
   folders: MediaFolder[];
   customFolders: MediaFolder[];
@@ -101,13 +114,7 @@ export const useMediaLibraryFoldersState = (): UseMediaLibraryFoldersStateResult
   const foldersRequestTokenRef = useRef(0);
   const creatingFolderInFlightRef = useRef(false);
 
-  const customFolders = useMemo(
-    () =>
-      [...folders].sort((a, b) =>
-        a.name.localeCompare(b.name, undefined, { sensitivity: "accent" })
-      ),
-    [folders]
-  );
+  const customFolders = useMemo(() => [...folders].sort(compareFoldersByCreatedAt), [folders]);
   const orderedFolders = useMemo(() => [ROOT_FOLDER, ...customFolders], [customFolders]);
 
   const refreshFolders = useCallback(async () => {

@@ -1,5 +1,5 @@
 import React from "react";
-import { CaretRight, Folders, Plus } from "phosphor-react";
+import { CaretLeft, CaretRight, Folders, Plus } from "phosphor-react";
 import { AiStudioModalLayer } from "./modal-layer/AiStudioModalLayer";
 
 const FOLDER_TILE_IMAGE_SRC = "/Folder 1.png";
@@ -21,6 +21,8 @@ type MediaLibraryPanelFoldersSectionProps = {
   activeFolderName: string;
   folders: FolderRow[];
   activeFolderId: string;
+  canNavigateUp: boolean;
+  onNavigateUp: () => void;
   setActiveFolderId: (folderId: string) => void;
   editingFolderId: string | null;
   editingFolderName: string;
@@ -50,6 +52,8 @@ export function MediaLibraryPanelFoldersSection({
   activeFolderName,
   folders,
   activeFolderId,
+  canNavigateUp,
+  onNavigateUp,
   setActiveFolderId,
   editingFolderId,
   editingFolderName,
@@ -89,6 +93,20 @@ export function MediaLibraryPanelFoldersSection({
           </span>
         </div>
         <div className="media-library-panel-folder-strip" role="list" aria-label="Media folders">
+          <div
+            className="media-library-panel-folder-strip-item media-library-panel-folder-strip-item--navigate-up"
+            role="listitem"
+          >
+            <button
+              type="button"
+              className="media-library-panel-folder-up-button"
+              aria-label="Go to parent folder"
+              onClick={onNavigateUp}
+              disabled={!canNavigateUp}
+            >
+              <CaretLeft size={16} weight="bold" aria-hidden />
+            </button>
+          </div>
           {folders.map((folder) => {
             const isActive = activeFolderId === folder.id;
             const isEditing = editingFolderId === folder.id;

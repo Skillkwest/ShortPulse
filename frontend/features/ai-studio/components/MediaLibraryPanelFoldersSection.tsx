@@ -1,6 +1,5 @@
 import React from "react";
 import { FolderSimple, Folders, MagnifyingGlass, Plus } from "phosphor-react";
-import { MEDIA_LIBRARY_ROOT_FOLDER_ID } from "../logic/mediaLibraryPanelApi";
 import { AiStudioModalLayer } from "./modal-layer/AiStudioModalLayer";
 
 type FolderRow = {
@@ -18,7 +17,7 @@ type FolderContextMenuState = {
 type MediaLibraryPanelFoldersSectionProps = {
   search: string;
   onSearchChange: (value: string) => void;
-  orderedFolders: FolderRow[];
+  folders: FolderRow[];
   activeFolderId: string;
   setActiveFolderId: (folderId: string) => void;
   editingFolderId: string | null;
@@ -48,7 +47,7 @@ type MediaLibraryPanelFoldersSectionProps = {
 export function MediaLibraryPanelFoldersSection({
   search,
   onSearchChange,
-  orderedFolders,
+  folders,
   activeFolderId,
   setActiveFolderId,
   editingFolderId,
@@ -91,8 +90,7 @@ export function MediaLibraryPanelFoldersSection({
           </span>
         </div>
         <div className="media-library-panel-folder-strip" role="list" aria-label="Media folders">
-          {orderedFolders.map((folder) => {
-            const isRoot = folder.id === MEDIA_LIBRARY_ROOT_FOLDER_ID;
+          {folders.map((folder) => {
             const isActive = activeFolderId === folder.id;
             const isEditing = editingFolderId === folder.id;
             return (
@@ -102,7 +100,7 @@ export function MediaLibraryPanelFoldersSection({
                   hoveredFolderId === folder.id ? "is-drop-hover" : ""
                 }`}
                 role="listitem"
-                onContextMenu={(event) => openFolderContextMenu(event, folder, isRoot)}
+                onContextMenu={(event) => openFolderContextMenu(event, folder, false)}
                 onDragOver={(event) => onFolderDragOver(folder.id, event)}
                 onDragLeave={() => onFolderDragLeave(folder.id)}
                 onDrop={(event) => {
@@ -117,7 +115,7 @@ export function MediaLibraryPanelFoldersSection({
                       onClick={() => setActiveFolderId(folder.id)}
                       aria-label={`${folder.name} folder`}
                     >
-                      <FolderSimple size={32} weight={isRoot ? "fill" : "regular"} aria-hidden />
+                      <FolderSimple size={32} weight="regular" aria-hidden />
                     </button>
                     <div className="media-library-panel-folder-chip-edit">
                       <input
@@ -148,14 +146,13 @@ export function MediaLibraryPanelFoldersSection({
                       onClick={() => setActiveFolderId(folder.id)}
                       aria-label={`${folder.name} folder`}
                     >
-                      <FolderSimple size={32} weight={isRoot ? "fill" : "regular"} aria-hidden />
+                      <FolderSimple size={32} weight="regular" aria-hidden />
                     </button>
                     <button
                       type="button"
                       className="media-library-panel-folder-chip-name tiny"
                       onClick={() => setActiveFolderId(folder.id)}
                       onDoubleClick={() => {
-                        if (isRoot) return;
                         startFolderRename(folder.id, folder.name);
                       }}
                       aria-label={`${folder.name} name`}

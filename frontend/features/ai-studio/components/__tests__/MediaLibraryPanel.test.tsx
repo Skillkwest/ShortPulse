@@ -417,9 +417,9 @@ describe("MediaLibraryPanel", () => {
     render(<MediaLibraryPanel onSelectMedia={onSelectMedia} onSelectPrompt={onSelectPrompt} />);
 
     await waitFor(() => {
-      expect(screen.getByRole("button", { name: "All Media folder" })).toBeInTheDocument();
       expect(screen.getByText("Campaign")).toBeInTheDocument();
     });
+    expect(screen.queryByRole("button", { name: "All Media folder" })).not.toBeInTheDocument();
     expect(
       screen.getByRole("separator", { name: "Resize folders and references sections" })
     ).toBeInTheDocument();

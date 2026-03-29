@@ -113,6 +113,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
   const panelSurfaceConfig = getMediaLibrarySurfaceConfig("panel");
   const {
     folders,
+    customFolders,
     orderedFolders,
     activeFolderId,
     setActiveFolderId,
@@ -817,7 +818,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
           <MediaLibraryPanelFoldersSection
             search={search}
             onSearchChange={setSearch}
-            orderedFolders={orderedFolders}
+            folders={customFolders}
             activeFolderId={activeFolderId}
             setActiveFolderId={setActiveFolderId}
             editingFolderId={editingFolderId}

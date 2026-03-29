@@ -521,6 +521,8 @@ export type AiStudioPageContentProps = {
   onDetailSavePrompt?: (promptText: string) => void;
   onAddLibraryMediaReference?: (payload: LibraryMediaReferencePayload) => void;
   onAddLibraryPromptReference?: (payload: LibraryPromptReferencePayload) => void;
+  projectName?: string | null;
+  onProjectNameCommit?: (value: string) => void;
   resolveMediaLibraryInternalDropItem?: (payload: InternalReferenceDragPayload) => Promise<{
     kind: "media" | "prompt";
     id: string;
@@ -591,6 +593,8 @@ export function AiStudioPageContent({
   onDetailSavePrompt,
   onAddLibraryMediaReference,
   onAddLibraryPromptReference,
+  projectName,
+  onProjectNameCommit,
   resolveMediaLibraryInternalDropItem,
   resolveStyleLibraryInternalDrop,
   resolveCanvasDropReference,
@@ -1102,6 +1106,8 @@ export function AiStudioPageContent({
         <MediaLibraryPanel
           onSelectMedia={onAddLibraryMediaReference}
           onSelectPrompt={onAddLibraryPromptReference}
+          projectName={projectName ?? null}
+          onProjectNameCommit={onProjectNameCommit}
           resolveInternalDropItem={resolveMediaLibraryInternalDropItem}
           resolveCanvasDropReference={resolveCanvasDropReference}
         />
@@ -1111,6 +1117,8 @@ export function AiStudioPageContent({
     [
       onAddLibraryMediaReference,
       onAddLibraryPromptReference,
+      onProjectNameCommit,
+      projectName,
       resolveCanvasDropReference,
       resolveMediaLibraryInternalDropItem,
     ]

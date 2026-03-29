@@ -442,6 +442,30 @@ describe("MediaLibraryPanel", () => {
     );
   });
 
+  it("renders and commits the project name field", async () => {
+    const onProjectNameCommit = vi.fn();
+    render(
+      <MediaLibraryPanel
+        onSelectMedia={vi.fn()}
+        onSelectPrompt={vi.fn()}
+        projectName="Campaign Alpha"
+        onProjectNameCommit={onProjectNameCommit}
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("Campaign")).toBeInTheDocument();
+    });
+
+    const input = screen.getByRole("textbox", { name: "Project name" });
+    expect(input).toHaveValue("Campaign Alpha");
+
+    fireEvent.change(input, { target: { value: "Launch Board" } });
+    fireEvent.blur(input);
+
+    expect(onProjectNameCommit).toHaveBeenCalledWith("Launch Board");
+  });
+
   it("routes all-media media right-click to onSelectMedia", async () => {
     const onSelectMedia = vi.fn();
     render(<MediaLibraryPanel onSelectMedia={onSelectMedia} onSelectPrompt={vi.fn()} />);

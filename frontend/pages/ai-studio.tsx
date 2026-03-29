@@ -49,6 +49,8 @@ import { useAiStudioPageOutputAdapters } from "../features/ai-studio/hooks/useAi
 import { useAiStudioPageUiNotices } from "../features/ai-studio/hooks/useAiStudioPageUiNotices";
 import { useAiStudioPageCreditDerivations } from "../features/ai-studio/hooks/useAiStudioPageCreditDerivations";
 import { useAiStudioPerfAuditRuntime } from "../features/ai-studio/hooks/useAiStudioPerfAuditRuntime";
+import { getAiStudioSessionSnapshotViaApi } from "../features/ai-studio/logic/sessionApiClient";
+import { resolveAiStudioSessionSnapshotTitle } from "../features/ai-studio/logic/sessionSnapshotTitle";
 import { AiStudioModalActivityProvider } from "../features/ai-studio/components/modal-layer/AiStudioModalLayer";
 import { isEditWorkflow } from "../features/ai-studio/logic/workflowIdentity";
 import type { StudioOutput, ToolId } from "../features/ai-studio/types";
@@ -68,6 +70,12 @@ const FLAG_REFERENCE_GRID_PRECONNECT_HINTS = PERF_FLAG_REFERENCE_GRID_PRECONNECT
 const FLAG_PERF_AUDIT_RUNTIME = PERF_FLAG_AUDIT_RUNTIME;
 
 type OptimisticDebitEntry = { credits: number; outputId: string | null; createdAtMs?: number };
+
+const normalizeAiStudioProjectName = (value: string | null | undefined): string | null => {
+  if (typeof value !== "string") return null;
+  const normalized = value.replace(/\s+/g, " ").trim();
+  return normalized ? normalized.slice(0, 120) : null;
+};
 
 export default function AiStudioPage() {
   const { sessionId } = useAiStudioSessionIdentity();
@@ -98,6 +106,7 @@ export default function AiStudioPage() {
   const [selectedStyleContext, setSelectedStyleContext] = useState<
     StudioOutput["styleContext"] | null
   >(null);
+  const [sessionTitleOverride, setSessionTitleOverride] = useState<string | null>(null);
   const [createCharacterModeInjectionBundle, setCreateCharacterModeInjectionBundle] =
     useState<CharacterModeInjectionBundle | null>(null);
   const [editCharacterModeInjectionBundle, setEditCharacterModeInjectionBundle] =
@@ -491,8 +500,9 @@ export default function AiStudioPage() {
     trackAgentUiEvent: trackUiEvent,
   });
 
-  useAiStudioPageSessionPersistence({
+  const { sessionSnapshot } = useAiStudioPageSessionPersistence({
     sessionId,
+    sessionTitleOverride,
     buildSessionSnapshot,
     agentMessages,
     agentInput,
@@ -505,6 +515,39 @@ export default function AiStudioPage() {
     hydrateSessionState,
     setUiNotice,
   });
+
+  useEffect(() => {
+    let cancelled = false;
+    setSessionTitleOverride(null);
+    if (!sessionId) return () => void 0;
+
+    void getAiStudioSessionSnapshotViaApi({ sessionId })
+      .then((payload) => {
+        if (cancelled) return;
+        setSessionTitleOverride((current) => {
+          if (current !== null) return current;
+          return normalizeAiStudioProjectName(payload?.title ?? null);
+        });
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setSessionTitleOverride(null);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [sessionId]);
+
+  const effectiveProjectName = useMemo(
+    () =>
+      sessionTitleOverride ??
+      (sessionSnapshot ? resolveAiStudioSessionSnapshotTitle(sessionSnapshot) : null),
+    [sessionSnapshot, sessionTitleOverride]
+  );
+  const handleProjectNameCommit = useCallback((value: string) => {
+    setSessionTitleOverride(normalizeAiStudioProjectName(value));
+  }, []);
 
   const triggerFilePicker = () => referenceGridFileInputRef.current?.click();
   const dismissError = () => setUiError(null);
@@ -976,6 +1019,8 @@ export default function AiStudioPage() {
         onDetailSavePrompt={onDetailSavePrompt}
         onAddLibraryMediaReference={addLibraryMediaReference}
         onAddLibraryPromptReference={addLibraryPromptReference}
+        projectName={effectiveProjectName}
+        onProjectNameCommit={handleProjectNameCommit}
         resolveMediaLibraryInternalDropItem={resolveMediaLibraryInternalDropItem}
         resolveStyleLibraryInternalDrop={resolveStyleLibraryInternalDrop}
         resolveCanvasDropReference={resolveCanvasDropReference}

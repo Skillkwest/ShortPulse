@@ -7,6 +7,7 @@ import type { AiStudioSessionSnapshot } from "../logic/sessionSnapshot";
 import type { AiStudioSessionHydrationPayload } from "../logic/sessionSnapshotHydrator";
 import { persistAiStudioSessionShadow } from "../logic/sessionShadowPersistence";
 import { readAiStudioSessionPersistencePolicy } from "../logic/sessionPersistencePolicy";
+import { resolveAiStudioSessionSnapshotTitle } from "../logic/sessionSnapshotTitle";
 import {
   useAiStudioSessionRestoreCandidate,
   type AiStudioSessionRestoreCandidateState,
@@ -20,6 +21,7 @@ import {
 type UseAiStudioSessionPersistenceControllerParams = {
   sessionId: string | null;
   buildSessionSnapshot: (sessionId: string) => AiStudioSessionSnapshot;
+  sessionTitleOverride?: string | null;
   hydrateFromSessionSnapshot: (
     snapshot: AiStudioSessionSnapshot
   ) => AiStudioSessionHydrationPayload;
@@ -72,6 +74,7 @@ const resolvePersistenceWarningMessage = (
 export const useAiStudioSessionPersistenceController = ({
   sessionId,
   buildSessionSnapshot,
+  sessionTitleOverride,
   hydrateFromSessionSnapshot,
   hydrateFromSessionAgentSnapshot,
   hydrateFromSessionCanvasSnapshot,
@@ -118,6 +121,8 @@ export const useAiStudioSessionPersistenceController = ({
     snapshot: sessionSnapshot,
     enabled: persistenceEnabled && writeShadowEnabled,
     persistSnapshot: persistAiStudioSessionShadow,
+    resolveSnapshotTitle: (snapshot) =>
+      sessionTitleOverride ?? resolveAiStudioSessionSnapshotTitle(snapshot),
     onPersistError: handlePersistError,
   });
 

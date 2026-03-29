@@ -72,6 +72,7 @@ export const useAiStudioSessionWriteShadow = ({
 }: UseAiStudioSessionWriteShadowArgs): void => {
   const pendingRef = useRef<PendingSnapshotState | null>(null);
   const lastSavedHashRef = useRef<string | null>(null);
+  const lastSavedTitleRef = useRef<string | null>(null);
   const lastSizeErrorHashRef = useRef<string | null>(null);
   const debounceTimerRef = useRef<ReturnType<typeof globalThis.setTimeout> | null>(null);
   const maxTimerRef = useRef<ReturnType<typeof globalThis.setTimeout> | null>(null);
@@ -109,6 +110,7 @@ export const useAiStudioSessionWriteShadow = ({
             })
           );
           lastSavedHashRef.current = pending.hash;
+          lastSavedTitleRef.current = pending.title;
         } catch (error) {
           pendingRef.current = pending;
           reportPersistError(
@@ -174,7 +176,12 @@ export const useAiStudioSessionWriteShadow = ({
       return;
     }
 
-    if (lastSavedHashRef.current === serializedSnapshot.hash) return;
+    if (
+      lastSavedHashRef.current === serializedSnapshot.hash &&
+      lastSavedTitleRef.current === serializedSnapshot.title
+    ) {
+      return;
+    }
 
     const pending = pendingRef.current;
     if (pending && pending.sessionId !== sessionId) {

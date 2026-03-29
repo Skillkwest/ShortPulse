@@ -78,6 +78,8 @@ type MediaLibraryPanelProps = {
     fullUrl?: string | null;
   }) => void;
   onSelectPrompt: (payload: { id: string; promptText: string; title?: string | null }) => void;
+  projectName?: string | null;
+  onProjectNameCommit?: (value: string) => void;
   resolveInternalDropItem?: (payload: InternalReferenceDragPayload) => Promise<{
     kind: "media" | "prompt";
     id: string;
@@ -106,6 +108,8 @@ const resolveSigningTab = (itemType: MediaLibraryPanelItemType): MediaDataTab =>
 export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
   onSelectMedia,
   onSelectPrompt,
+  projectName = null,
+  onProjectNameCommit,
   resolveInternalDropItem,
   resolveCanvasDropReference,
 }: MediaLibraryPanelProps) {
@@ -137,6 +141,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
   const [, setMembershipMessage] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
   const [folderContextMenu, setFolderContextMenu] = useState<FolderContextMenuState | null>(null);
+  const [projectNameDraft, setProjectNameDraft] = useState(projectName ?? "");
 
   const mediaDownloadInFlightRef = useRef<Record<string, boolean>>({});
 
@@ -146,6 +151,10 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
   const [optimizerFallbackMediaIds, setOptimizerFallbackMediaIds] = useState<Set<string>>(
     () => new Set()
   );
+
+  useEffect(() => {
+    setProjectNameDraft(projectName ?? "");
+  }, [projectName]);
 
   const adaptivePreviewQualityEnabled = isAdaptiveSurfaceEnabled("media-library-panel-grid");
   const mediaAdaptivePressure = useMediaAdaptivePressure({
@@ -792,12 +801,39 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
     ]
   );
 
+  const commitProjectName = useCallback(() => {
+    onProjectNameCommit?.(projectNameDraft);
+  }, [onProjectNameCommit, projectNameDraft]);
+
   return (
     <section className="media-library-panel" aria-label="Media library panel">
       <header className="media-library-panel-header">
-        <div>
+        <div className="media-library-panel-header-title-group">
           <p className="eyebrow">Media Library</p>
         </div>
+        <label className="media-library-panel-project-name-field">
+          <span className="sr-only">Project name</span>
+          <input
+            type="text"
+            value={projectNameDraft}
+            onChange={(event) => setProjectNameDraft(event.target.value)}
+            onBlur={commitProjectName}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") {
+                event.preventDefault();
+                event.currentTarget.blur();
+              }
+              if (event.key === "Escape") {
+                setProjectNameDraft(projectName ?? "");
+                event.currentTarget.blur();
+              }
+            }}
+            className="media-library-panel-project-name-input"
+            placeholder="Untitled project"
+            aria-label="Project name"
+            maxLength={120}
+          />
+        </label>
       </header>
 
       <div ref={splitContainerRef} className="media-library-panel-split">

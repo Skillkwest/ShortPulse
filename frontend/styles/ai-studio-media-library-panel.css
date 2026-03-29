@@ -101,7 +101,7 @@
 .media-library-panel-folders-head {
   display: flex;
   align-items: center;
-  margin-bottom: 2px;
+  margin-bottom: 8px;
 }
 
 .media-library-panel-folders-head .tiny {

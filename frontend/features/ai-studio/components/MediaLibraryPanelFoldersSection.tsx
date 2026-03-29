@@ -46,9 +46,8 @@ type MediaLibraryPanelFoldersSectionProps = {
     isRoot: boolean
   ) => void;
   onContextRename: () => void;
-  canContextMoveFolder: boolean;
-  contextMoveLabel: string;
-  onContextMove: () => Promise<void>;
+  canOpenMovePicker: boolean;
+  onOpenMovePicker: () => void;
   onContextDelete: () => Promise<void>;
 };
 
@@ -77,9 +76,8 @@ export function MediaLibraryPanelFoldersSection({
   folderContextMenuRef,
   openFolderContextMenu,
   onContextRename,
-  canContextMoveFolder,
-  contextMoveLabel,
-  onContextMove,
+  canOpenMovePicker,
+  onOpenMovePicker,
   onContextDelete,
 }: MediaLibraryPanelFoldersSectionProps) {
   return (
@@ -252,16 +250,14 @@ export function MediaLibraryPanelFoldersSection({
             >
               Rename folder
             </button>
-            {canContextMoveFolder ? (
+            {canOpenMovePicker ? (
               <button
                 type="button"
                 className="media-library-panel-folder-context-menu-item"
                 role="menuitem"
-                onClick={() => {
-                  void onContextMove();
-                }}
+                onClick={onOpenMovePicker}
               >
-                {contextMoveLabel}
+                Move to...
               </button>
             ) : null}
             <button

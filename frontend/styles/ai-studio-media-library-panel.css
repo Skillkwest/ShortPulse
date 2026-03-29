@@ -689,6 +689,48 @@
   color: rgb(199, 61, 79);
 }
 
+.media-library-panel-move-dialog {
+  width: min(420px, calc(100vw - 48px));
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid rgba(201, 205, 214, 0.14);
+  border-radius: 12px;
+  background: rgb(14, 16, 20);
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.42);
+}
+
+.media-library-panel-move-dialog-title,
+.media-library-panel-move-dialog-copy {
+  margin: 0;
+}
+
+.media-library-panel-move-dialog-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: min(360px, calc(100vh - 220px));
+  overflow: auto;
+}
+
+.media-library-panel-move-dialog-option {
+  width: 100%;
+  border: 1px solid rgba(201, 205, 214, 0.14);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.02);
+  color: rgba(230, 236, 244, 0.96);
+  text-align: left;
+  padding: 10px 12px;
+  cursor: pointer;
+}
+
+.media-library-panel-move-dialog-option:hover,
+.media-library-panel-move-dialog-option:focus-visible {
+  background: rgba(201, 205, 214, 0.08);
+  outline: none;
+}
+
 .media-library-panel-preview-backdrop {
   position: fixed;
   inset: 0;

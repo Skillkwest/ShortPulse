@@ -61,6 +61,11 @@ type FolderContextMenuState = {
   y: number;
 };
 
+type MoveFolderPickerState = {
+  folderId: string;
+  folderName: string;
+};
+
 type MediaLibraryPanelProps = {
   onSelectMedia: (payload: {
     id: string;
@@ -141,6 +146,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
   const [, setMembershipMessage] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
   const [folderContextMenu, setFolderContextMenu] = useState<FolderContextMenuState | null>(null);
+  const [moveFolderPicker, setMoveFolderPicker] = useState<MoveFolderPickerState | null>(null);
   const [projectNameDraft, setProjectNameDraft] = useState(projectName ?? "");
 
   const mediaDownloadInFlightRef = useRef<Record<string, boolean>>({});
@@ -209,7 +215,12 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
     setPromptRows,
   });
   useAiStudioModalActivity("media-library-panel-delete-confirm", Boolean(pendingLibraryDelete));
+  useAiStudioModalActivity("media-library-panel-move-folder", Boolean(moveFolderPicker));
   const visiblePromptRows = useMemo(() => sortByCreatedAtDesc(promptRows), [promptRows]);
+  const foldersById = useMemo(
+    () => new Map(folders.map((folder) => [folder.id, folder])),
+    [folders]
+  );
   const visibleImageRows = useMemo(
     () => mediaRows.filter((row) => !isVideoFile(row.file_type)),
     [mediaRows]
@@ -624,14 +635,83 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
     setFolderContextMenu(null);
     await deleteFolder(folderId);
   }, [deleteFolder, folderContextMenu]);
-  const canContextMoveFolder = canNavigateUp;
-  const contextMoveLabel = activeFolderParentId ? "Move up one level" : "Move to All Media";
-  const handleContextMove = useCallback(async () => {
-    if (!folderContextMenu || !canContextMoveFolder) return;
-    const folderId = folderContextMenu.folderId;
+  const collectDescendantIds = useCallback(
+    (folderId: string): Set<string> => {
+      const descendants = new Set<string>();
+      const queue = [folderId];
+      while (queue.length > 0) {
+        const currentId = queue.shift() ?? "";
+        for (const folder of folders) {
+          if (folder.parentFolderId !== currentId || descendants.has(folder.id)) continue;
+          descendants.add(folder.id);
+          queue.push(folder.id);
+        }
+      }
+      return descendants;
+    },
+    [folders]
+  );
+  const resolveMoveFolderDestinationOptions = useCallback(
+    (folderId: string) => {
+      const movingFolder = foldersById.get(folderId);
+      if (!movingFolder) return [] as Array<{ id: string | null; label: string }>;
+      const excludedIds = collectDescendantIds(movingFolder.id);
+      excludedIds.add(movingFolder.id);
+      const options: Array<{ id: string | null; label: string }> = [];
+      if (movingFolder.parentFolderId !== null) {
+        options.push({ id: null, label: "All Media" });
+      }
+      const buildFolderPath = (targetFolderId: string): string => {
+        const chain: string[] = [];
+        let cursor = foldersById.get(targetFolderId) ?? null;
+        const seen = new Set<string>();
+        while (cursor && !seen.has(cursor.id)) {
+          seen.add(cursor.id);
+          chain.unshift(cursor.name);
+          cursor = cursor.parentFolderId ? (foldersById.get(cursor.parentFolderId) ?? null) : null;
+        }
+        return `All Media > ${chain.join(" > ")}`;
+      };
+      for (const folder of folders) {
+        if (excludedIds.has(folder.id)) continue;
+        if (folder.id === movingFolder.parentFolderId) continue;
+        options.push({
+          id: folder.id,
+          label: buildFolderPath(folder.id),
+        });
+      }
+      return options;
+    },
+    [collectDescendantIds, folders, foldersById]
+  );
+  const moveFolderDestinationOptions = useMemo(() => {
+    if (!moveFolderPicker) return [];
+    return resolveMoveFolderDestinationOptions(moveFolderPicker.folderId);
+  }, [moveFolderPicker, resolveMoveFolderDestinationOptions]);
+  const canOpenMovePicker = useMemo(() => {
+    if (!folderContextMenu) return false;
+    return resolveMoveFolderDestinationOptions(folderContextMenu.folderId).length > 0;
+  }, [folderContextMenu, resolveMoveFolderDestinationOptions]);
+  const handleOpenMovePicker = useCallback(() => {
+    if (!folderContextMenu) return;
+    setMoveFolderPicker({
+      folderId: folderContextMenu.folderId,
+      folderName: folderContextMenu.folderName,
+    });
     setFolderContextMenu(null);
-    await moveFolder(folderId, activeFolderParentId ?? null);
-  }, [activeFolderParentId, canContextMoveFolder, folderContextMenu, moveFolder]);
+  }, [folderContextMenu]);
+  const closeMoveFolderPicker = useCallback(() => {
+    setMoveFolderPicker(null);
+  }, []);
+  const handleMoveFolderToDestination = useCallback(
+    async (parentFolderId: string | null) => {
+      if (!moveFolderPicker) return;
+      const folderId = moveFolderPicker.folderId;
+      setMoveFolderPicker(null);
+      await moveFolder(folderId, parentFolderId);
+    },
+    [moveFolder, moveFolderPicker]
+  );
 
   const handleNavigateUp = useCallback(() => {
     if (!canNavigateUp) return;
@@ -877,9 +957,8 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
             folderContextMenuRef={folderContextMenuRef}
             openFolderContextMenu={openFolderContextMenu}
             onContextRename={handleContextRename}
-            canContextMoveFolder={canContextMoveFolder}
-            contextMoveLabel={contextMoveLabel}
-            onContextMove={handleContextMove}
+            canOpenMovePicker={canOpenMovePicker}
+            onOpenMovePicker={handleOpenMovePicker}
             onContextDelete={handleContextDelete}
           />
         </div>
@@ -1160,6 +1239,43 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
                   disabled={deleteConfirmSubmitting}
                 >
                   {deleteConfirmSubmitting ? "Deleting..." : "Yes, delete"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </AiStudioModalLayer>
+      ) : null}
+      {moveFolderPicker ? (
+        <AiStudioModalLayer>
+          <div className="art-confirm-backdrop" onClick={closeMoveFolderPicker}>
+            <div
+              className="media-library-panel-move-dialog"
+              role="dialog"
+              aria-modal="true"
+              aria-label={`Move ${moveFolderPicker.folderName}`}
+              onClick={(event) => event.stopPropagation()}
+            >
+              <p className="media-library-panel-move-dialog-title">Move Folder</p>
+              <p className="media-library-panel-move-dialog-copy">
+                Choose a new parent for {moveFolderPicker.folderName}.
+              </p>
+              <div className="media-library-panel-move-dialog-list" role="list">
+                {moveFolderDestinationOptions.map((option) => (
+                  <button
+                    key={option.id ?? MEDIA_LIBRARY_ROOT_FOLDER_ID}
+                    type="button"
+                    className="media-library-panel-move-dialog-option"
+                    onClick={() => {
+                      void handleMoveFolderToDestination(option.id);
+                    }}
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
+              <div className="art-confirm-actions">
+                <button type="button" className="art-action-btn" onClick={closeMoveFolderPicker}>
+                  Cancel
                 </button>
               </div>
             </div>

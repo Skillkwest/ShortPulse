@@ -1,5 +1,5 @@
 import React from "react";
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { MediaLibraryPanel } from "../MediaLibraryPanel";
 
@@ -1397,7 +1397,7 @@ describe("MediaLibraryPanel", () => {
     });
   });
 
-  it("moves a visible child folder to All Media from the context menu without navigating into it", async () => {
+  it("opens a move picker and moves a visible child folder to All Media without navigating into it", async () => {
     listMediaFoldersMock.mockResolvedValueOnce([
       {
         id: "folder-parent",
@@ -1435,7 +1435,9 @@ describe("MediaLibraryPanel", () => {
     fireEvent.contextMenu(folderTile);
 
     expect(screen.getByRole("button", { name: "Parent" })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("menuitem", { name: "Move to All Media" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Move to..." }));
+    const moveDialog = screen.getByRole("dialog", { name: "Move Child A1" });
+    fireEvent.click(within(moveDialog).getByRole("button", { name: "All Media" }));
 
     await waitFor(() => {
       expect(moveMediaFolderMock).toHaveBeenCalledWith({

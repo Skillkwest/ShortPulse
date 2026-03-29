@@ -457,6 +457,8 @@ describe("MediaLibraryPanel", () => {
       expect(screen.getByText("Campaign")).toBeInTheDocument();
     });
 
+    expect(screen.getByText("Campaign Alpha")).toBeInTheDocument();
+
     const input = screen.getByRole("textbox", { name: "Project name" });
     expect(input).toHaveValue("Campaign Alpha");
 

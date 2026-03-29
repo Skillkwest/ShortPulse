@@ -17,6 +17,7 @@ type FolderContextMenuState = {
 };
 
 type MediaLibraryPanelFoldersSectionProps = {
+  rootLabel: string;
   folders: FolderRow[];
   activeFolderId: string;
   setActiveFolderId: (folderId: string) => void;
@@ -45,6 +46,7 @@ type MediaLibraryPanelFoldersSectionProps = {
 };
 
 export function MediaLibraryPanelFoldersSection({
+  rootLabel,
   folders,
   activeFolderId,
   setActiveFolderId,
@@ -72,7 +74,8 @@ export function MediaLibraryPanelFoldersSection({
       <div className="media-library-panel-folders">
         <div className="media-library-panel-folders-head">
           <span className="tiny subdued">
-            <Folders size={14} weight="bold" aria-hidden /> Folders
+            <Folders size={14} weight="bold" aria-hidden />{" "}
+            <span className="media-library-panel-folders-root-label">{rootLabel}</span>
           </span>
         </div>
         <div className="media-library-panel-folder-strip" role="list" aria-label="Media folders">

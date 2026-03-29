@@ -92,21 +92,29 @@
   border: 1px solid transparent;
   background: transparent;
   border-radius: 0;
-  padding: 8px;
+  padding: 3px 8px 14px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 12px;
 }
 
 .media-library-panel-folders-head {
   display: flex;
   align-items: center;
+  margin-bottom: 2px;
 }
 
 .media-library-panel-folders-head .tiny {
   display: inline-flex;
   align-items: center;
   gap: 6px;
+}
+
+.media-library-panel-folders-root-label {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .media-library-panel-folder-strip {

@@ -223,8 +223,9 @@
 .media-library-panel-folder-chip.is-create {
   width: 64px;
   height: 64px;
-  border-style: dashed;
+  border-style: solid;
   border-color: rgba(201, 205, 214, 0.28);
+  border-radius: 10px;
   background: rgba(201, 205, 214, 0.02);
   box-shadow: none;
 }

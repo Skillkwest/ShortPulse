@@ -421,7 +421,7 @@ describe("MediaLibraryPanel", () => {
       expect(screen.getByText("Campaign")).toBeInTheDocument();
     });
     expect(screen.queryByRole("button", { name: "All Media folder" })).not.toBeInTheDocument();
-    expect(screen.getByText("2 saved")).toBeInTheDocument();
+    expect(screen.getByLabelText("2 saved media items")).toBeInTheDocument();
     expect(
       screen.getByRole("separator", { name: "Resize folders and references sections" })
     ).toBeInTheDocument();

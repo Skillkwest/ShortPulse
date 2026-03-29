@@ -961,9 +961,15 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
                   </button>
                 </div>
                 {libraryTotalCount !== null ? (
-                  <p className="tiny subdued media-library-panel-root-count">
-                    {libraryTotalCount} saved
-                  </p>
+                  <div
+                    className="media-library-panel-root-count"
+                    aria-label={`${libraryTotalCount} saved media items`}
+                  >
+                    <span className="media-library-panel-root-count-value">
+                      {libraryTotalCount}
+                    </span>
+                    <span className="media-library-panel-root-count-label">saved</span>
+                  </div>
                 ) : null}
               </div>
             ) : null}

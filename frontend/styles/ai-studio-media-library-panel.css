@@ -122,6 +122,10 @@
   min-width: 0;
 }
 
+.media-library-panel-folder-strip-item--create {
+  padding-top: 5px;
+}
+
 .media-library-panel-folder-strip-item.is-drop-hover .media-library-panel-folder-chip {
   border-color: rgba(100, 209, 230, 0.5);
   box-shadow: none;
@@ -200,6 +204,8 @@
 }
 
 .media-library-panel-folder-chip.is-create {
+  width: 64px;
+  height: 64px;
   border-style: dashed;
   border-color: rgba(201, 205, 214, 0.28);
   background: rgba(201, 205, 214, 0.02);

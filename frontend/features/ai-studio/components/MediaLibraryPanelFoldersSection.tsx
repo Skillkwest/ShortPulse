@@ -162,7 +162,10 @@ export function MediaLibraryPanelFoldersSection({
               </div>
             );
           })}
-          <div className="media-library-panel-folder-strip-item" role="listitem">
+          <div
+            className="media-library-panel-folder-strip-item media-library-panel-folder-strip-item--create"
+            role="listitem"
+          >
             <button
               type="button"
               className="media-library-panel-folder-chip is-create"
@@ -172,7 +175,7 @@ export function MediaLibraryPanelFoldersSection({
               }}
               disabled={creatingFolder}
             >
-              <Plus size={30} weight="bold" aria-hidden />
+              <Plus size={24} weight="bold" aria-hidden />
             </button>
             <p className="media-library-panel-folder-chip-name tiny">New Folder</p>
           </div>

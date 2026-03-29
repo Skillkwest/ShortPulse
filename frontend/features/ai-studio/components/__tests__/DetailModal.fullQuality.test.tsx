@@ -25,6 +25,7 @@ describe("DetailModal full-quality media policy", () => {
       .mockReturnValue({
         previewUrl: "https://signed.test/preview.png",
         fullUrl: "https://signed.test/full.png",
+        authorityTier: "reusable",
         previewQualityBand: "high",
         targetLongEdgePx: 960,
       });

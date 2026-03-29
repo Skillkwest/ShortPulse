@@ -4,7 +4,7 @@
  */
 import type { MediaListProfile } from "../../../lib/mediaListProfile";
 import type { MediaPreviewTransformProfile } from "../../../lib/mediaPreviewTransformProfile";
-import type { MediaListSurface } from "../logic/mediaListApi";
+import type { MediaListCursor, MediaListSurface } from "../logic/mediaListApi";
 import type {
   MediaDataTab,
   MediaSignBudget,
@@ -73,8 +73,25 @@ export type MediaLibraryPreviewState = {
 
 export type MediaLibraryTabCacheState = Omit<MediaTabCache<MediaLibraryMediaRow>, "rows">;
 
+export type MediaLibraryAggregateScopeKind = "media" | "prompts";
+
+export type MediaLibraryAggregateScopeCacheState = {
+  nextCursor: MediaListCursor | null;
+  hasMore: boolean;
+  loading: boolean;
+  loaded: boolean;
+  error: string | null;
+  loadedAtMs: number | null;
+  resolvedScopeKey: string | null;
+  libraryTotalCount: number | null;
+};
+
 export type MediaLibrarySurfaceState = {
   cacheByTab: Record<MediaDataTab, MediaLibraryTabCacheState>;
+  aggregateScopeCacheByKind: Record<
+    MediaLibraryAggregateScopeKind,
+    MediaLibraryAggregateScopeCacheState
+  >;
   orderedViews: MediaLibraryOrderedViews;
   selection: MediaLibrarySelectionState;
   preview: MediaLibraryPreviewState;

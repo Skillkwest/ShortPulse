@@ -14,7 +14,6 @@ import React, {
   useState,
 } from "react";
 import { Plus, PencilSimpleLine, ShieldCheck, Trash, UploadSimple, XCircle } from "phosphor-react";
-import { DashboardNavPrefab } from "../../../components/DashboardNavPrefab";
 import {
   isAdaptiveSurfaceEnabled,
   logAdaptiveDetailFullQualityUsed,
@@ -56,6 +55,7 @@ import { CharacterCreateWorkspaceSurface } from "./CharacterCreateWorkspaceSurfa
 import { CharacterDescriptionEditorCard } from "./CharacterDescriptionEditorCard";
 import { CharacterSheetPresetTabs, getCharacterSheetPresetTabId } from "./CharacterSheetPresetTabs";
 import { CharacterQuickSwapDeckSection } from "./CharacterQuickSwapDeckSection";
+import { CharacterManagerWorkflowTabs } from "./CharacterManagerWorkflowTabs";
 import type {
   CharacterManagerShellSurface,
   CharacterProfileImageTransform,
@@ -653,116 +653,18 @@ export function CharacterManagerShell({
         className="panel media-panel character-mode-panel"
         aria-label="Character workflow tabs"
       >
-        {isEmbeddedSurface ? (
-          <header className="character-library-panel-header">
-            <p className="eyebrow">{CHARACTER_LIBRARY_PANEL_TITLE}</p>
-            <div
-              className="character-mode-tab-row character-mode-tab-row--embedded-header"
-              role="tablist"
-              aria-label="Character workflow mode"
-            >
-              <button
-                type="button"
-                role="tab"
-                aria-selected={activeTab === "manage"}
-                className={`character-mode-tab character-mode-tab--manage ${
-                  activeTab === "manage" ? "is-active" : ""
-                }`}
-                onClick={() => setActiveTab("manage")}
-              >
-                Manage Characters
-              </button>
-              <button
-                type="button"
-                role="tab"
-                aria-selected={activeTab === "create"}
-                className={`character-mode-tab character-mode-tab--profile ${
-                  activeTab === "create" ? "is-active" : ""
-                }`}
-                onClick={() => setActiveTab("create")}
-              >
-                Character Profile
-              </button>
-            </div>
-          </header>
-        ) : null}
-        <div className="character-mode-row">
-          {!isEmbeddedSurface ? (
-            <DashboardNavPrefab variant="inline" className="character-mode-dashboard-link" />
-          ) : null}
-          {!isEmbeddedSurface ? (
-            <div
-              className="character-mode-tab-row"
-              role="tablist"
-              aria-label="Character workflow mode"
-            >
-              <button
-                type="button"
-                role="tab"
-                aria-selected={activeTab === "manage"}
-                className={`character-mode-tab character-mode-tab--manage ${
-                  activeTab === "manage" ? "is-active" : ""
-                }`}
-                onClick={() => setActiveTab("manage")}
-              >
-                Manage Characters
-              </button>
-              <button
-                type="button"
-                role="tab"
-                aria-selected={activeTab === "create"}
-                className={`character-mode-tab character-mode-tab--profile ${
-                  activeTab === "create" ? "is-active" : ""
-                }`}
-                onClick={() => setActiveTab("create")}
-              >
-                Character Profile
-              </button>
-            </div>
-          ) : null}
-          {activeTab === "create" && !isEmbeddedSurface && showBeginnerModeToggle ? (
-            <div className="toolbar-beginner-toggle character-mode-beginner-toggle">
-              <div className="toolbar-beginner-copy">
-                <span className="toolbar-label">Beginner mode</span>
-              </div>
-              <button
-                type="button"
-                className={`reference-toggle beginner-toggle ${effectiveBeginnerMode ? "is-active" : ""}`}
-                aria-pressed={effectiveBeginnerMode}
-                aria-label={
-                  effectiveBeginnerMode ? "Disable beginner mode" : "Enable beginner mode"
-                }
-                onClick={() => setBeginnerMode((current) => !current)}
-              >
-                <span className="reference-toggle-track" aria-hidden="true">
-                  <span className="reference-toggle-dot" />
-                </span>
-              </button>
-            </div>
-          ) : null}
-          {activeTab === "manage" && !isEmbeddedSurface ? (
-            <button
-              type="button"
-              className="character-mode-create-btn"
-              onClick={handleCreateNewCharacter}
-              disabled={isCreatingCharacter || loading}
-            >
-              {isCreatingCharacter ? (
-                "Creating..."
-              ) : (
-                <>
-                  <Plus
-                    size={14}
-                    weight="bold"
-                    className="character-mode-create-btn-icon"
-                    aria-hidden
-                  />
-                  <span>Create New Character</span>
-                </>
-              )}
-            </button>
-          ) : null}
-        </div>
+        <CharacterManagerWorkflowTabs
+          isEmbeddedSurface={isEmbeddedSurface}
+          activeTab={activeTab}
+          setActiveTab={setActiveTab}
+          showBeginnerModeToggle={!isEmbeddedSurface && showBeginnerModeToggle}
+          effectiveBeginnerMode={effectiveBeginnerMode}
+          setBeginnerMode={setBeginnerMode}
+          isCreatingCharacter={isCreatingCharacter}
+          loading={loading}
+          onCreateCharacter={handleCreateNewCharacter}
+          title={CHARACTER_LIBRARY_PANEL_TITLE}
+        />
       </section>
 
       {combinedError ? (

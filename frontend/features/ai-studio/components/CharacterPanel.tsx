@@ -18,7 +18,7 @@ export function CharacterPanel({
   resolveCharacterDropReference,
 }: CharacterPanelProps) {
   const panelRootRef = React.useRef<HTMLDivElement | null>(null);
-  const [activeTab, setActiveTab] = React.useState<CharacterWorkflowTab>("manage");
+  const [activeTab, setActiveTab] = React.useState<CharacterWorkflowTab>("create");
 
   useCharacterPanelPropertiesScrollLock({
     activeTab,
@@ -29,7 +29,7 @@ export function CharacterPanel({
     <div ref={panelRootRef}>
       <CharacterManagerShell
         surface="panel"
-        initialWorkflowTab="manage"
+        initialWorkflowTab="create"
         beginnerModeOverride={beginnerMode}
         resolveCharacterDropReference={resolveCharacterDropReference}
         onActiveTabChange={setActiveTab}

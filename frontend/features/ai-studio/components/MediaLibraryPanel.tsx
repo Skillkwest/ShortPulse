@@ -3,7 +3,7 @@
  * Provides folder-aware browsing for media + prompts with adaptive preview/signing parity.
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { FolderSimple } from "phosphor-react";
+import { ArrowsOutSimple, FolderSimple } from "phosphor-react";
 import { isAdaptiveSurfaceEnabled } from "../../../lib/adaptive-media";
 import { MEDIA_PREVIEW_SIGN_BATCH_MAX_ATTEMPTS_PER_ITEM } from "../../../lib/mediaPreviewRuntimePolicy";
 import { ensureSupabaseQueryClient, readSupabaseUserId } from "../../../lib/supabaseClient";
@@ -80,6 +80,7 @@ type MediaLibraryPanelProps = {
   onSelectPrompt: (payload: { id: string; promptText: string; title?: string | null }) => void;
   projectName?: string | null;
   onProjectNameCommit?: (value: string) => void;
+  onExpandMediaLibraryPanel?: () => void;
   resolveInternalDropItem?: (payload: InternalReferenceDragPayload) => Promise<{
     kind: "media" | "prompt";
     id: string;
@@ -110,6 +111,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
   onSelectPrompt,
   projectName = null,
   onProjectNameCommit,
+  onExpandMediaLibraryPanel,
   resolveInternalDropItem,
   resolveCanvasDropReference,
 }: MediaLibraryPanelProps) {
@@ -818,6 +820,11 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
     onProjectNameCommit?.(projectNameDraft);
   }, [onProjectNameCommit, projectNameDraft]);
 
+  const handleExpandMediaLibraryPanel = useCallback(() => {
+    onExpandMediaLibraryPanel?.();
+    foldersSplit.snapToInventoryExpanded();
+  }, [foldersSplit, onExpandMediaLibraryPanel]);
+
   return (
     <section className="media-library-panel" aria-label="Media library panel">
       <header className="media-library-panel-header">
@@ -978,17 +985,27 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
                     Prompts
                   </button>
                 </div>
-                {libraryTotalCount !== null ? (
-                  <div
-                    className="media-library-panel-root-count"
-                    aria-label={`${libraryTotalCount} saved media items`}
+                <div className="media-library-panel-root-count-group">
+                  {libraryTotalCount !== null ? (
+                    <div
+                      className="media-library-panel-root-count"
+                      aria-label={`${libraryTotalCount} saved media items`}
+                    >
+                      <span className="media-library-panel-root-count-value">
+                        {libraryTotalCount}
+                      </span>
+                      <span className="media-library-panel-root-count-label">saved</span>
+                    </div>
+                  ) : null}
+                  <button
+                    type="button"
+                    className="media-library-panel-root-expand-button"
+                    aria-label="Expand media library panel"
+                    onClick={handleExpandMediaLibraryPanel}
                   >
-                    <span className="media-library-panel-root-count-value">
-                      {libraryTotalCount}
-                    </span>
-                    <span className="media-library-panel-root-count-label">saved</span>
-                  </div>
-                ) : null}
+                    <ArrowsOutSimple size={14} weight="bold" aria-hidden />
+                  </button>
+                </div>
               </div>
             ) : null}
 

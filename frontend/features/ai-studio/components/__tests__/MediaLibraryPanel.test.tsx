@@ -468,6 +468,25 @@ describe("MediaLibraryPanel", () => {
     expect(onProjectNameCommit).toHaveBeenCalledWith("Launch Board");
   });
 
+  it("expands the media library layout from the root count row button", async () => {
+    const onExpandMediaLibraryPanel = vi.fn();
+    render(
+      <MediaLibraryPanel
+        onSelectMedia={vi.fn()}
+        onSelectPrompt={vi.fn()}
+        onExpandMediaLibraryPanel={onExpandMediaLibraryPanel}
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("Campaign")).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Expand media library panel" }));
+
+    expect(onExpandMediaLibraryPanel).toHaveBeenCalledTimes(1);
+  });
+
   it("hides root tab count labels for Images, Videos, and Prompts views", async () => {
     render(<MediaLibraryPanel onSelectMedia={vi.fn()} onSelectPrompt={vi.fn()} />);
 

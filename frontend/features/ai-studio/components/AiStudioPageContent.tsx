@@ -1108,6 +1108,7 @@ export function AiStudioPageContent({
           onSelectPrompt={onAddLibraryPromptReference}
           projectName={projectName ?? null}
           onProjectNameCommit={onProjectNameCommit}
+          onExpandMediaLibraryPanel={expandToMax}
           resolveInternalDropItem={resolveMediaLibraryInternalDropItem}
           resolveCanvasDropReference={resolveCanvasDropReference}
         />
@@ -1118,6 +1119,7 @@ export function AiStudioPageContent({
       onAddLibraryMediaReference,
       onAddLibraryPromptReference,
       onProjectNameCommit,
+      expandToMax,
       projectName,
       resolveCanvasDropReference,
       resolveMediaLibraryInternalDropItem,

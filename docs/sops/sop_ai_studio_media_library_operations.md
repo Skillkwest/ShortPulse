@@ -169,6 +169,9 @@ Define the authoritative AI Studio Media Library panel UX contract (`toolId: med
 15. Character-scope containment in Media Library APIs:
    - Status: Aligned.
    - Current: `POST /api/media/list` excludes character-scoped rows by default (`SHORTPULSE_MEDIA_LIBRARY_EXCLUDE_CHARACTER_SCOPE=true`) and folder membership/move routes reject character-scoped media ids with deterministic `409` responses.
+16. Media Library panel expand affordance:
+   - Status: Aligned.
+   - Current: The root saved-media count row includes a small expand control that expands the left panel to its maximum practical shell width and snaps the folder/reference split to its maximum top height for a larger media browsing viewport.
 
 ## Error and feedback behavior
 - Unresolved drop item: `Unable to resolve dropped reference.`

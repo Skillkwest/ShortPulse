@@ -177,7 +177,18 @@ vi.mock("../PresetsLibraryPanel", () => ({
 }));
 
 vi.mock("../MediaLibraryPanel", () => ({
-  MediaLibraryPanel: () => <div data-testid="media-library-panel" />,
+  MediaLibraryPanel: (props: { onExpandMediaLibraryPanel?: () => void }) => (
+    <div data-testid="media-library-panel">
+      <button
+        type="button"
+        onClick={() => {
+          props.onExpandMediaLibraryPanel?.();
+        }}
+      >
+        Expand media library panel
+      </button>
+    </div>
+  ),
 }));
 
 vi.mock("../VideoPropertiesPanel", () => ({

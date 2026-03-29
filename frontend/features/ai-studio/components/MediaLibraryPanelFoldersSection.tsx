@@ -111,20 +111,21 @@ export function MediaLibraryPanelFoldersSection({
           </span>
         </div>
         <div className="media-library-panel-folder-strip" role="list" aria-label="Media folders">
-          <div
-            className="media-library-panel-folder-strip-item media-library-panel-folder-strip-item--navigate-up"
-            role="listitem"
-          >
-            <button
-              type="button"
-              className="media-library-panel-folder-up-button"
-              aria-label="Go to parent folder"
-              onClick={onNavigateUp}
-              disabled={!canNavigateUp}
+          {canNavigateUp ? (
+            <div
+              className="media-library-panel-folder-strip-item media-library-panel-folder-strip-item--navigate-up"
+              role="listitem"
             >
-              <CaretLeft size={16} weight="bold" aria-hidden />
-            </button>
-          </div>
+              <button
+                type="button"
+                className="media-library-panel-folder-up-button"
+                aria-label="Go to parent folder"
+                onClick={onNavigateUp}
+              >
+                <CaretLeft size={26} weight="bold" aria-hidden />
+              </button>
+            </div>
+          ) : null}
           {folders.map((folder) => {
             const isActive = activeFolderId === folder.id;
             const isEditing = editingFolderId === folder.id;

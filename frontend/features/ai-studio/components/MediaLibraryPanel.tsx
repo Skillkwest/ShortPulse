@@ -39,15 +39,12 @@ import { writeMediaLibraryDragPayload } from "../logic/mediaLibraryDragPayload";
 import { resolveMediaLibraryPanelCardPreviewUrl } from "../logic/mediaLibraryPanelPreviewResolver";
 import { downloadBlobToFile } from "../logic/referenceDownload";
 import { useMediaLibraryPanelDataController } from "../hooks/useMediaLibraryPanelDataController";
-import { useMediaLibraryPanelFolderCanvasController } from "../hooks/useMediaLibraryPanelFolderCanvasController";
 import { useReferenceGridHorizontalSplit } from "../hooks/useReferenceGridHorizontalSplit";
 import { useMediaLibraryFoldersState } from "../hooks/useMediaLibraryFoldersState";
 import { useMediaLibraryFolderDropController } from "../hooks/useMediaLibraryFolderDropController";
 import { useMediaLibraryPanelMutationController } from "../hooks/useMediaLibraryPanelMutationController";
 import { useMediaLibraryPanelSelectionController } from "../hooks/useMediaLibraryPanelSelectionController";
 import type { InternalReferenceDragPayload } from "../utils/dragDrop";
-import type { ResolveCanvasDropReference } from "./canvas/canvasTypes";
-import { MediaLibraryFolderCanvas } from "./MediaLibraryFolderCanvas";
 import { MediaLibraryPanelFoldersSection } from "./MediaLibraryPanelFoldersSection";
 import { MediaLibraryMediaGrid } from "./media-library-modal/MediaLibraryMediaGrid";
 import { MediaLibraryPanelPreviewModal } from "./media-library-modal/MediaLibraryPanelPreviewModal";
@@ -85,7 +82,6 @@ type MediaLibraryPanelProps = {
     kind: "media" | "prompt";
     id: string;
   } | null>;
-  resolveCanvasDropReference?: ResolveCanvasDropReference;
 };
 
 const FOLDER_CONTEXT_MENU_WIDTH_PX = 156;
@@ -112,7 +108,6 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
   onProjectNameCommit,
   onExpandMediaLibraryPanel,
   resolveInternalDropItem,
-  resolveCanvasDropReference,
 }: MediaLibraryPanelProps) {
   const panelSurfaceConfig = getMediaLibrarySurfaceConfig("panel");
   const {
@@ -169,8 +164,8 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
   const normalizedSearch = "";
   const shouldShowMedia = itemType !== "prompts" && itemType !== "audio";
   const shouldShowPrompts = itemType === "prompts" || (!isRootFolderSelected && itemType === "all");
-  const showFolderCanvas =
-    activeFolderId !== MEDIA_LIBRARY_ROOT_FOLDER_ID && shouldShowMedia && shouldShowPrompts;
+  // Folder canvas remains a secondary domain and is no longer the default folder browse surface.
+  const showFolderCanvas = false;
   const {
     error: dataError,
     mediaRows,
@@ -182,8 +177,6 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
     promptHasMore,
     mediaLoading,
     promptLoading,
-    mediaScopeResolved,
-    promptScopeResolved,
     loadMediaPage,
     loadPromptPage,
     refreshActiveRows,
@@ -204,7 +197,6 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
     closeDeleteConfirm,
     confirmDeleteFromLibrary,
     handleRemoveItemFromActiveFolder,
-    handleAssignItemToActiveFolder,
     uploadDroppedFilesToFolder,
   } = useMediaLibraryPanelMutationController({
     activeFolderId,
@@ -275,15 +267,6 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
     signStoragePath,
     signedUrlRetryRef,
   } = previewRuntime;
-  const { folderCanvasDataReady, folderCanvasMediaRows } =
-    useMediaLibraryPanelFolderCanvasController({
-      currentUserIdRef,
-      mediaRows,
-      mediaScopeResolved,
-      promptScopeResolved,
-      showFolderCanvas,
-      signStoragePath,
-    });
   const foldersSplit = useReferenceGridHorizontalSplit({
     enabled: true,
     containerRef: splitContainerRef as React.MutableRefObject<HTMLElement | null>,
@@ -900,30 +883,6 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
         <div className="media-library-panel-content-panel" style={foldersSplit.bottomSectionStyle}>
           <div className="media-library-panel-body" ref={panelBodyRef}>
             {error ? <p className="tiny subdued">{error}</p> : null}
-
-            {showFolderCanvas && !folderCanvasDataReady ? (
-              <p className="tiny subdued">Loading folder canvas...</p>
-            ) : null}
-
-            {showFolderCanvas && folderCanvasDataReady ? (
-              <MediaLibraryFolderCanvas
-                folderId={activeFolderId}
-                mediaRows={folderCanvasMediaRows}
-                promptRows={visiblePromptRows}
-                onSelectMedia={onSelectMedia}
-                onSelectPrompt={onSelectPrompt}
-                onUnassignItem={handleRemoveItemFromActiveFolder}
-                resolveCanvasDropReference={resolveCanvasDropReference}
-                resolveInternalDropItem={resolveInternalDropItem}
-                onAssignDroppedItem={handleAssignItemToActiveFolder}
-                onDropFilesToCanvas={async (files) =>
-                  await uploadDroppedFilesToFolder({
-                    targetFolderId: activeFolderId,
-                    files,
-                  })
-                }
-              />
-            ) : null}
 
             {!showFolderCanvas && shouldShowPrompts && !isRootFolderSelected
               ? renderPromptsSection()

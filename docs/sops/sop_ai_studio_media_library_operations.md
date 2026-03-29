@@ -157,8 +157,8 @@ Define the authoritative AI Studio Media Library panel UX contract (`toolId: med
    - Current: Root-level delete action permanently removes media/prompt rows from library (including storage cleanup for media).
 8. Folder-canvas independent spaces:
    - Status: Partially aligned.
-   - Current: Custom folders mount dedicated canvas spaces with durable per-folder snapshot persistence (`user + folder`) and right-click/Shift-drag export behavior.
-   - Gap: Folder-canvas linked-item removal currently follows canvas delete/selection interactions; dedicated explicit remove controls are deferred.
+   - Current: Custom folders now default to the normal folder browse surface (folder-scoped media/prompt grids with standard remove controls). Folder-canvas remains a secondary domain with durable per-folder snapshot persistence (`user + folder`) and right-click/Shift-drag export behavior when explicitly retained.
+   - Gap: Folder-canvas still exists as a separate persistence surface and has not yet been formally retired or repositioned behind an advanced-only entry point.
 9. Folder hierarchy foundation:
    - Status: Aligned.
    - Current: `media_folders` carries explicit `parent_folder_id` ancestry with sibling-scoped uniqueness, cycle prevention, and a reparent API (`/api/media/folders/move`), and the AI Studio panel now traverses real parent/child relationships instead of a creation-order proxy.

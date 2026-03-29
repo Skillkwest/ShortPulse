@@ -466,6 +466,23 @@ describe("MediaLibraryPanel", () => {
     expect(onProjectNameCommit).toHaveBeenCalledWith("Launch Board");
   });
 
+  it("hides root tab count labels for Images, Videos, and Prompts views", async () => {
+    render(<MediaLibraryPanel onSelectMedia={vi.fn()} onSelectPrompt={vi.fn()} />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Campaign")).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole("tab", { name: "Images" }));
+    expect(screen.queryByText(/^Images \(/)).toBeNull();
+
+    fireEvent.click(screen.getByRole("tab", { name: "Videos" }));
+    expect(screen.queryByText(/^Videos \(/)).toBeNull();
+
+    fireEvent.click(screen.getByRole("tab", { name: "Prompts" }));
+    expect(screen.queryByText(/^Prompts \(/)).toBeNull();
+  });
+
   it("routes all-media media right-click to onSelectMedia", async () => {
     const onSelectMedia = vi.fn();
     render(<MediaLibraryPanel onSelectMedia={onSelectMedia} onSelectPrompt={vi.fn()} />);

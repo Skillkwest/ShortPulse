@@ -731,14 +731,16 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
   );
 
   const renderPromptsSection = useCallback(
-    () => (
+    ({ showHeading = true }: { showHeading?: boolean } = {}) => (
       <section className="media-library-panel-section">
-        <div className="media-library-panel-section-head">
-          <p className="tiny subdued">
-            Prompts ({visiblePromptRows.length})
-            {promptLoading && visiblePromptRows.length > 0 ? " · Refreshing" : ""}
-          </p>
-        </div>
+        {showHeading ? (
+          <div className="media-library-panel-section-head">
+            <p className="tiny subdued">
+              Prompts ({visiblePromptRows.length})
+              {promptLoading && visiblePromptRows.length > 0 ? " · Refreshing" : ""}
+            </p>
+          </div>
+        ) : null}
         {promptLoading && visiblePromptRows.length === 0 ? (
           <p className="tiny subdued">Loading prompts…</p>
         ) : null}
@@ -994,12 +996,6 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
             itemType === "images" ? (
               <>
                 <section className="media-library-panel-section">
-                  <div className="media-library-panel-section-head">
-                    <p className="tiny subdued">
-                      Images ({visibleImageRows.length})
-                      {mediaLoading && mediaRows.length > 0 ? " · Refreshing" : ""}
-                    </p>
-                  </div>
                   {mediaLoading && mediaRows.length === 0 ? (
                     <p className="tiny subdued">Loading images…</p>
                   ) : null}
@@ -1019,12 +1015,6 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
             itemType === "videos" ? (
               <>
                 <section className="media-library-panel-section">
-                  <div className="media-library-panel-section-head">
-                    <p className="tiny subdued">
-                      Videos ({visibleVideoRows.length})
-                      {mediaLoading && mediaRows.length > 0 ? " · Refreshing" : ""}
-                    </p>
-                  </div>
                   {mediaLoading && mediaRows.length === 0 ? (
                     <p className="tiny subdued">Loading videos…</p>
                   ) : null}
@@ -1039,7 +1029,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
             ) : null}
 
             {!showFolderCanvas && shouldShowPrompts && isRootFolderSelected
-              ? renderPromptsSection()
+              ? renderPromptsSection({ showHeading: false })
               : null}
 
             {!showFolderCanvas && isRootFolderSelected && itemType === "audio" ? (

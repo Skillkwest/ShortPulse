@@ -78,6 +78,8 @@ export function MediaLibraryPanelFoldersSection({
   onContextRename,
   onContextDelete,
 }: MediaLibraryPanelFoldersSectionProps) {
+  const visibleFolders = folders.filter((folder) => folder.id !== activeFolderId);
+
   return (
     <>
       <div className="media-library-panel-folders">
@@ -126,7 +128,7 @@ export function MediaLibraryPanelFoldersSection({
               </button>
             </div>
           ) : null}
-          {folders.map((folder) => {
+          {visibleFolders.map((folder) => {
             const isActive = activeFolderId === folder.id;
             const isEditing = editingFolderId === folder.id;
             return (

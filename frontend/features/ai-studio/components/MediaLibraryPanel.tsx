@@ -909,17 +909,6 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
 
             {!showFolderCanvas && isRootFolderSelected ? (
               <div className="media-library-panel-root-tabs-row">
-                {libraryTotalCount !== null ? (
-                  <div
-                    className="media-library-panel-root-count"
-                    aria-label={`${libraryTotalCount} saved media items`}
-                  >
-                    <span className="media-library-panel-root-count-value">
-                      {libraryTotalCount}
-                    </span>
-                    <span className="media-library-panel-root-count-label">saved</span>
-                  </div>
-                ) : null}
                 <div
                   className="media-library-panel-root-tabs"
                   role="tablist"
@@ -976,6 +965,17 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
                     Prompts
                   </button>
                 </div>
+                {libraryTotalCount !== null ? (
+                  <div
+                    className="media-library-panel-root-count"
+                    aria-label={`${libraryTotalCount} saved media items`}
+                  >
+                    <span className="media-library-panel-root-count-value">
+                      {libraryTotalCount}
+                    </span>
+                    <span className="media-library-panel-root-count-label">saved</span>
+                  </div>
+                ) : null}
               </div>
             ) : null}
 

@@ -141,6 +141,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  cursor: pointer;
 }
 
 .media-library-panel-folder-chip--image {
@@ -148,11 +149,12 @@
   background: transparent;
   width: 104px;
   height: 72px;
+  padding: 8px 10px;
 }
 
 .media-library-panel-folder-chip-image {
   display: block;
-  width: 100%;
+  width: 84px;
   height: auto;
   object-fit: contain;
 }

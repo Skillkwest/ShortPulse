@@ -110,6 +110,11 @@
   gap: 6px;
 }
 
+.media-library-panel-folders-breadcrumb-caret {
+  flex: 0 0 auto;
+  opacity: 0.78;
+}
+
 .media-library-panel-folders-root-label {
   max-width: 100%;
   overflow: hidden;

@@ -841,6 +841,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
       <div ref={splitContainerRef} className="media-library-panel-split">
         <div className="media-library-panel-folders-panel" style={foldersSplit.topSectionStyle}>
           <MediaLibraryPanelFoldersSection
+            activeFolderName={activeFolderName}
             folders={customFolders}
             activeFolderId={activeFolderId}
             setActiveFolderId={setActiveFolderId}

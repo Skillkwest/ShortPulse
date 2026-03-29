@@ -124,9 +124,7 @@
 
 .media-library-panel-folder-strip-item.is-drop-hover .media-library-panel-folder-chip {
   border-color: rgba(100, 209, 230, 0.5);
-  box-shadow:
-    0 14px 30px rgba(0, 0, 0, 0.32),
-    inset 0 0 0 1px rgba(100, 209, 230, 0.45);
+  box-shadow: none;
 }
 
 .media-library-panel-folder-chip {
@@ -135,7 +133,7 @@
   border: 1px solid rgba(201, 205, 214, 0.02);
   border-radius: 0;
   background: rgba(201, 205, 214, 0.02);
-  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.28);
+  box-shadow: none;
   color: rgba(234, 241, 255, 0.92);
   font-size: 12px;
   line-height: 1;
@@ -175,9 +173,7 @@
 
 .media-library-panel-folder-chip.is-active {
   border-color: rgba(100, 209, 230, 0.35);
-  box-shadow:
-    0 12px 28px rgba(0, 0, 0, 0.28),
-    inset 0 0 0 1px rgba(100, 209, 230, 0.35);
+  box-shadow: none;
   background: rgba(201, 205, 214, 0.02);
 }
 
@@ -185,7 +181,7 @@
   border-style: dashed;
   border-color: rgba(201, 205, 214, 0.28);
   background: rgba(201, 205, 214, 0.02);
-  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.28);
+  box-shadow: none;
 }
 
 .media-library-panel-folder-chip-edit {

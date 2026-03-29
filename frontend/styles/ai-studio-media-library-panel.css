@@ -177,15 +177,15 @@
 .media-library-panel-folder-chip-name {
   width: 104px;
   text-align: center;
-  font-size: 10px;
-  line-height: 1.2;
-  color: var(--color-ash-70);
+  font-size: 12px;
+  line-height: 1.1;
+  color: #edf4ff;
   overflow: visible;
   white-space: normal;
   display: -webkit-box;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
-  min-height: calc(10px * 1.2 * 2);
+  min-height: calc(12px * 1.1 * 2);
   text-wrap: balance;
   margin: 0;
   padding: 0;

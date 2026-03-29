@@ -180,7 +180,6 @@ export function MediaLibraryPanelFoldersSection({
             >
               <Plus size={24} weight="bold" aria-hidden />
             </button>
-            <p className="media-library-panel-folder-chip-name tiny">New Folder</p>
           </div>
         </div>
       </div>

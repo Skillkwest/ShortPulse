@@ -99,7 +99,7 @@ export function MediaLibraryPanelFoldersSection({
                       onClick={() => setActiveFolderId(folder.id)}
                       aria-label={`${folder.name} folder`}
                     >
-                      <FolderSimple size={34} weight="regular" aria-hidden />
+                      <FolderSimple size={42} weight="thin" aria-hidden />
                     </button>
                     <div className="media-library-panel-folder-chip-edit">
                       <input
@@ -130,7 +130,7 @@ export function MediaLibraryPanelFoldersSection({
                       onClick={() => setActiveFolderId(folder.id)}
                       aria-label={`${folder.name} folder`}
                     >
-                      <FolderSimple size={34} weight="regular" aria-hidden />
+                      <FolderSimple size={42} weight="thin" aria-hidden />
                     </button>
                     <button
                       type="button"

@@ -334,6 +334,7 @@ export default function MediaLibrary() {
     activeMediaTab,
     activeMediaCacheLoading: Boolean(activeMediaCache?.loading),
     activeMediaCachePagesLoaded: activeMediaCache?.pagesLoaded ?? 0,
+    activeMediaQuery,
     filteredMedia,
     signBudgetOverride: effectiveSignBudget,
     isSignPrefetchEnabled: MEDIA_LIBRARY_SIGN_PREFETCH_ENABLED,

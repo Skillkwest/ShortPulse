@@ -263,6 +263,7 @@ export function MediaLibraryModal({
     activeMediaTab,
     activeMediaCacheLoading: Boolean(activeMediaCache?.loading),
     activeMediaCachePagesLoaded: activeMediaCache?.pagesLoaded ?? 0,
+    activeMediaQuery,
     filteredMedia: activeMedia,
     signBudgetOverride: effectiveSignBudget,
     isSigningPassEnabled: isOpen,

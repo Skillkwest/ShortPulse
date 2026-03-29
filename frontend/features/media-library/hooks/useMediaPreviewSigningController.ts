@@ -2,7 +2,14 @@
  * Preview signing/hydration controller for Media Library media rows.
  * Encapsulates sign-batch prioritization, fallback resolution, and perf telemetry.
  */
-import { useEffect, type Dispatch, type MutableRefObject, type SetStateAction } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  type Dispatch,
+  type MutableRefObject,
+  type SetStateAction,
+} from "react";
 import { createMediaPerfTimer, logMediaPerf } from "../../../lib/mediaPerfTelemetry";
 import { resolvePreviewProfileForSurface } from "../../../lib/mediaPreviewTransformProfile";
 import { canAttemptMediaPreviewSignBatch } from "../../../lib/mediaPreviewRuntimePolicy";
@@ -35,6 +42,7 @@ type UseMediaPreviewSigningControllerArgs<
   activeMediaTab: MediaDataTab | null;
   activeMediaCacheLoading: boolean;
   activeMediaCachePagesLoaded: number;
+  activeMediaQuery: string;
   activeMediaQueryRef: MutableRefObject<string>;
   activeTabRef: MutableRefObject<TTab>;
   applySignedUrlsToTab: (tab: MediaDataTab, signedById: Map<string, string>) => void;
@@ -73,6 +81,7 @@ export const useMediaPreviewSigningController = <
   activeMediaTab,
   activeMediaCacheLoading,
   activeMediaCachePagesLoaded,
+  activeMediaQuery,
   activeMediaQueryRef,
   activeTabRef,
   applySignedUrlsToTab,
@@ -97,6 +106,49 @@ export const useMediaPreviewSigningController = <
   maxSignCandidatesPerRow = 4,
   backgroundHydrateFallbackEnabled = false,
 }: UseMediaPreviewSigningControllerArgs<TRow, TTab>) => {
+  const urgentQueueRef = useRef<string[]>([]);
+  const deferredQueueRef = useRef<string[]>([]);
+  const queueStateByIdRef = useRef<Record<string, "urgent" | "deferred" | "in_flight">>({});
+  const deferredDrainTimeoutRef = useRef<number | null>(null);
+  const deferredDrainArmedRef = useRef(false);
+  const queueScopeKeyRef = useRef<string>("");
+
+  const clearDeferredDrainTimeout = useCallback(() => {
+    if (deferredDrainTimeoutRef.current == null || typeof window === "undefined") return;
+    window.clearTimeout(deferredDrainTimeoutRef.current);
+    deferredDrainTimeoutRef.current = null;
+  }, []);
+
+  const scheduleDeferredDrain = useCallback(() => {
+    if (deferredDrainTimeoutRef.current != null || typeof window === "undefined") return;
+    deferredDrainTimeoutRef.current = window.setTimeout(() => {
+      deferredDrainTimeoutRef.current = null;
+      deferredDrainArmedRef.current = true;
+      if (!isMountedRef.current) return;
+      setSignPassNonce((prev) => prev + 1);
+    }, 180);
+  }, [isMountedRef, setSignPassNonce]);
+
+  useEffect(() => {
+    return () => {
+      if (deferredDrainTimeoutRef.current == null || typeof window === "undefined") return;
+      window.clearTimeout(deferredDrainTimeoutRef.current);
+      deferredDrainTimeoutRef.current = null;
+      deferredDrainArmedRef.current = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    const nextScopeKey = `${activeMediaTab ?? "none"}|${activeMediaQuery}`;
+    if (queueScopeKeyRef.current === nextScopeKey) return;
+    queueScopeKeyRef.current = nextScopeKey;
+    urgentQueueRef.current = [];
+    deferredQueueRef.current = [];
+    queueStateByIdRef.current = {};
+    deferredDrainArmedRef.current = false;
+    clearDeferredDrainTimeout();
+  }, [activeMediaQuery, activeMediaTab, clearDeferredDrainTimeout]);
+
   useEffect(() => {
     if (!isSigningPassEnabled) return;
     if (!activeMediaTab) return;
@@ -105,10 +157,36 @@ export const useMediaPreviewSigningController = <
 
     const readyRows = filteredMedia.filter((row) => row.status !== "uploading");
     if (!readyRows.length) return;
+    const rowById = new Map(readyRows.map((row) => [row.id, row]));
+    const readyIds = new Set(rowById.keys());
+    for (const queuedId of Object.keys(queueStateByIdRef.current)) {
+      const queuedRow = rowById.get(queuedId);
+      if (
+        !queuedRow ||
+        queuedRow.signedUrl ||
+        !resolveMediaSigningStoragePaths(queuedRow, currentUserIdRef.current).length
+      ) {
+        delete queueStateByIdRef.current[queuedId];
+      }
+    }
+    urgentQueueRef.current = urgentQueueRef.current.filter((id) => {
+      if (!readyIds.has(id)) return false;
+      return queueStateByIdRef.current[id] === "urgent";
+    });
+    deferredQueueRef.current = deferredQueueRef.current.filter((id) => {
+      if (!readyIds.has(id)) return false;
+      return queueStateByIdRef.current[id] === "deferred";
+    });
 
-    const prioritizedRows: TRow[] = [];
-    const seen = new Set<string>();
-    const enqueue = (row?: TRow) => {
+    const removeQueuedId = (id: string) => {
+      urgentQueueRef.current = urgentQueueRef.current.filter((queuedId) => queuedId !== id);
+      deferredQueueRef.current = deferredQueueRef.current.filter((queuedId) => queuedId !== id);
+      if (queueStateByIdRef.current[id] !== "in_flight") {
+        delete queueStateByIdRef.current[id];
+      }
+    };
+
+    const enqueue = (row: TRow | undefined, priority: "urgent" | "deferred") => {
       if (!row) return;
       if (
         typeof maxSignAttemptsPerItem === "number" &&
@@ -120,19 +198,26 @@ export const useMediaPreviewSigningController = <
       ) {
         return;
       }
-      if (
-        !resolveMediaSigningStoragePaths(row, currentUserIdRef.current).length ||
-        row.signedUrl ||
-        seen.has(row.id)
-      ) {
+      if (!resolveMediaSigningStoragePaths(row, currentUserIdRef.current).length || row.signedUrl) {
+        removeQueuedId(row.id);
         return;
       }
-      seen.add(row.id);
-      prioritizedRows.push(row);
+      const currentState = queueStateByIdRef.current[row.id];
+      if (currentState === "in_flight") return;
+      if (priority === "urgent") {
+        if (currentState === "urgent") return;
+        removeQueuedId(row.id);
+        urgentQueueRef.current.push(row.id);
+        queueStateByIdRef.current[row.id] = "urgent";
+        return;
+      }
+      if (currentState === "urgent" || currentState === "deferred") return;
+      deferredQueueRef.current.push(row.id);
+      queueStateByIdRef.current[row.id] = "deferred";
     };
 
     for (const row of readyRows.slice(0, signBudget.initialSignLimit)) {
-      enqueue(row);
+      enqueue(row, "urgent");
     }
 
     if (isSignPrefetchEnabled) {
@@ -148,19 +233,53 @@ export const useMediaPreviewSigningController = <
         const lastVisible = Math.max(...visibleIndexes);
         const before = Math.floor(signBudget.prefetchWindow / 3);
         const start = Math.max(0, firstVisible - before);
-        const end = Math.min(readyRows.length, lastVisible + 1 + signBudget.prefetchWindow);
-        for (let idx = start; idx < end; idx += 1) {
-          enqueue(readyRows[idx]);
+        const immediateVisibleWindow = Math.max(
+          signBudget.initialSignLimit,
+          signBudget.signBatchSize * 2
+        );
+        const urgentEnd = Math.min(readyRows.length, firstVisible + immediateVisibleWindow);
+        const prefetchEnd = Math.min(readyRows.length, lastVisible + 1 + signBudget.prefetchWindow);
+        for (let idx = start; idx < urgentEnd; idx += 1) {
+          enqueue(readyRows[idx], "urgent");
+        }
+        for (let idx = urgentEnd; idx < prefetchEnd; idx += 1) {
+          enqueue(readyRows[idx], "deferred");
         }
       }
     }
 
-    const signBatch = prioritizedRows.slice(0, signBudget.signBatchSize);
-    if (!signBatch.length) return;
-    const shouldScheduleFollowupPass = prioritizedRows.length > signBatch.length;
+    const selectQueuedRows = (queuedIds: string[]): TRow[] =>
+      queuedIds
+        .map((id) => rowById.get(id) ?? null)
+        .filter((row): row is TRow => Boolean(row))
+        .slice(0, signBudget.signBatchSize);
+
+    const urgentBatch = selectQueuedRows(urgentQueueRef.current);
+    const deferredBatch =
+      urgentBatch.length || !deferredDrainArmedRef.current
+        ? []
+        : selectQueuedRows(deferredQueueRef.current);
+    const signBatch = urgentBatch.length ? urgentBatch : deferredBatch;
+    if (!signBatch.length) {
+      if (deferredQueueRef.current.length > 0) {
+        scheduleDeferredDrain();
+      }
+      return;
+    }
+    const drainPriority = urgentBatch.length ? "urgent" : "deferred";
+    if (drainPriority === "deferred") {
+      deferredDrainArmedRef.current = false;
+    }
+    const scheduledIds = new Set(signBatch.map((row) => row.id));
+    urgentQueueRef.current = urgentQueueRef.current.filter((id) => !scheduledIds.has(id));
+    deferredQueueRef.current = deferredQueueRef.current.filter((id) => !scheduledIds.has(id));
+    for (const rowId of scheduledIds) {
+      queueStateByIdRef.current[rowId] = "in_flight";
+    }
+    clearDeferredDrainTimeout();
 
     const tabForBatch = activeMediaTab;
-    const queryForBatch = activeMediaQueryRef.current;
+    const queryForBatch = activeMediaQuery;
     mediaSignInFlightRef.current[tabForBatch] = true;
     const finishSignBatch = createMediaPerfTimer({
       surface,
@@ -193,6 +312,9 @@ export const useMediaPreviewSigningController = <
     });
     const signPaths = Array.from(new Set(signCandidatesByRow.flatMap((entry) => entry.candidates)));
     if (!signPaths.length) {
+      for (const rowId of scheduledIds) {
+        delete queueStateByIdRef.current[rowId];
+      }
       mediaSignInFlightRef.current[tabForBatch] = false;
       return;
     }
@@ -257,8 +379,10 @@ export const useMediaPreviewSigningController = <
           if (result.signedUrl) {
             signAttemptRef.current[result.id] = 0;
             signedById.set(result.id, result.signedUrl);
+            delete queueStateByIdRef.current[result.id];
           } else {
             signAttemptRef.current[result.id] = (signAttemptRef.current[result.id] ?? 0) + 1;
+            delete queueStateByIdRef.current[result.id];
           }
         }
         applySignedUrlsToTab(tabForBatch, signedById);
@@ -353,14 +477,24 @@ export const useMediaPreviewSigningController = <
         }
       })
       .finally(() => {
+        for (const rowId of scheduledIds) {
+          if (queueStateByIdRef.current[rowId] === "in_flight") {
+            delete queueStateByIdRef.current[rowId];
+          }
+        }
         mediaSignInFlightRef.current[tabForBatch] = false;
-        if (shouldScheduleFollowupPass && isMountedRef.current) {
+        if (urgentQueueRef.current.length > 0 && isMountedRef.current) {
           setSignPassNonce((prev) => prev + 1);
+          return;
+        }
+        if (deferredQueueRef.current.length > 0 && isMountedRef.current) {
+          scheduleDeferredDrain();
         }
       });
   }, [
     activeMediaCacheLoading,
     activeMediaCachePagesLoaded,
+    activeMediaQuery,
     activeMediaQueryRef,
     activeMediaTab,
     activeTabRef,
@@ -376,7 +510,9 @@ export const useMediaPreviewSigningController = <
     maxSignAttemptsPerItem,
     maxSignCandidatesPerRow,
     backgroundHydrateFallbackEnabled,
+    clearDeferredDrainTimeout,
     resolveSignedUrlsByMediaIds,
+    scheduleDeferredDrain,
     setSignPassNonce,
     signAttemptRef,
     signBudget.initialSignLimit,

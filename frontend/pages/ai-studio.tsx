@@ -50,6 +50,7 @@ import { useAiStudioPageUiNotices } from "../features/ai-studio/hooks/useAiStudi
 import { useAiStudioPageCreditDerivations } from "../features/ai-studio/hooks/useAiStudioPageCreditDerivations";
 import { useAiStudioPerfAuditRuntime } from "../features/ai-studio/hooks/useAiStudioPerfAuditRuntime";
 import { getAiStudioSessionSnapshotViaApi } from "../features/ai-studio/logic/sessionApiClient";
+import { readAiStudioSessionPersistencePolicy } from "../features/ai-studio/logic/sessionPersistencePolicy";
 import { resolveAiStudioSessionSnapshotTitle } from "../features/ai-studio/logic/sessionSnapshotTitle";
 import { AiStudioModalActivityProvider } from "../features/ai-studio/components/modal-layer/AiStudioModalLayer";
 import { isEditWorkflow } from "../features/ai-studio/logic/workflowIdentity";
@@ -68,6 +69,8 @@ const FLAG_SELECTOR_CALLBACKS = PERF_FLAG_SELECTOR_CALLBACKS;
 const FLAG_PAGE_OUTPUT_DECOUPLE = PERF_FLAG_PAGE_OUTPUT_DECOUPLE;
 const FLAG_REFERENCE_GRID_PRECONNECT_HINTS = PERF_FLAG_REFERENCE_GRID_PRECONNECT_HINTS;
 const FLAG_PERF_AUDIT_RUNTIME = PERF_FLAG_AUDIT_RUNTIME;
+const { restoreRemoteEnabled: AI_STUDIO_REMOTE_SESSION_FETCH_ENABLED } =
+  readAiStudioSessionPersistencePolicy();
 
 type OptimisticDebitEntry = { credits: number; outputId: string | null; createdAtMs?: number };
 
@@ -106,11 +109,16 @@ export default function AiStudioPage() {
   const [selectedStyleContext, setSelectedStyleContext] = useState<
     StudioOutput["styleContext"] | null
   >(null);
-  const [sessionTitleOverride, setSessionTitleOverride] = useState<string | null>(null);
+  const [sessionTitleOverrideState, setSessionTitleOverrideState] = useState<{
+    sessionId: string;
+    title: string | null;
+  } | null>(null);
   const [createCharacterModeInjectionBundle, setCreateCharacterModeInjectionBundle] =
     useState<CharacterModeInjectionBundle | null>(null);
   const [editCharacterModeInjectionBundle, setEditCharacterModeInjectionBundle] =
     useState<CharacterModeInjectionBundle | null>(null);
+  const sessionTitleOverride =
+    sessionTitleOverrideState?.sessionId === sessionId ? sessionTitleOverrideState.title : null;
 
   // Character workflow state (shared with Character tool workflows and error surfaces)
   const {
@@ -518,20 +526,25 @@ export default function AiStudioPage() {
 
   useEffect(() => {
     let cancelled = false;
-    setSessionTitleOverride(null);
-    if (!sessionId) return () => void 0;
+    if (!sessionId || !AI_STUDIO_REMOTE_SESSION_FETCH_ENABLED) return () => void 0;
 
     void getAiStudioSessionSnapshotViaApi({ sessionId })
       .then((payload) => {
         if (cancelled) return;
-        setSessionTitleOverride((current) => {
-          if (current !== null) return current;
-          return normalizeAiStudioProjectName(payload?.title ?? null);
+        setSessionTitleOverrideState((current) => {
+          if (current?.sessionId === sessionId && current.title !== null) return current;
+          return {
+            sessionId,
+            title: normalizeAiStudioProjectName(payload?.title ?? null),
+          };
         });
       })
       .catch(() => {
         if (cancelled) return;
-        setSessionTitleOverride(null);
+        setSessionTitleOverrideState({
+          sessionId,
+          title: null,
+        });
       });
 
     return () => {
@@ -545,9 +558,16 @@ export default function AiStudioPage() {
       (sessionSnapshot ? resolveAiStudioSessionSnapshotTitle(sessionSnapshot) : null),
     [sessionSnapshot, sessionTitleOverride]
   );
-  const handleProjectNameCommit = useCallback((value: string) => {
-    setSessionTitleOverride(normalizeAiStudioProjectName(value));
-  }, []);
+  const handleProjectNameCommit = useCallback(
+    (value: string) => {
+      if (!sessionId) return;
+      setSessionTitleOverrideState({
+        sessionId,
+        title: normalizeAiStudioProjectName(value),
+      });
+    },
+    [sessionId]
+  );
 
   const triggerFilePicker = () => referenceGridFileInputRef.current?.click();
   const dismissError = () => setUiError(null);

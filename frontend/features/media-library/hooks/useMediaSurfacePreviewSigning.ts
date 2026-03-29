@@ -36,6 +36,7 @@ type UseMediaSurfacePreviewSigningArgs<TRow extends PreviewSigningRowBase, TTab 
   activeMediaTab: MediaDataTab | null;
   activeMediaCacheLoading: boolean;
   activeMediaCachePagesLoaded: number;
+  activeMediaQuery: string;
   filteredMedia: TRow[];
   signBudgetOverride?: MediaSignBudget;
   isSigningPassEnabled?: boolean;
@@ -59,6 +60,7 @@ export const useMediaSurfacePreviewSigning = <
   activeMediaTab,
   activeMediaCacheLoading,
   activeMediaCachePagesLoaded,
+  activeMediaQuery,
   filteredMedia,
   signBudgetOverride,
   isSigningPassEnabled,
@@ -74,6 +76,7 @@ export const useMediaSurfacePreviewSigning = <
     activeMediaTab,
     activeMediaCacheLoading,
     activeMediaCachePagesLoaded,
+    activeMediaQuery,
     activeMediaQueryRef: runtime.activeMediaQueryRef,
     activeTabRef: runtime.activeTabRef,
     applySignedUrlsToTab: runtime.applySignedUrlsToTab,

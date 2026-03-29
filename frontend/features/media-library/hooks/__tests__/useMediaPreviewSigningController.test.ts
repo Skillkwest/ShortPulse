@@ -1,4 +1,4 @@
-import { renderHook, waitFor } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@testing-library/react";
 import { useCallback, useRef, useState } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useMediaPreviewSigningController } from "../useMediaPreviewSigningController";
@@ -125,6 +125,7 @@ describe("useMediaPreviewSigningController", () => {
         activeMediaTab: "uploaded_images",
         activeMediaCacheLoading: false,
         activeMediaCachePagesLoaded: 1,
+        activeMediaQuery: "",
         activeMediaQueryRef,
         activeTabRef,
         applySignedUrlsToTab,
@@ -179,6 +180,7 @@ describe("useMediaPreviewSigningController", () => {
         activeMediaTab: "uploaded_images",
         activeMediaCacheLoading: false,
         activeMediaCachePagesLoaded: 2,
+        activeMediaQuery: "",
         activeMediaQueryRef,
         activeTabRef,
         applySignedUrlsToTab,
@@ -226,6 +228,7 @@ describe("useMediaPreviewSigningController", () => {
         activeMediaTab: "uploaded_images",
         activeMediaCacheLoading: false,
         activeMediaCachePagesLoaded: 2,
+        activeMediaQuery: "",
         activeMediaQueryRef,
         activeTabRef,
         applySignedUrlsToTab,
@@ -277,6 +280,7 @@ describe("useMediaPreviewSigningController", () => {
         activeMediaTab: "uploaded_images",
         activeMediaCacheLoading: false,
         activeMediaCachePagesLoaded: 1,
+        activeMediaQuery: "",
         activeMediaQueryRef,
         activeTabRef,
         applySignedUrlsToTab,
@@ -334,6 +338,7 @@ describe("useMediaPreviewSigningController", () => {
         activeMediaTab: "uploaded_images",
         activeMediaCacheLoading: false,
         activeMediaCachePagesLoaded: 1,
+        activeMediaQuery: "",
         activeMediaQueryRef,
         activeTabRef,
         applySignedUrlsToTab,
@@ -393,6 +398,7 @@ describe("useMediaPreviewSigningController", () => {
         activeMediaTab: "uploaded_images",
         activeMediaCacheLoading: false,
         activeMediaCachePagesLoaded: 1,
+        activeMediaQuery: "",
         activeMediaQueryRef,
         activeTabRef,
         applySignedUrlsToTab,
@@ -417,6 +423,79 @@ describe("useMediaPreviewSigningController", () => {
 
     await waitFor(() => expect(getSignedMediaUrlsBatchMock).toHaveBeenCalled());
     await waitFor(() => expect(result.current.signPassNonce).toBeGreaterThan(0));
+  });
+
+  it("spaces deferred signing work instead of recursively burst-draining the full frontier", async () => {
+    vi.useFakeTimers();
+    try {
+      getSignedMediaUrlsBatchMock.mockImplementation(async ({ storagePaths }) => {
+        return new Map(
+          storagePaths.map((storagePath: string) => [storagePath, `https://signed/${storagePath}`])
+        );
+      });
+
+      renderHook(() => {
+        const [rows, setRows] = useState([
+          makeRow({ id: "row-1", storage_path: "user/images/first.png" }),
+          makeRow({ id: "row-2", storage_path: "user/images/second.png" }),
+          makeRow({ id: "row-3", storage_path: "user/images/third.png" }),
+        ]);
+        const [signPassNonce, setSignPassNonce] = useState(0);
+        const activeTabRef = useRef<MediaTab>("uploaded_images");
+        const activeMediaQueryRef = useRef("");
+        const currentUserIdRef = useRef<string | null>("user-1");
+        const isMountedRef = useRef(true);
+        const mediaSignInFlightRef = useRef(createMediaTabBooleanState());
+        const signAttemptRef = useRef<Record<string, number>>({});
+        const visibleMediaIdsRef = useRef(new Set<string>(["row-1"]));
+        const applySignedUrlsToTab = vi.fn((_: MediaDataTab, signedById: Map<string, string>) => {
+          setRows((prev) =>
+            prev.map((row) => {
+              const signedUrl = signedById.get(row.id);
+              return signedUrl ? { ...row, signedUrl } : row;
+            })
+          );
+        });
+        const resolveSignedUrlsByMediaIds = vi.fn(async () => new Set<string>());
+        const hydrateViaStorageDownload = vi.fn(async () => null);
+
+        useMediaPreviewSigningController({
+          activeMediaTab: "uploaded_images",
+          activeMediaCacheLoading: false,
+          activeMediaCachePagesLoaded: 1,
+          activeMediaQuery: "",
+          activeMediaQueryRef,
+          activeTabRef,
+          applySignedUrlsToTab,
+          currentUserIdRef,
+          filteredMedia: rows,
+          hydrateViaStorageDownload,
+          isMountedRef,
+          mediaSignInFlightRef,
+          resolveSignedUrlsByMediaIds,
+          setSignPassNonce,
+          signAttemptRef,
+          signBudget: { initialSignLimit: 1, prefetchWindow: 2, signBatchSize: 1 },
+          signPassNonce,
+          visibleMediaIdsRef,
+          visibleMediaVersion: 1,
+        });
+      });
+
+      await act(async () => {
+        await Promise.resolve();
+        await Promise.resolve();
+      });
+      expect(getSignedMediaUrlsBatchMock).toHaveBeenCalledTimes(2);
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(181);
+        await Promise.resolve();
+      });
+      expect(getSignedMediaUrlsBatchMock).toHaveBeenCalledTimes(3);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("records durable-vs-original path counts in sign completion telemetry", async () => {
@@ -468,6 +547,7 @@ describe("useMediaPreviewSigningController", () => {
         activeMediaTab: "uploaded_images",
         activeMediaCacheLoading: false,
         activeMediaCachePagesLoaded: 1,
+        activeMediaQuery: "",
         activeMediaQueryRef,
         activeTabRef,
         applySignedUrlsToTab,
@@ -520,6 +600,7 @@ describe("useMediaPreviewSigningController", () => {
         activeMediaTab: "uploaded_images",
         activeMediaCacheLoading: false,
         activeMediaCachePagesLoaded: 1,
+        activeMediaQuery: "",
         activeMediaQueryRef,
         activeTabRef,
         applySignedUrlsToTab,
@@ -563,6 +644,7 @@ describe("useMediaPreviewSigningController", () => {
         activeMediaTab: "uploaded_images",
         activeMediaCacheLoading: false,
         activeMediaCachePagesLoaded: 1,
+        activeMediaQuery: "",
         activeMediaQueryRef,
         activeTabRef,
         applySignedUrlsToTab,

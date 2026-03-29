@@ -420,6 +420,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
     activeMediaTab,
     activeMediaCacheLoading: mediaLoading,
     activeMediaCachePagesLoaded: 1,
+    activeMediaQuery: normalizedSearch,
     filteredMedia: mediaRows,
     isSigningPassEnabled: shouldShowMedia,
     surface: "media-library-panel",

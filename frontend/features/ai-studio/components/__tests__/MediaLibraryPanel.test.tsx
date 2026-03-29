@@ -378,6 +378,7 @@ describe("MediaLibraryPanel", () => {
       nextCursor: null,
       hasMore: false,
       signedById: new Map<string, string>(),
+      libraryTotalCount: 2,
     });
     fetchMediaPromptListPageMock.mockResolvedValue({
       rows: [
@@ -420,6 +421,7 @@ describe("MediaLibraryPanel", () => {
       expect(screen.getByText("Campaign")).toBeInTheDocument();
     });
     expect(screen.queryByRole("button", { name: "All Media folder" })).not.toBeInTheDocument();
+    expect(screen.getByText("2 saved")).toBeInTheDocument();
     expect(
       screen.getByRole("separator", { name: "Resize folders and references sections" })
     ).toBeInTheDocument();

@@ -62,6 +62,7 @@ type MediaListSuccessResponse = {
   nextCursor: MediaListCursor | null;
   hasMore: boolean;
   signedById?: Record<string, string | null>;
+  libraryTotalCount?: number | null;
 };
 
 type MediaListErrorResponse = {
@@ -168,6 +169,8 @@ const toProfile = (value: unknown): MediaListProfile | null => {
   return isMediaListProfile(value) ? value : null;
 };
 
+const toIncludeLibraryTotalCount = (value: unknown): boolean => value === true;
+
 const withMediaKindFilter = <
   T extends {
     ilike: (column: string, pattern: string) => T;
@@ -240,6 +243,30 @@ const isSafeScopedPath = (path: string, userId: string): boolean => {
   if (normalized.startsWith("/") || normalized.includes("\\")) return false;
   if (TRAVERSAL_SEGMENT_REGEX.test(normalized)) return false;
   return normalized.startsWith(`${userId}/`);
+};
+
+const resolveLibraryTotalCount = async ({
+  userId,
+  characterScopeExclusionEnabled,
+}: {
+  userId: string;
+  characterScopeExclusionEnabled: boolean;
+}): Promise<number | null> => {
+  try {
+    const supabaseAdmin = getSupabaseAdmin();
+    let query = supabaseAdmin
+      .from("media_files")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", userId);
+    if (characterScopeExclusionEnabled) {
+      query = query.not("storage_path", "like", `${userId}/characters/%`);
+    }
+    const { count, error } = await query;
+    if (error) return null;
+    return typeof count === "number" && Number.isFinite(count) ? Math.max(0, count) : null;
+  } catch {
+    return null;
+  }
 };
 
 const resolveInitialSignedById = async ({
@@ -364,6 +391,9 @@ export default async function handler(
       typeof requestBody.query === "string" ? requestBody.query : ""
     );
     const characterScopeExclusionEnabled = isCharacterScopeExclusionEnabled();
+    const includeLibraryTotalCount = toIncludeLibraryTotalCount(
+      requestBody.includeLibraryTotalCount
+    );
     const cursor = toCursor(requestBody.cursor);
     const limit = clampLimit(surface, requestBody.limit);
     try {
@@ -474,6 +504,12 @@ export default async function handler(
       surface,
       tab,
     });
+    const libraryTotalCount = includeLibraryTotalCount
+      ? await resolveLibraryTotalCount({
+          userId: user.id,
+          characterScopeExclusionEnabled,
+        })
+      : null;
 
     res.setHeader("x-shortpulse-media-list-surface", surface);
     res.setHeader("x-shortpulse-media-list-tab", tab ?? mediaKind ?? "unknown");
@@ -495,6 +531,7 @@ export default async function handler(
       nextCursor: hasMore ? nextCursor : null,
       hasMore,
       signedById: Object.keys(signedById).length ? signedById : undefined,
+      libraryTotalCount,
     });
   } catch (error) {
     await logApiRouteException({

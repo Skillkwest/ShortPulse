@@ -168,6 +168,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
     error: dataError,
     mediaRows,
     setMediaRows,
+    libraryTotalCount,
     promptRows,
     setPromptRows,
     mediaHasMore,
@@ -882,62 +883,63 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
               : null}
 
             {!showFolderCanvas && isRootFolderSelected ? (
-              <div
-                className="media-library-panel-root-tabs"
-                role="tablist"
-                aria-label="All Media type tabs"
-              >
-                <button
-                  type="button"
-                  role="tab"
-                  className={`media-library-panel-root-tab${rootTab === "all" ? " is-active" : ""}`}
-                  aria-selected={rootTab === "all"}
-                  aria-controls="media-library-panel-all-media-section"
-                  onClick={() => setRootTab("all")}
+              <div className="media-library-panel-root-tabs-row">
+                <div
+                  className="media-library-panel-root-tabs"
+                  role="tablist"
+                  aria-label="All Media type tabs"
                 >
-                  All Media
-                </button>
-                <button
-                  type="button"
-                  role="tab"
-                  className={`media-library-panel-root-tab${rootTab === "images" ? " is-active" : ""}`}
-                  aria-selected={rootTab === "images"}
-                  aria-controls="media-library-panel-images-section"
-                  onClick={() => setRootTab("images")}
-                >
-                  Images
-                </button>
-                <button
-                  type="button"
-                  role="tab"
-                  className={`media-library-panel-root-tab${rootTab === "videos" ? " is-active" : ""}`}
-                  aria-selected={rootTab === "videos"}
-                  aria-controls="media-library-panel-videos-section"
-                  onClick={() => setRootTab("videos")}
-                >
-                  Videos
-                </button>
-                <button
-                  type="button"
-                  role="tab"
-                  className={`media-library-panel-root-tab${rootTab === "prompts" ? " is-active" : ""}`}
-                  aria-selected={rootTab === "prompts"}
-                  aria-controls="media-library-panel-prompts-section"
-                  onClick={() => setRootTab("prompts")}
-                >
-                  Prompts
-                </button>
+                  <button
+                    type="button"
+                    role="tab"
+                    className={`media-library-panel-root-tab${rootTab === "all" ? " is-active" : ""}`}
+                    aria-selected={rootTab === "all"}
+                    aria-controls="media-library-panel-all-media-section"
+                    onClick={() => setRootTab("all")}
+                  >
+                    All Media
+                  </button>
+                  <button
+                    type="button"
+                    role="tab"
+                    className={`media-library-panel-root-tab${rootTab === "images" ? " is-active" : ""}`}
+                    aria-selected={rootTab === "images"}
+                    aria-controls="media-library-panel-images-section"
+                    onClick={() => setRootTab("images")}
+                  >
+                    Images
+                  </button>
+                  <button
+                    type="button"
+                    role="tab"
+                    className={`media-library-panel-root-tab${rootTab === "videos" ? " is-active" : ""}`}
+                    aria-selected={rootTab === "videos"}
+                    aria-controls="media-library-panel-videos-section"
+                    onClick={() => setRootTab("videos")}
+                  >
+                    Videos
+                  </button>
+                  <button
+                    type="button"
+                    role="tab"
+                    className={`media-library-panel-root-tab${rootTab === "prompts" ? " is-active" : ""}`}
+                    aria-selected={rootTab === "prompts"}
+                    aria-controls="media-library-panel-prompts-section"
+                    onClick={() => setRootTab("prompts")}
+                  >
+                    Prompts
+                  </button>
+                </div>
+                {libraryTotalCount !== null ? (
+                  <p className="tiny subdued media-library-panel-root-count">
+                    {libraryTotalCount} saved
+                  </p>
+                ) : null}
               </div>
             ) : null}
 
             {!showFolderCanvas && shouldShowMedia && isRootFolderSelected && itemType === "all" ? (
               <section className="media-library-panel-section">
-                <div className="media-library-panel-section-head">
-                  <p className="tiny subdued">
-                    All Media ({mediaRows.length})
-                    {mediaLoading && mediaRows.length > 0 ? " · Refreshing" : ""}
-                  </p>
-                </div>
                 {mediaLoading && mediaRows.length === 0 ? (
                   <p className="tiny subdued">Loading media…</p>
                 ) : null}

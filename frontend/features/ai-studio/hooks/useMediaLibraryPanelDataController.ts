@@ -24,6 +24,7 @@ type UseMediaLibraryPanelDataControllerResult = {
   error: string | null;
   mediaRows: MediaFileRow[];
   setMediaRows: React.Dispatch<React.SetStateAction<MediaFileRow[]>>;
+  libraryTotalCount: number | null;
   promptRows: PromptRow[];
   setPromptRows: React.Dispatch<React.SetStateAction<PromptRow[]>>;
   mediaHasMore: boolean;
@@ -70,6 +71,7 @@ export const useMediaLibraryPanelDataController = ({
   panelBodyRef,
 }: UseMediaLibraryPanelDataControllerParams): UseMediaLibraryPanelDataControllerResult => {
   const [mediaRows, setMediaRows] = React.useState<MediaFileRow[]>([]);
+  const [libraryTotalCount, setLibraryTotalCount] = React.useState<number | null>(null);
   const [promptRows, setPromptRows] = React.useState<PromptRow[]>([]);
   const [mediaCursor, setMediaCursor] = React.useState<MediaListCursor | null>(null);
   const [promptCursor, setPromptCursor] = React.useState<PromptListCursor | null>(null);
@@ -134,6 +136,7 @@ export const useMediaLibraryPanelDataController = ({
           surface: "media-library-panel",
           profile: "expanded",
           folderId: activeFolderId,
+          includeLibraryTotalCount: true,
         });
         if (!result) {
           throw new Error("Unable to load media.");
@@ -153,6 +156,9 @@ export const useMediaLibraryPanelDataController = ({
           return right.id.localeCompare(left.id);
         });
         setMediaRows(nextRows);
+        setLibraryTotalCount(
+          typeof result.libraryTotalCount === "number" ? result.libraryTotalCount : null
+        );
         setMediaCursor(result.nextCursor);
         setMediaHasMore(result.hasMore);
         setResolvedMediaScopeKey(scopeKey);
@@ -344,6 +350,7 @@ export const useMediaLibraryPanelDataController = ({
     error,
     mediaRows,
     setMediaRows,
+    libraryTotalCount,
     promptRows,
     setPromptRows,
     mediaHasMore,

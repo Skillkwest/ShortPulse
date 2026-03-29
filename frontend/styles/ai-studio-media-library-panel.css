@@ -212,6 +212,18 @@
   gap: 8px;
 }
 
+.media-library-panel-root-tabs-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.media-library-panel-root-count {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
 .media-library-panel-root-tab {
   border: 1px solid rgba(137, 156, 178, 0.24);
   background: rgba(12, 15, 22, 0.7);

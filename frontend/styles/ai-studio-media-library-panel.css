@@ -111,15 +111,16 @@
 .media-library-panel-folder-strip {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
+  column-gap: 18px;
+  row-gap: 12px;
 }
 
 .media-library-panel-folder-strip-item {
-  width: 84px;
+  width: 104px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   min-width: 0;
 }
 
@@ -147,14 +148,18 @@
 }
 
 .media-library-panel-folder-chip-name {
-  width: 84px;
+  width: 104px;
   text-align: center;
   font-size: 11px;
-  line-height: 1.2;
+  line-height: 1.25;
   color: rgba(209, 222, 246, 0.84);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow: visible;
+  white-space: normal;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  min-height: calc(11px * 1.25 * 2);
+  text-wrap: balance;
   margin: 0;
   padding: 0;
   border: 0;
@@ -190,8 +195,8 @@
   flex-direction: column;
   align-items: stretch;
   gap: 0;
-  width: 84px;
-  min-width: 84px;
+  width: 104px;
+  min-width: 104px;
   padding: 0;
   border: 0;
   border-radius: 0;

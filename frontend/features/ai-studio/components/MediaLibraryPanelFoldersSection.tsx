@@ -2,7 +2,7 @@ import React from "react";
 import { Folders, Plus } from "phosphor-react";
 import { AiStudioModalLayer } from "./modal-layer/AiStudioModalLayer";
 
-const FOLDER_TILE_IMAGE_SRC = "/Folder.png";
+const FOLDER_TILE_IMAGE_SRC = "/Folder 1.png";
 
 type FolderRow = {
   id: string;

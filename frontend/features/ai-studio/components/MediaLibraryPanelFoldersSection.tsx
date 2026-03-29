@@ -91,19 +91,23 @@ export function MediaLibraryPanelFoldersSection({
             >
               {ROOT_FOLDER_LABEL}
             </button>
-            <CaretRight
-              className="media-library-panel-folders-breadcrumb-caret"
-              size={11}
-              weight="bold"
-              aria-hidden
-            />
-            <button
-              type="button"
-              className="media-library-panel-folders-breadcrumb-button media-library-panel-folders-root-label"
-              onClick={onNavigateToActiveFolder}
-            >
-              {activeFolderName || ROOT_FOLDER_LABEL}
-            </button>
+            {canNavigateUp ? (
+              <>
+                <CaretRight
+                  className="media-library-panel-folders-breadcrumb-caret"
+                  size={11}
+                  weight="bold"
+                  aria-hidden
+                />
+                <button
+                  type="button"
+                  className="media-library-panel-folders-breadcrumb-button media-library-panel-folders-root-label"
+                  onClick={onNavigateToActiveFolder}
+                >
+                  {activeFolderName || ROOT_FOLDER_LABEL}
+                </button>
+              </>
+            ) : null}
           </span>
         </div>
         <div className="media-library-panel-folder-strip" role="list" aria-label="Media folders">

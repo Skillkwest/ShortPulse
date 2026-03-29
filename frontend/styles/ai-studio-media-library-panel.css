@@ -203,10 +203,20 @@
 }
 
 .media-library-panel-root-tabs-row {
+  position: sticky;
+  top: 0;
+  z-index: 2;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+  padding: 2px 0 8px;
+  background: linear-gradient(
+    180deg,
+    rgba(16, 18, 22, 0.98) 0%,
+    rgba(16, 18, 22, 0.98) 72%,
+    rgba(16, 18, 22, 0) 100%
+  );
 }
 
 .media-library-panel-root-count {

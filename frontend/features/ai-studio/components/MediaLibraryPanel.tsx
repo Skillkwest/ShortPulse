@@ -56,7 +56,7 @@ import { MediaLibraryPromptGrid } from "./media-library-modal/MediaLibraryPrompt
 import { AiStudioModalLayer, useAiStudioModalActivity } from "./modal-layer/AiStudioModalLayer";
 
 type MediaLibraryPanelItemType = "all" | "images" | "videos" | "prompts";
-type RootMediaLibraryTab = "images" | "videos" | "prompts";
+type RootMediaLibraryTab = "all" | "images" | "videos" | "prompts";
 
 type FolderContextMenuState = {
   folderId: string;
@@ -130,7 +130,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
   } = useMediaLibraryFoldersState();
 
   const isRootFolderSelected = activeFolderId === MEDIA_LIBRARY_ROOT_FOLDER_ID;
-  const [rootTab, setRootTab] = useState<RootMediaLibraryTab>("images");
+  const [rootTab, setRootTab] = useState<RootMediaLibraryTab>("all");
   const itemType: MediaLibraryPanelItemType = isRootFolderSelected ? rootTab : "all";
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
@@ -160,7 +160,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
     [debouncedSearch]
   );
   const shouldShowMedia = itemType !== "prompts";
-  const shouldShowPrompts = itemType === "prompts" || itemType === "all";
+  const shouldShowPrompts = itemType === "prompts" || (!isRootFolderSelected && itemType === "all");
   const showFolderCanvas =
     activeFolderId !== MEDIA_LIBRARY_ROOT_FOLDER_ID && shouldShowMedia && shouldShowPrompts;
   const {
@@ -889,6 +889,16 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
                 <button
                   type="button"
                   role="tab"
+                  className={`media-library-panel-root-tab${rootTab === "all" ? " is-active" : ""}`}
+                  aria-selected={rootTab === "all"}
+                  aria-controls="media-library-panel-all-media-section"
+                  onClick={() => setRootTab("all")}
+                >
+                  All Media
+                </button>
+                <button
+                  type="button"
+                  role="tab"
                   className={`media-library-panel-root-tab${rootTab === "images" ? " is-active" : ""}`}
                   aria-selected={rootTab === "images"}
                   aria-controls="media-library-panel-images-section"
@@ -917,6 +927,26 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
                   Prompts
                 </button>
               </div>
+            ) : null}
+
+            {!showFolderCanvas && shouldShowMedia && isRootFolderSelected && itemType === "all" ? (
+              <section className="media-library-panel-section">
+                <div className="media-library-panel-section-head">
+                  <p className="tiny subdued">
+                    All Media ({mediaRows.length})
+                    {mediaLoading && mediaRows.length > 0 ? " · Refreshing" : ""}
+                  </p>
+                </div>
+                {mediaLoading && mediaRows.length === 0 ? (
+                  <p className="tiny subdued">Loading media…</p>
+                ) : null}
+                {!mediaLoading && mediaRows.length === 0 ? (
+                  <p className="tiny subdued">No media found for this folder.</p>
+                ) : null}
+                <div id="media-library-panel-all-media-section">
+                  {mediaRows.length > 0 ? renderMediaGrid(mediaRows) : null}
+                </div>
+              </section>
             ) : null}
 
             {!showFolderCanvas &&

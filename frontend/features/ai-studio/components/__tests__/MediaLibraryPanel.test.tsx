@@ -1296,20 +1296,39 @@ describe("MediaLibraryPanel", () => {
     expect(latestCanvasProps?.promptRows.map((row) => row.id)).toEqual(["prompt-folder-1"]);
   });
 
-  it("switches All Media root tabs between images, videos, and prompts", async () => {
+  it("switches All Media root tabs between all media, images, videos, and prompts", async () => {
     render(<MediaLibraryPanel onSelectMedia={vi.fn()} onSelectPrompt={vi.fn()} />);
 
     await waitFor(() => {
       expect(screen.getByRole("tablist", { name: "All Media type tabs" })).toBeInTheDocument();
+      expect(screen.getByRole("tab", { name: "All Media" })).toBeInTheDocument();
       expect(screen.getByRole("tab", { name: "Prompts" })).toBeInTheDocument();
       expect(screen.getByRole("tab", { name: "Images" })).toBeInTheDocument();
       expect(screen.getByRole("tab", { name: "Videos" })).toBeInTheDocument();
       expect(screen.getByRole("button", { name: "Select media ref-1.png" })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Select media clip-1.mp4" })).toBeInTheDocument();
     });
 
     expect(
       screen.queryByRole("button", { name: "Select prompt Prompt One" })
     ).not.toBeInTheDocument();
+
+    expect(fetchMediaListPageMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        mediaKind: "all",
+        folderId: "all_items",
+      })
+    );
+    const latestAllMediaProps = mediaGridPropsSpy.mock.calls.at(-1)?.[0];
+    expect(latestAllMediaProps?.activeMedia.map((row: { id: string }) => row.id)).toEqual([
+      "media-1",
+      "media-2",
+    ]);
+
+    fireEvent.click(screen.getByRole("tab", { name: "Images" }));
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Select media ref-1.png" })).toBeInTheDocument();
+    });
     expect(
       screen.queryByRole("button", { name: "Select media clip-1.mp4" })
     ).not.toBeInTheDocument();
@@ -1353,9 +1372,10 @@ describe("MediaLibraryPanel", () => {
       })
     );
 
-    fireEvent.click(screen.getByRole("tab", { name: "Images" }));
+    fireEvent.click(screen.getByRole("tab", { name: "All Media" }));
     await waitFor(() => {
       expect(screen.getByRole("button", { name: "Select media ref-1.png" })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Select media clip-1.mp4" })).toBeInTheDocument();
     });
   });
 

@@ -160,12 +160,11 @@ Define the authoritative AI Studio Media Library panel UX contract (`toolId: med
    - Current: Custom folders mount dedicated canvas spaces with durable per-folder snapshot persistence (`user + folder`) and right-click/Shift-drag export behavior.
    - Gap: Folder-canvas linked-item removal currently follows canvas delete/selection interactions; dedicated explicit remove controls are deferred.
 9. Folder hierarchy foundation:
-   - Status: Backend aligned, UI cutover pending.
-   - Current: `media_folders` now carries explicit `parent_folder_id` ancestry with sibling-scoped uniqueness, cycle prevention, and a reparent API (`/api/media/folders/move`).
-   - Gap: The AI Studio panel still uses a proxy folder-strip navigation model and has not yet cut over to real breadcrumb/child-folder traversal.
-10. Folder-strip hierarchy proxy:
-   - Status: Partially aligned.
-   - Current: The folder strip uses folder creation order as the current nesting proxy; when a deeper folder is selected, older/higher-level folders are hidden while the current folder stays visible as the active level, and later-created folders remain visible to the right. Breadcrumb + back-caret navigation still handle moving upward.
+   - Status: Aligned.
+   - Current: `media_folders` carries explicit `parent_folder_id` ancestry with sibling-scoped uniqueness, cycle prevention, and a reparent API (`/api/media/folders/move`), and the AI Studio panel now traverses real parent/child relationships instead of a creation-order proxy.
+10. Folder-strip hierarchy navigation:
+   - Status: Aligned.
+   - Current: The folder strip shows direct children of the current folder only. Breadcrumb segments follow the true ancestor chain from `All Media`, the back-caret navigates to the real parent folder, and new folders are created under the currently active folder.
 11. `All Media` completeness backfill:
    - Status: Pending rollout.
    - Current: Backfill and diagnostics exist in SQL (`064` + drift check) but require environment application/runbook execution to converge legacy missing rows.

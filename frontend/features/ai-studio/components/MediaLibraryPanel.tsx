@@ -88,7 +88,6 @@ type MediaLibraryPanelProps = {
   resolveCanvasDropReference?: ResolveCanvasDropReference;
 };
 
-const ROOT_FOLDER_LABEL = "All Media";
 const FOLDER_CONTEXT_MENU_WIDTH_PX = 156;
 const FOLDER_CONTEXT_MENU_HEIGHT_PX = 84;
 const FOLDER_CONTEXT_MENU_VIEWPORT_PADDING_PX = 10;
@@ -118,9 +117,12 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
   const panelSurfaceConfig = getMediaLibrarySurfaceConfig("panel");
   const {
     folders,
-    customFolders,
-    orderedFolders,
+    visibleFolders,
+    ancestorFolders,
     activeFolderId,
+    activeFolderName,
+    activeFolderParentId,
+    canNavigateUp,
     setActiveFolderId,
     folderError,
     setFolderError,
@@ -136,7 +138,6 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
   } = useMediaLibraryFoldersState();
 
   const isRootFolderSelected = activeFolderId === MEDIA_LIBRARY_ROOT_FOLDER_ID;
-  const canNavigateUp = !isRootFolderSelected;
   const [rootTab, setRootTab] = useState<RootMediaLibraryTab>("all");
   const itemType: MediaLibraryPanelItemType = isRootFolderSelected ? rootTab : "all";
 
@@ -641,18 +642,19 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
     await deleteFolder(folderId);
   }, [deleteFolder, folderContextMenu]);
 
-  const activeFolderName =
-    orderedFolders.find((folder) => folder.id === activeFolderId)?.name || ROOT_FOLDER_LABEL;
   const handleNavigateUp = useCallback(() => {
     if (!canNavigateUp) return;
-    setActiveFolderId(MEDIA_LIBRARY_ROOT_FOLDER_ID);
-  }, [canNavigateUp, setActiveFolderId]);
+    setActiveFolderId(activeFolderParentId ?? MEDIA_LIBRARY_ROOT_FOLDER_ID);
+  }, [activeFolderParentId, canNavigateUp, setActiveFolderId]);
   const handleNavigateToRoot = useCallback(() => {
     setActiveFolderId(MEDIA_LIBRARY_ROOT_FOLDER_ID);
   }, [setActiveFolderId]);
-  const handleNavigateToActiveFolder = useCallback(() => {
-    setActiveFolderId(activeFolderId);
-  }, [activeFolderId, setActiveFolderId]);
+  const handleNavigateToFolder = useCallback(
+    (folderId: string) => {
+      setActiveFolderId(folderId || MEDIA_LIBRARY_ROOT_FOLDER_ID);
+    },
+    [setActiveFolderId]
+  );
   const canShowFolderItemRemoveAction = !isRootFolderSelected;
   const resolvePanelCardPreviewUrl = useCallback(
     ({
@@ -860,13 +862,12 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
       <div ref={splitContainerRef} className="media-library-panel-split">
         <div className="media-library-panel-folders-panel" style={foldersSplit.topSectionStyle}>
           <MediaLibraryPanelFoldersSection
-            activeFolderName={activeFolderName}
-            folders={customFolders}
-            activeFolderId={activeFolderId}
+            ancestorFolders={ancestorFolders}
+            folders={visibleFolders}
             canNavigateUp={canNavigateUp}
             onNavigateUp={handleNavigateUp}
             onNavigateToRoot={handleNavigateToRoot}
-            onNavigateToActiveFolder={handleNavigateToActiveFolder}
+            onNavigateToFolder={handleNavigateToFolder}
             setActiveFolderId={setActiveFolderId}
             editingFolderId={editingFolderId}
             editingFolderName={editingFolderName}

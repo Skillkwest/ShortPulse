@@ -1,7 +1,6 @@
 import React from "react";
 import { CaretLeft, CaretRight, Folders, Plus } from "phosphor-react";
 import { AiStudioModalLayer } from "./modal-layer/AiStudioModalLayer";
-import { MEDIA_LIBRARY_ROOT_FOLDER_ID } from "../logic/mediaLibraryPanelApi";
 
 const FOLDER_TILE_IMAGE_SRC = "/Folder 1.png";
 const ROOT_FOLDER_LABEL = "All Media";
@@ -19,13 +18,12 @@ type FolderContextMenuState = {
 };
 
 type MediaLibraryPanelFoldersSectionProps = {
-  activeFolderName: string;
+  ancestorFolders: FolderRow[];
   folders: FolderRow[];
-  activeFolderId: string;
   canNavigateUp: boolean;
   onNavigateUp: () => void;
   onNavigateToRoot: () => void;
-  onNavigateToActiveFolder: () => void;
+  onNavigateToFolder: (folderId: string) => void;
   setActiveFolderId: (folderId: string) => void;
   editingFolderId: string | null;
   editingFolderName: string;
@@ -52,13 +50,12 @@ type MediaLibraryPanelFoldersSectionProps = {
 };
 
 export function MediaLibraryPanelFoldersSection({
-  activeFolderName,
+  ancestorFolders,
   folders,
-  activeFolderId,
   canNavigateUp,
   onNavigateUp,
   onNavigateToRoot,
-  onNavigateToActiveFolder,
+  onNavigateToFolder,
   setActiveFolderId,
   editingFolderId,
   editingFolderName,
@@ -79,14 +76,6 @@ export function MediaLibraryPanelFoldersSection({
   onContextRename,
   onContextDelete,
 }: MediaLibraryPanelFoldersSectionProps) {
-  const activeFolderIndex = folders.findIndex((folder) => folder.id === activeFolderId);
-  const visibleFolders =
-    activeFolderId === MEDIA_LIBRARY_ROOT_FOLDER_ID
-      ? folders.filter((folder) => folder.id !== activeFolderId)
-      : activeFolderIndex < 0
-        ? folders.filter((folder) => folder.id !== activeFolderId)
-        : folders.slice(activeFolderIndex);
-
   return (
     <>
       <div className="media-library-panel-folders">
@@ -100,8 +89,8 @@ export function MediaLibraryPanelFoldersSection({
             >
               {ROOT_FOLDER_LABEL}
             </button>
-            {canNavigateUp ? (
-              <>
+            {ancestorFolders.map((folder) => (
+              <React.Fragment key={folder.id}>
                 <CaretRight
                   className="media-library-panel-folders-breadcrumb-caret"
                   size={11}
@@ -111,12 +100,12 @@ export function MediaLibraryPanelFoldersSection({
                 <button
                   type="button"
                   className="media-library-panel-folders-breadcrumb-button media-library-panel-folders-root-label"
-                  onClick={onNavigateToActiveFolder}
+                  onClick={() => onNavigateToFolder(folder.id)}
                 >
-                  {activeFolderName || ROOT_FOLDER_LABEL}
+                  {folder.name}
                 </button>
-              </>
-            ) : null}
+              </React.Fragment>
+            ))}
           </span>
         </div>
         <div className="media-library-panel-folder-strip" role="list" aria-label="Media folders">
@@ -135,8 +124,7 @@ export function MediaLibraryPanelFoldersSection({
               </button>
             </div>
           ) : null}
-          {visibleFolders.map((folder) => {
-            const isActive = activeFolderId === folder.id;
+          {folders.map((folder) => {
             const isEditing = editingFolderId === folder.id;
             return (
               <div
@@ -192,9 +180,7 @@ export function MediaLibraryPanelFoldersSection({
                   <>
                     <button
                       type="button"
-                      className={`media-library-panel-folder-chip media-library-panel-folder-chip--image ${
-                        isActive ? "is-active" : ""
-                      }`}
+                      className="media-library-panel-folder-chip media-library-panel-folder-chip--image"
                       onClick={() => setActiveFolderId(folder.id)}
                       aria-label={`${folder.name} folder`}
                     >

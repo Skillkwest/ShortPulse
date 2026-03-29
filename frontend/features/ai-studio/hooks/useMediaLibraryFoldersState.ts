@@ -20,14 +20,6 @@ const NEW_FOLDER_BASE_NAME = "New Folder";
 const MAX_FOLDER_NAME_COLLISION_RETRIES = 8;
 const TEMP_FOLDER_ID_PREFIX = "__pending_new_folder__";
 
-const ROOT_FOLDER: MediaFolder = {
-  id: MEDIA_LIBRARY_ROOT_FOLDER_ID,
-  name: ROOT_FOLDER_LABEL,
-  parentFolderId: null,
-  createdAt: "",
-  updatedAt: "",
-};
-
 const withTimeout = async <T>(promise: Promise<T>, timeoutMs: number, message: string) =>
   await new Promise<T>((resolve, reject) => {
     const timeoutId = window.setTimeout(() => {
@@ -84,8 +76,12 @@ const compareFoldersByCreatedAt = (left: MediaFolder, right: MediaFolder): numbe
 type UseMediaLibraryFoldersStateResult = {
   folders: MediaFolder[];
   customFolders: MediaFolder[];
-  orderedFolders: MediaFolder[];
+  visibleFolders: MediaFolder[];
+  ancestorFolders: MediaFolder[];
   activeFolderId: MediaFolderId;
+  activeFolderName: string;
+  activeFolderParentId: string | null;
+  canNavigateUp: boolean;
   setActiveFolderId: (folderId: MediaFolderId) => void;
   folderError: string | null;
   setFolderError: (value: string | null) => void;
@@ -116,7 +112,36 @@ export const useMediaLibraryFoldersState = (): UseMediaLibraryFoldersStateResult
   const creatingFolderInFlightRef = useRef(false);
 
   const customFolders = useMemo(() => [...folders].sort(compareFoldersByCreatedAt), [folders]);
-  const orderedFolders = useMemo(() => [ROOT_FOLDER, ...customFolders], [customFolders]);
+  const foldersById = useMemo(
+    () => new Map(customFolders.map((folder) => [folder.id, folder])),
+    [customFolders]
+  );
+  const activeFolder = useMemo(
+    () =>
+      activeFolderId === MEDIA_LIBRARY_ROOT_FOLDER_ID
+        ? null
+        : (foldersById.get(activeFolderId) ?? null),
+    [activeFolderId, foldersById]
+  );
+  const activeFolderParentId = activeFolder?.parentFolderId ?? null;
+  const canNavigateUp = activeFolderId !== MEDIA_LIBRARY_ROOT_FOLDER_ID;
+  const activeFolderName = activeFolder?.name ?? ROOT_FOLDER_LABEL;
+  const ancestorFolders = useMemo(() => {
+    if (!activeFolder) return [];
+    const chain: MediaFolder[] = [];
+    const seen = new Set<string>();
+    let cursor: MediaFolder | null = activeFolder;
+    while (cursor && !seen.has(cursor.id)) {
+      chain.unshift(cursor);
+      seen.add(cursor.id);
+      cursor = cursor.parentFolderId ? (foldersById.get(cursor.parentFolderId) ?? null) : null;
+    }
+    return chain;
+  }, [activeFolder, foldersById]);
+  const visibleFolders = useMemo(() => {
+    const currentParentId = activeFolderId === MEDIA_LIBRARY_ROOT_FOLDER_ID ? null : activeFolderId;
+    return customFolders.filter((folder) => folder.parentFolderId === currentParentId);
+  }, [activeFolderId, customFolders]);
 
   const refreshFolders = useCallback(async () => {
     const requestToken = foldersRequestTokenRef.current + 1;
@@ -152,14 +177,18 @@ export const useMediaLibraryFoldersState = (): UseMediaLibraryFoldersStateResult
     setFolderError(null);
     setCreatingFolder(true);
     const pendingFolderId = buildPendingFolderId();
-    const knownFolderNames = toNormalizedFolderNames(folders);
+    const nextParentFolderId =
+      activeFolderId === MEDIA_LIBRARY_ROOT_FOLDER_ID ? null : activeFolderId;
+    const knownFolderNames = toNormalizedFolderNames(
+      folders.filter((folder) => folder.parentFolderId === nextParentFolderId)
+    );
     let nextName = resolveNextFolderNameFromNames(knownFolderNames);
     setFolders((previous) => [
       ...previous,
       {
         id: pendingFolderId,
         name: nextName,
-        parentFolderId: null,
+        parentFolderId: nextParentFolderId,
         createdAt: "",
         updatedAt: "",
       },
@@ -168,7 +197,7 @@ export const useMediaLibraryFoldersState = (): UseMediaLibraryFoldersStateResult
     try {
       for (let attempt = 0; attempt <= MAX_FOLDER_NAME_COLLISION_RETRIES; attempt += 1) {
         try {
-          const folder = await createMediaFolder(nextName);
+          const folder = await createMediaFolder(nextName, nextParentFolderId);
           setFolders((previous) => {
             const withoutPending = previous.filter(
               (row) => row.id !== pendingFolderId && row.id !== folder.id
@@ -200,7 +229,7 @@ export const useMediaLibraryFoldersState = (): UseMediaLibraryFoldersStateResult
       setCreatingFolder(false);
       creatingFolderInFlightRef.current = false;
     }
-  }, [folders]);
+  }, [activeFolderId, folders]);
 
   const startFolderRename = useCallback((folderId: string, currentName: string) => {
     setFolderError(null);
@@ -261,8 +290,12 @@ export const useMediaLibraryFoldersState = (): UseMediaLibraryFoldersStateResult
   return {
     folders,
     customFolders,
-    orderedFolders,
+    visibleFolders,
+    ancestorFolders,
     activeFolderId,
+    activeFolderName,
+    activeFolderParentId,
+    canNavigateUp,
     setActiveFolderId,
     folderError,
     setFolderError,

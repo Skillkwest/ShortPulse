@@ -213,6 +213,7 @@ export function useAiStudioTasks({
   const pollSessionsRef = useRef<Record<string, number>>({});
   const statusRequestsInFlightRef = useRef(0);
   const lastProgressUpdateAtRef = useRef<Record<string, number>>({});
+  const lastProgressSignatureRef = useRef<Record<string, string>>({});
   const recoveryStateRefsRef = useRef<{
     outputLookupHardStopNotifiedRef?: React.MutableRefObject<Record<string, boolean>>;
     outputLookupMissesRef?: React.MutableRefObject<Record<string, number>>;
@@ -307,6 +308,7 @@ export function useAiStudioTasks({
         });
       }
       delete lastProgressUpdateAtRef.current[outputId];
+      delete lastProgressSignatureRef.current[outputId];
       delete recoveryStateRefs.outputLookupMissesRef?.current[outputId];
       delete recoveryStateRefs.outputLookupMissingSinceRef?.current[outputId];
       delete recoveryStateRefs.outputLookupHardStopNotifiedRef?.current[outputId];
@@ -860,10 +862,12 @@ export function useAiStudioTasks({
             const nextTaskState = normalizeProviderStateToTaskState(state);
             const now = Date.now();
             const lastProgressUpdateAt = lastProgressUpdateAtRef.current[outputId] ?? 0;
+            const nextProgressSignature = `${nextTaskState}|Processing...`;
             const shouldSkipProgressUpdate =
-              REFERENCE_GRID_FLAG_UPDATE_BACKPRESSURE &&
-              nextTaskState === "running" &&
-              now - lastProgressUpdateAt < OUTPUT_PROGRESS_UPDATE_MIN_INTERVAL_MS;
+              lastProgressSignatureRef.current[outputId] === nextProgressSignature ||
+              (REFERENCE_GRID_FLAG_UPDATE_BACKPRESSURE &&
+                nextTaskState === "running" &&
+                now - lastProgressUpdateAt < OUTPUT_PROGRESS_UPDATE_MIN_INTERVAL_MS);
             if (!shouldSkipProgressUpdate) {
               queueOutputUpdate(
                 outputId,
@@ -872,6 +876,7 @@ export function useAiStudioTasks({
                   const timestampChanged = item.timestamp !== "Processing...";
                   if (!taskStateChanged && !timestampChanged) return item;
                   lastProgressUpdateAtRef.current[outputId] = now;
+                  lastProgressSignatureRef.current[outputId] = nextProgressSignature;
                   return {
                     ...item,
                     taskState: nextTaskState,
@@ -918,9 +923,11 @@ export function useAiStudioTasks({
             }
             const now = Date.now();
             const lastProgressUpdateAt = lastProgressUpdateAtRef.current[outputId] ?? 0;
+            const nextProgressSignature = "running|Retrying status...";
             const shouldSkipRetryUpdate =
-              REFERENCE_GRID_FLAG_UPDATE_BACKPRESSURE &&
-              now - lastProgressUpdateAt < OUTPUT_PROGRESS_UPDATE_MIN_INTERVAL_MS;
+              lastProgressSignatureRef.current[outputId] === nextProgressSignature ||
+              (REFERENCE_GRID_FLAG_UPDATE_BACKPRESSURE &&
+                now - lastProgressUpdateAt < OUTPUT_PROGRESS_UPDATE_MIN_INTERVAL_MS);
             if (!shouldSkipRetryUpdate) {
               queueOutputUpdate(
                 outputId,
@@ -930,6 +937,7 @@ export function useAiStudioTasks({
                   const timestampChanged = item.timestamp !== "Retrying status...";
                   if (!taskStateChanged && !statusChanged && !timestampChanged) return item;
                   lastProgressUpdateAtRef.current[outputId] = now;
+                  lastProgressSignatureRef.current[outputId] = nextProgressSignature;
                   return {
                     ...item,
                     taskState: "running",
@@ -985,6 +993,7 @@ export function useAiStudioTasks({
       statusRequestsInFlightRef.current = 0;
       resetRecoveryState();
       lastProgressUpdateAtRef.current = {};
+      lastProgressSignatureRef.current = {};
       queuedOutputUpdatersRef.current = {};
       queuedOutputFlushPendingRef.current = false;
       if (queuedOutputFlushRafIdRef.current != null) {

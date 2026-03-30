@@ -788,6 +788,42 @@ describe("useAiStudioTasks", () => {
     expect(output.timestamp).toBe("Processing...");
   });
 
+  it("does not requeue identical running progress state across repeated pending polls", async () => {
+    fetchFalStatusMock.mockResolvedValue({ status: "processing" });
+
+    let output: StudioOutput = {
+      ...makeOutput(),
+      taskState: "pending",
+      timestamp: "Submitting...",
+    };
+    const updateOutputById = vi.fn((id: string, updater: (item: StudioOutput) => StudioOutput) => {
+      if (id === output.id) {
+        output = updater(output);
+      }
+    });
+
+    const { result } = renderHook(() =>
+      useAiStudioTasks({
+        updateOutputById,
+        notifyGenerationFailure: vi.fn(),
+      })
+    );
+
+    act(() => {
+      result.current.startPollingTask("task-processing-repeat", "out-1", 0, "fal");
+    });
+
+    await vi.advanceTimersByTimeAsync(2_300);
+    await flushQueuedOutputUpdates();
+    await vi.advanceTimersByTimeAsync(6_000);
+    await flushQueuedOutputUpdates();
+
+    expect(fetchFalStatusMock).toHaveBeenCalledTimes(2);
+    expect(updateOutputById).toHaveBeenCalledTimes(1);
+    expect(output.taskState).toBe("running");
+    expect(output.timestamp).toBe("Processing...");
+  });
+
   it("captures timeout context metadata when polling exceeds max wait", () => {
     const updateOutputById = vi.fn();
     const notifyGenerationFailure = vi.fn();
@@ -883,6 +919,40 @@ describe("useAiStudioTasks", () => {
     );
     expect(output.taskState).toBe("success");
     expect(output.previewUrl).toBe("https://cdn.test/timeout-retry-success.png");
+  });
+
+  it("does not requeue identical retry progress state across repeated status errors", async () => {
+    fetchFalStatusMock
+      .mockRejectedValueOnce(new Error("[fal-status:flux] timed out after 75000ms"))
+      .mockRejectedValueOnce(new Error("[fal-status:flux] timed out after 75000ms"));
+
+    let output = makeOutput();
+    const updateOutputById = vi.fn((id: string, updater: (item: StudioOutput) => StudioOutput) => {
+      if (id === output.id) {
+        output = updater(output);
+      }
+    });
+
+    const { result } = renderHook(() =>
+      useAiStudioTasks({
+        updateOutputById,
+        notifyGenerationFailure: vi.fn(),
+      })
+    );
+
+    act(() => {
+      result.current.startPollingTask("task-timeout-repeat", "out-1", 0, "fal");
+    });
+
+    await vi.advanceTimersByTimeAsync(2_300);
+    await flushQueuedOutputUpdates();
+    await vi.advanceTimersByTimeAsync(6_000);
+    await flushQueuedOutputUpdates();
+
+    expect(fetchFalStatusMock).toHaveBeenCalledTimes(2);
+    expect(updateOutputById).toHaveBeenCalledTimes(1);
+    expect(output.taskState).toBe("running");
+    expect(output.timestamp).toBe("Retrying status...");
   });
 
   it("skips polling when the output was removed before the poll starts", async () => {

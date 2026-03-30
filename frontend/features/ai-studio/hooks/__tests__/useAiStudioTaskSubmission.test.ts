@@ -38,6 +38,14 @@ vi.mock("../../utils/imageUpload", () => ({
 const asDispatch = <T>(fn: (value: SetStateAction<T>) => void): Dispatch<SetStateAction<T>> =>
   fn as Dispatch<SetStateAction<T>>;
 
+const createStatefulUpdateOutputById = (accessor: {
+  get: () => StudioOutput[];
+  set: (next: StudioOutput[]) => void;
+}) =>
+  vi.fn((id: string, updater: (item: StudioOutput) => StudioOutput) => {
+    accessor.set(accessor.get().map((item) => (item.id === id ? updater(item) : item)));
+  });
+
 describe("useAiStudioTaskSubmission", () => {
   const STRICT_EDIT_MODELS = [
     "fal/flux-2/edit",
@@ -234,7 +242,12 @@ describe("useAiStudioTaskSubmission", () => {
     const setUiNotice = vi.fn();
     const setSaved = vi.fn();
     const notifyGenerationFailure = vi.fn();
-    const updateOutputById = vi.fn();
+    const updateOutputById = createStatefulUpdateOutputById({
+      get: () => outputs,
+      set: (next) => {
+        outputs = next;
+      },
+    });
     const startPollingTask = vi.fn();
     const ensureGenerationRecord = vi.fn(async () => null);
 
@@ -302,7 +315,12 @@ describe("useAiStudioTaskSubmission", () => {
     const setUiNotice = vi.fn();
     const setSaved = vi.fn();
     const notifyGenerationFailure = vi.fn();
-    const updateOutputById = vi.fn();
+    const updateOutputById = createStatefulUpdateOutputById({
+      get: () => outputs,
+      set: (next) => {
+        outputs = next;
+      },
+    });
     const startPollingTask = vi.fn();
     const ensureGenerationRecord = vi.fn(async () => null);
 
@@ -370,7 +388,12 @@ describe("useAiStudioTaskSubmission", () => {
     const setUiNotice = vi.fn();
     const setSaved = vi.fn();
     const notifyGenerationFailure = vi.fn();
-    const updateOutputById = vi.fn();
+    const updateOutputById = createStatefulUpdateOutputById({
+      get: () => outputs,
+      set: (next) => {
+        outputs = next;
+      },
+    });
     const startPollingTask = vi.fn();
     const ensureGenerationRecord = vi.fn(async () => null);
 
@@ -438,7 +461,12 @@ describe("useAiStudioTaskSubmission", () => {
     const setUiNotice = vi.fn();
     const setSaved = vi.fn();
     const notifyGenerationFailure = vi.fn();
-    const updateOutputById = vi.fn();
+    const updateOutputById = createStatefulUpdateOutputById({
+      get: () => outputs,
+      set: (next) => {
+        outputs = next;
+      },
+    });
     const startPollingTask = vi.fn();
     const ensureGenerationRecord = vi.fn(async () => null);
 
@@ -506,7 +534,12 @@ describe("useAiStudioTaskSubmission", () => {
     const setUiNotice = vi.fn();
     const setSaved = vi.fn();
     const notifyGenerationFailure = vi.fn();
-    const updateOutputById = vi.fn();
+    const updateOutputById = createStatefulUpdateOutputById({
+      get: () => outputs,
+      set: (next) => {
+        outputs = next;
+      },
+    });
     const startPollingTask = vi.fn();
     const ensureGenerationRecord = vi.fn(async () => null);
 
@@ -567,7 +600,12 @@ describe("useAiStudioTaskSubmission", () => {
     const setUiNotice = vi.fn();
     const setSaved = vi.fn();
     const notifyGenerationFailure = vi.fn();
-    const updateOutputById = vi.fn();
+    const updateOutputById = createStatefulUpdateOutputById({
+      get: () => outputs,
+      set: (next) => {
+        outputs = next;
+      },
+    });
     const startPollingTask = vi.fn();
     const ensureGenerationRecord = vi.fn(async () => null);
 
@@ -630,7 +668,12 @@ describe("useAiStudioTaskSubmission", () => {
     const setUiNotice = vi.fn();
     const setSaved = vi.fn();
     const notifyGenerationFailure = vi.fn();
-    const updateOutputById = vi.fn();
+    const updateOutputById = createStatefulUpdateOutputById({
+      get: () => outputs,
+      set: (next) => {
+        outputs = next;
+      },
+    });
     const startPollingTask = vi.fn();
     const ensureGenerationRecord = vi.fn(async () => null);
 
@@ -699,7 +742,12 @@ describe("useAiStudioTaskSubmission", () => {
     const setUiNotice = vi.fn();
     const setSaved = vi.fn();
     const notifyGenerationFailure = vi.fn();
-    const updateOutputById = vi.fn();
+    const updateOutputById = createStatefulUpdateOutputById({
+      get: () => outputs,
+      set: (next) => {
+        outputs = next;
+      },
+    });
     const startPollingTask = vi.fn();
     const ensureGenerationRecord = vi.fn(async () => null);
 
@@ -754,6 +802,127 @@ describe("useAiStudioTaskSubmission", () => {
     expect(startPollingTask).not.toHaveBeenCalled();
   });
 
+  it("uses per-output mutation for preflight failure after the initial placeholder insert", async () => {
+    let outputs: StudioOutput[] = [];
+    const setOutputs = vi.fn((value: SetStateAction<StudioOutput[]>) => {
+      outputs = typeof value === "function" ? value(outputs) : value;
+    });
+    const updateOutputById = vi.fn((id: string, updater: (item: StudioOutput) => StudioOutput) => {
+      outputs = outputs.map((item) => (item.id === id ? updater(item) : item));
+    });
+
+    prepareImageUrlForSubmissionMock.mockRejectedValueOnce(new Error("Upload failed"));
+
+    const { result } = renderHook(() =>
+      useAiStudioTaskSubmission({
+        aspect: "9:16",
+        mode: "image",
+        model: "fal-ai/bytedance/seedream/v4.5/edit",
+        prompt: "",
+        selectedTool: "edit",
+        imageResolution: "model_default",
+        videoDurationSeconds: 8,
+        videoResolution: "720p",
+        videoGenerateAudio: false,
+        videoReferenceMode: "standard",
+        videoReferenceImageUrl: null,
+        motionReferenceVideoUrl: null,
+        videoCameraFixed: false,
+        videoAutoFix: false,
+        klingNegativePrompt: "blur, distort, and low quality",
+        klingCfgScale: 0.5,
+        klingShotType: "customize",
+        klingVoiceIds: ["", ""],
+        klingMultiPrompts: [],
+        klingElements: [],
+        setIsPromptGenerating: asDispatch(vi.fn()),
+        setUiError: asDispatch(vi.fn()),
+        setUiNotice: asDispatch(vi.fn()),
+        setOutputs: asDispatch(setOutputs),
+        setSaved: asDispatch(vi.fn()),
+        getDefaultDurationSeconds: () => 8,
+        notifyGenerationFailure: vi.fn(),
+        updateOutputById,
+        startPollingTask: vi.fn(),
+        ensureGenerationRecord: vi.fn(async () => null),
+      })
+    );
+
+    await act(async () => {
+      await result.current("edit prompt", ["blob:broken-ref"], {
+        modeOverride: "image",
+        selectedToolOverride: "edit",
+      });
+    });
+
+    expect(setOutputs).toHaveBeenCalledTimes(1);
+    expect(updateOutputById).toHaveBeenCalledTimes(1);
+    expect(outputs[0]?.taskState).toBe("fail");
+  });
+
+  it("uses per-output mutation when attaching generation replay after placeholder insert", async () => {
+    let outputs: StudioOutput[] = [];
+    const setOutputs = vi.fn((value: SetStateAction<StudioOutput[]>) => {
+      outputs = typeof value === "function" ? value(outputs) : value;
+    });
+    const updateOutputById = vi.fn((id: string, updater: (item: StudioOutput) => StudioOutput) => {
+      outputs = outputs.map((item) => (item.id === id ? updater(item) : item));
+    });
+
+    vi.mocked(resolveSubmissionHandlerRoute).mockReturnValueOnce("image");
+
+    const { result } = renderHook(() =>
+      useAiStudioTaskSubmission({
+        aspect: "16:9",
+        mode: "image",
+        model: "fal-ai/bytedance/seedream/v4.5/text-to-image",
+        prompt: "",
+        selectedTool: "create",
+        imageResolution: "2K",
+        videoDurationSeconds: 8,
+        videoResolution: "720p",
+        videoGenerateAudio: false,
+        videoReferenceMode: "standard",
+        videoReferenceImageUrl: null,
+        motionReferenceVideoUrl: null,
+        videoCameraFixed: false,
+        videoAutoFix: false,
+        klingNegativePrompt: "",
+        klingCfgScale: 0.5,
+        klingShotType: "customize",
+        klingVoiceIds: ["", ""],
+        klingMultiPrompts: [],
+        klingElements: [],
+        setIsPromptGenerating: asDispatch(vi.fn()),
+        setUiError: asDispatch(vi.fn()),
+        setUiNotice: asDispatch(vi.fn()),
+        setOutputs: asDispatch(setOutputs),
+        setSaved: asDispatch(vi.fn()),
+        getDefaultDurationSeconds: () => 8,
+        notifyGenerationFailure: vi.fn(),
+        updateOutputById,
+        startPollingTask: vi.fn(),
+        ensureGenerationRecord: vi.fn(async () => null),
+      })
+    );
+
+    await act(async () => {
+      await result.current("portrait prompt", ["https://cdn.test/ref.png"], {
+        modeOverride: "image",
+        selectedToolOverride: "create",
+      });
+    });
+
+    expect(setOutputs).toHaveBeenCalledTimes(1);
+    expect(updateOutputById).toHaveBeenCalled();
+    expect(outputs[0]?.generationReplay).toEqual(
+      expect.objectContaining({
+        displayPrompt: "portrait prompt",
+        imageResolution: "auto_2K",
+      })
+    );
+  });
+
   it("fails fast when pre-submit reference preparation exceeds deadline", async () => {
     vi.useFakeTimers();
     try {
@@ -767,7 +936,12 @@ describe("useAiStudioTaskSubmission", () => {
       const setUiNotice = vi.fn();
       const setSaved = vi.fn();
       const notifyGenerationFailure = vi.fn();
-      const updateOutputById = vi.fn();
+      const updateOutputById = createStatefulUpdateOutputById({
+        get: () => outputs,
+        set: (next) => {
+          outputs = next;
+        },
+      });
       const startPollingTask = vi.fn();
       const ensureGenerationRecord = vi.fn(async () => null);
 
@@ -916,7 +1090,12 @@ describe("useAiStudioTaskSubmission", () => {
     const setUiNotice = vi.fn();
     const setSaved = vi.fn();
     const notifyGenerationFailure = vi.fn();
-    const updateOutputById = vi.fn();
+    const updateOutputById = createStatefulUpdateOutputById({
+      get: () => outputs,
+      set: (next) => {
+        outputs = next;
+      },
+    });
     const startPollingTask = vi.fn();
     const ensureGenerationRecord = vi.fn(async () => null);
 
@@ -984,7 +1163,12 @@ describe("useAiStudioTaskSubmission", () => {
     const setUiNotice = vi.fn();
     const setSaved = vi.fn();
     const notifyGenerationFailure = vi.fn();
-    const updateOutputById = vi.fn();
+    const updateOutputById = createStatefulUpdateOutputById({
+      get: () => outputs,
+      set: (next) => {
+        outputs = next;
+      },
+    });
     const startPollingTask = vi.fn();
     const ensureGenerationRecord = vi.fn(async () => null);
 
@@ -1056,7 +1240,12 @@ describe("useAiStudioTaskSubmission", () => {
     const setUiNotice = vi.fn();
     const setSaved = vi.fn();
     const notifyGenerationFailure = vi.fn();
-    const updateOutputById = vi.fn();
+    const updateOutputById = createStatefulUpdateOutputById({
+      get: () => outputs,
+      set: (next) => {
+        outputs = next;
+      },
+    });
     const startPollingTask = vi.fn();
     const ensureGenerationRecord = vi.fn(async () => null);
 
@@ -1156,7 +1345,12 @@ describe("useAiStudioTaskSubmission", () => {
     const setUiNotice = vi.fn();
     const setSaved = vi.fn();
     const notifyGenerationFailure = vi.fn();
-    const updateOutputById = vi.fn();
+    const updateOutputById = createStatefulUpdateOutputById({
+      get: () => outputs,
+      set: (next) => {
+        outputs = next;
+      },
+    });
     const startPollingTask = vi.fn();
     const ensureGenerationRecord = vi.fn(async () => null);
 
@@ -1226,7 +1420,12 @@ describe("useAiStudioTaskSubmission", () => {
     const setUiNotice = vi.fn();
     const setSaved = vi.fn();
     const notifyGenerationFailure = vi.fn();
-    const updateOutputById = vi.fn();
+    const updateOutputById = createStatefulUpdateOutputById({
+      get: () => outputs,
+      set: (next) => {
+        outputs = next;
+      },
+    });
     const startPollingTask = vi.fn();
     const ensureGenerationRecord = vi.fn(async () => null);
 

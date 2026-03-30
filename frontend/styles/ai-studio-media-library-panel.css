@@ -344,6 +344,22 @@
   gap: 8px;
 }
 
+.media-library-panel-active-folder-dropzone {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  transition:
+    border-color 0.18s ease,
+    background-color 0.18s ease;
+}
+
+.media-library-panel-active-folder-dropzone.is-drop-hover {
+  border-color: rgba(100, 209, 230, 0.42);
+  background: rgba(100, 209, 230, 0.04);
+}
+
 .media-library-panel-empty-folder-state {
   display: flex;
   flex-direction: column;

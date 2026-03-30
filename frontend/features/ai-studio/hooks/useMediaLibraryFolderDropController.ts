@@ -43,10 +43,15 @@ type UseMediaLibraryFolderDropControllerArgs = {
 
 type UseMediaLibraryFolderDropControllerResult = {
   hoveredFolderId: string | null;
+  hoveredContentFolderId: string | null;
   clearHoveredFolderId: () => void;
+  clearHoveredContentFolderId: () => void;
   handleFolderDragOver: (folderId: string, event: DragEvent<HTMLElement>) => void;
   handleFolderDragLeave: (folderId: string) => void;
   handleFolderDrop: (folderId: string, event: DragEvent<HTMLElement>) => Promise<void>;
+  handleFolderContentDragOver: (folderId: string, event: DragEvent<HTMLElement>) => void;
+  handleFolderContentDragLeave: (folderId: string) => void;
+  handleFolderContentDrop: (folderId: string, event: DragEvent<HTMLElement>) => Promise<void>;
 };
 
 const INTERNAL_REFERENCE_TRANSFER_HINT_TYPES = [
@@ -137,7 +142,8 @@ const buildFeedbackArgs = ({
 };
 
 /**
- * Handles folder tile drop interactions and applies assign/unassign/move membership operations.
+ * Handles folder tile and active-folder content drop interactions and applies
+ * assign/unassign/move membership operations.
  */
 export const useMediaLibraryFolderDropController = ({
   folders,
@@ -148,6 +154,7 @@ export const useMediaLibraryFolderDropController = ({
   onDropFilesToFolder,
 }: UseMediaLibraryFolderDropControllerArgs): UseMediaLibraryFolderDropControllerResult => {
   const [hoveredFolderId, setHoveredFolderId] = useState<string | null>(null);
+  const [hoveredContentFolderId, setHoveredContentFolderId] = useState<string | null>(null);
 
   const resolveDropItem = useCallback(
     async (transfer: DataTransfer): Promise<ResolvedFolderDropItem> => {
@@ -179,10 +186,9 @@ export const useMediaLibraryFolderDropController = ({
     [resolveInternalDropItem]
   );
 
-  const handleFolderDragOver = useCallback(
-    (folderId: string, event: DragEvent<HTMLElement>) => {
-      const transfer = event.dataTransfer;
-      if (!transfer) return;
+  const canAcceptTransfer = useCallback(
+    (transfer: DataTransfer | null | undefined): boolean => {
+      if (!transfer) return false;
       const maybeLibraryPayload =
         hasMediaLibraryTransferHints(transfer) || readMediaLibraryDragPayload(transfer);
       const maybeInternalPayload =
@@ -190,13 +196,21 @@ export const useMediaLibraryFolderDropController = ({
         extractInternalReferenceDragPayload(transfer);
       const maybeDesktopFiles =
         hasDesktopFileTransferHints(transfer) && Boolean(onDropFilesToFolder);
-      if (!maybeLibraryPayload && !maybeInternalPayload && !maybeDesktopFiles) return;
+      return Boolean(maybeLibraryPayload || maybeInternalPayload || maybeDesktopFiles);
+    },
+    [onDropFilesToFolder]
+  );
+
+  const handleFolderDragOver = useCallback(
+    (folderId: string, event: DragEvent<HTMLElement>) => {
+      const transfer = event.dataTransfer;
+      if (!canAcceptTransfer(transfer)) return;
       event.preventDefault();
       event.stopPropagation();
       transfer.dropEffect = "copy";
       setHoveredFolderId(folderId);
     },
-    [onDropFilesToFolder]
+    [canAcceptTransfer]
   );
 
   const handleFolderDragLeave = useCallback((folderId: string) => {
@@ -207,16 +221,36 @@ export const useMediaLibraryFolderDropController = ({
     setHoveredFolderId(null);
   }, []);
 
-  const handleFolderDrop = useCallback(
-    async (folderId: string, event: DragEvent<HTMLElement>) => {
+  const handleFolderContentDragOver = useCallback(
+    (folderId: string, event: DragEvent<HTMLElement>) => {
+      const transfer = event.dataTransfer;
+      if (!canAcceptTransfer(transfer)) return;
       event.preventDefault();
       event.stopPropagation();
-      setHoveredFolderId(null);
+      transfer.dropEffect = "copy";
+      setHoveredContentFolderId(folderId);
+    },
+    [canAcceptTransfer]
+  );
+
+  const handleFolderContentDragLeave = useCallback((folderId: string) => {
+    setHoveredContentFolderId((previous) => (previous === folderId ? null : previous));
+  }, []);
+
+  const clearHoveredContentFolderId = useCallback(() => {
+    setHoveredContentFolderId(null);
+  }, []);
+
+  const handleResolvedDrop = useCallback(
+    async (
+      folderId: string,
+      transfer: DataTransfer,
+      options?: {
+        forceRefreshActiveRows?: boolean;
+      }
+    ) => {
       setFolderError(null);
       setMembershipMessage(null);
-
-      const transfer = event.dataTransfer;
-      if (!transfer) return;
       let resolvedItem: ResolvedFolderDropItem = null;
       try {
         resolvedItem = await resolveDropItem(transfer);
@@ -279,7 +313,9 @@ export const useMediaLibraryFolderDropController = ({
           }
           const sourceFolderId = (resolvedItem.sourceFolderId ?? "").trim();
           const skipActiveRowsRefresh =
-            intent.kind === "assign" && sourceFolderId === MEDIA_LIBRARY_ROOT_FOLDER_ID;
+            !options?.forceRefreshActiveRows &&
+            intent.kind === "assign" &&
+            sourceFolderId === MEDIA_LIBRARY_ROOT_FOLDER_ID;
           if (!skipActiveRowsRefresh) {
             await refreshActiveRows();
           }
@@ -316,11 +352,42 @@ export const useMediaLibraryFolderDropController = ({
     ]
   );
 
+  const handleFolderDrop = useCallback(
+    async (folderId: string, event: DragEvent<HTMLElement>) => {
+      event.preventDefault();
+      event.stopPropagation();
+      setHoveredFolderId(null);
+      setHoveredContentFolderId(null);
+      const transfer = event.dataTransfer;
+      if (!transfer) return;
+      await handleResolvedDrop(folderId, transfer);
+    },
+    [handleResolvedDrop]
+  );
+
+  const handleFolderContentDrop = useCallback(
+    async (folderId: string, event: DragEvent<HTMLElement>) => {
+      event.preventDefault();
+      event.stopPropagation();
+      setHoveredContentFolderId(null);
+      setHoveredFolderId(null);
+      const transfer = event.dataTransfer;
+      if (!transfer) return;
+      await handleResolvedDrop(folderId, transfer, { forceRefreshActiveRows: true });
+    },
+    [handleResolvedDrop]
+  );
+
   return {
     hoveredFolderId,
+    hoveredContentFolderId,
     clearHoveredFolderId,
+    clearHoveredContentFolderId,
     handleFolderDragOver,
     handleFolderDragLeave,
     handleFolderDrop,
+    handleFolderContentDragOver,
+    handleFolderContentDragLeave,
+    handleFolderContentDrop,
   };
 };

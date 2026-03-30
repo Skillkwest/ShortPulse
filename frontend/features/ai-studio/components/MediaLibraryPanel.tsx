@@ -933,6 +933,20 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
     !mediaLoading &&
     visiblePromptRows.length === 0 &&
     mediaRows.length === 0;
+  const isActiveFolderDropHover =
+    !isRootFolderSelected && foldersDropController.hoveredContentFolderId === activeFolderId;
+  const activeFolderDropZoneProps = !isRootFolderSelected
+    ? {
+        onDragOver: (event: React.DragEvent<HTMLElement>) =>
+          foldersDropController.handleFolderContentDragOver(activeFolderId, event),
+        onDragLeave: () => {
+          foldersDropController.handleFolderContentDragLeave(activeFolderId);
+        },
+        onDrop: (event: React.DragEvent<HTMLElement>) => {
+          void foldersDropController.handleFolderContentDrop(activeFolderId, event);
+        },
+      }
+    : null;
 
   return (
     <section className="media-library-panel" aria-label="Media library panel">
@@ -1009,34 +1023,6 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
         <div className="media-library-panel-content-panel" style={foldersSplit.bottomSectionStyle}>
           <div className="media-library-panel-body" ref={panelBodyRef}>
             {error ? <p className="tiny subdued">{error}</p> : null}
-
-            {showCustomFolderEmptyState ? (
-              <section className="media-library-panel-empty-folder-state">
-                <p className="media-library-panel-empty-folder-title">This folder is empty</p>
-                <p className="media-library-panel-empty-folder-copy tiny subdued">
-                  Create a subfolder or move media and prompts here.
-                </p>
-                <div className="media-library-panel-empty-folder-actions">
-                  <button
-                    type="button"
-                    className="btn-secondary"
-                    onClick={() => {
-                      void createFolder();
-                    }}
-                    disabled={creatingFolder}
-                  >
-                    {creatingFolder ? "Creating..." : "Create subfolder"}
-                  </button>
-                </div>
-              </section>
-            ) : null}
-
-            {!showFolderCanvas &&
-            shouldShowPrompts &&
-            !isRootFolderSelected &&
-            !showCustomFolderEmptyState
-              ? renderPromptsSection()
-              : null}
 
             {!showFolderCanvas && isRootFolderSelected ? (
               <div className="media-library-panel-root-tabs-row">
@@ -1184,6 +1170,73 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
               </section>
             ) : null}
 
+            {!showFolderCanvas && !isRootFolderSelected ? (
+              <div
+                className={`media-library-panel-active-folder-dropzone${
+                  isActiveFolderDropHover ? " is-drop-hover" : ""
+                }`}
+                data-testid="media-library-panel-active-folder-dropzone"
+                {...(activeFolderDropZoneProps ?? {})}
+              >
+                {showCustomFolderEmptyState ? (
+                  <section className="media-library-panel-empty-folder-state">
+                    <p className="media-library-panel-empty-folder-title">This folder is empty</p>
+                    <p className="media-library-panel-empty-folder-copy tiny subdued">
+                      Create a subfolder or move media and prompts here.
+                    </p>
+                    <div className="media-library-panel-empty-folder-actions">
+                      <button
+                        type="button"
+                        className="btn-secondary"
+                        onClick={() => {
+                          void createFolder();
+                        }}
+                        disabled={creatingFolder}
+                      >
+                        {creatingFolder ? "Creating..." : "Create subfolder"}
+                      </button>
+                    </div>
+                  </section>
+                ) : null}
+
+                {shouldShowPrompts && !showCustomFolderEmptyState ? renderPromptsSection() : null}
+
+                {!showCustomFolderEmptyState && shouldShowMedia ? (
+                  <section className="media-library-panel-section">
+                    <div className="media-library-panel-section-head">
+                      <p className="tiny subdued">
+                        Media ({mediaRows.length})
+                        {mediaLoading && mediaRows.length > 0 ? " · Refreshing" : ""}
+                      </p>
+                    </div>
+                    {mediaLoading && mediaRows.length === 0 ? (
+                      <p className="tiny subdued">Loading media…</p>
+                    ) : null}
+                    {!mediaLoading && mediaRows.length === 0 ? (
+                      <p className="tiny subdued">No media found for this folder.</p>
+                    ) : null}
+                    <div id="media-library-panel-media-section">
+                      {mediaRows.length > 0 ? renderMediaGrid(mediaRows) : null}
+                      {mediaHasMore ? (
+                        <div className="media-load-more">
+                          <button
+                            type="button"
+                            className="btn-secondary"
+                            onClick={() => {
+                              void loadMediaPage({ reset: false });
+                            }}
+                            disabled={mediaLoading}
+                          >
+                            {mediaLoading ? "Loading more..." : "Load more media"}
+                          </button>
+                        </div>
+                      ) : null}
+                    </div>
+                  </section>
+                ) : null}
+              </div>
+            ) : null}
+
             {!showFolderCanvas && shouldShowMedia && isRootFolderSelected ? (
               <section
                 className="media-library-panel-section media-library-panel-root-paginator"
@@ -1206,43 +1259,6 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
                     >
                       {mediaLoading ? "Loading more..." : "Load more media"}
                     </button>
-                  ) : null}
-                </div>
-              </section>
-            ) : null}
-
-            {!showFolderCanvas &&
-            shouldShowMedia &&
-            !isRootFolderSelected &&
-            !showCustomFolderEmptyState ? (
-              <section className="media-library-panel-section">
-                <div className="media-library-panel-section-head">
-                  <p className="tiny subdued">
-                    Media ({mediaRows.length})
-                    {mediaLoading && mediaRows.length > 0 ? " · Refreshing" : ""}
-                  </p>
-                </div>
-                {mediaLoading && mediaRows.length === 0 ? (
-                  <p className="tiny subdued">Loading media…</p>
-                ) : null}
-                {!mediaLoading && mediaRows.length === 0 ? (
-                  <p className="tiny subdued">No media found for this folder.</p>
-                ) : null}
-                <div id="media-library-panel-media-section">
-                  {mediaRows.length > 0 ? renderMediaGrid(mediaRows) : null}
-                  {mediaHasMore ? (
-                    <div className="media-load-more">
-                      <button
-                        type="button"
-                        className="btn-secondary"
-                        onClick={() => {
-                          void loadMediaPage({ reset: false });
-                        }}
-                        disabled={mediaLoading}
-                      >
-                        {mediaLoading ? "Loading more..." : "Load more media"}
-                      </button>
-                    </div>
                   ) : null}
                 </div>
               </section>

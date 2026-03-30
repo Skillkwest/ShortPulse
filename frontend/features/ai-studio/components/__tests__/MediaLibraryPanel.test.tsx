@@ -378,6 +378,30 @@ describe("MediaLibraryPanel", () => {
       })
     );
     deleteMediaFolderMock.mockResolvedValue(undefined);
+    applyMediaFolderMembershipBatchMock.mockImplementation(
+      async ({
+        action,
+        folderId,
+        sourceFolderId,
+        targetFolderId,
+        mediaIds,
+        promptIds,
+      }: {
+        action: "assign" | "unassign" | "move";
+        folderId?: string;
+        sourceFolderId?: string;
+        targetFolderId?: string;
+        mediaIds: string[];
+        promptIds: string[];
+      }) => ({
+        action,
+        folderId: folderId ?? null,
+        sourceFolderId: sourceFolderId ?? null,
+        targetFolderId: targetFolderId ?? folderId ?? null,
+        mediaIds,
+        promptIds,
+      })
+    );
   });
 
   it("loads folders + media data and keeps media click as selection-only", async () => {
@@ -1985,6 +2009,70 @@ describe("MediaLibraryPanel", () => {
         mediaIds: [],
         promptIds: ["prompt-1"],
       });
+    });
+  });
+
+  it("drops internal references into the active custom folder and refreshes its rows", async () => {
+    const resolveInternalDropItem = vi.fn().mockResolvedValue({
+      kind: "media",
+      id: "media-99",
+    });
+
+    render(
+      <MediaLibraryPanel
+        onSelectMedia={vi.fn()}
+        onSelectPrompt={vi.fn()}
+        resolveInternalDropItem={resolveInternalDropItem}
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Campaign folder" })).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Campaign folder" }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("media-library-panel-active-folder-dropzone")).toBeInTheDocument();
+    });
+
+    const callsBeforeDrop = fetchMediaListPageMock.mock.calls.length;
+    const dropzone = screen.getByTestId("media-library-panel-active-folder-dropzone");
+    const transfer = {
+      types: ["text/reference-origin", "text/reference-output-id", "text/reference-source-surface"],
+      getData: (type: string) => {
+        switch (type) {
+          case "text/reference-origin":
+            return "ai-studio-reference-grid";
+          case "text/reference-output-id":
+            return "output-1";
+          case "text/reference-source-surface":
+            return "all-refs";
+          default:
+            return "";
+        }
+      },
+      dropEffect: "none",
+      effectAllowed: "copy",
+    } as unknown as DataTransfer;
+
+    fireEvent.drop(dropzone, { dataTransfer: transfer });
+
+    await waitFor(() => {
+      expect(resolveInternalDropItem).toHaveBeenCalledWith(
+        expect.objectContaining({
+          origin: "ai-studio-reference-grid",
+          outputId: "output-1",
+          sourceSurface: "all-refs",
+        })
+      );
+      expect(applyMediaFolderMembershipBatchMock).toHaveBeenCalledWith({
+        action: "assign",
+        folderId: "folder-1",
+        mediaIds: ["media-99"],
+        promptIds: [],
+      });
+      expect(fetchMediaListPageMock.mock.calls.length).toBeGreaterThan(callsBeforeDrop);
     });
   });
 

@@ -45,6 +45,7 @@ type MediaLibraryPanelFoldersSectionProps = {
     folder: FolderRow,
     isRoot: boolean
   ) => void;
+  onContextCreateSubfolder: () => void;
   onContextRename: () => void;
   canOpenMovePicker: boolean;
   onOpenMovePicker: () => void;
@@ -75,6 +76,7 @@ export function MediaLibraryPanelFoldersSection({
   folderContextMenu,
   folderContextMenuRef,
   openFolderContextMenu,
+  onContextCreateSubfolder,
   onContextRename,
   canOpenMovePicker,
   onOpenMovePicker,
@@ -251,6 +253,14 @@ export function MediaLibraryPanelFoldersSection({
               left: `${folderContextMenu.x}px`,
             }}
           >
+            <button
+              type="button"
+              className="media-library-panel-folder-context-menu-item"
+              role="menuitem"
+              onClick={onContextCreateSubfolder}
+            >
+              New subfolder
+            </button>
             <button
               type="button"
               className="media-library-panel-folder-context-menu-item"

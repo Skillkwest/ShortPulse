@@ -87,7 +87,7 @@ type UseMediaLibraryFoldersStateResult = {
   folderError: string | null;
   setFolderError: (value: string | null) => void;
   creatingFolder: boolean;
-  createFolder: () => Promise<void>;
+  createFolder: (parentFolderId?: string | null) => Promise<void>;
   editingFolderId: string | null;
   editingFolderName: string;
   setEditingFolderName: (value: string) => void;
@@ -180,64 +180,71 @@ export const useMediaLibraryFoldersState = (): UseMediaLibraryFoldersStateResult
     void refreshFolders();
   }, [refreshFolders]);
 
-  const createFolder = useCallback(async () => {
-    if (creatingFolderInFlightRef.current) return;
-    creatingFolderInFlightRef.current = true;
-    setFolderError(null);
-    setCreatingFolder(true);
-    const pendingFolderId = buildPendingFolderId();
-    const nextParentFolderId =
-      activeFolderId === MEDIA_LIBRARY_ROOT_FOLDER_ID ? null : activeFolderId;
-    const knownFolderNames = toNormalizedFolderNames(
-      folders.filter((folder) => folder.parentFolderId === nextParentFolderId)
-    );
-    let nextName = resolveNextFolderNameFromNames(knownFolderNames);
-    setFolders((previous) => [
-      ...previous,
-      {
-        id: pendingFolderId,
-        name: nextName,
-        parentFolderId: nextParentFolderId,
-        createdAt: "",
-        updatedAt: "",
-      },
-    ]);
+  const createFolder = useCallback(
+    async (parentFolderId?: string | null) => {
+      if (creatingFolderInFlightRef.current) return;
+      creatingFolderInFlightRef.current = true;
+      setFolderError(null);
+      setCreatingFolder(true);
+      const pendingFolderId = buildPendingFolderId();
+      const nextParentFolderId =
+        parentFolderId !== undefined
+          ? parentFolderId
+          : activeFolderId === MEDIA_LIBRARY_ROOT_FOLDER_ID
+            ? null
+            : activeFolderId;
+      const knownFolderNames = toNormalizedFolderNames(
+        folders.filter((folder) => folder.parentFolderId === nextParentFolderId)
+      );
+      let nextName = resolveNextFolderNameFromNames(knownFolderNames);
+      setFolders((previous) => [
+        ...previous,
+        {
+          id: pendingFolderId,
+          name: nextName,
+          parentFolderId: nextParentFolderId,
+          createdAt: "",
+          updatedAt: "",
+        },
+      ]);
 
-    try {
-      for (let attempt = 0; attempt <= MAX_FOLDER_NAME_COLLISION_RETRIES; attempt += 1) {
-        try {
-          const folder = await createMediaFolder(nextName, nextParentFolderId);
-          setFolders((previous) => {
-            const withoutPending = previous.filter(
-              (row) => row.id !== pendingFolderId && row.id !== folder.id
+      try {
+        for (let attempt = 0; attempt <= MAX_FOLDER_NAME_COLLISION_RETRIES; attempt += 1) {
+          try {
+            const folder = await createMediaFolder(nextName, nextParentFolderId);
+            setFolders((previous) => {
+              const withoutPending = previous.filter(
+                (row) => row.id !== pendingFolderId && row.id !== folder.id
+              );
+              return [...withoutPending, folder];
+            });
+            setEditingFolderId(folder.id);
+            setEditingFolderName(folder.name);
+            return;
+          } catch (createError) {
+            const isNameCollision =
+              createError instanceof Error && createError.message === "Folder name already exists";
+            if (!isNameCollision) {
+              throw createError;
+            }
+            knownFolderNames.add(nextName.toLocaleLowerCase());
+            nextName = resolveNextFolderNameFromNames(knownFolderNames);
+            setFolders((previous) =>
+              previous.map((row) => (row.id === pendingFolderId ? { ...row, name: nextName } : row))
             );
-            return [...withoutPending, folder];
-          });
-          setEditingFolderId(folder.id);
-          setEditingFolderName(folder.name);
-          return;
-        } catch (createError) {
-          const isNameCollision =
-            createError instanceof Error && createError.message === "Folder name already exists";
-          if (!isNameCollision) {
-            throw createError;
           }
-          knownFolderNames.add(nextName.toLocaleLowerCase());
-          nextName = resolveNextFolderNameFromNames(knownFolderNames);
-          setFolders((previous) =>
-            previous.map((row) => (row.id === pendingFolderId ? { ...row, name: nextName } : row))
-          );
         }
+        throw new Error("Unable to allocate an available folder name.");
+      } catch (createError) {
+        setFolders((previous) => previous.filter((row) => row.id !== pendingFolderId));
+        setFolderError(toMediaLibraryErrorText(createError, "Unable to create folder."));
+      } finally {
+        setCreatingFolder(false);
+        creatingFolderInFlightRef.current = false;
       }
-      throw new Error("Unable to allocate an available folder name.");
-    } catch (createError) {
-      setFolders((previous) => previous.filter((row) => row.id !== pendingFolderId));
-      setFolderError(toMediaLibraryErrorText(createError, "Unable to create folder."));
-    } finally {
-      setCreatingFolder(false);
-      creatingFolderInFlightRef.current = false;
-    }
-  }, [activeFolderId, folders]);
+    },
+    [activeFolderId, folders]
+  );
 
   const startFolderRename = useCallback((folderId: string, currentName: string) => {
     setFolderError(null);

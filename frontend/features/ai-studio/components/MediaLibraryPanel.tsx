@@ -629,6 +629,14 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
     setFolderContextMenu(null);
   }, [folderContextMenu, startFolderRename]);
 
+  const handleContextCreateSubfolder = useCallback(async () => {
+    if (!folderContextMenu) return;
+    const parentFolderId = folderContextMenu.folderId;
+    setFolderContextMenu(null);
+    setActiveFolderId(parentFolderId);
+    await createFolder(parentFolderId);
+  }, [createFolder, folderContextMenu, setActiveFolderId]);
+
   const handleContextDelete = useCallback(async () => {
     if (!folderContextMenu) return;
     const folderId = folderContextMenu.folderId;
@@ -907,6 +915,15 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
     foldersSplit.snapToInventoryExpanded();
   }, [foldersSplit, onExpandMediaLibraryPanel]);
 
+  const showCustomFolderEmptyState =
+    !showFolderCanvas &&
+    !isRootFolderSelected &&
+    !error &&
+    !promptLoading &&
+    !mediaLoading &&
+    visiblePromptRows.length === 0 &&
+    mediaRows.length === 0;
+
   return (
     <section className="media-library-panel" aria-label="Media library panel">
       <header className="media-library-panel-header">
@@ -964,6 +981,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
             folderContextMenu={folderContextMenu}
             folderContextMenuRef={folderContextMenuRef}
             openFolderContextMenu={openFolderContextMenu}
+            onContextCreateSubfolder={handleContextCreateSubfolder}
             onContextRename={handleContextRename}
             canOpenMovePicker={canOpenMovePicker}
             onOpenMovePicker={handleOpenMovePicker}
@@ -982,7 +1000,31 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
           <div className="media-library-panel-body" ref={panelBodyRef}>
             {error ? <p className="tiny subdued">{error}</p> : null}
 
-            {!showFolderCanvas && shouldShowPrompts && !isRootFolderSelected
+            {showCustomFolderEmptyState ? (
+              <section className="media-library-panel-empty-folder-state">
+                <p className="media-library-panel-empty-folder-title">This folder is empty</p>
+                <p className="media-library-panel-empty-folder-copy tiny subdued">
+                  Create a subfolder or move media and prompts here.
+                </p>
+                <div className="media-library-panel-empty-folder-actions">
+                  <button
+                    type="button"
+                    className="btn-secondary"
+                    onClick={() => {
+                      void createFolder();
+                    }}
+                    disabled={creatingFolder}
+                  >
+                    {creatingFolder ? "Creating..." : "Create subfolder"}
+                  </button>
+                </div>
+              </section>
+            ) : null}
+
+            {!showFolderCanvas &&
+            shouldShowPrompts &&
+            !isRootFolderSelected &&
+            !showCustomFolderEmptyState
               ? renderPromptsSection()
               : null}
 
@@ -1159,7 +1201,10 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
               </section>
             ) : null}
 
-            {!showFolderCanvas && shouldShowMedia && !isRootFolderSelected ? (
+            {!showFolderCanvas &&
+            shouldShowMedia &&
+            !isRootFolderSelected &&
+            !showCustomFolderEmptyState ? (
               <section className="media-library-panel-section">
                 <div className="media-library-panel-section-head">
                   <p className="tiny subdued">

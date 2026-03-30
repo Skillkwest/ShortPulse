@@ -1545,6 +1545,31 @@ describe("MediaLibraryPanel", () => {
     expect(screen.getByRole("button", { name: "Go to parent folder" })).toBeInTheDocument();
   });
 
+  it("creates a new subfolder from the folder context menu inside the clicked folder", async () => {
+    render(<MediaLibraryPanel onSelectMedia={vi.fn()} onSelectPrompt={vi.fn()} />);
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Campaign folder" })).toBeInTheDocument();
+    });
+
+    fireEvent.contextMenu(screen.getByRole("button", { name: "Campaign folder" }), {
+      clientX: 120,
+      clientY: 220,
+    });
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("menuitem", { name: "New subfolder" }));
+    });
+
+    await waitFor(() => {
+      expect(createMediaFolderMock).toHaveBeenCalledWith("New Folder", "folder-1");
+    });
+    expect(screen.getByDisplayValue("New Folder")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Go to parent folder" })).toBeInTheDocument();
+    const currentCrumb = document.querySelector(".media-library-panel-folders-breadcrumb-current");
+    expect(currentCrumb).toHaveTextContent("Campaign");
+  });
+
   it("keeps parent folders hidden when renaming a child folder from its parent view", async () => {
     listMediaFoldersMock.mockResolvedValueOnce([
       {
@@ -1625,6 +1650,40 @@ describe("MediaLibraryPanel", () => {
     const currentCrumb = document.querySelector(".media-library-panel-folders-breadcrumb-current");
     expect(currentCrumb).toHaveAttribute("aria-current", "location");
     expect(currentCrumb).toHaveTextContent("Child");
+  });
+
+  it("shows one actionable empty state when a custom folder has no media or prompts", async () => {
+    fetchMediaListPageMock.mockResolvedValue({
+      rows: [],
+      nextCursor: null,
+      hasMore: false,
+      signedById: new Map<string, string>(),
+      libraryTotalCount: null,
+    });
+    fetchMediaPromptListPageMock.mockResolvedValue({
+      rows: [],
+      nextCursor: null,
+      hasMore: false,
+    });
+
+    render(<MediaLibraryPanel onSelectMedia={vi.fn()} onSelectPrompt={vi.fn()} />);
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Campaign folder" })).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Campaign folder" }));
+
+    await waitFor(() => {
+      expect(screen.getByText("This folder is empty")).toBeInTheDocument();
+    });
+
+    expect(
+      screen.getByText("Create a subfolder or move media and prompts here.")
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Create subfolder" })).toBeInTheDocument();
+    expect(screen.queryByText("No prompts found for this folder.")).not.toBeInTheDocument();
+    expect(screen.queryByText("No media found for this folder.")).not.toBeInTheDocument();
   });
 
   it("retries with an incremented folder name when the default collides", async () => {

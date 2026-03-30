@@ -835,7 +835,7 @@ describe("useAiStudioTaskOrchestration", () => {
     expect(outputs[0]?.taskId).toBe("req-queued-2");
   });
 
-  it("defers resume watchdog checks for freshly queued outputs so submit polling can own queue-status", async () => {
+  it("checks freshly queued outputs immediately so queued work can resume without waiting", async () => {
     vi.useFakeTimers();
     try {
       const nowMs = Date.now();
@@ -905,15 +905,10 @@ describe("useAiStudioTaskOrchestration", () => {
         await Promise.resolve();
       });
 
-      expect(fetchFalQueueStatusMock).not.toHaveBeenCalled();
-
-      await act(async () => {
-        await vi.advanceTimersByTimeAsync(3 * 60 * 1000 + 25_000);
-      });
-
       expect(fetchFalQueueStatusMock).toHaveBeenCalledWith({
         generationId: "gen-fresh",
       });
+      expect(fetchFalQueueStatusMock).toHaveBeenCalledTimes(1);
     } finally {
       vi.useRealTimers();
     }

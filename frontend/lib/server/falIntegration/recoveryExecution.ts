@@ -30,6 +30,7 @@ import {
   persistRecoveryMediaFilesForGeneration,
   readExistingRecoveryMediaRows,
 } from "./recoveryMediaPersistence";
+import { requestGenerationControlPlaneWake } from "../generationControlPlane/controlPlaneWake";
 import { probeGenerationProviderResult } from "../providerIntegration/recoveryProviderDispatcher";
 import { readProviderApiKey } from "../providerIntegration/providerRuntimeConfig";
 import { canAutoPersistRecoveryMedia } from "../../mediaAutosavePolicy";
@@ -238,6 +239,10 @@ export const executeGenerationRecovery = async ({
         nowIso,
       }),
     });
+    void requestGenerationControlPlaneWake({
+      routeLabel,
+      reason: "already_persisted_success",
+    });
     return {
       ok: true,
       state: "already_persisted",
@@ -331,6 +336,10 @@ export const executeGenerationRecovery = async ({
           last_recovery_at: nowIso,
           next_recovery_at: null,
         },
+      });
+      void requestGenerationControlPlaneWake({
+        routeLabel,
+        reason: "running_hard_timeout",
       });
       return {
         ok: true,
@@ -444,6 +453,10 @@ export const executeGenerationRecovery = async ({
       generation,
       generationUpdates: buildProviderFailedUpdate(nowIso),
     });
+    void requestGenerationControlPlaneWake({
+      routeLabel,
+      reason: "provider_failed",
+    });
     return {
       ok: true,
       state: "provider_failed",
@@ -493,6 +506,10 @@ export const executeGenerationRecovery = async ({
     await applyRecoveryTransition({
       generation,
       generationUpdates: buildNoMediaUpdate({ nowIso, queuePlan }),
+    });
+    void requestGenerationControlPlaneWake({
+      routeLabel,
+      reason: queuePlan.isExhausted ? "no_media_exhausted" : "no_media_requeue",
     });
     return {
       ok: true,
@@ -592,6 +609,10 @@ export const executeGenerationRecovery = async ({
         autosaveDecisionReason: autosavePolicyDecision.reason,
       }),
     });
+    void requestGenerationControlPlaneWake({
+      routeLabel,
+      reason: "recovered_success",
+    });
     return {
       ok: true,
       state: "recovered",
@@ -671,6 +692,10 @@ export const executeGenerationRecovery = async ({
       autosaveDecision: "auto_persisted",
       autosaveDecisionReason: autosavePolicyDecision.reason,
     }),
+  });
+  void requestGenerationControlPlaneWake({
+    routeLabel,
+    reason: "recovered_success",
   });
   return {
     ok: true,

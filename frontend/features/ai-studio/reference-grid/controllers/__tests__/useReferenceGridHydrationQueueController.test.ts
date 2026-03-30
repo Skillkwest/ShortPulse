@@ -181,4 +181,48 @@ describe("useReferenceGridHydrationQueueController", () => {
     const [id] = enqueuePreferred.mock.calls[0] as [string, string, { targetLongEdgePx?: number }];
     expect(id).toBe("out-1");
   });
+
+  it("skips hydration work for placeholder-only loading outputs", () => {
+    const enqueueImageHydration = vi.fn();
+    const pruneHydrationQueueToCandidateIds = vi.fn();
+    const resolveCardMedia = vi.fn(({ item }: { item: StudioOutput }) =>
+      createResolvedCardMedia(item, "https://cdn.example.com/preview.jpg")
+    );
+    const output = {
+      ...imageOutput("out-pending"),
+      taskState: "pending" as const,
+      mediaSource: "generated" as const,
+      previewStoragePath: null,
+      fullStoragePath: null,
+      previewUrl: undefined,
+      resultUrls: [],
+      localObjectUrl: null,
+    } as StudioOutput;
+
+    renderHook(() =>
+      useReferenceGridHydrationQueueController({
+        decodeBudgetEnabled: true,
+        suspendHydrationQueue: false,
+        activeOutputId: output.id,
+        outputs: [output],
+        visibleCardItems: [],
+        curatedVisibleCardItems: [],
+        hydrationQuickSlotPreferredIdSet: new Set<string>(),
+        nearViewportOutputs: [output],
+        nearViewportCuratedOutputs: [output],
+        virtualRowHeight: 280,
+        curatedVirtualRowHeight: 240,
+        quickSlotAdaptiveSurfaceEnabled: true,
+        resolveCardMedia,
+        enqueueImageHydration,
+        pruneHydrationQueueToCandidateIds,
+      })
+    );
+
+    expect(resolveCardMedia).not.toHaveBeenCalled();
+    expect(enqueueImageHydration).not.toHaveBeenCalled();
+    expect(pruneHydrationQueueToCandidateIds).toHaveBeenCalledTimes(1);
+    const candidateIdSet = pruneHydrationQueueToCandidateIds.mock.calls[0]?.[0] as Set<string>;
+    expect(candidateIdSet.size).toBe(0);
+  });
 });

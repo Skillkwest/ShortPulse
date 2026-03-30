@@ -5,6 +5,7 @@
 import { useEffect } from "react";
 import type { ReferenceGridPreviewQualityBand } from "../../logic/referenceGridMedia";
 import type { StudioOutput } from "../../types";
+import { isReferenceGridPlaceholderOnlyOutput } from "../logic/referenceGridPlaceholderState";
 import type { ReferenceGridVisibleCardItem } from "./useReferenceGridCardItemsController";
 import type { ReferenceGridResolvedCardMedia } from "./useReferenceGridResolvedMediaController";
 
@@ -82,7 +83,7 @@ export const useReferenceGridHydrationQueueController = ({
     const candidateIdSet = new Set<string>();
     if (activeOutputId) {
       const activeOutput = outputs.find((item) => item.id === activeOutputId);
-      if (activeOutput) {
+      if (activeOutput && !isReferenceGridPlaceholderOnlyOutput(activeOutput)) {
         const resolvedMedia = resolveCardMedia({
           item: activeOutput,
           mediaSurface: resolvePreferredSurface(activeOutputId),
@@ -129,6 +130,7 @@ export const useReferenceGridHydrationQueueController = ({
 
     nearViewportCuratedOutputs.forEach((item) => {
       if (candidateIdSet.has(item.id)) return;
+      if (isReferenceGridPlaceholderOnlyOutput(item)) return;
       const resolvedMedia = resolveCardMedia({
         item,
         mediaSurface: quickSlotAdaptiveSurfaceEnabled ? "quick-slot" : "reference-grid",
@@ -147,6 +149,7 @@ export const useReferenceGridHydrationQueueController = ({
 
     nearViewportOutputs.forEach((item) => {
       if (candidateIdSet.has(item.id)) return;
+      if (isReferenceGridPlaceholderOnlyOutput(item)) return;
       const resolvedMedia = resolveCardMedia({
         item,
         mediaSurface: "reference-grid",

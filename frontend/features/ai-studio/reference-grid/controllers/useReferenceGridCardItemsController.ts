@@ -8,6 +8,7 @@ import type {
   ReferenceGridPreviewQualityBand,
 } from "../../logic/referenceGridMedia";
 import type { StudioOutput } from "../../types";
+import { isReferenceGridPlaceholderOnlyOutput } from "../logic/referenceGridPlaceholderState";
 import {
   hasAdaptiveQueryParams,
   isNextOptimizerUrl,
@@ -29,6 +30,7 @@ export type ReferenceGridVisibleCardItem = {
   isImagePreview: boolean;
   isPriorityHydration: boolean;
   imageSrc?: string;
+  isPlaceholderOnly?: boolean;
 };
 
 type UseReferenceGridCardItemsControllerArgs = {
@@ -93,6 +95,24 @@ export const useReferenceGridCardItemsController = ({
       rows.map((item, visibleIndex) => {
         const shouldPreferCuratedSurface =
           options.visualSurface === "all-refs" && visibleQuickSlotIdSet.has(item.id);
+        const isPlaceholderOnly = isReferenceGridPlaceholderOnlyOutput(item);
+        if (isPlaceholderOnly) {
+          return {
+            item,
+            surface: options.visualSurface,
+            mediaSurface: options.mediaSurface,
+            authorityTier: "preview-only" as const,
+            cardPreviewUrl: null,
+            fallbackUrl: null,
+            previewQualityBand: "high" as const,
+            targetLongEdgePx: options.cardLongEdgePx,
+            isVideoPreview: false,
+            isImagePreview: false,
+            isPriorityHydration: false,
+            imageSrc: undefined,
+            isPlaceholderOnly: true,
+          };
+        }
         const resolvedMedia = resolveCardMedia({
           item,
           mediaSurface: options.mediaSurface,
@@ -142,6 +162,7 @@ export const useReferenceGridCardItemsController = ({
           isImagePreview: resolvedMedia.isImagePreview,
           isPriorityHydration,
           imageSrc,
+          isPlaceholderOnly: false,
         };
       }),
     [activeOutputId, decodeBudgetEnabled, hydratedById, resolveCardMedia, visibleQuickSlotIdSet]

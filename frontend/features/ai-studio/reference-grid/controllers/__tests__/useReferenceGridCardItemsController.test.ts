@@ -1,5 +1,5 @@
 import { renderHook } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { StudioOutput } from "../../../types";
 import { useReferenceGridCardItemsController } from "../useReferenceGridCardItemsController";
 import type { ReferenceGridResolvedCardMedia } from "../useReferenceGridResolvedMediaController";
@@ -61,5 +61,44 @@ describe("useReferenceGridCardItemsController", () => {
     expect(result.current.visibleCardItems[0]?.imageSrc).toBe(
       "https://provider.example.com/generated-preview.png"
     );
+  });
+
+  it("skips resolved media work for placeholder-only loading outputs", () => {
+    const item = output({
+      taskState: "pending",
+      mediaSource: "generated",
+      previewUrl: undefined,
+      previewStoragePath: null,
+      fullStoragePath: null,
+      resultUrls: [],
+      localObjectUrl: null,
+    });
+    const resolveCardMedia = vi.fn(() => resolvedMedia());
+
+    const { result } = renderHook(() =>
+      useReferenceGridCardItemsController({
+        activeOutputId: null,
+        decodeBudgetEnabled: true,
+        visibleOutputs: [item],
+        visibleCuratedOutputs: [],
+        visibleQuickSlotIdSet: new Set<string>(),
+        hydrationPriorityCount: 1,
+        curatedHydrationPriorityCount: 0,
+        virtualRowHeight: 280,
+        curatedVirtualRowHeight: 240,
+        quickSlotAdaptiveSurfaceEnabled: false,
+        resolveCardMedia,
+        hydratedById: {},
+      })
+    );
+
+    expect(resolveCardMedia).not.toHaveBeenCalled();
+    expect(result.current.visibleCardItems[0]).toMatchObject({
+      cardPreviewUrl: null,
+      isImagePreview: false,
+      isVideoPreview: false,
+      isPriorityHydration: false,
+      isPlaceholderOnly: true,
+    });
   });
 });

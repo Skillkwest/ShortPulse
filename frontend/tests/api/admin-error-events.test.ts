@@ -131,15 +131,27 @@ describe("GET /api/admin/error-events", () => {
             data: [
               {
                 occurred_at: new Date(nowMs - 2 * 60 * 1000).toISOString(),
-                metadata: { tier: "video_long", reason: "tier_limit" },
+                metadata: {
+                  tier: "video_long",
+                  reason: "tier_limit",
+                  admission_scope: "shared_provider",
+                },
               },
               {
                 occurred_at: new Date(nowMs - 30 * 60 * 1000).toISOString(),
-                metadata: { tier: "image_standard", reason: "global_limit" },
+                metadata: {
+                  tier: "image_standard",
+                  reason: "global_limit",
+                  admission_scope: "per_user",
+                },
               },
               {
                 occurred_at: new Date(nowMs - 2 * 60 * 60 * 1000).toISOString(),
-                metadata: { tier: "image_heavy", reason: "global_and_tier_limit" },
+                metadata: {
+                  tier: "image_heavy",
+                  reason: "global_and_tier_limit",
+                  admission_scope: "per_user",
+                },
               },
             ],
             error: null,
@@ -180,16 +192,19 @@ describe("GET /api/admin/error-events", () => {
             total: number;
             byTier: Record<string, number>;
             byReason: Record<string, number>;
+            byScope: Record<string, number>;
           };
           lastHour: {
             total: number;
             byTier: Record<string, number>;
             byReason: Record<string, number>;
+            byScope: Record<string, number>;
           };
           last24h: {
             total: number;
             byTier: Record<string, number>;
             byReason: Record<string, number>;
+            byScope: Record<string, number>;
           };
         };
         total15mBreached: boolean;
@@ -241,6 +256,11 @@ describe("GET /api/admin/error-events", () => {
           global_and_tier_limit: 0,
           unknown: 0,
         },
+        byScope: {
+          per_user: 0,
+          shared_provider: 1,
+          unknown: 0,
+        },
       },
       lastHour: {
         total: 2,
@@ -256,6 +276,11 @@ describe("GET /api/admin/error-events", () => {
           global_and_tier_limit: 0,
           unknown: 0,
         },
+        byScope: {
+          per_user: 1,
+          shared_provider: 1,
+          unknown: 0,
+        },
       },
       last24h: {
         total: 3,
@@ -269,6 +294,11 @@ describe("GET /api/admin/error-events", () => {
           tier_limit: 1,
           global_limit: 1,
           global_and_tier_limit: 1,
+          unknown: 0,
+        },
+        byScope: {
+          per_user: 2,
+          shared_provider: 1,
           unknown: 0,
         },
       },

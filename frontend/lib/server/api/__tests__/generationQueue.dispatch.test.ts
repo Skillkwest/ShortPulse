@@ -90,7 +90,9 @@ const createSupabaseAdminMock = () => {
     })),
     update: vi.fn(() => ({
       eq: vi.fn(() => ({
-        eq: vi.fn(async () => ({ error: null })),
+        eq: vi.fn(() => ({
+          select: vi.fn(async () => ({ data: [{ id: generationRow.id }], error: null })),
+        })),
       })),
     })),
   };
@@ -138,6 +140,8 @@ describe("generationQueue/dispatch no-capacity handling", () => {
       providerAttachedReservationCleanupMinAgeSeconds: 7200,
       admission: {
         globalMax: 1,
+        sharedProviderEnabled: false,
+        sharedProviderGlobalMax: 3,
         tierLimits: {
           video_long: 2,
           image_heavy: 1,
@@ -193,6 +197,7 @@ describe("generationQueue/dispatch no-capacity handling", () => {
     );
     expect(readActiveProviderCapacitySnapshotMock).toHaveBeenCalledWith(
       expect.objectContaining({
+        provider: "fal",
         staleIgnoreMinAgeSeconds: 1200,
         activeGenerationStaleIgnoreMinAgeSeconds: 7200,
       })
@@ -239,6 +244,7 @@ describe("generationQueue/dispatch no-capacity handling", () => {
     );
     expect(readActiveProviderCapacitySnapshotMock).toHaveBeenCalledWith(
       expect.objectContaining({
+        provider: "fal",
         staleIgnoreMinAgeSeconds: 1200,
         activeGenerationStaleIgnoreMinAgeSeconds: 7200,
       })

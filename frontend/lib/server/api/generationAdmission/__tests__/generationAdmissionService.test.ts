@@ -33,6 +33,8 @@ describe("generationAdmissionService", () => {
           image_standard: 4,
         },
         retryAfterSeconds: 20,
+        sharedProviderEnabled: false,
+        sharedProviderGlobalMax: 4,
       },
     });
 
@@ -62,6 +64,8 @@ describe("generationAdmissionService", () => {
           image_standard: 4,
         },
         retryAfterSeconds: 20,
+        sharedProviderEnabled: false,
+        sharedProviderGlobalMax: 4,
       },
     });
 
@@ -93,6 +97,8 @@ describe("generationAdmissionService", () => {
           image_standard: 4,
         },
         retryAfterSeconds: 20,
+        sharedProviderEnabled: false,
+        sharedProviderGlobalMax: 4,
       },
     });
 

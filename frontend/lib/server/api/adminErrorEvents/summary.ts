@@ -2,7 +2,7 @@
  * Summary/health helpers for admin error-events API responses.
  */
 
-import { ADMISSION_REASONS, ADMISSION_TIERS } from "./constants";
+import { ADMISSION_REASONS, ADMISSION_SCOPES, ADMISSION_TIERS } from "./constants";
 import type {
   AdmissionDimensionCounts,
   AdmissionSummary,
@@ -23,6 +23,7 @@ const createAdmissionWindowSummary = (): AdmissionWindowSummary => ({
   total: 0,
   byTier: buildAdmissionDimensionSeed(ADMISSION_TIERS),
   byReason: buildAdmissionDimensionSeed(ADMISSION_REASONS),
+  byScope: buildAdmissionDimensionSeed(ADMISSION_SCOPES),
 });
 
 export const createAdmissionSummary = (): AdmissionSummary => ({
@@ -54,11 +55,13 @@ const asAdmissionDimension = (
 const incrementAdmissionSummary = (
   window: AdmissionWindowSummary,
   tier: string | "unknown",
-  reason: string | "unknown"
+  reason: string | "unknown",
+  scope: string | "unknown"
 ) => {
   window.total += 1;
   window.byTier[tier] = (window.byTier[tier] ?? 0) + 1;
   window.byReason[reason] = (window.byReason[reason] ?? 0) + 1;
+  window.byScope[scope] = (window.byScope[scope] ?? 0) + 1;
 };
 
 export const buildAdmissionSummary = ({
@@ -82,12 +85,13 @@ export const buildAdmissionSummary = ({
     const metadata = asMetadataRecord(row.metadata);
     const tier = asAdmissionDimension(metadata?.tier, ADMISSION_TIERS);
     const reason = asAdmissionDimension(metadata?.reason, ADMISSION_REASONS);
-    incrementAdmissionSummary(summary.last24h, tier, reason);
+    const scope = asAdmissionDimension(metadata?.admission_scope, ADMISSION_SCOPES);
+    incrementAdmissionSummary(summary.last24h, tier, reason, scope);
     if (occurredAtMs >= sinceHourMs) {
-      incrementAdmissionSummary(summary.lastHour, tier, reason);
+      incrementAdmissionSummary(summary.lastHour, tier, reason, scope);
     }
     if (occurredAtMs >= since15mMs) {
-      incrementAdmissionSummary(summary.last15m, tier, reason);
+      incrementAdmissionSummary(summary.last15m, tier, reason, scope);
     }
   }
   return summary;

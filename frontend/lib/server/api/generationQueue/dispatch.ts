@@ -155,9 +155,11 @@ const markAttemptRunningForExistingRequestId = async ({
 
 const readProviderCapacityState = async ({
   userId,
+  provider,
   modelId,
 }: {
   userId: string;
+  provider: string;
   modelId: string;
 }): Promise<{
   atCap: boolean;
@@ -170,24 +172,45 @@ const readProviderCapacityState = async ({
   };
 }> => {
   const flags = readFalRuntimeFlags();
-  const snapshot = await readActiveProviderCapacitySnapshot({
-    userId,
-    modelId,
-    // Ignore orphaned holds once they outlive queue max-wait.
-    staleIgnoreMinAgeSeconds: flags.queueMaxWaitSeconds,
-    // Keep provider-linked running rows active until they exceed recovery cleanup windows.
-    activeGenerationStaleIgnoreMinAgeSeconds: Math.max(
-      flags.runningExhaustMinAgeSeconds,
-      flags.providerAttachedReservationCleanupMinAgeSeconds
-    ),
-    // Keep very recent unmatched reservations fail-closed during persistence races.
-    orphanGraceSeconds: Math.max(60, flags.queueBaseBackoffSeconds * 12),
-  });
-  const globalAtCap = snapshot.globalActive >= flags.admission.globalMax;
-  const tierAtCap = snapshot.tierActive >= flags.admission.tierLimits[snapshot.tier];
+  const readSnapshot = async (scopeUserId?: string | null) =>
+    readActiveProviderCapacitySnapshot({
+      userId: scopeUserId,
+      provider,
+      modelId,
+      // Ignore orphaned holds once they outlive queue max-wait.
+      staleIgnoreMinAgeSeconds: flags.queueMaxWaitSeconds,
+      // Keep provider-linked running rows active until they exceed recovery cleanup windows.
+      activeGenerationStaleIgnoreMinAgeSeconds: Math.max(
+        flags.runningExhaustMinAgeSeconds,
+        flags.providerAttachedReservationCleanupMinAgeSeconds
+      ),
+      // Keep very recent unmatched reservations fail-closed during persistence races.
+      orphanGraceSeconds: Math.max(60, flags.queueBaseBackoffSeconds * 12),
+    });
+  const userSnapshot = await readSnapshot(userId);
+  const globalAtCap = userSnapshot.globalActive >= flags.admission.globalMax;
+  const tierAtCap = userSnapshot.tierActive >= flags.admission.tierLimits[userSnapshot.tier];
+  if (!flags.admission.sharedProviderEnabled) {
+    return {
+      atCap: globalAtCap || tierAtCap,
+      snapshot: userSnapshot,
+    };
+  }
+
+  const sharedSnapshot = await readSnapshot(null);
+  const sharedGlobalAtCap = sharedSnapshot.globalActive >= flags.admission.sharedProviderGlobalMax;
+  const sharedTierAtCap =
+    sharedSnapshot.tierActive >= flags.admission.tierLimits[sharedSnapshot.tier];
+  if (sharedGlobalAtCap || sharedTierAtCap) {
+    return {
+      atCap: true,
+      snapshot: sharedSnapshot,
+    };
+  }
+
   return {
     atCap: globalAtCap || tierAtCap,
-    snapshot,
+    snapshot: userSnapshot,
   };
 };
 
@@ -482,6 +505,7 @@ const processClaimedQueueItem = async ({
 
   const capacityState = await readProviderCapacityState({
     userId: item.userId,
+    provider,
     modelId: item.modelId,
   });
   if (capacityState.snapshot.staleIgnoredGlobal > 0 && attemptNumber === 1) {

@@ -24,6 +24,7 @@ Purpose: canonical operator runbook for queue dispatch, recovery execution, and 
   - `public.ai_credit_ledger`
 - SQL diagnostics/scripts:
   - `sql/check_generation_queue_blockers.sql`
+  - `sql/check_generation_admission_metrics.sql`
   - `sql/check_generation_settlement_integrity.sql`
   - `sql/check_control_plane_scheduler_health.sql`
   - `sql/check_pg_net_failure_taxonomy.sql`
@@ -53,6 +54,7 @@ Purpose: canonical operator runbook for queue dispatch, recovery execution, and 
 3. Recovery execution is server-authoritative and can be driven by:
    - scheduler/reconciler (`/api/internal/generation-recovery/run`)
    - webhook ingestion (`/api/fal/webhook`) when enabled, now via the explicit ingress boundary in `frontend/lib/server/falIntegration/falWebhookIngress.ts`.
+   - best-effort wake hints from queued submit and terminal recovery transitions, which can prompt the same control-plane route when capacity frees up.
 4. Queue dispatch and recovery claim flows use lease-based claim semantics to prevent duplicate concurrent processing.
 
 ## Credit Settlement Invariants
@@ -89,6 +91,7 @@ Purpose: canonical operator runbook for queue dispatch, recovery execution, and 
    - `sql/check_pg_net_failure_taxonomy.sql`
 2. Run `sql/check_generation_queue_blockers.sql`.
 3. Capture:
+   - admission-limited events by scope (`per_user` vs `shared_provider`) from `sql/check_generation_admission_metrics.sql`
    - provider-attached reserved holds by age bucket
    - queue depth by status (`queued`, `dispatching`, `exhausted`)
    - queue hotspots by user/model/status

@@ -13,6 +13,8 @@ describe("readFalRuntimeFlags admission config", () => {
     delete process.env.SHORTPULSE_FAL_ADMISSION_GLOBAL_MAX;
     delete process.env.SHORTPULSE_FAL_ADMISSION_TIER_LIMITS_JSON;
     delete process.env.SHORTPULSE_FAL_ADMISSION_RETRY_AFTER_SECONDS;
+    delete process.env.SHORTPULSE_FAL_ADMISSION_SHARED_PROVIDER_ENABLED;
+    delete process.env.SHORTPULSE_FAL_ADMISSION_SHARED_PROVIDER_GLOBAL_MAX;
     delete process.env.SHORTPULSE_FAL_RECONCILER_ENABLED;
     delete process.env.SHORTPULSE_FAL_RESERVATION_CLEANUP_ENABLED;
     delete process.env.SHORTPULSE_FAL_RESERVATION_CLEANUP_MIN_AGE_SECONDS;
@@ -48,6 +50,8 @@ describe("readFalRuntimeFlags admission config", () => {
         image_standard: 4,
       },
       retryAfterSeconds: 20,
+      sharedProviderEnabled: false,
+      sharedProviderGlobalMax: 4,
     });
     expect(flags.reservationCleanupEnabled).toBe(false);
     expect(flags.reservationCleanupMinAgeSeconds).toBe(900);
@@ -79,6 +83,8 @@ describe("readFalRuntimeFlags admission config", () => {
     process.env.SHORTPULSE_FAL_ADMISSION_GLOBAL_MAX = "6";
     process.env.SHORTPULSE_FAL_ADMISSION_TIER_LIMITS_JSON = '{"video_long":3,"image_heavy":2}';
     process.env.SHORTPULSE_FAL_ADMISSION_RETRY_AFTER_SECONDS = "15";
+    process.env.SHORTPULSE_FAL_ADMISSION_SHARED_PROVIDER_ENABLED = "true";
+    process.env.SHORTPULSE_FAL_ADMISSION_SHARED_PROVIDER_GLOBAL_MAX = "10";
     process.env.SHORTPULSE_FAL_RECONCILER_ENABLED = "true";
     process.env.SHORTPULSE_FAL_RESERVATION_CLEANUP_ENABLED = "false";
     process.env.SHORTPULSE_FAL_RESERVATION_CLEANUP_MIN_AGE_SECONDS = "1200";
@@ -114,6 +120,8 @@ describe("readFalRuntimeFlags admission config", () => {
         image_standard: 4,
       },
       retryAfterSeconds: 15,
+      sharedProviderEnabled: true,
+      sharedProviderGlobalMax: 10,
     });
     expect(flags.reservationCleanupEnabled).toBe(false);
     expect(flags.reservationCleanupMinAgeSeconds).toBe(1200);

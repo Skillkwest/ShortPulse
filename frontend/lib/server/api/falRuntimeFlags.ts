@@ -187,6 +187,14 @@ export const readFalRuntimeFlags = (): FalRuntimeFlags => ({
     retryAfterSeconds: parseGenerationAdmissionRetryAfterSeconds(
       process.env.SHORTPULSE_FAL_ADMISSION_RETRY_AFTER_SECONDS
     ),
+    sharedProviderEnabled: parseBoolean(
+      process.env.SHORTPULSE_FAL_ADMISSION_SHARED_PROVIDER_ENABLED,
+      false
+    ),
+    sharedProviderGlobalMax: parseGenerationAdmissionGlobalMax(
+      process.env.SHORTPULSE_FAL_ADMISSION_SHARED_PROVIDER_GLOBAL_MAX ??
+        process.env.SHORTPULSE_FAL_ADMISSION_GLOBAL_MAX
+    ),
   },
   reservationCleanupEnabled: parseBoolean(
     process.env.SHORTPULSE_FAL_RESERVATION_CLEANUP_ENABLED,

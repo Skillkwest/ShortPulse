@@ -12,6 +12,7 @@ import {
   hasFreshLocalGenerationWorkerHeartbeat,
   isLocalDevGenerationWorkerRequired,
 } from "../generationControlPlane/localWorkerHeartbeat";
+import { requestGenerationControlPlaneWake } from "../generationControlPlane/controlPlaneWake";
 import { evaluateUserGenerationAdmission } from "./generationAdmission/generationAdmissionService";
 import { evaluateGenerationAdmissionDecision } from "./generationAdmission/generationAdmissionPolicy";
 import type { SubmitTarget } from "../falIntegration/contracts";
@@ -77,6 +78,32 @@ type FalSubmitConfig = {
 };
 
 type JsonValue = Record<string, unknown>;
+
+const selectEffectiveAdmissionDecision = ({
+  providerDecision,
+  userDecision,
+}: {
+  providerDecision: ReturnType<typeof evaluateGenerationAdmissionDecision> | null;
+  userDecision: ReturnType<typeof evaluateGenerationAdmissionDecision>;
+}) => {
+  if (providerDecision?.enforced) return providerDecision;
+  if (userDecision.wouldLimit) return userDecision;
+  if (providerDecision?.wouldLimit) return providerDecision;
+  return userDecision;
+};
+
+const resolveAdmissionScope = ({
+  providerDecision,
+  admissionDecision,
+}: {
+  providerDecision: ReturnType<typeof evaluateGenerationAdmissionDecision> | null;
+  admissionDecision: ReturnType<typeof evaluateGenerationAdmissionDecision>;
+}): "shared_provider" | "per_user" =>
+  providerDecision &&
+  admissionDecision.snapshot.globalMax === providerDecision.snapshot.globalMax &&
+  admissionDecision.snapshot.tierMax === providerDecision.snapshot.tierMax
+    ? "shared_provider"
+    : "per_user";
 
 const buildAdmissionLimitPayload = ({
   retryAfterSeconds,
@@ -396,9 +423,16 @@ export const createFalSubmitHandler = ({
     }
 
     try {
-      const evaluateQueueAdmissionDecision = async () => {
+      const buildProviderAdmissionDecision = async ({
+        scopeUserId,
+        globalMax,
+      }: {
+        scopeUserId?: string | null;
+        globalMax: number;
+      }) => {
         const capacitySnapshot = await readActiveProviderCapacitySnapshot({
-          userId: charge.userId,
+          userId: scopeUserId,
+          provider: providerKey,
           modelId,
           staleIgnoreMinAgeSeconds: runtimeFlags.queueMaxWaitSeconds,
           activeGenerationStaleIgnoreMinAgeSeconds: Math.max(
@@ -430,7 +464,7 @@ export const createFalSubmitHandler = ({
           snapshot: {
             // Admission snapshot is computed as post-submit state.
             globalActive: capacitySnapshot.globalActive + 1,
-            globalMax: runtimeFlags.admission.globalMax,
+            globalMax,
             tier: capacitySnapshot.tier,
             tierActive: capacitySnapshot.tierActive + 1,
             tierMax: runtimeFlags.admission.tierLimits[capacitySnapshot.tier],
@@ -438,13 +472,30 @@ export const createFalSubmitHandler = ({
         });
       };
 
-      const admissionDecision = runtimeFlags.queueEnabled
-        ? await evaluateQueueAdmissionDecision()
+      const sharedProviderDecision = runtimeFlags.admission.sharedProviderEnabled
+        ? await buildProviderAdmissionDecision({
+            scopeUserId: null,
+            globalMax: runtimeFlags.admission.sharedProviderGlobalMax,
+          })
+        : null;
+      const userAdmissionDecision = runtimeFlags.queueEnabled
+        ? await buildProviderAdmissionDecision({
+            scopeUserId: charge.userId,
+            globalMax: runtimeFlags.admission.globalMax,
+          })
         : await evaluateUserGenerationAdmission({
             userId: charge.userId,
             modelId,
             config: runtimeFlags.admission,
           });
+      const admissionDecision = selectEffectiveAdmissionDecision({
+        providerDecision: sharedProviderDecision,
+        userDecision: userAdmissionDecision,
+      });
+      const admissionScope = resolveAdmissionScope({
+        providerDecision: sharedProviderDecision,
+        admissionDecision,
+      });
 
       if (admissionDecision.wouldLimit) {
         await logGenerationFailure({
@@ -463,6 +514,7 @@ export const createFalSubmitHandler = ({
             tier: admissionDecision.snapshot.tier,
             tier_active: admissionDecision.snapshot.tierActive,
             tier_max: admissionDecision.snapshot.tierMax,
+            admission_scope: admissionScope,
           },
         });
       }
@@ -556,6 +608,7 @@ export const createFalSubmitHandler = ({
               tier_active: admissionDecision.snapshot.tierActive,
               tier_max: admissionDecision.snapshot.tierMax,
             },
+            admission_scope: admissionScope,
           },
         });
 
@@ -583,6 +636,10 @@ export const createFalSubmitHandler = ({
         }
 
         const queuedSourceRef = enqueueResult.sourceRef || charge.sourceRef;
+        void requestGenerationControlPlaneWake({
+          routeLabel,
+          reason: "queued_submit",
+        });
         await logGenerationFailure({
           req,
           routeLabel,
@@ -603,6 +660,7 @@ export const createFalSubmitHandler = ({
             tier_max: admissionDecision.snapshot.tierMax,
             queue_depth: queueDepth + (enqueueResult.status === "queued" ? 1 : 0),
             queue_max: runtimeFlags.queueMaxPerUser,
+            admission_scope: admissionScope,
           },
         });
 

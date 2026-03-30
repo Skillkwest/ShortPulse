@@ -101,11 +101,13 @@ const createSupabaseAdminMock = ({
   existingRequestId,
   provider,
   generationMetadataSourceRef,
+  queueEnqueuedAt,
 }: {
   generationUpdateError?: string;
   existingRequestId?: string | null;
   provider?: string | null;
   generationMetadataSourceRef?: string | null;
+  queueEnqueuedAt?: string | null;
 }) => {
   const aiGenerationsTable = {
     select: vi.fn(() => ({
@@ -117,9 +119,10 @@ const createSupabaseAdminMock = ({
               status: "pending",
               request_id: existingRequestId ?? null,
               provider: provider ?? null,
-              metadata: generationMetadataSourceRef
-                ? { source_ref: generationMetadataSourceRef }
-                : {},
+              metadata: {
+                ...(generationMetadataSourceRef ? { source_ref: generationMetadataSourceRef } : {}),
+                ...(queueEnqueuedAt ? { queue_enqueued_at: queueEnqueuedAt } : {}),
+              },
             },
             error: null,
           })),
@@ -554,54 +557,73 @@ describe("generationQueue/dispatch transition integrity", () => {
     process.env.SHORTPULSE_KIE_INTEGRATION_ENABLED = "true";
     process.env.SHORTPULSE_KIE_MODEL_ALLOWLIST = "kie-ai/veo-3.1-fast-i2v";
     process.env.SHORTPULSE_KIE_SUBMIT_URLS = "https://queue.kie.ai/v1/jobs";
-    getSupabaseAdminMock.mockReturnValue(createSupabaseAdminMock({ provider: "kie" }));
-    claimGenerationSubmitQueueBatchMock.mockResolvedValue([
-      {
-        ...queueItem,
-        modelId: "kie-ai/veo-3.1-fast-i2v",
-        submitPayload: {
-          prompt: "hello",
-          image_url: "https://cdn.shortpulse.test/input.png",
+    vi.useFakeTimers();
+    try {
+      vi.setSystemTime(new Date("2026-03-01T00:00:10.000Z"));
+      getSupabaseAdminMock.mockReturnValue(
+        createSupabaseAdminMock({
+          provider: "kie",
+          queueEnqueuedAt: "2026-03-01T00:00:00.000Z",
+        })
+      );
+      claimGenerationSubmitQueueBatchMock.mockResolvedValue([
+        {
+          ...queueItem,
+          modelId: "kie-ai/veo-3.1-fast-i2v",
+          submitPayload: {
+            prompt: "hello",
+            image_url: "https://cdn.shortpulse.test/input.png",
+          },
         },
-      },
-    ]);
+      ]);
 
-    const result = await dispatchGenerationSubmitQueueBatch({
-      req: { method: "GET", headers: {} } as never,
-      routeLabel: "test/dispatch-integrity",
-      limit: 1,
-      userId: "user-1",
-    });
-
-    expect(result).toEqual(
-      expect.objectContaining({
-        claimed: 1,
-        submitted: 1,
-        exhausted: 0,
-      })
-    );
-    expect(dispatchProviderSubmitMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        provider: "kie",
-        modelId: "kie-ai/veo-3.1-fast-i2v",
-        targets: [{ submitUrl: "https://queue.kie.ai/v1/jobs" }],
-      })
-    );
-    expect(withWebhookTargetsMock).not.toHaveBeenCalled();
-    expect(markQueueItemExhaustedMock).not.toHaveBeenCalled();
-    expect(ensureAcceptedRunningGenerationAttemptMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        generationId: "gen-1",
+      const result = await dispatchGenerationSubmitQueueBatch({
+        req: { method: "GET", headers: {} } as never,
+        routeLabel: "test/dispatch-integrity",
+        limit: 1,
         userId: "user-1",
-        providerRequestId: "req-1",
-        dispatchSource: "queued_submit",
-      })
-    );
+      });
 
-    delete process.env.KIE_API_KEY;
-    delete process.env.SHORTPULSE_KIE_INTEGRATION_ENABLED;
-    delete process.env.SHORTPULSE_KIE_MODEL_ALLOWLIST;
-    delete process.env.SHORTPULSE_KIE_SUBMIT_URLS;
+      expect(result).toEqual(
+        expect.objectContaining({
+          claimed: 1,
+          submitted: 1,
+          exhausted: 0,
+        })
+      );
+      expect(dispatchProviderSubmitMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          provider: "kie",
+          modelId: "kie-ai/veo-3.1-fast-i2v",
+          targets: [{ submitUrl: "https://queue.kie.ai/v1/jobs" }],
+        })
+      );
+      expect(withWebhookTargetsMock).not.toHaveBeenCalled();
+      expect(markQueueItemExhaustedMock).not.toHaveBeenCalled();
+      expect(ensureAcceptedRunningGenerationAttemptMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          generationId: "gen-1",
+          userId: "user-1",
+          providerRequestId: "req-1",
+          dispatchSource: "queued_submit",
+        })
+      );
+      expect(logGenerationFailureMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          source: "telemetry.queue.dispatch.submitted",
+          metadata: expect.objectContaining({
+            queue_latency_ms: 10_000,
+            queue_latency_seconds: 10,
+          }),
+        })
+      );
+    } finally {
+      delete process.env.KIE_API_KEY;
+      delete process.env.SHORTPULSE_KIE_INTEGRATION_ENABLED;
+      delete process.env.SHORTPULSE_KIE_MODEL_ALLOWLIST;
+      delete process.env.SHORTPULSE_KIE_SUBMIT_URLS;
+      vi.useRealTimers();
+    }
   });
 
   it("dispatches queued kie generation using model-catalog submit defaults when env submit urls are unset", async () => {

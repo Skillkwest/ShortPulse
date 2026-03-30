@@ -111,6 +111,24 @@ const asString = (value: unknown): string | null => {
   return trimmed.length ? trimmed : null;
 };
 
+const readQueueLatencyMs = ({
+  createdAt,
+  generationMetadata,
+  dispatchAtIso,
+}: {
+  createdAt: string | null;
+  generationMetadata: unknown;
+  dispatchAtIso: string;
+}): number | null => {
+  const metadata = asObject(generationMetadata);
+  const enqueuedAtRaw = asString(metadata.queue_enqueued_at) ?? createdAt;
+  if (!enqueuedAtRaw) return null;
+  const enqueuedAtMs = Date.parse(enqueuedAtRaw);
+  const dispatchAtMs = Date.parse(dispatchAtIso);
+  if (!Number.isFinite(enqueuedAtMs) || !Number.isFinite(dispatchAtMs)) return null;
+  return Math.max(0, dispatchAtMs - enqueuedAtMs);
+};
+
 const markAttemptRunningForExistingRequestId = async ({
   providerRequestId,
   userId,
@@ -1078,6 +1096,11 @@ const processClaimedQueueItem = async ({
     const removeResult = await removeQueueItem(item.queueId);
     assertQueueMutationApplied({ result: removeResult, step: "queue_remove" });
     metrics.submitted += 1;
+    const queueLatencyMs = readQueueLatencyMs({
+      createdAt: item.createdAt,
+      generationMetadata: generationRow.metadata,
+      dispatchAtIso,
+    });
     await logGenerationFailure({
       req,
       routeLabel,
@@ -1092,6 +1115,9 @@ const processClaimedQueueItem = async ({
         attempts: attemptNumber,
         model_id: item.modelId,
         provider_request_id: providerRequestId,
+        queue_latency_ms: queueLatencyMs,
+        queue_latency_seconds:
+          typeof queueLatencyMs === "number" ? Math.floor(queueLatencyMs / 1000) : null,
       },
     });
     return metrics;

@@ -61,9 +61,10 @@ Define the authoritative AI Studio Media Library panel UX contract (`toolId: med
 1. `All Media` is the virtual aggregate root and is never stored as a `media_folders` row.
 2. Custom folders are true structural containers and may reference a real parent folder.
 3. Breadcrumbs represent actual ancestry from `All Media` to the active folder.
-4. The back/up control moves to the active folder’s real parent.
-5. The folder strip shows direct children of the current folder only.
-6. The current folder never appears in its own child list.
+4. Ancestor breadcrumb segments are clickable; the current trailing segment is a non-clickable location indicator.
+5. The back/up control moves to the active folder’s real parent.
+6. The folder strip shows direct children of the current folder only.
+7. The current folder never appears in its own child list, except transiently while the active folder is being inline-renamed inside its own scope.
 
 ### 3) Item placement semantics
 1. `All Media` remains the aggregate master view across all user-owned media/prompt items.
@@ -127,6 +128,7 @@ Define the authoritative AI Studio Media Library panel UX contract (`toolId: med
 - `all_items` is virtual root and cannot be passed as a mutation target to `/api/media/folders/membership-batch`.
 - Real folder ancestry is carried by `media_folders.parent_folder_id`; same-user parent ownership, sibling-scoped uniqueness, self-parent rejection, and cycle prevention are enforced in the database contract.
 - `/api/media/folders/move` reparents one user-owned custom folder under a new optional parent (`null` = `All Media` root) and must reject cross-user parents, sibling-name conflicts, self-parenting, and cyclic ancestry.
+- The AI Studio folder context menu exposes `Move to...`, and the picker must exclude the moving folder itself, its descendants, and its current parent as a no-op destination.
 - `membership-batch` supports `assign`, `unassign`, and `move` actions with ownership validation.
 - Character-scoped media (`<uid>/characters/%`) is excluded from Media Library list APIs when `SHORTPULSE_MEDIA_LIBRARY_EXCLUDE_CHARACTER_SCOPE=true`.
 - Folder membership/move APIs must reject character-scoped media ids (`409`) to prevent cross-surface coupling drift.
@@ -164,27 +166,30 @@ Define the authoritative AI Studio Media Library panel UX contract (`toolId: med
    - Current: `media_folders` carries explicit `parent_folder_id` ancestry with sibling-scoped uniqueness, cycle prevention, and a reparent API (`/api/media/folders/move`), and the AI Studio panel now traverses real parent/child relationships instead of a creation-order proxy.
 10. Folder-strip hierarchy navigation:
    - Status: Aligned.
-   - Current: The folder strip shows direct children of the current folder only. Breadcrumb segments follow the true ancestor chain from `All Media`, the back-caret navigates to the real parent folder, and new folders are created under the currently active folder.
-11. `All Media` completeness backfill:
+   - Current: The folder strip shows direct children of the current folder only. Breadcrumb segments follow the true ancestor chain from `All Media`, only ancestor segments remain clickable, the trailing current-folder segment is a location indicator, the back-caret navigates to the real parent folder, and new folders are created under the currently active folder.
+11. Folder reparent UI:
+   - Status: Aligned.
+   - Current: Custom folders expose a `Move to...` picker from the context menu. Destination options render as explicit ancestry paths, keep `All Media` at the top, and exclude self, descendants, and the current parent.
+12. `All Media` completeness backfill:
    - Status: Pending rollout.
    - Current: Backfill and diagnostics exist in SQL (`064` + drift check) but require environment application/runbook execution to converge legacy missing rows.
-12. `All Media` panel preview compaction activation:
+13. `All Media` panel preview compaction activation:
    - Status: Aligned.
    - Current: Adaptive panel compaction activates when either `media-library-grid` or `media-library-modal-grid` adaptive surface is enabled, with default surface fallback including both media-library surfaces when the allowlist env is unset/blank.
-13. Browser-blocked URL persistence fallback:
+14. Browser-blocked URL persistence fallback:
    - Status: Aligned.
    - Current: `POST /api/media/copy-from-url` provides authenticated trusted-host server-side URL fetch/persist fallback when browser media fetch is blocked by CORS/security/network conditions.
    - Current: generated AI Studio saves fail closed unless the output already has a durable `generationId`; server copy no longer downgrades generated media into weakly linked library rows.
-14. Signed preview delivery for media-library card surfaces:
+15. Signed preview delivery for media-library card surfaces:
    - Status: Aligned.
    - Current: Route/modal/panel card previews use Supabase signed URLs with surface-aware preview-profile telemetry, do not route signed object URLs through `/_next/image`, and keep signed transforms dual-flag gated (disabled by default). The AI Studio panel now owns a panel-specific signing budget (`4/4/4` desktop, `3/3/3` small-screen, `2/2/2` constrained) instead of borrowing the modal budget. `/api/media/sign-batch` now batches untransformed paths through Supabase multi-signing while preserving per-item signing for transform-backed image paths.
-15. Derivative worker pipeline for image thumbs:
+16. Derivative worker pipeline for image thumbs:
    - Status: In rollout.
    - Current: `065`/`066` add media derivative retry/lease controls and service-role claim/update RPCs, with worker route `POST /api/internal/media-derivatives/run` generating `thumb_240`/`thumb_480` variant rows and promoting `media_files.thumb_variant_path` on success.
-16. Character-scope containment in Media Library APIs:
+17. Character-scope containment in Media Library APIs:
    - Status: Aligned.
    - Current: `POST /api/media/list` excludes character-scoped rows by default (`SHORTPULSE_MEDIA_LIBRARY_EXCLUDE_CHARACTER_SCOPE=true`) and folder membership/move routes reject character-scoped media ids with deterministic `409` responses.
-17. Media Library panel expand affordance:
+18. Media Library panel expand affordance:
    - Status: Aligned.
    - Current: The root saved-media count row includes a small expand control that expands the left panel to its maximum practical shell width and snaps the folder/reference split to its maximum top height for a larger media browsing viewport.
 
@@ -200,6 +205,7 @@ Define the authoritative AI Studio Media Library panel UX contract (`toolId: med
 ## Validation and regression checklist
 1. Folder lifecycle:
    - Create, rename, delete custom folders.
+   - Reparent a folder via `Move to...` and confirm invalid destinations are absent.
 2. `All Media` display:
    - `All Media` root tabs render as `Images`, `Videos`, and `Prompts`.
    - `Prompts` tab renders text reference cards.

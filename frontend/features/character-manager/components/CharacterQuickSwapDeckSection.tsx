@@ -11,6 +11,7 @@ import type { CharacterQuickSwapItem } from "../types";
 type CharacterQuickSwapDeckSectionProps = {
   beginnerMode: boolean;
   showCollapseToggle?: boolean;
+  showHelperText?: boolean;
   isCollapsed: boolean;
   contentId: string;
   pageBusy: boolean;
@@ -101,6 +102,7 @@ const resolveActiveGridColumnCount = (
 export function CharacterQuickSwapDeckSection({
   beginnerMode,
   showCollapseToggle = true,
+  showHelperText = true,
   isCollapsed,
   contentId,
   pageBusy,
@@ -318,7 +320,7 @@ export function CharacterQuickSwapDeckSection({
           ) : null}
           <div className="character-section-title-copy">
             <h3 className="character-section-title">QuickSwap Deck</h3>
-            {!isCollapsed ? (
+            {!isCollapsed && showHelperText ? (
               <p className="character-section-helper tiny subdued">
                 The quick swap deck is a small library of images you can quickly access to swap out
                 your character&apos;s style on the fly.

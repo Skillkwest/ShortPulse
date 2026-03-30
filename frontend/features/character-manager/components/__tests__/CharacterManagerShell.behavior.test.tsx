@@ -1820,6 +1820,11 @@ describe("CharacterManagerShell behavior", () => {
         name: /Uploaded references/i,
       })
     ).toBeInTheDocument();
+    expect(
+      screen.queryByText(
+        "The quick swap deck is a small library of images you can quickly access to swap out your character's style on the fly."
+      )
+    ).not.toBeInTheDocument();
   });
 
   it("hides embedded QuickSwap guidance when the tip preference is already hidden", () => {
@@ -2048,5 +2053,20 @@ describe("CharacterManagerShell behavior", () => {
         )
       ).toBeInTheDocument();
     });
+  });
+
+  it("keeps the standalone route QuickSwap helper visible while the embedded panel stays lean", () => {
+    const quickSwapHelperCopy =
+      "The quick swap deck is a small library of images you can quickly access to swap out your character's style on the fly.";
+
+    const { unmount } = render(<CharacterManagerShell />);
+
+    expect(screen.getByText(quickSwapHelperCopy)).toBeInTheDocument();
+
+    unmount();
+
+    render(<CharacterManagerShell surface="panel" beginnerModeOverride={true} />);
+
+    expect(screen.queryByText(quickSwapHelperCopy)).not.toBeInTheDocument();
   });
 });

@@ -125,10 +125,6 @@
   margin-bottom: 2px;
 }
 
-.character-manager-page--embedded .character-section--reference-drop .character-section-helper {
-  display: none;
-}
-
 .character-manager-page--embedded .character-simple-dropzone--compact {
   min-height: 72px;
   padding: 6px 10px;

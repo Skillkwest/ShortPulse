@@ -69,7 +69,7 @@ Define the operational contract for the `/character` Character Manager surface, 
    - DOM order must match visual order to preserve accessibility and deterministic layout-test assertions.
    - The legacy Identity section is removed from create mode.
    - The profile photo and character name editor card render inside the Character Sheet section above the preset tab row.
-   - In AI Studio embedded Character Properties (`surface='panel'`), expert mode hides the QuickSwap collapse toggle, keeps the deck expanded, and lands on `Character Profile` by default.
+   - In AI Studio embedded Character Properties (`surface='panel'`), the QuickSwap section uses leaner chrome than the standalone route: the legacy helper paragraph is hidden, expert mode hides the QuickSwap collapse toggle, the deck stays expanded, and the panel lands on `Character Profile` by default.
 11. Internal drag observability contract:
    - Emit `character_drop_attempt` for every internal drop parsed at target boundary.
    - Emit `character_drop_resolved` when resolver yields a usable internal reference (`mediaId` or trusted preview URL fallback) and assignment succeeds.

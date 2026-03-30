@@ -212,11 +212,16 @@ export function CharacterManagerShell({
   });
   const quickSwapActiveItems = useMemo(() => quickSwapItems, [quickSwapItems]);
   const { isQuickSwapTipHidden, markQuickSwapTipHidden } = useCharacterQuickSwapTipPreference();
-  const { setBeginnerMode, isEmbeddedSurface, effectiveBeginnerMode, showQuickSwapCollapseToggle } =
-    useCharacterManagerSurfacePolicy({
-      surface,
-      beginnerModeOverride,
-    });
+  const {
+    setBeginnerMode,
+    isEmbeddedSurface,
+    effectiveBeginnerMode,
+    showQuickSwapCollapseToggle,
+    showQuickSwapHelperText,
+  } = useCharacterManagerSurfacePolicy({
+    surface,
+    beginnerModeOverride,
+  });
   const {
     activeTab,
     setActiveTab,
@@ -742,6 +747,7 @@ export function CharacterManagerShell({
                   <CharacterQuickSwapDeckSection
                     beginnerMode={effectiveBeginnerMode}
                     showCollapseToggle={showQuickSwapCollapseToggle}
+                    showHelperText={showQuickSwapHelperText}
                     isCollapsed={isQuickSwapCollapsed}
                     contentId={quickSwapContentId}
                     pageBusy={

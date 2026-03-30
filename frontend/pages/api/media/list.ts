@@ -420,7 +420,7 @@ export default async function handler(
         .from("media_files")
         .select(
           folderScoped
-            ? `${selectColumns}, folder_membership:media_folder_media_items!inner()`
+            ? `${selectColumns}, folder_membership:media_folder_media_items!media_folder_media_items_media_file_fk!inner(folder_id,user_id)`
             : selectColumns
         )
         .eq("user_id", user.id);

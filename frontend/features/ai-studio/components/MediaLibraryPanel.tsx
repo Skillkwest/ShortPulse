@@ -221,6 +221,21 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
     () => new Map(folders.map((folder) => [folder.id, folder])),
     [folders]
   );
+  const buildFolderPathLabel = useCallback(
+    (targetFolderId: string | null): string => {
+      if (targetFolderId === null) return "All Media";
+      const chain: string[] = [];
+      let cursor = foldersById.get(targetFolderId) ?? null;
+      const seen = new Set<string>();
+      while (cursor && !seen.has(cursor.id)) {
+        seen.add(cursor.id);
+        chain.unshift(cursor.name);
+        cursor = cursor.parentFolderId ? (foldersById.get(cursor.parentFolderId) ?? null) : null;
+      }
+      return chain.length > 0 ? `All Media > ${chain.join(" > ")}` : "All Media";
+    },
+    [foldersById]
+  );
   const visibleImageRows = useMemo(
     () => mediaRows.filter((row) => !isVideoFile(row.file_type)),
     [mediaRows]
@@ -669,23 +684,12 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
       if (movingFolder.parentFolderId !== null) {
         options.push({ id: null, label: "All Media" });
       }
-      const buildFolderPath = (targetFolderId: string): string => {
-        const chain: string[] = [];
-        let cursor = foldersById.get(targetFolderId) ?? null;
-        const seen = new Set<string>();
-        while (cursor && !seen.has(cursor.id)) {
-          seen.add(cursor.id);
-          chain.unshift(cursor.name);
-          cursor = cursor.parentFolderId ? (foldersById.get(cursor.parentFolderId) ?? null) : null;
-        }
-        return `All Media > ${chain.join(" > ")}`;
-      };
       for (const folder of folders) {
         if (excludedIds.has(folder.id)) continue;
         if (folder.id === movingFolder.parentFolderId) continue;
         options.push({
           id: folder.id,
-          label: buildFolderPath(folder.id),
+          label: buildFolderPathLabel(folder.id),
         });
       }
       if (options.length <= 1) return options;
@@ -698,12 +702,18 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
         ...folderOptions.sort((left, right) => left.label.localeCompare(right.label)),
       ];
     },
-    [collectDescendantIds, folders, foldersById]
+    [buildFolderPathLabel, collectDescendantIds, folders]
   );
   const moveFolderDestinationOptions = useMemo(() => {
     if (!moveFolderPicker) return [];
     return resolveMoveFolderDestinationOptions(moveFolderPicker.folderId);
   }, [moveFolderPicker, resolveMoveFolderDestinationOptions]);
+  const moveFolderCurrentParentLabel = useMemo(() => {
+    if (!moveFolderPicker) return "All Media";
+    const movingFolder = foldersById.get(moveFolderPicker.folderId);
+    if (!movingFolder || movingFolder.parentFolderId === null) return "All Media";
+    return buildFolderPathLabel(movingFolder.parentFolderId);
+  }, [buildFolderPathLabel, foldersById, moveFolderPicker]);
   const canOpenMovePicker = useMemo(() => {
     if (!folderContextMenu) return false;
     return resolveMoveFolderDestinationOptions(folderContextMenu.folderId).length > 0;
@@ -1310,8 +1320,15 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
             >
               <p className="media-library-panel-move-dialog-title">Move Folder</p>
               <p className="media-library-panel-move-dialog-copy">
-                Choose a new parent for {moveFolderPicker.folderName}.
+                Move &quot;{moveFolderPicker.folderName}&quot; to a new parent folder.
               </p>
+              <div className="media-library-panel-move-dialog-current-parent">
+                <p className="media-library-panel-move-dialog-label">Current parent</p>
+                <p className="media-library-panel-move-dialog-current-parent-value">
+                  {moveFolderCurrentParentLabel}
+                </p>
+              </div>
+              <p className="media-library-panel-move-dialog-label">Available destinations</p>
               <div className="media-library-panel-move-dialog-list" role="list">
                 {moveFolderDestinationOptions.map((option) => (
                   <button

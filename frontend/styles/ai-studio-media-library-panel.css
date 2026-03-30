@@ -737,6 +737,30 @@
   margin: 0;
 }
 
+.media-library-panel-move-dialog-label {
+  margin: 0;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(166, 176, 192, 0.78);
+}
+
+.media-library-panel-move-dialog-current-parent {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 12px;
+  border: 1px solid rgba(201, 205, 214, 0.12);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.media-library-panel-move-dialog-current-parent-value {
+  margin: 0;
+  color: rgba(230, 236, 244, 0.96);
+}
+
 .media-library-panel-move-dialog-list {
   display: flex;
   flex-direction: column;

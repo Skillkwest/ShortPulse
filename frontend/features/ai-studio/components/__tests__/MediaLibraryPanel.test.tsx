@@ -1425,7 +1425,11 @@ describe("MediaLibraryPanel", () => {
 
     await waitFor(() => {
       expect(screen.getByRole("button", { name: "Child A1 folder" })).toBeInTheDocument();
-      expect(screen.getByRole("button", { name: "Parent" })).toBeInTheDocument();
+      expect(
+        screen.getByText("Parent", {
+          selector: ".media-library-panel-folders-breadcrumb-current",
+        })
+      ).toBeInTheDocument();
     });
 
     const folderButton = screen.getByRole("button", { name: "Child A1 folder" });
@@ -1434,10 +1438,18 @@ describe("MediaLibraryPanel", () => {
     ) as HTMLElement;
     fireEvent.contextMenu(folderTile);
 
-    expect(screen.getByRole("button", { name: "Parent" })).toBeInTheDocument();
+    expect(
+      screen.getByText("Parent", {
+        selector: ".media-library-panel-folders-breadcrumb-current",
+      })
+    ).toBeInTheDocument();
     fireEvent.click(screen.getByRole("menuitem", { name: "Move to..." }));
     const moveDialog = screen.getByRole("dialog", { name: "Move Child A1" });
-    fireEvent.click(within(moveDialog).getByRole("button", { name: "All Media" }));
+    expect(within(moveDialog).getByText("Current parent")).toBeInTheDocument();
+    expect(within(moveDialog).getByText("All Media > Parent")).toBeInTheDocument();
+    await act(async () => {
+      fireEvent.click(within(moveDialog).getByRole("button", { name: "All Media" }));
+    });
 
     await waitFor(() => {
       expect(moveMediaFolderMock).toHaveBeenCalledWith({
@@ -1446,7 +1458,11 @@ describe("MediaLibraryPanel", () => {
       });
     });
     expect(screen.queryByRole("button", { name: "Child A1 folder" })).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Parent" })).toBeInTheDocument();
+    expect(
+      screen.getByText("Parent", {
+        selector: ".media-library-panel-folders-breadcrumb-current",
+      })
+    ).toBeInTheDocument();
   });
 
   it("shows sorted deep move destinations and excludes the current parent and descendants", async () => {
@@ -1501,6 +1517,7 @@ describe("MediaLibraryPanel", () => {
     fireEvent.click(screen.getByRole("menuitem", { name: "Move to..." }));
 
     const moveDialog = screen.getByRole("dialog", { name: "Move B" });
+    expect(within(moveDialog).getByText("All Media > A")).toBeInTheDocument();
     const moveButtons = within(moveDialog).getAllByRole("button");
     expect(moveButtons[0]).toHaveTextContent("All Media");
     expect(within(moveDialog).getByRole("button", { name: "All Media > D" })).toBeInTheDocument();

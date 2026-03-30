@@ -6,11 +6,9 @@ import type React from "react";
 
 const dragGhostMap = new WeakMap<HTMLElement, HTMLElement>();
 const GHOST_MAX_TEXT_LENGTH = 180;
-const DRAG_GHOST_SCALE = 0.68;
-const DRAG_GHOST_MIN_SIZE_PX = 108;
-const DRAG_GHOST_MAX_SIZE_PX = 244;
 const DRAG_GHOST_ASPECT_RATIO = 4 / 5;
-const REFERENCE_GRID_CARD_SELECTOR = "[data-grid-surface='reference-grid'] .reference-card";
+const DRAG_GHOST_HEIGHT_PX = 150;
+const DRAG_GHOST_WIDTH_PX = Math.round(DRAG_GHOST_HEIGHT_PX * DRAG_GHOST_ASPECT_RATIO);
 const GHOST_SNAPSHOT_WIDTH = 384;
 const GHOST_SNAPSHOT_HEIGHT = 480;
 const GHOST_SNAPSHOT_QUALITY = 0.28;
@@ -20,38 +18,6 @@ const trimGhostText = (value: string | null | undefined): string => {
   if (!normalized) return "";
   if (normalized.length <= GHOST_MAX_TEXT_LENGTH) return normalized;
   return `${normalized.slice(0, GHOST_MAX_TEXT_LENGTH - 3)}...`;
-};
-
-const clampDragGhostSize = (value: number): number =>
-  Math.max(DRAG_GHOST_MIN_SIZE_PX, Math.min(DRAG_GHOST_MAX_SIZE_PX, value));
-
-const resolveGhostDimensions = ({
-  width,
-  height,
-}: {
-  width: number;
-  height: number;
-}): { ghostWidth: number; ghostHeight: number } => {
-  const scaledHeight =
-    height > 0
-      ? height * DRAG_GHOST_SCALE
-      : width > 0
-        ? (width / DRAG_GHOST_ASPECT_RATIO) * DRAG_GHOST_SCALE
-        : DRAG_GHOST_MAX_SIZE_PX;
-  const ghostHeight = clampDragGhostSize(scaledHeight);
-  const ghostWidth = Math.round(ghostHeight * DRAG_GHOST_ASPECT_RATIO);
-  return { ghostWidth, ghostHeight };
-};
-
-const resolveReferenceGridGhostSourceDimensions = (): { width: number; height: number } | null => {
-  if (typeof document === "undefined") return null;
-  const referenceCard = document.querySelector(REFERENCE_GRID_CARD_SELECTOR);
-  if (!(referenceCard instanceof HTMLElement)) return null;
-  const rect = referenceCard.getBoundingClientRect();
-  const width = rect.width || referenceCard.offsetWidth || 0;
-  const height = rect.height || referenceCard.offsetHeight || 0;
-  if (width <= 0 || height <= 0) return null;
-  return { width, height };
 };
 
 const createGhostSnapshotSrc = (imageNode: HTMLImageElement | null): string | null => {
@@ -227,16 +193,8 @@ export const attachMediaLibraryDragGhost = (
   const node = event.currentTarget as HTMLElement;
   removeExistingGhost(node);
   try {
-    const rect = node.getBoundingClientRect();
-    const fallbackWidth = rect.width || node.offsetWidth || DRAG_GHOST_MAX_SIZE_PX;
-    const fallbackHeight = rect.height || node.offsetHeight || DRAG_GHOST_MAX_SIZE_PX;
-    const referenceGridDimensions = resolveReferenceGridGhostSourceDimensions();
-    const ghostSourceWidth = referenceGridDimensions?.width ?? fallbackWidth;
-    const ghostSourceHeight = referenceGridDimensions?.height ?? fallbackHeight;
-    const { ghostWidth, ghostHeight } = resolveGhostDimensions({
-      width: ghostSourceWidth,
-      height: ghostSourceHeight,
-    });
+    const ghostWidth = DRAG_GHOST_WIDTH_PX;
+    const ghostHeight = DRAG_GHOST_HEIGHT_PX;
     const resolvedPreviewUrl = resolveGhostPreviewUrl(
       node,
       options.previewKind,

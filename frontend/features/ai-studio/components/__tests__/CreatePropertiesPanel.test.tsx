@@ -545,9 +545,27 @@ describe("CreatePropertiesPanel", () => {
       onChatOffInlineGenerate: vi.fn(),
       characterModeEnabled: false,
       isGenerateDisabled: true,
+      isChatOffInlineGenerateDisabled: true,
     });
 
     expect(screen.getByRole("button", { name: "Generate with current prompt" })).toBeDisabled();
+  });
+
+  it("keeps chat-off inline generate enabled when only the transient click lock is active", () => {
+    renderPanel({
+      beginnerMode: false,
+      expertCreateUiEligible: true,
+      agentEnabled: true,
+      chatModeEnabled: false,
+      agentInput: "Allow immediate re-clicks for the inline generate button.",
+      onGenerate: vi.fn(),
+      onChatOffInlineGenerate: vi.fn(),
+      characterModeEnabled: false,
+      isGenerateDisabled: true,
+      isChatOffInlineGenerateDisabled: false,
+    });
+
+    expect(screen.getByRole("button", { name: "Generate with current prompt" })).toBeEnabled();
   });
 
   it("disables chat-off inline generate when prompt input is empty", () => {

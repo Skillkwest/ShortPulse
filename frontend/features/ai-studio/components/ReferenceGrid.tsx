@@ -59,6 +59,7 @@ import { useReferenceGridResolvedMediaController } from "../reference-grid/contr
 import { useReferenceGridSurfaceOwnershipController } from "../reference-grid/controllers/useReferenceGridSurfaceOwnershipController";
 import { isReferenceGridAdaptivePreviewRoutingEnabled } from "../reference-grid/logic/referenceGridAdaptivePreview";
 import {
+  areReferenceGridMediaOutputEntriesEqual,
   areReferenceGridMediaOutputsEqual,
   projectReferenceGridMediaOutput,
 } from "../reference-grid/logic/referenceGridMediaOutput";
@@ -630,7 +631,8 @@ export function ReferenceGrid({
         return item ? projectReferenceGridMediaOutput(item) : null;
       },
       [activeOutputId]
-    )
+    ),
+    areReferenceGridMediaOutputEntriesEqual
   );
   const selectorActiveOutput = useOutputById(activeOutputId);
   const activeOutput =

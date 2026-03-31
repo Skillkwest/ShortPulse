@@ -100,3 +100,12 @@ export const areReferenceGridMediaOutputsEqual = (
   }
   return true;
 };
+
+export const areReferenceGridMediaOutputEntriesEqual = (
+  left: ReferenceGridMediaOutput | null,
+  right: ReferenceGridMediaOutput | null
+) => {
+  if (left === right) return true;
+  if (!left || !right) return left === right;
+  return areReferenceGridMediaOutputsEqual([left], [right]);
+};

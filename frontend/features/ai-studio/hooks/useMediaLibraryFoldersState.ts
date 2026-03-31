@@ -61,6 +61,9 @@ const toNormalizedFolderNames = (rows: MediaFolder[]): Set<string> => {
 const buildPendingFolderId = () =>
   `${TEMP_FOLDER_ID_PREFIX}${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 
+const isPendingFolderId = (folderId: string | null | undefined): boolean =>
+  typeof folderId === "string" && folderId.startsWith(TEMP_FOLDER_ID_PREFIX);
+
 const folderSortKey = (folder: MediaFolder): number => {
   const createdAt = Date.parse(folder.createdAt);
   return Number.isFinite(createdAt) ? createdAt : Number.POSITIVE_INFINITY;
@@ -91,7 +94,11 @@ type UseMediaLibraryFoldersStateResult = {
   editingFolderId: string | null;
   editingFolderName: string;
   setEditingFolderName: (value: string) => void;
-  startFolderRename: (folderId: string, currentName: string) => void;
+  startFolderRename: (
+    folderId: string,
+    currentName: string,
+    options?: { clearInput?: boolean }
+  ) => void;
   cancelFolderRename: () => void;
   commitFolderRename: () => Promise<void>;
   moveFolder: (folderId: string, parentFolderId: string | null) => Promise<void>;
@@ -151,6 +158,23 @@ export const useMediaLibraryFoldersState = (): UseMediaLibraryFoldersStateResult
     }
     return [activeFolder, ...childFolders];
   }, [activeFolder, activeFolderId, customFolders, editingFolderId]);
+
+  useEffect(() => {
+    if (
+      activeFolderId !== MEDIA_LIBRARY_ROOT_FOLDER_ID &&
+      !foldersById.has(activeFolderId) &&
+      !isPendingFolderId(activeFolderId)
+    ) {
+      setActiveFolderId(MEDIA_LIBRARY_ROOT_FOLDER_ID);
+    }
+  }, [activeFolderId, foldersById]);
+
+  useEffect(() => {
+    if (!editingFolderId) return;
+    if (foldersById.has(editingFolderId) || isPendingFolderId(editingFolderId)) return;
+    setEditingFolderId(null);
+    setEditingFolderName("");
+  }, [editingFolderId, foldersById]);
 
   const refreshFolders = useCallback(async () => {
     const requestToken = foldersRequestTokenRef.current + 1;
@@ -218,6 +242,9 @@ export const useMediaLibraryFoldersState = (): UseMediaLibraryFoldersStateResult
               );
               return [...withoutPending, folder];
             });
+            setActiveFolderId((previous) =>
+              previous === pendingFolderId ? folder.id : previous
+            );
             setEditingFolderId(folder.id);
             setEditingFolderName(folder.name);
             return;
@@ -237,6 +264,10 @@ export const useMediaLibraryFoldersState = (): UseMediaLibraryFoldersStateResult
         throw new Error("Unable to allocate an available folder name.");
       } catch (createError) {
         setFolders((previous) => previous.filter((row) => row.id !== pendingFolderId));
+        setActiveFolderId((previous) =>
+          previous === pendingFolderId ? MEDIA_LIBRARY_ROOT_FOLDER_ID : previous
+        );
+        setEditingFolderId((previous) => (previous === pendingFolderId ? null : previous));
         setFolderError(toMediaLibraryErrorText(createError, "Unable to create folder."));
       } finally {
         setCreatingFolder(false);
@@ -246,12 +277,15 @@ export const useMediaLibraryFoldersState = (): UseMediaLibraryFoldersStateResult
     [activeFolderId, folders]
   );
 
-  const startFolderRename = useCallback((folderId: string, currentName: string) => {
-    setFolderError(null);
-    setActiveFolderId(folderId);
-    setEditingFolderId(folderId);
-    setEditingFolderName(currentName);
-  }, []);
+  const startFolderRename = useCallback(
+    (folderId: string, currentName: string, options?: { clearInput?: boolean }) => {
+      setFolderError(null);
+      setActiveFolderId(folderId);
+      setEditingFolderId(folderId);
+      setEditingFolderName(options?.clearInput ? "" : currentName);
+    },
+    []
+  );
 
   const cancelFolderRename = useCallback(() => {
     setEditingFolderId(null);

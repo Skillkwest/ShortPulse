@@ -6289,6 +6289,69 @@ describe("ExpertEditPanelView", () => {
     expect(submitOptions?.hideOutputFromReferenceGrid).toBeUndefined();
   });
 
+  it("reuses the durable primary source url for unchanged standard edit", async () => {
+    const onRegenerateWithReferenceInputs: NonNullable<
+      React.ComponentProps<typeof ExpertEditPanelView>["onRegenerateWithReferenceInputs"]
+    > = vi.fn(async () => {});
+    render(
+      <ExpertEditPanelView
+        {...baseProps}
+        referenceText="prompt text"
+        referenceImageUrl="https://jwmcytzyhcvacjwqtynn.supabase.co/storage/v1/object/sign/media_library/user/reference-portrait.png?token=test"
+        onRegenerateWithReferenceInputs={onRegenerateWithReferenceInputs}
+      />
+    );
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /^generate$/i }));
+      await Promise.resolve();
+    });
+
+    expect(composePrimaryStageLayersToBlobMock).not.toHaveBeenCalled();
+    expect(onRegenerateWithReferenceInputs).toHaveBeenCalledTimes(1);
+    const [referenceInputs, submitOptions] = (
+      onRegenerateWithReferenceInputs as unknown as {
+        mock: {
+          calls: Array<[string[], { referenceInputsMode?: "merge" | "replace" }?]>;
+        };
+      }
+    ).mock.calls[0] ?? [[], undefined];
+    expect(referenceInputs).toEqual([
+      "https://jwmcytzyhcvacjwqtynn.supabase.co/storage/v1/object/sign/media_library/user/reference-portrait.png?token=test",
+    ]);
+    expect(submitOptions?.referenceInputsMode).toBe("replace");
+  });
+
+  it("still flattens standard edit when a durable primary source has an aspect mismatch", async () => {
+    const onRegenerateWithReferenceInputs: NonNullable<
+      React.ComponentProps<typeof ExpertEditPanelView>["onRegenerateWithReferenceInputs"]
+    > = vi.fn(async () => {});
+    render(
+      <ExpertEditPanelView
+        {...baseProps}
+        referenceText="prompt text"
+        referenceImageUrl="https://jwmcytzyhcvacjwqtynn.supabase.co/storage/v1/object/sign/media_library/user/reference-portrait.png?token=test"
+        aspect="3:4"
+        onRegenerateWithReferenceInputs={onRegenerateWithReferenceInputs}
+      />
+    );
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /^generate$/i }));
+      await Promise.resolve();
+    });
+
+    expect(composePrimaryStageLayersToBlobMock).toHaveBeenCalled();
+    const [referenceInputs] = (
+      onRegenerateWithReferenceInputs as unknown as {
+        mock: {
+          calls: Array<[string[]]>;
+        };
+      }
+    ).mock.calls[0] ?? [[]];
+    expect(referenceInputs[0]).toMatch(/^blob:flatten-/);
+  });
+
   it("auto-flatten generate ignores outer stage viewport framing and exports composition aspect ratio", async () => {
     const onRegenerateWithReferenceInputs: NonNullable<
       React.ComponentProps<typeof ExpertEditPanelView>["onRegenerateWithReferenceInputs"]

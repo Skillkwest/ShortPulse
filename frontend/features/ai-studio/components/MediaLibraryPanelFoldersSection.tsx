@@ -84,6 +84,7 @@ export function MediaLibraryPanelFoldersSection({
 }: MediaLibraryPanelFoldersSectionProps) {
   const folderImageRefs = useRef(new Map<string, HTMLButtonElement>());
   const navigateTimeoutRef = useRef<number | null>(null);
+  const folderNameClickTimeoutRef = useRef<number | null>(null);
   const [openingFolderId, setOpeningFolderId] = useState<string | null>(null);
   const [openingFolderGhost, setOpeningFolderGhost] = useState<{
     top: number;
@@ -96,6 +97,9 @@ export function MediaLibraryPanelFoldersSection({
     return () => {
       if (navigateTimeoutRef.current !== null) {
         window.clearTimeout(navigateTimeoutRef.current);
+      }
+      if (folderNameClickTimeoutRef.current !== null) {
+        window.clearTimeout(folderNameClickTimeoutRef.current);
       }
     };
   }, []);
@@ -121,6 +125,24 @@ export function MediaLibraryPanelFoldersSection({
       setOpeningFolderGhost(null);
       navigateTimeoutRef.current = null;
     }, 120);
+  };
+
+  const handleFolderNameClick = (folderId: string) => {
+    if (folderNameClickTimeoutRef.current !== null) {
+      window.clearTimeout(folderNameClickTimeoutRef.current);
+    }
+    folderNameClickTimeoutRef.current = window.setTimeout(() => {
+      handleOpenFolder(folderId);
+      folderNameClickTimeoutRef.current = null;
+    }, 180);
+  };
+
+  const handleFolderNameDoubleClick = (folderId: string, folderName: string) => {
+    if (folderNameClickTimeoutRef.current !== null) {
+      window.clearTimeout(folderNameClickTimeoutRef.current);
+      folderNameClickTimeoutRef.current = null;
+    }
+    startFolderRename(folderId, folderName, { clearInput: true });
   };
 
   return (
@@ -223,9 +245,17 @@ export function MediaLibraryPanelFoldersSection({
                         className="media-library-panel-folder-chip-input"
                         type="text"
                         value={editingFolderName}
+                        placeholder={folder.name}
                         maxLength={64}
                         autoFocus
                         onChange={(event) => setEditingFolderName(event.target.value)}
+                        onBlur={() => {
+                          if (editingFolderName.trim()) {
+                            void commitFolderRename();
+                            return;
+                          }
+                          cancelFolderRename();
+                        }}
                         onKeyDown={(event) => {
                           if (event.key === "Enter") {
                             event.preventDefault();
@@ -264,9 +294,9 @@ export function MediaLibraryPanelFoldersSection({
                     <button
                       type="button"
                       className="media-library-panel-folder-chip-name tiny"
-                      onClick={() => handleOpenFolder(folder.id)}
+                      onClick={() => handleFolderNameClick(folder.id)}
                       onDoubleClick={() => {
-                        startFolderRename(folder.id, folder.name);
+                        handleFolderNameDoubleClick(folder.id, folder.name);
                       }}
                       aria-label={`${folder.name} name`}
                     >

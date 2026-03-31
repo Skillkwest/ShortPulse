@@ -2322,10 +2322,31 @@ export function ExpertEditPanelView({
     showStatusToast,
   ]);
 
+  const reusablePrimarySourceUrl = React.useMemo(() => {
+    if (populatedLayerCount !== 1) return null;
+    const primaryLayer = layers.find((layer) => layerHasImage(layer)) ?? null;
+    const primaryUrl = primaryLayer?.imageUrl?.trim() ?? "";
+    if (!primaryLayer || !primaryUrl) return null;
+    if (primaryLayer.ownsImageUrl || primaryUrl.startsWith("blob:")) return null;
+    if (!primaryUrl.includes("/storage/v1/object/sign/")) return null;
+    if (!areLayerTransformsEqual(primaryLayer.transform, defaultLayerTransform())) return null;
+    const primaryAspectRatio = resolveLayerImageAspectRatio(primaryLayer);
+    if (Math.abs(primaryCompositionSurfaceAspectRatioValue - primaryAspectRatio) > 0.01) {
+      return null;
+    }
+    return primaryUrl;
+  }, [
+    layers,
+    populatedLayerCount,
+    primaryCompositionSurfaceAspectRatioValue,
+    resolveLayerImageAspectRatio,
+  ]);
+
   const { handleInlineGenerate } = useExpertEditInlineGenerate({
     layers,
     promptText: promptTextValue,
     extraImageUrls,
+    reusablePrimarySourceUrl,
     markupStrokes,
     populatedLayerCount,
     editSubmitIntent: effectiveEditSubmitIntent,

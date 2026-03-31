@@ -1,4 +1,4 @@
-import { renderHook, waitFor } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { useMediaLibraryFoldersState } from "../useMediaLibraryFoldersState";
 
@@ -66,5 +66,55 @@ describe("useMediaLibraryFoldersState", () => {
       "Middle",
       "Newer",
     ]);
+  });
+
+  it("remaps an active pending folder id to the persisted folder id after create resolves", async () => {
+    listMediaFoldersMock.mockResolvedValueOnce([]);
+    let resolveCreate:
+      | ((value: {
+          id: string;
+          name: string;
+          parentFolderId: string | null;
+          createdAt: string;
+          updatedAt: string;
+        }) => void)
+      | null = null;
+    createMediaFolderMock.mockReturnValue(
+      new Promise((resolve) => {
+        resolveCreate = resolve;
+      })
+    );
+
+    const { result } = renderHook(() => useMediaLibraryFoldersState());
+
+    await waitFor(() => {
+      expect(result.current.folders).toHaveLength(0);
+    });
+
+    await act(async () => {
+      void result.current.createFolder();
+    });
+
+    const pendingFolderId = result.current.visibleFolders[0]?.id ?? null;
+    expect(pendingFolderId).toContain("__pending_new_folder__");
+
+    act(() => {
+      result.current.setActiveFolderId(pendingFolderId!);
+    });
+
+    await act(async () => {
+      resolveCreate?.({
+        id: "folder-real",
+        name: "New Folder",
+        parentFolderId: null,
+        createdAt: "2026-03-31T00:00:00.000Z",
+        updatedAt: "2026-03-31T00:00:00.000Z",
+      });
+    });
+
+    await waitFor(() => {
+      expect(result.current.activeFolderId).toBe("folder-real");
+      expect(result.current.editingFolderId).toBe("folder-real");
+    });
   });
 });

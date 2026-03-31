@@ -143,6 +143,7 @@ const AiStudioShellRightColumn = React.memo(function AiStudioShellRightColumn({
   beginnerMode,
   selectedTool,
 }: AiStudioShellRightColumnProps) {
+  const shouldRenderRightColumnContent = !rightColumnHidden;
   return (
     <div
       ref={rightColumnRef}
@@ -153,7 +154,7 @@ const AiStudioShellRightColumn = React.memo(function AiStudioShellRightColumn({
       onDragEnterCapture={onRightColumnDragEnterCapture}
       onDragLeaveCapture={onRightColumnDragLeaveCapture}
     >
-      {agentChat.isOpen ? (
+      {shouldRenderRightColumnContent && agentChat.isOpen ? (
         <div className="ai-preview-column reference-column">
           <div className="reference-column-sticky">
             <div className="preview-column-header">
@@ -221,7 +222,7 @@ const AiStudioShellRightColumn = React.memo(function AiStudioShellRightColumn({
             />
           </div>
         </div>
-      ) : (
+      ) : shouldRenderRightColumnContent ? (
         <>
           <AiStudioReferenceRail
             referenceGridProps={referenceGridProps}
@@ -238,7 +239,7 @@ const AiStudioShellRightColumn = React.memo(function AiStudioShellRightColumn({
             onOpenMediaLibrary={onOpenMediaLibrary}
           />
         </>
-      )}
+      ) : null}
       {rightColumnDropMode !== "none" ? (
         <div
           className="ai-right-drop-overlay"

@@ -580,7 +580,9 @@ export default function AiStudioPage() {
     [sessionId]
   );
 
-  const triggerFilePicker = () => referenceGridFileInputRef.current?.click();
+  const triggerFilePicker = useCallback(() => {
+    referenceGridFileInputRef.current?.click();
+  }, []);
   const dismissError = () => setUiError(null);
   const dismissNotice = () => setUiNotice(null);
   const { effectiveUiNotice, handleBeginnerModeChange } = useAiStudioPageUiNotices({

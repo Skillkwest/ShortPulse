@@ -28,7 +28,10 @@ import { useReferenceGridHydrationBudget } from "../hooks/useReferenceGridHydrat
 import { useReferenceGridPerfWatchdog } from "../hooks/useReferenceGridPerfWatchdog";
 import { useReferenceGridMediaWorkBudget } from "../hooks/useReferenceGridMediaWorkBudget";
 import { useReferenceGridHorizontalSplit } from "../hooks/useReferenceGridHorizontalSplit";
-import { selectAllRefsProjectionWithLegacyFallback } from "../reference-projections";
+import {
+  selectAllRefsProjectionWithLegacyFallback,
+  selectQuickSlotProjection,
+} from "../reference-projections";
 import { isAdaptiveSurfaceEnabled } from "../../../lib/adaptive-media";
 import { ReferenceGridSections } from "../reference-grid/components/ReferenceGridSections";
 import { useReferenceGridClipboardController } from "../reference-grid/controllers/useReferenceGridClipboardController";
@@ -63,6 +66,7 @@ import {
   areReferenceGridMediaOutputsEqual,
   projectReferenceGridMediaOutput,
 } from "../reference-grid/logic/referenceGridMediaOutput";
+import { areReferenceGridPropsEqual } from "../reference-grid/logic/referenceGridPropsEquality";
 import {
   areOutputListsEqual,
   CURATED_MIN_BOTTOM_STACK_HEIGHT_PX,
@@ -126,7 +130,7 @@ const REFERENCE_GRID_FLAG_RENDER_COMMIT_TELEMETRY =
 /**
  * Displays the reference grid and handles drag/drop + selection behavior.
  */
-export function ReferenceGrid({
+function ReferenceGridComponent({
   outputs: outputsProp,
   archivedOutputs: archivedOutputsProp,
   activeOutputId,
@@ -233,16 +237,25 @@ export function ReferenceGrid({
     return map;
   }, [archivedOutputs, outputsProp]);
   const allOutputIdSet = React.useMemo(() => new Set(allOutputIds), [allOutputIds]);
+  const directCuratedOutputs = React.useMemo(
+    () =>
+      outputsProp
+        ? selectQuickSlotProjection(outputsProp, {
+            quickSlotIds: curatedReferenceIds,
+            removedFromAllRefsIds,
+          })
+        : EMPTY_OUTPUTS,
+    [curatedReferenceIds, outputsProp, removedFromAllRefsIds]
+  );
   const curatedOutputIds = React.useMemo(
-    () => curatedReferenceIds.filter((id) => allOutputIdSet.has(id)),
-    [allOutputIdSet, curatedReferenceIds]
+    () =>
+      outputsProp
+        ? directCuratedOutputs.map((item) => item.id)
+        : curatedReferenceIds.filter((id) => allOutputIdSet.has(id)),
+    [allOutputIdSet, curatedReferenceIds, directCuratedOutputs, outputsProp]
   );
   const selectorCuratedOutputs = useOutputsByIds(curatedOutputIds);
-  const curatedOutputs = outputsProp
-    ? curatedOutputIds
-        .map((id) => outputById[id])
-        .filter((item): item is StudioOutput => Boolean(item))
-    : selectorCuratedOutputs;
+  const curatedOutputs = outputsProp ? directCuratedOutputs : selectorCuratedOutputs;
   setFreezeInvestigationGauge("referenceGrid.projectedOutputsCount", allOutputIds.length);
   setFreezeInvestigationGauge("referenceGrid.curatedOutputsCount", curatedOutputs.length);
   const perfWatchdog = useReferenceGridPerfWatchdog({
@@ -1037,6 +1050,8 @@ export function ReferenceGrid({
     </div>
   );
 }
+
+export const ReferenceGrid = React.memo(ReferenceGridComponent, areReferenceGridPropsEqual);
 
 /**
  * @deprecated Use `ReferenceGrid`.

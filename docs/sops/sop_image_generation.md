@@ -39,7 +39,7 @@ For Create properties panel, model-selector, and submission wiring details, see 
    - `CreatePropertiesPanel.onGenerate` routes through `useAiStudioGenerationController.handlePrimarySubmit`, which runs start invariants/preflight and delegates prompt composition to `useAiStudioGenerationPromptComposer`.
    - `useAiStudioTaskSubmission` creates/reconciles optimistic output state, resolves `taskSubmission` handler route by model id, and submits provider payloads (including aspect/resolution/reference mappings).
    - Fal submit routes reserve credits before provider submission (no immediate debit posted).
-   - Submit admission control may reject over-limit requests with `429` (`code: GENERATION_ADMISSION_LIMIT`) and `Retry-After`; denied requests release reservations immediately.
+   - Submit admission control may reject over-limit requests with `429` (`code: GENERATION_ADMISSION_LIMIT`), `Retry-After`, and limiter metadata (`admissionScope`, `admissionReason`); denied requests release reservations immediately.
    - Fal success captures reservation into a debit; failed submit/status outcomes release reservation.
    - Task polling updates status; success stores `resultUrls`, sets `previewUrl`, and clears errors. Failures set `errorMessage` and stop polling.  
 6. Reference Grid prepends the new output card; Studio Preview shows the latest image.  

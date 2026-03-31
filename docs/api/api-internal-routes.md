@@ -75,6 +75,8 @@ Purpose: document the first-party Next.js API surface in `frontend/pages/api/` (
   - Submit admission control (`off|shadow|enforce`) can reject over-limit starts with `429` + `Retry-After` and payload:
     - `code: GENERATION_ADMISSION_LIMIT`
     - `retryAfterSeconds`
+    - `admissionScope: per_user | shared_provider`
+    - `admissionReason: global_limit | tier_limit | global_and_tier_limit | admission_limited`
     - `limits: { globalMax, globalActive, tier, tierMax, tierActive }`
   - In `enforce` mode, if reservation billing mode is unavailable and submit would fall back to direct debit, submit fails closed with:
     - `503`

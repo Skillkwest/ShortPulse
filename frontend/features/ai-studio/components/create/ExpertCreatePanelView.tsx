@@ -1,7 +1,6 @@
 import Image from "next/image";
 import React from "react";
 import { AgentGenerateButton } from "../../../../prefabs/agent";
-import { CONCURRENT_GENERATION_CAP_MESSAGE } from "../../logic/concurrentGenerationCap";
 import { AspectDropdown } from "../AspectDropdown";
 import { ResolutionDropdown } from "../ResolutionDropdown";
 import { PromptStep } from "../PromptStep";
@@ -75,8 +74,7 @@ export function ExpertCreatePanelView({
   const costValue = costCredits != null ? costCredits : "—";
   const modelLogoWidth = useUnoptimizedModelLogo ? 50 : 74;
   const modelLogoHeight = useUnoptimizedModelLogo ? 12 : 18;
-  const inlineGuardrailReason =
-    guardrailReason === CONCURRENT_GENERATION_CAP_MESSAGE ? null : guardrailReason;
+  const inlineGuardrailReason = guardrailReason;
   const hasChatHistory = (promptStepProps.agentMessages?.length ?? 0) > 0;
   const promptStepLayoutProps: React.ComponentProps<typeof PromptStep> = {
     ...promptStepProps,

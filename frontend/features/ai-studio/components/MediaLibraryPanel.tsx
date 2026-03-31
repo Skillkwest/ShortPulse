@@ -949,14 +949,19 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
   const handleRootUploadSelection = useCallback(
     async (event: React.ChangeEvent<HTMLInputElement>) => {
       const files = event.target.files;
+      const selectedFiles = files ? Array.from(files) : [];
       event.currentTarget.value = "";
-      if (!files || files.length === 0) return;
-      await uploadDroppedFilesToFolder({
-        targetFolderId: MEDIA_LIBRARY_ROOT_FOLDER_ID,
-        files,
-      });
+      if (selectedFiles.length === 0) return;
+      try {
+        await uploadDroppedFilesToFolder({
+          targetFolderId: MEDIA_LIBRARY_ROOT_FOLDER_ID,
+          files: selectedFiles,
+        });
+      } catch (error) {
+        setFolderError(error instanceof Error ? error.message : "Unable to upload media.");
+      }
     },
-    [uploadDroppedFilesToFolder]
+    [setFolderError, uploadDroppedFilesToFolder]
   );
 
   const showCustomFolderEmptyState =

@@ -12,7 +12,6 @@ import {
   resolveAssistantInlineEditStyle,
   type AssistantInlineEditPresentation,
 } from "./assistantInlineEditPresentation";
-import { CONCURRENT_GENERATION_CAP_MESSAGE } from "../../../features/ai-studio/logic/concurrentGenerationCap";
 import type {
   AgentActions,
   AgentAssistantMessageEditRequest,
@@ -181,10 +180,7 @@ export const AgentChatPanel: React.FC<AgentChatPanelProps> = ({
   const shouldShowThinkingIndicator = showThinkingIndicator && isSending;
   const shouldRenderThinkingInHistory =
     shouldShowThinkingIndicator && thinkingIndicatorPlacement === "history";
-  const inlineOutputGenerateGuardrailReason =
-    outputGenerateGuardrailReason === CONCURRENT_GENERATION_CAP_MESSAGE
-      ? null
-      : outputGenerateGuardrailReason;
+  const inlineOutputGenerateGuardrailReason = outputGenerateGuardrailReason;
 
   useEffect(() => {
     const messagesEl = messagesRef.current;

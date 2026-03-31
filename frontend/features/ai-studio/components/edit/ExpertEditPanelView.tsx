@@ -21,7 +21,6 @@ import {
 } from "phosphor-react";
 import { AgentGenerateButton } from "../../../../prefabs/agent/buttons/AgentGenerateButton";
 import { modelLogos } from "../../constants";
-import { CONCURRENT_GENERATION_CAP_MESSAGE } from "../../logic/concurrentGenerationCap";
 import { AspectDropdown } from "../AspectDropdown";
 import { ResolutionDropdown } from "../ResolutionDropdown";
 import { stripEditLabel } from "../../utils/modelLabels";
@@ -1060,10 +1059,7 @@ export function ExpertEditPanelView({
   const inlineGenerateDisabled = isGenerateDisabled || populatedLayerCount <= 0 || !hasPromptText;
   const suppressInlineReferenceGuardrail =
     guardrailReason === "Add a reference image before generating.";
-  const inlineGuardrailReason =
-    guardrailReason === CONCURRENT_GENERATION_CAP_MESSAGE || suppressInlineReferenceGuardrail
-      ? null
-      : guardrailReason;
+  const inlineGuardrailReason = suppressInlineReferenceGuardrail ? null : guardrailReason;
   const inpaintLayerSources = React.useMemo(
     () => layers.map((layer) => ({ id: layer.id, imageUrl: layer.imageUrl })),
     [layers]

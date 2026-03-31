@@ -5,7 +5,6 @@ import { ComposeSendCard } from "../CreatePropertiesPanel";
 import { ExpertCreatePanelView } from "../create/ExpertCreatePanelView";
 import type { PromptStepProps } from "../PromptStep";
 import { ReferenceGenerateStep } from "../ReferenceGenerateStep";
-import { CONCURRENT_GENERATION_CAP_MESSAGE } from "../../logic/concurrentGenerationCap";
 
 vi.mock("../../../../prefabs/agent", () => ({
   AgentGenerateButton: ({
@@ -121,52 +120,5 @@ describe("Create generate guardrail messaging", () => {
     );
 
     expect(screen.queryByText(message)).not.toBeInTheDocument();
-  });
-
-  it("suppresses the concurrent cap message in panel-level warnings", () => {
-    const { rerender } = render(
-      <ComposeSendCard
-        onGenerate={vi.fn()}
-        costCredits={15}
-        isGenerateDisabled
-        isPromptGenerating={false}
-        guardrailReason={CONCURRENT_GENERATION_CAP_MESSAGE}
-      />
-    );
-
-    expect(screen.queryByText(CONCURRENT_GENERATION_CAP_MESSAGE)).not.toBeInTheDocument();
-
-    rerender(
-      <ExpertCreatePanelView
-        promptStepProps={{} as PromptStepProps}
-        onGenerate={vi.fn()}
-        costCredits={15}
-        isPromptGenerating={false}
-        isGenerateDisabled
-        guardrailReason={CONCURRENT_GENERATION_CAP_MESSAGE}
-        characterModeEnabled={false}
-        onCharacterModeEnabledToggle={vi.fn()}
-        onCharacterPickerOpen={vi.fn()}
-        characterSelectDisabled={false}
-        isCharacterSelectionEmpty
-        selectedCharacterName="No characters available"
-        selectedCharacterProfileImageUrl={null}
-        selectedCharacterInitials={null}
-        isCharacterPickerOpen={false}
-        isCreateModelPickerOpen={false}
-        isModelSelectionEmpty={false}
-        onCreateModelOpen={vi.fn()}
-        useUnoptimizedModelLogo={false}
-        effectiveModelLabel="Seedream 4.5 Edit"
-        aspect="9:16"
-        aspectOptionsForModel={[]}
-        onAspectChange={vi.fn()}
-        shouldShowImageResolutionCard={false}
-        imageResolutionValue="default"
-        imageResolutionOptions={[]}
-      />
-    );
-
-    expect(screen.queryByText(CONCURRENT_GENERATION_CAP_MESSAGE)).not.toBeInTheDocument();
   });
 });

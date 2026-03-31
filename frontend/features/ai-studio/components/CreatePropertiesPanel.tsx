@@ -19,7 +19,6 @@ import type {
 } from "../../../prefabs/agent";
 import { PromptStep } from "./PromptStep";
 import { StylesControl } from "./StylesControl";
-import { CONCURRENT_GENERATION_CAP_MESSAGE } from "../logic/concurrentGenerationCap";
 import { deriveCreateSelectorViewState } from "../logic/createSelectorState";
 import { getModelConfig } from "../logic/modelRegistry";
 import { BeginnerCreatePanelView } from "./create/BeginnerCreatePanelView";
@@ -732,8 +731,7 @@ export function ComposeSendCard({
   beginnerMode = false,
 }: ComposeSendCardProps) {
   const costValue = costCredits != null ? costCredits : "—";
-  const inlineGuardrailReason =
-    guardrailReason === CONCURRENT_GENERATION_CAP_MESSAGE ? null : guardrailReason;
+  const inlineGuardrailReason = guardrailReason;
 
   return (
     <div className="step-card prompt-step generate-step-card">

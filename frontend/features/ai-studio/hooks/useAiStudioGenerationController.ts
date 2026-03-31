@@ -74,7 +74,6 @@ type UseAiStudioGenerationControllerParams<TBundle, TFallbackCode extends string
   currentCostCredits: number | null;
   promptReferenceGenerateCostCredits?: number | null;
   resolveCostCreditsForModel?: (modelId: string) => number | null;
-  activeGenerationCount?: number;
   isGenerateDisabled: boolean;
   isCreditGuardrail: boolean;
   generationGuardrail: string | null;

@@ -255,20 +255,6 @@ describe("useAiStudioViewModel edit guardrails", () => {
     expect(result.current.isGenerateDisabled).toBe(false);
   });
 
-  it("does not block generation when the user already has four in-flight generations", () => {
-    const { result } = renderHook(() =>
-      useAiStudioViewModel({
-        ...editInput,
-        prompt: "Apply cinematic warm tones and increase contrast.",
-        referenceImageUrl: "https://example.com/reference.png",
-        activeGenerationCount: 4,
-      })
-    );
-
-    expect(result.current.generationGuardrail).toBeNull();
-    expect(result.current.isGenerateDisabled).toBe(false);
-  });
-
   it("switches edit cost and credit guardrail to FLUX Fill when inpaint intent is active", () => {
     const selectedModelId = "fal-ai/flux-2/klein/9b";
     const editCostParamsForModel = makeCostParamsForModel(selectedModelId);

@@ -19,10 +19,6 @@ import {
   CHARACTER_LOADING_GENERATION_GUARDRAIL,
   shouldDisableGenerateWhileCharacterLoading,
 } from "../features/ai-studio/logic/createGenerationGuards";
-import {
-  CONCURRENT_GENERATION_CAP_MESSAGE,
-  countInFlightGenerations,
-} from "../features/ai-studio/logic/concurrentGenerationCap";
 import { addBreadcrumb } from "../lib/clientBreadcrumbs";
 import { useAiStudioAgentBridge } from "../features/ai-studio/hooks/useAiStudioAgentBridge";
 import { useAiStudioAgentOutputGenerationBridge } from "../features/ai-studio/hooks/useAiStudioAgentOutputGenerationBridge";
@@ -362,10 +358,6 @@ export default function AiStudioPage() {
     balanceCredits,
     referenceGridPreconnectHintsEnabled: FLAG_REFERENCE_GRID_PRECONNECT_HINTS,
   });
-  const activeGenerationCount = useMemo(
-    () => countInFlightGenerations([...outputs, ...archivedOutputs]),
-    [archivedOutputs, outputs]
-  );
   useAiStudioPerfAuditRuntime({
     enabled: FLAG_PERF_AUDIT_RUNTIME,
     aspect,
@@ -636,7 +628,6 @@ export default function AiStudioPage() {
     imageResolution,
     videoGenerateAudio,
     balanceCredits: effectiveBalanceCredits,
-    activeGenerationCount,
     editSubmitIntent,
     costParamsForModel,
   });
@@ -905,10 +896,7 @@ export default function AiStudioPage() {
     outputs: FLAG_PAGE_OUTPUT_DECOUPLE ? undefined : outputs,
     archivedOutputs: FLAG_PAGE_OUTPUT_DECOUPLE ? undefined : archivedOutputs,
     activeOutputId,
-    topNotice:
-      effectiveGenerationGuardrail === CONCURRENT_GENERATION_CAP_MESSAGE
-        ? effectiveGenerationGuardrail
-        : null,
+    topNotice: null,
     curatedReferenceIds,
     removedFromAllRefsIds,
     onReferenceOutputMediaLoaded,
@@ -1000,9 +988,7 @@ export default function AiStudioPage() {
         referenceGridFileInputRef={referenceGridFileInputRef}
         onFileBrowserSelection={handleFileBrowserSelection}
         uiError={uiError}
-        uiNotice={
-          effectiveUiNotice === CONCURRENT_GENERATION_CAP_MESSAGE ? null : effectiveUiNotice
-        }
+        uiNotice={effectiveUiNotice}
         characterError={characterError}
         onDismissUiError={dismissError}
         onDismissUiNotice={dismissNotice}

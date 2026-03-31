@@ -348,74 +348,9 @@ describe("useAiStudioGenerationController", () => {
     expect(generateOutput).toHaveBeenCalledTimes(1);
   });
 
-  it("allows generate when four generations are already active", async () => {
-    const generateOutput = vi.fn();
-    const params = createParams({
-      activeGenerationCount: 4,
-      generateOutput,
-    });
-    const { result } = renderHook(() => useAiStudioGenerationController(params));
-
-    let generateResult: Awaited<ReturnType<typeof result.current.handleGenerate>> | null = null;
-    await act(async () => {
-      generateResult = await result.current.handleGenerate("prompt");
-    });
-
-    expect(generateResult).toEqual({ accepted: true, optimisticOutputId: null });
-    expect(generateOutput).toHaveBeenCalledTimes(1);
-  });
-
-  it("allows chat-off inline generate when four generations are already active", async () => {
-    const generateOutput = vi.fn();
-    const params = createParams({
-      mode: "text",
-      selectedTool: "create",
-      chatModeEnabled: false,
-      agentInput: "raw inline prompt",
-      activeGenerationCount: 4,
-      generateOutput,
-    });
-    const { result } = renderHook(() => useAiStudioGenerationController(params));
-
-    act(() => {
-      result.current.handleChatOffInlineGenerate();
-    });
-    await act(async () => {
-      await Promise.resolve();
-    });
-
-    expect(generateOutput).toHaveBeenCalledTimes(1);
-  });
-
-  it("allows repeated chat-off inline generate clicks while active count has not caught up", async () => {
-    const generateOutput = vi.fn();
-    const params = createParams({
-      mode: "text",
-      selectedTool: "create",
-      chatModeEnabled: false,
-      agentInput: "raw inline prompt",
-      prompt: "shared fallback prompt",
-      activeGenerationCount: 3,
-      generateOutput,
-    });
-    const { result } = renderHook(() => useAiStudioGenerationController(params));
-
-    await act(async () => {
-      result.current.handleChatOffInlineGenerate();
-      await Promise.resolve();
-    });
-    await act(async () => {
-      result.current.handleChatOffInlineGenerate();
-      await Promise.resolve();
-    });
-
-    expect(generateOutput).toHaveBeenCalledTimes(2);
-  });
-
-  it("still blocks on non-cap guardrails while active generation count changes", async () => {
+  it("still blocks on non-cap guardrails while other props change", async () => {
     const generateOutput = vi.fn();
     const initialParams = createParams({
-      activeGenerationCount: 4,
       generateOutput,
       isGenerateDisabled: true,
       generationGuardrail: "Select a model before generating.",
@@ -434,7 +369,6 @@ describe("useAiStudioGenerationController", () => {
 
     rerender(
       createParams({
-        activeGenerationCount: 0,
         generateOutput,
         isGenerateDisabled: false,
         generationGuardrail: null,

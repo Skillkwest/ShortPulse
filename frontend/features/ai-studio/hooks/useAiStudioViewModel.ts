@@ -34,7 +34,6 @@ type ViewModelInput = {
   imageResolution: string;
   videoGenerateAudio: boolean;
   balanceCredits: number | null;
-  activeGenerationCount?: number;
   editSubmitIntent?: EditSubmitIntent;
   costParamsForModel: (overrides?: Omit<PricingParams, "modelId">) => PricingParams;
 };

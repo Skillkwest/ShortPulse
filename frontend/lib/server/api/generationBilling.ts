@@ -256,6 +256,8 @@ export const chargeGenerationRequest = async ({
         error: "Too many active generations. Please retry shortly.",
         code: "GENERATION_ADMISSION_LIMIT",
         retryAfterSeconds,
+        admissionScope: "per_user",
+        admissionReason: reserveResult.admission?.reason ?? "admission_limited",
         ...(limits ? { limits } : {}),
       });
       return null;

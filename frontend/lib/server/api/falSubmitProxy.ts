@@ -13,8 +13,7 @@ import {
   isLocalDevGenerationWorkerRequired,
 } from "../generationControlPlane/localWorkerHeartbeat";
 import { requestGenerationControlPlaneWake } from "../generationControlPlane/controlPlaneWake";
-import { evaluateUserGenerationAdmission } from "./generationAdmission/generationAdmissionService";
-import { evaluateGenerationAdmissionDecision } from "./generationAdmission/generationAdmissionPolicy";
+import { evaluateScopedGenerationAdmission } from "./generationAdmission/generationAdmissionService";
 import type { SubmitTarget } from "../falIntegration/contracts";
 import {
   countUserQueuedGenerationSubmits,
@@ -27,7 +26,6 @@ import {
   resolveGenerationResolutionFromPayload,
   readGenerationDurationSeconds,
 } from "./generationQueue/metadata";
-import { readActiveProviderCapacitySnapshot } from "./generationQueue/activeProviderCapacity";
 import { resolveWebhookCallbackUrl, withWebhookTargets } from "./falSubmitTargeting";
 import {
   collectKieSubmitMediaDiagnostics,
@@ -108,6 +106,8 @@ const resolveAdmissionScope = ({
 const buildAdmissionLimitPayload = ({
   retryAfterSeconds,
   snapshot,
+  admissionScope,
+  admissionReason,
 }: {
   retryAfterSeconds: number;
   snapshot: {
@@ -117,10 +117,14 @@ const buildAdmissionLimitPayload = ({
     tierMax: number;
     tierActive: number;
   };
+  admissionScope: "shared_provider" | "per_user";
+  admissionReason: string | null;
 }) => ({
   error: "Too many active generations. Please retry shortly.",
   code: "GENERATION_ADMISSION_LIMIT",
   retryAfterSeconds,
+  admissionScope,
+  admissionReason,
   limits: {
     globalMax: snapshot.globalMax,
     globalActive: snapshot.globalActive,
@@ -423,17 +427,19 @@ export const createFalSubmitHandler = ({
     }
 
     try {
-      const buildProviderAdmissionDecision = async ({
+      const evaluateAdmissionForScope = async ({
         scopeUserId,
         globalMax,
       }: {
         scopeUserId?: string | null;
         globalMax: number;
       }) => {
-        const capacitySnapshot = await readActiveProviderCapacitySnapshot({
-          userId: scopeUserId,
+        const { decision, capacitySnapshot } = await evaluateScopedGenerationAdmission({
+          scopeUserId,
           provider: providerKey,
           modelId,
+          config: runtimeFlags.admission,
+          globalMax,
           staleIgnoreMinAgeSeconds: runtimeFlags.queueMaxWaitSeconds,
           activeGenerationStaleIgnoreMinAgeSeconds: Math.max(
             runtimeFlags.runningExhaustMinAgeSeconds,
@@ -458,36 +464,19 @@ export const createFalSubmitHandler = ({
             },
           });
         }
-        return evaluateGenerationAdmissionDecision({
-          mode: runtimeFlags.admission.mode,
-          retryAfterSeconds: runtimeFlags.admission.retryAfterSeconds,
-          snapshot: {
-            // Admission snapshot is computed as post-submit state.
-            globalActive: capacitySnapshot.globalActive + 1,
-            globalMax,
-            tier: capacitySnapshot.tier,
-            tierActive: capacitySnapshot.tierActive + 1,
-            tierMax: runtimeFlags.admission.tierLimits[capacitySnapshot.tier],
-          },
-        });
+        return decision;
       };
 
       const sharedProviderDecision = runtimeFlags.admission.sharedProviderEnabled
-        ? await buildProviderAdmissionDecision({
+        ? await evaluateAdmissionForScope({
             scopeUserId: null,
             globalMax: runtimeFlags.admission.sharedProviderGlobalMax,
           })
         : null;
-      const userAdmissionDecision = runtimeFlags.queueEnabled
-        ? await buildProviderAdmissionDecision({
-            scopeUserId: charge.userId,
-            globalMax: runtimeFlags.admission.globalMax,
-          })
-        : await evaluateUserGenerationAdmission({
-            userId: charge.userId,
-            modelId,
-            config: runtimeFlags.admission,
-          });
+      const userAdmissionDecision = await evaluateAdmissionForScope({
+        scopeUserId: charge.userId,
+        globalMax: runtimeFlags.admission.globalMax,
+      });
       const admissionDecision = selectEffectiveAdmissionDecision({
         providerDecision: sharedProviderDecision,
         userDecision: userAdmissionDecision,
@@ -561,6 +550,8 @@ export const createFalSubmitHandler = ({
           return res.status(429).json(
             buildAdmissionLimitPayload({
               retryAfterSeconds: admissionDecision.retryAfterSeconds,
+              admissionScope,
+              admissionReason: admissionDecision.reason,
               snapshot: {
                 globalMax: admissionDecision.snapshot.globalMax,
                 globalActive: admissionDecision.snapshot.globalActive,
@@ -685,6 +676,8 @@ export const createFalSubmitHandler = ({
         return res.status(429).json(
           buildAdmissionLimitPayload({
             retryAfterSeconds: admissionDecision.retryAfterSeconds,
+            admissionScope,
+            admissionReason: admissionDecision.reason,
             snapshot: {
               globalMax: admissionDecision.snapshot.globalMax,
               globalActive: admissionDecision.snapshot.globalActive,

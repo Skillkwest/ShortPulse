@@ -51,13 +51,15 @@ import { useReferenceGridCardRenderController } from "../reference-grid/controll
 import { useReferenceGridPreviewSwapTelemetryController } from "../reference-grid/controllers/useReferenceGridPreviewSwapTelemetryController";
 import { useReferenceGridAutoplaySelectionController } from "../reference-grid/controllers/useReferenceGridAutoplaySelectionController";
 import { useReferenceGridDropHelpersController } from "../reference-grid/controllers/useReferenceGridDropHelpersController";
-import { useReferenceGridHydrationQueueController } from "../reference-grid/controllers/useReferenceGridHydrationQueueController";
 import { useReferenceGridViewportProjectionController } from "../reference-grid/controllers/useReferenceGridViewportProjectionController";
 import { useReferenceGridCardItemsController } from "../reference-grid/controllers/useReferenceGridCardItemsController";
 import { useReferenceGridHeaderMeasurements } from "../reference-grid/controllers/useReferenceGridHeaderMeasurements";
 import { useReferenceGridResolvedMediaController } from "../reference-grid/controllers/useReferenceGridResolvedMediaController";
 import { useReferenceGridSurfaceOwnershipController } from "../reference-grid/controllers/useReferenceGridSurfaceOwnershipController";
-import { useReferenceGridPreviewRuntime } from "../reference-grid/controllers/useReferenceGridPreviewRuntime";
+import {
+  useReferenceGridPreviewRuntime,
+  useReferenceGridPreviewRuntimeScheduling,
+} from "../reference-grid/controllers/useReferenceGridPreviewRuntime";
 import { isReferenceGridAdaptivePreviewRoutingEnabled } from "../reference-grid/logic/referenceGridAdaptivePreview";
 import {
   areReferenceGridMediaOutputEntriesEqual,
@@ -790,7 +792,7 @@ function ReferenceGridComponent({
     previewSwapTelemetryRef,
     setPreviewSwapMetrics,
   });
-  useReferenceGridHydrationQueueController({
+  useReferenceGridPreviewRuntimeScheduling({
     decodeBudgetEnabled: REFERENCE_GRID_FLAG_DECODE_BUDGET,
     suspendHydrationQueue: suspendBackgroundVisualWork,
     activeOutput: activeMediaOutput,

@@ -1,5 +1,5 @@
 import React from "react";
-import { renderHook } from "@testing-library/react";
+import { act, renderHook } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { useReferenceGridVirtualMetricsController } from "../useReferenceGridVirtualMetricsController";
 
@@ -116,6 +116,7 @@ const useHarness = ({ isWideLayout, outputsLength, curatedOutputsLength }: Harne
   return {
     virtualMetrics,
     curatedVirtualMetrics,
+    setVirtualMetrics,
   };
 };
 
@@ -178,5 +179,36 @@ describe("useReferenceGridVirtualMetricsController", () => {
 
     expect(MockResizeObserver.instanceCount).toBeGreaterThan(1);
     expect(MockResizeObserver.disconnectCount).toBeGreaterThan(0);
+  });
+
+  it("preserves scrollTop when measurement sync reruns for output-count changes", () => {
+    const { result, rerender } = renderHook(
+      ({ isWideLayout, outputsLength, curatedOutputsLength }: HarnessProps) =>
+        useHarness({ isWideLayout, outputsLength, curatedOutputsLength }),
+      {
+        initialProps: {
+          isWideLayout: false,
+          outputsLength: 12,
+          curatedOutputsLength: 0,
+        },
+      }
+    );
+
+    expect(result.current.virtualMetrics.scrollTop).toBe(0);
+
+    act(() => {
+      result.current.setVirtualMetrics((prev) => ({
+        ...prev,
+        scrollTop: 264,
+      }));
+    });
+
+    rerender({
+      isWideLayout: false,
+      outputsLength: 18,
+      curatedOutputsLength: 0,
+    });
+
+    expect(result.current.virtualMetrics.scrollTop).toBe(264);
   });
 });

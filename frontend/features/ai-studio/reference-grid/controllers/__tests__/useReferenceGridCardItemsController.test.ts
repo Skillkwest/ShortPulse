@@ -54,6 +54,8 @@ describe("useReferenceGridCardItemsController", () => {
         curatedVirtualRowHeight: 240,
         quickSlotAdaptiveSurfaceEnabled: false,
         resolveCardMedia: () => resolvedMedia(),
+        visibleOutputById: { [item.id]: item },
+        loadedMap: {},
         hydratedById: {},
       })
     );
@@ -89,6 +91,8 @@ describe("useReferenceGridCardItemsController", () => {
         curatedVirtualRowHeight: 240,
         quickSlotAdaptiveSurfaceEnabled: false,
         resolveCardMedia,
+        visibleOutputById: { [item.id]: item },
+        loadedMap: {},
         hydratedById: {},
       })
     );
@@ -129,6 +133,8 @@ describe("useReferenceGridCardItemsController", () => {
         curatedVirtualRowHeight: 240,
         quickSlotAdaptiveSurfaceEnabled: false,
         resolveCardMedia,
+        visibleOutputById: { [item.id]: item },
+        loadedMap: {},
         hydratedById: {},
       })
     );
@@ -141,5 +147,59 @@ describe("useReferenceGridCardItemsController", () => {
       isPriorityHydration: false,
       isPlaceholderOnly: true,
     });
+  });
+
+  it("derives generation and hydration loading sets from visible card state", () => {
+    const pendingItem = output({
+      id: "pending-1",
+      taskState: "pending",
+      mediaSource: "generated",
+      previewUrl: "https://provider.example.com/pending-preview.png",
+    });
+    const hydratedItem = output({
+      id: "hydrating-1",
+      taskState: "success",
+      mediaSource: "generated",
+      previewUrl: "https://provider.example.com/hydrating-preview.png",
+    });
+
+    const { result } = renderHook(() =>
+      useReferenceGridCardItemsController({
+        activeOutputId: null,
+        decodeBudgetEnabled: true,
+        visibleOutputs: [
+          projectReferenceGridMediaOutput(pendingItem),
+          projectReferenceGridMediaOutput(hydratedItem),
+        ],
+        visibleCuratedOutputs: [],
+        visibleQuickSlotIdSet: new Set<string>(),
+        hydrationPriorityCount: 2,
+        curatedHydrationPriorityCount: 0,
+        virtualRowHeight: 280,
+        curatedVirtualRowHeight: 240,
+        quickSlotAdaptiveSurfaceEnabled: false,
+        resolveCardMedia: ({ item }) =>
+          resolvedMedia({
+            authorityTier: item.id === hydratedItem.id ? "tracked" : "preview-only",
+            previewUrl: item.previewUrl ?? null,
+            fallbackUrl: item.previewUrl ?? null,
+            normalizedPreviewUrl: item.previewUrl ?? null,
+            normalizedFallbackUrl: item.previewUrl ?? null,
+          }),
+        visibleOutputById: {
+          [pendingItem.id]: pendingItem,
+          [hydratedItem.id]: hydratedItem,
+        },
+        loadedMap: {},
+        hydratedById: {},
+      })
+    );
+
+    expect(result.current.loadingCardIdSet.has("pending-1")).toBe(true);
+    expect(result.current.generationLoadingCardIdSet.has("pending-1")).toBe(true);
+    expect(result.current.hydrationLoadingCardIdSet.has("hydrating-1")).toBe(true);
+    expect(result.current.loadingIdsLength).toBe(2);
+    expect(result.current.generationLoadingIdsLength).toBe(1);
+    expect(result.current.hydrationLoadingIdsLength).toBe(1);
   });
 });

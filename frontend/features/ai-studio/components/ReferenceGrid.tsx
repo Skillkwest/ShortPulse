@@ -49,7 +49,6 @@ import { useReferenceGridAutoplayEventController } from "../reference-grid/contr
 import { useReferenceGridCardDragController } from "../reference-grid/controllers/useReferenceGridCardDragController";
 import { useReferenceGridCardRenderController } from "../reference-grid/controllers/useReferenceGridCardRenderController";
 import { useReferenceGridPreviewSwapTelemetryController } from "../reference-grid/controllers/useReferenceGridPreviewSwapTelemetryController";
-import { useReferenceGridLoadingVisualController } from "../reference-grid/controllers/useReferenceGridLoadingVisualController";
 import { useReferenceGridAutoplaySelectionController } from "../reference-grid/controllers/useReferenceGridAutoplaySelectionController";
 import { useReferenceGridDropHelpersController } from "../reference-grid/controllers/useReferenceGridDropHelpersController";
 import { useReferenceGridHydrationQueueController } from "../reference-grid/controllers/useReferenceGridHydrationQueueController";
@@ -761,7 +760,10 @@ function ReferenceGridComponent({
   const {
     visibleCardItems,
     curatedVisibleCardItems,
-    allVisibleCardItems,
+    loadingCardIdSet,
+    generationLoadingCardIdSet,
+    hydrationLoadingCardIdSet,
+    loadingIdsLength,
     transformedAdaptivePreviewCount,
   } = useReferenceGridCardItemsController({
     activeOutputId,
@@ -775,6 +777,8 @@ function ReferenceGridComponent({
     curatedVirtualRowHeight: curatedVirtualMetrics.rowHeight,
     quickSlotAdaptiveSurfaceEnabled,
     resolveCardMedia,
+    visibleOutputById,
+    loadedMap,
     hydratedById: imageHydrationState.hydratedById,
   });
   useReferenceGridPreviewSwapTelemetryController({
@@ -786,19 +790,6 @@ function ReferenceGridComponent({
     previewSwapTelemetryRef,
     setPreviewSwapMetrics,
   });
-  const {
-    loadingCardIdSet,
-    generationLoadingCardIdSet,
-    hydrationLoadingCardIdSet,
-    loadingIdsLength,
-  } = useReferenceGridLoadingVisualController({
-    allVisibleCardItems,
-    visibleOutputById,
-    visibleQuickSlotIdSet,
-    loadedMap,
-    decodeBudgetEnabled: REFERENCE_GRID_FLAG_DECODE_BUDGET,
-  });
-
   useReferenceGridHydrationQueueController({
     decodeBudgetEnabled: REFERENCE_GRID_FLAG_DECODE_BUDGET,
     suspendHydrationQueue: suspendBackgroundVisualWork,

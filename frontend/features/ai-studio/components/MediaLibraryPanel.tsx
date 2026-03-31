@@ -3,7 +3,7 @@
  * Provides folder-aware browsing for media + prompts with adaptive preview/signing parity.
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ArrowsOutSimple, FolderSimple } from "phosphor-react";
+import { ArrowsOutSimple, CheckCircle, FolderSimple } from "phosphor-react";
 import { isAdaptiveSurfaceEnabled } from "../../../lib/adaptive-media";
 import { MEDIA_PREVIEW_SIGN_BATCH_MAX_ATTEMPTS_PER_ITEM } from "../../../lib/mediaPreviewRuntimePolicy";
 import { ensureSupabaseQueryClient, readSupabaseUserId } from "../../../lib/supabaseClient";
@@ -92,6 +92,9 @@ type MediaLibraryPanelProps = {
 const FOLDER_CONTEXT_MENU_WIDTH_PX = 156;
 const FOLDER_CONTEXT_MENU_HEIGHT_PX = 84;
 const FOLDER_CONTEXT_MENU_VIEWPORT_PADDING_PX = 10;
+const MEMBERSHIP_MESSAGE_TIMEOUT_MS = 1800;
+const MEDIA_LIBRARY_FOLDERS_EXPANDED_GRID_TOP_HEIGHT_PX = 0;
+const MEDIA_LIBRARY_FOLDERS_COLLAPSE_TOP_HEIGHT_PX = 86;
 
 const setTransferDataSafe = (transfer: DataTransfer, type: string, value: string): void => {
   try {
@@ -143,7 +146,8 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
   const itemType: MediaLibraryPanelItemType = isRootFolderSelected ? rootTab : "all";
 
   const [error, setError] = useState<string | null>(null);
-  const [, setMembershipMessage] = useState<string | null>(null);
+  const [membershipMessage, setMembershipMessage] = useState<string | null>(null);
+  const [membershipPendingMessage, setMembershipPendingMessage] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
   const [folderContextMenu, setFolderContextMenu] = useState<FolderContextMenuState | null>(null);
   const [moveFolderPicker, setMoveFolderPicker] = useState<MoveFolderPickerState | null>(null);
@@ -301,8 +305,8 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
     minTopSectionHeightPx: 0,
     minTopRatioFloor: 0,
     minBottomSectionHeightPx: 240,
-    allRefsSnapTopHeightPx: 120,
-    collapseTopHeightPx: 86,
+    allRefsSnapTopHeightPx: MEDIA_LIBRARY_FOLDERS_EXPANDED_GRID_TOP_HEIGHT_PX,
+    collapseTopHeightPx: MEDIA_LIBRARY_FOLDERS_COLLAPSE_TOP_HEIGHT_PX,
     ariaLabel: "Resize folders and references sections",
   });
 
@@ -321,7 +325,18 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
 
   useEffect(() => {
     setMembershipMessage(null);
+    setMembershipPendingMessage(null);
   }, [activeFolderId, itemType, normalizedSearch]);
+
+  useEffect(() => {
+    if (!membershipMessage) return;
+    const timeout = window.setTimeout(() => {
+      setMembershipMessage(null);
+    }, MEMBERSHIP_MESSAGE_TIMEOUT_MS);
+    return () => {
+      window.clearTimeout(timeout);
+    };
+  }, [membershipMessage]);
 
   useEffect(() => {
     setSelectedIds(new Set());
@@ -450,6 +465,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
     folders,
     setFolderError,
     setMembershipMessage,
+    setMembershipPendingMessage,
     refreshActiveRows,
     resolveInternalDropItem,
     onDropFilesToFolder: async (folderId, files) => {
@@ -922,7 +938,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
 
   const handleExpandMediaLibraryPanel = useCallback(() => {
     onExpandMediaLibraryPanel?.();
-    foldersSplit.snapToInventoryExpanded();
+    foldersSplit.snapToAllRefsExpanded(MEDIA_LIBRARY_FOLDERS_EXPANDED_GRID_TOP_HEIGHT_PX);
   }, [foldersSplit, onExpandMediaLibraryPanel]);
 
   const showCustomFolderEmptyState =
@@ -981,36 +997,38 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
 
       <div ref={splitContainerRef} className="media-library-panel-split">
         <div className="media-library-panel-folders-panel" style={foldersSplit.topSectionStyle}>
-          <MediaLibraryPanelFoldersSection
-            ancestorFolders={ancestorFolders}
-            folders={visibleFolders}
-            canNavigateUp={canNavigateUp}
-            onNavigateUp={handleNavigateUp}
-            onNavigateToRoot={handleNavigateToRoot}
-            onNavigateToFolder={handleNavigateToFolder}
-            setActiveFolderId={setActiveFolderId}
-            editingFolderId={editingFolderId}
-            editingFolderName={editingFolderName}
-            setEditingFolderName={setEditingFolderName}
-            startFolderRename={startFolderRename}
-            cancelFolderRename={cancelFolderRename}
-            commitFolderRename={commitFolderRename}
-            createFolder={createFolder}
-            creatingFolder={creatingFolder}
-            folderError={folderError}
-            hoveredFolderId={foldersDropController.hoveredFolderId}
-            onFolderDragOver={foldersDropController.handleFolderDragOver}
-            onFolderDragLeave={foldersDropController.handleFolderDragLeave}
-            onFolderDrop={foldersDropController.handleFolderDrop}
-            folderContextMenu={folderContextMenu}
-            folderContextMenuRef={folderContextMenuRef}
-            openFolderContextMenu={openFolderContextMenu}
-            onContextCreateSubfolder={handleContextCreateSubfolder}
-            onContextRename={handleContextRename}
-            canOpenMovePicker={canOpenMovePicker}
-            onOpenMovePicker={handleOpenMovePicker}
-            onContextDelete={handleContextDelete}
-          />
+          <div key={activeFolderId} className="media-library-panel-folders-stage">
+            <MediaLibraryPanelFoldersSection
+              ancestorFolders={ancestorFolders}
+              folders={visibleFolders}
+              canNavigateUp={canNavigateUp}
+              onNavigateUp={handleNavigateUp}
+              onNavigateToRoot={handleNavigateToRoot}
+              onNavigateToFolder={handleNavigateToFolder}
+              setActiveFolderId={setActiveFolderId}
+              editingFolderId={editingFolderId}
+              editingFolderName={editingFolderName}
+              setEditingFolderName={setEditingFolderName}
+              startFolderRename={startFolderRename}
+              cancelFolderRename={cancelFolderRename}
+              commitFolderRename={commitFolderRename}
+              createFolder={createFolder}
+              creatingFolder={creatingFolder}
+              folderError={folderError}
+              hoveredFolderId={foldersDropController.hoveredFolderId}
+              onFolderDragOver={foldersDropController.handleFolderDragOver}
+              onFolderDragLeave={foldersDropController.handleFolderDragLeave}
+              onFolderDrop={foldersDropController.handleFolderDrop}
+              folderContextMenu={folderContextMenu}
+              folderContextMenuRef={folderContextMenuRef}
+              openFolderContextMenu={openFolderContextMenu}
+              onContextCreateSubfolder={handleContextCreateSubfolder}
+              onContextRename={handleContextRename}
+              canOpenMovePicker={canOpenMovePicker}
+              onOpenMovePicker={handleOpenMovePicker}
+              onContextDelete={handleContextDelete}
+            />
+          </div>
         </div>
 
         <div
@@ -1023,6 +1041,26 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
         <div className="media-library-panel-content-panel" style={foldersSplit.bottomSectionStyle}>
           <div className="media-library-panel-body" ref={panelBodyRef}>
             {error ? <p className="tiny subdued">{error}</p> : null}
+            {membershipPendingMessage ? (
+              <div
+                className="media-library-panel-membership-toast is-pending"
+                role="status"
+                aria-live="polite"
+              >
+                <div className="reference-spinner media-library-panel-membership-spinner" />
+                <span>{membershipPendingMessage}</span>
+              </div>
+            ) : null}
+            {membershipMessage ? (
+              <div
+                className="media-library-panel-membership-toast"
+                role="status"
+                aria-live="polite"
+              >
+                <CheckCircle size={14} weight="fill" aria-hidden />
+                <span>{membershipMessage}</span>
+              </div>
+            ) : null}
 
             {!showFolderCanvas && isRootFolderSelected ? (
               <div className="media-library-panel-root-tabs-row">
@@ -1172,6 +1210,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
 
             {!showFolderCanvas && !isRootFolderSelected ? (
               <div
+                key={activeFolderId}
                 className={`media-library-panel-active-folder-dropzone${
                   isActiveFolderDropHover ? " is-drop-hover" : ""
                 }`}
@@ -1180,22 +1219,9 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
               >
                 {showCustomFolderEmptyState ? (
                   <section className="media-library-panel-empty-folder-state">
-                    <p className="media-library-panel-empty-folder-title">This folder is empty</p>
-                    <p className="media-library-panel-empty-folder-copy tiny subdued">
-                      Create a subfolder or move media and prompts here.
+                    <p className="media-library-panel-empty-folder-title">
+                      No media to display in "{activeFolderName}."
                     </p>
-                    <div className="media-library-panel-empty-folder-actions">
-                      <button
-                        type="button"
-                        className="btn-secondary"
-                        onClick={() => {
-                          void createFolder();
-                        }}
-                        disabled={creatingFolder}
-                      >
-                        {creatingFolder ? "Creating..." : "Create subfolder"}
-                      </button>
-                    </div>
                   </section>
                 ) : null}
 

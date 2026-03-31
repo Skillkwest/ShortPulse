@@ -128,9 +128,9 @@ describe("mediaLibraryDragGhost", () => {
 
     expect(setDragImage).toHaveBeenCalledTimes(1);
     const ghost = setDragImage.mock.calls[0]?.[0] as HTMLElement;
-    expect(ghost.style.width).toBe("120px");
-    expect(ghost.style.height).toBe("150px");
-    expect(setDragImage).toHaveBeenCalledWith(ghost, 60, 75);
+    expect(ghost.style.width).toBe("96px");
+    expect(ghost.style.height).toBe("120px");
+    expect(setDragImage).toHaveBeenCalledWith(ghost, 12, 12);
 
     clearMediaLibraryDragGhost(node);
     node.remove();

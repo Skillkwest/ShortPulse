@@ -75,6 +75,14 @@
   padding-right: 2px;
 }
 
+.media-library-panel-folders-stage {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+  animation: media-library-folder-stage-open 280ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  transform-origin: top left;
+}
+
 .media-library-panel-content-panel {
   min-height: 0;
   overflow: hidden;
@@ -281,6 +289,21 @@
   filter: brightness(1.08);
 }
 
+.media-library-panel-folder-open-ghost {
+  position: fixed;
+  z-index: 1200;
+  pointer-events: none;
+  transform-origin: center center;
+  animation: media-library-folder-ghost-open 340ms cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+}
+
+.media-library-panel-folder-open-ghost img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
 .media-library-panel-folder-chip.is-create {
   width: 64px;
   height: 64px;
@@ -338,6 +361,30 @@
   padding-right: 2px;
 }
 
+.media-library-panel-membership-toast {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  align-self: flex-start;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(53, 166, 93, 0.12);
+  color: rgba(187, 245, 205, 0.96);
+  font-size: 11px;
+  line-height: 1;
+}
+
+.media-library-panel-membership-toast.is-pending {
+  background: rgba(76, 144, 190, 0.12);
+  color: rgba(214, 235, 255, 0.96);
+}
+
+.media-library-panel-membership-spinner {
+  --reference-spinner-size: 14px;
+  --reference-spinner-border-width: 2px;
+  flex: 0 0 auto;
+}
+
 .media-library-panel-section {
   display: flex;
   flex-direction: column;
@@ -347,22 +394,25 @@
 .media-library-panel-active-folder-dropzone {
   display: flex;
   flex-direction: column;
+  flex: 1;
+  min-height: 100%;
   gap: 12px;
-  border: 1px solid transparent;
-  border-radius: 12px;
-  transition:
-    border-color 0.18s ease,
-    background-color 0.18s ease;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  animation: media-library-folder-open 180ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  transform-origin: top left;
 }
 
 .media-library-panel-active-folder-dropzone.is-drop-hover {
-  border-color: rgba(100, 209, 230, 0.42);
-  background: rgba(100, 209, 230, 0.04);
+  border: 0;
+  background: transparent;
 }
 
 .media-library-panel-empty-folder-state {
   display: flex;
   flex-direction: column;
+  flex: 1;
   align-items: flex-start;
   gap: 10px;
   padding: 6px 0 10px;
@@ -390,6 +440,42 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
+}
+
+@keyframes media-library-folder-open {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.985);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes media-library-folder-ghost-open {
+  from {
+    opacity: 0.92;
+    transform: scale(1);
+  }
+
+  to {
+    opacity: 0;
+    transform: scale(2);
+  }
+}
+
+@keyframes media-library-folder-stage-open {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.99);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
 .media-library-panel-root-tabs {

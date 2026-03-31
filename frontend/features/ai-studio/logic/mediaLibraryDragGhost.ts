@@ -7,11 +7,11 @@ import type React from "react";
 const dragGhostMap = new WeakMap<HTMLElement, HTMLElement>();
 const GHOST_MAX_TEXT_LENGTH = 180;
 const DRAG_GHOST_ASPECT_RATIO = 4 / 5;
-const DRAG_GHOST_HEIGHT_PX = 150;
+const DRAG_GHOST_HEIGHT_PX = 120;
 const DRAG_GHOST_WIDTH_PX = Math.round(DRAG_GHOST_HEIGHT_PX * DRAG_GHOST_ASPECT_RATIO);
 const GHOST_SNAPSHOT_WIDTH = 384;
 const GHOST_SNAPSHOT_HEIGHT = 480;
-const GHOST_SNAPSHOT_QUALITY = 0.28;
+const GHOST_SNAPSHOT_QUALITY = 0.08;
 
 const trimGhostText = (value: string | null | undefined): string => {
   const normalized = (value ?? "").trim();
@@ -207,8 +207,8 @@ export const attachMediaLibraryDragGhost = (
       ghostHeight,
     });
     document.body.appendChild(ghost);
-    const dragImageOffsetX = Math.round(ghostWidth / 2);
-    const dragImageOffsetY = Math.round(ghostHeight / 2);
+    const dragImageOffsetX = 12;
+    const dragImageOffsetY = 12;
     if (safeSetDragImage(event.dataTransfer, ghost, dragImageOffsetX, dragImageOffsetY)) {
       dragGhostMap.set(node, ghost);
       return;

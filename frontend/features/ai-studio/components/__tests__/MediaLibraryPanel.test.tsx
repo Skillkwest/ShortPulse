@@ -2012,6 +2012,183 @@ describe("MediaLibraryPanel", () => {
     });
   });
 
+  it("assigns dropped internal media references from the reference grid to a folder tile", async () => {
+    const resolveInternalDropItem = vi.fn().mockResolvedValue({
+      kind: "media",
+      id: "media-77",
+    });
+
+    render(
+      <MediaLibraryPanel
+        onSelectMedia={vi.fn()}
+        onSelectPrompt={vi.fn()}
+        resolveInternalDropItem={resolveInternalDropItem}
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Campaign folder" })).toBeInTheDocument();
+    });
+
+    const folderButton = screen.getByRole("button", { name: "Campaign folder" });
+    const folderTile = folderButton.closest(
+      ".media-library-panel-folder-strip-item"
+    ) as HTMLElement;
+    expect(folderTile).toBeTruthy();
+
+    const transfer = {
+      types: ["text/reference-origin", "text/reference-output-id", "text/reference-source-surface"],
+      getData: (type: string) => {
+        switch (type) {
+          case "text/reference-origin":
+            return "ai-studio-reference-grid";
+          case "text/reference-output-id":
+            return "output-1";
+          case "text/reference-source-surface":
+            return "all-refs";
+          default:
+            return "";
+        }
+      },
+      dropEffect: "none",
+      effectAllowed: "copy",
+    } as unknown as DataTransfer;
+
+    fireEvent.drop(folderTile, { dataTransfer: transfer });
+
+    await waitFor(() => {
+      expect(resolveInternalDropItem).toHaveBeenCalledWith(
+        expect.objectContaining({
+          origin: "ai-studio-reference-grid",
+          outputId: "output-1",
+          sourceSurface: "all-refs",
+        })
+      );
+      expect(applyMediaFolderMembershipBatchMock).toHaveBeenCalledWith({
+        action: "assign",
+        folderId: "folder-1",
+        mediaIds: ["media-77"],
+        promptIds: [],
+      });
+    });
+  });
+
+  it("assigns dropped internal prompt references from the reference grid to a folder tile", async () => {
+    const resolveInternalDropItem = vi.fn().mockResolvedValue({
+      kind: "prompt",
+      id: "prompt-77",
+    });
+
+    render(
+      <MediaLibraryPanel
+        onSelectMedia={vi.fn()}
+        onSelectPrompt={vi.fn()}
+        resolveInternalDropItem={resolveInternalDropItem}
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Campaign folder" })).toBeInTheDocument();
+    });
+
+    const folderButton = screen.getByRole("button", { name: "Campaign folder" });
+    const folderTile = folderButton.closest(
+      ".media-library-panel-folder-strip-item"
+    ) as HTMLElement;
+    expect(folderTile).toBeTruthy();
+
+    const transfer = {
+      types: ["text/reference-origin", "text/reference-output-id", "text/reference-source-surface"],
+      getData: (type: string) => {
+        switch (type) {
+          case "text/reference-origin":
+            return "ai-studio-reference-grid";
+          case "text/reference-output-id":
+            return "output-2";
+          case "text/reference-source-surface":
+            return "all-refs";
+          default:
+            return "";
+        }
+      },
+      dropEffect: "none",
+      effectAllowed: "copy",
+    } as unknown as DataTransfer;
+
+    fireEvent.drop(folderTile, { dataTransfer: transfer });
+
+    await waitFor(() => {
+      expect(resolveInternalDropItem).toHaveBeenCalledWith(
+        expect.objectContaining({
+          origin: "ai-studio-reference-grid",
+          outputId: "output-2",
+          sourceSurface: "all-refs",
+        })
+      );
+      expect(applyMediaFolderMembershipBatchMock).toHaveBeenCalledWith({
+        action: "assign",
+        folderId: "folder-1",
+        mediaIds: [],
+        promptIds: ["prompt-77"],
+      });
+    });
+  });
+
+  it("shows immediate spinner feedback while a folder drop is resolving", async () => {
+    const deferred = createDeferred<{ kind: "media"; id: string } | null>();
+    const resolveInternalDropItem = vi.fn().mockReturnValue(deferred.promise);
+
+    render(
+      <MediaLibraryPanel
+        onSelectMedia={vi.fn()}
+        onSelectPrompt={vi.fn()}
+        resolveInternalDropItem={resolveInternalDropItem}
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Campaign folder" })).toBeInTheDocument();
+    });
+
+    const folderButton = screen.getByRole("button", { name: "Campaign folder" });
+    const folderTile = folderButton.closest(
+      ".media-library-panel-folder-strip-item"
+    ) as HTMLElement;
+    expect(folderTile).toBeTruthy();
+
+    const transfer = {
+      types: ["text/reference-origin", "text/reference-output-id", "text/reference-source-surface"],
+      getData: (type: string) => {
+        switch (type) {
+          case "text/reference-origin":
+            return "ai-studio-reference-grid";
+          case "text/reference-output-id":
+            return "output-3";
+          case "text/reference-source-surface":
+            return "all-refs";
+          default:
+            return "";
+        }
+      },
+      dropEffect: "none",
+      effectAllowed: "copy",
+    } as unknown as DataTransfer;
+
+    fireEvent.drop(folderTile, { dataTransfer: transfer });
+
+    await waitFor(() => {
+      expect(screen.getByText("Adding to Campaign...")).toBeInTheDocument();
+      expect(document.querySelector(".media-library-panel-membership-spinner")).toBeTruthy();
+    });
+
+    deferred.resolve({ kind: "media", id: "media-88" });
+
+    await waitFor(() => {
+      expect(screen.queryByText("Adding to Campaign...")).not.toBeInTheDocument();
+      expect(screen.getByText("Added to Campaign.")).toBeInTheDocument();
+    });
+  });
+
   it("drops internal references into the active custom folder and refreshes its rows", async () => {
     const resolveInternalDropItem = vi.fn().mockResolvedValue({
       kind: "media",

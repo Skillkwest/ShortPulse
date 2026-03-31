@@ -36,6 +36,7 @@ type UseMediaLibraryFolderDropControllerArgs = {
   folders: MediaFolder[];
   setFolderError: (value: string | null) => void;
   setMembershipMessage: (value: string | null) => void;
+  setMembershipPendingMessage: (value: string | null) => void;
   refreshActiveRows: () => Promise<void>;
   resolveInternalDropItem?: ResolveInternalDropItem;
   onDropFilesToFolder?: (folderId: string, files: FileList) => Promise<void>;
@@ -149,6 +150,7 @@ export const useMediaLibraryFolderDropController = ({
   folders,
   setFolderError,
   setMembershipMessage,
+  setMembershipPendingMessage,
   refreshActiveRows,
   resolveInternalDropItem,
   onDropFilesToFolder,
@@ -249,12 +251,17 @@ export const useMediaLibraryFolderDropController = ({
         forceRefreshActiveRows?: boolean;
       }
     ) => {
+      const targetFolderName = folders.find((folder) => folder.id === folderId)?.name ?? null;
       setFolderError(null);
       setMembershipMessage(null);
+      setMembershipPendingMessage(
+        targetFolderName ? `Adding to ${targetFolderName}...` : "Saving..."
+      );
       let resolvedItem: ResolvedFolderDropItem = null;
       try {
         resolvedItem = await resolveDropItem(transfer);
       } catch {
+        setMembershipPendingMessage(null);
         setFolderError("Unable to resolve dropped reference.");
         return;
       }
@@ -263,13 +270,16 @@ export const useMediaLibraryFolderDropController = ({
           sourceFolderId: resolvedItem.sourceFolderId ?? null,
           targetFolderId: folderId,
         });
-        if (intent.kind === "noop") return;
+        if (intent.kind === "noop") {
+          setMembershipPendingMessage(null);
+          return;
+        }
 
         const sourceFolderName =
           intent.kind === "move" || intent.kind === "unassign"
             ? (folders.find((folder) => folder.id === intent.sourceFolderId)?.name ?? null)
             : null;
-        const targetFolderName =
+        const resolvedTargetFolderName =
           intent.kind === "assign" || intent.kind === "move"
             ? (folders.find((folder) => folder.id === intent.targetFolderId)?.name ?? null)
             : null;
@@ -305,9 +315,10 @@ export const useMediaLibraryFolderDropController = ({
               itemKind: resolvedItem.kind,
               result,
               sourceFolderName,
-              targetFolderName,
+              targetFolderName: resolvedTargetFolderName,
             })
           );
+          setMembershipPendingMessage(null);
           if (message) {
             setMembershipMessage(message);
           }
@@ -320,6 +331,7 @@ export const useMediaLibraryFolderDropController = ({
             await refreshActiveRows();
           }
         } catch (error) {
+          setMembershipPendingMessage(null);
           setFolderError(toMediaLibraryErrorText(error, "Unable to update folder membership."));
         }
         return;
@@ -327,17 +339,21 @@ export const useMediaLibraryFolderDropController = ({
       const droppedFiles = transfer.files;
       if (droppedFiles && droppedFiles.length > 0) {
         if (!onDropFilesToFolder) {
+          setMembershipPendingMessage(null);
           setFolderError("Unable to resolve dropped reference.");
           return;
         }
         try {
           await onDropFilesToFolder(folderId, droppedFiles);
+          setMembershipPendingMessage(null);
         } catch (uploadError) {
+          setMembershipPendingMessage(null);
           setFolderError(toMediaLibraryErrorText(uploadError, "Unable to process dropped files."));
         }
         return;
       }
       if (!resolvedItem) {
+        setMembershipPendingMessage(null);
         setFolderError("Unable to resolve dropped reference.");
         return;
       }
@@ -349,6 +365,7 @@ export const useMediaLibraryFolderDropController = ({
       resolveDropItem,
       setFolderError,
       setMembershipMessage,
+      setMembershipPendingMessage,
     ]
   );
 

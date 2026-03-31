@@ -551,7 +551,7 @@ describe("CreatePropertiesPanel", () => {
     expect(screen.getByRole("button", { name: "Generate with current prompt" })).toBeDisabled();
   });
 
-  it("keeps chat-off inline generate enabled when only the transient click lock is active", () => {
+  it("keeps chat-off inline generate enabled when shared output guards are clear", () => {
     renderPanel({
       beginnerMode: false,
       expertCreateUiEligible: true,
@@ -561,7 +561,7 @@ describe("CreatePropertiesPanel", () => {
       onGenerate: vi.fn(),
       onChatOffInlineGenerate: vi.fn(),
       characterModeEnabled: false,
-      isGenerateDisabled: true,
+      isGenerateDisabled: false,
       isChatOffInlineGenerateDisabled: false,
     });
 

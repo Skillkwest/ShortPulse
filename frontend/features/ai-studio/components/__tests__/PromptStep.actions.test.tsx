@@ -4,6 +4,7 @@
  */
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
+import { CONCURRENT_GENERATION_CAP_MESSAGE } from "../../logic/concurrentGenerationCap";
 import { PromptStep } from "../PromptStep";
 
 const baseProps = {
@@ -124,12 +125,43 @@ describe("PromptStep agent actions", () => {
     render(
       <PromptStep
         {...baseProps}
+        prompt=""
         chatModeEnabled={false}
         agentInput=""
         chatModeInlineGenerate={{ onGenerate: vi.fn() }}
       />
     );
 
+    expect(screen.getByRole("button", { name: "Generate with current prompt" })).toBeDisabled();
+  });
+
+  it("keeps inline generate enabled in chat-off mode when the shared prompt can be used", () => {
+    render(
+      <PromptStep
+        {...baseProps}
+        prompt="shared fallback prompt"
+        chatModeEnabled={false}
+        agentInput=""
+        chatModeInlineGenerate={{ onGenerate: vi.fn() }}
+      />
+    );
+
+    expect(screen.getByRole("button", { name: "Generate with current prompt" })).toBeEnabled();
+  });
+
+  it("shows the concurrent generation cap warning for chat-off inline generate", () => {
+    render(
+      <PromptStep
+        {...baseProps}
+        chatModeEnabled={false}
+        agentInput="a clear product prompt"
+        chatModeInlineGenerate={{ onGenerate: vi.fn() }}
+        disableOutputGenerate
+        outputGenerateGuardrailReason={CONCURRENT_GENERATION_CAP_MESSAGE}
+      />
+    );
+
+    expect(screen.getByText(CONCURRENT_GENERATION_CAP_MESSAGE)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Generate with current prompt" })).toBeDisabled();
   });
 

@@ -181,9 +181,13 @@ export const PromptStepChatSurface: React.FC<PromptStepChatSurfaceProps> = ({
       allowSharedPromptFallback: true,
     })
   );
-  const inlineGenerateDisabled =
-    Boolean(chatModeInlineGenerate?.disabled) || !hasResolvedInlineGeneratePrompt;
   const hasInlineGenerateAction = !chatModeEnabled && Boolean(chatModeInlineGenerate?.onGenerate);
+  const inlineGenerateDisabled =
+    Boolean(chatModeInlineGenerate?.disabled) ||
+    disableOutputGenerate ||
+    !hasResolvedInlineGeneratePrompt;
+  const inlineGenerateGuardrailReason =
+    hasInlineGenerateAction && inlineGenerateDisabled ? outputGenerateGuardrailReason : null;
   const shouldUsePostInputInlineGenerate =
     hasInlineGenerateAction && Boolean(composerLeadingContent);
   const hasAgentChatContent =
@@ -302,6 +306,9 @@ export const PromptStepChatSurface: React.FC<PromptStepChatSurfaceProps> = ({
           className={`agent-chat-inline-spacer ${emptyAgentChatSpacerClassName}`.trim()}
           aria-hidden="true"
         />
+      ) : null}
+      {inlineGenerateGuardrailReason ? (
+        <div className="inline-warning-hint">{inlineGenerateGuardrailReason}</div>
       ) : null}
       <div
         className={`step2-input-row prompt-actions-compact agent-composer-row ${

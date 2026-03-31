@@ -429,7 +429,7 @@ const readQueuedSubmitResponse = (payload: unknown): FalQueuedSubmitResponse | n
     code: "GENERATION_QUEUED",
     sourceRef,
     generationId,
-    pollAfterMs: parsedPollAfterMs ?? 2000,
+    pollAfterMs: parsedPollAfterMs ?? 1000,
   };
 };
 

@@ -568,7 +568,7 @@ describe("CreatePropertiesPanel", () => {
     expect(screen.getByRole("button", { name: "Generate with current prompt" })).toBeEnabled();
   });
 
-  it("disables chat-off inline generate while a generation submit is in flight", () => {
+  it("keeps chat-off inline generate enabled while a generation submit is in flight", () => {
     renderPanel({
       beginnerMode: false,
       expertCreateUiEligible: true,
@@ -582,15 +582,16 @@ describe("CreatePropertiesPanel", () => {
       isChatOffInlineGenerateDisabled: false,
     });
 
-    expect(screen.getByRole("button", { name: "Generate with current prompt" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Generate with current prompt" })).toBeEnabled();
   });
 
-  it("disables chat-off inline generate when prompt input is empty", () => {
+  it("disables chat-off inline generate when both prompt sources are empty", () => {
     renderPanel({
       beginnerMode: false,
       expertCreateUiEligible: true,
       agentEnabled: true,
       chatModeEnabled: false,
+      prompt: "",
       agentInput: "",
       onGenerate: vi.fn(),
       onChatOffInlineGenerate: vi.fn(),
@@ -599,6 +600,23 @@ describe("CreatePropertiesPanel", () => {
     });
 
     expect(screen.getByRole("button", { name: "Generate with current prompt" })).toBeDisabled();
+  });
+
+  it("keeps chat-off inline generate enabled when the shared prompt can still be used", () => {
+    renderPanel({
+      beginnerMode: false,
+      expertCreateUiEligible: true,
+      agentEnabled: true,
+      chatModeEnabled: false,
+      prompt: "Use the shared prompt fallback for this inline generate.",
+      agentInput: "",
+      onGenerate: vi.fn(),
+      onChatOffInlineGenerate: vi.fn(),
+      characterModeEnabled: false,
+      isGenerateDisabled: false,
+    });
+
+    expect(screen.getByRole("button", { name: "Generate with current prompt" })).toBeEnabled();
   });
 
   it("shows estimated cost on chat-off inline generate", () => {

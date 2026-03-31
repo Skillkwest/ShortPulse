@@ -564,7 +564,7 @@ export function CreatePropertiesPanel({
     onGenerateOutputPrompt: onGenerateFromAgentOutputPrompt,
     chatModeInlineGenerate: {
       onGenerate: onChatOffInlineGenerate,
-      disabled: isChatOffInlineGenerateDisabled || isPromptGenerating,
+      disabled: isChatOffInlineGenerateDisabled,
       ariaLabel: "Generate with current prompt",
     },
     onSavePrompt,

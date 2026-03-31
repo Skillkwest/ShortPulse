@@ -369,6 +369,59 @@ describe("useAiStudioGenerationController", () => {
     expect(setUiNotice).toHaveBeenCalledWith(CONCURRENT_GENERATION_CAP_MESSAGE);
   });
 
+  it("blocks chat-off inline generate and shows the cap notice when four generations are already active", async () => {
+    const setUiNotice = vi.fn();
+    const generateOutput = vi.fn();
+    const params = createParams({
+      mode: "text",
+      selectedTool: "create",
+      chatModeEnabled: false,
+      agentInput: "raw inline prompt",
+      activeGenerationCount: 4,
+      generateOutput,
+      setUiNotice: asDispatch<string | null>(setUiNotice),
+    });
+    const { result } = renderHook(() => useAiStudioGenerationController(params));
+
+    act(() => {
+      result.current.handleChatOffInlineGenerate();
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(generateOutput).not.toHaveBeenCalled();
+    expect(setUiNotice).toHaveBeenCalledWith(CONCURRENT_GENERATION_CAP_MESSAGE);
+  });
+
+  it("blocks a fifth rapid chat-off inline generate before active generation count catches up", async () => {
+    const setUiNotice = vi.fn();
+    const generateOutput = vi.fn();
+    const params = createParams({
+      mode: "text",
+      selectedTool: "create",
+      chatModeEnabled: false,
+      agentInput: "raw inline prompt",
+      prompt: "shared fallback prompt",
+      activeGenerationCount: 3,
+      generateOutput,
+      setUiNotice: asDispatch<string | null>(setUiNotice),
+    });
+    const { result } = renderHook(() => useAiStudioGenerationController(params));
+
+    await act(async () => {
+      result.current.handleChatOffInlineGenerate();
+      await Promise.resolve();
+    });
+    await act(async () => {
+      result.current.handleChatOffInlineGenerate();
+      await Promise.resolve();
+    });
+
+    expect(generateOutput).toHaveBeenCalledTimes(1);
+    expect(setUiNotice).toHaveBeenCalledWith(CONCURRENT_GENERATION_CAP_MESSAGE);
+  });
+
   it("allows generate again after active generation count drops below the cap", async () => {
     const setUiNotice = vi.fn();
     const generateOutput = vi.fn();

@@ -2,7 +2,14 @@
  * AI Studio generation controller hook.
  * Owns submission/regeneration orchestration while preserving page behavior.
  */
-import { useCallback, useRef, useState, type Dispatch, type SetStateAction } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type Dispatch,
+  type SetStateAction,
+} from "react";
 import { resolveCreateCharacterModeSubmitModel } from "../logic/createCharacterModeModelMapping";
 import {
   GENERATION_GUARDRAIL_FALLBACK_ERROR,
@@ -62,6 +69,7 @@ type RegenerateWithDebitOptions = {
 
 const PREFLIGHT_TIMEOUT_ERROR = "Preparation timed out before generation started. Please retry.";
 const PREFLIGHT_TIMEOUT_MS = 10_000;
+const LOCAL_CONCURRENT_GENERATION_RESERVATION_MS = 5_000;
 const isCreateTool = (tool: ToolId | null): boolean => tool === "create" || tool === "text";
 
 type UseAiStudioGenerationControllerParams<TBundle, TFallbackCode extends string> = {
@@ -211,6 +219,10 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
 }: UseAiStudioGenerationControllerParams<TBundle, TFallbackCode>) => {
   const generateClickLockedRef = useRef(false);
   const [isGenerateClickLocked, setIsGenerateClickLocked] = useState(false);
+  const pendingConcurrentGenerationReservationsRef = useRef<Array<ReturnType<typeof setTimeout>>>(
+    []
+  );
+  const lastObservedActiveGenerationCountRef = useRef(activeGenerationCount);
 
   const tryAcquireGenerateClickLock = useCallback(() => {
     if (generateClickLockedRef.current) return false;
@@ -223,6 +235,53 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
     generateClickLockedRef.current = false;
     setIsGenerateClickLocked(false);
   }, []);
+
+  const consumeConcurrentGenerationReservations = useCallback((count: number) => {
+    if (count <= 0) return;
+    for (
+      let consumed = 0;
+      consumed < count && pendingConcurrentGenerationReservationsRef.current.length > 0;
+      consumed += 1
+    ) {
+      const timeoutId = pendingConcurrentGenerationReservationsRef.current.shift();
+      if (timeoutId) clearTimeout(timeoutId);
+    }
+  }, []);
+
+  const reserveConcurrentGenerationSlot = useCallback(() => {
+    const timeoutId = setTimeout(() => {
+      const reservationIndex =
+        pendingConcurrentGenerationReservationsRef.current.indexOf(timeoutId);
+      if (reservationIndex >= 0) {
+        pendingConcurrentGenerationReservationsRef.current.splice(reservationIndex, 1);
+      }
+    }, LOCAL_CONCURRENT_GENERATION_RESERVATION_MS);
+    pendingConcurrentGenerationReservationsRef.current.push(timeoutId);
+  }, []);
+
+  const resolveEffectiveConcurrentGenerationCount = useCallback(
+    () => activeGenerationCount + pendingConcurrentGenerationReservationsRef.current.length,
+    [activeGenerationCount]
+  );
+
+  useEffect(() => {
+    const previousActiveGenerationCount = lastObservedActiveGenerationCountRef.current;
+    if (activeGenerationCount > previousActiveGenerationCount) {
+      consumeConcurrentGenerationReservations(
+        activeGenerationCount - previousActiveGenerationCount
+      );
+    }
+    lastObservedActiveGenerationCountRef.current = activeGenerationCount;
+  }, [activeGenerationCount, consumeConcurrentGenerationReservations]);
+
+  useEffect(
+    () => () => {
+      consumeConcurrentGenerationReservations(
+        pendingConcurrentGenerationReservationsRef.current.length
+      );
+    },
+    [consumeConcurrentGenerationReservations]
+  );
 
   const showConcurrentGenerationCapNotice = useCallback(() => {
     setUiNotice(CONCURRENT_GENERATION_CAP_MESSAGE);
@@ -317,7 +376,7 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
           });
         }
 
-        if (activeGenerationCount >= MAX_CONCURRENT_GENERATIONS) {
+        if (resolveEffectiveConcurrentGenerationCount() >= MAX_CONCURRENT_GENERATIONS) {
           showConcurrentGenerationCapNotice();
           return { accepted: false, optimisticOutputId: null };
         }
@@ -456,6 +515,7 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
         }
 
         trackCharacterModeFallback(characterModeOverrides, effectiveTool);
+        reserveConcurrentGenerationSlot();
         enqueueOptimisticDebit(requiredCredits, optimisticOutputId ?? null);
         generateOutput(promptToUse, {
           modeOverride: effectiveMode,
@@ -481,7 +541,6 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
       }
     },
     [
-      activeGenerationCount,
       currentCostCredits,
       effectiveBalanceCredits,
       enqueueOptimisticDebit,
@@ -498,11 +557,13 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
       refreshCharacterModeInjectionBundleForSubmission,
       releaseGenerateClickLock,
       resolveGuardrailBlockMessage,
+      resolveEffectiveConcurrentGenerationCount,
       resolveEffectiveSubmitModelId,
       resolveCharacterModeSubmissionOverrides,
       resolveDefaultPromptForTool,
       resolveUserReferenceInputsForTool,
       resolveIsCharacterModeEnabledForTool,
+      reserveConcurrentGenerationSlot,
       selectedTool,
       setModel,
       setUiError,

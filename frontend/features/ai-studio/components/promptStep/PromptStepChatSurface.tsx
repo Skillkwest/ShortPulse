@@ -20,6 +20,7 @@ import type {
   AgentOutputBubbleMediaState,
   AgentOutputGenerateInput,
 } from "../../../../prefabs/agent";
+import { resolveChatOffCreatePrompt } from "../../logic/promptAdjacency";
 import type { PromptStepInlineGenerateConfig } from "./types";
 
 type PromptStepChatSurfaceProps = {
@@ -173,8 +174,15 @@ export const PromptStepChatSurface: React.FC<PromptStepChatSurfaceProps> = ({
   const hasHistoryAttachments = !dropToInputComposer && stagedAttachments.length > 0;
   const inlineGenerateCostLabel =
     outputGenerateCostCredits != null ? outputGenerateCostCredits.toLocaleString() : "—";
+  const hasResolvedInlineGeneratePrompt = Boolean(
+    resolveChatOffCreatePrompt({
+      agentInput,
+      sharedPrompt: prompt,
+      allowSharedPromptFallback: true,
+    })
+  );
   const inlineGenerateDisabled =
-    Boolean(chatModeInlineGenerate?.disabled) || agentInput.trim().length === 0;
+    Boolean(chatModeInlineGenerate?.disabled) || !hasResolvedInlineGeneratePrompt;
   const hasInlineGenerateAction = !chatModeEnabled && Boolean(chatModeInlineGenerate?.onGenerate);
   const shouldUsePostInputInlineGenerate =
     hasInlineGenerateAction && Boolean(composerLeadingContent);

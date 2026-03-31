@@ -18,6 +18,7 @@ import {
   resolveWorkflowId,
 } from "../logic/workflowIdentity";
 import type { StudioMode, ToolId } from "../types";
+import { useAiStudioAllowedModelOptions } from "./useAiStudioAllowedModelOptions";
 
 const KEYFRAME_COMPATIBLE_MODELS = new Set([
   "fal-ai/veo3.1/first-last-frame-to-video",
@@ -38,6 +39,7 @@ type UseAiStudioStateEffectsArgs = {
   videoReferenceMode: VideoReferenceMode;
   setVideoReferenceMode: (value: VideoReferenceMode) => void;
   setModel: (value: string | null) => void;
+  allowedModelValues?: string[];
   lastVideoReferenceModeRef: MutableRefObject<VideoReferenceMode>;
   lastNonKling3VideoModelRef: MutableRefObject<string | null>;
   lastNonKeyframesVideoModelRef: MutableRefObject<string | null>;
@@ -56,7 +58,6 @@ type UseAiStudioStateEffectsArgs = {
   hasUserVideoPrefs: boolean;
   setHasUserVideoPrefs: (value: boolean) => void;
   setVideoGenerateAudio: (value: boolean) => void;
-  allowedModelValues: string[];
   isCharacterModeEnabled: boolean;
   mode: StudioMode;
   setDetailOutputId: (value: string | null) => void;
@@ -79,6 +80,7 @@ export const useAiStudioStateEffects = ({
   videoReferenceMode,
   setVideoReferenceMode,
   setModel,
+  allowedModelValues: allowedModelValuesProp,
   lastVideoReferenceModeRef,
   lastNonKling3VideoModelRef,
   lastNonKeyframesVideoModelRef,
@@ -97,7 +99,6 @@ export const useAiStudioStateEffects = ({
   hasUserVideoPrefs,
   setHasUserVideoPrefs,
   setVideoGenerateAudio,
-  allowedModelValues,
   isCharacterModeEnabled,
   mode,
   setDetailOutputId,
@@ -105,6 +106,14 @@ export const useAiStudioStateEffects = ({
   setModelModalAnchor,
   hasPendingWorkflowRestore,
 }: UseAiStudioStateEffectsArgs) => {
+  const computedAllowedModelValues = useAiStudioAllowedModelOptions({
+    selectedTool,
+    videoReferenceMode,
+    mode,
+    isCharacterModeEnabled,
+  }).map((option) => option.value);
+  const allowedModelValues = allowedModelValuesProp ?? computedAllowedModelValues;
+
   const setModelIfChanged = useCallback(
     (nextModel: string | null) => {
       if (model === nextModel) return;

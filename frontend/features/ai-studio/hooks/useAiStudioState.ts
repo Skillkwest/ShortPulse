@@ -2,18 +2,15 @@
  * Shared state + actions for AI Studio.
  * Encapsulates creation/regeneration flows, output book-keeping, and modal state so the page can stay declarative.
  */
-import { useCallback, useMemo, useRef, useState } from "react";
-import { randomId } from "../logic/ids";
-import { StudioMode, StudioOutput } from "../types";
+import { useCallback, useRef, useState } from "react";
+import { StudioOutput } from "../types";
 import { resolvePreviewUrlById } from "../logic/stateParsers";
+import { useAiStudioCreationState } from "./useAiStudioCreationState";
 import { useAiStudioPersistenceActions } from "./useAiStudioPersistenceActions";
 import { useAiStudioOutputLifecycle } from "./useAiStudioOutputLifecycle";
-import { useAiStudioOutputObjectUrlLifecycle } from "./useAiStudioOutputObjectUrlLifecycle";
 import { useAiStudioGenerationPromptComposer } from "./useAiStudioGenerationPromptComposer";
-import { useAiStudioAllowedModelOptions } from "./useAiStudioAllowedModelOptions";
 import { useAiStudioOutputDerivations } from "./useAiStudioOutputDerivations";
 import { useAiStudioReferenceIngestionActions } from "./useAiStudioReferenceIngestionActions";
-import { useAiStudioReferenceProjectionEffects } from "./useAiStudioReferenceProjectionEffects";
 import { useAiStudioReferenceGridStateActions } from "./useAiStudioReferenceGridStateActions";
 import { useAiStudioReferenceSelectionState } from "./useAiStudioReferenceSelectionState";
 import { useAiStudioTaskOrchestration } from "./useAiStudioTaskOrchestration";
@@ -22,13 +19,12 @@ import { useAiStudioStateEffects } from "./useAiStudioStateEffects";
 import { useAiStudioOutputCollectionState } from "./useAiStudioOutputCollectionState";
 import { useAiStudioOptimisticPlaceholderActions } from "./useAiStudioOptimisticPlaceholderActions";
 import { useAiStudioOutputStoreSelectors } from "./useAiStudioOutputStoreSelectors";
+import { useAiStudioOutputPersistenceEffects } from "./useAiStudioOutputPersistenceEffects";
+import { useAiStudioReferenceGridPreviewState } from "./useAiStudioReferenceGridPreviewState";
 import {
   DEFAULT_REFERENCE_GRID_ACTIVE_LIMIT,
   getDefaultDurationSecondsForModel,
-  hasStoredVideoPreferences,
   IMAGE_RESOLUTION_STORAGE_KEY,
-  readSessionStorageNumberPreference,
-  readSessionStorageStringPreference,
   REFERENCE_GRID_ACTIVE_LIMIT,
   REFERENCE_GRID_ARCHIVE_PREVIEW_KEEP_COUNT,
   REFERENCE_GRID_FLAG_SOFT_ARCHIVE,
@@ -39,11 +35,8 @@ import { useAiStudioDeleteOutputController } from "./useAiStudioDeleteOutputCont
 import { useAiStudioFastOutputAccess } from "./useAiStudioFastOutputAccess";
 import { useAiStudioRerollController } from "./useAiStudioRerollController";
 import { useAiStudioSessionSnapshotController } from "./useAiStudioSessionSnapshotController";
-import { useAiStudioSessionReferenceDurability } from "./useAiStudioSessionReferenceDurability";
 import { useAiStudioStableTextSetters } from "./useAiStudioStableTextSetters";
 import { useAiStudioSubmissionReferenceResolver } from "./useAiStudioSubmissionReferenceResolver";
-import { resolveActiveOutputPreviewUrl } from "../logic/activeOutputPreviewAuthority";
-import type { ExpertEditSessionState } from "../components/edit/expertEditSessionState";
 import {
   createEmptyReferenceProjectionState,
   type ReferenceProjectionState,
@@ -60,19 +53,62 @@ export const useAiStudioState = ({
   selectedStylePrompt?: string | null;
   selectedStyleContext?: StudioOutput["styleContext"] | null;
 } = {}) => {
-  const promptRef = useRef<HTMLTextAreaElement | null>(null);
+  const {
+    promptRef,
+    mode,
+    setMode,
+    aspect,
+    setAspect,
+    model,
+    setModelState,
+    prompt,
+    setPrompt,
+    editReferenceText,
+    setEditReferenceTextState,
+    videoReferenceText,
+    setVideoReferenceTextState,
+    expertEditSessionState,
+    setExpertEditSessionState,
+    videoReferenceMode,
+    setVideoReferenceMode,
+    videoDurationSeconds,
+    setVideoDurationSeconds,
+    videoResolution,
+    setVideoResolution,
+    imageResolution,
+    setImageResolution,
+    hasUserVideoPrefs,
+    setHasUserVideoPrefs,
+    videoGenerateAudio,
+    setVideoGenerateAudio,
+    videoCameraFixed,
+    setVideoCameraFixed,
+    videoAutoFix,
+    setVideoAutoFix,
+    klingNegativePrompt,
+    setKlingNegativePrompt,
+    klingCfgScale,
+    setKlingCfgScale,
+    klingShotType,
+    setKlingShotType,
+    klingVoiceIds,
+    setKlingVoiceIds,
+    klingMultiPrompts,
+    setKlingMultiPrompts,
+    klingElements,
+    setKlingElements,
+    isPromptGenerating,
+    setIsPromptGenerating,
+    uiError,
+    setUiError,
+    uiNotice,
+    setUiNotice,
+    lastVideoReferenceModeRef,
+    lastNonKling3VideoModelRef,
+    lastNonKeyframesVideoModelRef,
+    lastNonMotionVideoModelRef,
+  } = useAiStudioCreationState();
 
-  // Creation inputs
-  const [mode, setMode] = useState<StudioMode>("text");
-  const [aspect, setAspect] = useState<string>("9:16");
-  const [model, setModelState] = useState<string | null>(null);
-  const [prompt, setPrompt] = useState<string>("");
-  const [editReferenceText, setEditReferenceTextState] = useState<string>("");
-  const [videoReferenceText, setVideoReferenceTextState] = useState<string>("");
-  const [expertEditSessionState, setExpertEditSessionState] =
-    useState<ExpertEditSessionState | null>(null);
-
-  // Output management
   const {
     activeOutputState,
     setActiveOutputState,
@@ -86,9 +122,6 @@ export const useAiStudioState = ({
     setArchivedOutputs,
   } = useAiStudioOutputCollectionState();
   const [activeOutputId, setActiveOutputId] = useState<string | null>(null);
-  const [referenceGridReadyOutputIds, setReferenceGridReadyOutputIds] = useState<Set<string>>(
-    () => new Set()
-  );
   const [referenceProjectionState, setReferenceProjectionState] =
     useState<ReferenceProjectionState>(createEmptyReferenceProjectionState);
   const referenceProjectionStateRef = useRef<ReferenceProjectionState>(referenceProjectionState);
@@ -98,40 +131,17 @@ export const useAiStudioState = ({
   const pendingAutoSavesRef = useRef<Record<string, unknown>>({});
   const pendingFinalizeRemovalIdsRef = useRef<Set<string>>(new Set());
   const sessionHydrationSigningRevisionRef = useRef(0);
-  const validOutputIds = useMemo(
-    () =>
-      new Set<string>([
-        ...outputs.map((item) => item.id),
-        ...archivedOutputs.map((item) => item.id),
-      ]),
-    [archivedOutputs, outputs]
-  );
-  const visibleReferenceGridReadyOutputIds = useMemo(() => {
-    if (referenceGridReadyOutputIds.size <= 0) return referenceGridReadyOutputIds;
-    let changed = false;
-    const next = new Set<string>();
-    referenceGridReadyOutputIds.forEach((id) => {
-      if (validOutputIds.has(id)) {
-        next.add(id);
-        return;
-      }
-      changed = true;
-    });
-    return changed ? next : referenceGridReadyOutputIds;
-  }, [referenceGridReadyOutputIds, validOutputIds]);
-  const activeOutput = useMemo(
-    () => (activeOutputId ? (activeOutputById[activeOutputId] ?? null) : null),
-    [activeOutputById, activeOutputId]
-  );
-  const activeOutputPreviewUrl = useMemo(
-    () =>
-      resolveActiveOutputPreviewUrl({
-        activeOutput,
-        referenceGridReadyOutputIds: visibleReferenceGridReadyOutputIds,
-      }),
-    [activeOutput, visibleReferenceGridReadyOutputIds]
-  );
-  // UI selections and references (tracked per workflow)
+  const {
+    activeOutput,
+    activeOutputPreviewUrl,
+    markReferenceGridReady,
+    referenceGridReadyOutputIds: visibleReferenceGridReadyOutputIds,
+  } = useAiStudioReferenceGridPreviewState({
+    activeOutputById,
+    activeOutputId,
+    outputs,
+    archivedOutputs,
+  });
   const {
     selectedTool,
     setSelectedTool,
@@ -163,41 +173,6 @@ export const useAiStudioState = ({
     activeOutputPreviewUrl,
   });
 
-  const [videoReferenceMode, setVideoReferenceMode] = useState<
-    "standard" | "keyframes" | "kling3" | "motion"
-  >("standard");
-  const [videoDurationSeconds, setVideoDurationSeconds] = useState<number>(() =>
-    readSessionStorageNumberPreference(VIDEO_DURATION_STORAGE_KEY, 6)
-  );
-  const [videoResolution, setVideoResolution] = useState<string>(() =>
-    readSessionStorageStringPreference(VIDEO_RESOLUTION_STORAGE_KEY, "1080p")
-  );
-  const [imageResolution, setImageResolution] = useState<string>(() =>
-    readSessionStorageStringPreference(IMAGE_RESOLUTION_STORAGE_KEY, "model_default")
-  );
-  const [hasUserVideoPrefs, setHasUserVideoPrefs] = useState<boolean>(hasStoredVideoPreferences);
-  const [videoGenerateAudio, setVideoGenerateAudio] = useState<boolean>(false);
-  const [videoCameraFixed, setVideoCameraFixed] = useState<boolean>(false);
-  const [videoAutoFix, setVideoAutoFix] = useState<boolean>(false);
-  const [klingNegativePrompt, setKlingNegativePrompt] = useState<string>(
-    "blur, distort, and low quality"
-  );
-  const [klingCfgScale, setKlingCfgScale] = useState<number>(0.5);
-  const [klingShotType, setKlingShotType] = useState<"customize" | "intelligent">("customize");
-  const [klingVoiceIds, setKlingVoiceIds] = useState<[string, string]>(["", ""]);
-  const [klingMultiPrompts, setKlingMultiPrompts] = useState<
-    { id: string; prompt: string; duration: number }[]
-  >([]);
-  const [klingElements, setKlingElements] = useState<
-    { id: string; frontalImageUrl: string; referenceImageUrls: string; videoUrl: string }[]
-  >([{ id: randomId(), frontalImageUrl: "", referenceImageUrls: "", videoUrl: "" }]);
-  const [isPromptGenerating, setIsPromptGenerating] = useState<boolean>(false);
-  const [uiError, setUiError] = useState<string | null>(null);
-  const [uiNotice, setUiNotice] = useState<string | null>(null);
-  const lastVideoReferenceModeRef = useRef(videoReferenceMode);
-  const lastNonKling3VideoModelRef = useRef<string | null>(null);
-  const lastNonKeyframesVideoModelRef = useRef<string | null>(null);
-  const lastNonMotionVideoModelRef = useRef<string | null>(null);
   const { detailOutput, currentModelLabel, isPrimaryEditStageGenerating } =
     useAiStudioOutputDerivations({ outputs, activeOutputById, detailOutputId, model });
   const { hasPendingWorkflowRestore } = useAiStudioWorkflowSettings({
@@ -271,26 +246,6 @@ export const useAiStudioState = ({
     setActiveOutputState,
   });
 
-  const allowedModelOptions = useAiStudioAllowedModelOptions({
-    selectedTool,
-    videoReferenceMode,
-    mode,
-    isCharacterModeEnabled,
-  });
-  const allowedModelValues = useMemo(
-    () => allowedModelOptions.map((option) => option.value),
-    [allowedModelOptions]
-  );
-
-  const setModel = useCallback((value: string | null) => {
-    setModelState(value);
-  }, []);
-
-  const getDefaultDurationSeconds = useCallback(
-    (modelId: string | null) => getDefaultDurationSecondsForModel(modelId),
-    []
-  );
-
   useAiStudioStateEffects({
     promptRef,
     aspect,
@@ -301,7 +256,7 @@ export const useAiStudioState = ({
     selectedTool,
     videoReferenceMode,
     setVideoReferenceMode,
-    setModel,
+    setModel: setModelState,
     lastVideoReferenceModeRef,
     lastNonKling3VideoModelRef,
     lastNonKeyframesVideoModelRef,
@@ -320,7 +275,6 @@ export const useAiStudioState = ({
     hasUserVideoPrefs,
     setHasUserVideoPrefs,
     setVideoGenerateAudio,
-    allowedModelValues,
     isCharacterModeEnabled,
     mode,
     setDetailOutputId,
@@ -329,7 +283,11 @@ export const useAiStudioState = ({
     hasPendingWorkflowRestore,
   });
 
-  useAiStudioReferenceProjectionEffects({
+  useAiStudioOutputPersistenceEffects({
+    outputs,
+    archivedOutputs,
+    setOutputsState,
+    setArchivedOutputs,
     referenceProjectionState,
     setReferenceProjectionState,
     referenceProjectionStateRef,
@@ -341,18 +299,6 @@ export const useAiStudioState = ({
     setOutputs,
   });
 
-  useAiStudioOutputObjectUrlLifecycle({
-    outputs,
-    archivedOutputs,
-  });
-  useAiStudioSessionReferenceDurability({
-    outputs,
-    archivedOutputs,
-    setOutputsState,
-    setArchivedOutputs,
-  });
-
-  // --- Output + prompt actions -------------------------------------------
   const {
     updateOutputById,
     findOutputById,
@@ -424,7 +370,7 @@ export const useAiStudioState = ({
         setUiNotice,
         setOutputs,
         setSaved,
-        getDefaultDurationSeconds,
+        getDefaultDurationSeconds: getDefaultDurationSecondsForModel,
         notifyGenerationFailure,
         updateOutputById,
         ensureGenerationRecord,
@@ -437,14 +383,9 @@ export const useAiStudioState = ({
   const handleReferenceOutputMediaLoaded = useCallback(
     (outputId: string) => {
       onReferenceOutputMediaLoaded(outputId);
-      setReferenceGridReadyOutputIds((prev) => {
-        if (prev.has(outputId)) return prev;
-        const next = new Set(prev);
-        next.add(outputId);
-        return next;
-      });
+      markReferenceGridReady(outputId);
     },
-    [onReferenceOutputMediaLoaded]
+    [markReferenceGridReady, onReferenceOutputMediaLoaded]
   );
   const { resolveSubmissionReferenceInputsForTool } = useAiStudioSubmissionReferenceResolver({
     resolveReferenceInputsForTool,
@@ -512,7 +453,7 @@ export const useAiStudioState = ({
       setMode,
       setSelectedTool,
       setSharedPrompt,
-      setModel,
+      setModel: setModelState,
       setAspect,
       setReferenceImageUrl,
       setExtraImageUrl,
@@ -577,11 +518,11 @@ export const useAiStudioState = ({
     isPrimaryEditStageGenerating,
     promptRef,
     mode,
-    setMode,
+    setMode: setMode,
     aspect,
     setAspect,
     model,
-    setModel,
+    setModel: setModelState,
     currentModelLabel,
     prompt,
     setPrompt,
@@ -694,7 +635,7 @@ export const useAiStudioState = ({
     setUiError,
     uiNotice,
     setUiNotice,
-    getDefaultDurationSeconds,
+    getDefaultDurationSeconds: getDefaultDurationSecondsForModel,
     getAgentContext,
     onReferenceOutputMediaLoaded: handleReferenceOutputMediaLoaded,
     referenceGridReadyOutputIds: visibleReferenceGridReadyOutputIds,

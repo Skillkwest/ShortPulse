@@ -3,13 +3,6 @@
  * Supports drag/drop into other surfaces and exposes a detail action on double click.
  */
 import React, { useCallback, useState } from "react";
-import { StudioOutput } from "../types";
-import {
-  useOutputById,
-  useOutputMapByIds,
-  useOutputSelector,
-  useOutputsByIds,
-} from "../hooks/aiStudioOutputStore";
 import {
   PERF_FLAG_REFERENCE_GRID_ADAPTIVE_PREVIEW,
   PERF_FLAG_REFERENCE_GRID_CURATED_SPLIT,
@@ -33,10 +26,6 @@ import { useReferenceGridHydrationBudget } from "../hooks/useReferenceGridHydrat
 import { useReferenceGridPerfWatchdog } from "../hooks/useReferenceGridPerfWatchdog";
 import { useReferenceGridMediaWorkBudget } from "../hooks/useReferenceGridMediaWorkBudget";
 import { useReferenceGridHorizontalSplit } from "../hooks/useReferenceGridHorizontalSplit";
-import {
-  selectAllRefsProjectionWithLegacyFallback,
-  selectQuickSlotProjection,
-} from "../reference-projections";
 import { isAdaptiveSurfaceEnabled } from "../../../lib/adaptive-media";
 import { ReferenceGridSections } from "../reference-grid/components/ReferenceGridSections";
 import { useReferenceGridClipboardController } from "../reference-grid/controllers/useReferenceGridClipboardController";
@@ -61,25 +50,20 @@ import { useReferenceGridCardItemsController } from "../reference-grid/controlle
 import { useReferenceGridHeaderMeasurements } from "../reference-grid/controllers/useReferenceGridHeaderMeasurements";
 import { useReferenceGridResolvedMediaController } from "../reference-grid/controllers/useReferenceGridResolvedMediaController";
 import { useReferenceGridSurfaceOwnershipController } from "../reference-grid/controllers/useReferenceGridSurfaceOwnershipController";
+import { useReferenceGridOutputCollections } from "../reference-grid/controllers/useReferenceGridOutputCollections";
 import {
   useReferenceGridPreviewRuntime,
   useReferenceGridPreviewRuntimeScheduling,
 } from "../reference-grid/controllers/useReferenceGridPreviewRuntime";
+import { useReferenceGridOutputViewModels } from "../reference-grid/controllers/useReferenceGridOutputViewModels";
 import { isReferenceGridAdaptivePreviewRoutingEnabled } from "../reference-grid/logic/referenceGridAdaptivePreview";
-import {
-  areReferenceGridMediaOutputEntriesEqual,
-  areReferenceGridMediaOutputsEqual,
-  projectReferenceGridMediaOutput,
-} from "../reference-grid/logic/referenceGridMediaOutput";
 import { areReferenceGridPropsEqual } from "../reference-grid/logic/referenceGridPropsEquality";
 import {
-  areOutputListsEqual,
   CURATED_MIN_BOTTOM_STACK_HEIGHT_PX,
   DEFAULT_CANVAS_SECTION_TOP_RATIO,
   DEFAULT_CURATED_SPLIT_TOP_RATIO,
   DEFAULT_PANEL_VISIBILITY,
   DEFAULT_STYLES_SPLIT_TOP_RATIO,
-  EMPTY_OUTPUTS,
   FALLBACK_REFERENCE_ROW_HEIGHT,
   HORIZONTAL_DIVIDER_TRACK_MIN_HEIGHT_PX,
   QUICK_SLOT_INVENTORY_MAX_COLUMNS,
@@ -170,41 +154,13 @@ function ReferenceGridComponent({
   stylesPanel,
 }: ReferenceGridProps) {
   incrementFreezeInvestigationCounter("referenceGrid.render");
-  const selectorOutputIds = useOutputSelector(
-    React.useCallback(
-      (snapshot) => {
-        if (outputsProp) return [];
-        if (!removedFromAllRefsIds.length) {
-          return snapshot.outputOrder.filter(
-            (id) => snapshot.outputById[id]?.hiddenInReferenceGrid !== true
-          );
-        }
-        const removedIdSet = new Set(removedFromAllRefsIds);
-        return snapshot.outputOrder.filter((id) => {
-          const item = snapshot.outputById[id];
-          if (!item) return false;
-          if (removedIdSet.has(id)) return false;
-          return item.hiddenInReferenceGrid !== true;
-        });
-      },
-      [outputsProp, removedFromAllRefsIds]
-    ),
-    (left, right) =>
-      left.length === right.length && left.every((item, index) => item === right[index])
-  );
-  const selectorArchivedOutputs = useOutputSelector((snapshot) => {
-    if (archivedOutputsProp) return EMPTY_OUTPUTS;
-    return snapshot.archivedOutputOrder
-      .map((id) => snapshot.archivedOutputById[id])
-      .filter((item): item is StudioOutput => Boolean(item));
-  }, areOutputListsEqual);
-  const allOutputIds = outputsProp
-    ? selectAllRefsProjectionWithLegacyFallback(outputsProp, {
-        quickSlotIds: curatedReferenceIds,
-        removedFromAllRefsIds,
-      }).map((item) => item.id)
-    : selectorOutputIds;
-  const archivedOutputs = archivedOutputsProp ?? selectorArchivedOutputs;
+  const { allOutputIds, archivedOutputs, curatedOutputIds, curatedOutputs, outputById } =
+    useReferenceGridOutputCollections({
+      outputsProp,
+      archivedOutputsProp,
+      curatedReferenceIds,
+      removedFromAllRefsIds,
+    });
   setFreezeInvestigationGauge("referenceGrid.allOutputsCount", allOutputIds.length);
   setFreezeInvestigationGauge("referenceGrid.archivedOutputsCount", archivedOutputs.length);
   const isAnyModalOpen = useAiStudioAnyModalOpen();
@@ -234,33 +190,6 @@ function ReferenceGridComponent({
   const showRailCanvasSection =
     Boolean(railCanvasProps) && selectedTool !== "canvas" && panelVisibilityResolved.canvas;
   const isCuratedSplitActive = showQuickSlotSection;
-  const outputById = React.useMemo(() => {
-    const map: Record<string, StudioOutput> = {};
-    [...(outputsProp ?? EMPTY_OUTPUTS), ...archivedOutputs].forEach((item) => {
-      map[item.id] = item;
-    });
-    return map;
-  }, [archivedOutputs, outputsProp]);
-  const allOutputIdSet = React.useMemo(() => new Set(allOutputIds), [allOutputIds]);
-  const directCuratedOutputs = React.useMemo(
-    () =>
-      outputsProp
-        ? selectQuickSlotProjection(outputsProp, {
-            quickSlotIds: curatedReferenceIds,
-            removedFromAllRefsIds,
-          })
-        : EMPTY_OUTPUTS,
-    [curatedReferenceIds, outputsProp, removedFromAllRefsIds]
-  );
-  const curatedOutputIds = React.useMemo(
-    () =>
-      outputsProp
-        ? directCuratedOutputs.map((item) => item.id)
-        : curatedReferenceIds.filter((id) => allOutputIdSet.has(id)),
-    [allOutputIdSet, curatedReferenceIds, directCuratedOutputs, outputsProp]
-  );
-  const selectorCuratedOutputs = useOutputsByIds(curatedOutputIds);
-  const curatedOutputs = outputsProp ? directCuratedOutputs : selectorCuratedOutputs;
   setFreezeInvestigationGauge("referenceGrid.projectedOutputsCount", allOutputIds.length);
   setFreezeInvestigationGauge("referenceGrid.curatedOutputsCount", curatedOutputs.length);
   const perfWatchdog = useReferenceGridPerfWatchdog({
@@ -597,127 +526,22 @@ function ReferenceGridComponent({
       highDensityCardCount: REFERENCE_HIGH_DENSITY_CARD_COUNT,
     },
   });
-  const selectorVisibleOutputs = useOutputsByIds(visibleOutputIds);
-  const selectorVisibleCuratedOutputs = useOutputsByIds(visibleCuratedOutputIds);
-  const selectorNearViewportOutputs = useOutputsByIds(nearViewportOutputIds);
-  const selectorNearViewportCuratedOutputs = useOutputsByIds(nearViewportCuratedOutputIds);
-  const selectorVisibleOutputById = useOutputMapByIds([
-    ...visibleCuratedOutputIds,
-    ...visibleOutputIds,
-  ]);
-  const selectorVisibleMediaOutputs = useOutputSelector(
-    React.useCallback(
-      (snapshot) =>
-        visibleOutputIds
-          .map((id) => snapshot.outputById[id])
-          .filter((item): item is StudioOutput => Boolean(item))
-          .map(projectReferenceGridMediaOutput),
-      [visibleOutputIds]
-    ),
-    areReferenceGridMediaOutputsEqual
-  );
-  const selectorVisibleCuratedMediaOutputs = useOutputSelector(
-    React.useCallback(
-      (snapshot) =>
-        visibleCuratedOutputIds
-          .map((id) => snapshot.outputById[id])
-          .filter((item): item is StudioOutput => Boolean(item))
-          .map(projectReferenceGridMediaOutput),
-      [visibleCuratedOutputIds]
-    ),
-    areReferenceGridMediaOutputsEqual
-  );
-  const selectorNearViewportMediaOutputs = useOutputSelector(
-    React.useCallback(
-      (snapshot) =>
-        nearViewportOutputIds
-          .map((id) => snapshot.outputById[id])
-          .filter((item): item is StudioOutput => Boolean(item))
-          .map(projectReferenceGridMediaOutput),
-      [nearViewportOutputIds]
-    ),
-    areReferenceGridMediaOutputsEqual
-  );
-  const selectorNearViewportCuratedMediaOutputs = useOutputSelector(
-    React.useCallback(
-      (snapshot) =>
-        nearViewportCuratedOutputIds
-          .map((id) => snapshot.outputById[id])
-          .filter((item): item is StudioOutput => Boolean(item))
-          .map(projectReferenceGridMediaOutput),
-      [nearViewportCuratedOutputIds]
-    ),
-    areReferenceGridMediaOutputsEqual
-  );
-  const selectorActiveMediaOutput = useOutputSelector(
-    React.useCallback(
-      (snapshot) => {
-        if (!activeOutputId) return null;
-        const item =
-          snapshot.outputById[activeOutputId] ?? snapshot.archivedOutputById[activeOutputId];
-        return item ? projectReferenceGridMediaOutput(item) : null;
-      },
-      [activeOutputId]
-    ),
-    areReferenceGridMediaOutputEntriesEqual
-  );
-  const selectorActiveOutput = useOutputById(activeOutputId);
-  const activeOutput =
-    outputsProp != null && activeOutputId
-      ? (outputById[activeOutputId] ?? null)
-      : selectorActiveOutput;
-  const visibleOutputs =
-    outputsProp != null
-      ? visibleOutputIds
-          .map((id) => outputById[id])
-          .filter((item): item is StudioOutput => Boolean(item))
-      : selectorVisibleOutputs;
-  const visibleCuratedOutputs =
-    outputsProp != null
-      ? visibleCuratedOutputIds
-          .map((id) => outputById[id])
-          .filter((item): item is StudioOutput => Boolean(item))
-      : selectorVisibleCuratedOutputs;
-  const nearViewportOutputs =
-    outputsProp != null
-      ? nearViewportOutputIds
-          .map((id) => outputById[id])
-          .filter((item): item is StudioOutput => Boolean(item))
-      : selectorNearViewportOutputs;
-  const nearViewportCuratedOutputs =
-    outputsProp != null
-      ? nearViewportCuratedOutputIds
-          .map((id) => outputById[id])
-          .filter((item): item is StudioOutput => Boolean(item))
-      : selectorNearViewportCuratedOutputs;
-  const visibleMediaOutputs =
-    outputsProp != null
-      ? visibleOutputs.map(projectReferenceGridMediaOutput)
-      : selectorVisibleMediaOutputs;
-  const visibleCuratedMediaOutputs =
-    outputsProp != null
-      ? visibleCuratedOutputs.map(projectReferenceGridMediaOutput)
-      : selectorVisibleCuratedMediaOutputs;
-  const nearViewportMediaOutputs =
-    outputsProp != null
-      ? nearViewportOutputs.map(projectReferenceGridMediaOutput)
-      : selectorNearViewportMediaOutputs;
-  const nearViewportCuratedMediaOutputs =
-    outputsProp != null
-      ? nearViewportCuratedOutputs.map(projectReferenceGridMediaOutput)
-      : selectorNearViewportCuratedMediaOutputs;
-  const activeMediaOutput =
-    outputsProp != null && activeOutput
-      ? projectReferenceGridMediaOutput(activeOutput)
-      : selectorActiveMediaOutput;
-  const visibleOutputById = React.useMemo(() => {
-    if (outputsProp == null) return selectorVisibleOutputById;
-    const map: Record<string, StudioOutput> = {};
-    [...visibleCuratedOutputs, ...visibleOutputs].forEach((item) => {
-      map[item.id] = item;
-    });
-    return map;
-  }, [outputsProp, selectorVisibleOutputById, visibleCuratedOutputs, visibleOutputs]);
+  const {
+    visibleMediaOutputs,
+    visibleCuratedMediaOutputs,
+    nearViewportMediaOutputs,
+    nearViewportCuratedMediaOutputs,
+    activeMediaOutput,
+    visibleOutputById,
+  } = useReferenceGridOutputViewModels({
+    outputsProp,
+    outputById,
+    activeOutputId,
+    visibleOutputIds,
+    visibleCuratedOutputIds,
+    nearViewportOutputIds,
+    nearViewportCuratedOutputIds,
+  });
   const archiveCount = archivedOutputs.length;
   const { recomputeAutoplayBudget } = useReferenceGridAutoplaySelectionController({
     activeOutputId,

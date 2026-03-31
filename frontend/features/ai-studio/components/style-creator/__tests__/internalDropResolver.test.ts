@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { StudioOutput } from "../../../types";
 import type { InternalReferenceDragPayload } from "../../../utils/dragDrop";
-import { resolveStyleInternalDropCandidates } from "../internalDropResolver";
+import { resolveInternalReferenceSource } from "../../../logic/referenceSource/internalReferenceSource";
 
 const makePayload = (
   overrides: Partial<InternalReferenceDragPayload> = {}
@@ -35,11 +35,11 @@ const makeImageOutput = (overrides: Partial<StudioOutput> = {}): StudioOutput =>
     ...overrides,
   }) as StudioOutput;
 
-describe("resolveStyleInternalDropCandidates", () => {
+describe("resolveInternalReferenceSource", () => {
   it("resolves one internal source descriptor from existing output state", async () => {
     const output = makeImageOutput();
 
-    const resolved = await resolveStyleInternalDropCandidates({
+    const resolved = await resolveInternalReferenceSource({
       payload: makePayload(),
       getOutputById: () => output,
       getOutputSnapshot: () => ({
@@ -87,7 +87,7 @@ describe("resolveStyleInternalDropCandidates", () => {
       fullStoragePath: null,
     });
 
-    const resolved = await resolveStyleInternalDropCandidates({
+    const resolved = await resolveInternalReferenceSource({
       payload: makePayload(),
       getOutputById: () => output,
       getOutputSnapshot: () => ({
@@ -116,7 +116,7 @@ describe("resolveStyleInternalDropCandidates", () => {
   });
 
   it("falls back to media-id lookup when the output row is missing", async () => {
-    const resolved = await resolveStyleInternalDropCandidates({
+    const resolved = await resolveInternalReferenceSource({
       payload: makePayload({
         outputId: "out-missing",
         mediaId: "media-lookup",
@@ -150,7 +150,7 @@ describe("resolveStyleInternalDropCandidates", () => {
   });
 
   it("returns null when no internal identity or compatibility hint can be resolved", async () => {
-    const resolved = await resolveStyleInternalDropCandidates({
+    const resolved = await resolveInternalReferenceSource({
       payload: makePayload({
         outputId: null,
         referenceId: null,

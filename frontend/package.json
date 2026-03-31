@@ -107,13 +107,21 @@
   "knip": {
     "ignoreFiles": [
       "features/ai-studio/components/canvas/__tests__/canvasTestHarness.tsx",
+      "features/ai-studio/components/MediaLibraryFolderCanvas.tsx",
+      "features/ai-studio/components/style-creator/__tests__/styleDropCharacterization.fixtures.ts",
       "features/agent-runtime/canaryThresholdDecision.ts",
+      "features/ai-studio/hooks/useMediaLibraryPanelFolderCanvasController.ts",
+      "features/ai-studio/logic/mediaFolderCanvasSnapshot.ts",
       "lib/server/providerIntegration/__tests__/fixtures/kieContractFixtures.ts",
+      "lib/server/api/generationQueue/statusRecoveryKick.ts",
+      "lib/server/generationControlPlane/workerLoop.ts",
       "scripts/ai-studio-perf-release-check.mjs",
+      "scripts/run_generation_control_plane_worker.mjs",
       "tests/e2e/ai-studio-perf.audit.js",
       "tests/e2e/expert-edit-coordinate-parity.audit.js",
       "tests/e2e/ai-studio-style-drop.audit.js",
       "tests/e2e/character-pipeline.audit.js",
+      "tests/e2e/media-library-runtime.audit.js",
       "vitest.setup.ts"
     ]
   }

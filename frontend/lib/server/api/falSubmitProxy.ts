@@ -13,6 +13,7 @@ import {
   isLocalDevGenerationWorkerRequired,
 } from "../generationControlPlane/localWorkerHeartbeat";
 import { requestGenerationControlPlaneWake } from "../generationControlPlane/controlPlaneWake";
+import { evaluateGenerationAdmissionDecision } from "./generationAdmission/generationAdmissionPolicy";
 import { evaluateScopedGenerationAdmission } from "./generationAdmission/generationAdmissionService";
 import type { SubmitTarget } from "../falIntegration/contracts";
 import {

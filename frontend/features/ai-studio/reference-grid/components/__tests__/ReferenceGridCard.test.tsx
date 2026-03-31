@@ -21,7 +21,7 @@ const createProps = (
 ): React.ComponentProps<typeof ReferenceGridCard> => ({
   item: createOutput(),
   authorityTier: "reusable",
-  dragSourceSurface: "reference-grid",
+  dragSourceSurface: "all-refs",
   videoNodeKey: "video-node-key",
   activeOutputId: null,
   isLoading: false,

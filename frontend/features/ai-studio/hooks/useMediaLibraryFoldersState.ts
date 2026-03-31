@@ -242,9 +242,7 @@ export const useMediaLibraryFoldersState = (): UseMediaLibraryFoldersStateResult
               );
               return [...withoutPending, folder];
             });
-            setActiveFolderId((previous) =>
-              previous === pendingFolderId ? folder.id : previous
-            );
+            setActiveFolderId((previous) => (previous === pendingFolderId ? folder.id : previous));
             setEditingFolderId(folder.id);
             setEditingFolderName(folder.name);
             return;

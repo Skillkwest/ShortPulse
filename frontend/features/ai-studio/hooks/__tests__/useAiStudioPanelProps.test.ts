@@ -1,7 +1,6 @@
 import { renderHook } from "@testing-library/react";
 import type { Dispatch, SetStateAction } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { CONCURRENT_GENERATION_CAP_MESSAGE } from "../../logic/concurrentGenerationCap";
 import type { StudioOutput } from "../../types";
 import { useAiStudioPanelProps } from "../useAiStudioPanelProps";
 
@@ -321,12 +320,12 @@ describe("useAiStudioPanelProps", () => {
     expect(result.current.propertiesCreate.isChatOffInlineGenerateDisabled).toBe(false);
   });
 
-  it("keeps chat-off inline generate disabled when the concurrent generation cap guardrail is active", () => {
+  it("keeps chat-off inline generate disabled for non-cap upstream guardrails", () => {
     const { result } = renderHook(() =>
       useAiStudioPanelProps(
         createParams({
           isGenerateDisabled: true,
-          generationGuardrail: CONCURRENT_GENERATION_CAP_MESSAGE,
+          generationGuardrail: "Select a model before generating.",
           isGenerateClickLocked: false,
           isPromptGenerating: false,
           isPromptRefining: false,

@@ -4,7 +4,6 @@
  */
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import { CONCURRENT_GENERATION_CAP_MESSAGE } from "../../logic/concurrentGenerationCap";
 import { PromptStep } from "../PromptStep";
 
 const baseProps = {
@@ -149,7 +148,7 @@ describe("PromptStep agent actions", () => {
     expect(screen.getByRole("button", { name: "Generate with current prompt" })).toBeEnabled();
   });
 
-  it("shows the concurrent generation cap warning for chat-off inline generate", () => {
+  it("shows a generic disabled reason for chat-off inline generate when provided", () => {
     render(
       <PromptStep
         {...baseProps}
@@ -157,11 +156,11 @@ describe("PromptStep agent actions", () => {
         agentInput="a clear product prompt"
         chatModeInlineGenerate={{ onGenerate: vi.fn() }}
         disableOutputGenerate
-        outputGenerateGuardrailReason={CONCURRENT_GENERATION_CAP_MESSAGE}
+        outputGenerateGuardrailReason="Select a model before generating."
       />
     );
 
-    expect(screen.getByText(CONCURRENT_GENERATION_CAP_MESSAGE)).toBeInTheDocument();
+    expect(screen.getAllByText("Select a model before generating.").length).toBeGreaterThan(0);
     expect(screen.getByRole("button", { name: "Generate with current prompt" })).toBeDisabled();
   });
 

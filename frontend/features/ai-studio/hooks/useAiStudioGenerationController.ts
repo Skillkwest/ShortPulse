@@ -2,23 +2,12 @@
  * AI Studio generation controller hook.
  * Owns submission/regeneration orchestration while preserving page behavior.
  */
-import {
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-  type Dispatch,
-  type SetStateAction,
-} from "react";
+import { useCallback, useRef, useState, type Dispatch, type SetStateAction } from "react";
 import { resolveCreateCharacterModeSubmitModel } from "../logic/createCharacterModeModelMapping";
 import {
   GENERATION_GUARDRAIL_FALLBACK_ERROR,
   resolveGenerationStartDecision,
 } from "../logic/generationStartPolicy";
-import {
-  CONCURRENT_GENERATION_CAP_MESSAGE,
-  MAX_CONCURRENT_GENERATIONS,
-} from "../logic/concurrentGenerationCap";
 import { shouldCheckPromptAtGenerationStart } from "../logic/editPromptPolicy";
 import { resolveChatOffCreatePrompt } from "../logic/promptAdjacency";
 import { buildImageReferenceInputs } from "../logic/referenceInputs";
@@ -69,7 +58,6 @@ type RegenerateWithDebitOptions = {
 
 const PREFLIGHT_TIMEOUT_ERROR = "Preparation timed out before generation started. Please retry.";
 const PREFLIGHT_TIMEOUT_MS = 10_000;
-const LOCAL_CONCURRENT_GENERATION_RESERVATION_MS = 5_000;
 const isCreateTool = (tool: ToolId | null): boolean => tool === "create" || tool === "text";
 
 type UseAiStudioGenerationControllerParams<TBundle, TFallbackCode extends string> = {
@@ -191,7 +179,6 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
   currentCostCredits,
   promptReferenceGenerateCostCredits = null,
   resolveCostCreditsForModel,
-  activeGenerationCount = 0,
   isGenerateDisabled,
   isCreditGuardrail,
   generationGuardrail,
@@ -219,11 +206,6 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
 }: UseAiStudioGenerationControllerParams<TBundle, TFallbackCode>) => {
   const generateClickLockedRef = useRef(false);
   const [isGenerateClickLocked, setIsGenerateClickLocked] = useState(false);
-  const pendingConcurrentGenerationReservationsRef = useRef<Array<ReturnType<typeof setTimeout>>>(
-    []
-  );
-  const lastObservedActiveGenerationCountRef = useRef(activeGenerationCount);
-
   const tryAcquireGenerateClickLock = useCallback(() => {
     if (generateClickLockedRef.current) return false;
     generateClickLockedRef.current = true;
@@ -235,57 +217,6 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
     generateClickLockedRef.current = false;
     setIsGenerateClickLocked(false);
   }, []);
-
-  const consumeConcurrentGenerationReservations = useCallback((count: number) => {
-    if (count <= 0) return;
-    for (
-      let consumed = 0;
-      consumed < count && pendingConcurrentGenerationReservationsRef.current.length > 0;
-      consumed += 1
-    ) {
-      const timeoutId = pendingConcurrentGenerationReservationsRef.current.shift();
-      if (timeoutId) clearTimeout(timeoutId);
-    }
-  }, []);
-
-  const reserveConcurrentGenerationSlot = useCallback(() => {
-    const timeoutId = setTimeout(() => {
-      const reservationIndex =
-        pendingConcurrentGenerationReservationsRef.current.indexOf(timeoutId);
-      if (reservationIndex >= 0) {
-        pendingConcurrentGenerationReservationsRef.current.splice(reservationIndex, 1);
-      }
-    }, LOCAL_CONCURRENT_GENERATION_RESERVATION_MS);
-    pendingConcurrentGenerationReservationsRef.current.push(timeoutId);
-  }, []);
-
-  const resolveEffectiveConcurrentGenerationCount = useCallback(
-    () => activeGenerationCount + pendingConcurrentGenerationReservationsRef.current.length,
-    [activeGenerationCount]
-  );
-
-  useEffect(() => {
-    const previousActiveGenerationCount = lastObservedActiveGenerationCountRef.current;
-    if (activeGenerationCount > previousActiveGenerationCount) {
-      consumeConcurrentGenerationReservations(
-        activeGenerationCount - previousActiveGenerationCount
-      );
-    }
-    lastObservedActiveGenerationCountRef.current = activeGenerationCount;
-  }, [activeGenerationCount, consumeConcurrentGenerationReservations]);
-
-  useEffect(
-    () => () => {
-      consumeConcurrentGenerationReservations(
-        pendingConcurrentGenerationReservationsRef.current.length
-      );
-    },
-    [consumeConcurrentGenerationReservations]
-  );
-
-  const showConcurrentGenerationCapNotice = useCallback(() => {
-    setUiNotice(CONCURRENT_GENERATION_CAP_MESSAGE);
-  }, [setUiNotice]);
 
   const resolveGuardrailBlockMessage = useCallback(
     () => generationGuardrail ?? GENERATION_GUARDRAIL_FALLBACK_ERROR,
@@ -376,11 +307,6 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
           });
         }
 
-        if (resolveEffectiveConcurrentGenerationCount() >= MAX_CONCURRENT_GENERATIONS) {
-          showConcurrentGenerationCapNotice();
-          return { accepted: false, optimisticOutputId: null };
-        }
-
         const requiredCredits = options?.costOverrideCredits ?? currentCostCredits;
         let checkedFreshCredits = false;
 
@@ -398,10 +324,6 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
         }
 
         if (isGenerateDisabled) {
-          if (generationGuardrail === CONCURRENT_GENERATION_CAP_MESSAGE) {
-            showConcurrentGenerationCapNotice();
-            return { accepted: false, optimisticOutputId: null };
-          }
           if (isCreditGuardrail) {
             const hasFreshCredits = checkedFreshCredits
               ? true
@@ -515,7 +437,6 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
         }
 
         trackCharacterModeFallback(characterModeOverrides, effectiveTool);
-        reserveConcurrentGenerationSlot();
         enqueueOptimisticDebit(requiredCredits, optimisticOutputId ?? null);
         generateOutput(promptToUse, {
           modeOverride: effectiveMode,
@@ -546,7 +467,6 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
       enqueueOptimisticDebit,
       ensureFreshCreditsForRun,
       generateOutput,
-      generationGuardrail,
       isCreditGuardrail,
       isCharacterModeEnabled,
       isGenerateDisabled,
@@ -557,18 +477,15 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
       refreshCharacterModeInjectionBundleForSubmission,
       releaseGenerateClickLock,
       resolveGuardrailBlockMessage,
-      resolveEffectiveConcurrentGenerationCount,
       resolveEffectiveSubmitModelId,
       resolveCharacterModeSubmissionOverrides,
       resolveDefaultPromptForTool,
       resolveUserReferenceInputsForTool,
       resolveIsCharacterModeEnabledForTool,
-      reserveConcurrentGenerationSlot,
       selectedTool,
       setModel,
       setUiError,
       setUiNotice,
-      showConcurrentGenerationCapNotice,
       trackCharacterModeFallback,
       trackCharacterModeEvent,
       tryAcquireGenerateClickLock,
@@ -660,11 +577,6 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
         const requiredCredits = resolvedRunCostCredits ?? currentCostCredits;
         let checkedFreshCredits = false;
 
-        if (activeGenerationCount >= MAX_CONCURRENT_GENERATIONS) {
-          showConcurrentGenerationCapNotice();
-          return;
-        }
-
         if (
           resolvedRunCostCredits != null &&
           effectiveBalanceCredits != null &&
@@ -679,10 +591,6 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
         }
 
         if (isGenerateDisabled && !isCreditGuardrail) {
-          if (generationGuardrail === CONCURRENT_GENERATION_CAP_MESSAGE) {
-            showConcurrentGenerationCapNotice();
-            return;
-          }
           setUiError(resolveGuardrailBlockMessage());
           return;
         }
@@ -843,14 +751,12 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
     },
     [
       activeOutputId,
-      activeGenerationCount,
       currentCostCredits,
       effectiveBalanceCredits,
       enqueueOptimisticDebit,
       ensureFreshCreditsForRun,
       isCreditGuardrail,
       isGenerateDisabled,
-      generationGuardrail,
       mode,
       model,
       isCharacterModeEnabled,
@@ -868,7 +774,6 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
       setModel,
       setUiError,
       setUiNotice,
-      showConcurrentGenerationCapNotice,
       trackCharacterModeFallback,
       trackCharacterModeEvent,
       tryAcquireGenerateClickLock,

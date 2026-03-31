@@ -204,7 +204,6 @@ vi.mock("../../../../prefabs/agent", () => ({
 
 const collapseToMinMock = vi.fn();
 const expandToMaxMock = vi.fn();
-
 vi.mock("../hooks/useAiStudioShellResize", () => ({
   useAiStudioShellResize: () => ({
     shellRef: { current: null },

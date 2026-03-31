@@ -2,7 +2,6 @@ import { act, renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Dispatch, SetStateAction } from "react";
 import type { StudioOutput } from "../../types";
-import { CONCURRENT_GENERATION_CAP_MESSAGE } from "../../logic/concurrentGenerationCap";
 import { INPAINT_FLUX_FILL_MODEL_ID } from "../../logic/inpaintSubmission";
 import { useAiStudioGenerationController } from "../useAiStudioGenerationController";
 
@@ -349,13 +348,11 @@ describe("useAiStudioGenerationController", () => {
     expect(generateOutput).toHaveBeenCalledTimes(1);
   });
 
-  it("blocks generate and shows the cap notice when four generations are already active", async () => {
-    const setUiNotice = vi.fn();
+  it("allows generate when four generations are already active", async () => {
     const generateOutput = vi.fn();
     const params = createParams({
       activeGenerationCount: 4,
       generateOutput,
-      setUiNotice: asDispatch<string | null>(setUiNotice),
     });
     const { result } = renderHook(() => useAiStudioGenerationController(params));
 
@@ -364,13 +361,11 @@ describe("useAiStudioGenerationController", () => {
       generateResult = await result.current.handleGenerate("prompt");
     });
 
-    expect(generateResult).toEqual({ accepted: false, optimisticOutputId: null });
-    expect(generateOutput).not.toHaveBeenCalled();
-    expect(setUiNotice).toHaveBeenCalledWith(CONCURRENT_GENERATION_CAP_MESSAGE);
+    expect(generateResult).toEqual({ accepted: true, optimisticOutputId: null });
+    expect(generateOutput).toHaveBeenCalledTimes(1);
   });
 
-  it("blocks chat-off inline generate and shows the cap notice when four generations are already active", async () => {
-    const setUiNotice = vi.fn();
+  it("allows chat-off inline generate when four generations are already active", async () => {
     const generateOutput = vi.fn();
     const params = createParams({
       mode: "text",
@@ -379,7 +374,6 @@ describe("useAiStudioGenerationController", () => {
       agentInput: "raw inline prompt",
       activeGenerationCount: 4,
       generateOutput,
-      setUiNotice: asDispatch<string | null>(setUiNotice),
     });
     const { result } = renderHook(() => useAiStudioGenerationController(params));
 
@@ -390,12 +384,10 @@ describe("useAiStudioGenerationController", () => {
       await Promise.resolve();
     });
 
-    expect(generateOutput).not.toHaveBeenCalled();
-    expect(setUiNotice).toHaveBeenCalledWith(CONCURRENT_GENERATION_CAP_MESSAGE);
+    expect(generateOutput).toHaveBeenCalledTimes(1);
   });
 
-  it("blocks a fifth rapid chat-off inline generate before active generation count catches up", async () => {
-    const setUiNotice = vi.fn();
+  it("allows repeated chat-off inline generate clicks while active count has not caught up", async () => {
     const generateOutput = vi.fn();
     const params = createParams({
       mode: "text",
@@ -405,7 +397,6 @@ describe("useAiStudioGenerationController", () => {
       prompt: "shared fallback prompt",
       activeGenerationCount: 3,
       generateOutput,
-      setUiNotice: asDispatch<string | null>(setUiNotice),
     });
     const { result } = renderHook(() => useAiStudioGenerationController(params));
 
@@ -418,19 +409,16 @@ describe("useAiStudioGenerationController", () => {
       await Promise.resolve();
     });
 
-    expect(generateOutput).toHaveBeenCalledTimes(1);
-    expect(setUiNotice).toHaveBeenCalledWith(CONCURRENT_GENERATION_CAP_MESSAGE);
+    expect(generateOutput).toHaveBeenCalledTimes(2);
   });
 
-  it("allows generate again after active generation count drops below the cap", async () => {
-    const setUiNotice = vi.fn();
+  it("still blocks on non-cap guardrails while active generation count changes", async () => {
     const generateOutput = vi.fn();
     const initialParams = createParams({
       activeGenerationCount: 4,
       generateOutput,
-      setUiNotice: asDispatch<string | null>(setUiNotice),
       isGenerateDisabled: true,
-      generationGuardrail: CONCURRENT_GENERATION_CAP_MESSAGE,
+      generationGuardrail: "Select a model before generating.",
     });
     const { result, rerender } = renderHook(
       (params: Parameters<typeof useAiStudioGenerationController>[0]) =>
@@ -443,13 +431,11 @@ describe("useAiStudioGenerationController", () => {
     });
 
     expect(generateOutput).not.toHaveBeenCalled();
-    expect(setUiNotice).toHaveBeenCalledWith(CONCURRENT_GENERATION_CAP_MESSAGE);
 
     rerender(
       createParams({
         activeGenerationCount: 0,
         generateOutput,
-        setUiNotice: asDispatch<string | null>(setUiNotice),
         isGenerateDisabled: false,
         generationGuardrail: null,
       })

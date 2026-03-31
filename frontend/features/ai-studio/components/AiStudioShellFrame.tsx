@@ -19,6 +19,7 @@ import { AiStudioReferenceRail } from "./AiStudioReferenceRail";
 import { AiStudioPreviewRail } from "./AiStudioPreviewRail";
 import { useOutputCounts } from "../hooks/aiStudioOutputStore";
 import type { AiStudioReferenceGridContract } from "../hooks/contracts/pageContentContracts";
+import { areReferenceGridPropsEqual } from "../reference-grid/logic/referenceGridPropsEquality";
 import {
   incrementFreezeInvestigationCounter,
   setFreezeInvestigationGauge,
@@ -85,6 +86,179 @@ type AiStudioShellFrameProps = {
   rightColumnHidden?: boolean;
 };
 
+type AiStudioShellRightColumnProps = {
+  rightColumnRef: React.RefObject<HTMLDivElement>;
+  rightColumnDropMode: RightColumnDropMode;
+  rightColumnHidden?: boolean;
+  onRightColumnDropCapture: (event: React.DragEvent<HTMLElement>) => void;
+  onRightColumnDragOverCapture: (event: React.DragEvent<HTMLElement>) => void;
+  onRightColumnDragEnterCapture: (event: React.DragEvent<HTMLElement>) => void;
+  onRightColumnDragLeaveCapture: (event: React.DragEvent<HTMLElement>) => void;
+  agentChat: AgentChatProps;
+  referenceGridProps: AiStudioReferenceGridContract;
+  railCanvasProps?: CanvasPropertiesPanelProps;
+  studioPreviewProps: React.ComponentProps<typeof AiStudioPreviewRail>["studioPreviewProps"];
+  handleReferenceGridFiles: (files: FileList) => void;
+  triggerFilePicker: () => void;
+  onOpenMediaLibrary?: () => void;
+  beginnerMode: boolean;
+  selectedTool: ToolId | null;
+};
+
+const areAiStudioShellRightColumnPropsEqual = (
+  previous: Readonly<AiStudioShellRightColumnProps>,
+  next: Readonly<AiStudioShellRightColumnProps>
+): boolean => {
+  if (previous.rightColumnRef !== next.rightColumnRef) return false;
+  if (previous.rightColumnDropMode !== next.rightColumnDropMode) return false;
+  if (previous.rightColumnHidden !== next.rightColumnHidden) return false;
+  if (previous.onRightColumnDropCapture !== next.onRightColumnDropCapture) return false;
+  if (previous.onRightColumnDragOverCapture !== next.onRightColumnDragOverCapture) return false;
+  if (previous.onRightColumnDragEnterCapture !== next.onRightColumnDragEnterCapture) return false;
+  if (previous.onRightColumnDragLeaveCapture !== next.onRightColumnDragLeaveCapture) return false;
+  if (previous.agentChat !== next.agentChat) return false;
+  if (!areReferenceGridPropsEqual(previous.referenceGridProps, next.referenceGridProps))
+    return false;
+  if (previous.railCanvasProps !== next.railCanvasProps) return false;
+  if (previous.studioPreviewProps !== next.studioPreviewProps) return false;
+  if (previous.handleReferenceGridFiles !== next.handleReferenceGridFiles) return false;
+  if (previous.triggerFilePicker !== next.triggerFilePicker) return false;
+  if (previous.onOpenMediaLibrary !== next.onOpenMediaLibrary) return false;
+  if (previous.beginnerMode !== next.beginnerMode) return false;
+  if (previous.selectedTool !== next.selectedTool) return false;
+  return true;
+};
+
+const AiStudioShellRightColumn = React.memo(function AiStudioShellRightColumn({
+  rightColumnRef,
+  rightColumnDropMode,
+  rightColumnHidden,
+  onRightColumnDropCapture,
+  onRightColumnDragOverCapture,
+  onRightColumnDragEnterCapture,
+  onRightColumnDragLeaveCapture,
+  agentChat,
+  referenceGridProps,
+  railCanvasProps,
+  studioPreviewProps,
+  handleReferenceGridFiles,
+  triggerFilePicker,
+  onOpenMediaLibrary,
+  beginnerMode,
+  selectedTool,
+}: AiStudioShellRightColumnProps) {
+  incrementFreezeInvestigationCounter("shellRightColumn.render");
+  return (
+    <div
+      ref={rightColumnRef}
+      className={`ai-shell-right${rightColumnDropMode !== "none" ? " is-drop-overlay-active" : ""}`}
+      data-right-column-hidden={rightColumnHidden ? "true" : undefined}
+      onDropCapture={onRightColumnDropCapture}
+      onDragOverCapture={onRightColumnDragOverCapture}
+      onDragEnterCapture={onRightColumnDragEnterCapture}
+      onDragLeaveCapture={onRightColumnDragLeaveCapture}
+    >
+      {agentChat.isOpen ? (
+        <div className="ai-preview-column reference-column">
+          <div className="reference-column-sticky">
+            <div className="preview-column-header">
+              <div>
+                <p className="eyebrow">Agent Chat</p>
+                <p className="tiny subdued helper-text">
+                  Drag a chat bubble into the reference grid to add that text as a new prompt card.
+                </p>
+              </div>
+              <div className="preview-header-actions">
+                <button
+                  type="button"
+                  className="ghost-btn mini"
+                  onClick={agentChat.onAddToGrid}
+                  disabled={!agentChat.latestAgentPrompt}
+                >
+                  Add to grid
+                </button>
+                <button
+                  type="button"
+                  className="ghost-btn mini agent-chat-close-btn"
+                  onClick={agentChat.onClose}
+                  aria-label="Close agent chat"
+                >
+                  ×
+                </button>
+              </div>
+            </div>
+            <AgentChatPanel
+              messages={agentChat.agentMessages}
+              introMessage={{
+                id: "agent-intro",
+                role: "system",
+                content:
+                  "Hey, I'm your studio agent. Tell me what you want to create (subject, style, mood, framing) and I'll turn it into a generation-ready prompt.",
+              }}
+              input={agentChat.agentInput}
+              sendLabel="Send"
+              isSending={agentChat.agentIsSending}
+              showPromptActions
+              showPrimaryPromptStatus={false}
+              agentActions={agentChat.agentActions}
+              primaryPrompt={agentChat.latestAgentPrompt}
+              primarySource={agentChat.agentPrimarySource}
+              assistantBubbleMedia={agentChat.assistantBubbleMedia}
+              stagedAttachments={agentChat.stagedAttachments}
+              isDropActive={agentChat.agentDropActive}
+              onDrop={agentChat.onAttachmentDrop}
+              onDragOver={agentChat.onAttachmentDragOver}
+              onDragEnter={agentChat.onAttachmentDragEnter}
+              onDragLeave={agentChat.onAttachmentDragLeave}
+              onRemoveAttachment={agentChat.onRemoveAttachment}
+              onClearAttachments={agentChat.onClearAttachments}
+              onInputChange={agentChat.onInputChange}
+              onSend={agentChat.onSend}
+              onAgentApplyPrompt={agentChat.onAgentApplyPrompt}
+              onAgentSelectVariation={agentChat.onAgentSelectVariation}
+              onAgentDescribeTargets={agentChat.onAgentDescribeTargets}
+              onAssistantMessageEdit={agentChat.onAssistantMessageEdit}
+              onGenerateOutputPrompt={agentChat.onGenerateFromOutputPrompt}
+              outputGenerateCostCredits={agentChat.outputGenerateCostCredits}
+              disableOutputGenerate={agentChat.disableOutputGenerate}
+              outputGenerateGuardrailReason={agentChat.outputGenerateGuardrailReason}
+              beginnerMode={beginnerMode}
+            />
+          </div>
+        </div>
+      ) : (
+        <>
+          <AiStudioReferenceRail
+            referenceGridProps={referenceGridProps}
+            railCanvasProps={railCanvasProps}
+            onDropFiles={handleReferenceGridFiles}
+            onTriggerFilePicker={triggerFilePicker}
+            selectedTool={selectedTool}
+            onOpenMediaLibrary={onOpenMediaLibrary}
+          />
+          <AiStudioPreviewRail
+            studioPreviewProps={studioPreviewProps}
+            onDropFiles={handleReferenceGridFiles}
+            onTriggerFilePicker={triggerFilePicker}
+            onOpenMediaLibrary={onOpenMediaLibrary}
+          />
+        </>
+      )}
+      {rightColumnDropMode !== "none" ? (
+        <div
+          className="ai-right-drop-overlay"
+          data-drop-mode={rightColumnDropMode}
+          aria-hidden="true"
+          onDrop={onRightColumnDropCapture}
+          onDragOver={onRightColumnDragOverCapture}
+          onDragEnter={onRightColumnDragEnterCapture}
+          onDragLeave={onRightColumnDragLeaveCapture}
+        />
+      ) : null}
+    </div>
+  );
+}, areAiStudioShellRightColumnPropsEqual);
+
 export const AiStudioShellFrame = React.memo(function AiStudioShellFrame({
   shellRef,
   leftColumnRef,
@@ -133,114 +307,24 @@ export const AiStudioShellFrame = React.memo(function AiStudioShellFrame({
         panelContent={propertiesPanelContent}
       />
       {showDivider ? <button type="button" className="ai-shell-divider" {...dividerProps} /> : null}
-      <div
-        ref={rightColumnRef}
-        className={`ai-shell-right${rightColumnDropMode !== "none" ? " is-drop-overlay-active" : ""}`}
-        data-right-column-hidden={rightColumnHidden ? "true" : undefined}
-        onDropCapture={onRightColumnDropCapture}
-        onDragOverCapture={onRightColumnDragOverCapture}
-        onDragEnterCapture={onRightColumnDragEnterCapture}
-        onDragLeaveCapture={onRightColumnDragLeaveCapture}
-      >
-        {agentChat.isOpen ? (
-          <div className="ai-preview-column reference-column">
-            <div className="reference-column-sticky">
-              <div className="preview-column-header">
-                <div>
-                  <p className="eyebrow">Agent Chat</p>
-                  <p className="tiny subdued helper-text">
-                    Drag a chat bubble into the reference grid to add that text as a new prompt
-                    card.
-                  </p>
-                </div>
-                <div className="preview-header-actions">
-                  <button
-                    type="button"
-                    className="ghost-btn mini"
-                    onClick={agentChat.onAddToGrid}
-                    disabled={!agentChat.latestAgentPrompt}
-                  >
-                    Add to grid
-                  </button>
-                  <button
-                    type="button"
-                    className="ghost-btn mini agent-chat-close-btn"
-                    onClick={agentChat.onClose}
-                    aria-label="Close agent chat"
-                  >
-                    ×
-                  </button>
-                </div>
-              </div>
-              <AgentChatPanel
-                messages={agentChat.agentMessages}
-                introMessage={{
-                  id: "agent-intro",
-                  role: "system",
-                  content:
-                    "Hey, I'm your studio agent. Tell me what you want to create (subject, style, mood, framing) and I'll turn it into a generation-ready prompt.",
-                }}
-                input={agentChat.agentInput}
-                sendLabel="Send"
-                isSending={agentChat.agentIsSending}
-                showPromptActions
-                showPrimaryPromptStatus={false}
-                agentActions={agentChat.agentActions}
-                primaryPrompt={agentChat.latestAgentPrompt}
-                primarySource={agentChat.agentPrimarySource}
-                assistantBubbleMedia={agentChat.assistantBubbleMedia}
-                stagedAttachments={agentChat.stagedAttachments}
-                isDropActive={agentChat.agentDropActive}
-                onDrop={agentChat.onAttachmentDrop}
-                onDragOver={agentChat.onAttachmentDragOver}
-                onDragEnter={agentChat.onAttachmentDragEnter}
-                onDragLeave={agentChat.onAttachmentDragLeave}
-                onRemoveAttachment={agentChat.onRemoveAttachment}
-                onClearAttachments={agentChat.onClearAttachments}
-                onInputChange={agentChat.onInputChange}
-                onSend={agentChat.onSend}
-                onAgentApplyPrompt={agentChat.onAgentApplyPrompt}
-                onAgentSelectVariation={agentChat.onAgentSelectVariation}
-                onAgentDescribeTargets={agentChat.onAgentDescribeTargets}
-                onAssistantMessageEdit={agentChat.onAssistantMessageEdit}
-                onGenerateOutputPrompt={agentChat.onGenerateFromOutputPrompt}
-                outputGenerateCostCredits={agentChat.outputGenerateCostCredits}
-                disableOutputGenerate={agentChat.disableOutputGenerate}
-                outputGenerateGuardrailReason={agentChat.outputGenerateGuardrailReason}
-                beginnerMode={beginnerMode}
-              />
-            </div>
-          </div>
-        ) : (
-          <>
-            <AiStudioReferenceRail
-              referenceGridProps={referenceGridProps}
-              railCanvasProps={railCanvasProps}
-              onDropFiles={handleReferenceGridFiles}
-              onTriggerFilePicker={triggerFilePicker}
-              selectedTool={selectedTool}
-              onOpenMediaLibrary={onOpenMediaLibrary}
-            />
-            <AiStudioPreviewRail
-              studioPreviewProps={studioPreviewProps}
-              onDropFiles={handleReferenceGridFiles}
-              onTriggerFilePicker={triggerFilePicker}
-              onOpenMediaLibrary={onOpenMediaLibrary}
-            />
-          </>
-        )}
-        {rightColumnDropMode !== "none" ? (
-          <div
-            className="ai-right-drop-overlay"
-            data-drop-mode={rightColumnDropMode}
-            aria-hidden="true"
-            onDrop={onRightColumnDropCapture}
-            onDragOver={onRightColumnDragOverCapture}
-            onDragEnter={onRightColumnDragEnterCapture}
-            onDragLeave={onRightColumnDragLeaveCapture}
-          />
-        ) : null}
-      </div>
+      <AiStudioShellRightColumn
+        rightColumnRef={rightColumnRef}
+        rightColumnDropMode={rightColumnDropMode}
+        rightColumnHidden={rightColumnHidden}
+        onRightColumnDropCapture={onRightColumnDropCapture}
+        onRightColumnDragOverCapture={onRightColumnDragOverCapture}
+        onRightColumnDragEnterCapture={onRightColumnDragEnterCapture}
+        onRightColumnDragLeaveCapture={onRightColumnDragLeaveCapture}
+        agentChat={agentChat}
+        referenceGridProps={referenceGridProps}
+        railCanvasProps={railCanvasProps}
+        studioPreviewProps={studioPreviewProps}
+        handleReferenceGridFiles={handleReferenceGridFiles}
+        triggerFilePicker={triggerFilePicker}
+        onOpenMediaLibrary={onOpenMediaLibrary}
+        beginnerMode={beginnerMode}
+        selectedTool={selectedTool}
+      />
     </section>
   );
 });

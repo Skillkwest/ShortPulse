@@ -102,4 +102,44 @@ describe("useReferenceGridCardItemsController", () => {
       isPlaceholderOnly: true,
     });
   });
+
+  it("skips resolved media work for blank success outputs with no renderable media", () => {
+    const item = output({
+      taskState: "success",
+      mediaSource: "generated",
+      previewText: "",
+      previewUrl: undefined,
+      previewStoragePath: null,
+      fullStoragePath: null,
+      resultUrls: [],
+      localObjectUrl: null,
+    });
+    const resolveCardMedia = vi.fn(() => resolvedMedia());
+
+    const { result } = renderHook(() =>
+      useReferenceGridCardItemsController({
+        activeOutputId: null,
+        decodeBudgetEnabled: true,
+        visibleOutputs: [projectReferenceGridMediaOutput(item)],
+        visibleCuratedOutputs: [],
+        visibleQuickSlotIdSet: new Set<string>(),
+        hydrationPriorityCount: 1,
+        curatedHydrationPriorityCount: 0,
+        virtualRowHeight: 280,
+        curatedVirtualRowHeight: 240,
+        quickSlotAdaptiveSurfaceEnabled: false,
+        resolveCardMedia,
+        hydratedById: {},
+      })
+    );
+
+    expect(resolveCardMedia).not.toHaveBeenCalled();
+    expect(result.current.visibleCardItems[0]).toMatchObject({
+      cardPreviewUrl: null,
+      isImagePreview: false,
+      isVideoPreview: false,
+      isPriorityHydration: false,
+      isPlaceholderOnly: true,
+    });
+  });
 });

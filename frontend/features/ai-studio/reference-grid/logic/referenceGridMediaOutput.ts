@@ -42,10 +42,9 @@ export const isReferenceGridPlaceholderOnlyMediaOutput = (output: ReferenceGridM
   output.isPlaceholderOnly;
 
 export const projectReferenceGridMediaOutput = (output: StudioOutput): ReferenceGridMediaOutput => {
-  const isLoadingTaskState = output.taskState === "pending" || output.taskState === "running";
+  const hasPromptOnlyPreview = Boolean(output.previewText?.trim());
   const isPlaceholderOnly =
-    isLoadingTaskState &&
-    !output.previewText &&
+    !hasPromptOnlyPreview &&
     !output.previewUrl &&
     !output.localObjectUrl &&
     !output.previewStoragePath &&

@@ -97,11 +97,45 @@ describe("useReferenceGridHydrationQueueController", () => {
     );
 
     expect(enqueueImageHydration).not.toHaveBeenCalled();
-    expect(pruneHydrationQueueToCandidateIds).not.toHaveBeenCalled();
+    expect(pruneHydrationQueueToCandidateIds).toHaveBeenCalledTimes(1);
+    const suspendedCandidateIdSet = pruneHydrationQueueToCandidateIds.mock
+      .calls[0]?.[0] as Set<string>;
+    expect(suspendedCandidateIdSet.has("out-1")).toBe(true);
 
     rerender({ suspendHydrationQueue: false });
 
     expect(enqueueImageHydration).toHaveBeenCalled();
+    expect(pruneHydrationQueueToCandidateIds).toHaveBeenCalledTimes(2);
+    const candidateIdSet = pruneHydrationQueueToCandidateIds.mock.calls[1]?.[0] as Set<string>;
+    expect(candidateIdSet.has("out-1")).toBe(true);
+  });
+
+  it("prunes queue candidates even when decode budget is disabled", () => {
+    const enqueueImageHydration = vi.fn();
+    const pruneHydrationQueueToCandidateIds = vi.fn();
+    const output = imageOutput("out-1");
+
+    renderHook(() =>
+      useReferenceGridHydrationQueueController({
+        decodeBudgetEnabled: false,
+        suspendHydrationQueue: false,
+        activeOutput: null,
+        visibleCardItems: [visibleImageCard(output)],
+        curatedVisibleCardItems: [],
+        hydrationQuickSlotPreferredIdSet: new Set<string>(),
+        nearViewportOutputs: [],
+        nearViewportCuratedOutputs: [],
+        virtualRowHeight: 280,
+        curatedVirtualRowHeight: 240,
+        quickSlotAdaptiveSurfaceEnabled: false,
+        resolveCardMedia: ({ item }) =>
+          createResolvedCardMedia(item, "https://cdn.example.com/preview.jpg"),
+        enqueueImageHydration,
+        pruneHydrationQueueToCandidateIds,
+      })
+    );
+
+    expect(enqueueImageHydration).not.toHaveBeenCalled();
     expect(pruneHydrationQueueToCandidateIds).toHaveBeenCalledTimes(1);
     const candidateIdSet = pruneHydrationQueueToCandidateIds.mock.calls[0]?.[0] as Set<string>;
     expect(candidateIdSet.has("out-1")).toBe(true);
@@ -210,6 +244,50 @@ describe("useReferenceGridHydrationQueueController", () => {
         hydrationQuickSlotPreferredIdSet: new Set<string>(),
         nearViewportOutputs: [projectReferenceGridMediaOutput(output)],
         nearViewportCuratedOutputs: [projectReferenceGridMediaOutput(output)],
+        virtualRowHeight: 280,
+        curatedVirtualRowHeight: 240,
+        quickSlotAdaptiveSurfaceEnabled: true,
+        resolveCardMedia,
+        enqueueImageHydration,
+        pruneHydrationQueueToCandidateIds,
+      })
+    );
+
+    expect(resolveCardMedia).not.toHaveBeenCalled();
+    expect(enqueueImageHydration).not.toHaveBeenCalled();
+    expect(pruneHydrationQueueToCandidateIds).toHaveBeenCalledTimes(1);
+    const candidateIdSet = pruneHydrationQueueToCandidateIds.mock.calls[0]?.[0] as Set<string>;
+    expect(candidateIdSet.size).toBe(0);
+  });
+
+  it("skips hydration work for blank success outputs with no renderable media", () => {
+    const enqueueImageHydration = vi.fn();
+    const pruneHydrationQueueToCandidateIds = vi.fn();
+    const resolveCardMedia = vi.fn(({ item }: { item: ReferenceGridMediaOutput }) =>
+      createResolvedCardMedia(item, "https://cdn.example.com/preview.jpg")
+    );
+    const output = {
+      ...imageOutput("out-success"),
+      taskState: "success" as const,
+      mediaSource: "generated" as const,
+      previewText: "",
+      previewStoragePath: null,
+      fullStoragePath: null,
+      previewUrl: undefined,
+      resultUrls: [],
+      localObjectUrl: null,
+    } as StudioOutput;
+
+    renderHook(() =>
+      useReferenceGridHydrationQueueController({
+        decodeBudgetEnabled: true,
+        suspendHydrationQueue: false,
+        activeOutput: projectReferenceGridMediaOutput(output),
+        visibleCardItems: [],
+        curatedVisibleCardItems: [],
+        hydrationQuickSlotPreferredIdSet: new Set<string>(),
+        nearViewportOutputs: [projectReferenceGridMediaOutput(output)],
+        nearViewportCuratedOutputs: [],
         virtualRowHeight: 280,
         curatedVirtualRowHeight: 240,
         quickSlotAdaptiveSurfaceEnabled: true,

@@ -60,8 +60,6 @@ export const useReferenceGridHydrationQueueController = ({
   pruneHydrationQueueToCandidateIds,
 }: UseReferenceGridHydrationQueueControllerArgs): void => {
   useEffect(() => {
-    if (!decodeBudgetEnabled) return;
-    if (suspendHydrationQueue) return;
     const referenceGridCardLongEdgePx = Math.max(
       240,
       Math.round(Math.max(1, virtualRowHeight - 3))
@@ -78,6 +76,7 @@ export const useReferenceGridHydrationQueueController = ({
       hydrationQuickSlotPreferredIdSet.has(id)
         ? quickSlotCardLongEdgePx
         : referenceGridCardLongEdgePx;
+    const shouldEnqueueHydration = decodeBudgetEnabled && !suspendHydrationQueue;
     const candidateIdSet = new Set<string>();
     if (activeOutput) {
       if (!isReferenceGridPlaceholderOnlyMediaOutput(activeOutput)) {
@@ -88,13 +87,15 @@ export const useReferenceGridHydrationQueueController = ({
         });
         if (resolvedMedia.previewUrl && resolvedMedia.isImagePreview) {
           candidateIdSet.add(activeOutput.id);
-          enqueueImageHydration(activeOutput.id, resolvedMedia.previewUrl, {
-            priority: "high",
-            mediaSurface: resolvePreferredSurface(activeOutput.id),
-            targetLongEdgePx: resolvedMedia.targetLongEdgePx,
-            previewQualityBand: resolvedMedia.previewQualityBand,
-            fallbackUrl: resolvedMedia.fallbackUrl ?? undefined,
-          });
+          if (shouldEnqueueHydration) {
+            enqueueImageHydration(activeOutput.id, resolvedMedia.previewUrl, {
+              priority: "high",
+              mediaSurface: resolvePreferredSurface(activeOutput.id),
+              targetLongEdgePx: resolvedMedia.targetLongEdgePx,
+              previewQualityBand: resolvedMedia.previewQualityBand,
+              fallbackUrl: resolvedMedia.fallbackUrl ?? undefined,
+            });
+          }
         }
       }
     }
@@ -103,26 +104,30 @@ export const useReferenceGridHydrationQueueController = ({
       if (!card.isImagePreview || !card.cardPreviewUrl) return;
       if (candidateIdSet.has(card.item.id)) return;
       candidateIdSet.add(card.item.id);
-      enqueueImageHydration(card.item.id, card.cardPreviewUrl, {
-        priority: card.isPriorityHydration ? "high" : "normal",
-        mediaSurface: card.mediaSurface,
-        targetLongEdgePx: card.targetLongEdgePx,
-        previewQualityBand: card.previewQualityBand,
-        fallbackUrl: card.fallbackUrl ?? undefined,
-      });
+      if (shouldEnqueueHydration) {
+        enqueueImageHydration(card.item.id, card.cardPreviewUrl, {
+          priority: card.isPriorityHydration ? "high" : "normal",
+          mediaSurface: card.mediaSurface,
+          targetLongEdgePx: card.targetLongEdgePx,
+          previewQualityBand: card.previewQualityBand,
+          fallbackUrl: card.fallbackUrl ?? undefined,
+        });
+      }
     });
 
     visibleCardItems.forEach((card) => {
       if (!card.isImagePreview || !card.cardPreviewUrl) return;
       if (candidateIdSet.has(card.item.id)) return;
       candidateIdSet.add(card.item.id);
-      enqueueImageHydration(card.item.id, card.cardPreviewUrl, {
-        priority: card.isPriorityHydration ? "high" : "normal",
-        mediaSurface: card.mediaSurface,
-        targetLongEdgePx: card.targetLongEdgePx,
-        previewQualityBand: card.previewQualityBand,
-        fallbackUrl: card.fallbackUrl ?? undefined,
-      });
+      if (shouldEnqueueHydration) {
+        enqueueImageHydration(card.item.id, card.cardPreviewUrl, {
+          priority: card.isPriorityHydration ? "high" : "normal",
+          mediaSurface: card.mediaSurface,
+          targetLongEdgePx: card.targetLongEdgePx,
+          previewQualityBand: card.previewQualityBand,
+          fallbackUrl: card.fallbackUrl ?? undefined,
+        });
+      }
     });
 
     nearViewportCuratedOutputs.forEach((item) => {
@@ -135,13 +140,15 @@ export const useReferenceGridHydrationQueueController = ({
       });
       if (!resolvedMedia.previewUrl || !resolvedMedia.isImagePreview) return;
       candidateIdSet.add(item.id);
-      enqueueImageHydration(item.id, resolvedMedia.previewUrl, {
-        priority: "low",
-        mediaSurface: quickSlotAdaptiveSurfaceEnabled ? "quick-slot" : "reference-grid",
-        targetLongEdgePx: resolvedMedia.targetLongEdgePx,
-        previewQualityBand: resolvedMedia.previewQualityBand,
-        fallbackUrl: resolvedMedia.fallbackUrl ?? undefined,
-      });
+      if (shouldEnqueueHydration) {
+        enqueueImageHydration(item.id, resolvedMedia.previewUrl, {
+          priority: "low",
+          mediaSurface: quickSlotAdaptiveSurfaceEnabled ? "quick-slot" : "reference-grid",
+          targetLongEdgePx: resolvedMedia.targetLongEdgePx,
+          previewQualityBand: resolvedMedia.previewQualityBand,
+          fallbackUrl: resolvedMedia.fallbackUrl ?? undefined,
+        });
+      }
     });
 
     nearViewportOutputs.forEach((item) => {
@@ -154,13 +161,15 @@ export const useReferenceGridHydrationQueueController = ({
       });
       if (!resolvedMedia.previewUrl || !resolvedMedia.isImagePreview) return;
       candidateIdSet.add(item.id);
-      enqueueImageHydration(item.id, resolvedMedia.previewUrl, {
-        priority: "low",
-        mediaSurface: "reference-grid",
-        targetLongEdgePx: resolvedMedia.targetLongEdgePx,
-        previewQualityBand: resolvedMedia.previewQualityBand,
-        fallbackUrl: resolvedMedia.fallbackUrl ?? undefined,
-      });
+      if (shouldEnqueueHydration) {
+        enqueueImageHydration(item.id, resolvedMedia.previewUrl, {
+          priority: "low",
+          mediaSurface: "reference-grid",
+          targetLongEdgePx: resolvedMedia.targetLongEdgePx,
+          previewQualityBand: resolvedMedia.previewQualityBand,
+          fallbackUrl: resolvedMedia.fallbackUrl ?? undefined,
+        });
+      }
     });
 
     pruneHydrationQueueToCandidateIds(candidateIdSet);

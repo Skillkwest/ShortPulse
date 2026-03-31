@@ -98,6 +98,7 @@ export const useReferenceGridImageHydrationController = ({
   const hydrationQueueSizeRef = useRef(0);
   const hydrationDecodeInflightRef = useRef(0);
   const hydrationRafFlushRef = useRef<number | null>(null);
+  const hydrationQueueWorkScheduledRef = useRef(false);
   const hydrationPendingLoadedRef = useRef<Record<string, HydratedImageEntry>>({});
   const processHydrationQueueRef = useRef<() => void>(() => {});
   const validOutputIdSetRef = useRef<Set<string>>(new Set(validOutputIds));
@@ -277,6 +278,21 @@ export const useReferenceGridImageHydrationController = ({
       flushHydratedImages();
     });
   }, [flushHydratedImages]);
+
+  const scheduleHydrationQueueWork = useCallback(() => {
+    if (hydrationQueueWorkScheduledRef.current) return;
+    hydrationQueueWorkScheduledRef.current = true;
+    const run = () => {
+      hydrationQueueWorkScheduledRef.current = false;
+      syncImageHydrationState();
+      processHydrationQueueRef.current();
+    };
+    if (typeof queueMicrotask === "function") {
+      queueMicrotask(run);
+      return;
+    }
+    void Promise.resolve().then(run);
+  }, [syncImageHydrationState]);
 
   const pruneStaleHydrationWork = useCallback(
     (validOutputIds: Set<string>) => {
@@ -467,8 +483,7 @@ export const useReferenceGridImageHydrationController = ({
           if (currentIndex > 0) {
             hydrationQueueRef.current.splice(currentIndex, 1);
             hydrationQueueRef.current.unshift(id);
-            syncImageHydrationState();
-            processHydrationQueue();
+            scheduleHydrationQueueWork();
           }
         }
         return;
@@ -479,15 +494,13 @@ export const useReferenceGridImageHydrationController = ({
       } else {
         hydrationQueueRef.current.push(id);
       }
-      syncImageHydrationState();
-      processHydrationQueue();
+      scheduleHydrationQueueWork();
     },
     [
       decodeBudgetEnabled,
-      processHydrationQueue,
       recordOptimizerFailoverBypass,
       revokeGeneratedHydrationUrl,
-      syncImageHydrationState,
+      scheduleHydrationQueueWork,
     ]
   );
 
@@ -501,10 +514,9 @@ export const useReferenceGridImageHydrationController = ({
       if (!queueChanged) return;
       hydrationQueueRef.current = nextQueue;
       hydrationQueuedIdSetRef.current = new Set(nextQueue);
-      syncImageHydrationState();
-      processHydrationQueue();
+      scheduleHydrationQueueWork();
     },
-    [processHydrationQueue, syncImageHydrationState]
+    [scheduleHydrationQueueWork]
   );
 
   useEffect(() => {
@@ -583,6 +595,7 @@ export const useReferenceGridImageHydrationController = ({
         window.cancelAnimationFrame(hydrationRafFlushRef.current);
         hydrationRafFlushRef.current = null;
       }
+      hydrationQueueWorkScheduledRef.current = false;
       Object.keys(hydrationGeneratedObjectUrlByIdRef.current).forEach((id) => {
         revokeGeneratedHydrationUrl(id);
       });

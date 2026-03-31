@@ -3,6 +3,7 @@ import { repairGenerationRequestIdFromReservation } from "../generationQueue/req
 
 const getSupabaseAdminMock = vi.fn();
 const lookupLatestGenerationAttemptMock = vi.fn();
+const ensureAcceptedRunningGenerationAttemptMock = vi.fn();
 
 vi.mock("../supabaseAdmin", () => ({
   getSupabaseAdmin: (...args: unknown[]) => getSupabaseAdminMock(...args),
@@ -10,6 +11,8 @@ vi.mock("../supabaseAdmin", () => ({
 
 vi.mock("../generationAttempts", () => ({
   lookupLatestGenerationAttempt: (...args: unknown[]) => lookupLatestGenerationAttemptMock(...args),
+  ensureAcceptedRunningGenerationAttempt: (...args: unknown[]) =>
+    ensureAcceptedRunningGenerationAttemptMock(...args),
 }));
 
 const createGenerationSelectBuilder = ({
@@ -73,6 +76,11 @@ describe("repairGenerationRequestIdFromReservation", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     lookupLatestGenerationAttemptMock.mockResolvedValue({ data: null, error: null });
+    ensureAcceptedRunningGenerationAttemptMock.mockResolvedValue({
+      ok: true,
+      attemptId: "attempt-1",
+      attemptNumber: 1,
+    });
   });
 
   it("backfills request_id from generation_attempts before falling back to reservations", async () => {
@@ -88,6 +96,7 @@ describe("repairGenerationRequestIdFromReservation", () => {
         user_id: "user-1",
         request_id: null,
         provider: "fal-ai",
+        model_id: "fal-ai/nano-banana-pro",
         status: "running",
         recovery_state: "queued",
         recovery_attempts: 1,
@@ -130,6 +139,7 @@ describe("repairGenerationRequestIdFromReservation", () => {
       userId: "user-1",
       generationId: "gen-1",
     });
+    expect(ensureAcceptedRunningGenerationAttemptMock).not.toHaveBeenCalled();
     expect(update).toHaveBeenCalledWith(
       expect.objectContaining({
         request_id: "req-attempt-1",
@@ -149,6 +159,7 @@ describe("repairGenerationRequestIdFromReservation", () => {
         user_id: "user-1",
         request_id: null,
         provider: "fal-ai",
+        model_id: "fal-ai/nano-banana-pro",
         status: "running",
         recovery_state: "queued",
         recovery_attempts: 1,
@@ -195,6 +206,16 @@ describe("repairGenerationRequestIdFromReservation", () => {
       errorMessage: null,
     });
 
+    expect(ensureAcceptedRunningGenerationAttemptMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        generationId: "gen-1",
+        userId: "user-1",
+        provider: "fal-ai",
+        modelId: "fal-ai/nano-banana-pro",
+        providerRequestId: "req-1",
+        dispatchSource: "reconciler",
+      })
+    );
     expect(update).toHaveBeenCalledWith(
       expect.objectContaining({
         request_id: "req-1",
@@ -219,6 +240,7 @@ describe("repairGenerationRequestIdFromReservation", () => {
         user_id: "user-1",
         request_id: null,
         provider: "kie",
+        model_id: "kie-ai/veo-3.1-fast-i2v",
         status: "submitted",
         recovery_state: "recovering",
         recovery_attempts: 2,
@@ -254,6 +276,58 @@ describe("repairGenerationRequestIdFromReservation", () => {
       sourceRef: "source-1",
       reason: "db_error",
       errorMessage: "reservation unavailable",
+    });
+  });
+
+  it("surfaces attempt backfill errors before reservation repair is applied", async () => {
+    const generationSelectBuilder = createGenerationSelectBuilder({
+      data: {
+        id: "gen-1",
+        user_id: "user-1",
+        request_id: null,
+        provider: "fal-ai",
+        model_id: "fal-ai/nano-banana-pro",
+        status: "running",
+        recovery_state: "queued",
+        recovery_attempts: 1,
+        metadata: {
+          source_ref: "source-1",
+        },
+      },
+    });
+    const reservationSelectBuilder = createReservationSelectBuilder({
+      data: {
+        provider_request_id: "req-1",
+      },
+    });
+    ensureAcceptedRunningGenerationAttemptMock.mockResolvedValueOnce({
+      ok: false,
+      error: "attempt_backfill_failed",
+      stage: "record",
+    });
+    const from = vi
+      .fn()
+      .mockImplementationOnce(() => ({
+        select: vi.fn(() => generationSelectBuilder),
+      }))
+      .mockImplementationOnce(() => ({
+        select: vi.fn(() => reservationSelectBuilder),
+      }));
+    getSupabaseAdminMock.mockReturnValue({ from });
+
+    await expect(
+      repairGenerationRequestIdFromReservation({
+        userId: "user-1",
+        generationId: "gen-1",
+        sourceRef: null,
+      })
+    ).resolves.toEqual({
+      repaired: false,
+      generationId: "gen-1",
+      requestId: null,
+      sourceRef: "source-1",
+      reason: "db_error",
+      errorMessage: "attempt_backfill_failed",
     });
   });
 });

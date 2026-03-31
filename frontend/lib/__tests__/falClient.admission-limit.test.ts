@@ -29,13 +29,32 @@ describe("falClient generation admission error handling", () => {
           error: "Too many active generations. Please retry shortly.",
           code: "GENERATION_ADMISSION_LIMIT",
           retryAfterSeconds: 20,
+          admissionScope: "per_user",
         },
         429
       )
     );
 
     await expect(submitFalNanoBanana({ prompt: "portrait" })).rejects.toThrow(
-      "Too many active generations. Please retry in 20 seconds."
+      "You already have too many active generations. Please retry in 20 seconds."
+    );
+  });
+
+  it("surfaces shared-provider retry guidance for shared-capacity saturation", async () => {
+    fetchWithAuthMock.mockResolvedValueOnce(
+      createJsonResponse(
+        {
+          error: "Too many active generations. Please retry shortly.",
+          code: "GENERATION_ADMISSION_LIMIT",
+          retryAfterSeconds: 14,
+          admissionScope: "shared_provider",
+        },
+        429
+      )
+    );
+
+    await expect(submitFalNanoBanana({ prompt: "portrait" })).rejects.toThrow(
+      "Shared generation capacity is busy right now. Please retry in 14 seconds."
     );
   });
 

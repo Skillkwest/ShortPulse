@@ -9,6 +9,7 @@ import {
   type MutableRefObject,
   type SetStateAction,
 } from "react";
+import { incrementFreezeInvestigationCounter } from "../../logic/freezeInvestigationTelemetry";
 
 type VirtualMetricsState = {
   scrollTop: number;
@@ -97,17 +98,22 @@ export const useReferenceGridVirtualMetricsController = ({
       const rowHeight = Math.max(1, cardHeight + gap);
       setMetrics((prev) => {
         const next = {
-          scrollTop: scrollNode.scrollTop,
+          scrollTop: prev.scrollTop,
           viewportHeight: scrollNode.clientHeight,
           columnCount,
           rowHeight,
         };
         const stable =
-          Math.abs(prev.scrollTop - next.scrollTop) < 1 &&
           Math.abs(prev.viewportHeight - next.viewportHeight) < 1 &&
           prev.columnCount === next.columnCount &&
           Math.abs(prev.rowHeight - next.rowHeight) < 1;
-        return stable ? prev : next;
+        if (stable) return prev;
+        incrementFreezeInvestigationCounter(
+          surface === "curated"
+            ? "referenceGrid.curatedVirtualMetrics.measureCommit"
+            : "referenceGrid.virtualMetrics.measureCommit"
+        );
+        return next;
       });
     },
     [

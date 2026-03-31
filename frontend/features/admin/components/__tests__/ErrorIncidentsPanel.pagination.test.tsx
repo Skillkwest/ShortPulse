@@ -21,6 +21,26 @@ const buildBaseProps = (): PanelProps => ({
   errorEventsLoading: false,
   errorEventsError: null,
   errorEventsSummary: {
+    admissionDeniedTelemetry: {
+      last15m: {
+        total: 0,
+        byTier: { video_long: 0, image_heavy: 0, image_standard: 0, unknown: 0 },
+        byReason: { global_limit: 0, tier_limit: 0, global_and_tier_limit: 0, unknown: 0 },
+        byScope: { per_user: 0, shared_provider: 0, unknown: 0 },
+      },
+      lastHour: {
+        total: 0,
+        byTier: { video_long: 0, image_heavy: 0, image_standard: 0, unknown: 0 },
+        byReason: { global_limit: 0, tier_limit: 0, global_and_tier_limit: 0, unknown: 0 },
+        byScope: { per_user: 0, shared_provider: 0, unknown: 0 },
+      },
+      last24h: {
+        total: 0,
+        byTier: { video_long: 0, image_heavy: 0, image_standard: 0, unknown: 0 },
+        byReason: { global_limit: 0, tier_limit: 0, global_and_tier_limit: 0, unknown: 0 },
+        byScope: { per_user: 0, shared_provider: 0, unknown: 0 },
+      },
+    },
     last15mCount: 0,
     high15mCount: 0,
     generation15mCount: 0,
@@ -215,6 +235,24 @@ describe("ErrorIncidentsPanel event pagination", () => {
     expect(props.onBulkUpdateListedErrorStatus).toHaveBeenCalledTimes(2);
     expect(props.onBulkUpdateListedErrorStatus).toHaveBeenNthCalledWith(1, "resolved");
     expect(props.onBulkUpdateListedErrorStatus).toHaveBeenNthCalledWith(2, "ignored");
+  });
+
+  it("shows shared-provider vs per-user admission pressure from summary data", () => {
+    const props = buildBaseProps();
+    props.errorEventsSummary.admissionDeniedTelemetry.last15m.total = 4;
+    props.errorEventsSummary.admissionDeniedTelemetry.last15m.byScope.shared_provider = 3;
+    props.errorEventsSummary.admissionDeniedTelemetry.last15m.byScope.per_user = 1;
+    props.errorEventsSummary.admissionDeniedTelemetry.lastHour.total = 7;
+    props.errorEventsSummary.admissionDeniedTelemetry.lastHour.byScope.shared_provider = 5;
+    props.errorEventsSummary.admissionDeniedTelemetry.lastHour.byScope.per_user = 2;
+
+    render(<ErrorIncidentsPanel {...props} />);
+
+    expect(screen.getByText("Shared-provider pressure")).toBeInTheDocument();
+    expect(screen.getByText("Per-user pressure")).toBeInTheDocument();
+    expect(screen.getByText("15m total 4 · 1h total 7")).toBeInTheDocument();
+    expect(screen.getByText("15m shared-provider limiter events · 1h 5")).toBeInTheDocument();
+    expect(screen.getByText("15m per-user limiter events · 1h 2")).toBeInTheDocument();
   });
 
   it("routes incident row status actions through the provided callback", () => {

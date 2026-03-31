@@ -19,10 +19,6 @@ import {
   CHARACTER_LOADING_GENERATION_GUARDRAIL,
   shouldDisableGenerateWhileCharacterLoading,
 } from "../features/ai-studio/logic/createGenerationGuards";
-import {
-  CONCURRENT_GENERATION_CAP_MESSAGE,
-  countInFlightGenerations,
-} from "../features/ai-studio/logic/concurrentGenerationCap";
 import { addBreadcrumb } from "../lib/clientBreadcrumbs";
 import { useAiStudioAgentBridge } from "../features/ai-studio/hooks/useAiStudioAgentBridge";
 import { useAiStudioAgentOutputGenerationBridge } from "../features/ai-studio/hooks/useAiStudioAgentOutputGenerationBridge";
@@ -49,6 +45,9 @@ import { useAiStudioPageOutputAdapters } from "../features/ai-studio/hooks/useAi
 import { useAiStudioPageUiNotices } from "../features/ai-studio/hooks/useAiStudioPageUiNotices";
 import { useAiStudioPageCreditDerivations } from "../features/ai-studio/hooks/useAiStudioPageCreditDerivations";
 import { useAiStudioPerfAuditRuntime } from "../features/ai-studio/hooks/useAiStudioPerfAuditRuntime";
+import { getAiStudioSessionSnapshotViaApi } from "../features/ai-studio/logic/sessionApiClient";
+import { readAiStudioSessionPersistencePolicy } from "../features/ai-studio/logic/sessionPersistencePolicy";
+import { resolveAiStudioSessionSnapshotTitle } from "../features/ai-studio/logic/sessionSnapshotTitle";
 import { AiStudioModalActivityProvider } from "../features/ai-studio/components/modal-layer/AiStudioModalLayer";
 import { isEditWorkflow } from "../features/ai-studio/logic/workflowIdentity";
 import type { StudioOutput, ToolId } from "../features/ai-studio/types";
@@ -66,8 +65,16 @@ const FLAG_SELECTOR_CALLBACKS = PERF_FLAG_SELECTOR_CALLBACKS;
 const FLAG_PAGE_OUTPUT_DECOUPLE = PERF_FLAG_PAGE_OUTPUT_DECOUPLE;
 const FLAG_REFERENCE_GRID_PRECONNECT_HINTS = PERF_FLAG_REFERENCE_GRID_PRECONNECT_HINTS;
 const FLAG_PERF_AUDIT_RUNTIME = PERF_FLAG_AUDIT_RUNTIME;
+const { restoreRemoteEnabled: AI_STUDIO_REMOTE_SESSION_FETCH_ENABLED } =
+  readAiStudioSessionPersistencePolicy();
 
 type OptimisticDebitEntry = { credits: number; outputId: string | null; createdAtMs?: number };
+
+const normalizeAiStudioProjectName = (value: string | null | undefined): string | null => {
+  if (typeof value !== "string") return null;
+  const normalized = value.replace(/\s+/g, " ").trim();
+  return normalized ? normalized.slice(0, 120) : null;
+};
 
 export default function AiStudioPage() {
   const { sessionId } = useAiStudioSessionIdentity();
@@ -98,10 +105,16 @@ export default function AiStudioPage() {
   const [selectedStyleContext, setSelectedStyleContext] = useState<
     StudioOutput["styleContext"] | null
   >(null);
+  const [sessionTitleOverrideState, setSessionTitleOverrideState] = useState<{
+    sessionId: string;
+    title: string | null;
+  } | null>(null);
   const [createCharacterModeInjectionBundle, setCreateCharacterModeInjectionBundle] =
     useState<CharacterModeInjectionBundle | null>(null);
   const [editCharacterModeInjectionBundle, setEditCharacterModeInjectionBundle] =
     useState<CharacterModeInjectionBundle | null>(null);
+  const sessionTitleOverride =
+    sessionTitleOverrideState?.sessionId === sessionId ? sessionTitleOverrideState.title : null;
 
   // Character workflow state (shared with Character tool workflows and error surfaces)
   const {
@@ -345,11 +358,6 @@ export default function AiStudioPage() {
     balanceCredits,
     referenceGridPreconnectHintsEnabled: FLAG_REFERENCE_GRID_PRECONNECT_HINTS,
   });
-  const activeGenerationCount = useMemo(
-    () => countInFlightGenerations([...outputs, ...archivedOutputs]),
-    [archivedOutputs, outputs]
-  );
-
   useAiStudioPerfAuditRuntime({
     enabled: FLAG_PERF_AUDIT_RUNTIME,
     aspect,
@@ -491,8 +499,9 @@ export default function AiStudioPage() {
     trackAgentUiEvent: trackUiEvent,
   });
 
-  useAiStudioPageSessionPersistence({
+  const { sessionSnapshot } = useAiStudioPageSessionPersistence({
     sessionId,
+    sessionTitleOverride,
     buildSessionSnapshot,
     agentMessages,
     agentInput,
@@ -506,7 +515,54 @@ export default function AiStudioPage() {
     setUiNotice,
   });
 
-  const triggerFilePicker = () => referenceGridFileInputRef.current?.click();
+  useEffect(() => {
+    let cancelled = false;
+    if (!sessionId || !AI_STUDIO_REMOTE_SESSION_FETCH_ENABLED) return () => void 0;
+
+    void getAiStudioSessionSnapshotViaApi({ sessionId })
+      .then((payload) => {
+        if (cancelled) return;
+        setSessionTitleOverrideState((current) => {
+          if (current?.sessionId === sessionId && current.title !== null) return current;
+          return {
+            sessionId,
+            title: normalizeAiStudioProjectName(payload?.title ?? null),
+          };
+        });
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setSessionTitleOverrideState({
+          sessionId,
+          title: null,
+        });
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [sessionId]);
+
+  const effectiveProjectName = useMemo(
+    () =>
+      sessionTitleOverride ??
+      (sessionSnapshot ? resolveAiStudioSessionSnapshotTitle(sessionSnapshot) : null),
+    [sessionSnapshot, sessionTitleOverride]
+  );
+  const handleProjectNameCommit = useCallback(
+    (value: string) => {
+      if (!sessionId) return;
+      setSessionTitleOverrideState({
+        sessionId,
+        title: normalizeAiStudioProjectName(value),
+      });
+    },
+    [sessionId]
+  );
+
+  const triggerFilePicker = useCallback(() => {
+    referenceGridFileInputRef.current?.click();
+  }, []);
   const dismissError = () => setUiError(null);
   const dismissNotice = () => setUiNotice(null);
   const { effectiveUiNotice, handleBeginnerModeChange } = useAiStudioPageUiNotices({
@@ -572,7 +628,6 @@ export default function AiStudioPage() {
     imageResolution,
     videoGenerateAudio,
     balanceCredits: effectiveBalanceCredits,
-    activeGenerationCount,
     editSubmitIntent,
     costParamsForModel,
   });
@@ -841,10 +896,7 @@ export default function AiStudioPage() {
     outputs: FLAG_PAGE_OUTPUT_DECOUPLE ? undefined : outputs,
     archivedOutputs: FLAG_PAGE_OUTPUT_DECOUPLE ? undefined : archivedOutputs,
     activeOutputId,
-    topNotice:
-      effectiveGenerationGuardrail === CONCURRENT_GENERATION_CAP_MESSAGE
-        ? effectiveGenerationGuardrail
-        : null,
+    topNotice: null,
     curatedReferenceIds,
     removedFromAllRefsIds,
     onReferenceOutputMediaLoaded,
@@ -936,9 +988,7 @@ export default function AiStudioPage() {
         referenceGridFileInputRef={referenceGridFileInputRef}
         onFileBrowserSelection={handleFileBrowserSelection}
         uiError={uiError}
-        uiNotice={
-          effectiveUiNotice === CONCURRENT_GENERATION_CAP_MESSAGE ? null : effectiveUiNotice
-        }
+        uiNotice={effectiveUiNotice}
         characterError={characterError}
         onDismissUiError={dismissError}
         onDismissUiNotice={dismissNotice}
@@ -976,6 +1026,8 @@ export default function AiStudioPage() {
         onDetailSavePrompt={onDetailSavePrompt}
         onAddLibraryMediaReference={addLibraryMediaReference}
         onAddLibraryPromptReference={addLibraryPromptReference}
+        projectName={effectiveProjectName}
+        onProjectNameCommit={handleProjectNameCommit}
         resolveMediaLibraryInternalDropItem={resolveMediaLibraryInternalDropItem}
         resolveStyleLibraryInternalDrop={resolveStyleLibraryInternalDrop}
         resolveCanvasDropReference={resolveCanvasDropReference}

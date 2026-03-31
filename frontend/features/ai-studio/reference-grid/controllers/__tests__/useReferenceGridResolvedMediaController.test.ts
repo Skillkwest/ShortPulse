@@ -14,6 +14,7 @@ vi.mock("../../../logic/referenceGridMedia", async () => {
 
 import { resolveReferenceCardUrls } from "../../../logic/referenceGridMedia";
 import { useReferenceGridResolvedMediaController } from "../useReferenceGridResolvedMediaController";
+import { projectReferenceGridMediaOutput } from "../../logic/referenceGridMediaOutput";
 
 const createImageOutput = (id: string): StudioOutput =>
   ({
@@ -41,12 +42,12 @@ describe("useReferenceGridResolvedMediaController", () => {
     );
 
     const first = result.current.resolveCardMedia({
-      item: output,
+      item: projectReferenceGridMediaOutput(output),
       mediaSurface: "reference-grid",
       cardLongEdgePx: 512,
     });
     const second = result.current.resolveCardMedia({
-      item: output,
+      item: projectReferenceGridMediaOutput(output),
       mediaSurface: "reference-grid",
       cardLongEdgePx: 512,
     });
@@ -66,17 +67,17 @@ describe("useReferenceGridResolvedMediaController", () => {
     );
 
     result.current.resolveCardMedia({
-      item: output,
+      item: projectReferenceGridMediaOutput(output),
       mediaSurface: "reference-grid",
       cardLongEdgePx: 512,
     });
     result.current.resolveCardMedia({
-      item: output,
+      item: projectReferenceGridMediaOutput(output),
       mediaSurface: "quick-slot",
       cardLongEdgePx: 512,
     });
     result.current.resolveCardMedia({
-      item: output,
+      item: projectReferenceGridMediaOutput(output),
       mediaSurface: "quick-slot",
       cardLongEdgePx: 384,
     });
@@ -104,7 +105,7 @@ describe("useReferenceGridResolvedMediaController", () => {
     );
 
     const resolved = result.current.resolveCardMedia({
-      item: output,
+      item: projectReferenceGridMediaOutput(output),
       mediaSurface: "reference-grid",
       cardLongEdgePx: 512,
     });
@@ -113,5 +114,42 @@ describe("useReferenceGridResolvedMediaController", () => {
     expect(resolved.previewUrl).toBe("https://provider.example.com/generated-preview.png");
     expect(resolved.fullUrl).toBeNull();
     expect(resolved.fallbackUrl).toBe("https://provider.example.com/generated-preview.png");
+  });
+
+  it("trusts canonical resolved card urls before raw generated fallback fields", () => {
+    vi.mocked(resolveReferenceCardUrls).mockReturnValueOnce({
+      previewUrl: "https://storage.example.com/generated-preview.png",
+      fullUrl: "https://storage.example.com/generated-full.png",
+      authorityTier: "tracked",
+      previewQualityBand: "high",
+      targetLongEdgePx: 960,
+    });
+
+    const output = {
+      ...createImageOutput("out-generated-tracked"),
+      mediaSource: "generated",
+      generationId: "gen-1",
+      previewStoragePath: null,
+      fullStoragePath: null,
+      previewUrl: "https://provider.example.com/generated-preview.png",
+      resultUrls: ["https://provider.example.com/generated-full.png"],
+    } as StudioOutput;
+    const { result } = renderHook(() =>
+      useReferenceGridResolvedMediaController({
+        previewQualityPressureLevel: 0,
+        strictPreviewLadder: true,
+        adaptivePreviewRoutingEnabled: true,
+      })
+    );
+
+    const resolved = result.current.resolveCardMedia({
+      item: projectReferenceGridMediaOutput(output),
+      mediaSurface: "reference-grid",
+      cardLongEdgePx: 512,
+    });
+
+    expect(resolved.previewUrl).toBe("https://storage.example.com/generated-preview.png");
+    expect(resolved.fullUrl).toBe("https://storage.example.com/generated-full.png");
+    expect(resolved.fallbackUrl).toBe("https://storage.example.com/generated-full.png");
   });
 });

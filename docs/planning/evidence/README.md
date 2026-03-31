@@ -19,6 +19,7 @@ Store stage evidence snapshots here with dated filenames.
 - `docs/planning/evidence/lane-f/`
 - `docs/planning/evidence/generation-pipeline-hardening/`
 - `docs/planning/evidence/generation-reliability-hardening/`
+- `docs/planning/evidence/media-library-runtime-rebuild/`
 - `docs/planning/evidence/ai-studio-reference-grid-reliability/`
 - `docs/planning/evidence/media-rendering-hardening-v2/`
 - `docs/planning/evidence/agent-pipeline-remediation/`

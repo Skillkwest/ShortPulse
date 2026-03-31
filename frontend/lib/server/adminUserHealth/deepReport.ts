@@ -41,6 +41,21 @@ export type GenerationRow = {
   next_recovery_at?: string | null;
 };
 
+export type AttemptRow = {
+  id: string;
+  generation_id: string | null;
+  provider_request_id: string | null;
+  status: string | null;
+  created_at: string | null;
+};
+
+export type OutputRow = {
+  id: string;
+  generation_id: string | null;
+  media_file_id: string | null;
+  created_at: string | null;
+};
+
 export type ReservationRow = {
   id: string;
   status: string | null;
@@ -107,6 +122,8 @@ export type AdminHealthResponse = {
   };
   compatibility: {
     generationsSelectUsed: string;
+    attemptsSupported: boolean;
+    outputsSupported: boolean;
     reservationsSupported: boolean;
     queueSupported: boolean;
     ledgerLegacySchema: boolean;
@@ -228,6 +245,8 @@ export type BuildAdminHealthResponseArgs = {
   compatibilityWarnings: string[];
   balance: BalanceRow | null;
   generations: GenerationRow[];
+  attempts: AttemptRow[];
+  outputs: OutputRow[];
   reservations: ReservationRow[];
   queueRows: QueueRow[];
   ledger: NormalizedLedgerRow[];
@@ -259,6 +278,8 @@ export const buildAdminHealthResponse = ({
   compatibilityWarnings,
   balance,
   generations,
+  attempts,
+  outputs,
   reservations,
   queueRows,
   ledger,
@@ -270,12 +291,43 @@ export const buildAdminHealthResponse = ({
     .reduce((sum, row) => sum + Math.abs(Number(row.amount_cents ?? 0)), 0);
   const spendableCents = Math.max(0, availableCents - reservedCents);
 
+  const generationById = new Map<string, GenerationRow>();
+  generations.forEach((row) => {
+    generationById.set(row.id, row);
+  });
+
   const generationByRequestId = new Map<string, GenerationRow>();
   generations.forEach((row) => {
     if (!row.request_id) return;
     if (!generationByRequestId.has(row.request_id)) {
       generationByRequestId.set(row.request_id, row);
     }
+  });
+
+  const generationByAttemptProviderRequestId = new Map<string, GenerationRow>();
+  const attemptCountByGenerationId = new Map<string, number>();
+  attempts.forEach((row) => {
+    if (row.generation_id) {
+      attemptCountByGenerationId.set(
+        row.generation_id,
+        (attemptCountByGenerationId.get(row.generation_id) ?? 0) + 1
+      );
+    }
+    if (!row.provider_request_id || !row.generation_id) return;
+    const generation = generationById.get(row.generation_id);
+    if (!generation) return;
+    if (!generationByAttemptProviderRequestId.has(row.provider_request_id)) {
+      generationByAttemptProviderRequestId.set(row.provider_request_id, generation);
+    }
+  });
+
+  const outputCountByGenerationId = new Map<string, number>();
+  outputs.forEach((row) => {
+    if (!row.generation_id) return;
+    outputCountByGenerationId.set(
+      row.generation_id,
+      (outputCountByGenerationId.get(row.generation_id) ?? 0) + 1
+    );
   });
 
   const reservationBySourceRef = new Map<string, ReservationRow>();
@@ -375,15 +427,21 @@ export const buildAdminHealthResponse = ({
       const createdAtMsForCost = parseTimestamp(row.created_at);
       if (createdAtMsForCost !== null && nowMs - createdAtMsForCost <= lookbackMs) {
         let generationStatus: string | null = null;
+        let canonicalSuccessEvidence = false;
         let bucket: "linked_non_success_generation" | "missing_linkage_data" =
           "missing_linkage_data";
         let reason = "No linked reservation found for charge row.";
         if (row.source_ref) {
           const reservation = reservationBySourceRef.get(row.source_ref);
           if (reservation?.provider_request_id) {
-            const generation = generationByRequestId.get(reservation.provider_request_id);
+            const generation =
+              generationByRequestId.get(reservation.provider_request_id) ??
+              generationByAttemptProviderRequestId.get(reservation.provider_request_id);
             generationStatus = generation?.status ?? null;
-            if (generationStatus === "success") {
+            canonicalSuccessEvidence =
+              generation?.id !== undefined &&
+              (outputCountByGenerationId.get(generation.id) ?? 0) > 0;
+            if (generationStatus === "success" || canonicalSuccessEvidence) {
               reason = "";
             } else if (generationStatus) {
               reason = `Linked generation is ${generationStatus}.`;
@@ -398,7 +456,7 @@ export const buildAdminHealthResponse = ({
           reason = "Generation charge row has no source_ref.";
         }
 
-        if (generationStatus !== "success") {
+        if (generationStatus !== "success" && !canonicalSuccessEvidence) {
           costWithoutSuccessCents += debitAbs;
           costWithoutSuccessRows += 1;
           if (costWithoutSuccessSample.length < 20) {
@@ -500,7 +558,9 @@ export const buildAdminHealthResponse = ({
     .map(([reason, count]) => ({ reason, count }));
 
   const delayedOver30m = generations.filter((row) => {
-    if (!row.request_id) return false;
+    const hasProviderIdentity =
+      Boolean(row.request_id) || (attemptCountByGenerationId.get(row.id) ?? 0) > 0;
+    if (!hasProviderIdentity) return false;
     const status = row.status ?? "";
     if (!["pending", "submitted", "running", "fail"].includes(status)) return false;
     const recoveryState = row.recovery_state ?? "none";
@@ -752,6 +812,12 @@ export const buildAdminHealthResponse = ({
     },
     compatibility: {
       generationsSelectUsed,
+      attemptsSupported:
+        attempts.length > 0 ||
+        compatibilityWarnings.every((warning) => !warning.includes("generation_attempts")),
+      outputsSupported:
+        outputs.length > 0 ||
+        compatibilityWarnings.every((warning) => !warning.includes("ai_generation_outputs")),
       reservationsSupported,
       queueSupported,
       ledgerLegacySchema,

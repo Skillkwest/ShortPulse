@@ -14,6 +14,7 @@ export type CharacterManagerSurfacePolicy = {
   isEmbeddedSurface: boolean;
   effectiveBeginnerMode: boolean;
   showQuickSwapCollapseToggle: boolean;
+  showQuickSwapHelperText: boolean;
 };
 
 /**
@@ -32,5 +33,6 @@ export const resolveCharacterManagerSurfacePolicy = ({
     isEmbeddedSurface,
     effectiveBeginnerMode,
     showQuickSwapCollapseToggle: surface !== "panel" || effectiveBeginnerMode,
+    showQuickSwapHelperText: surface !== "panel",
   };
 };

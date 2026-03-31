@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import createHandler from "../../pages/api/media/folders/create";
+import moveHandler from "../../pages/api/media/folders/move";
 import listHandler from "../../pages/api/media/folders/list";
 import renameHandler from "../../pages/api/media/folders/rename";
 import deleteHandler from "../../pages/api/media/folders/delete";
@@ -8,6 +9,7 @@ const requireApiUserMock = vi.fn();
 const logApiRouteExceptionMock = vi.fn();
 const createMediaFolderForUserMock = vi.fn();
 const listMediaFoldersForUserMock = vi.fn();
+const moveMediaFolderForUserMock = vi.fn();
 const renameMediaFolderForUserMock = vi.fn();
 const deleteMediaFolderForUserMock = vi.fn();
 
@@ -25,6 +27,7 @@ vi.mock("../../lib/server/mediaFoldersService", async () => {
     ...actual,
     createMediaFolderForUser: (...args: unknown[]) => createMediaFolderForUserMock(...args),
     listMediaFoldersForUser: (...args: unknown[]) => listMediaFoldersForUserMock(...args),
+    moveMediaFolderForUser: (...args: unknown[]) => moveMediaFolderForUserMock(...args),
     renameMediaFolderForUser: (...args: unknown[]) => renameMediaFolderForUserMock(...args),
     deleteMediaFolderForUser: (...args: unknown[]) => deleteMediaFolderForUserMock(...args),
   };
@@ -46,6 +49,7 @@ describe("media folder CRUD routes", () => {
       id: "2d6fc803-2289-47a9-9a07-063ebf2eec4f",
       user_id: "user-1",
       name: "Campaign",
+      parent_folder_id: null,
       created_at: "2026-03-01T00:00:00.000Z",
       updated_at: "2026-03-01T00:00:00.000Z",
     });
@@ -59,6 +63,7 @@ describe("media folder CRUD routes", () => {
       folder: {
         id: "2d6fc803-2289-47a9-9a07-063ebf2eec4f",
         name: "Campaign",
+        parentFolderId: null,
         createdAt: "2026-03-01T00:00:00.000Z",
         updatedAt: "2026-03-01T00:00:00.000Z",
       },
@@ -75,12 +80,40 @@ describe("media folder CRUD routes", () => {
     expect(createMediaFolderForUserMock).not.toHaveBeenCalled();
   });
 
+  it("POST /create rejects invalid parent folder ids", async () => {
+    const req = { method: "POST", body: { name: "Campaign", parentFolderId: "not-a-uuid" } };
+    const res = createMockResponse();
+
+    await createHandler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(createMediaFolderForUserMock).not.toHaveBeenCalled();
+  });
+
+  it("POST /create returns 404 when parent folder is missing", async () => {
+    createMediaFolderForUserMock.mockRejectedValueOnce(new Error("Parent folder not found"));
+    const req = {
+      method: "POST",
+      body: {
+        name: "Campaign",
+        parentFolderId: "2d6fc803-2289-47a9-9a07-063ebf2eec4f",
+      },
+    };
+    const res = createMockResponse();
+
+    await createHandler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(404);
+    expect(res.json).toHaveBeenCalledWith({ error: "Parent folder not found" });
+  });
+
   it("GET /list returns mapped folders", async () => {
     listMediaFoldersForUserMock.mockResolvedValueOnce([
       {
         id: "2d6fc803-2289-47a9-9a07-063ebf2eec4f",
         user_id: "user-1",
         name: "Campaign",
+        parent_folder_id: null,
         created_at: "2026-03-01T00:00:00.000Z",
         updated_at: "2026-03-01T00:00:00.000Z",
       },
@@ -96,11 +129,40 @@ describe("media folder CRUD routes", () => {
         {
           id: "2d6fc803-2289-47a9-9a07-063ebf2eec4f",
           name: "Campaign",
+          parentFolderId: null,
           createdAt: "2026-03-01T00:00:00.000Z",
           updatedAt: "2026-03-01T00:00:00.000Z",
         },
       ],
     });
+  });
+
+  it("POST /create forwards a valid parent folder id to the service", async () => {
+    createMediaFolderForUserMock.mockResolvedValueOnce({
+      id: "8ce73f1e-b71f-4b6d-bd6b-b65107f1ced3",
+      user_id: "user-1",
+      name: "Child",
+      parent_folder_id: "2d6fc803-2289-47a9-9a07-063ebf2eec4f",
+      created_at: "2026-03-01T00:00:00.000Z",
+      updated_at: "2026-03-01T00:00:00.000Z",
+    });
+    const req = {
+      method: "POST",
+      body: {
+        name: "Child",
+        parentFolderId: "2d6fc803-2289-47a9-9a07-063ebf2eec4f",
+      },
+    };
+    const res = createMockResponse();
+
+    await createHandler(req as never, res as never);
+
+    expect(createMediaFolderForUserMock).toHaveBeenCalledWith({
+      userId: "user-1",
+      name: "Child",
+      parentFolderId: "2d6fc803-2289-47a9-9a07-063ebf2eec4f",
+    });
+    expect(res.status).toHaveBeenCalledWith(200);
   });
 
   it("POST /rename validates folder id format", async () => {
@@ -111,6 +173,108 @@ describe("media folder CRUD routes", () => {
 
     expect(res.status).toHaveBeenCalledWith(400);
     expect(renameMediaFolderForUserMock).not.toHaveBeenCalled();
+  });
+
+  it("POST /move validates parent folder id format", async () => {
+    const req = {
+      method: "POST",
+      body: {
+        folderId: "2d6fc803-2289-47a9-9a07-063ebf2eec4f",
+        parentFolderId: "not-a-uuid",
+      },
+    };
+    const res = createMockResponse();
+
+    await moveHandler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(moveMediaFolderForUserMock).not.toHaveBeenCalled();
+  });
+
+  it("POST /move returns 404 when folder is missing", async () => {
+    moveMediaFolderForUserMock.mockResolvedValueOnce(null);
+    const req = {
+      method: "POST",
+      body: {
+        folderId: "2d6fc803-2289-47a9-9a07-063ebf2eec4f",
+        parentFolderId: null,
+      },
+    };
+    const res = createMockResponse();
+
+    await moveHandler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(404);
+  });
+
+  it("POST /move returns 404 when parent folder is missing", async () => {
+    moveMediaFolderForUserMock.mockRejectedValueOnce(new Error("Parent folder not found"));
+    const req = {
+      method: "POST",
+      body: {
+        folderId: "2d6fc803-2289-47a9-9a07-063ebf2eec4f",
+        parentFolderId: "fc4896c0-5c40-41ba-a5bb-efdebac771d4",
+      },
+    };
+    const res = createMockResponse();
+
+    await moveHandler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(404);
+    expect(res.json).toHaveBeenCalledWith({ error: "Parent folder not found" });
+  });
+
+  it("POST /move returns 409 on hierarchy conflicts", async () => {
+    moveMediaFolderForUserMock.mockRejectedValueOnce(new Error("Invalid folder hierarchy"));
+    const req = {
+      method: "POST",
+      body: {
+        folderId: "2d6fc803-2289-47a9-9a07-063ebf2eec4f",
+        parentFolderId: "fc4896c0-5c40-41ba-a5bb-efdebac771d4",
+      },
+    };
+    const res = createMockResponse();
+
+    await moveHandler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(409);
+    expect(res.json).toHaveBeenCalledWith({ error: "Invalid folder hierarchy" });
+  });
+
+  it("POST /move returns the mapped folder payload", async () => {
+    moveMediaFolderForUserMock.mockResolvedValueOnce({
+      id: "2d6fc803-2289-47a9-9a07-063ebf2eec4f",
+      user_id: "user-1",
+      name: "Campaign",
+      parent_folder_id: "fc4896c0-5c40-41ba-a5bb-efdebac771d4",
+      created_at: "2026-03-01T00:00:00.000Z",
+      updated_at: "2026-03-02T00:00:00.000Z",
+    });
+    const req = {
+      method: "POST",
+      body: {
+        folderId: "2d6fc803-2289-47a9-9a07-063ebf2eec4f",
+        parentFolderId: "fc4896c0-5c40-41ba-a5bb-efdebac771d4",
+      },
+    };
+    const res = createMockResponse();
+
+    await moveHandler(req as never, res as never);
+
+    expect(moveMediaFolderForUserMock).toHaveBeenCalledWith({
+      userId: "user-1",
+      folderId: "2d6fc803-2289-47a9-9a07-063ebf2eec4f",
+      parentFolderId: "fc4896c0-5c40-41ba-a5bb-efdebac771d4",
+    });
+    expect(res.json).toHaveBeenCalledWith({
+      folder: {
+        id: "2d6fc803-2289-47a9-9a07-063ebf2eec4f",
+        name: "Campaign",
+        parentFolderId: "fc4896c0-5c40-41ba-a5bb-efdebac771d4",
+        createdAt: "2026-03-01T00:00:00.000Z",
+        updatedAt: "2026-03-02T00:00:00.000Z",
+      },
+    });
   });
 
   it("POST /rename returns 404 when folder is missing", async () => {
@@ -127,6 +291,37 @@ describe("media folder CRUD routes", () => {
     await renameHandler(req as never, res as never);
 
     expect(res.status).toHaveBeenCalledWith(404);
+  });
+
+  it("POST /rename returns parentFolderId in the mapped payload", async () => {
+    renameMediaFolderForUserMock.mockResolvedValueOnce({
+      id: "2d6fc803-2289-47a9-9a07-063ebf2eec4f",
+      user_id: "user-1",
+      name: "Renamed",
+      parent_folder_id: "fc4896c0-5c40-41ba-a5bb-efdebac771d4",
+      created_at: "2026-03-01T00:00:00.000Z",
+      updated_at: "2026-03-02T00:00:00.000Z",
+    });
+    const req = {
+      method: "POST",
+      body: {
+        folderId: "2d6fc803-2289-47a9-9a07-063ebf2eec4f",
+        name: "Renamed",
+      },
+    };
+    const res = createMockResponse();
+
+    await renameHandler(req as never, res as never);
+
+    expect(res.json).toHaveBeenCalledWith({
+      folder: {
+        id: "2d6fc803-2289-47a9-9a07-063ebf2eec4f",
+        name: "Renamed",
+        parentFolderId: "fc4896c0-5c40-41ba-a5bb-efdebac771d4",
+        createdAt: "2026-03-01T00:00:00.000Z",
+        updatedAt: "2026-03-02T00:00:00.000Z",
+      },
+    });
   });
 
   it("POST /delete returns 404 when folder is missing", async () => {

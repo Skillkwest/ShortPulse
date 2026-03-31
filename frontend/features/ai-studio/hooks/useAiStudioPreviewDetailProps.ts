@@ -4,6 +4,7 @@
  */
 import { useMemo } from "react";
 import type { StudioOutput, ToolId } from "../types";
+import { resolveActiveOutputPreviewUrl } from "../logic/activeOutputPreviewAuthority";
 import type { AiStudioPreviewDetailContracts } from "./contracts/pageContentContracts";
 
 type UseAiStudioPreviewDetailPropsParams = {
@@ -49,12 +50,10 @@ export const useAiStudioPreviewDetailProps = ({
   handleOpenMediaLibrary,
 }: UseAiStudioPreviewDetailPropsParams): AiStudioPreviewDetailContracts =>
   useMemo(() => {
-    const activeOutputPreviewUrl =
-      activeOutput?.previewUrl &&
-      (activeOutput.hiddenInReferenceGrid === true ||
-        referenceGridReadyOutputIds.has(activeOutput.id))
-        ? activeOutput.previewUrl
-        : null;
+    const activeOutputPreviewUrl = resolveActiveOutputPreviewUrl({
+      activeOutput,
+      referenceGridReadyOutputIds,
+    });
 
     return {
       studioPreviewProps: {

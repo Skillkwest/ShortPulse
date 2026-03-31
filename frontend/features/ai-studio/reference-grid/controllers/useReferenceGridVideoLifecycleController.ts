@@ -3,11 +3,10 @@
  * Encapsulates node registration, visibility observers, autoplay detachment, and cleanup.
  */
 import { useCallback, useEffect, useRef, type MutableRefObject } from "react";
-import type { StudioOutput } from "../../types";
 
 type UseReferenceGridVideoLifecycleControllerArgs = {
   activeOutputId: string | null;
-  outputs: StudioOutput[];
+  validOutputIds: string[];
   shouldVirtualize: boolean;
   renderedOutputIdSet: Set<string>;
   autoplayEnabledIds: string[];
@@ -37,7 +36,7 @@ type UseReferenceGridVideoLifecycleControllerResult = {
  */
 export const useReferenceGridVideoLifecycleController = ({
   activeOutputId,
-  outputs,
+  validOutputIds,
   shouldVirtualize,
   renderedOutputIdSet,
   autoplayEnabledIds,
@@ -122,7 +121,7 @@ export const useReferenceGridVideoLifecycleController = ({
   );
 
   useEffect(() => {
-    const validOutputIdSet = new Set(outputs.map((output) => output.id));
+    const validOutputIdSet = new Set(validOutputIds);
     let removedAny = false;
     videoOutputIdByKeyRef.current.forEach((outputId, nodeKey) => {
       if (validOutputIdSet.has(outputId)) return;
@@ -153,7 +152,7 @@ export const useReferenceGridVideoLifecycleController = ({
       scheduleAutoplayBudgetRecompute();
     }
   }, [
-    outputs,
+    validOutputIds,
     detachVideoNodeMedia,
     scheduleAutoplayBudgetRecompute,
     videoDetachTimeoutByKeyRef,
@@ -224,15 +223,13 @@ export const useReferenceGridVideoLifecycleController = ({
   ]);
 
   useEffect(() => {
-    const validOutputIds = shouldVirtualize
-      ? renderedOutputIdSet
-      : new Set(outputs.map((output) => output.id));
+    const validOutputIdSet = shouldVirtualize ? renderedOutputIdSet : new Set(validOutputIds);
     autoplayingIdsRef.current.forEach((id) => {
-      if (!validOutputIds.has(id)) {
+      if (!validOutputIdSet.has(id)) {
         autoplayingIdsRef.current.delete(id);
       }
     });
-  }, [autoplayingIdsRef, outputs, renderedOutputIdSet, shouldVirtualize]);
+  }, [autoplayingIdsRef, renderedOutputIdSet, shouldVirtualize, validOutputIds]);
 
   useEffect(() => {
     const enabledSet = new Set(autoplayEnabledIds);

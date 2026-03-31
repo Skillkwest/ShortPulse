@@ -3,7 +3,7 @@
 Date: 2026-03-27  
 Authority: Working  
 Owner: Engineering  
-Status: Active
+Status: Done at the current checkpoint
 
 ## Purpose
 This roadmap defines the remaining rebuild lanes after Phase 3 runtime-authority hardening.
@@ -34,13 +34,18 @@ The rebuild is done when:
 4. user-facing read and reuse surfaces rely on canonical output/storage authority
 5. billing, replay, recovery, and operator tooling converge on the same model
 
+Current decision:
+1. this roadmap is done at the current checkpoint
+2. remaining compatibility logic is bounded carry-forward, not unresolved authority drift
+3. any future removal work should open as a separate cleanup lane rather than continue this rebuild by momentum
+
 ## Remaining Lanes
 ### Lane 1: Request/Attempt State Machine
 Goal:
 1. replace the current split lifecycle authority with one server-owned request/attempt model
 
 Status:
-1. Checkpoint-complete for the current milestone
+1. Done at the current stronger checkpoint
 
 Primary surfaces:
 1. `frontend/lib/server/api/falSubmitProxy.ts`
@@ -60,6 +65,7 @@ Done state:
 4. request-id repair and recovery lookup prefer attempts over legacy request-id reads
 5. queue/admission/control-plane readers prefer attempts where provider ownership matters
 6. remaining `ai_generations.request_id` use is compatibility-only or part of a later explicit state-transition refactor
+7. accepted submit, request-id repair, and recovery use shared transition helpers/services instead of hand-rolled lifecycle mutation at each callsite
 
 ### Lane 2: Historical Compatibility Containment
 Goal:
@@ -183,8 +189,29 @@ Stop the current lane when:
 2. rollback rules exist before legacy contracts are removed
 3. cleanup does not proceed until compatibility-path retirement evidence is complete
 
+## Current Checkpoint
+1. Lane 1 is closed at the current stronger checkpoint.
+2. The bounded Lane 3 preview/detail read-authority slice is closed.
+3. The post-submit state-machine service job is done at its current checkpoint.
+4. The lifecycle read-model/control-plane convergence job is done at its current checkpoint.
+5. The recovery control-plane orchestration job is done at its current checkpoint.
+6. The provider-event ingress and replay job is done at its current checkpoint.
+7. Lane 4 operator-map, SOP, monitoring, and internal-route alignment is closed at its current checkpoint.
+8. The admin trace and health alignment job is done at its current checkpoint.
+9. The generated reuse and drag/drop authority job is done at its current bounded checkpoint.
+10. The broader generated reuse authority cutover across downstream consumers is done at its current checkpoint.
+11. The compatibility-retirement evidence lane is done at the current checkpoint, with the remaining compatibility paths classified as bounded carry-forward.
+12. The broader rebuild roadmap is done at the current checkpoint; any future continuation must reopen as a newly scoped cleanup or removal job.
+
 ## Immediate Next Move
-1. treat Lane 1 as done for the current milestone and stop narrow seam work there
-2. checkpoint and promote this branch through the normal development -> staging preview path
-3. do not auto-open Lane 3; only start it if we choose a bounded read-authority objective with regression protection
-4. only reopen Lane 1 or Lane 2 if a concrete forward-pipeline risk justifies it
+1. keep Lane 1 closed at the current stronger checkpoint
+2. keep Lane 3 paused at the bounded preview/detail checkpoint
+3. treat the mutation-focused state-machine service lane as complete at the current checkpoint
+4. treat the lifecycle read-model/control-plane lane as done at its current checkpoint after shared recovery claim policy extraction
+5. treat the recovery control-plane orchestration job as done at its current checkpoint
+6. treat the provider-event ingress/replay job as done at its current checkpoint
+7. keep the admin trace and health alignment job closed at its current checkpoint
+8. treat the bounded generated reuse and drag/drop lane as complete at its checkpoint
+9. treat the broader generated reuse authority cutover as done at its current checkpoint after downstream consumer alignment
+10. notify the user that the broader rebuild is done at the current checkpoint
+11. stop this job and do not continue unless a new explicitly scoped cleanup or removal lane is opened

@@ -32,7 +32,8 @@ npm run build
 - Follow `docs/dev-ground-rules.md` and `docs/conventions.md`.
 - Use `docs/agent-playbook.md` as the quick reference for working in this repo.
 - Keep user data isolated (Supabase RLS + private storage); never expose service-role keys.
-- Branch promotion policy: never push directly to `main`. Work must land on user-chosen development branches first, then be promoted to the staging preview branch, and only after staging validation may it be promoted to `main`.
+- Branch isolation policy: work only on the current user-approved branch. Do not switch branches, commit on another branch, push another branch, merge into another branch, or promote work to another branch unless the user explicitly instructs that specific branch action in the current thread. Never push directly to `main`.
+- Branch enforcement policy: keep `git config --local shortpulse.allowedBranch` set to the current user-approved branch. Husky `pre-commit` and `pre-push` must block commit/push activity when the current branch or push target does not match that allowed branch.
 - Supabase operations policy: use Supabase CLI for Supabase access; do not use Docker-based Supabase workflows (`supabase start/stop`, `supabase db reset --local`, `supabase db lint --local`, or direct `docker` commands).
 - When adding routes, update `README.md` and the relevant SOP/architecture doc under `docs/`.
 - For durable architecture decisions, add an ADR under `docs/adr/`.
@@ -79,7 +80,9 @@ Follow this startup sequence at the start of every new task/session in this repo
 6. **Execution/closeout defaults**
 - Keep diffs minimal and scoped to the request.
 - Do not continue by adjacency or momentum alone; each new lane must have a concrete repo-backed problem statement and better ROI than stopping.
-- Do not push to `main` directly. Treat `main` as promotion-only after successful development-branch work and staging preview validation.
+- Stay on the current user-approved branch for all edits, commits, and pushes unless the user explicitly authorizes a different branch action in the current thread.
+- Before changing the working branch by instruction, update `git config --local shortpulse.allowedBranch <branch>` first so local hooks keep enforcing the active branch contract.
+- Do not push to `main` directly under any circumstances unless the user explicitly changes this rule.
 - Run relevant validation checks for touched areas.
 - Perform a final self-audit for missed high-value updates and provide suggested next steps.
 

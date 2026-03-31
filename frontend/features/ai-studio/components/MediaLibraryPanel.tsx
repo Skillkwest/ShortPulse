@@ -3,36 +3,23 @@
  * Provides folder-aware browsing for media + prompts with adaptive preview/signing parity.
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { FolderSimple } from "phosphor-react";
+import { ArrowsOutSimple, CheckCircle, FolderSimple, UploadSimple } from "phosphor-react";
 import { isAdaptiveSurfaceEnabled } from "../../../lib/adaptive-media";
-import {
-  MEDIA_PREVIEW_SIGN_BATCH_MAX_ATTEMPTS_PER_ITEM,
-  resolveMediaPreviewSignBudget,
-  type MediaSignBudget,
-} from "../../../lib/mediaPreviewRuntimePolicy";
-import type { MediaPreviewTransformProfile } from "../../../lib/mediaPreviewTransformProfile";
+import { MEDIA_PREVIEW_SIGN_BATCH_MAX_ATTEMPTS_PER_ITEM } from "../../../lib/mediaPreviewRuntimePolicy";
 import { ensureSupabaseQueryClient, readSupabaseUserId } from "../../../lib/supabaseClient";
 import { useVisibleErrorTelemetry } from "../../../lib/useVisibleErrorTelemetry";
 import { useMediaAdaptivePressure } from "../../media-library/hooks/useMediaAdaptivePressure";
-import { useMediaPreviewRecoveryController } from "../../media-library/hooks/useMediaPreviewRecoveryController";
-import { useMediaPreviewSigningController } from "../../media-library/hooks/useMediaPreviewSigningController";
+import { useMediaSurfacePreviewSigning } from "../../media-library/hooks/useMediaSurfacePreviewSigning";
+import { useMediaSurfacePreviewRuntime } from "../../media-library/hooks/useMediaSurfacePreviewRuntime";
 import {
   MEDIA_LIBRARY_PANEL_CONSTANT_COMPRESSION_ENABLED,
   MEDIA_LIBRARY_SIGN_PREFETCH_ENABLED,
 } from "../../media-library/logic/mediaLibraryFeatureFlags";
-import { resolveSignedSelectionUrl } from "../../media-library/logic/mediaPreviewResolver";
-import {
-  hydrateMediaPreviewViaStorageDownload,
-  resolveAndApplySignedPreviewUrlsByRows,
-  signMediaStoragePath,
-} from "../../media-library/logic/mediaPreviewRuntimeShared";
 import {
   BUCKET,
-  createMediaTabBooleanState,
   getMediaDataTabForRow,
   isNextImageOptimizerUrl,
   isVideoFile,
-  normalizeMediaSearchTerm,
   resolveMediaMetadataPromptText,
   resolveNextImageOptimizerSourceUrl,
   sortByCreatedAtDesc,
@@ -41,6 +28,7 @@ import {
   type MediaTab,
   type PromptRow,
 } from "../logic/mediaLibraryModalModel";
+import { getMediaLibrarySurfaceConfig } from "../../media-library/runtime";
 import { MEDIA_LIBRARY_ROOT_FOLDER_ID } from "../logic/mediaLibraryPanelApi";
 import { resolveMediaDragDimensions } from "../logic/mediaLibraryAspectRatio";
 import {
@@ -57,22 +45,25 @@ import { useMediaLibraryFolderDropController } from "../hooks/useMediaLibraryFol
 import { useMediaLibraryPanelMutationController } from "../hooks/useMediaLibraryPanelMutationController";
 import { useMediaLibraryPanelSelectionController } from "../hooks/useMediaLibraryPanelSelectionController";
 import type { InternalReferenceDragPayload } from "../utils/dragDrop";
-import type { ResolveCanvasDropReference } from "./canvas/canvasTypes";
-import { MediaLibraryFolderCanvas } from "./MediaLibraryFolderCanvas";
 import { MediaLibraryPanelFoldersSection } from "./MediaLibraryPanelFoldersSection";
 import { MediaLibraryMediaGrid } from "./media-library-modal/MediaLibraryMediaGrid";
 import { MediaLibraryPanelPreviewModal } from "./media-library-modal/MediaLibraryPanelPreviewModal";
 import { MediaLibraryPromptGrid } from "./media-library-modal/MediaLibraryPromptGrid";
 import { AiStudioModalLayer, useAiStudioModalActivity } from "./modal-layer/AiStudioModalLayer";
 
-type MediaLibraryPanelItemType = "all" | "images" | "videos" | "prompts";
-type RootMediaLibraryTab = "images" | "videos" | "prompts";
+type MediaLibraryPanelItemType = "all" | "images" | "videos" | "audio" | "prompts";
+type RootMediaLibraryTab = "all" | "images" | "videos" | "audio" | "prompts";
 
 type FolderContextMenuState = {
   folderId: string;
   folderName: string;
   x: number;
   y: number;
+};
+
+type MoveFolderPickerState = {
+  folderId: string;
+  folderName: string;
 };
 
 type MediaLibraryPanelProps = {
@@ -89,34 +80,21 @@ type MediaLibraryPanelProps = {
     fullUrl?: string | null;
   }) => void;
   onSelectPrompt: (payload: { id: string; promptText: string; title?: string | null }) => void;
+  projectName?: string | null;
+  onProjectNameCommit?: (value: string) => void;
+  onExpandMediaLibraryPanel?: () => void;
   resolveInternalDropItem?: (payload: InternalReferenceDragPayload) => Promise<{
     kind: "media" | "prompt";
     id: string;
   } | null>;
-  resolveCanvasDropReference?: ResolveCanvasDropReference;
 };
 
-const ROOT_FOLDER_LABEL = "All Media";
 const FOLDER_CONTEXT_MENU_WIDTH_PX = 156;
 const FOLDER_CONTEXT_MENU_HEIGHT_PX = 84;
 const FOLDER_CONTEXT_MENU_VIEWPORT_PADDING_PX = 10;
-const SUPABASE_RENDER_IMAGE_PATH = "/storage/v1/render/image/";
-const MEDIA_LIBRARY_PANEL_SIGN_SMALL_SCREEN_QUERY = "(max-width: 900px)";
-const MEDIA_LIBRARY_PANEL_SIGN_BUDGET_DESKTOP: MediaSignBudget = {
-  initialSignLimit: 4,
-  prefetchWindow: 4,
-  signBatchSize: 4,
-};
-const MEDIA_LIBRARY_PANEL_SIGN_BUDGET_SMALL_SCREEN: MediaSignBudget = {
-  initialSignLimit: 3,
-  prefetchWindow: 3,
-  signBatchSize: 3,
-};
-const MEDIA_LIBRARY_PANEL_SIGN_BUDGET_CONSTRAINED: MediaSignBudget = {
-  initialSignLimit: 2,
-  prefetchWindow: 2,
-  signBatchSize: 2,
-};
+const MEMBERSHIP_MESSAGE_TIMEOUT_MS = 1800;
+const MEDIA_LIBRARY_FOLDERS_EXPANDED_GRID_TOP_HEIGHT_PX = 0;
+const MEDIA_LIBRARY_FOLDERS_COLLAPSE_TOP_HEIGHT_PX = 86;
 
 const setTransferDataSafe = (transfer: DataTransfer, type: string, value: string): void => {
   try {
@@ -126,36 +104,28 @@ const setTransferDataSafe = (transfer: DataTransfer, type: string, value: string
   }
 };
 
-const isTransformedImagePreviewUrl = (value: string | null | undefined): boolean => {
-  const normalized = (value ?? "").trim();
-  if (!normalized) return false;
-  if (isNextImageOptimizerUrl(normalized)) return true;
-  return normalized.includes(SUPABASE_RENDER_IMAGE_PATH);
-};
-
 const resolveSigningTab = (itemType: MediaLibraryPanelItemType): MediaDataTab => {
   if (itemType === "videos") return "uploaded_videos";
   return "uploaded_images";
 };
 
-const resolvePanelSignBudget = (): MediaSignBudget =>
-  resolveMediaPreviewSignBudget({
-    desktop: MEDIA_LIBRARY_PANEL_SIGN_BUDGET_DESKTOP,
-    smallScreen: MEDIA_LIBRARY_PANEL_SIGN_BUDGET_SMALL_SCREEN,
-    constrained: MEDIA_LIBRARY_PANEL_SIGN_BUDGET_CONSTRAINED,
-    smallScreenQuery: MEDIA_LIBRARY_PANEL_SIGN_SMALL_SCREEN_QUERY,
-  });
-
 export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
   onSelectMedia,
   onSelectPrompt,
+  projectName = null,
+  onProjectNameCommit,
+  onExpandMediaLibraryPanel,
   resolveInternalDropItem,
-  resolveCanvasDropReference,
 }: MediaLibraryPanelProps) {
+  const panelSurfaceConfig = getMediaLibrarySurfaceConfig("panel");
   const {
     folders,
-    orderedFolders,
+    visibleFolders,
+    ancestorFolders,
     activeFolderId,
+    activeFolderName,
+    activeFolderParentId,
+    canNavigateUp,
     setActiveFolderId,
     folderError,
     setFolderError,
@@ -167,50 +137,35 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
     startFolderRename,
     cancelFolderRename,
     commitFolderRename,
+    moveFolder,
     deleteFolder,
   } = useMediaLibraryFoldersState();
 
   const isRootFolderSelected = activeFolderId === MEDIA_LIBRARY_ROOT_FOLDER_ID;
-  const [rootTab, setRootTab] = useState<RootMediaLibraryTab>("images");
+  const [rootTab, setRootTab] = useState<RootMediaLibraryTab>("all");
   const itemType: MediaLibraryPanelItemType = isRootFolderSelected ? rootTab : "all";
-  const [search, setSearch] = useState("");
-  const [debouncedSearch, setDebouncedSearch] = useState("");
 
   const [error, setError] = useState<string | null>(null);
-  const [, setMembershipMessage] = useState<string | null>(null);
+  const [membershipMessage, setMembershipMessage] = useState<string | null>(null);
+  const [membershipPendingMessage, setMembershipPendingMessage] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
   const [folderContextMenu, setFolderContextMenu] = useState<FolderContextMenuState | null>(null);
+  const [moveFolderPicker, setMoveFolderPicker] = useState<MoveFolderPickerState | null>(null);
+  const [projectNameDraft, setProjectNameDraft] = useState(projectName ?? "");
 
-  const signedUrlRetryRef = useRef<Record<string, number>>({});
-  const signAttemptRef = useRef<Record<string, number>>({});
-  const downloadFallbackInFlightRef = useRef<Record<string, boolean>>({});
   const mediaDownloadInFlightRef = useRef<Record<string, boolean>>({});
-  const objectUrlByMediaIdRef = useRef<Record<string, string>>({});
-  const currentUserIdRef = useRef<string | null>(null);
-  const isMountedRef = useRef(true);
-
-  const activeTabRef = useRef<MediaTab>("uploaded_images");
-  const activeMediaQueryRef = useRef("");
-  const mediaSignInFlightRef = useRef(createMediaTabBooleanState());
+  const rootUploadInputRef = useRef<HTMLInputElement | null>(null);
 
   const panelBodyRef = useRef<HTMLDivElement | null>(null);
   const splitContainerRef = useRef<HTMLDivElement | null>(null);
-  const mediaCardNodesRef = useRef<Map<string, HTMLButtonElement>>(new Map());
-  const mediaCardRefCallbacksRef = useRef<Record<string, (node: HTMLButtonElement | null) => void>>(
-    {}
-  );
-  const mediaCardObserverRef = useRef<IntersectionObserver | null>(null);
-  const visibleMediaIdsRef = useRef<Set<string>>(new Set());
-  const [visibleMediaVersion, setVisibleMediaVersion] = useState(0);
   const folderContextMenuRef = useRef<HTMLDivElement | null>(null);
-  const [signPassNonce, setSignPassNonce] = useState(0);
-  const [signBudget, setSignBudget] = useState<MediaSignBudget>(resolvePanelSignBudget);
-  const [folderCanvasFullSignedById, setFolderCanvasFullSignedById] = useState<
-    Record<string, string>
-  >({});
   const [optimizerFallbackMediaIds, setOptimizerFallbackMediaIds] = useState<Set<string>>(
     () => new Set()
   );
+
+  useEffect(() => {
+    setProjectNameDraft(projectName ?? "");
+  }, [projectName]);
 
   const adaptivePreviewQualityEnabled = isAdaptiveSurfaceEnabled("media-library-panel-grid");
   const mediaAdaptivePressure = useMediaAdaptivePressure({
@@ -218,26 +173,22 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
     enabled: adaptivePreviewQualityEnabled,
   });
 
-  const normalizedSearch = useMemo(
-    () => normalizeMediaSearchTerm(debouncedSearch),
-    [debouncedSearch]
-  );
-  const shouldShowMedia = itemType !== "prompts";
-  const shouldShowPrompts = itemType === "prompts" || itemType === "all";
-  const showFolderCanvas =
-    activeFolderId !== MEDIA_LIBRARY_ROOT_FOLDER_ID && shouldShowMedia && shouldShowPrompts;
+  const normalizedSearch = "";
+  const shouldShowMedia = itemType !== "prompts" && itemType !== "audio";
+  const shouldShowPrompts = itemType === "prompts" || (!isRootFolderSelected && itemType === "all");
+  // Folder canvas remains a secondary domain and is no longer the default folder browse surface.
+  const showFolderCanvas = false;
   const {
     error: dataError,
     mediaRows,
     setMediaRows,
+    libraryTotalCount,
     promptRows,
     setPromptRows,
     mediaHasMore,
     promptHasMore,
     mediaLoading,
     promptLoading,
-    mediaScopeResolved,
-    promptScopeResolved,
     loadMediaPage,
     loadPromptPage,
     refreshActiveRows,
@@ -258,7 +209,6 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
     closeDeleteConfirm,
     confirmDeleteFromLibrary,
     handleRemoveItemFromActiveFolder,
-    handleAssignItemToActiveFolder,
     uploadDroppedFilesToFolder,
   } = useMediaLibraryPanelMutationController({
     activeFolderId,
@@ -270,7 +220,27 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
     setPromptRows,
   });
   useAiStudioModalActivity("media-library-panel-delete-confirm", Boolean(pendingLibraryDelete));
+  useAiStudioModalActivity("media-library-panel-move-folder", Boolean(moveFolderPicker));
   const visiblePromptRows = useMemo(() => sortByCreatedAtDesc(promptRows), [promptRows]);
+  const foldersById = useMemo(
+    () => new Map(folders.map((folder) => [folder.id, folder])),
+    [folders]
+  );
+  const buildFolderPathLabel = useCallback(
+    (targetFolderId: string | null): string => {
+      if (targetFolderId === null) return "All Media";
+      const chain: string[] = [];
+      let cursor = foldersById.get(targetFolderId) ?? null;
+      const seen = new Set<string>();
+      while (cursor && !seen.has(cursor.id)) {
+        seen.add(cursor.id);
+        chain.unshift(cursor.name);
+        cursor = cursor.parentFolderId ? (foldersById.get(cursor.parentFolderId) ?? null) : null;
+      }
+      return chain.length > 0 ? `All Media > ${chain.join(" > ")}` : "All Media";
+    },
+    [foldersById]
+  );
   const visibleImageRows = useMemo(
     () => mediaRows.filter((row) => !isVideoFile(row.file_type)),
     [mediaRows]
@@ -279,11 +249,56 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
     () => mediaRows.filter((row) => isVideoFile(row.file_type)),
     [mediaRows]
   );
-  const folderCanvasDataReady = showFolderCanvas && mediaScopeResolved && promptScopeResolved;
   const activeMediaTab = useMemo<MediaDataTab | null>(() => {
     if (!shouldShowMedia || mediaRows.length === 0) return null;
     return resolveSigningTab(itemType);
   }, [itemType, mediaRows.length, shouldShowMedia]);
+  const applySignedUrlsToMediaRows = useCallback(
+    (_tab: MediaDataTab, signedById: Map<string, string>) => {
+      if (!signedById.size) return;
+      setMediaRows((previous) =>
+        previous.map((row) => {
+          const signedUrl = signedById.get(row.id);
+          if (!signedUrl || row.signedUrl === signedUrl) return row;
+          return { ...row, signedUrl };
+        })
+      );
+    },
+    [setMediaRows]
+  );
+  const previewRuntime = useMediaSurfacePreviewRuntime<MediaFileRow, MediaTab, HTMLButtonElement>({
+    activeMediaQuery: normalizedSearch,
+    activeTab: activeMediaTab ?? "saved_prompts",
+    firstMediaPaintEventName: "media.modal.first_media_paint",
+    previewProfile: panelSurfaceConfig.imageCardPreviewProfile,
+    signBudgetResolver: panelSurfaceConfig.signBudgetResolver,
+    surface: panelSurfaceConfig.listSurface,
+    visibilityRootMargin: panelSurfaceConfig.visibilityRootMargin,
+    visibilityRootRef: panelBodyRef as React.MutableRefObject<HTMLElement | null>,
+    applySignedUrlsToSurface: applySignedUrlsToMediaRows,
+    setFiles: setMediaRows,
+    beforeRetry: ({ row, failedUrl }) => {
+      if (!isNextImageOptimizerUrl(failedUrl)) return;
+      const sourceUrl = resolveNextImageOptimizerSourceUrl(failedUrl);
+      if (!sourceUrl) return;
+      applySignedUrlsToMediaRows(getMediaDataTabForRow(row), new Map([[row.id, sourceUrl]]));
+      setOptimizerFallbackMediaIds((previous) => {
+        if (previous.has(row.id)) return previous;
+        const next = new Set(previous);
+        next.add(row.id);
+        return next;
+      });
+    },
+  });
+  const {
+    currentUserIdRef,
+    getMediaCardRef,
+    handleMediaPreviewError,
+    refreshSignedUrl,
+    signAttemptRef,
+    signStoragePath,
+    signedUrlRetryRef,
+  } = previewRuntime;
   const foldersSplit = useReferenceGridHorizontalSplit({
     enabled: true,
     containerRef: splitContainerRef as React.MutableRefObject<HTMLElement | null>,
@@ -291,8 +306,8 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
     minTopSectionHeightPx: 0,
     minTopRatioFloor: 0,
     minBottomSectionHeightPx: 240,
-    allRefsSnapTopHeightPx: 120,
-    collapseTopHeightPx: 86,
+    allRefsSnapTopHeightPx: MEDIA_LIBRARY_FOLDERS_EXPANDED_GRID_TOP_HEIGHT_PX,
+    collapseTopHeightPx: MEDIA_LIBRARY_FOLDERS_COLLAPSE_TOP_HEIGHT_PX,
     ariaLabel: "Resize folders and references sections",
   });
 
@@ -310,19 +325,19 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
   });
 
   useEffect(() => {
-    const timeoutId = window.setTimeout(() => {
-      setDebouncedSearch(search);
-    }, 220);
-    return () => window.clearTimeout(timeoutId);
-  }, [search]);
-
-  useEffect(() => {
-    activeMediaQueryRef.current = normalizedSearch;
-  }, [normalizedSearch]);
-
-  useEffect(() => {
     setMembershipMessage(null);
+    setMembershipPendingMessage(null);
   }, [activeFolderId, itemType, normalizedSearch]);
+
+  useEffect(() => {
+    if (!membershipMessage) return;
+    const timeout = window.setTimeout(() => {
+      setMembershipMessage(null);
+    }, MEMBERSHIP_MESSAGE_TIMEOUT_MS);
+    return () => {
+      window.clearTimeout(timeout);
+    };
+  }, [membershipMessage]);
 
   useEffect(() => {
     setSelectedIds(new Set());
@@ -331,32 +346,6 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
   useEffect(() => {
     setError(dataError);
   }, [dataError]);
-
-  useEffect(() => {
-    activeTabRef.current = activeMediaTab ?? "saved_prompts";
-  }, [activeMediaTab]);
-
-  useEffect(() => {
-    if (typeof window === "undefined" || typeof navigator === "undefined") return;
-    const refreshBudget = () => {
-      setSignBudget((prev) => {
-        const next = resolvePanelSignBudget();
-        if (
-          prev.initialSignLimit === next.initialSignLimit &&
-          prev.prefetchWindow === next.prefetchWindow &&
-          prev.signBatchSize === next.signBatchSize
-        ) {
-          return prev;
-        }
-        return next;
-      });
-    };
-    refreshBudget();
-    window.addEventListener("resize", refreshBudget);
-    return () => {
-      window.removeEventListener("resize", refreshBudget);
-    };
-  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -372,23 +361,12 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
     return () => {
       cancelled = true;
     };
-  }, []);
-
-  useEffect(
-    () => () => {
-      for (const objectUrl of Object.values(objectUrlByMediaIdRef.current)) {
-        URL.revokeObjectURL(objectUrl);
-      }
-      objectUrlByMediaIdRef.current = {};
-      isMountedRef.current = false;
-    },
-    []
-  );
+  }, [currentUserIdRef]);
 
   useEffect(() => {
     signAttemptRef.current = {};
     setOptimizerFallbackMediaIds(new Set());
-  }, [activeFolderId, itemType, normalizedSearch]);
+  }, [activeFolderId, itemType, normalizedSearch, signAttemptRef]);
 
   useEffect(() => {
     if (!folderContextMenu) return;
@@ -418,119 +396,6 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
       window.removeEventListener("scroll", dismissContextMenu, true);
     };
   }, [folderContextMenu]);
-
-  const applySignedUrlsToMediaRows = useCallback(
-    (_tab: MediaDataTab, signedById: Map<string, string>) => {
-      if (!signedById.size) return;
-      setMediaRows((previous) =>
-        previous.map((row) => {
-          const signedUrl = signedById.get(row.id);
-          if (!signedUrl || row.signedUrl === signedUrl) return row;
-          return { ...row, signedUrl };
-        })
-      );
-    },
-    [setMediaRows]
-  );
-
-  const setObjectUrlForMediaRow = useCallback(
-    (row: MediaFileRow, objectUrl: string) => {
-      const previousObjectUrl = objectUrlByMediaIdRef.current[row.id];
-      if (previousObjectUrl && previousObjectUrl !== objectUrl) {
-        URL.revokeObjectURL(previousObjectUrl);
-      }
-      objectUrlByMediaIdRef.current[row.id] = objectUrl;
-      applySignedUrlsToMediaRows(resolveSigningTab(itemType), new Map([[row.id, objectUrl]]));
-    },
-    [applySignedUrlsToMediaRows, itemType]
-  );
-
-  const hydrateViaStorageDownload = useCallback(
-    async (row: MediaFileRow): Promise<string | null> => {
-      if (downloadFallbackInFlightRef.current[row.id]) return null;
-      downloadFallbackInFlightRef.current[row.id] = true;
-      try {
-        const supabase = ensureSupabaseQueryClient();
-        return await hydrateMediaPreviewViaStorageDownload({
-          row,
-          currentUserId: currentUserIdRef.current,
-          downloadFromStoragePath: async (storagePath) => {
-            const { data, error: downloadError } = await supabase.storage
-              .from(BUCKET)
-              .download(storagePath);
-            if (downloadError || !data) return null;
-            return data as Blob;
-          },
-          applyObjectUrlForRow: setObjectUrlForMediaRow,
-        });
-      } catch {
-        return null;
-      } finally {
-        downloadFallbackInFlightRef.current[row.id] = false;
-      }
-    },
-    [setObjectUrlForMediaRow]
-  );
-
-  const resolveSignedUrlsByMediaIds = useCallback(
-    async (_tab: MediaDataTab, rows: MediaFileRow[]): Promise<Set<string>> => {
-      const rowsByTab = new Map<MediaDataTab, MediaFileRow[]>();
-      for (const row of rows) {
-        const tab = getMediaDataTabForRow(row);
-        const bucketRows = rowsByTab.get(tab) ?? [];
-        bucketRows.push(row);
-        rowsByTab.set(tab, bucketRows);
-      }
-      const unresolved = new Set<string>();
-      for (const [tab, tabRows] of rowsByTab.entries()) {
-        const unresolvedInTab = await resolveAndApplySignedPreviewUrlsByRows({
-          tab,
-          rows: tabRows,
-          applySignedUrlsToTab: applySignedUrlsToMediaRows,
-          surface: "media-library-panel",
-        });
-        unresolvedInTab.forEach((id) => unresolved.add(id));
-      }
-      return unresolved;
-    },
-    [applySignedUrlsToMediaRows]
-  );
-
-  const signStoragePath = useCallback(
-    (
-      storagePath: string,
-      options?: {
-        forceRefresh?: boolean;
-        previewProfile?: MediaPreviewTransformProfile;
-      }
-    ): Promise<string | null> => signMediaStoragePath(storagePath, options),
-    []
-  );
-
-  const { refreshSignedUrl, handleMediaPreviewError } =
-    useMediaPreviewRecoveryController<MediaFileRow>({
-      applySignedUrlsToTab: applySignedUrlsToMediaRows,
-      currentUserIdRef,
-      resolveSignedUrlsByMediaIds,
-      hydrateViaStorageDownload,
-      signStoragePath,
-      signedUrlRetryRef,
-      objectUrlByMediaIdRef,
-      resolveTabForRow: getMediaDataTabForRow,
-      previewProfile: "media-library-panel-image-card",
-      beforeRetry: ({ row, failedUrl }) => {
-        if (!isNextImageOptimizerUrl(failedUrl)) return;
-        const sourceUrl = resolveNextImageOptimizerSourceUrl(failedUrl);
-        if (!sourceUrl) return;
-        applySignedUrlsToMediaRows(getMediaDataTabForRow(row), new Map([[row.id, sourceUrl]]));
-        setOptimizerFallbackMediaIds((previous) => {
-          if (previous.has(row.id)) return previous;
-          const next = new Set(previous);
-          next.add(row.id);
-          return next;
-        });
-      },
-    });
 
   const {
     previewModalFile,
@@ -577,58 +442,13 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
     [handleSelectMediaFile]
   );
 
-  useEffect(() => {
-    let cancelled = false;
-    if (!showFolderCanvas) {
-      setFolderCanvasFullSignedById({});
-      return () => {
-        cancelled = true;
-      };
-    }
-
-    const hydrateFolderCanvasFullUrls = async () => {
-      const nextById: Record<string, string> = {};
-      await Promise.all(
-        mediaRows.map(async (row) => {
-          const resolvedUrl = await resolveSignedSelectionUrl({
-            row,
-            currentUserId: currentUserIdRef.current,
-            signStoragePath,
-          }).catch(() => null);
-          const normalized = (resolvedUrl ?? "").trim();
-          if (!normalized) return;
-          nextById[row.id] = normalized;
-        })
-      );
-      if (cancelled) return;
-      setFolderCanvasFullSignedById(nextById);
-    };
-
-    void hydrateFolderCanvasFullUrls();
-    return () => {
-      cancelled = true;
-    };
-  }, [mediaRows, showFolderCanvas, signStoragePath]);
-
-  useMediaPreviewSigningController({
+  useMediaSurfacePreviewSigning<MediaFileRow, MediaTab>({
+    runtime: previewRuntime,
     activeMediaTab,
     activeMediaCacheLoading: mediaLoading,
     activeMediaCachePagesLoaded: 1,
-    activeMediaQueryRef,
-    activeTabRef,
-    applySignedUrlsToTab: applySignedUrlsToMediaRows,
-    currentUserIdRef,
+    activeMediaQuery: normalizedSearch,
     filteredMedia: mediaRows,
-    hydrateViaStorageDownload,
-    isMountedRef,
-    mediaSignInFlightRef,
-    resolveSignedUrlsByMediaIds,
-    setSignPassNonce,
-    signAttemptRef,
-    signBudget,
-    signPassNonce,
-    visibleMediaIdsRef,
-    visibleMediaVersion,
     isSigningPassEnabled: shouldShowMedia,
     surface: "media-library-panel",
     unresolvedWarningPrefix: "[media-library-panel]",
@@ -636,70 +456,6 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
     maxSignCandidatesPerRow: 4,
     isSignPrefetchEnabled: MEDIA_LIBRARY_SIGN_PREFETCH_ENABLED,
   });
-
-  const getMediaCardRef = useCallback((fileId: string) => {
-    const existing = mediaCardRefCallbacksRef.current[fileId];
-    if (existing) return existing;
-    const callback = (node: HTMLButtonElement | null) => {
-      const previousNode = mediaCardNodesRef.current.get(fileId);
-      if (previousNode && previousNode !== node) {
-        mediaCardObserverRef.current?.unobserve(previousNode);
-      }
-      if (!node) {
-        mediaCardNodesRef.current.delete(fileId);
-        if (visibleMediaIdsRef.current.delete(fileId)) {
-          setVisibleMediaVersion((previousVersion) => previousVersion + 1);
-        }
-        return;
-      }
-      node.dataset.mediaId = fileId;
-      mediaCardNodesRef.current.set(fileId, node);
-      mediaCardObserverRef.current?.observe(node);
-    };
-    mediaCardRefCallbacksRef.current[fileId] = callback;
-    return callback;
-  }, []);
-
-  useEffect(() => {
-    if (typeof IntersectionObserver === "undefined") return;
-    const visibleIds = visibleMediaIdsRef.current;
-    const observer = new IntersectionObserver(
-      (entries) => {
-        let changed = false;
-        for (const entry of entries) {
-          const mediaId = (entry.target as HTMLElement).dataset.mediaId;
-          if (!mediaId) continue;
-          if (entry.isIntersecting) {
-            if (!visibleIds.has(mediaId)) {
-              visibleIds.add(mediaId);
-              changed = true;
-            }
-            continue;
-          }
-          if (visibleIds.delete(mediaId)) {
-            changed = true;
-          }
-        }
-        if (changed) {
-          setVisibleMediaVersion((previousVersion) => previousVersion + 1);
-        }
-      },
-      {
-        root: panelBodyRef.current,
-        rootMargin: "460px 0px",
-        threshold: 0.01,
-      }
-    );
-    mediaCardObserverRef.current = observer;
-    for (const node of mediaCardNodesRef.current.values()) {
-      observer.observe(node);
-    }
-    return () => {
-      observer.disconnect();
-      mediaCardObserverRef.current = null;
-      visibleIds.clear();
-    };
-  }, []);
 
   useEffect(() => {
     resetDeleteConfirmState();
@@ -710,6 +466,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
     folders,
     setFolderError,
     setMembershipMessage,
+    setMembershipPendingMessage,
     refreshActiveRows,
     resolveInternalDropItem,
     onDropFilesToFolder: async (folderId, files) => {
@@ -880,7 +637,6 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
         setFolderContextMenu(null);
         return;
       }
-      setActiveFolderId(folder.id);
       const boundedX = Math.min(
         event.clientX,
         window.innerWidth - FOLDER_CONTEXT_MENU_WIDTH_PX - FOLDER_CONTEXT_MENU_VIEWPORT_PADDING_PX
@@ -905,29 +661,113 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
     setFolderContextMenu(null);
   }, [folderContextMenu, startFolderRename]);
 
+  const handleContextCreateSubfolder = useCallback(async () => {
+    if (!folderContextMenu) return;
+    const parentFolderId = folderContextMenu.folderId;
+    setFolderContextMenu(null);
+    setActiveFolderId(parentFolderId);
+    await createFolder(parentFolderId);
+  }, [createFolder, folderContextMenu, setActiveFolderId]);
+
   const handleContextDelete = useCallback(async () => {
     if (!folderContextMenu) return;
     const folderId = folderContextMenu.folderId;
     setFolderContextMenu(null);
     await deleteFolder(folderId);
   }, [deleteFolder, folderContextMenu]);
+  const collectDescendantIds = useCallback(
+    (folderId: string): Set<string> => {
+      const descendants = new Set<string>();
+      const queue = [folderId];
+      while (queue.length > 0) {
+        const currentId = queue.shift() ?? "";
+        for (const folder of folders) {
+          if (folder.parentFolderId !== currentId || descendants.has(folder.id)) continue;
+          descendants.add(folder.id);
+          queue.push(folder.id);
+        }
+      }
+      return descendants;
+    },
+    [folders]
+  );
+  const resolveMoveFolderDestinationOptions = useCallback(
+    (folderId: string) => {
+      const movingFolder = foldersById.get(folderId);
+      if (!movingFolder) return [] as Array<{ id: string | null; label: string }>;
+      const excludedIds = collectDescendantIds(movingFolder.id);
+      excludedIds.add(movingFolder.id);
+      const options: Array<{ id: string | null; label: string }> = [];
+      if (movingFolder.parentFolderId !== null) {
+        options.push({ id: null, label: "All Media" });
+      }
+      for (const folder of folders) {
+        if (excludedIds.has(folder.id)) continue;
+        if (folder.id === movingFolder.parentFolderId) continue;
+        options.push({
+          id: folder.id,
+          label: buildFolderPathLabel(folder.id),
+        });
+      }
+      if (options.length <= 1) return options;
+      const [rootOption, ...folderOptions] = options;
+      if (rootOption?.id !== null) {
+        return [...options].sort((left, right) => left.label.localeCompare(right.label));
+      }
+      return [
+        rootOption,
+        ...folderOptions.sort((left, right) => left.label.localeCompare(right.label)),
+      ];
+    },
+    [buildFolderPathLabel, collectDescendantIds, folders]
+  );
+  const moveFolderDestinationOptions = useMemo(() => {
+    if (!moveFolderPicker) return [];
+    return resolveMoveFolderDestinationOptions(moveFolderPicker.folderId);
+  }, [moveFolderPicker, resolveMoveFolderDestinationOptions]);
+  const moveFolderCurrentParentLabel = useMemo(() => {
+    if (!moveFolderPicker) return "All Media";
+    const movingFolder = foldersById.get(moveFolderPicker.folderId);
+    if (!movingFolder || movingFolder.parentFolderId === null) return "All Media";
+    return buildFolderPathLabel(movingFolder.parentFolderId);
+  }, [buildFolderPathLabel, foldersById, moveFolderPicker]);
+  const canOpenMovePicker = useMemo(() => {
+    if (!folderContextMenu) return false;
+    return resolveMoveFolderDestinationOptions(folderContextMenu.folderId).length > 0;
+  }, [folderContextMenu, resolveMoveFolderDestinationOptions]);
+  const handleOpenMovePicker = useCallback(() => {
+    if (!folderContextMenu) return;
+    setMoveFolderPicker({
+      folderId: folderContextMenu.folderId,
+      folderName: folderContextMenu.folderName,
+    });
+    setFolderContextMenu(null);
+  }, [folderContextMenu]);
+  const closeMoveFolderPicker = useCallback(() => {
+    setMoveFolderPicker(null);
+  }, []);
+  const handleMoveFolderToDestination = useCallback(
+    async (parentFolderId: string | null) => {
+      if (!moveFolderPicker) return;
+      const folderId = moveFolderPicker.folderId;
+      setMoveFolderPicker(null);
+      await moveFolder(folderId, parentFolderId);
+    },
+    [moveFolder, moveFolderPicker]
+  );
 
-  const activeFolderName =
-    orderedFolders.find((folder) => folder.id === activeFolderId)?.name || ROOT_FOLDER_LABEL;
-  const folderCanvasMediaRows = useMemo(
-    () =>
-      showFolderCanvas
-        ? mediaRows.map((row) => ({
-            ...row,
-            signedUrl: (() => {
-              const fullSignedUrl = folderCanvasFullSignedById[row.id] ?? null;
-              if (fullSignedUrl) return fullSignedUrl;
-              if (isVideoFile(row.file_type)) return row.signedUrl ?? null;
-              return isTransformedImagePreviewUrl(row.signedUrl) ? null : (row.signedUrl ?? null);
-            })(),
-          }))
-        : mediaRows,
-    [folderCanvasFullSignedById, mediaRows, showFolderCanvas]
+  const handleNavigateUp = useCallback(() => {
+    if (!canNavigateUp) return;
+    setActiveFolderId(activeFolderParentId ?? MEDIA_LIBRARY_ROOT_FOLDER_ID);
+  }, [activeFolderParentId, canNavigateUp, setActiveFolderId]);
+  const handleNavigateToRoot = useCallback(() => {
+    setActiveFolderId(MEDIA_LIBRARY_ROOT_FOLDER_ID);
+  }, [setActiveFolderId]);
+  const handleNavigateToFolder = useCallback(
+    (folderId: string) => {
+      setActiveFolderId(folderId || MEDIA_LIBRARY_ROOT_FOLDER_ID);
+    },
+    [setActiveFolderId]
   );
   const canShowFolderItemRemoveAction = !isRootFolderSelected;
   const resolvePanelCardPreviewUrl = useCallback(
@@ -1013,6 +853,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
       mediaAdaptivePressure.previewPressureLevel,
       optimizerFallbackMediaIds,
       resolvePanelCardPreviewUrl,
+      signedUrlRetryRef,
       setPendingLibraryDelete,
       selectedIds,
       activeFolderId,
@@ -1020,14 +861,16 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
   );
 
   const renderPromptsSection = useCallback(
-    () => (
+    ({ showHeading = true }: { showHeading?: boolean } = {}) => (
       <section className="media-library-panel-section">
-        <div className="media-library-panel-section-head">
-          <p className="tiny subdued">
-            Prompts ({visiblePromptRows.length})
-            {promptLoading && visiblePromptRows.length > 0 ? " · Refreshing" : ""}
-          </p>
-        </div>
+        {showHeading ? (
+          <div className="media-library-panel-section-head">
+            <p className="tiny subdued">
+              Prompts ({visiblePromptRows.length})
+              {promptLoading && visiblePromptRows.length > 0 ? " · Refreshing" : ""}
+            </p>
+          </div>
+        ) : null}
         {promptLoading && visiblePromptRows.length === 0 ? (
           <p className="tiny subdued">Loading prompts…</p>
         ) : null}
@@ -1090,42 +933,150 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
     ]
   );
 
+  const commitProjectName = useCallback(() => {
+    onProjectNameCommit?.(projectNameDraft);
+  }, [onProjectNameCommit, projectNameDraft]);
+
+  const handleExpandMediaLibraryPanel = useCallback(() => {
+    onExpandMediaLibraryPanel?.();
+    foldersSplit.snapToAllRefsExpanded(MEDIA_LIBRARY_FOLDERS_EXPANDED_GRID_TOP_HEIGHT_PX);
+  }, [foldersSplit, onExpandMediaLibraryPanel]);
+
+  const handleOpenRootUploadPicker = useCallback(() => {
+    rootUploadInputRef.current?.click();
+  }, []);
+
+  const handleRootUploadSelection = useCallback(
+    async (event: React.ChangeEvent<HTMLInputElement>) => {
+      const files = event.target.files;
+      const selectedFiles = files ? Array.from(files) : [];
+      event.currentTarget.value = "";
+      if (selectedFiles.length === 0) return;
+      try {
+        await uploadDroppedFilesToFolder({
+          targetFolderId: MEDIA_LIBRARY_ROOT_FOLDER_ID,
+          files: selectedFiles,
+        });
+      } catch (error) {
+        setFolderError(error instanceof Error ? error.message : "Unable to upload media.");
+      }
+    },
+    [setFolderError, uploadDroppedFilesToFolder]
+  );
+
+  const showCustomFolderEmptyState =
+    !showFolderCanvas &&
+    !isRootFolderSelected &&
+    !error &&
+    !promptLoading &&
+    !mediaLoading &&
+    visiblePromptRows.length === 0 &&
+    mediaRows.length === 0;
+  const isActiveFolderDropHover =
+    !isRootFolderSelected && foldersDropController.hoveredContentFolderId === activeFolderId;
+  const isRootFolderDropHover =
+    isRootFolderSelected &&
+    foldersDropController.hoveredContentFolderId === MEDIA_LIBRARY_ROOT_FOLDER_ID;
+  const activeFolderDropZoneProps = !isRootFolderSelected
+    ? {
+        onDragOver: (event: React.DragEvent<HTMLElement>) =>
+          foldersDropController.handleFolderContentDragOver(activeFolderId, event),
+        onDragLeave: () => {
+          foldersDropController.handleFolderContentDragLeave(activeFolderId);
+        },
+        onDrop: (event: React.DragEvent<HTMLElement>) => {
+          void foldersDropController.handleFolderContentDrop(activeFolderId, event);
+        },
+      }
+    : null;
+  const rootFolderDropZoneProps = isRootFolderSelected
+    ? {
+        onDragOver: (event: React.DragEvent<HTMLElement>) =>
+          foldersDropController.handleFolderContentDragOver(MEDIA_LIBRARY_ROOT_FOLDER_ID, event),
+        onDragLeave: () =>
+          foldersDropController.handleFolderContentDragLeave(MEDIA_LIBRARY_ROOT_FOLDER_ID),
+        onDrop: (event: React.DragEvent<HTMLElement>) => {
+          void foldersDropController.handleFolderContentDrop(MEDIA_LIBRARY_ROOT_FOLDER_ID, event);
+        },
+      }
+    : null;
+
   return (
     <section className="media-library-panel" aria-label="Media library panel">
       <header className="media-library-panel-header">
-        <div>
-          <p className="eyebrow">Media Library</p>
-          <p className="tiny subdued helper-text">Drag references to the grid.</p>
+        <div className="media-library-panel-header-title-group">
+          <p className="eyebrow">Media</p>
         </div>
+        <label className="media-library-panel-project-name-field">
+          <span className="sr-only">Project name</span>
+          <input
+            type="text"
+            value={projectNameDraft}
+            onChange={(event) => setProjectNameDraft(event.target.value)}
+            onBlur={commitProjectName}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") {
+                event.preventDefault();
+                event.currentTarget.blur();
+              }
+              if (event.key === "Escape") {
+                setProjectNameDraft(projectName ?? "");
+                event.currentTarget.blur();
+              }
+            }}
+            className="media-library-panel-project-name-input"
+            placeholder="Untitled project"
+            aria-label="Project name"
+            maxLength={120}
+          />
+        </label>
       </header>
+
+      <input
+        ref={rootUploadInputRef}
+        type="file"
+        accept="image/*,video/*"
+        multiple
+        className="media-library-panel-file-input"
+        onChange={(event) => {
+          void handleRootUploadSelection(event);
+        }}
+      />
 
       <div ref={splitContainerRef} className="media-library-panel-split">
         <div className="media-library-panel-folders-panel" style={foldersSplit.topSectionStyle}>
-          <MediaLibraryPanelFoldersSection
-            search={search}
-            onSearchChange={setSearch}
-            orderedFolders={orderedFolders}
-            activeFolderId={activeFolderId}
-            setActiveFolderId={setActiveFolderId}
-            editingFolderId={editingFolderId}
-            editingFolderName={editingFolderName}
-            setEditingFolderName={setEditingFolderName}
-            startFolderRename={startFolderRename}
-            cancelFolderRename={cancelFolderRename}
-            commitFolderRename={commitFolderRename}
-            createFolder={createFolder}
-            creatingFolder={creatingFolder}
-            folderError={folderError}
-            hoveredFolderId={foldersDropController.hoveredFolderId}
-            onFolderDragOver={foldersDropController.handleFolderDragOver}
-            onFolderDragLeave={foldersDropController.handleFolderDragLeave}
-            onFolderDrop={foldersDropController.handleFolderDrop}
-            folderContextMenu={folderContextMenu}
-            folderContextMenuRef={folderContextMenuRef}
-            openFolderContextMenu={openFolderContextMenu}
-            onContextRename={handleContextRename}
-            onContextDelete={handleContextDelete}
-          />
+          <div key={activeFolderId} className="media-library-panel-folders-stage">
+            <MediaLibraryPanelFoldersSection
+              ancestorFolders={ancestorFolders}
+              folders={visibleFolders}
+              canNavigateUp={canNavigateUp}
+              onNavigateUp={handleNavigateUp}
+              onNavigateToRoot={handleNavigateToRoot}
+              onNavigateToFolder={handleNavigateToFolder}
+              setActiveFolderId={setActiveFolderId}
+              editingFolderId={editingFolderId}
+              editingFolderName={editingFolderName}
+              setEditingFolderName={setEditingFolderName}
+              startFolderRename={startFolderRename}
+              cancelFolderRename={cancelFolderRename}
+              commitFolderRename={commitFolderRename}
+              createFolder={createFolder}
+              creatingFolder={creatingFolder}
+              folderError={folderError}
+              hoveredFolderId={foldersDropController.hoveredFolderId}
+              onFolderDragOver={foldersDropController.handleFolderDragOver}
+              onFolderDragLeave={foldersDropController.handleFolderDragLeave}
+              onFolderDrop={foldersDropController.handleFolderDrop}
+              folderContextMenu={folderContextMenu}
+              folderContextMenuRef={folderContextMenuRef}
+              openFolderContextMenu={openFolderContextMenu}
+              onContextCreateSubfolder={handleContextCreateSubfolder}
+              onContextRename={handleContextRename}
+              canOpenMovePicker={canOpenMovePicker}
+              onOpenMovePicker={handleOpenMovePicker}
+              onContextDelete={handleContextDelete}
+            />
+          </div>
         </div>
 
         <div
@@ -1138,72 +1089,135 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
         <div className="media-library-panel-content-panel" style={foldersSplit.bottomSectionStyle}>
           <div className="media-library-panel-body" ref={panelBodyRef}>
             {error ? <p className="tiny subdued">{error}</p> : null}
-
-            {showFolderCanvas && !folderCanvasDataReady ? (
-              <p className="tiny subdued">Loading folder canvas...</p>
+            {membershipPendingMessage ? (
+              <div
+                className="media-library-panel-membership-toast is-pending"
+                role="status"
+                aria-live="polite"
+              >
+                <div className="reference-spinner media-library-panel-membership-spinner" />
+                <span>{membershipPendingMessage}</span>
+              </div>
             ) : null}
-
-            {showFolderCanvas && folderCanvasDataReady ? (
-              <MediaLibraryFolderCanvas
-                folderId={activeFolderId}
-                mediaRows={folderCanvasMediaRows}
-                promptRows={visiblePromptRows}
-                onSelectMedia={onSelectMedia}
-                onSelectPrompt={onSelectPrompt}
-                onUnassignItem={handleRemoveItemFromActiveFolder}
-                resolveCanvasDropReference={resolveCanvasDropReference}
-                resolveInternalDropItem={resolveInternalDropItem}
-                onAssignDroppedItem={handleAssignItemToActiveFolder}
-                onDropFilesToCanvas={async (files) =>
-                  await uploadDroppedFilesToFolder({
-                    targetFolderId: activeFolderId,
-                    files,
-                  })
-                }
-              />
+            {membershipMessage ? (
+              <div
+                className="media-library-panel-membership-toast"
+                role="status"
+                aria-live="polite"
+              >
+                <CheckCircle size={14} weight="fill" aria-hidden />
+                <span>{membershipMessage}</span>
+              </div>
             ) : null}
-
-            {!showFolderCanvas && shouldShowPrompts && !isRootFolderSelected
-              ? renderPromptsSection()
-              : null}
 
             {!showFolderCanvas && isRootFolderSelected ? (
-              <div
-                className="media-library-panel-root-tabs"
-                role="tablist"
-                aria-label="All Media type tabs"
-              >
-                <button
-                  type="button"
-                  role="tab"
-                  className={`media-library-panel-root-tab${rootTab === "images" ? " is-active" : ""}`}
-                  aria-selected={rootTab === "images"}
-                  aria-controls="media-library-panel-images-section"
-                  onClick={() => setRootTab("images")}
+              <div className="media-library-panel-root-tabs-row">
+                <div
+                  className="media-library-panel-root-tabs"
+                  role="tablist"
+                  aria-label="All Media type tabs"
                 >
-                  Images
-                </button>
-                <button
-                  type="button"
-                  role="tab"
-                  className={`media-library-panel-root-tab${rootTab === "videos" ? " is-active" : ""}`}
-                  aria-selected={rootTab === "videos"}
-                  aria-controls="media-library-panel-videos-section"
-                  onClick={() => setRootTab("videos")}
-                >
-                  Videos
-                </button>
-                <button
-                  type="button"
-                  role="tab"
-                  className={`media-library-panel-root-tab${rootTab === "prompts" ? " is-active" : ""}`}
-                  aria-selected={rootTab === "prompts"}
-                  aria-controls="media-library-panel-prompts-section"
-                  onClick={() => setRootTab("prompts")}
-                >
-                  Prompts
-                </button>
+                  <button
+                    type="button"
+                    role="tab"
+                    className={`media-library-panel-root-tab${rootTab === "all" ? " is-active" : ""}`}
+                    aria-selected={rootTab === "all"}
+                    aria-controls="media-library-panel-all-media-section"
+                    onClick={() => setRootTab("all")}
+                  >
+                    All Media
+                  </button>
+                  <button
+                    type="button"
+                    role="tab"
+                    className={`media-library-panel-root-tab${rootTab === "images" ? " is-active" : ""}`}
+                    aria-selected={rootTab === "images"}
+                    aria-controls="media-library-panel-images-section"
+                    onClick={() => setRootTab("images")}
+                  >
+                    Images
+                  </button>
+                  <button
+                    type="button"
+                    role="tab"
+                    className={`media-library-panel-root-tab${rootTab === "videos" ? " is-active" : ""}`}
+                    aria-selected={rootTab === "videos"}
+                    aria-controls="media-library-panel-videos-section"
+                    onClick={() => setRootTab("videos")}
+                  >
+                    Videos
+                  </button>
+                  <button
+                    type="button"
+                    role="tab"
+                    className={`media-library-panel-root-tab${rootTab === "audio" ? " is-active" : ""}`}
+                    aria-selected={rootTab === "audio"}
+                    aria-controls="media-library-panel-audio-section"
+                    onClick={() => setRootTab("audio")}
+                  >
+                    Audio
+                  </button>
+                  <button
+                    type="button"
+                    role="tab"
+                    className={`media-library-panel-root-tab${rootTab === "prompts" ? " is-active" : ""}`}
+                    aria-selected={rootTab === "prompts"}
+                    aria-controls="media-library-panel-prompts-section"
+                    onClick={() => setRootTab("prompts")}
+                  >
+                    Prompts
+                  </button>
+                </div>
+                <div className="media-library-panel-root-count-group">
+                  <button
+                    type="button"
+                    className="media-library-panel-root-upload-button"
+                    onClick={handleOpenRootUploadPicker}
+                  >
+                    <UploadSimple size={14} weight="bold" aria-hidden />
+                    <span>Add files</span>
+                  </button>
+                  {libraryTotalCount !== null ? (
+                    <div
+                      className="media-library-panel-root-count"
+                      aria-label={`${libraryTotalCount} saved media items`}
+                    >
+                      <span className="media-library-panel-root-count-value">
+                        {libraryTotalCount}
+                      </span>
+                      <span className="media-library-panel-root-count-label">saved</span>
+                    </div>
+                  ) : null}
+                  <button
+                    type="button"
+                    className="media-library-panel-root-expand-button"
+                    aria-label="Expand media library panel"
+                    onClick={handleExpandMediaLibraryPanel}
+                  >
+                    <ArrowsOutSimple size={14} weight="bold" aria-hidden />
+                  </button>
+                </div>
               </div>
+            ) : null}
+
+            {!showFolderCanvas && shouldShowMedia && isRootFolderSelected && itemType === "all" ? (
+              <section
+                className={`media-library-panel-section${
+                  isRootFolderDropHover ? " is-root-drop-hover" : ""
+                }`}
+                data-testid="media-library-panel-root-dropzone"
+                {...(rootFolderDropZoneProps ?? {})}
+              >
+                {mediaLoading && mediaRows.length === 0 ? (
+                  <p className="tiny subdued">Loading media…</p>
+                ) : null}
+                {!mediaLoading && mediaRows.length === 0 ? (
+                  <p className="tiny subdued">No media found for this folder.</p>
+                ) : null}
+                <div id="media-library-panel-all-media-section">
+                  {mediaRows.length > 0 ? renderMediaGrid(mediaRows) : null}
+                </div>
+              </section>
             ) : null}
 
             {!showFolderCanvas &&
@@ -1211,13 +1225,13 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
             isRootFolderSelected &&
             itemType === "images" ? (
               <>
-                <section className="media-library-panel-section">
-                  <div className="media-library-panel-section-head">
-                    <p className="tiny subdued">
-                      Images ({visibleImageRows.length})
-                      {mediaLoading && mediaRows.length > 0 ? " · Refreshing" : ""}
-                    </p>
-                  </div>
+                <section
+                  className={`media-library-panel-section${
+                    isRootFolderDropHover ? " is-root-drop-hover" : ""
+                  }`}
+                  data-testid="media-library-panel-root-dropzone"
+                  {...(rootFolderDropZoneProps ?? {})}
+                >
                   {mediaLoading && mediaRows.length === 0 ? (
                     <p className="tiny subdued">Loading images…</p>
                   ) : null}
@@ -1236,13 +1250,13 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
             isRootFolderSelected &&
             itemType === "videos" ? (
               <>
-                <section className="media-library-panel-section">
-                  <div className="media-library-panel-section-head">
-                    <p className="tiny subdued">
-                      Videos ({visibleVideoRows.length})
-                      {mediaLoading && mediaRows.length > 0 ? " · Refreshing" : ""}
-                    </p>
-                  </div>
+                <section
+                  className={`media-library-panel-section${
+                    isRootFolderDropHover ? " is-root-drop-hover" : ""
+                  }`}
+                  data-testid="media-library-panel-root-dropzone"
+                  {...(rootFolderDropZoneProps ?? {})}
+                >
                   {mediaLoading && mediaRows.length === 0 ? (
                     <p className="tiny subdued">Loading videos…</p>
                   ) : null}
@@ -1257,8 +1271,71 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
             ) : null}
 
             {!showFolderCanvas && shouldShowPrompts && isRootFolderSelected
-              ? renderPromptsSection()
+              ? renderPromptsSection({ showHeading: false })
               : null}
+
+            {!showFolderCanvas && isRootFolderSelected && itemType === "audio" ? (
+              <section className="media-library-panel-section">
+                <div id="media-library-panel-audio-section">
+                  <p className="tiny subdued">Audio browsing is not available yet.</p>
+                </div>
+              </section>
+            ) : null}
+
+            {!showFolderCanvas && !isRootFolderSelected ? (
+              <div
+                key={activeFolderId}
+                className={`media-library-panel-active-folder-dropzone${
+                  isActiveFolderDropHover ? " is-drop-hover" : ""
+                }`}
+                data-testid="media-library-panel-active-folder-dropzone"
+                {...(activeFolderDropZoneProps ?? {})}
+              >
+                {showCustomFolderEmptyState ? (
+                  <section className="media-library-panel-empty-folder-state">
+                    <p className="media-library-panel-empty-folder-title">
+                      No media to display in "{activeFolderName}."
+                    </p>
+                  </section>
+                ) : null}
+
+                {shouldShowPrompts && !showCustomFolderEmptyState ? renderPromptsSection() : null}
+
+                {!showCustomFolderEmptyState && shouldShowMedia ? (
+                  <section className="media-library-panel-section">
+                    <div className="media-library-panel-section-head">
+                      <p className="tiny subdued">
+                        Media ({mediaRows.length})
+                        {mediaLoading && mediaRows.length > 0 ? " · Refreshing" : ""}
+                      </p>
+                    </div>
+                    {mediaLoading && mediaRows.length === 0 ? (
+                      <p className="tiny subdued">Loading media…</p>
+                    ) : null}
+                    {!mediaLoading && mediaRows.length === 0 ? (
+                      <p className="tiny subdued">No media found for this folder.</p>
+                    ) : null}
+                    <div id="media-library-panel-media-section">
+                      {mediaRows.length > 0 ? renderMediaGrid(mediaRows) : null}
+                      {mediaHasMore ? (
+                        <div className="media-load-more">
+                          <button
+                            type="button"
+                            className="btn-secondary"
+                            onClick={() => {
+                              void loadMediaPage({ reset: false });
+                            }}
+                            disabled={mediaLoading}
+                          >
+                            {mediaLoading ? "Loading more..." : "Load more media"}
+                          </button>
+                        </div>
+                      ) : null}
+                    </div>
+                  </section>
+                ) : null}
+              </div>
+            ) : null}
 
             {!showFolderCanvas && shouldShowMedia && isRootFolderSelected ? (
               <section
@@ -1282,40 +1359,6 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
                     >
                       {mediaLoading ? "Loading more..." : "Load more media"}
                     </button>
-                  ) : null}
-                </div>
-              </section>
-            ) : null}
-
-            {!showFolderCanvas && shouldShowMedia && !isRootFolderSelected ? (
-              <section className="media-library-panel-section">
-                <div className="media-library-panel-section-head">
-                  <p className="tiny subdued">
-                    Media ({mediaRows.length})
-                    {mediaLoading && mediaRows.length > 0 ? " · Refreshing" : ""}
-                  </p>
-                </div>
-                {mediaLoading && mediaRows.length === 0 ? (
-                  <p className="tiny subdued">Loading media…</p>
-                ) : null}
-                {!mediaLoading && mediaRows.length === 0 ? (
-                  <p className="tiny subdued">No media found for this folder.</p>
-                ) : null}
-                <div id="media-library-panel-media-section">
-                  {mediaRows.length > 0 ? renderMediaGrid(mediaRows) : null}
-                  {mediaHasMore ? (
-                    <div className="media-load-more">
-                      <button
-                        type="button"
-                        className="btn-secondary"
-                        onClick={() => {
-                          void loadMediaPage({ reset: false });
-                        }}
-                        disabled={mediaLoading}
-                      >
-                        {mediaLoading ? "Loading more..." : "Load more media"}
-                      </button>
-                    </div>
                   ) : null}
                 </div>
               </section>
@@ -1375,6 +1418,50 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
                   disabled={deleteConfirmSubmitting}
                 >
                   {deleteConfirmSubmitting ? "Deleting..." : "Yes, delete"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </AiStudioModalLayer>
+      ) : null}
+      {moveFolderPicker ? (
+        <AiStudioModalLayer>
+          <div className="art-confirm-backdrop" onClick={closeMoveFolderPicker}>
+            <div
+              className="media-library-panel-move-dialog"
+              role="dialog"
+              aria-modal="true"
+              aria-label={`Move ${moveFolderPicker.folderName}`}
+              onClick={(event) => event.stopPropagation()}
+            >
+              <p className="media-library-panel-move-dialog-title">Move Folder</p>
+              <p className="media-library-panel-move-dialog-copy">
+                Move &quot;{moveFolderPicker.folderName}&quot; to a new parent folder.
+              </p>
+              <div className="media-library-panel-move-dialog-current-parent">
+                <p className="media-library-panel-move-dialog-label">Current parent</p>
+                <p className="media-library-panel-move-dialog-current-parent-value">
+                  {moveFolderCurrentParentLabel}
+                </p>
+              </div>
+              <p className="media-library-panel-move-dialog-label">Available destinations</p>
+              <div className="media-library-panel-move-dialog-list" role="list">
+                {moveFolderDestinationOptions.map((option) => (
+                  <button
+                    key={option.id ?? MEDIA_LIBRARY_ROOT_FOLDER_ID}
+                    type="button"
+                    className="media-library-panel-move-dialog-option"
+                    onClick={() => {
+                      void handleMoveFolderToDestination(option.id);
+                    }}
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
+              <div className="art-confirm-actions">
+                <button type="button" className="art-action-btn" onClick={closeMoveFolderPicker}>
+                  Cancel
                 </button>
               </div>
             </div>

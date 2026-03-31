@@ -115,6 +115,7 @@ export const useReferenceGridHorizontalSplit = ({
   );
   const topRatioRef = useRef(topRatio);
   const containerHeightRef = useRef(0);
+  const observedContainerHeightRef = useRef(0);
 
   const stopResizing = useCallback(() => {
     if (detachPointerListenersRef.current) {
@@ -351,7 +352,11 @@ export const useReferenceGridHorizontalSplit = ({
       const emitHeightChange = () => {
         const nextHeight = resolveContainerHeight();
         if (!nextHeight) return;
+        const previousHeight = observedContainerHeightRef.current;
+        const stableHeight = Math.abs(previousHeight - nextHeight) < 1;
         reconcileTopRatioForContainerHeight(nextHeight);
+        if (stableHeight) return;
+        observedContainerHeightRef.current = nextHeight;
         onStoreChange();
       };
 

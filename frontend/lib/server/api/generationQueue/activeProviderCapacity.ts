@@ -10,17 +10,20 @@ import {
   isMissingGenerationAttemptSchemaError,
   readErrorCode,
 } from "../generationBilling/errorGuards";
+import { resolveProviderFromModelId } from "../../providerIntegration/providerRuntimeConfig";
 import { getSupabaseAdmin } from "../supabaseAdmin";
 
 type JsonObject = Record<string, unknown>;
 
 type ReservationRow = {
+  userId: string;
   modelId: string;
-  providerRequestId: string;
+  providerRequestId: string | null;
   createdAtMs: number | null;
 };
 
 type GenerationRow = {
+  userId: string;
   requestId: string;
   status: string | null;
   recoveryState: string | null;
@@ -28,11 +31,13 @@ type GenerationRow = {
 };
 
 type GenerationAttemptRow = {
+  userId: string;
   requestId: string;
   generationId: string;
 };
 
 type GenerationStateRow = {
+  userId: string;
   generationId: string;
   status: string | null;
   recoveryState: string | null;
@@ -72,12 +77,13 @@ const parseTimestampMs = (value: unknown): number | null => {
 const parseReservationRow = (value: unknown): ReservationRow | null => {
   const row = asObject(value);
   if (!row) return null;
+  const userId = asString(row.user_id);
   const modelId = asString(row.model_id);
-  const providerRequestId = asString(row.provider_request_id);
-  if (!modelId || !providerRequestId) return null;
+  if (!userId || !modelId) return null;
   return {
+    userId,
     modelId,
-    providerRequestId,
+    providerRequestId: asString(row.provider_request_id),
     createdAtMs: parseTimestampMs(row.created_at),
   };
 };
@@ -85,9 +91,11 @@ const parseReservationRow = (value: unknown): ReservationRow | null => {
 const parseGenerationRow = (value: unknown): GenerationRow | null => {
   const row = asObject(value);
   if (!row) return null;
+  const userId = asString(row.user_id);
   const requestId = asString(row.request_id);
-  if (!requestId) return null;
+  if (!userId || !requestId) return null;
   return {
+    userId,
     requestId,
     status: asString(row.status)?.toLowerCase() ?? null,
     recoveryState: asString(row.recovery_state)?.toLowerCase() ?? null,
@@ -98,10 +106,12 @@ const parseGenerationRow = (value: unknown): GenerationRow | null => {
 const parseGenerationAttemptRow = (value: unknown): GenerationAttemptRow | null => {
   const row = asObject(value);
   if (!row) return null;
+  const userId = asString(row.user_id);
   const requestId = asString(row.provider_request_id);
   const generationId = asString(row.generation_id);
-  if (!requestId || !generationId) return null;
+  if (!userId || !requestId || !generationId) return null;
   return {
+    userId,
     requestId,
     generationId,
   };
@@ -110,9 +120,11 @@ const parseGenerationAttemptRow = (value: unknown): GenerationAttemptRow | null 
 const parseGenerationStateRow = (value: unknown): GenerationStateRow | null => {
   const row = asObject(value);
   if (!row) return null;
+  const userId = asString(row.user_id);
   const generationId = asString(row.id);
-  if (!generationId) return null;
+  if (!userId || !generationId) return null;
   return {
+    userId,
     generationId,
     status: asString(row.status)?.toLowerCase() ?? null,
     recoveryState: asString(row.recovery_state)?.toLowerCase() ?? null,
@@ -122,18 +134,28 @@ const parseGenerationStateRow = (value: unknown): GenerationStateRow | null => {
 
 const STALE_ACTIVE_RECOVERY_STATES = new Set(["queued", "recovering"]);
 
+const buildScopedRequestKey = ({
+  userId,
+  requestId,
+}: {
+  userId: string;
+  requestId: string;
+}): string => `${userId}:${requestId}`;
+
 const readGenerationRowsByAttemptRequestIds = async ({
   userId,
   requestIds,
 }: {
-  userId: string;
+  userId?: string | null;
   requestIds: string[];
 }): Promise<{ rows: GenerationRow[]; handled: boolean }> => {
-  const attemptsResponse = await getSupabaseAdmin()
+  let attemptsQuery = getSupabaseAdmin()
     .from("generation_attempts")
-    .select("provider_request_id, generation_id")
-    .eq("user_id", userId)
-    .in("provider_request_id", requestIds);
+    .select("user_id, provider_request_id, generation_id");
+  if (userId) {
+    attemptsQuery = attemptsQuery.eq("user_id", userId);
+  }
+  const attemptsResponse = await attemptsQuery.in("provider_request_id", requestIds);
 
   if (attemptsResponse.error) {
     if (
@@ -155,11 +177,13 @@ const readGenerationRowsByAttemptRequestIds = async ({
   }
 
   const generationIds = Array.from(new Set(attemptRows.map((row) => row.generationId)));
-  const generationsResponse = await getSupabaseAdmin()
+  let generationsQuery = getSupabaseAdmin()
     .from("ai_generations")
-    .select("id, status, recovery_state, created_at")
-    .eq("user_id", userId)
-    .in("id", generationIds);
+    .select("user_id, id, status, recovery_state, created_at");
+  if (userId) {
+    generationsQuery = generationsQuery.eq("user_id", userId);
+  }
+  const generationsResponse = await generationsQuery.in("id", generationIds);
   if (generationsResponse.error) throw generationsResponse.error;
 
   const generationsById = new Map<string, GenerationStateRow>();
@@ -168,15 +192,21 @@ const readGenerationRowsByAttemptRequestIds = async ({
     .filter((row): row is GenerationStateRow => Boolean(row));
 
   for (const row of generationRows) {
-    generationsById.set(row.generationId, row);
+    generationsById.set(
+      buildScopedRequestKey({ userId: row.userId, requestId: row.generationId }),
+      row
+    );
   }
 
   const resolvedRows: GenerationRow[] = [];
   for (const attemptRow of attemptRows) {
-    const generation = generationsById.get(attemptRow.generationId);
+    const generation = generationsById.get(
+      buildScopedRequestKey({ userId: attemptRow.userId, requestId: attemptRow.generationId })
+    );
     if (!generation) continue;
     resolvedRows.push({
       ...generation,
+      userId: attemptRow.userId,
       requestId: attemptRow.requestId,
     });
   }
@@ -226,18 +256,20 @@ const classifyGenerationRequestState = ({
 };
 
 /**
- * Reads user provider-attached reservation activity and classifies stale holds so
+ * Reads active reserved holds for the requested provider scope and classifies stale holds so
  * queue/admission capacity checks can ignore known-non-active reservations.
  */
 export const readActiveProviderCapacitySnapshot = async ({
   userId,
+  provider,
   modelId,
   staleIgnoreMinAgeSeconds,
   orphanGraceSeconds,
   activeGenerationStaleIgnoreMinAgeSeconds,
   nowMs = Date.now(),
 }: {
-  userId: string;
+  userId?: string | null;
+  provider: string;
   modelId: string;
   staleIgnoreMinAgeSeconds: number;
   orphanGraceSeconds: number;
@@ -255,17 +287,23 @@ export const readActiveProviderCapacitySnapshot = async ({
     )
   );
 
-  const reservationsResponse = await getSupabaseAdmin()
+  let reservationsQuery = getSupabaseAdmin()
     .from("ai_credit_reservations")
-    .select("model_id, provider_request_id, created_at")
-    .eq("user_id", userId)
-    .eq("status", ACTIVE_RESERVATION_STATUS)
-    .not("provider_request_id", "is", null);
+    .select("user_id, model_id, provider_request_id, created_at")
+    .eq("status", ACTIVE_RESERVATION_STATUS);
+  if (userId) {
+    reservationsQuery = reservationsQuery.eq("user_id", userId);
+  }
+  const reservationsResponse = await reservationsQuery;
   if (reservationsResponse.error) throw reservationsResponse.error;
 
   const reservations = (Array.isArray(reservationsResponse.data) ? reservationsResponse.data : [])
     .map((row) => parseReservationRow(row))
-    .filter((row): row is ReservationRow => Boolean(row));
+    .filter(
+      (row): row is ReservationRow =>
+        row !== null &&
+        resolveProviderFromModelId({ modelId: row.modelId, fallback: provider }) === provider
+    );
 
   if (!reservations.length) {
     return {
@@ -277,30 +315,43 @@ export const readActiveProviderCapacitySnapshot = async ({
     };
   }
 
-  const requestIds = Array.from(new Set(reservations.map((row) => row.providerRequestId)));
+  const requestIds = Array.from(
+    new Set(
+      reservations
+        .map((row) => row.providerRequestId)
+        .filter((requestId): requestId is string => Boolean(requestId))
+    )
+  );
   const generationRowsByRequestId = new Map<string, GenerationRow[]>();
-  const attemptScopedRows = await readGenerationRowsByAttemptRequestIds({
-    userId,
-    requestIds,
-  });
-  let generationRows = attemptScopedRows.rows;
+  let generationRows: GenerationRow[] = [];
 
-  if (!attemptScopedRows.handled) {
-    const generationsResponse = await getSupabaseAdmin()
-      .from("ai_generations")
-      .select("request_id, status, recovery_state, created_at")
-      .eq("user_id", userId)
-      .in("request_id", requestIds);
-    if (generationsResponse.error) throw generationsResponse.error;
-    generationRows = (Array.isArray(generationsResponse.data) ? generationsResponse.data : [])
-      .map((row) => parseGenerationRow(row))
-      .filter((row): row is GenerationRow => Boolean(row));
+  if (requestIds.length > 0) {
+    const attemptScopedRows = await readGenerationRowsByAttemptRequestIds({
+      userId,
+      requestIds,
+    });
+    generationRows = attemptScopedRows.rows;
+
+    if (!attemptScopedRows.handled) {
+      let generationsQuery = getSupabaseAdmin()
+        .from("ai_generations")
+        .select("user_id, request_id, status, recovery_state, created_at");
+      if (userId) {
+        generationsQuery = generationsQuery.eq("user_id", userId);
+      }
+      const generationsResponse = await generationsQuery.in("request_id", requestIds);
+      if (generationsResponse.error) throw generationsResponse.error;
+      generationRows = (Array.isArray(generationsResponse.data) ? generationsResponse.data : [])
+        .map((row) => parseGenerationRow(row))
+        .filter((row): row is GenerationRow => Boolean(row));
+    }
   }
 
   for (const row of generationRows) {
-    const existing = generationRowsByRequestId.get(row.requestId) ?? [];
+    const requestKey = buildScopedRequestKey({ userId: row.userId, requestId: row.requestId });
+    const existing = generationRowsByRequestId.get(requestKey) ?? [];
     existing.push(row);
-    generationRowsByRequestId.set(row.requestId, existing);
+    generationRowsByRequestId.set(requestKey, existing);
   }
 
   let globalActive = 0;
@@ -310,7 +361,14 @@ export const readActiveProviderCapacitySnapshot = async ({
 
   for (const reservation of reservations) {
     const generationRowsForRequest =
-      generationRowsByRequestId.get(reservation.providerRequestId) ?? [];
+      reservation.providerRequestId === null
+        ? []
+        : (generationRowsByRequestId.get(
+            buildScopedRequestKey({
+              userId: reservation.userId,
+              requestId: reservation.providerRequestId,
+            })
+          ) ?? []);
     let classification: "active" | "stale" | "unknown";
     if (generationRowsForRequest.length) {
       classification = classifyGenerationRequestState({

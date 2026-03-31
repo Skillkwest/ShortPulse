@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   EXPERT_EDIT_PROMPT_TOKEN_TRANSFER_MIME,
   analyzeExpertEditPromptTokens,
+  buildExpertEditSubmissionReferenceInputs,
   buildExpertEditPromptHighlightSegments,
   compileExpertEditSubmissionPrompt,
   extractExpertEditPromptTokenFromTransfer,
@@ -103,6 +104,25 @@ describe("expertEditPromptReferences", () => {
     expect(compiled.submissionPrompt).toContain(
       "Treat all secondary references as edits to Figure 1 unless explicitly overridden."
     );
+  });
+
+  it("builds submission reference inputs from the primary image and explicitly linked secondary slots only", () => {
+    const inputs = buildExpertEditSubmissionReferenceInputs({
+      flattenedPrimaryUrl: "https://example.com/flattened-primary.png",
+      flattenedMarkupReferenceUrl: "https://example.com/flattened-markup.png",
+      secondarySlots: [
+        "https://example.com/slot-1.png",
+        "https://example.com/slot-2.png",
+        "https://example.com/slot-3.png",
+      ],
+      referencedSlotIndexes: [1],
+    });
+
+    expect(inputs).toEqual([
+      "https://example.com/flattened-primary.png",
+      "https://example.com/flattened-markup.png",
+      "https://example.com/slot-2.png",
+    ]);
   });
 
   it("keeps figure mapping stable with missing middle slot and duplicate urls", () => {

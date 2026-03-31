@@ -4,6 +4,7 @@
  */
 import { useEffect, type Dispatch, type MutableRefObject, type SetStateAction } from "react";
 import type { ReferenceGridMediaAuthorityTier } from "../../logic/referenceGridMedia";
+import { incrementFreezeInvestigationCounter } from "../../logic/freezeInvestigationTelemetry";
 
 type PreviewSwapCard = {
   item: { id: string };
@@ -89,6 +90,7 @@ export const useReferenceGridPreviewSwapTelemetryController = ({
       ) {
         return prev;
       }
+      incrementFreezeInvestigationCounter("referenceGrid.previewSwapMetrics.commit");
       return {
         swapRatePerMinute,
         repaintSpikeCount,
@@ -120,6 +122,7 @@ export const useReferenceGridPreviewSwapTelemetryController = ({
       ) {
         return prev;
       }
+      incrementFreezeInvestigationCounter("referenceGrid.previewSwapMetrics.resetCommit");
       return {
         swapRatePerMinute: 0,
         repaintSpikeCount: 0,

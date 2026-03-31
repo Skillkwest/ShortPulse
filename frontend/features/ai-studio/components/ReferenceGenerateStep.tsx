@@ -3,7 +3,6 @@
  */
 import React from "react";
 import { AgentGenerateButton } from "../../../prefabs/agent";
-import { CONCURRENT_GENERATION_CAP_MESSAGE } from "../logic/concurrentGenerationCap";
 
 type ReferenceGenerateStepProps = {
   beginnerMode: boolean;
@@ -39,10 +38,7 @@ export const ReferenceGenerateStep: React.FC<ReferenceGenerateStepProps> = ({
   promptRequiredMessage,
   suppressInlineGuardrailReason = false,
 }) => {
-  const inlineGuardrailReason =
-    suppressInlineGuardrailReason || guardrailReason === CONCURRENT_GENERATION_CAP_MESSAGE
-      ? null
-      : guardrailReason;
+  const inlineGuardrailReason = suppressInlineGuardrailReason ? null : guardrailReason;
   return (
     <div
       className={`step-card reference-generate-step ${collapsed ? "is-collapsed" : ""}`}

@@ -202,6 +202,15 @@ export const useAiStudioTaskSubmission = ({
       setUiError(null);
       setUiNotice(null);
       const optimisticOutputId = options?.outputIdOverride;
+      const applySubmissionFailure = (
+        outputId: string,
+        patch: Parameters<typeof applySubmissionFailureToOutputs>[2]
+      ) => {
+        updateOutputById(outputId, (item) => {
+          const nextRows = applySubmissionFailureToOutputs([item], outputId, patch);
+          return nextRows[0] ?? item;
+        });
+      };
       const removeOptimisticPlaceholder = () => {
         if (!optimisticOutputId) return;
         setOutputs((prev) => prev.filter((item) => item.id !== optimisticOutputId));
@@ -460,16 +469,14 @@ export const useAiStudioTaskSubmission = ({
               },
             });
           }
-          setOutputs((prev) =>
-            applySubmissionFailureToOutputs(prev, id, {
-              timestamp: "Failed",
-              errorMessage: detail,
-              errorMessageShort: isPreflightTimeout
-                ? "Preparation timed out."
-                : "Reference upload failed.",
-              errorDetail: detail,
-            })
-          );
+          applySubmissionFailure(id, {
+            timestamp: "Failed",
+            errorMessage: detail,
+            errorMessageShort: isPreflightTimeout
+              ? "Preparation timed out."
+              : "Reference upload failed.",
+            errorDetail: detail,
+          });
           setUiError(isPreflightTimeout ? detail : `Reference upload failed: ${detail}`);
           return;
         }
@@ -477,14 +484,12 @@ export const useAiStudioTaskSubmission = ({
           (isEditWorkflow || requiresImageToImageReferences) &&
           preparedImageInputs.length === 0
         ) {
-          setOutputs((prev) =>
-            applySubmissionFailureToOutputs(prev, id, {
-              timestamp: "Missing image",
-              errorMessage: "Edit workflow requires at least one reference image.",
-              errorMessageShort: "Reference image required.",
-              errorDetail: "Edit workflow requires at least one reference image.",
-            })
-          );
+          applySubmissionFailure(id, {
+            timestamp: "Missing image",
+            errorMessage: "Edit workflow requires at least one reference image.",
+            errorMessageShort: "Reference image required.",
+            errorDetail: "Edit workflow requires at least one reference image.",
+          });
           return;
         }
         if (options?.inpaintOverride) {
@@ -492,14 +497,12 @@ export const useAiStudioTaskSubmission = ({
             preparedInpaintOverride?.baseImageInput && preparedInpaintOverride?.maskInput
           );
           if (!hasPreparedInpaintInputs) {
-            setOutputs((prev) =>
-              applySubmissionFailureToOutputs(prev, id, {
-                timestamp: "Missing mask",
-                errorMessage: "Inpaint generation requires a base image and mask.",
-                errorMessageShort: "Mask required.",
-                errorDetail: "Inpaint generation requires a base image and mask.",
-              })
-            );
+            applySubmissionFailure(id, {
+              timestamp: "Missing mask",
+              errorMessage: "Inpaint generation requires a base image and mask.",
+              errorMessageShort: "Mask required.",
+              errorDetail: "Inpaint generation requires a base image and mask.",
+            });
             return;
           }
         }
@@ -507,16 +510,10 @@ export const useAiStudioTaskSubmission = ({
           ? null
           : buildReplaySnapshot(preparedImageInputs.slice(0, 8));
         if (generationReplay) {
-          setOutputs((prev) =>
-            prev.map((item) =>
-              item.id === id
-                ? {
-                    ...item,
-                    generationReplay,
-                  }
-                : item
-            )
-          );
+          updateOutputById(id, (item) => ({
+            ...item,
+            generationReplay,
+          }));
         }
         const pulseReferenceImageUrl =
           preparedImageInputs.length > 0 ? preparedImageInputs[0] : undefined;
@@ -526,14 +523,12 @@ export const useAiStudioTaskSubmission = ({
 
         const isStandardVideoRun = normalizedTool === "video" && videoReferenceMode === "standard";
         if (isStandardVideoRun && preparedImageInputs.length < 1) {
-          setOutputs((prev) =>
-            applySubmissionFailureToOutputs(prev, id, {
-              timestamp: "Missing image",
-              errorMessage: "Standard video generation requires a reference image.",
-              errorMessageShort: "Reference image required.",
-              errorDetail: "Standard video generation requires a reference image.",
-            })
-          );
+          applySubmissionFailure(id, {
+            timestamp: "Missing image",
+            errorMessage: "Standard video generation requires a reference image.",
+            errorMessageShort: "Reference image required.",
+            errorDetail: "Standard video generation requires a reference image.",
+          });
           return;
         }
 
@@ -541,14 +536,12 @@ export const useAiStudioTaskSubmission = ({
         const isKeyframeFirstLastRun =
           videoReferenceMode === "keyframes" && isVeoFirstLastFrameModel;
         if (requiresImageReference && !isKeyframeFirstLastRun && preparedImageInputs.length === 0) {
-          setOutputs((prev) =>
-            applySubmissionFailureToOutputs(prev, id, {
-              timestamp: "Missing image",
-              errorMessage: "Video generation requires an image URL.",
-              errorMessageShort: "Image URL required.",
-              errorDetail: "Video generation requires an image URL.",
-            })
-          );
+          applySubmissionFailure(id, {
+            timestamp: "Missing image",
+            errorMessage: "Video generation requires an image URL.",
+            errorMessageShort: "Image URL required.",
+            errorDetail: "Video generation requires an image URL.",
+          });
           return;
         }
 
@@ -557,28 +550,22 @@ export const useAiStudioTaskSubmission = ({
           isVeoFirstLastFrameModel &&
           preparedImageInputs.length < 2
         ) {
-          setOutputs((prev) =>
-            applySubmissionFailureToOutputs(prev, id, {
-              timestamp: "Missing frames",
-              errorMessage:
-                "First/Last Frame generation requires both a first and last frame image.",
-              errorMessageShort: "First/Last needs two images.",
-              errorDetail:
-                "First/Last Frame generation requires both a first and last frame image.",
-            })
-          );
+          applySubmissionFailure(id, {
+            timestamp: "Missing frames",
+            errorMessage: "First/Last Frame generation requires both a first and last frame image.",
+            errorMessageShort: "First/Last needs two images.",
+            errorDetail: "First/Last Frame generation requires both a first and last frame image.",
+          });
           return;
         }
 
         if (isVeoImageToVideoModel && preparedImageInputs.length < 1) {
-          setOutputs((prev) =>
-            applySubmissionFailureToOutputs(prev, id, {
-              timestamp: "Missing image",
-              errorMessage: "Veo image-to-video requires a reference image.",
-              errorMessageShort: "Reference image required.",
-              errorDetail: "Veo image-to-video requires a reference image.",
-            })
-          );
+          applySubmissionFailure(id, {
+            timestamp: "Missing image",
+            errorMessage: "Veo image-to-video requires a reference image.",
+            errorMessageShort: "Reference image required.",
+            errorDetail: "Veo image-to-video requires a reference image.",
+          });
           return;
         }
 

@@ -125,6 +125,43 @@ export const createShortErrorMessage = (message: string) => {
   return `${message.slice(0, 32)}…`;
 };
 
+const PROVIDER_SAFETY_BLOCK_PATTERNS = [
+  /\bunsafe\b/i,
+  /\bnsfw\b/i,
+  /\bexplicit\b/i,
+  /\badult\b/i,
+  /\bnudity\b/i,
+  /\bsexual\b/i,
+  /\bmoderation\b/i,
+  /\bcontent safety\b/i,
+  /\bsafety system\b/i,
+  /\bcontent policy\b/i,
+];
+
+/**
+ * Returns true when a provider failure message indicates a safety/NSFW block.
+ */
+export const isProviderSafetyBlockMessage = (message: string | null | undefined): boolean => {
+  if (typeof message !== "string") return false;
+  const normalized = message.trim();
+  if (!normalized) return false;
+  return PROVIDER_SAFETY_BLOCK_PATTERNS.some((pattern) => pattern.test(normalized));
+};
+
+/**
+ * Returns true when the output failure should be labeled as NSFW on compact UI surfaces.
+ */
+export const isProviderSafetyBlockedOutput = (
+  output: Pick<StudioOutput, "taskState" | "errorMessage" | "errorMessageShort" | "errorDetail">
+): boolean => {
+  if (output.taskState !== "fail") return false;
+  return (
+    isProviderSafetyBlockMessage(output.errorDetail) ||
+    isProviderSafetyBlockMessage(output.errorMessage) ||
+    isProviderSafetyBlockMessage(output.errorMessageShort)
+  );
+};
+
 /**
  * Returns whether a value resembles a failure message.
  */

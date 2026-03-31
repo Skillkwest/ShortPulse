@@ -357,7 +357,7 @@ export const useCharacterManagerDroppedReferenceController = ({
       try {
         const resolved = await resolveCharacterDropReference(payload);
         const mediaId = resolved?.mediaId?.trim() ?? "";
-        const previewUrl = resolved?.previewUrl?.trim() || payload.referenceUrl?.trim() || null;
+        const previewUrl = resolved?.previewUrl?.trim() || null;
         if (!mediaId && !previewUrl) {
           logCharacterDropBreadcrumb("character_drop_rejected", {
             target,

@@ -10,7 +10,7 @@ import {
   type ReferenceGridPreviewQualityBand,
 } from "../../logic/referenceGridMedia";
 import { isGeneratedOutput } from "../../logic/referenceOutputAuthority";
-import type { StudioOutput } from "../../types";
+import type { ReferenceGridMediaOutput } from "../logic/referenceGridMediaOutput";
 import {
   isOutputVideoPreview,
   normalizeComparableUrl,
@@ -39,7 +39,7 @@ type UseReferenceGridResolvedMediaControllerArgs = {
 };
 
 type ResolveReferenceGridCardMediaArgs = {
-  item: StudioOutput;
+  item: ReferenceGridMediaOutput;
   mediaSurface: "reference-grid" | "quick-slot";
   cardLongEdgePx: number;
 };
@@ -114,10 +114,7 @@ export const useReferenceGridResolvedMediaController = ({
             ) ?? null)
           : (resolveFirstRenderableUrl(
               resolvedCardUrls.fullUrl ?? null,
-              item.previewUrl ?? null,
-              item.fullStoragePath ?? null,
-              item.previewStoragePath ?? null,
-              item.resultUrls?.[0] ?? null
+              resolvedCardUrls.previewUrl ?? null
             ) ?? null);
       const isVideoPreview = isOutputVideoPreview(item, previewUrl);
 

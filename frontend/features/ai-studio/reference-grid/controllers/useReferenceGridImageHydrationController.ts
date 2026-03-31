@@ -5,7 +5,6 @@
 import { useCallback, useEffect, useRef, useState, type MutableRefObject } from "react";
 import type { ReferenceGridPreviewQualityBand } from "../../logic/referenceGridMedia";
 import { isVideoUrl } from "../../logic/stateParsers";
-import type { StudioOutput } from "../../types";
 import {
   logAdaptiveLocalTranscode,
   resolveAdaptivePolicyDecision,
@@ -46,7 +45,7 @@ type UseReferenceGridImageHydrationControllerArgs = {
   adaptivePreviewRoutingEnabled: boolean;
   imageDecodeBudget: number;
   activeOutputId: string | null;
-  outputs: StudioOutput[];
+  validOutputIds: string[];
   runNonUrgentUpdate: (updater: () => void) => void;
   liveWatchdogDegradeLevelRef: MutableRefObject<0 | 1 | 2>;
 };
@@ -65,7 +64,7 @@ export const useReferenceGridImageHydrationController = ({
   adaptivePreviewRoutingEnabled,
   imageDecodeBudget,
   activeOutputId,
-  outputs,
+  validOutputIds,
   runNonUrgentUpdate,
   liveWatchdogDegradeLevelRef,
 }: UseReferenceGridImageHydrationControllerArgs): UseReferenceGridImageHydrationControllerResult => {
@@ -99,9 +98,10 @@ export const useReferenceGridImageHydrationController = ({
   const hydrationQueueSizeRef = useRef(0);
   const hydrationDecodeInflightRef = useRef(0);
   const hydrationRafFlushRef = useRef<number | null>(null);
+  const hydrationQueueWorkScheduledRef = useRef(false);
   const hydrationPendingLoadedRef = useRef<Record<string, HydratedImageEntry>>({});
   const processHydrationQueueRef = useRef<() => void>(() => {});
-  const validOutputIdSetRef = useRef<Set<string>>(new Set(outputs.map((output) => output.id)));
+  const validOutputIdSetRef = useRef<Set<string>>(new Set(validOutputIds));
 
   const recordOptimizerFailoverBypass = useCallback(() => {
     runNonUrgentUpdate(() => {
@@ -278,6 +278,21 @@ export const useReferenceGridImageHydrationController = ({
       flushHydratedImages();
     });
   }, [flushHydratedImages]);
+
+  const scheduleHydrationQueueWork = useCallback(() => {
+    if (hydrationQueueWorkScheduledRef.current) return;
+    hydrationQueueWorkScheduledRef.current = true;
+    const run = () => {
+      hydrationQueueWorkScheduledRef.current = false;
+      syncImageHydrationState();
+      processHydrationQueueRef.current();
+    };
+    if (typeof queueMicrotask === "function") {
+      queueMicrotask(run);
+      return;
+    }
+    void Promise.resolve().then(run);
+  }, [syncImageHydrationState]);
 
   const pruneStaleHydrationWork = useCallback(
     (validOutputIds: Set<string>) => {
@@ -468,8 +483,7 @@ export const useReferenceGridImageHydrationController = ({
           if (currentIndex > 0) {
             hydrationQueueRef.current.splice(currentIndex, 1);
             hydrationQueueRef.current.unshift(id);
-            syncImageHydrationState();
-            processHydrationQueue();
+            scheduleHydrationQueueWork();
           }
         }
         return;
@@ -480,15 +494,13 @@ export const useReferenceGridImageHydrationController = ({
       } else {
         hydrationQueueRef.current.push(id);
       }
-      syncImageHydrationState();
-      processHydrationQueue();
+      scheduleHydrationQueueWork();
     },
     [
       decodeBudgetEnabled,
-      processHydrationQueue,
       recordOptimizerFailoverBypass,
       revokeGeneratedHydrationUrl,
-      syncImageHydrationState,
+      scheduleHydrationQueueWork,
     ]
   );
 
@@ -502,10 +514,9 @@ export const useReferenceGridImageHydrationController = ({
       if (!queueChanged) return;
       hydrationQueueRef.current = nextQueue;
       hydrationQueuedIdSetRef.current = new Set(nextQueue);
-      syncImageHydrationState();
-      processHydrationQueue();
+      scheduleHydrationQueueWork();
     },
-    [processHydrationQueue, syncImageHydrationState]
+    [scheduleHydrationQueueWork]
   );
 
   useEffect(() => {
@@ -520,36 +531,36 @@ export const useReferenceGridImageHydrationController = ({
 
   useEffect(() => {
     if (!decodeBudgetEnabled) return;
-    validOutputIdSetRef.current = new Set(outputs.map((output) => output.id));
-    const validOutputIds = new Set(outputs.map((output) => output.id));
-    pruneStaleHydrationWork(validOutputIds);
+    validOutputIdSetRef.current = new Set(validOutputIds);
+    const validOutputIdSet = new Set(validOutputIds);
+    pruneStaleHydrationWork(validOutputIdSet);
     Object.keys(hydrationGeneratedObjectUrlByIdRef.current).forEach((id) => {
-      if (validOutputIds.has(id)) return;
+      if (validOutputIdSet.has(id)) return;
       revokeGeneratedHydrationUrl(id);
     });
     Object.keys(hydrationPreviewMetaByIdRef.current).forEach((id) => {
-      if (validOutputIds.has(id)) return;
+      if (validOutputIdSet.has(id)) return;
       delete hydrationPreviewMetaByIdRef.current[id];
     });
     Object.keys(hydrationUrlByIdRef.current).forEach((id) => {
-      if (validOutputIds.has(id)) return;
+      if (validOutputIdSet.has(id)) return;
       delete hydrationUrlByIdRef.current[id];
     });
     Object.keys(hydrationFallbackUrlByIdRef.current).forEach((id) => {
-      if (validOutputIds.has(id)) return;
+      if (validOutputIdSet.has(id)) return;
       delete hydrationFallbackUrlByIdRef.current[id];
     });
     Object.keys(hydrationFailedOptimizedUrlByIdRef.current).forEach((id) => {
-      if (validOutputIds.has(id)) return;
+      if (validOutputIdSet.has(id)) return;
       delete hydrationFailedOptimizedUrlByIdRef.current[id];
     });
     Object.keys(hydrationBypassCountedOptimizedUrlByIdRef.current).forEach((id) => {
-      if (validOutputIds.has(id)) return;
+      if (validOutputIdSet.has(id)) return;
       delete hydrationBypassCountedOptimizedUrlByIdRef.current[id];
     });
 
     const hasStaleHydratedIds = Object.keys(hydrationHydratedByIdRef.current).some(
-      (id) => !validOutputIds.has(id)
+      (id) => !validOutputIdSet.has(id)
     );
     if (!hasStaleHydratedIds) return;
 
@@ -558,7 +569,7 @@ export const useReferenceGridImageHydrationController = ({
         let changed = false;
         const nextHydratedById = Object.fromEntries(
           Object.entries(prev.hydratedById).filter(([id]) => {
-            const keep = validOutputIds.has(id);
+            const keep = validOutputIdSet.has(id);
             if (!keep) changed = true;
             return keep;
           })
@@ -572,10 +583,10 @@ export const useReferenceGridImageHydrationController = ({
     });
   }, [
     decodeBudgetEnabled,
-    outputs,
     pruneStaleHydrationWork,
     revokeGeneratedHydrationUrl,
     runNonUrgentUpdate,
+    validOutputIds,
   ]);
 
   useEffect(
@@ -584,6 +595,7 @@ export const useReferenceGridImageHydrationController = ({
         window.cancelAnimationFrame(hydrationRafFlushRef.current);
         hydrationRafFlushRef.current = null;
       }
+      hydrationQueueWorkScheduledRef.current = false;
       Object.keys(hydrationGeneratedObjectUrlByIdRef.current).forEach((id) => {
         revokeGeneratedHydrationUrl(id);
       });

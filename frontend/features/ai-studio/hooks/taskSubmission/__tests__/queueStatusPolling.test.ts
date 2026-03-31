@@ -399,7 +399,7 @@ describe("queueStatusPolling", () => {
           code: "GENERATION_QUEUED",
           sourceRef: "src-dispatching-1",
           generationId: "gen-dispatching-1",
-          pollAfterMs: 5000,
+          pollAfterMs: 2000,
         },
         patch: {},
         queueStatusTimersRef,
@@ -410,7 +410,7 @@ describe("queueStatusPolling", () => {
         onDispatched,
       });
 
-      await vi.advanceTimersByTimeAsync(5_100);
+      await vi.advanceTimersByTimeAsync(2_100);
       expect(fetchFalQueueStatusMock).toHaveBeenCalledTimes(1);
       expect(onDispatched).not.toHaveBeenCalled();
 

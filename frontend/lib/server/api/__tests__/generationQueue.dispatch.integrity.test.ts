@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { dispatchGenerationSubmitQueueBatch } from "../generationQueue/dispatch";
+import type { ClaimedGenerationQueueItem } from "../generationQueue/service";
 
 const getSupabaseAdminMock = vi.fn();
 const logGenerationFailureMock = vi.fn();
@@ -16,7 +17,7 @@ const markQueueItemExhaustedMock = vi.fn();
 const releaseQueueLeaseBackToQueuedMock = vi.fn();
 const removeQueueItemMock = vi.fn();
 const updateQueueItemForRetryMock = vi.fn();
-const ensureAcceptedGenerationAttemptMock = vi.fn();
+const ensureAcceptedRunningGenerationAttemptMock = vi.fn();
 const updateGenerationAttemptStateMock = vi.fn();
 
 vi.mock("../supabaseAdmin", () => ({
@@ -66,12 +67,12 @@ vi.mock("../generationQueue/service", () => ({
 }));
 
 vi.mock("../generationAttempts", () => ({
-  ensureAcceptedGenerationAttempt: (...args: unknown[]) =>
-    ensureAcceptedGenerationAttemptMock(...args),
+  ensureAcceptedRunningGenerationAttempt: (...args: unknown[]) =>
+    ensureAcceptedRunningGenerationAttemptMock(...args),
   updateGenerationAttemptState: (...args: unknown[]) => updateGenerationAttemptStateMock(...args),
 }));
 
-const queueItem = {
+const queueItem: ClaimedGenerationQueueItem = {
   queueId: "queue-1",
   generationId: "gen-1",
   userId: "user-1",
@@ -96,16 +97,28 @@ const mutationSuccess = (operation: "retry" | "exhaust" | "release" | "remove") 
   errorMessage: null,
 });
 
+const seedClaimGenerationSubmitQueueBatches = (
+  ...batches: Array<readonly (typeof queueItem)[]>
+) => {
+  claimGenerationSubmitQueueBatchMock.mockReset();
+  for (const batch of batches) {
+    claimGenerationSubmitQueueBatchMock.mockResolvedValueOnce([...batch]);
+  }
+  claimGenerationSubmitQueueBatchMock.mockResolvedValue([]);
+};
+
 const createSupabaseAdminMock = ({
   generationUpdateError,
   existingRequestId,
   provider,
   generationMetadataSourceRef,
+  queueEnqueuedAt,
 }: {
   generationUpdateError?: string;
   existingRequestId?: string | null;
   provider?: string | null;
   generationMetadataSourceRef?: string | null;
+  queueEnqueuedAt?: string | null;
 }) => {
   const aiGenerationsTable = {
     select: vi.fn(() => ({
@@ -117,9 +130,10 @@ const createSupabaseAdminMock = ({
               status: "pending",
               request_id: existingRequestId ?? null,
               provider: provider ?? null,
-              metadata: generationMetadataSourceRef
-                ? { source_ref: generationMetadataSourceRef }
-                : {},
+              metadata: {
+                ...(generationMetadataSourceRef ? { source_ref: generationMetadataSourceRef } : {}),
+                ...(queueEnqueuedAt ? { queue_enqueued_at: queueEnqueuedAt } : {}),
+              },
             },
             error: null,
           })),
@@ -181,7 +195,7 @@ describe("generationQueue/dispatch transition integrity", () => {
       },
       publicApiBaseUrl: null,
     });
-    claimGenerationSubmitQueueBatchMock.mockResolvedValue([queueItem]);
+    seedClaimGenerationSubmitQueueBatches([queueItem]);
     resolveGenerationAdmissionTierMock.mockReturnValue("image_standard");
     getFalModelProfileByModelIdMock.mockReturnValue({
       submitTargets: [{ route: "/api/fal/nano-banana-pro-submit", url: "https://fal.test" }],
@@ -204,7 +218,7 @@ describe("generationQueue/dispatch transition integrity", () => {
     releaseQueueLeaseBackToQueuedMock.mockResolvedValue(mutationSuccess("release"));
     removeQueueItemMock.mockResolvedValue(mutationSuccess("remove"));
     updateQueueItemForRetryMock.mockResolvedValue(mutationSuccess("retry"));
-    ensureAcceptedGenerationAttemptMock.mockResolvedValue({
+    ensureAcceptedRunningGenerationAttemptMock.mockResolvedValue({
       ok: true,
       attemptId: "attempt-1",
       attemptNumber: 1,
@@ -232,7 +246,7 @@ describe("generationQueue/dispatch transition integrity", () => {
       },
       publicApiBaseUrl: null,
     });
-    claimGenerationSubmitQueueBatchMock.mockResolvedValue([
+    seedClaimGenerationSubmitQueueBatches([
       {
         ...queueItem,
         modelId: "fal-ai/veo3.1/image-to-video",
@@ -290,13 +304,14 @@ describe("generationQueue/dispatch transition integrity", () => {
     );
     expect(releaseGenerationReservationBySourceRefMock).not.toHaveBeenCalled();
     expect(updateQueueItemForRetryMock).not.toHaveBeenCalled();
-    expect(ensureAcceptedGenerationAttemptMock).not.toHaveBeenCalled();
+    expect(ensureAcceptedRunningGenerationAttemptMock).not.toHaveBeenCalled();
   });
 
   it("exhausts without releasing reservation when generation attempt write fails post-submit", async () => {
-    ensureAcceptedGenerationAttemptMock.mockResolvedValueOnce({
+    ensureAcceptedRunningGenerationAttemptMock.mockResolvedValueOnce({
       ok: false,
       error: "attempt_insert_failed",
+      stage: "record",
     });
 
     const result = await dispatchGenerationSubmitQueueBatch({
@@ -323,9 +338,10 @@ describe("generationQueue/dispatch transition integrity", () => {
   });
 
   it("exhausts without releasing reservation when generation attempt running update fails post-submit", async () => {
-    updateGenerationAttemptStateMock.mockResolvedValueOnce({
+    ensureAcceptedRunningGenerationAttemptMock.mockResolvedValueOnce({
       ok: false,
       error: "attempt_running_update_failed",
+      stage: "running",
     });
 
     const result = await dispatchGenerationSubmitQueueBatch({
@@ -415,7 +431,7 @@ describe("generationQueue/dispatch transition integrity", () => {
         status: "running",
       })
     );
-    expect(ensureAcceptedGenerationAttemptMock).not.toHaveBeenCalled();
+    expect(ensureAcceptedRunningGenerationAttemptMock).not.toHaveBeenCalled();
     expect(removeQueueItemMock).toHaveBeenCalledTimes(1);
     expect(dispatchProviderSubmitMock).not.toHaveBeenCalled();
   });
@@ -552,53 +568,73 @@ describe("generationQueue/dispatch transition integrity", () => {
     process.env.SHORTPULSE_KIE_INTEGRATION_ENABLED = "true";
     process.env.SHORTPULSE_KIE_MODEL_ALLOWLIST = "kie-ai/veo-3.1-fast-i2v";
     process.env.SHORTPULSE_KIE_SUBMIT_URLS = "https://queue.kie.ai/v1/jobs";
-    getSupabaseAdminMock.mockReturnValue(createSupabaseAdminMock({ provider: "kie" }));
-    claimGenerationSubmitQueueBatchMock.mockResolvedValue([
-      {
-        ...queueItem,
-        modelId: "kie-ai/veo-3.1-fast-i2v",
-        submitPayload: {
-          prompt: "hello",
-          image_url: "https://cdn.shortpulse.test/input.png",
+    vi.useFakeTimers();
+    try {
+      vi.setSystemTime(new Date("2026-03-01T00:00:10.000Z"));
+      getSupabaseAdminMock.mockReturnValue(
+        createSupabaseAdminMock({
+          provider: "kie",
+          queueEnqueuedAt: "2026-03-01T00:00:00.000Z",
+        })
+      );
+      seedClaimGenerationSubmitQueueBatches([
+        {
+          ...queueItem,
+          modelId: "kie-ai/veo-3.1-fast-i2v",
+          submitPayload: {
+            prompt: "hello",
+            image_url: "https://cdn.shortpulse.test/input.png",
+          },
         },
-      },
-    ]);
+      ]);
 
-    const result = await dispatchGenerationSubmitQueueBatch({
-      req: { method: "GET", headers: {} } as never,
-      routeLabel: "test/dispatch-integrity",
-      limit: 1,
-      userId: "user-1",
-    });
-
-    expect(result).toEqual(
-      expect.objectContaining({
-        claimed: 1,
-        submitted: 1,
-        exhausted: 0,
-      })
-    );
-    expect(dispatchProviderSubmitMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        provider: "kie",
-        modelId: "kie-ai/veo-3.1-fast-i2v",
-        targets: [{ submitUrl: "https://queue.kie.ai/v1/jobs" }],
-      })
-    );
-    expect(withWebhookTargetsMock).not.toHaveBeenCalled();
-    expect(markQueueItemExhaustedMock).not.toHaveBeenCalled();
-    expect(updateGenerationAttemptStateMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        providerRequestId: "req-1",
+      const result = await dispatchGenerationSubmitQueueBatch({
+        req: { method: "GET", headers: {} } as never,
+        routeLabel: "test/dispatch-integrity",
+        limit: 1,
         userId: "user-1",
-        status: "running",
-      })
-    );
+      });
 
-    delete process.env.KIE_API_KEY;
-    delete process.env.SHORTPULSE_KIE_INTEGRATION_ENABLED;
-    delete process.env.SHORTPULSE_KIE_MODEL_ALLOWLIST;
-    delete process.env.SHORTPULSE_KIE_SUBMIT_URLS;
+      expect(result).toEqual(
+        expect.objectContaining({
+          claimed: 1,
+          submitted: 1,
+          exhausted: 0,
+        })
+      );
+      expect(dispatchProviderSubmitMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          provider: "kie",
+          modelId: "kie-ai/veo-3.1-fast-i2v",
+          targets: [{ submitUrl: "https://queue.kie.ai/v1/jobs" }],
+        })
+      );
+      expect(withWebhookTargetsMock).not.toHaveBeenCalled();
+      expect(markQueueItemExhaustedMock).not.toHaveBeenCalled();
+      expect(ensureAcceptedRunningGenerationAttemptMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          generationId: "gen-1",
+          userId: "user-1",
+          providerRequestId: "req-1",
+          dispatchSource: "queued_submit",
+        })
+      );
+      expect(logGenerationFailureMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          source: "telemetry.queue.dispatch.submitted",
+          metadata: expect.objectContaining({
+            queue_latency_ms: 10_000,
+            queue_latency_seconds: 10,
+          }),
+        })
+      );
+    } finally {
+      delete process.env.KIE_API_KEY;
+      delete process.env.SHORTPULSE_KIE_INTEGRATION_ENABLED;
+      delete process.env.SHORTPULSE_KIE_MODEL_ALLOWLIST;
+      delete process.env.SHORTPULSE_KIE_SUBMIT_URLS;
+      vi.useRealTimers();
+    }
   });
 
   it("dispatches queued kie generation using model-catalog submit defaults when env submit urls are unset", async () => {
@@ -608,7 +644,7 @@ describe("generationQueue/dispatch transition integrity", () => {
     delete process.env.SHORTPULSE_KIE_SUBMIT_URLS;
 
     getSupabaseAdminMock.mockReturnValue(createSupabaseAdminMock({ provider: "kie" }));
-    claimGenerationSubmitQueueBatchMock.mockResolvedValue([
+    seedClaimGenerationSubmitQueueBatches([
       {
         ...queueItem,
         modelId: "kie-ai/veo-3.1-fast-i2v",
@@ -640,11 +676,12 @@ describe("generationQueue/dispatch transition integrity", () => {
         targets: [{ submitUrl: "https://api.kie.ai/api/v1/veo/generate" }],
       })
     );
-    expect(updateGenerationAttemptStateMock).toHaveBeenCalledWith(
+    expect(ensureAcceptedRunningGenerationAttemptMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        providerRequestId: "req-1",
+        generationId: "gen-1",
         userId: "user-1",
-        status: "running",
+        providerRequestId: "req-1",
+        dispatchSource: "queued_submit",
       })
     );
 
@@ -690,7 +727,7 @@ describe("generationQueue/dispatch transition integrity", () => {
   });
 
   it("fails closed before provider submit when queued payload violates the shared contract", async () => {
-    claimGenerationSubmitQueueBatchMock.mockResolvedValue([
+    seedClaimGenerationSubmitQueueBatches([
       {
         ...queueItem,
         submitPayload: {
@@ -734,6 +771,20 @@ describe("generationQueue/dispatch transition integrity", () => {
         }),
       })
     );
+
+    const supabaseAdmin = getSupabaseAdminMock.mock.results.at(-1)?.value as {
+      from: (tableName: string) => { update: ReturnType<typeof vi.fn> };
+    };
+    const aiGenerationsUpdateMock = supabaseAdmin.from("ai_generations").update;
+    expect(aiGenerationsUpdateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        status: "fail",
+        failure_reason_code: "queue_dispatch_exhausted",
+        error_message: "Generation failed queue contract validation before provider submit.",
+        recovery_state: "exhausted",
+        next_recovery_at: null,
+      })
+    );
   });
 
   it("applies deterministic jittered retry backoff within bounded delay", async () => {
@@ -750,6 +801,7 @@ describe("generationQueue/dispatch transition integrity", () => {
       });
 
       randomSpy.mockReturnValue(0);
+      seedClaimGenerationSubmitQueueBatches([queueItem]);
       await dispatchGenerationSubmitQueueBatch({
         req: { method: "GET", headers: {} } as never,
         routeLabel: "test/dispatch-integrity",
@@ -765,6 +817,7 @@ describe("generationQueue/dispatch transition integrity", () => {
 
       updateQueueItemForRetryMock.mockClear();
       randomSpy.mockReturnValue(1);
+      seedClaimGenerationSubmitQueueBatches([queueItem]);
       await dispatchGenerationSubmitQueueBatch({
         req: { method: "GET", headers: {} } as never,
         routeLabel: "test/dispatch-integrity",

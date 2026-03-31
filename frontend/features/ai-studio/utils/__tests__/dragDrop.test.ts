@@ -15,6 +15,7 @@ import {
   getNormalizedTransferTypes,
   hasInternalReferenceDragTypeHints,
   INTERNAL_REFERENCE_DRAG_ORIGIN,
+  isImageDragTransfer,
   isVideoDragTransfer,
   looksLikeImageUrl,
   prepareReferenceDrag,
@@ -136,6 +137,18 @@ describe("dragDrop payload extraction", () => {
     });
 
     expect(hasInternalReferenceDragTypeHints(transfer)).toBe(true);
+  });
+
+  it("accepts internal reference drags for image targets during dragover", () => {
+    const transfer = makeTransfer({
+      "text/reference-id": "out-1",
+      "text/reference-output-id": "out-1",
+      "text/reference-origin": INTERNAL_REFERENCE_DRAG_ORIGIN,
+      "text/reference-url": "",
+      "text/reference-render-url": "",
+    });
+
+    expect(isImageDragTransfer(transfer)).toBe(true);
   });
 
   it("caches normalized transfer types per transfer object", () => {
@@ -531,6 +544,51 @@ describe("dragDrop payload extraction", () => {
     } as unknown as DataTransfer);
 
     expect(payload?.outputId).toBe("out-generated-tracked");
+    expect(payload?.referenceUrl).toBeNull();
+    expect(payload?.referenceRenderUrl).toBeNull();
+
+    clearDragState(event as unknown as Parameters<typeof clearDragState>[0]);
+  });
+
+  it("keeps generated saved-media-only drags identity-only when output storage paths are absent", () => {
+    const { event, setData } = makeDragEvent();
+
+    prepareReferenceDrag(
+      event,
+      {
+        id: "out-generated-saved-only",
+        prompt: "Prompt",
+        mode: "image",
+        aspect: "1:1",
+        model: "Model",
+        status: "ready",
+        timestamp: "Now",
+        mediaSource: "generated",
+        generationId: "gen-saved-only",
+        savedMediaIds: ["media-generated-1"],
+        previewUrl: "https://provider.example.com/generated-saved-only.png",
+      },
+      { sourceSurface: "all-refs" }
+    );
+
+    expect(setData).not.toHaveBeenCalledWith(
+      "text/reference-url",
+      "https://provider.example.com/generated-saved-only.png"
+    );
+    expect(setData).not.toHaveBeenCalledWith("image/url", expect.any(String));
+
+    const dragSessionToken = setData.mock.calls.find(
+      ([type]) => type === INTERNAL_REFERENCE_DRAG_SESSION_TYPE
+    )?.[1];
+    const payload = extractInternalReferenceDragPayload({
+      files: emptyFileList,
+      types: [INTERNAL_REFERENCE_DRAG_SESSION_TYPE],
+      getData: (type: string) =>
+        type === INTERNAL_REFERENCE_DRAG_SESSION_TYPE ? dragSessionToken : "",
+    } as unknown as DataTransfer);
+
+    expect(payload?.outputId).toBe("out-generated-saved-only");
+    expect(payload?.mediaId).toBe("media-generated-1");
     expect(payload?.referenceUrl).toBeNull();
     expect(payload?.referenceRenderUrl).toBeNull();
 

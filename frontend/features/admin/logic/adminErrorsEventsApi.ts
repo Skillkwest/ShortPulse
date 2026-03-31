@@ -12,6 +12,26 @@ import type {
 export const ERRORS_PER_PAGE = 50;
 export const ERROR_EVENTS_PER_PAGE = 50;
 export const DEFAULT_ERROR_EVENTS_SUMMARY: AdminErrorEventSummary = {
+  admissionDeniedTelemetry: {
+    last15m: {
+      total: 0,
+      byTier: { video_long: 0, image_heavy: 0, image_standard: 0, unknown: 0 },
+      byReason: { global_limit: 0, tier_limit: 0, global_and_tier_limit: 0, unknown: 0 },
+      byScope: { per_user: 0, shared_provider: 0, unknown: 0 },
+    },
+    lastHour: {
+      total: 0,
+      byTier: { video_long: 0, image_heavy: 0, image_standard: 0, unknown: 0 },
+      byReason: { global_limit: 0, tier_limit: 0, global_and_tier_limit: 0, unknown: 0 },
+      byScope: { per_user: 0, shared_provider: 0, unknown: 0 },
+    },
+    last24h: {
+      total: 0,
+      byTier: { video_long: 0, image_heavy: 0, image_standard: 0, unknown: 0 },
+      byReason: { global_limit: 0, tier_limit: 0, global_and_tier_limit: 0, unknown: 0 },
+      byScope: { per_user: 0, shared_provider: 0, unknown: 0 },
+    },
+  },
   last15mCount: 0,
   high15mCount: 0,
   generation15mCount: 0,
@@ -223,6 +243,9 @@ export const normalizeAdminErrorEventsResponse = (
     };
   }),
   summary: {
+    admissionDeniedTelemetry:
+      data.summary?.admissionDeniedTelemetry ??
+      DEFAULT_ERROR_EVENTS_SUMMARY.admissionDeniedTelemetry,
     last15mCount: toFiniteNumber(data.summary?.last15mCount, 0),
     high15mCount: toFiniteNumber(data.summary?.high15mCount, 0),
     generation15mCount: toFiniteNumber(data.summary?.generation15mCount, 0),

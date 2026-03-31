@@ -5,7 +5,8 @@ const getSupabaseAdminMock = vi.fn();
 const logApiRouteExceptionMock = vi.fn();
 const dispatchGenerationSubmitQueueBatchMock = vi.fn();
 const repairGenerationRequestIdsFromReservationsMock = vi.fn();
-const executeGenerationRecoveryMock = vi.fn();
+const claimGenerationRecoveryBatchMock = vi.fn();
+const executeClaimedRecoveryBatchMock = vi.fn();
 
 vi.mock("../../api/supabaseAdmin", () => ({
   getSupabaseAdmin: (...args: unknown[]) => getSupabaseAdminMock(...args),
@@ -25,8 +26,12 @@ vi.mock("../../api/generationQueue/requestIdRepair", () => ({
     repairGenerationRequestIdsFromReservationsMock(...args),
 }));
 
-vi.mock("../../falIntegration/recoveryExecution", () => ({
-  executeGenerationRecovery: (...args: unknown[]) => executeGenerationRecoveryMock(...args),
+vi.mock("../recoveryBatchAcquisition", () => ({
+  claimGenerationRecoveryBatch: (...args: unknown[]) => claimGenerationRecoveryBatchMock(...args),
+}));
+
+vi.mock("../recoveryBatchExecution", () => ({
+  executeClaimedRecoveryBatch: (...args: unknown[]) => executeClaimedRecoveryBatchMock(...args),
 }));
 
 type SupabaseMock = {
@@ -79,9 +84,19 @@ describe("runGenerationControlPlaneCycle", () => {
       repaired: 0,
       errors: 0,
     });
-    executeGenerationRecoveryMock.mockResolvedValue({
-      processed: false,
-      state: "skipped",
+    claimGenerationRecoveryBatchMock.mockResolvedValue({
+      rows: [],
+      claimSource: "rpc",
+      rpcError: null,
+    });
+    executeClaimedRecoveryBatchMock.mockResolvedValue({
+      recovered: 0,
+      requeued: 0,
+      exhausted: 0,
+      skipped: 0,
+      duplicates: 0,
+      processed: 0,
+      errors: 0,
     });
   });
 
@@ -105,6 +120,21 @@ describe("runGenerationControlPlaneCycle", () => {
     });
     expect(repairGenerationRequestIdsFromReservationsMock).toHaveBeenCalledWith({
       limit: 10,
+    });
+    expect(claimGenerationRecoveryBatchMock).toHaveBeenCalledWith({
+      supabaseAdmin: expect.any(Object),
+      batchSize: 10,
+      maxAttempts: 5,
+      minAgeSeconds: 0,
+      leaseSeconds: expect.any(Number),
+    });
+    expect(executeClaimedRecoveryBatchMock).toHaveBeenCalledWith({
+      supabaseAdmin: expect.any(Object),
+      rows: [],
+      modelAllowlist: expect.any(Set),
+      maxAttempts: 5,
+      routeLabel: "worker/generation-control-plane",
+      logException: expect.any(Function),
     });
     expect(result).toEqual(
       expect.objectContaining({

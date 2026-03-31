@@ -1,6 +1,6 @@
 /**
  * Card-items derivation controller for Reference Grid.
- * Resolves card URLs and hydration-aware image sources for visible card rows.
+ * Resolves card URLs, hydration-aware image sources, and loading-state sets for visible card rows.
  */
 import { useCallback, useMemo } from "react";
 import type {
@@ -8,16 +8,23 @@ import type {
   ReferenceGridPreviewQualityBand,
 } from "../../logic/referenceGridMedia";
 import type { StudioOutput } from "../../types";
+import type { ReferenceGridMediaOutput } from "../logic/referenceGridMediaOutput";
+import { isReferenceGridPlaceholderOnlyMediaOutput } from "../logic/referenceGridMediaOutput";
 import {
   hasAdaptiveQueryParams,
   isNextOptimizerUrl,
   normalizeComparableUrl,
   resolveOptimizerSourceUrl,
 } from "../logic/referenceGridMediaHelpers";
+import { classifyReferenceGridCardVisualState } from "../logic/referenceGridCardVisualState";
 import type { ReferenceGridResolvedCardMedia } from "./useReferenceGridResolvedMediaController";
+import {
+  incrementFreezeInvestigationCounter,
+  setFreezeInvestigationGauge,
+} from "../../logic/freezeInvestigationTelemetry";
 
 export type ReferenceGridVisibleCardItem = {
-  item: StudioOutput;
+  item: ReferenceGridMediaOutput;
   surface: "all-refs" | "curated";
   mediaSurface: "reference-grid" | "quick-slot";
   authorityTier: ReferenceGridMediaAuthorityTier;
@@ -29,13 +36,14 @@ export type ReferenceGridVisibleCardItem = {
   isImagePreview: boolean;
   isPriorityHydration: boolean;
   imageSrc?: string;
+  isPlaceholderOnly?: boolean;
 };
 
 type UseReferenceGridCardItemsControllerArgs = {
   activeOutputId: string | null;
   decodeBudgetEnabled: boolean;
-  visibleOutputs: StudioOutput[];
-  visibleCuratedOutputs: StudioOutput[];
+  visibleOutputs: ReferenceGridMediaOutput[];
+  visibleCuratedOutputs: ReferenceGridMediaOutput[];
   visibleQuickSlotIdSet: Set<string>;
   hydrationPriorityCount: number;
   curatedHydrationPriorityCount: number;
@@ -43,10 +51,12 @@ type UseReferenceGridCardItemsControllerArgs = {
   curatedVirtualRowHeight: number;
   quickSlotAdaptiveSurfaceEnabled: boolean;
   resolveCardMedia: (args: {
-    item: StudioOutput;
+    item: ReferenceGridMediaOutput;
     mediaSurface: "reference-grid" | "quick-slot";
     cardLongEdgePx: number;
   }) => ReferenceGridResolvedCardMedia;
+  visibleOutputById: Record<string, StudioOutput>;
+  loadedMap: Record<string, boolean>;
   hydratedById: Record<
     string,
     {
@@ -60,6 +70,12 @@ type UseReferenceGridCardItemsControllerResult = {
   visibleCardItems: ReferenceGridVisibleCardItem[];
   curatedVisibleCardItems: ReferenceGridVisibleCardItem[];
   allVisibleCardItems: ReferenceGridVisibleCardItem[];
+  loadingCardIdSet: Set<string>;
+  generationLoadingCardIdSet: Set<string>;
+  hydrationLoadingCardIdSet: Set<string>;
+  generationLoadingIdsLength: number;
+  hydrationLoadingIdsLength: number;
+  loadingIdsLength: number;
   transformedAdaptivePreviewCount: number;
 };
 
@@ -78,11 +94,19 @@ export const useReferenceGridCardItemsController = ({
   curatedVirtualRowHeight,
   quickSlotAdaptiveSurfaceEnabled,
   resolveCardMedia,
+  visibleOutputById,
+  loadedMap,
   hydratedById,
 }: UseReferenceGridCardItemsControllerArgs): UseReferenceGridCardItemsControllerResult => {
+  incrementFreezeInvestigationCounter("referenceGrid.cardItems.recompute");
+  setFreezeInvestigationGauge("referenceGrid.cardItems.visibleOutputsCount", visibleOutputs.length);
+  setFreezeInvestigationGauge(
+    "referenceGrid.cardItems.visibleCuratedOutputsCount",
+    visibleCuratedOutputs.length
+  );
   const buildVisibleCardItems = useCallback(
     (
-      rows: StudioOutput[],
+      rows: ReferenceGridMediaOutput[],
       priorityCount: number,
       options: {
         mediaSurface: "reference-grid" | "quick-slot";
@@ -93,6 +117,24 @@ export const useReferenceGridCardItemsController = ({
       rows.map((item, visibleIndex) => {
         const shouldPreferCuratedSurface =
           options.visualSurface === "all-refs" && visibleQuickSlotIdSet.has(item.id);
+        const isPlaceholderOnly = isReferenceGridPlaceholderOnlyMediaOutput(item);
+        if (isPlaceholderOnly) {
+          return {
+            item,
+            surface: options.visualSurface,
+            mediaSurface: options.mediaSurface,
+            authorityTier: "preview-only" as const,
+            cardPreviewUrl: null,
+            fallbackUrl: null,
+            previewQualityBand: "high" as const,
+            targetLongEdgePx: options.cardLongEdgePx,
+            isVideoPreview: false,
+            isImagePreview: false,
+            isPriorityHydration: false,
+            imageSrc: undefined,
+            isPlaceholderOnly: true,
+          };
+        }
         const resolvedMedia = resolveCardMedia({
           item,
           mediaSurface: options.mediaSurface,
@@ -142,6 +184,7 @@ export const useReferenceGridCardItemsController = ({
           isImagePreview: resolvedMedia.isImagePreview,
           isPriorityHydration,
           imageSrc,
+          isPlaceholderOnly: false,
         };
       }),
     [activeOutputId, decodeBudgetEnabled, hydratedById, resolveCardMedia, visibleQuickSlotIdSet]
@@ -177,6 +220,55 @@ export const useReferenceGridCardItemsController = ({
     () => [...curatedVisibleCardItems, ...visibleCardItems],
     [curatedVisibleCardItems, visibleCardItems]
   );
+  const loadingState = useMemo(() => {
+    const nextLoadingIds: string[] = [];
+    const nextGenerationLoadingIds: string[] = [];
+    const nextHydrationLoadingIds: string[] = [];
+    allVisibleCardItems.forEach((card) => {
+      if (card.surface === "all-refs" && visibleQuickSlotIdSet.has(card.item.id)) return;
+      const currentOutput = visibleOutputById[card.item.id];
+      if (!currentOutput) return;
+      const visualState = classifyReferenceGridCardVisualState({
+        item: currentOutput,
+        authorityTier: card.authorityTier,
+        cardPreviewUrl: card.cardPreviewUrl,
+        isLoaded: Boolean(loadedMap[card.item.id]),
+        decodeBudgetEnabled,
+        isImagePreview: card.isImagePreview,
+        isPriorityHydration: card.isPriorityHydration,
+        imageSrc: card.imageSrc,
+      });
+      if (visualState.isLoading) {
+        nextLoadingIds.push(card.item.id);
+      }
+      if (visualState.isGenerationLoading) {
+        nextGenerationLoadingIds.push(card.item.id);
+      }
+      if (visualState.isMediaHydrating) {
+        nextHydrationLoadingIds.push(card.item.id);
+      }
+    });
+    return {
+      loadingIds: nextLoadingIds,
+      generationLoadingIds: nextGenerationLoadingIds,
+      hydrationLoadingIds: nextHydrationLoadingIds,
+    };
+  }, [
+    allVisibleCardItems,
+    decodeBudgetEnabled,
+    loadedMap,
+    visibleOutputById,
+    visibleQuickSlotIdSet,
+  ]);
+  const loadingCardIdSet = useMemo(() => new Set(loadingState.loadingIds), [loadingState]);
+  const generationLoadingCardIdSet = useMemo(
+    () => new Set(loadingState.generationLoadingIds),
+    [loadingState]
+  );
+  const hydrationLoadingCardIdSet = useMemo(
+    () => new Set(loadingState.hydrationLoadingIds),
+    [loadingState]
+  );
 
   const transformedAdaptivePreviewCount = useMemo(() => {
     let count = 0;
@@ -201,6 +293,12 @@ export const useReferenceGridCardItemsController = ({
     visibleCardItems,
     curatedVisibleCardItems,
     allVisibleCardItems,
+    loadingCardIdSet,
+    generationLoadingCardIdSet,
+    hydrationLoadingCardIdSet,
+    generationLoadingIdsLength: loadingState.generationLoadingIds.length,
+    hydrationLoadingIdsLength: loadingState.hydrationLoadingIds.length,
+    loadingIdsLength: loadingState.loadingIds.length,
     transformedAdaptivePreviewCount,
   };
 };

@@ -579,6 +579,8 @@ describe("generationBilling reservation RPC handling", () => {
       error: "Too many active generations. Please retry shortly.",
       code: "GENERATION_ADMISSION_LIMIT",
       retryAfterSeconds: 11,
+      admissionScope: "per_user",
+      admissionReason: "tier_limit",
       limits: {
         globalMax: 4,
         globalActive: 4,

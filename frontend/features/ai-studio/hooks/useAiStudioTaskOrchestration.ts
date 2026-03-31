@@ -41,7 +41,6 @@ const QUEUE_RESUME_MIN_RECHECK_MS = 12_000;
 const QUEUE_RESUME_MAX_CONCURRENT = 3;
 const QUEUE_RESUME_NOT_FOUND_MAX_RETRIES = 6;
 const QUEUE_RESUME_NOT_FOUND_MAX_AGE_MS = 90_000;
-const QUEUE_RESUME_DEFER_AFTER_ENQUEUE_MS = 3 * 60_000;
 
 const isDocumentVisible = (): boolean =>
   typeof document === "undefined" || document.visibilityState === "visible";
@@ -98,14 +97,6 @@ const isQueueResumeEligible = (output: StudioOutput): boolean => {
     output.taskState === "success" ||
     output.taskState == null
   );
-};
-
-const shouldDeferQueueResumeToSubmitPolling = (output: StudioOutput, nowMs: number): boolean => {
-  if (output.queueState !== "queued") return false;
-  if (typeof output.queueEnqueuedAtMs !== "number" || !Number.isFinite(output.queueEnqueuedAtMs)) {
-    return false;
-  }
-  return nowMs - Math.trunc(output.queueEnqueuedAtMs) < QUEUE_RESUME_DEFER_AFTER_ENQUEUE_MS;
 };
 
 /**
@@ -241,7 +232,6 @@ export const useAiStudioTaskOrchestration = ({
     let inFlightCount = Object.values(queueResumeInFlightRef.current).filter(Boolean).length;
     outputsSnapshot.forEach((output) => {
       if (!isQueueResumeEligible(output)) return;
-      if (shouldDeferQueueResumeToSubmitPolling(output, now)) return;
       activeQueuedIds.add(output.id);
       if (inFlightCount >= QUEUE_RESUME_MAX_CONCURRENT) return;
       if (queueResumeInFlightRef.current[output.id]) return;

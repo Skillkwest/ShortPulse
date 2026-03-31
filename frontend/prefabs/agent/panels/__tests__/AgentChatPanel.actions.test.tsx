@@ -4,7 +4,6 @@
  */
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import { CONCURRENT_GENERATION_CAP_MESSAGE } from "../../../../features/ai-studio/logic/concurrentGenerationCap";
 import { AgentChatPanel } from "../AgentChatPanel";
 
 describe("AgentChatPanel prompt actions", () => {
@@ -170,22 +169,6 @@ describe("AgentChatPanel prompt actions", () => {
     );
 
     expect(screen.getByText(message)).toBeInTheDocument();
-  });
-
-  it("suppresses the concurrent cap warning above disabled output generate pills", () => {
-    render(
-      <AgentChatPanel
-        messages={[{ id: "a-1", role: "assistant", content: "Assistant output one." }]}
-        input=""
-        stagedPrompt="Assistant staged prompt."
-        disableOutputGenerate
-        outputGenerateGuardrailReason={CONCURRENT_GENERATION_CAP_MESSAGE}
-        onInputChange={vi.fn()}
-        onSend={vi.fn()}
-      />
-    );
-
-    expect(screen.queryByText(CONCURRENT_GENERATION_CAP_MESSAGE)).not.toBeInTheDocument();
   });
 
   it("renders linked bubble thumbnails and status states without breaking generate controls", () => {

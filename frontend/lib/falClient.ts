@@ -381,6 +381,12 @@ const readAdmissionRetryAfterSeconds = (response: Response, payload: unknown): n
   return parsePositiveInteger(header);
 };
 
+const readAdmissionScope = (payload: unknown): "shared_provider" | "per_user" | null => {
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) return null;
+  const value = (payload as Record<string, unknown>).admissionScope;
+  return value === "shared_provider" || value === "per_user" ? value : null;
+};
+
 const readGenerationAdmissionErrorMessage = (
   response: Response,
   payload: unknown
@@ -398,6 +404,19 @@ const readGenerationAdmissionErrorMessage = (
       return "Generation admission is temporarily unavailable. Please retry shortly.";
     }
     return `Generation admission is temporarily unavailable. Please retry in ${retryAfterSeconds} seconds.`;
+  }
+  const admissionScope = readAdmissionScope(payload);
+  if (admissionScope === "shared_provider") {
+    if (retryAfterSeconds === null) {
+      return "Shared generation capacity is busy right now. Please retry shortly.";
+    }
+    return `Shared generation capacity is busy right now. Please retry in ${retryAfterSeconds} seconds.`;
+  }
+  if (admissionScope === "per_user") {
+    if (retryAfterSeconds === null) {
+      return "You already have too many active generations. Please retry shortly.";
+    }
+    return `You already have too many active generations. Please retry in ${retryAfterSeconds} seconds.`;
   }
   if (retryAfterSeconds === null) {
     return "Too many active generations. Please retry shortly.";

@@ -33,6 +33,12 @@ vi.mock("../../../../lib/supabaseClient", () => ({
       onAuthStateChange: () => ({ data: { subscription: { unsubscribe: () => undefined } } }),
     },
   }),
+  useSupabaseSessionState: () => ({
+    user: null,
+    session: null,
+    loading: false,
+    error: null,
+  }),
 }));
 
 vi.mock("../../../character-manager/hooks/useCharacterManagerDraft", () => ({
@@ -117,23 +123,20 @@ vi.mock("../../../character-manager/hooks/useCharacterQuickSwapTipPreference", (
 }));
 
 describe("CharacterPanel layout", () => {
-  it("defaults embedded character workflow to Manage tab and keeps create layout stable", () => {
+  it("defaults embedded character workflow to Character Profile and keeps layout stable", () => {
     const { container } = render(<CharacterPanel beginnerMode />);
+    const quickSwapHelperCopy =
+      "The quick swap deck is a small library of images you can quickly access to swap out your character's style on the fly.";
     const workflowTablist = screen.getByRole("tablist", { name: "Character workflow mode" });
     const workflowTabs = within(workflowTablist).getAllByRole("tab");
 
     expect(workflowTabs[0]).toHaveTextContent("Manage Characters");
     expect(workflowTabs[1]).toHaveTextContent("Character Profile");
-    expect(screen.getByRole("tab", { name: "Manage Characters" })).toHaveAttribute(
+    expect(screen.getByRole("tab", { name: "Character Profile" })).toHaveAttribute(
       "aria-selected",
       "true"
     );
-    expect(screen.getByText("Characters Library")).toBeInTheDocument();
-    expect(screen.getByText("Create and manage character references.")).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Character Library" })).toBeInTheDocument();
-    expect(screen.queryByRole("heading", { name: "QuickSwap Deck" })).not.toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole("tab", { name: "Character Profile" }));
+    expect(screen.getByText("Characters")).toBeInTheDocument();
 
     const regions = Array.from(container.querySelectorAll("[data-layout-region]"))
       .map((node) => node.getAttribute("data-layout-region"))
@@ -141,6 +144,25 @@ describe("CharacterPanel layout", () => {
     expect(regions).toEqual(["quickswap", "sheet"]);
     expect(screen.getByRole("heading", { name: "QuickSwap Deck" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Character Sheet" })).toBeInTheDocument();
+    expect(screen.queryByText(quickSwapHelperCopy)).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("tab", { name: "Manage Characters" }));
+    expect(screen.getByRole("heading", { name: "Character Library" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "QuickSwap Deck" })).not.toBeInTheDocument();
+  });
+
+  it("keeps embedded QuickSwap chrome lean in expert mode", () => {
+    const quickSwapHelperCopy =
+      "The quick swap deck is a small library of images you can quickly access to swap out your character's style on the fly.";
+
+    render(<CharacterPanel beginnerMode={false} />);
+
+    expect(screen.queryByText(quickSwapHelperCopy)).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", {
+        name: /Collapse QuickSwap Deck|Expand QuickSwap Deck/i,
+      })
+    ).not.toBeInTheDocument();
   });
 
   it("locks properties rail scrolling only while Character Profile tab is active", () => {
@@ -154,15 +176,15 @@ describe("CharacterPanel layout", () => {
       throw new Error("Expected ai-properties wrapper to exist.");
     }
 
-    expect(propertiesRail.style.overflowY).toBe("auto");
-    expect(propertiesRail.style.overscrollBehaviorY).toBe("auto");
-
-    fireEvent.click(screen.getByRole("tab", { name: "Character Profile" }));
     expect(propertiesRail.style.overflowY).toBe("hidden");
     expect(propertiesRail.style.overscrollBehaviorY).toBe("none");
 
     fireEvent.click(screen.getByRole("tab", { name: "Manage Characters" }));
     expect(propertiesRail.style.overflowY).toBe("auto");
     expect(propertiesRail.style.overscrollBehaviorY).toBe("auto");
+
+    fireEvent.click(screen.getByRole("tab", { name: "Character Profile" }));
+    expect(propertiesRail.style.overflowY).toBe("hidden");
+    expect(propertiesRail.style.overscrollBehaviorY).toBe("none");
   });
 });

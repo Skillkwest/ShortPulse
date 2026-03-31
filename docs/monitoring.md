@@ -43,6 +43,11 @@ Purpose: define how runtime incidents are captured, triaged, and resolved.
 - Local dev queue mode requires `npm -C frontend run dev:generation-worker`; localhost queued submits now fail closed when the worker heartbeat is stale/missing.
 - Use `scripts/run_generation_drain_cycle.mjs` to run controlled all-user drain loops via `/api/internal/generation-recovery/run`.
 - Use `docs/sops/sop_generation_recovery_diagnostics.md` as the canonical drain/remediation sequence.
+- Use `sql/check_generation_queue_dispatch_latency.sql` to measure queue-to-dispatch latency from `telemetry.queue.dispatch.submitted` events in `app_error_events`.
+- Background control-plane ownership is now explicitly split into:
+  - stage orchestration: `frontend/lib/server/generationControlPlane/runCycle.ts`
+  - recovery batch acquisition: `frontend/lib/server/generationControlPlane/recoveryBatchAcquisition.ts`
+  - recovery batch execution: `frontend/lib/server/generationControlPlane/recoveryBatchExecution.ts`
 - Treat these response fields as hard health signals during drain:
   - recovery: `claimed`, `processed`, `recovered`, `requeued`, `exhausted`, `errors`
   - queue dispatch: `queueClaimed`, `queueSubmitted`, `queueRetried`, `queueExhausted`, `queueDispatchErrors`
@@ -50,6 +55,10 @@ Purpose: define how runtime incidents are captured, triaged, and resolved.
 - Convergence target:
   - no sustained active workload (`claimed`, `requeued`, `queueClaimed` no longer persistently elevated),
   - `errors = 0` and `queueDispatchErrors = 0` across the configured convergence window.
+- Queue-latency validation target:
+  - `telemetry.queue.dispatch.submitted` events are present during the validation run,
+  - `p95_queue_latency_ms` trends materially below the prior symptom window,
+  - worst-case rows are explainable by real provider/admission pressure rather than idle queue starvation.
 
 ### Admin fleet health monitoring
 - Fleet scan trigger route: `/api/internal/admin-user-health-fleet/run`.
@@ -72,6 +81,9 @@ Purpose: define how runtime incidents are captured, triaged, and resolved.
 - Scheduler/cron diagnostics: `sql/check_control_plane_scheduler_health.sql`.
 - `pg_net` diagnostics taxonomy: `sql/check_pg_net_failure_taxonomy.sql`.
 - Use these scripts as the canonical R1 control-plane checks before and during incident escalation.
+- Fal webhook ingress is now explicitly thin-route + ingress-service:
+  - route verification/parsing: `frontend/pages/api/fal/webhook.ts`
+  - durable inbox / duplicate / ignore / recovery handoff: `frontend/lib/server/falIntegration/falWebhookIngress.ts`
 
 ## Admin triage controls
 - `app_error_events` is append-only telemetry. Do not delete rows during troubleshooting; preserve forensic history.

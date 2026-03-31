@@ -68,6 +68,17 @@ The near-term goal is overload protection with minimal regression risk while pre
 3. Queue status behavior was hardened so exhausted queue rows resolve as `failed` (instead of lingering as `queued`) without changing the public route contract.
 4. Added migration `054_add_provider_attached_stale_reservation_cleanup.sql` and recovery-route integration for service-role stale provider-attached reservation cleanup behind runtime flags.
 
+## Follow-Up Shared Provider Admission (2026-03-30)
+1. Added an optional shared-provider admission layer behind:
+   - `SHORTPULSE_FAL_ADMISSION_SHARED_PROVIDER_ENABLED`
+   - `SHORTPULSE_FAL_ADMISSION_SHARED_PROVIDER_GLOBAL_MAX`
+2. Shared-provider admission counts active reserved Fal-family holds across users, while preserving existing per-user global and per-tier caps as secondary guardrails.
+3. Queue dispatch now evaluates both shared-provider capacity and per-user capacity so queued work cannot bypass the same shared-account ceiling enforced at submit time.
+4. Rollout posture remains staged:
+   - leave shared-provider admission disabled by default,
+   - enable in shadow-compatible operational environments first by pairing it with existing admission telemetry review,
+   - only then enforce production values that reflect real upstream Fal account capacity.
+
 ## Alternatives considered
 - Server FIFO queue first:
   - Rejected for phase 1 due higher migration risk (queue persistence, workers, cancellation semantics, billing semantics for queued jobs).

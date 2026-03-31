@@ -83,7 +83,7 @@ vi.mock("../../lib/mediaPerfTelemetry", () => ({
 }));
 
 vi.mock("../../lib/supabaseClient", () => ({
-  ensureSupabaseClient: () => ({
+  ensureSupabaseQueryClient: () => ({
     rpc: vi.fn(() => new Promise(() => {})),
     storage: {
       from: () => ({
@@ -168,8 +168,8 @@ vi.mock("../../features/media-library/hooks/useMediaPromptModalCrud", () => ({
   useMediaPromptModalCrud: () => promptCrudState,
 }));
 
-vi.mock("../../features/media-library/hooks/useMediaPreviewRuntime", () => ({
-  useMediaPreviewRuntime: () => previewRuntimeState,
+vi.mock("../../features/media-library/hooks/useMediaSurfacePreviewRuntime", () => ({
+  useMediaSurfacePreviewRuntime: () => previewRuntimeState,
 }));
 
 vi.mock("../../features/media-library/hooks/useMediaPreviewSigningController", () => ({

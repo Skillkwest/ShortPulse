@@ -6,6 +6,10 @@
 
 import { readFalRuntimeFlags } from "../falRuntimeFlags";
 import { getSupabaseAdmin } from "../supabaseAdmin";
+import {
+  resolveSupportedRecoveryProviderFamily,
+  tryClaimRecoveryCandidate,
+} from "../generationRecoveryClaimPolicy";
 import { repairGenerationRequestIdFromReservation } from "./requestIdRepair";
 
 type JsonObject = Record<string, unknown>;
@@ -46,16 +50,6 @@ type RecoveryCandidate = {
 
 const RECOVERY_STATES = new Set(["queued", "recovering"]);
 const GENERATION_STATUSES = new Set(["pending", "submitted", "running", "fail"]);
-const SUPPORTED_PROVIDER_PREFIXES = ["fal", "kie"] as const;
-
-const resolveSupportedProviderFamily = (provider: string): "fal" | "kie" | null => {
-  const normalized = provider.trim().toLowerCase();
-  if (!normalized.length) return null;
-  if (SUPPORTED_PROVIDER_PREFIXES.some((prefix) => normalized.startsWith(prefix))) {
-    return normalized.startsWith("kie") ? "kie" : "fal";
-  }
-  return null;
-};
 
 const asObject = (value: unknown): JsonObject | null => {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
@@ -181,7 +175,7 @@ const claimDueQueueStatusRecoveryInternal = async ({
     };
   }
 
-  const providerFamily = resolveSupportedProviderFamily(candidate.provider);
+  const providerFamily = resolveSupportedRecoveryProviderFamily(candidate.provider);
   if (!providerFamily) {
     return {
       claimed: false,
@@ -284,51 +278,38 @@ const claimDueQueueStatusRecoveryInternal = async ({
   const nowIso = new Date(nowMs).toISOString();
   const oldestAllowedIso = new Date(oldestAllowedMs).toISOString();
   const leaseUntilIso = new Date(nowMs + flags.reconcilerLeaseSeconds * 1000).toISOString();
-  let claimQuery = getSupabaseAdmin()
-    .from("ai_generations")
-    .update({
-      recovery_state: "recovering",
-      recovery_attempts: candidate.recoveryAttempts + 1,
-      last_recovery_at: nowIso,
-      next_recovery_at: leaseUntilIso,
-    })
-    .eq("id", candidate.id)
-    .eq("user_id", userId)
-    .eq("status", candidate.status)
-    .eq("recovery_state", candidate.recoveryState)
-    .ilike("provider", `${providerFamily}%`)
-    .lt("recovery_attempts", flags.reconcilerMaxAttempts)
-    .lte("created_at", oldestAllowedIso)
-    .or(`next_recovery_at.is.null,next_recovery_at.lte.${nowIso}`);
-
-  claimQuery = claimQuery.eq("recovery_attempts", candidate.recoveryAttempts);
-  const { data, error } = await claimQuery.select("id, request_id");
-
-  if (error) {
+  const claimResult = await tryClaimRecoveryCandidate({
+    candidate: {
+      id: candidate.id,
+      userId,
+      requestId: candidate.requestId,
+      provider: candidate.provider,
+      status: candidate.status,
+      recoveryState: candidate.recoveryState,
+      recoveryAttempts: candidate.recoveryAttempts,
+    },
+    maxAttempts: flags.reconcilerMaxAttempts,
+    oldestAllowedIso,
+    nowIso,
+    leaseUntilIso,
+  });
+  if (!claimResult.claimed) {
     return {
       claimed: false,
       generationId: candidate.id,
       requestId: candidate.requestId,
-      reason: "db_error",
-      errorMessage: error.message ?? "recovery claim failed",
-    };
-  }
-
-  const claimedRow = Array.isArray(data) && data.length === 1 ? asObject(data[0]) : null;
-  if (!claimedRow) {
-    return {
-      claimed: false,
-      generationId: candidate.id,
-      requestId: candidate.requestId,
-      reason: "claim_conflict",
-      errorMessage: null,
+      reason:
+        claimResult.reason === "provider_not_supported"
+          ? "provider_not_supported"
+          : claimResult.reason,
+      errorMessage: claimResult.errorMessage,
     };
   }
 
   return {
     claimed: true,
-    generationId: asString(claimedRow.id) ?? candidate.id,
-    requestId: asString(claimedRow.request_id) ?? candidate.requestId,
+    generationId: candidate.id,
+    requestId: claimResult.requestId,
     reason: "claimed",
     errorMessage: null,
   };

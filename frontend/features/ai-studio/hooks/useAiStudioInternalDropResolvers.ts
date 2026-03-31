@@ -80,7 +80,7 @@ export const useAiStudioInternalDropResolvers = ({
       if (!resolvedSource) {
         return {
           mediaId: payload.mediaId?.trim() || "",
-          previewUrl: payload.referenceUrl ?? null,
+          previewUrl: null,
           outputId,
           imageIndex,
           sourceSurface: payload.sourceSurface ?? null,
@@ -88,11 +88,7 @@ export const useAiStudioInternalDropResolvers = ({
       }
       return {
         mediaId: resolvedSource.mediaId?.trim() || "",
-        previewUrl:
-          resolvedSource.preparedImageUrl ??
-          resolvedSource.preview.url ??
-          payload.referenceUrl ??
-          null,
+        previewUrl: resolvedSource.preparedImageUrl ?? resolvedSource.preview.url ?? null,
         storagePath: resolvedSource.fullStoragePath ?? resolvedSource.previewStoragePath ?? null,
         outputId: resolvedSource.outputId ?? outputId,
         imageIndex: resolvedSource.provenance.imageIndex,
@@ -127,7 +123,6 @@ export const useAiStudioInternalDropResolvers = ({
       const sourceUrl = resolveCanvasDropImageSourceUrl({
         output,
         imageIndex,
-        payloadReferenceUrl: payload.referenceUrl,
       });
       if (!sourceUrl) return null;
 

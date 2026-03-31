@@ -8,6 +8,7 @@ import {
   deleteMediaFolder,
   listMediaFolders,
   MEDIA_LIBRARY_ROOT_FOLDER_ID,
+  moveMediaFolder,
   renameMediaFolder,
   type MediaFolder,
   type MediaFolderId,
@@ -19,13 +20,6 @@ const FOLDERS_REQUEST_TIMEOUT_MS = 12_000;
 const NEW_FOLDER_BASE_NAME = "New Folder";
 const MAX_FOLDER_NAME_COLLISION_RETRIES = 8;
 const TEMP_FOLDER_ID_PREFIX = "__pending_new_folder__";
-
-const ROOT_FOLDER: MediaFolder = {
-  id: MEDIA_LIBRARY_ROOT_FOLDER_ID,
-  name: ROOT_FOLDER_LABEL,
-  createdAt: "",
-  updatedAt: "",
-};
 
 const withTimeout = async <T>(promise: Promise<T>, timeoutMs: number, message: string) =>
   await new Promise<T>((resolve, reject) => {
@@ -67,22 +61,40 @@ const toNormalizedFolderNames = (rows: MediaFolder[]): Set<string> => {
 const buildPendingFolderId = () =>
   `${TEMP_FOLDER_ID_PREFIX}${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 
+const folderSortKey = (folder: MediaFolder): number => {
+  const createdAt = Date.parse(folder.createdAt);
+  return Number.isFinite(createdAt) ? createdAt : Number.POSITIVE_INFINITY;
+};
+
+const compareFoldersByCreatedAt = (left: MediaFolder, right: MediaFolder): number => {
+  const createdDelta = folderSortKey(left) - folderSortKey(right);
+  if (createdDelta !== 0) return createdDelta;
+  const nameDelta = left.name.localeCompare(right.name, undefined, { sensitivity: "accent" });
+  if (nameDelta !== 0) return nameDelta;
+  return left.id.localeCompare(right.id, undefined, { sensitivity: "accent" });
+};
+
 type UseMediaLibraryFoldersStateResult = {
   folders: MediaFolder[];
   customFolders: MediaFolder[];
-  orderedFolders: MediaFolder[];
+  visibleFolders: MediaFolder[];
+  ancestorFolders: MediaFolder[];
   activeFolderId: MediaFolderId;
+  activeFolderName: string;
+  activeFolderParentId: string | null;
+  canNavigateUp: boolean;
   setActiveFolderId: (folderId: MediaFolderId) => void;
   folderError: string | null;
   setFolderError: (value: string | null) => void;
   creatingFolder: boolean;
-  createFolder: () => Promise<void>;
+  createFolder: (parentFolderId?: string | null) => Promise<void>;
   editingFolderId: string | null;
   editingFolderName: string;
   setEditingFolderName: (value: string) => void;
   startFolderRename: (folderId: string, currentName: string) => void;
   cancelFolderRename: () => void;
   commitFolderRename: () => Promise<void>;
+  moveFolder: (folderId: string, parentFolderId: string | null) => Promise<void>;
   deleteFolder: (folderId: string) => Promise<void>;
   refreshFolders: () => Promise<void>;
 };
@@ -101,14 +113,44 @@ export const useMediaLibraryFoldersState = (): UseMediaLibraryFoldersStateResult
   const foldersRequestTokenRef = useRef(0);
   const creatingFolderInFlightRef = useRef(false);
 
-  const customFolders = useMemo(
-    () =>
-      [...folders].sort((a, b) =>
-        a.name.localeCompare(b.name, undefined, { sensitivity: "accent" })
-      ),
-    [folders]
+  const customFolders = useMemo(() => [...folders].sort(compareFoldersByCreatedAt), [folders]);
+  const foldersById = useMemo(
+    () => new Map(customFolders.map((folder) => [folder.id, folder])),
+    [customFolders]
   );
-  const orderedFolders = useMemo(() => [ROOT_FOLDER, ...customFolders], [customFolders]);
+  const activeFolder = useMemo(
+    () =>
+      activeFolderId === MEDIA_LIBRARY_ROOT_FOLDER_ID
+        ? null
+        : (foldersById.get(activeFolderId) ?? null),
+    [activeFolderId, foldersById]
+  );
+  const activeFolderParentId = activeFolder?.parentFolderId ?? null;
+  const canNavigateUp = activeFolderId !== MEDIA_LIBRARY_ROOT_FOLDER_ID;
+  const activeFolderName = activeFolder?.name ?? ROOT_FOLDER_LABEL;
+  const ancestorFolders = useMemo(() => {
+    if (!activeFolder) return [];
+    const chain: MediaFolder[] = [];
+    const seen = new Set<string>();
+    let cursor: MediaFolder | null = activeFolder;
+    while (cursor && !seen.has(cursor.id)) {
+      chain.unshift(cursor);
+      seen.add(cursor.id);
+      cursor = cursor.parentFolderId ? (foldersById.get(cursor.parentFolderId) ?? null) : null;
+    }
+    return chain;
+  }, [activeFolder, foldersById]);
+  const visibleFolders = useMemo(() => {
+    if (activeFolderId === MEDIA_LIBRARY_ROOT_FOLDER_ID) {
+      return customFolders.filter((folder) => folder.parentFolderId === null);
+    }
+    const childFolders = customFolders.filter((folder) => folder.parentFolderId === activeFolderId);
+    const isEditingActiveFolder = editingFolderId !== null && editingFolderId === activeFolderId;
+    if (!isEditingActiveFolder || !activeFolder) {
+      return childFolders;
+    }
+    return [activeFolder, ...childFolders];
+  }, [activeFolder, activeFolderId, customFolders, editingFolderId]);
 
   const refreshFolders = useCallback(async () => {
     const requestToken = foldersRequestTokenRef.current + 1;
@@ -138,60 +180,71 @@ export const useMediaLibraryFoldersState = (): UseMediaLibraryFoldersStateResult
     void refreshFolders();
   }, [refreshFolders]);
 
-  const createFolder = useCallback(async () => {
-    if (creatingFolderInFlightRef.current) return;
-    creatingFolderInFlightRef.current = true;
-    setFolderError(null);
-    setCreatingFolder(true);
-    const pendingFolderId = buildPendingFolderId();
-    const knownFolderNames = toNormalizedFolderNames(folders);
-    let nextName = resolveNextFolderNameFromNames(knownFolderNames);
-    setFolders((previous) => [
-      ...previous,
-      {
-        id: pendingFolderId,
-        name: nextName,
-        createdAt: "",
-        updatedAt: "",
-      },
-    ]);
+  const createFolder = useCallback(
+    async (parentFolderId?: string | null) => {
+      if (creatingFolderInFlightRef.current) return;
+      creatingFolderInFlightRef.current = true;
+      setFolderError(null);
+      setCreatingFolder(true);
+      const pendingFolderId = buildPendingFolderId();
+      const nextParentFolderId =
+        parentFolderId !== undefined
+          ? parentFolderId
+          : activeFolderId === MEDIA_LIBRARY_ROOT_FOLDER_ID
+            ? null
+            : activeFolderId;
+      const knownFolderNames = toNormalizedFolderNames(
+        folders.filter((folder) => folder.parentFolderId === nextParentFolderId)
+      );
+      let nextName = resolveNextFolderNameFromNames(knownFolderNames);
+      setFolders((previous) => [
+        ...previous,
+        {
+          id: pendingFolderId,
+          name: nextName,
+          parentFolderId: nextParentFolderId,
+          createdAt: "",
+          updatedAt: "",
+        },
+      ]);
 
-    try {
-      for (let attempt = 0; attempt <= MAX_FOLDER_NAME_COLLISION_RETRIES; attempt += 1) {
-        try {
-          const folder = await createMediaFolder(nextName);
-          setFolders((previous) => {
-            const withoutPending = previous.filter(
-              (row) => row.id !== pendingFolderId && row.id !== folder.id
+      try {
+        for (let attempt = 0; attempt <= MAX_FOLDER_NAME_COLLISION_RETRIES; attempt += 1) {
+          try {
+            const folder = await createMediaFolder(nextName, nextParentFolderId);
+            setFolders((previous) => {
+              const withoutPending = previous.filter(
+                (row) => row.id !== pendingFolderId && row.id !== folder.id
+              );
+              return [...withoutPending, folder];
+            });
+            setEditingFolderId(folder.id);
+            setEditingFolderName(folder.name);
+            return;
+          } catch (createError) {
+            const isNameCollision =
+              createError instanceof Error && createError.message === "Folder name already exists";
+            if (!isNameCollision) {
+              throw createError;
+            }
+            knownFolderNames.add(nextName.toLocaleLowerCase());
+            nextName = resolveNextFolderNameFromNames(knownFolderNames);
+            setFolders((previous) =>
+              previous.map((row) => (row.id === pendingFolderId ? { ...row, name: nextName } : row))
             );
-            return [...withoutPending, folder];
-          });
-          setActiveFolderId(folder.id);
-          setEditingFolderId(folder.id);
-          setEditingFolderName(folder.name);
-          return;
-        } catch (createError) {
-          const isNameCollision =
-            createError instanceof Error && createError.message === "Folder name already exists";
-          if (!isNameCollision) {
-            throw createError;
           }
-          knownFolderNames.add(nextName.toLocaleLowerCase());
-          nextName = resolveNextFolderNameFromNames(knownFolderNames);
-          setFolders((previous) =>
-            previous.map((row) => (row.id === pendingFolderId ? { ...row, name: nextName } : row))
-          );
         }
+        throw new Error("Unable to allocate an available folder name.");
+      } catch (createError) {
+        setFolders((previous) => previous.filter((row) => row.id !== pendingFolderId));
+        setFolderError(toMediaLibraryErrorText(createError, "Unable to create folder."));
+      } finally {
+        setCreatingFolder(false);
+        creatingFolderInFlightRef.current = false;
       }
-      throw new Error("Unable to allocate an available folder name.");
-    } catch (createError) {
-      setFolders((previous) => previous.filter((row) => row.id !== pendingFolderId));
-      setFolderError(toMediaLibraryErrorText(createError, "Unable to create folder."));
-    } finally {
-      setCreatingFolder(false);
-      creatingFolderInFlightRef.current = false;
-    }
-  }, [folders]);
+    },
+    [activeFolderId, folders]
+  );
 
   const startFolderRename = useCallback((folderId: string, currentName: string) => {
     setFolderError(null);
@@ -249,11 +302,32 @@ export const useMediaLibraryFoldersState = (): UseMediaLibraryFoldersStateResult
     [editingFolderId]
   );
 
+  const moveFolder = useCallback(async (folderId: string, parentFolderId: string | null) => {
+    const normalizedFolderId = folderId.trim();
+    if (!normalizedFolderId || normalizedFolderId === MEDIA_LIBRARY_ROOT_FOLDER_ID) return;
+    setFolderError(null);
+    try {
+      const moved = await moveMediaFolder({
+        folderId: normalizedFolderId,
+        parentFolderId,
+      });
+      setFolders((previous) =>
+        previous.map((folder) => (folder.id === normalizedFolderId ? moved : folder))
+      );
+    } catch (moveError) {
+      setFolderError(toMediaLibraryErrorText(moveError, "Unable to move folder."));
+    }
+  }, []);
+
   return {
     folders,
     customFolders,
-    orderedFolders,
+    visibleFolders,
+    ancestorFolders,
     activeFolderId,
+    activeFolderName,
+    activeFolderParentId,
+    canNavigateUp,
     setActiveFolderId,
     folderError,
     setFolderError,
@@ -265,6 +339,7 @@ export const useMediaLibraryFoldersState = (): UseMediaLibraryFoldersStateResult
     startFolderRename,
     cancelFolderRename,
     commitFolderRename,
+    moveFolder,
     deleteFolder,
     refreshFolders,
   };

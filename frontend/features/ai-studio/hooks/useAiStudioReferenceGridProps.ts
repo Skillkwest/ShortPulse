@@ -66,8 +66,8 @@ export const useAiStudioReferenceGridProps = ({
   reorderCuratedReference,
   restoreArchivedOutput,
   restoreAllArchivedOutputs,
-}: UseAiStudioReferenceGridPropsParams): AiStudioReferenceGridContract =>
-  useMemo(
+}: UseAiStudioReferenceGridPropsParams): AiStudioReferenceGridContract => {
+  return useMemo(
     () => ({
       outputs,
       archivedOutputs,
@@ -122,6 +122,7 @@ export const useAiStudioReferenceGridProps = ({
       setDetailOutputId,
     ]
   );
+};
 
 /**
  * @deprecated Use `useAiStudioReferenceGridProps`.

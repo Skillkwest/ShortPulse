@@ -65,7 +65,7 @@ type UseMediaLibraryPanelMutationControllerResult = {
   }) => Promise<boolean>;
   uploadDroppedFilesToFolder: (params: {
     targetFolderId: string;
-    files: FileList;
+    files: FileList | File[];
   }) => Promise<MediaFileRow[]>;
 };
 
@@ -140,7 +140,7 @@ export const useMediaLibraryPanelMutationController = ({
       files,
     }: {
       targetFolderId: string;
-      files: FileList;
+      files: FileList | File[];
     }): Promise<MediaFileRow[]> => {
       const droppedFiles = Array.from(files);
       if (!droppedFiles.length) return [];

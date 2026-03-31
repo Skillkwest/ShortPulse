@@ -40,10 +40,12 @@ import {
   normalizeVideoQueueDispatchPayload,
 } from "../videoSubmitContracts";
 import type { GenerationControlPlaneLogContext } from "../../generationControlPlane/types";
+import { applyAcceptedRunningGenerationTransition } from "../generationAcceptedTransitionService";
+import { applyGenerationLifecycleTransition } from "../generationLifecycleTransitionService";
 import {
-  ensureAcceptedGenerationAttempt,
-  updateGenerationAttemptState,
-} from "../generationAttempts";
+  buildAcceptedRunningGenerationUpdate,
+  buildQueueDispatchExhaustedGenerationUpdate,
+} from "../generationRequestTransitions";
 
 type JsonObject = Record<string, unknown>;
 
@@ -68,6 +70,7 @@ const retryableSubmitStatuses = new Set([408, 409, 425, 429, 500, 502, 503, 504]
 const RETRY_BACKOFF_JITTER_FACTOR = 0.2;
 const RETRY_BACKOFF_MAX_SECONDS = 300;
 const QUEUE_LEASE_TIMEOUT_WARN_RATIO = 0.8;
+const MAX_QUEUE_REFILL_PASSES = 4;
 
 const isRetryableTransportError = (error: unknown): boolean => {
   if (error instanceof DOMException && error.name === "AbortError") return true;
@@ -109,6 +112,24 @@ const asString = (value: unknown): string | null => {
   return trimmed.length ? trimmed : null;
 };
 
+const readQueueLatencyMs = ({
+  createdAt,
+  generationMetadata,
+  dispatchAtIso,
+}: {
+  createdAt: string | null;
+  generationMetadata: unknown;
+  dispatchAtIso: string;
+}): number | null => {
+  const metadata = asObject(generationMetadata);
+  const enqueuedAtRaw = asString(metadata.queue_enqueued_at) ?? createdAt;
+  if (!enqueuedAtRaw) return null;
+  const enqueuedAtMs = Date.parse(enqueuedAtRaw);
+  const dispatchAtMs = Date.parse(dispatchAtIso);
+  if (!Number.isFinite(enqueuedAtMs) || !Number.isFinite(dispatchAtMs)) return null;
+  return Math.max(0, dispatchAtMs - enqueuedAtMs);
+};
+
 const markAttemptRunningForExistingRequestId = async ({
   providerRequestId,
   userId,
@@ -121,19 +142,26 @@ const markAttemptRunningForExistingRequestId = async ({
   attemptNumber: number;
 }) => {
   const observedAt = new Date().toISOString();
-  const result = await updateGenerationAttemptState({
-    providerRequestId,
-    userId,
-    status: "running",
-    observedAt,
-    metadata: {
-      queue_reconcile_at: observedAt,
-      queue_id: queueId,
-      queue_attempts: attemptNumber,
-      queue_reconcile_reason: "existing_request_id",
+  const result = await applyGenerationLifecycleTransition({
+    intent: "queue_reconcile_running",
+    attemptMutation: {
+      kind: "state_update",
+      input: {
+        providerRequestId,
+        userId,
+        status: "running",
+        observedAt,
+        metadata: {
+          queue_reconcile_at: observedAt,
+          queue_id: queueId,
+          queue_attempts: attemptNumber,
+          queue_reconcile_reason: "existing_request_id",
+        },
+      },
+      allowMissingAttempt: true,
     },
   });
-  if (result.ok || result.error === "attempt_not_found") {
+  if (result.ok) {
     return;
   }
   throw new QueueTransitionError({
@@ -146,9 +174,11 @@ const markAttemptRunningForExistingRequestId = async ({
 
 const readProviderCapacityState = async ({
   userId,
+  provider,
   modelId,
 }: {
   userId: string;
+  provider: string;
   modelId: string;
 }): Promise<{
   atCap: boolean;
@@ -161,24 +191,45 @@ const readProviderCapacityState = async ({
   };
 }> => {
   const flags = readFalRuntimeFlags();
-  const snapshot = await readActiveProviderCapacitySnapshot({
-    userId,
-    modelId,
-    // Ignore orphaned holds once they outlive queue max-wait.
-    staleIgnoreMinAgeSeconds: flags.queueMaxWaitSeconds,
-    // Keep provider-linked running rows active until they exceed recovery cleanup windows.
-    activeGenerationStaleIgnoreMinAgeSeconds: Math.max(
-      flags.runningExhaustMinAgeSeconds,
-      flags.providerAttachedReservationCleanupMinAgeSeconds
-    ),
-    // Keep very recent unmatched reservations fail-closed during persistence races.
-    orphanGraceSeconds: Math.max(60, flags.queueBaseBackoffSeconds * 12),
-  });
-  const globalAtCap = snapshot.globalActive >= flags.admission.globalMax;
-  const tierAtCap = snapshot.tierActive >= flags.admission.tierLimits[snapshot.tier];
+  const readSnapshot = async (scopeUserId?: string | null) =>
+    readActiveProviderCapacitySnapshot({
+      userId: scopeUserId,
+      provider,
+      modelId,
+      // Ignore orphaned holds once they outlive queue max-wait.
+      staleIgnoreMinAgeSeconds: flags.queueMaxWaitSeconds,
+      // Keep provider-linked running rows active until they exceed recovery cleanup windows.
+      activeGenerationStaleIgnoreMinAgeSeconds: Math.max(
+        flags.runningExhaustMinAgeSeconds,
+        flags.providerAttachedReservationCleanupMinAgeSeconds
+      ),
+      // Keep very recent unmatched reservations fail-closed during persistence races.
+      orphanGraceSeconds: Math.max(60, flags.queueBaseBackoffSeconds * 12),
+    });
+  const userSnapshot = await readSnapshot(userId);
+  const globalAtCap = userSnapshot.globalActive >= flags.admission.globalMax;
+  const tierAtCap = userSnapshot.tierActive >= flags.admission.tierLimits[userSnapshot.tier];
+  if (!flags.admission.sharedProviderEnabled) {
+    return {
+      atCap: globalAtCap || tierAtCap,
+      snapshot: userSnapshot,
+    };
+  }
+
+  const sharedSnapshot = await readSnapshot(null);
+  const sharedGlobalAtCap = sharedSnapshot.globalActive >= flags.admission.sharedProviderGlobalMax;
+  const sharedTierAtCap =
+    sharedSnapshot.tierActive >= flags.admission.tierLimits[sharedSnapshot.tier];
+  if (sharedGlobalAtCap || sharedTierAtCap) {
+    return {
+      atCap: true,
+      snapshot: sharedSnapshot,
+    };
+  }
+
   return {
     atCap: globalAtCap || tierAtCap,
-    snapshot,
+    snapshot: userSnapshot,
   };
 };
 
@@ -300,19 +351,38 @@ const setGenerationFailed = async ({
   userId: string;
   message: string;
 }) => {
-  const response = await getSupabaseAdmin()
-    .from("ai_generations")
-    .update({
-      status: "fail",
-      error_message: message,
-      failure_reason_code: "queue_dispatch_exhausted",
-      completed_at: new Date().toISOString(),
-      recovery_state: "exhausted",
-      next_recovery_at: null,
-    })
-    .eq("id", generationId)
-    .eq("user_id", userId);
-  if (response.error) throw response.error;
+  const completedAtIso = new Date().toISOString();
+  const result = await applyGenerationLifecycleTransition({
+    intent: "queue_dispatch_exhausted",
+    applyGenerationMutation: async () => {
+      const response = await getSupabaseAdmin()
+        .from("ai_generations")
+        .update(
+          buildQueueDispatchExhaustedGenerationUpdate({
+            message,
+            completedAtIso,
+          })
+        )
+        .eq("id", generationId)
+        .eq("user_id", userId)
+        .select("id");
+      const affectedCount = Array.isArray(response.data) ? response.data.length : 0;
+      if (response.error) {
+        return {
+          ok: false,
+          error: response.error.message ?? "generation_mark_failed_failed",
+        };
+      }
+      if (affectedCount !== 1) {
+        return {
+          ok: false,
+          error: `Expected one generation row update, received ${affectedCount}.`,
+        };
+      }
+      return { ok: true };
+    },
+  });
+  if (!result.ok) throw new Error(result.error);
 };
 
 const mergeGenerationMetadata = (existing: unknown, patch: JsonObject): JsonObject => {
@@ -454,6 +524,7 @@ const processClaimedQueueItem = async ({
 
   const capacityState = await readProviderCapacityState({
     userId: item.userId,
+    provider,
     modelId: item.modelId,
   });
   if (capacityState.snapshot.staleIgnoredGlobal > 0 && attemptNumber === 1) {
@@ -933,82 +1004,104 @@ const processClaimedQueueItem = async ({
     });
 
     const nextRecoveryAtIso = new Date(Date.now() + 2 * 60 * 1000).toISOString();
-    const generationUpdate = await getSupabaseAdmin()
-      .from("ai_generations")
-      .update({
+    const transitionResult = await applyAcceptedRunningGenerationTransition({
+      applyGenerationMutation: async () => {
+        const generationUpdate = await getSupabaseAdmin()
+          .from("ai_generations")
+          .update(
+            buildAcceptedRunningGenerationUpdate({
+              provider,
+              modelId: item.modelId,
+              providerRequestId,
+              nextRecoveryAtIso,
+              metadata: mergeGenerationMetadata(generationRow.metadata, {
+                source_ref: item.sourceRef,
+                queue_dispatched_at: dispatchAtIso,
+                queue_id: item.queueId,
+                queue_attempts: attemptNumber,
+                provider,
+                provider_request_id: providerRequestId,
+                upstream_target_url: submitResult.targetUrl,
+                upstream_target_index: submitResult.targetIndex,
+                submit_webhook_url: isFalProviderKey(provider) ? webhookCallbackUrl : null,
+                submit_webhook_registered: isFalProviderKey(provider)
+                  ? Boolean(webhookCallbackUrl)
+                  : false,
+              }),
+            })
+          )
+          .eq("id", item.generationId)
+          .eq("user_id", item.userId)
+          .select("id");
+        const affectedCount = Array.isArray(generationUpdate.data)
+          ? generationUpdate.data.length
+          : 0;
+        if (generationUpdate.error) {
+          return {
+            ok: false,
+            error: generationUpdate.error.message ?? "generation_mark_running_failed",
+          };
+        }
+        if (affectedCount !== 1) {
+          return {
+            ok: false,
+            error: `Expected one generation row update, received ${affectedCount}.`,
+          };
+        }
+        return { ok: true };
+      },
+      attemptInput: {
+        generationId: item.generationId,
+        userId: item.userId,
         provider,
-        request_id: providerRequestId,
-        status: "running",
-        failure_reason_code: null,
-        error_message: null,
-        completed_at: null,
-        recovery_state: "queued",
-        recovery_attempts: 0,
-        last_recovery_at: null,
-        next_recovery_at: nextRecoveryAtIso,
-        metadata: mergeGenerationMetadata(generationRow.metadata, {
+        modelId: item.modelId,
+        providerRequestId,
+        dispatchSource: "queued_submit",
+        submitRoute: item.submitRoute,
+        queueId: item.queueId,
+        observedAt: dispatchAtIso,
+        metadata: {
           source_ref: item.sourceRef,
-          queue_dispatched_at: dispatchAtIso,
+          queue_dispatch_at: dispatchAtIso,
           queue_id: item.queueId,
           queue_attempts: attemptNumber,
-          provider,
-          provider_request_id: providerRequestId,
+          dispatch_source: "queued_submit",
           upstream_target_url: submitResult.targetUrl,
           upstream_target_index: submitResult.targetIndex,
-          submit_webhook_url: isFalProviderKey(provider) ? webhookCallbackUrl : null,
-          submit_webhook_registered: isFalProviderKey(provider)
-            ? Boolean(webhookCallbackUrl)
-            : false,
-        }),
-      })
-      .eq("id", item.generationId)
-      .eq("user_id", item.userId)
-      .select("id");
-    assertGenerationMarkedRunning({
-      affectedCount: Array.isArray(generationUpdate.data) ? generationUpdate.data.length : 0,
-      errorMessage: generationUpdate.error?.message ?? null,
-    });
-
-    const attemptResult = await ensureAcceptedGenerationAttempt({
-      generationId: item.generationId,
-      userId: item.userId,
-      provider,
-      modelId: item.modelId,
-      providerRequestId,
-      dispatchSource: "queued_submit",
-      submitRoute: item.submitRoute,
-      queueId: item.queueId,
-      metadata: {
-        source_ref: item.sourceRef,
-        queue_attempts: attemptNumber,
-        upstream_target_url: submitResult.targetUrl,
-        upstream_target_index: submitResult.targetIndex,
+        },
       },
     });
+    if (!transitionResult.ok && transitionResult.stage === "generation") {
+      assertGenerationMarkedRunning({
+        affectedCount: 0,
+        errorMessage: transitionResult.error,
+      });
+    }
     assertGenerationAttemptRecorded({
-      ok: attemptResult.ok,
-      errorMessage: attemptResult.ok ? null : attemptResult.error,
-    });
-    const attemptRunningResult = await updateGenerationAttemptState({
-      providerRequestId,
-      userId: item.userId,
-      status: "running",
-      observedAt: dispatchAtIso,
-      metadata: {
-        queue_dispatch_at: dispatchAtIso,
-        queue_id: item.queueId,
-        queue_attempts: attemptNumber,
-        dispatch_source: "queued_submit",
-      },
+      ok: transitionResult.ok || transitionResult.stage === "running",
+      errorMessage: transitionResult.ok
+        ? null
+        : transitionResult.stage === "record"
+          ? transitionResult.error
+          : null,
     });
     assertGenerationAttemptMarkedRunning({
-      ok: attemptRunningResult.ok,
-      errorMessage: attemptRunningResult.ok ? null : attemptRunningResult.error,
+      ok: transitionResult.ok || transitionResult.stage === "record",
+      errorMessage: transitionResult.ok
+        ? null
+        : transitionResult.stage === "running"
+          ? transitionResult.error
+          : null,
     });
 
     const removeResult = await removeQueueItem(item.queueId);
     assertQueueMutationApplied({ result: removeResult, step: "queue_remove" });
     metrics.submitted += 1;
+    const queueLatencyMs = readQueueLatencyMs({
+      createdAt: item.createdAt,
+      generationMetadata: generationRow.metadata,
+      dispatchAtIso,
+    });
     await logGenerationFailure({
       req,
       routeLabel,
@@ -1023,6 +1116,9 @@ const processClaimedQueueItem = async ({
         attempts: attemptNumber,
         model_id: item.modelId,
         provider_request_id: providerRequestId,
+        queue_latency_ms: queueLatencyMs,
+        queue_latency_seconds:
+          typeof queueLatencyMs === "number" ? Math.floor(queueLatencyMs / 1000) : null,
       },
     });
     return metrics;
@@ -1127,43 +1223,65 @@ export const dispatchGenerationSubmitQueueBatch = async ({
     return metrics;
   }
 
-  const claimed = await claimGenerationSubmitQueueBatch({
-    limit,
-    leaseSeconds: flags.queueLeaseSeconds,
-    userId,
-  }).catch(async (error) => {
-    await logGenerationFailure({
-      req,
-      routeLabel,
-      source: "telemetry.queue.dispatch.claim_failed",
-      statusCode: 500,
-      message: "Failed to claim queued generation dispatch batch.",
-      userId: userId ?? undefined,
-      metadata: {
-        queue_limit: limit,
-        queue_lease_seconds: flags.queueLeaseSeconds,
-        queue_enabled: flags.queueEnabled,
-        detail: normalizeError(error),
-      },
+  for (let pass = 0; pass < MAX_QUEUE_REFILL_PASSES; pass += 1) {
+    const claimed = await claimGenerationSubmitQueueBatch({
+      limit,
+      leaseSeconds: flags.queueLeaseSeconds,
+      userId,
+    }).catch(async (error) => {
+      await logGenerationFailure({
+        req,
+        routeLabel,
+        source: "telemetry.queue.dispatch.claim_failed",
+        statusCode: 500,
+        message: "Failed to claim queued generation dispatch batch.",
+        userId: userId ?? undefined,
+        metadata: {
+          queue_limit: limit,
+          queue_lease_seconds: flags.queueLeaseSeconds,
+          queue_enabled: flags.queueEnabled,
+          queue_refill_pass: pass + 1,
+          detail: normalizeError(error),
+        },
+      });
+      throw error;
     });
-    throw error;
-  });
 
-  metrics.claimed = claimed.length;
-  for (const item of claimed) {
-    const result = await processClaimedQueueItem({
-      req,
-      routeLabel,
-      item,
-      maxAttempts: flags.queueMaxAttempts,
-      baseBackoffSeconds: flags.queueBaseBackoffSeconds,
-    });
-    metrics.submitted += result.submitted;
-    metrics.retried += result.retried;
-    metrics.requeuedNoCapacity += result.requeuedNoCapacity;
-    metrics.exhausted += result.exhausted;
-    metrics.skipped += result.skipped;
-    metrics.errors += result.errors;
+    metrics.claimed += claimed.length;
+    if (!claimed.length) {
+      break;
+    }
+
+    let passSubmitted = 0;
+    let passRetried = 0;
+    let passExhausted = 0;
+    let passSkipped = 0;
+
+    for (const item of claimed) {
+      const result = await processClaimedQueueItem({
+        req,
+        routeLabel,
+        item,
+        maxAttempts: flags.queueMaxAttempts,
+        baseBackoffSeconds: flags.queueBaseBackoffSeconds,
+      });
+      metrics.submitted += result.submitted;
+      metrics.retried += result.retried;
+      metrics.requeuedNoCapacity += result.requeuedNoCapacity;
+      metrics.exhausted += result.exhausted;
+      metrics.skipped += result.skipped;
+      metrics.errors += result.errors;
+      passSubmitted += result.submitted;
+      passRetried += result.retried;
+      passExhausted += result.exhausted;
+      passSkipped += result.skipped;
+    }
+
+    const madeForwardProgress =
+      passSubmitted > 0 || passRetried > 0 || passExhausted > 0 || passSkipped > 0;
+    if (!madeForwardProgress) {
+      break;
+    }
   }
 
   return metrics;

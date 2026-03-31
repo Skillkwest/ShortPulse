@@ -5,53 +5,36 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { isAdaptiveSurfaceEnabled } from "../../../lib/adaptive-media";
 import { createMediaPerfTimer, logMediaPerf } from "../../../lib/mediaPerfTelemetry";
-import {
-  MEDIA_PREVIEW_SIGN_BATCH_MAX_ATTEMPTS_PER_ITEM,
-  type MediaSignBudget,
-} from "../../../lib/mediaPreviewRuntimePolicy";
-import type { MediaPreviewTransformProfile } from "../../../lib/mediaPreviewTransformProfile";
-import { ensureSupabaseQueryClient } from "../../../lib/supabaseClient";
+import { MEDIA_PREVIEW_SIGN_BATCH_MAX_ATTEMPTS_PER_ITEM } from "../../../lib/mediaPreviewRuntimePolicy";
 import { useVisibleErrorTelemetry } from "../../../lib/useVisibleErrorTelemetry";
 import {
-  BUCKET,
   MEDIA_MODAL_CACHE_TTL_MS,
   MEDIA_MODAL_PAGE_SIZE,
-  createMediaTabBooleanState,
   createMediaTabCacheState,
-  createMediaTabRequestState,
   getMediaDataTabForRow,
   isMediaDataTab,
   isNextImageOptimizerUrl,
   isVideoFile,
   normalizeMediaSearchTerm,
   resolveMediaMetadataPromptText,
-  resolveModalSignBudget,
   resolveNextImageOptimizerSourceUrl,
   sortByCreatedAtDesc,
-  type MediaCardRefCallback,
   type MediaDataTab,
   type MediaFileRow,
   type MediaTab,
-  type MediaTabBooleanState,
   type MediaTabCache,
-  type MediaTabRequestState,
-  type NavigatorWithConnection,
   type PromptRow,
 } from "../logic/mediaLibraryModalModel";
 import { MediaLibraryPromptGrid } from "./media-library-modal/MediaLibraryPromptGrid";
 import { MediaLibraryMediaGrid } from "./media-library-modal/MediaLibraryMediaGrid";
 import { MediaLibraryModalControls } from "./media-library-modal/MediaLibraryModalControls";
-import { useMediaPreviewRecoveryController } from "../../media-library/hooks/useMediaPreviewRecoveryController";
-import { useMediaPreviewSigningController } from "../../media-library/hooks/useMediaPreviewSigningController";
+import { useMediaSurfacePreviewSigning } from "../../media-library/hooks/useMediaSurfacePreviewSigning";
+import { useMediaSurfacePreviewRuntime } from "../../media-library/hooks/useMediaSurfacePreviewRuntime";
 import { useMediaAdaptivePressure } from "../../media-library/hooks/useMediaAdaptivePressure";
 import { useMediaTabDataController } from "../../media-library/hooks/useMediaTabDataController";
 import { MEDIA_LIBRARY_SIGN_PREFETCH_ENABLED } from "../../media-library/logic/mediaLibraryFeatureFlags";
 import { resolveSignedSelectionUrl } from "../../media-library/logic/mediaPreviewResolver";
-import {
-  hydrateMediaPreviewViaStorageDownload,
-  resolveAndApplySignedPreviewUrlsByRows,
-  signMediaStoragePath,
-} from "../../media-library/logic/mediaPreviewRuntimeShared";
+import { getMediaLibrarySurfaceConfig } from "../../media-library/runtime";
 import { AiStudioModalLayer, useAiStudioModalActivity } from "./modal-layer/AiStudioModalLayer";
 
 type MediaLibraryModalProps = {
@@ -78,6 +61,7 @@ export function MediaLibraryModal({
   onSelectMedia,
   onSelectPrompt,
 }: MediaLibraryModalProps) {
+  const modalSurfaceConfig = getMediaLibrarySurfaceConfig("modal");
   useAiStudioModalActivity("media-library-modal", isOpen);
   const [activeTab, setActiveTab] = useState<MediaTab>("uploaded_images");
   const [search, setSearch] = useState("");
@@ -90,33 +74,15 @@ export function MediaLibraryModal({
   const [mediaTabCache, setMediaTabCache] =
     useState<Record<MediaDataTab, MediaTabCache>>(createMediaTabCacheState);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const signedUrlRetryRef = useRef<Record<string, number>>({});
-  const signAttemptRef = useRef<Record<string, number>>({});
-  const downloadFallbackInFlightRef = useRef<Record<string, boolean>>({});
-  const objectUrlByMediaIdRef = useRef<Record<string, string>>({});
   const firstCardShellLoggedRef = useRef(false);
-  const firstMediaPaintLoggedRef = useRef(false);
   const openToFirstMediaTimerRef = useRef<ReturnType<typeof createMediaPerfTimer> | null>(null);
   const openToFirstMediaLoggedRef = useRef(false);
   const loadMoreSentinelRef = useRef<HTMLDivElement | null>(null);
   const modalBodyRef = useRef<HTMLDivElement | null>(null);
-  const activeTabRef = useRef<MediaTab>(activeTab);
-  const activeMediaQueryRef = useRef("");
   const isOpenRef = useRef(isOpen);
-  const mediaTabRequestRef = useRef<MediaTabRequestState>(createMediaTabRequestState());
-  const mediaSignInFlightRef = useRef<MediaTabBooleanState>(createMediaTabBooleanState());
-  const mediaCardNodesRef = useRef<Map<string, HTMLButtonElement>>(new Map());
-  const mediaCardRefCallbacksRef = useRef<Record<string, MediaCardRefCallback>>({});
-  const mediaCardObserverRef = useRef<IntersectionObserver | null>(null);
-  const visibleMediaIdsRef = useRef<Set<string>>(new Set());
-  const [visibleMediaVersion, setVisibleMediaVersion] = useState(0);
-  const [signPassNonce, setSignPassNonce] = useState(0);
-  const [signBudget, setSignBudget] = useState<MediaSignBudget>(resolveModalSignBudget);
   const [optimizerFallbackMediaIds, setOptimizerFallbackMediaIds] = useState<Set<string>>(
     () => new Set()
   );
-  const currentUserIdRef = useRef<string | null>(null);
-  const isMountedRef = useRef(true);
   const activeMediaTab = isMediaDataTab(activeTab) ? activeTab : null;
   const activeMediaCache = activeMediaTab ? mediaTabCache[activeMediaTab] : null;
   const adaptivePreviewQualityEnabled = isAdaptiveSurfaceEnabled("media-library-modal-grid");
@@ -148,247 +114,52 @@ export function MediaLibraryModal({
   }, [search]);
 
   useEffect(() => {
-    activeTabRef.current = activeTab;
-  }, [activeTab]);
-
-  useEffect(() => {
-    activeMediaQueryRef.current = activeMediaQuery;
-  }, [activeMediaQuery]);
-
-  useEffect(() => {
-    if (typeof window === "undefined" || typeof navigator === "undefined") return;
-    const nav = navigator as NavigatorWithConnection;
-    const connection = nav.connection;
-    const refreshBudget = () => {
-      setSignBudget((prev) => {
-        const next = resolveModalSignBudget();
-        if (
-          prev.initialSignLimit === next.initialSignLimit &&
-          prev.prefetchWindow === next.prefetchWindow &&
-          prev.signBatchSize === next.signBatchSize
-        ) {
-          return prev;
-        }
-        return next;
-      });
-    };
-    refreshBudget();
-    window.addEventListener("resize", refreshBudget);
-    connection?.addEventListener?.("change", refreshBudget);
-    return () => {
-      window.removeEventListener("resize", refreshBudget);
-      connection?.removeEventListener?.("change", refreshBudget);
-    };
-  }, []);
-
-  useEffect(() => {
-    signAttemptRef.current = {};
-    setOptimizerFallbackMediaIds(new Set());
-  }, [activeTab, activeMediaQuery]);
-
-  useEffect(() => {
     isOpenRef.current = isOpen;
   }, [isOpen]);
 
-  useEffect(
-    () => () => {
-      for (const objectUrl of Object.values(objectUrlByMediaIdRef.current)) {
-        URL.revokeObjectURL(objectUrl);
+  const previewRuntime = useMediaSurfacePreviewRuntime<MediaFileRow, MediaTab, HTMLButtonElement>({
+    activeMediaQuery,
+    activeTab,
+    firstMediaPaintEventName: "media.modal.first_media_paint",
+    previewProfile: modalSurfaceConfig.imageCardPreviewProfile,
+    signBudgetResolver: modalSurfaceConfig.signBudgetResolver,
+    surface: modalSurfaceConfig.listSurface,
+    visibilityRootMargin: modalSurfaceConfig.visibilityRootMargin,
+    setFiles,
+    setMediaTabCache,
+    shouldApplySignedUrlsToActiveRows: (tab) => isOpenRef.current && activeTab === tab,
+    beforeRetry: ({ row: file, failedUrl }) => {
+      if (!isNextImageOptimizerUrl(failedUrl)) return;
+      const sourceUrl = resolveNextImageOptimizerSourceUrl(failedUrl);
+      const tab = getMediaDataTabForRow(file);
+      if (sourceUrl) {
+        applySignedUrlsToTab(tab, new Map([[file.id, sourceUrl]]));
       }
-      objectUrlByMediaIdRef.current = {};
-      isMountedRef.current = false;
-    },
-    []
-  );
-
-  const getMediaCardRef = useCallback((fileId: string): MediaCardRefCallback => {
-    const existing = mediaCardRefCallbacksRef.current[fileId];
-    if (existing) return existing;
-    const callback: MediaCardRefCallback = (node) => {
-      const previousNode = mediaCardNodesRef.current.get(fileId);
-      if (previousNode && previousNode !== node) {
-        mediaCardObserverRef.current?.unobserve(previousNode);
-      }
-      if (!node) {
-        mediaCardNodesRef.current.delete(fileId);
-        if (visibleMediaIdsRef.current.delete(fileId)) {
-          setVisibleMediaVersion((prev) => prev + 1);
-        }
-        return;
-      }
-      node.dataset.mediaId = fileId;
-      mediaCardNodesRef.current.set(fileId, node);
-      mediaCardObserverRef.current?.observe(node);
-    };
-    mediaCardRefCallbacksRef.current[fileId] = callback;
-    return callback;
-  }, []);
-
-  useEffect(() => {
-    if (typeof IntersectionObserver === "undefined") {
-      return;
-    }
-    const visibleIds = visibleMediaIdsRef.current;
-    const observer = new IntersectionObserver(
-      (entries) => {
-        let changed = false;
-        for (const entry of entries) {
-          const fileId = (entry.target as HTMLElement).dataset.mediaId;
-          if (!fileId) continue;
-          if (entry.isIntersecting) {
-            if (!visibleIds.has(fileId)) {
-              visibleIds.add(fileId);
-              changed = true;
-            }
-            continue;
-          }
-          if (visibleIds.delete(fileId)) {
-            changed = true;
-          }
-        }
-        if (changed) {
-          setVisibleMediaVersion((prev) => prev + 1);
-        }
-      },
-      {
-        root: null,
-        rootMargin: "460px 0px",
-        threshold: 0.01,
-      }
-    );
-    mediaCardObserverRef.current = observer;
-    for (const node of mediaCardNodesRef.current.values()) {
-      observer.observe(node);
-    }
-    return () => {
-      observer.disconnect();
-      mediaCardObserverRef.current = null;
-      visibleIds.clear();
-    };
-  }, []);
-
-  const signStoragePath = useCallback(
-    (
-      storagePath: string,
-      options?: { forceRefresh?: boolean; previewProfile?: MediaPreviewTransformProfile }
-    ): Promise<string | null> => signMediaStoragePath(storagePath, options),
-    []
-  );
-
-  const applySignedUrlsToTab = useCallback((tab: MediaDataTab, signedById: Map<string, string>) => {
-    if (!signedById.size) return;
-    setMediaTabCache((prev) => {
-      const cache = prev[tab];
-      let changed = false;
-      const nextRows = cache.rows.map((row) => {
-        const signedUrl = signedById.get(row.id);
-        if (!signedUrl || row.signedUrl === signedUrl) return row;
-        changed = true;
-        return { ...row, signedUrl };
+      setOptimizerFallbackMediaIds((prev) => {
+        if (prev.has(file.id)) return prev;
+        const next = new Set(prev);
+        next.add(file.id);
+        return next;
       });
-      if (!changed) return prev;
-      return {
-        ...prev,
-        [tab]: {
-          ...cache,
-          rows: nextRows,
-        },
-      };
-    });
-    if (isOpenRef.current && activeTabRef.current === tab) {
-      setFiles((prev) =>
-        prev.map((file) => {
-          const signedUrl = signedById.get(file.id);
-          return signedUrl ? { ...file, signedUrl } : file;
-        })
-      );
-    }
-  }, []);
-
-  const setObjectUrlForMediaRow = useCallback(
-    (file: MediaFileRow, objectUrl: string) => {
-      const previousObjectUrl = objectUrlByMediaIdRef.current[file.id];
-      if (previousObjectUrl && previousObjectUrl !== objectUrl) {
-        URL.revokeObjectURL(previousObjectUrl);
-      }
-      objectUrlByMediaIdRef.current[file.id] = objectUrl;
-      applySignedUrlsToTab(getMediaDataTabForRow(file), new Map([[file.id, objectUrl]]));
     },
-    [applySignedUrlsToTab]
-  );
-
-  const hydrateViaStorageDownload = useCallback(
-    async (file: MediaFileRow): Promise<string | null> => {
-      if (downloadFallbackInFlightRef.current[file.id]) return null;
-      downloadFallbackInFlightRef.current[file.id] = true;
-      try {
-        const supabase = ensureSupabaseQueryClient();
-        return await hydrateMediaPreviewViaStorageDownload({
-          row: file,
-          currentUserId: currentUserIdRef.current,
-          downloadFromStoragePath: async (storagePath) => {
-            const { data, error } = await supabase.storage.from(BUCKET).download(storagePath);
-            if (error || !data) return null;
-            return data as Blob;
-          },
-          applyObjectUrlForRow: setObjectUrlForMediaRow,
-        });
-      } catch {
-        return null;
-      } finally {
-        downloadFallbackInFlightRef.current[file.id] = false;
-      }
-    },
-    [setObjectUrlForMediaRow]
-  );
-
-  const resolveSignedUrlsByMediaIds = useCallback(
-    (tab: MediaDataTab, rows: MediaFileRow[]): Promise<Set<string>> =>
-      resolveAndApplySignedPreviewUrlsByRows({
-        tab,
-        rows,
-        applySignedUrlsToTab,
-        surface: "media-library-modal",
-      }),
-    [applySignedUrlsToTab]
-  );
-
-  const { refreshSignedUrl, handleMediaPreviewError } =
-    useMediaPreviewRecoveryController<MediaFileRow>({
-      applySignedUrlsToTab,
-      currentUserIdRef,
-      resolveSignedUrlsByMediaIds,
-      hydrateViaStorageDownload,
-      signStoragePath,
-      signedUrlRetryRef,
-      objectUrlByMediaIdRef,
-      resolveTabForRow: getMediaDataTabForRow,
-      previewProfile: "media-library-modal-image-card",
-      beforeRetry: ({ row: file, failedUrl }) => {
-        if (!isNextImageOptimizerUrl(failedUrl)) return;
-        const sourceUrl = resolveNextImageOptimizerSourceUrl(failedUrl);
-        const tab = getMediaDataTabForRow(file);
-        if (sourceUrl) {
-          applySignedUrlsToTab(tab, new Map([[file.id, sourceUrl]]));
-        }
-        setOptimizerFallbackMediaIds((prev) => {
-          if (prev.has(file.id)) return prev;
-          const next = new Set(prev);
-          next.add(file.id);
-          return next;
-        });
-      },
-    });
+  });
+  const {
+    activeMediaQueryRef,
+    activeTabRef,
+    currentUserIdRef,
+    getMediaCardRef,
+    handleMediaPreviewError,
+    markFirstMediaPaint: markSurfaceFirstMediaPaint,
+    mediaTabRequestRef,
+    refreshSignedUrl,
+    signStoragePath,
+    signedUrlRetryRef,
+    applySignedUrlsToTab,
+  } = previewRuntime;
 
   const markFirstMediaPaint = useCallback(
     (assetKind: "image" | "video") => {
-      if (firstMediaPaintLoggedRef.current) return;
-      firstMediaPaintLoggedRef.current = true;
-      logMediaPerf("media.modal.first_media_paint", {
-        surface: "media-library-modal",
-        tab: activeTab,
-        asset_kind: assetKind,
-      });
+      markSurfaceFirstMediaPaint(assetKind);
       if (!openToFirstMediaLoggedRef.current) {
         openToFirstMediaLoggedRef.current = true;
         openToFirstMediaTimerRef.current?.("media.modal.open_to_first_media", {
@@ -399,8 +170,16 @@ export function MediaLibraryModal({
         });
       }
     },
-    [activeMediaQuery, activeTab]
+    [activeMediaQuery, activeTab, markSurfaceFirstMediaPaint]
   );
+  const handleSearchChange = useCallback((nextSearch: string) => {
+    setOptimizerFallbackMediaIds(new Set());
+    setSearch(nextSearch);
+  }, []);
+  const handleTabChange = useCallback((nextTab: MediaTab) => {
+    setOptimizerFallbackMediaIds(new Set());
+    setActiveTab(nextTab);
+  }, []);
 
   const { fetchMediaTabPage } = useMediaTabDataController<MediaFileRow, PromptRow>({
     activeMediaCache,
@@ -432,8 +211,8 @@ export function MediaLibraryModal({
       setSelectedIds(new Set());
       setSearch("");
       setDebouncedSearch("");
+      setOptimizerFallbackMediaIds(new Set());
       firstCardShellLoggedRef.current = false;
-      firstMediaPaintLoggedRef.current = false;
       setActiveTab((prev) => prev ?? "uploaded_images");
     }
   }, [isOpen]);
@@ -471,33 +250,22 @@ export function MediaLibraryModal({
     });
   }, [activeMediaTab, files, mediaSearchTerm]);
   const effectiveSignBudget = useMemo(() => {
-    if (activeMediaTab !== "private") return signBudget;
+    if (activeMediaTab !== "private") return previewRuntime.signBudget;
     return {
-      ...signBudget,
-      prefetchWindow: Math.min(signBudget.prefetchWindow, 8),
-      signBatchSize: Math.min(signBudget.signBatchSize, 3),
+      ...previewRuntime.signBudget,
+      prefetchWindow: Math.min(previewRuntime.signBudget.prefetchWindow, 8),
+      signBatchSize: Math.min(previewRuntime.signBudget.signBatchSize, 3),
     };
-  }, [activeMediaTab, signBudget]);
+  }, [activeMediaTab, previewRuntime.signBudget]);
 
-  useMediaPreviewSigningController({
+  useMediaSurfacePreviewSigning<MediaFileRow, MediaTab>({
+    runtime: previewRuntime,
     activeMediaTab,
     activeMediaCacheLoading: Boolean(activeMediaCache?.loading),
     activeMediaCachePagesLoaded: activeMediaCache?.pagesLoaded ?? 0,
-    activeMediaQueryRef,
-    activeTabRef,
-    applySignedUrlsToTab,
-    currentUserIdRef,
+    activeMediaQuery,
     filteredMedia: activeMedia,
-    hydrateViaStorageDownload,
-    isMountedRef,
-    mediaSignInFlightRef,
-    resolveSignedUrlsByMediaIds,
-    setSignPassNonce,
-    signAttemptRef,
-    signBudget: effectiveSignBudget,
-    signPassNonce,
-    visibleMediaIdsRef,
-    visibleMediaVersion,
+    signBudgetOverride: effectiveSignBudget,
     isSigningPassEnabled: isOpen,
     surface: "media-library-modal",
     unresolvedWarningPrefix: "[media-library-modal]",
@@ -562,7 +330,7 @@ export function MediaLibraryModal({
         fullUrl,
       });
     },
-    [onSelectMedia, refreshSignedUrl, signStoragePath]
+    [currentUserIdRef, onSelectMedia, refreshSignedUrl, signStoragePath]
   );
 
   useEffect(() => {
@@ -594,8 +362,8 @@ export function MediaLibraryModal({
             isMediaTab={isMediaTab}
             search={search}
             onClose={onClose}
-            onTabChange={setActiveTab}
-            onSearchChange={setSearch}
+            onTabChange={handleTabChange}
+            onSearchChange={handleSearchChange}
           />
 
           <div className="media-library-modal-body" ref={modalBodyRef}>

@@ -19,6 +19,8 @@ export type GenerationAdmissionConfig = {
   globalMax: number;
   tierLimits: GenerationAdmissionTierLimits;
   retryAfterSeconds: number;
+  sharedProviderEnabled: boolean;
+  sharedProviderGlobalMax: number;
 };
 
 export type GenerationAdmissionSnapshot = {

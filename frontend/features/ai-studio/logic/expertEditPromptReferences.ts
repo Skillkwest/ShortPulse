@@ -8,6 +8,7 @@ export const EXPERT_EDIT_PROMPT_TOKEN_TRANSFER_MIME = "text/ai-studio-expert-edi
 const EXPERT_EDIT_PROMPT_TOKEN_REGEX = /@img\d*/gi;
 const VALID_IMG_TOKEN_REGEX = /^@img([1-3])$/i;
 const MAX_SECONDARY_REFERENCES = 3;
+const MAX_EXPERT_EDIT_REFERENCE_INPUTS = 8;
 
 export type ExpertEditPromptTokenInvalidReason = "missing_index" | "out_of_range" | "empty_slot";
 
@@ -156,6 +157,30 @@ export const analyzeExpertEditPromptTokens = (
     referencedSlotIndexes,
     inlineError: invalidDiagnostic ? buildInlineError(invalidDiagnostic) : null,
   };
+};
+
+export const buildExpertEditSubmissionReferenceInputs = ({
+  flattenedPrimaryUrl,
+  flattenedMarkupReferenceUrl,
+  secondarySlots,
+  referencedSlotIndexes,
+}: {
+  flattenedPrimaryUrl: string | null;
+  flattenedMarkupReferenceUrl?: string | null;
+  secondarySlots: [string | null, string | null, string | null];
+  referencedSlotIndexes: number[];
+}): string[] => {
+  const referencedSecondaryUrls = referencedSlotIndexes.map(
+    (slotIndex) => secondarySlots[slotIndex]
+  );
+  const candidates = [
+    flattenedPrimaryUrl,
+    flattenedMarkupReferenceUrl ?? null,
+    ...referencedSecondaryUrls,
+  ];
+  return Array.from(
+    new Set(candidates.map((value) => normalizeSlotUrl(value)).filter((value) => value.length > 0))
+  ).slice(0, MAX_EXPERT_EDIT_REFERENCE_INPUTS);
 };
 
 export const buildExpertEditPromptHighlightSegments = (

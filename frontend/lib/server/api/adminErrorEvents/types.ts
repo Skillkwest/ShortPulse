@@ -54,6 +54,7 @@ export type AdmissionWindowSummary = {
   total: number;
   byTier: AdmissionDimensionCounts;
   byReason: AdmissionDimensionCounts;
+  byScope: AdmissionDimensionCounts;
 };
 
 export type AdmissionSummary = {

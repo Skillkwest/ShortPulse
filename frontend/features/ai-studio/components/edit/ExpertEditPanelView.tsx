@@ -21,15 +21,11 @@ import {
 } from "phosphor-react";
 import { AgentGenerateButton } from "../../../../prefabs/agent/buttons/AgentGenerateButton";
 import { modelLogos } from "../../constants";
-import { CONCURRENT_GENERATION_CAP_MESSAGE } from "../../logic/concurrentGenerationCap";
 import { AspectDropdown } from "../AspectDropdown";
 import { ResolutionDropdown } from "../ResolutionDropdown";
 import { stripEditLabel } from "../../utils/modelLabels";
 import { extractDragDropPayload, isImageDragTransfer } from "../../utils/dragDrop";
-import {
-  composePrimaryStageLayersToBlob,
-  type StageFlattenCameraTransformInput,
-} from "../../logic/expertEditStageFlatten";
+import { composePrimaryStageLayersToBlob } from "../../logic/expertEditStageFlatten";
 import { parseAspectRatioToken } from "../../logic/expertEditLayerCrop";
 import {
   analyzeExpertEditPromptTokens,
@@ -1060,10 +1056,7 @@ export function ExpertEditPanelView({
   const inlineGenerateDisabled = isGenerateDisabled || populatedLayerCount <= 0 || !hasPromptText;
   const suppressInlineReferenceGuardrail =
     guardrailReason === "Add a reference image before generating.";
-  const inlineGuardrailReason =
-    guardrailReason === CONCURRENT_GENERATION_CAP_MESSAGE || suppressInlineReferenceGuardrail
-      ? null
-      : guardrailReason;
+  const inlineGuardrailReason = suppressInlineReferenceGuardrail ? null : guardrailReason;
   const inpaintLayerSources = React.useMemo(
     () => layers.map((layer) => ({ id: layer.id, imageUrl: layer.imageUrl })),
     [layers]
@@ -2013,33 +2006,10 @@ export function ExpertEditPanelView({
   );
 
   const resolveStageFlattenSnapshot = React.useCallback(() => {
-    const modalStageRect = isMarkupExpandSelected
-      ? (markupModalStageRef.current?.getBoundingClientRect() ?? null)
-      : null;
-    const inlineStageRect = resolveInlineStageRect();
-    const activeStageRect =
-      modalStageRect && modalStageRect.width > 0 && modalStageRect.height > 0
-        ? modalStageRect
-        : inlineStageRect;
-    const activeViewportSize = resolveStageViewportSize(activeStageRect);
-    const viewportOffset = resolveMarkupViewportOffsetPixels(markupViewport, activeViewportSize);
-    const camera: StageFlattenCameraTransformInput = {
-      scale: markupViewport.scale,
-      offsetX: viewportOffset.offsetX,
-      offsetY: viewportOffset.offsetY,
-      viewportWidth: activeViewportSize.width,
-      viewportHeight: activeViewportSize.height,
-    };
     return {
       outputAspectRatio: primaryCompositionSurfaceAspectRatioValue,
-      camera,
     };
-  }, [
-    isMarkupExpandSelected,
-    markupViewport,
-    primaryCompositionSurfaceAspectRatioValue,
-    resolveInlineStageRect,
-  ]);
+  }, [primaryCompositionSurfaceAspectRatioValue]);
   const renderMarkupStrokeOverlay = React.useCallback(
     (
       keyPrefix: string,
@@ -2274,7 +2244,6 @@ export function ExpertEditPanelView({
       const exportBlob = await composePrimaryStageLayersToBlob(layers, {
         mimeType: "image/png",
         outputAspectRatio: flattenSnapshot.outputAspectRatio,
-        camera: flattenSnapshot.camera,
       });
       const flattenedLayerUrl = URL.createObjectURL(exportBlob);
       const flattenedReferenceUrl = onAddSessionMediaReference

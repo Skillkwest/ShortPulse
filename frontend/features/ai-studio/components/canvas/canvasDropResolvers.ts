@@ -12,7 +12,6 @@ type CanvasImageUrlResolutionInput = {
     "previewUrl" | "fullStoragePath" | "previewStoragePath" | "resultUrls"
   >;
   imageIndex: number;
-  payloadReferenceUrl: string | null;
 };
 
 const normalizeRenderableImageUrl = (value: string | null | undefined): string | null => {
@@ -26,12 +25,11 @@ const normalizeRenderableImageUrl = (value: string | null | undefined): string |
 
 /**
  * Resolves the best renderable image URL for canvas drops.
- * Prioritizes the explicit image index when valid, then output fallbacks, then drag-payload URL.
+ * Prioritizes the explicit image index when valid, then canonical output fallbacks.
  */
 export const resolveCanvasDropImageSourceUrl = ({
   output,
   imageIndex,
-  payloadReferenceUrl,
 }: CanvasImageUrlResolutionInput): string | null => {
   const indexedResultUrl = normalizeRenderableImageUrl(
     output.resultUrls?.[Math.max(0, Math.floor(imageIndex))] ?? null
@@ -43,7 +41,6 @@ export const resolveCanvasDropImageSourceUrl = ({
     output.fullStoragePath,
     output.previewStoragePath,
     ...(output.resultUrls ?? []),
-    payloadReferenceUrl,
   ];
 
   for (const candidate of fallbackCandidates) {

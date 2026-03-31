@@ -16,6 +16,8 @@ const markQueueItemExhaustedMock = vi.fn();
 const releaseQueueLeaseBackToQueuedMock = vi.fn();
 const removeQueueItemMock = vi.fn();
 const updateQueueItemForRetryMock = vi.fn();
+const applyAcceptedRunningGenerationTransitionMock = vi.fn();
+const applyGenerationLifecycleTransitionMock = vi.fn();
 
 const buildMutationSuccess = (operation: "retry" | "exhaust" | "release" | "remove") => ({
   ok: true,
@@ -58,6 +60,16 @@ vi.mock("../../providerIntegration/submitProviderDispatcher", () => ({
   dispatchProviderSubmit: (...args: unknown[]) => dispatchProviderSubmitMock(...args),
 }));
 
+vi.mock("../generationAcceptedTransitionService", () => ({
+  applyAcceptedRunningGenerationTransition: (...args: unknown[]) =>
+    applyAcceptedRunningGenerationTransitionMock(...args),
+}));
+
+vi.mock("../generationLifecycleTransitionService", () => ({
+  applyGenerationLifecycleTransition: (...args: unknown[]) =>
+    applyGenerationLifecycleTransitionMock(...args),
+}));
+
 vi.mock("../falSubmitTargeting", () => ({
   resolveWebhookCallbackUrl: (...args: unknown[]) => resolveWebhookCallbackUrlMock(...args),
   withWebhookTargets: (...args: unknown[]) => withWebhookTargetsMock(...args),
@@ -90,7 +102,9 @@ const createSupabaseAdminMock = () => {
     })),
     update: vi.fn(() => ({
       eq: vi.fn(() => ({
-        eq: vi.fn(async () => ({ error: null })),
+        eq: vi.fn(() => ({
+          select: vi.fn(async () => ({ data: [{ id: generationRow.id }], error: null })),
+        })),
       })),
     })),
   };
@@ -117,16 +131,19 @@ const createSupabaseAdminMock = () => {
 describe("generationQueue/dispatch no-capacity handling", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    process.env.FAL_KEY = "test-fal-key";
     getSupabaseAdminMock.mockReturnValue(createSupabaseAdminMock());
     markQueueItemExhaustedMock.mockResolvedValue(buildMutationSuccess("exhaust"));
     releaseQueueLeaseBackToQueuedMock.mockResolvedValue(buildMutationSuccess("release"));
     removeQueueItemMock.mockResolvedValue(buildMutationSuccess("remove"));
     updateQueueItemForRetryMock.mockResolvedValue(buildMutationSuccess("retry"));
-    markGenerationReservationSubmittedMock.mockResolvedValue({
-      status: "reserved",
-      sourceRef: "source-1",
-      message: null,
-    });
+    markGenerationReservationSubmittedMock.mockImplementation(
+      async ({ sourceRef }: { sourceRef: string }) => ({
+        status: "reserved",
+        sourceRef,
+        message: null,
+      })
+    );
     readFalRuntimeFlagsMock.mockReturnValue({
       videoQueueCompatNormalizationEnabled: true,
       queueEnabled: true,
@@ -138,6 +155,8 @@ describe("generationQueue/dispatch no-capacity handling", () => {
       providerAttachedReservationCleanupMinAgeSeconds: 7200,
       admission: {
         globalMax: 1,
+        sharedProviderEnabled: false,
+        sharedProviderGlobalMax: 3,
         tierLimits: {
           video_long: 2,
           image_heavy: 1,
@@ -156,6 +175,8 @@ describe("generationQueue/dispatch no-capacity handling", () => {
     getFalModelProfileByModelIdMock.mockReturnValue({ submitTargets: [] });
     resolveWebhookCallbackUrlMock.mockReturnValue(null);
     withWebhookTargetsMock.mockImplementation((targets: unknown) => targets);
+    applyAcceptedRunningGenerationTransitionMock.mockResolvedValue({ ok: true });
+    applyGenerationLifecycleTransitionMock.mockResolvedValue({ ok: true });
   });
 
   it("requeues when capacity is full but queue age is still below max wait", async () => {
@@ -193,6 +214,7 @@ describe("generationQueue/dispatch no-capacity handling", () => {
     );
     expect(readActiveProviderCapacitySnapshotMock).toHaveBeenCalledWith(
       expect.objectContaining({
+        provider: "fal",
         staleIgnoreMinAgeSeconds: 1200,
         activeGenerationStaleIgnoreMinAgeSeconds: 7200,
       })
@@ -202,10 +224,11 @@ describe("generationQueue/dispatch no-capacity handling", () => {
     expect(releaseGenerationReservationBySourceRefMock).not.toHaveBeenCalled();
     expect(dispatchProviderSubmitMock).not.toHaveBeenCalled();
     expect(logGenerationFailureMock).toHaveBeenCalled();
+    expect(claimGenerationSubmitQueueBatchMock).toHaveBeenCalledTimes(1);
   });
 
   it("exhausts and releases when capacity is full beyond max wait", async () => {
-    claimGenerationSubmitQueueBatchMock.mockResolvedValue([
+    claimGenerationSubmitQueueBatchMock.mockResolvedValueOnce([
       {
         queueId: "queue-1",
         generationId: "gen-1",
@@ -222,6 +245,7 @@ describe("generationQueue/dispatch no-capacity handling", () => {
         createdAt: new Date(Date.now() - 2_000_000).toISOString(),
       },
     ]);
+    claimGenerationSubmitQueueBatchMock.mockResolvedValueOnce([]);
 
     const result = await dispatchGenerationSubmitQueueBatch({
       req: { method: "GET", headers: {} } as never,
@@ -239,6 +263,7 @@ describe("generationQueue/dispatch no-capacity handling", () => {
     );
     expect(readActiveProviderCapacitySnapshotMock).toHaveBeenCalledWith(
       expect.objectContaining({
+        provider: "fal",
         staleIgnoreMinAgeSeconds: 1200,
         activeGenerationStaleIgnoreMinAgeSeconds: 7200,
       })
@@ -256,5 +281,183 @@ describe("generationQueue/dispatch no-capacity handling", () => {
     );
     expect(releaseQueueLeaseBackToQueuedMock).not.toHaveBeenCalled();
     expect(dispatchProviderSubmitMock).not.toHaveBeenCalled();
+    expect(claimGenerationSubmitQueueBatchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("keeps refilling queued work within the same run while passes make forward progress", async () => {
+    readFalRuntimeFlagsMock.mockReturnValue({
+      videoQueueCompatNormalizationEnabled: true,
+      queueEnabled: true,
+      queueLeaseSeconds: 30,
+      queueMaxAttempts: 5,
+      queueBaseBackoffSeconds: 5,
+      queueMaxWaitSeconds: 1200,
+      runningExhaustMinAgeSeconds: 7200,
+      providerAttachedReservationCleanupMinAgeSeconds: 7200,
+      admission: {
+        globalMax: 4,
+        sharedProviderEnabled: false,
+        sharedProviderGlobalMax: 4,
+        tierLimits: {
+          video_long: 2,
+          image_heavy: 3,
+          image_standard: 4,
+        },
+      },
+      publicApiBaseUrl: null,
+    });
+    readActiveProviderCapacitySnapshotMock.mockResolvedValue({
+      tier: "image_heavy",
+      globalActive: 0,
+      tierActive: 0,
+      staleIgnoredGlobal: 0,
+      staleIgnoredTier: 0,
+    });
+    getFalModelProfileByModelIdMock.mockReturnValue({
+      submitTargets: [{ url: "https://queue.fal.run/test" }],
+    });
+    dispatchProviderSubmitMock
+      .mockResolvedValueOnce({
+        response: { ok: true, status: 200 },
+        data: { request_id: "req-1" },
+        providerRequestId: "req-1",
+        targetUrl: "https://queue.fal.run/test",
+        targetIndex: 0,
+      })
+      .mockResolvedValueOnce({
+        response: { ok: true, status: 200 },
+        data: { request_id: "req-2" },
+        providerRequestId: "req-2",
+        targetUrl: "https://queue.fal.run/test",
+        targetIndex: 0,
+      });
+    claimGenerationSubmitQueueBatchMock
+      .mockResolvedValueOnce([
+        {
+          queueId: "queue-1",
+          generationId: "gen-1",
+          userId: "user-1",
+          modelId: "fal-ai/nano-banana-pro",
+          sourceRef: "source-1",
+          submitRoute: "/api/fal/nano-banana-pro-submit",
+          submitPayload: { prompt: "hello-1" },
+          timeoutMs: 20_000,
+          attempts: 0,
+          status: "dispatching",
+          nextAttemptAt: null,
+          leaseUntil: new Date(Date.now() + 30_000).toISOString(),
+          createdAt: new Date(Date.now() - 60_000).toISOString(),
+        },
+      ])
+      .mockResolvedValueOnce([
+        {
+          queueId: "queue-2",
+          generationId: "gen-1",
+          userId: "user-1",
+          modelId: "fal-ai/nano-banana-pro",
+          sourceRef: "source-2",
+          submitRoute: "/api/fal/nano-banana-pro-submit",
+          submitPayload: { prompt: "hello-2" },
+          timeoutMs: 20_000,
+          attempts: 0,
+          status: "dispatching",
+          nextAttemptAt: null,
+          leaseUntil: new Date(Date.now() + 30_000).toISOString(),
+          createdAt: new Date(Date.now() - 60_000).toISOString(),
+        },
+      ])
+      .mockResolvedValueOnce([]);
+
+    const result = await dispatchGenerationSubmitQueueBatch({
+      req: undefined,
+      routeLabel: "test/dispatch",
+      limit: 1,
+      userId: "user-1",
+    });
+
+    expect(result).toEqual(
+      expect.objectContaining({
+        claimed: 2,
+        submitted: 2,
+        requeuedNoCapacity: 0,
+        exhausted: 0,
+      })
+    );
+    expect(claimGenerationSubmitQueueBatchMock).toHaveBeenCalledTimes(3);
+    expect(dispatchProviderSubmitMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("stops refilling after the max pass cap even when each pass makes forward progress", async () => {
+    readFalRuntimeFlagsMock.mockReturnValue({
+      videoQueueCompatNormalizationEnabled: true,
+      queueEnabled: true,
+      queueLeaseSeconds: 30,
+      queueMaxAttempts: 5,
+      queueBaseBackoffSeconds: 5,
+      queueMaxWaitSeconds: 1200,
+      runningExhaustMinAgeSeconds: 7200,
+      providerAttachedReservationCleanupMinAgeSeconds: 7200,
+      admission: {
+        globalMax: 4,
+        sharedProviderEnabled: false,
+        sharedProviderGlobalMax: 4,
+        tierLimits: {
+          video_long: 2,
+          image_heavy: 3,
+          image_standard: 4,
+        },
+      },
+      publicApiBaseUrl: null,
+    });
+    readActiveProviderCapacitySnapshotMock.mockResolvedValue({
+      tier: "image_heavy",
+      globalActive: 0,
+      tierActive: 0,
+      staleIgnoredGlobal: 0,
+      staleIgnoredTier: 0,
+    });
+    getFalModelProfileByModelIdMock.mockReturnValue({
+      submitTargets: [{ url: "https://queue.fal.run/test" }],
+    });
+    dispatchProviderSubmitMock.mockImplementation(async (_args: unknown) => ({
+      response: { ok: true, status: 200 },
+      data: { request_id: `req-${dispatchProviderSubmitMock.mock.calls.length}` },
+      providerRequestId: `req-${dispatchProviderSubmitMock.mock.calls.length}`,
+      targetUrl: "https://queue.fal.run/test",
+      targetIndex: 0,
+    }));
+    claimGenerationSubmitQueueBatchMock.mockImplementation(async () => [
+      {
+        queueId: `queue-${claimGenerationSubmitQueueBatchMock.mock.calls.length}`,
+        generationId: "gen-1",
+        userId: "user-1",
+        modelId: "fal-ai/nano-banana-pro",
+        sourceRef: `source-${claimGenerationSubmitQueueBatchMock.mock.calls.length}`,
+        submitRoute: "/api/fal/nano-banana-pro-submit",
+        submitPayload: { prompt: "hello" },
+        timeoutMs: 20_000,
+        attempts: 0,
+        status: "dispatching",
+        nextAttemptAt: null,
+        leaseUntil: new Date(Date.now() + 30_000).toISOString(),
+        createdAt: new Date(Date.now() - 60_000).toISOString(),
+      },
+    ]);
+
+    const result = await dispatchGenerationSubmitQueueBatch({
+      req: undefined,
+      routeLabel: "test/dispatch",
+      limit: 1,
+      userId: "user-1",
+    });
+
+    expect(result).toEqual(
+      expect.objectContaining({
+        claimed: 4,
+        submitted: 4,
+      })
+    );
+    expect(claimGenerationSubmitQueueBatchMock).toHaveBeenCalledTimes(4);
+    expect(dispatchProviderSubmitMock).toHaveBeenCalledTimes(4);
   });
 });

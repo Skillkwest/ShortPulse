@@ -34,6 +34,8 @@ const createFlags = (overrides: Partial<FalRuntimeFlags> = {}): FalRuntimeFlags 
       image_standard: 4,
     },
     retryAfterSeconds: 20,
+    sharedProviderEnabled: false,
+    sharedProviderGlobalMax: 4,
   },
   reservationCleanupEnabled: true,
   reservationCleanupMinAgeSeconds: 900,

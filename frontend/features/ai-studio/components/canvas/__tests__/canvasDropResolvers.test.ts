@@ -25,7 +25,6 @@ describe("resolveCanvasDropImageSourceUrl", () => {
         resultUrls: ["https://example.com/full.png"],
       }),
       imageIndex: 0,
-      payloadReferenceUrl: null,
     });
 
     expect(sourceUrl).toBe("https://example.com/full.png");
@@ -38,23 +37,21 @@ describe("resolveCanvasDropImageSourceUrl", () => {
         resultUrls: ["tmpwk6qxaqk.jpeg"],
       }),
       imageIndex: 0,
-      payloadReferenceUrl: null,
     });
 
     expect(sourceUrl).toBe("https://example.com/preview.png");
   });
 
-  it("falls back to payload reference URL when output has no renderable image URL", () => {
+  it("rejects internal payload URLs when output has no renderable image URL", () => {
     const sourceUrl = resolveCanvasDropImageSourceUrl({
       output: makeOutput({
         previewUrl: "",
         resultUrls: ["tmpwk6qxaqk.jpeg"],
       }),
       imageIndex: 0,
-      payloadReferenceUrl: "https://example.com/payload-fallback.png",
     });
 
-    expect(sourceUrl).toBe("https://example.com/payload-fallback.png");
+    expect(sourceUrl).toBeNull();
   });
 
   it("accepts root-relative renderable preview URLs for image drops", () => {
@@ -64,20 +61,18 @@ describe("resolveCanvasDropImageSourceUrl", () => {
         resultUrls: [],
       }),
       imageIndex: 0,
-      payloadReferenceUrl: null,
     });
 
     expect(sourceUrl).toBe("/api/media/preview?id=123");
   });
 
-  it("rejects video-like payload fallback URLs for image drops", () => {
+  it("returns null when canonical output candidates are missing", () => {
     const sourceUrl = resolveCanvasDropImageSourceUrl({
       output: makeOutput({
         previewUrl: "",
         resultUrls: [],
       }),
       imageIndex: 0,
-      payloadReferenceUrl: "/api/media/video.mp4",
     });
 
     expect(sourceUrl).toBeNull();

@@ -3,7 +3,7 @@
 Date: 2026-03-27  
 Authority: Working  
 Owner: Engineering  
-Status: Checkpoint-complete
+Status: Strong checkpoint complete
 
 ## Purpose
 Lane 1 defines the future request/attempt state machine for the generation pipeline.
@@ -179,18 +179,25 @@ Current implemented coverage:
 9. recovery lookup prefers attempts
 10. active-capacity reads prefer attempts
 11. queue-status reads prefer attempts
+12. accepted submit request-state mutation uses shared transition helpers
+13. request-id repair request-state mutation uses shared transition helpers and backfills attempts before repairing legacy request ids
+14. recovery-side paired request-state and attempt-state mutation now routes through a shared transition service
+15. accepted submit and queued dispatch now share one accepted-transition service for generation-running plus attempt-running orchestration
+16. accepted submit, request-id repair, and recovery now share one broader lifecycle transition orchestrator that supports both generation-first and attempt-first ordering
 
 Open question before more implementation:
-1. whether the next step should be a centralized request/attempt transition helper
-2. or whether Lane 1 should stop here and treat that helper/state-machine work as the next milestone rather than more seam-by-seam mutation cleanup
+1. whether the next step should be one larger shared request/attempt transition service or state-machine step across the remaining forward paths
+2. or whether Lane 1 should stop here and treat the current branch as the stronger checkpoint for this milestone rather than continue with more seam-by-seam cleanup
 
 Current judgment:
 1. Lane 1 has crossed its “narrow seam” threshold
-2. further small compatibility or per-callsite attempt updates would have lower ROI than a broader transition-helper refactor
-3. the next Lane 1 implementation should proceed only if it centralizes request-state and attempt-state mutation more materially than the slices already landed
+2. the branch has now moved beyond the earlier milestone closeout by landing shared transition helpers in submit, repair, and recovery
+3. further small compatibility or per-callsite attempt updates would have lower ROI than a broader transition-helper or state-machine refactor
+4. the next Lane 1 implementation should proceed only if it centralizes request-state and attempt-state mutation more materially than the slices already landed
 
 ## Lane 1 Status
 1. Planning-complete
-2. Implementation checkpoint refreshed
-3. Done for the current milestone
-4. Reopen only if we deliberately choose the broader centralized transition-helper/state-machine refactor
+2. Implementation reached a stronger checkpoint than the earlier milestone closeout
+3. Lane 1 is done for the current milestone at this stronger checkpoint
+4. Reopen only if we deliberately choose a larger request/attempt state-machine step rather than more seam cleanup
+5. The next such follow-on is tracked in `docs/planning/generation-pipeline-rebuild-state-machine-service-plan-2026-03-27.md`

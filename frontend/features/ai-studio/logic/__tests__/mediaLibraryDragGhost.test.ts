@@ -113,15 +113,7 @@ describe("mediaLibraryDragGhost", () => {
     node.remove();
   });
 
-  it("matches reference-grid ghost sizing when a reference-grid card is present", () => {
-    const referenceSurface = document.createElement("div");
-    referenceSurface.setAttribute("data-grid-surface", "reference-grid");
-    const referenceCard = document.createElement("div");
-    referenceCard.className = "reference-card";
-    setNodeRect(referenceCard, 100, 125);
-    referenceSurface.appendChild(referenceCard);
-    document.body.appendChild(referenceSurface);
-
+  it("uses a fixed 4:5 ghost size regardless of source card dimensions", () => {
     const node = document.createElement("button");
     document.body.appendChild(node);
     setNodeRect(node, 320, 400);
@@ -136,12 +128,11 @@ describe("mediaLibraryDragGhost", () => {
 
     expect(setDragImage).toHaveBeenCalledTimes(1);
     const ghost = setDragImage.mock.calls[0]?.[0] as HTMLElement;
-    expect(ghost.style.width).toBe("86px");
-    expect(ghost.style.height).toBe("108px");
-    expect(setDragImage).toHaveBeenCalledWith(ghost, 43, 54);
+    expect(ghost.style.width).toBe("96px");
+    expect(ghost.style.height).toBe("120px");
+    expect(setDragImage).toHaveBeenCalledWith(ghost, 12, 12);
 
     clearMediaLibraryDragGhost(node);
     node.remove();
-    referenceSurface.remove();
   });
 });

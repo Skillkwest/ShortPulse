@@ -304,7 +304,7 @@ describe("generationQueue/service.readGenerationQueueStatus", () => {
       status: "dispatching",
       generationId: "gen-1",
       sourceRef: "src-1",
-      retryAfterMs: 2000,
+      retryAfterMs: 1000,
     });
   });
 
@@ -332,7 +332,7 @@ describe("generationQueue/service.readGenerationQueueStatus", () => {
       status: "queued",
       generationId: "gen-2",
       sourceRef: "src-2",
-      retryAfterMs: 7000,
+      retryAfterMs: 3000,
     });
   });
 

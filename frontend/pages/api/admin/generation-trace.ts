@@ -145,6 +145,28 @@ const selectReservationFields = [
   "released_at",
 ].join(", ");
 
+const selectAttemptFields = [
+  "id",
+  "generation_id",
+  "provider",
+  "provider_request_id",
+  "status",
+  "attempt_index",
+  "created_at",
+  "updated_at",
+].join(", ");
+
+const selectOutputFields = [
+  "id",
+  "generation_id",
+  "output_index",
+  "media_file_id",
+  "storage_path",
+  "source_url",
+  "created_at",
+  "updated_at",
+].join(", ");
+
 const selectMediaEventFields = [
   "id",
   "event_type",
@@ -293,8 +315,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
     }
 
-    const generations = sortRowsDesc(dedupeRowsById(generationRows));
-    const generationIds = generations
+    let generations = sortRowsDesc(dedupeRowsById(generationRows));
+    let generationIds = generations
       .map((row) => row.id)
       .filter((value): value is string => typeof value === "string" && value.length > 0);
     const requestIds = new Set<string>();
@@ -305,6 +327,70 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     });
 
     const requestIdList = Array.from(requestIds);
+    const generationAttempts: JsonRow[] = [];
+    const generationOutputs: JsonRow[] = [];
+
+    const attemptQueries: Array<PromiseLike<{ data: unknown; error: unknown }>> = [];
+    if (generationIds.length) {
+      attemptQueries.push(
+        supabaseAdmin
+          .from("generation_attempts")
+          .select(selectAttemptFields)
+          .in("generation_id", generationIds)
+          .order("created_at", { ascending: false })
+          .limit(200)
+      );
+    }
+    if (requestIdList.length) {
+      attemptQueries.push(
+        supabaseAdmin
+          .from("generation_attempts")
+          .select(selectAttemptFields)
+          .in("provider_request_id", requestIdList)
+          .order("created_at", { ascending: false })
+          .limit(200)
+      );
+    }
+    if (attemptQueries.length) {
+      const attemptResults = await Promise.all(attemptQueries);
+      attemptResults.forEach((result) => {
+        if (result.error) {
+          warnings.push(`generation_attempts lookup failed: ${readErrorMessage(result.error)}`);
+          return;
+        }
+        appendObjectRows(generationAttempts, result.data);
+      });
+    }
+
+    const dedupedAttempts = sortRowsDesc(dedupeRowsById(generationAttempts));
+    const attemptGenerationIds = dedupedAttempts
+      .map((row) => row.generation_id)
+      .filter((value): value is string => typeof value === "string" && value.length > 0);
+    const missingGenerationIds = attemptGenerationIds.filter((id) => !generationIds.includes(id));
+
+    if (missingGenerationIds.length) {
+      const { data, error } = await runGenerationQueryWithFallback({
+        warnings,
+        label: "ai_generations.generation_attempts expansion lookup",
+        execute: (selectFields) =>
+          supabaseAdmin
+            .from("ai_generations")
+            .select(selectFields)
+            .in("id", missingGenerationIds)
+            .limit(50),
+      });
+      if (error) {
+        warnings.push(
+          `ai_generations.generation_attempts expansion lookup failed: ${readErrorMessage(error)}`
+        );
+      } else {
+        appendObjectRows(generationRows, data);
+        generations = sortRowsDesc(dedupeRowsById(generationRows));
+        generationIds = generations
+          .map((row) => row.id)
+          .filter((value): value is string => typeof value === "string" && value.length > 0);
+      }
+    }
 
     const mediaEvents: JsonRow[] = [];
     const mediaFiles: JsonRow[] = [];
@@ -313,7 +399,29 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const errorEvents: JsonRow[] = [];
 
     if (generationIds.length) {
-      const [eventsResult, filesResult] = await Promise.all([
+      const outputResult = await supabaseAdmin
+        .from("ai_generation_outputs")
+        .select(selectOutputFields)
+        .in("generation_id", generationIds)
+        .order("created_at", { ascending: false })
+        .limit(200);
+
+      if (outputResult.error) {
+        warnings.push(
+          `ai_generation_outputs lookup failed: ${readErrorMessage(outputResult.error)}`
+        );
+      } else {
+        appendObjectRows(generationOutputs, outputResult.data);
+      }
+    }
+
+    const dedupedOutputs = sortRowsDesc(dedupeRowsById(generationOutputs));
+    const outputMediaFileIds = dedupedOutputs
+      .map((row) => row.media_file_id)
+      .filter((value): value is string => typeof value === "string" && value.length > 0);
+
+    if (generationIds.length) {
+      const fileQueries: Array<PromiseLike<{ data: unknown; error: unknown }>> = [
         supabaseAdmin
           .from("media_events")
           .select(selectMediaEventFields)
@@ -327,7 +435,19 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           .in("source_ref", generationIds)
           .order("created_at", { ascending: false })
           .limit(200),
-      ]);
+      ];
+      if (outputMediaFileIds.length) {
+        fileQueries.push(
+          supabaseAdmin
+            .from("media_files")
+            .select(selectMediaFileFields)
+            .in("id", outputMediaFileIds)
+            .order("created_at", { ascending: false })
+            .limit(200)
+        );
+      }
+
+      const [eventsResult, ...fileResults] = await Promise.all(fileQueries);
 
       if (eventsResult.error) {
         warnings.push(`media_events lookup failed: ${readErrorMessage(eventsResult.error)}`);
@@ -335,11 +455,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         appendObjectRows(mediaEvents, eventsResult.data);
       }
 
-      if (filesResult.error) {
-        warnings.push(`media_files lookup failed: ${readErrorMessage(filesResult.error)}`);
-      } else {
-        appendObjectRows(mediaFiles, filesResult.data);
-      }
+      fileResults.forEach((filesResult) => {
+        if (filesResult.error) {
+          warnings.push(`media_files lookup failed: ${readErrorMessage(filesResult.error)}`);
+        } else {
+          appendObjectRows(mediaFiles, filesResult.data);
+        }
+      });
     }
 
     const reservationQueries: Array<PromiseLike<{ data: unknown; error: unknown }>> = [];
@@ -480,6 +602,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       },
       summary: {
         generations: generations.length,
+        attempts: dedupedAttempts.length,
+        outputs: dedupedOutputs.length,
         mediaEvents: dedupedMediaEvents.length,
         mediaFiles: dedupedMediaFiles.length,
         reservations: dedupedReservations.length,
@@ -487,6 +611,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         errorEvents: dedupedErrors.length,
       },
       generations,
+      generationAttempts: dedupedAttempts,
+      generationOutputs: dedupedOutputs,
       mediaEvents: dedupedMediaEvents,
       mediaFiles: dedupedMediaFiles,
       reservations: dedupedReservations,

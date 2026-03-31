@@ -11,6 +11,7 @@ import type { CharacterQuickSwapItem } from "../types";
 type CharacterQuickSwapDeckSectionProps = {
   beginnerMode: boolean;
   showCollapseToggle?: boolean;
+  showHelperText?: boolean;
   isCollapsed: boolean;
   contentId: string;
   pageBusy: boolean;
@@ -49,9 +50,15 @@ type CharacterQuickSwapDeckSectionProps = {
   onDrop: (event: React.DragEvent<HTMLElement>) => void;
 };
 
+type QuickSwapScrollStyle = React.CSSProperties & {
+  "--character-quickswap-columns"?: string;
+};
+
 const ACTIVE_GRID_GAP_PX = 4;
 const ARCHIVE_GRID_GAP_PX = 6;
-const ACTIVE_CARD_MAX_WIDTH_PX = 220;
+const ACTIVE_CARD_MIN_WIDTH_PX = 108;
+const ACTIVE_CARD_MAX_WIDTH_PX = 192;
+const ACTIVE_CARD_MAX_COLUMNS = 4;
 const ACTIVE_CARD_ASPECT_HEIGHT_MULTIPLIER = 5 / 4;
 const ARCHIVE_CARD_ESTIMATED_CHROME_PX = 46;
 const ARCHIVE_CARD_IMAGE_HEIGHT_MULTIPLIER = 11 / 16;
@@ -75,12 +82,27 @@ const resolveCardWidth = ({
   return Math.max(1, Math.min(maxWidthPx, width));
 };
 
+const resolveActiveGridColumnCount = (
+  viewportWidth: number,
+  fallbackColumnCount: number
+): number => {
+  if (viewportWidth <= 0) {
+    return Math.max(2, Math.min(ACTIVE_CARD_MAX_COLUMNS, Math.floor(fallbackColumnCount) || 4));
+  }
+
+  const readableColumnCount = Math.floor(
+    (viewportWidth + ACTIVE_GRID_GAP_PX) / (ACTIVE_CARD_MIN_WIDTH_PX + ACTIVE_GRID_GAP_PX)
+  );
+  return Math.max(2, Math.min(ACTIVE_CARD_MAX_COLUMNS, readableColumnCount || 2));
+};
+
 /**
  * Renders the quick-swap deck with dynamic item counts and archived controls.
  */
 export function CharacterQuickSwapDeckSection({
   beginnerMode,
   showCollapseToggle = true,
+  showHelperText = true,
   isCollapsed,
   contentId,
   pageBusy,
@@ -120,6 +142,10 @@ export function CharacterQuickSwapDeckSection({
   const [archiveViewportHeight, setArchiveViewportHeight] = useState(0);
   const [archiveViewportWidth, setArchiveViewportWidth] = useState(0);
   const [archiveMeasuredCardHeight, setArchiveMeasuredCardHeight] = useState<number | null>(null);
+  const effectiveQuickSwapGridColumnCount = useMemo(
+    () => resolveActiveGridColumnCount(activeViewportWidth, quickSwapGridColumnCount),
+    [activeViewportWidth, quickSwapGridColumnCount]
+  );
 
   useEffect(() => {
     const node = activeScrollRef.current;
@@ -135,7 +161,7 @@ export function CharacterQuickSwapDeckSection({
     return () => {
       observer.disconnect();
     };
-  }, [quickSwapGridColumnCount]);
+  }, [effectiveQuickSwapGridColumnCount]);
 
   useEffect(() => {
     if (!isArchiveOpen) return;
@@ -158,23 +184,24 @@ export function CharacterQuickSwapDeckSection({
     () =>
       resolveCardWidth({
         viewportWidth: activeViewportWidth,
-        columnCount: quickSwapGridColumnCount,
+        columnCount: effectiveQuickSwapGridColumnCount,
         gapPx: ACTIVE_GRID_GAP_PX,
         maxWidthPx: ACTIVE_CARD_MAX_WIDTH_PX,
       }),
-    [activeViewportWidth, quickSwapGridColumnCount]
+    [activeViewportWidth, effectiveQuickSwapGridColumnCount]
   );
   const activeCardHeight = activeCardWidth * ACTIVE_CARD_ASPECT_HEIGHT_MULTIPLIER;
   const activeRenderableCount = activeItems.length + 1;
   const shouldVirtualizeActive =
     activeViewportHeight > 0 &&
-    activeRenderableCount > Math.max(1, quickSwapGridColumnCount) * ACTIVE_VIRTUALIZE_MIN_ROWS;
+    activeRenderableCount >
+      Math.max(1, effectiveQuickSwapGridColumnCount) * ACTIVE_VIRTUALIZE_MIN_ROWS;
   const activeWindow = useMemo(
     () =>
       shouldVirtualizeActive
         ? resolveVirtualGridWindow({
             itemCount: activeRenderableCount,
-            columnCount: quickSwapGridColumnCount,
+            columnCount: effectiveQuickSwapGridColumnCount,
             viewportHeight: activeViewportHeight,
             scrollTop: activeScrollTop,
             rowHeight: activeCardHeight,
@@ -192,7 +219,7 @@ export function CharacterQuickSwapDeckSection({
       activeRenderableCount,
       activeScrollTop,
       activeViewportHeight,
-      quickSwapGridColumnCount,
+      effectiveQuickSwapGridColumnCount,
       shouldVirtualizeActive,
     ]
   );
@@ -209,6 +236,12 @@ export function CharacterQuickSwapDeckSection({
   const shouldRenderUploadPlaceholder =
     activeItems.length >= activeWindow.startIndex &&
     activeItems.length < activeWindow.endIndexExclusive;
+  const activeScrollStyle = useMemo<QuickSwapScrollStyle>(
+    () => ({
+      "--character-quickswap-columns": String(effectiveQuickSwapGridColumnCount),
+    }),
+    [effectiveQuickSwapGridColumnCount]
+  );
 
   const archiveEstimatedCardHeight = useMemo(() => {
     const cardWidth = resolveCardWidth({
@@ -287,7 +320,7 @@ export function CharacterQuickSwapDeckSection({
           ) : null}
           <div className="character-section-title-copy">
             <h3 className="character-section-title">QuickSwap Deck</h3>
-            {!isCollapsed ? (
+            {!isCollapsed && showHelperText ? (
               <p className="character-section-helper tiny subdued">
                 The quick swap deck is a small library of images you can quickly access to swap out
                 your character&apos;s style on the fly.
@@ -353,6 +386,7 @@ export function CharacterQuickSwapDeckSection({
         <div
           ref={activeScrollRef}
           className="character-quickswap-active-scroll"
+          style={activeScrollStyle}
           onScroll={(event) => {
             setActiveScrollTop((event.currentTarget as HTMLDivElement).scrollTop);
           }}

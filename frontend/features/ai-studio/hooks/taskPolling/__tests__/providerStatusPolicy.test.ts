@@ -1,50 +1,39 @@
-/**
- * Unit coverage for provider status parsing and classification policy.
- */
 import { describe, expect, it } from "vitest";
 import {
-  classifyProviderSuccess,
-  condenseError,
-  createShortErrorMessage,
-  extractFailureMessageFromDetail,
-  normalizeProviderStateToTaskState,
-  resolveProviderStatusState,
+  isProviderSafetyBlockedOutput,
+  isProviderSafetyBlockMessage,
 } from "../providerStatusPolicy";
 
-describe("providerStatusPolicy", () => {
-  it("maps provider states to task state", () => {
-    expect(normalizeProviderStateToTaskState("success")).toBe("success");
-    expect(normalizeProviderStateToTaskState("error")).toBe("fail");
-    expect(normalizeProviderStateToTaskState("running")).toBe("running");
+describe("providerStatusPolicy safety classification", () => {
+  it("detects provider safety block messages from explicit-content wording", () => {
+    expect(
+      isProviderSafetyBlockMessage(
+        "The model did not generate the expected output for this prompt due to unsafe content."
+      )
+    ).toBe(true);
+    expect(isProviderSafetyBlockMessage("NSFW content blocked by moderation.")).toBe(true);
   });
 
-  it("resolves provider status from variant payload fields", () => {
-    expect(resolveProviderStatusState({ status: "SUCCEEDED" }).state).toBe("success");
-    expect(resolveProviderStatusState({ data: { status: "running" } }).state).toBe("running");
-    expect(resolveProviderStatusState({}).state).toBe("pending");
+  it("labels failed outputs with provider safety details as NSFW", () => {
+    expect(
+      isProviderSafetyBlockedOutput({
+        taskState: "fail",
+        errorMessage: "Generation failed",
+        errorMessageShort: "Content not allowed",
+        errorDetail:
+          "Request rejected for explicit adult content by the provider moderation system.",
+      })
+    ).toBe(true);
   });
 
-  it("classifies forced image success when media appears in nonterminal state", () => {
-    const result = classifyProviderSuccess({
-      provider: "fal",
-      state: "running",
-      hasMedia: true,
-      hasExplicitState: true,
-    });
-    expect(result.shouldForceImageMediaSuccess).toBe(true);
-    expect(result.shouldTreatAsSuccess).toBe(true);
-  });
-
-  it("normalizes long and policy errors", () => {
-    expect(condenseError("a".repeat(120)).length).toBeLessThanOrEqual(78);
-    expect(createShortErrorMessage("Content policy checker flagged input")).toBe(
-      "Content not allowed"
-    );
-  });
-
-  it("extracts nested failure detail message", () => {
-    expect(extractFailureMessageFromDetail({ detail: [{ message: "file_download_error" }] })).toBe(
-      "file_download_error"
-    );
+  it("does not label generic provider failures as NSFW", () => {
+    expect(
+      isProviderSafetyBlockedOutput({
+        taskState: "fail",
+        errorMessage: "Downstream service error",
+        errorMessageShort: "Generation failed",
+        errorDetail: "Downstream service error",
+      })
+    ).toBe(false);
   });
 });

@@ -7,7 +7,6 @@ import {
   INPAINT_FLUX_FILL_MODEL_ID,
   MARKUP_NANO_BANANA_PRO_EDIT_MODEL_ID,
 } from "../../logic/inpaintSubmission";
-import { CONCURRENT_GENERATION_CAP_MESSAGE } from "../../logic/concurrentGenerationCap";
 import { useAiStudioViewModel } from "../useAiStudioViewModel";
 
 const makeCostParamsForModel =
@@ -254,20 +253,6 @@ describe("useAiStudioViewModel edit guardrails", () => {
 
     expect(result.current.generationGuardrail).toBeNull();
     expect(result.current.isGenerateDisabled).toBe(false);
-  });
-
-  it("blocks generation when the user already has four in-flight generations", () => {
-    const { result } = renderHook(() =>
-      useAiStudioViewModel({
-        ...editInput,
-        prompt: "Apply cinematic warm tones and increase contrast.",
-        referenceImageUrl: "https://example.com/reference.png",
-        activeGenerationCount: 4,
-      })
-    );
-
-    expect(result.current.generationGuardrail).toBe(CONCURRENT_GENERATION_CAP_MESSAGE);
-    expect(result.current.isGenerateDisabled).toBe(true);
   });
 
   it("switches edit cost and credit guardrail to FLUX Fill when inpaint intent is active", () => {

@@ -51,6 +51,24 @@ Purpose: active planning artifacts and current execution backlogs.
 - `generation-pipeline-rebuild-lane-1-transition-matrix-2026-03-27.md`: legal transition and mutation-ownership matrix for the future request/attempt state machine in Lane 1.
 - `generation-pipeline-rebuild-lane-1-schema-delta-and-compatibility-contract-2026-03-27.md`: target request/attempt schema delta and explicit transition posture for `ai_generations`, queue rows, outputs, reservations, and webhook rows.
 - `generation-pipeline-rebuild-lane-1-billing-replay-provider-event-contract-2026-03-27.md`: explicit billing ownership, replay/idempotency, and provider-event durability contract completing Lane 1.
+- `generation-pipeline-rebuild-state-machine-service-plan-2026-03-27.md`: next explicitly scoped follow-on job for turning the current transition helpers into one legal request/attempt state-machine service.
+- `generation-pipeline-rebuild-state-machine-runtime-transition-contract-2026-03-27.md`: concrete runtime transition API, legal post-submit transition table, helper fate map, and reader posture contract completing `GPR-SM-S1`.
+- `generation-pipeline-rebuild-state-machine-read-model-posture-2026-03-27.md`: explicit queue-status and persisted-status reader classification completing `GPR-SM-S4`.
+- `generation-pipeline-rebuild-lifecycle-read-model-control-plane-plan-2026-03-27.md`: next explicit follow-on job for queue-status, persisted-status, and recovery-entry control-plane convergence after the mutation-focused state-machine checkpoint.
+- `generation-pipeline-rebuild-lifecycle-read-model-control-plane-contract-2026-03-27.md`: repo-backed contract for observer/control-plane posture and shared recovery-engine boundaries completing `GPR-RM-S1`.
+- `generation-pipeline-rebuild-recovery-control-plane-orchestration-plan-2026-03-27.md`: next explicit follow-on job for staged background control-plane ownership, recovery-batch acquisition, and recovery-batch execution boundaries.
+- `generation-pipeline-rebuild-recovery-control-plane-stage-contract-2026-03-27.md`: stage map and ownership contract for the background recovery control plane, completing `GPR-CP-S1`.
+- `generation-pipeline-rebuild-provider-event-replay-plan-2026-03-27.md`: next explicit follow-on job for Fal webhook ingress, duplicate/replay semantics, and bounded provider-event durability over the existing inbox.
+- `generation-pipeline-rebuild-provider-event-replay-contract-2026-03-27.md`: ingress/replay contract for `fal_webhook_events`, duplicate semantics, and route-vs-recovery ownership completing `GPR-PE-S1`.
+- `generation-pipeline-rebuild-admin-trace-health-alignment-plan-2026-03-27.md`: next explicit follow-on job for aligning admin trace and user-health surfaces with canonical attempts and outputs.
+- `generation-pipeline-rebuild-admin-trace-health-alignment-contract-2026-03-27.md`: canonical-vs-compatibility contract for admin generation trace and health surfaces, completing `GPR-AH-S1`.
+- `generation-pipeline-rebuild-generated-reuse-dragdrop-authority-plan-2026-03-27.md`: next explicit follow-on job for generated Reference Grid reuse and drag/drop authority over canonical outputs/storage.
+- `generation-pipeline-rebuild-generated-reuse-dragdrop-authority-contract-2026-03-27.md`: reusable/tracked/preview-only authority contract for generated resolved-media and drag/drop direct URL exposure.
+- `generation-pipeline-rebuild-generated-reuse-authority-cutover-plan-2026-03-27.md`: larger cross-surface generated reuse cutover plan for internal drop resolvers, media-library intake, style intake, canvas, and character consumers.
+- `generation-pipeline-rebuild-generated-reuse-authority-cutover-contract-2026-03-27.md`: identity-first contract for generated internal drops, media-library resolution, style intake, and downstream reusable/tracked/preview-only posture.
+- `generation-pipeline-rebuild-compatibility-retirement-evidence-plan-2026-03-27.md`: closeout-oriented Lane 4 plan for compatibility-path inventory, retirement posture classification, rollback evidence, and rebuild done-state decisioning.
+- `generation-pipeline-rebuild-compatibility-retirement-inventory-2026-03-27.md`: repo-backed inventory of the remaining runtime, user-facing, and diagnostic compatibility paths relevant to rebuild closeout.
+- `generation-pipeline-rebuild-compatibility-retirement-classification-2026-03-27.md`: retention posture and rebuild-done classification for the remaining compatibility paths at closeout.
 - `generation-pipeline-rebuild-lane-2-historical-data-quality-gates-2026-03-27.md`: required row classes, inconsistency buckets, and evidence gates before historical backfill and fallback retirement.
 - `generation-pipeline-rebuild-lane-2-backfill-execution-plan-2026-03-27.md`: concrete Lane 2 execution plan for historical row classification, canonical backfill, quarantine handling, and fallback-retirement order.
 - `generation-pipeline-rebuild-lane-2-classification-query-set-and-fallback-inventory-2026-03-27.md`: baseline Lane 2 query set for historical row classes, inconsistency checks, and the bounded legacy fallback-reader inventory.
@@ -77,6 +95,9 @@ Purpose: active planning artifacts and current execution backlogs.
 - `generation-reliability-hardening-fleet-cadence-contract-2026-03-20.md`: current hourly fleet scheduler cadence contract with daily rollback baseline and promote/hold/rollback criteria.
 - `generation-reliability-hardening-readiness-state-2026-03-20.md`: canonical readiness-state decision register (`hold_with_blockers`, `planning_complete_pending_owner_go`, `ready_for_implementation`).
 - `generation-settlement-control-plane-hardening-execution-plan-2026-03-23.md`: focused execution plan for accepted-submit settlement hardening first, then queue-status/fleet mutation-ownership cleanup with bounded rollout and rollback gates.
+- `media-library-runtime-rebuild-master-plan-2026-03-28.md`: canonical rebuild plan for replacing the distributed Media Library client runtime with a shared surface controller and store while preserving server contracts and product behavior.
+- `media-library-runtime-rebuild-tracker-2026-03-28.md`: active tracker for Media Library runtime rebuild phases, slice sequencing, risks, rollback notes, and evidence readiness.
+- `media-library-ui-redesign-plan-2026-03-28.md`: next-lane redesign contract for `/media-library`, the AI Studio Media Library modal, and the AI Studio Media Library panel on top of the completed runtime rebuild.
 - `media-rendering-hardening-v2-master-plan-2026-03-16.md`: canonical no-regression/no-bloat master plan for media rendering hardening (`P0` through `P9`) with locked constraints, contracts, and exit criteria.
 - `media-rendering-hardening-v2-master-roadmap-2026-03-16.md`: canonical sequencing/dependency roadmap for media rendering hardening workstreams and rollout rings.
 - `media-rendering-hardening-v2-execution-tracker-2026-03-16.md`: required tracker schema and seeded slice backlog for media rendering hardening execution.
@@ -138,6 +159,7 @@ Purpose: active planning artifacts and current execution backlogs.
 - `ai-studio-right-rail-performance-master-tracker-2026-03-23.md`: supporting historical tracker retained for traceability; superseded as the primary status surface by the compact tracker.
 - `ai-studio-right-rail-performance-implementation-entry-checklist-2026-03-23.md`: dormant reopen checklist to use only if the closed right-rail scope is deliberately reopened.
 - `ai-studio-right-rail-performance-readiness-state-2026-03-23.md`: supporting readiness-state register retained for reopen governance after scope closeout.
+- `ai-architecture-follow-on-revisit-report-2026-03-29.md`: consolidated handoff + defer/revisit report for external design-AI architecture takeaways, with an earliest revisit date of `2026-04-12`.
 - `ai-studio-generation-queue-hardening-2026-03-04.md`: low-drift implementation plan for generation-start recovery and queue hardening.
 - `ai-studio-generation-queue-hardening-tracker-2026-03-04.md`: execution tracker for queue hardening status, tests, and exit criteria.
 - `tmp_generation_drain_audit_working_notes_2026-02-27.md`: temporary active working notes for generation drain/recovery audit decisions pending archival or promotion.
@@ -187,6 +209,7 @@ Purpose: active planning artifacts and current execution backlogs.
 - `ai-studio-reference-grid-stabilization-v4-plan.md`: decision-complete stabilization plan for 50-60 reference sessions (decoupling, adaptive delivery, hydration/decode budgets, virtualization, watchdog degrade levels).
 - `ai-studio-reference-grid-modularization-program.md`: documentation-first foundation program for no-regression reference-grid modularization (domain contracts, strangler phases, rollback policy, guardrails).
 - `ai-studio-reference-grid-modularization-tracker.md`: phase tracker for reference-grid modularization status, gates, blockers, and evidence links.
+- `ai-studio-reference-grid-runtime-simplification-plan-2026-03-31.md`: paused checkpoint doc for the March 2026 reference-grid runtime freeze lane, with the executed stop point, re-entry guidance, and the remaining preview/video/surface-model phases kept as optional future work. Search handles: `AI Studio Reference Grid runtime`, `reference grid freeze lane`, `ref-grid runtime plan`.
 - `naming-canonicalization-program.md`: zero-regression naming canonicalization program (expand/migrate/contract phases, controls, and stop-points).
 - `naming-canonical-map.md`: canonical naming source-of-truth map and compatibility window policy.
 - `naming-decision-log.md`: stop-point approvals and canonical naming decision log.
@@ -196,7 +219,7 @@ Purpose: active planning artifacts and current execution backlogs.
 - `adaptive-media-v2-migration-checklist.md`: staged migration checklist for adaptive-media v2 parity cutover across AI Studio, Media Library, and Character surfaces.
 - `media-optimization-phase0-measurement-spec.md`: baseline instrumentation, dataset profiles, and phase gates for media performance.
 - `media-optimization-schema-and-migration-spec.md`: proposed schema/storage migration design for derivative-first media delivery.
-- `ai-studio-primary-character-panel-build-plan.md`: execution plan for embedding the Character Manager workflow body into AI Studio's primary Character toolbar panel.
+- `ai-studio-primary-character-panel-build-plan.md`: execution plan for making the AI Studio Character panel the primary management surface, with Media Library-informed image-performance guidance.
 - `ai-studio-shell-render-isolation-v3-plan.md`: selector-store + shell-boundary isolation execution and rollout plan for 50-60 reference shell responsiveness.
 - `expert-workflow-hardening-css-reorg-plan.md`: execution tracker for expert workflow hardening and expert CSS reorganization.
 - `tooling-audit-2026-02-16.md`: comprehensive tooling and framework audit with prioritized recommendations for masonry layout, image optimization, DnD, toasts, lightbox, date formatting, state management, and schema validation.
@@ -228,6 +251,8 @@ Purpose: active planning artifacts and current execution backlogs.
 - `evidence/lane-e/README.md`: evidence packet schema and naming contract for Lane E docs/ADR governance slices.
 - `evidence/lane-f/README.md`: evidence packet schema and naming contract for Lane F CI/release governance slices.
 - `evidence/generation-pipeline-hardening/README.md`: evidence packet schema and naming contract for Track P1 generation-pipeline hardening slices.
+- `evidence/media-library-runtime-rebuild/README.md`: evidence packet schema and closeout rule for Media Library runtime rebuild slices.
+- `evidence/media-library-runtime-rebuild/2026-03-28-mlr-0-s2-characterization-and-freeze-repro-baseline.md`: initial characterization and freeze-repro baseline packet for `MLR-0-S2`.
 - `evidence/media-rendering-hardening-v2/README.md`: evidence index and packet naming contract for media rendering hardening v2 slices.
 - `evidence/media-rendering-hardening-v2/slice-evidence-packet-template.md`: reusable evidence packet template for media rendering hardening v2 slices.
 - `evidence/agent-pipeline-remediation/README.md`: evidence index and packet minimums for the AI Studio agent pipeline regression remediation program.

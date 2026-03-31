@@ -422,11 +422,18 @@ describe("POST /api/internal/generation-recovery/run", () => {
       .fn()
       .mockResolvedValueOnce({ data: [{ id: "gen-1" }], error: null })
       .mockResolvedValueOnce({ data: [], error: null });
-    const recoveryAttemptFilter = {
-      eq: vi.fn(() => ({ select: updateSelectMock })),
-      is: vi.fn(() => ({ select: updateSelectMock })),
+    const recoveryAttemptSelectBuilder = {
+      select: updateSelectMock,
     };
-    const updateEq4 = { eq: vi.fn(() => recoveryAttemptFilter) };
+    const updateOr = {
+      eq: vi.fn(() => recoveryAttemptSelectBuilder),
+      is: vi.fn(() => recoveryAttemptSelectBuilder),
+    };
+    const updateLte = { or: vi.fn(() => updateOr) };
+    const updateLt = { lte: vi.fn(() => updateLte) };
+    const updateIlike = { lt: vi.fn(() => updateLt) };
+    const updateEq5 = { ilike: vi.fn(() => updateIlike) };
+    const updateEq4 = { eq: vi.fn(() => updateEq5) };
     const updateEq3 = { eq: vi.fn(() => updateEq4) };
     const updateEq2 = { eq: vi.fn(() => updateEq3) };
     const updateEq1 = { eq: vi.fn(() => updateEq2) };
@@ -464,8 +471,8 @@ describe("POST /api/internal/generation-recovery/run", () => {
     await handler(req as never, res as never);
 
     expect(updateSelectMock).toHaveBeenCalledTimes(2);
-    expect(recoveryAttemptFilter.eq).toHaveBeenCalledWith("recovery_attempts", 0);
-    expect(recoveryAttemptFilter.is).toHaveBeenCalledWith("recovery_attempts", null);
+    expect(updateOr.eq).toHaveBeenCalledWith("recovery_attempts", 0);
+    expect(updateOr.is).toHaveBeenCalledWith("recovery_attempts", null);
     expect(logApiRouteExceptionMock).toHaveBeenCalledWith(
       expect.objectContaining({
         routeLabel: "internal/generation-recovery/run",

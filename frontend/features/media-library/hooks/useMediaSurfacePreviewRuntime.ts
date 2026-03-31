@@ -1,6 +1,6 @@
 /**
- * Media Library preview runtime hook.
- * Owns tab/query refs, preview signing fallbacks, and viewport visibility tracking for media cards.
+ * Shared Media Library surface preview runtime.
+ * Centralizes visibility tracking, sign-budget refresh, preview recovery, and signed-url application across surfaces.
  */
 import {
   useCallback,
@@ -11,7 +11,7 @@ import {
   type MutableRefObject,
   type SetStateAction,
 } from "react";
-import { logMediaPerf } from "../../../lib/mediaPerfTelemetry";
+import { logMediaPerf, type MediaPerfEventName } from "../../../lib/mediaPerfTelemetry";
 import { type MediaPreviewTransformProfile } from "../../../lib/mediaPreviewTransformProfile";
 import { ensureSupabaseQueryClient } from "../../../lib/supabaseClient";
 import {
@@ -19,20 +19,18 @@ import {
   resolveAndApplySignedPreviewUrlsByRows,
   signMediaStoragePath,
 } from "../logic/mediaPreviewRuntimeShared";
-import { useMediaPreviewRecoveryController } from "./useMediaPreviewRecoveryController";
-import type { MediaTab } from "../logic/mediaMoveRouting";
 import {
   BUCKET,
   createMediaTabBooleanState,
   createMediaTabRequestState,
   getMediaDataTabForRow,
-  resolveRouteSignBudget,
   type MediaDataTab,
   type MediaSignBudget,
   type MediaTabBooleanState,
   type MediaTabCache,
   type MediaTabRequestState,
 } from "../logic/mediaLibraryPageHelpers";
+import { useMediaPreviewRecoveryController } from "./useMediaPreviewRecoveryController";
 
 type PreviewRuntimeRowBase = {
   id: string;
@@ -43,31 +41,43 @@ type PreviewRuntimeRowBase = {
   thumb_variant_path?: string | null;
   poster_variant_path?: string | null;
   preview_variant_path?: string | null;
-  signedUrl?: string;
+  signedUrl?: string | null;
 };
 
-type MediaCardRefCallback = (node: HTMLDivElement | null) => void;
-
-type UseMediaPreviewRuntimeArgs<TRow extends PreviewRuntimeRowBase> = {
+type UseMediaSurfacePreviewRuntimeArgs<TRow extends PreviewRuntimeRowBase, TTab extends string> = {
   activeMediaQuery: string;
-  activeTab: MediaTab;
+  activeTab: TTab;
+  firstMediaPaintEventName: MediaPerfEventName;
+  previewProfile: MediaPreviewTransformProfile;
+  signBudgetResolver: () => MediaSignBudget;
+  surface: "media-library-route" | "media-library-modal" | "media-library-panel";
+  visibilityRootMargin: string;
+  applySignedUrlsToSurface?: (tab: MediaDataTab, signedById: Map<string, string>) => void;
+  beforeRetry?: (params: { row: TRow; failedUrl?: string | null }) => void;
   setFiles: Dispatch<SetStateAction<TRow[]>>;
-  setFocusedFile: Dispatch<SetStateAction<TRow | null>>;
-  setMediaTabCache: Dispatch<SetStateAction<Record<MediaDataTab, MediaTabCache<TRow>>>>;
+  setFocusedFile?: Dispatch<SetStateAction<TRow | null>>;
+  setMediaTabCache?: Dispatch<SetStateAction<Record<MediaDataTab, MediaTabCache<TRow>>>>;
+  shouldApplySignedUrlsToActiveRows?: (tab: MediaDataTab) => boolean;
+  visibilityRootRef?: MutableRefObject<HTMLElement | null>;
 };
 
-type UseMediaPreviewRuntimeResult<TRow extends PreviewRuntimeRowBase> = {
+export type UseMediaSurfacePreviewRuntimeResult<
+  TRow extends PreviewRuntimeRowBase,
+  TTab extends string,
+  TElement extends HTMLElement = HTMLDivElement,
+> = {
   activeMediaQueryRef: MutableRefObject<string>;
-  activeTabRef: MutableRefObject<MediaTab>;
+  activeTabRef: MutableRefObject<TTab>;
   applySignedUrlsToTab: (tab: MediaDataTab, signedById: Map<string, string>) => void;
   currentUserIdRef: MutableRefObject<string | null>;
-  getMediaCardRef: (fileId: string) => MediaCardRefCallback;
+  getMediaCardRef: (fileId: string) => (node: TElement | null) => void;
   handleMediaPreviewError: (row: TRow) => void;
   hydrateViaStorageDownload: (row: TRow) => Promise<string | null>;
   isMountedRef: MutableRefObject<boolean>;
   markFirstMediaPaint: (assetKind: "image" | "video") => void;
   mediaSignInFlightRef: MutableRefObject<MediaTabBooleanState>;
   mediaTabRequestRef: MutableRefObject<MediaTabRequestState>;
+  refreshSignedUrl: (row: TRow) => Promise<string | null>;
   resolveSignedUrlsByMediaIds: (tab: MediaDataTab, rows: TRow[]) => Promise<Set<string>>;
   setSignPassNonce: Dispatch<SetStateAction<number>>;
   signAttemptRef: MutableRefObject<Record<string, number>>;
@@ -89,20 +99,31 @@ type NavigatorWithConnection = Navigator & {
   };
 };
 
-/**
- * Provides preview runtime refs and handlers for Media Library page orchestration.
- * Inputs: active tab/query + state setters for files/focus/cache.
- * Output: refs and callbacks used by tab data, signing pass, and gallery rendering.
- * Side effects: manages IntersectionObserver lifecycle, object URL cleanup, and preview signing retries.
- */
-export const useMediaPreviewRuntime = <TRow extends PreviewRuntimeRowBase>({
+export const useMediaSurfacePreviewRuntime = <
+  TRow extends PreviewRuntimeRowBase,
+  TTab extends string,
+  TElement extends HTMLElement = HTMLDivElement,
+>({
   activeMediaQuery,
   activeTab,
+  firstMediaPaintEventName,
+  previewProfile,
+  signBudgetResolver,
+  surface,
+  visibilityRootMargin,
+  applySignedUrlsToSurface,
+  beforeRetry,
   setFiles,
   setFocusedFile,
   setMediaTabCache,
-}: UseMediaPreviewRuntimeArgs<TRow>): UseMediaPreviewRuntimeResult<TRow> => {
-  const activeTabRef = useRef<MediaTab>(activeTab);
+  shouldApplySignedUrlsToActiveRows,
+  visibilityRootRef,
+}: UseMediaSurfacePreviewRuntimeArgs<TRow, TTab>): UseMediaSurfacePreviewRuntimeResult<
+  TRow,
+  TTab,
+  TElement
+> => {
+  const activeTabRef = useRef<TTab>(activeTab);
   const activeMediaQueryRef = useRef(activeMediaQuery);
   const currentUserIdRef = useRef<string | null>(null);
   const isMountedRef = useRef(true);
@@ -113,13 +134,13 @@ export const useMediaPreviewRuntime = <TRow extends PreviewRuntimeRowBase>({
   const downloadFallbackInFlightRef = useRef<Record<string, boolean>>({});
   const objectUrlByMediaIdRef = useRef<Record<string, string>>({});
   const firstMediaPaintLoggedRef = useRef(false);
-  const mediaCardNodesRef = useRef<Map<string, HTMLDivElement>>(new Map());
-  const mediaCardRefCallbacksRef = useRef<Record<string, MediaCardRefCallback>>({});
+  const mediaCardNodesRef = useRef<Map<string, TElement>>(new Map());
+  const mediaCardRefCallbacksRef = useRef<Record<string, (node: TElement | null) => void>>({});
   const mediaCardObserverRef = useRef<IntersectionObserver | null>(null);
   const visibleMediaIdsRef = useRef<Set<string>>(new Set());
   const [visibleMediaVersion, setVisibleMediaVersion] = useState(0);
   const [signPassNonce, setSignPassNonce] = useState(0);
-  const [signBudget, setSignBudget] = useState<MediaSignBudget>(resolveRouteSignBudget);
+  const [signBudget, setSignBudget] = useState<MediaSignBudget>(signBudgetResolver);
 
   useEffect(() => {
     activeTabRef.current = activeTab;
@@ -135,7 +156,7 @@ export const useMediaPreviewRuntime = <TRow extends PreviewRuntimeRowBase>({
     const connection = nav.connection;
     const refreshBudget = () => {
       setSignBudget((prev) => {
-        const next = resolveRouteSignBudget();
+        const next = signBudgetResolver();
         if (
           prev.initialSignLimit === next.initialSignLimit &&
           prev.prefetchWindow === next.prefetchWindow &&
@@ -153,7 +174,7 @@ export const useMediaPreviewRuntime = <TRow extends PreviewRuntimeRowBase>({
       window.removeEventListener("resize", refreshBudget);
       connection?.removeEventListener?.("change", refreshBudget);
     };
-  }, []);
+  }, [signBudgetResolver]);
 
   useEffect(() => {
     signAttemptRef.current = {};
@@ -174,10 +195,10 @@ export const useMediaPreviewRuntime = <TRow extends PreviewRuntimeRowBase>({
     []
   );
 
-  const getMediaCardRef = useCallback((fileId: string): MediaCardRefCallback => {
+  const getMediaCardRef = useCallback((fileId: string) => {
     const existing = mediaCardRefCallbacksRef.current[fileId];
     if (existing) return existing;
-    const callback: MediaCardRefCallback = (node) => {
+    const callback = (node: TElement | null) => {
       const previousNode = mediaCardNodesRef.current.get(fileId);
       if (previousNode && previousNode !== node) {
         mediaCardObserverRef.current?.unobserve(previousNode);
@@ -222,8 +243,8 @@ export const useMediaPreviewRuntime = <TRow extends PreviewRuntimeRowBase>({
         }
       },
       {
-        root: null,
-        rootMargin: "520px 0px",
+        root: visibilityRootRef?.current ?? null,
+        rootMargin: visibilityRootMargin,
         threshold: 0.01,
       }
     );
@@ -236,7 +257,7 @@ export const useMediaPreviewRuntime = <TRow extends PreviewRuntimeRowBase>({
       mediaCardObserverRef.current = null;
       visibleIds.clear();
     };
-  }, []);
+  }, [visibilityRootMargin, visibilityRootRef]);
 
   const signStoragePath = useCallback(
     (
@@ -249,39 +270,51 @@ export const useMediaPreviewRuntime = <TRow extends PreviewRuntimeRowBase>({
   const applySignedUrlsToTab = useCallback(
     (tab: MediaDataTab, signedById: Map<string, string>) => {
       if (!signedById.size) return;
-      setMediaTabCache((prev) => {
-        const cache = prev[tab];
-        let changed = false;
-        const nextRows = cache.rows.map((row) => {
-          const signedUrl = signedById.get(row.id);
-          if (!signedUrl || row.signedUrl === signedUrl) return row;
-          changed = true;
-          return { ...row, signedUrl };
+      if (applySignedUrlsToSurface) {
+        applySignedUrlsToSurface(tab, signedById);
+      } else if (setMediaTabCache) {
+        setMediaTabCache((prev) => {
+          const cache = prev[tab];
+          let changed = false;
+          const nextRows = cache.rows.map((row) => {
+            const signedUrl = signedById.get(row.id);
+            if (!signedUrl || row.signedUrl === signedUrl) return row;
+            changed = true;
+            return { ...row, signedUrl };
+          });
+          if (!changed) return prev;
+          return {
+            ...prev,
+            [tab]: {
+              ...cache,
+              rows: nextRows,
+            },
+          };
         });
-        if (!changed) return prev;
-        return {
-          ...prev,
-          [tab]: {
-            ...cache,
-            rows: nextRows,
-          },
-        };
-      });
-      if (activeTabRef.current === tab) {
-        setFiles((prev) =>
-          prev.map((file) => {
-            const signedUrl = signedById.get(file.id);
-            return signedUrl ? { ...file, signedUrl } : file;
-          })
-        );
+        if (shouldApplySignedUrlsToActiveRows?.(tab) ?? true) {
+          setFiles((prev) =>
+            prev.map((file) => {
+              const signedUrl = signedById.get(file.id);
+              return signedUrl ? { ...file, signedUrl } : file;
+            })
+          );
+        }
       }
-      setFocusedFile((prev) => {
-        if (!prev) return prev;
-        const signedUrl = signedById.get(prev.id);
-        return signedUrl ? { ...prev, signedUrl } : prev;
-      });
+      if (setFocusedFile) {
+        setFocusedFile((prev) => {
+          if (!prev) return prev;
+          const signedUrl = signedById.get(prev.id);
+          return signedUrl ? { ...prev, signedUrl } : prev;
+        });
+      }
     },
-    [setFiles, setFocusedFile, setMediaTabCache]
+    [
+      applySignedUrlsToSurface,
+      setFiles,
+      setFocusedFile,
+      setMediaTabCache,
+      shouldApplySignedUrlsToActiveRows,
+    ]
   );
 
   const setObjectUrlForMediaRow = useCallback(
@@ -327,13 +360,14 @@ export const useMediaPreviewRuntime = <TRow extends PreviewRuntimeRowBase>({
         tab,
         rows,
         applySignedUrlsToTab,
-        surface: "media-library-route",
+        surface,
       }),
-    [applySignedUrlsToTab]
+    [applySignedUrlsToTab, surface]
   );
 
-  const { handleMediaPreviewError } = useMediaPreviewRecoveryController<TRow>({
+  const { handleMediaPreviewError, refreshSignedUrl } = useMediaPreviewRecoveryController<TRow>({
     applySignedUrlsToTab,
+    beforeRetry,
     currentUserIdRef,
     resolveSignedUrlsByMediaIds,
     hydrateViaStorageDownload,
@@ -341,20 +375,20 @@ export const useMediaPreviewRuntime = <TRow extends PreviewRuntimeRowBase>({
     signedUrlRetryRef,
     objectUrlByMediaIdRef,
     resolveTabForRow: getMediaDataTabForRow,
-    previewProfile: "media-library-route-image-card",
+    previewProfile,
   });
 
   const markFirstMediaPaint = useCallback(
     (assetKind: "image" | "video") => {
       if (firstMediaPaintLoggedRef.current) return;
       firstMediaPaintLoggedRef.current = true;
-      logMediaPerf("media.route.first_media_paint", {
-        surface: "media-library-route",
+      logMediaPerf(firstMediaPaintEventName, {
+        surface,
         tab: activeTab,
         asset_kind: assetKind,
       });
     },
-    [activeTab]
+    [activeTab, firstMediaPaintEventName, surface]
   );
 
   return {
@@ -369,6 +403,7 @@ export const useMediaPreviewRuntime = <TRow extends PreviewRuntimeRowBase>({
     markFirstMediaPaint,
     mediaSignInFlightRef,
     mediaTabRequestRef,
+    refreshSignedUrl,
     resolveSignedUrlsByMediaIds,
     setSignPassNonce,
     signAttemptRef,

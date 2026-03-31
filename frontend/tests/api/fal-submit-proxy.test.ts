@@ -4,10 +4,9 @@ import { createFalSubmitHandler } from "../../lib/server/api/falSubmitProxy";
 const chargeGenerationRequestMock = vi.fn();
 const logGenerationFailureMock = vi.fn();
 const ensureSubmittedGenerationRecordMock = vi.fn();
-const evaluateUserGenerationAdmissionMock = vi.fn();
+const evaluateScopedGenerationAdmissionMock = vi.fn();
 const hasFreshLocalGenerationWorkerHeartbeatMock = vi.fn();
 const isLocalDevGenerationWorkerRequiredMock = vi.fn();
-const readActiveProviderCapacitySnapshotMock = vi.fn();
 const requireApiUserMock = vi.fn();
 
 vi.mock("../../lib/server/api/auth", () => ({
@@ -28,13 +27,8 @@ vi.mock("../../lib/server/api/generationSubmitPersistence", () => ({
 }));
 
 vi.mock("../../lib/server/api/generationAdmission/generationAdmissionService", () => ({
-  evaluateUserGenerationAdmission: (...args: unknown[]) =>
-    evaluateUserGenerationAdmissionMock(...args),
-}));
-
-vi.mock("../../lib/server/api/generationQueue/activeProviderCapacity", () => ({
-  readActiveProviderCapacitySnapshot: (...args: unknown[]) =>
-    readActiveProviderCapacitySnapshotMock(...args),
+  evaluateScopedGenerationAdmission: (...args: unknown[]) =>
+    evaluateScopedGenerationAdmissionMock(...args),
 }));
 
 vi.mock("../../lib/server/generationControlPlane/localWorkerHeartbeat", () => ({
@@ -76,30 +70,32 @@ describe("createFalSubmitHandler", () => {
       ok: true,
       generationId: "gen-1",
     });
-    evaluateUserGenerationAdmissionMock.mockResolvedValue({
-      mode: "off",
-      allowed: true,
-      enforced: false,
-      wouldLimit: false,
-      reason: null,
-      retryAfterSeconds: 20,
-      snapshot: {
-        globalActive: 0,
-        globalMax: 4,
+    evaluateScopedGenerationAdmissionMock.mockResolvedValue({
+      decision: {
+        mode: "off",
+        allowed: true,
+        enforced: false,
+        wouldLimit: false,
+        reason: null,
+        retryAfterSeconds: 20,
+        snapshot: {
+          globalActive: 0,
+          globalMax: 4,
+          tier: "image_standard",
+          tierActive: 0,
+          tierMax: 4,
+        },
+      },
+      capacitySnapshot: {
         tier: "image_standard",
+        globalActive: 0,
         tierActive: 0,
-        tierMax: 4,
+        staleIgnoredGlobal: 0,
+        staleIgnoredTier: 0,
       },
     });
     hasFreshLocalGenerationWorkerHeartbeatMock.mockReturnValue(true);
     isLocalDevGenerationWorkerRequiredMock.mockReturnValue(false);
-    readActiveProviderCapacitySnapshotMock.mockResolvedValue({
-      tier: "image_standard",
-      globalActive: 0,
-      tierActive: 0,
-      staleIgnoredGlobal: 0,
-      staleIgnoredTier: 0,
-    });
     requireApiUserMock.mockResolvedValue({
       id: "user-1",
       email: "user-1@example.com",
@@ -681,7 +677,7 @@ describe("createFalSubmitHandler", () => {
   });
 
   it("fails closed when admission evaluation throws after billing reservation", async () => {
-    evaluateUserGenerationAdmissionMock.mockRejectedValueOnce(new Error("admission blew up"));
+    evaluateScopedGenerationAdmissionMock.mockRejectedValueOnce(new Error("admission blew up"));
     const fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
 
@@ -731,12 +727,29 @@ describe("createFalSubmitHandler", () => {
     hasFreshLocalGenerationWorkerHeartbeatMock.mockReturnValue(false);
     process.env.SHORTPULSE_FAL_QUEUE_ENABLED = "true";
     process.env.SHORTPULSE_FAL_ADMISSION_MODE = "enforce";
-    readActiveProviderCapacitySnapshotMock.mockResolvedValueOnce({
-      tier: "image_standard",
-      globalActive: 4,
-      tierActive: 4,
-      staleIgnoredGlobal: 0,
-      staleIgnoredTier: 0,
+    evaluateScopedGenerationAdmissionMock.mockResolvedValueOnce({
+      decision: {
+        mode: "enforce",
+        allowed: false,
+        enforced: true,
+        wouldLimit: true,
+        reason: "global_and_tier_limit",
+        retryAfterSeconds: 20,
+        snapshot: {
+          globalActive: 5,
+          globalMax: 4,
+          tier: "image_standard",
+          tierActive: 5,
+          tierMax: 4,
+        },
+      },
+      capacitySnapshot: {
+        tier: "image_standard",
+        globalActive: 4,
+        tierActive: 4,
+        staleIgnoredGlobal: 0,
+        staleIgnoredTier: 0,
+      },
     });
 
     const handler = createFalSubmitHandler({
@@ -1120,19 +1133,28 @@ describe("createFalSubmitHandler", () => {
   });
 
   it("returns 429 and releases reservation when admission is enforced", async () => {
-    evaluateUserGenerationAdmissionMock.mockResolvedValueOnce({
-      mode: "enforce",
-      allowed: false,
-      enforced: true,
-      wouldLimit: true,
-      reason: "tier_limit",
-      retryAfterSeconds: 20,
-      snapshot: {
-        globalActive: 5,
-        globalMax: 4,
+    evaluateScopedGenerationAdmissionMock.mockResolvedValueOnce({
+      decision: {
+        mode: "enforce",
+        allowed: false,
+        enforced: true,
+        wouldLimit: true,
+        reason: "tier_limit",
+        retryAfterSeconds: 20,
+        snapshot: {
+          globalActive: 5,
+          globalMax: 4,
+          tier: "video_long",
+          tierActive: 3,
+          tierMax: 2,
+        },
+      },
+      capacitySnapshot: {
         tier: "video_long",
-        tierActive: 3,
-        tierMax: 2,
+        globalActive: 4,
+        tierActive: 2,
+        staleIgnoredGlobal: 0,
+        staleIgnoredTier: 0,
       },
     });
     const fetchMock = vi.fn();
@@ -1164,6 +1186,8 @@ describe("createFalSubmitHandler", () => {
       error: "Too many active generations. Please retry shortly.",
       code: "GENERATION_ADMISSION_LIMIT",
       retryAfterSeconds: 20,
+      admissionScope: "per_user",
+      admissionReason: "tier_limit",
       limits: {
         globalMax: 4,
         globalActive: 5,
@@ -1222,7 +1246,7 @@ describe("createFalSubmitHandler", () => {
     await handler(req as never, res as never);
 
     expect(fetchMock).not.toHaveBeenCalled();
-    expect(evaluateUserGenerationAdmissionMock).not.toHaveBeenCalled();
+    expect(evaluateScopedGenerationAdmissionMock).not.toHaveBeenCalled();
     expect(res.status).toHaveBeenCalledWith(503);
     expect(res.setHeader).toHaveBeenCalledWith("Retry-After", "20");
     expect(res.json).toHaveBeenCalledWith({
@@ -1246,19 +1270,28 @@ describe("createFalSubmitHandler", () => {
   });
 
   it("logs telemetry in shadow mode but still submits upstream", async () => {
-    evaluateUserGenerationAdmissionMock.mockResolvedValueOnce({
-      mode: "shadow",
-      allowed: true,
-      enforced: false,
-      wouldLimit: true,
-      reason: "global_limit",
-      retryAfterSeconds: 20,
-      snapshot: {
-        globalActive: 7,
-        globalMax: 4,
+    evaluateScopedGenerationAdmissionMock.mockResolvedValueOnce({
+      decision: {
+        mode: "shadow",
+        allowed: true,
+        enforced: false,
+        wouldLimit: true,
+        reason: "global_limit",
+        retryAfterSeconds: 20,
+        snapshot: {
+          globalActive: 7,
+          globalMax: 4,
+          tier: "image_standard",
+          tierActive: 4,
+          tierMax: 4,
+        },
+      },
+      capacitySnapshot: {
         tier: "image_standard",
-        tierActive: 4,
-        tierMax: 4,
+        globalActive: 6,
+        tierActive: 3,
+        staleIgnoredGlobal: 0,
+        staleIgnoredTier: 0,
       },
     });
     const fetchMock = vi.fn().mockResolvedValueOnce(

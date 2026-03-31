@@ -19,7 +19,6 @@ import type {
 } from "../../../prefabs/agent";
 import { PromptStep } from "./PromptStep";
 import { StylesControl } from "./StylesControl";
-import { CONCURRENT_GENERATION_CAP_MESSAGE } from "../logic/concurrentGenerationCap";
 import { deriveCreateSelectorViewState } from "../logic/createSelectorState";
 import { getModelConfig } from "../logic/modelRegistry";
 import { BeginnerCreatePanelView } from "./create/BeginnerCreatePanelView";
@@ -71,6 +70,7 @@ export type CreatePropertiesPanelProps = {
   balanceLoading?: boolean;
   isPromptGenerating?: boolean;
   isGenerateDisabled?: boolean;
+  isChatOffInlineGenerateDisabled?: boolean;
   outputGenerateCostCredits?: number | null;
   hasSufficientCreditsForOutputGenerate?: boolean;
   guardrailReason?: string | null;
@@ -362,6 +362,7 @@ export function CreatePropertiesPanel({
   shouldDisableSave = false,
   isPromptGenerating = false,
   isGenerateDisabled = false,
+  isChatOffInlineGenerateDisabled = false,
   outputGenerateCostCredits = null,
   hasSufficientCreditsForOutputGenerate = true,
   onClearAgentChat,
@@ -562,7 +563,7 @@ export function CreatePropertiesPanel({
     onGenerateOutputPrompt: onGenerateFromAgentOutputPrompt,
     chatModeInlineGenerate: {
       onGenerate: onChatOffInlineGenerate,
-      disabled: isGenerateDisabled || isPromptGenerating,
+      disabled: isChatOffInlineGenerateDisabled,
       ariaLabel: "Generate with current prompt",
     },
     onSavePrompt,
@@ -730,8 +731,7 @@ export function ComposeSendCard({
   beginnerMode = false,
 }: ComposeSendCardProps) {
   const costValue = costCredits != null ? costCredits : "—";
-  const inlineGuardrailReason =
-    guardrailReason === CONCURRENT_GENERATION_CAP_MESSAGE ? null : guardrailReason;
+  const inlineGuardrailReason = guardrailReason;
 
   return (
     <div className="step-card prompt-step generate-step-card">

@@ -3,9 +3,13 @@ import type { FolderMembershipBatchInput } from "../mediaFoldersService";
 import { getSupabaseAdmin } from "../api/supabaseAdmin";
 import {
   applyFolderMembershipBatch,
+  createMediaFolderForUser,
   isCustomMediaFolderId,
+  listMediaFoldersForUser,
   MEDIA_LIBRARY_ROOT_FOLDER_ID,
+  moveMediaFolderForUser,
   sanitizeMediaFolderName,
+  sanitizeMediaFolderParentId,
 } from "../mediaFoldersService";
 
 vi.mock("../api/supabaseAdmin", () => ({
@@ -231,6 +235,63 @@ const createBatchInput = (
   ...overrides,
 });
 
+const createSupabaseMoveMock = ({
+  folderExists = true,
+  parentExists = true,
+  currentParentFolderId = null as string | null,
+  updateError = null as { message?: string | null; code?: string | null } | null,
+  updatedParentFolderId = TARGET_FOLDER_ID,
+} = {}) => {
+  const selectMaybeSingleMock = vi
+    .fn()
+    .mockResolvedValueOnce({
+      data: folderExists ? { id: SOURCE_FOLDER_ID, parent_folder_id: currentParentFolderId } : null,
+      error: null,
+    })
+    .mockResolvedValueOnce({
+      data: parentExists ? { id: updatedParentFolderId } : null,
+      error: null,
+    });
+  const updateMaybeSingleMock = vi.fn().mockResolvedValue({
+    data: updateError
+      ? null
+      : {
+          id: SOURCE_FOLDER_ID,
+          user_id: "user-1",
+          name: "Folder A",
+          parent_folder_id: updatedParentFolderId,
+          created_at: "2026-03-01T00:00:00.000Z",
+          updated_at: "2026-03-02T00:00:00.000Z",
+        },
+    error: updateError,
+  });
+
+  const supabaseMock = {
+    from: vi.fn(() => ({
+      select: vi.fn(() => ({
+        eq: vi.fn(() => ({
+          eq: vi.fn(() => ({
+            maybeSingle: selectMaybeSingleMock,
+          })),
+        })),
+      })),
+      update: vi.fn(() => ({
+        eq: vi.fn(() => ({
+          eq: vi.fn(() => ({
+            select: vi.fn(() => ({
+              maybeSingle: updateMaybeSingleMock,
+            })),
+          })),
+        })),
+      })),
+    })),
+  };
+
+  getSupabaseAdminMock.mockReturnValue(
+    supabaseMock as unknown as ReturnType<typeof getSupabaseAdmin>
+  );
+};
+
 describe("mediaFoldersService helpers", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -249,6 +310,166 @@ describe("mediaFoldersService helpers", () => {
     expect(sanitizeMediaFolderName("  Campaign  ")).toBe("Campaign");
     expect(sanitizeMediaFolderName("   ")).toBeNull();
     expect(sanitizeMediaFolderName("x".repeat(65))).toBeNull();
+  });
+
+  it("normalizes parent folder ids to root/null or canonical uuids", () => {
+    expect(sanitizeMediaFolderParentId(undefined)).toBeNull();
+    expect(sanitizeMediaFolderParentId(null)).toBeNull();
+    expect(sanitizeMediaFolderParentId("")).toBeNull();
+    expect(sanitizeMediaFolderParentId(MEDIA_LIBRARY_ROOT_FOLDER_ID)).toBeNull();
+    expect(sanitizeMediaFolderParentId("2d6fc803-2289-47a9-9a07-063ebf2eec4f")).toBe(
+      "2d6fc803-2289-47a9-9a07-063ebf2eec4f"
+    );
+    expect(sanitizeMediaFolderParentId("not-a-folder")).toBeUndefined();
+  });
+
+  it("falls back to legacy folder listing when parent_folder_id is unavailable", async () => {
+    const legacySelectMock = vi.fn().mockResolvedValue({
+      data: [
+        {
+          id: SOURCE_FOLDER_ID,
+          user_id: "user-1",
+          name: "Folder A",
+          created_at: "2026-03-01T00:00:00.000Z",
+          updated_at: "2026-03-02T00:00:00.000Z",
+        },
+      ],
+      error: null,
+    });
+    const primarySelectMock = vi.fn().mockResolvedValue({
+      data: null,
+      error: { message: 'column "parent_folder_id" does not exist' },
+    });
+    const primaryQuery = {
+      select: vi.fn(() => ({
+        eq: vi.fn(() => ({
+          order: vi.fn(() => ({
+            order: primarySelectMock,
+          })),
+        })),
+      })),
+    };
+    const legacyQuery = {
+      select: vi.fn(() => ({
+        eq: vi.fn(() => ({
+          order: vi.fn(() => ({
+            order: legacySelectMock,
+          })),
+        })),
+      })),
+    };
+    const supabaseMock = {
+      from: vi.fn().mockReturnValueOnce(primaryQuery).mockReturnValueOnce(legacyQuery),
+    };
+    getSupabaseAdminMock.mockReturnValue(
+      supabaseMock as unknown as ReturnType<typeof getSupabaseAdmin>
+    );
+
+    await expect(listMediaFoldersForUser("user-1")).resolves.toEqual([
+      {
+        id: SOURCE_FOLDER_ID,
+        user_id: "user-1",
+        name: "Folder A",
+        parent_folder_id: null,
+        created_at: "2026-03-01T00:00:00.000Z",
+        updated_at: "2026-03-02T00:00:00.000Z",
+      },
+    ]);
+  });
+
+  it("falls back to legacy root-folder creation when parent_folder_id is unavailable", async () => {
+    const legacyInsertMock = vi.fn().mockResolvedValue({
+      data: {
+        id: SOURCE_FOLDER_ID,
+        user_id: "user-1",
+        name: "Folder A",
+        created_at: "2026-03-01T00:00:00.000Z",
+        updated_at: "2026-03-02T00:00:00.000Z",
+      },
+      error: null,
+    });
+    const primaryInsertMock = vi.fn().mockResolvedValue({
+      data: null,
+      error: { message: 'column "parent_folder_id" does not exist' },
+    });
+    const primaryInsertQuery = {
+      insert: vi.fn(() => ({
+        select: vi.fn(() => ({
+          maybeSingle: primaryInsertMock,
+        })),
+      })),
+    };
+    const legacyInsertQuery = {
+      insert: vi.fn(() => ({
+        select: vi.fn(() => ({
+          maybeSingle: legacyInsertMock,
+        })),
+      })),
+    };
+    const supabaseMock = {
+      from: vi.fn().mockReturnValueOnce(primaryInsertQuery).mockReturnValueOnce(legacyInsertQuery),
+    };
+    getSupabaseAdminMock.mockReturnValue(
+      supabaseMock as unknown as ReturnType<typeof getSupabaseAdmin>
+    );
+
+    await expect(
+      createMediaFolderForUser({
+        userId: "user-1",
+        name: "Folder A",
+        parentFolderId: null,
+      })
+    ).resolves.toEqual({
+      id: SOURCE_FOLDER_ID,
+      user_id: "user-1",
+      name: "Folder A",
+      parent_folder_id: null,
+      created_at: "2026-03-01T00:00:00.000Z",
+      updated_at: "2026-03-02T00:00:00.000Z",
+    });
+  });
+
+  it("returns null when moving a missing folder", async () => {
+    createSupabaseMoveMock({ folderExists: false });
+
+    await expect(
+      moveMediaFolderForUser({
+        userId: "user-1",
+        folderId: SOURCE_FOLDER_ID,
+        parentFolderId: TARGET_FOLDER_ID,
+      })
+    ).resolves.toBeNull();
+  });
+
+  it("moves a folder to a new owned parent", async () => {
+    createSupabaseMoveMock();
+
+    await expect(
+      moveMediaFolderForUser({
+        userId: "user-1",
+        folderId: SOURCE_FOLDER_ID,
+        parentFolderId: TARGET_FOLDER_ID,
+      })
+    ).resolves.toMatchObject({
+      id: SOURCE_FOLDER_ID,
+      parent_folder_id: TARGET_FOLDER_ID,
+    });
+  });
+
+  it("maps hierarchy trigger failures to a deterministic error", async () => {
+    createSupabaseMoveMock({
+      updateError: {
+        message: "Folder hierarchy cannot contain cycles",
+      },
+    });
+
+    await expect(
+      moveMediaFolderForUser({
+        userId: "user-1",
+        folderId: SOURCE_FOLDER_ID,
+        parentFolderId: TARGET_FOLDER_ID,
+      })
+    ).rejects.toThrow("Invalid folder hierarchy");
   });
 
   it("rejects membership batch when any media/prompt id is not owned by the user", async () => {

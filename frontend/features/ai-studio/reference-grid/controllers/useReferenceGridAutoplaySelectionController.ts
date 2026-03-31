@@ -9,7 +9,7 @@ import {
   type MutableRefObject,
   type SetStateAction,
 } from "react";
-import type { StudioOutput } from "../../types";
+import { incrementFreezeInvestigationCounter } from "../../logic/freezeInvestigationTelemetry";
 
 const areIdListsEqual = (left: string[], right: string[]) =>
   left.length === right.length && left.every((value, index) => value === right[index]);
@@ -17,7 +17,6 @@ const areIdListsEqual = (left: string[], right: string[]) =>
 type UseReferenceGridAutoplaySelectionControllerArgs = {
   activeOutputId: string | null;
   suspendAutoplaySelection?: boolean;
-  outputs: StudioOutput[];
   videoAttachBudget: number;
   perfDegradeLevel: 0 | 1 | 2;
   runNonUrgentUpdate: (updater: () => void) => void;
@@ -41,7 +40,6 @@ type UseReferenceGridAutoplaySelectionControllerResult = {
 export const useReferenceGridAutoplaySelectionController = ({
   activeOutputId,
   suspendAutoplaySelection = false,
-  outputs,
   videoAttachBudget,
   perfDegradeLevel,
   runNonUrgentUpdate,
@@ -63,26 +61,31 @@ export const useReferenceGridAutoplaySelectionController = ({
         visibleOutputIdSet.add(outputId);
       }
     });
-    const visibleVideoIds = outputs
-      .filter((output) => output.mode === "video" && visibleOutputIdSet.has(output.id))
-      .map((output) => output.id);
+    const visibleVideoIds = Array.from(visibleOutputIdSet);
     const prioritizedVideoIds =
       activeOutputId && visibleVideoIds.includes(activeOutputId)
         ? [activeOutputId, ...visibleVideoIds.filter((id) => id !== activeOutputId)]
         : visibleVideoIds;
     if (perfDegradeLevel >= 2) {
       runNonUrgentUpdate(() => {
-        setAutoplayEnabledIds((prev) => (prev.length === 0 ? prev : []));
+        setAutoplayEnabledIds((prev) => {
+          if (prev.length === 0) return prev;
+          incrementFreezeInvestigationCounter("referenceGrid.autoplayEnabledIds.clearCommit");
+          return [];
+        });
       });
       return;
     }
     const nextEnabled = prioritizedVideoIds.slice(0, Math.max(0, videoAttachBudget));
     runNonUrgentUpdate(() => {
-      setAutoplayEnabledIds((prev) => (areIdListsEqual(prev, nextEnabled) ? prev : nextEnabled));
+      setAutoplayEnabledIds((prev) => {
+        if (areIdListsEqual(prev, nextEnabled)) return prev;
+        incrementFreezeInvestigationCounter("referenceGrid.autoplayEnabledIds.commit");
+        return nextEnabled;
+      });
     });
   }, [
     activeOutputId,
-    outputs,
     perfDegradeLevel,
     runNonUrgentUpdate,
     setAutoplayEnabledIds,

@@ -3,6 +3,11 @@
 Add new work under `## Unreleased` at the top of this file. When promoting released work into dated sections, keep active dated headings in descending UTC order (newest first). Legacy imported entries below the legacy marker are preserved as historical notes and are not part of the enforced active chronology contract.
 
 ## Unreleased
+- Captured staging queue-latency validation outcome for the generation queue/recovery lane:
+  - removed queue-resume defer and added wake/telemetry/diagnostic coverage landed in the repo,
+  - live staging replay showed queued work advancing only when per-user capacity opened, not being diverted into recovery,
+  - active admission telemetry during the run pointed to `per_user global_limit` on `fal-ai/flux-2/klein/9b`,
+  - historical exhausted queue residue remains in staging, but the live blocker observed during validation was concurrency pressure rather than a stuck recovery path.
 - Added Vercel env-governance tooling and docs:
   - new shared env contract module (`scripts/lib/vercel_env_contract.mjs`),
   - new live Vercel parity audit (`scripts/check_vercel_env_contract.mjs`),

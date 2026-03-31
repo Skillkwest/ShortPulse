@@ -36,7 +36,7 @@ Purpose: define the complete behavior contract for Expert Edit prompt-reference 
 5. Invalid tokens are highlighted in warning red.
 6. Invalid-token warning feedback is deferred until Generate is attempted.
 7. Generate is blocked when invalid token references exist.
-8. All populated secondary references are still included in provider `image_urls` even if no token appears in prompt text.
+8. Only secondary references explicitly linked by valid `@img1..@img3` tokens are included in provider `image_urls`; unlinked populated slots stay in the UI but are not sent to the model.
 
 ## Token grammar and validation
 
@@ -92,7 +92,7 @@ Normalization rules:
    - reveal inline invalid-token message below prompt.
 3. If valid:
    - continue flatten flow.
-   - build `referenceInputs` with flattened primary first and populated secondaries next.
+   - build `referenceInputs` with flattened primary first and only token-linked secondary slots next.
    - compile provider-facing prompt when token references exist.
 
 ### Compilation contract

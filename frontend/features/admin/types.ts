@@ -67,6 +67,26 @@ export type AdminErrorEventRow = {
 };
 
 export type AdminErrorEventSummary = {
+  admissionDeniedTelemetry: {
+    last15m: {
+      total: number;
+      byTier: Record<string, number>;
+      byReason: Record<string, number>;
+      byScope: Record<string, number>;
+    };
+    lastHour: {
+      total: number;
+      byTier: Record<string, number>;
+      byReason: Record<string, number>;
+      byScope: Record<string, number>;
+    };
+    last24h: {
+      total: number;
+      byTier: Record<string, number>;
+      byReason: Record<string, number>;
+      byScope: Record<string, number>;
+    };
+  };
   last15mCount: number;
   high15mCount: number;
   generation15mCount: number;

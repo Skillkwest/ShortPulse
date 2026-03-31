@@ -11,6 +11,7 @@ import {
   canSaveReferenceOutput,
 } from "../../logic/referenceActionAvailability";
 import type { ReferenceGridMediaAuthorityTier } from "../../logic/referenceGridMedia";
+import { isProviderSafetyBlockedOutput } from "../../hooks/taskPolling/providerStatusPolicy";
 import type { ReferenceDragSourceSurface } from "../../utils/dragDrop";
 import type { StudioOutput } from "../../types";
 
@@ -144,6 +145,7 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
     shouldShowSaveAction ||
     (onDownload && canDownloadReference && (isImagePreview || isVideoPreview))
   );
+  const shouldShowNsfwPill = isProviderSafetyBlockedOutput(item);
   const canDragReference =
     Boolean(item.previewText) || (!!cardPreviewUrl && canDragReferenceOutput(item));
   const dragPreviewKind = isImagePreview ? "image" : isVideoPreview ? "video" : "text";
@@ -226,6 +228,11 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
           <div className="fail-icon" aria-hidden="true">
             !
           </div>
+          {shouldShowNsfwPill ? (
+            <span className="reference-fail-pill" aria-label="NSFW provider block">
+              NSFW
+            </span>
+          ) : null}
           <div className="fail-title">Generation failed</div>
           {item.errorMessageShort ? (
             <div className="fail-subtitle">

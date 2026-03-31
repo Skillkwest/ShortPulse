@@ -15,6 +15,8 @@ type GenerationTraceResponse = {
   };
   summary: {
     generations: number;
+    attempts: number;
+    outputs: number;
     mediaEvents: number;
     mediaFiles: number;
     reservations: number;
@@ -22,6 +24,8 @@ type GenerationTraceResponse = {
     errorEvents: number;
   };
   generations: Array<Record<string, unknown>>;
+  generationAttempts: Array<Record<string, unknown>>;
+  generationOutputs: Array<Record<string, unknown>>;
   mediaEvents: Array<Record<string, unknown>>;
   mediaFiles: Array<Record<string, unknown>>;
   reservations: Array<Record<string, unknown>>;
@@ -325,6 +329,10 @@ export default function AdminGenerationTracePage() {
             ) : null}
             <h2 className={styles.adminSectionTitle}>Generations</h2>
             <pre className={styles.adminPreBlock}>{pretty(result.generations)}</pre>
+            <h2 className={styles.adminSectionTitle}>Generation Attempts</h2>
+            <pre className={styles.adminPreBlock}>{pretty(result.generationAttempts)}</pre>
+            <h2 className={styles.adminSectionTitle}>Generation Outputs</h2>
+            <pre className={styles.adminPreBlock}>{pretty(result.generationOutputs)}</pre>
             <h2 className={styles.adminSectionTitle}>Reservations</h2>
             <pre className={styles.adminPreBlock}>{pretty(result.reservations)}</pre>
             <h2 className={styles.adminSectionTitle}>Ledger</h2>

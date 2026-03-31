@@ -8,10 +8,6 @@ import {
   GENERATION_GUARDRAIL_FALLBACK_ERROR,
   resolveGenerationStartDecision,
 } from "../logic/generationStartPolicy";
-import {
-  CONCURRENT_GENERATION_CAP_MESSAGE,
-  MAX_CONCURRENT_GENERATIONS,
-} from "../logic/concurrentGenerationCap";
 import { shouldCheckPromptAtGenerationStart } from "../logic/editPromptPolicy";
 import { resolveChatOffCreatePrompt } from "../logic/promptAdjacency";
 import { buildImageReferenceInputs } from "../logic/referenceInputs";
@@ -78,7 +74,6 @@ type UseAiStudioGenerationControllerParams<TBundle, TFallbackCode extends string
   currentCostCredits: number | null;
   promptReferenceGenerateCostCredits?: number | null;
   resolveCostCreditsForModel?: (modelId: string) => number | null;
-  activeGenerationCount?: number;
   isGenerateDisabled: boolean;
   isCreditGuardrail: boolean;
   generationGuardrail: string | null;
@@ -183,7 +178,6 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
   currentCostCredits,
   promptReferenceGenerateCostCredits = null,
   resolveCostCreditsForModel,
-  activeGenerationCount = 0,
   isGenerateDisabled,
   isCreditGuardrail,
   generationGuardrail,
@@ -211,7 +205,6 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
 }: UseAiStudioGenerationControllerParams<TBundle, TFallbackCode>) => {
   const generateClickLockedRef = useRef(false);
   const [isGenerateClickLocked, setIsGenerateClickLocked] = useState(false);
-
   const tryAcquireGenerateClickLock = useCallback(() => {
     if (generateClickLockedRef.current) return false;
     generateClickLockedRef.current = true;
@@ -223,10 +216,6 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
     generateClickLockedRef.current = false;
     setIsGenerateClickLocked(false);
   }, []);
-
-  const showConcurrentGenerationCapNotice = useCallback(() => {
-    setUiNotice(CONCURRENT_GENERATION_CAP_MESSAGE);
-  }, [setUiNotice]);
 
   const resolveGuardrailBlockMessage = useCallback(
     () => generationGuardrail ?? GENERATION_GUARDRAIL_FALLBACK_ERROR,
@@ -317,11 +306,6 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
           });
         }
 
-        if (activeGenerationCount >= MAX_CONCURRENT_GENERATIONS) {
-          showConcurrentGenerationCapNotice();
-          return { accepted: false, optimisticOutputId: null };
-        }
-
         const requiredCredits = options?.costOverrideCredits ?? currentCostCredits;
         let checkedFreshCredits = false;
 
@@ -339,10 +323,6 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
         }
 
         if (isGenerateDisabled) {
-          if (generationGuardrail === CONCURRENT_GENERATION_CAP_MESSAGE) {
-            showConcurrentGenerationCapNotice();
-            return { accepted: false, optimisticOutputId: null };
-          }
           if (isCreditGuardrail) {
             const hasFreshCredits = checkedFreshCredits
               ? true
@@ -481,13 +461,11 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
       }
     },
     [
-      activeGenerationCount,
       currentCostCredits,
       effectiveBalanceCredits,
       enqueueOptimisticDebit,
       ensureFreshCreditsForRun,
       generateOutput,
-      generationGuardrail,
       isCreditGuardrail,
       isCharacterModeEnabled,
       isGenerateDisabled,
@@ -507,7 +485,6 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
       setModel,
       setUiError,
       setUiNotice,
-      showConcurrentGenerationCapNotice,
       trackCharacterModeFallback,
       trackCharacterModeEvent,
       tryAcquireGenerateClickLock,
@@ -599,11 +576,6 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
         const requiredCredits = resolvedRunCostCredits ?? currentCostCredits;
         let checkedFreshCredits = false;
 
-        if (activeGenerationCount >= MAX_CONCURRENT_GENERATIONS) {
-          showConcurrentGenerationCapNotice();
-          return;
-        }
-
         if (
           resolvedRunCostCredits != null &&
           effectiveBalanceCredits != null &&
@@ -618,10 +590,6 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
         }
 
         if (isGenerateDisabled && !isCreditGuardrail) {
-          if (generationGuardrail === CONCURRENT_GENERATION_CAP_MESSAGE) {
-            showConcurrentGenerationCapNotice();
-            return;
-          }
           setUiError(resolveGuardrailBlockMessage());
           return;
         }
@@ -782,14 +750,12 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
     },
     [
       activeOutputId,
-      activeGenerationCount,
       currentCostCredits,
       effectiveBalanceCredits,
       enqueueOptimisticDebit,
       ensureFreshCreditsForRun,
       isCreditGuardrail,
       isGenerateDisabled,
-      generationGuardrail,
       mode,
       model,
       isCharacterModeEnabled,
@@ -807,7 +773,6 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
       setModel,
       setUiError,
       setUiNotice,
-      showConcurrentGenerationCapNotice,
       trackCharacterModeFallback,
       trackCharacterModeEvent,
       tryAcquireGenerateClickLock,

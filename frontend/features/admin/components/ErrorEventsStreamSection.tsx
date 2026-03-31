@@ -86,6 +86,8 @@ export function ErrorEventsStreamSection({
     errorEventsPagination.page * errorEventsPagination.perPage,
     errorEventsPagination.totalCount
   );
+  const admissionLast15m = errorEventsSummary.admissionDeniedTelemetry.last15m;
+  const admissionLastHour = errorEventsSummary.admissionDeniedTelemetry.lastHour;
 
   return (
     <>
@@ -181,6 +183,36 @@ export function ErrorEventsStreamSection({
             >
               Filter stream
             </button>
+          </div>
+        </section>
+
+        <div className={styles.searchRow}>
+          <p className="tiny subdued">
+            Admission pressure split: shared provider saturation vs per-user burst limiting.
+          </p>
+          <span className="tiny subdued">
+            {`15m total ${admissionLast15m.total} · 1h total ${admissionLastHour.total}`}
+          </span>
+        </div>
+
+        <section className={styles.adminGrid}>
+          <div className={styles.adminCard}>
+            <div className={styles.adminCardTop}>
+              <span className={styles.adminLabel}>Shared-provider pressure</span>
+            </div>
+            <p className={styles.adminMetric}>{admissionLast15m.byScope.shared_provider ?? 0}</p>
+            <p className={styles.adminSubtext}>
+              {`15m shared-provider limiter events · 1h ${admissionLastHour.byScope.shared_provider ?? 0}`}
+            </p>
+          </div>
+          <div className={styles.adminCard}>
+            <div className={styles.adminCardTop}>
+              <span className={styles.adminLabel}>Per-user pressure</span>
+            </div>
+            <p className={styles.adminMetric}>{admissionLast15m.byScope.per_user ?? 0}</p>
+            <p className={styles.adminSubtext}>
+              {`15m per-user limiter events · 1h ${admissionLastHour.byScope.per_user ?? 0}`}
+            </p>
           </div>
         </section>
 

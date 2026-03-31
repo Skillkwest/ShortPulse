@@ -12,7 +12,7 @@ export type PersistGenerationOutputsInput = {
 };
 
 export type PersistedGenerationOutputRow = {
-  id?: string;
+  id: string | undefined;
   outputIndex: number;
   resultUrl: string;
   mediaFileId: string | null;

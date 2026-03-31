@@ -4,6 +4,7 @@
  */
 import { useCallback, useEffect, useRef, type Dispatch, type SetStateAction } from "react";
 import { logMediaPerf } from "../../../../lib/mediaPerfTelemetry";
+import { incrementFreezeInvestigationCounter } from "../../logic/freezeInvestigationTelemetry";
 
 type VirtualMetricsState = {
   scrollTop: number;
@@ -58,6 +59,13 @@ export const useReferenceGridScrollController = ({
           const queuedMetrics = queuedAllRefsScrollMetricsRef.current;
           if (!queuedMetrics) return;
           setVirtualMetrics((prev) => {
+            const safeRowHeight = Math.max(1, prev.rowHeight);
+            const previousRow = Math.floor(Math.max(0, prev.scrollTop) / safeRowHeight);
+            const nextRow = Math.floor(Math.max(0, queuedMetrics.scrollTop) / safeRowHeight);
+            const viewportStable = Math.abs(prev.viewportHeight - queuedMetrics.viewportHeight) < 1;
+            if (previousRow === nextRow && viewportStable) {
+              return prev;
+            }
             const next = {
               ...prev,
               scrollTop: queuedMetrics.scrollTop,
@@ -66,7 +74,9 @@ export const useReferenceGridScrollController = ({
             const stable =
               Math.abs(prev.scrollTop - next.scrollTop) < 1 &&
               Math.abs(prev.viewportHeight - next.viewportHeight) < 1;
-            return stable ? prev : next;
+            if (stable) return prev;
+            incrementFreezeInvestigationCounter("referenceGrid.virtualMetrics.scrollCommit");
+            return next;
           });
         });
       }
@@ -112,6 +122,13 @@ export const useReferenceGridScrollController = ({
           const queuedMetrics = queuedCuratedScrollMetricsRef.current;
           if (!queuedMetrics) return;
           setCuratedVirtualMetrics((prev) => {
+            const safeRowHeight = Math.max(1, prev.rowHeight);
+            const previousRow = Math.floor(Math.max(0, prev.scrollTop) / safeRowHeight);
+            const nextRow = Math.floor(Math.max(0, queuedMetrics.scrollTop) / safeRowHeight);
+            const viewportStable = Math.abs(prev.viewportHeight - queuedMetrics.viewportHeight) < 1;
+            if (previousRow === nextRow && viewportStable) {
+              return prev;
+            }
             const next = {
               ...prev,
               scrollTop: queuedMetrics.scrollTop,
@@ -120,7 +137,9 @@ export const useReferenceGridScrollController = ({
             const stable =
               Math.abs(prev.scrollTop - next.scrollTop) < 1 &&
               Math.abs(prev.viewportHeight - next.viewportHeight) < 1;
-            return stable ? prev : next;
+            if (stable) return prev;
+            incrementFreezeInvestigationCounter("referenceGrid.curatedVirtualMetrics.scrollCommit");
+            return next;
           });
         });
       }

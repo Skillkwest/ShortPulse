@@ -45,6 +45,7 @@ const createSupabaseMock = ({
   storageDownloadResult = { data: new Blob(["file"], { type: "image/png" }), error: null },
 }: SupabaseMockConfig = {}) => {
   const createBuilder = (result: MockQueryResult) => {
+    let orderedData = Array.isArray(result.data) ? [...result.data] : result.data;
     const builder = {} as {
       in: ReturnType<typeof vi.fn>;
       eq: ReturnType<typeof vi.fn>;
@@ -53,9 +54,24 @@ const createSupabaseMock = ({
     };
     builder.in = vi.fn(() => builder);
     builder.eq = vi.fn(() => builder);
-    builder.order = vi.fn(() => builder);
+    builder.order = vi.fn((field: string, options?: { ascending?: boolean }) => {
+      if (Array.isArray(orderedData)) {
+        const ascending = options?.ascending ?? true;
+        orderedData = [...orderedData].sort((left, right) => {
+          const leftValue = (left as Record<string, unknown>)[field];
+          const rightValue = (right as Record<string, unknown>)[field];
+          if (leftValue === rightValue) return 0;
+          if (leftValue == null) return 1;
+          if (rightValue == null) return -1;
+          return ascending
+            ? String(leftValue).localeCompare(String(rightValue), undefined, { numeric: true })
+            : String(rightValue).localeCompare(String(leftValue), undefined, { numeric: true });
+        });
+      }
+      return builder;
+    });
     builder.limit = vi.fn(async () => ({
-      data: result.data,
+      data: orderedData,
       error: result.error,
     }));
     return builder;
@@ -243,6 +259,113 @@ describe("useAiStudioReferenceAssetActions", () => {
     expect(from).toHaveBeenCalledWith("ai_generation_outputs");
     expect(storageDownload).toHaveBeenCalledWith("user-1/generations/images/by-generation.jpg");
     expect(click).toHaveBeenCalledTimes(1);
+  });
+
+  it("prefers canonical generated output media over saved media ids for generated downloads", async () => {
+    const { supabase, storageDownload } = createSupabaseMock({
+      generationOutputResults: [
+        {
+          data: [
+            {
+              media_file_id: "media-canonical-1",
+              output_index: 0,
+            },
+          ],
+          error: null,
+        },
+      ],
+      mediaResults: [
+        {
+          data: [
+            {
+              storage_path: "user-1/generations/images/canonical-generated.png",
+              filename: "canonical-generated.png",
+            },
+          ],
+          error: null,
+        },
+      ],
+    });
+    vi.mocked(ensureSupabaseQueryClient).mockReturnValue(supabase as never);
+    const { click, link } = installDownloadDomMocks();
+    const output = {
+      ...makeOutput("out-generated-canonical", "Canonical generated prompt"),
+      mediaSource: "generated",
+      generationId: "gen-canonical-1",
+      savedMediaIds: ["media-stale-1"],
+      previewUrl: "https://cdn.test/generated-canonical-preview.png",
+    } satisfies StudioOutput;
+
+    const { result } = renderHook(() =>
+      useAiStudioReferenceAssetActions(
+        createParams({
+          findOutputById: (id) => (id === "out-generated-canonical" ? output : null),
+        })
+      )
+    );
+
+    await act(async () => {
+      await result.current.handleDownloadReference("out-generated-canonical");
+    });
+
+    expect(storageDownload).toHaveBeenCalledWith(
+      "user-1/generations/images/canonical-generated.png"
+    );
+    expect(link.download).toBe("canonical-generated.png");
+    expect(click).toHaveBeenCalledTimes(1);
+  });
+
+  it("preserves canonical output ordering when resolving generated download media", async () => {
+    const { supabase, storageDownload } = createSupabaseMock({
+      generationOutputResults: [
+        {
+          data: [
+            {
+              media_file_id: "media-output-0",
+              output_index: 0,
+            },
+            {
+              media_file_id: "media-output-1",
+              output_index: 1,
+            },
+          ],
+          error: null,
+        },
+      ],
+      mediaResults: [
+        {
+          data: [
+            {
+              storage_path: "user-1/generations/images/output-index-1.png",
+              filename: "output-index-1.png",
+            },
+          ],
+          error: null,
+        },
+      ],
+    });
+    vi.mocked(ensureSupabaseQueryClient).mockReturnValue(supabase as never);
+    installDownloadDomMocks();
+    const output = {
+      ...makeOutput("out-generated-order", "Ordered generated prompt"),
+      mediaSource: "generated",
+      generationId: "gen-order-1",
+      previewUrl: "https://cdn.test/generated-order-preview.png",
+    } satisfies StudioOutput;
+
+    const { result } = renderHook(() =>
+      useAiStudioReferenceAssetActions(
+        createParams({
+          findOutputById: (id) => (id === "out-generated-order" ? output : null),
+        })
+      )
+    );
+
+    await act(async () => {
+      await result.current.handleDownloadReference("out-generated-order");
+    });
+
+    expect(storageDownload).toHaveBeenCalledWith("user-1/generations/images/output-index-1.png");
   });
 
   it("fails closed when generated download is missing durable generation identity", async () => {

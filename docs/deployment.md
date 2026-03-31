@@ -133,6 +133,8 @@ Set these in Vercel project settings (`Production` + `Preview` as applicable):
   - `SHORTPULSE_FAL_CIRCUIT_BREAKER_ENABLED`
   - `SHORTPULSE_FAL_CIRCUIT_BREAKER_THRESHOLD_15M`
   - `SHORTPULSE_FAL_DIRECT_DEBIT_FALLBACK_ENABLED` (emergency only)
+  - `SHORTPULSE_FAL_ADMISSION_SHARED_PROVIDER_ENABLED` (defaults to `false`; enables shared Fal-account admission alongside per-user caps)
+  - `SHORTPULSE_FAL_ADMISSION_SHARED_PROVIDER_GLOBAL_MAX` (defaults to `SHORTPULSE_FAL_ADMISSION_GLOBAL_MAX`; shared-provider active-generation ceiling)
 
 ### Production Supabase credential wiring (required)
 

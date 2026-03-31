@@ -1,7 +1,9 @@
-import React from "react";
-import { FolderSimple, Folders, MagnifyingGlass, Plus } from "phosphor-react";
-import { MEDIA_LIBRARY_ROOT_FOLDER_ID } from "../logic/mediaLibraryPanelApi";
+import React, { useEffect, useRef, useState } from "react";
+import { CaretLeft, CaretRight, Folders, Plus } from "phosphor-react";
 import { AiStudioModalLayer } from "./modal-layer/AiStudioModalLayer";
+
+const FOLDER_TILE_IMAGE_SRC = "/Folder 1.png";
+const ROOT_FOLDER_LABEL = "All Media";
 
 type FolderRow = {
   id: string;
@@ -16,10 +18,12 @@ type FolderContextMenuState = {
 };
 
 type MediaLibraryPanelFoldersSectionProps = {
-  search: string;
-  onSearchChange: (value: string) => void;
-  orderedFolders: FolderRow[];
-  activeFolderId: string;
+  ancestorFolders: FolderRow[];
+  folders: FolderRow[];
+  canNavigateUp: boolean;
+  onNavigateUp: () => void;
+  onNavigateToRoot: () => void;
+  onNavigateToFolder: (folderId: string) => void;
   setActiveFolderId: (folderId: string) => void;
   editingFolderId: string | null;
   editingFolderName: string;
@@ -41,15 +45,20 @@ type MediaLibraryPanelFoldersSectionProps = {
     folder: FolderRow,
     isRoot: boolean
   ) => void;
+  onContextCreateSubfolder: () => void;
   onContextRename: () => void;
+  canOpenMovePicker: boolean;
+  onOpenMovePicker: () => void;
   onContextDelete: () => Promise<void>;
 };
 
 export function MediaLibraryPanelFoldersSection({
-  search,
-  onSearchChange,
-  orderedFolders,
-  activeFolderId,
+  ancestorFolders,
+  folders,
+  canNavigateUp,
+  onNavigateUp,
+  onNavigateToRoot,
+  onNavigateToFolder,
   setActiveFolderId,
   editingFolderId,
   editingFolderName,
@@ -67,33 +76,111 @@ export function MediaLibraryPanelFoldersSection({
   folderContextMenu,
   folderContextMenuRef,
   openFolderContextMenu,
+  onContextCreateSubfolder,
   onContextRename,
+  canOpenMovePicker,
+  onOpenMovePicker,
   onContextDelete,
 }: MediaLibraryPanelFoldersSectionProps) {
+  const folderImageRefs = useRef(new Map<string, HTMLButtonElement>());
+  const navigateTimeoutRef = useRef<number | null>(null);
+  const [openingFolderId, setOpeningFolderId] = useState<string | null>(null);
+  const [openingFolderGhost, setOpeningFolderGhost] = useState<{
+    top: number;
+    left: number;
+    width: number;
+    height: number;
+  } | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (navigateTimeoutRef.current !== null) {
+        window.clearTimeout(navigateTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  const handleOpenFolder = (folderId: string) => {
+    if (openingFolderId !== null) return;
+    const sourceElement = folderImageRefs.current.get(folderId);
+    if (!sourceElement) {
+      setActiveFolderId(folderId);
+      return;
+    }
+    const rect = sourceElement.getBoundingClientRect();
+    setOpeningFolderId(folderId);
+    setOpeningFolderGhost({
+      top: rect.top,
+      left: rect.left,
+      width: rect.width,
+      height: rect.height,
+    });
+    navigateTimeoutRef.current = window.setTimeout(() => {
+      setActiveFolderId(folderId);
+      setOpeningFolderId(null);
+      setOpeningFolderGhost(null);
+      navigateTimeoutRef.current = null;
+    }, 120);
+  };
+
   return (
     <>
-      <div className="media-library-panel-controls">
-        <div className="search-input media-library-panel-search">
-          <MagnifyingGlass size={15} weight="bold" aria-hidden />
-          <input
-            type="text"
-            value={search}
-            placeholder="Search media and prompts"
-            onChange={(event) => onSearchChange(event.target.value)}
-          />
-        </div>
-      </div>
-
       <div className="media-library-panel-folders">
         <div className="media-library-panel-folders-head">
           <span className="tiny subdued">
-            <Folders size={14} weight="bold" aria-hidden /> Folders
+            <Folders size={14} weight="bold" aria-hidden />
+            <button
+              type="button"
+              className="media-library-panel-folders-breadcrumb-button media-library-panel-folders-root-label"
+              onClick={onNavigateToRoot}
+            >
+              {ROOT_FOLDER_LABEL}
+            </button>
+            {ancestorFolders.map((folder, index) => (
+              <React.Fragment key={folder.id}>
+                <CaretRight
+                  className="media-library-panel-folders-breadcrumb-caret"
+                  size={11}
+                  weight="bold"
+                  aria-hidden
+                />
+                {index === ancestorFolders.length - 1 ? (
+                  <span
+                    className="media-library-panel-folders-breadcrumb-current media-library-panel-folders-root-label"
+                    aria-current="location"
+                  >
+                    {folder.name}
+                  </span>
+                ) : (
+                  <button
+                    type="button"
+                    className="media-library-panel-folders-breadcrumb-button media-library-panel-folders-root-label"
+                    onClick={() => onNavigateToFolder(folder.id)}
+                  >
+                    {folder.name}
+                  </button>
+                )}
+              </React.Fragment>
+            ))}
           </span>
         </div>
         <div className="media-library-panel-folder-strip" role="list" aria-label="Media folders">
-          {orderedFolders.map((folder) => {
-            const isRoot = folder.id === MEDIA_LIBRARY_ROOT_FOLDER_ID;
-            const isActive = activeFolderId === folder.id;
+          {canNavigateUp ? (
+            <div
+              className="media-library-panel-folder-strip-item media-library-panel-folder-strip-item--navigate-up"
+              role="listitem"
+            >
+              <button
+                type="button"
+                className="media-library-panel-folder-up-button"
+                aria-label="Go to parent folder"
+                onClick={onNavigateUp}
+              >
+                <CaretLeft size={26} weight="bold" aria-hidden />
+              </button>
+            </div>
+          ) : null}
+          {folders.map((folder) => {
             const isEditing = editingFolderId === folder.id;
             return (
               <div
@@ -102,7 +189,7 @@ export function MediaLibraryPanelFoldersSection({
                   hoveredFolderId === folder.id ? "is-drop-hover" : ""
                 }`}
                 role="listitem"
-                onContextMenu={(event) => openFolderContextMenu(event, folder, isRoot)}
+                onContextMenu={(event) => openFolderContextMenu(event, folder, false)}
                 onDragOver={(event) => onFolderDragOver(folder.id, event)}
                 onDragLeave={() => onFolderDragLeave(folder.id)}
                 onDrop={(event) => {
@@ -112,12 +199,24 @@ export function MediaLibraryPanelFoldersSection({
                 {isEditing ? (
                   <>
                     <button
+                      ref={(node) => {
+                        if (node) {
+                          folderImageRefs.current.set(folder.id, node);
+                        } else {
+                          folderImageRefs.current.delete(folder.id);
+                        }
+                      }}
                       type="button"
-                      className="media-library-panel-folder-chip is-active is-editing"
-                      onClick={() => setActiveFolderId(folder.id)}
+                      className="media-library-panel-folder-chip media-library-panel-folder-chip--image is-active is-editing"
+                      onClick={() => handleOpenFolder(folder.id)}
                       aria-label={`${folder.name} folder`}
                     >
-                      <FolderSimple size={32} weight={isRoot ? "fill" : "regular"} aria-hidden />
+                      <img
+                        className="media-library-panel-folder-chip-image"
+                        src={FOLDER_TILE_IMAGE_SRC}
+                        alt=""
+                        aria-hidden="true"
+                      />
                     </button>
                     <div className="media-library-panel-folder-chip-edit">
                       <input
@@ -143,19 +242,30 @@ export function MediaLibraryPanelFoldersSection({
                 ) : (
                   <>
                     <button
+                      ref={(node) => {
+                        if (node) {
+                          folderImageRefs.current.set(folder.id, node);
+                        } else {
+                          folderImageRefs.current.delete(folder.id);
+                        }
+                      }}
                       type="button"
-                      className={`media-library-panel-folder-chip ${isActive ? "is-active" : ""}`}
-                      onClick={() => setActiveFolderId(folder.id)}
+                      className="media-library-panel-folder-chip media-library-panel-folder-chip--image"
+                      onClick={() => handleOpenFolder(folder.id)}
                       aria-label={`${folder.name} folder`}
                     >
-                      <FolderSimple size={32} weight={isRoot ? "fill" : "regular"} aria-hidden />
+                      <img
+                        className="media-library-panel-folder-chip-image"
+                        src={FOLDER_TILE_IMAGE_SRC}
+                        alt=""
+                        aria-hidden="true"
+                      />
                     </button>
                     <button
                       type="button"
                       className="media-library-panel-folder-chip-name tiny"
-                      onClick={() => setActiveFolderId(folder.id)}
+                      onClick={() => handleOpenFolder(folder.id)}
                       onDoubleClick={() => {
-                        if (isRoot) return;
                         startFolderRename(folder.id, folder.name);
                       }}
                       aria-label={`${folder.name} name`}
@@ -167,7 +277,10 @@ export function MediaLibraryPanelFoldersSection({
               </div>
             );
           })}
-          <div className="media-library-panel-folder-strip-item" role="listitem">
+          <div
+            className="media-library-panel-folder-strip-item media-library-panel-folder-strip-item--create"
+            role="listitem"
+          >
             <button
               type="button"
               className="media-library-panel-folder-chip is-create"
@@ -177,12 +290,25 @@ export function MediaLibraryPanelFoldersSection({
               }}
               disabled={creatingFolder}
             >
-              <Plus size={30} weight="bold" aria-hidden />
+              <Plus size={24} weight="bold" aria-hidden />
             </button>
-            <p className="media-library-panel-folder-chip-name tiny">New Folder</p>
           </div>
         </div>
       </div>
+      {openingFolderGhost ? (
+        <div
+          className="media-library-panel-folder-open-ghost"
+          aria-hidden="true"
+          style={{
+            top: `${openingFolderGhost.top}px`,
+            left: `${openingFolderGhost.left}px`,
+            width: `${openingFolderGhost.width}px`,
+            height: `${openingFolderGhost.height}px`,
+          }}
+        >
+          <img src={FOLDER_TILE_IMAGE_SRC} alt="" />
+        </div>
+      ) : null}
       {folderError ? <p className="tiny subdued">{folderError}</p> : null}
       {folderContextMenu ? (
         <AiStudioModalLayer>
@@ -200,10 +326,28 @@ export function MediaLibraryPanelFoldersSection({
               type="button"
               className="media-library-panel-folder-context-menu-item"
               role="menuitem"
+              onClick={onContextCreateSubfolder}
+            >
+              New subfolder
+            </button>
+            <button
+              type="button"
+              className="media-library-panel-folder-context-menu-item"
+              role="menuitem"
               onClick={onContextRename}
             >
               Rename folder
             </button>
+            {canOpenMovePicker ? (
+              <button
+                type="button"
+                className="media-library-panel-folder-context-menu-item"
+                role="menuitem"
+                onClick={onOpenMovePicker}
+              >
+                Move to...
+              </button>
+            ) : null}
             <button
               type="button"
               className="media-library-panel-folder-context-menu-item is-destructive"

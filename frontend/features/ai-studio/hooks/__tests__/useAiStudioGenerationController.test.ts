@@ -2,7 +2,6 @@ import { act, renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Dispatch, SetStateAction } from "react";
 import type { StudioOutput } from "../../types";
-import { CONCURRENT_GENERATION_CAP_MESSAGE } from "../../logic/concurrentGenerationCap";
 import { INPAINT_FLUX_FILL_MODEL_ID } from "../../logic/inpaintSubmission";
 import { useAiStudioGenerationController } from "../useAiStudioGenerationController";
 
@@ -349,35 +348,12 @@ describe("useAiStudioGenerationController", () => {
     expect(generateOutput).toHaveBeenCalledTimes(1);
   });
 
-  it("blocks generate and shows the cap notice when four generations are already active", async () => {
-    const setUiNotice = vi.fn();
-    const generateOutput = vi.fn();
-    const params = createParams({
-      activeGenerationCount: 4,
-      generateOutput,
-      setUiNotice: asDispatch<string | null>(setUiNotice),
-    });
-    const { result } = renderHook(() => useAiStudioGenerationController(params));
-
-    let generateResult: Awaited<ReturnType<typeof result.current.handleGenerate>> | null = null;
-    await act(async () => {
-      generateResult = await result.current.handleGenerate("prompt");
-    });
-
-    expect(generateResult).toEqual({ accepted: false, optimisticOutputId: null });
-    expect(generateOutput).not.toHaveBeenCalled();
-    expect(setUiNotice).toHaveBeenCalledWith(CONCURRENT_GENERATION_CAP_MESSAGE);
-  });
-
-  it("allows generate again after active generation count drops below the cap", async () => {
-    const setUiNotice = vi.fn();
+  it("still blocks on non-cap guardrails while other props change", async () => {
     const generateOutput = vi.fn();
     const initialParams = createParams({
-      activeGenerationCount: 4,
       generateOutput,
-      setUiNotice: asDispatch<string | null>(setUiNotice),
       isGenerateDisabled: true,
-      generationGuardrail: CONCURRENT_GENERATION_CAP_MESSAGE,
+      generationGuardrail: "Select a model before generating.",
     });
     const { result, rerender } = renderHook(
       (params: Parameters<typeof useAiStudioGenerationController>[0]) =>
@@ -390,13 +366,10 @@ describe("useAiStudioGenerationController", () => {
     });
 
     expect(generateOutput).not.toHaveBeenCalled();
-    expect(setUiNotice).toHaveBeenCalledWith(CONCURRENT_GENERATION_CAP_MESSAGE);
 
     rerender(
       createParams({
-        activeGenerationCount: 0,
         generateOutput,
-        setUiNotice: asDispatch<string | null>(setUiNotice),
         isGenerateDisabled: false,
         generationGuardrail: null,
       })

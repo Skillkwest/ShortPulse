@@ -1,6 +1,5 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { StudioOutput } from "../../../types";
 import { useReferenceGridVideoLifecycleController } from "../useReferenceGridVideoLifecycleController";
 
 class MockIntersectionObserver {
@@ -36,16 +35,6 @@ class MockIntersectionObserver {
     MockIntersectionObserver.callbacks.clear();
   }
 }
-
-const createVideoOutput = (id: string): StudioOutput =>
-  ({
-    id,
-    mode: "video",
-    previewStoragePath: "https://cdn.example.com/video.mp4",
-    fullStoragePath: "https://cdn.example.com/video.mp4",
-    previewUrl: "https://cdn.example.com/video.mp4",
-    resultUrls: ["https://cdn.example.com/video.mp4"],
-  }) as unknown as StudioOutput;
 
 const createIntersectionEntry = ({
   target,
@@ -98,10 +87,10 @@ describe("useReferenceGridVideoLifecycleController", () => {
     } as React.MutableRefObject<HTMLDivElement | null>;
 
     const { result, rerender } = renderHook(
-      ({ outputs }: { outputs: StudioOutput[] }) =>
+      ({ outputIds }: { outputIds: string[] }) =>
         useReferenceGridVideoLifecycleController({
           activeOutputId: null,
-          outputs,
+          validOutputIds: outputIds,
           shouldVirtualize: false,
           renderedOutputIdSet: new Set(),
           autoplayEnabledIds: [],
@@ -121,7 +110,7 @@ describe("useReferenceGridVideoLifecycleController", () => {
         }),
       {
         initialProps: {
-          outputs: [createVideoOutput("video-1")],
+          outputIds: ["video-1"],
         },
       }
     );
@@ -140,7 +129,7 @@ describe("useReferenceGridVideoLifecycleController", () => {
       );
     });
 
-    rerender({ outputs: [] });
+    rerender({ outputIds: [] });
 
     await waitFor(() => {
       expect(pauseSpy).toHaveBeenCalled();
@@ -197,7 +186,7 @@ describe("useReferenceGridVideoLifecycleController", () => {
     renderHook(() =>
       useReferenceGridVideoLifecycleController({
         activeOutputId: null,
-        outputs: [createVideoOutput("video-1"), createVideoOutput("video-2")],
+        validOutputIds: ["video-1", "video-2"],
         shouldVirtualize: false,
         renderedOutputIdSet: new Set(),
         autoplayEnabledIds: [],
@@ -276,7 +265,7 @@ describe("useReferenceGridVideoLifecycleController", () => {
     const { result, unmount } = renderHook(() =>
       useReferenceGridVideoLifecycleController({
         activeOutputId: null,
-        outputs: [createVideoOutput("video-1")],
+        validOutputIds: ["video-1"],
         shouldVirtualize: false,
         renderedOutputIdSet: new Set(),
         autoplayEnabledIds: [],

@@ -62,6 +62,10 @@ import {
   terminalFailureStates,
 } from "./taskPolling/providerStatusPolicy";
 import { useAiStudioTaskRecoveryController } from "./taskPolling/useAiStudioTaskRecoveryController";
+import {
+  incrementFreezeInvestigationCounter,
+  setFreezeInvestigationGauge,
+} from "../logic/freezeInvestigationTelemetry";
 
 type GenerationFailureReason =
   | "no_media_after_terminal_success"
@@ -213,6 +217,7 @@ export function useAiStudioTasks({
   const pollSessionsRef = useRef<Record<string, number>>({});
   const statusRequestsInFlightRef = useRef(0);
   const lastProgressUpdateAtRef = useRef<Record<string, number>>({});
+  const lastProgressSignatureRef = useRef<Record<string, string>>({});
   const recoveryStateRefsRef = useRef<{
     outputLookupHardStopNotifiedRef?: React.MutableRefObject<Record<string, boolean>>;
     outputLookupMissesRef?: React.MutableRefObject<Record<string, number>>;
@@ -223,8 +228,10 @@ export function useAiStudioTasks({
   const queuedOutputFlushRafIdRef = useRef<number | null>(null);
 
   const flushQueuedOutputUpdates = useCallback(() => {
+    incrementFreezeInvestigationCounter("aiStudioTasks.flushQueuedOutputUpdates");
     const queued = queuedOutputUpdatersRef.current;
     queuedOutputUpdatersRef.current = {};
+    setFreezeInvestigationGauge("aiStudioTasks.flushBatchOutputCount", Object.keys(queued).length);
     Object.entries(queued).forEach(([outputId, queuedUpdates]) => {
       if (!queuedUpdates.length) return;
       const applyUpdate = () => {
@@ -247,6 +254,7 @@ export function useAiStudioTasks({
       updater: (item: StudioOutput) => StudioOutput,
       options?: { nonUrgent?: boolean }
     ) => {
+      incrementFreezeInvestigationCounter("aiStudioTasks.queueOutputUpdate");
       const nonUrgent = options?.nonUrgent === true;
       if (!REFERENCE_GRID_FLAG_UPDATE_BACKPRESSURE) {
         if (nonUrgent) {
@@ -261,6 +269,10 @@ export function useAiStudioTasks({
       const existing = queuedOutputUpdatersRef.current[outputId] ?? [];
       existing.push({ updater, nonUrgent });
       queuedOutputUpdatersRef.current[outputId] = existing;
+      setFreezeInvestigationGauge(
+        "aiStudioTasks.queuedOutputIds",
+        Object.keys(queuedOutputUpdatersRef.current).length
+      );
       if (queuedOutputFlushPendingRef.current) return;
       queuedOutputFlushPendingRef.current = true;
       const flush = () => {
@@ -307,6 +319,7 @@ export function useAiStudioTasks({
         });
       }
       delete lastProgressUpdateAtRef.current[outputId];
+      delete lastProgressSignatureRef.current[outputId];
       delete recoveryStateRefs.outputLookupMissesRef?.current[outputId];
       delete recoveryStateRefs.outputLookupMissingSinceRef?.current[outputId];
       delete recoveryStateRefs.outputLookupHardStopNotifiedRef?.current[outputId];
@@ -347,6 +360,11 @@ export function useAiStudioTasks({
       noMediaAttempt = 0,
       pollSessionId?: number
     ) {
+      incrementFreezeInvestigationCounter("aiStudioTasks.startPollingTask.calls");
+      setFreezeInvestigationGauge(
+        "aiStudioTasks.statusRequestsInFlight",
+        statusRequestsInFlightRef.current
+      );
       let activePollSessionId = pollSessionId;
       if (activePollSessionId == null) {
         activePollSessionId = (pollSessionsRef.current[outputId] ?? 0) + 1;
@@ -512,6 +530,10 @@ export function useAiStudioTasks({
           return;
         }
         statusRequestsInFlightRef.current += 1;
+        setFreezeInvestigationGauge(
+          "aiStudioTasks.statusRequestsInFlight",
+          statusRequestsInFlightRef.current
+        );
         try {
           try {
             if (findOutputById && !findOutputById(outputId)) {
@@ -860,10 +882,12 @@ export function useAiStudioTasks({
             const nextTaskState = normalizeProviderStateToTaskState(state);
             const now = Date.now();
             const lastProgressUpdateAt = lastProgressUpdateAtRef.current[outputId] ?? 0;
+            const nextProgressSignature = `${nextTaskState}|Processing...`;
             const shouldSkipProgressUpdate =
-              REFERENCE_GRID_FLAG_UPDATE_BACKPRESSURE &&
-              nextTaskState === "running" &&
-              now - lastProgressUpdateAt < OUTPUT_PROGRESS_UPDATE_MIN_INTERVAL_MS;
+              lastProgressSignatureRef.current[outputId] === nextProgressSignature ||
+              (REFERENCE_GRID_FLAG_UPDATE_BACKPRESSURE &&
+                nextTaskState === "running" &&
+                now - lastProgressUpdateAt < OUTPUT_PROGRESS_UPDATE_MIN_INTERVAL_MS);
             if (!shouldSkipProgressUpdate) {
               queueOutputUpdate(
                 outputId,
@@ -872,6 +896,7 @@ export function useAiStudioTasks({
                   const timestampChanged = item.timestamp !== "Processing...";
                   if (!taskStateChanged && !timestampChanged) return item;
                   lastProgressUpdateAtRef.current[outputId] = now;
+                  lastProgressSignatureRef.current[outputId] = nextProgressSignature;
                   return {
                     ...item,
                     taskState: nextTaskState,
@@ -918,9 +943,11 @@ export function useAiStudioTasks({
             }
             const now = Date.now();
             const lastProgressUpdateAt = lastProgressUpdateAtRef.current[outputId] ?? 0;
+            const nextProgressSignature = "running|Retrying status...";
             const shouldSkipRetryUpdate =
-              REFERENCE_GRID_FLAG_UPDATE_BACKPRESSURE &&
-              now - lastProgressUpdateAt < OUTPUT_PROGRESS_UPDATE_MIN_INTERVAL_MS;
+              lastProgressSignatureRef.current[outputId] === nextProgressSignature ||
+              (REFERENCE_GRID_FLAG_UPDATE_BACKPRESSURE &&
+                now - lastProgressUpdateAt < OUTPUT_PROGRESS_UPDATE_MIN_INTERVAL_MS);
             if (!shouldSkipRetryUpdate) {
               queueOutputUpdate(
                 outputId,
@@ -930,6 +957,7 @@ export function useAiStudioTasks({
                   const timestampChanged = item.timestamp !== "Retrying status...";
                   if (!taskStateChanged && !statusChanged && !timestampChanged) return item;
                   lastProgressUpdateAtRef.current[outputId] = now;
+                  lastProgressSignatureRef.current[outputId] = nextProgressSignature;
                   return {
                     ...item,
                     taskState: "running",
@@ -956,6 +984,10 @@ export function useAiStudioTasks({
           }
         } finally {
           statusRequestsInFlightRef.current = Math.max(0, statusRequestsInFlightRef.current - 1);
+          setFreezeInvestigationGauge(
+            "aiStudioTasks.statusRequestsInFlight",
+            statusRequestsInFlightRef.current
+          );
         }
       }, delay);
       pollTimersRef.current[outputId] = timeoutId;
@@ -985,6 +1017,7 @@ export function useAiStudioTasks({
       statusRequestsInFlightRef.current = 0;
       resetRecoveryState();
       lastProgressUpdateAtRef.current = {};
+      lastProgressSignatureRef.current = {};
       queuedOutputUpdatersRef.current = {};
       queuedOutputFlushPendingRef.current = false;
       if (queuedOutputFlushRafIdRef.current != null) {

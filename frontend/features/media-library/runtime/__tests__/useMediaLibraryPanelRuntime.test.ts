@@ -1,0 +1,115 @@
+import { act, renderHook } from "@testing-library/react";
+import { describe, expect, it } from "vitest";
+import { useMediaLibraryPanelRuntime } from "../useMediaLibraryPanelRuntime";
+
+const makeMediaRow = (
+  id: string,
+  overrides: Partial<{
+    filename: string;
+    storage_path: string;
+    file_type: string;
+    source: string | null;
+    created_at: string | null;
+    signedUrl: string | null;
+  }> = {}
+) => ({
+  id,
+  filename: overrides.filename ?? `${id}.png`,
+  storage_path: overrides.storage_path ?? `user-1/uploads/${id}.png`,
+  file_type: overrides.file_type ?? "image/png",
+  source: overrides.source ?? "upload",
+  created_at: overrides.created_at ?? "2026-03-28T00:00:00.000Z",
+  signedUrl: overrides.signedUrl ?? null,
+});
+
+const makePromptRow = (id: string) => ({
+  id,
+  title: `Prompt ${id}`,
+  prompt_text: `Prompt text ${id}`,
+  created_at: "2026-03-28T00:00:00.000Z",
+});
+
+describe("useMediaLibraryPanelRuntime", () => {
+  it("normalizes panel media rows while preserving item-type filtering", () => {
+    type PanelItemType = "all" | "images" | "videos" | "audio" | "prompts";
+    const { result, rerender } = renderHook(
+      ({ itemType }: { itemType: PanelItemType }) => useMediaLibraryPanelRuntime({ itemType }),
+      {
+        initialProps: { itemType: "all" as PanelItemType },
+      }
+    );
+
+    act(() => {
+      result.current.setMediaRows([
+        makeMediaRow("image-1", {
+          file_type: "image/png",
+          created_at: "2026-03-29T00:00:00.000Z",
+        }),
+        makeMediaRow("private-video", {
+          filename: "private-video.mp4",
+          storage_path: "user-1/private/private-video.mp4",
+          file_type: "video/mp4",
+          created_at: "2026-03-28T00:00:00.000Z",
+        }),
+        makeMediaRow("ai-image", {
+          filename: "ai-image.png",
+          source: "ai_studio",
+          file_type: "image/png",
+          created_at: "2026-03-27T00:00:00.000Z",
+        }),
+      ]);
+    });
+
+    expect(result.current.mediaRows.map((row) => row.id)).toEqual([
+      "image-1",
+      "private-video",
+      "ai-image",
+    ]);
+
+    rerender({ itemType: "images" });
+    expect(result.current.mediaRows.map((row) => row.id)).toEqual(["image-1", "ai-image"]);
+
+    rerender({ itemType: "videos" });
+    expect(result.current.mediaRows.map((row) => row.id)).toEqual(["private-video"]);
+  });
+
+  it("stores panel prompt rows in the shared runtime surface", () => {
+    const { result } = renderHook(() => useMediaLibraryPanelRuntime({ itemType: "prompts" }));
+
+    act(() => {
+      result.current.setPromptRows([makePromptRow("prompt-1"), makePromptRow("prompt-2")]);
+    });
+
+    expect(result.current.promptRows.map((row) => row.id)).toEqual(["prompt-1", "prompt-2"]);
+    expect(result.current.runtimeState.surfaceStateByKind.panel.orderedViews.promptIds).toEqual([
+      "prompt-1",
+      "prompt-2",
+    ]);
+  });
+
+  it("stores panel scope cache and signed preview state in the shared runtime surface", () => {
+    const { result } = renderHook(() => useMediaLibraryPanelRuntime({ itemType: "all" }));
+
+    act(() => {
+      result.current.setMediaRows([makeMediaRow("image-1")]);
+      result.current.setMediaScopeCache((prev) => ({
+        ...prev,
+        hasMore: true,
+        loading: true,
+        resolvedScopeKey: "folder-a|all|woman",
+        libraryTotalCount: 654,
+      }));
+      result.current.setSignedUrls(new Map([["image-1", "https://signed.test/image-1.png"]]));
+      result.current.setError("Unable to load media.");
+    });
+
+    expect(result.current.mediaScopeCache).toMatchObject({
+      hasMore: true,
+      loading: true,
+      resolvedScopeKey: "folder-a|all|woman",
+      libraryTotalCount: 654,
+    });
+    expect(result.current.mediaRows[0]?.signedUrl).toBe("https://signed.test/image-1.png");
+    expect(result.current.error).toBe("Unable to load media.");
+  });
+});

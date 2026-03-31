@@ -672,6 +672,23 @@
   box-shadow: 0 10px 35px rgba(255, 124, 124, 0.2);
 }
 
+.reference-fail-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 22px;
+  padding: 0 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 159, 90, 0.48);
+  background: linear-gradient(135deg, rgba(255, 159, 90, 0.22), rgba(255, 93, 122, 0.16));
+  color: #ffd6b3;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  box-shadow: 0 8px 24px rgba(255, 122, 122, 0.14);
+}
+
 .reference-fail-overlay .fail-title {
   font-weight: 700;
   font-size: 14px;

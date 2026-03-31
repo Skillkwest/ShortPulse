@@ -23,17 +23,19 @@ import {
 import { useMediaFileModalCrud } from "../features/media-library/hooks/useMediaFileModalCrud";
 import { useMediaModalImageZoom } from "../features/media-library/hooks/useMediaModalImageZoom";
 import { useMediaPromptModalCrud } from "../features/media-library/hooks/useMediaPromptModalCrud";
-import { useMediaPreviewRuntime } from "../features/media-library/hooks/useMediaPreviewRuntime";
-import { useMediaPreviewSigningController } from "../features/media-library/hooks/useMediaPreviewSigningController";
+import { useMediaSurfacePreviewSigning } from "../features/media-library/hooks/useMediaSurfacePreviewSigning";
+import { useMediaSurfacePreviewRuntime } from "../features/media-library/hooks/useMediaSurfacePreviewRuntime";
 import { useMediaSingleMoveController } from "../features/media-library/hooks/useMediaSingleMoveController";
 import { useMediaAdaptivePressure } from "../features/media-library/hooks/useMediaAdaptivePressure";
 import { useMediaTabDataController } from "../features/media-library/hooks/useMediaTabDataController";
 import { useMediaUploadController } from "../features/media-library/hooks/useMediaUploadController";
 import { MEDIA_LIBRARY_SIGN_PREFETCH_ENABLED } from "../features/media-library/logic/mediaLibraryFeatureFlags";
 import {
+  getMediaLibrarySurfaceConfig,
+  useMediaLibraryRouteRuntime,
+} from "../features/media-library/runtime";
+import {
   BUCKET,
-  MEDIA_DATA_TABS,
-  createMediaTabCacheState,
   formatDate,
   getErrorMessage,
   getMediaDataTabForRow,
@@ -42,8 +44,6 @@ import {
   isVideoFile,
   normalizeMediaSearchTerm,
   sortByCreatedAtDesc,
-  type MediaDataTab,
-  type MediaTabCache as MediaTabCacheState,
 } from "../features/media-library/logic/mediaLibraryPageHelpers";
 
 type MediaRow = {
@@ -76,23 +76,16 @@ type PromptRow = {
   updated_at: string;
 };
 
-type MediaTabCache = MediaTabCacheState<MediaRow>;
-
 const MEDIA_LIBRARY_PAGE_SIZE = 60;
 const MEDIA_LIBRARY_CACHE_TTL_MS = 30_000;
+const ROUTE_SURFACE_CONFIG = getMediaLibrarySurfaceConfig("route");
 
 export default function MediaLibrary() {
-  const [files, setFiles] = useState<MediaRow[]>([]);
-  const [prompts, setPrompts] = useState<PromptRow[]>([]);
-  const [promptsLoaded, setPromptsLoaded] = useState(false);
-  const [mediaTabCache, setMediaTabCache] =
-    useState<Record<MediaDataTab, MediaTabCache>>(createMediaTabCacheState);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<MediaTab>("uploaded_images");
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
-  const [aspectMap, setAspectMap] = useState<Record<string, number>>({});
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [bulkMoving, setBulkMoving] = useState(false);
   const [bulkMoveError, setBulkMoveError] = useState<string | null>(null);
@@ -102,6 +95,22 @@ export default function MediaLibrary() {
   const loadMoreSentinelRef = useRef<HTMLDivElement | null>(null);
   const [focusedFile, setFocusedFile] = useState<MediaRow | null>(null);
   const [storageUsageBytes, setStorageUsageBytes] = useState<number | null>(null);
+  const activeMediaTab = isMediaDataTab(activeTab) ? activeTab : null;
+  const {
+    activeMediaCache,
+    aspectMap,
+    cachedMediaBytes,
+    files,
+    mediaTabCache,
+    prompts,
+    promptsLoaded,
+    setAspectRatio,
+    setSignedUrls,
+    setFiles,
+    setMediaTabCache,
+    setPrompts,
+    setPromptsLoaded,
+  } = useMediaLibraryRouteRuntime<MediaRow, PromptRow>({ activeMediaTab });
   const {
     closePromptModal,
     deletePrompt,
@@ -123,17 +132,6 @@ export default function MediaLibrary() {
   const firstCardShellLoggedRef = useRef(false);
   const openToFirstMediaTimerRef = useRef<ReturnType<typeof createMediaPerfTimer> | null>(null);
   const openToFirstMediaLoggedRef = useRef(false);
-  const cachedMediaBytes = useMemo(() => {
-    const byId = new Map<string, number>();
-    for (const tab of MEDIA_DATA_TABS) {
-      for (const file of mediaTabCache[tab].rows) {
-        if (!byId.has(file.id)) {
-          byId.set(file.id, file.file_size || 0);
-        }
-      }
-    }
-    return Array.from(byId.values()).reduce((sum, size) => sum + size, 0);
-  }, [mediaTabCache]);
   const totalBytes = storageUsageBytes ?? cachedMediaBytes;
   const planLimitMb = 1024;
   const planUsage = { label: "Plan", name: "Creative Suite" };
@@ -142,8 +140,6 @@ export default function MediaLibrary() {
     const limitGb = planLimitMb / 1024;
     return `${usedMb.toFixed(1)} MB / ${limitGb.toFixed(1)} GB`;
   }, [planLimitMb, totalBytes]);
-  const activeMediaTab = isMediaDataTab(activeTab) ? activeTab : null;
-  const activeMediaCache = activeMediaTab ? mediaTabCache[activeMediaTab] : null;
   const adaptivePreviewQualityEnabled = isAdaptiveSurfaceEnabled("media-library-grid");
   const mediaAdaptivePressure = useMediaAdaptivePressure({
     surface: "media-library-route",
@@ -153,34 +149,30 @@ export default function MediaLibrary() {
     () => normalizeMediaSearchTerm(debouncedSearch),
     [debouncedSearch]
   );
-  const {
-    activeMediaQueryRef,
-    activeTabRef,
-    applySignedUrlsToTab,
-    currentUserIdRef,
-    getMediaCardRef,
-    handleMediaPreviewError,
-    hydrateViaStorageDownload,
-    isMountedRef,
-    markFirstMediaPaint,
-    mediaSignInFlightRef,
-    mediaTabRequestRef,
-    resolveSignedUrlsByMediaIds,
-    setSignPassNonce,
-    signAttemptRef,
-    signBudget,
-    signPassNonce,
-    signStoragePath,
-    signedUrlRetryRef,
-    visibleMediaIdsRef,
-    visibleMediaVersion,
-  } = useMediaPreviewRuntime<MediaRow>({
+  const previewRuntime = useMediaSurfacePreviewRuntime<MediaRow, MediaTab>({
     activeMediaQuery,
     activeTab,
+    applySignedUrlsToSurface: (_tab, signedById) => setSignedUrls(signedById),
+    firstMediaPaintEventName: "media.route.first_media_paint",
+    previewProfile: ROUTE_SURFACE_CONFIG.imageCardPreviewProfile,
+    shouldApplySignedUrlsToActiveRows: (tab) => activeTab === tab,
+    signBudgetResolver: ROUTE_SURFACE_CONFIG.signBudgetResolver,
+    surface: ROUTE_SURFACE_CONFIG.listSurface,
+    visibilityRootMargin: ROUTE_SURFACE_CONFIG.visibilityRootMargin,
     setFiles,
     setFocusedFile,
     setMediaTabCache,
   });
+  const {
+    activeTabRef,
+    currentUserIdRef,
+    getMediaCardRef,
+    handleMediaPreviewError,
+    markFirstMediaPaint,
+    mediaTabRequestRef,
+    signStoragePath,
+    signedUrlRetryRef,
+  } = previewRuntime;
 
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
@@ -329,33 +321,22 @@ export default function MediaLibrary() {
     });
   }, [activeMediaTab, files, mediaSearchTerm]);
   const effectiveSignBudget = useMemo(() => {
-    if (activeMediaTab !== "private") return signBudget;
+    if (activeMediaTab !== "private") return previewRuntime.signBudget;
     return {
-      ...signBudget,
-      prefetchWindow: Math.min(signBudget.prefetchWindow, 12),
-      signBatchSize: Math.min(signBudget.signBatchSize, 5),
+      ...previewRuntime.signBudget,
+      prefetchWindow: Math.min(previewRuntime.signBudget.prefetchWindow, 12),
+      signBatchSize: Math.min(previewRuntime.signBudget.signBatchSize, 5),
     };
-  }, [activeMediaTab, signBudget]);
+  }, [activeMediaTab, previewRuntime.signBudget]);
 
-  useMediaPreviewSigningController({
+  useMediaSurfacePreviewSigning<MediaRow, MediaTab>({
+    runtime: previewRuntime,
     activeMediaTab,
     activeMediaCacheLoading: Boolean(activeMediaCache?.loading),
     activeMediaCachePagesLoaded: activeMediaCache?.pagesLoaded ?? 0,
-    activeMediaQueryRef,
-    activeTabRef,
-    applySignedUrlsToTab,
-    currentUserIdRef,
+    activeMediaQuery,
     filteredMedia,
-    hydrateViaStorageDownload,
-    isMountedRef,
-    mediaSignInFlightRef,
-    resolveSignedUrlsByMediaIds,
-    setSignPassNonce,
-    signAttemptRef,
-    signBudget: effectiveSignBudget,
-    signPassNonce,
-    visibleMediaIdsRef,
-    visibleMediaVersion,
+    signBudgetOverride: effectiveSignBudget,
     isSignPrefetchEnabled: MEDIA_LIBRARY_SIGN_PREFETCH_ENABLED,
     maxSignCandidatesPerRow: activeMediaTab === "private" ? 2 : 4,
   });
@@ -430,13 +411,12 @@ export default function MediaLibrary() {
     }
   };
 
-  const cacheAspectRatio = useCallback((id: string, ratio: number) => {
-    if (!Number.isFinite(ratio) || ratio <= 0) return;
-    setAspectMap((prev) => {
-      if (prev[id] === ratio) return prev;
-      return { ...prev, [id]: ratio };
-    });
-  }, []);
+  const cacheAspectRatio = useCallback(
+    (id: string, ratio: number) => {
+      setAspectRatio(id, ratio);
+    },
+    [setAspectRatio]
+  );
 
   const handleImageLoad = (id: string, event: React.SyntheticEvent<HTMLImageElement>) => {
     const img = event.currentTarget;

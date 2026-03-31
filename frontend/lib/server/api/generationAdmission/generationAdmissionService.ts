@@ -1,46 +1,123 @@
 /**
  * Generation admission service (IO layer).
- * Reads active reservation state and returns submit admission decisions.
+ * Reads active provider-attached capacity state and returns submit admission decisions.
  */
 import {
   DEFAULT_GENERATION_ADMISSION_TIER_LIMITS,
   evaluateGenerationAdmissionDecision,
 } from "./generationAdmissionPolicy";
-import type { GenerationAdmissionConfig, GenerationAdmissionDecision } from "./types";
+import type {
+  GenerationAdmissionConfig,
+  GenerationAdmissionDecision,
+  GenerationAdmissionSnapshot,
+} from "./types";
 import {
   DEFAULT_GENERATION_ADMISSION_TIER,
   resolveGenerationAdmissionTier,
 } from "../../../model-runtime/generationAdmissionTiers";
-import { getSupabaseAdmin } from "../supabaseAdmin";
+import {
+  readActiveProviderCapacitySnapshot,
+  type ActiveProviderCapacitySnapshot,
+} from "../generationQueue/activeProviderCapacity";
+import { resolveProviderFromModelId } from "../../providerIntegration/providerRuntimeConfig";
 
-const ACTIVE_RESERVATION_STATUS = "reserved";
-
-const asModelId = (value: unknown): string | null => {
-  if (typeof value !== "string") return null;
-  const trimmed = value.trim();
-  return trimmed.length ? trimmed : null;
+export type ScopedGenerationAdmissionDecision = {
+  decision: GenerationAdmissionDecision;
+  capacitySnapshot: ActiveProviderCapacitySnapshot;
 };
 
-const readActiveReservationModelIds = async (userId: string): Promise<string[]> => {
-  const { data, error } = await getSupabaseAdmin()
-    .from("ai_credit_reservations")
-    .select("model_id")
-    .eq("user_id", userId)
-    .eq("status", ACTIVE_RESERVATION_STATUS);
-  if (error) throw error;
+const buildOffModeSnapshot = ({
+  modelId,
+  globalMax,
+  tierLimits,
+}: {
+  modelId: string;
+  globalMax: number;
+  tierLimits: GenerationAdmissionConfig["tierLimits"];
+}): GenerationAdmissionSnapshot => {
+  const tier = resolveGenerationAdmissionTier(modelId) ?? DEFAULT_GENERATION_ADMISSION_TIER;
+  const fallbackTierMax = DEFAULT_GENERATION_ADMISSION_TIER_LIMITS[tier];
+  return {
+    globalActive: 0,
+    globalMax,
+    tier,
+    tierActive: 0,
+    tierMax: tierLimits[tier] ?? fallbackTierMax,
+  };
+};
 
-  const rows = Array.isArray(data) ? data : [];
-  const modelIds: string[] = [];
-  for (const row of rows) {
-    const record =
-      row && typeof row === "object" && !Array.isArray(row)
-        ? (row as Record<string, unknown>)
-        : null;
-    if (!record) continue;
-    const modelId = asModelId(record.model_id);
-    if (modelId) modelIds.push(modelId);
+/**
+ * Evaluates whether a scoped provider-attached submit should be admitted at this moment.
+ */
+export const evaluateScopedGenerationAdmission = async ({
+  scopeUserId,
+  provider,
+  modelId,
+  config,
+  globalMax,
+  staleIgnoreMinAgeSeconds,
+  activeGenerationStaleIgnoreMinAgeSeconds,
+  orphanGraceSeconds,
+}: {
+  scopeUserId?: string | null;
+  provider: string;
+  modelId: string;
+  config: GenerationAdmissionConfig;
+  globalMax: number;
+  staleIgnoreMinAgeSeconds: number;
+  activeGenerationStaleIgnoreMinAgeSeconds: number;
+  orphanGraceSeconds: number;
+}): Promise<ScopedGenerationAdmissionDecision> => {
+  const offModeSnapshot = buildOffModeSnapshot({
+    modelId,
+    globalMax,
+    tierLimits: config.tierLimits,
+  });
+
+  if (config.mode === "off") {
+    return {
+      decision: evaluateGenerationAdmissionDecision({
+        mode: config.mode,
+        retryAfterSeconds: config.retryAfterSeconds,
+        snapshot: offModeSnapshot,
+      }),
+      capacitySnapshot: {
+        tier: offModeSnapshot.tier,
+        globalActive: 0,
+        tierActive: 0,
+        staleIgnoredGlobal: 0,
+        staleIgnoredTier: 0,
+      },
+    };
   }
-  return modelIds;
+
+  const capacitySnapshot = await readActiveProviderCapacitySnapshot({
+    userId: scopeUserId,
+    provider,
+    modelId,
+    staleIgnoreMinAgeSeconds,
+    activeGenerationStaleIgnoreMinAgeSeconds,
+    orphanGraceSeconds,
+  });
+
+  const tierMax =
+    config.tierLimits[capacitySnapshot.tier] ??
+    DEFAULT_GENERATION_ADMISSION_TIER_LIMITS[capacitySnapshot.tier];
+
+  return {
+    decision: evaluateGenerationAdmissionDecision({
+      mode: config.mode,
+      retryAfterSeconds: config.retryAfterSeconds,
+      snapshot: {
+        globalActive: capacitySnapshot.globalActive + 1,
+        globalMax,
+        tier: capacitySnapshot.tier,
+        tierActive: capacitySnapshot.tierActive + 1,
+        tierMax,
+      },
+    }),
+    capacitySnapshot,
+  };
 };
 
 /**
@@ -50,43 +127,28 @@ export const evaluateUserGenerationAdmission = async ({
   userId,
   modelId,
   config,
+  provider = resolveProviderFromModelId({ modelId, fallback: "fal" }),
+  staleIgnoreMinAgeSeconds = 0,
+  activeGenerationStaleIgnoreMinAgeSeconds = 0,
+  orphanGraceSeconds = 0,
 }: {
   userId: string;
   modelId: string;
   config: GenerationAdmissionConfig;
-}): Promise<GenerationAdmissionDecision> => {
-  const tier = resolveGenerationAdmissionTier(modelId) ?? DEFAULT_GENERATION_ADMISSION_TIER;
-  const fallbackTierMax = DEFAULT_GENERATION_ADMISSION_TIER_LIMITS[tier];
-  const tierMax = config.tierLimits[tier] ?? fallbackTierMax;
-
-  if (config.mode === "off") {
-    return evaluateGenerationAdmissionDecision({
-      mode: config.mode,
-      retryAfterSeconds: config.retryAfterSeconds,
-      snapshot: {
-        globalActive: 0,
-        globalMax: config.globalMax,
-        tier,
-        tierActive: 0,
-        tierMax,
-      },
-    });
-  }
-
-  const activeModelIds = await readActiveReservationModelIds(userId);
-  const tierActive = activeModelIds.filter(
-    (candidateModelId) => resolveGenerationAdmissionTier(candidateModelId) === tier
-  ).length;
-
-  return evaluateGenerationAdmissionDecision({
-    mode: config.mode,
-    retryAfterSeconds: config.retryAfterSeconds,
-    snapshot: {
-      globalActive: activeModelIds.length,
+  provider?: string;
+  staleIgnoreMinAgeSeconds?: number;
+  activeGenerationStaleIgnoreMinAgeSeconds?: number;
+  orphanGraceSeconds?: number;
+}): Promise<GenerationAdmissionDecision> =>
+  (
+    await evaluateScopedGenerationAdmission({
+      scopeUserId: userId,
+      provider,
+      modelId,
+      config,
       globalMax: config.globalMax,
-      tier,
-      tierActive,
-      tierMax,
-    },
-  });
-};
+      staleIgnoreMinAgeSeconds,
+      activeGenerationStaleIgnoreMinAgeSeconds,
+      orphanGraceSeconds,
+    })
+  ).decision;

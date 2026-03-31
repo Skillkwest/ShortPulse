@@ -4,6 +4,10 @@
  */
 import { useCallback, useMemo, useRef, useSyncExternalStore } from "react";
 import type { StudioOutput } from "../types";
+import {
+  incrementFreezeInvestigationCounter,
+  setFreezeInvestigationGauge,
+} from "../logic/freezeInvestigationTelemetry";
 
 export type AiStudioOutputIndexes = {
   inFlightIds: Set<string>;
@@ -65,6 +69,15 @@ const areStringArraysEqual = (left: string[], right: string[]) => {
   return true;
 };
 
+const areOutputEntityArraysEqual = (left: StudioOutput[], right: StudioOutput[]) => {
+  if (left === right) return true;
+  if (left.length !== right.length) return false;
+  for (let index = 0; index < left.length; index += 1) {
+    if (left[index] !== right[index]) return false;
+  }
+  return true;
+};
+
 const areOutputMapsEquivalent = (
   left: Record<string, StudioOutput>,
   right: Record<string, StudioOutput>,
@@ -74,6 +87,18 @@ const areOutputMapsEquivalent = (
   if (Object.keys(left).length !== Object.keys(right).length) return false;
   for (const id of order) {
     if (left[id] !== right[id]) return false;
+  }
+  return true;
+};
+
+const areOutputMapsEqualForIds = (
+  left: Record<string, StudioOutput>,
+  right: Record<string, StudioOutput>,
+  ids: readonly string[]
+) => {
+  if (left === right) return true;
+  for (const id of ids) {
+    if ((left[id] ?? null) !== (right[id] ?? null)) return false;
   }
   return true;
 };
@@ -130,8 +155,10 @@ const buildIndexes = ({
 };
 
 const notifyOutputStoreListeners = () => {
+  incrementFreezeInvestigationCounter("outputStore.notify.calls");
   if (isNotifyingOutputStoreListeners) {
     hasPendingOutputStoreNotify = true;
+    incrementFreezeInvestigationCounter("outputStore.notify.reentrant");
     return;
   }
   isNotifyingOutputStoreListeners = true;
@@ -139,6 +166,7 @@ const notifyOutputStoreListeners = () => {
     do {
       hasPendingOutputStoreNotify = false;
       const listeners = Array.from(outputStoreListeners);
+      setFreezeInvestigationGauge("outputStore.listenerCount", listeners.length);
       listeners.forEach((listener) => {
         if (!outputStoreListeners.has(listener)) return;
         listener();
@@ -207,6 +235,10 @@ export const setAiStudioOutputStoreSnapshot = ({
     return;
   }
 
+  incrementFreezeInvestigationCounter("outputStore.snapshot.publish");
+  setFreezeInvestigationGauge("outputStore.activeCount", nextOutputOrder.length);
+  setFreezeInvestigationGauge("outputStore.archivedCount", nextArchivedOutputOrder.length);
+  setFreezeInvestigationGauge("outputStore.inFlightCount", indexes.inFlightIds.size);
   outputStoreSnapshot = {
     outputOrder: nextOutputOrder,
     outputById: nextOutputById,
@@ -242,11 +274,14 @@ export const useOutputSelector = <T>(
   const subscribe = useCallback(
     (notify: () => void) => {
       return subscribeAiStudioOutputs(() => {
+        incrementFreezeInvestigationCounter("outputStore.selectorNotify.calls");
         const previousSelected = selectedRef.current;
         const nextSelected = selector(outputStoreSnapshot);
         if (isEqual(previousSelected, nextSelected)) {
+          incrementFreezeInvestigationCounter("outputStore.selectorNotify.skipped");
           return;
         }
+        incrementFreezeInvestigationCounter("outputStore.selectorNotify.changed");
         selectedRef.current = nextSelected;
         notify();
       });
@@ -294,6 +329,58 @@ export const useOutputCounts = () => {
       archivedCount: counts[1],
     }),
     [counts]
+  );
+};
+
+/**
+ * Reads a denormalized slice of outputs by explicit ids while preserving item identity equality.
+ */
+export const useOutputsByIds = (
+  ids: readonly string[],
+  options?: { includeArchived?: boolean }
+): StudioOutput[] => {
+  const includeArchived = options?.includeArchived ?? false;
+  return useOutputSelector(
+    useCallback(
+      (snapshot: AiStudioOutputStoreSnapshot) =>
+        ids
+          .map(
+            (id) =>
+              snapshot.outputById[id] ??
+              (includeArchived ? snapshot.archivedOutputById[id] : undefined)
+          )
+          .filter((item): item is StudioOutput => Boolean(item)),
+      [ids, includeArchived]
+    ),
+    areOutputEntityArraysEqual
+  );
+};
+
+/**
+ * Reads a normalized id->output map for explicit ids while preserving entity identity equality.
+ */
+export const useOutputMapByIds = (
+  ids: readonly string[],
+  options?: { includeArchived?: boolean }
+): Record<string, StudioOutput> => {
+  const includeArchived = options?.includeArchived ?? false;
+  return useOutputSelector(
+    useCallback(
+      (snapshot: AiStudioOutputStoreSnapshot) => {
+        const next: Record<string, StudioOutput> = {};
+        ids.forEach((id) => {
+          const item =
+            snapshot.outputById[id] ??
+            (includeArchived ? snapshot.archivedOutputById[id] : undefined);
+          if (item) {
+            next[id] = item;
+          }
+        });
+        return next;
+      },
+      [ids, includeArchived]
+    ),
+    (left, right) => areOutputMapsEqualForIds(left, right, ids)
   );
 };
 

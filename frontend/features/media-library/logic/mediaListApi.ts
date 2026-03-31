@@ -20,6 +20,7 @@ type MediaListResponse<TRow> = {
   nextCursor?: MediaListCursor | null;
   hasMore?: boolean;
   signedById?: Record<string, string | null>;
+  libraryTotalCount?: number | null;
 };
 
 type FetchMediaListPageArgs = {
@@ -31,6 +32,7 @@ type FetchMediaListPageArgs = {
   profile?: MediaListProfile;
   folderId?: string | null;
   mediaKind?: MediaListMediaKind | null;
+  includeLibraryTotalCount?: boolean;
   fetcher?: typeof fetchWithAuth;
 };
 
@@ -39,6 +41,7 @@ export type FetchMediaListPageResult<TRow> = {
   nextCursor: MediaListCursor | null;
   hasMore: boolean;
   signedById: Map<string, string>;
+  libraryTotalCount?: number | null;
 } | null;
 
 const MAX_LIMIT_BY_SURFACE: Record<MediaListSurface, number> = {
@@ -79,6 +82,7 @@ export const fetchMediaListPage = async <TRow>({
   profile,
   folderId,
   mediaKind,
+  includeLibraryTotalCount,
   fetcher = fetchWithAuth,
 }: FetchMediaListPageArgs): Promise<FetchMediaListPageResult<TRow>> => {
   try {
@@ -96,6 +100,7 @@ export const fetchMediaListPage = async <TRow>({
         profile,
         folderId: typeof folderId === "string" && folderId.trim() ? folderId.trim() : undefined,
         mediaKind: mediaKind ?? undefined,
+        includeLibraryTotalCount: includeLibraryTotalCount === true,
       }),
       shortpulseLogScope: "app",
     }).catch(() => null);
@@ -104,6 +109,10 @@ export const fetchMediaListPage = async <TRow>({
     const rows = Array.isArray(payload?.rows) ? payload.rows : [];
     const nextCursor = toSafeCursor(payload?.nextCursor);
     const hasMore = payload?.hasMore === true;
+    const libraryTotalCount =
+      typeof payload?.libraryTotalCount === "number" && Number.isFinite(payload.libraryTotalCount)
+        ? Math.max(0, Math.trunc(payload.libraryTotalCount))
+        : null;
     const signedById = new Map<string, string>();
     const signedMap = payload?.signedById ?? {};
     for (const [id, rawUrl] of Object.entries(signedMap)) {
@@ -117,6 +126,7 @@ export const fetchMediaListPage = async <TRow>({
       nextCursor,
       hasMore,
       signedById,
+      libraryTotalCount,
     };
   } catch {
     return null;

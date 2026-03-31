@@ -26,6 +26,7 @@ Start here for all repository documentation.
 - `docs/architecture-overview.md`
 - `docs/frontend-architecture.md`
 - `docs/styles-structure.md`
+- `docs/adr/README.md`
 - `docs/prefabs.md`
 - `docs/routes.md`
 - `docs/local-development.md`
@@ -165,6 +166,10 @@ Start here for all repository documentation.
 - `docs/planning/generation-pipeline-hardening-contact-map-2026-03-16.md`
 - `docs/planning/generation-pipeline-hardening-execution-plan-2026-03-16.md`
 - `docs/planning/generation-settlement-control-plane-hardening-execution-plan-2026-03-23.md`
+- `docs/planning/media-library-runtime-rebuild-master-plan-2026-03-28.md`
+- `docs/planning/media-library-runtime-rebuild-tracker-2026-03-28.md`
+- `docs/planning/media-library-ui-redesign-plan-2026-03-28.md`
+- `docs/planning/ai-architecture-follow-on-revisit-report-2026-03-29.md`
 - `docs/planning/generation-pipeline-rebuild-blueprint-2026-03-27.md`
 - `docs/planning/generation-pipeline-rebuild-master-roadmap-2026-03-27.md`
 - `docs/planning/generation-pipeline-rebuild-lane-1-request-attempt-plan-2026-03-27.md`
@@ -172,6 +177,24 @@ Start here for all repository documentation.
 - `docs/planning/generation-pipeline-rebuild-lane-1-transition-matrix-2026-03-27.md`
 - `docs/planning/generation-pipeline-rebuild-lane-1-schema-delta-and-compatibility-contract-2026-03-27.md`
 - `docs/planning/generation-pipeline-rebuild-lane-1-billing-replay-provider-event-contract-2026-03-27.md`
+- `docs/planning/generation-pipeline-rebuild-state-machine-service-plan-2026-03-27.md`
+- `docs/planning/generation-pipeline-rebuild-state-machine-runtime-transition-contract-2026-03-27.md`
+- `docs/planning/generation-pipeline-rebuild-state-machine-read-model-posture-2026-03-27.md`
+- `docs/planning/generation-pipeline-rebuild-lifecycle-read-model-control-plane-plan-2026-03-27.md`
+- `docs/planning/generation-pipeline-rebuild-lifecycle-read-model-control-plane-contract-2026-03-27.md`
+- `docs/planning/generation-pipeline-rebuild-recovery-control-plane-orchestration-plan-2026-03-27.md`
+- `docs/planning/generation-pipeline-rebuild-recovery-control-plane-stage-contract-2026-03-27.md`
+- `docs/planning/generation-pipeline-rebuild-provider-event-replay-plan-2026-03-27.md`
+- `docs/planning/generation-pipeline-rebuild-provider-event-replay-contract-2026-03-27.md`
+- `docs/planning/generation-pipeline-rebuild-admin-trace-health-alignment-plan-2026-03-27.md`
+- `docs/planning/generation-pipeline-rebuild-admin-trace-health-alignment-contract-2026-03-27.md`
+- `docs/planning/generation-pipeline-rebuild-generated-reuse-dragdrop-authority-plan-2026-03-27.md`
+- `docs/planning/generation-pipeline-rebuild-generated-reuse-dragdrop-authority-contract-2026-03-27.md`
+- `docs/planning/generation-pipeline-rebuild-generated-reuse-authority-cutover-plan-2026-03-27.md`
+- `docs/planning/generation-pipeline-rebuild-generated-reuse-authority-cutover-contract-2026-03-27.md`
+- `docs/planning/generation-pipeline-rebuild-compatibility-retirement-evidence-plan-2026-03-27.md`
+- `docs/planning/generation-pipeline-rebuild-compatibility-retirement-inventory-2026-03-27.md`
+- `docs/planning/generation-pipeline-rebuild-compatibility-retirement-classification-2026-03-27.md`
 - `docs/planning/generation-pipeline-rebuild-lane-2-historical-data-quality-gates-2026-03-27.md`
 - `docs/planning/generation-pipeline-rebuild-lane-2-backfill-execution-plan-2026-03-27.md`
 - `docs/planning/generation-pipeline-rebuild-lane-2-classification-query-set-and-fallback-inventory-2026-03-27.md`
@@ -309,6 +332,7 @@ Start here for all repository documentation.
 - `docs/planning/ai-studio-reference-grid-stabilization-v4-plan.md`
 - `docs/planning/ai-studio-reference-grid-modularization-program.md`
 - `docs/planning/ai-studio-reference-grid-modularization-tracker.md`
+- `docs/planning/ai-studio-reference-grid-runtime-simplification-plan-2026-03-31.md` (paused checkpoint; search handles: `AI Studio Reference Grid runtime`, `reference grid freeze lane`, `ref-grid runtime plan`)
 - `docs/planning/naming-canonicalization-program.md`
 - `docs/planning/naming-canonical-map.md`
 - `docs/planning/naming-decision-log.md`
@@ -344,6 +368,8 @@ Start here for all repository documentation.
 - `docs/planning/evidence/lane-e/README.md`
 - `docs/planning/evidence/lane-f/README.md`
 - `docs/planning/evidence/generation-pipeline-hardening/README.md`
+- `docs/planning/evidence/media-library-runtime-rebuild/README.md`
+- `docs/planning/evidence/media-library-runtime-rebuild/2026-03-28-mlr-0-s2-characterization-and-freeze-repro-baseline.md`
 - `docs/planning/evidence/agent-pipeline-remediation/README.md`
 - `docs/planning/evidence/agent-pipeline-remediation/master/2026-03-20-phase-1-entry-gate-signoff.md`
 - `docs/planning/evidence/agent-pipeline-remediation/phase-1/README.md`

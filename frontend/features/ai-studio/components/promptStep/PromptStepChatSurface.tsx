@@ -20,6 +20,7 @@ import type {
   AgentOutputBubbleMediaState,
   AgentOutputGenerateInput,
 } from "../../../../prefabs/agent";
+import { resolveChatOffCreatePrompt } from "../../logic/promptAdjacency";
 import type { PromptStepInlineGenerateConfig } from "./types";
 
 type PromptStepChatSurfaceProps = {
@@ -173,9 +174,20 @@ export const PromptStepChatSurface: React.FC<PromptStepChatSurfaceProps> = ({
   const hasHistoryAttachments = !dropToInputComposer && stagedAttachments.length > 0;
   const inlineGenerateCostLabel =
     outputGenerateCostCredits != null ? outputGenerateCostCredits.toLocaleString() : "—";
-  const inlineGenerateDisabled =
-    Boolean(chatModeInlineGenerate?.disabled) || agentInput.trim().length === 0;
+  const hasResolvedInlineGeneratePrompt = Boolean(
+    resolveChatOffCreatePrompt({
+      agentInput,
+      sharedPrompt: prompt,
+      allowSharedPromptFallback: true,
+    })
+  );
   const hasInlineGenerateAction = !chatModeEnabled && Boolean(chatModeInlineGenerate?.onGenerate);
+  const inlineGenerateDisabled =
+    Boolean(chatModeInlineGenerate?.disabled) ||
+    disableOutputGenerate ||
+    !hasResolvedInlineGeneratePrompt;
+  const inlineGenerateGuardrailReason =
+    hasInlineGenerateAction && inlineGenerateDisabled ? outputGenerateGuardrailReason : null;
   const shouldUsePostInputInlineGenerate =
     hasInlineGenerateAction && Boolean(composerLeadingContent);
   const hasAgentChatContent =
@@ -294,6 +306,9 @@ export const PromptStepChatSurface: React.FC<PromptStepChatSurfaceProps> = ({
           className={`agent-chat-inline-spacer ${emptyAgentChatSpacerClassName}`.trim()}
           aria-hidden="true"
         />
+      ) : null}
+      {inlineGenerateGuardrailReason ? (
+        <div className="inline-warning-hint">{inlineGenerateGuardrailReason}</div>
       ) : null}
       <div
         className={`step2-input-row prompt-actions-compact agent-composer-row ${

@@ -10,6 +10,7 @@ type ListFoldersSuccessResponse = {
   folders: Array<{
     id: string;
     name: string;
+    parentFolderId: string | null;
     createdAt: string;
     updatedAt: string;
   }>;
@@ -40,6 +41,7 @@ export default async function handler(
       folders: folders.map((folder) => ({
         id: folder.id,
         name: folder.name,
+        parentFolderId: folder.parent_folder_id,
         createdAt: folder.created_at,
         updatedAt: folder.updated_at,
       })),

@@ -314,6 +314,20 @@ vi.mock("../../../../components/DashboardNavPrefab", () => ({
 }));
 
 vi.mock("../../../../lib/supabaseClient", () => ({
+  ensureSupabaseQueryClient: () => ({
+    from: () => ({
+      select: () => ({
+        eq: () => ({
+          maybeSingle: supabaseClientMockState.mediaLookupMaybeSingle,
+        }),
+      }),
+    }),
+    storage: {
+      from: () => ({
+        download: supabaseClientMockState.storageDownload,
+      }),
+    },
+  }),
   ensureSupabaseClient: () => ({
     auth: {
       getUser: async () => ({ data: { user: null } }),
@@ -331,6 +345,11 @@ vi.mock("../../../../lib/supabaseClient", () => ({
         download: supabaseClientMockState.storageDownload,
       }),
     },
+  }),
+  useSupabaseSessionState: () => ({
+    user: null,
+    session: null,
+    loading: false,
   }),
 }));
 
@@ -1197,7 +1216,7 @@ describe("CharacterManagerShell behavior", () => {
     }
   });
 
-  it("accepts an internal reference-grid drop without media id into a Character Sheet zone", async () => {
+  it("fails closed for internal Character Sheet drops without media id or canonical preview", async () => {
     const fetchMock = vi.fn(async () => ({
       ok: true,
       blob: async () => new Blob(["internal-no-media"], { type: "image/png" }),
@@ -1232,10 +1251,8 @@ describe("CharacterManagerShell behavior", () => {
 
       await waitFor(() => {
         expect(resolveCharacterDropReference).toHaveBeenCalled();
-        expect(fetchMock).toHaveBeenCalledWith(
-          "https://example.com/internal-no-media-character-sheet.png"
-        );
-        expect(getZoneImageSrc("Portrait")).toBe("https://example.com/preset-1-portrait-1.png");
+        expect(fetchMock).not.toHaveBeenCalled();
+        expect(getZoneImageSrc("Portrait")).toBeNull();
       });
     } finally {
       vi.unstubAllGlobals();
@@ -1383,7 +1400,7 @@ describe("CharacterManagerShell behavior", () => {
     }
   });
 
-  it("accepts an internal reference-grid drop into QuickSwap without media id", async () => {
+  it("fails closed for internal QuickSwap drops without media id or canonical preview", async () => {
     const fetchMock = vi.fn(async () => ({
       ok: true,
       blob: async () => new Blob(["internal-no-media"], { type: "image/png" }),
@@ -1422,10 +1439,8 @@ describe("CharacterManagerShell behavior", () => {
 
       await waitFor(() => {
         expect(resolveCharacterDropReference).toHaveBeenCalled();
-        expect(fetchMock).toHaveBeenCalledWith(
-          "https://example.com/internal-no-media-quickswap.png"
-        );
-        expect(screen.getAllByRole("button", { name: /Remove reference/i })).toHaveLength(3);
+        expect(fetchMock).not.toHaveBeenCalled();
+        expect(screen.getAllByRole("button", { name: /Remove reference/i })).toHaveLength(2);
       });
     } finally {
       vi.unstubAllGlobals();
@@ -1805,6 +1820,11 @@ describe("CharacterManagerShell behavior", () => {
         name: /Uploaded references/i,
       })
     ).toBeInTheDocument();
+    expect(
+      screen.queryByText(
+        "The quick swap deck is a small library of images you can quickly access to swap out your character's style on the fly."
+      )
+    ).not.toBeInTheDocument();
   });
 
   it("hides embedded QuickSwap guidance when the tip preference is already hidden", () => {
@@ -1816,7 +1836,7 @@ describe("CharacterManagerShell behavior", () => {
   });
 
   it("persists hidden QuickSwap guidance once the deck reaches four rows", async () => {
-    quickSwapDeckMockState.initialActiveItems = createQuickSwapItems(11);
+    quickSwapDeckMockState.initialActiveItems = createQuickSwapItems(12);
 
     render(<CharacterManagerShell surface="panel" beginnerModeOverride={false} />);
 
@@ -1972,7 +1992,7 @@ describe("CharacterManagerShell behavior", () => {
     });
   });
 
-  it("keeps helper text and tips visible in expert mode while hiding numbered badges", async () => {
+  it("keeps helper text visible in expert mode while hiding numbered badges", async () => {
     render(<CharacterManagerShell />);
 
     expect(document.querySelectorAll(".character-step-badge")).toHaveLength(2);
@@ -1986,10 +2006,7 @@ describe("CharacterManagerShell behavior", () => {
         "Drag or upload references into each slot. These images are used to train your character generations."
       )
     ).toBeInTheDocument();
-    expect(document.querySelector(".character-mode-guidance")).toBeInTheDocument();
-    expect(document.querySelector(".character-mode-guidance")).toHaveTextContent(
-      /Swap out your character's style on the fly by dragging and dropping references from the QuickSwap Deck into the Character References\./i
-    );
+    expect(document.querySelector(".character-mode-guidance")).toBeNull();
     expect(
       screen.getByText("Tip: Character description will be used as part of consistency generation.")
     ).toBeInTheDocument();
@@ -2008,7 +2025,6 @@ describe("CharacterManagerShell behavior", () => {
           "Drag or upload references into each slot. These images are used to train your character generations."
         )
       ).toBeInTheDocument();
-      expect(document.querySelector(".character-mode-guidance")).toBeInTheDocument();
       expect(
         screen.getByText(
           "Tip: Character description will be used as part of consistency generation."
@@ -2030,15 +2046,27 @@ describe("CharacterManagerShell behavior", () => {
           "Drag or upload references into each slot. These images are used to train your character generations."
         )
       ).toBeInTheDocument();
-      expect(document.querySelector(".character-mode-guidance")).toBeInTheDocument();
-      expect(document.querySelector(".character-mode-guidance")).toHaveTextContent(
-        /Swap out your character's style on the fly by dragging and dropping references from the QuickSwap Deck into the Character References\./i
-      );
+      expect(document.querySelector(".character-mode-guidance")).toBeNull();
       expect(
         screen.getByText(
           "Tip: Character description will be used as part of consistency generation."
         )
       ).toBeInTheDocument();
     });
+  });
+
+  it("keeps the standalone route QuickSwap helper visible while the embedded panel stays lean", () => {
+    const quickSwapHelperCopy =
+      "The quick swap deck is a small library of images you can quickly access to swap out your character's style on the fly.";
+
+    const { unmount } = render(<CharacterManagerShell />);
+
+    expect(screen.getByText(quickSwapHelperCopy)).toBeInTheDocument();
+
+    unmount();
+
+    render(<CharacterManagerShell surface="panel" beginnerModeOverride={true} />);
+
+    expect(screen.queryByText(quickSwapHelperCopy)).not.toBeInTheDocument();
   });
 });

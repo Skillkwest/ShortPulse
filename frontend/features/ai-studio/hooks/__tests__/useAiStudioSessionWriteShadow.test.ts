@@ -64,6 +64,7 @@ describe("useAiStudioSessionWriteShadow", () => {
       useAiStudioSessionWriteShadow({
         sessionId: snapshot.sessionId,
         snapshot,
+        enabled: true,
         persistSnapshot,
       })
     );
@@ -93,6 +94,7 @@ describe("useAiStudioSessionWriteShadow", () => {
       useAiStudioSessionWriteShadow({
         sessionId: snapshot.sessionId,
         snapshot,
+        enabled: true,
         persistSnapshot,
       })
     );
@@ -123,6 +125,7 @@ describe("useAiStudioSessionWriteShadow", () => {
       useAiStudioSessionWriteShadow({
         sessionId: snapshot.sessionId,
         snapshot,
+        enabled: true,
         persistSnapshot,
       })
     );
@@ -150,6 +153,7 @@ describe("useAiStudioSessionWriteShadow", () => {
         useAiStudioSessionWriteShadow({
           sessionId: sid,
           snapshot,
+          enabled: true,
           persistSnapshot,
         }),
       { initialProps: { snapshot: createSnapshot({ updatedAt: "2026-03-02T00:00:00.000Z" }) } }
@@ -180,6 +184,7 @@ describe("useAiStudioSessionWriteShadow", () => {
       useAiStudioSessionWriteShadow({
         sessionId: snapshot.sessionId,
         snapshot,
+        enabled: true,
         maxSnapshotBytes: 1024,
         persistSnapshot,
         onPersistError,
@@ -197,6 +202,50 @@ describe("useAiStudioSessionWriteShadow", () => {
         reason: "snapshot_too_large",
         maxSnapshotBytes: 1024,
       })
+    );
+  });
+
+  it("persists when only the resolved title changes", async () => {
+    const persistSnapshot = vi.fn().mockResolvedValue(undefined);
+    const snapshot = createSnapshot();
+    const { rerender } = renderHook(
+      ({ resolveSnapshotTitle }: { resolveSnapshotTitle: () => string | null }) =>
+        useAiStudioSessionWriteShadow({
+          sessionId: snapshot.sessionId,
+          snapshot,
+          enabled: true,
+          persistSnapshot,
+          resolveSnapshotTitle,
+        }),
+      {
+        initialProps: {
+          resolveSnapshotTitle: () => "Project Alpha",
+        },
+      }
+    );
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(2500);
+    });
+
+    expect(persistSnapshot).toHaveBeenCalledTimes(1);
+    expect(persistSnapshot).toHaveBeenLastCalledWith(
+      snapshot.sessionId,
+      snapshot,
+      expect.objectContaining({ title: "Project Alpha" })
+    );
+
+    rerender({ resolveSnapshotTitle: () => "Project Beta" });
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(2500);
+    });
+
+    expect(persistSnapshot).toHaveBeenCalledTimes(2);
+    expect(persistSnapshot).toHaveBeenLastCalledWith(
+      snapshot.sessionId,
+      snapshot,
+      expect.objectContaining({ title: "Project Beta" })
     );
   });
 });

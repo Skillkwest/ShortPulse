@@ -27,6 +27,8 @@ describe("buildAdminHealthResponse", () => {
         updated_at: "2026-03-17T11:55:00.000Z",
       },
       generations: [],
+      attempts: [],
+      outputs: [],
       reservations: [],
       queueRows: [],
       ledger: [],
@@ -80,6 +82,8 @@ describe("buildAdminHealthResponse", () => {
           next_recovery_at: "2026-03-17T10:45:00.000Z",
         },
       ],
+      attempts: [],
+      outputs: [],
       reservations: [
         {
           id: "res-1",
@@ -179,6 +183,8 @@ describe("buildAdminHealthResponse", () => {
           next_recovery_at: "2026-03-17T11:22:00.000Z",
         },
       ],
+      attempts: [],
+      outputs: [],
       reservations: [],
       queueRows: [],
       ledger: [],
@@ -190,6 +196,92 @@ describe("buildAdminHealthResponse", () => {
     );
     expect(result.findings.map((finding) => finding.code)).not.toEqual(
       expect.arrayContaining(["STUCK_GENERATIONS"])
+    );
+  });
+
+  it("uses attempt linkage and canonical outputs to reduce false missing-linkage diagnosis", () => {
+    const result = buildAdminHealthResponse({
+      lookup: "user-1",
+      lookupMode: "user_id",
+      lookbackDays: 30,
+      authUser: {
+        id: "user-1",
+        email: "user@example.com",
+      },
+      generationsSelectUsed: "id,status,recovery_state,request_id",
+      reservationsSupported: true,
+      queueSupported: true,
+      ledgerLegacySchema: false,
+      compatibilityWarnings: [],
+      balance: null,
+      generations: [
+        {
+          id: "gen-attempt-1",
+          status: "running",
+          recovery_state: "queued",
+          provider: "fal",
+          model_id: "model-1",
+          request_id: null,
+          created_at: "2026-03-17T10:30:00.000Z",
+          completed_at: null,
+          failure_reason_code: null,
+          next_recovery_at: "2026-03-17T10:45:00.000Z",
+        },
+      ],
+      attempts: [
+        {
+          id: "attempt-1",
+          generation_id: "gen-attempt-1",
+          provider_request_id: "req-attempt-1",
+          status: "running",
+          created_at: "2026-03-17T10:31:00.000Z",
+        },
+      ],
+      outputs: [
+        {
+          id: "output-1",
+          generation_id: "gen-attempt-1",
+          media_file_id: "file-1",
+          created_at: "2026-03-17T10:40:00.000Z",
+        },
+      ],
+      reservations: [
+        {
+          id: "res-1",
+          status: "reserved",
+          source_ref: "src-1",
+          provider_request_id: "req-attempt-1",
+          model_id: "model-1",
+          amount_cents: 200,
+          metadata: null,
+          created_at: "2026-03-17T10:30:00.000Z",
+          released_at: null,
+          captured_at: null,
+        },
+      ],
+      queueRows: [],
+      ledger: [
+        {
+          id: "ledger-1",
+          user_id: "user-1",
+          change_cents: -200,
+          reason: "generation charge",
+          source: "generation_charge",
+          source_ref: "src-1",
+          metadata: null,
+          created_at: "2026-03-17T10:41:00.000Z",
+        },
+      ],
+      nowMs: Date.parse("2026-03-17T12:00:00.000Z"),
+    });
+
+    expect(result.generations.stuckOver1hCount).toBe(1);
+    expect(result.drainage.costWithoutSuccessfulGeneration.debitCents).toBe(0);
+    expect(result.findings.map((finding) => finding.code)).not.toEqual(
+      expect.arrayContaining([
+        "CHARGED_MISSING_LINKAGE_DATA",
+        "CHARGED_LINKED_NON_SUCCESS_GENERATION",
+      ])
     );
   });
 });

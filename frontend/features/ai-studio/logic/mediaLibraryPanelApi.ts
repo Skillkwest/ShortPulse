@@ -9,6 +9,7 @@ export type MediaFolderId = typeof MEDIA_LIBRARY_ROOT_FOLDER_ID | string;
 export type MediaFolder = {
   id: string;
   name: string;
+  parentFolderId: string | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -206,12 +207,15 @@ export const listMediaFolders = async (): Promise<MediaFolder[]> => {
       const row = asRecord(raw);
       const id = asString(row.id);
       const name = asString(row.name);
+      const parentFolderId =
+        row.parentFolderId == null ? null : asString(row.parentFolderId) || null;
       const createdAt = asString(row.createdAt);
       const updatedAt = asString(row.updatedAt);
       if (!id || !name) return null;
       return {
         id,
         name,
+        parentFolderId,
         createdAt,
         updatedAt,
       } as MediaFolder;
@@ -222,13 +226,16 @@ export const listMediaFolders = async (): Promise<MediaFolder[]> => {
 /**
  * Creates a folder.
  */
-export const createMediaFolder = async (name: string): Promise<MediaFolder> => {
+export const createMediaFolder = async (
+  name: string,
+  parentFolderId: string | null = null
+): Promise<MediaFolder> => {
   const response = await fetchWithAuth("/api/media/folders/create", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ name }),
+    body: JSON.stringify({ name, parentFolderId }),
     shortpulseLogScope: "app",
   });
   if (!response.ok) {
@@ -245,6 +252,7 @@ export const createMediaFolder = async (name: string): Promise<MediaFolder> => {
   return {
     id,
     name: folderName,
+    parentFolderId: folder.parentFolderId == null ? null : asString(folder.parentFolderId) || null,
     createdAt: asString(folder.createdAt),
     updatedAt: asString(folder.updatedAt),
   };
@@ -282,6 +290,45 @@ export const renameMediaFolder = async ({
   return {
     id,
     name: folderName,
+    parentFolderId: folder.parentFolderId == null ? null : asString(folder.parentFolderId) || null,
+    createdAt: asString(folder.createdAt),
+    updatedAt: asString(folder.updatedAt),
+  };
+};
+
+/**
+ * Moves a folder to a new parent.
+ */
+export const moveMediaFolder = async ({
+  folderId,
+  parentFolderId,
+}: {
+  folderId: string;
+  parentFolderId: string | null;
+}): Promise<MediaFolder> => {
+  const response = await fetchWithAuth("/api/media/folders/move", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ folderId, parentFolderId }),
+    shortpulseLogScope: "app",
+  });
+  if (!response.ok) {
+    const payload = asRecord(await response.json().catch(() => ({})));
+    throw new Error(asString(payload.error) || "Unable to move folder.");
+  }
+  const payload = asRecord(await response.json().catch(() => ({})));
+  const folder = asRecord(payload.folder);
+  const id = asString(folder.id);
+  const folderName = asString(folder.name);
+  if (!id || !folderName) {
+    throw new Error("Unable to move folder.");
+  }
+  return {
+    id,
+    name: folderName,
+    parentFolderId: folder.parentFolderId == null ? null : asString(folder.parentFolderId) || null,
     createdAt: asString(folder.createdAt),
     updatedAt: asString(folder.updatedAt),
   };

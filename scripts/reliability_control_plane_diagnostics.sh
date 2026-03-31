@@ -34,6 +34,7 @@ fi
 SQL_FILES=(
   "$ROOT_DIR/sql/check_control_plane_scheduler_health.sql"
   "$ROOT_DIR/sql/check_pg_net_failure_taxonomy.sql"
+  "$ROOT_DIR/sql/check_generation_queue_dispatch_latency.sql"
   "$ROOT_DIR/sql/check_runtime_sql_security_audit.sql"
   "$ROOT_DIR/sql/check_generation_settlement_integrity.sql"
   "$ROOT_DIR/sql/check_control_plane_enforce_gate.sql"
@@ -106,6 +107,7 @@ if [[ -n "${GITHUB_STEP_SUMMARY:-}" ]]; then
     echo "- SQL files:"
     echo "  - \`sql/check_control_plane_scheduler_health.sql\`"
     echo "  - \`sql/check_pg_net_failure_taxonomy.sql\`"
+    echo "  - \`sql/check_generation_queue_dispatch_latency.sql\`"
     echo "  - \`sql/check_runtime_sql_security_audit.sql\`"
     echo "  - \`sql/check_generation_settlement_integrity.sql\`"
     echo "  - \`sql/check_control_plane_enforce_gate.sql\`"

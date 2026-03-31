@@ -1,0 +1,7 @@
+interface:
+  display_name: "Major Task Mode"
+  short_description: "Rigorous on-demand task execution mode."
+  default_prompt: "Use $major-task-mode for a rigorous implementation pass with self-audit and relevant tests."
+
+policy:
+  allow_implicit_invocation: false

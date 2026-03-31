@@ -124,12 +124,43 @@ describe("PromptStep agent actions", () => {
     render(
       <PromptStep
         {...baseProps}
+        prompt=""
         chatModeEnabled={false}
         agentInput=""
         chatModeInlineGenerate={{ onGenerate: vi.fn() }}
       />
     );
 
+    expect(screen.getByRole("button", { name: "Generate with current prompt" })).toBeDisabled();
+  });
+
+  it("keeps inline generate enabled in chat-off mode when the shared prompt can be used", () => {
+    render(
+      <PromptStep
+        {...baseProps}
+        prompt="shared fallback prompt"
+        chatModeEnabled={false}
+        agentInput=""
+        chatModeInlineGenerate={{ onGenerate: vi.fn() }}
+      />
+    );
+
+    expect(screen.getByRole("button", { name: "Generate with current prompt" })).toBeEnabled();
+  });
+
+  it("shows a generic disabled reason for chat-off inline generate when provided", () => {
+    render(
+      <PromptStep
+        {...baseProps}
+        chatModeEnabled={false}
+        agentInput="a clear product prompt"
+        chatModeInlineGenerate={{ onGenerate: vi.fn() }}
+        disableOutputGenerate
+        outputGenerateGuardrailReason="Select a model before generating."
+      />
+    );
+
+    expect(screen.getAllByText("Select a model before generating.").length).toBeGreaterThan(0);
     expect(screen.getByRole("button", { name: "Generate with current prompt" })).toBeDisabled();
   });
 

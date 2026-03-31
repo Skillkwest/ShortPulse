@@ -8,9 +8,14 @@ import type { ReferenceGridMediaAuthorityTier } from "../../logic/referenceGridM
 import type { StudioOutput } from "../../types";
 import type { ReferenceDragSourceSurface } from "../../utils/dragDrop";
 import { isReferenceOutputFailing } from "../logic/referenceGridLoadingState";
+import type { ReferenceGridMediaOutput } from "../logic/referenceGridMediaOutput";
+import {
+  incrementFreezeInvestigationCounter,
+  setFreezeInvestigationGauge,
+} from "../../logic/freezeInvestigationTelemetry";
 
 export type ReferenceGridVisibleCard = {
-  item: StudioOutput;
+  item: ReferenceGridMediaOutput;
   authorityTier: ReferenceGridMediaAuthorityTier;
   cardPreviewUrl: string | null;
   isVideoPreview: boolean;
@@ -21,6 +26,7 @@ export type ReferenceGridVisibleCard = {
 
 type UseReferenceGridCardRenderControllerArgs = {
   activeOutputId: string | null;
+  visibleOutputById: Record<string, StudioOutput>;
   autoplayEnabledIdSet: Set<string>;
   linkedPromptReferenceIdSet: Set<string>;
   loadingCardIdSet: Set<string>;
@@ -65,6 +71,7 @@ type UseReferenceGridCardRenderControllerResult = {
  */
 export const useReferenceGridCardRenderController = ({
   activeOutputId,
+  visibleOutputById,
   autoplayEnabledIdSet,
   linkedPromptReferenceIdSet,
   loadingCardIdSet,
@@ -94,6 +101,15 @@ export const useReferenceGridCardRenderController = ({
   onSaveToLibrary,
   onDownload,
 }: UseReferenceGridCardRenderControllerArgs): UseReferenceGridCardRenderControllerResult => {
+  incrementFreezeInvestigationCounter("referenceGrid.cardRender.recompute");
+  setFreezeInvestigationGauge(
+    "referenceGrid.cardRender.visibleCardItemsCount",
+    visibleCardItems.length
+  );
+  setFreezeInvestigationGauge(
+    "referenceGrid.cardRender.visibleCuratedCardItemsCount",
+    curatedVisibleCardItems.length
+  );
   const renderReferenceCard = useCallback(
     (
       card: ReferenceGridVisibleCard,
@@ -102,16 +118,18 @@ export const useReferenceGridCardRenderController = ({
         isCuratedSurface: boolean;
       }
     ) => {
-      const isFailing = isReferenceOutputFailing(card.item);
-      const isGenerationLoading = generationLoadingCardIdSet.has(card.item.id);
-      const isHydrationLoading = hydrationLoadingCardIdSet.has(card.item.id);
+      const currentOutput = visibleOutputById[card.item.id];
+      if (!currentOutput) return null;
+      const isFailing = isReferenceOutputFailing(currentOutput);
+      const isGenerationLoading = generationLoadingCardIdSet.has(currentOutput.id);
+      const isHydrationLoading = hydrationLoadingCardIdSet.has(currentOutput.id);
       const shouldPreferCuratedSurface =
-        !options.isCuratedSurface && visibleQuickSlotIdSet.has(card.item.id);
+        !options.isCuratedSurface && visibleQuickSlotIdSet.has(currentOutput.id);
       const suppressDuplicateAllRefsLoading = shouldPreferCuratedSurface && !isGenerationLoading;
       const shouldWarmVideoPreview =
         card.isVideoPreview &&
         !shouldPreferCuratedSurface &&
-        (activeOutputId === card.item.id || autoplayEnabledIdSet.has(card.item.id));
+        (activeOutputId === currentOutput.id || autoplayEnabledIdSet.has(currentOutput.id));
       const suppressDormantVideoLoading =
         card.isVideoPreview && !shouldWarmVideoPreview && !isGenerationLoading;
       const isCardLoading = suppressDormantVideoLoading
@@ -130,17 +148,18 @@ export const useReferenceGridCardRenderController = ({
       const canAutoplayVideo =
         card.isVideoPreview &&
         !shouldPreferCuratedSurface &&
-        autoplayEnabledIdSet.has(card.item.id) &&
+        autoplayEnabledIdSet.has(currentOutput.id) &&
         perfDegradeLevel < 2;
-      const isPromptOnly = !card.cardPreviewUrl && !!card.item.previewText;
-      const isLinkedPromptReference = isPromptOnly && linkedPromptReferenceIdSet.has(card.item.id);
+      const isPromptOnly = !card.cardPreviewUrl && !!currentOutput.previewText;
+      const isLinkedPromptReference =
+        isPromptOnly && linkedPromptReferenceIdSet.has(currentOutput.id);
       const canRetryStatus =
-        Boolean(onRetryStatus && card.item.taskId) && (isFailing || isGenerationLoading);
-      const videoNodeKey = `${options.surface}:${card.item.id}`;
+        Boolean(onRetryStatus && currentOutput.taskId) && (isFailing || isGenerationLoading);
+      const videoNodeKey = `${options.surface}:${currentOutput.id}`;
       return (
         <ReferenceGridCard
-          key={options.isCuratedSurface ? `curated-${card.item.id}` : card.item.id}
-          item={card.item}
+          key={options.isCuratedSurface ? `curated-${currentOutput.id}` : currentOutput.id}
+          item={currentOutput}
           dragSourceSurface={options.surface}
           videoNodeKey={videoNodeKey}
           activeOutputId={activeOutputId}
@@ -207,6 +226,7 @@ export const useReferenceGridCardRenderController = ({
       autoplayEnabledIdSet,
       linkedPromptReferenceIdSet,
       markLoaded,
+      visibleOutputById,
       generationLoadingCardIdSet,
       hydrationLoadingCardIdSet,
       onAutoplayStarted,

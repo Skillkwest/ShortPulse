@@ -31,8 +31,12 @@ type UseAiStudioOptimisticDebitReconciliationParams = {
   setDetailOutputId: Dispatch<SetStateAction<string | null>>;
 };
 
+type FailureCard = Pick<
+  StudioOutput,
+  "id" | "model" | "modelId" | "prompt" | "errorMessage" | "errorDetail"
+>;
 type ReconciliationOutputLite = Pick<StudioOutput, "id" | "taskId" | "taskState" | "errorMessage">;
-const EMPTY_OUTPUTS: StudioOutput[] = [];
+const EMPTY_FAILURES: FailureCard[] = [];
 const EMPTY_OUTPUT_LITE: ReconciliationOutputLite[] = [];
 
 const areOutputLiteListsEqual = (
@@ -52,6 +56,22 @@ const areOutputLiteListsEqual = (
   });
 };
 
+const areFailureCardListsEqual = (left: FailureCard[], right: FailureCard[]) => {
+  if (left === right) return true;
+  if (left.length !== right.length) return false;
+  return left.every((item, index) => {
+    const rhs = right[index];
+    return (
+      item.id === rhs?.id &&
+      item.model === rhs?.model &&
+      item.modelId === rhs?.modelId &&
+      item.prompt === rhs?.prompt &&
+      item.errorMessage === rhs?.errorMessage &&
+      item.errorDetail === rhs?.errorDetail
+    );
+  });
+};
+
 /**
  * Returns failure UI state and handlers while reconciling optimistic debit entries with output lifecycle.
  */
@@ -62,17 +82,6 @@ export const useAiStudioOptimisticDebitReconciliation = ({
   refreshBalance,
   setDetailOutputId,
 }: UseAiStudioOptimisticDebitReconciliationParams) => {
-  const selectorOutputs = useOutputSelector(
-    (snapshot) => {
-      if (outputsOverride) return EMPTY_OUTPUTS;
-      return snapshot.outputOrder
-        .map((id) => snapshot.outputById[id])
-        .filter((item): item is StudioOutput => Boolean(item));
-    },
-    (left, right) =>
-      left.length === right.length && left.every((item, index) => item === right[index])
-  );
-  const outputs = outputsOverride ?? selectorOutputs;
   const outputLite = useOutputSelector((snapshot) => {
     if (outputsOverride) return EMPTY_OUTPUT_LITE;
     return snapshot.outputOrder
@@ -85,50 +94,76 @@ export const useAiStudioOptimisticDebitReconciliation = ({
         errorMessage: item.errorMessage ?? null,
       }));
   }, areOutputLiteListsEqual);
+  const selectorFailureCards = useOutputSelector((snapshot) => {
+    if (outputsOverride) return EMPTY_FAILURES;
+    return snapshot.outputOrder
+      .map((id) => snapshot.outputById[id])
+      .filter((item): item is StudioOutput => Boolean(item))
+      .filter((item) => item.taskState === "fail" && Boolean(item.errorMessage))
+      .map((item) => ({
+        id: item.id,
+        model: item.model,
+        modelId: item.modelId,
+        prompt: item.prompt,
+        errorMessage: item.errorMessage ?? null,
+        errorDetail: item.errorDetail ?? null,
+      }));
+  }, areFailureCardListsEqual);
   const overrideOutputLite = useMemo<ReconciliationOutputLite[]>(
     () =>
-      outputs.map((item) => ({
+      (outputsOverride ?? []).map((item) => ({
         id: item.id,
         taskId: item.taskId,
         taskState: item.taskState,
         errorMessage: item.errorMessage ?? null,
       })),
-    [outputs]
+    [outputsOverride]
+  );
+  const overrideFailureCards = useMemo<FailureCard[]>(
+    () =>
+      (outputsOverride ?? [])
+        .filter((item) => item.taskState === "fail" && Boolean(item.errorMessage))
+        .map((item) => ({
+          id: item.id,
+          model: item.model,
+          modelId: item.modelId,
+          prompt: item.prompt,
+          errorMessage: item.errorMessage ?? null,
+          errorDetail: item.errorDetail ?? null,
+        })),
+    [outputsOverride]
   );
   const effectiveOutputLite = outputsOverride ? overrideOutputLite : outputLite;
+  const failureCards = outputsOverride ? overrideFailureCards : selectorFailureCards;
   const [dismissedFailureIds, setDismissedFailureIds] = useState<Set<string>>(new Set());
   const settledGenerationSignaturesRef = useRef<Set<string>>(new Set());
   const seenOutputIdsRef = useRef<Set<string>>(new Set());
   const failedDebitCleanupSignatureRef = useRef<string>("");
 
-  const failedOutputs = useMemo(
-    () => outputs.filter((item) => item.taskState === "fail" && item.errorMessage),
-    [outputs]
-  );
   const failedOutputIdsKey = useMemo(
     () =>
-      failedOutputs
+      failureCards
         .map((item) => item.id)
         .sort()
         .join("|"),
-    [failedOutputs]
+    [failureCards]
   );
 
   const visibleFailures = useMemo(
-    () => failedOutputs.filter((item) => !dismissedFailureIds.has(item.id)),
-    [dismissedFailureIds, failedOutputs]
+    () => failureCards.filter((item) => !dismissedFailureIds.has(item.id)),
+    [dismissedFailureIds, failureCards]
   );
 
   useEffect(() => {
     if (!dismissedFailureIds.size) return;
     setDismissedFailureIds((prev) => {
       if (!prev.size) return prev;
-      const activeIds = new Set(failedOutputs.map((item) => item.id));
+      const activeIds = new Set(failureCards.map((item) => item.id));
       const filtered = Array.from(prev).filter((id) => activeIds.has(id));
       if (filtered.length === prev.size) return prev;
       return new Set(filtered);
     });
-  }, [dismissedFailureIds, failedOutputIdsKey, failedOutputs]);
+  }, [dismissedFailureIds, failedOutputIdsKey, failureCards]);
 
   useEffect(() => {
     const newlySeenOutputIds: string[] = [];

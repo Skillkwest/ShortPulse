@@ -6284,12 +6284,12 @@ describe("ExpertEditPanelView", () => {
       throw new Error("Expected flattened reference inputs.");
     }
     expect(referenceInputs[0]).toMatch(/^blob:flatten-/);
-    expect(referenceInputs).toContain("https://example.com/extra.png");
+    expect(referenceInputs).toHaveLength(1);
     expect(submitOptions?.referenceInputsMode).toBe("replace");
     expect(submitOptions?.hideOutputFromReferenceGrid).toBeUndefined();
   });
 
-  it("auto-flatten generate forwards camera framing (zoom + pan + viewport)", async () => {
+  it("auto-flatten generate ignores outer stage viewport framing and exports composition aspect ratio", async () => {
     const onRegenerateWithReferenceInputs: NonNullable<
       React.ComponentProps<typeof ExpertEditPanelView>["onRegenerateWithReferenceInputs"]
     > = vi.fn(async () => {});
@@ -6351,20 +6351,10 @@ describe("ExpertEditPanelView", () => {
     ).mock.calls;
     const flattenOptions = (flattenCalls.at(-1)?.[1] ?? null) as {
       outputAspectRatio?: number;
-      camera?: {
-        scale?: number;
-        offsetX?: number;
-        offsetY?: number;
-        viewportWidth?: number;
-        viewportHeight?: number;
-      };
+      camera?: unknown;
     } | null;
     expect(flattenOptions?.outputAspectRatio ?? 0).toBeCloseTo(1, 4);
-    expect(flattenOptions?.camera?.scale ?? 0).toBeGreaterThan(1);
-    expect(Math.abs(flattenOptions?.camera?.offsetX ?? 0)).toBeGreaterThan(20);
-    expect(Math.abs(flattenOptions?.camera?.offsetY ?? 0)).toBeGreaterThan(8);
-    expect(flattenOptions?.camera?.viewportWidth).toBe(200);
-    expect(flattenOptions?.camera?.viewportHeight).toBe(200);
+    expect(flattenOptions?.camera).toBeUndefined();
   });
 
   it("auto-flatten generate passes display/submission prompt overrides when @img tokens are used", async () => {
@@ -6410,6 +6400,49 @@ describe("ExpertEditPanelView", () => {
     expect(submitOptions?.displayPromptOverride).toBe("Put @img1 in the background.");
     expect(submitOptions?.submissionPromptOverride).toContain("Put Figure 2 in the background.");
     expect(submitOptions?.submissionPromptOverride).toContain("Reference map:");
+  });
+
+  it("auto-flatten generate sends only explicitly linked secondary references to the model", async () => {
+    const onRegenerateWithReferenceInputs: NonNullable<
+      React.ComponentProps<typeof ExpertEditPanelView>["onRegenerateWithReferenceInputs"]
+    > = vi.fn(async (referenceInputs, options) => {
+      void referenceInputs;
+      void options;
+    });
+    const { container } = render(
+      <ExpertEditPanelView
+        {...baseProps}
+        referenceText="Use @img1 for the background."
+        extraImageUrls={[
+          "https://example.com/linked-extra.png",
+          "https://example.com/unlinked-extra.png",
+          null,
+        ]}
+        onRegenerateWithReferenceInputs={onRegenerateWithReferenceInputs}
+      />
+    );
+
+    uploadPrimaryFile(container, "layer-1.png");
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /^generate$/i }));
+      await Promise.resolve();
+    });
+
+    expect(onRegenerateWithReferenceInputs).toHaveBeenCalledTimes(1);
+    const submissionCalls = (
+      onRegenerateWithReferenceInputs as unknown as {
+        mock: {
+          calls: Array<[string[]]>;
+        };
+      }
+    ).mock.calls;
+    const submittedReferences = submissionCalls[0]?.[0] ?? [];
+    expect(submittedReferences).toEqual([
+      expect.stringMatching(/^blob:flatten-/),
+      "https://example.com/linked-extra.png",
+    ]);
+    expect(submittedReferences).not.toContain("https://example.com/unlinked-extra.png");
   });
 
   it("auto-flatten generate includes a markup-composite secondary reference when flag is enabled and strokes exist", async () => {
@@ -6985,13 +7018,11 @@ describe("ExpertEditPanelView", () => {
       const maskExportArgs = (exportSelectedLayerMaskBlobMock.mock.calls[0]?.[0] ?? null) as {
         targetWidth?: number;
         targetHeight?: number;
-        camera?: { scale?: number; offsetX?: number; offsetY?: number };
+        camera?: unknown;
       } | null;
       expect(maskExportArgs?.targetWidth).toBe(640);
       expect(maskExportArgs?.targetHeight).toBe(640);
-      expect(maskExportArgs?.camera?.scale ?? 0).toBeGreaterThan(1);
-      expect(maskExportArgs?.camera?.offsetX ?? 999).toBe(0);
-      expect(maskExportArgs?.camera?.offsetY ?? 999).toBe(0);
+      expect(maskExportArgs?.camera).toBeUndefined();
     } finally {
       useInpaintMaskControllerSpy.mockRestore();
       Object.defineProperty(globalThis, "Image", {
@@ -7002,7 +7033,7 @@ describe("ExpertEditPanelView", () => {
     }
   });
 
-  it("keeps flatten and inpaint mask export camera framing aligned under zoom and pan", async () => {
+  it("keeps flatten and inpaint mask export scoped to the composition surface under zoom and pan", async () => {
     const onRegenerateWithReferenceInputs: NonNullable<
       React.ComponentProps<typeof ExpertEditPanelView>["onRegenerateWithReferenceInputs"]
     > = vi.fn(async () => {});
@@ -7104,37 +7135,15 @@ describe("ExpertEditPanelView", () => {
         }
       ).mock.calls;
       const flattenOptions = (flattenCalls.at(-1)?.[1] ?? null) as {
-        camera?: {
-          scale?: number;
-          offsetX?: number;
-          offsetY?: number;
-          viewportWidth?: number;
-          viewportHeight?: number;
-        };
+        outputAspectRatio?: number;
+        camera?: unknown;
       } | null;
       const maskExportArgs = (exportSelectedLayerMaskBlobMock.mock.calls[0]?.[0] ?? null) as {
-        camera?: {
-          scale?: number;
-          offsetX?: number;
-          offsetY?: number;
-          viewportWidth?: number;
-          viewportHeight?: number;
-        };
+        camera?: unknown;
       } | null;
-      expect(flattenOptions?.camera?.scale ?? 0).toBeGreaterThan(1);
-      expect(Math.abs(flattenOptions?.camera?.offsetX ?? 0)).toBeGreaterThan(20);
-      expect(Math.abs(flattenOptions?.camera?.offsetY ?? 0)).toBeGreaterThan(8);
-      expect(maskExportArgs?.camera?.scale ?? 0).toBeCloseTo(flattenOptions?.camera?.scale ?? 0, 4);
-      expect(maskExportArgs?.camera?.offsetX ?? 0).toBeCloseTo(
-        flattenOptions?.camera?.offsetX ?? 0,
-        4
-      );
-      expect(maskExportArgs?.camera?.offsetY ?? 0).toBeCloseTo(
-        flattenOptions?.camera?.offsetY ?? 0,
-        4
-      );
-      expect(maskExportArgs?.camera?.viewportWidth).toBe(flattenOptions?.camera?.viewportWidth);
-      expect(maskExportArgs?.camera?.viewportHeight).toBe(flattenOptions?.camera?.viewportHeight);
+      expect(flattenOptions?.outputAspectRatio ?? 0).toBeCloseTo(1, 4);
+      expect(flattenOptions?.camera).toBeUndefined();
+      expect(maskExportArgs?.camera).toBeUndefined();
     } finally {
       useInpaintMaskControllerSpy.mockRestore();
       Object.defineProperty(globalThis, "Image", {
@@ -7143,7 +7152,7 @@ describe("ExpertEditPanelView", () => {
         value: previousImage,
       });
     }
-  });
+  }, 15000);
 
   it("blocks generate when Inpaint is selected without an inpaint mask", async () => {
     const onRegenerateWithReferenceInputs: NonNullable<

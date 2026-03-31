@@ -247,6 +247,7 @@ export const chargeGenerationRequest = async ({
           tier_active: reserveResult.admission?.tierActive ?? null,
           tier_max:
             reserveResult.admission?.tierMax ?? runtimeFlags.admission.tierLimits[admissionTier],
+          admission_scope: "per_user",
           admission_source: "atomic_reservation_rpc",
         },
       });
@@ -255,6 +256,8 @@ export const chargeGenerationRequest = async ({
         error: "Too many active generations. Please retry shortly.",
         code: "GENERATION_ADMISSION_LIMIT",
         retryAfterSeconds,
+        admissionScope: "per_user",
+        admissionReason: reserveResult.admission?.reason ?? "admission_limited",
         ...(limits ? { limits } : {}),
       });
       return null;

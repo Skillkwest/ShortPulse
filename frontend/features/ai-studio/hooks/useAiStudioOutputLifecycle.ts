@@ -214,8 +214,10 @@ export const useAiStudioOutputLifecycle = ({
   }, [pendingAutoSavesRef, setActiveOutputId, setOutputs]);
 
   useEffect(() => {
+    // Run one immediate pass on mount; steady-state stale detection stays on the timed cadence
+    // so hot generation sessions do not rescan the full output list on every output mutation.
     sweepStaleOutputs();
-  }, [outputs, sweepStaleOutputs]);
+  }, [sweepStaleOutputs]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;

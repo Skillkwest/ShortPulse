@@ -193,4 +193,26 @@ describe("useReferenceGridHorizontalSplit", () => {
 
     expect(result.current.topSectionHeightPx).toBeCloseTo(topHeightBefore, 3);
   });
+
+  it("snaps the top section to its maximum height when expanded", () => {
+    vi.stubGlobal("ResizeObserver", MockResizeObserver);
+    const containerRef = { current: createContainer(400) };
+    const { result } = renderHook(() =>
+      useReferenceGridHorizontalSplit({
+        enabled: true,
+        containerRef,
+        defaultTopRatio: 0.35,
+        minTopSectionHeightPx: 100,
+        minBottomSectionHeightPx: 100,
+        allRefsSnapTopHeightPx: 120,
+      })
+    );
+
+    act(() => {
+      result.current.snapToInventoryExpanded();
+    });
+
+    expect(result.current.topRatio).toBeCloseTo(0.75, 3);
+    expect(result.current.topSectionHeightPx).toBeCloseTo(300, 3);
+  });
 });

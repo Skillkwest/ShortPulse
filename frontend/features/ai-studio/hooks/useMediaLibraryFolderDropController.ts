@@ -36,6 +36,7 @@ type UseMediaLibraryFolderDropControllerArgs = {
   folders: MediaFolder[];
   setFolderError: (value: string | null) => void;
   setMembershipMessage: (value: string | null) => void;
+  setMembershipPendingMessage: (value: string | null) => void;
   refreshActiveRows: () => Promise<void>;
   resolveInternalDropItem?: ResolveInternalDropItem;
   onDropFilesToFolder?: (folderId: string, files: FileList) => Promise<void>;
@@ -43,10 +44,15 @@ type UseMediaLibraryFolderDropControllerArgs = {
 
 type UseMediaLibraryFolderDropControllerResult = {
   hoveredFolderId: string | null;
+  hoveredContentFolderId: string | null;
   clearHoveredFolderId: () => void;
+  clearHoveredContentFolderId: () => void;
   handleFolderDragOver: (folderId: string, event: DragEvent<HTMLElement>) => void;
   handleFolderDragLeave: (folderId: string) => void;
   handleFolderDrop: (folderId: string, event: DragEvent<HTMLElement>) => Promise<void>;
+  handleFolderContentDragOver: (folderId: string, event: DragEvent<HTMLElement>) => void;
+  handleFolderContentDragLeave: (folderId: string) => void;
+  handleFolderContentDrop: (folderId: string, event: DragEvent<HTMLElement>) => Promise<void>;
 };
 
 const INTERNAL_REFERENCE_TRANSFER_HINT_TYPES = [
@@ -137,17 +143,20 @@ const buildFeedbackArgs = ({
 };
 
 /**
- * Handles folder tile drop interactions and applies assign/unassign/move membership operations.
+ * Handles folder tile and active-folder content drop interactions and applies
+ * assign/unassign/move membership operations.
  */
 export const useMediaLibraryFolderDropController = ({
   folders,
   setFolderError,
   setMembershipMessage,
+  setMembershipPendingMessage,
   refreshActiveRows,
   resolveInternalDropItem,
   onDropFilesToFolder,
 }: UseMediaLibraryFolderDropControllerArgs): UseMediaLibraryFolderDropControllerResult => {
   const [hoveredFolderId, setHoveredFolderId] = useState<string | null>(null);
+  const [hoveredContentFolderId, setHoveredContentFolderId] = useState<string | null>(null);
 
   const resolveDropItem = useCallback(
     async (transfer: DataTransfer): Promise<ResolvedFolderDropItem> => {
@@ -179,10 +188,9 @@ export const useMediaLibraryFolderDropController = ({
     [resolveInternalDropItem]
   );
 
-  const handleFolderDragOver = useCallback(
-    (folderId: string, event: DragEvent<HTMLElement>) => {
-      const transfer = event.dataTransfer;
-      if (!transfer) return;
+  const canAcceptTransfer = useCallback(
+    (transfer: DataTransfer | null | undefined): boolean => {
+      if (!transfer) return false;
       const maybeLibraryPayload =
         hasMediaLibraryTransferHints(transfer) || readMediaLibraryDragPayload(transfer);
       const maybeInternalPayload =
@@ -190,13 +198,21 @@ export const useMediaLibraryFolderDropController = ({
         extractInternalReferenceDragPayload(transfer);
       const maybeDesktopFiles =
         hasDesktopFileTransferHints(transfer) && Boolean(onDropFilesToFolder);
-      if (!maybeLibraryPayload && !maybeInternalPayload && !maybeDesktopFiles) return;
+      return Boolean(maybeLibraryPayload || maybeInternalPayload || maybeDesktopFiles);
+    },
+    [onDropFilesToFolder]
+  );
+
+  const handleFolderDragOver = useCallback(
+    (folderId: string, event: DragEvent<HTMLElement>) => {
+      const transfer = event.dataTransfer;
+      if (!canAcceptTransfer(transfer)) return;
       event.preventDefault();
       event.stopPropagation();
       transfer.dropEffect = "copy";
       setHoveredFolderId(folderId);
     },
-    [onDropFilesToFolder]
+    [canAcceptTransfer]
   );
 
   const handleFolderDragLeave = useCallback((folderId: string) => {
@@ -207,20 +223,45 @@ export const useMediaLibraryFolderDropController = ({
     setHoveredFolderId(null);
   }, []);
 
-  const handleFolderDrop = useCallback(
-    async (folderId: string, event: DragEvent<HTMLElement>) => {
+  const handleFolderContentDragOver = useCallback(
+    (folderId: string, event: DragEvent<HTMLElement>) => {
+      const transfer = event.dataTransfer;
+      if (!canAcceptTransfer(transfer)) return;
       event.preventDefault();
       event.stopPropagation();
-      setHoveredFolderId(null);
+      transfer.dropEffect = "copy";
+      setHoveredContentFolderId(folderId);
+    },
+    [canAcceptTransfer]
+  );
+
+  const handleFolderContentDragLeave = useCallback((folderId: string) => {
+    setHoveredContentFolderId((previous) => (previous === folderId ? null : previous));
+  }, []);
+
+  const clearHoveredContentFolderId = useCallback(() => {
+    setHoveredContentFolderId(null);
+  }, []);
+
+  const handleResolvedDrop = useCallback(
+    async (
+      folderId: string,
+      transfer: DataTransfer,
+      options?: {
+        forceRefreshActiveRows?: boolean;
+      }
+    ) => {
+      const targetFolderName = folders.find((folder) => folder.id === folderId)?.name ?? null;
       setFolderError(null);
       setMembershipMessage(null);
-
-      const transfer = event.dataTransfer;
-      if (!transfer) return;
+      setMembershipPendingMessage(
+        targetFolderName ? `Adding to ${targetFolderName}...` : "Saving..."
+      );
       let resolvedItem: ResolvedFolderDropItem = null;
       try {
         resolvedItem = await resolveDropItem(transfer);
       } catch {
+        setMembershipPendingMessage(null);
         setFolderError("Unable to resolve dropped reference.");
         return;
       }
@@ -229,13 +270,16 @@ export const useMediaLibraryFolderDropController = ({
           sourceFolderId: resolvedItem.sourceFolderId ?? null,
           targetFolderId: folderId,
         });
-        if (intent.kind === "noop") return;
+        if (intent.kind === "noop") {
+          setMembershipPendingMessage(null);
+          return;
+        }
 
         const sourceFolderName =
           intent.kind === "move" || intent.kind === "unassign"
             ? (folders.find((folder) => folder.id === intent.sourceFolderId)?.name ?? null)
             : null;
-        const targetFolderName =
+        const resolvedTargetFolderName =
           intent.kind === "assign" || intent.kind === "move"
             ? (folders.find((folder) => folder.id === intent.targetFolderId)?.name ?? null)
             : null;
@@ -271,19 +315,23 @@ export const useMediaLibraryFolderDropController = ({
               itemKind: resolvedItem.kind,
               result,
               sourceFolderName,
-              targetFolderName,
+              targetFolderName: resolvedTargetFolderName,
             })
           );
+          setMembershipPendingMessage(null);
           if (message) {
             setMembershipMessage(message);
           }
           const sourceFolderId = (resolvedItem.sourceFolderId ?? "").trim();
           const skipActiveRowsRefresh =
-            intent.kind === "assign" && sourceFolderId === MEDIA_LIBRARY_ROOT_FOLDER_ID;
+            !options?.forceRefreshActiveRows &&
+            intent.kind === "assign" &&
+            sourceFolderId === MEDIA_LIBRARY_ROOT_FOLDER_ID;
           if (!skipActiveRowsRefresh) {
             await refreshActiveRows();
           }
         } catch (error) {
+          setMembershipPendingMessage(null);
           setFolderError(toMediaLibraryErrorText(error, "Unable to update folder membership."));
         }
         return;
@@ -291,17 +339,21 @@ export const useMediaLibraryFolderDropController = ({
       const droppedFiles = transfer.files;
       if (droppedFiles && droppedFiles.length > 0) {
         if (!onDropFilesToFolder) {
+          setMembershipPendingMessage(null);
           setFolderError("Unable to resolve dropped reference.");
           return;
         }
         try {
           await onDropFilesToFolder(folderId, droppedFiles);
+          setMembershipPendingMessage(null);
         } catch (uploadError) {
+          setMembershipPendingMessage(null);
           setFolderError(toMediaLibraryErrorText(uploadError, "Unable to process dropped files."));
         }
         return;
       }
       if (!resolvedItem) {
+        setMembershipPendingMessage(null);
         setFolderError("Unable to resolve dropped reference.");
         return;
       }
@@ -313,14 +365,46 @@ export const useMediaLibraryFolderDropController = ({
       resolveDropItem,
       setFolderError,
       setMembershipMessage,
+      setMembershipPendingMessage,
     ]
+  );
+
+  const handleFolderDrop = useCallback(
+    async (folderId: string, event: DragEvent<HTMLElement>) => {
+      event.preventDefault();
+      event.stopPropagation();
+      setHoveredFolderId(null);
+      setHoveredContentFolderId(null);
+      const transfer = event.dataTransfer;
+      if (!transfer) return;
+      await handleResolvedDrop(folderId, transfer);
+    },
+    [handleResolvedDrop]
+  );
+
+  const handleFolderContentDrop = useCallback(
+    async (folderId: string, event: DragEvent<HTMLElement>) => {
+      event.preventDefault();
+      event.stopPropagation();
+      setHoveredContentFolderId(null);
+      setHoveredFolderId(null);
+      const transfer = event.dataTransfer;
+      if (!transfer) return;
+      await handleResolvedDrop(folderId, transfer, { forceRefreshActiveRows: true });
+    },
+    [handleResolvedDrop]
   );
 
   return {
     hoveredFolderId,
+    hoveredContentFolderId,
     clearHoveredFolderId,
+    clearHoveredContentFolderId,
     handleFolderDragOver,
     handleFolderDragLeave,
     handleFolderDrop,
+    handleFolderContentDragOver,
+    handleFolderContentDragLeave,
+    handleFolderContentDrop,
   };
 };

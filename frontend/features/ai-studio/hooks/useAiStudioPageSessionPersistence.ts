@@ -22,6 +22,7 @@ type BuildPageSessionSnapshotArgs = {
 
 type UseAiStudioPageSessionPersistenceParams = {
   sessionId: string | null;
+  sessionTitleOverride?: string | null;
   buildSessionSnapshot: (args: BuildPageSessionSnapshotArgs) => AiStudioSessionSnapshot;
   agentMessages: AgentMessage[];
   agentInput: string;
@@ -42,6 +43,7 @@ type UseAiStudioPageSessionPersistenceParams = {
  */
 export const useAiStudioPageSessionPersistence = ({
   sessionId,
+  sessionTitleOverride,
   buildSessionSnapshot,
   agentMessages,
   agentInput,
@@ -94,6 +96,7 @@ export const useAiStudioPageSessionPersistence = ({
   return useAiStudioSessionPersistenceController({
     sessionId,
     buildSessionSnapshot: buildSessionSnapshotForSessionId,
+    sessionTitleOverride,
     hydrateFromSessionSnapshot,
     hydrateFromSessionAgentSnapshot,
     hydrateFromSessionCanvasSnapshot,

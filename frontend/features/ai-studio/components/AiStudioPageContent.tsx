@@ -521,6 +521,8 @@ export type AiStudioPageContentProps = {
   onDetailSavePrompt?: (promptText: string) => void;
   onAddLibraryMediaReference?: (payload: LibraryMediaReferencePayload) => void;
   onAddLibraryPromptReference?: (payload: LibraryPromptReferencePayload) => void;
+  projectName?: string | null;
+  onProjectNameCommit?: (value: string) => void;
   resolveMediaLibraryInternalDropItem?: (payload: InternalReferenceDragPayload) => Promise<{
     kind: "media" | "prompt";
     id: string;
@@ -591,9 +593,10 @@ export function AiStudioPageContent({
   onDetailSavePrompt,
   onAddLibraryMediaReference,
   onAddLibraryPromptReference,
+  projectName,
+  onProjectNameCommit,
   resolveMediaLibraryInternalDropItem,
   resolveStyleLibraryInternalDrop,
-  resolveCanvasDropReference,
   onOpenMediaLibrary,
   modelModalState,
   agentChat,
@@ -790,6 +793,14 @@ export function AiStudioPageContent({
         availability: panelToggleAvailability,
       }),
     [effectivePanelVisibility, panelToggleAvailability]
+  );
+  const visibleHeaderShortcutButtons = React.useMemo(
+    () =>
+      AI_STUDIO_HEADER_SHORTCUT_BUTTONS.filter((shortcut) => {
+        if (isPrimaryCharacterPanelOpen && shortcut.id === "canvas") return false;
+        return true;
+      }),
+    [isPrimaryCharacterPanelOpen]
   );
   const handleHeaderShortcutToggle = React.useCallback(
     (shortcutId: HeaderShortcutId) => {
@@ -1102,8 +1113,10 @@ export function AiStudioPageContent({
         <MediaLibraryPanel
           onSelectMedia={onAddLibraryMediaReference}
           onSelectPrompt={onAddLibraryPromptReference}
+          projectName={projectName ?? null}
+          onProjectNameCommit={onProjectNameCommit}
+          onExpandMediaLibraryPanel={expandToMax}
           resolveInternalDropItem={resolveMediaLibraryInternalDropItem}
-          resolveCanvasDropReference={resolveCanvasDropReference}
         />
       ) : (
         <p className="tiny subdued">Media Library panel is unavailable.</p>
@@ -1111,7 +1124,9 @@ export function AiStudioPageContent({
     [
       onAddLibraryMediaReference,
       onAddLibraryPromptReference,
-      resolveCanvasDropReference,
+      onProjectNameCommit,
+      expandToMax,
+      projectName,
       resolveMediaLibraryInternalDropItem,
     ]
   );
@@ -1257,7 +1272,7 @@ export function AiStudioPageContent({
           <div className="hero-right">
             <div className="ai-hero-shortcut-cluster">
               <div className="ai-hero-shortcut-buttons" aria-label="AI Studio header shortcuts">
-                {AI_STUDIO_HEADER_SHORTCUT_BUTTONS.map((shortcut) => {
+                {visibleHeaderShortcutButtons.map((shortcut) => {
                   const buttonState = headerShortcutStates[shortcut.id];
                   return (
                     <button

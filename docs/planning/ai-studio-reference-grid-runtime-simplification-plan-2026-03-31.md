@@ -2,6 +2,20 @@
 
 Purpose: define the narrow simplify/rebuild lane for the AI Studio reference runtime after the March 2026 freeze investigation. This is an active-lane execution spec, not a new broad architecture program.
 
+## Resume Handles
+Use these exact phrases when you want an agent to find this lane again quickly:
+- `AI Studio Reference Grid runtime`
+- `AI Studio reference grid freeze lane`
+- `reference grid runtime simplification`
+- `reference grid freeze investigation`
+- `reference grid preview runtime`
+- `ReferenceGrid runtime plan`
+
+Preferred short handles:
+- `ai studio ref-grid runtime`
+- `ref-grid freeze lane`
+- `ref-grid runtime plan`
+
 ## Scope
 - In scope:
   - `frontend/features/ai-studio/components/ReferenceGrid.tsx`

@@ -332,7 +332,7 @@ Start here for all repository documentation.
 - `docs/planning/ai-studio-reference-grid-stabilization-v4-plan.md`
 - `docs/planning/ai-studio-reference-grid-modularization-program.md`
 - `docs/planning/ai-studio-reference-grid-modularization-tracker.md`
-- `docs/planning/ai-studio-reference-grid-runtime-simplification-plan-2026-03-31.md`
+- `docs/planning/ai-studio-reference-grid-runtime-simplification-plan-2026-03-31.md` (search handles: `AI Studio Reference Grid runtime`, `reference grid freeze lane`, `ref-grid runtime plan`)
 - `docs/planning/naming-canonicalization-program.md`
 - `docs/planning/naming-canonical-map.md`
 - `docs/planning/naming-decision-log.md`

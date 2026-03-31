@@ -234,7 +234,8 @@ export const useAiStudioCreatePanelProps = ({
       outputGenerateCostCredits: promptReferenceGenerateCostCredits,
       hasSufficientCreditsForOutputGenerate: hasSufficientCreditsForPromptReferenceGenerate,
       isGenerateDisabled: isGenerateDisabled || isGenerateClickLocked,
-      isChatOffInlineGenerateDisabled: isGenerateDisabled,
+      isChatOffInlineGenerateDisabled:
+        isGenerateDisabled || isPromptGenerating || isPromptRefining || describeInFlightCount > 0,
       guardrailReason: generationGuardrail,
       onExpandChat: handleExpandChat,
       onClearAgentChat: handleClearAgentChat,

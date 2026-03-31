@@ -159,7 +159,7 @@ describe("useAiStudioPanelProps", () => {
 
     expect(result.current.propertiesCreate.isPromptGenerating).toBe(true);
     expect(result.current.propertiesCreate.isGenerateDisabled).toBe(true);
-    expect(result.current.propertiesCreate.isChatOffInlineGenerateDisabled).toBe(false);
+    expect(result.current.propertiesCreate.isChatOffInlineGenerateDisabled).toBe(true);
     expect(result.current.propertiesCreate.outputGenerateCostCredits).toBe(25);
     expect(result.current.propertiesCreate.hasSufficientCreditsForOutputGenerate).toBe(true);
     expect(result.current.propertiesEditExpert.expertEditEligible).toBe(false);
@@ -317,6 +317,7 @@ describe("useAiStudioPanelProps", () => {
     expect(result.current.propertiesImage.agentIsSending).toBe(true);
     expect(result.current.propertiesVideo.isGenerateDisabled).toBe(true);
     expect(result.current.propertiesVideo.agentIsSending).toBe(true);
+    expect(result.current.propertiesCreate.isChatOffInlineGenerateDisabled).toBe(true);
   });
 
   it("forwards primary-stage generation state into expert edit props", () => {

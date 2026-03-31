@@ -568,6 +568,23 @@ describe("CreatePropertiesPanel", () => {
     expect(screen.getByRole("button", { name: "Generate with current prompt" })).toBeEnabled();
   });
 
+  it("disables chat-off inline generate while a generation submit is in flight", () => {
+    renderPanel({
+      beginnerMode: false,
+      expertCreateUiEligible: true,
+      agentEnabled: true,
+      chatModeEnabled: false,
+      agentInput: "Keep the inline button active during submit.",
+      onGenerate: vi.fn(),
+      onChatOffInlineGenerate: vi.fn(),
+      characterModeEnabled: false,
+      isPromptGenerating: true,
+      isChatOffInlineGenerateDisabled: false,
+    });
+
+    expect(screen.getByRole("button", { name: "Generate with current prompt" })).toBeDisabled();
+  });
+
   it("disables chat-off inline generate when prompt input is empty", () => {
     renderPanel({
       beginnerMode: false,

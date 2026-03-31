@@ -209,6 +209,7 @@ Purpose: active planning artifacts and current execution backlogs.
 - `ai-studio-reference-grid-stabilization-v4-plan.md`: decision-complete stabilization plan for 50-60 reference sessions (decoupling, adaptive delivery, hydration/decode budgets, virtualization, watchdog degrade levels).
 - `ai-studio-reference-grid-modularization-program.md`: documentation-first foundation program for no-regression reference-grid modularization (domain contracts, strangler phases, rollback policy, guardrails).
 - `ai-studio-reference-grid-modularization-tracker.md`: phase tracker for reference-grid modularization status, gates, blockers, and evidence links.
+- `ai-studio-reference-grid-runtime-simplification-plan-2026-03-31.md`: narrow execution spec for simplifying the live reference-grid runtime after the March 2026 freeze investigation, with explicit phases for preview-runtime, video-runtime, and surface-model consolidation.
 - `naming-canonicalization-program.md`: zero-regression naming canonicalization program (expand/migrate/contract phases, controls, and stop-points).
 - `naming-canonical-map.md`: canonical naming source-of-truth map and compatibility window policy.
 - `naming-decision-log.md`: stop-point approvals and canonical naming decision log.

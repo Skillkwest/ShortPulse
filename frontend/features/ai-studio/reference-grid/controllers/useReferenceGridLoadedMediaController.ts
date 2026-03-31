@@ -10,6 +10,7 @@ import {
   type MutableRefObject,
   type SetStateAction,
 } from "react";
+import { incrementFreezeInvestigationCounter } from "../../logic/freezeInvestigationTelemetry";
 
 type UseReferenceGridLoadedMediaControllerArgs = {
   loadedIdsRef: MutableRefObject<Set<string>>;
@@ -39,6 +40,7 @@ export const useReferenceGridLoadedMediaController = ({
       runNonUrgentUpdate(() => {
         setLoadedMap((prev) => {
           if (prev[id]) return prev;
+          incrementFreezeInvestigationCounter("referenceGrid.loadedMap.commit");
           return { ...prev, [id]: true };
         });
       });

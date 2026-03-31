@@ -9,6 +9,7 @@ import {
   type MutableRefObject,
   type SetStateAction,
 } from "react";
+import { incrementFreezeInvestigationCounter } from "../../logic/freezeInvestigationTelemetry";
 
 const areIdListsEqual = (left: string[], right: string[]) =>
   left.length === right.length && left.every((value, index) => value === right[index]);
@@ -67,13 +68,21 @@ export const useReferenceGridAutoplaySelectionController = ({
         : visibleVideoIds;
     if (perfDegradeLevel >= 2) {
       runNonUrgentUpdate(() => {
-        setAutoplayEnabledIds((prev) => (prev.length === 0 ? prev : []));
+        setAutoplayEnabledIds((prev) => {
+          if (prev.length === 0) return prev;
+          incrementFreezeInvestigationCounter("referenceGrid.autoplayEnabledIds.clearCommit");
+          return [];
+        });
       });
       return;
     }
     const nextEnabled = prioritizedVideoIds.slice(0, Math.max(0, videoAttachBudget));
     runNonUrgentUpdate(() => {
-      setAutoplayEnabledIds((prev) => (areIdListsEqual(prev, nextEnabled) ? prev : nextEnabled));
+      setAutoplayEnabledIds((prev) => {
+        if (areIdListsEqual(prev, nextEnabled)) return prev;
+        incrementFreezeInvestigationCounter("referenceGrid.autoplayEnabledIds.commit");
+        return nextEnabled;
+      });
     });
   }, [
     activeOutputId,

@@ -4,6 +4,7 @@
  */
 import { useCallback, useEffect, useRef, type Dispatch, type SetStateAction } from "react";
 import { logMediaPerf } from "../../../../lib/mediaPerfTelemetry";
+import { incrementFreezeInvestigationCounter } from "../../logic/freezeInvestigationTelemetry";
 
 type VirtualMetricsState = {
   scrollTop: number;
@@ -66,7 +67,9 @@ export const useReferenceGridScrollController = ({
             const stable =
               Math.abs(prev.scrollTop - next.scrollTop) < 1 &&
               Math.abs(prev.viewportHeight - next.viewportHeight) < 1;
-            return stable ? prev : next;
+            if (stable) return prev;
+            incrementFreezeInvestigationCounter("referenceGrid.virtualMetrics.scrollCommit");
+            return next;
           });
         });
       }
@@ -120,7 +123,9 @@ export const useReferenceGridScrollController = ({
             const stable =
               Math.abs(prev.scrollTop - next.scrollTop) < 1 &&
               Math.abs(prev.viewportHeight - next.viewportHeight) < 1;
-            return stable ? prev : next;
+            if (stable) return prev;
+            incrementFreezeInvestigationCounter("referenceGrid.curatedVirtualMetrics.scrollCommit");
+            return next;
           });
         });
       }

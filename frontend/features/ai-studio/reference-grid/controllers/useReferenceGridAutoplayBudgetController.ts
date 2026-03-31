@@ -3,6 +3,7 @@
  * Encapsulates responsive/device/network budget policy and constrained-profile clamping behavior.
  */
 import { useEffect, type Dispatch, type MutableRefObject, type SetStateAction } from "react";
+import { incrementFreezeInvestigationCounter } from "../../logic/freezeInvestigationTelemetry";
 
 type NavigatorWithConnection = Navigator & {
   deviceMemory?: number;
@@ -69,12 +70,20 @@ export const useReferenceGridAutoplayBudgetController = ({
           : autoplayMaxDesktop;
       if (desiredVideoAttachBudgetRef.current !== nextBudget) {
         desiredVideoAttachBudgetRef.current = nextBudget;
+        incrementFreezeInvestigationCounter("referenceGrid.desiredVideoAttachBudget.commit");
         setDesiredVideoAttachBudget(nextBudget);
       }
       if (isConstrained && autoplayEnabledIdsStateRef.current.length > autoplayMaxConstrained) {
         runNonUrgentUpdate(() => {
           setAutoplayEnabledIds((prev) =>
-            prev.length <= autoplayMaxConstrained ? prev : prev.slice(0, autoplayMaxConstrained)
+            prev.length <= autoplayMaxConstrained
+              ? prev
+              : (() => {
+                  incrementFreezeInvestigationCounter(
+                    "referenceGrid.autoplayEnabledIds.constrainedCommit"
+                  );
+                  return prev.slice(0, autoplayMaxConstrained);
+                })()
           );
         });
       }

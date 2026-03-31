@@ -5,10 +5,6 @@
 import { useMemo } from "react";
 import type { StudioOutput } from "../types";
 import type { AiStudioReferenceGridContract } from "./contracts/pageContentContracts";
-import {
-  incrementFreezeInvestigationCounter,
-  setFreezeInvestigationGauge,
-} from "../logic/freezeInvestigationTelemetry";
 
 export type UseAiStudioReferenceGridPropsParams = {
   outputs?: StudioOutput[];
@@ -71,21 +67,6 @@ export const useAiStudioReferenceGridProps = ({
   restoreArchivedOutput,
   restoreAllArchivedOutputs,
 }: UseAiStudioReferenceGridPropsParams): AiStudioReferenceGridContract => {
-  incrementFreezeInvestigationCounter("referenceGridProps.hook.compute");
-  setFreezeInvestigationGauge("referenceGridProps.outputsProvided", Boolean(outputs));
-  setFreezeInvestigationGauge("referenceGridProps.archivedOutputsLength", archivedOutputs.length);
-  setFreezeInvestigationGauge(
-    "referenceGridProps.curatedReferenceIdsLength",
-    curatedReferenceIds.length
-  );
-  setFreezeInvestigationGauge(
-    "referenceGridProps.removedFromAllRefsIdsLength",
-    removedFromAllRefsIds.length
-  );
-  setFreezeInvestigationGauge(
-    "referenceGridProps.linkedPromptReferenceIdsLength",
-    linkedPromptReferenceIds.length
-  );
   return useMemo(
     () => ({
       outputs,

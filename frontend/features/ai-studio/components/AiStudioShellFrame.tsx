@@ -20,10 +20,6 @@ import { AiStudioPreviewRail } from "./AiStudioPreviewRail";
 import { useOutputCounts } from "../hooks/aiStudioOutputStore";
 import type { AiStudioReferenceGridContract } from "../hooks/contracts/pageContentContracts";
 import { areReferenceGridPropsEqual } from "../reference-grid/logic/referenceGridPropsEquality";
-import {
-  incrementFreezeInvestigationCounter,
-  setFreezeInvestigationGauge,
-} from "../logic/freezeInvestigationTelemetry";
 
 type RightColumnDropMode = "none" | "text" | "media";
 
@@ -147,7 +143,6 @@ const AiStudioShellRightColumn = React.memo(function AiStudioShellRightColumn({
   beginnerMode,
   selectedTool,
 }: AiStudioShellRightColumnProps) {
-  incrementFreezeInvestigationCounter("shellRightColumn.render");
   return (
     <div
       ref={rightColumnRef}
@@ -286,12 +281,8 @@ export const AiStudioShellFrame = React.memo(function AiStudioShellFrame({
   beginnerMode,
   rightColumnHidden,
 }: AiStudioShellFrameProps) {
-  incrementFreezeInvestigationCounter("shellFrame.render");
   const { activeCount } = useOutputCounts();
   const isDenseSession = activeCount >= 40;
-  setFreezeInvestigationGauge("shellFrame.activeCount", activeCount);
-  setFreezeInvestigationGauge("shellFrame.agentChatOpen", agentChat.isOpen);
-  setFreezeInvestigationGauge("shellFrame.rightColumnHidden", Boolean(rightColumnHidden));
   return (
     <section
       ref={shellRef}

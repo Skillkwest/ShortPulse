@@ -38,10 +38,6 @@ import { useAiStudioReferenceAssetActions } from "../features/ai-studio/hooks/us
 import { useAiStudioOptimisticDebitReconciliation } from "../features/ai-studio/hooks/useAiStudioOptimisticDebitReconciliation";
 import { useAiStudioWorkspaceActions } from "../features/ai-studio/hooks/useAiStudioWorkspaceActions";
 import { useAiStudioPageDerivations } from "../features/ai-studio/hooks/useAiStudioPageDerivations";
-import {
-  incrementFreezeInvestigationCounter,
-  setFreezeInvestigationGauge,
-} from "../features/ai-studio/logic/freezeInvestigationTelemetry";
 import { useAiStudioPanelProps } from "../features/ai-studio/hooks/useAiStudioPanelProps";
 import { useAiStudioReferenceGridProps } from "../features/ai-studio/hooks/useAiStudioReferenceGridProps";
 import { useAiStudioPreviewDetailProps } from "../features/ai-studio/hooks/useAiStudioPreviewDetailProps";
@@ -85,7 +81,6 @@ const normalizeAiStudioProjectName = (value: string | null | undefined): string 
 };
 
 export default function AiStudioPage() {
-  incrementFreezeInvestigationCounter("aiStudioPage.render");
   const { sessionId } = useAiStudioSessionIdentity();
 
   const {
@@ -371,13 +366,6 @@ export default function AiStudioPage() {
     () => countInFlightGenerations([...outputs, ...archivedOutputs]),
     [archivedOutputs, outputs]
   );
-  setFreezeInvestigationGauge("aiStudioPage.selectedTool", selectedTool ?? null);
-  setFreezeInvestigationGauge("aiStudioPage.activeGenerationCount", activeGenerationCount);
-  setFreezeInvestigationGauge(
-    "aiStudioPage.effectiveBalanceCredits",
-    effectiveBalanceCredits ?? null
-  );
-
   useAiStudioPerfAuditRuntime({
     enabled: FLAG_PERF_AUDIT_RUNTIME,
     aspect,

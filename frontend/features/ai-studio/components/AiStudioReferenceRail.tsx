@@ -9,10 +9,6 @@ import type { CanvasPropertiesPanelProps } from "./canvas/useAiStudioCanvasWorks
 import type { AiStudioReferenceGridContract } from "../hooks/contracts/pageContentContracts";
 import { areReferenceGridPropsEqual } from "../reference-grid/logic/referenceGridPropsEquality";
 import { recordAiStudioShellSectionRender } from "../logic/shellRenderCounters";
-import {
-  incrementFreezeInvestigationCounter,
-  setFreezeInvestigationGauge,
-} from "../logic/freezeInvestigationTelemetry";
 
 type AiStudioReferenceRailProps = {
   referenceGridProps: AiStudioReferenceGridContract;
@@ -26,33 +22,13 @@ type AiStudioReferenceRailProps = {
 const areAiStudioReferenceRailPropsEqual = (
   previous: Readonly<AiStudioReferenceRailProps>,
   next: Readonly<AiStudioReferenceRailProps>
-): boolean => {
-  if (!areReferenceGridPropsEqual(previous.referenceGridProps, next.referenceGridProps)) {
-    incrementFreezeInvestigationCounter("referenceRail.propsMismatch.referenceGridProps");
-    return false;
-  }
-  if (previous.railCanvasProps !== next.railCanvasProps) {
-    incrementFreezeInvestigationCounter("referenceRail.propsMismatch.railCanvasProps");
-    return false;
-  }
-  if (previous.onDropFiles !== next.onDropFiles) {
-    incrementFreezeInvestigationCounter("referenceRail.propsMismatch.onDropFiles");
-    return false;
-  }
-  if (previous.onTriggerFilePicker !== next.onTriggerFilePicker) {
-    incrementFreezeInvestigationCounter("referenceRail.propsMismatch.onTriggerFilePicker");
-    return false;
-  }
-  if (previous.selectedTool !== next.selectedTool) {
-    incrementFreezeInvestigationCounter("referenceRail.propsMismatch.selectedTool");
-    return false;
-  }
-  if (previous.onOpenMediaLibrary !== next.onOpenMediaLibrary) {
-    incrementFreezeInvestigationCounter("referenceRail.propsMismatch.onOpenMediaLibrary");
-    return false;
-  }
-  return true;
-};
+): boolean =>
+  areReferenceGridPropsEqual(previous.referenceGridProps, next.referenceGridProps) &&
+  previous.railCanvasProps === next.railCanvasProps &&
+  previous.onDropFiles === next.onDropFiles &&
+  previous.onTriggerFilePicker === next.onTriggerFilePicker &&
+  previous.selectedTool === next.selectedTool &&
+  previous.onOpenMediaLibrary === next.onOpenMediaLibrary;
 
 export const AiStudioReferenceRail = React.memo(function AiStudioReferenceRail({
   referenceGridProps,
@@ -63,9 +39,6 @@ export const AiStudioReferenceRail = React.memo(function AiStudioReferenceRail({
   onOpenMediaLibrary,
 }: AiStudioReferenceRailProps) {
   recordAiStudioShellSectionRender("reference");
-  incrementFreezeInvestigationCounter("referenceRail.render");
-  setFreezeInvestigationGauge("referenceRail.railCanvasPresent", Boolean(railCanvasProps));
-  setFreezeInvestigationGauge("referenceRail.selectedTool", selectedTool ?? null);
   return (
     <div className="ai-preview-column reference-column">
       <div className="reference-column-sticky">

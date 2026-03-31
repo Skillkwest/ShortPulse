@@ -56,10 +56,6 @@ import {
 } from "../logic/perfProfileFlags";
 import { useVisibleErrorTelemetry } from "../../../lib/useVisibleErrorTelemetry";
 import {
-  incrementFreezeInvestigationCounter,
-  setFreezeInvestigationGauge,
-} from "../logic/freezeInvestigationTelemetry";
-import {
   AI_SHELL_LEFT_CHARACTER_MIN_PX,
   AI_SHELL_LEFT_CANVAS_DEFAULT_RATIO,
   AI_SHELL_LEFT_EXPERT_CREATE_MAX_PX,
@@ -611,11 +607,6 @@ export function AiStudioPageContent({
   onSelectedStylePromptChange,
   onSelectedStyleContextChange,
 }: AiStudioPageContentProps) {
-  incrementFreezeInvestigationCounter("pageContent.render");
-  setFreezeInvestigationGauge("pageContent.selectedTool", selectedTool ?? null);
-  setFreezeInvestigationGauge("pageContent.balanceLoading", balanceLoading);
-  setFreezeInvestigationGauge("pageContent.visibleFailuresLength", visibleFailures.length);
-  setFreezeInvestigationGauge("pageContent.showCreateTools", showCreateTools);
   const resolvedReferenceGridFileInputRef =
     referenceGridFileInputRef ?? referenceCanvasFileInputRef;
   const resolvedCreateProperties = propertiesCreate ?? propertiesText;

@@ -4,6 +4,10 @@
  */
 import { useCallback, useMemo, useRef, useSyncExternalStore } from "react";
 import type { StudioOutput } from "../types";
+import {
+  incrementFreezeInvestigationCounter,
+  setFreezeInvestigationGauge,
+} from "../logic/freezeInvestigationTelemetry";
 
 export type AiStudioOutputIndexes = {
   inFlightIds: Set<string>;
@@ -130,8 +134,10 @@ const buildIndexes = ({
 };
 
 const notifyOutputStoreListeners = () => {
+  incrementFreezeInvestigationCounter("outputStore.notify.calls");
   if (isNotifyingOutputStoreListeners) {
     hasPendingOutputStoreNotify = true;
+    incrementFreezeInvestigationCounter("outputStore.notify.reentrant");
     return;
   }
   isNotifyingOutputStoreListeners = true;
@@ -139,6 +145,7 @@ const notifyOutputStoreListeners = () => {
     do {
       hasPendingOutputStoreNotify = false;
       const listeners = Array.from(outputStoreListeners);
+      setFreezeInvestigationGauge("outputStore.listenerCount", listeners.length);
       listeners.forEach((listener) => {
         if (!outputStoreListeners.has(listener)) return;
         listener();
@@ -207,6 +214,10 @@ export const setAiStudioOutputStoreSnapshot = ({
     return;
   }
 
+  incrementFreezeInvestigationCounter("outputStore.snapshot.publish");
+  setFreezeInvestigationGauge("outputStore.activeCount", nextOutputOrder.length);
+  setFreezeInvestigationGauge("outputStore.archivedCount", nextArchivedOutputOrder.length);
+  setFreezeInvestigationGauge("outputStore.inFlightCount", indexes.inFlightIds.size);
   outputStoreSnapshot = {
     outputOrder: nextOutputOrder,
     outputById: nextOutputById,
@@ -242,11 +253,14 @@ export const useOutputSelector = <T>(
   const subscribe = useCallback(
     (notify: () => void) => {
       return subscribeAiStudioOutputs(() => {
+        incrementFreezeInvestigationCounter("outputStore.selectorNotify.calls");
         const previousSelected = selectedRef.current;
         const nextSelected = selector(outputStoreSnapshot);
         if (isEqual(previousSelected, nextSelected)) {
+          incrementFreezeInvestigationCounter("outputStore.selectorNotify.skipped");
           return;
         }
+        incrementFreezeInvestigationCounter("outputStore.selectorNotify.changed");
         selectedRef.current = nextSelected;
         notify();
       });

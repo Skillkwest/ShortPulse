@@ -8,6 +8,10 @@ import {
   resolveReferenceGridOverscanRows,
 } from "../../logic/referenceGridVirtualization";
 import type { StudioOutput } from "../../types";
+import {
+  incrementFreezeInvestigationCounter,
+  setFreezeInvestigationGauge,
+} from "../../logic/freezeInvestigationTelemetry";
 
 type VirtualMetrics = {
   scrollTop: number;
@@ -72,6 +76,12 @@ export const useReferenceGridViewportProjectionController = ({
   curatedVirtualMetrics,
   config,
 }: UseReferenceGridViewportProjectionControllerArgs): UseReferenceGridViewportProjectionControllerResult => {
+  incrementFreezeInvestigationCounter("referenceGrid.viewportProjection.recompute");
+  setFreezeInvestigationGauge("referenceGrid.viewportProjection.outputsCount", outputs.length);
+  setFreezeInvestigationGauge(
+    "referenceGrid.viewportProjection.curatedOutputsCount",
+    curatedOutputs.length
+  );
   const dynamicOverscanRows = config.dynamicVirtualizationEnabled
     ? resolveReferenceGridOverscanRows(outputs.length, {
         pressureLevel: perfDegradeLevel,

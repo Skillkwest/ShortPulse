@@ -94,6 +94,10 @@ import {
 } from "../reference-grid/referenceGridConfig";
 import type { ReferenceGridProps } from "../reference-grid/referenceGridTypes";
 import { useAiStudioAnyModalOpen } from "./modal-layer/AiStudioModalLayer";
+import {
+  incrementFreezeInvestigationCounter,
+  setFreezeInvestigationGauge,
+} from "../logic/freezeInvestigationTelemetry";
 const REFERENCE_GRID_FLAG_ADAPTIVE_PREVIEW = PERF_FLAG_REFERENCE_GRID_ADAPTIVE_PREVIEW;
 const REFERENCE_GRID_FLAG_CURATED_SPLIT = PERF_FLAG_REFERENCE_GRID_CURATED_SPLIT;
 const REFERENCE_GRID_FLAG_STRICT_PREVIEW_LADDER = PERF_FLAG_REFERENCE_GRID_STRICT_PREVIEW_LADDER;
@@ -151,6 +155,7 @@ export function ReferenceGrid({
   railCanvasProps,
   stylesPanel,
 }: ReferenceGridProps) {
+  incrementFreezeInvestigationCounter("referenceGrid.render");
   const selectorOutputs = useOutputSelector((snapshot) => {
     if (outputsProp) return EMPTY_OUTPUTS;
     return snapshot.outputOrder
@@ -165,6 +170,8 @@ export function ReferenceGrid({
   }, areOutputListsEqual);
   const allOutputs = outputsProp ?? selectorOutputs;
   const archivedOutputs = archivedOutputsProp ?? selectorArchivedOutputs;
+  setFreezeInvestigationGauge("referenceGrid.allOutputsCount", allOutputs.length);
+  setFreezeInvestigationGauge("referenceGrid.archivedOutputsCount", archivedOutputs.length);
   const outputs = React.useMemo(
     () =>
       selectAllRefsProjectionWithLegacyFallback(allOutputs, {
@@ -214,6 +221,8 @@ export function ReferenceGrid({
         .filter((item): item is StudioOutput => Boolean(item)),
     [curatedReferenceIds, outputById]
   );
+  setFreezeInvestigationGauge("referenceGrid.projectedOutputsCount", outputs.length);
+  setFreezeInvestigationGauge("referenceGrid.curatedOutputsCount", curatedOutputs.length);
   const perfWatchdog = useReferenceGridPerfWatchdog({
     enabled: REFERENCE_GRID_FLAG_PERF_WATCHDOG,
     memoryGuardEnabled: REFERENCE_GRID_FLAG_MEMORY_GUARD,

@@ -62,6 +62,10 @@ import {
   terminalFailureStates,
 } from "./taskPolling/providerStatusPolicy";
 import { useAiStudioTaskRecoveryController } from "./taskPolling/useAiStudioTaskRecoveryController";
+import {
+  incrementFreezeInvestigationCounter,
+  setFreezeInvestigationGauge,
+} from "../logic/freezeInvestigationTelemetry";
 
 type GenerationFailureReason =
   | "no_media_after_terminal_success"
@@ -224,8 +228,10 @@ export function useAiStudioTasks({
   const queuedOutputFlushRafIdRef = useRef<number | null>(null);
 
   const flushQueuedOutputUpdates = useCallback(() => {
+    incrementFreezeInvestigationCounter("aiStudioTasks.flushQueuedOutputUpdates");
     const queued = queuedOutputUpdatersRef.current;
     queuedOutputUpdatersRef.current = {};
+    setFreezeInvestigationGauge("aiStudioTasks.flushBatchOutputCount", Object.keys(queued).length);
     Object.entries(queued).forEach(([outputId, queuedUpdates]) => {
       if (!queuedUpdates.length) return;
       const applyUpdate = () => {
@@ -248,6 +254,7 @@ export function useAiStudioTasks({
       updater: (item: StudioOutput) => StudioOutput,
       options?: { nonUrgent?: boolean }
     ) => {
+      incrementFreezeInvestigationCounter("aiStudioTasks.queueOutputUpdate");
       const nonUrgent = options?.nonUrgent === true;
       if (!REFERENCE_GRID_FLAG_UPDATE_BACKPRESSURE) {
         if (nonUrgent) {
@@ -262,6 +269,10 @@ export function useAiStudioTasks({
       const existing = queuedOutputUpdatersRef.current[outputId] ?? [];
       existing.push({ updater, nonUrgent });
       queuedOutputUpdatersRef.current[outputId] = existing;
+      setFreezeInvestigationGauge(
+        "aiStudioTasks.queuedOutputIds",
+        Object.keys(queuedOutputUpdatersRef.current).length
+      );
       if (queuedOutputFlushPendingRef.current) return;
       queuedOutputFlushPendingRef.current = true;
       const flush = () => {
@@ -349,6 +360,11 @@ export function useAiStudioTasks({
       noMediaAttempt = 0,
       pollSessionId?: number
     ) {
+      incrementFreezeInvestigationCounter("aiStudioTasks.startPollingTask.calls");
+      setFreezeInvestigationGauge(
+        "aiStudioTasks.statusRequestsInFlight",
+        statusRequestsInFlightRef.current
+      );
       let activePollSessionId = pollSessionId;
       if (activePollSessionId == null) {
         activePollSessionId = (pollSessionsRef.current[outputId] ?? 0) + 1;
@@ -514,6 +530,10 @@ export function useAiStudioTasks({
           return;
         }
         statusRequestsInFlightRef.current += 1;
+        setFreezeInvestigationGauge(
+          "aiStudioTasks.statusRequestsInFlight",
+          statusRequestsInFlightRef.current
+        );
         try {
           try {
             if (findOutputById && !findOutputById(outputId)) {
@@ -964,6 +984,10 @@ export function useAiStudioTasks({
           }
         } finally {
           statusRequestsInFlightRef.current = Math.max(0, statusRequestsInFlightRef.current - 1);
+          setFreezeInvestigationGauge(
+            "aiStudioTasks.statusRequestsInFlight",
+            statusRequestsInFlightRef.current
+          );
         }
       }, delay);
       pollTimersRef.current[outputId] = timeoutId;

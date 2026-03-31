@@ -16,6 +16,10 @@ import {
   resolveOptimizerSourceUrl,
 } from "../logic/referenceGridMediaHelpers";
 import type { ReferenceGridResolvedCardMedia } from "./useReferenceGridResolvedMediaController";
+import {
+  incrementFreezeInvestigationCounter,
+  setFreezeInvestigationGauge,
+} from "../../logic/freezeInvestigationTelemetry";
 
 export type ReferenceGridVisibleCardItem = {
   item: StudioOutput;
@@ -82,6 +86,12 @@ export const useReferenceGridCardItemsController = ({
   resolveCardMedia,
   hydratedById,
 }: UseReferenceGridCardItemsControllerArgs): UseReferenceGridCardItemsControllerResult => {
+  incrementFreezeInvestigationCounter("referenceGrid.cardItems.recompute");
+  setFreezeInvestigationGauge("referenceGrid.cardItems.visibleOutputsCount", visibleOutputs.length);
+  setFreezeInvestigationGauge(
+    "referenceGrid.cardItems.visibleCuratedOutputsCount",
+    visibleCuratedOutputs.length
+  );
   const buildVisibleCardItems = useCallback(
     (
       rows: StudioOutput[],

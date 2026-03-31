@@ -8,6 +8,10 @@ import type { ReferenceGridMediaAuthorityTier } from "../../logic/referenceGridM
 import type { StudioOutput } from "../../types";
 import type { ReferenceDragSourceSurface } from "../../utils/dragDrop";
 import { isReferenceOutputFailing } from "../logic/referenceGridLoadingState";
+import {
+  incrementFreezeInvestigationCounter,
+  setFreezeInvestigationGauge,
+} from "../../logic/freezeInvestigationTelemetry";
 
 export type ReferenceGridVisibleCard = {
   item: StudioOutput;
@@ -94,6 +98,15 @@ export const useReferenceGridCardRenderController = ({
   onSaveToLibrary,
   onDownload,
 }: UseReferenceGridCardRenderControllerArgs): UseReferenceGridCardRenderControllerResult => {
+  incrementFreezeInvestigationCounter("referenceGrid.cardRender.recompute");
+  setFreezeInvestigationGauge(
+    "referenceGrid.cardRender.visibleCardItemsCount",
+    visibleCardItems.length
+  );
+  setFreezeInvestigationGauge(
+    "referenceGrid.cardRender.visibleCuratedCardItemsCount",
+    curatedVisibleCardItems.length
+  );
   const renderReferenceCard = useCallback(
     (
       card: ReferenceGridVisibleCard,

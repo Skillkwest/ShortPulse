@@ -1,6 +1,6 @@
 ---
 name: major-task-mode
-description: Use when the user explicitly says "major task mode" or asks for a rigorous implementation pass with self-audit and relevant tests.
+description: Use when the user explicitly says "major task" or asks for a rigorous implementation pass with self-audit and relevant tests.
 ---
 
 # Major Task Mode
@@ -29,4 +29,4 @@ Use this skill only when the user explicitly invokes it.
 
 ## Invocation phrase
 
-Use the phrase `major task mode` when you want this behavior.
+Use the phrase `major task` when you want this behavior.

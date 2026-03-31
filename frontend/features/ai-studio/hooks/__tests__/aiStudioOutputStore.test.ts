@@ -7,6 +7,7 @@ import {
   subscribeAiStudioOutputs,
   useOutputById,
   useOutputCounts,
+  useOutputMapByIds,
   useVisibleOutputWindow,
 } from "../aiStudioOutputStore";
 
@@ -109,6 +110,36 @@ describe("aiStudioOutputStore", () => {
     });
 
     expect(result.current).toBe(initialWindow);
+  });
+
+  it("returns stable output maps when outside-slice outputs mutate", () => {
+    const outputA = makeOutput("a");
+    const outputB = makeOutput("b");
+    const outputC = makeOutput("c");
+
+    const { result } = renderHook(() => useOutputMapByIds(["a", "b"]));
+
+    act(() => {
+      setAiStudioOutputStoreSnapshot({
+        outputOrder: ["a", "b", "c"],
+        outputById: { a: outputA, b: outputB, c: outputC },
+        archivedOutputOrder: [],
+        archivedOutputById: {},
+      });
+    });
+
+    const initialMap = result.current;
+
+    act(() => {
+      setAiStudioOutputStoreSnapshot({
+        outputOrder: ["a", "b", "c"],
+        outputById: { a: outputA, b: outputB, c: { ...outputC, timestamp: "changed" } },
+        archivedOutputOrder: [],
+        archivedOutputById: {},
+      });
+    });
+
+    expect(result.current).toBe(initialMap);
   });
 
   it("does not notify listeners for equivalent cloned snapshots", () => {

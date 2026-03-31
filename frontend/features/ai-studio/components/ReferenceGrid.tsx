@@ -4,7 +4,12 @@
  */
 import React, { useCallback, useState } from "react";
 import { StudioOutput } from "../types";
-import { useOutputById, useOutputSelector, useOutputsByIds } from "../hooks/aiStudioOutputStore";
+import {
+  useOutputById,
+  useOutputMapByIds,
+  useOutputSelector,
+  useOutputsByIds,
+} from "../hooks/aiStudioOutputStore";
 import {
   PERF_FLAG_REFERENCE_GRID_ADAPTIVE_PREVIEW,
   PERF_FLAG_REFERENCE_GRID_CURATED_SPLIT,
@@ -610,6 +615,10 @@ function ReferenceGridComponent({
   const selectorVisibleCuratedOutputs = useOutputsByIds(visibleCuratedOutputIds);
   const selectorNearViewportOutputs = useOutputsByIds(nearViewportOutputIds);
   const selectorNearViewportCuratedOutputs = useOutputsByIds(nearViewportCuratedOutputIds);
+  const selectorVisibleOutputById = useOutputMapByIds([
+    ...visibleCuratedOutputIds,
+    ...visibleOutputIds,
+  ]);
   const selectorVisibleMediaOutputs = useOutputSelector(
     React.useCallback(
       (snapshot) =>
@@ -716,12 +725,13 @@ function ReferenceGridComponent({
       ? projectReferenceGridMediaOutput(activeOutput)
       : selectorActiveMediaOutput;
   const visibleOutputById = React.useMemo(() => {
+    if (outputsProp == null) return selectorVisibleOutputById;
     const map: Record<string, StudioOutput> = {};
     [...visibleCuratedOutputs, ...visibleOutputs].forEach((item) => {
       map[item.id] = item;
     });
     return map;
-  }, [visibleCuratedOutputs, visibleOutputs]);
+  }, [outputsProp, selectorVisibleOutputById, visibleCuratedOutputs, visibleOutputs]);
   const archiveCount = archivedOutputs.length;
   const { recomputeAutoplayBudget } = useReferenceGridAutoplaySelectionController({
     activeOutputId,

@@ -91,6 +91,18 @@ const areOutputMapsEquivalent = (
   return true;
 };
 
+const areOutputMapsEqualForIds = (
+  left: Record<string, StudioOutput>,
+  right: Record<string, StudioOutput>,
+  ids: readonly string[]
+) => {
+  if (left === right) return true;
+  for (const id of ids) {
+    if ((left[id] ?? null) !== (right[id] ?? null)) return false;
+  }
+  return true;
+};
+
 const buildIndexes = ({
   outputOrder,
   outputById,
@@ -341,6 +353,34 @@ export const useOutputsByIds = (
       [ids, includeArchived]
     ),
     areOutputEntityArraysEqual
+  );
+};
+
+/**
+ * Reads a normalized id->output map for explicit ids while preserving entity identity equality.
+ */
+export const useOutputMapByIds = (
+  ids: readonly string[],
+  options?: { includeArchived?: boolean }
+): Record<string, StudioOutput> => {
+  const includeArchived = options?.includeArchived ?? false;
+  return useOutputSelector(
+    useCallback(
+      (snapshot: AiStudioOutputStoreSnapshot) => {
+        const next: Record<string, StudioOutput> = {};
+        ids.forEach((id) => {
+          const item =
+            snapshot.outputById[id] ??
+            (includeArchived ? snapshot.archivedOutputById[id] : undefined);
+          if (item) {
+            next[id] = item;
+          }
+        });
+        return next;
+      },
+      [ids, includeArchived]
+    ),
+    (left, right) => areOutputMapsEqualForIds(left, right, ids)
   );
 };
 

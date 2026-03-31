@@ -1,5 +1,6 @@
 import type { ReferenceGridProps } from "../referenceGridTypes";
 import { areOutputListsEqual } from "../referenceGridConfig";
+import { incrementFreezeInvestigationCounter } from "../../logic/freezeInvestigationTelemetry";
 
 type ReferenceGridPropsLike = Omit<ReferenceGridProps, "selectedTool"> & {
   selectedTool?: ReferenceGridProps["selectedTool"];
@@ -42,39 +43,145 @@ const areStylesPanelsEqual = (
   left?.styles === right?.styles &&
   left?.onSelectStyle === right?.onSelectStyle;
 
+const recordReferenceGridPropMismatch = (reason: string) => {
+  incrementFreezeInvestigationCounter(`referenceGrid.propsMismatch.${reason}`);
+};
+
 export const areReferenceGridPropsEqual = (
   previous: Readonly<ReferenceGridPropsLike>,
   next: Readonly<ReferenceGridPropsLike>
-): boolean =>
-  areOptionalOutputListsEqual(previous.outputs, next.outputs) &&
-  areOptionalOutputListsEqual(previous.archivedOutputs, next.archivedOutputs) &&
-  previous.activeOutputId === next.activeOutputId &&
-  previous.topNotice === next.topNotice &&
-  areStringArraysEqual(previous.curatedReferenceIds, next.curatedReferenceIds) &&
-  areStringArraysEqual(previous.removedFromAllRefsIds, next.removedFromAllRefsIds) &&
-  previous.showHeader === next.showHeader &&
-  previous.onOutputMediaLoaded === next.onOutputMediaLoaded &&
-  areStringArraysEqual(previous.linkedPromptReferenceIds, next.linkedPromptReferenceIds) &&
-  previous.onSelectOutput === next.onSelectOutput &&
-  previous.onOpenDetails === next.onOpenDetails &&
-  previous.selectedTool === next.selectedTool &&
-  previous.onDropFiles === next.onDropFiles &&
-  previous.onPasteTextReference === next.onPasteTextReference &&
-  previous.onPasteMediaReference === next.onPasteMediaReference &&
-  previous.onTriggerFileSelect === next.onTriggerFileSelect &&
-  previous.onOpenMediaLibrary === next.onOpenMediaLibrary &&
-  previous.onSaveToLibrary === next.onSaveToLibrary &&
-  previous.onDownload === next.onDownload &&
-  previous.onRetryStatus === next.onRetryStatus &&
-  previous.onRerollOutput === next.onRerollOutput &&
-  previous.onDeleteOutput === next.onDeleteOutput &&
-  previous.onAddCuratedReference === next.onAddCuratedReference &&
-  previous.onRemoveCuratedReference === next.onRemoveCuratedReference &&
-  previous.onReorderCuratedReference === next.onReorderCuratedReference &&
-  previous.onAddLibraryMediaReferenceToQuickSlot === next.onAddLibraryMediaReferenceToQuickSlot &&
-  previous.onAddLibraryPromptReferenceToQuickSlot === next.onAddLibraryPromptReferenceToQuickSlot &&
-  previous.onRestoreArchivedOutput === next.onRestoreArchivedOutput &&
-  previous.onRestoreAllArchivedOutputs === next.onRestoreAllArchivedOutputs &&
-  arePanelVisibilityEqual(previous.panelVisibility, next.panelVisibility) &&
-  previous.railCanvasProps === next.railCanvasProps &&
-  areStylesPanelsEqual(previous.stylesPanel, next.stylesPanel);
+): boolean => {
+  if (!areOptionalOutputListsEqual(previous.outputs, next.outputs)) {
+    recordReferenceGridPropMismatch("outputs");
+    return false;
+  }
+  if (!areOptionalOutputListsEqual(previous.archivedOutputs, next.archivedOutputs)) {
+    recordReferenceGridPropMismatch("archivedOutputs");
+    return false;
+  }
+  if (previous.activeOutputId !== next.activeOutputId) {
+    recordReferenceGridPropMismatch("activeOutputId");
+    return false;
+  }
+  if (previous.topNotice !== next.topNotice) {
+    recordReferenceGridPropMismatch("topNotice");
+    return false;
+  }
+  if (!areStringArraysEqual(previous.curatedReferenceIds, next.curatedReferenceIds)) {
+    recordReferenceGridPropMismatch("curatedReferenceIds");
+    return false;
+  }
+  if (!areStringArraysEqual(previous.removedFromAllRefsIds, next.removedFromAllRefsIds)) {
+    recordReferenceGridPropMismatch("removedFromAllRefsIds");
+    return false;
+  }
+  if (previous.showHeader !== next.showHeader) {
+    recordReferenceGridPropMismatch("showHeader");
+    return false;
+  }
+  if (previous.onOutputMediaLoaded !== next.onOutputMediaLoaded) {
+    recordReferenceGridPropMismatch("onOutputMediaLoaded");
+    return false;
+  }
+  if (!areStringArraysEqual(previous.linkedPromptReferenceIds, next.linkedPromptReferenceIds)) {
+    recordReferenceGridPropMismatch("linkedPromptReferenceIds");
+    return false;
+  }
+  if (previous.onSelectOutput !== next.onSelectOutput) {
+    recordReferenceGridPropMismatch("onSelectOutput");
+    return false;
+  }
+  if (previous.onOpenDetails !== next.onOpenDetails) {
+    recordReferenceGridPropMismatch("onOpenDetails");
+    return false;
+  }
+  if (previous.selectedTool !== next.selectedTool) {
+    recordReferenceGridPropMismatch("selectedTool");
+    return false;
+  }
+  if (previous.onDropFiles !== next.onDropFiles) {
+    recordReferenceGridPropMismatch("onDropFiles");
+    return false;
+  }
+  if (previous.onPasteTextReference !== next.onPasteTextReference) {
+    recordReferenceGridPropMismatch("onPasteTextReference");
+    return false;
+  }
+  if (previous.onPasteMediaReference !== next.onPasteMediaReference) {
+    recordReferenceGridPropMismatch("onPasteMediaReference");
+    return false;
+  }
+  if (previous.onTriggerFileSelect !== next.onTriggerFileSelect) {
+    recordReferenceGridPropMismatch("onTriggerFileSelect");
+    return false;
+  }
+  if (previous.onOpenMediaLibrary !== next.onOpenMediaLibrary) {
+    recordReferenceGridPropMismatch("onOpenMediaLibrary");
+    return false;
+  }
+  if (previous.onSaveToLibrary !== next.onSaveToLibrary) {
+    recordReferenceGridPropMismatch("onSaveToLibrary");
+    return false;
+  }
+  if (previous.onDownload !== next.onDownload) {
+    recordReferenceGridPropMismatch("onDownload");
+    return false;
+  }
+  if (previous.onRetryStatus !== next.onRetryStatus) {
+    recordReferenceGridPropMismatch("onRetryStatus");
+    return false;
+  }
+  if (previous.onRerollOutput !== next.onRerollOutput) {
+    recordReferenceGridPropMismatch("onRerollOutput");
+    return false;
+  }
+  if (previous.onDeleteOutput !== next.onDeleteOutput) {
+    recordReferenceGridPropMismatch("onDeleteOutput");
+    return false;
+  }
+  if (previous.onAddCuratedReference !== next.onAddCuratedReference) {
+    recordReferenceGridPropMismatch("onAddCuratedReference");
+    return false;
+  }
+  if (previous.onRemoveCuratedReference !== next.onRemoveCuratedReference) {
+    recordReferenceGridPropMismatch("onRemoveCuratedReference");
+    return false;
+  }
+  if (previous.onReorderCuratedReference !== next.onReorderCuratedReference) {
+    recordReferenceGridPropMismatch("onReorderCuratedReference");
+    return false;
+  }
+  if (
+    previous.onAddLibraryMediaReferenceToQuickSlot !== next.onAddLibraryMediaReferenceToQuickSlot
+  ) {
+    recordReferenceGridPropMismatch("onAddLibraryMediaReferenceToQuickSlot");
+    return false;
+  }
+  if (
+    previous.onAddLibraryPromptReferenceToQuickSlot !== next.onAddLibraryPromptReferenceToQuickSlot
+  ) {
+    recordReferenceGridPropMismatch("onAddLibraryPromptReferenceToQuickSlot");
+    return false;
+  }
+  if (previous.onRestoreArchivedOutput !== next.onRestoreArchivedOutput) {
+    recordReferenceGridPropMismatch("onRestoreArchivedOutput");
+    return false;
+  }
+  if (previous.onRestoreAllArchivedOutputs !== next.onRestoreAllArchivedOutputs) {
+    recordReferenceGridPropMismatch("onRestoreAllArchivedOutputs");
+    return false;
+  }
+  if (!arePanelVisibilityEqual(previous.panelVisibility, next.panelVisibility)) {
+    recordReferenceGridPropMismatch("panelVisibility");
+    return false;
+  }
+  if (previous.railCanvasProps !== next.railCanvasProps) {
+    recordReferenceGridPropMismatch("railCanvasProps");
+    return false;
+  }
+  if (!areStylesPanelsEqual(previous.stylesPanel, next.stylesPanel)) {
+    recordReferenceGridPropMismatch("stylesPanel");
+    return false;
+  }
+  return true;
+};

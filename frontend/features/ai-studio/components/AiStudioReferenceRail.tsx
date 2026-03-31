@@ -26,13 +26,33 @@ type AiStudioReferenceRailProps = {
 const areAiStudioReferenceRailPropsEqual = (
   previous: Readonly<AiStudioReferenceRailProps>,
   next: Readonly<AiStudioReferenceRailProps>
-): boolean =>
-  areReferenceGridPropsEqual(previous.referenceGridProps, next.referenceGridProps) &&
-  previous.railCanvasProps === next.railCanvasProps &&
-  previous.onDropFiles === next.onDropFiles &&
-  previous.onTriggerFilePicker === next.onTriggerFilePicker &&
-  previous.selectedTool === next.selectedTool &&
-  previous.onOpenMediaLibrary === next.onOpenMediaLibrary;
+): boolean => {
+  if (!areReferenceGridPropsEqual(previous.referenceGridProps, next.referenceGridProps)) {
+    incrementFreezeInvestigationCounter("referenceRail.propsMismatch.referenceGridProps");
+    return false;
+  }
+  if (previous.railCanvasProps !== next.railCanvasProps) {
+    incrementFreezeInvestigationCounter("referenceRail.propsMismatch.railCanvasProps");
+    return false;
+  }
+  if (previous.onDropFiles !== next.onDropFiles) {
+    incrementFreezeInvestigationCounter("referenceRail.propsMismatch.onDropFiles");
+    return false;
+  }
+  if (previous.onTriggerFilePicker !== next.onTriggerFilePicker) {
+    incrementFreezeInvestigationCounter("referenceRail.propsMismatch.onTriggerFilePicker");
+    return false;
+  }
+  if (previous.selectedTool !== next.selectedTool) {
+    incrementFreezeInvestigationCounter("referenceRail.propsMismatch.selectedTool");
+    return false;
+  }
+  if (previous.onOpenMediaLibrary !== next.onOpenMediaLibrary) {
+    incrementFreezeInvestigationCounter("referenceRail.propsMismatch.onOpenMediaLibrary");
+    return false;
+  }
+  return true;
+};
 
 export const AiStudioReferenceRail = React.memo(function AiStudioReferenceRail({
   referenceGridProps,

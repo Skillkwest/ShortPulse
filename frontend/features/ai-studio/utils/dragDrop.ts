@@ -2,7 +2,10 @@ import { StudioOutput } from "../types";
 import { canExposeDirectReferenceUrls } from "../logic/referenceOutputAuthority";
 import { isVideoUrl } from "../logic/stateParsers";
 import { isRenderableAdaptiveUrl } from "../../../lib/adaptive-media";
-import { INTERNAL_REFERENCE_DRAG_ORIGIN } from "../../../lib/internalReferenceDragPayload";
+import {
+  hasInternalReferenceDragTypeHints,
+  INTERNAL_REFERENCE_DRAG_ORIGIN,
+} from "../../../lib/internalReferenceDragPayload";
 import {
   clearInternalReferenceDragSession,
   INTERNAL_REFERENCE_DRAG_SESSION_TYPE,
@@ -625,6 +628,7 @@ const extractPromptText = (transfer: DataTransfer) => {
 
 export const isImageDragTransfer = (transfer: DataTransfer) => {
   if (transfer.types.includes("Files")) return true;
+  if (hasInternalReferenceDragTypeHints(transfer)) return true;
   if (transfer.types.includes("text/uri-list") || transfer.types.includes("image/url")) return true;
   const plainText = normalizeReferenceTransferUrlCandidate(transfer.getData("text/plain"));
   return Boolean(plainText && looksLikeImageUrl(plainText));

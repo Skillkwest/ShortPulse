@@ -156,9 +156,9 @@ const parseQueueStatus = (value: unknown): "queued" | "dispatching" | "exhausted
   return null;
 };
 
-const QUEUE_STATUS_QUEUED_RETRY_MS = 5000;
-const QUEUE_STATUS_DISPATCHING_RETRY_MS = 2000;
-const QUEUE_STATUS_PRE_DISPATCH_RETRY_MS = 7000;
+const QUEUE_STATUS_QUEUED_RETRY_MS = 2000;
+const QUEUE_STATUS_DISPATCHING_RETRY_MS = 1000;
+const QUEUE_STATUS_PRE_DISPATCH_RETRY_MS = 3000;
 
 const toQueueMutationResult = ({
   operation,

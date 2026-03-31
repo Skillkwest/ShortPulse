@@ -232,7 +232,7 @@ export const readFalRuntimeFlags = (): FalRuntimeFlags => ({
   queueMaxAttempts: parseInteger(process.env.SHORTPULSE_FAL_QUEUE_MAX_ATTEMPTS, 5, 1),
   queueBaseBackoffSeconds: parseInteger(
     process.env.SHORTPULSE_FAL_QUEUE_BASE_BACKOFF_SECONDS,
-    5,
+    3,
     1
   ),
   queueMaxWaitSeconds: parseInteger(process.env.SHORTPULSE_FAL_QUEUE_MAX_WAIT_SECONDS, 1200, 60),

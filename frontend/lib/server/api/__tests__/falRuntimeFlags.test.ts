@@ -65,7 +65,7 @@ describe("readFalRuntimeFlags admission config", () => {
     expect(flags.queueDispatchBatchSize).toBe(25);
     expect(flags.queueLeaseSeconds).toBe(30);
     expect(flags.queueMaxAttempts).toBe(5);
-    expect(flags.queueBaseBackoffSeconds).toBe(5);
+    expect(flags.queueBaseBackoffSeconds).toBe(3);
     expect(flags.queueMaxWaitSeconds).toBe(1200);
     expect(Array.from(flags.webhookCanaryUserAllowlist)).toEqual([]);
     expect(Array.from(flags.webhookCanaryModelAllowlist)).toEqual([]);

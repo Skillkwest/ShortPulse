@@ -2,10 +2,10 @@ import React from "react";
 import {
   composePrimaryStageLayersToBlob,
   type ExpertEditStageFlattenLayer,
-  type StageFlattenCameraTransformInput,
 } from "../../logic/expertEditStageFlatten";
 import {
   analyzeExpertEditPromptTokens,
+  buildExpertEditSubmissionReferenceInputs,
   compileExpertEditSubmissionPrompt,
 } from "../../logic/expertEditPromptReferences";
 import {
@@ -34,12 +34,10 @@ type ExportSelectedLayerMaskBlob = (params: {
   targetWidth: number;
   targetHeight: number;
   mimeType?: "image/png" | "image/jpeg";
-  camera?: StageFlattenCameraTransformInput | null;
 }) => Promise<Blob | null>;
 
 type StageFlattenSnapshot = {
   outputAspectRatio?: number;
-  camera?: StageFlattenCameraTransformInput | null;
 };
 
 type UseExpertEditInlineGenerateParams = {
@@ -61,7 +59,6 @@ type UseExpertEditInlineGenerateParams = {
   resolveStageFlattenSnapshot?: () => StageFlattenSnapshot;
 };
 
-const MAX_REFERENCE_INPUTS = 8;
 const LAYER_IMAGE_LOAD_FAILURE_PREFIX = "Failed to load layer image:";
 const EXPIRED_REFERENCE_FRAGMENT = "Reference URL expired";
 
@@ -95,22 +92,6 @@ export const useExpertEditInlineGenerate = ({
   onInvalidPromptReferenceToken,
   resolveStageFlattenSnapshot,
 }: UseExpertEditInlineGenerateParams) => {
-  const buildFlattenReferenceInputs = React.useCallback(
-    (flattenedPrimaryUrl: string, flattenedMarkupReferenceUrl?: string | null) => {
-      const candidates = [
-        flattenedPrimaryUrl,
-        flattenedMarkupReferenceUrl ?? "",
-        ...extraImageUrls.map((value) => value ?? ""),
-      ];
-      const normalizedCandidates = candidates
-        .map((value) => value.trim())
-        .filter((value) => value.length > 0);
-      const deduped = Array.from(new Set(normalizedCandidates));
-      return deduped.slice(0, MAX_REFERENCE_INPUTS);
-    },
-    [extraImageUrls]
-  );
-
   const handleInlineGenerate = React.useCallback(() => {
     const run = async () => {
       if (populatedLayerCount <= 0) {
@@ -135,7 +116,6 @@ export const useExpertEditInlineGenerate = ({
         const flattenedBlob = await composePrimaryStageLayersToBlob(layers, {
           mimeType: "image/png",
           outputAspectRatio: flattenSnapshot?.outputAspectRatio,
-          camera: flattenSnapshot?.camera,
         });
         flattenedUrl = URL.createObjectURL(flattenedBlob);
         const shouldAttachMarkupReference =
@@ -152,10 +132,12 @@ export const useExpertEditInlineGenerate = ({
             flattenedMarkupReferenceUrl = URL.createObjectURL(flattenedMarkupReferenceBlob);
           }
         }
-        const referenceInputs = buildFlattenReferenceInputs(
-          flattenedUrl,
-          flattenedMarkupReferenceUrl
-        );
+        const referenceInputs = buildExpertEditSubmissionReferenceInputs({
+          flattenedPrimaryUrl: flattenedUrl,
+          flattenedMarkupReferenceUrl,
+          secondarySlots: extraImageUrls,
+          referencedSlotIndexes: tokenAnalysis.referencedSlotIndexes,
+        });
         const compiledPrompt = compileExpertEditSubmissionPrompt({
           displayPrompt: promptText,
           secondarySlots: extraImageUrls,
@@ -182,7 +164,6 @@ export const useExpertEditInlineGenerate = ({
             targetWidth: flattenedDimensions.width,
             targetHeight: flattenedDimensions.height,
             mimeType: "image/png",
-            camera: flattenSnapshot?.camera,
           });
           if (!inpaintMaskBlob) {
             showStatusToast("Mask selection is required for inpaint.");
@@ -254,7 +235,6 @@ export const useExpertEditInlineGenerate = ({
     };
     void run();
   }, [
-    buildFlattenReferenceInputs,
     extraImageUrls,
     exportSelectedLayerMaskBlob,
     hasSelectedLayerMask,

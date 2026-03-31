@@ -15,6 +15,7 @@ import {
   getNormalizedTransferTypes,
   hasInternalReferenceDragTypeHints,
   INTERNAL_REFERENCE_DRAG_ORIGIN,
+  isImageDragTransfer,
   isVideoDragTransfer,
   looksLikeImageUrl,
   prepareReferenceDrag,
@@ -136,6 +137,18 @@ describe("dragDrop payload extraction", () => {
     });
 
     expect(hasInternalReferenceDragTypeHints(transfer)).toBe(true);
+  });
+
+  it("accepts internal reference drags for image targets during dragover", () => {
+    const transfer = makeTransfer({
+      "text/reference-id": "out-1",
+      "text/reference-output-id": "out-1",
+      "text/reference-origin": INTERNAL_REFERENCE_DRAG_ORIGIN,
+      "text/reference-url": "",
+      "text/reference-render-url": "",
+    });
+
+    expect(isImageDragTransfer(transfer)).toBe(true);
   });
 
   it("caches normalized transfer types per transfer object", () => {

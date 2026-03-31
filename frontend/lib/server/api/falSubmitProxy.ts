@@ -158,7 +158,7 @@ const buildQueuedSubmitPayload = ({
   code: "GENERATION_QUEUED",
   sourceRef,
   generationId,
-  pollAfterMs: 5000,
+  pollAfterMs: 2000,
 });
 
 const applyRewrittenPromptToPayload = ({

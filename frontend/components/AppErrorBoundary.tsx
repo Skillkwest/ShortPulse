@@ -15,6 +15,8 @@ type AppErrorBoundaryState = {
   message: string;
 };
 
+const GENERIC_USER_FACING_ERROR_MESSAGE = "Please reload the page or try again in a moment.";
+
 const currentRoute = (): string | null => {
   if (typeof window === "undefined") return null;
   return `${window.location.pathname}${window.location.search}`.slice(0, 300);
@@ -27,11 +29,15 @@ export class AppErrorBoundary extends React.Component<
   AppErrorBoundaryProps,
   AppErrorBoundaryState
 > {
-  public state: AppErrorBoundaryState = { hasError: false, message: "" };
+  public state: AppErrorBoundaryState = {
+    hasError: false,
+    message: GENERIC_USER_FACING_ERROR_MESSAGE,
+  };
 
   static getDerivedStateFromError(error: unknown): AppErrorBoundaryState {
     const message = error instanceof Error ? error.message : "A rendering error occurred.";
-    return { hasError: true, message };
+    void message;
+    return { hasError: true, message: GENERIC_USER_FACING_ERROR_MESSAGE };
   }
 
   componentDidCatch(error: unknown, info: React.ErrorInfo) {
@@ -78,7 +84,7 @@ export class AppErrorBoundary extends React.Component<
               type="button"
               className="ghost-btn small"
               onClick={() => {
-                this.setState({ hasError: false, message: "" });
+                this.setState({ hasError: false, message: GENERIC_USER_FACING_ERROR_MESSAGE });
               }}
             >
               Try to recover

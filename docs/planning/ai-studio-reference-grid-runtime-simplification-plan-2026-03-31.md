@@ -1,6 +1,6 @@
 # AI Studio Reference Grid Runtime Simplification Plan (2026-03-31)
 
-Purpose: define the narrow simplify/rebuild lane for the AI Studio reference runtime after the March 2026 freeze investigation. This is an active-lane execution spec, not a new broad architecture program.
+Purpose: define the narrow simplify/rebuild lane for the AI Studio reference runtime after the March 2026 freeze investigation. This is a paused execution checkpoint for a narrow runtime lane, not a new broad architecture program.
 
 ## Resume Handles
 Use these exact phrases when you want an agent to find this lane again quickly:

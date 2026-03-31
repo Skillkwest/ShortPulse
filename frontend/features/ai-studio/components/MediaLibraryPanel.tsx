@@ -3,7 +3,7 @@
  * Provides folder-aware browsing for media + prompts with adaptive preview/signing parity.
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ArrowsOutSimple, CheckCircle, FolderSimple } from "phosphor-react";
+import { ArrowsOutSimple, CheckCircle, FolderSimple, UploadSimple } from "phosphor-react";
 import { isAdaptiveSurfaceEnabled } from "../../../lib/adaptive-media";
 import { MEDIA_PREVIEW_SIGN_BATCH_MAX_ATTEMPTS_PER_ITEM } from "../../../lib/mediaPreviewRuntimePolicy";
 import { ensureSupabaseQueryClient, readSupabaseUserId } from "../../../lib/supabaseClient";
@@ -154,6 +154,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
   const [projectNameDraft, setProjectNameDraft] = useState(projectName ?? "");
 
   const mediaDownloadInFlightRef = useRef<Record<string, boolean>>({});
+  const rootUploadInputRef = useRef<HTMLInputElement | null>(null);
 
   const panelBodyRef = useRef<HTMLDivElement | null>(null);
   const splitContainerRef = useRef<HTMLDivElement | null>(null);
@@ -941,6 +942,23 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
     foldersSplit.snapToAllRefsExpanded(MEDIA_LIBRARY_FOLDERS_EXPANDED_GRID_TOP_HEIGHT_PX);
   }, [foldersSplit, onExpandMediaLibraryPanel]);
 
+  const handleOpenRootUploadPicker = useCallback(() => {
+    rootUploadInputRef.current?.click();
+  }, []);
+
+  const handleRootUploadSelection = useCallback(
+    async (event: React.ChangeEvent<HTMLInputElement>) => {
+      const files = event.target.files;
+      event.currentTarget.value = "";
+      if (!files || files.length === 0) return;
+      await uploadDroppedFilesToFolder({
+        targetFolderId: MEDIA_LIBRARY_ROOT_FOLDER_ID,
+        files,
+      });
+    },
+    [uploadDroppedFilesToFolder]
+  );
+
   const showCustomFolderEmptyState =
     !showFolderCanvas &&
     !isRootFolderSelected &&
@@ -951,6 +969,9 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
     mediaRows.length === 0;
   const isActiveFolderDropHover =
     !isRootFolderSelected && foldersDropController.hoveredContentFolderId === activeFolderId;
+  const isRootFolderDropHover =
+    isRootFolderSelected &&
+    foldersDropController.hoveredContentFolderId === MEDIA_LIBRARY_ROOT_FOLDER_ID;
   const activeFolderDropZoneProps = !isRootFolderSelected
     ? {
         onDragOver: (event: React.DragEvent<HTMLElement>) =>
@@ -960,6 +981,17 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
         },
         onDrop: (event: React.DragEvent<HTMLElement>) => {
           void foldersDropController.handleFolderContentDrop(activeFolderId, event);
+        },
+      }
+    : null;
+  const rootFolderDropZoneProps = isRootFolderSelected
+    ? {
+        onDragOver: (event: React.DragEvent<HTMLElement>) =>
+          foldersDropController.handleFolderContentDragOver(MEDIA_LIBRARY_ROOT_FOLDER_ID, event),
+        onDragLeave: () =>
+          foldersDropController.handleFolderContentDragLeave(MEDIA_LIBRARY_ROOT_FOLDER_ID),
+        onDrop: (event: React.DragEvent<HTMLElement>) => {
+          void foldersDropController.handleFolderContentDrop(MEDIA_LIBRARY_ROOT_FOLDER_ID, event);
         },
       }
     : null;
@@ -994,6 +1026,17 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
           />
         </label>
       </header>
+
+      <input
+        ref={rootUploadInputRef}
+        type="file"
+        accept="image/*,video/*"
+        multiple
+        className="media-library-panel-file-input"
+        onChange={(event) => {
+          void handleRootUploadSelection(event);
+        }}
+      />
 
       <div ref={splitContainerRef} className="media-library-panel-split">
         <div className="media-library-panel-folders-panel" style={foldersSplit.topSectionStyle}>
@@ -1121,6 +1164,14 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
                   </button>
                 </div>
                 <div className="media-library-panel-root-count-group">
+                  <button
+                    type="button"
+                    className="media-library-panel-root-upload-button"
+                    onClick={handleOpenRootUploadPicker}
+                  >
+                    <UploadSimple size={14} weight="bold" aria-hidden />
+                    <span>Add files</span>
+                  </button>
                   {libraryTotalCount !== null ? (
                     <div
                       className="media-library-panel-root-count"
@@ -1145,7 +1196,13 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
             ) : null}
 
             {!showFolderCanvas && shouldShowMedia && isRootFolderSelected && itemType === "all" ? (
-              <section className="media-library-panel-section">
+              <section
+                className={`media-library-panel-section${
+                  isRootFolderDropHover ? " is-root-drop-hover" : ""
+                }`}
+                data-testid="media-library-panel-root-dropzone"
+                {...(rootFolderDropZoneProps ?? {})}
+              >
                 {mediaLoading && mediaRows.length === 0 ? (
                   <p className="tiny subdued">Loading media…</p>
                 ) : null}
@@ -1163,7 +1220,13 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
             isRootFolderSelected &&
             itemType === "images" ? (
               <>
-                <section className="media-library-panel-section">
+                <section
+                  className={`media-library-panel-section${
+                    isRootFolderDropHover ? " is-root-drop-hover" : ""
+                  }`}
+                  data-testid="media-library-panel-root-dropzone"
+                  {...(rootFolderDropZoneProps ?? {})}
+                >
                   {mediaLoading && mediaRows.length === 0 ? (
                     <p className="tiny subdued">Loading images…</p>
                   ) : null}
@@ -1182,7 +1245,13 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
             isRootFolderSelected &&
             itemType === "videos" ? (
               <>
-                <section className="media-library-panel-section">
+                <section
+                  className={`media-library-panel-section${
+                    isRootFolderDropHover ? " is-root-drop-hover" : ""
+                  }`}
+                  data-testid="media-library-panel-root-dropzone"
+                  {...(rootFolderDropZoneProps ?? {})}
+                >
                   {mediaLoading && mediaRows.length === 0 ? (
                     <p className="tiny subdued">Loading videos…</p>
                   ) : null}

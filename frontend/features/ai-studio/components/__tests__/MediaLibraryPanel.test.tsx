@@ -1080,6 +1080,74 @@ describe("MediaLibraryPanel", () => {
     });
   });
 
+  it("uploads desktop files dropped on the All Media grid into the library", async () => {
+    render(<MediaLibraryPanel onSelectMedia={vi.fn()} onSelectPrompt={vi.fn()} />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("media-library-panel-root-dropzone")).toBeInTheDocument();
+    });
+
+    const file = new File(["desktop"], "root-drop.png", { type: "image/png" });
+    const files = {
+      0: file,
+      length: 1,
+      item: (index: number) => (index === 0 ? file : null),
+    } as unknown as FileList;
+    const transfer = {
+      files,
+      types: ["Files"],
+      getData: () => "",
+      dropEffect: "none",
+      effectAllowed: "copy",
+    } as unknown as DataTransfer;
+
+    fireEvent.drop(screen.getByTestId("media-library-panel-root-dropzone"), {
+      dataTransfer: transfer,
+    });
+
+    await waitFor(() => {
+      expect(uploadMediaFileMock).toHaveBeenCalledWith({
+        file,
+        destinationTab: "uploaded_images",
+      });
+    });
+
+    expect(applyMediaFolderMembershipBatchMock).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        folderId: "all_items",
+      })
+    );
+  });
+
+  it("uploads selected files from the Add files button into All Media", async () => {
+    const { container } = render(
+      <MediaLibraryPanel onSelectMedia={vi.fn()} onSelectPrompt={vi.fn()} />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Add files" })).toBeInTheDocument();
+    });
+
+    const input = container.querySelector(
+      '.media-library-panel-file-input[type="file"]'
+    ) as HTMLInputElement;
+    expect(input).toBeTruthy();
+
+    const file = new File(["desktop"], "picker-upload.png", { type: "image/png" });
+    fireEvent.change(input, {
+      target: {
+        files: [file],
+      },
+    });
+
+    await waitFor(() => {
+      expect(uploadMediaFileMock).toHaveBeenCalledWith({
+        file,
+        destinationTab: "uploaded_images",
+      });
+    });
+  });
+
   it("prioritizes media-library drag payload over transfer files on folder tile drops", async () => {
     render(<MediaLibraryPanel onSelectMedia={vi.fn()} onSelectPrompt={vi.fn()} />);
 

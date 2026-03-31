@@ -59,6 +59,13 @@ export const useReferenceGridScrollController = ({
           const queuedMetrics = queuedAllRefsScrollMetricsRef.current;
           if (!queuedMetrics) return;
           setVirtualMetrics((prev) => {
+            const safeRowHeight = Math.max(1, prev.rowHeight);
+            const previousRow = Math.floor(Math.max(0, prev.scrollTop) / safeRowHeight);
+            const nextRow = Math.floor(Math.max(0, queuedMetrics.scrollTop) / safeRowHeight);
+            const viewportStable = Math.abs(prev.viewportHeight - queuedMetrics.viewportHeight) < 1;
+            if (previousRow === nextRow && viewportStable) {
+              return prev;
+            }
             const next = {
               ...prev,
               scrollTop: queuedMetrics.scrollTop,
@@ -115,6 +122,13 @@ export const useReferenceGridScrollController = ({
           const queuedMetrics = queuedCuratedScrollMetricsRef.current;
           if (!queuedMetrics) return;
           setCuratedVirtualMetrics((prev) => {
+            const safeRowHeight = Math.max(1, prev.rowHeight);
+            const previousRow = Math.floor(Math.max(0, prev.scrollTop) / safeRowHeight);
+            const nextRow = Math.floor(Math.max(0, queuedMetrics.scrollTop) / safeRowHeight);
+            const viewportStable = Math.abs(prev.viewportHeight - queuedMetrics.viewportHeight) < 1;
+            if (previousRow === nextRow && viewportStable) {
+              return prev;
+            }
             const next = {
               ...prev,
               scrollTop: queuedMetrics.scrollTop,

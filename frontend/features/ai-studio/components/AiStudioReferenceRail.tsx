@@ -8,6 +8,10 @@ import type { ToolId } from "../types";
 import type { CanvasPropertiesPanelProps } from "./canvas/useAiStudioCanvasWorkspaceState";
 import type { AiStudioReferenceGridContract } from "../hooks/contracts/pageContentContracts";
 import { recordAiStudioShellSectionRender } from "../logic/shellRenderCounters";
+import {
+  incrementFreezeInvestigationCounter,
+  setFreezeInvestigationGauge,
+} from "../logic/freezeInvestigationTelemetry";
 
 type AiStudioReferenceRailProps = {
   referenceGridProps: AiStudioReferenceGridContract;
@@ -27,6 +31,9 @@ export const AiStudioReferenceRail = React.memo(function AiStudioReferenceRail({
   onOpenMediaLibrary,
 }: AiStudioReferenceRailProps) {
   recordAiStudioShellSectionRender("reference");
+  incrementFreezeInvestigationCounter("referenceRail.render");
+  setFreezeInvestigationGauge("referenceRail.railCanvasPresent", Boolean(railCanvasProps));
+  setFreezeInvestigationGauge("referenceRail.selectedTool", selectedTool ?? null);
   return (
     <div className="ai-preview-column reference-column">
       <div className="reference-column-sticky">

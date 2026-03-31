@@ -5,6 +5,10 @@
 import { useCallback, useEffect, useState } from "react";
 import { ensureSupabaseQueryClient, readSupabaseUserId } from "../../../lib/supabaseClient";
 import { fetchWithAuth } from "../../../lib/authenticatedFetch";
+import {
+  incrementFreezeInvestigationCounter,
+  setFreezeInvestigationGauge,
+} from "../logic/freezeInvestigationTelemetry";
 
 type BalanceState = {
   cents: number | null;
@@ -248,6 +252,7 @@ const fetchCreditSnapshot = async (): Promise<CreditSnapshotApiResponse | null> 
 };
 
 export const useCredits = () => {
+  incrementFreezeInvestigationCounter("credits.render");
   const [balance, setBalance] = useState<BalanceState>({
     cents: null,
     reservedCents: null,
@@ -259,6 +264,8 @@ export const useCredits = () => {
 
   const refresh = useCallback(
     async (options?: RefreshBalanceOptions): Promise<number | null> => {
+      incrementFreezeInvestigationCounter("credits.refresh.calls");
+      setFreezeInvestigationGauge("credits.refresh.silent", options?.silent ?? false);
       const silent = options?.silent ?? false;
       try {
         if (!silent) {
@@ -269,6 +276,11 @@ export const useCredits = () => {
 
         const preferLedger = options?.preferLedger ?? false;
         const snapshot = preferLedger ? null : await fetchCreditSnapshot();
+        if (snapshot) {
+          incrementFreezeInvestigationCounter("credits.refresh.snapshotSuccess");
+        } else if (!preferLedger) {
+          incrementFreezeInvestigationCounter("credits.refresh.snapshotMiss");
+        }
         const next: BalanceCommitSnapshot = snapshot
           ? {
               cents: snapshot.spendableCents,
@@ -295,6 +307,7 @@ export const useCredits = () => {
         });
         return next.cents;
       } catch (error) {
+        incrementFreezeInvestigationCounter("credits.refresh.error");
         setBalance((prev) => ({
           ...prev,
           loading: false,
@@ -305,6 +318,12 @@ export const useCredits = () => {
     },
     [userId]
   );
+
+  useEffect(() => {
+    setFreezeInvestigationGauge("credits.loading", balance.loading);
+    setFreezeInvestigationGauge("credits.error", balance.error ?? null);
+    setFreezeInvestigationGauge("credits.cents", balance.cents);
+  }, [balance.cents, balance.error, balance.loading]);
 
   useEffect(() => {
     refresh();

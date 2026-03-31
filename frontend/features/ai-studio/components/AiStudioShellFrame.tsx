@@ -19,6 +19,10 @@ import { AiStudioReferenceRail } from "./AiStudioReferenceRail";
 import { AiStudioPreviewRail } from "./AiStudioPreviewRail";
 import { useOutputCounts } from "../hooks/aiStudioOutputStore";
 import type { AiStudioReferenceGridContract } from "../hooks/contracts/pageContentContracts";
+import {
+  incrementFreezeInvestigationCounter,
+  setFreezeInvestigationGauge,
+} from "../logic/freezeInvestigationTelemetry";
 
 type RightColumnDropMode = "none" | "text" | "media";
 
@@ -108,8 +112,12 @@ export const AiStudioShellFrame = React.memo(function AiStudioShellFrame({
   beginnerMode,
   rightColumnHidden,
 }: AiStudioShellFrameProps) {
+  incrementFreezeInvestigationCounter("shellFrame.render");
   const { activeCount } = useOutputCounts();
   const isDenseSession = activeCount >= 40;
+  setFreezeInvestigationGauge("shellFrame.activeCount", activeCount);
+  setFreezeInvestigationGauge("shellFrame.agentChatOpen", agentChat.isOpen);
+  setFreezeInvestigationGauge("shellFrame.rightColumnHidden", Boolean(rightColumnHidden));
   return (
     <section
       ref={shellRef}

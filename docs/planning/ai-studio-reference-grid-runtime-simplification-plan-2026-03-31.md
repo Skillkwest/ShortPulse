@@ -16,6 +16,35 @@ Preferred short handles:
 - `ref-grid freeze lane`
 - `ref-grid runtime plan`
 
+## Status
+- Status: paused after successful UX validation
+- Current posture: major freeze lane complete enough to stop; further work is optional follow-up, not active required execution
+- Resume rule: do not reopen this lane by adjacency; only resume if the heavy AI Studio flow becomes materially bad again or a new measured hotspot clearly justifies more work
+
+## Stop Point
+The March 2026 freeze lane stopped after:
+- preview-runtime ownership was simplified
+- scroll/virtual-metrics churn was reduced
+- visible-output map churn was reduced
+- temporary incident diagnostics were removed from the hot path
+
+Observed outcome before closeout:
+- the original runaway `ReferenceGrid` rerender shape was materially reduced
+- real heavy-flow UX validation looked acceptable
+
+## Re-entry Notes
+If this lane reopens later:
+1. start by reading this plan
+2. search using the resume handles above
+3. add fresh targeted diagnostics for the current incident instead of assuming the old counters still exist
+4. remeasure first, then decide whether the next lane is:
+   - preview/runtime churn
+   - virtualization churn
+   - boundary churn
+   - or a different issue entirely
+
+Do not assume the next unfinished phase in this file is automatically the correct next step; re-entry must be evidence-led.
+
 ## Scope
 - In scope:
   - `frontend/features/ai-studio/components/ReferenceGrid.tsx`
@@ -253,7 +282,11 @@ Minimum preserved behaviors to verify:
 - styles/canvas visibility behavior if touched
 
 ## Measurement Contract
-Use the existing freeze-investigation counters as the short-term perf contract until Phase 6 removes or isolates them.
+During the original March 2026 incident, freeze-investigation counters were used as the short-term perf contract.
+
+Current posture:
+- those temporary diagnostics were removed at closeout
+- future re-entry should add fresh targeted diagnostics that match the current incident
 
 At minimum compare:
 - `referenceGrid.render`

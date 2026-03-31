@@ -47,19 +47,18 @@ import { useReferenceGridAutoplayBudgetController } from "../reference-grid/cont
 import { useReferenceGridTelemetryController } from "../reference-grid/controllers/useReferenceGridTelemetryController";
 import { useReferenceGridAutoplayEventController } from "../reference-grid/controllers/useReferenceGridAutoplayEventController";
 import { useReferenceGridCardDragController } from "../reference-grid/controllers/useReferenceGridCardDragController";
-import { useReferenceGridLoadedMediaController } from "../reference-grid/controllers/useReferenceGridLoadedMediaController";
 import { useReferenceGridCardRenderController } from "../reference-grid/controllers/useReferenceGridCardRenderController";
 import { useReferenceGridPreviewSwapTelemetryController } from "../reference-grid/controllers/useReferenceGridPreviewSwapTelemetryController";
 import { useReferenceGridLoadingVisualController } from "../reference-grid/controllers/useReferenceGridLoadingVisualController";
 import { useReferenceGridAutoplaySelectionController } from "../reference-grid/controllers/useReferenceGridAutoplaySelectionController";
 import { useReferenceGridDropHelpersController } from "../reference-grid/controllers/useReferenceGridDropHelpersController";
-import { useReferenceGridImageHydrationController } from "../reference-grid/controllers/useReferenceGridImageHydrationController";
+import { useReferenceGridHydrationQueueController } from "../reference-grid/controllers/useReferenceGridHydrationQueueController";
 import { useReferenceGridViewportProjectionController } from "../reference-grid/controllers/useReferenceGridViewportProjectionController";
 import { useReferenceGridCardItemsController } from "../reference-grid/controllers/useReferenceGridCardItemsController";
-import { useReferenceGridHydrationQueueController } from "../reference-grid/controllers/useReferenceGridHydrationQueueController";
 import { useReferenceGridHeaderMeasurements } from "../reference-grid/controllers/useReferenceGridHeaderMeasurements";
 import { useReferenceGridResolvedMediaController } from "../reference-grid/controllers/useReferenceGridResolvedMediaController";
 import { useReferenceGridSurfaceOwnershipController } from "../reference-grid/controllers/useReferenceGridSurfaceOwnershipController";
+import { useReferenceGridPreviewRuntime } from "../reference-grid/controllers/useReferenceGridPreviewRuntime";
 import { isReferenceGridAdaptivePreviewRoutingEnabled } from "../reference-grid/logic/referenceGridAdaptivePreview";
 import {
   areReferenceGridMediaOutputEntriesEqual,
@@ -283,8 +282,6 @@ function ReferenceGridComponent({
     pressureLevel: perfWatchdog.degradeLevel,
   });
   const selectionTheme = resolveReferenceSelectionTheme(selectedTool);
-  const [loadedMap, setLoadedMap] = useState<Record<string, boolean>>({});
-  const loadedIdsRef = React.useRef<Set<string>>(new Set());
   const autoplayingIdsRef = React.useRef<Set<string>>(new Set());
   const scrollContainerRef = React.useRef<HTMLDivElement | null>(null);
   const gridRef = React.useRef<HTMLDivElement | null>(null);
@@ -511,18 +508,25 @@ function ReferenceGridComponent({
     adaptivePreviewEnabled: REFERENCE_GRID_FLAG_ADAPTIVE_PREVIEW,
     adaptivePreviewQualityEnabled: REFERENCE_GRID_FLAG_ADAPTIVE_PREVIEW_QUALITY,
   });
+  const {
+    imageHydrationState,
+    loadedMap,
+    markLoaded,
+    enqueueImageHydration,
+    pruneHydrationQueueToCandidateIds,
+  } = useReferenceGridPreviewRuntime({
+    decodeBudgetEnabled: REFERENCE_GRID_FLAG_DECODE_BUDGET,
+    suspendPreviewRuntime: suspendBackgroundVisualWork,
+    adaptivePreviewRoutingEnabled,
+    imageDecodeBudget: mediaWorkBudget.imageDecodeBudget,
+    activeOutputId,
+    validOutputIds: allOutputIds,
+    runNonUrgentUpdate,
+    liveWatchdogDegradeLevelRef,
+    onOutputMediaLoaded,
+    stabilizeLoadingVisual: REFERENCE_GRID_FLAG_LOADING_PLACEHOLDER_TIMEOUT,
+  });
 
-  const { imageHydrationState, enqueueImageHydration, pruneHydrationQueueToCandidateIds } =
-    useReferenceGridImageHydrationController({
-      decodeBudgetEnabled: REFERENCE_GRID_FLAG_DECODE_BUDGET,
-      suspendHydrationProcessing: suspendBackgroundVisualWork,
-      adaptivePreviewRoutingEnabled,
-      imageDecodeBudget: mediaWorkBudget.imageDecodeBudget,
-      activeOutputId,
-      validOutputIds: allOutputIds,
-      runNonUrgentUpdate,
-      liveWatchdogDegradeLevelRef,
-    });
   const { normalizeMediaFiles, resolveCanvasDropMode, canAcceptCanvasDrag, buildFileList } =
     useReferenceGridDropHelpersController();
 
@@ -868,14 +872,6 @@ function ReferenceGridComponent({
     canvasDropMode,
     isCuratedDropActive,
     loadingCardCount: loadingIdsLength,
-  });
-
-  const { markLoaded } = useReferenceGridLoadedMediaController({
-    loadedIdsRef,
-    setLoadedMap,
-    runNonUrgentUpdate,
-    onOutputMediaLoaded,
-    stabilizeLoadingVisual: REFERENCE_GRID_FLAG_LOADING_PLACEHOLDER_TIMEOUT,
   });
 
   const { handleCanvasDrop, handleCanvasDragOver, handleCanvasDragEnter, handleCanvasDragLeave } =

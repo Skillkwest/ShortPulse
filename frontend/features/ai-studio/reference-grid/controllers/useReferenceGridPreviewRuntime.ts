@@ -3,15 +3,15 @@
  * Consolidates hydration scheduling, image decode state, loaded-media bookkeeping,
  * and loading visual derivation behind one hook.
  */
-import { useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { MutableRefObject } from "react";
 import type { ReferenceGridPreviewQualityBand } from "../../logic/referenceGridMedia";
+import { incrementFreezeInvestigationCounter } from "../../logic/freezeInvestigationTelemetry";
 import type { ReferenceGridMediaOutput } from "../logic/referenceGridMediaOutput";
 import type { ReferenceGridVisibleCardItem } from "./useReferenceGridCardItemsController";
 import type { ReferenceGridResolvedCardMedia } from "./useReferenceGridResolvedMediaController";
 import { useReferenceGridHydrationQueueController } from "./useReferenceGridHydrationQueueController";
 import { useReferenceGridImageHydrationController } from "./useReferenceGridImageHydrationController";
-import { useReferenceGridLoadedMediaController } from "./useReferenceGridLoadedMediaController";
 
 type UseReferenceGridPreviewRuntimeArgs = {
   decodeBudgetEnabled: boolean;
@@ -74,6 +74,7 @@ export const useReferenceGridPreviewRuntime = ({
 }: UseReferenceGridPreviewRuntimeArgs) => {
   const [loadedMap, setLoadedMap] = useState<Record<string, boolean>>({});
   const loadedIdsRef = useRef<Set<string>>(new Set());
+  const pendingAnimationFrameIdsRef = useRef<number[]>([]);
   const { imageHydrationState, enqueueImageHydration, pruneHydrationQueueToCandidateIds } =
     useReferenceGridImageHydrationController({
       decodeBudgetEnabled,
@@ -86,13 +87,71 @@ export const useReferenceGridPreviewRuntime = ({
       liveWatchdogDegradeLevelRef,
     });
 
-  const { markLoaded } = useReferenceGridLoadedMediaController({
-    loadedIdsRef,
-    setLoadedMap,
-    runNonUrgentUpdate,
-    onOutputMediaLoaded,
-    stabilizeLoadingVisual,
-  });
+  const flushLoadedMapForId = useCallback(
+    (id: string) => {
+      runNonUrgentUpdate(() => {
+        setLoadedMap((prev) => {
+          if (prev[id]) return prev;
+          incrementFreezeInvestigationCounter("referenceGrid.loadedMap.commit");
+          return { ...prev, [id]: true };
+        });
+      });
+    },
+    [runNonUrgentUpdate]
+  );
+
+  const scheduleLoadedMapCommit = useCallback(
+    (id: string) => {
+      if (!stabilizeLoadingVisual) {
+        flushLoadedMapForId(id);
+        return;
+      }
+      if (typeof window === "undefined" || typeof window.requestAnimationFrame !== "function") {
+        flushLoadedMapForId(id);
+        return;
+      }
+      // Commit loaded-map state after two paint frames so the loading overlay exits cleanly.
+      const firstFrameId = window.requestAnimationFrame(() => {
+        pendingAnimationFrameIdsRef.current = pendingAnimationFrameIdsRef.current.filter(
+          (frameId) => frameId !== firstFrameId
+        );
+        const secondFrameId = window.requestAnimationFrame(() => {
+          pendingAnimationFrameIdsRef.current = pendingAnimationFrameIdsRef.current.filter(
+            (frameId) => frameId !== secondFrameId
+          );
+          flushLoadedMapForId(id);
+        });
+        pendingAnimationFrameIdsRef.current.push(secondFrameId);
+      });
+      pendingAnimationFrameIdsRef.current.push(firstFrameId);
+    },
+    [flushLoadedMapForId, stabilizeLoadingVisual]
+  );
+
+  const markLoaded = useCallback(
+    (id: string, options?: { notifyAutoSave?: boolean }) => {
+      const shouldNotify = options?.notifyAutoSave ?? true;
+      if (loadedIdsRef.current.has(id)) return;
+      loadedIdsRef.current.add(id);
+      scheduleLoadedMapCommit(id);
+      if (shouldNotify) {
+        onOutputMediaLoaded?.(id);
+      }
+    },
+    [onOutputMediaLoaded, scheduleLoadedMapCommit]
+  );
+
+  useEffect(
+    () => () => {
+      if (typeof window === "undefined" || typeof window.cancelAnimationFrame !== "function")
+        return;
+      pendingAnimationFrameIdsRef.current.forEach((frameId) => {
+        window.cancelAnimationFrame(frameId);
+      });
+      pendingAnimationFrameIdsRef.current = [];
+    },
+    []
+  );
 
   return {
     imageHydrationState,

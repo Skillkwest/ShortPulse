@@ -1,12 +1,20 @@
-/**
- * Unit coverage for loaded-media controller timing behavior.
- * Verifies immediate autosave notification, optional two-frame visual stabilization, and dedupe semantics.
- */
 import { act, renderHook } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { useReferenceGridLoadedMediaController } from "../useReferenceGridLoadedMediaController";
+import { useReferenceGridPreviewRuntime } from "../useReferenceGridPreviewRuntime";
 
-type LoadedMap = Record<string, boolean>;
+vi.mock("../useReferenceGridImageHydrationController", () => ({
+  useReferenceGridImageHydrationController: () => ({
+    imageHydrationState: {
+      hydratedById: {},
+      queueSize: 0,
+      decodeInflight: 0,
+      optimizerFailoverBypassCount: 0,
+      optimizerFailoverErrorCount: 0,
+    },
+    enqueueImageHydration: vi.fn(),
+    pruneHydrationQueueToCandidateIds: vi.fn(),
+  }),
+}));
 
 type HarnessOptions = {
   stabilizeLoadingVisual?: boolean;
@@ -14,18 +22,18 @@ type HarnessOptions = {
 };
 
 const createHarness = (options: HarnessOptions = {}) => {
-  const loadedIdsRef = { current: new Set<string>() };
-  let loadedMap: LoadedMap = {};
-  const setLoadedMap = (updater: LoadedMap | ((prev: LoadedMap) => LoadedMap)) => {
-    loadedMap = typeof updater === "function" ? updater(loadedMap) : updater;
-  };
   const runNonUrgentUpdate = vi.fn((updater: () => void) => updater());
   const onOutputMediaLoaded = options.onOutputMediaLoaded ?? vi.fn();
   const { result, unmount } = renderHook(() =>
-    useReferenceGridLoadedMediaController({
-      loadedIdsRef,
-      setLoadedMap,
+    useReferenceGridPreviewRuntime({
+      decodeBudgetEnabled: true,
+      suspendPreviewRuntime: false,
+      adaptivePreviewRoutingEnabled: true,
+      imageDecodeBudget: 2,
+      activeOutputId: null,
+      validOutputIds: [],
       runNonUrgentUpdate,
+      liveWatchdogDegradeLevelRef: { current: 0 },
       onOutputMediaLoaded,
       stabilizeLoadingVisual: options.stabilizeLoadingVisual ?? false,
     })
@@ -34,7 +42,6 @@ const createHarness = (options: HarnessOptions = {}) => {
   return {
     result,
     unmount,
-    getLoadedMap: () => loadedMap,
     runNonUrgentUpdate,
     onOutputMediaLoaded,
   };
@@ -74,7 +81,7 @@ const installRafQueue = () => {
   };
 };
 
-describe("useReferenceGridLoadedMediaController", () => {
+describe("useReferenceGridPreviewRuntime", () => {
   afterEach(() => {
     vi.unstubAllGlobals();
   });
@@ -90,7 +97,7 @@ describe("useReferenceGridLoadedMediaController", () => {
       harness.result.current.markLoaded("out-1");
     });
 
-    expect(harness.getLoadedMap()).toEqual({ "out-1": true });
+    expect(harness.result.current.loadedMap).toEqual({ "out-1": true });
     expect(onOutputMediaLoaded).toHaveBeenCalledWith("out-1");
     expect(harness.runNonUrgentUpdate).toHaveBeenCalledTimes(1);
   });
@@ -108,19 +115,19 @@ describe("useReferenceGridLoadedMediaController", () => {
     });
 
     expect(onOutputMediaLoaded).toHaveBeenCalledWith("out-1");
-    expect(harness.getLoadedMap()).toEqual({});
+    expect(harness.result.current.loadedMap).toEqual({});
 
     act(() => {
       flushNextFrame();
     });
 
-    expect(harness.getLoadedMap()).toEqual({});
+    expect(harness.result.current.loadedMap).toEqual({});
 
     act(() => {
       flushNextFrame();
     });
 
-    expect(harness.getLoadedMap()).toEqual({ "out-1": true });
+    expect(harness.result.current.loadedMap).toEqual({ "out-1": true });
     expect(harness.runNonUrgentUpdate).toHaveBeenCalledTimes(1);
   });
 
@@ -150,7 +157,7 @@ describe("useReferenceGridLoadedMediaController", () => {
       flushNextFrame();
     });
 
-    expect(harness.getLoadedMap()).toEqual({ "out-1": true });
+    expect(harness.result.current.loadedMap).toEqual({ "out-1": true });
     expect(harness.runNonUrgentUpdate).toHaveBeenCalledTimes(1);
   });
 });

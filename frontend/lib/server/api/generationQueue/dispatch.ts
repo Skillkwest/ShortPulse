@@ -70,6 +70,7 @@ const retryableSubmitStatuses = new Set([408, 409, 425, 429, 500, 502, 503, 504]
 const RETRY_BACKOFF_JITTER_FACTOR = 0.2;
 const RETRY_BACKOFF_MAX_SECONDS = 300;
 const QUEUE_LEASE_TIMEOUT_WARN_RATIO = 0.8;
+const MAX_QUEUE_REFILL_PASSES = 4;
 
 const isRetryableTransportError = (error: unknown): boolean => {
   if (error instanceof DOMException && error.name === "AbortError") return true;
@@ -1222,43 +1223,65 @@ export const dispatchGenerationSubmitQueueBatch = async ({
     return metrics;
   }
 
-  const claimed = await claimGenerationSubmitQueueBatch({
-    limit,
-    leaseSeconds: flags.queueLeaseSeconds,
-    userId,
-  }).catch(async (error) => {
-    await logGenerationFailure({
-      req,
-      routeLabel,
-      source: "telemetry.queue.dispatch.claim_failed",
-      statusCode: 500,
-      message: "Failed to claim queued generation dispatch batch.",
-      userId: userId ?? undefined,
-      metadata: {
-        queue_limit: limit,
-        queue_lease_seconds: flags.queueLeaseSeconds,
-        queue_enabled: flags.queueEnabled,
-        detail: normalizeError(error),
-      },
+  for (let pass = 0; pass < MAX_QUEUE_REFILL_PASSES; pass += 1) {
+    const claimed = await claimGenerationSubmitQueueBatch({
+      limit,
+      leaseSeconds: flags.queueLeaseSeconds,
+      userId,
+    }).catch(async (error) => {
+      await logGenerationFailure({
+        req,
+        routeLabel,
+        source: "telemetry.queue.dispatch.claim_failed",
+        statusCode: 500,
+        message: "Failed to claim queued generation dispatch batch.",
+        userId: userId ?? undefined,
+        metadata: {
+          queue_limit: limit,
+          queue_lease_seconds: flags.queueLeaseSeconds,
+          queue_enabled: flags.queueEnabled,
+          queue_refill_pass: pass + 1,
+          detail: normalizeError(error),
+        },
+      });
+      throw error;
     });
-    throw error;
-  });
 
-  metrics.claimed = claimed.length;
-  for (const item of claimed) {
-    const result = await processClaimedQueueItem({
-      req,
-      routeLabel,
-      item,
-      maxAttempts: flags.queueMaxAttempts,
-      baseBackoffSeconds: flags.queueBaseBackoffSeconds,
-    });
-    metrics.submitted += result.submitted;
-    metrics.retried += result.retried;
-    metrics.requeuedNoCapacity += result.requeuedNoCapacity;
-    metrics.exhausted += result.exhausted;
-    metrics.skipped += result.skipped;
-    metrics.errors += result.errors;
+    metrics.claimed += claimed.length;
+    if (!claimed.length) {
+      break;
+    }
+
+    let passSubmitted = 0;
+    let passRetried = 0;
+    let passExhausted = 0;
+    let passSkipped = 0;
+
+    for (const item of claimed) {
+      const result = await processClaimedQueueItem({
+        req,
+        routeLabel,
+        item,
+        maxAttempts: flags.queueMaxAttempts,
+        baseBackoffSeconds: flags.queueBaseBackoffSeconds,
+      });
+      metrics.submitted += result.submitted;
+      metrics.retried += result.retried;
+      metrics.requeuedNoCapacity += result.requeuedNoCapacity;
+      metrics.exhausted += result.exhausted;
+      metrics.skipped += result.skipped;
+      metrics.errors += result.errors;
+      passSubmitted += result.submitted;
+      passRetried += result.retried;
+      passExhausted += result.exhausted;
+      passSkipped += result.skipped;
+    }
+
+    const madeForwardProgress =
+      passSubmitted > 0 || passRetried > 0 || passExhausted > 0 || passSkipped > 0;
+    if (!madeForwardProgress) {
+      break;
+    }
   }
 
   return metrics;

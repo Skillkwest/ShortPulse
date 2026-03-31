@@ -69,6 +69,15 @@ const areStringArraysEqual = (left: string[], right: string[]) => {
   return true;
 };
 
+const areOutputEntityArraysEqual = (left: StudioOutput[], right: StudioOutput[]) => {
+  if (left === right) return true;
+  if (left.length !== right.length) return false;
+  for (let index = 0; index < left.length; index += 1) {
+    if (left[index] !== right[index]) return false;
+  }
+  return true;
+};
+
 const areOutputMapsEquivalent = (
   left: Record<string, StudioOutput>,
   right: Record<string, StudioOutput>,
@@ -308,6 +317,30 @@ export const useOutputCounts = () => {
       archivedCount: counts[1],
     }),
     [counts]
+  );
+};
+
+/**
+ * Reads a denormalized slice of outputs by explicit ids while preserving item identity equality.
+ */
+export const useOutputsByIds = (
+  ids: readonly string[],
+  options?: { includeArchived?: boolean }
+): StudioOutput[] => {
+  const includeArchived = options?.includeArchived ?? false;
+  return useOutputSelector(
+    useCallback(
+      (snapshot: AiStudioOutputStoreSnapshot) =>
+        ids
+          .map(
+            (id) =>
+              snapshot.outputById[id] ??
+              (includeArchived ? snapshot.archivedOutputById[id] : undefined)
+          )
+          .filter((item): item is StudioOutput => Boolean(item)),
+      [ids, includeArchived]
+    ),
+    areOutputEntityArraysEqual
   );
 };
 

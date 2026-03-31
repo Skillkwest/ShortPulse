@@ -1,13 +1,12 @@
 /**
  * Viewport projection controller for Reference Grid.
- * Derives virtual windows, visible slices, viewport caps, and near-viewport sets.
+ * Derives virtual windows, visible id slices, viewport caps, and near-viewport sets.
  */
 import { useMemo } from "react";
 import {
   calculateReferenceGridWindow,
   resolveReferenceGridOverscanRows,
 } from "../../logic/referenceGridVirtualization";
-import type { StudioOutput } from "../../types";
 import {
   incrementFreezeInvestigationCounter,
   setFreezeInvestigationGauge,
@@ -21,8 +20,8 @@ type VirtualMetrics = {
 };
 
 type UseReferenceGridViewportProjectionControllerArgs = {
-  outputs: StudioOutput[];
-  curatedOutputs: StudioOutput[];
+  outputIds: string[];
+  curatedOutputIds: string[];
   activeOutputId: string | null;
   isCuratedSplitEnabled: boolean;
   perfDegradeLevel: 0 | 1 | 2;
@@ -51,24 +50,24 @@ type UseReferenceGridViewportProjectionControllerResult = {
   endIndex: number;
   curatedStartIndex: number;
   curatedEndIndex: number;
-  visibleOutputs: StudioOutput[];
-  visibleCuratedOutputs: StudioOutput[];
+  visibleOutputIds: string[];
+  visibleCuratedOutputIds: string[];
   topSpacerHeight: number;
   bottomSpacerHeight: number;
   curatedTopSpacerHeight: number;
   curatedBottomSpacerHeight: number;
   renderedItemCount: number;
   renderedOutputIdSet: Set<string>;
-  nearViewportOutputs: StudioOutput[];
-  nearViewportCuratedOutputs: StudioOutput[];
+  nearViewportOutputIds: string[];
+  nearViewportCuratedOutputIds: string[];
 };
 
 /**
  * Computes all viewport-related projections shared by rendering, hydration, and autoplay policies.
  */
 export const useReferenceGridViewportProjectionController = ({
-  outputs,
-  curatedOutputs,
+  outputIds,
+  curatedOutputIds,
   activeOutputId,
   isCuratedSplitEnabled,
   perfDegradeLevel,
@@ -77,25 +76,26 @@ export const useReferenceGridViewportProjectionController = ({
   config,
 }: UseReferenceGridViewportProjectionControllerArgs): UseReferenceGridViewportProjectionControllerResult => {
   incrementFreezeInvestigationCounter("referenceGrid.viewportProjection.recompute");
-  setFreezeInvestigationGauge("referenceGrid.viewportProjection.outputsCount", outputs.length);
+  setFreezeInvestigationGauge("referenceGrid.viewportProjection.outputsCount", outputIds.length);
   setFreezeInvestigationGauge(
     "referenceGrid.viewportProjection.curatedOutputsCount",
-    curatedOutputs.length
+    curatedOutputIds.length
   );
+
   const dynamicOverscanRows = config.dynamicVirtualizationEnabled
-    ? resolveReferenceGridOverscanRows(outputs.length, {
+    ? resolveReferenceGridOverscanRows(outputIds.length, {
         pressureLevel: perfDegradeLevel,
       })
     : config.virtualOverscanRows;
 
   const curatedOverscanRows = config.dynamicVirtualizationEnabled
-    ? resolveReferenceGridOverscanRows(curatedOutputs.length, {
+    ? resolveReferenceGridOverscanRows(curatedOutputIds.length, {
         pressureLevel: perfDegradeLevel,
       })
     : config.virtualOverscanRows;
 
   const virtualWindow = calculateReferenceGridWindow({
-    itemCount: outputs.length,
+    itemCount: outputIds.length,
     columnCount: virtualMetrics.columnCount,
     rowHeight: virtualMetrics.rowHeight,
     scrollTop: virtualMetrics.scrollTop,
@@ -109,7 +109,7 @@ export const useReferenceGridViewportProjectionController = ({
 
   const curatedVirtualWindow = isCuratedSplitEnabled
     ? calculateReferenceGridWindow({
-        itemCount: curatedOutputs.length,
+        itemCount: curatedOutputIds.length,
         columnCount: curatedVirtualMetrics.columnCount,
         rowHeight: curatedVirtualMetrics.rowHeight,
         scrollTop: curatedVirtualMetrics.scrollTop,
@@ -126,7 +126,7 @@ export const useReferenceGridViewportProjectionController = ({
         startRow: 0,
         endRow: 0,
         startIndex: 0,
-        endIndex: curatedOutputs.length,
+        endIndex: curatedOutputIds.length,
         topSpacerHeight: 0,
         bottomSpacerHeight: 0,
       };
@@ -138,7 +138,7 @@ export const useReferenceGridViewportProjectionController = ({
   const curatedStartIndex = curatedVirtualWindow.startIndex;
   const curatedEndIndex = curatedVirtualWindow.endIndex;
 
-  const baseVisibleOutputs = shouldVirtualize ? outputs.slice(startIndex, endIndex) : outputs;
+  const baseVisibleOutputIds = shouldVirtualize ? outputIds.slice(startIndex, endIndex) : outputIds;
   const visibleRows = Math.max(
     1,
     Math.ceil(
@@ -151,57 +151,56 @@ export const useReferenceGridViewportProjectionController = ({
     (visibleRows + Math.max(0, dynamicOverscanRows) * 2) *
     Math.max(config.referenceGridMinColumns, virtualMetrics.columnCount);
 
-  const visibleOutputs = useMemo(() => {
+  const visibleOutputIds = useMemo(() => {
     if (!config.hardViewportCapEnabled) {
-      return baseVisibleOutputs;
+      return baseVisibleOutputIds;
     }
-    if (baseVisibleOutputs.length <= hardViewportVisibleLimit) {
-      return baseVisibleOutputs;
+    if (baseVisibleOutputIds.length <= hardViewportVisibleLimit) {
+      return baseVisibleOutputIds;
     }
-    const capped = baseVisibleOutputs.slice(0, Math.max(1, hardViewportVisibleLimit));
+    const capped = baseVisibleOutputIds.slice(0, Math.max(1, hardViewportVisibleLimit));
     if (!activeOutputId) return capped;
-    if (capped.some((item) => item.id === activeOutputId)) return capped;
-    const activeOutput = outputs.find((item) => item.id === activeOutputId);
-    if (!activeOutput) return capped;
-    if (capped.length === 0) return [activeOutput];
-    return [...capped.slice(0, capped.length - 1), activeOutput];
+    if (capped.includes(activeOutputId)) return capped;
+    if (!outputIds.includes(activeOutputId)) return capped;
+    if (capped.length === 0) return [activeOutputId];
+    return [...capped.slice(0, capped.length - 1), activeOutputId];
   }, [
     activeOutputId,
-    baseVisibleOutputs,
-    hardViewportVisibleLimit,
-    outputs,
+    baseVisibleOutputIds,
     config.hardViewportCapEnabled,
+    hardViewportVisibleLimit,
+    outputIds,
   ]);
 
-  const visibleCuratedOutputs = curatedShouldVirtualize
-    ? curatedOutputs.slice(curatedStartIndex, curatedEndIndex)
-    : curatedOutputs;
+  const visibleCuratedOutputIds = curatedShouldVirtualize
+    ? curatedOutputIds.slice(curatedStartIndex, curatedEndIndex)
+    : curatedOutputIds;
 
   const renderedOutputIdSet = useMemo(() => {
-    const ids = new Set(visibleOutputs.map((output) => output.id));
+    const ids = new Set(visibleOutputIds);
     if (isCuratedSplitEnabled) {
-      visibleCuratedOutputs.forEach((output) => ids.add(output.id));
+      visibleCuratedOutputIds.forEach((id) => ids.add(id));
     }
     return ids;
-  }, [isCuratedSplitEnabled, visibleCuratedOutputs, visibleOutputs]);
+  }, [isCuratedSplitEnabled, visibleCuratedOutputIds, visibleOutputIds]);
 
-  const nearViewportOutputs = useMemo(() => {
+  const nearViewportOutputIds = useMemo(() => {
     if (!shouldVirtualize) return [];
     const nearSpan = Math.max(1, virtualMetrics.columnCount);
     const start = Math.max(0, startIndex - nearSpan);
-    const end = Math.min(outputs.length, endIndex + nearSpan);
-    return outputs.slice(start, end);
-  }, [endIndex, outputs, shouldVirtualize, startIndex, virtualMetrics.columnCount]);
+    const end = Math.min(outputIds.length, endIndex + nearSpan);
+    return outputIds.slice(start, end);
+  }, [endIndex, outputIds, shouldVirtualize, startIndex, virtualMetrics.columnCount]);
 
-  const nearViewportCuratedOutputs = useMemo(() => {
+  const nearViewportCuratedOutputIds = useMemo(() => {
     if (!isCuratedSplitEnabled || !curatedShouldVirtualize) return [];
     const nearSpan = Math.max(1, curatedVirtualMetrics.columnCount);
     const start = Math.max(0, curatedStartIndex - nearSpan);
-    const end = Math.min(curatedOutputs.length, curatedEndIndex + nearSpan);
-    return curatedOutputs.slice(start, end);
+    const end = Math.min(curatedOutputIds.length, curatedEndIndex + nearSpan);
+    return curatedOutputIds.slice(start, end);
   }, [
     curatedEndIndex,
-    curatedOutputs,
+    curatedOutputIds,
     curatedShouldVirtualize,
     curatedStartIndex,
     curatedVirtualMetrics.columnCount,
@@ -213,21 +212,21 @@ export const useReferenceGridViewportProjectionController = ({
     curatedOverscanRows,
     shouldVirtualize,
     curatedShouldVirtualize,
-    isHighDensity: outputs.length >= config.highDensityCardCount,
-    denseVisualModeEnabled: config.denseVisualSimplifyEnabled && outputs.length >= 40,
+    isHighDensity: outputIds.length >= config.highDensityCardCount,
+    denseVisualModeEnabled: config.denseVisualSimplifyEnabled && outputIds.length >= 40,
     startIndex,
     endIndex,
     curatedStartIndex,
     curatedEndIndex,
-    visibleOutputs,
-    visibleCuratedOutputs,
+    visibleOutputIds,
+    visibleCuratedOutputIds,
     topSpacerHeight: virtualWindow.topSpacerHeight,
     bottomSpacerHeight: virtualWindow.bottomSpacerHeight,
     curatedTopSpacerHeight: curatedVirtualWindow.topSpacerHeight,
     curatedBottomSpacerHeight: curatedVirtualWindow.bottomSpacerHeight,
-    renderedItemCount: visibleOutputs.length,
+    renderedItemCount: visibleOutputIds.length,
     renderedOutputIdSet,
-    nearViewportOutputs,
-    nearViewportCuratedOutputs,
+    nearViewportOutputIds,
+    nearViewportCuratedOutputIds,
   };
 };

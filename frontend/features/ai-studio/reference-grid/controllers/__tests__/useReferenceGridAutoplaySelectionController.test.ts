@@ -4,18 +4,7 @@
  */
 import { renderHook } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import type { StudioOutput } from "../../../types";
 import { useReferenceGridAutoplaySelectionController } from "../useReferenceGridAutoplaySelectionController";
-
-const videoOutput = (id: string): StudioOutput =>
-  ({
-    id,
-    mode: "video",
-    previewStoragePath: "https://cdn.example.com/video.mp4",
-    fullStoragePath: "https://cdn.example.com/video.mp4",
-    previewUrl: "https://cdn.example.com/video.mp4",
-    resultUrls: ["https://cdn.example.com/video.mp4"],
-  }) as unknown as StudioOutput;
 
 describe("useReferenceGridAutoplaySelectionController", () => {
   it("stops autoplay-id recompute while suspended and resumes on unsuspend", () => {
@@ -34,14 +23,11 @@ describe("useReferenceGridAutoplaySelectionController", () => {
     const desiredVideoAttachBudgetRef = { current: 1 };
     const autoplayEnabledIdsStateRef = { current: [] as string[] };
 
-    const outputs = [videoOutput("video-1")];
-
     const { result, rerender } = renderHook(
       ({ suspendAutoplaySelection }: { suspendAutoplaySelection: boolean }) =>
         useReferenceGridAutoplaySelectionController({
           activeOutputId: null,
           suspendAutoplaySelection,
-          outputs,
           videoAttachBudget: 1,
           perfDegradeLevel: 0,
           runNonUrgentUpdate,

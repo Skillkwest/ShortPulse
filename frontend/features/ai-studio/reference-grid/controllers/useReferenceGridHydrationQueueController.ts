@@ -12,8 +12,7 @@ import type { ReferenceGridResolvedCardMedia } from "./useReferenceGridResolvedM
 type UseReferenceGridHydrationQueueControllerArgs = {
   decodeBudgetEnabled: boolean;
   suspendHydrationQueue?: boolean;
-  activeOutputId: string | null;
-  outputs: StudioOutput[];
+  activeOutput: StudioOutput | null;
   visibleCardItems: ReferenceGridVisibleCardItem[];
   curatedVisibleCardItems: ReferenceGridVisibleCardItem[];
   hydrationQuickSlotPreferredIdSet: Set<string>;
@@ -47,8 +46,7 @@ type UseReferenceGridHydrationQueueControllerArgs = {
 export const useReferenceGridHydrationQueueController = ({
   decodeBudgetEnabled,
   suspendHydrationQueue = false,
-  activeOutputId,
-  outputs,
+  activeOutput,
   visibleCardItems,
   curatedVisibleCardItems,
   hydrationQuickSlotPreferredIdSet,
@@ -81,19 +79,18 @@ export const useReferenceGridHydrationQueueController = ({
         ? quickSlotCardLongEdgePx
         : referenceGridCardLongEdgePx;
     const candidateIdSet = new Set<string>();
-    if (activeOutputId) {
-      const activeOutput = outputs.find((item) => item.id === activeOutputId);
-      if (activeOutput && !isReferenceGridPlaceholderOnlyOutput(activeOutput)) {
+    if (activeOutput) {
+      if (!isReferenceGridPlaceholderOnlyOutput(activeOutput)) {
         const resolvedMedia = resolveCardMedia({
           item: activeOutput,
-          mediaSurface: resolvePreferredSurface(activeOutputId),
-          cardLongEdgePx: resolvePreferredCardLongEdge(activeOutputId),
+          mediaSurface: resolvePreferredSurface(activeOutput.id),
+          cardLongEdgePx: resolvePreferredCardLongEdge(activeOutput.id),
         });
         if (resolvedMedia.previewUrl && resolvedMedia.isImagePreview) {
-          candidateIdSet.add(activeOutputId);
-          enqueueImageHydration(activeOutputId, resolvedMedia.previewUrl, {
+          candidateIdSet.add(activeOutput.id);
+          enqueueImageHydration(activeOutput.id, resolvedMedia.previewUrl, {
             priority: "high",
-            mediaSurface: resolvePreferredSurface(activeOutputId),
+            mediaSurface: resolvePreferredSurface(activeOutput.id),
             targetLongEdgePx: resolvedMedia.targetLongEdgePx,
             previewQualityBand: resolvedMedia.previewQualityBand,
             fallbackUrl: resolvedMedia.fallbackUrl ?? undefined,
@@ -168,7 +165,7 @@ export const useReferenceGridHydrationQueueController = ({
 
     pruneHydrationQueueToCandidateIds(candidateIdSet);
   }, [
-    activeOutputId,
+    activeOutput,
     curatedVirtualRowHeight,
     curatedVisibleCardItems,
     decodeBudgetEnabled,
@@ -176,7 +173,6 @@ export const useReferenceGridHydrationQueueController = ({
     hydrationQuickSlotPreferredIdSet,
     nearViewportCuratedOutputs,
     nearViewportOutputs,
-    outputs,
     pruneHydrationQueueToCandidateIds,
     quickSlotAdaptiveSurfaceEnabled,
     resolveCardMedia,

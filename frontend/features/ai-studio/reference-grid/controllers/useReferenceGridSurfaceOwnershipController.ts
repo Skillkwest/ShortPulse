@@ -3,11 +3,10 @@
  * Centralizes which output ids should prefer Quick Slot over All Refs for visible and hydration work.
  */
 import { useMemo } from "react";
-import type { StudioOutput } from "../../types";
 
 type UseReferenceGridSurfaceOwnershipControllerArgs = {
-  visibleCuratedOutputs: StudioOutput[];
-  nearViewportCuratedOutputs: StudioOutput[];
+  visibleCuratedOutputIds: string[];
+  nearViewportCuratedOutputIds: string[];
   quickSlotAdaptiveSurfaceEnabled: boolean;
 };
 
@@ -20,13 +19,13 @@ type UseReferenceGridSurfaceOwnershipControllerResult = {
  * Returns memoized Quick Slot ownership sets for visible duplicates and hydration scheduling.
  */
 export const useReferenceGridSurfaceOwnershipController = ({
-  visibleCuratedOutputs,
-  nearViewportCuratedOutputs,
+  visibleCuratedOutputIds,
+  nearViewportCuratedOutputIds,
   quickSlotAdaptiveSurfaceEnabled,
 }: UseReferenceGridSurfaceOwnershipControllerArgs): UseReferenceGridSurfaceOwnershipControllerResult => {
   const visibleQuickSlotIdSet = useMemo(
-    () => new Set(visibleCuratedOutputs.map((item) => item.id)),
-    [visibleCuratedOutputs]
+    () => new Set(visibleCuratedOutputIds),
+    [visibleCuratedOutputIds]
   );
 
   const hydrationQuickSlotPreferredIdSet = useMemo(() => {
@@ -34,11 +33,11 @@ export const useReferenceGridSurfaceOwnershipController = ({
       return visibleQuickSlotIdSet;
     }
     const nextPreferredIdSet = new Set(visibleQuickSlotIdSet);
-    nearViewportCuratedOutputs.forEach((item) => {
-      nextPreferredIdSet.add(item.id);
+    nearViewportCuratedOutputIds.forEach((id) => {
+      nextPreferredIdSet.add(id);
     });
     return nextPreferredIdSet;
-  }, [nearViewportCuratedOutputs, quickSlotAdaptiveSurfaceEnabled, visibleQuickSlotIdSet]);
+  }, [nearViewportCuratedOutputIds, quickSlotAdaptiveSurfaceEnabled, visibleQuickSlotIdSet]);
 
   return {
     visibleQuickSlotIdSet,

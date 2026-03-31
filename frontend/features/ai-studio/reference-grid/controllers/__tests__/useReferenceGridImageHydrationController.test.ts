@@ -78,7 +78,7 @@ describe("useReferenceGridImageHydrationController", () => {
           adaptivePreviewRoutingEnabled: false,
           imageDecodeBudget: 2,
           activeOutputId: null,
-          outputs: [output],
+          validOutputIds: [output.id],
           runNonUrgentUpdate,
           liveWatchdogDegradeLevelRef,
         }),
@@ -123,20 +123,20 @@ describe("useReferenceGridImageHydrationController", () => {
     const liveWatchdogDegradeLevelRef = { current: 0 as 0 | 1 | 2 };
 
     const { result, rerender } = renderHook(
-      ({ outputs }: { outputs: StudioOutput[] }) =>
+      ({ outputIds }: { outputIds: string[] }) =>
         useReferenceGridImageHydrationController({
           decodeBudgetEnabled: true,
           suspendHydrationProcessing: true,
           adaptivePreviewRoutingEnabled: false,
           imageDecodeBudget: 2,
           activeOutputId: null,
-          outputs,
+          validOutputIds: outputIds,
           runNonUrgentUpdate,
           liveWatchdogDegradeLevelRef,
         }),
       {
         initialProps: {
-          outputs: [output],
+          outputIds: [output.id],
         },
       }
     );
@@ -148,7 +148,7 @@ describe("useReferenceGridImageHydrationController", () => {
     expect(result.current.imageHydrationState.queueSize).toBe(1);
     expect(requestedUrls).toEqual([]);
 
-    rerender({ outputs: [] });
+    rerender({ outputIds: [] });
 
     await waitFor(() => {
       expect(result.current.imageHydrationState.queueSize).toBe(0);
@@ -185,20 +185,20 @@ describe("useReferenceGridImageHydrationController", () => {
     const liveWatchdogDegradeLevelRef = { current: 0 as 0 | 1 | 2 };
 
     const { result, rerender } = renderHook(
-      ({ outputs }: { outputs: StudioOutput[] }) =>
+      ({ outputIds }: { outputIds: string[] }) =>
         useReferenceGridImageHydrationController({
           decodeBudgetEnabled: true,
           suspendHydrationProcessing: false,
           adaptivePreviewRoutingEnabled: false,
           imageDecodeBudget: 1,
           activeOutputId: null,
-          outputs,
+          validOutputIds: outputIds,
           runNonUrgentUpdate,
           liveWatchdogDegradeLevelRef,
         }),
       {
         initialProps: {
-          outputs: [output],
+          outputIds: [output.id],
         },
       }
     );
@@ -212,7 +212,7 @@ describe("useReferenceGridImageHydrationController", () => {
       expect(result.current.imageHydrationState.decodeInflight).toBe(1);
     });
 
-    rerender({ outputs: [] });
+    rerender({ outputIds: [] });
 
     await waitFor(() => {
       expect(result.current.imageHydrationState.decodeInflight).toBe(0);
@@ -267,7 +267,7 @@ describe("useReferenceGridImageHydrationController", () => {
         adaptivePreviewRoutingEnabled: true,
         imageDecodeBudget: 1,
         activeOutputId: null,
-        outputs: [output],
+        validOutputIds: [output.id],
         runNonUrgentUpdate,
         liveWatchdogDegradeLevelRef,
       })

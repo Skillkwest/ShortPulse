@@ -71,8 +71,7 @@ describe("useReferenceGridHydrationQueueController", () => {
         useReferenceGridHydrationQueueController({
           decodeBudgetEnabled: true,
           suspendHydrationQueue,
-          activeOutputId: null,
-          outputs: [output],
+          activeOutput: null,
           visibleCardItems: [visibleImageCard(output)],
           curatedVisibleCardItems: [],
           hydrationQuickSlotPreferredIdSet: new Set<string>(),
@@ -121,8 +120,7 @@ describe("useReferenceGridHydrationQueueController", () => {
       useReferenceGridHydrationQueueController({
         decodeBudgetEnabled: true,
         suspendHydrationQueue: false,
-        activeOutputId: null,
-        outputs: [output],
+        activeOutput: null,
         visibleCardItems: [allRefsCard],
         curatedVisibleCardItems: [quickSlotCard],
         hydrationQuickSlotPreferredIdSet: new Set([output.id]),
@@ -157,8 +155,7 @@ describe("useReferenceGridHydrationQueueController", () => {
       useReferenceGridHydrationQueueController({
         decodeBudgetEnabled: true,
         suspendHydrationQueue: false,
-        activeOutputId: output.id,
-        outputs: [output],
+        activeOutput: output,
         visibleCardItems: [visibleImageCard(output)],
         curatedVisibleCardItems: [visibleImageCard(output, "curated")],
         hydrationQuickSlotPreferredIdSet: new Set([output.id]),
@@ -203,8 +200,7 @@ describe("useReferenceGridHydrationQueueController", () => {
       useReferenceGridHydrationQueueController({
         decodeBudgetEnabled: true,
         suspendHydrationQueue: false,
-        activeOutputId: output.id,
-        outputs: [output],
+        activeOutput: output,
         visibleCardItems: [],
         curatedVisibleCardItems: [],
         hydrationQuickSlotPreferredIdSet: new Set<string>(),

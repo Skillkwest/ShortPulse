@@ -4,7 +4,7 @@
  */
 import React, { useCallback, useState } from "react";
 import { StudioOutput } from "../types";
-import { useOutputSelector } from "../hooks/aiStudioOutputStore";
+import { useOutputById, useOutputSelector, useOutputsByIds } from "../hooks/aiStudioOutputStore";
 import {
   PERF_FLAG_REFERENCE_GRID_ADAPTIVE_PREVIEW,
   PERF_FLAG_REFERENCE_GRID_CURATED_SPLIT,
@@ -156,30 +156,43 @@ export function ReferenceGrid({
   stylesPanel,
 }: ReferenceGridProps) {
   incrementFreezeInvestigationCounter("referenceGrid.render");
-  const selectorOutputs = useOutputSelector((snapshot) => {
-    if (outputsProp) return EMPTY_OUTPUTS;
-    return snapshot.outputOrder
-      .map((id) => snapshot.outputById[id])
-      .filter((item): item is StudioOutput => Boolean(item));
-  }, areOutputListsEqual);
+  const selectorOutputIds = useOutputSelector(
+    React.useCallback(
+      (snapshot) => {
+        if (outputsProp) return [];
+        if (!removedFromAllRefsIds.length) {
+          return snapshot.outputOrder.filter(
+            (id) => snapshot.outputById[id]?.hiddenInReferenceGrid !== true
+          );
+        }
+        const removedIdSet = new Set(removedFromAllRefsIds);
+        return snapshot.outputOrder.filter((id) => {
+          const item = snapshot.outputById[id];
+          if (!item) return false;
+          if (removedIdSet.has(id)) return false;
+          return item.hiddenInReferenceGrid !== true;
+        });
+      },
+      [outputsProp, removedFromAllRefsIds]
+    ),
+    (left, right) =>
+      left.length === right.length && left.every((item, index) => item === right[index])
+  );
   const selectorArchivedOutputs = useOutputSelector((snapshot) => {
     if (archivedOutputsProp) return EMPTY_OUTPUTS;
     return snapshot.archivedOutputOrder
       .map((id) => snapshot.archivedOutputById[id])
       .filter((item): item is StudioOutput => Boolean(item));
   }, areOutputListsEqual);
-  const allOutputs = outputsProp ?? selectorOutputs;
-  const archivedOutputs = archivedOutputsProp ?? selectorArchivedOutputs;
-  setFreezeInvestigationGauge("referenceGrid.allOutputsCount", allOutputs.length);
-  setFreezeInvestigationGauge("referenceGrid.archivedOutputsCount", archivedOutputs.length);
-  const outputs = React.useMemo(
-    () =>
-      selectAllRefsProjectionWithLegacyFallback(allOutputs, {
+  const allOutputIds = outputsProp
+    ? selectAllRefsProjectionWithLegacyFallback(outputsProp, {
         quickSlotIds: curatedReferenceIds,
         removedFromAllRefsIds,
-      }),
-    [allOutputs, curatedReferenceIds, removedFromAllRefsIds]
-  );
+      }).map((item) => item.id)
+    : selectorOutputIds;
+  const archivedOutputs = archivedOutputsProp ?? selectorArchivedOutputs;
+  setFreezeInvestigationGauge("referenceGrid.allOutputsCount", allOutputIds.length);
+  setFreezeInvestigationGauge("referenceGrid.archivedOutputsCount", archivedOutputs.length);
   const isAnyModalOpen = useAiStudioAnyModalOpen();
   const suspendBackgroundVisualWork = PERF_FLAG_MODAL_STABILITY_V1 && isAnyModalOpen;
   const panelVisibilityResolved = React.useMemo(
@@ -209,19 +222,23 @@ export function ReferenceGrid({
   const isCuratedSplitActive = showQuickSlotSection;
   const outputById = React.useMemo(() => {
     const map: Record<string, StudioOutput> = {};
-    [...allOutputs, ...archivedOutputs].forEach((item) => {
+    [...(outputsProp ?? EMPTY_OUTPUTS), ...archivedOutputs].forEach((item) => {
       map[item.id] = item;
     });
     return map;
-  }, [allOutputs, archivedOutputs]);
-  const curatedOutputs = React.useMemo(
-    () =>
-      curatedReferenceIds
-        .map((id) => outputById[id])
-        .filter((item): item is StudioOutput => Boolean(item)),
-    [curatedReferenceIds, outputById]
+  }, [archivedOutputs, outputsProp]);
+  const allOutputIdSet = React.useMemo(() => new Set(allOutputIds), [allOutputIds]);
+  const curatedOutputIds = React.useMemo(
+    () => curatedReferenceIds.filter((id) => allOutputIdSet.has(id)),
+    [allOutputIdSet, curatedReferenceIds]
   );
-  setFreezeInvestigationGauge("referenceGrid.projectedOutputsCount", outputs.length);
+  const selectorCuratedOutputs = useOutputsByIds(curatedOutputIds);
+  const curatedOutputs = outputsProp
+    ? curatedOutputIds
+        .map((id) => outputById[id])
+        .filter((item): item is StudioOutput => Boolean(item))
+    : selectorCuratedOutputs;
+  setFreezeInvestigationGauge("referenceGrid.projectedOutputsCount", allOutputIds.length);
   setFreezeInvestigationGauge("referenceGrid.curatedOutputsCount", curatedOutputs.length);
   const perfWatchdog = useReferenceGridPerfWatchdog({
     enabled: REFERENCE_GRID_FLAG_PERF_WATCHDOG,
@@ -470,7 +487,7 @@ export function ReferenceGrid({
       adaptivePreviewRoutingEnabled,
       imageDecodeBudget: mediaWorkBudget.imageDecodeBudget,
       activeOutputId,
-      outputs,
+      validOutputIds: allOutputIds,
       runNonUrgentUpdate,
       liveWatchdogDegradeLevelRef,
     });
@@ -498,8 +515,8 @@ export function ReferenceGrid({
   useReferenceGridVirtualMetricsController({
     isCuratedSplitEnabled: isCuratedSplitActive,
     isWideLayout,
-    outputsLength: outputs.length,
-    curatedOutputsLength: curatedOutputs.length,
+    outputsLength: allOutputIds.length,
+    curatedOutputsLength: curatedOutputIds.length,
     scrollContainerRef,
     gridRef,
     curatedScrollContainerRef,
@@ -523,19 +540,19 @@ export function ReferenceGrid({
     denseVisualModeEnabled,
     startIndex,
     endIndex,
-    visibleOutputs,
-    visibleCuratedOutputs,
+    visibleOutputIds,
+    visibleCuratedOutputIds,
     topSpacerHeight,
     bottomSpacerHeight,
     curatedTopSpacerHeight,
     curatedBottomSpacerHeight,
     renderedItemCount,
     renderedOutputIdSet,
-    nearViewportOutputs,
-    nearViewportCuratedOutputs,
+    nearViewportOutputIds,
+    nearViewportCuratedOutputIds,
   } = useReferenceGridViewportProjectionController({
-    outputs,
-    curatedOutputs,
+    outputIds: allOutputIds,
+    curatedOutputIds,
     activeOutputId,
     isCuratedSplitEnabled: isCuratedSplitActive,
     perfDegradeLevel: perfWatchdog.degradeLevel,
@@ -552,11 +569,43 @@ export function ReferenceGrid({
       highDensityCardCount: REFERENCE_HIGH_DENSITY_CARD_COUNT,
     },
   });
+  const selectorVisibleOutputs = useOutputsByIds(visibleOutputIds);
+  const selectorVisibleCuratedOutputs = useOutputsByIds(visibleCuratedOutputIds);
+  const selectorNearViewportOutputs = useOutputsByIds(nearViewportOutputIds);
+  const selectorNearViewportCuratedOutputs = useOutputsByIds(nearViewportCuratedOutputIds);
+  const selectorActiveOutput = useOutputById(activeOutputId);
+  const activeOutput =
+    outputsProp != null && activeOutputId
+      ? (outputById[activeOutputId] ?? null)
+      : selectorActiveOutput;
+  const visibleOutputs =
+    outputsProp != null
+      ? visibleOutputIds
+          .map((id) => outputById[id])
+          .filter((item): item is StudioOutput => Boolean(item))
+      : selectorVisibleOutputs;
+  const visibleCuratedOutputs =
+    outputsProp != null
+      ? visibleCuratedOutputIds
+          .map((id) => outputById[id])
+          .filter((item): item is StudioOutput => Boolean(item))
+      : selectorVisibleCuratedOutputs;
+  const nearViewportOutputs =
+    outputsProp != null
+      ? nearViewportOutputIds
+          .map((id) => outputById[id])
+          .filter((item): item is StudioOutput => Boolean(item))
+      : selectorNearViewportOutputs;
+  const nearViewportCuratedOutputs =
+    outputsProp != null
+      ? nearViewportCuratedOutputIds
+          .map((id) => outputById[id])
+          .filter((item): item is StudioOutput => Boolean(item))
+      : selectorNearViewportCuratedOutputs;
   const archiveCount = archivedOutputs.length;
   const { recomputeAutoplayBudget } = useReferenceGridAutoplaySelectionController({
     activeOutputId,
     suspendAutoplaySelection: suspendBackgroundVisualWork,
-    outputs,
     videoAttachBudget: mediaWorkBudget.videoAttachBudget,
     perfDegradeLevel: perfWatchdog.degradeLevel,
     runNonUrgentUpdate,
@@ -586,8 +635,8 @@ export function ReferenceGrid({
   });
   const { visibleQuickSlotIdSet, hydrationQuickSlotPreferredIdSet } =
     useReferenceGridSurfaceOwnershipController({
-      visibleCuratedOutputs,
-      nearViewportCuratedOutputs,
+      visibleCuratedOutputIds,
+      nearViewportCuratedOutputIds,
       quickSlotAdaptiveSurfaceEnabled,
     });
   const {
@@ -612,7 +661,7 @@ export function ReferenceGrid({
   useReferenceGridPreviewSwapTelemetryController({
     visibleCardItems,
     renderedItemCount,
-    outputsLength: outputs.length,
+    outputsLength: allOutputIds.length,
     suspendVisualTelemetry: suspendBackgroundVisualWork,
     previousVisiblePreviewUrlByIdRef,
     previewSwapTelemetryRef,
@@ -633,8 +682,7 @@ export function ReferenceGrid({
   useReferenceGridHydrationQueueController({
     decodeBudgetEnabled: REFERENCE_GRID_FLAG_DECODE_BUDGET,
     suspendHydrationQueue: suspendBackgroundVisualWork,
-    activeOutputId,
-    outputs,
+    activeOutput,
     visibleCardItems,
     curatedVisibleCardItems,
     hydrationQuickSlotPreferredIdSet,
@@ -664,7 +712,7 @@ export function ReferenceGrid({
 
   const { registerVideoNode } = useReferenceGridVideoLifecycleController({
     activeOutputId,
-    outputs,
+    validOutputIds: allOutputIds,
     shouldVirtualize,
     renderedOutputIdSet,
     autoplayEnabledIds,
@@ -688,7 +736,7 @@ export function ReferenceGrid({
     telemetryBackpressureEnabled: REFERENCE_GRID_FLAG_TELEMETRY_BACKPRESSURE,
     lastRenderCommitAtRef,
     renderedItemCount,
-    outputsLength: outputs.length,
+    outputsLength: allOutputIds.length,
     shouldVirtualize,
     isHighDensity,
     imageHydrationQueueSize: imageHydrationState.queueSize,
@@ -765,14 +813,14 @@ export function ReferenceGrid({
   const { handleAllRefsScroll, handleCuratedScroll } = useReferenceGridScrollController({
     setVirtualMetrics,
     setCuratedVirtualMetrics,
-    outputsLength: outputs.length,
+    outputsLength: allOutputIds.length,
     renderedItemCount,
   });
 
   const { handleAutoplayStarted, handleAutoplayStopped } = useReferenceGridAutoplayEventController({
     autoplayingIdsRef,
     renderedItemCount,
-    outputsLength: outputs.length,
+    outputsLength: allOutputIds.length,
   });
   const { curatedCardNodes, allRefsCardNodes } = useReferenceGridCardRenderController({
     activeOutputId,
@@ -888,7 +936,7 @@ export function ReferenceGrid({
         curatedGridStyle={curatedGridStyle}
         gridStyle={gridStyle}
         curatedOutputsLength={curatedOutputs.length}
-        outputsLength={outputs.length}
+        outputsLength={allOutputIds.length}
         curatedTopSpacerHeight={curatedTopSpacerHeight}
         curatedBottomSpacerHeight={curatedBottomSpacerHeight}
         topSpacerHeight={topSpacerHeight}

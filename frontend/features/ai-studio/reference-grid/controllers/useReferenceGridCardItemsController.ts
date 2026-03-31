@@ -7,8 +7,8 @@ import type {
   ReferenceGridMediaAuthorityTier,
   ReferenceGridPreviewQualityBand,
 } from "../../logic/referenceGridMedia";
-import type { StudioOutput } from "../../types";
-import { isReferenceGridPlaceholderOnlyOutput } from "../logic/referenceGridPlaceholderState";
+import type { ReferenceGridMediaOutput } from "../logic/referenceGridMediaOutput";
+import { isReferenceGridPlaceholderOnlyMediaOutput } from "../logic/referenceGridMediaOutput";
 import {
   hasAdaptiveQueryParams,
   isNextOptimizerUrl,
@@ -22,7 +22,7 @@ import {
 } from "../../logic/freezeInvestigationTelemetry";
 
 export type ReferenceGridVisibleCardItem = {
-  item: StudioOutput;
+  item: ReferenceGridMediaOutput;
   surface: "all-refs" | "curated";
   mediaSurface: "reference-grid" | "quick-slot";
   authorityTier: ReferenceGridMediaAuthorityTier;
@@ -40,8 +40,8 @@ export type ReferenceGridVisibleCardItem = {
 type UseReferenceGridCardItemsControllerArgs = {
   activeOutputId: string | null;
   decodeBudgetEnabled: boolean;
-  visibleOutputs: StudioOutput[];
-  visibleCuratedOutputs: StudioOutput[];
+  visibleOutputs: ReferenceGridMediaOutput[];
+  visibleCuratedOutputs: ReferenceGridMediaOutput[];
   visibleQuickSlotIdSet: Set<string>;
   hydrationPriorityCount: number;
   curatedHydrationPriorityCount: number;
@@ -49,7 +49,7 @@ type UseReferenceGridCardItemsControllerArgs = {
   curatedVirtualRowHeight: number;
   quickSlotAdaptiveSurfaceEnabled: boolean;
   resolveCardMedia: (args: {
-    item: StudioOutput;
+    item: ReferenceGridMediaOutput;
     mediaSurface: "reference-grid" | "quick-slot";
     cardLongEdgePx: number;
   }) => ReferenceGridResolvedCardMedia;
@@ -94,7 +94,7 @@ export const useReferenceGridCardItemsController = ({
   );
   const buildVisibleCardItems = useCallback(
     (
-      rows: StudioOutput[],
+      rows: ReferenceGridMediaOutput[],
       priorityCount: number,
       options: {
         mediaSurface: "reference-grid" | "quick-slot";
@@ -105,7 +105,7 @@ export const useReferenceGridCardItemsController = ({
       rows.map((item, visibleIndex) => {
         const shouldPreferCuratedSurface =
           options.visualSurface === "all-refs" && visibleQuickSlotIdSet.has(item.id);
-        const isPlaceholderOnly = isReferenceGridPlaceholderOnlyOutput(item);
+        const isPlaceholderOnly = isReferenceGridPlaceholderOnlyMediaOutput(item);
         if (isPlaceholderOnly) {
           return {
             item,

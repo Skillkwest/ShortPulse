@@ -59,6 +59,10 @@ import { useReferenceGridResolvedMediaController } from "../reference-grid/contr
 import { useReferenceGridSurfaceOwnershipController } from "../reference-grid/controllers/useReferenceGridSurfaceOwnershipController";
 import { isReferenceGridAdaptivePreviewRoutingEnabled } from "../reference-grid/logic/referenceGridAdaptivePreview";
 import {
+  areReferenceGridMediaOutputsEqual,
+  projectReferenceGridMediaOutput,
+} from "../reference-grid/logic/referenceGridMediaOutput";
+import {
   areOutputListsEqual,
   CURATED_MIN_BOTTOM_STACK_HEIGHT_PX,
   DEFAULT_CANVAS_SECTION_TOP_RATIO,
@@ -573,6 +577,61 @@ export function ReferenceGrid({
   const selectorVisibleCuratedOutputs = useOutputsByIds(visibleCuratedOutputIds);
   const selectorNearViewportOutputs = useOutputsByIds(nearViewportOutputIds);
   const selectorNearViewportCuratedOutputs = useOutputsByIds(nearViewportCuratedOutputIds);
+  const selectorVisibleMediaOutputs = useOutputSelector(
+    React.useCallback(
+      (snapshot) =>
+        visibleOutputIds
+          .map((id) => snapshot.outputById[id])
+          .filter((item): item is StudioOutput => Boolean(item))
+          .map(projectReferenceGridMediaOutput),
+      [visibleOutputIds]
+    ),
+    areReferenceGridMediaOutputsEqual
+  );
+  const selectorVisibleCuratedMediaOutputs = useOutputSelector(
+    React.useCallback(
+      (snapshot) =>
+        visibleCuratedOutputIds
+          .map((id) => snapshot.outputById[id])
+          .filter((item): item is StudioOutput => Boolean(item))
+          .map(projectReferenceGridMediaOutput),
+      [visibleCuratedOutputIds]
+    ),
+    areReferenceGridMediaOutputsEqual
+  );
+  const selectorNearViewportMediaOutputs = useOutputSelector(
+    React.useCallback(
+      (snapshot) =>
+        nearViewportOutputIds
+          .map((id) => snapshot.outputById[id])
+          .filter((item): item is StudioOutput => Boolean(item))
+          .map(projectReferenceGridMediaOutput),
+      [nearViewportOutputIds]
+    ),
+    areReferenceGridMediaOutputsEqual
+  );
+  const selectorNearViewportCuratedMediaOutputs = useOutputSelector(
+    React.useCallback(
+      (snapshot) =>
+        nearViewportCuratedOutputIds
+          .map((id) => snapshot.outputById[id])
+          .filter((item): item is StudioOutput => Boolean(item))
+          .map(projectReferenceGridMediaOutput),
+      [nearViewportCuratedOutputIds]
+    ),
+    areReferenceGridMediaOutputsEqual
+  );
+  const selectorActiveMediaOutput = useOutputSelector(
+    React.useCallback(
+      (snapshot) => {
+        if (!activeOutputId) return null;
+        const item =
+          snapshot.outputById[activeOutputId] ?? snapshot.archivedOutputById[activeOutputId];
+        return item ? projectReferenceGridMediaOutput(item) : null;
+      },
+      [activeOutputId]
+    )
+  );
   const selectorActiveOutput = useOutputById(activeOutputId);
   const activeOutput =
     outputsProp != null && activeOutputId
@@ -602,6 +661,33 @@ export function ReferenceGrid({
           .map((id) => outputById[id])
           .filter((item): item is StudioOutput => Boolean(item))
       : selectorNearViewportCuratedOutputs;
+  const visibleMediaOutputs =
+    outputsProp != null
+      ? visibleOutputs.map(projectReferenceGridMediaOutput)
+      : selectorVisibleMediaOutputs;
+  const visibleCuratedMediaOutputs =
+    outputsProp != null
+      ? visibleCuratedOutputs.map(projectReferenceGridMediaOutput)
+      : selectorVisibleCuratedMediaOutputs;
+  const nearViewportMediaOutputs =
+    outputsProp != null
+      ? nearViewportOutputs.map(projectReferenceGridMediaOutput)
+      : selectorNearViewportMediaOutputs;
+  const nearViewportCuratedMediaOutputs =
+    outputsProp != null
+      ? nearViewportCuratedOutputs.map(projectReferenceGridMediaOutput)
+      : selectorNearViewportCuratedMediaOutputs;
+  const activeMediaOutput =
+    outputsProp != null && activeOutput
+      ? projectReferenceGridMediaOutput(activeOutput)
+      : selectorActiveMediaOutput;
+  const visibleOutputById = React.useMemo(() => {
+    const map: Record<string, StudioOutput> = {};
+    [...visibleCuratedOutputs, ...visibleOutputs].forEach((item) => {
+      map[item.id] = item;
+    });
+    return map;
+  }, [visibleCuratedOutputs, visibleOutputs]);
   const archiveCount = archivedOutputs.length;
   const { recomputeAutoplayBudget } = useReferenceGridAutoplaySelectionController({
     activeOutputId,
@@ -647,8 +733,8 @@ export function ReferenceGrid({
   } = useReferenceGridCardItemsController({
     activeOutputId,
     decodeBudgetEnabled: REFERENCE_GRID_FLAG_DECODE_BUDGET,
-    visibleOutputs,
-    visibleCuratedOutputs,
+    visibleOutputs: visibleMediaOutputs,
+    visibleCuratedOutputs: visibleCuratedMediaOutputs,
     visibleQuickSlotIdSet,
     hydrationPriorityCount,
     curatedHydrationPriorityCount,
@@ -674,6 +760,7 @@ export function ReferenceGrid({
     loadingIdsLength,
   } = useReferenceGridLoadingVisualController({
     allVisibleCardItems,
+    visibleOutputById,
     visibleQuickSlotIdSet,
     loadedMap,
     decodeBudgetEnabled: REFERENCE_GRID_FLAG_DECODE_BUDGET,
@@ -682,12 +769,12 @@ export function ReferenceGrid({
   useReferenceGridHydrationQueueController({
     decodeBudgetEnabled: REFERENCE_GRID_FLAG_DECODE_BUDGET,
     suspendHydrationQueue: suspendBackgroundVisualWork,
-    activeOutput,
+    activeOutput: activeMediaOutput,
     visibleCardItems,
     curatedVisibleCardItems,
     hydrationQuickSlotPreferredIdSet,
-    nearViewportOutputs,
-    nearViewportCuratedOutputs,
+    nearViewportOutputs: nearViewportMediaOutputs,
+    nearViewportCuratedOutputs: nearViewportCuratedMediaOutputs,
     virtualRowHeight: virtualMetrics.rowHeight,
     curatedVirtualRowHeight: curatedVirtualMetrics.rowHeight,
     quickSlotAdaptiveSurfaceEnabled,
@@ -824,6 +911,7 @@ export function ReferenceGrid({
   });
   const { curatedCardNodes, allRefsCardNodes } = useReferenceGridCardRenderController({
     activeOutputId,
+    visibleOutputById,
     autoplayEnabledIdSet,
     linkedPromptReferenceIdSet,
     loadingCardIdSet,

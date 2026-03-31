@@ -7,6 +7,10 @@ import { describe, expect, it, vi } from "vitest";
 import type { StudioOutput } from "../../../types";
 import { useReferenceGridHydrationQueueController } from "../useReferenceGridHydrationQueueController";
 import type { ReferenceGridResolvedCardMedia } from "../useReferenceGridResolvedMediaController";
+import {
+  projectReferenceGridMediaOutput,
+  type ReferenceGridMediaOutput,
+} from "../../logic/referenceGridMediaOutput";
 
 const imageOutput = (id: string): StudioOutput =>
   ({
@@ -30,7 +34,7 @@ const adaptivePreviewOutput = (id: string): StudioOutput =>
 
 const visibleImageCard = (item: StudioOutput, surface: "all-refs" | "curated" = "all-refs") =>
   ({
-    item,
+    item: projectReferenceGridMediaOutput(item),
     surface,
     mediaSurface: surface === "curated" ? "quick-slot" : "reference-grid",
     authorityTier: "reusable" as const,
@@ -44,7 +48,7 @@ const visibleImageCard = (item: StudioOutput, surface: "all-refs" | "curated" = 
   }) as const;
 
 const createResolvedCardMedia = (
-  item: StudioOutput,
+  item: Pick<ReferenceGridMediaOutput, "id">,
   previewUrl: string
 ): ReferenceGridResolvedCardMedia => ({
   previewUrl,
@@ -155,7 +159,7 @@ describe("useReferenceGridHydrationQueueController", () => {
       useReferenceGridHydrationQueueController({
         decodeBudgetEnabled: true,
         suspendHydrationQueue: false,
-        activeOutput: output,
+        activeOutput: projectReferenceGridMediaOutput(output),
         visibleCardItems: [visibleImageCard(output)],
         curatedVisibleCardItems: [visibleImageCard(output, "curated")],
         hydrationQuickSlotPreferredIdSet: new Set([output.id]),
@@ -182,7 +186,7 @@ describe("useReferenceGridHydrationQueueController", () => {
   it("skips hydration work for placeholder-only loading outputs", () => {
     const enqueueImageHydration = vi.fn();
     const pruneHydrationQueueToCandidateIds = vi.fn();
-    const resolveCardMedia = vi.fn(({ item }: { item: StudioOutput }) =>
+    const resolveCardMedia = vi.fn(({ item }: { item: ReferenceGridMediaOutput }) =>
       createResolvedCardMedia(item, "https://cdn.example.com/preview.jpg")
     );
     const output = {
@@ -200,12 +204,12 @@ describe("useReferenceGridHydrationQueueController", () => {
       useReferenceGridHydrationQueueController({
         decodeBudgetEnabled: true,
         suspendHydrationQueue: false,
-        activeOutput: output,
+        activeOutput: projectReferenceGridMediaOutput(output),
         visibleCardItems: [],
         curatedVisibleCardItems: [],
         hydrationQuickSlotPreferredIdSet: new Set<string>(),
-        nearViewportOutputs: [output],
-        nearViewportCuratedOutputs: [output],
+        nearViewportOutputs: [projectReferenceGridMediaOutput(output)],
+        nearViewportCuratedOutputs: [projectReferenceGridMediaOutput(output)],
         virtualRowHeight: 280,
         curatedVirtualRowHeight: 240,
         quickSlotAdaptiveSurfaceEnabled: true,

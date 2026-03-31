@@ -14,6 +14,7 @@ vi.mock("../../../logic/referenceGridMedia", async () => {
 
 import { resolveReferenceCardUrls } from "../../../logic/referenceGridMedia";
 import { useReferenceGridResolvedMediaController } from "../useReferenceGridResolvedMediaController";
+import { projectReferenceGridMediaOutput } from "../../logic/referenceGridMediaOutput";
 
 const createImageOutput = (id: string): StudioOutput =>
   ({
@@ -41,12 +42,12 @@ describe("useReferenceGridResolvedMediaController", () => {
     );
 
     const first = result.current.resolveCardMedia({
-      item: output,
+      item: projectReferenceGridMediaOutput(output),
       mediaSurface: "reference-grid",
       cardLongEdgePx: 512,
     });
     const second = result.current.resolveCardMedia({
-      item: output,
+      item: projectReferenceGridMediaOutput(output),
       mediaSurface: "reference-grid",
       cardLongEdgePx: 512,
     });
@@ -66,17 +67,17 @@ describe("useReferenceGridResolvedMediaController", () => {
     );
 
     result.current.resolveCardMedia({
-      item: output,
+      item: projectReferenceGridMediaOutput(output),
       mediaSurface: "reference-grid",
       cardLongEdgePx: 512,
     });
     result.current.resolveCardMedia({
-      item: output,
+      item: projectReferenceGridMediaOutput(output),
       mediaSurface: "quick-slot",
       cardLongEdgePx: 512,
     });
     result.current.resolveCardMedia({
-      item: output,
+      item: projectReferenceGridMediaOutput(output),
       mediaSurface: "quick-slot",
       cardLongEdgePx: 384,
     });
@@ -104,7 +105,7 @@ describe("useReferenceGridResolvedMediaController", () => {
     );
 
     const resolved = result.current.resolveCardMedia({
-      item: output,
+      item: projectReferenceGridMediaOutput(output),
       mediaSurface: "reference-grid",
       cardLongEdgePx: 512,
     });
@@ -142,7 +143,7 @@ describe("useReferenceGridResolvedMediaController", () => {
     );
 
     const resolved = result.current.resolveCardMedia({
-      item: output,
+      item: projectReferenceGridMediaOutput(output),
       mediaSurface: "reference-grid",
       cardLongEdgePx: 512,
     });

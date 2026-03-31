@@ -10,7 +10,7 @@ import {
   type ReferenceGridPreviewQualityBand,
 } from "../../logic/referenceGridMedia";
 import { isGeneratedOutput } from "../../logic/referenceOutputAuthority";
-import type { StudioOutput } from "../../types";
+import type { ReferenceGridMediaOutput } from "../logic/referenceGridMediaOutput";
 import {
   isOutputVideoPreview,
   normalizeComparableUrl,
@@ -39,7 +39,7 @@ type UseReferenceGridResolvedMediaControllerArgs = {
 };
 
 type ResolveReferenceGridCardMediaArgs = {
-  item: StudioOutput;
+  item: ReferenceGridMediaOutput;
   mediaSurface: "reference-grid" | "quick-slot";
   cardLongEdgePx: number;
 };

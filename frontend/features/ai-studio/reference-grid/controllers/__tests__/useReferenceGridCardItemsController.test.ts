@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { StudioOutput } from "../../../types";
 import { useReferenceGridCardItemsController } from "../useReferenceGridCardItemsController";
 import type { ReferenceGridResolvedCardMedia } from "../useReferenceGridResolvedMediaController";
+import { projectReferenceGridMediaOutput } from "../../logic/referenceGridMediaOutput";
 
 const output = (overrides: Partial<StudioOutput> = {}): StudioOutput =>
   ({
@@ -44,7 +45,7 @@ describe("useReferenceGridCardItemsController", () => {
       useReferenceGridCardItemsController({
         activeOutputId: null,
         decodeBudgetEnabled: true,
-        visibleOutputs: [item],
+        visibleOutputs: [projectReferenceGridMediaOutput(item)],
         visibleCuratedOutputs: [],
         visibleQuickSlotIdSet: new Set<string>(),
         hydrationPriorityCount: 0,
@@ -79,7 +80,7 @@ describe("useReferenceGridCardItemsController", () => {
       useReferenceGridCardItemsController({
         activeOutputId: null,
         decodeBudgetEnabled: true,
-        visibleOutputs: [item],
+        visibleOutputs: [projectReferenceGridMediaOutput(item)],
         visibleCuratedOutputs: [],
         visibleQuickSlotIdSet: new Set<string>(),
         hydrationPriorityCount: 1,

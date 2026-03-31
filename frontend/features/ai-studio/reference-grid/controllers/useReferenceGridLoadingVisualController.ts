@@ -6,9 +6,10 @@ import React from "react";
 import type { ReferenceGridMediaAuthorityTier } from "../../logic/referenceGridMedia";
 import type { StudioOutput } from "../../types";
 import { classifyReferenceGridCardVisualState } from "../logic/referenceGridCardVisualState";
+import type { ReferenceGridMediaOutput } from "../logic/referenceGridMediaOutput";
 
 type LoadingVisualCard = {
-  item: StudioOutput;
+  item: ReferenceGridMediaOutput;
   surface: "all-refs" | "curated";
   authorityTier: ReferenceGridMediaAuthorityTier;
   cardPreviewUrl: string | null;
@@ -19,6 +20,7 @@ type LoadingVisualCard = {
 
 type UseReferenceGridLoadingVisualControllerArgs = {
   allVisibleCardItems: LoadingVisualCard[];
+  visibleOutputById: Record<string, StudioOutput>;
   visibleQuickSlotIdSet: Set<string>;
   loadedMap: Record<string, boolean>;
   decodeBudgetEnabled: boolean;
@@ -38,6 +40,7 @@ type UseReferenceGridLoadingVisualControllerResult = {
  */
 export const useReferenceGridLoadingVisualController = ({
   allVisibleCardItems,
+  visibleOutputById,
   visibleQuickSlotIdSet,
   loadedMap,
   decodeBudgetEnabled,
@@ -48,8 +51,10 @@ export const useReferenceGridLoadingVisualController = ({
     const nextHydrationLoadingIds: string[] = [];
     allVisibleCardItems.forEach((card) => {
       if (card.surface === "all-refs" && visibleQuickSlotIdSet.has(card.item.id)) return;
+      const currentOutput = visibleOutputById[card.item.id];
+      if (!currentOutput) return;
       const visualState = classifyReferenceGridCardVisualState({
-        item: card.item,
+        item: currentOutput,
         authorityTier: card.authorityTier,
         cardPreviewUrl: card.cardPreviewUrl,
         isLoaded: Boolean(loadedMap[card.item.id]),
@@ -73,7 +78,13 @@ export const useReferenceGridLoadingVisualController = ({
       generationLoadingIds: nextGenerationLoadingIds,
       hydrationLoadingIds: nextHydrationLoadingIds,
     };
-  }, [allVisibleCardItems, decodeBudgetEnabled, loadedMap, visibleQuickSlotIdSet]);
+  }, [
+    allVisibleCardItems,
+    decodeBudgetEnabled,
+    loadedMap,
+    visibleOutputById,
+    visibleQuickSlotIdSet,
+  ]);
 
   const loadingCardIdSet = React.useMemo(() => new Set(loadingState.loadingIds), [loadingState]);
   const generationLoadingCardIdSet = React.useMemo(

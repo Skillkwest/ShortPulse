@@ -4,25 +4,25 @@
  */
 import { useEffect } from "react";
 import type { ReferenceGridPreviewQualityBand } from "../../logic/referenceGridMedia";
-import type { StudioOutput } from "../../types";
-import { isReferenceGridPlaceholderOnlyOutput } from "../logic/referenceGridPlaceholderState";
+import type { ReferenceGridMediaOutput } from "../logic/referenceGridMediaOutput";
+import { isReferenceGridPlaceholderOnlyMediaOutput } from "../logic/referenceGridMediaOutput";
 import type { ReferenceGridVisibleCardItem } from "./useReferenceGridCardItemsController";
 import type { ReferenceGridResolvedCardMedia } from "./useReferenceGridResolvedMediaController";
 
 type UseReferenceGridHydrationQueueControllerArgs = {
   decodeBudgetEnabled: boolean;
   suspendHydrationQueue?: boolean;
-  activeOutput: StudioOutput | null;
+  activeOutput: ReferenceGridMediaOutput | null;
   visibleCardItems: ReferenceGridVisibleCardItem[];
   curatedVisibleCardItems: ReferenceGridVisibleCardItem[];
   hydrationQuickSlotPreferredIdSet: Set<string>;
-  nearViewportOutputs: StudioOutput[];
-  nearViewportCuratedOutputs: StudioOutput[];
+  nearViewportOutputs: ReferenceGridMediaOutput[];
+  nearViewportCuratedOutputs: ReferenceGridMediaOutput[];
   virtualRowHeight: number;
   curatedVirtualRowHeight: number;
   quickSlotAdaptiveSurfaceEnabled: boolean;
   resolveCardMedia: (args: {
-    item: StudioOutput;
+    item: ReferenceGridMediaOutput;
     mediaSurface: "reference-grid" | "quick-slot";
     cardLongEdgePx: number;
   }) => ReferenceGridResolvedCardMedia;
@@ -80,7 +80,7 @@ export const useReferenceGridHydrationQueueController = ({
         : referenceGridCardLongEdgePx;
     const candidateIdSet = new Set<string>();
     if (activeOutput) {
-      if (!isReferenceGridPlaceholderOnlyOutput(activeOutput)) {
+      if (!isReferenceGridPlaceholderOnlyMediaOutput(activeOutput)) {
         const resolvedMedia = resolveCardMedia({
           item: activeOutput,
           mediaSurface: resolvePreferredSurface(activeOutput.id),
@@ -127,7 +127,7 @@ export const useReferenceGridHydrationQueueController = ({
 
     nearViewportCuratedOutputs.forEach((item) => {
       if (candidateIdSet.has(item.id)) return;
-      if (isReferenceGridPlaceholderOnlyOutput(item)) return;
+      if (isReferenceGridPlaceholderOnlyMediaOutput(item)) return;
       const resolvedMedia = resolveCardMedia({
         item,
         mediaSurface: quickSlotAdaptiveSurfaceEnabled ? "quick-slot" : "reference-grid",
@@ -146,7 +146,7 @@ export const useReferenceGridHydrationQueueController = ({
 
     nearViewportOutputs.forEach((item) => {
       if (candidateIdSet.has(item.id)) return;
-      if (isReferenceGridPlaceholderOnlyOutput(item)) return;
+      if (isReferenceGridPlaceholderOnlyMediaOutput(item)) return;
       const resolvedMedia = resolveCardMedia({
         item,
         mediaSurface: "reference-grid",

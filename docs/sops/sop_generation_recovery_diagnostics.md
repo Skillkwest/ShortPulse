@@ -26,6 +26,7 @@ Purpose: canonical operator runbook for queue dispatch, recovery execution, and 
   - `sql/check_generation_queue_blockers.sql`
   - `sql/check_generation_admission_metrics.sql`
   - `sql/check_generation_queue_dispatch_latency.sql`
+  - `sql/check_generation_recovery_media_visible_latency.sql`
   - `sql/check_generation_settlement_integrity.sql`
   - `sql/check_control_plane_scheduler_health.sql`
   - `sql/check_pg_net_failure_taxonomy.sql`
@@ -92,9 +93,11 @@ Purpose: canonical operator runbook for queue dispatch, recovery execution, and 
    - `sql/check_pg_net_failure_taxonomy.sql`
 2. Run `sql/check_generation_queue_blockers.sql`.
 3. Run `sql/check_generation_queue_dispatch_latency.sql`.
-4. Capture:
+4. Run `sql/check_generation_recovery_media_visible_latency.sql`.
+5. Capture:
    - admission-limited events by scope (`per_user` vs `shared_provider`) from `sql/check_generation_admission_metrics.sql`
    - queue dispatch latency (`avg`, `p50`, `p95`, `max`) and worst-case rows from `sql/check_generation_queue_dispatch_latency.sql`
+   - provider-terminal-to-media-visible latency (`avg`, `p50`, `p95`, `max`) and worst-case rows from `sql/check_generation_recovery_media_visible_latency.sql`
    - provider-attached reserved holds by age bucket
    - queue depth by status (`queued`, `dispatching`, `exhausted`)
    - queue hotspots by user/model/status
@@ -144,6 +147,10 @@ Use this path when local `SUPABASE_DB_URL` is unavailable.
    - expect events to appear for the validation run,
    - inspect `p95_queue_latency_ms` before making any more queue-lane code changes,
    - use the worst-case rows to distinguish real provider/admission pressure from idle queue starvation.
+7. Treat `telemetry.generation.recovery.media_visible` as the recovery-visibility authority:
+   - expect events to appear for recovered-success validation runs,
+   - inspect `p95_provider_terminal_to_media_visible_ms` before changing queue internals again,
+   - use the bucketed rows to identify whether lag is clustering by `model_id`, `provider`, or `recovery_actor`.
 
 ### 3) Guarded manual remediation (only for confirmed stale blockers)
 1. Use the commented remediation transaction in `sql/check_generation_queue_blockers.sql`.
@@ -170,6 +177,7 @@ Use this path when local `SUPABASE_DB_URL` is unavailable.
 | queue status `exhausted` growth | queue dispatch retries/waits are hitting terminal limits | inspect queue error codes, verify provider health, confirm reservation release on exhausted rows |
 | queue-status reports `dispatching` for long periods | queue claim/lease succeeded but provider handoff is not converging | inspect queue lease age, dispatch retries, and provider submit telemetry before widening capacity or replaying jobs |
 | `telemetry.queue.dispatch.submitted` p95 stays high while drain metrics are healthy | queued rows are still waiting too long before dispatch despite no obvious recovery/blocker churn | inspect wake-hint effectiveness, queue depth hotspots, and provider/admission saturation before changing recovery policy |
+| `telemetry.generation.recovery.media_visible` p95 stays high while queue dispatch looks healthy | provider-terminal recovery/media persistence is still slow after upstream completion | inspect bucketed latency rows for model/provider/actor concentration before touching queue or admission controls |
 | queue-status remains `queued` with no `request_id` while queue row is exhausted | stale client perception caused by nondeterministic queue-status resolution | verify queue-status path returns `failed` for exhausted rows and inspect `last_error` / `last_error_code` |
 | `terminal_success_no_media` or `no_media` retry loops | provider terminal payload missing media URLs | continue bounded recovery retries; replay residual outliers; verify provider payload adapters |
 | provider `running` beyond age windows | long-running or stranded provider job | enforce age/attempt policy, then exhaust + release when thresholds are reached |

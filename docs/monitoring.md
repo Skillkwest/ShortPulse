@@ -44,6 +44,7 @@ Purpose: define how runtime incidents are captured, triaged, and resolved.
 - Use `scripts/run_generation_drain_cycle.mjs` to run controlled all-user drain loops via `/api/internal/generation-recovery/run`.
 - Use `docs/sops/sop_generation_recovery_diagnostics.md` as the canonical drain/remediation sequence.
 - Use `sql/check_generation_queue_dispatch_latency.sql` to measure queue-to-dispatch latency from `telemetry.queue.dispatch.submitted` events in `app_error_events`.
+- Use `sql/check_generation_recovery_media_visible_latency.sql` to measure provider-terminal-to-media-visible latency from `telemetry.generation.recovery.media_visible` events in `app_error_events`.
 - Background control-plane ownership is now explicitly split into:
   - stage orchestration: `frontend/lib/server/generationControlPlane/runCycle.ts`
   - recovery batch acquisition: `frontend/lib/server/generationControlPlane/recoveryBatchAcquisition.ts`
@@ -60,6 +61,10 @@ Purpose: define how runtime incidents are captured, triaged, and resolved.
   - `telemetry.queue.dispatch.submitted` events are present during the validation run,
   - `p95_queue_latency_ms` trends materially below the prior symptom window,
   - worst-case rows are explainable by real provider/admission pressure rather than idle queue starvation.
+- Recovery-visibility validation target:
+  - `telemetry.generation.recovery.media_visible` events are present during the validation run,
+  - `p95_provider_terminal_to_media_visible_ms` trends materially below the prior symptom window,
+  - worst-case rows identify whether lag clusters around a specific model, provider, or recovery actor.
 
 ### Admin fleet health monitoring
 - Fleet scan trigger route: `/api/internal/admin-user-health-fleet/run`.

@@ -3491,7 +3491,10 @@ describe("ExpertEditPanelView", () => {
     expect(modalAfterZoomOut).not.toBeNull();
     expect(modalAfterZoomOut?.scale ?? 0).toBeLessThan(modalViewport?.scale ?? 0);
 
-    const modalPrimaryDropzone = screen.getByLabelText("Primary composition surface");
+    const modalPrimaryDropzone = screen.getByLabelText(
+      "Primary composition surface"
+    ) as HTMLDivElement | null;
+    expect(modalPrimaryDropzone).not.toBeNull();
     fireEvent.contextMenu(modalPrimaryDropzone, { clientX: 300, clientY: 300 });
     const stageMenu = screen.getByRole("menu", { name: /stage actions/i });
     fireEvent.click(within(stageMenu).getByRole("menuitem", { name: /^recenter$/i }));
@@ -4985,6 +4988,34 @@ describe("ExpertEditPanelView", () => {
     expect(screen.queryByRole("region", { name: /more presets/i })).not.toBeInTheDocument();
     expect(primaryDropzone.style.cursor).toContain("data:image/svg+xml");
     expect(primaryDropzone.style.cursor).toContain("crosshair");
+  });
+
+  it("clears the space-pan cursor while presets surface blocks the inline stage", () => {
+    render(
+      <ExpertEditPanelView
+        {...baseProps}
+        referenceImageUrl="https://example.com/space-pan-source.png"
+      />
+    );
+    const primaryDropzone = screen.getByLabelText("Primary composition surface");
+    const trigger = screen.getByRole("button", { name: /apply more presets preset/i });
+
+    fireEvent.keyDown(window, { code: "Space", key: " " });
+    expect(primaryDropzone).toHaveStyle({ cursor: "grab" });
+
+    fireEvent.click(trigger);
+    expect(screen.getByRole("region", { name: /more presets/i })).toBeInTheDocument();
+    expect(primaryDropzone).toHaveStyle({ cursor: "" });
+
+    fireEvent.click(trigger);
+    expect(screen.queryByRole("region", { name: /more presets/i })).not.toBeInTheDocument();
+    expect(primaryDropzone).toHaveStyle({ cursor: "" });
+
+    fireEvent.keyDown(window, { code: "Space", key: " " });
+    expect(primaryDropzone).toHaveStyle({ cursor: "grab" });
+
+    fireEvent.keyUp(window, { code: "Space", key: " " });
+    expect(primaryDropzone.style.cursor).not.toContain("grab");
   });
 
   it("does not show lasso cursor when selected layer has no image", async () => {

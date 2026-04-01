@@ -46,6 +46,37 @@ export function DetailModal({
   resolveCharacterAvatarUrlById,
 }: DetailModalProps) {
   useAiStudioModalActivity("detail-modal", Boolean(output));
+  if (!output) return null;
+  return (
+    <DetailModalContent
+      output={output}
+      onClose={onClose}
+      onUpdatePrompt={onUpdatePrompt}
+      onDeleteOutput={onDeleteOutput}
+      onDownloadReference={onDownloadReference}
+      onSaveReference={onSaveReference}
+      onSavePrompt={onSavePrompt}
+      refreshCharacterOptions={refreshCharacterOptions}
+      resolveCharacterAvatarUrlById={resolveCharacterAvatarUrlById}
+    />
+  );
+}
+
+type DetailModalContentProps = Omit<DetailModalProps, "output"> & {
+  output: StudioOutput;
+};
+
+function DetailModalContent({
+  output,
+  onClose,
+  onUpdatePrompt,
+  onDeleteOutput,
+  onDownloadReference,
+  onSaveReference,
+  onSavePrompt,
+  refreshCharacterOptions,
+  resolveCharacterAvatarUrlById,
+}: DetailModalContentProps) {
   const imageVesselRef = useRef<HTMLDivElement | null>(null);
   const imagePanDragRef = useRef<{
     pointerId: number;
@@ -783,13 +814,10 @@ export function DetailModal({
   };
 
   const handleConfirmDelete = () => {
-    if (!output?.id) return;
     onDeleteOutput(output.id);
     setDeleteConfirmOutputId(null);
     handleCloseModal();
   };
-
-  if (!output) return null;
 
   return (
     <AiStudioModalLayer>

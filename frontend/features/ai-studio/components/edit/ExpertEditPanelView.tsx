@@ -3651,6 +3651,11 @@ export function ExpertEditPanelView({
   }, [clearTransformPointerSession, isMoveToolSelected]);
 
   React.useEffect(() => {
+    const isMarkupPanKeyboardListeningEnabled = isMarkupExpandSelected || !isMorePresetsSurfaceOpen;
+    if (!isMarkupPanKeyboardListeningEnabled) {
+      setIsMarkupPanSpacePressed(false);
+      return;
+    }
     if (typeof window === "undefined") return;
     const handleKeyDown = (event: KeyboardEvent) => {
       if (!isSpaceActivationKey(event)) return;
@@ -3671,7 +3676,7 @@ export function ExpertEditPanelView({
       window.removeEventListener("keyup", handleKeyUp);
       window.removeEventListener("blur", handleWindowBlur);
     };
-  }, []);
+  }, [isMarkupExpandSelected, isMorePresetsSurfaceOpen]);
 
   React.useEffect(() => {
     if (isVideoToolSelected) return;
@@ -3770,6 +3775,7 @@ export function ExpertEditPanelView({
   }, [closeStageContextMenu, isMarkupExpandSelected, isMorePresetsSurfaceOpen]);
 
   React.useEffect(() => {
+    if (isMarkupExpandSelected) return;
     const inlineStageElement = inlineStageWrapperRef.current;
     if (!inlineStageElement) return;
 
@@ -3785,9 +3791,10 @@ export function ExpertEditPanelView({
     return () => {
       inlineStageElement.removeEventListener("wheel", handleInlineStageWheel);
     };
-  }, [handleNativeMarkupViewportWheel, isMorePresetsSurfaceOpen]);
+  }, [handleNativeMarkupViewportWheel, isMarkupExpandSelected, isMorePresetsSurfaceOpen]);
 
   React.useEffect(() => {
+    if (isMarkupExpandSelected) return;
     const inlineStageElement = inlineStageWrapperRef.current;
     if (!inlineStageElement) return;
 

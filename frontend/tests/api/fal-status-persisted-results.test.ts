@@ -261,7 +261,7 @@ describe("falStatusPersistedResults", () => {
     });
   });
 
-  it("scopes canonical persisted output reads to the successful generation row", async () => {
+  it("returns canonical outputs from the newest generation row even before status flips to success", async () => {
     persistedGenerationRows = [
       {
         id: "gen-processing-1",
@@ -286,12 +286,11 @@ describe("falStatusPersistedResults", () => {
         requestId: "req-1",
       })
     ).resolves.toEqual({
-      generationId: "gen-success-1",
+      generationId: "gen-processing-1",
       resultUrls: ["https://cdn.shortpulse.test/output-a.mp4"],
     });
 
-    expect(outputEqCalls).toContainEqual(["generation_id", "gen-success-1"]);
-    expect(outputEqCalls).not.toContainEqual(["generation_id", "gen-processing-1"]);
+    expect(outputEqCalls).toContainEqual(["generation_id", "gen-processing-1"]);
   });
 
   it("builds the completed proxy payload shape", () => {

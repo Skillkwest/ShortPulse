@@ -135,8 +135,6 @@ export const readPersistedGenerationStatusContext = async ({
       if (!latestGenerationId && generationId) {
         latestGenerationId = generationId;
       }
-      const status = typeof row.status === "string" ? row.status.trim().toLowerCase() : null;
-      if (status !== "success") continue;
       if (generationId) {
         try {
           const outputRows = await readPersistedGenerationOutputs({
@@ -154,6 +152,8 @@ export const readPersistedGenerationStatusContext = async ({
           // fall back to compatibility metadata when canonical output reads fail
         }
       }
+      const status = typeof row.status === "string" ? row.status.trim().toLowerCase() : null;
+      if (status !== "success") continue;
       const urls = readPersistedResultUrlsFromMetadata(row.metadata);
       if (urls.length) return { generationId, resultUrls: urls };
     }

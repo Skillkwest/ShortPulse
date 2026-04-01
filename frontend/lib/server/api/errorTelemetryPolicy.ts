@@ -13,12 +13,15 @@ export const ADMISSION_LIMITED_TELEMETRY_SOURCE = "telemetry.api.fal_submit.admi
 export const CHARACTER_MODE_TELEMETRY_SOURCE = "telemetry.character_mode";
 export const GENERATION_RECOVERY_RUNNING_TIMEOUT_TELEMETRY_SOURCE =
   "telemetry.generation.recovery.running_hard_timeout";
+export const GENERATION_RECOVERY_MEDIA_VISIBLE_TELEMETRY_SOURCE =
+  "telemetry.generation.recovery.media_visible";
 
 export const CHARACTER_MODE_REFERENCE_REFRESH_EMPTY_EVENT =
   "character_mode_reference_refresh_empty";
 export const CHARACTER_MODE_BUNDLE_UNAVAILABLE_FALLBACK_EVENT =
   "character_mode_injection_fallback.bundle_unavailable";
 export const GENERATION_RECOVERY_RUNNING_TIMEOUT_EVENT = "provider_running_timeout";
+export const GENERATION_RECOVERY_MEDIA_VISIBLE_EVENT = "media_visible";
 
 /**
  * Returns true when a source should be treated as telemetry-only (event stream, no incident).

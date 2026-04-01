@@ -354,6 +354,29 @@ export function ModelModal({
   context,
 }: ModelModalProps) {
   useAiStudioModalActivity("model-modal", isOpen);
+  if (!isOpen) {
+    return null;
+  }
+  return (
+    <ModelModalContent
+      isOpen={isOpen}
+      onClose={onClose}
+      onSelect={onSelect}
+      options={options}
+      resolveCreditsForModel={resolveCreditsForModel}
+      context={context}
+    />
+  );
+}
+
+function ModelModalContent({
+  isOpen,
+  onClose,
+  onSelect,
+  options = modelOptions,
+  resolveCreditsForModel,
+  context,
+}: ModelModalProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [, setRecentValues] = useState<string[]>(() => {
     if (typeof window === "undefined") return [];
@@ -523,10 +546,6 @@ export function ModelModal({
     }
     setChipTooltip(null);
   };
-
-  if (!isOpen) {
-    return null;
-  }
 
   const renderSection = (title: string, items: ModelOption[]) => {
     if (!items.length) return null;

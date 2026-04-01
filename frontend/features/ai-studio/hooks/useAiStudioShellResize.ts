@@ -65,7 +65,7 @@ export const useAiStudioShellResize = ({
 
   const [leftWidthPx, setLeftWidthPx] = useState<number | null>(null);
   const [containerWidthPx, setContainerWidthPx] = useState(0);
-  const [isResizableViewport, setIsResizableViewport] = useState(false);
+  const [isResizableViewportState, setIsResizableViewportState] = useState(false);
   const [isResizing, setIsResizing] = useState(false);
 
   const resolveContainerWidth = useCallback((): number => {
@@ -89,20 +89,60 @@ export const useAiStudioShellResize = ({
   useEffect(() => stopResizing, [stopResizing]);
 
   useEffect(() => {
-    if (typeof window === "undefined") return;
+    if (!enabled || typeof window === "undefined") return;
     storedWidthRef.current = parseStoredAiShellLeftWidth(
       window.localStorage.getItem(AI_SHELL_LEFT_WIDTH_STORAGE_KEY)
     );
-  }, []);
+  }, [enabled]);
 
   useEffect(() => {
-    if (typeof window === "undefined") return;
+    if (!enabled || typeof window === "undefined") return;
     const syncViewportMode = () =>
-      setIsResizableViewport(isAiShellResizeViewport(window.innerWidth));
+      setIsResizableViewportState(isAiShellResizeViewport(window.innerWidth));
     syncViewportMode();
     window.addEventListener("resize", syncViewportMode);
     return () => window.removeEventListener("resize", syncViewportMode);
-  }, []);
+  }, [enabled]);
+
+  const isResizableViewport = enabled && isResizableViewportState;
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (!enabled) return;
+    const syncWidthToContainer = () => {
+      const containerWidth = resolveContainerWidth();
+      if (!containerWidth) return;
+      const roundedContainerWidth = Math.round(containerWidth);
+      setContainerWidthPx((prev) =>
+        prev === roundedContainerWidth ? prev : roundedContainerWidth
+      );
+      setLeftWidthPx((prev) => {
+        const candidate =
+          prev ??
+          storedWidthRef.current ??
+          getDefaultAiShellLeftWidth(containerWidth, {
+            minLeftWidthPx,
+            maxLeftWidthPx,
+            minRightWidthPx,
+            preferredRatio: defaultLeftRatio,
+          });
+        const next = clampAiShellLeftWidth(candidate, containerWidth, {
+          minLeftWidthPx,
+          maxLeftWidthPx,
+          minRightWidthPx,
+        });
+        return prev === next ? prev : next;
+      });
+    };
+    syncWidthToContainer();
+  }, [
+    defaultLeftRatio,
+    enabled,
+    maxLeftWidthPx,
+    minLeftWidthPx,
+    minRightWidthPx,
+    resolveContainerWidth,
+  ]);
 
   const syncWidthToContainer = useCallback(() => {
     const containerWidth = resolveContainerWidth();

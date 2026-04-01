@@ -59,25 +59,27 @@ export const AgentInputBar = React.forwardRef<HTMLTextAreaElement, AgentInputBar
 
       // Re-measure once the initial layout settles (refresh/splitter width transitions).
       scheduleResizeToFit();
+      if (typeof ResizeObserver !== "undefined") {
+        const resizeObserver = new ResizeObserver(() => {
+          scheduleResizeToFit();
+        });
+        resizeObserver.observe(textarea);
+        return () => {
+          resizeObserver.disconnect();
+          if (resizeRafRef.current != null) {
+            cancelAnimationFrame(resizeRafRef.current);
+            resizeRafRef.current = null;
+          }
+        };
+      }
 
       const onWindowResize = () => {
         scheduleResizeToFit();
       };
-
       window.addEventListener("resize", onWindowResize);
-
-      const resizeObserver =
-        typeof ResizeObserver !== "undefined"
-          ? new ResizeObserver(() => {
-              scheduleResizeToFit();
-            })
-          : null;
-
-      resizeObserver?.observe(textarea);
 
       return () => {
         window.removeEventListener("resize", onWindowResize);
-        resizeObserver?.disconnect();
         if (resizeRafRef.current != null) {
           cancelAnimationFrame(resizeRafRef.current);
           resizeRafRef.current = null;

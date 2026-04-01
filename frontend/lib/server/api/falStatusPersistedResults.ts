@@ -283,6 +283,18 @@ export const readPersistedGenerationStatusContext = async ({
         };
       }
       if (status !== "success") continue;
+      const urls = readPersistedResultUrlsFromMetadata(row.metadata);
+      if (urls.length) {
+        return {
+          generationId,
+          resultUrls: urls,
+          status,
+          taskState: "success",
+          queueState: "dispatched",
+          errorMessageShort: null,
+          errorDetail: null,
+        };
+      }
       if (!latestSuccessfulContext) {
         latestSuccessfulContext = {
           generationId,

@@ -1,8 +1,14 @@
 import { getSupabaseAdmin } from "../api/supabaseAdmin";
+import { lookupGenerationAttemptByProviderRequest } from "../api/generationAttempts";
+import {
+  markGenerationObservationProcessingState,
+  persistGenerationObservation,
+} from "../api/generationObservationInbox";
 import {
   executeGenerationRecovery,
   type RecoveryObservation,
 } from "../falIntegration/recoveryExecution";
+import { readRecoveryGenerationRow } from "./recoveryGenerationLookup";
 import {
   asProviderRecord,
   readCanonicalProviderEventId,
@@ -61,6 +67,46 @@ const markWebhookEventProcessed = async ({
     .eq("event_id", eventId);
 };
 
+const buildWebhookObservationIdempotencyKey = (eventId: string): string => `fal:webhook:${eventId}`;
+
+const resolveObservationProcessingState = (resultState: string): "processed" | "ignored" => {
+  if (resultState === "missing_generation" || resultState === "skipped") {
+    return "ignored";
+  }
+  return "processed";
+};
+
+const resolveWebhookObservationIdentity = async ({
+  requestId,
+}: {
+  requestId: string;
+}): Promise<{
+  generationId: string | null;
+  generationAttemptId: string | null;
+  userId: string | null;
+}> => {
+  const attemptLookup = await lookupGenerationAttemptByProviderRequest({
+    providerRequestId: requestId,
+  }).catch(() => ({ data: null, error: null }));
+
+  if (attemptLookup.data) {
+    return {
+      generationId: attemptLookup.data.generationId ?? null,
+      generationAttemptId: attemptLookup.data.id ?? null,
+      userId: attemptLookup.data.userId ?? null,
+    };
+  }
+
+  const generation = await readRecoveryGenerationRow({
+    requestId,
+  }).catch(() => null);
+  return {
+    generationId: generation?.id ?? null,
+    generationAttemptId: null,
+    userId: generation?.user_id ?? null,
+  };
+};
+
 export type FalWebhookIngressHeaders = {
   requestId: string | null;
   userId: string | null;
@@ -96,6 +142,9 @@ export const ingestFalWebhookEvent = async ({
   }
 
   const requestId = headers.requestId ?? resolveRequestId(payload);
+  const normalizedStatus = resolveNormalizedStatus(payload);
+  const observationState = resolveObservationState(normalizedStatus);
+  const observationIdempotencyKey = buildWebhookObservationIdempotencyKey(eventId);
   const insertResult = await getSupabaseAdmin()
     .from("fal_webhook_events")
     .insert({
@@ -131,8 +180,6 @@ export const ingestFalWebhookEvent = async ({
     return { kind: "ignored", reason: "missing_request_id" };
   }
 
-  const normalizedStatus = resolveNormalizedStatus(payload);
-  const observationState = resolveObservationState(normalizedStatus);
   if (!observationState) {
     await markWebhookEventProcessed({
       eventId,
@@ -141,17 +188,48 @@ export const ingestFalWebhookEvent = async ({
     return { kind: "ignored", reason: "non_terminal_status" };
   }
 
+  const identity = await resolveWebhookObservationIdentity({
+    requestId,
+  });
+  await persistGenerationObservation({
+    generationId: identity.generationId,
+    generationAttemptId: identity.generationAttemptId,
+    userId: identity.userId,
+    provider: "fal",
+    providerRequestId: requestId,
+    observationSource: "webhook",
+    observationType: observationState,
+    idempotencyKey: observationIdempotencyKey,
+    payload,
+  });
+
   const observation: RecoveryObservation = {
     state: observationState,
     payload,
     mediaUrls: extractMediaUrls(payload),
   };
-  const result = await executeGenerationRecovery({
-    actor: "webhook",
-    requestId,
-    observation,
-    routeLabel: "fal/webhook",
-    maxAttempts,
+  let result;
+  try {
+    result = await executeGenerationRecovery({
+      actor: "webhook",
+      requestId,
+      observation,
+      routeLabel: "fal/webhook",
+      maxAttempts,
+    });
+  } catch (error) {
+    await markGenerationObservationProcessingState({
+      idempotencyKey: observationIdempotencyKey,
+      processingState: "failed",
+      processingError: error instanceof Error ? error.message : String(error),
+    });
+    throw error;
+  }
+
+  await markGenerationObservationProcessingState({
+    idempotencyKey: observationIdempotencyKey,
+    processingState: resolveObservationProcessingState(result.state),
+    processingError: result.note ?? null,
   });
 
   await markWebhookEventProcessed({

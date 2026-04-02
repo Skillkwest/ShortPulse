@@ -15,6 +15,8 @@ export type PersistGenerationObservationInput = {
   observedAt?: string;
 };
 
+export type GenerationObservationProcessingState = "pending" | "processed" | "ignored" | "failed";
+
 const asString = (value: unknown): string | null => {
   if (typeof value !== "string") return null;
   const trimmed = value.trim();
@@ -63,5 +65,33 @@ export const persistGenerationObservation = async ({
   const { error } = await getSupabaseAdmin().from("generation_observation_inbox").upsert(row, {
     onConflict: "idempotency_key",
   });
+  if (error) throw error;
+};
+
+export const markGenerationObservationProcessingState = async ({
+  idempotencyKey,
+  processingState,
+  processingError,
+}: {
+  idempotencyKey: string;
+  processingState: GenerationObservationProcessingState;
+  processingError?: string | null;
+}): Promise<void> => {
+  const normalizedIdempotencyKey = asString(idempotencyKey);
+  if (!normalizedIdempotencyKey) {
+    throw new Error("Generation observation processing update requires an idempotency key.");
+  }
+
+  const row: Record<string, unknown> = {
+    processing_state: processingState,
+    processing_error: asString(processingError),
+    processed_at: processingState === "pending" ? null : new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  };
+
+  const { error } = await getSupabaseAdmin()
+    .from("generation_observation_inbox")
+    .update(row)
+    .eq("idempotency_key", normalizedIdempotencyKey);
   if (error) throw error;
 };

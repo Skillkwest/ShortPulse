@@ -243,6 +243,11 @@ describe("createFalStatusHandler", () => {
         resultUrls: ["https://cdn.shortpulse.test/persisted-result.mp4"],
         result_urls: ["https://cdn.shortpulse.test/persisted-result.mp4"],
         videos: [{ url: "https://cdn.shortpulse.test/persisted-result.mp4" }],
+        shortpulseLifecycle: expect.objectContaining({
+          taskState: "success",
+          isTerminal: true,
+          resultUrls: ["https://cdn.shortpulse.test/persisted-result.mp4"],
+        }),
       })
     );
   });
@@ -336,6 +341,12 @@ describe("createFalStatusHandler", () => {
         state: "error",
         error: "Generation failed",
         detail: "Provider reported failed state during recovery execution.",
+        shortpulseLifecycle: expect.objectContaining({
+          taskState: "fail",
+          isTerminal: true,
+          errorMessage: "Generation failed",
+          errorDetail: "Provider reported failed state during recovery execution.",
+        }),
       })
     );
   });

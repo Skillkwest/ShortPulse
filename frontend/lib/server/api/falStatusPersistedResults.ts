@@ -1,3 +1,4 @@
+import { buildShortPulseLifecycleHint } from "../falIntegration/statusProxyRuntime";
 import { getSupabaseAdmin } from "./supabaseAdmin";
 import { readGenerationProjectionStatusContext } from "./generationProjection";
 import { readPersistedGenerationOutputs } from "./generationOutputs";
@@ -75,6 +76,11 @@ export const buildPersistedCompletedPayload = ({
   resultUrls,
   result_urls: resultUrls,
   videos: resultUrls.map((url) => ({ url })),
+  shortpulseLifecycle: buildShortPulseLifecycleHint({
+    taskState: "success",
+    isTerminal: true,
+    resultUrls,
+  }),
 });
 
 export const readPersistedGenerationStatusContext = async ({

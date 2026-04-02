@@ -183,6 +183,109 @@ describe("useAiStudioTasks", () => {
     expect(output.taskState).toBe("success");
   });
 
+  it("prefers server lifecycle success hints over raw provider payload interpretation", async () => {
+    fetchFalStatusMock.mockResolvedValueOnce(
+      asFalStatusResponse({
+        status: "IN_PROGRESS",
+        shortpulseLifecycle: {
+          taskState: "success",
+          isTerminal: true,
+          resultUrls: ["https://cdn.test/server-hint.png"],
+        },
+      })
+    );
+
+    let output = makeOutput();
+    const updateOutputById = vi.fn((id: string, updater: (item: StudioOutput) => StudioOutput) => {
+      if (id === output.id) {
+        output = updater(output);
+      }
+    });
+    const onGenerationSuccess = vi.fn();
+
+    const { result } = renderHook(() =>
+      useAiStudioTasks({
+        updateOutputById,
+        notifyGenerationFailure: vi.fn(),
+        onGenerationSuccess,
+      })
+    );
+
+    act(() => {
+      result.current.startPollingTask("task-server-hint-success", "out-1", 0, "fal");
+    });
+
+    await vi.advanceTimersByTimeAsync(2_300);
+    await flushQueuedOutputUpdates();
+
+    expect(output.taskState).toBe("success");
+    expect(output.previewUrl).toBe("https://cdn.test/server-hint.png");
+    expect(onGenerationSuccess).toHaveBeenCalledWith(
+      expect.objectContaining({
+        outputId: "out-1",
+        taskId: "task-server-hint-success",
+        resultUrls: ["https://cdn.test/server-hint.png"],
+      })
+    );
+  });
+
+  it("prefers server lifecycle failure hints over raw provider failure parsing", async () => {
+    fetchFalStatusMock.mockResolvedValueOnce(
+      asFalStatusResponse({
+        status: "IN_PROGRESS",
+        shortpulseLifecycle: {
+          taskState: "fail",
+          isTerminal: true,
+          errorMessage: "Generation blocked",
+          errorDetail: "Blocked by server-side policy",
+          providerState: "failed",
+        },
+      })
+    );
+
+    let output = makeOutput();
+    const updateOutputById = vi.fn((id: string, updater: (item: StudioOutput) => StudioOutput) => {
+      if (id === output.id) {
+        output = updater(output);
+      }
+    });
+    const notifyGenerationFailure = vi.fn();
+    const onGenerationFailure = vi.fn();
+
+    const { result } = renderHook(() =>
+      useAiStudioTasks({
+        updateOutputById,
+        notifyGenerationFailure,
+        onGenerationFailure,
+      })
+    );
+
+    act(() => {
+      result.current.startPollingTask("task-server-hint-failure", "out-1", 0, "fal");
+    });
+
+    await vi.advanceTimersByTimeAsync(2_300);
+    await flushQueuedOutputUpdates();
+
+    expect(notifyGenerationFailure).toHaveBeenCalledWith(
+      "out-1",
+      "Generation blocked",
+      "Blocked by server-side policy",
+      expect.objectContaining({
+        reasonCode: "provider_error",
+        providerState: "failed",
+      })
+    );
+    expect(output.taskState).toBe("fail");
+    expect(onGenerationFailure).toHaveBeenCalledWith(
+      expect.objectContaining({
+        outputId: "out-1",
+        message: "Blocked by server-side policy",
+        reasonCode: "provider_error",
+      })
+    );
+  });
+
   it("clears background recovery timers on unmount", async () => {
     fetchFalStatusMock.mockResolvedValue({ status: "completed" });
 

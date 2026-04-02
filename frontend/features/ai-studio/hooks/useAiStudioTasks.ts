@@ -90,6 +90,16 @@ type GenerationFailureContext = {
   maxWaitMs?: number;
 };
 
+type ShortPulseLifecycleHint = {
+  taskState?: string | null;
+  isTerminal?: boolean;
+  resultUrls?: string[];
+  errorMessage?: string | null;
+  errorDetail?: unknown;
+  providerState?: string | null;
+  recoveryPending?: boolean;
+};
+
 type TaskCallbacks = {
   updateOutputById: (id: string, updater: (item: StudioOutput) => StudioOutput) => void;
   findOutputById?: (id: string) => StudioOutput | null;
@@ -134,6 +144,25 @@ const areStringArraysEqual = (left: string[] | undefined, right: string[]) => {
   if (!left) return right.length === 0;
   if (left.length !== right.length) return false;
   return left.every((value, index) => value === right[index]);
+};
+
+const readShortPulseLifecycleHint = (value: unknown): ShortPulseLifecycleHint | null => {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const row = value as Record<string, unknown>;
+  const raw = row.shortpulseLifecycle;
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
+  const lifecycle = raw as Record<string, unknown>;
+  return {
+    taskState: typeof lifecycle.taskState === "string" ? lifecycle.taskState : null,
+    isTerminal: lifecycle.isTerminal === true,
+    resultUrls: Array.isArray(lifecycle.resultUrls)
+      ? lifecycle.resultUrls.filter((item): item is string => typeof item === "string")
+      : [],
+    errorMessage: typeof lifecycle.errorMessage === "string" ? lifecycle.errorMessage : null,
+    errorDetail: lifecycle.errorDetail,
+    providerState: typeof lifecycle.providerState === "string" ? lifecycle.providerState : null,
+    recoveryPending: lifecycle.recoveryPending === true,
+  };
 };
 
 const fetchStatusByProvider = async (provider: Provider, taskId: string) => {
@@ -590,6 +619,7 @@ export function useAiStudioTasks({
 
             const status = (await fetchStatusByProvider(provider, taskId)) as PollStatus;
             const statusGenerationId = resolvePollStatusGenerationId(status);
+            const lifecycleHint = readShortPulseLifecycleHint(status);
             if (statusGenerationId) {
               queueOutputUpdate(
                 outputId,
@@ -614,6 +644,8 @@ export function useAiStudioTasks({
             const allUrls = extractMediaByProvider(provider, status, {
               outputMode,
             });
+            const lifecycleResultUrls = lifecycleHint?.resultUrls ?? [];
+            const resolvedUrls = lifecycleResultUrls.length > 0 ? lifecycleResultUrls : allUrls;
             const hasMedia = allUrls.length > 0;
             const { shouldForceImageMediaSuccess, shouldTreatAsSuccess } = classifyProviderSuccess({
               provider,
@@ -621,8 +653,9 @@ export function useAiStudioTasks({
               hasMedia,
               hasExplicitState,
             });
+            const shouldTreatAsLifecycleSuccess = lifecycleHint?.taskState === "success";
 
-            if (shouldTreatAsSuccess) {
+            if (shouldTreatAsSuccess || shouldTreatAsLifecycleSuccess) {
               if (shouldForceImageMediaSuccess) {
                 addBreadcrumb({
                   type: "ui",
@@ -647,7 +680,7 @@ export function useAiStudioTasks({
                 noMediaAttempt,
                 fallbackDelayMs: delay,
               });
-              if (!hasMedia && shouldRetryForMedia) {
+              if (resolvedUrls.length === 0 && shouldRetryForMedia) {
                 if (noMediaAttempt === 0) {
                   addBreadcrumb({
                     type: "ui",
@@ -751,21 +784,21 @@ export function useAiStudioTasks({
                 const nextDelivery = resolveNormalizedOutputDelivery({
                   previewStoragePath: item.previewStoragePath ?? null,
                   fullStoragePath: item.fullStoragePath ?? null,
-                  previewUrl: allUrls[0] ?? item.previewUrl ?? null,
-                  resultUrls: allUrls,
+                  previewUrl: resolvedUrls[0] ?? item.previewUrl ?? null,
+                  resultUrls: resolvedUrls,
                 });
                 return {
                   ...item,
                   taskState: item.taskState === "success" ? item.taskState : "success",
                   status: item.status === "ready" ? item.status : "ready",
                   timestamp: item.timestamp === "Just now" ? item.timestamp : "Just now",
-                  resultUrls: areStringArraysEqual(item.resultUrls, allUrls)
+                  resultUrls: areStringArraysEqual(item.resultUrls, resolvedUrls)
                     ? item.resultUrls
-                    : allUrls,
+                    : resolvedUrls,
                   previewUrl:
-                    item.previewUrl === (allUrls[0] ?? item.previewUrl)
+                    item.previewUrl === (resolvedUrls[0] ?? item.previewUrl)
                       ? item.previewUrl
-                      : (allUrls[0] ?? item.previewUrl),
+                      : (resolvedUrls[0] ?? item.previewUrl),
                   previewStoragePath:
                     item.previewStoragePath === nextDelivery.previewStoragePath
                       ? item.previewStoragePath
@@ -788,7 +821,7 @@ export function useAiStudioTasks({
                   outputId,
                   taskId,
                   provider,
-                  resultUrls: allUrls,
+                  resultUrls: resolvedUrls,
                 });
               }
               clearRecoveryTimer(outputId);
@@ -821,8 +854,17 @@ export function useAiStudioTasks({
               looksLikeFailureMessage(errorField);
 
             // If ANY condition is true, treat as error
-            if (isErrorState || hasErrorField || isExplicitErrorStatus || hasFailureMessage) {
+            const isLifecycleFailure = lifecycleHint?.taskState === "fail";
+            if (
+              isLifecycleFailure ||
+              isErrorState ||
+              hasErrorField ||
+              isExplicitErrorStatus ||
+              hasFailureMessage
+            ) {
               const rawFailureDetail =
+                lifecycleHint?.errorDetail ||
+                lifecycleHint?.errorMessage ||
                 failMessageField ||
                 failCodeField ||
                 errorField ||
@@ -837,10 +879,17 @@ export function useAiStudioTasks({
                     ? String(rawFailureDetail)
                     : "Generation failed";
 
-              const failureMessage = condenseError(detailMessage ?? failureDetail);
-              const safeFailureMessage = looksLikeFailureMessage(failureMessage)
-                ? failureMessage
-                : "Generation failed";
+              const failureMessage = condenseError(
+                lifecycleHint?.errorMessage ?? detailMessage ?? failureDetail
+              );
+              const safeFailureMessage =
+                isLifecycleFailure &&
+                typeof lifecycleHint?.errorMessage === "string" &&
+                lifecycleHint.errorMessage.trim().length > 0
+                  ? lifecycleHint.errorMessage.trim()
+                  : looksLikeFailureMessage(failureMessage)
+                    ? failureMessage
+                    : "Generation failed";
               const safeFailureDetail = looksLikeFailureMessage(failureDetail)
                 ? failureDetail
                 : safeFailureMessage;
@@ -849,7 +898,7 @@ export function useAiStudioTasks({
 
               notifyGenerationFailure(outputId, safeFailureMessage, safeFailureDetail, {
                 reasonCode: "provider_error",
-                providerState: state,
+                providerState: lifecycleHint?.providerState ?? state,
                 pollAttempt: attempt,
                 elapsedMs: Date.now() - startedAt,
                 maxWaitMs,

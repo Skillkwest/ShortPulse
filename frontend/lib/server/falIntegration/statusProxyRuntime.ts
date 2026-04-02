@@ -21,6 +21,16 @@ export type JsonReadResult = {
   isJson: boolean;
 };
 
+export type ShortPulseLifecycleHint = {
+  taskState: "pending" | "running" | "success" | "fail";
+  isTerminal: boolean;
+  resultUrls?: string[];
+  errorMessage?: string | null;
+  errorDetail?: unknown;
+  providerState?: string | null;
+  recoveryPending?: boolean;
+};
+
 /**
  * Legacy Fal compatibility wrapper for provider completed-status policy.
  */
@@ -74,11 +84,13 @@ export const buildFalStatusErrorPayload = ({
   error,
   detail,
   generationId,
+  lifecycle,
 }: {
   requestId: string;
   error: string;
   detail?: unknown;
   generationId?: string | null;
+  lifecycle?: ShortPulseLifecycleHint;
 }): JsonObject => ({
   status: "error",
   state: "error",
@@ -88,16 +100,19 @@ export const buildFalStatusErrorPayload = ({
   ...(typeof generationId === "string" && generationId.trim().length > 0
     ? { generationId: generationId.trim() }
     : {}),
+  ...(lifecycle ? { shortpulseLifecycle: lifecycle } : {}),
 });
 
 export const buildFalStatusTransientPayload = ({
   requestId,
   detail,
   generationId,
+  lifecycle,
 }: {
   requestId: string;
   detail?: unknown;
   generationId?: string | null;
+  lifecycle?: ShortPulseLifecycleHint;
 }): JsonObject => ({
   status: "IN_PROGRESS",
   state: "running",
@@ -106,7 +121,39 @@ export const buildFalStatusTransientPayload = ({
     ? { generationId: generationId.trim() }
     : {}),
   ...(detail !== undefined ? { transient_detail: detail } : {}),
+  ...(lifecycle ? { shortpulseLifecycle: lifecycle } : {}),
 });
+
+export const buildShortPulseLifecycleHint = ({
+  taskState,
+  isTerminal,
+  resultUrls,
+  errorMessage,
+  errorDetail,
+  providerState,
+  recoveryPending,
+}: ShortPulseLifecycleHint): ShortPulseLifecycleHint => {
+  const next: ShortPulseLifecycleHint = {
+    taskState,
+    isTerminal,
+  };
+  if (Array.isArray(resultUrls) && resultUrls.length > 0) {
+    next.resultUrls = resultUrls;
+  }
+  if (typeof errorMessage === "string" && errorMessage.trim().length > 0) {
+    next.errorMessage = errorMessage.trim();
+  }
+  if (errorDetail !== undefined) {
+    next.errorDetail = errorDetail;
+  }
+  if (typeof providerState === "string" && providerState.trim().length > 0) {
+    next.providerState = providerState.trim();
+  }
+  if (recoveryPending === true) {
+    next.recoveryPending = true;
+  }
+  return next;
+};
 
 export const probeResponseUrlsForMedia = async ({
   provider = "fal",

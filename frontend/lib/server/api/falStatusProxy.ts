@@ -15,6 +15,7 @@ import {
 import type { ResultProbeCandidate, StatusProbeCandidate } from "../falIntegration/contracts";
 import {
   buildFalStatusErrorPayload,
+  buildShortPulseLifecycleHint,
   buildFalStatusTransientPayload,
   probeResponseUrlsForMedia,
   readJsonSafe,
@@ -62,6 +63,7 @@ const respondError = ({
   alwaysHttp200,
   statusCode,
   generationId,
+  lifecycle,
 }: {
   res: NextApiResponse;
   requestId: string;
@@ -70,11 +72,12 @@ const respondError = ({
   alwaysHttp200: boolean;
   statusCode?: number;
   generationId?: string | null;
+  lifecycle?: import("../falIntegration/statusProxyRuntime").ShortPulseLifecycleHint;
 }) => {
   const code = alwaysHttp200 ? 200 : (statusCode ?? 500);
   return res
     .status(code)
-    .json(buildFalStatusErrorPayload({ requestId, error, detail, generationId }));
+    .json(buildFalStatusErrorPayload({ requestId, error, detail, generationId, lifecycle }));
 };
 
 /**
@@ -167,6 +170,15 @@ export const createFalStatusHandler = ({
         alwaysHttp200,
         statusCode: 422,
         generationId,
+        lifecycle: buildShortPulseLifecycleHint({
+          taskState: "fail",
+          isTerminal: true,
+          errorMessage: persistedGenerationContext.errorMessageShort?.trim() || "Generation failed",
+          errorDetail:
+            persistedGenerationContext.errorDetail ??
+            persistedGenerationContext.errorMessageShort ??
+            "Generation failed",
+        }),
       });
     }
 
@@ -191,6 +203,7 @@ export const createFalStatusHandler = ({
       statusCode = 500,
       source = "api.fal_status.error",
       stage = null,
+      lifecycle,
     }: {
       requestId: string;
       error: string;
@@ -198,6 +211,7 @@ export const createFalStatusHandler = ({
       statusCode?: number;
       source?: string;
       stage?: string | null;
+      lifecycle?: import("../falIntegration/statusProxyRuntime").ShortPulseLifecycleHint;
     }) => {
       await logGenerationFailure({
         req,
@@ -221,6 +235,7 @@ export const createFalStatusHandler = ({
         alwaysHttp200,
         statusCode,
         generationId,
+        lifecycle,
       });
     };
 
@@ -346,6 +361,12 @@ export const createFalStatusHandler = ({
             stage,
           },
           generationId,
+          lifecycle: buildShortPulseLifecycleHint({
+            taskState: "running",
+            isTerminal: false,
+            providerState: "running",
+            recoveryPending: true,
+          }),
         })
       );
     };
@@ -382,6 +403,11 @@ export const createFalStatusHandler = ({
           status: payloadStatus,
           state: payloadStatus,
           request_id: requestId,
+          shortpulseLifecycle: buildShortPulseLifecycleHint({
+            taskState: "success",
+            isTerminal: true,
+            providerState: payloadStatus,
+          }),
         });
       };
 
@@ -555,6 +581,17 @@ export const createFalStatusHandler = ({
           source: "api.fal_status.status_failed",
           stage: "status",
           detail: statusData.json,
+          lifecycle: buildShortPulseLifecycleHint({
+            taskState: "fail",
+            isTerminal: true,
+            errorMessage:
+              asProviderString(statusData.json.error) ||
+              asProviderString(statusData.json.message) ||
+              asProviderString(statusData.json.statusMessage) ||
+              "Generation failed",
+            errorDetail: statusData.json,
+            providerState: normalizedStatus,
+          }),
         });
       }
 

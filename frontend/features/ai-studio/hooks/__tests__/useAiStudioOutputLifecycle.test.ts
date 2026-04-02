@@ -310,17 +310,56 @@ describe("useAiStudioOutputLifecycle", () => {
         await vi.advanceTimersByTimeAsync(30 * 60 * 1000 + 16_000);
       });
 
-      expect(result.current.outputs[0]?.taskState).toBe("fail");
-      expect(result.current.outputs[0]?.timestamp).toBe("Queue timed out");
-      expect(result.current.outputs[0]?.errorMessage).toBe(
-        "Generation queue timed out. Please retry."
-      );
+      expect(result.current.outputs[0]?.taskState).toBe("pending");
+      expect(result.current.outputs[0]?.timestamp).toBe("Waiting for server recovery...");
+      expect(result.current.outputs[0]?.errorMessage).toBeNull();
       expect(reportAppErrorMock).toHaveBeenCalledWith(
         expect.objectContaining({
           source: "generation.queue_wait_timeout",
           metadata: expect.objectContaining({
             output_id: "generation-db-queued-timeout",
             failure_reason_code: "QUEUE_WAIT_TIMEOUT",
+          }),
+        })
+      );
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("fails task-backed outputs that never resolve preview media", async () => {
+    vi.useFakeTimers();
+    try {
+      const { result } = renderHook(() =>
+        useHarness(
+          [
+            makeOutput("generation-db-tasked-timeout", {
+              taskId: "req-tasked-timeout",
+              taskState: "running",
+              previewText: undefined,
+              previewUrl: undefined,
+              mediaSource: "generated",
+              timestamp: "Processing...",
+            }),
+          ],
+          null
+        )
+      );
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(12 * 60 * 1000 + 16_000);
+      });
+
+      expect(result.current.outputs[0]?.taskState).toBe("running");
+      expect(result.current.outputs[0]?.timestamp).toBe("Waiting for server recovery...");
+      expect(result.current.outputs[0]?.errorMessage).toBeNull();
+      expect(reportAppErrorMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          source: "generation.task_backed_stale_timeout",
+          metadata: expect.objectContaining({
+            output_id: "generation-db-tasked-timeout",
+            failure_reason_code: "TASK_BACKED_STALE_TIMEOUT",
+            task_id: "req-tasked-timeout",
           }),
         })
       );

@@ -20,6 +20,7 @@ const SUBMIT_START_TIMEOUT_MS = 90_000;
 const QUEUE_WAIT_TIMEOUT_MS = 30 * 60 * 1000;
 const AUTO_FAILED_OUTPUT_REMOVAL_MS = 2 * 60 * 1000;
 const STALE_OUTPUT_SWEEP_INTERVAL_MS = 15_000;
+const SERVER_RECOVERY_PENDING_TIMESTAMP = "Waiting for server recovery...";
 
 const currentRoute = (): string | null => {
   if (typeof window === "undefined") return null;
@@ -111,8 +112,13 @@ export const useAiStudioOutputLifecycle = ({
     const submitStartTimeoutSet = new Set(cleanup.submitStartTimeoutIds);
     const queueWaitTimeoutSet = new Set(cleanup.queueWaitTimeoutIds);
     const removableSet = new Set(cleanup.removableIds);
+    const locallyFailedSet = new Set(
+      cleanup.staleLoadingIds.filter(
+        (id) => !taskBackedTimeoutSet.has(id) && !queueWaitTimeoutSet.has(id)
+      )
+    );
 
-    staleLoadingSet.forEach((id) => {
+    locallyFailedSet.forEach((id) => {
       const existing = cleanup.nextLifecycle[id] ?? {};
       cleanup.nextLifecycle[id] = {
         ...existing,
@@ -175,6 +181,25 @@ export const useAiStudioOutputLifecycle = ({
         const isSubmitStartTimeout = submitStartTimeoutSet.has(item.id);
         const isQueueWaitTimeout = queueWaitTimeoutSet.has(item.id);
         changed = true;
+        if (isTaskBackedTimeout || isQueueWaitTimeout) {
+          next.push({
+            ...item,
+            status: "ready",
+            taskState: isTaskBackedTimeout
+              ? "running"
+              : item.taskState === "pending"
+                ? "pending"
+                : "running",
+            timestamp:
+              item.timestamp === SERVER_RECOVERY_PENDING_TIMESTAMP
+                ? item.timestamp
+                : SERVER_RECOVERY_PENDING_TIMESTAMP,
+            errorMessage: null,
+            errorMessageShort: null,
+            errorDetail: null,
+          });
+          return;
+        }
         next.push({
           ...item,
           status: "ready",

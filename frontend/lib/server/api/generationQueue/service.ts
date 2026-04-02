@@ -558,11 +558,6 @@ export const readGenerationQueueStatus = async ({
   }
 
   const resolvedGenerationId = asString(generationRow?.id) ?? asString(queueRow?.generation_id);
-  const resolvedSourceRef =
-    asString(queueRow?.source_ref) ??
-    sourceRef ??
-    readSourceRefFromGenerationMetadata(generationRow?.metadata);
-
   const projectionContext = resolvedGenerationId
     ? await readGenerationProjectionQueueContext({
         userId,
@@ -570,6 +565,11 @@ export const readGenerationQueueStatus = async ({
         supabaseAdmin: supabase,
       }).catch(() => null)
     : null;
+  const resolvedSourceRef =
+    projectionContext?.sourceRef ??
+    asString(queueRow?.source_ref) ??
+    sourceRef ??
+    readSourceRefFromGenerationMetadata(generationRow?.metadata);
 
   const requestId =
     projectionContext?.requestId ??

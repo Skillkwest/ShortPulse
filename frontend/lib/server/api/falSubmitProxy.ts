@@ -697,6 +697,7 @@ export const createFalSubmitHandler = ({
           await upsertGenerationProjection({
             generationId: enqueueResult.generationId,
             userId: charge.userId,
+            sourceRef: queuedSourceRef,
             provider: providerKey,
             status: "ready",
             taskState: "pending",

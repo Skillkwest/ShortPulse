@@ -498,4 +498,43 @@ describe("generationQueue/service.readGenerationQueueStatus", () => {
       retryAfterMs: 2000,
     });
   });
+
+  it("prefers projection sourceRef when legacy metadata source_ref is missing", async () => {
+    getSupabaseAdminMock.mockReturnValue(
+      createStatusSupabaseMock({
+        queueRow: null,
+        generationRow: {
+          id: "gen-projection-source-ref",
+          status: "running",
+          request_id: null,
+          provider: "fal",
+          model_id: "fal-ai/bytedance/seedream/v4.5/edit",
+          metadata: {},
+        },
+        projectionRow: {
+          generation_id: "gen-projection-source-ref",
+          source_ref: "src-from-projection",
+          request_id: "req-from-projection",
+          provider: "fal",
+          model_id: "fal-ai/bytedance/seedream/v4.5/edit",
+          task_state: "running",
+          queue_state: "dispatched",
+        },
+      })
+    );
+
+    await expect(
+      readGenerationQueueStatus({
+        userId: "user-1",
+        generationId: "gen-projection-source-ref",
+      })
+    ).resolves.toEqual({
+      status: "dispatched",
+      generationId: "gen-projection-source-ref",
+      sourceRef: "src-from-projection",
+      requestId: "req-from-projection",
+      provider: "fal",
+      modelId: "fal-ai/bytedance/seedream/v4.5/edit",
+    });
+  });
 });

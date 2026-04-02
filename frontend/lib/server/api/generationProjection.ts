@@ -5,6 +5,7 @@ type JsonObject = Record<string, unknown>;
 export type UpsertGenerationProjectionInput = {
   generationId: string;
   userId: string;
+  sourceRef?: string | null;
   requestId?: string | null;
   provider?: string | null;
   providerRequestId?: string | null;
@@ -55,6 +56,7 @@ export type GenerationProjectionStatusContext = {
 
 export type GenerationProjectionQueueContext = {
   generationId: string;
+  sourceRef: string | null;
   requestId: string | null;
   provider: string | null;
   providerRequestId: string | null;
@@ -69,6 +71,7 @@ export type GenerationProjectionQueueContext = {
 export const upsertGenerationProjection = async ({
   generationId,
   userId,
+  sourceRef,
   requestId,
   provider,
   providerRequestId,
@@ -108,6 +111,7 @@ export const upsertGenerationProjection = async ({
   };
 
   const stringFields: Record<string, string | null | undefined> = {
+    source_ref: sourceRef,
     request_id: requestId,
     provider,
     provider_request_id: providerRequestId,
@@ -211,6 +215,7 @@ export const readGenerationProjectionQueueContext = async ({
     .select(
       [
         "generation_id",
+        "source_ref",
         "request_id",
         "provider",
         "provider_request_id",
@@ -234,6 +239,7 @@ export const readGenerationProjectionQueueContext = async ({
 
   return {
     generationId: resolvedGenerationId,
+    sourceRef: asString(row.source_ref),
     requestId: asString(row.request_id),
     provider: asString(row.provider),
     providerRequestId: asString(row.provider_request_id),

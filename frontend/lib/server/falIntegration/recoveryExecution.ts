@@ -315,6 +315,7 @@ const syncRecoveredGenerationProjection = async ({
   await upsertGenerationProjection({
     generationId: generation.id,
     userId: generation.user_id,
+    sourceRef: asOptionalString(generationMetadata?.source_ref),
     requestId: generation.request_id,
     provider: generation.provider,
     providerRequestId: generation.request_id,
@@ -378,6 +379,7 @@ const syncFailedGenerationProjection = async ({
   await upsertGenerationProjection({
     generationId: generation.id,
     userId: generation.user_id,
+    sourceRef: asOptionalString(generationMetadata?.source_ref),
     requestId: generation.request_id,
     provider: generation.provider,
     providerRequestId: generation.request_id,

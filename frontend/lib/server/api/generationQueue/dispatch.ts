@@ -139,6 +139,7 @@ const syncQueueDispatchProjection = async ({
   providerRequestId,
   queueState,
   requestId,
+  sourceRef,
   taskState,
   userId,
 }: {
@@ -149,12 +150,14 @@ const syncQueueDispatchProjection = async ({
   providerRequestId?: string | null;
   queueState: "queued" | "dispatched";
   requestId?: string | null;
+  sourceRef?: string | null;
   taskState: "pending" | "running";
   userId: string;
 }) =>
   upsertGenerationProjection({
     generationId,
     userId,
+    sourceRef: sourceRef ?? null,
     requestId: requestId ?? providerRequestId ?? null,
     provider,
     providerRequestId: providerRequestId ?? null,
@@ -528,6 +531,7 @@ const processClaimedQueueItem = async ({
         providerRequestId: existingRequestId,
         queueState: "dispatched",
         requestId: existingRequestId,
+        sourceRef: item.sourceRef,
         taskState: "running",
         userId: item.userId,
       }).catch(async (projectionError) => {
@@ -1170,6 +1174,7 @@ const processClaimedQueueItem = async ({
       providerRequestId,
       queueState: "dispatched",
       requestId: providerRequestId,
+      sourceRef: item.sourceRef,
       taskState: "running",
       userId: item.userId,
     }).catch(async (projectionError) => {

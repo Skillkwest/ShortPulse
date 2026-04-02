@@ -129,6 +129,7 @@ const REFERENCE_GRID_FLAG_UPDATE_BACKPRESSURE = PERF_FLAG_REFERENCE_GRID_UPDATE_
 const AI_STUDIO_FLAG_RAF_STATUS_FLUSH = PERF_FLAG_RAF_STATUS_FLUSH;
 const OUTPUT_PROGRESS_UPDATE_MIN_INTERVAL_MS = 700;
 const HIDDEN_TAB_STATUS_POLL_RETRY_MS = 15_000;
+const SERVER_RECOVERY_PENDING_TIMESTAMP = "Waiting for server recovery...";
 
 const isDocumentVisible = (): boolean =>
   typeof document === "undefined" || document.visibilityState === "visible";
@@ -499,7 +500,6 @@ export function useAiStudioTasks({
       const elapsedMs = Date.now() - startedAt;
       const maxWaitMs = getPollMaxWaitMs(provider);
       if (elapsedMs > maxWaitMs) {
-        const timeoutMessage = "Timed out waiting for provider result.";
         addBreadcrumb({
           type: "ui",
           level: "warn",
@@ -513,22 +513,18 @@ export function useAiStudioTasks({
             max_wait_ms: maxWaitMs,
           },
         });
-        notifyGenerationFailure(outputId, timeoutMessage, timeoutMessage, {
-          reasonCode: "poll_timeout",
-          pollAttempt: attempt,
-          noMediaAttempt,
-          elapsedMs,
-          maxWaitMs,
-        });
-        if (onGenerationFailure) {
-          onGenerationFailure({
-            outputId,
-            taskId,
-            provider,
-            message: timeoutMessage,
-            reasonCode: "poll_timeout",
-          });
-        }
+        queueOutputUpdate(outputId, (item) => ({
+          ...item,
+          taskState: item.taskState === "running" ? item.taskState : "running",
+          status: item.status === "ready" ? item.status : "ready",
+          timestamp:
+            item.timestamp === SERVER_RECOVERY_PENDING_TIMESTAMP
+              ? item.timestamp
+              : SERVER_RECOVERY_PENDING_TIMESTAMP,
+          errorMessage: null,
+          errorMessageShort: null,
+          errorDetail: null,
+        }));
         scheduleBackgroundRecovery(taskId, outputId, provider, "poll_timeout");
         clearPollTimer(outputId);
         return;
@@ -1003,21 +999,18 @@ export function useAiStudioTasks({
           } catch (error) {
             const message = error instanceof Error ? error.message : "Unable to check status";
             if (isStatusErrorRetryBudgetExhausted({ message, attempt })) {
-              notifyGenerationFailure(outputId, condenseError(message), message, {
-                reasonCode: "status_poll_error",
-                pollAttempt: attempt,
-                elapsedMs: Date.now() - startedAt,
-                maxWaitMs,
-              });
-              if (onGenerationFailure) {
-                onGenerationFailure({
-                  outputId,
-                  taskId,
-                  provider,
-                  message,
-                  reasonCode: "status_poll_error",
-                });
-              }
+              queueOutputUpdate(outputId, (item) => ({
+                ...item,
+                taskState: item.taskState === "running" ? item.taskState : "running",
+                status: item.status === "ready" ? item.status : "ready",
+                timestamp:
+                  item.timestamp === SERVER_RECOVERY_PENDING_TIMESTAMP
+                    ? item.timestamp
+                    : SERVER_RECOVERY_PENDING_TIMESTAMP,
+                errorMessage: null,
+                errorMessageShort: null,
+                errorDetail: null,
+              }));
               scheduleBackgroundRecovery(taskId, outputId, provider, "status_poll_error");
               clearPollTimer(outputId);
               return;

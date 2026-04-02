@@ -1107,8 +1107,13 @@ describe("useAiStudioTasks", () => {
     expect(output.timestamp).toBe("Processing...");
   });
 
-  it("captures timeout context metadata when polling exceeds max wait", () => {
-    const updateOutputById = vi.fn();
+  it("keeps output live and schedules recovery when polling exceeds max wait", () => {
+    let output = makeOutput();
+    const updateOutputById = vi.fn((id: string, updater: (item: StudioOutput) => StudioOutput) => {
+      if (id === output.id) {
+        output = updater(output);
+      }
+    });
     const notifyGenerationFailure = vi.fn();
     const onGenerationFailure = vi.fn();
     const startedAt = Date.now() - (19 * 60 * 1000 + 2_000);
@@ -1125,25 +1130,11 @@ describe("useAiStudioTasks", () => {
       result.current.startPollingTask("task-timeout", "out-1", 4, "fal", startedAt, 2);
     });
 
-    expect(notifyGenerationFailure).toHaveBeenCalledWith(
-      "out-1",
-      "Timed out waiting for provider result.",
-      "Timed out waiting for provider result.",
-      expect.objectContaining({
-        reasonCode: "poll_timeout",
-        pollAttempt: 4,
-        noMediaAttempt: 2,
-        maxWaitMs: 18 * 60 * 1000,
-      })
-    );
-    expect(onGenerationFailure).toHaveBeenCalledWith(
-      expect.objectContaining({
-        outputId: "out-1",
-        taskId: "task-timeout",
-        provider: "fal",
-        reasonCode: "poll_timeout",
-      })
-    );
+    expect(notifyGenerationFailure).not.toHaveBeenCalled();
+    expect(onGenerationFailure).not.toHaveBeenCalled();
+    expect(output.taskState).toBe("running");
+    expect(output.timestamp).toBe("Waiting for server recovery...");
+    expect(output.errorMessage).toBeNull();
   });
 
   it("retries timeout-classified status transport errors and succeeds on a later poll", async () => {
@@ -1236,6 +1227,40 @@ describe("useAiStudioTasks", () => {
     expect(updateOutputById).toHaveBeenCalledTimes(1);
     expect(output.taskState).toBe("running");
     expect(output.timestamp).toBe("Retrying status...");
+  });
+
+  it("keeps output live when status transport errors exhaust the retry budget", async () => {
+    fetchFalStatusMock.mockRejectedValue(new Error("status transport unavailable"));
+
+    let output = makeOutput();
+    const updateOutputById = vi.fn((id: string, updater: (item: StudioOutput) => StudioOutput) => {
+      if (id === output.id) {
+        output = updater(output);
+      }
+    });
+    const notifyGenerationFailure = vi.fn();
+    const onGenerationFailure = vi.fn();
+
+    const { result } = renderHook(() =>
+      useAiStudioTasks({
+        updateOutputById,
+        notifyGenerationFailure,
+        onGenerationFailure,
+      })
+    );
+
+    act(() => {
+      result.current.startPollingTask("task-status-error", "out-1", 30, "fal");
+    });
+
+    await vi.advanceTimersByTimeAsync(10_000);
+    await flushQueuedOutputUpdates();
+
+    expect(notifyGenerationFailure).not.toHaveBeenCalled();
+    expect(onGenerationFailure).not.toHaveBeenCalled();
+    expect(output.taskState).toBe("running");
+    expect(output.timestamp).toBe("Waiting for server recovery...");
+    expect(output.errorMessage).toBeNull();
   });
 
   it("skips polling when the output was removed before the poll starts", async () => {

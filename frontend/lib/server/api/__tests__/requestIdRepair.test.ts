@@ -1,5 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { repairGenerationRequestIdFromReservation } from "../generationQueue/requestIdRepair";
+import {
+  repairGenerationRequestIdFromReservation,
+  repairGenerationRequestIdsFromReservations,
+} from "../generationQueue/requestIdRepair";
 
 const getSupabaseAdminMock = vi.fn();
 const lookupLatestGenerationAttemptMock = vi.fn();
@@ -374,5 +377,64 @@ describe("repairGenerationRequestIdFromReservation", () => {
       reason: "db_error",
       errorMessage: "attempt_backfill_failed",
     });
+  });
+});
+
+describe("repairGenerationRequestIdsFromReservations", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    lookupLatestGenerationAttemptMock.mockResolvedValue({ data: null, error: null });
+    ensureAcceptedRunningGenerationAttemptMock.mockResolvedValue({
+      ok: true,
+      attemptId: "attempt-1",
+      attemptNumber: 1,
+    });
+  });
+
+  it("skips worker-authoritative generations from the reservation-repair batch scan", async () => {
+    const batchBuilder = {
+      is: vi.fn(),
+      order: vi.fn(),
+      limit: vi.fn(async () => ({
+        data: [
+          {
+            id: "gen-worker-1",
+            user_id: "user-1",
+            request_id: null,
+            provider: "fal-ai",
+            model_id: "fal-ai/nano-banana-pro",
+            status: "running",
+            recovery_state: "queued",
+            recovery_attempts: 1,
+            metadata: {
+              source_ref: "source-worker-1",
+              generation_submit_authority: "worker",
+            },
+          },
+        ],
+        error: null,
+      })),
+    };
+    batchBuilder.is.mockReturnValue(batchBuilder);
+    batchBuilder.order.mockReturnValue(batchBuilder);
+
+    const from = vi.fn().mockImplementationOnce(() => ({
+      select: vi.fn(() => batchBuilder),
+    }));
+    getSupabaseAdminMock.mockReturnValue({ from });
+
+    await expect(
+      repairGenerationRequestIdsFromReservations({
+        limit: 10,
+      })
+    ).resolves.toEqual({
+      scanned: 0,
+      repaired: 0,
+      errors: 0,
+    });
+
+    expect(lookupLatestGenerationAttemptMock).not.toHaveBeenCalled();
+    expect(ensureAcceptedRunningGenerationAttemptMock).not.toHaveBeenCalled();
+    expect(from).toHaveBeenCalledTimes(1);
   });
 });

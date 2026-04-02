@@ -542,6 +542,7 @@ export const repairGenerationRequestIdsFromReservations = async ({
         .filter(
           (row) =>
             !row.requestId &&
+            !isWorkerAuthoritativeGeneration(row.metadata) &&
             isSupportedProvider(row.provider) &&
             RECOVERY_STATES.has(row.recoveryState) &&
             GENERATION_STATUSES.has(row.status)

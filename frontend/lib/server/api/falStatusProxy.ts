@@ -6,6 +6,7 @@ import type { NextApiRequest, NextApiResponse } from "next";
 import { requireApiUser } from "./auth";
 import { logGenerationFailure } from "./appErrorLogs";
 import { readFalRuntimeFlags } from "./falRuntimeFlags";
+import { persistGenerationObservation } from "./generationObservationInbox";
 import { resolveProviderRequestOwnership } from "./generationBilling";
 import {
   buildPersistedCompletedPayload,
@@ -223,6 +224,42 @@ export const createFalStatusHandler = ({
       });
     };
 
+    const persistPollObservation = async ({
+      observationType,
+      payload,
+    }: {
+      observationType: "completed" | "failed";
+      payload: JsonObject;
+    }) => {
+      try {
+        await persistGenerationObservation({
+          generationId,
+          userId: user.id,
+          provider: providerKey,
+          providerRequestId: requestId,
+          observationSource: "poll",
+          observationType,
+          idempotencyKey: `poll:${providerKey}:${requestId}:${observationType}`,
+          payload,
+        });
+      } catch (error) {
+        await logGenerationFailure({
+          req,
+          routeLabel,
+          source: "telemetry.api.fal_status.poll_observation_persist_failed",
+          message: "Failed to persist poll-derived generation observation.",
+          statusCode: 200,
+          userId: user.id,
+          userEmail: user.email ?? null,
+          metadata: {
+            provider_request_id: requestId,
+            observation_type: observationType,
+            detail: error instanceof Error ? error.message : String(error),
+          },
+        });
+      }
+    };
+
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
     const readPayloadLifecycleStatus = (payload: unknown): string | null =>
@@ -336,6 +373,10 @@ export const createFalStatusHandler = ({
         payload: JsonObject;
         payloadStatus: string;
       }) => {
+        await persistPollObservation({
+          observationType: "completed",
+          payload,
+        });
         return res.status(200).json({
           ...attachGenerationId(payload),
           status: payloadStatus,
@@ -499,6 +540,10 @@ export const createFalStatusHandler = ({
           status: normalizedStatus,
         })
       ) {
+        await persistPollObservation({
+          observationType: "failed",
+          payload: statusData.json,
+        });
         return respondErrorWithLogging({
           requestId,
           error:
@@ -748,6 +793,10 @@ export const createFalStatusHandler = ({
             .status(alwaysHttp200 ? 200 : statusResp.status)
             .json(attachGenerationId(statusData.json));
         }
+        await persistPollObservation({
+          observationType: "failed",
+          payload: resultData.json,
+        });
         return respondErrorWithLogging({
           requestId,
           error:
@@ -779,6 +828,10 @@ export const createFalStatusHandler = ({
       }
 
       if (explicitResultFailure) {
+        await persistPollObservation({
+          observationType: "failed",
+          payload: resultData.json,
+        });
         return respondErrorWithLogging({
           requestId,
           error: resultErrorMessage || "Generation failed to produce media output",

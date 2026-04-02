@@ -6,6 +6,7 @@ const logGenerationFailureMock = vi.fn();
 const settleGenerationOutcomeMock = vi.fn();
 const resolveProviderRequestOwnershipMock = vi.fn();
 const executeGenerationRecoveryMock = vi.fn();
+const persistGenerationObservationMock = vi.fn();
 const getSupabaseAdminMock = vi.fn();
 let persistedProjectionRows: Array<Record<string, unknown>> = [];
 let persistedGenerationRows: Array<Record<string, unknown>> = [];
@@ -27,6 +28,10 @@ vi.mock("../../lib/server/api/generationBilling", () => ({
 
 vi.mock("../../lib/server/falIntegration/recoveryExecution", () => ({
   executeGenerationRecovery: (...args: unknown[]) => executeGenerationRecoveryMock(...args),
+}));
+
+vi.mock("../../lib/server/api/generationObservationInbox", () => ({
+  persistGenerationObservation: (...args: unknown[]) => persistGenerationObservationMock(...args),
 }));
 
 vi.mock("../../lib/server/api/supabaseAdmin", () => ({
@@ -66,6 +71,8 @@ describe("createFalStatusHandler", () => {
     persistedProjectionRows = [];
     persistedGenerationRows = [];
     persistedOutputRows = [];
+    persistGenerationObservationMock.mockReset();
+    persistGenerationObservationMock.mockResolvedValue(undefined);
     getSupabaseAdminMock.mockImplementation(() => {
       const generationQueryChain = {
         eq: vi.fn(),
@@ -180,6 +187,17 @@ describe("createFalStatusHandler", () => {
     expect(payload.request_id).toBe("req-1");
     expect(payload.generationId).toBe("gen-1");
     expect(payload.data?.images?.[0]?.url).toBe("https://cdn.shortpulse.test/seedream-image.png");
+    expect(persistGenerationObservationMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        generationId: "gen-1",
+        userId: "user-1",
+        provider: "fal",
+        providerRequestId: "req-1",
+        observationSource: "poll",
+        observationType: "completed",
+        idempotencyKey: "poll:fal:req-1:completed",
+      })
+    );
     expect(logGenerationFailureMock).not.toHaveBeenCalled();
   });
 
@@ -1049,6 +1067,16 @@ describe("createFalStatusHandler", () => {
     expect(payload.request_id).toBe("req-result-terminal-failure");
     expect(payload.detail?.detail?.[0]?.type).toBe("downstream_service_error");
     expect(payload.detail?.detail?.[0]?.msg).toBe("Downstream service error");
+    expect(persistGenerationObservationMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: "user-1",
+        provider: "fal",
+        providerRequestId: "req-result-terminal-failure",
+        observationSource: "poll",
+        observationType: "failed",
+        idempotencyKey: "poll:fal:req-result-terminal-failure:failed",
+      })
+    );
   });
 
   it("treats transport failures as transient when status transient failures are enabled", async () => {

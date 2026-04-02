@@ -179,10 +179,12 @@ const buildQueuedSubmitPayload = ({
 const shouldUseWorkerOwnedSubmit = ({
   queueEnabled,
   workerOwnedSubmitEnabled,
+  legacyDirectSubmitEnabled,
 }: {
   queueEnabled: boolean;
   workerOwnedSubmitEnabled: boolean;
-}): boolean => queueEnabled && workerOwnedSubmitEnabled;
+  legacyDirectSubmitEnabled: boolean;
+}): boolean => queueEnabled && (workerOwnedSubmitEnabled || !legacyDirectSubmitEnabled);
 
 const isWorkerOwnedSubmitMisconfigured = ({
   queueEnabled,
@@ -542,6 +544,7 @@ export const createFalSubmitHandler = ({
       const workerOwnedSubmitRequired = shouldUseWorkerOwnedSubmit({
         queueEnabled: runtimeFlags.queueEnabled,
         workerOwnedSubmitEnabled: runtimeFlags.workerOwnedSubmitEnabled,
+        legacyDirectSubmitEnabled: runtimeFlags.legacyDirectSubmitEnabled,
       });
       const workerOwnedSubmitMisconfigured = isWorkerOwnedSubmitMisconfigured({
         queueEnabled: runtimeFlags.queueEnabled,

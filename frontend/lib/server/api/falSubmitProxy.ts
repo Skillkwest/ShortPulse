@@ -599,6 +599,7 @@ export const createFalSubmitHandler = ({
           timeoutMs,
           metadata: {
             source_ref: charge.sourceRef,
+            generation_submit_authority: "worker",
             route: req.url ?? null,
             route_label: routeLabel,
             queue_payload_contract:

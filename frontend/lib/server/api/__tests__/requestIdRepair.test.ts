@@ -233,6 +233,51 @@ describe("repairGenerationRequestIdFromReservation", () => {
     expect(updateBuilder.is).toHaveBeenCalledWith("request_id", null);
   });
 
+  it("does not fall back to reservation-derived request ids for worker-authoritative generations", async () => {
+    const generationSelectBuilder = createGenerationSelectBuilder({
+      data: {
+        id: "gen-1",
+        user_id: "user-1",
+        request_id: null,
+        provider: "fal-ai",
+        model_id: "fal-ai/nano-banana-pro",
+        status: "running",
+        recovery_state: "queued",
+        recovery_attempts: 1,
+        metadata: {
+          source_ref: "source-1",
+          generation_submit_authority: "worker",
+        },
+      },
+    });
+    const from = vi.fn().mockImplementationOnce(() => ({
+      select: vi.fn(() => generationSelectBuilder),
+    }));
+    getSupabaseAdminMock.mockReturnValue({ from });
+
+    await expect(
+      repairGenerationRequestIdFromReservation({
+        userId: "user-1",
+        generationId: "gen-1",
+        sourceRef: null,
+      })
+    ).resolves.toEqual({
+      repaired: false,
+      generationId: "gen-1",
+      requestId: null,
+      sourceRef: "source-1",
+      reason: "missing_provider_request_id",
+      errorMessage: null,
+    });
+
+    expect(lookupLatestGenerationAttemptMock).toHaveBeenCalledWith({
+      userId: "user-1",
+      generationId: "gen-1",
+    });
+    expect(ensureAcceptedRunningGenerationAttemptMock).not.toHaveBeenCalled();
+    expect(from).toHaveBeenCalledTimes(1);
+  });
+
   it("surfaces reservation lookup errors as db errors", async () => {
     const generationSelectBuilder = createGenerationSelectBuilder({
       data: {

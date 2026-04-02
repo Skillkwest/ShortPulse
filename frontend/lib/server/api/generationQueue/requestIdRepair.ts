@@ -88,6 +88,9 @@ const isSupportedProvider = (provider: string): boolean => {
   return SUPPORTED_PROVIDER_PREFIXES.some((prefix) => normalized.startsWith(prefix));
 };
 
+const isWorkerAuthoritativeGeneration = (metadata: JsonObject): boolean =>
+  asString(metadata.generation_submit_authority)?.toLowerCase() === "worker";
+
 const parseRepairCandidate = (value: unknown): RepairCandidate | null => {
   const row = asObject(value);
   if (!row) return null;
@@ -424,6 +427,17 @@ export const repairGenerationRequestIdFromReservation = async ({
       candidate,
       providerRequestId: attemptLookup.providerRequestId,
     });
+  }
+
+  if (isWorkerAuthoritativeGeneration(candidate.metadata)) {
+    return {
+      repaired: false,
+      generationId: candidate.id,
+      requestId: null,
+      sourceRef: candidate.sourceRef,
+      reason: "missing_provider_request_id",
+      errorMessage: null,
+    };
   }
 
   const reservationLookup = await readReservationProviderRequestId({

@@ -1016,6 +1016,7 @@ const processClaimedQueueItem = async ({
               nextRecoveryAtIso,
               metadata: mergeGenerationMetadata(generationRow.metadata, {
                 source_ref: item.sourceRef,
+                generation_submit_authority: "worker",
                 queue_dispatched_at: dispatchAtIso,
                 queue_id: item.queueId,
                 queue_attempts: attemptNumber,

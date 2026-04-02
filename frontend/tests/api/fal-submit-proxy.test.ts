@@ -838,6 +838,9 @@ describe("createFalSubmitHandler", () => {
         userId: "user-1",
         sourceRef: "source-ref-1",
         modelId: "fal-ai/nano-banana",
+        metadata: expect.objectContaining({
+          generation_submit_authority: "worker",
+        }),
       })
     );
     expect(requestGenerationControlPlaneWakeMock).toHaveBeenCalledWith({

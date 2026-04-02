@@ -148,6 +148,13 @@ const buildQueueWorkerUnavailablePayload = (retryAfterSeconds: number) => ({
   retryAfterSeconds,
 });
 
+const buildWorkerOwnedSubmitMisconfiguredPayload = (retryAfterSeconds: number) => ({
+  error:
+    "Worker-owned generation submit requires the durable submit queue to be enabled. Fix the runtime configuration and retry.",
+  code: "GENERATION_WORKER_OWNED_SUBMIT_MISCONFIGURED",
+  retryAfterSeconds,
+});
+
 const buildQueuedSubmitPayload = ({
   sourceRef,
   generationId,
@@ -169,6 +176,14 @@ const shouldUseWorkerOwnedSubmit = ({
   queueEnabled: boolean;
   workerOwnedSubmitEnabled: boolean;
 }): boolean => queueEnabled && workerOwnedSubmitEnabled;
+
+const isWorkerOwnedSubmitMisconfigured = ({
+  queueEnabled,
+  workerOwnedSubmitEnabled,
+}: {
+  queueEnabled: boolean;
+  workerOwnedSubmitEnabled: boolean;
+}): boolean => workerOwnedSubmitEnabled && !queueEnabled;
 
 const applyRewrittenPromptToPayload = ({
   payload,
@@ -521,6 +536,38 @@ export const createFalSubmitHandler = ({
         queueEnabled: runtimeFlags.queueEnabled,
         workerOwnedSubmitEnabled: runtimeFlags.workerOwnedSubmitEnabled,
       });
+      const workerOwnedSubmitMisconfigured = isWorkerOwnedSubmitMisconfigured({
+        queueEnabled: runtimeFlags.queueEnabled,
+        workerOwnedSubmitEnabled: runtimeFlags.workerOwnedSubmitEnabled,
+      });
+
+      if (workerOwnedSubmitMisconfigured) {
+        const retryAfterSeconds = 20;
+        await charge.refund(
+          "Auto-release: worker-owned submit requires queue-enabled runtime configuration.",
+          {
+            reason: "worker_owned_submit_queue_disabled",
+            queue_enabled: runtimeFlags.queueEnabled,
+            worker_owned_submit_enabled: runtimeFlags.workerOwnedSubmitEnabled,
+          }
+        );
+        await logGenerationFailure({
+          req,
+          routeLabel,
+          source: "api.fal_submit.worker_owned_submit_misconfigured",
+          message: "Worker-owned submit was enabled while the durable submit queue was disabled.",
+          statusCode: 503,
+          userId: charge.userId,
+          metadata: {
+            model_id: modelId,
+            source_ref: charge.sourceRef,
+            queue_enabled: runtimeFlags.queueEnabled,
+            worker_owned_submit_enabled: runtimeFlags.workerOwnedSubmitEnabled,
+          },
+        });
+        res.setHeader("Retry-After", String(retryAfterSeconds));
+        return res.status(503).json(buildWorkerOwnedSubmitMisconfiguredPayload(retryAfterSeconds));
+      }
 
       if (runtimeFlags.queueEnabled && (admissionDecision.enforced || workerOwnedSubmitRequired)) {
         if (

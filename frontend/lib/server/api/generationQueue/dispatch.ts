@@ -1063,6 +1063,7 @@ const processClaimedQueueItem = async ({
         observedAt: dispatchAtIso,
         metadata: {
           source_ref: item.sourceRef,
+          generation_submit_authority: "worker",
           queue_dispatch_at: dispatchAtIso,
           queue_id: item.queueId,
           queue_attempts: attemptNumber,

@@ -617,6 +617,9 @@ describe("generationQueue/dispatch transition integrity", () => {
           userId: "user-1",
           providerRequestId: "req-1",
           dispatchSource: "queued_submit",
+          metadata: expect.objectContaining({
+            generation_submit_authority: "worker",
+          }),
         })
       );
       expect(logGenerationFailureMock).toHaveBeenCalledWith(

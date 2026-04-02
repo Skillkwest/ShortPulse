@@ -66,6 +66,7 @@ describe("createFalSubmitHandler", () => {
     delete process.env.STUDIO_AGENT_SAFETY_INPUT_PRECHECK_FIELD_MODES;
     delete process.env.STUDIO_AGENT_SAFETY_INPUT_PRECHECK_FIELD_MODES_GENERATION_SUBMIT;
     delete process.env.SHORTPULSE_FAL_ADMISSION_MODE;
+    delete process.env.SHORTPULSE_FAL_WORKER_OWNED_SUBMIT_ENABLED;
     process.env.SHORTPULSE_FAL_QUEUE_ENABLED = "false";
     chargeGenerationRequestMock.mockResolvedValue({
       userId: "user-1",
@@ -856,6 +857,57 @@ describe("createFalSubmitHandler", () => {
       pollAfterMs: 2000,
     });
     expect(ensureSubmittedGenerationRecordMock).not.toHaveBeenCalled();
+  });
+
+  it("fails closed when worker-owned submit is enabled but the durable queue is disabled", async () => {
+    process.env.SHORTPULSE_FAL_QUEUE_ENABLED = "false";
+    process.env.SHORTPULSE_FAL_WORKER_OWNED_SUBMIT_ENABLED = "true";
+
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    const handler = createFalSubmitHandler({
+      modelId: "fal-ai/nano-banana",
+      submitTargets: [{ submitUrl: "https://queue.fal.run/fal-ai/nano-banana" }],
+      routeLabel: "Fal Nano Banana",
+    });
+
+    const req = {
+      method: "POST",
+      body: { prompt: "portrait" },
+      headers: {},
+      url: "/api/fal/nano-banana-submit",
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    const charge = await chargeGenerationRequestMock.mock.results[0]?.value;
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(enqueueGenerationSubmitMock).not.toHaveBeenCalled();
+    expect(ensureSubmittedGenerationRecordMock).not.toHaveBeenCalled();
+    expect(charge.refund).toHaveBeenCalledWith(
+      "Auto-release: worker-owned submit requires queue-enabled runtime configuration.",
+      expect.objectContaining({
+        reason: "worker_owned_submit_queue_disabled",
+        queue_enabled: false,
+        worker_owned_submit_enabled: true,
+      })
+    );
+    expect(logGenerationFailureMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        source: "api.fal_submit.worker_owned_submit_misconfigured",
+        statusCode: 503,
+      })
+    );
+    expect(res.setHeader).toHaveBeenCalledWith("Retry-After", "20");
+    expect(res.status).toHaveBeenCalledWith(503);
+    expect(res.json).toHaveBeenCalledWith({
+      error:
+        "Worker-owned generation submit requires the durable submit queue to be enabled. Fix the runtime configuration and retry.",
+      code: "GENERATION_WORKER_OWNED_SUBMIT_MISCONFIGURED",
+      retryAfterSeconds: 20,
+    });
   });
 
   it("returns 400 when the shared contract gate reports a violation", async () => {

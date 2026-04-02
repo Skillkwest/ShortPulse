@@ -327,3 +327,41 @@ export const readGenerationProjectionLinkByRequestId = async ({
 
   return null;
 };
+
+export const readGenerationProjectionLinkBySourceRef = async ({
+  userId,
+  sourceRef,
+  supabaseAdmin,
+}: {
+  userId: string;
+  sourceRef: string;
+  supabaseAdmin?: ReturnType<typeof getSupabaseAdmin>;
+}): Promise<GenerationProjectionLink | null> => {
+  let adminClient = supabaseAdmin;
+  if (!adminClient) {
+    adminClient = getSupabaseAdmin();
+  }
+
+  const { data, error } = await adminClient
+    .from("generation_projection")
+    .select("generation_id, source_ref, request_id, updated_at")
+    .eq("user_id", userId)
+    .eq("source_ref", sourceRef)
+    .order("updated_at", { ascending: false })
+    .limit(5);
+  if (error || !Array.isArray(data) || !data.length) return null;
+
+  for (const item of data) {
+    if (!item || typeof item !== "object" || Array.isArray(item)) continue;
+    const row = item as Record<string, unknown>;
+    const resolvedGenerationId = asString(row.generation_id);
+    if (!resolvedGenerationId) continue;
+    return {
+      generationId: resolvedGenerationId,
+      sourceRef: asString(row.source_ref),
+      requestId: asString(row.request_id),
+    };
+  }
+
+  return null;
+};

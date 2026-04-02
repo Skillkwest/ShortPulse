@@ -5,6 +5,7 @@
  */
 
 import { readFalRuntimeFlags } from "../falRuntimeFlags";
+import { readGenerationProjectionLinkBySourceRef } from "../generationProjection";
 import { getSupabaseAdmin } from "../supabaseAdmin";
 import {
   resolveSupportedRecoveryProviderFamily,
@@ -121,6 +122,21 @@ const readRecoveryCandidate = async ({
   }
 
   if (!sourceRef) return null;
+  const projectionLink = await readGenerationProjectionLinkBySourceRef({
+    userId,
+    sourceRef,
+    supabaseAdmin: supabase,
+  }).catch(() => null);
+  if (projectionLink?.generationId) {
+    const { data } = await supabase
+      .from("ai_generations")
+      .select(selectFields)
+      .eq("user_id", userId)
+      .eq("id", projectionLink.generationId)
+      .maybeSingle();
+    return parseCandidate(data);
+  }
+
   const { data } = await supabase
     .from("ai_generations")
     .select(selectFields)

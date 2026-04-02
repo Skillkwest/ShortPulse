@@ -54,7 +54,7 @@ const createDefaultFlags = () => ({
   queueMaxWaitSeconds: 1200,
 });
 
-const createSelectBuilder = (row: Record<string, unknown> | null) => {
+const createMaybeSingleSelectBuilder = (row: Record<string, unknown> | null) => {
   const builder = {
     eq: vi.fn(),
     contains: vi.fn(),
@@ -66,6 +66,19 @@ const createSelectBuilder = (row: Record<string, unknown> | null) => {
   builder.contains.mockReturnValue(builder);
   builder.order.mockReturnValue(builder);
   builder.limit.mockReturnValue(builder);
+  return builder;
+};
+
+const createListSelectBuilder = (rows: Array<Record<string, unknown>>) => {
+  const builder = {
+    eq: vi.fn(),
+    contains: vi.fn(),
+    order: vi.fn(),
+    limit: vi.fn(async () => ({ data: rows, error: null })),
+  };
+  builder.eq.mockReturnValue(builder);
+  builder.contains.mockReturnValue(builder);
+  builder.order.mockReturnValue(builder);
   return builder;
 };
 
@@ -122,7 +135,7 @@ describe("claimDueQueueStatusRecovery", () => {
   });
 
   it("claims a due candidate and returns claimed metadata", async () => {
-    const selectBuilder = createSelectBuilder({
+    const selectBuilder = createMaybeSingleSelectBuilder({
       id: "gen-1",
       request_id: "req-1",
       provider: "fal",
@@ -161,7 +174,7 @@ describe("claimDueQueueStatusRecovery", () => {
   });
 
   it("skips claims that are not due", async () => {
-    const selectBuilder = createSelectBuilder({
+    const selectBuilder = createMaybeSingleSelectBuilder({
       id: "gen-1",
       request_id: "req-1",
       provider: "fal",
@@ -192,7 +205,7 @@ describe("claimDueQueueStatusRecovery", () => {
   });
 
   it("skips providers outside the Fal/Kie recovery family", async () => {
-    const selectBuilder = createSelectBuilder({
+    const selectBuilder = createMaybeSingleSelectBuilder({
       id: "gen-1",
       request_id: "req-1",
       provider: "other-provider",
@@ -222,7 +235,7 @@ describe("claimDueQueueStatusRecovery", () => {
   });
 
   it("repairs a missing request id from the reservation and retries the claim once", async () => {
-    const initialSelectBuilder = createSelectBuilder({
+    const initialSelectBuilder = createMaybeSingleSelectBuilder({
       id: "gen-1",
       request_id: null,
       provider: "fal",
@@ -232,7 +245,7 @@ describe("claimDueQueueStatusRecovery", () => {
       next_recovery_at: new Date(Date.now() - 1_000).toISOString(),
       created_at: new Date(Date.now() - 5 * 60 * 1000).toISOString(),
     });
-    const repairedSelectBuilder = createSelectBuilder({
+    const repairedSelectBuilder = createMaybeSingleSelectBuilder({
       id: "gen-1",
       request_id: "req-1",
       provider: "fal",
@@ -285,5 +298,60 @@ describe("claimDueQueueStatusRecovery", () => {
       sourceRef: "source-1",
     });
     expect(updateBuilder.select).toHaveBeenCalledWith("id, request_id");
+  });
+
+  it("prefers generation_projection sourceRef lookup before legacy metadata scan", async () => {
+    const projectionSelectBuilder = createListSelectBuilder([
+      {
+        generation_id: "gen-projection-1",
+        source_ref: "source-projection-1",
+        request_id: "req-projection-1",
+        updated_at: new Date().toISOString(),
+      },
+    ]);
+    const generationSelectBuilder = createMaybeSingleSelectBuilder({
+      id: "gen-projection-1",
+      request_id: "req-projection-1",
+      provider: "fal",
+      status: "running",
+      recovery_state: "queued",
+      recovery_attempts: 1,
+      next_recovery_at: new Date(Date.now() - 1_000).toISOString(),
+      created_at: new Date(Date.now() - 5 * 60 * 1000).toISOString(),
+    });
+    const updateBuilder = createUpdateBuilder([
+      { id: "gen-projection-1", request_id: "req-projection-1" },
+    ]);
+    const from = vi
+      .fn()
+      .mockImplementationOnce((table: string) => {
+        expect(table).toBe("generation_projection");
+        return { select: vi.fn(() => projectionSelectBuilder) };
+      })
+      .mockImplementationOnce((table: string) => {
+        expect(table).toBe("ai_generations");
+        return { select: vi.fn(() => generationSelectBuilder) };
+      })
+      .mockImplementationOnce(() => ({
+        update: vi.fn(() => updateBuilder),
+      }));
+    getSupabaseAdminMock.mockReturnValue({ from });
+
+    await expect(
+      claimDueQueueStatusRecovery({
+        userId: "user-1",
+        generationId: null,
+        sourceRef: "source-projection-1",
+      })
+    ).resolves.toEqual(
+      expect.objectContaining({
+        claimed: true,
+        generationId: "gen-projection-1",
+        requestId: "req-projection-1",
+        reason: "claimed",
+      })
+    );
+    expect(projectionSelectBuilder.eq).toHaveBeenCalledWith("source_ref", "source-projection-1");
+    expect(generationSelectBuilder.contains).not.toHaveBeenCalled();
   });
 });

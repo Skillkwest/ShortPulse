@@ -1,6 +1,10 @@
 import { insertCreditLedgerEntry } from "../creditLedger";
 import { readFalRuntimeFlags } from "../falRuntimeFlags";
 import { lookupGenerationAttemptByProviderRequest } from "../generationAttempts";
+import {
+  readGenerationProjectionLinkByGenerationId,
+  readGenerationProjectionLinkByRequestId,
+} from "../generationProjection";
 import { getSupabaseAdmin } from "../supabaseAdmin";
 import {
   isDuplicateError,
@@ -196,6 +200,17 @@ const lookupGenerationSourceRefByProviderRequest = async ({
     }
   } else if (attemptLookup.data?.generationId) {
     try {
+      const projectionLink = await readGenerationProjectionLinkByGenerationId({
+        userId,
+        generationId: attemptLookup.data.generationId,
+      }).catch(() => null);
+      if (projectionLink?.sourceRef) {
+        return {
+          generationId: projectionLink.generationId,
+          sourceRef: projectionLink.sourceRef,
+        };
+      }
+
       const supabaseAdmin = getSupabaseAdmin();
       const { data, error } = await supabaseAdmin
         .from("ai_generations")
@@ -228,6 +243,17 @@ const lookupGenerationSourceRefByProviderRequest = async ({
   }
 
   try {
+    const projectionLink = await readGenerationProjectionLinkByRequestId({
+      userId,
+      requestId: providerRequestId,
+    }).catch(() => null);
+    if (projectionLink?.sourceRef) {
+      return {
+        generationId: projectionLink.generationId,
+        sourceRef: projectionLink.sourceRef,
+      };
+    }
+
     const supabaseAdmin = getSupabaseAdmin();
     const { data, error } = await supabaseAdmin
       .from("ai_generations")

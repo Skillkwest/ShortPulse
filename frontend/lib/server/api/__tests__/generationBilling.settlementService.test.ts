@@ -35,16 +35,47 @@ vi.mock("../generationAttempts", () => ({
     lookupGenerationAttemptByProviderRequestMock(...args),
 }));
 
-const mockGenerationLookup = (row: Record<string, unknown> | null) => {
-  const query = {
+const mockGenerationLookup = ({
+  projectionRow = null,
+  projectionRows = null,
+  generationRow = null,
+}: {
+  projectionRow?: Record<string, unknown> | null;
+  projectionRows?: Record<string, unknown>[] | null;
+  generationRow?: Record<string, unknown> | null;
+}) => {
+  const generationQuery = {
     eq: vi.fn().mockReturnThis(),
     order: vi.fn().mockReturnThis(),
     limit: vi.fn().mockReturnThis(),
-    maybeSingle: vi.fn().mockResolvedValue({ data: row, error: null }),
+    maybeSingle: vi.fn().mockResolvedValue({ data: generationRow, error: null }),
   };
+  const projectionMaybeSingleQuery = {
+    eq: vi.fn().mockReturnThis(),
+    limit: vi.fn().mockReturnThis(),
+    maybeSingle: vi.fn().mockResolvedValue({ data: projectionRow, error: null }),
+  };
+  const projectionListQuery = {
+    eq: vi.fn().mockReturnThis(),
+    order: vi.fn().mockReturnThis(),
+    limit: vi.fn().mockResolvedValue({ data: projectionRows ?? [], error: null }),
+  };
+
   getSupabaseAdminMock.mockReturnValue({
-    from: vi.fn().mockReturnValue({
-      select: vi.fn().mockReturnValue(query),
+    from: vi.fn((table: string) => {
+      if (table === "generation_projection") {
+        return {
+          select: vi.fn((columns: string) =>
+            columns.includes("updated_at") ? projectionListQuery : projectionMaybeSingleQuery
+          ),
+        };
+      }
+      if (table === "ai_generations") {
+        return {
+          select: vi.fn().mockReturnValue(generationQuery),
+        };
+      }
+      throw new Error(`Unexpected table: ${table}`);
     }),
   });
 };
@@ -68,9 +99,10 @@ describe("settleGenerationOutcome linkage repair", () => {
       error: null,
     });
     mockGenerationLookup({
-      id: "gen-attempt-1",
-      metadata: {
+      projectionRow: {
+        generation_id: "gen-attempt-1",
         source_ref: "source-ref-attempt-1",
+        request_id: "req-attempt-1",
       },
     });
     captureGenerationReservationByProviderRequestMock
@@ -124,12 +156,15 @@ describe("settleGenerationOutcome linkage repair", () => {
     );
   });
 
-  it("repairs reservation linkage from ai_generations metadata before retrying capture", async () => {
+  it("repairs reservation linkage from generation_projection before retrying capture", async () => {
     mockGenerationLookup({
-      id: "gen-1",
-      metadata: {
-        source_ref: "source-ref-1",
-      },
+      projectionRows: [
+        {
+          generation_id: "gen-1",
+          source_ref: "source-ref-1",
+          request_id: "req-1",
+        },
+      ],
     });
     captureGenerationReservationByProviderRequestMock
       .mockResolvedValueOnce({
@@ -181,11 +216,20 @@ describe("settleGenerationOutcome linkage repair", () => {
     expect(captureGenerationReservationByProviderRequestMock).toHaveBeenCalledTimes(2);
   });
 
-  it("repairs reservation linkage from ai_generations metadata before retrying release", async () => {
+  it("falls back to ai_generations metadata when projection does not resolve source_ref", async () => {
     mockGenerationLookup({
-      id: "gen-2",
-      metadata: {
-        source_ref: "source-ref-2",
+      projectionRows: [
+        {
+          generation_id: "gen-2",
+          source_ref: null,
+          request_id: "req-2",
+        },
+      ],
+      generationRow: {
+        id: "gen-2",
+        metadata: {
+          source_ref: "source-ref-2",
+        },
       },
     });
     releaseGenerationReservationByProviderRequestMock

@@ -68,6 +68,12 @@ export type GenerationProjectionQueueContext = {
   errorDetail: string | null;
 };
 
+export type GenerationProjectionLink = {
+  generationId: string;
+  sourceRef: string | null;
+  requestId: string | null;
+};
+
 export const upsertGenerationProjection = async ({
   generationId,
   userId,
@@ -250,4 +256,74 @@ export const readGenerationProjectionQueueContext = async ({
     errorMessageShort: asString(row.error_message_short),
     errorDetail: asString(row.error_detail),
   };
+};
+
+export const readGenerationProjectionLinkByGenerationId = async ({
+  userId,
+  generationId,
+  supabaseAdmin,
+}: {
+  userId: string;
+  generationId: string;
+  supabaseAdmin?: ReturnType<typeof getSupabaseAdmin>;
+}): Promise<GenerationProjectionLink | null> => {
+  let adminClient = supabaseAdmin;
+  if (!adminClient) {
+    adminClient = getSupabaseAdmin();
+  }
+
+  const { data, error } = await adminClient
+    .from("generation_projection")
+    .select("generation_id, source_ref, request_id")
+    .eq("user_id", userId)
+    .eq("generation_id", generationId)
+    .limit(1)
+    .maybeSingle();
+  if (error || !data || typeof data !== "object" || Array.isArray(data)) return null;
+  const row = data as Record<string, unknown>;
+  const resolvedGenerationId = asString(row.generation_id);
+  if (!resolvedGenerationId) return null;
+  return {
+    generationId: resolvedGenerationId,
+    sourceRef: asString(row.source_ref),
+    requestId: asString(row.request_id),
+  };
+};
+
+export const readGenerationProjectionLinkByRequestId = async ({
+  userId,
+  requestId,
+  supabaseAdmin,
+}: {
+  userId: string;
+  requestId: string;
+  supabaseAdmin?: ReturnType<typeof getSupabaseAdmin>;
+}): Promise<GenerationProjectionLink | null> => {
+  let adminClient = supabaseAdmin;
+  if (!adminClient) {
+    adminClient = getSupabaseAdmin();
+  }
+
+  const { data, error } = await adminClient
+    .from("generation_projection")
+    .select("generation_id, source_ref, request_id, updated_at")
+    .eq("user_id", userId)
+    .eq("request_id", requestId)
+    .order("updated_at", { ascending: false })
+    .limit(5);
+  if (error || !Array.isArray(data) || !data.length) return null;
+
+  for (const item of data) {
+    if (!item || typeof item !== "object" || Array.isArray(item)) continue;
+    const row = item as Record<string, unknown>;
+    const resolvedGenerationId = asString(row.generation_id);
+    if (!resolvedGenerationId) continue;
+    return {
+      generationId: resolvedGenerationId,
+      sourceRef: asString(row.source_ref),
+      requestId: asString(row.request_id),
+    };
+  }
+
+  return null;
 };

@@ -3,6 +3,7 @@ import { readFalRuntimeFlags } from "../falRuntimeFlags";
 import { lookupGenerationAttemptByProviderRequest } from "../generationAttempts";
 import {
   readGenerationProjectionLinkByGenerationId,
+  readGenerationProjectionLinkByProviderRequestId,
   readGenerationProjectionLinkByRequestId,
 } from "../generationProjection";
 import { getSupabaseAdmin } from "../supabaseAdmin";
@@ -210,30 +211,6 @@ const lookupGenerationSourceRefByProviderRequest = async ({
           sourceRef: projectionLink.sourceRef,
         };
       }
-
-      const supabaseAdmin = getSupabaseAdmin();
-      const { data, error } = await supabaseAdmin
-        .from("ai_generations")
-        .select("id, metadata")
-        .eq("id", attemptLookup.data.generationId)
-        .eq("user_id", userId)
-        .maybeSingle();
-      if (error) {
-        console.error(
-          "[generationBilling] lookupGenerationSourceRefByProviderRequest generation lookup failed",
-          error.message
-        );
-      } else {
-        const row = readObject(data);
-        const metadata = readJsonObject(row.metadata);
-        const sourceRef = asString(metadata.source_ref) ?? null;
-        if (sourceRef) {
-          return {
-            generationId: asString(row.id) ?? attemptLookup.data.generationId,
-            sourceRef,
-          };
-        }
-      }
     } catch (error) {
       console.error(
         "[generationBilling] lookupGenerationSourceRefByProviderRequest generation lookup threw",
@@ -243,6 +220,17 @@ const lookupGenerationSourceRefByProviderRequest = async ({
   }
 
   try {
+    const projectionProviderLink = await readGenerationProjectionLinkByProviderRequestId({
+      userId,
+      providerRequestId,
+    }).catch(() => null);
+    if (projectionProviderLink?.sourceRef) {
+      return {
+        generationId: projectionProviderLink.generationId,
+        sourceRef: projectionProviderLink.sourceRef,
+      };
+    }
+
     const projectionLink = await readGenerationProjectionLinkByRequestId({
       userId,
       requestId: providerRequestId,

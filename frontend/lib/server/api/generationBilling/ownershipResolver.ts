@@ -1,4 +1,5 @@
 import { lookupGenerationAttemptByProviderRequest } from "../generationAttempts";
+import { readGenerationProjectionOwnershipByProviderRequestId } from "../generationProjection";
 import { getSupabaseAdmin } from "../supabaseAdmin";
 import {
   isMissingGenerationAttemptSchemaError,
@@ -94,34 +95,17 @@ const lookupAttemptOwnerByProviderRequestId = async (
   }
 };
 
-const lookupGenerationOwnersByProviderRequestId = async (
+const lookupProjectionOwnersByProviderRequestId = async (
   providerRequestId: string
 ): Promise<string[]> => {
   try {
-    const supabaseAdmin = getSupabaseAdmin();
-    const { data, error } = await supabaseAdmin
-      .from("ai_generations")
-      .select("user_id")
-      .eq("request_id", providerRequestId)
-      .limit(20);
-    if (error) {
-      console.error("[generationBilling] lookupGenerationOwnersByProviderRequestId failed", {
-        providerRequestId,
-        message: error.message,
-      });
-      return [];
-    }
-    if (!Array.isArray(data)) return [];
-    return Array.from(
-      new Set(
-        data
-          .map((row) => (row as { user_id?: unknown } | null)?.user_id)
-          .filter((userId): userId is string => typeof userId === "string" && userId.length > 0)
-      )
-    );
+    const projectionOwnership = await readGenerationProjectionOwnershipByProviderRequestId({
+      providerRequestId,
+    });
+    return projectionOwnership.userIds;
   } catch (error) {
     console.error(
-      "[generationBilling] lookupGenerationOwnersByProviderRequestId threw",
+      "[generationBilling] lookupProjectionOwnersByProviderRequestId threw",
       String(error)
     );
     return [];
@@ -152,14 +136,14 @@ export const resolveProviderRequestOwnership = async ({
     return attemptOwner === userId ? "owned" : "forbidden";
   }
 
+  const projectionOwners = await lookupProjectionOwnersByProviderRequestId(normalized);
+  if (projectionOwners.length) {
+    return projectionOwners.includes(userId) ? "owned" : "forbidden";
+  }
+
   const ledgerOwner = await lookupLedgerOwnerByProviderRequestId(normalized);
   if (ledgerOwner) {
     return ledgerOwner === userId ? "owned" : "forbidden";
-  }
-
-  const generationOwners = await lookupGenerationOwnersByProviderRequestId(normalized);
-  if (generationOwners.length) {
-    return generationOwners.includes(userId) ? "owned" : "forbidden";
   }
 
   return "unknown";

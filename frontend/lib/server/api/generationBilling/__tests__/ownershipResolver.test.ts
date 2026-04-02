@@ -5,19 +5,29 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { resolveProviderRequestOwnership } from "../ownershipResolver";
 
 const getSupabaseAdminMock = vi.fn();
+const lookupGenerationAttemptByProviderRequestMock = vi.fn();
+const readGenerationProjectionOwnershipByProviderRequestIdMock = vi.fn();
 
 vi.mock("../../supabaseAdmin", () => ({
   getSupabaseAdmin: (...args: unknown[]) => getSupabaseAdminMock(...args),
 }));
 
+vi.mock("../../generationAttempts", () => ({
+  lookupGenerationAttemptByProviderRequest: (...args: unknown[]) =>
+    lookupGenerationAttemptByProviderRequestMock(...args),
+}));
+
+vi.mock("../../generationProjection", () => ({
+  readGenerationProjectionOwnershipByProviderRequestId: (...args: unknown[]) =>
+    readGenerationProjectionOwnershipByProviderRequestIdMock(...args),
+}));
+
 const createMockSupabase = ({
   reservationData = null,
   ledgerData = null,
-  generationData = [],
 }: {
   reservationData?: { user_id: string } | null;
   ledgerData?: { user_id: string } | null;
-  generationData?: Array<{ user_id: string }>;
 }) => {
   const reservationBuilder: Record<string, unknown> = {};
   reservationBuilder.eq = vi.fn(() => reservationBuilder);
@@ -38,19 +48,14 @@ const createMockSupabase = ({
     error: null,
   }));
 
-  const generationBuilder: Record<string, unknown> = {};
-  generationBuilder.eq = vi.fn(() => generationBuilder);
-  generationBuilder.limit = vi.fn(async () => ({
-    data: generationData,
-    error: null,
-  }));
-
   return {
     from: vi.fn((tableName: string) => {
-      if (tableName === "ai_credit_reservations")
+      if (tableName === "ai_credit_reservations") {
         return { select: vi.fn(() => reservationBuilder) };
-      if (tableName === "ai_credit_ledger") return { select: vi.fn(() => ledgerBuilder) };
-      if (tableName === "ai_generations") return { select: vi.fn(() => generationBuilder) };
+      }
+      if (tableName === "ai_credit_ledger") {
+        return { select: vi.fn(() => ledgerBuilder) };
+      }
       throw new Error(`Unexpected table ${tableName}`);
     }),
   };
@@ -59,6 +64,8 @@ const createMockSupabase = ({
 describe("resolveProviderRequestOwnership", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    lookupGenerationAttemptByProviderRequestMock.mockResolvedValue({ data: null, error: null });
+    readGenerationProjectionOwnershipByProviderRequestIdMock.mockResolvedValue({ userIds: [] });
   });
 
   it("returns owned when reservation proves ownership", async () => {
@@ -75,12 +82,15 @@ describe("resolveProviderRequestOwnership", () => {
     expect(result).toBe("owned");
   });
 
-  it("returns owned when ledger proves ownership after reservation miss", async () => {
+  it("returns owned when projection proves ownership after reservation and attempt miss", async () => {
     const admin = createMockSupabase({
       reservationData: null,
-      ledgerData: { user_id: "user-1" },
+      ledgerData: { user_id: "user-2" },
     });
     getSupabaseAdminMock.mockReturnValue(admin);
+    readGenerationProjectionOwnershipByProviderRequestIdMock.mockResolvedValue({
+      userIds: ["user-1"],
+    });
 
     const result = await resolveProviderRequestOwnership({
       userId: "user-1",
@@ -90,27 +100,28 @@ describe("resolveProviderRequestOwnership", () => {
     expect(result).toBe("owned");
   });
 
-  it("returns owned when ai_generations fallback proves ownership", async () => {
+  it("returns forbidden when projection resolves a different owner", async () => {
     const admin = createMockSupabase({
       reservationData: null,
       ledgerData: null,
-      generationData: [{ user_id: "user-1" }],
     });
     getSupabaseAdminMock.mockReturnValue(admin);
+    readGenerationProjectionOwnershipByProviderRequestIdMock.mockResolvedValue({
+      userIds: ["user-2"],
+    });
 
     const result = await resolveProviderRequestOwnership({
       userId: "user-1",
       providerRequestId: "req-3",
     });
 
-    expect(result).toBe("owned");
+    expect(result).toBe("forbidden");
   });
 
-  it("returns forbidden when ai_generations fallback resolves a different owner", async () => {
+  it("returns owned when ledger proves ownership after canonical lineage misses", async () => {
     const admin = createMockSupabase({
       reservationData: null,
-      ledgerData: null,
-      generationData: [{ user_id: "user-2" }],
+      ledgerData: { user_id: "user-1" },
     });
     getSupabaseAdminMock.mockReturnValue(admin);
 
@@ -119,14 +130,13 @@ describe("resolveProviderRequestOwnership", () => {
       providerRequestId: "req-4",
     });
 
-    expect(result).toBe("forbidden");
+    expect(result).toBe("owned");
   });
 
   it("returns unknown when no ownership source can prove request ownership", async () => {
     const admin = createMockSupabase({
       reservationData: null,
       ledgerData: null,
-      generationData: [],
     });
     getSupabaseAdminMock.mockReturnValue(admin);
 

@@ -156,6 +156,64 @@ describe("settleGenerationOutcome linkage repair", () => {
     );
   });
 
+  it("repairs reservation linkage from provider_request_id projection before legacy generation lookup", async () => {
+    mockGenerationLookup({
+      projectionRows: [
+        {
+          generation_id: "gen-provider-1",
+          source_ref: "source-ref-provider-1",
+          request_id: null,
+        },
+      ],
+    });
+    captureGenerationReservationByProviderRequestMock
+      .mockResolvedValueOnce({
+        status: "not_found",
+        sourceRef: null,
+        message: null,
+        code: null,
+      })
+      .mockResolvedValueOnce({
+        status: "captured",
+        sourceRef: "source-ref-provider-1",
+        message: null,
+        code: null,
+      });
+    markGenerationReservationSubmittedMock.mockResolvedValue({
+      status: "reserved",
+      sourceRef: "source-ref-provider-1",
+      message: null,
+      code: null,
+    });
+
+    const result = await settleGenerationOutcome({
+      userId: "user-1",
+      providerRequestId: "req-provider-1",
+      outcome: "success",
+      reason: "capture after success",
+      routeLabel: "api/fal/status",
+      detail: {
+        actor: "test",
+      },
+    });
+
+    expect(result).toEqual({
+      settled: true,
+      sourceRef: "source-ref-provider-1",
+      note: "captured",
+    });
+    expect(markGenerationReservationSubmittedMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        sourceRef: "source-ref-provider-1",
+        providerRequestId: "req-provider-1",
+        metadata: expect.objectContaining({
+          generation_id: "gen-provider-1",
+          repair_source: "settlement_fallback",
+        }),
+      })
+    );
+  });
+
   it("repairs reservation linkage from generation_projection before retrying capture", async () => {
     mockGenerationLookup({
       projectionRows: [

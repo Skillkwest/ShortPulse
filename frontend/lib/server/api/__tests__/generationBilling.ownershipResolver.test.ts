@@ -3,6 +3,7 @@ import { resolveProviderRequestOwnership } from "../generationBilling/ownershipR
 
 const getSupabaseAdminMock = vi.fn();
 const lookupGenerationAttemptByProviderRequestMock = vi.fn();
+const readGenerationProjectionOwnershipByProviderRequestIdMock = vi.fn();
 
 vi.mock("../supabaseAdmin", () => ({
   getSupabaseAdmin: (...args: unknown[]) => getSupabaseAdminMock(...args),
@@ -13,6 +14,11 @@ vi.mock("../generationAttempts", () => ({
     lookupGenerationAttemptByProviderRequestMock(...args),
 }));
 
+vi.mock("../generationProjection", () => ({
+  readGenerationProjectionOwnershipByProviderRequestId: (...args: unknown[]) =>
+    readGenerationProjectionOwnershipByProviderRequestIdMock(...args),
+}));
+
 const createMaybeSingleQuery = (row: Record<string, unknown> | null) => ({
   eq: vi.fn().mockReturnThis(),
   contains: vi.fn().mockReturnThis(),
@@ -21,19 +27,12 @@ const createMaybeSingleQuery = (row: Record<string, unknown> | null) => ({
   maybeSingle: vi.fn().mockResolvedValue({ data: row, error: null }),
 });
 
-const createArrayQuery = (rows: Record<string, unknown>[]) => ({
-  eq: vi.fn().mockReturnThis(),
-  limit: vi.fn().mockResolvedValue({ data: rows, error: null }),
-});
-
 const mockOwnershipTables = ({
   reservationOwner = null,
   ledgerOwner = null,
-  generationOwners = [],
 }: {
   reservationOwner?: string | null;
   ledgerOwner?: string | null;
-  generationOwners?: string[];
 }) => {
   getSupabaseAdminMock.mockReturnValue({
     from: vi.fn((table: string) => {
@@ -53,13 +52,6 @@ const mockOwnershipTables = ({
             .mockReturnValue(createMaybeSingleQuery(ledgerOwner ? { user_id: ledgerOwner } : null)),
         };
       }
-      if (table === "ai_generations") {
-        return {
-          select: vi
-            .fn()
-            .mockReturnValue(createArrayQuery(generationOwners.map((user_id) => ({ user_id })))),
-        };
-      }
       throw new Error(`Unexpected table: ${table}`);
     }),
   });
@@ -69,10 +61,11 @@ describe("resolveProviderRequestOwnership", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     lookupGenerationAttemptByProviderRequestMock.mockResolvedValue({ data: null, error: null });
+    readGenerationProjectionOwnershipByProviderRequestIdMock.mockResolvedValue({ userIds: [] });
     mockOwnershipTables({});
   });
 
-  it("uses generation attempts as canonical ownership before ledger and generation fallbacks", async () => {
+  it("uses generation attempts as canonical ownership before projection and ledger fallbacks", async () => {
     lookupGenerationAttemptByProviderRequestMock.mockResolvedValue({
       data: {
         userId: "user-1",
@@ -81,7 +74,9 @@ describe("resolveProviderRequestOwnership", () => {
     });
     mockOwnershipTables({
       ledgerOwner: "user-2",
-      generationOwners: ["user-2"],
+    });
+    readGenerationProjectionOwnershipByProviderRequestIdMock.mockResolvedValue({
+      userIds: ["user-2"],
     });
 
     await expect(
@@ -108,15 +103,15 @@ describe("resolveProviderRequestOwnership", () => {
     ).resolves.toBe("forbidden");
   });
 
-  it("falls back to legacy generation ownership when no attempt row exists", async () => {
-    mockOwnershipTables({
-      generationOwners: ["user-1"],
+  it("falls back to projection ownership when no attempt row exists", async () => {
+    readGenerationProjectionOwnershipByProviderRequestIdMock.mockResolvedValue({
+      userIds: ["user-1"],
     });
 
     await expect(
       resolveProviderRequestOwnership({
         userId: "user-1",
-        providerRequestId: "req-legacy",
+        providerRequestId: "req-projection",
       })
     ).resolves.toBe("owned");
   });

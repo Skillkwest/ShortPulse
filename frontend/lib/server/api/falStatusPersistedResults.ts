@@ -1,4 +1,5 @@
 import { getSupabaseAdmin } from "./supabaseAdmin";
+import { readGenerationProjectionStatusContext } from "./generationProjection";
 import { readPersistedGenerationOutputs } from "./generationOutputs";
 
 type PersistedResultsParams = {
@@ -88,6 +89,18 @@ export const readPersistedGenerationStatusContext = async ({
   }
 
   try {
+    const projectionContext = await readGenerationProjectionStatusContext({
+      userId,
+      requestId,
+      supabaseAdmin: adminClient,
+    }).catch(() => null);
+    if (projectionContext?.resultUrls.length) {
+      return {
+        generationId: projectionContext.generationId,
+        resultUrls: projectionContext.resultUrls,
+      };
+    }
+
     const { data, error } = await adminClient
       .from("ai_generations")
       .select("id, status, metadata, created_at")

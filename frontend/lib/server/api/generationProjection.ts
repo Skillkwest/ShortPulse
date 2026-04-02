@@ -39,6 +39,20 @@ const asString = (value: unknown): string | null => {
   return trimmed.length ? trimmed : null;
 };
 
+const asStringArray = (value: unknown): string[] => {
+  if (!Array.isArray(value)) return [];
+  return value.map((item) => asString(item)).filter((item): item is string => Boolean(item));
+};
+
+export type GenerationProjectionStatusContext = {
+  generationId: string;
+  resultUrls: string[];
+  status: string | null;
+  taskState: string | null;
+  errorMessageShort: string | null;
+  errorDetail: string | null;
+};
+
 export const upsertGenerationProjection = async ({
   generationId,
   userId,
@@ -120,4 +134,47 @@ export const upsertGenerationProjection = async ({
     onConflict: "generation_id",
   });
   if (error) throw error;
+};
+
+export const readGenerationProjectionStatusContext = async ({
+  userId,
+  requestId,
+  supabaseAdmin,
+}: {
+  userId: string;
+  requestId: string;
+  supabaseAdmin?: ReturnType<typeof getSupabaseAdmin>;
+}): Promise<GenerationProjectionStatusContext | null> => {
+  let adminClient = supabaseAdmin;
+  if (!adminClient) {
+    adminClient = getSupabaseAdmin();
+  }
+
+  const { data, error } = await adminClient
+    .from("generation_projection")
+    .select(
+      "generation_id, result_urls, status, task_state, error_message_short, error_detail, updated_at"
+    )
+    .eq("user_id", userId)
+    .eq("request_id", requestId)
+    .order("updated_at", { ascending: false })
+    .limit(5);
+  if (error || !Array.isArray(data) || !data.length) return null;
+
+  for (const item of data) {
+    if (!item || typeof item !== "object" || Array.isArray(item)) continue;
+    const row = item as Record<string, unknown>;
+    const generationId = asString(row.generation_id);
+    if (!generationId) continue;
+    return {
+      generationId,
+      resultUrls: asStringArray(row.result_urls),
+      status: asString(row.status),
+      taskState: asString(row.task_state),
+      errorMessageShort: asString(row.error_message_short),
+      errorDetail: asString(row.error_detail),
+    };
+  }
+
+  return null;
 };

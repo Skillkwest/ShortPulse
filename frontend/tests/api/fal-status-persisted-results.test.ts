@@ -7,6 +7,7 @@ import {
 } from "../../lib/server/api/falStatusPersistedResults";
 
 const getSupabaseAdminMock = vi.fn();
+let persistedProjectionRows: Array<Record<string, unknown>> = [];
 let persistedGenerationRows: Array<Record<string, unknown>> = [];
 let persistedOutputRows: Array<Record<string, unknown>> = [];
 let outputEqCalls: Array<[string, unknown]> = [];
@@ -18,6 +19,7 @@ vi.mock("../../lib/server/api/supabaseAdmin", () => ({
 describe("falStatusPersistedResults", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    persistedProjectionRows = [];
     persistedGenerationRows = [];
     persistedOutputRows = [];
     outputEqCalls = [];
@@ -41,8 +43,22 @@ describe("falStatusPersistedResults", () => {
       });
       outputQueryChain.order.mockReturnValue(outputQueryChain);
 
+      const projectionQueryChain = {
+        eq: vi.fn(),
+        order: vi.fn(),
+        limit: vi.fn(async () => ({ data: persistedProjectionRows, error: null })),
+      };
+      projectionQueryChain.eq.mockReturnValue(projectionQueryChain);
+      projectionQueryChain.order.mockReturnValue(projectionQueryChain);
+
       return {
         from: vi.fn((tableName: string) => {
+          if (tableName === "generation_projection") {
+            return {
+              select: vi.fn().mockReturnValue(projectionQueryChain),
+            };
+          }
+
           if (tableName === "ai_generations") {
             return {
               select: vi.fn().mockReturnValue(generationQueryChain),
@@ -145,6 +161,36 @@ describe("falStatusPersistedResults", () => {
     ).resolves.toEqual({
       generationId: "gen-success-1",
       resultUrls: ["https://cdn.shortpulse.test/final.mp4"],
+    });
+  });
+
+  it("prefers generation projection result urls before ai_generations fallback", async () => {
+    persistedProjectionRows = [
+      {
+        generation_id: "gen-projection-1",
+        result_urls: ["https://cdn.shortpulse.test/projection-a.mp4"],
+        status: "ready",
+        task_state: "success",
+      },
+    ];
+    persistedGenerationRows = [
+      {
+        id: "gen-success-1",
+        status: "success",
+        metadata: {
+          result_urls: ["https://cdn.shortpulse.test/legacy-fallback.mp4"],
+        },
+      },
+    ];
+
+    await expect(
+      readPersistedGenerationStatusContext({
+        userId: "user-1",
+        requestId: "req-1",
+      })
+    ).resolves.toEqual({
+      generationId: "gen-projection-1",
+      resultUrls: ["https://cdn.shortpulse.test/projection-a.mp4"],
     });
   });
 

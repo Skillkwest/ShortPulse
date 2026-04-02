@@ -12,6 +12,7 @@ const {
   mediaMaybeSingleMock,
   mediaListMock,
   generationOutputMaybeSingleMock,
+  generationPublicationMaybeSingleMock,
   getSignedMediaUrlMock,
 } = vi.hoisted(() => ({
   ensureSupabaseClientMock: vi.fn(),
@@ -19,6 +20,7 @@ const {
   mediaMaybeSingleMock: vi.fn(),
   mediaListMock: vi.fn(),
   generationOutputMaybeSingleMock: vi.fn(),
+  generationPublicationMaybeSingleMock: vi.fn(),
   getSignedMediaUrlMock: vi.fn(),
 }));
 
@@ -110,6 +112,19 @@ const createSupabaseMock = () => ({
         }),
       };
     }
+    if (table === "generation_publications") {
+      return {
+        select: () => ({
+          eq: () => ({
+            eq: () => ({
+              limit: () => ({
+                maybeSingle: async () => await generationPublicationMaybeSingleMock(),
+              }),
+            }),
+          }),
+        }),
+      };
+    }
     if (table === "ai_generations") {
       return {
         select: () => ({
@@ -140,6 +155,7 @@ describe("resolveInternalReferenceSource schema-cache fallback", () => {
     mediaMaybeSingleMock.mockResolvedValue({ data: null, error: null });
     mediaListMock.mockResolvedValue({ data: [], error: null });
     generationOutputMaybeSingleMock.mockResolvedValue({ data: null, error: null });
+    generationPublicationMaybeSingleMock.mockResolvedValue({ data: null, error: null });
     getSignedMediaUrlMock.mockResolvedValue(null);
   });
 
@@ -223,7 +239,7 @@ describe("resolveInternalReferenceSource schema-cache fallback", () => {
       taskId: "task-1",
     });
     generationOutputMaybeSingleMock.mockResolvedValue({
-      data: { media_file_id: "media-from-canonical-output" },
+      data: { id: "generation-output-1", media_file_id: "media-from-canonical-output" },
       error: null,
     });
     mediaMaybeSingleMock.mockResolvedValue({
@@ -253,6 +269,52 @@ describe("resolveInternalReferenceSource schema-cache fallback", () => {
       "user-1/generations/images/from-canonical-output.png"
     );
     expect(resolved?.fullStoragePath).toBe("user-1/generations/images/from-canonical-output.png");
+    expect(resolved?.provenance.resolutionReason).toBe("generation_index_lookup");
+    expect(mediaListMock).not.toHaveBeenCalled();
+  });
+
+  it("prefers publication-owned media linkage before legacy generation fallbacks", async () => {
+    const output = makeImageOutput({
+      generationId: "gen-1",
+      taskId: "task-1",
+    });
+    generationOutputMaybeSingleMock.mockResolvedValue({
+      data: { id: "generation-output-1", media_file_id: null },
+      error: null,
+    });
+    generationPublicationMaybeSingleMock.mockResolvedValue({
+      data: {
+        owned_media_file_id: "media-from-publication",
+        preview_storage_path: null,
+        full_storage_path: null,
+      },
+      error: null,
+    });
+    mediaMaybeSingleMock.mockResolvedValue({
+      data: { storage_path: "user-1/generations/images/from-publication.png" },
+      error: null,
+    });
+
+    const resolved = await resolveInternalReferenceSource({
+      payload: makePayload(),
+      getOutputById: () => output,
+      getOutputSnapshot: () => ({
+        outputOrder: ["out-1"],
+        archivedOutputOrder: [],
+        outputById: { "out-1": output },
+        archivedOutputById: {},
+      }),
+      ensureOutputPersisted: async () => ({
+        ok: false,
+        mediaFileIds: [],
+        delivery: null,
+        error: "missing",
+      }),
+      resolveSavedMediaIdFromOutput: () => null,
+    });
+
+    expect(resolved?.previewStoragePath).toBe("user-1/generations/images/from-publication.png");
+    expect(resolved?.fullStoragePath).toBe("user-1/generations/images/from-publication.png");
     expect(resolved?.provenance.resolutionReason).toBe("generation_index_lookup");
     expect(mediaListMock).not.toHaveBeenCalled();
   });

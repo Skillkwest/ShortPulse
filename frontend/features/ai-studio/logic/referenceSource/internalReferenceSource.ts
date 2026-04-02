@@ -170,7 +170,14 @@ type MediaStoragePathRow = {
 };
 
 type GenerationOutputStorageRow = {
+  id?: unknown;
   media_file_id?: unknown;
+};
+
+type GenerationPublicationStorageRow = {
+  owned_media_file_id?: unknown;
+  preview_storage_path?: unknown;
+  full_storage_path?: unknown;
 };
 
 const isPreviewStoragePathSchemaError = (error: unknown): boolean => {
@@ -240,28 +247,54 @@ const resolveStoragePathByGenerationAndIndex = async ({
   imageIndex: number;
 }): Promise<string | null> => {
   const supabase = ensureSupabaseQueryClient();
+  const resolveStoragePathFromMediaFileId = async (mediaFileId: string): Promise<string | null> => {
+    const mediaRow = await runMaybeSingleMediaStorageQuery({
+      runSelect: async (columns) =>
+        (await supabase
+          .from("media_files")
+          .select(columns)
+          .eq("id", mediaFileId)
+          .limit(1)
+          .maybeSingle()) as unknown as { data: MediaStoragePathRow | null; error: unknown },
+    });
+    return resolveCanonicalMediaStoragePath(mediaRow);
+  };
   const canonicalOutputLookup = await (async () => {
     try {
       const { data, error } = await supabase
         .from("ai_generation_outputs")
-        .select("media_file_id")
+        .select("id, media_file_id")
         .eq("generation_id", generationId)
         .eq("output_index", imageIndex)
         .limit(1)
         .maybeSingle();
       if (error || !data) return null;
-      const mediaFileId = asTrimmedString((data as GenerationOutputStorageRow).media_file_id);
+      const canonicalOutputRow = data as GenerationOutputStorageRow;
+      const generationOutputId = asTrimmedString(canonicalOutputRow.id);
+      if (generationOutputId) {
+        const { data: publicationData, error: publicationError } = await supabase
+          .from("generation_publications")
+          .select("owned_media_file_id, preview_storage_path, full_storage_path")
+          .eq("generation_output_id", generationOutputId)
+          .eq("publication_state", "published")
+          .limit(1)
+          .maybeSingle();
+        if (!publicationError && publicationData) {
+          const publicationRow = publicationData as GenerationPublicationStorageRow;
+          const publicationStoragePath =
+            asCanonicalStoragePath(asTrimmedString(publicationRow.full_storage_path)) ??
+            asCanonicalStoragePath(asTrimmedString(publicationRow.preview_storage_path));
+          if (publicationStoragePath) return publicationStoragePath;
+          const ownedMediaFileId = asTrimmedString(publicationRow.owned_media_file_id);
+          if (ownedMediaFileId) {
+            const publicationMediaPath = await resolveStoragePathFromMediaFileId(ownedMediaFileId);
+            if (publicationMediaPath) return publicationMediaPath;
+          }
+        }
+      }
+      const mediaFileId = asTrimmedString(canonicalOutputRow.media_file_id);
       if (!mediaFileId) return null;
-      const mediaRow = await runMaybeSingleMediaStorageQuery({
-        runSelect: async (columns) =>
-          (await supabase
-            .from("media_files")
-            .select(columns)
-            .eq("id", mediaFileId)
-            .limit(1)
-            .maybeSingle()) as unknown as { data: MediaStoragePathRow | null; error: unknown },
-      });
-      return resolveCanonicalMediaStoragePath(mediaRow);
+      return await resolveStoragePathFromMediaFileId(mediaFileId);
     } catch {
       return null;
     }

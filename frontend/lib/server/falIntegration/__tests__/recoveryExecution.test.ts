@@ -403,6 +403,19 @@ describe("executeGenerationRecovery", () => {
         reason: "Provider exceeded running hard-timeout during recovery execution.",
       })
     );
+    expect(upsertGenerationProjectionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        generationId: "gen-1",
+        requestId: "req-1",
+        status: "ready",
+        taskState: "fail",
+        errorMessageShort: "Generation timed out",
+        errorDetail: "Provider exceeded running hard-timeout during recovery execution.",
+        publicationState: "suppressed",
+        resultUrls: [],
+        savedMediaIds: [],
+      })
+    );
     expect(writeAppErrorLogMock).toHaveBeenCalledWith(
       expect.objectContaining({
         source: "telemetry.generation.recovery.running_hard_timeout",
@@ -853,6 +866,17 @@ describe("executeGenerationRecovery", () => {
       next_recovery_at: null,
       last_recovery_at: expect.any(String),
     });
+    expect(upsertGenerationProjectionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        generationId: "gen-1",
+        requestId: null,
+        status: "ready",
+        taskState: "fail",
+        errorMessageShort: "Generation failed",
+        errorDetail: "Generation recovery exhausted because the provider request id is missing.",
+        publicationState: "suppressed",
+      })
+    );
     expect(settleGenerationOutcomeMock).not.toHaveBeenCalled();
   });
 
@@ -940,6 +964,19 @@ describe("executeGenerationRecovery", () => {
       last_recovery_at: expect.any(String),
       next_recovery_at: null,
     });
+    expect(upsertGenerationProjectionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        generationId: "gen-1",
+        requestId: "req-1",
+        status: "ready",
+        taskState: "fail",
+        errorMessageShort: "Generation failed",
+        errorDetail: "Provider reported failed state during recovery execution.",
+        publicationState: "suppressed",
+        resultUrls: [],
+        savedMediaIds: [],
+      })
+    );
     expect(updateGenerationAttemptStateMock).toHaveBeenCalledWith(
       expect.objectContaining({
         providerRequestId: "req-1",

@@ -348,6 +348,68 @@ const syncRecoveredGenerationProjection = async ({
   });
 };
 
+const syncFailedGenerationProjection = async ({
+  completedAt,
+  errorDetail,
+  errorMessage,
+  errorMessageShort,
+  generation,
+}: {
+  completedAt: string;
+  errorDetail: string;
+  errorMessage: string;
+  errorMessageShort: string;
+  generation: {
+    id: string;
+    user_id: string;
+    request_id: string | null;
+    provider: string;
+    model_id: string;
+    prompt_text: string;
+    created_at: string;
+    metadata: JsonObject;
+  };
+}): Promise<void> => {
+  const generationMetadata = asObject(generation.metadata);
+  const hiddenInReferenceGrid =
+    readMetadataBoolean(generationMetadata, "hidden_in_reference_grid", "hiddenInReferenceGrid") ??
+    false;
+
+  await upsertGenerationProjection({
+    generationId: generation.id,
+    userId: generation.user_id,
+    requestId: generation.request_id,
+    provider: generation.provider,
+    providerRequestId: generation.request_id,
+    status: "ready",
+    taskState: "fail",
+    displayPrompt: generation.prompt_text,
+    modelId: generation.model_id,
+    errorMessage,
+    errorMessageShort,
+    errorDetail,
+    saveState: "idle",
+    hiddenInReferenceGrid,
+    referenceGridVisible: !hiddenInReferenceGrid,
+    publicationState: "suppressed",
+    resultUrls: [],
+    savedMediaIds: [],
+    generationReplay: readMetadataObject(
+      generationMetadata,
+      "generation_replay",
+      "generationReplay"
+    ),
+    characterContext: readMetadataObject(
+      generationMetadata,
+      "character_context",
+      "characterContext"
+    ),
+    styleContext: readMetadataObject(generationMetadata, "style_context", "styleContext"),
+    startedAt: generation.created_at,
+    completedAt,
+  });
+};
+
 /**
  * Execute shared recovery flow for reconciler, admin replay, webhook, and status proxy.
  */
@@ -413,6 +475,13 @@ export const executeGenerationRecovery = async ({
     await applyRecoveryTransition({
       generation,
       generationUpdates: buildMissingRequestUpdate(nowIso),
+    });
+    await syncFailedGenerationProjection({
+      completedAt: nowIso,
+      errorDetail: "Generation recovery exhausted because the provider request id is missing.",
+      errorMessage: "Generation recovery exhausted.",
+      errorMessageShort: "Generation failed",
+      generation,
     });
     return {
       ok: true,
@@ -534,6 +603,13 @@ export const executeGenerationRecovery = async ({
           generation_age_seconds: generationAgeSeconds,
           running_hard_timeout_seconds: runningHardTimeoutSeconds,
         },
+      });
+      await syncFailedGenerationProjection({
+        completedAt: nowIso,
+        errorDetail: "Provider exceeded running hard-timeout during recovery execution.",
+        errorMessage: "Generation timed out during recovery.",
+        errorMessageShort: "Generation timed out",
+        generation,
       });
       await applyRecoveryTransition({
         generation,
@@ -657,6 +733,13 @@ export const executeGenerationRecovery = async ({
         actor,
         generation_id: generation.id,
       },
+    });
+    await syncFailedGenerationProjection({
+      completedAt: nowIso,
+      errorDetail: "Provider reported failed state during recovery execution.",
+      errorMessage: "Generation failed.",
+      errorMessageShort: "Generation failed",
+      generation,
     });
     await applyRecoveryTransition({
       generation,

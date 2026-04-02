@@ -162,6 +162,14 @@ const buildQueuedSubmitPayload = ({
   pollAfterMs: 2000,
 });
 
+const shouldUseWorkerOwnedSubmit = ({
+  queueEnabled,
+  workerOwnedSubmitEnabled,
+}: {
+  queueEnabled: boolean;
+  workerOwnedSubmitEnabled: boolean;
+}): boolean => queueEnabled && workerOwnedSubmitEnabled;
+
 const applyRewrittenPromptToPayload = ({
   payload,
   rewrittenPrompt,
@@ -509,7 +517,12 @@ export const createFalSubmitHandler = ({
         });
       }
 
-      if (runtimeFlags.queueEnabled && admissionDecision.enforced) {
+      const workerOwnedSubmitRequired = shouldUseWorkerOwnedSubmit({
+        queueEnabled: runtimeFlags.queueEnabled,
+        workerOwnedSubmitEnabled: runtimeFlags.workerOwnedSubmitEnabled,
+      });
+
+      if (runtimeFlags.queueEnabled && (admissionDecision.enforced || workerOwnedSubmitRequired)) {
         if (
           isLocalDevGenerationWorkerRequired(runtimeFlags) &&
           !hasFreshLocalGenerationWorkerHeartbeat()
@@ -592,7 +605,9 @@ export const createFalSubmitHandler = ({
               runtimeFlags.videoQueueCompatNormalizationEnabled && isVideoGenerationModelId(modelId)
                 ? "video_submit_payload_v2"
                 : "legacy_raw",
-            queue_reason: admissionDecision.reason,
+            queue_reason: workerOwnedSubmitRequired
+              ? (admissionDecision.reason ?? "worker_owned_submit")
+              : admissionDecision.reason,
             queue_snapshot: {
               global_active: admissionDecision.snapshot.globalActive,
               global_max: admissionDecision.snapshot.globalMax,
@@ -645,6 +660,7 @@ export const createFalSubmitHandler = ({
             generation_id: enqueueResult.generationId,
             queue_status: enqueueResult.queueStatus,
             admission_reason: admissionDecision.reason,
+            worker_owned_submit: workerOwnedSubmitRequired,
             global_active: admissionDecision.snapshot.globalActive,
             global_max: admissionDecision.snapshot.globalMax,
             tier: admissionDecision.snapshot.tier,

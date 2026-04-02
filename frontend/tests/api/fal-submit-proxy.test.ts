@@ -7,6 +7,9 @@ const ensureSubmittedGenerationRecordMock = vi.fn();
 const evaluateScopedGenerationAdmissionMock = vi.fn();
 const hasFreshLocalGenerationWorkerHeartbeatMock = vi.fn();
 const isLocalDevGenerationWorkerRequiredMock = vi.fn();
+const countUserQueuedGenerationSubmitsMock = vi.fn();
+const enqueueGenerationSubmitMock = vi.fn();
+const requestGenerationControlPlaneWakeMock = vi.fn();
 const requireApiUserMock = vi.fn();
 
 vi.mock("../../lib/server/api/auth", () => ({
@@ -36,6 +39,17 @@ vi.mock("../../lib/server/generationControlPlane/localWorkerHeartbeat", () => ({
     hasFreshLocalGenerationWorkerHeartbeatMock(...args),
   isLocalDevGenerationWorkerRequired: (...args: unknown[]) =>
     isLocalDevGenerationWorkerRequiredMock(...args),
+}));
+
+vi.mock("../../lib/server/api/generationQueue/service", () => ({
+  countUserQueuedGenerationSubmits: (...args: unknown[]) =>
+    countUserQueuedGenerationSubmitsMock(...args),
+  enqueueGenerationSubmit: (...args: unknown[]) => enqueueGenerationSubmitMock(...args),
+}));
+
+vi.mock("../../lib/server/generationControlPlane/controlPlaneWake", () => ({
+  requestGenerationControlPlaneWake: (...args: unknown[]) =>
+    requestGenerationControlPlaneWakeMock(...args),
 }));
 
 const createMockResponse = () => ({
@@ -70,6 +84,15 @@ describe("createFalSubmitHandler", () => {
       ok: true,
       generationId: "gen-1",
     });
+    countUserQueuedGenerationSubmitsMock.mockResolvedValue(0);
+    enqueueGenerationSubmitMock.mockResolvedValue({
+      status: "queued",
+      generationId: "gen-queued-1",
+      sourceRef: "source-ref-1",
+      queueStatus: "queued",
+      message: null,
+    });
+    requestGenerationControlPlaneWakeMock.mockResolvedValue(undefined);
     evaluateScopedGenerationAdmissionMock.mockResolvedValue({
       decision: {
         mode: "off",
@@ -783,6 +806,53 @@ describe("createFalSubmitHandler", () => {
       code: "GENERATION_QUEUE_WORKER_UNAVAILABLE",
       retryAfterSeconds: 5,
     });
+  });
+
+  it("queues new work under worker-owned submit mode even when admission is not enforcing", async () => {
+    process.env.SHORTPULSE_FAL_QUEUE_ENABLED = "true";
+    process.env.SHORTPULSE_FAL_WORKER_OWNED_SUBMIT_ENABLED = "true";
+
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    const handler = createFalSubmitHandler({
+      modelId: "fal-ai/nano-banana",
+      submitTargets: [{ submitUrl: "https://queue.fal.run/fal-ai/nano-banana" }],
+      routeLabel: "Fal Nano Banana",
+    });
+
+    const req = {
+      method: "POST",
+      body: { prompt: "portrait" },
+      headers: {},
+      url: "/api/fal/nano-banana-submit",
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(countUserQueuedGenerationSubmitsMock).toHaveBeenCalledWith("user-1");
+    expect(enqueueGenerationSubmitMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: "user-1",
+        sourceRef: "source-ref-1",
+        modelId: "fal-ai/nano-banana",
+      })
+    );
+    expect(requestGenerationControlPlaneWakeMock).toHaveBeenCalledWith({
+      routeLabel: "Fal Nano Banana",
+      reason: "queued_submit",
+    });
+    expect(res.status).toHaveBeenCalledWith(202);
+    expect(res.json).toHaveBeenCalledWith({
+      status: "queued",
+      code: "GENERATION_QUEUED",
+      sourceRef: "source-ref-1",
+      generationId: "gen-queued-1",
+      pollAfterMs: 2000,
+    });
+    expect(ensureSubmittedGenerationRecordMock).not.toHaveBeenCalled();
   });
 
   it("returns 400 when the shared contract gate reports a violation", async () => {

@@ -133,6 +133,43 @@ const markQueuedStatusRecoveryPending = ({
   }));
 };
 
+const syncQueuedStatusLifecycle = ({
+  outputId,
+  queueStatus,
+  updateOutputById,
+}: {
+  outputId: string;
+  queueStatus: Extract<FalQueueStatusResponse, { status: "queued" | "dispatching" }>;
+  updateOutputById: (id: string, updater: (item: StudioOutput) => StudioOutput) => void;
+}): void => {
+  const lifecycle = queueStatus.shortpulseLifecycle;
+  updateOutputById(outputId, (item) => ({
+    ...item,
+    sourceRef:
+      item.sourceRef ??
+      (typeof queueStatus.sourceRef === "string" && queueStatus.sourceRef.trim().length > 0
+        ? queueStatus.sourceRef.trim()
+        : item.sourceRef),
+    generationId:
+      item.generationId ??
+      (typeof queueStatus.generationId === "string" && queueStatus.generationId.trim().length > 0
+        ? queueStatus.generationId.trim()
+        : item.generationId),
+    queueState: lifecycle?.queueState ?? queueStatus.status,
+    taskState: lifecycle?.taskState ?? (queueStatus.status === "queued" ? "pending" : "running"),
+    status: "ready",
+    timestamp:
+      queueStatus.status === "dispatching"
+        ? "Dispatching..."
+        : item.timestamp === SERVER_RECOVERY_PENDING_TIMESTAMP
+          ? item.timestamp
+          : "Waiting in queue...",
+    errorMessage: null,
+    errorMessageShort: null,
+    errorDetail: null,
+  }));
+};
+
 /**
  * Starts queue-status polling and dispatch handoff for queued submits.
  */
@@ -246,7 +283,9 @@ export const startQueuedStatusPolling = ({
 
       if (queueStatus.status === "failed") {
         clearQueueStatusPolling(outputId);
-        notifyGenerationFailure(outputId, queueStatus.message, queueStatus.message);
+        const failureMessage =
+          queueStatus.shortpulseLifecycle?.errorMessage?.trim() || queueStatus.message;
+        notifyGenerationFailure(outputId, failureMessage, queueStatus.message);
         return;
       }
 
@@ -262,6 +301,14 @@ export const startQueuedStatusPolling = ({
         }
       } else {
         notFoundRetries = 0;
+      }
+
+      if (queueStatus.status === "queued" || queueStatus.status === "dispatching") {
+        syncQueuedStatusLifecycle({
+          outputId,
+          queueStatus,
+          updateOutputById,
+        });
       }
 
       if (Date.now() - queueEnqueuedAtMs - hiddenPauseMs >= QUEUE_STATUS_MAX_WAIT_MS) {

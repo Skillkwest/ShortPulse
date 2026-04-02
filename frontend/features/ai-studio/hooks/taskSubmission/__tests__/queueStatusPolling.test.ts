@@ -252,6 +252,11 @@ describe("queueStatusPolling", () => {
         generationId: "gen-queued-hidden",
         sourceRef: "src-queued-hidden",
         retryAfterMs: 1000,
+        shortpulseLifecycle: {
+          taskState: "pending",
+          queueState: "queued",
+          isTerminal: false,
+        },
       });
 
       startQueuedStatusPolling({
@@ -284,8 +289,76 @@ describe("queueStatusPolling", () => {
         sourceRef: "src-queued-hidden",
         generationId: "gen-queued-hidden",
       });
+      expect(output.queueState).toBe("queued");
+      expect(output.taskState).toBe("pending");
+      expect(output.timestamp).toBe("Waiting in queue...");
     } finally {
       visibilityStateSpy.mockRestore();
+      vi.useRealTimers();
+    }
+  });
+
+  it("syncs dispatching queue lifecycle hints before provider request id is available", async () => {
+    vi.useFakeTimers();
+    try {
+      let output = createOutput("out-queued-dispatching");
+      const queueStatusTimersRef = { current: {} as Record<string, number> };
+      const queueStatusSessionRef = { current: {} as Record<string, number> };
+      const updateOutputById = vi.fn(
+        (id: string, updater: (item: StudioOutput) => StudioOutput) => {
+          if (id === output.id) {
+            output = updater(output);
+          }
+        }
+      );
+      const clearQueueStatusPolling = vi.fn((outputId: string) => {
+        const timeoutId = queueStatusTimersRef.current[outputId];
+        if (timeoutId) {
+          window.clearTimeout(timeoutId);
+          delete queueStatusTimersRef.current[outputId];
+        }
+      });
+      fetchFalQueueStatusMock.mockResolvedValue({
+        status: "dispatching",
+        generationId: "gen-queued-dispatching",
+        sourceRef: "src-queued-dispatching",
+        retryAfterMs: 1000,
+        shortpulseLifecycle: {
+          taskState: "running",
+          queueState: "dispatching",
+          isTerminal: false,
+        },
+      });
+
+      startQueuedStatusPolling({
+        outputId: "out-queued-dispatching",
+        provider: "fal-seedream",
+        finalModel: "fal-ai/bytedance/seedream/v4.5/edit",
+        effectiveTool: "edit",
+        queuedResponse: {
+          status: "queued",
+          code: "GENERATION_QUEUED",
+          sourceRef: "src-queued-dispatching",
+          generationId: "gen-queued-dispatching",
+          pollAfterMs: 500,
+        },
+        patch: {},
+        queueStatusTimersRef,
+        queueStatusSessionRef,
+        clearQueueStatusPolling,
+        updateOutputById,
+        notifyGenerationFailure: vi.fn(),
+        onDispatched: vi.fn(),
+      });
+
+      await vi.advanceTimersByTimeAsync(600);
+
+      expect(output.generationId).toBe("gen-queued-dispatching");
+      expect(output.sourceRef).toBe("src-queued-dispatching");
+      expect(output.queueState).toBe("dispatching");
+      expect(output.taskState).toBe("running");
+      expect(output.timestamp).toBe("Dispatching...");
+    } finally {
       vi.useRealTimers();
     }
   });

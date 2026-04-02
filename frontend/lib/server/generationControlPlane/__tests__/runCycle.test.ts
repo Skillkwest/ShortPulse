@@ -199,4 +199,33 @@ describe("runGenerationControlPlaneCycle", () => {
       leaseSeconds: expect.any(Number),
     });
   });
+
+  it("skips request-id repair in primary mode when legacy direct submit is disabled", async () => {
+    process.env.SHORTPULSE_FAL_LEGACY_DIRECT_SUBMIT_ENABLED = "false";
+    const supabase = createSupabaseMock();
+    getSupabaseAdminMock.mockReturnValue({
+      rpc: supabase.rpc,
+      from: supabase.from,
+    });
+
+    await runGenerationControlPlaneCycle({
+      context: {
+        routeLabel: "worker/generation-control-plane",
+      },
+    });
+
+    expect(dispatchGenerationSubmitQueueBatchMock).toHaveBeenCalled();
+    expect(repairGenerationRequestIdsFromReservationsMock).not.toHaveBeenCalled();
+    expect(processPendingGenerationObservationsMock).toHaveBeenCalledWith({
+      limit: 10,
+      routeLabel: "worker/generation-control-plane",
+    });
+    expect(claimGenerationRecoveryBatchMock).toHaveBeenCalledWith({
+      supabaseAdmin: expect.any(Object),
+      batchSize: 10,
+      maxAttempts: 5,
+      minAgeSeconds: 0,
+      leaseSeconds: expect.any(Number),
+    });
+  });
 });

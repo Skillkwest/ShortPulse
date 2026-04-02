@@ -7,6 +7,7 @@ const settleGenerationOutcomeMock = vi.fn();
 const resolveProviderRequestOwnershipMock = vi.fn();
 const executeGenerationRecoveryMock = vi.fn();
 const getSupabaseAdminMock = vi.fn();
+let persistedProjectionRows: Array<Record<string, unknown>> = [];
 let persistedGenerationRows: Array<Record<string, unknown>> = [];
 let persistedOutputRows: Array<Record<string, unknown>> = [];
 
@@ -62,6 +63,7 @@ describe("createFalStatusHandler", () => {
       mediaUrls: [],
       processed: true,
     });
+    persistedProjectionRows = [];
     persistedGenerationRows = [];
     persistedOutputRows = [];
     getSupabaseAdminMock.mockImplementation(() => {
@@ -81,8 +83,21 @@ describe("createFalStatusHandler", () => {
       outputQueryChain.eq.mockReturnValue(outputQueryChain);
       outputQueryChain.order.mockReturnValue(outputQueryChain);
 
+      const projectionQueryChain = {
+        eq: vi.fn(),
+        order: vi.fn(),
+        limit: vi.fn(async () => ({ data: persistedProjectionRows, error: null })),
+      };
+      projectionQueryChain.eq.mockReturnValue(projectionQueryChain);
+      projectionQueryChain.order.mockReturnValue(projectionQueryChain);
+
       return {
         from: vi.fn((tableName: string) => {
+          if (tableName === "generation_projection") {
+            return {
+              select: vi.fn().mockReturnValue(projectionQueryChain),
+            };
+          }
           if (tableName === "ai_generations") {
             return {
               select: vi.fn().mockReturnValue(generationQueryChain),
@@ -210,6 +225,99 @@ describe("createFalStatusHandler", () => {
         resultUrls: ["https://cdn.shortpulse.test/persisted-result.mp4"],
         result_urls: ["https://cdn.shortpulse.test/persisted-result.mp4"],
         videos: [{ url: "https://cdn.shortpulse.test/persisted-result.mp4" }],
+      })
+    );
+  });
+
+  it("returns completed payload from canonical outputs before the generation row flips to success", async () => {
+    process.env.KIE_API_KEY = "test-kie-key";
+    persistedGenerationRows = [
+      {
+        id: "gen-persisted-processing-1",
+        status: "processing",
+        metadata: {},
+      },
+    ];
+    persistedOutputRows = [
+      { output_index: 0, result_url: "https://cdn.shortpulse.test/persisted-output.mp4" },
+    ];
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    const handler = createFalStatusHandler({
+      provider: "kie",
+      modelId: "kie-ai/veo-3.1-fast-i2v",
+      queueBaseUrl: "https://api.kie.ai/api/v1/veo/record-info?taskId={requestId}",
+      routeLabel: "Kie Veo 3.1 Fast I2V",
+      timeoutMs: 15000,
+    });
+
+    const req = {
+      method: "POST",
+      body: { requestId: "req-persisted-processing" },
+      headers: {},
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        request_id: "req-persisted-processing",
+        generationId: "gen-persisted-processing-1",
+        status: "completed",
+        state: "completed",
+        resultUrls: ["https://cdn.shortpulse.test/persisted-output.mp4"],
+        result_urls: ["https://cdn.shortpulse.test/persisted-output.mp4"],
+        videos: [{ url: "https://cdn.shortpulse.test/persisted-output.mp4" }],
+      })
+    );
+  });
+
+  it("returns terminal error payload from generation projection failure without provider fetch", async () => {
+    process.env.KIE_API_KEY = "test-kie-key";
+    persistedProjectionRows = [
+      {
+        generation_id: "gen-projection-fail-1",
+        result_urls: [],
+        status: "ready",
+        task_state: "fail",
+        error_message_short: "Generation failed",
+        error_detail: "Provider reported failed state during recovery execution.",
+      },
+    ];
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    const handler = createFalStatusHandler({
+      provider: "kie",
+      modelId: "kie-ai/veo-3.1-fast-i2v",
+      queueBaseUrl: "https://api.kie.ai/api/v1/veo/record-info?taskId={requestId}",
+      routeLabel: "Kie Veo 3.1 Fast I2V",
+      timeoutMs: 15000,
+    });
+
+    const req = {
+      method: "POST",
+      body: { requestId: "req-projection-fail" },
+      headers: {},
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        request_id: "req-projection-fail",
+        generationId: "gen-projection-fail-1",
+        status: "error",
+        state: "error",
+        error: "Generation failed",
+        detail: "Provider reported failed state during recovery execution.",
       })
     );
   });

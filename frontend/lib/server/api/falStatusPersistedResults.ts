@@ -11,6 +11,9 @@ type PersistedResultsParams = {
 export type PersistedGenerationStatusContext = {
   generationId: string | null;
   resultUrls: string[];
+  taskState?: string | null;
+  errorMessageShort?: string | null;
+  errorDetail?: string | null;
 };
 
 const asOptionalString = (value: unknown): string | null => {
@@ -98,6 +101,18 @@ export const readPersistedGenerationStatusContext = async ({
       return {
         generationId: projectionContext.generationId,
         resultUrls: projectionContext.resultUrls,
+        taskState: projectionContext.taskState,
+        errorMessageShort: projectionContext.errorMessageShort,
+        errorDetail: projectionContext.errorDetail,
+      };
+    }
+    if (projectionContext?.taskState === "fail") {
+      return {
+        generationId: projectionContext.generationId,
+        resultUrls: [],
+        taskState: projectionContext.taskState,
+        errorMessageShort: projectionContext.errorMessageShort,
+        errorDetail: projectionContext.errorDetail,
       };
     }
 

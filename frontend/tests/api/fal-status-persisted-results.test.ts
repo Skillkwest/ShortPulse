@@ -191,6 +191,44 @@ describe("falStatusPersistedResults", () => {
     ).resolves.toEqual({
       generationId: "gen-projection-1",
       resultUrls: ["https://cdn.shortpulse.test/projection-a.mp4"],
+      taskState: "success",
+      errorMessageShort: null,
+      errorDetail: null,
+    });
+  });
+
+  it("returns projection-backed terminal failure context when no result urls exist", async () => {
+    persistedProjectionRows = [
+      {
+        generation_id: "gen-projection-fail-1",
+        result_urls: [],
+        status: "ready",
+        task_state: "fail",
+        error_message_short: "Generation failed",
+        error_detail: "Provider reported failed state during recovery execution.",
+      },
+    ];
+    persistedGenerationRows = [
+      {
+        id: "gen-success-1",
+        status: "success",
+        metadata: {
+          result_urls: ["https://cdn.shortpulse.test/legacy-fallback.mp4"],
+        },
+      },
+    ];
+
+    await expect(
+      readPersistedGenerationStatusContext({
+        userId: "user-1",
+        requestId: "req-1",
+      })
+    ).resolves.toEqual({
+      generationId: "gen-projection-fail-1",
+      resultUrls: [],
+      taskState: "fail",
+      errorMessageShort: "Generation failed",
+      errorDetail: "Provider reported failed state during recovery execution.",
     });
   });
 

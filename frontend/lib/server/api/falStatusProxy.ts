@@ -154,6 +154,20 @@ export const createFalStatusHandler = ({
         })
       );
     }
+    if (persistedGenerationContext.taskState === "fail") {
+      return respondError({
+        res,
+        requestId,
+        error: persistedGenerationContext.errorMessageShort?.trim() || "Generation failed",
+        detail:
+          persistedGenerationContext.errorDetail ??
+          persistedGenerationContext.errorMessageShort ??
+          "Generation failed",
+        alwaysHttp200,
+        statusCode: 422,
+        generationId,
+      });
+    }
 
     let apiKey: string;
     try {

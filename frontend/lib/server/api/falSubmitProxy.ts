@@ -155,6 +155,13 @@ const buildWorkerOwnedSubmitMisconfiguredPayload = (retryAfterSeconds: number) =
   retryAfterSeconds,
 });
 
+const buildLegacyDirectSubmitDisabledPayload = (retryAfterSeconds: number) => ({
+  error:
+    "Direct inline generation submit is disabled for this runtime. Enable the durable queue or re-enable the legacy fallback and retry.",
+  code: "GENERATION_DIRECT_SUBMIT_DISABLED",
+  retryAfterSeconds,
+});
+
 const buildQueuedSubmitPayload = ({
   sourceRef,
   generationId,
@@ -728,6 +735,37 @@ export const createFalSubmitHandler = ({
         );
       }
 
+      if (!runtimeFlags.legacyDirectSubmitEnabled) {
+        const retryAfterSeconds = 20;
+        await charge.refund(
+          "Auto-release: legacy direct submit is disabled and no queued path was selected.",
+          {
+            reason: "legacy_direct_submit_disabled",
+            queue_enabled: runtimeFlags.queueEnabled,
+            worker_owned_submit_enabled: runtimeFlags.workerOwnedSubmitEnabled,
+            admission_enforced: admissionDecision.enforced,
+          }
+        );
+        await logGenerationFailure({
+          req,
+          routeLabel,
+          source: "api.fal_submit.legacy_direct_submit_disabled",
+          message:
+            "Legacy direct submit was disabled before the request reached the inline submit path.",
+          statusCode: 503,
+          userId: charge.userId,
+          metadata: {
+            model_id: modelId,
+            source_ref: charge.sourceRef,
+            queue_enabled: runtimeFlags.queueEnabled,
+            worker_owned_submit_enabled: runtimeFlags.workerOwnedSubmitEnabled,
+            admission_enforced: admissionDecision.enforced,
+          },
+        });
+        res.setHeader("Retry-After", String(retryAfterSeconds));
+        return res.status(503).json(buildLegacyDirectSubmitDisabledPayload(retryAfterSeconds));
+      }
+
       if (admissionDecision.enforced) {
         await charge.refund("Auto-release: generation admission limited.", {
           reason: admissionDecision.reason,
@@ -800,6 +838,20 @@ export const createFalSubmitHandler = ({
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
     try {
+      await logGenerationFailure({
+        req,
+        routeLabel,
+        source: "telemetry.api.fal_submit.legacy_direct_submit",
+        message: "Generation is using the legacy inline submit path.",
+        statusCode: 200,
+        userId: charge.userId,
+        metadata: {
+          model_id: modelId,
+          source_ref: charge.sourceRef,
+          generation_submit_authority: "api",
+          generation_submit_path: "legacy_direct_submit",
+        },
+      });
       const upstreamResult = await dispatchProviderSubmit({
         provider: providerKey,
         modelId,

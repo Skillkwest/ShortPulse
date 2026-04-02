@@ -67,6 +67,7 @@ describe("createFalSubmitHandler", () => {
     delete process.env.STUDIO_AGENT_SAFETY_INPUT_PRECHECK_FIELD_MODES_GENERATION_SUBMIT;
     delete process.env.SHORTPULSE_FAL_ADMISSION_MODE;
     delete process.env.SHORTPULSE_FAL_WORKER_OWNED_SUBMIT_ENABLED;
+    delete process.env.SHORTPULSE_FAL_LEGACY_DIRECT_SUBMIT_ENABLED;
     process.env.SHORTPULSE_FAL_QUEUE_ENABLED = "false";
     chargeGenerationRequestMock.mockResolvedValue({
       userId: "user-1",
@@ -906,6 +907,58 @@ describe("createFalSubmitHandler", () => {
       error:
         "Worker-owned generation submit requires the durable submit queue to be enabled. Fix the runtime configuration and retry.",
       code: "GENERATION_WORKER_OWNED_SUBMIT_MISCONFIGURED",
+      retryAfterSeconds: 20,
+    });
+  });
+
+  it("fails closed when the legacy direct-submit fallback is disabled and no queued path is selected", async () => {
+    process.env.SHORTPULSE_FAL_QUEUE_ENABLED = "false";
+    process.env.SHORTPULSE_FAL_LEGACY_DIRECT_SUBMIT_ENABLED = "false";
+
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    const handler = createFalSubmitHandler({
+      modelId: "fal-ai/nano-banana",
+      submitTargets: [{ submitUrl: "https://queue.fal.run/fal-ai/nano-banana" }],
+      routeLabel: "Fal Nano Banana",
+    });
+
+    const req = {
+      method: "POST",
+      body: { prompt: "portrait" },
+      headers: {},
+      url: "/api/fal/nano-banana-submit",
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    const charge = await chargeGenerationRequestMock.mock.results[0]?.value;
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(enqueueGenerationSubmitMock).not.toHaveBeenCalled();
+    expect(ensureSubmittedGenerationRecordMock).not.toHaveBeenCalled();
+    expect(charge.refund).toHaveBeenCalledWith(
+      "Auto-release: legacy direct submit is disabled and no queued path was selected.",
+      expect.objectContaining({
+        reason: "legacy_direct_submit_disabled",
+        queue_enabled: false,
+        worker_owned_submit_enabled: false,
+        admission_enforced: false,
+      })
+    );
+    expect(logGenerationFailureMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        source: "api.fal_submit.legacy_direct_submit_disabled",
+        statusCode: 503,
+      })
+    );
+    expect(res.setHeader).toHaveBeenCalledWith("Retry-After", "20");
+    expect(res.status).toHaveBeenCalledWith(503);
+    expect(res.json).toHaveBeenCalledWith({
+      error:
+        "Direct inline generation submit is disabled for this runtime. Enable the durable queue or re-enable the legacy fallback and retry.",
+      code: "GENERATION_DIRECT_SUBMIT_DISABLED",
       retryAfterSeconds: 20,
     });
   });

@@ -64,7 +64,7 @@ describe("readFalRuntimeFlags admission config", () => {
     expect(flags.admissionAtomicEnabled).toBe(false);
     expect(flags.queueEnabled).toBe(false);
     expect(flags.workerOwnedSubmitEnabled).toBe(false);
-    expect(flags.legacyDirectSubmitEnabled).toBe(true);
+    expect(flags.legacyDirectSubmitEnabled).toBe(false);
     expect(flags.queueMaxPerUser).toBe(20);
     expect(flags.queueDispatchBatchSize).toBe(25);
     expect(flags.queueLeaseSeconds).toBe(30);

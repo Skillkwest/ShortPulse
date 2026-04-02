@@ -72,7 +72,7 @@ describe("createFalSubmitHandler", () => {
     delete process.env.STUDIO_AGENT_SAFETY_INPUT_PRECHECK_FIELD_MODES_GENERATION_SUBMIT;
     delete process.env.SHORTPULSE_FAL_ADMISSION_MODE;
     delete process.env.SHORTPULSE_FAL_WORKER_OWNED_SUBMIT_ENABLED;
-    delete process.env.SHORTPULSE_FAL_LEGACY_DIRECT_SUBMIT_ENABLED;
+    process.env.SHORTPULSE_FAL_LEGACY_DIRECT_SUBMIT_ENABLED = "true";
     process.env.SHORTPULSE_FAL_QUEUE_ENABLED = "false";
     chargeGenerationRequestMock.mockResolvedValue({
       userId: "user-1",
@@ -986,9 +986,9 @@ describe("createFalSubmitHandler", () => {
     });
   });
 
-  it("fails closed when the legacy direct-submit fallback is disabled and no queued path is selected", async () => {
+  it("fails closed by default when no queued path is selected and legacy direct submit is not explicitly enabled", async () => {
     process.env.SHORTPULSE_FAL_QUEUE_ENABLED = "false";
-    process.env.SHORTPULSE_FAL_LEGACY_DIRECT_SUBMIT_ENABLED = "false";
+    delete process.env.SHORTPULSE_FAL_LEGACY_DIRECT_SUBMIT_ENABLED;
 
     const fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);

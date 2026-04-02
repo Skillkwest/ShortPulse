@@ -234,7 +234,7 @@ export const readFalRuntimeFlags = (): FalRuntimeFlags => ({
   ),
   legacyDirectSubmitEnabled: parseBoolean(
     process.env.SHORTPULSE_FAL_LEGACY_DIRECT_SUBMIT_ENABLED,
-    true
+    false
   ),
   queueMaxPerUser: parseInteger(process.env.SHORTPULSE_FAL_QUEUE_MAX_PER_USER, 20, 1),
   queueDispatchBatchSize: parseInteger(process.env.SHORTPULSE_FAL_QUEUE_DISPATCH_BATCH_SIZE, 25, 1),

@@ -112,6 +112,12 @@ try {
     readArgValue("--error-backoff-ms") ?? process.env.SHORTPULSE_FAL_DEV_WORKER_ERROR_BACKOFF_MS,
     workerModule.DEFAULT_GENERATION_CONTROL_PLANE_WORKER_ERROR_BACKOFF_MS
   );
+  const defaultLeaseSeconds = Math.max(Math.ceil((intervalMs + 5_000) / 1_000), 15);
+  const leaseSeconds = readInteger(
+    readArgValue("--lease-seconds") ?? process.env.SHORTPULSE_GENERATION_WORKER_LEASE_SECONDS,
+    defaultLeaseSeconds,
+    1
+  );
   const dbOps = createDbOps();
   const writeHeartbeat = async (payload) => {
     writeFileHeartbeat(payload);
@@ -119,12 +125,14 @@ try {
   };
 
   console.info(
-    `[generation-worker] bootstrap pid=${process.pid} hostname=${os.hostname()} interval_ms=${intervalMs} error_backoff_ms=${errorBackoffMs}`
+    `[generation-worker] bootstrap pid=${process.pid} hostname=${os.hostname()} interval_ms=${intervalMs} error_backoff_ms=${errorBackoffMs} lease_seconds=${leaseSeconds}`
   );
 
   await runWorkerLoop({
     intervalMs,
     errorBackoffMs,
+    beforeRun: () => dbOps.acquireLeadership({ leaseSeconds }),
+    onStop: () => dbOps.releaseLeadership(),
     shouldStop: () => stopped,
     writeHeartbeat,
     runWriter: {

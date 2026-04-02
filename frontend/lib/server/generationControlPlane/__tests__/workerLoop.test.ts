@@ -124,6 +124,37 @@ describe("generationControlPlane/workerLoop", () => {
     );
   });
 
+  it("skips cycle execution when leadership is not acquired", async () => {
+    const runCycle = vi.fn();
+    const writeHeartbeat = vi.fn();
+    const sleep = vi.fn().mockResolvedValue(undefined);
+    let iterations = 0;
+
+    await runGenerationControlPlaneWorkerLoop({
+      runCycle,
+      writeHeartbeat,
+      beforeRun: async () => false,
+      sleep,
+      shouldStop: () => {
+        iterations += 1;
+        return iterations > 1;
+      },
+      logger: {
+        info: vi.fn(),
+        error: vi.fn(),
+      },
+    });
+
+    expect(runCycle).not.toHaveBeenCalled();
+    expect(sleep).not.toHaveBeenCalled();
+    expect(writeHeartbeat).toHaveBeenCalledTimes(1);
+    expect(writeHeartbeat).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        status: "stopped",
+      })
+    );
+  });
+
   it("records an error run when the control-plane cycle fails", async () => {
     const runCycle = vi.fn().mockRejectedValue(new Error("boom"));
     const writeHeartbeat = vi.fn();

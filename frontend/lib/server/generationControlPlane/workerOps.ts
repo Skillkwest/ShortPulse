@@ -5,6 +5,8 @@ import type { GenerationControlPlaneCycleResult } from "./types";
 import type { GenerationControlPlaneWorkerHeartbeat } from "./workerLoop";
 
 const GENERATION_CONTROL_PLANE_WORKER_TYPE = "generation_control_plane";
+const GENERATION_CONTROL_PLANE_WORKER_SCOPE = "generation_control_plane";
+const DEFAULT_GENERATION_CONTROL_PLANE_LEASE_SECONDS = 30;
 
 type WorkerStatus = GenerationControlPlaneWorkerHeartbeat["status"] | "starting" | "draining";
 
@@ -23,6 +25,8 @@ export type GenerationControlPlaneRunWriter = {
 };
 
 type GenerationControlPlaneDbOps = GenerationControlPlaneRunWriter & {
+  acquireLeadership: (payload?: { scope?: string; leaseSeconds?: number }) => Promise<boolean>;
+  releaseLeadership: (payload?: { scope?: string }) => Promise<void>;
   writeHeartbeat: (payload: GenerationControlPlaneWorkerHeartbeat) => Promise<void>;
 };
 
@@ -53,6 +57,12 @@ const toRouteMetadata = (): Record<string, unknown> => ({
 
 type WorkerInstanceRow = {
   id: string;
+};
+
+type LeadershipResponseRow = {
+  acquired: boolean;
+  worker_instance_id: string;
+  expires_at: string;
 };
 
 const sanitizeStatus = (status: WorkerStatus): WorkerStatus => {
@@ -179,6 +189,51 @@ export const createGenerationControlPlaneWorkerDbOps = ({
     return data.id;
   };
 
+  const acquireLeadership = async ({
+    scope = GENERATION_CONTROL_PLANE_WORKER_SCOPE,
+    leaseSeconds = DEFAULT_GENERATION_CONTROL_PLANE_LEASE_SECONDS,
+  }: {
+    scope?: string;
+    leaseSeconds?: number;
+  } = {}): Promise<boolean> => {
+    const id = await ensureInstance();
+    const { data, error } = await supabaseAdmin.rpc("acquire_worker_leadership", {
+      p_scope: scope,
+      p_worker_instance_id: id,
+      p_worker_type: workerType,
+      p_lease_seconds: Math.max(1, Math.trunc(leaseSeconds)),
+      p_metadata: {
+        instance_key: instanceKey,
+        instance_label: instanceLabel,
+      },
+    });
+
+    const row = Array.isArray(data) ? (data[0] as LeadershipResponseRow | undefined) : undefined;
+
+    if (error || !row) {
+      throw new Error(
+        `Failed to acquire generation control-plane leadership: ${error?.message ?? "missing row"}`
+      );
+    }
+
+    return Boolean(row.acquired);
+  };
+
+  const releaseLeadership = async ({
+    scope = GENERATION_CONTROL_PLANE_WORKER_SCOPE,
+  }: {
+    scope?: string;
+  } = {}): Promise<void> => {
+    const id = await ensureInstance();
+    const { error } = await supabaseAdmin.rpc("release_worker_leadership", {
+      p_scope: scope,
+      p_worker_instance_id: id,
+    });
+    if (error) {
+      throw new Error(`Failed to release generation control-plane leadership: ${error.message}`);
+    }
+  };
+
   const finishRun = async ({
     runId,
     status,
@@ -211,8 +266,10 @@ export const createGenerationControlPlaneWorkerDbOps = ({
   };
 
   return {
+    acquireLeadership,
     writeHeartbeat,
     startRun,
     finishRun,
+    releaseLeadership,
   };
 };

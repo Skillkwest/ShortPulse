@@ -35,6 +35,8 @@ type GenerationControlPlaneWorkerOnceOptions = {
 type GenerationControlPlaneWorkerLoopOptions = GenerationControlPlaneWorkerOnceOptions & {
   intervalMs?: number;
   errorBackoffMs?: number;
+  beforeRun?: () => boolean | Promise<boolean>;
+  onStop?: () => void | Promise<void>;
   shouldStop?: () => boolean;
   sleep?: (ms: number) => Promise<void>;
 };
@@ -149,6 +151,8 @@ export const runGenerationControlPlaneWorkerLoop = async ({
   routeLabel = DEFAULT_GENERATION_CONTROL_PLANE_WORKER_ROUTE_LABEL,
   logger = defaultLogger,
   writeHeartbeat = writeGenerationControlPlaneWorkerHeartbeat,
+  beforeRun = () => true,
+  onStop,
   shouldStop = () => false,
   sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
   runCycle = runGenerationControlPlaneCycle,
@@ -159,6 +163,13 @@ export const runGenerationControlPlaneWorkerLoop = async ({
   );
 
   while (!shouldStop()) {
+    const shouldRunCycle = await beforeRun();
+    if (!shouldRunCycle) {
+      logger.info("[generation-worker] skip reason=not_leader");
+      if (shouldStop()) break;
+      await sleep(intervalMs);
+      continue;
+    }
     const result = await runGenerationControlPlaneWorkerOnce({
       routeLabel,
       logger,
@@ -170,6 +181,7 @@ export const runGenerationControlPlaneWorkerLoop = async ({
     await sleep(result.ok ? intervalMs : errorBackoffMs);
   }
 
+  await onStop?.();
   await writeHeartbeat({
     updatedAt: new Date().toISOString(),
     status: "stopped",

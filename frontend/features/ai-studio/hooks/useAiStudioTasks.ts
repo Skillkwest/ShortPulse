@@ -656,6 +656,9 @@ export function useAiStudioTasks({
             });
             const lifecycleResultUrls = lifecycleHint?.resultUrls ?? [];
             const lifecycleTaskState = resolveLifecycleTaskState(lifecycleHint);
+            const shouldTrustNonterminalLifecycle =
+              lifecycleHint?.isTerminal === false &&
+              (lifecycleTaskState === "pending" || lifecycleTaskState === "running");
             const resolvedUrls = lifecycleResultUrls.length > 0 ? lifecycleResultUrls : allUrls;
             const hasMedia = allUrls.length > 0;
             const { shouldForceImageMediaSuccess, shouldTreatAsSuccess } = classifyProviderSuccess({
@@ -855,11 +858,11 @@ export function useAiStudioTasks({
             // If ANY condition is true, treat as error
             const isLifecycleFailure = lifecycleHint?.taskState === "fail";
             if (
-              isLifecycleFailure ||
-              isErrorState ||
-              hasErrorField ||
-              isExplicitErrorStatus ||
-              hasFailureMessage
+              (!shouldTrustNonterminalLifecycle && isLifecycleFailure) ||
+              (!shouldTrustNonterminalLifecycle && isErrorState) ||
+              (!shouldTrustNonterminalLifecycle && hasErrorField) ||
+              (!shouldTrustNonterminalLifecycle && isExplicitErrorStatus) ||
+              (!shouldTrustNonterminalLifecycle && hasFailureMessage)
             ) {
               const rawFailureDetail =
                 lifecycleHint?.errorDetail ||

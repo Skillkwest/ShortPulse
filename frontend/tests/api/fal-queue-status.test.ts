@@ -108,6 +108,7 @@ describe("GET /api/fal/queue-status", () => {
       requestId: "req-kie-1",
       provider: "kie",
       modelId: "kie-ai/kling-3.0",
+      pollingProvider: "kie-kling",
     });
     const req = {
       method: "GET",
@@ -124,6 +125,7 @@ describe("GET /api/fal/queue-status", () => {
         status: "dispatched",
         provider: "kie",
         modelId: "kie-ai/kling-3.0",
+        pollingProvider: "kie-kling",
       })
     );
   });

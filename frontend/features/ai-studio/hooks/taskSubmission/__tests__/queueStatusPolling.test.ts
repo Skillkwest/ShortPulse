@@ -30,7 +30,7 @@ describe("queueStatusPolling", () => {
     __resetQueueStatusPollingTestState();
   });
 
-  it("preserves submit-time provider alias when queue-status returns generic fal provider", async () => {
+  it("prefers server-authored pollingProvider when queue-status dispatches", async () => {
     vi.useFakeTimers();
     try {
       let output = createOutput("out-queued");
@@ -58,6 +58,7 @@ describe("queueStatusPolling", () => {
         sourceRef: "src-queued-1",
         requestId: "req-queued-1",
         provider: "fal",
+        pollingProvider: "fal-seedream",
       });
 
       startQueuedStatusPolling({
@@ -94,7 +95,71 @@ describe("queueStatusPolling", () => {
     }
   });
 
-  it("resolves generic kie dispatched provider using modelId alias", async () => {
+  it("falls back to client provider aliasing when pollingProvider is absent", async () => {
+    vi.useFakeTimers();
+    try {
+      let output = createOutput("out-queued-fallback");
+      const queueStatusTimersRef = { current: {} as Record<string, number> };
+      const queueStatusSessionRef = { current: {} as Record<string, number> };
+      const updateOutputById = vi.fn(
+        (id: string, updater: (item: StudioOutput) => StudioOutput) => {
+          if (id === output.id) {
+            output = updater(output);
+          }
+        }
+      );
+      const clearQueueStatusPolling = vi.fn((outputId: string) => {
+        const timeoutId = queueStatusTimersRef.current[outputId];
+        if (timeoutId) {
+          window.clearTimeout(timeoutId);
+          delete queueStatusTimersRef.current[outputId];
+        }
+      });
+      const notifyGenerationFailure = vi.fn();
+      const onDispatched = vi.fn();
+      fetchFalQueueStatusMock.mockResolvedValueOnce({
+        status: "dispatched",
+        generationId: "gen-queued-fallback",
+        sourceRef: "src-queued-fallback",
+        requestId: "req-queued-fallback",
+        provider: "fal",
+      });
+
+      startQueuedStatusPolling({
+        outputId: "out-queued-fallback",
+        provider: "fal-seedream",
+        finalModel: "fal-ai/bytedance/seedream/v4.5/edit",
+        effectiveTool: "edit",
+        queuedResponse: {
+          status: "queued",
+          code: "GENERATION_QUEUED",
+          sourceRef: "src-queued-fallback",
+          generationId: "gen-queued-fallback",
+          pollAfterMs: 500,
+        },
+        patch: {},
+        queueStatusTimersRef,
+        queueStatusSessionRef,
+        clearQueueStatusPolling,
+        updateOutputById,
+        notifyGenerationFailure,
+        onDispatched,
+      });
+
+      await vi.advanceTimersByTimeAsync(600);
+
+      expect(onDispatched).toHaveBeenCalledWith(
+        "req-queued-fallback",
+        "gen-queued-fallback",
+        "fal-seedream"
+      );
+      expect(notifyGenerationFailure).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("prefers server-authored kie pollingProvider when available", async () => {
     vi.useFakeTimers();
     try {
       let output = createOutput("out-queued-kie");
@@ -123,6 +188,7 @@ describe("queueStatusPolling", () => {
         requestId: "req-queued-kie-1",
         provider: "kie",
         modelId: "kie-ai/kling-3.0",
+        pollingProvider: "kie-kling",
       });
 
       startQueuedStatusPolling({

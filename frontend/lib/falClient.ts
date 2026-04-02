@@ -87,6 +87,7 @@ export type FalQueueStatusResponse =
       requestId: string;
       provider: string;
       modelId?: string | null;
+      pollingProvider?: string | null;
       shortpulseLifecycle?: {
         taskState: "running";
         queueState: "dispatched";

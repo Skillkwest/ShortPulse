@@ -85,14 +85,23 @@ const queueStatusRetryDelayMs = (
     : clampQueuePollMs(initialDelayMs * Math.min(4, attempt + 1));
 
 const resolveDispatchedPollingProvider = ({
+  pollingProvider,
   queueStatusProvider,
   queueStatusModelId,
   submitProvider,
 }: {
+  pollingProvider?: string | null;
   queueStatusProvider: string | null | undefined;
   queueStatusModelId?: string | null;
   submitProvider: Provider;
 }): Provider => {
+  const serverResolvedProvider = normalizeProviderForPolling(pollingProvider, submitProvider);
+  if (pollingProvider && serverResolvedProvider !== submitProvider) {
+    return serverResolvedProvider;
+  }
+  if (pollingProvider && serverResolvedProvider === submitProvider) {
+    return submitProvider;
+  }
   const normalizedProvider = normalizeProviderForPolling(queueStatusProvider, submitProvider);
   // Queue-status can return a generic "fal" provider token even when submit-time routing was model-specific.
   if (normalizedProvider === "fal" && submitProvider.startsWith("fal-")) {
@@ -284,6 +293,7 @@ export const startQueuedStatusPolling = ({
           queueStatus.requestId,
           queueStatus.generationId || queuedResponse.generationId,
           resolveDispatchedPollingProvider({
+            pollingProvider: queueStatus.pollingProvider,
             queueStatusProvider: queueStatus.provider,
             queueStatusModelId: queueStatus.modelId,
             submitProvider: provider,

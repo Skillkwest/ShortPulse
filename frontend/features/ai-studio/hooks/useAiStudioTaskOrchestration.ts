@@ -47,14 +47,19 @@ const isDocumentVisible = (): boolean =>
   typeof document === "undefined" || document.visibilityState === "visible";
 
 const resolveQueuedResumeProvider = ({
+  pollingProvider,
   queueStatusProvider,
   outputProvider,
   modelId,
 }: {
+  pollingProvider?: string | null;
   queueStatusProvider: string;
   outputProvider: Provider;
   modelId?: string | null;
 }): Provider => {
+  if (typeof pollingProvider === "string" && pollingProvider.trim().length > 0) {
+    return normalizeProviderForPolling(pollingProvider, outputProvider);
+  }
   const modelDerivedProvider =
     typeof modelId === "string" && modelId.trim().length > 0
       ? normalizeProviderForPolling(modelId, outputProvider)
@@ -265,6 +270,7 @@ export const useAiStudioTaskOrchestration = ({
             const requestId = queueStatus.requestId.trim();
             const outputProvider = (output.provider as Provider | undefined) ?? "fal";
             const provider = resolveQueuedResumeProvider({
+              pollingProvider: queueStatus.pollingProvider,
               queueStatusProvider: queueStatus.provider,
               outputProvider,
               modelId: output.modelId ?? null,

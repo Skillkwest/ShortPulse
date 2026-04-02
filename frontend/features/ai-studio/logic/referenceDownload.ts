@@ -6,6 +6,7 @@ import { asCanonicalStoragePath } from "../../../lib/adaptive-media";
 import type { ensureSupabaseQueryClient } from "../../../lib/supabaseClient";
 import {
   resolveGeneratedMediaFileRecordById,
+  resolveGenerationIdForRequestId,
   resolveLatestPublishedGenerationMediaFile,
 } from "./generatedMediaAuthority";
 import type { StudioOutput } from "../types";
@@ -237,8 +238,8 @@ export const resolveReferenceDownloadTarget = async ({
     StudioOutput,
     | "savedMediaIds"
     | "generationId"
-    | "mediaSource"
     | "taskId"
+    | "mediaSource"
     | "previewStoragePath"
     | "fullStoragePath"
     | "previewUrl"
@@ -247,7 +248,12 @@ export const resolveReferenceDownloadTarget = async ({
   supabase: SupabaseClient;
 }): Promise<ResolvedReferenceDownloadTarget> => {
   const directUrl = resolveDirectDownloadUrl(output);
-  const generationId = asTrimmedString(output.generationId);
+  const generationId =
+    asTrimmedString(output.generationId) ??
+    (await resolveGenerationIdForRequestId({
+      supabase,
+      requestId: asTrimmedString(output.taskId),
+    }));
   const shouldPreferCanonicalGeneratedOutputs =
     output.mediaSource === "generated" && Boolean(generationId);
 

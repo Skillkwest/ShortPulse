@@ -1,5 +1,5 @@
 import { asCanonicalStoragePath } from "../../../lib/adaptive-media";
-import type { ensureSupabaseQueryClient } from "../../../lib/supabaseClient";
+import { readSupabaseUserId, type ensureSupabaseQueryClient } from "../../../lib/supabaseClient";
 
 type SupabaseClient = ReturnType<typeof ensureSupabaseQueryClient>;
 
@@ -95,6 +95,46 @@ export const resolveGeneratedMediaFileRecordById = async ({
         .maybeSingle()) as unknown as { data: MediaFileRow | null; error: unknown },
   });
   return toGeneratedMediaFileRecord(mediaRow);
+};
+
+export const resolveGenerationIdForRequestId = async ({
+  supabase,
+  requestId,
+  userId,
+}: {
+  supabase: SupabaseClient;
+  requestId: string | null | undefined;
+  userId?: string | null;
+}): Promise<string | null> => {
+  const normalizedRequestId = asTrimmedString(requestId);
+  if (!normalizedRequestId) return null;
+  const resolvedUserId = asTrimmedString(userId) ?? (await readSupabaseUserId());
+  if (!resolvedUserId) return null;
+
+  const { data: projectionData, error: projectionError } = await supabase
+    .from("generation_projection")
+    .select("generation_id")
+    .eq("user_id", resolvedUserId)
+    .eq("request_id", normalizedRequestId)
+    .limit(1)
+    .maybeSingle();
+  if (!projectionError) {
+    const generationId = asTrimmedString(
+      (projectionData as Record<string, unknown> | null)?.generation_id
+    );
+    if (generationId) return generationId;
+  }
+
+  const { data: generationData, error: generationError } = await supabase
+    .from("ai_generations")
+    .select("id")
+    .eq("user_id", resolvedUserId)
+    .eq("request_id", normalizedRequestId)
+    .limit(1)
+    .maybeSingle();
+  if (generationError) return null;
+
+  return asTrimmedString((generationData as Record<string, unknown> | null)?.id);
 };
 
 export const resolvePublishedGenerationOutputStoragePathByIndex = async ({

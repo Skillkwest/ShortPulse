@@ -239,10 +239,12 @@ describe("generationQueue/service.readGenerationQueueStatus", () => {
     queueRow,
     generationRow,
     projectionRow,
+    projectionRows,
   }: {
     queueRow?: Record<string, unknown> | null;
     generationRow?: Record<string, unknown> | null;
     projectionRow?: Record<string, unknown> | null;
+    projectionRows?: Record<string, unknown>[] | null;
   }) => {
     const queueMaybeSingle = vi.fn(async () => ({ data: queueRow ?? null, error: null }));
     const queueEq2 = vi.fn(() => ({ maybeSingle: queueMaybeSingle }));
@@ -265,8 +267,17 @@ describe("generationQueue/service.readGenerationQueueStatus", () => {
     const generationSelect = vi.fn(() => ({ eq: generationEq1, contains: generationContains }));
 
     const projectionMaybeSingle = vi.fn(async () => ({ data: projectionRow ?? null, error: null }));
-    const projectionLimit = vi.fn(() => ({ maybeSingle: projectionMaybeSingle }));
+    const projectionOrder = vi.fn(() => ({
+      limit: projectionLimit,
+      maybeSingle: projectionMaybeSingle,
+    }));
+    const projectionLimit = vi.fn(() =>
+      projectionRows
+        ? Promise.resolve({ data: projectionRows, error: null })
+        : ({ maybeSingle: projectionMaybeSingle } as never)
+    );
     const projectionEq2 = vi.fn(() => ({
+      order: projectionOrder,
       limit: projectionLimit,
       maybeSingle: projectionMaybeSingle,
     }));
@@ -274,6 +285,10 @@ describe("generationQueue/service.readGenerationQueueStatus", () => {
     const projectionSelect = vi.fn(() => ({ eq: projectionEq1 }));
 
     return {
+      queueSelect,
+      generationContains,
+      generationEq2,
+      projectionLimit,
       from: vi.fn((tableName: string) => {
         if (tableName === "ai_generation_submit_queue") {
           return { select: queueSelect };
@@ -536,5 +551,53 @@ describe("generationQueue/service.readGenerationQueueStatus", () => {
       provider: "fal",
       modelId: "fal-ai/bytedance/seedream/v4.5/edit",
     });
+  });
+
+  it("resolves generationId from projection sourceRef before legacy metadata scan", async () => {
+    const supabase = createStatusSupabaseMock({
+      queueRow: null,
+      generationRow: {
+        id: "gen-source-ref-projection",
+        status: "running",
+        request_id: "req-from-projection-source-ref",
+        provider: "fal",
+        model_id: "fal-ai/bytedance/seedream/v4.5/edit",
+        metadata: {},
+      },
+      projectionRow: {
+        generation_id: "gen-source-ref-projection",
+        source_ref: "src-projection-lookup",
+        request_id: "req-from-projection-source-ref",
+        provider: "fal",
+        model_id: "fal-ai/bytedance/seedream/v4.5/edit",
+        task_state: "running",
+        queue_state: "dispatched",
+      },
+      projectionRows: [
+        {
+          generation_id: "gen-source-ref-projection",
+          source_ref: "src-projection-lookup",
+          request_id: "req-from-projection-source-ref",
+          updated_at: new Date().toISOString(),
+        },
+      ],
+    });
+    getSupabaseAdminMock.mockReturnValue(supabase);
+
+    await expect(
+      readGenerationQueueStatus({
+        userId: "user-1",
+        sourceRef: "src-projection-lookup",
+      })
+    ).resolves.toEqual({
+      status: "dispatched",
+      generationId: "gen-source-ref-projection",
+      sourceRef: "src-projection-lookup",
+      requestId: "req-from-projection-source-ref",
+      provider: "fal",
+      modelId: "fal-ai/bytedance/seedream/v4.5/edit",
+    });
+
+    expect(supabase.generationContains).not.toHaveBeenCalled();
   });
 });

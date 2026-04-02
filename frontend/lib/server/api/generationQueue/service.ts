@@ -1,7 +1,10 @@
 import { getSupabaseAdmin } from "../supabaseAdmin";
 import { lookupLatestGenerationAttempt } from "../generationAttempts";
 import { isMissingGenerationAttemptSchemaError } from "../generationBilling/errorGuards";
-import { readGenerationProjectionQueueContext } from "../generationProjection";
+import {
+  readGenerationProjectionLinkBySourceRef,
+  readGenerationProjectionQueueContext,
+} from "../generationProjection";
 
 const QUEUE_TABLE = "ai_generation_submit_queue";
 
@@ -537,12 +540,30 @@ export const readGenerationQueueStatus = async ({
   }
 
   let generationRow: JsonObject | null = null;
+  let resolvedGenerationId = asString(queueRow?.generation_id) ?? generationId ?? null;
+  if (!resolvedGenerationId && sourceRef) {
+    const projectionLink = await readGenerationProjectionLinkBySourceRef({
+      userId,
+      sourceRef,
+      supabaseAdmin: supabase,
+    }).catch(() => null);
+    resolvedGenerationId = projectionLink?.generationId ?? null;
+  }
+
   if (generationId) {
     const { data } = await supabase
       .from("ai_generations")
       .select("id, status, request_id, provider, model_id, error_message, metadata")
       .eq("user_id", userId)
       .eq("id", generationId)
+      .maybeSingle();
+    generationRow = asObject(data);
+  } else if (resolvedGenerationId) {
+    const { data } = await supabase
+      .from("ai_generations")
+      .select("id, status, request_id, provider, model_id, error_message, metadata")
+      .eq("user_id", userId)
+      .eq("id", resolvedGenerationId)
       .maybeSingle();
     generationRow = asObject(data);
   } else if (sourceRef) {
@@ -557,7 +578,7 @@ export const readGenerationQueueStatus = async ({
     generationRow = asObject(data);
   }
 
-  const resolvedGenerationId = asString(generationRow?.id) ?? asString(queueRow?.generation_id);
+  resolvedGenerationId = asString(generationRow?.id) ?? resolvedGenerationId;
   const projectionContext = resolvedGenerationId
     ? await readGenerationProjectionQueueContext({
         userId,

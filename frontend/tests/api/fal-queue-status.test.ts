@@ -44,6 +44,11 @@ describe("GET /api/fal/queue-status", () => {
       generationId: "gen-1",
       sourceRef: "src-1",
       retryAfterMs: 2000,
+      shortpulseLifecycle: {
+        taskState: "pending",
+        queueState: "queued",
+        isTerminal: false,
+      },
     });
   });
 
@@ -67,6 +72,11 @@ describe("GET /api/fal/queue-status", () => {
     expect(res.json).toHaveBeenCalledWith(
       expect.objectContaining({
         status: "queued",
+        shortpulseLifecycle: expect.objectContaining({
+          taskState: "pending",
+          queueState: "queued",
+          isTerminal: false,
+        }),
       })
     );
   });

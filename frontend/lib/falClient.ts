@@ -61,12 +61,22 @@ export type FalQueueStatusResponse =
       generationId: string;
       sourceRef: string | null;
       retryAfterMs: number;
+      shortpulseLifecycle?: {
+        taskState: "pending";
+        queueState: "queued";
+        isTerminal: false;
+      };
     }
   | {
       status: "dispatching";
       generationId: string;
       sourceRef: string | null;
       retryAfterMs: number;
+      shortpulseLifecycle?: {
+        taskState: "running";
+        queueState: "dispatching";
+        isTerminal: false;
+      };
     }
   | {
       status: "dispatched";
@@ -75,12 +85,23 @@ export type FalQueueStatusResponse =
       requestId: string;
       provider: string;
       modelId?: string | null;
+      shortpulseLifecycle?: {
+        taskState: "running";
+        queueState: "dispatched";
+        isTerminal: false;
+      };
     }
   | {
       status: "failed";
       generationId: string;
       sourceRef: string | null;
       message: string;
+      shortpulseLifecycle?: {
+        taskState: "fail";
+        queueState: "failed";
+        isTerminal: true;
+        errorMessage: string;
+      };
     }
   | {
       status: "not_found";

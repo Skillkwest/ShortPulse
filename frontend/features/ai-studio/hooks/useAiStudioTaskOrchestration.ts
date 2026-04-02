@@ -41,6 +41,7 @@ const QUEUE_RESUME_MIN_RECHECK_MS = 12_000;
 const QUEUE_RESUME_MAX_CONCURRENT = 3;
 const QUEUE_RESUME_NOT_FOUND_MAX_RETRIES = 6;
 const QUEUE_RESUME_NOT_FOUND_MAX_AGE_MS = 90_000;
+const SERVER_RECOVERY_PENDING_TIMESTAMP = "Waiting for server recovery...";
 
 const isDocumentVisible = (): boolean =>
   typeof document === "undefined" || document.visibilityState === "visible";
@@ -248,6 +249,7 @@ export const useAiStudioTaskOrchestration = ({
         try {
           const queueStatus = await fetchFalQueueStatus({ generationId });
           if (!findOutputById(output.id)) return;
+          const lifecycle = queueStatus.shortpulseLifecycle;
           if (queueStatus.status === "dispatched") {
             delete queueResumeNotFoundStateRef.current[output.id];
             const requestId = queueStatus.requestId.trim();
@@ -271,8 +273,8 @@ export const useAiStudioTaskOrchestration = ({
                     : item.generationId),
                 taskId: requestId,
                 generationTraceId: requestId,
-                queueState: "dispatched",
-                taskState: "running",
+                queueState: lifecycle?.queueState ?? "dispatched",
+                taskState: lifecycle?.taskState ?? "running",
                 status: "ready",
                 timestamp: "Submitted",
                 errorMessage: null,
@@ -283,9 +285,41 @@ export const useAiStudioTaskOrchestration = ({
             startPollingTask(requestId, output.id, 0, provider);
             return;
           }
+          if (queueStatus.status === "queued" || queueStatus.status === "dispatching") {
+            updateOutputById(output.id, (item) => ({
+              ...item,
+              sourceRef:
+                item.sourceRef ??
+                (typeof queueStatus.sourceRef === "string" &&
+                queueStatus.sourceRef.trim().length > 0
+                  ? queueStatus.sourceRef.trim()
+                  : item.sourceRef),
+              generationId:
+                item.generationId ??
+                (typeof queueStatus.generationId === "string" &&
+                queueStatus.generationId.trim().length > 0
+                  ? queueStatus.generationId.trim()
+                  : item.generationId),
+              queueState: lifecycle?.queueState ?? queueStatus.status,
+              taskState:
+                lifecycle?.taskState ?? (queueStatus.status === "queued" ? "pending" : "running"),
+              status: "ready",
+              timestamp:
+                queueStatus.status === "dispatching"
+                  ? "Dispatching..."
+                  : item.timestamp === SERVER_RECOVERY_PENDING_TIMESTAMP
+                    ? item.timestamp
+                    : "Waiting in queue...",
+              errorMessage: null,
+              errorMessageShort: null,
+              errorDetail: null,
+            }));
+            return;
+          }
           if (queueStatus.status === "failed") {
             delete queueResumeNotFoundStateRef.current[output.id];
-            notifyGenerationFailure(output.id, queueStatus.message, queueStatus.message);
+            const failureMessage = lifecycle?.errorMessage?.trim() || queueStatus.message;
+            notifyGenerationFailure(output.id, failureMessage, queueStatus.message);
             return;
           }
           if (queueStatus.status === "not_found") {

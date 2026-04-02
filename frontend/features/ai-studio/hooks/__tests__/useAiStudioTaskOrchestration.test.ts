@@ -861,6 +861,11 @@ describe("useAiStudioTaskOrchestration", () => {
         generationId: "gen-fresh",
         sourceRef: "source-fresh",
         retryAfterMs: 2_000,
+        shortpulseLifecycle: {
+          taskState: "pending",
+          queueState: "queued",
+          isTerminal: false,
+        },
       });
 
       renderHook(() =>
@@ -909,6 +914,9 @@ describe("useAiStudioTaskOrchestration", () => {
         generationId: "gen-fresh",
       });
       expect(fetchFalQueueStatusMock).toHaveBeenCalledTimes(1);
+      expect(outputs[0]?.queueState).toBe("queued");
+      expect(outputs[0]?.taskState).toBe("pending");
+      expect(outputs[0]?.timestamp).toBe("Waiting in queue...");
     } finally {
       vi.useRealTimers();
     }

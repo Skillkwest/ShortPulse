@@ -423,6 +423,11 @@ describe("generationQueue/service.readGenerationQueueStatus", () => {
       generationId: "gen-1",
       sourceRef: "src-1",
       retryAfterMs: 1000,
+      shortpulseLifecycle: {
+        taskState: "running",
+        queueState: "dispatching",
+        isTerminal: false,
+      },
     });
   });
 
@@ -451,6 +456,11 @@ describe("generationQueue/service.readGenerationQueueStatus", () => {
       generationId: "gen-2",
       sourceRef: "src-2",
       retryAfterMs: 3000,
+      shortpulseLifecycle: {
+        taskState: "pending",
+        queueState: "queued",
+        isTerminal: false,
+      },
     });
   });
 
@@ -487,6 +497,11 @@ describe("generationQueue/service.readGenerationQueueStatus", () => {
       requestId: "req-attempt-1",
       provider: "fal",
       modelId: "fal-ai/bytedance/seedream/v4.5/edit",
+      shortpulseLifecycle: {
+        taskState: "running",
+        queueState: "dispatched",
+        isTerminal: false,
+      },
     });
     expect(lookupLatestGenerationAttemptMock).toHaveBeenCalledWith({
       userId: "user-1",
@@ -529,6 +544,11 @@ describe("generationQueue/service.readGenerationQueueStatus", () => {
       requestId: "req-from-projection",
       provider: "fal",
       modelId: "fal-ai/bytedance/seedream/v4.5/edit",
+      shortpulseLifecycle: {
+        taskState: "running",
+        queueState: "dispatched",
+        isTerminal: false,
+      },
     });
     expect(lookupLatestGenerationAttemptMock).not.toHaveBeenCalled();
   });
@@ -566,6 +586,12 @@ describe("generationQueue/service.readGenerationQueueStatus", () => {
       generationId: "gen-projection-fail",
       sourceRef: "src-projection-fail",
       message: "Projection terminal failure",
+      shortpulseLifecycle: {
+        taskState: "fail",
+        queueState: "failed",
+        isTerminal: true,
+        errorMessage: "Projection terminal failure",
+      },
     });
   });
 
@@ -600,6 +626,11 @@ describe("generationQueue/service.readGenerationQueueStatus", () => {
       generationId: "gen-projection-queued",
       sourceRef: "src-projection-queued",
       retryAfterMs: 2000,
+      shortpulseLifecycle: {
+        taskState: "pending",
+        queueState: "queued",
+        isTerminal: false,
+      },
     });
   });
 
@@ -639,6 +670,11 @@ describe("generationQueue/service.readGenerationQueueStatus", () => {
       requestId: "req-from-projection",
       provider: "fal",
       modelId: "fal-ai/bytedance/seedream/v4.5/edit",
+      shortpulseLifecycle: {
+        taskState: "running",
+        queueState: "dispatched",
+        isTerminal: false,
+      },
     });
   });
 
@@ -685,6 +721,11 @@ describe("generationQueue/service.readGenerationQueueStatus", () => {
       requestId: "req-from-projection-source-ref",
       provider: "fal",
       modelId: "fal-ai/bytedance/seedream/v4.5/edit",
+      shortpulseLifecycle: {
+        taskState: "running",
+        queueState: "dispatched",
+        isTerminal: false,
+      },
     });
 
     expect(supabase.generationContains).not.toHaveBeenCalled();

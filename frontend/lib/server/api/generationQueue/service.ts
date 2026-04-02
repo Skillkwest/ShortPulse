@@ -141,12 +141,22 @@ export type GenerationQueueStatus =
       generationId: string;
       sourceRef: string | null;
       retryAfterMs: number;
+      shortpulseLifecycle: {
+        taskState: "pending";
+        queueState: "queued";
+        isTerminal: false;
+      };
     }
   | {
       status: "dispatching";
       generationId: string;
       sourceRef: string | null;
       retryAfterMs: number;
+      shortpulseLifecycle: {
+        taskState: "running";
+        queueState: "dispatching";
+        isTerminal: false;
+      };
     }
   | {
       status: "dispatched";
@@ -155,12 +165,23 @@ export type GenerationQueueStatus =
       requestId: string;
       provider: string;
       modelId?: string | null;
+      shortpulseLifecycle: {
+        taskState: "running";
+        queueState: "dispatched";
+        isTerminal: false;
+      };
     }
   | {
       status: "failed";
       generationId: string;
       sourceRef: string | null;
       message: string;
+      shortpulseLifecycle: {
+        taskState: "fail";
+        queueState: "failed";
+        isTerminal: true;
+        errorMessage: string;
+      };
     }
   | {
       status: "not_found";
@@ -834,19 +855,31 @@ export const readGenerationQueueStatus = async ({
       requestId,
       provider: projectionContext?.provider ?? asString(generationRow?.provider) ?? "fal",
       ...(dispatchedModelId ? { modelId: dispatchedModelId } : {}),
+      shortpulseLifecycle: {
+        taskState: "running",
+        queueState: "dispatched",
+        isTerminal: false,
+      },
     };
   }
 
   if (generationStatus === "fail") {
+    const message =
+      projectionContext?.errorMessageShort ??
+      projectionContext?.errorDetail ??
+      asString(generationRow?.error_message) ??
+      "Generation failed before dispatch.";
     return {
       status: "failed",
       generationId: resolvedGenerationId ?? generationId ?? "",
       sourceRef: resolvedSourceRef ?? null,
-      message:
-        projectionContext?.errorMessageShort ??
-        projectionContext?.errorDetail ??
-        asString(generationRow?.error_message) ??
-        "Generation failed before dispatch.",
+      message,
+      shortpulseLifecycle: {
+        taskState: "fail",
+        queueState: "failed",
+        isTerminal: true,
+        errorMessage: message,
+      },
     };
   }
 
@@ -860,6 +893,12 @@ export const readGenerationQueueStatus = async ({
       generationId: resolvedGenerationId ?? generationId ?? "",
       sourceRef: resolvedSourceRef ?? null,
       message: queueError,
+      shortpulseLifecycle: {
+        taskState: "fail",
+        queueState: "failed",
+        isTerminal: true,
+        errorMessage: queueError,
+      },
     };
   }
 
@@ -869,6 +908,11 @@ export const readGenerationQueueStatus = async ({
       generationId: resolvedGenerationId ?? generationId ?? "",
       sourceRef: resolvedSourceRef ?? null,
       retryAfterMs: QUEUE_STATUS_QUEUED_RETRY_MS,
+      shortpulseLifecycle: {
+        taskState: "pending",
+        queueState: "queued",
+        isTerminal: false,
+      },
     };
   }
 
@@ -878,6 +922,11 @@ export const readGenerationQueueStatus = async ({
       generationId: resolvedGenerationId ?? generationId ?? "",
       sourceRef: resolvedSourceRef ?? null,
       retryAfterMs: QUEUE_STATUS_DISPATCHING_RETRY_MS,
+      shortpulseLifecycle: {
+        taskState: "running",
+        queueState: "dispatching",
+        isTerminal: false,
+      },
     };
   }
 
@@ -887,6 +936,11 @@ export const readGenerationQueueStatus = async ({
       generationId: resolvedGenerationId ?? generationId ?? "",
       sourceRef: resolvedSourceRef ?? null,
       retryAfterMs: QUEUE_STATUS_DISPATCHING_RETRY_MS,
+      shortpulseLifecycle: {
+        taskState: "running",
+        queueState: "dispatching",
+        isTerminal: false,
+      },
     };
   }
 
@@ -896,6 +950,11 @@ export const readGenerationQueueStatus = async ({
       generationId: resolvedGenerationId ?? generationId ?? "",
       sourceRef: resolvedSourceRef ?? null,
       retryAfterMs: QUEUE_STATUS_QUEUED_RETRY_MS,
+      shortpulseLifecycle: {
+        taskState: "pending",
+        queueState: "queued",
+        isTerminal: false,
+      },
     };
   }
 
@@ -910,6 +969,11 @@ export const readGenerationQueueStatus = async ({
       generationId: resolvedGenerationId ?? generationId ?? "",
       sourceRef: resolvedSourceRef ?? null,
       retryAfterMs: QUEUE_STATUS_PRE_DISPATCH_RETRY_MS,
+      shortpulseLifecycle: {
+        taskState: "pending",
+        queueState: "queued",
+        isTerminal: false,
+      },
     };
   }
 

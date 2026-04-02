@@ -176,15 +176,8 @@ const buildQueuedSubmitPayload = ({
   pollAfterMs: 2000,
 });
 
-const shouldUseWorkerOwnedSubmit = ({
-  queueEnabled,
-  workerOwnedSubmitEnabled,
-  legacyDirectSubmitEnabled,
-}: {
-  queueEnabled: boolean;
-  workerOwnedSubmitEnabled: boolean;
-  legacyDirectSubmitEnabled: boolean;
-}): boolean => queueEnabled && (workerOwnedSubmitEnabled || !legacyDirectSubmitEnabled);
+const shouldUseWorkerOwnedSubmit = ({ queueEnabled }: { queueEnabled: boolean }): boolean =>
+  queueEnabled;
 
 const isWorkerOwnedSubmitMisconfigured = ({
   queueEnabled,
@@ -543,8 +536,6 @@ export const createFalSubmitHandler = ({
 
       const workerOwnedSubmitRequired = shouldUseWorkerOwnedSubmit({
         queueEnabled: runtimeFlags.queueEnabled,
-        workerOwnedSubmitEnabled: runtimeFlags.workerOwnedSubmitEnabled,
-        legacyDirectSubmitEnabled: runtimeFlags.legacyDirectSubmitEnabled,
       });
       const workerOwnedSubmitMisconfigured = isWorkerOwnedSubmitMisconfigured({
         queueEnabled: runtimeFlags.queueEnabled,
@@ -664,7 +655,7 @@ export const createFalSubmitHandler = ({
                 ? "video_submit_payload_v2"
                 : "legacy_raw",
             queue_reason: workerOwnedSubmitRequired
-              ? (admissionDecision.reason ?? "worker_owned_submit")
+              ? (admissionDecision.reason ?? "queue_enabled_default")
               : admissionDecision.reason,
             queue_snapshot: {
               global_active: admissionDecision.snapshot.globalActive,

@@ -860,6 +860,52 @@ describe("createFalSubmitHandler", () => {
     expect(ensureSubmittedGenerationRecordMock).not.toHaveBeenCalled();
   });
 
+  it("queues new work by default whenever the durable queue is enabled", async () => {
+    process.env.SHORTPULSE_FAL_QUEUE_ENABLED = "true";
+
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    const handler = createFalSubmitHandler({
+      modelId: "fal-ai/nano-banana",
+      submitTargets: [{ submitUrl: "https://queue.fal.run/fal-ai/nano-banana" }],
+      routeLabel: "Fal Nano Banana",
+    });
+
+    const req = {
+      method: "POST",
+      body: { prompt: "portrait" },
+      headers: {},
+      url: "/api/fal/nano-banana-submit",
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(countUserQueuedGenerationSubmitsMock).toHaveBeenCalledWith("user-1");
+    expect(enqueueGenerationSubmitMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: "user-1",
+        sourceRef: "source-ref-1",
+        modelId: "fal-ai/nano-banana",
+        metadata: expect.objectContaining({
+          generation_submit_authority: "worker",
+          queue_reason: "queue_enabled_default",
+        }),
+      })
+    );
+    expect(res.status).toHaveBeenCalledWith(202);
+    expect(res.json).toHaveBeenCalledWith({
+      status: "queued",
+      code: "GENERATION_QUEUED",
+      sourceRef: "source-ref-1",
+      generationId: "gen-queued-1",
+      pollAfterMs: 2000,
+    });
+    expect(ensureSubmittedGenerationRecordMock).not.toHaveBeenCalled();
+  });
+
   it("fails closed when worker-owned submit is enabled but the durable queue is disabled", async () => {
     process.env.SHORTPULSE_FAL_QUEUE_ENABLED = "false";
     process.env.SHORTPULSE_FAL_WORKER_OWNED_SUBMIT_ENABLED = "true";

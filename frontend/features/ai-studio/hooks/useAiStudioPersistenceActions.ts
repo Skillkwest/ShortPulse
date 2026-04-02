@@ -8,6 +8,7 @@ import type { StudioOutput } from "../types";
 import {
   GENERATED_MEDIA_REQUIRES_GENERATION_ID_ERROR,
   logMediaEvent,
+  resolveGenerationIdForRequestId,
   saveMediaUrlToLibrary,
   savePromptRecord,
 } from "../logic/mediaLibraryPersistence";
@@ -163,6 +164,15 @@ export const useAiStudioPersistenceActions = ({
       if (output.generationId) return output.generationId;
       if (taskId && taskId !== output.taskId) {
         updateOutputById(outputId, (item) => ({ ...item, taskId }));
+      }
+      const resolvedGenerationId = await resolveGenerationIdForRequestId(taskId ?? output.taskId);
+      if (resolvedGenerationId) {
+        updateOutputById(outputId, (item) => ({
+          ...item,
+          taskId: taskId ?? item.taskId,
+          generationId: resolvedGenerationId,
+        }));
+        return resolvedGenerationId;
       }
       return null;
     },

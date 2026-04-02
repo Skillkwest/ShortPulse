@@ -231,6 +231,38 @@ export type SaveMediaUrlResult = {
   };
 };
 
+export const resolveGenerationIdForRequestId = async (
+  requestId: string | null | undefined
+): Promise<string | null> => {
+  const normalizedRequestId = asOptionalString(requestId);
+  if (!normalizedRequestId) return null;
+
+  const { supabase, userId } = await resolveSupabaseContext();
+
+  const { data: projectionData, error: projectionError } = await supabase
+    .from("generation_projection")
+    .select("generation_id")
+    .eq("user_id", userId)
+    .eq("request_id", normalizedRequestId)
+    .limit(1)
+    .maybeSingle();
+  if (!projectionError) {
+    const generationId = asOptionalString(asRecord(projectionData).generation_id);
+    if (generationId) return generationId;
+  }
+
+  const { data: generationData, error: generationError } = await supabase
+    .from("ai_generations")
+    .select("id")
+    .eq("user_id", userId)
+    .eq("request_id", normalizedRequestId)
+    .limit(1)
+    .maybeSingle();
+  if (generationError) return null;
+
+  return asOptionalString(asRecord(generationData).id);
+};
+
 const parseServerCopyResult = (value: unknown): SaveMediaUrlResult | null => {
   const row = asRecord(value);
   const deliveryRecord = asRecord(row.delivery);

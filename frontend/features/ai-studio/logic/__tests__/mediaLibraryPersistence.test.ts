@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   GENERATED_MEDIA_REQUIRES_GENERATION_ID_ERROR,
+  resolveGenerationIdForRequestId,
   saveMediaUrlToLibrary,
 } from "../mediaLibraryPersistence";
 
@@ -31,6 +32,17 @@ const createMediaFileSelectBuilder = (maybeSingle: ReturnType<typeof vi.fn>) => 
 };
 
 const createGenerationOutputSelectBuilder = (maybeSingle: ReturnType<typeof vi.fn>) => {
+  const builder = {
+    eq: vi.fn(),
+    limit: vi.fn(),
+    maybeSingle,
+  };
+  builder.eq.mockReturnValue(builder);
+  builder.limit.mockReturnValue(builder);
+  return builder;
+};
+
+const createMaybeSingleEqBuilder = (maybeSingle: ReturnType<typeof vi.fn>) => {
   const builder = {
     eq: vi.fn(),
     limit: vi.fn(),
@@ -518,5 +530,71 @@ describe("saveMediaUrlToLibrary", () => {
     expect(fetchMock).not.toHaveBeenCalled();
     expect(ensureSupabaseQueryClientMock).not.toHaveBeenCalled();
     expect(fetchWithAuthMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("resolveGenerationIdForRequestId", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    readSupabaseUserIdMock.mockResolvedValue("user-1");
+  });
+
+  it("prefers generation_projection before legacy ai_generations lookup", async () => {
+    const projectionSelectBuilder = createMaybeSingleEqBuilder(
+      vi.fn().mockResolvedValue({
+        data: { generation_id: "gen-from-projection" },
+        error: null,
+      })
+    );
+    const generationSelectBuilder = createMaybeSingleEqBuilder(
+      vi.fn().mockResolvedValue({
+        data: { id: "gen-from-generations" },
+        error: null,
+      })
+    );
+
+    ensureSupabaseQueryClientMock.mockReturnValue({
+      from: vi.fn((table: string) => {
+        if (table === "generation_projection") {
+          return { select: vi.fn(() => projectionSelectBuilder) };
+        }
+        if (table === "ai_generations") {
+          return { select: vi.fn(() => generationSelectBuilder) };
+        }
+        throw new Error(`Unexpected table: ${table}`);
+      }),
+    });
+
+    await expect(resolveGenerationIdForRequestId("req-1")).resolves.toBe("gen-from-projection");
+    expect(generationSelectBuilder.maybeSingle).not.toHaveBeenCalled();
+  });
+
+  it("falls back to ai_generations when projection does not resolve a generation id", async () => {
+    const projectionSelectBuilder = createMaybeSingleEqBuilder(
+      vi.fn().mockResolvedValue({
+        data: null,
+        error: null,
+      })
+    );
+    const generationSelectBuilder = createMaybeSingleEqBuilder(
+      vi.fn().mockResolvedValue({
+        data: { id: "gen-from-generations" },
+        error: null,
+      })
+    );
+
+    ensureSupabaseQueryClientMock.mockReturnValue({
+      from: vi.fn((table: string) => {
+        if (table === "generation_projection") {
+          return { select: vi.fn(() => projectionSelectBuilder) };
+        }
+        if (table === "ai_generations") {
+          return { select: vi.fn(() => generationSelectBuilder) };
+        }
+        throw new Error(`Unexpected table: ${table}`);
+      }),
+    });
+
+    await expect(resolveGenerationIdForRequestId("req-1")).resolves.toBe("gen-from-generations");
   });
 });

@@ -10,7 +10,10 @@ import {
   withCanonicalImageDimensions,
   type ImageDimensions,
 } from "../../../lib/mediaDimensionMetadata";
-import { resolveGenerationIdForRequestId as resolveGenerationIdForRequestIdFromAuthority } from "./generatedMediaAuthority";
+import {
+  resolveGenerationIdForRequestId as resolveGenerationIdForRequestIdFromAuthority,
+  resolvePublishedGenerationMediaByIndex,
+} from "./generatedMediaAuthority";
 import type { StudioMode } from "../types";
 
 const BUCKET = "media_library";
@@ -312,6 +315,19 @@ const readExistingAiStudioMediaRowByOutputIndex = async ({
   generationId: string;
   index: number;
 }): Promise<{ id: string; storagePath: string | null; fileType: "image" | "video" } | null> => {
+  const publicationMediaRow = await resolvePublishedGenerationMediaByIndex({
+    supabase,
+    generationId,
+    imageIndex: index,
+  });
+  if (publicationMediaRow) {
+    return {
+      id: publicationMediaRow.mediaFileId,
+      storagePath: publicationMediaRow.storagePath,
+      fileType: publicationMediaRow.fileType,
+    };
+  }
+
   const { data: canonicalOutput, error: canonicalOutputError } = await supabase
     .from("ai_generation_outputs")
     .select("media_file_id")

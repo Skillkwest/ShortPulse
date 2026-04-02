@@ -4,9 +4,11 @@ import { readSupabaseUserId, type ensureSupabaseQueryClient } from "../../../lib
 type SupabaseClient = ReturnType<typeof ensureSupabaseQueryClient>;
 
 type MediaFileRow = {
+  id?: unknown;
   storage_path?: unknown;
   filename?: unknown;
   preview_storage_path?: unknown;
+  file_type?: unknown;
 };
 
 type GenerationOutputRow = {
@@ -24,6 +26,11 @@ type GenerationPublicationRow = {
 export type GeneratedMediaFileRecord = {
   storagePath: string;
   filename: string | null;
+};
+
+export type GeneratedMediaLibraryRow = GeneratedMediaFileRecord & {
+  mediaFileId: string;
+  fileType: "image" | "video";
 };
 
 const asTrimmedString = (value: unknown): string | null => {
@@ -78,6 +85,36 @@ const toGeneratedMediaFileRecord = (
   };
 };
 
+const toGeneratedMediaLibraryRow = (
+  row: MediaFileRow | null | undefined
+): GeneratedMediaLibraryRow | null => {
+  const mediaFileId = asTrimmedString(row?.id);
+  const baseRecord = toGeneratedMediaFileRecord(row);
+  if (!mediaFileId || !baseRecord) return null;
+  return {
+    mediaFileId,
+    storagePath: baseRecord.storagePath,
+    filename: baseRecord.filename,
+    fileType: asTrimmedString(row?.file_type)?.toLowerCase() === "video" ? "video" : "image",
+  };
+};
+
+const runMaybeSingleMediaLibraryQuery = async <TRow extends MediaFileRow>(args: {
+  runSelect: (
+    columns:
+      | "id, preview_storage_path, storage_path, filename, file_type"
+      | "id, storage_path, filename, file_type"
+  ) => Promise<{ data: TRow | null; error: unknown }>;
+}): Promise<TRow | null> => {
+  const primary = await args.runSelect(
+    "id, preview_storage_path, storage_path, filename, file_type"
+  );
+  if (!primary.error) return primary.data;
+  if (!isPreviewStoragePathSchemaError(primary.error)) return null;
+  const fallback = await args.runSelect("id, storage_path, filename, file_type");
+  return fallback.error ? null : fallback.data;
+};
+
 export const resolveGeneratedMediaFileRecordById = async ({
   supabase,
   mediaFileId,
@@ -95,6 +132,25 @@ export const resolveGeneratedMediaFileRecordById = async ({
         .maybeSingle()) as unknown as { data: MediaFileRow | null; error: unknown },
   });
   return toGeneratedMediaFileRecord(mediaRow);
+};
+
+export const resolveGeneratedMediaLibraryRowById = async ({
+  supabase,
+  mediaFileId,
+}: {
+  supabase: SupabaseClient;
+  mediaFileId: string;
+}): Promise<GeneratedMediaLibraryRow | null> => {
+  const mediaRow = await runMaybeSingleMediaLibraryQuery({
+    runSelect: async (columns) =>
+      (await supabase
+        .from("media_files")
+        .select(columns)
+        .eq("id", mediaFileId)
+        .limit(1)
+        .maybeSingle()) as unknown as { data: MediaFileRow | null; error: unknown },
+  });
+  return toGeneratedMediaLibraryRow(mediaRow);
 };
 
 export const resolveGenerationIdForRequestId = async ({
@@ -190,6 +246,60 @@ export const resolvePublishedGenerationOutputStoragePathByIndex = async ({
       mediaFileId,
     });
     return canonicalMediaRecord?.storagePath ?? null;
+  } catch {
+    return null;
+  }
+};
+
+export const resolvePublishedGenerationMediaByIndex = async ({
+  supabase,
+  generationId,
+  imageIndex,
+}: {
+  supabase: SupabaseClient;
+  generationId: string;
+  imageIndex: number;
+}): Promise<GeneratedMediaLibraryRow | null> => {
+  try {
+    const { data, error } = await supabase
+      .from("ai_generation_outputs")
+      .select("id, media_file_id")
+      .eq("generation_id", generationId)
+      .eq("output_index", imageIndex)
+      .limit(1)
+      .maybeSingle();
+    if (error || !data) return null;
+
+    const canonicalOutputRow = data as GenerationOutputRow;
+    const generationOutputId = asTrimmedString(canonicalOutputRow.id);
+    if (generationOutputId) {
+      const { data: publicationData, error: publicationError } = await supabase
+        .from("generation_publications")
+        .select("owned_media_file_id")
+        .eq("generation_output_id", generationOutputId)
+        .eq("publication_state", "published")
+        .limit(1)
+        .maybeSingle();
+      if (!publicationError && publicationData) {
+        const ownedMediaFileId = asTrimmedString(
+          (publicationData as GenerationPublicationRow).owned_media_file_id
+        );
+        if (ownedMediaFileId) {
+          const publicationMediaRow = await resolveGeneratedMediaLibraryRowById({
+            supabase,
+            mediaFileId: ownedMediaFileId,
+          });
+          if (publicationMediaRow) return publicationMediaRow;
+        }
+      }
+    }
+
+    const mediaFileId = asTrimmedString(canonicalOutputRow.media_file_id);
+    if (!mediaFileId) return null;
+    return await resolveGeneratedMediaLibraryRowById({
+      supabase,
+      mediaFileId,
+    });
   } catch {
     return null;
   }

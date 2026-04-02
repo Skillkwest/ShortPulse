@@ -1,6 +1,7 @@
 import { getSupabaseAdmin } from "../supabaseAdmin";
 import { lookupLatestGenerationAttempt } from "../generationAttempts";
 import { isMissingGenerationAttemptSchemaError } from "../generationBilling/errorGuards";
+import { readGenerationProjectionQueueContext } from "../generationProjection";
 
 const QUEUE_TABLE = "ai_generation_submit_queue";
 
@@ -562,23 +563,37 @@ export const readGenerationQueueStatus = async ({
     sourceRef ??
     readSourceRefFromGenerationMetadata(generationRow?.metadata);
 
+  const projectionContext = resolvedGenerationId
+    ? await readGenerationProjectionQueueContext({
+        userId,
+        generationId: resolvedGenerationId,
+        supabaseAdmin: supabase,
+      }).catch(() => null)
+    : null;
+
   const requestId =
+    projectionContext?.requestId ??
+    projectionContext?.providerRequestId ??
     asString(generationRow?.request_id) ??
     (await readAttemptRequestIdForGeneration({
       userId,
       generationId: resolvedGenerationId,
     }));
-  const generationStatus = asString(generationRow?.status)?.toLowerCase();
+  const generationStatus =
+    projectionContext?.taskState?.toLowerCase() ??
+    projectionContext?.status?.toLowerCase() ??
+    asString(generationRow?.status)?.toLowerCase();
   const queueStatus = parseQueueStatus(queueRow?.status);
+  const projectionQueueState = asString(projectionContext?.queueState)?.toLowerCase();
 
   if (requestId) {
-    const dispatchedModelId = asString(generationRow?.model_id);
+    const dispatchedModelId = projectionContext?.modelId ?? asString(generationRow?.model_id);
     return {
       status: "dispatched",
       generationId: resolvedGenerationId ?? generationId ?? "",
       sourceRef: resolvedSourceRef ?? null,
       requestId,
-      provider: asString(generationRow?.provider) ?? "fal",
+      provider: projectionContext?.provider ?? asString(generationRow?.provider) ?? "fal",
       ...(dispatchedModelId ? { modelId: dispatchedModelId } : {}),
     };
   }
@@ -588,7 +603,11 @@ export const readGenerationQueueStatus = async ({
       status: "failed",
       generationId: resolvedGenerationId ?? generationId ?? "",
       sourceRef: resolvedSourceRef ?? null,
-      message: asString(generationRow?.error_message) ?? "Generation failed before dispatch.",
+      message:
+        projectionContext?.errorMessageShort ??
+        projectionContext?.errorDetail ??
+        asString(generationRow?.error_message) ??
+        "Generation failed before dispatch.",
     };
   }
 
@@ -620,6 +639,24 @@ export const readGenerationQueueStatus = async ({
       generationId: resolvedGenerationId ?? generationId ?? "",
       sourceRef: resolvedSourceRef ?? null,
       retryAfterMs: QUEUE_STATUS_DISPATCHING_RETRY_MS,
+    };
+  }
+
+  if (projectionQueueState === "dispatching") {
+    return {
+      status: "dispatching",
+      generationId: resolvedGenerationId ?? generationId ?? "",
+      sourceRef: resolvedSourceRef ?? null,
+      retryAfterMs: QUEUE_STATUS_DISPATCHING_RETRY_MS,
+    };
+  }
+
+  if (projectionQueueState === "queued") {
+    return {
+      status: "queued",
+      generationId: resolvedGenerationId ?? generationId ?? "",
+      sourceRef: resolvedSourceRef ?? null,
+      retryAfterMs: QUEUE_STATUS_QUEUED_RETRY_MS,
     };
   }
 

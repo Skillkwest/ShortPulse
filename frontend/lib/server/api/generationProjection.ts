@@ -53,6 +53,19 @@ export type GenerationProjectionStatusContext = {
   errorDetail: string | null;
 };
 
+export type GenerationProjectionQueueContext = {
+  generationId: string;
+  requestId: string | null;
+  provider: string | null;
+  providerRequestId: string | null;
+  modelId: string | null;
+  status: string | null;
+  taskState: string | null;
+  queueState: string | null;
+  errorMessageShort: string | null;
+  errorDetail: string | null;
+};
+
 export const upsertGenerationProjection = async ({
   generationId,
   userId,
@@ -177,4 +190,58 @@ export const readGenerationProjectionStatusContext = async ({
   }
 
   return null;
+};
+
+export const readGenerationProjectionQueueContext = async ({
+  userId,
+  generationId,
+  supabaseAdmin,
+}: {
+  userId: string;
+  generationId: string;
+  supabaseAdmin?: ReturnType<typeof getSupabaseAdmin>;
+}): Promise<GenerationProjectionQueueContext | null> => {
+  let adminClient = supabaseAdmin;
+  if (!adminClient) {
+    adminClient = getSupabaseAdmin();
+  }
+
+  const { data, error } = await adminClient
+    .from("generation_projection")
+    .select(
+      [
+        "generation_id",
+        "request_id",
+        "provider",
+        "provider_request_id",
+        "model_id",
+        "status",
+        "task_state",
+        "queue_state",
+        "error_message_short",
+        "error_detail",
+      ].join(", ")
+    )
+    .eq("user_id", userId)
+    .eq("generation_id", generationId)
+    .limit(1)
+    .maybeSingle();
+  if (error || !data || typeof data !== "object" || Array.isArray(data)) return null;
+
+  const row = data as Record<string, unknown>;
+  const resolvedGenerationId = asString(row.generation_id);
+  if (!resolvedGenerationId) return null;
+
+  return {
+    generationId: resolvedGenerationId,
+    requestId: asString(row.request_id),
+    provider: asString(row.provider),
+    providerRequestId: asString(row.provider_request_id),
+    modelId: asString(row.model_id),
+    status: asString(row.status),
+    taskState: asString(row.task_state),
+    queueState: asString(row.queue_state),
+    errorMessageShort: asString(row.error_message_short),
+    errorDetail: asString(row.error_detail),
+  };
 };

@@ -238,9 +238,11 @@ describe("generationQueue/service.readGenerationQueueStatus", () => {
   const createStatusSupabaseMock = ({
     queueRow,
     generationRow,
+    projectionRow,
   }: {
     queueRow?: Record<string, unknown> | null;
     generationRow?: Record<string, unknown> | null;
+    projectionRow?: Record<string, unknown> | null;
   }) => {
     const queueMaybeSingle = vi.fn(async () => ({ data: queueRow ?? null, error: null }));
     const queueEq2 = vi.fn(() => ({ maybeSingle: queueMaybeSingle }));
@@ -262,6 +264,15 @@ describe("generationQueue/service.readGenerationQueueStatus", () => {
     const generationEq1 = vi.fn(() => ({ eq: generationEq2, contains: generationContains }));
     const generationSelect = vi.fn(() => ({ eq: generationEq1, contains: generationContains }));
 
+    const projectionMaybeSingle = vi.fn(async () => ({ data: projectionRow ?? null, error: null }));
+    const projectionLimit = vi.fn(() => ({ maybeSingle: projectionMaybeSingle }));
+    const projectionEq2 = vi.fn(() => ({
+      limit: projectionLimit,
+      maybeSingle: projectionMaybeSingle,
+    }));
+    const projectionEq1 = vi.fn(() => ({ eq: projectionEq2 }));
+    const projectionSelect = vi.fn(() => ({ eq: projectionEq1 }));
+
     return {
       from: vi.fn((tableName: string) => {
         if (tableName === "ai_generation_submit_queue") {
@@ -269,6 +280,9 @@ describe("generationQueue/service.readGenerationQueueStatus", () => {
         }
         if (tableName === "ai_generations") {
           return { select: generationSelect };
+        }
+        if (tableName === "generation_projection") {
+          return { select: projectionSelect };
         }
         throw new Error(`Unexpected table: ${tableName}`);
       }),
@@ -373,6 +387,115 @@ describe("generationQueue/service.readGenerationQueueStatus", () => {
     expect(lookupLatestGenerationAttemptMock).toHaveBeenCalledWith({
       userId: "user-1",
       generationId: "gen-3",
+    });
+  });
+
+  it("prefers generation_projection request ids before generation-attempt lookup", async () => {
+    getSupabaseAdminMock.mockReturnValue(
+      createStatusSupabaseMock({
+        queueRow: null,
+        generationRow: {
+          id: "gen-projection-1",
+          status: "running",
+          request_id: null,
+          provider: "fal",
+          model_id: "fal-ai/bytedance/seedream/v4.5/edit",
+          metadata: { source_ref: "src-projection-1" },
+        },
+        projectionRow: {
+          generation_id: "gen-projection-1",
+          request_id: "req-from-projection",
+          provider: "fal",
+          model_id: "fal-ai/bytedance/seedream/v4.5/edit",
+          task_state: "running",
+          queue_state: "dispatched",
+        },
+      })
+    );
+
+    await expect(
+      readGenerationQueueStatus({
+        userId: "user-1",
+        generationId: "gen-projection-1",
+      })
+    ).resolves.toEqual({
+      status: "dispatched",
+      generationId: "gen-projection-1",
+      sourceRef: "src-projection-1",
+      requestId: "req-from-projection",
+      provider: "fal",
+      modelId: "fal-ai/bytedance/seedream/v4.5/edit",
+    });
+    expect(lookupLatestGenerationAttemptMock).not.toHaveBeenCalled();
+  });
+
+  it("returns projected terminal failure before legacy queue reconstruction", async () => {
+    getSupabaseAdminMock.mockReturnValue(
+      createStatusSupabaseMock({
+        queueRow: null,
+        generationRow: {
+          id: "gen-projection-fail",
+          status: "running",
+          request_id: null,
+          provider: "fal",
+          model_id: "fal-ai/bytedance/seedream/v4.5/edit",
+          metadata: { source_ref: "src-projection-fail" },
+        },
+        projectionRow: {
+          generation_id: "gen-projection-fail",
+          status: "ready",
+          task_state: "fail",
+          queue_state: "dispatched",
+          error_message_short: "Projection terminal failure",
+          error_detail: "provider failed",
+        },
+      })
+    );
+
+    await expect(
+      readGenerationQueueStatus({
+        userId: "user-1",
+        generationId: "gen-projection-fail",
+      })
+    ).resolves.toEqual({
+      status: "failed",
+      generationId: "gen-projection-fail",
+      sourceRef: "src-projection-fail",
+      message: "Projection terminal failure",
+    });
+  });
+
+  it("returns queued from generation_projection when legacy queue rows are absent", async () => {
+    getSupabaseAdminMock.mockReturnValue(
+      createStatusSupabaseMock({
+        queueRow: null,
+        generationRow: {
+          id: "gen-projection-queued",
+          status: "pending",
+          request_id: null,
+          provider: "fal",
+          model_id: "fal-ai/bytedance/seedream/v4.5/edit",
+          metadata: { source_ref: "src-projection-queued" },
+        },
+        projectionRow: {
+          generation_id: "gen-projection-queued",
+          status: "ready",
+          task_state: "pending",
+          queue_state: "queued",
+        },
+      })
+    );
+
+    await expect(
+      readGenerationQueueStatus({
+        userId: "user-1",
+        generationId: "gen-projection-queued",
+      })
+    ).resolves.toEqual({
+      status: "queued",
+      generationId: "gen-projection-queued",
+      sourceRef: "src-projection-queued",
+      retryAfterMs: 2000,
     });
   });
 });

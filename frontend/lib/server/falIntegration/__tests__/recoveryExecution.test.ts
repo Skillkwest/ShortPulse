@@ -9,6 +9,9 @@ const writeAppErrorLogMock = vi.fn();
 const readExistingRecoveryMediaRowsMock = vi.fn();
 const persistRecoveryMediaFilesForGenerationMock = vi.fn();
 const persistGenerationOutputRecordsMock = vi.fn();
+const readPersistedGenerationOutputsMock = vi.fn();
+const upsertGenerationProjectionMock = vi.fn();
+const upsertGenerationPublicationMock = vi.fn();
 const probeGenerationProviderResultMock = vi.fn();
 
 vi.mock("../../api/supabaseAdmin", () => ({
@@ -30,6 +33,16 @@ vi.mock("../../api/generationAttempts", () => ({
 vi.mock("../../api/generationOutputs", () => ({
   persistGenerationOutputRecords: (...args: unknown[]) =>
     persistGenerationOutputRecordsMock(...args),
+  readPersistedGenerationOutputs: (...args: unknown[]) =>
+    readPersistedGenerationOutputsMock(...args),
+}));
+
+vi.mock("../../api/generationProjection", () => ({
+  upsertGenerationProjection: (...args: unknown[]) => upsertGenerationProjectionMock(...args),
+}));
+
+vi.mock("../../api/generationPublications", () => ({
+  upsertGenerationPublication: (...args: unknown[]) => upsertGenerationPublicationMock(...args),
 }));
 
 vi.mock("../../api/appErrorLogs", () => ({
@@ -149,6 +162,16 @@ describe("executeGenerationRecovery", () => {
     readExistingRecoveryMediaRowsMock.mockResolvedValue([]);
     persistRecoveryMediaFilesForGenerationMock.mockResolvedValue(["media-1"]);
     persistGenerationOutputRecordsMock.mockResolvedValue(undefined);
+    readPersistedGenerationOutputsMock.mockResolvedValue([
+      {
+        id: "output-1",
+        outputIndex: 0,
+        resultUrl: "https://cdn.shortpulse.test/recovered.png",
+        mediaFileId: null,
+      },
+    ]);
+    upsertGenerationProjectionMock.mockResolvedValue(undefined);
+    upsertGenerationPublicationMock.mockResolvedValue(undefined);
     probeGenerationProviderResultMock.mockResolvedValue({
       state: "running",
       payload: null,
@@ -189,6 +212,64 @@ describe("executeGenerationRecovery", () => {
         providerRequestId: "req-1",
         userId: "user-1",
         status: "succeeded",
+      })
+    );
+  });
+
+  it("emits media-visible telemetry after successful recovery persistence", async () => {
+    const scenario = createAiGenerationsAdmin([
+      {
+        ...baseGenerationRow,
+        recovery_attempts: 2,
+      },
+    ]);
+    getSupabaseAdminMock.mockReturnValue(scenario.admin);
+    persistRecoveryMediaFilesForGenerationMock.mockResolvedValue(["media-1", "media-2"]);
+    readPersistedGenerationOutputsMock.mockResolvedValue([
+      {
+        id: "output-1",
+        outputIndex: 0,
+        resultUrl: "https://cdn.shortpulse.test/recovered.png",
+        mediaFileId: "media-1",
+      },
+    ]);
+
+    const result = await executeGenerationRecovery({
+      actor: "reconciler",
+      generationId: "gen-1",
+      routeLabel: "test/recovery",
+      observation: {
+        state: "completed",
+        payload: {
+          data: {
+            images: [{ url: "https://cdn.shortpulse.test/generated-a.png" }],
+          },
+        },
+        mediaUrls: ["https://cdn.shortpulse.test/generated-a.png"],
+      },
+    });
+
+    expect(result.state).toBe("recovered");
+    expect(writeAppErrorLogMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        source: "telemetry.generation.recovery.media_visible",
+        message: "media_visible",
+        requestId: "req-1",
+        userId: "user-1",
+        metadata: expect.objectContaining({
+          generation_id: "gen-1",
+          provider_request_id: "req-1",
+          model_id: "fal-ai/nano-banana-pro",
+          provider: "fal",
+          recovery_actor: "reconciler",
+          recovery_attempts: 2,
+          result_url_count: 1,
+          media_file_count: 2,
+          autosave_enabled: true,
+          used_existing_media_rows: false,
+          used_observation_payload: true,
+          used_observation_media_urls: true,
+        }),
       })
     );
   });
@@ -478,6 +559,28 @@ describe("executeGenerationRecovery", () => {
         mediaFileIds: ["media-1", "media-2"],
       })
     );
+    expect(upsertGenerationPublicationMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        generationId: "gen-1",
+        generationOutputId: "output-1",
+        publicationState: "published",
+        visibleInAiStudio: true,
+        visibleInReferenceGrid: true,
+      })
+    );
+    expect(upsertGenerationProjectionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        generationId: "gen-1",
+        requestId: "req-1",
+        providerRequestId: "req-1",
+        status: "ready",
+        taskState: "success",
+        saveState: "idle",
+        publicationState: "published",
+        resultUrls: ["https://cdn.shortpulse.test/recovered.png"],
+        savedMediaIds: ["media-1", "media-2"],
+      })
+    );
     expect(scenario.updatePayloads).toHaveLength(1);
     expect(scenario.updatePayloads[0]).toEqual(
       expect.objectContaining({
@@ -556,6 +659,25 @@ describe("executeGenerationRecovery", () => {
         providerRequestId: "req-1",
         resultUrls: ["https://cdn.shortpulse.test/recovered.png"],
         mediaFileIds: [],
+      })
+    );
+    expect(upsertGenerationPublicationMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        generationId: "gen-1",
+        generationOutputId: "output-1",
+        publicationState: "published",
+      })
+    );
+    expect(upsertGenerationProjectionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        generationId: "gen-1",
+        requestId: "req-1",
+        status: "ready",
+        taskState: "success",
+        saveState: "idle",
+        publicationState: "published",
+        resultUrls: ["https://cdn.shortpulse.test/recovered.png"],
+        savedMediaIds: [],
       })
     );
     expect(settleGenerationOutcomeMock).toHaveBeenCalledWith(

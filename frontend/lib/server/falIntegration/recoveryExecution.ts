@@ -3,11 +3,18 @@
  * Centralizes retrieval, persistence, settlement, and lifecycle transitions.
  */
 import { settleGenerationOutcome } from "../api/generationBilling";
-import { persistGenerationOutputRecords } from "../api/generationOutputs";
+import {
+  persistGenerationOutputRecords,
+  readPersistedGenerationOutputs,
+} from "../api/generationOutputs";
+import { upsertGenerationProjection } from "../api/generationProjection";
+import { upsertGenerationPublication } from "../api/generationPublications";
 import { readFalRuntimeFlags } from "../api/falRuntimeFlags";
 import { writeAppErrorLog } from "../api/appErrorLogs";
 import { getSupabaseAdmin } from "../api/supabaseAdmin";
 import {
+  GENERATION_RECOVERY_MEDIA_VISIBLE_EVENT,
+  GENERATION_RECOVERY_MEDIA_VISIBLE_TELEMETRY_SOURCE,
   GENERATION_RECOVERY_RUNNING_TIMEOUT_EVENT,
   GENERATION_RECOVERY_RUNNING_TIMEOUT_TELEMETRY_SOURCE,
 } from "../api/errorTelemetryPolicy";
@@ -80,6 +87,31 @@ type ExecuteRecoveryInput = {
 const asObject = (value: unknown): JsonObject =>
   value && typeof value === "object" && !Array.isArray(value) ? (value as JsonObject) : {};
 
+const asOptionalString = (value: unknown): string | null => {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  return trimmed.length ? trimmed : null;
+};
+
+const readMetadataObject = (metadata: JsonObject, ...keys: string[]): JsonObject => {
+  for (const key of keys) {
+    const value = metadata[key];
+    if (value && typeof value === "object" && !Array.isArray(value)) {
+      return value as JsonObject;
+    }
+  }
+  return {};
+};
+
+const readMetadataBoolean = (metadata: JsonObject, ...keys: string[]): boolean | undefined => {
+  for (const key of keys) {
+    if (typeof metadata[key] === "boolean") {
+      return metadata[key] as boolean;
+    }
+  }
+  return undefined;
+};
+
 const resolveGenerationAgeSeconds = (createdAtIso: string, now: Date): number => {
   const createdAtMs = Date.parse(createdAtIso);
   if (!Number.isFinite(createdAtMs)) return Number.POSITIVE_INFINITY;
@@ -138,6 +170,182 @@ const logRecoveryAutosaveDecisionEvent = async ({
   } catch {
     // best-effort observability only
   }
+};
+
+const logRecoveryMediaVisibleEvent = async ({
+  actor,
+  autosaveEnabled,
+  generation,
+  mediaFileCount,
+  mediaVisibleAt,
+  providerTerminalObservedAtIso,
+  recoveredUrls,
+  routeLabel,
+  usedExistingMediaRows,
+  usedObservationMediaUrls,
+  usedObservationPayload,
+}: {
+  actor: RecoveryActor;
+  autosaveEnabled: boolean;
+  generation: {
+    id: string;
+    user_id: string;
+    request_id: string | null;
+    model_id: string;
+    provider: string;
+    created_at: string;
+    recovery_attempts: number;
+  };
+  mediaFileCount: number;
+  mediaVisibleAt: Date;
+  providerTerminalObservedAtIso: string;
+  recoveredUrls: string[];
+  routeLabel: string;
+  usedExistingMediaRows: boolean;
+  usedObservationMediaUrls: boolean;
+  usedObservationPayload: boolean;
+}) => {
+  try {
+    const mediaVisibleAtIso = mediaVisibleAt.toISOString();
+    const providerTerminalObservedAtMs = Date.parse(providerTerminalObservedAtIso);
+    const mediaVisibleAtMs = mediaVisibleAt.getTime();
+    const generationCreatedAtMs = Date.parse(generation.created_at);
+    await writeAppErrorLog({
+      source: GENERATION_RECOVERY_MEDIA_VISIBLE_TELEMETRY_SOURCE,
+      scope: "generation",
+      severity: "low",
+      message: GENERATION_RECOVERY_MEDIA_VISIBLE_EVENT,
+      route: routeLabel,
+      endpoint: routeLabel.startsWith("/") ? routeLabel : `/${routeLabel}`,
+      requestId: generation.request_id,
+      userId: generation.user_id,
+      metadata: {
+        generation_id: generation.id,
+        provider_request_id: generation.request_id,
+        model_id: generation.model_id,
+        provider: generation.provider,
+        recovery_actor: actor,
+        recovery_attempts: generation.recovery_attempts,
+        result_url_count: recoveredUrls.length,
+        media_file_count: mediaFileCount,
+        provider_terminal_state: "completed",
+        provider_terminal_observed_at: providerTerminalObservedAtIso,
+        media_visible_at: mediaVisibleAtIso,
+        provider_terminal_to_media_visible_ms: Number.isFinite(providerTerminalObservedAtMs)
+          ? Math.max(0, mediaVisibleAtMs - providerTerminalObservedAtMs)
+          : null,
+        generation_created_at: generation.created_at,
+        generation_age_ms: Number.isFinite(generationCreatedAtMs)
+          ? Math.max(0, mediaVisibleAtMs - generationCreatedAtMs)
+          : null,
+        autosave_enabled: autosaveEnabled,
+        used_existing_media_rows: usedExistingMediaRows,
+        used_observation_payload: usedObservationPayload,
+        used_observation_media_urls: usedObservationMediaUrls,
+      },
+    });
+  } catch {
+    // best-effort telemetry only
+  }
+};
+
+const syncRecoveredGenerationProjection = async ({
+  actor,
+  autosaveDecision,
+  generation,
+  mediaFileIds,
+  nowIso,
+  recoveredUrls,
+}: {
+  actor: RecoveryActor;
+  autosaveDecision: "autosave_skipped" | "auto_persisted";
+  generation: {
+    id: string;
+    user_id: string;
+    request_id: string | null;
+    provider: string;
+    model_id: string;
+    prompt_text: string;
+    created_at: string;
+    metadata: JsonObject;
+  };
+  mediaFileIds: string[];
+  nowIso: string;
+  recoveredUrls: string[];
+}): Promise<void> => {
+  const outputRows = await readPersistedGenerationOutputs({
+    generationId: generation.id,
+    userId: generation.user_id,
+  });
+  const normalizedResultUrls = outputRows.length
+    ? outputRows.map((row) => row.resultUrl)
+    : recoveredUrls;
+  const normalizedSavedMediaIds = mediaFileIds
+    .map((value) => asOptionalString(value))
+    .filter((value): value is string => Boolean(value));
+  const generationMetadata = asObject(generation.metadata);
+  const hiddenInReferenceGrid =
+    readMetadataBoolean(generationMetadata, "hidden_in_reference_grid", "hiddenInReferenceGrid") ??
+    false;
+
+  await Promise.all(
+    outputRows.map((row) => {
+      if (!row.id) return Promise.resolve();
+      return upsertGenerationPublication({
+        generationId: generation.id,
+        generationOutputId: row.id,
+        userId: generation.user_id,
+        publicationState: "published",
+        reusable: true,
+        visibleInAiStudio: true,
+        visibleInReferenceGrid: !hiddenInReferenceGrid,
+        ownedMediaFileId: row.mediaFileId,
+        previewUrl: row.resultUrl,
+        fullUrl: row.resultUrl,
+        publishedAt: nowIso,
+        metadata: {
+          recovery_actor: actor,
+          recovery_execution: true,
+          autosave_decision: autosaveDecision,
+        },
+      });
+    })
+  );
+
+  await upsertGenerationProjection({
+    generationId: generation.id,
+    userId: generation.user_id,
+    requestId: generation.request_id,
+    provider: generation.provider,
+    providerRequestId: generation.request_id,
+    status: "ready",
+    taskState: "success",
+    displayPrompt: generation.prompt_text,
+    modelId: generation.model_id,
+    previewUrl: normalizedResultUrls[0] ?? null,
+    errorMessage: null,
+    errorMessageShort: null,
+    errorDetail: null,
+    saveState: "idle",
+    hiddenInReferenceGrid,
+    referenceGridVisible: !hiddenInReferenceGrid,
+    publicationState: "published",
+    resultUrls: normalizedResultUrls,
+    savedMediaIds: normalizedSavedMediaIds,
+    generationReplay: readMetadataObject(
+      generationMetadata,
+      "generation_replay",
+      "generationReplay"
+    ),
+    characterContext: readMetadataObject(
+      generationMetadata,
+      "character_context",
+      "characterContext"
+    ),
+    styleContext: readMetadataObject(generationMetadata, "style_context", "styleContext"),
+    startedAt: generation.created_at,
+    completedAt: nowIso,
+  });
 };
 
 /**
@@ -271,6 +479,7 @@ export const executeGenerationRecovery = async ({
     provider: generation.provider,
     modelId: generation.model_id,
   });
+  const providerTerminalObservedAtIso = nowIso;
 
   if (currentObservation.state === "running") {
     const hardTimeoutReached =
@@ -353,7 +562,7 @@ export const executeGenerationRecovery = async ({
       };
     }
 
-    const nextDelaySeconds = resolveRetryDelaySeconds(Math.max(attempts, 1));
+    const nextDelaySeconds = resolveRetryDelaySeconds(Math.max(attempts, 1), "running");
     const queuePlanBase = buildRecoveryQueuePlan({
       attempts,
       effectiveMaxAttempts,
@@ -494,7 +703,10 @@ export const executeGenerationRecovery = async ({
         generation_id: generation.id,
       },
     });
-    const nextDelaySeconds = resolveRetryDelaySeconds(Math.max(attempts, 1));
+    const nextDelaySeconds = resolveRetryDelaySeconds(
+      Math.max(attempts, 1),
+      "terminal_success_no_media"
+    );
     const queuePlan = buildRecoveryQueuePlan({
       attempts,
       effectiveMaxAttempts,
@@ -573,6 +785,14 @@ export const executeGenerationRecovery = async ({
         autosave_decision_reason: autosavePolicyDecision.reason,
         recovery_execution: true,
       },
+    });
+    await syncRecoveredGenerationProjection({
+      actor,
+      autosaveDecision: "autosave_skipped",
+      generation,
+      mediaFileIds: [],
+      nowIso,
+      recoveredUrls,
     });
     await settleGenerationOutcome({
       userId: generation.user_id,
@@ -657,6 +877,14 @@ export const executeGenerationRecovery = async ({
       recovery_execution: true,
     },
   });
+  await syncRecoveredGenerationProjection({
+    actor,
+    autosaveDecision: "auto_persisted",
+    generation,
+    mediaFileIds,
+    nowIso,
+    recoveredUrls,
+  });
   const metadata = asObject(generation.metadata);
   await settleGenerationOutcome({
     userId: generation.user_id,
@@ -681,6 +909,19 @@ export const executeGenerationRecovery = async ({
     autosaveEnabled: mediaAutosaveEnabled,
     autosaveDecision: "auto_persisted",
     decisionReason: autosavePolicyDecision.reason,
+  });
+  await logRecoveryMediaVisibleEvent({
+    actor,
+    autosaveEnabled: mediaAutosaveEnabled,
+    generation,
+    mediaFileCount: mediaFileIds.length,
+    mediaVisibleAt: new Date(),
+    providerTerminalObservedAtIso,
+    recoveredUrls,
+    routeLabel,
+    usedExistingMediaRows: false,
+    usedObservationMediaUrls: currentObservation.mediaUrls.length > 0,
+    usedObservationPayload: Boolean(currentObservation.payload),
   });
   await applyRecoveryTransition({
     generation,

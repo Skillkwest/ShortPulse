@@ -835,221 +835,232 @@ export const createFalSubmitHandler = ({
       webhookCallbackUrl
     );
 
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
-    try {
-      await logGenerationFailure({
-        req,
-        routeLabel,
-        source: "telemetry.api.fal_submit.legacy_direct_submit",
-        message: "Generation is using the legacy inline submit path.",
-        statusCode: 200,
-        userId: charge.userId,
-        metadata: {
-          model_id: modelId,
-          source_ref: charge.sourceRef,
-          generation_submit_authority: "api",
-          generation_submit_path: "legacy_direct_submit",
-        },
-      });
-      const upstreamResult = await dispatchProviderSubmit({
-        provider: providerKey,
-        modelId,
-        targets: resolvedTargetsWithWebhook,
-        payload,
-        apiKey,
-        signal: controller.signal,
-        requestStartTimeoutSeconds: Math.max(1, Math.ceil(timeoutMs / 1000)),
-      });
-      const upstream = upstreamResult.response;
-      const data = upstreamResult.data;
-
-      let persistedGenerationId: string | null = null;
-
-      if (!upstream.ok) {
-        const upstreamErrorMessage =
-          (typeof data.error === "string" && data.error) ||
-          (typeof data.message === "string" && data.message) ||
-          (typeof data.msg === "string" && data.msg) ||
-          `${routeLabel} submit rejected`;
-        const kieMediaDiagnostics =
-          providerKey === "kie"
-            ? (upstreamResult.providerDiagnostics ??
-              collectKieSubmitMediaDiagnostics(payload as Record<string, unknown>))
-            : null;
-        await charge.refund("Auto-refund: Fal submit rejected.", {
-          upstream_status: upstream.status,
-          upstream_error: data,
-          upstream_target_url: upstreamResult.targetUrl,
-        });
+    const submitViaLegacyDirectPath = async (): Promise<void> => {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+      try {
         await logGenerationFailure({
           req,
           routeLabel,
-          source: "api.fal_submit.upstream_error",
-          message: upstreamErrorMessage,
-          statusCode: upstream.status,
+          source: "telemetry.api.fal_submit.legacy_direct_submit",
+          message: "Generation is using the legacy inline submit path.",
+          statusCode: 200,
           userId: charge.userId,
           metadata: {
             model_id: modelId,
-            upstream_payload: data,
-            upstream_target_url: upstreamResult.targetUrl,
-            upstream_target_index: upstreamResult.targetIndex,
-            ...(kieMediaDiagnostics ? { media_diagnostics: kieMediaDiagnostics } : {}),
+            source_ref: charge.sourceRef,
+            generation_submit_authority: "api",
+            generation_submit_path: "legacy_direct_submit",
           },
         });
-      } else {
-        const providerRequestId = upstreamResult.providerRequestId;
-        if (!providerRequestId) {
-          await charge.refund("Auto-refund: Fal submit missing request id.", {
+        const upstreamResult = await dispatchProviderSubmit({
+          provider: providerKey,
+          modelId,
+          targets: resolvedTargetsWithWebhook,
+          payload,
+          apiKey,
+          signal: controller.signal,
+          requestStartTimeoutSeconds: Math.max(1, Math.ceil(timeoutMs / 1000)),
+        });
+        const upstream = upstreamResult.response;
+        const data = upstreamResult.data;
+
+        let persistedGenerationId: string | null = null;
+
+        if (!upstream.ok) {
+          const upstreamErrorMessage =
+            (typeof data.error === "string" && data.error) ||
+            (typeof data.message === "string" && data.message) ||
+            (typeof data.msg === "string" && data.msg) ||
+            `${routeLabel} submit rejected`;
+          const kieMediaDiagnostics =
+            providerKey === "kie"
+              ? (upstreamResult.providerDiagnostics ??
+                collectKieSubmitMediaDiagnostics(payload as Record<string, unknown>))
+              : null;
+          await charge.refund("Auto-refund: Fal submit rejected.", {
             upstream_status: upstream.status,
-            upstream_payload: data,
+            upstream_error: data,
+            upstream_target_url: upstreamResult.targetUrl,
           });
           await logGenerationFailure({
             req,
             routeLabel,
-            source: "api.fal_submit.missing_request_id",
-            message: `${routeLabel} submit response did not include request_id`,
-            statusCode: 502,
+            source: "api.fal_submit.upstream_error",
+            message: upstreamErrorMessage,
+            statusCode: upstream.status,
             userId: charge.userId,
             metadata: {
               model_id: modelId,
               upstream_payload: data,
-            },
-          });
-          return res.status(502).json({
-            error: `${routeLabel} submit response did not include request_id`,
-          });
-        }
-        const markSubmittedResult = await charge.markSubmitted(providerRequestId, {
-          route: req.url ?? null,
-          upstream_status: upstream.status,
-          upstream_target_url: upstreamResult.targetUrl,
-          upstream_target_index: upstreamResult.targetIndex,
-          webhook_callback_url: webhookCallbackUrl,
-          webhook_registered: Boolean(webhookCallbackUrl),
-        });
-        const persistenceResult = await ensureSubmittedGenerationRecord({
-          userId: charge.userId,
-          modelId,
-          routeLabel,
-          payload,
-          providerRequestId,
-          sourceRef: charge.sourceRef,
-          submitTargetUrl: upstreamResult.targetUrl,
-          submitTargetIndex: upstreamResult.targetIndex,
-        });
-        if (!persistenceResult.ok) {
-          await logGenerationFailure({
-            req,
-            routeLabel,
-            source: "api.fal_submit.persist_generation_failed",
-            message: "Failed to persist ai_generations row after submit.",
-            statusCode: 500,
-            userId: charge.userId,
-            metadata: {
-              model_id: modelId,
-              provider_request_id: providerRequestId,
-              source_ref: charge.sourceRef,
-              persistence_error: persistenceResult.error,
+              upstream_target_url: upstreamResult.targetUrl,
+              upstream_target_index: upstreamResult.targetIndex,
+              ...(kieMediaDiagnostics ? { media_diagnostics: kieMediaDiagnostics } : {}),
             },
           });
         } else {
-          persistedGenerationId = persistenceResult.generationId ?? null;
-        }
-        if (!markSubmittedResult.ok) {
-          await logGenerationFailure({
-            req,
-            routeLabel,
-            source: "api.fal_submit.mark_submitted_failed",
-            message: "Accepted submit could not durably link billing state to provider request.",
-            statusCode: 500,
-            userId: charge.userId,
-            metadata: {
-              model_id: modelId,
-              billing_mode: charge.billingMode,
-              provider_request_id: providerRequestId,
-              source_ref: charge.sourceRef,
-              linkage_status: markSubmittedResult.status,
-              linkage_message: markSubmittedResult.message ?? null,
-              linkage_code: markSubmittedResult.code ?? null,
-              persistence_ok: persistenceResult.ok,
-              persistence_error: persistenceResult.ok ? null : persistenceResult.error,
-            },
-          });
-        }
-        if (!markSubmittedResult.ok || !persistenceResult.ok) {
-          await charge.refund("Auto-compensation: accepted submit could not be durably tracked.", {
-            provider_request_id: providerRequestId,
-            submit_link_status: markSubmittedResult.status,
-            submit_link_message: markSubmittedResult.message ?? null,
-            submit_link_code: markSubmittedResult.code ?? null,
-            persistence_ok: persistenceResult.ok,
-            persistence_error: persistenceResult.ok ? null : persistenceResult.error,
+          const providerRequestId = upstreamResult.providerRequestId;
+          if (!providerRequestId) {
+            await charge.refund("Auto-refund: Fal submit missing request id.", {
+              upstream_status: upstream.status,
+              upstream_payload: data,
+            });
+            await logGenerationFailure({
+              req,
+              routeLabel,
+              source: "api.fal_submit.missing_request_id",
+              message: `${routeLabel} submit response did not include request_id`,
+              statusCode: 502,
+              userId: charge.userId,
+              metadata: {
+                model_id: modelId,
+                upstream_payload: data,
+              },
+            });
+            res.status(502).json({
+              error: `${routeLabel} submit response did not include request_id`,
+            });
+            return;
+          }
+          const markSubmittedResult = await charge.markSubmitted(providerRequestId, {
+            route: req.url ?? null,
             upstream_status: upstream.status,
             upstream_target_url: upstreamResult.targetUrl,
             upstream_target_index: upstreamResult.targetIndex,
+            webhook_callback_url: webhookCallbackUrl,
+            webhook_registered: Boolean(webhookCallbackUrl),
           });
-          return res.status(500).json({
-            error:
-              "Unable to finalize generation tracking. Please verify recent outputs before retrying.",
-            code: "GENERATION_SUBMIT_TRACKING_FAILED",
+          const persistenceResult = await ensureSubmittedGenerationRecord({
+            userId: charge.userId,
+            modelId,
+            routeLabel,
+            payload,
+            providerRequestId,
+            sourceRef: charge.sourceRef,
+            submitTargetUrl: upstreamResult.targetUrl,
+            submitTargetIndex: upstreamResult.targetIndex,
           });
+          if (!persistenceResult.ok) {
+            await logGenerationFailure({
+              req,
+              routeLabel,
+              source: "api.fal_submit.persist_generation_failed",
+              message: "Failed to persist ai_generations row after submit.",
+              statusCode: 500,
+              userId: charge.userId,
+              metadata: {
+                model_id: modelId,
+                provider_request_id: providerRequestId,
+                source_ref: charge.sourceRef,
+                persistence_error: persistenceResult.error,
+              },
+            });
+          } else {
+            persistedGenerationId = persistenceResult.generationId ?? null;
+          }
+          if (!markSubmittedResult.ok) {
+            await logGenerationFailure({
+              req,
+              routeLabel,
+              source: "api.fal_submit.mark_submitted_failed",
+              message: "Accepted submit could not durably link billing state to provider request.",
+              statusCode: 500,
+              userId: charge.userId,
+              metadata: {
+                model_id: modelId,
+                billing_mode: charge.billingMode,
+                provider_request_id: providerRequestId,
+                source_ref: charge.sourceRef,
+                linkage_status: markSubmittedResult.status,
+                linkage_message: markSubmittedResult.message ?? null,
+                linkage_code: markSubmittedResult.code ?? null,
+                persistence_ok: persistenceResult.ok,
+                persistence_error: persistenceResult.ok ? null : persistenceResult.error,
+              },
+            });
+          }
+          if (!markSubmittedResult.ok || !persistenceResult.ok) {
+            await charge.refund(
+              "Auto-compensation: accepted submit could not be durably tracked.",
+              {
+                provider_request_id: providerRequestId,
+                submit_link_status: markSubmittedResult.status,
+                submit_link_message: markSubmittedResult.message ?? null,
+                submit_link_code: markSubmittedResult.code ?? null,
+                persistence_ok: persistenceResult.ok,
+                persistence_error: persistenceResult.ok ? null : persistenceResult.error,
+                upstream_status: upstream.status,
+                upstream_target_url: upstreamResult.targetUrl,
+                upstream_target_index: upstreamResult.targetIndex,
+              }
+            );
+            res.status(500).json({
+              error:
+                "Unable to finalize generation tracking. Please verify recent outputs before retrying.",
+              code: "GENERATION_SUBMIT_TRACKING_FAILED",
+            });
+            return;
+          }
         }
-      }
-      const responsePayload = {
-        ...data,
-        ...(upstreamResult.providerRequestId &&
-        typeof data.request_id !== "string" &&
-        typeof data.requestId !== "string"
-          ? { request_id: upstreamResult.providerRequestId }
-          : {}),
-        ...(persistedGenerationId != null ? { generationId: persistedGenerationId } : {}),
-      };
-      return res.status(upstream.status).json(responsePayload);
-    } catch (error) {
-      if (error instanceof ProviderSubmitValidationError) {
-        await charge.refund("Auto-refund: provider submit preflight validation failed.", {
-          code: error.code,
-          detail: error.detail,
+        const responsePayload = {
+          ...data,
+          ...(upstreamResult.providerRequestId &&
+          typeof data.request_id !== "string" &&
+          typeof data.requestId !== "string"
+            ? { request_id: upstreamResult.providerRequestId }
+            : {}),
+          ...(persistedGenerationId != null ? { generationId: persistedGenerationId } : {}),
+        };
+        res.status(upstream.status).json(responsePayload);
+      } catch (error) {
+        if (error instanceof ProviderSubmitValidationError) {
+          await charge.refund("Auto-refund: provider submit preflight validation failed.", {
+            code: error.code,
+            detail: error.detail,
+          });
+          await logGenerationFailure({
+            req,
+            routeLabel,
+            source: "api.fal_submit.validation_failed",
+            message: error.message,
+            statusCode: error.statusCode,
+            userId: charge.userId,
+            metadata: {
+              model_id: modelId,
+              code: error.code,
+              detail: error.detail,
+            },
+          });
+          res.status(error.statusCode).json({
+            error: error.message,
+            code: error.code,
+            detail: error.detail ?? null,
+          });
+          return;
+        }
+        await charge.refund("Auto-refund: Fal submit transport failure.", {
+          error: String(error),
         });
         await logGenerationFailure({
           req,
           routeLabel,
-          source: "api.fal_submit.validation_failed",
-          message: error.message,
-          statusCode: error.statusCode,
+          source: "api.fal_submit.transport_error",
+          message: `${routeLabel} submit failed`,
+          statusCode: 500,
           userId: charge.userId,
+          stack: error instanceof Error ? (error.stack ?? null) : null,
           metadata: {
             model_id: modelId,
-            code: error.code,
-            detail: error.detail,
+            detail: String(error),
           },
         });
-        return res.status(error.statusCode).json({
-          error: error.message,
-          code: error.code,
-          detail: error.detail ?? null,
-        });
+        res.status(500).json({ error: `${routeLabel} submit failed`, detail: String(error) });
+      } finally {
+        clearTimeout(timeoutId);
       }
-      await charge.refund("Auto-refund: Fal submit transport failure.", {
-        error: String(error),
-      });
-      await logGenerationFailure({
-        req,
-        routeLabel,
-        source: "api.fal_submit.transport_error",
-        message: `${routeLabel} submit failed`,
-        statusCode: 500,
-        userId: charge.userId,
-        stack: error instanceof Error ? (error.stack ?? null) : null,
-        metadata: {
-          model_id: modelId,
-          detail: String(error),
-        },
-      });
-      return res.status(500).json({ error: `${routeLabel} submit failed`, detail: String(error) });
-    } finally {
-      clearTimeout(timeoutId);
-    }
+    };
+
+    await submitViaLegacyDirectPath();
+    return;
   };
 };

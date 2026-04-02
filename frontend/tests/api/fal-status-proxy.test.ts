@@ -187,6 +187,13 @@ describe("createFalStatusHandler", () => {
     expect(payload.request_id).toBe("req-1");
     expect(payload.generationId).toBe("gen-1");
     expect(payload.data?.images?.[0]?.url).toBe("https://cdn.shortpulse.test/seedream-image.png");
+    expect(payload.shortpulseLifecycle).toEqual(
+      expect.objectContaining({
+        taskState: "success",
+        isTerminal: true,
+        resultUrls: ["https://cdn.shortpulse.test/seedream-image.png"],
+      })
+    );
     expect(persistGenerationObservationMock).toHaveBeenCalledWith(
       expect.objectContaining({
         generationId: "gen-1",

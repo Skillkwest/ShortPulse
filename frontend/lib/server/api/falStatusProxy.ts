@@ -43,6 +43,7 @@ import {
   providerPayloadHasMedia,
   readProviderContentPolicyMessage,
   readProviderLifecycleStatus,
+  readProviderMediaUrls,
   readProviderResponseUrl,
 } from "../providerIntegration/statusProviderPayload";
 
@@ -408,6 +409,11 @@ export const createFalStatusHandler = ({
         payload: JsonObject;
         payloadStatus: string;
       }) => {
+        const resultUrls = readProviderMediaUrls({
+          provider: providerKey,
+          modelId,
+          payload,
+        });
         await persistPollObservation({
           observationType: "completed",
           payload,
@@ -420,6 +426,7 @@ export const createFalStatusHandler = ({
           shortpulseLifecycle: buildShortPulseLifecycleHint({
             taskState: "success",
             isTerminal: true,
+            resultUrls,
             providerState: payloadStatus,
           }),
         });

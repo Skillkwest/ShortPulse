@@ -29,6 +29,26 @@ type SubmitPersistenceResult =
       error: string;
     };
 
+const buildDirectSubmitAttemptMetadata = ({
+  sourceRef,
+  submitTargetUrl,
+  submitTargetIndex,
+  observedAt,
+}: {
+  sourceRef: string;
+  submitTargetUrl: string;
+  submitTargetIndex: number;
+  observedAt: string;
+}): JsonObject => ({
+  source_ref: sourceRef,
+  generation_submit_authority: "api",
+  generation_submit_path: "legacy_direct_submit",
+  submit_target_url: submitTargetUrl,
+  submit_target_index: submitTargetIndex,
+  direct_submit_at: observedAt,
+  dispatch_source: "direct_submit",
+});
+
 const asString = (value: unknown): string | null => {
   if (typeof value !== "string") return null;
   const trimmed = value.trim();
@@ -171,6 +191,8 @@ export const ensureSubmittedGenerationRecord = async (
 
     const metadataPatch: JsonObject = {
       source_ref: input.sourceRef,
+      generation_submit_authority: "api",
+      generation_submit_path: "legacy_direct_submit",
       provider_request_id: input.providerRequestId,
       route_label: input.routeLabel,
       submit_target_url: input.submitTargetUrl,
@@ -247,13 +269,12 @@ export const ensureSubmittedGenerationRecord = async (
             dispatchSource: "direct_submit",
             submitRoute: input.routeLabel,
             observedAt: nowIso,
-            metadata: {
-              source_ref: input.sourceRef,
-              submit_target_url: input.submitTargetUrl,
-              submit_target_index: input.submitTargetIndex,
-              direct_submit_at: nowIso,
-              dispatch_source: "direct_submit",
-            },
+            metadata: buildDirectSubmitAttemptMetadata({
+              sourceRef: input.sourceRef,
+              submitTargetUrl: input.submitTargetUrl,
+              submitTargetIndex: input.submitTargetIndex,
+              observedAt: nowIso,
+            }),
           },
         });
         if (!transitionResult.ok) {
@@ -301,13 +322,12 @@ export const ensureSubmittedGenerationRecord = async (
               dispatchSource: "direct_submit",
               submitRoute: input.routeLabel,
               observedAt: nowIso,
-              metadata: {
-                source_ref: input.sourceRef,
-                submit_target_url: input.submitTargetUrl,
-                submit_target_index: input.submitTargetIndex,
-                direct_submit_at: nowIso,
-                dispatch_source: "direct_submit",
-              },
+              metadata: buildDirectSubmitAttemptMetadata({
+                sourceRef: input.sourceRef,
+                submitTargetUrl: input.submitTargetUrl,
+                submitTargetIndex: input.submitTargetIndex,
+                observedAt: nowIso,
+              }),
             },
           });
           if (!transitionResult.ok) {
@@ -343,13 +363,12 @@ export const ensureSubmittedGenerationRecord = async (
         dispatchSource: "direct_submit",
         submitRoute: input.routeLabel,
         observedAt: nowIso,
-        metadata: {
-          source_ref: input.sourceRef,
-          submit_target_url: input.submitTargetUrl,
-          submit_target_index: input.submitTargetIndex,
-          direct_submit_at: nowIso,
-          dispatch_source: "direct_submit",
-        },
+        metadata: buildDirectSubmitAttemptMetadata({
+          sourceRef: input.sourceRef,
+          submitTargetUrl: input.submitTargetUrl,
+          submitTargetIndex: input.submitTargetIndex,
+          observedAt: nowIso,
+        }),
       },
     });
     if (!transitionResult.ok) {

@@ -125,8 +125,19 @@ describe("ensureSubmittedGenerationRecord", () => {
     expect(payload.metadata).toEqual(
       expect.objectContaining({
         source_ref: "source-1",
+        generation_submit_authority: "api",
+        generation_submit_path: "legacy_direct_submit",
         provider_request_id: "req-1",
         recovery_queue_reason: "submit_persisted",
+      })
+    );
+    expect(ensureAcceptedRunningGenerationAttemptMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        metadata: expect.objectContaining({
+          generation_submit_authority: "api",
+          generation_submit_path: "legacy_direct_submit",
+          dispatch_source: "direct_submit",
+        }),
       })
     );
   });
@@ -227,6 +238,10 @@ describe("ensureSubmittedGenerationRecord", () => {
         userId: "user-1",
         providerRequestId: "req-1",
         dispatchSource: "direct_submit",
+        metadata: expect.objectContaining({
+          generation_submit_authority: "api",
+          generation_submit_path: "legacy_direct_submit",
+        }),
       })
     );
   });

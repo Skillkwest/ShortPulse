@@ -3,6 +3,7 @@ import type { StudioOutput } from "../../../types";
 import { fetchFalQueueStatus } from "../../../../../lib/falClient";
 import {
   __resetQueueStatusPollingTestState,
+  QUEUE_STATUS_MAX_WAIT_MS,
   QUEUE_STATUS_NOT_FOUND_MAX_RETRIES,
   startQueuedStatusPolling,
 } from "../queueStatusPolling";
@@ -289,7 +290,7 @@ describe("queueStatusPolling", () => {
     }
   });
 
-  it("fails queued status polling after bounded not_found retries", async () => {
+  it("hands queued not_found polling over to server recovery after bounded retries", async () => {
     vi.useFakeTimers();
     try {
       let output = createOutput("out-queued");
@@ -341,12 +342,66 @@ describe("queueStatusPolling", () => {
       }
 
       expect(fetchFalQueueStatusMock).toHaveBeenCalledTimes(QUEUE_STATUS_NOT_FOUND_MAX_RETRIES);
-      expect(notifyGenerationFailure).toHaveBeenCalledWith(
-        "out-queued",
-        "Queued generation could not be found. Please retry.",
-        "Generation queue status remained unresolved while waiting for dispatch."
-      );
+      expect(notifyGenerationFailure).not.toHaveBeenCalled();
       expect(onDispatched).not.toHaveBeenCalled();
+      expect(output.taskState).toBe("pending");
+      expect(output.timestamp).toBe("Waiting for server recovery...");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("hands queued transport exhaustion over to server recovery instead of terminalizing locally", async () => {
+    vi.useFakeTimers();
+    try {
+      let output = createOutput("out-queued-timeout");
+      const queueStatusTimersRef = { current: {} as Record<string, number> };
+      const queueStatusSessionRef = { current: {} as Record<string, number> };
+      const updateOutputById = vi.fn(
+        (id: string, updater: (item: StudioOutput) => StudioOutput) => {
+          if (id === output.id) {
+            output = updater(output);
+          }
+        }
+      );
+      const clearQueueStatusPolling = vi.fn((outputId: string) => {
+        const timeoutId = queueStatusTimersRef.current[outputId];
+        if (timeoutId) {
+          window.clearTimeout(timeoutId);
+          delete queueStatusTimersRef.current[outputId];
+        }
+      });
+      const notifyGenerationFailure = vi.fn();
+      const onDispatched = vi.fn();
+      fetchFalQueueStatusMock.mockRejectedValue(new Error("queue unavailable"));
+
+      startQueuedStatusPolling({
+        outputId: "out-queued-timeout",
+        provider: "fal-seedream",
+        finalModel: "fal-ai/bytedance/seedream/v4.5/edit",
+        effectiveTool: "edit",
+        queuedResponse: {
+          status: "queued",
+          code: "GENERATION_QUEUED",
+          sourceRef: "src-queued-timeout",
+          generationId: "gen-queued-timeout",
+          pollAfterMs: 500,
+        },
+        patch: {},
+        queueStatusTimersRef,
+        queueStatusSessionRef,
+        clearQueueStatusPolling,
+        updateOutputById,
+        notifyGenerationFailure,
+        onDispatched,
+      });
+
+      await vi.advanceTimersByTimeAsync(QUEUE_STATUS_MAX_WAIT_MS + 10_000);
+
+      expect(notifyGenerationFailure).not.toHaveBeenCalled();
+      expect(onDispatched).not.toHaveBeenCalled();
+      expect(output.taskState).toBe("pending");
+      expect(output.timestamp).toBe("Waiting for server recovery...");
     } finally {
       vi.useRealTimers();
     }

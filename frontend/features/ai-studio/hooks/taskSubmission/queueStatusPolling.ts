@@ -21,6 +21,7 @@ const HIDDEN_TAB_QUEUE_STATUS_RETRY_MS = 10_000;
 const MAX_ACTIVE_QUEUE_STATUS_FETCHES = 3;
 let activeQueueStatusFetches = 0;
 const SLOT_SATURATED_BREADCRUMB_LIMIT = 2;
+const SERVER_RECOVERY_PENDING_TIMESTAMP = "Waiting for server recovery...";
 
 const isDocumentVisible = (): boolean =>
   typeof document === "undefined" || document.visibilityState === "visible";
@@ -112,6 +113,24 @@ const resolveDispatchedPollingProvider = ({
     }
   }
   return normalizedProvider;
+};
+
+const markQueuedStatusRecoveryPending = ({
+  outputId,
+  updateOutputById,
+}: {
+  outputId: string;
+  updateOutputById: (id: string, updater: (item: StudioOutput) => StudioOutput) => void;
+}): void => {
+  updateOutputById(outputId, (item) => ({
+    ...item,
+    taskState: item.taskState === "fail" ? "pending" : (item.taskState ?? "pending"),
+    status: "ready",
+    timestamp: SERVER_RECOVERY_PENDING_TIMESTAMP,
+    errorMessage: null,
+    errorMessageShort: null,
+    errorDetail: null,
+  }));
 };
 
 /**
@@ -235,11 +254,10 @@ export const startQueuedStatusPolling = ({
         notFoundRetries += 1;
         if (notFoundRetries >= QUEUE_STATUS_NOT_FOUND_MAX_RETRIES) {
           clearQueueStatusPolling(outputId);
-          notifyGenerationFailure(
+          markQueuedStatusRecoveryPending({
             outputId,
-            "Queued generation could not be found. Please retry.",
-            "Generation queue status remained unresolved while waiting for dispatch."
-          );
+            updateOutputById,
+          });
           return;
         }
       } else {
@@ -248,11 +266,10 @@ export const startQueuedStatusPolling = ({
 
       if (Date.now() - queueEnqueuedAtMs - hiddenPauseMs >= QUEUE_STATUS_MAX_WAIT_MS) {
         clearQueueStatusPolling(outputId);
-        notifyGenerationFailure(
+        markQueuedStatusRecoveryPending({
           outputId,
-          "Generation queue timed out. Please retry.",
-          "Generation queue timed out while waiting for dispatch."
-        );
+          updateOutputById,
+        });
         return;
       }
 
@@ -260,12 +277,13 @@ export const startQueuedStatusPolling = ({
       queueStatusTimersRef.current[outputId] = window.setTimeout(() => {
         void pollQueuedStatus(attempt + 1);
       }, retryAfterMs);
-    } catch (error) {
+    } catch {
       if (Date.now() - queueEnqueuedAtMs - hiddenPauseMs >= QUEUE_STATUS_MAX_WAIT_MS) {
         clearQueueStatusPolling(outputId);
-        const message =
-          error instanceof Error ? error.message : "Unable to read queued generation status.";
-        notifyGenerationFailure(outputId, message, message);
+        markQueuedStatusRecoveryPending({
+          outputId,
+          updateOutputById,
+        });
         return;
       }
 

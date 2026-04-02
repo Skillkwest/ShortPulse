@@ -980,6 +980,97 @@ describe("useAiStudioTasks", () => {
     expect(output.errorDetail).toBeNull();
   });
 
+  it("does not fail on transient error fields when server lifecycle marks the poll nonterminal", async () => {
+    fetchFalStatusMock.mockResolvedValueOnce(
+      asFalStatusResponse({
+        error: "upstream temporarily unavailable",
+        shortpulseLifecycle: {
+          taskState: "running",
+          isTerminal: false,
+          providerState: "running",
+          recoveryPending: true,
+        },
+      })
+    );
+
+    let output: StudioOutput = {
+      ...makeOutput(),
+      taskState: "running",
+      timestamp: "Processing...",
+    };
+    const updateOutputById = vi.fn((id: string, updater: (item: StudioOutput) => StudioOutput) => {
+      if (id === output.id) {
+        output = updater(output);
+      }
+    });
+    const notifyGenerationFailure = vi.fn();
+    const onGenerationFailure = vi.fn();
+
+    const { result } = renderHook(() =>
+      useAiStudioTasks({
+        updateOutputById,
+        notifyGenerationFailure,
+        onGenerationFailure,
+      })
+    );
+
+    act(() => {
+      result.current.startPollingTask("task-transient-recovery-hint", "out-1", 0, "fal");
+    });
+
+    await vi.advanceTimersByTimeAsync(2_300);
+    await flushQueuedOutputUpdates();
+
+    expect(notifyGenerationFailure).not.toHaveBeenCalled();
+    expect(onGenerationFailure).not.toHaveBeenCalled();
+    expect(output.taskState).toBe("running");
+    expect(output.timestamp).toBe("Waiting for server recovery...");
+  });
+
+  it("does not treat raw completed status as success when server lifecycle marks recovery pending", async () => {
+    fetchFalStatusMock.mockResolvedValueOnce(
+      asFalStatusResponse({
+        status: "COMPLETED",
+        shortpulseLifecycle: {
+          taskState: "running",
+          isTerminal: false,
+          providerState: "completed",
+          recoveryPending: true,
+        },
+      })
+    );
+
+    let output: StudioOutput = {
+      ...makeOutput(),
+      taskState: "running",
+      timestamp: "Processing...",
+    };
+    const updateOutputById = vi.fn((id: string, updater: (item: StudioOutput) => StudioOutput) => {
+      if (id === output.id) {
+        output = updater(output);
+      }
+    });
+    const onGenerationSuccess = vi.fn();
+
+    const { result } = renderHook(() =>
+      useAiStudioTasks({
+        updateOutputById,
+        notifyGenerationFailure: vi.fn(),
+        onGenerationSuccess,
+      })
+    );
+
+    act(() => {
+      result.current.startPollingTask("task-completed-recovery-hint", "out-1", 0, "fal");
+    });
+
+    await vi.advanceTimersByTimeAsync(2_300);
+    await flushQueuedOutputUpdates();
+
+    expect(onGenerationSuccess).not.toHaveBeenCalled();
+    expect(output.taskState).toBe("running");
+    expect(output.timestamp).toBe("Waiting for server recovery...");
+  });
   it("does not requeue identical running progress state across repeated pending polls", async () => {
     fetchFalStatusMock.mockResolvedValue({ status: "processing" });
 

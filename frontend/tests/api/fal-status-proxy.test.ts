@@ -1064,6 +1064,62 @@ describe("createFalStatusHandler", () => {
     expect(res.json).toHaveBeenCalledWith(
       expect.objectContaining({
         status: "COMPLETED",
+        shortpulseLifecycle: {
+          taskState: "running",
+          isTerminal: false,
+          providerState: "completed",
+          recoveryPending: true,
+        },
+      })
+    );
+  });
+
+  it("marks retryable result alias sweeps as recovery-pending lifecycle", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            status: "COMPLETED",
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } }
+        )
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ error: "not ready" }), {
+          status: 404,
+          headers: {
+            "Content-Type": "application/json",
+          },
+        })
+      );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const handler = createFalStatusHandler({
+      queueBaseUrl: "https://queue.fal.run/fal-ai/nano-banana-pro/requests",
+      routeLabel: "Fal Nano Banana Pro",
+      timeoutMs: 15000,
+    });
+
+    const req = {
+      method: "POST",
+      body: { requestId: "req-result-alias-retryable" },
+      headers: {},
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        status: "COMPLETED",
+        shortpulseLifecycle: {
+          taskState: "running",
+          isTerminal: false,
+          providerState: "completed",
+          recoveryPending: true,
+        },
       })
     );
   });

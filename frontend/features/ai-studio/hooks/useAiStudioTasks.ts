@@ -669,8 +669,16 @@ export function useAiStudioTasks({
               hasExplicitState,
             });
             const shouldTreatAsLifecycleSuccess = lifecycleHint?.taskState === "success";
+            const shouldTrustLifecycleAsNonSuccess =
+              lifecycleHint?.isTerminal === false &&
+              lifecycleTaskState !== null &&
+              lifecycleTaskState !== "success" &&
+              lifecycleTaskState !== "fail";
 
-            if (shouldTreatAsSuccess || shouldTreatAsLifecycleSuccess) {
+            if (
+              (!shouldTrustLifecycleAsNonSuccess && shouldTreatAsSuccess) ||
+              shouldTreatAsLifecycleSuccess
+            ) {
               if (shouldForceImageMediaSuccess) {
                 addBreadcrumb({
                   type: "ui",

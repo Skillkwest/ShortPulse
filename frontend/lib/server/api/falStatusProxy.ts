@@ -95,6 +95,25 @@ const attachShortPulseLifecycle = ({
   };
 };
 
+const buildNonterminalLifecycleHint = ({
+  normalizedStatus,
+  recoveryPending = false,
+}: {
+  normalizedStatus: string | null;
+  recoveryPending?: boolean;
+}): import("../falIntegration/statusProxyRuntime").ShortPulseLifecycleHint =>
+  buildShortPulseLifecycleHint({
+    taskState:
+      normalizedStatus === "pending" ||
+      normalizedStatus === "queued" ||
+      normalizedStatus === "in_queue"
+        ? "pending"
+        : "running",
+    isTerminal: false,
+    providerState: normalizedStatus ?? "running",
+    recoveryPending,
+  });
+
 /**
  * Builds a provider status route that normalizes polling responses without side effects.
  */
@@ -791,9 +810,17 @@ export const createFalStatusHandler = ({
       // Treat a full sweep of retryable alias responses (404/405) as
       // transient so polling can continue instead of settling terminal failure.
       if (!resultCandidates.length) {
-        return res
-          .status(alwaysHttp200 ? 200 : statusResp.status)
-          .json(attachGenerationId(statusData.json));
+        return res.status(alwaysHttp200 ? 200 : statusResp.status).json(
+          attachGenerationId(
+            attachShortPulseLifecycle({
+              payload: statusData.json,
+              lifecycle: buildNonterminalLifecycleHint({
+                normalizedStatus,
+                recoveryPending: true,
+              }),
+            })
+          )
+        );
       }
 
       const bestResultProbe = selectBestProviderResultCandidate({
@@ -826,9 +853,17 @@ export const createFalStatusHandler = ({
             payload: resultData.json,
           })
         ) {
-          return res
-            .status(alwaysHttp200 ? 200 : statusResp.status)
-            .json(attachGenerationId(statusData.json));
+          return res.status(alwaysHttp200 ? 200 : statusResp.status).json(
+            attachGenerationId(
+              attachShortPulseLifecycle({
+                payload: statusData.json,
+                lifecycle: buildNonterminalLifecycleHint({
+                  normalizedStatus,
+                  recoveryPending: true,
+                }),
+              })
+            )
+          );
         }
         if (statusTransientFailuresEnabled) {
           return respondTransientWithTelemetry({
@@ -871,9 +906,17 @@ export const createFalStatusHandler = ({
             payload: resultData.json,
           })
         ) {
-          return res
-            .status(alwaysHttp200 ? 200 : statusResp.status)
-            .json(attachGenerationId(statusData.json));
+          return res.status(alwaysHttp200 ? 200 : statusResp.status).json(
+            attachGenerationId(
+              attachShortPulseLifecycle({
+                payload: statusData.json,
+                lifecycle: buildNonterminalLifecycleHint({
+                  normalizedStatus,
+                  recoveryPending: true,
+                }),
+              })
+            )
+          );
         }
         await persistPollObservation({
           observationType: "failed",

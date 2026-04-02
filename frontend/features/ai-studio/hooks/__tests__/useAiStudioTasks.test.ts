@@ -116,22 +116,8 @@ describe("useAiStudioTasks", () => {
     await vi.advanceTimersByTimeAsync(2_300);
     await flushQueuedOutputUpdates();
 
-    expect(notifyGenerationFailure).toHaveBeenCalledWith(
-      "out-1",
-      "Generation finished, but no media URL was returned. Please retry.",
-      "Generation finished, but no media URL was returned. Please retry.",
-      expect.objectContaining({
-        reasonCode: "no_media_after_terminal_success",
-      })
-    );
-    expect(onGenerationFailure).toHaveBeenCalledWith(
-      expect.objectContaining({
-        outputId: "out-1",
-        taskId: "task-1",
-        provider: "fal",
-        reasonCode: "no_media_after_terminal_success",
-      })
-    );
+    expect(notifyGenerationFailure).not.toHaveBeenCalled();
+    expect(onGenerationFailure).not.toHaveBeenCalled();
 
     await vi.advanceTimersByTimeAsync(2 * 60 * 1000);
     await flushQueuedOutputUpdates();
@@ -846,17 +832,9 @@ describe("useAiStudioTasks", () => {
     }
 
     expect(fetchFalSeedreamStatusMock.mock.calls.length).toBeGreaterThanOrEqual(7);
-    expect(notifyGenerationFailure).toHaveBeenCalledWith(
-      "out-1",
-      "Generation finished, but no media URL was returned. Please retry.",
-      "Generation finished, but no media URL was returned. Please retry.",
-      expect.objectContaining({
-        reasonCode: "no_media_after_terminal_success",
-        noMediaAttempt: 6,
-      })
-    );
-    expect(output.taskState).toBe("fail");
-    expect(output.errorMessageShort).toBe("No media returned.");
+    expect(notifyGenerationFailure).not.toHaveBeenCalled();
+    expect(output.taskState).toBe("running");
+    expect(output.timestamp).toBe("Waiting for server recovery...");
   });
 
   it("normalizes provider nonterminal states to running task state", async () => {

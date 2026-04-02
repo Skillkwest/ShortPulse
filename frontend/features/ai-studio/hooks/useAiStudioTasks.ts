@@ -745,11 +745,9 @@ export function useAiStudioTasks({
               }
 
               if (!hasMedia) {
-                const failureMessage =
-                  "Generation finished, but no media URL was returned. Please retry.";
                 addBreadcrumb({
                   type: "ui",
-                  level: "error",
+                  level: "warn",
                   message: "generation_terminal_no_media_exhausted",
                   data: {
                     provider,
@@ -759,36 +757,18 @@ export function useAiStudioTasks({
                     no_media_attempts: noMediaAttempt,
                   },
                 });
-                notifyGenerationFailure(outputId, failureMessage, failureMessage, {
-                  reasonCode: "no_media_after_terminal_success",
-                  providerState: state,
-                  pollAttempt: attempt,
-                  noMediaAttempt,
-                  elapsedMs: Date.now() - startedAt,
-                  maxWaitMs,
-                });
                 queueOutputUpdate(outputId, (item) => ({
                   ...item,
                   status: item.status === "ready" ? item.status : "ready",
-                  taskState: item.taskState === "fail" ? item.taskState : "fail",
-                  errorMessage:
-                    item.errorMessage === failureMessage ? item.errorMessage : failureMessage,
-                  errorMessageShort:
-                    item.errorMessageShort === "No media returned."
-                      ? item.errorMessageShort
-                      : "No media returned.",
-                  errorDetail:
-                    item.errorDetail === failureMessage ? item.errorDetail : failureMessage,
+                  taskState: item.taskState === "running" ? item.taskState : "running",
+                  timestamp:
+                    item.timestamp === SERVER_RECOVERY_PENDING_TIMESTAMP
+                      ? item.timestamp
+                      : SERVER_RECOVERY_PENDING_TIMESTAMP,
+                  errorMessage: null,
+                  errorMessageShort: null,
+                  errorDetail: null,
                 }));
-                if (onGenerationFailure) {
-                  onGenerationFailure({
-                    outputId,
-                    taskId,
-                    provider,
-                    message: failureMessage,
-                    reasonCode: "no_media_after_terminal_success",
-                  });
-                }
                 scheduleBackgroundRecovery(
                   taskId,
                   outputId,

@@ -19,6 +19,7 @@ const removeQueueItemMock = vi.fn();
 const updateQueueItemForRetryMock = vi.fn();
 const ensureAcceptedRunningGenerationAttemptMock = vi.fn();
 const updateGenerationAttemptStateMock = vi.fn();
+const upsertGenerationProjectionMock = vi.fn();
 
 vi.mock("../supabaseAdmin", () => ({
   getSupabaseAdmin: (...args: unknown[]) => getSupabaseAdminMock(...args),
@@ -70,6 +71,10 @@ vi.mock("../generationAttempts", () => ({
   ensureAcceptedRunningGenerationAttempt: (...args: unknown[]) =>
     ensureAcceptedRunningGenerationAttemptMock(...args),
   updateGenerationAttemptState: (...args: unknown[]) => updateGenerationAttemptStateMock(...args),
+}));
+
+vi.mock("../generationProjection", () => ({
+  upsertGenerationProjection: (...args: unknown[]) => upsertGenerationProjectionMock(...args),
 }));
 
 const queueItem: ClaimedGenerationQueueItem = {
@@ -224,6 +229,7 @@ describe("generationQueue/dispatch transition integrity", () => {
       attemptNumber: 1,
     });
     updateGenerationAttemptStateMock.mockResolvedValue({ ok: true });
+    upsertGenerationProjectionMock.mockResolvedValue(undefined);
   });
 
   it("exhausts legacy raw video payloads when queue compatibility normalization is disabled", async () => {
@@ -431,6 +437,19 @@ describe("generationQueue/dispatch transition integrity", () => {
         status: "running",
       })
     );
+    expect(upsertGenerationProjectionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        generationId: "gen-1",
+        userId: "user-1",
+        provider: "fal",
+        requestId: "req-existing",
+        providerRequestId: "req-existing",
+        status: "ready",
+        taskState: "running",
+        queueState: "dispatched",
+        publicationState: "pending",
+      })
+    );
     expect(ensureAcceptedRunningGenerationAttemptMock).not.toHaveBeenCalled();
     expect(removeQueueItemMock).toHaveBeenCalledTimes(1);
     expect(dispatchProviderSubmitMock).not.toHaveBeenCalled();
@@ -620,6 +639,19 @@ describe("generationQueue/dispatch transition integrity", () => {
           metadata: expect.objectContaining({
             generation_submit_authority: "worker",
           }),
+        })
+      );
+      expect(upsertGenerationProjectionMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          generationId: "gen-1",
+          userId: "user-1",
+          provider: "kie",
+          requestId: "req-1",
+          providerRequestId: "req-1",
+          status: "ready",
+          taskState: "running",
+          queueState: "dispatched",
+          publicationState: "pending",
         })
       );
       expect(logGenerationFailureMock).toHaveBeenCalledWith(

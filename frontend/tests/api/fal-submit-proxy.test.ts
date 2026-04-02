@@ -9,6 +9,7 @@ const hasFreshLocalGenerationWorkerHeartbeatMock = vi.fn();
 const isLocalDevGenerationWorkerRequiredMock = vi.fn();
 const countUserQueuedGenerationSubmitsMock = vi.fn();
 const enqueueGenerationSubmitMock = vi.fn();
+const upsertGenerationProjectionMock = vi.fn();
 const requestGenerationControlPlaneWakeMock = vi.fn();
 const requireApiUserMock = vi.fn();
 
@@ -45,6 +46,10 @@ vi.mock("../../lib/server/api/generationQueue/service", () => ({
   countUserQueuedGenerationSubmits: (...args: unknown[]) =>
     countUserQueuedGenerationSubmitsMock(...args),
   enqueueGenerationSubmit: (...args: unknown[]) => enqueueGenerationSubmitMock(...args),
+}));
+
+vi.mock("../../lib/server/api/generationProjection", () => ({
+  upsertGenerationProjection: (...args: unknown[]) => upsertGenerationProjectionMock(...args),
 }));
 
 vi.mock("../../lib/server/generationControlPlane/controlPlaneWake", () => ({
@@ -95,6 +100,7 @@ describe("createFalSubmitHandler", () => {
       message: null,
     });
     requestGenerationControlPlaneWakeMock.mockResolvedValue(undefined);
+    upsertGenerationProjectionMock.mockResolvedValue(undefined);
     evaluateScopedGenerationAdmissionMock.mockResolvedValue({
       decision: {
         mode: "off",
@@ -849,6 +855,19 @@ describe("createFalSubmitHandler", () => {
       routeLabel: "Fal Nano Banana",
       reason: "queued_submit",
     });
+    expect(upsertGenerationProjectionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        generationId: "gen-queued-1",
+        userId: "user-1",
+        provider: "fal",
+        status: "ready",
+        taskState: "pending",
+        queueState: "queued",
+        modelId: "fal-ai/nano-banana",
+        saveState: "idle",
+        publicationState: "pending",
+      })
+    );
     expect(res.status).toHaveBeenCalledWith(202);
     expect(res.json).toHaveBeenCalledWith({
       status: "queued",
@@ -893,6 +912,16 @@ describe("createFalSubmitHandler", () => {
           generation_submit_authority: "worker",
           queue_reason: "queue_enabled_default",
         }),
+      })
+    );
+    expect(upsertGenerationProjectionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        generationId: "gen-queued-1",
+        userId: "user-1",
+        provider: "fal",
+        taskState: "pending",
+        queueState: "queued",
+        publicationState: "pending",
       })
     );
     expect(res.status).toHaveBeenCalledWith(202);

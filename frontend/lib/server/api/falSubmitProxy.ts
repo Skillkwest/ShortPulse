@@ -20,6 +20,7 @@ import {
   countUserQueuedGenerationSubmits,
   enqueueGenerationSubmit,
 } from "./generationQueue/service";
+import { upsertGenerationProjection } from "./generationProjection";
 import {
   resolveGenerationAspectFromPayload,
   resolveGenerationModeFromPayload,
@@ -692,6 +693,39 @@ export const createFalSubmitHandler = ({
         }
 
         const queuedSourceRef = enqueueResult.sourceRef || charge.sourceRef;
+        try {
+          await upsertGenerationProjection({
+            generationId: enqueueResult.generationId,
+            userId: charge.userId,
+            provider: providerKey,
+            status: "ready",
+            taskState: "pending",
+            queueState: "queued",
+            displayPrompt: resolveGenerationPromptFromPayload(routeLabel, payload),
+            modelId,
+            saveState: "idle",
+            publicationState: "pending",
+            resultUrls: [],
+            savedMediaIds: [],
+          });
+        } catch (projectionError) {
+          await logGenerationFailure({
+            req,
+            routeLabel,
+            source: "telemetry.api.fal_submit.queue_projection_failed",
+            message: "Queued generation projection sync failed.",
+            statusCode: 202,
+            userId: charge.userId,
+            metadata: {
+              generation_id: enqueueResult.generationId,
+              source_ref: queuedSourceRef,
+              projection_error:
+                projectionError instanceof Error
+                  ? projectionError.message
+                  : String(projectionError),
+            },
+          }).catch(() => undefined);
+        }
         void requestGenerationControlPlaneWake({
           routeLabel,
           reason: "queued_submit",

@@ -1,6 +1,7 @@
 import { getSupabaseAdmin } from "../supabaseAdmin";
 import { logGenerationFailure } from "../appErrorLogs";
 import { readFalRuntimeFlags } from "../falRuntimeFlags";
+import { upsertGenerationProjection } from "../generationProjection";
 import {
   markGenerationReservationSubmitted,
   releaseGenerationReservationBySourceRef,
@@ -129,6 +130,44 @@ const readQueueLatencyMs = ({
   if (!Number.isFinite(enqueuedAtMs) || !Number.isFinite(dispatchAtMs)) return null;
   return Math.max(0, dispatchAtMs - enqueuedAtMs);
 };
+
+const syncQueueDispatchProjection = async ({
+  displayPrompt,
+  generationId,
+  modelId,
+  provider,
+  providerRequestId,
+  queueState,
+  requestId,
+  taskState,
+  userId,
+}: {
+  displayPrompt?: string | null;
+  generationId: string;
+  modelId: string;
+  provider: string;
+  providerRequestId?: string | null;
+  queueState: "queued" | "dispatched";
+  requestId?: string | null;
+  taskState: "pending" | "running";
+  userId: string;
+}) =>
+  upsertGenerationProjection({
+    generationId,
+    userId,
+    requestId: requestId ?? providerRequestId ?? null,
+    provider,
+    providerRequestId: providerRequestId ?? null,
+    status: "ready",
+    taskState,
+    queueState,
+    displayPrompt: displayPrompt ?? null,
+    modelId,
+    saveState: "idle",
+    publicationState: "pending",
+    resultUrls: [],
+    savedMediaIds: [],
+  });
 
 const markAttemptRunningForExistingRequestId = async ({
   providerRequestId,
@@ -480,6 +519,34 @@ const processClaimedQueueItem = async ({
         userId: item.userId,
         queueId: item.queueId,
         attemptNumber,
+      });
+      await syncQueueDispatchProjection({
+        displayPrompt: asString(asObject(item.submitPayload).prompt),
+        generationId: item.generationId,
+        modelId: item.modelId,
+        provider,
+        providerRequestId: existingRequestId,
+        queueState: "dispatched",
+        requestId: existingRequestId,
+        taskState: "running",
+        userId: item.userId,
+      }).catch(async (projectionError) => {
+        await logGenerationFailure({
+          req,
+          routeLabel,
+          source: "telemetry.queue.dispatch.projection_failed",
+          statusCode: 200,
+          message: "Queued generation running projection sync failed.",
+          userId: item.userId,
+          metadata: {
+            queue_id: item.queueId,
+            generation_id: item.generationId,
+            source_ref: item.sourceRef,
+            provider_request_id: existingRequestId,
+            projection_error:
+              projectionError instanceof Error ? projectionError.message : String(projectionError),
+          },
+        });
       });
 
       const removeResult = await removeQueueItem(item.queueId);
@@ -1094,6 +1161,34 @@ const processClaimedQueueItem = async ({
         : transitionResult.stage === "running"
           ? transitionResult.error
           : null,
+    });
+    await syncQueueDispatchProjection({
+      displayPrompt: asString(asObject(item.submitPayload).prompt),
+      generationId: item.generationId,
+      modelId: item.modelId,
+      provider,
+      providerRequestId,
+      queueState: "dispatched",
+      requestId: providerRequestId,
+      taskState: "running",
+      userId: item.userId,
+    }).catch(async (projectionError) => {
+      await logGenerationFailure({
+        req,
+        routeLabel,
+        source: "telemetry.queue.dispatch.projection_failed",
+        statusCode: 200,
+        message: "Queued generation running projection sync failed.",
+        userId: item.userId,
+        metadata: {
+          queue_id: item.queueId,
+          generation_id: item.generationId,
+          source_ref: item.sourceRef,
+          provider_request_id: providerRequestId,
+          projection_error:
+            projectionError instanceof Error ? projectionError.message : String(projectionError),
+        },
+      });
     });
 
     const removeResult = await removeQueueItem(item.queueId);

@@ -28,6 +28,10 @@ describe("generationControlPlane/workerLoop", () => {
       queueDispatchErrors: 0,
     });
     const writeHeartbeat = vi.fn();
+    const runWriter = {
+      startRun: vi.fn().mockResolvedValue("run-1"),
+      finishRun: vi.fn().mockResolvedValue(undefined),
+    };
     const logger = {
       info: vi.fn(),
       error: vi.fn(),
@@ -36,6 +40,7 @@ describe("generationControlPlane/workerLoop", () => {
     const result = await runGenerationControlPlaneWorkerOnce({
       runCycle,
       writeHeartbeat,
+      runWriter,
       logger,
     });
 
@@ -50,6 +55,16 @@ describe("generationControlPlane/workerLoop", () => {
       })
     );
     expect(writeHeartbeat).toHaveBeenCalledTimes(2);
+    expect(runWriter.startRun).toHaveBeenCalledWith({
+      routeLabel: "worker/generation-control-plane",
+    });
+    expect(runWriter.finishRun).toHaveBeenCalledWith({
+      runId: "run-1",
+      status: "ok",
+      result: expect.objectContaining({
+        ok: true,
+      }),
+    });
     expect(logger.error).not.toHaveBeenCalled();
   });
 
@@ -76,12 +91,17 @@ describe("generationControlPlane/workerLoop", () => {
       queueDispatchErrors: 0,
     });
     const writeHeartbeat = vi.fn();
+    const runWriter = {
+      startRun: vi.fn().mockResolvedValue("run-2"),
+      finishRun: vi.fn().mockResolvedValue(undefined),
+    };
     const sleep = vi.fn().mockResolvedValue(undefined);
     let iterations = 0;
 
     await runGenerationControlPlaneWorkerLoop({
       runCycle,
       writeHeartbeat,
+      runWriter,
       sleep,
       shouldStop: () => {
         iterations += 1;
@@ -95,10 +115,43 @@ describe("generationControlPlane/workerLoop", () => {
 
     expect(runCycle).toHaveBeenCalledTimes(1);
     expect(sleep).not.toHaveBeenCalled();
+    expect(runWriter.startRun).toHaveBeenCalledTimes(1);
+    expect(runWriter.finishRun).toHaveBeenCalledTimes(1);
     expect(writeHeartbeat).toHaveBeenLastCalledWith(
       expect.objectContaining({
         status: "stopped",
       })
     );
+  });
+
+  it("records an error run when the control-plane cycle fails", async () => {
+    const runCycle = vi.fn().mockRejectedValue(new Error("boom"));
+    const writeHeartbeat = vi.fn();
+    const runWriter = {
+      startRun: vi.fn().mockResolvedValue("run-3"),
+      finishRun: vi.fn().mockResolvedValue(undefined),
+    };
+    const logger = {
+      info: vi.fn(),
+      error: vi.fn(),
+    };
+
+    const result = await runGenerationControlPlaneWorkerOnce({
+      runCycle,
+      writeHeartbeat,
+      runWriter,
+      logger,
+    });
+
+    expect(result).toEqual({
+      ok: false,
+      error: "boom",
+    });
+    expect(runWriter.finishRun).toHaveBeenCalledWith({
+      runId: "run-3",
+      status: "error",
+      error: "boom",
+    });
+    expect(logger.error).toHaveBeenCalled();
   });
 });

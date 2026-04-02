@@ -118,6 +118,8 @@ Current set:
 - `070_harden_queue_claim_collision_advisory_lock.sql`
 - `071_add_ai_generation_outputs.sql`
 - `072_add_generation_attempts.sql`
+- `073_add_media_folder_hierarchy.sql`
+- `074_add_generation_worker_ops.sql`
 
 ### 3) Rollbacks (`sql/migrations/rollback/`)
 Use only when explicitly reverting a migration in a controlled window. Prefer targeted corrective forward SQL when possible.

@@ -2,6 +2,8 @@ import fs from "node:fs";
 import path from "node:path";
 import { runGenerationControlPlaneCycle } from "./runCycle";
 import type { GenerationControlPlaneCycleResult } from "./types";
+import type { GenerationControlPlaneRunWriter } from "./workerOps";
+export { createGenerationControlPlaneWorkerDbOps } from "./workerOps";
 
 export const DEFAULT_GENERATION_CONTROL_PLANE_WORKER_INTERVAL_MS = 5_000;
 export const DEFAULT_GENERATION_CONTROL_PLANE_WORKER_ERROR_BACKOFF_MS = 5_000;
@@ -26,6 +28,7 @@ type GenerationControlPlaneWorkerOnceOptions = {
   routeLabel?: string;
   logger?: GenerationControlPlaneWorkerLogger;
   writeHeartbeat?: (payload: GenerationControlPlaneWorkerHeartbeat) => void | Promise<void>;
+  runWriter?: GenerationControlPlaneRunWriter;
   runCycle?: typeof runGenerationControlPlaneCycle;
 };
 
@@ -80,6 +83,7 @@ export const runGenerationControlPlaneWorkerOnce = async ({
   logger = defaultLogger,
   writeHeartbeat = noopHeartbeatWriter,
   runCycle = runGenerationControlPlaneCycle,
+  runWriter,
 }: GenerationControlPlaneWorkerOnceOptions = {}): Promise<
   | {
       ok: true;
@@ -91,11 +95,13 @@ export const runGenerationControlPlaneWorkerOnce = async ({
     }
 > => {
   const startedAt = Date.now();
+  let runId: string | null = null;
   try {
     await writeHeartbeat({
       updatedAt: new Date().toISOString(),
       status: "running",
     });
+    runId = (await runWriter?.startRun({ routeLabel })) ?? null;
 
     const result = await runCycle({
       context: {
@@ -109,6 +115,11 @@ export const runGenerationControlPlaneWorkerOnce = async ({
       status: "ok",
       lastResponse: result,
     });
+    await runWriter?.finishRun({
+      runId,
+      status: "ok",
+      result,
+    });
 
     logger.info(
       `[generation-worker] ok duration_ms=${Date.now() - startedAt} claimed=${result.claimed} queueClaimed=${result.queueClaimed} queueSubmitted=${result.queueSubmitted} errors=${result.errors} queueDispatchErrors=${result.queueDispatchErrors}`
@@ -121,6 +132,11 @@ export const runGenerationControlPlaneWorkerOnce = async ({
       updatedAt: new Date().toISOString(),
       status: "error",
       lastError: message,
+    });
+    await runWriter?.finishRun({
+      runId,
+      status: "error",
+      error: message,
     });
     logger.error(`[generation-worker] error=${message}`);
     return { ok: false, error: message };
@@ -136,6 +152,7 @@ export const runGenerationControlPlaneWorkerLoop = async ({
   shouldStop = () => false,
   sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
   runCycle = runGenerationControlPlaneCycle,
+  runWriter,
 }: GenerationControlPlaneWorkerLoopOptions = {}): Promise<void> => {
   logger.info(
     `[generation-worker] start route_label=${routeLabel} interval_ms=${intervalMs} error_backoff_ms=${errorBackoffMs}`
@@ -146,6 +163,7 @@ export const runGenerationControlPlaneWorkerLoop = async ({
       routeLabel,
       logger,
       writeHeartbeat,
+      runWriter,
       runCycle,
     });
     if (shouldStop()) break;

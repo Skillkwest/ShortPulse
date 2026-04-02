@@ -181,6 +181,11 @@ describe("createFalStatusHandler", () => {
       request_id: string;
       generationId?: string;
       data?: { images?: Array<{ url?: string }> };
+      shortpulseLifecycle?: {
+        taskState?: string;
+        isTerminal?: boolean;
+        resultUrls?: string[];
+      };
     };
     expect(payload.status).toBe("completed");
     expect(payload.state).toBe("completed");
@@ -1064,12 +1069,14 @@ describe("createFalStatusHandler", () => {
     expect(res.json).toHaveBeenCalledWith(
       expect.objectContaining({
         status: "COMPLETED",
-        shortpulseLifecycle: {
+        shortpulseLifecycle: expect.objectContaining({
           taskState: "running",
           isTerminal: false,
           providerState: "completed",
           recoveryPending: true,
-        },
+          queueState: "dispatched",
+          statusLabel: "Waiting for server recovery...",
+        }),
       })
     );
   });
@@ -1114,12 +1121,14 @@ describe("createFalStatusHandler", () => {
     expect(res.json).toHaveBeenCalledWith(
       expect.objectContaining({
         status: "COMPLETED",
-        shortpulseLifecycle: {
+        shortpulseLifecycle: expect.objectContaining({
           taskState: "running",
           isTerminal: false,
           providerState: "completed",
           recoveryPending: true,
-        },
+          queueState: "dispatched",
+          statusLabel: "Waiting for server recovery...",
+        }),
       })
     );
   });

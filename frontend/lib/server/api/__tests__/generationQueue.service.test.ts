@@ -427,6 +427,7 @@ describe("generationQueue/service.readGenerationQueueStatus", () => {
         taskState: "running",
         queueState: "dispatching",
         isTerminal: false,
+        statusLabel: "Dispatching...",
       },
     });
   });
@@ -460,6 +461,7 @@ describe("generationQueue/service.readGenerationQueueStatus", () => {
         taskState: "pending",
         queueState: "queued",
         isTerminal: false,
+        statusLabel: "Waiting in queue...",
       },
     });
   });
@@ -501,6 +503,7 @@ describe("generationQueue/service.readGenerationQueueStatus", () => {
         taskState: "running",
         queueState: "dispatched",
         isTerminal: false,
+        statusLabel: "Submitted",
       },
     });
     expect(lookupLatestGenerationAttemptMock).toHaveBeenCalledWith({
@@ -510,27 +513,26 @@ describe("generationQueue/service.readGenerationQueueStatus", () => {
   });
 
   it("prefers generation_projection request ids before generation-attempt lookup", async () => {
-    getSupabaseAdminMock.mockReturnValue(
-      createStatusSupabaseMock({
-        queueRow: null,
-        generationRow: {
-          id: "gen-projection-1",
-          status: "running",
-          request_id: null,
-          provider: "fal",
-          model_id: "fal-ai/bytedance/seedream/v4.5/edit",
-          metadata: { source_ref: "src-projection-1" },
-        },
-        projectionRow: {
-          generation_id: "gen-projection-1",
-          request_id: "req-from-projection",
-          provider: "fal",
-          model_id: "fal-ai/bytedance/seedream/v4.5/edit",
-          task_state: "running",
-          queue_state: "dispatched",
-        },
-      })
-    );
+    const supabase = createStatusSupabaseMock({
+      queueRow: null,
+      generationRow: {
+        id: "gen-projection-1",
+        status: "running",
+        request_id: null,
+        provider: "fal",
+        model_id: "fal-ai/bytedance/seedream/v4.5/edit",
+        metadata: { source_ref: "src-projection-1" },
+      },
+      projectionRow: {
+        generation_id: "gen-projection-1",
+        request_id: "req-from-projection",
+        provider: "fal",
+        model_id: "fal-ai/bytedance/seedream/v4.5/edit",
+        task_state: "running",
+        queue_state: "dispatched",
+      },
+    });
+    getSupabaseAdminMock.mockReturnValue(supabase);
 
     await expect(
       readGenerationQueueStatus({
@@ -548,9 +550,11 @@ describe("generationQueue/service.readGenerationQueueStatus", () => {
         taskState: "running",
         queueState: "dispatched",
         isTerminal: false,
+        statusLabel: "Submitted",
       },
     });
     expect(lookupLatestGenerationAttemptMock).not.toHaveBeenCalled();
+    expect(supabase.generationEq2).toHaveBeenCalledTimes(1);
   });
 
   it("returns projected terminal failure before legacy queue reconstruction", async () => {
@@ -591,6 +595,7 @@ describe("generationQueue/service.readGenerationQueueStatus", () => {
         queueState: "failed",
         isTerminal: true,
         errorMessage: "Projection terminal failure",
+        statusLabel: null,
       },
     });
   });
@@ -630,6 +635,7 @@ describe("generationQueue/service.readGenerationQueueStatus", () => {
         taskState: "pending",
         queueState: "queued",
         isTerminal: false,
+        statusLabel: "Waiting in queue...",
       },
     });
   });
@@ -674,6 +680,7 @@ describe("generationQueue/service.readGenerationQueueStatus", () => {
         taskState: "running",
         queueState: "dispatched",
         isTerminal: false,
+        statusLabel: "Submitted",
       },
     });
   });
@@ -725,6 +732,7 @@ describe("generationQueue/service.readGenerationQueueStatus", () => {
         taskState: "running",
         queueState: "dispatched",
         isTerminal: false,
+        statusLabel: "Submitted",
       },
     });
 

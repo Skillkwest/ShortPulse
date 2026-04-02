@@ -716,6 +716,40 @@ const readSourceRefFromGenerationMetadata = (metadata: unknown): string | null =
   return asString(object?.source_ref);
 };
 
+const readLegacyGenerationQueueFallback = async ({
+  supabase,
+  userId,
+  generationId,
+  sourceRef,
+}: {
+  supabase: ReturnType<typeof getSupabaseAdmin>;
+  userId: string;
+  generationId?: string | null;
+  sourceRef?: string | null;
+}): Promise<JsonObject | null> => {
+  if (generationId) {
+    const { data } = await supabase
+      .from("ai_generations")
+      .select("id, status, request_id, provider, model_id, error_message, metadata")
+      .eq("user_id", userId)
+      .eq("id", generationId)
+      .maybeSingle();
+    return asObject(data);
+  }
+  if (sourceRef) {
+    const { data } = await supabase
+      .from("ai_generations")
+      .select("id, status, request_id, provider, model_id, error_message, metadata")
+      .eq("user_id", userId)
+      .contains("metadata", { source_ref: sourceRef })
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    return asObject(data);
+  }
+  return null;
+};
+
 const readAttemptRequestIdForGeneration = async ({
   userId,
   generationId,
@@ -778,7 +812,6 @@ export const readGenerationQueueStatus = async ({
     queueRow = asObject(data);
   }
 
-  let generationRow: JsonObject | null = null;
   let resolvedGenerationId = asString(queueRow?.generation_id) ?? generationId ?? null;
   if (!resolvedGenerationId && sourceRef) {
     const projectionLink = await readGenerationProjectionLinkBySourceRef({
@@ -789,35 +822,6 @@ export const readGenerationQueueStatus = async ({
     resolvedGenerationId = projectionLink?.generationId ?? null;
   }
 
-  if (generationId) {
-    const { data } = await supabase
-      .from("ai_generations")
-      .select("id, status, request_id, provider, model_id, error_message, metadata")
-      .eq("user_id", userId)
-      .eq("id", generationId)
-      .maybeSingle();
-    generationRow = asObject(data);
-  } else if (resolvedGenerationId) {
-    const { data } = await supabase
-      .from("ai_generations")
-      .select("id, status, request_id, provider, model_id, error_message, metadata")
-      .eq("user_id", userId)
-      .eq("id", resolvedGenerationId)
-      .maybeSingle();
-    generationRow = asObject(data);
-  } else if (sourceRef) {
-    const { data } = await supabase
-      .from("ai_generations")
-      .select("id, status, request_id, provider, model_id, error_message, metadata")
-      .eq("user_id", userId)
-      .contains("metadata", { source_ref: sourceRef })
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-    generationRow = asObject(data);
-  }
-
-  resolvedGenerationId = asString(generationRow?.id) ?? resolvedGenerationId;
   const projectionContext = resolvedGenerationId
     ? await readGenerationProjectionQueueContext({
         userId,
@@ -825,6 +829,104 @@ export const readGenerationQueueStatus = async ({
         supabaseAdmin: supabase,
       }).catch(() => null)
     : null;
+  let legacyProjectionFallbackRow: JsonObject | null = null;
+  let projectionOnlySourceRef =
+    projectionContext?.sourceRef ?? asString(queueRow?.source_ref) ?? sourceRef ?? null;
+  if (!projectionOnlySourceRef && resolvedGenerationId) {
+    legacyProjectionFallbackRow = await readLegacyGenerationQueueFallback({
+      supabase,
+      userId,
+      generationId: resolvedGenerationId,
+    });
+    projectionOnlySourceRef = readSourceRefFromGenerationMetadata(
+      legacyProjectionFallbackRow?.metadata
+    );
+  }
+  const projectionOnlyRequestId =
+    projectionContext?.requestId ?? projectionContext?.providerRequestId ?? null;
+  const projectionOnlyStatus =
+    projectionContext?.taskState?.toLowerCase() ?? projectionContext?.status?.toLowerCase() ?? null;
+  const projectionQueueState = asString(projectionContext?.queueState)?.toLowerCase();
+
+  if (projectionOnlyRequestId) {
+    return {
+      status: "dispatched",
+      generationId: resolvedGenerationId ?? generationId ?? "",
+      sourceRef: projectionOnlySourceRef,
+      requestId: projectionOnlyRequestId,
+      provider: projectionContext?.provider ?? "fal",
+      ...(projectionContext?.modelId ? { modelId: projectionContext.modelId } : {}),
+      shortpulseLifecycle: {
+        taskState: "running",
+        queueState: "dispatched",
+        isTerminal: false,
+        statusLabel: "Submitted",
+      },
+    };
+  }
+
+  if (projectionOnlyStatus === "fail") {
+    const message =
+      projectionContext?.errorMessageShort ??
+      projectionContext?.errorDetail ??
+      "Generation failed before dispatch.";
+    return {
+      status: "failed",
+      generationId: resolvedGenerationId ?? generationId ?? "",
+      sourceRef: projectionOnlySourceRef,
+      message,
+      shortpulseLifecycle: {
+        taskState: "fail",
+        queueState: "failed",
+        isTerminal: true,
+        errorMessage: message,
+        statusLabel: null,
+      },
+    };
+  }
+
+  if (projectionQueueState === "dispatching") {
+    return {
+      status: "dispatching",
+      generationId: resolvedGenerationId ?? generationId ?? "",
+      sourceRef: projectionOnlySourceRef,
+      retryAfterMs: QUEUE_STATUS_DISPATCHING_RETRY_MS,
+      shortpulseLifecycle: {
+        taskState: "running",
+        queueState: "dispatching",
+        isTerminal: false,
+        statusLabel: "Dispatching...",
+      },
+    };
+  }
+
+  if (projectionQueueState === "queued") {
+    return {
+      status: "queued",
+      generationId: resolvedGenerationId ?? generationId ?? "",
+      sourceRef: projectionOnlySourceRef,
+      retryAfterMs: QUEUE_STATUS_QUEUED_RETRY_MS,
+      shortpulseLifecycle: {
+        taskState: "pending",
+        queueState: "queued",
+        isTerminal: false,
+        statusLabel: "Waiting in queue...",
+      },
+    };
+  }
+
+  let generationRow: JsonObject | null =
+    legacyProjectionFallbackRow && resolvedGenerationId ? legacyProjectionFallbackRow : null;
+  if (!generationRow) {
+    generationRow = await readLegacyGenerationQueueFallback({
+      supabase,
+      userId,
+      generationId: generationId ?? resolvedGenerationId,
+      sourceRef,
+    });
+  }
+
+  resolvedGenerationId = asString(generationRow?.id) ?? resolvedGenerationId;
   const resolvedSourceRef =
     projectionContext?.sourceRef ??
     asString(queueRow?.source_ref) ??
@@ -839,12 +941,8 @@ export const readGenerationQueueStatus = async ({
       userId,
       generationId: resolvedGenerationId,
     }));
-  const generationStatus =
-    projectionContext?.taskState?.toLowerCase() ??
-    projectionContext?.status?.toLowerCase() ??
-    asString(generationRow?.status)?.toLowerCase();
+  const generationStatus = projectionOnlyStatus ?? asString(generationRow?.status)?.toLowerCase();
   const queueStatus = parseQueueStatus(queueRow?.status);
-  const projectionQueueState = asString(projectionContext?.queueState)?.toLowerCase();
 
   if (requestId) {
     const dispatchedModelId = projectionContext?.modelId ?? asString(generationRow?.model_id);

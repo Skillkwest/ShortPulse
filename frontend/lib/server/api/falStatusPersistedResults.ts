@@ -112,6 +112,26 @@ export const readPersistedGenerationStatusContext = async ({
         errorDetail: projectionContext.errorDetail,
       };
     }
+    if (projectionContext?.generationId) {
+      try {
+        const projectedOutputRows = await readPersistedGenerationOutputs({
+          generationId: projectionContext.generationId,
+          userId,
+          supabaseAdmin: adminClient,
+        });
+        if (projectedOutputRows.length) {
+          return {
+            generationId: projectionContext.generationId,
+            resultUrls: projectedOutputRows.map((row) => row.resultUrl),
+            taskState: projectionContext.taskState,
+            errorMessageShort: projectionContext.errorMessageShort,
+            errorDetail: projectionContext.errorDetail,
+          };
+        }
+      } catch {
+        // fall through to compatibility reads if canonical output lookup fails
+      }
+    }
     if (projectionContext?.taskState === "fail") {
       return {
         generationId: projectionContext.generationId,

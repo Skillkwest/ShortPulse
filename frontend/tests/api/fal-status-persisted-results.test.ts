@@ -232,6 +232,44 @@ describe("falStatusPersistedResults", () => {
     });
   });
 
+  it("reads canonical outputs from projection-linked generation ids before ai_generations fallback", async () => {
+    persistedProjectionRows = [
+      {
+        generation_id: "gen-projection-output-1",
+        result_urls: [],
+        status: "ready",
+        task_state: "running",
+      },
+    ];
+    persistedGenerationRows = [
+      {
+        id: "gen-legacy-1",
+        status: "success",
+        metadata: {
+          result_urls: ["https://cdn.shortpulse.test/legacy-fallback.mp4"],
+        },
+      },
+    ];
+    persistedOutputRows = [
+      { output_index: 0, result_url: "https://cdn.shortpulse.test/projected-output.mp4" },
+    ];
+
+    await expect(
+      readPersistedGenerationStatusContext({
+        userId: "user-1",
+        requestId: "req-1",
+      })
+    ).resolves.toEqual({
+      generationId: "gen-projection-output-1",
+      resultUrls: ["https://cdn.shortpulse.test/projected-output.mp4"],
+      taskState: "running",
+      errorMessageShort: null,
+      errorDetail: null,
+    });
+
+    expect(outputEqCalls).toContainEqual(["generation_id", "gen-projection-output-1"]);
+  });
+
   it("prefers canonical persisted generation outputs over metadata result urls", async () => {
     persistedGenerationRows = [
       {
@@ -306,6 +344,13 @@ describe("falStatusPersistedResults", () => {
       resultUrls: ["https://cdn.shortpulse.test/final.mp4"],
       result_urls: ["https://cdn.shortpulse.test/final.mp4"],
       videos: [{ url: "https://cdn.shortpulse.test/final.mp4" }],
+      shortpulseLifecycle: {
+        taskState: "success",
+        isTerminal: true,
+        resultUrls: ["https://cdn.shortpulse.test/final.mp4"],
+        queueState: "dispatched",
+        statusLabel: "Just now",
+      },
     });
   });
 });

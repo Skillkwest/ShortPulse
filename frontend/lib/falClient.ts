@@ -111,6 +111,15 @@ export type FalStatusResponse = {
   status?: string;
   generationId?: string;
   error?: string;
+  shortpulseLifecycle?: {
+    taskState?: "pending" | "running" | "success" | "fail";
+    isTerminal?: boolean;
+    resultUrls?: string[];
+    errorMessage?: string | null;
+    errorDetail?: unknown;
+    providerState?: string | null;
+    recoveryPending?: boolean;
+  };
   data?: {
     images?: { url: string; content_type?: string; width?: number; height?: number }[];
     videos?: { url: string; content_type?: string }[];

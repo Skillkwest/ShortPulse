@@ -965,7 +965,54 @@ describe("createFalStatusHandler", () => {
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith({
       error: "upstream temporarily unavailable",
+      shortpulseLifecycle: {
+        taskState: "running",
+        isTerminal: false,
+        providerState: "running",
+        recoveryPending: true,
+      },
     });
+  });
+
+  it("adds normalized lifecycle hints to nonterminal provider status payloads", async () => {
+    const fetchMock = vi.fn().mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          status: "IN_PROGRESS",
+          request_id: "req-nonterminal-hint",
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } }
+      )
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const handler = createFalStatusHandler({
+      queueBaseUrl: "https://queue.fal.run/fal-ai/nano-banana-pro/requests",
+      routeLabel: "Fal Nano Banana Pro",
+      timeoutMs: 15000,
+    });
+
+    const req = {
+      method: "POST",
+      body: { requestId: "req-nonterminal-hint" },
+      headers: {},
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        status: "IN_PROGRESS",
+        request_id: "req-nonterminal-hint",
+        shortpulseLifecycle: {
+          taskState: "running",
+          isTerminal: false,
+          providerState: "in_progress",
+        },
+      })
+    );
   });
 
   it("treats retryable result upstream failures as transient and keeps completed status payload", async () => {

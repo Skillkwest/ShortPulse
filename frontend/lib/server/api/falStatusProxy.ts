@@ -80,6 +80,20 @@ const respondError = ({
     .json(buildFalStatusErrorPayload({ requestId, error, detail, generationId, lifecycle }));
 };
 
+const attachShortPulseLifecycle = ({
+  payload,
+  lifecycle,
+}: {
+  payload: JsonObject;
+  lifecycle?: import("../falIntegration/statusProxyRuntime").ShortPulseLifecycleHint;
+}): JsonObject => {
+  if (!lifecycle || payload.shortpulseLifecycle) return payload;
+  return {
+    ...payload,
+    shortpulseLifecycle: lifecycle,
+  };
+};
+
 /**
  * Builds a provider status route that normalizes polling responses without side effects.
  */
@@ -603,9 +617,19 @@ export const createFalStatusHandler = ({
             payload: statusData.json,
           })
         ) {
-          return res
-            .status(alwaysHttp200 ? 200 : statusResp.status)
-            .json(attachGenerationId(statusData.json));
+          return res.status(alwaysHttp200 ? 200 : statusResp.status).json(
+            attachGenerationId(
+              attachShortPulseLifecycle({
+                payload: statusData.json,
+                lifecycle: buildShortPulseLifecycleHint({
+                  taskState: "running",
+                  isTerminal: false,
+                  providerState: normalizedStatus ?? "running",
+                  recoveryPending: true,
+                }),
+              })
+            )
+          );
         }
         return respondErrorWithLogging({
           requestId,
@@ -659,9 +683,23 @@ export const createFalStatusHandler = ({
             payloadStatus: "completed",
           });
         }
-        return res
-          .status(alwaysHttp200 ? 200 : statusResp.status)
-          .json(attachGenerationId(statusData.json));
+        return res.status(alwaysHttp200 ? 200 : statusResp.status).json(
+          attachGenerationId(
+            attachShortPulseLifecycle({
+              payload: statusData.json,
+              lifecycle: buildShortPulseLifecycleHint({
+                taskState:
+                  normalizedStatus === "pending" ||
+                  normalizedStatus === "queued" ||
+                  normalizedStatus === "in_queue"
+                    ? "pending"
+                    : "running",
+                isTerminal: false,
+                providerState: normalizedStatus ?? "running",
+              }),
+            })
+          )
+        );
       }
 
       // Some Fal models return terminal status payloads that already include media while

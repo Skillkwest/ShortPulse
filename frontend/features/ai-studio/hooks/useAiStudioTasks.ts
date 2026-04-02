@@ -165,6 +165,20 @@ const readShortPulseLifecycleHint = (value: unknown): ShortPulseLifecycleHint | 
   };
 };
 
+const resolveLifecycleTaskState = (
+  lifecycleHint: ShortPulseLifecycleHint | null
+): StudioOutput["taskState"] | null => {
+  switch (lifecycleHint?.taskState) {
+    case "pending":
+    case "running":
+    case "success":
+    case "fail":
+      return lifecycleHint.taskState;
+    default:
+      return null;
+  }
+};
+
 const fetchStatusByProvider = async (provider: Provider, taskId: string) => {
   switch (provider) {
     case "fal":
@@ -645,6 +659,7 @@ export function useAiStudioTasks({
               outputMode,
             });
             const lifecycleResultUrls = lifecycleHint?.resultUrls ?? [];
+            const lifecycleTaskState = resolveLifecycleTaskState(lifecycleHint);
             const resolvedUrls = lifecycleResultUrls.length > 0 ? lifecycleResultUrls : allUrls;
             const hasMedia = allUrls.length > 0;
             const { shouldForceImageMediaSuccess, shouldTreatAsSuccess } = classifyProviderSuccess({
@@ -928,10 +943,13 @@ export function useAiStudioTasks({
               return;
             }
 
-            const nextTaskState = normalizeProviderStateToTaskState(state);
+            const nextTaskState = lifecycleTaskState ?? normalizeProviderStateToTaskState(state);
             const now = Date.now();
             const lastProgressUpdateAt = lastProgressUpdateAtRef.current[outputId] ?? 0;
-            const nextProgressSignature = `${nextTaskState}|Processing...`;
+            const nextTimestamp = lifecycleHint?.recoveryPending
+              ? SERVER_RECOVERY_PENDING_TIMESTAMP
+              : "Processing...";
+            const nextProgressSignature = `${nextTaskState}|${nextTimestamp}`;
             const shouldSkipProgressUpdate =
               lastProgressSignatureRef.current[outputId] === nextProgressSignature ||
               (REFERENCE_GRID_FLAG_UPDATE_BACKPRESSURE &&
@@ -942,17 +960,23 @@ export function useAiStudioTasks({
                 outputId,
                 (item) => {
                   const taskStateChanged = item.taskState !== nextTaskState;
-                  const timestampChanged = item.timestamp !== "Processing...";
+                  const timestampChanged = item.timestamp !== nextTimestamp;
                   if (!taskStateChanged && !timestampChanged) return item;
                   lastProgressUpdateAtRef.current[outputId] = now;
                   lastProgressSignatureRef.current[outputId] = nextProgressSignature;
                   return {
                     ...item,
                     taskState: nextTaskState,
-                    timestamp: "Processing...",
+                    status: item.status === "ready" ? item.status : "ready",
+                    timestamp: nextTimestamp,
+                    errorMessage: lifecycleHint?.recoveryPending ? null : item.errorMessage,
+                    errorMessageShort: lifecycleHint?.recoveryPending
+                      ? null
+                      : item.errorMessageShort,
+                    errorDetail: lifecycleHint?.recoveryPending ? null : item.errorDetail,
                   };
                 },
-                { nonUrgent: true }
+                { nonUrgent: lifecycleHint?.recoveryPending !== true }
               );
             }
             pollTimersRef.current[outputId] = window.setTimeout(

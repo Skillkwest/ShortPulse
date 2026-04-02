@@ -18,6 +18,12 @@ type GenerationOutputRow = {
   output_index?: unknown;
 };
 
+type GenerationPublicationRow = {
+  owned_media_file_id?: unknown;
+  preview_storage_path?: unknown;
+  full_storage_path?: unknown;
+};
+
 export type ResolvedReferenceDownloadTarget = {
   fileRecord: {
     storagePath: string;
@@ -196,6 +202,42 @@ const resolveMediaFileById = async (
   return toMediaFileRecord(row);
 };
 
+const resolveLatestMediaFileByGenerationPublications = async (
+  supabase: SupabaseClient,
+  generationId: string
+): Promise<ResolvedReferenceDownloadTarget["fileRecord"]> => {
+  const { data, error } = await supabase
+    .from("generation_publications")
+    .select("owned_media_file_id, preview_storage_path, full_storage_path, created_at")
+    .eq("generation_id", generationId)
+    .eq("publication_state", "published")
+    .order("created_at", { ascending: false })
+    .limit(50);
+  if (error) {
+    throw new Error(error.message || "Failed to resolve published generation media.");
+  }
+
+  for (const rawRow of Array.isArray(data) ? data : []) {
+    const row = rawRow as GenerationPublicationRow;
+    const storagePath =
+      asCanonicalStoragePath(asTrimmedString(row.full_storage_path)) ??
+      asCanonicalStoragePath(asTrimmedString(row.preview_storage_path));
+    if (storagePath) {
+      return {
+        storagePath,
+        filename: null,
+      };
+    }
+    const mediaFileId = asTrimmedString(row.owned_media_file_id);
+    if (mediaFileId) {
+      const fileRecord = await resolveMediaFileById(supabase, mediaFileId);
+      if (fileRecord) return fileRecord;
+    }
+  }
+
+  return null;
+};
+
 const resolveLatestMediaFileByGenerationId = async (
   supabase: SupabaseClient,
   generationId: string
@@ -263,6 +305,23 @@ export const resolveReferenceDownloadTarget = async ({
     output.mediaSource === "generated" && Boolean(generationId);
 
   if (shouldPreferCanonicalGeneratedOutputs && generationId) {
+    let publicationFileRecord: ResolvedReferenceDownloadTarget["fileRecord"] = null;
+    try {
+      publicationFileRecord = await resolveLatestMediaFileByGenerationPublications(
+        supabase,
+        generationId
+      );
+    } catch {
+      publicationFileRecord = null;
+    }
+    if (publicationFileRecord) {
+      return {
+        fileRecord: publicationFileRecord,
+        generationId,
+        directUrl,
+      };
+    }
+
     let canonicalGeneratedFileRecord: ResolvedReferenceDownloadTarget["fileRecord"] = null;
     try {
       canonicalGeneratedFileRecord = await resolveLatestMediaFileByCanonicalGenerationOutputs(
@@ -311,6 +370,23 @@ export const resolveReferenceDownloadTarget = async ({
   }
 
   if (!shouldPreferCanonicalGeneratedOutputs) {
+    let publicationFileRecord: ResolvedReferenceDownloadTarget["fileRecord"] = null;
+    try {
+      publicationFileRecord = await resolveLatestMediaFileByGenerationPublications(
+        supabase,
+        generationId
+      );
+    } catch {
+      publicationFileRecord = null;
+    }
+    if (publicationFileRecord) {
+      return {
+        fileRecord: publicationFileRecord,
+        generationId,
+        directUrl,
+      };
+    }
+
     let canonicalGeneratedFileRecord: ResolvedReferenceDownloadTarget["fileRecord"] = null;
     try {
       canonicalGeneratedFileRecord = await resolveLatestMediaFileByCanonicalGenerationOutputs(

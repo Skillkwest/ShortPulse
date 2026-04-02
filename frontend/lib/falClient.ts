@@ -65,6 +65,7 @@ export type FalQueueStatusResponse =
         taskState: "pending";
         queueState: "queued";
         isTerminal: false;
+        statusLabel?: string;
       };
     }
   | {
@@ -76,6 +77,7 @@ export type FalQueueStatusResponse =
         taskState: "running";
         queueState: "dispatching";
         isTerminal: false;
+        statusLabel?: string;
       };
     }
   | {
@@ -89,6 +91,7 @@ export type FalQueueStatusResponse =
         taskState: "running";
         queueState: "dispatched";
         isTerminal: false;
+        statusLabel?: string;
       };
     }
   | {
@@ -101,6 +104,7 @@ export type FalQueueStatusResponse =
         queueState: "failed";
         isTerminal: true;
         errorMessage: string;
+        statusLabel?: string | null;
       };
     }
   | {
@@ -119,6 +123,8 @@ export type FalStatusResponse = {
     errorDetail?: unknown;
     providerState?: string | null;
     recoveryPending?: boolean;
+    queueState?: "queued" | "dispatching" | "dispatched" | "failed" | null;
+    statusLabel?: string | null;
   };
   data?: {
     images?: { url: string; content_type?: string; width?: number; height?: number }[];

@@ -95,6 +95,22 @@ const attachShortPulseLifecycle = ({
   };
 };
 
+const ACTIVE_POLLING_QUEUE_STATE = "dispatched" as const;
+
+const resolveLifecycleStatusLabel = ({
+  taskState,
+  recoveryPending = false,
+}: {
+  taskState: "pending" | "running" | "success" | "fail";
+  recoveryPending?: boolean;
+}): string | null => {
+  if (taskState === "success") return "Just now";
+  if (recoveryPending) return "Waiting for server recovery...";
+  if (taskState === "pending") return "Processing...";
+  if (taskState === "running") return "Processing...";
+  return null;
+};
+
 const buildNonterminalLifecycleHint = ({
   normalizedStatus,
   recoveryPending = false,
@@ -112,6 +128,16 @@ const buildNonterminalLifecycleHint = ({
     isTerminal: false,
     providerState: normalizedStatus ?? "running",
     recoveryPending,
+    queueState: ACTIVE_POLLING_QUEUE_STATE,
+    statusLabel: resolveLifecycleStatusLabel({
+      taskState:
+        normalizedStatus === "pending" ||
+        normalizedStatus === "queued" ||
+        normalizedStatus === "in_queue"
+          ? "pending"
+          : "running",
+      recoveryPending,
+    }),
   });
 
 /**
@@ -212,6 +238,7 @@ export const createFalStatusHandler = ({
             persistedGenerationContext.errorDetail ??
             persistedGenerationContext.errorMessageShort ??
             "Generation failed",
+          queueState: "failed",
         }),
       });
     }
@@ -419,6 +446,11 @@ export const createFalStatusHandler = ({
             isTerminal: false,
             providerState: "running",
             recoveryPending: true,
+            queueState: ACTIVE_POLLING_QUEUE_STATE,
+            statusLabel: resolveLifecycleStatusLabel({
+              taskState: "running",
+              recoveryPending: true,
+            }),
           }),
         })
       );
@@ -466,6 +498,10 @@ export const createFalStatusHandler = ({
             isTerminal: true,
             resultUrls,
             providerState: payloadStatus,
+            queueState: ACTIVE_POLLING_QUEUE_STATE,
+            statusLabel: resolveLifecycleStatusLabel({
+              taskState: "success",
+            }),
           }),
         });
       };
@@ -650,6 +686,7 @@ export const createFalStatusHandler = ({
               "Generation failed",
             errorDetail: statusData.json,
             providerState: normalizedStatus,
+            queueState: "failed",
           }),
         });
       }
@@ -914,6 +951,13 @@ export const createFalStatusHandler = ({
           source: "api.fal_status.content_policy",
           stage: "result",
           detail: resultPolicyMessage,
+          lifecycle: buildShortPulseLifecycleHint({
+            taskState: "fail",
+            isTerminal: true,
+            errorMessage: resultPolicyMessage,
+            errorDetail: resultPolicyMessage,
+            queueState: "failed",
+          }),
         });
       }
 
@@ -941,6 +985,7 @@ export const createFalStatusHandler = ({
           observationType: "failed",
           payload: resultData.json,
         });
+        const resultLifecycleStatus = readPayloadLifecycleStatus(resultData.json);
         return respondErrorWithLogging({
           requestId,
           error:
@@ -951,6 +996,17 @@ export const createFalStatusHandler = ({
           source: "api.fal_status.result_upstream_non_ok",
           stage: "result",
           detail: resultData.json,
+          lifecycle: buildShortPulseLifecycleHint({
+            taskState: "fail",
+            isTerminal: true,
+            errorMessage:
+              asProviderString(resultData.json.error) ||
+              asProviderString(resultData.json.message) ||
+              "Generation failed",
+            errorDetail: resultData.json,
+            providerState: resultLifecycleStatus ?? normalizedStatus,
+            queueState: "failed",
+          }),
         });
       }
 
@@ -983,6 +1039,14 @@ export const createFalStatusHandler = ({
           source: "api.fal_status.result_missing_media",
           stage: "result",
           detail: resultData.json,
+          lifecycle: buildShortPulseLifecycleHint({
+            taskState: "fail",
+            isTerminal: true,
+            errorMessage: resultErrorMessage || "Generation failed to produce media output",
+            errorDetail: resultData.json,
+            providerState: resultStatus ?? normalizedStatus,
+            queueState: "failed",
+          }),
         });
       }
 
@@ -994,6 +1058,14 @@ export const createFalStatusHandler = ({
           source: "api.fal_status.result_missing_media",
           stage: "result",
           detail: resultData.json,
+          lifecycle: buildShortPulseLifecycleHint({
+            taskState: "fail",
+            isTerminal: true,
+            errorMessage: resultErrorMessage || "Generation failed to produce media output",
+            errorDetail: resultData.json,
+            providerState: resultStatus ?? normalizedStatus,
+            queueState: "failed",
+          }),
         });
       }
 

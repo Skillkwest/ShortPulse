@@ -81,6 +81,16 @@ const isAutoRetryEligible = (output: StudioOutput): boolean => {
   );
 };
 
+const normalizeQueuedResumeQueueState = (
+  queueState: "queued" | "dispatching" | "dispatched" | "failed" | null | undefined,
+  fallback: "queued" | "dispatching" | "dispatched"
+): StudioOutput["queueState"] => {
+  if (queueState === "queued") return "queued";
+  if (queueState === "dispatching") return "dispatching";
+  if (queueState === "dispatched") return "dispatched";
+  return fallback;
+};
+
 const isQueueResumeEligible = (output: StudioOutput): boolean => {
   const generationId = typeof output.generationId === "string" ? output.generationId.trim() : "";
   if (!generationId) return false;
@@ -265,6 +275,12 @@ export const useAiStudioTaskOrchestration = ({
               return {
                 ...item,
                 provider: item.provider ?? provider,
+                sourceRef:
+                  item.sourceRef ??
+                  (typeof queueStatus.sourceRef === "string" &&
+                  queueStatus.sourceRef.trim().length > 0
+                    ? queueStatus.sourceRef.trim()
+                    : item.sourceRef),
                 generationId:
                   item.generationId ??
                   (typeof queueStatus.generationId === "string" &&
@@ -273,10 +289,10 @@ export const useAiStudioTaskOrchestration = ({
                     : item.generationId),
                 taskId: requestId,
                 generationTraceId: requestId,
-                queueState: lifecycle?.queueState ?? "dispatched",
+                queueState: normalizeQueuedResumeQueueState(lifecycle?.queueState, "dispatched"),
                 taskState: lifecycle?.taskState ?? "running",
                 status: "ready",
-                timestamp: "Submitted",
+                timestamp: lifecycle?.statusLabel ?? "Submitted",
                 errorMessage: null,
                 errorMessageShort: null,
                 errorDetail: null,
@@ -286,6 +302,7 @@ export const useAiStudioTaskOrchestration = ({
             return;
           }
           if (queueStatus.status === "queued" || queueStatus.status === "dispatching") {
+            const lifecycle = queueStatus.shortpulseLifecycle;
             updateOutputById(output.id, (item) => ({
               ...item,
               sourceRef:
@@ -300,16 +317,20 @@ export const useAiStudioTaskOrchestration = ({
                 queueStatus.generationId.trim().length > 0
                   ? queueStatus.generationId.trim()
                   : item.generationId),
-              queueState: lifecycle?.queueState ?? queueStatus.status,
+              queueState: normalizeQueuedResumeQueueState(
+                lifecycle?.queueState,
+                queueStatus.status
+              ),
               taskState:
                 lifecycle?.taskState ?? (queueStatus.status === "queued" ? "pending" : "running"),
               status: "ready",
               timestamp:
-                queueStatus.status === "dispatching"
+                lifecycle?.statusLabel ??
+                (queueStatus.status === "dispatching"
                   ? "Dispatching..."
                   : item.timestamp === SERVER_RECOVERY_PENDING_TIMESTAMP
                     ? item.timestamp
-                    : "Waiting in queue...",
+                    : "Waiting in queue..."),
               errorMessage: null,
               errorMessageShort: null,
               errorDetail: null,

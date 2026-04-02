@@ -115,6 +115,16 @@ const resolveDispatchedPollingProvider = ({
   return normalizedProvider;
 };
 
+const normalizeQueuedLifecycleQueueState = (
+  queueState: "queued" | "dispatching" | "dispatched" | "failed" | null | undefined,
+  fallback: "queued" | "dispatching"
+): StudioOutput["queueState"] => {
+  if (queueState === "queued") return "queued";
+  if (queueState === "dispatching") return "dispatching";
+  if (queueState === "dispatched") return "dispatched";
+  return fallback;
+};
+
 const markQueuedStatusRecoveryPending = ({
   outputId,
   updateOutputById,
@@ -155,15 +165,16 @@ const syncQueuedStatusLifecycle = ({
       (typeof queueStatus.generationId === "string" && queueStatus.generationId.trim().length > 0
         ? queueStatus.generationId.trim()
         : item.generationId),
-    queueState: lifecycle?.queueState ?? queueStatus.status,
+    queueState: normalizeQueuedLifecycleQueueState(lifecycle?.queueState, queueStatus.status),
     taskState: lifecycle?.taskState ?? (queueStatus.status === "queued" ? "pending" : "running"),
     status: "ready",
     timestamp:
-      queueStatus.status === "dispatching"
+      lifecycle?.statusLabel ??
+      (queueStatus.status === "dispatching"
         ? "Dispatching..."
         : item.timestamp === SERVER_RECOVERY_PENDING_TIMESTAMP
           ? item.timestamp
-          : "Waiting in queue...",
+          : "Waiting in queue..."),
     errorMessage: null,
     errorMessageShort: null,
     errorDetail: null,

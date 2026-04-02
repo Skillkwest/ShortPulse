@@ -29,6 +29,8 @@ export type ShortPulseLifecycleHint = {
   errorDetail?: unknown;
   providerState?: string | null;
   recoveryPending?: boolean;
+  queueState?: "queued" | "dispatching" | "dispatched" | "failed" | null;
+  statusLabel?: string | null;
 };
 
 /**
@@ -132,6 +134,8 @@ export const buildShortPulseLifecycleHint = ({
   errorDetail,
   providerState,
   recoveryPending,
+  queueState,
+  statusLabel,
 }: ShortPulseLifecycleHint): ShortPulseLifecycleHint => {
   const next: ShortPulseLifecycleHint = {
     taskState,
@@ -151,6 +155,12 @@ export const buildShortPulseLifecycleHint = ({
   }
   if (recoveryPending === true) {
     next.recoveryPending = true;
+  }
+  if (typeof queueState === "string" && queueState.trim().length > 0) {
+    next.queueState = queueState.trim() as ShortPulseLifecycleHint["queueState"];
+  }
+  if (typeof statusLabel === "string" && statusLabel.trim().length > 0) {
+    next.statusLabel = statusLabel.trim();
   }
   return next;
 };

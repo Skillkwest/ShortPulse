@@ -40,7 +40,7 @@ export type AiStudioSessionOutputV1 = {
   timestamp: string;
   taskId?: string;
   taskState?: "pending" | "running" | "success" | "fail";
-  queueState?: "queued" | "dispatched";
+  queueState?: "queued" | "dispatching" | "dispatched";
   queueEnqueuedAtMs?: number;
   generationTraceId?: string;
   errorMessage?: string | null;
@@ -77,7 +77,7 @@ export type AiStudioSessionWorkspaceV1 = {
   extraImageUrls: [string | null, string | null, string | null];
   editReferenceText: string;
   videoReferenceText: string;
-  videoReferenceMode: "standard" | "keyframes" | "kling3" | "motion";
+  videoReferenceMode: "standard" | "modify" | "keyframes" | "kling3" | "motion";
   videoDurationSeconds: number;
   videoResolution: string;
   imageResolution: string;
@@ -153,7 +153,7 @@ export type BuildAiStudioSessionSnapshotInput = {
   extraImageUrls: [string | null, string | null, string | null];
   editReferenceText: string;
   videoReferenceText: string;
-  videoReferenceMode: "standard" | "keyframes" | "kling3" | "motion";
+  videoReferenceMode: "standard" | "modify" | "keyframes" | "kling3" | "motion";
   videoDurationSeconds: number;
   videoResolution: string;
   imageResolution: string;

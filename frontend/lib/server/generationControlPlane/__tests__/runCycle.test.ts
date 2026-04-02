@@ -170,4 +170,33 @@ describe("runGenerationControlPlaneCycle", () => {
     );
     expect(logApiRouteExceptionMock).not.toHaveBeenCalled();
   });
+
+  it("skips queue dispatch and request-id repair in rescue mode", async () => {
+    const supabase = createSupabaseMock();
+    getSupabaseAdminMock.mockReturnValue({
+      rpc: supabase.rpc,
+      from: supabase.from,
+    });
+
+    await runGenerationControlPlaneCycle({
+      context: {
+        routeLabel: "internal/generation-recovery/run",
+      },
+      mode: "rescue",
+    });
+
+    expect(dispatchGenerationSubmitQueueBatchMock).not.toHaveBeenCalled();
+    expect(repairGenerationRequestIdsFromReservationsMock).not.toHaveBeenCalled();
+    expect(processPendingGenerationObservationsMock).toHaveBeenCalledWith({
+      limit: 5,
+      routeLabel: "internal/generation-recovery/run",
+    });
+    expect(claimGenerationRecoveryBatchMock).toHaveBeenCalledWith({
+      supabaseAdmin: expect.any(Object),
+      batchSize: 5,
+      maxAttempts: 5,
+      minAgeSeconds: 0,
+      leaseSeconds: expect.any(Number),
+    });
+  });
 });

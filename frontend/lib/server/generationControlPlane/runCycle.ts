@@ -64,11 +64,17 @@ const logControlPlaneException = async ({
 
 export const runGenerationControlPlaneCycle = async ({
   context,
+  mode = "primary",
 }: {
   context: GenerationControlPlaneLogContext;
+  mode?: "primary" | "rescue";
 }): Promise<GenerationControlPlaneCycleResult> => {
   const flags = readFalRuntimeFlags();
   const supabaseAdmin = getSupabaseAdmin();
+  const rescueMode = mode === "rescue";
+  const effectiveReconcilerBatchSize = rescueMode
+    ? Math.min(flags.reconcilerBatchSize, 5)
+    : flags.reconcilerBatchSize;
   let reservationCleanupScanned = 0;
   let reservationCleanupReleased = 0;
   let reservationCleanupErrors = 0;
@@ -133,7 +139,7 @@ export const runGenerationControlPlaneCycle = async ({
     }
   }
 
-  if (flags.queueEnabled) {
+  if (!rescueMode && flags.queueEnabled) {
     try {
       const queueMetrics = await dispatchGenerationSubmitQueueBatch({
         req: context.req,
@@ -161,7 +167,7 @@ export const runGenerationControlPlaneCycle = async ({
 
   try {
     const observationMetrics = await processPendingGenerationObservations({
-      limit: flags.reconcilerBatchSize,
+      limit: effectiveReconcilerBatchSize,
       routeLabel: context.routeLabel,
     });
     observationClaimed = observationMetrics.claimed;
@@ -181,9 +187,11 @@ export const runGenerationControlPlaneCycle = async ({
   }
 
   try {
-    await repairGenerationRequestIdsFromReservations({
-      limit: flags.reconcilerBatchSize,
-    });
+    if (!rescueMode) {
+      await repairGenerationRequestIdsFromReservations({
+        limit: effectiveReconcilerBatchSize,
+      });
+    }
   } catch (error) {
     await logControlPlaneException({
       context,
@@ -196,7 +204,7 @@ export const runGenerationControlPlaneCycle = async ({
 
   const claimBatch = await claimGenerationRecoveryBatch({
     supabaseAdmin,
-    batchSize: flags.reconcilerBatchSize,
+    batchSize: effectiveReconcilerBatchSize,
     maxAttempts: flags.reconcilerMaxAttempts,
     minAgeSeconds: flags.reconcilerMinAgeSeconds,
     leaseSeconds: flags.reconcilerLeaseSeconds,

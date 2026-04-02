@@ -31,6 +31,16 @@ const readBearerToken = (req: NextApiRequest): string | null => {
 
 const ROUTE_LABEL = "internal/generation-recovery/run";
 
+const readRequestedRunMode = (req: NextApiRequest): "primary" | "rescue" => {
+  const rawMode =
+    req.body && typeof req.body === "object" && !Array.isArray(req.body)
+      ? (req.body as { runMode?: unknown }).runMode
+      : null;
+  return typeof rawMode === "string" && rawMode.trim().toLowerCase() === "full"
+    ? "primary"
+    : "rescue";
+};
+
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" });
@@ -62,12 +72,19 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   try {
+    const runMode = readRequestedRunMode(req);
     const context: GenerationControlPlaneLogContext = {
       req,
       routeLabel: ROUTE_LABEL,
     };
-    const result = await runGenerationControlPlaneCycle({ context });
-    return res.status(200).json(result);
+    const result = await runGenerationControlPlaneCycle({
+      context,
+      mode: runMode,
+    });
+    return res.status(200).json({
+      ...result,
+      runMode,
+    });
   } catch (error) {
     await logApiRouteException({
       req,

@@ -1,21 +1,14 @@
 import { getSupabaseAdmin } from "../api/supabaseAdmin";
 import { lookupGenerationAttemptByProviderRequest } from "../api/generationAttempts";
-import {
-  markGenerationObservationProcessingState,
-  persistGenerationObservation,
-} from "../api/generationObservationInbox";
-import {
-  executeGenerationRecovery,
-  type RecoveryObservation,
-} from "../falIntegration/recoveryExecution";
+import { persistGenerationObservation } from "../api/generationObservationInbox";
 import { readRecoveryGenerationRow } from "./recoveryGenerationLookup";
+import { requestGenerationControlPlaneWake } from "../generationControlPlane/controlPlaneWake";
 import {
   asProviderRecord,
   readCanonicalProviderEventId,
   readCanonicalProviderRequestId,
   readCanonicalProviderStatus,
 } from "../providerIntegration/canonicalProviderPayload";
-import { readProviderMediaUrls } from "../providerIntegration/statusProviderPayload";
 
 type JsonObject = Record<string, unknown>;
 
@@ -37,16 +30,13 @@ const resolveNormalizedStatus = (payload: JsonObject): string | null =>
 
 const resolveObservationState = (
   normalizedStatus: string | null
-): RecoveryObservation["state"] | null => {
+): "running" | "failed" | "completed" | null => {
   if (!normalizedStatus) return null;
   if (runningStatuses.has(normalizedStatus)) return "running";
   if (failedStatuses.has(normalizedStatus)) return "failed";
   if (completedStatuses.has(normalizedStatus)) return "completed";
   return null;
 };
-
-const extractMediaUrls = (payload: JsonObject): string[] =>
-  readProviderMediaUrls({ provider: "fal", payload });
 
 const markWebhookEventProcessed = async ({
   eventId,
@@ -68,13 +58,6 @@ const markWebhookEventProcessed = async ({
 };
 
 const buildWebhookObservationIdempotencyKey = (eventId: string): string => `fal:webhook:${eventId}`;
-
-const resolveObservationProcessingState = (resultState: string): "processed" | "ignored" => {
-  if (resultState === "missing_generation" || resultState === "skipped") {
-    return "ignored";
-  }
-  return "processed";
-};
 
 const resolveWebhookObservationIdentity = async ({
   requestId,
@@ -117,7 +100,7 @@ export type FalWebhookIngressHeaders = {
 export type FalWebhookIngressResult =
   | { kind: "ignored"; reason: "missing_event_id" | "missing_request_id" | "non_terminal_status" }
   | { kind: "duplicate" }
-  | { kind: "processed"; requestId: string; status: string };
+  | { kind: "accepted"; requestId: string; status: string };
 
 export const parseFalWebhookPayload = (rawBody: string): JsonObject => {
   return parseObject(JSON.parse(rawBody));
@@ -136,6 +119,7 @@ export const ingestFalWebhookEvent = async ({
   payloadHash: string | null;
   maxAttempts: number;
 }): Promise<FalWebhookIngressResult> => {
+  void maxAttempts;
   const eventId = headers.eventId ?? resolveEventId(payload);
   if (!eventId) {
     return { kind: "ignored", reason: "missing_event_id" };
@@ -202,45 +186,20 @@ export const ingestFalWebhookEvent = async ({
     idempotencyKey: observationIdempotencyKey,
     payload,
   });
-
-  const observation: RecoveryObservation = {
-    state: observationState,
-    payload,
-    mediaUrls: extractMediaUrls(payload),
-  };
-  let result;
-  try {
-    result = await executeGenerationRecovery({
-      actor: "webhook",
-      requestId,
-      observation,
-      routeLabel: "fal/webhook",
-      maxAttempts,
-    });
-  } catch (error) {
-    await markGenerationObservationProcessingState({
-      idempotencyKey: observationIdempotencyKey,
-      processingState: "failed",
-      processingError: error instanceof Error ? error.message : String(error),
-    });
-    throw error;
-  }
-
-  await markGenerationObservationProcessingState({
-    idempotencyKey: observationIdempotencyKey,
-    processingState: resolveObservationProcessingState(result.state),
-    processingError: result.note ?? null,
+  void requestGenerationControlPlaneWake({
+    routeLabel: "fal/webhook",
+    reason: "webhook_observation",
   });
 
   await markWebhookEventProcessed({
     eventId,
-    processingStatus: result.state,
-    processingError: result.note ?? null,
+    processingStatus: "accepted_pending_observation",
+    processingError: null,
   });
 
   return {
-    kind: "processed",
+    kind: "accepted",
     requestId,
-    status: result.state,
+    status: observationState,
   };
 };

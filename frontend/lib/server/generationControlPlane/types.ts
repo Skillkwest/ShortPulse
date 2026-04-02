@@ -7,6 +7,11 @@ export type GenerationControlPlaneLogContext = {
 
 export type GenerationControlPlaneCycleResult = {
   ok: true;
+  observationClaimed: number;
+  observationProcessed: number;
+  observationIgnored: number;
+  observationFailed: number;
+  observationErrors: number;
   claimed: number;
   processed: number;
   recovered: number;

@@ -3,6 +3,7 @@ import { readFalRuntimeFlags } from "../api/falRuntimeFlags";
 import { dispatchGenerationSubmitQueueBatch } from "../api/generationQueue/dispatch";
 import { repairGenerationRequestIdsFromReservations } from "../api/generationQueue/requestIdRepair";
 import { getSupabaseAdmin } from "../api/supabaseAdmin";
+import { processPendingGenerationObservations } from "./observationBatchExecution";
 import { claimGenerationRecoveryBatch } from "./recoveryBatchAcquisition";
 import { executeClaimedRecoveryBatch } from "./recoveryBatchExecution";
 import type { GenerationControlPlaneCycleResult, GenerationControlPlaneLogContext } from "./types";
@@ -78,6 +79,11 @@ export const runGenerationControlPlaneCycle = async ({
   let queueExhausted = 0;
   let queueSkipped = 0;
   let queueDispatchErrors = 0;
+  let observationClaimed = 0;
+  let observationProcessed = 0;
+  let observationIgnored = 0;
+  let observationFailed = 0;
+  let observationErrors = 0;
 
   if (flags.reservationCleanupEnabled) {
     const cleanupResponse = await supabaseAdmin.rpc("release_stale_generation_reservations", {
@@ -154,6 +160,27 @@ export const runGenerationControlPlaneCycle = async ({
   }
 
   try {
+    const observationMetrics = await processPendingGenerationObservations({
+      limit: flags.reconcilerBatchSize,
+      routeLabel: context.routeLabel,
+    });
+    observationClaimed = observationMetrics.claimed;
+    observationProcessed = observationMetrics.processed;
+    observationIgnored = observationMetrics.ignored;
+    observationFailed = observationMetrics.failed;
+    observationErrors = observationMetrics.errors;
+  } catch (error) {
+    observationErrors += 1;
+    await logControlPlaneException({
+      context,
+      error,
+      metadata: {
+        stage: "observation_inbox_processing",
+      },
+    });
+  }
+
+  try {
     await repairGenerationRequestIdsFromReservations({
       limit: flags.reconcilerBatchSize,
     });
@@ -202,6 +229,11 @@ export const runGenerationControlPlaneCycle = async ({
 
   return {
     ok: true,
+    observationClaimed,
+    observationProcessed,
+    observationIgnored,
+    observationFailed,
+    observationErrors,
     claimed: claimedRows.length,
     processed,
     recovered,

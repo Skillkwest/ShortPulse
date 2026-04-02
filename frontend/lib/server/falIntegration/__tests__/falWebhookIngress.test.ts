@@ -2,11 +2,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ingestFalWebhookEvent, parseFalWebhookPayload } from "../falWebhookIngress";
 
 const getSupabaseAdminMock = vi.fn();
-const executeGenerationRecoveryMock = vi.fn();
 const lookupGenerationAttemptByProviderRequestMock = vi.fn();
 const persistGenerationObservationMock = vi.fn();
-const markGenerationObservationProcessingStateMock = vi.fn();
 const readRecoveryGenerationRowMock = vi.fn();
+const requestGenerationControlPlaneWakeMock = vi.fn();
 
 vi.mock("../../api/supabaseAdmin", () => ({
   getSupabaseAdmin: (...args: unknown[]) => getSupabaseAdminMock(...args),
@@ -19,16 +18,15 @@ vi.mock("../../api/generationAttempts", () => ({
 
 vi.mock("../../api/generationObservationInbox", () => ({
   persistGenerationObservation: (...args: unknown[]) => persistGenerationObservationMock(...args),
-  markGenerationObservationProcessingState: (...args: unknown[]) =>
-    markGenerationObservationProcessingStateMock(...args),
-}));
-
-vi.mock("../recoveryExecution", () => ({
-  executeGenerationRecovery: (...args: unknown[]) => executeGenerationRecoveryMock(...args),
 }));
 
 vi.mock("../recoveryGenerationLookup", () => ({
   readRecoveryGenerationRow: (...args: unknown[]) => readRecoveryGenerationRowMock(...args),
+}));
+
+vi.mock("../../generationControlPlane/controlPlaneWake", () => ({
+  requestGenerationControlPlaneWake: (...args: unknown[]) =>
+    requestGenerationControlPlaneWakeMock(...args),
 }));
 
 const createSupabaseMock = () => {
@@ -52,8 +50,8 @@ describe("falWebhookIngress", () => {
     vi.clearAllMocks();
     lookupGenerationAttemptByProviderRequestMock.mockResolvedValue({ data: null, error: null });
     persistGenerationObservationMock.mockResolvedValue(undefined);
-    markGenerationObservationProcessingStateMock.mockResolvedValue(undefined);
     readRecoveryGenerationRowMock.mockResolvedValue(null);
+    requestGenerationControlPlaneWakeMock.mockResolvedValue(undefined);
   });
 
   it("returns duplicate when the event insert conflicts on event id", async () => {
@@ -90,7 +88,6 @@ describe("falWebhookIngress", () => {
         maxAttempts: 5,
       })
     ).resolves.toEqual({ kind: "duplicate" });
-    expect(executeGenerationRecoveryMock).not.toHaveBeenCalled();
     expect(persistGenerationObservationMock).not.toHaveBeenCalled();
   });
 
@@ -121,7 +118,7 @@ describe("falWebhookIngress", () => {
     expect(persistGenerationObservationMock).not.toHaveBeenCalled();
   });
 
-  it("processes terminal events through the shared recovery engine", async () => {
+  it("persists terminal events into the observation inbox and wakes the control plane", async () => {
     const supabase = createSupabaseMock();
     getSupabaseAdminMock.mockReturnValue({ from: supabase.from });
     lookupGenerationAttemptByProviderRequestMock.mockResolvedValue({
@@ -135,16 +132,6 @@ describe("falWebhookIngress", () => {
       },
       error: null,
     });
-    executeGenerationRecoveryMock.mockResolvedValue({
-      ok: true,
-      state: "recovered",
-      requestId: "req-1",
-      generationId: "gen-1",
-      mediaFileIds: ["media-1"],
-      mediaUrls: ["https://cdn.shortpulse.test/output.png"],
-      processed: true,
-    });
-
     await expect(
       ingestFalWebhookEvent({
         payload: parseFalWebhookPayload(
@@ -168,17 +155,10 @@ describe("falWebhookIngress", () => {
         maxAttempts: 5,
       })
     ).resolves.toEqual({
-      kind: "processed",
+      kind: "accepted",
       requestId: "req-1",
-      status: "recovered",
+      status: "completed",
     });
-    expect(executeGenerationRecoveryMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        actor: "webhook",
-        requestId: "req-1",
-        routeLabel: "fal/webhook",
-      })
-    );
     expect(persistGenerationObservationMock).toHaveBeenCalledWith({
       generationId: "gen-1",
       generationAttemptId: "attempt-1",
@@ -190,44 +170,10 @@ describe("falWebhookIngress", () => {
       idempotencyKey: "fal:webhook:event-1",
       payload: expect.any(Object),
     });
-    expect(markGenerationObservationProcessingStateMock).toHaveBeenCalledWith({
-      idempotencyKey: "fal:webhook:event-1",
-      processingState: "processed",
-      processingError: null,
+    expect(requestGenerationControlPlaneWakeMock).toHaveBeenCalledWith({
+      routeLabel: "fal/webhook",
+      reason: "webhook_observation",
     });
     expect(supabase.updateEq).toHaveBeenCalled();
-  });
-
-  it("marks observation inbox row failed when recovery execution throws", async () => {
-    const supabase = createSupabaseMock();
-    getSupabaseAdminMock.mockReturnValue({ from: supabase.from });
-    executeGenerationRecoveryMock.mockRejectedValue(new Error("boom"));
-
-    await expect(
-      ingestFalWebhookEvent({
-        payload: parseFalWebhookPayload(
-          JSON.stringify({
-            id: "event-2",
-            request_id: "req-2",
-            status: "completed",
-          })
-        ),
-        headers: {
-          requestId: "req-2",
-          userId: "fal-user-2",
-          eventId: "event-2",
-          timestamp: "123",
-        },
-        verificationMethod: "fal",
-        payloadHash: "hash-2",
-        maxAttempts: 5,
-      })
-    ).rejects.toThrow("boom");
-
-    expect(markGenerationObservationProcessingStateMock).toHaveBeenCalledWith({
-      idempotencyKey: "fal:webhook:event-2",
-      processingState: "failed",
-      processingError: "boom",
-    });
   });
 });

@@ -4,6 +4,7 @@ import { runGenerationControlPlaneCycle } from "../runCycle";
 const getSupabaseAdminMock = vi.fn();
 const logApiRouteExceptionMock = vi.fn();
 const dispatchGenerationSubmitQueueBatchMock = vi.fn();
+const processPendingGenerationObservationsMock = vi.fn();
 const repairGenerationRequestIdsFromReservationsMock = vi.fn();
 const claimGenerationRecoveryBatchMock = vi.fn();
 const executeClaimedRecoveryBatchMock = vi.fn();
@@ -19,6 +20,11 @@ vi.mock("../../api/appErrorLogs", () => ({
 vi.mock("../../api/generationQueue/dispatch", () => ({
   dispatchGenerationSubmitQueueBatch: (...args: unknown[]) =>
     dispatchGenerationSubmitQueueBatchMock(...args),
+}));
+
+vi.mock("../observationBatchExecution", () => ({
+  processPendingGenerationObservations: (...args: unknown[]) =>
+    processPendingGenerationObservationsMock(...args),
 }));
 
 vi.mock("../../api/generationQueue/requestIdRepair", () => ({
@@ -79,6 +85,13 @@ describe("runGenerationControlPlaneCycle", () => {
       skipped: 0,
       errors: 0,
     });
+    processPendingGenerationObservationsMock.mockResolvedValue({
+      claimed: 2,
+      processed: 1,
+      ignored: 1,
+      failed: 0,
+      errors: 0,
+    });
     repairGenerationRequestIdsFromReservationsMock.mockResolvedValue({
       scanned: 0,
       repaired: 0,
@@ -121,6 +134,10 @@ describe("runGenerationControlPlaneCycle", () => {
     expect(repairGenerationRequestIdsFromReservationsMock).toHaveBeenCalledWith({
       limit: 10,
     });
+    expect(processPendingGenerationObservationsMock).toHaveBeenCalledWith({
+      limit: 10,
+      routeLabel: "worker/generation-control-plane",
+    });
     expect(claimGenerationRecoveryBatchMock).toHaveBeenCalledWith({
       supabaseAdmin: expect.any(Object),
       batchSize: 10,
@@ -139,6 +156,11 @@ describe("runGenerationControlPlaneCycle", () => {
     expect(result).toEqual(
       expect.objectContaining({
         ok: true,
+        observationClaimed: 2,
+        observationProcessed: 1,
+        observationIgnored: 1,
+        observationFailed: 0,
+        observationErrors: 0,
         claimed: 0,
         queueClaimed: 1,
         queueSubmitted: 1,

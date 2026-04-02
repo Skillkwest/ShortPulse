@@ -17,10 +17,29 @@ export type PersistGenerationObservationInput = {
 
 export type GenerationObservationProcessingState = "pending" | "processed" | "ignored" | "failed";
 
+export type PendingGenerationObservation = {
+  id: string;
+  generationId: string | null;
+  generationAttemptId: string | null;
+  userId: string | null;
+  provider: string;
+  providerRequestId: string | null;
+  observationSource: "webhook" | "poll" | "replay" | "reconciler";
+  observationType: string;
+  idempotencyKey: string;
+  payload: JsonObject;
+  observedAt: string | null;
+};
+
 const asString = (value: unknown): string | null => {
   if (typeof value !== "string") return null;
   const trimmed = value.trim();
   return trimmed.length ? trimmed : null;
+};
+
+const asObject = (value: unknown): JsonObject | null => {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  return value as JsonObject;
 };
 
 export const persistGenerationObservation = async ({
@@ -66,6 +85,71 @@ export const persistGenerationObservation = async ({
     onConflict: "idempotency_key",
   });
   if (error) throw error;
+};
+
+const parsePendingGenerationObservation = (value: unknown): PendingGenerationObservation | null => {
+  const row = asObject(value);
+  const id = asString(row?.id);
+  const provider = asString(row?.provider);
+  const observationSource = asString(row?.observation_source) as
+    | "webhook"
+    | "poll"
+    | "replay"
+    | "reconciler"
+    | null;
+  const observationType = asString(row?.observation_type);
+  const idempotencyKey = asString(row?.idempotency_key);
+  const payload = asObject(row?.payload);
+  if (!id || !provider || !observationSource || !observationType || !idempotencyKey || !payload) {
+    return null;
+  }
+
+  return {
+    id,
+    generationId: asString(row?.generation_id),
+    generationAttemptId: asString(row?.generation_attempt_id),
+    userId: asString(row?.user_id),
+    provider,
+    providerRequestId: asString(row?.provider_request_id),
+    observationSource,
+    observationType,
+    idempotencyKey,
+    payload,
+    observedAt: asString(row?.observed_at),
+  };
+};
+
+export const readPendingGenerationObservations = async ({
+  limit,
+}: {
+  limit: number;
+}): Promise<PendingGenerationObservation[]> => {
+  const { data, error } = await getSupabaseAdmin()
+    .from("generation_observation_inbox")
+    .select(
+      [
+        "id",
+        "generation_id",
+        "generation_attempt_id",
+        "user_id",
+        "provider",
+        "provider_request_id",
+        "observation_source",
+        "observation_type",
+        "idempotency_key",
+        "payload",
+        "observed_at",
+      ].join(", ")
+    )
+    .eq("processing_state", "pending")
+    .order("observed_at", { ascending: true })
+    .limit(Math.max(1, Math.trunc(limit)));
+
+  if (error || !Array.isArray(data)) return [];
+
+  return data
+    .map((row) => parsePendingGenerationObservation(row))
+    .filter((row): row is PendingGenerationObservation => Boolean(row));
 };
 
 export const markGenerationObservationProcessingState = async ({

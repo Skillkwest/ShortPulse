@@ -4,24 +4,17 @@
  */
 import { asCanonicalStoragePath } from "../../../lib/adaptive-media";
 import type { ensureSupabaseQueryClient } from "../../../lib/supabaseClient";
+import {
+  resolveGeneratedMediaFileRecordById,
+  resolveLatestPublishedGenerationMediaFile,
+} from "./generatedMediaAuthority";
 import type { StudioOutput } from "../types";
 
 type SupabaseClient = ReturnType<typeof ensureSupabaseQueryClient>;
 
-type MediaFileRow = {
-  storage_path?: unknown;
-  filename?: unknown;
-};
-
 type GenerationOutputRow = {
   media_file_id?: unknown;
   output_index?: unknown;
-};
-
-type GenerationPublicationRow = {
-  owned_media_file_id?: unknown;
-  preview_storage_path?: unknown;
-  full_storage_path?: unknown;
 };
 
 export type ResolvedReferenceDownloadTarget = {
@@ -132,15 +125,6 @@ const clampProviderDownloadTimeoutMs = (value: number | undefined): number => {
   return rounded;
 };
 
-const toMediaFileRecord = (row: MediaFileRow | null | undefined) => {
-  const storagePath = asCanonicalStoragePath(asTrimmedString(row?.storage_path));
-  if (!storagePath) return null;
-  return {
-    storagePath,
-    filename: sanitizeFilename(asTrimmedString(row?.filename)),
-  };
-};
-
 const resolveOutputStorageFileRecord = (
   output: Pick<StudioOutput, "previewStoragePath" | "fullStoragePath">
 ): ResolvedReferenceDownloadTarget["fileRecord"] => {
@@ -190,52 +174,7 @@ const resolveMediaFileById = async (
   supabase: SupabaseClient,
   mediaFileId: string
 ): Promise<ResolvedReferenceDownloadTarget["fileRecord"]> => {
-  const { data, error } = await supabase
-    .from("media_files")
-    .select("storage_path, filename")
-    .in("id", [mediaFileId])
-    .limit(1);
-  if (error) {
-    throw new Error(error.message || "Failed to resolve canonical generated media file.");
-  }
-  const row = (Array.isArray(data) ? data[0] : null) as MediaFileRow | null;
-  return toMediaFileRecord(row);
-};
-
-const resolveLatestMediaFileByGenerationPublications = async (
-  supabase: SupabaseClient,
-  generationId: string
-): Promise<ResolvedReferenceDownloadTarget["fileRecord"]> => {
-  const { data, error } = await supabase
-    .from("generation_publications")
-    .select("owned_media_file_id, preview_storage_path, full_storage_path, created_at")
-    .eq("generation_id", generationId)
-    .eq("publication_state", "published")
-    .order("created_at", { ascending: false })
-    .limit(50);
-  if (error) {
-    throw new Error(error.message || "Failed to resolve published generation media.");
-  }
-
-  for (const rawRow of Array.isArray(data) ? data : []) {
-    const row = rawRow as GenerationPublicationRow;
-    const storagePath =
-      asCanonicalStoragePath(asTrimmedString(row.full_storage_path)) ??
-      asCanonicalStoragePath(asTrimmedString(row.preview_storage_path));
-    if (storagePath) {
-      return {
-        storagePath,
-        filename: null,
-      };
-    }
-    const mediaFileId = asTrimmedString(row.owned_media_file_id);
-    if (mediaFileId) {
-      const fileRecord = await resolveMediaFileById(supabase, mediaFileId);
-      if (fileRecord) return fileRecord;
-    }
-  }
-
-  return null;
+  return await resolveGeneratedMediaFileRecordById({ supabase, mediaFileId });
 };
 
 const resolveLatestMediaFileByGenerationId = async (
@@ -251,8 +190,16 @@ const resolveLatestMediaFileByGenerationId = async (
   if (error) {
     throw new Error(error.message || "Failed to resolve generated media file.");
   }
-  const row = (Array.isArray(data) ? data[0] : null) as MediaFileRow | null;
-  return toMediaFileRecord(row);
+  const row = (Array.isArray(data) ? data[0] : null) as {
+    storage_path?: unknown;
+    filename?: unknown;
+  } | null;
+  const storagePath = asCanonicalStoragePath(asTrimmedString(row?.storage_path));
+  if (!storagePath) return null;
+  return {
+    storagePath,
+    filename: sanitizeFilename(asTrimmedString(row?.filename)),
+  };
 };
 
 const resolveLatestMediaFileByCanonicalGenerationOutputs = async (
@@ -307,10 +254,10 @@ export const resolveReferenceDownloadTarget = async ({
   if (shouldPreferCanonicalGeneratedOutputs && generationId) {
     let publicationFileRecord: ResolvedReferenceDownloadTarget["fileRecord"] = null;
     try {
-      publicationFileRecord = await resolveLatestMediaFileByGenerationPublications(
+      publicationFileRecord = await resolveLatestPublishedGenerationMediaFile({
         supabase,
-        generationId
-      );
+        generationId,
+      });
     } catch {
       publicationFileRecord = null;
     }
@@ -372,10 +319,10 @@ export const resolveReferenceDownloadTarget = async ({
   if (!shouldPreferCanonicalGeneratedOutputs) {
     let publicationFileRecord: ResolvedReferenceDownloadTarget["fileRecord"] = null;
     try {
-      publicationFileRecord = await resolveLatestMediaFileByGenerationPublications(
+      publicationFileRecord = await resolveLatestPublishedGenerationMediaFile({
         supabase,
-        generationId
-      );
+        generationId,
+      });
     } catch {
       publicationFileRecord = null;
     }

@@ -174,7 +174,9 @@ describe("POST /api/internal/generation-recovery/run", () => {
         p_min_age_seconds: 0,
       })
     );
-    expect(repairGenerationRequestIdsFromReservationsMock).not.toHaveBeenCalled();
+    expect(repairGenerationRequestIdsFromReservationsMock).toHaveBeenCalledWith({
+      limit: 5,
+    });
     expect(supabase.updateEq2).toHaveBeenCalled();
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith(
@@ -288,7 +290,7 @@ describe("POST /api/internal/generation-recovery/run", () => {
     );
   });
 
-  it("does not run request-id repair in rescue mode", async () => {
+  it("continues recovery when request-id repair fails in rescue mode", async () => {
     repairGenerationRequestIdsFromReservationsMock.mockRejectedValueOnce(
       new Error("repair unavailable")
     );
@@ -321,8 +323,18 @@ describe("POST /api/internal/generation-recovery/run", () => {
 
     await handler(req as never, res as never);
 
-    expect(repairGenerationRequestIdsFromReservationsMock).not.toHaveBeenCalled();
+    expect(repairGenerationRequestIdsFromReservationsMock).toHaveBeenCalledWith({
+      limit: 5,
+    });
     expect(res.status).toHaveBeenCalledWith(200);
+    expect(logApiRouteExceptionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        routeLabel: "internal/generation-recovery/run",
+        metadata: expect.objectContaining({
+          stage: "request_id_repair_batch",
+        }),
+      })
+    );
   });
 
   it("supports an explicit full run for manual/operator use", async () => {
@@ -345,9 +357,7 @@ describe("POST /api/internal/generation-recovery/run", () => {
 
     await handler(req as never, res as never);
 
-    expect(repairGenerationRequestIdsFromReservationsMock).toHaveBeenCalledWith({
-      limit: 10,
-    });
+    expect(repairGenerationRequestIdsFromReservationsMock).not.toHaveBeenCalled();
     expect(res.json).toHaveBeenCalledWith(
       expect.objectContaining({
         runMode: "primary",

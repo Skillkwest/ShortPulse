@@ -131,9 +131,7 @@ describe("runGenerationControlPlaneCycle", () => {
       routeLabel: "worker/generation-control-plane",
       limit: 25,
     });
-    expect(repairGenerationRequestIdsFromReservationsMock).toHaveBeenCalledWith({
-      limit: 10,
-    });
+    expect(repairGenerationRequestIdsFromReservationsMock).not.toHaveBeenCalled();
     expect(processPendingGenerationObservationsMock).toHaveBeenCalledWith({
       limit: 10,
       routeLabel: "worker/generation-control-plane",
@@ -171,7 +169,7 @@ describe("runGenerationControlPlaneCycle", () => {
     expect(logApiRouteExceptionMock).not.toHaveBeenCalled();
   });
 
-  it("skips queue dispatch and request-id repair in rescue mode", async () => {
+  it("skips queue dispatch and runs bounded request-id repair in rescue mode", async () => {
     const supabase = createSupabaseMock();
     getSupabaseAdminMock.mockReturnValue({
       rpc: supabase.rpc,
@@ -186,7 +184,9 @@ describe("runGenerationControlPlaneCycle", () => {
     });
 
     expect(dispatchGenerationSubmitQueueBatchMock).not.toHaveBeenCalled();
-    expect(repairGenerationRequestIdsFromReservationsMock).not.toHaveBeenCalled();
+    expect(repairGenerationRequestIdsFromReservationsMock).toHaveBeenCalledWith({
+      limit: 5,
+    });
     expect(processPendingGenerationObservationsMock).toHaveBeenCalledWith({
       limit: 5,
       routeLabel: "internal/generation-recovery/run",
@@ -227,5 +227,24 @@ describe("runGenerationControlPlaneCycle", () => {
       minAgeSeconds: 0,
       leaseSeconds: expect.any(Number),
     });
+  });
+
+  it("skips request-id repair in primary mode even when legacy direct submit remains enabled", async () => {
+    process.env.SHORTPULSE_FAL_LEGACY_DIRECT_SUBMIT_ENABLED = "true";
+    const supabase = createSupabaseMock();
+    getSupabaseAdminMock.mockReturnValue({
+      rpc: supabase.rpc,
+      from: supabase.from,
+    });
+
+    await runGenerationControlPlaneCycle({
+      context: {
+        routeLabel: "worker/generation-control-plane",
+      },
+      mode: "primary",
+    });
+
+    expect(dispatchGenerationSubmitQueueBatchMock).toHaveBeenCalled();
+    expect(repairGenerationRequestIdsFromReservationsMock).not.toHaveBeenCalled();
   });
 });

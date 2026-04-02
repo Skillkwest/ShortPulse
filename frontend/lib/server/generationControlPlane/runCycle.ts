@@ -75,7 +75,7 @@ export const runGenerationControlPlaneCycle = async ({
   const effectiveReconcilerBatchSize = rescueMode
     ? Math.min(flags.reconcilerBatchSize, 5)
     : flags.reconcilerBatchSize;
-  const shouldRunRequestIdRepair = !rescueMode && flags.legacyDirectSubmitEnabled;
+  const shouldRunRequestIdRepair = rescueMode && flags.legacyDirectSubmitEnabled;
   let reservationCleanupScanned = 0;
   let reservationCleanupReleased = 0;
   let reservationCleanupErrors = 0;

@@ -121,6 +121,7 @@ Current set:
 - `073_add_media_folder_hierarchy.sql`
 - `074_add_generation_worker_ops.sql`
 - `075_add_generation_worker_leases.sql`
+- `076_add_generation_projection_publication_and_observation_tables.sql`
 
 ### 3) Rollbacks (`sql/migrations/rollback/`)
 Use only when explicitly reverting a migration in a controlled window. Prefer targeted corrective forward SQL when possible.

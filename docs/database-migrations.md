@@ -187,7 +187,8 @@ If enabling AI Studio Fal reliability rollout (modular submit/retrieval + reconc
 73. `sql/migrations/073_add_media_folder_hierarchy.sql`
 74. `sql/migrations/074_add_generation_worker_ops.sql`
 75. `sql/migrations/075_add_generation_worker_leases.sql`
-76. Rollback files:
+76. `sql/migrations/076_add_generation_projection_publication_and_observation_tables.sql`
+77. Rollback files:
     - `sql/migrations/rollback/019_add_generation_recovery_fields_rollback.sql`
     - `sql/migrations/rollback/020_generation_runtime_convergence_rollback.sql`
     - `sql/migrations/rollback/021_generation_state_machine_constraints_rollback.sql`
@@ -224,6 +225,7 @@ If enabling AI Studio Fal reliability rollout (modular submit/retrieval + reconc
     - `sql/migrations/rollback/073_add_media_folder_hierarchy_rollback.sql`
     - `sql/migrations/rollback/074_add_generation_worker_ops_rollback.sql`
     - `sql/migrations/rollback/075_add_generation_worker_leases_rollback.sql`
+    - `sql/migrations/rollback/076_add_generation_projection_publication_and_observation_tables_rollback.sql`
 
 Billing safety note:
 - Migration `013_fix_generation_reservation_rpc_ambiguity.sql` is required to avoid

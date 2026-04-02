@@ -5,6 +5,7 @@ type JsonObject = Record<string, unknown>;
 export type PersistGenerationOutputsInput = {
   generationId: string;
   userId: string;
+  generationAttemptId?: string | null;
   providerRequestId?: string | null;
   resultUrls: string[];
   mediaFileIds?: string[];
@@ -39,6 +40,7 @@ const asOutputIndex = (value: unknown): number | null => {
 export const persistGenerationOutputRecords = async ({
   generationId,
   userId,
+  generationAttemptId,
   providerRequestId,
   resultUrls,
   mediaFileIds = [],
@@ -59,6 +61,10 @@ export const persistGenerationOutputRecords = async ({
         metadata: metadata,
         updated_at: nowIso,
       };
+      const normalizedGenerationAttemptId = asString(generationAttemptId);
+      if (normalizedGenerationAttemptId) {
+        row.generation_attempt_id = normalizedGenerationAttemptId;
+      }
       const normalizedProviderRequestId = asString(providerRequestId);
       if (normalizedProviderRequestId) {
         row.provider_request_id = normalizedProviderRequestId;
@@ -129,6 +135,7 @@ export const attachMediaFileToGenerationOutput = async ({
   mediaFileId,
   resultUrl,
   providerRequestId,
+  generationAttemptId,
   metadata = {},
 }: {
   generationId: string;
@@ -137,6 +144,7 @@ export const attachMediaFileToGenerationOutput = async ({
   mediaFileId: string;
   resultUrl?: string | null;
   providerRequestId?: string | null;
+  generationAttemptId?: string | null;
   metadata?: JsonObject;
 }): Promise<void> => {
   const adminClient = getSupabaseAdmin();
@@ -173,6 +181,10 @@ export const attachMediaFileToGenerationOutput = async ({
     metadata,
     updated_at: nowIso,
   };
+  const normalizedGenerationAttemptId = asString(generationAttemptId);
+  if (normalizedGenerationAttemptId) {
+    insertPayload.generation_attempt_id = normalizedGenerationAttemptId;
+  }
   const normalizedProviderRequestId = asString(providerRequestId);
   if (normalizedProviderRequestId) {
     insertPayload.provider_request_id = normalizedProviderRequestId;

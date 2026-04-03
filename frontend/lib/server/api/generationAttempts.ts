@@ -85,6 +85,38 @@ export type EnsureAcceptedRunningGenerationAttemptResult =
       stage: "record" | "running";
     };
 
+const buildAcceptedRunningAttemptPayload = ({
+  provider,
+  modelId,
+  dispatchSource,
+  submitRoute,
+  queueId,
+  metadata,
+  observedAt,
+}: {
+  provider: string;
+  modelId: string;
+  dispatchSource: EnsureAcceptedGenerationAttemptInput["dispatchSource"];
+  submitRoute?: string | null;
+  queueId?: string | null;
+  metadata: JsonObject;
+  observedAt: string;
+}): Record<string, unknown> => ({
+  provider,
+  model_id: modelId,
+  status: "running",
+  dispatch_source: dispatchSource,
+  submit_route: submitRoute,
+  queue_id: queueId,
+  submitted_at: observedAt,
+  started_at: observedAt,
+  last_observed_at: observedAt,
+  updated_at: observedAt,
+  failure_reason_code: null,
+  error_message: null,
+  metadata,
+});
+
 const asString = (value: unknown): string | null => {
   if (typeof value !== "string") return null;
   const trimmed = value.trim();
@@ -447,49 +479,179 @@ export const ensureAcceptedRunningGenerationAttempt = async ({
   errorMessage = null,
   ...attemptInput
 }: EnsureAcceptedRunningGenerationAttemptInput): Promise<EnsureAcceptedRunningGenerationAttemptResult> => {
-  const attemptResult = await ensureAcceptedGenerationAttempt(attemptInput);
-  if (!attemptResult.ok) {
+  try {
+    const normalizedProviderRequestId = asString(attemptInput.providerRequestId);
+    if (!normalizedProviderRequestId) {
+      return { ok: false, error: "provider_request_id_required", stage: "record" };
+    }
+
+    const runningObservedAt = observedAt ?? new Date().toISOString();
+    const metadataPatch = {
+      ...attemptInput.metadata,
+      provider_request_id: normalizedProviderRequestId,
+    };
+
+    const existingLookup = await lookupAttemptByProviderRequest({
+      generationId: attemptInput.generationId,
+      userId: attemptInput.userId,
+      providerRequestId: normalizedProviderRequestId,
+    });
+    if (existingLookup.error) {
+      return {
+        ok: false,
+        error: existingLookup.error.message ?? "attempt_existing_lookup_failed",
+        stage: "record",
+      };
+    }
+
+    const existingRow = asObject(existingLookup.data);
+    const existingId = asString(existingRow.id);
+    const existingAttemptNumber = asNumber(existingRow.attempt_number);
+    const mergedMetadata = {
+      ...asObject(existingRow.metadata),
+      ...metadataPatch,
+    };
+
+    if (existingId) {
+      const { error } = await getSupabaseAdmin()
+        .from("generation_attempts")
+        .update(
+          buildAcceptedRunningAttemptPayload({
+            provider: attemptInput.provider,
+            modelId: attemptInput.modelId,
+            dispatchSource: attemptInput.dispatchSource,
+            submitRoute: attemptInput.submitRoute,
+            queueId: attemptInput.queueId,
+            metadata: mergedMetadata,
+            observedAt: runningObservedAt,
+          })
+        )
+        .eq("id", existingId)
+        .eq("user_id", attemptInput.userId);
+      if (error) {
+        return {
+          ok: false,
+          error: error.message ?? "attempt_update_failed",
+          stage: "running",
+        };
+      }
+      return {
+        ok: true,
+        attemptId: existingId,
+        attemptNumber: existingAttemptNumber,
+        metadata: mergedMetadata,
+      };
+    }
+
+    const latestLookup = await lookupLatestAttempt({
+      generationId: attemptInput.generationId,
+      userId: attemptInput.userId,
+    });
+    if (latestLookup.error) {
+      return {
+        ok: false,
+        error: latestLookup.error.message ?? "attempt_sequence_lookup_failed",
+        stage: "record",
+      };
+    }
+
+    const latestRow = asObject(latestLookup.data);
+    const nextAttemptNumber = Math.max(asNumber(latestRow.attempt_number) ?? 0, 0) + 1;
+    const { data, error } = await getSupabaseAdmin()
+      .from("generation_attempts")
+      .insert({
+        generation_id: attemptInput.generationId,
+        user_id: attemptInput.userId,
+        attempt_number: nextAttemptNumber,
+        provider_request_id: normalizedProviderRequestId,
+        ...buildAcceptedRunningAttemptPayload({
+          provider: attemptInput.provider,
+          modelId: attemptInput.modelId,
+          dispatchSource: attemptInput.dispatchSource,
+          submitRoute: attemptInput.submitRoute,
+          queueId: attemptInput.queueId,
+          metadata: metadataPatch,
+          observedAt: runningObservedAt,
+        }),
+      })
+      .select("id, attempt_number")
+      .single();
+    if (!error) {
+      const insertedRow = asObject(data);
+      return {
+        ok: true,
+        attemptId: asString(insertedRow.id),
+        attemptNumber: asNumber(insertedRow.attempt_number),
+        metadata: metadataPatch,
+      };
+    }
+
+    if (readErrorCode(error) !== "23505") {
+      return {
+        ok: false,
+        error: error.message ?? "attempt_insert_failed",
+        stage: "record",
+      };
+    }
+
+    const retryLookup = await lookupAttemptByProviderRequest({
+      generationId: attemptInput.generationId,
+      userId: attemptInput.userId,
+      providerRequestId: normalizedProviderRequestId,
+    });
+    if (retryLookup.error) {
+      return {
+        ok: false,
+        error: retryLookup.error.message ?? "attempt_duplicate_lookup_failed",
+        stage: "record",
+      };
+    }
+
+    const retryRow = asObject(retryLookup.data);
+    const retryId = asString(retryRow.id);
+    if (!retryId) {
+      return {
+        ok: false,
+        error: "attempt_duplicate_lookup_missing_id",
+        stage: "record",
+      };
+    }
+
+    const retryMetadata = {
+      ...asObject(retryRow.metadata),
+      ...metadataPatch,
+    };
+    const retryUpdate = await updateGenerationAttemptStateById({
+      attemptId: retryId,
+      userId: attemptInput.userId,
+      status: "running",
+      observedAt: runningObservedAt,
+      completedAt,
+      failureReasonCode,
+      errorMessage,
+      metadata: retryMetadata,
+    });
+    if (!retryUpdate.ok) {
+      return {
+        ok: false,
+        error: retryUpdate.error,
+        stage: "running",
+      };
+    }
+
+    return {
+      ok: true,
+      attemptId: retryId,
+      attemptNumber: asNumber(retryRow.attempt_number),
+      metadata: retryMetadata,
+    };
+  } catch (error) {
     return {
       ok: false,
-      error: attemptResult.error,
+      error: String(error),
       stage: "record",
     };
   }
-
-  const runningResult = attemptResult.attemptId
-    ? await updateGenerationAttemptStateById({
-        attemptId: attemptResult.attemptId,
-        userId: attemptInput.userId,
-        status: "running",
-        observedAt,
-        completedAt,
-        failureReasonCode,
-        errorMessage,
-        metadata: {
-          ...attemptResult.metadata,
-          ...attemptInput.metadata,
-        },
-      })
-    : await updateGenerationAttemptState({
-        providerRequestId: attemptInput.providerRequestId,
-        userId: attemptInput.userId,
-        status: "running",
-        observedAt,
-        completedAt,
-        failureReasonCode,
-        errorMessage,
-        metadata: attemptInput.metadata,
-      });
-
-  if (!runningResult.ok) {
-    return {
-      ok: false,
-      error: runningResult.error,
-      stage: "running",
-    };
-  }
-
-  return attemptResult;
 };
 
 export const updateGenerationAttemptState = async ({

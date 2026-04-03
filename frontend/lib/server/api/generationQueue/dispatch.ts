@@ -261,7 +261,9 @@ const readProviderCapacityState = async ({
       // Keep very recent unmatched reservations fail-closed during persistence races.
       orphanGraceSeconds: Math.max(60, flags.queueBaseBackoffSeconds * 12),
     });
-  const userSnapshot = await readSnapshot(userId);
+  const [userSnapshot, sharedSnapshot] = flags.admission.sharedProviderEnabled
+    ? await Promise.all([readSnapshot(userId), readSnapshot(null)])
+    : [await readSnapshot(userId), null];
   const globalAtCap = userSnapshot.globalActive >= flags.admission.globalMax;
   const tierAtCap = userSnapshot.tierActive >= flags.admission.tierLimits[userSnapshot.tier];
   if (!flags.admission.sharedProviderEnabled) {
@@ -271,7 +273,12 @@ const readProviderCapacityState = async ({
     };
   }
 
-  const sharedSnapshot = await readSnapshot(null);
+  if (!sharedSnapshot) {
+    return {
+      atCap: globalAtCap || tierAtCap,
+      snapshot: userSnapshot,
+    };
+  }
   const sharedGlobalAtCap = sharedSnapshot.globalActive >= flags.admission.sharedProviderGlobalMax;
   const sharedTierAtCap =
     sharedSnapshot.tierActive >= flags.admission.tierLimits[sharedSnapshot.tier];

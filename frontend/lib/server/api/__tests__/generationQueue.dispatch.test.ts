@@ -460,4 +460,60 @@ describe("generationQueue/dispatch no-capacity handling", () => {
     expect(claimGenerationSubmitQueueBatchMock).toHaveBeenCalledTimes(4);
     expect(dispatchProviderSubmitMock).toHaveBeenCalledTimes(4);
   });
+
+  it("starts user and shared capacity reads together when shared admission is enabled", async () => {
+    readFalRuntimeFlagsMock.mockReturnValue({
+      videoQueueCompatNormalizationEnabled: true,
+      queueEnabled: true,
+      queueLeaseSeconds: 30,
+      queueMaxAttempts: 5,
+      queueBaseBackoffSeconds: 5,
+      queueMaxWaitSeconds: 1200,
+      runningExhaustMinAgeSeconds: 7200,
+      providerAttachedReservationCleanupMinAgeSeconds: 7200,
+      admission: {
+        globalMax: 4,
+        sharedProviderEnabled: true,
+        sharedProviderGlobalMax: 10,
+        tierLimits: {
+          video_long: 2,
+          image_heavy: 3,
+          image_standard: 4,
+        },
+      },
+      publicApiBaseUrl: null,
+    });
+
+    const startedScopes: Array<string | null> = [];
+    let releaseSnapshots: (() => void) | null = null;
+    const snapshotBarrier = new Promise<void>((resolve) => {
+      releaseSnapshots = resolve;
+    });
+    readActiveProviderCapacitySnapshotMock.mockImplementation(async ({ userId }) => {
+      startedScopes.push((userId as string | null | undefined) ?? null);
+      await snapshotBarrier;
+      return {
+        tier: "image_heavy",
+        globalActive: 0,
+        tierActive: 0,
+        staleIgnoredGlobal: 0,
+        staleIgnoredTier: 0,
+      };
+    });
+
+    const dispatchPromise = dispatchGenerationSubmitQueueBatch({
+      req: undefined,
+      routeLabel: "test/dispatch",
+      limit: 1,
+      userId: "user-1",
+    });
+
+    await vi.waitFor(() => {
+      expect(startedScopes).toHaveLength(2);
+    });
+    expect(new Set(startedScopes)).toEqual(new Set(["user-1", null]));
+
+    releaseSnapshots?.();
+    await expect(dispatchPromise).resolves.toEqual(expect.any(Object));
+  });
 });

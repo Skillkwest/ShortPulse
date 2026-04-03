@@ -92,6 +92,32 @@ export const runGenerationControlPlaneCycle = async ({
   let observationFailed = 0;
   let observationErrors = 0;
 
+  if (!rescueMode && flags.queueEnabled) {
+    try {
+      const queueMetrics = await dispatchGenerationSubmitQueueBatch({
+        req: context.req,
+        routeLabel: context.routeLabel,
+        limit: flags.queueDispatchBatchSize,
+      });
+      queueClaimed = queueMetrics.claimed;
+      queueSubmitted = queueMetrics.submitted;
+      queueRetried = queueMetrics.retried;
+      queueRequeuedNoCapacity = queueMetrics.requeuedNoCapacity;
+      queueExhausted = queueMetrics.exhausted;
+      queueSkipped = queueMetrics.skipped;
+      queueDispatchErrors = queueMetrics.errors;
+    } catch (error) {
+      queueDispatchErrors += 1;
+      await logControlPlaneException({
+        context,
+        error,
+        metadata: {
+          stage: "queue_dispatch",
+        },
+      });
+    }
+  }
+
   if (flags.reservationCleanupEnabled) {
     const cleanupResponse = await supabaseAdmin.rpc("release_stale_generation_reservations", {
       p_limit: flags.reservationCleanupBatchSize,
@@ -137,32 +163,6 @@ export const runGenerationControlPlaneCycle = async ({
       reservationCleanupScanned += metrics.scanned;
       reservationCleanupReleased += metrics.released;
       reservationCleanupErrors += metrics.errors;
-    }
-  }
-
-  if (!rescueMode && flags.queueEnabled) {
-    try {
-      const queueMetrics = await dispatchGenerationSubmitQueueBatch({
-        req: context.req,
-        routeLabel: context.routeLabel,
-        limit: flags.queueDispatchBatchSize,
-      });
-      queueClaimed = queueMetrics.claimed;
-      queueSubmitted = queueMetrics.submitted;
-      queueRetried = queueMetrics.retried;
-      queueRequeuedNoCapacity = queueMetrics.requeuedNoCapacity;
-      queueExhausted = queueMetrics.exhausted;
-      queueSkipped = queueMetrics.skipped;
-      queueDispatchErrors = queueMetrics.errors;
-    } catch (error) {
-      queueDispatchErrors += 1;
-      await logControlPlaneException({
-        context,
-        error,
-        metadata: {
-          stage: "queue_dispatch",
-        },
-      });
     }
   }
 

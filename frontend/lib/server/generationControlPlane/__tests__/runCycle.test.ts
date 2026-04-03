@@ -131,6 +131,9 @@ describe("runGenerationControlPlaneCycle", () => {
       routeLabel: "worker/generation-control-plane",
       limit: 25,
     });
+    expect(dispatchGenerationSubmitQueueBatchMock.mock.invocationCallOrder[0]).toBeLessThan(
+      supabase.rpc.mock.invocationCallOrder[0]
+    );
     expect(repairGenerationRequestIdsFromReservationsMock).not.toHaveBeenCalled();
     expect(processPendingGenerationObservationsMock).toHaveBeenCalledWith({
       limit: 10,

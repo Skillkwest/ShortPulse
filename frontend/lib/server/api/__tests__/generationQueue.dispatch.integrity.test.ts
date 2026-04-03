@@ -82,6 +82,9 @@ const queueItem: ClaimedGenerationQueueItem = {
   generationId: "gen-1",
   userId: "user-1",
   modelId: "fal-ai/nano-banana-pro",
+  generationProvider: null,
+  generationRequestId: null,
+  generationMetadata: {},
   sourceRef: "source-1",
   submitRoute: "/api/fal/nano-banana-pro-submit",
   submitPayload: { prompt: "hello" },
@@ -406,9 +409,12 @@ describe("generationQueue/dispatch transition integrity", () => {
   });
 
   it("reconciles reservation then removes queue item when generation already has request id", async () => {
-    getSupabaseAdminMock.mockReturnValue(
-      createSupabaseAdminMock({ existingRequestId: "req-existing" })
-    );
+    seedClaimGenerationSubmitQueueBatches([
+      {
+        ...queueItem,
+        generationRequestId: "req-existing",
+      },
+    ]);
 
     const result = await dispatchGenerationSubmitQueueBatch({
       req: { method: "GET", headers: {} } as never,
@@ -456,9 +462,12 @@ describe("generationQueue/dispatch transition integrity", () => {
   });
 
   it("retries existing-request reconciliation when attempt running update fails", async () => {
-    getSupabaseAdminMock.mockReturnValue(
-      createSupabaseAdminMock({ existingRequestId: "req-existing" })
-    );
+    seedClaimGenerationSubmitQueueBatches([
+      {
+        ...queueItem,
+        generationRequestId: "req-existing",
+      },
+    ]);
     updateGenerationAttemptStateMock.mockResolvedValueOnce({
       ok: false,
       error: "attempt_state_update_failed",
@@ -489,9 +498,12 @@ describe("generationQueue/dispatch transition integrity", () => {
   });
 
   it("retries existing-request reconciliation when reservation submit fails", async () => {
-    getSupabaseAdminMock.mockReturnValue(
-      createSupabaseAdminMock({ existingRequestId: "req-existing" })
-    );
+    seedClaimGenerationSubmitQueueBatches([
+      {
+        ...queueItem,
+        generationRequestId: "req-existing",
+      },
+    ]);
     markGenerationReservationSubmittedMock.mockResolvedValue({
       status: "failed",
       sourceRef: "source-1",
@@ -523,9 +535,14 @@ describe("generationQueue/dispatch transition integrity", () => {
   });
 
   it("fails closed before provider submit when generation metadata source_ref mismatches the queue item", async () => {
-    getSupabaseAdminMock.mockReturnValue(
-      createSupabaseAdminMock({ generationMetadataSourceRef: "source-other" })
-    );
+    seedClaimGenerationSubmitQueueBatches([
+      {
+        ...queueItem,
+        generationMetadata: {
+          source_ref: "source-other",
+        },
+      },
+    ]);
 
     const result = await dispatchGenerationSubmitQueueBatch({
       req: { method: "GET", headers: {} } as never,
@@ -557,7 +574,12 @@ describe("generationQueue/dispatch transition integrity", () => {
 
   it("fails closed without dispatch when queued generation provider is kie but runtime targets are unavailable", async () => {
     process.env.KIE_API_KEY = "test-kie-key";
-    getSupabaseAdminMock.mockReturnValue(createSupabaseAdminMock({ provider: "kie" }));
+    seedClaimGenerationSubmitQueueBatches([
+      {
+        ...queueItem,
+        generationProvider: "kie",
+      },
+    ]);
 
     const result = await dispatchGenerationSubmitQueueBatch({
       req: { method: "GET", headers: {} } as never,
@@ -590,16 +612,14 @@ describe("generationQueue/dispatch transition integrity", () => {
     vi.useFakeTimers();
     try {
       vi.setSystemTime(new Date("2026-03-01T00:00:10.000Z"));
-      getSupabaseAdminMock.mockReturnValue(
-        createSupabaseAdminMock({
-          provider: "kie",
-          queueEnqueuedAt: "2026-03-01T00:00:00.000Z",
-        })
-      );
       seedClaimGenerationSubmitQueueBatches([
         {
           ...queueItem,
           modelId: "kie-ai/veo-3.1-fast-i2v",
+          generationProvider: "kie",
+          generationMetadata: {
+            queue_enqueued_at: "2026-03-01T00:00:00.000Z",
+          },
           submitPayload: {
             prompt: "hello",
             image_url: "https://cdn.shortpulse.test/input.png",
@@ -654,7 +674,8 @@ describe("generationQueue/dispatch transition integrity", () => {
           publicationState: "pending",
         })
       );
-      expect(logGenerationFailureMock).toHaveBeenCalledWith(
+      expect(logGenerationFailureMock).toHaveBeenNthCalledWith(
+        3,
         expect.objectContaining({
           source: "telemetry.queue.dispatch.submitted",
           metadata: expect.objectContaining({
@@ -678,11 +699,11 @@ describe("generationQueue/dispatch transition integrity", () => {
     process.env.SHORTPULSE_KIE_MODEL_ALLOWLIST = "kie-ai/veo-3.1-fast-i2v";
     delete process.env.SHORTPULSE_KIE_SUBMIT_URLS;
 
-    getSupabaseAdminMock.mockReturnValue(createSupabaseAdminMock({ provider: "kie" }));
     seedClaimGenerationSubmitQueueBatches([
       {
         ...queueItem,
         modelId: "kie-ai/veo-3.1-fast-i2v",
+        generationProvider: "kie",
         submitPayload: {
           prompt: "hello",
           image_url: "https://cdn.shortpulse.test/input.png",

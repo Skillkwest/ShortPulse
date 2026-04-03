@@ -462,17 +462,11 @@ const processClaimedQueueItem = async ({
     errors: 0,
   };
 
-  const generationLookup = await getSupabaseAdmin()
-    .from("ai_generations")
-    .select("id, status, request_id, provider, metadata")
-    .eq("id", item.generationId)
-    .eq("user_id", item.userId)
-    .maybeSingle();
-  const generationRow = asObject(generationLookup.data);
-  const generationSourceRef = asString(asObject(generationRow.metadata).source_ref);
+  const generationMetadata = asObject(item.generationMetadata);
+  const generationSourceRef = asString(generationMetadata.source_ref);
   const attemptNumber = item.attempts + 1;
   const provider = resolveProviderFromGenerationContext({
-    provider: asString(generationRow.provider),
+    provider: item.generationProvider,
     modelId: item.modelId,
     fallback: "fal",
   });
@@ -501,7 +495,7 @@ const processClaimedQueueItem = async ({
     });
   }
 
-  const existingRequestId = asString(generationRow.request_id);
+  const existingRequestId = item.generationRequestId;
   if (existingRequestId) {
     try {
       const reconcileAtIso = new Date().toISOString();
@@ -1085,7 +1079,7 @@ const processClaimedQueueItem = async ({
               modelId: item.modelId,
               providerRequestId,
               nextRecoveryAtIso,
-              metadata: mergeGenerationMetadata(generationRow.metadata, {
+              metadata: mergeGenerationMetadata(generationMetadata, {
                 source_ref: item.sourceRef,
                 generation_submit_authority: "worker",
                 queue_dispatched_at: dispatchAtIso,
@@ -1201,7 +1195,7 @@ const processClaimedQueueItem = async ({
     metrics.submitted += 1;
     const queueLatencyMs = readQueueLatencyMs({
       createdAt: item.createdAt,
-      generationMetadata: generationRow.metadata,
+      generationMetadata,
       dispatchAtIso,
     });
     await logGenerationFailure({

@@ -73,6 +73,9 @@ export type ClaimedGenerationQueueItem = {
   generationId: string;
   userId: string;
   modelId: string;
+  generationProvider: string | null;
+  generationRequestId: string | null;
+  generationMetadata: JsonObject;
   sourceRef: string;
   submitRoute: string;
   submitPayload: JsonObject;
@@ -249,6 +252,9 @@ const parseClaimedQueueItem = (value: unknown): ClaimedGenerationQueueItem | nul
     generationId,
     userId,
     modelId,
+    generationProvider: asString(row.generation_provider),
+    generationRequestId: asString(row.generation_request_id),
+    generationMetadata: asObject(row.generation_metadata) ?? {},
     sourceRef,
     submitRoute,
     submitPayload: asObject(row.submit_payload) ?? {},

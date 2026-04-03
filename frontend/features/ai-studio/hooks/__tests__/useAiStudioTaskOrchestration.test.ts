@@ -1179,7 +1179,7 @@ describe("useAiStudioTaskOrchestration", () => {
     expect(notifyGenerationFailure).not.toHaveBeenCalled();
   });
 
-  it("marks queued output failed when queue-status reports failure", async () => {
+  it("hands queued output failure off to server recovery when queue-status reports failure", async () => {
     const notifyGenerationFailure = vi.fn();
     let outputs = [
       createOutput({
@@ -1244,11 +1244,10 @@ describe("useAiStudioTaskOrchestration", () => {
     });
 
     expect(startPollingTask).not.toHaveBeenCalled();
-    expect(notifyGenerationFailure).toHaveBeenCalledWith(
-      "out-queued",
-      "Queue exhausted",
-      "Queue exhausted"
-    );
+    expect(notifyGenerationFailure).not.toHaveBeenCalled();
+    expect(outputs[0]?.taskState).toBe("pending");
+    expect(outputs[0]?.timestamp).toBe("Waiting for server recovery...");
+    expect(outputs[0]?.errorMessage).toBeNull();
   });
 
   it("fails queued resume after bounded repeated not_found statuses", async () => {

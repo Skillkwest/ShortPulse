@@ -84,7 +84,7 @@ const queueStatusRetryDelayMs = (
     ? clampQueuePollMs(queueStatus.retryAfterMs)
     : clampQueuePollMs(initialDelayMs * Math.min(4, attempt + 1));
 
-const resolveDispatchedPollingProvider = ({
+export const resolveDispatchedPollingProvider = ({
   pollingProvider,
   queueStatusProvider,
   queueStatusModelId,
@@ -124,9 +124,9 @@ const resolveDispatchedPollingProvider = ({
   return normalizedProvider;
 };
 
-const normalizeQueuedLifecycleQueueState = (
+export const normalizeQueuedLifecycleQueueState = (
   queueState: "queued" | "dispatching" | "dispatched" | "failed" | null | undefined,
-  fallback: "queued" | "dispatching"
+  fallback: "queued" | "dispatching" | "dispatched"
 ): StudioOutput["queueState"] => {
   if (queueState === "queued") return "queued";
   if (queueState === "dispatching") return "dispatching";
@@ -134,7 +134,7 @@ const normalizeQueuedLifecycleQueueState = (
   return fallback;
 };
 
-const markQueuedStatusRecoveryPending = ({
+export const markQueuedStatusRecoveryPending = ({
   outputId,
   updateOutputById,
 }: {
@@ -152,7 +152,7 @@ const markQueuedStatusRecoveryPending = ({
   }));
 };
 
-const syncQueuedStatusLifecycle = ({
+export const syncQueuedStatusLifecycle = ({
   outputId,
   queueStatus,
   updateOutputById,

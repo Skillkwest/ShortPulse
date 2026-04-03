@@ -7,6 +7,12 @@ import { fetchFalQueueStatus } from "../../../lib/falClient";
 import { BRIA_BACKGROUND_REMOVE_MODEL_ID } from "../logic/editPromptPolicy";
 import { normalizeProviderForPolling, type Provider } from "../logic/stateParsers";
 import type { StudioOutput } from "../types";
+import {
+  markQueuedStatusRecoveryPending,
+  normalizeQueuedLifecycleQueueState,
+  resolveDispatchedPollingProvider,
+  syncQueuedStatusLifecycle,
+} from "./taskSubmission/queueStatusPolling";
 import { useAiStudioTaskSubmission } from "./useAiStudioTaskSubmission";
 import { useAiStudioTasks } from "./useAiStudioTasks";
 
@@ -41,35 +47,9 @@ const QUEUE_RESUME_MIN_RECHECK_MS = 12_000;
 const QUEUE_RESUME_MAX_CONCURRENT = 3;
 const QUEUE_RESUME_NOT_FOUND_MAX_RETRIES = 6;
 const QUEUE_RESUME_NOT_FOUND_MAX_AGE_MS = 90_000;
-const SERVER_RECOVERY_PENDING_TIMESTAMP = "Waiting for server recovery...";
 
 const isDocumentVisible = (): boolean =>
   typeof document === "undefined" || document.visibilityState === "visible";
-
-const resolveQueuedResumeProvider = ({
-  pollingProvider,
-  queueStatusProvider,
-  outputProvider,
-  modelId,
-}: {
-  pollingProvider?: string | null;
-  queueStatusProvider: string;
-  outputProvider: Provider;
-  modelId?: string | null;
-}): Provider => {
-  if (typeof pollingProvider === "string" && pollingProvider.trim().length > 0) {
-    return normalizeProviderForPolling(pollingProvider, outputProvider);
-  }
-  const modelDerivedProvider =
-    typeof modelId === "string" && modelId.trim().length > 0
-      ? normalizeProviderForPolling(modelId, outputProvider)
-      : outputProvider;
-  const normalizedProvider = normalizeProviderForPolling(queueStatusProvider, modelDerivedProvider);
-  if (normalizedProvider === "fal" && modelDerivedProvider.startsWith("fal-")) {
-    return modelDerivedProvider;
-  }
-  return normalizedProvider;
-};
 
 const isAutoRetryEligible = (output: StudioOutput): boolean => {
   const hasTerminalNoMediaFailure =
@@ -85,20 +65,10 @@ const isAutoRetryEligible = (output: StudioOutput): boolean => {
     output.taskState === "success"
   );
 };
-
-const normalizeQueuedResumeQueueState = (
-  queueState: "queued" | "dispatching" | "dispatched" | "failed" | null | undefined,
-  fallback: "queued" | "dispatching" | "dispatched"
-): StudioOutput["queueState"] => {
-  if (queueState === "queued") return "queued";
-  if (queueState === "dispatching") return "dispatching";
-  if (queueState === "dispatched") return "dispatched";
-  return fallback;
-};
-
 const isQueueResumeEligible = (output: StudioOutput): boolean => {
   const generationId = typeof output.generationId === "string" ? output.generationId.trim() : "";
-  if (!generationId) return false;
+  const sourceRef = typeof output.sourceRef === "string" ? output.sourceRef.trim() : "";
+  if (!generationId && !sourceRef) return false;
   // Resume should still run when queue metadata was dropped or partially persisted
   // (for example queueState=dispatched without a taskId after restore).
   if (output.queueState && output.queueState !== "queued" && output.queueState !== "dispatched") {
@@ -255,7 +225,8 @@ export const useAiStudioTaskOrchestration = ({
       const lastCheckedAt = queueResumeLastCheckedAtRef.current[output.id] ?? 0;
       if (now - lastCheckedAt < QUEUE_RESUME_MIN_RECHECK_MS) return;
       const generationId = output.generationId?.trim();
-      if (!generationId) return;
+      const sourceRef = output.sourceRef?.trim();
+      if (!generationId && !sourceRef) return;
 
       queueResumeInFlightRef.current[output.id] = true;
       queueResumeLastCheckedAtRef.current[output.id] = now;
@@ -263,18 +234,25 @@ export const useAiStudioTaskOrchestration = ({
 
       void (async () => {
         try {
-          const queueStatus = await fetchFalQueueStatus({ generationId });
+          const queueStatus = await fetchFalQueueStatus({
+            generationId: generationId || undefined,
+            sourceRef: sourceRef || undefined,
+          });
           if (!findOutputById(output.id)) return;
           if (queueStatus.status === "dispatched") {
             const lifecycle = queueStatus.shortpulseLifecycle;
             delete queueResumeNotFoundStateRef.current[output.id];
             const requestId = queueStatus.requestId.trim();
             const outputProvider = (output.provider as Provider | undefined) ?? "fal";
-            const provider = resolveQueuedResumeProvider({
+            const resumeProviderHint =
+              typeof output.modelId === "string" && output.modelId.trim().length > 0
+                ? normalizeProviderForPolling(output.modelId, outputProvider)
+                : outputProvider;
+            const provider = resolveDispatchedPollingProvider({
               pollingProvider: queueStatus.pollingProvider,
               queueStatusProvider: queueStatus.provider,
-              outputProvider,
-              modelId: output.modelId ?? null,
+              queueStatusModelId: queueStatus.modelId ?? output.modelId ?? null,
+              submitProvider: resumeProviderHint,
             });
             clearPollTimer(output.id);
             updateOutputById(output.id, (item) => {
@@ -296,7 +274,7 @@ export const useAiStudioTaskOrchestration = ({
                     : item.generationId),
                 taskId: requestId,
                 generationTraceId: requestId,
-                queueState: normalizeQueuedResumeQueueState(lifecycle?.queueState, "dispatched"),
+                queueState: normalizeQueuedLifecycleQueueState(lifecycle?.queueState, "dispatched"),
                 taskState: lifecycle?.taskState ?? "running",
                 status: "ready",
                 timestamp: lifecycle?.statusLabel ?? "Submitted",
@@ -309,46 +287,20 @@ export const useAiStudioTaskOrchestration = ({
             return;
           }
           if (queueStatus.status === "queued" || queueStatus.status === "dispatching") {
-            const lifecycle = queueStatus.shortpulseLifecycle;
-            updateOutputById(output.id, (item) => ({
-              ...item,
-              sourceRef:
-                item.sourceRef ??
-                (typeof queueStatus.sourceRef === "string" &&
-                queueStatus.sourceRef.trim().length > 0
-                  ? queueStatus.sourceRef.trim()
-                  : item.sourceRef),
-              generationId:
-                item.generationId ??
-                (typeof queueStatus.generationId === "string" &&
-                queueStatus.generationId.trim().length > 0
-                  ? queueStatus.generationId.trim()
-                  : item.generationId),
-              queueState: normalizeQueuedResumeQueueState(
-                lifecycle?.queueState,
-                queueStatus.status
-              ),
-              taskState:
-                lifecycle?.taskState ?? (queueStatus.status === "queued" ? "pending" : "running"),
-              status: "ready",
-              timestamp:
-                lifecycle?.statusLabel ??
-                (queueStatus.status === "dispatching"
-                  ? "Dispatching..."
-                  : item.timestamp === SERVER_RECOVERY_PENDING_TIMESTAMP
-                    ? item.timestamp
-                    : "Waiting in queue..."),
-              errorMessage: null,
-              errorMessageShort: null,
-              errorDetail: null,
-            }));
+            delete queueResumeNotFoundStateRef.current[output.id];
+            syncQueuedStatusLifecycle({
+              outputId: output.id,
+              queueStatus,
+              updateOutputById,
+            });
             return;
           }
           if (queueStatus.status === "failed") {
             delete queueResumeNotFoundStateRef.current[output.id];
-            const lifecycle = queueStatus.shortpulseLifecycle;
-            const failureMessage = lifecycle?.errorMessage?.trim() || queueStatus.message;
-            notifyGenerationFailure(output.id, failureMessage, queueStatus.message);
+            markQueuedStatusRecoveryPending({
+              outputId: output.id,
+              updateOutputById,
+            });
             return;
           }
           if (queueStatus.status === "not_found") {
@@ -386,7 +338,7 @@ export const useAiStudioTaskOrchestration = ({
         delete queueResumeNotFoundStateRef.current[outputId];
       }
     });
-  }, [clearPollTimer, findOutputById, notifyGenerationFailure, startPollingTask, updateOutputById]);
+  }, [clearPollTimer, findOutputById, startPollingTask, updateOutputById]);
 
   const runStuckSpinnerWatchdog = useCallback(() => {
     if (!isDocumentVisible()) return;

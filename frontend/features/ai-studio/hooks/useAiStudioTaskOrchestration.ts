@@ -94,6 +94,20 @@ const isQueueResumeEligible = (output: StudioOutput): boolean => {
   return !hasSettledOutputPayload(output);
 };
 
+const isTaskPollingResumeEligible = ({
+  output,
+  hasActivePollTimer,
+}: {
+  output: StudioOutput;
+  hasActivePollTimer: boolean;
+}): boolean => {
+  const taskId = typeof output.taskId === "string" ? output.taskId.trim() : "";
+  if (!taskId || hasActivePollTimer) return false;
+  if (hasSettledOutputPayload(output)) return false;
+  if (output.taskState === "fail") return false;
+  return true;
+};
+
 /**
  * Returns task submission and polling handlers used by AI Studio state orchestration.
  */
@@ -115,7 +129,11 @@ export const useAiStudioTaskOrchestration = ({
 
   useEffect(() => {
     outputsRef.current = outputs;
-    queueResumeCandidatesRef.current = outputs.filter((output) => isQueueResumeEligible(output));
+    queueResumeCandidatesRef.current = outputs.filter(
+      (output) =>
+        isQueueResumeEligible(output) ||
+        isTaskPollingResumeEligible({ output, hasActivePollTimer: false })
+    );
   }, [outputs]);
 
   const handlePollingOutputLookupHardStop = useCallback(
@@ -222,19 +240,34 @@ export const useAiStudioTaskOrchestration = ({
   const runQueuedOutputResumeWatchdog = useCallback(() => {
     if (!isDocumentVisible()) return;
     const now = Date.now();
-    const activeQueuedIds = new Set<string>();
+    const activeResumeIds = new Set<string>();
     const outputsSnapshot = queueResumeCandidatesRef.current;
 
     let inFlightCount = Object.values(queueResumeInFlightRef.current).filter(Boolean).length;
     outputsSnapshot.forEach((output) => {
-      if (!isQueueResumeEligible(output)) return;
-      activeQueuedIds.add(output.id);
-      if (inFlightCount >= QUEUE_RESUME_MAX_CONCURRENT) return;
-      if (queueResumeInFlightRef.current[output.id]) return;
       const lastCheckedAt = queueResumeLastCheckedAtRef.current[output.id] ?? 0;
       if (now - lastCheckedAt < QUEUE_RESUME_MIN_RECHECK_MS) return;
-      const generationId = output.generationId?.trim();
-      const sourceRef = output.sourceRef?.trim();
+      const hasActivePollTimer = typeof pollTimersRef.current[output.id] === "number";
+      if (isTaskPollingResumeEligible({ output, hasActivePollTimer })) {
+        activeResumeIds.add(output.id);
+        queueResumeLastCheckedAtRef.current[output.id] = now;
+        const outputProvider = (output.provider as Provider | undefined) ?? "fal";
+        const provider =
+          typeof output.modelId === "string" && output.modelId.trim().length > 0
+            ? normalizeProviderForPolling(output.modelId, outputProvider)
+            : outputProvider;
+        clearPollTimer(output.id);
+        startPollingTask(output.taskId!.trim(), output.id, 0, provider, Date.now(), 0, undefined, {
+          initialDelayMs: DISPATCH_HANDOFF_INITIAL_POLL_DELAY_MS,
+        });
+        return;
+      }
+      if (!isQueueResumeEligible(output)) return;
+      activeResumeIds.add(output.id);
+      if (inFlightCount >= QUEUE_RESUME_MAX_CONCURRENT) return;
+      if (queueResumeInFlightRef.current[output.id]) return;
+      const generationId = output.generationId?.trim() ?? "";
+      const sourceRef = output.sourceRef?.trim() ?? "";
       if (!generationId && !sourceRef) return;
 
       queueResumeInFlightRef.current[output.id] = true;
@@ -340,12 +373,12 @@ export const useAiStudioTaskOrchestration = ({
     });
 
     Object.keys(queueResumeLastCheckedAtRef.current).forEach((outputId) => {
-      if (!activeQueuedIds.has(outputId) && !queueResumeInFlightRef.current[outputId]) {
+      if (!activeResumeIds.has(outputId) && !queueResumeInFlightRef.current[outputId]) {
         delete queueResumeLastCheckedAtRef.current[outputId];
         delete queueResumeNotFoundRetriesRef.current[outputId];
       }
     });
-  }, [clearPollTimer, findOutputById, startPollingTask, updateOutputById]);
+  }, [clearPollTimer, findOutputById, pollTimersRef, startPollingTask, updateOutputById]);
 
   const runStuckSpinnerWatchdog = useCallback(() => {
     if (!isDocumentVisible()) return;
@@ -407,7 +440,10 @@ export const useAiStudioTaskOrchestration = ({
 
   useEffect(() => {
     const queueResumeSignature = queueResumeCandidatesRef.current
-      .map((output) => `${output.id}:${output.generationId ?? ""}:${output.sourceRef ?? ""}`)
+      .map(
+        (output) =>
+          `${output.id}:${output.generationId ?? ""}:${output.sourceRef ?? ""}:${output.taskId ?? ""}`
+      )
       .sort()
       .join("|");
     if (queueResumeSignatureRef.current === queueResumeSignature) return;

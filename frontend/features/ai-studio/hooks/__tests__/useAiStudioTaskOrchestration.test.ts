@@ -686,7 +686,143 @@ describe("useAiStudioTaskOrchestration", () => {
     }
   });
 
-  it("resumes queued output polling when queue-status reports dispatched", async () => {
+  it("resumes unresolved task-backed outputs when polling is no longer active", async () => {
+    const outputs = [
+      createOutput({
+        id: "out-task-resume",
+        taskId: "req-task-resume",
+        provider: "fal",
+        modelId: "fal-ai/bytedance/seedream/v4.5/edit",
+        taskState: "running",
+        timestamp: "Waiting for server recovery...",
+      }),
+    ];
+
+    renderHook(() =>
+      useAiStudioTaskOrchestration({
+        taskSubmissionConfig: {
+          aspect: "9:16",
+          mode: "image",
+          model: "model-id",
+          prompt: "Prompt",
+          selectedTool: "create",
+          imageResolution: "model_default",
+          videoDurationSeconds: 6,
+          videoResolution: "1080p",
+          videoGenerateAudio: false,
+          videoReferenceMode: "standard",
+          videoReferenceImageUrl: null,
+          motionReferenceVideoUrl: null,
+          videoCameraFixed: false,
+          videoAutoFix: false,
+          klingNegativePrompt: "blur",
+          klingCfgScale: 0.5,
+          klingShotType: "customize",
+          klingVoiceIds: ["", ""],
+          klingMultiPrompts: [],
+          klingElements: [],
+          setIsPromptGenerating: asDispatch<boolean>(vi.fn()),
+          setUiError: asDispatch<string | null>(vi.fn()),
+          setUiNotice: asDispatch<string | null>(vi.fn()),
+          setOutputs: asDispatch<StudioOutput[]>(vi.fn()),
+          setSaved: asDispatch<boolean>(vi.fn()),
+          getDefaultDurationSeconds: vi.fn(() => 6),
+          notifyGenerationFailure: vi.fn(),
+          updateOutputById: vi.fn(),
+          ensureGenerationRecord: vi.fn(async () => null),
+        },
+        outputs,
+        findOutputById: (id: string) => outputs.find((item) => item.id === id) ?? null,
+      })
+    );
+
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(fetchFalQueueStatusMock).not.toHaveBeenCalled();
+    expect(clearPollTimer).toHaveBeenCalledWith("out-task-resume");
+    expect(startPollingTask).toHaveBeenCalledWith(
+      "req-task-resume",
+      "out-task-resume",
+      0,
+      "fal-seedream",
+      expect.any(Number),
+      0,
+      undefined,
+      {
+        initialDelayMs: DISPATCH_HANDOFF_INITIAL_POLL_DELAY_MS,
+      }
+    );
+  });
+
+  it("does not restart task-backed polling when an active poll timer already exists", async () => {
+    pollTimersRef.current["out-task-active"] = 123;
+    const outputs = [
+      createOutput({
+        id: "out-task-active",
+        taskId: "req-task-active",
+        provider: "fal",
+        modelId: "fal-ai/bytedance/seedream/v4.5/edit",
+        taskState: "running",
+      }),
+    ];
+
+    renderHook(() =>
+      useAiStudioTaskOrchestration({
+        taskSubmissionConfig: {
+          aspect: "9:16",
+          mode: "image",
+          model: "model-id",
+          prompt: "Prompt",
+          selectedTool: "create",
+          imageResolution: "model_default",
+          videoDurationSeconds: 6,
+          videoResolution: "1080p",
+          videoGenerateAudio: false,
+          videoReferenceMode: "standard",
+          videoReferenceImageUrl: null,
+          motionReferenceVideoUrl: null,
+          videoCameraFixed: false,
+          videoAutoFix: false,
+          klingNegativePrompt: "blur",
+          klingCfgScale: 0.5,
+          klingShotType: "customize",
+          klingVoiceIds: ["", ""],
+          klingMultiPrompts: [],
+          klingElements: [],
+          setIsPromptGenerating: asDispatch<boolean>(vi.fn()),
+          setUiError: asDispatch<string | null>(vi.fn()),
+          setUiNotice: asDispatch<string | null>(vi.fn()),
+          setOutputs: asDispatch<StudioOutput[]>(vi.fn()),
+          setSaved: asDispatch<boolean>(vi.fn()),
+          getDefaultDurationSeconds: vi.fn(() => 6),
+          notifyGenerationFailure: vi.fn(),
+          updateOutputById: vi.fn(),
+          ensureGenerationRecord: vi.fn(async () => null),
+        },
+        outputs,
+        findOutputById: (id: string) => outputs.find((item) => item.id === id) ?? null,
+      })
+    );
+
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(fetchFalQueueStatusMock).not.toHaveBeenCalled();
+    expect(clearPollTimer).not.toHaveBeenCalledWith("out-task-active");
+    expect(startPollingTask).not.toHaveBeenCalledWith(
+      "req-task-active",
+      "out-task-active",
+      0,
+      expect.anything()
+    );
+  });
+
+  it("prefers server-authored pollingProvider when queue resume dispatches", async () => {
     let outputs = [
       createOutput({
         id: "out-queued",

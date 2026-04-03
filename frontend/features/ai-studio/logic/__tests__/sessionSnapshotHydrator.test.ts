@@ -323,5 +323,84 @@ describe("sessionSnapshotHydrator", () => {
     expect(payload.outputs.active[0]?.queueState).toBe("queued");
     expect(payload.outputs.active[0]?.queueEnqueuedAtMs).toBe(1_700_000_456_000);
     expect(payload.outputs.active[0]?.generationTraceId).toBe("trace-queued-restore");
+    expect(payload.outputs.active[0]?.timestamp).toBe("Waiting in queue...");
+    expect(payload.outputs.active[0]?.taskState).toBe("pending");
+  });
+
+  it("normalizes unresolved restored terminal output into server-recovery posture", () => {
+    const payload = buildAiStudioSessionHydrationPayload(
+      createSnapshot({
+        outputs: {
+          ...createSnapshot().outputs,
+          active: [
+            {
+              id: "out-terminal-restore",
+              prompt: "restore me",
+              mode: "image",
+              aspect: "1:1",
+              model: "fal:foo",
+              status: "ready",
+              timestamp: "Complete",
+              generationId: "gen-terminal-restore",
+              sourceRef: "src-terminal-restore",
+              queueState: "dispatched",
+              taskState: "success",
+              errorMessage: "old client error",
+              errorMessageShort: "old short error",
+            },
+          ],
+          activeOutputId: "out-terminal-restore",
+        },
+      })
+    );
+
+    expect(payload.outputs.active[0]).toEqual(
+      expect.objectContaining({
+        generationId: "gen-terminal-restore",
+        sourceRef: "src-terminal-restore",
+        queueState: "dispatched",
+        taskState: "pending",
+        timestamp: "Waiting for server recovery...",
+        errorMessage: null,
+        errorMessageShort: null,
+      })
+    );
+  });
+
+  it("keeps restored settled outputs intact when canonical media is already present", () => {
+    const payload = buildAiStudioSessionHydrationPayload(
+      createSnapshot({
+        outputs: {
+          ...createSnapshot().outputs,
+          active: [
+            {
+              id: "out-settled-restore",
+              prompt: "done",
+              mode: "image",
+              aspect: "1:1",
+              model: "fal:foo",
+              status: "ready",
+              timestamp: "Complete",
+              generationId: "gen-settled-restore",
+              sourceRef: "src-settled-restore",
+              queueState: "dispatched",
+              taskState: "success",
+              resultUrls: ["https://cdn.example.com/result.png"],
+              previewUrl: "https://cdn.example.com/result.png",
+            },
+          ],
+          activeOutputId: "out-settled-restore",
+        },
+      })
+    );
+
+    expect(payload.outputs.active[0]).toEqual(
+      expect.objectContaining({
+        taskState: "success",
+        timestamp: "Complete",
+        resultUrls: ["https://cdn.example.com/result.png"],
+        previewUrl: "https://cdn.example.com/result.png",
+      })
+    );
   });
 });

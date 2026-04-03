@@ -170,46 +170,100 @@ const asKlingElements = (
     );
 };
 
-const hydrateOutput = (output: AiStudioSessionOutputV1): StudioOutput => ({
-  id: output.id,
-  prompt: output.prompt,
-  mode: asMode(output.mode),
-  aspect: typeof output.aspect === "string" ? output.aspect : FALLBACK_ASPECT,
-  model: output.model,
-  modelId: output.modelId,
-  provider: output.provider,
-  generationId: output.generationId,
-  promptId: output.promptId,
-  savedMediaIds: output.savedMediaIds,
-  saveState: output.saveState,
-  saveError: output.saveError ?? null,
-  status: output.status,
-  timestamp: output.timestamp,
-  taskId: output.taskId,
-  taskState: output.taskState,
-  queueState: output.queueState,
-  queueEnqueuedAtMs:
-    typeof output.queueEnqueuedAtMs === "number" && Number.isFinite(output.queueEnqueuedAtMs)
-      ? output.queueEnqueuedAtMs
-      : undefined,
-  generationTraceId: output.generationTraceId,
-  errorMessage: output.errorMessage ?? null,
-  errorMessageShort: output.errorMessageShort ?? null,
-  resultUrls: output.resultUrls,
-  previewUrl: output.previewUrl,
-  previewStoragePath: output.previewStoragePath ?? null,
-  fullStoragePath: output.fullStoragePath ?? null,
-  previewTier: output.previewTier,
-  mediaSource: output.mediaSource,
-  previewText: output.previewText,
-  pinned: output.pinned,
-  hiddenInReferenceGrid: output.hiddenInReferenceGrid,
-  archivedAt: output.archivedAt ?? null,
-  archiveReason: output.archiveReason ?? null,
-  characterContext: output.characterContext,
-  ...(output.styleContext ? { styleContext: output.styleContext } : {}),
-  generationReplay: output.generationReplay,
-});
+const RESTORED_QUEUE_WAITING_TIMESTAMP = "Waiting in queue...";
+const RESTORED_SERVER_RECOVERY_PENDING_TIMESTAMP = "Waiting for server recovery...";
+
+const hasSettledRestoredOutputPayload = (output: StudioOutput): boolean => {
+  if (output.status === "saved") return true;
+  if (Array.isArray(output.savedMediaIds) && output.savedMediaIds.length > 0) return true;
+  if ((output.resultUrls ?? []).some((url) => typeof url === "string" && url.trim().length > 0)) {
+    return true;
+  }
+  if (typeof output.previewUrl === "string" && output.previewUrl.trim().length > 0) return true;
+  if (typeof output.previewText === "string" && output.previewText.trim().length > 0) return true;
+  if (
+    typeof output.previewStoragePath === "string" &&
+    output.previewStoragePath.trim().length > 0
+  ) {
+    return true;
+  }
+  if (typeof output.fullStoragePath === "string" && output.fullStoragePath.trim().length > 0) {
+    return true;
+  }
+  return false;
+};
+
+const normalizeRestoredOutputLifecycle = (output: StudioOutput): StudioOutput => {
+  const generationId = typeof output.generationId === "string" ? output.generationId.trim() : "";
+  const sourceRef = typeof output.sourceRef === "string" ? output.sourceRef.trim() : "";
+  const taskId = typeof output.taskId === "string" ? output.taskId.trim() : "";
+  if ((!generationId && !sourceRef) || taskId || hasSettledRestoredOutputPayload(output)) {
+    return output;
+  }
+
+  if (output.queueState === "queued") {
+    return {
+      ...output,
+      status: "ready",
+      taskState: "pending",
+      timestamp: RESTORED_QUEUE_WAITING_TIMESTAMP,
+      errorMessage: null,
+      errorMessageShort: null,
+    };
+  }
+
+  return {
+    ...output,
+    status: "ready",
+    taskState: "pending",
+    timestamp: RESTORED_SERVER_RECOVERY_PENDING_TIMESTAMP,
+    errorMessage: null,
+    errorMessageShort: null,
+  };
+};
+
+const hydrateOutput = (output: AiStudioSessionOutputV1): StudioOutput =>
+  normalizeRestoredOutputLifecycle({
+    id: output.id,
+    prompt: output.prompt,
+    mode: asMode(output.mode),
+    aspect: typeof output.aspect === "string" ? output.aspect : FALLBACK_ASPECT,
+    model: output.model,
+    modelId: output.modelId,
+    provider: output.provider,
+    sourceRef: output.sourceRef,
+    generationId: output.generationId,
+    promptId: output.promptId,
+    savedMediaIds: output.savedMediaIds,
+    saveState: output.saveState,
+    saveError: output.saveError ?? null,
+    status: output.status,
+    timestamp: output.timestamp,
+    taskId: output.taskId,
+    taskState: output.taskState,
+    queueState: output.queueState,
+    queueEnqueuedAtMs:
+      typeof output.queueEnqueuedAtMs === "number" && Number.isFinite(output.queueEnqueuedAtMs)
+        ? output.queueEnqueuedAtMs
+        : undefined,
+    generationTraceId: output.generationTraceId,
+    errorMessage: output.errorMessage ?? null,
+    errorMessageShort: output.errorMessageShort ?? null,
+    resultUrls: output.resultUrls,
+    previewUrl: output.previewUrl,
+    previewStoragePath: output.previewStoragePath ?? null,
+    fullStoragePath: output.fullStoragePath ?? null,
+    previewTier: output.previewTier,
+    mediaSource: output.mediaSource,
+    previewText: output.previewText,
+    pinned: output.pinned,
+    hiddenInReferenceGrid: output.hiddenInReferenceGrid,
+    archivedAt: output.archivedAt ?? null,
+    archiveReason: output.archiveReason ?? null,
+    characterContext: output.characterContext,
+    ...(output.styleContext ? { styleContext: output.styleContext } : {}),
+    generationReplay: output.generationReplay,
+  });
 
 const dedupeOutputs = (rows: StudioOutput[]): StudioOutput[] => {
   const byId = new Map<string, StudioOutput>();

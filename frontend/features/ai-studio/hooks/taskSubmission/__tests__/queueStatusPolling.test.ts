@@ -465,7 +465,7 @@ describe("queueStatusPolling", () => {
           code: "GENERATION_QUEUED",
           sourceRef: "src-queued-2",
           generationId: "gen-queued-2",
-          pollAfterMs: 500,
+          pollAfterMs: 10_000,
         },
         patch: {},
         queueStatusTimersRef,
@@ -476,11 +476,14 @@ describe("queueStatusPolling", () => {
         onDispatched,
       });
 
-      for (let index = 0; index < QUEUE_STATUS_NOT_FOUND_MAX_RETRIES + 2; index += 1) {
-        await vi.advanceTimersByTimeAsync(12_000);
-      }
+      await vi.advanceTimersByTimeAsync(90_000);
+      expect(fetchFalQueueStatusMock).toHaveBeenCalledTimes(9);
+      expect(output.taskState).toBe("pending");
+      expect(output.timestamp).not.toBe("Waiting for server recovery...");
 
-      expect(fetchFalQueueStatusMock).toHaveBeenCalledTimes(QUEUE_STATUS_NOT_FOUND_MAX_RETRIES);
+      await vi.advanceTimersByTimeAsync(40_000);
+
+      expect(fetchFalQueueStatusMock).toHaveBeenCalledTimes(12);
       expect(notifyGenerationFailure).not.toHaveBeenCalled();
       expect(onDispatched).not.toHaveBeenCalled();
       expect(output.taskState).toBe("pending");

@@ -29,7 +29,7 @@ Supporting docs:
 ## Program Snapshot
 | Workstream | Status | Owner | Current Focus | Blockers | Next Checkpoint |
 | --- | --- | --- | --- | --- | --- |
-| WG-1 Recovery correctness | In Progress | AI Studio Eng | Execute `P0-S1` and capture first implementation evidence under kickoff SLA | `RGR-B02` waived through 2026-03-28 (tracked in `docs/known-issues.md`) | P0 slice checkpoint (`P0-S1`) |
+| WG-1 Recovery correctness | In Progress | AI Studio Eng | Reassess and execute `P0-S3` after `P0-S2` parity closeout | `RGR-B02` waived through 2026-03-28 (tracked in `docs/known-issues.md`) | P0 slice checkpoint (`P0-S3`) |
 | WG-2 Data authority parity | Not Started | AI Studio Eng | Execute P1 data-authority parity slices after P0 exit | Depends on P0 closeout (`RGR-M02`..`RGR-M04`) | P1 implementation entry review |
 | WG-3 Media hydration convergence | Not Started | AI Studio Eng | Execute P2 hydration convergence slices after P1 exit | Depends on P1 closeout (`RGR-M05`/`RGR-M06`) | P2 implementation entry review |
 | WG-4 Recovery semantics alignment | Not Started | AI Studio Eng | Execute P3 recovery semantics slices after P2 exit | Depends on WG-1 evidence and P2 closeout (`RGR-M07`/`RGR-M08`) | P3 implementation entry review |
@@ -40,7 +40,7 @@ Supporting docs:
 | --- | --- | --- | --- | --- | --- | --- |
 | `RGR-M01` | Confirm top-priority defect inventory and source-code references | WG-1 | Completed | High | Audit summary review | `docs/planning/evidence/ai-studio-reference-grid-reliability/2026-03-21-rgr-m01-top-priority-defect-inventory.md` |
 | `RGR-M02` | Lock recovery timer scheduling contract (no post-schedule cancel) | WG-1 | In Progress | High | P0 phase gate + targeted tests | `docs/planning/evidence/ai-studio-reference-grid-reliability/2026-03-21-p0-s1-kickoff.md` |
-| `RGR-M03` | Lock queued `not_found` age/retry policy parity across active and resume paths | WG-1 | In Progress | High | P0 phase gate + targeted tests | planned |
+| `RGR-M03` | Lock queued `not_found` age/retry policy parity across active and resume paths | WG-1 | Completed | High | P0 phase gate + targeted tests | `docs/planning/evidence/ai-studio-reference-grid-reliability/2026-04-03-p0-s2-not-found-policy-parity.md` |
 | `RGR-M04` | Lock lifecycle retention window for recoverable no-task/no-preview failures | WG-1 | In Progress | Medium | P0 phase gate + smoke matrix | planned |
 | `RGR-M05` | Define canonical output authority between bubble and grid surfaces | WG-2 | Planned | High | P1 phase gate + integration tests | planned |
 | `RGR-M06` | Define selector-store publish parity and coalescing acceptance criteria | WG-2 | Planned | High | P1 phase gate + race tests | planned |
@@ -96,3 +96,4 @@ After `implementation_ready` promotion:
 12. Closed `RGR-G04` via `RGR-B02` waiver metadata update in `docs/known-issues.md`.
 13. Promoted readiness to `implementation_ready`, started `P0-S1` kickoff, and moved `RGR-M02`..`RGR-M04` to `In Progress`.
 14. Kickoff evidence link recorded: `docs/planning/evidence/ai-studio-reference-grid-reliability/2026-03-21-p0-s1-kickoff.md`.
+15. Closed `RGR-M03` with shared queued `not_found` retry/age parity across active queue polling and resume-watchdog paths; linked `docs/planning/evidence/ai-studio-reference-grid-reliability/2026-04-03-p0-s2-not-found-policy-parity.md`.

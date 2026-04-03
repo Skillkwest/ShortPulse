@@ -13,6 +13,7 @@ import {
   resolveDispatchedPollingProvider,
   syncQueuedStatusLifecycle,
 } from "./taskSubmission/queueStatusPolling";
+import { shouldEscalateQueuedNotFoundRecovery } from "./taskSubmission/queueStatusNotFoundPolicy";
 import { useAiStudioTaskSubmission } from "./useAiStudioTaskSubmission";
 import { useAiStudioTasks } from "./useAiStudioTasks";
 
@@ -34,19 +35,12 @@ type StuckSpinnerRetryState = {
   retries: number;
 };
 
-type QueueResumeNotFoundState = {
-  firstSeenAtMs: number;
-  retries: number;
-};
-
 const STUCK_SPINNER_RETRY_INTERVAL_MS = 30_000;
 const STUCK_SPINNER_RETRY_AGE_MS = 90_000;
 const STUCK_SPINNER_MAX_AUTO_RETRIES = 2;
 const QUEUE_RESUME_SCAN_INTERVAL_MS = 20_000;
 const QUEUE_RESUME_MIN_RECHECK_MS = 12_000;
 const QUEUE_RESUME_MAX_CONCURRENT = 3;
-const QUEUE_RESUME_NOT_FOUND_MAX_RETRIES = 6;
-const QUEUE_RESUME_NOT_FOUND_MAX_AGE_MS = 90_000;
 
 const isDocumentVisible = (): boolean =>
   typeof document === "undefined" || document.visibilityState === "visible";
@@ -116,7 +110,7 @@ export const useAiStudioTaskOrchestration = ({
   const stuckSpinnerRetryStateRef = useRef<Record<string, StuckSpinnerRetryState>>({});
   const queueResumeInFlightRef = useRef<Record<string, boolean>>({});
   const queueResumeLastCheckedAtRef = useRef<Record<string, number>>({});
-  const queueResumeNotFoundStateRef = useRef<Record<string, QueueResumeNotFoundState>>({});
+  const queueResumeNotFoundRetriesRef = useRef<Record<string, number>>({});
   const queueResumeSignatureRef = useRef<string>("");
 
   useEffect(() => {
@@ -255,8 +249,8 @@ export const useAiStudioTaskOrchestration = ({
           });
           if (!findOutputById(output.id)) return;
           if (queueStatus.status === "dispatched") {
+            delete queueResumeNotFoundRetriesRef.current[output.id];
             const lifecycle = queueStatus.shortpulseLifecycle;
-            delete queueResumeNotFoundStateRef.current[output.id];
             const requestId = queueStatus.requestId.trim();
             const outputProvider = (output.provider as Provider | undefined) ?? "fal";
             const resumeProviderHint =
@@ -302,7 +296,7 @@ export const useAiStudioTaskOrchestration = ({
             return;
           }
           if (queueStatus.status === "queued" || queueStatus.status === "dispatching") {
-            delete queueResumeNotFoundStateRef.current[output.id];
+            delete queueResumeNotFoundRetriesRef.current[output.id];
             syncQueuedStatusLifecycle({
               outputId: output.id,
               queueStatus,
@@ -311,7 +305,7 @@ export const useAiStudioTaskOrchestration = ({
             return;
           }
           if (queueStatus.status === "failed") {
-            delete queueResumeNotFoundStateRef.current[output.id];
+            delete queueResumeNotFoundRetriesRef.current[output.id];
             markQueuedStatusRecoveryPending({
               outputId: output.id,
               updateOutputById,
@@ -319,26 +313,22 @@ export const useAiStudioTaskOrchestration = ({
             return;
           }
           if (queueStatus.status === "not_found") {
-            const current = queueResumeNotFoundStateRef.current[output.id];
-            const nextState: QueueResumeNotFoundState = current
-              ? { firstSeenAtMs: current.firstSeenAtMs, retries: current.retries + 1 }
-              : { firstSeenAtMs: now, retries: 1 };
-            queueResumeNotFoundStateRef.current[output.id] = nextState;
-            const ageMs = now - nextState.firstSeenAtMs;
+            const notFoundRetries = (queueResumeNotFoundRetriesRef.current[output.id] ?? 0) + 1;
+            queueResumeNotFoundRetriesRef.current[output.id] = notFoundRetries;
             if (
-              nextState.retries >= QUEUE_RESUME_NOT_FOUND_MAX_RETRIES &&
-              ageMs >= QUEUE_RESUME_NOT_FOUND_MAX_AGE_MS
+              shouldEscalateQueuedNotFoundRecovery({
+                notFoundRetries,
+                queueEnqueuedAtMs: output.queueEnqueuedAtMs,
+                nowMs: Date.now(),
+              })
             ) {
-              delete queueResumeNotFoundStateRef.current[output.id];
-              notifyGenerationFailure(
-                output.id,
-                "Queued generation could not be resumed. Please retry.",
-                "Generation queue status remained unresolved while waiting for dispatch."
-              );
+              markQueuedStatusRecoveryPending({
+                outputId: output.id,
+                updateOutputById,
+              });
             }
             return;
           }
-          delete queueResumeNotFoundStateRef.current[output.id];
         } catch {
           // Keep resume watchdog best-effort; regular queue and recovery paths remain authoritative.
         } finally {
@@ -350,7 +340,7 @@ export const useAiStudioTaskOrchestration = ({
     Object.keys(queueResumeLastCheckedAtRef.current).forEach((outputId) => {
       if (!activeQueuedIds.has(outputId) && !queueResumeInFlightRef.current[outputId]) {
         delete queueResumeLastCheckedAtRef.current[outputId];
-        delete queueResumeNotFoundStateRef.current[outputId];
+        delete queueResumeNotFoundRetriesRef.current[outputId];
       }
     });
   }, [clearPollTimer, findOutputById, startPollingTask, updateOutputById]);

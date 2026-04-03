@@ -12,9 +12,12 @@ import type { SubmissionPatch } from "./types";
 import { normalizeProviderForPolling, type Provider } from "../../logic/stateParsers";
 import { applyQueuedSubmissionPatch } from "./outputLifecyclePatches";
 import type { StudioOutput, ToolId } from "../../types";
+import {
+  QUEUE_STATUS_NOT_FOUND_MAX_RETRIES,
+  shouldEscalateQueuedNotFoundRecovery,
+} from "./queueStatusNotFoundPolicy";
 
 export const QUEUE_STATUS_MAX_WAIT_MS = 30 * 60 * 1000;
-export const QUEUE_STATUS_NOT_FOUND_MAX_RETRIES = 8;
 export const clampQueuePollMs = (value: number) =>
   Math.max(500, Math.min(10000, Math.trunc(value)));
 const HIDDEN_TAB_QUEUE_STATUS_RETRY_MS = 10_000;
@@ -312,7 +315,13 @@ export const startQueuedStatusPolling = ({
 
       if (queueStatus.status === "not_found") {
         notFoundRetries += 1;
-        if (notFoundRetries >= QUEUE_STATUS_NOT_FOUND_MAX_RETRIES) {
+        if (
+          shouldEscalateQueuedNotFoundRecovery({
+            notFoundRetries,
+            queueEnqueuedAtMs,
+            nowMs: Date.now(),
+          })
+        ) {
           clearQueueStatusPolling(outputId);
           markQueuedStatusRecoveryPending({
             outputId,

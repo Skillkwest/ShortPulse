@@ -1490,16 +1490,18 @@ describe("useAiStudioTaskOrchestration", () => {
     }
   });
 
-  it("keeps queued resume best-effort when queue-status remains not_found", async () => {
+  it("keeps queued resume best-effort when queue-status remains not_found before the age gate", async () => {
     vi.useFakeTimers();
     try {
       const notifyGenerationFailure = vi.fn();
       const updateOutputById = vi.fn();
+      const nowMs = Date.now();
       const outputs = [
         createOutput({
           id: "out-queued",
           generationId: "gen-1",
           queueState: "queued",
+          queueEnqueuedAtMs: nowMs,
           taskState: "pending",
           provider: "fal",
         }),
@@ -1551,7 +1553,7 @@ describe("useAiStudioTaskOrchestration", () => {
         await Promise.resolve();
       });
       await act(async () => {
-        await vi.advanceTimersByTimeAsync(130_000);
+        await vi.advanceTimersByTimeAsync(90_000);
       });
 
       expect(fetchFalQueueStatusMock).toHaveBeenCalled();
@@ -1561,6 +1563,86 @@ describe("useAiStudioTaskOrchestration", () => {
         "Generation queue status remained unresolved while waiting for dispatch."
       );
       expect(updateOutputById).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("marks queued resume recovery pending after bounded not_found age and retries", async () => {
+    vi.useFakeTimers();
+    try {
+      const notifyGenerationFailure = vi.fn();
+      let output = createOutput({
+        id: "out-queued",
+        generationId: "gen-1",
+        queueState: "queued",
+        queueEnqueuedAtMs: Date.now(),
+        taskState: "pending",
+        provider: "fal",
+      });
+      const updateOutputById = vi.fn(
+        (id: string, updater: (item: StudioOutput) => StudioOutput) => {
+          if (id === output.id) {
+            output = updater(output);
+          }
+        }
+      );
+      const outputs = [output];
+      const fetchFalQueueStatusMock = vi.mocked(fetchFalQueueStatus);
+      fetchFalQueueStatusMock.mockResolvedValue({
+        status: "not_found",
+      });
+
+      renderHook(() =>
+        useAiStudioTaskOrchestration({
+          taskSubmissionConfig: {
+            aspect: "9:16",
+            mode: "image",
+            model: "model-id",
+            prompt: "Prompt",
+            selectedTool: "create",
+            imageResolution: "model_default",
+            videoDurationSeconds: 6,
+            videoResolution: "1080p",
+            videoGenerateAudio: false,
+            videoReferenceMode: "standard",
+            videoReferenceImageUrl: null,
+            motionReferenceVideoUrl: null,
+            videoCameraFixed: false,
+            videoAutoFix: false,
+            klingNegativePrompt: "blur",
+            klingCfgScale: 0.5,
+            klingShotType: "customize",
+            klingVoiceIds: ["", ""],
+            klingMultiPrompts: [],
+            klingElements: [],
+            setIsPromptGenerating: asDispatch<boolean>(vi.fn()),
+            setUiError: asDispatch<string | null>(vi.fn()),
+            setUiNotice: asDispatch<string | null>(vi.fn()),
+            setOutputs: asDispatch<StudioOutput[]>(vi.fn()),
+            setSaved: asDispatch<boolean>(vi.fn()),
+            getDefaultDurationSeconds: vi.fn(() => 6),
+            notifyGenerationFailure,
+            updateOutputById,
+            ensureGenerationRecord: vi.fn(async () => null),
+          },
+          outputs,
+          findOutputById: (id: string) => (id === output.id ? output : null),
+        })
+      );
+
+      await act(async () => {
+        await Promise.resolve();
+      });
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(150_000);
+      });
+
+      expect(fetchFalQueueStatusMock).toHaveBeenCalled();
+      expect(notifyGenerationFailure).not.toHaveBeenCalled();
+      expect(updateOutputById).toHaveBeenCalled();
+      expect(output.taskState).toBe("pending");
+      expect(output.timestamp).toBe("Waiting for server recovery...");
     } finally {
       vi.useRealTimers();
     }

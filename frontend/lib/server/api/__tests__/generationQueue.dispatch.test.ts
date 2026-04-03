@@ -284,6 +284,199 @@ describe("generationQueue/dispatch no-capacity handling", () => {
     expect(claimGenerationSubmitQueueBatchMock).toHaveBeenCalledTimes(2);
   });
 
+  it("reuses a per-user capacity snapshot across same-batch claims when both items can dispatch", async () => {
+    readFalRuntimeFlagsMock.mockReturnValue({
+      videoQueueCompatNormalizationEnabled: true,
+      queueEnabled: true,
+      queueLeaseSeconds: 30,
+      queueMaxAttempts: 5,
+      queueBaseBackoffSeconds: 5,
+      queueMaxWaitSeconds: 1200,
+      runningExhaustMinAgeSeconds: 7200,
+      providerAttachedReservationCleanupMinAgeSeconds: 7200,
+      admission: {
+        globalMax: 4,
+        sharedProviderEnabled: false,
+        sharedProviderGlobalMax: 4,
+        tierLimits: {
+          video_long: 2,
+          image_heavy: 3,
+          image_standard: 4,
+        },
+      },
+      publicApiBaseUrl: null,
+    });
+    readActiveProviderCapacitySnapshotMock.mockResolvedValue({
+      tier: "image_standard",
+      globalActive: 0,
+      tierActive: 0,
+      staleIgnoredGlobal: 0,
+      staleIgnoredTier: 0,
+    });
+    getFalModelProfileByModelIdMock.mockReturnValue({
+      submitTargets: [{ url: "https://queue.fal.run/test" }],
+    });
+    dispatchProviderSubmitMock
+      .mockResolvedValueOnce({
+        response: { ok: true, status: 200 },
+        data: { request_id: "req-1" },
+        providerRequestId: "req-1",
+        targetUrl: "https://queue.fal.run/test",
+        targetIndex: 0,
+      })
+      .mockResolvedValueOnce({
+        response: { ok: true, status: 200 },
+        data: { request_id: "req-2" },
+        providerRequestId: "req-2",
+        targetUrl: "https://queue.fal.run/test",
+        targetIndex: 0,
+      });
+    claimGenerationSubmitQueueBatchMock
+      .mockResolvedValueOnce([
+        {
+          queueId: "queue-1",
+          generationId: "gen-1",
+          userId: "user-1",
+          modelId: "fal-ai/nano-banana-pro",
+          sourceRef: "source-1",
+          submitRoute: "/api/fal/nano-banana-pro-submit",
+          submitPayload: { prompt: "hello-1" },
+          timeoutMs: 20_000,
+          attempts: 0,
+          status: "dispatching",
+          nextAttemptAt: null,
+          leaseUntil: new Date(Date.now() + 30_000).toISOString(),
+          createdAt: new Date(Date.now() - 60_000).toISOString(),
+        },
+        {
+          queueId: "queue-2",
+          generationId: "gen-2",
+          userId: "user-1",
+          modelId: "fal-ai/nano-banana-pro",
+          sourceRef: "source-2",
+          submitRoute: "/api/fal/nano-banana-pro-submit",
+          submitPayload: { prompt: "hello-2" },
+          timeoutMs: 20_000,
+          attempts: 0,
+          status: "dispatching",
+          nextAttemptAt: null,
+          leaseUntil: new Date(Date.now() + 30_000).toISOString(),
+          createdAt: new Date(Date.now() - 60_000).toISOString(),
+        },
+      ])
+      .mockResolvedValueOnce([]);
+
+    const result = await dispatchGenerationSubmitQueueBatch({
+      req: undefined,
+      routeLabel: "test/dispatch",
+      limit: 2,
+      userId: "user-1",
+    });
+
+    expect(result).toEqual(
+      expect.objectContaining({
+        claimed: 2,
+        submitted: 2,
+        requeuedNoCapacity: 0,
+      })
+    );
+    expect(readActiveProviderCapacitySnapshotMock).toHaveBeenCalledTimes(1);
+    expect(dispatchProviderSubmitMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("enforces local reservation limits across same-batch claims without rereading capacity", async () => {
+    readFalRuntimeFlagsMock.mockReturnValue({
+      videoQueueCompatNormalizationEnabled: true,
+      queueEnabled: true,
+      queueLeaseSeconds: 30,
+      queueMaxAttempts: 5,
+      queueBaseBackoffSeconds: 5,
+      queueMaxWaitSeconds: 1200,
+      runningExhaustMinAgeSeconds: 7200,
+      providerAttachedReservationCleanupMinAgeSeconds: 7200,
+      admission: {
+        globalMax: 1,
+        sharedProviderEnabled: false,
+        sharedProviderGlobalMax: 4,
+        tierLimits: {
+          video_long: 2,
+          image_heavy: 3,
+          image_standard: 4,
+        },
+      },
+      publicApiBaseUrl: null,
+    });
+    readActiveProviderCapacitySnapshotMock.mockResolvedValue({
+      tier: "image_standard",
+      globalActive: 0,
+      tierActive: 0,
+      staleIgnoredGlobal: 0,
+      staleIgnoredTier: 0,
+    });
+    getFalModelProfileByModelIdMock.mockReturnValue({
+      submitTargets: [{ url: "https://queue.fal.run/test" }],
+    });
+    dispatchProviderSubmitMock.mockResolvedValue({
+      response: { ok: true, status: 200 },
+      data: { request_id: "req-1" },
+      providerRequestId: "req-1",
+      targetUrl: "https://queue.fal.run/test",
+      targetIndex: 0,
+    });
+    claimGenerationSubmitQueueBatchMock
+      .mockResolvedValueOnce([
+        {
+          queueId: "queue-1",
+          generationId: "gen-1",
+          userId: "user-1",
+          modelId: "fal-ai/nano-banana-pro",
+          sourceRef: "source-1",
+          submitRoute: "/api/fal/nano-banana-pro-submit",
+          submitPayload: { prompt: "hello-1" },
+          timeoutMs: 20_000,
+          attempts: 0,
+          status: "dispatching",
+          nextAttemptAt: null,
+          leaseUntil: new Date(Date.now() + 30_000).toISOString(),
+          createdAt: new Date(Date.now() - 60_000).toISOString(),
+        },
+        {
+          queueId: "queue-2",
+          generationId: "gen-2",
+          userId: "user-1",
+          modelId: "fal-ai/nano-banana-pro",
+          sourceRef: "source-2",
+          submitRoute: "/api/fal/nano-banana-pro-submit",
+          submitPayload: { prompt: "hello-2" },
+          timeoutMs: 20_000,
+          attempts: 0,
+          status: "dispatching",
+          nextAttemptAt: null,
+          leaseUntil: new Date(Date.now() + 30_000).toISOString(),
+          createdAt: new Date(Date.now() - 60_000).toISOString(),
+        },
+      ])
+      .mockResolvedValueOnce([]);
+
+    const result = await dispatchGenerationSubmitQueueBatch({
+      req: undefined,
+      routeLabel: "test/dispatch",
+      limit: 2,
+      userId: "user-1",
+    });
+
+    expect(result).toEqual(
+      expect.objectContaining({
+        claimed: 2,
+        submitted: 1,
+        requeuedNoCapacity: 1,
+      })
+    );
+    expect(readActiveProviderCapacitySnapshotMock).toHaveBeenCalledTimes(1);
+    expect(dispatchProviderSubmitMock).toHaveBeenCalledTimes(1);
+    expect(releaseQueueLeaseBackToQueuedMock).toHaveBeenCalledTimes(1);
+  });
+
   it("keeps refilling queued work within the same run while passes make forward progress", async () => {
     readFalRuntimeFlagsMock.mockReturnValue({
       videoQueueCompatNormalizationEnabled: true,
@@ -461,7 +654,7 @@ describe("generationQueue/dispatch no-capacity handling", () => {
     expect(dispatchProviderSubmitMock).toHaveBeenCalledTimes(4);
   });
 
-  it("starts user and shared capacity reads together when shared admission is enabled", async () => {
+  it("reuses shared-admission capacity snapshots across same-batch claims", async () => {
     readFalRuntimeFlagsMock.mockReturnValue({
       videoQueueCompatNormalizationEnabled: true,
       queueEnabled: true,
@@ -484,6 +677,59 @@ describe("generationQueue/dispatch no-capacity handling", () => {
       publicApiBaseUrl: null,
     });
 
+    getFalModelProfileByModelIdMock.mockReturnValue({
+      submitTargets: [{ url: "https://queue.fal.run/test" }],
+    });
+    dispatchProviderSubmitMock
+      .mockResolvedValueOnce({
+        response: { ok: true, status: 200 },
+        data: { request_id: "req-1" },
+        providerRequestId: "req-1",
+        targetUrl: "https://queue.fal.run/test",
+        targetIndex: 0,
+      })
+      .mockResolvedValueOnce({
+        response: { ok: true, status: 200 },
+        data: { request_id: "req-2" },
+        providerRequestId: "req-2",
+        targetUrl: "https://queue.fal.run/test",
+        targetIndex: 0,
+      });
+    claimGenerationSubmitQueueBatchMock
+      .mockResolvedValueOnce([
+        {
+          queueId: "queue-1",
+          generationId: "gen-1",
+          userId: "user-1",
+          modelId: "fal-ai/nano-banana-pro",
+          sourceRef: "source-1",
+          submitRoute: "/api/fal/nano-banana-pro-submit",
+          submitPayload: { prompt: "hello-1" },
+          timeoutMs: 20_000,
+          attempts: 0,
+          status: "dispatching",
+          nextAttemptAt: null,
+          leaseUntil: new Date(Date.now() + 30_000).toISOString(),
+          createdAt: new Date(Date.now() - 60_000).toISOString(),
+        },
+        {
+          queueId: "queue-2",
+          generationId: "gen-2",
+          userId: "user-1",
+          modelId: "fal-ai/nano-banana-pro",
+          sourceRef: "source-2",
+          submitRoute: "/api/fal/nano-banana-pro-submit",
+          submitPayload: { prompt: "hello-2" },
+          timeoutMs: 20_000,
+          attempts: 0,
+          status: "dispatching",
+          nextAttemptAt: null,
+          leaseUntil: new Date(Date.now() + 30_000).toISOString(),
+          createdAt: new Date(Date.now() - 60_000).toISOString(),
+        },
+      ])
+      .mockResolvedValueOnce([]);
+
     const startedScopes: Array<string | null> = [];
     let releaseSnapshots: (() => void) | null = null;
     const snapshotBarrier = new Promise<void>((resolve) => {
@@ -504,7 +750,7 @@ describe("generationQueue/dispatch no-capacity handling", () => {
     const dispatchPromise = dispatchGenerationSubmitQueueBatch({
       req: undefined,
       routeLabel: "test/dispatch",
-      limit: 1,
+      limit: 2,
       userId: "user-1",
     });
 
@@ -514,6 +760,12 @@ describe("generationQueue/dispatch no-capacity handling", () => {
     expect(new Set(startedScopes)).toEqual(new Set(["user-1", null]));
 
     releaseSnapshots?.();
-    await expect(dispatchPromise).resolves.toEqual(expect.any(Object));
+    await expect(dispatchPromise).resolves.toEqual(
+      expect.objectContaining({
+        claimed: 2,
+        submitted: 2,
+      })
+    );
+    expect(readActiveProviderCapacitySnapshotMock).toHaveBeenCalledTimes(2);
   });
 });

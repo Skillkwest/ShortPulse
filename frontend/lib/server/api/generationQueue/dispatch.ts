@@ -77,11 +77,6 @@ type ProviderCapacitySnapshot = {
   staleIgnoredTier: number;
 };
 
-type ProviderCapacityState = {
-  userSnapshot: ProviderCapacitySnapshot;
-  sharedSnapshot: ProviderCapacitySnapshot | null;
-};
-
 type QueueDispatchStageTimings = {
   existingRequestReconcile: number;
   capacityCheck: number;
@@ -248,21 +243,22 @@ const markAttemptRunningForExistingRequestId = async ({
   });
 };
 
-const readProviderCapacityState = async ({
-  userId,
+const readProviderCapacitySnapshot = async ({
+  scopeUserId,
   provider,
   modelId,
 }: {
-  userId: string;
+  scopeUserId?: string | null;
   provider: string;
   modelId: string;
-}): Promise<ProviderCapacityState> => {
+}): Promise<ProviderCapacitySnapshot> => {
   const flags = readFalRuntimeFlags();
   const readSnapshot = async (scopeUserId?: string | null) =>
     readActiveProviderCapacitySnapshot({
       userId: scopeUserId,
       provider,
       modelId,
+      includeUnattachedReservations: false,
       // Ignore orphaned holds once they outlive queue max-wait.
       staleIgnoreMinAgeSeconds: flags.queueMaxWaitSeconds,
       // Keep provider-linked running rows active until they exceed recovery cleanup windows.
@@ -299,6 +295,11 @@ type DispatchCapacityCoordinator = {
     provider: string;
     modelId: string;
   }) => Promise<DispatchCapacityDecision>;
+};
+
+type DispatchCapacitySnapshotCache = {
+  userSnapshots: Map<string, Promise<ProviderCapacitySnapshot>>;
+  sharedSnapshots: Map<string, Promise<ProviderCapacitySnapshot>>;
 };
 
 const createReservationCounts = (): DispatchCapacityReservationCounts => ({
@@ -372,6 +373,31 @@ const createDispatchCapacityCoordinator = (): DispatchCapacityCoordinator => {
   let gate = Promise.resolve();
   const userReservations = new Map<string, DispatchCapacityReservationCounts>();
   const sharedReservations = new Map<string, DispatchCapacityReservationCounts>();
+  // Cache capacity snapshots within the current worker pass; local reservations still gate
+  // subsequent admits so overlapping claims cannot overrun the sampled capacity window.
+  const snapshotCache: DispatchCapacitySnapshotCache = {
+    userSnapshots: new Map(),
+    sharedSnapshots: new Map(),
+  };
+
+  const readCachedSnapshot = <T>({
+    cache,
+    key,
+    load,
+  }: {
+    cache: Map<string, Promise<T>>;
+    key: string;
+    load: () => Promise<T>;
+  }): Promise<T> => {
+    const existing = cache.get(key);
+    if (existing) return existing;
+    const pending = load().catch((error) => {
+      cache.delete(key);
+      throw error;
+    });
+    cache.set(key, pending);
+    return pending;
+  };
 
   const withGate = async <T>(work: () => Promise<T>): Promise<T> => {
     const previousGate = gate;
@@ -391,12 +417,34 @@ const createDispatchCapacityCoordinator = (): DispatchCapacityCoordinator => {
     acquire: ({ userId, provider, modelId }) =>
       withGate(async () => {
         const flags = readFalRuntimeFlags();
-        const state = await readProviderCapacityState({
-          userId,
-          provider,
-          modelId,
+        const userSnapshotCacheKey = `${userId}:${provider}:${modelId}`;
+        const sharedSnapshotCacheKey = `${provider}:${modelId}`;
+        const userSnapshotPromise = readCachedSnapshot({
+          cache: snapshotCache.userSnapshots,
+          key: userSnapshotCacheKey,
+          load: async () =>
+            await readProviderCapacitySnapshot({
+              scopeUserId: userId,
+              provider,
+              modelId,
+            }),
         });
-        const userSnapshot = state.userSnapshot;
+        const sharedSnapshotPromise = flags.admission.sharedProviderEnabled
+          ? readCachedSnapshot({
+              cache: snapshotCache.sharedSnapshots,
+              key: sharedSnapshotCacheKey,
+              load: async () =>
+                await readProviderCapacitySnapshot({
+                  scopeUserId: null,
+                  provider,
+                  modelId,
+                }),
+            })
+          : Promise.resolve(null);
+        const [userSnapshot, sharedSnapshot] = await Promise.all([
+          userSnapshotPromise,
+          sharedSnapshotPromise,
+        ]);
         const userGlobalKey = buildUserGlobalCapacityKey({ userId, provider });
         const userTierKey = buildUserTierCapacityKey({
           userId,
@@ -408,8 +456,7 @@ const createDispatchCapacityCoordinator = (): DispatchCapacityCoordinator => {
           tier: readMapReservationCounts(userReservations, userTierKey).tier,
         };
 
-        if (flags.admission.sharedProviderEnabled && state.sharedSnapshot) {
-          const sharedSnapshot = state.sharedSnapshot;
+        if (flags.admission.sharedProviderEnabled && sharedSnapshot) {
           const sharedGlobalKey = buildSharedGlobalCapacityKey({ provider });
           const sharedTierKey = buildSharedTierCapacityKey({
             provider,

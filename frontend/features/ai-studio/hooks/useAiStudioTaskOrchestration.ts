@@ -132,6 +132,7 @@ export const useAiStudioTaskOrchestration = ({
   const queueResumeInFlightRef = useRef<Record<string, boolean>>({});
   const queueResumeLastCheckedAtRef = useRef<Record<string, number>>({});
   const queueResumeNotFoundStateRef = useRef<Record<string, QueueResumeNotFoundState>>({});
+  const queueResumeSignatureRef = useRef<string>("");
 
   useEffect(() => {
     outputsRef.current = outputs;
@@ -444,6 +445,17 @@ export const useAiStudioTaskOrchestration = ({
     );
     return () => window.clearInterval(intervalId);
   }, [runQueuedOutputResumeWatchdog]);
+
+  useEffect(() => {
+    const queueResumeSignature = queueResumeCandidatesRef.current
+      .map((output) => `${output.id}:${output.generationId ?? ""}:${output.sourceRef ?? ""}`)
+      .sort()
+      .join("|");
+    if (queueResumeSignatureRef.current === queueResumeSignature) return;
+    queueResumeSignatureRef.current = queueResumeSignature;
+    if (!queueResumeSignature) return;
+    runQueuedOutputResumeWatchdog();
+  }, [outputs, runQueuedOutputResumeWatchdog]);
 
   return {
     submitTask,

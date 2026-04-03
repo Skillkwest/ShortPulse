@@ -922,6 +922,98 @@ describe("useAiStudioTaskOrchestration", () => {
     }
   });
 
+  it("checks newly restored queue candidates immediately when outputs hydrate after mount", async () => {
+    let outputs: StudioOutput[] = [];
+    const updateOutputById = vi.fn((id: string, updater: (item: StudioOutput) => StudioOutput) => {
+      outputs = outputs.map((item) => (item.id === id ? updater(item) : item));
+    });
+    const fetchFalQueueStatusMock = vi.mocked(fetchFalQueueStatus);
+    fetchFalQueueStatusMock.mockResolvedValue({
+      status: "queued",
+      generationId: "gen-restored-after-mount",
+      sourceRef: "source-restored-after-mount",
+      retryAfterMs: 2_000,
+      shortpulseLifecycle: {
+        taskState: "pending",
+        queueState: "queued",
+        isTerminal: false,
+      },
+    });
+
+    const props = {
+      taskSubmissionConfig: {
+        aspect: "9:16",
+        mode: "image" as const,
+        model: "model-id",
+        prompt: "Prompt",
+        selectedTool: "create" as const,
+        imageResolution: "model_default",
+        videoDurationSeconds: 6,
+        videoResolution: "1080p",
+        videoGenerateAudio: false,
+        videoReferenceMode: "standard" as const,
+        videoReferenceImageUrl: null,
+        motionReferenceVideoUrl: null,
+        videoCameraFixed: false,
+        videoAutoFix: false,
+        klingNegativePrompt: "blur",
+        klingCfgScale: 0.5,
+        klingShotType: "customize" as const,
+        klingVoiceIds: ["", ""] as [string, string],
+        klingMultiPrompts: [],
+        klingElements: [],
+        setIsPromptGenerating: asDispatch<boolean>(vi.fn()),
+        setUiError: asDispatch<string | null>(vi.fn()),
+        setUiNotice: asDispatch<string | null>(vi.fn()),
+        setOutputs: asDispatch<StudioOutput[]>(vi.fn()),
+        setSaved: asDispatch<boolean>(vi.fn()),
+        getDefaultDurationSeconds: vi.fn(() => 6),
+        notifyGenerationFailure: vi.fn(),
+        updateOutputById,
+        ensureGenerationRecord: vi.fn(async () => null),
+      },
+      outputs,
+      findOutputById: (id: string) => outputs.find((item) => item.id === id) ?? null,
+    };
+
+    const { rerender } = renderHook(
+      (hookProps: typeof props) => useAiStudioTaskOrchestration(hookProps),
+      {
+        initialProps: props,
+      }
+    );
+
+    expect(fetchFalQueueStatusMock).not.toHaveBeenCalled();
+
+    outputs = [
+      createOutput({
+        id: "out-restored-after-mount",
+        modelId: "fal-ai/bytedance/seedream/v4.5/edit",
+        generationId: "gen-restored-after-mount",
+        queueState: "queued",
+        taskState: "pending",
+        provider: "fal",
+      }),
+    ];
+
+    await act(async () => {
+      rerender({
+        ...props,
+        outputs,
+        findOutputById: (id: string) => outputs.find((item) => item.id === id) ?? null,
+      });
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(fetchFalQueueStatusMock).toHaveBeenCalledWith({
+      generationId: "gen-restored-after-mount",
+    });
+    expect(outputs[0]?.queueState).toBe("queued");
+    expect(outputs[0]?.taskState).toBe("pending");
+    expect(outputs[0]?.timestamp).toBe("Waiting in queue...");
+  });
+
   it("resumes queued output polling when generation id exists but queueState is missing", async () => {
     let outputs = [
       createOutput({

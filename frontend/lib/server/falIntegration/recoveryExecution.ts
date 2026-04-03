@@ -6,6 +6,7 @@ import { settleGenerationOutcome } from "../api/generationBilling";
 import {
   persistGenerationOutputRecords,
   readPersistedGenerationOutputs,
+  type PersistedGenerationOutputRow,
 } from "../api/generationOutputs";
 import { upsertGenerationProjection } from "../api/generationProjection";
 import { upsertGenerationPublication } from "../api/generationPublications";
@@ -255,6 +256,7 @@ const syncRecoveredGenerationProjection = async ({
   generation,
   mediaFileIds,
   nowIso,
+  persistedOutputRows,
   recoveredUrls,
 }: {
   actor: RecoveryActor;
@@ -271,12 +273,16 @@ const syncRecoveredGenerationProjection = async ({
   };
   mediaFileIds: string[];
   nowIso: string;
+  persistedOutputRows?: PersistedGenerationOutputRow[] | null;
   recoveredUrls: string[];
 }): Promise<void> => {
-  const outputRows = await readPersistedGenerationOutputs({
-    generationId: generation.id,
-    userId: generation.user_id,
-  });
+  const outputRows =
+    persistedOutputRows && persistedOutputRows.length
+      ? persistedOutputRows
+      : await readPersistedGenerationOutputs({
+          generationId: generation.id,
+          userId: generation.user_id,
+        });
   const normalizedResultUrls = outputRows.length
     ? outputRows.map((row) => row.resultUrl)
     : recoveredUrls;
@@ -858,7 +864,7 @@ export const executeGenerationRecovery = async ({
         },
       },
     });
-    await persistGenerationOutputRecords({
+    const persistedOutputRows = await persistGenerationOutputRecords({
       generationId: generation.id,
       userId: generation.user_id,
       providerRequestId: generation.request_id,
@@ -877,6 +883,7 @@ export const executeGenerationRecovery = async ({
       generation,
       mediaFileIds: [],
       nowIso,
+      persistedOutputRows,
       recoveredUrls,
     });
     await settleGenerationOutcome({
@@ -949,7 +956,7 @@ export const executeGenerationRecovery = async ({
       },
     },
   });
-  await persistGenerationOutputRecords({
+  const persistedOutputRows = await persistGenerationOutputRecords({
     generationId: generation.id,
     userId: generation.user_id,
     providerRequestId: generation.request_id,
@@ -968,6 +975,7 @@ export const executeGenerationRecovery = async ({
     generation,
     mediaFileIds,
     nowIso,
+    persistedOutputRows,
     recoveredUrls,
   });
   const metadata = asObject(generation.metadata);

@@ -19,6 +19,27 @@ export type PersistedGenerationOutputRow = {
   mediaFileId: string | null;
 };
 
+const normalizePersistedGenerationOutputRows = (data: unknown): PersistedGenerationOutputRow[] => {
+  if (!Array.isArray(data)) return [];
+
+  const rows = data
+    .map((row) => {
+      const record = asObject(row);
+      const outputIndex = asOutputIndex(record.output_index);
+      const resultUrl = asString(record.result_url);
+      if (outputIndex === null || !resultUrl) return null;
+      return {
+        id: asString(record.id) ?? undefined,
+        outputIndex,
+        resultUrl,
+        mediaFileId: asString(record.media_file_id),
+      };
+    })
+    .filter((row): row is PersistedGenerationOutputRow => Boolean(row));
+
+  return rows.sort((left, right) => left.outputIndex - right.outputIndex);
+};
+
 const asObject = (value: unknown): JsonObject =>
   value && typeof value === "object" && !Array.isArray(value) ? (value as JsonObject) : {};
 
@@ -45,8 +66,8 @@ export const persistGenerationOutputRecords = async ({
   resultUrls,
   mediaFileIds = [],
   metadata = {},
-}: PersistGenerationOutputsInput): Promise<void> => {
-  if (!resultUrls.length) return;
+}: PersistGenerationOutputsInput): Promise<PersistedGenerationOutputRow[]> => {
+  if (!resultUrls.length) return [];
 
   const nowIso = new Date().toISOString();
   const rows = resultUrls
@@ -77,14 +98,25 @@ export const persistGenerationOutputRecords = async ({
     })
     .filter((row): row is Record<string, unknown> => Boolean(row));
 
-  if (!rows.length) return;
+  if (!rows.length) return [];
 
-  const { error } = await getSupabaseAdmin()
+  const adminClient = getSupabaseAdmin();
+  const { data, error } = await adminClient
     .from("ai_generation_outputs")
-    .upsert(rows, { onConflict: "generation_id,output_index" });
+    .upsert(rows, { onConflict: "generation_id,output_index" })
+    .select("id, output_index, result_url, media_file_id");
   if (error) {
     throw error;
   }
+
+  const normalizedRows = normalizePersistedGenerationOutputRows(data);
+  if (normalizedRows.length) return normalizedRows;
+
+  return readPersistedGenerationOutputs({
+    generationId,
+    userId,
+    supabaseAdmin: adminClient,
+  });
 };
 
 export const readPersistedGenerationOutputs = async ({
@@ -110,22 +142,7 @@ export const readPersistedGenerationOutputs = async ({
     .limit(50);
   if (error || !Array.isArray(data)) return [];
 
-  const rows = data
-    .map((row) => {
-      const record = asObject(row);
-      const outputIndex = asOutputIndex(record.output_index);
-      const resultUrl = asString(record.result_url);
-      if (outputIndex === null || !resultUrl) return null;
-      return {
-        id: asString(record.id) ?? undefined,
-        outputIndex,
-        resultUrl,
-        mediaFileId: asString(record.media_file_id),
-      };
-    })
-    .filter((row): row is PersistedGenerationOutputRow => Boolean(row));
-
-  return rows.sort((left, right) => left.outputIndex - right.outputIndex);
+  return normalizePersistedGenerationOutputRows(data);
 };
 
 export const attachMediaFileToGenerationOutput = async ({

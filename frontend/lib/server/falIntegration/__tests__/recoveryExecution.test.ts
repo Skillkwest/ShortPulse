@@ -161,7 +161,14 @@ describe("executeGenerationRecovery", () => {
     writeAppErrorLogMock.mockResolvedValue({ ok: true, skipped: false, id: "evt-1" });
     readExistingRecoveryMediaRowsMock.mockResolvedValue([]);
     persistRecoveryMediaFilesForGenerationMock.mockResolvedValue(["media-1"]);
-    persistGenerationOutputRecordsMock.mockResolvedValue(undefined);
+    persistGenerationOutputRecordsMock.mockResolvedValue([
+      {
+        id: "output-1",
+        outputIndex: 0,
+        resultUrl: "https://cdn.shortpulse.test/recovered.png",
+        mediaFileId: null,
+      },
+    ]);
     readPersistedGenerationOutputsMock.mockResolvedValue([
       {
         id: "output-1",
@@ -740,6 +747,65 @@ describe("executeGenerationRecovery", () => {
         }),
       })
     );
+  });
+
+  it("uses write-returned output ids when immediate output rereads are stale", async () => {
+    const scenario = createAiGenerationsAdmin([
+      {
+        ...baseGenerationRow,
+        status: "running",
+        failure_reason_code: "terminal_success_no_media",
+        recovery_state: "queued",
+      },
+    ]);
+    getSupabaseAdminMock.mockReturnValue(scenario.admin);
+    persistRecoveryMediaFilesForGenerationMock.mockResolvedValue(["media-1"]);
+    persistGenerationOutputRecordsMock.mockResolvedValue([
+      {
+        id: "output-from-write",
+        outputIndex: 0,
+        resultUrl: "https://cdn.shortpulse.test/recovered.png",
+        mediaFileId: "media-1",
+      },
+    ]);
+    readPersistedGenerationOutputsMock.mockResolvedValue([]);
+
+    const result = await executeGenerationRecovery({
+      actor: "reconciler",
+      generationId: "gen-1",
+      routeLabel: "test/recovery",
+      observation: {
+        state: "completed",
+        payload: null,
+        mediaUrls: ["https://cdn.shortpulse.test/recovered.png"],
+      },
+    });
+
+    expect(result).toEqual(
+      expect.objectContaining({
+        ok: true,
+        state: "recovered",
+        processed: true,
+      })
+    );
+    expect(upsertGenerationPublicationMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        generationId: "gen-1",
+        generationOutputId: "output-from-write",
+        publicationState: "published",
+        ownedMediaFileId: "media-1",
+      })
+    );
+    expect(upsertGenerationProjectionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        generationId: "gen-1",
+        taskState: "success",
+        publicationState: "published",
+        resultUrls: ["https://cdn.shortpulse.test/recovered.png"],
+        savedMediaIds: ["media-1"],
+      })
+    );
+    expect(readPersistedGenerationOutputsMock).not.toHaveBeenCalled();
   });
 
   it("records no-media terminal outcome and schedules another attempt when under max", async () => {

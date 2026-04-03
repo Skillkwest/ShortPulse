@@ -659,6 +659,14 @@ describe("generationQueue/dispatch transition integrity", () => {
           targets: [{ submitUrl: "https://queue.kie.ai/v1/jobs" }],
         })
       );
+      expect(markGenerationReservationSubmittedMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          providerRequestId: "req-1",
+          metadata: {
+            queue_id: "queue-1",
+          },
+        })
+      );
       expect(withWebhookTargetsMock).not.toHaveBeenCalled();
       expect(markQueueItemExhaustedMock).not.toHaveBeenCalled();
       expect(ensureAcceptedRunningGenerationAttemptMock).toHaveBeenCalledWith(

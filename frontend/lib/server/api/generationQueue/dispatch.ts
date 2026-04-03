@@ -1156,12 +1156,7 @@ const processClaimedQueueItem = async ({
           sourceRef: item.sourceRef,
           providerRequestId,
           metadata: {
-            queue_dispatch_at: dispatchAtIso,
             queue_id: item.queueId,
-            queue_attempts: attemptNumber,
-            submit_route: item.submitRoute,
-            upstream_target_url: submitResult.targetUrl,
-            upstream_target_index: submitResult.targetIndex,
           },
         }),
     });

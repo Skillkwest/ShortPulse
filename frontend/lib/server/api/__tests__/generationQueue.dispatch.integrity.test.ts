@@ -737,6 +737,64 @@ describe("generationQueue/dispatch transition integrity", () => {
     }
   });
 
+  it("trims queued accepted-running generation metadata to authority-critical fields", async () => {
+    const baseSupabase = createSupabaseAdminMock({});
+    const updateBuilder = {
+      eq: vi.fn(),
+      select: vi.fn(async () => ({ data: [{ id: "gen-1" }], error: null })),
+    };
+    updateBuilder.eq.mockReturnValue(updateBuilder);
+    const aiGenerationsUpdate = vi.fn(() => updateBuilder);
+    getSupabaseAdminMock.mockReturnValue({
+      from: vi.fn((tableName: string) => {
+        if (tableName === "ai_generations") {
+          return {
+            update: aiGenerationsUpdate,
+          };
+        }
+        return baseSupabase.from(tableName);
+      }),
+    });
+    applyAcceptedRunningGenerationTransitionMock.mockImplementationOnce(
+      async ({
+        applyGenerationMutation,
+      }: {
+        applyGenerationMutation: () => Promise<{ ok: true } | { ok: false; error: string }>;
+      }) => {
+        const result = await applyGenerationMutation();
+        return result.ok ? { ok: true } : { ok: false, stage: "generation", error: result.error };
+      }
+    );
+
+    await expect(
+      dispatchGenerationSubmitQueueBatch({
+        req: { method: "GET", headers: {} } as never,
+        routeLabel: "test/dispatch-integrity",
+        limit: 1,
+        userId: "user-1",
+      })
+    ).resolves.toEqual(
+      expect.objectContaining({
+        claimed: 1,
+        submitted: 1,
+        exhausted: 0,
+      })
+    );
+
+    expect(aiGenerationsUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        provider: "fal",
+        model_id: "fal-ai/nano-banana-pro",
+        request_id: "req-1",
+        metadata: {
+          source_ref: "source-1",
+          generation_submit_authority: "worker",
+          queue_id: "queue-1",
+        },
+      })
+    );
+  });
+
   it("dispatches queued kie generation using model-catalog submit defaults when env submit urls are unset", async () => {
     process.env.KIE_API_KEY = "test-kie-key";
     process.env.SHORTPULSE_KIE_INTEGRATION_ENABLED = "true";

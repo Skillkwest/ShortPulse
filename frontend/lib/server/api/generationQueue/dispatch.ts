@@ -726,6 +726,21 @@ const mergeGenerationMetadata = (existing: unknown, patch: JsonObject): JsonObje
   };
 };
 
+const buildQueuedAcceptedRunningGenerationMetadata = ({
+  generationMetadata,
+  sourceRef,
+  queueId,
+}: {
+  generationMetadata: unknown;
+  sourceRef: string;
+  queueId: string;
+}): JsonObject =>
+  mergeGenerationMetadata(generationMetadata, {
+    source_ref: sourceRef,
+    generation_submit_authority: "worker",
+    queue_id: queueId,
+  });
+
 const createQueueDispatchStageTimings = (): QueueDispatchStageTimings => ({
   existingRequestReconcile: 0,
   capacityCheck: 0,
@@ -1448,20 +1463,10 @@ const processClaimedQueueItem = async ({
                   modelId: item.modelId,
                   providerRequestId,
                   nextRecoveryAtIso,
-                  metadata: mergeGenerationMetadata(generationMetadata, {
-                    source_ref: item.sourceRef,
-                    generation_submit_authority: "worker",
-                    queue_dispatched_at: dispatchAtIso,
-                    queue_id: item.queueId,
-                    queue_attempts: attemptNumber,
-                    provider,
-                    provider_request_id: providerRequestId,
-                    upstream_target_url: submitResult.targetUrl,
-                    upstream_target_index: submitResult.targetIndex,
-                    submit_webhook_url: isFalProviderKey(provider) ? webhookCallbackUrl : null,
-                    submit_webhook_registered: isFalProviderKey(provider)
-                      ? Boolean(webhookCallbackUrl)
-                      : false,
+                  metadata: buildQueuedAcceptedRunningGenerationMetadata({
+                    generationMetadata,
+                    sourceRef: item.sourceRef,
+                    queueId: item.queueId,
                   }),
                 })
               )

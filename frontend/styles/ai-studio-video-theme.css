@@ -354,6 +354,8 @@
   justify-content: stretch;
   gap: 0;
   min-width: 0;
+  width: 82px;
+  max-width: 82px;
 }
 
 .video-properties-panel .video-prompt-generate-main .reference-dropzone-block.prompt-block {
@@ -395,7 +397,7 @@
   min-width: 94px;
   max-width: 94px;
   min-height: 82px;
-  padding: 10px 6px;
+  padding: 8px 4px;
   border-radius: 12px;
   border: 1px solid rgba(201, 205, 214, 0.02);
   background: rgba(201, 205, 214, 0.02);
@@ -443,13 +445,14 @@
 
 .video-properties-panel .video-shot-mode-tabs {
   width: 100%;
-  min-width: 94px;
+  min-width: 72px;
+  max-width: 72px;
   --video-shot-mode-slots: 2;
   --video-shot-mode-pad: 2px;
   --video-shot-mode-slot-height: calc(
     (100% - (var(--video-shot-mode-pad) * 2)) / var(--video-shot-mode-slots)
   );
-  min-height: 152px;
+  min-height: 146px;
   height: 100%;
   padding: var(--video-shot-mode-pad);
   border: 1px solid rgba(201, 205, 214, 0.2);
@@ -486,10 +489,10 @@
   height: 100%;
   border-radius: 8px;
   color: rgba(201, 205, 214, 0.84);
-  font-size: 11px;
-  font-weight: 500;
+  font-size: 12px;
+  font-weight: 600;
   letter-spacing: 0;
-  line-height: 1.15;
+  line-height: 1.2;
   cursor: pointer;
   transition:
     border-color 0.14s ease,
@@ -497,13 +500,14 @@
     color 0.14s ease;
   position: relative;
   z-index: 1;
-  padding: 10px 8px;
+  padding: 10px 6px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   text-align: center;
   white-space: normal;
-  text-wrap: balance;
+  text-wrap: wrap;
+  word-break: break-word;
 }
 
 .video-properties-panel .video-shot-mode-tab:not(.is-active):hover {

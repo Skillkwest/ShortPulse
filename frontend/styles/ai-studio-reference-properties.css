@@ -69,6 +69,7 @@
 .ai-studio-page[data-beginner-mode="on"] .reference-mode-toggle-row {
   display: none;
 }
+
 .drop-image-row {
   display: flex;
   gap: 10px;
@@ -146,17 +147,17 @@
 .video-settings-controls {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
+  gap: var(--video-settings-stack-gap, 6px);
   margin-top: 0;
 }
 
 .video-settings-card-model-row {
   width: 100%;
-  margin-bottom: 2px;
+  margin-bottom: 0;
 }
 
 .video-settings-card-title {
-  margin: 0 0 8px;
+  margin: 0 0 12px;
   font-size: 11px;
   font-weight: 700;
   line-height: 1;
@@ -189,7 +190,7 @@
 .video-settings-inline-controls {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--video-settings-stack-gap);
 }
 
 .video-settings-summary-surface {
@@ -381,8 +382,12 @@
 }
 
 .video-settings-card {
+  --video-settings-stack-gap: 6px;
   --video-settings-inline-control-height: 40px;
   --video-settings-inline-control-radius: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--video-settings-stack-gap);
 }
 
 .video-settings-card .fixed-select,
@@ -397,6 +402,10 @@
 .video-settings-card .video-settings-inline-controls > .control-row {
   width: 100%;
   min-height: var(--video-settings-inline-control-height);
+}
+
+.video-settings-card .video-settings-inline-controls > .control-row.compact {
+  padding-bottom: 0;
 }
 
 .video-settings-card .video-settings-resolution-select-row {
@@ -491,8 +500,8 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  padding: 10px 12px;
+  gap: 10px;
+  padding: 8px 12px;
   border-radius: 12px;
   background: var(--video-settings-modal-control-bg);
   border: 1px solid rgba(196, 201, 210, 0.14);
@@ -518,7 +527,7 @@
 .video-settings-toggle-copy {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 1px;
 }
 
 /* Motion Audio Controls - matches video settings styling */
@@ -708,8 +717,9 @@
   border-radius: 999px;
   background: transparent;
   color: rgba(235, 241, 249, 0.9);
-  font-size: 14px;
+  font-size: 12px;
   font-weight: 600;
+  line-height: 1.15;
   letter-spacing: 0.01em;
   pointer-events: none;
   z-index: 2;
@@ -1088,7 +1098,7 @@
 .motion-drop-row .reference-drop-content .reference-drop-title {
   margin: 0;
   padding: 0;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 600;
   color: rgba(155, 155, 155, 0.545);
   line-height: 1.2;

@@ -50,6 +50,7 @@ import {
   resolveNoMediaRetryPolicy,
 } from "./taskPolling/pollingSchedulePolicy";
 import {
+  classifyProviderSuccess,
   condenseError,
   createShortErrorMessage,
   looksLikeFailureMessage,
@@ -58,7 +59,6 @@ import {
   resolvePollStatusGenerationId,
   resolveProviderStatusState,
   resolveLegacyProviderFailure,
-  resolveLegacyProviderSuccess,
 } from "./taskPolling/providerStatusPolicy";
 import { useAiStudioTaskRecoveryController } from "./taskPolling/useAiStudioTaskRecoveryController";
 import {
@@ -1008,97 +1008,39 @@ export function useAiStudioTasks({
             }
 
             const { state } = resolveProviderStatusState(status);
-            const legacySuccess = resolveLegacyProviderSuccess({
-              provider,
-              state,
-              status,
-              outputMode,
-            });
-            const resolvedUrls =
-              lifecycleResultUrls.length > 0 ? lifecycleResultUrls : legacySuccess.resultUrls;
-            const { shouldTreatAsSuccess } = legacySuccess;
+            const { shouldTreatAsSuccess } = classifyProviderSuccess({ state });
 
             if (shouldTreatAsSuccess) {
-              if (resolvedUrls.length === 0) {
-                addBreadcrumb({
-                  type: "ui",
-                  level: "warn",
-                  message: "generation_terminal_no_media_handoff",
-                  data: {
-                    provider,
-                    task_id: taskId,
-                    output_id: outputId,
-                    status_state: state,
-                    poll_attempt: attempt,
-                  },
-                });
-                queueOutputUpdate(outputId, (item) => ({
-                  ...item,
-                  status: item.status === "ready" ? item.status : "ready",
-                  taskState: item.taskState === "running" ? item.taskState : "running",
-                  timestamp:
-                    item.timestamp === SERVER_RECOVERY_PENDING_TIMESTAMP
-                      ? item.timestamp
-                      : SERVER_RECOVERY_PENDING_TIMESTAMP,
-                  errorMessage: null,
-                  errorMessageShort: null,
-                  errorDetail: null,
-                }));
-                scheduleBackgroundRecovery(
-                  taskId,
-                  outputId,
+              addBreadcrumb({
+                type: "ui",
+                level: "warn",
+                message: "generation_terminal_success_without_lifecycle_handoff",
+                data: {
                   provider,
-                  "no_media_after_terminal_success"
-                );
-                clearPollTimer(outputId);
-                return;
-              }
-
-              queueOutputUpdate(outputId, (item) => {
-                const nextDelivery = resolveNormalizedOutputDelivery({
-                  previewStoragePath: item.previewStoragePath ?? null,
-                  fullStoragePath: item.fullStoragePath ?? null,
-                  previewUrl: resolvedUrls[0] ?? item.previewUrl ?? null,
-                  resultUrls: resolvedUrls,
-                });
-                return {
-                  ...item,
-                  taskState: item.taskState === "success" ? item.taskState : "success",
-                  status: item.status === "ready" ? item.status : "ready",
-                  timestamp: item.timestamp === "Just now" ? item.timestamp : "Just now",
-                  resultUrls: areStringArraysEqual(item.resultUrls, resolvedUrls)
-                    ? item.resultUrls
-                    : resolvedUrls,
-                  previewUrl:
-                    item.previewUrl === (resolvedUrls[0] ?? item.previewUrl)
-                      ? item.previewUrl
-                      : (resolvedUrls[0] ?? item.previewUrl),
-                  previewStoragePath:
-                    item.previewStoragePath === nextDelivery.previewStoragePath
-                      ? item.previewStoragePath
-                      : nextDelivery.previewStoragePath,
-                  fullStoragePath:
-                    item.fullStoragePath === nextDelivery.fullStoragePath
-                      ? item.fullStoragePath
-                      : nextDelivery.fullStoragePath,
-                  mediaSource: item.mediaSource ?? "generated",
-                  previewTier: item.mode === "video" ? "preview_loop" : "full",
-                  archivedAt: null,
-                  archiveReason: null,
-                  errorMessage: item.errorMessage == null ? item.errorMessage : null,
-                  errorMessageShort: item.errorMessageShort == null ? item.errorMessageShort : null,
-                  errorDetail: item.errorDetail == null ? item.errorDetail : null,
-                };
+                  task_id: taskId,
+                  output_id: outputId,
+                  status_state: state,
+                  poll_attempt: attempt,
+                },
               });
-              if (onGenerationSuccess) {
-                onGenerationSuccess({
-                  outputId,
-                  taskId,
-                  provider,
-                  resultUrls: resolvedUrls,
-                });
-              }
-              clearRecoveryTimer(outputId);
+              queueOutputUpdate(outputId, (item) => ({
+                ...item,
+                status: item.status === "ready" ? item.status : "ready",
+                taskState: item.taskState === "running" ? item.taskState : "running",
+                timestamp:
+                  item.timestamp === SERVER_RECOVERY_PENDING_TIMESTAMP
+                    ? item.timestamp
+                    : SERVER_RECOVERY_PENDING_TIMESTAMP,
+                errorMessage: null,
+                errorMessageShort: null,
+                errorDetail: null,
+              }));
+              scheduleBackgroundRecovery(
+                taskId,
+                outputId,
+                provider,
+                "no_media_after_terminal_success"
+              );
               clearPollTimer(outputId);
               return;
             }

@@ -87,6 +87,11 @@ describe("useAiStudioTasks", () => {
       status: "completed",
       generationId: "gen-recovered-1",
       data: { images: [{ url: "https://cdn.test/recovered.png" }] },
+      shortpulseLifecycle: {
+        taskState: "success",
+        isTerminal: true,
+        resultUrls: ["https://cdn.test/recovered.png"],
+      },
     });
 
     let output = makeOutput();
@@ -137,11 +142,18 @@ describe("useAiStudioTasks", () => {
   });
 
   it("backfills generation id from status polling when provider returns it", async () => {
-    fetchFalStatusMock.mockResolvedValueOnce({
-      status: "completed",
-      generationId: "gen-polled-1",
-      data: { images: [{ url: "https://cdn.test/polled.png" }] },
-    });
+    fetchFalStatusMock.mockResolvedValueOnce(
+      asFalStatusResponse({
+        status: "completed",
+        generationId: "gen-polled-1",
+        data: { images: [{ url: "https://cdn.test/polled.png" }] },
+        shortpulseLifecycle: {
+          taskState: "success",
+          isTerminal: true,
+          resultUrls: ["https://cdn.test/polled.png"],
+        },
+      })
+    );
 
     let output = makeOutput();
     const updateOutputById = vi.fn((id: string, updater: (item: StudioOutput) => StudioOutput) => {
@@ -301,10 +313,17 @@ describe("useAiStudioTasks", () => {
     const visibilityStateSpy = vi.spyOn(document, "visibilityState", "get");
     try {
       visibilityStateSpy.mockReturnValue("hidden");
-      fetchFalStatusMock.mockResolvedValueOnce({
-        status: "completed",
-        data: { images: [{ url: "https://cdn.test/hidden-visible.png" }] },
-      });
+      fetchFalStatusMock.mockResolvedValueOnce(
+        asFalStatusResponse({
+          status: "completed",
+          data: { images: [{ url: "https://cdn.test/hidden-visible.png" }] },
+          shortpulseLifecycle: {
+            taskState: "success",
+            isTerminal: true,
+            resultUrls: ["https://cdn.test/hidden-visible.png"],
+          },
+        })
+      );
 
       let output = makeOutput();
       const updateOutputById = vi.fn(
@@ -564,13 +583,20 @@ describe("useAiStudioTasks", () => {
   });
 
   it("prefers video URLs for video-mode outputs when provider payload includes images and videos", async () => {
-    fetchFalStatusMock.mockResolvedValueOnce({
-      status: "completed",
-      data: {
-        images: [{ url: "https://cdn.test/video-poster.png" }],
-        videos: [{ url: "https://cdn.test/video-output.mp4" }],
-      },
-    });
+    fetchFalStatusMock.mockResolvedValueOnce(
+      asFalStatusResponse({
+        status: "completed",
+        data: {
+          images: [{ url: "https://cdn.test/video-poster.png" }],
+          videos: [{ url: "https://cdn.test/video-output.mp4" }],
+        },
+        shortpulseLifecycle: {
+          taskState: "success",
+          isTerminal: true,
+          resultUrls: ["https://cdn.test/video-output.mp4"],
+        },
+      })
+    );
 
     let output: StudioOutput = {
       ...makeOutput(),
@@ -617,10 +643,17 @@ describe("useAiStudioTasks", () => {
   });
 
   it("polls Bria background-remove tasks via the Bria status endpoint", async () => {
-    fetchFalBriaBackgroundRemoveStatusMock.mockResolvedValueOnce({
-      status: "completed",
-      data: { images: [{ url: "https://cdn.test/bria-output.png" }] },
-    });
+    fetchFalBriaBackgroundRemoveStatusMock.mockResolvedValueOnce(
+      asFalStatusResponse({
+        status: "completed",
+        data: { images: [{ url: "https://cdn.test/bria-output.png" }] },
+        shortpulseLifecycle: {
+          taskState: "success",
+          isTerminal: true,
+          resultUrls: ["https://cdn.test/bria-output.png"],
+        },
+      })
+    );
 
     let output = makeOutput();
     const updateOutputById = vi.fn((id: string, updater: (item: StudioOutput) => StudioOutput) => {
@@ -667,6 +700,11 @@ describe("useAiStudioTasks", () => {
           response: {
             resultUrls: ["https://cdn.test/kie-veo-result.mp4"],
           },
+        },
+        shortpulseLifecycle: {
+          taskState: "success",
+          isTerminal: true,
+          resultUrls: ["https://cdn.test/kie-veo-result.mp4"],
         },
       })
     );
@@ -717,6 +755,11 @@ describe("useAiStudioTasks", () => {
           resultJson: JSON.stringify({
             resultUrls: ["https://cdn.test/kie-kling-result.mp4"],
           }),
+        },
+        shortpulseLifecycle: {
+          taskState: "success",
+          isTerminal: true,
+          resultUrls: ["https://cdn.test/kie-kling-result.mp4"],
         },
       })
     );
@@ -1118,10 +1161,17 @@ describe("useAiStudioTasks", () => {
   it("retries timeout-classified status transport errors and succeeds on a later poll", async () => {
     fetchFalStatusMock
       .mockRejectedValueOnce(new Error("[fal-status:flux] timed out after 75000ms"))
-      .mockResolvedValueOnce({
-        status: "completed",
-        data: { images: [{ url: "https://cdn.test/timeout-retry-success.png" }] },
-      });
+      .mockResolvedValueOnce(
+        asFalStatusResponse({
+          status: "completed",
+          data: { images: [{ url: "https://cdn.test/timeout-retry-success.png" }] },
+          shortpulseLifecycle: {
+            taskState: "success",
+            isTerminal: true,
+            resultUrls: ["https://cdn.test/timeout-retry-success.png"],
+          },
+        })
+      );
 
     let output = makeOutput();
     const updateOutputById = vi.fn((id: string, updater: (item: StudioOutput) => StudioOutput) => {
@@ -1297,10 +1347,17 @@ describe("useAiStudioTasks", () => {
   });
 
   it("recovers from transient output lookup misses and resumes polling", async () => {
-    fetchFalStatusMock.mockResolvedValueOnce({
-      status: "completed",
-      data: { images: [{ url: "https://cdn.test/transient-recovery.png" }] },
-    });
+    fetchFalStatusMock.mockResolvedValueOnce(
+      asFalStatusResponse({
+        status: "completed",
+        data: { images: [{ url: "https://cdn.test/transient-recovery.png" }] },
+        shortpulseLifecycle: {
+          taskState: "success",
+          isTerminal: true,
+          resultUrls: ["https://cdn.test/transient-recovery.png"],
+        },
+      })
+    );
 
     let output = makeOutput();
     let lookups = 0;
@@ -1349,10 +1406,17 @@ describe("useAiStudioTasks", () => {
   });
 
   it("keeps polling alive after extended output lookup misses and resumes when output returns", async () => {
-    fetchFalStatusMock.mockResolvedValueOnce({
-      status: "completed",
-      data: { images: [{ url: "https://cdn.test/extended-recovery.png" }] },
-    });
+    fetchFalStatusMock.mockResolvedValueOnce(
+      asFalStatusResponse({
+        status: "completed",
+        data: { images: [{ url: "https://cdn.test/extended-recovery.png" }] },
+        shortpulseLifecycle: {
+          taskState: "success",
+          isTerminal: true,
+          resultUrls: ["https://cdn.test/extended-recovery.png"],
+        },
+      })
+    );
 
     let output = makeOutput();
     let lookups = 0;

@@ -1,7 +1,7 @@
 /**
  * Provider status parsing and classification policy for AI Studio task polling.
  */
-import { extractFalMediaUrls, extractResultUrls, type Provider } from "../../logic/stateParsers";
+import type { Provider } from "../../logic/stateParsers";
 import type { StudioOutput } from "../../types";
 
 export type PollStatus = {
@@ -259,11 +259,6 @@ export type LegacyProviderFailureResolution = {
   failureDetail: string;
 };
 
-export type LegacyProviderSuccessResolution = {
-  resultUrls: string[];
-  shouldTreatAsSuccess: boolean;
-};
-
 /**
  * Classifies whether the latest provider status should be treated as success.
  */
@@ -273,46 +268,6 @@ export const classifyProviderSuccess = ({
   const isTerminalSuccess = terminalSuccessStates.has(state);
   const shouldTreatAsSuccess = isTerminalSuccess;
   return { isTerminalSuccess, shouldTreatAsSuccess };
-};
-
-/**
- * Extracts legacy raw-provider success payloads when the server lifecycle contract is absent.
- */
-export const resolveLegacyProviderSuccess = ({
-  provider,
-  state,
-  status,
-  outputMode,
-}: {
-  provider: Provider;
-  state: string;
-  status: PollStatus;
-  outputMode: StudioOutput["mode"] | null;
-}): LegacyProviderSuccessResolution => {
-  const { shouldTreatAsSuccess } = classifyProviderSuccess({ state });
-  if (!shouldTreatAsSuccess) {
-    return {
-      resultUrls: [],
-      shouldTreatAsSuccess: false,
-    };
-  }
-
-  if (provider === "kie-veo" || provider === "kie-kling") {
-    const providerUrls = extractResultUrls(status?.resultJson ?? status, status);
-    if (providerUrls.length) {
-      return {
-        resultUrls: providerUrls,
-        shouldTreatAsSuccess: true,
-      };
-    }
-  }
-
-  return {
-    resultUrls: extractFalMediaUrls(status, {
-      preferVideo: outputMode === "video",
-    }),
-    shouldTreatAsSuccess: true,
-  };
 };
 
 /**

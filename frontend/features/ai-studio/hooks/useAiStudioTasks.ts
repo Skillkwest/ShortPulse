@@ -50,16 +50,15 @@ import {
   resolveNoMediaRetryPolicy,
 } from "./taskPolling/pollingSchedulePolicy";
 import {
-  classifyProviderSuccess,
   condenseError,
   createShortErrorMessage,
-  extractFailureMessageFromDetail,
   looksLikeFailureMessage,
   normalizeProviderStateToTaskState,
   type PollStatus,
   resolvePollStatusGenerationId,
   resolveProviderStatusState,
-  terminalFailureStates,
+  resolveLegacyProviderFailure,
+  resolveLegacyProviderSuccess,
 } from "./taskPolling/providerStatusPolicy";
 import { useAiStudioTaskRecoveryController } from "./taskPolling/useAiStudioTaskRecoveryController";
 import {
@@ -954,106 +953,83 @@ export function useAiStudioTasks({
               return;
             }
 
-            const { state, hasExplicitState } = resolveProviderStatusState(status);
-            const allUrls = extractMediaByProvider(provider, status, {
-              outputMode,
-            });
-            const shouldTrustNonterminalLifecycle = false;
-            const resolvedUrls = lifecycleResultUrls.length > 0 ? lifecycleResultUrls : allUrls;
-            const hasMedia = allUrls.length > 0;
-            const { shouldForceImageMediaSuccess, shouldTreatAsSuccess } = classifyProviderSuccess({
-              provider,
-              state,
-              hasMedia,
-              hasExplicitState,
-            });
-            const shouldTreatAsLifecycleSuccess = lifecycleHint?.taskState === "success";
-            const shouldTrustLifecycleAsNonSuccess = false;
-
-            if (
-              (!shouldTrustLifecycleAsNonSuccess && shouldTreatAsSuccess) ||
-              shouldTreatAsLifecycleSuccess
-            ) {
-              if (shouldForceImageMediaSuccess) {
-                addBreadcrumb({
-                  type: "ui",
-                  level: "warn",
-                  message: "generation_nonterminal_media_forced_success",
-                  data: {
-                    provider,
-                    task_id: taskId,
-                    output_id: outputId,
-                    status_state: state,
-                  },
-                });
-              }
-              // Provider may report terminal success before media URLs are materialized.
-              // Track a dedicated "no media yet" retry budget instead of using total poll attempts.
-              const {
-                maxNoMediaAttempts,
-                shouldRetryForMedia,
-                retryDelayMs: noMediaRetryDelayMs,
-              } = resolveNoMediaRetryPolicy({
-                provider,
-                noMediaAttempt,
-                fallbackDelayMs: delay,
-              });
-              if (resolvedUrls.length === 0 && shouldRetryForMedia) {
-                if (noMediaAttempt === 0) {
-                  addBreadcrumb({
-                    type: "ui",
-                    level: "warn",
-                    message: "generation_terminal_no_media_retrying",
-                    data: {
-                      provider,
-                      task_id: taskId,
-                      output_id: outputId,
-                      status_state: state,
-                      max_no_media_attempts: maxNoMediaAttempts,
-                      retry_delay_ms: noMediaRetryDelayMs,
-                    },
-                  });
-                }
+            if (lifecycleHint) {
+              const nextTaskState = "running";
+              const now = Date.now();
+              const lastProgressUpdateAt = lastProgressUpdateAtRef.current[outputId] ?? 0;
+              const nextTimestamp = lifecycleStatusLabel ?? "Processing...";
+              const nextProgressSignature = `${nextTaskState}|${nextTimestamp}`;
+              const shouldSkipProgressUpdate =
+                lastProgressSignatureRef.current[outputId] === nextProgressSignature ||
+                (REFERENCE_GRID_FLAG_UPDATE_BACKPRESSURE &&
+                  now - lastProgressUpdateAt < OUTPUT_PROGRESS_UPDATE_MIN_INTERVAL_MS);
+              if (!shouldSkipProgressUpdate) {
                 queueOutputUpdate(
                   outputId,
-                  (item) => ({
-                    ...item,
-                    taskState: item.taskState === "running" ? item.taskState : "running",
-                    status: item.status === "ready" ? item.status : "ready",
-                    timestamp:
-                      item.timestamp === "Finalizing media..."
-                        ? item.timestamp
-                        : "Finalizing media...",
-                  }),
-                  { nonUrgent: true }
+                  (item) => {
+                    const nextQueueState =
+                      normalizeLifecycleQueueState(lifecycleHint.queueState) ?? item.queueState;
+                    const queueStateChanged = nextQueueState !== item.queueState;
+                    const taskStateChanged = item.taskState !== nextTaskState;
+                    const timestampChanged = item.timestamp !== nextTimestamp;
+                    if (!queueStateChanged && !taskStateChanged && !timestampChanged) return item;
+                    lastProgressUpdateAtRef.current[outputId] = now;
+                    lastProgressSignatureRef.current[outputId] = nextProgressSignature;
+                    return {
+                      ...item,
+                      queueState: nextQueueState,
+                      taskState: nextTaskState,
+                      status: item.status === "ready" ? item.status : "ready",
+                      timestamp: nextTimestamp,
+                      errorMessage: lifecycleHint.recoveryPending ? null : item.errorMessage,
+                      errorMessageShort: lifecycleHint.recoveryPending
+                        ? null
+                        : item.errorMessageShort,
+                      errorDetail: lifecycleHint.recoveryPending ? null : item.errorDetail,
+                    };
+                  },
+                  { nonUrgent: lifecycleHint.recoveryPending !== true }
                 );
-                pollTimersRef.current[outputId] = window.setTimeout(
-                  () =>
-                    pollTask(
-                      taskId,
-                      outputId,
-                      attempt + 1,
-                      provider,
-                      startedAt,
-                      noMediaAttempt + 1,
-                      activePollSessionId
-                    ),
-                  noMediaRetryDelayMs
-                );
-                return;
               }
+              pollTimersRef.current[outputId] = window.setTimeout(
+                () =>
+                  pollTask(
+                    taskId,
+                    outputId,
+                    attempt + 1,
+                    provider,
+                    startedAt,
+                    0,
+                    activePollSessionId
+                  ),
+                delay
+              );
+              return;
+            }
 
-              if (!hasMedia) {
+            const { state } = resolveProviderStatusState(status);
+            const legacySuccess = resolveLegacyProviderSuccess({
+              provider,
+              state,
+              status,
+              outputMode,
+            });
+            const resolvedUrls =
+              lifecycleResultUrls.length > 0 ? lifecycleResultUrls : legacySuccess.resultUrls;
+            const { shouldTreatAsSuccess } = legacySuccess;
+
+            if (shouldTreatAsSuccess) {
+              if (resolvedUrls.length === 0) {
                 addBreadcrumb({
                   type: "ui",
                   level: "warn",
-                  message: "generation_terminal_no_media_exhausted",
+                  message: "generation_terminal_no_media_handoff",
                   data: {
                     provider,
                     task_id: taskId,
                     output_id: outputId,
                     status_state: state,
-                    no_media_attempts: noMediaAttempt,
+                    poll_attempt: attempt,
                   },
                 });
                 queueOutputUpdate(outputId, (item) => ({
@@ -1127,75 +1103,32 @@ export function useAiStudioTasks({
               return;
             }
 
-            // MULTIPLE ERROR DETECTION STRATEGIES
-            const isErrorState = terminalFailureStates.has(state);
+            const legacyFailure = resolveLegacyProviderFailure(status, state);
 
-            const hasErrorField =
-              Boolean(status?.error) || Boolean(status?.failMsg) || Boolean(status?.failCode);
+            if (legacyFailure) {
+              const shortMessage = createShortErrorMessage(legacyFailure.failureMessage);
 
-            const isExplicitErrorStatus =
-              String(status?.status ?? "").toLowerCase() === "error" ||
-              String(status?.state ?? "").toLowerCase() === "error";
-
-            const detailMessage = extractFailureMessageFromDetail(status?.detail);
-            const messageField = typeof status?.message === "string" ? status.message : null;
-            const statusMessageField =
-              typeof status?.statusMessage === "string" ? status.statusMessage : null;
-            const errorField = extractFailureMessageFromDetail(status?.error);
-            const failMessageField = extractFailureMessageFromDetail(status?.failMsg);
-            const failCodeField = extractFailureMessageFromDetail(status?.failCode);
-
-            const hasFailureMessage =
-              looksLikeFailureMessage(messageField) ||
-              looksLikeFailureMessage(statusMessageField) ||
-              looksLikeFailureMessage(detailMessage) ||
-              looksLikeFailureMessage(errorField);
-
-            if (
-              (!shouldTrustNonterminalLifecycle && isErrorState) ||
-              (!shouldTrustNonterminalLifecycle && hasErrorField) ||
-              (!shouldTrustNonterminalLifecycle && isExplicitErrorStatus) ||
-              (!shouldTrustNonterminalLifecycle && hasFailureMessage)
-            ) {
-              const rawFailureDetail =
-                failMessageField ||
-                failCodeField ||
-                errorField ||
-                (hasFailureMessage ? messageField : null) ||
-                statusMessageField ||
-                detailMessage ||
-                "Generation failed";
-              const failureDetail =
-                typeof rawFailureDetail === "string"
-                  ? rawFailureDetail
-                  : rawFailureDetail != null
-                    ? String(rawFailureDetail)
-                    : "Generation failed";
-
-              const failureMessage = condenseError(detailMessage ?? failureDetail);
-              const safeFailureMessage = looksLikeFailureMessage(failureMessage)
-                ? failureMessage
-                : "Generation failed";
-              const safeFailureDetail = looksLikeFailureMessage(failureDetail)
-                ? failureDetail
-                : safeFailureMessage;
-
-              const shortMessage = createShortErrorMessage(safeFailureMessage);
-
-              notifyGenerationFailure(outputId, safeFailureMessage, safeFailureDetail, {
-                reasonCode: "provider_error",
-                providerState: state,
-                pollAttempt: attempt,
-                elapsedMs: Date.now() - startedAt,
-                maxWaitMs,
-              });
+              notifyGenerationFailure(
+                outputId,
+                legacyFailure.failureMessage,
+                legacyFailure.failureDetail,
+                {
+                  reasonCode: "provider_error",
+                  providerState: state,
+                  pollAttempt: attempt,
+                  elapsedMs: Date.now() - startedAt,
+                  maxWaitMs,
+                }
+              );
 
               queueOutputUpdate(outputId, (item) => ({
                 ...item,
                 status: item.status === "ready" ? item.status : "ready",
                 taskState: item.taskState === "fail" ? item.taskState : "fail",
                 errorMessage:
-                  item.errorMessage === safeFailureMessage ? item.errorMessage : safeFailureMessage,
+                  item.errorMessage === legacyFailure.failureMessage
+                    ? item.errorMessage
+                    : legacyFailure.failureMessage,
                 errorMessageShort:
                   item.errorMessageShort === shortMessage ? item.errorMessageShort : shortMessage,
               }));
@@ -1205,7 +1138,7 @@ export function useAiStudioTasks({
                   outputId,
                   taskId,
                   provider,
-                  message: safeFailureDetail,
+                  message: legacyFailure.failureDetail,
                   reasonCode: "provider_error",
                 });
               }
@@ -1216,9 +1149,7 @@ export function useAiStudioTasks({
             const nextTaskState = normalizeProviderStateToTaskState(state);
             const now = Date.now();
             const lastProgressUpdateAt = lastProgressUpdateAtRef.current[outputId] ?? 0;
-            const nextTimestamp = lifecycleHint?.recoveryPending
-              ? SERVER_RECOVERY_PENDING_TIMESTAMP
-              : "Processing...";
+            const nextTimestamp = "Processing...";
             const nextProgressSignature = `${nextTaskState}|${nextTimestamp}`;
             const shouldSkipProgressUpdate =
               lastProgressSignatureRef.current[outputId] === nextProgressSignature ||
@@ -1239,14 +1170,12 @@ export function useAiStudioTasks({
                     taskState: nextTaskState,
                     status: item.status === "ready" ? item.status : "ready",
                     timestamp: nextTimestamp,
-                    errorMessage: lifecycleHint?.recoveryPending ? null : item.errorMessage,
-                    errorMessageShort: lifecycleHint?.recoveryPending
-                      ? null
-                      : item.errorMessageShort,
-                    errorDetail: lifecycleHint?.recoveryPending ? null : item.errorDetail,
+                    errorMessage: item.errorMessage,
+                    errorMessageShort: item.errorMessageShort,
+                    errorDetail: item.errorDetail,
                   };
                 },
-                { nonUrgent: lifecycleHint?.recoveryPending !== true }
+                { nonUrgent: true }
               );
             }
             pollTimersRef.current[outputId] = window.setTimeout(

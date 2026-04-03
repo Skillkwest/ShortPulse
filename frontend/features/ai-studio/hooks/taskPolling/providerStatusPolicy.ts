@@ -1,7 +1,7 @@
 /**
  * Provider status parsing and classification policy for AI Studio task polling.
  */
-import type { Provider } from "../../logic/stateParsers";
+import { extractFalMediaUrls, extractResultUrls, type Provider } from "../../logic/stateParsers";
 import type { StudioOutput } from "../../types";
 
 export type PollStatus = {
@@ -32,23 +32,6 @@ export const longRunningVideoProviders = new Set<Provider>([
   "fal-veo-i2v",
   "kie-veo",
   "kie-kling",
-]);
-
-export const imageGenerationProviders = new Set<Provider>([
-  "fal",
-  "fal-flux2",
-  "fal-flux2-klein",
-  "fal-flux2-edit",
-  "fal-flux2-pro",
-  "fal-flux2-pro-edit",
-  "fal-bria-background-remove",
-  "fal-seedream",
-  "fal-nano-banana",
-  "fal-nano-banana-edit",
-  "fal-nano-banana-2",
-  "fal-nano-banana-2-edit",
-  "fal-nano-banana-pro",
-  "fal-nano-banana-pro-edit",
 ]);
 
 export const nonTerminalStates = new Set([
@@ -263,15 +246,21 @@ export const resolvePollStatusGenerationId = (status: PollStatus): string | null
 };
 
 type ProviderSuccessClassificationInput = {
-  provider: Provider;
   state: string;
-  hasMedia: boolean;
-  hasExplicitState: boolean;
 };
 
 type ProviderSuccessClassification = {
   isTerminalSuccess: boolean;
-  shouldForceImageMediaSuccess: boolean;
+  shouldTreatAsSuccess: boolean;
+};
+
+export type LegacyProviderFailureResolution = {
+  failureMessage: string;
+  failureDetail: string;
+};
+
+export type LegacyProviderSuccessResolution = {
+  resultUrls: string[];
   shouldTreatAsSuccess: boolean;
 };
 
@@ -279,19 +268,114 @@ type ProviderSuccessClassification = {
  * Classifies whether the latest provider status should be treated as success.
  */
 export const classifyProviderSuccess = ({
-  provider,
   state,
-  hasMedia,
-  hasExplicitState,
 }: ProviderSuccessClassificationInput): ProviderSuccessClassification => {
   const isTerminalSuccess = terminalSuccessStates.has(state);
-  const canUseMediaShortcut = !hasExplicitState || !nonTerminalStates.has(state);
-  const shouldForceImageMediaSuccess =
-    hasMedia &&
-    imageGenerationProviders.has(provider) &&
-    hasExplicitState &&
-    nonTerminalStates.has(state);
-  const shouldTreatAsSuccess =
-    isTerminalSuccess || (hasMedia && canUseMediaShortcut) || shouldForceImageMediaSuccess;
-  return { isTerminalSuccess, shouldForceImageMediaSuccess, shouldTreatAsSuccess };
+  const shouldTreatAsSuccess = isTerminalSuccess;
+  return { isTerminalSuccess, shouldTreatAsSuccess };
+};
+
+/**
+ * Extracts legacy raw-provider success payloads when the server lifecycle contract is absent.
+ */
+export const resolveLegacyProviderSuccess = ({
+  provider,
+  state,
+  status,
+  outputMode,
+}: {
+  provider: Provider;
+  state: string;
+  status: PollStatus;
+  outputMode: StudioOutput["mode"] | null;
+}): LegacyProviderSuccessResolution => {
+  const { shouldTreatAsSuccess } = classifyProviderSuccess({ state });
+  if (!shouldTreatAsSuccess) {
+    return {
+      resultUrls: [],
+      shouldTreatAsSuccess: false,
+    };
+  }
+
+  if (provider === "kie-veo" || provider === "kie-kling") {
+    const providerUrls = extractResultUrls(status?.resultJson ?? status, status);
+    if (providerUrls.length) {
+      return {
+        resultUrls: providerUrls,
+        shouldTreatAsSuccess: true,
+      };
+    }
+  }
+
+  return {
+    resultUrls: extractFalMediaUrls(status, {
+      preferVideo: outputMode === "video",
+    }),
+    shouldTreatAsSuccess: true,
+  };
+};
+
+/**
+ * Resolves legacy raw-provider failure payloads when the server lifecycle contract is absent.
+ */
+export const resolveLegacyProviderFailure = (
+  status: PollStatus,
+  state: string
+): LegacyProviderFailureResolution | null => {
+  const isErrorState = terminalFailureStates.has(state);
+  const hasErrorField =
+    Boolean(status?.error) || Boolean(status?.failMsg) || Boolean(status?.failCode);
+  const isExplicitErrorStatus =
+    String(status?.status ?? "").toLowerCase() === "error" ||
+    String(status?.state ?? "").toLowerCase() === "error";
+
+  if (!isErrorState && !hasErrorField && !isExplicitErrorStatus) {
+    return null;
+  }
+
+  const detailMessage = extractFailureMessageFromDetail(status?.detail);
+  const errorField = extractFailureMessageFromDetail(status?.error);
+  const failMessageField = extractFailureMessageFromDetail(status?.failMsg);
+  const failCodeField = extractFailureMessageFromDetail(status?.failCode);
+  const explicitErrorMessageField =
+    isExplicitErrorStatus && typeof status?.message === "string" ? status.message : null;
+  const explicitErrorStatusMessageField =
+    isExplicitErrorStatus && typeof status?.statusMessage === "string"
+      ? status.statusMessage
+      : null;
+
+  const rawFailureDetail =
+    failMessageField ||
+    errorField ||
+    detailMessage ||
+    explicitErrorMessageField ||
+    explicitErrorStatusMessageField ||
+    failCodeField ||
+    "Generation failed";
+  const failureDetail =
+    typeof rawFailureDetail === "string"
+      ? rawFailureDetail
+      : rawFailureDetail != null
+        ? String(rawFailureDetail)
+        : "Generation failed";
+
+  const rawFailureMessage =
+    failMessageField ||
+    errorField ||
+    detailMessage ||
+    explicitErrorMessageField ||
+    explicitErrorStatusMessageField ||
+    failureDetail;
+  const failureMessage = condenseError(rawFailureMessage);
+  const safeFailureMessage = looksLikeFailureMessage(failureMessage)
+    ? failureMessage
+    : "Generation failed";
+  const safeFailureDetail = looksLikeFailureMessage(failureDetail)
+    ? failureDetail
+    : safeFailureMessage;
+
+  return {
+    failureMessage: safeFailureMessage,
+    failureDetail: safeFailureDetail,
+  };
 };

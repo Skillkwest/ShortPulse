@@ -29,12 +29,17 @@ const buildSupabaseMock = ({
   generations: unknown[];
 }) => {
   const reservationResult = Promise.resolve({ data: reservations, error: null });
-  const reservationEq2 = vi.fn(() => reservationResult);
+  const reservationFinalQuery = {
+    not: vi.fn(() => reservationResult),
+    then: reservationResult.then.bind(reservationResult),
+  };
+  const reservationEq2 = vi.fn(() => reservationFinalQuery);
   const reservationEq1 = vi.fn(() => ({
     eq: reservationEq2,
+    not: reservationFinalQuery.not,
     then: reservationResult.then.bind(reservationResult),
   }));
-  const reservationSelect = vi.fn(() => ({ eq: reservationEq1 }));
+  const reservationSelect = vi.fn(() => ({ eq: reservationEq1, not: reservationFinalQuery.not }));
 
   const attemptIn = vi.fn(async () => ({ data: attempts, error: null }));
   const attemptEq = vi.fn(() => ({ in: attemptIn }));
@@ -99,6 +104,52 @@ describe("readActiveProviderCapacitySnapshot", () => {
       staleIgnoredTier: 0,
     });
     expect(supabase.spies.reservationSelect).toHaveBeenCalled();
+    expect(supabase.spies.attemptSelect).not.toHaveBeenCalled();
+    expect(supabase.spies.generationSelect).not.toHaveBeenCalled();
+  });
+
+  it("can ignore unattached reservations for queue dispatch capacity reads", async () => {
+    const nowMs = Date.parse("2026-03-04T12:00:00.000Z");
+    const supabase = buildSupabaseMock({
+      reservations: [
+        {
+          user_id: "user-1",
+          model_id: "fal-ai/bytedance/seedream/v4.5/edit",
+          provider_request_id: null,
+          created_at: "2026-03-04T11:59:50.000Z",
+        },
+        {
+          user_id: "user-1",
+          model_id: "fal-ai/bytedance/seedream/v4.5/edit",
+          provider_request_id: null,
+          created_at: "2026-03-04T11:59:40.000Z",
+        },
+      ],
+      generations: [],
+    });
+    getSupabaseAdminMock.mockReturnValue(supabase);
+
+    const snapshot = await readActiveProviderCapacitySnapshot({
+      userId: "user-1",
+      provider: "fal",
+      modelId: "fal-ai/bytedance/seedream/v4.5/edit",
+      includeUnattachedReservations: false,
+      staleIgnoreMinAgeSeconds: 7200,
+      orphanGraceSeconds: 60,
+      nowMs,
+    });
+
+    expect(snapshot).toEqual({
+      tier: "image_heavy",
+      globalActive: 0,
+      tierActive: 0,
+      staleIgnoredGlobal: 0,
+      staleIgnoredTier: 0,
+    });
+    expect(supabase.spies.reservationSelect).toHaveBeenCalled();
+    const reservationQuery = supabase.spies.reservationSelect.mock.results[0]?.value;
+    const scopedReservationQuery = reservationQuery?.eq?.mock?.results?.[0]?.value;
+    expect(scopedReservationQuery.not).toHaveBeenCalledWith("provider_request_id", "is", null);
     expect(supabase.spies.attemptSelect).not.toHaveBeenCalled();
     expect(supabase.spies.generationSelect).not.toHaveBeenCalled();
   });

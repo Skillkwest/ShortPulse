@@ -294,6 +294,9 @@ export const readActiveProviderCapacitySnapshot = async ({
   if (userId) {
     reservationsQuery = reservationsQuery.eq("user_id", userId);
   }
+  if (!includeUnattachedReservations) {
+    reservationsQuery = reservationsQuery.not("provider_request_id", "is", null);
+  }
   const reservationsResponse = await reservationsQuery;
   if (reservationsResponse.error) throw reservationsResponse.error;
 

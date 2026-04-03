@@ -130,6 +130,7 @@ Use this path when local `SUPABASE_DB_URL` is unavailable.
    - recovery: `claimed`, `processed`, `recovered`, `requeued`, `exhausted`, `errors`
    - queue dispatch: `queueClaimed`, `queueSubmitted`, `queueRetried`, `queueExhausted`, `queueDispatchErrors`
    - cleanup (aggregated pre-submit + provider-attached): `reservationCleanupScanned`, `reservationCleanupReleased`, `reservationCleanupErrors`.
+   - stage timings: `stageTimings.queueDispatch.durationMs`, `stageTimings.reservationCleanup.durationMs`, `stageTimings.providerAttachedReservationCleanup.durationMs`, `stageTimings.observationInboxProcessing.durationMs`, `stageTimings.requestIdRepair.durationMs`, `stageTimings.recoveryClaim.durationMs`, `stageTimings.recoveryExecution.durationMs`.
 3. Treat the control-plane stage ownership as:
    - `runCycle.ts` decides stage order,
    - `recoveryBatchAcquisition.ts` owns RPC-first vs fallback claim semantics,

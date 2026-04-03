@@ -5,6 +5,20 @@ export type GenerationControlPlaneLogContext = {
   routeLabel: string;
 };
 
+export type GenerationControlPlaneStageTiming = {
+  durationMs: number;
+};
+
+export type GenerationControlPlaneStageTimings = {
+  queueDispatch: GenerationControlPlaneStageTiming;
+  reservationCleanup: GenerationControlPlaneStageTiming;
+  providerAttachedReservationCleanup: GenerationControlPlaneStageTiming;
+  observationInboxProcessing: GenerationControlPlaneStageTiming;
+  requestIdRepair: GenerationControlPlaneStageTiming;
+  recoveryClaim: GenerationControlPlaneStageTiming;
+  recoveryExecution: GenerationControlPlaneStageTiming;
+};
+
 export type GenerationControlPlaneCycleResult = {
   ok: true;
   observationClaimed: number;
@@ -30,4 +44,5 @@ export type GenerationControlPlaneCycleResult = {
   queueExhausted: number;
   queueSkipped: number;
   queueDispatchErrors: number;
+  stageTimings: GenerationControlPlaneStageTimings;
 };

@@ -167,6 +167,23 @@ describe("runGenerationControlPlaneCycle", () => {
         queueSubmitted: 1,
         reservationCleanupScanned: 2,
         reservationCleanupReleased: 1,
+        stageTimings: expect.objectContaining({
+          queueDispatch: expect.objectContaining({
+            durationMs: expect.any(Number),
+          }),
+          reservationCleanup: expect.objectContaining({
+            durationMs: expect.any(Number),
+          }),
+          observationInboxProcessing: expect.objectContaining({
+            durationMs: expect.any(Number),
+          }),
+          recoveryClaim: expect.objectContaining({
+            durationMs: expect.any(Number),
+          }),
+          recoveryExecution: expect.objectContaining({
+            durationMs: expect.any(Number),
+          }),
+        }),
       })
     );
     expect(logApiRouteExceptionMock).not.toHaveBeenCalled();

@@ -6,7 +6,11 @@ import { getSupabaseAdmin } from "../api/supabaseAdmin";
 import { processPendingGenerationObservations } from "./observationBatchExecution";
 import { claimGenerationRecoveryBatch } from "./recoveryBatchAcquisition";
 import { executeClaimedRecoveryBatch } from "./recoveryBatchExecution";
-import type { GenerationControlPlaneCycleResult, GenerationControlPlaneLogContext } from "./types";
+import type {
+  GenerationControlPlaneCycleResult,
+  GenerationControlPlaneLogContext,
+  GenerationControlPlaneStageTimings,
+} from "./types";
 
 type JsonObject = Record<string, unknown>;
 
@@ -76,6 +80,26 @@ export const runGenerationControlPlaneCycle = async ({
     ? Math.min(flags.reconcilerBatchSize, 5)
     : flags.reconcilerBatchSize;
   const shouldRunRequestIdRepair = rescueMode && flags.legacyDirectSubmitEnabled;
+  const stageTimings: GenerationControlPlaneStageTimings = {
+    queueDispatch: { durationMs: 0 },
+    reservationCleanup: { durationMs: 0 },
+    providerAttachedReservationCleanup: { durationMs: 0 },
+    observationInboxProcessing: { durationMs: 0 },
+    requestIdRepair: { durationMs: 0 },
+    recoveryClaim: { durationMs: 0 },
+    recoveryExecution: { durationMs: 0 },
+  };
+  const measureStage = async <T>(
+    stageName: keyof GenerationControlPlaneStageTimings,
+    work: () => Promise<T>
+  ) => {
+    const startedAt = Date.now();
+    try {
+      return await work();
+    } finally {
+      stageTimings[stageName].durationMs = Math.max(0, Date.now() - startedAt);
+    }
+  };
   let reservationCleanupScanned = 0;
   let reservationCleanupReleased = 0;
   let reservationCleanupErrors = 0;
@@ -93,123 +117,135 @@ export const runGenerationControlPlaneCycle = async ({
   let observationErrors = 0;
 
   if (!rescueMode && flags.queueEnabled) {
-    try {
-      const queueMetrics = await dispatchGenerationSubmitQueueBatch({
-        req: context.req,
-        routeLabel: context.routeLabel,
-        limit: flags.queueDispatchBatchSize,
+    await measureStage("queueDispatch", async () => {
+      try {
+        const queueMetrics = await dispatchGenerationSubmitQueueBatch({
+          req: context.req,
+          routeLabel: context.routeLabel,
+          limit: flags.queueDispatchBatchSize,
+        });
+        queueClaimed = queueMetrics.claimed;
+        queueSubmitted = queueMetrics.submitted;
+        queueRetried = queueMetrics.retried;
+        queueRequeuedNoCapacity = queueMetrics.requeuedNoCapacity;
+        queueExhausted = queueMetrics.exhausted;
+        queueSkipped = queueMetrics.skipped;
+        queueDispatchErrors = queueMetrics.errors;
+      } catch (error) {
+        queueDispatchErrors += 1;
+        await logControlPlaneException({
+          context,
+          error,
+          metadata: {
+            stage: "queue_dispatch",
+          },
+        });
+      }
+    });
+  }
+
+  if (flags.reservationCleanupEnabled) {
+    await measureStage("reservationCleanup", async () => {
+      const cleanupResponse = await supabaseAdmin.rpc("release_stale_generation_reservations", {
+        p_limit: flags.reservationCleanupBatchSize,
+        p_min_age_seconds: flags.reservationCleanupMinAgeSeconds,
       });
-      queueClaimed = queueMetrics.claimed;
-      queueSubmitted = queueMetrics.submitted;
-      queueRetried = queueMetrics.retried;
-      queueRequeuedNoCapacity = queueMetrics.requeuedNoCapacity;
-      queueExhausted = queueMetrics.exhausted;
-      queueSkipped = queueMetrics.skipped;
-      queueDispatchErrors = queueMetrics.errors;
+      if (cleanupResponse.error) {
+        reservationCleanupErrors = 1;
+        await logControlPlaneException({
+          context,
+          error: cleanupResponse.error,
+          metadata: {
+            stage: "reservation_cleanup",
+          },
+        });
+      } else {
+        const metrics = parseCleanupMetrics(cleanupResponse.data);
+        reservationCleanupScanned = metrics.scanned;
+        reservationCleanupReleased = metrics.released;
+        reservationCleanupErrors = metrics.errors;
+      }
+    });
+  }
+
+  if (flags.providerAttachedReservationCleanupEnabled) {
+    await measureStage("providerAttachedReservationCleanup", async () => {
+      const providerCleanupResponse = await supabaseAdmin.rpc(
+        "release_stale_provider_attached_generation_reservations",
+        {
+          p_limit: flags.reservationCleanupBatchSize,
+          p_min_age_seconds: flags.providerAttachedReservationCleanupMinAgeSeconds,
+          p_orphan_min_age_seconds: flags.providerAttachedReservationOrphanMinAgeSeconds,
+        }
+      );
+      if (providerCleanupResponse.error) {
+        reservationCleanupErrors += 1;
+        await logControlPlaneException({
+          context,
+          error: providerCleanupResponse.error,
+          metadata: {
+            stage: "provider_attached_reservation_cleanup",
+          },
+        });
+      } else {
+        const metrics = parseCleanupMetrics(providerCleanupResponse.data);
+        reservationCleanupScanned += metrics.scanned;
+        reservationCleanupReleased += metrics.released;
+        reservationCleanupErrors += metrics.errors;
+      }
+    });
+  }
+
+  await measureStage("observationInboxProcessing", async () => {
+    try {
+      const observationMetrics = await processPendingGenerationObservations({
+        limit: effectiveReconcilerBatchSize,
+        routeLabel: context.routeLabel,
+      });
+      observationClaimed = observationMetrics.claimed;
+      observationProcessed = observationMetrics.processed;
+      observationIgnored = observationMetrics.ignored;
+      observationFailed = observationMetrics.failed;
+      observationErrors = observationMetrics.errors;
     } catch (error) {
-      queueDispatchErrors += 1;
+      observationErrors += 1;
       await logControlPlaneException({
         context,
         error,
         metadata: {
-          stage: "queue_dispatch",
+          stage: "observation_inbox_processing",
         },
       });
     }
-  }
-
-  if (flags.reservationCleanupEnabled) {
-    const cleanupResponse = await supabaseAdmin.rpc("release_stale_generation_reservations", {
-      p_limit: flags.reservationCleanupBatchSize,
-      p_min_age_seconds: flags.reservationCleanupMinAgeSeconds,
-    });
-    if (cleanupResponse.error) {
-      reservationCleanupErrors = 1;
-      await logControlPlaneException({
-        context,
-        error: cleanupResponse.error,
-        metadata: {
-          stage: "reservation_cleanup",
-        },
-      });
-    } else {
-      const metrics = parseCleanupMetrics(cleanupResponse.data);
-      reservationCleanupScanned = metrics.scanned;
-      reservationCleanupReleased = metrics.released;
-      reservationCleanupErrors = metrics.errors;
-    }
-  }
-
-  if (flags.providerAttachedReservationCleanupEnabled) {
-    const providerCleanupResponse = await supabaseAdmin.rpc(
-      "release_stale_provider_attached_generation_reservations",
-      {
-        p_limit: flags.reservationCleanupBatchSize,
-        p_min_age_seconds: flags.providerAttachedReservationCleanupMinAgeSeconds,
-        p_orphan_min_age_seconds: flags.providerAttachedReservationOrphanMinAgeSeconds,
-      }
-    );
-    if (providerCleanupResponse.error) {
-      reservationCleanupErrors += 1;
-      await logControlPlaneException({
-        context,
-        error: providerCleanupResponse.error,
-        metadata: {
-          stage: "provider_attached_reservation_cleanup",
-        },
-      });
-    } else {
-      const metrics = parseCleanupMetrics(providerCleanupResponse.data);
-      reservationCleanupScanned += metrics.scanned;
-      reservationCleanupReleased += metrics.released;
-      reservationCleanupErrors += metrics.errors;
-    }
-  }
-
-  try {
-    const observationMetrics = await processPendingGenerationObservations({
-      limit: effectiveReconcilerBatchSize,
-      routeLabel: context.routeLabel,
-    });
-    observationClaimed = observationMetrics.claimed;
-    observationProcessed = observationMetrics.processed;
-    observationIgnored = observationMetrics.ignored;
-    observationFailed = observationMetrics.failed;
-    observationErrors = observationMetrics.errors;
-  } catch (error) {
-    observationErrors += 1;
-    await logControlPlaneException({
-      context,
-      error,
-      metadata: {
-        stage: "observation_inbox_processing",
-      },
-    });
-  }
-
-  try {
-    if (shouldRunRequestIdRepair) {
-      await repairGenerationRequestIdsFromReservations({
-        limit: effectiveReconcilerBatchSize,
-      });
-    }
-  } catch (error) {
-    await logControlPlaneException({
-      context,
-      error,
-      metadata: {
-        stage: "request_id_repair_batch",
-      },
-    });
-  }
-
-  const claimBatch = await claimGenerationRecoveryBatch({
-    supabaseAdmin,
-    batchSize: effectiveReconcilerBatchSize,
-    maxAttempts: flags.reconcilerMaxAttempts,
-    minAgeSeconds: flags.reconcilerMinAgeSeconds,
-    leaseSeconds: flags.reconcilerLeaseSeconds,
   });
+
+  await measureStage("requestIdRepair", async () => {
+    try {
+      if (shouldRunRequestIdRepair) {
+        await repairGenerationRequestIdsFromReservations({
+          limit: effectiveReconcilerBatchSize,
+        });
+      }
+    } catch (error) {
+      await logControlPlaneException({
+        context,
+        error,
+        metadata: {
+          stage: "request_id_repair_batch",
+        },
+      });
+    }
+  });
+
+  const claimBatch = await measureStage("recoveryClaim", () =>
+    claimGenerationRecoveryBatch({
+      supabaseAdmin,
+      batchSize: effectiveReconcilerBatchSize,
+      maxAttempts: flags.reconcilerMaxAttempts,
+      minAgeSeconds: flags.reconcilerMinAgeSeconds,
+      leaseSeconds: flags.reconcilerLeaseSeconds,
+    })
+  );
   if (claimBatch.rpcError) {
     await logControlPlaneException({
       context,
@@ -222,19 +258,21 @@ export const runGenerationControlPlaneCycle = async ({
   const claimedRows = claimBatch.rows;
 
   const { recovered, requeued, exhausted, skipped, duplicates, processed, errors } =
-    await executeClaimedRecoveryBatch({
-      supabaseAdmin,
-      rows: claimedRows,
-      modelAllowlist: flags.modelAllowlist,
-      maxAttempts: flags.reconcilerMaxAttempts,
-      routeLabel: context.routeLabel,
-      logException: ({ error, metadata }) =>
-        logControlPlaneException({
-          context,
-          error,
-          metadata,
-        }),
-    });
+    await measureStage("recoveryExecution", () =>
+      executeClaimedRecoveryBatch({
+        supabaseAdmin,
+        rows: claimedRows,
+        modelAllowlist: flags.modelAllowlist,
+        maxAttempts: flags.reconcilerMaxAttempts,
+        routeLabel: context.routeLabel,
+        logException: ({ error, metadata }) =>
+          logControlPlaneException({
+            context,
+            error,
+            metadata,
+          }),
+      })
+    );
 
   return {
     ok: true,
@@ -261,5 +299,6 @@ export const runGenerationControlPlaneCycle = async ({
     queueExhausted,
     queueSkipped,
     queueDispatchErrors,
+    stageTimings,
   };
 };

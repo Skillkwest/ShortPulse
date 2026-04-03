@@ -27,6 +27,15 @@ describe("generationControlPlane/workerLoop", () => {
       queueExhausted: 0,
       queueSkipped: 0,
       queueDispatchErrors: 0,
+      stageTimings: {
+        queueDispatch: { durationMs: 12 },
+        reservationCleanup: { durationMs: 3 },
+        providerAttachedReservationCleanup: { durationMs: 0 },
+        observationInboxProcessing: { durationMs: 5 },
+        requestIdRepair: { durationMs: 0 },
+        recoveryClaim: { durationMs: 4 },
+        recoveryExecution: { durationMs: 8 },
+      },
     });
     const writeHeartbeat = vi.fn();
     const runWriter = {
@@ -67,6 +76,9 @@ describe("generationControlPlane/workerLoop", () => {
       }),
     });
     expect(logger.error).not.toHaveBeenCalled();
+    expect(logger.info).toHaveBeenCalledWith(
+      expect.stringContaining('stageTimings={"queueDispatch":{"durationMs":12}')
+    );
   });
 
   it("loops with success backoff and writes a stopped heartbeat", async () => {
@@ -90,6 +102,15 @@ describe("generationControlPlane/workerLoop", () => {
       queueExhausted: 0,
       queueSkipped: 0,
       queueDispatchErrors: 0,
+      stageTimings: {
+        queueDispatch: { durationMs: 0 },
+        reservationCleanup: { durationMs: 0 },
+        providerAttachedReservationCleanup: { durationMs: 0 },
+        observationInboxProcessing: { durationMs: 0 },
+        requestIdRepair: { durationMs: 0 },
+        recoveryClaim: { durationMs: 0 },
+        recoveryExecution: { durationMs: 0 },
+      },
     });
     const writeHeartbeat = vi.fn();
     const runWriter = {
@@ -215,6 +236,15 @@ describe("generationControlPlane/workerLoop", () => {
         queueExhausted: 0,
         queueSkipped: 0,
         queueDispatchErrors: 0,
+        stageTimings: {
+          queueDispatch: { durationMs: 0 },
+          reservationCleanup: { durationMs: 0 },
+          providerAttachedReservationCleanup: { durationMs: 0 },
+          observationInboxProcessing: { durationMs: 0 },
+          requestIdRepair: { durationMs: 0 },
+          recoveryClaim: { durationMs: 0 },
+          recoveryExecution: { durationMs: 0 },
+        },
       })
       .mockResolvedValueOnce({
         ok: true,
@@ -241,6 +271,15 @@ describe("generationControlPlane/workerLoop", () => {
         queueExhausted: 0,
         queueSkipped: 0,
         queueDispatchErrors: 0,
+        stageTimings: {
+          queueDispatch: { durationMs: 0 },
+          reservationCleanup: { durationMs: 0 },
+          providerAttachedReservationCleanup: { durationMs: 0 },
+          observationInboxProcessing: { durationMs: 0 },
+          requestIdRepair: { durationMs: 0 },
+          recoveryClaim: { durationMs: 0 },
+          recoveryExecution: { durationMs: 0 },
+        },
       });
     const sleep = vi.fn().mockResolvedValue(undefined);
     let shouldStopChecks = 0;

@@ -138,11 +138,13 @@ describe("POST /api/internal/generation-recovery/run", () => {
       expect.objectContaining({
         ok: true,
         runMode: "rescue",
+        stageTimings: expect.any(Object),
       })
     );
   });
 
   it("runs in bounded rescue mode by default", async () => {
+    process.env.SHORTPULSE_FAL_LEGACY_DIRECT_SUBMIT_ENABLED = "true";
     const supabase = createSupabaseMock();
     getSupabaseAdminMock.mockReturnValue({
       rpc: supabase.rpc,
@@ -189,6 +191,7 @@ describe("POST /api/internal/generation-recovery/run", () => {
         reservationCleanupScanned: 7,
         reservationCleanupReleased: 3,
         reservationCleanupErrors: 0,
+        stageTimings: expect.any(Object),
       })
     );
   });
@@ -228,6 +231,7 @@ describe("POST /api/internal/generation-recovery/run", () => {
         reservationCleanupScanned: 0,
         reservationCleanupReleased: 0,
         reservationCleanupErrors: 1,
+        stageTimings: expect.any(Object),
       })
     );
     expect(logApiRouteExceptionMock).toHaveBeenCalledWith(
@@ -291,6 +295,7 @@ describe("POST /api/internal/generation-recovery/run", () => {
   });
 
   it("continues recovery when request-id repair fails in rescue mode", async () => {
+    process.env.SHORTPULSE_FAL_LEGACY_DIRECT_SUBMIT_ENABLED = "true";
     repairGenerationRequestIdsFromReservationsMock.mockRejectedValueOnce(
       new Error("repair unavailable")
     );

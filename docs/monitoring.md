@@ -52,6 +52,7 @@ Purpose: define how runtime incidents are captured, triaged, and resolved.
   - recovery: `claimed`, `processed`, `recovered`, `requeued`, `exhausted`, `errors`
   - queue dispatch: `queueClaimed`, `queueSubmitted`, `queueRetried`, `queueExhausted`, `queueDispatchErrors`
   - cleanup: `reservationCleanupScanned`, `reservationCleanupReleased`, `reservationCleanupErrors`
+  - stage timings: `stageTimings.queueDispatch.durationMs`, `stageTimings.reservationCleanup.durationMs`, `stageTimings.providerAttachedReservationCleanup.durationMs`, `stageTimings.observationInboxProcessing.durationMs`, `stageTimings.requestIdRepair.durationMs`, `stageTimings.recoveryClaim.durationMs`, `stageTimings.recoveryExecution.durationMs`
 - Convergence target:
   - no sustained active workload (`claimed`, `requeued`, `queueClaimed` no longer persistently elevated),
   - `errors = 0` and `queueDispatchErrors = 0` across the configured convergence window.

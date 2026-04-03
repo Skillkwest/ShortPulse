@@ -115,6 +115,10 @@ export const handleVideoModelSubmission = async ({
   klingMultiPrompts,
   klingElements,
 }: VideoSubmissionArgs): Promise<boolean> => {
+  const effectiveVideoAutoFix =
+    finalModel.includes("veo3.1") || finalModel.includes("veo-3.1") ? false : videoAutoFix;
+  const effectiveVideoCameraFixed =
+    finalModel === "fal-ai/bytedance/seedance/v1.5/pro/image-to-video" ? false : videoCameraFixed;
   const candidateMediaUrls = [
     ...preparedImageInputs,
     videoReferenceImageUrl ?? "",
@@ -335,7 +339,7 @@ export const handleVideoModelSubmission = async ({
       duration,
       resolution,
       generate_audio: requestedAudio,
-      auto_fix: videoAutoFix,
+      auto_fix: effectiveVideoAutoFix,
       ...resolveVideoSubmissionSafetyPayload(finalModel),
     });
     handoffSubmitResponse({
@@ -402,7 +406,7 @@ export const handleVideoModelSubmission = async ({
       resolution,
       duration,
       generate_audio: requestedAudio,
-      camera_fixed: videoCameraFixed,
+      camera_fixed: effectiveVideoCameraFixed,
       ...resolveVideoSubmissionSafetyPayload(finalModel),
     });
     handoffSubmitResponse({
@@ -425,7 +429,7 @@ export const handleVideoModelSubmission = async ({
       duration,
       resolution,
       generate_audio: requestedAudio,
-      auto_fix: videoAutoFix,
+      auto_fix: effectiveVideoAutoFix,
       ...resolveVideoSubmissionSafetyPayload(finalModel),
     });
     handoffSubmitResponse({
@@ -464,7 +468,7 @@ export const handleVideoModelSubmission = async ({
       duration: `${Math.max(4, Math.min(8, requestedDurationSeconds))}s`,
       resolution,
       generate_audio: requestedAudio,
-      auto_fix: videoAutoFix,
+      auto_fix: effectiveVideoAutoFix,
       ...resolveVideoSubmissionSafetyPayload(finalModel),
     });
     handoffSubmitResponse({

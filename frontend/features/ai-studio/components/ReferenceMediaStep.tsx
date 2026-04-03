@@ -270,12 +270,14 @@ export const ReferenceMediaStep: React.FC<ReferenceMediaStepProps> = ({
                   {isStandardMode ? (
                     <>
                       <span>First frame</span>
-                      <span className="dropzone-tag-pill">Optional</span>
                     </>
                   ) : (
                     "Reference image"
                   )}
                 </span>
+              ) : null}
+              {isVideoVariant && isStandardMode ? (
+                <span className="dropzone-tag-pill dropzone-tag-pill--bottom">Optional</span>
               ) : null}
               {referenceImageUrl ? (
                 <button
@@ -290,8 +292,7 @@ export const ReferenceMediaStep: React.FC<ReferenceMediaStepProps> = ({
                 </button>
               ) : null}
               <div className="reference-drop-content image-drop-content">
-                <UploadSimple size={22} weight="regular" />
-                <p className="reference-drop-title helper-text">Click to upload an image</p>
+                <Plus size={24} weight="regular" />
               </div>
             </div>
           </div>
@@ -314,8 +315,10 @@ export const ReferenceMediaStep: React.FC<ReferenceMediaStepProps> = ({
                 >
                   <span className="dropzone-tag">
                     <span>Last frame</span>
-                    {isStandardMode ? <span className="dropzone-tag-pill">Optional</span> : null}
                   </span>
+                  {isStandardMode ? (
+                    <span className="dropzone-tag-pill dropzone-tag-pill--bottom">Optional</span>
+                  ) : null}
                   {extraImageUrls[0] ? (
                     <button
                       type="button"
@@ -329,8 +332,7 @@ export const ReferenceMediaStep: React.FC<ReferenceMediaStepProps> = ({
                     </button>
                   ) : (
                     <div className="reference-drop-content image-drop-content">
-                      <UploadSimple size={22} weight="regular" />
-                      <p className="reference-drop-title helper-text">Click to upload an image</p>
+                      <Plus size={24} weight="regular" />
                     </div>
                   )}
                 </div>

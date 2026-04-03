@@ -24,6 +24,7 @@ type ReferencePromptStepProps = {
   promptSaveButtonUnstyled?: boolean;
   hideHeader?: boolean;
   autoResize?: boolean;
+  promptPlaceholder?: string;
 };
 
 /**
@@ -49,6 +50,7 @@ export const ReferencePromptStep: React.FC<ReferencePromptStepProps> = ({
   promptSaveButtonUnstyled = false,
   hideHeader = false,
   autoResize = false,
+  promptPlaceholder = "Describe the image you want to generate. You can also drag & drop a reference prompt here to get started.",
 }) => {
   return (
     <div className="reference-dropzone-block prompt-block" style={{ order: promptOrder }}>
@@ -76,7 +78,7 @@ export const ReferencePromptStep: React.FC<ReferencePromptStepProps> = ({
         promptOnly
         enhanceOnly
         hideEnhanceButton={!showEnhanceButton}
-        promptPlaceholder="Describe the image you want to generate. You can also drag & drop a reference prompt here to get started."
+        promptPlaceholder={promptPlaceholder}
         beginnerSubtitle={beginnerHelperText}
         beginnerPinHelperText={beginnerPinHelperText}
         promptSaveButtonClassName={promptSaveButtonClassName}

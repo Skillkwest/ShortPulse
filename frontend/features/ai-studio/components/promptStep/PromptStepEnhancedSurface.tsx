@@ -49,8 +49,9 @@ export const PromptStepEnhancedSurface: React.FC<PromptStepEnhancedSurfaceProps>
   React.useLayoutEffect(() => {
     if (!autoResize || !textareaRef.current) return;
     const textarea = textareaRef.current;
+    const computedMinHeight = Number.parseFloat(window.getComputedStyle(textarea).minHeight) || 0;
     textarea.style.height = "auto";
-    textarea.style.height = `${textarea.scrollHeight}px`;
+    textarea.style.height = `${Math.max(textarea.scrollHeight, computedMinHeight)}px`;
   }, [autoResize, prompt]);
 
   return (

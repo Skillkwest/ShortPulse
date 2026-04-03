@@ -28,8 +28,8 @@ type KlingElement = {
 const VIDEO_DURATION_OPTIONS = [3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15];
 const VIDEO_RESOLUTION_OPTIONS = [
   { value: "480p", label: "480p (SD)" },
-  { value: "720p", label: "720p (HD)" },
-  { value: "1080p", label: "1080p (Full HD)" },
+  { value: "720p", label: "720p" },
+  { value: "1080p", label: "1080p" },
   { value: "1k", label: "1K (1024px wide)" },
   { value: "2k", label: "2K (1440p)" },
   { value: "4k", label: "4K (2160p)" },

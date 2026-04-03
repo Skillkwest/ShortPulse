@@ -136,6 +136,8 @@ export function VideoPropertiesPanel({
   onAgentEnhanceSend,
   beginnerMode = false,
 }: VideoPropertiesPanelProps) {
+  const [uiShotMode, setUiShotMode] = React.useState<"single" | "multi">("single");
+  const [additionalPromptTexts, setAdditionalPromptTexts] = React.useState<string[]>([]);
   const modelLogoSrc = modelId ? modelLogos[modelId] : undefined;
   const {
     primaryInputRef,
@@ -248,11 +250,26 @@ export function VideoPropertiesPanel({
 
   const isKieKlingWorkspace = isKling3Mode && modelId === "kie-ai/kling-3.0";
   const isKieKlingModelSelected = modelId === KIE_KLING_30_MODEL_ID;
+  const isVeo31ModelSelected =
+    modelId?.includes("veo3.1") === true || modelId?.includes("veo-3.1") === true;
+  const isSeedanceModelSelected = modelId === "fal-ai/bytedance/seedance/v1.5/pro/image-to-video";
   React.useEffect(() => {
     if (activeVideoMode === "keyframes") {
       onVideoReferenceModeChange?.("standard");
     }
   }, [activeVideoMode, onVideoReferenceModeChange]);
+
+  React.useEffect(() => {
+    if (isVeo31ModelSelected && videoAutoFix) {
+      onVideoAutoFixChange?.(false);
+    }
+  }, [isVeo31ModelSelected, onVideoAutoFixChange, videoAutoFix]);
+
+  React.useEffect(() => {
+    if (isSeedanceModelSelected && videoCameraFixed) {
+      onVideoCameraFixedChange?.(false);
+    }
+  }, [isSeedanceModelSelected, onVideoCameraFixedChange, videoCameraFixed]);
 
   const visibleVideoMode =
     activeVideoMode === "motion" ? "motion" : activeVideoMode === "modify" ? "modify" : "standard";
@@ -266,173 +283,225 @@ export function VideoPropertiesPanel({
     [videoModeIndex]
   );
   const isMultiShotEnabled = klingMultiPrompts.length > 0;
+  const createInitialMultiShot = React.useCallback(() => {
+    const nextId =
+      typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+        ? crypto.randomUUID()
+        : `kling-${Math.random().toString(36).slice(2, 9)}`;
+    return [
+      {
+        id: nextId,
+        prompt: referenceText?.trim() ?? "",
+        duration: videoDurationValue,
+      },
+    ];
+  }, [referenceText, videoDurationValue]);
   const handleToggleMultiShot = React.useCallback(() => {
     if (!onKlingMultiPromptsChange) return;
     if (isMultiShotEnabled) {
       onKlingMultiPromptsChange([]);
       return;
     }
-    const nextId =
-      typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
-        ? crypto.randomUUID()
-        : `kling-${Math.random().toString(36).slice(2, 9)}`;
-    onKlingMultiPromptsChange([
-      {
-        id: nextId,
-        prompt: referenceText?.trim() ?? "",
-        duration: videoDurationValue,
-      },
-    ]);
-  }, [isMultiShotEnabled, onKlingMultiPromptsChange, referenceText, videoDurationValue]);
+    onKlingMultiPromptsChange(createInitialMultiShot());
+  }, [createInitialMultiShot, isMultiShotEnabled, onKlingMultiPromptsChange]);
+  const showShotModeSelector = activeVideoMode === "standard";
+
+  React.useEffect(() => {
+    if (activeVideoMode !== "standard") {
+      setUiShotMode("single");
+    }
+  }, [activeVideoMode]);
+
+  const resizeTextareaToContent = React.useCallback((textarea: HTMLTextAreaElement | null) => {
+    if (!textarea) return;
+    const computedMinHeight = Number.parseFloat(window.getComputedStyle(textarea).minHeight) || 0;
+    textarea.style.height = "auto";
+    textarea.style.height = `${Math.max(textarea.scrollHeight, computedMinHeight)}px`;
+  }, []);
+
+  const handleAddShotPrompt = React.useCallback(() => {
+    setUiShotMode("multi");
+    setAdditionalPromptTexts((current) => [...current, ""]);
+  }, []);
+
+  const handleAdditionalPromptChange = React.useCallback((index: number, value: string) => {
+    setAdditionalPromptTexts((current) =>
+      current.map((promptText, promptIndex) => (promptIndex === index ? value : promptText))
+    );
+  }, []);
 
   return (
     <div className="tool-properties reference-properties-panel video-properties-panel">
       <div className="video-properties-workspace">
         <div className="reference-drop-layout-inner video-properties-primary-column">
-          <div className="video-setup-columns">
-            <div className="video-setup-column video-setup-column--left">
-              <ReferenceMediaStep
-                referenceOrder={referenceOrder}
-                referenceBadge={referenceBadge}
-                collapsedReference={collapsedSteps.reference}
-                onExpandReference={() => expandIfCollapsed("reference")}
-                onToggleReference={() => toggleStep("reference")}
-                beginnerMode={beginnerMode}
-                isVideoVariant={true}
-                referenceStepTitle={referenceStepTitle}
-                referenceStepSubtitle={referenceStepSubtitle}
-                isMotionMode={isMotionMode}
-                isKling3Mode={isKling3Mode}
-                isStandardMode={isStandardMode}
-                isKeyframesMode={isKeyframesMode}
-                referenceImageUrl={referenceImageUrl}
-                extraImageUrls={extraImageUrls}
-                motionVideoUrl={motionVideoUrl}
-                primaryDragActive={primaryDragActive}
-                extraDragActive={extraDragActive}
-                motionVideoDragActive={motionVideoDragActive}
-                setMotionVideoDragActive={setMotionVideoDragActive}
-                handlePrimaryDrop={handlePrimaryDrop}
-                handlePrimaryDragEnter={handlePrimaryDragEnter}
-                handlePrimaryDragOver={handlePrimaryDragOver}
-                handlePrimaryDragLeave={handlePrimaryDragLeave}
-                handleExtraDrop={handleExtraDrop}
-                handleExtraDragEnter={handleExtraDragEnter}
-                handleExtraDragOver={handleExtraDragOver}
-                handleExtraDragLeave={handleExtraDragLeave}
-                allowVideoDrag={allowVideoDrag}
-                handleMotionVideoDrop={handleMotionVideoDrop}
-                primaryInputRef={primaryInputRef}
-                extraOneInputRef={extraOneInputRef}
-                extraTwoInputRef={extraTwoInputRef}
-                extraThreeInputRef={extraThreeInputRef}
-                motionVideoInputRef={motionVideoInputRef}
-                onPrimaryImageChange={onPrimaryImageChange}
-                onExtraImageChange={onExtraImageChange}
-                onMotionVideoChange={onMotionVideoChange}
-                handleFileSelection={handleFileSelection}
-                handleMotionVideoSelection={handleMotionVideoSelection}
-                topContent={
-                  <div
-                    className="video-reference-mode-tabs"
-                    role="tablist"
-                    aria-label="Video reference mode"
-                    style={videoModeTabsStyle}
-                  >
-                    <span className="video-reference-mode-indicator" aria-hidden="true" />
-                    <button
-                      type="button"
-                      role="tab"
-                      aria-selected={visibleVideoMode === "standard"}
-                      className={`video-reference-mode-tab ${visibleVideoMode === "standard" ? "is-active" : ""}`}
-                      onClick={() => onVideoReferenceModeChange?.("standard")}
+          <p className="video-panel-hero-text">How will you direct this scene?</p>
+          <div className="video-setup-row-shell">
+            <div className="video-panel-title">Video Settings</div>
+            <div className="video-setup-columns">
+              <div className="video-setup-column video-setup-column--left">
+                <ReferenceMediaStep
+                  referenceOrder={referenceOrder}
+                  referenceBadge={referenceBadge}
+                  collapsedReference={collapsedSteps.reference}
+                  onExpandReference={() => expandIfCollapsed("reference")}
+                  onToggleReference={() => toggleStep("reference")}
+                  beginnerMode={beginnerMode}
+                  isVideoVariant={true}
+                  referenceStepTitle={referenceStepTitle}
+                  referenceStepSubtitle={referenceStepSubtitle}
+                  isMotionMode={isMotionMode}
+                  isKling3Mode={isKling3Mode}
+                  isStandardMode={isStandardMode}
+                  isKeyframesMode={isKeyframesMode}
+                  referenceImageUrl={referenceImageUrl}
+                  extraImageUrls={extraImageUrls}
+                  motionVideoUrl={motionVideoUrl}
+                  primaryDragActive={primaryDragActive}
+                  extraDragActive={extraDragActive}
+                  motionVideoDragActive={motionVideoDragActive}
+                  setMotionVideoDragActive={setMotionVideoDragActive}
+                  handlePrimaryDrop={handlePrimaryDrop}
+                  handlePrimaryDragEnter={handlePrimaryDragEnter}
+                  handlePrimaryDragOver={handlePrimaryDragOver}
+                  handlePrimaryDragLeave={handlePrimaryDragLeave}
+                  handleExtraDrop={handleExtraDrop}
+                  handleExtraDragEnter={handleExtraDragEnter}
+                  handleExtraDragOver={handleExtraDragOver}
+                  handleExtraDragLeave={handleExtraDragLeave}
+                  allowVideoDrag={allowVideoDrag}
+                  handleMotionVideoDrop={handleMotionVideoDrop}
+                  primaryInputRef={primaryInputRef}
+                  extraOneInputRef={extraOneInputRef}
+                  extraTwoInputRef={extraTwoInputRef}
+                  extraThreeInputRef={extraThreeInputRef}
+                  motionVideoInputRef={motionVideoInputRef}
+                  onPrimaryImageChange={onPrimaryImageChange}
+                  onExtraImageChange={onExtraImageChange}
+                  onMotionVideoChange={onMotionVideoChange}
+                  handleFileSelection={handleFileSelection}
+                  handleMotionVideoSelection={handleMotionVideoSelection}
+                  topContent={
+                    <div
+                      className="video-reference-mode-tabs"
+                      role="tablist"
+                      aria-label="Video reference mode"
+                      style={videoModeTabsStyle}
                     >
-                      Standard
-                    </button>
-                    <button
-                      type="button"
-                      role="tab"
-                      aria-selected={visibleVideoMode === "motion"}
-                      className={`video-reference-mode-tab ${visibleVideoMode === "motion" ? "is-active" : ""}`}
-                      onClick={() => onVideoReferenceModeChange?.("motion")}
-                    >
-                      Motion Control
-                    </button>
-                    <button
-                      type="button"
-                      role="tab"
-                      aria-selected={visibleVideoMode === "modify"}
-                      className={`video-reference-mode-tab ${visibleVideoMode === "modify" ? "is-active" : ""}`}
-                      onClick={() => onVideoReferenceModeChange?.("modify")}
-                    >
-                      Modify
-                    </button>
-                  </div>
-                }
-              />
-            </div>
-            <div className="video-setup-column video-setup-column--right">
-              <ReferenceVideoSettingsStep
-                isVideoVariant={true}
-                isMotionMode={isMotionMode}
-                showMultiShotToggle={isKieKlingModelSelected}
-                multiShotEnabled={isMultiShotEnabled}
-                multiShotShotCount={klingMultiPrompts.length}
-                modelId={modelId}
-                modelLabel={modelLabel}
-                modelLogoSrc={modelLogoSrc}
-                isModelModalOpen={isModelModalOpen}
-                modelModalAnchor={modelModalAnchor}
-                aspect={aspect}
-                aspectOptionsForModel={aspectOptionsForModel}
-                videoSettingsOrder={videoSettingsOrder}
-                motionAudioOrder={motionAudioOrder}
-                videoDurationValue={videoDurationValue}
-                videoResolutionValue={videoResolutionValue}
-                durationOptions={durationOptions}
-                resolutionOptions={resolutionOptions}
-                videoGenerateAudioValue={videoGenerateAudioValue}
-                isVeoImageToVideoStandard={isVeoImageToVideoStandard}
-                isVeoFirstLastModel={isVeoFirstLastModel}
-                isSeedanceI2VModel={isSeedanceI2VModel}
-                videoCameraFixed={videoCameraFixed}
-                isVeoModel={isVeoModel}
-                videoAutoFix={videoAutoFix}
-                onAspectChange={onAspectChange}
-                onModelPickerOpen={onModelPickerOpen}
-                onVideoDurationChange={onVideoDurationChange}
-                onVideoResolutionChange={onVideoResolutionChange}
-                onVideoGenerateAudioChange={onVideoGenerateAudioChange}
-                onVideoCameraFixedChange={onVideoCameraFixedChange}
-                onVideoAutoFixChange={onVideoAutoFixChange}
-                onToggleMultiShot={handleToggleMultiShot}
-              />
+                      <span className="video-reference-mode-indicator" aria-hidden="true" />
+                      <button
+                        type="button"
+                        role="tab"
+                        aria-selected={visibleVideoMode === "standard"}
+                        className={`video-reference-mode-tab ${visibleVideoMode === "standard" ? "is-active" : ""}`}
+                        onClick={() => onVideoReferenceModeChange?.("standard")}
+                      >
+                        Standard
+                      </button>
+                      <button
+                        type="button"
+                        role="tab"
+                        aria-selected={visibleVideoMode === "motion"}
+                        className={`video-reference-mode-tab ${visibleVideoMode === "motion" ? "is-active" : ""}`}
+                        onClick={() => onVideoReferenceModeChange?.("motion")}
+                      >
+                        Motion Control
+                      </button>
+                      <button
+                        type="button"
+                        role="tab"
+                        aria-selected={visibleVideoMode === "modify"}
+                        className={`video-reference-mode-tab ${visibleVideoMode === "modify" ? "is-active" : ""}`}
+                        onClick={() => onVideoReferenceModeChange?.("modify")}
+                      >
+                        Modify
+                      </button>
+                    </div>
+                  }
+                />
+              </div>
+              <div className="video-setup-column video-setup-column--right">
+                <ReferenceVideoSettingsStep
+                  isVideoVariant={true}
+                  isMotionMode={isMotionMode}
+                  showMultiShotToggle={isKieKlingModelSelected}
+                  multiShotEnabled={isMultiShotEnabled}
+                  multiShotShotCount={klingMultiPrompts.length}
+                  modelId={modelId}
+                  modelLabel={modelLabel}
+                  modelLogoSrc={modelLogoSrc}
+                  isModelModalOpen={isModelModalOpen}
+                  modelModalAnchor={modelModalAnchor}
+                  aspect={aspect}
+                  aspectOptionsForModel={aspectOptionsForModel}
+                  videoSettingsOrder={videoSettingsOrder}
+                  motionAudioOrder={motionAudioOrder}
+                  videoDurationValue={videoDurationValue}
+                  videoResolutionValue={videoResolutionValue}
+                  durationOptions={durationOptions}
+                  resolutionOptions={resolutionOptions}
+                  videoGenerateAudioValue={videoGenerateAudioValue}
+                  isVeoImageToVideoStandard={isVeoImageToVideoStandard}
+                  isVeoFirstLastModel={isVeoFirstLastModel}
+                  isSeedanceI2VModel={isSeedanceI2VModel}
+                  videoCameraFixed={videoCameraFixed}
+                  isVeoModel={isVeoModel}
+                  videoAutoFix={videoAutoFix}
+                  onAspectChange={onAspectChange}
+                  onModelPickerOpen={onModelPickerOpen}
+                  onVideoDurationChange={onVideoDurationChange}
+                  onVideoResolutionChange={onVideoResolutionChange}
+                  onVideoGenerateAudioChange={onVideoGenerateAudioChange}
+                  onVideoCameraFixedChange={onVideoCameraFixedChange}
+                  onVideoAutoFixChange={onVideoAutoFixChange}
+                  onToggleMultiShot={handleToggleMultiShot}
+                />
+              </div>
             </div>
           </div>
           <div className="video-prompt-generate-row">
             <div className="video-prompt-generate-main">
-              <ReferencePromptStep
-                promptBadge={promptBadge}
-                promptOrder={promptOrder}
-                referenceText={referenceText}
-                onPromptTextChange={onPromptTextChange}
-                collapsed={collapsedSteps.prompt}
-                onToggleCollapse={() => toggleStep("prompt")}
-                onDrop={handlePromptDrop}
-                beginnerMode={beginnerMode}
-                agentIsSending={agentIsSending}
-                agentError={agentError}
-                onAgentEnhanceSend={onAgentEnhanceSend}
-                showEnhanceButton={false}
-                hideHeader={true}
-                autoResize
-                beginnerHelperText="Direct the shot: describe the subject, motion, camera movement, and mood you want in the clip."
-              />
+              <div className="video-prompt-stack">
+                <div className="video-primary-prompt-shell">
+                  <ReferencePromptStep
+                    promptBadge={promptBadge}
+                    promptOrder={promptOrder}
+                    referenceText={referenceText}
+                    onPromptTextChange={onPromptTextChange}
+                    collapsed={collapsedSteps.prompt}
+                    onToggleCollapse={() => toggleStep("prompt")}
+                    onDrop={handlePromptDrop}
+                    beginnerMode={beginnerMode}
+                    agentIsSending={agentIsSending}
+                    agentError={agentError}
+                    onAgentEnhanceSend={onAgentEnhanceSend}
+                    showEnhanceButton={false}
+                    hideHeader={true}
+                    autoResize
+                    promptPlaceholder="Describe the shot you want to create: subject, action, camera movement, framing, lighting, and mood."
+                    beginnerHelperText="Direct the shot: describe the subject, motion, camera movement, and mood you want in the clip."
+                  />
+                </div>
+              </div>
             </div>
             <div className="video-prompt-generate-aside">
-              {activeVideoMode === "standard" && !isMultiShotEnabled ? (
-                <div className="video-shot-status-card" aria-label="Shot mode status">
-                  Single shot
+              {showShotModeSelector ? (
+                <div className="ai-chat-mode-row-shell agent-chat-mode-row agent-chat-mode-toggle-shell video-multishot-toggle-shell">
+                  <div className="agent-chat-mode-toggle-copy">
+                    <span className="agent-chat-mode-label">Multi-shot</span>
+                  </div>
+                  <button
+                    type="button"
+                    className={`audio-toggle ai-chat-mode-toggle agent-chat-mode-toggle ${uiShotMode === "multi" ? "is-active" : ""}`}
+                    aria-pressed={uiShotMode === "multi"}
+                    aria-label={uiShotMode === "multi" ? "Disable multi-shot" : "Enable multi-shot"}
+                    onClick={() =>
+                      setUiShotMode((current) => (current === "multi" ? "single" : "multi"))
+                    }
+                  >
+                    <span className="audio-toggle-track" aria-hidden="true">
+                      <span className="audio-toggle-dot" />
+                    </span>
+                  </button>
                 </div>
               ) : null}
               <ReferenceGenerateStep
@@ -454,6 +523,34 @@ export function VideoPropertiesPanel({
                 promptRequiredMessage={null}
                 suppressInlineGuardrailReason
               />
+            </div>
+          </div>
+          {additionalPromptTexts.map((promptText, index) => (
+            <div className="video-secondary-prompt-shell" key={`video-shot-prompt-${index}`}>
+              <div className="prompt-enhanced-wrapper">
+                <textarea
+                  className="prompt-input agent-step-textarea enhanced-prompt-input"
+                  value={promptText}
+                  onChange={(event) => handleAdditionalPromptChange(index, event.target.value)}
+                  onInput={(event) =>
+                    resizeTextareaToContent(event.currentTarget as HTMLTextAreaElement)
+                  }
+                  rows={4}
+                  placeholder={`Describe shot ${index + 2}.`}
+                />
+              </div>
+            </div>
+          ))}
+          <div className="video-add-shot-row">
+            <div className="video-add-shot-main">
+              <button
+                type="button"
+                className="video-add-shot-button"
+                onClick={handleAddShotPrompt}
+                aria-label="Add another shot prompt"
+              >
+                + Add new shot
+              </button>
             </div>
           </div>
           <ReferenceKlingAdvancedSteps

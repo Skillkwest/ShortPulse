@@ -61,6 +61,7 @@ import {
   AI_SHELL_LEFT_EXPERT_CREATE_MAX_PX,
   AI_SHELL_LEFT_EXPERT_CREATE_MIN_PX,
   AI_SHELL_LEFT_EXPERT_EDIT_MIN_PX,
+  AI_SHELL_LEFT_VIDEO_DEFAULT_RATIO,
   AI_SHELL_LEFT_VIDEO_MIN_PX,
   AI_SHELL_RIGHT_CANVAS_MIN_PX,
   shouldCollapseAiShellOnToolSelect,
@@ -833,7 +834,11 @@ export function AiStudioPageContent({
       ? AI_SHELL_RIGHT_CANVAS_MIN_PX
       : undefined;
   const defaultLeftRatio =
-    selectedTool === "canvas" ? AI_SHELL_LEFT_CANVAS_DEFAULT_RATIO : undefined;
+    selectedTool === "canvas"
+      ? AI_SHELL_LEFT_CANVAS_DEFAULT_RATIO
+      : selectedTool === "video" || selectedTool === "kling"
+        ? AI_SHELL_LEFT_VIDEO_DEFAULT_RATIO
+        : undefined;
   const {
     shellRef,
     leftColumnRef,
@@ -841,6 +846,7 @@ export function AiStudioPageContent({
     isResizing,
     shellStyle,
     collapseToMin,
+    resetToDefaultWidth,
     expandToMax,
     dividerProps,
     rightColumnHidden,
@@ -878,20 +884,24 @@ export function AiStudioPageContent({
     // Expert Create should always open at its minimum left width when Create is selected.
     const isCreateToolSelected = isCreateWorkflow(selectedTool);
     const shouldCollapseForExpertCreateSelection = showExpertCreatePanel && isCreateToolSelected;
-    const shouldCollapseForVideoSelection =
-      (selectedTool === "video" || selectedTool === "kling") &&
-      previousSelectedTool !== selectedTool;
     const isInitialCanvasSelection = previousSelectedTool == null && selectedTool === "canvas";
+    const shouldResetForVideoSelection =
+      previousSelectedTool !== selectedTool &&
+      (selectedTool === "video" || selectedTool === "kling");
     if (
       (!isInitialCanvasSelection &&
-        shouldCollapseAiShellOnToolSelect(previousSelectedTool, selectedTool)) ||
-      shouldCollapseForVideoSelection ||
+        (shouldCollapseAiShellOnToolSelect(previousSelectedTool, selectedTool) ||
+          shouldResetForVideoSelection)) ||
       shouldCollapseForExpertCreateSelection
     ) {
-      collapseToMin();
+      if (shouldResetForVideoSelection) {
+        resetToDefaultWidth();
+      } else {
+        collapseToMin();
+      }
     }
     previousSelectedToolRef.current = selectedTool;
-  }, [collapseToMin, expandToMax, selectedTool, showExpertCreatePanel]);
+  }, [collapseToMin, expandToMax, resetToDefaultWidth, selectedTool, showExpertCreatePanel]);
   const rightColumnRef = React.useRef<HTMLDivElement | null>(null);
   const handleStylesPanelToggle = React.useCallback(() => {
     setPanelVisibility((previous) => {

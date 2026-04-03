@@ -298,9 +298,11 @@ export const ReferenceMediaStep: React.FC<ReferenceMediaStepProps> = ({
           </div>
           {isVideoVariant && (isKeyframesMode || isStandardMode) ? (
             <>
-              <div className="reference-drop-divider" aria-hidden="true">
-                <ArrowFatRight size={24} weight="fill" />
-              </div>
+              {isKeyframesMode ? (
+                <div className="reference-drop-divider" aria-hidden="true">
+                  <ArrowFatRight size={24} weight="fill" />
+                </div>
+              ) : null}
               <div className="primary-drop">
                 <div
                   className={`reference-dropzone ${extraImageUrls[0] ? "has-preview" : ""} ${extraDragActive[0] ? "is-dragging" : ""}`}

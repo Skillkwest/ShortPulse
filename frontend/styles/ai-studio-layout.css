@@ -866,30 +866,30 @@ body:has(.ai-studio-page[data-selected-tool="canvas"]) {
 }
 
 .ai-shell.ai-shell-resizable {
-  grid-template-columns: var(--ai-shell-left-width, minmax(420px, 1.2fr)) var(
-      --ai-shell-divider-track-width
-    ) minmax(var(--ai-shell-right-min-width, 320px), 1fr);
+  grid-template-columns:
+    var(--ai-shell-left-width, minmax(420px, 1.2fr)) var(--ai-shell-divider-track-width)
+    minmax(var(--ai-shell-right-min-width, 320px), 1fr);
   gap: 0;
   transition: grid-template-columns 240ms cubic-bezier(0.22, 0.61, 0.36, 1);
 }
 
 .ai-shell.ai-shell-resizable.ai-shell-character-open {
-  grid-template-columns: var(--ai-shell-left-width, minmax(1060px, 1.28fr)) var(
-      --ai-shell-divider-track-width
-    ) minmax(var(--ai-shell-right-min-width, 320px), 1fr);
+  grid-template-columns:
+    var(--ai-shell-left-width, minmax(1060px, 1.28fr)) var(--ai-shell-divider-track-width)
+    minmax(var(--ai-shell-right-min-width, 320px), 1fr);
   transition: none;
 }
 
 .ai-shell.ai-shell-resizable.ai-shell-expert-create {
-  grid-template-columns: var(--ai-shell-left-width, minmax(840px, 1000px)) var(
-      --ai-shell-divider-track-width
-    ) minmax(var(--ai-shell-right-min-width, 320px), 1fr);
+  grid-template-columns:
+    var(--ai-shell-left-width, minmax(840px, 1000px)) var(--ai-shell-divider-track-width)
+    minmax(var(--ai-shell-right-min-width, 320px), 1fr);
 }
 
 .ai-shell.ai-shell-resizable.ai-shell-expert-edit {
-  grid-template-columns: var(--ai-shell-left-width, minmax(930px, 1.28fr)) var(
-      --ai-shell-divider-track-width
-    ) minmax(var(--ai-shell-right-min-width, 320px), 1fr);
+  grid-template-columns:
+    var(--ai-shell-left-width, minmax(930px, 1.28fr)) var(--ai-shell-divider-track-width)
+    minmax(var(--ai-shell-right-min-width, 320px), 1fr);
   transition: grid-template-columns 240ms cubic-bezier(0.22, 0.61, 0.36, 1);
 }
 
@@ -1097,7 +1097,10 @@ body.ai-shell-resizing * {
 .ai-studio-page[data-beginner-mode="off"][data-selected-tool="create"]
   .panel.ai-panel.ai-properties,
 .ai-studio-page[data-beginner-mode="off"][data-selected-tool="text"] .panel.ai-panel.ai-properties,
-.ai-studio-page[data-beginner-mode="off"][data-selected-tool="edit"] .panel.ai-panel.ai-properties {
+.ai-studio-page[data-beginner-mode="off"][data-selected-tool="edit"] .panel.ai-panel.ai-properties,
+.ai-studio-page[data-beginner-mode="off"][data-selected-tool="video"] .panel.ai-panel.ai-properties,
+.ai-studio-page[data-beginner-mode="off"][data-selected-tool="kling"]
+  .panel.ai-panel.ai-properties {
   background: #94a0a108;
   border: 0;
   box-shadow: none;
@@ -1111,7 +1114,10 @@ body.ai-shell-resizing * {
 
 .ai-studio-page[data-beginner-mode="off"][data-selected-tool="create"]
   .panel.ai-panel.ai-properties,
-.ai-studio-page[data-beginner-mode="off"][data-selected-tool="edit"] .panel.ai-panel.ai-properties {
+.ai-studio-page[data-beginner-mode="off"][data-selected-tool="edit"] .panel.ai-panel.ai-properties,
+.ai-studio-page[data-beginner-mode="off"][data-selected-tool="video"] .panel.ai-panel.ai-properties,
+.ai-studio-page[data-beginner-mode="off"][data-selected-tool="kling"]
+  .panel.ai-panel.ai-properties {
   min-height: calc(var(--ai-shell-column-max-height) + 12px);
   max-height: calc(var(--ai-shell-column-max-height) + 12px);
 }

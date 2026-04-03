@@ -28,7 +28,7 @@ const DEFAULT_SHARED_ASPECT = "9:16";
 
 type WorkflowSettingsKey = "create" | "edit" | "video" | "kling";
 
-type VideoReferenceMode = "standard" | "keyframes" | "kling3" | "motion";
+type VideoReferenceMode = "standard" | "modify" | "keyframes" | "kling3" | "motion";
 type KlingShotType = "customize" | "intelligent";
 type KlingPromptShot = { id: string; prompt: string; duration: number };
 type KlingElement = {
@@ -106,6 +106,7 @@ const cloneWorkflowSettingsSnapshot = (
       : defaults.imageResolution,
   videoReferenceMode:
     snapshot?.videoReferenceMode === "standard" ||
+    snapshot?.videoReferenceMode === "modify" ||
     snapshot?.videoReferenceMode === "keyframes" ||
     snapshot?.videoReferenceMode === "kling3" ||
     snapshot?.videoReferenceMode === "motion"

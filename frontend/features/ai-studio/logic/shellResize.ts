@@ -4,6 +4,7 @@
  */
 
 export const AI_SHELL_LEFT_MIN_PX = 640;
+export const AI_SHELL_LEFT_VIDEO_MIN_PX = 760;
 export const AI_SHELL_LEFT_EXPERT_CREATE_MIN_PX = 840;
 export const AI_SHELL_LEFT_EXPERT_EDIT_MIN_PX = 930;
 export const AI_SHELL_LEFT_EXPERT_CREATE_MAX_PX = 1000;

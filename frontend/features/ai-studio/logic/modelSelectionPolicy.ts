@@ -18,7 +18,12 @@ import {
 export { CREATE_DEFAULT_MODEL_ID };
 export const EDIT_DEFAULT_MODEL_ID = CREATE_CHARACTER_MODE_DEFAULT_MODEL_ID;
 
-export type ModelSelectionVideoReferenceMode = "standard" | "keyframes" | "kling3" | "motion";
+export type ModelSelectionVideoReferenceMode =
+  | "standard"
+  | "modify"
+  | "keyframes"
+  | "kling3"
+  | "motion";
 
 type ModelConfigLike = {
   supportsImageToImage?: boolean;

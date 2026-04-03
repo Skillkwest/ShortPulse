@@ -61,7 +61,7 @@ export type PromptStepProps = {
   chatModeInlineGenerate?: PromptStepInlineGenerateConfig;
   useAgentResponseInlineGeneratePrefab?: boolean;
   // Actions
-  onSavePrompt: (customPrompt?: string) => void;
+  onSavePrompt?: (customPrompt?: string) => void;
   // State / UI
   isCollapsed: boolean;
   onToggleCollapse: () => void;
@@ -97,4 +97,5 @@ export type PromptStepProps = {
   disableOutputGenerate?: boolean;
   outputGenerateCostCredits?: number | null;
   outputGenerateGuardrailReason?: string | null;
+  hideHeader?: boolean;
 };

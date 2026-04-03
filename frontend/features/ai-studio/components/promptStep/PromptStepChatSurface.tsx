@@ -83,7 +83,7 @@ type PromptStepChatSurfaceProps = {
   embedSendButtonInInput: boolean;
   handleAgentSendClick: () => void;
   agentIsSending: boolean;
-  onSavePrompt: (customPrompt?: string) => void;
+  onSavePrompt?: (customPrompt?: string) => void;
   shouldDisableChatPin: boolean;
   showBeginnerChatPinTip: boolean;
   beginnerPinHelperText?: string;
@@ -500,7 +500,7 @@ export const PromptStepChatSurface: React.FC<PromptStepChatSurfaceProps> = ({
               className="agent-send-prefab--labeled"
             />
           ) : null}
-          {!showBeginnerChatPinTip ? (
+          {!showBeginnerChatPinTip && onSavePrompt ? (
             <AgentSaveButton
               onClick={() => onSavePrompt(agentInput)}
               disabled={shouldDisableChatPin}
@@ -511,7 +511,7 @@ export const PromptStepChatSurface: React.FC<PromptStepChatSurfaceProps> = ({
           ) : null}
         </div>
       </div>
-      {showBeginnerChatPinTip ? (
+      {showBeginnerChatPinTip && onSavePrompt ? (
         <div className="agent-composer-tip-row">
           <p className="tiny helper-text beginner-pin-helper create-beginner-pin-helper">
             <span className="beginner-pin-helper-prefix">Tip:</span>

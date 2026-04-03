@@ -6,7 +6,7 @@ import { resolveAiStudioAllowedModelOptions } from "../logic/modelSelectionPolic
 
 type UseAiStudioAllowedModelOptionsArgs = {
   selectedTool: ToolId | null;
-  videoReferenceMode: "standard" | "keyframes" | "kling3" | "motion";
+  videoReferenceMode: "standard" | "modify" | "keyframes" | "kling3" | "motion";
   mode: StudioMode;
   isCharacterModeEnabled?: boolean;
 };

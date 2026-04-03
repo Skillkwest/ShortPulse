@@ -32,7 +32,7 @@ export type BaseSubmissionArgs = {
 };
 
 export type VideoSubmissionArgs = BaseSubmissionArgs & {
-  videoReferenceMode: "standard" | "keyframes" | "kling3" | "motion";
+  videoReferenceMode: "standard" | "modify" | "keyframes" | "kling3" | "motion";
   videoReferenceImageUrl: string | null;
   motionReferenceVideoUrl: string | null;
   videoAutoFix: boolean;

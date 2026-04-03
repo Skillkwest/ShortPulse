@@ -33,7 +33,7 @@ type UseAiStudioSessionSnapshotControllerParams = {
   extraImageUrls: [string | null, string | null, string | null];
   editReferenceText: string;
   videoReferenceText: string;
-  videoReferenceMode: "standard" | "keyframes" | "kling3" | "motion";
+  videoReferenceMode: "standard" | "modify" | "keyframes" | "kling3" | "motion";
   videoDurationSeconds: number;
   videoResolution: string;
   imageResolution: string;
@@ -67,7 +67,9 @@ type UseAiStudioSessionSnapshotControllerParams = {
   setExtraImageUrl: (index: number, value: string | null) => void;
   setEditReferenceText: (value: string) => void;
   setVideoReferenceText: (value: string) => void;
-  setVideoReferenceMode: Dispatch<SetStateAction<"standard" | "keyframes" | "kling3" | "motion">>;
+  setVideoReferenceMode: Dispatch<
+    SetStateAction<"standard" | "modify" | "keyframes" | "kling3" | "motion">
+  >;
   setVideoDurationSeconds: Dispatch<SetStateAction<number>>;
   setVideoResolution: Dispatch<SetStateAction<string>>;
   setImageResolution: Dispatch<SetStateAction<string>>;

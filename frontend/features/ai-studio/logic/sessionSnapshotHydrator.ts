@@ -74,8 +74,14 @@ const asToolId = (value: unknown): ToolId | null => {
   return TOOL_IDS.has(value as ToolId) ? (value as ToolId) : null;
 };
 
-const asVideoReferenceMode = (value: unknown): "standard" | "keyframes" | "kling3" | "motion" => {
-  return value === "standard" || value === "keyframes" || value === "kling3" || value === "motion"
+const asVideoReferenceMode = (
+  value: unknown
+): "standard" | "modify" | "keyframes" | "kling3" | "motion" => {
+  return value === "standard" ||
+    value === "modify" ||
+    value === "keyframes" ||
+    value === "kling3" ||
+    value === "motion"
     ? value
     : FALLBACK_VIDEO_REFERENCE_MODE;
 };
@@ -320,7 +326,7 @@ export type AiStudioSessionHydrationPayload = {
     extraImageUrls: [string | null, string | null, string | null];
     editReferenceText: string;
     videoReferenceText: string;
-    videoReferenceMode: "standard" | "keyframes" | "kling3" | "motion";
+    videoReferenceMode: "standard" | "modify" | "keyframes" | "kling3" | "motion";
     videoDurationSeconds: number;
     videoResolution: string;
     imageResolution: string;

@@ -12,8 +12,10 @@ type UseAiStudioVideoPanelPropsParams = {
   currentModelLabel: string;
   referenceImageUrl: string | null;
   extraImageUrls: [string | null, string | null, string | null];
-  videoReferenceMode: "standard" | "keyframes" | "kling3" | "motion";
-  setVideoReferenceMode: Dispatch<SetStateAction<"standard" | "keyframes" | "kling3" | "motion">>;
+  videoReferenceMode: "standard" | "modify" | "keyframes" | "kling3" | "motion";
+  setVideoReferenceMode: Dispatch<
+    SetStateAction<"standard" | "modify" | "keyframes" | "kling3" | "motion">
+  >;
   videoDurationSeconds: number;
   videoResolution: string;
   videoGenerateAudio: boolean;

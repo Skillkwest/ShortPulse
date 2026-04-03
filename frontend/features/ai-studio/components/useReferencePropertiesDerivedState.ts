@@ -10,7 +10,7 @@ import {
   KIE_VEO_31_FAST_I2V_MODEL_ID,
 } from "../../../lib/model-runtime/providerModelIds";
 
-type VideoReferenceMode = "standard" | "keyframes" | "kling3" | "motion";
+type VideoReferenceMode = "standard" | "modify" | "keyframes" | "kling3" | "motion";
 
 type KlingMultiPrompt = {
   id: string;
@@ -74,7 +74,8 @@ export const useReferencePropertiesDerivedState = ({
   const isKling3Mode = isVideoVariant && activeVideoMode === "kling3";
   const isKeyframesMode = isVideoVariant && activeVideoMode === "keyframes";
   const isMotionMode = isVideoVariant && activeVideoMode === "motion";
-  const isStandardMode = !isVideoVariant || activeVideoMode === "standard";
+  const isStandardMode =
+    !isVideoVariant || activeVideoMode === "standard" || activeVideoMode === "modify";
 
   const isVeoImageToVideoModel =
     modelId === "fal-ai/veo3.1/image-to-video" || modelId === KIE_VEO_31_FAST_I2V_MODEL_ID;
@@ -109,26 +110,45 @@ export const useReferencePropertiesDerivedState = ({
           : "Upload or drag and drop a single image for standard image-to-video."
     : "Upload or drag and drop images from the reference grid.";
 
-  const promptOrder = 2;
+  const promptOrder = 3;
+  const multiShotOrder =
+    isVideoVariant && modelId === KIE_KLING_30_MODEL_ID && !isMotionMode ? 3 : undefined;
   const modelOrder = 3;
   const imageSettingsOrder = isVideoVariant ? 0 : 4;
-  const referenceOrder = 1;
-  const referenceBadge = "1";
-  const promptBadge = "2";
+  const referenceOrder = 2;
+  const referenceBadge = "2";
+  const promptBadge = "3";
   const modelBadge = "3";
   const imageSettingsBadge = "4";
-  const videoSettingsOrder = isVideoVariant && !isMotionMode ? 4 : 0;
-  const videoSettingsBadge = "4";
-  const motionAudioOrder = isVideoVariant && isMotionMode ? 3 : 0;
-  const motionAudioBadge = "3";
+  const videoSettingsOrder = isVideoVariant && !isMotionMode ? 1 : 0;
+  const videoSettingsBadge = "1";
+  const motionAudioOrder = isVideoVariant && isMotionMode ? 1 : 0;
+  const motionAudioBadge = "1";
   const klingAdvancedOrder = isKling3Mode ? 5 : undefined;
   const klingAdvancedBadge = "5";
   const klingAssetsOrder = isKling3Mode ? 6 : undefined;
   const klingAssetsBadge = "6";
   const klingGuidanceOrder = isKling3Mode ? 7 : undefined;
   const klingGuidanceBadge = "7";
-  const generateOrder = isVideoVariant ? (isMotionMode ? 4 : isKling3Mode ? 8 : 5) : 5;
-  const generateBadge = isVideoVariant ? (isMotionMode ? "4" : isKling3Mode ? "8" : "5") : "4";
+  const effectivePromptOrder = multiShotOrder != null ? 4 : promptOrder;
+  const generateOrder = isVideoVariant
+    ? isMotionMode
+      ? 4
+      : isKling3Mode
+        ? 8
+        : multiShotOrder != null
+          ? 5
+          : 4
+    : 5;
+  const generateBadge = isVideoVariant
+    ? isMotionMode
+      ? "4"
+      : isKling3Mode
+        ? "8"
+        : multiShotOrder != null
+          ? "5"
+          : "4"
+    : "4";
 
   const klingShotSummary = klingMultiPrompts.length
     ? `${klingMultiPrompts.length} shot${klingMultiPrompts.length > 1 ? "s" : ""}`
@@ -165,13 +185,17 @@ export const useReferencePropertiesDerivedState = ({
 
   const resolutionOptions = useMemo(() => {
     if (!modelConfig?.allowedResolutions?.length) {
-      return [];
+      return isVideoVariant
+        ? VIDEO_RESOLUTION_OPTIONS.filter(
+            (option) => option.value === "720p" || option.value === "1080p"
+          )
+        : [];
     }
 
     return VIDEO_RESOLUTION_OPTIONS.filter((option) =>
       modelConfig.allowedResolutions?.includes(option.value)
     );
-  }, [modelConfig]);
+  }, [isVideoVariant, modelConfig]);
 
   const aspectOptionsForModel = useMemo(() => {
     if (!modelConfig) return aspectOptions;
@@ -195,7 +219,8 @@ export const useReferencePropertiesDerivedState = ({
     isKling3Model,
     referenceStepTitle,
     referenceStepSubtitle,
-    promptOrder,
+    promptOrder: effectivePromptOrder,
+    multiShotOrder,
     modelOrder,
     imageSettingsOrder,
     referenceOrder,

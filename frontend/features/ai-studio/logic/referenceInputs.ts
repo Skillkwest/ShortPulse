@@ -3,7 +3,7 @@
  */
 import type { ToolId } from "../types";
 
-type VideoReferenceMode = "standard" | "keyframes" | "kling3" | "motion";
+type VideoReferenceMode = "standard" | "modify" | "keyframes" | "kling3" | "motion";
 
 const isImageTool = (tool: ToolId | null): boolean => tool === "image" || tool === "edit";
 const isVideoTool = (tool: ToolId | null): boolean => tool === "video" || tool === "kling";

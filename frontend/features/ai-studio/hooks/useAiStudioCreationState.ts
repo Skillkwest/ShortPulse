@@ -27,8 +27,10 @@ export type UseAiStudioCreationStateResult = {
   setVideoReferenceTextState: Dispatch<SetStateAction<string>>;
   expertEditSessionState: ExpertEditSessionState | null;
   setExpertEditSessionState: Dispatch<SetStateAction<ExpertEditSessionState | null>>;
-  videoReferenceMode: "standard" | "keyframes" | "kling3" | "motion";
-  setVideoReferenceMode: Dispatch<SetStateAction<"standard" | "keyframes" | "kling3" | "motion">>;
+  videoReferenceMode: "standard" | "modify" | "keyframes" | "kling3" | "motion";
+  setVideoReferenceMode: Dispatch<
+    SetStateAction<"standard" | "modify" | "keyframes" | "kling3" | "motion">
+  >;
   videoDurationSeconds: number;
   setVideoDurationSeconds: Dispatch<SetStateAction<number>>;
   videoResolution: string;
@@ -77,7 +79,9 @@ export type UseAiStudioCreationStateResult = {
   setUiError: Dispatch<SetStateAction<string | null>>;
   uiNotice: string | null;
   setUiNotice: Dispatch<SetStateAction<string | null>>;
-  lastVideoReferenceModeRef: MutableRefObject<"standard" | "keyframes" | "kling3" | "motion">;
+  lastVideoReferenceModeRef: MutableRefObject<
+    "standard" | "modify" | "keyframes" | "kling3" | "motion"
+  >;
   lastNonKling3VideoModelRef: MutableRefObject<string | null>;
   lastNonKeyframesVideoModelRef: MutableRefObject<string | null>;
   lastNonMotionVideoModelRef: MutableRefObject<string | null>;
@@ -95,7 +99,7 @@ export const useAiStudioCreationState = (): UseAiStudioCreationStateResult => {
   const [expertEditSessionState, setExpertEditSessionState] =
     useState<ExpertEditSessionState | null>(null);
   const [videoReferenceMode, setVideoReferenceMode] = useState<
-    "standard" | "keyframes" | "kling3" | "motion"
+    "standard" | "modify" | "keyframes" | "kling3" | "motion"
   >("standard");
   const [videoDurationSeconds, setVideoDurationSeconds] = useState<number>(() =>
     readSessionStorageNumberPreference(VIDEO_DURATION_STORAGE_KEY, 6)

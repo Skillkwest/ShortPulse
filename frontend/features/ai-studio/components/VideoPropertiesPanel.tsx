@@ -8,12 +8,12 @@ import type { ModelModalContext } from "./ModelModal";
 import { ReferenceGenerateStep } from "./ReferenceGenerateStep";
 import { ReferenceKlingAdvancedSteps } from "./ReferenceKlingAdvancedSteps";
 import { ReferenceMediaStep } from "./ReferenceMediaStep";
-import { ReferenceModelStep } from "./ReferenceModelStep";
 import { ReferencePromptStep } from "./ReferencePromptStep";
 import { useReferencePropertiesConstraintEffects } from "./useReferencePropertiesConstraintEffects";
 import { useReferencePropertiesDerivedState } from "./useReferencePropertiesDerivedState";
 import { ReferenceVideoSettingsStep } from "./ReferenceVideoSettingsStep";
 import { useReferencePropertiesInteractions } from "./useReferencePropertiesInteractions";
+import { KIE_KLING_30_MODEL_ID } from "../../../lib/model-runtime/providerModelIds";
 
 export type VideoPropertiesPanelProps = {
   aspect: string;
@@ -22,8 +22,10 @@ export type VideoPropertiesPanelProps = {
   referenceImageUrl: string | null;
   extraImageUrls: [string | null, string | null, string | null];
   referenceText: string | null;
-  videoReferenceMode?: "standard" | "keyframes" | "kling3" | "motion";
-  onVideoReferenceModeChange?: (value: "standard" | "keyframes" | "kling3" | "motion") => void;
+  videoReferenceMode?: "standard" | "modify" | "keyframes" | "kling3" | "motion";
+  onVideoReferenceModeChange?: (
+    value: "standard" | "modify" | "keyframes" | "kling3" | "motion"
+  ) => void;
   klingNegativePrompt?: string;
   klingCfgScale?: number;
   klingShotType?: "customize" | "intelligent";
@@ -124,7 +126,6 @@ export function VideoPropertiesPanel({
   onPrimaryImageChange,
   onExtraImageChange,
   onPromptTextChange,
-  onSave,
   onRegenerate,
   resolvePreviewUrlById,
   costCredits,
@@ -149,8 +150,6 @@ export function VideoPropertiesPanel({
     collapsedSteps,
     toggleStep,
     expandIfCollapsed,
-    canSwapFrames,
-    handleSwapFrames,
     updateKlingMultiPrompt,
     addKlingShot,
     removeKlingShot,
@@ -194,19 +193,14 @@ export function VideoPropertiesPanel({
     isVeoFirstLastModel,
     isSeedanceI2VModel,
     isVeoModel,
-    isKling3Model,
     referenceStepTitle,
     referenceStepSubtitle,
     promptOrder,
-    modelOrder,
     referenceOrder,
     referenceBadge,
     promptBadge,
-    modelBadge,
     videoSettingsOrder,
-    videoSettingsBadge,
     motionAudioOrder,
-    motionAudioBadge,
     klingAdvancedOrder,
     klingAdvancedBadge,
     klingAssetsOrder,
@@ -252,192 +246,248 @@ export function VideoPropertiesPanel({
     onImageResolutionChange: undefined,
   });
 
+  const isKieKlingWorkspace = isKling3Mode && modelId === "kie-ai/kling-3.0";
+  const isKieKlingModelSelected = modelId === KIE_KLING_30_MODEL_ID;
+  React.useEffect(() => {
+    if (activeVideoMode === "keyframes") {
+      onVideoReferenceModeChange?.("standard");
+    }
+  }, [activeVideoMode, onVideoReferenceModeChange]);
+
+  const visibleVideoMode =
+    activeVideoMode === "motion" ? "motion" : activeVideoMode === "modify" ? "modify" : "standard";
+  const videoModeIndex =
+    visibleVideoMode === "standard" ? 0 : visibleVideoMode === "motion" ? 1 : 2;
+  const videoModeTabsStyle = React.useMemo(
+    () =>
+      ({
+        "--video-reference-mode-index": videoModeIndex,
+      }) as React.CSSProperties,
+    [videoModeIndex]
+  );
+  const isMultiShotEnabled = klingMultiPrompts.length > 0;
+  const handleToggleMultiShot = React.useCallback(() => {
+    if (!onKlingMultiPromptsChange) return;
+    if (isMultiShotEnabled) {
+      onKlingMultiPromptsChange([]);
+      return;
+    }
+    const nextId =
+      typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+        ? crypto.randomUUID()
+        : `kling-${Math.random().toString(36).slice(2, 9)}`;
+    onKlingMultiPromptsChange([
+      {
+        id: nextId,
+        prompt: referenceText?.trim() ?? "",
+        duration: videoDurationValue,
+      },
+    ]);
+  }, [isMultiShotEnabled, onKlingMultiPromptsChange, referenceText, videoDurationValue]);
+
   return (
     <div className="tool-properties reference-properties-panel video-properties-panel">
-      <div className="tool-header">
-        <p className="eyebrow">Video</p>
-        <p className="subdued tiny helper-text">
-          Animate still images using reference inputs and prompts.
-        </p>
-      </div>
-      <div className="reference-drop-layout-inner">
-        <ReferencePromptStep
-          promptBadge={promptBadge}
-          promptOrder={promptOrder}
-          referenceText={referenceText}
-          onPromptTextChange={onPromptTextChange}
-          onSave={onSave}
-          collapsed={collapsedSteps.prompt}
-          onToggleCollapse={() => toggleStep("prompt")}
-          onDrop={handlePromptDrop}
-          beginnerMode={beginnerMode}
-          agentIsSending={agentIsSending}
-          agentError={agentError}
-          onAgentEnhanceSend={onAgentEnhanceSend}
-          showEnhanceButton={false}
-          beginnerHelperText="Direct the shot: describe the subject, motion, camera movement, and mood you want in the clip."
-          beginnerPinHelperText="Click this button to pin your prompt to the reference grid."
-          promptSaveButtonClassName="video-reference-pin-btn"
-          promptSaveButtonUnstyled
-        />
-        {!isMotionMode ? (
-          <ReferenceModelStep
-            variant="video"
-            isVideoVariant={true}
-            isKeyframesMode={isKeyframesMode}
+      <div className="video-properties-workspace">
+        <div className="reference-drop-layout-inner video-properties-primary-column">
+          <div className="video-setup-columns">
+            <div className="video-setup-column video-setup-column--left">
+              <ReferenceMediaStep
+                referenceOrder={referenceOrder}
+                referenceBadge={referenceBadge}
+                collapsedReference={collapsedSteps.reference}
+                onExpandReference={() => expandIfCollapsed("reference")}
+                onToggleReference={() => toggleStep("reference")}
+                beginnerMode={beginnerMode}
+                isVideoVariant={true}
+                referenceStepTitle={referenceStepTitle}
+                referenceStepSubtitle={referenceStepSubtitle}
+                isMotionMode={isMotionMode}
+                isKling3Mode={isKling3Mode}
+                isStandardMode={isStandardMode}
+                isKeyframesMode={isKeyframesMode}
+                referenceImageUrl={referenceImageUrl}
+                extraImageUrls={extraImageUrls}
+                motionVideoUrl={motionVideoUrl}
+                primaryDragActive={primaryDragActive}
+                extraDragActive={extraDragActive}
+                motionVideoDragActive={motionVideoDragActive}
+                setMotionVideoDragActive={setMotionVideoDragActive}
+                handlePrimaryDrop={handlePrimaryDrop}
+                handlePrimaryDragEnter={handlePrimaryDragEnter}
+                handlePrimaryDragOver={handlePrimaryDragOver}
+                handlePrimaryDragLeave={handlePrimaryDragLeave}
+                handleExtraDrop={handleExtraDrop}
+                handleExtraDragEnter={handleExtraDragEnter}
+                handleExtraDragOver={handleExtraDragOver}
+                handleExtraDragLeave={handleExtraDragLeave}
+                allowVideoDrag={allowVideoDrag}
+                handleMotionVideoDrop={handleMotionVideoDrop}
+                primaryInputRef={primaryInputRef}
+                extraOneInputRef={extraOneInputRef}
+                extraTwoInputRef={extraTwoInputRef}
+                extraThreeInputRef={extraThreeInputRef}
+                motionVideoInputRef={motionVideoInputRef}
+                onPrimaryImageChange={onPrimaryImageChange}
+                onExtraImageChange={onExtraImageChange}
+                onMotionVideoChange={onMotionVideoChange}
+                handleFileSelection={handleFileSelection}
+                handleMotionVideoSelection={handleMotionVideoSelection}
+                topContent={
+                  <div
+                    className="video-reference-mode-tabs"
+                    role="tablist"
+                    aria-label="Video reference mode"
+                    style={videoModeTabsStyle}
+                  >
+                    <span className="video-reference-mode-indicator" aria-hidden="true" />
+                    <button
+                      type="button"
+                      role="tab"
+                      aria-selected={visibleVideoMode === "standard"}
+                      className={`video-reference-mode-tab ${visibleVideoMode === "standard" ? "is-active" : ""}`}
+                      onClick={() => onVideoReferenceModeChange?.("standard")}
+                    >
+                      Standard
+                    </button>
+                    <button
+                      type="button"
+                      role="tab"
+                      aria-selected={visibleVideoMode === "motion"}
+                      className={`video-reference-mode-tab ${visibleVideoMode === "motion" ? "is-active" : ""}`}
+                      onClick={() => onVideoReferenceModeChange?.("motion")}
+                    >
+                      Motion Control
+                    </button>
+                    <button
+                      type="button"
+                      role="tab"
+                      aria-selected={visibleVideoMode === "modify"}
+                      className={`video-reference-mode-tab ${visibleVideoMode === "modify" ? "is-active" : ""}`}
+                      onClick={() => onVideoReferenceModeChange?.("modify")}
+                    >
+                      Modify
+                    </button>
+                  </div>
+                }
+              />
+            </div>
+            <div className="video-setup-column video-setup-column--right">
+              <ReferenceVideoSettingsStep
+                isVideoVariant={true}
+                isMotionMode={isMotionMode}
+                showMultiShotToggle={isKieKlingModelSelected}
+                multiShotEnabled={isMultiShotEnabled}
+                multiShotShotCount={klingMultiPrompts.length}
+                modelId={modelId}
+                modelLabel={modelLabel}
+                modelLogoSrc={modelLogoSrc}
+                isModelModalOpen={isModelModalOpen}
+                modelModalAnchor={modelModalAnchor}
+                aspect={aspect}
+                aspectOptionsForModel={aspectOptionsForModel}
+                videoSettingsOrder={videoSettingsOrder}
+                motionAudioOrder={motionAudioOrder}
+                videoDurationValue={videoDurationValue}
+                videoResolutionValue={videoResolutionValue}
+                durationOptions={durationOptions}
+                resolutionOptions={resolutionOptions}
+                videoGenerateAudioValue={videoGenerateAudioValue}
+                isVeoImageToVideoStandard={isVeoImageToVideoStandard}
+                isVeoFirstLastModel={isVeoFirstLastModel}
+                isSeedanceI2VModel={isSeedanceI2VModel}
+                videoCameraFixed={videoCameraFixed}
+                isVeoModel={isVeoModel}
+                videoAutoFix={videoAutoFix}
+                onAspectChange={onAspectChange}
+                onModelPickerOpen={onModelPickerOpen}
+                onVideoDurationChange={onVideoDurationChange}
+                onVideoResolutionChange={onVideoResolutionChange}
+                onVideoGenerateAudioChange={onVideoGenerateAudioChange}
+                onVideoCameraFixedChange={onVideoCameraFixedChange}
+                onVideoAutoFixChange={onVideoAutoFixChange}
+                onToggleMultiShot={handleToggleMultiShot}
+              />
+            </div>
+          </div>
+          <div className="video-prompt-generate-row">
+            <div className="video-prompt-generate-main">
+              <ReferencePromptStep
+                promptBadge={promptBadge}
+                promptOrder={promptOrder}
+                referenceText={referenceText}
+                onPromptTextChange={onPromptTextChange}
+                collapsed={collapsedSteps.prompt}
+                onToggleCollapse={() => toggleStep("prompt")}
+                onDrop={handlePromptDrop}
+                beginnerMode={beginnerMode}
+                agentIsSending={agentIsSending}
+                agentError={agentError}
+                onAgentEnhanceSend={onAgentEnhanceSend}
+                showEnhanceButton={false}
+                hideHeader={true}
+                beginnerHelperText="Direct the shot: describe the subject, motion, camera movement, and mood you want in the clip."
+              />
+            </div>
+            <ReferenceGenerateStep
+              inline
+              beginnerMode={beginnerMode}
+              collapsed={collapsedSteps.generate}
+              generateOrder={generateOrder}
+              generateBadge={generateBadge}
+              onExpand={() => expandIfCollapsed("generate")}
+              onRegenerate={onRegenerate}
+              isGenerateDisabled={
+                isGenerateDisabled ||
+                !referenceText?.trim() ||
+                (activeVideoMode === "standard" && !referenceImageUrl)
+              }
+              isBusy={agentIsSending}
+              costCredits={costCredits}
+              guardrailReason={guardrailReason}
+              promptRequiredMessage={null}
+              suppressInlineGuardrailReason
+            />
+          </div>
+          <ReferenceKlingAdvancedSteps
+            isKling3Mode={isKling3Mode}
+            isKieKlingModel={isKieKlingWorkspace}
             beginnerMode={beginnerMode}
-            modelBadge={modelBadge}
-            collapsed={collapsedSteps.model}
-            modelOrder={modelOrder}
-            modelId={modelId}
-            modelLabel={modelLabel}
-            modelLogoSrc={modelLogoSrc}
-            isModelModalOpen={isModelModalOpen}
-            modelModalAnchor={modelModalAnchor}
-            aspect={aspect}
-            aspectOptionsForModel={aspectOptionsForModel}
-            onExpand={() => expandIfCollapsed("model")}
-            onToggle={() => toggleStep("model")}
-            onAspectChange={onAspectChange}
-            onModelPickerOpen={onModelPickerOpen}
+            klingAdvancedOrder={klingAdvancedOrder}
+            klingAdvancedBadge={klingAdvancedBadge}
+            klingAssetsOrder={klingAssetsOrder}
+            klingAssetsBadge={klingAssetsBadge}
+            klingGuidanceOrder={klingGuidanceOrder}
+            klingGuidanceBadge={klingGuidanceBadge}
+            collapsedKlingAdvanced={collapsedSteps.klingAdvanced}
+            collapsedKlingAssets={collapsedSteps.klingAssets}
+            collapsedKlingGuidance={collapsedSteps.klingGuidance}
+            klingShotSummary={klingShotSummary}
+            klingAssetsSummary={klingAssetsSummary}
+            klingGuidanceSummary={klingGuidanceSummary}
+            klingShotType={klingShotType}
+            klingMultiPrompts={klingMultiPrompts}
+            klingElements={klingElements}
+            klingVoiceIds={klingVoiceIds}
+            klingCfgScale={klingCfgScale}
+            klingNegativePrompt={klingNegativePrompt}
+            onExpandKlingAdvanced={() => expandIfCollapsed("klingAdvanced")}
+            onExpandKlingAssets={() => expandIfCollapsed("klingAssets")}
+            onExpandKlingGuidance={() => expandIfCollapsed("klingGuidance")}
+            onToggleKlingAdvanced={() => toggleStep("klingAdvanced")}
+            onToggleKlingAssets={() => toggleStep("klingAssets")}
+            onToggleKlingGuidance={() => toggleStep("klingGuidance")}
+            onKlingShotTypeChange={onKlingShotTypeChange}
+            onKlingVoiceIdChange={onKlingVoiceIdChange}
+            onKlingCfgScaleChange={onKlingCfgScaleChange}
+            onKlingNegativePromptChange={onKlingNegativePromptChange}
+            addKlingShot={addKlingShot}
+            removeKlingShot={removeKlingShot}
+            updateKlingMultiPrompt={updateKlingMultiPrompt}
+            addKlingElement={addKlingElement}
+            removeKlingElement={removeKlingElement}
+            updateKlingElement={updateKlingElement}
           />
-        ) : null}
-        <ReferenceMediaStep
-          referenceOrder={referenceOrder}
-          referenceBadge={referenceBadge}
-          collapsedReference={collapsedSteps.reference}
-          onExpandReference={() => expandIfCollapsed("reference")}
-          onToggleReference={() => toggleStep("reference")}
-          beginnerMode={beginnerMode}
-          isVideoVariant={true}
-          referenceStepTitle={referenceStepTitle}
-          referenceStepSubtitle={referenceStepSubtitle}
-          activeVideoMode={activeVideoMode}
-          onVideoReferenceModeChange={onVideoReferenceModeChange}
-          isMotionMode={isMotionMode}
-          isKling3Mode={isKling3Mode}
-          isStandardMode={isStandardMode}
-          isKeyframesMode={isKeyframesMode}
-          referenceImageUrl={referenceImageUrl}
-          extraImageUrls={extraImageUrls}
-          motionVideoUrl={motionVideoUrl}
-          primaryDragActive={primaryDragActive}
-          extraDragActive={extraDragActive}
-          motionVideoDragActive={motionVideoDragActive}
-          setMotionVideoDragActive={setMotionVideoDragActive}
-          handlePrimaryDrop={handlePrimaryDrop}
-          handlePrimaryDragEnter={handlePrimaryDragEnter}
-          handlePrimaryDragOver={handlePrimaryDragOver}
-          handlePrimaryDragLeave={handlePrimaryDragLeave}
-          handleExtraDrop={handleExtraDrop}
-          handleExtraDragEnter={handleExtraDragEnter}
-          handleExtraDragOver={handleExtraDragOver}
-          handleExtraDragLeave={handleExtraDragLeave}
-          allowVideoDrag={allowVideoDrag}
-          handleMotionVideoDrop={handleMotionVideoDrop}
-          canSwapFrames={canSwapFrames}
-          handleSwapFrames={handleSwapFrames}
-          primaryInputRef={primaryInputRef}
-          extraOneInputRef={extraOneInputRef}
-          extraTwoInputRef={extraTwoInputRef}
-          extraThreeInputRef={extraThreeInputRef}
-          motionVideoInputRef={motionVideoInputRef}
-          onPrimaryImageChange={onPrimaryImageChange}
-          onExtraImageChange={onExtraImageChange}
-          onMotionVideoChange={onMotionVideoChange}
-          handleFileSelection={handleFileSelection}
-          handleMotionVideoSelection={handleMotionVideoSelection}
-        />
-        <ReferenceVideoSettingsStep
-          isVideoVariant={true}
-          isMotionMode={isMotionMode}
-          beginnerMode={beginnerMode}
-          videoSettingsOrder={videoSettingsOrder}
-          videoSettingsBadge={videoSettingsBadge}
-          motionAudioOrder={motionAudioOrder}
-          motionAudioBadge={motionAudioBadge}
-          collapsedVideoSettings={collapsedSteps.videoSettings}
-          collapsedMotionAudio={collapsedSteps.motionAudio}
-          videoDurationValue={videoDurationValue}
-          videoResolutionValue={videoResolutionValue}
-          durationOptions={durationOptions}
-          resolutionOptions={resolutionOptions}
-          videoGenerateAudioValue={videoGenerateAudioValue}
-          isVeoImageToVideoStandard={isVeoImageToVideoStandard}
-          isVeoFirstLastModel={isVeoFirstLastModel}
-          isSeedanceI2VModel={isSeedanceI2VModel}
-          videoCameraFixed={videoCameraFixed}
-          isKling3Model={isKling3Model}
-          klingShotType={klingShotType}
-          isVeoModel={isVeoModel}
-          videoAutoFix={videoAutoFix}
-          onExpandVideoSettings={() => expandIfCollapsed("videoSettings")}
-          onToggleVideoSettings={() => toggleStep("videoSettings")}
-          onExpandMotionAudio={() => expandIfCollapsed("motionAudio")}
-          onToggleMotionAudio={() => toggleStep("motionAudio")}
-          onVideoDurationChange={onVideoDurationChange}
-          onVideoResolutionChange={onVideoResolutionChange}
-          onVideoGenerateAudioChange={onVideoGenerateAudioChange}
-          onVideoCameraFixedChange={onVideoCameraFixedChange}
-          onKlingShotTypeChange={onKlingShotTypeChange}
-          onVideoAutoFixChange={onVideoAutoFixChange}
-        />
-        <ReferenceKlingAdvancedSteps
-          isKling3Mode={isKling3Mode}
-          beginnerMode={beginnerMode}
-          klingAdvancedOrder={klingAdvancedOrder}
-          klingAdvancedBadge={klingAdvancedBadge}
-          klingAssetsOrder={klingAssetsOrder}
-          klingAssetsBadge={klingAssetsBadge}
-          klingGuidanceOrder={klingGuidanceOrder}
-          klingGuidanceBadge={klingGuidanceBadge}
-          collapsedKlingAdvanced={collapsedSteps.klingAdvanced}
-          collapsedKlingAssets={collapsedSteps.klingAssets}
-          collapsedKlingGuidance={collapsedSteps.klingGuidance}
-          klingShotSummary={klingShotSummary}
-          klingAssetsSummary={klingAssetsSummary}
-          klingGuidanceSummary={klingGuidanceSummary}
-          klingShotType={klingShotType}
-          klingMultiPrompts={klingMultiPrompts}
-          klingElements={klingElements}
-          klingVoiceIds={klingVoiceIds}
-          klingCfgScale={klingCfgScale}
-          klingNegativePrompt={klingNegativePrompt}
-          onExpandKlingAdvanced={() => expandIfCollapsed("klingAdvanced")}
-          onExpandKlingAssets={() => expandIfCollapsed("klingAssets")}
-          onExpandKlingGuidance={() => expandIfCollapsed("klingGuidance")}
-          onToggleKlingAdvanced={() => toggleStep("klingAdvanced")}
-          onToggleKlingAssets={() => toggleStep("klingAssets")}
-          onToggleKlingGuidance={() => toggleStep("klingGuidance")}
-          onKlingShotTypeChange={onKlingShotTypeChange}
-          onKlingVoiceIdChange={onKlingVoiceIdChange}
-          onKlingCfgScaleChange={onKlingCfgScaleChange}
-          onKlingNegativePromptChange={onKlingNegativePromptChange}
-          addKlingShot={addKlingShot}
-          removeKlingShot={removeKlingShot}
-          updateKlingMultiPrompt={updateKlingMultiPrompt}
-          addKlingElement={addKlingElement}
-          removeKlingElement={removeKlingElement}
-          updateKlingElement={updateKlingElement}
-        />
-        <ReferenceGenerateStep
-          beginnerMode={beginnerMode}
-          collapsed={collapsedSteps.generate}
-          generateOrder={generateOrder}
-          generateBadge={generateBadge}
-          onExpand={() => expandIfCollapsed("generate")}
-          onRegenerate={onRegenerate}
-          isGenerateDisabled={
-            isGenerateDisabled ||
-            !referenceText?.trim() ||
-            (activeVideoMode === "standard" && !referenceImageUrl)
-          }
-          isBusy={agentIsSending}
-          costCredits={costCredits}
-          guardrailReason={guardrailReason}
-          promptRequiredMessage={null}
-          suppressInlineGuardrailReason
-        />
+        </div>
       </div>
     </div>
   );

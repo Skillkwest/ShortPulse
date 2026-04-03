@@ -86,6 +86,7 @@ export function PromptStep({
   disableOutputGenerate = false,
   outputGenerateCostCredits = null,
   outputGenerateGuardrailReason = null,
+  hideHeader = false,
 }: PromptStepProps) {
   const [promptMode, setPromptMode] = React.useState<"enhanced" | "chat">(
     chatOnly ? "chat" : "enhanced"
@@ -217,17 +218,19 @@ export function PromptStep({
       onDrop={onDrop}
       onDragOver={onDragOver}
     >
-      <PromptStepHeader
-        beginnerMode={beginnerMode}
-        stepNumber={stepNumber}
-        effectiveTitle={effectiveTitle}
-        visibleSubtitle={visibleSubtitle}
-        chatOnly={chatOnly}
-        isCollapsed={isCollapsed}
-        onToggleCollapse={onToggleCollapse}
-        onClearAgentChat={onClearAgentChat}
-      />
-      {!isCollapsed ? (
+      {!hideHeader ? (
+        <PromptStepHeader
+          beginnerMode={beginnerMode}
+          stepNumber={stepNumber}
+          effectiveTitle={effectiveTitle}
+          visibleSubtitle={visibleSubtitle}
+          chatOnly={chatOnly}
+          isCollapsed={isCollapsed}
+          onToggleCollapse={onToggleCollapse}
+          onClearAgentChat={onClearAgentChat}
+        />
+      ) : null}
+      {!isCollapsed || hideHeader ? (
         canUsePromptSurface ? (
           <>
             {showInlineChat ? (

@@ -18,7 +18,7 @@ type PromptStepEnhancedSurfaceProps = {
   onAgentEnhanceSend?: () => void;
   onAgentSend?: () => void;
   agentIsSending: boolean;
-  onSavePrompt: (customPrompt?: string) => void;
+  onSavePrompt?: (customPrompt?: string) => void;
   shouldDisableSave: boolean;
   promptSaveButtonClassName: string;
   promptSaveButtonUnstyled: boolean;
@@ -82,13 +82,15 @@ export const PromptStepEnhancedSurface: React.FC<PromptStepEnhancedSurfaceProps>
               className="prompt-fab-send"
             />
           ) : null}
-          <AgentSaveButton
-            onClick={onSavePrompt}
-            disabled={shouldDisableSave}
-            ariaLabel={enhanceOnly ? "Pin prompt" : "Save prompt"}
-            className={promptSaveButtonClassName}
-            unstyled={promptSaveButtonUnstyled}
-          />
+          {onSavePrompt ? (
+            <AgentSaveButton
+              onClick={onSavePrompt}
+              disabled={shouldDisableSave}
+              ariaLabel={enhanceOnly ? "Pin prompt" : "Save prompt"}
+              className={promptSaveButtonClassName}
+              unstyled={promptSaveButtonUnstyled}
+            />
+          ) : null}
         </div>
       </div>
     </>

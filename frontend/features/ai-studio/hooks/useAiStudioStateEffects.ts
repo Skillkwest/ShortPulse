@@ -26,7 +26,7 @@ const KEYFRAME_COMPATIBLE_MODELS = new Set([
 ]);
 const allowedUiAspects = new Set(aspectOptions.map((option) => option.value));
 
-type VideoReferenceMode = "standard" | "keyframes" | "kling3" | "motion";
+type VideoReferenceMode = "standard" | "modify" | "keyframes" | "kling3" | "motion";
 
 type UseAiStudioStateEffectsArgs = {
   promptRef: MutableRefObject<HTMLTextAreaElement | null>;

@@ -160,8 +160,10 @@ export type UseAiStudioPanelPropsParams = {
   setExtraImageUrl: (index: number, url: string | null) => void;
   handleEditPromptTextChange: (value: string) => void;
   videoReferenceText: string;
-  videoReferenceMode: "standard" | "keyframes" | "kling3" | "motion";
-  setVideoReferenceMode: Dispatch<SetStateAction<"standard" | "keyframes" | "kling3" | "motion">>;
+  videoReferenceMode: "standard" | "modify" | "keyframes" | "kling3" | "motion";
+  setVideoReferenceMode: Dispatch<
+    SetStateAction<"standard" | "modify" | "keyframes" | "kling3" | "motion">
+  >;
   klingNegativePrompt: string;
   klingCfgScale: number;
   klingShotType: "customize" | "intelligent";

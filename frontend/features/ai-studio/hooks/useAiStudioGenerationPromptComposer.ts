@@ -43,7 +43,7 @@ type UseAiStudioGenerationPromptComposerParams = {
   selectedStylePrompt?: string | null;
   selectedStyleContext?: StudioOutput["styleContext"] | null;
   selectedTool: ToolId | null;
-  videoReferenceMode: "standard" | "keyframes" | "kling3" | "motion";
+  videoReferenceMode: "standard" | "modify" | "keyframes" | "kling3" | "motion";
   useReferenceImageIndicator: boolean;
   activeOutputPreviewUrl: string | null;
   resolveReferenceInputsForTool: (tool: ToolId | null) => {

@@ -91,7 +91,7 @@ type UseAiStudioTaskSubmissionParams = {
   videoDurationSeconds: number;
   videoResolution: string;
   videoGenerateAudio: boolean;
-  videoReferenceMode: "standard" | "keyframes" | "kling3" | "motion";
+  videoReferenceMode: "standard" | "modify" | "keyframes" | "kling3" | "motion";
   videoReferenceImageUrl: string | null;
   motionReferenceVideoUrl: string | null;
   videoCameraFixed: boolean;

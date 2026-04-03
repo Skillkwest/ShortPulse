@@ -28,7 +28,7 @@ type ViewModelInput = {
   getDefaultDurationSeconds: (modelId: string | null) => number;
   videoDurationSeconds: number;
   videoResolution: string;
-  videoReferenceMode: "standard" | "keyframes" | "kling3" | "motion";
+  videoReferenceMode: "standard" | "modify" | "keyframes" | "kling3" | "motion";
   motionReferenceVideoUrl: string | null;
   extraImageUrls: [string | null, string | null, string | null];
   imageResolution: string;

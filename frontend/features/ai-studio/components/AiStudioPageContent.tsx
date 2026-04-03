@@ -61,6 +61,7 @@ import {
   AI_SHELL_LEFT_EXPERT_CREATE_MAX_PX,
   AI_SHELL_LEFT_EXPERT_CREATE_MIN_PX,
   AI_SHELL_LEFT_EXPERT_EDIT_MIN_PX,
+  AI_SHELL_LEFT_VIDEO_MIN_PX,
   AI_SHELL_RIGHT_CANVAS_MIN_PX,
   shouldCollapseAiShellOnToolSelect,
 } from "../logic/shellResize";
@@ -819,11 +820,13 @@ export function AiStudioPageContent({
     FLAG_HIGH_DENSITY_SHELL_MODE && activeCount >= PERFORMANCE_DENSE_REFERENCE_COUNT;
   const minLeftWidthPx = isPrimaryCharacterPanelOpen
     ? AI_SHELL_LEFT_CHARACTER_MIN_PX
-    : showExpertCreatePanel
-      ? AI_SHELL_LEFT_EXPERT_CREATE_MIN_PX
-      : showExpertEditPanel
-        ? AI_SHELL_LEFT_EXPERT_EDIT_MIN_PX
-        : undefined;
+    : selectedTool === "video" || selectedTool === "kling"
+      ? AI_SHELL_LEFT_VIDEO_MIN_PX
+      : showExpertCreatePanel
+        ? AI_SHELL_LEFT_EXPERT_CREATE_MIN_PX
+        : showExpertEditPanel
+          ? AI_SHELL_LEFT_EXPERT_EDIT_MIN_PX
+          : undefined;
   const maxLeftWidthPx = showExpertCreatePanel ? AI_SHELL_LEFT_EXPERT_CREATE_MAX_PX : undefined;
   const minRightWidthPx =
     selectedTool === "canvas" || selectedTool === "media-library"
@@ -875,10 +878,14 @@ export function AiStudioPageContent({
     // Expert Create should always open at its minimum left width when Create is selected.
     const isCreateToolSelected = isCreateWorkflow(selectedTool);
     const shouldCollapseForExpertCreateSelection = showExpertCreatePanel && isCreateToolSelected;
+    const shouldCollapseForVideoSelection =
+      (selectedTool === "video" || selectedTool === "kling") &&
+      previousSelectedTool !== selectedTool;
     const isInitialCanvasSelection = previousSelectedTool == null && selectedTool === "canvas";
     if (
       (!isInitialCanvasSelection &&
         shouldCollapseAiShellOnToolSelect(previousSelectedTool, selectedTool)) ||
+      shouldCollapseForVideoSelection ||
       shouldCollapseForExpertCreateSelection
     ) {
       collapseToMin();

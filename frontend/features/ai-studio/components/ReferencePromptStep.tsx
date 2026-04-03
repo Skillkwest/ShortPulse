@@ -9,7 +9,7 @@ type ReferencePromptStepProps = {
   promptOrder: number;
   referenceText: string | null;
   onPromptTextChange: (value: string) => void;
-  onSave: () => void;
+  onSave?: () => void;
   collapsed: boolean;
   onToggleCollapse: () => void;
   onDrop: (event: React.DragEvent<HTMLDivElement | HTMLTextAreaElement>) => void;
@@ -22,6 +22,7 @@ type ReferencePromptStepProps = {
   beginnerPinHelperText?: string;
   promptSaveButtonClassName?: string;
   promptSaveButtonUnstyled?: boolean;
+  hideHeader?: boolean;
 };
 
 /**
@@ -45,6 +46,7 @@ export const ReferencePromptStep: React.FC<ReferencePromptStepProps> = ({
   beginnerPinHelperText,
   promptSaveButtonClassName,
   promptSaveButtonUnstyled = false,
+  hideHeader = false,
 }) => {
   return (
     <div className="reference-dropzone-block prompt-block" style={{ order: promptOrder }}>
@@ -77,6 +79,7 @@ export const ReferencePromptStep: React.FC<ReferencePromptStepProps> = ({
         beginnerPinHelperText={beginnerPinHelperText}
         promptSaveButtonClassName={promptSaveButtonClassName}
         promptSaveButtonUnstyled={promptSaveButtonUnstyled}
+        hideHeader={hideHeader}
       />
     </div>
   );

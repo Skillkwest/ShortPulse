@@ -38,6 +38,15 @@ describe("submitProviderDispatcher", () => {
         fallbackCount: 0,
         targetCount: 1,
         totalDurationMs: 25,
+        targetAttempts: [
+          {
+            targetIndex: 0,
+            attemptsTried: 1,
+            finalStatus: 200,
+            ok: true,
+            durationMs: 25,
+          },
+        ],
       },
     });
 
@@ -58,6 +67,15 @@ describe("submitProviderDispatcher", () => {
     expect(result.providerDiagnostics).toEqual(
       expect.objectContaining({
         attemptsTried: expect.any(Number),
+        targetAttempts: [
+          expect.objectContaining({
+            targetIndex: 0,
+            attemptsTried: 1,
+            finalStatus: 200,
+            ok: true,
+            durationMs: expect.any(Number),
+          }),
+        ],
       })
     );
   });
@@ -73,6 +91,15 @@ describe("submitProviderDispatcher", () => {
         fallbackCount: 0,
         targetCount: 1,
         totalDurationMs: 25,
+        targetAttempts: [
+          {
+            targetIndex: 0,
+            attemptsTried: 1,
+            finalStatus: 200,
+            ok: true,
+            durationMs: 25,
+          },
+        ],
       },
     });
 
@@ -130,6 +157,15 @@ describe("submitProviderDispatcher", () => {
         fallbackCount: 0,
         targetCount: 1,
         totalDurationMs: expect.any(Number),
+        targetAttempts: [
+          expect.objectContaining({
+            targetIndex: 0,
+            attemptsTried: 1,
+            finalStatus: 200,
+            ok: true,
+            durationMs: expect.any(Number),
+          }),
+        ],
       })
     );
     expect(fetchMock).toHaveBeenCalledWith(
@@ -310,6 +346,15 @@ describe("submitProviderDispatcher", () => {
         fallbackCount: 1,
         targetCount: 2,
         totalDurationMs: expect.any(Number),
+        targetAttempts: expect.arrayContaining([
+          expect.objectContaining({
+            targetIndex: 1,
+            attemptsTried: 1,
+            finalStatus: 200,
+            ok: true,
+            durationMs: expect.any(Number),
+          }),
+        ]),
       })
     );
   });

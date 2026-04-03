@@ -47,6 +47,15 @@ describe("submitEngine trusted target policy", () => {
         fallbackCount: 0,
         targetCount: 1,
         totalDurationMs: expect.any(Number),
+        targetAttempts: [
+          expect.objectContaining({
+            targetIndex: 0,
+            attemptsTried: 1,
+            finalStatus: 200,
+            ok: true,
+            durationMs: expect.any(Number),
+          }),
+        ],
       })
     );
     expect(fetchMock).toHaveBeenCalledTimes(1);

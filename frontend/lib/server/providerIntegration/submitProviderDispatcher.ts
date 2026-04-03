@@ -3,7 +3,11 @@
  * Routes submit calls through provider-specific engines behind a stable contract.
  */
 
-import type { SubmitPayload, SubmitTarget } from "../falIntegration/contracts";
+import type {
+  SubmitPayload,
+  SubmitTarget,
+  SubmitTargetAttemptDiagnostic,
+} from "../falIntegration/contracts";
 import { submitWithFallbackTargets } from "../falIntegration/submitEngine";
 import { readCanonicalProviderRequestId } from "./canonicalProviderPayload";
 import { KIE_KLING_30_MODEL_ID } from "./kieModelIds";
@@ -179,6 +183,15 @@ const submitKieTarget = async ({
           fallbackCount: targetIndex,
           targetCount: 1,
           totalDurationMs: Math.max(0, Date.now() - startedAt),
+          targetAttempts: [
+            {
+              targetIndex,
+              attemptsTried: attempt,
+              finalStatus: normalized.response.status,
+              ok: normalized.response.ok,
+              durationMs: Math.max(0, Date.now() - startedAt),
+            },
+          ] satisfies SubmitTargetAttemptDiagnostic[],
         },
       };
     } catch (error) {
@@ -218,6 +231,7 @@ const submitKieWithFallbackTargets = async ({
   }
   const timeoutSeconds = Math.max(1, Math.trunc(requestStartTimeoutSeconds));
   const attempts = Math.max(1, Math.min(3, Math.trunc(maxAttemptsPerTarget)));
+  const targetAttempts: SubmitTargetAttemptDiagnostic[] = [];
 
   let fallbackFailure: {
     response: Response;
@@ -237,6 +251,11 @@ const submitKieWithFallbackTargets = async ({
       requestStartTimeoutSeconds: timeoutSeconds,
       maxAttemptsPerTarget: attempts,
     });
+    if (Array.isArray(result.diagnostics.targetAttempts)) {
+      targetAttempts.push(
+        ...(result.diagnostics.targetAttempts as SubmitTargetAttemptDiagnostic[])
+      );
+    }
     if (result.response.ok) {
       return {
         ...result,
@@ -244,6 +263,7 @@ const submitKieWithFallbackTargets = async ({
           ...result.diagnostics,
           fallbackCount: index,
           targetCount: targets.length,
+          targetAttempts,
         },
       };
     }
@@ -257,6 +277,7 @@ const submitKieWithFallbackTargets = async ({
         ...fallbackFailure.diagnostics,
         fallbackCount: fallbackFailure.targetIndex,
         targetCount: targets.length,
+        targetAttempts,
       },
     };
   }

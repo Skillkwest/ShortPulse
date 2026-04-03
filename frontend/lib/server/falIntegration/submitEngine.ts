@@ -3,7 +3,7 @@
  * It keeps fallback policy centralized so route handlers stay small.
  */
 
-import type { SubmitPayload, SubmitTarget } from "./contracts";
+import type { SubmitPayload, SubmitTarget, SubmitTargetAttemptDiagnostic } from "./contracts";
 import { assertTrustedFalProviderUrl } from "./providerTrustPolicy";
 
 export type SubmitResult = {
@@ -16,6 +16,7 @@ export type SubmitResult = {
     fallbackCount: number;
     targetCount: number;
     totalDurationMs: number;
+    targetAttempts: SubmitTargetAttemptDiagnostic[];
   };
 };
 
@@ -114,6 +115,15 @@ const runSubmitTarget = async ({
           fallbackCount: targetIndex,
           targetCount: 1,
           totalDurationMs: Math.max(0, Date.now() - startedAt),
+          targetAttempts: [
+            {
+              targetIndex,
+              attemptsTried: attempt,
+              finalStatus: response.status,
+              ok: response.ok,
+              durationMs: Math.max(0, Date.now() - startedAt),
+            },
+          ],
         },
       };
     } catch (error) {
@@ -190,6 +200,10 @@ export const submitWithFallbackTargets = async ({
           ...fallback.diagnostics,
           fallbackCount: offset + 1,
           targetCount: targets.length,
+          targetAttempts: [
+            ...primary.diagnostics.targetAttempts,
+            ...fallback.diagnostics.targetAttempts,
+          ],
         },
       };
     }
@@ -203,6 +217,10 @@ export const submitWithFallbackTargets = async ({
         ...fallbackFailure.diagnostics,
         fallbackCount: fallbackFailure.targetIndex,
         targetCount: targets.length,
+        targetAttempts: [
+          ...primary.diagnostics.targetAttempts,
+          ...fallbackFailure.diagnostics.targetAttempts,
+        ],
       },
     };
   }

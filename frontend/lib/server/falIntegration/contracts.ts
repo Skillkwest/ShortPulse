@@ -22,6 +22,14 @@ export type SubmitTarget = {
   transformPayload?: (payload: SubmitPayload) => SubmitPayload;
 };
 
+export type SubmitTargetAttemptDiagnostic = {
+  targetIndex: number;
+  attemptsTried: number;
+  finalStatus: number | null;
+  ok: boolean;
+  durationMs: number;
+};
+
 export type StatusProbeCandidate = {
   index: number;
   baseUrl: string;

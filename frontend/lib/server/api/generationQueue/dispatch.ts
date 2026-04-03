@@ -60,6 +60,13 @@ type QueueDispatchMetrics = {
   errors: number;
 };
 
+type QueueDispatchItemResult = Pick<
+  QueueDispatchMetrics,
+  "submitted" | "retried" | "requeuedNoCapacity" | "exhausted" | "skipped" | "errors"
+> & {
+  deferredWork?: Promise<void>;
+};
+
 type QueueDispatchContext = Pick<GenerationControlPlaneLogContext, "req" | "routeLabel">;
 
 type QueueDispatchStageTimings = {
@@ -497,12 +504,7 @@ const processClaimedQueueItem = async ({
   item: ClaimedGenerationQueueItem;
   maxAttempts: number;
   baseBackoffSeconds: number;
-}): Promise<
-  Pick<
-    QueueDispatchMetrics,
-    "submitted" | "retried" | "requeuedNoCapacity" | "exhausted" | "skipped" | "errors"
-  >
-> => {
+}): Promise<QueueDispatchItemResult> => {
   const metrics = {
     submitted: 0,
     retried: 0,
@@ -1273,70 +1275,93 @@ const processClaimedQueueItem = async ({
       work: () => removeQueueItem(item.queueId),
     });
     assertQueueMutationApplied({ result: removeResult, step: "queue_remove" });
-    await measureDispatchStage({
-      stageTimings,
-      stage: "projectionSync",
-      work: () =>
-        syncQueueDispatchProjection({
-          displayPrompt: asString(asObject(item.submitPayload).prompt),
-          generationId: item.generationId,
-          modelId: item.modelId,
-          provider,
-          providerRequestId,
-          queueState: "dispatched",
-          requestId: providerRequestId,
-          sourceRef: item.sourceRef,
-          taskState: "running",
-          userId: item.userId,
-        }).catch(async (projectionError) => {
-          await logGenerationFailure({
-            req,
-            routeLabel,
-            source: "telemetry.queue.dispatch.projection_failed",
-            statusCode: 200,
-            message: "Queued generation running projection sync failed.",
-            userId: item.userId,
-            metadata: {
-              queue_id: item.queueId,
-              generation_id: item.generationId,
-              source_ref: item.sourceRef,
-              provider_request_id: providerRequestId,
-              projection_error:
-                projectionError instanceof Error
-                  ? projectionError.message
-                  : String(projectionError),
-            },
-          });
-        }),
-    });
     metrics.submitted += 1;
     const queueLatencyMs = readQueueLatencyMs({
       createdAt: item.createdAt,
       generationMetadata,
       dispatchAtIso,
     });
-    await logGenerationFailure({
-      req,
-      routeLabel,
-      source: "telemetry.queue.dispatch.submitted",
-      statusCode: 200,
-      message: "Queued generation submit dispatched.",
-      userId: item.userId,
-      metadata: {
-        queue_id: item.queueId,
-        generation_id: item.generationId,
-        source_ref: item.sourceRef,
-        attempts: attemptNumber,
-        model_id: item.modelId,
-        provider_request_id: providerRequestId,
-        queue_latency_ms: queueLatencyMs,
-        queue_latency_seconds:
-          typeof queueLatencyMs === "number" ? Math.floor(queueLatencyMs / 1000) : null,
-        dispatch_stage_timings_ms: stageTimings,
-        provider_submit_diagnostics: submitResult.providerDiagnostics,
-      },
-    });
-    return metrics;
+    const deferredWork = (async () => {
+      try {
+        await measureDispatchStage({
+          stageTimings,
+          stage: "projectionSync",
+          work: () =>
+            syncQueueDispatchProjection({
+              displayPrompt: asString(asObject(item.submitPayload).prompt),
+              generationId: item.generationId,
+              modelId: item.modelId,
+              provider,
+              providerRequestId,
+              queueState: "dispatched",
+              requestId: providerRequestId,
+              sourceRef: item.sourceRef,
+              taskState: "running",
+              userId: item.userId,
+            }).catch(async (projectionError) => {
+              await logGenerationFailure({
+                req,
+                routeLabel,
+                source: "telemetry.queue.dispatch.projection_failed",
+                statusCode: 200,
+                message: "Queued generation running projection sync failed.",
+                userId: item.userId,
+                metadata: {
+                  queue_id: item.queueId,
+                  generation_id: item.generationId,
+                  source_ref: item.sourceRef,
+                  provider_request_id: providerRequestId,
+                  projection_error:
+                    projectionError instanceof Error
+                      ? projectionError.message
+                      : String(projectionError),
+                },
+              });
+            }),
+        });
+        await logGenerationFailure({
+          req,
+          routeLabel,
+          source: "telemetry.queue.dispatch.submitted",
+          statusCode: 200,
+          message: "Queued generation submit dispatched.",
+          userId: item.userId,
+          metadata: {
+            queue_id: item.queueId,
+            generation_id: item.generationId,
+            source_ref: item.sourceRef,
+            attempts: attemptNumber,
+            model_id: item.modelId,
+            provider_request_id: providerRequestId,
+            queue_latency_ms: queueLatencyMs,
+            queue_latency_seconds:
+              typeof queueLatencyMs === "number" ? Math.floor(queueLatencyMs / 1000) : null,
+            dispatch_stage_timings_ms: stageTimings,
+            provider_submit_diagnostics: submitResult.providerDiagnostics,
+          },
+        });
+      } catch (tailError) {
+        await logGenerationFailure({
+          req,
+          routeLabel,
+          source: "telemetry.queue.dispatch.tail_failed",
+          statusCode: 200,
+          message: "Queued generation dispatch tail work failed.",
+          userId: item.userId,
+          metadata: {
+            queue_id: item.queueId,
+            generation_id: item.generationId,
+            source_ref: item.sourceRef,
+            provider_request_id: providerRequestId,
+            tail_error: tailError instanceof Error ? tailError.message : String(tailError),
+          },
+        });
+      }
+    })();
+    return {
+      ...metrics,
+      deferredWork,
+    };
   } catch (error) {
     const message = normalizeError(error);
     if (!submitAccepted && isRetryableTransportError(error) && attemptNumber < maxAttempts) {
@@ -1471,6 +1496,7 @@ export const dispatchGenerationSubmitQueueBatch = async ({
     let passRetried = 0;
     let passExhausted = 0;
     let passSkipped = 0;
+    const deferredWork: Promise<void>[] = [];
 
     for (const item of claimed) {
       const result = await processClaimedQueueItem({
@@ -1490,6 +1516,13 @@ export const dispatchGenerationSubmitQueueBatch = async ({
       passRetried += result.retried;
       passExhausted += result.exhausted;
       passSkipped += result.skipped;
+      if (result.deferredWork) {
+        deferredWork.push(result.deferredWork);
+      }
+    }
+
+    if (deferredWork.length) {
+      await Promise.allSettled(deferredWork);
     }
 
     const madeForwardProgress =

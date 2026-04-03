@@ -223,11 +223,13 @@ describe("generationQueue/dispatch transition integrity", () => {
         totalDurationMs: 50,
       },
     });
-    markGenerationReservationSubmittedMock.mockResolvedValue({
-      status: "reserved",
-      sourceRef: "source-1",
-      message: null,
-    });
+    markGenerationReservationSubmittedMock.mockImplementation(
+      async ({ sourceRef }: { sourceRef: string }) => ({
+        status: "reserved",
+        sourceRef,
+        message: null,
+      })
+    );
     markQueueItemExhaustedMock.mockResolvedValue(mutationSuccess("exhaust"));
     releaseQueueLeaseBackToQueuedMock.mockResolvedValue(mutationSuccess("release"));
     removeQueueItemMock.mockResolvedValue(mutationSuccess("remove"));
@@ -914,6 +916,91 @@ describe("generationQueue/dispatch transition integrity", () => {
       randomSpy.mockRestore();
       vi.useRealTimers();
     }
+  });
+
+  it("continues processing later claimed items while earlier projection sync tail work is pending", async () => {
+    let signalFirstProjectionStarted: (() => void) | null = null;
+    const firstProjectionStarted = new Promise<void>((resolve) => {
+      signalFirstProjectionStarted = resolve;
+    });
+    let releaseFirstProjection: (() => void) | null = null;
+    const firstProjectionPending = new Promise<void>((resolve) => {
+      releaseFirstProjection = resolve;
+    });
+
+    seedClaimGenerationSubmitQueueBatches([
+      {
+        ...queueItem,
+        queueId: "queue-1",
+        generationId: "gen-1",
+        userId: "user-1",
+        sourceRef: "source-1",
+      },
+      {
+        ...queueItem,
+        queueId: "queue-2",
+        generationId: "gen-2",
+        userId: "user-2",
+        sourceRef: "source-2",
+      },
+    ]);
+
+    dispatchProviderSubmitMock
+      .mockResolvedValueOnce({
+        response: { ok: true, status: 200 },
+        data: { request_id: "req-1" },
+        providerRequestId: "req-1",
+        targetUrl: "https://fal.test",
+        targetIndex: 0,
+        providerDiagnostics: {
+          attemptsTried: 1,
+          fallbackCount: 0,
+          targetCount: 1,
+          totalDurationMs: 50,
+        },
+      })
+      .mockResolvedValueOnce({
+        response: { ok: true, status: 200 },
+        data: { request_id: "req-2" },
+        providerRequestId: "req-2",
+        targetUrl: "https://fal.test",
+        targetIndex: 0,
+        providerDiagnostics: {
+          attemptsTried: 1,
+          fallbackCount: 0,
+          targetCount: 1,
+          totalDurationMs: 60,
+        },
+      });
+
+    upsertGenerationProjectionMock
+      .mockImplementationOnce(async () => {
+        signalFirstProjectionStarted?.();
+        await firstProjectionPending;
+      })
+      .mockResolvedValueOnce(undefined);
+
+    const dispatchPromise = dispatchGenerationSubmitQueueBatch({
+      req: { method: "GET", headers: {} } as never,
+      routeLabel: "test/dispatch-integrity",
+      limit: 2,
+      userId: null,
+    });
+
+    await firstProjectionStarted;
+    await vi.waitFor(() => {
+      expect(dispatchProviderSubmitMock).toHaveBeenCalledTimes(2);
+    });
+
+    releaseFirstProjection?.();
+
+    await expect(dispatchPromise).resolves.toEqual(
+      expect.objectContaining({
+        claimed: 2,
+        submitted: 2,
+        exhausted: 0,
+      })
+    );
   });
 
   it("emits lease-timeout warning telemetry when lease budget is near submit timeout", async () => {

@@ -68,3 +68,10 @@ Examples:
 - `2026-04-03-p2b-burst-tail-reassessment-stop-check.md`
 - `2026-04-03-p3a-convergence-defect-class-definition.md`
 - `2026-04-03-p3b-recovery-output-write-return-sync.md`
+- `2026-04-03-p3b-recovery-output-write-return-runtime-validation.md`
+- `2026-04-03-p3b-convergence-backlog-replay-operator-tool.md`
+- `2026-04-03-p3b-bounded-backlog-replay-batch-01.md`
+- `2026-04-03-p3b-bounded-backlog-replay-batch-02.md`
+- `2026-04-03-p3b-bounded-backlog-replay-batch-03.md`
+- `2026-04-03-p3b-bounded-backlog-replay-batch-04.md`
+- `2026-04-03-p3b-already-persisted-convergence-backfill.md`

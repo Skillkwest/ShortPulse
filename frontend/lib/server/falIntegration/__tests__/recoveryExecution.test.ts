@@ -186,7 +186,7 @@ describe("executeGenerationRecovery", () => {
     });
   });
 
-  it("returns already persisted without extra writes when generation is already success with media", async () => {
+  it("returns already persisted and backfills projection convergence when generation is already success with media", async () => {
     const scenario = createAiGenerationsAdmin([
       {
         ...baseGenerationRow,
@@ -195,6 +195,14 @@ describe("executeGenerationRecovery", () => {
     ]);
     getSupabaseAdminMock.mockReturnValue(scenario.admin);
     readExistingRecoveryMediaRowsMock.mockResolvedValue([{ id: "media-1", index: 0 }]);
+    readPersistedGenerationOutputsMock.mockResolvedValue([
+      {
+        id: "output-1",
+        outputIndex: 0,
+        resultUrl: "https://cdn.shortpulse.test/already-persisted.png",
+        mediaFileId: "media-1",
+      },
+    ]);
 
     const result = await executeGenerationRecovery({
       actor: "reconciler",
@@ -214,6 +222,21 @@ describe("executeGenerationRecovery", () => {
     expect(scenario.updatePayloads).toHaveLength(0);
     expect(settleGenerationOutcomeMock).not.toHaveBeenCalled();
     expect(probeGenerationProviderResultMock).not.toHaveBeenCalled();
+    expect(upsertGenerationPublicationMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        generationId: "gen-1",
+        generationOutputId: "output-1",
+        publicationState: "published",
+      })
+    );
+    expect(upsertGenerationProjectionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        generationId: "gen-1",
+        taskState: "success",
+        publicationState: "published",
+        resultUrls: ["https://cdn.shortpulse.test/already-persisted.png"],
+      })
+    );
     expect(updateGenerationAttemptStateMock).toHaveBeenCalledWith(
       expect.objectContaining({
         providerRequestId: "req-1",
@@ -955,6 +978,14 @@ describe("executeGenerationRecovery", () => {
     ]);
     getSupabaseAdminMock.mockReturnValue(scenario.admin);
     readExistingRecoveryMediaRowsMock.mockResolvedValue([{ id: "media-1", index: 0 }]);
+    readPersistedGenerationOutputsMock.mockResolvedValue([
+      {
+        id: "output-1",
+        outputIndex: 0,
+        resultUrl: "https://cdn.shortpulse.test/existing-media.png",
+        mediaFileId: "media-1",
+      },
+    ]);
 
     const result = await executeGenerationRecovery({
       actor: "webhook",
@@ -973,6 +1004,21 @@ describe("executeGenerationRecovery", () => {
     expect(settleGenerationOutcomeMock).toHaveBeenCalledWith(
       expect.objectContaining({
         outcome: "success",
+      })
+    );
+    expect(upsertGenerationPublicationMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        generationId: "gen-1",
+        generationOutputId: "output-1",
+        publicationState: "published",
+      })
+    );
+    expect(upsertGenerationProjectionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        generationId: "gen-1",
+        taskState: "success",
+        publicationState: "published",
+        resultUrls: ["https://cdn.shortpulse.test/existing-media.png"],
       })
     );
     expect(scenario.updatePayloads).toHaveLength(1);

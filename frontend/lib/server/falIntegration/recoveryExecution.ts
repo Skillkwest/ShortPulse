@@ -455,6 +455,13 @@ export const executeGenerationRecovery = async ({
   if (generation.status.toLowerCase() === "success") {
     const existingRows = await readExistingRecoveryMediaRows(generation.id);
     if (existingRows.length) {
+      await syncRecoveredGenerationProjection({
+        actor,
+        autosaveDecision: "auto_persisted",
+        generation,
+        mediaFileIds: existingRows.map((row) => row.id),
+        nowIso: generation.completed_at ?? nowIso,
+      });
       await applyRecoveryTransition({
         generation,
         attemptTransition: {
@@ -505,6 +512,13 @@ export const executeGenerationRecovery = async ({
 
   const existingRows = await readExistingRecoveryMediaRows(generation.id);
   if (existingRows.length) {
+    await syncRecoveredGenerationProjection({
+      actor,
+      autosaveDecision: "auto_persisted",
+      generation,
+      mediaFileIds: existingRows.map((row) => row.id),
+      nowIso,
+    });
     await settleGenerationOutcome({
       userId: generation.user_id,
       providerRequestId: generation.request_id,

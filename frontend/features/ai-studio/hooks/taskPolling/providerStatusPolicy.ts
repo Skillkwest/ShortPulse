@@ -22,6 +22,18 @@ export type PollStatus = {
   detail?: unknown;
 };
 
+export type ShortPulseLifecycleHint = {
+  taskState?: string | null;
+  isTerminal?: boolean;
+  resultUrls?: string[];
+  errorMessage?: string | null;
+  errorDetail?: unknown;
+  providerState?: string | null;
+  recoveryPending?: boolean;
+  queueState?: string | null;
+  statusLabel?: string | null;
+};
+
 export const longRunningVideoProviders = new Set<Provider>([
   "fal-kling",
   "fal-kling-3",
@@ -263,4 +275,25 @@ export const classifyProviderSuccess = ({
   const isTerminalSuccess = terminalSuccessStates.has(state);
   const shouldTreatAsSuccess = isTerminalSuccess;
   return { isTerminalSuccess, shouldTreatAsSuccess };
+};
+
+export const readShortPulseLifecycleHint = (value: unknown): ShortPulseLifecycleHint | null => {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const row = value as Record<string, unknown>;
+  const raw = row.shortpulseLifecycle;
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
+  const lifecycle = raw as Record<string, unknown>;
+  return {
+    taskState: typeof lifecycle.taskState === "string" ? lifecycle.taskState : null,
+    isTerminal: lifecycle.isTerminal === true,
+    resultUrls: Array.isArray(lifecycle.resultUrls)
+      ? lifecycle.resultUrls.filter((item): item is string => typeof item === "string")
+      : [],
+    errorMessage: typeof lifecycle.errorMessage === "string" ? lifecycle.errorMessage : null,
+    errorDetail: lifecycle.errorDetail,
+    providerState: typeof lifecycle.providerState === "string" ? lifecycle.providerState : null,
+    recoveryPending: lifecycle.recoveryPending === true,
+    queueState: typeof lifecycle.queueState === "string" ? lifecycle.queueState : null,
+    statusLabel: typeof lifecycle.statusLabel === "string" ? lifecycle.statusLabel : null,
+  };
 };

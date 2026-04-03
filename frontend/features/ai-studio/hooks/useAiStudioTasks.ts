@@ -56,6 +56,8 @@ import {
   looksLikeFailureMessage,
   normalizeProviderStateToTaskState,
   type PollStatus,
+  type ShortPulseLifecycleHint,
+  readShortPulseLifecycleHint,
   resolvePollStatusGenerationId,
   resolveProviderStatusState,
   terminalFailureStates,
@@ -87,18 +89,6 @@ type GenerationFailureContext = {
   noMediaAttempt?: number;
   elapsedMs?: number;
   maxWaitMs?: number;
-};
-
-type ShortPulseLifecycleHint = {
-  taskState?: string | null;
-  isTerminal?: boolean;
-  resultUrls?: string[];
-  errorMessage?: string | null;
-  errorDetail?: unknown;
-  providerState?: string | null;
-  recoveryPending?: boolean;
-  queueState?: string | null;
-  statusLabel?: string | null;
 };
 
 type TaskCallbacks = {
@@ -146,27 +136,6 @@ const areStringArraysEqual = (left: string[] | undefined, right: string[]) => {
   if (!left) return right.length === 0;
   if (left.length !== right.length) return false;
   return left.every((value, index) => value === right[index]);
-};
-
-const readShortPulseLifecycleHint = (value: unknown): ShortPulseLifecycleHint | null => {
-  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
-  const row = value as Record<string, unknown>;
-  const raw = row.shortpulseLifecycle;
-  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
-  const lifecycle = raw as Record<string, unknown>;
-  return {
-    taskState: typeof lifecycle.taskState === "string" ? lifecycle.taskState : null,
-    isTerminal: lifecycle.isTerminal === true,
-    resultUrls: Array.isArray(lifecycle.resultUrls)
-      ? lifecycle.resultUrls.filter((item): item is string => typeof item === "string")
-      : [],
-    errorMessage: typeof lifecycle.errorMessage === "string" ? lifecycle.errorMessage : null,
-    errorDetail: lifecycle.errorDetail,
-    providerState: typeof lifecycle.providerState === "string" ? lifecycle.providerState : null,
-    recoveryPending: lifecycle.recoveryPending === true,
-    queueState: typeof lifecycle.queueState === "string" ? lifecycle.queueState : null,
-    statusLabel: typeof lifecycle.statusLabel === "string" ? lifecycle.statusLabel : null,
-  };
 };
 
 const resolveLifecycleTaskState = (

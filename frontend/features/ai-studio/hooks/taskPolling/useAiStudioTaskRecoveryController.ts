@@ -8,7 +8,14 @@ import {
   getBackgroundRecoveryMaxAttempts,
   type BackgroundRecoveryReasonCode,
 } from "./backgroundRecoveryPolicy";
-import { resolvePollStatusGenerationId, type PollStatus } from "./providerStatusPolicy";
+import {
+  condenseError,
+  createShortErrorMessage,
+  looksLikeFailureMessage,
+  readShortPulseLifecycleHint,
+  resolvePollStatusGenerationId,
+  type PollStatus,
+} from "./providerStatusPolicy";
 
 type OutputLookupHardStopPayload = {
   outputId: string;
@@ -60,6 +67,48 @@ const areStringArraysEqual = (left: string[] | undefined, right: string[]) => {
   if (!left) return right.length === 0;
   if (left.length !== right.length) return false;
   return left.every((value, index) => value === right[index]);
+};
+
+const resolveLifecycleTaskState = (
+  taskState: string | null | undefined
+): StudioOutput["taskState"] | null => {
+  switch (taskState) {
+    case "pending":
+    case "running":
+    case "success":
+    case "fail":
+      return taskState;
+    default:
+      return null;
+  }
+};
+
+const normalizeLifecycleQueueState = (
+  queueState: string | null | undefined
+): StudioOutput["queueState"] => {
+  switch (queueState) {
+    case "queued":
+      return "queued";
+    case "dispatching":
+      return "dispatching";
+    case "dispatched":
+      return "dispatched";
+    default:
+      return undefined;
+  }
+};
+
+const stringifyLifecycleErrorDetail = (value: unknown): string | null => {
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    return trimmed.length ? trimmed : null;
+  }
+  if (value == null) return null;
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return String(value);
+  }
 };
 
 export const useAiStudioTaskRecoveryController = ({
@@ -137,6 +186,151 @@ export const useAiStudioTaskRecoveryController = ({
                 { nonUrgent: true }
               );
             }
+            const lifecycleHint = readShortPulseLifecycleHint(status);
+            const lifecycleTaskState = resolveLifecycleTaskState(lifecycleHint?.taskState);
+            const lifecycleResultUrls = lifecycleHint?.resultUrls ?? [];
+
+            if (lifecycleTaskState === "success" && lifecycleResultUrls.length > 0) {
+              addBreadcrumb({
+                type: "ui",
+                level: "info",
+                message: "generation_background_recovery_success",
+                data: {
+                  provider,
+                  task_id: taskId,
+                  output_id: outputId,
+                  attempt,
+                  recovered_count: lifecycleResultUrls.length,
+                  lifecycle_owned: true,
+                },
+              });
+
+              queueOutputUpdate(outputId, (item) => {
+                const nextDelivery = resolveNormalizedOutputDelivery({
+                  previewStoragePath: item.previewStoragePath ?? null,
+                  fullStoragePath: item.fullStoragePath ?? null,
+                  previewUrl: lifecycleResultUrls[0] ?? item.previewUrl ?? null,
+                  resultUrls: lifecycleResultUrls,
+                });
+                return {
+                  ...item,
+                  queueState:
+                    normalizeLifecycleQueueState(lifecycleHint?.queueState) ?? item.queueState,
+                  taskState: item.taskState === "success" ? item.taskState : "success",
+                  status: item.status === "ready" ? item.status : "ready",
+                  timestamp:
+                    item.timestamp === "Recovered media URL."
+                      ? item.timestamp
+                      : "Recovered media URL.",
+                  resultUrls: areStringArraysEqual(item.resultUrls, lifecycleResultUrls)
+                    ? item.resultUrls
+                    : lifecycleResultUrls,
+                  previewUrl:
+                    item.previewUrl === (lifecycleResultUrls[0] ?? item.previewUrl)
+                      ? item.previewUrl
+                      : (lifecycleResultUrls[0] ?? item.previewUrl),
+                  previewStoragePath:
+                    item.previewStoragePath === nextDelivery.previewStoragePath
+                      ? item.previewStoragePath
+                      : nextDelivery.previewStoragePath,
+                  fullStoragePath:
+                    item.fullStoragePath === nextDelivery.fullStoragePath
+                      ? item.fullStoragePath
+                      : nextDelivery.fullStoragePath,
+                  mediaSource: item.mediaSource ?? "generated",
+                  previewTier: item.mode === "video" ? "preview_loop" : "full",
+                  archivedAt: null,
+                  archiveReason: null,
+                  errorMessage: item.errorMessage == null ? item.errorMessage : null,
+                  errorMessageShort: item.errorMessageShort == null ? item.errorMessageShort : null,
+                  errorDetail: item.errorDetail == null ? item.errorDetail : null,
+                };
+              });
+              onGenerationSuccess?.({
+                outputId,
+                taskId,
+                provider,
+                resultUrls: lifecycleResultUrls,
+              });
+              clearPollTimer(outputId);
+              clearRecoveryTimer(outputId);
+              return;
+            }
+
+            if (lifecycleTaskState === "fail") {
+              const failureDetail =
+                stringifyLifecycleErrorDetail(lifecycleHint?.errorDetail) ??
+                lifecycleHint?.errorMessage?.trim() ??
+                "Generation failed";
+              const failureMessage =
+                typeof lifecycleHint?.errorMessage === "string" &&
+                lifecycleHint.errorMessage.trim().length > 0
+                  ? lifecycleHint.errorMessage.trim()
+                  : condenseError(failureDetail);
+              const safeFailureMessage =
+                typeof lifecycleHint?.errorMessage === "string" &&
+                lifecycleHint.errorMessage.trim().length > 0
+                  ? lifecycleHint.errorMessage.trim()
+                  : looksLikeFailureMessage(failureMessage)
+                    ? failureMessage
+                    : "Generation failed";
+              const safeFailureDetail = looksLikeFailureMessage(failureDetail)
+                ? failureDetail
+                : safeFailureMessage;
+              const shortMessage = createShortErrorMessage(safeFailureMessage);
+
+              queueOutputUpdate(outputId, (item) => ({
+                ...item,
+                queueState:
+                  normalizeLifecycleQueueState(lifecycleHint?.queueState) ?? item.queueState,
+                status: item.status === "ready" ? item.status : "ready",
+                taskState: item.taskState === "fail" ? item.taskState : "fail",
+                timestamp: lifecycleHint?.statusLabel ?? item.timestamp,
+                errorMessage:
+                  item.errorMessage === safeFailureMessage ? item.errorMessage : safeFailureMessage,
+                errorMessageShort:
+                  item.errorMessageShort === shortMessage ? item.errorMessageShort : shortMessage,
+                errorDetail:
+                  item.errorDetail === safeFailureDetail ? item.errorDetail : safeFailureDetail,
+              }));
+              clearRecoveryTimer(outputId);
+              return;
+            }
+
+            if (
+              lifecycleHint &&
+              (lifecycleTaskState === "pending" ||
+                lifecycleTaskState === "running" ||
+                lifecycleTaskState === "success" ||
+                lifecycleHint.recoveryPending)
+            ) {
+              queueOutputUpdate(
+                outputId,
+                (item) => ({
+                  ...item,
+                  queueState:
+                    normalizeLifecycleQueueState(lifecycleHint?.queueState) ?? item.queueState,
+                  taskState:
+                    lifecycleTaskState === "pending" || lifecycleTaskState === "running"
+                      ? lifecycleTaskState
+                      : item.taskState === "running"
+                        ? item.taskState
+                        : "running",
+                  timestamp: lifecycleHint?.statusLabel ?? SERVER_RECOVERY_PENDING_TIMESTAMP,
+                  errorMessage: null,
+                  errorMessageShort: null,
+                  errorDetail: null,
+                }),
+                { nonUrgent: true }
+              );
+              if (attempt >= maxRecoveryAttempts) {
+                clearRecoveryTimer(outputId);
+                return;
+              }
+              queueNext();
+              return;
+            }
+
             const outputMode = findOutputById?.(outputId)?.mode ?? null;
             const recoveredUrls = extractMediaUrls(provider, status, { outputMode }).filter(
               Boolean

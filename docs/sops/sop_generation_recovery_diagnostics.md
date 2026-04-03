@@ -27,6 +27,7 @@ Purpose: canonical operator runbook for queue dispatch, recovery execution, and 
   - `sql/check_generation_admission_metrics.sql`
   - `sql/check_generation_queue_dispatch_latency.sql`
   - `sql/check_generation_recovery_media_visible_latency.sql`
+  - `sql/check_generation_convergence_defect_classes.sql`
   - `sql/check_generation_settlement_integrity.sql`
   - `sql/check_control_plane_scheduler_health.sql`
   - `sql/check_pg_net_failure_taxonomy.sql`
@@ -94,10 +95,12 @@ Purpose: canonical operator runbook for queue dispatch, recovery execution, and 
 2. Run `sql/check_generation_queue_blockers.sql`.
 3. Run `sql/check_generation_queue_dispatch_latency.sql`.
 4. Run `sql/check_generation_recovery_media_visible_latency.sql`.
-5. Capture:
+5. Run `sql/check_generation_convergence_defect_classes.sql`.
+6. Capture:
    - admission-limited events by scope (`per_user` vs `shared_provider`) from `sql/check_generation_admission_metrics.sql`
    - queue dispatch latency (`avg`, `p50`, `p95`, `max`) and worst-case rows from `sql/check_generation_queue_dispatch_latency.sql`
    - provider-terminal-to-media-visible latency (`avg`, `p50`, `p95`, `max`) and worst-case rows from `sql/check_generation_recovery_media_visible_latency.sql`
+   - convergence defect-class counts and worst-case rows from `sql/check_generation_convergence_defect_classes.sql`
    - provider-attached reserved holds by age bucket
    - queue depth by status (`queued`, `dispatching`, `exhausted`)
    - queue hotspots by user/model/status

@@ -104,6 +104,37 @@ export type QueueMutationResult = {
   errorMessage: string | null;
 };
 
+export type QueueDispatchCommitStage =
+  | "reservation_submitted"
+  | "generation_mark_running"
+  | "generation_attempt_recorded"
+  | "generation_attempt_running"
+  | "queue_remove"
+  | "post_submit_commit"
+  | "rpc";
+
+export type QueueDispatchCommitResult =
+  | {
+      ok: true;
+      status: "committed";
+      stage: "post_submit_commit";
+      code: null;
+      sourceRef: string | null;
+      attemptId: string | null;
+      attemptNumber: number | null;
+      message: null;
+    }
+  | {
+      ok: false;
+      status: "failed";
+      stage: QueueDispatchCommitStage;
+      code: string | null;
+      sourceRef: string | null;
+      attemptId: string | null;
+      attemptNumber: number | null;
+      message: string | null;
+    };
+
 export type GenerationQueueStatus =
   | {
       status: "queued";
@@ -163,6 +194,125 @@ const parseQueueStatus = (value: unknown): "queued" | "dispatching" | "exhausted
   return null;
 };
 
+const parseQueueDispatchCommitStage = (value: unknown): QueueDispatchCommitStage => {
+  const normalized = asString(value)?.toLowerCase();
+  switch (normalized) {
+    case "reservation_submitted":
+    case "generation_mark_running":
+    case "generation_attempt_recorded":
+    case "generation_attempt_running":
+    case "queue_remove":
+    case "post_submit_commit":
+      return normalized;
+    default:
+      return "rpc";
+  }
+};
+
+const parseQueueDispatchCommitResult = (value: unknown): QueueDispatchCommitResult => {
+  const row = asObject(Array.isArray(value) ? value[0] : value);
+  const status = asString(row?.status)?.toLowerCase();
+  const stage = parseQueueDispatchCommitStage(row?.stage);
+  const code = asString(row?.code);
+  const sourceRef = asString(row?.source_ref);
+  const attemptId = asString(row?.attempt_id);
+  const attemptNumber = asInteger(row?.attempt_number, Number.NaN);
+  const normalizedAttemptNumber = Number.isNaN(attemptNumber) ? null : attemptNumber;
+  const message = asString(row?.message);
+
+  if (status === "committed") {
+    return {
+      ok: true,
+      status: "committed",
+      stage: "post_submit_commit",
+      code: null,
+      sourceRef,
+      attemptId,
+      attemptNumber: normalizedAttemptNumber,
+      message: null,
+    };
+  }
+
+  return {
+    ok: false,
+    status: "failed",
+    stage,
+    code,
+    sourceRef,
+    attemptId,
+    attemptNumber: normalizedAttemptNumber,
+    message,
+  };
+};
+
+const normalizeProviderToken = (value: string | null | undefined): string | null => {
+  if (!value) return null;
+  const normalized = value.trim().toLowerCase();
+  if (!normalized.length) return null;
+  if (normalized.startsWith("fal")) {
+    if (
+      normalized.includes("kling-3") ||
+      normalized.includes("kling_v3") ||
+      normalized.includes("kling-video/v3")
+    ) {
+      return "fal-kling-3";
+    }
+    if (normalized.includes("kling")) return "fal-kling";
+    if (normalized.includes("seedance") && normalized.includes("i2v")) return "fal-seedance-i2v";
+    if (normalized.includes("seedance")) return "fal-seedance";
+    if (normalized.includes("sora")) return "fal-sora";
+    if (normalized.includes("seedream")) return "fal-seedream";
+    if (normalized.includes("veo") && normalized.includes("i2v")) return "fal-veo-i2v";
+    if (normalized.includes("veo")) return "fal-veo";
+    if (normalized.includes("nano-banana-pro") && normalized.includes("edit")) {
+      return "fal-nano-banana-pro-edit";
+    }
+    if (normalized.includes("nano-banana-pro")) return "fal-nano-banana-pro";
+    if (normalized.includes("nano-banana-2") && normalized.includes("edit")) {
+      return "fal-nano-banana-2-edit";
+    }
+    if (normalized.includes("nano-banana-2")) return "fal-nano-banana-2";
+    if (normalized.includes("nano-banana") && normalized.includes("edit")) {
+      return "fal-nano-banana-edit";
+    }
+    if (normalized.includes("nano-banana")) return "fal-nano-banana";
+    if (normalized.includes("flux-pro") && normalized.includes("fill")) return "fal-flux-pro-fill";
+    if (
+      normalized.includes("bria") &&
+      normalized.includes("background") &&
+      normalized.includes("remove")
+    ) {
+      return "fal-bria-background-remove";
+    }
+    if (normalized.includes("flux-2-pro") && normalized.includes("edit")) {
+      return "fal-flux2-pro-edit";
+    }
+    if (normalized.includes("flux-2-pro")) return "fal-flux2-pro";
+    if (normalized.includes("flux-2") && normalized.includes("klein")) return "fal-flux2-klein";
+    if (normalized.includes("flux-2") && normalized.includes("edit")) return "fal-flux2-edit";
+    if (normalized.includes("flux-2")) return "fal-flux2";
+    return "fal";
+  }
+  if (normalized.startsWith("kie")) {
+    return normalized.includes("kling") ? "kie-kling" : "kie-veo";
+  }
+  return null;
+};
+
+const resolveQueuePollingProvider = ({
+  provider,
+  modelId,
+}: {
+  provider: string | null | undefined;
+  modelId?: string | null;
+}): string | null => {
+  const normalizedProvider = normalizeProviderToken(provider);
+  const modelScopedProvider = normalizeProviderToken(modelId);
+  if (normalizedProvider === "fal" || normalizedProvider === "kie-veo") {
+    return modelScopedProvider ?? normalizedProvider;
+  }
+  return normalizedProvider ?? modelScopedProvider;
+};
 const QUEUE_STATUS_QUEUED_RETRY_MS = 2000;
 const QUEUE_STATUS_DISPATCHING_RETRY_MS = 1000;
 const QUEUE_STATUS_PRE_DISPATCH_RETRY_MS = 3000;
@@ -476,6 +626,68 @@ export const removeQueueItem = async (queueId: string): Promise<QueueMutationRes
     error,
     affectedCount: Array.isArray(data) ? data.length : 0,
   });
+};
+
+export const commitQueuedGenerationDispatchSuccess = async ({
+  userId,
+  queueId,
+  generationId,
+  sourceRef,
+  provider,
+  modelId,
+  providerRequestId,
+  nextRecoveryAtIso,
+  generationMetadata,
+  attemptMetadata,
+  submitRoute,
+  observedAt,
+}: {
+  userId: string;
+  queueId: string;
+  generationId: string;
+  sourceRef: string;
+  provider: string;
+  modelId: string;
+  providerRequestId: string;
+  nextRecoveryAtIso: string;
+  generationMetadata: JsonObject;
+  attemptMetadata: JsonObject;
+  submitRoute?: string | null;
+  observedAt: string;
+}): Promise<QueueDispatchCommitResult> => {
+  const { data, error } = await getSupabaseAdmin().rpc(
+    "commit_generation_submit_queue_dispatch_success",
+    {
+      p_user_id: userId,
+      p_queue_id: queueId,
+      p_generation_id: generationId,
+      p_source_ref: sourceRef,
+      p_provider: provider,
+      p_model_id: modelId,
+      p_provider_request_id: providerRequestId,
+      p_next_recovery_at: nextRecoveryAtIso,
+      p_generation_metadata: generationMetadata,
+      p_attempt_metadata: attemptMetadata,
+      p_dispatch_source: "queued_submit",
+      p_submit_route: submitRoute ?? null,
+      p_observed_at: observedAt,
+    }
+  );
+
+  if (error) {
+    return {
+      ok: false,
+      status: "failed",
+      stage: "rpc",
+      code: "POST_SUBMIT_COMMIT_RPC_FAILED",
+      sourceRef,
+      attemptId: null,
+      attemptNumber: null,
+      message: toRpcErrorMessage(error),
+    };
+  }
+
+  return parseQueueDispatchCommitResult(data);
 };
 
 const readSourceRefFromGenerationMetadata = (metadata: unknown): string | null => {

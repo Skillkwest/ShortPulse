@@ -19,6 +19,7 @@ import {
 import { isFalProviderKey, isKieProviderKey } from "../../providerIntegration/providerKey";
 import {
   claimGenerationSubmitQueueBatch,
+  commitQueuedGenerationDispatchSuccess,
   markQueueItemExhausted,
   releaseQueueLeaseBackToQueued,
   removeQueueItem,
@@ -26,10 +27,8 @@ import {
   type ClaimedGenerationQueueItem,
 } from "./service";
 import {
+  assertQueuedDispatchCommitApplied,
   QueueTransitionError,
-  assertGenerationAttemptMarkedRunning,
-  assertGenerationAttemptRecorded,
-  assertGenerationMarkedRunning,
   assertQueueIdentityInvariant,
   assertQueueMutationApplied,
   assertReservationSubmissionAccepted,
@@ -41,12 +40,8 @@ import {
   normalizeVideoQueueDispatchPayload,
 } from "../videoSubmitContracts";
 import type { GenerationControlPlaneLogContext } from "../../generationControlPlane/types";
-import { applyAcceptedRunningGenerationTransition } from "../generationAcceptedTransitionService";
 import { applyGenerationLifecycleTransition } from "../generationLifecycleTransitionService";
-import {
-  buildAcceptedRunningGenerationUpdate,
-  buildQueueDispatchExhaustedGenerationUpdate,
-} from "../generationRequestTransitions";
+import { buildQueueDispatchExhaustedGenerationUpdate } from "../generationRequestTransitions";
 
 type JsonObject = Record<string, unknown>;
 
@@ -86,6 +81,7 @@ type QueueDispatchStageTimings = {
   providerSubmit: number;
   reservationSubmit: number;
   generationTransition: number;
+  postSubmitCommit: number;
   projectionSync: number;
   queueRemove: number;
 };
@@ -750,6 +746,7 @@ const createQueueDispatchStageTimings = (): QueueDispatchStageTimings => ({
   providerSubmit: 0,
   reservationSubmit: 0,
   generationTransition: 0,
+  postSubmitCommit: 0,
   projectionSync: 0,
   queueRemove: 0,
 });
@@ -1428,119 +1425,45 @@ const processClaimedQueueItem = async ({
 
     submitAccepted = true;
     const dispatchAtIso = new Date().toISOString();
-    const reservationResult = await measureDispatchStage({
+    const nextRecoveryAtIso = new Date(Date.now() + 2 * 60 * 1000).toISOString();
+    const commitResult = await measureDispatchStage({
       stageTimings,
-      stage: "reservationSubmit",
+      stage: "postSubmitCommit",
       work: () =>
-        markGenerationReservationSubmitted({
+        commitQueuedGenerationDispatchSuccess({
           userId: item.userId,
+          queueId: item.queueId,
+          generationId: item.generationId,
           sourceRef: item.sourceRef,
+          provider,
+          modelId: item.modelId,
           providerRequestId,
-          metadata: {
+          nextRecoveryAtIso,
+          generationMetadata: buildQueuedAcceptedRunningGenerationMetadata({
+            generationMetadata,
+            sourceRef: item.sourceRef,
+            queueId: item.queueId,
+          }),
+          attemptMetadata: {
+            source_ref: item.sourceRef,
+            generation_submit_authority: "worker",
+            queue_dispatch_at: dispatchAtIso,
             queue_id: item.queueId,
+            queue_attempts: attemptNumber,
+            dispatch_source: "queued_submit",
+            upstream_target_url: submitResult.targetUrl,
+            upstream_target_index: submitResult.targetIndex,
           },
+          submitRoute: item.submitRoute,
+          observedAt: dispatchAtIso,
         }),
     });
-    assertReservationSubmissionAccepted({ result: reservationResult });
     assertQueueIdentityInvariant({
       queueSourceRef: item.sourceRef,
       generationSourceRef,
-      reservationSourceRef: reservationResult.sourceRef ?? null,
+      reservationSourceRef: commitResult.sourceRef ?? null,
     });
-
-    const nextRecoveryAtIso = new Date(Date.now() + 2 * 60 * 1000).toISOString();
-    const transitionResult = await measureDispatchStage({
-      stageTimings,
-      stage: "generationTransition",
-      work: () =>
-        applyAcceptedRunningGenerationTransition({
-          applyGenerationMutation: async () => {
-            const generationUpdate = await getSupabaseAdmin()
-              .from("ai_generations")
-              .update(
-                buildAcceptedRunningGenerationUpdate({
-                  provider,
-                  modelId: item.modelId,
-                  providerRequestId,
-                  nextRecoveryAtIso,
-                  metadata: buildQueuedAcceptedRunningGenerationMetadata({
-                    generationMetadata,
-                    sourceRef: item.sourceRef,
-                    queueId: item.queueId,
-                  }),
-                })
-              )
-              .eq("id", item.generationId)
-              .eq("user_id", item.userId)
-              .select("id");
-            const affectedCount = Array.isArray(generationUpdate.data)
-              ? generationUpdate.data.length
-              : 0;
-            if (generationUpdate.error) {
-              return {
-                ok: false,
-                error: generationUpdate.error.message ?? "generation_mark_running_failed",
-              };
-            }
-            if (affectedCount !== 1) {
-              return {
-                ok: false,
-                error: `Expected one generation row update, received ${affectedCount}.`,
-              };
-            }
-            return { ok: true };
-          },
-          attemptInput: {
-            generationId: item.generationId,
-            userId: item.userId,
-            provider,
-            modelId: item.modelId,
-            providerRequestId,
-            dispatchSource: "queued_submit",
-            submitRoute: item.submitRoute,
-            queueId: item.queueId,
-            observedAt: dispatchAtIso,
-            metadata: {
-              source_ref: item.sourceRef,
-              generation_submit_authority: "worker",
-              queue_dispatch_at: dispatchAtIso,
-              queue_id: item.queueId,
-              queue_attempts: attemptNumber,
-              dispatch_source: "queued_submit",
-              upstream_target_url: submitResult.targetUrl,
-              upstream_target_index: submitResult.targetIndex,
-            },
-          },
-        }),
-    });
-    if (!transitionResult.ok && transitionResult.stage === "generation") {
-      assertGenerationMarkedRunning({
-        affectedCount: 0,
-        errorMessage: transitionResult.error,
-      });
-    }
-    assertGenerationAttemptRecorded({
-      ok: transitionResult.ok || transitionResult.stage === "running",
-      errorMessage: transitionResult.ok
-        ? null
-        : transitionResult.stage === "record"
-          ? transitionResult.error
-          : null,
-    });
-    assertGenerationAttemptMarkedRunning({
-      ok: transitionResult.ok || transitionResult.stage === "record",
-      errorMessage: transitionResult.ok
-        ? null
-        : transitionResult.stage === "running"
-          ? transitionResult.error
-          : null,
-    });
-    const removeResult = await measureDispatchStage({
-      stageTimings,
-      stage: "queueRemove",
-      work: () => removeQueueItem(item.queueId),
-    });
-    assertQueueMutationApplied({ result: removeResult, step: "queue_remove" });
+    assertQueuedDispatchCommitApplied({ result: commitResult });
     metrics.submitted += 1;
     const queueLatencyMs = readQueueLatencyMs({
       createdAt: item.createdAt,

@@ -12,6 +12,7 @@ const dispatchProviderSubmitMock = vi.fn();
 const resolveWebhookCallbackUrlMock = vi.fn();
 const withWebhookTargetsMock = vi.fn();
 const claimGenerationSubmitQueueBatchMock = vi.fn();
+const commitQueuedGenerationDispatchSuccessMock = vi.fn();
 const markQueueItemExhaustedMock = vi.fn();
 const releaseQueueLeaseBackToQueuedMock = vi.fn();
 const removeQueueItemMock = vi.fn();
@@ -26,6 +27,25 @@ const buildMutationSuccess = (operation: "retry" | "exhaust" | "release" | "remo
   affectedCount: 1,
   reason: "applied",
   errorMessage: null,
+});
+
+const buildCommitSuccess = ({
+  sourceRef = "source-1",
+  attemptId = "attempt-1",
+  attemptNumber = 1,
+}: {
+  sourceRef?: string;
+  attemptId?: string;
+  attemptNumber?: number;
+} = {}) => ({
+  ok: true,
+  status: "committed" as const,
+  stage: "post_submit_commit" as const,
+  code: null,
+  sourceRef,
+  attemptId,
+  attemptNumber,
+  message: null,
 });
 
 vi.mock("../supabaseAdmin", () => ({
@@ -78,6 +98,8 @@ vi.mock("../falSubmitTargeting", () => ({
 vi.mock("../generationQueue/service", () => ({
   claimGenerationSubmitQueueBatch: (...args: unknown[]) =>
     claimGenerationSubmitQueueBatchMock(...args),
+  commitQueuedGenerationDispatchSuccess: (...args: unknown[]) =>
+    commitQueuedGenerationDispatchSuccessMock(...args),
   markQueueItemExhausted: (...args: unknown[]) => markQueueItemExhaustedMock(...args),
   releaseQueueLeaseBackToQueued: (...args: unknown[]) => releaseQueueLeaseBackToQueuedMock(...args),
   removeQueueItem: (...args: unknown[]) => removeQueueItemMock(...args),
@@ -137,6 +159,9 @@ describe("generationQueue/dispatch no-capacity handling", () => {
     releaseQueueLeaseBackToQueuedMock.mockResolvedValue(buildMutationSuccess("release"));
     removeQueueItemMock.mockResolvedValue(buildMutationSuccess("remove"));
     updateQueueItemForRetryMock.mockResolvedValue(buildMutationSuccess("retry"));
+    commitQueuedGenerationDispatchSuccessMock.mockImplementation(
+      async ({ sourceRef }: { sourceRef: string }) => buildCommitSuccess({ sourceRef })
+    );
     markGenerationReservationSubmittedMock.mockImplementation(
       async ({ sourceRef }: { sourceRef: string }) => ({
         status: "reserved",

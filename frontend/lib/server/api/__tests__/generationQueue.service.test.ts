@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   claimGenerationSubmitQueueBatch,
+  commitQueuedGenerationDispatchSuccess,
   readGenerationQueueStatus,
   removeQueueItem,
   updateQueueItemForRetry,
@@ -224,6 +225,94 @@ describe("generationQueue/service mutation result guards", () => {
         ok: false,
         operation: "remove",
         reason: "db_error",
+      })
+    );
+  });
+
+  it("parses committed queued dispatch success RPC results", async () => {
+    getSupabaseAdminMock.mockReturnValue({
+      rpc: vi.fn(async () => ({
+        data: {
+          status: "committed",
+          stage: "post_submit_commit",
+          code: null,
+          source_ref: "source-1",
+          attempt_id: "attempt-1",
+          attempt_number: 2,
+          message: null,
+        },
+        error: null,
+      })),
+    });
+
+    await expect(
+      commitQueuedGenerationDispatchSuccess({
+        userId: "user-1",
+        queueId: "queue-1",
+        generationId: "gen-1",
+        sourceRef: "source-1",
+        provider: "fal",
+        modelId: "fal-ai/nano-banana-pro",
+        providerRequestId: "req-1",
+        nextRecoveryAtIso: "2026-04-03T00:02:00.000Z",
+        generationMetadata: {
+          source_ref: "source-1",
+          generation_submit_authority: "worker",
+          queue_id: "queue-1",
+        },
+        attemptMetadata: {
+          source_ref: "source-1",
+          queue_id: "queue-1",
+        },
+        submitRoute: "/api/fal/nano-banana-pro-submit",
+        observedAt: "2026-04-03T00:00:00.000Z",
+      })
+    ).resolves.toEqual(
+      expect.objectContaining({
+        ok: true,
+        status: "committed",
+        stage: "post_submit_commit",
+        sourceRef: "source-1",
+        attemptId: "attempt-1",
+        attemptNumber: 2,
+      })
+    );
+  });
+
+  it("returns rpc failure when queued dispatch success commit RPC errors", async () => {
+    getSupabaseAdminMock.mockReturnValue({
+      rpc: vi.fn(async () => ({
+        data: null,
+        error: {
+          code: "XX000",
+          message: "rpc exploded",
+          details: null,
+          hint: null,
+        },
+      })),
+    });
+
+    await expect(
+      commitQueuedGenerationDispatchSuccess({
+        userId: "user-1",
+        queueId: "queue-1",
+        generationId: "gen-1",
+        sourceRef: "source-1",
+        provider: "fal",
+        modelId: "fal-ai/nano-banana-pro",
+        providerRequestId: "req-1",
+        nextRecoveryAtIso: "2026-04-03T00:02:00.000Z",
+        generationMetadata: {},
+        attemptMetadata: {},
+        submitRoute: "/api/fal/nano-banana-pro-submit",
+        observedAt: "2026-04-03T00:00:00.000Z",
+      })
+    ).resolves.toEqual(
+      expect.objectContaining({
+        ok: false,
+        status: "failed",
+        stage: "rpc",
+        code: "POST_SUBMIT_COMMIT_RPC_FAILED",
       })
     );
   });

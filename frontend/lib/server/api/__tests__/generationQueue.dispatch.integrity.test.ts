@@ -13,6 +13,7 @@ const dispatchProviderSubmitMock = vi.fn();
 const resolveWebhookCallbackUrlMock = vi.fn();
 const withWebhookTargetsMock = vi.fn();
 const claimGenerationSubmitQueueBatchMock = vi.fn();
+const commitQueuedGenerationDispatchSuccessMock = vi.fn();
 const markQueueItemExhaustedMock = vi.fn();
 const releaseQueueLeaseBackToQueuedMock = vi.fn();
 const removeQueueItemMock = vi.fn();
@@ -67,6 +68,8 @@ vi.mock("../falSubmitTargeting", () => ({
 vi.mock("../generationQueue/service", () => ({
   claimGenerationSubmitQueueBatch: (...args: unknown[]) =>
     claimGenerationSubmitQueueBatchMock(...args),
+  commitQueuedGenerationDispatchSuccess: (...args: unknown[]) =>
+    commitQueuedGenerationDispatchSuccessMock(...args),
   markQueueItemExhausted: (...args: unknown[]) => markQueueItemExhaustedMock(...args),
   releaseQueueLeaseBackToQueued: (...args: unknown[]) => releaseQueueLeaseBackToQueuedMock(...args),
   removeQueueItem: (...args: unknown[]) => removeQueueItemMock(...args),
@@ -109,6 +112,53 @@ const mutationSuccess = (operation: "retry" | "exhaust" | "release" | "remove") 
   affectedCount: 1,
   reason: "applied",
   errorMessage: null,
+});
+
+const buildCommitSuccess = ({
+  sourceRef = "source-1",
+  attemptId = "attempt-1",
+  attemptNumber = 1,
+}: {
+  sourceRef?: string;
+  attemptId?: string;
+  attemptNumber?: number;
+} = {}) => ({
+  ok: true,
+  status: "committed" as const,
+  stage: "post_submit_commit" as const,
+  code: null,
+  sourceRef,
+  attemptId,
+  attemptNumber,
+  message: null,
+});
+
+const buildCommitFailure = ({
+  stage,
+  code,
+  message,
+  sourceRef = "source-1",
+}: {
+  stage:
+    | "reservation_submitted"
+    | "generation_mark_running"
+    | "generation_attempt_recorded"
+    | "generation_attempt_running"
+    | "queue_remove"
+    | "post_submit_commit"
+    | "rpc";
+  code: string;
+  message: string;
+  sourceRef?: string;
+}) => ({
+  ok: false,
+  status: "failed" as const,
+  stage,
+  code,
+  sourceRef,
+  attemptId: null,
+  attemptNumber: null,
+  message,
 });
 
 const seedClaimGenerationSubmitQueueBatches = (
@@ -240,6 +290,9 @@ describe("generationQueue/dispatch transition integrity", () => {
     releaseQueueLeaseBackToQueuedMock.mockResolvedValue(mutationSuccess("release"));
     removeQueueItemMock.mockResolvedValue(mutationSuccess("remove"));
     updateQueueItemForRetryMock.mockResolvedValue(mutationSuccess("retry"));
+    commitQueuedGenerationDispatchSuccessMock.mockImplementation(
+      async ({ sourceRef }: { sourceRef: string }) => buildCommitSuccess({ sourceRef })
+    );
     applyAcceptedRunningGenerationTransitionMock.mockResolvedValue({ ok: true });
     ensureAcceptedRunningGenerationAttemptMock.mockResolvedValue({
       ok: true,
@@ -303,11 +356,13 @@ describe("generationQueue/dispatch transition integrity", () => {
   });
 
   it("exhausts without releasing reservation when generation running update fails post-submit", async () => {
-    applyAcceptedRunningGenerationTransitionMock.mockResolvedValueOnce({
-      ok: false,
-      error: "write failed",
-      stage: "generation",
-    });
+    commitQueuedGenerationDispatchSuccessMock.mockResolvedValueOnce(
+      buildCommitFailure({
+        stage: "generation_mark_running",
+        code: "GENERATION_MARK_RUNNING_DB_ERROR",
+        message: "write failed",
+      })
+    );
 
     const result = await dispatchGenerationSubmitQueueBatch({
       req: { method: "GET", headers: {} } as never,
@@ -333,11 +388,13 @@ describe("generationQueue/dispatch transition integrity", () => {
   });
 
   it("exhausts without releasing reservation when generation attempt write fails post-submit", async () => {
-    applyAcceptedRunningGenerationTransitionMock.mockResolvedValueOnce({
-      ok: false,
-      error: "attempt_insert_failed",
-      stage: "record",
-    });
+    commitQueuedGenerationDispatchSuccessMock.mockResolvedValueOnce(
+      buildCommitFailure({
+        stage: "generation_attempt_recorded",
+        code: "GENERATION_ATTEMPT_RECORD_FAILED",
+        message: "attempt_insert_failed",
+      })
+    );
 
     const result = await dispatchGenerationSubmitQueueBatch({
       req: { method: "GET", headers: {} } as never,
@@ -363,11 +420,13 @@ describe("generationQueue/dispatch transition integrity", () => {
   });
 
   it("exhausts without releasing reservation when generation attempt running update fails post-submit", async () => {
-    applyAcceptedRunningGenerationTransitionMock.mockResolvedValueOnce({
-      ok: false,
-      error: "attempt_running_update_failed",
-      stage: "running",
-    });
+    commitQueuedGenerationDispatchSuccessMock.mockResolvedValueOnce(
+      buildCommitFailure({
+        stage: "generation_attempt_running",
+        code: "GENERATION_ATTEMPT_RUNNING_FAILED",
+        message: "attempt_running_update_failed",
+      })
+    );
 
     const result = await dispatchGenerationSubmitQueueBatch({
       req: { method: "GET", headers: {} } as never,
@@ -394,11 +453,13 @@ describe("generationQueue/dispatch transition integrity", () => {
   });
 
   it("retries queue item when reservation submit returns retryable failure", async () => {
-    markGenerationReservationSubmittedMock.mockResolvedValue({
-      status: "failed",
-      sourceRef: "source-1",
-      message: "rpc timeout",
-    });
+    commitQueuedGenerationDispatchSuccessMock.mockResolvedValueOnce(
+      buildCommitFailure({
+        stage: "reservation_submitted",
+        code: "RESERVATION_SUBMIT_FAILED",
+        message: "rpc timeout",
+      })
+    );
 
     const result = await dispatchGenerationSubmitQueueBatch({
       req: { method: "GET", headers: {} } as never,
@@ -667,29 +728,22 @@ describe("generationQueue/dispatch transition integrity", () => {
           targets: [{ submitUrl: "https://queue.kie.ai/v1/jobs" }],
         })
       );
-      expect(markGenerationReservationSubmittedMock).toHaveBeenCalledWith(
+      expect(commitQueuedGenerationDispatchSuccessMock).toHaveBeenCalledWith(
         expect.objectContaining({
+          userId: "user-1",
+          queueId: "queue-1",
+          generationId: "gen-1",
+          sourceRef: "source-1",
           providerRequestId: "req-1",
-          metadata: {
-            queue_id: "queue-1",
-          },
+          provider: "kie",
+          modelId: "kie-ai/veo-3.1-fast-i2v",
+          attemptMetadata: expect.objectContaining({
+            generation_submit_authority: "worker",
+          }),
         })
       );
       expect(withWebhookTargetsMock).not.toHaveBeenCalled();
       expect(markQueueItemExhaustedMock).not.toHaveBeenCalled();
-      expect(applyAcceptedRunningGenerationTransitionMock).toHaveBeenCalledWith(
-        expect.objectContaining({
-          attemptInput: expect.objectContaining({
-            generationId: "gen-1",
-            userId: "user-1",
-            providerRequestId: "req-1",
-            dispatchSource: "queued_submit",
-            metadata: expect.objectContaining({
-              generation_submit_authority: "worker",
-            }),
-          }),
-        })
-      );
       expect(upsertGenerationProjectionMock).toHaveBeenCalledWith(
         expect.objectContaining({
           generationId: "gen-1",
@@ -703,7 +757,7 @@ describe("generationQueue/dispatch transition integrity", () => {
           publicationState: "pending",
         })
       );
-      expect(removeQueueItemMock.mock.invocationCallOrder[0]).toBeLessThan(
+      expect(commitQueuedGenerationDispatchSuccessMock.mock.invocationCallOrder[0]).toBeLessThan(
         upsertGenerationProjectionMock.mock.invocationCallOrder[0]
       );
       expect(logGenerationFailureMock).toHaveBeenNthCalledWith(
@@ -719,10 +773,8 @@ describe("generationQueue/dispatch transition integrity", () => {
               targetResolution: expect.any(Number),
               payloadPreparation: expect.any(Number),
               providerSubmit: expect.any(Number),
-              reservationSubmit: expect.any(Number),
-              generationTransition: expect.any(Number),
+              postSubmitCommit: expect.any(Number),
               projectionSync: expect.any(Number),
-              queueRemove: expect.any(Number),
             }),
             provider_submit_diagnostics: expect.any(Object),
           }),
@@ -738,34 +790,6 @@ describe("generationQueue/dispatch transition integrity", () => {
   });
 
   it("trims queued accepted-running generation metadata to authority-critical fields", async () => {
-    const baseSupabase = createSupabaseAdminMock({});
-    const updateBuilder = {
-      eq: vi.fn(),
-      select: vi.fn(async () => ({ data: [{ id: "gen-1" }], error: null })),
-    };
-    updateBuilder.eq.mockReturnValue(updateBuilder);
-    const aiGenerationsUpdate = vi.fn(() => updateBuilder);
-    getSupabaseAdminMock.mockReturnValue({
-      from: vi.fn((tableName: string) => {
-        if (tableName === "ai_generations") {
-          return {
-            update: aiGenerationsUpdate,
-          };
-        }
-        return baseSupabase.from(tableName);
-      }),
-    });
-    applyAcceptedRunningGenerationTransitionMock.mockImplementationOnce(
-      async ({
-        applyGenerationMutation,
-      }: {
-        applyGenerationMutation: () => Promise<{ ok: true } | { ok: false; error: string }>;
-      }) => {
-        const result = await applyGenerationMutation();
-        return result.ok ? { ok: true } : { ok: false, stage: "generation", error: result.error };
-      }
-    );
-
     await expect(
       dispatchGenerationSubmitQueueBatch({
         req: { method: "GET", headers: {} } as never,
@@ -781,12 +805,12 @@ describe("generationQueue/dispatch transition integrity", () => {
       })
     );
 
-    expect(aiGenerationsUpdate).toHaveBeenCalledWith(
+    expect(commitQueuedGenerationDispatchSuccessMock).toHaveBeenCalledWith(
       expect.objectContaining({
         provider: "fal",
-        model_id: "fal-ai/nano-banana-pro",
-        request_id: "req-1",
-        metadata: {
+        modelId: "fal-ai/nano-banana-pro",
+        providerRequestId: "req-1",
+        generationMetadata: {
           source_ref: "source-1",
           generation_submit_authority: "worker",
           queue_id: "queue-1",
@@ -834,13 +858,14 @@ describe("generationQueue/dispatch transition integrity", () => {
         targets: [{ submitUrl: "https://api.kie.ai/api/v1/veo/generate" }],
       })
     );
-    expect(applyAcceptedRunningGenerationTransitionMock).toHaveBeenCalledWith(
+    expect(commitQueuedGenerationDispatchSuccessMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        attemptInput: expect.objectContaining({
-          generationId: "gen-1",
-          userId: "user-1",
-          providerRequestId: "req-1",
-          dispatchSource: "queued_submit",
+        userId: "user-1",
+        queueId: "queue-1",
+        generationId: "gen-1",
+        providerRequestId: "req-1",
+        attemptMetadata: expect.objectContaining({
+          source_ref: "source-1",
         }),
       })
     );
@@ -851,11 +876,11 @@ describe("generationQueue/dispatch transition integrity", () => {
   });
 
   it("fails closed after provider acceptance when reservation source_ref mismatches the queue item", async () => {
-    markGenerationReservationSubmittedMock.mockResolvedValue({
-      status: "reserved",
-      sourceRef: "source-other",
-      message: null,
-    });
+    commitQueuedGenerationDispatchSuccessMock.mockResolvedValueOnce(
+      buildCommitSuccess({
+        sourceRef: "source-other",
+      })
+    );
 
     const result = await dispatchGenerationSubmitQueueBatch({
       req: { method: "GET", headers: {} } as never,
@@ -1136,13 +1161,23 @@ describe("generationQueue/dispatch transition integrity", () => {
         },
       });
 
-    applyAcceptedRunningGenerationTransitionMock
+    commitQueuedGenerationDispatchSuccessMock
       .mockImplementationOnce(async () => {
         signalFirstTransitionStarted?.();
         await firstTransitionPending;
-        return { ok: true };
+        return buildCommitSuccess({
+          sourceRef: "source-1",
+          attemptId: "attempt-1",
+          attemptNumber: 1,
+        });
       })
-      .mockResolvedValueOnce({ ok: true });
+      .mockResolvedValueOnce(
+        buildCommitSuccess({
+          sourceRef: "source-2",
+          attemptId: "attempt-2",
+          attemptNumber: 1,
+        })
+      );
 
     const dispatchPromise = dispatchGenerationSubmitQueueBatch({
       req: { method: "GET", headers: {} } as never,

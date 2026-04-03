@@ -1,11 +1,12 @@
 import type { ReservationRpcResult, ReservationRpcState } from "../generationBilling/types";
-import type { QueueMutationResult } from "./service";
+import type { QueueDispatchCommitResult, QueueMutationResult } from "./service";
 
 type QueueTransitionStep =
   | "reservation_submitted"
   | "generation_attempt_recorded"
   | "generation_attempt_running"
   | "generation_mark_running"
+  | "post_submit_commit"
   | "identity_check"
   | "queue_retry"
   | "queue_exhaust"
@@ -144,6 +145,59 @@ export const assertQueueMutationApplied = ({
       result.errorMessage ??
       `Queue mutation ${result.operation} failed (${result.reason}) for ${result.queueId}.`,
     retryable: result.reason === "db_error",
+  });
+};
+
+const mapCommitStageToTransitionStep = (
+  stage: QueueDispatchCommitResult["stage"]
+): QueueTransitionStep => {
+  switch (stage) {
+    case "reservation_submitted":
+    case "generation_attempt_recorded":
+    case "generation_attempt_running":
+    case "generation_mark_running":
+    case "queue_remove":
+      return stage;
+    case "post_submit_commit":
+    case "rpc":
+    default:
+      return "post_submit_commit";
+  }
+};
+
+const isRetryableCommitFailure = ({
+  stage,
+  code,
+}: {
+  stage: QueueDispatchCommitResult["stage"];
+  code: string | null;
+}): boolean => {
+  if (stage === "rpc" || stage === "post_submit_commit") return true;
+  return (
+    code === "RESERVATION_SUBMIT_FAILED" ||
+    code === "GENERATION_MARK_RUNNING_DB_ERROR" ||
+    code === "GENERATION_ATTEMPT_RECORD_FAILED" ||
+    code === "GENERATION_ATTEMPT_RUNNING_FAILED" ||
+    code === "QUEUE_REMOVE_DB_ERROR"
+  );
+};
+
+export const assertQueuedDispatchCommitApplied = ({
+  result,
+}: {
+  result: QueueDispatchCommitResult;
+}): void => {
+  if (result.ok) {
+    return;
+  }
+  throw new QueueTransitionError({
+    code: result.code ?? "POST_SUBMIT_COMMIT_FAILED",
+    step: mapCommitStageToTransitionStep(result.stage),
+    message: result.message ?? "Queued dispatch post-submit commit failed.",
+    retryable: isRetryableCommitFailure({
+      stage: result.stage,
+      code: result.code,
+    }),
   });
 };
 

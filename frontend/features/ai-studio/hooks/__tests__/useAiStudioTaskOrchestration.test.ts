@@ -1096,6 +1096,174 @@ describe("useAiStudioTaskOrchestration", () => {
     expect(notifyGenerationFailure).not.toHaveBeenCalled();
   });
 
+  it("treats restored dispatching outputs without task ids as queue-resume candidates", async () => {
+    let outputs = [
+      createOutput({
+        id: "out-dispatching-restore",
+        modelId: "fal-ai/bytedance/seedream/v4.5/edit",
+        generationId: "gen-dispatching-restore",
+        queueState: "dispatching",
+        taskState: "running",
+        provider: "fal",
+      }),
+    ];
+    const notifyGenerationFailure = vi.fn();
+    const updateOutputById = vi.fn((id: string, updater: (item: StudioOutput) => StudioOutput) => {
+      outputs = outputs.map((item) => (item.id === id ? updater(item) : item));
+    });
+    const fetchFalQueueStatusMock = vi.mocked(fetchFalQueueStatus);
+    fetchFalQueueStatusMock.mockResolvedValue({
+      status: "dispatched",
+      generationId: "gen-dispatching-restore",
+      sourceRef: "source-dispatching-restore",
+      requestId: "req-dispatching-restore",
+      provider: "fal",
+    });
+
+    renderHook(() =>
+      useAiStudioTaskOrchestration({
+        taskSubmissionConfig: {
+          aspect: "9:16",
+          mode: "image",
+          model: "model-id",
+          prompt: "Prompt",
+          selectedTool: "create",
+          imageResolution: "model_default",
+          videoDurationSeconds: 6,
+          videoResolution: "1080p",
+          videoGenerateAudio: false,
+          videoReferenceMode: "standard",
+          videoReferenceImageUrl: null,
+          motionReferenceVideoUrl: null,
+          videoCameraFixed: false,
+          videoAutoFix: false,
+          klingNegativePrompt: "blur",
+          klingCfgScale: 0.5,
+          klingShotType: "customize",
+          klingVoiceIds: ["", ""],
+          klingMultiPrompts: [],
+          klingElements: [],
+          setIsPromptGenerating: asDispatch<boolean>(vi.fn()),
+          setUiError: asDispatch<string | null>(vi.fn()),
+          setUiNotice: asDispatch<string | null>(vi.fn()),
+          setOutputs: asDispatch<StudioOutput[]>(vi.fn()),
+          setSaved: asDispatch<boolean>(vi.fn()),
+          getDefaultDurationSeconds: vi.fn(() => 6),
+          notifyGenerationFailure,
+          updateOutputById,
+          ensureGenerationRecord: vi.fn(async () => null),
+        },
+        outputs,
+        findOutputById: (id: string) => outputs.find((item) => item.id === id) ?? null,
+      })
+    );
+
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(fetchFalQueueStatusMock).toHaveBeenCalledWith({
+      generationId: "gen-dispatching-restore",
+      sourceRef: undefined,
+    });
+    expect(startPollingTask).toHaveBeenCalledWith(
+      "req-dispatching-restore",
+      "out-dispatching-restore",
+      0,
+      "fal-seedream"
+    );
+    expect(outputs[0]?.taskId).toBe("req-dispatching-restore");
+    expect(outputs[0]?.queueState).toBe("dispatched");
+    expect(outputs[0]?.taskState).toBe("running");
+    expect(notifyGenerationFailure).not.toHaveBeenCalled();
+  });
+
+  it("resumes queued output polling from sourceRef when generation id is missing", async () => {
+    let outputs = [
+      createOutput({
+        id: "out-queued-source-ref-only",
+        modelId: "fal-ai/bytedance/seedream/v4.5/edit",
+        sourceRef: "source-ref-only",
+        queueState: "queued",
+        taskState: "pending",
+        provider: "fal",
+      }),
+    ];
+    const notifyGenerationFailure = vi.fn();
+    const updateOutputById = vi.fn((id: string, updater: (item: StudioOutput) => StudioOutput) => {
+      outputs = outputs.map((item) => (item.id === id ? updater(item) : item));
+    });
+    const fetchFalQueueStatusMock = vi.mocked(fetchFalQueueStatus);
+    fetchFalQueueStatusMock.mockResolvedValue({
+      status: "dispatched",
+      generationId: "gen-source-ref-only",
+      sourceRef: "source-ref-only",
+      requestId: "req-source-ref-only",
+      provider: "fal",
+    });
+
+    renderHook(() =>
+      useAiStudioTaskOrchestration({
+        taskSubmissionConfig: {
+          aspect: "9:16",
+          mode: "image",
+          model: "model-id",
+          prompt: "Prompt",
+          selectedTool: "create",
+          imageResolution: "model_default",
+          videoDurationSeconds: 6,
+          videoResolution: "1080p",
+          videoGenerateAudio: false,
+          videoReferenceMode: "standard",
+          videoReferenceImageUrl: null,
+          motionReferenceVideoUrl: null,
+          videoCameraFixed: false,
+          videoAutoFix: false,
+          klingNegativePrompt: "blur",
+          klingCfgScale: 0.5,
+          klingShotType: "customize",
+          klingVoiceIds: ["", ""],
+          klingMultiPrompts: [],
+          klingElements: [],
+          setIsPromptGenerating: asDispatch<boolean>(vi.fn()),
+          setUiError: asDispatch<string | null>(vi.fn()),
+          setUiNotice: asDispatch<string | null>(vi.fn()),
+          setOutputs: asDispatch<StudioOutput[]>(vi.fn()),
+          setSaved: asDispatch<boolean>(vi.fn()),
+          getDefaultDurationSeconds: vi.fn(() => 6),
+          notifyGenerationFailure,
+          updateOutputById,
+          ensureGenerationRecord: vi.fn(async () => null),
+        },
+        outputs,
+        findOutputById: (id: string) => outputs.find((item) => item.id === id) ?? null,
+      })
+    );
+
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(fetchFalQueueStatusMock).toHaveBeenCalledWith({
+      generationId: undefined,
+      sourceRef: "source-ref-only",
+    });
+    expect(clearPollTimer).toHaveBeenCalledWith("out-queued-source-ref-only");
+    expect(startPollingTask).toHaveBeenCalledWith(
+      "req-source-ref-only",
+      "out-queued-source-ref-only",
+      0,
+      "fal-seedream"
+    );
+    expect(outputs[0]?.generationId).toBe("gen-source-ref-only");
+    expect(outputs[0]?.taskId).toBe("req-source-ref-only");
+    expect(outputs[0]?.sourceRef).toBe("source-ref-only");
+    expect(outputs[0]?.queueState).toBe("dispatched");
+    expect(outputs[0]?.taskState).toBe("running");
+    expect(notifyGenerationFailure).not.toHaveBeenCalled();
+  });
   it("resumes queued output polling when queueState is dispatched but task id is missing", async () => {
     let outputs = [
       createOutput({
@@ -1186,7 +1354,8 @@ describe("useAiStudioTaskOrchestration", () => {
         id: "out-queued",
         generationId: "gen-1",
         queueState: "queued",
-        taskState: "pending",
+        taskState: "fail",
+        errorMessage: "Old browser failure",
         provider: "fal",
       }),
     ];
@@ -1250,7 +1419,78 @@ describe("useAiStudioTaskOrchestration", () => {
     expect(outputs[0]?.errorMessage).toBeNull();
   });
 
-  it("fails queued resume after bounded repeated not_found statuses", async () => {
+  it("does not queue-resume restored outputs that already have settled media", async () => {
+    vi.useFakeTimers();
+    try {
+      const notifyGenerationFailure = vi.fn();
+      const updateOutputById = vi.fn();
+      const outputs = [
+        createOutput({
+          id: "out-settled-restore",
+          generationId: "gen-settled-restore",
+          queueState: "dispatched",
+          taskState: "success",
+          resultUrls: ["https://cdn.test/result.png"],
+          provider: "fal",
+        }),
+      ];
+      const fetchFalQueueStatusMock = vi.mocked(fetchFalQueueStatus);
+
+      renderHook(() =>
+        useAiStudioTaskOrchestration({
+          taskSubmissionConfig: {
+            aspect: "9:16",
+            mode: "image",
+            model: "model-id",
+            prompt: "Prompt",
+            selectedTool: "create",
+            imageResolution: "model_default",
+            videoDurationSeconds: 6,
+            videoResolution: "1080p",
+            videoGenerateAudio: false,
+            videoReferenceMode: "standard",
+            videoReferenceImageUrl: null,
+            motionReferenceVideoUrl: null,
+            videoCameraFixed: false,
+            videoAutoFix: false,
+            klingNegativePrompt: "blur",
+            klingCfgScale: 0.5,
+            klingShotType: "customize",
+            klingVoiceIds: ["", ""],
+            klingMultiPrompts: [],
+            klingElements: [],
+            setIsPromptGenerating: asDispatch<boolean>(vi.fn()),
+            setUiError: asDispatch<string | null>(vi.fn()),
+            setUiNotice: asDispatch<string | null>(vi.fn()),
+            setOutputs: asDispatch<StudioOutput[]>(vi.fn()),
+            setSaved: asDispatch<boolean>(vi.fn()),
+            getDefaultDurationSeconds: vi.fn(() => 6),
+            notifyGenerationFailure,
+            updateOutputById,
+            ensureGenerationRecord: vi.fn(async () => null),
+          },
+          outputs,
+          findOutputById: (id: string) => outputs.find((item) => item.id === id) ?? null,
+        })
+      );
+
+      await act(async () => {
+        await Promise.resolve();
+      });
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(25_000);
+      });
+
+      expect(fetchFalQueueStatusMock).not.toHaveBeenCalled();
+      expect(startPollingTask).not.toHaveBeenCalled();
+      expect(notifyGenerationFailure).not.toHaveBeenCalled();
+      expect(updateOutputById).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("keeps queued resume best-effort when queue-status remains not_found", async () => {
     vi.useFakeTimers();
     try {
       const notifyGenerationFailure = vi.fn();

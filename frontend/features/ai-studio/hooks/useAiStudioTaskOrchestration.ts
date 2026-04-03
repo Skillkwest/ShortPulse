@@ -65,24 +65,39 @@ const isAutoRetryEligible = (output: StudioOutput): boolean => {
     output.taskState === "success"
   );
 };
+
+const hasSettledOutputPayload = (output: StudioOutput): boolean => {
+  if (output.status === "saved") return true;
+  if (Array.isArray(output.savedMediaIds) && output.savedMediaIds.length > 0) return true;
+  if (typeof output.previewText === "string" && output.previewText.trim().length > 0) return true;
+  if (typeof output.previewUrl === "string" && output.previewUrl.trim().length > 0) return true;
+  if (
+    typeof output.previewStoragePath === "string" &&
+    output.previewStoragePath.trim().length > 0
+  ) {
+    return true;
+  }
+  if (typeof output.fullStoragePath === "string" && output.fullStoragePath.trim().length > 0) {
+    return true;
+  }
+  return (output.resultUrls ?? []).some((url) => typeof url === "string" && url.trim().length > 0);
+};
 const isQueueResumeEligible = (output: StudioOutput): boolean => {
   const generationId = typeof output.generationId === "string" ? output.generationId.trim() : "";
   const sourceRef = typeof output.sourceRef === "string" ? output.sourceRef.trim() : "";
   if (!generationId && !sourceRef) return false;
   // Resume should still run when queue metadata was dropped or partially persisted
   // (for example queueState=dispatched without a taskId after restore).
-  if (output.queueState && output.queueState !== "queued" && output.queueState !== "dispatched") {
+  if (
+    output.queueState &&
+    output.queueState !== "queued" &&
+    output.queueState !== "dispatching" &&
+    output.queueState !== "dispatched"
+  ) {
     return false;
   }
   if (typeof output.taskId === "string" && output.taskId.trim().length > 0) return false;
-  if (output.previewUrl || output.previewText) return false;
-  if (output.taskState === "fail") return false;
-  return (
-    output.taskState === "pending" ||
-    output.taskState === "running" ||
-    output.taskState === "success" ||
-    output.taskState == null
-  );
+  return !hasSettledOutputPayload(output);
 };
 
 /**

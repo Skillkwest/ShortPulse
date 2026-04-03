@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import {
+  DEFAULT_GENERATION_CONTROL_PLANE_WORKER_INTERVAL_MS,
   runGenerationControlPlaneWorkerLoop,
   runGenerationControlPlaneWorkerOnce,
 } from "../workerLoop";
@@ -184,5 +185,79 @@ describe("generationControlPlane/workerLoop", () => {
       error: "boom",
     });
     expect(logger.error).toHaveBeenCalled();
+  });
+
+  it("uses the fast default polling interval between successful cycles", async () => {
+    const runCycle = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        claimed: 0,
+        processed: 0,
+        recovered: 0,
+        requeued: 0,
+        exhausted: 0,
+        duplicates: 0,
+        errors: 0,
+        skipped: 0,
+        reservationCleanupScanned: 0,
+        reservationCleanupReleased: 0,
+        reservationCleanupErrors: 0,
+        observationClaimed: 0,
+        observationProcessed: 0,
+        observationIgnored: 0,
+        observationFailed: 0,
+        observationErrors: 0,
+        queueClaimed: 0,
+        queueSubmitted: 0,
+        queueRetried: 0,
+        queueRequeuedNoCapacity: 0,
+        queueExhausted: 0,
+        queueSkipped: 0,
+        queueDispatchErrors: 0,
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        claimed: 0,
+        processed: 0,
+        recovered: 0,
+        requeued: 0,
+        exhausted: 0,
+        duplicates: 0,
+        errors: 0,
+        skipped: 0,
+        reservationCleanupScanned: 0,
+        reservationCleanupReleased: 0,
+        reservationCleanupErrors: 0,
+        observationClaimed: 0,
+        observationProcessed: 0,
+        observationIgnored: 0,
+        observationFailed: 0,
+        observationErrors: 0,
+        queueClaimed: 0,
+        queueSubmitted: 0,
+        queueRetried: 0,
+        queueRequeuedNoCapacity: 0,
+        queueExhausted: 0,
+        queueSkipped: 0,
+        queueDispatchErrors: 0,
+      });
+    const sleep = vi.fn().mockResolvedValue(undefined);
+    let shouldStopChecks = 0;
+
+    await runGenerationControlPlaneWorkerLoop({
+      runCycle,
+      sleep,
+      writeHeartbeat: vi.fn(),
+      logger: {
+        info: vi.fn(),
+        error: vi.fn(),
+      },
+      shouldStop: () => (shouldStopChecks += 1) >= 4,
+    });
+
+    expect(runCycle).toHaveBeenCalledTimes(2);
+    expect(sleep).toHaveBeenCalledTimes(1);
+    expect(sleep).toHaveBeenCalledWith(DEFAULT_GENERATION_CONTROL_PLANE_WORKER_INTERVAL_MS);
   });
 });

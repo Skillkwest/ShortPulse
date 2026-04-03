@@ -170,6 +170,7 @@ describe("runGenerationControlPlaneCycle", () => {
   });
 
   it("skips queue dispatch and runs bounded request-id repair in rescue mode", async () => {
+    process.env.SHORTPULSE_FAL_LEGACY_DIRECT_SUBMIT_ENABLED = "true";
     const supabase = createSupabaseMock();
     getSupabaseAdminMock.mockReturnValue({
       rpc: supabase.rpc,

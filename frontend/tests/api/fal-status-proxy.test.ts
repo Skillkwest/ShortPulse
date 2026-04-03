@@ -311,6 +311,63 @@ describe("createFalStatusHandler", () => {
     );
   });
 
+  it("returns recovery-pending payload when projection reports success without canonical outputs", async () => {
+    persistedProjectionRows = [
+      {
+        generation_id: "gen-projection-success-pending-1",
+        result_urls: [],
+        status: "ready",
+        task_state: "success",
+        queue_state: "dispatched",
+      },
+    ];
+    persistedGenerationRows = [
+      {
+        id: "gen-legacy-success-1",
+        status: "success",
+        metadata: {
+          result_urls: ["https://cdn.shortpulse.test/legacy-fallback.mp4"],
+        },
+      },
+    ];
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    const handler = createFalStatusHandler({
+      queueBaseUrl: "https://queue.fal.run/fal-ai/bytedance/seedream/v4.5/text-to-image/requests",
+      routeLabel: "Fal Seedream",
+      timeoutMs: 15000,
+    });
+
+    const req = {
+      method: "POST",
+      body: { requestId: "req-1" },
+      headers: {},
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        request_id: "req-1",
+        generationId: "gen-projection-success-pending-1",
+        status: "IN_PROGRESS",
+        state: "running",
+        shortpulseLifecycle: expect.objectContaining({
+          taskState: "running",
+          isTerminal: false,
+          providerState: "ready",
+          recoveryPending: true,
+          queueState: "dispatched",
+          statusLabel: "Waiting for server recovery...",
+        }),
+      })
+    );
+  });
+
   it("returns terminal error payload from generation projection failure without provider fetch", async () => {
     process.env.KIE_API_KEY = "test-kie-key";
     persistedProjectionRows = [

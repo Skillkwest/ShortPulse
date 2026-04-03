@@ -232,6 +232,42 @@ describe("falStatusPersistedResults", () => {
     });
   });
 
+  it("does not fall back to ai_generations metadata when projection already reports success without canonical outputs", async () => {
+    persistedProjectionRows = [
+      {
+        generation_id: "gen-projection-success-pending-1",
+        result_urls: [],
+        status: "ready",
+        task_state: "success",
+        queue_state: "dispatched",
+      },
+    ];
+    persistedGenerationRows = [
+      {
+        id: "gen-legacy-success-1",
+        status: "success",
+        metadata: {
+          result_urls: ["https://cdn.shortpulse.test/legacy-fallback.mp4"],
+        },
+      },
+    ];
+
+    await expect(
+      readPersistedGenerationStatusContext({
+        userId: "user-1",
+        requestId: "req-1",
+      })
+    ).resolves.toEqual({
+      generationId: "gen-projection-success-pending-1",
+      resultUrls: [],
+      status: "ready",
+      taskState: "success",
+      queueState: "dispatched",
+      errorMessageShort: null,
+      errorDetail: null,
+    });
+  });
+
   it("reads canonical outputs from projection-linked generation ids before ai_generations fallback", async () => {
     persistedProjectionRows = [
       {

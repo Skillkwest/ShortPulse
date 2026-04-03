@@ -17,6 +17,10 @@ export type PersistedGenerationStatusContext = {
   errorDetail?: string | null;
 };
 
+const isSuccessfulProjectionStatus = (value: string | null | undefined): boolean => {
+  return value === "success" || value === "completed" || value === "complete" || value === "ready";
+};
+
 const asOptionalString = (value: unknown): string | null => {
   if (typeof value !== "string") return null;
   const trimmed = value.trim();
@@ -137,6 +141,21 @@ export const readPersistedGenerationStatusContext = async ({
         generationId: projectionContext.generationId,
         resultUrls: [],
         taskState: projectionContext.taskState,
+        errorMessageShort: projectionContext.errorMessageShort,
+        errorDetail: projectionContext.errorDetail,
+      };
+    }
+    if (
+      projectionContext &&
+      (projectionContext.taskState === "success" ||
+        isSuccessfulProjectionStatus(projectionContext.status))
+    ) {
+      return {
+        generationId: projectionContext.generationId,
+        resultUrls: [],
+        status: projectionContext.status,
+        taskState: "success",
+        queueState: normalizePersistedQueueState(projectionContext.queueState) ?? "dispatched",
         errorMessageShort: projectionContext.errorMessageShort,
         errorDetail: projectionContext.errorDetail,
       };

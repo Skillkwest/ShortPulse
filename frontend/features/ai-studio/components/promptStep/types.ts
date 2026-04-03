@@ -98,4 +98,5 @@ export type PromptStepProps = {
   outputGenerateCostCredits?: number | null;
   outputGenerateGuardrailReason?: string | null;
   hideHeader?: boolean;
+  autoResize?: boolean;
 };

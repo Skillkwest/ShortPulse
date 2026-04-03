@@ -121,9 +121,42 @@
   min-width: 0;
 }
 
+.video-properties-panel .video-prompt-generate-aside {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.video-properties-panel .video-prompt-generate-main .reference-dropzone-block.prompt-block {
+  display: block;
+}
+
+.video-properties-panel .video-prompt-generate-main .reference-step-card.prompt-step {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  padding: 0;
+  gap: 0;
+}
+
 .video-properties-panel .reference-generate-inline {
   align-self: end;
   padding-bottom: 12px;
+}
+
+.video-properties-panel .video-shot-status-card {
+  min-width: 94px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(201, 205, 214, 0.14);
+  background: rgba(37, 41, 47, 0.64);
+  color: rgba(235, 239, 244, 0.92);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.2;
+  text-align: center;
 }
 
 .video-properties-panel .reference-generate-inline .create-controls.single-control {
@@ -135,6 +168,7 @@
   background: rgba(37, 41, 47, 0.64);
   box-shadow: 0 10px 28px rgba(0, 0, 0, 0.28);
   color: #f5f9ff;
+  overflow-y: hidden;
 }
 
 .video-properties-panel .prompt-enhanced-wrapper .enhanced-prompt-input:focus,

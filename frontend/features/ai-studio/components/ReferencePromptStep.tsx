@@ -23,6 +23,7 @@ type ReferencePromptStepProps = {
   promptSaveButtonClassName?: string;
   promptSaveButtonUnstyled?: boolean;
   hideHeader?: boolean;
+  autoResize?: boolean;
 };
 
 /**
@@ -47,6 +48,7 @@ export const ReferencePromptStep: React.FC<ReferencePromptStepProps> = ({
   promptSaveButtonClassName,
   promptSaveButtonUnstyled = false,
   hideHeader = false,
+  autoResize = false,
 }) => {
   return (
     <div className="reference-dropzone-block prompt-block" style={{ order: promptOrder }}>
@@ -80,6 +82,7 @@ export const ReferencePromptStep: React.FC<ReferencePromptStepProps> = ({
         promptSaveButtonClassName={promptSaveButtonClassName}
         promptSaveButtonUnstyled={promptSaveButtonUnstyled}
         hideHeader={hideHeader}
+        autoResize={autoResize}
       />
     </div>
   );

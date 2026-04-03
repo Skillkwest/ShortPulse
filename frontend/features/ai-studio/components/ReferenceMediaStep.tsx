@@ -267,7 +267,14 @@ export const ReferenceMediaStep: React.FC<ReferenceMediaStepProps> = ({
             >
               {isVideoVariant ? (
                 <span className="dropzone-tag">
-                  {isStandardMode ? "First frame" : "Reference image"}
+                  {isStandardMode ? (
+                    <>
+                      <span>First frame</span>
+                      <span className="dropzone-tag-pill">Optional</span>
+                    </>
+                  ) : (
+                    "Reference image"
+                  )}
                 </span>
               ) : null}
               {referenceImageUrl ? (
@@ -305,7 +312,10 @@ export const ReferenceMediaStep: React.FC<ReferenceMediaStepProps> = ({
                     extraImageUrls[0] ? { backgroundImage: `url(${extraImageUrls[0]})` } : undefined
                   }
                 >
-                  <span className="dropzone-tag">Last frame</span>
+                  <span className="dropzone-tag">
+                    <span>Last frame</span>
+                    {isStandardMode ? <span className="dropzone-tag-pill">Optional</span> : null}
+                  </span>
                   {extraImageUrls[0] ? (
                     <button
                       type="button"

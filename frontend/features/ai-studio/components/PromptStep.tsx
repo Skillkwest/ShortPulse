@@ -87,6 +87,7 @@ export function PromptStep({
   outputGenerateCostCredits = null,
   outputGenerateGuardrailReason = null,
   hideHeader = false,
+  autoResize = false,
 }: PromptStepProps) {
   const [promptMode, setPromptMode] = React.useState<"enhanced" | "chat">(
     chatOnly ? "chat" : "enhanced"
@@ -318,6 +319,7 @@ export function PromptStep({
                 shouldDisableSave={shouldDisableSave}
                 promptSaveButtonClassName={promptSaveButtonClassName}
                 promptSaveButtonUnstyled={promptSaveButtonUnstyled}
+                autoResize={autoResize}
               />
             )}
           </>

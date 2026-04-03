@@ -22,6 +22,7 @@ type PromptStepEnhancedSurfaceProps = {
   shouldDisableSave: boolean;
   promptSaveButtonClassName: string;
   promptSaveButtonUnstyled: boolean;
+  autoResize: boolean;
 };
 
 export const PromptStepEnhancedSurface: React.FC<PromptStepEnhancedSurfaceProps> = ({
@@ -41,7 +42,17 @@ export const PromptStepEnhancedSurface: React.FC<PromptStepEnhancedSurfaceProps>
   shouldDisableSave,
   promptSaveButtonClassName,
   promptSaveButtonUnstyled,
+  autoResize,
 }) => {
+  const textareaRef = React.useRef<HTMLTextAreaElement | null>(null);
+
+  React.useLayoutEffect(() => {
+    if (!autoResize || !textareaRef.current) return;
+    const textarea = textareaRef.current;
+    textarea.style.height = "auto";
+    textarea.style.height = `${textarea.scrollHeight}px`;
+  }, [autoResize, prompt]);
+
   return (
     <>
       <div className="step2-input-row enhanced-mode">
@@ -52,6 +63,7 @@ export const PromptStepEnhancedSurface: React.FC<PromptStepEnhancedSurfaceProps>
             </div>
           ) : null}
           <textarea
+            ref={textareaRef}
             className="prompt-input agent-step-textarea enhanced-prompt-input"
             value={prompt}
             onChange={(event) => onPromptChange(event.target.value)}

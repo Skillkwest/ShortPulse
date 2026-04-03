@@ -252,29 +252,16 @@ export const ReferenceVideoSettingsStep: React.FC<ReferenceVideoSettingsStepProp
               </div>
 
               <div className="video-settings-popover-body">
-                <div className="control-row compact video-settings-full-row">
-                  <AspectDropdown
-                    aspect={aspect}
-                    onSelect={onAspectChange}
-                    options={aspectOptionsForModel}
-                  />
-                </div>
                 <div className="video-settings-popover-inline-row">
-                  {!isMotionMode ? (
-                    <div className="control-row compact fixed-select">
-                      <select
-                        className="model-select"
-                        value={videoDurationValue}
-                        onChange={(event) => onVideoDurationChange?.(Number(event.target.value))}
-                      >
-                        {durationOptions.map((seconds) => (
-                          <option value={seconds} key={`duration-${seconds}`}>
-                            {seconds} seconds
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  ) : null}
+                  <div
+                    className={`control-row compact ${shouldShowResolutionControl ? "" : "video-settings-full-row"}`}
+                  >
+                    <AspectDropdown
+                      aspect={aspect}
+                      onSelect={onAspectChange}
+                      options={aspectOptionsForModel}
+                    />
+                  </div>
                   {shouldShowResolutionControl ? (
                     <div className="control-row compact fixed-select">
                       <select
@@ -294,27 +281,64 @@ export const ReferenceVideoSettingsStep: React.FC<ReferenceVideoSettingsStepProp
                     </div>
                   ) : null}
                 </div>
-                <div className="video-settings-toggle-row">
-                  <div className="video-settings-toggle-copy">
-                    <span className="input-label">Generate audio</span>
-                    <span className="tiny helper-text">{audioHelperText}</span>
+                {!isMotionMode ? (
+                  <div className="video-settings-popover-inline-row">
+                    <div className="control-row compact fixed-select">
+                      <select
+                        className="model-select"
+                        value={videoDurationValue}
+                        onChange={(event) => onVideoDurationChange?.(Number(event.target.value))}
+                      >
+                        {durationOptions.map((seconds) => (
+                          <option value={seconds} key={`duration-${seconds}`}>
+                            {seconds} seconds
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="video-settings-toggle-row video-settings-toggle-row--compact">
+                      <span className="input-label">Generate audio</span>
+                      <button
+                        type="button"
+                        className={`audio-toggle ${videoGenerateAudioValue ? "is-active" : ""}`}
+                        aria-pressed={videoGenerateAudioValue}
+                        aria-label={
+                          videoGenerateAudioValue
+                            ? "Disable audio generation"
+                            : "Enable audio generation"
+                        }
+                        onClick={() => onVideoGenerateAudioChange?.(!videoGenerateAudioValue)}
+                      >
+                        <span className="audio-toggle-track" aria-hidden="true">
+                          <span className="audio-toggle-dot" />
+                        </span>
+                      </button>
+                    </div>
                   </div>
-                  <button
-                    type="button"
-                    className={`audio-toggle ${videoGenerateAudioValue ? "is-active" : ""}`}
-                    aria-pressed={videoGenerateAudioValue}
-                    aria-label={
-                      videoGenerateAudioValue
-                        ? "Disable audio generation"
-                        : "Enable audio generation"
-                    }
-                    onClick={() => onVideoGenerateAudioChange?.(!videoGenerateAudioValue)}
-                  >
-                    <span className="audio-toggle-track" aria-hidden="true">
-                      <span className="audio-toggle-dot" />
-                    </span>
-                  </button>
-                </div>
+                ) : null}
+                {isMotionMode ? (
+                  <div className="video-settings-toggle-row">
+                    <div className="video-settings-toggle-copy">
+                      <span className="input-label">Generate audio</span>
+                      <span className="tiny helper-text">{audioHelperText}</span>
+                    </div>
+                    <button
+                      type="button"
+                      className={`audio-toggle ${videoGenerateAudioValue ? "is-active" : ""}`}
+                      aria-pressed={videoGenerateAudioValue}
+                      aria-label={
+                        videoGenerateAudioValue
+                          ? "Disable audio generation"
+                          : "Enable audio generation"
+                      }
+                      onClick={() => onVideoGenerateAudioChange?.(!videoGenerateAudioValue)}
+                    >
+                      <span className="audio-toggle-track" aria-hidden="true">
+                        <span className="audio-toggle-dot" />
+                      </span>
+                    </button>
+                  </div>
+                ) : null}
 
                 {!isMotionMode && isSeedanceI2VModel ? (
                   <div className="video-settings-toggle-row">

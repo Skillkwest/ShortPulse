@@ -425,28 +425,36 @@ export function VideoPropertiesPanel({
                 onAgentEnhanceSend={onAgentEnhanceSend}
                 showEnhanceButton={false}
                 hideHeader={true}
+                autoResize
                 beginnerHelperText="Direct the shot: describe the subject, motion, camera movement, and mood you want in the clip."
               />
             </div>
-            <ReferenceGenerateStep
-              inline
-              beginnerMode={beginnerMode}
-              collapsed={collapsedSteps.generate}
-              generateOrder={generateOrder}
-              generateBadge={generateBadge}
-              onExpand={() => expandIfCollapsed("generate")}
-              onRegenerate={onRegenerate}
-              isGenerateDisabled={
-                isGenerateDisabled ||
-                !referenceText?.trim() ||
-                (activeVideoMode === "standard" && !referenceImageUrl)
-              }
-              isBusy={agentIsSending}
-              costCredits={costCredits}
-              guardrailReason={guardrailReason}
-              promptRequiredMessage={null}
-              suppressInlineGuardrailReason
-            />
+            <div className="video-prompt-generate-aside">
+              {activeVideoMode === "standard" && !isMultiShotEnabled ? (
+                <div className="video-shot-status-card" aria-label="Shot mode status">
+                  Single shot
+                </div>
+              ) : null}
+              <ReferenceGenerateStep
+                inline
+                beginnerMode={beginnerMode}
+                collapsed={collapsedSteps.generate}
+                generateOrder={generateOrder}
+                generateBadge={generateBadge}
+                onExpand={() => expandIfCollapsed("generate")}
+                onRegenerate={onRegenerate}
+                isGenerateDisabled={
+                  isGenerateDisabled ||
+                  !referenceText?.trim() ||
+                  (activeVideoMode === "standard" && !referenceImageUrl)
+                }
+                isBusy={agentIsSending}
+                costCredits={costCredits}
+                guardrailReason={guardrailReason}
+                promptRequiredMessage={null}
+                suppressInlineGuardrailReason
+              />
+            </div>
           </div>
           <ReferenceKlingAdvancedSteps
             isKling3Mode={isKling3Mode}

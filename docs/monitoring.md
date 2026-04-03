@@ -42,6 +42,7 @@ Purpose: define how runtime incidents are captured, triaged, and resolved.
 ### Fal drain cycle monitoring
 - Local dev queue mode requires `npm -C frontend run dev:generation-worker`; localhost queued submits now fail closed when the worker heartbeat is stale/missing.
 - Use `scripts/run_generation_drain_cycle.mjs` to run controlled all-user drain loops via `/api/internal/generation-recovery/run`.
+- Use `npx tsx scripts/replay_generation_convergence_backlog.ts --dry-run` to inspect `outputs_without_publications` backlog rows that are already `status='success'` and therefore outside normal reconciler claiming.
 - Use `docs/sops/sop_generation_recovery_diagnostics.md` as the canonical drain/remediation sequence.
 - Use `sql/check_generation_queue_dispatch_latency.sql` to measure queue-to-dispatch latency from `telemetry.queue.dispatch.submitted` events in `app_error_events`.
 - Use `sql/check_generation_recovery_media_visible_latency.sql` to measure provider-terminal-to-media-visible latency from `telemetry.generation.recovery.media_visible` events in `app_error_events`.

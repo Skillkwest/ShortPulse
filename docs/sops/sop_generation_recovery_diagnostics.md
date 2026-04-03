@@ -38,6 +38,7 @@ Purpose: canonical operator runbook for queue dispatch, recovery execution, and 
   - `/api/internal/admin-user-health-fleet/run`
   - `/api/fal/queue-status`
   - `/api/fal/webhook` (if enabled)
+  - `npx tsx scripts/replay_generation_convergence_backlog.ts` (bounded operator replay for `outputs_without_publications` backlog rows)
   - `/api/admin/user-health` (operator diagnostics for per-user generation + drainage health posture)
   - `/api/admin/user-health-fleet` (operator diagnostics for active-user fleet triage and risk-ranked drill-down)
 
@@ -154,6 +155,34 @@ Use this path when local `SUPABASE_DB_URL` is unavailable.
    - expect events to appear for recovered-success validation runs,
    - inspect `p95_provider_terminal_to_media_visible_ms` before changing queue internals again,
    - use the bucketed rows to identify whether lag is clustering by `model_id`, `provider`, or `recovery_actor`.
+
+### 2A) Bounded convergence backlog replay
+Use this path when `sql/check_generation_convergence_defect_classes.sql` shows `outputs_without_publications > 0` on rows that are already `status='success'` and therefore invisible to normal reconciler claiming.
+
+1. Dry-run candidate selection first:
+   ```bash
+   npx tsx scripts/replay_generation_convergence_backlog.ts \
+     --limit 10 \
+     --scan-limit 500
+   ```
+2. Execute only against the approved development project and require an explicit project-ref check:
+   ```bash
+   npx tsx scripts/replay_generation_convergence_backlog.ts \
+     --execute \
+     --expected-project-ref <dev-project-ref> \
+     --limit 10 \
+     --scan-limit 500
+   ```
+3. For surgical replay, pass explicit ids instead of broad scanning:
+   ```bash
+   npx tsx scripts/replay_generation_convergence_backlog.ts \
+     --execute \
+     --expected-project-ref <dev-project-ref> \
+     --generation-id <uuid-1> \
+     --generation-id <uuid-2>
+   ```
+4. Re-run `sql/check_generation_convergence_defect_classes.sql` immediately after the batch and confirm `outputs_without_publications` drops by the replay count you expect.
+5. Do not use this helper against staging or production. It is a dev-lane operator tool and defaults to dry-run.
 
 ### 3) Guarded manual remediation (only for confirmed stale blockers)
 1. Use the commented remediation transaction in `sql/check_generation_queue_blockers.sql`.

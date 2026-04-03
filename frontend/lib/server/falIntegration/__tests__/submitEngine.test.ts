@@ -41,6 +41,14 @@ describe("submitEngine trusted target policy", () => {
 
     expect(result.response.ok).toBe(true);
     expect(result.targetUrl).toBe("https://queue.fal.run/fal-ai/nano-banana-pro");
+    expect(result.diagnostics).toEqual(
+      expect.objectContaining({
+        attemptsTried: 1,
+        fallbackCount: 0,
+        targetCount: 1,
+        totalDurationMs: expect.any(Number),
+      })
+    );
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 });

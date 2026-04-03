@@ -1333,6 +1333,7 @@ const processClaimedQueueItem = async ({
         queue_latency_seconds:
           typeof queueLatencyMs === "number" ? Math.floor(queueLatencyMs / 1000) : null,
         dispatch_stage_timings_ms: stageTimings,
+        provider_submit_diagnostics: submitResult.providerDiagnostics,
       },
     });
     return metrics;

@@ -216,6 +216,12 @@ describe("generationQueue/dispatch transition integrity", () => {
       providerRequestId: "req-1",
       targetUrl: "https://fal.test",
       targetIndex: 0,
+      providerDiagnostics: {
+        attemptsTried: 1,
+        fallbackCount: 0,
+        targetCount: 1,
+        totalDurationMs: 50,
+      },
     });
     markGenerationReservationSubmittedMock.mockResolvedValue({
       status: "reserved",
@@ -698,6 +704,7 @@ describe("generationQueue/dispatch transition integrity", () => {
               projectionSync: expect.any(Number),
               queueRemove: expect.any(Number),
             }),
+            provider_submit_diagnostics: expect.any(Object),
           }),
         })
       );

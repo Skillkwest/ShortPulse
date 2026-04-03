@@ -11,6 +11,12 @@ export type SubmitResult = {
   data: Record<string, unknown>;
   targetUrl: string;
   targetIndex: number;
+  diagnostics: {
+    attemptsTried: number;
+    fallbackCount: number;
+    targetCount: number;
+    totalDurationMs: number;
+  };
 };
 
 const clampStartTimeoutSeconds = (value: number): number => {
@@ -75,6 +81,7 @@ const runSubmitTarget = async ({
   maxAttemptsPerTarget: number;
 }): Promise<SubmitResult> => {
   const body = target.transformPayload ? target.transformPayload(payload) : payload;
+  const startedAt = Date.now();
   for (let attempt = 1; attempt <= maxAttemptsPerTarget; attempt += 1) {
     try {
       assertTrustedFalProviderUrl(target.submitUrl, `submit_target_${targetIndex}`);
@@ -97,7 +104,18 @@ const runSubmitTarget = async ({
         await sleep(120 * attempt);
         continue;
       }
-      return { response, data, targetUrl: target.submitUrl, targetIndex };
+      return {
+        response,
+        data,
+        targetUrl: target.submitUrl,
+        targetIndex,
+        diagnostics: {
+          attemptsTried: attempt,
+          fallbackCount: targetIndex,
+          targetCount: 1,
+          totalDurationMs: Math.max(0, Date.now() - startedAt),
+        },
+      };
     } catch (error) {
       if (attempt < maxAttemptsPerTarget && isRetryableSubmitTransportError(error)) {
         await sleep(120 * attempt);
@@ -145,7 +163,13 @@ export const submitWithFallbackTargets = async ({
     maxAttemptsPerTarget: resolvedMaxAttemptsPerTarget,
   });
   if (primary.response.ok || targets.length === 1) {
-    return primary;
+    return {
+      ...primary,
+      diagnostics: {
+        ...primary.diagnostics,
+        targetCount: targets.length,
+      },
+    };
   }
 
   let fallbackFailure: SubmitResult | null = null;
@@ -160,13 +184,33 @@ export const submitWithFallbackTargets = async ({
       maxAttemptsPerTarget: resolvedMaxAttemptsPerTarget,
     });
     if (fallback.response.ok) {
-      return fallback;
+      return {
+        ...fallback,
+        diagnostics: {
+          ...fallback.diagnostics,
+          fallbackCount: offset + 1,
+          targetCount: targets.length,
+        },
+      };
     }
     fallbackFailure = fallback;
   }
 
   if (primary.response.status === 404 && fallbackFailure) {
-    return fallbackFailure;
+    return {
+      ...fallbackFailure,
+      diagnostics: {
+        ...fallbackFailure.diagnostics,
+        fallbackCount: fallbackFailure.targetIndex,
+        targetCount: targets.length,
+      },
+    };
   }
-  return primary;
+  return {
+    ...primary,
+    diagnostics: {
+      ...primary.diagnostics,
+      targetCount: targets.length,
+    },
+  };
 };

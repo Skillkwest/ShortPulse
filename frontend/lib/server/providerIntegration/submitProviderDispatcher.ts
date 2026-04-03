@@ -60,12 +60,19 @@ const toProviderSubmitResult = (
     data: Record<string, unknown>;
     targetUrl: string;
     targetIndex: number;
+    diagnostics?: Record<string, unknown> | null;
   },
   providerDiagnostics: Record<string, unknown> | null = null
 ): ProviderSubmitResult => ({
   ...result,
   providerRequestId: readCanonicalProviderRequestId(result.data, { allowGenericId: true }),
-  providerDiagnostics,
+  providerDiagnostics:
+    result.diagnostics || providerDiagnostics
+      ? {
+          ...(result.diagnostics ?? {}),
+          ...(providerDiagnostics ?? {}),
+        }
+      : null,
 });
 
 const retryableSubmitStatuses = new Set([408, 409, 425, 429, 500, 502, 503, 504]);
@@ -132,8 +139,10 @@ const submitKieTarget = async ({
   data: Record<string, unknown>;
   targetUrl: string;
   targetIndex: number;
+  diagnostics: Record<string, unknown>;
 }> => {
   const body = target.transformPayload ? target.transformPayload(payload) : payload;
+  const startedAt = Date.now();
   for (let attempt = 1; attempt <= maxAttemptsPerTarget; attempt += 1) {
     try {
       const response = await fetch(target.submitUrl, {
@@ -165,6 +174,12 @@ const submitKieTarget = async ({
         data: normalized.data,
         targetUrl: target.submitUrl,
         targetIndex,
+        diagnostics: {
+          attemptsTried: attempt,
+          fallbackCount: targetIndex,
+          targetCount: 1,
+          totalDurationMs: Math.max(0, Date.now() - startedAt),
+        },
       };
     } catch (error) {
       if (attempt < maxAttemptsPerTarget && isRetryableTransportError(error)) {
@@ -196,6 +211,7 @@ const submitKieWithFallbackTargets = async ({
   data: Record<string, unknown>;
   targetUrl: string;
   targetIndex: number;
+  diagnostics: Record<string, unknown>;
 }> => {
   if (!targets.length) {
     throw new Error("Kie submit requires at least one trusted submit target.");
@@ -208,6 +224,7 @@ const submitKieWithFallbackTargets = async ({
     data: Record<string, unknown>;
     targetUrl: string;
     targetIndex: number;
+    diagnostics: Record<string, unknown>;
   } | null = null;
 
   for (const [index, target] of targets.entries()) {
@@ -221,12 +238,28 @@ const submitKieWithFallbackTargets = async ({
       maxAttemptsPerTarget: attempts,
     });
     if (result.response.ok) {
-      return result;
+      return {
+        ...result,
+        diagnostics: {
+          ...result.diagnostics,
+          fallbackCount: index,
+          targetCount: targets.length,
+        },
+      };
     }
     fallbackFailure = result;
   }
 
-  if (fallbackFailure) return fallbackFailure;
+  if (fallbackFailure) {
+    return {
+      ...fallbackFailure,
+      diagnostics: {
+        ...fallbackFailure.diagnostics,
+        fallbackCount: fallbackFailure.targetIndex,
+        targetCount: targets.length,
+      },
+    };
+  }
   throw new Error("Kie submit fallback exhausted without a response.");
 };
 

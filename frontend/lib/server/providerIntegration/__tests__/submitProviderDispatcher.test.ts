@@ -33,6 +33,12 @@ describe("submitProviderDispatcher", () => {
       data: { request_id: "req-1" },
       targetUrl: "https://queue.fal.run/fal-ai/model",
       targetIndex: 0,
+      diagnostics: {
+        attemptsTried: 1,
+        fallbackCount: 0,
+        targetCount: 1,
+        totalDurationMs: 25,
+      },
     });
 
     const controller = new AbortController();
@@ -49,6 +55,11 @@ describe("submitProviderDispatcher", () => {
     expect(submitWithFallbackTargetsMock).toHaveBeenCalledTimes(1);
     expect(result.providerRequestId).toBe("req-1");
     expect(result.targetIndex).toBe(0);
+    expect(result.providerDiagnostics).toEqual(
+      expect.objectContaining({
+        attemptsTried: expect.any(Number),
+      })
+    );
   });
 
   it("supports request-id aliases from provider payloads", async () => {
@@ -57,6 +68,12 @@ describe("submitProviderDispatcher", () => {
       data: { task_id: "task-1" },
       targetUrl: "https://queue.fal.run/fal-ai/model",
       targetIndex: 0,
+      diagnostics: {
+        attemptsTried: 1,
+        fallbackCount: 0,
+        targetCount: 1,
+        totalDurationMs: 25,
+      },
     });
 
     const controller = new AbortController();
@@ -107,6 +124,14 @@ describe("submitProviderDispatcher", () => {
 
     expect(result.providerRequestId).toBe("kie-req-1");
     expect(submitWithFallbackTargetsMock).not.toHaveBeenCalled();
+    expect(result.providerDiagnostics).toEqual(
+      expect.objectContaining({
+        attemptsTried: 1,
+        fallbackCount: 0,
+        targetCount: 1,
+        totalDurationMs: expect.any(Number),
+      })
+    );
     expect(fetchMock).toHaveBeenCalledWith(
       "https://queue.kie.ai/v1/jobs",
       expect.objectContaining({
@@ -279,6 +304,14 @@ describe("submitProviderDispatcher", () => {
     expect(result.targetIndex).toBe(1);
     expect(result.response.ok).toBe(true);
     expect(result.providerRequestId).toBe("kie-task-2");
+    expect(result.providerDiagnostics).toEqual(
+      expect.objectContaining({
+        attemptsTried: 1,
+        fallbackCount: 1,
+        targetCount: 2,
+        totalDurationMs: expect.any(Number),
+      })
+    );
   });
 
   it("throws for unsupported non-kie providers", async () => {

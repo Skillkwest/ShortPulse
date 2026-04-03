@@ -52,4 +52,20 @@ describe("appErrorLogs skip rules", () => {
 
     expect(result).toEqual({ ok: false, skipped: false, id: null });
   });
+
+  it("keeps generation telemetry even when the status code is non-error", async () => {
+    const result = await writeAppErrorLog({
+      source: "telemetry.queue.dispatch.submitted",
+      scope: "generation",
+      severity: "low",
+      message: "Queued generation submit dispatched.",
+      statusCode: 200,
+      metadata: {
+        source_ref: "source-1",
+        generation_id: "gen-1",
+      },
+    });
+
+    expect(result).toEqual({ ok: true, skipped: false, id: null });
+  });
 });

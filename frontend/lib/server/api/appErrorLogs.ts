@@ -290,7 +290,13 @@ const shouldSkipLog = (params: {
   if (params.endpoint?.includes("/api/log/client-error")) return true;
   if (params.statusCode !== null) {
     if (params.scope === "app" && params.statusCode < 400) return true;
-    if (params.scope === "generation" && params.statusCode < 400) return true;
+    if (
+      params.scope === "generation" &&
+      params.statusCode < 400 &&
+      !isTelemetrySource(params.source)
+    ) {
+      return true;
+    }
   }
   if (
     params.scope === "app" &&

@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   buildPersistedCompletedPayload,
+  buildPersistedFailedPayload,
   readPersistedGenerationStatusContext,
   readPersistedResultUrlsFromMetadata,
   readPersistedSuccessResultUrls,
@@ -109,7 +110,7 @@ describe("falStatusPersistedResults", () => {
     ]);
   });
 
-  it("reads persisted success rows only", async () => {
+  it("returns no settled urls when only legacy success metadata exists", async () => {
     persistedGenerationRows = [
       {
         id: "gen-processing-1",
@@ -132,10 +133,10 @@ describe("falStatusPersistedResults", () => {
         userId: "user-1",
         requestId: "req-1",
       })
-    ).resolves.toEqual(["https://cdn.shortpulse.test/final.mp4"]);
+    ).resolves.toEqual([]);
   });
 
-  it("returns the successful generation id when metadata fallback is used", async () => {
+  it("returns recovery-pending success context when only metadata urls exist", async () => {
     persistedGenerationRows = [
       {
         id: "gen-processing-1",
@@ -160,7 +161,12 @@ describe("falStatusPersistedResults", () => {
       })
     ).resolves.toEqual({
       generationId: "gen-success-1",
-      resultUrls: ["https://cdn.shortpulse.test/final.mp4"],
+      resultUrls: [],
+      status: "success",
+      taskState: "success",
+      queueState: "dispatched",
+      errorMessageShort: null,
+      errorDetail: null,
     });
   });
 
@@ -191,7 +197,9 @@ describe("falStatusPersistedResults", () => {
     ).resolves.toEqual({
       generationId: "gen-projection-1",
       resultUrls: ["https://cdn.shortpulse.test/projection-a.mp4"],
+      status: "ready",
       taskState: "success",
+      queueState: "dispatched",
       errorMessageShort: null,
       errorDetail: null,
     });
@@ -226,7 +234,9 @@ describe("falStatusPersistedResults", () => {
     ).resolves.toEqual({
       generationId: "gen-projection-fail-1",
       resultUrls: [],
+      status: "ready",
       taskState: "fail",
+      queueState: null,
       errorMessageShort: "Generation failed",
       errorDetail: "Provider reported failed state during recovery execution.",
     });
@@ -298,7 +308,9 @@ describe("falStatusPersistedResults", () => {
     ).resolves.toEqual({
       generationId: "gen-projection-output-1",
       resultUrls: ["https://cdn.shortpulse.test/projected-output.mp4"],
-      taskState: "running",
+      status: "ready",
+      taskState: "success",
+      queueState: "dispatched",
       errorMessageShort: null,
       errorDetail: null,
     });
@@ -332,6 +344,11 @@ describe("falStatusPersistedResults", () => {
         "https://cdn.shortpulse.test/output-a.mp4",
         "https://cdn.shortpulse.test/output-b.mp4",
       ],
+      status: "success",
+      taskState: "success",
+      queueState: "dispatched",
+      errorMessageShort: null,
+      errorDetail: null,
     });
   });
 
@@ -362,6 +379,11 @@ describe("falStatusPersistedResults", () => {
     ).resolves.toEqual({
       generationId: "gen-processing-1",
       resultUrls: ["https://cdn.shortpulse.test/output-a.mp4"],
+      status: "processing",
+      taskState: "success",
+      queueState: "dispatched",
+      errorMessageShort: null,
+      errorDetail: null,
     });
 
     expect(outputEqCalls).toContainEqual(["generation_id", "gen-processing-1"]);
@@ -384,8 +406,63 @@ describe("falStatusPersistedResults", () => {
         taskState: "success",
         isTerminal: true,
         resultUrls: ["https://cdn.shortpulse.test/final.mp4"],
+        providerState: "completed",
         queueState: "dispatched",
         statusLabel: "Just now",
+      },
+    });
+  });
+
+  it("returns legacy failed generation rows as persisted failure context", async () => {
+    persistedGenerationRows = [
+      {
+        id: "gen-failed-1",
+        status: "failed",
+        error_message: "Legacy generation failed",
+        metadata: {},
+      },
+    ];
+
+    await expect(
+      readPersistedGenerationStatusContext({
+        userId: "user-1",
+        requestId: "req-failed-1",
+      })
+    ).resolves.toEqual({
+      generationId: "gen-failed-1",
+      resultUrls: [],
+      status: "failed",
+      taskState: "fail",
+      queueState: "failed",
+      errorMessageShort: "Legacy generation failed",
+      errorDetail: "Legacy generation failed",
+    });
+  });
+
+  it("builds the failed proxy payload shape", () => {
+    expect(
+      buildPersistedFailedPayload({
+        requestId: "req-1",
+        generationId: "gen-1",
+        errorMessage: "Generation failed",
+        errorDetail: "Provider failed",
+        providerState: "failed",
+        queueState: "failed",
+      })
+    ).toEqual({
+      request_id: "req-1",
+      generationId: "gen-1",
+      status: "error",
+      state: "error",
+      error: "Generation failed",
+      detail: "Provider failed",
+      shortpulseLifecycle: {
+        taskState: "fail",
+        isTerminal: true,
+        errorMessage: "Generation failed",
+        errorDetail: "Provider failed",
+        providerState: "failed",
+        queueState: "failed",
       },
     });
   });

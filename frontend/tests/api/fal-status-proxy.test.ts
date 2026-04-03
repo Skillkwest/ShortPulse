@@ -213,7 +213,7 @@ describe("createFalStatusHandler", () => {
     expect(logGenerationFailureMock).not.toHaveBeenCalled();
   });
 
-  it("returns completed payload from persisted successful generation metadata", async () => {
+  it("returns recovery-pending payload from legacy persisted success metadata", async () => {
     process.env.KIE_API_KEY = "test-kie-key";
     persistedGenerationRows = [
       {
@@ -250,15 +250,15 @@ describe("createFalStatusHandler", () => {
       expect.objectContaining({
         request_id: "req-persisted-success",
         generationId: "gen-persisted-success-1",
-        status: "completed",
-        state: "completed",
-        resultUrls: ["https://cdn.shortpulse.test/persisted-result.mp4"],
-        result_urls: ["https://cdn.shortpulse.test/persisted-result.mp4"],
-        videos: [{ url: "https://cdn.shortpulse.test/persisted-result.mp4" }],
+        status: "IN_PROGRESS",
+        state: "running",
         shortpulseLifecycle: expect.objectContaining({
-          taskState: "success",
-          isTerminal: true,
-          resultUrls: ["https://cdn.shortpulse.test/persisted-result.mp4"],
+          taskState: "running",
+          isTerminal: false,
+          recoveryPending: true,
+          providerState: "success",
+          queueState: "dispatched",
+          statusLabel: "Waiting for server recovery...",
         }),
       })
     );
@@ -420,7 +420,7 @@ describe("createFalStatusHandler", () => {
     );
   });
 
-  it("returns the successful generation id when persisted metadata fallback skips newer non-success rows", async () => {
+  it("returns recovery-pending payload when legacy persisted metadata skips newer non-success rows", async () => {
     process.env.KIE_API_KEY = "test-kie-key";
     persistedGenerationRows = [
       {
@@ -462,14 +462,21 @@ describe("createFalStatusHandler", () => {
       expect.objectContaining({
         request_id: "req-persisted-success",
         generationId: "gen-persisted-success-1",
-        status: "completed",
-        state: "completed",
-        resultUrls: ["https://cdn.shortpulse.test/persisted-result.mp4"],
+        status: "IN_PROGRESS",
+        state: "running",
+        shortpulseLifecycle: expect.objectContaining({
+          taskState: "running",
+          isTerminal: false,
+          recoveryPending: true,
+          providerState: "success",
+          queueState: "dispatched",
+          statusLabel: "Waiting for server recovery...",
+        }),
       })
     );
   });
 
-  it("returns persisted completed payload even when provider key is unavailable", async () => {
+  it("returns recovery-pending payload even when provider key is unavailable and only metadata urls exist", async () => {
     delete process.env.KIE_API_KEY;
     delete process.env.SHORTPULSE_KIE_API_KEY;
     persistedGenerationRows = [
@@ -507,9 +514,16 @@ describe("createFalStatusHandler", () => {
       expect.objectContaining({
         request_id: "req-persisted-without-key",
         generationId: "gen-persisted-without-key-1",
-        status: "completed",
-        state: "completed",
-        resultUrls: ["https://cdn.shortpulse.test/persisted-no-key.mp4"],
+        status: "IN_PROGRESS",
+        state: "running",
+        shortpulseLifecycle: expect.objectContaining({
+          taskState: "running",
+          isTerminal: false,
+          recoveryPending: true,
+          providerState: "success",
+          queueState: "dispatched",
+          statusLabel: "Waiting for server recovery...",
+        }),
       })
     );
   });

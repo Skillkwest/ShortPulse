@@ -13,6 +13,8 @@ export type PersistedGenerationStatusContext = {
   generationId: string | null;
   resultUrls: string[];
   taskState?: string | null;
+  status?: string | null;
+  queueState?: "queued" | "dispatching" | "dispatched" | "failed" | null;
   errorMessageShort?: string | null;
   errorDetail?: string | null;
 };
@@ -50,6 +52,20 @@ const toResultUrlList = (value: unknown): string[] => {
 
 const dedupeUrls = (value: string[]): string[] => Array.from(new Set(value));
 
+const normalizePersistedQueueState = (
+  value: string | null | undefined
+): PersistedGenerationStatusContext["queueState"] => {
+  if (
+    value === "queued" ||
+    value === "dispatching" ||
+    value === "dispatched" ||
+    value === "failed"
+  ) {
+    return value;
+  }
+  return null;
+};
+
 export const readPersistedResultUrlsFromMetadata = (metadata: unknown): string[] => {
   const rowMetadata =
     metadata && typeof metadata === "object" && !Array.isArray(metadata)
@@ -84,6 +100,42 @@ export const buildPersistedCompletedPayload = ({
     taskState: "success",
     isTerminal: true,
     resultUrls,
+    providerState: "completed",
+    queueState: "dispatched",
+    statusLabel: "Just now",
+  }),
+});
+
+export const buildPersistedFailedPayload = ({
+  requestId,
+  generationId,
+  errorMessage,
+  errorDetail,
+  providerState,
+  queueState,
+}: {
+  requestId: string;
+  generationId?: string | null;
+  errorMessage: string;
+  errorDetail?: unknown;
+  providerState?: string | null;
+  queueState?: string | null;
+}) => ({
+  request_id: requestId,
+  ...(typeof generationId === "string" && generationId.trim().length > 0
+    ? { generationId: generationId.trim() }
+    : {}),
+  status: "error",
+  state: "error",
+  error: errorMessage,
+  detail: errorDetail ?? errorMessage,
+  shortpulseLifecycle: buildShortPulseLifecycleHint({
+    taskState: "fail",
+    isTerminal: true,
+    errorMessage,
+    errorDetail: errorDetail ?? errorMessage,
+    providerState: providerState ?? "failed",
+    queueState: normalizePersistedQueueState(queueState) ?? "failed",
   }),
 });
 
@@ -111,7 +163,9 @@ export const readPersistedGenerationStatusContext = async ({
       return {
         generationId: projectionContext.generationId,
         resultUrls: projectionContext.resultUrls,
-        taskState: projectionContext.taskState,
+        status: projectionContext.status,
+        taskState: "success",
+        queueState: normalizePersistedQueueState(projectionContext.queueState) ?? "dispatched",
         errorMessageShort: projectionContext.errorMessageShort,
         errorDetail: projectionContext.errorDetail,
       };
@@ -127,7 +181,9 @@ export const readPersistedGenerationStatusContext = async ({
           return {
             generationId: projectionContext.generationId,
             resultUrls: projectedOutputRows.map((row) => row.resultUrl),
-            taskState: projectionContext.taskState,
+            status: projectionContext.status,
+            taskState: "success",
+            queueState: normalizePersistedQueueState(projectionContext.queueState) ?? "dispatched",
             errorMessageShort: projectionContext.errorMessageShort,
             errorDetail: projectionContext.errorDetail,
           };
@@ -140,7 +196,9 @@ export const readPersistedGenerationStatusContext = async ({
       return {
         generationId: projectionContext.generationId,
         resultUrls: [],
+        status: projectionContext.status,
         taskState: projectionContext.taskState,
+        queueState: normalizePersistedQueueState(projectionContext.queueState),
         errorMessageShort: projectionContext.errorMessageShort,
         errorDetail: projectionContext.errorDetail,
       };
@@ -163,7 +221,7 @@ export const readPersistedGenerationStatusContext = async ({
 
     const { data, error } = await adminClient
       .from("ai_generations")
-      .select("id, status, metadata, created_at")
+      .select("id, status, error_message, metadata, created_at")
       .eq("user_id", userId)
       .eq("request_id", requestId)
       .order("created_at", { ascending: false })
@@ -173,10 +231,14 @@ export const readPersistedGenerationStatusContext = async ({
     }
 
     let latestGenerationId: string | null = null;
+    let latestSuccessfulContext: PersistedGenerationStatusContext | null = null;
+    let latestFailedContext: PersistedGenerationStatusContext | null = null;
     for (const item of data) {
       if (!item || typeof item !== "object" || Array.isArray(item)) continue;
       const row = item as Record<string, unknown>;
       const generationId = asOptionalString(row.id);
+      const status = typeof row.status === "string" ? row.status.trim().toLowerCase() : null;
+      const errorMessage = asOptionalString(row.error_message);
       if (!latestGenerationId && generationId) {
         latestGenerationId = generationId;
       }
@@ -191,17 +253,50 @@ export const readPersistedGenerationStatusContext = async ({
             return {
               generationId,
               resultUrls: outputRows.map((row) => row.resultUrl),
+              status,
+              taskState: "success",
+              queueState: "dispatched",
+              errorMessageShort: null,
+              errorDetail: null,
             };
           }
         } catch {
           // fall back to compatibility metadata when canonical output reads fail
         }
       }
-      const status = typeof row.status === "string" ? row.status.trim().toLowerCase() : null;
+      if (
+        !latestFailedContext &&
+        (status === "fail" ||
+          status === "failed" ||
+          status === "error" ||
+          status === "cancelled" ||
+          status === "canceled")
+      ) {
+        latestFailedContext = {
+          generationId,
+          resultUrls: [],
+          status,
+          taskState: "fail",
+          queueState: "failed",
+          errorMessageShort: errorMessage ?? "Generation failed",
+          errorDetail: errorMessage ?? "Generation failed",
+        };
+      }
       if (status !== "success") continue;
-      const urls = readPersistedResultUrlsFromMetadata(row.metadata);
-      if (urls.length) return { generationId, resultUrls: urls };
+      if (!latestSuccessfulContext) {
+        latestSuccessfulContext = {
+          generationId,
+          resultUrls: [],
+          status,
+          taskState: "success",
+          queueState: "dispatched",
+          errorMessageShort: null,
+          errorDetail: null,
+        };
+      }
     }
+    if (latestSuccessfulContext) return latestSuccessfulContext;
+    if (latestFailedContext) return latestFailedContext;
     return { generationId: latestGenerationId, resultUrls: [] };
   } catch {
     return { generationId: null, resultUrls: [] };

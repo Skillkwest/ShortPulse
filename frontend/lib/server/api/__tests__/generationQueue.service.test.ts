@@ -375,6 +375,7 @@ describe("generationQueue/service.readGenerationQueueStatus", () => {
 
     return {
       queueSelect,
+      generationSelect,
       generationContains,
       generationEq2,
       projectionLimit,
@@ -394,24 +395,23 @@ describe("generationQueue/service.readGenerationQueueStatus", () => {
   };
 
   it("returns dispatching when the queue row holds the active lease", async () => {
-    getSupabaseAdminMock.mockReturnValue(
-      createStatusSupabaseMock({
-        queueRow: {
-          id: "queue-1",
-          status: "dispatching",
-          source_ref: "src-1",
-          generation_id: "gen-1",
-        },
-        generationRow: {
-          id: "gen-1",
-          status: "pending",
-          request_id: null,
-          provider: "fal",
-          model_id: "fal-ai/bytedance/seedream/v4.5/edit",
-          metadata: { source_ref: "src-1" },
-        },
-      })
-    );
+    const supabaseMock = createStatusSupabaseMock({
+      queueRow: {
+        id: "queue-1",
+        status: "dispatching",
+        source_ref: "src-1",
+        generation_id: "gen-1",
+      },
+      generationRow: {
+        id: "gen-1",
+        status: "pending",
+        request_id: null,
+        provider: "fal",
+        model_id: "fal-ai/bytedance/seedream/v4.5/edit",
+        metadata: { source_ref: "src-1" },
+      },
+    });
+    getSupabaseAdminMock.mockReturnValue(supabaseMock);
 
     await expect(
       readGenerationQueueStatus({
@@ -430,6 +430,48 @@ describe("generationQueue/service.readGenerationQueueStatus", () => {
         statusLabel: "Dispatching...",
       },
     });
+
+    expect(supabaseMock.generationSelect).not.toHaveBeenCalled();
+  });
+
+  it("returns queued from the queue row without querying ai_generations", async () => {
+    const supabaseMock = createStatusSupabaseMock({
+      queueRow: {
+        id: "queue-queued-1",
+        status: "queued",
+        source_ref: "src-queued-1",
+        generation_id: "gen-queued-1",
+      },
+      generationRow: {
+        id: "gen-queued-1",
+        status: "running",
+        request_id: null,
+        provider: "fal",
+        model_id: "fal-ai/bytedance/seedream/v4.5/edit",
+        metadata: { source_ref: "src-queued-1" },
+      },
+    });
+    getSupabaseAdminMock.mockReturnValue(supabaseMock);
+
+    await expect(
+      readGenerationQueueStatus({
+        userId: "user-1",
+        generationId: "gen-queued-1",
+      })
+    ).resolves.toEqual({
+      status: "queued",
+      generationId: "gen-queued-1",
+      sourceRef: "src-queued-1",
+      retryAfterMs: 2000,
+      shortpulseLifecycle: {
+        taskState: "pending",
+        queueState: "queued",
+        isTerminal: false,
+        statusLabel: "Waiting in queue...",
+      },
+    });
+
+    expect(supabaseMock.generationSelect).not.toHaveBeenCalled();
   });
 
   it("returns slower queued retry guidance when the generation is still pre-dispatch without a queue row", async () => {

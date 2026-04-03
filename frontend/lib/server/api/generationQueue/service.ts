@@ -915,91 +915,12 @@ export const readGenerationQueueStatus = async ({
     };
   }
 
-  let generationRow: JsonObject | null =
-    legacyProjectionFallbackRow && resolvedGenerationId ? legacyProjectionFallbackRow : null;
-  if (!generationRow) {
-    generationRow = await readLegacyGenerationQueueFallback({
-      supabase,
-      userId,
-      generationId: generationId ?? resolvedGenerationId,
-      sourceRef,
-    });
-  }
-
-  resolvedGenerationId = asString(generationRow?.id) ?? resolvedGenerationId;
   const resolvedSourceRef =
     projectionContext?.sourceRef ??
     asString(queueRow?.source_ref) ??
     sourceRef ??
-    readSourceRefFromGenerationMetadata(generationRow?.metadata);
-
-  const requestId =
-    projectionContext?.requestId ??
-    projectionContext?.providerRequestId ??
-    asString(generationRow?.request_id) ??
-    (await readAttemptRequestIdForGeneration({
-      userId,
-      generationId: resolvedGenerationId,
-    }));
-  const generationStatus = projectionOnlyStatus ?? asString(generationRow?.status)?.toLowerCase();
+    readSourceRefFromGenerationMetadata(legacyProjectionFallbackRow?.metadata);
   const queueStatus = parseQueueStatus(queueRow?.status);
-
-  if (requestId) {
-    const dispatchedModelId = projectionContext?.modelId ?? asString(generationRow?.model_id);
-    return {
-      status: "dispatched",
-      generationId: resolvedGenerationId ?? generationId ?? "",
-      sourceRef: resolvedSourceRef ?? null,
-      requestId,
-      provider: projectionContext?.provider ?? asString(generationRow?.provider) ?? "fal",
-      ...(dispatchedModelId ? { modelId: dispatchedModelId } : {}),
-      shortpulseLifecycle: {
-        taskState: "running",
-        queueState: "dispatched",
-        isTerminal: false,
-      },
-    };
-  }
-
-  if (generationStatus === "fail") {
-    const message =
-      projectionContext?.errorMessageShort ??
-      projectionContext?.errorDetail ??
-      asString(generationRow?.error_message) ??
-      "Generation failed before dispatch.";
-    return {
-      status: "failed",
-      generationId: resolvedGenerationId ?? generationId ?? "",
-      sourceRef: resolvedSourceRef ?? null,
-      message,
-      shortpulseLifecycle: {
-        taskState: "fail",
-        queueState: "failed",
-        isTerminal: true,
-        errorMessage: message,
-      },
-    };
-  }
-
-  if (queueStatus === "exhausted") {
-    const queueError =
-      asString(queueRow?.last_error) ??
-      asString(generationRow?.error_message) ??
-      "Generation failed before dispatch.";
-    return {
-      status: "failed",
-      generationId: resolvedGenerationId ?? generationId ?? "",
-      sourceRef: resolvedSourceRef ?? null,
-      message: queueError,
-      shortpulseLifecycle: {
-        taskState: "fail",
-        queueState: "failed",
-        isTerminal: true,
-        errorMessage: queueError,
-      },
-    };
-  }
-
   if (queueStatus === "queued") {
     return {
       status: "queued",
@@ -1028,11 +949,153 @@ export const readGenerationQueueStatus = async ({
     };
   }
 
+  if (queueStatus === "exhausted") {
+    const queueError =
+      asString(queueRow?.last_error) ??
+      projectionContext?.errorMessageShort ??
+      projectionContext?.errorDetail ??
+      "Generation failed before dispatch.";
+    return {
+      status: "failed",
+      generationId: resolvedGenerationId ?? generationId ?? "",
+      sourceRef: resolvedSourceRef ?? null,
+      message: queueError,
+      shortpulseLifecycle: {
+        taskState: "fail",
+        queueState: "failed",
+        isTerminal: true,
+        errorMessage: queueError,
+        statusLabel: null,
+      },
+    };
+  }
+
+  let generationRow: JsonObject | null =
+    legacyProjectionFallbackRow && resolvedGenerationId ? legacyProjectionFallbackRow : null;
+  if (!generationRow) {
+    generationRow = await readLegacyGenerationQueueFallback({
+      supabase,
+      userId,
+      generationId: generationId ?? resolvedGenerationId,
+      sourceRef,
+    });
+  }
+
+  resolvedGenerationId = asString(generationRow?.id) ?? resolvedGenerationId;
+  const resolvedSourceRefWithLegacyFallback =
+    resolvedSourceRef ?? readSourceRefFromGenerationMetadata(generationRow?.metadata);
+
+  const requestId =
+    projectionContext?.requestId ??
+    projectionContext?.providerRequestId ??
+    asString(generationRow?.request_id) ??
+    (await readAttemptRequestIdForGeneration({
+      userId,
+      generationId: resolvedGenerationId,
+    }));
+  const generationStatus = projectionOnlyStatus ?? asString(generationRow?.status)?.toLowerCase();
+
+  if (requestId) {
+    const dispatchedModelId = projectionContext?.modelId ?? asString(generationRow?.model_id);
+    const dispatchedProvider =
+      projectionContext?.provider ?? asString(generationRow?.provider) ?? "fal";
+    const pollingProvider = resolveQueuePollingProvider({
+      provider: dispatchedProvider,
+      modelId: dispatchedModelId,
+    });
+    return {
+      status: "dispatched",
+      generationId: resolvedGenerationId ?? generationId ?? "",
+      sourceRef: resolvedSourceRefWithLegacyFallback ?? null,
+      requestId,
+      provider: dispatchedProvider,
+      ...(dispatchedModelId ? { modelId: dispatchedModelId } : {}),
+      ...(pollingProvider ? { pollingProvider } : {}),
+      shortpulseLifecycle: {
+        taskState: "running",
+        queueState: "dispatched",
+        isTerminal: false,
+        statusLabel: "Submitted",
+      },
+    };
+  }
+
+  if (generationStatus === "fail") {
+    const message =
+      projectionContext?.errorMessageShort ??
+      projectionContext?.errorDetail ??
+      asString(generationRow?.error_message) ??
+      "Generation failed before dispatch.";
+    return {
+      status: "failed",
+      generationId: resolvedGenerationId ?? generationId ?? "",
+      sourceRef: resolvedSourceRefWithLegacyFallback ?? null,
+      message,
+      shortpulseLifecycle: {
+        taskState: "fail",
+        queueState: "failed",
+        isTerminal: true,
+        errorMessage: message,
+        statusLabel: null,
+      },
+    };
+  }
+
+  if (queueStatus === "exhausted") {
+    const queueError =
+      asString(queueRow?.last_error) ??
+      asString(generationRow?.error_message) ??
+      "Generation failed before dispatch.";
+    return {
+      status: "failed",
+      generationId: resolvedGenerationId ?? generationId ?? "",
+      sourceRef: resolvedSourceRefWithLegacyFallback ?? null,
+      message: queueError,
+      shortpulseLifecycle: {
+        taskState: "fail",
+        queueState: "failed",
+        isTerminal: true,
+        errorMessage: queueError,
+        statusLabel: null,
+      },
+    };
+  }
+
+  if (queueStatus === "queued") {
+    return {
+      status: "queued",
+      generationId: resolvedGenerationId ?? generationId ?? "",
+      sourceRef: resolvedSourceRefWithLegacyFallback ?? null,
+      retryAfterMs: QUEUE_STATUS_QUEUED_RETRY_MS,
+      shortpulseLifecycle: {
+        taskState: "pending",
+        queueState: "queued",
+        isTerminal: false,
+        statusLabel: "Waiting in queue...",
+      },
+    };
+  }
+
+  if (queueStatus === "dispatching") {
+    return {
+      status: "dispatching",
+      generationId: resolvedGenerationId ?? generationId ?? "",
+      sourceRef: resolvedSourceRefWithLegacyFallback ?? null,
+      retryAfterMs: QUEUE_STATUS_DISPATCHING_RETRY_MS,
+      shortpulseLifecycle: {
+        taskState: "running",
+        queueState: "dispatching",
+        isTerminal: false,
+        statusLabel: "Dispatching...",
+      },
+    };
+  }
+
   if (projectionQueueState === "dispatching") {
     return {
       status: "dispatching",
       generationId: resolvedGenerationId ?? generationId ?? "",
-      sourceRef: resolvedSourceRef ?? null,
+      sourceRef: resolvedSourceRefWithLegacyFallback ?? null,
       retryAfterMs: QUEUE_STATUS_DISPATCHING_RETRY_MS,
       shortpulseLifecycle: {
         taskState: "running",
@@ -1046,7 +1109,7 @@ export const readGenerationQueueStatus = async ({
     return {
       status: "queued",
       generationId: resolvedGenerationId ?? generationId ?? "",
-      sourceRef: resolvedSourceRef ?? null,
+      sourceRef: resolvedSourceRefWithLegacyFallback ?? null,
       retryAfterMs: QUEUE_STATUS_QUEUED_RETRY_MS,
       shortpulseLifecycle: {
         taskState: "pending",
@@ -1065,7 +1128,7 @@ export const readGenerationQueueStatus = async ({
     return {
       status: "queued",
       generationId: resolvedGenerationId ?? generationId ?? "",
-      sourceRef: resolvedSourceRef ?? null,
+      sourceRef: resolvedSourceRefWithLegacyFallback ?? null,
       retryAfterMs: QUEUE_STATUS_PRE_DISPATCH_RETRY_MS,
       shortpulseLifecycle: {
         taskState: "pending",

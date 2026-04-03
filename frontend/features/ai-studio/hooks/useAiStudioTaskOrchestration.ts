@@ -15,7 +15,7 @@ import {
 } from "./taskSubmission/queueStatusPolling";
 import { shouldEscalateQueuedNotFoundRecovery } from "./taskSubmission/queueStatusNotFoundPolicy";
 import { useAiStudioTaskSubmission } from "./useAiStudioTaskSubmission";
-import { useAiStudioTasks } from "./useAiStudioTasks";
+import { DISPATCH_HANDOFF_INITIAL_POLL_DELAY_MS, useAiStudioTasks } from "./useAiStudioTasks";
 
 type TaskSubmissionConfig = Omit<
   Parameters<typeof useAiStudioTaskSubmission>[0],
@@ -292,7 +292,9 @@ export const useAiStudioTaskOrchestration = ({
                 errorDetail: null,
               };
             });
-            startPollingTask(requestId, output.id, 0, provider);
+            startPollingTask(requestId, output.id, 0, provider, Date.now(), 0, undefined, {
+              initialDelayMs: DISPATCH_HANDOFF_INITIAL_POLL_DELAY_MS,
+            });
             return;
           }
           if (queueStatus.status === "queued" || queueStatus.status === "dispatching") {

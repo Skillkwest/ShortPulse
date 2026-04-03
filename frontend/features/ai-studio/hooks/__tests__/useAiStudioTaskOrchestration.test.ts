@@ -4,7 +4,7 @@ import type { Dispatch, SetStateAction } from "react";
 import type { StudioOutput } from "../../types";
 import { useAiStudioTaskOrchestration } from "../useAiStudioTaskOrchestration";
 import { useAiStudioTaskSubmission } from "../useAiStudioTaskSubmission";
-import { useAiStudioTasks } from "../useAiStudioTasks";
+import { DISPATCH_HANDOFF_INITIAL_POLL_DELAY_MS, useAiStudioTasks } from "../useAiStudioTasks";
 import { fetchFalQueueStatus } from "../../../../lib/falClient";
 
 vi.mock("../useAiStudioTaskSubmission", () => ({
@@ -13,6 +13,7 @@ vi.mock("../useAiStudioTaskSubmission", () => ({
 
 vi.mock("../useAiStudioTasks", () => ({
   useAiStudioTasks: vi.fn(),
+  DISPATCH_HANDOFF_INITIAL_POLL_DELAY_MS: 250,
 }));
 
 vi.mock("../../../../lib/falClient", () => ({
@@ -756,13 +757,105 @@ describe("useAiStudioTaskOrchestration", () => {
       generationId: "gen-1",
     });
     expect(clearPollTimer).toHaveBeenCalledWith("out-queued");
-    expect(startPollingTask).toHaveBeenCalledWith("req-queued-1", "out-queued", 0, "fal-seedream");
+    expect(startPollingTask).toHaveBeenCalledWith(
+      "req-queued-1",
+      "out-queued",
+      0,
+      "fal-seedream",
+      expect.any(Number),
+      0,
+      undefined,
+      {
+        initialDelayMs: DISPATCH_HANDOFF_INITIAL_POLL_DELAY_MS,
+      }
+    );
     expect(outputs[0]?.taskId).toBe("req-queued-1");
     expect(outputs[0]?.queueState).toBe("dispatched");
     expect(outputs[0]?.taskState).toBe("running");
     expect(notifyGenerationFailure).not.toHaveBeenCalled();
   });
 
+  it("falls back to output/model provider reconstruction when queue resume lacks pollingProvider", async () => {
+    let outputs = [
+      createOutput({
+        id: "out-queued-fallback",
+        modelId: "fal-ai/bytedance/seedream/v4.5/edit",
+        generationId: "gen-fallback",
+        queueState: "queued",
+        taskState: "pending",
+        provider: "fal",
+      }),
+    ];
+    const notifyGenerationFailure = vi.fn();
+    const updateOutputById = vi.fn((id: string, updater: (item: StudioOutput) => StudioOutput) => {
+      outputs = outputs.map((item) => (item.id === id ? updater(item) : item));
+    });
+    const fetchFalQueueStatusMock = vi.mocked(fetchFalQueueStatus);
+    fetchFalQueueStatusMock.mockResolvedValue({
+      status: "dispatched",
+      generationId: "gen-fallback",
+      sourceRef: "source-fallback",
+      requestId: "req-fallback",
+      provider: "fal",
+    });
+
+    renderHook(() =>
+      useAiStudioTaskOrchestration({
+        taskSubmissionConfig: {
+          aspect: "9:16",
+          mode: "image",
+          model: "model-id",
+          prompt: "Prompt",
+          selectedTool: "create",
+          imageResolution: "model_default",
+          videoDurationSeconds: 6,
+          videoResolution: "1080p",
+          videoGenerateAudio: false,
+          videoReferenceMode: "standard",
+          videoReferenceImageUrl: null,
+          motionReferenceVideoUrl: null,
+          videoCameraFixed: false,
+          videoAutoFix: false,
+          klingNegativePrompt: "blur",
+          klingCfgScale: 0.5,
+          klingShotType: "customize",
+          klingVoiceIds: ["", ""],
+          klingMultiPrompts: [],
+          klingElements: [],
+          setIsPromptGenerating: asDispatch<boolean>(vi.fn()),
+          setUiError: asDispatch<string | null>(vi.fn()),
+          setUiNotice: asDispatch<string | null>(vi.fn()),
+          setOutputs: asDispatch<StudioOutput[]>(vi.fn()),
+          setSaved: asDispatch<boolean>(vi.fn()),
+          getDefaultDurationSeconds: vi.fn(() => 6),
+          notifyGenerationFailure,
+          updateOutputById,
+          ensureGenerationRecord: vi.fn(async () => null),
+        },
+        outputs,
+        findOutputById: (id: string) => outputs.find((item) => item.id === id) ?? null,
+      })
+    );
+
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(startPollingTask).toHaveBeenCalledWith(
+      "req-fallback",
+      "out-queued-fallback",
+      0,
+      "fal-seedream",
+      expect.any(Number),
+      0,
+      undefined,
+      {
+        initialDelayMs: DISPATCH_HANDOFF_INITIAL_POLL_DELAY_MS,
+      }
+    );
+    expect(notifyGenerationFailure).not.toHaveBeenCalled();
+  });
   it("backfills generation id during queue resume dispatch when output lost it", async () => {
     let outputs = [
       createOutput({
@@ -1088,7 +1181,13 @@ describe("useAiStudioTaskOrchestration", () => {
       "req-missing-queue-state",
       "out-queued-metadata-missing",
       0,
-      "fal-seedream"
+      "fal-seedream",
+      expect.any(Number),
+      0,
+      undefined,
+      {
+        initialDelayMs: DISPATCH_HANDOFF_INITIAL_POLL_DELAY_MS,
+      }
     );
     expect(outputs[0]?.taskId).toBe("req-missing-queue-state");
     expect(outputs[0]?.queueState).toBe("dispatched");
@@ -1171,7 +1270,13 @@ describe("useAiStudioTaskOrchestration", () => {
       "req-dispatching-restore",
       "out-dispatching-restore",
       0,
-      "fal-seedream"
+      "fal-seedream",
+      expect.any(Number),
+      0,
+      undefined,
+      {
+        initialDelayMs: DISPATCH_HANDOFF_INITIAL_POLL_DELAY_MS,
+      }
     );
     expect(outputs[0]?.taskId).toBe("req-dispatching-restore");
     expect(outputs[0]?.queueState).toBe("dispatched");
@@ -1255,7 +1360,13 @@ describe("useAiStudioTaskOrchestration", () => {
       "req-source-ref-only",
       "out-queued-source-ref-only",
       0,
-      "fal-seedream"
+      "fal-seedream",
+      expect.any(Number),
+      0,
+      undefined,
+      {
+        initialDelayMs: DISPATCH_HANDOFF_INITIAL_POLL_DELAY_MS,
+      }
     );
     expect(outputs[0]?.generationId).toBe("gen-source-ref-only");
     expect(outputs[0]?.taskId).toBe("req-source-ref-only");
@@ -1339,7 +1450,13 @@ describe("useAiStudioTaskOrchestration", () => {
       "req-dispatched-missing-task-id",
       "out-dispatched-metadata-missing-task-id",
       0,
-      "fal-seedream"
+      "fal-seedream",
+      expect.any(Number),
+      0,
+      undefined,
+      {
+        initialDelayMs: DISPATCH_HANDOFF_INITIAL_POLL_DELAY_MS,
+      }
     );
     expect(outputs[0]?.taskId).toBe("req-dispatched-missing-task-id");
     expect(outputs[0]?.queueState).toBe("dispatched");

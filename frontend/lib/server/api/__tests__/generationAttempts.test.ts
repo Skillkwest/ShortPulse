@@ -12,7 +12,7 @@ describe("generationAttempts", () => {
     vi.clearAllMocks();
   });
 
-  it("updates accepted-running attempts by known attempt id without re-reading by provider request id", async () => {
+  it("inserts accepted-running attempts without a pre-insert provider request lookup", async () => {
     const selectCalls: string[] = [];
     const insertCalls: Array<Record<string, unknown>> = [];
     const updateCalls: Array<{
@@ -34,17 +34,6 @@ describe("generationAttempts", () => {
         order: vi.fn(() => buildQuery({ columns, filters })),
         limit: vi.fn(() => buildQuery({ columns, filters })),
         maybeSingle: vi.fn(async () => {
-          if (columns === "id, attempt_number, metadata") {
-            return {
-              data: {
-                id: null,
-                attempt_number: null,
-                metadata: null,
-              },
-              error: null,
-            };
-          }
-
           if (columns === "id, attempt_number") {
             return {
               data: {
@@ -55,10 +44,8 @@ describe("generationAttempts", () => {
             };
           }
 
-          if (
-            columns === "id, generation_id, user_id, attempt_number, provider_request_id, metadata"
-          ) {
-            throw new Error("unexpected provider request lookup");
+          if (columns === "id, attempt_number, metadata") {
+            throw new Error("unexpected provider request prelookup");
           }
 
           throw new Error(`unexpected select columns: ${columns}`);
@@ -130,7 +117,7 @@ describe("generationAttempts", () => {
         source_ref: "source-1",
       },
     });
-    expect(selectCalls).toEqual(["id, attempt_number, metadata", "id, attempt_number"]);
+    expect(selectCalls).toEqual(["id, attempt_number"]);
     expect(insertCalls).toHaveLength(1);
     expect(insertCalls[0]).toEqual(
       expect.objectContaining({
@@ -154,7 +141,8 @@ describe("generationAttempts", () => {
     expect(updateCalls).toHaveLength(0);
   });
 
-  it("updates an existing accepted-running attempt directly to running", async () => {
+  it("updates an existing accepted-running attempt after duplicate insert fallback", async () => {
+    const selectCalls: string[] = [];
     const updateCalls: Array<{
       payload: Record<string, unknown>;
       filters: Array<[string, string]>;
@@ -174,6 +162,15 @@ describe("generationAttempts", () => {
         order: vi.fn(() => buildQuery({ columns, filters })),
         limit: vi.fn(() => buildQuery({ columns, filters })),
         maybeSingle: vi.fn(async () => {
+          if (columns === "id, attempt_number") {
+            return {
+              data: {
+                id: "attempt-prev",
+                attempt_number: 1,
+              },
+              error: null,
+            };
+          }
           if (columns === "id, attempt_number, metadata") {
             return {
               data: {
@@ -198,10 +195,21 @@ describe("generationAttempts", () => {
           throw new Error(`unexpected table ${tableName}`);
         }
         return {
-          select: vi.fn((columns: string) => buildQuery({ columns })),
-          insert: vi.fn(() => {
-            throw new Error("insert should not be called");
+          select: vi.fn((columns: string) => {
+            selectCalls.push(columns);
+            return buildQuery({ columns });
           }),
+          insert: vi.fn(() => ({
+            select: vi.fn((_columns: string) => ({
+              single: vi.fn(async () => ({
+                data: null,
+                error: {
+                  code: "23505",
+                  message: "duplicate key value violates unique constraint",
+                },
+              })),
+            })),
+          })),
           update: vi.fn((payload: Record<string, unknown>) => ({
             eq: vi.fn((field: string, value: string) => ({
               eq: vi.fn((field2: string, value2: string) => {
@@ -244,6 +252,7 @@ describe("generationAttempts", () => {
         },
       })
     );
+    expect(selectCalls).toEqual(["id, attempt_number", "id, attempt_number, metadata"]);
     expect(updateCalls).toHaveLength(1);
     expect(updateCalls[0]).toEqual(
       expect.objectContaining({
@@ -258,9 +267,9 @@ describe("generationAttempts", () => {
             provider_request_id: "req-1",
             source_ref: "source-1",
           },
-          submitted_at: expect.any(String),
           started_at: expect.any(String),
           last_observed_at: expect.any(String),
+          updated_at: expect.any(String),
         }),
       })
     );

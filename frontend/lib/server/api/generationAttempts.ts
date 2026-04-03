@@ -491,58 +491,6 @@ export const ensureAcceptedRunningGenerationAttempt = async ({
       provider_request_id: normalizedProviderRequestId,
     };
 
-    const existingLookup = await lookupAttemptByProviderRequest({
-      generationId: attemptInput.generationId,
-      userId: attemptInput.userId,
-      providerRequestId: normalizedProviderRequestId,
-    });
-    if (existingLookup.error) {
-      return {
-        ok: false,
-        error: existingLookup.error.message ?? "attempt_existing_lookup_failed",
-        stage: "record",
-      };
-    }
-
-    const existingRow = asObject(existingLookup.data);
-    const existingId = asString(existingRow.id);
-    const existingAttemptNumber = asNumber(existingRow.attempt_number);
-    const mergedMetadata = {
-      ...asObject(existingRow.metadata),
-      ...metadataPatch,
-    };
-
-    if (existingId) {
-      const { error } = await getSupabaseAdmin()
-        .from("generation_attempts")
-        .update(
-          buildAcceptedRunningAttemptPayload({
-            provider: attemptInput.provider,
-            modelId: attemptInput.modelId,
-            dispatchSource: attemptInput.dispatchSource,
-            submitRoute: attemptInput.submitRoute,
-            queueId: attemptInput.queueId,
-            metadata: mergedMetadata,
-            observedAt: runningObservedAt,
-          })
-        )
-        .eq("id", existingId)
-        .eq("user_id", attemptInput.userId);
-      if (error) {
-        return {
-          ok: false,
-          error: error.message ?? "attempt_update_failed",
-          stage: "running",
-        };
-      }
-      return {
-        ok: true,
-        attemptId: existingId,
-        attemptNumber: existingAttemptNumber,
-        metadata: mergedMetadata,
-      };
-    }
-
     const latestLookup = await lookupLatestAttempt({
       generationId: attemptInput.generationId,
       userId: attemptInput.userId,

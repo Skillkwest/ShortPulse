@@ -681,6 +681,17 @@ describe("generationQueue/dispatch transition integrity", () => {
           metadata: expect.objectContaining({
             queue_latency_ms: 10_000,
             queue_latency_seconds: 10,
+            dispatch_stage_timings_ms: expect.objectContaining({
+              capacityCheck: expect.any(Number),
+              providerKeyRead: expect.any(Number),
+              targetResolution: expect.any(Number),
+              payloadPreparation: expect.any(Number),
+              providerSubmit: expect.any(Number),
+              reservationSubmit: expect.any(Number),
+              generationTransition: expect.any(Number),
+              projectionSync: expect.any(Number),
+              queueRemove: expect.any(Number),
+            }),
           }),
         })
       );

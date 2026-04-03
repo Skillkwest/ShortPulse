@@ -62,6 +62,19 @@ type QueueDispatchMetrics = {
 
 type QueueDispatchContext = Pick<GenerationControlPlaneLogContext, "req" | "routeLabel">;
 
+type QueueDispatchStageTimings = {
+  existingRequestReconcile: number;
+  capacityCheck: number;
+  providerKeyRead: number;
+  targetResolution: number;
+  payloadPreparation: number;
+  providerSubmit: number;
+  reservationSubmit: number;
+  generationTransition: number;
+  projectionSync: number;
+  queueRemove: number;
+};
+
 type DispatchOptions = QueueDispatchContext & {
   limit: number;
   userId?: string | null;
@@ -435,6 +448,36 @@ const mergeGenerationMetadata = (existing: unknown, patch: JsonObject): JsonObje
   };
 };
 
+const createQueueDispatchStageTimings = (): QueueDispatchStageTimings => ({
+  existingRequestReconcile: 0,
+  capacityCheck: 0,
+  providerKeyRead: 0,
+  targetResolution: 0,
+  payloadPreparation: 0,
+  providerSubmit: 0,
+  reservationSubmit: 0,
+  generationTransition: 0,
+  projectionSync: 0,
+  queueRemove: 0,
+});
+
+const measureDispatchStage = async <T>({
+  stageTimings,
+  stage,
+  work,
+}: {
+  stageTimings: QueueDispatchStageTimings;
+  stage: keyof QueueDispatchStageTimings;
+  work: () => Promise<T>;
+}): Promise<T> => {
+  const startedAt = Date.now();
+  try {
+    return await work();
+  } finally {
+    stageTimings[stage] = Math.max(0, Date.now() - startedAt);
+  }
+};
+
 const processClaimedQueueItem = async ({
   req,
   routeLabel,
@@ -471,6 +514,7 @@ const processClaimedQueueItem = async ({
     fallback: "fal",
   });
   const runtimeFlags = readFalRuntimeFlags();
+  const stageTimings = createQueueDispatchStageTimings();
 
   if (
     attemptNumber === 1 &&
@@ -498,56 +542,68 @@ const processClaimedQueueItem = async ({
   const existingRequestId = item.generationRequestId;
   if (existingRequestId) {
     try {
-      const reconcileAtIso = new Date().toISOString();
-      const reservationResult = await markGenerationReservationSubmitted({
-        userId: item.userId,
-        sourceRef: item.sourceRef,
-        providerRequestId: existingRequestId,
-        metadata: {
-          queue_reconcile_at: reconcileAtIso,
-          queue_id: item.queueId,
-          queue_attempts: attemptNumber,
-          queue_reconcile_reason: "existing_request_id",
+      await measureDispatchStage({
+        stageTimings,
+        stage: "existingRequestReconcile",
+        work: async () => {
+          const reconcileAtIso = new Date().toISOString();
+          const reservationResult = await markGenerationReservationSubmitted({
+            userId: item.userId,
+            sourceRef: item.sourceRef,
+            providerRequestId: existingRequestId,
+            metadata: {
+              queue_reconcile_at: reconcileAtIso,
+              queue_id: item.queueId,
+              queue_attempts: attemptNumber,
+              queue_reconcile_reason: "existing_request_id",
+            },
+          });
+          assertReservationSubmissionAccepted({ result: reservationResult });
+          await markAttemptRunningForExistingRequestId({
+            providerRequestId: existingRequestId,
+            userId: item.userId,
+            queueId: item.queueId,
+            attemptNumber,
+          });
+          await syncQueueDispatchProjection({
+            displayPrompt: asString(asObject(item.submitPayload).prompt),
+            generationId: item.generationId,
+            modelId: item.modelId,
+            provider,
+            providerRequestId: existingRequestId,
+            queueState: "dispatched",
+            requestId: existingRequestId,
+            sourceRef: item.sourceRef,
+            taskState: "running",
+            userId: item.userId,
+          }).catch(async (projectionError) => {
+            await logGenerationFailure({
+              req,
+              routeLabel,
+              source: "telemetry.queue.dispatch.projection_failed",
+              statusCode: 200,
+              message: "Queued generation running projection sync failed.",
+              userId: item.userId,
+              metadata: {
+                queue_id: item.queueId,
+                generation_id: item.generationId,
+                source_ref: item.sourceRef,
+                provider_request_id: existingRequestId,
+                projection_error:
+                  projectionError instanceof Error
+                    ? projectionError.message
+                    : String(projectionError),
+              },
+            });
+          });
         },
       });
-      assertReservationSubmissionAccepted({ result: reservationResult });
-      await markAttemptRunningForExistingRequestId({
-        providerRequestId: existingRequestId,
-        userId: item.userId,
-        queueId: item.queueId,
-        attemptNumber,
-      });
-      await syncQueueDispatchProjection({
-        displayPrompt: asString(asObject(item.submitPayload).prompt),
-        generationId: item.generationId,
-        modelId: item.modelId,
-        provider,
-        providerRequestId: existingRequestId,
-        queueState: "dispatched",
-        requestId: existingRequestId,
-        sourceRef: item.sourceRef,
-        taskState: "running",
-        userId: item.userId,
-      }).catch(async (projectionError) => {
-        await logGenerationFailure({
-          req,
-          routeLabel,
-          source: "telemetry.queue.dispatch.projection_failed",
-          statusCode: 200,
-          message: "Queued generation running projection sync failed.",
-          userId: item.userId,
-          metadata: {
-            queue_id: item.queueId,
-            generation_id: item.generationId,
-            source_ref: item.sourceRef,
-            provider_request_id: existingRequestId,
-            projection_error:
-              projectionError instanceof Error ? projectionError.message : String(projectionError),
-          },
-        });
-      });
 
-      const removeResult = await removeQueueItem(item.queueId);
+      const removeResult = await measureDispatchStage({
+        stageTimings,
+        stage: "queueRemove",
+        work: () => removeQueueItem(item.queueId),
+      });
       assertQueueMutationApplied({ result: removeResult, step: "queue_remove" });
       metrics.skipped += 1;
     } catch (error) {
@@ -587,10 +643,15 @@ const processClaimedQueueItem = async ({
     return metrics;
   }
 
-  const capacityState = await readProviderCapacityState({
-    userId: item.userId,
-    provider,
-    modelId: item.modelId,
+  const capacityState = await measureDispatchStage({
+    stageTimings,
+    stage: "capacityCheck",
+    work: () =>
+      readProviderCapacityState({
+        userId: item.userId,
+        provider,
+        modelId: item.modelId,
+      }),
   });
   if (capacityState.snapshot.staleIgnoredGlobal > 0 && attemptNumber === 1) {
     await logGenerationFailure({
@@ -671,7 +732,11 @@ const processClaimedQueueItem = async ({
 
   let apiKey: string;
   try {
-    apiKey = readProviderApiKey(provider);
+    apiKey = await measureDispatchStage({
+      stageTimings,
+      stage: "providerKeyRead",
+      work: async () => readProviderApiKey(provider),
+    });
   } catch (error) {
     const exhaustResult = await markQueueItemExhausted({
       queueId: item.queueId,
@@ -715,13 +780,19 @@ const processClaimedQueueItem = async ({
     return metrics;
   }
 
-  const webhookCallbackUrl = resolveWebhookCallbackUrl(runtimeFlags, {
-    userId: item.userId,
-    modelId: item.modelId,
-  });
-  const providerSubmitTargetResolution = readQueueSubmitTargets({
-    provider,
-    modelId: item.modelId,
+  const { webhookCallbackUrl, providerSubmitTargetResolution } = await measureDispatchStage({
+    stageTimings,
+    stage: "targetResolution",
+    work: async () => ({
+      webhookCallbackUrl: resolveWebhookCallbackUrl(runtimeFlags, {
+        userId: item.userId,
+        modelId: item.modelId,
+      }),
+      providerSubmitTargetResolution: readQueueSubmitTargets({
+        provider,
+        modelId: item.modelId,
+      }),
+    }),
   });
   const providerSubmitTargets = providerSubmitTargetResolution.targets;
   const submitTargets = isFalProviderKey(provider)
@@ -772,98 +843,107 @@ const processClaimedQueueItem = async ({
       generationSourceRef,
     });
 
-    let queueDispatchPayload = item.submitPayload;
-    if (isVideoGenerationModelId(item.modelId)) {
-      const normalizedQueuePayload = normalizeVideoQueueDispatchPayload({
-        modelId: item.modelId,
-        payload: item.submitPayload,
-      });
-      if (!normalizedQueuePayload.ok) {
-        const exhaustResult = await markQueueItemExhausted({
-          queueId: item.queueId,
-          attempts: attemptNumber,
-          lastError: normalizedQueuePayload.error,
-          lastErrorCode: normalizedQueuePayload.code,
-        });
-        assertQueueMutationApplied({ result: exhaustResult, step: "queue_exhaust" });
-        await releaseGenerationReservationBySourceRef({
-          userId: item.userId,
-          sourceRef: item.sourceRef,
-          reason: "Auto-release: queued video payload contract normalization failed.",
-          metadata: {
-            queue_id: item.queueId,
-            queue_attempts: attemptNumber,
-            error_code: normalizedQueuePayload.code,
-            detail: normalizedQueuePayload.detail ?? null,
-          },
-        });
-        await setGenerationFailed({
-          generationId: item.generationId,
-          userId: item.userId,
-          message: "Generation failed queue payload normalization before provider submit.",
-        });
-        metrics.exhausted += 1;
-        return metrics;
-      }
+    const contractValidation = await measureDispatchStage({
+      stageTimings,
+      stage: "payloadPreparation",
+      work: async () => {
+        let queueDispatchPayload = item.submitPayload;
+        if (isVideoGenerationModelId(item.modelId)) {
+          const normalizedQueuePayload = normalizeVideoQueueDispatchPayload({
+            modelId: item.modelId,
+            payload: item.submitPayload,
+          });
+          if (!normalizedQueuePayload.ok) {
+            const exhaustResult = await markQueueItemExhausted({
+              queueId: item.queueId,
+              attempts: attemptNumber,
+              lastError: normalizedQueuePayload.error,
+              lastErrorCode: normalizedQueuePayload.code,
+            });
+            assertQueueMutationApplied({ result: exhaustResult, step: "queue_exhaust" });
+            await releaseGenerationReservationBySourceRef({
+              userId: item.userId,
+              sourceRef: item.sourceRef,
+              reason: "Auto-release: queued video payload contract normalization failed.",
+              metadata: {
+                queue_id: item.queueId,
+                queue_attempts: attemptNumber,
+                error_code: normalizedQueuePayload.code,
+                detail: normalizedQueuePayload.detail ?? null,
+              },
+            });
+            await setGenerationFailed({
+              generationId: item.generationId,
+              userId: item.userId,
+              message: "Generation failed queue payload normalization before provider submit.",
+            });
+            metrics.exhausted += 1;
+            return null;
+          }
 
-      if (
-        normalizedQueuePayload.queueCompatibilityApplied &&
-        !runtimeFlags.videoQueueCompatNormalizationEnabled
-      ) {
-        const exhaustResult = await markQueueItemExhausted({
-          queueId: item.queueId,
-          attempts: attemptNumber,
-          lastError: "Legacy queue payload compatibility is disabled.",
-          lastErrorCode: "VIDEO_QUEUE_COMPAT_DISABLED",
-        });
-        assertQueueMutationApplied({ result: exhaustResult, step: "queue_exhaust" });
-        await releaseGenerationReservationBySourceRef({
-          userId: item.userId,
-          sourceRef: item.sourceRef,
-          reason: "Auto-release: queued video payload compatibility disabled.",
-          metadata: {
-            queue_id: item.queueId,
-            queue_attempts: attemptNumber,
-            error_code: "VIDEO_QUEUE_COMPAT_DISABLED",
-          },
-        });
-        await setGenerationFailed({
-          generationId: item.generationId,
-          userId: item.userId,
-          message: "Generation failed because legacy queue payload compatibility is disabled.",
-        });
-        metrics.exhausted += 1;
-        return metrics;
-      }
+          if (
+            normalizedQueuePayload.queueCompatibilityApplied &&
+            !runtimeFlags.videoQueueCompatNormalizationEnabled
+          ) {
+            const exhaustResult = await markQueueItemExhausted({
+              queueId: item.queueId,
+              attempts: attemptNumber,
+              lastError: "Legacy queue payload compatibility is disabled.",
+              lastErrorCode: "VIDEO_QUEUE_COMPAT_DISABLED",
+            });
+            assertQueueMutationApplied({ result: exhaustResult, step: "queue_exhaust" });
+            await releaseGenerationReservationBySourceRef({
+              userId: item.userId,
+              sourceRef: item.sourceRef,
+              reason: "Auto-release: queued video payload compatibility disabled.",
+              metadata: {
+                queue_id: item.queueId,
+                queue_attempts: attemptNumber,
+                error_code: "VIDEO_QUEUE_COMPAT_DISABLED",
+              },
+            });
+            await setGenerationFailed({
+              generationId: item.generationId,
+              userId: item.userId,
+              message: "Generation failed because legacy queue payload compatibility is disabled.",
+            });
+            metrics.exhausted += 1;
+            return null;
+          }
 
-      queueDispatchPayload = normalizedQueuePayload.payload;
-      if (
-        normalizedQueuePayload.queueCompatibilityApplied ||
-        normalizedQueuePayload.aliasUsage.length
-      ) {
-        await logGenerationFailure({
-          req,
-          routeLabel,
-          source: "telemetry.queue.dispatch.video_payload_normalized",
-          statusCode: 200,
-          message: "Normalized queued video payload before dispatch.",
-          userId: item.userId,
-          metadata: {
-            queue_id: item.queueId,
-            generation_id: item.generationId,
-            model_id: item.modelId,
-            compatibility_applied: normalizedQueuePayload.queueCompatibilityApplied,
-            alias_usage: normalizedQueuePayload.aliasUsage,
-            envelope_version: normalizedQueuePayload.envelopeVersion,
-          },
-        });
-      }
+          queueDispatchPayload = normalizedQueuePayload.payload;
+          if (
+            normalizedQueuePayload.queueCompatibilityApplied ||
+            normalizedQueuePayload.aliasUsage.length
+          ) {
+            await logGenerationFailure({
+              req,
+              routeLabel,
+              source: "telemetry.queue.dispatch.video_payload_normalized",
+              statusCode: 200,
+              message: "Normalized queued video payload before dispatch.",
+              userId: item.userId,
+              metadata: {
+                queue_id: item.queueId,
+                generation_id: item.generationId,
+                model_id: item.modelId,
+                compatibility_applied: normalizedQueuePayload.queueCompatibilityApplied,
+                alias_usage: normalizedQueuePayload.aliasUsage,
+                envelope_version: normalizedQueuePayload.envelopeVersion,
+              },
+            });
+          }
+        }
+
+        return evaluateFalPayloadContractForModel(item.modelId, {
+          projectAllowedTopLevelFields: true,
+          enforceAllowedTopLevelFields: true,
+        })(queueDispatchPayload);
+      },
+    });
+    if (contractValidation === null) {
+      return metrics;
     }
-
-    const contractValidation = evaluateFalPayloadContractForModel(item.modelId, {
-      projectAllowedTopLevelFields: true,
-      enforceAllowedTopLevelFields: true,
-    })(queueDispatchPayload);
     if (!contractValidation.valid) {
       const exhaustResult = await markQueueItemExhausted({
         queueId: item.queueId,
@@ -909,14 +989,19 @@ const processClaimedQueueItem = async ({
       return metrics;
     }
 
-    const submitResult = await dispatchProviderSubmit({
-      provider,
-      modelId: item.modelId,
-      targets: submitTargets,
-      payload: contractValidation.projectedPayload,
-      apiKey,
-      signal: controller.signal,
-      requestStartTimeoutSeconds: Math.max(1, Math.ceil(timeoutMs / 1000)),
+    const submitResult = await measureDispatchStage({
+      stageTimings,
+      stage: "providerSubmit",
+      work: () =>
+        dispatchProviderSubmit({
+          provider,
+          modelId: item.modelId,
+          targets: submitTargets,
+          payload: contractValidation.projectedPayload,
+          apiKey,
+          signal: controller.signal,
+          requestStartTimeoutSeconds: Math.max(1, Math.ceil(timeoutMs / 1000)),
+        }),
     });
     const upstream = submitResult.response;
     const upstreamData = asObject(submitResult.data);
@@ -1048,18 +1133,23 @@ const processClaimedQueueItem = async ({
 
     submitAccepted = true;
     const dispatchAtIso = new Date().toISOString();
-    const reservationResult = await markGenerationReservationSubmitted({
-      userId: item.userId,
-      sourceRef: item.sourceRef,
-      providerRequestId,
-      metadata: {
-        queue_dispatch_at: dispatchAtIso,
-        queue_id: item.queueId,
-        queue_attempts: attemptNumber,
-        submit_route: item.submitRoute,
-        upstream_target_url: submitResult.targetUrl,
-        upstream_target_index: submitResult.targetIndex,
-      },
+    const reservationResult = await measureDispatchStage({
+      stageTimings,
+      stage: "reservationSubmit",
+      work: () =>
+        markGenerationReservationSubmitted({
+          userId: item.userId,
+          sourceRef: item.sourceRef,
+          providerRequestId,
+          metadata: {
+            queue_dispatch_at: dispatchAtIso,
+            queue_id: item.queueId,
+            queue_attempts: attemptNumber,
+            submit_route: item.submitRoute,
+            upstream_target_url: submitResult.targetUrl,
+            upstream_target_index: submitResult.targetIndex,
+          },
+        }),
     });
     assertReservationSubmissionAccepted({ result: reservationResult });
     assertQueueIdentityInvariant({
@@ -1069,74 +1159,79 @@ const processClaimedQueueItem = async ({
     });
 
     const nextRecoveryAtIso = new Date(Date.now() + 2 * 60 * 1000).toISOString();
-    const transitionResult = await applyAcceptedRunningGenerationTransition({
-      applyGenerationMutation: async () => {
-        const generationUpdate = await getSupabaseAdmin()
-          .from("ai_generations")
-          .update(
-            buildAcceptedRunningGenerationUpdate({
-              provider,
-              modelId: item.modelId,
-              providerRequestId,
-              nextRecoveryAtIso,
-              metadata: mergeGenerationMetadata(generationMetadata, {
-                source_ref: item.sourceRef,
-                generation_submit_authority: "worker",
-                queue_dispatched_at: dispatchAtIso,
-                queue_id: item.queueId,
-                queue_attempts: attemptNumber,
-                provider,
-                provider_request_id: providerRequestId,
-                upstream_target_url: submitResult.targetUrl,
-                upstream_target_index: submitResult.targetIndex,
-                submit_webhook_url: isFalProviderKey(provider) ? webhookCallbackUrl : null,
-                submit_webhook_registered: isFalProviderKey(provider)
-                  ? Boolean(webhookCallbackUrl)
-                  : false,
-              }),
-            })
-          )
-          .eq("id", item.generationId)
-          .eq("user_id", item.userId)
-          .select("id");
-        const affectedCount = Array.isArray(generationUpdate.data)
-          ? generationUpdate.data.length
-          : 0;
-        if (generationUpdate.error) {
-          return {
-            ok: false,
-            error: generationUpdate.error.message ?? "generation_mark_running_failed",
-          };
-        }
-        if (affectedCount !== 1) {
-          return {
-            ok: false,
-            error: `Expected one generation row update, received ${affectedCount}.`,
-          };
-        }
-        return { ok: true };
-      },
-      attemptInput: {
-        generationId: item.generationId,
-        userId: item.userId,
-        provider,
-        modelId: item.modelId,
-        providerRequestId,
-        dispatchSource: "queued_submit",
-        submitRoute: item.submitRoute,
-        queueId: item.queueId,
-        observedAt: dispatchAtIso,
-        metadata: {
-          source_ref: item.sourceRef,
-          generation_submit_authority: "worker",
-          queue_dispatch_at: dispatchAtIso,
-          queue_id: item.queueId,
-          queue_attempts: attemptNumber,
-          dispatch_source: "queued_submit",
-          upstream_target_url: submitResult.targetUrl,
-          upstream_target_index: submitResult.targetIndex,
-        },
-      },
+    const transitionResult = await measureDispatchStage({
+      stageTimings,
+      stage: "generationTransition",
+      work: () =>
+        applyAcceptedRunningGenerationTransition({
+          applyGenerationMutation: async () => {
+            const generationUpdate = await getSupabaseAdmin()
+              .from("ai_generations")
+              .update(
+                buildAcceptedRunningGenerationUpdate({
+                  provider,
+                  modelId: item.modelId,
+                  providerRequestId,
+                  nextRecoveryAtIso,
+                  metadata: mergeGenerationMetadata(generationMetadata, {
+                    source_ref: item.sourceRef,
+                    generation_submit_authority: "worker",
+                    queue_dispatched_at: dispatchAtIso,
+                    queue_id: item.queueId,
+                    queue_attempts: attemptNumber,
+                    provider,
+                    provider_request_id: providerRequestId,
+                    upstream_target_url: submitResult.targetUrl,
+                    upstream_target_index: submitResult.targetIndex,
+                    submit_webhook_url: isFalProviderKey(provider) ? webhookCallbackUrl : null,
+                    submit_webhook_registered: isFalProviderKey(provider)
+                      ? Boolean(webhookCallbackUrl)
+                      : false,
+                  }),
+                })
+              )
+              .eq("id", item.generationId)
+              .eq("user_id", item.userId)
+              .select("id");
+            const affectedCount = Array.isArray(generationUpdate.data)
+              ? generationUpdate.data.length
+              : 0;
+            if (generationUpdate.error) {
+              return {
+                ok: false,
+                error: generationUpdate.error.message ?? "generation_mark_running_failed",
+              };
+            }
+            if (affectedCount !== 1) {
+              return {
+                ok: false,
+                error: `Expected one generation row update, received ${affectedCount}.`,
+              };
+            }
+            return { ok: true };
+          },
+          attemptInput: {
+            generationId: item.generationId,
+            userId: item.userId,
+            provider,
+            modelId: item.modelId,
+            providerRequestId,
+            dispatchSource: "queued_submit",
+            submitRoute: item.submitRoute,
+            queueId: item.queueId,
+            observedAt: dispatchAtIso,
+            metadata: {
+              source_ref: item.sourceRef,
+              generation_submit_authority: "worker",
+              queue_dispatch_at: dispatchAtIso,
+              queue_id: item.queueId,
+              queue_attempts: attemptNumber,
+              dispatch_source: "queued_submit",
+              upstream_target_url: submitResult.targetUrl,
+              upstream_target_index: submitResult.targetIndex,
+            },
+          },
+        }),
     });
     if (!transitionResult.ok && transitionResult.stage === "generation") {
       assertGenerationMarkedRunning({
@@ -1160,37 +1255,48 @@ const processClaimedQueueItem = async ({
           ? transitionResult.error
           : null,
     });
-    await syncQueueDispatchProjection({
-      displayPrompt: asString(asObject(item.submitPayload).prompt),
-      generationId: item.generationId,
-      modelId: item.modelId,
-      provider,
-      providerRequestId,
-      queueState: "dispatched",
-      requestId: providerRequestId,
-      sourceRef: item.sourceRef,
-      taskState: "running",
-      userId: item.userId,
-    }).catch(async (projectionError) => {
-      await logGenerationFailure({
-        req,
-        routeLabel,
-        source: "telemetry.queue.dispatch.projection_failed",
-        statusCode: 200,
-        message: "Queued generation running projection sync failed.",
-        userId: item.userId,
-        metadata: {
-          queue_id: item.queueId,
-          generation_id: item.generationId,
-          source_ref: item.sourceRef,
-          provider_request_id: providerRequestId,
-          projection_error:
-            projectionError instanceof Error ? projectionError.message : String(projectionError),
-        },
-      });
+    await measureDispatchStage({
+      stageTimings,
+      stage: "projectionSync",
+      work: () =>
+        syncQueueDispatchProjection({
+          displayPrompt: asString(asObject(item.submitPayload).prompt),
+          generationId: item.generationId,
+          modelId: item.modelId,
+          provider,
+          providerRequestId,
+          queueState: "dispatched",
+          requestId: providerRequestId,
+          sourceRef: item.sourceRef,
+          taskState: "running",
+          userId: item.userId,
+        }).catch(async (projectionError) => {
+          await logGenerationFailure({
+            req,
+            routeLabel,
+            source: "telemetry.queue.dispatch.projection_failed",
+            statusCode: 200,
+            message: "Queued generation running projection sync failed.",
+            userId: item.userId,
+            metadata: {
+              queue_id: item.queueId,
+              generation_id: item.generationId,
+              source_ref: item.sourceRef,
+              provider_request_id: providerRequestId,
+              projection_error:
+                projectionError instanceof Error
+                  ? projectionError.message
+                  : String(projectionError),
+            },
+          });
+        }),
     });
 
-    const removeResult = await removeQueueItem(item.queueId);
+    const removeResult = await measureDispatchStage({
+      stageTimings,
+      stage: "queueRemove",
+      work: () => removeQueueItem(item.queueId),
+    });
     assertQueueMutationApplied({ result: removeResult, step: "queue_remove" });
     metrics.submitted += 1;
     const queueLatencyMs = readQueueLatencyMs({
@@ -1215,6 +1321,7 @@ const processClaimedQueueItem = async ({
         queue_latency_ms: queueLatencyMs,
         queue_latency_seconds:
           typeof queueLatencyMs === "number" ? Math.floor(queueLatencyMs / 1000) : null,
+        dispatch_stage_timings_ms: stageTimings,
       },
     });
     return metrics;

@@ -28,6 +28,7 @@ type EnsureAcceptedGenerationAttemptResult =
       ok: true;
       attemptId: string | null;
       attemptNumber: number | null;
+      metadata: JsonObject;
     }
   | {
       ok: false;
@@ -76,6 +77,7 @@ export type EnsureAcceptedRunningGenerationAttemptResult =
       ok: true;
       attemptId: string | null;
       attemptNumber: number | null;
+      metadata: JsonObject;
     }
   | {
       ok: false;
@@ -189,6 +191,66 @@ const lookupLatestAttempt = async ({
   return { data, error };
 };
 
+const updateGenerationAttemptStateById = async ({
+  attemptId,
+  userId,
+  status,
+  observedAt = null,
+  completedAt = null,
+  failureReasonCode = null,
+  errorMessage = null,
+  metadata = {},
+}: {
+  attemptId: string;
+  userId: string;
+  status: Exclude<GenerationAttemptStatus, "created" | "submitted" | "abandoned">;
+  observedAt?: string | null;
+  completedAt?: string | null;
+  failureReasonCode?: string | null;
+  errorMessage?: string | null;
+  metadata?: JsonObject;
+}): Promise<{ ok: true } | { ok: false; error: string }> => {
+  try {
+    const nowIso = observedAt ?? new Date().toISOString();
+    const updatePayload: Record<string, unknown> = {
+      status,
+      last_observed_at: nowIso,
+      updated_at: nowIso,
+      metadata,
+    };
+
+    if (status === "running") {
+      updatePayload.started_at = nowIso;
+      updatePayload.failure_reason_code = null;
+      updatePayload.error_message = null;
+    } else {
+      updatePayload.completed_at = completedAt ?? nowIso;
+      updatePayload.failure_reason_code = failureReasonCode;
+      updatePayload.error_message = errorMessage;
+    }
+
+    const { error } = await getSupabaseAdmin()
+      .from("generation_attempts")
+      .update(updatePayload)
+      .eq("id", attemptId)
+      .eq("user_id", userId);
+
+    if (error) {
+      return {
+        ok: false,
+        error: error.message ?? "attempt_state_update_failed",
+      };
+    }
+
+    return { ok: true };
+  } catch (error) {
+    return {
+      ok: false,
+      error: String(error),
+    };
+  }
+};
+
 export const lookupLatestGenerationAttempt = async ({
   generationId,
   userId,
@@ -297,6 +359,10 @@ export const ensureAcceptedGenerationAttempt = async ({
         ok: true,
         attemptId: existingId,
         attemptNumber: existingAttemptNumber,
+        metadata: {
+          ...asObject(existingRow.metadata),
+          ...metadataPatch,
+        },
       };
     }
 
@@ -337,6 +403,7 @@ export const ensureAcceptedGenerationAttempt = async ({
         ok: true,
         attemptId: asString(insertedRow.id),
         attemptNumber: asNumber(insertedRow.attempt_number),
+        metadata: metadataPatch,
       };
     }
 
@@ -363,6 +430,7 @@ export const ensureAcceptedGenerationAttempt = async ({
       ok: true,
       attemptId: asString(retryRow.id),
       attemptNumber: asNumber(retryRow.attempt_number),
+      metadata: asObject(retryRow.metadata),
     };
   } catch (error) {
     return {
@@ -388,16 +456,30 @@ export const ensureAcceptedRunningGenerationAttempt = async ({
     };
   }
 
-  const runningResult = await updateGenerationAttemptState({
-    providerRequestId: attemptInput.providerRequestId,
-    userId: attemptInput.userId,
-    status: "running",
-    observedAt,
-    completedAt,
-    failureReasonCode,
-    errorMessage,
-    metadata: attemptInput.metadata,
-  });
+  const runningResult = attemptResult.attemptId
+    ? await updateGenerationAttemptStateById({
+        attemptId: attemptResult.attemptId,
+        userId: attemptInput.userId,
+        status: "running",
+        observedAt,
+        completedAt,
+        failureReasonCode,
+        errorMessage,
+        metadata: {
+          ...attemptResult.metadata,
+          ...attemptInput.metadata,
+        },
+      })
+    : await updateGenerationAttemptState({
+        providerRequestId: attemptInput.providerRequestId,
+        userId: attemptInput.userId,
+        status: "running",
+        observedAt,
+        completedAt,
+        failureReasonCode,
+        errorMessage,
+        metadata: attemptInput.metadata,
+      });
 
   if (!runningResult.ok) {
     return {

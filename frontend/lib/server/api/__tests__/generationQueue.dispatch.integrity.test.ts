@@ -458,6 +458,9 @@ describe("generationQueue/dispatch transition integrity", () => {
     );
     expect(ensureAcceptedRunningGenerationAttemptMock).not.toHaveBeenCalled();
     expect(removeQueueItemMock).toHaveBeenCalledTimes(1);
+    expect(removeQueueItemMock.mock.invocationCallOrder[0]).toBeLessThan(
+      upsertGenerationProjectionMock.mock.invocationCallOrder[0]
+    );
     expect(dispatchProviderSubmitMock).not.toHaveBeenCalled();
   });
 
@@ -673,6 +676,9 @@ describe("generationQueue/dispatch transition integrity", () => {
           queueState: "dispatched",
           publicationState: "pending",
         })
+      );
+      expect(removeQueueItemMock.mock.invocationCallOrder[0]).toBeLessThan(
+        upsertGenerationProjectionMock.mock.invocationCallOrder[0]
       );
       expect(logGenerationFailureMock).toHaveBeenNthCalledWith(
         3,

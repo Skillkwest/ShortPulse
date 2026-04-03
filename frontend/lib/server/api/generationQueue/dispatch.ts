@@ -565,7 +565,20 @@ const processClaimedQueueItem = async ({
             queueId: item.queueId,
             attemptNumber,
           });
-          await syncQueueDispatchProjection({
+        },
+      });
+
+      const removeResult = await measureDispatchStage({
+        stageTimings,
+        stage: "queueRemove",
+        work: () => removeQueueItem(item.queueId),
+      });
+      assertQueueMutationApplied({ result: removeResult, step: "queue_remove" });
+      await measureDispatchStage({
+        stageTimings,
+        stage: "projectionSync",
+        work: () =>
+          syncQueueDispatchProjection({
             displayPrompt: asString(asObject(item.submitPayload).prompt),
             generationId: item.generationId,
             modelId: item.modelId,
@@ -595,16 +608,8 @@ const processClaimedQueueItem = async ({
                     : String(projectionError),
               },
             });
-          });
-        },
+          }),
       });
-
-      const removeResult = await measureDispatchStage({
-        stageTimings,
-        stage: "queueRemove",
-        work: () => removeQueueItem(item.queueId),
-      });
-      assertQueueMutationApplied({ result: removeResult, step: "queue_remove" });
       metrics.skipped += 1;
     } catch (error) {
       const message = normalizeError(error);
@@ -1255,6 +1260,12 @@ const processClaimedQueueItem = async ({
           ? transitionResult.error
           : null,
     });
+    const removeResult = await measureDispatchStage({
+      stageTimings,
+      stage: "queueRemove",
+      work: () => removeQueueItem(item.queueId),
+    });
+    assertQueueMutationApplied({ result: removeResult, step: "queue_remove" });
     await measureDispatchStage({
       stageTimings,
       stage: "projectionSync",
@@ -1291,13 +1302,6 @@ const processClaimedQueueItem = async ({
           });
         }),
     });
-
-    const removeResult = await measureDispatchStage({
-      stageTimings,
-      stage: "queueRemove",
-      work: () => removeQueueItem(item.queueId),
-    });
-    assertQueueMutationApplied({ result: removeResult, step: "queue_remove" });
     metrics.submitted += 1;
     const queueLatencyMs = readQueueLatencyMs({
       createdAt: item.createdAt,

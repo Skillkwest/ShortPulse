@@ -307,7 +307,7 @@ describe("generationQueue/dispatch no-capacity handling", () => {
       publicApiBaseUrl: null,
     });
     readActiveProviderCapacitySnapshotMock.mockResolvedValue({
-      tier: "image_heavy",
+      tier: "image_standard",
       globalActive: 0,
       tierActive: 0,
       staleIgnoredGlobal: 0,
@@ -410,7 +410,7 @@ describe("generationQueue/dispatch no-capacity handling", () => {
       publicApiBaseUrl: null,
     });
     readActiveProviderCapacitySnapshotMock.mockResolvedValue({
-      tier: "image_heavy",
+      tier: "image_standard",
       globalActive: 0,
       tierActive: 0,
       staleIgnoredGlobal: 0,

@@ -17,6 +17,7 @@ const markQueueItemExhaustedMock = vi.fn();
 const releaseQueueLeaseBackToQueuedMock = vi.fn();
 const removeQueueItemMock = vi.fn();
 const updateQueueItemForRetryMock = vi.fn();
+const applyAcceptedRunningGenerationTransitionMock = vi.fn();
 const ensureAcceptedRunningGenerationAttemptMock = vi.fn();
 const updateGenerationAttemptStateMock = vi.fn();
 const upsertGenerationProjectionMock = vi.fn();
@@ -51,6 +52,11 @@ vi.mock("../../falIntegration/modelProfiles", () => ({
 
 vi.mock("../../providerIntegration/submitProviderDispatcher", () => ({
   dispatchProviderSubmit: (...args: unknown[]) => dispatchProviderSubmitMock(...args),
+}));
+
+vi.mock("../generationAcceptedTransitionService", () => ({
+  applyAcceptedRunningGenerationTransition: (...args: unknown[]) =>
+    applyAcceptedRunningGenerationTransitionMock(...args),
 }));
 
 vi.mock("../falSubmitTargeting", () => ({
@@ -234,6 +240,7 @@ describe("generationQueue/dispatch transition integrity", () => {
     releaseQueueLeaseBackToQueuedMock.mockResolvedValue(mutationSuccess("release"));
     removeQueueItemMock.mockResolvedValue(mutationSuccess("remove"));
     updateQueueItemForRetryMock.mockResolvedValue(mutationSuccess("retry"));
+    applyAcceptedRunningGenerationTransitionMock.mockResolvedValue({ ok: true });
     ensureAcceptedRunningGenerationAttemptMock.mockResolvedValue({
       ok: true,
       attemptId: "attempt-1",
@@ -296,9 +303,11 @@ describe("generationQueue/dispatch transition integrity", () => {
   });
 
   it("exhausts without releasing reservation when generation running update fails post-submit", async () => {
-    getSupabaseAdminMock.mockReturnValue(
-      createSupabaseAdminMock({ generationUpdateError: "write failed" })
-    );
+    applyAcceptedRunningGenerationTransitionMock.mockResolvedValueOnce({
+      ok: false,
+      error: "write failed",
+      stage: "generation",
+    });
 
     const result = await dispatchGenerationSubmitQueueBatch({
       req: { method: "GET", headers: {} } as never,
@@ -321,11 +330,10 @@ describe("generationQueue/dispatch transition integrity", () => {
     );
     expect(releaseGenerationReservationBySourceRefMock).not.toHaveBeenCalled();
     expect(updateQueueItemForRetryMock).not.toHaveBeenCalled();
-    expect(ensureAcceptedRunningGenerationAttemptMock).not.toHaveBeenCalled();
   });
 
   it("exhausts without releasing reservation when generation attempt write fails post-submit", async () => {
-    ensureAcceptedRunningGenerationAttemptMock.mockResolvedValueOnce({
+    applyAcceptedRunningGenerationTransitionMock.mockResolvedValueOnce({
       ok: false,
       error: "attempt_insert_failed",
       stage: "record",
@@ -355,7 +363,7 @@ describe("generationQueue/dispatch transition integrity", () => {
   });
 
   it("exhausts without releasing reservation when generation attempt running update fails post-submit", async () => {
-    ensureAcceptedRunningGenerationAttemptMock.mockResolvedValueOnce({
+    applyAcceptedRunningGenerationTransitionMock.mockResolvedValueOnce({
       ok: false,
       error: "attempt_running_update_failed",
       stage: "running",
@@ -669,14 +677,16 @@ describe("generationQueue/dispatch transition integrity", () => {
       );
       expect(withWebhookTargetsMock).not.toHaveBeenCalled();
       expect(markQueueItemExhaustedMock).not.toHaveBeenCalled();
-      expect(ensureAcceptedRunningGenerationAttemptMock).toHaveBeenCalledWith(
+      expect(applyAcceptedRunningGenerationTransitionMock).toHaveBeenCalledWith(
         expect.objectContaining({
-          generationId: "gen-1",
-          userId: "user-1",
-          providerRequestId: "req-1",
-          dispatchSource: "queued_submit",
-          metadata: expect.objectContaining({
-            generation_submit_authority: "worker",
+          attemptInput: expect.objectContaining({
+            generationId: "gen-1",
+            userId: "user-1",
+            providerRequestId: "req-1",
+            dispatchSource: "queued_submit",
+            metadata: expect.objectContaining({
+              generation_submit_authority: "worker",
+            }),
           }),
         })
       );
@@ -766,12 +776,14 @@ describe("generationQueue/dispatch transition integrity", () => {
         targets: [{ submitUrl: "https://api.kie.ai/api/v1/veo/generate" }],
       })
     );
-    expect(ensureAcceptedRunningGenerationAttemptMock).toHaveBeenCalledWith(
+    expect(applyAcceptedRunningGenerationTransitionMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        generationId: "gen-1",
-        userId: "user-1",
-        providerRequestId: "req-1",
-        dispatchSource: "queued_submit",
+        attemptInput: expect.objectContaining({
+          generationId: "gen-1",
+          userId: "user-1",
+          providerRequestId: "req-1",
+          dispatchSource: "queued_submit",
+        }),
       })
     );
 
@@ -1001,6 +1013,92 @@ describe("generationQueue/dispatch transition integrity", () => {
     });
 
     releaseFirstProjection?.();
+
+    await expect(dispatchPromise).resolves.toEqual(
+      expect.objectContaining({
+        claimed: 2,
+        submitted: 2,
+        exhausted: 0,
+      })
+    );
+  });
+
+  it("continues processing later claimed items while earlier generation transition work is pending", async () => {
+    let signalFirstTransitionStarted: (() => void) | null = null;
+    const firstTransitionStarted = new Promise<void>((resolve) => {
+      signalFirstTransitionStarted = resolve;
+    });
+    let releaseFirstTransition: (() => void) | null = null;
+    const firstTransitionPending = new Promise<void>((resolve) => {
+      releaseFirstTransition = resolve;
+    });
+
+    seedClaimGenerationSubmitQueueBatches([
+      {
+        ...queueItem,
+        queueId: "queue-1",
+        generationId: "gen-1",
+        userId: "user-1",
+        sourceRef: "source-1",
+      },
+      {
+        ...queueItem,
+        queueId: "queue-2",
+        generationId: "gen-2",
+        userId: "user-1",
+        sourceRef: "source-2",
+      },
+    ]);
+
+    dispatchProviderSubmitMock
+      .mockResolvedValueOnce({
+        response: { ok: true, status: 200 },
+        data: { request_id: "req-1" },
+        providerRequestId: "req-1",
+        targetUrl: "https://fal.test",
+        targetIndex: 0,
+        providerDiagnostics: {
+          attemptsTried: 1,
+          fallbackCount: 0,
+          targetCount: 1,
+          totalDurationMs: 50,
+        },
+      })
+      .mockResolvedValueOnce({
+        response: { ok: true, status: 200 },
+        data: { request_id: "req-2" },
+        providerRequestId: "req-2",
+        targetUrl: "https://fal.test",
+        targetIndex: 0,
+        providerDiagnostics: {
+          attemptsTried: 1,
+          fallbackCount: 0,
+          targetCount: 1,
+          totalDurationMs: 60,
+        },
+      });
+
+    applyAcceptedRunningGenerationTransitionMock
+      .mockImplementationOnce(async () => {
+        signalFirstTransitionStarted?.();
+        await firstTransitionPending;
+        return { ok: true };
+      })
+      .mockResolvedValueOnce({ ok: true });
+
+    const dispatchPromise = dispatchGenerationSubmitQueueBatch({
+      req: { method: "GET", headers: {} } as never,
+      routeLabel: "test/dispatch-integrity",
+      limit: 2,
+      userId: null,
+    });
+
+    await firstTransitionStarted;
+    await vi.waitFor(() => {
+      expect(dispatchProviderSubmitMock).toHaveBeenCalledTimes(2);
+    });
+
+    releaseFirstTransition?.();
 
     await expect(dispatchPromise).resolves.toEqual(
       expect.objectContaining({

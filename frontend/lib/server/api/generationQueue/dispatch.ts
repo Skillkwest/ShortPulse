@@ -69,6 +69,19 @@ type QueueDispatchItemResult = Pick<
 
 type QueueDispatchContext = Pick<GenerationControlPlaneLogContext, "req" | "routeLabel">;
 
+type ProviderCapacitySnapshot = {
+  tier: string;
+  globalActive: number;
+  tierActive: number;
+  staleIgnoredGlobal: number;
+  staleIgnoredTier: number;
+};
+
+type ProviderCapacityState = {
+  userSnapshot: ProviderCapacitySnapshot;
+  sharedSnapshot: ProviderCapacitySnapshot | null;
+};
+
 type QueueDispatchStageTimings = {
   existingRequestReconcile: number;
   capacityCheck: number;
@@ -92,6 +105,7 @@ const RETRY_BACKOFF_JITTER_FACTOR = 0.2;
 const RETRY_BACKOFF_MAX_SECONDS = 300;
 const QUEUE_LEASE_TIMEOUT_WARN_RATIO = 0.8;
 const MAX_QUEUE_REFILL_PASSES = 4;
+const MAX_CONCURRENT_CLAIMED_ITEMS = 2;
 
 const isRetryableTransportError = (error: unknown): boolean => {
   if (error instanceof DOMException && error.name === "AbortError") return true;
@@ -242,16 +256,7 @@ const readProviderCapacityState = async ({
   userId: string;
   provider: string;
   modelId: string;
-}): Promise<{
-  atCap: boolean;
-  snapshot: {
-    tier: string;
-    globalActive: number;
-    tierActive: number;
-    staleIgnoredGlobal: number;
-    staleIgnoredTier: number;
-  };
-}> => {
+}): Promise<ProviderCapacityState> => {
   const flags = readFalRuntimeFlags();
   const readSnapshot = async (scopeUserId?: string | null) =>
     readActiveProviderCapacitySnapshot({
@@ -271,35 +276,247 @@ const readProviderCapacityState = async ({
   const [userSnapshot, sharedSnapshot] = flags.admission.sharedProviderEnabled
     ? await Promise.all([readSnapshot(userId), readSnapshot(null)])
     : [await readSnapshot(userId), null];
-  const globalAtCap = userSnapshot.globalActive >= flags.admission.globalMax;
-  const tierAtCap = userSnapshot.tierActive >= flags.admission.tierLimits[userSnapshot.tier];
-  if (!flags.admission.sharedProviderEnabled) {
-    return {
-      atCap: globalAtCap || tierAtCap,
-      snapshot: userSnapshot,
-    };
-  }
+  return {
+    userSnapshot,
+    sharedSnapshot,
+  };
+};
 
-  if (!sharedSnapshot) {
-    return {
-      atCap: globalAtCap || tierAtCap,
-      snapshot: userSnapshot,
-    };
-  }
-  const sharedGlobalAtCap = sharedSnapshot.globalActive >= flags.admission.sharedProviderGlobalMax;
-  const sharedTierAtCap =
-    sharedSnapshot.tierActive >= flags.admission.tierLimits[sharedSnapshot.tier];
-  if (sharedGlobalAtCap || sharedTierAtCap) {
-    return {
-      atCap: true,
-      snapshot: sharedSnapshot,
-    };
-  }
+type DispatchCapacityReservationCounts = {
+  global: number;
+  tier: number;
+};
+
+type DispatchCapacityDecision = {
+  atCap: boolean;
+  scope: "per_user" | "shared_provider";
+  snapshot: ProviderCapacitySnapshot;
+};
+
+type DispatchCapacityCoordinator = {
+  acquire: (args: {
+    userId: string;
+    provider: string;
+    modelId: string;
+  }) => Promise<DispatchCapacityDecision>;
+};
+
+const createReservationCounts = (): DispatchCapacityReservationCounts => ({
+  global: 0,
+  tier: 0,
+});
+
+const readMapReservationCounts = (
+  reservations: Map<string, DispatchCapacityReservationCounts>,
+  key: string
+): DispatchCapacityReservationCounts => reservations.get(key) ?? createReservationCounts();
+
+const incrementMapReservationCount = (
+  reservations: Map<string, DispatchCapacityReservationCounts>,
+  key: string,
+  field: keyof DispatchCapacityReservationCounts
+) => {
+  const current = readMapReservationCounts(reservations, key);
+  reservations.set(key, {
+    ...current,
+    [field]: current[field] + 1,
+  });
+};
+
+const buildUserGlobalCapacityKey = ({
+  userId,
+  provider,
+}: {
+  userId: string;
+  provider: string;
+}): string => `${userId}:${provider}`;
+
+const buildUserTierCapacityKey = ({
+  userId,
+  provider,
+  tier,
+}: {
+  userId: string;
+  provider: string;
+  tier: string;
+}): string => `${userId}:${provider}:${tier}`;
+
+const buildSharedGlobalCapacityKey = ({ provider }: { provider: string }): string =>
+  `shared:${provider}`;
+
+const buildSharedTierCapacityKey = ({
+  provider,
+  tier,
+}: {
+  provider: string;
+  tier: string;
+}): string => `shared:${provider}:${tier}`;
+
+const isCapacitySnapshotAtLimit = ({
+  snapshot,
+  reservedGlobal,
+  reservedTier,
+  globalMax,
+  tierMax,
+}: {
+  snapshot: ProviderCapacitySnapshot;
+  reservedGlobal: number;
+  reservedTier: number;
+  globalMax: number;
+  tierMax: number;
+}): boolean =>
+  snapshot.globalActive + reservedGlobal >= globalMax ||
+  snapshot.tierActive + reservedTier >= tierMax;
+
+const createDispatchCapacityCoordinator = (): DispatchCapacityCoordinator => {
+  let gate = Promise.resolve();
+  const userReservations = new Map<string, DispatchCapacityReservationCounts>();
+  const sharedReservations = new Map<string, DispatchCapacityReservationCounts>();
+
+  const withGate = async <T>(work: () => Promise<T>): Promise<T> => {
+    const previousGate = gate;
+    let releaseGate: (() => void) | null = null;
+    gate = new Promise<void>((resolve) => {
+      releaseGate = resolve;
+    });
+    await previousGate;
+    try {
+      return await work();
+    } finally {
+      releaseGate?.();
+    }
+  };
 
   return {
-    atCap: globalAtCap || tierAtCap,
-    snapshot: userSnapshot,
+    acquire: ({ userId, provider, modelId }) =>
+      withGate(async () => {
+        const flags = readFalRuntimeFlags();
+        const state = await readProviderCapacityState({
+          userId,
+          provider,
+          modelId,
+        });
+        const userSnapshot = state.userSnapshot;
+        const userGlobalKey = buildUserGlobalCapacityKey({ userId, provider });
+        const userTierKey = buildUserTierCapacityKey({
+          userId,
+          provider,
+          tier: userSnapshot.tier,
+        });
+        const userCounts = {
+          global: readMapReservationCounts(userReservations, userGlobalKey).global,
+          tier: readMapReservationCounts(userReservations, userTierKey).tier,
+        };
+
+        if (flags.admission.sharedProviderEnabled && state.sharedSnapshot) {
+          const sharedSnapshot = state.sharedSnapshot;
+          const sharedGlobalKey = buildSharedGlobalCapacityKey({ provider });
+          const sharedTierKey = buildSharedTierCapacityKey({
+            provider,
+            tier: sharedSnapshot.tier,
+          });
+          const sharedCounts = {
+            global: readMapReservationCounts(sharedReservations, sharedGlobalKey).global,
+            tier: readMapReservationCounts(sharedReservations, sharedTierKey).tier,
+          };
+
+          if (
+            isCapacitySnapshotAtLimit({
+              snapshot: sharedSnapshot,
+              reservedGlobal: sharedCounts.global,
+              reservedTier: sharedCounts.tier,
+              globalMax: flags.admission.sharedProviderGlobalMax,
+              tierMax: flags.admission.tierLimits[sharedSnapshot.tier],
+            })
+          ) {
+            return {
+              atCap: true,
+              scope: "shared_provider" as const,
+              snapshot: sharedSnapshot,
+            };
+          }
+
+          if (
+            isCapacitySnapshotAtLimit({
+              snapshot: userSnapshot,
+              reservedGlobal: userCounts.global,
+              reservedTier: userCounts.tier,
+              globalMax: flags.admission.globalMax,
+              tierMax: flags.admission.tierLimits[userSnapshot.tier],
+            })
+          ) {
+            return {
+              atCap: true,
+              scope: "per_user" as const,
+              snapshot: userSnapshot,
+            };
+          }
+
+          incrementMapReservationCount(userReservations, userGlobalKey, "global");
+          incrementMapReservationCount(userReservations, userTierKey, "tier");
+          incrementMapReservationCount(sharedReservations, sharedGlobalKey, "global");
+          incrementMapReservationCount(sharedReservations, sharedTierKey, "tier");
+          return {
+            atCap: false,
+            scope: "per_user" as const,
+            snapshot: userSnapshot,
+          };
+        }
+
+        if (
+          isCapacitySnapshotAtLimit({
+            snapshot: userSnapshot,
+            reservedGlobal: userCounts.global,
+            reservedTier: userCounts.tier,
+            globalMax: flags.admission.globalMax,
+            tierMax: flags.admission.tierLimits[userSnapshot.tier],
+          })
+        ) {
+          return {
+            atCap: true,
+            scope: "per_user" as const,
+            snapshot: userSnapshot,
+          };
+        }
+
+        incrementMapReservationCount(userReservations, userGlobalKey, "global");
+        incrementMapReservationCount(userReservations, userTierKey, "tier");
+        return {
+          atCap: false,
+          scope: "per_user" as const,
+          snapshot: userSnapshot,
+        };
+      }),
   };
+};
+
+const mapWithConcurrencyLimit = async <T, R>({
+  items,
+  limit,
+  work,
+}: {
+  items: readonly T[];
+  limit: number;
+  work: (item: T) => Promise<R>;
+}): Promise<R[]> => {
+  if (!items.length) return [];
+
+  const results = new Array<R>(items.length);
+  let nextIndex = 0;
+  const workerCount = Math.max(1, Math.min(limit, items.length));
+
+  await Promise.all(
+    Array.from({ length: workerCount }, async () => {
+      while (true) {
+        const currentIndex = nextIndex;
+        nextIndex += 1;
+        if (currentIndex >= items.length) return;
+        results[currentIndex] = await work(items[currentIndex]);
+      }
+    })
+  );
+
+  return results;
 };
 
 const resolveBackoffSeconds = ({
@@ -498,12 +715,14 @@ const processClaimedQueueItem = async ({
   item,
   maxAttempts,
   baseBackoffSeconds,
+  capacityCoordinator,
 }: {
   req?: QueueDispatchContext["req"];
   routeLabel: string;
   item: ClaimedGenerationQueueItem;
   maxAttempts: number;
   baseBackoffSeconds: number;
+  capacityCoordinator: DispatchCapacityCoordinator;
 }): Promise<QueueDispatchItemResult> => {
   const metrics = {
     submitted: 0,
@@ -657,17 +876,17 @@ const processClaimedQueueItem = async ({
     return metrics;
   }
 
-  const capacityState = await measureDispatchStage({
+  const capacityDecision = await measureDispatchStage({
     stageTimings,
     stage: "capacityCheck",
     work: () =>
-      readProviderCapacityState({
+      capacityCoordinator.acquire({
         userId: item.userId,
         provider,
         modelId: item.modelId,
       }),
   });
-  if (capacityState.snapshot.staleIgnoredGlobal > 0 && attemptNumber === 1) {
+  if (capacityDecision.snapshot.staleIgnoredGlobal > 0 && attemptNumber === 1) {
     await logGenerationFailure({
       req,
       routeLabel,
@@ -679,14 +898,14 @@ const processClaimedQueueItem = async ({
         queue_id: item.queueId,
         generation_id: item.generationId,
         model_id: item.modelId,
-        tier: capacityState.snapshot.tier,
-        stale_ignored_global: capacityState.snapshot.staleIgnoredGlobal,
-        stale_ignored_tier: capacityState.snapshot.staleIgnoredTier,
+        tier: capacityDecision.snapshot.tier,
+        stale_ignored_global: capacityDecision.snapshot.staleIgnoredGlobal,
+        stale_ignored_tier: capacityDecision.snapshot.staleIgnoredTier,
       },
     });
   }
 
-  if (capacityState.atCap) {
+  if (capacityDecision.atCap) {
     const queueAgeSeconds = readQueueAgeSeconds(item.createdAt);
     if (queueAgeSeconds !== null && queueAgeSeconds >= runtimeFlags.queueMaxWaitSeconds) {
       const message = "Queued generation exceeded max wait time without available capacity.";
@@ -1458,6 +1677,8 @@ export const dispatchGenerationSubmitQueueBatch = async ({
     return metrics;
   }
 
+  const capacityCoordinator = createDispatchCapacityCoordinator();
+
   for (let pass = 0; pass < MAX_QUEUE_REFILL_PASSES; pass += 1) {
     const claimed = await claimGenerationSubmitQueueBatch({
       limit,
@@ -1493,14 +1714,21 @@ export const dispatchGenerationSubmitQueueBatch = async ({
     let passSkipped = 0;
     const deferredWork: Promise<void>[] = [];
 
-    for (const item of claimed) {
-      const result = await processClaimedQueueItem({
-        req,
-        routeLabel,
-        item,
-        maxAttempts: flags.queueMaxAttempts,
-        baseBackoffSeconds: flags.queueBaseBackoffSeconds,
-      });
+    const results = await mapWithConcurrencyLimit({
+      items: claimed,
+      limit: MAX_CONCURRENT_CLAIMED_ITEMS,
+      work: (item) =>
+        processClaimedQueueItem({
+          req,
+          routeLabel,
+          item,
+          maxAttempts: flags.queueMaxAttempts,
+          baseBackoffSeconds: flags.queueBaseBackoffSeconds,
+          capacityCoordinator,
+        }),
+    });
+
+    for (const result of results) {
       metrics.submitted += result.submitted;
       metrics.retried += result.retried;
       metrics.requeuedNoCapacity += result.requeuedNoCapacity;

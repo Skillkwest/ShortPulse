@@ -4,7 +4,7 @@
 import type { Provider } from "../../logic/stateParsers";
 import { longRunningVideoProviders } from "./providerStatusPolicy";
 
-export const MAX_CONCURRENT_STATUS_REQUESTS = 3;
+export const MAX_CONCURRENT_STATUS_REQUESTS = 4;
 export const IMAGE_POLL_MAX_WAIT_MS = 18 * 60 * 1000;
 export const VIDEO_POLL_MAX_WAIT_MS = 30 * 60 * 1000;
 export const POLL_DELAY_INITIAL_MS = 2_200;

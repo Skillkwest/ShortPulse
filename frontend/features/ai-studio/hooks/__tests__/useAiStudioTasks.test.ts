@@ -1,7 +1,8 @@
 import { act, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { StudioOutput } from "../../types";
-import { useAiStudioTasks } from "../useAiStudioTasks";
+import { DISPATCH_HANDOFF_INITIAL_POLL_DELAY_MS, useAiStudioTasks } from "../useAiStudioTasks";
+import { MAX_CONCURRENT_STATUS_REQUESTS } from "../taskPolling/pollingSchedulePolicy";
 import {
   fetchFalBriaBackgroundRemoveStatus,
   fetchFalSeedreamStatus,
@@ -49,6 +50,16 @@ const makeOutput = (): StudioOutput => ({
   timestamp: "Now",
   taskState: "running",
 });
+
+const createDeferred = <T>() => {
+  let resolve!: (value: T) => void;
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((res, rej) => {
+    resolve = res;
+    reject = rej;
+  });
+  return { promise, resolve, reject };
+};
 
 const asFalStatusResponse = (value: unknown): Awaited<ReturnType<typeof fetchFalStatus>> =>
   value as Awaited<ReturnType<typeof fetchFalStatus>>;
@@ -1656,6 +1667,94 @@ describe("useAiStudioTasks", () => {
 
     await vi.advanceTimersByTimeAsync(2_300);
     expect(fetchFalStatusMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("allows four fresh status polls before deferring the fifth for concurrency backpressure", async () => {
+    const deferreds = Array.from({ length: MAX_CONCURRENT_STATUS_REQUESTS + 1 }, () =>
+      createDeferred<Awaited<ReturnType<typeof fetchFalStatus>>>()
+    );
+    let callIndex = 0;
+    fetchFalStatusMock.mockImplementation(() => {
+      const next = deferreds[callIndex];
+      callIndex += 1;
+      if (!next) {
+        throw new Error("unexpected status poll");
+      }
+      return next.promise;
+    });
+
+    const outputsById = Object.fromEntries(
+      Array.from({ length: MAX_CONCURRENT_STATUS_REQUESTS + 1 }, (_, index) => [
+        `out-${index + 1}`,
+        { ...makeOutput(), id: `out-${index + 1}` },
+      ])
+    ) as Record<string, StudioOutput>;
+    const updateOutputById = vi.fn((id: string, updater: (item: StudioOutput) => StudioOutput) => {
+      const current = outputsById[id];
+      if (current) {
+        outputsById[id] = updater(current);
+      }
+    });
+    const onGenerationSuccess = vi.fn();
+
+    const { result } = renderHook(() =>
+      useAiStudioTasks({
+        updateOutputById,
+        findOutputById: (id: string) => outputsById[id] ?? null,
+        notifyGenerationFailure: vi.fn(),
+        onGenerationSuccess,
+      })
+    );
+
+    act(() => {
+      Array.from({ length: MAX_CONCURRENT_STATUS_REQUESTS + 1 }, (_, index) => {
+        result.current.startPollingTask(`task-${index + 1}`, `out-${index + 1}`, 0, "fal");
+      });
+    });
+
+    await vi.advanceTimersByTimeAsync(2_300);
+
+    expect(fetchFalStatusMock).toHaveBeenCalledTimes(MAX_CONCURRENT_STATUS_REQUESTS);
+
+    deferreds.slice(0, MAX_CONCURRENT_STATUS_REQUESTS).forEach((deferred, index) =>
+      deferred.resolve(
+        asFalStatusResponse({
+          status: "completed",
+          data: { images: [{ url: `https://cdn.test/concurrency-${index + 1}.png` }] },
+          shortpulseLifecycle: {
+            taskState: "success",
+            isTerminal: true,
+            resultUrls: [`https://cdn.test/concurrency-${index + 1}.png`],
+          },
+        })
+      )
+    );
+
+    await Promise.resolve();
+    await Promise.resolve();
+    await flushQueuedOutputUpdates();
+    await vi.advanceTimersByTimeAsync(6_000);
+    await flushQueuedOutputUpdates();
+
+    expect(fetchFalStatusMock).toHaveBeenCalledTimes(MAX_CONCURRENT_STATUS_REQUESTS + 1);
+
+    deferreds[MAX_CONCURRENT_STATUS_REQUESTS]?.resolve(
+      asFalStatusResponse({
+        status: "completed",
+        data: { images: [{ url: "https://cdn.test/concurrency-5.png" }] },
+        shortpulseLifecycle: {
+          taskState: "success",
+          isTerminal: true,
+          resultUrls: ["https://cdn.test/concurrency-5.png"],
+        },
+      })
+    );
+
+    await Promise.resolve();
+    await Promise.resolve();
+    await flushQueuedOutputUpdates();
+
+    expect(onGenerationSuccess).toHaveBeenCalledTimes(MAX_CONCURRENT_STATUS_REQUESTS + 1);
   });
 
   it("caps no-media background recovery to two attempts", async () => {

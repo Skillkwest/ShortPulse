@@ -7,8 +7,9 @@ Purpose: working checkpoint for the current `staging-preview` consolidation effo
 - Active integration target: `staging-preview`
 - Non-target branch for this lane: `main`
 - Primary source branch being consolidated: `origin/codex/full-unified-layers`
-- Stable local checkpoint at time of writing: `a4264f072`
-- Remote checkpoint status: pushed to `origin/staging-preview`
+- Current local checkpoint: `8e165e899`
+- Last pushed remote checkpoint: `a4264f072`
+- Local/remote delta: docs-only planning update for the next runtime lane
 - Whole-branch merge status: attempted once, then rolled back after broad `type-check` failure
 - Active strategy: lane-based integration with validation after each lane
 

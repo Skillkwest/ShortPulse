@@ -1557,11 +1557,7 @@ describe("useAiStudioTaskOrchestration", () => {
       });
 
       expect(fetchFalQueueStatusMock).toHaveBeenCalled();
-      expect(notifyGenerationFailure).toHaveBeenCalledWith(
-        "out-queued",
-        "Queued generation could not be resumed. Please retry.",
-        "Generation queue status remained unresolved while waiting for dispatch."
-      );
+      expect(notifyGenerationFailure).not.toHaveBeenCalled();
       expect(updateOutputById).not.toHaveBeenCalled();
     } finally {
       vi.useRealTimers();

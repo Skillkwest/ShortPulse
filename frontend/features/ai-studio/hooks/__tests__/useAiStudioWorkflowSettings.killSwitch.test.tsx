@@ -56,7 +56,7 @@ describe("useAiStudioWorkflowSettings kill switch", () => {
       const [aspect, setAspect] = useState("9:16");
       const [imageResolution, setImageResolution] = useState("model_default");
       const [videoReferenceMode, setVideoReferenceMode] = useState<
-        "standard" | "keyframes" | "kling3" | "motion"
+        "standard" | "modify" | "keyframes" | "kling3" | "motion"
       >("standard");
       const [videoDurationSeconds, setVideoDurationSeconds] = useState(6);
       const [videoResolution, setVideoResolution] = useState("1080p");

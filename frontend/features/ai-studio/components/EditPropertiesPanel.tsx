@@ -93,8 +93,6 @@ export function EditPropertiesPanel({
     collapsedSteps,
     toggleStep,
     expandIfCollapsed,
-    canSwapFrames,
-    handleSwapFrames,
     handleFileSelection,
     handlePromptDrop,
     handlePrimaryDrop,
@@ -221,7 +219,6 @@ export function EditPropertiesPanel({
           isVideoVariant={false}
           referenceStepTitle={beginnerMode ? "Add Reference Image" : referenceStepTitle}
           referenceStepSubtitle={referenceStepSubtitle}
-          activeVideoMode="standard"
           isMotionMode={false}
           isKling3Mode={false}
           isStandardMode={true}
@@ -243,8 +240,6 @@ export function EditPropertiesPanel({
           handleExtraDragLeave={handleExtraDragLeave}
           allowVideoDrag={allowVideoDrag}
           handleMotionVideoDrop={handleMotionVideoDrop}
-          canSwapFrames={canSwapFrames}
-          handleSwapFrames={handleSwapFrames}
           primaryInputRef={primaryInputRef}
           extraOneInputRef={extraOneInputRef}
           extraTwoInputRef={extraTwoInputRef}

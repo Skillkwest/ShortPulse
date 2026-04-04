@@ -136,6 +136,57 @@ vi.mock("../StudioPreview", () => ({
   StudioPreview: () => <div data-testid="studio-preview" />,
 }));
 
+vi.mock("../AiStudioShellFrame", async () => {
+  const React = await import("react");
+  const { ReferenceGrid } = await import("../ReferenceGrid");
+  const { StudioPreview } = await import("../StudioPreview");
+
+  return {
+    AiStudioShellFrame: (props: {
+      shellRef?: React.Ref<HTMLElement>;
+      shellClassName?: string;
+      shellStyle?: React.CSSProperties;
+      propertiesPanelContent?: React.ReactNode;
+      rightColumnRef?: React.Ref<HTMLDivElement>;
+      rightColumnDropMode?: string;
+      onRightColumnDropCapture?: React.DragEventHandler<HTMLDivElement>;
+      onRightColumnDragOverCapture?: React.DragEventHandler<HTMLDivElement>;
+      onRightColumnDragEnterCapture?: React.DragEventHandler<HTMLDivElement>;
+      onRightColumnDragLeaveCapture?: React.DragEventHandler<HTMLDivElement>;
+      onShellDragOverCapture?: React.DragEventHandler<HTMLElement>;
+      onShellDropCapture?: React.DragEventHandler<HTMLElement>;
+      referenceGridProps?: Record<string, unknown>;
+      railCanvasProps?: Record<string, unknown>;
+      studioPreviewProps?: Record<string, unknown>;
+    }) => (
+      <section
+        ref={props.shellRef}
+        className={props.shellClassName}
+        style={props.shellStyle}
+        data-dense-shell="false"
+        onDragOverCapture={props.onShellDragOverCapture}
+        onDropCapture={props.onShellDropCapture}
+      >
+        <aside className="panel ai-panel ai-properties">{props.propertiesPanelContent}</aside>
+        <div
+          ref={props.rightColumnRef}
+          className={`ai-shell-right${props.rightColumnDropMode && props.rightColumnDropMode !== "none" ? " is-drop-overlay-active" : ""}`}
+          onDropCapture={props.onRightColumnDropCapture}
+          onDragOverCapture={props.onRightColumnDragOverCapture}
+          onDragEnterCapture={props.onRightColumnDragEnterCapture}
+          onDragLeaveCapture={props.onRightColumnDragLeaveCapture}
+        >
+          <ReferenceGrid
+            {...(props.referenceGridProps ?? {})}
+            railCanvasProps={props.railCanvasProps}
+          />
+          <StudioPreview {...(props.studioPreviewProps ?? {})} />
+        </div>
+      </section>
+    ),
+  };
+});
+
 vi.mock("../CharacterPanel", () => ({
   CharacterPanel: () => <div data-testid="character-panel" />,
 }));
@@ -212,8 +263,10 @@ vi.mock("../hooks/useAiStudioShellResize", () => ({
     isResizing: false,
     shellStyle: {},
     collapseToMin: collapseToMinMock,
+    resetToDefaultWidth: vi.fn(),
     expandToMax: expandToMaxMock,
     dividerProps: {},
+    rightColumnHidden: false,
   }),
 }));
 

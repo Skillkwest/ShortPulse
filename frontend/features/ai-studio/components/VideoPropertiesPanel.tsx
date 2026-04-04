@@ -196,8 +196,6 @@ export function VideoPropertiesPanel({
     isKeyframesMode,
     isMotionMode,
     isStandardMode,
-    isVeoImageToVideoStandard,
-    isVeoFirstLastModel,
     isSeedanceI2VModel,
     isVeoModel,
     referenceStepTitle,
@@ -253,7 +251,6 @@ export function VideoPropertiesPanel({
     onImageResolutionChange: undefined,
   });
 
-  const isKieKlingWorkspace = isKling3Mode && modelId === "kie-ai/kling-3.0";
   const isKieKlingModelSelected = modelId === KIE_KLING_30_MODEL_ID;
   const isVeo31ModelSelected =
     modelId?.includes("veo3.1") === true || modelId?.includes("veo-3.1") === true;
@@ -443,8 +440,6 @@ export function VideoPropertiesPanel({
                         durationOptions={durationOptions}
                         resolutionOptions={resolutionOptions}
                         videoGenerateAudioValue={videoGenerateAudioValue}
-                        isVeoImageToVideoStandard={isVeoImageToVideoStandard}
-                        isVeoFirstLastModel={isVeoFirstLastModel}
                         isSeedanceI2VModel={isSeedanceI2VModel}
                         videoCameraFixed={videoCameraFixed}
                         isVeoModel={isVeoModel}
@@ -619,7 +614,6 @@ export function VideoPropertiesPanel({
           </div>
           <ReferenceKlingAdvancedSteps
             isKling3Mode={isKling3Mode}
-            isKieKlingModel={isKieKlingWorkspace}
             beginnerMode={beginnerMode}
             klingAdvancedOrder={klingAdvancedOrder}
             klingAdvancedBadge={klingAdvancedBadge}

@@ -7,9 +7,9 @@ Purpose: working checkpoint for the current `staging-preview` consolidation effo
 - Active integration target: `staging-preview`
 - Non-target branch for this lane: `main`
 - Primary source branch being consolidated: `origin/codex/full-unified-layers`
-- Current local checkpoint: `7c83fae98`
-- Last pushed remote checkpoint: `f3cebebc6`
-- Local/remote delta: shared sound/TTS properties lane plus this ledger refresh
+- Current local checkpoint: `abe07804c`
+- Last pushed remote checkpoint: `dfd44f004`
+- Local/remote delta: reference/media-authority lane plus this ledger refresh
 - Whole-branch merge status: attempted once, then rolled back after broad `type-check` failure
 - Active strategy: lane-based integration with validation after each lane
 
@@ -29,6 +29,7 @@ Purpose: working checkpoint for the current `staging-preview` consolidation effo
 | `00dcbe7a8` | Convergence hardening lane stabilized locally |
 | `b1e86f1b8` | Video properties lane stabilized locally |
 | `7c83fae98` | Shared sound/TTS properties lane stabilized locally |
+| `abe07804c` | Reference/media-authority lane stabilized locally |
 
 ## Landed Lanes
 
@@ -179,6 +180,27 @@ Checkpoint result:
 - `npm run type-check` passed
 - `npm run build` passed
 
+### Lane 10: reference/media authority
+
+Representative landed commits:
+
+- `2b1ab9df2` Prefer generation publications for internal reference media
+- `9d8cbd08f` Prefer generation publications for reference downloads
+- `8406f227a` Recover generation ids from request-backed save state
+- `a73cbb641` Consolidate generated media authority lookups
+- `e85bb54b5` Recover download authority from request-backed generation state
+- `8727591e0` Prefer publication-owned media for generated save reuse
+- `abe07804c` Stabilize reference media authority lane
+
+Checkpoint result:
+
+- generated reference downloads and save reuse now prefer publication-owned or request-backed authority before older fallbacks
+- the source lane stayed in frontend product code and tests only
+- a narrow local stabilization pass was required to restore a missing download helper and align one test input with current `StudioOutput` typing
+- focused persistence/reference suite passed
+- `npm run type-check` passed
+- `npm run build` passed
+
 ## Local Stabilization Commits
 
 These commits were created locally because the imported runtime work was not fully self-contained on `staging-preview`:
@@ -192,6 +214,7 @@ These commits were created locally because the imported runtime work was not ful
 | `4c2f7fa4f` | Backport handoff timing polling options |
 | `00dcbe7a8` | Align convergence hardening projection sync |
 | `b1e86f1b8` | Stabilize video properties lane integration |
+| `abe07804c` | Stabilize reference media authority lane |
 
 ## Source Commits Already Represented Locally
 
@@ -214,6 +237,12 @@ These source commits from `origin/codex/full-unified-layers` are already represe
 - `b3a62c47b`
 - `414d4d74f`
 - `cece1993f`
+- `734ba6ba5`
+- `01e97c71f`
+- `955003e76`
+- `08a953a93`
+- `40bc83637`
+- `e1b34eec4`
 
 Note:
 
@@ -255,6 +284,7 @@ Still-useful local safety refs:
 - `refs/keep/staging-preview-post-unresolved-task-polling`
 - `refs/keep/staging-preview-pre-video-properties-lane`
 - `refs/keep/staging-preview-pre-shared-properties-lane`
+- `refs/keep/staging-preview-pre-reference-media-authority-lane`
 
 ## Remaining Work
 
@@ -263,16 +293,16 @@ Still-useful local safety refs:
 Current recommendation:
 
 1. push the current stable local `staging-preview` checkpoint
-2. remeasure the remaining `origin/codex/full-unified-layers` delta from `7c83fae98`
+2. remeasure the remaining `origin/codex/full-unified-layers` delta from `abe07804c`
 3. decide whether the next product-code lane is:
-   - residual runtime/reference/media-authority tail
+   - residual status/media-authority runtime tail
    - a smaller non-UI collateral slice
    - or a tighter follow-on UI lane that does not drag docs/skills churn
 
 Decision note:
 
-- the previously deferred shared sound/TTS properties lane is now complete
-- the next lane should be chosen from the updated post-sound/TTS branch state, not from the older pre-sound plan
+- the reference/media-authority lane is now complete
+- the next lane should be chosen from the updated post-authority branch state, not from the older pre-authority plan
 
 ### Deferred runtime/docs operator tail
 
@@ -287,7 +317,7 @@ Still intentionally deferred after the convergence hardening lane:
 Reason:
 
 - these commits are useful, but they are primarily diagnostics, SQL checks, scripts, and operator/docs tooling
-- they should not lead the next product-code lane while recovery publication hardening is still pending
+- they should not lead the next product-code lane while product-code status/media authority cleanup still remains
 
 ### Deferred UI/docs collateral remainder
 

@@ -7,7 +7,8 @@ Purpose: working checkpoint for the current `staging-preview` consolidation effo
 - Active integration target: `staging-preview`
 - Non-target branch for this lane: `main`
 - Primary source branch being consolidated: `origin/codex/full-unified-layers`
-- Stable local checkpoint at time of writing: `d9488839f`
+- Stable local checkpoint at time of writing: `a4264f072`
+- Remote checkpoint status: pushed to `origin/staging-preview`
 - Whole-branch merge status: attempted once, then rolled back after broad `type-check` failure
 - Active strategy: lane-based integration with validation after each lane
 
@@ -23,6 +24,7 @@ Purpose: working checkpoint for the current `staging-preview` consolidation effo
 | `4c2f7fa4f` | Handoff timing compatibility backport stabilized |
 | `991bc5587` | Status-poll concurrency lane stabilized |
 | `d9488839f` | Unresolved task-backed polling resume stabilized |
+| `a4264f072` | Ledger refreshed and pushed checkpoint established |
 
 ## Landed Lanes
 
@@ -185,21 +187,43 @@ Still-useful local safety refs:
 
 ## Remaining Work
 
-### Next runtime candidates
-
-| Commit | Status | Notes |
-| --- | --- | --- |
-| next runtime lane | reassess from updated diff | `d68559372` and `0ee7762e1` are now landed; remaining runtime work should be re-sliced from the new branch state |
+### Next runtime lane
 
 Current recommendation:
 
-1. recompute the remaining `origin/codex/full-unified-layers` delta from `d9488839f`
-2. decide whether the next lane is residual runtime polish or the deferred UI/properties lane
+1. create a fresh rollback anchor from current `staging-preview`
+2. land `d5375d247` first
+3. land `eb64b561c` second if the first commit validates cleanly
+4. validate focused recovery/runtime tests, then `npm run type-check`, then `npm run build`
+5. update this ledger only after that lane is stable
+
+Recommended lane definition:
+
+| Commit | Status | Notes |
+| --- | --- | --- |
+| `d5375d247` | next candidate | hardens recovery publication sync against stale output rereads; touches `generationOutputs`, `recoveryExecution`, and recovery tests |
+| `eb64b561c` | follow-on candidate | backfills convergence for already persisted recovery; builds directly on the same recovery execution surface |
 
 Decision note:
 
-- the previous next-step recommendation is complete
-- the next lane should be chosen from the updated post-`0ee7762e1` delta, not from the older pre-integration plan
+- this lane is smaller and cleaner than the remaining UI redesign work
+- it avoids dragging in skill deletions, broad design-doc churn, and properties-panel surface changes
+- the two commits are tightly related and form the best next server/runtime slice from the current branch state
+
+### Deferred runtime/docs operator tail
+
+Still intentionally deferred after the convergence hardening lane:
+
+- `d636d295b`
+- `c34ef729c`
+- `a18c800c1`
+- `ceccd6e07`
+- `0b2933dd4`
+
+Reason:
+
+- these commits are useful, but they are primarily diagnostics, SQL checks, scripts, and operator/docs tooling
+- they should not lead the next product-code lane while recovery publication hardening is still pending
 
 ### Deferred UI/properties lane
 

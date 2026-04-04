@@ -18,6 +18,7 @@ Purpose: active planning artifacts and current execution backlogs.
 - `final-validation-summary.md`: closeout validation matrix and signoff checklist.
 - `policies/README.md`: planning policy artifacts and machine-checkable governance policy surfaces.
 - `backlog.md`: active and upcoming work.
+- `staging-preview-integration-ledger-2026-04-04.md`: working ledger for the current `staging-preview` consolidation effort, including landed `codex/full-unified-layers` lanes, local adaptation commits, rollback anchors, and remaining runtime/UI lanes.
 - `foundation-lanes-master-roadmap-2026-03-16.md`: canonical multi-lane foundational hardening roadmap (outcomes, sequencing, dependency rules, and required validation bundle).
 - `foundation-lanes-execution-tracker-2026-03-16.md`: live tracker for lane status, Lane A phase checklist, slice-level validation records, and signoff progression.
 - `foundation-rebuild-playbook-2026-03-16.md`: mandatory rebuild method contract (entry criteria, explicit do-not-rebuild criteria, strangler cutover model, and rollback/evidence rules).

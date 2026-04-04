@@ -28,7 +28,11 @@ type MediaLibraryPanelFoldersSectionProps = {
   editingFolderId: string | null;
   editingFolderName: string;
   setEditingFolderName: (value: string) => void;
-  startFolderRename: (folderId: string, folderName: string) => void;
+  startFolderRename: (
+    folderId: string,
+    folderName: string,
+    options?: { clearInput?: boolean }
+  ) => void;
   cancelFolderRename: () => void;
   commitFolderRename: () => Promise<void>;
   createFolder: () => Promise<void>;

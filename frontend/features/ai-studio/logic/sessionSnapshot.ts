@@ -31,6 +31,7 @@ export type AiStudioSessionOutputV1 = {
   model: string;
   modelId?: string;
   provider?: string;
+  sourceRef?: string;
   generationId?: string;
   promptId?: string;
   savedMediaIds?: string[];
@@ -240,6 +241,7 @@ const sanitizeOutput = (output: StudioOutput): AiStudioSessionOutputV1 => {
     model: output.model,
     modelId: output.modelId,
     provider: output.provider,
+    sourceRef: output.sourceRef,
     generationId: output.generationId,
     promptId: output.promptId,
     savedMediaIds: output.savedMediaIds,

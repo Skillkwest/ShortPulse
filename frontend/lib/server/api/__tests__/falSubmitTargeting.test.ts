@@ -47,6 +47,8 @@ const createFlags = (overrides: Partial<FalRuntimeFlags> = {}): FalRuntimeFlags 
   queueLeaseSeconds: 30,
   queueMaxAttempts: 5,
   queueBaseBackoffSeconds: 5,
+  workerOwnedSubmitEnabled: overrides.workerOwnedSubmitEnabled ?? false,
+  legacyDirectSubmitEnabled: overrides.legacyDirectSubmitEnabled ?? false,
   ...overrides,
   videoSubmitCanonicalMode: overrides.videoSubmitCanonicalMode ?? "on",
   videoQueueCompatNormalizationEnabled: overrides.videoQueueCompatNormalizationEnabled ?? true,

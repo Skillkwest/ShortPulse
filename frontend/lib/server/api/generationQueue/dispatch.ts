@@ -39,6 +39,7 @@ import {
   isVideoGenerationModelId,
   normalizeVideoQueueDispatchPayload,
 } from "../videoSubmitContracts";
+import type { GenerationAdmissionTier } from "../../../model-runtime/generationAdmissionTiers";
 import type { GenerationControlPlaneLogContext } from "../../generationControlPlane/types";
 import { applyGenerationLifecycleTransition } from "../generationLifecycleTransitionService";
 import { buildQueueDispatchExhaustedGenerationUpdate } from "../generationRequestTransitions";
@@ -249,29 +250,18 @@ const readProviderCapacitySnapshot = async ({
   modelId: string;
 }): Promise<ProviderCapacitySnapshot> => {
   const flags = readFalRuntimeFlags();
-  const readSnapshot = async (scopeUserId?: string | null) =>
-    readActiveProviderCapacitySnapshot({
-      userId: scopeUserId,
-      provider,
-      modelId,
-      includeUnattachedReservations: false,
-      // Ignore orphaned holds once they outlive queue max-wait.
-      staleIgnoreMinAgeSeconds: flags.queueMaxWaitSeconds,
-      // Keep provider-linked running rows active until they exceed recovery cleanup windows.
-      activeGenerationStaleIgnoreMinAgeSeconds: Math.max(
-        flags.runningExhaustMinAgeSeconds,
-        flags.providerAttachedReservationCleanupMinAgeSeconds
-      ),
-      // Keep very recent unmatched reservations fail-closed during persistence races.
-      orphanGraceSeconds: Math.max(60, flags.queueBaseBackoffSeconds * 12),
-    });
-  const [userSnapshot, sharedSnapshot] = flags.admission.sharedProviderEnabled
-    ? await Promise.all([readSnapshot(userId), readSnapshot(null)])
-    : [await readSnapshot(userId), null];
-  return {
-    userSnapshot,
-    sharedSnapshot,
-  };
+  return readActiveProviderCapacitySnapshot({
+    userId: scopeUserId,
+    provider,
+    modelId,
+    includeUnattachedReservations: false,
+    staleIgnoreMinAgeSeconds: flags.queueMaxWaitSeconds,
+    activeGenerationStaleIgnoreMinAgeSeconds: Math.max(
+      flags.runningExhaustMinAgeSeconds,
+      flags.providerAttachedReservationCleanupMinAgeSeconds
+    ),
+    orphanGraceSeconds: Math.max(60, flags.queueBaseBackoffSeconds * 12),
+  });
 };
 
 type DispatchCapacityReservationCounts = {
@@ -405,7 +395,10 @@ const createDispatchCapacityCoordinator = (): DispatchCapacityCoordinator => {
     try {
       return await work();
     } finally {
-      releaseGate?.();
+      const release = releaseGate as (() => void) | null;
+      if (release) {
+        release();
+      }
     }
   };
 
@@ -469,7 +462,7 @@ const createDispatchCapacityCoordinator = (): DispatchCapacityCoordinator => {
               reservedGlobal: sharedCounts.global,
               reservedTier: sharedCounts.tier,
               globalMax: flags.admission.sharedProviderGlobalMax,
-              tierMax: flags.admission.tierLimits[sharedSnapshot.tier],
+              tierMax: flags.admission.tierLimits[sharedSnapshot.tier as GenerationAdmissionTier],
             })
           ) {
             return {
@@ -485,7 +478,7 @@ const createDispatchCapacityCoordinator = (): DispatchCapacityCoordinator => {
               reservedGlobal: userCounts.global,
               reservedTier: userCounts.tier,
               globalMax: flags.admission.globalMax,
-              tierMax: flags.admission.tierLimits[userSnapshot.tier],
+              tierMax: flags.admission.tierLimits[userSnapshot.tier as GenerationAdmissionTier],
             })
           ) {
             return {
@@ -512,7 +505,7 @@ const createDispatchCapacityCoordinator = (): DispatchCapacityCoordinator => {
             reservedGlobal: userCounts.global,
             reservedTier: userCounts.tier,
             globalMax: flags.admission.globalMax,
-            tierMax: flags.admission.tierLimits[userSnapshot.tier],
+            tierMax: flags.admission.tierLimits[userSnapshot.tier as GenerationAdmissionTier],
           })
         ) {
           return {

@@ -784,7 +784,10 @@ describe("generationQueue/dispatch no-capacity handling", () => {
     });
     expect(new Set(startedScopes)).toEqual(new Set(["user-1", null]));
 
-    releaseSnapshots?.();
+    const release = releaseSnapshots as (() => void) | null;
+    if (release) {
+      release();
+    }
     await expect(dispatchPromise).resolves.toEqual(
       expect.objectContaining({
         claimed: 2,

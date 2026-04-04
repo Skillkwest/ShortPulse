@@ -1095,7 +1095,10 @@ describe("generationQueue/dispatch transition integrity", () => {
       expect(dispatchProviderSubmitMock).toHaveBeenCalledTimes(2);
     });
 
-    releaseFirstProjection?.();
+    const releaseProjection = releaseFirstProjection as (() => void) | null;
+    if (releaseProjection) {
+      releaseProjection();
+    }
 
     await expect(dispatchPromise).resolves.toEqual(
       expect.objectContaining({
@@ -1191,7 +1194,10 @@ describe("generationQueue/dispatch transition integrity", () => {
       expect(dispatchProviderSubmitMock).toHaveBeenCalledTimes(2);
     });
 
-    releaseFirstTransition?.();
+    const releaseTransition = releaseFirstTransition as (() => void) | null;
+    if (releaseTransition) {
+      releaseTransition();
+    }
 
     await expect(dispatchPromise).resolves.toEqual(
       expect.objectContaining({

@@ -26,7 +26,7 @@ describe("generationAttempts", () => {
     }: {
       columns: string;
       filters?: Array<[string, string]>;
-    }) => {
+    }): any => {
       const query = {
         eq: vi.fn((field: string, value: string) =>
           buildQuery({ columns, filters: [...filters, [field, value]] })
@@ -154,7 +154,7 @@ describe("generationAttempts", () => {
     }: {
       columns: string;
       filters?: Array<[string, string]>;
-    }) => {
+    }): any => {
       const query = {
         eq: vi.fn((field: string, value: string) =>
           buildQuery({ columns, filters: [...filters, [field, value]] })

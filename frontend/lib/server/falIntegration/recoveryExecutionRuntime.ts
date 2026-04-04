@@ -63,10 +63,29 @@ export const resolveExtension = (contentType: string | null, url: string): strin
   return normalizedType.startsWith("video/") ? "mp4" : "png";
 };
 
-export const resolveRetryDelaySeconds = (attempts: number): number => {
-  const base = 120;
-  const scaled = base * Math.pow(2, Math.max(0, attempts - 1));
-  return Math.min(900, Math.round(scaled));
+export type RecoveryRetryReason = "running" | "terminal_success_no_media";
+
+const RECOVERY_RETRY_POLICIES: Record<
+  RecoveryRetryReason,
+  { baseSeconds: number; maxSeconds: number }
+> = {
+  running: {
+    baseSeconds: 30,
+    maxSeconds: 180,
+  },
+  terminal_success_no_media: {
+    baseSeconds: 10,
+    maxSeconds: 60,
+  },
+};
+
+export const resolveRetryDelaySeconds = (
+  attempts: number,
+  reason: RecoveryRetryReason = "running"
+): number => {
+  const policy = RECOVERY_RETRY_POLICIES[reason];
+  const scaled = policy.baseSeconds * Math.pow(2, Math.max(0, attempts - 1));
+  return Math.min(policy.maxSeconds, Math.round(scaled));
 };
 
 export const canTransitionToSuccess = ({

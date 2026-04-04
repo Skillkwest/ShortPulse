@@ -11,11 +11,14 @@ import {
 
 describe("recoveryExecutionRuntime", () => {
   it("resolves bounded retry delays using exponential backoff", () => {
-    expect(resolveRetryDelaySeconds(0)).toBe(120);
-    expect(resolveRetryDelaySeconds(1)).toBe(120);
-    expect(resolveRetryDelaySeconds(2)).toBe(240);
-    expect(resolveRetryDelaySeconds(3)).toBe(480);
-    expect(resolveRetryDelaySeconds(10)).toBe(900);
+    expect(resolveRetryDelaySeconds(0)).toBe(30);
+    expect(resolveRetryDelaySeconds(1)).toBe(30);
+    expect(resolveRetryDelaySeconds(2)).toBe(60);
+    expect(resolveRetryDelaySeconds(3)).toBe(120);
+    expect(resolveRetryDelaySeconds(10)).toBe(180);
+    expect(resolveRetryDelaySeconds(1, "terminal_success_no_media")).toBe(10);
+    expect(resolveRetryDelaySeconds(2, "terminal_success_no_media")).toBe(20);
+    expect(resolveRetryDelaySeconds(10, "terminal_success_no_media")).toBe(60);
   });
 
   it("allows fail->success only for terminal_success_no_media recovery states", () => {

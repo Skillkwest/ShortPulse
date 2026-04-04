@@ -263,6 +263,7 @@ export const readActiveProviderCapacitySnapshot = async ({
   userId,
   provider,
   modelId,
+  includeUnattachedReservations = true,
   staleIgnoreMinAgeSeconds,
   orphanGraceSeconds,
   activeGenerationStaleIgnoreMinAgeSeconds,
@@ -271,6 +272,7 @@ export const readActiveProviderCapacitySnapshot = async ({
   userId?: string | null;
   provider: string;
   modelId: string;
+  includeUnattachedReservations?: boolean;
   staleIgnoreMinAgeSeconds: number;
   orphanGraceSeconds: number;
   activeGenerationStaleIgnoreMinAgeSeconds?: number;

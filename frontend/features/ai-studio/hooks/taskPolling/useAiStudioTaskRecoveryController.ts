@@ -71,6 +71,7 @@ export const useAiStudioTaskRecoveryController = ({
   onPollingOutputLookupHardStop,
   queueOutputUpdate,
 }: UseAiStudioTaskRecoveryControllerArgs): UseAiStudioTaskRecoveryControllerResult => {
+  const SERVER_RECOVERY_PENDING_TIMESTAMP = "Waiting for server recovery...";
   const recoveryTimersRef = useRef<Record<string, number>>({});
   const recoveryAttemptsRef = useRef<Record<string, number>>({});
   const outputLookupMissesRef = useRef<Record<string, number>>({});
@@ -271,11 +272,29 @@ export const useAiStudioTaskRecoveryController = ({
         lookupMisses,
         missingDurationMs,
       });
+      queueOutputUpdate(outputId, (item) => ({
+        ...item,
+        taskState: item.taskState === "running" ? item.taskState : "running",
+        status: item.status === "ready" ? item.status : "ready",
+        timestamp:
+          item.timestamp === SERVER_RECOVERY_PENDING_TIMESTAMP
+            ? item.timestamp
+            : SERVER_RECOVERY_PENDING_TIMESTAMP,
+        errorMessage: null,
+        errorMessageShort: null,
+        errorDetail: null,
+      }));
       scheduleBackgroundRecovery(taskId, outputId, provider, "output_lookup_missing");
       clearPollTimer(outputId);
       clearRecoveryTimer(outputId);
     },
-    [clearPollTimer, clearRecoveryTimer, onPollingOutputLookupHardStop, scheduleBackgroundRecovery]
+    [
+      clearPollTimer,
+      clearRecoveryTimer,
+      onPollingOutputLookupHardStop,
+      queueOutputUpdate,
+      scheduleBackgroundRecovery,
+    ]
   );
 
   const resetRecoveryState = useCallback(() => {

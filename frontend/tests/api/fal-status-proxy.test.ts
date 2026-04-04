@@ -462,9 +462,16 @@ describe("createFalStatusHandler", () => {
       expect.objectContaining({
         request_id: "req-persisted-success",
         generationId: "gen-persisted-success-1",
-        status: "completed",
-        state: "completed",
-        resultUrls: ["https://cdn.shortpulse.test/persisted-result.mp4"],
+        status: "IN_PROGRESS",
+        state: "running",
+        shortpulseLifecycle: expect.objectContaining({
+          taskState: "running",
+          isTerminal: false,
+          recoveryPending: true,
+          providerState: "success",
+          queueState: "dispatched",
+          statusLabel: "Waiting for server recovery...",
+        }),
       })
     );
   });

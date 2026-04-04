@@ -261,25 +261,6 @@ export const createFalStatusHandler = ({
         })
       );
     }
-    if (persistedGenerationContext.taskState === "success") {
-      return res.status(200).json(
-        buildFalStatusTransientPayload({
-          requestId,
-          generationId,
-          lifecycle: buildShortPulseLifecycleHint({
-            taskState: "running",
-            isTerminal: false,
-            providerState: persistedGenerationContext.status ?? "completed",
-            recoveryPending: true,
-            queueState: ACTIVE_POLLING_QUEUE_STATE,
-            statusLabel: resolveLifecycleStatusLabel({
-              taskState: "running",
-              recoveryPending: true,
-            }),
-          }),
-        })
-      );
-    }
 
     let apiKey: string;
     try {

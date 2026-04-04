@@ -121,6 +121,7 @@ const AI_STUDIO_FLAG_RAF_STATUS_FLUSH = PERF_FLAG_RAF_STATUS_FLUSH;
 const OUTPUT_PROGRESS_UPDATE_MIN_INTERVAL_MS = 700;
 const HIDDEN_TAB_STATUS_POLL_RETRY_MS = 15_000;
 const SERVER_RECOVERY_PENDING_TIMESTAMP = "Waiting for server recovery...";
+export const DISPATCH_HANDOFF_INITIAL_POLL_DELAY_MS = 250;
 
 const isDocumentVisible = (): boolean =>
   typeof document === "undefined" || document.visibilityState === "visible";
@@ -130,6 +131,10 @@ const resolveHiddenTabStatusRetryDelayMs = (attempt: number): number =>
 type QueuedOutputUpdate = {
   updater: (item: StudioOutput) => StudioOutput;
   nonUrgent: boolean;
+};
+
+type StartPollingTaskOptions = {
+  initialDelayMs?: number;
 };
 
 const areStringArraysEqual = (left: string[] | undefined, right: string[]) => {
@@ -402,7 +407,8 @@ export function useAiStudioTasks({
       provider: Provider = "fal",
       startedAt = Date.now(),
       noMediaAttempt = 0,
-      pollSessionId?: number
+      pollSessionId?: number,
+      options?: StartPollingTaskOptions
     ) {
       incrementFreezeInvestigationCounter("aiStudioTasks.startPollingTask.calls");
       setFreezeInvestigationGauge(
@@ -429,7 +435,8 @@ export function useAiStudioTasks({
               provider,
               startedAt + hiddenRetryDelayMs,
               noMediaAttempt,
-              activePollSessionId
+              activePollSessionId,
+              options
             ),
           hiddenRetryDelayMs
         );
@@ -478,7 +485,8 @@ export function useAiStudioTasks({
               provider,
               startedAt,
               noMediaAttempt,
-              activePollSessionId
+              activePollSessionId,
+              options
             ),
           lookupPolicy.retryDelayMs
         );
@@ -530,7 +538,10 @@ export function useAiStudioTasks({
         return;
       }
 
-      const delay = getPollDelayMs(attempt);
+      const delay =
+        attempt === 0 && typeof options?.initialDelayMs === "number"
+          ? options.initialDelayMs
+          : getPollDelayMs(attempt);
       const timeoutId = window.setTimeout(async () => {
         if ((pollSessionsRef.current[outputId] ?? 0) !== activePollSessionId) {
           return;
@@ -546,7 +557,8 @@ export function useAiStudioTasks({
                 provider,
                 startedAt + hiddenRetryDelayMs,
                 noMediaAttempt,
-                activePollSessionId
+                activePollSessionId,
+                options
               ),
             hiddenRetryDelayMs
           );
@@ -562,7 +574,8 @@ export function useAiStudioTasks({
                 provider,
                 startedAt,
                 noMediaAttempt,
-                activePollSessionId
+                activePollSessionId,
+                options
               ),
             getStatusConcurrencyRetryDelayMs(delay)
           );
@@ -617,7 +630,8 @@ export function useAiStudioTasks({
                     provider,
                     startedAt,
                     noMediaAttempt,
-                    activePollSessionId
+                    activePollSessionId,
+                    options
                   ),
                 lookupPolicy.retryDelayMs
               );
@@ -712,7 +726,8 @@ export function useAiStudioTasks({
                       provider,
                       startedAt,
                       noMediaAttempt + 1,
-                      activePollSessionId
+                      activePollSessionId,
+                      options
                     ),
                   noMediaRetryDelayMs
                 );
@@ -915,7 +930,8 @@ export function useAiStudioTasks({
                     provider,
                     startedAt,
                     0,
-                    activePollSessionId
+                    activePollSessionId,
+                    options
                   ),
                 delay
               );
@@ -969,7 +985,8 @@ export function useAiStudioTasks({
                     provider,
                     startedAt,
                     0,
-                    activePollSessionId
+                    activePollSessionId,
+                    options
                   ),
                 delay
               );
@@ -1085,7 +1102,8 @@ export function useAiStudioTasks({
                   provider,
                   startedAt,
                   0,
-                  activePollSessionId
+                  activePollSessionId,
+                  options
                 ),
               delay
             );
@@ -1144,7 +1162,8 @@ export function useAiStudioTasks({
                   provider,
                   startedAt,
                   0,
-                  activePollSessionId
+                  activePollSessionId,
+                  options
                 ),
               delay
             );

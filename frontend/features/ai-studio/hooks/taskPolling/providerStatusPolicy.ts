@@ -254,11 +254,6 @@ type ProviderSuccessClassification = {
   shouldTreatAsSuccess: boolean;
 };
 
-export type LegacyProviderFailureResolution = {
-  failureMessage: string;
-  failureDetail: string;
-};
-
 /**
  * Classifies whether the latest provider status should be treated as success.
  */
@@ -268,69 +263,4 @@ export const classifyProviderSuccess = ({
   const isTerminalSuccess = terminalSuccessStates.has(state);
   const shouldTreatAsSuccess = isTerminalSuccess;
   return { isTerminalSuccess, shouldTreatAsSuccess };
-};
-
-/**
- * Resolves legacy raw-provider failure payloads when the server lifecycle contract is absent.
- */
-export const resolveLegacyProviderFailure = (
-  status: PollStatus,
-  state: string
-): LegacyProviderFailureResolution | null => {
-  const isErrorState = terminalFailureStates.has(state);
-  const hasErrorField =
-    Boolean(status?.error) || Boolean(status?.failMsg) || Boolean(status?.failCode);
-  const isExplicitErrorStatus =
-    String(status?.status ?? "").toLowerCase() === "error" ||
-    String(status?.state ?? "").toLowerCase() === "error";
-
-  if (!isErrorState && !hasErrorField && !isExplicitErrorStatus) {
-    return null;
-  }
-
-  const detailMessage = extractFailureMessageFromDetail(status?.detail);
-  const errorField = extractFailureMessageFromDetail(status?.error);
-  const failMessageField = extractFailureMessageFromDetail(status?.failMsg);
-  const failCodeField = extractFailureMessageFromDetail(status?.failCode);
-  const explicitErrorMessageField =
-    isExplicitErrorStatus && typeof status?.message === "string" ? status.message : null;
-  const explicitErrorStatusMessageField =
-    isExplicitErrorStatus && typeof status?.statusMessage === "string"
-      ? status.statusMessage
-      : null;
-
-  const rawFailureDetail =
-    failMessageField ||
-    errorField ||
-    detailMessage ||
-    explicitErrorMessageField ||
-    explicitErrorStatusMessageField ||
-    failCodeField ||
-    "Generation failed";
-  const failureDetail =
-    typeof rawFailureDetail === "string"
-      ? rawFailureDetail
-      : rawFailureDetail != null
-        ? String(rawFailureDetail)
-        : "Generation failed";
-
-  const rawFailureMessage =
-    failMessageField ||
-    errorField ||
-    detailMessage ||
-    explicitErrorMessageField ||
-    explicitErrorStatusMessageField ||
-    failureDetail;
-  const failureMessage = condenseError(rawFailureMessage);
-  const safeFailureMessage = looksLikeFailureMessage(failureMessage)
-    ? failureMessage
-    : "Generation failed";
-  const safeFailureDetail = looksLikeFailureMessage(failureDetail)
-    ? failureDetail
-    : safeFailureMessage;
-
-  return {
-    failureMessage: safeFailureMessage,
-    failureDetail: safeFailureDetail,
-  };
 };

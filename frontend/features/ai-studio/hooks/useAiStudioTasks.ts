@@ -58,7 +58,7 @@ import {
   type PollStatus,
   resolvePollStatusGenerationId,
   resolveProviderStatusState,
-  resolveLegacyProviderFailure,
+  terminalFailureStates,
 } from "./taskPolling/providerStatusPolicy";
 import { useAiStudioTaskRecoveryController } from "./taskPolling/useAiStudioTaskRecoveryController";
 import {
@@ -1045,45 +1045,32 @@ export function useAiStudioTasks({
               return;
             }
 
-            const legacyFailure = resolveLegacyProviderFailure(status, state);
-
-            if (legacyFailure) {
-              const shortMessage = createShortErrorMessage(legacyFailure.failureMessage);
-
-              notifyGenerationFailure(
-                outputId,
-                legacyFailure.failureMessage,
-                legacyFailure.failureDetail,
-                {
-                  reasonCode: "provider_error",
-                  providerState: state,
-                  pollAttempt: attempt,
-                  elapsedMs: Date.now() - startedAt,
-                  maxWaitMs,
-                }
-              );
-
+            if (terminalFailureStates.has(state)) {
+              addBreadcrumb({
+                type: "ui",
+                level: "warn",
+                message: "generation_terminal_failure_without_lifecycle_handoff",
+                data: {
+                  provider,
+                  task_id: taskId,
+                  output_id: outputId,
+                  status_state: state,
+                  poll_attempt: attempt,
+                },
+              });
               queueOutputUpdate(outputId, (item) => ({
                 ...item,
                 status: item.status === "ready" ? item.status : "ready",
-                taskState: item.taskState === "fail" ? item.taskState : "fail",
-                errorMessage:
-                  item.errorMessage === legacyFailure.failureMessage
-                    ? item.errorMessage
-                    : legacyFailure.failureMessage,
-                errorMessageShort:
-                  item.errorMessageShort === shortMessage ? item.errorMessageShort : shortMessage,
+                taskState: item.taskState === "running" ? item.taskState : "running",
+                timestamp:
+                  item.timestamp === SERVER_RECOVERY_PENDING_TIMESTAMP
+                    ? item.timestamp
+                    : SERVER_RECOVERY_PENDING_TIMESTAMP,
+                errorMessage: null,
+                errorMessageShort: null,
+                errorDetail: null,
               }));
-
-              if (onGenerationFailure) {
-                onGenerationFailure({
-                  outputId,
-                  taskId,
-                  provider,
-                  message: legacyFailure.failureDetail,
-                  reasonCode: "provider_error",
-                });
-              }
+              scheduleBackgroundRecovery(taskId, outputId, provider, "status_poll_error");
               clearPollTimer(outputId);
               return;
             }

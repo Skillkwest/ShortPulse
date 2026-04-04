@@ -381,6 +381,14 @@ describe("useAiStudioTasks", () => {
             msg: "Failed to download the file. Please check if the URL is accessible and try again.",
           },
         ],
+        shortpulseLifecycle: {
+          taskState: "fail",
+          isTerminal: true,
+          errorMessage: "Failed to download the file.",
+          errorDetail:
+            "Failed to download the file. Please check if the URL is accessible and try again.",
+          providerState: "error",
+        },
       })
     );
 
@@ -433,6 +441,13 @@ describe("useAiStudioTasks", () => {
       asFalStatusResponse({
         status: "error",
         detail: [{ type: "downstream_service_error", msg: "Downstream service error" }],
+        shortpulseLifecycle: {
+          taskState: "fail",
+          isTerminal: true,
+          errorMessage: "Downstream service error",
+          errorDetail: "Downstream service error",
+          providerState: "error",
+        },
       })
     );
 
@@ -490,6 +505,13 @@ describe("useAiStudioTasks", () => {
       asFalStatusResponse({
         status: "failed",
         statusMessage: "Success",
+        shortpulseLifecycle: {
+          taskState: "fail",
+          isTerminal: true,
+          errorMessage: "Generation failed",
+          errorDetail: "Generation failed",
+          providerState: "failed",
+        },
       })
     );
 
@@ -537,6 +559,161 @@ describe("useAiStudioTasks", () => {
     expect(output.taskState).toBe("fail");
     expect(output.errorMessage).toBe("Generation failed");
     expect(output.errorMessageShort).toBe("Generation failed");
+  });
+
+  it("does not surface neutral raw message text on terminal failures", async () => {
+    fetchFalStatusMock.mockImplementationOnce(async () =>
+      asFalStatusResponse({
+        status: "failed",
+        message: "Queued for retry",
+        shortpulseLifecycle: {
+          taskState: "fail",
+          isTerminal: true,
+          errorMessage: "Generation failed",
+          errorDetail: "Generation failed",
+          providerState: "failed",
+        },
+      })
+    );
+
+    let output = makeOutput();
+    const updateOutputById = vi.fn((id: string, updater: (item: StudioOutput) => StudioOutput) => {
+      if (id === output.id) {
+        output = updater(output);
+      }
+    });
+    const notifyGenerationFailure = vi.fn();
+    const onGenerationFailure = vi.fn();
+
+    const { result } = renderHook(() =>
+      useAiStudioTasks({
+        updateOutputById,
+        notifyGenerationFailure,
+        onGenerationFailure,
+      })
+    );
+
+    act(() => {
+      result.current.startPollingTask("task-failed-neutral-message", "out-1", 0, "fal");
+    });
+
+    await vi.advanceTimersByTimeAsync(2_300);
+    await flushQueuedOutputUpdates();
+
+    expect(notifyGenerationFailure).toHaveBeenCalledWith(
+      "out-1",
+      "Generation failed",
+      "Generation failed",
+      expect.objectContaining({
+        reasonCode: "provider_error",
+        providerState: "failed",
+      })
+    );
+    expect(onGenerationFailure).toHaveBeenCalledWith(
+      expect.objectContaining({
+        outputId: "out-1",
+        provider: "fal",
+        message: "Generation failed",
+        reasonCode: "provider_error",
+      })
+    );
+    expect(output.taskState).toBe("fail");
+    expect(output.errorMessage).toBe("Generation failed");
+  });
+
+  it("uses raw message text when provider explicitly reports error status", async () => {
+    fetchFalStatusMock.mockImplementationOnce(async () =>
+      asFalStatusResponse({
+        status: "error",
+        message: "Downstream service error",
+        shortpulseLifecycle: {
+          taskState: "fail",
+          isTerminal: true,
+          errorMessage: "Downstream service error",
+          errorDetail: "Downstream service error",
+          providerState: "error",
+        },
+      })
+    );
+
+    let output = makeOutput();
+    const updateOutputById = vi.fn((id: string, updater: (item: StudioOutput) => StudioOutput) => {
+      if (id === output.id) {
+        output = updater(output);
+      }
+    });
+    const notifyGenerationFailure = vi.fn();
+    const onGenerationFailure = vi.fn();
+
+    const { result } = renderHook(() =>
+      useAiStudioTasks({
+        updateOutputById,
+        notifyGenerationFailure,
+        onGenerationFailure,
+      })
+    );
+
+    act(() => {
+      result.current.startPollingTask("task-error-message-field", "out-1", 0, "fal");
+    });
+
+    await vi.advanceTimersByTimeAsync(2_300);
+    await flushQueuedOutputUpdates();
+
+    expect(notifyGenerationFailure).toHaveBeenCalledWith(
+      "out-1",
+      "Downstream service error",
+      "Downstream service error",
+      expect.objectContaining({
+        reasonCode: "provider_error",
+        providerState: "error",
+      })
+    );
+    expect(onGenerationFailure).toHaveBeenCalledWith(
+      expect.objectContaining({
+        outputId: "out-1",
+        provider: "fal",
+        message: "Downstream service error",
+        reasonCode: "provider_error",
+      })
+    );
+    expect(output.taskState).toBe("fail");
+    expect(output.errorMessage).toBe("Downstream service error");
+  });
+
+  it("does not force success for nonterminal raw provider payloads that only happen to include media", async () => {
+    fetchFalSeedreamStatusMock.mockResolvedValueOnce({
+      status: "in_progress",
+      data: { images: [{ url: "https://cdn.test/final-seedream.png" }] },
+    });
+
+    let output = makeOutput();
+    const updateOutputById = vi.fn((id: string, updater: (item: StudioOutput) => StudioOutput) => {
+      if (id === output.id) {
+        output = updater(output);
+      }
+    });
+
+    const notifyGenerationFailure = vi.fn();
+    const onGenerationSuccess = vi.fn();
+
+    const { result } = renderHook(() =>
+      useAiStudioTasks({
+        updateOutputById,
+        notifyGenerationFailure,
+        onGenerationSuccess,
+      })
+    );
+
+    act(() => {
+      result.current.startPollingTask("seedream-task-1", "out-1", 0, "fal-seedream");
+    });
+
+    await vi.advanceTimersByTimeAsync(2_300);
+
+    expect(notifyGenerationFailure).not.toHaveBeenCalled();
+    expect(onGenerationSuccess).not.toHaveBeenCalled();
+    expect(output.taskState).not.toBe("success");
   });
 
   it("forces success for image providers when media is present even if state is non-terminal", async () => {

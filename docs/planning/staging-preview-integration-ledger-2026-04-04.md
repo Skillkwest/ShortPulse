@@ -7,7 +7,7 @@ Purpose: working checkpoint for the current `staging-preview` consolidation effo
 - Active integration target: `staging-preview`
 - Non-target branch for this lane: `main`
 - Primary source branch being consolidated: `origin/codex/full-unified-layers`
-- Stable local checkpoint at time of writing: `4c2f7fa4f`
+- Stable local checkpoint at time of writing: `d9488839f`
 - Whole-branch merge status: attempted once, then rolled back after broad `type-check` failure
 - Active strategy: lane-based integration with validation after each lane
 
@@ -21,6 +21,8 @@ Purpose: working checkpoint for the current `staging-preview` consolidation effo
 | `a0f7bec48` | Restore/resume core stabilized |
 | `57d15acf4` | Queued `not_found` alignment stabilized |
 | `4c2f7fa4f` | Handoff timing compatibility backport stabilized |
+| `991bc5587` | Status-poll concurrency lane stabilized |
+| `d9488839f` | Unresolved task-backed polling resume stabilized |
 
 ## Landed Lanes
 
@@ -92,6 +94,33 @@ Checkpoint result:
 - `npm run type-check` passed
 - `npm run build` passed
 
+### Lane 5: status-poll concurrency
+
+Representative landed commits:
+
+- `991bc5587` Raise AI Studio status poll concurrency
+
+Checkpoint result:
+
+- concurrent status polling budget increased on `staging-preview`
+- focused tests passed
+- `npm run type-check` passed
+- `npm run build` passed
+
+### Lane 6: unresolved task-backed polling resume
+
+Representative landed commits:
+
+- `d9488839f` Resume unresolved task-backed AI Studio polling
+
+Checkpoint result:
+
+- unresolved task-backed outputs now resume polling when no active timer exists
+- queue resume and stuck-spinner retry behavior were preserved during integration
+- focused tests passed
+- `npm run type-check` passed
+- `npm run build` passed
+
 ## Local Stabilization Commits
 
 These commits were created locally because the imported runtime work was not fully self-contained on `staging-preview`:
@@ -116,6 +145,8 @@ These source commits from `origin/codex/full-unified-layers` are already represe
 - `b8383723c`
 - `8577b81ef`
 - `4875e3e0b`
+- `d68559372`
+- `0ee7762e1`
 
 Note:
 
@@ -148,6 +179,9 @@ Still-useful local safety refs:
 - `refs/keep/staging-preview-pre-restore-resume-lane`
 - `refs/keep/staging-preview-post-restore-resume-core`
 - `refs/keep/staging-preview-post-not-found-alignment`
+- `refs/keep/staging-preview-pre-status-poll-concurrency`
+- `refs/keep/staging-preview-post-status-poll-concurrency`
+- `refs/keep/staging-preview-post-unresolved-task-polling`
 
 ## Remaining Work
 
@@ -155,18 +189,17 @@ Still-useful local safety refs:
 
 | Commit | Status | Notes |
 | --- | --- | --- |
-| `d68559372` | next candidate | isolated status-poll concurrency lane; touches polling schedule policy plus `useAiStudioTasks` tests |
-| `0ee7762e1` | hold for reassessment | broader unresolved task-backed polling behavior; re-enters `useAiStudioTaskOrchestration` and expands task-backed resume semantics |
+| next runtime lane | reassess from updated diff | `d68559372` and `0ee7762e1` are now landed; remaining runtime work should be re-sliced from the new branch state |
 
 Current recommendation:
 
-1. take `d68559372` as the next narrow runtime lane
-2. reassess `0ee7762e1` only after that lane lands
+1. recompute the remaining `origin/codex/full-unified-layers` delta from `d9488839f`
+2. decide whether the next lane is residual runtime polish or the deferred UI/properties lane
 
 Decision note:
 
-- `d68559372` is the cleaner next runtime step because it is mostly a bounded concurrency-policy change
-- `0ee7762e1` is not just “more runtime”; it widens orchestration behavior and should be treated as its own lane boundary
+- the previous next-step recommendation is complete
+- the next lane should be chosen from the updated post-`0ee7762e1` delta, not from the older pre-integration plan
 
 ### Deferred UI/properties lane
 

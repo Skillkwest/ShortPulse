@@ -455,12 +455,18 @@ export const executeGenerationRecovery = async ({
   if (generation.status.toLowerCase() === "success") {
     const existingRows = await readExistingRecoveryMediaRows(generation.id);
     if (existingRows.length) {
+      const persistedOutputRows = await readPersistedGenerationOutputs({
+        generationId: generation.id,
+        userId: generation.user_id,
+      });
       await syncRecoveredGenerationProjection({
         actor,
         autosaveDecision: "auto_persisted",
         generation,
         mediaFileIds: existingRows.map((row) => row.id),
         nowIso: generation.completed_at ?? nowIso,
+        persistedOutputRows,
+        recoveredUrls: persistedOutputRows.map((row) => row.resultUrl),
       });
       await applyRecoveryTransition({
         generation,
@@ -512,12 +518,18 @@ export const executeGenerationRecovery = async ({
 
   const existingRows = await readExistingRecoveryMediaRows(generation.id);
   if (existingRows.length) {
+    const persistedOutputRows = await readPersistedGenerationOutputs({
+      generationId: generation.id,
+      userId: generation.user_id,
+    });
     await syncRecoveredGenerationProjection({
       actor,
       autosaveDecision: "auto_persisted",
       generation,
       mediaFileIds: existingRows.map((row) => row.id),
       nowIso,
+      persistedOutputRows,
+      recoveredUrls: persistedOutputRows.map((row) => row.resultUrl),
     });
     await settleGenerationOutcome({
       userId: generation.user_id,

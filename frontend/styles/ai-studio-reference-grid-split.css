@@ -347,8 +347,17 @@
 }
 
 .ai-studio-page[data-selected-tool="sound"] .reference-grid-horizontal-divider-wrap {
-  --reference-divider-active-color: #7de8c8;
-  --reference-divider-active-ring: rgba(125, 232, 200, 0.28);
+  --reference-divider-active-color: rgba(149, 235, 228, 0.92);
+  --reference-divider-active-ring: rgba(149, 235, 228, 0.3);
+}
+
+.ai-studio-page[data-selected-tool="voices"] .reference-grid-horizontal-divider-wrap,
+.ai-studio-page[data-selected-tool="text-to-speech"] .reference-grid-horizontal-divider-wrap,
+.ai-studio-page[data-selected-tool="voice-changer"] .reference-grid-horizontal-divider-wrap,
+.ai-studio-page[data-selected-tool="sound-effects"] .reference-grid-horizontal-divider-wrap,
+.ai-studio-page[data-selected-tool="music"] .reference-grid-horizontal-divider-wrap {
+  --reference-divider-active-color: rgba(149, 235, 228, 0.92);
+  --reference-divider-active-ring: rgba(149, 235, 228, 0.3);
 }
 
 .ai-studio-page[data-selected-tool="character"] .reference-grid-horizontal-divider-wrap {

@@ -25,6 +25,11 @@ describe("resolvePropertiesPanelKind", () => {
     expect(resolvePropertiesPanelKind("styles")).toBe("styles");
     expect(resolvePropertiesPanelKind("media-library")).toBe("media-library");
     expect(resolvePropertiesPanelKind("sound")).toBe("sound");
+    expect(resolvePropertiesPanelKind("text-to-speech")).toBe("text-to-speech");
+    expect(resolvePropertiesPanelKind("voices")).toBe("sound");
+    expect(resolvePropertiesPanelKind("voice-changer")).toBe("sound");
+    expect(resolvePropertiesPanelKind("sound-effects")).toBe("sound");
+    expect(resolvePropertiesPanelKind("music")).toBe("sound");
   });
 
   it("falls back to none for null", () => {

@@ -8,6 +8,7 @@ import {
   isCharacterWorkflow,
   isCreateWorkflow,
   isEditWorkflow,
+  isSoundWorkflow,
   isVideoWorkflow,
   normalizeToolId,
   resolveWorkflowId,
@@ -40,5 +41,8 @@ describe("workflowIdentity", () => {
     expect(isVideoWorkflow("kling")).toBe(true);
     expect(isCharacterWorkflow("canvas")).toBe(false);
     expect(isCanvasWorkflow("canvas")).toBe(true);
+    expect(isSoundWorkflow("sound")).toBe(true);
+    expect(isSoundWorkflow("music")).toBe(true);
+    expect(isSoundWorkflow("create")).toBe(false);
   });
 });

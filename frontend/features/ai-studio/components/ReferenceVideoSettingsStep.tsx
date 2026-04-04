@@ -166,37 +166,53 @@ export const ReferenceVideoSettingsStep: React.FC<ReferenceVideoSettingsStepProp
             />
           </div>
           {shouldShowResolutionControl ? (
-            <div className="control-row compact fixed-select video-settings-resolution-select-row">
+            <div className="video-settings-inline-dual-row">
+              <div className="control-row compact fixed-select video-settings-resolution-select-row">
+                <select
+                  className="model-select"
+                  value={videoResolutionValue}
+                  onChange={(event) => onVideoResolutionChange?.(event.target.value)}
+                >
+                  {resolutionOptions.map((option) => (
+                    <option
+                      value={option.value}
+                      key={`${isMotionMode ? "motion-" : ""}resolution-${option.value}`}
+                    >
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="control-row compact fixed-select video-settings-duration-select-row">
+                <select
+                  className="model-select"
+                  value={videoDurationValue}
+                  onChange={(event) => onVideoDurationChange?.(Number(event.target.value))}
+                >
+                  {durationOptions.map((seconds) => (
+                    <option value={seconds} key={`duration-${seconds}`}>
+                      {seconds} seconds
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          ) : null}
+          {!shouldShowResolutionControl ? (
+            <div className="control-row compact fixed-select video-settings-duration-select-row">
               <select
                 className="model-select"
-                value={videoResolutionValue}
-                onChange={(event) => onVideoResolutionChange?.(event.target.value)}
+                value={videoDurationValue}
+                onChange={(event) => onVideoDurationChange?.(Number(event.target.value))}
               >
-                {resolutionOptions.map((option) => (
-                  <option
-                    value={option.value}
-                    key={`${isMotionMode ? "motion-" : ""}resolution-${option.value}`}
-                  >
-                    {option.label}
+                {durationOptions.map((seconds) => (
+                  <option value={seconds} key={`duration-${seconds}`}>
+                    {seconds} seconds
                   </option>
                 ))}
               </select>
             </div>
           ) : null}
-
-          <div className="control-row compact fixed-select">
-            <select
-              className="model-select"
-              value={videoDurationValue}
-              onChange={(event) => onVideoDurationChange?.(Number(event.target.value))}
-            >
-              {durationOptions.map((seconds) => (
-                <option value={seconds} key={`duration-${seconds}`}>
-                  {seconds} seconds
-                </option>
-              ))}
-            </select>
-          </div>
           <div className="video-settings-toggle-row video-settings-toggle-row--compact">
             <span className="input-label">Generate audio</span>
             <button

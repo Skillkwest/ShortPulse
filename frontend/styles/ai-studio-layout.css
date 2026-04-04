@@ -8,7 +8,7 @@
  */
 :root {
   /* Adjust the Width of the left sidebar. */
-  --ai-rail-width: 180px;
+  --ai-rail-width: 196px;
   --ai-gutter: 16px;
   --ai-container-card-bg: rgba(201, 205, 214, 0.02);
   --ai-container-card-border: rgba(201, 205, 214, 0.02);
@@ -107,6 +107,16 @@ body:has(.ai-studio-page[data-selected-tool="canvas"]) {
   body:has(.ai-studio-page[data-selected-tool="kling"]),
   html:has(.ai-studio-page[data-selected-tool="sound"]),
   body:has(.ai-studio-page[data-selected-tool="sound"]),
+  html:has(.ai-studio-page[data-selected-tool="voices"]),
+  body:has(.ai-studio-page[data-selected-tool="voices"]),
+  html:has(.ai-studio-page[data-selected-tool="text-to-speech"]),
+  body:has(.ai-studio-page[data-selected-tool="text-to-speech"]),
+  html:has(.ai-studio-page[data-selected-tool="voice-changer"]),
+  body:has(.ai-studio-page[data-selected-tool="voice-changer"]),
+  html:has(.ai-studio-page[data-selected-tool="sound-effects"]),
+  body:has(.ai-studio-page[data-selected-tool="sound-effects"]),
+  html:has(.ai-studio-page[data-selected-tool="music"]),
+  body:has(.ai-studio-page[data-selected-tool="music"]),
   html:has(.ai-studio-page[data-selected-tool="character"]),
   body:has(.ai-studio-page[data-selected-tool="character"]) {
     overflow-y: hidden;
@@ -340,6 +350,11 @@ body:has(.ai-studio-page[data-selected-tool="canvas"]) {
 .ai-studio-page[data-selected-tool="video"],
 .ai-studio-page[data-selected-tool="kling"],
 .ai-studio-page[data-selected-tool="sound"],
+.ai-studio-page[data-selected-tool="voices"],
+.ai-studio-page[data-selected-tool="text-to-speech"],
+.ai-studio-page[data-selected-tool="voice-changer"],
+.ai-studio-page[data-selected-tool="sound-effects"],
+.ai-studio-page[data-selected-tool="music"],
 .ai-studio-page[data-selected-tool="character"] {
   min-height: var(--app-fixed-height);
 }
@@ -352,6 +367,11 @@ body:has(.ai-studio-page[data-selected-tool="canvas"]) {
   .ai-studio-page[data-selected-tool="video"],
   .ai-studio-page[data-selected-tool="kling"],
   .ai-studio-page[data-selected-tool="sound"],
+  .ai-studio-page[data-selected-tool="voices"],
+  .ai-studio-page[data-selected-tool="text-to-speech"],
+  .ai-studio-page[data-selected-tool="voice-changer"],
+  .ai-studio-page[data-selected-tool="sound-effects"],
+  .ai-studio-page[data-selected-tool="music"],
   .ai-studio-page[data-selected-tool="character"] {
     height: var(--app-fixed-height);
     overflow: hidden;
@@ -524,8 +544,13 @@ body:has(.ai-studio-page[data-selected-tool="canvas"]) {
   color: rgb(193, 101, 255);
 }
 
-.ai-studio-page[data-selected-tool="sound"] .ai-hero-shortcut-button[aria-pressed="true"] {
-  color: rgba(174, 247, 223, 0.96);
+.ai-studio-page[data-selected-tool="sound"] .ai-hero-shortcut-button[aria-pressed="true"],
+.ai-studio-page[data-selected-tool="voices"] .ai-hero-shortcut-button[aria-pressed="true"],
+.ai-studio-page[data-selected-tool="text-to-speech"] .ai-hero-shortcut-button[aria-pressed="true"],
+.ai-studio-page[data-selected-tool="voice-changer"] .ai-hero-shortcut-button[aria-pressed="true"],
+.ai-studio-page[data-selected-tool="sound-effects"] .ai-hero-shortcut-button[aria-pressed="true"],
+.ai-studio-page[data-selected-tool="music"] .ai-hero-shortcut-button[aria-pressed="true"] {
+  color: rgba(245, 221, 174, 0.96);
 }
 
 .ai-studio-page[data-selected-tool="character"] .ai-hero-shortcut-button[aria-pressed="true"] {
@@ -1028,8 +1053,36 @@ body:has(.ai-studio-page[data-selected-tool="canvas"]) {
 .ai-shell-divider:hover::before,
 .ai-shell-divider:focus-visible::before,
 .ai-shell.ai-shell-resizing .ai-shell-divider::before {
-  background: rgba(52, 200, 255, 0.7);
-  box-shadow: 0 0 0 1px rgba(52, 200, 255, 0.25);
+  background: rgba(105, 220, 203, 0.72);
+  box-shadow: 0 0 0 1px rgba(105, 220, 203, 0.25);
+}
+
+.ai-studio-page[data-selected-tool="sound"] .ai-shell-divider:hover::before,
+.ai-studio-page[data-selected-tool="sound"] .ai-shell-divider:focus-visible::before,
+.ai-studio-page[data-selected-tool="sound"] .ai-shell.ai-shell-resizing .ai-shell-divider::before,
+.ai-studio-page[data-selected-tool="voices"] .ai-shell-divider:hover::before,
+.ai-studio-page[data-selected-tool="voices"] .ai-shell-divider:focus-visible::before,
+.ai-studio-page[data-selected-tool="voices"] .ai-shell.ai-shell-resizing .ai-shell-divider::before,
+.ai-studio-page[data-selected-tool="text-to-speech"] .ai-shell-divider:hover::before,
+.ai-studio-page[data-selected-tool="text-to-speech"] .ai-shell-divider:focus-visible::before,
+.ai-studio-page[data-selected-tool="text-to-speech"]
+  .ai-shell.ai-shell-resizing
+  .ai-shell-divider::before,
+.ai-studio-page[data-selected-tool="voice-changer"] .ai-shell-divider:hover::before,
+.ai-studio-page[data-selected-tool="voice-changer"] .ai-shell-divider:focus-visible::before,
+.ai-studio-page[data-selected-tool="voice-changer"]
+  .ai-shell.ai-shell-resizing
+  .ai-shell-divider::before,
+.ai-studio-page[data-selected-tool="sound-effects"] .ai-shell-divider:hover::before,
+.ai-studio-page[data-selected-tool="sound-effects"] .ai-shell-divider:focus-visible::before,
+.ai-studio-page[data-selected-tool="sound-effects"]
+  .ai-shell.ai-shell-resizing
+  .ai-shell-divider::before,
+.ai-studio-page[data-selected-tool="music"] .ai-shell-divider:hover::before,
+.ai-studio-page[data-selected-tool="music"] .ai-shell-divider:focus-visible::before,
+.ai-studio-page[data-selected-tool="music"] .ai-shell.ai-shell-resizing .ai-shell-divider::before {
+  background: rgba(149, 235, 228, 0.92);
+  box-shadow: 0 0 0 1px rgba(149, 235, 228, 0.3);
 }
 
 .ai-studio-page[data-selected-tool="canvas"] .ai-shell-divider:hover::before,
@@ -1049,7 +1102,7 @@ body:has(.ai-studio-page[data-selected-tool="canvas"]) {
 }
 
 .ai-shell-divider:focus-visible {
-  outline: 2px solid rgba(52, 200, 255, 0.85);
+  outline: 2px solid rgba(105, 220, 203, 0.85);
   outline-offset: -2px;
 }
 
@@ -1096,6 +1149,16 @@ body.ai-shell-resizing * {
 
 .ai-studio-page[data-beginner-mode="off"][data-selected-tool="create"]
   .panel.ai-panel.ai-properties,
+.ai-studio-page[data-beginner-mode="off"][data-selected-tool="sound"] .panel.ai-panel.ai-properties,
+.ai-studio-page[data-beginner-mode="off"][data-selected-tool="voices"]
+  .panel.ai-panel.ai-properties,
+.ai-studio-page[data-beginner-mode="off"][data-selected-tool="text-to-speech"]
+  .panel.ai-panel.ai-properties,
+.ai-studio-page[data-beginner-mode="off"][data-selected-tool="voice-changer"]
+  .panel.ai-panel.ai-properties,
+.ai-studio-page[data-beginner-mode="off"][data-selected-tool="sound-effects"]
+  .panel.ai-panel.ai-properties,
+.ai-studio-page[data-beginner-mode="off"][data-selected-tool="music"] .panel.ai-panel.ai-properties,
 .ai-studio-page[data-beginner-mode="off"][data-selected-tool="text"] .panel.ai-panel.ai-properties,
 .ai-studio-page[data-beginner-mode="off"][data-selected-tool="edit"] .panel.ai-panel.ai-properties,
 .ai-studio-page[data-beginner-mode="off"][data-selected-tool="video"] .panel.ai-panel.ai-properties,
@@ -1121,6 +1184,16 @@ body.ai-shell-resizing * {
 
 .ai-studio-page[data-beginner-mode="off"][data-selected-tool="create"]
   .panel.ai-panel.ai-properties,
+.ai-studio-page[data-beginner-mode="off"][data-selected-tool="sound"] .panel.ai-panel.ai-properties,
+.ai-studio-page[data-beginner-mode="off"][data-selected-tool="voices"]
+  .panel.ai-panel.ai-properties,
+.ai-studio-page[data-beginner-mode="off"][data-selected-tool="text-to-speech"]
+  .panel.ai-panel.ai-properties,
+.ai-studio-page[data-beginner-mode="off"][data-selected-tool="voice-changer"]
+  .panel.ai-panel.ai-properties,
+.ai-studio-page[data-beginner-mode="off"][data-selected-tool="sound-effects"]
+  .panel.ai-panel.ai-properties,
+.ai-studio-page[data-beginner-mode="off"][data-selected-tool="music"] .panel.ai-panel.ai-properties,
 .ai-studio-page[data-beginner-mode="off"][data-selected-tool="edit"] .panel.ai-panel.ai-properties,
 .ai-studio-page[data-beginner-mode="off"][data-selected-tool="video"] .panel.ai-panel.ai-properties,
 .ai-studio-page[data-beginner-mode="off"][data-selected-tool="kling"]
@@ -1847,7 +1920,7 @@ body.ai-shell-resizing * {
   margin-top: 6px;
   min-height: 30px;
   padding: 8px 12px;
-  min-width: 136px;
+  min-width: 146px;
   border-radius: 999px;
   transition:
     background-color 0.24s cubic-bezier(0.4, 0, 0.2, 1),
@@ -1874,7 +1947,7 @@ body.ai-shell-resizing * {
 
 .toolbar-item.toolbar-item-child.is-active .toolbar-label {
   color: #f5f9ff;
-  font-weight: 600;
+  font-weight: var(--ai-toolbar-font-weight);
 }
 
 /* Focus state for sub-buttons */

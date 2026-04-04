@@ -72,6 +72,7 @@ export function PromptStep({
   promptSaveButtonClassName = "prompt-fab-save",
   promptSaveButtonUnstyled = false,
   beginnerPinHelperText,
+  promptInlineAction = null,
   chatPromptSaveButtonClassName = "",
   chatPromptSaveButtonUnstyled = false,
   embedSendButtonInInput = false,
@@ -320,6 +321,7 @@ export function PromptStep({
                 promptSaveButtonClassName={promptSaveButtonClassName}
                 promptSaveButtonUnstyled={promptSaveButtonUnstyled}
                 autoResize={autoResize}
+                inlineAction={promptInlineAction}
               />
             )}
           </>

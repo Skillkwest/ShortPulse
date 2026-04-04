@@ -83,6 +83,7 @@ export type PromptStepProps = {
   promptSaveButtonClassName?: string;
   promptSaveButtonUnstyled?: boolean;
   beginnerPinHelperText?: string;
+  promptInlineAction?: React.ReactNode;
   chatPromptSaveButtonClassName?: string;
   chatPromptSaveButtonUnstyled?: boolean;
   embedSendButtonInInput?: boolean;

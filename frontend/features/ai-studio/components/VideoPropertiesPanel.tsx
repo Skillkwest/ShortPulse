@@ -2,10 +2,12 @@
  * Dedicated properties panel for the Video workflow.
  */
 import React from "react";
+import { flushSync } from "react-dom";
+import { Trash } from "phosphor-react";
 import type { AspectOption } from "../types";
 import { modelLogos } from "../constants";
+import { AgentGenerateButton } from "../../../prefabs/agent";
 import type { ModelModalContext } from "./ModelModal";
-import { ReferenceGenerateStep } from "./ReferenceGenerateStep";
 import { ReferenceKlingAdvancedSteps } from "./ReferenceKlingAdvancedSteps";
 import { ReferenceMediaStep } from "./ReferenceMediaStep";
 import { ReferencePromptStep } from "./ReferencePromptStep";
@@ -74,7 +76,6 @@ export type VideoPropertiesPanelProps = {
   resolvePreviewUrlById?: (id: string | null) => string | null;
   costCredits?: number | null;
   isGenerateDisabled?: boolean;
-  guardrailReason?: string | null;
   referenceImageWarning?: string | null;
   agentIsSending?: boolean;
   agentError?: string;
@@ -130,18 +131,33 @@ export function VideoPropertiesPanel({
   resolvePreviewUrlById,
   costCredits,
   isGenerateDisabled = false,
-  guardrailReason,
   agentIsSending = false,
   agentError,
   onAgentEnhanceSend,
   beginnerMode = false,
 }: VideoPropertiesPanelProps) {
+  const runWithViewTransition = React.useCallback((update: () => void) => {
+    const viewTransitionDocument = document as Document & {
+      startViewTransition?: (callback: () => void) => { finished: Promise<void> };
+    };
+    if (typeof viewTransitionDocument.startViewTransition !== "function") {
+      update();
+      return;
+    }
+    viewTransitionDocument.startViewTransition(() => {
+      flushSync(update);
+    });
+  }, []);
+
   const [uiShotMode, setUiShotMode] = React.useState<"single" | "scene-multi" | "custom-multi">(
     "single"
   );
   const [additionalPromptTexts, setAdditionalPromptTexts] = React.useState<string[]>([]);
+  const shotWorkspaceScrollRef = React.useRef<HTMLDivElement | null>(null);
+  const shotWorkspaceStackRef = React.useRef<HTMLDivElement | null>(null);
   const hasAnyPromptText =
     Boolean(referenceText?.trim()) ||
+    additionalPromptTexts.length > 0 ||
     additionalPromptTexts.some((promptText) => promptText.trim().length > 0);
   const modelLogoSrc = modelId ? modelLogos[modelId] : undefined;
   const {
@@ -212,8 +228,6 @@ export function VideoPropertiesPanel({
     klingAssetsBadge,
     klingGuidanceOrder,
     klingGuidanceBadge,
-    generateOrder,
-    generateBadge,
     klingShotSummary,
     klingAssetsSummary,
     klingGuidanceSummary,
@@ -283,6 +297,14 @@ export function VideoPropertiesPanel({
     [videoModeIndex]
   );
   const isMultiShotEnabled = klingMultiPrompts.length > 0;
+  const videoModeSummaryLabel = visibleVideoMode === "motion" ? "Motion Control" : "Standard";
+  const shotModeSummaryLabel = !isKieKlingModelSelected
+    ? "Single"
+    : uiShotMode === "scene-multi"
+      ? "Multi"
+      : uiShotMode === "custom-multi"
+        ? "Custom"
+        : "Single";
   const createInitialMultiShot = React.useCallback(() => {
     const nextId =
       typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
@@ -305,6 +327,7 @@ export function VideoPropertiesPanel({
     onKlingMultiPromptsChange(createInitialMultiShot());
   }, [createInitialMultiShot, isMultiShotEnabled, onKlingMultiPromptsChange]);
   const showShotModeSelector = activeVideoMode === "standard";
+  const shouldShowShotModeSelector = showShotModeSelector && isKieKlingModelSelected;
 
   React.useEffect(() => {
     if (activeVideoMode !== "standard") {
@@ -324,15 +347,67 @@ export function VideoPropertiesPanel({
   }, []);
 
   const handleAddShotPrompt = React.useCallback(() => {
-    setUiShotMode("custom-multi");
-    setAdditionalPromptTexts((current) => [...current, ""]);
-  }, []);
+    runWithViewTransition(() => {
+      setUiShotMode("custom-multi");
+      setAdditionalPromptTexts((current) => [...current, ""]);
+    });
+  }, [runWithViewTransition]);
+  const shouldShowAddCustomShotButton = isKieKlingModelSelected && uiShotMode === "custom-multi";
+  const isCustomMultiShotWorkspace = shouldShowAddCustomShotButton;
 
-  const handleAdditionalPromptChange = React.useCallback((index: number, value: string) => {
+  React.useEffect(() => {
+    if (shouldShowAddCustomShotButton || additionalPromptTexts.length === 0) return;
+    setAdditionalPromptTexts([]);
+  }, [additionalPromptTexts.length, shouldShowAddCustomShotButton]);
+
+  const handleAdditionalPromptChange = React.useCallback(
+    (index: number, value: string) => {
+      runWithViewTransition(() => {
+        setAdditionalPromptTexts((current) =>
+          current.map((promptText, promptIndex) => (promptIndex === index ? value : promptText))
+        );
+      });
+    },
+    [runWithViewTransition]
+  );
+  const handleRemoveShotPrompt = React.useCallback((index: number) => {
     setAdditionalPromptTexts((current) =>
-      current.map((promptText, promptIndex) => (promptIndex === index ? value : promptText))
+      current.filter((_, promptIndex) => promptIndex !== index)
     );
   }, []);
+  const handlePrimaryPromptChange = React.useCallback(
+    (value: string) => {
+      runWithViewTransition(() => {
+        onPromptTextChange(value);
+      });
+    },
+    [onPromptTextChange, runWithViewTransition]
+  );
+  const showShotLabels = shouldShowAddCustomShotButton;
+  const totalShotCount = 1 + additionalPromptTexts.length;
+  const customShotWorkspaceStyle = isCustomMultiShotWorkspace
+    ? ({ "--video-shot-count": totalShotCount } as React.CSSProperties)
+    : undefined;
+
+  React.useLayoutEffect(() => {
+    if (!isCustomMultiShotWorkspace) return;
+    const scrollContainer = shotWorkspaceScrollRef.current;
+    const stack = shotWorkspaceStackRef.current;
+    if (!scrollContainer || !stack) return;
+
+    const scrollToBottom = () => {
+      scrollContainer.scrollTop = scrollContainer.scrollHeight;
+    };
+
+    scrollToBottom();
+
+    if (typeof ResizeObserver === "undefined") return undefined;
+    const observer = new ResizeObserver(() => {
+      scrollToBottom();
+    });
+    observer.observe(stack);
+    return () => observer.disconnect();
+  }, [isCustomMultiShotWorkspace]);
 
   return (
     <div className="tool-properties reference-properties-panel video-properties-panel">
@@ -423,7 +498,6 @@ export function VideoPropertiesPanel({
                       <ReferenceVideoSettingsStep
                         isVideoVariant={true}
                         isMotionMode={isMotionMode}
-                        showMultiShotToggle={isKieKlingModelSelected}
                         multiShotEnabled={isMultiShotEnabled}
                         multiShotShotCount={klingMultiPrompts.length}
                         modelId={modelId}
@@ -454,159 +528,217 @@ export function VideoPropertiesPanel({
                         onToggleMultiShot={handleToggleMultiShot}
                       />
                     </div>
-                    <div className="video-setup-elements-slot">
-                      <div className="step-card video-elements-card">
-                        <div className="video-elements-card-title">Add @Elements</div>
-                        <div
-                          className="video-elements-placeholder-grid"
-                          aria-label="Element reference slots"
-                        >
-                          {Array.from({ length: 3 }).map((_, index) => (
-                            <div
-                              key={`video-element-slot-${index}`}
-                              className="video-elements-placeholder-tile"
-                            >
-                              <span className="video-elements-placeholder-plus" aria-hidden="true">
-                                +
-                              </span>
+                    {isKieKlingModelSelected && !isMotionMode ? (
+                      <div className="video-setup-elements-slot">
+                        <div className="step-card video-elements-card">
+                          <div className="video-elements-card-title video-elements-card-title--large">
+                            Kling 3.0 Settings
+                          </div>
+                          {shouldShowShotModeSelector ? (
+                            <div className="video-shot-mode-section video-elements-shot-mode-section">
+                              <span className="input-label video-shot-mode-label">Shot mode</span>
+                              <div
+                                className="video-shot-mode-tabs"
+                                role="tablist"
+                                aria-label="Shot structure mode"
+                                style={
+                                  {
+                                    "--video-shot-mode-slots": 3,
+                                    "--video-shot-mode-index":
+                                      uiShotMode === "scene-multi"
+                                        ? 1
+                                        : uiShotMode === "custom-multi"
+                                          ? 2
+                                          : 0,
+                                  } as React.CSSProperties
+                                }
+                              >
+                                <span className="video-shot-mode-indicator" aria-hidden="true" />
+                                <button
+                                  type="button"
+                                  role="tab"
+                                  aria-selected={uiShotMode === "single"}
+                                  aria-label="Single shot"
+                                  className={`video-shot-mode-tab ${uiShotMode === "single" ? "is-active" : ""}`}
+                                  onClick={() => setUiShotMode("single")}
+                                >
+                                  Single
+                                </button>
+                                <button
+                                  type="button"
+                                  role="tab"
+                                  aria-selected={uiShotMode === "scene-multi"}
+                                  aria-label="Multi-shot"
+                                  className={`video-shot-mode-tab ${uiShotMode === "scene-multi" ? "is-active" : ""}`}
+                                  onClick={() => setUiShotMode("scene-multi")}
+                                >
+                                  Multi
+                                </button>
+                                <button
+                                  type="button"
+                                  role="tab"
+                                  aria-selected={uiShotMode === "custom-multi"}
+                                  aria-label="Custom multi-shot"
+                                  className={`video-shot-mode-tab ${uiShotMode === "custom-multi" ? "is-active" : ""}`}
+                                  onClick={() => setUiShotMode("custom-multi")}
+                                >
+                                  Custom
+                                </button>
+                              </div>
                             </div>
-                          ))}
+                          ) : null}
+                          <div className="video-elements-card-title video-elements-card-title--sub">
+                            Add @Elements
+                          </div>
+                          <div
+                            className="video-elements-placeholder-grid"
+                            aria-label="Element reference slots"
+                          >
+                            {Array.from({ length: 3 }).map((_, index) => (
+                              <div
+                                key={`video-element-slot-${index}`}
+                                className="video-elements-placeholder-tile"
+                              >
+                                <span
+                                  className="video-elements-placeholder-plus"
+                                  aria-hidden="true"
+                                >
+                                  +
+                                </span>
+                              </div>
+                            ))}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                    <div className="video-setup-generate-slot">
-                      <div className="video-left-generate-shell">
-                        <ReferenceGenerateStep
-                          inline
-                          beginnerMode={beginnerMode}
-                          collapsed={collapsedSteps.generate}
-                          generateOrder={generateOrder}
-                          generateBadge={generateBadge}
-                          onExpand={() => expandIfCollapsed("generate")}
-                          onRegenerate={onRegenerate}
-                          isGenerateDisabled={
-                            isGenerateDisabled ||
-                            !referenceText?.trim() ||
-                            (activeVideoMode === "standard" && !referenceImageUrl)
-                          }
-                          isBusy={agentIsSending}
-                          costCredits={costCredits}
-                          guardrailReason={guardrailReason}
-                          promptRequiredMessage={null}
-                          suppressInlineGuardrailReason
-                        />
-                      </div>
-                    </div>
+                    ) : null}
+                    {!isKieKlingModelSelected ? (
+                      <p className="video-kling-tip">
+                        Tip: Switch to the Kling 3.0 model to access multi-shot capability.
+                      </p>
+                    ) : null}
                   </div>
                 </div>
               </div>
             </div>
             <div className="video-properties-main-column video-properties-main-column--right">
-              <div className="video-direction-column-shell">
+              <div
+                className={`video-direction-column-shell ${hasAnyPromptText ? "has-active-prompt-content" : ""} ${isCustomMultiShotWorkspace ? "is-custom-multishot-workspace" : ""}`}
+              >
                 {!hasAnyPromptText ? (
                   <p className="video-panel-hero-text">How will you direct this scene?</p>
                 ) : null}
-                <div className="video-prompt-generate-row">
-                  <div className="video-prompt-generate-aside">
-                    <div
-                      className="video-shot-mode-tabs"
-                      role="tablist"
-                      aria-label="Shot structure mode"
-                      style={
-                        {
-                          "--video-shot-mode-slots": 3,
-                          "--video-shot-mode-index":
-                            uiShotMode === "scene-multi"
-                              ? 1
-                              : uiShotMode === "custom-multi"
-                                ? 2
-                                : 0,
-                        } as React.CSSProperties
-                      }
-                    >
-                      <span className="video-shot-mode-indicator" aria-hidden="true" />
-                      <button
-                        type="button"
-                        role="tab"
-                        aria-selected={uiShotMode === "single"}
-                        className={`video-shot-mode-tab ${uiShotMode === "single" ? "is-active" : ""}`}
-                        onClick={() => setUiShotMode("single")}
-                      >
-                        Single Shot
-                      </button>
-                      <button
-                        type="button"
-                        role="tab"
-                        aria-selected={uiShotMode === "scene-multi"}
-                        className={`video-shot-mode-tab ${uiShotMode === "scene-multi" ? "is-active" : ""}`}
-                        onClick={() => setUiShotMode("scene-multi")}
-                      >
-                        Full Scene Multi-shot
-                      </button>
-                      <button
-                        type="button"
-                        role="tab"
-                        aria-selected={uiShotMode === "custom-multi"}
-                        className={`video-shot-mode-tab ${uiShotMode === "custom-multi" ? "is-active" : ""}`}
-                        onClick={() => setUiShotMode("custom-multi")}
-                      >
-                        Custom Multi-shot
-                      </button>
-                    </div>
-                  </div>
-                  <div className="video-prompt-generate-main">
-                    <div className="video-prompt-stack">
-                      <div className="video-primary-prompt-shell">
-                        <ReferencePromptStep
-                          promptBadge={promptBadge}
-                          promptOrder={promptOrder}
-                          referenceText={referenceText}
-                          onPromptTextChange={onPromptTextChange}
-                          collapsed={collapsedSteps.prompt}
-                          onToggleCollapse={() => toggleStep("prompt")}
-                          onDrop={handlePromptDrop}
-                          beginnerMode={beginnerMode}
-                          agentIsSending={agentIsSending}
-                          agentError={agentError}
-                          onAgentEnhanceSend={onAgentEnhanceSend}
-                          showEnhanceButton={false}
-                          hideHeader={true}
-                          autoResize
-                          promptPlaceholder="Describe the shot you want to create: subject, action, camera movement, framing, lighting, and mood."
-                          beginnerHelperText="Direct the shot: describe the subject, motion, camera movement, and mood you want in the clip."
-                        />
+                <div className="video-shot-workspace-shell" style={customShotWorkspaceStyle}>
+                  <div className="video-shot-workspace-scroll" ref={shotWorkspaceScrollRef}>
+                    <div className="video-shot-workspace-stack" ref={shotWorkspaceStackRef}>
+                      <div className="video-prompt-generate-row">
+                        <div className="video-prompt-generate-main">
+                          <div className="video-prompt-stack">
+                            <div className="video-primary-prompt-shell">
+                              {showShotLabels ? (
+                                <div className="video-shot-label-row video-shot-label-row--primary">
+                                  <span className="video-shot-label-pill">Shot 1</span>
+                                  <span className="video-shot-label-divider" aria-hidden="true" />
+                                </div>
+                              ) : null}
+                              <ReferencePromptStep
+                                promptBadge={promptBadge}
+                                promptOrder={promptOrder}
+                                referenceText={referenceText}
+                                onPromptTextChange={handlePrimaryPromptChange}
+                                collapsed={collapsedSteps.prompt}
+                                onToggleCollapse={() => toggleStep("prompt")}
+                                onDrop={handlePromptDrop}
+                                beginnerMode={beginnerMode}
+                                agentIsSending={agentIsSending}
+                                agentError={agentError}
+                                onAgentEnhanceSend={onAgentEnhanceSend}
+                                showEnhanceButton={false}
+                                hideHeader={true}
+                                autoResize
+                                promptPlaceholder="Describe the shot you want to create: subject, action, camera movement, framing, lighting, and mood."
+                                beginnerHelperText="Direct the shot: describe the subject, motion, camera movement, and mood you want in the clip."
+                              />
+                            </div>
+                          </div>
+                        </div>
                       </div>
+                      {additionalPromptTexts.map((promptText, index) => (
+                        <div
+                          className="video-secondary-prompt-shell"
+                          key={`video-shot-prompt-${index}`}
+                        >
+                          {showShotLabels ? (
+                            <div className="video-shot-label-row">
+                              <span className="video-shot-label-pill">{`Shot ${index + 2}`}</span>
+                              <button
+                                type="button"
+                                className="video-shot-remove-button"
+                                aria-label={`Remove shot ${index + 2}`}
+                                onClick={() => handleRemoveShotPrompt(index)}
+                              >
+                                <Trash size={14} weight="regular" aria-hidden="true" />
+                              </button>
+                            </div>
+                          ) : null}
+                          <div className="prompt-enhanced-wrapper">
+                            <textarea
+                              className="prompt-input agent-step-textarea enhanced-prompt-input"
+                              value={promptText}
+                              onChange={(event) =>
+                                handleAdditionalPromptChange(index, event.target.value)
+                              }
+                              onInput={(event) =>
+                                resizeTextareaToContent(event.currentTarget as HTMLTextAreaElement)
+                              }
+                              rows={4}
+                              placeholder={`Describe shot ${index + 2}.`}
+                            />
+                          </div>
+                        </div>
+                      ))}
+                      {shouldShowAddCustomShotButton ? (
+                        <div className="video-add-shot-row">
+                          <div className="video-add-shot-main">
+                            <button
+                              type="button"
+                              className="video-add-shot-button"
+                              onClick={handleAddShotPrompt}
+                              aria-label="Add another shot prompt"
+                            >
+                              + Add Custom Shot
+                            </button>
+                          </div>
+                        </div>
+                      ) : null}
                     </div>
                   </div>
                 </div>
-                {additionalPromptTexts.map((promptText, index) => (
-                  <div className="video-secondary-prompt-shell" key={`video-shot-prompt-${index}`}>
-                    <div className="prompt-enhanced-wrapper">
-                      <textarea
-                        className="prompt-input agent-step-textarea enhanced-prompt-input"
-                        value={promptText}
-                        onChange={(event) =>
-                          handleAdditionalPromptChange(index, event.target.value)
-                        }
-                        onInput={(event) =>
-                          resizeTextareaToContent(event.currentTarget as HTMLTextAreaElement)
-                        }
-                        rows={4}
-                        placeholder={`Describe shot ${index + 2}.`}
-                      />
+                <div className="video-right-generate-slot">
+                  <div className="video-generate-summary-panel" aria-label="Current video settings">
+                    <div className="video-generate-summary-row">
+                      <div className="video-generate-summary-item">
+                        <span className="video-generate-summary-label">Mode</span>
+                        <span className="video-generate-summary-value">
+                          {videoModeSummaryLabel}
+                        </span>
+                      </div>
+                      <div className="video-generate-summary-item">
+                        <span className="video-generate-summary-label">Shot</span>
+                        <span className="video-generate-summary-value">{shotModeSummaryLabel}</span>
+                      </div>
                     </div>
                   </div>
-                ))}
-                <div className="video-add-shot-row">
-                  <div className="video-add-shot-main">
-                    <button
-                      type="button"
-                      className="video-add-shot-button"
-                      onClick={handleAddShotPrompt}
-                      aria-label="Add another shot prompt"
-                    >
-                      + Add Custom Shot
-                    </button>
+                  <div className="video-right-generate-button">
+                    <AgentGenerateButton
+                      onClick={onRegenerate}
+                      disabled={
+                        isGenerateDisabled ||
+                        !referenceText?.trim() ||
+                        (activeVideoMode === "standard" && !referenceImageUrl)
+                      }
+                      isBusy={agentIsSending}
+                      cost={costCredits != null ? costCredits : "—"}
+                    />
                   </div>
                 </div>
               </div>

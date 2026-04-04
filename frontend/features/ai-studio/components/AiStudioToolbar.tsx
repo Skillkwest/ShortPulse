@@ -11,6 +11,7 @@ import {
   type IconProps,
   Palette,
   Person,
+  Microphone,
   SpeakerHigh,
   Selection,
   Sliders,
@@ -18,6 +19,7 @@ import {
   SquaresFour,
   StackSimple,
   TextT,
+  MusicNotes,
   VideoCamera,
 } from "phosphor-react";
 import type { ForwardRefExoticComponent, RefAttributes } from "react";
@@ -28,6 +30,7 @@ import {
   editToolList,
   librariesToolList,
   primaryToolList,
+  soundChildTools,
   shortcutsToolList,
 } from "../constants";
 import { ToolId } from "../types";
@@ -35,6 +38,7 @@ import {
   isCharacterWorkflow,
   isCreateWorkflow,
   isEditWorkflow,
+  isSoundWorkflow,
   isVideoWorkflow,
 } from "../logic/workflowIdentity";
 
@@ -63,6 +67,11 @@ const toolIcons: Record<ToolId, IconComponent> = {
   image: ImageSquare,
   video: VideoCamera,
   sound: SpeakerHigh,
+  voices: Microphone,
+  "text-to-speech": TextT,
+  "voice-changer": Sliders,
+  "sound-effects": Sparkle,
+  music: MusicNotes,
   character: Person,
   kling: VideoCamera,
   edit: Selection,
@@ -83,7 +92,7 @@ function AiStudioToolbarComponent({
   const isCreateSelected = isCreateWorkflow(selectedTool);
   const isEditSelected = isEditWorkflow(selectedTool);
   const isVideoSelected = isVideoWorkflow(selectedTool);
-  const isSoundSelected = selectedTool === "sound";
+  const isSoundSelected = isSoundWorkflow(selectedTool);
   const isCharacterSelected = isCharacterWorkflow(selectedTool);
   const isCanvasSelected = selectedTool === "canvas";
   const activePrimary: "create" | "video" | "sound" | "edit" | "canvas" | null = isCreateSelected
@@ -172,11 +181,17 @@ function AiStudioToolbarComponent({
                 className={`toolbar-item ${isActive ? "is-active" : ""}`}
                 data-tool-id={tool.id}
                 onClick={() => {
+                  if (tool.id === "sound") {
+                    onToggleCreateTools(false);
+                    if (isSoundSelected) {
+                      onSelectTool(null);
+                      return;
+                    }
+                    onSelectTool("text-to-speech");
+                    return;
+                  }
                   const isToggleablePrimary =
-                    tool.id === "video" ||
-                    tool.id === "sound" ||
-                    tool.id === "edit" ||
-                    tool.id === "canvas";
+                    tool.id === "video" || tool.id === "edit" || tool.id === "canvas";
                   if (isToggleablePrimary && isActive) {
                     onToggleCreateTools(false);
                     onSelectTool(null);
@@ -191,6 +206,36 @@ function AiStudioToolbarComponent({
                   <span className="toolbar-label">{tool.label}</span>
                 </div>
               </button>
+              {tool.id === "sound" ? (
+                <div className={`toolbar-create-children ${isSoundSelected ? "is-open" : ""}`}>
+                  <div className="toolbar-create-spacer" aria-hidden="true" />
+                  {soundChildTools.map((childTool) => {
+                    const ChildIconComponent = toolIcons[childTool.id];
+                    const isChildActive = selectedTool === childTool.id;
+                    return (
+                      <button
+                        key={childTool.id}
+                        type="button"
+                        className={`toolbar-item toolbar-item-child ${
+                          isChildActive ? "is-active" : ""
+                        }`}
+                        data-tool-id={childTool.id}
+                        onClick={() => {
+                          onToggleCreateTools(false);
+                          onSelectTool(childTool.id);
+                        }}
+                      >
+                        {ChildIconComponent ? (
+                          <ChildIconComponent size={18} weight="regular" />
+                        ) : null}
+                        <div className="toolbar-copy">
+                          <span className="toolbar-label">{childTool.label}</span>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : null}
             </React.Fragment>
           );
         })}

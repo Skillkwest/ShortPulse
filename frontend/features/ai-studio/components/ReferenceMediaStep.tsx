@@ -2,7 +2,14 @@
  * Reference media step for image/video dropzones and mode selection.
  */
 import React from "react";
-import { ArrowFatRight, Plus, Selection, UploadSimple, VideoCamera } from "phosphor-react";
+import {
+  ArrowFatRight,
+  ImageSquare,
+  Plus,
+  Selection,
+  UploadSimple,
+  VideoCamera,
+} from "phosphor-react";
 import { ReferenceStepHeaderActionButton } from "./ReferenceStepHeaderActionButton";
 
 type ReferenceMediaStepProps = {
@@ -131,8 +138,7 @@ export const ReferenceMediaStep: React.FC<ReferenceMediaStepProps> = ({
                 </button>
               ) : (
                 <div className="reference-drop-content image-drop-content">
-                  <Plus size={22} weight="regular" />
-                  <p className="reference-drop-title">Add your character</p>
+                  <ImageSquare size={22} weight="regular" />
                 </div>
               )}
             </div>
@@ -180,7 +186,6 @@ export const ReferenceMediaStep: React.FC<ReferenceMediaStepProps> = ({
               ) : (
                 <div className="reference-drop-content video-drop-content">
                   <VideoCamera size={22} weight="regular" />
-                  <p className="reference-drop-title">Add motion to copy</p>
                 </div>
               )}
             </div>

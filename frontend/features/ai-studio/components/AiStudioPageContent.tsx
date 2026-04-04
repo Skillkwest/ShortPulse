@@ -22,6 +22,7 @@ import { StylesLibraryPanel } from "./StylesLibraryPanel";
 import { PresetsLibraryPanel } from "./PresetsLibraryPanel";
 import { VideoPropertiesPanel } from "./VideoPropertiesPanel";
 import { SoundPropertiesPanel } from "./SoundPropertiesPanel";
+import { TextToSpeechPropertiesPanel } from "./TextToSpeechPropertiesPanel";
 import { MediaLibraryPanel } from "./MediaLibraryPanel";
 import { useAiStudioShellResize } from "../hooks/useAiStudioShellResize";
 import { useAiStudioShellDndController } from "../hooks/useAiStudioShellDndController";
@@ -46,7 +47,7 @@ import type {
 } from "../reference-grid/referenceGridTypes";
 import { resolvePropertiesPanelKind } from "../logic/propertiesPanelRouting";
 import { isPrimaryCharacterTool } from "../logic/primaryCharacterTool";
-import { isCreateWorkflow } from "../logic/workflowIdentity";
+import { isCreateWorkflow, isSoundWorkflow } from "../logic/workflowIdentity";
 import {
   PERF_FLAG_SHELL_BOUNDARY_SPLIT,
   PERF_FLAG_SHELL_DECOUPLE,
@@ -833,8 +834,9 @@ export function AiStudioPageContent({
     selectedTool === "canvas" || selectedTool === "media-library"
       ? AI_SHELL_RIGHT_CANVAS_MIN_PX
       : undefined;
-  const defaultLeftRatio =
-    selectedTool === "canvas"
+  const defaultLeftRatio = isSoundWorkflow(selectedTool)
+    ? 0.65
+    : selectedTool === "canvas"
       ? AI_SHELL_LEFT_CANVAS_DEFAULT_RATIO
       : selectedTool === "video" || selectedTool === "kling"
         ? AI_SHELL_LEFT_VIDEO_DEFAULT_RATIO
@@ -874,6 +876,7 @@ export function AiStudioPageContent({
     const previousSelectedTool = previousSelectedToolRef.current;
     const isEditToolSelected = selectedTool === "edit";
     const isCharacterToolSelected = selectedTool === "character";
+    const isSoundToolSelected = isSoundWorkflow(selectedTool);
     const shouldExpandForToolSelection =
       (isEditToolSelected || isCharacterToolSelected) && previousSelectedTool !== selectedTool;
     if (shouldExpandForToolSelection) {
@@ -885,6 +888,15 @@ export function AiStudioPageContent({
     const isCreateToolSelected = isCreateWorkflow(selectedTool);
     const shouldCollapseForExpertCreateSelection = showExpertCreatePanel && isCreateToolSelected;
     const isInitialCanvasSelection = previousSelectedTool == null && selectedTool === "canvas";
+    const isInitialSoundSelection =
+      previousSelectedTool !== selectedTool &&
+      isSoundToolSelected &&
+      !isSoundWorkflow(previousSelectedTool);
+    if (isInitialSoundSelection) {
+      resetToDefaultWidth();
+      previousSelectedToolRef.current = selectedTool;
+      return;
+    }
     const shouldResetForVideoSelection =
       previousSelectedTool !== selectedTool &&
       (selectedTool === "video" || selectedTool === "kling");
@@ -1158,6 +1170,8 @@ export function AiStudioPageContent({
           return videoPropertiesPanelContent;
         case "sound":
           return <SoundPropertiesPanel />;
+        case "text-to-speech":
+          return <TextToSpeechPropertiesPanel />;
         case "canvas":
           return canvasPropertiesPanelContent;
         case "character":
@@ -1181,6 +1195,7 @@ export function AiStudioPageContent({
       mediaLibraryPropertiesPanelContent,
       presetsPropertiesPanelContent,
       stylesPropertiesPanelContent,
+      selectedTool,
       videoPropertiesPanelContent,
     ]
   );

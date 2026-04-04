@@ -25,6 +25,7 @@ type ReferencePromptStepProps = {
   hideHeader?: boolean;
   autoResize?: boolean;
   promptPlaceholder?: string;
+  promptInlineAction?: React.ReactNode;
 };
 
 /**
@@ -51,6 +52,7 @@ export const ReferencePromptStep: React.FC<ReferencePromptStepProps> = ({
   hideHeader = false,
   autoResize = false,
   promptPlaceholder = "Describe the image you want to generate. You can also drag & drop a reference prompt here to get started.",
+  promptInlineAction,
 }) => {
   return (
     <div className="reference-dropzone-block prompt-block" style={{ order: promptOrder }}>
@@ -85,6 +87,7 @@ export const ReferencePromptStep: React.FC<ReferencePromptStepProps> = ({
         promptSaveButtonUnstyled={promptSaveButtonUnstyled}
         hideHeader={hideHeader}
         autoResize={autoResize}
+        promptInlineAction={promptInlineAction}
       />
     </div>
   );

@@ -215,6 +215,14 @@ export const editToolList: ToolConfig[] = [
   { id: "canvas", label: "Canvas", desc: "Canvas workspace (coming soon)" },
 ];
 
+export const soundChildTools: ToolConfig[] = [
+  { id: "voices", label: "Voices", desc: "Create and manage voices" },
+  { id: "text-to-speech", label: "Text to Speech", desc: "Generate speech from text" },
+  { id: "voice-changer", label: "Voice Changer", desc: "Transform an existing voice" },
+  { id: "sound-effects", label: "Sound Effects", desc: "Generate effects and accents" },
+  { id: "music", label: "Music", desc: "Generate music beds and songs" },
+];
+
 export const librariesToolList: ToolConfig[] = [
   { id: "media-library", label: "Media", desc: "Browse library media and prompts" },
   { id: "character", label: "Characters", desc: "Create and manage character references" },

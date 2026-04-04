@@ -177,10 +177,10 @@ vi.mock("../AiStudioShellFrame", async () => {
           onDragLeaveCapture={props.onRightColumnDragLeaveCapture}
         >
           <ReferenceGrid
-            {...(props.referenceGridProps ?? {})}
-            railCanvasProps={props.railCanvasProps}
+            {...((props.referenceGridProps ?? {}) as any)}
+            railCanvasProps={props.railCanvasProps as any}
           />
-          <StudioPreview {...(props.studioPreviewProps ?? {})} />
+          <StudioPreview {...((props.studioPreviewProps ?? {}) as any)} />
         </div>
       </section>
     ),
@@ -719,6 +719,12 @@ describe("AiStudioPageContent right column drop router", () => {
     expect(screen.getByTestId("video-properties")).toBeInTheDocument();
 
     rerender(<AiStudioPageContent {...createProps({ selectedTool: "sound" })} />);
+    expect(screen.getByRole("heading", { name: "Sound Properties" })).toBeInTheDocument();
+
+    rerender(<AiStudioPageContent {...createProps({ selectedTool: "text-to-speech" })} />);
+    expect(screen.getByRole("heading", { name: "Text to Speech" })).toBeInTheDocument();
+
+    rerender(<AiStudioPageContent {...createProps({ selectedTool: "music" })} />);
     expect(screen.getByRole("heading", { name: "Sound Properties" })).toBeInTheDocument();
 
     rerender(<AiStudioPageContent {...createProps({ selectedTool: "character" })} />);

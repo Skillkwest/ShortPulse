@@ -23,6 +23,7 @@ type PromptStepEnhancedSurfaceProps = {
   promptSaveButtonClassName: string;
   promptSaveButtonUnstyled: boolean;
   autoResize: boolean;
+  inlineAction?: React.ReactNode;
 };
 
 export const PromptStepEnhancedSurface: React.FC<PromptStepEnhancedSurfaceProps> = ({
@@ -43,6 +44,7 @@ export const PromptStepEnhancedSurface: React.FC<PromptStepEnhancedSurfaceProps>
   promptSaveButtonClassName,
   promptSaveButtonUnstyled,
   autoResize,
+  inlineAction,
 }) => {
   const textareaRef = React.useRef<HTMLTextAreaElement | null>(null);
 
@@ -73,6 +75,7 @@ export const PromptStepEnhancedSurface: React.FC<PromptStepEnhancedSurfaceProps>
             placeholder={promptPlaceholder}
             aria-busy={promptThinking}
           />
+          {inlineAction ? <div className="prompt-inline-action-slot">{inlineAction}</div> : null}
         </div>
       </div>
       <div className="enhanced-actions-row prompt-actions-compact">

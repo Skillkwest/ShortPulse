@@ -176,6 +176,19 @@ describe("sessionSnapshotHydrator", () => {
     expect(payload.workspace.selectedTool).toBe("media-library");
   });
 
+  it("keeps Sound child tools as valid restored selected tools", () => {
+    const payload = buildAiStudioSessionHydrationPayload(
+      createSnapshot({
+        workspace: {
+          ...createSnapshot().workspace,
+          selectedTool: "music",
+        },
+      })
+    );
+
+    expect(payload.workspace.selectedTool).toBe("music");
+  });
+
   it("falls back for malformed workspace values", () => {
     const payload = buildAiStudioSessionHydrationPayload(
       createSnapshot({

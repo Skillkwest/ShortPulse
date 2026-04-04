@@ -28,6 +28,17 @@ export const resolveWorkflowId = (tool: ToolId | null | undefined): WorkflowId =
 };
 
 /**
+ * Returns true when the selected tool belongs to the Sound workspace group.
+ */
+export const isSoundWorkflow = (tool: ToolId | null | undefined): boolean =>
+  tool === "sound" ||
+  tool === "voices" ||
+  tool === "text-to-speech" ||
+  tool === "voice-changer" ||
+  tool === "sound-effects" ||
+  tool === "music";
+
+/**
  * Normalizes a tool id to its canonical primary id while keeping null stable.
  */
 export const normalizeToolId = (tool: ToolId | null | undefined): ToolId | null => {

@@ -118,7 +118,7 @@ describe("resolveReferenceDownloadTarget", () => {
         taskId: "task-1",
         previewStoragePath: null,
         fullStoragePath: null,
-        previewUrl: null,
+        previewUrl: undefined,
         resultUrls: [],
       },
       supabase: createSupabaseMock({

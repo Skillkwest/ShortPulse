@@ -18,6 +18,12 @@ type GenerationOutputRow = {
   output_index?: unknown;
 };
 
+type MediaFileRow = {
+  storage_path?: unknown;
+  filename?: unknown;
+  preview_storage_path?: unknown;
+};
+
 export type ResolvedReferenceDownloadTarget = {
   fileRecord: {
     storagePath: string;
@@ -136,6 +142,19 @@ const resolveOutputStorageFileRecord = (
   return {
     storagePath,
     filename: null,
+  };
+};
+
+const toMediaFileRecord = (
+  row: MediaFileRow | null | undefined
+): ResolvedReferenceDownloadTarget["fileRecord"] => {
+  const storagePath =
+    asCanonicalStoragePath(asTrimmedString(row?.preview_storage_path)) ??
+    asCanonicalStoragePath(asTrimmedString(row?.storage_path));
+  if (!storagePath) return null;
+  return {
+    storagePath,
+    filename: sanitizeFilename(asTrimmedString(row?.filename)),
   };
 };
 

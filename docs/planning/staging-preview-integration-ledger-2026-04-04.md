@@ -7,9 +7,9 @@ Purpose: working checkpoint for the current `staging-preview` consolidation effo
 - Active integration target: `staging-preview`
 - Non-target branch for this lane: `main`
 - Primary source branch being consolidated: `origin/codex/full-unified-layers`
-- Current local checkpoint: `8e165e899`
-- Last pushed remote checkpoint: `a4264f072`
-- Local/remote delta: docs-only planning update for the next runtime lane
+- Current local checkpoint: `00dcbe7a8`
+- Last pushed remote checkpoint: `b877c907b`
+- Local/remote delta: convergence hardening lane plus one local stabilization commit
 - Whole-branch merge status: attempted once, then rolled back after broad `type-check` failure
 - Active strategy: lane-based integration with validation after each lane
 
@@ -26,6 +26,7 @@ Purpose: working checkpoint for the current `staging-preview` consolidation effo
 | `991bc5587` | Status-poll concurrency lane stabilized |
 | `d9488839f` | Unresolved task-backed polling resume stabilized |
 | `a4264f072` | Ledger refreshed and pushed checkpoint established |
+| `00dcbe7a8` | Convergence hardening lane stabilized locally |
 
 ## Landed Lanes
 
@@ -124,6 +125,24 @@ Checkpoint result:
 - `npm run type-check` passed
 - `npm run build` passed
 
+### Lane 7: convergence hardening
+
+Representative landed commits:
+
+- `a66dbe9f0` Harden recovery publication sync against stale output rereads
+- `cebee9a23` Backfill convergence for already persisted recovery
+- `00dcbe7a8` Align convergence hardening projection sync
+
+Checkpoint result:
+
+- recovery publication sync now tolerates stale output rereads
+- already persisted recovery convergence is backfilled on the same runtime surface
+- source commits required one local projection-sync contract bridge on current `staging-preview`
+- focused recovery tests passed
+- `npm run docs:check` passed
+- `npm run type-check` passed
+- `npm run build` passed
+
 ## Local Stabilization Commits
 
 These commits were created locally because the imported runtime work was not fully self-contained on `staging-preview`:
@@ -135,6 +154,7 @@ These commits were created locally because the imported runtime work was not ful
 | `19034b0b7` | Persist source refs for queued output resume |
 | `57d15acf4` | Align not-found recovery lane tests |
 | `4c2f7fa4f` | Backport handoff timing polling options |
+| `00dcbe7a8` | Align convergence hardening projection sync |
 
 ## Source Commits Already Represented Locally
 
@@ -150,6 +170,8 @@ These source commits from `origin/codex/full-unified-layers` are already represe
 - `4875e3e0b`
 - `d68559372`
 - `0ee7762e1`
+- `d5375d247`
+- `eb64b561c`
 
 Note:
 
@@ -188,28 +210,18 @@ Still-useful local safety refs:
 
 ## Remaining Work
 
-### Next runtime lane
+### Next runtime/product-code decision
 
 Current recommendation:
 
-1. create a fresh rollback anchor from current `staging-preview`
-2. land `d5375d247` first
-3. land `eb64b561c` second if the first commit validates cleanly
-4. validate focused recovery/runtime tests, then `npm run type-check`, then `npm run build`
-5. update this ledger only after that lane is stable
-
-Recommended lane definition:
-
-| Commit | Status | Notes |
-| --- | --- | --- |
-| `d5375d247` | next candidate | hardens recovery publication sync against stale output rereads; touches `generationOutputs`, `recoveryExecution`, and recovery tests |
-| `eb64b561c` | follow-on candidate | backfills convergence for already persisted recovery; builds directly on the same recovery execution surface |
+1. push the current stable local `staging-preview` checkpoint
+2. remeasure the remaining `origin/codex/full-unified-layers` delta from `00dcbe7a8`
+3. decide whether the next product-code lane is the deferred UI/properties redesign or a smaller residual runtime slice
 
 Decision note:
 
-- this lane is smaller and cleaner than the remaining UI redesign work
-- it avoids dragging in skill deletions, broad design-doc churn, and properties-panel surface changes
-- the two commits are tightly related and form the best next server/runtime slice from the current branch state
+- the previously planned convergence hardening lane is complete
+- the next lane should be chosen from the updated post-convergence branch state, not from the older pre-lane plan
 
 ### Deferred runtime/docs operator tail
 

@@ -1,7 +1,7 @@
 /**
  * Background recovery scheduling policy for AI Studio task polling.
  */
-export const BACKGROUND_RECOVERY_INTERVAL_MS = 2 * 60 * 1000;
+export const BACKGROUND_RECOVERY_INTERVAL_MS = 30 * 1000;
 export const BACKGROUND_RECOVERY_MAX_ATTEMPTS = 30;
 export const BACKGROUND_RECOVERY_MAX_ATTEMPTS_NO_MEDIA = 2;
 

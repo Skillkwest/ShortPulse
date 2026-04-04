@@ -50,6 +50,7 @@ export type GenerationProjectionStatusContext = {
   resultUrls: string[];
   status: string | null;
   taskState: string | null;
+  queueState: string | null;
   errorMessageShort: string | null;
   errorDetail: string | null;
 };
@@ -180,7 +181,7 @@ export const readGenerationProjectionStatusContext = async ({
   const { data, error } = await adminClient
     .from("generation_projection")
     .select(
-      "generation_id, result_urls, status, task_state, error_message_short, error_detail, updated_at"
+      "generation_id, result_urls, status, task_state, queue_state, error_message_short, error_detail, updated_at"
     )
     .eq("user_id", userId)
     .eq("request_id", requestId)
@@ -198,6 +199,7 @@ export const readGenerationProjectionStatusContext = async ({
       resultUrls: asStringArray(row.result_urls),
       status: asString(row.status),
       taskState: asString(row.task_state),
+      queueState: asString(row.queue_state),
       errorMessageShort: asString(row.error_message_short),
       errorDetail: asString(row.error_detail),
     };

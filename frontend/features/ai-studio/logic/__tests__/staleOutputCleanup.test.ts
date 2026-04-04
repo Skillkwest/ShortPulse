@@ -23,6 +23,7 @@ const makeOutput = (overrides: Partial<StudioOutput>): StudioOutput => ({
 const config = {
   loadingTimeoutMs: 3 * 60 * 1000,
   submitStartTimeoutMs: 12_000,
+  taskBackedLoadingTimeoutMs: 12 * 60 * 1000,
   queueWaitTimeoutMs: 20 * 60 * 1000,
   autoFailedRetentionMs: 2 * 60 * 1000,
 };
@@ -55,7 +56,7 @@ describe("evaluateStaleOutputCleanup", () => {
     expect(result.queueWaitTimeoutIds).toHaveLength(0);
   });
 
-  it("does not stale-timeout outputs that already have a provider task id", () => {
+  it("flags task-backed outputs only after task-backed timeout", () => {
     const outputs = [makeOutput({ id: "out-tasked", taskId: "req-123", taskState: "running" })];
     const lifecycle: OutputLifecycleMap = {
       "out-tasked": { pendingSinceMs: BASE_TIME_MS - 20 * 60 * 1000 },
@@ -63,10 +64,27 @@ describe("evaluateStaleOutputCleanup", () => {
 
     const result = evaluateStaleOutputCleanup(outputs, lifecycle, BASE_TIME_MS, config);
 
+    expect(result.staleLoadingIds).toEqual(["out-tasked"]);
+    expect(result.submitStartTimeoutIds).toHaveLength(0);
+    expect(result.taskBackedTimeoutIds).toEqual(["out-tasked"]);
+    expect(result.queueWaitTimeoutIds).toHaveLength(0);
+    expect(result.nextLifecycle["out-tasked"]?.pendingSinceMs).toBe(BASE_TIME_MS - 20 * 60 * 1000);
+  });
+
+  it("does not stale-timeout task-backed outputs before task-backed timeout budget", () => {
+    const outputs = [
+      makeOutput({ id: "out-tasked-fresh", taskId: "req-123", taskState: "running" }),
+    ];
+    const lifecycle: OutputLifecycleMap = {
+      "out-tasked-fresh": { pendingSinceMs: BASE_TIME_MS - 11 * 60 * 1000 },
+    };
+
+    const result = evaluateStaleOutputCleanup(outputs, lifecycle, BASE_TIME_MS, config);
+
     expect(result.staleLoadingIds).toHaveLength(0);
     expect(result.submitStartTimeoutIds).toHaveLength(0);
+    expect(result.taskBackedTimeoutIds).toHaveLength(0);
     expect(result.queueWaitTimeoutIds).toHaveLength(0);
-    expect(result.nextLifecycle["out-tasked"]).toBeUndefined();
   });
 
   it("does not track non-generated pending outputs", () => {

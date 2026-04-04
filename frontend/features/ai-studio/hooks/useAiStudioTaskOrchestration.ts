@@ -264,8 +264,8 @@ export const useAiStudioTaskOrchestration = ({
         try {
           const queueStatus = await fetchFalQueueStatus({ generationId });
           if (!findOutputById(output.id)) return;
-          const lifecycle = queueStatus.shortpulseLifecycle;
           if (queueStatus.status === "dispatched") {
+            const lifecycle = queueStatus.shortpulseLifecycle;
             delete queueResumeNotFoundStateRef.current[output.id];
             const requestId = queueStatus.requestId.trim();
             const outputProvider = (output.provider as Provider | undefined) ?? "fal";
@@ -345,6 +345,7 @@ export const useAiStudioTaskOrchestration = ({
           }
           if (queueStatus.status === "failed") {
             delete queueResumeNotFoundStateRef.current[output.id];
+            const lifecycle = queueStatus.shortpulseLifecycle;
             const failureMessage = lifecycle?.errorMessage?.trim() || queueStatus.message;
             notifyGenerationFailure(output.id, failureMessage, queueStatus.message);
             return;

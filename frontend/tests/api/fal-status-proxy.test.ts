@@ -1093,6 +1093,8 @@ describe("createFalStatusHandler", () => {
           taskState: "running",
           isTerminal: false,
           providerState: "in_progress",
+          queueState: "dispatched",
+          statusLabel: "Processing...",
         },
       })
     );

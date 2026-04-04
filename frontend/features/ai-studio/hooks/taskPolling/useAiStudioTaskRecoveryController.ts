@@ -286,15 +286,8 @@ export const useAiStudioTaskRecoveryController = ({
       }));
       scheduleBackgroundRecovery(taskId, outputId, provider, "output_lookup_missing");
       clearPollTimer(outputId);
-      clearRecoveryTimer(outputId);
     },
-    [
-      clearPollTimer,
-      clearRecoveryTimer,
-      onPollingOutputLookupHardStop,
-      queueOutputUpdate,
-      scheduleBackgroundRecovery,
-    ]
+    [clearPollTimer, onPollingOutputLookupHardStop, queueOutputUpdate, scheduleBackgroundRecovery]
   );
 
   const resetRecoveryState = useCallback(() => {

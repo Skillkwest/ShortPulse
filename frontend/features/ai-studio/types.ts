@@ -66,6 +66,7 @@ export type StudioOutput = {
   model: string;
   modelId?: string;
   provider?: string;
+  sourceRef?: string;
   generationId?: string;
   savedMediaIds?: string[];
   promptId?: string;

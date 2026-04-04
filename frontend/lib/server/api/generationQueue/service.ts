@@ -145,6 +145,7 @@ export type GenerationQueueStatus =
         taskState: "pending";
         queueState: "queued";
         isTerminal: false;
+        statusLabel?: string;
       };
     }
   | {
@@ -156,6 +157,7 @@ export type GenerationQueueStatus =
         taskState: "running";
         queueState: "dispatching";
         isTerminal: false;
+        statusLabel?: string;
       };
     }
   | {
@@ -165,10 +167,12 @@ export type GenerationQueueStatus =
       requestId: string;
       provider: string;
       modelId?: string | null;
+      pollingProvider?: string | null;
       shortpulseLifecycle: {
         taskState: "running";
         queueState: "dispatched";
         isTerminal: false;
+        statusLabel?: string;
       };
     }
   | {
@@ -181,6 +185,7 @@ export type GenerationQueueStatus =
         queueState: "failed";
         isTerminal: true;
         errorMessage: string;
+        statusLabel?: string | null;
       };
     }
   | {
@@ -849,6 +854,10 @@ export const readGenerationQueueStatus = async ({
   const projectionQueueState = asString(projectionContext?.queueState)?.toLowerCase();
 
   if (projectionOnlyRequestId) {
+    const pollingProvider = resolveQueuePollingProvider({
+      provider: projectionContext?.provider ?? "fal",
+      modelId: projectionContext?.modelId,
+    });
     return {
       status: "dispatched",
       generationId: resolvedGenerationId ?? generationId ?? "",
@@ -856,6 +865,7 @@ export const readGenerationQueueStatus = async ({
       requestId: projectionOnlyRequestId,
       provider: projectionContext?.provider ?? "fal",
       ...(projectionContext?.modelId ? { modelId: projectionContext.modelId } : {}),
+      ...(pollingProvider ? { pollingProvider } : {}),
       shortpulseLifecycle: {
         taskState: "running",
         queueState: "dispatched",
@@ -931,6 +941,7 @@ export const readGenerationQueueStatus = async ({
         taskState: "pending",
         queueState: "queued",
         isTerminal: false,
+        statusLabel: "Waiting in queue...",
       },
     };
   }
@@ -945,6 +956,7 @@ export const readGenerationQueueStatus = async ({
         taskState: "running",
         queueState: "dispatching",
         isTerminal: false,
+        statusLabel: "Dispatching...",
       },
     };
   }
@@ -1101,6 +1113,7 @@ export const readGenerationQueueStatus = async ({
         taskState: "running",
         queueState: "dispatching",
         isTerminal: false,
+        statusLabel: "Dispatching...",
       },
     };
   }
@@ -1115,6 +1128,7 @@ export const readGenerationQueueStatus = async ({
         taskState: "pending",
         queueState: "queued",
         isTerminal: false,
+        statusLabel: "Waiting in queue...",
       },
     };
   }
@@ -1134,6 +1148,7 @@ export const readGenerationQueueStatus = async ({
         taskState: "pending",
         queueState: "queued",
         isTerminal: false,
+        statusLabel: "Waiting in queue...",
       },
     };
   }

@@ -748,15 +748,26 @@ export const createFalStatusHandler = ({
 
         // Probe direct result endpoints as a fallback when status is lagging.
         // Fal occasionally materializes result payload before status transitions.
-        for (const baseUrl of orderedResultBases) {
-          const probeResponse = await dispatchProviderResultRequest({
-            provider: providerKey,
-            baseUrl,
-            requestId,
-            apiKey,
-            signal: controller.signal,
-          });
-          const probeData = await readJsonSafe(probeResponse);
+        const directResultProbeResults = await Promise.all(
+          orderedResultBases.map(async (baseUrl) => {
+            try {
+              const probeResponse = await dispatchProviderResultRequest({
+                provider: providerKey,
+                baseUrl,
+                requestId,
+                apiKey,
+                signal: controller.signal,
+              });
+              const probeData = await readJsonSafe(probeResponse);
+              return { probeResponse, probeData };
+            } catch {
+              return null;
+            }
+          })
+        );
+        for (const directResultProbeResult of directResultProbeResults) {
+          if (!directResultProbeResult) continue;
+          const { probeResponse, probeData } = directResultProbeResult;
           if (!probeResponse.ok || !probeData.isJson || !payloadHasMedia(probeData.json)) {
             continue;
           }
@@ -769,15 +780,8 @@ export const createFalStatusHandler = ({
           attachGenerationId(
             attachShortPulseLifecycle({
               payload: statusData.json,
-              lifecycle: buildShortPulseLifecycleHint({
-                taskState:
-                  normalizedStatus === "pending" ||
-                  normalizedStatus === "queued" ||
-                  normalizedStatus === "in_queue"
-                    ? "pending"
-                    : "running",
-                isTerminal: false,
-                providerState: normalizedStatus ?? "running",
+              lifecycle: buildNonterminalLifecycleHint({
+                normalizedStatus,
               }),
             })
           )

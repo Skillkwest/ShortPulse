@@ -14,6 +14,7 @@ export type OutputLifecycleMap = Record<string, OutputLifecycleState>;
 export type StaleOutputCleanupConfig = {
   loadingTimeoutMs: number;
   submitStartTimeoutMs: number;
+  taskBackedLoadingTimeoutMs: number;
   queueWaitTimeoutMs: number;
   autoFailedRetentionMs: number;
 };
@@ -22,6 +23,7 @@ export type StaleOutputCleanupResult = {
   nextLifecycle: OutputLifecycleMap;
   staleLoadingIds: string[];
   submitStartTimeoutIds: string[];
+  taskBackedTimeoutIds: string[];
   queueWaitTimeoutIds: string[];
   removableIds: string[];
 };
@@ -55,6 +57,17 @@ const isQueuedOutput = (output: StudioOutput): boolean => {
   return hasGenerationId && !hasTaskId;
 };
 
+const isTaskBackedLoadingWithoutPreview = (output: StudioOutput): boolean => {
+  if (!isGeneratedOutput(output)) return false;
+  if (output.previewUrl || output.previewText) return false;
+  if (!output.taskId) return false;
+  return (
+    output.taskState === "pending" ||
+    output.taskState === "running" ||
+    output.taskState === "success"
+  );
+};
+
 const isFailedWithoutPreview = (output: StudioOutput): boolean =>
   output.taskState === "fail" && !output.previewUrl && !output.previewText && !output.taskId;
 
@@ -70,6 +83,7 @@ export const evaluateStaleOutputCleanup = (
   const nextLifecycle: OutputLifecycleMap = {};
   const staleLoadingIds: string[] = [];
   const submitStartTimeoutIds: string[] = [];
+  const taskBackedTimeoutIds: string[] = [];
   const queueWaitTimeoutIds: string[] = [];
   const removableIds: string[] = [];
 
@@ -77,7 +91,7 @@ export const evaluateStaleOutputCleanup = (
     const previous = lifecycle[output.id];
     const nextState: OutputLifecycleState = previous ? { ...previous } : {};
 
-    if (isLoadingWithoutPreview(output)) {
+    if (isLoadingWithoutPreview(output) || isTaskBackedLoadingWithoutPreview(output)) {
       if (nextState.pendingSinceMs == null) {
         const queuedSinceMs =
           isQueuedOutput(output) && typeof output.queueEnqueuedAtMs === "number"
@@ -89,7 +103,12 @@ export const evaluateStaleOutputCleanup = (
             : now;
       }
       const elapsedMs = now - nextState.pendingSinceMs;
-      if (isQueuedOutput(output)) {
+      if (isTaskBackedLoadingWithoutPreview(output)) {
+        if (elapsedMs >= config.taskBackedLoadingTimeoutMs) {
+          staleLoadingIds.push(output.id);
+          taskBackedTimeoutIds.push(output.id);
+        }
+      } else if (isQueuedOutput(output)) {
         if (elapsedMs >= config.queueWaitTimeoutMs) {
           staleLoadingIds.push(output.id);
           queueWaitTimeoutIds.push(output.id);
@@ -124,6 +143,7 @@ export const evaluateStaleOutputCleanup = (
     nextLifecycle,
     staleLoadingIds,
     submitStartTimeoutIds,
+    taskBackedTimeoutIds,
     queueWaitTimeoutIds,
     removableIds,
   };

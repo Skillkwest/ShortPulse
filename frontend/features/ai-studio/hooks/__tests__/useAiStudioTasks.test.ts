@@ -716,10 +716,9 @@ describe("useAiStudioTasks", () => {
     expect(output.taskState).not.toBe("success");
   });
 
-  it("forces success for image providers when media is present even if state is non-terminal", async () => {
-    fetchFalSeedreamStatusMock.mockResolvedValueOnce({
-      status: "in_progress",
-      data: { images: [{ url: "https://cdn.test/final-seedream.png" }] },
+  it("does not force success for raw provider payloads that include media without terminal state", async () => {
+    fetchFalStatusMock.mockResolvedValueOnce({
+      data: { images: [{ url: "https://cdn.test/raw-media-without-status.png" }] },
     });
 
     let output = makeOutput();
@@ -741,22 +740,17 @@ describe("useAiStudioTasks", () => {
     );
 
     act(() => {
-      result.current.startPollingTask("seedream-task-1", "out-1", 0, "fal-seedream");
+      result.current.startPollingTask("task-raw-media-without-status", "out-1", 0, "fal");
     });
 
     await vi.advanceTimersByTimeAsync(2_300);
+    await flushQueuedOutputUpdates();
 
     expect(notifyGenerationFailure).not.toHaveBeenCalled();
-    expect(onGenerationSuccess).toHaveBeenCalledWith(
-      expect.objectContaining({
-        outputId: "out-1",
-        taskId: "seedream-task-1",
-        provider: "fal-seedream",
-        resultUrls: ["https://cdn.test/final-seedream.png"],
-      })
-    );
-    expect(output.taskState).toBe("success");
-    expect(output.previewUrl).toBe("https://cdn.test/final-seedream.png");
+    expect(onGenerationSuccess).not.toHaveBeenCalled();
+    expect(output.taskState).toBe("running");
+    expect(output.previewUrl).toBeUndefined();
+    expect(output.timestamp).toBe("Processing...");
   });
 
   it("prefers video URLs for video-mode outputs when provider payload includes images and videos", async () => {
@@ -979,12 +973,12 @@ describe("useAiStudioTasks", () => {
     expect(output.previewUrl).toBe("https://cdn.test/kie-kling-result.mp4");
   });
 
-  it("treats done states as terminal and enters no-media finalization retries", async () => {
+  it("treats done states as terminal and hands off to server recovery", async () => {
     fetchFalSeedreamStatusMock
       .mockResolvedValueOnce({
         status: "done",
       })
-      .mockResolvedValueOnce({
+      .mockResolvedValue({
         status: "done",
       });
 
@@ -1017,13 +1011,14 @@ describe("useAiStudioTasks", () => {
     expect(notifyGenerationFailure).not.toHaveBeenCalled();
     expect(onGenerationSuccess).not.toHaveBeenCalled();
     expect(output.taskState).toBe("running");
+    expect(output.timestamp).toBe("Waiting for server recovery...");
 
-    await vi.advanceTimersByTimeAsync(5_500);
+    await vi.advanceTimersByTimeAsync(30_000);
     await flushQueuedOutputUpdates();
     expect(fetchFalSeedreamStatusMock).toHaveBeenCalledTimes(2);
   });
 
-  it("exhausts image no-media retries after the bounded 6-step schedule and fails terminally", async () => {
+  it("keeps image outputs live when terminal success lacks media", async () => {
     fetchFalSeedreamStatusMock.mockResolvedValue({ status: "done" });
 
     let output = makeOutput();
@@ -1045,13 +1040,10 @@ describe("useAiStudioTasks", () => {
       result.current.startPollingTask("seedream-task-bounded", "out-1", 0, "fal-seedream");
     });
 
-    for (let i = 0; i < 8; i += 1) {
-      await vi.advanceTimersByTimeAsync(12_500);
-      await flushQueuedOutputUpdates();
-      if (notifyGenerationFailure.mock.calls.length > 0) break;
-    }
+    await vi.advanceTimersByTimeAsync(2_300);
+    await flushQueuedOutputUpdates();
 
-    expect(fetchFalSeedreamStatusMock.mock.calls.length).toBeGreaterThanOrEqual(7);
+    expect(fetchFalSeedreamStatusMock).toHaveBeenCalledTimes(1);
     expect(notifyGenerationFailure).not.toHaveBeenCalled();
     expect(output.taskState).toBe("running");
     expect(output.timestamp).toBe("Waiting for server recovery...");
@@ -1692,11 +1684,11 @@ describe("useAiStudioTasks", () => {
     await flushQueuedOutputUpdates();
     expect(fetchFalStatusMock).toHaveBeenCalledTimes(1);
 
-    await vi.advanceTimersByTimeAsync(2 * 60 * 1000);
+    await vi.advanceTimersByTimeAsync(30 * 1000);
     await flushQueuedOutputUpdates();
     expect(fetchFalStatusMock).toHaveBeenCalledTimes(2);
 
-    await vi.advanceTimersByTimeAsync(2 * 60 * 1000);
+    await vi.advanceTimersByTimeAsync(30 * 1000);
     await flushQueuedOutputUpdates();
     expect(fetchFalStatusMock).toHaveBeenCalledTimes(3);
 

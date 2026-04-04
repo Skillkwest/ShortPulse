@@ -7,9 +7,9 @@ Purpose: working checkpoint for the current `staging-preview` consolidation effo
 - Active integration target: `staging-preview`
 - Non-target branch for this lane: `main`
 - Primary source branch being consolidated: `origin/codex/full-unified-layers`
-- Current local checkpoint: `00dcbe7a8`
-- Last pushed remote checkpoint: `b877c907b`
-- Local/remote delta: convergence hardening lane plus one local stabilization commit
+- Current local checkpoint: `b1e86f1b8`
+- Last pushed remote checkpoint: `1c3eddd23`
+- Local/remote delta: video properties lane source commits, one local stabilization commit, and this ledger refresh
 - Whole-branch merge status: attempted once, then rolled back after broad `type-check` failure
 - Active strategy: lane-based integration with validation after each lane
 
@@ -27,6 +27,7 @@ Purpose: working checkpoint for the current `staging-preview` consolidation effo
 | `d9488839f` | Unresolved task-backed polling resume stabilized |
 | `a4264f072` | Ledger refreshed and pushed checkpoint established |
 | `00dcbe7a8` | Convergence hardening lane stabilized locally |
+| `b1e86f1b8` | Video properties lane stabilized locally |
 
 ## Landed Lanes
 
@@ -143,6 +144,25 @@ Checkpoint result:
 - `npm run type-check` passed
 - `npm run build` passed
 
+### Lane 8: video properties redesign
+
+Representative landed commits:
+
+- `b1cd34ee1` Redesign AI Studio video properties panel
+- `7a8c7bcc6` Polish video properties panel controls
+- `60972d1e2` Polish video properties panel layout
+- `3c8022f52` Refine video properties panel layout
+- `0d4a226c8` Refine video panel toggle sizing
+- `b1e86f1b8` Stabilize video properties lane integration
+
+Checkpoint result:
+
+- video-only properties redesign is stable on `staging-preview`
+- source lane required a narrow local compatibility pass for current panel/test contracts
+- focused video/panel suite passed
+- `npm run type-check` passed
+- `npm run build` passed
+
 ## Local Stabilization Commits
 
 These commits were created locally because the imported runtime work was not fully self-contained on `staging-preview`:
@@ -155,6 +175,7 @@ These commits were created locally because the imported runtime work was not ful
 | `57d15acf4` | Align not-found recovery lane tests |
 | `4c2f7fa4f` | Backport handoff timing polling options |
 | `00dcbe7a8` | Align convergence hardening projection sync |
+| `b1e86f1b8` | Stabilize video properties lane integration |
 
 ## Source Commits Already Represented Locally
 
@@ -172,6 +193,11 @@ These source commits from `origin/codex/full-unified-layers` are already represe
 - `0ee7762e1`
 - `d5375d247`
 - `eb64b561c`
+- `751df4cf3`
+- `2954e8e78`
+- `b3a62c47b`
+- `414d4d74f`
+- `cece1993f`
 
 Note:
 
@@ -207,21 +233,25 @@ Still-useful local safety refs:
 - `refs/keep/staging-preview-pre-status-poll-concurrency`
 - `refs/keep/staging-preview-post-status-poll-concurrency`
 - `refs/keep/staging-preview-post-unresolved-task-polling`
+- `refs/keep/staging-preview-pre-video-properties-lane`
 
 ## Remaining Work
 
-### Next runtime/product-code decision
+### Next product-code decision
 
 Current recommendation:
 
 1. push the current stable local `staging-preview` checkpoint
-2. remeasure the remaining `origin/codex/full-unified-layers` delta from `00dcbe7a8`
-3. decide whether the next product-code lane is the deferred UI/properties redesign or a smaller residual runtime slice
+2. remeasure the remaining `origin/codex/full-unified-layers` delta from `b1e86f1b8`
+3. decide whether the next product-code lane is:
+   - residual sound/TTS/shared properties work
+   - residual runtime/reference/media-authority tail
+   - or a smaller non-UI collateral slice
 
 Decision note:
 
-- the previously planned convergence hardening lane is complete
-- the next lane should be chosen from the updated post-convergence branch state, not from the older pre-lane plan
+- the previously deferred video-only properties lane is now complete
+- the next lane should be chosen from the updated post-video branch state, not from the older pre-video plan
 
 ### Deferred runtime/docs operator tail
 
@@ -238,22 +268,17 @@ Reason:
 - these commits are useful, but they are primarily diagnostics, SQL checks, scripts, and operator/docs tooling
 - they should not lead the next product-code lane while recovery publication hardening is still pending
 
-### Deferred UI/properties lane
+### Deferred UI/properties remainder
 
 Still intentionally deferred:
 
-- `751df4cf3`
-- `2954e8e78`
-- `b3a62c47b`
-- `414d4d74f`
-- `cece1993f`
 - `b55a631a2`
 - `a57630d0b`
 
 Reason:
 
-- these commits are broader UI/property-surface redesign work
-- they are not required to keep the runtime lane coherent
+- these commits are broader shared properties/doc collateral beyond the stabilized video-only slice
+- they should be re-sliced from the new checkpoint instead of assumed safe as one remaining lane
 
 ### Docs/evidence tail
 

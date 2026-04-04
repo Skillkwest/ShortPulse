@@ -7,9 +7,9 @@ Purpose: working checkpoint for the current `staging-preview` consolidation effo
 - Active integration target: `staging-preview`
 - Non-target branch for this lane: `main`
 - Primary source branch being consolidated: `origin/codex/full-unified-layers`
-- Current local checkpoint: `b1e86f1b8`
-- Last pushed remote checkpoint: `1c3eddd23`
-- Local/remote delta: video properties lane source commits, one local stabilization commit, and this ledger refresh
+- Current local checkpoint: `7c83fae98`
+- Last pushed remote checkpoint: `f3cebebc6`
+- Local/remote delta: shared sound/TTS properties lane plus this ledger refresh
 - Whole-branch merge status: attempted once, then rolled back after broad `type-check` failure
 - Active strategy: lane-based integration with validation after each lane
 
@@ -28,6 +28,7 @@ Purpose: working checkpoint for the current `staging-preview` consolidation effo
 | `a4264f072` | Ledger refreshed and pushed checkpoint established |
 | `00dcbe7a8` | Convergence hardening lane stabilized locally |
 | `b1e86f1b8` | Video properties lane stabilized locally |
+| `7c83fae98` | Shared sound/TTS properties lane stabilized locally |
 
 ## Landed Lanes
 
@@ -163,6 +164,21 @@ Checkpoint result:
 - `npm run type-check` passed
 - `npm run build` passed
 
+### Lane 9: shared sound and TTS properties
+
+Representative landed commits:
+
+- `7c83fae98` Add shared sound and TTS properties panels
+
+Checkpoint result:
+
+- sound workflow now opens nested sound child tools instead of a placeholder panel
+- shared sound inspector and dedicated text-to-speech inspector are stable on `staging-preview`
+- source lane was integrated as frontend product code only, intentionally excluding docs payload and skill deletions
+- focused toolbar/panel/routing suite passed
+- `npm run type-check` passed
+- `npm run build` passed
+
 ## Local Stabilization Commits
 
 These commits were created locally because the imported runtime work was not fully self-contained on `staging-preview`:
@@ -209,6 +225,8 @@ Note:
 The following source commit should not be planned as a standalone remaining lane:
 
 - `476cd804e`
+- `b55a631a2`
+- `a57630d0b`
 
 Reason:
 
@@ -216,6 +234,8 @@ Reason:
   - `ef78440cf`
   - `4c2f7fa4f`
 - its remaining source delta mostly reflects the newer `useAiStudioTasks` API shape from the source branch, not missing product behavior on current local `staging-preview`
+- `b55a631a2` now has its frontend product-code subset represented locally through `7c83fae98`; remaining source delta is docs/skill collateral that should not be merged blindly
+- `a57630d0b` is no longer a UI lane candidate; its UI cleanup is already represented locally, while its runtime/doc collateral should be evaluated separately
 
 ## Rollback Anchors
 
@@ -234,6 +254,7 @@ Still-useful local safety refs:
 - `refs/keep/staging-preview-post-status-poll-concurrency`
 - `refs/keep/staging-preview-post-unresolved-task-polling`
 - `refs/keep/staging-preview-pre-video-properties-lane`
+- `refs/keep/staging-preview-pre-shared-properties-lane`
 
 ## Remaining Work
 
@@ -242,16 +263,16 @@ Still-useful local safety refs:
 Current recommendation:
 
 1. push the current stable local `staging-preview` checkpoint
-2. remeasure the remaining `origin/codex/full-unified-layers` delta from `b1e86f1b8`
+2. remeasure the remaining `origin/codex/full-unified-layers` delta from `7c83fae98`
 3. decide whether the next product-code lane is:
-   - residual sound/TTS/shared properties work
    - residual runtime/reference/media-authority tail
-   - or a smaller non-UI collateral slice
+   - a smaller non-UI collateral slice
+   - or a tighter follow-on UI lane that does not drag docs/skills churn
 
 Decision note:
 
-- the previously deferred video-only properties lane is now complete
-- the next lane should be chosen from the updated post-video branch state, not from the older pre-video plan
+- the previously deferred shared sound/TTS properties lane is now complete
+- the next lane should be chosen from the updated post-sound/TTS branch state, not from the older pre-sound plan
 
 ### Deferred runtime/docs operator tail
 
@@ -268,17 +289,16 @@ Reason:
 - these commits are useful, but they are primarily diagnostics, SQL checks, scripts, and operator/docs tooling
 - they should not lead the next product-code lane while recovery publication hardening is still pending
 
-### Deferred UI/properties remainder
+### Deferred UI/docs collateral remainder
 
 Still intentionally deferred:
 
-- `b55a631a2`
 - `a57630d0b`
 
 Reason:
 
-- these commits are broader shared properties/doc collateral beyond the stabilized video-only slice
-- they should be re-sliced from the new checkpoint instead of assumed safe as one remaining lane
+- `a57630d0b` still mixes deferred runtime fixes with docs/skill collateral
+- any remaining UI or runtime value should be extracted from current branch truth, not merged by source commit name
 
 ### Docs/evidence tail
 

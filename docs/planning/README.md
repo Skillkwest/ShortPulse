@@ -27,6 +27,7 @@ Purpose: active planning artifacts and current execution backlogs.
 - `generation-pipeline-continuation-client-demotion-2026-04-05.md`: bucket subplan for removing client lifecycle authority.
 - `generation-pipeline-continuation-compatibility-retirement-2026-04-05.md`: bucket subplan for fallback deletion and compatibility retirement.
 - `generation-pipeline-continuation-reference-grid-read-model-simplification-2026-04-05.md`: bucket subplan for Reference Grid read-model simplification.
+- `ai-studio-live-session-check-media-panel-handoff-2026-04-05.md`: execution-oriented handoff for the staging AI Studio Media Library panel lag investigation, including trusted evidence, decision gates, and the ordered remediation plan for follow-on agents.
 - `foundation-lanes-master-roadmap-2026-03-16.md`: canonical multi-lane foundational hardening roadmap (outcomes, sequencing, dependency rules, and required validation bundle).
 - `foundation-lanes-execution-tracker-2026-03-16.md`: live tracker for lane status, Lane A phase checklist, slice-level validation records, and signoff progression.
 - `foundation-rebuild-playbook-2026-03-16.md`: mandatory rebuild method contract (entry criteria, explicit do-not-rebuild criteria, strangler cutover model, and rollback/evidence rules).

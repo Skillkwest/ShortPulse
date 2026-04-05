@@ -132,6 +132,7 @@ Start here for all repository documentation.
 - `docs/planning/generation-pipeline-continuation-client-demotion-2026-04-05.md`
 - `docs/planning/generation-pipeline-continuation-compatibility-retirement-2026-04-05.md`
 - `docs/planning/generation-pipeline-continuation-reference-grid-read-model-simplification-2026-04-05.md`
+- `docs/planning/ai-studio-live-session-check-media-panel-handoff-2026-04-05.md`
 - `docs/planning/staging-preview-integration-ledger-2026-04-04.md`
 - `docs/planning/staging-preview-ui-properties-extraction-plan-2026-04-04.md`
 - `docs/planning/master-rollout-proposal.md`

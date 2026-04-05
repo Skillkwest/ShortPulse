@@ -40,11 +40,7 @@ const isLoadingWithoutPreview = (output: StudioOutput): boolean => {
   // Once a provider task id exists, polling owns timeout/failure behavior.
   // Cleanup is only for placeholders that never reached task-backed polling.
   if (output.taskId) return false;
-  return (
-    output.taskState === "pending" ||
-    output.taskState === "running" ||
-    output.taskState === "success"
-  );
+  return output.taskState === "pending" || output.taskState === "running";
 };
 
 const isQueuedOutput = (output: StudioOutput): boolean => {
@@ -61,11 +57,7 @@ const isTaskBackedLoadingWithoutPreview = (output: StudioOutput): boolean => {
   if (!isGeneratedOutput(output)) return false;
   if (output.previewUrl || output.previewText) return false;
   if (!output.taskId) return false;
-  return (
-    output.taskState === "pending" ||
-    output.taskState === "running" ||
-    output.taskState === "success"
-  );
+  return output.taskState === "pending" || output.taskState === "running";
 };
 
 const isFailedWithoutPreview = (output: StudioOutput): boolean =>

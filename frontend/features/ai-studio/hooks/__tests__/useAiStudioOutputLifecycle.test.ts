@@ -367,4 +367,43 @@ describe("useAiStudioOutputLifecycle", () => {
       vi.useRealTimers();
     }
   });
+
+  it("does not locally timeout success outputs that are still waiting on server recovery", async () => {
+    vi.useFakeTimers();
+    try {
+      const { result } = renderHook(() =>
+        useHarness(
+          [
+            makeOutput("generation-db-server-success", {
+              taskId: "req-server-success",
+              taskState: "success",
+              previewText: undefined,
+              previewUrl: undefined,
+              mediaSource: "generated",
+              timestamp: "Waiting for server recovery...",
+            }),
+          ],
+          null
+        )
+      );
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(12 * 60 * 1000 + 16_000);
+      });
+
+      expect(result.current.outputs[0]?.taskState).toBe("success");
+      expect(result.current.outputs[0]?.timestamp).toBe("Waiting for server recovery...");
+      expect(result.current.outputs[0]?.errorMessage).toBeUndefined();
+      expect(reportAppErrorMock).not.toHaveBeenCalledWith(
+        expect.objectContaining({
+          source: "generation.task_backed_stale_timeout",
+          metadata: expect.objectContaining({
+            output_id: "generation-db-server-success",
+          }),
+        })
+      );
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });

@@ -87,6 +87,27 @@ describe("evaluateStaleOutputCleanup", () => {
     expect(result.queueWaitTimeoutIds).toHaveLength(0);
   });
 
+  it("does not treat success without preview as stale loading", () => {
+    const outputs = [
+      makeOutput({
+        id: "out-success-no-preview",
+        taskId: "req-success-no-preview",
+        taskState: "success",
+      }),
+    ];
+    const lifecycle: OutputLifecycleMap = {
+      "out-success-no-preview": { pendingSinceMs: BASE_TIME_MS - 20 * 60 * 1000 },
+    };
+
+    const result = evaluateStaleOutputCleanup(outputs, lifecycle, BASE_TIME_MS, config);
+
+    expect(result.staleLoadingIds).toHaveLength(0);
+    expect(result.submitStartTimeoutIds).toHaveLength(0);
+    expect(result.taskBackedTimeoutIds).toHaveLength(0);
+    expect(result.queueWaitTimeoutIds).toHaveLength(0);
+    expect(result.nextLifecycle["out-success-no-preview"]).toBeUndefined();
+  });
+
   it("does not track non-generated pending outputs", () => {
     const outputs = [makeOutput({ id: "library-1" })];
     const result = evaluateStaleOutputCleanup(outputs, {}, BASE_TIME_MS, config);

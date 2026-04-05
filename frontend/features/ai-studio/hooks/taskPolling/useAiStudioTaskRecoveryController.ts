@@ -27,13 +27,7 @@ type OutputLookupHardStopPayload = {
 
 type UseAiStudioTaskRecoveryControllerArgs = {
   clearPollTimer: (outputId: string) => void;
-  extractMediaUrls: (
-    provider: Provider,
-    status: PollStatus,
-    options?: { outputMode?: StudioOutput["mode"] | null }
-  ) => string[];
   fetchStatusByProvider: (provider: Provider, taskId: string) => Promise<unknown>;
-  findOutputById?: (id: string) => StudioOutput | null;
   onGenerationSuccess?: (payload: {
     outputId: string;
     taskId: string;
@@ -61,12 +55,6 @@ type UseAiStudioTaskRecoveryControllerResult = {
     provider: Provider,
     reasonCode: BackgroundRecoveryReasonCode
   ) => void;
-};
-
-const areStringArraysEqual = (left: string[] | undefined, right: string[]) => {
-  if (!left) return right.length === 0;
-  if (left.length !== right.length) return false;
-  return left.every((value, index) => value === right[index]);
 };
 
 const resolveLifecycleTaskState = (
@@ -111,11 +99,15 @@ const stringifyLifecycleErrorDetail = (value: unknown): string | null => {
   }
 };
 
+const areStringArraysEqual = (left: string[] | undefined, right: string[]) => {
+  if (!left) return right.length === 0;
+  if (left.length !== right.length) return false;
+  return left.every((value, index) => value === right[index]);
+};
+
 export const useAiStudioTaskRecoveryController = ({
   clearPollTimer,
-  extractMediaUrls,
   fetchStatusByProvider,
-  findOutputById,
   onGenerationSuccess,
   onPollingOutputLookupHardStop,
   queueOutputUpdate,
@@ -330,75 +322,6 @@ export const useAiStudioTaskRecoveryController = ({
               queueNext();
               return;
             }
-
-            const outputMode = findOutputById?.(outputId)?.mode ?? null;
-            const recoveredUrls = extractMediaUrls(provider, status, { outputMode }).filter(
-              Boolean
-            );
-
-            if (recoveredUrls.length > 0) {
-              addBreadcrumb({
-                type: "ui",
-                level: "info",
-                message: "generation_background_recovery_success",
-                data: {
-                  provider,
-                  task_id: taskId,
-                  output_id: outputId,
-                  attempt,
-                  recovered_count: recoveredUrls.length,
-                },
-              });
-
-              queueOutputUpdate(outputId, (item) => {
-                const nextDelivery = resolveNormalizedOutputDelivery({
-                  previewStoragePath: item.previewStoragePath ?? null,
-                  fullStoragePath: item.fullStoragePath ?? null,
-                  previewUrl: recoveredUrls[0] ?? item.previewUrl ?? null,
-                  resultUrls: recoveredUrls,
-                });
-                return {
-                  ...item,
-                  taskState: item.taskState === "success" ? item.taskState : "success",
-                  status: item.status === "ready" ? item.status : "ready",
-                  timestamp:
-                    item.timestamp === "Recovered media URL."
-                      ? item.timestamp
-                      : "Recovered media URL.",
-                  resultUrls: areStringArraysEqual(item.resultUrls, recoveredUrls)
-                    ? item.resultUrls
-                    : recoveredUrls,
-                  previewUrl:
-                    item.previewUrl === (recoveredUrls[0] ?? item.previewUrl)
-                      ? item.previewUrl
-                      : (recoveredUrls[0] ?? item.previewUrl),
-                  previewStoragePath:
-                    item.previewStoragePath === nextDelivery.previewStoragePath
-                      ? item.previewStoragePath
-                      : nextDelivery.previewStoragePath,
-                  fullStoragePath:
-                    item.fullStoragePath === nextDelivery.fullStoragePath
-                      ? item.fullStoragePath
-                      : nextDelivery.fullStoragePath,
-                  mediaSource: item.mediaSource ?? "generated",
-                  previewTier: item.mode === "video" ? "preview_loop" : "full",
-                  archivedAt: null,
-                  archiveReason: null,
-                  errorMessage: item.errorMessage == null ? item.errorMessage : null,
-                  errorMessageShort: item.errorMessageShort == null ? item.errorMessageShort : null,
-                  errorDetail: item.errorDetail == null ? item.errorDetail : null,
-                };
-              });
-              onGenerationSuccess?.({
-                outputId,
-                taskId,
-                provider,
-                resultUrls: recoveredUrls,
-              });
-              clearPollTimer(outputId);
-              clearRecoveryTimer(outputId);
-              return;
-            }
           } catch {
             // best-effort fallback polling; keep trying until budget is exhausted
           }
@@ -429,9 +352,7 @@ export const useAiStudioTaskRecoveryController = ({
     [
       clearPollTimer,
       clearRecoveryTimer,
-      extractMediaUrls,
       fetchStatusByProvider,
-      findOutputById,
       onGenerationSuccess,
       queueOutputUpdate,
     ]

@@ -35,7 +35,7 @@ import {
   PERF_FLAG_REFERENCE_GRID_UPDATE_BACKPRESSURE,
 } from "../logic/perfProfileFlags";
 import { resolveNormalizedOutputDelivery } from "../logic/referenceGridMedia";
-import { extractFalMediaUrls, extractResultUrls, Provider } from "../logic/stateParsers";
+import { Provider } from "../logic/stateParsers";
 import { StudioOutput } from "../types";
 import {
   evaluateOutputLookupMiss,
@@ -238,20 +238,6 @@ const fetchStatusByProvider = async (provider: Provider, taskId: string) => {
   }
 };
 
-const extractMediaByProvider = (
-  provider: Provider,
-  status: PollStatus,
-  options?: { outputMode?: StudioOutput["mode"] | null }
-) => {
-  if (provider === "kie-veo" || provider === "kie-kling") {
-    const providerUrls = extractResultUrls(status?.resultJson ?? status, status);
-    if (providerUrls.length) return providerUrls;
-  }
-  return extractFalMediaUrls(status, {
-    preferVideo: options?.outputMode === "video",
-  });
-};
-
 export function useAiStudioTasks({
   updateOutputById,
   findOutputById,
@@ -384,9 +370,7 @@ export function useAiStudioTasks({
     scheduleBackgroundRecovery,
   } = useAiStudioTaskRecoveryController({
     clearPollTimer,
-    extractMediaUrls: extractMediaByProvider,
     fetchStatusByProvider,
-    findOutputById,
     onGenerationSuccess,
     onPollingOutputLookupHardStop,
     queueOutputUpdate,

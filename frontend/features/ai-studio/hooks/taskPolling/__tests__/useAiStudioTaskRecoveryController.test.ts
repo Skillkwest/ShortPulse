@@ -25,7 +25,7 @@ describe("useAiStudioTaskRecoveryController", () => {
     vi.clearAllMocks();
   });
 
-  it("keeps background recovery scheduled after output-lookup hard stop", async () => {
+  it("keeps background recovery nonterminal when only raw provider media appears", async () => {
     const fetchStatusByProvider = vi.fn().mockResolvedValue({
       status: "completed",
       data: { images: [{ url: "https://cdn.test/recovered.png" }] },
@@ -44,12 +44,7 @@ describe("useAiStudioTaskRecoveryController", () => {
     const { result } = renderHook(() =>
       useAiStudioTaskRecoveryController({
         clearPollTimer,
-        extractMediaUrls: (_provider, status) =>
-          (status as { data?: { images?: Array<{ url: string }> } }).data?.images?.map(
-            (row) => row.url
-          ) ?? [],
         fetchStatusByProvider,
-        findOutputById: (id) => (id === output.id ? output : null),
         onGenerationSuccess,
         queueOutputUpdate,
       })
@@ -74,16 +69,10 @@ describe("useAiStudioTaskRecoveryController", () => {
     });
 
     expect(fetchStatusByProvider).toHaveBeenCalledWith("fal", "task-1");
-    expect(onGenerationSuccess).toHaveBeenCalledWith(
-      expect.objectContaining({
-        outputId: "out-1",
-        taskId: "task-1",
-        provider: "fal",
-        resultUrls: ["https://cdn.test/recovered.png"],
-      })
-    );
-    expect(output.previewUrl).toBe("https://cdn.test/recovered.png");
-    expect(output.taskState).toBe("success");
+    expect(onGenerationSuccess).not.toHaveBeenCalled();
+    expect(output.previewUrl).toBeUndefined();
+    expect(output.taskState).toBe("running");
+    expect(output.timestamp).toBe("Waiting for server recovery...");
   });
 
   it("prefers lifecycle result urls over raw provider media during recovery", async () => {
@@ -97,7 +86,6 @@ describe("useAiStudioTaskRecoveryController", () => {
       status: "completed",
       data: { images: [{ url: "https://cdn.test/raw.png" }] },
     });
-    const extractMediaUrls = vi.fn(() => ["https://cdn.test/raw.png"]);
     let output = makeOutput();
     const queueOutputUpdate = vi.fn(
       (outputId: string, updater: (item: StudioOutput) => StudioOutput) => {
@@ -111,9 +99,7 @@ describe("useAiStudioTaskRecoveryController", () => {
     const { result } = renderHook(() =>
       useAiStudioTaskRecoveryController({
         clearPollTimer: vi.fn(),
-        extractMediaUrls,
         fetchStatusByProvider,
-        findOutputById: (id) => (id === output.id ? output : null),
         onGenerationSuccess,
         queueOutputUpdate,
       })
@@ -133,7 +119,6 @@ describe("useAiStudioTaskRecoveryController", () => {
       await vi.advanceTimersByTimeAsync(30 * 1000);
     });
 
-    expect(extractMediaUrls).not.toHaveBeenCalled();
     expect(onGenerationSuccess).toHaveBeenCalledWith(
       expect.objectContaining({
         resultUrls: ["https://cdn.test/canonical.png"],
@@ -154,7 +139,6 @@ describe("useAiStudioTaskRecoveryController", () => {
         statusLabel: "Waiting for server recovery...",
       },
     });
-    const extractMediaUrls = vi.fn(() => ["https://cdn.test/raw.png"]);
     let output = makeOutput();
     const queueOutputUpdate = vi.fn(
       (outputId: string, updater: (item: StudioOutput) => StudioOutput) => {
@@ -168,9 +152,7 @@ describe("useAiStudioTaskRecoveryController", () => {
     const { result } = renderHook(() =>
       useAiStudioTaskRecoveryController({
         clearPollTimer: vi.fn(),
-        extractMediaUrls,
         fetchStatusByProvider,
-        findOutputById: (id) => (id === output.id ? output : null),
         onGenerationSuccess,
         queueOutputUpdate,
       })
@@ -190,7 +172,6 @@ describe("useAiStudioTaskRecoveryController", () => {
       await vi.advanceTimersByTimeAsync(30 * 1000);
     });
 
-    expect(extractMediaUrls).not.toHaveBeenCalled();
     expect(onGenerationSuccess).not.toHaveBeenCalled();
     expect(output.taskState).toBe("running");
     expect(output.timestamp).toBe("Waiting for server recovery...");
@@ -211,7 +192,6 @@ describe("useAiStudioTaskRecoveryController", () => {
         errorMessage: "Provider rejected request",
       },
     });
-    const extractMediaUrls = vi.fn(() => ["https://cdn.test/raw.png"]);
     let output = makeOutput();
     const queueOutputUpdate = vi.fn(
       (outputId: string, updater: (item: StudioOutput) => StudioOutput) => {
@@ -225,9 +205,7 @@ describe("useAiStudioTaskRecoveryController", () => {
     const { result } = renderHook(() =>
       useAiStudioTaskRecoveryController({
         clearPollTimer: vi.fn(),
-        extractMediaUrls,
         fetchStatusByProvider,
-        findOutputById: (id) => (id === output.id ? output : null),
         onGenerationSuccess,
         queueOutputUpdate,
       })
@@ -247,7 +225,6 @@ describe("useAiStudioTaskRecoveryController", () => {
       await vi.advanceTimersByTimeAsync(30 * 1000);
     });
 
-    expect(extractMediaUrls).not.toHaveBeenCalled();
     expect(onGenerationSuccess).not.toHaveBeenCalled();
     expect(output.taskState).toBe("fail");
     expect(output.errorMessage).toBe("Provider rejected request");

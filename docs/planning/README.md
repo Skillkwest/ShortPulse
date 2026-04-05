@@ -20,6 +20,12 @@ Purpose: active planning artifacts and current execution backlogs.
 - `backlog.md`: active and upcoming work.
 - `staging-preview-integration-ledger-2026-04-04.md`: working ledger for the current `staging-preview` consolidation effort, including landed `codex/full-unified-layers` lanes, local adaptation commits, rollback anchors, and remaining runtime/UI lanes.
 - `staging-preview-ui-properties-extraction-plan-2026-04-04.md`: product-only extraction plan for the remaining AI Studio routing/session-hydration and deferred properties-panel UI delta on `staging-preview`.
+- `generation-pipeline-continuation-master-plan-2026-04-05.md`: removal-led continuation plan for the generation pipeline with bucketed authority cutover, client demotion, compatibility retirement, and Reference Grid read-model simplification.
+- `generation-pipeline-continuation-tracker-2026-04-05.md`: index for the bucket-specific continuation subplans.
+- `generation-pipeline-continuation-server-authority-cutover-2026-04-05.md`: bucket subplan for server-owned lifecycle authority cutover.
+- `generation-pipeline-continuation-client-demotion-2026-04-05.md`: bucket subplan for removing client lifecycle authority.
+- `generation-pipeline-continuation-compatibility-retirement-2026-04-05.md`: bucket subplan for fallback deletion and compatibility retirement.
+- `generation-pipeline-continuation-reference-grid-read-model-simplification-2026-04-05.md`: bucket subplan for Reference Grid read-model simplification.
 - `foundation-lanes-master-roadmap-2026-03-16.md`: canonical multi-lane foundational hardening roadmap (outcomes, sequencing, dependency rules, and required validation bundle).
 - `foundation-lanes-execution-tracker-2026-03-16.md`: live tracker for lane status, Lane A phase checklist, slice-level validation records, and signoff progression.
 - `foundation-rebuild-playbook-2026-03-16.md`: mandatory rebuild method contract (entry criteria, explicit do-not-rebuild criteria, strangler cutover model, and rollback/evidence rules).

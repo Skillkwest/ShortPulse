@@ -115,6 +115,63 @@ const readKlingMotionVideoUrlList = (payload: Record<string, unknown>): string[]
   });
 };
 
+const readKieKlingMultiPromptList = (
+  payload: Record<string, unknown>
+): { prompt: string; duration: number }[] => {
+  const candidateList = payload.multi_prompt;
+  if (!Array.isArray(candidateList)) return [];
+  return candidateList.reduce<{ prompt: string; duration: number }[]>((accumulator, candidate) => {
+    const record = asRecord(candidate);
+    const prompt = asNonEmptyString(record.prompt);
+    const duration = asPositiveInteger(record.duration);
+    if (!prompt || !duration) return accumulator;
+    accumulator.push({ prompt, duration });
+    return accumulator;
+  }, []);
+};
+
+const readKieKlingElementList = (
+  payload: Record<string, unknown>
+): {
+  name: string;
+  description: string;
+  element_input_urls?: string[];
+  element_input_video_urls?: string[];
+}[] => {
+  const candidateList = payload.kling_elements;
+  if (!Array.isArray(candidateList)) return [];
+  return candidateList.reduce<
+    {
+      name: string;
+      description: string;
+      element_input_urls?: string[];
+      element_input_video_urls?: string[];
+    }[]
+  >((accumulator, candidate, index) => {
+    const record = asRecord(candidate);
+    const imageUrls = readStringUrlList({
+      payload: record,
+      directFields: [],
+      listFields: ["element_input_urls"],
+    });
+    const videoUrls = readStringUrlList({
+      payload: record,
+      directFields: [],
+      listFields: ["element_input_video_urls"],
+    });
+    if (!imageUrls.length && !videoUrls.length) return accumulator;
+    accumulator.push({
+      name: asNonEmptyString(record.name) ?? `Element${String(index + 1).padStart(2, "0")}`,
+      description:
+        asNonEmptyString(record.description) ??
+        `Reference media for Element${String(index + 1).padStart(2, "0")}`,
+      ...(imageUrls.length ? { element_input_urls: imageUrls } : {}),
+      ...(videoUrls.length ? { element_input_video_urls: videoUrls } : {}),
+    });
+    return accumulator;
+  }, []);
+};
+
 const normalizeOptionalStringField = ({
   payload,
   fields,
@@ -628,6 +685,17 @@ const normalizeKieKlingPayload = (payload: Record<string, unknown>): Record<stri
   };
   if (cfgScale !== null) {
     input.cfg_scale = cfgScale;
+  }
+  const multiPrompt = readKieKlingMultiPromptList(source);
+  if (multiPrompt.length) {
+    input.multi_prompt = multiPrompt;
+    input.multi_shots = true;
+    input.image_urls = [imageUrls[0]];
+    input.sound = true;
+  }
+  const klingElements = readKieKlingElementList(source);
+  if (klingElements.length) {
+    input.kling_elements = klingElements;
   }
   return {
     model: "kling-3.0/video",

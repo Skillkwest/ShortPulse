@@ -290,7 +290,7 @@ describe("kieModelContracts", () => {
         payload: {
           prompt: "kling prompt",
           image_url: "https://example.com/ref.png",
-          duration: 8,
+          duration: 16,
         },
       })
     ).toThrow("Kie Kling 3.0 submit uses unsupported duration");
@@ -316,6 +316,72 @@ describe("kieModelContracts", () => {
         } as unknown as Record<string, unknown>,
       })
     ).toThrow('Kie Kling 3.0 submit field "generate_audio" must be boolean');
+  });
+
+  it("normalizes Kling multi-shot and element payloads", () => {
+    expect(
+      normalizeKieSubmitPayloadForModel({
+        modelId: KIE_KLING_30_MODEL_ID,
+        payload: {
+          prompt: "kling prompt",
+          image_url: "https://example.com/ref-a.png",
+          image_urls: ["https://example.com/ref-a.png", "https://example.com/ref-b.png"],
+          duration: 14,
+          resolution: "1080p",
+          mode: "pro",
+          generate_audio: false,
+          sound: false,
+          multi_shots: false,
+          multi_prompt: [
+            { prompt: "Shot one", duration: 5 },
+            { prompt: "Shot two", duration: 7 },
+          ],
+          kling_elements: [
+            {
+              name: "Element01",
+              description: "Reference images for Element01",
+              element_input_urls: [
+                "https://example.com/element-a.png",
+                "https://example.com/element-b.png",
+              ],
+            },
+            {
+              name: "Element02",
+              description: "Reference video for Element02",
+              element_input_video_urls: ["https://example.com/element-video.mp4"],
+            },
+          ],
+        },
+      })
+    ).toEqual(
+      expect.objectContaining({
+        input: expect.objectContaining({
+          duration: "14",
+          image_urls: ["https://example.com/ref-a.png"],
+          multi_shots: true,
+          sound: true,
+          multi_prompt: [
+            { prompt: "Shot one", duration: 5 },
+            { prompt: "Shot two", duration: 7 },
+          ],
+          kling_elements: [
+            {
+              name: "Element01",
+              description: "Reference images for Element01",
+              element_input_urls: [
+                "https://example.com/element-a.png",
+                "https://example.com/element-b.png",
+              ],
+            },
+            {
+              name: "Element02",
+              description: "Reference video for Element02",
+              element_input_video_urls: ["https://example.com/element-video.mp4"],
+            },
+          ],
+        }),
+      })
+    );
   });
 
   it("validates Kling motion-control required inputs", () => {

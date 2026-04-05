@@ -26,8 +26,12 @@ import {
 import { needsVideoUpload, prepareVideoUrlForSubmission } from "../../utils/videoUpload";
 import type { VideoSubmissionArgs } from "./types";
 import {
+  buildKieKlingElementsPayload,
+  buildKieKlingMultiPromptPayload,
   buildKlingElementsPayload,
   buildKlingMultiPromptPayload,
+  resolveKieKlingDuration,
+  resolveKieKlingMode,
   resolveSeedanceI2VAspect,
   resolveSeedanceI2VDuration,
   resolveSeedanceI2VResolution,
@@ -42,7 +46,6 @@ import {
   resolveKlingShotType,
   resolveKlingResolution,
   buildKlingVoiceIds,
-  resolveKieKlingMode,
 } from "./videoPayloads";
 import { resolveVideoSubmissionSafetyPayload } from "./safetyPolicy";
 
@@ -254,21 +257,51 @@ export const handleVideoModelSubmission = async ({
       notifyGenerationFailure(id, "Kie Kling 3.0 requires at least one reference image.");
       return true;
     }
+    const multiPromptPayload = buildKieKlingMultiPromptPayload(klingMultiPrompts);
+    const multiShots = Boolean(multiPromptPayload?.length);
+    const imageUrls =
+      multiShots || preparedImageInputs.length < 2
+        ? [preparedImageInputs[0]]
+        : preparedImageInputs.slice(0, 2);
+    let elementsPayload: ReturnType<typeof buildKieKlingElementsPayload>;
+    try {
+      const preparedKlingElements = await Promise.all(
+        klingElements.map(async (element) => {
+          const videoUrl = element.videoUrl.trim();
+          if (!videoUrl) return element;
+          const preparedVideoUrl = await prepareVideoUrlForSubmission(videoUrl);
+          if (!preparedVideoUrl) {
+            throw new Error("Kling element video URL is missing.");
+          }
+          return {
+            ...element,
+            videoUrl: preparedVideoUrl,
+          };
+        })
+      );
+      elementsPayload = buildKieKlingElementsPayload(preparedKlingElements);
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Kling element reference preparation failed";
+      notifyGenerationFailure(id, `Kling element reference preparation failed: ${message}`);
+      return true;
+    }
     const aspectRatio = ["16:9", "9:16", "1:1"].includes(aspect) ? aspect : "16:9";
-    const duration = requestedDurationSeconds <= 5 ? 5 : 10;
-    const resolution = resolveKlingResolution(requestedResolution);
+    const duration = resolveKieKlingDuration(requestedDurationSeconds);
     const response = await submitKieKlingImageToVideo({
       prompt: cleanedPrompt,
       image_url: preparedImageInputs[0],
-      image_urls: [preparedImageInputs[0]],
+      image_urls: imageUrls,
       aspect_ratio: aspectRatio,
       duration,
-      resolution,
-      mode: resolveKieKlingMode(resolution),
+      resolution: resolveKlingResolution(requestedResolution),
+      mode: resolveKieKlingMode(requestedResolution),
       cfg_scale: klingCfgScale,
-      generate_audio: requestedAudio,
-      sound: requestedAudio,
-      multi_shots: false,
+      generate_audio: multiShots ? true : requestedAudio,
+      sound: multiShots ? true : requestedAudio,
+      multi_shots: multiShots,
+      multi_prompt: multiPromptPayload,
+      kling_elements: elementsPayload,
     });
     handoffSubmitResponse({
       response,

@@ -9,6 +9,13 @@ type KlingMultiPromptPayload = { prompt: string; duration: number };
 type KlingElementPayload =
   | { video_url: string }
   | { frontal_image_url: string | undefined; reference_image_urls: string[] | undefined };
+type KieKlingMultiPromptPayload = { prompt: string; duration: number };
+type KieKlingElementPayload = {
+  name: string;
+  description: string;
+  element_input_urls?: string[];
+  element_input_video_urls?: string[];
+};
 
 const resolveAspectForModelConfig = (
   aspect: string,
@@ -61,10 +68,16 @@ export const resolveKlingResolution = (
 };
 
 /**
- * Maps Kie Kling resolution tiers to the provider mode enum.
+ * Maps UI resolution intent to KIE Kling generation mode.
  */
 export const resolveKieKlingMode = (requestedResolution?: string): "std" | "pro" =>
   resolveKlingResolution(requestedResolution) === "720p" ? "std" : "pro";
+
+/**
+ * Clamps KIE Kling single-shot duration to the supported range.
+ */
+export const resolveKieKlingDuration = (requestedDurationSeconds: number): number =>
+  Math.max(3, Math.min(15, Math.round(requestedDurationSeconds)));
 
 /**
  * Normalizes VEO resolution selection to accepted enum values.
@@ -194,6 +207,25 @@ export const buildKlingMultiPromptPayload = (
 };
 
 /**
+ * Builds KIE Kling multi-shot payload from non-empty shots.
+ */
+export const buildKieKlingMultiPromptPayload = (
+  klingMultiPrompts: VideoSubmissionArgs["klingMultiPrompts"]
+): KieKlingMultiPromptPayload[] | undefined => {
+  const payload = klingMultiPrompts
+    .map((shot) => {
+      const prompt = shot.prompt.trim();
+      if (!prompt) return null;
+      return {
+        prompt,
+        duration: Math.max(1, Math.min(12, Math.round(shot.duration))),
+      };
+    })
+    .filter((shot): shot is KieKlingMultiPromptPayload => Boolean(shot));
+  return payload.length ? payload : undefined;
+};
+
+/**
  * Builds Kling element payloads from either video references or image reference sets.
  */
 export const buildKlingElementsPayload = (
@@ -214,6 +246,42 @@ export const buildKlingElementsPayload = (
       accumulator.push({
         frontal_image_url: element.frontalImageUrl.trim() || undefined,
         reference_image_urls: referenceList.length ? referenceList : undefined,
+      });
+    }
+    return accumulator;
+  }, []);
+
+  return payload.length ? payload : undefined;
+};
+
+/**
+ * Builds KIE Kling element payloads using deterministic element token names.
+ */
+export const buildKieKlingElementsPayload = (
+  klingElements: VideoSubmissionArgs["klingElements"]
+): KieKlingElementPayload[] | undefined => {
+  const payload = klingElements.reduce<KieKlingElementPayload[]>((accumulator, element, index) => {
+    const tokenName = `Element${String(index + 1).padStart(2, "0")}`;
+    const referenceList = element.referenceImageUrls
+      .split(/[,\n]+/)
+      .map((item) => item.trim())
+      .filter(Boolean);
+    const imageList = [element.frontalImageUrl.trim(), ...referenceList].filter(Boolean);
+
+    if (element.videoUrl.trim()) {
+      accumulator.push({
+        name: tokenName,
+        description: `Reference video for ${tokenName}`,
+        element_input_video_urls: [element.videoUrl.trim()],
+      });
+      return accumulator;
+    }
+
+    if (imageList.length) {
+      accumulator.push({
+        name: tokenName,
+        description: `Reference images for ${tokenName}`,
+        element_input_urls: Array.from(new Set(imageList)).slice(0, 4),
       });
     }
     return accumulator;

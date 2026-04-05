@@ -374,6 +374,7 @@ describe("handleVideoModelSubmission (Kie Kling standard)", () => {
       modelConfig: getModelConfig(KIE_KLING_30_MODEL_ID),
       videoReferenceMode: "standard",
       requestedResolution: "720p",
+      requestedDurationSeconds: 14,
     });
 
     const handled = await handleVideoModelSubmission(args);
@@ -381,6 +382,7 @@ describe("handleVideoModelSubmission (Kie Kling standard)", () => {
     expect(handled).toBe(true);
     expect(submitKieKlingImageToVideo).toHaveBeenCalledWith(
       expect.objectContaining({
+        duration: 14,
         resolution: "720p",
         mode: "std",
         sound: true,
@@ -392,6 +394,68 @@ describe("handleVideoModelSubmission (Kie Kling standard)", () => {
       "kie-kling",
       undefined,
       { request_id: "kie-kling-std-1" }
+    );
+  });
+
+  it("builds multi-shot and element payloads for Kie Kling standard submits", async () => {
+    const args = makeArgs({
+      finalModel: KIE_KLING_30_MODEL_ID,
+      modelConfig: getModelConfig(KIE_KLING_30_MODEL_ID),
+      videoReferenceMode: "standard",
+      requestedResolution: "1080p",
+      requestedAudio: false,
+      preparedImageInputs: ["https://example.com/start.png", "https://example.com/end.png"],
+      klingMultiPrompts: [
+        { id: "shot-1", prompt: "First shot", duration: 5 },
+        { id: "shot-2", prompt: "Second shot", duration: 7 },
+      ],
+      klingElements: [
+        {
+          id: "element-1",
+          frontalImageUrl: "https://example.com/element-a.png",
+          referenceImageUrls: "https://example.com/element-b.png",
+          videoUrl: "",
+        },
+        {
+          id: "element-2",
+          frontalImageUrl: "",
+          referenceImageUrls: "",
+          videoUrl: "https://example.com/element-video.mp4",
+        },
+      ],
+    });
+
+    const handled = await handleVideoModelSubmission(args);
+
+    expect(handled).toBe(true);
+    expect(submitKieKlingImageToVideo).toHaveBeenCalledWith(
+      expect.objectContaining({
+        image_urls: ["https://example.com/start.png"],
+        resolution: "1080p",
+        mode: "pro",
+        generate_audio: true,
+        sound: true,
+        multi_shots: true,
+        multi_prompt: [
+          { prompt: "First shot", duration: 5 },
+          { prompt: "Second shot", duration: 7 },
+        ],
+        kling_elements: [
+          {
+            name: "Element01",
+            description: "Reference images for Element01",
+            element_input_urls: [
+              "https://example.com/element-a.png",
+              "https://example.com/element-b.png",
+            ],
+          },
+          {
+            name: "Element02",
+            description: "Reference video for Element02",
+            element_input_video_urls: ["https://example.com/element-video.mp4"],
+          },
+        ],
+      })
     );
   });
 });

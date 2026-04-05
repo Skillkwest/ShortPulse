@@ -83,6 +83,79 @@ describe("video contract parity", () => {
     );
   });
 
+  it("keeps Kie Kling advanced payload fields aligned with route contract and provider normalizer", () => {
+    const normalized = assertNormalizedVideoPayload("kie-ai/kling-3.0", {
+      prompt: "cinematic sequence",
+      image_url: "https://cdn.shortpulse.test/start.png",
+      image_urls: ["https://cdn.shortpulse.test/start.png", "https://cdn.shortpulse.test/end.png"],
+      duration: 14,
+      resolution: "1080p",
+      mode: "pro",
+      multi_shots: true,
+      sound: true,
+      multi_prompt: [
+        { prompt: "Shot one", duration: 5 },
+        { prompt: "Shot two", duration: 7 },
+      ],
+      kling_elements: [
+        {
+          name: "Element01",
+          description: "Reference images for Element01",
+          element_input_urls: [
+            "https://cdn.shortpulse.test/element-a.png",
+            "https://cdn.shortpulse.test/element-b.png",
+          ],
+        },
+        {
+          name: "Element02",
+          description: "Reference video for Element02",
+          element_input_video_urls: ["https://cdn.shortpulse.test/element-video.mp4"],
+        },
+      ],
+    });
+
+    const contractResult = evaluateFalPayloadContractForModel("kie-ai/kling-3.0", {
+      enforceAllowedTopLevelFields: true,
+      projectAllowedTopLevelFields: true,
+    })(normalized.payload);
+    expect(contractResult.valid).toBe(true);
+    if (!contractResult.valid) throw new Error(contractResult.error);
+
+    const providerPayload = normalizeKieSubmitPayloadForModel({
+      modelId: "kie-ai/kling-3.0",
+      payload: contractResult.projectedPayload,
+    });
+    expect(providerPayload).toEqual(
+      expect.objectContaining({
+        model: "kling-3.0/video",
+        input: expect.objectContaining({
+          duration: "14",
+          multi_shots: true,
+          sound: true,
+          multi_prompt: [
+            { prompt: "Shot one", duration: 5 },
+            { prompt: "Shot two", duration: 7 },
+          ],
+          kling_elements: [
+            {
+              name: "Element01",
+              description: "Reference images for Element01",
+              element_input_urls: [
+                "https://cdn.shortpulse.test/element-a.png",
+                "https://cdn.shortpulse.test/element-b.png",
+              ],
+            },
+            {
+              name: "Element02",
+              description: "Reference video for Element02",
+              element_input_video_urls: ["https://cdn.shortpulse.test/element-video.mp4"],
+            },
+          ],
+        }),
+      })
+    );
+  });
+
   it("keeps Fal Kling image-to-video advanced fields aligned with strict top-level allowlist", () => {
     const normalized = assertNormalizedVideoPayload("fal-ai/kling-video/v3/pro/image-to-video", {
       prompt: "cinematic close-up",

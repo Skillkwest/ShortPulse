@@ -7,9 +7,9 @@ Purpose: working checkpoint for the current `staging-preview` consolidation effo
 - Active integration target: `staging-preview`
 - Non-target branch for this lane: `main`
 - Primary source branch being consolidated: `origin/codex/full-unified-layers`
-- Current stable code checkpoint: `4b1af481e`
-- Last pushed remote checkpoint: `4b1af481e`
-- Local/remote delta: runtime lane in progress after the done-state closeout checkpoint
+- Current stable code checkpoint: `a63e4c9d6`
+- Last pushed remote checkpoint: `a63e4c9d6`
+- Local/remote delta: `SA-1` authority cleanup lane in progress locally
 - Whole-branch merge status: attempted once, then rolled back after broad `type-check` failure
 - Active strategy: lane-based integration with validation after each lane
 
@@ -60,10 +60,16 @@ Current relevant uncategorized buckets:
   - status: `remaining`
   - target surface: `frontend/features/ai-studio/components/ReferenceKlingAdvancedSteps.tsx`, `frontend/features/ai-studio/components/VideoPropertiesPanel.tsx`, `frontend/features/ai-studio/components/useReferencePropertiesDerivedState.ts`, related tests
   - why relevant: panel copy, control visibility, and KIE/Kling workspace affordances remain different from the source branch
+
+Recently closed relevant bucket:
+
 - `SA-1` small safety/authority cleanup lane
-  - status: `remaining`
-  - target surface: `frontend/features/ai-studio/components/style-creator/styleSourceNormalization.ts`, `frontend/features/ai-studio/logic/referenceDownload.ts`, `frontend/features/ai-studio/logic/staleOutputCleanup.ts`, related tests
-  - why relevant: these are still product/runtime correctness deltas, but they are independent from the panel redesign surface
+  - status: `absorbed locally`
+  - landed behavior:
+    - style intake now fails closed when an internal drag payload is present but no shared authority resolver was provided
+    - durable reference downloads now prefer canonical `storage_path` for saved-media file records instead of preview derivatives
+    - `staleOutputCleanup.ts` was re-audited and already matched the intended task-backed timeout posture on local `staging-preview`
+  - why it matters: these deltas are small but correctness-oriented, and clearing them removes the last non-panel cleanup bucket from the uncategorized set
 
 Current excluded remainder:
 
@@ -101,6 +107,7 @@ Reason:
 | `504e4a723` | Diagnostics/operator tooling lane stabilized locally |
 | `c2eda59e7` | UI properties extraction plan checkpoint established |
 | `8f231fa01` | UI-1 checkpoint docs and sourceRef coverage refreshed |
+| `a63e4c9d6` | RT-1A polling and queue sourceRef alignment stabilized locally |
 
 ## Landed Lanes
 
@@ -430,6 +437,7 @@ Still-useful local safety refs:
 - `refs/keep/staging-preview-pre-diagnostics-operator-lane`
 - `refs/keep/staging-preview-pre-ui1-product-extraction`
 - `refs/keep/staging-preview-pre-rt1-video-runtime-lane`
+- `refs/keep/staging-preview-pre-sa-1-authority-cleanup-lane`
 
 ## Remaining Work
 
@@ -438,7 +446,7 @@ Still-useful local safety refs:
 Current recommendation:
 
 1. close and push the validated RT-1A runtime lane
-2. decide whether the remaining relevant delta should continue as `RT-1B`, `VP-1`, or `SA-1`
+2. decide whether the remaining relevant delta should continue as `RT-1B` or `VP-1`
 3. only reopen KIE Kling payload parity work if the server contract files are intentionally admitted to scope
 
 Decision note:
@@ -451,6 +459,9 @@ Decision note:
   - direct dispatches use the same handoff-delay polling contract as resumed queue handoffs
   - task polling now trusts lifecycle-authored success/failure authority and hands raw terminal states back to server recovery instead of forcing local success
   - KIE Kling standard submits now carry the contract-safe `mode`, `sound`, and `multi_shots` fields already supported by current `staging-preview`
+- `SA-1` is now locally cleared:
+  - style intake no longer falls through to network fetch when an internal drag payload exists without resolver authority
+  - saved-media downloads now prefer canonical `storage_path` over preview derivatives in the local helper path
 - the remaining KIE Kling multi-shot/element parity is not a hook-only change on current branch truth; it requires submit-contract/model-catalog files and should be tracked as `RT-1B` instead of being pulled in by momentum
 
 ### Deferred UI/docs collateral remainder

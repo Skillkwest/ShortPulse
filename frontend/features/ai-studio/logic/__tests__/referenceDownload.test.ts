@@ -35,11 +35,21 @@ const createSupabaseMock = ({
     if (table === "media_files") {
       return {
         select: () => ({
-          in: async (): Promise<QueryResult> => ({
-            data: mediaFileRows,
-            error: null,
+          in: () => ({
+            order: () => ({
+              limit: async (): Promise<QueryResult> => ({
+                data: mediaFileRows,
+                error: null,
+              }),
+            }),
           }),
           eq: () => ({
+            limit: () => ({
+              maybeSingle: async (): Promise<QueryResult> => ({
+                data: Array.isArray(mediaFileRows) ? (mediaFileRows[0] ?? null) : null,
+                error: null,
+              }),
+            }),
             order: () => ({
               limit: async (): Promise<QueryResult> => ({
                 data: mediaFileRows,
@@ -139,6 +149,39 @@ describe("resolveReferenceDownloadTarget", () => {
       },
       generationId: "gen-1",
       directUrl: null,
+    });
+  });
+
+  it("uses canonical storage_path for saved media downloads instead of preview storage paths", async () => {
+    const target = await resolveReferenceDownloadTarget({
+      output: {
+        savedMediaIds: ["media-1"],
+        generationId: undefined,
+        mediaSource: "upload",
+        taskId: undefined,
+        previewStoragePath: undefined,
+        fullStoragePath: undefined,
+        previewUrl: "https://cdn.example.com/preview.png",
+        resultUrls: [],
+      },
+      supabase: createSupabaseMock({
+        mediaFileRows: [
+          {
+            storage_path: "user-1/media/full-resolution.png",
+            preview_storage_path: "user-1/media/preview-resolution.png",
+            filename: "full-resolution.png",
+          },
+        ],
+      }) as never,
+    });
+
+    expect(target).toEqual({
+      fileRecord: {
+        storagePath: "user-1/media/full-resolution.png",
+        filename: "full-resolution.png",
+      },
+      generationId: null,
+      directUrl: "https://cdn.example.com/preview.png",
     });
   });
 });

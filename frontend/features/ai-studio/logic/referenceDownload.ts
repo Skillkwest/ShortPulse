@@ -148,9 +148,7 @@ const resolveOutputStorageFileRecord = (
 const toMediaFileRecord = (
   row: MediaFileRow | null | undefined
 ): ResolvedReferenceDownloadTarget["fileRecord"] => {
-  const storagePath =
-    asCanonicalStoragePath(asTrimmedString(row?.preview_storage_path)) ??
-    asCanonicalStoragePath(asTrimmedString(row?.storage_path));
+  const storagePath = asCanonicalStoragePath(asTrimmedString(row?.storage_path));
   if (!storagePath) return null;
   return {
     storagePath,

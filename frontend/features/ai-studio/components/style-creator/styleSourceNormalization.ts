@@ -349,6 +349,17 @@ export const resolveStyleSource = async ({
     }
   }
 
+  if (internalDropPayload && !resolveInternalStyleDrop) {
+    throw createStyleDropPreviewError(
+      BLOCKED_STYLE_IMAGE_SOURCE_ERROR,
+      "internal_source_unresolved",
+      {
+        resolutionReason: "internal_source_unresolved",
+        candidateCount: 0,
+      }
+    );
+  }
+
   if (internalDropPayload && resolveInternalStyleDrop) {
     throw createStyleDropPreviewError(
       BLOCKED_STYLE_IMAGE_SOURCE_ERROR,

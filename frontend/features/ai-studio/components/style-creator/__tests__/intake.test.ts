@@ -315,6 +315,26 @@ describe("style-creator source normalization", () => {
     expect(fetchSpy).not.toHaveBeenCalled();
   });
 
+  it("fails deterministically when an internal drag is present but no shared resolver was provided", async () => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch");
+    const transfer = {
+      files: [],
+      types: ["text/reference-output-id", "text/reference-origin", "text/reference-url"],
+      getData: (type: string) => {
+        if (type === "text/reference-origin") return "ai-studio-reference-grid";
+        if (type === "text/reference-output-id") return "out-missing";
+        if (type === "text/reference-url") return "https://cdn.example.com/stale-reference.png";
+        return "";
+      },
+    } as unknown as DataTransfer;
+
+    await expect(resolveDroppedStylePreview(transfer)).rejects.toThrow(
+      "blocked-style-image-source"
+    );
+
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
   it("fails deterministically for unsupported sources", async () => {
     const transfer = {
       files: [],

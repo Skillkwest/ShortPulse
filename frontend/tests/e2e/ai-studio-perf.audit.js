@@ -6,7 +6,7 @@
  */
 const { chromium } = require("playwright");
 
-const BASE_URL = process.env.PLAYWRIGHT_BASE_URL || "http://127.0.0.1:3100";
+const BASE_URL = process.env.PLAYWRIGHT_BASE_URL || "http://localhost:3100";
 const EMAIL = (process.env.PLAYWRIGHT_AUDIT_EMAIL || "").trim();
 const PASSWORD = (process.env.PLAYWRIGHT_AUDIT_PASSWORD || "").trim() || "AuditPass!12345";
 

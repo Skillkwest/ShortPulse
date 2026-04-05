@@ -6,12 +6,14 @@ import {
   saveCharacterManagerCharacterSheetPresetTabLabel,
   saveCharacterManagerCharacterSheetPresetTabOrder,
 } from "../characterManagerPersistence";
-import { ensureSupabaseClient } from "../../../../lib/supabaseClient";
+import { ensureSupabaseQueryClient, readSupabaseUserId } from "../../../../lib/supabaseClient";
 import { getSignedMediaUrlsBatch } from "../../../../lib/mediaSignedUrlCache";
 
-vi.mock("../../../../lib/supabaseClient", () => ({
-  ensureSupabaseClient: vi.fn(),
-}));
+vi.mock("../../../../lib/supabaseClient", async () => {
+  const { createSupabaseClientModuleMock } =
+    await import("../../../../tests/support/supabaseClientMock");
+  return createSupabaseClientModuleMock();
+});
 
 vi.mock("../../../../lib/mediaSignedUrlCache", () => ({
   getSignedMediaUrl: vi.fn(),
@@ -19,13 +21,15 @@ vi.mock("../../../../lib/mediaSignedUrlCache", () => ({
   invalidateSignedMediaUrl: vi.fn(),
 }));
 
-const ensureSupabaseClientMock = vi.mocked(ensureSupabaseClient);
+const ensureSupabaseQueryClientMock = vi.mocked(ensureSupabaseQueryClient);
+const readSupabaseUserIdMock = vi.mocked(readSupabaseUserId);
 const getSignedMediaUrlsBatchMock = vi.mocked(getSignedMediaUrlsBatch);
 
 describe("characterManagerPersistence preset preview hydration", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     getSignedMediaUrlsBatchMock.mockResolvedValue(new Map());
+    readSupabaseUserIdMock.mockResolvedValue("user-1");
   });
 
   it("persists active preset selection without rehydrating preview urls", async () => {
@@ -74,7 +78,7 @@ describe("characterManagerPersistence preset preview hydration", () => {
       eq: vi.fn(() => updateFirstEq),
     };
 
-    ensureSupabaseClientMock.mockReturnValue({
+    ensureSupabaseQueryClientMock.mockReturnValue({
       auth: {
         getSession: vi.fn(async () => ({
           data: { session: { user: { id: "user-1" } } },
@@ -85,7 +89,7 @@ describe("characterManagerPersistence preset preview hydration", () => {
         select: vi.fn(() => selectQuery),
         update: vi.fn(() => updateQuery),
       })),
-    } as unknown as ReturnType<typeof ensureSupabaseClient>);
+    } as unknown as ReturnType<typeof ensureSupabaseQueryClient>);
 
     const result = await saveCharacterManagerActiveCharacterSheetPreset({
       characterId: "char-1",
@@ -124,7 +128,7 @@ describe("characterManagerPersistence preset preview hydration", () => {
       eq: vi.fn(() => updateFirstEq),
     };
 
-    ensureSupabaseClientMock.mockReturnValue({
+    ensureSupabaseQueryClientMock.mockReturnValue({
       auth: {
         getSession: vi.fn(async () => ({
           data: { session: { user: { id: "user-1" } } },
@@ -135,7 +139,7 @@ describe("characterManagerPersistence preset preview hydration", () => {
         select: vi.fn(() => selectQuery),
         update: vi.fn(() => updateQuery),
       })),
-    } as unknown as ReturnType<typeof ensureSupabaseClient>);
+    } as unknown as ReturnType<typeof ensureSupabaseQueryClient>);
 
     const result = await saveCharacterManagerCharacterSheetPresetTabOrder({
       characterId: "char-1",
@@ -181,7 +185,7 @@ describe("characterManagerPersistence preset preview hydration", () => {
       eq: vi.fn(() => updateFirstEq),
     };
 
-    ensureSupabaseClientMock.mockReturnValue({
+    ensureSupabaseQueryClientMock.mockReturnValue({
       auth: {
         getSession: vi.fn(async () => ({
           data: { session: { user: { id: "user-1" } } },
@@ -192,7 +196,7 @@ describe("characterManagerPersistence preset preview hydration", () => {
         select: vi.fn(() => selectQuery),
         update: vi.fn(() => updateQuery),
       })),
-    } as unknown as ReturnType<typeof ensureSupabaseClient>);
+    } as unknown as ReturnType<typeof ensureSupabaseQueryClient>);
 
     getSignedMediaUrlsBatchMock.mockResolvedValue(
       new Map([["user/chars/presets/portrait.png", "https://signed.example/portrait.png"]])
@@ -236,7 +240,7 @@ describe("characterManagerPersistence preset preview hydration", () => {
       eq: vi.fn(() => updateFirstEq),
     };
 
-    ensureSupabaseClientMock.mockReturnValue({
+    ensureSupabaseQueryClientMock.mockReturnValue({
       auth: {
         getSession: vi.fn(async () => ({
           data: { session: { user: { id: "user-1" } } },
@@ -247,7 +251,7 @@ describe("characterManagerPersistence preset preview hydration", () => {
         select: vi.fn(() => selectQuery),
         update: vi.fn(() => updateQuery),
       })),
-    } as unknown as ReturnType<typeof ensureSupabaseClient>);
+    } as unknown as ReturnType<typeof ensureSupabaseQueryClient>);
 
     const result = await saveCharacterManagerCharacterSheetPresetTabLabel({
       characterId: "char-1",
@@ -294,7 +298,7 @@ describe("characterManagerPersistence preset preview hydration", () => {
       eq: vi.fn(() => updateFirstEq),
     };
 
-    ensureSupabaseClientMock.mockReturnValue({
+    ensureSupabaseQueryClientMock.mockReturnValue({
       auth: {
         getSession: vi.fn(async () => ({
           data: { session: { user: { id: "user-1" } } },
@@ -305,7 +309,7 @@ describe("characterManagerPersistence preset preview hydration", () => {
         select: vi.fn(() => selectQuery),
         update: vi.fn(() => updateQuery),
       })),
-    } as unknown as ReturnType<typeof ensureSupabaseClient>);
+    } as unknown as ReturnType<typeof ensureSupabaseQueryClient>);
 
     getSignedMediaUrlsBatchMock.mockResolvedValue(
       new Map([["user/chars/presets/portrait.png", "https://signed.example/portrait.png"]])
@@ -349,7 +353,7 @@ describe("characterManagerPersistence preset preview hydration", () => {
       eq: vi.fn(() => updateFirstEq),
     };
 
-    ensureSupabaseClientMock.mockReturnValue({
+    ensureSupabaseQueryClientMock.mockReturnValue({
       auth: {
         getSession: vi.fn(async () => ({
           data: { session: { user: { id: "user-1" } } },
@@ -360,7 +364,7 @@ describe("characterManagerPersistence preset preview hydration", () => {
         select: vi.fn(() => selectQuery),
         update: vi.fn(() => updateQuery),
       })),
-    } as unknown as ReturnType<typeof ensureSupabaseClient>);
+    } as unknown as ReturnType<typeof ensureSupabaseQueryClient>);
 
     const result = await deleteCharacterManagerCharacterSheetPreset({
       characterId: "char-1",
@@ -402,7 +406,7 @@ describe("characterManagerPersistence preset preview hydration", () => {
       eq: vi.fn(() => updateFirstEq),
     };
 
-    ensureSupabaseClientMock.mockReturnValue({
+    ensureSupabaseQueryClientMock.mockReturnValue({
       auth: {
         getSession: vi.fn(async () => ({
           data: { session: { user: { id: "user-1" } } },
@@ -413,7 +417,7 @@ describe("characterManagerPersistence preset preview hydration", () => {
         select: vi.fn(() => selectQuery),
         update: vi.fn(() => updateQuery),
       })),
-    } as unknown as ReturnType<typeof ensureSupabaseClient>);
+    } as unknown as ReturnType<typeof ensureSupabaseQueryClient>);
 
     const result = await deleteCharacterManagerCharacterSheetPreset({
       characterId: "char-1",
@@ -469,7 +473,7 @@ describe("characterManagerPersistence preset preview hydration", () => {
       };
     });
 
-    ensureSupabaseClientMock.mockReturnValue({
+    ensureSupabaseQueryClientMock.mockReturnValue({
       auth: {
         getSession: vi.fn(async () => ({
           data: { session: { user: { id: "user-1" } } },
@@ -477,7 +481,7 @@ describe("characterManagerPersistence preset preview hydration", () => {
         })),
       },
       from: fromMock,
-    } as unknown as ReturnType<typeof ensureSupabaseClient>);
+    } as unknown as ReturnType<typeof ensureSupabaseQueryClient>);
 
     const result = await deleteCharacterManagerCharacterSheetPreset({
       characterId: "char-1",
@@ -521,7 +525,7 @@ describe("characterManagerPersistence preset preview hydration", () => {
       eq: vi.fn(() => updateFirstEq),
     };
 
-    ensureSupabaseClientMock.mockReturnValue({
+    ensureSupabaseQueryClientMock.mockReturnValue({
       auth: {
         getSession: vi.fn(async () => ({
           data: { session: { user: { id: "user-1" } } },
@@ -532,7 +536,7 @@ describe("characterManagerPersistence preset preview hydration", () => {
         select: vi.fn(() => selectQuery),
         update: vi.fn(() => updateQuery),
       })),
-    } as unknown as ReturnType<typeof ensureSupabaseClient>);
+    } as unknown as ReturnType<typeof ensureSupabaseQueryClient>);
 
     const result = await saveCharacterManagerCharacterSheetPresetTabDescription({
       characterId: "char-1",
@@ -574,7 +578,7 @@ describe("characterManagerPersistence preset preview hydration", () => {
       eq: vi.fn(() => updateFirstEq),
     };
 
-    ensureSupabaseClientMock.mockReturnValue({
+    ensureSupabaseQueryClientMock.mockReturnValue({
       auth: {
         getSession: vi.fn(async () => ({
           data: { session: { user: { id: "user-1" } } },
@@ -585,7 +589,7 @@ describe("characterManagerPersistence preset preview hydration", () => {
         select: vi.fn(() => selectQuery),
         update: vi.fn(() => updateQuery),
       })),
-    } as unknown as ReturnType<typeof ensureSupabaseClient>);
+    } as unknown as ReturnType<typeof ensureSupabaseQueryClient>);
 
     const result = await deleteCharacterManagerCharacterSheetPreset({
       characterId: "char-1",

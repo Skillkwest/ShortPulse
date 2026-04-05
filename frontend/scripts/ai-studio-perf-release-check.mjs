@@ -5,7 +5,7 @@ import { spawn } from "node:child_process";
 const npmCommand = process.platform === "win32" ? "npm.cmd" : "npm";
 const port = Number.parseInt(process.env.AI_STUDIO_PERF_PORT || "3100", 10);
 const skipBuild = process.env.AI_STUDIO_PERF_SKIP_BUILD === "true";
-const baseUrl = process.env.PLAYWRIGHT_BASE_URL || `http://127.0.0.1:${port}`;
+const baseUrl = process.env.PLAYWRIGHT_BASE_URL || `http://localhost:${port}`;
 const auditEmail = (process.env.PLAYWRIGHT_AUDIT_EMAIL || "").trim();
 
 if (!auditEmail) {

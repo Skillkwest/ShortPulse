@@ -7,48 +7,29 @@ const verifyFalWebhookSignatureMock = vi.fn();
 const verifyFalWebhookBodyHashMock = vi.fn();
 const readFalWebhookHeadersMock = vi.fn();
 const logApiRouteExceptionMock = vi.fn();
-const getSupabaseAdminMock = vi.fn();
-const executeGenerationRecoveryMock = vi.fn();
+const parseFalWebhookPayloadMock = vi.fn((rawBody: string) => JSON.parse(rawBody));
+const ingestFalWebhookEventMock = vi.fn();
 
 vi.mock("../../lib/server/api/falWebhook", () => ({
-  readRawBody: (...args: unknown[]) => readRawBodyMock(...args),
-  verifyFalWebhookSignature: (...args: unknown[]) => verifyFalWebhookSignatureMock(...args),
-  verifyFalWebhookBodyHash: (...args: unknown[]) => verifyFalWebhookBodyHashMock(...args),
-  readFalWebhookHeaders: (...args: unknown[]) => readFalWebhookHeadersMock(...args),
+  readRawBody: (req: unknown, options: unknown) => readRawBodyMock(req, options),
+  verifyFalWebhookSignature: (input: unknown) => verifyFalWebhookSignatureMock(input),
+  verifyFalWebhookBodyHash: (input: unknown) => verifyFalWebhookBodyHashMock(input),
+  readFalWebhookHeaders: (req: unknown) => readFalWebhookHeadersMock(req),
 }));
 
-vi.mock("../../lib/server/falIntegration/recoveryExecution", () => ({
-  executeGenerationRecovery: (...args: unknown[]) => executeGenerationRecoveryMock(...args),
+vi.mock("../../lib/server/falIntegration/falWebhookIngress", () => ({
+  parseFalWebhookPayload: (rawBody: string) => parseFalWebhookPayloadMock(rawBody),
+  ingestFalWebhookEvent: (input: unknown) => ingestFalWebhookEventMock(input),
 }));
 
 vi.mock("../../lib/server/api/appErrorLogs", () => ({
-  logApiRouteException: (...args: unknown[]) => logApiRouteExceptionMock(...args),
-}));
-
-vi.mock("../../lib/server/api/supabaseAdmin", () => ({
-  getSupabaseAdmin: (...args: unknown[]) => getSupabaseAdminMock(...args),
+  logApiRouteException: (input: unknown) => logApiRouteExceptionMock(input),
 }));
 
 const createMockResponse = () => ({
   status: vi.fn().mockReturnThis(),
   json: vi.fn().mockReturnThis(),
 });
-
-const createSupabaseMock = () => {
-  const insertSingle = vi.fn(async () => ({ data: { event_id: "event-1" }, error: null }));
-  const insert = vi.fn(() => ({
-    select: vi.fn(() => ({
-      single: insertSingle,
-    })),
-  }));
-  const updateEq = vi.fn(async () => ({ error: null }));
-  const update = vi.fn(() => ({ eq: updateEq }));
-  const from = vi.fn((table: string) => {
-    if (table !== "fal_webhook_events") throw new Error(`unexpected table ${table}`);
-    return { insert, update };
-  });
-  return { from, insertSingle, updateEq };
-};
 
 describe("POST /api/fal/webhook", () => {
   beforeEach(() => {
@@ -81,7 +62,7 @@ describe("POST /api/fal/webhook", () => {
 
     expect(res.status).toHaveBeenCalledWith(400);
     expect(res.json).toHaveBeenCalledWith({ error: "Invalid webhook signature" });
-    expect(executeGenerationRecoveryMock).not.toHaveBeenCalled();
+    expect(ingestFalWebhookEventMock).not.toHaveBeenCalled();
   });
 
   it("returns 413 when webhook payload exceeds max size", async () => {
@@ -101,9 +82,7 @@ describe("POST /api/fal/webhook", () => {
     expect(res.json).toHaveBeenCalledWith({ error: "Webhook payload too large." });
   });
 
-  it("ingests webhook events and delegates terminal processing to shared recovery execution", async () => {
-    const supabase = createSupabaseMock();
-    getSupabaseAdminMock.mockReturnValue({ from: supabase.from });
+  it("delegates verified webhook payloads to falWebhookIngress and returns accepted results", async () => {
     readRawBodyMock.mockResolvedValue(
       JSON.stringify({
         id: "event-1",
@@ -119,14 +98,10 @@ describe("POST /api/fal/webhook", () => {
       method: "fal",
       payloadHash: "hash-1",
     });
-    executeGenerationRecoveryMock.mockResolvedValue({
-      ok: true,
-      state: "recovered",
+    ingestFalWebhookEventMock.mockResolvedValue({
+      kind: "accepted",
       requestId: "req-1",
-      generationId: "gen-1",
-      mediaFileIds: ["media-1"],
-      mediaUrls: ["https://cdn.shortpulse.test/output.png"],
-      processed: true,
+      status: "completed",
     });
 
     const req = {
@@ -139,28 +114,34 @@ describe("POST /api/fal/webhook", () => {
 
     await handler(req as never, res as never);
 
-    expect(supabase.insertSingle).toHaveBeenCalled();
-    expect(executeGenerationRecoveryMock).toHaveBeenCalledWith(
+    expect(parseFalWebhookPayloadMock).toHaveBeenCalled();
+    expect(ingestFalWebhookEventMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        actor: "webhook",
-        requestId: "req-1",
-        routeLabel: "fal/webhook",
+        payload: expect.objectContaining({
+          request_id: "req-1",
+          status: "OK",
+        }),
+        headers: expect.objectContaining({
+          requestId: "req-1",
+          eventId: "event-1",
+          userId: "fal-user-1",
+        }),
+        verificationMethod: "fal",
+        payloadHash: "hash-1",
+        maxAttempts: expect.any(Number),
       })
     );
-    expect(supabase.updateEq).toHaveBeenCalled();
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith(
       expect.objectContaining({
         received: true,
         request_id: "req-1",
-        status: "recovered",
+        status: "completed",
       })
     );
   });
 
-  it("resolves request id from canonical payload aliases when headers omit it", async () => {
-    const supabase = createSupabaseMock();
-    getSupabaseAdminMock.mockReturnValue({ from: supabase.from });
+  it("passes canonical payload aliases through to falWebhookIngress when headers omit request id", async () => {
     readFalWebhookHeadersMock.mockReturnValue({
       requestId: null,
       userId: "fal-user-1",
@@ -182,14 +163,10 @@ describe("POST /api/fal/webhook", () => {
       method: "fal",
       payloadHash: "hash-1",
     });
-    executeGenerationRecoveryMock.mockResolvedValue({
-      ok: true,
-      state: "recovered",
+    ingestFalWebhookEventMock.mockResolvedValue({
+      kind: "accepted",
       requestId: "task-canonical-1",
-      generationId: "gen-1",
-      mediaFileIds: ["media-1"],
-      mediaUrls: ["https://cdn.shortpulse.test/output.png"],
-      processed: true,
+      status: "completed",
     });
 
     const req = {
@@ -202,9 +179,17 @@ describe("POST /api/fal/webhook", () => {
 
     await handler(req as never, res as never);
 
-    expect(executeGenerationRecoveryMock).toHaveBeenCalledWith(
+    expect(ingestFalWebhookEventMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        requestId: "task-canonical-1",
+        headers: expect.objectContaining({
+          requestId: null,
+        }),
+        payload: expect.objectContaining({
+          id: "event-canonical-1",
+          data: expect.objectContaining({
+            task_id: "task-canonical-1",
+          }),
+        }),
       })
     );
     expect(res.status).toHaveBeenCalledWith(200);
@@ -222,18 +207,7 @@ describe("POST /api/fal/webhook", () => {
       method: "fal",
       payloadHash: "hash-1",
     });
-    getSupabaseAdminMock.mockReturnValue({
-      from: vi.fn(() => ({
-        insert: vi.fn(() => ({
-          select: vi.fn(() => ({
-            single: vi.fn(async () => ({
-              data: null,
-              error: { code: "XX000", message: "db down" },
-            })),
-          })),
-        })),
-      })),
-    });
+    ingestFalWebhookEventMock.mockRejectedValue(new Error("db down"));
 
     const req = {
       method: "POST",

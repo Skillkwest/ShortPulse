@@ -1,69 +1,59 @@
 import type { User } from "@supabase/supabase-js";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { ensureSupabaseQueryClient, useSupabaseSessionState } from "../../../../lib/supabaseClient";
 import { useCharacterManagerAccountState } from "../useCharacterManagerAccountState";
 
-const getUserMock = vi.fn();
 const maybeSingleMock = vi.fn();
 const billingPlansEqMock = vi.fn();
-const unsubscribeMock = vi.fn();
-let authStateListener: ((event: string, session: { user: User | null } | null) => void) | null =
-  null;
 
-vi.mock("../../../../lib/supabaseClient", () => ({
-  ensureSupabaseClient: () => ({
-    auth: {
-      getUser: getUserMock,
-      onAuthStateChange: (callback: typeof authStateListener) => {
-        authStateListener = callback;
-        return {
-          data: {
-            subscription: {
-              unsubscribe: unsubscribeMock,
-            },
-          },
-        };
-      },
-    },
-    from: (table: string) => {
-      if (table === "billing_profiles") {
-        return {
-          select: () => ({
-            eq: () => ({
-              maybeSingle: maybeSingleMock,
-            }),
-          }),
-        };
-      }
-      if (table === "billing_plans") {
-        return {
-          select: () => ({
-            eq: billingPlansEqMock,
-          }),
-        };
-      }
-      throw new Error(`Unexpected table: ${table}`);
-    },
-  }),
-}));
+vi.mock("../../../../lib/supabaseClient", async () => {
+  const { createSupabaseClientModuleMock } =
+    await import("../../../../tests/support/supabaseClientMock");
+  return createSupabaseClientModuleMock();
+});
+
+const ensureSupabaseQueryClientMock = vi.mocked(ensureSupabaseQueryClient);
+const useSupabaseSessionStateMock = vi.mocked(useSupabaseSessionState);
 
 describe("useCharacterManagerAccountState", () => {
+  let sessionState: ReturnType<typeof useSupabaseSessionState>;
+
   beforeEach(() => {
-    getUserMock.mockReset();
     maybeSingleMock.mockReset();
     billingPlansEqMock.mockReset();
-    unsubscribeMock.mockReset();
-    authStateListener = null;
-
-    getUserMock.mockResolvedValue({
-      data: {
-        user: {
-          id: "user-1",
-          email: "owner@example.com",
-          user_metadata: { plan: "studio" },
-        },
+    sessionState = {
+      initialized: true,
+      session: null,
+      user: {
+        id: "user-1",
+        email: "owner@example.com",
+        user_metadata: { plan: "studio" },
+      } as unknown as User,
+    };
+    useSupabaseSessionStateMock.mockImplementation(() => sessionState);
+    ensureSupabaseQueryClientMock.mockReturnValue({
+      from: (table: string) => {
+        if (table === "billing_profiles") {
+          return {
+            select: () => ({
+              eq: () => ({
+                maybeSingle: maybeSingleMock,
+              }),
+            }),
+          };
+        }
+        if (table === "billing_plans") {
+          return {
+            select: () => ({
+              eq: billingPlansEqMock,
+            }),
+          };
+        }
+        throw new Error(`Unexpected table: ${table}`);
       },
-    });
+    } as unknown as ReturnType<typeof ensureSupabaseQueryClient>);
+
     maybeSingleMock.mockResolvedValue({
       data: { plan_id: "business" },
       error: null,
@@ -83,6 +73,12 @@ describe("useCharacterManagerAccountState", () => {
   });
 
   it("skips auth/bootstrap work for embedded surfaces", () => {
+    sessionState = {
+      initialized: true,
+      session: null,
+      user: null,
+    };
+
     const { result } = renderHook(() =>
       useCharacterManagerAccountState({
         isEmbeddedSurface: true,
@@ -90,7 +86,7 @@ describe("useCharacterManagerAccountState", () => {
       })
     );
 
-    expect(getUserMock).not.toHaveBeenCalled();
+    expect(ensureSupabaseQueryClientMock).not.toHaveBeenCalled();
     expect(result.current.user).toBeNull();
     expect(result.current.resolvedPlan).toBeNull();
   });
@@ -114,8 +110,8 @@ describe("useCharacterManagerAccountState", () => {
     });
   });
 
-  it("updates the user on auth events and clears on sign-out", async () => {
-    const { result } = renderHook(() =>
+  it("updates the user when Supabase session state changes and clears on sign-out", async () => {
+    const { result, rerender } = renderHook(() =>
       useCharacterManagerAccountState({
         isEmbeddedSurface: false,
         defaultPlanTier: "business",
@@ -123,26 +119,34 @@ describe("useCharacterManagerAccountState", () => {
     );
 
     await waitFor(() => {
-      expect(authStateListener).toBeTypeOf("function");
+      expect(result.current.user?.id).toBe("user-1");
     });
 
     act(() => {
-      authStateListener?.("SIGNED_IN", {
+      sessionState = {
+        initialized: true,
+        session: null,
         user: {
           id: "user-2",
           email: "next@example.com",
           user_metadata: { plan: "media" },
         } as unknown as User,
-      });
+      };
     });
+    rerender();
 
     await waitFor(() => {
       expect(result.current.user?.id).toBe("user-2");
     });
 
     act(() => {
-      authStateListener?.("SIGNED_OUT", null);
+      sessionState = {
+        initialized: true,
+        session: null,
+        user: null,
+      };
     });
+    rerender();
 
     await waitFor(() => {
       expect(result.current.user).toBeNull();

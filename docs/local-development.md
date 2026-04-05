@@ -25,6 +25,7 @@ ShortPulse runs as a Next.js app with browser routes and internal API routes.
    - `SHORTPULSE_STAGING_BEARER_TOKEN` (optional helper for protected-route latency capture script; prefer temporary tokens)
    - `SUPABASE_SERVICE_ROLE_KEY`
    - `SHORTPULSE_ADMIN_EMAILS`
+   - `KIE_API_KEY` (or `SHORTPULSE_KIE_API_KEY`) for Kie routes
    - `STRIPE_SECRET_KEY`
    - `STRIPE_WEBHOOK_SECRET`
    - `STRIPE_WEBHOOK_TOLERANCE_SECONDS` (defaults to `300`)
@@ -43,6 +44,7 @@ ShortPulse runs as a Next.js app with browser routes and internal API routes.
    - `STUDIO_AGENT_FORMATTER`
    - `NEXT_PUBLIC_ENABLE_STUDIO_AGENT`
    - `NEXT_PUBLIC_AGENT_V2`
+   - `NEXT_PUBLIC_AI_STUDIO_LEGACY_SESSION_PERSISTENCE_ENABLED` (set `true` only when you want legacy AI Studio save/restore)
    - `SHORTPULSE_RELEASE` (optional explicit release/build tag for error incidents)
    - `NEXT_PUBLIC_SHORTPULSE_RELEASE` (optional client release tag for error incidents)
    - `SHORTPULSE_ADMIN_ALERT_TOTAL_15M` (optional admin event spike threshold; default `40`)
@@ -56,7 +58,29 @@ Never commit `.env.local`.
 
 For local script automation, you can optionally create a root-level `.env.agent.local` (gitignored) using `.env.agent.local.example`. Probe helpers auto-load this file.
 
-`.env.agent.local` is for local probe/audit tooling only. Keep staging helper URLs, Vercel API tokens, protection bypass tokens, and similar operator-only values there instead of in Vercel project envs.
+`.env.agent.local` is for local probe/audit tooling only. Keep staging helper URLs, localhost script base URLs, Vercel API tokens, protection bypass tokens, and similar operator-only values there instead of in Vercel project envs.
+
+## Local Runtime Contract
+
+Treat local configuration as three separate scopes and do not mix them:
+
+1. App runtime (`frontend/.env.local`)
+   - Keep only values required by the Next.js app and its internal API routes.
+   - This includes secrets/endpoints, active product-behavior flags, and any worker/runtime controls that are intentionally enabled for local use.
+2. Local control plane / workers
+   - Queue, reconciler, derivative worker, and fleet-health settings may live in `frontend/.env.local` only when those lanes are intentionally exercised on this machine.
+   - If a worker lane is enabled locally, also verify the required local process, cron secret, and route auth posture are in place.
+3. Operator / tooling env
+   - Keep probe helpers, staging helper URLs/tokens, localhost script base URLs, Vercel operator tokens, Playwright audit credentials, and similar local automation values out of `frontend/.env.local`.
+   - Put those values in root `.env.agent.local` instead.
+
+Local cleanup policy:
+
+- Do not keep a flag in `frontend/.env.local` when the code already defaults to the intended local posture and the flag is not being actively used as a local rollout control.
+- Do not leave client/server mirror flags intentionally divergent unless a doc explicitly calls out that split.
+- Do not leave half-enabled rollout lanes in local env. For example, avoid enabling a client path while the matching API route or worker remains disabled.
+- Legacy AI Studio session persistence is not a default local requirement. Only opt it in intentionally for controlled testing.
+- Product-decision flags that are still under active rollout governance should remain explicit until a permanent posture is chosen.
 
 ## Run the app
 

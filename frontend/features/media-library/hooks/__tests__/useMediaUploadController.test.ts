@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useMediaUploadController } from "../useMediaUploadController";
 import { fetchWithAuth } from "../../../../lib/authenticatedFetch";
 import { resolveMediaSigningStoragePaths } from "../../../../lib/mediaPreviewPath";
-import { ensureSupabaseClient } from "../../../../lib/supabaseClient";
+import { ensureSupabaseQueryClient, readSupabaseUserId } from "../../../../lib/supabaseClient";
 
 vi.mock("../../../../lib/authenticatedFetch", () => ({
   fetchWithAuth: vi.fn(),
@@ -15,12 +15,15 @@ vi.mock("../../../../lib/mediaPreviewPath", () => ({
   resolveMediaSigningStoragePaths: vi.fn(),
 }));
 
-vi.mock("../../../../lib/supabaseClient", () => ({
-  ensureSupabaseClient: vi.fn(),
-}));
+vi.mock("../../../../lib/supabaseClient", async () => {
+  const { createSupabaseClientModuleMock } =
+    await import("../../../../tests/support/supabaseClientMock");
+  return createSupabaseClientModuleMock();
+});
 
 const resolveMediaSigningStoragePathsMock = vi.mocked(resolveMediaSigningStoragePaths);
-const ensureSupabaseClientMock = vi.mocked(ensureSupabaseClient);
+const ensureSupabaseQueryClientMock = vi.mocked(ensureSupabaseQueryClient);
+const readSupabaseUserIdMock = vi.mocked(readSupabaseUserId);
 const fetchWithAuthMock = vi.mocked(fetchWithAuth);
 
 type Row = {
@@ -91,6 +94,7 @@ const createUploadSupabaseClient = (options: {
 describe("useMediaUploadController", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    readSupabaseUserIdMock.mockResolvedValue("user-1");
     resolveMediaSigningStoragePathsMock.mockImplementation(
       (row: { storage_path?: string | null }) => [row.storage_path ?? ""]
     );
@@ -102,7 +106,7 @@ describe("useMediaUploadController", () => {
 
   it("rejects private uploads that include non-image files", async () => {
     const supabaseClient = createUploadSupabaseClient({ userId: "user-1" });
-    ensureSupabaseClientMock.mockReturnValue(supabaseClient as never);
+    ensureSupabaseQueryClientMock.mockReturnValue(supabaseClient as never);
 
     const { result } = renderHook(() => {
       const [error, setError] = useState<string | null>(null);
@@ -148,7 +152,7 @@ describe("useMediaUploadController", () => {
         storage_path: "user-1/images/media-123.png",
       },
     });
-    ensureSupabaseClientMock.mockReturnValue(supabaseClient as never);
+    ensureSupabaseQueryClientMock.mockReturnValue(supabaseClient as never);
     const markInactiveMediaCachesStale = vi.fn();
     const refreshStorageUsageBytes = vi.fn(async () => {});
     const logMediaEvent = vi.fn(async () => {});
@@ -237,7 +241,7 @@ describe("useMediaUploadController", () => {
         storage_path: "user-1/images/media-legacy-1.png",
       },
     });
-    ensureSupabaseClientMock.mockReturnValue(supabaseClient as never);
+    ensureSupabaseQueryClientMock.mockReturnValue(supabaseClient as never);
     const signStoragePath = vi.fn(async () => "https://signed.example/media-legacy-1");
 
     const { result } = renderHook(() => {
@@ -282,7 +286,7 @@ describe("useMediaUploadController", () => {
 
   it("tracks drag-over and drag-leave state", () => {
     const supabaseClient = createUploadSupabaseClient({ userId: "user-1" });
-    ensureSupabaseClientMock.mockReturnValue(supabaseClient as never);
+    ensureSupabaseQueryClientMock.mockReturnValue(supabaseClient as never);
 
     const { result } = renderHook(() => {
       const [error, setError] = useState<string | null>(null);

@@ -19,10 +19,14 @@ export const persistAiStudioSessionShadow = async (
   const { remoteShadowEnabled } = readAiStudioSessionPersistencePolicy();
   await saveAiStudioSessionShadow(sessionId, snapshot);
   if (!remoteShadowEnabled) return;
-  await saveAiStudioSessionSnapshotViaApi({
-    sessionId,
-    snapshot,
-    keepalive: options?.keepalive === true,
-    title: options?.title,
-  });
+  try {
+    await saveAiStudioSessionSnapshotViaApi({
+      sessionId,
+      snapshot,
+      keepalive: options?.keepalive === true,
+      title: options?.title,
+    });
+  } catch {
+    // Local IndexedDB shadow remains authoritative for this rollout.
+  }
 };

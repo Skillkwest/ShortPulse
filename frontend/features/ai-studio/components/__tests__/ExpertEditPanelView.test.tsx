@@ -6383,6 +6383,47 @@ describe("ExpertEditPanelView", () => {
     expect(referenceInputs[0]).toMatch(/^blob:flatten-/);
   });
 
+  it("recomputes inline generate reuse when the composition aspect changes", async () => {
+    const onRegenerateWithReferenceInputs: NonNullable<
+      React.ComponentProps<typeof ExpertEditPanelView>["onRegenerateWithReferenceInputs"]
+    > = vi.fn(async () => {});
+    const referenceImageUrl =
+      "https://jwmcytzyhcvacjwqtynn.supabase.co/storage/v1/object/sign/media_library/user/reference-portrait.png?token=test";
+    const { rerender } = render(
+      <ExpertEditPanelView
+        {...baseProps}
+        referenceText="prompt text"
+        referenceImageUrl={referenceImageUrl}
+        onRegenerateWithReferenceInputs={onRegenerateWithReferenceInputs}
+      />
+    );
+
+    rerender(
+      <ExpertEditPanelView
+        {...baseProps}
+        referenceText="prompt text"
+        referenceImageUrl={referenceImageUrl}
+        aspect="3:4"
+        onRegenerateWithReferenceInputs={onRegenerateWithReferenceInputs}
+      />
+    );
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /^generate$/i }));
+      await Promise.resolve();
+    });
+
+    expect(composePrimaryStageLayersToBlobMock).toHaveBeenCalledTimes(1);
+    const [referenceInputs] = (
+      onRegenerateWithReferenceInputs as unknown as {
+        mock: {
+          calls: Array<[string[]]>;
+        };
+      }
+    ).mock.calls[0] ?? [[]];
+    expect(referenceInputs[0]).toMatch(/^blob:flatten-/);
+  });
+
   it("auto-flatten generate ignores outer stage viewport framing and exports composition aspect ratio", async () => {
     const onRegenerateWithReferenceInputs: NonNullable<
       React.ComponentProps<typeof ExpertEditPanelView>["onRegenerateWithReferenceInputs"]

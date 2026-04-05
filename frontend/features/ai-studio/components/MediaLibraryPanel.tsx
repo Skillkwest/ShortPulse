@@ -719,7 +719,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
         ...folderOptions.sort((left, right) => left.label.localeCompare(right.label)),
       ];
     },
-    [buildFolderPathLabel, collectDescendantIds, folders]
+    [buildFolderPathLabel, collectDescendantIds, folders, foldersById]
   );
   const moveFolderDestinationOptions = useMemo(() => {
     if (!moveFolderPicker) return [];

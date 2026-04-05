@@ -12,7 +12,7 @@ import {
   createEmptyCharacterSlotMap,
 } from "../../constants";
 import { useCharacterManagerDraft } from "../useCharacterManagerDraft";
-import { ensureSupabaseClient } from "../../../../lib/supabaseClient";
+import { readSupabaseUserId } from "../../../../lib/supabaseClient";
 import {
   clearCharacterManagerProfileImage,
   deleteCharacterManagerCharacterSheetPreset,
@@ -29,9 +29,11 @@ import {
 } from "../../logic/selectedCharacterPersistence";
 import { validateCharacterReferenceFile } from "../../logic/referenceValidation";
 
-vi.mock("../../../../lib/supabaseClient", () => ({
-  ensureSupabaseClient: vi.fn(),
-}));
+vi.mock("../../../../lib/supabaseClient", async () => {
+  const { createSupabaseClientModuleMock } =
+    await import("../../../../tests/support/supabaseClientMock");
+  return createSupabaseClientModuleMock();
+});
 
 vi.mock("../../logic/characterManagerPersistence", () => ({
   clearCharacterManagerProfileImage: vi.fn(),
@@ -68,7 +70,7 @@ vi.mock("../../logic/referenceValidation", () => ({
   validateCharacterReferenceFile: vi.fn(),
 }));
 
-const ensureSupabaseClientMock = vi.mocked(ensureSupabaseClient);
+const readSupabaseUserIdMock = vi.mocked(readSupabaseUserId);
 const loadOrCreateCharacterManagerDraftMock = vi.mocked(loadOrCreateCharacterManagerDraft);
 const listCharacterManagerCharactersMock = vi.mocked(listCharacterManagerCharacters);
 const saveCharacterManagerActiveCharacterSheetPresetMock = vi.mocked(
@@ -139,14 +141,7 @@ const createDraftSnapshot = (): DraftSnapshot => {
 };
 
 const configureBootstrap = (snapshot: DraftSnapshot) => {
-  ensureSupabaseClientMock.mockReturnValue({
-    auth: {
-      getSession: vi.fn(async () => ({
-        data: { session: { user: { id: snapshot.userId } } },
-        error: null,
-      })),
-    },
-  } as unknown as ReturnType<typeof ensureSupabaseClient>);
+  readSupabaseUserIdMock.mockResolvedValue(snapshot.userId);
   readPersistedSelectedCharacterIdMock.mockReturnValue(null);
   loadOrCreateCharacterManagerDraftMock.mockResolvedValue(snapshot);
   listCharacterManagerCharactersMock.mockResolvedValue([
@@ -162,18 +157,12 @@ const configureBootstrap = (snapshot: DraftSnapshot) => {
 describe("useCharacterManagerDraft", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    readSupabaseUserIdMock.mockResolvedValue("user-1");
   });
 
   it("uses the user-scoped persisted selection during bootstrap", async () => {
     const snapshot = createDraftSnapshot();
-    ensureSupabaseClientMock.mockReturnValue({
-      auth: {
-        getSession: vi.fn(async () => ({
-          data: { session: { user: { id: snapshot.userId } } },
-          error: null,
-        })),
-      },
-    } as unknown as ReturnType<typeof ensureSupabaseClient>);
+    readSupabaseUserIdMock.mockResolvedValue(snapshot.userId);
     readPersistedSelectedCharacterIdMock.mockReturnValue("char-scoped");
     loadOrCreateCharacterManagerDraftMock.mockResolvedValue(snapshot);
     listCharacterManagerCharactersMock.mockResolvedValue([
@@ -240,14 +229,7 @@ describe("useCharacterManagerDraft", () => {
 
   it("uploads a profile image and refreshes the character rail", async () => {
     const snapshot = createDraftSnapshot();
-    ensureSupabaseClientMock.mockReturnValue({
-      auth: {
-        getSession: vi.fn(async () => ({
-          data: { session: { user: { id: snapshot.userId } } },
-          error: null,
-        })),
-      },
-    } as unknown as ReturnType<typeof ensureSupabaseClient>);
+    readSupabaseUserIdMock.mockResolvedValue(snapshot.userId);
     readPersistedSelectedCharacterIdMock.mockReturnValue(null);
     loadOrCreateCharacterManagerDraftMock.mockResolvedValue(snapshot);
     listCharacterManagerCharactersMock

@@ -16,7 +16,7 @@ import {
 } from "../../../character-manager/logic/characterManagerPersistence";
 import { publishCharacterListChanged } from "../../../character-manager/logic/characterListSyncEvents";
 import { persistSelectedCharacterId } from "../../../character-manager/logic/selectedCharacterPersistence";
-import { ensureSupabaseClient } from "../../../../lib/supabaseClient";
+import { readSupabaseUserId } from "../../../../lib/supabaseClient";
 import type { ToolId } from "../../types";
 
 vi.mock("../../../character-manager/logic/characterManagerPersistence", () => ({
@@ -24,19 +24,17 @@ vi.mock("../../../character-manager/logic/characterManagerPersistence", () => ({
   loadCharacterManagerDraftByCharacterId: vi.fn(),
 }));
 
-vi.mock("../../../../lib/supabaseClient", () => ({
-  ensureSupabaseClient: vi.fn(),
-}));
+vi.mock("../../../../lib/supabaseClient", async () => {
+  const { createSupabaseClientModuleMock } =
+    await import("../../../../tests/support/supabaseClientMock");
+  return createSupabaseClientModuleMock();
+});
 
 const listCharacterManagerCharactersMock = vi.mocked(listCharacterManagerCharacters);
 const loadCharacterManagerDraftByCharacterIdMock = vi.mocked(
   loadCharacterManagerDraftByCharacterId
 );
-const ensureSupabaseClientMock = vi.mocked(ensureSupabaseClient);
-const getSessionMock = vi.fn(async () => ({
-  data: { session: { user: { id: "user-1" } } },
-  error: null,
-}));
+const readSupabaseUserIdMock = vi.mocked(readSupabaseUserId);
 
 const asDispatch = <T>(fn: (...args: unknown[]) => unknown): Dispatch<SetStateAction<T>> =>
   fn as unknown as Dispatch<SetStateAction<T>>;
@@ -156,15 +154,7 @@ describe("useAiStudioCharacterModeLifecycle", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     window.localStorage.clear();
-    getSessionMock.mockResolvedValue({
-      data: { session: { user: { id: "user-1" } } },
-      error: null,
-    });
-    ensureSupabaseClientMock.mockReturnValue({
-      auth: {
-        getSession: getSessionMock,
-      },
-    } as unknown as ReturnType<typeof ensureSupabaseClient>);
+    readSupabaseUserIdMock.mockResolvedValue("user-1");
   });
 
   it("hydrates selected character id from persisted storage", async () => {

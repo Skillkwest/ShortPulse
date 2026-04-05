@@ -261,6 +261,7 @@ export const useExpertEditInlineGenerate = ({
     onRegenerateWithReferenceInputs,
     promptText,
     populatedLayerCount,
+    reusablePrimarySourceUrl,
     revokeObjectUrlSafe,
     scheduleTransientObjectUrlRevoke,
     resolveBlobDimensions,

@@ -6,7 +6,7 @@
  */
 const { chromium } = require("playwright");
 
-const BASE_URL = process.env.PLAYWRIGHT_BASE_URL || "http://127.0.0.1:3000";
+const BASE_URL = process.env.PLAYWRIGHT_BASE_URL || "http://localhost:3000";
 const PNG_BASE64 =
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO7ZlJ0AAAAASUVORK5CYII=";
 const PNG_BUFFER = Buffer.from(PNG_BASE64, "base64");

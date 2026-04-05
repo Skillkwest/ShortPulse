@@ -68,8 +68,11 @@ Set these in Vercel project settings (`Production` + `Preview` as applicable):
   - `SUPABASE_DB_URL` (GitHub Environment secret for `staging` and `production`, used by `.github/workflows/media-storage-deploy-gate.yml`, `.github/workflows/reliability-control-plane-diagnostics.yml`)
   - `SHORTPULSE_VERCEL_API_TOKEN` (required by `scripts/verify_deployment_route_parity.mjs`; fallback supports `VERCEL_API_TOKEN`)
 - Optional agent/runtime toggles:
+  - `NEXT_PUBLIC_ENABLE_EXPERT_CREATE_UI` (defaults to off in production; set `true` for the current Expert Create UI)
+  - `NEXT_PUBLIC_ENABLE_EXPERT_EDIT_UI` (defaults to on when unset; set explicitly to avoid fallback drift)
   - `NEXT_PUBLIC_ENABLE_STUDIO_AGENT`
   - `NEXT_PUBLIC_AGENT_V2`
+  - `NEXT_PUBLIC_AI_STUDIO_LEGACY_SESSION_PERSISTENCE_ENABLED` (set `true` only for legacy AI Studio save/restore)
   - `SHORTPULSE_RELEASE` (optional explicit release/build tag for incident logs)
   - `NEXT_PUBLIC_SHORTPULSE_RELEASE` (optional client bundle release tag for incident logs)
   - `STUDIO_AGENT_ENABLED`
@@ -77,6 +80,7 @@ Set these in Vercel project settings (`Production` + `Preview` as applicable):
   - `STUDIO_AGENT_THINKER`
   - `STUDIO_AGENT_FORMATTER`
   - `OPENAI_API_KEY`
+  - `KIE_API_KEY` or `SHORTPULSE_KIE_API_KEY` (only needed when Kie routes are enabled)
   - `OPENAI_API_BASE`
   - `OPENAI_MODEL`
   - `OPENAI_VISION_MODEL`
@@ -97,8 +101,20 @@ Set these in Vercel project settings (`Production` + `Preview` as applicable):
   - `NEXT_PUBLIC_MEDIA_LIBRARY_VIRTUALIZATION_ENABLED` (defaults to `true`; route/modal virtualization gate)
   - `NEXT_PUBLIC_MEDIA_LIBRARY_VIDEO_BUDGET_ENABLED` (defaults to `true`; route/modal autoplay budget gate)
   - `NEXT_PUBLIC_MEDIA_LIBRARY_SIGN_PREFETCH_ENABLED` (defaults to `true`; route/modal sign-prefetch gate)
+  - `NEXT_PUBLIC_AI_STUDIO_MEDIA_LIBRARY_PANEL_ENABLED` (defaults to `true`; first-class Media Library tool gate)
+  - `NEXT_PUBLIC_AI_STUDIO_MEDIA_LIBRARY_GESTURE_V2_ENABLED` (defaults to `false`; rollout gate for drag-ghost/right-click/delete gesture behavior)
+  - `NEXT_PUBLIC_MEDIA_ADAPTIVE_V2_ENABLED` (defaults to `false`; current adaptive-media rollout gate)
+  - `NEXT_PUBLIC_MEDIA_ADAPTIVE_V2_SURFACES` (comma-separated surfaces such as `reference-grid,media-library-grid,media-library-modal-grid`)
   - `SHORTPULSE_MEDIA_SIGNED_TRANSFORMS_ENABLED` (defaults to `false`; server half of dual-flag signed-transform policy)
   - `NEXT_PUBLIC_MEDIA_SIGNED_TRANSFORMS_ENABLED` (defaults to `false`; client half of dual-flag signed-transform policy)
+  - `SHORTPULSE_AI_STUDIO_SESSIONS_API_ENABLED` (defaults to `true`; server-authenticated AI Studio session save/get/list routes)
+  - `NEXT_PUBLIC_AI_STUDIO_LEGACY_SESSION_PERSISTENCE_ENABLED` (defaults to `false`; legacy session persistence master opt-in)
+  - `NEXT_PUBLIC_AI_STUDIO_SESSION_PERSISTENCE_ENABLED` (defaults to `true` once legacy opt-in is enabled; client master switch)
+  - `NEXT_PUBLIC_AI_STUDIO_SESSION_WRITE_SHADOW_ENABLED` (defaults to `true` once legacy opt-in is enabled; write path shadow lane)
+  - `NEXT_PUBLIC_AI_STUDIO_SESSION_REMOTE_SHADOW_ENABLED` (defaults to `true` once legacy opt-in is enabled; remote write shadow lane)
+  - `NEXT_PUBLIC_AI_STUDIO_SESSION_RESTORE_SHADOW_ENABLED` (defaults to `true` once legacy opt-in is enabled; restore read lane)
+  - `NEXT_PUBLIC_AI_STUDIO_SESSION_RESTORE_APPLY_ENABLED` (defaults to `true` once legacy opt-in is enabled; restore apply lane)
+  - `NEXT_PUBLIC_AI_STUDIO_SESSION_RESTORE_APPLY_AGENT_ENABLED` (defaults to `true` once legacy opt-in is enabled; restore agent lane)
   - `OPENAI_PROMPT_SYSTEM`
   - `SHORTPULSE_FAL_INTEGRATION_MODE` (`legacy|shadow|on`)
   - `SHORTPULSE_FAL_INTEGRATION_MODEL_ALLOWLIST` (comma-separated model IDs or prefixes like `fal-ai/bytedance/*`)
@@ -117,6 +133,7 @@ Set these in Vercel project settings (`Production` + `Preview` as applicable):
   - `SHORTPULSE_FAL_RECONCILER_LEASE_SECONDS`
   - `SHORTPULSE_FAL_STATUS_TRANSIENT_FAILURES_ENABLED`
   - `SHORTPULSE_FAL_QUEUE_ENABLED`
+  - `SHORTPULSE_FAL_LEGACY_DIRECT_SUBMIT_ENABLED`
   - `SHORTPULSE_FAL_QUEUE_MAX_PER_USER`
   - `SHORTPULSE_FAL_QUEUE_DISPATCH_BATCH_SIZE`
   - `SHORTPULSE_FAL_QUEUE_LEASE_SECONDS`

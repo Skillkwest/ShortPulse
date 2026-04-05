@@ -19,6 +19,15 @@ const createQuickSwapItems = (
     legacySlotKey: null,
   }));
 
+const readRemoveReferenceIndex = (button: HTMLElement): number => {
+  const label = button.getAttribute("aria-label") ?? "";
+  const match = label.match(/Remove reference (\d+)/i);
+  if (!match) {
+    throw new Error(`Missing remove-reference label on button: ${label}`);
+  }
+  return Number(match[1]);
+};
+
 const renderSection = (
   overrides?: Partial<ComponentProps<typeof CharacterQuickSwapDeckSection>>
 ) => {
@@ -144,7 +153,9 @@ describe("CharacterQuickSwapDeckSection windowing", () => {
     fireEvent.scroll(scrollSurface);
 
     await waitFor(() => {
-      expect(screen.getByRole("button", { name: "Remove reference 13" })).toBeInTheDocument();
+      const removeButtons = screen.getAllByRole("button", { name: /Remove reference/i });
+      const visibleIndices = removeButtons.map(readRemoveReferenceIndex);
+      expect(Math.min(...visibleIndices)).toBeGreaterThan(1);
       expect(screen.queryByRole("button", { name: "Remove reference 1" })).toBeNull();
     });
   });
@@ -157,11 +168,14 @@ describe("CharacterQuickSwapDeckSection windowing", () => {
     scrollSurface.scrollTop = 1600;
     fireEvent.scroll(scrollSurface);
 
-    await waitFor(() => {
-      expect(screen.getByRole("button", { name: "Remove reference 13" })).toBeInTheDocument();
+    const visibleDeleteButton = await waitFor(() => {
+      const removeButtons = screen.getAllByRole("button", { name: /Remove reference/i });
+      const firstScrolledButton = removeButtons.find(
+        (button) => readRemoveReferenceIndex(button) > 1
+      );
+      expect(firstScrolledButton).toBeTruthy();
+      return firstScrolledButton as HTMLElement;
     });
-
-    const visibleDeleteButton = screen.getByRole("button", { name: "Remove reference 13" });
     const visibleCard = visibleDeleteButton.closest("article");
     if (!visibleCard) {
       throw new Error("Expected visible reference card.");

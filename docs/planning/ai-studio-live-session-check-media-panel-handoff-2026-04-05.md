@@ -15,6 +15,45 @@ This handoff is intentionally execution-oriented:
 - defines decision gates for the next agent,
 - and gives an ordered remediation plan with rollback posture.
 
+## Execution Preflight Snapshot
+
+Capture this state before mutating Vercel so rollback is deterministic.
+
+Verified on `2026-04-05`:
+
+- linked Vercel project:
+  - project id: `prj_LyBCIYaHPY25CHGfrSiQBl0HCnBJ`
+  - team id: `team_GDwrOPvm77SZ4IgEEQnNnhGc`
+  - project name: `shortpulse`
+- staging alias currently resolves to:
+  - alias: `shortpulse-git-staging-preview-kirk-artmans-projects.vercel.app`
+  - deployment id: `dpl_3WogmffBxQAMVXejy18D8xo8tGh2`
+  - target: `preview`
+  - branch ref on that deployment: `staging-preview`
+- current resolved preview env values:
+  - `NEXT_PUBLIC_MEDIA_ADAPTIVE_V2_ENABLED="true"`
+  - `NEXT_PUBLIC_MEDIA_ADAPTIVE_V2_SURFACES="reference-grid,media-library-grid,media-library-modal-grid"`
+  - `NEXT_PUBLIC_MEDIA_LIBRARY_PANEL_CONSTANT_COMPRESSION_ENABLED="true"`
+  - `NEXT_PUBLIC_MEDIA_SIGNED_TRANSFORMS_ENABLED="false"`
+  - `SHORTPULSE_MEDIA_SIGNED_TRANSFORMS_ENABLED="false"`
+  - `NEXT_PUBLIC_AI_STUDIO_MEDIA_LIBRARY_PANEL_ENABLED="true"`
+  - `NEXT_PUBLIC_MEDIA_LIST_API_ENABLED="true"`
+  - `SHORTPULSE_MEDIA_LIST_API_ENABLED="true"`
+- branch-specific preview pull for `staging-preview` resolves the same values above
+- local reproduction baseline:
+  - `frontend/.env.local` currently mirrors the same three-surface Adaptive V2 allowlist
+- current repo execution state:
+  - active branch: `codex/live-seesion-check-up`
+  - current `HEAD`: `b10d8af3b670a875425d12caf535dd64719fece4`
+  - local worktree already contains unrelated user changes under the admin-user-health lane and those files should not be touched during the env fix
+
+Rollback posture for Phase 1:
+
+- if the env fix regresses staging behavior, restore
+  `NEXT_PUBLIC_MEDIA_ADAPTIVE_V2_SURFACES="reference-grid,media-library-grid,media-library-modal-grid"`
+- redeploy `staging-preview`
+- re-verify alias target and rebuilt bundle content
+
 ## Original User Problem
 
 The user reported that a live staging AI Studio session felt laggy:
@@ -188,15 +227,15 @@ Implication:
 
 The code and tests agree on the panel adaptive contract:
 
-- [flags.ts](/Users/worldbuilder/Desktop/Desktop%20Clean/Projects/Coding%20Projects/ShortPulse%20Dev/ShortPulse/frontend/lib/adaptive-media/flags.ts)
+- [flags.ts](../../frontend/lib/adaptive-media/flags.ts)
   - default fallback allowlist includes `media-library-panel-grid`
-- [MediaLibraryPanel.tsx](/Users/worldbuilder/Desktop/Desktop%20Clean/Projects/Coding%20Projects/ShortPulse%20Dev/ShortPulse/frontend/features/ai-studio/components/MediaLibraryPanel.tsx)
+- [MediaLibraryPanel.tsx](../../frontend/features/ai-studio/components/MediaLibraryPanel.tsx)
   - panel adaptive preview quality is gated by `isAdaptiveSurfaceEnabled("media-library-panel-grid")`
-- [surfaceConfig.ts](/Users/worldbuilder/Desktop/Desktop%20Clean/Projects/Coding%20Projects/ShortPulse%20Dev/ShortPulse/frontend/features/media-library/runtime/surfaceConfig.ts)
+- [surfaceConfig.ts](../../frontend/features/media-library/runtime/surfaceConfig.ts)
   - panel config declares `adaptiveSurface: "media-library-panel-grid"`
-- [MediaLibraryPanel.test.tsx](/Users/worldbuilder/Desktop/Desktop%20Clean/Projects/Coding%20Projects/ShortPulse%20Dev/ShortPulse/frontend/features/ai-studio/components/__tests__/MediaLibraryPanel.test.tsx)
+- [MediaLibraryPanel.test.tsx](../../frontend/features/ai-studio/components/__tests__/MediaLibraryPanel.test.tsx)
   - test explicitly asserts route/modal surfaces alone do not enable panel adaptive preview quality
-- [flags.test.ts](/Users/worldbuilder/Desktop/Desktop%20Clean/Projects/Coding%20Projects/ShortPulse%20Dev/ShortPulse/frontend/lib/adaptive-media/__tests__/flags.test.ts)
+- [flags.test.ts](../../frontend/lib/adaptive-media/__tests__/flags.test.ts)
   - fallback allowlist tests expect panel inclusion
 
 Implication:
@@ -207,9 +246,9 @@ Implication:
 
 Relevant code:
 
-- [mediaLibraryPanelPreviewResolver.ts](/Users/worldbuilder/Desktop/Desktop%20Clean/Projects/Coding%20Projects/ShortPulse%20Dev/ShortPulse/frontend/features/ai-studio/logic/mediaLibraryPanelPreviewResolver.ts)
-- [mediaSignedTransformPolicy.ts](/Users/worldbuilder/Desktop/Desktop%20Clean/Projects/Coding%20Projects/ShortPulse%20Dev/ShortPulse/frontend/lib/mediaSignedTransformPolicy.ts)
-- [mediaSignedUrlCache.ts](/Users/worldbuilder/Desktop/Desktop%20Clean/Projects/Coding%20Projects/ShortPulse%20Dev/ShortPulse/frontend/lib/mediaSignedUrlCache.ts)
+- [mediaLibraryPanelPreviewResolver.ts](../../frontend/features/ai-studio/logic/mediaLibraryPanelPreviewResolver.ts)
+- [mediaSignedTransformPolicy.ts](../../frontend/lib/mediaSignedTransformPolicy.ts)
+- [mediaSignedUrlCache.ts](../../frontend/lib/mediaSignedUrlCache.ts)
 
 What this means:
 
@@ -225,18 +264,40 @@ Implication:
 
 The following docs are stale relative to code/tests/runtime:
 
-- [docs/sops/sop_ai_studio_media_library_operations.md](/Users/worldbuilder/Desktop/Desktop%20Clean/Projects/Coding%20Projects/ShortPulse%20Dev/ShortPulse/docs/sops/sop_ai_studio_media_library_operations.md)
+- [docs/sops/sop_ai_studio_media_library_operations.md](../sops/sop_ai_studio_media_library_operations.md)
   - currently states panel compaction activates when either `media-library-grid` or `media-library-modal-grid` is enabled
-- [docs/sops/sop_media_performance_operations.md](/Users/worldbuilder/Desktop/Desktop%20Clean/Projects/Coding%20Projects/ShortPulse%20Dev/ShortPulse/docs/sops/sop_media_performance_operations.md)
+- [docs/sops/sop_media_performance_operations.md](../sops/sop_media_performance_operations.md)
   - currently instructs operators to verify route/modal adaptive surfaces for panel slowness
-- [docs/troubleshooting.md](/Users/worldbuilder/Desktop/Desktop%20Clean/Projects/Coding%20Projects/ShortPulse%20Dev/ShortPulse/docs/troubleshooting.md)
+- [docs/troubleshooting.md](../troubleshooting.md)
   - repeats the same route/modal guidance
 
 This guidance is contradicted by:
 
-- [MediaLibraryPanel.test.tsx](/Users/worldbuilder/Desktop/Desktop%20Clean/Projects/Coding%20Projects/ShortPulse%20Dev/ShortPulse/frontend/features/ai-studio/components/__tests__/MediaLibraryPanel.test.tsx)
-- [flags.test.ts](/Users/worldbuilder/Desktop/Desktop%20Clean/Projects/Coding%20Projects/ShortPulse%20Dev/ShortPulse/frontend/lib/adaptive-media/__tests__/flags.test.ts)
-- [flags.ts](/Users/worldbuilder/Desktop/Desktop%20Clean/Projects/Coding%20Projects/ShortPulse%20Dev/ShortPulse/frontend/lib/adaptive-media/flags.ts)
+- [MediaLibraryPanel.test.tsx](../../frontend/features/ai-studio/components/__tests__/MediaLibraryPanel.test.tsx)
+- [flags.test.ts](../../frontend/lib/adaptive-media/__tests__/flags.test.ts)
+- [flags.ts](../../frontend/lib/adaptive-media/flags.ts)
+
+## Operational Risk That Must Be Treated Explicitly
+
+This is the main execution footgun for the next agent:
+
+- `NEXT_PUBLIC_MEDIA_ADAPTIVE_V2_ENABLED`
+- `NEXT_PUBLIC_MEDIA_ADAPTIVE_V2_SURFACES`
+- `NEXT_PUBLIC_MEDIA_LIBRARY_PANEL_CONSTANT_COMPRESSION_ENABLED`
+- `NEXT_PUBLIC_AI_STUDIO_MEDIA_LIBRARY_PANEL_ENABLED`
+
+are currently stored in Vercel as single shared records spanning:
+
+- `development`
+- `preview`
+- `production`
+
+Important implications:
+
+- this is not currently modeled as a preview-only or branch-only env record
+- changing the value is still the correct lowest-risk fix for `staging-preview`, but it also changes the value that future development/production deploys would compile with
+- this job should not widen into env-structure cleanup before the staging fix is validated
+- production is not being redeployed as part of this job, so the immediate runtime effect is limited to the rebuilt preview deployment
 
 ## What We Could Not Prove
 
@@ -361,7 +422,7 @@ Do not use as rollout truth:
 
 Those are blocked by the telemetry truth spec:
 
-- [media-rendering-hardening-v2-telemetry-baseline-truth-spec-2026-03-18.md](/Users/worldbuilder/Desktop/Desktop%20Clean/Projects/Coding%20Projects/ShortPulse%20Dev/ShortPulse/docs/planning/media-rendering-hardening-v2-telemetry-baseline-truth-spec-2026-03-18.md)
+- [media-rendering-hardening-v2-telemetry-baseline-truth-spec-2026-03-18.md](./media-rendering-hardening-v2-telemetry-baseline-truth-spec-2026-03-18.md)
 
 ### Phase 4: Only if still slow, harden code
 
@@ -382,9 +443,9 @@ Important:
 
 After behavior is fixed and verified:
 
-1. update [docs/sops/sop_ai_studio_media_library_operations.md](/Users/worldbuilder/Desktop/Desktop%20Clean/Projects/Coding%20Projects/ShortPulse%20Dev/ShortPulse/docs/sops/sop_ai_studio_media_library_operations.md)
-2. update [docs/sops/sop_media_performance_operations.md](/Users/worldbuilder/Desktop/Desktop%20Clean/Projects/Coding%20Projects/ShortPulse%20Dev/ShortPulse/docs/sops/sop_media_performance_operations.md)
-3. update [docs/troubleshooting.md](/Users/worldbuilder/Desktop/Desktop%20Clean/Projects/Coding%20Projects/ShortPulse%20Dev/ShortPulse/docs/troubleshooting.md)
+1. update [docs/sops/sop_ai_studio_media_library_operations.md](../sops/sop_ai_studio_media_library_operations.md)
+2. update [docs/sops/sop_media_performance_operations.md](../sops/sop_media_performance_operations.md)
+3. update [docs/troubleshooting.md](../troubleshooting.md)
 
 Required correction:
 
@@ -418,6 +479,104 @@ Use this after the env fix:
    - `/api/media/sign-batch`
    - folder navigation
    - panel selection/open behavior
+
+## Verification Gates That Must Pass Before Calling The Fix Successful
+
+Treat Phase 1 as successful only if all of the following are true:
+
+1. `NEXT_PUBLIC_MEDIA_ADAPTIVE_V2_SURFACES` now includes `media-library-panel-grid`, or the explicit override is removed and the code fallback applies
+2. a new `staging-preview` deployment reaches `READY`
+3. the staging alias points to that new deployment id
+4. the rebuilt client bundle compiles `media-library-panel-grid` into the effective Adaptive V2 allowlist
+5. route parity still passes for:
+   - `/api/media/list`
+   - `/api/media/sign-batch`
+   - `/api/media/resolve-previews`
+   - `/api/internal/media-derivatives/run`
+6. the AI Studio Media Library panel smoke test does not show worse behavior than the pre-fix baseline
+
+Preferred but not mandatory evidence:
+
+- authenticated `window.__shortpulseMediaPerf?.durationStats()`
+- authenticated `window.__shortpulseMediaPerf?.signStats()`
+
+If those telemetry captures are unavailable, do not block Phase 1 completion solely on that gap. Record the missing evidence explicitly.
+
+## Scope Lock Before Validation
+
+Until the verification gates above pass, do not widen scope into:
+
+- runtime code hardening
+- stale SOP/troubleshooting cleanup
+- Vercel env-structure refactors that split shared env records by environment
+- derivative-worker remediation
+
+Those lanes are follow-on work only after the env fix is validated or disproven.
+
+## Done State For This Job
+
+This job is done when:
+
+1. the preview Adaptive Media V2 surface config has been corrected to cover `media-library-panel-grid`
+2. `staging-preview` has been redeployed and the alias is on the expected new deployment
+3. the rebuilt bundle proves the panel surface is now part of the effective allowlist
+4. route parity remains intact
+5. the panel flow is re-checked and no longer points to the old env-misconfiguration as the active root cause
+
+After that:
+
+- if the panel behavior is improved enough, update the stale operational docs and stop
+- if the panel is still materially slow, stop the env lane, preserve evidence, and open a separate focused code-hardening lane instead of blending the two
+
+## Execution Update: Phase 1 Applied On 2026-04-05
+
+Phase 1 was executed with the leanest scoped Vercel mutation available.
+
+What was changed:
+
+- a branch-specific Vercel preview override was added for:
+  - `NEXT_PUBLIC_MEDIA_ADAPTIVE_V2_SURFACES`
+  - environment: `preview`
+  - git branch: `staging-preview`
+- value applied:
+  - `reference-grid,media-library-grid,media-library-modal-grid,media-library-panel-grid`
+
+Why this method was chosen:
+
+- it fixes the active `staging-preview` lane without mutating the shared `development,preview,production` env record
+- it avoids unnecessary production drift while preserving the existing shared baseline for other environments
+- it is lower-risk than rewriting the global record before the staging fix is fully validated
+
+Verified execution results:
+
+- effective branch-specific preview pull now resolves:
+  - `NEXT_PUBLIC_MEDIA_ADAPTIVE_V2_SURFACES="reference-grid,media-library-grid,media-library-modal-grid,media-library-panel-grid"`
+- generic preview pull without branch still resolves the old shared value:
+  - `NEXT_PUBLIC_MEDIA_ADAPTIVE_V2_SURFACES="reference-grid,media-library-grid,media-library-modal-grid"`
+- a new deployment was built and is now the alias target:
+  - deployment id: `dpl_7Kntdwxy1Jz4krxS8yNxWYxTJ2gy`
+  - deployment url: `shortpulse-ckjo9eiiw-kirk-artmans-projects.vercel.app`
+  - alias: `shortpulse-git-staging-preview-kirk-artmans-projects.vercel.app`
+  - ready state: `READY`
+- required route parity is still present in deployment output for:
+  - `/api/media/list`
+  - `/api/media/sign-batch`
+  - `/api/media/resolve-previews`
+  - `/api/internal/media-derivatives/run`
+- rebuilt client bundle evidence now shows the four-surface allowlist in:
+  - `/_next/static/chunks/895d395268375aaf.js`
+- rebuilt panel bundle still keys off `media-library-panel-grid` in:
+  - `/_next/static/chunks/5091a39e5d2ce696.js`
+
+What remains unproven after Phase 1:
+
+- no trusted authenticated browser replay has yet been captured for the same live `sid`
+- no trusted authenticated `window.__shortpulseMediaPerf?.durationStats()` or `signStats()` packet has yet been captured after the redeploy
+
+Decision consequence:
+
+- the environment/config root cause has been corrected and the rebuilt staging bundle now matches the repo’s intended panel contract
+- stale SOP/troubleshooting cleanup should still wait until an authenticated panel smoke confirms behavior is improved or at least no longer blocked by the old env misconfiguration
 
 ## Commands / Techniques Already Used In This Investigation
 

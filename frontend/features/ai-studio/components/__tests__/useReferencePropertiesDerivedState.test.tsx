@@ -2,6 +2,7 @@ import { renderHook } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import type { AspectOption } from "../../types";
 import { useReferencePropertiesDerivedState } from "../useReferencePropertiesDerivedState";
+import { KIE_KLING_30_MODEL_ID } from "../../../../lib/model-runtime/providerModelIds";
 
 const aspectOptions: AspectOption[] = [
   {
@@ -53,7 +54,7 @@ describe("useReferencePropertiesDerivedState", () => {
     ]);
   });
 
-  it("hides resolution options for models without declared resolution support", () => {
+  it("falls back to default video resolutions when a model has no declared resolution support", () => {
     const { result } = renderHook(() =>
       useReferencePropertiesDerivedState({
         ...baseArgs,
@@ -61,7 +62,10 @@ describe("useReferencePropertiesDerivedState", () => {
       })
     );
 
-    expect(result.current.resolutionOptions).toEqual([]);
+    expect(result.current.resolutionOptions.map((option) => option.value)).toEqual([
+      "720p",
+      "1080p",
+    ]);
   });
 
   it("returns declared resolution options for other models that provide them", () => {
@@ -77,5 +81,45 @@ describe("useReferencePropertiesDerivedState", () => {
       "1080p",
       "4k",
     ]);
+  });
+
+  it("summarizes KIE Kling assets with prompt-token readiness instead of voice counts", () => {
+    const { result } = renderHook(() =>
+      useReferencePropertiesDerivedState({
+        ...baseArgs,
+        modelId: KIE_KLING_30_MODEL_ID,
+        klingElements: [
+          {
+            id: "element-01",
+            frontalImageUrl: "",
+            referenceImageUrls: "",
+            videoUrl: "",
+          },
+        ],
+        klingVoiceIds: ["voice-1", ""],
+      })
+    );
+
+    expect(result.current.klingAssetsSummary).toBe("1 element · Prompt tokens ready");
+  });
+
+  it("summarizes non-KIE Kling assets with voice counts", () => {
+    const { result } = renderHook(() =>
+      useReferencePropertiesDerivedState({
+        ...baseArgs,
+        modelId: "fal-ai/kling-video/v3/pro/image-to-video",
+        klingElements: [
+          {
+            id: "element-01",
+            frontalImageUrl: "",
+            referenceImageUrls: "",
+            videoUrl: "",
+          },
+        ],
+        klingVoiceIds: ["voice-1", ""],
+      })
+    );
+
+    expect(result.current.klingAssetsSummary).toBe("1 element · 1 voice");
   });
 });

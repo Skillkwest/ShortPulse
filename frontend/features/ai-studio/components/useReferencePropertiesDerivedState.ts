@@ -160,9 +160,13 @@ export const useReferencePropertiesDerivedState = ({
     parts.push(
       elementCount ? `${elementCount} element${elementCount > 1 ? "s" : ""}` : "No elements"
     );
-    parts.push(voices ? `${voices} voice${voices > 1 ? "s" : ""}` : "No voices");
+    if (modelId === KIE_KLING_30_MODEL_ID) {
+      parts.push("Prompt tokens ready");
+    } else {
+      parts.push(voices ? `${voices} voice${voices > 1 ? "s" : ""}` : "No voices");
+    }
     return parts.join(" · ");
-  }, [klingElements, klingVoiceIds]);
+  }, [klingElements, klingVoiceIds, modelId]);
   const klingGuidanceSummary = `CFG ${klingCfgScale.toFixed(2)} · ${klingNegativePrompt ? "Neg prompt set" : "Neg prompt empty"}`;
 
   const videoDurationValue = videoDurationSeconds ?? 6;

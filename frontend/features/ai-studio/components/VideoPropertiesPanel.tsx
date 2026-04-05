@@ -265,6 +265,7 @@ export function VideoPropertiesPanel({
     onImageResolutionChange: undefined,
   });
 
+  const isKieKlingWorkspace = isKling3Mode && modelId === KIE_KLING_30_MODEL_ID;
   const isKieKlingModelSelected = modelId === KIE_KLING_30_MODEL_ID;
   const isVeo31ModelSelected =
     modelId?.includes("veo3.1") === true || modelId?.includes("veo-3.1") === true;
@@ -746,6 +747,7 @@ export function VideoPropertiesPanel({
           </div>
           <ReferenceKlingAdvancedSteps
             isKling3Mode={isKling3Mode}
+            isKieKlingModel={isKieKlingWorkspace}
             beginnerMode={beginnerMode}
             klingAdvancedOrder={klingAdvancedOrder}
             klingAdvancedBadge={klingAdvancedBadge}

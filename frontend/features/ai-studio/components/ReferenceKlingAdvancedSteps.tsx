@@ -15,6 +15,7 @@ type KlingElement = {
 
 type ReferenceKlingAdvancedStepsProps = {
   isKling3Mode: boolean;
+  isKieKlingModel: boolean;
   beginnerMode: boolean;
   klingAdvancedOrder?: number;
   klingAdvancedBadge: string;
@@ -63,6 +64,7 @@ const VIDEO_DURATION_OPTIONS = [3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15];
  */
 export const ReferenceKlingAdvancedSteps: React.FC<ReferenceKlingAdvancedStepsProps> = ({
   isKling3Mode,
+  isKieKlingModel,
   beginnerMode,
   klingAdvancedOrder,
   klingAdvancedBadge,
@@ -214,7 +216,7 @@ export const ReferenceKlingAdvancedSteps: React.FC<ReferenceKlingAdvancedStepsPr
         <div className="step-card-header">
           {beginnerMode && <span className="step-badge">{klingAssetsBadge}</span>}
           <div className="step-header-copy">
-            <p className="step-title">Assets & Voices</p>
+            <p className="step-title">{isKieKlingModel ? "Assets" : "Assets & Voices"}</p>
             <span className="step-subtitle tiny helper-text">{klingAssetsSummary}</span>
           </div>
           {!beginnerMode ? (
@@ -279,24 +281,33 @@ export const ReferenceKlingAdvancedSteps: React.FC<ReferenceKlingAdvancedStepsPr
                 </button>
               </div>
             </div>
-            <div className="control-row compact full-span kling-voice-row">
-              <label className="input-label">Voice IDs (optional)</label>
-              <div className="kling-voice-inputs">
-                {[0, 1].map((idx) => (
-                  <input
-                    key={`voice-${idx}`}
-                    className="model-select"
-                    placeholder={`voice_${idx + 1} ID (from create-voice)`}
-                    value={klingVoiceIds[idx]}
-                    onChange={(event) => onKlingVoiceIdChange?.(idx as 0 | 1, event.target.value)}
-                  />
-                ))}
+            {!isKieKlingModel ? (
+              <div className="control-row compact full-span kling-voice-row">
+                <label className="input-label">Voice IDs (optional)</label>
+                <div className="kling-voice-inputs">
+                  {[0, 1].map((idx) => (
+                    <input
+                      key={`voice-${idx}`}
+                      className="model-select"
+                      placeholder={`voice_${idx + 1} ID (from create-voice)`}
+                      value={klingVoiceIds[idx]}
+                      onChange={(event) => onKlingVoiceIdChange?.(idx as 0 | 1, event.target.value)}
+                    />
+                  ))}
+                </div>
+                <span className="tiny helper-text">
+                  Reference in prompt as &lt;&lt;&lt;voice_{1}&gt;&gt;&gt; and &lt;&lt;&lt;voice_{2}
+                  &gt;&gt;&gt; (max 2).
+                </span>
               </div>
-              <span className="tiny helper-text">
-                Reference in prompt as &lt;&lt;&lt;voice_{1}&gt;&gt;&gt; and &lt;&lt;&lt;voice_{2}
-                &gt;&gt;&gt; (max 2).
-              </span>
-            </div>
+            ) : (
+              <div className="control-row compact full-span">
+                <span className="tiny helper-text">
+                  Use `@Element01`-style tokens in the prompt to bind KIE element references to
+                  specific subjects.
+                </span>
+              </div>
+            )}
           </div>
         ) : null}
       </div>
@@ -341,16 +352,25 @@ export const ReferenceKlingAdvancedSteps: React.FC<ReferenceKlingAdvancedStepsPr
                 Lower = freer motion/visuals, higher = tighter adherence.
               </span>
             </div>
-            <div className="control-row compact full-span">
-              <label className="input-label">Negative prompt</label>
-              <textarea
-                className="model-select kling-textarea"
-                value={klingNegativePrompt}
-                rows={2}
-                onChange={(event) => onKlingNegativePromptChange?.(event.target.value)}
-                placeholder="blur, distort, and low quality"
-              />
-            </div>
+            {!isKieKlingModel ? (
+              <div className="control-row compact full-span">
+                <label className="input-label">Negative prompt</label>
+                <textarea
+                  className="model-select kling-textarea"
+                  value={klingNegativePrompt}
+                  rows={2}
+                  onChange={(event) => onKlingNegativePromptChange?.(event.target.value)}
+                  placeholder="blur, distort, and low quality"
+                />
+              </div>
+            ) : (
+              <div className="control-row compact full-span">
+                <span className="tiny helper-text">
+                  KIE Kling guidance here is CFG-based. Quality mode, sound, and multi-shot setup
+                  live in the main video panel.
+                </span>
+              </div>
+            )}
           </div>
         ) : null}
       </div>

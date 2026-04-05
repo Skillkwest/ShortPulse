@@ -1,11 +1,7 @@
 import type { User } from "@supabase/supabase-js";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import {
-  ensureSupabaseQueryClient,
-  useSupabaseSessionState,
-  type SupabaseSessionStateValue,
-} from "../../../../lib/supabaseClient";
+import { ensureSupabaseQueryClient, useSupabaseSessionState } from "../../../../lib/supabaseClient";
 import { useCharacterManagerAccountState } from "../useCharacterManagerAccountState";
 
 const maybeSingleMock = vi.fn();
@@ -21,7 +17,7 @@ const ensureSupabaseQueryClientMock = vi.mocked(ensureSupabaseQueryClient);
 const useSupabaseSessionStateMock = vi.mocked(useSupabaseSessionState);
 
 describe("useCharacterManagerAccountState", () => {
-  let sessionState: SupabaseSessionStateValue;
+  let sessionState: ReturnType<typeof useSupabaseSessionState>;
 
   beforeEach(() => {
     maybeSingleMock.mockReset();

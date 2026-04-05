@@ -11,19 +11,19 @@ const parseFalWebhookPayloadMock = vi.fn((rawBody: string) => JSON.parse(rawBody
 const ingestFalWebhookEventMock = vi.fn();
 
 vi.mock("../../lib/server/api/falWebhook", () => ({
-  readRawBody: (...args: unknown[]) => readRawBodyMock(...args),
-  verifyFalWebhookSignature: (...args: unknown[]) => verifyFalWebhookSignatureMock(...args),
-  verifyFalWebhookBodyHash: (...args: unknown[]) => verifyFalWebhookBodyHashMock(...args),
-  readFalWebhookHeaders: (...args: unknown[]) => readFalWebhookHeadersMock(...args),
+  readRawBody: (req: unknown, options: unknown) => readRawBodyMock(req, options),
+  verifyFalWebhookSignature: (input: unknown) => verifyFalWebhookSignatureMock(input),
+  verifyFalWebhookBodyHash: (input: unknown) => verifyFalWebhookBodyHashMock(input),
+  readFalWebhookHeaders: (req: unknown) => readFalWebhookHeadersMock(req),
 }));
 
 vi.mock("../../lib/server/falIntegration/falWebhookIngress", () => ({
-  parseFalWebhookPayload: (...args: unknown[]) => parseFalWebhookPayloadMock(...args),
-  ingestFalWebhookEvent: (...args: unknown[]) => ingestFalWebhookEventMock(...args),
+  parseFalWebhookPayload: (rawBody: string) => parseFalWebhookPayloadMock(rawBody),
+  ingestFalWebhookEvent: (input: unknown) => ingestFalWebhookEventMock(input),
 }));
 
 vi.mock("../../lib/server/api/appErrorLogs", () => ({
-  logApiRouteException: (...args: unknown[]) => logApiRouteExceptionMock(...args),
+  logApiRouteException: (input: unknown) => logApiRouteExceptionMock(input),
 }));
 
 const createMockResponse = () => ({

@@ -19,6 +19,14 @@ type GenerationQuery = {
   select: ReturnType<typeof vi.fn>;
 };
 
+type ReservationResult = { data: unknown[]; error: null };
+
+type ReservationAwaitable = {
+  eq: ReturnType<typeof vi.fn>;
+  not: ReturnType<typeof vi.fn>;
+  then: PromiseLike<ReservationResult>["then"];
+};
+
 const buildSupabaseMock = ({
   reservations,
   attempts = [],
@@ -48,20 +56,24 @@ const buildSupabaseMock = ({
 
   const createReservationAwaitable = (initialRows: unknown[]) => {
     let currentRows = initialRows;
-    const query = {
-      eq: vi.fn((column: string, value: unknown) => {
-        currentRows = filterRowsByEq(currentRows, column, value);
-        return query;
-      }),
-      not: vi.fn((column: string, operator: string, value: unknown) => {
-        currentRows = filterRowsByNot(currentRows, column, operator, value);
-        return query;
-      }),
-      then: (
-        onfulfilled?: (value: { data: unknown[]; error: null }) => unknown,
-        onrejected?: (reason: unknown) => unknown
-      ) => Promise.resolve({ data: currentRows, error: null }).then(onfulfilled, onrejected),
-    };
+    const query = {} as ReservationAwaitable;
+    query.eq = vi.fn((column: string, value: unknown) => {
+      currentRows = filterRowsByEq(currentRows, column, value);
+      return query;
+    });
+    query.not = vi.fn((column: string, operator: string, value: unknown) => {
+      currentRows = filterRowsByNot(currentRows, column, operator, value);
+      return query;
+    });
+    query.then = <TResult1 = ReservationResult, TResult2 = never>(
+      onfulfilled?: ((value: ReservationResult) => TResult1 | PromiseLike<TResult1>) | null,
+      onrejected?: ((reason: unknown) => TResult2 | PromiseLike<TResult2>) | null
+    ) =>
+      Promise.resolve({ data: currentRows, error: null } as ReservationResult).then(
+        onfulfilled ?? undefined,
+        onrejected ?? undefined
+      );
+
     return query;
   };
 

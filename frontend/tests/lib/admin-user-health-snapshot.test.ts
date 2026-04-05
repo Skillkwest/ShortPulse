@@ -119,7 +119,6 @@ describe("loadAdminHealthSnapshot", () => {
     });
 
     expect(resolveAdminHealthAuthUserMock).toHaveBeenCalledWith({
-      supabaseAdmin: expect.any(Object),
       lookup: "user@example.com",
       lookupMode: "email",
     });

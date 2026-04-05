@@ -8,7 +8,6 @@ import {
   MAX_DEEP_LOOKBACK_DAYS,
   type DeepLookupMode as LookupMode,
 } from "../frontend/lib/server/adminUserHealth/deep";
-import { loadAdminHealthSnapshot } from "../frontend/lib/server/adminUserHealth/snapshot";
 
 type ParsedArgs = {
   lookup: string;
@@ -93,7 +92,11 @@ const normalizeCountMap = (value: Record<string, number>): string =>
     .map(([key, count]) => `${key}=${count}`)
     .join(", ");
 
-const printHumanReport = (snapshot: Awaited<ReturnType<typeof loadAdminHealthSnapshot>>) => {
+type AccountHealthSnapshot = Awaited<
+  typeof import("../frontend/lib/server/adminUserHealth/snapshot").loadAdminHealthSnapshot
+>;
+
+const printHumanReport = (snapshot: Awaited<ReturnType<AccountHealthSnapshot>>) => {
   console.log("[account-health] snapshot loaded");
   console.log(
     `[account-health] target lookup=${snapshot.target.lookup} mode=${snapshot.target.lookupMode} user_id=${snapshot.target.userId} email=${snapshot.target.email ?? "n/a"}`
@@ -165,6 +168,14 @@ const main = async () => {
     argv: process.argv.slice(2),
     defaultPaths: ["frontend/.env.local", ".env.local"],
   });
+
+  const snapshotModule = await import("../frontend/lib/server/adminUserHealth/snapshot");
+  const loadAdminHealthSnapshot =
+    snapshotModule.loadAdminHealthSnapshot ?? snapshotModule.default?.loadAdminHealthSnapshot;
+
+  if (typeof loadAdminHealthSnapshot !== "function") {
+    throw new Error("loadAdminHealthSnapshot export is unavailable.");
+  }
 
   const snapshot = await loadAdminHealthSnapshot({
     lookup: args.lookup,

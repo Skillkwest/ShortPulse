@@ -24,6 +24,7 @@ import { resolveAdminHealthAuthUser } from "./targetLookup";
 
 const DB_PAGE_SIZE = 1000;
 const DB_MAX_PAGES = 50;
+const DB_IN_CLAUSE_BATCH_SIZE = 100;
 
 type QueryError = {
   message?: string;
@@ -70,6 +71,15 @@ const fetchAllRowsForSelect = async <TRow>(
   return { rows, error: null };
 };
 
+const chunkArray = <T>(values: T[], size: number): T[][] => {
+  if (size <= 0) return [values];
+  const chunks: T[][] = [];
+  for (let index = 0; index < values.length; index += size) {
+    chunks.push(values.slice(index, index + size));
+  }
+  return chunks;
+};
+
 /**
  * Load one account health snapshot using the same read path as the admin route.
  */
@@ -88,7 +98,6 @@ export const loadAdminHealthSnapshot = async ({
   const compatibilityWarnings: string[] = [];
 
   const authUser = await resolveAdminHealthAuthUser({
-    supabaseAdmin,
     lookup,
     lookupMode,
   });
@@ -287,19 +296,29 @@ export const loadAdminHealthSnapshot = async ({
   const generationIds = generationsResult.rows.map((row) => row.id).filter(Boolean);
 
   const attemptsResult = generationIds.length
-    ? await fetchAllRowsForSelect<AttemptRow>(async (from, to) => {
-        const query = supabaseAdmin
-          .from("generation_attempts")
-          .select("id,generation_id,provider_request_id,status,created_at")
-          .in("generation_id", generationIds)
-          .order("created_at", { ascending: false })
-          .range(from, to);
-        const { data, error } = await query;
-        return {
-          data: (data as AttemptRow[] | null) ?? null,
-          error: normalizeQueryError(error),
-        };
-      })
+    ? await (async () => {
+        const rows: AttemptRow[] = [];
+        for (const generationIdChunk of chunkArray(generationIds, DB_IN_CLAUSE_BATCH_SIZE)) {
+          const batchResult = await fetchAllRowsForSelect<AttemptRow>(async (from, to) => {
+            const query = supabaseAdmin
+              .from("generation_attempts")
+              .select("id,generation_id,provider_request_id,status,created_at")
+              .in("generation_id", generationIdChunk)
+              .order("created_at", { ascending: false })
+              .range(from, to);
+            const { data, error } = await query;
+            return {
+              data: (data as AttemptRow[] | null) ?? null,
+              error: normalizeQueryError(error),
+            };
+          });
+          if (batchResult.error) {
+            return batchResult;
+          }
+          rows.push(...batchResult.rows);
+        }
+        return { rows, error: null as QueryError | null };
+      })()
     : { rows: [] as AttemptRow[], error: null };
 
   const attemptsError = normalizeQueryError(attemptsResult.error);
@@ -314,19 +333,29 @@ export const loadAdminHealthSnapshot = async ({
   }
 
   const outputsResult = generationIds.length
-    ? await fetchAllRowsForSelect<OutputRow>(async (from, to) => {
-        const query = supabaseAdmin
-          .from("ai_generation_outputs")
-          .select("id,generation_id,media_file_id,created_at")
-          .in("generation_id", generationIds)
-          .order("created_at", { ascending: false })
-          .range(from, to);
-        const { data, error } = await query;
-        return {
-          data: (data as OutputRow[] | null) ?? null,
-          error: normalizeQueryError(error),
-        };
-      })
+    ? await (async () => {
+        const rows: OutputRow[] = [];
+        for (const generationIdChunk of chunkArray(generationIds, DB_IN_CLAUSE_BATCH_SIZE)) {
+          const batchResult = await fetchAllRowsForSelect<OutputRow>(async (from, to) => {
+            const query = supabaseAdmin
+              .from("ai_generation_outputs")
+              .select("id,generation_id,media_file_id,created_at")
+              .in("generation_id", generationIdChunk)
+              .order("created_at", { ascending: false })
+              .range(from, to);
+            const { data, error } = await query;
+            return {
+              data: (data as OutputRow[] | null) ?? null,
+              error: normalizeQueryError(error),
+            };
+          });
+          if (batchResult.error) {
+            return batchResult;
+          }
+          rows.push(...batchResult.rows);
+        }
+        return { rows, error: null as QueryError | null };
+      })()
     : { rows: [] as OutputRow[], error: null };
 
   const outputsError = normalizeQueryError(outputsResult.error);
@@ -359,4 +388,8 @@ export const loadAdminHealthSnapshot = async ({
     ledger: ledgerResult.rows,
     nowMs,
   });
+};
+
+export default {
+  loadAdminHealthSnapshot,
 };

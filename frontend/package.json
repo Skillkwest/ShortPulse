@@ -91,7 +91,7 @@
     "knip": "^5.84.1",
     "lint-staged": "^15.5.2",
     "prettier": "^3.8.1",
-    "supabase": "^2.76.7",
+    "supabase": "^2.84.10",
     "typescript": "5.3.3",
     "typescript-eslint": "^8.55.0",
     "vitest": "^4.0.18"

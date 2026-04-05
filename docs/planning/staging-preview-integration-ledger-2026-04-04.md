@@ -7,9 +7,9 @@ Purpose: working checkpoint for the current `staging-preview` consolidation effo
 - Active integration target: `staging-preview`
 - Non-target branch for this lane: `main`
 - Primary source branch being consolidated: `origin/codex/full-unified-layers`
-- Current stable code checkpoint: `a63e4c9d6`
-- Last pushed remote checkpoint: `a63e4c9d6`
-- Local/remote delta: `SA-1` authority cleanup lane in progress locally
+- Current stable code checkpoint: `5c147b2b6`
+- Last pushed remote checkpoint: `04ba3e12f`
+- Local/remote delta: `RT-1B` validated locally and pending push
 - Whole-branch merge status: attempted once, then rolled back after broad `type-check` failure
 - Active strategy: lane-based integration with validation after each lane
 
@@ -48,21 +48,28 @@ Current blocking condition:
 
 Current relevant uncategorized buckets:
 
-- `RT-1A` queue/sourceRef and polling-authority alignment
-  - status: `absorbed locally`
-  - target surface: `frontend/features/ai-studio/hooks/taskSubmission/outputLifecyclePatches.ts`, `frontend/features/ai-studio/hooks/taskSubmission/queueStatusPolling.ts`, `frontend/features/ai-studio/hooks/useAiStudioTaskSubmission.ts`, `frontend/features/ai-studio/hooks/useAiStudioTasks.ts`, related hook tests
-  - why relevant: queued `sourceRef` carry-through, dispatch-handoff initial delay parity, and server-lifecycle-first polling authority are product/runtime behavior and are now validated locally on `staging-preview`
-- `RT-1B` advanced KIE Kling payload parity
-  - status: `remaining`
-  - target surface: `frontend/features/ai-studio/hooks/taskSubmission/videoHandlers.ts`, `frontend/features/ai-studio/hooks/taskSubmission/videoPayloads.ts`, plus `frontend/lib/model-runtime/modelCatalog.ts`, `frontend/lib/server/providerIntegration/kieModelContracts.ts`, and related contract tests if full multi-shot/element parity is still desired
-  - why relevant: the remaining source delta is specifically the multi-shot/element KIE Kling contract expansion, which is no longer a hook-only slice on current branch truth
 - `VP-1` reference-video and Kling advanced-panel follow-on
   - status: `remaining`
   - target surface: `frontend/features/ai-studio/components/ReferenceKlingAdvancedSteps.tsx`, `frontend/features/ai-studio/components/VideoPropertiesPanel.tsx`, `frontend/features/ai-studio/components/useReferencePropertiesDerivedState.ts`, related tests
   - why relevant: panel copy, control visibility, and KIE/Kling workspace affordances remain different from the source branch
 
-Recently closed relevant bucket:
+Recently closed relevant buckets:
 
+- `RT-1A` queue/sourceRef and polling-authority alignment
+  - status: `absorbed locally`
+  - landed behavior:
+    - queued `sourceRef` now survives the submit patch path
+    - direct dispatches use the same handoff-delay polling contract as resumed queue handoffs
+    - task polling trusts lifecycle-authored success/failure authority and hands raw terminal states back to server recovery instead of forcing local success
+  - why it matters: it closed the last hook-only polling and queue-authority delta on `staging-preview`
+
+- `RT-1B` advanced KIE Kling payload parity
+  - status: `absorbed locally`
+  - landed behavior:
+    - KIE Kling standard submits now support multi-shot prompts and deterministic element payloads
+    - KIE Kling duration and allowlist contracts now admit the expanded `3-15` second runtime lane
+    - the KIE provider normalizer and route parity tests now agree on `multi_prompt` and `kling_elements`
+  - why it matters: it closes the remaining runtime-side KIE Kling source parity and leaves only the panel/UI follow-on bucket
 - `SA-1` small safety/authority cleanup lane
   - status: `absorbed locally`
   - landed behavior:
@@ -108,6 +115,8 @@ Reason:
 | `c2eda59e7` | UI properties extraction plan checkpoint established |
 | `8f231fa01` | UI-1 checkpoint docs and sourceRef coverage refreshed |
 | `a63e4c9d6` | RT-1A polling and queue sourceRef alignment stabilized locally |
+| `04ba3e12f` | SA-1 style and download authority cleanup stabilized locally |
+| `5c147b2b6` | RT-1B Kie Kling advanced payload parity stabilized locally |
 
 ## Landed Lanes
 
@@ -438,6 +447,7 @@ Still-useful local safety refs:
 - `refs/keep/staging-preview-pre-ui1-product-extraction`
 - `refs/keep/staging-preview-pre-rt1-video-runtime-lane`
 - `refs/keep/staging-preview-pre-sa-1-authority-cleanup-lane`
+- `refs/keep/staging-preview-pre-rt1b-kie-advanced-payload-lane`
 
 ## Remaining Work
 
@@ -445,9 +455,9 @@ Still-useful local safety refs:
 
 Current recommendation:
 
-1. close and push the validated RT-1A runtime lane
-2. decide whether the remaining relevant delta should continue as `RT-1B` or `VP-1`
-3. only reopen KIE Kling payload parity work if the server contract files are intentionally admitted to scope
+1. push the validated `RT-1B` runtime checkpoint
+2. treat `VP-1` as the only remaining relevant product/runtime bucket from this source comparison
+3. after `VP-1`, run a final reconciliation pass and decide whether the integration can be closed under the done-state contract
 
 Decision note:
 
@@ -459,10 +469,14 @@ Decision note:
   - direct dispatches use the same handoff-delay polling contract as resumed queue handoffs
   - task polling now trusts lifecycle-authored success/failure authority and hands raw terminal states back to server recovery instead of forcing local success
   - KIE Kling standard submits now carry the contract-safe `mode`, `sound`, and `multi_shots` fields already supported by current `staging-preview`
+- `RT-1B` is now locally cleared:
+  - KIE Kling standard submits support multi-shot prompt payloads and deterministic element payloads
+  - the model catalog and provider normalizer now admit the expanded KIE Kling contract shape
+  - route-contract parity and provider-normalizer tests agree on the new KIE fields
 - `SA-1` is now locally cleared:
   - style intake no longer falls through to network fetch when an internal drag payload exists without resolver authority
   - saved-media downloads now prefer canonical `storage_path` over preview derivatives in the local helper path
-- the remaining KIE Kling multi-shot/element parity is not a hook-only change on current branch truth; it requires submit-contract/model-catalog files and should be tracked as `RT-1B` instead of being pulled in by momentum
+- `VP-1` is now the only remaining relevant branch-truth bucket from this source comparison set
 
 ### Deferred UI/docs collateral remainder
 

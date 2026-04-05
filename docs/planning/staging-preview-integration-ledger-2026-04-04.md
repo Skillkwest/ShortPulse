@@ -7,9 +7,9 @@ Purpose: working checkpoint for the current `staging-preview` consolidation effo
 - Active integration target: `staging-preview`
 - Non-target branch for this lane: `main`
 - Primary source branch being consolidated: `origin/codex/full-unified-layers`
-- Current stable code checkpoint: `504e4a723`
-- Last pushed remote checkpoint: `a8eb962c2`
-- Local/remote delta: diagnostics/operator tooling lane plus this ledger refresh
+- Current stable code checkpoint: `c2eda59e7`
+- Last pushed remote checkpoint: `c2eda59e7`
+- Local/remote delta: none at UI-properties extraction handoff
 - Whole-branch merge status: attempted once, then rolled back after broad `type-check` failure
 - Active strategy: lane-based integration with validation after each lane
 
@@ -33,6 +33,7 @@ Purpose: working checkpoint for the current `staging-preview` consolidation effo
 | `861d3ac0d` | Modal/runtime trim lane stabilized locally |
 | `61a444825` | Recovery visibility/convergence lane stabilized locally |
 | `504e4a723` | Diagnostics/operator tooling lane stabilized locally |
+| `c2eda59e7` | UI properties extraction plan checkpoint established |
 
 ## Landed Lanes
 
@@ -360,6 +361,7 @@ Still-useful local safety refs:
 - `refs/keep/staging-preview-pre-modal-runtime-trim-lane`
 - `refs/keep/staging-preview-pre-recovery-visibility-lane`
 - `refs/keep/staging-preview-pre-diagnostics-operator-lane`
+- `refs/keep/staging-preview-pre-ui1-product-extraction`
 
 ## Remaining Work
 
@@ -381,6 +383,8 @@ Decision note:
 
 - the diagnostics/operator lane is now complete
 - the next lane should be chosen from current product code on `staging-preview`, not from remaining raw source commit names
+- current branch audit shows the routing/session-hydration UI-1 posture is largely already present locally
+- the remaining upstream delta identified during the UI-1 audit is a narrow video-panel prop thread that depends on `frontend/features/ai-studio/hooks/useAiStudioVideoPanelProps.ts`, so it should stay out-of-scope unless that hook is explicitly admitted to the lane
 
 ### Deferred UI/docs collateral remainder
 

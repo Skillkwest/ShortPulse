@@ -321,6 +321,7 @@ describe("sessionSnapshotHydrator", () => {
               status: "ready",
               timestamp: "Submitting...",
               generationId: "gen-queued-restore",
+              sourceRef: "src-queued-restore",
               queueState: "queued",
               queueEnqueuedAtMs: 1_700_000_456_000,
               taskState: "pending",
@@ -333,6 +334,7 @@ describe("sessionSnapshotHydrator", () => {
     );
 
     expect(payload.outputs.active[0]?.generationId).toBe("gen-queued-restore");
+    expect(payload.outputs.active[0]?.sourceRef).toBe("src-queued-restore");
     expect(payload.outputs.active[0]?.queueState).toBe("queued");
     expect(payload.outputs.active[0]?.queueEnqueuedAtMs).toBe(1_700_000_456_000);
     expect(payload.outputs.active[0]?.generationTraceId).toBe("trace-queued-restore");

@@ -7,9 +7,9 @@ Purpose: working checkpoint for the current `staging-preview` consolidation effo
 - Active integration target: `staging-preview`
 - Non-target branch for this lane: `main`
 - Primary source branch being consolidated: `origin/codex/full-unified-layers`
-- Current local checkpoint: `861d3ac0d`
-- Last pushed remote checkpoint: `dfd44f004`
-- Local/remote delta: rejected status-authority experiment, modal/runtime trim lane, and this ledger refresh
+- Current local checkpoint: `61a444825`
+- Last pushed remote checkpoint: `5b0c57f2d`
+- Local/remote delta: recovery visibility/convergence lane plus this ledger refresh
 - Whole-branch merge status: attempted once, then rolled back after broad `type-check` failure
 - Active strategy: lane-based integration with validation after each lane
 
@@ -31,6 +31,7 @@ Purpose: working checkpoint for the current `staging-preview` consolidation effo
 | `7c83fae98` | Shared sound/TTS properties lane stabilized locally |
 | `abe07804c` | Reference/media-authority lane stabilized locally |
 | `861d3ac0d` | Modal/runtime trim lane stabilized locally |
+| `61a444825` | Recovery visibility/convergence lane stabilized locally |
 
 ## Landed Lanes
 
@@ -221,6 +222,21 @@ Checkpoint result:
 - `npm run type-check` passed
 - `npm run build` passed
 
+### Lane 12: recovery visibility and convergence
+
+Representative landed commits:
+
+- `61a444825` Improve recovery visibility and convergence
+
+Checkpoint result:
+
+- background recovery no-media polling now retries more aggressively on current `staging-preview`
+- status/result probing and recovery media persistence now perform their provider work concurrently while preserving current ordering guarantees
+- recovery execution now emits the newer visibility/convergence runtime behavior without importing the unrelated frontend collateral from the source lane
+- focused recovery-visibility suite passed
+- `npm run type-check` passed
+- `npm run build` passed
+
 ## Local Stabilization Commits
 
 These commits were created locally because the imported runtime work was not fully self-contained on `staging-preview`:
@@ -258,6 +274,8 @@ These source commits from `origin/codex/full-unified-layers` are already represe
 - `b3a62c47b`
 - `414d4d74f`
 - `cece1993f`
+- `7d4d483c7`
+- `f90c73062`
 - `734ba6ba5`
 - `01e97c71f`
 - `955003e76`
@@ -314,6 +332,7 @@ Still-useful local safety refs:
 - `refs/keep/staging-preview-pre-reference-media-authority-lane`
 - `refs/keep/staging-preview-pre-status-authority-cleanup-lane`
 - `refs/keep/staging-preview-pre-modal-runtime-trim-lane`
+- `refs/keep/staging-preview-pre-recovery-visibility-lane`
 
 ## Remaining Work
 
@@ -322,16 +341,16 @@ Still-useful local safety refs:
 Current recommendation:
 
 1. push the current stable local `staging-preview` checkpoint
-2. remeasure the remaining `origin/codex/full-unified-layers` delta from `861d3ac0d`
+2. remeasure the remaining `origin/codex/full-unified-layers` delta from `61a444825`
 3. decide whether the next product-code lane is:
-   - residual recovery-visibility/runtime tail
+   - residual runtime/media-authority tail
    - a smaller non-UI collateral slice
    - or a tighter follow-on UI lane that does not drag docs/skills churn
 
 Decision note:
 
-- the modal/runtime trim lane is now complete
-- the next lane should be chosen from the updated post-trim branch state, not from the older pre-trim plan
+- the recovery visibility/convergence lane is now complete
+- the next lane should be chosen from the updated post-recovery-visibility branch state, not from the older pre-trim plan
 
 ### Deferred runtime/docs operator tail
 

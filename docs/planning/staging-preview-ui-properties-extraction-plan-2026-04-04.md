@@ -5,7 +5,7 @@ Purpose: define the remaining product-only extraction strategy for the AI Studio
 ## Current Posture
 
 - Active integration target: `staging-preview`
-- Current shared checkpoint: `50441c2cc`
+- Current shared checkpoint: `665bd60fe`
 - Source branch for comparison only: `origin/codex/full-unified-layers`
 - Branch-level merges are no longer the right unit for the remaining UI work.
 

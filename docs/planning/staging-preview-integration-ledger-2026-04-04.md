@@ -8,8 +8,8 @@ Purpose: working checkpoint for the current `staging-preview` consolidation effo
 - Non-target branch for this lane: `main`
 - Primary source branch being consolidated: `origin/codex/full-unified-layers`
 - Current stable code checkpoint: `50441c2cc`
-- Last pushed remote checkpoint: `1c15b6654`
-- Local/remote delta: `VP-1` and closeout docs pending push
+- Last pushed remote checkpoint: `665bd60fe`
+- Local/remote delta: `none`
 - Whole-branch merge status: attempted once, then rolled back after broad `type-check` failure
 - Active strategy: lane-based integration with validation after each lane
 
@@ -39,12 +39,12 @@ Disposition definitions:
 Comparison set:
 
 - fixed source branch: `origin/codex/full-unified-layers`
-- tracker status: `ready_for_closeout`
-- closeout status: `pending final push`
+- tracker status: `complete`
+- closeout status: `done`
 
 Current blocking condition:
 
-- no relevant product/runtime bucket remains uncategorized locally; the remaining step is to push the validated `VP-1` and closeout-docs checkpoints
+- none
 
 Current relevant uncategorized buckets:
 
@@ -87,6 +87,21 @@ Current excluded remainder:
 
 - docs, ADRs, evidence packets, design specs, and change-log collateral that are not required to prove product/runtime parity on `staging-preview`
 - mixed source commits whose remaining raw diff is mostly docs, `skills/`, or planning material and should not be merged by source commit name alone
+- representative raw source commits still treated as excluded at the branch level:
+  - `a57630d0b`
+  - `b55a631a2`
+
+Current superseded remainder:
+
+- the remaining source-side runtime and UI commit identities visible in `git log --left-right --cherry-pick origin/codex/full-unified-layers...staging-preview` are commit-shape differences, not uncategorized product gaps
+- representative mappings:
+  - `0ee7762e1` superseded by local `d9488839f`
+  - `8577b81ef` superseded by local `57d15acf4`
+  - `d68559372` superseded by local `991bc5587`
+  - `4875e3e0b` superseded by local `4c2f7fa4f`
+  - `751df4cf3` superseded by local `b1e86f1b8` and `50441c2cc`
+  - `eb64b561c` superseded by local `00dcbe7a8`
+- the broader absorbed runtime/control-plane source work is represented by the local stabilization checkpoints and landed-lane sections below rather than by matching source commit hashes one-for-one
 
 Current rejected remainder:
 
@@ -462,9 +477,9 @@ Still-useful local safety refs:
 
 Current recommendation:
 
-1. push the validated `VP-1` product checkpoint and closeout docs sync
-2. run a final reconciliation readout from current `staging-preview` truth and confirm no relevant uncategorized source diff remains
-3. if that readout still holds after push, mark this source comparison complete and stop extracting by momentum
+1. do not extract additional work from `origin/codex/full-unified-layers` by momentum
+2. start any further changes from current `staging-preview` product requirements
+3. preserve this ledger as the closeout record for the completed source comparison
 
 Decision note:
 
@@ -488,6 +503,15 @@ Decision note:
   - the KIE assets summary now advertises prompt-token readiness instead of voice counts
   - focused panel tests lock the KIE-vs-Fal Kling affordance split
 - there is no remaining relevant uncategorized branch-truth bucket from this source comparison set
+- the final reconciliation pass found no remaining relevant uncategorized source diff; remaining raw branch differences are either explicitly `excluded`, explicitly `rejected`, or locally `superseded`
+
+## Final Closeout Statement
+
+- comparison source branch: `origin/codex/full-unified-layers`
+- status: `complete`
+- relevant uncategorized buckets: `0`
+- remaining raw diff classification: `excluded`, `rejected`, or `superseded` only
+- further extraction planned from this source branch: `no`
 
 ### Deferred UI/docs collateral remainder
 

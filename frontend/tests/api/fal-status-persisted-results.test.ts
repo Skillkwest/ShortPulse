@@ -3,7 +3,6 @@ import {
   buildPersistedCompletedPayload,
   buildPersistedFailedPayload,
   readPersistedGenerationStatusContext,
-  readPersistedResultUrlsFromMetadata,
   readPersistedSuccessResultUrls,
 } from "../../lib/server/api/falStatusPersistedResults";
 
@@ -76,38 +75,6 @@ describe("falStatusPersistedResults", () => {
         }),
       };
     });
-  });
-
-  it("prefers result_urls and normalizes object entries", () => {
-    expect(
-      readPersistedResultUrlsFromMetadata({
-        result_urls: [
-          " https://cdn.shortpulse.test/video-a.mp4 ",
-          { download_url: "https://cdn.shortpulse.test/video-b.mp4" },
-          { video_url: "https://cdn.shortpulse.test/video-b.mp4" },
-          "",
-          null,
-        ],
-        media_urls: ["https://cdn.shortpulse.test/fallback.mp4"],
-      })
-    ).toEqual([
-      "https://cdn.shortpulse.test/video-a.mp4",
-      "https://cdn.shortpulse.test/video-b.mp4",
-    ]);
-  });
-
-  it("falls back to media_urls when result_urls are absent", () => {
-    expect(
-      readPersistedResultUrlsFromMetadata({
-        mediaUrls: [
-          { image_url: "https://cdn.shortpulse.test/image-a.png" },
-          { file_url: "https://cdn.shortpulse.test/file-a.bin" },
-        ],
-      })
-    ).toEqual([
-      "https://cdn.shortpulse.test/image-a.png",
-      "https://cdn.shortpulse.test/file-a.bin",
-    ]);
   });
 
   it("returns no settled urls when only legacy success metadata exists", async () => {

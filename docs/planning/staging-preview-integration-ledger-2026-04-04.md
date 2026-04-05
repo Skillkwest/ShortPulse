@@ -7,9 +7,9 @@ Purpose: working checkpoint for the current `staging-preview` consolidation effo
 - Active integration target: `staging-preview`
 - Non-target branch for this lane: `main`
 - Primary source branch being consolidated: `origin/codex/full-unified-layers`
-- Current stable code checkpoint: `c2eda59e7`
-- Last pushed remote checkpoint: `c2eda59e7`
-- Local/remote delta: none at UI-properties extraction handoff
+- Current stable code checkpoint: `8f231fa01`
+- Last pushed remote checkpoint: `8f231fa01`
+- Local/remote delta: none after UI-1 checkpoint refresh
 - Whole-branch merge status: attempted once, then rolled back after broad `type-check` failure
 - Active strategy: lane-based integration with validation after each lane
 
@@ -34,6 +34,7 @@ Purpose: working checkpoint for the current `staging-preview` consolidation effo
 | `61a444825` | Recovery visibility/convergence lane stabilized locally |
 | `504e4a723` | Diagnostics/operator tooling lane stabilized locally |
 | `c2eda59e7` | UI properties extraction plan checkpoint established |
+| `8f231fa01` | UI-1 checkpoint docs and sourceRef coverage refreshed |
 
 ## Landed Lanes
 
@@ -385,6 +386,7 @@ Decision note:
 - the next lane should be chosen from current product code on `staging-preview`, not from remaining raw source commit names
 - current branch audit shows the routing/session-hydration UI-1 posture is largely already present locally
 - the remaining upstream delta identified during the UI-1 audit is a narrow video-panel prop thread that depends on `frontend/features/ai-studio/hooks/useAiStudioVideoPanelProps.ts`, so it should stay out-of-scope unless that hook is explicitly admitted to the lane
+- the next highest-ROI extraction candidate is no longer a properties-panel lane; it is a bounded video submission/runtime alignment lane centered on KIE Kling payload shaping and server-lifecycle polling authority
 
 ### Deferred UI/docs collateral remainder
 

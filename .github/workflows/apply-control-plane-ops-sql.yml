@@ -117,7 +117,7 @@ jobs:
 
       - name: Upload apply log artifact
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: control-plane-ops-sql-${{ github.run_id }}
           path: /tmp/control_plane_ops_sql.log

@@ -79,7 +79,7 @@ jobs:
 
       - name: Upload gate log artifact
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: conversation-state-hardening-gate-${{ github.run_id }}
           path: /tmp/conversation_state_hardening_gate.log

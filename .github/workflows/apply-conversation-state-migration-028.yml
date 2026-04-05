@@ -117,7 +117,7 @@ jobs:
 
       - name: Upload apply log artifact
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: conversation-state-migration-${{ github.event.inputs.migration_id }}-${{ github.run_id }}
           path: /tmp/conversation_state_migration_028_apply.log

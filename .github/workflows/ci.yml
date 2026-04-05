@@ -69,7 +69,7 @@ jobs:
       - name: Detect Phase 11 Fal/provider-impacting changes
         id: changes
         if: ${{ github.event_name == 'pull_request' }}
-        uses: dorny/paths-filter@v3
+        uses: dorny/paths-filter@v4
         with:
           filters: |
             phase11_fal:
@@ -174,7 +174,7 @@ jobs:
       - name: Detect Expert Edit coordinate-parity-impacting changes
         id: changes
         if: ${{ github.event_name == 'pull_request' }}
-        uses: dorny/paths-filter@v3
+        uses: dorny/paths-filter@v4
         with:
           filters: |
             expert_edit_coordinate_parity:
@@ -696,7 +696,7 @@ jobs:
       - name: Detect Adaptive Media V2-impacting changes
         id: changes
         if: ${{ github.event_name == 'pull_request' }}
-        uses: dorny/paths-filter@v3
+        uses: dorny/paths-filter@v4
         with:
           filters: |
             adaptive_media:
@@ -755,7 +755,7 @@ jobs:
       - name: Detect AI Studio perf-impacting changes
         id: changes
         if: ${{ github.event_name == 'pull_request' }}
-        uses: dorny/paths-filter@v3
+        uses: dorny/paths-filter@v4
         with:
           filters: |
             ai_studio:

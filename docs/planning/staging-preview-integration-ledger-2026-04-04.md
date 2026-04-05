@@ -8,10 +8,72 @@ Purpose: working checkpoint for the current `staging-preview` consolidation effo
 - Non-target branch for this lane: `main`
 - Primary source branch being consolidated: `origin/codex/full-unified-layers`
 - Current stable code checkpoint: `8f231fa01`
-- Last pushed remote checkpoint: `8f231fa01`
-- Local/remote delta: none after UI-1 checkpoint refresh
+- Last pushed remote checkpoint: `7d197d5e4`
+- Local/remote delta: none after re-baseline planning refresh
 - Whole-branch merge status: attempted once, then rolled back after broad `type-check` failure
 - Active strategy: lane-based integration with validation after each lane
+
+## Integration Done-State Contract
+
+The `staging-preview` consolidation can be called complete only when the fixed comparison set for this effort, `origin/codex/full-unified-layers`, satisfies all of the following:
+
+1. every relevant source commit or remaining source-diff bucket has exactly one disposition:
+   - `absorbed`
+   - `superseded`
+   - `excluded`
+   - `rejected`
+2. every `absorbed` item is mapped to local `staging-preview` commit(s) and validated on the target branch
+3. no relevant product/runtime diff remains uncategorized
+4. any remaining raw diff against the source branch is non-relevant only and explicitly documented as `excluded` or `rejected`
+5. `staging-preview` is pushed, clean, and backed by the recorded rollback refs/checkpoints
+
+Disposition definitions:
+
+- `absorbed`: the source behavior is present locally on `staging-preview`
+- `superseded`: the source commit is no longer needed because equivalent or better local behavior already landed through a different lane
+- `excluded`: the remaining source delta is intentionally outside this integration target, such as docs, evidence, design collateral, or mixed non-product payloads we are not bringing over wholesale
+- `rejected`: the source delta was evaluated and intentionally not landed because it regresses current branch behavior, widens scope incorrectly, or conflicts with the chosen local contract
+
+## Reconciliation Status
+
+Comparison set:
+
+- fixed source branch: `origin/codex/full-unified-layers`
+- tracker status: `in_progress`
+- closeout status: `not done`
+
+Current blocking condition:
+
+- relevant source work still remains, but it is now small enough to track as explicit branch-truth buckets instead of raw source commit names
+
+Current relevant uncategorized buckets:
+
+- `RT-1` video submission and polling alignment
+  - status: `remaining`
+  - target surface: `frontend/features/ai-studio/hooks/taskSubmission/*`, `frontend/features/ai-studio/hooks/useAiStudioTaskSubmission.ts`, `frontend/features/ai-studio/hooks/useAiStudioTaskOrchestration.ts`, `frontend/features/ai-studio/hooks/useAiStudioTasks.ts`
+  - why relevant: KIE Kling payload shaping, queued `sourceRef` carry-through, and server-lifecycle-first polling authority are product/runtime behavior
+- `VP-1` reference-video and Kling advanced-panel follow-on
+  - status: `remaining`
+  - target surface: `frontend/features/ai-studio/components/ReferenceKlingAdvancedSteps.tsx`, `frontend/features/ai-studio/components/VideoPropertiesPanel.tsx`, `frontend/features/ai-studio/components/useReferencePropertiesDerivedState.ts`, related tests
+  - why relevant: panel copy, control visibility, and KIE/Kling workspace affordances remain different from the source branch
+- `SA-1` small safety/authority cleanup lane
+  - status: `remaining`
+  - target surface: `frontend/features/ai-studio/components/style-creator/styleSourceNormalization.ts`, `frontend/features/ai-studio/logic/referenceDownload.ts`, `frontend/features/ai-studio/logic/staleOutputCleanup.ts`, related tests
+  - why relevant: these are still product/runtime correctness deltas, but they are independent from the panel redesign surface
+
+Current excluded remainder:
+
+- docs, ADRs, evidence packets, design specs, and change-log collateral that are not required to prove product/runtime parity on `staging-preview`
+- mixed source commits whose remaining raw diff is mostly docs, `skills/`, or planning material and should not be merged by source commit name alone
+
+Current rejected remainder:
+
+- `044b9d82f`
+- `33741df86`
+
+Reason:
+
+- these were evaluated on current `staging-preview` and intentionally not landed because they move persisted-success handling from recovery-pending to completed, which is not the chosen local runtime contract
 
 ## Stable Checkpoints
 

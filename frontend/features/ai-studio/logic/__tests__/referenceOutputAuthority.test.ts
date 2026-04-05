@@ -11,7 +11,6 @@ describe("referenceOutputAuthority", () => {
   it("treats storage-backed generated outputs as reusable", () => {
     const output = {
       mediaSource: "generated" as const,
-      generationId: null,
       previewStoragePath: "user-1/variants/images/ref-1/thumb_480",
       fullStoragePath: null,
       savedMediaIds: [],
@@ -43,7 +42,6 @@ describe("referenceOutputAuthority", () => {
   it("keeps weak generated previews preview-only", () => {
     const output = {
       mediaSource: "generated" as const,
-      generationId: null,
       previewStoragePath: null,
       fullStoragePath: null,
       savedMediaIds: [],
@@ -59,7 +57,6 @@ describe("referenceOutputAuthority", () => {
   it("allows uploads to stay directly reusable even without generation metadata", () => {
     const output = {
       mediaSource: "upload" as const,
-      generationId: null,
       previewStoragePath: null,
       fullStoragePath: null,
       savedMediaIds: [],
@@ -73,7 +70,6 @@ describe("referenceOutputAuthority", () => {
   it("treats saved media ids as storage authority", () => {
     const output = {
       mediaSource: "generated" as const,
-      generationId: null,
       previewStoragePath: null,
       fullStoragePath: null,
       savedMediaIds: ["media-1"],

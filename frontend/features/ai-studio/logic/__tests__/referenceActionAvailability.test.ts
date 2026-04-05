@@ -8,8 +8,8 @@ describe("referenceActionAvailability", () => {
       generationId: "gen-1",
       previewStoragePath: null,
       fullStoragePath: null,
-      savedMediaIds: [],
-    } as const;
+      savedMediaIds: [] as string[],
+    };
 
     expect(canSaveReferenceOutput(output)).toBe(true);
     expect(canDownloadReferenceOutput(output)).toBe(true);
@@ -18,11 +18,10 @@ describe("referenceActionAvailability", () => {
   it("blocks save and download for weak generated previews", () => {
     const output = {
       mediaSource: "generated" as const,
-      generationId: null,
       previewStoragePath: null,
       fullStoragePath: null,
-      savedMediaIds: [],
-    } as const;
+      savedMediaIds: [] as string[],
+    };
 
     expect(canSaveReferenceOutput(output)).toBe(false);
     expect(canDownloadReferenceOutput(output)).toBe(false);
@@ -31,11 +30,10 @@ describe("referenceActionAvailability", () => {
   it("allows download for storage-backed generated outputs even without generation id", () => {
     const output = {
       mediaSource: "generated" as const,
-      generationId: null,
       previewStoragePath: "user-1/uploads/images/ref-1.png",
       fullStoragePath: null,
-      savedMediaIds: [],
-    } as const;
+      savedMediaIds: [] as string[],
+    };
 
     expect(canSaveReferenceOutput(output)).toBe(true);
     expect(canDownloadReferenceOutput(output)).toBe(true);
@@ -44,11 +42,10 @@ describe("referenceActionAvailability", () => {
   it("keeps uploads available for save and download", () => {
     const output = {
       mediaSource: "upload" as const,
-      generationId: null,
       previewStoragePath: null,
       fullStoragePath: null,
-      savedMediaIds: [],
-    } as const;
+      savedMediaIds: [] as string[],
+    };
 
     expect(canSaveReferenceOutput(output)).toBe(true);
     expect(canDownloadReferenceOutput(output)).toBe(true);

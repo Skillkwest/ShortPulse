@@ -83,9 +83,10 @@ Keep:
 3. `frontend/lib/server/generationControlPlane/runCycle.ts`
 4. `frontend/lib/server/api/generationProjection.ts`
 5. `frontend/features/ai-studio/logic/referenceGridMedia.ts`
-6. `frontend/features/ai-studio/hooks/useAiStudioOutputCollectionState.ts`
-7. `frontend/features/ai-studio/hooks/useAiStudioOutputDerivations.ts`
-8. `frontend/features/ai-studio/hooks/useAiStudioOutputStoreSelectors.ts`
+6. `frontend/features/ai-studio/reference-grid/controllers/useReferenceGridResolvedMediaController.ts`
+7. `frontend/features/ai-studio/hooks/useAiStudioOutputCollectionState.ts`
+8. `frontend/features/ai-studio/hooks/useAiStudioOutputDerivations.ts`
+9. `frontend/features/ai-studio/hooks/useAiStudioOutputStoreSelectors.ts`
 
 Temporary keep:
 1. `frontend/lib/server/api/falStatusPersistedResults.ts` legacy terminal-failure fallback until projection-backed failure is proven sufficient

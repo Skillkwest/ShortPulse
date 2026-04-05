@@ -7,9 +7,9 @@ Purpose: working checkpoint for the current `staging-preview` consolidation effo
 - Active integration target: `staging-preview`
 - Non-target branch for this lane: `main`
 - Primary source branch being consolidated: `origin/codex/full-unified-layers`
-- Current local checkpoint: `abe07804c`
+- Current local checkpoint: `861d3ac0d`
 - Last pushed remote checkpoint: `dfd44f004`
-- Local/remote delta: reference/media-authority lane plus this ledger refresh
+- Local/remote delta: rejected status-authority experiment, modal/runtime trim lane, and this ledger refresh
 - Whole-branch merge status: attempted once, then rolled back after broad `type-check` failure
 - Active strategy: lane-based integration with validation after each lane
 
@@ -30,6 +30,7 @@ Purpose: working checkpoint for the current `staging-preview` consolidation effo
 | `b1e86f1b8` | Video properties lane stabilized locally |
 | `7c83fae98` | Shared sound/TTS properties lane stabilized locally |
 | `abe07804c` | Reference/media-authority lane stabilized locally |
+| `861d3ac0d` | Modal/runtime trim lane stabilized locally |
 
 ## Landed Lanes
 
@@ -201,6 +202,25 @@ Checkpoint result:
 - `npm run type-check` passed
 - `npm run build` passed
 
+### Lane 11: modal/runtime trim
+
+Representative landed commits:
+
+- `f73eda26b` Trim inactive AI Studio edit and detail modal runtime
+- `fc2e10fca` Trim inactive AI Studio modal and shell resize runtime
+- `fab84f1b2` Trim redundant AgentInputBar resize listeners
+- `861d3ac0d` Stabilize modal runtime trim lane
+
+Checkpoint result:
+
+- inactive AI Studio modal/edit runtime is trimmed behind current active surfaces
+- shell resize listeners and shared agent input resize listeners are reduced without changing current product behavior
+- the source lane stayed in frontend product code and tests only
+- a narrow local stabilization pass was required to satisfy strict DOM nullability in one existing expert-edit test
+- focused modal/resize suite passed
+- `npm run type-check` passed
+- `npm run build` passed
+
 ## Local Stabilization Commits
 
 These commits were created locally because the imported runtime work was not fully self-contained on `staging-preview`:
@@ -215,6 +235,7 @@ These commits were created locally because the imported runtime work was not ful
 | `00dcbe7a8` | Align convergence hardening projection sync |
 | `b1e86f1b8` | Stabilize video properties lane integration |
 | `abe07804c` | Stabilize reference media authority lane |
+| `861d3ac0d` | Stabilize modal runtime trim lane |
 
 ## Source Commits Already Represented Locally
 
@@ -243,6 +264,9 @@ These source commits from `origin/codex/full-unified-layers` are already represe
 - `08a953a93`
 - `40bc83637`
 - `e1b34eec4`
+- `bc1e68fe8`
+- `64204a43f`
+- `d18bdcda3`
 
 Note:
 
@@ -256,6 +280,8 @@ The following source commit should not be planned as a standalone remaining lane
 - `476cd804e`
 - `b55a631a2`
 - `a57630d0b`
+- `044b9d82f`
+- `33741df86`
 
 Reason:
 
@@ -265,6 +291,7 @@ Reason:
 - its remaining source delta mostly reflects the newer `useAiStudioTasks` API shape from the source branch, not missing product behavior on current local `staging-preview`
 - `b55a631a2` now has its frontend product-code subset represented locally through `7c83fae98`; remaining source delta is docs/skill collateral that should not be merged blindly
 - `a57630d0b` is no longer a UI lane candidate; its UI cleanup is already represented locally, while its runtime/doc collateral should be evaluated separately
+- `044b9d82f` and `33741df86` were evaluated on current `staging-preview` and rejected as a direct lane because they flip persisted-success behavior from recovery-pending to completed
 
 ## Rollback Anchors
 
@@ -285,6 +312,8 @@ Still-useful local safety refs:
 - `refs/keep/staging-preview-pre-video-properties-lane`
 - `refs/keep/staging-preview-pre-shared-properties-lane`
 - `refs/keep/staging-preview-pre-reference-media-authority-lane`
+- `refs/keep/staging-preview-pre-status-authority-cleanup-lane`
+- `refs/keep/staging-preview-pre-modal-runtime-trim-lane`
 
 ## Remaining Work
 
@@ -293,16 +322,16 @@ Still-useful local safety refs:
 Current recommendation:
 
 1. push the current stable local `staging-preview` checkpoint
-2. remeasure the remaining `origin/codex/full-unified-layers` delta from `abe07804c`
+2. remeasure the remaining `origin/codex/full-unified-layers` delta from `861d3ac0d`
 3. decide whether the next product-code lane is:
-   - residual status/media-authority runtime tail
+   - residual recovery-visibility/runtime tail
    - a smaller non-UI collateral slice
    - or a tighter follow-on UI lane that does not drag docs/skills churn
 
 Decision note:
 
-- the reference/media-authority lane is now complete
-- the next lane should be chosen from the updated post-authority branch state, not from the older pre-authority plan
+- the modal/runtime trim lane is now complete
+- the next lane should be chosen from the updated post-trim branch state, not from the older pre-trim plan
 
 ### Deferred runtime/docs operator tail
 
@@ -317,7 +346,7 @@ Still intentionally deferred after the convergence hardening lane:
 Reason:
 
 - these commits are useful, but they are primarily diagnostics, SQL checks, scripts, and operator/docs tooling
-- they should not lead the next product-code lane while product-code status/media authority cleanup still remains
+- they should not lead the next product-code lane while recovery-visibility/runtime cleanup still remains
 
 ### Deferred UI/docs collateral remainder
 

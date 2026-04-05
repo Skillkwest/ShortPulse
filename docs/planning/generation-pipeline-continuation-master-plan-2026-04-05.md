@@ -86,7 +86,8 @@ Stop this job when all of the following are true:
 These residuals are acceptable at closeout if they remain bounded, tested, and not on the forward path:
 1. legacy terminal-failure fallback in `frontend/lib/server/api/falStatusPersistedResults.ts` as `temporary keep` until projection-backed historical failure coverage is proven sufficient
 2. client `submit-start` fail-closed sweep in `frontend/features/ai-studio/hooks/useAiStudioOutputLifecycle.ts` until the repo has a better authoritative pre-task-start boundary
-3. shared media/read-model helpers that have been audited as `keep`, including `frontend/features/ai-studio/logic/referenceGridMedia.ts` and `frontend/features/ai-studio/reference-grid/controllers/useReferenceGridResolvedMediaController.ts`
+3. legacy direct-submit fallback in `frontend/lib/server/api/falSubmitProxy.ts` and `frontend/lib/server/api/generationSubmitPersistence.ts` while it remains explicitly compatibility-only and disabled by default in the forward path
+4. shared media/read-model helpers that have been audited as `keep`, including `frontend/features/ai-studio/logic/referenceGridMedia.ts` and `frontend/features/ai-studio/reference-grid/controllers/useReferenceGridResolvedMediaController.ts`
 
 ## Authority Matrix
 | Surface | Current posture | Target bucket | Primary files | Notes |

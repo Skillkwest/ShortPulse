@@ -45,7 +45,8 @@ Stop the overall continuation job when:
 Residuals that do not block closeout:
 1. `frontend/lib/server/api/falStatusPersistedResults.ts` legacy terminal-failure fallback as `temporary keep` until projection-backed historical failure coverage is proven sufficient
 2. `frontend/features/ai-studio/hooks/useAiStudioOutputLifecycle.ts` pre-task `submit-start` fail-closed sweep as `temporary keep`
-3. shared grid/media helper layers audited as `keep`
+3. `frontend/lib/server/api/falSubmitProxy.ts` and `frontend/lib/server/api/generationSubmitPersistence.ts` legacy direct-submit fallback as `compatibility-only` while the default forward path remains queue-backed and fail-closed without it
+4. shared grid/media helper layers audited as `keep`
 
 ## Final Stop Rule
 Stop instead of continuing when:

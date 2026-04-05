@@ -6,7 +6,7 @@ import { requireApiUser } from "./auth";
 import { chargeGenerationRequest } from "./generationBilling";
 import { resolveRuntimeSafetyProfile } from "./agentSafetyPolicyControlPlane";
 import { logGenerationFailure } from "./appErrorLogs";
-import { ensureSubmittedGenerationRecord } from "./generationSubmitPersistence";
+import { ensureLegacyDirectSubmitGenerationRecord } from "./generationSubmitPersistence";
 import { readFalRuntimeFlags } from "./falRuntimeFlags";
 import {
   hasFreshLocalGenerationWorkerHeartbeat,
@@ -177,7 +177,8 @@ const buildQueuedSubmitPayload = ({
   pollAfterMs: 2000,
 });
 
-const shouldUseWorkerOwnedSubmit = ({ queueEnabled }: { queueEnabled: boolean }): boolean =>
+// Queueing is the canonical submit path whenever it is available.
+const shouldUseQueuedSubmitPath = ({ queueEnabled }: { queueEnabled: boolean }): boolean =>
   queueEnabled;
 
 const isWorkerOwnedSubmitMisconfigured = ({
@@ -535,7 +536,7 @@ export const createFalSubmitHandler = ({
         });
       }
 
-      const workerOwnedSubmitRequired = shouldUseWorkerOwnedSubmit({
+      const queuedSubmitSelected = shouldUseQueuedSubmitPath({
         queueEnabled: runtimeFlags.queueEnabled,
       });
       const workerOwnedSubmitMisconfigured = isWorkerOwnedSubmitMisconfigured({
@@ -571,7 +572,7 @@ export const createFalSubmitHandler = ({
         return res.status(503).json(buildWorkerOwnedSubmitMisconfiguredPayload(retryAfterSeconds));
       }
 
-      if (runtimeFlags.queueEnabled && (admissionDecision.enforced || workerOwnedSubmitRequired)) {
+      if (runtimeFlags.queueEnabled && (admissionDecision.enforced || queuedSubmitSelected)) {
         if (
           isLocalDevGenerationWorkerRequired(runtimeFlags) &&
           !hasFreshLocalGenerationWorkerHeartbeat()
@@ -655,7 +656,7 @@ export const createFalSubmitHandler = ({
               runtimeFlags.videoQueueCompatNormalizationEnabled && isVideoGenerationModelId(modelId)
                 ? "video_submit_payload_v2"
                 : "legacy_raw",
-            queue_reason: workerOwnedSubmitRequired
+            queue_reason: queuedSubmitSelected
               ? (admissionDecision.reason ?? "queue_enabled_default")
               : admissionDecision.reason,
             queue_snapshot: {
@@ -744,7 +745,7 @@ export const createFalSubmitHandler = ({
             generation_id: enqueueResult.generationId,
             queue_status: enqueueResult.queueStatus,
             admission_reason: admissionDecision.reason,
-            worker_owned_submit: workerOwnedSubmitRequired,
+            worker_owned_submit: queuedSubmitSelected,
             global_active: admissionDecision.snapshot.globalActive,
             global_max: admissionDecision.snapshot.globalMax,
             tier: admissionDecision.snapshot.tier,
@@ -864,7 +865,7 @@ export const createFalSubmitHandler = ({
       webhookCallbackUrl
     );
 
-    const submitViaLegacyDirectPath = async (): Promise<void> => {
+    const submitViaLegacyDirectFallback = async (): Promise<void> => {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
       try {
@@ -872,7 +873,7 @@ export const createFalSubmitHandler = ({
           req,
           routeLabel,
           source: "telemetry.api.fal_submit.legacy_direct_submit",
-          message: "Generation is using the legacy inline submit path.",
+          message: "Generation is using the legacy inline submit fallback path.",
           statusCode: 200,
           userId: charge.userId,
           metadata: {
@@ -959,7 +960,7 @@ export const createFalSubmitHandler = ({
             webhook_callback_url: webhookCallbackUrl,
             webhook_registered: Boolean(webhookCallbackUrl),
           });
-          const persistenceResult = await ensureSubmittedGenerationRecord({
+          const persistenceResult = await ensureLegacyDirectSubmitGenerationRecord({
             userId: charge.userId,
             modelId,
             routeLabel,
@@ -1089,7 +1090,7 @@ export const createFalSubmitHandler = ({
       }
     };
 
-    await submitViaLegacyDirectPath();
+    await submitViaLegacyDirectFallback();
     return;
   };
 };

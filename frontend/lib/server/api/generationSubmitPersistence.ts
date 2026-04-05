@@ -8,7 +8,7 @@ type JsonObject = Record<string, unknown>;
 
 type GenerationMode = "image" | "video";
 
-type SubmitPersistenceInput = {
+type LegacyDirectSubmitPersistenceInput = {
   userId: string;
   modelId: string;
   routeLabel: string;
@@ -29,7 +29,7 @@ type SubmitPersistenceResult =
       error: string;
     };
 
-const buildDirectSubmitAttemptMetadata = ({
+const buildLegacyDirectSubmitAttemptMetadata = ({
   sourceRef,
   submitTargetUrl,
   submitTargetIndex,
@@ -171,11 +171,12 @@ const insertGenerationWithRecoveryFallback = async (payload: JsonObject) => {
 };
 
 /**
+ * Compatibility seam for the legacy inline submit fallback.
  * Ensures a durable ai_generations row exists as soon as submit returns request_id.
  * Callers decide whether persistence failure is recoverable or must fail closed.
  */
-export const ensureSubmittedGenerationRecord = async (
-  input: SubmitPersistenceInput
+export const ensureLegacyDirectSubmitGenerationRecord = async (
+  input: LegacyDirectSubmitPersistenceInput
 ): Promise<SubmitPersistenceResult> => {
   try {
     const provider = resolveProviderFromModelId({ modelId: input.modelId, fallback: "fal" });
@@ -269,7 +270,7 @@ export const ensureSubmittedGenerationRecord = async (
             dispatchSource: "direct_submit",
             submitRoute: input.routeLabel,
             observedAt: nowIso,
-            metadata: buildDirectSubmitAttemptMetadata({
+            metadata: buildLegacyDirectSubmitAttemptMetadata({
               sourceRef: input.sourceRef,
               submitTargetUrl: input.submitTargetUrl,
               submitTargetIndex: input.submitTargetIndex,
@@ -322,7 +323,7 @@ export const ensureSubmittedGenerationRecord = async (
               dispatchSource: "direct_submit",
               submitRoute: input.routeLabel,
               observedAt: nowIso,
-              metadata: buildDirectSubmitAttemptMetadata({
+              metadata: buildLegacyDirectSubmitAttemptMetadata({
                 sourceRef: input.sourceRef,
                 submitTargetUrl: input.submitTargetUrl,
                 submitTargetIndex: input.submitTargetIndex,
@@ -363,7 +364,7 @@ export const ensureSubmittedGenerationRecord = async (
         dispatchSource: "direct_submit",
         submitRoute: input.routeLabel,
         observedAt: nowIso,
-        metadata: buildDirectSubmitAttemptMetadata({
+        metadata: buildLegacyDirectSubmitAttemptMetadata({
           sourceRef: input.sourceRef,
           submitTargetUrl: input.submitTargetUrl,
           submitTargetIndex: input.submitTargetIndex,

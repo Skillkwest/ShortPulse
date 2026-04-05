@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { ensureSubmittedGenerationRecord } from "../../lib/server/api/generationSubmitPersistence";
+import { ensureLegacyDirectSubmitGenerationRecord } from "../../lib/server/api/generationSubmitPersistence";
 
 const getSupabaseAdminMock = vi.fn();
 const ensureAcceptedRunningGenerationAttemptMock = vi.fn();
@@ -60,7 +60,7 @@ const createAiGenerationsTableMock = (config: TableMockConfig) => {
   };
 };
 
-describe("ensureSubmittedGenerationRecord", () => {
+describe("ensureLegacyDirectSubmitGenerationRecord", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     ensureAcceptedRunningGenerationAttemptMock.mockResolvedValue({
@@ -83,7 +83,7 @@ describe("ensureSubmittedGenerationRecord", () => {
       },
     });
 
-    const result = await ensureSubmittedGenerationRecord({
+    const result = await ensureLegacyDirectSubmitGenerationRecord({
       userId: "user-1",
       modelId: "fal-ai/bytedance/seedream/v4.5/edit",
       routeLabel: "Fal Seedream edit",
@@ -159,7 +159,7 @@ describe("ensureSubmittedGenerationRecord", () => {
       },
     });
 
-    const result = await ensureSubmittedGenerationRecord({
+    const result = await ensureLegacyDirectSubmitGenerationRecord({
       userId: "user-1",
       modelId: "fal-ai/nano-banana-pro",
       routeLabel: "Fal Nano Banana Pro",
@@ -190,7 +190,7 @@ describe("ensureSubmittedGenerationRecord", () => {
       },
     });
 
-    const result = await ensureSubmittedGenerationRecord({
+    const result = await ensureLegacyDirectSubmitGenerationRecord({
       userId: "user-1",
       modelId: "fal-ai/nano-banana-pro",
       routeLabel: "Fal Nano Banana Pro",
@@ -220,7 +220,7 @@ describe("ensureSubmittedGenerationRecord", () => {
       },
     });
 
-    const result = await ensureSubmittedGenerationRecord({
+    const result = await ensureLegacyDirectSubmitGenerationRecord({
       userId: "user-1",
       modelId: "fal-ai/nano-banana-pro",
       routeLabel: "Fal Nano Banana Pro",

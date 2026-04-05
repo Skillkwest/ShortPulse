@@ -3,7 +3,7 @@ import { createFalSubmitHandler } from "../../lib/server/api/falSubmitProxy";
 
 const chargeGenerationRequestMock = vi.fn();
 const logGenerationFailureMock = vi.fn();
-const ensureSubmittedGenerationRecordMock = vi.fn();
+const ensureLegacyDirectSubmitGenerationRecordMock = vi.fn();
 const evaluateScopedGenerationAdmissionMock = vi.fn();
 const hasFreshLocalGenerationWorkerHeartbeatMock = vi.fn();
 const isLocalDevGenerationWorkerRequiredMock = vi.fn();
@@ -26,8 +26,8 @@ vi.mock("../../lib/server/api/appErrorLogs", () => ({
 }));
 
 vi.mock("../../lib/server/api/generationSubmitPersistence", () => ({
-  ensureSubmittedGenerationRecord: (...args: unknown[]) =>
-    ensureSubmittedGenerationRecordMock(...args),
+  ensureLegacyDirectSubmitGenerationRecord: (...args: unknown[]) =>
+    ensureLegacyDirectSubmitGenerationRecordMock(...args),
 }));
 
 vi.mock("../../lib/server/api/generationAdmission/generationAdmissionService", () => ({
@@ -87,7 +87,7 @@ describe("createFalSubmitHandler", () => {
       }),
       refund: vi.fn().mockResolvedValue(undefined),
     });
-    ensureSubmittedGenerationRecordMock.mockResolvedValue({
+    ensureLegacyDirectSubmitGenerationRecordMock.mockResolvedValue({
       ok: true,
       generationId: "gen-1",
     });
@@ -208,7 +208,7 @@ describe("createFalSubmitHandler", () => {
         upstream_status: 200,
       })
     );
-    expect(ensureSubmittedGenerationRecordMock).toHaveBeenCalledWith(
+    expect(ensureLegacyDirectSubmitGenerationRecordMock).toHaveBeenCalledWith(
       expect.objectContaining({
         userId: "user-1",
         modelId: "fal-ai/veo3.1/image-to-video",
@@ -320,7 +320,7 @@ describe("createFalSubmitHandler", () => {
         upstream_status: 500,
       })
     );
-    expect(ensureSubmittedGenerationRecordMock).not.toHaveBeenCalled();
+    expect(ensureLegacyDirectSubmitGenerationRecordMock).not.toHaveBeenCalled();
   });
 
   it("retries retryable primary submit failures before succeeding on the same target", async () => {
@@ -451,7 +451,7 @@ describe("createFalSubmitHandler", () => {
         upstream_status: 200,
       })
     );
-    expect(ensureSubmittedGenerationRecordMock).toHaveBeenCalledWith(
+    expect(ensureLegacyDirectSubmitGenerationRecordMock).toHaveBeenCalledWith(
       expect.objectContaining({
         providerRequestId: "task-alias-1",
       })
@@ -505,7 +505,7 @@ describe("createFalSubmitHandler", () => {
         code: "GENERATION_SUBMIT_TRACKING_FAILED",
       })
     );
-    expect(ensureSubmittedGenerationRecordMock).toHaveBeenCalledWith(
+    expect(ensureLegacyDirectSubmitGenerationRecordMock).toHaveBeenCalledWith(
       expect.objectContaining({
         providerRequestId: "req-linkage-pending",
         sourceRef: "source-ref-1",
@@ -581,7 +581,7 @@ describe("createFalSubmitHandler", () => {
       message: "undefined object",
       code: "42704",
     });
-    ensureSubmittedGenerationRecordMock.mockResolvedValueOnce({
+    ensureLegacyDirectSubmitGenerationRecordMock.mockResolvedValueOnce({
       ok: false,
       error: "insert failed",
     });
@@ -655,7 +655,7 @@ describe("createFalSubmitHandler", () => {
   });
 
   it("fails closed when accepted submit cannot persist ai_generations even if billing linkage succeeds", async () => {
-    ensureSubmittedGenerationRecordMock.mockResolvedValueOnce({
+    ensureLegacyDirectSubmitGenerationRecordMock.mockResolvedValueOnce({
       ok: false,
       error: "insert failed",
     });
@@ -876,7 +876,7 @@ describe("createFalSubmitHandler", () => {
       generationId: "gen-queued-1",
       pollAfterMs: 2000,
     });
-    expect(ensureSubmittedGenerationRecordMock).not.toHaveBeenCalled();
+    expect(ensureLegacyDirectSubmitGenerationRecordMock).not.toHaveBeenCalled();
   });
 
   it("queues new work by default whenever the durable queue is enabled", async () => {
@@ -932,7 +932,7 @@ describe("createFalSubmitHandler", () => {
       generationId: "gen-queued-1",
       pollAfterMs: 2000,
     });
-    expect(ensureSubmittedGenerationRecordMock).not.toHaveBeenCalled();
+    expect(ensureLegacyDirectSubmitGenerationRecordMock).not.toHaveBeenCalled();
   });
 
   it("fails closed when worker-owned submit is enabled but the durable queue is disabled", async () => {
@@ -961,7 +961,7 @@ describe("createFalSubmitHandler", () => {
     const charge = await chargeGenerationRequestMock.mock.results[0]?.value;
     expect(fetchMock).not.toHaveBeenCalled();
     expect(enqueueGenerationSubmitMock).not.toHaveBeenCalled();
-    expect(ensureSubmittedGenerationRecordMock).not.toHaveBeenCalled();
+    expect(ensureLegacyDirectSubmitGenerationRecordMock).not.toHaveBeenCalled();
     expect(charge.refund).toHaveBeenCalledWith(
       "Auto-release: worker-owned submit requires queue-enabled runtime configuration.",
       expect.objectContaining({
@@ -1012,7 +1012,7 @@ describe("createFalSubmitHandler", () => {
     const charge = await chargeGenerationRequestMock.mock.results[0]?.value;
     expect(fetchMock).not.toHaveBeenCalled();
     expect(enqueueGenerationSubmitMock).not.toHaveBeenCalled();
-    expect(ensureSubmittedGenerationRecordMock).not.toHaveBeenCalled();
+    expect(ensureLegacyDirectSubmitGenerationRecordMock).not.toHaveBeenCalled();
     expect(charge.refund).toHaveBeenCalledWith(
       "Auto-release: legacy direct submit is disabled and no queued path was selected.",
       expect.objectContaining({
@@ -1081,7 +1081,7 @@ describe("createFalSubmitHandler", () => {
       generationId: "gen-queued-1",
       pollAfterMs: 2000,
     });
-    expect(ensureSubmittedGenerationRecordMock).not.toHaveBeenCalled();
+    expect(ensureLegacyDirectSubmitGenerationRecordMock).not.toHaveBeenCalled();
   });
 
   it("returns 400 when the shared contract gate reports a violation", async () => {

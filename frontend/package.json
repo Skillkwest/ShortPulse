@@ -21,6 +21,7 @@
     "audit:staging:openai-lanes:strict:lineage": "cd .. && node scripts/audit_staging_openai_lane_bundle.mjs --lineage-precheck --lineage-max-age-hours 72 --max-fallback-rate 0.05 --max-upstream-error-rate 0.05 --max-non-200-rate 0.05 --max-missing-machine-outcome-rate 0 --require-contract-version 1 --require-success-prompt",
     "cleanup:test-auth-users": "cd .. && node scripts/cleanup_test_auth_users.mjs",
     "cleanup:test-auth-users:dry": "cd .. && node scripts/cleanup_test_auth_users.mjs --dry-run",
+    "account-health:snapshot": "cd .. && npx tsx scripts/account_health_snapshot.ts",
     "phase12:execution-gate": "cd .. && node scripts/phase12_execution_gate.mjs",
     "test:ui": "vitest --ui",
     "test:coverage": "vitest run --coverage",
@@ -66,7 +67,7 @@
     "phosphor-react": "^1.4.1",
     "react": "18.3.1",
     "react-dom": "18.3.1",
-    "recharts": "2.7.2",
+    "recharts": "^3.8.1",
     "sharp": "^0.34.5"
   },
   "devDependencies": {
@@ -114,9 +115,11 @@
       "features/ai-studio/logic/mediaFolderCanvasSnapshot.ts",
       "lib/server/providerIntegration/__tests__/fixtures/kieContractFixtures.ts",
       "lib/server/api/generationQueue/statusRecoveryKick.ts",
+      "lib/server/generationControlPlane/workerOps.ts",
       "lib/server/generationControlPlane/workerLoop.ts",
       "scripts/ai-studio-perf-release-check.mjs",
       "scripts/run_generation_control_plane_worker.mjs",
+      "tests/support/supabaseClientMock.ts",
       "tests/e2e/ai-studio-perf.audit.js",
       "tests/e2e/expert-edit-coordinate-parity.audit.js",
       "tests/e2e/ai-studio-style-drop.audit.js",

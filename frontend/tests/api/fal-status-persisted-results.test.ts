@@ -103,15 +103,8 @@ describe("falStatusPersistedResults", () => {
     ).resolves.toEqual([]);
   });
 
-  it("returns recovery-pending success context when only metadata urls exist", async () => {
+  it("returns recovery-pending success context when the newest legacy row is success", async () => {
     persistedGenerationRows = [
-      {
-        id: "gen-processing-1",
-        status: "processing",
-        metadata: {
-          result_urls: ["https://cdn.shortpulse.test/ignore-me.mp4"],
-        },
-      },
       {
         id: "gen-success-1",
         status: "success",
@@ -134,6 +127,33 @@ describe("falStatusPersistedResults", () => {
       queueState: "dispatched",
       errorMessageShort: null,
       errorDetail: null,
+    });
+  });
+
+  it("does not let an older legacy success row override a newer nonterminal row", async () => {
+    persistedGenerationRows = [
+      {
+        id: "gen-processing-1",
+        status: "processing",
+        metadata: {},
+      },
+      {
+        id: "gen-success-1",
+        status: "success",
+        metadata: {
+          result_urls: ["https://cdn.shortpulse.test/final.mp4"],
+        },
+      },
+    ];
+
+    await expect(
+      readPersistedGenerationStatusContext({
+        userId: "user-1",
+        requestId: "req-1",
+      })
+    ).resolves.toEqual({
+      generationId: "gen-processing-1",
+      resultUrls: [],
     });
   });
 

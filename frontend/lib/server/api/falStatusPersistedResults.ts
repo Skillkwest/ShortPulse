@@ -200,12 +200,15 @@ export const readPersistedGenerationStatusContext = async ({
     let latestGenerationId: string | null = null;
     let latestSuccessfulContext: PersistedGenerationStatusContext | null = null;
     let latestFailedContext: PersistedGenerationStatusContext | null = null;
+    let rowIndex = 0;
     for (const item of data) {
       if (!item || typeof item !== "object" || Array.isArray(item)) continue;
       const row = item as Record<string, unknown>;
       const generationId = asOptionalString(row.id);
       const status = typeof row.status === "string" ? row.status.trim().toLowerCase() : null;
       const errorMessage = asOptionalString(row.error_message);
+      const isLatestRow = rowIndex === 0;
+      rowIndex += 1;
       if (!latestGenerationId && generationId) {
         latestGenerationId = generationId;
       }
@@ -232,6 +235,7 @@ export const readPersistedGenerationStatusContext = async ({
         }
       }
       if (
+        isLatestRow &&
         !latestFailedContext &&
         (status === "fail" ||
           status === "failed" ||
@@ -249,7 +253,7 @@ export const readPersistedGenerationStatusContext = async ({
           errorDetail: errorMessage ?? "Generation failed",
         };
       }
-      if (status !== "success") continue;
+      if (!isLatestRow || status !== "success") continue;
       if (!latestSuccessfulContext) {
         latestSuccessfulContext = {
           generationId,

@@ -42,9 +42,26 @@ export type RecoveryPersistenceGeneration = {
 const MEDIA_BUCKET = "media_library";
 const FETCH_TIMEOUT_MS = 60000;
 const FETCH_RETRY_ATTEMPTS = 2;
+const MEDIA_PERSIST_CONCURRENCY = 3;
 
 const asObject = (value: unknown): JsonObject =>
   value && typeof value === "object" && !Array.isArray(value) ? (value as JsonObject) : {};
+
+const runWithConcurrency = async <TItem>(
+  items: TItem[],
+  concurrency: number,
+  worker: (item: TItem) => Promise<void>
+): Promise<void> => {
+  const activeWorkers = Array.from(
+    { length: Math.max(1, Math.min(concurrency, items.length || 1)) },
+    async (_, workerIndex) => {
+      for (let index = workerIndex; index < items.length; index += Math.max(1, concurrency)) {
+        await worker(items[index] as TItem);
+      }
+    }
+  );
+  await Promise.all(activeWorkers);
+};
 
 const fetchBufferWithRetry = async (
   url: string
@@ -159,7 +176,7 @@ export const persistRecoveryMediaFilesForGeneration = async ({
     }
   }
 
-  const mediaFileIds: string[] = [];
+  const mediaFileIdsByIndex = new Array<string | null>(mediaUrls.length).fill(null);
   const promptBase = clampPrompt(generation.prompt_text);
   const generationMetadata = asObject(generation.metadata);
   const generationTraceId = asString(generationMetadata.generation_trace_id);
@@ -168,10 +185,17 @@ export const persistRecoveryMediaFilesForGeneration = async ({
   for (let index = 0; index < mediaUrls.length; index += 1) {
     const existingId = existingByIndex.get(index);
     if (existingId) {
-      mediaFileIds.push(existingId);
-      continue;
+      mediaFileIdsByIndex[index] = existingId;
     }
-    const mediaUrl = mediaUrls[index];
+  }
+
+  const persistMediaAtIndex = async ({
+    index,
+    mediaUrl,
+  }: {
+    index: number;
+    mediaUrl: string;
+  }): Promise<void> => {
     const { buffer, contentType } = await fetchBufferWithRetry(mediaUrl);
     const fileType = resolveFileType(contentType, mediaUrl);
     const extension = resolveExtension(contentType, mediaUrl);
@@ -259,8 +283,8 @@ export const persistRecoveryMediaFilesForGeneration = async ({
           } catch {
             // best-effort canonical output linkage only
           }
-          mediaFileIds.push(existingRowId);
-          continue;
+          mediaFileIdsByIndex[index] = existingRowId;
+          return;
         }
       }
       throw new Error(`media_files insert failed: ${insertError.message}`);
@@ -282,9 +306,17 @@ export const persistRecoveryMediaFilesForGeneration = async ({
       } catch {
         // best-effort canonical output linkage only
       }
-      mediaFileIds.push(mediaFileId);
+      mediaFileIdsByIndex[index] = mediaFileId;
     }
-  }
+  };
+
+  const uncachedMedia = mediaUrls
+    .map((mediaUrl, index) => ({ mediaUrl, index }))
+    .filter(({ index }) => !existingByIndex.has(index));
+
+  await runWithConcurrency(uncachedMedia, MEDIA_PERSIST_CONCURRENCY, persistMediaAtIndex);
+
+  const mediaFileIds = mediaFileIdsByIndex.filter((value): value is string => Boolean(value));
 
   await supabaseAdmin.from("media_events").insert({
     user_id: generation.user_id,

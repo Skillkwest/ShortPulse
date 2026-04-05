@@ -3,6 +3,7 @@
  */
 import { describe, expect, it } from "vitest";
 import {
+  BACKGROUND_RECOVERY_INTERVAL_MS,
   getBackgroundRecoveryMaxAttempts,
   BACKGROUND_RECOVERY_MAX_ATTEMPTS,
   BACKGROUND_RECOVERY_MAX_ATTEMPTS_NO_MEDIA,
@@ -20,5 +21,9 @@ describe("backgroundRecoveryPolicy", () => {
     expect(getBackgroundRecoveryMaxAttempts("status_poll_error")).toBe(
       BACKGROUND_RECOVERY_MAX_ATTEMPTS
     );
+  });
+
+  it("uses the shorter background recovery interval", () => {
+    expect(BACKGROUND_RECOVERY_INTERVAL_MS).toBe(30_000);
   });
 });

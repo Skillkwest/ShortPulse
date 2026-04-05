@@ -417,7 +417,6 @@ const syncFailedGenerationProjection = async ({
     completedAt,
   });
 };
-
 /**
  * Execute shared recovery flow for reconciler, admin replay, webhook, and status proxy.
  */

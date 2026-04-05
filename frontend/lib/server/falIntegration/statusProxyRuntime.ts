@@ -181,14 +181,28 @@ export const probeResponseUrlsForMedia = async ({
   signal: AbortSignal;
 }): Promise<{ payload: JsonObject; payloadStatus: string } | null> => {
   const trustedResponseUrls = resolveProviderResponseUrls({ provider, responseUrls, modelId });
-  for (const responseUrl of trustedResponseUrls) {
-    const responseProbe = await dispatchProviderResponseProbeRequest({
-      provider,
-      responseUrl,
-      apiKey,
-      signal,
-    });
-    const responseProbeData = await readJsonSafe(responseProbe);
+  const probeResults = await Promise.all(
+    trustedResponseUrls.map(async (responseUrl) => {
+      try {
+        const responseProbe = await dispatchProviderResponseProbeRequest({
+          provider,
+          responseUrl,
+          apiKey,
+          signal,
+        });
+        const responseProbeData = await readJsonSafe(responseProbe);
+        return {
+          responseProbe,
+          responseProbeData,
+        };
+      } catch {
+        return null;
+      }
+    })
+  );
+  for (const probeResult of probeResults) {
+    if (!probeResult) continue;
+    const { responseProbe, responseProbeData } = probeResult;
     if (
       !responseProbe.ok ||
       !responseProbeData.isJson ||

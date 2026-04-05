@@ -362,4 +362,92 @@ describe("recoveryMediaPersistence", () => {
       }),
     ]);
   });
+
+  it("starts uncached media fetches concurrently and preserves output order", async () => {
+    const scenario = createSupabaseScenario({
+      generationOutputListResponses: [
+        { data: [], error: null },
+        { data: [], error: null },
+        { data: [], error: null },
+      ],
+      listResponses: [{ data: [], error: null }],
+      insertResponses: [
+        { data: { id: "media-new-1" }, error: null },
+        { data: { id: "media-new-2" }, error: null },
+      ],
+      uploadResponses: [{ error: null }, { error: null }],
+    });
+    getSupabaseAdminMock.mockReturnValue(scenario.adminClient);
+
+    let resolveFirstFetch: ((value: Response) => void) | null = null;
+    let resolveSecondFetch: ((value: Response) => void) | null = null;
+    const fetchMock = vi
+      .fn()
+      .mockImplementationOnce(
+        () =>
+          new Promise<Response>((resolve) => {
+            resolveFirstFetch = resolve;
+          })
+      )
+      .mockImplementationOnce(
+        () =>
+          new Promise<Response>((resolve) => {
+            resolveSecondFetch = resolve;
+          })
+      );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const pendingPersistence = persistRecoveryMediaFilesForGeneration({
+      generation: {
+        id: "gen-2",
+        user_id: "user-1",
+        request_id: "req-2",
+        model_id: "fal-ai/nano-banana-pro",
+        provider: "fal",
+        prompt_text: "rapid parallel frames",
+        metadata: {},
+      },
+      mediaUrls: [
+        "https://cdn.shortpulse.test/parallel-a.png",
+        "https://cdn.shortpulse.test/parallel-b.png",
+      ],
+    });
+
+    await vi.waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+    });
+
+    const firstFetchResolver = resolveFirstFetch as ((value: Response) => void) | null;
+    if (firstFetchResolver) {
+      firstFetchResolver(
+        new Response(Uint8Array.from([1, 2, 3]), {
+          status: 200,
+          headers: { "content-type": "image/png" },
+        })
+      );
+    }
+    const secondFetchResolver = resolveSecondFetch as ((value: Response) => void) | null;
+    if (secondFetchResolver) {
+      secondFetchResolver(
+        new Response(Uint8Array.from([4, 5, 6]), {
+          status: 200,
+          headers: { "content-type": "image/png" },
+        })
+      );
+    }
+
+    const mediaFileIds = await pendingPersistence;
+
+    expect(mediaFileIds).toEqual(["media-new-1", "media-new-2"]);
+    expect(scenario.upload).toHaveBeenCalledTimes(2);
+    expect(scenario.mediaFileInsertPayloads).toHaveLength(2);
+    expect(scenario.mediaEventInsertPayloads).toEqual([
+      expect.objectContaining({
+        entity_id: "gen-2",
+        metadata: expect.objectContaining({
+          media_file_ids: ["media-new-1", "media-new-2"],
+        }),
+      }),
+    ]);
+  });
 });

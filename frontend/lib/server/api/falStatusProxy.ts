@@ -506,44 +506,56 @@ export const createFalStatusHandler = ({
         });
       };
 
-      for (const [index, baseUrl] of queueBaseUrls.entries()) {
-        const response = await dispatchProviderStatusRequest({
-          provider: providerKey,
-          baseUrl,
-          requestId,
-          apiKey,
-          signal: controller.signal,
-        });
-        const data = await readJsonSafe(response);
-        const candidateStatus = data.isJson ? readPayloadLifecycleStatus(data.json) : null;
-        const isCandidateCompleted = Boolean(
-          candidateStatus &&
-          isProviderCompletedStatus({
-            provider: providerKey,
-            status: candidateStatus,
-          })
-        );
-        const isCandidateFailed = Boolean(
-          candidateStatus &&
-          isProviderFailedStatus({
-            provider: providerKey,
-            status: candidateStatus,
-          })
-        );
-        const probe: StatusProbeCandidate = {
-          index,
-          baseUrl,
-          isJson: data.isJson,
-          isRetryableAlias: !data.isJson || response.status === 404 || response.status === 405,
-          httpStatus: response.status,
-          isHttpOk: response.ok,
-          status: candidateStatus,
-          isTerminal: isCandidateCompleted || isCandidateFailed,
-          isCompleted: isCandidateCompleted,
-          isFailed: isCandidateFailed,
-          hasResponseUrl: data.isJson ? Boolean(readPayloadResponseUrl(data.json)) : false,
-          hasMedia: data.isJson ? payloadHasMedia(data.json) : false,
-        };
+      const statusProbeResults = await Promise.all(
+        queueBaseUrls.map(async (baseUrl, index) => {
+          try {
+            const response = await dispatchProviderStatusRequest({
+              provider: providerKey,
+              baseUrl,
+              requestId,
+              apiKey,
+              signal: controller.signal,
+            });
+            const data = await readJsonSafe(response);
+            const candidateStatus = data.isJson ? readPayloadLifecycleStatus(data.json) : null;
+            const isCandidateCompleted = Boolean(
+              candidateStatus &&
+              isProviderCompletedStatus({
+                provider: providerKey,
+                status: candidateStatus,
+              })
+            );
+            const isCandidateFailed = Boolean(
+              candidateStatus &&
+              isProviderFailedStatus({
+                provider: providerKey,
+                status: candidateStatus,
+              })
+            );
+            const probe: StatusProbeCandidate = {
+              index,
+              baseUrl,
+              isJson: data.isJson,
+              isRetryableAlias: !data.isJson || response.status === 404 || response.status === 405,
+              httpStatus: response.status,
+              isHttpOk: response.ok,
+              status: candidateStatus,
+              isTerminal: isCandidateCompleted || isCandidateFailed,
+              isCompleted: isCandidateCompleted,
+              isFailed: isCandidateFailed,
+              hasResponseUrl: data.isJson ? Boolean(readPayloadResponseUrl(data.json)) : false,
+              hasMedia: data.isJson ? payloadHasMedia(data.json) : false,
+            };
+            return { probe, response, data };
+          } catch {
+            return null;
+          }
+        })
+      );
+
+      for (const statusProbeResult of statusProbeResults) {
+        if (!statusProbeResult) continue;
+        const { probe, response, data } = statusProbeResult;
         const responseUrl = data.isJson ? readPayloadResponseUrl(data.json) : null;
         if (responseUrl) {
           statusResponseUrls.add(responseUrl);
@@ -578,6 +590,16 @@ export const createFalStatusHandler = ({
       }
 
       if (!statusResp || !statusData) {
+        if (
+          !statusProbeResults.some((result) => result !== null) &&
+          statusTransientFailuresEnabled
+        ) {
+          return respondTransientWithTelemetry({
+            source: "telemetry.fal.status.transient.transport",
+            stage: "status",
+            detail: "all_status_aliases_failed",
+          });
+        }
         return respondErrorWithLogging({
           requestId,
           error: `${routeLabel} status request failed`,
@@ -824,32 +846,43 @@ export const createFalStatusHandler = ({
         return captureAndRespondSuccess(responseUrlProbe);
       }
 
-      for (const [index, baseUrl] of orderedResultBases.entries()) {
-        const response = await dispatchProviderResultRequest({
-          provider: providerKey,
-          baseUrl,
-          requestId,
-          apiKey,
-          signal: controller.signal,
-        });
-        const data = await readJsonSafe(response);
-        const candidateStatus = data.isJson ? readPayloadLifecycleStatus(data.json) : null;
-        const candidateHasError = data.isJson
-          ? candidateStatus === "error" ||
-            candidateStatus === "failed" ||
-            Boolean(asProviderString(data.json.error))
-          : false;
-        const probe: ResultProbeCandidate = {
-          index,
-          baseUrl,
-          isJson: data.isJson,
-          isRetryableAlias: response.status === 404 || response.status === 405,
-          httpStatus: response.status,
-          isHttpOk: response.ok,
-          status: candidateStatus,
-          hasError: candidateHasError,
-          hasMedia: data.isJson ? payloadHasMedia(data.json) : false,
-        };
+      const resultProbeResults = await Promise.all(
+        orderedResultBases.map(async (baseUrl, index) => {
+          try {
+            const response = await dispatchProviderResultRequest({
+              provider: providerKey,
+              baseUrl,
+              requestId,
+              apiKey,
+              signal: controller.signal,
+            });
+            const data = await readJsonSafe(response);
+            const candidateStatus = data.isJson ? readPayloadLifecycleStatus(data.json) : null;
+            const candidateHasError = data.isJson
+              ? candidateStatus === "error" ||
+                candidateStatus === "failed" ||
+                Boolean(asProviderString(data.json.error))
+              : false;
+            const probe: ResultProbeCandidate = {
+              index,
+              baseUrl,
+              isJson: data.isJson,
+              isRetryableAlias: response.status === 404 || response.status === 405,
+              httpStatus: response.status,
+              isHttpOk: response.ok,
+              status: candidateStatus,
+              hasError: candidateHasError,
+              hasMedia: data.isJson ? payloadHasMedia(data.json) : false,
+            };
+            return { probe, response, data };
+          } catch {
+            return null;
+          }
+        })
+      );
+      for (const resultProbeResult of resultProbeResults) {
+        if (!resultProbeResult) continue;
+        const { probe, response, data } = resultProbeResult;
         if (probe.isRetryableAlias) {
           retryableResultCandidates.push({ probe, response, data });
           continue;

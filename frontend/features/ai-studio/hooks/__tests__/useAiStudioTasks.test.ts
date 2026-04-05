@@ -135,7 +135,7 @@ describe("useAiStudioTasks", () => {
     expect(notifyGenerationFailure).not.toHaveBeenCalled();
     expect(onGenerationFailure).not.toHaveBeenCalled();
 
-    await vi.advanceTimersByTimeAsync(2 * 60 * 1000);
+    await vi.advanceTimersByTimeAsync(30 * 1000);
     await flushQueuedOutputUpdates();
 
     expect(fetchFalStatusMock).toHaveBeenCalledTimes(2);

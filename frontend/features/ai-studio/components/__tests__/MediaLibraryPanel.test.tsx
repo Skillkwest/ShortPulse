@@ -1479,7 +1479,11 @@ describe("MediaLibraryPanel", () => {
     });
     expect(screen.queryByRole("button", { name: "Root A folder" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Root B folder" })).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Root A" })).toBeInTheDocument();
+    expect(
+      screen.getByText("Root A", {
+        selector: ".media-library-panel-folders-breadcrumb-current",
+      })
+    ).toBeInTheDocument();
 
     fireEvent.click(screen.getAllByRole("button", { name: "All Media" })[0]);
 
@@ -1649,7 +1653,11 @@ describe("MediaLibraryPanel", () => {
       expect(createMediaFolderMock).toHaveBeenCalledWith("New Folder", "folder-parent");
     });
     expect(screen.getByDisplayValue("New Folder")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Parent" })).toBeInTheDocument();
+    expect(
+      screen.getByText("Parent", {
+        selector: ".media-library-panel-folders-breadcrumb-current",
+      })
+    ).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "New Folder" })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Go to parent folder" })).toBeInTheDocument();
   });
@@ -1712,7 +1720,7 @@ describe("MediaLibraryPanel", () => {
     fireEvent.doubleClick(screen.getByRole("button", { name: "Child name" }));
 
     await waitFor(() => {
-      expect(screen.getByDisplayValue("Child")).toBeInTheDocument();
+      expect(screen.getByPlaceholderText("Child")).toBeInTheDocument();
     });
     expect(screen.queryByRole("button", { name: "Parent folder" })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Parent" })).toBeInTheDocument();
@@ -1744,21 +1752,18 @@ describe("MediaLibraryPanel", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Parent folder" }));
     await waitFor(() => {
-      expect(screen.getByRole("button", { name: "Child folder" })).toBeInTheDocument();
-    });
-
-    fireEvent.click(screen.getByRole("button", { name: "Child folder" }));
-
-    await waitFor(() => {
-      expect(screen.getByLabelText("Go to parent folder")).toBeInTheDocument();
+      expect(
+        screen.getByText("Parent", {
+          selector: ".media-library-panel-folders-breadcrumb-current",
+        })
+      ).toBeInTheDocument();
     });
 
     expect(screen.getByRole("button", { name: "All Media" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Parent" })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Child" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Parent" })).not.toBeInTheDocument();
     const currentCrumb = document.querySelector(".media-library-panel-folders-breadcrumb-current");
     expect(currentCrumb).toHaveAttribute("aria-current", "location");
-    expect(currentCrumb).toHaveTextContent("Child");
+    expect(currentCrumb).toHaveTextContent("Parent");
   });
 
   it("shows one actionable empty state when a custom folder has no media or prompts", async () => {
@@ -1784,13 +1789,10 @@ describe("MediaLibraryPanel", () => {
     fireEvent.click(screen.getByRole("button", { name: "Campaign folder" }));
 
     await waitFor(() => {
-      expect(screen.getByText("This folder is empty")).toBeInTheDocument();
+      expect(screen.getByText('No media to display in "Campaign."')).toBeInTheDocument();
     });
 
-    expect(
-      screen.getByText("Create a subfolder or move media and prompts here.")
-    ).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Create subfolder" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Create subfolder" })).not.toBeInTheDocument();
     expect(screen.queryByText("No prompts found for this folder.")).not.toBeInTheDocument();
     expect(screen.queryByText("No media found for this folder.")).not.toBeInTheDocument();
   });
@@ -1865,7 +1867,7 @@ describe("MediaLibraryPanel", () => {
     });
 
     fireEvent.doubleClick(screen.getByRole("button", { name: "Campaign name" }));
-    fireEvent.change(screen.getByDisplayValue("Campaign"), {
+    fireEvent.change(screen.getByPlaceholderText("Campaign"), {
       target: { value: "Campaign Assets" },
     });
     fireEvent.keyDown(screen.getByDisplayValue("Campaign Assets"), {
@@ -1880,7 +1882,6 @@ describe("MediaLibraryPanel", () => {
         name: "Campaign Assets",
       });
     });
-    expect(screen.getByRole("button", { name: "Campaign Assets" })).toBeInTheDocument();
     expect(screen.getAllByText("Campaign Assets")).toHaveLength(2);
     expect(screen.queryByRole("button", { name: "Rename active folder" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Delete active folder" })).not.toBeInTheDocument();

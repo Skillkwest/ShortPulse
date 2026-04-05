@@ -5,6 +5,7 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import ProfilePage from "../../pages/profile";
+import { ensureSupabaseClient, primeSupabaseSession } from "../../lib/supabaseClient";
 
 const useProtectedRouteMock = vi.hoisted(() => vi.fn());
 const useCreditsMock = vi.hoisted(() => vi.fn());
@@ -54,15 +55,13 @@ vi.mock("../../features/ai-studio/hooks/useMediaAutosavePreference", () => ({
   useMediaAutosavePreference: useMediaAutosavePreferenceMock,
 }));
 
-vi.mock("../../lib/supabaseClient", () => ({
-  ensureSupabaseClient: () => ({
-    auth: {
-      updateUser: updateUserMock,
-      resetPasswordForEmail: resetPasswordForEmailMock,
-      signOut: signOutMock,
-    },
-  }),
-}));
+vi.mock("../../lib/supabaseClient", async () => {
+  const { createSupabaseClientModuleMock } = await import("../support/supabaseClientMock");
+  return createSupabaseClientModuleMock();
+});
+
+const ensureSupabaseClientMock = vi.mocked(ensureSupabaseClient);
+const primeSupabaseSessionMock = vi.mocked(primeSupabaseSession);
 
 describe("Profile account actions", () => {
   beforeEach(() => {
@@ -74,6 +73,13 @@ describe("Profile account actions", () => {
     updateUserMock.mockResolvedValue({ error: null });
     resetPasswordForEmailMock.mockResolvedValue({ error: null });
     signOutMock.mockResolvedValue(undefined);
+    ensureSupabaseClientMock.mockReturnValue({
+      auth: {
+        updateUser: updateUserMock,
+        resetPasswordForEmail: resetPasswordForEmailMock,
+        signOut: signOutMock,
+      },
+    } as never);
 
     useProtectedRouteMock.mockReturnValue({ loading: false, user: null });
     useCreditsMock.mockReturnValue({
@@ -158,6 +164,7 @@ describe("Profile account actions", () => {
 
     await waitFor(() => {
       expect(signOutMock).toHaveBeenCalledTimes(1);
+      expect(primeSupabaseSessionMock).toHaveBeenCalledWith(null);
       expect(routerReplaceMock).toHaveBeenCalledWith("/auth");
     });
   });

@@ -8,12 +8,14 @@ import {
   normalizeCharacterSheetPresetState,
   serializeCharacterSheetPresetState,
 } from "../characterManagerPersistenceCore";
-import { ensureSupabaseClient } from "../../../../lib/supabaseClient";
+import { ensureSupabaseQueryClient, readSupabaseUserId } from "../../../../lib/supabaseClient";
 import { invalidateSignedMediaUrl } from "../../../../lib/mediaSignedUrlCache";
 
-vi.mock("../../../../lib/supabaseClient", () => ({
-  ensureSupabaseClient: vi.fn(),
-}));
+vi.mock("../../../../lib/supabaseClient", async () => {
+  const { createSupabaseClientModuleMock } =
+    await import("../../../../tests/support/supabaseClientMock");
+  return createSupabaseClientModuleMock();
+});
 
 vi.mock("../../../../lib/mediaSignedUrlCache", () => ({
   getSignedMediaUrl: vi.fn(),
@@ -21,12 +23,14 @@ vi.mock("../../../../lib/mediaSignedUrlCache", () => ({
   invalidateSignedMediaUrl: vi.fn(),
 }));
 
-const ensureSupabaseClientMock = vi.mocked(ensureSupabaseClient);
+const ensureSupabaseQueryClientMock = vi.mocked(ensureSupabaseQueryClient);
+const readSupabaseUserIdMock = vi.mocked(readSupabaseUserId);
 const invalidateSignedMediaUrlMock = vi.mocked(invalidateSignedMediaUrl);
 
 describe("characterSheetPresets metadata helpers", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    readSupabaseUserIdMock.mockResolvedValue("user-1");
   });
 
   it("normalizes malformed preset assignments to a shape-stable record", () => {
@@ -258,13 +262,7 @@ describe("characterSheetPresets metadata helpers", () => {
       };
       return query;
     };
-    ensureSupabaseClientMock.mockReturnValue({
-      auth: {
-        getSession: vi.fn(async () => ({
-          data: { session: { user: { id: "user-1" } } },
-          error: null,
-        })),
-      },
+    ensureSupabaseQueryClientMock.mockReturnValue({
       from: vi.fn((table: string) => {
         if (table === "character_reference_images") {
           const query = createCountQuery();
@@ -325,7 +323,7 @@ describe("characterSheetPresets metadata helpers", () => {
           remove: storageRemoveSpy,
         })),
       },
-    } as unknown as ReturnType<typeof ensureSupabaseClient>);
+    } as unknown as ReturnType<typeof ensureSupabaseQueryClient>);
 
     await cleanupOrphanedMedia({
       mediaFileId: "media-shared",

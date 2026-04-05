@@ -9,6 +9,7 @@ import type { StudioOutput } from "../../features/ai-studio/types";
 import { createDefaultCharacterSheetPresetState } from "../../features/character-manager/constants";
 import type { CharacterManagerDraftSnapshot } from "../../features/character-manager/logic/characterManagerPersistence";
 import { publishCharacterListChanged } from "../../features/character-manager/logic/characterListSyncEvents";
+import { readSupabaseUserId } from "../../lib/supabaseClient";
 import AiStudioPage from "../../pages/ai-studio";
 
 const {
@@ -318,16 +319,10 @@ vi.mock("../../features/ai-studio/logic/imageDescription", () => ({
   prepareImageUrl: vi.fn(async (url: string) => url),
 }));
 
-vi.mock("../../lib/supabaseClient", () => ({
-  ensureSupabaseClient: vi.fn(() => ({
-    auth: {
-      getSession: vi.fn(async () => ({
-        data: { session: null },
-        error: null,
-      })),
-    },
-  })),
-}));
+vi.mock("../../lib/supabaseClient", async () => {
+  const { createSupabaseClientModuleMock } = await import("../support/supabaseClientMock");
+  return createSupabaseClientModuleMock();
+});
 
 vi.mock("../../lib/clientBreadcrumbs", () => ({
   addBreadcrumb: addBreadcrumbMock,
@@ -455,6 +450,8 @@ const createOutput = (id: string, taskState: StudioOutput["taskState"]): StudioO
   taskState,
 });
 
+const readSupabaseUserIdMock = vi.mocked(readSupabaseUserId);
+
 describe("ai-studio page character mode submission", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -467,6 +464,7 @@ describe("ai-studio page character mode submission", () => {
     creditsStateMock.refreshSource = "fallback";
     aiStudioPageContentCapture.lastProps = null;
     aiStudioStateMock.outputs = [];
+    readSupabaseUserIdMock.mockResolvedValue("user-1");
     getSignedMediaUrlsBatchMock.mockImplementation(
       async ({ storagePaths }: { storagePaths: string[] }) =>
         new Map(
@@ -639,11 +637,13 @@ describe("ai-studio page character mode submission", () => {
 
     render(<AiStudioPage />);
 
+    await waitFor(() => expect(readSupabaseUserIdMock).toHaveBeenCalled());
     await waitFor(() =>
       expect(aiStudioPageContentCapture.lastProps?.propertiesCreate?.characterOptions).toHaveLength(
         1
       )
     );
+    await act(async () => {});
 
     currentRows = [
       {
@@ -660,7 +660,7 @@ describe("ai-studio page character mode submission", () => {
 
     act(() => {
       publishCharacterListChanged({
-        userId: null,
+        userId: "user-1",
         reason: "create",
       });
     });

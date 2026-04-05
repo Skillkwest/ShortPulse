@@ -5,9 +5,16 @@ Purpose: define the remaining product-only extraction strategy for the AI Studio
 ## Current Posture
 
 - Active integration target: `staging-preview`
-- Current shared checkpoint: `4b1af481e`
+- Current shared checkpoint: `50441c2cc`
 - Source branch for comparison only: `origin/codex/full-unified-layers`
 - Branch-level merges are no longer the right unit for the remaining UI work.
+
+## Final Re-Baseline After `50441c2cc`
+
+Current conclusion:
+- the remaining product-only lanes identified in this plan are now absorbed locally on `staging-preview`
+- no further UI properties extraction is planned from `origin/codex/full-unified-layers`
+- any new work should begin from current `staging-preview` requirements instead of continuing this extraction plan by source-branch momentum
 
 ## What Is Left
 

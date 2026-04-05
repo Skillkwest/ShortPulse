@@ -7,9 +7,9 @@ Purpose: working checkpoint for the current `staging-preview` consolidation effo
 - Active integration target: `staging-preview`
 - Non-target branch for this lane: `main`
 - Primary source branch being consolidated: `origin/codex/full-unified-layers`
-- Current stable code checkpoint: `5c147b2b6`
-- Last pushed remote checkpoint: `04ba3e12f`
-- Local/remote delta: `RT-1B` validated locally and pending push
+- Current stable code checkpoint: `50441c2cc`
+- Last pushed remote checkpoint: `1c15b6654`
+- Local/remote delta: `VP-1` and closeout docs pending push
 - Whole-branch merge status: attempted once, then rolled back after broad `type-check` failure
 - Active strategy: lane-based integration with validation after each lane
 
@@ -39,21 +39,26 @@ Disposition definitions:
 Comparison set:
 
 - fixed source branch: `origin/codex/full-unified-layers`
-- tracker status: `in_progress`
-- closeout status: `not done`
+- tracker status: `ready_for_closeout`
+- closeout status: `pending final push`
 
 Current blocking condition:
 
-- relevant source work still remains, but it is now small enough to track as explicit branch-truth buckets instead of raw source commit names
+- no relevant product/runtime bucket remains uncategorized locally; the remaining step is to push the validated `VP-1` and closeout-docs checkpoints
 
 Current relevant uncategorized buckets:
 
-- `VP-1` reference-video and Kling advanced-panel follow-on
-  - status: `remaining`
-  - target surface: `frontend/features/ai-studio/components/ReferenceKlingAdvancedSteps.tsx`, `frontend/features/ai-studio/components/VideoPropertiesPanel.tsx`, `frontend/features/ai-studio/components/useReferencePropertiesDerivedState.ts`, related tests
-  - why relevant: panel copy, control visibility, and KIE/Kling workspace affordances remain different from the source branch
+- none
 
 Recently closed relevant buckets:
+
+- `VP-1` reference-video and Kling advanced-panel follow-on
+  - status: `absorbed locally`
+  - landed behavior:
+    - KIE Kling advanced steps now hide unsupported voice-id and negative-prompt controls while keeping the shared Fal Kling affordances
+    - KIE Kling assets summary now reports prompt-token readiness instead of misleading voice counts
+    - focused component tests now cover both KIE and non-KIE Kling panel behavior
+  - why it matters: it closes the last remaining relevant panel/UI delta and aligns KIE-facing controls with the runtime contract actually present on `staging-preview`
 
 - `RT-1A` queue/sourceRef and polling-authority alignment
   - status: `absorbed locally`
@@ -117,6 +122,7 @@ Reason:
 | `a63e4c9d6` | RT-1A polling and queue sourceRef alignment stabilized locally |
 | `04ba3e12f` | SA-1 style and download authority cleanup stabilized locally |
 | `5c147b2b6` | RT-1B Kie Kling advanced payload parity stabilized locally |
+| `50441c2cc` | VP-1 Kie Kling panel contract gating stabilized locally |
 
 ## Landed Lanes
 
@@ -448,6 +454,7 @@ Still-useful local safety refs:
 - `refs/keep/staging-preview-pre-rt1-video-runtime-lane`
 - `refs/keep/staging-preview-pre-sa-1-authority-cleanup-lane`
 - `refs/keep/staging-preview-pre-rt1b-kie-advanced-payload-lane`
+- `refs/keep/staging-preview-pre-vp1-kling-panel-contract-lane`
 
 ## Remaining Work
 
@@ -455,9 +462,9 @@ Still-useful local safety refs:
 
 Current recommendation:
 
-1. push the validated `RT-1B` runtime checkpoint
-2. treat `VP-1` as the only remaining relevant product/runtime bucket from this source comparison
-3. after `VP-1`, run a final reconciliation pass and decide whether the integration can be closed under the done-state contract
+1. push the validated `VP-1` product checkpoint and closeout docs sync
+2. run a final reconciliation readout from current `staging-preview` truth and confirm no relevant uncategorized source diff remains
+3. if that readout still holds after push, mark this source comparison complete and stop extracting by momentum
 
 Decision note:
 
@@ -476,7 +483,11 @@ Decision note:
 - `SA-1` is now locally cleared:
   - style intake no longer falls through to network fetch when an internal drag payload exists without resolver authority
   - saved-media downloads now prefer canonical `storage_path` over preview derivatives in the local helper path
-- `VP-1` is now the only remaining relevant branch-truth bucket from this source comparison set
+- `VP-1` is now locally cleared:
+  - KIE Kling workspace copy once again hides unsupported voice-id and negative-prompt fields
+  - the KIE assets summary now advertises prompt-token readiness instead of voice counts
+  - focused panel tests lock the KIE-vs-Fal Kling affordance split
+- there is no remaining relevant uncategorized branch-truth bucket from this source comparison set
 
 ### Deferred UI/docs collateral remainder
 

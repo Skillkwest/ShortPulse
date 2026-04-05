@@ -3,7 +3,9 @@ import path from "node:path";
 import { runGenerationControlPlaneCycle } from "./runCycle";
 import type { GenerationControlPlaneCycleResult } from "./types";
 import type { GenerationControlPlaneRunWriter } from "./workerOps";
-export { createGenerationControlPlaneWorkerDbOps } from "./workerOps";
+import { createGenerationControlPlaneWorkerDbOps } from "./workerOps";
+
+export { createGenerationControlPlaneWorkerDbOps };
 
 export const DEFAULT_GENERATION_CONTROL_PLANE_WORKER_INTERVAL_MS = 1_000;
 export const DEFAULT_GENERATION_CONTROL_PLANE_WORKER_ERROR_BACKOFF_MS = 5_000;

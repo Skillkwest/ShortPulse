@@ -196,6 +196,28 @@ describe("useAiStudioState output store bridge", () => {
     });
   });
 
+  it("publishes raw task-state indexes without reclassifying success or failure", async () => {
+    const { result } = renderHook(() => useAiStudioState(), { wrapper: strictWrapper });
+
+    act(() => {
+      result.current.setOutputs([
+        makeOutput("out-pending", { taskState: "pending" }),
+        makeOutput("out-success", { taskState: "success" }),
+        makeOutput("out-fail", { taskState: "fail" }),
+      ]);
+    });
+
+    await waitFor(() => {
+      const snapshot = getAiStudioOutputSnapshot();
+      expect(snapshot.indexes.inFlightIds.has("out-pending")).toBe(true);
+      expect(snapshot.indexes.inFlightIds.has("out-success")).toBe(false);
+      expect(snapshot.indexes.inFlightIds.has("out-fail")).toBe(false);
+      expect(snapshot.indexes.failedIds.has("out-fail")).toBe(true);
+      expect(snapshot.indexes.failedIds.has("out-pending")).toBe(false);
+      expect(snapshot.indexes.failedIds.has("out-success")).toBe(false);
+    });
+  });
+
   it("filters create/text submission references from edit drop-zone inputs", () => {
     renderHook(() => useAiStudioState(), { wrapper: strictWrapper });
 

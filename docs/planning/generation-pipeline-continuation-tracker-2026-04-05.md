@@ -32,6 +32,27 @@ The old single tracker was too broad for implementation. These subplans keep the
 5. Reference Grid simplification: in progress
 6. Validation and closeout: planned
 
+## Done State
+Stop the overall continuation job when:
+1. server lifecycle is the only post-submit authority
+2. persisted status remains canonical-first with no legacy success fallback
+3. Reference Grid loading/render no longer treats preview absence as lifecycle truth
+4. client recovery remains observational, with only the bounded `submit-start` fail-closed seam left locally
+5. store, selector, derivation, and bridge layers are confirmed as read/composition layers only
+6. every remaining compatibility seam is explicitly classified and no higher-ROI authority cut remains
+
+## Accepted Residuals
+Residuals that do not block closeout:
+1. `frontend/lib/server/api/falStatusPersistedResults.ts` legacy terminal-failure fallback as `temporary keep` until projection-backed historical failure coverage is proven sufficient
+2. `frontend/features/ai-studio/hooks/useAiStudioOutputLifecycle.ts` pre-task `submit-start` fail-closed sweep as `temporary keep`
+3. shared grid/media helper layers audited as `keep`
+
+## Final Stop Rule
+Stop instead of continuing when:
+1. the next candidate change does not reduce split authority
+2. the next candidate change is mainly speculative cleanup
+3. the remaining work is classification/status bookkeeping rather than correctness improvement
+
 ## Live Execution Rules
 Every implementation slice should record these fields before code changes:
 1. authority claim

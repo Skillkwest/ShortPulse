@@ -1,7 +1,7 @@
 # Generation Pipeline Continuation Master Plan (2026-04-05)
 
 Last updated: 2026-04-05  
-Status: Active (planning complete; implementation pending)  
+Status: Active (implementation in progress)
 Owner: Engineering  
 Program anchor: `docs/planning/generation-pipeline-rebuild-blueprint-2026-03-27.md`  
 Primary architecture contract: `docs/adr/0050-generation-pipeline-canonical-request-output-architecture.md`
@@ -70,6 +70,23 @@ The end state we are aiming for is:
 4. Reference Grid renders durable output truth instead of preview heuristics
 5. direct and queued submit do not create divergent lifecycle models
 6. Create, Edit, and Video share one lifecycle core with adapter differences only
+
+## Done State
+Stop this job when all of the following are true:
+1. after submit, only the server decides lifecycle truth
+2. persisted status is canonical-first and no longer carries legacy success fallback behavior
+3. Reference Grid loading/render state no longer treats preview absence as lifecycle truth
+4. client recovery is observational and does not promote success from raw provider media or reinterpret settled server success
+5. the only intentional local fail-closed exception left on the client is the bounded pre-task `submit-start` seam
+6. store, selector, derivation, and bridge layers are confirmed as composition/read layers only
+7. every remaining compatibility seam is explicitly classified as `keep`, `temporary keep`, `compatibility-only`, or `remove`
+8. there is no remaining repo-backed authority cut with better ROI than stopping
+
+## Accepted Residuals
+These residuals are acceptable at closeout if they remain bounded, tested, and not on the forward path:
+1. legacy terminal-failure fallback in `frontend/lib/server/api/falStatusPersistedResults.ts` as `temporary keep` until projection-backed historical failure coverage is proven sufficient
+2. client `submit-start` fail-closed sweep in `frontend/features/ai-studio/hooks/useAiStudioOutputLifecycle.ts` until the repo has a better authoritative pre-task-start boundary
+3. shared media/read-model helpers that have been audited as `keep`, including `frontend/features/ai-studio/logic/referenceGridMedia.ts` and `frontend/features/ai-studio/reference-grid/controllers/useReferenceGridResolvedMediaController.ts`
 
 ## Authority Matrix
 | Surface | Current posture | Target bucket | Primary files | Notes |
@@ -241,11 +258,21 @@ Per implementation slice:
 3. targeted seam-specific tests
 4. `npm -C frontend run docs:check`
 
+Closeout validation:
+1. focused seam tests covering the final authority boundaries are green
+2. the tracker reflects final keep/remove/temporary-keep classification for the remaining seams
+3. no remaining candidate change is primarily speculative cleanup
+
 ## Stop Rules
 Stop the current bucket when:
 1. the next step does not close the bucket's exit gate
 2. the next step would widen into another bucket
 3. the remaining work is mainly compatibility bookkeeping or documentation rather than a correctness improvement
+
+Stop the overall job when:
+1. the done state above is satisfied
+2. the remaining work is speculative cleanup rather than a split-authority reduction
+3. residual compatibility seams are classified and bounded instead of ambiguous
 
 ## Supporting Documents
 1. `docs/adr/0050-generation-pipeline-canonical-request-output-architecture.md`

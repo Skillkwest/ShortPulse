@@ -368,7 +368,7 @@ Still-useful local safety refs:
 Current recommendation:
 
 1. push the current stable local `staging-preview` checkpoint
-2. open a product-only extraction plan for the remaining UI/properties delta from `504e4a723`
+2. follow `docs/planning/staging-preview-ui-properties-extraction-plan-2026-04-04.md` for the next product-only lane
 3. decide whether the next product-code lane is:
    - a bounded AI Studio properties-routing slice
    - a bounded session-hydration/view-model slice

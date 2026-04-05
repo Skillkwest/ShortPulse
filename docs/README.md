@@ -125,6 +125,7 @@ Start here for all repository documentation.
 ## Planning And History
 - `docs/planning/README.md`
 - `docs/planning/staging-preview-integration-ledger-2026-04-04.md`
+- `docs/planning/staging-preview-ui-properties-extraction-plan-2026-04-04.md`
 - `docs/planning/master-rollout-proposal.md`
 - `docs/planning/shortpulse-unified-buildout-master-plan.md`
 - `docs/planning/shortpulse-unified-buildout-tracker.md`

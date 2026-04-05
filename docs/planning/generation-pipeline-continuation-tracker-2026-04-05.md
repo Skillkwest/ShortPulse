@@ -11,9 +11,10 @@ The old single tracker was too broad for implementation. These subplans keep the
 
 ## Bucket Subplans
 1. [Server Authority Cutover](./generation-pipeline-continuation-server-authority-cutover-2026-04-05.md)
-2. [Client Demotion](./generation-pipeline-continuation-client-demotion-2026-04-05.md)
-3. [Compatibility Retirement](./generation-pipeline-continuation-compatibility-retirement-2026-04-05.md)
-4. [Reference Grid Read-Model Simplification](./generation-pipeline-continuation-reference-grid-read-model-simplification-2026-04-05.md)
+2. [Server Authority Execution Checklist](./generation-pipeline-continuation-server-authority-execution-checklist-2026-04-05.md)
+3. [Client Demotion](./generation-pipeline-continuation-client-demotion-2026-04-05.md)
+4. [Compatibility Retirement](./generation-pipeline-continuation-compatibility-retirement-2026-04-05.md)
+5. [Reference Grid Read-Model Simplification](./generation-pipeline-continuation-reference-grid-read-model-simplification-2026-04-05.md)
 
 ## Execution Order
 1. Phase 0 contract lock

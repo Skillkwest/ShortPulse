@@ -128,6 +128,7 @@ Start here for all repository documentation.
 - `docs/planning/generation-pipeline-continuation-master-plan-2026-04-05.md`
 - `docs/planning/generation-pipeline-continuation-tracker-2026-04-05.md`
 - `docs/planning/generation-pipeline-continuation-server-authority-cutover-2026-04-05.md`
+- `docs/planning/generation-pipeline-continuation-server-authority-execution-checklist-2026-04-05.md`
 - `docs/planning/generation-pipeline-continuation-client-demotion-2026-04-05.md`
 - `docs/planning/generation-pipeline-continuation-compatibility-retirement-2026-04-05.md`
 - `docs/planning/generation-pipeline-continuation-reference-grid-read-model-simplification-2026-04-05.md`

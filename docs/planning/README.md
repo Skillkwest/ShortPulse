@@ -23,6 +23,7 @@ Purpose: active planning artifacts and current execution backlogs.
 - `generation-pipeline-continuation-master-plan-2026-04-05.md`: removal-led continuation plan for the generation pipeline with bucketed authority cutover, client demotion, compatibility retirement, and Reference Grid read-model simplification.
 - `generation-pipeline-continuation-tracker-2026-04-05.md`: index for the bucket-specific continuation subplans.
 - `generation-pipeline-continuation-server-authority-cutover-2026-04-05.md`: bucket subplan for server-owned lifecycle authority cutover.
+- `generation-pipeline-continuation-server-authority-execution-checklist-2026-04-05.md`: execution checklist for the server-authority bucket with file order, cutover gates, and rollback sequencing.
 - `generation-pipeline-continuation-client-demotion-2026-04-05.md`: bucket subplan for removing client lifecycle authority.
 - `generation-pipeline-continuation-compatibility-retirement-2026-04-05.md`: bucket subplan for fallback deletion and compatibility retirement.
 - `generation-pipeline-continuation-reference-grid-read-model-simplification-2026-04-05.md`: bucket subplan for Reference Grid read-model simplification.

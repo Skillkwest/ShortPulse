@@ -84,6 +84,13 @@ Purpose: define how runtime incidents are captured, triaged, and resolved.
   - no sustained run-lock condition (`status='running'` without progress),
   - partial runs and degraded reads should include actionable reason text and operator follow-up.
 
+### Single-account health snapshot
+- Use `npx tsx scripts/account_health_snapshot.ts --lookup <email-or-user-id>` for a read-only one-account snapshot.
+- Add `--json` when you want a machine-readable capture for diffing or handoff.
+- Add `--strict` after cleanup or reconciliation to fail closed on critical findings or compatibility warnings.
+- Treat `compatibility.warnings` as a schema/contract signal, not as normal account-health noise.
+- Use `/api/admin/user-health` and `/admin/generation-trace` alongside the snapshot when you need deeper operator context.
+
 ### Control-Plane Diagnostics Bundle
 - Scheduler/cron diagnostics: `sql/check_control_plane_scheduler_health.sql`.
 - `pg_net` diagnostics taxonomy: `sql/check_pg_net_failure_taxonomy.sql`.

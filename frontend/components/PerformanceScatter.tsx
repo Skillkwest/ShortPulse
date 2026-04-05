@@ -36,9 +36,14 @@ const AXIS_TICK = { fill: "var(--color-ash-70)", fontSize: 12 };
 const AXIS_LINE = { stroke: "var(--color-ash-40)" };
 const TICK_LINE = { stroke: "var(--color-ash-30)" };
 
-const CustomTooltip = ({ active, payload }: TooltipProps<ValueType, NameType>) => {
+const CustomTooltip = ({
+  active,
+  payload,
+}: TooltipProps<ValueType, NameType> & {
+  payload?: Array<{ payload: ReelPerformance }>;
+}) => {
   if (!active || !payload?.length) return null;
-  const d: ReelPerformance = payload[0].payload;
+  const d = payload[0].payload;
   return (
     <div className="tooltip-card">
       <div className="tooltip-header">
@@ -48,8 +53,12 @@ const CustomTooltip = ({ active, payload }: TooltipProps<ValueType, NameType>) =
         <span className="metric-chip">{d.platform}</span>
       </div>
       <div className="tooltip-badges">
-        <span className="pill pill-teal">Velocity · {formatPercentile(d.views_per_hour_percentile)}</span>
-        <span className="pill pill-amber">Engagement · {formatPercentile(d.engagement_rate_percentile)}</span>
+        <span className="pill pill-teal">
+          Velocity · {formatPercentile(d.views_per_hour_percentile)}
+        </span>
+        <span className="pill pill-amber">
+          Engagement · {formatPercentile(d.engagement_rate_percentile)}
+        </span>
       </div>
       <div className="tooltip-grid">
         <div className="tooltip-metric">
@@ -111,7 +120,7 @@ export function PerformanceScatter({ data, loading }: Props) {
     const medianEngagement = median(data.map((d) => d.engagement_rate * 100));
     const medianVelocity = median(data.map((d) => d.views_per_hour));
     const top = data.reduce((prev, curr) =>
-      curr.performance_score > prev.performance_score ? curr : prev,
+      curr.performance_score > prev.performance_score ? curr : prev
     );
     return { medianEngagement, medianVelocity, top };
   }, [data]);
@@ -146,7 +155,8 @@ export function PerformanceScatter({ data, loading }: Props) {
             <span className="stat-tag">rate</span>
           </div>
           <div className="stat-sub">
-            Percentile median: {formatPercentile(median(data.map((d) => d.engagement_rate_percentile)))}
+            Percentile median:{" "}
+            {formatPercentile(median(data.map((d) => d.engagement_rate_percentile)))}
           </div>
         </div>
         <div className="stat-card">

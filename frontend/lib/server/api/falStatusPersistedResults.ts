@@ -233,6 +233,8 @@ export const readPersistedGenerationStatusContext = async ({
           // fall back to compatibility metadata when canonical output reads fail
         }
       }
+      // Compatibility-only fallback: keep the newest legacy terminal failure readable
+      // until projection-backed failure coverage is proven sufficient for historical rows.
       if (
         isLatestRow &&
         !latestFailedContext &&

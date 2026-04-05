@@ -395,7 +395,7 @@ describe("falStatusPersistedResults", () => {
     });
   });
 
-  it("returns legacy failed generation rows as persisted failure context", async () => {
+  it("returns the newest legacy failed generation row as compatibility failure context", async () => {
     persistedGenerationRows = [
       {
         id: "gen-failed-1",
@@ -418,6 +418,32 @@ describe("falStatusPersistedResults", () => {
       queueState: "failed",
       errorMessageShort: "Legacy generation failed",
       errorDetail: "Legacy generation failed",
+    });
+  });
+
+  it("does not let an older legacy failed row override a newer nonterminal row", async () => {
+    persistedGenerationRows = [
+      {
+        id: "gen-processing-1",
+        status: "processing",
+        metadata: {},
+      },
+      {
+        id: "gen-failed-1",
+        status: "failed",
+        error_message: "Older legacy generation failed",
+        metadata: {},
+      },
+    ];
+
+    await expect(
+      readPersistedGenerationStatusContext({
+        userId: "user-1",
+        requestId: "req-failed-1",
+      })
+    ).resolves.toEqual({
+      generationId: "gen-processing-1",
+      resultUrls: [],
     });
   });
 

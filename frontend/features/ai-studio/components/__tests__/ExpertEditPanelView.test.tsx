@@ -3495,7 +3495,7 @@ describe("ExpertEditPanelView", () => {
       "Primary composition surface"
     ) as HTMLDivElement | null;
     expect(modalPrimaryDropzone).not.toBeNull();
-    fireEvent.contextMenu(modalPrimaryDropzone, { clientX: 300, clientY: 300 });
+    fireEvent.contextMenu(modalPrimaryDropzone!, { clientX: 300, clientY: 300 });
     const stageMenu = screen.getByRole("menu", { name: /stage actions/i });
     fireEvent.click(within(stageMenu).getByRole("menuitem", { name: /^recenter$/i }));
     const modalAfterRecenter = readMarkupViewportTransform(expandedModal);

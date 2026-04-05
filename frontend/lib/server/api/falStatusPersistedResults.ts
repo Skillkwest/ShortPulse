@@ -198,7 +198,6 @@ export const readPersistedGenerationStatusContext = async ({
     // Compatibility-only fallback: ai_generations can still provide generation ids,
     // canonical output linkage, and legacy terminal failures until projection coverage is complete.
     let latestGenerationId: string | null = null;
-    let latestSuccessfulContext: PersistedGenerationStatusContext | null = null;
     let latestFailedContext: PersistedGenerationStatusContext | null = null;
     let rowIndex = 0;
     for (const item of data) {
@@ -253,20 +252,7 @@ export const readPersistedGenerationStatusContext = async ({
           errorDetail: errorMessage ?? "Generation failed",
         };
       }
-      if (!isLatestRow || status !== "success") continue;
-      if (!latestSuccessfulContext) {
-        latestSuccessfulContext = {
-          generationId,
-          resultUrls: [],
-          status,
-          taskState: "success",
-          queueState: "dispatched",
-          errorMessageShort: null,
-          errorDetail: null,
-        };
-      }
     }
-    if (latestSuccessfulContext) return latestSuccessfulContext;
     if (latestFailedContext) return latestFailedContext;
     return { generationId: latestGenerationId, resultUrls: [] };
   } catch {

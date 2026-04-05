@@ -103,7 +103,7 @@ describe("falStatusPersistedResults", () => {
     ).resolves.toEqual([]);
   });
 
-  it("returns recovery-pending success context when the newest legacy row is success", async () => {
+  it("returns only linkage context when the newest legacy row is success without canonical outputs", async () => {
     persistedGenerationRows = [
       {
         id: "gen-success-1",
@@ -122,11 +122,6 @@ describe("falStatusPersistedResults", () => {
     ).resolves.toEqual({
       generationId: "gen-success-1",
       resultUrls: [],
-      status: "success",
-      taskState: "success",
-      queueState: "dispatched",
-      errorMessageShort: null,
-      errorDetail: null,
     });
   });
 

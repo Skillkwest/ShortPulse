@@ -213,8 +213,11 @@ describe("createFalStatusHandler", () => {
     expect(logGenerationFailureMock).not.toHaveBeenCalled();
   });
 
-  it("returns recovery-pending payload from legacy persisted success metadata", async () => {
+  it("polls the provider when only legacy success metadata exists without canonical outputs", async () => {
     process.env.KIE_API_KEY = "test-kie-key";
+    process.env.SHORTPULSE_KIE_INTEGRATION_ENABLED = "true";
+    process.env.SHORTPULSE_KIE_MODEL_ALLOWLIST = "kie-ai/veo-3.1-fast-i2v";
+    process.env.SHORTPULSE_KIE_TRUSTED_HOSTS = "kie.ai";
     persistedGenerationRows = [
       {
         id: "gen-persisted-success-1",
@@ -224,7 +227,36 @@ describe("createFalStatusHandler", () => {
         },
       },
     ];
-    const fetchMock = vi.fn();
+    const pendingPayload = {
+      code: 200,
+      msg: "success",
+      data: {
+        taskId: "req-persisted-success",
+        successFlag: 0,
+        response: null,
+        responseUrl: "https://api.kie.ai/api/v1/veo/record-info?taskId=req-persisted-success",
+      },
+    };
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify(pendingPayload), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        })
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify(pendingPayload), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        })
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify(pendingPayload), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        })
+      );
     vi.stubGlobal("fetch", fetchMock);
 
     const handler = createFalStatusHandler({
@@ -244,21 +276,14 @@ describe("createFalStatusHandler", () => {
 
     await handler(req as never, res as never);
 
-    expect(fetchMock).not.toHaveBeenCalled();
+    expect(fetchMock).toHaveBeenCalledTimes(3);
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith(
       expect.objectContaining({
-        request_id: "req-persisted-success",
-        generationId: "gen-persisted-success-1",
-        status: "IN_PROGRESS",
-        state: "running",
-        shortpulseLifecycle: expect.objectContaining({
-          taskState: "running",
-          isTerminal: false,
-          recoveryPending: true,
-          providerState: "success",
-          queueState: "dispatched",
-          statusLabel: "Waiting for server recovery...",
+        code: 200,
+        data: expect.objectContaining({
+          taskId: "req-persisted-success",
+          successFlag: 0,
         }),
       })
     );
@@ -487,7 +512,7 @@ describe("createFalStatusHandler", () => {
     );
   });
 
-  it("returns recovery-pending payload even when provider key is unavailable and only metadata urls exist", async () => {
+  it("fails closed when provider key is unavailable and only legacy success metadata exists", async () => {
     delete process.env.KIE_API_KEY;
     delete process.env.SHORTPULSE_KIE_API_KEY;
     persistedGenerationRows = [
@@ -520,23 +545,10 @@ describe("createFalStatusHandler", () => {
     await handler(req as never, res as never);
 
     expect(fetchMock).not.toHaveBeenCalled();
-    expect(res.status).toHaveBeenCalledWith(200);
-    expect(res.json).toHaveBeenCalledWith(
-      expect.objectContaining({
-        request_id: "req-persisted-without-key",
-        generationId: "gen-persisted-without-key-1",
-        status: "IN_PROGRESS",
-        state: "running",
-        shortpulseLifecycle: expect.objectContaining({
-          taskState: "running",
-          isTerminal: false,
-          recoveryPending: true,
-          providerState: "success",
-          queueState: "dispatched",
-          statusLabel: "Waiting for server recovery...",
-        }),
-      })
-    );
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Error: KIE_API_KEY is not set on the server.",
+    });
   });
 
   it("fails closed when queue base URLs are untrusted", async () => {

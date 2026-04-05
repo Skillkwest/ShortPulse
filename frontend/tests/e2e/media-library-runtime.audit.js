@@ -9,12 +9,6 @@ const fs = require("node:fs");
 const path = require("node:path");
 const { chromium } = require("playwright");
 
-const DEFAULT_BASE_URL = (process.env.PLAYWRIGHT_BASE_URL || "http://127.0.0.1:3000").trim();
-const ROUTE_BASE_URL = (process.env.PLAYWRIGHT_ROUTE_BASE_URL || DEFAULT_BASE_URL).trim();
-const PANEL_BASE_URL = (process.env.PLAYWRIGHT_PANEL_BASE_URL || DEFAULT_BASE_URL).trim();
-const MODAL_BASE_URL = (process.env.PLAYWRIGHT_MODAL_BASE_URL || DEFAULT_BASE_URL).trim();
-const HEADLESS = process.env.PLAYWRIGHT_HEADLESS !== "false";
-
 const IGNORED_CONSOLE_PATTERNS = [
   /\[hmr\]\s+invalid message/i,
   /\[hmr\]\s+connected/i,
@@ -52,11 +46,24 @@ function loadEnvFromFileIfNeeded(filePath) {
   }
 }
 
-function loadAuditCredentials() {
+function loadAuditEnv() {
   const frontendRoot = path.resolve(__dirname, "..", "..");
   const repoRoot = path.resolve(frontendRoot, "..");
   loadEnvFromFileIfNeeded(path.join(frontendRoot, ".env.local"));
   loadEnvFromFileIfNeeded(path.join(repoRoot, ".env.agent.local"));
+}
+
+loadAuditEnv();
+
+const DEFAULT_BASE_URL = (
+  process.env.PLAYWRIGHT_MEDIA_LIBRARY_BASE_URL || "http://localhost:3000"
+).trim();
+const ROUTE_BASE_URL = (process.env.PLAYWRIGHT_ROUTE_BASE_URL || DEFAULT_BASE_URL).trim();
+const PANEL_BASE_URL = (process.env.PLAYWRIGHT_PANEL_BASE_URL || DEFAULT_BASE_URL).trim();
+const MODAL_BASE_URL = (process.env.PLAYWRIGHT_MODAL_BASE_URL || DEFAULT_BASE_URL).trim();
+const HEADLESS = process.env.PLAYWRIGHT_HEADLESS !== "false";
+
+function loadAuditCredentials() {
   const email = (process.env.PLAYWRIGHT_AUDIT_EMAIL || "").trim();
   const password = (process.env.PLAYWRIGHT_AUDIT_PASSWORD || "").trim() || "AuditPass!12345";
   return { email, password };
@@ -134,8 +141,20 @@ async function clickLoadMore(page, buttonLocator, maxClicks, delayMs) {
       await page.waitForTimeout(delayMs);
       continue;
     }
-    await buttonLocator.click();
-    clicks += 1;
+    try {
+      await buttonLocator.scrollIntoViewIfNeeded().catch(() => {});
+      await buttonLocator.click({ timeout: 5_000 });
+      clicks += 1;
+    } catch (error) {
+      const message = String(error?.message || error);
+      const isTransientLocatorFailure =
+        /element is not stable/i.test(message) ||
+        /element was detached from the dom/i.test(message) ||
+        /timeout .* exceeded/i.test(message);
+      if (!isTransientLocatorFailure) throw error;
+      await page.waitForTimeout(delayMs);
+      continue;
+    }
     await page.waitForTimeout(delayMs);
   }
   return clicks;
@@ -361,6 +380,32 @@ async function runModalAudit(browser, creds) {
   return result;
 }
 
+function isModalAuditTopologyAvailable() {
+  if (process.env.PLAYWRIGHT_MEDIA_LIBRARY_FORCE_MODAL_AUDIT === "true") {
+    return true;
+  }
+  if (MODAL_BASE_URL !== PANEL_BASE_URL) {
+    return true;
+  }
+  return process.env.NEXT_PUBLIC_AI_STUDIO_MEDIA_LIBRARY_PANEL_ENABLED === "false";
+}
+
+function createSkippedModalAuditResult() {
+  return {
+    surface: "modal",
+    ok: true,
+    skipped: true,
+    skipReason:
+      "Modal audit requires a modal-only server. Set PLAYWRIGHT_MODAL_BASE_URL to a separate server or disable NEXT_PUBLIC_AI_STUDIO_MEDIA_LIBRARY_PANEL_ENABLED there.",
+    baseUrl: MODAL_BASE_URL,
+    tabClicks: [],
+    loadMoreClicks: 0,
+    scrollChurn: null,
+    severeSignals: null,
+    finalUrl: null,
+  };
+}
+
 async function main() {
   const creds = loadAuditCredentials();
   if (!creds.email) {
@@ -389,7 +434,11 @@ async function main() {
   try {
     output.surfaces.push(await runRouteAudit(browser, creds));
     output.surfaces.push(await runPanelAudit(browser, creds));
-    output.surfaces.push(await runModalAudit(browser, creds));
+    output.surfaces.push(
+      isModalAuditTopologyAvailable()
+        ? await runModalAudit(browser, creds)
+        : createSkippedModalAuditResult()
+    );
     output.ok = output.surfaces.every((surface) => surface.ok);
     console.log(JSON.stringify(output, null, 2));
     if (!output.ok) process.exitCode = 1;

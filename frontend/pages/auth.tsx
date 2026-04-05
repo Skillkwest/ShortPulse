@@ -145,7 +145,7 @@ export default function AuthPage() {
   return (
     <>
       <Head>
-        <title>ShortPulse · {mode === "signin" ? "Sign in" : "Sign up"}</title>
+        <title>{`ShortPulse · ${mode === "signin" ? "Sign in" : "Sign up"}`}</title>
       </Head>
       <main className="auth-shell">
         <div className="auth-overlay" />

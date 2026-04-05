@@ -12,7 +12,7 @@ const fs = require("node:fs");
 const path = require("node:path");
 const { chromium } = require("playwright");
 
-const BASE_URL = (process.env.PLAYWRIGHT_BASE_URL || "http://127.0.0.1:3000").trim();
+const BASE_URL = (process.env.PLAYWRIGHT_BASE_URL || "http://localhost:3000").trim();
 const PAN_TARGETS = [
   { x: 0, y: 0 },
   { x: 37, y: -19 },

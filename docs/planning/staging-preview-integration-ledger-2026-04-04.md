@@ -7,9 +7,9 @@ Purpose: working checkpoint for the current `staging-preview` consolidation effo
 - Active integration target: `staging-preview`
 - Non-target branch for this lane: `main`
 - Primary source branch being consolidated: `origin/codex/full-unified-layers`
-- Current local checkpoint: `61a444825`
-- Last pushed remote checkpoint: `5b0c57f2d`
-- Local/remote delta: recovery visibility/convergence lane plus this ledger refresh
+- Current stable code checkpoint: `504e4a723`
+- Last pushed remote checkpoint: `a8eb962c2`
+- Local/remote delta: diagnostics/operator tooling lane plus this ledger refresh
 - Whole-branch merge status: attempted once, then rolled back after broad `type-check` failure
 - Active strategy: lane-based integration with validation after each lane
 
@@ -32,6 +32,7 @@ Purpose: working checkpoint for the current `staging-preview` consolidation effo
 | `abe07804c` | Reference/media-authority lane stabilized locally |
 | `861d3ac0d` | Modal/runtime trim lane stabilized locally |
 | `61a444825` | Recovery visibility/convergence lane stabilized locally |
+| `504e4a723` | Diagnostics/operator tooling lane stabilized locally |
 
 ## Landed Lanes
 
@@ -237,6 +238,26 @@ Checkpoint result:
 - `npm run type-check` passed
 - `npm run build` passed
 
+### Lane 13: diagnostics and operator tooling
+
+Representative landed commits:
+
+- `46b104571` Add recovery visibility diagnostics
+- `1af955f7d` Include recovery visibility in diagnostics runner
+- `704e0a753` Add recovery visibility diagnostics guardrails
+- `c7bbe9822` Add Phase 3A convergence defect diagnostics
+- `504e4a723` Add bounded convergence backlog replay tool
+
+Checkpoint result:
+
+- recovery visibility diagnostics now include canonical SQL checks, runner wiring, and a focused regression test
+- convergence defect classification and bounded backlog replay tooling are now present in scripts, SQL, and operator runbooks
+- the lane stayed additive and operator-facing, with no product-runtime code changes
+- focused diagnostics suite passed
+- `npm run type-check` passed
+- `npm run build` passed
+- `npm run docs:check` passed
+
 ## Local Stabilization Commits
 
 These commits were created locally because the imported runtime work was not fully self-contained on `staging-preview`:
@@ -276,6 +297,11 @@ These source commits from `origin/codex/full-unified-layers` are already represe
 - `cece1993f`
 - `7d4d483c7`
 - `f90c73062`
+- `d636d295b`
+- `c34ef729c`
+- `a18c800c1`
+- `ceccd6e07`
+- `0b2933dd4`
 - `734ba6ba5`
 - `01e97c71f`
 - `955003e76`
@@ -333,6 +359,7 @@ Still-useful local safety refs:
 - `refs/keep/staging-preview-pre-status-authority-cleanup-lane`
 - `refs/keep/staging-preview-pre-modal-runtime-trim-lane`
 - `refs/keep/staging-preview-pre-recovery-visibility-lane`
+- `refs/keep/staging-preview-pre-diagnostics-operator-lane`
 
 ## Remaining Work
 
@@ -341,41 +368,30 @@ Still-useful local safety refs:
 Current recommendation:
 
 1. push the current stable local `staging-preview` checkpoint
-2. remeasure the remaining `origin/codex/full-unified-layers` delta from `61a444825`
+2. open a product-only extraction plan for the remaining UI/properties delta from `504e4a723`
 3. decide whether the next product-code lane is:
-   - residual runtime/media-authority tail
-   - a smaller non-UI collateral slice
-   - or a tighter follow-on UI lane that does not drag docs/skills churn
+   - a bounded AI Studio properties-routing slice
+   - a bounded session-hydration/view-model slice
+   - or a deliberate stop if the remaining UI value does not justify the extraction cost
 
 Decision note:
 
 - the recovery visibility/convergence lane is now complete
 - the next lane should be chosen from the updated post-recovery-visibility branch state, not from the older pre-trim plan
 
-### Deferred runtime/docs operator tail
-
-Still intentionally deferred after the convergence hardening lane:
-
-- `d636d295b`
-- `c34ef729c`
-- `a18c800c1`
-- `ceccd6e07`
-- `0b2933dd4`
-
-Reason:
-
-- these commits are useful, but they are primarily diagnostics, SQL checks, scripts, and operator/docs tooling
-- they should not lead the next product-code lane while recovery-visibility/runtime cleanup still remains
+- the diagnostics/operator lane is now complete
+- the next lane should be chosen from current product code on `staging-preview`, not from remaining raw source commit names
 
 ### Deferred UI/docs collateral remainder
 
 Still intentionally deferred:
 
 - `a57630d0b`
+- `b55a631a2`
 
 Reason:
 
-- `a57630d0b` still mixes deferred runtime fixes with docs/skill collateral
+- both commits still mix product code with docs and `skills/` collateral
 - any remaining UI or runtime value should be extracted from current branch truth, not merged by source commit name
 
 ### Docs/evidence tail

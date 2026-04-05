@@ -248,6 +248,48 @@ describe("useAiStudioOutputLifecycle", () => {
     }
   });
 
+  it("does not re-report submit-start failure for outputs that already failed", async () => {
+    vi.useFakeTimers();
+    try {
+      const { result } = renderHook(() =>
+        useHarness(
+          [
+            makeOutput("generation-db-failed-start", {
+              taskState: "fail",
+              previewText: undefined,
+              previewUrl: undefined,
+              mediaSource: "generated",
+              timestamp: "Failed",
+              errorMessage: "Generation failed to start. Please retry.",
+              errorMessageShort: "Generation failed to start.",
+              errorDetail: "The generation did not receive a provider task id. Please retry.",
+            }),
+          ],
+          null
+        )
+      );
+
+      reportAppErrorMock.mockClear();
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(95_000);
+      });
+
+      expect(result.current.outputs[0]?.taskState).toBe("fail");
+      expect(result.current.outputs[0]?.timestamp).toBe("Failed");
+      expect(reportAppErrorMock).not.toHaveBeenCalledWith(
+        expect.objectContaining({
+          source: "fal_submit_not_started",
+          metadata: expect.objectContaining({
+            output_id: "generation-db-failed-start",
+          }),
+        })
+      );
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("does not fail queued placeholders at submit-start timeout", async () => {
     vi.useFakeTimers();
     try {

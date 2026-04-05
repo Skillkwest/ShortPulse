@@ -35,7 +35,6 @@ export type ReferenceGridCardVisualState = {
  */
 export const classifyReferenceGridCardVisualState = ({
   item,
-  authorityTier,
   cardPreviewUrl,
   isLoaded,
   decodeBudgetEnabled,
@@ -48,10 +47,6 @@ export const classifyReferenceGridCardVisualState = ({
     !isFailing &&
     isReferenceOutputLoadingTaskState({
       taskState: item.taskState,
-      previewText: item.previewText,
-      mediaSource: item.mediaSource,
-      authorityTier,
-      cardPreviewUrl,
     });
 
   const hasRenderablePreview = Boolean(cardPreviewUrl);

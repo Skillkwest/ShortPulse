@@ -63,7 +63,7 @@ describe("referenceGridCardVisualState", () => {
     expect(state.loadingVisual).toBe("none");
   });
 
-  it("keeps preview-only generated successes in generation loading state", () => {
+  it("does not keep preview-only generated successes in generation loading state", () => {
     const state = classifyReferenceGridCardVisualState({
       item: createOutput({
         taskState: "success",
@@ -78,7 +78,7 @@ describe("referenceGridCardVisualState", () => {
       imageSrc: "https://provider.example.com/generated-preview.png",
     });
 
-    expect(state.isGenerationLoading).toBe(true);
-    expect(state.loadingVisual).toBe("spinner");
+    expect(state.isGenerationLoading).toBe(false);
+    expect(state.loadingVisual).toBe("none");
   });
 });

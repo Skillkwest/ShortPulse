@@ -25,12 +25,60 @@ The old single tracker was too broad for implementation. These subplans keep the
 6. Validation and closeout
 
 ## Current Status
-1. Contract lock: planned
-2. Server authority cutover: planned
-3. Client demotion: planned
+1. Contract lock: complete
+2. Server authority cutover: in progress
+3. Client demotion: in progress
 4. Compatibility retirement: planned
-5. Reference Grid simplification: planned
+5. Reference Grid simplification: in progress
 6. Validation and closeout: planned
+
+## Live Execution Rules
+Every implementation slice should record these fields before code changes:
+1. authority claim
+2. keep/cut classification
+3. user-visible outcome
+4. deletion trigger
+5. rollback note
+
+Every completed slice should close with the same checklist:
+1. authority reduced
+2. compatibility surface smaller or explicitly unchanged
+3. no keep-only helper deleted without reason
+4. targeted tests passed
+5. user-visible outcome stated explicitly
+
+## Live Invariant Checklist
+Use this checklist during implementation and self-audit:
+1. canonical server lifecycle still wins after submit
+2. client does not invent terminal truth
+3. grid does not infer settled state from missing preview alone
+4. compatibility surface gets smaller or more explicit
+5. keep-only shared helpers remain intact unless a new repo-backed reason appears
+
+## Running Keep / Cut Matrix
+Keep:
+1. `frontend/lib/server/api/generationQueue/service.ts`
+2. `frontend/lib/server/api/generationQueue/dispatch.ts`
+3. `frontend/lib/server/generationControlPlane/runCycle.ts`
+4. `frontend/lib/server/api/generationProjection.ts`
+5. `frontend/features/ai-studio/logic/referenceGridMedia.ts`
+6. `frontend/features/ai-studio/hooks/useAiStudioOutputCollectionState.ts`
+7. `frontend/features/ai-studio/hooks/useAiStudioOutputDerivations.ts`
+8. `frontend/features/ai-studio/hooks/useAiStudioOutputStoreSelectors.ts`
+
+Temporary keep:
+1. `frontend/lib/server/api/falStatusPersistedResults.ts` legacy terminal-failure fallback until projection-backed failure is proven sufficient
+2. `frontend/features/ai-studio/hooks/useAiStudioOutputLifecycle.ts` submit-start fail-closed sweep until the repo has a better authoritative pre-task-start boundary
+
+Compatibility-only:
+1. legacy direct-submit seam in `frontend/lib/server/api/falSubmitProxy.ts` and `frontend/lib/server/api/generationSubmitPersistence.ts`
+2. remaining metadata-era settlement and status repair paths that only exist for historical rows
+
+Remove:
+1. client raw-media recovery success path
+2. grid success-as-loading heuristic
+3. legacy success status fallback in persisted status
+4. dead generic stale-timeout fallback in client lifecycle cleanup
 
 ## Index Rules
 1. Keep this file high level.

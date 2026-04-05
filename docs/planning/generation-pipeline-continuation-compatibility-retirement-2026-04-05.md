@@ -46,3 +46,18 @@ These surfaces stay in place as migration or shared helpers:
 1. The legacy direct-submit seam is explicitly compatibility-only and the runtime fails closed by default when no queued path is selected unless the legacy fallback is deliberately re-enabled.
 2. The remaining legacy terminal-failure fallback in `falStatusPersistedResults.ts` is still needed for historical rows that may lack projection-backed failure coverage.
 3. No further compatibility-retirement code cut is justified from repo evidence alone; the next deletion decisions require operational/runtime evidence rather than more local cleanup.
+
+## Runtime Evidence Snapshot (2026-04-05)
+Read-only staging snapshot taken from local workspace credentials:
+1. legacy direct-submit rows are still present in the live dataset:
+   - last 7 days: `16`
+   - last 30 days: `16`
+   - last 90 days: `16`
+2. sampled failed `ai_generations` rows still lack projection-backed failure coverage at meaningful volume:
+   - failed rows sampled: `354`
+   - sampled rows without projection-backed failure coverage: `353`
+   - uncovered rows in last 7 days: `9`
+   - uncovered rows in last 30 days: `78`
+3. interpretation:
+   - direct-submit fallback is not deletable yet from repo changes alone because it is still present in recent runtime data
+   - legacy terminal-failure fallback is still carrying historical read compatibility and cannot be retired safely without a separate backfill/runtime cleanup lane

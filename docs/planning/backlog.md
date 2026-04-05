@@ -1,6 +1,6 @@
 # ShortPulse Backlog
 
-Last audited: 2026-03-13
+Last audited: 2026-04-04
 
 How to use:
 - Keep this list execution-focused and current.
@@ -48,13 +48,14 @@ Tooling audit references:
 ## AI Studio
 - [ ] P0 deferred incident: Reference Grid -> Styles internal image drop reliability remains unresolved; resume only with characterization-first payload capture and golden-path rebaseline.
   Reference: `docs/known-issues.md` (P0 AI Studio Reference Grid -> Styles drop reliability remains broken, deferred March 13, 2026)
-- [ ] AI Studio: generation runtime stabilization pivot (single runtime entrypoint, no bespoke generation paths). Tracker: `docs/planning/ai-studio-generation-runtime-stabilization.md`.
-- [ ] AI Studio generation runtime stabilization - S0 (Traceability Baseline). `docs/planning/ai-studio-generation-runtime-stabilization.md#s0-traceability-baseline-golden-path-scope`
-- [ ] AI Studio generation runtime stabilization - S1 (Runtime Boundary Lock). `docs/planning/ai-studio-generation-runtime-stabilization.md#s1-runtime-boundary-lock`
-- [ ] AI Studio generation runtime stabilization - S2 (Golden Path Migration). `docs/planning/ai-studio-generation-runtime-stabilization.md#s2-golden-path-migration-flux2-lite`
-- [ ] AI Studio generation runtime stabilization - S3 (Family Rollout). `docs/planning/ai-studio-generation-runtime-stabilization.md#s3-family-rollout-profile-by-profile`
-- [ ] AI Studio generation runtime stabilization - S4 (Billing UI Clarity). `docs/planning/ai-studio-generation-runtime-stabilization.md#s4-billing-ui-clarity-presentation-layer`
-- [ ] AI Studio: add runtime admission control + upstream rate-limit protection before broad canary ramp. `docs/planning/ai-studio-generation-runtime-stabilization.md#capacity-and-rate-limit-protection-in-scope`
+- [ ] AI Studio runtime V2 closeout: publish Seedream shadow parity report.
+  Reference: `docs/planning/ai-studio-generation-runtime-v2-locked-execution.md`, `docs/planning/ai-studio-runtime-v2-recovery-execution-phase.md`
+- [ ] AI Studio runtime V2 closeout: pass Seedream canary gates for 72h with no duplicate settlement or persistence regressions.
+  Reference: `docs/planning/ai-studio-generation-runtime-v2-locked-execution.md`, `docs/planning/ai-studio-runtime-v2-recovery-execution-phase.md`
+- [ ] AI Studio runtime V2 closeout: remove legacy HMAC webhook fallback after the dual-mode cutover window.
+  Reference: `docs/planning/ai-studio-generation-runtime-audit-2026-02-20.md`, `docs/planning/ai-studio-runtime-v2-recovery-execution-phase.md`
+- [ ] AI Studio: keep server-side admission control and shared-provider rate-limit protection aligned with the live V2 docs.
+  Reference: `docs/adr/0026-ai-studio-generation-admission-control.md`, `docs/planning/ai-studio-generation-admission-rollout-plan.md`
 - [ ] AI Studio: Fal reliability rollout (submit + retrieval modular core, shadow -> canary). Tracker: `docs/planning/ai-studio-fal-reliability-rollout.md`.
 - [ ] AI Studio Fal reliability rollout - Phase 0 (Baseline + UX Freeze). `docs/planning/ai-studio-fal-reliability-rollout.md#phase-0-baseline--ux-freeze`
 - [x] AI Studio Fal reliability rollout - Phase 1 (Retrieval Correctness Hotfix). `docs/planning/ai-studio-fal-reliability-rollout.md#phase-1-retrieval-correctness-hotfix`

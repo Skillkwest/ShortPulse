@@ -3,7 +3,6 @@ import handler from "../../pages/api/fal/status";
 
 const requireApiUserMock = vi.fn();
 const resolveProviderRequestOwnershipMock = vi.fn();
-const settleGenerationOutcomeMock = vi.fn();
 
 vi.mock("../../lib/server/api/auth", () => ({
   requireApiUser: (...args: unknown[]) => requireApiUserMock(...args),
@@ -12,7 +11,6 @@ vi.mock("../../lib/server/api/auth", () => ({
 vi.mock("../../lib/server/api/generationBilling", () => ({
   resolveProviderRequestOwnership: (...args: unknown[]) =>
     resolveProviderRequestOwnershipMock(...args),
-  settleGenerationOutcome: (...args: unknown[]) => settleGenerationOutcomeMock(...args),
 }));
 
 const createMockResponse = () => ({
@@ -37,10 +35,6 @@ describe("POST /api/fal/status ownership", () => {
     vi.clearAllMocks();
     process.env.FAL_KEY = "test-key";
     requireApiUserMock.mockResolvedValue({ id: "user-1" });
-    settleGenerationOutcomeMock.mockResolvedValue({
-      settled: true,
-      note: "captured",
-    });
   });
 
   it("returns 403 when request ownership cannot be proven", async () => {
@@ -98,7 +92,18 @@ describe("POST /api/fal/status ownership", () => {
     await handler(req as never, res as never);
 
     expect(res.status).toHaveBeenCalledWith(200);
-    expect(res.json).toHaveBeenCalledWith({ status: "processing" });
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        status: "processing",
+        shortpulseLifecycle: expect.objectContaining({
+          taskState: "running",
+          isTerminal: false,
+          providerState: "processing",
+          queueState: "dispatched",
+          statusLabel: "Processing...",
+        }),
+      })
+    );
     expect(fetchMock).toHaveBeenCalledTimes(4);
   });
 });

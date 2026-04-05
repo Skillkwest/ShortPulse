@@ -5,13 +5,11 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import handler from "../../pages/api/fal/status";
 
 const resolveProviderRequestOwnershipMock = vi.fn();
-const settleGenerationOutcomeMock = vi.fn();
 const logGenerationFailureMock = vi.fn();
 
 vi.mock("../../lib/server/api/generationBilling", () => ({
   resolveProviderRequestOwnership: (...args: unknown[]) =>
     resolveProviderRequestOwnershipMock(...args),
-  settleGenerationOutcome: (...args: unknown[]) => settleGenerationOutcomeMock(...args),
 }));
 
 vi.mock("../../lib/server/api/appErrorLogs", () => ({
@@ -43,10 +41,6 @@ describe("POST /api/fal/status middleware auth-context ownership", () => {
     process.env.NEXT_PUBLIC_SUPABASE_URL = "https://supabase.example.co";
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = "anon-key";
     process.env.SHORTPULSE_TRUST_PROXY_AUTH_HEADERS = "false";
-    settleGenerationOutcomeMock.mockResolvedValue({
-      settled: true,
-      note: "captured",
-    });
   });
 
   it("keeps ownership enforcement with middleware-authenticated user context", async () => {
@@ -140,7 +134,18 @@ describe("POST /api/fal/status middleware auth-context ownership", () => {
       providerRequestId: "owned-request-id",
     });
     expect(res.status).toHaveBeenCalledWith(200);
-    expect(res.json).toHaveBeenCalledWith({ status: "processing" });
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        status: "processing",
+        shortpulseLifecycle: expect.objectContaining({
+          taskState: "running",
+          isTerminal: false,
+          providerState: "processing",
+          queueState: "dispatched",
+          statusLabel: "Processing...",
+        }),
+      })
+    );
     expect(fetchMock).toHaveBeenCalledTimes(5);
   });
 
@@ -193,9 +198,18 @@ describe("POST /api/fal/status middleware auth-context ownership", () => {
     await handler(req as never, res as never);
 
     expect(res.status).toHaveBeenCalledWith(200);
-    expect(res.json).toHaveBeenCalledWith({ status: "completed" });
-    expect(settleGenerationOutcomeMock).not.toHaveBeenCalledWith(
-      expect.objectContaining({ outcome: "fail" })
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        status: "completed",
+        shortpulseLifecycle: expect.objectContaining({
+          taskState: "running",
+          isTerminal: false,
+          providerState: "completed",
+          recoveryPending: true,
+          queueState: "dispatched",
+          statusLabel: "Waiting for server recovery...",
+        }),
+      })
     );
     expect(logGenerationFailureMock).not.toHaveBeenCalled();
     expect(fetchMock).toHaveBeenCalledTimes(5);

@@ -12,7 +12,6 @@ export type OutputLifecycleState = {
 export type OutputLifecycleMap = Record<string, OutputLifecycleState>;
 
 export type StaleOutputCleanupConfig = {
-  loadingTimeoutMs: number;
   submitStartTimeoutMs: number;
   taskBackedLoadingTimeoutMs: number;
   queueWaitTimeoutMs: number;
@@ -108,8 +107,6 @@ export const evaluateStaleOutputCleanup = (
       } else if (elapsedMs >= config.submitStartTimeoutMs) {
         staleLoadingIds.push(output.id);
         submitStartTimeoutIds.push(output.id);
-      } else if (elapsedMs >= config.loadingTimeoutMs) {
-        staleLoadingIds.push(output.id);
       }
     } else {
       delete nextState.pendingSinceMs;

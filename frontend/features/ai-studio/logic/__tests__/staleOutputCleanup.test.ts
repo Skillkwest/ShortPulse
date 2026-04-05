@@ -21,7 +21,6 @@ const makeOutput = (overrides: Partial<StudioOutput>): StudioOutput => ({
 });
 
 const config = {
-  loadingTimeoutMs: 3 * 60 * 1000,
   submitStartTimeoutMs: 12_000,
   taskBackedLoadingTimeoutMs: 12 * 60 * 1000,
   queueWaitTimeoutMs: 20 * 60 * 1000,

@@ -15,7 +15,6 @@ import { reportAppError } from "../../../lib/appErrorReporter";
 import { evaluateStaleOutputCleanup, type OutputLifecycleMap } from "../logic/staleOutputCleanup";
 import type { StudioOutput } from "../types";
 
-const STALE_LOADING_TIMEOUT_MS = 3 * 60 * 1000;
 const SUBMIT_START_TIMEOUT_MS = 90_000;
 const TASK_BACKED_LOADING_TIMEOUT_MS = 12 * 60 * 1000;
 const QUEUE_WAIT_TIMEOUT_MS = 30 * 60 * 1000;
@@ -104,7 +103,6 @@ export const useAiStudioOutputLifecycle = ({
     const lifecycle = staleOutputLifecycleRef.current;
     const outputsSnapshot = outputsRef.current;
     const cleanup = evaluateStaleOutputCleanup(outputsSnapshot, lifecycle, now, {
-      loadingTimeoutMs: STALE_LOADING_TIMEOUT_MS,
       submitStartTimeoutMs: SUBMIT_START_TIMEOUT_MS,
       taskBackedLoadingTimeoutMs: TASK_BACKED_LOADING_TIMEOUT_MS,
       queueWaitTimeoutMs: QUEUE_WAIT_TIMEOUT_MS,
@@ -115,11 +113,7 @@ export const useAiStudioOutputLifecycle = ({
     const taskBackedTimeoutSet = new Set(cleanup.taskBackedTimeoutIds);
     const queueWaitTimeoutSet = new Set(cleanup.queueWaitTimeoutIds);
     const removableSet = new Set(cleanup.removableIds);
-    const locallyFailedSet = new Set(
-      cleanup.staleLoadingIds.filter(
-        (id) => !taskBackedTimeoutSet.has(id) && !queueWaitTimeoutSet.has(id)
-      )
-    );
+    const locallyFailedSet = submitStartTimeoutSet;
 
     locallyFailedSet.forEach((id) => {
       const existing = cleanup.nextLifecycle[id] ?? {};
@@ -138,24 +132,19 @@ export const useAiStudioOutputLifecycle = ({
       if (!staleLoadingSet.has(staleOutput.id)) continue;
       const isSubmitStartTimeout = submitStartTimeoutSet.has(staleOutput.id);
       const isTaskBackedTimeout = taskBackedTimeoutSet.has(staleOutput.id);
-      const isQueueWaitTimeout = queueWaitTimeoutSet.has(staleOutput.id);
       void reportAppError({
         source: isSubmitStartTimeout
           ? "fal_submit_not_started"
           : isTaskBackedTimeout
             ? "generation.task_backed_stale_timeout"
-            : isQueueWaitTimeout
-              ? "generation.queue_wait_timeout"
-              : "generation.stale_timeout",
+            : "generation.queue_wait_timeout",
         scope: "generation",
         severity: "high",
         message: isSubmitStartTimeout
           ? "Generation failed to start before task initialization."
           : isTaskBackedTimeout
             ? "Generation polling stopped making visible progress after provider dispatch."
-            : isQueueWaitTimeout
-              ? "Generation timed out while waiting in queue."
-              : "Generation timed out before preview was ready.",
+            : "Generation timed out while waiting in queue.",
         route: currentRoute(),
         metadata: {
           output_id: staleOutput.id,
@@ -168,9 +157,7 @@ export const useAiStudioOutputLifecycle = ({
             ? "SUBMIT_START_TIMEOUT"
             : isTaskBackedTimeout
               ? "TASK_BACKED_STALE_TIMEOUT"
-              : isQueueWaitTimeout
-                ? "QUEUE_WAIT_TIMEOUT"
-                : "STALE_LOADING_TIMEOUT",
+              : "QUEUE_WAIT_TIMEOUT",
         },
       });
     }
@@ -188,7 +175,6 @@ export const useAiStudioOutputLifecycle = ({
           next.push(item);
           return;
         }
-        const isSubmitStartTimeout = submitStartTimeoutSet.has(item.id);
         const isTaskBackedTimeout = taskBackedTimeoutSet.has(item.id);
         const isQueueWaitTimeout = queueWaitTimeoutSet.has(item.id);
         changed = true;
@@ -215,34 +201,10 @@ export const useAiStudioOutputLifecycle = ({
           ...item,
           status: "ready",
           taskState: "fail",
-          timestamp: isSubmitStartTimeout
-            ? "Failed to start"
-            : isTaskBackedTimeout
-              ? "Status timed out"
-              : isQueueWaitTimeout
-                ? "Queue timed out"
-                : "Timed out",
-          errorMessage: isSubmitStartTimeout
-            ? "Generation failed to start. Please retry."
-            : isTaskBackedTimeout
-              ? "Generation status timed out before preview was ready. Please retry."
-              : isQueueWaitTimeout
-                ? "Generation queue timed out. Please retry."
-                : "Generation timed out before preview was ready.",
-          errorMessageShort: isSubmitStartTimeout
-            ? "Generation failed to start."
-            : isTaskBackedTimeout
-              ? "Generation status timed out."
-              : isQueueWaitTimeout
-                ? "Generation queue timed out."
-                : "Generation timed out.",
-          errorDetail: isSubmitStartTimeout
-            ? "The generation did not receive a provider task id. Please retry."
-            : isTaskBackedTimeout
-              ? "This generation received a provider task id but never produced preview media."
-              : isQueueWaitTimeout
-                ? "This generation stayed queued too long before provider dispatch."
-                : "This preview remained unresolved for several minutes and was marked as failed.",
+          timestamp: "Failed to start",
+          errorMessage: "Generation failed to start. Please retry.",
+          errorMessageShort: "Generation failed to start.",
+          errorDetail: "The generation did not receive a provider task id. Please retry.",
         });
       });
 

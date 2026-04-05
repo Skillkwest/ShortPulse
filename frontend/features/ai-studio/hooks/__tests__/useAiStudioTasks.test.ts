@@ -192,6 +192,55 @@ describe("useAiStudioTasks", () => {
     expect(output.taskState).toBe("success");
   });
 
+  it("honors the dispatch handoff delay override before the first status poll", async () => {
+    fetchFalStatusMock.mockResolvedValueOnce(
+      asFalStatusResponse({
+        status: "completed",
+        shortpulseLifecycle: {
+          taskState: "success",
+          isTerminal: true,
+          resultUrls: ["https://cdn.test/handoff-delay.png"],
+        },
+      })
+    );
+
+    let output = makeOutput();
+    const updateOutputById = vi.fn((id: string, updater: (item: StudioOutput) => StudioOutput) => {
+      if (id === output.id) {
+        output = updater(output);
+      }
+    });
+
+    const { result } = renderHook(() =>
+      useAiStudioTasks({
+        updateOutputById,
+        notifyGenerationFailure: vi.fn(),
+      })
+    );
+
+    act(() => {
+      result.current.startPollingTask(
+        "task-handoff-delay",
+        "out-1",
+        0,
+        "fal",
+        Date.now(),
+        0,
+        undefined,
+        { initialDelayMs: DISPATCH_HANDOFF_INITIAL_POLL_DELAY_MS }
+      );
+    });
+
+    await vi.advanceTimersByTimeAsync(DISPATCH_HANDOFF_INITIAL_POLL_DELAY_MS - 25);
+    expect(fetchFalStatusMock).not.toHaveBeenCalled();
+
+    await vi.advanceTimersByTimeAsync(50);
+    await flushQueuedOutputUpdates();
+
+    expect(fetchFalStatusMock).toHaveBeenCalledTimes(1);
+    expect(output.taskState).toBe("success");
+  });
+
   it("prefers server lifecycle success hints over raw provider payload interpretation", async () => {
     fetchFalStatusMock.mockResolvedValueOnce(
       asFalStatusResponse({
@@ -236,6 +285,49 @@ describe("useAiStudioTasks", () => {
         resultUrls: ["https://cdn.test/server-hint.png"],
       })
     );
+  });
+
+  it("hands lifecycle success without canonical result URLs over to server recovery", async () => {
+    fetchFalStatusMock.mockResolvedValueOnce(
+      asFalStatusResponse({
+        status: "completed",
+        data: { images: [{ url: "https://cdn.test/raw-fallback.png" }] },
+        shortpulseLifecycle: {
+          taskState: "success",
+          isTerminal: true,
+          resultUrls: [],
+          providerState: "completed",
+        },
+      })
+    );
+
+    let output = makeOutput();
+    const updateOutputById = vi.fn((id: string, updater: (item: StudioOutput) => StudioOutput) => {
+      if (id === output.id) {
+        output = updater(output);
+      }
+    });
+    const onGenerationSuccess = vi.fn();
+
+    const { result } = renderHook(() =>
+      useAiStudioTasks({
+        updateOutputById,
+        notifyGenerationFailure: vi.fn(),
+        onGenerationSuccess,
+      })
+    );
+
+    act(() => {
+      result.current.startPollingTask("task-lifecycle-no-urls", "out-1", 0, "fal");
+    });
+
+    await vi.advanceTimersByTimeAsync(2_300);
+    await flushQueuedOutputUpdates();
+
+    expect(onGenerationSuccess).not.toHaveBeenCalled();
+    expect(output.taskState).toBe("running");
+    expect(output.previewUrl).toBeUndefined();
+    expect(output.timestamp).toBe("Waiting for server recovery...");
   });
 
   it("prefers server lifecycle failure hints over raw provider failure parsing", async () => {

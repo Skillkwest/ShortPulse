@@ -47,19 +47,17 @@ import {
   getStatusConcurrencyRetryDelayMs,
   isStatusErrorRetryBudgetExhausted,
   MAX_CONCURRENT_STATUS_REQUESTS,
-  resolveNoMediaRetryPolicy,
 } from "./taskPolling/pollingSchedulePolicy";
 import {
-  classifyProviderSuccess,
   condenseError,
   createShortErrorMessage,
   looksLikeFailureMessage,
-  normalizeProviderStateToTaskState,
   type PollStatus,
   type ShortPulseLifecycleHint,
   readShortPulseLifecycleHint,
   resolvePollStatusGenerationId,
   resolveProviderStatusState,
+  terminalSuccessStates,
   terminalFailureStates,
 } from "./taskPolling/providerStatusPolicy";
 import { useAiStudioTaskRecoveryController } from "./taskPolling/useAiStudioTaskRecoveryController";
@@ -667,74 +665,8 @@ export function useAiStudioTasks({
             const lifecycleStatusLabel =
               lifecycleHint?.statusLabel?.trim() ||
               (lifecycleHint?.recoveryPending ? SERVER_RECOVERY_PENDING_TIMESTAMP : null);
-            const outputMode = findOutputById?.(outputId)?.mode ?? null;
-
             if (lifecycleTaskState === "success") {
-              const fallbackUrls = lifecycleResultUrls.length
-                ? []
-                : extractMediaByProvider(provider, status, {
-                    outputMode,
-                  });
-              const resolvedUrls =
-                lifecycleResultUrls.length > 0 ? lifecycleResultUrls : fallbackUrls;
-              const {
-                maxNoMediaAttempts,
-                shouldRetryForMedia,
-                retryDelayMs: noMediaRetryDelayMs,
-              } = resolveNoMediaRetryPolicy({
-                provider,
-                noMediaAttempt,
-                fallbackDelayMs: delay,
-              });
-              if (resolvedUrls.length === 0 && shouldRetryForMedia) {
-                if (noMediaAttempt === 0) {
-                  addBreadcrumb({
-                    type: "ui",
-                    level: "warn",
-                    message: "generation_terminal_no_media_retrying",
-                    data: {
-                      provider,
-                      task_id: taskId,
-                      output_id: outputId,
-                      status_state: lifecycleHint?.providerState ?? "success",
-                      max_no_media_attempts: maxNoMediaAttempts,
-                      retry_delay_ms: noMediaRetryDelayMs,
-                    },
-                  });
-                }
-                queueOutputUpdate(
-                  outputId,
-                  (item) => ({
-                    ...item,
-                    queueState:
-                      normalizeLifecycleQueueState(lifecycleHint?.queueState) ?? item.queueState,
-                    taskState: item.taskState === "running" ? item.taskState : "running",
-                    status: item.status === "ready" ? item.status : "ready",
-                    timestamp:
-                      item.timestamp === "Finalizing media..."
-                        ? item.timestamp
-                        : "Finalizing media...",
-                  }),
-                  { nonUrgent: true }
-                );
-                pollTimersRef.current[outputId] = window.setTimeout(
-                  () =>
-                    pollTask(
-                      taskId,
-                      outputId,
-                      attempt + 1,
-                      provider,
-                      startedAt,
-                      noMediaAttempt + 1,
-                      activePollSessionId,
-                      options
-                    ),
-                  noMediaRetryDelayMs
-                );
-                return;
-              }
-
-              if (resolvedUrls.length === 0) {
+              if (lifecycleResultUrls.length === 0) {
                 addBreadcrumb({
                   type: "ui",
                   level: "warn",
@@ -770,6 +702,8 @@ export function useAiStudioTasks({
                 clearPollTimer(outputId);
                 return;
               }
+
+              const resolvedUrls = lifecycleResultUrls;
 
               queueOutputUpdate(outputId, (item) => {
                 const nextDelivery = resolveNormalizedOutputDelivery({
@@ -994,9 +928,8 @@ export function useAiStudioTasks({
             }
 
             const { state } = resolveProviderStatusState(status);
-            const { shouldTreatAsSuccess } = classifyProviderSuccess({ state });
 
-            if (shouldTreatAsSuccess) {
+            if (terminalSuccessStates.has(state)) {
               addBreadcrumb({
                 type: "ui",
                 level: "warn",
@@ -1061,7 +994,7 @@ export function useAiStudioTasks({
               return;
             }
 
-            const nextTaskState = normalizeProviderStateToTaskState(state);
+            const nextTaskState = "running";
             const now = Date.now();
             const lastProgressUpdateAt = lastProgressUpdateAtRef.current[outputId] ?? 0;
             const nextTimestamp = "Processing...";

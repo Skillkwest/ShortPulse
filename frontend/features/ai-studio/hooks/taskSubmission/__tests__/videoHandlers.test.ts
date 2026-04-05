@@ -382,6 +382,9 @@ describe("handleVideoModelSubmission (Kie Kling standard)", () => {
     expect(submitKieKlingImageToVideo).toHaveBeenCalledWith(
       expect.objectContaining({
         resolution: "720p",
+        mode: "std",
+        sound: true,
+        multi_shots: false,
       })
     );
     expect(args.startPollingWithGeneration).toHaveBeenCalledWith(

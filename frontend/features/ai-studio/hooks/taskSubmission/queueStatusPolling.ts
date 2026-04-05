@@ -225,6 +225,7 @@ export const startQueuedStatusPolling = ({
       patch,
       provider,
       generationId: queuedResponse.generationId,
+      sourceRef: queuedResponse.sourceRef,
       queueEnqueuedAtMs,
     })
   );

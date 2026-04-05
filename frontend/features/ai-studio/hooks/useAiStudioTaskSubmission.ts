@@ -47,6 +47,7 @@ import {
 } from "./taskSubmission/submitInvariants";
 import { resolvePrepareReferenceTimeoutBudget } from "./taskSubmission/preflightTimeout";
 import type { StudioMode, StudioOutput, ToolId } from "../types";
+import { DISPATCH_HANDOFF_INITIAL_POLL_DELAY_MS } from "./useAiStudioTasks";
 
 type GenerationMetadata = Record<string, unknown>;
 type SubmissionInvariantError = Error & {
@@ -119,7 +120,11 @@ type UseAiStudioTaskSubmissionParams = {
     taskId: string,
     outputId: string,
     attempt?: number,
-    provider?: Provider
+    provider?: Provider,
+    startedAt?: number,
+    noMediaAttempt?: number,
+    pollSessionId?: number,
+    options?: { initialDelayMs?: number }
   ) => void;
   ensureGenerationRecord: (input: EnsureGenerationRecordInput) => Promise<string | null>;
 };
@@ -651,7 +656,9 @@ export const useAiStudioTaskSubmission = ({
                 taskId: normalizedTaskId,
               })
             );
-            startPollingTask(normalizedTaskId, id, 0, provider);
+            startPollingTask(normalizedTaskId, id, 0, provider, Date.now(), 0, undefined, {
+              initialDelayMs: DISPATCH_HANDOFF_INITIAL_POLL_DELAY_MS,
+            });
             void ensureGenerationRecord({
               outputId: id,
               provider,

@@ -4,6 +4,7 @@ import type { Dispatch, SetStateAction } from "react";
 import type { StudioOutput } from "../../types";
 import { resolveModelLabel } from "../../logic/stateParsers";
 import { useAiStudioTaskSubmission } from "../useAiStudioTaskSubmission";
+import { DISPATCH_HANDOFF_INITIAL_POLL_DELAY_MS } from "../useAiStudioTasks";
 import { prepareImageUrlForSubmission } from "../../utils/imageUpload";
 import { AUTH_SESSION_TIMEOUT_CODE } from "../../../../lib/authenticatedFetch";
 import * as falClient from "../../../../lib/falClient";
@@ -155,6 +156,9 @@ describe("useAiStudioTaskSubmission", () => {
     const firstStartPollingCall = startPollingTask.mock.calls[0];
     expect(firstStartPollingCall?.[0]).toBe("image-req-1");
     expect(firstStartPollingCall?.[3]).toBe("fal-seedream");
+    expect(firstStartPollingCall?.[7]).toEqual({
+      initialDelayMs: DISPATCH_HANDOFF_INITIAL_POLL_DELAY_MS,
+    });
     expect(outputs[0]?.taskId).toBe("image-req-1");
     expect(outputs[0]?.generationId).toBe("gen-immediate-1");
   });
@@ -2521,7 +2525,13 @@ describe("useAiStudioTaskSubmission", () => {
         "req-queued-1",
         outputs[0]?.id,
         0,
-        "fal-seedream"
+        "fal-seedream",
+        expect.any(Number),
+        0,
+        undefined,
+        {
+          initialDelayMs: DISPATCH_HANDOFF_INITIAL_POLL_DELAY_MS,
+        }
       );
       expect(outputs[0]?.taskId).toBe("req-queued-1");
       expect(outputs[0]?.taskState).toBe("running");
@@ -2736,7 +2746,13 @@ describe("useAiStudioTaskSubmission", () => {
         "req-queued-long-1",
         outputs[0]?.id,
         0,
-        "fal-seedream"
+        "fal-seedream",
+        expect.any(Number),
+        0,
+        undefined,
+        {
+          initialDelayMs: DISPATCH_HANDOFF_INITIAL_POLL_DELAY_MS,
+        }
       );
       expect(queueStatusCalls).toBeGreaterThan(180);
     } finally {

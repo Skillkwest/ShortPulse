@@ -7,9 +7,9 @@ Purpose: working checkpoint for the current `staging-preview` consolidation effo
 - Active integration target: `staging-preview`
 - Non-target branch for this lane: `main`
 - Primary source branch being consolidated: `origin/codex/full-unified-layers`
-- Current stable code checkpoint: `8f231fa01`
-- Last pushed remote checkpoint: `7d197d5e4`
-- Local/remote delta: none after re-baseline planning refresh
+- Current stable code checkpoint: `4b1af481e`
+- Last pushed remote checkpoint: `4b1af481e`
+- Local/remote delta: runtime lane in progress after the done-state closeout checkpoint
 - Whole-branch merge status: attempted once, then rolled back after broad `type-check` failure
 - Active strategy: lane-based integration with validation after each lane
 
@@ -48,10 +48,14 @@ Current blocking condition:
 
 Current relevant uncategorized buckets:
 
-- `RT-1` video submission and polling alignment
+- `RT-1A` queue/sourceRef and polling-authority alignment
+  - status: `absorbed locally`
+  - target surface: `frontend/features/ai-studio/hooks/taskSubmission/outputLifecyclePatches.ts`, `frontend/features/ai-studio/hooks/taskSubmission/queueStatusPolling.ts`, `frontend/features/ai-studio/hooks/useAiStudioTaskSubmission.ts`, `frontend/features/ai-studio/hooks/useAiStudioTasks.ts`, related hook tests
+  - why relevant: queued `sourceRef` carry-through, dispatch-handoff initial delay parity, and server-lifecycle-first polling authority are product/runtime behavior and are now validated locally on `staging-preview`
+- `RT-1B` advanced KIE Kling payload parity
   - status: `remaining`
-  - target surface: `frontend/features/ai-studio/hooks/taskSubmission/*`, `frontend/features/ai-studio/hooks/useAiStudioTaskSubmission.ts`, `frontend/features/ai-studio/hooks/useAiStudioTaskOrchestration.ts`, `frontend/features/ai-studio/hooks/useAiStudioTasks.ts`
-  - why relevant: KIE Kling payload shaping, queued `sourceRef` carry-through, and server-lifecycle-first polling authority are product/runtime behavior
+  - target surface: `frontend/features/ai-studio/hooks/taskSubmission/videoHandlers.ts`, `frontend/features/ai-studio/hooks/taskSubmission/videoPayloads.ts`, plus `frontend/lib/model-runtime/modelCatalog.ts`, `frontend/lib/server/providerIntegration/kieModelContracts.ts`, and related contract tests if full multi-shot/element parity is still desired
+  - why relevant: the remaining source delta is specifically the multi-shot/element KIE Kling contract expansion, which is no longer a hook-only slice on current branch truth
 - `VP-1` reference-video and Kling advanced-panel follow-on
   - status: `remaining`
   - target surface: `frontend/features/ai-studio/components/ReferenceKlingAdvancedSteps.tsx`, `frontend/features/ai-studio/components/VideoPropertiesPanel.tsx`, `frontend/features/ai-studio/components/useReferencePropertiesDerivedState.ts`, related tests
@@ -425,6 +429,7 @@ Still-useful local safety refs:
 - `refs/keep/staging-preview-pre-recovery-visibility-lane`
 - `refs/keep/staging-preview-pre-diagnostics-operator-lane`
 - `refs/keep/staging-preview-pre-ui1-product-extraction`
+- `refs/keep/staging-preview-pre-rt1-video-runtime-lane`
 
 ## Remaining Work
 
@@ -432,23 +437,21 @@ Still-useful local safety refs:
 
 Current recommendation:
 
-1. push the current stable local `staging-preview` checkpoint
-2. follow `docs/planning/staging-preview-ui-properties-extraction-plan-2026-04-04.md` for the next product-only lane
-3. decide whether the next product-code lane is:
-   - a bounded AI Studio properties-routing slice
-   - a bounded session-hydration/view-model slice
-   - or a deliberate stop if the remaining UI value does not justify the extraction cost
+1. close and push the validated RT-1A runtime lane
+2. decide whether the remaining relevant delta should continue as `RT-1B`, `VP-1`, or `SA-1`
+3. only reopen KIE Kling payload parity work if the server contract files are intentionally admitted to scope
 
 Decision note:
 
-- the recovery visibility/convergence lane is now complete
-- the next lane should be chosen from the updated post-recovery-visibility branch state, not from the older pre-trim plan
-
-- the diagnostics/operator lane is now complete
-- the next lane should be chosen from current product code on `staging-preview`, not from remaining raw source commit names
-- current branch audit shows the routing/session-hydration UI-1 posture is largely already present locally
-- the remaining upstream delta identified during the UI-1 audit is a narrow video-panel prop thread that depends on `frontend/features/ai-studio/hooks/useAiStudioVideoPanelProps.ts`, so it should stay out-of-scope unless that hook is explicitly admitted to the lane
-- the next highest-ROI extraction candidate is no longer a properties-panel lane; it is a bounded video submission/runtime alignment lane centered on KIE Kling payload shaping and server-lifecycle polling authority
+- the recovery visibility/convergence lane is complete
+- the diagnostics/operator lane is complete
+- current branch audit still shows the old UI-1 routing/session-hydration posture is largely present locally
+- the bounded hook/runtime slice of RT-1 is now locally validated:
+  - queued `sourceRef` survives the queued submission patch path
+  - direct dispatches use the same handoff-delay polling contract as resumed queue handoffs
+  - task polling now trusts lifecycle-authored success/failure authority and hands raw terminal states back to server recovery instead of forcing local success
+  - KIE Kling standard submits now carry the contract-safe `mode`, `sound`, and `multi_shots` fields already supported by current `staging-preview`
+- the remaining KIE Kling multi-shot/element parity is not a hook-only change on current branch truth; it requires submit-contract/model-catalog files and should be tracked as `RT-1B` instead of being pulled in by momentum
 
 ### Deferred UI/docs collateral remainder
 

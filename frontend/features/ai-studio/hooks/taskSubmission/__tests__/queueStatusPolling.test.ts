@@ -88,6 +88,7 @@ describe("queueStatusPolling", () => {
         sourceRef: "src-queued-1",
         generationId: "gen-queued-1",
       });
+      expect(output.sourceRef).toBe("src-queued-1");
       expect(onDispatched).toHaveBeenCalledWith("req-queued-1", "gen-queued-1", "fal-seedream");
       expect(notifyGenerationFailure).not.toHaveBeenCalled();
     } finally {

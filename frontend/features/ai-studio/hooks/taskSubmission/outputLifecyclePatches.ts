@@ -37,6 +37,7 @@ type QueuedSubmissionPatchInput = {
   patch: SubmissionPatch;
   provider: Provider;
   generationId: string;
+  sourceRef?: string | null;
   queueEnqueuedAtMs: number;
 };
 
@@ -48,11 +49,13 @@ export const applyQueuedSubmissionPatch = ({
   patch,
   provider,
   generationId,
+  sourceRef,
   queueEnqueuedAtMs,
 }: QueuedSubmissionPatchInput): StudioOutput => ({
   ...item,
   ...patch,
   generationId: patch.generationId ?? generationId,
+  sourceRef: patch.sourceRef ?? item.sourceRef ?? sourceRef ?? undefined,
   taskState: "pending",
   timestamp: "Submitting...",
   provider: item.provider ?? provider,

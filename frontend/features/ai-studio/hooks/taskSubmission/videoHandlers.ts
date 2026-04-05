@@ -42,6 +42,7 @@ import {
   resolveKlingShotType,
   resolveKlingResolution,
   buildKlingVoiceIds,
+  resolveKieKlingMode,
 } from "./videoPayloads";
 import { resolveVideoSubmissionSafetyPayload } from "./safetyPolicy";
 
@@ -255,15 +256,19 @@ export const handleVideoModelSubmission = async ({
     }
     const aspectRatio = ["16:9", "9:16", "1:1"].includes(aspect) ? aspect : "16:9";
     const duration = requestedDurationSeconds <= 5 ? 5 : 10;
+    const resolution = resolveKlingResolution(requestedResolution);
     const response = await submitKieKlingImageToVideo({
       prompt: cleanedPrompt,
       image_url: preparedImageInputs[0],
       image_urls: [preparedImageInputs[0]],
       aspect_ratio: aspectRatio,
       duration,
-      resolution: resolveKlingResolution(requestedResolution),
+      resolution,
+      mode: resolveKieKlingMode(resolution),
       cfg_scale: klingCfgScale,
       generate_audio: requestedAudio,
+      sound: requestedAudio,
+      multi_shots: false,
     });
     handoffSubmitResponse({
       response,

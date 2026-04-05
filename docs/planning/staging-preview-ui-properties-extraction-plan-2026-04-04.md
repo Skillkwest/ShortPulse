@@ -5,7 +5,7 @@ Purpose: define the remaining product-only extraction strategy for the AI Studio
 ## Current Posture
 
 - Active integration target: `staging-preview`
-- Current shared checkpoint: `8f231fa01`
+- Current shared checkpoint: `4b1af481e`
 - Source branch for comparison only: `origin/codex/full-unified-layers`
 - Branch-level merges are no longer the right unit for the remaining UI work.
 
@@ -125,6 +125,39 @@ Expected changes in scope:
 - support richer KIE Kling payload shaping for multi-shot and element inputs
 - prefer server lifecycle hints over raw provider success/failure heuristics during task polling handoff
 - keep the lane centered on runtime behavior and hook tests, not panel copy/layout
+
+## RT-1 Re-Slice After Runtime Audit
+
+Current conclusion:
+- the hook/runtime half of RT-1 is independently landable on current `staging-preview`
+- the remaining KIE Kling multi-shot and element payload parity is not independently hook-scoped because current submit validation and provider contract files still constrain that payload surface
+
+Split the lane this way:
+
+### Lane RT-1A: queue/sourceRef and polling authority
+
+Goal:
+- land the runtime-authority changes that are fully compatible with current `staging-preview` contracts
+
+Included behavior:
+- preserve queued `sourceRef` during submission patching and queue-status handoff
+- use dispatch-handoff initial polling delay consistently for direct non-queued submissions
+- trust lifecycle-authored success/failure authority before raw provider state heuristics
+- keep raw terminal provider states on the recovery path instead of forcing local success
+- add the contract-safe KIE Kling standard submit fields already supported locally: `mode`, `sound`, and `multi_shots`
+
+### Lane RT-1B: advanced KIE Kling payload contract expansion
+
+Goal:
+- finish source parity for KIE Kling multi-shot and element payload shaping only if the server contract surface is intentionally admitted
+
+Additional files required:
+- `frontend/lib/model-runtime/modelCatalog.ts`
+- `frontend/lib/server/providerIntegration/kieModelContracts.ts`
+- related submit-contract tests under `frontend/lib/server/`
+
+Reason for the split:
+- without those server-side files, the remaining multi-shot/element payload fields are blocked by current allowed-field and provider normalization contracts on `staging-preview`
 
 ## Explicitly Defer Again After Re-Baseline
 

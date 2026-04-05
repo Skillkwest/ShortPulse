@@ -61,6 +61,12 @@ export const resolveKlingResolution = (
 };
 
 /**
+ * Maps Kie Kling resolution tiers to the provider mode enum.
+ */
+export const resolveKieKlingMode = (requestedResolution?: string): "std" | "pro" =>
+  resolveKlingResolution(requestedResolution) === "720p" ? "std" : "pro";
+
+/**
  * Normalizes VEO resolution selection to accepted enum values.
  */
 export const resolveVeoResolution = (

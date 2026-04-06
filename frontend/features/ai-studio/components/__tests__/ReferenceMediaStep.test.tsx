@@ -66,4 +66,11 @@ describe("ReferenceMediaStep", () => {
 
     expect(screen.queryByText("Optional")).toBeNull();
   });
+
+  it("shows a required pill on the first frame when standard video explicitly requires an image", () => {
+    render(<ReferenceMediaStep {...baseProps} primaryImageRequired />);
+
+    expect(screen.getByText("Required")).toBeInTheDocument();
+    expect(screen.getByText("Optional")).toBeInTheDocument();
+  });
 });

@@ -48,10 +48,13 @@ For Create properties panel, model-selector, and submission wiring details, see 
 ### Model picker policy (Create → Video)
 
 - Model chips are ordered deterministically by provider + workflow priority in the modal.
+- The video model modal title is constant: `Video`.
 - Standard Video mode (`reference-video` context) surfaces image-to-video models in this order:
   1. `kie-ai/veo-3.1-fast-i2v`
   2. `kie-ai/kling-3.0`
 - Standard Video mode is Kie-only.
+- With no frame references present, Standard mode defaults to Kie Veo text-to-video behavior.
+- The modal still allows manual selection of `kie-ai/kling-3.0` in that state; once Kling is selected, the first-frame dropzone becomes required and Generate remains disabled until the first frame is populated.
 - Keyframe-style generation is handled through `kie-ai/veo-3.1-fast-i2v` by switching Kie generation type based on the number of frame references.
 
 ## Reference-based video workflow (Create → Video, image-to-video models)

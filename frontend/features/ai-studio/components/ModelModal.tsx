@@ -245,14 +245,6 @@ const resolveModelLogo = (modelId: string) => {
   return sectionLogos[fallbackKey];
 };
 
-const contextTitleMap: Record<ModelModalContext, string> = {
-  "reference-image": "Image-to-Image",
-  "reference-video": "Image-to-Video",
-  "reference-keyframes": "First/Last Frame",
-  "text-image": "Text-to-Image",
-  "text-video": "Text-to-Video",
-};
-
 const contextTooltipTagMap: Record<ModelModalContext, string> = {
   "reference-image": "Image-to-Image",
   "reference-video": "Image-to-Video",
@@ -288,7 +280,7 @@ const modelPriorityByContext: Partial<Record<ModelModalContext, string[]>> = {
   ],
   "reference-video": ["kie-ai/veo-3.1-fast-i2v", "kie-ai/kling-3.0"],
   "reference-keyframes": ["kie-ai/veo-3.1-fast-i2v"],
-  "text-video": ["kie-ai/veo-3.1-fast-i2v"],
+  "text-video": ["kie-ai/veo-3.1-fast-i2v", "kie-ai/kling-3.0"],
 };
 
 const hiddenModelIdsByContext: Partial<Record<ModelModalContext, string[]>> = {
@@ -445,8 +437,14 @@ function ModelModalContent({
       return (originalIndex.get(a.value) ?? 0) - (originalIndex.get(b.value) ?? 0);
     });
   }, [context, filteredOptions]);
-  const modalTitle = context && contextTitleMap[context] ? contextTitleMap[context] : "Models";
-  const tooltipContextTag = context ? contextTooltipTagMap[context] : undefined;
+  const modalTitle =
+    context && videoModalContexts.has(context)
+      ? "Video"
+      : context && contextTitleMap[context]
+        ? contextTitleMap[context]
+        : "Models";
+  const tooltipContextTag =
+    context && context !== "text-video" ? contextTooltipTagMap[context] : undefined;
 
   const handleSelect = (value: string) => {
     setRecentValues((prev) => {
@@ -665,3 +663,13 @@ function ModelModalContent({
     </AiStudioModalLayer>
   );
 }
+const videoModalContexts = new Set<ModelModalContext>([
+  "reference-video",
+  "reference-keyframes",
+  "text-video",
+]);
+
+const contextTitleMap: Partial<Record<ModelModalContext, string>> = {
+  "reference-image": "Image-to-Image",
+  "text-image": "Text-to-Image",
+};

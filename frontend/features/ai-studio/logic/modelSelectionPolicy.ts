@@ -104,7 +104,10 @@ export const resolveAiStudioAllowedModelOptions = ({
       return selectorVideoOptions.filter((option) => option.value === KIE_KLING_30_MODEL_ID);
     }
     if (resolvedVideoLane === "text") {
-      return selectorVideoOptions.filter((option) => option.value === KIE_VEO_31_FAST_I2V_MODEL_ID);
+      return selectorVideoOptions.filter(
+        (option) =>
+          option.value === KIE_VEO_31_FAST_I2V_MODEL_ID || option.value === KIE_KLING_30_MODEL_ID
+      );
     }
     if (resolvedVideoLane === "single-image") {
       return selectorVideoOptions.filter(

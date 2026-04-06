@@ -156,6 +156,26 @@ describe("useAiStudioStateEffects", () => {
     });
   });
 
+  it("preserves an explicit Kie Kling selection when no frame images are present", async () => {
+    const setModel = vi.fn();
+    renderHook(() =>
+      useAiStudioStateEffects(
+        createArgs({
+          selectedTool: "video",
+          model: KIE_KLING_30_MODEL_ID,
+          referenceImageUrl: null,
+          extraImageUrls: [null, null, null],
+          allowedModelValues: [KIE_VEO_31_FAST_I2V_MODEL_ID, KIE_KLING_30_MODEL_ID],
+          setModel,
+        })
+      )
+    );
+
+    await waitFor(() => {
+      expect(setModel).not.toHaveBeenCalledWith(KIE_VEO_31_FAST_I2V_MODEL_ID);
+    });
+  });
+
   it("locks motion mode to Kie Kling model", async () => {
     const setModel = vi.fn();
     renderHook(() =>

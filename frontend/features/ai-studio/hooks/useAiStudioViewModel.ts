@@ -8,7 +8,10 @@ import type { PricingParams } from "../logic/pricingTypes";
 import { estimateDescribeTokens, estimatePromptTokens } from "../logic/tokenEstimates";
 import { TEXT_PROMPT_MODEL_ID } from "../logic/promptGeneration";
 import { normalizeImageResolutionForPricing } from "../logic/imageResolution";
-import { KIE_VEO_31_FAST_I2V_MODEL_ID } from "../../../lib/model-runtime/providerModelIds";
+import {
+  KIE_KLING_30_MODEL_ID,
+  KIE_VEO_31_FAST_I2V_MODEL_ID,
+} from "../../../lib/model-runtime/providerModelIds";
 import { resolveVideoGenerationLaneFromFrameInputs } from "../logic/referenceInputs";
 import {
   resolveEffectiveEditSubmitModelId,
@@ -311,6 +314,14 @@ export const useAiStudioViewModel = ({
         return "Add a motion reference video before generating in Motion Control.";
       }
     }
+    if (
+      isVideoTool &&
+      videoReferenceMode === "standard" &&
+      model === KIE_KLING_30_MODEL_ID &&
+      !referenceImageUrl
+    ) {
+      return "Add a first frame image before generating with Kling 3.0.";
+    }
     if (isCreditGuardrail) return "You do not have enough credits for this run.";
     return null;
   }, [
@@ -329,6 +340,7 @@ export const useAiStudioViewModel = ({
     isCreateWorkflowSelected,
     isEditWorkflowSelected,
     resolvedVideoLane,
+    videoReferenceMode,
   ]);
 
   const isGenerateDisabled = Boolean(generationGuardrail);
@@ -364,6 +376,9 @@ export const useAiStudioViewModel = ({
           return "Motion Control requires a motion reference video.";
         }
       }
+      if (model === KIE_KLING_30_MODEL_ID && videoReferenceMode === "standard" && !hasReference) {
+        return "Kling 3.0 requires a first frame image in Standard mode.";
+      }
     }
 
     return null;
@@ -375,6 +390,7 @@ export const useAiStudioViewModel = ({
     isVideoTool,
     resolvedVideoLane,
     motionReferenceVideoUrl,
+    videoReferenceMode,
   ]);
 
   return {

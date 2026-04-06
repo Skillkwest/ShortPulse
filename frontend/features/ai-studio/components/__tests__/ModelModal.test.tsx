@@ -119,6 +119,35 @@ describe("ModelModal", () => {
     expect(screen.queryByRole("button", { name: "Seedance 1.5 Pro" })).not.toBeInTheDocument();
   });
 
+  it("uses a constant video title and keeps Kie Kling selectable in text-video context", () => {
+    const options: ModelOption[] = [
+      {
+        value: KIE_VEO_31_FAST_I2V_MODEL_ID,
+        label: "Veo 3.1 Fast I2V (Kie)",
+        mediaType: "image-to-video",
+      },
+      {
+        value: KIE_KLING_30_MODEL_ID,
+        label: "Kling 3.0 (Kie)",
+        mediaType: "image-to-video",
+      },
+    ];
+
+    const { container } = render(
+      <ModelModal
+        isOpen
+        onClose={vi.fn()}
+        onSelect={vi.fn()}
+        options={options}
+        context="text-video"
+      />
+    );
+
+    expect(screen.getByText("Video")).toBeInTheDocument();
+    expect(screen.queryByText("Text-to-Video")).not.toBeInTheDocument();
+    expect(readChipTitles(container)).toEqual(["Veo 3.1 Fast I2V (Kie)", "Kling 3.0 (Kie)"]);
+  });
+
   it("orders text-image chips by provider-grouped workflow priority", () => {
     const options: ModelOption[] = [
       { value: "fal-ai/nano-banana-pro", label: "Nano Banana Pro", mediaType: "image" },

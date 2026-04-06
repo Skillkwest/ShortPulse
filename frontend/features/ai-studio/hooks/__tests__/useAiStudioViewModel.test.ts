@@ -183,6 +183,26 @@ describe("useAiStudioViewModel motion guardrails", () => {
     expect(result.current.referenceImageWarning).toBeNull();
   });
 
+  it("requires a first frame image when Kling 3.0 is selected in standard video mode", () => {
+    const { result } = renderHook(() =>
+      useAiStudioViewModel({
+        ...baseInput,
+        model: "kie-ai/kling-3.0",
+        videoReferenceMode: "standard",
+        referenceImageUrl: null,
+        motionReferenceVideoUrl: null,
+      })
+    );
+
+    expect(result.current.generationGuardrail).toBe(
+      "Add a first frame image before generating with Kling 3.0."
+    );
+    expect(result.current.isGenerateDisabled).toBe(true);
+    expect(result.current.referenceImageWarning).toBe(
+      "Kling 3.0 requires a first frame image in Standard mode."
+    );
+  });
+
   it("allows Kie Veo with a single frame because the lane resolves to single-image", () => {
     const { result } = renderHook(() =>
       useAiStudioViewModel({

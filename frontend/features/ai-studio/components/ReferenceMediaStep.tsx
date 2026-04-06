@@ -26,6 +26,7 @@ type ReferenceMediaStepProps = {
   isKling3Mode: boolean;
   isStandardMode: boolean;
   isKeyframesMode: boolean;
+  primaryImageRequired?: boolean;
   referenceImageUrl: string | null;
   extraImageUrls: [string | null, string | null, string | null];
   motionVideoUrl: string | null;
@@ -76,6 +77,7 @@ export const ReferenceMediaStep: React.FC<ReferenceMediaStepProps> = ({
   isKling3Mode,
   isStandardMode,
   isKeyframesMode,
+  primaryImageRequired = false,
   referenceImageUrl,
   extraImageUrls,
   motionVideoUrl,
@@ -108,7 +110,10 @@ export const ReferenceMediaStep: React.FC<ReferenceMediaStepProps> = ({
 }) => {
   const showHeader = !isVideoVariant;
   const isCollapsed = showHeader ? collapsedReference : false;
-  const shouldShowPrimaryOptionalPill = isVideoVariant && isStandardMode && !referenceImageUrl;
+  const shouldShowPrimaryOptionalPill =
+    isVideoVariant && isStandardMode && !primaryImageRequired && !referenceImageUrl;
+  const shouldShowPrimaryRequiredPill =
+    isVideoVariant && isStandardMode && primaryImageRequired && !referenceImageUrl;
   const shouldShowLastFrameOptionalPill = isVideoVariant && isStandardMode && !extraImageUrls[0];
   const mediaContent = (
     <>
@@ -281,6 +286,11 @@ export const ReferenceMediaStep: React.FC<ReferenceMediaStepProps> = ({
                   ) : (
                     "Reference image"
                   )}
+                </span>
+              ) : null}
+              {shouldShowPrimaryRequiredPill ? (
+                <span className="dropzone-tag-pill dropzone-tag-pill--bottom dropzone-tag-pill--required">
+                  Required
                 </span>
               ) : null}
               {shouldShowPrimaryOptionalPill ? (

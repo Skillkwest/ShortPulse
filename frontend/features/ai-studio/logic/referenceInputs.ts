@@ -56,7 +56,7 @@ export const resolveVideoGenerationLaneFromInputs = ({
 };
 
 const isTextCompatibleVideoModel = (modelId: string | null | undefined): boolean =>
-  modelId === KIE_VEO_31_FAST_I2V_MODEL_ID;
+  modelId === KIE_VEO_31_FAST_I2V_MODEL_ID || modelId === KIE_KLING_30_MODEL_ID;
 
 const isSingleImageCompatibleVideoModel = (modelId: string | null | undefined): boolean =>
   modelId === KIE_KLING_30_MODEL_ID || modelId === KIE_VEO_31_FAST_I2V_MODEL_ID;

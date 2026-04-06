@@ -790,6 +790,12 @@
   z-index: 2;
 }
 
+.dropzone-tag-pill--required {
+  background: var(--video-accent-soft, rgba(170, 101, 239, 0.24));
+  border-color: var(--video-accent-strong, rgba(170, 101, 239, 0.9));
+  color: rgba(245, 237, 255, 0.92);
+}
+
 .reference-dropzone.has-preview .dropzone-tag,
 .reference-dropzone.has-video .dropzone-tag {
   display: none;

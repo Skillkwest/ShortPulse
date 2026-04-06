@@ -289,7 +289,8 @@ export function VideoPropertiesPanel({
       : resolvedVideoLane === "first-last"
         ? "reference-keyframes"
         : "reference-video";
-  const standardVideoRequiresReferenceImage = modelConfig?.mediaType === "image-to-video";
+  const standardVideoRequiresReferenceImage =
+    activeVideoMode === "standard" && modelId === KIE_KLING_30_MODEL_ID;
   const videoModeIndex = visibleVideoMode === "motion" ? 1 : 0;
   const videoModeTabsStyle = React.useMemo(
     () =>
@@ -464,6 +465,7 @@ export function VideoPropertiesPanel({
                         isKling3Mode={isKling3Mode}
                         isStandardMode={isStandardMode}
                         isKeyframesMode={isKeyframesMode}
+                        primaryImageRequired={standardVideoRequiresReferenceImage}
                         referenceImageUrl={referenceImageUrl}
                         extraImageUrls={extraImageUrls}
                         motionVideoUrl={motionVideoUrl}
@@ -492,9 +494,7 @@ export function VideoPropertiesPanel({
                         handleFileSelection={handleFileSelection}
                         handleMotionVideoSelection={handleMotionVideoSelection}
                         topContent={
-                          <div className="video-reference-card-title">
-                            Add References (Optional)
-                          </div>
+                          <div className="video-reference-card-title">Add References</div>
                         }
                       />
                     </div>

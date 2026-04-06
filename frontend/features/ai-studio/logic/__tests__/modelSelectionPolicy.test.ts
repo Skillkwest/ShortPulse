@@ -249,7 +249,7 @@ describe("modelSelectionPolicy", () => {
       getModelConfig,
     }).map((option) => option.value);
 
-    expect(values).toEqual([KIE_VEO_31_FAST_I2V_MODEL_ID]);
+    expect(values).toEqual([KIE_VEO_31_FAST_I2V_MODEL_ID, KIE_KLING_30_MODEL_ID]);
   });
 
   it("narrows standard video selection to single-image models when the resolved lane is single-image", () => {

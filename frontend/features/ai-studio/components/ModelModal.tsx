@@ -287,6 +287,17 @@ const hiddenModelIdsByContext: Partial<Record<ModelModalContext, string[]>> = {
   "text-image": ["fal/flux-2", "fal-ai/nano-banana"],
 };
 
+const videoModalContexts = new Set<ModelModalContext>([
+  "reference-video",
+  "reference-keyframes",
+  "text-video",
+]);
+
+const contextTitleMap: Partial<Record<ModelModalContext, string>> = {
+  "reference-image": "Image-to-Image",
+  "text-image": "Text-to-Image",
+};
+
 const isDisabledLegacyVideoModel = (option: ModelOption): boolean =>
   option.value.startsWith("fal-ai/") &&
   (option.mediaType === "video" ||
@@ -663,13 +674,3 @@ function ModelModalContent({
     </AiStudioModalLayer>
   );
 }
-const videoModalContexts = new Set<ModelModalContext>([
-  "reference-video",
-  "reference-keyframes",
-  "text-video",
-]);
-
-const contextTitleMap: Partial<Record<ModelModalContext, string>> = {
-  "reference-image": "Image-to-Image",
-  "text-image": "Text-to-Image",
-};

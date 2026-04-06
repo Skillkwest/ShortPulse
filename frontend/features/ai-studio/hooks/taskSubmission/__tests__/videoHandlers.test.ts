@@ -4,6 +4,10 @@ import { getModelConfig } from "../../../logic/pricing";
 import { handleVideoModelSubmission } from "../videoHandlers";
 import {
   submitFalKlingV3ImageToVideo,
+  submitFalKlingV3Text,
+  submitFalSeedance,
+  submitFalSoraPro,
+  submitFalVeoImageToVideo,
   submitKieKlingImageToVideo,
   submitKieVeoImageToVideo,
 } from "../../../../../lib/falClient";
@@ -79,6 +83,7 @@ describe("handleVideoModelSubmission (Kling 3 motion)", () => {
     const args = makeArgs({
       finalModel: KIE_KLING_30_MODEL_ID,
       modelConfig: getModelConfig(KIE_KLING_30_MODEL_ID),
+      requestedAudio: false,
     });
 
     const handled = await handleVideoModelSubmission(args);
@@ -93,6 +98,7 @@ describe("handleVideoModelSubmission (Kling 3 motion)", () => {
       video_urls: ["https://example.com/motion.mp4"],
       resolution: "1080p",
       mode: "1080p",
+      generate_audio: false,
       character_orientation: "image",
       background_source: "input_video",
     });
@@ -113,6 +119,7 @@ describe("handleVideoModelSubmission (Kling 3 motion)", () => {
       finalModel: KIE_KLING_30_MODEL_ID,
       modelConfig: getModelConfig(KIE_KLING_30_MODEL_ID),
       requestedResolution: "720p",
+      requestedAudio: true,
     });
 
     const handled = await handleVideoModelSubmission(args);
@@ -122,6 +129,7 @@ describe("handleVideoModelSubmission (Kling 3 motion)", () => {
       expect.objectContaining({
         resolution: "720p",
         mode: "720p",
+        generate_audio: true,
       })
     );
   });
@@ -317,22 +325,73 @@ describe("handleVideoModelSubmission (Kie Veo keyframes)", () => {
     );
   });
 
-  it("fails when keyframes mode does not provide both frames", async () => {
+  it("submits single-image payload in standard mode with first/last generation type", async () => {
+    vi.mocked(submitKieVeoImageToVideo).mockResolvedValue({ request_id: "req-kie-veo-standard" });
+
+    const handled = await handleVideoModelSubmission(
+      makeArgs({
+        finalModel: KIE_VEO_31_FAST_I2V_MODEL_ID,
+        modelConfig: getModelConfig(KIE_VEO_31_FAST_I2V_MODEL_ID),
+        videoReferenceMode: "standard",
+        requestedDurationSeconds: 4,
+        requestedResolution: "720p",
+        preparedImageInputs: ["https://example.com/first.png"],
+      })
+    );
+
+    expect(handled).toBe(true);
+    expect(submitKieVeoImageToVideo).toHaveBeenCalledWith({
+      prompt: "A dancer twirls",
+      image_url: "https://example.com/first.png",
+      image_urls: ["https://example.com/first.png"],
+      generation_type: "FIRST_AND_LAST_FRAMES_2_VIDEO",
+      aspect_ratio: "16:9",
+      duration: 5,
+      resolution: "720p",
+      generate_audio: true,
+    });
+  });
+
+  it("promotes Kie Veo standard mode to first+last when two frames are present", async () => {
+    vi.mocked(submitKieVeoImageToVideo).mockResolvedValue({ request_id: "req-kie-veo-dual" });
+
+    const handled = await handleVideoModelSubmission(
+      makeArgs({
+        finalModel: KIE_VEO_31_FAST_I2V_MODEL_ID,
+        modelConfig: getModelConfig(KIE_VEO_31_FAST_I2V_MODEL_ID),
+        videoReferenceMode: "standard",
+        preparedImageInputs: ["https://example.com/first.png", "https://example.com/last.png"],
+      })
+    );
+
+    expect(handled).toBe(true);
+    expect(submitKieVeoImageToVideo).toHaveBeenCalledWith(
+      expect.objectContaining({
+        image_url: "https://example.com/first.png",
+        image_urls: ["https://example.com/first.png", "https://example.com/last.png"],
+        generation_type: "FIRST_AND_LAST_FRAMES_2_VIDEO",
+      })
+    );
+  });
+
+  it("submits prompt-only payload when Kie Veo is used without frame images", async () => {
     const args = makeArgs({
       finalModel: KIE_VEO_31_FAST_I2V_MODEL_ID,
       modelConfig: getModelConfig(KIE_VEO_31_FAST_I2V_MODEL_ID),
-      videoReferenceMode: "keyframes",
-      preparedImageInputs: ["https://example.com/only-first.png"],
+      videoReferenceMode: "standard",
+      preparedImageInputs: [],
     });
 
     const handled = await handleVideoModelSubmission(args);
 
     expect(handled).toBe(true);
-    expect(args.notifyGenerationFailure).toHaveBeenCalledWith(
-      "out-1",
-      "Kie Veo 3.1 Fast I2V keyframes mode requires both first and last frame images."
+    expect(submitKieVeoImageToVideo).toHaveBeenCalledWith(
+      expect.objectContaining({
+        image_url: undefined,
+        image_urls: [],
+        generation_type: "TEXT_2_VIDEO",
+      })
     );
-    expect(submitKieVeoImageToVideo).not.toHaveBeenCalled();
   });
 
   it("blocks character-scoped media URLs before submit", async () => {
@@ -551,5 +610,290 @@ describe("handleVideoModelSubmission (Kling 3 non-motion element videos)", () =>
       expect.stringContaining("Kling element reference preparation failed")
     );
     expect(submitFalKlingV3ImageToVideo).not.toHaveBeenCalled();
+  });
+
+  it("passes end frame, intelligent shot type, voices, and image elements for Fal Kling standard submits", async () => {
+    const args = makeArgs({
+      finalModel: "fal-ai/kling-video/v3/pro/image-to-video",
+      modelConfig: getModelConfig("fal-ai/kling-video/v3/pro/image-to-video"),
+      videoReferenceMode: "standard",
+      requestedDurationSeconds: 9,
+      requestedResolution: "720p",
+      requestedAudio: true,
+      preparedImageInputs: ["https://example.com/start.png", "https://example.com/end.png"],
+      klingShotType: "intelligent",
+      klingVoiceIds: [" voice_a ", "voice_b"],
+      klingNegativePrompt: "bad anatomy, blur",
+      klingCfgScale: 0.9,
+      klingMultiPrompts: [
+        { id: "shot-1", prompt: " First beat ", duration: 5 },
+        { id: "shot-2", prompt: "Second beat", duration: 8 },
+      ],
+      klingElements: [
+        {
+          id: "element-1",
+          frontalImageUrl: " https://example.com/front.png ",
+          referenceImageUrls: "https://example.com/ref-a.png,\nhttps://example.com/ref-b.png",
+          videoUrl: "",
+        },
+      ],
+    });
+
+    const handled = await handleVideoModelSubmission(args);
+
+    expect(handled).toBe(true);
+    expect(submitFalKlingV3ImageToVideo).toHaveBeenCalledWith({
+      prompt: "A dancer twirls",
+      start_image_url: "https://example.com/start.png",
+      end_image_url: "https://example.com/end.png",
+      duration: 9,
+      aspect_ratio: "16:9",
+      resolution: "720p",
+      negative_prompt: "bad anatomy, blur",
+      cfg_scale: 0.9,
+      generate_audio: true,
+      voice_ids: ["voice_a", "voice_b"],
+      multi_prompt: [
+        { prompt: "First beat", duration: 5 },
+        { prompt: "Second beat", duration: 8 },
+      ],
+      shot_type: "intelligent",
+      elements: [
+        {
+          frontal_image_url: "https://example.com/front.png",
+          reference_image_urls: ["https://example.com/ref-a.png", "https://example.com/ref-b.png"],
+        },
+      ],
+    });
+  });
+});
+
+describe("handleVideoModelSubmission (Fal Veo 3.1 image-to-video)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    vi.mocked(submitFalVeoImageToVideo).mockResolvedValue({ request_id: "veo-i2v-1" });
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("submits the normalized Veo image-to-video payload with a primary image reference", async () => {
+    const args = makeArgs({
+      finalModel: "fal-ai/veo3.1/image-to-video",
+      modelConfig: getModelConfig("fal-ai/veo3.1/image-to-video"),
+      aspect: "4:5",
+      requestedDurationSeconds: 7,
+      requestedResolution: "4k",
+      requestedAudio: true,
+      preparedImageInputs: ["https://example.com/reference.png"],
+      videoReferenceMode: "standard",
+    });
+
+    const handled = await handleVideoModelSubmission(args);
+
+    expect(handled).toBe(true);
+    expect(submitFalVeoImageToVideo).toHaveBeenCalledWith({
+      prompt: "A dancer twirls",
+      image_url: "https://example.com/reference.png",
+      image_urls: ["https://example.com/reference.png"],
+      aspect_ratio: "auto",
+      duration: "8s",
+      resolution: "4k",
+      generate_audio: true,
+      auto_fix: false,
+      enable_safety_checker: false,
+      safety_tolerance: 5,
+    });
+    expect(args.startPollingWithGeneration).toHaveBeenCalledWith(
+      "veo-i2v-1",
+      "fal-veo-i2v",
+      undefined,
+      { request_id: "veo-i2v-1" }
+    );
+  });
+
+  it("fails when Veo image-to-video is submitted without a prepared reference image", async () => {
+    const args = makeArgs({
+      finalModel: "fal-ai/veo3.1/image-to-video",
+      modelConfig: getModelConfig("fal-ai/veo3.1/image-to-video"),
+      preparedImageInputs: [],
+      videoReferenceImageUrl: null,
+      motionReferenceVideoUrl: null,
+      videoReferenceMode: "standard",
+    });
+
+    const handled = await handleVideoModelSubmission(args);
+
+    expect(handled).toBe(true);
+    expect(args.notifyGenerationFailure).toHaveBeenCalledWith(
+      "out-1",
+      "Veo 3.1 image-to-video requires a reference image."
+    );
+    expect(submitFalVeoImageToVideo).not.toHaveBeenCalled();
+  });
+});
+
+describe("handleVideoModelSubmission (Fal Kling 3 text-to-video)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    vi.mocked(submitFalKlingV3Text).mockResolvedValue({ request_id: "kling-text-1" });
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("passes advanced Kling text controls through the text-to-video payload", async () => {
+    const args = makeArgs({
+      finalModel: "fal-ai/kling-video/v3/pro/text-to-video",
+      modelConfig: getModelConfig("fal-ai/kling-video/v3/pro/text-to-video"),
+      requestedDurationSeconds: 9,
+      requestedAudio: true,
+      klingShotType: "intelligent",
+      klingVoiceIds: [" voice_a ", "voice_b"],
+      klingNegativePrompt: "bad anatomy, blur",
+      klingCfgScale: 0.9,
+      klingMultiPrompts: [
+        { id: "shot-1", prompt: " First beat ", duration: 5 },
+        { id: "shot-2", prompt: "Second beat", duration: 8 },
+      ],
+    });
+
+    const handled = await handleVideoModelSubmission(args);
+
+    expect(handled).toBe(true);
+    expect(submitFalKlingV3Text).toHaveBeenCalledWith({
+      prompt: "A dancer twirls",
+      aspect_ratio: "16:9",
+      duration: 9,
+      negative_prompt: "bad anatomy, blur",
+      cfg_scale: 0.9,
+      generate_audio: true,
+      voice_ids: ["voice_a", "voice_b"],
+      multi_prompt: [
+        { prompt: "First beat", duration: 5 },
+        { prompt: "Second beat", duration: 8 },
+      ],
+      shot_type: "intelligent",
+    });
+    expect(args.startPollingWithGeneration).toHaveBeenCalledWith(
+      "kling-text-1",
+      "fal-kling",
+      undefined,
+      { request_id: "kling-text-1" }
+    );
+  });
+
+  it("omits optional Kling text controls when they are empty", async () => {
+    const args = makeArgs({
+      finalModel: "fal-ai/kling-video/v3/pro/text-to-video",
+      modelConfig: getModelConfig("fal-ai/kling-video/v3/pro/text-to-video"),
+      requestedDurationSeconds: 5,
+      requestedAudio: false,
+      klingShotType: "customize",
+      klingVoiceIds: ["", ""],
+      klingNegativePrompt: "",
+      klingCfgScale: 0.5,
+      klingMultiPrompts: [],
+    });
+
+    const handled = await handleVideoModelSubmission(args);
+
+    expect(handled).toBe(true);
+    expect(submitFalKlingV3Text).toHaveBeenCalledWith({
+      prompt: "A dancer twirls",
+      aspect_ratio: "16:9",
+      duration: 5,
+      negative_prompt: "",
+      cfg_scale: 0.5,
+      generate_audio: false,
+      shot_type: "customize",
+    });
+  });
+});
+
+describe("handleVideoModelSubmission (Fal Seedance text-to-video)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    vi.mocked(submitFalSeedance).mockResolvedValue({ request_id: "seedance-text-1" });
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("submits the normalized Seedance text-to-video payload", async () => {
+    const args = makeArgs({
+      finalModel: "fal-ai/bytedance/seedance/v1.5/pro/text-to-video",
+      modelConfig: getModelConfig("fal-ai/bytedance/seedance/v1.5/pro/text-to-video"),
+      aspect: "21:9",
+      requestedDurationSeconds: 12,
+      requestedResolution: "720p",
+      requestedAudio: true,
+    });
+
+    const handled = await handleVideoModelSubmission(args);
+
+    expect(handled).toBe(true);
+    expect(submitFalSeedance).toHaveBeenCalledWith({
+      prompt: "A dancer twirls",
+      duration: "12",
+      aspect_ratio: "21:9",
+      resolution: "720p",
+      negative_prompt: "blur, distort, and low quality",
+      cfg_scale: 0.5,
+      generate_audio: true,
+      enable_safety_checker: false,
+    });
+    expect(args.startPollingWithGeneration).toHaveBeenCalledWith(
+      "seedance-text-1",
+      "fal-seedance",
+      undefined,
+      { request_id: "seedance-text-1" }
+    );
+  });
+});
+
+describe("handleVideoModelSubmission (Fal Sora text-to-video)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    vi.mocked(submitFalSoraPro).mockResolvedValue({ request_id: "sora-text-1" });
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("submits the normalized Sora text-to-video payload", async () => {
+    const args = makeArgs({
+      finalModel: "fal-ai/sora-2/text-to-video/pro",
+      modelConfig: getModelConfig("fal-ai/sora-2/text-to-video/pro"),
+      aspect: "4:3",
+      requestedDurationSeconds: 10,
+      requestedResolution: "720p",
+      requestedAudio: false,
+    });
+
+    const handled = await handleVideoModelSubmission(args);
+
+    expect(handled).toBe(true);
+    expect(submitFalSoraPro).toHaveBeenCalledWith({
+      prompt: "A dancer twirls",
+      aspect_ratio: "16:9",
+      duration: 12,
+      resolution: "720p",
+      delete_video: true,
+    });
+    expect(args.startPollingWithGeneration).toHaveBeenCalledWith(
+      "sora-text-1",
+      "fal-sora",
+      undefined,
+      { request_id: "sora-text-1" }
+    );
   });
 });

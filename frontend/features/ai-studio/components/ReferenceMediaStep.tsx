@@ -108,6 +108,8 @@ export const ReferenceMediaStep: React.FC<ReferenceMediaStepProps> = ({
 }) => {
   const showHeader = !isVideoVariant;
   const isCollapsed = showHeader ? collapsedReference : false;
+  const shouldShowPrimaryOptionalPill = isVideoVariant && isStandardMode && !referenceImageUrl;
+  const shouldShowLastFrameOptionalPill = isVideoVariant && isStandardMode && !extraImageUrls[0];
   const mediaContent = (
     <>
       {isMotionMode ? (
@@ -124,7 +126,7 @@ export const ReferenceMediaStep: React.FC<ReferenceMediaStepProps> = ({
                 referenceImageUrl ? { backgroundImage: `url(${referenceImageUrl})` } : undefined
               }
             >
-              <span className="dropzone-tag">Character image</span>
+              <span className="dropzone-tag">Character</span>
               {referenceImageUrl ? (
                 <button
                   type="button"
@@ -138,7 +140,7 @@ export const ReferenceMediaStep: React.FC<ReferenceMediaStepProps> = ({
                 </button>
               ) : (
                 <div className="reference-drop-content image-drop-content">
-                  <ImageSquare size={22} weight="regular" />
+                  <ImageSquare size={24} weight="regular" />
                 </div>
               )}
             </div>
@@ -161,7 +163,7 @@ export const ReferenceMediaStep: React.FC<ReferenceMediaStepProps> = ({
               onDragLeave={() => setMotionVideoDragActive(false)}
               onClick={() => motionVideoInputRef.current?.click()}
             >
-              <span className="dropzone-tag">Motion video</span>
+              <span className="dropzone-tag">Motion</span>
               {motionVideoUrl ? (
                 <>
                   <video
@@ -185,7 +187,7 @@ export const ReferenceMediaStep: React.FC<ReferenceMediaStepProps> = ({
                 </>
               ) : (
                 <div className="reference-drop-content video-drop-content">
-                  <VideoCamera size={22} weight="regular" />
+                  <VideoCamera size={24} weight="regular" />
                 </div>
               )}
             </div>
@@ -219,7 +221,7 @@ export const ReferenceMediaStep: React.FC<ReferenceMediaStepProps> = ({
                 </button>
               ) : null}
               <div className="reference-drop-content image-drop-content">
-                <UploadSimple size={22} weight="regular" />
+                <UploadSimple size={24} weight="regular" />
                 <p className="reference-drop-title helper-text">Upload a starting frame</p>
               </div>
             </div>
@@ -250,7 +252,7 @@ export const ReferenceMediaStep: React.FC<ReferenceMediaStepProps> = ({
                 </button>
               ) : null}
               <div className="reference-drop-content image-drop-content">
-                <UploadSimple size={22} weight="regular" />
+                <UploadSimple size={24} weight="regular" />
                 <p className="reference-drop-title helper-text">Upload an end frame</p>
               </div>
             </div>
@@ -281,7 +283,7 @@ export const ReferenceMediaStep: React.FC<ReferenceMediaStepProps> = ({
                   )}
                 </span>
               ) : null}
-              {isVideoVariant && isStandardMode ? (
+              {shouldShowPrimaryOptionalPill ? (
                 <span className="dropzone-tag-pill dropzone-tag-pill--bottom">Optional</span>
               ) : null}
               {referenceImageUrl ? (
@@ -297,7 +299,7 @@ export const ReferenceMediaStep: React.FC<ReferenceMediaStepProps> = ({
                 </button>
               ) : null}
               <div className="reference-drop-content image-drop-content">
-                <Plus size={24} weight="regular" />
+                <Plus size={26} weight="regular" />
               </div>
             </div>
           </div>
@@ -305,7 +307,7 @@ export const ReferenceMediaStep: React.FC<ReferenceMediaStepProps> = ({
             <>
               {isKeyframesMode ? (
                 <div className="reference-drop-divider" aria-hidden="true">
-                  <ArrowFatRight size={24} weight="fill" />
+                  <ArrowFatRight size={26} weight="fill" />
                 </div>
               ) : null}
               <div className="primary-drop">
@@ -323,7 +325,7 @@ export const ReferenceMediaStep: React.FC<ReferenceMediaStepProps> = ({
                   <span className="dropzone-tag">
                     <span>Last frame</span>
                   </span>
-                  {isStandardMode ? (
+                  {shouldShowLastFrameOptionalPill ? (
                     <span className="dropzone-tag-pill dropzone-tag-pill--bottom">Optional</span>
                   ) : null}
                   {extraImageUrls[0] ? (
@@ -339,7 +341,7 @@ export const ReferenceMediaStep: React.FC<ReferenceMediaStepProps> = ({
                     </button>
                   ) : (
                     <div className="reference-drop-content image-drop-content">
-                      <Plus size={24} weight="regular" />
+                      <Plus size={26} weight="regular" />
                     </div>
                   )}
                 </div>
@@ -348,7 +350,7 @@ export const ReferenceMediaStep: React.FC<ReferenceMediaStepProps> = ({
           ) : !isVideoVariant ? (
             <>
               <div className="reference-drop-divider" aria-hidden="true">
-                <Selection size={22} weight="regular" />
+                <Selection size={24} weight="regular" />
               </div>
               {[0, 1, 2].map((index) => {
                 const previewUrl = extraImageUrls[index];
@@ -381,7 +383,7 @@ export const ReferenceMediaStep: React.FC<ReferenceMediaStepProps> = ({
                           ×
                         </button>
                       ) : (
-                        <Plus size={22} weight="regular" />
+                        <Plus size={24} weight="regular" />
                       )}
                     </div>
                   </div>

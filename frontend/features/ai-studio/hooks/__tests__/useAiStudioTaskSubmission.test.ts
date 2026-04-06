@@ -63,6 +63,7 @@ describe("useAiStudioTaskSubmission", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(resolveSubmissionHandlerRoute).mockReturnValue("video");
     prepareImageUrlForSubmissionMock.mockImplementation(async (url: string | null) => url);
     vi.mocked(handleVideoModelSubmission).mockImplementation(
       async ({ startPollingWithGeneration }) => {
@@ -235,7 +236,7 @@ describe("useAiStudioTaskSubmission", () => {
     expect(outputs[0]?.generationId).toBe("gen-from-record-1");
   });
 
-  it("keeps Veo First/Last strict when references are missing (no text-video fallback)", async () => {
+  it("routes Veo First/Last to text-video when no frame images are present", async () => {
     let outputs: StudioOutput[] = [];
     const setOutputs = vi.fn((value: SetStateAction<StudioOutput[]>) => {
       outputs = typeof value === "function" ? value(outputs) : value;
@@ -297,18 +298,95 @@ describe("useAiStudioTaskSubmission", () => {
       });
     });
 
-    expect(outputs[0]?.modelId).toBe("fal-ai/veo3.1/first-last-frame-to-video");
-    expect(outputs[0]?.taskState).toBe("fail");
-    expect(outputs[0]?.errorMessageShort).toBe("First/Last needs two images.");
+    expect(outputs[0]?.modelId).toBe(KIE_VEO_31_FAST_I2V_MODEL_ID);
+    expect(outputs[0]?.taskState).toBe("running");
     expect(setSaved).toHaveBeenCalledWith(false);
-    expect(handleVideoModelSubmission).not.toHaveBeenCalled();
-    expect(resolveSubmissionHandlerRoute).not.toHaveBeenCalled();
-    expect(setUiNotice).not.toHaveBeenCalledWith(
-      expect.stringContaining("No reference media were detected")
+    expect(handleVideoModelSubmission).toHaveBeenCalledWith(
+      expect.objectContaining({
+        finalModel: KIE_VEO_31_FAST_I2V_MODEL_ID,
+        preparedImageInputs: [],
+      })
     );
   });
 
-  it("keeps Kie Veo keyframes strict when last frame is missing", async () => {
+  it("routes Veo First/Last to single-image video when only one frame image is present", async () => {
+    let outputs: StudioOutput[] = [];
+    const setOutputs = vi.fn((value: SetStateAction<StudioOutput[]>) => {
+      outputs = typeof value === "function" ? value(outputs) : value;
+    });
+
+    const setIsPromptGenerating = vi.fn();
+    const setUiError = vi.fn();
+    const setUiNotice = vi.fn();
+    const setSaved = vi.fn();
+    const notifyGenerationFailure = vi.fn();
+    const updateOutputById = createStatefulUpdateOutputById({
+      get: () => outputs,
+      set: (next) => {
+        outputs = next;
+      },
+    });
+    const startPollingTask = vi.fn();
+    const ensureGenerationRecord = vi.fn(async () => null);
+
+    const { result } = renderHook(() =>
+      useAiStudioTaskSubmission({
+        aspect: "16:9",
+        mode: "video",
+        model: "fal-ai/veo3.1/first-last-frame-to-video",
+        prompt: "",
+        selectedTool: "video",
+        imageResolution: "model_default",
+        videoDurationSeconds: 8,
+        videoResolution: "720p",
+        videoGenerateAudio: true,
+        videoReferenceMode: "standard",
+        videoReferenceImageUrl: "https://example.com/first.png",
+        motionReferenceVideoUrl: null,
+        videoCameraFixed: false,
+        videoAutoFix: false,
+        klingNegativePrompt: "blur, distort, and low quality",
+        klingCfgScale: 0.5,
+        klingShotType: "customize",
+        klingVoiceIds: ["", ""],
+        klingMultiPrompts: [],
+        klingElements: [],
+        setIsPromptGenerating: asDispatch(setIsPromptGenerating),
+        setUiError: asDispatch(setUiError),
+        setUiNotice: asDispatch(setUiNotice),
+        setOutputs: asDispatch(setOutputs),
+        setSaved: asDispatch(setSaved),
+        getDefaultDurationSeconds: () => 8,
+        notifyGenerationFailure,
+        updateOutputById,
+        startPollingTask,
+        ensureGenerationRecord,
+      })
+    );
+
+    await act(async () => {
+      await result.current(
+        "Bridge shot morphing between keyframes",
+        ["https://example.com/first.png"],
+        {
+          modeOverride: "video",
+          selectedToolOverride: "video",
+        }
+      );
+    });
+
+    expect(outputs[0]?.modelId).toBe(KIE_VEO_31_FAST_I2V_MODEL_ID);
+    expect(outputs[0]?.taskState).toBe("running");
+    expect(setSaved).toHaveBeenCalledWith(false);
+    expect(handleVideoModelSubmission).toHaveBeenCalledWith(
+      expect.objectContaining({
+        finalModel: KIE_VEO_31_FAST_I2V_MODEL_ID,
+        preparedImageInputs: ["https://example.com/first.png"],
+      })
+    );
+  });
+
+  it("routes Kie Veo to text-video when no frame images are present", async () => {
     let outputs: StudioOutput[] = [];
     const setOutputs = vi.fn((value: SetStateAction<StudioOutput[]>) => {
       outputs = typeof value === "function" ? value(outputs) : value;
@@ -371,17 +449,17 @@ describe("useAiStudioTaskSubmission", () => {
     });
 
     expect(outputs[0]?.modelId).toBe(KIE_VEO_31_FAST_I2V_MODEL_ID);
-    expect(outputs[0]?.taskState).toBe("fail");
-    expect(outputs[0]?.errorMessageShort).toBe("First/Last needs two images.");
+    expect(outputs[0]?.taskState).toBe("running");
     expect(setSaved).toHaveBeenCalledWith(false);
-    expect(handleVideoModelSubmission).not.toHaveBeenCalled();
-    expect(resolveSubmissionHandlerRoute).not.toHaveBeenCalled();
-    expect(setUiNotice).not.toHaveBeenCalledWith(
-      expect.stringContaining("No reference media were detected")
+    expect(handleVideoModelSubmission).toHaveBeenCalledWith(
+      expect.objectContaining({
+        finalModel: KIE_VEO_31_FAST_I2V_MODEL_ID,
+        preparedImageInputs: [],
+      })
     );
   });
 
-  it("keeps standard video strict when references are missing (no text-video fallback)", async () => {
+  it("routes standard video to text-video when no frame images are present", async () => {
     let outputs: StudioOutput[] = [];
     const setOutputs = vi.fn((value: SetStateAction<StudioOutput[]>) => {
       outputs = typeof value === "function" ? value(outputs) : value;
@@ -443,15 +521,88 @@ describe("useAiStudioTaskSubmission", () => {
       });
     });
 
-    expect(outputs[0]?.modelId).toBe("fal-ai/bytedance/seedance/v1.5/pro/image-to-video");
-    expect(outputs[0]?.taskState).toBe("fail");
-    expect(outputs[0]?.errorMessageShort).toBe("Reference image required.");
+    expect(outputs[0]?.modelId).toBe(KIE_VEO_31_FAST_I2V_MODEL_ID);
+    expect(outputs[0]?.taskState).toBe("running");
     expect(setSaved).toHaveBeenCalledWith(false);
-    expect(handleVideoModelSubmission).not.toHaveBeenCalled();
-    expect(resolveSubmissionHandlerRoute).not.toHaveBeenCalled();
-    expect(setUiNotice).not.toHaveBeenCalledWith(
-      expect.stringContaining("No reference media were detected")
+    expect(handleVideoModelSubmission).toHaveBeenCalledWith(
+      expect.objectContaining({
+        finalModel: KIE_VEO_31_FAST_I2V_MODEL_ID,
+        preparedImageInputs: [],
+      })
     );
+  });
+
+  it("allows standard text-to-video submissions without reference images", async () => {
+    let outputs: StudioOutput[] = [];
+    const setOutputs = vi.fn((value: SetStateAction<StudioOutput[]>) => {
+      outputs = typeof value === "function" ? value(outputs) : value;
+    });
+
+    const setIsPromptGenerating = vi.fn();
+    const setUiError = vi.fn();
+    const setUiNotice = vi.fn();
+    const setSaved = vi.fn();
+    const notifyGenerationFailure = vi.fn();
+    const updateOutputById = createStatefulUpdateOutputById({
+      get: () => outputs,
+      set: (next) => {
+        outputs = next;
+      },
+    });
+    const startPollingTask = vi.fn();
+    const ensureGenerationRecord = vi.fn(async () => null);
+
+    const { result } = renderHook(() =>
+      useAiStudioTaskSubmission({
+        aspect: "16:9",
+        mode: "video",
+        model: "fal-ai/veo3.1",
+        prompt: "",
+        selectedTool: "video",
+        imageResolution: "model_default",
+        videoDurationSeconds: 8,
+        videoResolution: "1080p",
+        videoGenerateAudio: true,
+        videoReferenceMode: "standard",
+        videoReferenceImageUrl: null,
+        motionReferenceVideoUrl: null,
+        videoCameraFixed: false,
+        videoAutoFix: false,
+        klingNegativePrompt: "blur, distort, and low quality",
+        klingCfgScale: 0.5,
+        klingShotType: "customize",
+        klingVoiceIds: ["", ""],
+        klingMultiPrompts: [],
+        klingElements: [],
+        setIsPromptGenerating: asDispatch(setIsPromptGenerating),
+        setUiError: asDispatch(setUiError),
+        setUiNotice: asDispatch(setUiNotice),
+        setOutputs: asDispatch(setOutputs),
+        setSaved: asDispatch(setSaved),
+        getDefaultDurationSeconds: () => 8,
+        notifyGenerationFailure,
+        updateOutputById,
+        startPollingTask,
+        ensureGenerationRecord,
+      })
+    );
+
+    await act(async () => {
+      await result.current("A cinematic storm over the desert", [], {
+        modeOverride: "video",
+        selectedToolOverride: "video",
+      });
+    });
+
+    expect(outputs[0]?.modelId).toBe(KIE_VEO_31_FAST_I2V_MODEL_ID);
+    expect(handleVideoModelSubmission).toHaveBeenCalledWith(
+      expect.objectContaining({
+        finalModel: KIE_VEO_31_FAST_I2V_MODEL_ID,
+        preparedImageInputs: [],
+      })
+    );
+    expect(resolveSubmissionHandlerRoute).toHaveBeenCalledWith(KIE_VEO_31_FAST_I2V_MODEL_ID);
+    expect(setUiError).not.toHaveBeenCalledWith("Add a reference image before generating.");
   });
 
   it("keeps Kling 3 motion strict when references are missing", async () => {

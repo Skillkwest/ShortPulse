@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { ReferenceVideoSettingsStep } from "../ReferenceVideoSettingsStep";
 
@@ -47,6 +47,8 @@ describe("ReferenceVideoSettingsStep", () => {
 
   it("renders resolution control when options are available", () => {
     render(<ReferenceVideoSettingsStep {...baseProps} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Video resolution" }));
 
     expect(screen.getByRole("option", { name: "1080p (Full HD)" })).toBeTruthy();
   });

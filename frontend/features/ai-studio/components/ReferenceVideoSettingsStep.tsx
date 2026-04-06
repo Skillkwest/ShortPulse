@@ -10,12 +10,18 @@ import type { ModelModalContext } from "./ModelModal";
 
 type ResolutionOption = { value: string; label: string };
 
+type VideoSettingsDropdownOption<T extends string | number> = {
+  value: T;
+  label: string;
+};
+
 type VideoSettingsModelPickerButtonProps = {
   modelId: string | null;
   modelLabel: string;
   modelLogoSrc?: string;
   isModelModalOpen: boolean;
   modelModalAnchor: string | null;
+  modelModalContext?: ModelModalContext | null;
   onModelPickerOpen: (
     anchorId: string,
     target: HTMLElement,
@@ -29,6 +35,7 @@ export const VideoSettingsModelPickerButton: React.FC<VideoSettingsModelPickerBu
   modelLogoSrc,
   isModelModalOpen,
   modelModalAnchor,
+  modelModalContext = "reference-video",
   onModelPickerOpen,
 }) => (
   <button
@@ -36,7 +43,7 @@ export const VideoSettingsModelPickerButton: React.FC<VideoSettingsModelPickerBu
     className={`model-picker-btn ${!modelId ? "is-empty" : ""} ${isModelModalOpen && modelModalAnchor === "video-settings-model" ? "is-open" : ""}`}
     data-model-anchor="video-settings-model"
     onClick={(event) =>
-      onModelPickerOpen("video-settings-model", event.currentTarget, "reference-video")
+      onModelPickerOpen("video-settings-model", event.currentTarget, modelModalContext)
     }
   >
     <div className="model-picker-row">
@@ -57,6 +64,85 @@ export const VideoSettingsModelPickerButton: React.FC<VideoSettingsModelPickerBu
   </button>
 );
 
+type VideoSettingsListDropdownProps<T extends string | number> = {
+  value: T;
+  options: VideoSettingsDropdownOption<T>[];
+  onSelect?: (value: T) => void;
+  ariaLabel: string;
+  triggerClassName: string;
+};
+
+function VideoSettingsListDropdown<T extends string | number>({
+  value,
+  options,
+  onSelect,
+  ariaLabel,
+  triggerClassName,
+}: VideoSettingsListDropdownProps<T>) {
+  const [isOpen, setIsOpen] = React.useState(false);
+  const dropdownRef = React.useRef<HTMLDivElement | null>(null);
+  const selectedOption = React.useMemo(
+    () => options.find((option) => option.value === value) ?? options[0],
+    [options, value]
+  );
+
+  React.useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    if (isOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [isOpen]);
+
+  const isDisabled = !onSelect || options.length === 0;
+
+  return (
+    <div className="aspect-dropdown video-settings-list-dropdown" ref={dropdownRef}>
+      <button
+        type="button"
+        className={`${triggerClassName}${isOpen ? " is-open" : ""}`}
+        aria-haspopup="listbox"
+        aria-expanded={isOpen}
+        aria-label={ariaLabel}
+        disabled={isDisabled}
+        onClick={() => setIsOpen((open) => !open)}
+      >
+        <span className="video-settings-list-dropdown-value">{selectedOption?.label ?? value}</span>
+      </button>
+      {isOpen ? (
+        <div
+          className="aspect-menu video-settings-list-dropdown-menu"
+          role="listbox"
+          aria-label={ariaLabel}
+        >
+          {options.map((option) => {
+            const isActive = option.value === value;
+            return (
+              <button
+                type="button"
+                key={String(option.value)}
+                className={`aspect-menu-item video-settings-list-dropdown-option${isActive ? " is-active" : ""}`}
+                role="option"
+                aria-selected={isActive}
+                onClick={() => {
+                  onSelect?.(option.value);
+                  setIsOpen(false);
+                }}
+              >
+                <span className="video-settings-list-dropdown-option-label">{option.label}</span>
+              </button>
+            );
+          })}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 type ReferenceVideoSettingsStepProps = {
   isVideoVariant: boolean;
   isMotionMode: boolean;
@@ -68,6 +154,7 @@ type ReferenceVideoSettingsStepProps = {
   modelLogoSrc?: string;
   isModelModalOpen: boolean;
   modelModalAnchor: string | null;
+  modelModalContext?: ModelModalContext | null;
   aspect: string;
   aspectOptionsForModel: AspectOption[];
   videoSettingsOrder: number;
@@ -107,6 +194,7 @@ export const ReferenceVideoSettingsStep: React.FC<ReferenceVideoSettingsStepProp
   modelLogoSrc,
   isModelModalOpen,
   modelModalAnchor,
+  modelModalContext = "reference-video",
   aspect,
   aspectOptionsForModel,
   videoSettingsOrder,
@@ -136,6 +224,18 @@ export const ReferenceVideoSettingsStep: React.FC<ReferenceVideoSettingsStepProp
   const isVeo31Model =
     modelId?.includes("veo3.1") === true || modelId?.includes("veo-3.1") === true;
   const shouldShowSeedanceCameraFixed = false;
+  const resolutionDropdownOptions = React.useMemo(
+    () => resolutionOptions.map((option) => ({ value: option.value, label: option.label })),
+    [resolutionOptions]
+  );
+  const durationDropdownOptions = React.useMemo(
+    () =>
+      durationOptions.map((seconds) => ({
+        value: seconds,
+        label: `${seconds} seconds`,
+      })),
+    [durationOptions]
+  );
 
   if (!isVideoVariant) return null;
 
@@ -151,6 +251,7 @@ export const ReferenceVideoSettingsStep: React.FC<ReferenceVideoSettingsStepProp
               modelLogoSrc={modelLogoSrc}
               isModelModalOpen={isModelModalOpen}
               modelModalAnchor={modelModalAnchor}
+              modelModalContext={modelModalContext}
               onModelPickerOpen={onModelPickerOpen}
             />
           </div>
@@ -167,50 +268,35 @@ export const ReferenceVideoSettingsStep: React.FC<ReferenceVideoSettingsStepProp
           </div>
           {shouldShowResolutionControl ? (
             <div className="video-settings-inline-dual-row">
-              <div className="control-row compact fixed-select video-settings-resolution-select-row">
-                <select
-                  className="model-select"
+              <div className="control-row compact video-settings-resolution-select-row">
+                <VideoSettingsListDropdown
+                  ariaLabel="Video resolution"
+                  triggerClassName="aspect-trigger video-settings-list-dropdown-trigger"
                   value={videoResolutionValue}
-                  onChange={(event) => onVideoResolutionChange?.(event.target.value)}
-                >
-                  {resolutionOptions.map((option) => (
-                    <option
-                      value={option.value}
-                      key={`${isMotionMode ? "motion-" : ""}resolution-${option.value}`}
-                    >
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
+                  options={resolutionDropdownOptions}
+                  onSelect={onVideoResolutionChange}
+                />
               </div>
-              <div className="control-row compact fixed-select video-settings-duration-select-row">
-                <select
-                  className="model-select"
+              <div className="control-row compact video-settings-duration-select-row">
+                <VideoSettingsListDropdown
+                  ariaLabel="Video duration"
+                  triggerClassName="aspect-trigger video-settings-list-dropdown-trigger"
                   value={videoDurationValue}
-                  onChange={(event) => onVideoDurationChange?.(Number(event.target.value))}
-                >
-                  {durationOptions.map((seconds) => (
-                    <option value={seconds} key={`duration-${seconds}`}>
-                      {seconds} seconds
-                    </option>
-                  ))}
-                </select>
+                  options={durationDropdownOptions}
+                  onSelect={onVideoDurationChange}
+                />
               </div>
             </div>
           ) : null}
           {!shouldShowResolutionControl ? (
-            <div className="control-row compact fixed-select video-settings-duration-select-row">
-              <select
-                className="model-select"
+            <div className="control-row compact video-settings-duration-select-row">
+              <VideoSettingsListDropdown
+                ariaLabel="Video duration"
+                triggerClassName="aspect-trigger video-settings-list-dropdown-trigger"
                 value={videoDurationValue}
-                onChange={(event) => onVideoDurationChange?.(Number(event.target.value))}
-              >
-                {durationOptions.map((seconds) => (
-                  <option value={seconds} key={`duration-${seconds}`}>
-                    {seconds} seconds
-                  </option>
-                ))}
-              </select>
+                options={durationDropdownOptions}
+                onSelect={onVideoDurationChange}
+              />
             </div>
           ) : null}
           <div className="video-settings-toggle-row video-settings-toggle-row--compact">

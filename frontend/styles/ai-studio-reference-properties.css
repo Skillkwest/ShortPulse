@@ -211,6 +211,16 @@
   cursor: pointer;
 }
 
+.video-settings-summary-surface,
+.video-settings-card,
+.reference-step-card {
+  transition:
+    border-color 0.16s ease,
+    box-shadow 0.16s ease,
+    background 0.16s ease,
+    transform 0.16s ease;
+}
+
 .video-settings-summary-surface:hover,
 .video-settings-summary-surface:focus-visible {
   border-color: rgba(201, 205, 214, 0.28);
@@ -412,7 +422,7 @@
   width: 100%;
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  gap: 8px;
+  gap: 9px;
 }
 
 .video-settings-card .video-settings-resolution-select-row {
@@ -425,25 +435,9 @@
   min-height: 40px;
 }
 
-.video-settings-card .video-settings-resolution-select-row .model-select,
-.video-settings-card .video-settings-duration-select-row .model-select {
-  min-height: 40px;
-  height: 40px;
-  padding: 6px 28px 6px 8px;
-  border-color: rgba(201, 205, 214, 0.22);
-  border-radius: 8px;
-  background: var(--create-expert-selector-bg, var(--color-bg));
-  background-image:
-    linear-gradient(45deg, transparent 50%, #f8f8f8 50%),
-    linear-gradient(135deg, #f8f8f8 50%, transparent 50%);
-  background-position:
-    calc(100% - 18px) calc(50% + 2px),
-    calc(100% - 14px) calc(50% + 2px);
-  background-size:
-    5px 5px,
-    5px 5px;
-  background-repeat: no-repeat;
-  box-shadow: none;
+.video-settings-card .video-settings-resolution-select-row .video-settings-list-dropdown,
+.video-settings-card .video-settings-duration-select-row .video-settings-list-dropdown {
+  width: 100%;
 }
 
 .video-settings-card .video-settings-inline-controls > .video-settings-toggle-row--compact {
@@ -452,7 +446,6 @@
   background: var(--create-expert-selector-bg, var(--color-bg)) !important;
   background-color: var(--create-expert-selector-bg, var(--color-bg)) !important;
   border: 1px solid rgba(201, 205, 214, 0.22);
-  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.2);
   padding: 0 12px;
 }
 
@@ -463,17 +456,6 @@
   padding: 6px 28px 6px 8px;
   border-color: rgba(201, 205, 214, 0.22);
   background: var(--create-expert-selector-bg, var(--color-bg));
-  background-image:
-    linear-gradient(45deg, transparent 50%, #f8f8f8 50%),
-    linear-gradient(135deg, #f8f8f8 50%, transparent 50%);
-  background-position:
-    calc(100% - 18px) calc(50% + 2px),
-    calc(100% - 14px) calc(50% + 2px);
-  background-size:
-    5px 5px,
-    5px 5px;
-  background-repeat: no-repeat;
-  box-shadow: none;
 }
 
 .video-settings-card .aspect-trigger {
@@ -485,17 +467,6 @@
   box-sizing: border-box;
   overflow: hidden;
   align-items: center;
-  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.2);
-  background-image:
-    linear-gradient(45deg, transparent 50%, rgba(248, 248, 248, 0.9) 50%),
-    linear-gradient(135deg, rgba(248, 248, 248, 0.9) 50%, transparent 50%);
-  background-position:
-    calc(100% - 18px) calc(50% + 1px),
-    calc(100% - 14px) calc(50% + 1px);
-  background-size:
-    5px 5px,
-    5px 5px;
-  background-repeat: no-repeat;
 }
 
 .video-settings-card .aspect-trigger .aspect-meta {
@@ -513,7 +484,6 @@
 .video-settings-popover .aspect-dropdown-trigger {
   border-color: rgba(196, 201, 210, 0.16);
   background: var(--video-settings-modal-control-bg);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.025);
   min-height: var(--video-settings-modal-control-height);
   border-radius: var(--video-settings-modal-control-radius);
 }
@@ -559,7 +529,6 @@
 .video-settings-popover .aspect-dropdown-trigger:hover,
 .video-settings-popover .aspect-dropdown-trigger:focus-visible {
   border-color: rgba(201, 205, 214, 0.24);
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.035);
   background: var(--create-expert-selector-bg, var(--color-bg));
 }
 
@@ -577,7 +546,6 @@
   border-radius: 12px;
   background: var(--video-settings-modal-control-bg);
   border: 1px solid rgba(196, 201, 210, 0.14);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.022);
 }
 
 .video-settings-toggle-row--compact {
@@ -626,7 +594,6 @@
 .video-settings-popover .audio-toggle.is-active {
   background: rgba(104, 111, 121, 0.92);
   border-color: rgba(173, 180, 190, 0.38);
-  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.2);
 }
 
 .video-settings-popover .audio-toggle.is-active .audio-toggle-dot {
@@ -973,8 +940,8 @@
 }
 
 .reference-drop-layout-inner .reference-dropzone.extra svg {
-  width: 20px;
-  height: 20px;
+  width: 24px;
+  height: 24px;
 }
 
 .reference-drop-layout-inner
@@ -988,8 +955,8 @@
   .reference-dropzone-block.image-block
   .reference-drop-content.image-drop-content
   svg {
-  width: 20px;
-  height: 20px;
+  width: 24px;
+  height: 24px;
 }
 
 .reference-drop-layout-inner
@@ -1021,12 +988,24 @@
   border-color: rgba(52, 201, 255, 0.3);
 }
 
-.motion-drop-row .dropzone-tag {
+.motion-drop-row .dropzone-tag,
+.reference-step-card.is-video-refs .dropzone-tag {
+  top: 12px;
+  left: 12px;
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
+  border: none;
   font-size: 14px;
-}
-
-.motion-drop-row .dropzone-tag svg {
-  opacity: 0.9;
+  font-weight: 500;
+  line-height: 1.2;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--ai-card-text);
+  white-space: nowrap;
+  max-width: calc(100% - 24px);
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .motion-drop-row .primary-drop:first-child .reference-dropzone {
@@ -1165,8 +1144,8 @@
 .motion-drop-row .reference-drop-content svg {
   color: rgba(255, 255, 255, 0.315);
   flex-shrink: 0;
-  width: 20px;
-  height: 20px;
+  width: 24px;
+  height: 24px;
 }
 
 .motion-drop-row .reference-drop-content .reference-drop-title {

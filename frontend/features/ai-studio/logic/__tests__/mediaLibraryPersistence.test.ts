@@ -60,6 +60,7 @@ describe("saveMediaUrlToLibrary", () => {
   });
 
   afterEach(() => {
+    vi.useRealTimers();
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
   });
@@ -149,6 +150,102 @@ describe("saveMediaUrlToLibrary", () => {
     expect(generationOutputUpdate).toHaveBeenCalledWith(
       expect.objectContaining({
         media_file_id: "media-existing",
+      })
+    );
+  });
+
+  it("retries ai_studio existing-row lookup before falling back to provider fetch", async () => {
+    vi.useFakeTimers();
+    const publicationSelectBuilder = createMaybeSingleEqBuilder(
+      vi.fn().mockResolvedValue({ data: null, error: null })
+    );
+    const generationOutputMaybeSingle = vi
+      .fn()
+      .mockResolvedValueOnce({ data: null, error: null })
+      .mockResolvedValueOnce({
+        data: {
+          id: "gen-output-raced",
+          media_file_id: "media-raced",
+        },
+        error: null,
+      })
+      .mockResolvedValueOnce({
+        data: {
+          id: "gen-output-raced",
+        },
+        error: null,
+      });
+    const generationOutputSelectBuilder = createGenerationOutputSelectBuilder(
+      generationOutputMaybeSingle
+    );
+    const mediaFileMaybeSingle = vi.fn().mockResolvedValue({
+      data: {
+        id: "media-raced",
+        storage_path: "user-1/generations/videos/raced.mp4",
+        file_type: "video",
+      },
+      error: null,
+    });
+    const mediaFileSelectBuilder = createMediaFileSelectBuilder(mediaFileMaybeSingle);
+    const generationOutputUpdate = vi.fn(() => ({
+      eq: vi.fn(() => ({
+        eq: vi.fn(async () => ({ error: null })),
+      })),
+    }));
+    const insert = vi.fn();
+    const upload = vi.fn();
+
+    ensureSupabaseQueryClientMock.mockReturnValue({
+      from: vi.fn((table: string) => {
+        if (table === "media_files") {
+          return {
+            select: vi.fn(() => mediaFileSelectBuilder),
+            insert,
+          };
+        }
+        if (table === "generation_publications") {
+          return {
+            select: vi.fn(() => publicationSelectBuilder),
+          };
+        }
+        if (table === "ai_generation_outputs") {
+          return {
+            select: vi.fn(() => generationOutputSelectBuilder),
+            update: generationOutputUpdate,
+            insert: vi.fn(),
+          };
+        }
+        throw new Error(`Unexpected table: ${table}`);
+      }),
+      storage: {
+        from: vi.fn(() => ({
+          upload,
+          remove: vi.fn(),
+        })),
+      },
+    });
+
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    const savePromise = saveMediaUrlToLibrary({
+      url: "https://tempfile.aiquickdraw.com/r/raced.mp4",
+      mode: "video",
+      source: "ai_studio",
+      generationId: "gen-1",
+      index: 0,
+    });
+
+    await vi.advanceTimersByTimeAsync(120);
+    const result = await savePromise;
+
+    expect(result.mediaFileId).toBe("media-raced");
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(upload).not.toHaveBeenCalled();
+    expect(insert).not.toHaveBeenCalled();
+    expect(generationOutputUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        media_file_id: "media-raced",
       })
     );
   });
@@ -317,32 +414,51 @@ describe("saveMediaUrlToLibrary", () => {
         close: vi.fn(),
       }))
     );
-    const maybeSingle = vi
-      .fn()
-      .mockResolvedValueOnce({ data: null, error: null })
-      .mockResolvedValueOnce({
-        data: {
-          id: "media-existing-after-duplicate",
-          storage_path: "user-1/generations/images/existing-after-duplicate.png",
-          file_type: "image",
-        },
-        error: null,
-      });
+    let insertStarted = false;
+    const maybeSingle = vi.fn(async () =>
+      insertStarted
+        ? {
+            data: {
+              id: "media-existing-after-duplicate",
+              storage_path: "user-1/generations/images/existing-after-duplicate.png",
+              file_type: "image",
+            },
+            error: null,
+          }
+        : { data: null, error: null }
+    );
     const selectBuilder = createMediaFileSelectBuilder(maybeSingle);
-    const generationOutputMaybeSingle = vi.fn().mockResolvedValue({ data: null, error: null });
+    const generationOutputMaybeSingle = vi.fn(async () =>
+      insertStarted
+        ? {
+            data: {
+              id: "gen-output-duplicate",
+              media_file_id: "media-existing-after-duplicate",
+            },
+            error: null,
+          }
+        : { data: null, error: null }
+    );
     const generationOutputSelectBuilder = createGenerationOutputSelectBuilder(
       generationOutputMaybeSingle
     );
-    const generationOutputInsert = vi.fn(async () => ({ error: null }));
+    const generationOutputUpdate = vi.fn(() => ({
+      eq: vi.fn(() => ({
+        eq: vi.fn(async () => ({ error: null })),
+      })),
+    }));
     const single = vi.fn().mockResolvedValue({
       data: null,
       error: { code: "23505", message: "duplicate key value violates unique constraint" },
     });
-    const insert = vi.fn(() => ({
-      select: vi.fn(() => ({
-        single,
-      })),
-    }));
+    const insert = vi.fn(() => {
+      insertStarted = true;
+      return {
+        select: vi.fn(() => ({
+          single,
+        })),
+      };
+    });
     const upload = vi.fn().mockResolvedValue({ error: null });
     const remove = vi.fn().mockResolvedValue({ error: null });
 
@@ -357,8 +473,8 @@ describe("saveMediaUrlToLibrary", () => {
         if (table === "ai_generation_outputs") {
           return {
             select: vi.fn(() => generationOutputSelectBuilder),
-            insert: generationOutputInsert,
-            update: vi.fn(),
+            insert: vi.fn(),
+            update: generationOutputUpdate,
           };
         }
         throw new Error(`Unexpected table: ${table}`);
@@ -393,10 +509,8 @@ describe("saveMediaUrlToLibrary", () => {
     expect(upload).toHaveBeenCalledTimes(1);
     expect(remove).toHaveBeenCalledTimes(1);
     expect(insert).toHaveBeenCalledTimes(1);
-    expect(generationOutputInsert).toHaveBeenCalledWith(
+    expect(generationOutputUpdate).toHaveBeenCalledWith(
       expect.objectContaining({
-        generation_id: "gen-1",
-        output_index: 0,
         media_file_id: "media-existing-after-duplicate",
       })
     );

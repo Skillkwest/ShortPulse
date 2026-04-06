@@ -21,6 +21,10 @@ import {
   shouldRequirePromptForEditModel,
 } from "../logic/editPromptPolicy";
 import { resolveEffectiveAspectForModel } from "../logic/modelApiContracts";
+import {
+  resolveAutoVideoModelForLane,
+  resolveVideoGenerationLaneFromInputs,
+} from "../logic/referenceInputs";
 import { DeadlineExceededError, withAbortableDeadline } from "../logic/withDeadline";
 import { prepareImageUrlForSubmission, type PrepareImageStageEvent } from "../utils/imageUpload";
 import { Provider, resolveModelLabel } from "../logic/stateParsers";
@@ -59,6 +63,7 @@ const PREPARE_REFERENCE_TIMEOUT_ERROR =
   "Preparation timed out before generation started. Please retry.";
 const SUBMIT_NOT_STARTED_USER_ERROR = "Generation failed to start. Please retry.";
 const AUTH_SESSION_TIMEOUT_DETAIL = "Session check timed out before provider submit.";
+const FAL_VEO_FIRST_LAST_MODEL_ID = "fal-ai/veo3.1/first-last-frame-to-video";
 
 const preflightStageLevel = (
   status: PrepareImageStageEvent["status"]
@@ -232,9 +237,20 @@ export const useAiStudioTaskSubmission = ({
         setIsPromptGenerating(false);
         return;
       }
+      const resolvedVideoLane = resolveVideoGenerationLaneFromInputs({
+        imageInputs,
+        referenceMode: videoReferenceMode,
+      });
+      const requestedModel = options?.modelIdOverride ?? model;
+      const finalModel =
+        normalizedTool === "video" || normalizedTool === "kling"
+          ? resolveAutoVideoModelForLane({
+              currentModel: requestedModel,
+              lane: resolvedVideoLane,
+            })
+          : requestedModel;
       const hasReferenceImages = imageInputs && imageInputs.length > 0;
       const isEditWorkflow = normalizedTool === "image";
-      const finalModel = options?.modelIdOverride ?? model;
       const finalModelConfig = finalModel ? getModelConfig(finalModel) : null;
       const requiresImageToImageReferences = Boolean(finalModelConfig?.supportsImageToImage);
       const requiresPrompt = isEditWorkflow ? shouldRequirePromptForEditModel(finalModel) : true;
@@ -264,16 +280,16 @@ export const useAiStudioTaskSubmission = ({
         const submissionTraceId = buildGenerationSubmissionTraceId(id);
         const modelLabel = resolveModelLabel(finalModel);
 
-        const isKling3ImageModel =
-          finalModel === "fal-ai/kling-video/v3/pro/image-to-video" ||
-          finalModel === KIE_KLING_30_MODEL_ID;
+        const isDedicatedVeoFirstLastFrameModel = finalModel === FAL_VEO_FIRST_LAST_MODEL_ID;
         const isVeoFirstLastFrameModel =
-          finalModel === "fal-ai/veo3.1/first-last-frame-to-video" ||
-          finalModel === KIE_VEO_31_FAST_I2V_MODEL_ID;
+          isDedicatedVeoFirstLastFrameModel || finalModel === KIE_VEO_31_FAST_I2V_MODEL_ID;
         const isVeoImageToVideoModel =
           finalModel === "fal-ai/veo3.1/image-to-video" ||
           finalModel === KIE_VEO_31_FAST_I2V_MODEL_ID;
         const modelConfig = finalModelConfig;
+        const isImageToVideoModel = modelConfig?.mediaType === "image-to-video";
+        const requiresMotionReferenceImage =
+          finalModel === KIE_KLING_30_MODEL_ID && videoReferenceMode === "motion";
         const requestedAspect = options?.aspectOverride ?? aspect;
         const effectiveAspect = resolveEffectiveAspectForModel(
           finalModel,
@@ -526,8 +542,12 @@ export const useAiStudioTaskSubmission = ({
           ? { image_url: pulseReferenceImageUrl, image_urls: preparedImageInputs.slice(0, 4) }
           : ({} as Record<string, never>);
 
-        const isStandardVideoRun = normalizedTool === "video" && videoReferenceMode === "standard";
-        if (isStandardVideoRun && preparedImageInputs.length < 1) {
+        const requiresStandardVideoReference =
+          normalizedTool === "video" &&
+          resolvedVideoLane === "single-image" &&
+          isImageToVideoModel &&
+          !isDedicatedVeoFirstLastFrameModel;
+        if (requiresStandardVideoReference && preparedImageInputs.length < 1) {
           applySubmissionFailure(id, {
             timestamp: "Missing image",
             errorMessage: "Standard video generation requires a reference image.",
@@ -537,9 +557,13 @@ export const useAiStudioTaskSubmission = ({
           return;
         }
 
-        const requiresImageReference = isKling3ImageModel || isVeoImageToVideoModel;
+        const requiresImageReference =
+          (isImageToVideoModel &&
+            (resolvedVideoLane === "single-image" || resolvedVideoLane === "first-last")) ||
+          requiresMotionReferenceImage;
         const isKeyframeFirstLastRun =
-          videoReferenceMode === "keyframes" && isVeoFirstLastFrameModel;
+          (resolvedVideoLane === "first-last" && isVeoFirstLastFrameModel) ||
+          isDedicatedVeoFirstLastFrameModel;
         if (requiresImageReference && !isKeyframeFirstLastRun && preparedImageInputs.length === 0) {
           applySubmissionFailure(id, {
             timestamp: "Missing image",
@@ -550,11 +574,7 @@ export const useAiStudioTaskSubmission = ({
           return;
         }
 
-        if (
-          videoReferenceMode === "keyframes" &&
-          isVeoFirstLastFrameModel &&
-          preparedImageInputs.length < 2
-        ) {
+        if (isKeyframeFirstLastRun && preparedImageInputs.length < 2) {
           applySubmissionFailure(id, {
             timestamp: "Missing frames",
             errorMessage: "First/Last Frame generation requires both a first and last frame image.",
@@ -564,7 +584,11 @@ export const useAiStudioTaskSubmission = ({
           return;
         }
 
-        if (isVeoImageToVideoModel && preparedImageInputs.length < 1) {
+        if (
+          isVeoImageToVideoModel &&
+          resolvedVideoLane !== "text" &&
+          preparedImageInputs.length < 1
+        ) {
           applySubmissionFailure(id, {
             timestamp: "Missing image",
             errorMessage: "Veo image-to-video requires a reference image.",

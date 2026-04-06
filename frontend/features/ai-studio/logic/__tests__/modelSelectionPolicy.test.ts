@@ -47,6 +47,11 @@ const createImageOptions: ModelOption[] = [
 
 const videoReferenceOptions: ModelOption[] = [
   {
+    value: "fal-ai/kling-video/v3/pro/text-to-video",
+    label: "Kling 3.0",
+    mediaType: "video",
+  },
+  {
     value: "fal-ai/veo3.1/first-last-frame-to-video",
     label: "Google Veo 3.1 (First/Last Frame)",
     mediaType: "image-to-video",
@@ -65,6 +70,21 @@ const videoReferenceOptions: ModelOption[] = [
     value: "fal-ai/kling-video/v3/pro/image-to-video",
     label: "Kling 3.0",
     mediaType: "image-to-video",
+  },
+  {
+    value: "fal-ai/bytedance/seedance/v1.5/pro/text-to-video",
+    label: "Seedance 1.5 Pro",
+    mediaType: "video",
+  },
+  {
+    value: "fal-ai/veo3.1",
+    label: "Google Veo 3.1",
+    mediaType: "video",
+  },
+  {
+    value: "fal-ai/sora-2/text-to-video/pro",
+    label: "Sora 2 Pro",
+    mediaType: "video",
   },
   {
     value: KIE_VEO_31_FAST_I2V_MODEL_ID,
@@ -212,7 +232,7 @@ describe("modelSelectionPolicy", () => {
     expect(model).toBe(CREATE_DEFAULT_MODEL_ID);
   });
 
-  it("excludes first/last-frame + Fal Kling and keeps Fal/Kie i2v models in standard video reference mode", () => {
+  it("keeps standard video selection open to non-Fal-Veo video models", () => {
     const values = resolveAiStudioAllowedModelOptions({
       selectedTool: "video",
       mode: "video",
@@ -222,14 +242,53 @@ describe("modelSelectionPolicy", () => {
     }).map((option) => option.value);
 
     expect(values).toEqual([
-      "fal-ai/veo3.1/image-to-video",
+      "fal-ai/kling-video/v3/pro/text-to-video",
       "fal-ai/bytedance/seedance/v1.5/pro/image-to-video",
+      "fal-ai/kling-video/v3/pro/image-to-video",
+      "fal-ai/bytedance/seedance/v1.5/pro/text-to-video",
+      "fal-ai/sora-2/text-to-video/pro",
       KIE_VEO_31_FAST_I2V_MODEL_ID,
       KIE_KLING_30_MODEL_ID,
     ]);
   });
 
-  it("keeps keyframes mode restricted to first/last-capable Veo models", () => {
+  it("narrows standard video selection to text-capable models when the resolved lane is text", () => {
+    const values = resolveAiStudioAllowedModelOptions({
+      selectedTool: "video",
+      mode: "video",
+      videoReferenceMode: "standard",
+      resolvedVideoLane: "text",
+      options: videoReferenceOptions,
+      getModelConfig,
+    }).map((option) => option.value);
+
+    expect(values).toEqual([
+      "fal-ai/kling-video/v3/pro/text-to-video",
+      "fal-ai/bytedance/seedance/v1.5/pro/text-to-video",
+      "fal-ai/sora-2/text-to-video/pro",
+      KIE_VEO_31_FAST_I2V_MODEL_ID,
+    ]);
+  });
+
+  it("narrows standard video selection to single-image models when the resolved lane is single-image", () => {
+    const values = resolveAiStudioAllowedModelOptions({
+      selectedTool: "video",
+      mode: "video",
+      videoReferenceMode: "standard",
+      resolvedVideoLane: "single-image",
+      options: videoReferenceOptions,
+      getModelConfig,
+    }).map((option) => option.value);
+
+    expect(values).toEqual([
+      "fal-ai/bytedance/seedance/v1.5/pro/image-to-video",
+      "fal-ai/kling-video/v3/pro/image-to-video",
+      KIE_VEO_31_FAST_I2V_MODEL_ID,
+      KIE_KLING_30_MODEL_ID,
+    ]);
+  });
+
+  it("keeps keyframes mode restricted to Kie Veo", () => {
     const values = resolveAiStudioAllowedModelOptions({
       selectedTool: "video",
       mode: "video",
@@ -238,10 +297,7 @@ describe("modelSelectionPolicy", () => {
       getModelConfig,
     }).map((option) => option.value);
 
-    expect(values).toEqual([
-      "fal-ai/veo3.1/first-last-frame-to-video",
-      KIE_VEO_31_FAST_I2V_MODEL_ID,
-    ]);
+    expect(values).toEqual([KIE_VEO_31_FAST_I2V_MODEL_ID]);
   });
 
   it("locks motion mode to Kie Kling", () => {

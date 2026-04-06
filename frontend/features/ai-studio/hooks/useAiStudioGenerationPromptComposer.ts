@@ -167,7 +167,12 @@ export const useAiStudioGenerationPromptComposer = ({
         effectiveTool === "image" || effectiveTool === "edit"
           ? buildImageReferenceInputs(referenceUrl, extraUrls)
           : isVideoGenerationTool
-            ? buildVideoReferenceInputs(referenceUrl, extraUrls, videoReferenceMode)
+            ? buildVideoReferenceInputs(
+                referenceUrl,
+                extraUrls,
+                videoReferenceMode,
+                effectiveModelId
+              )
             : [referenceUrl, ...extraUrls].filter((url): url is string => Boolean(url));
       const imageInputs = resolveMergedReferenceInputs(
         baseInputs,
@@ -246,6 +251,7 @@ export const useAiStudioGenerationPromptComposer = ({
         referenceUrl,
         extraUrls,
         videoReferenceMode,
+        videoModelId: effectiveModelId,
       });
       const imageInputs = resolveMergedReferenceInputs(
         referencePool,

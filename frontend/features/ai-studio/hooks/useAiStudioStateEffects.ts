@@ -8,6 +8,10 @@ import { clampImageResolutionForModel } from "../logic/imageResolution";
 import { CREATE_DEFAULT_MODEL_ID, EDIT_DEFAULT_MODEL_ID } from "../logic/modelSelectionPolicy";
 import { mapCreateModelOnCharacterModeToggle } from "../logic/createCharacterModeModelMapping";
 import {
+  resolveAutoVideoModelForLane,
+  resolveVideoGenerationLaneFromFrameInputs,
+} from "../logic/referenceInputs";
+import {
   KIE_KLING_30_MODEL_ID,
   KIE_VEO_31_FAST_I2V_MODEL_ID,
 } from "../../../lib/model-runtime/providerModelIds";
@@ -24,6 +28,13 @@ const KEYFRAME_COMPATIBLE_MODELS = new Set([
   "fal-ai/veo3.1/first-last-frame-to-video",
   KIE_VEO_31_FAST_I2V_MODEL_ID,
 ]);
+const FAL_VEO_FIRST_LAST_MODEL_ID = "fal-ai/veo3.1/first-last-frame-to-video";
+const FAL_VEO_IMAGE_MODEL_ID = "fal-ai/veo3.1/image-to-video";
+const FAL_VEO_TEXT_MODEL_ID = "fal-ai/veo3.1";
+const isBlockedFalVeoVideoModel = (modelId: string | null | undefined): boolean =>
+  modelId === FAL_VEO_TEXT_MODEL_ID ||
+  modelId === FAL_VEO_IMAGE_MODEL_ID ||
+  modelId === FAL_VEO_FIRST_LAST_MODEL_ID;
 const allowedUiAspects = new Set(aspectOptions.map((option) => option.value));
 
 type VideoReferenceMode = "standard" | "modify" | "keyframes" | "kling3" | "motion";
@@ -35,6 +46,8 @@ type UseAiStudioStateEffectsArgs = {
   activeOutputPreviewUrl?: string | null;
   setUseReferenceImageIndicator: (value: boolean) => void;
   model: string | null;
+  referenceImageUrl: string | null;
+  extraImageUrls: [string | null, string | null, string | null];
   selectedTool: ToolId | null;
   videoReferenceMode: VideoReferenceMode;
   setVideoReferenceMode: (value: VideoReferenceMode) => void;
@@ -76,6 +89,8 @@ export const useAiStudioStateEffects = ({
   activeOutputPreviewUrl,
   setUseReferenceImageIndicator,
   model,
+  referenceImageUrl,
+  extraImageUrls,
   selectedTool,
   videoReferenceMode,
   setVideoReferenceMode,
@@ -110,6 +125,8 @@ export const useAiStudioStateEffects = ({
     selectedTool,
     videoReferenceMode,
     mode,
+    referenceImageUrl,
+    extraImageUrls,
     isCharacterModeEnabled,
   }).map((option) => option.value);
   const allowedModelValues = allowedModelValuesProp ?? computedAllowedModelValues;
@@ -175,6 +192,42 @@ export const useAiStudioStateEffects = ({
     window.sessionStorage.setItem(videoResolutionStorageKey, videoResolution);
     setHasUserVideoPrefs(true);
   }, [setHasUserVideoPrefs, videoResolution, videoResolutionStorageKey]);
+
+  useEffect(() => {
+    if (hasPendingWorkflowRestore) return;
+    if (!isVideoWorkflow(selectedTool)) return;
+    if (videoReferenceMode === "motion" || videoReferenceMode === "kling3") return;
+
+    const resolvedVideoLane = resolveVideoGenerationLaneFromFrameInputs({
+      primary: referenceImageUrl,
+      extras: extraImageUrls,
+      referenceMode: videoReferenceMode,
+    });
+
+    if (resolvedVideoLane === "first-last") {
+      setVideoReferenceModeIfChanged("keyframes");
+    } else if (videoReferenceMode === "keyframes") {
+      setVideoReferenceModeIfChanged("standard");
+    }
+
+    const nextModel = resolveAutoVideoModelForLane({
+      currentModel: model,
+      lane: resolvedVideoLane,
+    });
+    if (!nextModel || nextModel === model) return;
+    if (allowedModelValues.length > 0 && !allowedModelValues.includes(nextModel)) return;
+    setModelIfChanged(nextModel);
+  }, [
+    allowedModelValues,
+    extraImageUrls,
+    hasPendingWorkflowRestore,
+    model,
+    referenceImageUrl,
+    selectedTool,
+    setModelIfChanged,
+    setVideoReferenceModeIfChanged,
+    videoReferenceMode,
+  ]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -254,12 +307,17 @@ export const useAiStudioStateEffects = ({
       return;
     }
 
+    if (model === FAL_VEO_FIRST_LAST_MODEL_ID && videoReferenceMode !== "keyframes") {
+      setVideoReferenceModeIfChanged("keyframes");
+      return;
+    }
+
     if (videoReferenceMode === "keyframes") {
       if (model && !KEYFRAME_COMPATIBLE_MODELS.has(model)) {
         lastNonKeyframesVideoModelRef.current = model;
-        setModelIfChanged("fal-ai/veo3.1/first-last-frame-to-video");
+        setModelIfChanged(KIE_VEO_31_FAST_I2V_MODEL_ID);
       } else if (!model) {
-        setModelIfChanged("fal-ai/veo3.1/first-last-frame-to-video");
+        setModelIfChanged(KIE_VEO_31_FAST_I2V_MODEL_ID);
       }
       return;
     }
@@ -275,13 +333,13 @@ export const useAiStudioStateEffects = ({
     }
 
     if (model === "fal-ai/kling-video/v3/pro/image-to-video" && videoReferenceMode === "standard") {
-      const fallback = lastNonMotionVideoModelRef.current ?? "fal-ai/veo3.1/image-to-video";
+      const fallback = lastNonMotionVideoModelRef.current ?? KIE_VEO_31_FAST_I2V_MODEL_ID;
       setModelIfChanged(fallback);
       return;
     }
 
-    if (model === "fal-ai/veo3.1/first-last-frame-to-video" && videoReferenceMode === "standard") {
-      const fallback = lastNonKeyframesVideoModelRef.current ?? "fal-ai/veo3.1/image-to-video";
+    if (model === FAL_VEO_FIRST_LAST_MODEL_ID && videoReferenceMode === "standard") {
+      const fallback = lastNonKeyframesVideoModelRef.current ?? KIE_VEO_31_FAST_I2V_MODEL_ID;
       setModelIfChanged(fallback);
       return;
     }
@@ -296,6 +354,13 @@ export const useAiStudioStateEffects = ({
     videoReferenceMode,
     hasPendingWorkflowRestore,
   ]);
+
+  useEffect(() => {
+    if (hasPendingWorkflowRestore) return;
+    if (!isVideoWorkflow(selectedTool)) return;
+    if (!isBlockedFalVeoVideoModel(model)) return;
+    setModelIfChanged(KIE_VEO_31_FAST_I2V_MODEL_ID);
+  }, [hasPendingWorkflowRestore, model, selectedTool, setModelIfChanged]);
 
   useEffect(() => {
     if (hasPendingWorkflowRestore) return;

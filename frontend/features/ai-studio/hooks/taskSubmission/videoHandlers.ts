@@ -140,29 +140,20 @@ export const handleVideoModelSubmission = async ({
   }
 
   if (finalModel === KIE_VEO_31_FAST_I2V_MODEL_ID) {
-    if (!preparedImageInputs.length) {
-      notifyGenerationFailure(id, "Kie Veo 3.1 Fast I2V requires at least one reference image.");
-      return true;
-    }
+    const resolvedGenerationType =
+      preparedImageInputs.length === 0 ? "TEXT_2_VIDEO" : "FIRST_AND_LAST_FRAMES_2_VIDEO";
     const keyframeImageUrls =
-      videoReferenceMode === "keyframes"
+      preparedImageInputs.length >= 2
         ? preparedImageInputs.slice(0, 2)
-        : [preparedImageInputs[0]];
-    if (videoReferenceMode === "keyframes" && keyframeImageUrls.length < 2) {
-      notifyGenerationFailure(
-        id,
-        "Kie Veo 3.1 Fast I2V keyframes mode requires both first and last frame images."
-      );
-      return true;
-    }
+        : preparedImageInputs.slice(0, 1);
     const aspectRatio = aspect === "9:16" ? "9:16" : "16:9";
     const duration = requestedDurationSeconds <= 5 ? 5 : 8;
     const resolution = requestedResolution?.toLowerCase().includes("1080") ? "1080p" : "720p";
     const response = await submitKieVeoImageToVideo({
       prompt: cleanedPrompt,
-      image_url: preparedImageInputs[0],
+      image_url: keyframeImageUrls[0],
       image_urls: keyframeImageUrls,
-      generation_type: "FIRST_AND_LAST_FRAMES_2_VIDEO",
+      generation_type: resolvedGenerationType,
       aspect_ratio: aspectRatio,
       duration,
       resolution,
@@ -239,6 +230,7 @@ export const handleVideoModelSubmission = async ({
         video_urls: [motionVideoUrlFinal],
         resolution: motionResolution,
         mode: motionResolution,
+        generate_audio: requestedAudio,
         character_orientation: "image",
         background_source: "input_video",
       });
@@ -313,11 +305,7 @@ export const handleVideoModelSubmission = async ({
 
   if (finalModel === "fal-ai/kling-video/v3/pro/image-to-video") {
     const klingDuration = resolveKlingV3Duration(requestedDurationSeconds);
-    const endImageUrl =
-      (videoReferenceMode === "keyframes" || videoReferenceMode === "kling3") &&
-      preparedImageInputs.length > 1
-        ? preparedImageInputs[1]
-        : undefined;
+    const endImageUrl = preparedImageInputs.length > 1 ? preparedImageInputs[1] : undefined;
     const voiceIds = buildKlingVoiceIds(klingVoiceIds);
     const multiPromptPayload = buildKlingMultiPromptPayload(klingMultiPrompts);
     let elementsPayload: ReturnType<typeof buildKlingElementsPayload>;
@@ -367,12 +355,18 @@ export const handleVideoModelSubmission = async ({
   }
 
   if (finalModel === "fal-ai/veo3.1/image-to-video") {
+    if (!preparedImageInputs.length) {
+      notifyGenerationFailure(id, "Veo 3.1 image-to-video requires a reference image.");
+      return true;
+    }
     const normalizedAspect = resolveVeoAspect(aspect);
     const duration = resolveVeoDuration(requestedDurationSeconds);
     const resolution = resolveVeoResolution(requestedResolution);
+    const primaryImageUrl = preparedImageInputs[0];
     const response = await submitFalVeoImageToVideo({
       prompt: cleanedPrompt,
-      image_urls: [preparedImageInputs[0]],
+      image_url: primaryImageUrl,
+      image_urls: [primaryImageUrl],
       aspect_ratio: normalizedAspect,
       duration,
       resolution,
@@ -390,13 +384,19 @@ export const handleVideoModelSubmission = async ({
 
   if (finalModel === "fal-ai/kling-video/v3/pro/text-to-video") {
     const klingDuration = resolveKlingV3Duration(requestedDurationSeconds);
+    const multiPromptPayload = buildKlingMultiPromptPayload(klingMultiPrompts);
+    const voiceIds = buildKlingVoiceIds(klingVoiceIds);
+    const shotType = resolveKlingShotType(klingShotType);
     const response = await submitFalKlingV3Text({
       prompt: cleanedPrompt,
       aspect_ratio: resolveKlingAspectRatio(aspect),
       duration: klingDuration,
-      negative_prompt: "blur, distort, and low quality",
-      cfg_scale: 0.5,
+      negative_prompt: klingNegativePrompt.trim(),
+      cfg_scale: klingCfgScale,
       generate_audio: requestedAudio,
+      ...(voiceIds.length ? { voice_ids: voiceIds } : {}),
+      ...(multiPromptPayload ? { multi_prompt: multiPromptPayload } : {}),
+      ...(shotType ? { shot_type: shotType } : {}),
     });
     handoffSubmitResponse({
       response,

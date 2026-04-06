@@ -7,6 +7,8 @@ import { modelOptions } from "../constants";
 import { buildDefaultPricingParams, getModelConfig } from "../logic/pricing";
 import type { PricingParams } from "../logic/pricingTypes";
 import { resolveAiStudioAllowedModelOptions } from "../logic/modelSelectionPolicy";
+import { resolveVideoGenerationLaneFromFrameInputs } from "../logic/referenceInputs";
+import { KIE_KLING_30_MODEL_ID } from "../../../lib/model-runtime/providerModelIds";
 import type { StudioMode, ToolId } from "../types";
 
 type UseAiStudioPageDerivationsParams = {
@@ -18,6 +20,8 @@ type UseAiStudioPageDerivationsParams = {
   editReferenceText: string;
   videoReferenceText: string;
   videoReferenceMode: string;
+  referenceImageUrl: string | null;
+  extraImageUrls: [string | null, string | null, string | null];
   isCharacterModeEnabled?: boolean;
 };
 
@@ -33,6 +37,8 @@ export const useAiStudioPageDerivations = ({
   editReferenceText,
   videoReferenceText,
   videoReferenceMode,
+  referenceImageUrl,
+  extraImageUrls,
   isCharacterModeEnabled = false,
 }: UseAiStudioPageDerivationsParams) => {
   const isTemplateView =
@@ -63,15 +69,42 @@ export const useAiStudioPageDerivations = ({
       videoReferenceMode === "motion"
         ? videoReferenceMode
         : "standard";
-    return resolveAiStudioAllowedModelOptions({
+    const resolvedVideoLane =
+      selectedTool === "video" || selectedTool === "kling"
+        ? resolveVideoGenerationLaneFromFrameInputs({
+            primary: referenceImageUrl,
+            extras: extraImageUrls,
+            referenceMode: normalizedVideoReferenceMode,
+          })
+        : undefined;
+    const allowedOptions = resolveAiStudioAllowedModelOptions({
       selectedTool,
       mode,
       videoReferenceMode: normalizedVideoReferenceMode,
+      resolvedVideoLane,
       isCharacterModeEnabled,
       options: modelOptions,
       getModelConfig,
     });
-  }, [isCharacterModeEnabled, mode, selectedTool, videoReferenceMode]);
+    if (selectedTool === "video" && model === KIE_KLING_30_MODEL_ID) {
+      const nonFalOptions = allowedOptions.filter((option) => !option.value.startsWith("fal-ai/"));
+      if (nonFalOptions.some((option) => option.value === model)) {
+        return nonFalOptions;
+      }
+      const activeModelOption = modelOptions.find((option) => option.value === model);
+      return activeModelOption ? [activeModelOption, ...nonFalOptions] : nonFalOptions;
+    }
+    return allowedOptions;
+  }, [
+    extraImageUrls,
+    getModelConfig,
+    isCharacterModeEnabled,
+    mode,
+    model,
+    referenceImageUrl,
+    selectedTool,
+    videoReferenceMode,
+  ]);
 
   const resolveDefaultPromptForTool = useCallback(
     (tool: ToolId | null) => {

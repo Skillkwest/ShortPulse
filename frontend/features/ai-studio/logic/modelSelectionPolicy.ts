@@ -9,6 +9,7 @@ import {
   KIE_KLING_30_MODEL_ID,
   KIE_VEO_31_FAST_I2V_MODEL_ID,
 } from "../../../lib/model-runtime/providerModelIds";
+import type { ResolvedVideoGenerationLane } from "./referenceInputs";
 import {
   CREATE_DEFAULT_MODEL_ID,
   CREATE_CHARACTER_MODE_DEFAULT_MODEL_ID,
@@ -24,6 +25,13 @@ export type ModelSelectionVideoReferenceMode =
   | "keyframes"
   | "kling3"
   | "motion";
+
+const FAL_VEO_FIRST_LAST_MODEL_ID = "fal-ai/veo3.1/first-last-frame-to-video";
+const BLOCKED_VIDEO_SELECTOR_MODEL_IDS = new Set([
+  "fal-ai/veo3.1",
+  "fal-ai/veo3.1/image-to-video",
+  FAL_VEO_FIRST_LAST_MODEL_ID,
+]);
 
 type ModelConfigLike = {
   supportsImageToImage?: boolean;
@@ -61,6 +69,7 @@ export const resolveAiStudioAllowedModelOptions = ({
   selectedTool,
   mode,
   videoReferenceMode,
+  resolvedVideoLane,
   isCharacterModeEnabled = false,
   options = modelOptions,
   getModelConfig,
@@ -68,6 +77,7 @@ export const resolveAiStudioAllowedModelOptions = ({
   selectedTool: ToolId | null;
   mode: StudioMode;
   videoReferenceMode: ModelSelectionVideoReferenceMode;
+  resolvedVideoLane?: ResolvedVideoGenerationLane;
   isCharacterModeEnabled?: boolean;
   options?: ModelOption[];
   getModelConfig: (id: string) => ModelConfigLike | null;
@@ -77,26 +87,43 @@ export const resolveAiStudioAllowedModelOptions = ({
   );
 
   if (selectedTool === "video" || selectedTool === "kling") {
+    const selectorVideoOptions = selectableOptions.filter(
+      (option) => !BLOCKED_VIDEO_SELECTOR_MODEL_IDS.has(option.value)
+    );
     if (videoReferenceMode === "keyframes") {
-      return selectableOptions.filter(
-        (option) =>
-          option.value === "fal-ai/veo3.1/first-last-frame-to-video" ||
-          option.value === KIE_VEO_31_FAST_I2V_MODEL_ID
-      );
+      return selectorVideoOptions.filter((option) => option.value === KIE_VEO_31_FAST_I2V_MODEL_ID);
     }
     if (videoReferenceMode === "motion") {
-      return selectableOptions.filter((option) => option.value === KIE_KLING_30_MODEL_ID);
+      return selectorVideoOptions.filter((option) => option.value === KIE_KLING_30_MODEL_ID);
     }
     if (selectedTool === "kling" || videoReferenceMode === "kling3") {
-      return selectableOptions.filter(
+      return selectorVideoOptions.filter(
         (option) => option.value === "fal-ai/kling-video/v3/pro/image-to-video"
       );
     }
-    return selectableOptions.filter(
-      (option) =>
-        option.mediaType === "image-to-video" &&
-        !option.value.includes("kling-video") &&
-        option.value !== "fal-ai/veo3.1/first-last-frame-to-video"
+    if (resolvedVideoLane === "text") {
+      return selectorVideoOptions.filter(
+        (option) =>
+          option.value === "fal-ai/kling-video/v3/pro/text-to-video" ||
+          option.value === "fal-ai/bytedance/seedance/v1.5/pro/text-to-video" ||
+          option.value === "fal-ai/sora-2/text-to-video/pro" ||
+          option.value === KIE_VEO_31_FAST_I2V_MODEL_ID
+      );
+    }
+    if (resolvedVideoLane === "single-image") {
+      return selectorVideoOptions.filter(
+        (option) =>
+          option.value === "fal-ai/bytedance/seedance/v1.5/pro/image-to-video" ||
+          option.value === "fal-ai/kling-video/v3/pro/image-to-video" ||
+          option.value === "kie-ai/kling-3.0" ||
+          option.value === KIE_VEO_31_FAST_I2V_MODEL_ID
+      );
+    }
+    if (resolvedVideoLane === "first-last") {
+      return selectorVideoOptions.filter((option) => option.value === KIE_VEO_31_FAST_I2V_MODEL_ID);
+    }
+    return selectorVideoOptions.filter(
+      (option) => option.mediaType === "image-to-video" || option.mediaType === "video"
     );
   }
 

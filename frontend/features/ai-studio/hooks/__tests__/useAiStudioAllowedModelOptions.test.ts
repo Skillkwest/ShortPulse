@@ -1,5 +1,6 @@
 import { renderHook } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
+import { KIE_VEO_31_FAST_I2V_MODEL_ID } from "../../../../lib/model-runtime/providerModelIds";
 import { useAiStudioAllowedModelOptions } from "../useAiStudioAllowedModelOptions";
 
 describe("useAiStudioAllowedModelOptions", () => {
@@ -35,5 +36,38 @@ describe("useAiStudioAllowedModelOptions", () => {
     const values = new Set(result.current.map((option) => option.value));
     expect(values.has("fal-ai/bytedance/seedream/v4.5/text-to-image")).toBe(true);
     expect(values.has("fal-ai/bytedance/seedream/v4.5/edit")).toBe(false);
+  });
+
+  it("narrows video options to text-capable models when no frame images are present", () => {
+    const { result } = renderHook(() =>
+      useAiStudioAllowedModelOptions({
+        selectedTool: "video",
+        mode: "video",
+        videoReferenceMode: "standard",
+        referenceImageUrl: null,
+        extraImageUrls: [null, null, null],
+      })
+    );
+
+    const values = new Set(result.current.map((option) => option.value));
+    expect(values.has("fal-ai/veo3.1")).toBe(false);
+    expect(values.has("fal-ai/veo3.1/image-to-video")).toBe(false);
+    expect(values.has(KIE_VEO_31_FAST_I2V_MODEL_ID)).toBe(true);
+    expect(values.has("fal-ai/kling-video/v3/pro/text-to-video")).toBe(true);
+  });
+
+  it("narrows video options to first-last-capable models when two frame images are present", () => {
+    const { result } = renderHook(() =>
+      useAiStudioAllowedModelOptions({
+        selectedTool: "video",
+        mode: "video",
+        videoReferenceMode: "standard",
+        referenceImageUrl: "https://example.com/first.png",
+        extraImageUrls: ["https://example.com/last.png", null, null],
+      })
+    );
+
+    const values = new Set(result.current.map((option) => option.value));
+    expect(values).toEqual(new Set([KIE_VEO_31_FAST_I2V_MODEL_ID]));
   });
 });

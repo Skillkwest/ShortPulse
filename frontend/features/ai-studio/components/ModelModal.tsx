@@ -342,6 +342,13 @@ const hiddenModelIdsByContext: Partial<Record<ModelModalContext, string[]>> = {
   "text-image": ["fal/flux-2", "fal-ai/nano-banana"],
 };
 
+const globallyHiddenModelIds = new Set([
+  "fal-ai/veo3.1/first-last-frame-to-video",
+  "fal-ai/veo3.1/image-to-video",
+  "fal-ai/veo3.1",
+  "fal-ai/sora-2/text-to-video/pro",
+]);
+
 /**
  * Renders the floating model selection modal.
  */
@@ -418,7 +425,11 @@ function ModelModalContent({
     [context]
   );
   const visibleOptions = useMemo(
-    () => options.filter((option) => !contextHiddenModelIds.has(option.value)),
+    () =>
+      options.filter(
+        (option) =>
+          !contextHiddenModelIds.has(option.value) && !globallyHiddenModelIds.has(option.value)
+      ),
     [contextHiddenModelIds, options]
   );
   const normalizedQuery = searchQuery.trim().toLowerCase();

@@ -47,17 +47,41 @@ export const PromptStepEnhancedSurface: React.FC<PromptStepEnhancedSurfaceProps>
   inlineAction,
 }) => {
   const textareaRef = React.useRef<HTMLTextAreaElement | null>(null);
+  const resizeTextareaToViewport = React.useCallback(() => {
+    if (!autoResize || !textareaRef.current) return;
+    const textarea = textareaRef.current;
+    const computedMinHeight = Number.parseFloat(window.getComputedStyle(textarea).minHeight) || 0;
+    const rect = textarea.getBoundingClientRect();
+    const viewportHeight = window.innerHeight;
+    const bottomViewportInset = 150;
+    const availableHeight = Math.max(
+      viewportHeight - rect.top - bottomViewportInset,
+      computedMinHeight
+    );
+
+    textarea.style.height = "auto";
+    const nextHeight = Math.min(
+      Math.max(textarea.scrollHeight, computedMinHeight),
+      availableHeight
+    );
+    textarea.style.height = `${nextHeight}px`;
+    textarea.style.overflowY = textarea.scrollHeight > availableHeight ? "auto" : "hidden";
+  }, [autoResize]);
 
   React.useEffect(() => {
     if (!autoResize || !textareaRef.current) return;
-    const textarea = textareaRef.current;
     const frameId = window.requestAnimationFrame(() => {
-      const computedMinHeight = Number.parseFloat(window.getComputedStyle(textarea).minHeight) || 0;
-      textarea.style.height = "auto";
-      textarea.style.height = `${Math.max(textarea.scrollHeight, computedMinHeight)}px`;
+      resizeTextareaToViewport();
     });
     return () => window.cancelAnimationFrame(frameId);
-  }, [autoResize, prompt]);
+  }, [autoResize, prompt, resizeTextareaToViewport]);
+
+  React.useEffect(() => {
+    if (!autoResize) return;
+    const handleViewportResize = () => resizeTextareaToViewport();
+    window.addEventListener("resize", handleViewportResize);
+    return () => window.removeEventListener("resize", handleViewportResize);
+  }, [autoResize, resizeTextareaToViewport]);
 
   return (
     <>

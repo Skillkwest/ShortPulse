@@ -140,7 +140,7 @@ export const ReferenceMediaStep: React.FC<ReferenceMediaStepProps> = ({
                 </button>
               ) : (
                 <div className="reference-drop-content image-drop-content">
-                  <ImageSquare size={22} weight="regular" />
+                  <ImageSquare size={24} weight="regular" />
                 </div>
               )}
             </div>
@@ -187,7 +187,7 @@ export const ReferenceMediaStep: React.FC<ReferenceMediaStepProps> = ({
                 </>
               ) : (
                 <div className="reference-drop-content video-drop-content">
-                  <VideoCamera size={22} weight="regular" />
+                  <VideoCamera size={24} weight="regular" />
                 </div>
               )}
             </div>
@@ -221,7 +221,7 @@ export const ReferenceMediaStep: React.FC<ReferenceMediaStepProps> = ({
                 </button>
               ) : null}
               <div className="reference-drop-content image-drop-content">
-                <UploadSimple size={22} weight="regular" />
+                <UploadSimple size={24} weight="regular" />
                 <p className="reference-drop-title helper-text">Upload a starting frame</p>
               </div>
             </div>
@@ -252,7 +252,7 @@ export const ReferenceMediaStep: React.FC<ReferenceMediaStepProps> = ({
                 </button>
               ) : null}
               <div className="reference-drop-content image-drop-content">
-                <UploadSimple size={22} weight="regular" />
+                <UploadSimple size={24} weight="regular" />
                 <p className="reference-drop-title helper-text">Upload an end frame</p>
               </div>
             </div>
@@ -299,7 +299,7 @@ export const ReferenceMediaStep: React.FC<ReferenceMediaStepProps> = ({
                 </button>
               ) : null}
               <div className="reference-drop-content image-drop-content">
-                <Plus size={24} weight="regular" />
+                <Plus size={26} weight="regular" />
               </div>
             </div>
           </div>
@@ -307,7 +307,7 @@ export const ReferenceMediaStep: React.FC<ReferenceMediaStepProps> = ({
             <>
               {isKeyframesMode ? (
                 <div className="reference-drop-divider" aria-hidden="true">
-                  <ArrowFatRight size={24} weight="fill" />
+                  <ArrowFatRight size={26} weight="fill" />
                 </div>
               ) : null}
               <div className="primary-drop">
@@ -341,7 +341,7 @@ export const ReferenceMediaStep: React.FC<ReferenceMediaStepProps> = ({
                     </button>
                   ) : (
                     <div className="reference-drop-content image-drop-content">
-                      <Plus size={24} weight="regular" />
+                      <Plus size={26} weight="regular" />
                     </div>
                   )}
                 </div>
@@ -350,7 +350,7 @@ export const ReferenceMediaStep: React.FC<ReferenceMediaStepProps> = ({
           ) : !isVideoVariant ? (
             <>
               <div className="reference-drop-divider" aria-hidden="true">
-                <Selection size={22} weight="regular" />
+                <Selection size={24} weight="regular" />
               </div>
               {[0, 1, 2].map((index) => {
                 const previewUrl = extraImageUrls[index];
@@ -383,7 +383,7 @@ export const ReferenceMediaStep: React.FC<ReferenceMediaStepProps> = ({
                           ×
                         </button>
                       ) : (
-                        <Plus size={22} weight="regular" />
+                        <Plus size={24} weight="regular" />
                       )}
                     </div>
                   </div>

@@ -51,8 +51,12 @@ describe("useAiStudioGenerationPromptComposer", () => {
 
     expect(submitTask).toHaveBeenCalledWith(
       "submission prompt",
-      ["https://example.com/override.png", "https://example.com/ref.png"],
-      {
+      [
+        "https://example.com/override.png",
+        "https://example.com/ref.png",
+        "https://example.com/extra-1.png",
+      ],
+      expect.objectContaining({
         modeOverride: "video",
         selectedToolOverride: "video",
         displayPromptOverride: "display prompt",
@@ -63,7 +67,7 @@ describe("useAiStudioGenerationPromptComposer", () => {
           characterProfileImageUrl: null,
         },
         modelIdOverride: undefined,
-      }
+      })
     );
   });
 
@@ -164,11 +168,12 @@ describe("useAiStudioGenerationPromptComposer", () => {
 
     expect(submitTask).toHaveBeenCalledWith(
       "prompt override",
-      ["https://example.com/ref.png"],
-      expect.not.objectContaining({
-        styleContextOverride: expect.anything(),
+      ["https://example.com/ref.png", "https://example.com/extra-1.png"],
+      expect.objectContaining({
+        displayPromptOverride: "prompt override",
       })
     );
+    expect(submitTask.mock.calls[0]?.[2]).not.toHaveProperty("styleContextOverride");
   });
 
   it("uses video prompt and single primary input for standard video mode", () => {
@@ -194,13 +199,19 @@ describe("useAiStudioGenerationPromptComposer", () => {
     });
 
     expect(resolveReferenceInputsForTool).toHaveBeenCalledWith("video");
-    expect(submitTask).toHaveBeenCalledWith("video prompt", ["https://example.com/video-ref.png"], {
-      modeOverride: undefined,
-      selectedToolOverride: undefined,
-      displayPromptOverride: "video prompt",
-      characterContextOverride: undefined,
-      modelIdOverride: undefined,
-    });
+    expect(submitTask).toHaveBeenCalledWith(
+      "video prompt",
+      ["https://example.com/video-ref.png", "https://example.com/video-extra-1.png"],
+      {
+        modeOverride: undefined,
+        selectedToolOverride: undefined,
+        displayPromptOverride: "video prompt",
+        characterContextOverride: undefined,
+        modelIdOverride: undefined,
+        hideOutputFromReferenceGrid: undefined,
+        inpaintOverride: undefined,
+      }
+    );
   });
 
   it("includes the optional last frame for Kie Veo standard video runs", () => {
@@ -511,7 +522,7 @@ describe("useAiStudioGenerationPromptComposer", () => {
 
     expect(submitTask).toHaveBeenCalledWith(
       "Video visible prompt",
-      ["https://example.com/ref.png"],
+      ["https://example.com/ref.png", "https://example.com/extra-1.png"],
       expect.objectContaining({ displayPromptOverride: "Video visible prompt" })
     );
   });

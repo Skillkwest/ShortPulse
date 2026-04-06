@@ -12,6 +12,8 @@
   --video-accent-medium: rgba(170, 101, 239, 0.46);
   --video-accent-strong: rgba(170, 101, 239, 0.9);
   --video-accent-shadow: rgba(153, 42, 201, 0.3);
+  --video-selector-surface: #0f1114;
+  --video-selector-border: rgba(96, 101, 111, 0.58);
   --ai-accent: var(--video-accent);
   --ai-accent-start: var(--video-accent-start);
   --ai-accent-soft: var(--video-accent-soft);
@@ -78,6 +80,36 @@
   min-height: 0;
   overflow: hidden;
   view-transition-name: video-direction-column-shell;
+}
+
+.video-properties-panel .video-direction-column-shell,
+.video-properties-panel .video-setup-row-shell,
+.video-properties-panel .reference-step-card,
+.video-properties-panel .video-multishot-toggle-shell,
+.video-properties-panel .video-shot-status-card,
+.video-properties-panel .video-settings-toggle-row--compact,
+.video-properties-panel .video-reference-mode-tabs,
+.video-properties-panel .video-shot-mode-tabs,
+.video-properties-panel .video-settings-card-model-row .model-picker-btn,
+.video-properties-panel .video-settings-card .aspect-trigger,
+.video-properties-panel .video-settings-card .fixed-select .model-select,
+.video-properties-panel .video-add-shot-button,
+.video-properties-panel .video-shot-remove-button,
+.video-properties-panel .video-support-add-btn,
+.video-properties-panel .reference-swap-control,
+.video-properties-panel .audio-toggle,
+.video-properties-panel .agent-send-prefab,
+.video-properties-panel .agent-save-prefab,
+.video-properties-panel .agent-generate-prefab,
+.video-properties-panel .video-secondary-generate-btn,
+.video-properties-panel .prompt-enhanced-wrapper .enhanced-prompt-input {
+  transition:
+    border-color 0.14s ease,
+    background-color 0.14s ease,
+    background 0.14s ease,
+    box-shadow 0.14s ease,
+    color 0.14s ease,
+    transform 0.14s ease;
 }
 
 .video-properties-panel .video-panel-hero-text {
@@ -279,7 +311,7 @@
   grid-template-columns: minmax(0, 1fr);
   gap: 0;
   align-items: stretch;
-  margin-bottom: 14px;
+  margin-bottom: 6px;
 }
 
 .video-properties-panel .video-prompt-multishot-toggle {
@@ -365,16 +397,11 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 15px;
+  font-size: 14px;
   line-height: 1;
   transition:
     background 0.14s ease,
     color 0.14s ease;
-}
-
-.video-properties-panel .video-add-shot-button:hover {
-  background: rgba(255, 255, 255, 0.05);
-  color: rgba(245, 248, 252, 0.62);
 }
 
 .video-properties-panel .video-add-shot-button:focus {
@@ -394,7 +421,7 @@
   justify-content: center;
   gap: 40px;
   width: 100%;
-  margin-top: 18px;
+  margin-top: 8px;
   flex: 0 0 auto;
   view-transition-name: video-right-generate-slot;
 }
@@ -404,7 +431,7 @@
   position: absolute;
   left: 16px;
   right: 16px;
-  top: -9px;
+  top: -6px;
   height: 1px;
   background: linear-gradient(
     90deg,
@@ -573,11 +600,6 @@
     color 0.14s ease;
 }
 
-.video-properties-panel .video-shot-remove-button:hover {
-  background: rgba(255, 255, 255, 0.06);
-  color: rgba(236, 241, 247, 0.82);
-}
-
 .video-properties-panel .video-shot-remove-button:focus {
   outline: none;
 }
@@ -741,11 +763,6 @@
   color: rgba(201, 205, 214, 0.58);
 }
 
-.video-properties-panel .video-shot-mode-tab:not(.is-active):hover {
-  background: rgba(52, 56, 64, 0.56);
-  color: rgba(240, 243, 249, 0.9);
-}
-
 .video-properties-panel .video-shot-mode-tab.is-active {
   border-color: transparent;
   background: transparent;
@@ -767,17 +784,25 @@
 }
 
 .video-properties-panel .prompt-enhanced-wrapper .enhanced-prompt-input {
+  --video-prompt-input-surface: rgba(57, 63, 67, 0.16);
+  --video-prompt-input-border: rgba(201, 205, 214, 0.12);
   border-radius: 6px;
-  border: 1px solid rgba(201, 205, 214, 0.094);
-  background: rgba(57, 63, 67, 0.14);
-  box-shadow: none;
+  border: 1px solid var(--video-prompt-input-border) !important;
+  background: var(--video-prompt-input-surface) !important;
+  box-shadow: none !important;
   color: #f5f9ff;
-  font-size: 16px;
+  font-size: 14px;
   font-family: var(--font-secondary);
-  overflow-y: hidden;
+  overflow-y: auto;
   min-height: 500px;
   padding-right: 16px;
   padding-bottom: 16px;
+  outline: none !important;
+  -webkit-appearance: none;
+  appearance: none;
+  resize: none;
+  overscroll-behavior: contain;
+  transition: none;
 }
 
 .video-properties-panel .video-primary-prompt-shell .prompt-enhanced-wrapper::before {
@@ -821,9 +846,13 @@
 }
 
 .video-properties-panel .prompt-enhanced-wrapper .enhanced-prompt-input:focus,
-.video-properties-panel .prompt-enhanced-wrapper .enhanced-prompt-input:focus-visible {
-  border: 1px solid rgba(201, 205, 214, 0.094);
-  background: rgba(57, 63, 67, 0.14);
+.video-properties-panel .prompt-enhanced-wrapper .enhanced-prompt-input:focus-visible,
+.video-properties-panel .prompt-enhanced-wrapper .enhanced-prompt-input:hover,
+.video-properties-panel .prompt-enhanced-wrapper .enhanced-prompt-input:active {
+  border: 1px solid var(--video-prompt-input-border) !important;
+  background: var(--video-prompt-input-surface) !important;
+  box-shadow: none !important;
+  outline: none !important;
 }
 
 .video-properties-panel .prompt-enhanced-wrapper .enhanced-prompt-input::placeholder {
@@ -857,7 +886,7 @@
   min-height: 40px;
   height: 40px;
   padding: var(--video-reference-mode-pad);
-  border: 1px solid rgba(201, 205, 214, 0.2);
+  border: 1px solid rgba(201, 205, 214, 0.24);
   border-radius: 8px;
   background: var(--create-expert-selector-bg, var(--color-bg));
   box-sizing: border-box;
@@ -867,6 +896,11 @@
   margin-bottom: 10px;
   position: relative;
   overflow: hidden;
+}
+
+.video-properties-panel .video-reference-mode-tabs:hover,
+.video-properties-panel .video-reference-mode-tabs:focus-within {
+  border-color: rgba(201, 205, 214, 0.24);
 }
 
 .video-properties-panel .video-reference-mode-indicator {
@@ -910,11 +944,6 @@
   text-align: center;
 }
 
-.video-properties-panel .video-reference-mode-tab:not(.is-active):hover {
-  background: rgba(52, 56, 64, 0.56);
-  color: rgba(240, 243, 249, 0.9);
-}
-
 .video-properties-panel .video-reference-mode-tab.is-active {
   border-color: transparent;
   background: transparent;
@@ -949,12 +978,6 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-}
-
-.video-properties-panel .video-support-add-btn:hover,
-.video-properties-panel .video-support-add-btn:focus-visible {
-  border-color: rgba(170, 101, 239, 0.46);
-  background: rgba(170, 101, 239, 0.18);
 }
 
 .video-properties-panel .video-elements-grid {
@@ -1215,10 +1238,6 @@
   box-shadow: 0 12px 24px rgba(208, 173, 92, 0.2);
 }
 
-.video-properties-panel .video-secondary-generate-btn:hover:not(:disabled) {
-  box-shadow: 0 14px 28px rgba(208, 173, 92, 0.26);
-}
-
 .video-properties-panel .video-secondary-generate-btn:disabled {
   opacity: 0.55;
   cursor: not-allowed;
@@ -1284,38 +1303,11 @@
   outline: 2px solid rgba(170, 101, 239, 0.9);
 }
 
-.video-properties-panel .step-utility-btn:hover {
-  border-color: var(--video-accent-medium);
-  background: rgba(48, 35, 72, 0.72);
-}
-
-.video-properties-panel .step-card.is-collapsed:hover {
-  border-color: var(--video-accent-medium);
-}
-
-.video-properties-panel .reference-step-card.is-collapsed:hover {
-  border-color: var(--video-accent-medium);
-}
-
-.video-properties-panel .video-settings-card-model-row .model-picker-btn:hover,
-.video-properties-panel .video-settings-card-model-row .model-picker-btn:focus-visible,
-.video-properties-panel .video-settings-card-model-row .model-picker-btn.is-open,
-.video-properties-panel .fixed-select:hover,
-.video-properties-panel .fixed-select:focus-visible,
-.video-properties-panel .aspect-trigger:hover,
-.video-properties-panel .aspect-trigger:focus-visible,
-.video-properties-panel .aspect-dropdown-trigger:hover,
-.video-properties-panel .aspect-dropdown-trigger:focus-visible,
-.video-properties-panel .aspect-trigger[aria-expanded="true"] {
-  border-color: rgba(201, 205, 214, 0.24);
-  box-shadow: none;
-  transform: none;
-  background-color: var(--create-expert-selector-bg, var(--color-bg));
-}
-
 .video-properties-panel .video-settings-card-model-row .model-picker-btn,
 .video-properties-panel .video-settings-card .aspect-trigger,
-.video-properties-panel .video-settings-inline-controls > .video-settings-toggle-row--compact {
+.video-properties-panel .video-settings-inline-controls > .video-settings-toggle-row--compact,
+.video-properties-panel .video-shot-mode-tab,
+.video-properties-panel .video-reference-mode-tab {
   box-shadow: none;
 }
 
@@ -1324,43 +1316,250 @@
   box-shadow: none;
 }
 
-.video-properties-panel .video-settings-card-model-row .model-picker-btn:not(.is-empty):hover,
-.video-properties-panel
-  .video-settings-card-model-row
-  .model-picker-btn:not(.is-empty):focus-visible,
-.video-properties-panel .video-settings-card-model-row .model-picker-btn:not(.is-empty).is-open {
-  border-color: rgba(201, 205, 214, 0.24);
-  box-shadow: none;
-  transform: none;
-  background-color: var(--create-expert-selector-bg, var(--color-bg));
-}
-
 .video-properties-panel .video-settings-card-model-row .model-picker-btn.is-empty,
-.video-properties-panel .video-settings-card-model-row .model-picker-btn.is-empty:hover,
 .video-properties-panel .video-settings-card-model-row .model-picker-btn.is-empty.is-open {
   border-color: var(--video-accent-strong, rgba(170, 101, 239, 0.9));
   box-shadow: none;
   background-color: var(--create-expert-selector-bg, var(--color-bg));
 }
 
+.video-properties-panel .video-settings-card-model-row .model-picker-btn:hover:not(.is-empty),
+.video-properties-panel
+  .video-settings-card-model-row
+  .model-picker-btn:focus-visible:not(.is-empty),
+.video-properties-panel .video-settings-card-model-row .model-picker-btn.is-open:not(.is-empty),
+.video-properties-panel .video-settings-card .aspect-trigger:hover:not(:disabled),
+.video-properties-panel .video-settings-card .aspect-trigger:focus-visible,
+.video-properties-panel .video-settings-card .aspect-trigger[aria-expanded="true"],
 .video-properties-panel .video-settings-card .fixed-select .model-select:hover,
-.video-properties-panel .video-settings-card .fixed-select .model-select:focus-visible {
-  border-color: rgba(201, 205, 214, 0.24);
+.video-properties-panel .video-settings-card .fixed-select .model-select:focus-visible,
+.video-properties-panel .video-shot-mode-tab:not(.is-active):hover,
+.video-properties-panel .video-shot-mode-tab:not(.is-active):focus-visible,
+.video-properties-panel .video-reference-mode-tab:not(.is-active):hover,
+.video-properties-panel .video-reference-mode-tab:not(.is-active):focus-visible {
+  border-color: rgba(201, 205, 214, 0.24) !important;
+  background-color: var(--video-selector-surface) !important;
   box-shadow: none;
   transform: none;
-  background-color: var(--create-expert-selector-bg, var(--color-bg));
 }
 
-.video-properties-panel .video-settings-card .fixed-select .model-select:focus-visible {
-  outline: 1px solid rgba(201, 205, 214, 0.36);
-  outline-offset: -2px;
+.video-properties-panel .video-settings-card-model-row .model-picker-btn,
+.video-properties-panel .video-settings-card .aspect-trigger {
+  border: 1px solid rgba(201, 205, 214, 0.22) !important;
+  background-color: #0f1114 !important;
+  box-shadow: none !important;
+  outline: none !important;
+  transform: none !important;
 }
 
-.video-properties-panel .video-settings-resolution-select-row:hover,
-.video-properties-panel .video-settings-resolution-select-row:focus-within,
-.video-properties-panel .video-settings-duration-select-row:hover,
-.video-properties-panel .video-settings-duration-select-row:focus-within {
+.video-properties-panel .video-settings-card-model-row .model-picker-btn:hover:not(.is-empty),
+.video-properties-panel
+  .video-settings-card-model-row
+  .model-picker-btn:focus-visible:not(.is-empty),
+.video-properties-panel .video-settings-card-model-row .model-picker-btn.is-open:not(.is-empty),
+.video-properties-panel
+  .video-settings-card-model-row
+  .model-picker-btn[data-model-anchor="video-settings-model"]:hover:not(.is-empty),
+.video-properties-panel
+  .video-settings-card-model-row
+  .model-picker-btn[data-model-anchor="video-settings-model"]:focus-visible:not(.is-empty),
+.video-properties-panel
+  .video-settings-card-model-row
+  .model-picker-btn[data-model-anchor="video-settings-model"].is-open:not(.is-empty),
+.video-properties-panel .video-settings-card .aspect-trigger:hover:not(:disabled),
+.video-properties-panel .video-settings-card .aspect-trigger:focus-visible,
+.video-properties-panel .video-settings-card .aspect-trigger[aria-expanded="true"] {
+  border: 1px solid rgba(201, 205, 214, 0.24) !important;
+  border-color: rgba(201, 205, 214, 0.24) !important;
+  background: #0f1114 !important;
+  background-color: #0f1114 !important;
+  box-shadow: none !important;
+  outline: none !important;
+  transform: none !important;
+}
+
+.video-properties-panel .video-settings-card .video-settings-resolution-select-row .model-select,
+.video-properties-panel .video-settings-card .video-settings-duration-select-row .model-select {
+  -webkit-appearance: none;
+  appearance: none;
+  background-image:
+    linear-gradient(45deg, transparent 50%, #f8f8f8 50%),
+    linear-gradient(135deg, #f8f8f8 50%, transparent 50%);
+  background-position:
+    calc(100% - 18px) calc(50% + 2px),
+    calc(100% - 14px) calc(50% + 2px);
+  background-size:
+    5px 5px,
+    5px 5px;
+  background-repeat: no-repeat;
+  box-shadow: none !important;
+  background-color: var(--video-selector-surface) !important;
+  border-color: var(--video-selector-border);
+  color: #e9edf2;
+  border-radius: 8px;
+  min-height: 40px;
+  height: 40px;
+  padding: 6px 28px 6px 8px;
+}
+
+.video-properties-panel
+  .video-settings-card
+  .video-settings-resolution-select-row
+  .video-settings-list-dropdown-trigger,
+.video-properties-panel
+  .video-settings-card
+  .video-settings-duration-select-row
+  .video-settings-list-dropdown-trigger {
+  width: 100%;
+  min-height: 40px;
+  height: 40px;
+  padding: 6px 28px 6px 8px;
+  border-radius: 8px;
+  border: 1px solid rgba(96, 101, 111, 0.58);
+  background: #0f1114;
+  color: #e9edf2;
+  box-shadow: none !important;
+  transform: none !important;
+  justify-content: flex-start;
+  gap: 0;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.video-properties-panel
+  .video-settings-card
+  .video-settings-resolution-select-row
+  .video-settings-list-dropdown-trigger:hover,
+.video-properties-panel
+  .video-settings-card
+  .video-settings-duration-select-row
+  .video-settings-list-dropdown-trigger:hover,
+.video-properties-panel
+  .video-settings-card
+  .video-settings-resolution-select-row
+  .video-settings-list-dropdown-trigger:focus-visible,
+.video-properties-panel
+  .video-settings-card
+  .video-settings-duration-select-row
+  .video-settings-list-dropdown-trigger:focus-visible,
+.video-properties-panel
+  .video-settings-card
+  .video-settings-resolution-select-row
+  .video-settings-list-dropdown-trigger[aria-expanded="true"],
+.video-properties-panel
+  .video-settings-card
+  .video-settings-duration-select-row
+  .video-settings-list-dropdown-trigger[aria-expanded="true"] {
+  border-color: rgba(201, 205, 214, 0.24) !important;
+  background: #0f1114 !important;
+  box-shadow: none !important;
+  transform: none !important;
+  outline: none !important;
+}
+
+.video-properties-panel .video-settings-card .video-settings-list-dropdown-value {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.video-properties-panel .video-settings-resolution-select-row,
+.video-properties-panel .video-settings-duration-select-row,
+.video-properties-panel .video-settings-card .video-settings-inline-dual-row > .control-row {
+  background: transparent;
   box-shadow: none;
+}
+
+.video-properties-panel
+  .video-settings-card
+  .video-settings-resolution-select-row
+  .video-settings-list-dropdown-menu,
+.video-properties-panel
+  .video-settings-card
+  .video-settings-duration-select-row
+  .video-settings-list-dropdown-menu {
+  top: calc(100% + 6px);
+  bottom: auto;
+  left: 0;
+  right: 0;
+  padding: 4px;
+  border-radius: 10px;
+  border: 1px solid rgba(96, 101, 111, 0.58);
+  background: #0f1114;
+  box-shadow: 0 18px 32px rgba(0, 0, 0, 0.42);
+  z-index: 30;
+}
+
+.video-properties-panel
+  .video-settings-card
+  .video-settings-resolution-select-row
+  .video-settings-list-dropdown-option,
+.video-properties-panel
+  .video-settings-card
+  .video-settings-duration-select-row
+  .video-settings-list-dropdown-option {
+  width: 100%;
+  min-height: 34px;
+  padding: 8px 10px;
+  border-radius: 7px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: #d9dee7;
+  font-size: 12px;
+  font-weight: 500;
+  justify-items: start;
+}
+
+.video-properties-panel
+  .video-settings-card
+  .video-settings-resolution-select-row
+  .video-settings-list-dropdown-option:hover,
+.video-properties-panel
+  .video-settings-card
+  .video-settings-duration-select-row
+  .video-settings-list-dropdown-option:hover,
+.video-properties-panel
+  .video-settings-card
+  .video-settings-resolution-select-row
+  .video-settings-list-dropdown-option:focus-visible,
+.video-properties-panel
+  .video-settings-card
+  .video-settings-duration-select-row
+  .video-settings-list-dropdown-option:focus-visible {
+  background: rgba(34, 38, 45, 0.96);
+  border-color: rgba(96, 101, 111, 0.42);
+  box-shadow: none;
+  outline: none;
+}
+
+.video-properties-panel
+  .video-settings-card
+  .video-settings-resolution-select-row
+  .video-settings-list-dropdown-option.is-active,
+.video-properties-panel
+  .video-settings-card
+  .video-settings-duration-select-row
+  .video-settings-list-dropdown-option.is-active {
+  background: rgba(170, 101, 239, 0.16);
+  border-color: rgba(170, 101, 239, 0.44);
+  color: #f2e9ff;
+  box-shadow: inset 0 0 0 1px rgba(170, 101, 239, 0.22);
+}
+
+.video-properties-panel
+  .video-settings-card
+  .video-settings-resolution-select-row
+  .video-settings-list-dropdown-option-label,
+.video-properties-panel
+  .video-settings-card
+  .video-settings-duration-select-row
+  .video-settings-list-dropdown-option-label {
+  display: block;
+  width: 100%;
+  text-align: left;
 }
 
 .video-properties-panel .aspect-menu {
@@ -1377,12 +1576,6 @@
 .video-properties-panel .aspect-menu-item.is-active .aspect-shape {
   border-color: rgba(189, 141, 244, 0.92);
   background: rgba(170, 101, 239, 0.12);
-}
-
-.video-properties-panel .mode-toggle-btn:hover {
-  border-color: rgba(170, 101, 239, 0.36);
-  background: rgba(170, 101, 239, 0.1);
-  cursor: pointer;
 }
 
 .video-properties-panel .mode-toggle-btn.is-active {
@@ -1451,12 +1644,6 @@
   border-color: rgba(189, 141, 244, 0.42);
 }
 
-.video-properties-panel .reference-swap-control:not(:disabled):hover,
-.video-properties-panel .reference-swap-control:not(:disabled):focus-visible {
-  background: rgba(170, 101, 239, 0.16);
-  border: 1px solid rgba(170, 101, 239, 0.42);
-}
-
 .video-properties-panel .reference-swap-control:focus-visible {
   box-shadow: 0 0 0 2px rgba(170, 101, 239, 0.34);
 }
@@ -1469,17 +1656,6 @@
   background: linear-gradient(135deg, rgba(46, 33, 69, 0.92), rgba(61, 46, 97, 0.55));
   color: rgba(219, 193, 255, 0.96);
   box-shadow: 0 4px 1px rgba(170, 101, 239, 0.26);
-}
-
-.video-properties-panel .agent-send-prefab:hover:not(:disabled),
-.video-properties-panel .agent-save-prefab:hover:not(:disabled),
-.video-properties-panel .prompt-actions-compact .agent-send-prefab:hover:not(:disabled),
-.video-properties-panel .prompt-actions-compact .agent-save-prefab:hover:not(:disabled) {
-  border-color: rgba(189, 141, 244, 0.88);
-  background: rgba(170, 101, 239, 0.18);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.08),
-    0 10px 22px rgba(0, 0, 0, 0.38);
 }
 
 .video-properties-panel .agent-generate-prefab {
@@ -1510,11 +1686,6 @@
   max-width: none;
   justify-self: stretch;
   align-self: stretch;
-}
-
-.video-properties-panel .agent-generate-prefab:hover:not(:disabled) {
-  transform: translateY(1px);
-  box-shadow: 0 6px 14px rgba(170, 101, 239, 0.2);
 }
 
 .video-properties-panel .agent-generate-prefab:disabled {

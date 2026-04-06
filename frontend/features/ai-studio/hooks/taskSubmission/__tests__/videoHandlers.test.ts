@@ -4,6 +4,7 @@ import { getModelConfig } from "../../../logic/pricing";
 import { handleVideoModelSubmission } from "../videoHandlers";
 import {
   submitFalKlingV3ImageToVideo,
+  submitFalVeoImageToVideo,
   submitKieKlingImageToVideo,
   submitKieVeoImageToVideo,
 } from "../../../../../lib/falClient";
@@ -551,5 +552,72 @@ describe("handleVideoModelSubmission (Kling 3 non-motion element videos)", () =>
       expect.stringContaining("Kling element reference preparation failed")
     );
     expect(submitFalKlingV3ImageToVideo).not.toHaveBeenCalled();
+  });
+});
+
+describe("handleVideoModelSubmission (Fal Veo 3.1 image-to-video)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    vi.mocked(submitFalVeoImageToVideo).mockResolvedValue({ request_id: "veo-i2v-1" });
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("submits the normalized Veo image-to-video payload with a primary image reference", async () => {
+    const args = makeArgs({
+      finalModel: "fal-ai/veo3.1/image-to-video",
+      modelConfig: getModelConfig("fal-ai/veo3.1/image-to-video"),
+      aspect: "4:5",
+      requestedDurationSeconds: 7,
+      requestedResolution: "4k",
+      requestedAudio: true,
+      preparedImageInputs: ["https://example.com/reference.png"],
+      videoReferenceMode: "standard",
+    });
+
+    const handled = await handleVideoModelSubmission(args);
+
+    expect(handled).toBe(true);
+    expect(submitFalVeoImageToVideo).toHaveBeenCalledWith({
+      prompt: "A dancer twirls",
+      image_url: "https://example.com/reference.png",
+      image_urls: ["https://example.com/reference.png"],
+      aspect_ratio: "auto",
+      duration: "8s",
+      resolution: "4k",
+      generate_audio: true,
+      auto_fix: false,
+      enable_safety_checker: false,
+      safety_tolerance: 5,
+    });
+    expect(args.startPollingWithGeneration).toHaveBeenCalledWith(
+      "veo-i2v-1",
+      "fal-veo-i2v",
+      undefined,
+      { request_id: "veo-i2v-1" }
+    );
+  });
+
+  it("fails when Veo image-to-video is submitted without a prepared reference image", async () => {
+    const args = makeArgs({
+      finalModel: "fal-ai/veo3.1/image-to-video",
+      modelConfig: getModelConfig("fal-ai/veo3.1/image-to-video"),
+      preparedImageInputs: [],
+      videoReferenceImageUrl: null,
+      motionReferenceVideoUrl: null,
+      videoReferenceMode: "standard",
+    });
+
+    const handled = await handleVideoModelSubmission(args);
+
+    expect(handled).toBe(true);
+    expect(args.notifyGenerationFailure).toHaveBeenCalledWith(
+      "out-1",
+      "Veo 3.1 image-to-video requires a reference image."
+    );
+    expect(submitFalVeoImageToVideo).not.toHaveBeenCalled();
   });
 });

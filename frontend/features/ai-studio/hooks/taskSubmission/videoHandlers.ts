@@ -367,12 +367,18 @@ export const handleVideoModelSubmission = async ({
   }
 
   if (finalModel === "fal-ai/veo3.1/image-to-video") {
+    if (!preparedImageInputs.length) {
+      notifyGenerationFailure(id, "Veo 3.1 image-to-video requires a reference image.");
+      return true;
+    }
     const normalizedAspect = resolveVeoAspect(aspect);
     const duration = resolveVeoDuration(requestedDurationSeconds);
     const resolution = resolveVeoResolution(requestedResolution);
+    const primaryImageUrl = preparedImageInputs[0];
     const response = await submitFalVeoImageToVideo({
       prompt: cleanedPrompt,
-      image_urls: [preparedImageInputs[0]],
+      image_url: primaryImageUrl,
+      image_urls: [primaryImageUrl],
       aspect_ratio: normalizedAspect,
       duration,
       resolution,

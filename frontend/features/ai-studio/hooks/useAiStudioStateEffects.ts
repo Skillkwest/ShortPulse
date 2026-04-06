@@ -119,6 +119,8 @@ export const useAiStudioStateEffects = ({
     selectedTool,
     videoReferenceMode,
     mode,
+    referenceImageUrl,
+    extraImageUrls,
     isCharacterModeEnabled,
   }).map((option) => option.value);
   const allowedModelValues = allowedModelValuesProp ?? computedAllowedModelValues;

@@ -245,6 +245,7 @@ describe("kieModelContracts", () => {
           input_urls: ["https://example.com/character.png"],
           video_urls: ["https://example.com/motion.mp4"],
           mode: "720p",
+          generate_audio: false,
           character_orientation: "image",
           background_source: "input_video",
         }),
@@ -393,6 +394,7 @@ describe("kieModelContracts", () => {
           image_url: "https://example.com/character.png",
           video_url: "https://example.com/motion.mp4",
           mode: "1080p",
+          generate_audio: true,
         },
       })
     ).toEqual(
@@ -402,6 +404,7 @@ describe("kieModelContracts", () => {
           input_urls: ["https://example.com/character.png"],
           video_urls: ["https://example.com/motion.mp4"],
           mode: "1080p",
+          generate_audio: true,
         }),
       })
     );
@@ -428,5 +431,17 @@ describe("kieModelContracts", () => {
         },
       })
     ).toThrow("Kie Kling 3.0 motion-control submit requires one motion video URL.");
+
+    expect(() =>
+      normalizeKieSubmitPayloadForModel({
+        modelId: KIE_KLING_30_MODEL_ID,
+        payload: {
+          prompt: "motion clip",
+          image_url: "https://example.com/character.png",
+          video_url: "https://example.com/motion.mp4",
+          generate_audio: "yes",
+        } as unknown as Record<string, unknown>,
+      })
+    ).toThrow('Kie Kling 3.0 submit field "generate_audio" must be boolean when provided.');
   });
 });

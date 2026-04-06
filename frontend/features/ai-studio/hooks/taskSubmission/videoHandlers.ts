@@ -239,6 +239,7 @@ export const handleVideoModelSubmission = async ({
         video_urls: [motionVideoUrlFinal],
         resolution: motionResolution,
         mode: motionResolution,
+        generate_audio: requestedAudio,
         character_orientation: "image",
         background_source: "input_video",
       });

@@ -74,6 +74,7 @@ export const kieKlingMotionControlRequestFixture = {
     input_urls: ["https://example.com/character.png"],
     video_urls: ["https://example.com/motion.mp4"],
     mode: "720p",
+    generate_audio: false,
     character_orientation: "image",
     background_source: "input_video",
   },

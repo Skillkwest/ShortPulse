@@ -80,6 +80,7 @@ describe("handleVideoModelSubmission (Kling 3 motion)", () => {
     const args = makeArgs({
       finalModel: KIE_KLING_30_MODEL_ID,
       modelConfig: getModelConfig(KIE_KLING_30_MODEL_ID),
+      requestedAudio: false,
     });
 
     const handled = await handleVideoModelSubmission(args);
@@ -94,6 +95,7 @@ describe("handleVideoModelSubmission (Kling 3 motion)", () => {
       video_urls: ["https://example.com/motion.mp4"],
       resolution: "1080p",
       mode: "1080p",
+      generate_audio: false,
       character_orientation: "image",
       background_source: "input_video",
     });
@@ -114,6 +116,7 @@ describe("handleVideoModelSubmission (Kling 3 motion)", () => {
       finalModel: KIE_KLING_30_MODEL_ID,
       modelConfig: getModelConfig(KIE_KLING_30_MODEL_ID),
       requestedResolution: "720p",
+      requestedAudio: true,
     });
 
     const handled = await handleVideoModelSubmission(args);
@@ -123,6 +126,7 @@ describe("handleVideoModelSubmission (Kling 3 motion)", () => {
       expect.objectContaining({
         resolution: "720p",
         mode: "720p",
+        generate_audio: true,
       })
     );
   });

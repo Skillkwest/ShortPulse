@@ -587,6 +587,14 @@ const normalizeKieKlingPayload = (payload: Record<string, unknown>): Record<stri
       asNonEmptyString(source.background_source) ??
       asNonEmptyString(source.backgroundSource) ??
       "input_video";
+    const generateAudio =
+      source.generate_audio === undefined
+        ? null
+        : normalizeOptionalBooleanField({
+            payload: source,
+            field: "generate_audio",
+            modelLabel: "Kie Kling 3.0 motion-control",
+          });
     const callbackValue = normalizeOptionalStringField({
       payload,
       fields: ["callBackUrl", "callbackUrl", "callback_url"],
@@ -605,6 +613,7 @@ const normalizeKieKlingPayload = (payload: Record<string, unknown>): Record<stri
         input_urls: [inputUrls[0]],
         video_urls: [videoUrls[0]],
         mode: modeResolution,
+        ...(generateAudio !== null ? { generate_audio: generateAudio } : {}),
         character_orientation: characterOrientation,
         background_source: backgroundSource,
       },

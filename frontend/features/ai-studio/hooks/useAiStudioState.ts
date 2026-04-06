@@ -253,6 +253,8 @@ export const useAiStudioState = ({
     activeOutputPreviewUrl,
     setUseReferenceImageIndicator,
     model,
+    referenceImageUrl,
+    extraImageUrls,
     selectedTool,
     videoReferenceMode,
     setVideoReferenceMode,

@@ -168,7 +168,7 @@ describe("useAiStudioViewModel motion guardrails", () => {
     expect(result.current.isGenerateDisabled).toBe(false);
   });
 
-  it("requires an image in standard video mode", () => {
+  it("allows standard video generation without a frame image so the lane can resolve to text", () => {
     const { result } = renderHook(() =>
       useAiStudioViewModel({
         ...baseInput,
@@ -178,12 +178,12 @@ describe("useAiStudioViewModel motion guardrails", () => {
       })
     );
 
-    expect(result.current.generationGuardrail).toBe("Add a reference image before generating.");
-    expect(result.current.isGenerateDisabled).toBe(true);
+    expect(result.current.generationGuardrail).toBeNull();
+    expect(result.current.isGenerateDisabled).toBe(false);
     expect(result.current.referenceImageWarning).toBeNull();
   });
 
-  it("requires both frames in keyframes mode for Kie Veo", () => {
+  it("allows Kie Veo with a single frame because the lane resolves to single-image", () => {
     const { result } = renderHook(() =>
       useAiStudioViewModel({
         ...baseInput,
@@ -195,10 +195,8 @@ describe("useAiStudioViewModel motion guardrails", () => {
       })
     );
 
-    expect(result.current.generationGuardrail).toBe(
-      "Add both first and last frame images before generating."
-    );
-    expect(result.current.isGenerateDisabled).toBe(true);
+    expect(result.current.generationGuardrail).toBeNull();
+    expect(result.current.isGenerateDisabled).toBe(false);
   });
 
   it("allows standard video generation without a reference for text-to-video models", () => {

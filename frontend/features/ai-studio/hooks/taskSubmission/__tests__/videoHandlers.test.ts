@@ -325,7 +325,7 @@ describe("handleVideoModelSubmission (Kie Veo keyframes)", () => {
     );
   });
 
-  it("submits single-image payload in standard mode with reference generation type", async () => {
+  it("submits single-image payload in standard mode with first/last generation type", async () => {
     vi.mocked(submitKieVeoImageToVideo).mockResolvedValue({ request_id: "req-kie-veo-standard" });
 
     const handled = await handleVideoModelSubmission(
@@ -344,7 +344,7 @@ describe("handleVideoModelSubmission (Kie Veo keyframes)", () => {
       prompt: "A dancer twirls",
       image_url: "https://example.com/first.png",
       image_urls: ["https://example.com/first.png"],
-      generation_type: "REFERENCE_2_VIDEO",
+      generation_type: "FIRST_AND_LAST_FRAMES_2_VIDEO",
       aspect_ratio: "16:9",
       duration: 5,
       resolution: "720p",
@@ -374,22 +374,24 @@ describe("handleVideoModelSubmission (Kie Veo keyframes)", () => {
     );
   });
 
-  it("fails when keyframes mode does not provide both frames", async () => {
+  it("submits prompt-only payload when Kie Veo is used without frame images", async () => {
     const args = makeArgs({
       finalModel: KIE_VEO_31_FAST_I2V_MODEL_ID,
       modelConfig: getModelConfig(KIE_VEO_31_FAST_I2V_MODEL_ID),
-      videoReferenceMode: "keyframes",
-      preparedImageInputs: ["https://example.com/only-first.png"],
+      videoReferenceMode: "standard",
+      preparedImageInputs: [],
     });
 
     const handled = await handleVideoModelSubmission(args);
 
     expect(handled).toBe(true);
-    expect(args.notifyGenerationFailure).toHaveBeenCalledWith(
-      "out-1",
-      "Kie Veo 3.1 Fast I2V keyframes mode requires both first and last frame images."
+    expect(submitKieVeoImageToVideo).toHaveBeenCalledWith(
+      expect.objectContaining({
+        image_url: undefined,
+        image_urls: [],
+        generation_type: "TEXT_2_VIDEO",
+      })
     );
-    expect(submitKieVeoImageToVideo).not.toHaveBeenCalled();
   });
 
   it("blocks character-scoped media URLs before submit", async () => {

@@ -236,7 +236,7 @@ describe("useAiStudioTaskSubmission", () => {
     expect(outputs[0]?.generationId).toBe("gen-from-record-1");
   });
 
-  it("keeps Veo First/Last strict when references are missing (no text-video fallback)", async () => {
+  it("routes Veo First/Last to text-video when no frame images are present", async () => {
     let outputs: StudioOutput[] = [];
     const setOutputs = vi.fn((value: SetStateAction<StudioOutput[]>) => {
       outputs = typeof value === "function" ? value(outputs) : value;
@@ -298,18 +298,18 @@ describe("useAiStudioTaskSubmission", () => {
       });
     });
 
-    expect(outputs[0]?.modelId).toBe("fal-ai/veo3.1/first-last-frame-to-video");
-    expect(outputs[0]?.taskState).toBe("fail");
-    expect(outputs[0]?.errorMessageShort).toBe("First/Last needs two images.");
+    expect(outputs[0]?.modelId).toBe("fal-ai/veo3.1");
+    expect(outputs[0]?.taskState).toBe("running");
     expect(setSaved).toHaveBeenCalledWith(false);
-    expect(handleVideoModelSubmission).not.toHaveBeenCalled();
-    expect(resolveSubmissionHandlerRoute).not.toHaveBeenCalled();
-    expect(setUiNotice).not.toHaveBeenCalledWith(
-      expect.stringContaining("No reference media were detected")
+    expect(handleVideoModelSubmission).toHaveBeenCalledWith(
+      expect.objectContaining({
+        finalModel: "fal-ai/veo3.1",
+        preparedImageInputs: [],
+      })
     );
   });
 
-  it("keeps Veo First/Last strict while mode sync is catching up from standard", async () => {
+  it("routes Veo First/Last to single-image video when only one frame image is present", async () => {
     let outputs: StudioOutput[] = [];
     const setOutputs = vi.fn((value: SetStateAction<StudioOutput[]>) => {
       outputs = typeof value === "function" ? value(outputs) : value;
@@ -375,15 +375,18 @@ describe("useAiStudioTaskSubmission", () => {
       );
     });
 
-    expect(outputs[0]?.modelId).toBe("fal-ai/veo3.1/first-last-frame-to-video");
-    expect(outputs[0]?.taskState).toBe("fail");
-    expect(outputs[0]?.errorMessageShort).toBe("First/Last needs two images.");
+    expect(outputs[0]?.modelId).toBe("fal-ai/veo3.1/image-to-video");
+    expect(outputs[0]?.taskState).toBe("running");
     expect(setSaved).toHaveBeenCalledWith(false);
-    expect(handleVideoModelSubmission).not.toHaveBeenCalled();
-    expect(resolveSubmissionHandlerRoute).not.toHaveBeenCalled();
+    expect(handleVideoModelSubmission).toHaveBeenCalledWith(
+      expect.objectContaining({
+        finalModel: "fal-ai/veo3.1/image-to-video",
+        preparedImageInputs: ["https://example.com/first.png"],
+      })
+    );
   });
 
-  it("keeps Kie Veo keyframes strict when last frame is missing", async () => {
+  it("routes Kie Veo to text-video when no frame images are present", async () => {
     let outputs: StudioOutput[] = [];
     const setOutputs = vi.fn((value: SetStateAction<StudioOutput[]>) => {
       outputs = typeof value === "function" ? value(outputs) : value;
@@ -446,17 +449,17 @@ describe("useAiStudioTaskSubmission", () => {
     });
 
     expect(outputs[0]?.modelId).toBe(KIE_VEO_31_FAST_I2V_MODEL_ID);
-    expect(outputs[0]?.taskState).toBe("fail");
-    expect(outputs[0]?.errorMessageShort).toBe("First/Last needs two images.");
+    expect(outputs[0]?.taskState).toBe("running");
     expect(setSaved).toHaveBeenCalledWith(false);
-    expect(handleVideoModelSubmission).not.toHaveBeenCalled();
-    expect(resolveSubmissionHandlerRoute).not.toHaveBeenCalled();
-    expect(setUiNotice).not.toHaveBeenCalledWith(
-      expect.stringContaining("No reference media were detected")
+    expect(handleVideoModelSubmission).toHaveBeenCalledWith(
+      expect.objectContaining({
+        finalModel: KIE_VEO_31_FAST_I2V_MODEL_ID,
+        preparedImageInputs: [],
+      })
     );
   });
 
-  it("keeps standard video strict when references are missing (no text-video fallback)", async () => {
+  it("routes standard video to text-video when no frame images are present", async () => {
     let outputs: StudioOutput[] = [];
     const setOutputs = vi.fn((value: SetStateAction<StudioOutput[]>) => {
       outputs = typeof value === "function" ? value(outputs) : value;
@@ -518,14 +521,14 @@ describe("useAiStudioTaskSubmission", () => {
       });
     });
 
-    expect(outputs[0]?.modelId).toBe("fal-ai/bytedance/seedance/v1.5/pro/image-to-video");
-    expect(outputs[0]?.taskState).toBe("fail");
-    expect(outputs[0]?.errorMessageShort).toBe("Reference image required.");
+    expect(outputs[0]?.modelId).toBe("fal-ai/veo3.1");
+    expect(outputs[0]?.taskState).toBe("running");
     expect(setSaved).toHaveBeenCalledWith(false);
-    expect(handleVideoModelSubmission).not.toHaveBeenCalled();
-    expect(resolveSubmissionHandlerRoute).not.toHaveBeenCalled();
-    expect(setUiNotice).not.toHaveBeenCalledWith(
-      expect.stringContaining("No reference media were detected")
+    expect(handleVideoModelSubmission).toHaveBeenCalledWith(
+      expect.objectContaining({
+        finalModel: "fal-ai/veo3.1",
+        preparedImageInputs: [],
+      })
     );
   });
 
@@ -1850,10 +1853,10 @@ describe("useAiStudioTaskSubmission", () => {
       });
     });
 
-    expect(outputs[0]?.aspect).toBe("16:9");
+    expect(outputs[0]?.aspect).toBe("auto");
     expect(handleVideoModelSubmission).toHaveBeenCalledWith(
       expect.objectContaining({
-        aspect: "16:9",
+        aspect: "auto",
       })
     );
   });

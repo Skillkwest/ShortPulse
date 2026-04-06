@@ -16,6 +16,8 @@ const createArgs = (
   activeOutputPreviewUrl: null,
   setUseReferenceImageIndicator: vi.fn(),
   model: "fal-ai/bytedance/seedream/v4.5/text-to-image",
+  referenceImageUrl: null,
+  extraImageUrls: [null, null, null],
   selectedTool: "create",
   videoReferenceMode: "standard",
   setVideoReferenceMode: vi.fn(),
@@ -151,6 +153,59 @@ describe("useAiStudioStateEffects", () => {
     );
 
     await waitFor(() => {
+      expect(setVideoReferenceMode).toHaveBeenCalledWith("keyframes");
+    });
+  });
+
+  it("switches Veo models to the text lane when no frame images are present", async () => {
+    const setModel = vi.fn();
+    renderHook(() =>
+      useAiStudioStateEffects(
+        createArgs({
+          selectedTool: "video",
+          model: "fal-ai/veo3.1/image-to-video",
+          referenceImageUrl: null,
+          extraImageUrls: [null, null, null],
+          allowedModelValues: [
+            "fal-ai/veo3.1",
+            "fal-ai/veo3.1/image-to-video",
+            "fal-ai/veo3.1/first-last-frame-to-video",
+            KIE_VEO_31_FAST_I2V_MODEL_ID,
+          ],
+          setModel,
+        })
+      )
+    );
+
+    await waitFor(() => {
+      expect(setModel).toHaveBeenCalledWith("fal-ai/veo3.1");
+    });
+  });
+
+  it("switches Veo models to the first-last lane when both frame images are present", async () => {
+    const setModel = vi.fn();
+    const setVideoReferenceMode = vi.fn();
+    renderHook(() =>
+      useAiStudioStateEffects(
+        createArgs({
+          selectedTool: "video",
+          model: "fal-ai/veo3.1",
+          referenceImageUrl: "https://example.com/first.png",
+          extraImageUrls: ["https://example.com/last.png", null, null],
+          allowedModelValues: [
+            "fal-ai/veo3.1",
+            "fal-ai/veo3.1/image-to-video",
+            "fal-ai/veo3.1/first-last-frame-to-video",
+            KIE_VEO_31_FAST_I2V_MODEL_ID,
+          ],
+          setModel,
+          setVideoReferenceMode,
+        })
+      )
+    );
+
+    await waitFor(() => {
+      expect(setModel).toHaveBeenCalledWith("fal-ai/veo3.1/first-last-frame-to-video");
       expect(setVideoReferenceMode).toHaveBeenCalledWith("keyframes");
     });
   });

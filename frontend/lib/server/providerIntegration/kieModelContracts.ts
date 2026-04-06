@@ -427,21 +427,25 @@ const normalizeKieVeoI2vPayload = (payload: Record<string, unknown>): Record<str
     allowedDurations: contract.allowedDurations,
   });
   const imageUrls = readImageUrlList(payload);
-  if (!imageUrls.length) {
-    throw new Error("Kie VEO 3.1 Fast I2V submit requires an image URL.");
-  }
   const generationType =
     normalizeOptionalStringField({
       payload,
       fields: ["generationType", "generation_type"],
-    }) ?? "FIRST_AND_LAST_FRAMES_2_VIDEO";
+    }) ?? (imageUrls.length > 0 ? "FIRST_AND_LAST_FRAMES_2_VIDEO" : "TEXT_2_VIDEO");
   if (
+    generationType !== "TEXT_2_VIDEO" &&
     generationType !== "FIRST_AND_LAST_FRAMES_2_VIDEO" &&
     generationType !== "REFERENCE_2_VIDEO"
   ) {
     throw new Error(
-      `Kie VEO 3.1 Fast I2V submit uses unsupported generationType: ${generationType}. Allowed: FIRST_AND_LAST_FRAMES_2_VIDEO, REFERENCE_2_VIDEO`
+      `Kie VEO 3.1 Fast I2V submit uses unsupported generationType: ${generationType}. Allowed: TEXT_2_VIDEO, FIRST_AND_LAST_FRAMES_2_VIDEO, REFERENCE_2_VIDEO`
     );
+  }
+  if (generationType === "TEXT_2_VIDEO" && imageUrls.length > 0) {
+    throw new Error("Kie VEO 3.1 Fast I2V TEXT_2_VIDEO does not accept image URLs.");
+  }
+  if (generationType !== "TEXT_2_VIDEO" && !imageUrls.length) {
+    throw new Error("Kie VEO 3.1 Fast I2V submit requires an image URL.");
   }
   if (generationType === "FIRST_AND_LAST_FRAMES_2_VIDEO" && imageUrls.length > 2) {
     throw new Error("Kie VEO 3.1 Fast I2V FIRST_AND_LAST_FRAMES_2_VIDEO supports 1-2 image URLs.");

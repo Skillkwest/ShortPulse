@@ -16,6 +16,7 @@ import { useReferencePropertiesDerivedState } from "./useReferencePropertiesDeri
 import { ReferenceVideoSettingsStep } from "./ReferenceVideoSettingsStep";
 import { useReferencePropertiesInteractions } from "./useReferencePropertiesInteractions";
 import { KIE_KLING_30_MODEL_ID } from "../../../lib/model-runtime/providerModelIds";
+import { resolveVideoGenerationLaneFromFrameInputs } from "../logic/referenceInputs";
 
 export type VideoPropertiesPanelProps = {
   aspect: string;
@@ -284,8 +285,17 @@ export function VideoPropertiesPanel({
   }, [isSeedanceModelSelected, onVideoCameraFixedChange, videoCameraFixed]);
 
   const visibleVideoMode = activeVideoMode === "motion" ? "motion" : "standard";
+  const resolvedVideoLane = resolveVideoGenerationLaneFromFrameInputs({
+    primary: referenceImageUrl,
+    extras: extraImageUrls,
+    referenceMode: activeVideoMode,
+  });
   const modelPickerContext: ModelModalContext =
-    activeVideoMode === "keyframes" ? "reference-keyframes" : "reference-video";
+    resolvedVideoLane === "text"
+      ? "text-video"
+      : resolvedVideoLane === "first-last"
+        ? "reference-keyframes"
+        : "reference-video";
   const standardVideoRequiresReferenceImage = modelConfig?.mediaType === "image-to-video";
   const videoModeIndex = visibleVideoMode === "motion" ? 1 : 0;
   const videoModeTabsStyle = React.useMemo(

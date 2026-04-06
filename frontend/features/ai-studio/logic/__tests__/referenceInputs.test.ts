@@ -4,6 +4,8 @@ import {
   buildImageReferenceInputs,
   buildRegenerateReferencePool,
   buildVideoReferenceInputs,
+  resolveAutoVideoModelForLane,
+  resolveVideoGenerationLaneFromFrameInputs,
 } from "../referenceInputs";
 
 describe("buildImageReferenceInputs", () => {
@@ -24,46 +26,110 @@ describe("buildImageReferenceInputs", () => {
 });
 
 describe("buildVideoReferenceInputs", () => {
-  it("uses only primary in standard mode", () => {
+  it("returns no references when no frame images are present", () => {
+    expect(buildVideoReferenceInputs(null, [null, null], "standard")).toEqual([]);
+  });
+
+  it("uses a single filled frame slot in standard mode", () => {
     expect(
       buildVideoReferenceInputs(
         "https://example.com/primary.png",
         ["https://example.com/extra-a.png"],
         "standard"
       )
-    ).toEqual(["https://example.com/primary.png"]);
+    ).toEqual(["https://example.com/primary.png", "https://example.com/extra-a.png"].slice(0, 2));
   });
 
-  it("includes the optional last-frame slot for Kie Veo in standard mode", () => {
+  it("uses the last-frame slot as single-image input when first frame is empty", () => {
     expect(
-      buildVideoReferenceInputs(
-        "https://example.com/first.png",
-        ["https://example.com/last.png", "https://example.com/extra-b.png"],
-        "standard",
-        KIE_VEO_31_FAST_I2V_MODEL_ID
-      )
-    ).toEqual(["https://example.com/first.png", "https://example.com/last.png"]);
+      buildVideoReferenceInputs(null, ["https://example.com/last.png", null], "standard")
+    ).toEqual(["https://example.com/last.png"]);
   });
 
-  it("includes the optional last-frame slot for Fal Kling in standard mode", () => {
-    expect(
-      buildVideoReferenceInputs(
-        "https://example.com/start.png",
-        ["https://example.com/end.png", "https://example.com/extra-b.png"],
-        "standard",
-        "fal-ai/kling-video/v3/pro/image-to-video"
-      )
-    ).toEqual(["https://example.com/start.png", "https://example.com/end.png"]);
-  });
-
-  it("includes primary + extras for keyframes mode", () => {
+  it("uses the first two distinct frames when both frame slots are populated", () => {
     expect(
       buildVideoReferenceInputs(
         "https://example.com/first.png",
         ["https://example.com/last.png", null],
-        "keyframes"
+        "standard"
       )
     ).toEqual(["https://example.com/first.png", "https://example.com/last.png"]);
+  });
+});
+
+describe("resolveVideoGenerationLaneFromFrameInputs", () => {
+  it("detects text lane when no frame images are present", () => {
+    expect(
+      resolveVideoGenerationLaneFromFrameInputs({
+        primary: null,
+        extras: [null, null, null],
+        referenceMode: "standard",
+      })
+    ).toBe("text");
+  });
+
+  it("detects single-image lane when exactly one frame image is present", () => {
+    expect(
+      resolveVideoGenerationLaneFromFrameInputs({
+        primary: null,
+        extras: ["https://example.com/last.png", null, null],
+        referenceMode: "standard",
+      })
+    ).toBe("single-image");
+  });
+
+  it("detects first-last lane when two frame images are present", () => {
+    expect(
+      resolveVideoGenerationLaneFromFrameInputs({
+        primary: "https://example.com/first.png",
+        extras: ["https://example.com/last.png", null, null],
+        referenceMode: "standard",
+      })
+    ).toBe("first-last");
+  });
+});
+
+describe("resolveAutoVideoModelForLane", () => {
+  it("keeps Kie Veo selected across text, single-image, and first-last lanes", () => {
+    expect(
+      resolveAutoVideoModelForLane({
+        currentModel: KIE_VEO_31_FAST_I2V_MODEL_ID,
+        lane: "text",
+      })
+    ).toBe(KIE_VEO_31_FAST_I2V_MODEL_ID);
+    expect(
+      resolveAutoVideoModelForLane({
+        currentModel: KIE_VEO_31_FAST_I2V_MODEL_ID,
+        lane: "single-image",
+      })
+    ).toBe(KIE_VEO_31_FAST_I2V_MODEL_ID);
+    expect(
+      resolveAutoVideoModelForLane({
+        currentModel: KIE_VEO_31_FAST_I2V_MODEL_ID,
+        lane: "first-last",
+      })
+    ).toBe(KIE_VEO_31_FAST_I2V_MODEL_ID);
+  });
+
+  it("maps incompatible lanes onto the Veo defaults", () => {
+    expect(
+      resolveAutoVideoModelForLane({
+        currentModel: "fal-ai/veo3.1/image-to-video",
+        lane: "text",
+      })
+    ).toBe("fal-ai/veo3.1");
+    expect(
+      resolveAutoVideoModelForLane({
+        currentModel: "fal-ai/veo3.1",
+        lane: "single-image",
+      })
+    ).toBe("fal-ai/veo3.1/image-to-video");
+    expect(
+      resolveAutoVideoModelForLane({
+        currentModel: "fal-ai/veo3.1",
+        lane: "first-last",
+      })
+    ).toBe("fal-ai/veo3.1/first-last-frame-to-video");
   });
 });
 

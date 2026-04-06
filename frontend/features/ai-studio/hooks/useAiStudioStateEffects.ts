@@ -8,6 +8,10 @@ import { clampImageResolutionForModel } from "../logic/imageResolution";
 import { CREATE_DEFAULT_MODEL_ID, EDIT_DEFAULT_MODEL_ID } from "../logic/modelSelectionPolicy";
 import { mapCreateModelOnCharacterModeToggle } from "../logic/createCharacterModeModelMapping";
 import {
+  resolveAutoVideoModelForLane,
+  resolveVideoGenerationLaneFromFrameInputs,
+} from "../logic/referenceInputs";
+import {
   KIE_KLING_30_MODEL_ID,
   KIE_VEO_31_FAST_I2V_MODEL_ID,
 } from "../../../lib/model-runtime/providerModelIds";
@@ -36,6 +40,8 @@ type UseAiStudioStateEffectsArgs = {
   activeOutputPreviewUrl?: string | null;
   setUseReferenceImageIndicator: (value: boolean) => void;
   model: string | null;
+  referenceImageUrl: string | null;
+  extraImageUrls: [string | null, string | null, string | null];
   selectedTool: ToolId | null;
   videoReferenceMode: VideoReferenceMode;
   setVideoReferenceMode: (value: VideoReferenceMode) => void;
@@ -77,6 +83,8 @@ export const useAiStudioStateEffects = ({
   activeOutputPreviewUrl,
   setUseReferenceImageIndicator,
   model,
+  referenceImageUrl,
+  extraImageUrls,
   selectedTool,
   videoReferenceMode,
   setVideoReferenceMode,
@@ -176,6 +184,42 @@ export const useAiStudioStateEffects = ({
     window.sessionStorage.setItem(videoResolutionStorageKey, videoResolution);
     setHasUserVideoPrefs(true);
   }, [setHasUserVideoPrefs, videoResolution, videoResolutionStorageKey]);
+
+  useEffect(() => {
+    if (hasPendingWorkflowRestore) return;
+    if (!isVideoWorkflow(selectedTool)) return;
+    if (videoReferenceMode === "motion" || videoReferenceMode === "kling3") return;
+
+    const resolvedVideoLane = resolveVideoGenerationLaneFromFrameInputs({
+      primary: referenceImageUrl,
+      extras: extraImageUrls,
+      referenceMode: videoReferenceMode,
+    });
+
+    if (resolvedVideoLane === "first-last") {
+      setVideoReferenceModeIfChanged("keyframes");
+    } else if (videoReferenceMode === "keyframes") {
+      setVideoReferenceModeIfChanged("standard");
+    }
+
+    const nextModel = resolveAutoVideoModelForLane({
+      currentModel: model,
+      lane: resolvedVideoLane,
+    });
+    if (!nextModel || nextModel === model) return;
+    if (allowedModelValues.length > 0 && !allowedModelValues.includes(nextModel)) return;
+    setModelIfChanged(nextModel);
+  }, [
+    allowedModelValues,
+    extraImageUrls,
+    hasPendingWorkflowRestore,
+    model,
+    referenceImageUrl,
+    selectedTool,
+    setModelIfChanged,
+    setVideoReferenceModeIfChanged,
+    videoReferenceMode,
+  ]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;

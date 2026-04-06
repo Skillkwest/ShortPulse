@@ -64,6 +64,7 @@ export const useAiStudioViewModel = ({
   const isCreateWorkflowSelected = isCreateWorkflow(selectedTool);
   const isEditWorkflowSelected = isEditWorkflow(selectedTool);
   const isVideoWorkflowSelected = isVideoWorkflow(selectedTool);
+  const selectedModelConfig = useMemo(() => (model ? getModelConfig(model) : null), [model]);
   const effectiveEditSubmitModelId = useMemo(
     () =>
       resolveEffectiveEditSubmitModelId({
@@ -275,7 +276,13 @@ export const useAiStudioViewModel = ({
       if (!referenceImageUrl) return "Add a reference image before generating.";
     }
     if (isDescribeMode && !hasDescribeImage) return "Add or select an image to describe.";
-    if (isVideoTool && videoReferenceMode === "standard" && !referenceImageUrl) {
+    const standardVideoRequiresReferenceImage = selectedModelConfig?.mediaType === "image-to-video";
+    if (
+      isVideoTool &&
+      videoReferenceMode === "standard" &&
+      standardVideoRequiresReferenceImage &&
+      !referenceImageUrl
+    ) {
       return "Add a reference image before generating.";
     }
     const isDedicatedVeoFirstLastModel = model === FAL_VEO_FIRST_LAST_MODEL_ID;
@@ -316,6 +323,7 @@ export const useAiStudioViewModel = ({
     motionReferenceVideoUrl,
     referenceImageUrl,
     requiresModelSelection,
+    selectedModelConfig,
     mode,
     isCreateWorkflowSelected,
     isEditWorkflowSelected,
@@ -323,7 +331,7 @@ export const useAiStudioViewModel = ({
   ]);
 
   const isGenerateDisabled = Boolean(generationGuardrail);
-  const modelConfig = useMemo(() => (model ? getModelConfig(model) : null), [model]);
+  const modelConfig = selectedModelConfig;
 
   // Warning when user hasn't provided reference image for image-to-image or image-to-video models
   const referenceImageWarning = useMemo(() => {

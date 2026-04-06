@@ -200,6 +200,22 @@ describe("useAiStudioViewModel motion guardrails", () => {
     );
     expect(result.current.isGenerateDisabled).toBe(true);
   });
+
+  it("allows standard video generation without a reference for text-to-video models", () => {
+    const { result } = renderHook(() =>
+      useAiStudioViewModel({
+        ...baseInput,
+        model: "fal-ai/veo3.1",
+        videoReferenceMode: "standard",
+        referenceImageUrl: null,
+        motionReferenceVideoUrl: null,
+        costParamsForModel: makeCostParamsForModel("fal-ai/veo3.1"),
+      })
+    );
+
+    expect(result.current.generationGuardrail).toBeNull();
+    expect(result.current.isGenerateDisabled).toBe(false);
+  });
 });
 
 describe("useAiStudioViewModel edit guardrails", () => {

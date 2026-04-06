@@ -286,6 +286,7 @@ export function VideoPropertiesPanel({
   const visibleVideoMode = activeVideoMode === "motion" ? "motion" : "standard";
   const modelPickerContext: ModelModalContext =
     activeVideoMode === "keyframes" ? "reference-keyframes" : "reference-video";
+  const standardVideoRequiresReferenceImage = modelConfig?.mediaType === "image-to-video";
   const videoModeIndex = visibleVideoMode === "motion" ? 1 : 0;
   const videoModeTabsStyle = React.useMemo(
     () =>
@@ -733,7 +734,9 @@ export function VideoPropertiesPanel({
                       disabled={
                         isGenerateDisabled ||
                         !referenceText?.trim() ||
-                        (activeVideoMode === "standard" && !referenceImageUrl)
+                        (activeVideoMode === "standard" &&
+                          standardVideoRequiresReferenceImage &&
+                          !referenceImageUrl)
                       }
                       isBusy={agentIsSending}
                       cost={costCredits != null ? costCredits : "—"}

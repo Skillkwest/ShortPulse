@@ -96,9 +96,9 @@ export const resolveAiStudioAllowedModelOptions = ({
     }
     return selectableOptions.filter(
       (option) =>
-        (option.value === FAL_VEO_FIRST_LAST_MODEL_ID || option.mediaType === "image-to-video") &&
-        !option.value.includes("kling-video") &&
-        option.value !== "fal-ai/kling-video/v3/pro/image-to-video"
+        option.value === FAL_VEO_FIRST_LAST_MODEL_ID ||
+        option.mediaType === "image-to-video" ||
+        option.mediaType === "video"
     );
   }
 

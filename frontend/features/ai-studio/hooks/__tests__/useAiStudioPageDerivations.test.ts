@@ -113,4 +113,22 @@ describe("useAiStudioPageDerivations", () => {
       ])
     );
   });
+
+  it("keeps standard video options open to text-to-video models", () => {
+    const { result } = renderHook(() =>
+      useAiStudioPageDerivations(
+        createParams({
+          mode: "video",
+          selectedTool: "video",
+          videoReferenceMode: "standard",
+        })
+      )
+    );
+
+    const values = new Set(result.current.filteredModelOptions.map((option) => option.value));
+    expect(values.has("fal-ai/veo3.1")).toBe(true);
+    expect(values.has("fal-ai/kling-video/v3/pro/text-to-video")).toBe(true);
+    expect(values.has("fal-ai/sora-2/text-to-video/pro")).toBe(true);
+    expect(values.has("fal-ai/bytedance/seedance/v1.5/pro/text-to-video")).toBe(true);
+  });
 });

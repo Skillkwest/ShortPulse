@@ -63,6 +63,7 @@ describe("useAiStudioTaskSubmission", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(resolveSubmissionHandlerRoute).mockReturnValue("video");
     prepareImageUrlForSubmissionMock.mockImplementation(async (url: string | null) => url);
     vi.mocked(handleVideoModelSubmission).mockImplementation(
       async ({ startPollingWithGeneration }) => {
@@ -526,6 +527,79 @@ describe("useAiStudioTaskSubmission", () => {
     expect(setUiNotice).not.toHaveBeenCalledWith(
       expect.stringContaining("No reference media were detected")
     );
+  });
+
+  it("allows standard text-to-video submissions without reference images", async () => {
+    let outputs: StudioOutput[] = [];
+    const setOutputs = vi.fn((value: SetStateAction<StudioOutput[]>) => {
+      outputs = typeof value === "function" ? value(outputs) : value;
+    });
+
+    const setIsPromptGenerating = vi.fn();
+    const setUiError = vi.fn();
+    const setUiNotice = vi.fn();
+    const setSaved = vi.fn();
+    const notifyGenerationFailure = vi.fn();
+    const updateOutputById = createStatefulUpdateOutputById({
+      get: () => outputs,
+      set: (next) => {
+        outputs = next;
+      },
+    });
+    const startPollingTask = vi.fn();
+    const ensureGenerationRecord = vi.fn(async () => null);
+
+    const { result } = renderHook(() =>
+      useAiStudioTaskSubmission({
+        aspect: "16:9",
+        mode: "video",
+        model: "fal-ai/veo3.1",
+        prompt: "",
+        selectedTool: "video",
+        imageResolution: "model_default",
+        videoDurationSeconds: 8,
+        videoResolution: "1080p",
+        videoGenerateAudio: true,
+        videoReferenceMode: "standard",
+        videoReferenceImageUrl: null,
+        motionReferenceVideoUrl: null,
+        videoCameraFixed: false,
+        videoAutoFix: false,
+        klingNegativePrompt: "blur, distort, and low quality",
+        klingCfgScale: 0.5,
+        klingShotType: "customize",
+        klingVoiceIds: ["", ""],
+        klingMultiPrompts: [],
+        klingElements: [],
+        setIsPromptGenerating: asDispatch(setIsPromptGenerating),
+        setUiError: asDispatch(setUiError),
+        setUiNotice: asDispatch(setUiNotice),
+        setOutputs: asDispatch(setOutputs),
+        setSaved: asDispatch(setSaved),
+        getDefaultDurationSeconds: () => 8,
+        notifyGenerationFailure,
+        updateOutputById,
+        startPollingTask,
+        ensureGenerationRecord,
+      })
+    );
+
+    await act(async () => {
+      await result.current("A cinematic storm over the desert", [], {
+        modeOverride: "video",
+        selectedToolOverride: "video",
+      });
+    });
+
+    expect(outputs[0]?.modelId).toBe("fal-ai/veo3.1");
+    expect(handleVideoModelSubmission).toHaveBeenCalledWith(
+      expect.objectContaining({
+        finalModel: "fal-ai/veo3.1",
+        preparedImageInputs: [],
+      })
+    );
+    expect(resolveSubmissionHandlerRoute).toHaveBeenCalledWith("fal-ai/veo3.1");
+    expect(setUiError).not.toHaveBeenCalledWith("Add a reference image before generating.");
   });
 
   it("keeps Kling 3 motion strict when references are missing", async () => {

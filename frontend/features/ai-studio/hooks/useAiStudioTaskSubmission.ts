@@ -265,9 +265,6 @@ export const useAiStudioTaskSubmission = ({
         const submissionTraceId = buildGenerationSubmissionTraceId(id);
         const modelLabel = resolveModelLabel(finalModel);
 
-        const isKling3ImageModel =
-          finalModel === "fal-ai/kling-video/v3/pro/image-to-video" ||
-          finalModel === KIE_KLING_30_MODEL_ID;
         const isDedicatedVeoFirstLastFrameModel = finalModel === FAL_VEO_FIRST_LAST_MODEL_ID;
         const isVeoFirstLastFrameModel =
           isDedicatedVeoFirstLastFrameModel || finalModel === KIE_VEO_31_FAST_I2V_MODEL_ID;
@@ -275,6 +272,9 @@ export const useAiStudioTaskSubmission = ({
           finalModel === "fal-ai/veo3.1/image-to-video" ||
           finalModel === KIE_VEO_31_FAST_I2V_MODEL_ID;
         const modelConfig = finalModelConfig;
+        const isImageToVideoModel = modelConfig?.mediaType === "image-to-video";
+        const requiresMotionReferenceImage =
+          finalModel === KIE_KLING_30_MODEL_ID && videoReferenceMode === "motion";
         const requestedAspect = options?.aspectOverride ?? aspect;
         const effectiveAspect = resolveEffectiveAspectForModel(
           finalModel,
@@ -527,8 +527,12 @@ export const useAiStudioTaskSubmission = ({
           ? { image_url: pulseReferenceImageUrl, image_urls: preparedImageInputs.slice(0, 4) }
           : ({} as Record<string, never>);
 
-        const isStandardVideoRun = normalizedTool === "video" && videoReferenceMode === "standard";
-        if (isStandardVideoRun && preparedImageInputs.length < 1) {
+        const requiresStandardVideoReference =
+          normalizedTool === "video" &&
+          videoReferenceMode === "standard" &&
+          isImageToVideoModel &&
+          !isDedicatedVeoFirstLastFrameModel;
+        if (requiresStandardVideoReference && preparedImageInputs.length < 1) {
           applySubmissionFailure(id, {
             timestamp: "Missing image",
             errorMessage: "Standard video generation requires a reference image.",
@@ -538,7 +542,8 @@ export const useAiStudioTaskSubmission = ({
           return;
         }
 
-        const requiresImageReference = isKling3ImageModel || isVeoImageToVideoModel;
+        const requiresImageReference =
+          (isImageToVideoModel && videoReferenceMode !== "motion") || requiresMotionReferenceImage;
         const isKeyframeFirstLastRun =
           (videoReferenceMode === "keyframes" && isVeoFirstLastFrameModel) ||
           isDedicatedVeoFirstLastFrameModel;

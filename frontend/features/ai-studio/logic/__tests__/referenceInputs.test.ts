@@ -111,25 +111,25 @@ describe("resolveAutoVideoModelForLane", () => {
     ).toBe(KIE_VEO_31_FAST_I2V_MODEL_ID);
   });
 
-  it("maps incompatible lanes onto the Veo defaults", () => {
+  it("maps incompatible Google-family lanes onto the Kie Veo default", () => {
     expect(
       resolveAutoVideoModelForLane({
         currentModel: "fal-ai/veo3.1/image-to-video",
         lane: "text",
       })
-    ).toBe("fal-ai/veo3.1");
+    ).toBe(KIE_VEO_31_FAST_I2V_MODEL_ID);
     expect(
       resolveAutoVideoModelForLane({
         currentModel: "fal-ai/veo3.1",
         lane: "single-image",
       })
-    ).toBe("fal-ai/veo3.1/image-to-video");
+    ).toBe(KIE_VEO_31_FAST_I2V_MODEL_ID);
     expect(
       resolveAutoVideoModelForLane({
         currentModel: "fal-ai/veo3.1",
         lane: "first-last",
       })
-    ).toBe("fal-ai/veo3.1/first-last-frame-to-video");
+    ).toBe(KIE_VEO_31_FAST_I2V_MODEL_ID);
   });
 });
 

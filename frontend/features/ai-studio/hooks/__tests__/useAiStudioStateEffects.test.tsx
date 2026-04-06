@@ -134,8 +134,9 @@ describe("useAiStudioStateEffects", () => {
     });
   });
 
-  it("promotes the dedicated Fal first/last-frame model into keyframes mode", async () => {
+  it("migrates legacy Fal Veo keyframe selections onto Kie Veo", async () => {
     const setVideoReferenceMode = vi.fn();
+    const setModel = vi.fn();
     renderHook(() =>
       useAiStudioStateEffects(
         createArgs({
@@ -148,16 +149,18 @@ describe("useAiStudioStateEffects", () => {
             KIE_VEO_31_FAST_I2V_MODEL_ID,
           ],
           setVideoReferenceMode,
+          setModel,
         })
       )
     );
 
     await waitFor(() => {
       expect(setVideoReferenceMode).toHaveBeenCalledWith("keyframes");
+      expect(setModel).toHaveBeenCalledWith(KIE_VEO_31_FAST_I2V_MODEL_ID);
     });
   });
 
-  it("switches Veo models to the text lane when no frame images are present", async () => {
+  it("switches Google-family video models to Kie Veo text lane when no frame images are present", async () => {
     const setModel = vi.fn();
     renderHook(() =>
       useAiStudioStateEffects(
@@ -166,23 +169,18 @@ describe("useAiStudioStateEffects", () => {
           model: "fal-ai/veo3.1/image-to-video",
           referenceImageUrl: null,
           extraImageUrls: [null, null, null],
-          allowedModelValues: [
-            "fal-ai/veo3.1",
-            "fal-ai/veo3.1/image-to-video",
-            "fal-ai/veo3.1/first-last-frame-to-video",
-            KIE_VEO_31_FAST_I2V_MODEL_ID,
-          ],
+          allowedModelValues: [KIE_VEO_31_FAST_I2V_MODEL_ID],
           setModel,
         })
       )
     );
 
     await waitFor(() => {
-      expect(setModel).toHaveBeenCalledWith("fal-ai/veo3.1");
+      expect(setModel).toHaveBeenCalledWith(KIE_VEO_31_FAST_I2V_MODEL_ID);
     });
   });
 
-  it("switches Veo models to the first-last lane when both frame images are present", async () => {
+  it("switches Google-family video models to Kie Veo when both frame images are present", async () => {
     const setModel = vi.fn();
     const setVideoReferenceMode = vi.fn();
     renderHook(() =>
@@ -192,12 +190,7 @@ describe("useAiStudioStateEffects", () => {
           model: "fal-ai/veo3.1",
           referenceImageUrl: "https://example.com/first.png",
           extraImageUrls: ["https://example.com/last.png", null, null],
-          allowedModelValues: [
-            "fal-ai/veo3.1",
-            "fal-ai/veo3.1/image-to-video",
-            "fal-ai/veo3.1/first-last-frame-to-video",
-            KIE_VEO_31_FAST_I2V_MODEL_ID,
-          ],
+          allowedModelValues: [KIE_VEO_31_FAST_I2V_MODEL_ID],
           setModel,
           setVideoReferenceMode,
         })
@@ -205,7 +198,7 @@ describe("useAiStudioStateEffects", () => {
     );
 
     await waitFor(() => {
-      expect(setModel).toHaveBeenCalledWith("fal-ai/veo3.1/first-last-frame-to-video");
+      expect(setModel).toHaveBeenCalledWith(KIE_VEO_31_FAST_I2V_MODEL_ID);
       expect(setVideoReferenceMode).toHaveBeenCalledWith("keyframes");
     });
   });

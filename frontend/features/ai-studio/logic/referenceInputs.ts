@@ -10,6 +10,10 @@ export type ResolvedVideoGenerationLane = "text" | "single-image" | "first-last"
 const FAL_VEO_TEXT_MODEL_ID = "fal-ai/veo3.1";
 const FAL_VEO_IMAGE_MODEL_ID = "fal-ai/veo3.1/image-to-video";
 const FAL_VEO_FIRST_LAST_MODEL_ID = "fal-ai/veo3.1/first-last-frame-to-video";
+const isFalVeoVideoModel = (modelId: string | null | undefined): boolean =>
+  modelId === FAL_VEO_TEXT_MODEL_ID ||
+  modelId === FAL_VEO_IMAGE_MODEL_ID ||
+  modelId === FAL_VEO_FIRST_LAST_MODEL_ID;
 
 const isImageTool = (tool: ToolId | null): boolean => tool === "image" || tool === "edit";
 const isVideoTool = (tool: ToolId | null): boolean => tool === "video" || tool === "kling";
@@ -52,21 +56,23 @@ export const resolveVideoGenerationLaneFromInputs = ({
 };
 
 const isTextCompatibleVideoModel = (modelId: string | null | undefined): boolean =>
-  modelId === FAL_VEO_TEXT_MODEL_ID ||
-  modelId === "fal-ai/kling-video/v3/pro/text-to-video" ||
+  (modelId !== null &&
+    !isFalVeoVideoModel(modelId) &&
+    modelId === "fal-ai/kling-video/v3/pro/text-to-video") ||
   modelId === "fal-ai/bytedance/seedance/v1.5/pro/text-to-video" ||
   modelId === "fal-ai/sora-2/text-to-video/pro" ||
   modelId === KIE_VEO_31_FAST_I2V_MODEL_ID;
 
 const isSingleImageCompatibleVideoModel = (modelId: string | null | undefined): boolean =>
-  modelId === FAL_VEO_IMAGE_MODEL_ID ||
-  modelId === "fal-ai/kling-video/v3/pro/image-to-video" ||
+  (modelId !== null &&
+    !isFalVeoVideoModel(modelId) &&
+    modelId === "fal-ai/kling-video/v3/pro/image-to-video") ||
   modelId === "fal-ai/bytedance/seedance/v1.5/pro/image-to-video" ||
   modelId === "kie-ai/kling-3.0" ||
   modelId === KIE_VEO_31_FAST_I2V_MODEL_ID;
 
 const isFirstLastCompatibleVideoModel = (modelId: string | null | undefined): boolean =>
-  modelId === FAL_VEO_FIRST_LAST_MODEL_ID || modelId === KIE_VEO_31_FAST_I2V_MODEL_ID;
+  modelId === KIE_VEO_31_FAST_I2V_MODEL_ID;
 
 export const resolveAutoVideoModelForLane = ({
   currentModel,
@@ -81,16 +87,16 @@ export const resolveAutoVideoModelForLane = ({
 
   if (lane === "text") {
     if (isTextCompatibleVideoModel(currentModel)) return currentModel;
-    return FAL_VEO_TEXT_MODEL_ID;
+    return KIE_VEO_31_FAST_I2V_MODEL_ID;
   }
 
   if (lane === "single-image") {
     if (isSingleImageCompatibleVideoModel(currentModel)) return currentModel;
-    return FAL_VEO_IMAGE_MODEL_ID;
+    return KIE_VEO_31_FAST_I2V_MODEL_ID;
   }
 
   if (isFirstLastCompatibleVideoModel(currentModel)) return currentModel;
-  return FAL_VEO_FIRST_LAST_MODEL_ID;
+  return KIE_VEO_31_FAST_I2V_MODEL_ID;
 };
 
 /**

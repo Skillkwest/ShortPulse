@@ -27,6 +27,11 @@ export type ModelSelectionVideoReferenceMode =
   | "motion";
 
 const FAL_VEO_FIRST_LAST_MODEL_ID = "fal-ai/veo3.1/first-last-frame-to-video";
+const BLOCKED_VIDEO_SELECTOR_MODEL_IDS = new Set([
+  "fal-ai/veo3.1",
+  "fal-ai/veo3.1/image-to-video",
+  FAL_VEO_FIRST_LAST_MODEL_ID,
+]);
 
 type ModelConfigLike = {
   supportsImageToImage?: boolean;
@@ -82,25 +87,23 @@ export const resolveAiStudioAllowedModelOptions = ({
   );
 
   if (selectedTool === "video" || selectedTool === "kling") {
+    const selectorVideoOptions = selectableOptions.filter(
+      (option) => !BLOCKED_VIDEO_SELECTOR_MODEL_IDS.has(option.value)
+    );
     if (videoReferenceMode === "keyframes") {
-      return selectableOptions.filter(
-        (option) =>
-          option.value === "fal-ai/veo3.1/first-last-frame-to-video" ||
-          option.value === KIE_VEO_31_FAST_I2V_MODEL_ID
-      );
+      return selectorVideoOptions.filter((option) => option.value === KIE_VEO_31_FAST_I2V_MODEL_ID);
     }
     if (videoReferenceMode === "motion") {
-      return selectableOptions.filter((option) => option.value === KIE_KLING_30_MODEL_ID);
+      return selectorVideoOptions.filter((option) => option.value === KIE_KLING_30_MODEL_ID);
     }
     if (selectedTool === "kling" || videoReferenceMode === "kling3") {
-      return selectableOptions.filter(
+      return selectorVideoOptions.filter(
         (option) => option.value === "fal-ai/kling-video/v3/pro/image-to-video"
       );
     }
     if (resolvedVideoLane === "text") {
-      return selectableOptions.filter(
+      return selectorVideoOptions.filter(
         (option) =>
-          option.value === "fal-ai/veo3.1" ||
           option.value === "fal-ai/kling-video/v3/pro/text-to-video" ||
           option.value === "fal-ai/bytedance/seedance/v1.5/pro/text-to-video" ||
           option.value === "fal-ai/sora-2/text-to-video/pro" ||
@@ -108,9 +111,8 @@ export const resolveAiStudioAllowedModelOptions = ({
       );
     }
     if (resolvedVideoLane === "single-image") {
-      return selectableOptions.filter(
+      return selectorVideoOptions.filter(
         (option) =>
-          option.value === "fal-ai/veo3.1/image-to-video" ||
           option.value === "fal-ai/bytedance/seedance/v1.5/pro/image-to-video" ||
           option.value === "fal-ai/kling-video/v3/pro/image-to-video" ||
           option.value === "kie-ai/kling-3.0" ||
@@ -118,17 +120,10 @@ export const resolveAiStudioAllowedModelOptions = ({
       );
     }
     if (resolvedVideoLane === "first-last") {
-      return selectableOptions.filter(
-        (option) =>
-          option.value === FAL_VEO_FIRST_LAST_MODEL_ID ||
-          option.value === KIE_VEO_31_FAST_I2V_MODEL_ID
-      );
+      return selectorVideoOptions.filter((option) => option.value === KIE_VEO_31_FAST_I2V_MODEL_ID);
     }
-    return selectableOptions.filter(
-      (option) =>
-        option.value === FAL_VEO_FIRST_LAST_MODEL_ID ||
-        option.mediaType === "image-to-video" ||
-        option.mediaType === "video"
+    return selectorVideoOptions.filter(
+      (option) => option.mediaType === "image-to-video" || option.mediaType === "video"
     );
   }
 

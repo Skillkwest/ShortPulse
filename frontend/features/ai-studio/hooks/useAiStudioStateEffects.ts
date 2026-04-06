@@ -29,6 +29,12 @@ const KEYFRAME_COMPATIBLE_MODELS = new Set([
   KIE_VEO_31_FAST_I2V_MODEL_ID,
 ]);
 const FAL_VEO_FIRST_LAST_MODEL_ID = "fal-ai/veo3.1/first-last-frame-to-video";
+const FAL_VEO_IMAGE_MODEL_ID = "fal-ai/veo3.1/image-to-video";
+const FAL_VEO_TEXT_MODEL_ID = "fal-ai/veo3.1";
+const isBlockedFalVeoVideoModel = (modelId: string | null | undefined): boolean =>
+  modelId === FAL_VEO_TEXT_MODEL_ID ||
+  modelId === FAL_VEO_IMAGE_MODEL_ID ||
+  modelId === FAL_VEO_FIRST_LAST_MODEL_ID;
 const allowedUiAspects = new Set(aspectOptions.map((option) => option.value));
 
 type VideoReferenceMode = "standard" | "modify" | "keyframes" | "kling3" | "motion";
@@ -309,9 +315,9 @@ export const useAiStudioStateEffects = ({
     if (videoReferenceMode === "keyframes") {
       if (model && !KEYFRAME_COMPATIBLE_MODELS.has(model)) {
         lastNonKeyframesVideoModelRef.current = model;
-        setModelIfChanged(FAL_VEO_FIRST_LAST_MODEL_ID);
+        setModelIfChanged(KIE_VEO_31_FAST_I2V_MODEL_ID);
       } else if (!model) {
-        setModelIfChanged(FAL_VEO_FIRST_LAST_MODEL_ID);
+        setModelIfChanged(KIE_VEO_31_FAST_I2V_MODEL_ID);
       }
       return;
     }
@@ -327,13 +333,13 @@ export const useAiStudioStateEffects = ({
     }
 
     if (model === "fal-ai/kling-video/v3/pro/image-to-video" && videoReferenceMode === "standard") {
-      const fallback = lastNonMotionVideoModelRef.current ?? "fal-ai/veo3.1/image-to-video";
+      const fallback = lastNonMotionVideoModelRef.current ?? KIE_VEO_31_FAST_I2V_MODEL_ID;
       setModelIfChanged(fallback);
       return;
     }
 
     if (model === FAL_VEO_FIRST_LAST_MODEL_ID && videoReferenceMode === "standard") {
-      const fallback = lastNonKeyframesVideoModelRef.current ?? "fal-ai/veo3.1/image-to-video";
+      const fallback = lastNonKeyframesVideoModelRef.current ?? KIE_VEO_31_FAST_I2V_MODEL_ID;
       setModelIfChanged(fallback);
       return;
     }
@@ -348,6 +354,13 @@ export const useAiStudioStateEffects = ({
     videoReferenceMode,
     hasPendingWorkflowRestore,
   ]);
+
+  useEffect(() => {
+    if (hasPendingWorkflowRestore) return;
+    if (!isVideoWorkflow(selectedTool)) return;
+    if (!isBlockedFalVeoVideoModel(model)) return;
+    setModelIfChanged(KIE_VEO_31_FAST_I2V_MODEL_ID);
+  }, [hasPendingWorkflowRestore, model, selectedTool, setModelIfChanged]);
 
   useEffect(() => {
     if (hasPendingWorkflowRestore) return;

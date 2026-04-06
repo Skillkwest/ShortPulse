@@ -232,7 +232,7 @@ describe("modelSelectionPolicy", () => {
     expect(model).toBe(CREATE_DEFAULT_MODEL_ID);
   });
 
-  it("keeps standard video selection open to both i2v and text-to-video models", () => {
+  it("keeps standard video selection open to non-Fal-Veo video models", () => {
     const values = resolveAiStudioAllowedModelOptions({
       selectedTool: "video",
       mode: "video",
@@ -243,12 +243,9 @@ describe("modelSelectionPolicy", () => {
 
     expect(values).toEqual([
       "fal-ai/kling-video/v3/pro/text-to-video",
-      "fal-ai/veo3.1/first-last-frame-to-video",
-      "fal-ai/veo3.1/image-to-video",
       "fal-ai/bytedance/seedance/v1.5/pro/image-to-video",
       "fal-ai/kling-video/v3/pro/image-to-video",
       "fal-ai/bytedance/seedance/v1.5/pro/text-to-video",
-      "fal-ai/veo3.1",
       "fal-ai/sora-2/text-to-video/pro",
       KIE_VEO_31_FAST_I2V_MODEL_ID,
       KIE_KLING_30_MODEL_ID,
@@ -268,7 +265,6 @@ describe("modelSelectionPolicy", () => {
     expect(values).toEqual([
       "fal-ai/kling-video/v3/pro/text-to-video",
       "fal-ai/bytedance/seedance/v1.5/pro/text-to-video",
-      "fal-ai/veo3.1",
       "fal-ai/sora-2/text-to-video/pro",
       KIE_VEO_31_FAST_I2V_MODEL_ID,
     ]);
@@ -285,7 +281,6 @@ describe("modelSelectionPolicy", () => {
     }).map((option) => option.value);
 
     expect(values).toEqual([
-      "fal-ai/veo3.1/image-to-video",
       "fal-ai/bytedance/seedance/v1.5/pro/image-to-video",
       "fal-ai/kling-video/v3/pro/image-to-video",
       KIE_VEO_31_FAST_I2V_MODEL_ID,
@@ -293,7 +288,7 @@ describe("modelSelectionPolicy", () => {
     ]);
   });
 
-  it("keeps keyframes mode restricted to first/last-capable Veo models", () => {
+  it("keeps keyframes mode restricted to Kie Veo", () => {
     const values = resolveAiStudioAllowedModelOptions({
       selectedTool: "video",
       mode: "video",
@@ -302,10 +297,7 @@ describe("modelSelectionPolicy", () => {
       getModelConfig,
     }).map((option) => option.value);
 
-    expect(values).toEqual([
-      "fal-ai/veo3.1/first-last-frame-to-video",
-      KIE_VEO_31_FAST_I2V_MODEL_ID,
-    ]);
+    expect(values).toEqual([KIE_VEO_31_FAST_I2V_MODEL_ID]);
   });
 
   it("locks motion mode to Kie Kling", () => {

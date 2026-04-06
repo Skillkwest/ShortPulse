@@ -19,6 +19,8 @@ import type { StudioMode } from "../types";
 const BUCKET = "media_library";
 const FETCH_TIMEOUT_MS = 60000;
 const FETCH_RETRY_ATTEMPTS = 2;
+const AI_STUDIO_EXISTING_ROW_RETRY_ATTEMPTS = 5;
+const AI_STUDIO_EXISTING_ROW_RETRY_DELAY_MS = 120;
 const SERVER_COPY_ROUTE = "/api/media/copy-from-url";
 export const GENERATED_MEDIA_REQUIRES_GENERATION_ID_ERROR =
   "Generated media is missing durable generation tracking.";
@@ -131,6 +133,11 @@ const fetchBlobWithTimeout = async (url: string) => {
   }
   throw lastError instanceof Error ? lastError : new Error("Failed to fetch media.");
 };
+
+const sleep = async (ms: number): Promise<void> =>
+  await new Promise<void>((resolve) => {
+    globalThis.setTimeout(resolve, Math.max(0, Math.trunc(ms)));
+  });
 
 const isBrowserFetchBlockedError = (error: unknown): boolean => {
   const message =
@@ -380,6 +387,36 @@ const readExistingAiStudioMediaRowByOutputIndex = async ({
   return { id, storagePath, fileType };
 };
 
+// Generated media rows can land a moment after the task reports success, so
+// retry briefly before we fall back to copying the provider URL.
+const readExistingAiStudioMediaRowByOutputIndexWithRetry = async ({
+  supabase,
+  userId,
+  generationId,
+  index,
+}: {
+  supabase: ReturnType<typeof ensureSupabaseQueryClient>;
+  userId: string;
+  generationId: string;
+  index: number;
+}): Promise<{ id: string; storagePath: string | null; fileType: "image" | "video" } | null> => {
+  for (let attempt = 0; attempt < AI_STUDIO_EXISTING_ROW_RETRY_ATTEMPTS; attempt += 1) {
+    const existingRow = await readExistingAiStudioMediaRowByOutputIndex({
+      supabase,
+      userId,
+      generationId,
+      index,
+    });
+    if (existingRow) {
+      return existingRow;
+    }
+    if (attempt < AI_STUDIO_EXISTING_ROW_RETRY_ATTEMPTS - 1) {
+      await sleep(AI_STUDIO_EXISTING_ROW_RETRY_DELAY_MS);
+    }
+  }
+  return null;
+};
+
 const attachMediaFileToAiStudioGenerationOutput = async ({
   supabase,
   userId,
@@ -506,7 +543,7 @@ export const saveMediaUrlToLibrary = async (input: SaveMediaUrlInput) => {
   }
   const { supabase, userId } = await resolveSupabaseContext();
   if (input.source === "ai_studio" && input.generationId) {
-    const existingRow = await readExistingAiStudioMediaRowByOutputIndex({
+    const existingRow = await readExistingAiStudioMediaRowByOutputIndexWithRetry({
       supabase,
       userId,
       generationId: input.generationId,
@@ -603,7 +640,7 @@ export const saveMediaUrlToLibrary = async (input: SaveMediaUrlInput) => {
 
   if (error) {
     if (input.source === "ai_studio" && input.generationId && isDuplicateInsertError(error)) {
-      const existingRow = await readExistingAiStudioMediaRowByOutputIndex({
+      const existingRow = await readExistingAiStudioMediaRowByOutputIndexWithRetry({
         supabase,
         userId,
         generationId: input.generationId,

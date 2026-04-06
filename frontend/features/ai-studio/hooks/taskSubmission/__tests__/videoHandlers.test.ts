@@ -5,6 +5,8 @@ import { handleVideoModelSubmission } from "../videoHandlers";
 import {
   submitFalKlingV3ImageToVideo,
   submitFalKlingV3Text,
+  submitFalSeedance,
+  submitFalSoraPro,
   submitFalVeoImageToVideo,
   submitKieKlingImageToVideo,
   submitKieVeoImageToVideo,
@@ -808,5 +810,88 @@ describe("handleVideoModelSubmission (Fal Kling 3 text-to-video)", () => {
       generate_audio: false,
       shot_type: "customize",
     });
+  });
+});
+
+describe("handleVideoModelSubmission (Fal Seedance text-to-video)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    vi.mocked(submitFalSeedance).mockResolvedValue({ request_id: "seedance-text-1" });
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("submits the normalized Seedance text-to-video payload", async () => {
+    const args = makeArgs({
+      finalModel: "fal-ai/bytedance/seedance/v1.5/pro/text-to-video",
+      modelConfig: getModelConfig("fal-ai/bytedance/seedance/v1.5/pro/text-to-video"),
+      aspect: "21:9",
+      requestedDurationSeconds: 12,
+      requestedResolution: "720p",
+      requestedAudio: true,
+    });
+
+    const handled = await handleVideoModelSubmission(args);
+
+    expect(handled).toBe(true);
+    expect(submitFalSeedance).toHaveBeenCalledWith({
+      prompt: "A dancer twirls",
+      duration: "12",
+      aspect_ratio: "21:9",
+      resolution: "720p",
+      negative_prompt: "blur, distort, and low quality",
+      cfg_scale: 0.5,
+      generate_audio: true,
+      enable_safety_checker: false,
+    });
+    expect(args.startPollingWithGeneration).toHaveBeenCalledWith(
+      "seedance-text-1",
+      "fal-seedance",
+      undefined,
+      { request_id: "seedance-text-1" }
+    );
+  });
+});
+
+describe("handleVideoModelSubmission (Fal Sora text-to-video)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    vi.mocked(submitFalSoraPro).mockResolvedValue({ request_id: "sora-text-1" });
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("submits the normalized Sora text-to-video payload", async () => {
+    const args = makeArgs({
+      finalModel: "fal-ai/sora-2/text-to-video/pro",
+      modelConfig: getModelConfig("fal-ai/sora-2/text-to-video/pro"),
+      aspect: "4:3",
+      requestedDurationSeconds: 10,
+      requestedResolution: "720p",
+      requestedAudio: false,
+    });
+
+    const handled = await handleVideoModelSubmission(args);
+
+    expect(handled).toBe(true);
+    expect(submitFalSoraPro).toHaveBeenCalledWith({
+      prompt: "A dancer twirls",
+      aspect_ratio: "16:9",
+      duration: 12,
+      resolution: "720p",
+      delete_video: true,
+    });
+    expect(args.startPollingWithGeneration).toHaveBeenCalledWith(
+      "sora-text-1",
+      "fal-sora",
+      undefined,
+      { request_id: "sora-text-1" }
+    );
   });
 });

@@ -298,12 +298,12 @@ describe("useAiStudioTaskSubmission", () => {
       });
     });
 
-    expect(outputs[0]?.modelId).toBe("fal-ai/veo3.1");
+    expect(outputs[0]?.modelId).toBe(KIE_VEO_31_FAST_I2V_MODEL_ID);
     expect(outputs[0]?.taskState).toBe("running");
     expect(setSaved).toHaveBeenCalledWith(false);
     expect(handleVideoModelSubmission).toHaveBeenCalledWith(
       expect.objectContaining({
-        finalModel: "fal-ai/veo3.1",
+        finalModel: KIE_VEO_31_FAST_I2V_MODEL_ID,
         preparedImageInputs: [],
       })
     );
@@ -375,12 +375,12 @@ describe("useAiStudioTaskSubmission", () => {
       );
     });
 
-    expect(outputs[0]?.modelId).toBe("fal-ai/veo3.1/image-to-video");
+    expect(outputs[0]?.modelId).toBe(KIE_VEO_31_FAST_I2V_MODEL_ID);
     expect(outputs[0]?.taskState).toBe("running");
     expect(setSaved).toHaveBeenCalledWith(false);
     expect(handleVideoModelSubmission).toHaveBeenCalledWith(
       expect.objectContaining({
-        finalModel: "fal-ai/veo3.1/image-to-video",
+        finalModel: KIE_VEO_31_FAST_I2V_MODEL_ID,
         preparedImageInputs: ["https://example.com/first.png"],
       })
     );
@@ -521,12 +521,12 @@ describe("useAiStudioTaskSubmission", () => {
       });
     });
 
-    expect(outputs[0]?.modelId).toBe("fal-ai/veo3.1");
+    expect(outputs[0]?.modelId).toBe(KIE_VEO_31_FAST_I2V_MODEL_ID);
     expect(outputs[0]?.taskState).toBe("running");
     expect(setSaved).toHaveBeenCalledWith(false);
     expect(handleVideoModelSubmission).toHaveBeenCalledWith(
       expect.objectContaining({
-        finalModel: "fal-ai/veo3.1",
+        finalModel: KIE_VEO_31_FAST_I2V_MODEL_ID,
         preparedImageInputs: [],
       })
     );
@@ -594,14 +594,14 @@ describe("useAiStudioTaskSubmission", () => {
       });
     });
 
-    expect(outputs[0]?.modelId).toBe("fal-ai/veo3.1");
+    expect(outputs[0]?.modelId).toBe(KIE_VEO_31_FAST_I2V_MODEL_ID);
     expect(handleVideoModelSubmission).toHaveBeenCalledWith(
       expect.objectContaining({
-        finalModel: "fal-ai/veo3.1",
+        finalModel: KIE_VEO_31_FAST_I2V_MODEL_ID,
         preparedImageInputs: [],
       })
     );
-    expect(resolveSubmissionHandlerRoute).toHaveBeenCalledWith("fal-ai/veo3.1");
+    expect(resolveSubmissionHandlerRoute).toHaveBeenCalledWith(KIE_VEO_31_FAST_I2V_MODEL_ID);
     expect(setUiError).not.toHaveBeenCalledWith("Add a reference image before generating.");
   });
 
@@ -1853,10 +1853,10 @@ describe("useAiStudioTaskSubmission", () => {
       });
     });
 
-    expect(outputs[0]?.aspect).toBe("auto");
+    expect(outputs[0]?.aspect).toBe("16:9");
     expect(handleVideoModelSubmission).toHaveBeenCalledWith(
       expect.objectContaining({
-        aspect: "auto",
+        aspect: "16:9",
       })
     );
   });

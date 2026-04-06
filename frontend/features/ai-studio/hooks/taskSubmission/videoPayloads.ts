@@ -34,13 +34,10 @@ const resolveAspectForModelConfig = (
   return fallback;
 };
 
-/**
- * Fal currently guarantees `shot_type=customize` support for Kling 3 image-to-video.
- * Omit other values to avoid provider-side validation failures.
- */
 export const resolveKlingShotType = (
   shotType: VideoSubmissionArgs["klingShotType"]
-): "customize" | undefined => (shotType === "customize" ? "customize" : undefined);
+): "customize" | "intelligent" | undefined =>
+  shotType === "customize" || shotType === "intelligent" ? shotType : undefined;
 
 /**
  * Normalizes aspect ratio for VEO image/video routes.

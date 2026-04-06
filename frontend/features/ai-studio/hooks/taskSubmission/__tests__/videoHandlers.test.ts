@@ -602,6 +602,61 @@ describe("handleVideoModelSubmission (Kling 3 non-motion element videos)", () =>
     );
     expect(submitFalKlingV3ImageToVideo).not.toHaveBeenCalled();
   });
+
+  it("passes end frame, intelligent shot type, voices, and image elements for Fal Kling standard submits", async () => {
+    const args = makeArgs({
+      finalModel: "fal-ai/kling-video/v3/pro/image-to-video",
+      modelConfig: getModelConfig("fal-ai/kling-video/v3/pro/image-to-video"),
+      videoReferenceMode: "standard",
+      requestedDurationSeconds: 9,
+      requestedResolution: "720p",
+      requestedAudio: true,
+      preparedImageInputs: ["https://example.com/start.png", "https://example.com/end.png"],
+      klingShotType: "intelligent",
+      klingVoiceIds: [" voice_a ", "voice_b"],
+      klingNegativePrompt: "bad anatomy, blur",
+      klingCfgScale: 0.9,
+      klingMultiPrompts: [
+        { id: "shot-1", prompt: " First beat ", duration: 5 },
+        { id: "shot-2", prompt: "Second beat", duration: 8 },
+      ],
+      klingElements: [
+        {
+          id: "element-1",
+          frontalImageUrl: " https://example.com/front.png ",
+          referenceImageUrls: "https://example.com/ref-a.png,\nhttps://example.com/ref-b.png",
+          videoUrl: "",
+        },
+      ],
+    });
+
+    const handled = await handleVideoModelSubmission(args);
+
+    expect(handled).toBe(true);
+    expect(submitFalKlingV3ImageToVideo).toHaveBeenCalledWith({
+      prompt: "A dancer twirls",
+      start_image_url: "https://example.com/start.png",
+      end_image_url: "https://example.com/end.png",
+      duration: 9,
+      aspect_ratio: "16:9",
+      resolution: "720p",
+      negative_prompt: "bad anatomy, blur",
+      cfg_scale: 0.9,
+      generate_audio: true,
+      voice_ids: ["voice_a", "voice_b"],
+      multi_prompt: [
+        { prompt: "First beat", duration: 5 },
+        { prompt: "Second beat", duration: 8 },
+      ],
+      shot_type: "intelligent",
+      elements: [
+        {
+          frontal_image_url: "https://example.com/front.png",
+          reference_image_urls: ["https://example.com/ref-a.png", "https://example.com/ref-b.png"],
+        },
+      ],
+    });
+  });
 });
 
 describe("handleVideoModelSubmission (Fal Veo 3.1 image-to-video)", () => {

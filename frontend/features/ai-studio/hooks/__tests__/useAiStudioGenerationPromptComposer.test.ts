@@ -235,6 +235,38 @@ describe("useAiStudioGenerationPromptComposer", () => {
     );
   });
 
+  it("includes the optional end frame for Fal Kling standard video runs", () => {
+    const submitTask = vi.fn();
+    const resolveReferenceInputsForTool = vi.fn(() => ({
+      referenceImageUrl: "https://example.com/video-ref.png",
+      extraImageUrls: [
+        "https://example.com/video-end.png",
+        "https://example.com/video-extra-2.png",
+        null,
+      ] as [string | null, string | null, string | null],
+    }));
+    const params = createParams({
+      model: "fal-ai/kling-video/v3/pro/image-to-video",
+      submitTask,
+      selectedTool: "video",
+      videoReferenceMode: "standard",
+      resolveReferenceInputsForTool,
+    });
+    const { result } = renderHook(() => useAiStudioGenerationPromptComposer(params));
+
+    act(() => {
+      result.current.generateOutput();
+    });
+
+    expect(submitTask).toHaveBeenCalledWith(
+      "video prompt",
+      ["https://example.com/video-ref.png", "https://example.com/video-end.png"],
+      expect.objectContaining({
+        displayPromptOverride: "video prompt",
+      })
+    );
+  });
+
   it("forwards output id overrides to submission for optimistic placeholder reuse", () => {
     const submitTask = vi.fn();
     const params = createParams({ submitTask });

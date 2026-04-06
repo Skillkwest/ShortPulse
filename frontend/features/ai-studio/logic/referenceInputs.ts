@@ -5,6 +5,7 @@ import { KIE_VEO_31_FAST_I2V_MODEL_ID } from "../../../lib/model-runtime/provide
 import type { ToolId } from "../types";
 
 type VideoReferenceMode = "standard" | "modify" | "keyframes" | "kling3" | "motion";
+const FAL_KLING_V3_IMAGE_MODEL_ID = "fal-ai/kling-video/v3/pro/image-to-video";
 
 const isImageTool = (tool: ToolId | null): boolean => tool === "image" || tool === "edit";
 const isVideoTool = (tool: ToolId | null): boolean => tool === "video" || tool === "kling";
@@ -34,16 +35,16 @@ export const buildVideoReferenceInputs = (
 ): string[] => {
   if (!primary) return [];
   const orderedExtras = extras.filter((url): url is string => Boolean(url && url !== primary));
-  const shouldUseKieDualModeFrames =
-    modelId === KIE_VEO_31_FAST_I2V_MODEL_ID &&
+  const shouldUseStandardSecondaryFrame =
+    orderedExtras.length > 0 &&
     referenceMode === "standard" &&
-    orderedExtras.length > 0;
+    (modelId === KIE_VEO_31_FAST_I2V_MODEL_ID || modelId === FAL_KLING_V3_IMAGE_MODEL_ID);
 
   if (referenceMode === "motion") {
     return [primary];
   }
   if (referenceMode === "standard") {
-    return shouldUseKieDualModeFrames ? [primary, orderedExtras[0]] : [primary];
+    return shouldUseStandardSecondaryFrame ? [primary, orderedExtras[0]] : [primary];
   }
   return [primary, ...orderedExtras];
 };

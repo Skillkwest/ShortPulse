@@ -313,11 +313,7 @@ export const handleVideoModelSubmission = async ({
 
   if (finalModel === "fal-ai/kling-video/v3/pro/image-to-video") {
     const klingDuration = resolveKlingV3Duration(requestedDurationSeconds);
-    const endImageUrl =
-      (videoReferenceMode === "keyframes" || videoReferenceMode === "kling3") &&
-      preparedImageInputs.length > 1
-        ? preparedImageInputs[1]
-        : undefined;
+    const endImageUrl = preparedImageInputs.length > 1 ? preparedImageInputs[1] : undefined;
     const voiceIds = buildKlingVoiceIds(klingVoiceIds);
     const multiPromptPayload = buildKlingMultiPromptPayload(klingMultiPrompts);
     let elementsPayload: ReturnType<typeof buildKlingElementsPayload>;

@@ -45,6 +45,17 @@ describe("buildVideoReferenceInputs", () => {
     ).toEqual(["https://example.com/first.png", "https://example.com/last.png"]);
   });
 
+  it("includes the optional last-frame slot for Fal Kling in standard mode", () => {
+    expect(
+      buildVideoReferenceInputs(
+        "https://example.com/start.png",
+        ["https://example.com/end.png", "https://example.com/extra-b.png"],
+        "standard",
+        "fal-ai/kling-video/v3/pro/image-to-video"
+      )
+    ).toEqual(["https://example.com/start.png", "https://example.com/end.png"]);
+  });
+
   it("includes primary + extras for keyframes mode", () => {
     expect(
       buildVideoReferenceInputs(

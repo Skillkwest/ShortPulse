@@ -20,6 +20,10 @@ This document tracks the internal ShortPulse runtime contract for `kie-ai/kling-
   - Standard image-to-video:
     - root: `model="kling-3.0/video"`, optional `callBackUrl`
     - payload body under `input`
+    - product-level shot modes:
+      - `Single`: top-level `prompt`, first frame required, optional last frame accepted
+      - `Multi`: top-level `prompt`, first frame required, optional last frame accepted, element references allowed via `@ElementName` + `kling_elements`
+      - `Custom`: `multi_prompt[]`, first frame required, last frame not sent
   - Motion Control:
     - root: `model="kling-3.0/motion-control"`, optional `callBackUrl`
     - payload body under `input` with `input_urls` (one character image URL), `video_urls` (one motion reference video URL), and resolution mode (`mode=720p|1080p`)
@@ -43,9 +47,26 @@ This document tracks the internal ShortPulse runtime contract for `kie-ai/kling-
   - `mode` (`std` or `pro`, default `std`)
   - `sound` (or alias `generate_audio`)
   - `multi_shots` (requires `sound=true` when enabled)
+  - `multi_prompt[]` for true multi-shot Kling submissions
+  - `kling_elements` for inline `@ElementName` prompt references
   - `cfg_scale`
   - canonical callback URL field `callback_url` (edge aliases `callBackUrl` / `callbackUrl` normalized at ingress)
   - Motion Control canonical fields: `input_urls`, `video_urls`, `character_orientation`, `background_source`, and resolution mode (`mode=720p|1080p`)
+
+## Product-facing payload rules
+- `Single`
+  - submits top-level `prompt`
+  - sends first frame and optional last frame
+  - keeps `multi_shots=false`
+- `Multi`
+  - submits top-level `prompt`
+  - sends first frame and optional last frame
+  - keeps `multi_shots=false`
+  - uses app-level multi-scene writing guidance only; it is not a separate provider route
+- `Custom`
+  - submits `multi_prompt[]`
+  - sends first frame only
+  - sets `multi_shots=true`
 
 ## Pricing (ShortPulse runtime)
 - Evidence source: user-provided Kie pricing dashboard capture dated `2026-03-14`.

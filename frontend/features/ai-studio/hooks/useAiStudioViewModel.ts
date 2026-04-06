@@ -39,6 +39,8 @@ type ViewModelInput = {
   extraImageUrls: [string | null, string | null, string | null];
   imageResolution: string;
   videoGenerateAudio: boolean;
+  klingWorkflowMode?: "single" | "multi" | "custom";
+  klingMultiPrompts?: { id: string; prompt: string; duration: number }[];
   balanceCredits: number | null;
   editSubmitIntent?: EditSubmitIntent;
   costParamsForModel: (overrides?: Omit<PricingParams, "modelId">) => PricingParams;
@@ -61,6 +63,8 @@ export const useAiStudioViewModel = ({
   extraImageUrls,
   imageResolution,
   videoGenerateAudio,
+  klingWorkflowMode = "single",
+  klingMultiPrompts = [],
   balanceCredits,
   editSubmitIntent,
   costParamsForModel,
@@ -318,9 +322,19 @@ export const useAiStudioViewModel = ({
       isVideoTool &&
       videoReferenceMode === "standard" &&
       model === KIE_KLING_30_MODEL_ID &&
-      !referenceImageUrl
+      !referenceImageUrl &&
+      !extraImageUrls[0]
     ) {
       return "Add a first frame image before generating with Kling 3.0.";
+    }
+    if (
+      isVideoTool &&
+      videoReferenceMode === "standard" &&
+      model === KIE_KLING_30_MODEL_ID &&
+      klingWorkflowMode === "custom" &&
+      !klingMultiPrompts.some((shot) => shot.prompt.trim().length > 0)
+    ) {
+      return "Add at least one custom Kling shot prompt before generating.";
     }
     if (isCreditGuardrail) return "You do not have enough credits for this run.";
     return null;
@@ -336,6 +350,8 @@ export const useAiStudioViewModel = ({
     referenceImageUrl,
     requiresModelSelection,
     selectedModelConfig,
+    klingMultiPrompts,
+    klingWorkflowMode,
     mode,
     isCreateWorkflowSelected,
     isEditWorkflowSelected,
@@ -376,7 +392,12 @@ export const useAiStudioViewModel = ({
           return "Motion Control requires a motion reference video.";
         }
       }
-      if (model === KIE_KLING_30_MODEL_ID && videoReferenceMode === "standard" && !hasReference) {
+      if (
+        model === KIE_KLING_30_MODEL_ID &&
+        videoReferenceMode === "standard" &&
+        !hasReference &&
+        !extraImageUrls[0]
+      ) {
         return "Kling 3.0 requires a first frame image in Standard mode.";
       }
     }
@@ -390,6 +411,7 @@ export const useAiStudioViewModel = ({
     isVideoTool,
     resolvedVideoLane,
     motionReferenceVideoUrl,
+    extraImageUrls,
     videoReferenceMode,
   ]);
 

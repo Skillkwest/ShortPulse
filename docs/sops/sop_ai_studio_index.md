@@ -72,6 +72,12 @@ Purpose: provide a single hub for AI Studio SOPs, shared defaults, and the canon
 - Video policy invariant:
   - `kie-ai/veo-3.1-fast-i2v` is the active Veo-family lane for text, single-image, and first/last-frame video generation.
   - Standard Video mode is Kie-only and surfaces only `kie-ai/veo-3.1-fast-i2v` and `kie-ai/kling-3.0`.
+  - Empty-standard-frame state defaults to Kie Veo text-to-video, but the modal still allows manual selection of Kie Kling; selecting Kling there makes the first frame required before Generate is enabled.
+  - Kie Kling Standard exposes three product shot modes:
+    - `Single`
+    - `Multi`
+    - `Custom`
+  - `Single` and `Multi` both use the standard Kie single-shot Kling route with top-level `prompt`; `Custom` is the only true Kie multi-shot path and submits `multi_prompt[]`.
 
 ## Fal reliability rollout notes (v2 architecture)
 - Primary tracker: `docs/planning/ai-studio-generation-runtime-v2-locked-execution.md`
@@ -113,7 +119,7 @@ Planned reliability module boundaries:
 | fal-ai/bytedance/seedream/v5/lite/text-to-image | Aspect: 1:1 default (allowed: 1:1, 2:3, 3:2, 3:4, 4:3, 4:5, 5:4, 9:16, 16:9, 21:9); Resolution: auto_2K default (allowed: auto_2K, auto_3K) | Fal text-to-image queue; per-image pricing at $0.035 with shared credit rounding (5 billed credits). |
 | fal-ai/bytedance/seedream/v5/lite/edit | Aspect: 1:1 default (allowed: 1:1, 2:3, 3:2, 3:4, 4:3, 4:5, 5:4, 9:16, 16:9, 21:9); Resolution: auto_2K default (allowed: auto_2K, auto_3K) | Fal image-to-image/edit queue; requires reference images (up to 10); pricing mirrors Seedream 5 Lite text-to-image. |
 | kie-ai/veo-3.1-fast-i2v | Aspect: 16:9 default (allowed: 16:9, 9:16); Duration: 5s default (allowed: 5, 8); Resolution: 720p default (allowed: 720p, 1080p); Audio: on | Active Kie Veo lane for text-to-video, single-image animation, and first/last-frame generation. Fixed `$0.30` per generation from Kie credits conversion evidence (default billed 35 credits under current policy). |
-| kie-ai/kling-3.0 | Aspect: 16:9 default (allowed: 16:9, 9:16, 1:1); Duration: 10s default (allowed: 5, 10); Resolution: 1080p default (allowed: 720p, 1080p); Audio: on | Active Kie Kling lane for image-to-video and Motion Control. Per-second pricing by resolution: `1080p` `$0.20/$0.135` (audio on/off), `720p` `$0.15/$0.10` (audio on/off); default lane bills 210 credits under current policy. |
+| kie-ai/kling-3.0 | Aspect: 16:9 default (allowed: 16:9, 9:16, 1:1); Duration: 10s default (allowed: 5, 10); Resolution: 1080p default (allowed: 720p, 1080p); Audio: on | Active Kie Kling lane for Standard video and Motion Control. Standard mode exposes `Single`, `Multi`, and `Custom`: `Single` and `Multi` both use standard single-shot submit with a top-level prompt plus first frame and optional last frame; `Custom` uses Kie multi-shot submit with `multi_prompt[]` and first-frame-only image input. Per-second pricing by resolution: `1080p` `$0.20/$0.135` (audio on/off), `720p` `$0.15/$0.10` (audio on/off); default lane bills 210 credits under current policy. |
 | gpt-5-nano | Aspect: n/a; Token-based | Used for prompt refine + describe flows. |
 
 ## Standard SOP skeleton (apply to new/updated SOPs)

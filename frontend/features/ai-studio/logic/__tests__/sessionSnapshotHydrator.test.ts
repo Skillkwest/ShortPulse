@@ -27,6 +27,7 @@ const createSnapshot = (
     videoAutoFix: false,
     klingNegativePrompt: "neg",
     klingCfgScale: 0.5,
+    klingWorkflowMode: "single",
     klingShotType: "customize",
     klingVoiceIds: ["", ""],
     klingMultiPrompts: [],
@@ -81,7 +82,21 @@ describe("sessionSnapshotHydrator", () => {
     expect(payload.outputs.removedFromAllRefsIds).toEqual(["out-2"]);
     expect(payload.agent.promptOrigin).toBe("manual");
     expect(payload.agent.chatModeEnabled).toBe(true);
+    expect(payload.workspace.klingWorkflowMode).toBe("single");
     expect(payload.canvas).toBeNull();
+  });
+
+  it("backfills legacy Kling workflow mode from persisted multi prompts", () => {
+    const snapshot = createSnapshot({
+      workspace: {
+        ...createSnapshot().workspace,
+        klingWorkflowMode: undefined,
+        klingMultiPrompts: [{ id: "shot-1", prompt: "Beat one", duration: 5 }],
+      },
+    });
+
+    const payload = buildAiStudioSessionHydrationPayload(snapshot);
+    expect(payload.workspace.klingWorkflowMode).toBe("custom");
   });
 
   it("hydrates canvas payload for schema v2 snapshots", () => {

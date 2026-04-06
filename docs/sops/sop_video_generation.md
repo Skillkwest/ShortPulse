@@ -57,6 +57,56 @@ For Create properties panel, model-selector, and submission wiring details, see 
 - The modal still allows manual selection of `kie-ai/kling-3.0` in that state; once Kling is selected, the first-frame dropzone becomes required and Generate remains disabled until the first frame is populated.
 - Keyframe-style generation is handled through `kie-ai/veo-3.1-fast-i2v` by switching Kie generation type based on the number of frame references.
 
+### Kling 3.0 Standard shot modes
+
+- Kie Kling Standard exposes three product shot modes in the panel:
+  - `Single`
+  - `Multi`
+  - `Custom`
+- These are app-level workflow modes. They do not map to three separate Kie provider endpoints.
+- `Single` and `Multi` both submit through the documented Kie standard video route:
+  - `model = kling-3.0/video`
+  - top-level `prompt`
+  - `multi_shots = false`
+- `Custom` is the only true multi-shot Kling path:
+  - `model = kling-3.0/video`
+  - `multi_prompt[]`
+  - `multi_shots = true`
+
+#### Shot mode behavior
+
+- `Single`
+  - One primary prompt box.
+  - Sends the primary prompt to Kling as the top-level `prompt`.
+  - First frame is required for Kling Standard.
+  - Last frame is optional; when present it is sent as the second image reference on the standard single-shot path.
+- `Multi`
+  - One primary prompt box for full multi-scene direction.
+  - Uses the same standard single-shot Kling route as `Single`.
+  - Elements can be referenced inline with `@ElementName` notation and are resolved through `kling_elements`.
+  - First frame is required for Kling Standard.
+  - Last frame is optional; when present it is sent as the second image reference on the standard single-shot path.
+- `Custom`
+  - Multiple shot prompt boxes map to `multi_prompt[]`.
+  - This is the only Kling Standard mode that sends `multi_shots = true`.
+  - First frame is required.
+  - Last frame is not sent on the multi-shot path; Kie multi-shot uses the first image only.
+
+#### Kling Standard payload rules
+
+- `Single` and `Multi` send:
+  - primary prompt
+  - selected video settings (`aspect_ratio`, `duration`, `resolution`, audio/sound flags, and other supported Kling controls)
+  - first frame
+  - optional last frame, only when populated
+  - `kling_elements` when present
+- `Custom` sends:
+  - `multi_prompt[]`
+  - selected video settings
+  - first frame only
+  - `kling_elements` when present
+- Motion Control remains separate and continues to use the Kie motion-control route (`model = kling-3.0/motion-control`).
+
 ## Reference-based video workflow (Create → Video, image-to-video models)
 
 1. User opens the Video tool (`VideoPropertiesPanel`) and selects aspect + model.
@@ -82,6 +132,10 @@ For Create properties panel, model-selector, and submission wiring details, see 
 
 - Prompt textarea is bound to shared `prompt` state; Save Prompt creates a text `StudioOutput` card.  
 - Prompt text is sent to the chosen video model through submission handlers; when chat output is explicitly applied first, that canonicalized text becomes the submitted prompt.  
+- For Kling Standard:
+  - `Single` and `Multi` use the primary prompt textarea as the submitted top-level prompt.
+  - `Custom` uses the persisted shot list (`klingMultiPrompts`) to build `multi_prompt[]`.
+  - `Multi` is a writing mode for a single authored multi-scene prompt, not a separate provider-side multi-shot route.
 - Improvement: consider reusing the last describe result as a starting prompt when switching from describe → video.
 
 ## Error handling & UX
@@ -143,14 +197,14 @@ For Create properties panel, model-selector, and submission wiring details, see 
 - Video models are selected from the picker as Kie-only video entries.  
 - Aspect normalization is provider/model-specific (see `pricing.ts` and `hooks/taskSubmission/{videoHandlers,defaultHandlers}.ts`).
 - Cost computation: `computeCostForModel` uses aspect plus duration/resolution/audio defaults for estimate display; charging occurs in server submit APIs. Prompt-refine/describe flows currently report usage but are not debited. Video submit payloads are built by provider handlers after prompt selection is finalized in UI state.
-- Resolution is treated as unsupported only for models with no declared `allowedResolutions`; Kling submit handlers pass selected resolution for both Fal Kling standard image-to-video and Kie Kling lanes (including Motion Control).
+- Resolution is treated as unsupported only for models with no declared `allowedResolutions`; Kling submit handlers pass selected resolution for Kie Kling standard and Motion Control lanes.
 
 ## Supported video models (current)
 
 | Provider | Model id | Allowed aspects (examples) | Notes |
 | --- | --- | --- | --- |
 | Kie | `kie-ai/veo-3.1-fast-i2v` | 16:9 default (allowed: 16:9, 9:16) | Unified Kie Veo lane via `/api/fal/kie-veo-submit` + `/api/fal/kie-veo-status`. Prompt-only generates `TEXT_2_VIDEO`; one frame generates `FIRST_AND_LAST_FRAMES_2_VIDEO` with one image; two frames generate `FIRST_AND_LAST_FRAMES_2_VIDEO` with first/last references. Pricing uses fixed per-video USD from Kie credits conversion evidence (`$0.30` per generation; default billed 35 credits under current policy). |
-| Kie | `kie-ai/kling-3.0` | 16:9 default (allowed: 16:9, 9:16, 1:1) | Image-to-video queue via `/api/fal/kie-kling-submit` + `/api/fal/kie-kling-status`; requires image input (`image_url`/`image_urls`). Motion Control mode also routes through this model and normalizes to Kie motion-control submit shape (`model=kling-3.0/motion-control`, `input_urls` + `video_urls`, one image + one video). Pricing uses Kie per-second rates by resolution: `1080p` `$0.20/$0.135` (audio on/off), `720p` `$0.15/$0.10` (audio on/off). Default lane (`10s`, `1080p`, audio on) bills 210 credits under current policy. |
+| Kie | `kie-ai/kling-3.0` | 16:9 default (allowed: 16:9, 9:16, 1:1) | Standard Kling routes through `/api/fal/kie-kling-submit` + `/api/fal/kie-kling-status` and requires image input. `Single` and `Multi` use standard single-shot submit with top-level `prompt`; `Custom` uses Kie multi-shot submit with `multi_prompt[]` and first-frame-only image input. Motion Control also routes through this model and normalizes to Kie motion-control submit shape (`model=kling-3.0/motion-control`, `input_urls` + `video_urls`, one image + one video). Pricing uses Kie per-second rates by resolution: `1080p` `$0.20/$0.135` (audio on/off), `720p` `$0.15/$0.10` (audio on/off). Default lane (`10s`, `1080p`, audio on) bills 210 credits under current policy. |
 
 ## Maintenance rules
 

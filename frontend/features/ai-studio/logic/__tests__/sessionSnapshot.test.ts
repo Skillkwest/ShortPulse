@@ -47,6 +47,7 @@ describe("sessionSnapshot", () => {
       videoAutoFix: false,
       klingNegativePrompt: "",
       klingCfgScale: 0.5,
+      klingWorkflowMode: "multi",
       klingShotType: "customize",
       klingVoiceIds: ["", ""],
       klingMultiPrompts: [],
@@ -68,6 +69,7 @@ describe("sessionSnapshot", () => {
     expect(snapshot.schemaVersion).toBe(2);
     expect(snapshot.sessionId).toBe("f7f45245-f204-4ece-8f9e-c9a66a9d8d2a");
     expect(snapshot.workspace.prompt).toBe("A cinematic portrait");
+    expect(snapshot.workspace.klingWorkflowMode).toBe("multi");
     expect(snapshot.outputs.active[0]?.id).toBe("out-1");
     expect(snapshot.agent.messages[0]?.role).toBe("assistant");
     expect(snapshot.canvas.viewports.main.zoom).toBe(1);
@@ -122,6 +124,48 @@ describe("sessionSnapshot", () => {
     expect(snapshot.outputs.active[0]?.resultUrls).toEqual([
       "https://cdn.shortpulse.dev/output.png",
     ]);
+  });
+
+  it("defaults legacy custom Kling sessions to custom workflow mode when multi prompts exist", () => {
+    const snapshot = buildAiStudioSessionSnapshot({
+      sessionId: "f7f45245-f204-4ece-8f9e-c9a66a9d8d2a",
+      mode: "video",
+      selectedTool: "video",
+      prompt: "ignored",
+      model: "kie-ai/kling-3.0",
+      aspect: "16:9",
+      referenceImageUrl: "https://cdn.shortpulse.dev/start.png",
+      extraImageUrls: [null, null, null],
+      editReferenceText: "",
+      videoReferenceText: "ignored",
+      videoReferenceMode: "standard",
+      videoDurationSeconds: 6,
+      videoResolution: "1080p",
+      imageResolution: "model_default",
+      videoGenerateAudio: true,
+      videoCameraFixed: false,
+      videoAutoFix: false,
+      klingNegativePrompt: "",
+      klingCfgScale: 0.5,
+      klingShotType: "customize",
+      klingVoiceIds: ["", ""],
+      klingMultiPrompts: [{ id: "shot-1", prompt: "Beat one", duration: 5 }],
+      klingElements: [],
+      motionReferenceVideoUrl: null,
+      outputs: [],
+      archivedOutputs: [],
+      activeOutputId: null,
+      curatedReferenceIds: [],
+      removedFromAllRefsIds: [],
+      agentMessages: [],
+      agentInput: "",
+      latestAgentPrompt: null,
+      promptOrigin: "manual",
+      chatModeEnabled: true,
+      canvasState: createCanvasState(),
+    });
+
+    expect(snapshot.workspace.klingWorkflowMode).toBe("custom");
   });
 
   it("strips local blob/data workspace references from persisted session workspace", () => {

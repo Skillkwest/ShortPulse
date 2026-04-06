@@ -47,6 +47,7 @@ const makeArgs = (overrides: Partial<VideoSubmissionArgs> = {}): VideoSubmission
   videoCameraFixed: false,
   klingNegativePrompt: "blur",
   klingCfgScale: 0.5,
+  klingWorkflowMode: "single",
   klingShotType: "customize",
   klingVoiceIds: ["", ""],
   klingMultiPrompts: [],
@@ -452,6 +453,7 @@ describe("handleVideoModelSubmission (Kie Kling standard)", () => {
       videoReferenceMode: "standard",
       requestedResolution: "1080p",
       requestedAudio: false,
+      klingWorkflowMode: "custom",
       preparedImageInputs: ["https://example.com/start.png", "https://example.com/end.png"],
       klingMultiPrompts: [
         { id: "shot-1", prompt: "First shot", duration: 5 },
@@ -501,6 +503,43 @@ describe("handleVideoModelSubmission (Kie Kling standard)", () => {
             name: "Element02",
             description: "Reference video for Element02",
             element_input_video_urls: ["https://example.com/element-video.mp4"],
+          },
+        ],
+      })
+    );
+  });
+
+  it("keeps Multi mode on the single-shot route while still sending optional last frame", async () => {
+    const args = makeArgs({
+      finalModel: KIE_KLING_30_MODEL_ID,
+      modelConfig: getModelConfig(KIE_KLING_30_MODEL_ID),
+      videoReferenceMode: "standard",
+      klingWorkflowMode: "multi",
+      cleanedPrompt: "Scene one shifts into scene two with @Element01 throughout.",
+      preparedImageInputs: ["https://example.com/start.png", "https://example.com/end.png"],
+      klingElements: [
+        {
+          id: "element-1",
+          frontalImageUrl: "https://example.com/element-a.png",
+          referenceImageUrls: "",
+          videoUrl: "",
+        },
+      ],
+    });
+
+    const handled = await handleVideoModelSubmission(args);
+
+    expect(handled).toBe(true);
+    expect(submitKieKlingImageToVideo).toHaveBeenCalledWith(
+      expect.objectContaining({
+        prompt: "Scene one shifts into scene two with @Element01 throughout.",
+        image_urls: ["https://example.com/start.png", "https://example.com/end.png"],
+        multi_shots: false,
+        kling_elements: [
+          {
+            name: "Element01",
+            description: "Reference images for Element01",
+            element_input_urls: ["https://example.com/element-a.png"],
           },
         ],
       })

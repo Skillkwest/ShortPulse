@@ -35,6 +35,8 @@ const baseInput = {
   extraImageUrls: [null, null, null] as [string | null, string | null, string | null],
   imageResolution: "model_default",
   videoGenerateAudio: false,
+  klingWorkflowMode: "single" as const,
+  klingMultiPrompts: [] as { id: string; prompt: string; duration: number }[],
   balanceCredits: null,
   costParamsForModel: makeCostParamsForModel("fal-ai/kling-video/v3/pro/image-to-video"),
 };
@@ -200,6 +202,40 @@ describe("useAiStudioViewModel motion guardrails", () => {
     expect(result.current.isGenerateDisabled).toBe(true);
     expect(result.current.referenceImageWarning).toBe(
       "Kling 3.0 requires a first frame image in Standard mode."
+    );
+  });
+
+  it("allows Kling 3.0 standard generation when only the optional last-frame slot is populated", () => {
+    const { result } = renderHook(() =>
+      useAiStudioViewModel({
+        ...baseInput,
+        model: "kie-ai/kling-3.0",
+        videoReferenceMode: "standard",
+        referenceImageUrl: null,
+        extraImageUrls: ["https://example.com/last.png", null, null],
+        motionReferenceVideoUrl: null,
+      })
+    );
+
+    expect(result.current.generationGuardrail).toBeNull();
+    expect(result.current.referenceImageWarning).toBeNull();
+  });
+
+  it("requires at least one custom Kling shot prompt in custom mode", () => {
+    const { result } = renderHook(() =>
+      useAiStudioViewModel({
+        ...baseInput,
+        model: "kie-ai/kling-3.0",
+        videoReferenceMode: "standard",
+        referenceImageUrl: "https://example.com/first.png",
+        motionReferenceVideoUrl: null,
+        klingWorkflowMode: "custom",
+        klingMultiPrompts: [{ id: "shot-1", prompt: "   ", duration: 5 }],
+      })
+    );
+
+    expect(result.current.generationGuardrail).toBe(
+      "Add at least one custom Kling shot prompt before generating."
     );
   });
 

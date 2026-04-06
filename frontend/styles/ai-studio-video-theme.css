@@ -18,7 +18,6 @@
   --ai-accent-medium: var(--video-accent-medium);
   --ai-accent-strong: var(--video-accent-strong);
   --ai-accent-shadow: var(--video-accent-shadow);
-  --video-selector-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.2);
   flex: 1 1 auto;
   min-height: 100%;
   align-self: stretch;
@@ -1309,7 +1308,7 @@
 .video-properties-panel .aspect-dropdown-trigger:focus-visible,
 .video-properties-panel .aspect-trigger[aria-expanded="true"] {
   border-color: rgba(201, 205, 214, 0.24);
-  box-shadow: var(--video-selector-shadow);
+  box-shadow: none;
   transform: none;
   background-color: var(--create-expert-selector-bg, var(--color-bg));
 }
@@ -1317,12 +1316,12 @@
 .video-properties-panel .video-settings-card-model-row .model-picker-btn,
 .video-properties-panel .video-settings-card .aspect-trigger,
 .video-properties-panel .video-settings-inline-controls > .video-settings-toggle-row--compact {
-  box-shadow: var(--video-selector-shadow);
+  box-shadow: none;
 }
 
 .video-properties-panel .video-settings-card-model-row .model-picker-btn:not(.is-empty) {
   border-color: rgba(201, 205, 214, 0.22);
-  box-shadow: var(--video-selector-shadow);
+  box-shadow: none;
 }
 
 .video-properties-panel .video-settings-card-model-row .model-picker-btn:not(.is-empty):hover,
@@ -1331,7 +1330,7 @@
   .model-picker-btn:not(.is-empty):focus-visible,
 .video-properties-panel .video-settings-card-model-row .model-picker-btn:not(.is-empty).is-open {
   border-color: rgba(201, 205, 214, 0.24);
-  box-shadow: var(--video-selector-shadow);
+  box-shadow: none;
   transform: none;
   background-color: var(--create-expert-selector-bg, var(--color-bg));
 }
@@ -1340,17 +1339,14 @@
 .video-properties-panel .video-settings-card-model-row .model-picker-btn.is-empty:hover,
 .video-properties-panel .video-settings-card-model-row .model-picker-btn.is-empty.is-open {
   border-color: var(--video-accent-strong, rgba(170, 101, 239, 0.9));
-  box-shadow:
-    var(--video-selector-shadow),
-    0 0 0 1px rgba(170, 101, 239, 0.26),
-    0 0 18px rgba(153, 42, 201, 0.2);
+  box-shadow: none;
   background-color: var(--create-expert-selector-bg, var(--color-bg));
 }
 
 .video-properties-panel .video-settings-card .fixed-select .model-select:hover,
 .video-properties-panel .video-settings-card .fixed-select .model-select:focus-visible {
   border-color: rgba(201, 205, 214, 0.24);
-  box-shadow: var(--video-selector-shadow);
+  box-shadow: none;
   transform: none;
   background-color: var(--create-expert-selector-bg, var(--color-bg));
 }

@@ -327,6 +327,7 @@ export function VideoPropertiesPanel({
   }, [createInitialMultiShot, isMultiShotEnabled, onKlingMultiPromptsChange]);
   const showShotModeSelector = activeVideoMode === "standard";
   const shouldShowShotModeSelector = showShotModeSelector && isKieKlingModelSelected;
+  const textareaResizeFrameMapRef = React.useRef(new WeakMap<HTMLTextAreaElement, number>());
 
   React.useEffect(() => {
     if (activeVideoMode !== "standard") {
@@ -340,9 +341,17 @@ export function VideoPropertiesPanel({
 
   const resizeTextareaToContent = React.useCallback((textarea: HTMLTextAreaElement | null) => {
     if (!textarea) return;
-    const computedMinHeight = Number.parseFloat(window.getComputedStyle(textarea).minHeight) || 0;
-    textarea.style.height = "auto";
-    textarea.style.height = `${Math.max(textarea.scrollHeight, computedMinHeight)}px`;
+    const previousFrameId = textareaResizeFrameMapRef.current.get(textarea);
+    if (typeof previousFrameId === "number") {
+      window.cancelAnimationFrame(previousFrameId);
+    }
+    const frameId = window.requestAnimationFrame(() => {
+      const computedMinHeight = Number.parseFloat(window.getComputedStyle(textarea).minHeight) || 0;
+      textarea.style.height = "auto";
+      textarea.style.height = `${Math.max(textarea.scrollHeight, computedMinHeight)}px`;
+      textareaResizeFrameMapRef.current.delete(textarea);
+    });
+    textareaResizeFrameMapRef.current.set(textarea, frameId);
   }, []);
 
   const handleAddShotPrompt = React.useCallback(() => {
@@ -359,16 +368,11 @@ export function VideoPropertiesPanel({
     setAdditionalPromptTexts([]);
   }, [additionalPromptTexts.length, shouldShowAddCustomShotButton]);
 
-  const handleAdditionalPromptChange = React.useCallback(
-    (index: number, value: string) => {
-      runWithViewTransition(() => {
-        setAdditionalPromptTexts((current) =>
-          current.map((promptText, promptIndex) => (promptIndex === index ? value : promptText))
-        );
-      });
-    },
-    [runWithViewTransition]
-  );
+  const handleAdditionalPromptChange = React.useCallback((index: number, value: string) => {
+    setAdditionalPromptTexts((current) =>
+      current.map((promptText, promptIndex) => (promptIndex === index ? value : promptText))
+    );
+  }, []);
   const handleRemoveShotPrompt = React.useCallback((index: number) => {
     setAdditionalPromptTexts((current) =>
       current.filter((_, promptIndex) => promptIndex !== index)
@@ -376,11 +380,9 @@ export function VideoPropertiesPanel({
   }, []);
   const handlePrimaryPromptChange = React.useCallback(
     (value: string) => {
-      runWithViewTransition(() => {
-        onPromptTextChange(value);
-      });
+      onPromptTextChange(value);
     },
-    [onPromptTextChange, runWithViewTransition]
+    [onPromptTextChange]
   );
   const showShotLabels = shouldShowAddCustomShotButton;
   const totalShotCount = 1 + additionalPromptTexts.length;

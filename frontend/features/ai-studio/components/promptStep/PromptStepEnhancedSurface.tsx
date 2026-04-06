@@ -48,12 +48,15 @@ export const PromptStepEnhancedSurface: React.FC<PromptStepEnhancedSurfaceProps>
 }) => {
   const textareaRef = React.useRef<HTMLTextAreaElement | null>(null);
 
-  React.useLayoutEffect(() => {
+  React.useEffect(() => {
     if (!autoResize || !textareaRef.current) return;
     const textarea = textareaRef.current;
-    const computedMinHeight = Number.parseFloat(window.getComputedStyle(textarea).minHeight) || 0;
-    textarea.style.height = "auto";
-    textarea.style.height = `${Math.max(textarea.scrollHeight, computedMinHeight)}px`;
+    const frameId = window.requestAnimationFrame(() => {
+      const computedMinHeight = Number.parseFloat(window.getComputedStyle(textarea).minHeight) || 0;
+      textarea.style.height = "auto";
+      textarea.style.height = `${Math.max(textarea.scrollHeight, computedMinHeight)}px`;
+    });
+    return () => window.cancelAnimationFrame(frameId);
   }, [autoResize, prompt]);
 
   return (

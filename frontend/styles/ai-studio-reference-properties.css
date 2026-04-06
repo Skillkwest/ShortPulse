@@ -452,7 +452,6 @@
   background: var(--create-expert-selector-bg, var(--color-bg)) !important;
   background-color: var(--create-expert-selector-bg, var(--color-bg)) !important;
   border: 1px solid rgba(201, 205, 214, 0.22);
-  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.2);
   padding: 0 12px;
 }
 
@@ -491,7 +490,6 @@
 .video-settings-popover .aspect-dropdown-trigger {
   border-color: rgba(196, 201, 210, 0.16);
   background: var(--video-settings-modal-control-bg);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.025);
   min-height: var(--video-settings-modal-control-height);
   border-radius: var(--video-settings-modal-control-radius);
 }
@@ -537,7 +535,6 @@
 .video-settings-popover .aspect-dropdown-trigger:hover,
 .video-settings-popover .aspect-dropdown-trigger:focus-visible {
   border-color: rgba(201, 205, 214, 0.24);
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.035);
   background: var(--create-expert-selector-bg, var(--color-bg));
 }
 
@@ -555,7 +552,6 @@
   border-radius: 12px;
   background: var(--video-settings-modal-control-bg);
   border: 1px solid rgba(196, 201, 210, 0.14);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.022);
 }
 
 .video-settings-toggle-row--compact {
@@ -604,7 +600,6 @@
 .video-settings-popover .audio-toggle.is-active {
   background: rgba(104, 111, 121, 0.92);
   border-color: rgba(173, 180, 190, 0.38);
-  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.2);
 }
 
 .video-settings-popover .audio-toggle.is-active .audio-toggle-dot {
@@ -1000,11 +995,21 @@
 }
 
 .motion-drop-row .dropzone-tag {
-  font-size: 14px;
-}
-
-.motion-drop-row .dropzone-tag svg {
-  opacity: 0.9;
+  top: 12px;
+  left: 12px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: rgba(201, 205, 214, 0.08);
+  border: 1px solid rgba(201, 205, 214, 0.1);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  max-width: calc(100% - 24px);
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .motion-drop-row .primary-drop:first-child .reference-dropzone {

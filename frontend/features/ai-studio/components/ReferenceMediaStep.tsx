@@ -126,7 +126,7 @@ export const ReferenceMediaStep: React.FC<ReferenceMediaStepProps> = ({
                 referenceImageUrl ? { backgroundImage: `url(${referenceImageUrl})` } : undefined
               }
             >
-              <span className="dropzone-tag">Character image</span>
+              <span className="dropzone-tag">Character</span>
               {referenceImageUrl ? (
                 <button
                   type="button"
@@ -163,7 +163,7 @@ export const ReferenceMediaStep: React.FC<ReferenceMediaStepProps> = ({
               onDragLeave={() => setMotionVideoDragActive(false)}
               onClick={() => motionVideoInputRef.current?.click()}
             >
-              <span className="dropzone-tag">Motion video</span>
+              <span className="dropzone-tag">Motion</span>
               {motionVideoUrl ? (
                 <>
                   <video

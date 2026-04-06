@@ -2,16 +2,22 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { VideoSubmissionArgs } from "../types";
 import { getModelConfig } from "../../../logic/pricing";
 import { handleVideoModelSubmission } from "../videoHandlers";
-import { submitKieKlingImageToVideo, submitKieVeoImageToVideo } from "../../../../../lib/falClient";
+import {
+  submitKieKlingImageToVideo,
+  submitKieSeedanceVideo,
+  submitKieVeoImageToVideo,
+} from "../../../../../lib/falClient";
 import { fetchWithAuth } from "../../../../../lib/authenticatedFetch";
 import { getSignedMediaUrl } from "../../../../../lib/mediaSignedUrlCache";
 import {
   KIE_KLING_30_MODEL_ID,
+  KIE_SEEDANCE_15_PRO_MODEL_ID,
   KIE_VEO_31_FAST_I2V_MODEL_ID,
 } from "../../../../../lib/model-runtime/providerModelIds";
 
 vi.mock("../../../../../lib/falClient", () => ({
   submitKieKlingImageToVideo: vi.fn(),
+  submitKieSeedanceVideo: vi.fn(),
   submitKieVeoImageToVideo: vi.fn(),
   submitFalSeedance: vi.fn(),
   submitFalSeedanceI2V: vi.fn(),
@@ -406,6 +412,76 @@ describe("handleVideoModelSubmission (Kie Veo keyframes)", () => {
   });
 });
 
+describe("handleVideoModelSubmission (Kie Seedance 1.5 Pro)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    vi.mocked(submitKieSeedanceVideo).mockResolvedValue({ request_id: "kie-seedance-1" });
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("submits prompt-only Seedance payloads when no frame images are present", async () => {
+    const args = makeArgs({
+      finalModel: KIE_SEEDANCE_15_PRO_MODEL_ID,
+      modelConfig: getModelConfig(KIE_SEEDANCE_15_PRO_MODEL_ID),
+      preparedImageInputs: [],
+      requestedDurationSeconds: 5,
+      requestedResolution: "1080p",
+      aspect: "21:9",
+      videoReferenceMode: "standard",
+      videoCameraFixed: true,
+    });
+
+    const handled = await handleVideoModelSubmission(args);
+
+    expect(handled).toBe(true);
+    expect(submitKieSeedanceVideo).toHaveBeenCalledWith({
+      prompt: "A dancer twirls",
+      input_urls: [],
+      aspect_ratio: "21:9",
+      duration: "8",
+      resolution: "1080p",
+      fixed_lens: true,
+      generate_audio: true,
+    });
+    expect(args.startPollingWithGeneration).toHaveBeenCalledWith(
+      "kie-seedance-1",
+      "kie-seedance",
+      undefined,
+      { request_id: "kie-seedance-1" }
+    );
+  });
+
+  it("submits one or two input URLs for Seedance image lanes", async () => {
+    const args = makeArgs({
+      finalModel: KIE_SEEDANCE_15_PRO_MODEL_ID,
+      modelConfig: getModelConfig(KIE_SEEDANCE_15_PRO_MODEL_ID),
+      preparedImageInputs: ["https://example.com/first.png", "https://example.com/last.png"],
+      requestedDurationSeconds: 12,
+      requestedResolution: "480p",
+      aspect: "9:16",
+      requestedAudio: false,
+      videoReferenceMode: "standard",
+    });
+
+    const handled = await handleVideoModelSubmission(args);
+
+    expect(handled).toBe(true);
+    expect(submitKieSeedanceVideo).toHaveBeenCalledWith({
+      prompt: "A dancer twirls",
+      input_urls: ["https://example.com/first.png", "https://example.com/last.png"],
+      aspect_ratio: "9:16",
+      duration: "12",
+      resolution: "480p",
+      fixed_lens: false,
+      generate_audio: false,
+    });
+  });
+});
+
 describe("handleVideoModelSubmission (Kie Kling standard)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -683,7 +759,7 @@ describe("handleVideoModelSubmission (Fal Seedance text-to-video)", () => {
     expect(handled).toBe(true);
     expect(args.notifyGenerationFailure).toHaveBeenCalledWith(
       "out-1",
-      "Fal-hosted video generation is disabled. Use Kie Veo 3.1 or Kie Kling 3.0 instead."
+      "Fal-hosted video generation is disabled. Use Kie Veo 3.1, Kie Kling 3.0, or Kie Seedance 1.5 instead."
     );
   });
 
@@ -700,7 +776,7 @@ describe("handleVideoModelSubmission (Fal Seedance text-to-video)", () => {
     expect(handled).toBe(true);
     expect(args.notifyGenerationFailure).toHaveBeenCalledWith(
       "out-1",
-      "Fal-hosted video generation is disabled. Use Kie Veo 3.1 or Kie Kling 3.0 instead."
+      "Fal-hosted video generation is disabled. Use Kie Veo 3.1, Kie Kling 3.0, or Kie Seedance 1.5 instead."
     );
   });
 });

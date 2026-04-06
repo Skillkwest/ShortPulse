@@ -4,6 +4,7 @@
 import type { SubmissionHandlerRoute } from "./types";
 import {
   KIE_KLING_30_MODEL_ID,
+  KIE_SEEDANCE_15_PRO_MODEL_ID,
   KIE_VEO_31_FAST_I2V_MODEL_ID,
 } from "../../../../lib/model-runtime/providerModelIds";
 
@@ -17,6 +18,7 @@ const VIDEO_MODELS = new Set([
   "fal-ai/veo3.1",
   KIE_VEO_31_FAST_I2V_MODEL_ID,
   KIE_KLING_30_MODEL_ID,
+  KIE_SEEDANCE_15_PRO_MODEL_ID,
 ]);
 
 const IMAGE_MODELS = new Set([

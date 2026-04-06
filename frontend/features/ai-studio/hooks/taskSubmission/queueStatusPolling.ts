@@ -116,10 +116,18 @@ export const resolveDispatchedPollingProvider = ({
     const providerToken = queueStatusProvider?.trim().toLowerCase();
     if (providerToken === "kie") {
       const modelScopedProvider = normalizeProviderForPolling(queueStatusModelId, submitProvider);
-      if (modelScopedProvider === "kie-kling" || modelScopedProvider === "kie-veo") {
+      if (
+        modelScopedProvider === "kie-kling" ||
+        modelScopedProvider === "kie-veo" ||
+        modelScopedProvider === "kie-seedance"
+      ) {
         return modelScopedProvider;
       }
-      if (submitProvider === "kie-kling" || submitProvider === "kie-veo") {
+      if (
+        submitProvider === "kie-kling" ||
+        submitProvider === "kie-veo" ||
+        submitProvider === "kie-seedance"
+      ) {
         return submitProvider;
       }
     }

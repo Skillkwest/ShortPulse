@@ -102,6 +102,20 @@ const modelMeta: Record<string, ModelMeta> = {
       "Kie Kling 3.0 supports image-to-video and motion-control workflows with native audio.",
     tags: ["Video", "Image-to-Video", "Motion Transfer", "5-10s", "Audio"],
   },
+  "kie-ai/seedance-1.5-pro": {
+    provider: "Kie AI",
+    description:
+      "Kie Seedance 1.5 Pro supports prompt-only video, one-image animation, first/last-frame transitions, fixed lens, and optional audio.",
+    tags: [
+      "Video",
+      "Text-to-Video",
+      "Image-to-Video",
+      "First/Last Frame",
+      "4-12s",
+      "480p-1080p",
+      "Audio",
+    ],
+  },
   "fal-ai/bytedance/seedream/v4.5/text-to-image": {
     provider: "ByteDance",
     description:

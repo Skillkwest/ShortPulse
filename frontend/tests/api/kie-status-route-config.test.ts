@@ -44,4 +44,21 @@ describe("Kie status route wiring", () => {
       timeoutMs: getKieTimeoutMsOrDefault(KIE_KLING_30_MODEL_ID, 60000),
     });
   });
+
+  it("wires kie-seedance-status with explicit modelId", async () => {
+    const { KIE_SEEDANCE_15_PRO_MODEL_ID } =
+      await import("../../lib/model-runtime/providerModelIds");
+    const { getKieStatusBaseUrlsRequired, getKieTimeoutMsOrDefault } =
+      await import("../../lib/server/api/falRouteConfig");
+
+    await import("../../pages/api/fal/kie-seedance-status");
+
+    expect(createFalStatusHandlerMock).toHaveBeenCalledWith({
+      provider: "kie",
+      modelId: KIE_SEEDANCE_15_PRO_MODEL_ID,
+      queueBaseUrl: getKieStatusBaseUrlsRequired(KIE_SEEDANCE_15_PRO_MODEL_ID),
+      routeLabel: "Kie Seedance 1.5 Pro",
+      timeoutMs: getKieTimeoutMsOrDefault(KIE_SEEDANCE_15_PRO_MODEL_ID, 60000),
+    });
+  });
 });

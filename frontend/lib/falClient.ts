@@ -620,6 +620,10 @@ const submitEndpointRegistry = {
     route: `${FAL_API_BASE}/kie-kling-submit`,
     missingRequestIdMessage: "Kie Kling 3.0 did not return a request_id",
   },
+  kieSeedanceVideo: {
+    route: `${FAL_API_BASE}/kie-seedance-submit`,
+    missingRequestIdMessage: "Kie Seedance 1.5 Pro did not return a request_id",
+  },
 } as const;
 
 type StatusEndpointConfig = {
@@ -711,6 +715,10 @@ const statusEndpointRegistry = {
   },
   kieKlingImageToVideo: {
     route: `${FAL_API_BASE}/kie-kling-status`,
+    statusTimeoutMs: STATUS_TIMEOUT_STANDARD_MS,
+  },
+  kieSeedanceVideo: {
+    route: `${FAL_API_BASE}/kie-seedance-status`,
     statusTimeoutMs: STATUS_TIMEOUT_STANDARD_MS,
   },
 } as const satisfies Record<string, StatusEndpointConfig>;
@@ -945,3 +953,8 @@ export const submitKieKlingImageToVideo = (payload: KieSubmitRequest) =>
   submitFalEndpoint("kieKlingImageToVideo", payload);
 export const fetchKieKlingImageToVideoStatus = (requestId: string) =>
   fetchFalStatusEndpoint<FalStatusResponse>("kieKlingImageToVideo", requestId);
+
+export const submitKieSeedanceVideo = (payload: KieSubmitRequest) =>
+  submitFalEndpoint("kieSeedanceVideo", payload);
+export const fetchKieSeedanceVideoStatus = (requestId: string) =>
+  fetchFalStatusEndpoint<FalStatusResponse>("kieSeedanceVideo", requestId);

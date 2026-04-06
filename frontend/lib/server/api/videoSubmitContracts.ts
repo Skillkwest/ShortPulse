@@ -7,6 +7,7 @@
 import { getModelConfig } from "../../model-runtime/pricing";
 import {
   KIE_KLING_30_MODEL_ID,
+  KIE_SEEDANCE_15_PRO_MODEL_ID,
   KIE_VEO_31_FAST_I2V_MODEL_ID,
 } from "../../model-runtime/providerModelIds";
 
@@ -74,6 +75,14 @@ const VIDEO_ALIAS_MAP_BY_MODEL_ID: Record<string, Record<string, string>> = {
     characterOrientation: "character_orientation",
     backgroundSource: "background_source",
     cfgScale: "cfg_scale",
+  },
+  [KIE_SEEDANCE_15_PRO_MODEL_ID]: {
+    callBackUrl: "callback_url",
+    inputUrl: "input_url",
+    inputUrls: "input_urls",
+    fixedLens: "fixed_lens",
+    generateAudio: "generate_audio",
+    aspectRatio: "aspect_ratio",
   },
 };
 

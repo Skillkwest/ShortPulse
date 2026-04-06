@@ -74,4 +74,12 @@ describe("ReferenceVideoSettingsStep", () => {
 
     expect(baseProps.onVideoGenerateAudioChange).toHaveBeenCalledWith(false);
   });
+
+  it("shows the Seedance fixed-lens toggle only for Seedance video models", () => {
+    render(<ReferenceVideoSettingsStep {...baseProps} isSeedanceI2VModel videoCameraFixed />);
+
+    expect(screen.getByText("Camera Fixed")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Unlock camera" }));
+    expect(baseProps.onVideoCameraFixedChange).toHaveBeenCalledWith(false);
+  });
 });

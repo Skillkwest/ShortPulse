@@ -4,6 +4,7 @@
 import { describe, expect, it } from "vitest";
 import {
   KIE_KLING_30_MODEL_ID,
+  KIE_SEEDANCE_15_PRO_MODEL_ID,
   KIE_VEO_31_FAST_I2V_MODEL_ID,
 } from "../../../../lib/model-runtime/providerModelIds";
 import type { ModelOption } from "../../constants";
@@ -91,6 +92,11 @@ const videoReferenceOptions: ModelOption[] = [
     label: "Kling 3.0 (Kie)",
     mediaType: "image-to-video",
   },
+  {
+    value: KIE_SEEDANCE_15_PRO_MODEL_ID,
+    label: "Seedance 1.5 Pro (Kie)",
+    mediaType: "image-to-video",
+  },
 ];
 
 const getModelConfig = (id: string) => {
@@ -120,7 +126,11 @@ const getModelConfig = (id: string) => {
       supportsImageToImage: true,
     };
   }
-  if (id === KIE_VEO_31_FAST_I2V_MODEL_ID || id === KIE_KLING_30_MODEL_ID) {
+  if (
+    id === KIE_VEO_31_FAST_I2V_MODEL_ID ||
+    id === KIE_KLING_30_MODEL_ID ||
+    id === KIE_SEEDANCE_15_PRO_MODEL_ID
+  ) {
     return {
       provider: "kie",
       supportsTextToImage: false,
@@ -236,7 +246,11 @@ describe("modelSelectionPolicy", () => {
       getModelConfig,
     }).map((option) => option.value);
 
-    expect(values).toEqual([KIE_VEO_31_FAST_I2V_MODEL_ID, KIE_KLING_30_MODEL_ID]);
+    expect(values).toEqual([
+      KIE_VEO_31_FAST_I2V_MODEL_ID,
+      KIE_KLING_30_MODEL_ID,
+      KIE_SEEDANCE_15_PRO_MODEL_ID,
+    ]);
   });
 
   it("narrows standard video selection to text-capable models when the resolved lane is text", () => {
@@ -249,7 +263,11 @@ describe("modelSelectionPolicy", () => {
       getModelConfig,
     }).map((option) => option.value);
 
-    expect(values).toEqual([KIE_VEO_31_FAST_I2V_MODEL_ID, KIE_KLING_30_MODEL_ID]);
+    expect(values).toEqual([
+      KIE_VEO_31_FAST_I2V_MODEL_ID,
+      KIE_KLING_30_MODEL_ID,
+      KIE_SEEDANCE_15_PRO_MODEL_ID,
+    ]);
   });
 
   it("narrows standard video selection to single-image models when the resolved lane is single-image", () => {
@@ -262,7 +280,11 @@ describe("modelSelectionPolicy", () => {
       getModelConfig,
     }).map((option) => option.value);
 
-    expect(values).toEqual([KIE_VEO_31_FAST_I2V_MODEL_ID, KIE_KLING_30_MODEL_ID]);
+    expect(values).toEqual([
+      KIE_VEO_31_FAST_I2V_MODEL_ID,
+      KIE_KLING_30_MODEL_ID,
+      KIE_SEEDANCE_15_PRO_MODEL_ID,
+    ]);
   });
 
   it("keeps first-last video selection on Kie-only compatible models", () => {
@@ -275,7 +297,11 @@ describe("modelSelectionPolicy", () => {
       getModelConfig,
     }).map((option) => option.value);
 
-    expect(values).toEqual([KIE_VEO_31_FAST_I2V_MODEL_ID, KIE_KLING_30_MODEL_ID]);
+    expect(values).toEqual([
+      KIE_VEO_31_FAST_I2V_MODEL_ID,
+      KIE_KLING_30_MODEL_ID,
+      KIE_SEEDANCE_15_PRO_MODEL_ID,
+    ]);
   });
 
   it("keeps keyframes mode restricted to Kie Veo", () => {

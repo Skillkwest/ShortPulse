@@ -8,6 +8,7 @@ import {
   fetchFalSeedreamStatus,
   fetchFalStatus,
   fetchKieKlingImageToVideoStatus,
+  fetchKieSeedanceVideoStatus,
   fetchKieVeoImageToVideoStatus,
 } from "../../../../lib/falClient";
 
@@ -36,6 +37,7 @@ vi.mock("../../../../lib/falClient", () => ({
   fetchFalVeoImageToVideoStatus: vi.fn(),
   fetchKieVeoImageToVideoStatus: vi.fn(),
   fetchKieKlingImageToVideoStatus: vi.fn(),
+  fetchKieSeedanceVideoStatus: vi.fn(),
 }));
 
 const makeOutput = (): StudioOutput => ({
@@ -70,6 +72,10 @@ const asKieKlingStatusResponse = (
   value: unknown
 ): Awaited<ReturnType<typeof fetchKieKlingImageToVideoStatus>> =>
   value as Awaited<ReturnType<typeof fetchKieKlingImageToVideoStatus>>;
+const asKieSeedanceStatusResponse = (
+  value: unknown
+): Awaited<ReturnType<typeof fetchKieSeedanceVideoStatus>> =>
+  value as Awaited<ReturnType<typeof fetchKieSeedanceVideoStatus>>;
 
 const flushQueuedOutputUpdates = async () => {
   await Promise.resolve();
@@ -82,6 +88,7 @@ describe("useAiStudioTasks", () => {
   const fetchFalSeedreamStatusMock = vi.mocked(fetchFalSeedreamStatus);
   const fetchKieVeoImageToVideoStatusMock = vi.mocked(fetchKieVeoImageToVideoStatus);
   const fetchKieKlingImageToVideoStatusMock = vi.mocked(fetchKieKlingImageToVideoStatus);
+  const fetchKieSeedanceVideoStatusMock = vi.mocked(fetchKieSeedanceVideoStatus);
 
   beforeEach(() => {
     vi.useFakeTimers();
@@ -1073,6 +1080,59 @@ describe("useAiStudioTasks", () => {
     );
     expect(output.taskState).toBe("success");
     expect(output.previewUrl).toBe("https://cdn.test/kie-kling-result.mp4");
+  });
+
+  it("marks Kie Seedance outputs successful from resultUrls payloads", async () => {
+    fetchKieSeedanceVideoStatusMock.mockImplementationOnce(async () =>
+      asKieSeedanceStatusResponse({
+        status: "completed",
+        data: {
+          resultUrls: ["https://cdn.test/kie-seedance-result.mp4"],
+        },
+        shortpulseLifecycle: {
+          taskState: "success",
+          isTerminal: true,
+          resultUrls: ["https://cdn.test/kie-seedance-result.mp4"],
+        },
+      })
+    );
+
+    let output = makeOutput();
+    const updateOutputById = vi.fn((id: string, updater: (item: StudioOutput) => StudioOutput) => {
+      if (id === output.id) {
+        output = updater(output);
+      }
+    });
+    const notifyGenerationFailure = vi.fn();
+    const onGenerationSuccess = vi.fn();
+
+    const { result } = renderHook(() =>
+      useAiStudioTasks({
+        updateOutputById,
+        notifyGenerationFailure,
+        onGenerationSuccess,
+      })
+    );
+
+    act(() => {
+      result.current.startPollingTask("kie-seedance-task-1", "out-1", 0, "kie-seedance");
+    });
+
+    await vi.advanceTimersByTimeAsync(2_300);
+    await flushQueuedOutputUpdates();
+
+    expect(fetchKieSeedanceVideoStatusMock).toHaveBeenCalledWith("kie-seedance-task-1");
+    expect(notifyGenerationFailure).not.toHaveBeenCalled();
+    expect(onGenerationSuccess).toHaveBeenCalledWith(
+      expect.objectContaining({
+        outputId: "out-1",
+        taskId: "kie-seedance-task-1",
+        provider: "kie-seedance",
+        resultUrls: ["https://cdn.test/kie-seedance-result.mp4"],
+      })
+    );
+    expect(output.taskState).toBe("success");
+    expect(output.previewUrl).toBe("https://cdn.test/kie-seedance-result.mp4");
   });
 
   it("treats done states as terminal and hands off to server recovery", async () => {

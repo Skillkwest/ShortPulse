@@ -131,6 +131,7 @@ describe("useAiStudioPageDerivations", () => {
     expect(values.has("fal-ai/veo3.1")).toBe(false);
     expect(values.has("kie-ai/veo-3.1-fast-i2v")).toBe(true);
     expect(values.has("kie-ai/kling-3.0")).toBe(true);
+    expect(values.has("kie-ai/seedance-1.5-pro")).toBe(true);
     expect(values.has("fal-ai/kling-video/v3/pro/text-to-video")).toBe(false);
     expect(values.has("fal-ai/bytedance/seedance/v1.5/pro/text-to-video")).toBe(false);
   });
@@ -152,6 +153,7 @@ describe("useAiStudioPageDerivations", () => {
     expect(values.has("kie-ai/veo-3.1-fast-i2v")).toBe(true);
     expect(values.has("fal-ai/kling-video/v3/pro/image-to-video")).toBe(false);
     expect(values.has("kie-ai/kling-3.0")).toBe(true);
+    expect(values.has("kie-ai/seedance-1.5-pro")).toBe(true);
     expect(values.has("fal-ai/veo3.1")).toBe(false);
     expect(values.has("fal-ai/bytedance/seedance/v1.5/pro/image-to-video")).toBe(false);
   });
@@ -169,7 +171,9 @@ describe("useAiStudioPageDerivations", () => {
     );
 
     const values = new Set(result.current.filteredModelOptions.map((option) => option.value));
-    expect(values).toEqual(new Set(["kie-ai/veo-3.1-fast-i2v", "kie-ai/kling-3.0"]));
+    expect(values).toEqual(
+      new Set(["kie-ai/veo-3.1-fast-i2v", "kie-ai/kling-3.0", "kie-ai/seedance-1.5-pro"])
+    );
   });
 
   it("hides Fal.ai chips when Kling 3.0 is the active video model", () => {
@@ -190,5 +194,6 @@ describe("useAiStudioPageDerivations", () => {
     expect(values.has("fal-ai/bytedance/seedance/v1.5/pro/text-to-video")).toBe(false);
     expect(values.has("kie-ai/kling-3.0")).toBe(true);
     expect(values.has("kie-ai/veo-3.1-fast-i2v")).toBe(true);
+    expect(values.has("kie-ai/seedance-1.5-pro")).toBe(true);
   });
 });

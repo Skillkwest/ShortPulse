@@ -4,10 +4,12 @@
 import {
   type FalSubmitResponse,
   submitKieKlingImageToVideo,
+  submitKieSeedanceVideo,
   submitKieVeoImageToVideo,
 } from "../../../../lib/falClient";
 import {
   KIE_KLING_30_MODEL_ID,
+  KIE_SEEDANCE_15_PRO_MODEL_ID,
   KIE_VEO_31_FAST_I2V_MODEL_ID,
 } from "../../../../lib/model-runtime/providerModelIds";
 import { needsVideoUpload, prepareVideoUrlForSubmission } from "../../utils/videoUpload";
@@ -18,6 +20,9 @@ import {
   resolveKieKlingDuration,
   resolveKieKlingMode,
   resolveKlingResolution,
+  resolveSeedanceI2VDuration,
+  resolveSeedanceI2VResolution,
+  resolveSeedanceTextAspect,
 } from "./videoPayloads";
 
 const FAL_KLING_IMAGE_MODEL_ID = "fal-ai/kling-video/v3/pro/image-to-video";
@@ -30,7 +35,7 @@ const FAL_VEO_DISABLED_MESSAGE = "Fal Veo 3.1 is disabled. Use Kie Veo 3.1 inste
 const FAL_SEEDANCE_TEXT_MODEL_ID = "fal-ai/bytedance/seedance/v1.5/pro/text-to-video";
 const FAL_SEEDANCE_IMAGE_MODEL_ID = "fal-ai/bytedance/seedance/v1.5/pro/image-to-video";
 const FAL_NON_KIE_VIDEO_DISABLED_MESSAGE =
-  "Fal-hosted video generation is disabled. Use Kie Veo 3.1 or Kie Kling 3.0 instead.";
+  "Fal-hosted video generation is disabled. Use Kie Veo 3.1, Kie Kling 3.0, or Kie Seedance 1.5 instead.";
 
 const isCharacterScopedMediaUrl = (value: string): boolean => {
   const normalized = (() => {
@@ -58,7 +63,8 @@ const handoffSubmitResponse = ({
     | "fal-veo"
     | "fal-veo-i2v"
     | "kie-veo"
-    | "kie-kling";
+    | "kie-kling"
+    | "kie-seedance";
   patch?: Parameters<VideoSubmissionArgs["startPollingWithGeneration"]>[2];
   startPollingWithGeneration: VideoSubmissionArgs["startPollingWithGeneration"];
 }) => {
@@ -85,12 +91,14 @@ export const handleVideoModelSubmission = async ({
   requestedResolution,
   requestedAudio,
   preparedImageInputs,
+  modelConfig,
   notifyGenerationFailure,
   updateOutputById,
   startPollingWithGeneration,
   videoReferenceMode,
   videoReferenceImageUrl,
   motionReferenceVideoUrl,
+  videoCameraFixed,
   klingCfgScale,
   klingWorkflowMode,
   klingMultiPrompts,
@@ -156,6 +164,28 @@ export const handleVideoModelSubmission = async ({
 
   if (finalModel === FAL_SEEDANCE_TEXT_MODEL_ID || finalModel === FAL_SEEDANCE_IMAGE_MODEL_ID) {
     notifyGenerationFailure(id, FAL_NON_KIE_VIDEO_DISABLED_MESSAGE);
+    return true;
+  }
+
+  if (finalModel === KIE_SEEDANCE_15_PRO_MODEL_ID) {
+    const inputUrls =
+      preparedImageInputs.length >= 2
+        ? preparedImageInputs.slice(0, 2)
+        : preparedImageInputs.slice(0, 1);
+    const response = await submitKieSeedanceVideo({
+      prompt: cleanedPrompt,
+      input_urls: inputUrls,
+      aspect_ratio: resolveSeedanceTextAspect(aspect, modelConfig),
+      duration: resolveSeedanceI2VDuration(requestedDurationSeconds),
+      resolution: resolveSeedanceI2VResolution(requestedResolution),
+      fixed_lens: videoCameraFixed,
+      generate_audio: requestedAudio,
+    });
+    handoffSubmitResponse({
+      response,
+      pollingProvider: "kie-seedance",
+      startPollingWithGeneration,
+    });
     return true;
   }
 

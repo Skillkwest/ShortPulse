@@ -319,6 +319,7 @@ const normalizeProviderToken = (value: string | null | undefined): string | null
     return "fal";
   }
   if (normalized.startsWith("kie")) {
+    if (normalized.includes("seedance")) return "kie-seedance";
     return normalized.includes("kling") ? "kie-kling" : "kie-veo";
   }
   return null;

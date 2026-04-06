@@ -5,6 +5,7 @@
 import { startTransition, useCallback, useEffect, useRef } from "react";
 import {
   fetchKieKlingImageToVideoStatus,
+  fetchKieSeedanceVideoStatus,
   fetchKieVeoImageToVideoStatus,
   fetchFalBriaBackgroundRemoveStatus,
   fetchFalFlux2ProStatus,
@@ -230,6 +231,8 @@ const fetchStatusByProvider = async (provider: Provider, taskId: string) => {
       return fetchKieVeoImageToVideoStatus(taskId);
     case "kie-kling":
       return fetchKieKlingImageToVideoStatus(taskId);
+    case "kie-seedance":
+      return fetchKieSeedanceVideoStatus(taskId);
     default:
       return fetchFalStatus(taskId);
   }

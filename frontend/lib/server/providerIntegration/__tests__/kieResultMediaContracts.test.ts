@@ -7,7 +7,11 @@ import {
   extractKieResultMediaUrls,
   isSupportedKieResultMediaModel,
 } from "../kieResultMediaContracts";
-import { KIE_KLING_30_MODEL_ID, KIE_VEO_31_FAST_I2V_MODEL_ID } from "../kieModelIds";
+import {
+  KIE_KLING_30_MODEL_ID,
+  KIE_SEEDANCE_15_PRO_MODEL_ID,
+  KIE_VEO_31_FAST_I2V_MODEL_ID,
+} from "../kieModelIds";
 import {
   kieKlingCallbackSuccessFixture,
   kieKlingRecordInfoSuccessFixture,
@@ -18,7 +22,20 @@ describe("kieResultMediaContracts", () => {
   it("tracks supported Kie media models", () => {
     expect(isSupportedKieResultMediaModel(KIE_VEO_31_FAST_I2V_MODEL_ID)).toBe(true);
     expect(isSupportedKieResultMediaModel(KIE_KLING_30_MODEL_ID)).toBe(true);
+    expect(isSupportedKieResultMediaModel(KIE_SEEDANCE_15_PRO_MODEL_ID)).toBe(true);
     expect(isSupportedKieResultMediaModel("kie-ai/unknown")).toBe(false);
+  });
+
+  it("extracts media URLs for Kie Seedance payloads through fallback candidates", () => {
+    const urls = extractKieResultMediaUrls({
+      modelId: KIE_SEEDANCE_15_PRO_MODEL_ID,
+      payload: {
+        data: {
+          resultUrls: ["https://cdn.shortpulse.test/kie-seedance-result.mp4"],
+        },
+      },
+    });
+    expect(urls).toEqual(["https://cdn.shortpulse.test/kie-seedance-result.mp4"]);
   });
 
   it("extracts model-aware media URLs for Kie VEO i2v payloads", () => {

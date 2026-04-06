@@ -145,10 +145,10 @@ export const resolveSeedanceTextResolution = (
 };
 
 /**
- * Clamps Seedance image-to-video duration to API-supported range.
+ * Maps Seedance 1.5 duration to API-supported values.
  */
 export const resolveSeedanceI2VDuration = (requestedDurationSeconds: number): string =>
-  Math.max(4, Math.min(12, requestedDurationSeconds)).toString();
+  requestedDurationSeconds <= 4 ? "4" : requestedDurationSeconds <= 8 ? "8" : "12";
 
 /**
  * Resolves VEO text-to-video aspect ratio with model defaults.

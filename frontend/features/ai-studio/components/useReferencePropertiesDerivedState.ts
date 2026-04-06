@@ -7,6 +7,7 @@ import { getModelConfig } from "../logic/modelRegistry";
 import { clampImageResolutionForModel, getImageResolutionOptions } from "../logic/imageResolution";
 import {
   KIE_KLING_30_MODEL_ID,
+  KIE_SEEDANCE_15_PRO_MODEL_ID,
   KIE_VEO_31_FAST_I2V_MODEL_ID,
 } from "../../../lib/model-runtime/providerModelIds";
 
@@ -81,7 +82,7 @@ export const useReferencePropertiesDerivedState = ({
   const isVeoImageToVideoModel = modelId === KIE_VEO_31_FAST_I2V_MODEL_ID;
   const isVeoImageToVideoStandard = isStandardMode && isVeoImageToVideoModel;
   const isVeoFirstLastModel = isKeyframesMode && modelId === KIE_VEO_31_FAST_I2V_MODEL_ID;
-  const isSeedanceI2VModel = modelId === "fal-ai/bytedance/seedance/v1.5/pro/image-to-video";
+  const isSeedanceI2VModel = modelId === KIE_SEEDANCE_15_PRO_MODEL_ID;
   const isVeoModel =
     modelId?.includes("veo3.1") === true ||
     modelId?.includes("veo-3.1") === true ||

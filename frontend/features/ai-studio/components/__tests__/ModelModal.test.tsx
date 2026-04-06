@@ -5,6 +5,7 @@ import { ModelModal } from "../ModelModal";
 import type { ModelOption } from "../../constants";
 import {
   KIE_KLING_30_MODEL_ID,
+  KIE_SEEDANCE_15_PRO_MODEL_ID,
   KIE_VEO_31_FAST_I2V_MODEL_ID,
 } from "../../../../lib/model-runtime/providerModelIds";
 
@@ -131,6 +132,11 @@ describe("ModelModal", () => {
         label: "Kling 3.0 (Kie)",
         mediaType: "image-to-video",
       },
+      {
+        value: KIE_SEEDANCE_15_PRO_MODEL_ID,
+        label: "Seedance 1.5 Pro (Kie)",
+        mediaType: "image-to-video",
+      },
     ];
 
     const { container } = render(
@@ -145,7 +151,11 @@ describe("ModelModal", () => {
 
     expect(screen.getByText("Video")).toBeInTheDocument();
     expect(screen.queryByText("Text-to-Video")).not.toBeInTheDocument();
-    expect(readChipTitles(container)).toEqual(["Veo 3.1 Fast I2V (Kie)", "Kling 3.0 (Kie)"]);
+    expect(readChipTitles(container)).toEqual([
+      "Veo 3.1 Fast I2V (Kie)",
+      "Kling 3.0 (Kie)",
+      "Seedance 1.5 Pro (Kie)",
+    ]);
   });
 
   it("orders text-image chips by provider-grouped workflow priority", () => {

@@ -3,7 +3,11 @@
  */
 import { PricingStrategyId } from "./pricingTypes";
 import { AspectSize, falImageSizeMap } from "./modelSizes";
-import { KIE_KLING_30_MODEL_ID, KIE_VEO_31_FAST_I2V_MODEL_ID } from "./providerModelIds";
+import {
+  KIE_KLING_30_MODEL_ID,
+  KIE_SEEDANCE_15_PRO_MODEL_ID,
+  KIE_VEO_31_FAST_I2V_MODEL_ID,
+} from "./providerModelIds";
 import {
   getModelAllowedAspects,
   getModelAllowedDurations,
@@ -659,6 +663,34 @@ const registry: Record<string, ModelConfig> = {
     defaultAudio: true,
     allowedResolutions: contractAllowedResolutions(KIE_KLING_30_MODEL_ID, ["720p", "1080p"]),
     allowedDurations: contractAllowedDurations(KIE_KLING_30_MODEL_ID, [5, 10]),
+    supportsImageToVideo: true,
+  },
+  [KIE_SEEDANCE_15_PRO_MODEL_ID]: {
+    id: KIE_SEEDANCE_15_PRO_MODEL_ID,
+    label: "Seedance 1.5 Pro (Kie)",
+    provider: "kie",
+    mediaType: "image-to-video",
+    defaultAspect: contractDefaultAspect(KIE_SEEDANCE_15_PRO_MODEL_ID, "1:1"),
+    allowedAspects: contractAllowedAspects(KIE_SEEDANCE_15_PRO_MODEL_ID, [
+      "1:1",
+      "21:9",
+      "4:3",
+      "3:4",
+      "16:9",
+      "9:16",
+    ]),
+    pricingStrategy: "seedance-1.5-per-second",
+    defaultDurationSeconds: contractDefaultDuration(KIE_SEEDANCE_15_PRO_MODEL_ID, 4),
+    minDurationSeconds: 4,
+    maxDurationSeconds: 12,
+    defaultResolution: contractDefaultResolution(KIE_SEEDANCE_15_PRO_MODEL_ID, "720p"),
+    defaultAudio: true,
+    allowedResolutions: contractAllowedResolutions(KIE_SEEDANCE_15_PRO_MODEL_ID, [
+      "480p",
+      "720p",
+      "1080p",
+    ]),
+    allowedDurations: contractAllowedDurations(KIE_SEEDANCE_15_PRO_MODEL_ID, [4, 8, 12]),
     supportsImageToVideo: true,
   },
   "gpt-5-nano": {

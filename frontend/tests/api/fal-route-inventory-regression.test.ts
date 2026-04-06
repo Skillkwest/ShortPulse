@@ -25,6 +25,8 @@ const EXPECTED_FAL_ROUTE_FILES = [
   "flux2pro-submit.ts",
   "kie-kling-status.ts",
   "kie-kling-submit.ts",
+  "kie-seedance-status.ts",
+  "kie-seedance-submit.ts",
   "kie-veo-status.ts",
   "kie-veo-submit.ts",
   "kling-status.ts",

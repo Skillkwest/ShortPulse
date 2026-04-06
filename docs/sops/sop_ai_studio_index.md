@@ -71,8 +71,10 @@ Purpose: provide a single hub for AI Studio SOPs, shared defaults, and the canon
   - `reference-keyframes`: Google DeepMind -> Kie AI.
 - Video policy invariant:
   - `kie-ai/veo-3.1-fast-i2v` is the active Veo-family lane for text, single-image, and first/last-frame video generation.
-  - Standard Video mode is Kie-only and surfaces only `kie-ai/veo-3.1-fast-i2v` and `kie-ai/kling-3.0`.
-  - Empty-standard-frame state defaults to Kie Veo text-to-video, but the modal still allows manual selection of Kie Kling; selecting Kling there makes the first frame required before Generate is enabled.
+  - `kie-ai/seedance-1.5-pro` is the active Kie Seedance lane for prompt-only, single-image, and first/last-frame video generation.
+  - Standard Video mode is Kie-only and surfaces `kie-ai/veo-3.1-fast-i2v`, `kie-ai/kling-3.0`, and `kie-ai/seedance-1.5-pro`.
+  - Empty-standard-frame state defaults to Kie Veo text-to-video, but the modal still allows manual selection of Kie Kling and Kie Seedance 1.5; selecting Kling there makes the first frame required before Generate is enabled.
+  - Kie Seedance 1.5 uses one provider route with `0-2` images and exposes a Seedance-only `fixed_lens` setting in the video panel.
   - Kie Kling Standard exposes three product shot modes:
     - `Single`
     - `Multi`
@@ -120,6 +122,7 @@ Planned reliability module boundaries:
 | fal-ai/bytedance/seedream/v5/lite/edit | Aspect: 1:1 default (allowed: 1:1, 2:3, 3:2, 3:4, 4:3, 4:5, 5:4, 9:16, 16:9, 21:9); Resolution: auto_2K default (allowed: auto_2K, auto_3K) | Fal image-to-image/edit queue; requires reference images (up to 10); pricing mirrors Seedream 5 Lite text-to-image. |
 | kie-ai/veo-3.1-fast-i2v | Aspect: 16:9 default (allowed: 16:9, 9:16); Duration: 5s default (allowed: 5, 8); Resolution: 720p default (allowed: 720p, 1080p); Audio: on | Active Kie Veo lane for text-to-video, single-image animation, and first/last-frame generation. Fixed `$0.30` per generation from Kie credits conversion evidence (default billed 35 credits under current policy). |
 | kie-ai/kling-3.0 | Aspect: 16:9 default (allowed: 16:9, 9:16, 1:1); Duration: 10s default (allowed: 5, 10); Resolution: 1080p default (allowed: 720p, 1080p); Audio: on | Active Kie Kling lane for Standard video and Motion Control. Standard mode exposes `Single`, `Multi`, and `Custom`: `Single` and `Multi` both use standard single-shot submit with a top-level prompt plus first frame and optional last frame; `Custom` uses Kie multi-shot submit with `multi_prompt[]` and first-frame-only image input. Per-second pricing by resolution: `1080p` `$0.20/$0.135` (audio on/off), `720p` `$0.15/$0.10` (audio on/off); default lane bills 210 credits under current policy. |
+| kie-ai/seedance-1.5-pro | Aspect: 1:1 default (allowed: 1:1, 21:9, 4:3, 3:4, 16:9, 9:16); Duration: 4s default (allowed: 4, 8, 12); Resolution: 720p default (allowed: 480p, 720p, 1080p); Audio: off; Fixed lens: off | Active Kie Seedance 1.5 lane for prompt-only, single-image, and first/last-frame Standard video generation. Uses one unified Kie route with `0-2` image inputs (`input.input_urls`) and a Seedance-only `fixed_lens` control. Current billing uses the existing Seedance per-second estimator under active policy. |
 | gpt-5-nano | Aspect: n/a; Token-based | Used for prompt refine + describe flows. |
 
 ## Standard SOP skeleton (apply to new/updated SOPs)

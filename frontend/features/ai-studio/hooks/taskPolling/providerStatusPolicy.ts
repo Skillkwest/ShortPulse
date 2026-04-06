@@ -43,6 +43,7 @@ export const longRunningVideoProviders = new Set<Provider>([
   "fal-veo-i2v",
   "kie-veo",
   "kie-kling",
+  "kie-seedance",
 ]);
 
 export const nonTerminalStates = new Set([

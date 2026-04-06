@@ -52,10 +52,12 @@ For Create properties panel, model-selector, and submission wiring details, see 
 - Standard Video mode (`reference-video` context) surfaces image-to-video models in this order:
   1. `kie-ai/veo-3.1-fast-i2v`
   2. `kie-ai/kling-3.0`
+  3. `kie-ai/seedance-1.5-pro`
 - Standard Video mode is Kie-only.
 - With no frame references present, Standard mode defaults to Kie Veo text-to-video behavior.
-- The modal still allows manual selection of `kie-ai/kling-3.0` in that state; once Kling is selected, the first-frame dropzone becomes required and Generate remains disabled until the first frame is populated.
+- The modal still allows manual selection of `kie-ai/kling-3.0` and `kie-ai/seedance-1.5-pro` in that state; once Kling is selected, the first-frame dropzone becomes required and Generate remains disabled until the first frame is populated.
 - Keyframe-style generation is handled through `kie-ai/veo-3.1-fast-i2v` by switching Kie generation type based on the number of frame references.
+- Kie Seedance 1.5 uses a single unified route for prompt-only, single-image, and first/last-frame workflows, inferring mode from the number of input images (`0-2`) and exposing a Seedance-only `fixed_lens` setting.
 
 ### Kling 3.0 Standard shot modes
 
@@ -205,6 +207,7 @@ For Create properties panel, model-selector, and submission wiring details, see 
 | --- | --- | --- | --- |
 | Kie | `kie-ai/veo-3.1-fast-i2v` | 16:9 default (allowed: 16:9, 9:16) | Unified Kie Veo lane via `/api/fal/kie-veo-submit` + `/api/fal/kie-veo-status`. Prompt-only generates `TEXT_2_VIDEO`; one frame generates `FIRST_AND_LAST_FRAMES_2_VIDEO` with one image; two frames generate `FIRST_AND_LAST_FRAMES_2_VIDEO` with first/last references. Pricing uses fixed per-video USD from Kie credits conversion evidence (`$0.30` per generation; default billed 35 credits under current policy). |
 | Kie | `kie-ai/kling-3.0` | 16:9 default (allowed: 16:9, 9:16, 1:1) | Standard Kling routes through `/api/fal/kie-kling-submit` + `/api/fal/kie-kling-status` and requires image input. `Single` and `Multi` use standard single-shot submit with top-level `prompt`; `Custom` uses Kie multi-shot submit with `multi_prompt[]` and first-frame-only image input. Motion Control also routes through this model and normalizes to Kie motion-control submit shape (`model=kling-3.0/motion-control`, `input_urls` + `video_urls`, one image + one video). Pricing uses Kie per-second rates by resolution: `1080p` `$0.20/$0.135` (audio on/off), `720p` `$0.15/$0.10` (audio on/off). Default lane (`10s`, `1080p`, audio on) bills 210 credits under current policy. |
+| Kie | `kie-ai/seedance-1.5-pro` | 1:1 default (allowed: 1:1, 21:9, 4:3, 3:4, 16:9, 9:16) | Unified Kie Seedance 1.5 lane via `/api/fal/kie-seedance-submit` + `/api/fal/kie-seedance-status`. Prompt-only generation sends no `input_urls`; one-image generation sends the first frame only; two-image generation sends first and last frames through `input.input_urls`. Video settings expose duration `4/8/12`, resolution `480p/720p/1080p`, optional audio, and a Seedance-only `fixed_lens` toggle. Current pricing uses the existing Seedance per-second estimator under active billing policy. |
 
 ## Maintenance rules
 

@@ -31,7 +31,8 @@ export type Provider =
   | "fal-veo"
   | "fal-veo-i2v"
   | "kie-veo"
-  | "kie-kling";
+  | "kie-kling"
+  | "kie-seedance";
 
 export const normalizeProviderForPolling = (
   value: string | null | undefined,
@@ -83,6 +84,7 @@ export const normalizeProviderForPolling = (
     return "fal";
   }
   if (normalized.startsWith("kie")) {
+    if (normalized.includes("seedance")) return "kie-seedance";
     return normalized.includes("kling") ? "kie-kling" : "kie-veo";
   }
   return fallback;

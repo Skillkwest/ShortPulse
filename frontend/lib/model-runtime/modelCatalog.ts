@@ -2,7 +2,11 @@
  * Canonical model catalog shared by AI Studio client logic and server runtime.
  * Keep model capabilities, provider docs provenance, and Fal routing aliases in one place.
  */
-import { KIE_KLING_30_MODEL_ID, KIE_VEO_31_FAST_I2V_MODEL_ID } from "./providerModelIds";
+import {
+  KIE_KLING_30_MODEL_ID,
+  KIE_SEEDANCE_15_PRO_MODEL_ID,
+  KIE_VEO_31_FAST_I2V_MODEL_ID,
+} from "./providerModelIds";
 
 export type ModelAspectSubmitField = "aspect_ratio" | "image_size" | "none";
 export type ModelProvider = "fal" | "kie" | "openai";
@@ -965,6 +969,49 @@ const catalog: Record<string, ModelCatalogEntry> = {
       },
       optionalBooleanFields: ["generate_audio"],
       optionalNumberFields: ["duration", "cfg_scale"],
+    },
+  },
+  [KIE_SEEDANCE_15_PRO_MODEL_ID]: {
+    modelId: KIE_SEEDANCE_15_PRO_MODEL_ID,
+    provider: "kie",
+    sourceUrl: "https://docs.kie.ai/market/bytedance/seedance-1-5-pro",
+    verifiedAt: VERIFIED_AT,
+    submitAspectField: "aspect_ratio",
+    defaultAspect: "1:1",
+    allowedAspects: ["1:1", "21:9", "4:3", "3:4", "16:9", "9:16"],
+    defaultDurationSeconds: 4,
+    allowedDurations: [4, 8, 12],
+    defaultResolution: "720p",
+    allowedResolutions: ["480p", "720p", "1080p"],
+    kieSubmitUrl: "https://api.kie.ai/api/v1/jobs/createTask",
+    kieStatusBaseUrls: ["https://api.kie.ai/api/v1/jobs/recordInfo?taskId={requestId}"],
+    kieTimeoutMs: 60000,
+    payloadValidation: {
+      allowedTopLevelFields: [
+        "prompt",
+        "input_url",
+        "input_urls",
+        "image_url",
+        "image_urls",
+        "aspect",
+        "aspect_ratio",
+        "duration",
+        "duration_seconds",
+        "resolution",
+        "generate_audio",
+        "fixed_lens",
+        "nsfw_checker",
+        "model",
+        "callback_url",
+        "input",
+      ],
+      requiredStringFields: ["prompt"],
+      enumFields: {
+        aspect_ratio: ["1:1", "21:9", "4:3", "3:4", "16:9", "9:16"],
+        resolution: ["480p", "720p", "1080p"],
+      },
+      optionalBooleanFields: ["generate_audio", "fixed_lens", "nsfw_checker"],
+      optionalNumberFields: ["duration"],
     },
   },
   "gpt-5-nano": {

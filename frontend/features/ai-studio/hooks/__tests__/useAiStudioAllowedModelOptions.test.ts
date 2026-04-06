@@ -2,6 +2,7 @@ import { renderHook } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import {
   KIE_KLING_30_MODEL_ID,
+  KIE_SEEDANCE_15_PRO_MODEL_ID,
   KIE_VEO_31_FAST_I2V_MODEL_ID,
 } from "../../../../lib/model-runtime/providerModelIds";
 import { useAiStudioAllowedModelOptions } from "../useAiStudioAllowedModelOptions";
@@ -59,6 +60,7 @@ describe("useAiStudioAllowedModelOptions", () => {
     expect(values.has("fal-ai/bytedance/seedance/v1.5/pro/text-to-video")).toBe(false);
     expect(values.has(KIE_VEO_31_FAST_I2V_MODEL_ID)).toBe(true);
     expect(values.has(KIE_KLING_30_MODEL_ID)).toBe(true);
+    expect(values.has(KIE_SEEDANCE_15_PRO_MODEL_ID)).toBe(true);
   });
 
   it("narrows video options to first-last-capable models when two frame images are present", () => {
@@ -73,6 +75,8 @@ describe("useAiStudioAllowedModelOptions", () => {
     );
 
     const values = new Set(result.current.map((option) => option.value));
-    expect(values).toEqual(new Set([KIE_VEO_31_FAST_I2V_MODEL_ID, KIE_KLING_30_MODEL_ID]));
+    expect(values).toEqual(
+      new Set([KIE_VEO_31_FAST_I2V_MODEL_ID, KIE_KLING_30_MODEL_ID, KIE_SEEDANCE_15_PRO_MODEL_ID])
+    );
   });
 });

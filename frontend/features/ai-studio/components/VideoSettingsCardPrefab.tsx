@@ -252,7 +252,7 @@ export function VideoSettingsCardPrefab({
   const shouldShowResolutionControl = resolutionOptions.length > 0;
   const isVeo31Model =
     modelId?.includes("veo3.1") === true || modelId?.includes("veo-3.1") === true;
-  const shouldShowSeedanceCameraFixed = false;
+  const shouldShowSeedanceCameraFixed = true;
   const resolutionDropdownOptions = React.useMemo(
     () => resolutionOptions.map((option) => ({ value: option.value, label: option.label })),
     [resolutionOptions]

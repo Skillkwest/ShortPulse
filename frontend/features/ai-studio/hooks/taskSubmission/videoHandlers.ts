@@ -144,11 +144,11 @@ export const handleVideoModelSubmission = async ({
       notifyGenerationFailure(id, "Kie Veo 3.1 Fast I2V requires at least one reference image.");
       return true;
     }
-    const keyframeImageUrls =
-      videoReferenceMode === "keyframes"
-        ? preparedImageInputs.slice(0, 2)
-        : [preparedImageInputs[0]];
-    if (videoReferenceMode === "keyframes" && keyframeImageUrls.length < 2) {
+    const isKieKeyframeRun = videoReferenceMode === "keyframes" || preparedImageInputs.length > 1;
+    const keyframeImageUrls = isKieKeyframeRun
+      ? preparedImageInputs.slice(0, 2)
+      : [preparedImageInputs[0]];
+    if (isKieKeyframeRun && keyframeImageUrls.length < 2) {
       notifyGenerationFailure(
         id,
         "Kie Veo 3.1 Fast I2V keyframes mode requires both first and last frame images."
@@ -162,7 +162,7 @@ export const handleVideoModelSubmission = async ({
       prompt: cleanedPrompt,
       image_url: preparedImageInputs[0],
       image_urls: keyframeImageUrls,
-      generation_type: "FIRST_AND_LAST_FRAMES_2_VIDEO",
+      generation_type: isKieKeyframeRun ? "FIRST_AND_LAST_FRAMES_2_VIDEO" : "REFERENCE_2_VIDEO",
       aspect_ratio: aspectRatio,
       duration,
       resolution,

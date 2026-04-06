@@ -1,5 +1,6 @@
 import { act, renderHook } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
+import { KIE_VEO_31_FAST_I2V_MODEL_ID } from "../../../../lib/model-runtime/providerModelIds";
 import type { StudioOutput, ToolId } from "../../types";
 import { useAiStudioGenerationPromptComposer } from "../useAiStudioGenerationPromptComposer";
 
@@ -200,6 +201,38 @@ describe("useAiStudioGenerationPromptComposer", () => {
       characterContextOverride: undefined,
       modelIdOverride: undefined,
     });
+  });
+
+  it("includes the optional last frame for Kie Veo standard video runs", () => {
+    const submitTask = vi.fn();
+    const resolveReferenceInputsForTool = vi.fn(() => ({
+      referenceImageUrl: "https://example.com/video-ref.png",
+      extraImageUrls: [
+        "https://example.com/video-last.png",
+        "https://example.com/video-extra-2.png",
+        null,
+      ] as [string | null, string | null, string | null],
+    }));
+    const params = createParams({
+      model: KIE_VEO_31_FAST_I2V_MODEL_ID,
+      submitTask,
+      selectedTool: "video",
+      videoReferenceMode: "standard",
+      resolveReferenceInputsForTool,
+    });
+    const { result } = renderHook(() => useAiStudioGenerationPromptComposer(params));
+
+    act(() => {
+      result.current.generateOutput();
+    });
+
+    expect(submitTask).toHaveBeenCalledWith(
+      "video prompt",
+      ["https://example.com/video-ref.png", "https://example.com/video-last.png"],
+      expect.objectContaining({
+        displayPromptOverride: "video prompt",
+      })
+    );
   });
 
   it("forwards output id overrides to submission for optimistic placeholder reuse", () => {

@@ -318,6 +318,55 @@ describe("handleVideoModelSubmission (Kie Veo keyframes)", () => {
     );
   });
 
+  it("submits single-image payload in standard mode with reference generation type", async () => {
+    vi.mocked(submitKieVeoImageToVideo).mockResolvedValue({ request_id: "req-kie-veo-standard" });
+
+    const handled = await handleVideoModelSubmission(
+      makeArgs({
+        finalModel: KIE_VEO_31_FAST_I2V_MODEL_ID,
+        modelConfig: getModelConfig(KIE_VEO_31_FAST_I2V_MODEL_ID),
+        videoReferenceMode: "standard",
+        requestedDurationSeconds: 4,
+        requestedResolution: "720p",
+        preparedImageInputs: ["https://example.com/first.png"],
+      })
+    );
+
+    expect(handled).toBe(true);
+    expect(submitKieVeoImageToVideo).toHaveBeenCalledWith({
+      prompt: "A dancer twirls",
+      image_url: "https://example.com/first.png",
+      image_urls: ["https://example.com/first.png"],
+      generation_type: "REFERENCE_2_VIDEO",
+      aspect_ratio: "16:9",
+      duration: 5,
+      resolution: "720p",
+      generate_audio: true,
+    });
+  });
+
+  it("promotes Kie Veo standard mode to first+last when two frames are present", async () => {
+    vi.mocked(submitKieVeoImageToVideo).mockResolvedValue({ request_id: "req-kie-veo-dual" });
+
+    const handled = await handleVideoModelSubmission(
+      makeArgs({
+        finalModel: KIE_VEO_31_FAST_I2V_MODEL_ID,
+        modelConfig: getModelConfig(KIE_VEO_31_FAST_I2V_MODEL_ID),
+        videoReferenceMode: "standard",
+        preparedImageInputs: ["https://example.com/first.png", "https://example.com/last.png"],
+      })
+    );
+
+    expect(handled).toBe(true);
+    expect(submitKieVeoImageToVideo).toHaveBeenCalledWith(
+      expect.objectContaining({
+        image_url: "https://example.com/first.png",
+        image_urls: ["https://example.com/first.png", "https://example.com/last.png"],
+        generation_type: "FIRST_AND_LAST_FRAMES_2_VIDEO",
+      })
+    );
+  });
+
   it("fails when keyframes mode does not provide both frames", async () => {
     const args = makeArgs({
       finalModel: KIE_VEO_31_FAST_I2V_MODEL_ID,

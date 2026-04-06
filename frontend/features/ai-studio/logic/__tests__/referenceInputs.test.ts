@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { KIE_VEO_31_FAST_I2V_MODEL_ID } from "../../../../lib/model-runtime/providerModelIds";
 import {
   buildImageReferenceInputs,
   buildRegenerateReferencePool,
@@ -33,6 +34,17 @@ describe("buildVideoReferenceInputs", () => {
     ).toEqual(["https://example.com/primary.png"]);
   });
 
+  it("includes the optional last-frame slot for Kie Veo in standard mode", () => {
+    expect(
+      buildVideoReferenceInputs(
+        "https://example.com/first.png",
+        ["https://example.com/last.png", "https://example.com/extra-b.png"],
+        "standard",
+        KIE_VEO_31_FAST_I2V_MODEL_ID
+      )
+    ).toEqual(["https://example.com/first.png", "https://example.com/last.png"]);
+  });
+
   it("includes primary + extras for keyframes mode", () => {
     expect(
       buildVideoReferenceInputs(
@@ -54,6 +66,21 @@ describe("buildRegenerateReferencePool", () => {
         referenceUrl: "https://example.com/first.png",
         extraUrls: ["https://example.com/last.png", null, null],
         videoReferenceMode: "keyframes",
+        videoModelId: "fal-ai/veo3.1/first-last-frame-to-video",
+      })
+    ).toEqual(["https://example.com/first.png", "https://example.com/last.png"]);
+  });
+
+  it("keeps Kie Veo dual-mode references during regenerate in standard mode", () => {
+    expect(
+      buildRegenerateReferencePool({
+        selectedTool: "video",
+        useReferenceImageIndicator: false,
+        activeOutputPreviewUrl: "https://example.com/generated.mp4",
+        referenceUrl: "https://example.com/first.png",
+        extraUrls: ["https://example.com/last.png", null, null],
+        videoReferenceMode: "standard",
+        videoModelId: KIE_VEO_31_FAST_I2V_MODEL_ID,
       })
     ).toEqual(["https://example.com/first.png", "https://example.com/last.png"]);
   });

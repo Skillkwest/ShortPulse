@@ -1,6 +1,7 @@
 /**
  * Reference input ordering helpers shared by generate/regenerate flows.
  */
+import { KIE_VEO_31_FAST_I2V_MODEL_ID } from "../../../lib/model-runtime/providerModelIds";
 import type { ToolId } from "../types";
 
 type VideoReferenceMode = "standard" | "modify" | "keyframes" | "kling3" | "motion";
@@ -28,13 +29,22 @@ export const buildImageReferenceInputs = (
 export const buildVideoReferenceInputs = (
   primary: string | null,
   extras: (string | null)[],
-  referenceMode: VideoReferenceMode
+  referenceMode: VideoReferenceMode,
+  modelId?: string | null
 ): string[] => {
   if (!primary) return [];
-  if (referenceMode === "standard" || referenceMode === "motion") {
+  const orderedExtras = extras.filter((url): url is string => Boolean(url && url !== primary));
+  const shouldUseKieDualModeFrames =
+    modelId === KIE_VEO_31_FAST_I2V_MODEL_ID &&
+    referenceMode === "standard" &&
+    orderedExtras.length > 0;
+
+  if (referenceMode === "motion") {
     return [primary];
   }
-  const orderedExtras = extras.filter((url): url is string => Boolean(url && url !== primary));
+  if (referenceMode === "standard") {
+    return shouldUseKieDualModeFrames ? [primary, orderedExtras[0]] : [primary];
+  }
   return [primary, ...orderedExtras];
 };
 
@@ -48,6 +58,7 @@ export const buildRegenerateReferencePool = ({
   referenceUrl,
   extraUrls,
   videoReferenceMode,
+  videoModelId,
 }: {
   selectedTool: ToolId | null;
   useReferenceImageIndicator: boolean;
@@ -55,13 +66,14 @@ export const buildRegenerateReferencePool = ({
   referenceUrl: string | null;
   extraUrls: (string | null)[];
   videoReferenceMode: VideoReferenceMode;
+  videoModelId?: string | null;
 }): string[] => {
   if (isImageTool(selectedTool)) {
     return buildImageReferenceInputs(referenceUrl, extraUrls);
   }
 
   if (isVideoTool(selectedTool)) {
-    return buildVideoReferenceInputs(referenceUrl, extraUrls, videoReferenceMode);
+    return buildVideoReferenceInputs(referenceUrl, extraUrls, videoReferenceMode, videoModelId);
   }
 
   const includeActiveOutputReference =

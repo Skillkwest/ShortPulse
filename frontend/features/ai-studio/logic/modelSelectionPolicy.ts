@@ -4,10 +4,13 @@
  */
 import type { ModelOption } from "../constants";
 import { modelOptions } from "../constants";
+import { isSeedance2ModelId, isSeedance2UiEnabled } from "./seedance2Availability";
 import type { StudioMode, ToolId } from "../types";
 import {
   KIE_KLING_30_MODEL_ID,
   KIE_SEEDANCE_15_PRO_MODEL_ID,
+  KIE_SEEDANCE_2_FAST_MODEL_ID,
+  KIE_SEEDANCE_2_MODEL_ID,
   KIE_VEO_31_FAST_I2V_MODEL_ID,
 } from "../../../lib/model-runtime/providerModelIds";
 import type { ResolvedVideoGenerationLane } from "./referenceInputs";
@@ -93,7 +96,9 @@ export const resolveAiStudioAllowedModelOptions = ({
 
   if (selectedTool === "video" || selectedTool === "kling") {
     const selectorVideoOptions = selectableOptions.filter(
-      (option) => !BLOCKED_VIDEO_SELECTOR_MODEL_IDS.has(option.value)
+      (option) =>
+        !BLOCKED_VIDEO_SELECTOR_MODEL_IDS.has(option.value) &&
+        (isSeedance2UiEnabled() || !isSeedance2ModelId(option.value))
     );
     if (videoReferenceMode === "keyframes") {
       return selectorVideoOptions.filter((option) => option.value === KIE_VEO_31_FAST_I2V_MODEL_ID);
@@ -109,7 +114,10 @@ export const resolveAiStudioAllowedModelOptions = ({
         (option) =>
           option.value === KIE_VEO_31_FAST_I2V_MODEL_ID ||
           option.value === KIE_KLING_30_MODEL_ID ||
-          option.value === KIE_SEEDANCE_15_PRO_MODEL_ID
+          option.value === KIE_SEEDANCE_15_PRO_MODEL_ID ||
+          (isSeedance2UiEnabled() &&
+            (option.value === KIE_SEEDANCE_2_MODEL_ID ||
+              option.value === KIE_SEEDANCE_2_FAST_MODEL_ID))
       );
     }
     if (resolvedVideoLane === "single-image") {
@@ -117,7 +125,10 @@ export const resolveAiStudioAllowedModelOptions = ({
         (option) =>
           option.value === KIE_KLING_30_MODEL_ID ||
           option.value === KIE_VEO_31_FAST_I2V_MODEL_ID ||
-          option.value === KIE_SEEDANCE_15_PRO_MODEL_ID
+          option.value === KIE_SEEDANCE_15_PRO_MODEL_ID ||
+          (isSeedance2UiEnabled() &&
+            (option.value === KIE_SEEDANCE_2_MODEL_ID ||
+              option.value === KIE_SEEDANCE_2_FAST_MODEL_ID))
       );
     }
     if (resolvedVideoLane === "first-last") {
@@ -125,7 +136,10 @@ export const resolveAiStudioAllowedModelOptions = ({
         (option) =>
           option.value === KIE_VEO_31_FAST_I2V_MODEL_ID ||
           option.value === KIE_KLING_30_MODEL_ID ||
-          option.value === KIE_SEEDANCE_15_PRO_MODEL_ID
+          option.value === KIE_SEEDANCE_15_PRO_MODEL_ID ||
+          (isSeedance2UiEnabled() &&
+            (option.value === KIE_SEEDANCE_2_MODEL_ID ||
+              option.value === KIE_SEEDANCE_2_FAST_MODEL_ID))
       );
     }
     return selectorVideoOptions.filter(

@@ -12,9 +12,11 @@ import {
   type SetStateAction,
 } from "react";
 import { randomId } from "../logic/ids";
+import { normalizeSeedance2UiModelId } from "../logic/seedance2Availability";
 import type { StudioMode, ToolId } from "../types";
 import { resolveWorkflowId } from "../logic/workflowIdentity";
 import { getModelConfig } from "../logic/pricing";
+import { KIE_KLING_30_MODEL_ID } from "../../../lib/model-runtime/providerModelIds";
 import {
   resolveCreateWorkflowStartupModel,
   resolveEditWorkflowStartupModel,
@@ -30,6 +32,7 @@ type WorkflowSettingsKey = "create" | "edit" | "video" | "kling";
 
 type VideoReferenceMode = "standard" | "modify" | "keyframes" | "kling3" | "motion";
 type KlingWorkflowMode = "single" | "multi" | "custom";
+type Seedance2InputMode = "text" | "first-frame" | "first-last" | "multimodal";
 type KlingShotType = "customize" | "intelligent";
 type KlingPromptShot = { id: string; prompt: string; duration: number };
 type KlingElement = {
@@ -52,6 +55,12 @@ type WorkflowSettingsSnapshot = {
   klingNegativePrompt: string;
   klingCfgScale: number;
   klingWorkflowMode: KlingWorkflowMode;
+  seedance2InputMode: Seedance2InputMode;
+  seedance2ReferenceImageUrls: string[];
+  seedance2ReferenceVideoUrls: string[];
+  seedance2ReferenceAudioUrls: string[];
+  seedance2ReturnLastFrame: boolean;
+  seedance2WebSearch: boolean;
   klingShotType: KlingShotType;
   klingVoiceIds: [string, string];
   klingMultiPrompts: KlingPromptShot[];
@@ -72,6 +81,12 @@ const DEFAULT_WORKFLOW_SETTINGS: WorkflowSettingsSnapshot = {
   klingNegativePrompt: "blur, distort, and low quality",
   klingCfgScale: 0.5,
   klingWorkflowMode: "single",
+  seedance2InputMode: "text",
+  seedance2ReferenceImageUrls: [],
+  seedance2ReferenceVideoUrls: [],
+  seedance2ReferenceAudioUrls: [],
+  seedance2ReturnLastFrame: false,
+  seedance2WebSearch: false,
   klingShotType: "customize",
   klingVoiceIds: ["", ""],
   klingMultiPrompts: [],
@@ -100,7 +115,7 @@ const cloneWorkflowSettingsSnapshot = (
       : defaults.mode,
   model:
     typeof snapshot?.model === "string" || snapshot?.model === null
-      ? snapshot.model
+      ? (normalizeSeedance2UiModelId(snapshot.model) ?? null)
       : defaults.model,
   aspect: typeof snapshot?.aspect === "string" ? snapshot.aspect : defaults.aspect,
   imageResolution:
@@ -150,6 +165,36 @@ const cloneWorkflowSettingsSnapshot = (
       : Array.isArray(snapshot?.klingMultiPrompts) && snapshot.klingMultiPrompts.length > 0
         ? "custom"
         : defaults.klingWorkflowMode,
+  seedance2InputMode:
+    snapshot?.seedance2InputMode === "text" ||
+    snapshot?.seedance2InputMode === "first-frame" ||
+    snapshot?.seedance2InputMode === "first-last" ||
+    snapshot?.seedance2InputMode === "multimodal"
+      ? snapshot.seedance2InputMode
+      : defaults.seedance2InputMode,
+  seedance2ReferenceImageUrls: Array.isArray(snapshot?.seedance2ReferenceImageUrls)
+    ? snapshot.seedance2ReferenceImageUrls.filter(
+        (value): value is string => typeof value === "string"
+      )
+    : [],
+  seedance2ReferenceVideoUrls: Array.isArray(snapshot?.seedance2ReferenceVideoUrls)
+    ? snapshot.seedance2ReferenceVideoUrls.filter(
+        (value): value is string => typeof value === "string"
+      )
+    : [],
+  seedance2ReferenceAudioUrls: Array.isArray(snapshot?.seedance2ReferenceAudioUrls)
+    ? snapshot.seedance2ReferenceAudioUrls.filter(
+        (value): value is string => typeof value === "string"
+      )
+    : [],
+  seedance2ReturnLastFrame:
+    typeof snapshot?.seedance2ReturnLastFrame === "boolean"
+      ? snapshot.seedance2ReturnLastFrame
+      : defaults.seedance2ReturnLastFrame,
+  seedance2WebSearch:
+    typeof snapshot?.seedance2WebSearch === "boolean"
+      ? snapshot.seedance2WebSearch
+      : defaults.seedance2WebSearch,
   klingShotType:
     snapshot?.klingShotType === "intelligent" || snapshot?.klingShotType === "customize"
       ? snapshot.klingShotType
@@ -199,6 +244,12 @@ type UseAiStudioWorkflowSettingsParams = {
   klingNegativePrompt: string;
   klingCfgScale: number;
   klingWorkflowMode: KlingWorkflowMode;
+  seedance2InputMode: Seedance2InputMode;
+  seedance2ReferenceImageUrls: string[];
+  seedance2ReferenceVideoUrls: string[];
+  seedance2ReferenceAudioUrls: string[];
+  seedance2ReturnLastFrame: boolean;
+  seedance2WebSearch: boolean;
   klingShotType: KlingShotType;
   klingVoiceIds: [string, string];
   klingMultiPrompts: KlingPromptShot[];
@@ -216,6 +267,12 @@ type UseAiStudioWorkflowSettingsParams = {
   setKlingNegativePrompt: Dispatch<SetStateAction<string>>;
   setKlingCfgScale: Dispatch<SetStateAction<number>>;
   setKlingWorkflowMode: Dispatch<SetStateAction<KlingWorkflowMode>>;
+  setSeedance2InputMode: Dispatch<SetStateAction<Seedance2InputMode>>;
+  setSeedance2ReferenceImageUrls: Dispatch<SetStateAction<string[]>>;
+  setSeedance2ReferenceVideoUrls: Dispatch<SetStateAction<string[]>>;
+  setSeedance2ReferenceAudioUrls: Dispatch<SetStateAction<string[]>>;
+  setSeedance2ReturnLastFrame: Dispatch<SetStateAction<boolean>>;
+  setSeedance2WebSearch: Dispatch<SetStateAction<boolean>>;
   setKlingShotType: Dispatch<SetStateAction<KlingShotType>>;
   setKlingVoiceIds: Dispatch<SetStateAction<[string, string]>>;
   setKlingMultiPrompts: Dispatch<SetStateAction<KlingPromptShot[]>>;
@@ -240,6 +297,12 @@ export const useAiStudioWorkflowSettings = ({
   klingNegativePrompt,
   klingCfgScale,
   klingWorkflowMode,
+  seedance2InputMode,
+  seedance2ReferenceImageUrls,
+  seedance2ReferenceVideoUrls,
+  seedance2ReferenceAudioUrls,
+  seedance2ReturnLastFrame,
+  seedance2WebSearch,
   klingShotType,
   klingVoiceIds,
   klingMultiPrompts,
@@ -257,6 +320,12 @@ export const useAiStudioWorkflowSettings = ({
   setKlingNegativePrompt,
   setKlingCfgScale,
   setKlingWorkflowMode,
+  setSeedance2InputMode,
+  setSeedance2ReferenceImageUrls,
+  setSeedance2ReferenceVideoUrls,
+  setSeedance2ReferenceAudioUrls,
+  setSeedance2ReturnLastFrame,
+  setSeedance2WebSearch,
   setKlingShotType,
   setKlingVoiceIds,
   setKlingMultiPrompts,
@@ -290,6 +359,12 @@ export const useAiStudioWorkflowSettings = ({
       klingNegativePrompt,
       klingCfgScale,
       klingWorkflowMode,
+      seedance2InputMode,
+      seedance2ReferenceImageUrls: [...seedance2ReferenceImageUrls],
+      seedance2ReferenceVideoUrls: [...seedance2ReferenceVideoUrls],
+      seedance2ReferenceAudioUrls: [...seedance2ReferenceAudioUrls],
+      seedance2ReturnLastFrame,
+      seedance2WebSearch,
       klingShotType,
       klingVoiceIds: [...klingVoiceIds] as [string, string],
       klingMultiPrompts: klingMultiPrompts.map((shot) => ({ ...shot })),
@@ -299,6 +374,12 @@ export const useAiStudioWorkflowSettings = ({
       aspect,
       imageResolution,
       klingCfgScale,
+      seedance2InputMode,
+      seedance2ReferenceAudioUrls,
+      seedance2ReferenceImageUrls,
+      seedance2ReferenceVideoUrls,
+      seedance2ReturnLastFrame,
+      seedance2WebSearch,
       klingElements,
       klingMultiPrompts,
       klingNegativePrompt,
@@ -441,6 +522,12 @@ export const useAiStudioWorkflowSettings = ({
     setKlingNegativePrompt(snapshot.klingNegativePrompt);
     setKlingCfgScale(snapshot.klingCfgScale);
     setKlingWorkflowMode(snapshot.klingWorkflowMode);
+    setSeedance2InputMode(snapshot.seedance2InputMode);
+    setSeedance2ReferenceImageUrls([...snapshot.seedance2ReferenceImageUrls]);
+    setSeedance2ReferenceVideoUrls([...snapshot.seedance2ReferenceVideoUrls]);
+    setSeedance2ReferenceAudioUrls([...snapshot.seedance2ReferenceAudioUrls]);
+    setSeedance2ReturnLastFrame(snapshot.seedance2ReturnLastFrame);
+    setSeedance2WebSearch(snapshot.seedance2WebSearch);
     setKlingShotType(snapshot.klingShotType);
     setKlingVoiceIds([...snapshot.klingVoiceIds] as [string, string]);
     setKlingMultiPrompts(snapshot.klingMultiPrompts.map((shot) => ({ ...shot })));
@@ -456,6 +543,12 @@ export const useAiStudioWorkflowSettings = ({
     setKlingMultiPrompts,
     setKlingNegativePrompt,
     setKlingWorkflowMode,
+    setSeedance2InputMode,
+    setSeedance2ReferenceAudioUrls,
+    setSeedance2ReferenceImageUrls,
+    setSeedance2ReferenceVideoUrls,
+    setSeedance2ReturnLastFrame,
+    setSeedance2WebSearch,
     setKlingShotType,
     setKlingVoiceIds,
     setMode,
@@ -487,6 +580,24 @@ export const useAiStudioWorkflowSettings = ({
     aspect,
     currentWorkflowSnapshot,
     hasPendingWorkflowRestore,
+    workflowSettingsHydrated,
+  ]);
+
+  useEffect(() => {
+    if (!workflowSettingsHydrated) return;
+    if (activeWorkflowSettingsKey !== "video") return;
+    if (model === KIE_KLING_30_MODEL_ID) return;
+    if (klingWorkflowMode === "single" && klingMultiPrompts.length === 0) return;
+
+    setKlingWorkflowMode("single");
+    setKlingMultiPrompts([]);
+  }, [
+    activeWorkflowSettingsKey,
+    klingMultiPrompts,
+    klingWorkflowMode,
+    model,
+    setKlingMultiPrompts,
+    setKlingWorkflowMode,
     workflowSettingsHydrated,
   ]);
 

@@ -1,10 +1,12 @@
 /**
  * Regression coverage for shared AI Studio model-selection policy behavior.
  */
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   KIE_KLING_30_MODEL_ID,
   KIE_SEEDANCE_15_PRO_MODEL_ID,
+  KIE_SEEDANCE_2_FAST_MODEL_ID,
+  KIE_SEEDANCE_2_MODEL_ID,
   KIE_VEO_31_FAST_I2V_MODEL_ID,
 } from "../../../../lib/model-runtime/providerModelIds";
 import type { ModelOption } from "../../constants";
@@ -97,6 +99,16 @@ const videoReferenceOptions: ModelOption[] = [
     label: "Seedance 1.5 Pro (Kie)",
     mediaType: "image-to-video",
   },
+  {
+    value: KIE_SEEDANCE_2_MODEL_ID,
+    label: "Seedance 2.0 (Kie)",
+    mediaType: "image-to-video",
+  },
+  {
+    value: KIE_SEEDANCE_2_FAST_MODEL_ID,
+    label: "Seedance 2.0 Fast (Kie)",
+    mediaType: "image-to-video",
+  },
 ];
 
 const getModelConfig = (id: string) => {
@@ -129,7 +141,9 @@ const getModelConfig = (id: string) => {
   if (
     id === KIE_VEO_31_FAST_I2V_MODEL_ID ||
     id === KIE_KLING_30_MODEL_ID ||
-    id === KIE_SEEDANCE_15_PRO_MODEL_ID
+    id === KIE_SEEDANCE_15_PRO_MODEL_ID ||
+    id === KIE_SEEDANCE_2_MODEL_ID ||
+    id === KIE_SEEDANCE_2_FAST_MODEL_ID
   ) {
     return {
       provider: "kie",
@@ -142,6 +156,10 @@ const getModelConfig = (id: string) => {
 };
 
 describe("modelSelectionPolicy", () => {
+  beforeEach(() => {
+    vi.unstubAllEnvs();
+  });
+
   it("keeps FLUX.2 Lite available for create/image when character mode is off", () => {
     const values = new Set(
       resolveAiStudioAllowedModelOptions({
@@ -201,6 +219,23 @@ describe("modelSelectionPolicy", () => {
     });
 
     expect(model).toBe(CREATE_DEFAULT_MODEL_ID);
+  });
+
+  it("quarantines Seedance 2.x from standard video lane model selection by default", () => {
+    const values = new Set(
+      resolveAiStudioAllowedModelOptions({
+        selectedTool: "video",
+        mode: "video",
+        videoReferenceMode: "standard",
+        resolvedVideoLane: "text",
+        options: videoReferenceOptions,
+        getModelConfig,
+      }).map((option) => option.value)
+    );
+
+    expect(values.has(KIE_SEEDANCE_15_PRO_MODEL_ID)).toBe(true);
+    expect(values.has(KIE_SEEDANCE_2_MODEL_ID)).toBe(false);
+    expect(values.has(KIE_SEEDANCE_2_FAST_MODEL_ID)).toBe(false);
   });
 
   it("defaults create startup to Seedream in text mode when saved model is missing", () => {

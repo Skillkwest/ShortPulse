@@ -50,6 +50,12 @@ vi.mock("../ReferenceKlingAdvancedSteps", () => ({
   ReferenceKlingAdvancedSteps: () => <div data-testid="reference-kling-advanced-steps" />,
 }));
 
+vi.mock("../ReferenceSeedanceAdvancedSteps", () => ({
+  ReferenceSeedanceAdvancedSteps: ({ title }: { title: string }) => (
+    <div data-testid="reference-seedance-advanced-steps">{title}</div>
+  ),
+}));
+
 vi.mock("../useReferencePropertiesConstraintEffects", () => ({
   useReferencePropertiesConstraintEffects: () => undefined,
 }));
@@ -171,5 +177,71 @@ describe("VideoPropertiesPanel", () => {
     );
 
     expect(screen.queryByText("Reference image required for generation")).toBeNull();
+  });
+
+  it("hides the hero title block in custom multi-shot mode even when prompts are empty", () => {
+    const { container } = render(
+      <VideoPropertiesPanel
+        {...baseProps}
+        referenceText=""
+        klingWorkflowMode="custom"
+        klingMultiPrompts={[{ id: "shot-1", prompt: "", duration: 5 }]}
+        onKlingMultiPromptsChange={vi.fn()}
+      />
+    );
+
+    expect(screen.queryByText("How will you direct this scene?")).toBeNull();
+    expect(container.querySelector(".video-shot-scroll-viewport")).not.toBeNull();
+  });
+
+  it("does not render custom multi-shot prompt boxes when Kling is no longer the active model", () => {
+    render(
+      <VideoPropertiesPanel
+        {...baseProps}
+        modelId="kie-ai/veo-3.1-fast-i2v"
+        modelLabel="Veo 3.1 Fast"
+        klingWorkflowMode="custom"
+        klingMultiPrompts={[
+          { id: "shot-1", prompt: "Beat one", duration: 5 },
+          { id: "shot-2", prompt: "Beat two", duration: 5 },
+        ]}
+        onKlingMultiPromptsChange={vi.fn()}
+      />
+    );
+
+    expect(screen.queryByText("Shot 2")).toBeNull();
+    expect(screen.queryByLabelText("Add another shot prompt")).toBeNull();
+  });
+
+  it("does not render the stale Seedance regional disclaimer", () => {
+    render(<VideoPropertiesPanel {...baseProps} />);
+
+    expect(screen.queryByText("Seedance 2.0 is currently unavailable in the U.S.")).toBeNull();
+  });
+
+  it("renders the Seedance 1.5 advanced settings card when Seedance 1.5 is active", () => {
+    render(
+      <VideoPropertiesPanel
+        {...baseProps}
+        modelId="kie-ai/seedance-1.5-pro"
+        modelLabel="Seedance 1.5 Pro (Kie)"
+      />
+    );
+
+    expect(screen.getByTestId("reference-seedance-advanced-steps")).toHaveTextContent(
+      "Seedance 1.5 Settings"
+    );
+  });
+
+  it("quarantines the Seedance 2.x advanced settings card by default", () => {
+    render(
+      <VideoPropertiesPanel
+        {...baseProps}
+        modelId="kie-ai/seedance-2-fast"
+        modelLabel="Seedance 2.0 Fast (Kie)"
+      />
+    );
+
+    expect(screen.queryByTestId("reference-seedance-advanced-steps")).toBeNull();
   });
 });

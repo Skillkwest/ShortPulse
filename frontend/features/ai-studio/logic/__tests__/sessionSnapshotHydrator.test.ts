@@ -1,4 +1,8 @@
 import { describe, expect, it } from "vitest";
+import {
+  KIE_SEEDANCE_15_PRO_MODEL_ID,
+  KIE_SEEDANCE_2_MODEL_ID,
+} from "../../../../lib/model-runtime/providerModelIds";
 import { buildAiStudioSessionHydrationPayload } from "../sessionSnapshotHydrator";
 import type { AiStudioSessionSnapshot, AiStudioSessionSnapshotV1 } from "../sessionSnapshot";
 
@@ -86,7 +90,7 @@ describe("sessionSnapshotHydrator", () => {
     expect(payload.canvas).toBeNull();
   });
 
-  it("backfills legacy Kling workflow mode from persisted multi prompts", () => {
+  it("resets persisted custom Kling prompt workspace during hydration", () => {
     const snapshot = createSnapshot({
       workspace: {
         ...createSnapshot().workspace,
@@ -96,7 +100,23 @@ describe("sessionSnapshotHydrator", () => {
     });
 
     const payload = buildAiStudioSessionHydrationPayload(snapshot);
-    expect(payload.workspace.klingWorkflowMode).toBe("custom");
+    expect(payload.workspace.klingWorkflowMode).toBe("single");
+    expect(payload.workspace.klingMultiPrompts).toEqual([]);
+  });
+
+  it("remaps quarantined Seedance 2 models to Seedance 1.5 during hydration", () => {
+    const payload = buildAiStudioSessionHydrationPayload(
+      createSnapshot({
+        workspace: {
+          ...createSnapshot().workspace,
+          mode: "video",
+          selectedTool: "video",
+          model: KIE_SEEDANCE_2_MODEL_ID,
+        },
+      })
+    );
+
+    expect(payload.workspace.model).toBe(KIE_SEEDANCE_15_PRO_MODEL_ID);
   });
 
   it("hydrates canvas payload for schema v2 snapshots", () => {

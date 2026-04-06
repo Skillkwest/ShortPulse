@@ -3,8 +3,12 @@
  */
 import {
   KIE_KLING_30_MODEL_ID,
+  KIE_SEEDANCE_15_PRO_MODEL_ID,
+  KIE_SEEDANCE_2_FAST_MODEL_ID,
+  KIE_SEEDANCE_2_MODEL_ID,
   KIE_VEO_31_FAST_I2V_MODEL_ID,
 } from "../../../lib/model-runtime/providerModelIds";
+import { isSeedance2UiEnabled } from "./seedance2Availability";
 import type { ToolId } from "../types";
 
 type VideoReferenceMode = "standard" | "modify" | "keyframes" | "kling3" | "motion";
@@ -56,13 +60,25 @@ export const resolveVideoGenerationLaneFromInputs = ({
 };
 
 const isTextCompatibleVideoModel = (modelId: string | null | undefined): boolean =>
-  modelId === KIE_VEO_31_FAST_I2V_MODEL_ID || modelId === KIE_KLING_30_MODEL_ID;
+  modelId === KIE_VEO_31_FAST_I2V_MODEL_ID ||
+  modelId === KIE_KLING_30_MODEL_ID ||
+  modelId === KIE_SEEDANCE_15_PRO_MODEL_ID ||
+  (isSeedance2UiEnabled() &&
+    (modelId === KIE_SEEDANCE_2_MODEL_ID || modelId === KIE_SEEDANCE_2_FAST_MODEL_ID));
 
 const isSingleImageCompatibleVideoModel = (modelId: string | null | undefined): boolean =>
-  modelId === KIE_KLING_30_MODEL_ID || modelId === KIE_VEO_31_FAST_I2V_MODEL_ID;
+  modelId === KIE_KLING_30_MODEL_ID ||
+  modelId === KIE_VEO_31_FAST_I2V_MODEL_ID ||
+  modelId === KIE_SEEDANCE_15_PRO_MODEL_ID ||
+  (isSeedance2UiEnabled() &&
+    (modelId === KIE_SEEDANCE_2_MODEL_ID || modelId === KIE_SEEDANCE_2_FAST_MODEL_ID));
 
 const isFirstLastCompatibleVideoModel = (modelId: string | null | undefined): boolean =>
-  modelId === KIE_VEO_31_FAST_I2V_MODEL_ID || modelId === KIE_KLING_30_MODEL_ID;
+  modelId === KIE_VEO_31_FAST_I2V_MODEL_ID ||
+  modelId === KIE_KLING_30_MODEL_ID ||
+  modelId === KIE_SEEDANCE_15_PRO_MODEL_ID ||
+  (isSeedance2UiEnabled() &&
+    (modelId === KIE_SEEDANCE_2_MODEL_ID || modelId === KIE_SEEDANCE_2_FAST_MODEL_ID));
 
 export const resolveAutoVideoModelForLane = ({
   currentModel,
@@ -73,22 +89,43 @@ export const resolveAutoVideoModelForLane = ({
 }): string | null => {
   if (lane === "motion") {
     if (isFalKlingVideoModel(currentModel)) return KIE_KLING_30_MODEL_ID;
+    if (currentModel === KIE_SEEDANCE_2_MODEL_ID || currentModel === KIE_SEEDANCE_2_FAST_MODEL_ID) {
+      return KIE_KLING_30_MODEL_ID;
+    }
     return currentModel;
   }
 
   if (lane === "text") {
     if (isFalKlingVideoModel(currentModel)) return KIE_VEO_31_FAST_I2V_MODEL_ID;
+    if (
+      !isSeedance2UiEnabled() &&
+      (currentModel === KIE_SEEDANCE_2_MODEL_ID || currentModel === KIE_SEEDANCE_2_FAST_MODEL_ID)
+    ) {
+      return KIE_SEEDANCE_15_PRO_MODEL_ID;
+    }
     if (isTextCompatibleVideoModel(currentModel)) return currentModel;
     return KIE_VEO_31_FAST_I2V_MODEL_ID;
   }
 
   if (lane === "single-image") {
     if (isFalKlingVideoModel(currentModel)) return KIE_KLING_30_MODEL_ID;
+    if (
+      !isSeedance2UiEnabled() &&
+      (currentModel === KIE_SEEDANCE_2_MODEL_ID || currentModel === KIE_SEEDANCE_2_FAST_MODEL_ID)
+    ) {
+      return KIE_SEEDANCE_15_PRO_MODEL_ID;
+    }
     if (isSingleImageCompatibleVideoModel(currentModel)) return currentModel;
     return KIE_VEO_31_FAST_I2V_MODEL_ID;
   }
 
   if (isFalKlingVideoModel(currentModel)) return KIE_KLING_30_MODEL_ID;
+  if (
+    !isSeedance2UiEnabled() &&
+    (currentModel === KIE_SEEDANCE_2_MODEL_ID || currentModel === KIE_SEEDANCE_2_FAST_MODEL_ID)
+  ) {
+    return KIE_SEEDANCE_15_PRO_MODEL_ID;
+  }
   if (isFirstLastCompatibleVideoModel(currentModel)) return currentModel;
   return KIE_VEO_31_FAST_I2V_MODEL_ID;
 };

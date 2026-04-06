@@ -9,6 +9,7 @@ import type {
 } from "./sessionSnapshot";
 import type { StudioMode, StudioOutput, ToolId } from "../types";
 import type { AgentMessage, AgentMessageRole } from "../../../prefabs/agent/types";
+import { normalizeSeedance2UiModelId } from "./seedance2Availability";
 import {
   parseAiStudioSessionCanvasState,
   type AiStudioSessionCanvasState,
@@ -22,6 +23,7 @@ const FALLBACK_VIDEO_RESOLUTION = "1080p";
 const FALLBACK_IMAGE_RESOLUTION = "model_default";
 const FALLBACK_KLING_CFG_SCALE = 0.5;
 const FALLBACK_KLING_WORKFLOW_MODE = "single" as const;
+const FALLBACK_SEEDANCE2_INPUT_MODE = "text" as const;
 const FALLBACK_KLING_SHOT_TYPE = "customize" as const;
 const FALLBACK_PROMPT_ORIGIN = "manual" as const;
 
@@ -123,6 +125,17 @@ const asKlingWorkflowMode = (
 ): "single" | "multi" | "custom" => {
   if (value === "single" || value === "multi" || value === "custom") return value;
   return klingMultiPrompts.length > 0 ? "custom" : FALLBACK_KLING_WORKFLOW_MODE;
+};
+
+const asSeedance2InputMode = (
+  value: unknown
+): "text" | "first-frame" | "first-last" | "multimodal" => {
+  return value === "text" ||
+    value === "first-frame" ||
+    value === "first-last" ||
+    value === "multimodal"
+    ? value
+    : FALLBACK_SEEDANCE2_INPUT_MODE;
 };
 
 const asExtraImageUrls = (value: unknown): [string | null, string | null, string | null] => {
@@ -350,6 +363,12 @@ export type AiStudioSessionHydrationPayload = {
     klingNegativePrompt: string;
     klingCfgScale: number;
     klingWorkflowMode: "single" | "multi" | "custom";
+    seedance2InputMode: "text" | "first-frame" | "first-last" | "multimodal";
+    seedance2ReferenceImageUrls: string[];
+    seedance2ReferenceVideoUrls: string[];
+    seedance2ReferenceAudioUrls: string[];
+    seedance2ReturnLastFrame: boolean;
+    seedance2WebSearch: boolean;
     klingShotType: "customize" | "intelligent";
     klingVoiceIds: [string, string];
     klingMultiPrompts: { id: string; prompt: string; duration: number }[];
@@ -404,14 +423,26 @@ export const buildAiStudioSessionHydrationPayload = (
     candidateActiveOutputId && allOutputIds.has(candidateActiveOutputId)
       ? candidateActiveOutputId
       : null;
-  const klingMultiPrompts = asKlingMultiPrompts(workspace.klingMultiPrompts);
+  const persistedKlingMultiPrompts = asKlingMultiPrompts(workspace.klingMultiPrompts);
+  const persistedKlingWorkflowMode = asKlingWorkflowMode(
+    workspace.klingWorkflowMode,
+    persistedKlingMultiPrompts
+  );
+  const shouldResetPersistedCustomKlingWorkspace =
+    persistedKlingWorkflowMode === "custom" || persistedKlingMultiPrompts.length > 0;
+  const klingWorkflowMode = shouldResetPersistedCustomKlingWorkspace
+    ? FALLBACK_KLING_WORKFLOW_MODE
+    : persistedKlingWorkflowMode;
+  const klingMultiPrompts = shouldResetPersistedCustomKlingWorkspace
+    ? []
+    : persistedKlingMultiPrompts;
 
   return {
     workspace: {
       mode: asMode(workspace.mode),
       selectedTool: asToolId(workspace.selectedTool),
       prompt: asString(workspace.prompt, ""),
-      model: asNullableString(workspace.model),
+      model: normalizeSeedance2UiModelId(asNullableString(workspace.model)) ?? null,
       aspect: asString(workspace.aspect, FALLBACK_ASPECT),
       referenceImageUrl: sanitizeHydratedMediaUrl(asNullableString(workspace.referenceImageUrl)),
       extraImageUrls: asExtraImageUrls(workspace.extraImageUrls),
@@ -429,7 +460,19 @@ export const buildAiStudioSessionHydrationPayload = (
       videoAutoFix: asBoolean(workspace.videoAutoFix),
       klingNegativePrompt: asString(workspace.klingNegativePrompt, ""),
       klingCfgScale: asFiniteNumber(workspace.klingCfgScale, FALLBACK_KLING_CFG_SCALE),
-      klingWorkflowMode: asKlingWorkflowMode(workspace.klingWorkflowMode, klingMultiPrompts),
+      klingWorkflowMode,
+      seedance2InputMode: asSeedance2InputMode(workspace.seedance2InputMode),
+      seedance2ReferenceImageUrls: asStringArray(workspace.seedance2ReferenceImageUrls)
+        .map((url) => sanitizeHydratedMediaUrl(url))
+        .filter((url): url is string => Boolean(url)),
+      seedance2ReferenceVideoUrls: asStringArray(workspace.seedance2ReferenceVideoUrls)
+        .map((url) => sanitizeHydratedMediaUrl(url))
+        .filter((url): url is string => Boolean(url)),
+      seedance2ReferenceAudioUrls: asStringArray(workspace.seedance2ReferenceAudioUrls)
+        .map((url) => sanitizeHydratedMediaUrl(url))
+        .filter((url): url is string => Boolean(url)),
+      seedance2ReturnLastFrame: asBoolean(workspace.seedance2ReturnLastFrame),
+      seedance2WebSearch: asBoolean(workspace.seedance2WebSearch),
       klingShotType: asKlingShotType(workspace.klingShotType),
       klingVoiceIds: asKlingVoiceIds(workspace.klingVoiceIds),
       klingMultiPrompts,

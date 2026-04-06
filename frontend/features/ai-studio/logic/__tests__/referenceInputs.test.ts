@@ -1,6 +1,9 @@
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   KIE_KLING_30_MODEL_ID,
+  KIE_SEEDANCE_15_PRO_MODEL_ID,
+  KIE_SEEDANCE_2_FAST_MODEL_ID,
+  KIE_SEEDANCE_2_MODEL_ID,
   KIE_VEO_31_FAST_I2V_MODEL_ID,
 } from "../../../../lib/model-runtime/providerModelIds";
 import {
@@ -10,6 +13,10 @@ import {
   resolveAutoVideoModelForLane,
   resolveVideoGenerationLaneFromFrameInputs,
 } from "../referenceInputs";
+
+beforeEach(() => {
+  vi.unstubAllEnvs();
+});
 
 describe("buildImageReferenceInputs", () => {
   it("keeps primary first and removes duplicate extras", () => {
@@ -112,6 +119,42 @@ describe("resolveAutoVideoModelForLane", () => {
         lane: "first-last",
       })
     ).toBe(KIE_VEO_31_FAST_I2V_MODEL_ID);
+  });
+
+  it("keeps Seedance 1.5 selected and remaps quarantined Seedance 2.x models to Seedance 1.5", () => {
+    expect(
+      resolveAutoVideoModelForLane({
+        currentModel: KIE_SEEDANCE_15_PRO_MODEL_ID,
+        lane: "text",
+      })
+    ).toBe(KIE_SEEDANCE_15_PRO_MODEL_ID);
+
+    for (const modelId of [KIE_SEEDANCE_2_MODEL_ID, KIE_SEEDANCE_2_FAST_MODEL_ID]) {
+      expect(
+        resolveAutoVideoModelForLane({
+          currentModel: modelId,
+          lane: "text",
+        })
+      ).toBe(KIE_SEEDANCE_15_PRO_MODEL_ID);
+      expect(
+        resolveAutoVideoModelForLane({
+          currentModel: modelId,
+          lane: "single-image",
+        })
+      ).toBe(KIE_SEEDANCE_15_PRO_MODEL_ID);
+      expect(
+        resolveAutoVideoModelForLane({
+          currentModel: modelId,
+          lane: "first-last",
+        })
+      ).toBe(KIE_SEEDANCE_15_PRO_MODEL_ID);
+      expect(
+        resolveAutoVideoModelForLane({
+          currentModel: modelId,
+          lane: "motion",
+        })
+      ).toBe(KIE_KLING_30_MODEL_ID);
+    }
   });
 
   it("maps incompatible Google-family lanes onto the Kie Veo default", () => {

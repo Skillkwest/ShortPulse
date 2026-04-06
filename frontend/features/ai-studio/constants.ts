@@ -4,9 +4,12 @@
  */
 import { AspectOption, PromptTemplate, ToolId } from "./types";
 import { getModelAllowedAspects } from "./logic/modelApiContracts";
+import { isSeedance2UiEnabled } from "./logic/seedance2Availability";
 import {
   KIE_KLING_30_MODEL_ID,
   KIE_SEEDANCE_15_PRO_MODEL_ID,
+  KIE_SEEDANCE_2_FAST_MODEL_ID,
+  KIE_SEEDANCE_2_MODEL_ID,
   KIE_VEO_31_FAST_I2V_MODEL_ID,
 } from "../../lib/model-runtime/providerModelIds";
 
@@ -39,6 +42,8 @@ export const modelLogos: Record<string, string> = {
   [KIE_VEO_31_FAST_I2V_MODEL_ID]: GOOGLE_LOGO_SRC,
   [KIE_KLING_30_MODEL_ID]: KLING_LOGO_SRC,
   [KIE_SEEDANCE_15_PRO_MODEL_ID]: SEEDREAM_LOGO_SRC,
+  [KIE_SEEDANCE_2_MODEL_ID]: SEEDREAM_LOGO_SRC,
+  [KIE_SEEDANCE_2_FAST_MODEL_ID]: SEEDREAM_LOGO_SRC,
 };
 
 export const aspectOptions: AspectOption[] = [
@@ -67,6 +72,20 @@ export const modelOptions: ModelOption[] = [
     label: "Seedance 1.5 Pro (Kie)",
     mediaType: "image-to-video",
   },
+  ...(isSeedance2UiEnabled()
+    ? ([
+        {
+          value: KIE_SEEDANCE_2_MODEL_ID,
+          label: "Seedance 2.0 (Kie)",
+          mediaType: "image-to-video",
+        },
+        {
+          value: KIE_SEEDANCE_2_FAST_MODEL_ID,
+          label: "Seedance 2.0 Fast (Kie)",
+          mediaType: "image-to-video",
+        },
+      ] satisfies ModelOption[])
+    : []),
   { value: "fal/flux-2-pro/edit", label: "FLUX.2 Pro", mediaType: "image" },
   { value: "fal/flux-2/edit", label: "FLUX.2", mediaType: "image" },
   { value: "fal/flux-2-pro", label: "FLUX.2 Pro", mediaType: "image" },

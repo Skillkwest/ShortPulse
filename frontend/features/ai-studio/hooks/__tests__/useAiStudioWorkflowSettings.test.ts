@@ -1,6 +1,11 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { useState } from "react";
+import {
+  KIE_KLING_30_MODEL_ID,
+  KIE_SEEDANCE_15_PRO_MODEL_ID,
+  KIE_SEEDANCE_2_MODEL_ID,
+} from "../../../../lib/model-runtime/providerModelIds";
 import type { StudioMode, ToolId } from "../../types";
 import {
   WORKFLOW_SETTINGS_SESSION_KEY,
@@ -26,6 +31,14 @@ const useHarness = (initialTool: ToolId | null) => {
   const [klingWorkflowMode, setKlingWorkflowMode] = useState<"single" | "multi" | "custom">(
     "single"
   );
+  const [seedance2InputMode, setSeedance2InputMode] = useState<
+    "text" | "first-frame" | "first-last" | "multimodal"
+  >("text");
+  const [seedance2ReferenceImageUrls, setSeedance2ReferenceImageUrls] = useState<string[]>([]);
+  const [seedance2ReferenceVideoUrls, setSeedance2ReferenceVideoUrls] = useState<string[]>([]);
+  const [seedance2ReferenceAudioUrls, setSeedance2ReferenceAudioUrls] = useState<string[]>([]);
+  const [seedance2ReturnLastFrame, setSeedance2ReturnLastFrame] = useState(false);
+  const [seedance2WebSearch, setSeedance2WebSearch] = useState(false);
   const [klingShotType, setKlingShotType] = useState<"customize" | "intelligent">("customize");
   const [klingVoiceIds, setKlingVoiceIds] = useState<[string, string]>(["", ""]);
   const [klingMultiPrompts, setKlingMultiPrompts] = useState<
@@ -50,6 +63,12 @@ const useHarness = (initialTool: ToolId | null) => {
     klingNegativePrompt,
     klingCfgScale,
     klingWorkflowMode,
+    seedance2InputMode,
+    seedance2ReferenceImageUrls,
+    seedance2ReferenceVideoUrls,
+    seedance2ReferenceAudioUrls,
+    seedance2ReturnLastFrame,
+    seedance2WebSearch,
     klingShotType,
     klingVoiceIds,
     klingMultiPrompts,
@@ -67,6 +86,12 @@ const useHarness = (initialTool: ToolId | null) => {
     setKlingNegativePrompt,
     setKlingCfgScale,
     setKlingWorkflowMode,
+    setSeedance2InputMode,
+    setSeedance2ReferenceImageUrls,
+    setSeedance2ReferenceVideoUrls,
+    setSeedance2ReferenceAudioUrls,
+    setSeedance2ReturnLastFrame,
+    setSeedance2WebSearch,
     setKlingShotType,
     setKlingVoiceIds,
     setKlingMultiPrompts,
@@ -78,12 +103,17 @@ const useHarness = (initialTool: ToolId | null) => {
     setSelectedTool,
     mode,
     model,
+    setModelState,
     aspect,
     imageResolution,
     setAspect,
     setImageResolution,
     videoResolution,
     setVideoResolution,
+    klingWorkflowMode,
+    setKlingWorkflowMode,
+    klingMultiPrompts,
+    setKlingMultiPrompts,
     ...workflow,
   };
 };
@@ -205,6 +235,45 @@ describe("useAiStudioWorkflowSettings", () => {
     expect(result.current.model).toBe("fal-ai/bytedance/seedream/v4.5/edit");
   });
 
+  it("remaps quarantined Seedance 2 workflow settings to Seedance 1.5 for video tools", async () => {
+    window.sessionStorage.clear();
+    window.sessionStorage.setItem(
+      WORKFLOW_SETTINGS_SESSION_KEY,
+      JSON.stringify({
+        video: {
+          mode: "video",
+          model: KIE_SEEDANCE_2_MODEL_ID,
+          aspect: "9:16",
+          imageResolution: "model_default",
+          videoReferenceMode: "standard",
+          videoDurationSeconds: 5,
+          videoResolution: "1080p",
+          videoGenerateAudio: true,
+          videoCameraFixed: false,
+          videoAutoFix: false,
+          klingNegativePrompt: "blur",
+          klingCfgScale: 0.5,
+          klingWorkflowMode: "single",
+          seedance2InputMode: "text",
+          seedance2ReferenceImageUrls: [],
+          seedance2ReferenceVideoUrls: [],
+          seedance2ReferenceAudioUrls: [],
+          seedance2ReturnLastFrame: false,
+          seedance2WebSearch: false,
+          klingShotType: "customize",
+          klingVoiceIds: ["", ""],
+          klingMultiPrompts: [],
+          klingElements: [],
+        },
+      })
+    );
+
+    const { result } = renderHook(() => useHarness("video"));
+
+    await waitFor(() => expect(result.current.selectedTool).toBe("video"));
+    expect(result.current.model).toBe(KIE_SEEDANCE_15_PRO_MODEL_ID);
+  });
+
   it("uses the shared aspect when edit is the active workflow", async () => {
     window.sessionStorage.clear();
     window.sessionStorage.setItem(
@@ -313,5 +382,32 @@ describe("useAiStudioWorkflowSettings", () => {
 
     await waitFor(() => expect(result.current.selectedTool).toBe("create"));
     expect(result.current.aspect).toBe("16:9");
+  });
+
+  it("resets custom Kling multi-shot state when the active video model changes away from Kling", async () => {
+    window.sessionStorage.clear();
+    const { result } = renderHook(() => useHarness("video"));
+
+    await waitFor(() =>
+      expect(window.sessionStorage.getItem(WORKFLOW_SETTINGS_SESSION_KEY)).not.toBeNull()
+    );
+
+    act(() => {
+      result.current.setModelState(KIE_KLING_30_MODEL_ID);
+      result.current.setKlingWorkflowMode("custom");
+      result.current.setKlingMultiPrompts([{ id: "shot-1", prompt: "Beat one", duration: 5 }]);
+    });
+
+    expect(result.current.klingWorkflowMode).toBe("custom");
+    expect(result.current.klingMultiPrompts).toHaveLength(1);
+
+    act(() => {
+      result.current.setModelState("kie-ai/veo-3.1-fast-i2v");
+    });
+
+    await waitFor(() => {
+      expect(result.current.klingWorkflowMode).toBe("single");
+      expect(result.current.klingMultiPrompts).toEqual([]);
+    });
   });
 });

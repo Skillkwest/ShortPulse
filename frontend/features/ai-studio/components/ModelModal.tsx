@@ -15,6 +15,7 @@ import {
   SEEDREAM_LOGO_SRC,
 } from "../constants";
 import { buildDefaultPricingParams, computeCostForModel } from "../logic/pricing";
+import { isSeedance2ModelId, isSeedance2UiEnabled } from "../logic/seedance2Availability";
 import { stripEditLabel } from "../utils/modelLabels";
 import { AiStudioModalLayer, useAiStudioModalActivity } from "./modal-layer/AiStudioModalLayer";
 
@@ -116,6 +117,37 @@ const modelMeta: Record<string, ModelMeta> = {
       "Audio",
     ],
   },
+  "kie-ai/seedance-2": {
+    provider: "Kie AI",
+    description:
+      "Kie Seedance 2.0 supports prompt-only video, first-frame animation, first/last-frame transitions, and multimodal reference-to-video workflows.",
+    tags: [
+      "Video",
+      "Text-to-Video",
+      "Image-to-Video",
+      "First/Last Frame",
+      "Multimodal References",
+      "5-10s",
+      "720p/1080p",
+      "Audio",
+    ],
+  },
+  "kie-ai/seedance-2-fast": {
+    provider: "Kie AI",
+    description:
+      "Kie Seedance 2.0 Fast supports prompt-only video, first-frame animation, first/last-frame transitions, and faster multimodal reference-to-video workflows.",
+    tags: [
+      "Video",
+      "Text-to-Video",
+      "Image-to-Video",
+      "First/Last Frame",
+      "Multimodal References",
+      "5-10s",
+      "720p/1080p",
+      "Fast",
+      "Audio",
+    ],
+  },
   "fal-ai/bytedance/seedream/v4.5/text-to-image": {
     provider: "ByteDance",
     description:
@@ -206,6 +238,7 @@ const tooltipTagPriority: Record<string, number> = {
   "720p-4K": 3,
   "720p/1080p": 3,
   "480p-1080p": 3,
+  "Multimodal References": 3,
   "2-12s": 4,
   "4-8s": 4,
   "4-12s": 4,
@@ -396,7 +429,10 @@ function ModelModalContent({
   const visibleOptions = useMemo(
     () =>
       options.filter(
-        (option) => !contextHiddenModelIds.has(option.value) && !isDisabledLegacyVideoModel(option)
+        (option) =>
+          !contextHiddenModelIds.has(option.value) &&
+          !isDisabledLegacyVideoModel(option) &&
+          (isSeedance2UiEnabled() || !isSeedance2ModelId(option.value))
       ),
     [contextHiddenModelIds, options]
   );

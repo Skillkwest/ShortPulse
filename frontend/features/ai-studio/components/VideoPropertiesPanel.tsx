@@ -2,7 +2,6 @@
  * Dedicated properties panel for the Video workflow.
  */
 import React from "react";
-import { flushSync } from "react-dom";
 import { Trash } from "phosphor-react";
 import type { AspectOption } from "../types";
 import { modelLogos } from "../constants";
@@ -11,12 +10,19 @@ import type { ModelModalContext } from "./ModelModal";
 import { ReferenceKlingAdvancedSteps } from "./ReferenceKlingAdvancedSteps";
 import { ReferenceMediaStep } from "./ReferenceMediaStep";
 import { ReferencePromptStep } from "./ReferencePromptStep";
+import { ReferenceSeedanceAdvancedSteps } from "./ReferenceSeedanceAdvancedSteps";
 import { useReferencePropertiesConstraintEffects } from "./useReferencePropertiesConstraintEffects";
 import { useReferencePropertiesDerivedState } from "./useReferencePropertiesDerivedState";
 import { ReferenceVideoSettingsStep } from "./ReferenceVideoSettingsStep";
 import { useReferencePropertiesInteractions } from "./useReferencePropertiesInteractions";
-import { KIE_KLING_30_MODEL_ID } from "../../../lib/model-runtime/providerModelIds";
+import {
+  KIE_KLING_30_MODEL_ID,
+  KIE_SEEDANCE_15_PRO_MODEL_ID,
+  KIE_SEEDANCE_2_FAST_MODEL_ID,
+  KIE_SEEDANCE_2_MODEL_ID,
+} from "../../../lib/model-runtime/providerModelIds";
 import { resolveVideoGenerationLaneFromFrameInputs } from "../logic/referenceInputs";
+import { isSeedance2UiEnabled } from "../logic/seedance2Availability";
 
 export type VideoPropertiesPanelProps = {
   aspect: string;
@@ -57,11 +63,25 @@ export type VideoPropertiesPanelProps = {
   videoGenerateAudio?: boolean;
   videoCameraFixed?: boolean;
   videoAutoFix?: boolean;
+  seedance2InputMode?: "text" | "first-frame" | "first-last" | "multimodal";
+  seedance2ReferenceImageUrls?: string[];
+  seedance2ReferenceVideoUrls?: string[];
+  seedance2ReferenceAudioUrls?: string[];
+  seedance2ReturnLastFrame?: boolean;
+  seedance2WebSearch?: boolean;
   onVideoDurationChange?: (value: number) => void;
   onVideoResolutionChange?: (value: string) => void;
   onVideoGenerateAudioChange?: (value: boolean) => void;
   onVideoCameraFixedChange?: (value: boolean) => void;
   onVideoAutoFixChange?: (value: boolean) => void;
+  onSeedance2InputModeChange?: (
+    value: "text" | "first-frame" | "first-last" | "multimodal"
+  ) => void;
+  onSeedance2ReferenceImageUrlsChange?: (value: string[]) => void;
+  onSeedance2ReferenceVideoUrlsChange?: (value: string[]) => void;
+  onSeedance2ReferenceAudioUrlsChange?: (value: string[]) => void;
+  onSeedance2ReturnLastFrameChange?: (value: boolean) => void;
+  onSeedance2WebSearchChange?: (value: boolean) => void;
   aspectOptions: AspectOption[];
   isModelModalOpen: boolean;
   modelModalAnchor: string | null;
@@ -119,11 +139,23 @@ export function VideoPropertiesPanel({
   videoGenerateAudio,
   videoCameraFixed = false,
   videoAutoFix = false,
+  seedance2InputMode = "text",
+  seedance2ReferenceImageUrls = [],
+  seedance2ReferenceVideoUrls = [],
+  seedance2ReferenceAudioUrls = [],
+  seedance2ReturnLastFrame = false,
+  seedance2WebSearch = false,
   onVideoDurationChange,
   onVideoResolutionChange,
   onVideoGenerateAudioChange,
   onVideoCameraFixedChange,
   onVideoAutoFixChange,
+  onSeedance2InputModeChange,
+  onSeedance2ReferenceImageUrlsChange,
+  onSeedance2ReferenceVideoUrlsChange,
+  onSeedance2ReferenceAudioUrlsChange,
+  onSeedance2ReturnLastFrameChange,
+  onSeedance2WebSearchChange,
   aspectOptions,
   isModelModalOpen,
   modelModalAnchor,
@@ -141,19 +173,6 @@ export function VideoPropertiesPanel({
   onAgentEnhanceSend,
   beginnerMode = false,
 }: VideoPropertiesPanelProps) {
-  const runWithViewTransition = React.useCallback((update: () => void) => {
-    const viewTransitionDocument = document as Document & {
-      startViewTransition?: (callback: () => void) => { finished: Promise<void> };
-    };
-    if (typeof viewTransitionDocument.startViewTransition !== "function") {
-      update();
-      return;
-    }
-    viewTransitionDocument.startViewTransition(() => {
-      flushSync(update);
-    });
-  }, []);
-
   const shotWorkspaceScrollRef = React.useRef<HTMLDivElement | null>(null);
   const shotWorkspaceStackRef = React.useRef<HTMLDivElement | null>(null);
   const modelLogoSrc = modelId ? modelLogos[modelId] : undefined;
@@ -264,6 +283,12 @@ export function VideoPropertiesPanel({
 
   const isKieKlingWorkspace = isKling3Mode && modelId === KIE_KLING_30_MODEL_ID;
   const isKieKlingModelSelected = modelId === KIE_KLING_30_MODEL_ID;
+  const isSeedance15ModelSelected = modelId === KIE_SEEDANCE_15_PRO_MODEL_ID;
+  const isSeedance2ModelSelected = modelId === KIE_SEEDANCE_2_MODEL_ID;
+  const isSeedance2FastModelSelected = modelId === KIE_SEEDANCE_2_FAST_MODEL_ID;
+  const isSeedance2FamilyModelSelected =
+    isSeedance2UiEnabled() && (isSeedance2ModelSelected || isSeedance2FastModelSelected);
+  const isAnySeedanceModelSelected = isSeedance15ModelSelected || isSeedance2FamilyModelSelected;
   const isVeo31ModelSelected =
     modelId?.includes("veo3.1") === true || modelId?.includes("veo-3.1") === true;
 
@@ -298,8 +323,8 @@ export function VideoPropertiesPanel({
     [videoModeIndex]
   );
   const klingMode = klingWorkflowMode;
-  const isMultiShotEnabled = klingMode === "custom";
-  const isCustomKlingWorkflow = klingMode === "custom";
+  const isMultiShotEnabled = isKieKlingModelSelected && klingMode === "custom";
+  const isCustomKlingWorkflow = isKieKlingModelSelected && klingMode === "custom";
   const customKlingPrompts = isCustomKlingWorkflow ? klingMultiPrompts : [];
   const hasAnyPromptText = isCustomKlingWorkflow
     ? customKlingPrompts.some((shot) => shot.prompt.trim().length > 0)
@@ -327,9 +352,19 @@ export function VideoPropertiesPanel({
   }, [referenceText, videoDurationValue]);
   const showShotModeSelector = activeVideoMode === "standard";
   const shouldShowShotModeSelector = showShotModeSelector && isKieKlingModelSelected;
+  const shouldShowSeedanceAdvancedPanel =
+    isAnySeedanceModelSelected && activeVideoMode === "standard" && !isMotionMode;
+  const displayedSeedance2InputMode =
+    seedance2InputMode === "multimodal"
+      ? "multimodal"
+      : resolvedVideoLane === "first-last"
+        ? "first-last"
+        : resolvedVideoLane === "single-image"
+          ? "first-frame"
+          : "text";
   const textareaResizeFrameMapRef = React.useRef(new WeakMap<HTMLTextAreaElement, number>());
 
-  const resizeTextareaToContent = React.useCallback((textarea: HTMLTextAreaElement | null) => {
+  const resizeTextareaToViewport = React.useCallback((textarea: HTMLTextAreaElement | null) => {
     if (!textarea) return;
     const previousFrameId = textareaResizeFrameMapRef.current.get(textarea);
     if (typeof previousFrameId === "number") {
@@ -337,8 +372,20 @@ export function VideoPropertiesPanel({
     }
     const frameId = window.requestAnimationFrame(() => {
       const computedMinHeight = Number.parseFloat(window.getComputedStyle(textarea).minHeight) || 0;
+      const rect = textarea.getBoundingClientRect();
+      const viewportHeight = window.innerHeight;
+      const bottomViewportInset = 150;
+      const availableHeight = Math.max(
+        viewportHeight - rect.top - bottomViewportInset,
+        computedMinHeight
+      );
       textarea.style.height = "auto";
-      textarea.style.height = `${Math.max(textarea.scrollHeight, computedMinHeight)}px`;
+      const nextHeight = Math.min(
+        Math.max(textarea.scrollHeight, computedMinHeight),
+        availableHeight
+      );
+      textarea.style.height = `${nextHeight}px`;
+      textarea.style.overflowY = textarea.scrollHeight > availableHeight ? "auto" : "hidden";
       textareaResizeFrameMapRef.current.delete(textarea);
     });
     textareaResizeFrameMapRef.current.set(textarea, frameId);
@@ -349,19 +396,15 @@ export function VideoPropertiesPanel({
     onKlingMultiPromptsChange(createInitialMultiShot());
   };
   const handleSetKlingWorkflowMode = (nextMode: "single" | "multi" | "custom") => {
-    runWithViewTransition(() => {
-      onKlingWorkflowModeChange?.(nextMode);
-      if (nextMode === "custom") {
-        ensureCustomKlingShots();
-      }
-    });
+    onKlingWorkflowModeChange?.(nextMode);
+    if (nextMode === "custom") {
+      ensureCustomKlingShots();
+    }
   };
   const handleAddShotPrompt = () => {
-    runWithViewTransition(() => {
-      onKlingWorkflowModeChange?.("custom");
-      ensureCustomKlingShots();
-      addKlingShot();
-    });
+    onKlingWorkflowModeChange?.("custom");
+    ensureCustomKlingShots();
+    addKlingShot();
   };
   const shouldShowAddCustomShotButton =
     isKieKlingModelSelected && klingMode === "custom" && Boolean(onKlingMultiPromptsChange);
@@ -384,6 +427,7 @@ export function VideoPropertiesPanel({
   };
   const showShotLabels = shouldShowAddCustomShotButton;
   const totalShotCount = isCustomKlingWorkflow ? Math.max(customKlingPrompts.length, 1) : 1;
+  const promptAutoResizeLayoutKey = `${visibleVideoMode}-${klingMode}-${totalShotCount}`;
   const primaryPromptValue = isCustomKlingWorkflow
     ? (customKlingPrompts[0]?.prompt ?? "")
     : (referenceText ?? "");
@@ -418,6 +462,33 @@ export function VideoPropertiesPanel({
     observer.observe(stack);
     return () => observer.disconnect();
   }, [isCustomMultiShotWorkspace]);
+
+  React.useEffect(() => {
+    const frameId = window.requestAnimationFrame(() => {
+      shotWorkspaceStackRef.current
+        ?.querySelectorAll<HTMLTextAreaElement>(
+          ".video-secondary-prompt-shell .enhanced-prompt-input"
+        )
+        .forEach((textarea) => {
+          resizeTextareaToViewport(textarea);
+        });
+    });
+    return () => window.cancelAnimationFrame(frameId);
+  }, [customKlingPrompts, promptAutoResizeLayoutKey, resizeTextareaToViewport]);
+
+  React.useEffect(() => {
+    const handleViewportResize = () => {
+      shotWorkspaceStackRef.current
+        ?.querySelectorAll<HTMLTextAreaElement>(
+          ".video-secondary-prompt-shell .enhanced-prompt-input"
+        )
+        .forEach((textarea) => {
+          resizeTextareaToViewport(textarea);
+        });
+    };
+    window.addEventListener("resize", handleViewportResize);
+    return () => window.removeEventListener("resize", handleViewportResize);
+  }, [resizeTextareaToViewport]);
 
   return (
     <div className="tool-properties reference-properties-panel video-properties-panel">
@@ -525,6 +596,7 @@ export function VideoPropertiesPanel({
                         resolutionOptions={resolutionOptions}
                         videoGenerateAudioValue={videoGenerateAudioValue}
                         isSeedanceModel={isSeedanceModel}
+                        showSeedanceCameraFixedControl={!shouldShowSeedanceAdvancedPanel}
                         videoCameraFixed={videoCameraFixed}
                         isVeoModel={isVeoModel}
                         videoAutoFix={videoAutoFix}
@@ -624,7 +696,37 @@ export function VideoPropertiesPanel({
                         </div>
                       </div>
                     ) : null}
-                    {!isKieKlingModelSelected ? (
+                    {shouldShowSeedanceAdvancedPanel ? (
+                      <div className="video-setup-seedance-slot">
+                        <ReferenceSeedanceAdvancedSteps
+                          title={
+                            isSeedance15ModelSelected
+                              ? "Seedance 1.5 Settings"
+                              : isSeedance2FastModelSelected
+                                ? "Seedance 2.0 Fast Settings"
+                                : "Seedance 2.0 Settings"
+                          }
+                          isSeedance15Model={isSeedance15ModelSelected}
+                          isSeedance2FamilyModel={isSeedance2FamilyModelSelected}
+                          displayInputMode={displayedSeedance2InputMode}
+                          videoCameraFixed={videoCameraFixed}
+                          onVideoCameraFixedChange={onVideoCameraFixedChange}
+                          seedance2InputMode={seedance2InputMode}
+                          seedance2ReferenceImageUrls={seedance2ReferenceImageUrls}
+                          seedance2ReferenceVideoUrls={seedance2ReferenceVideoUrls}
+                          seedance2ReferenceAudioUrls={seedance2ReferenceAudioUrls}
+                          seedance2ReturnLastFrame={seedance2ReturnLastFrame}
+                          seedance2WebSearch={seedance2WebSearch}
+                          onSeedance2InputModeChange={onSeedance2InputModeChange}
+                          onSeedance2ReferenceImageUrlsChange={onSeedance2ReferenceImageUrlsChange}
+                          onSeedance2ReferenceVideoUrlsChange={onSeedance2ReferenceVideoUrlsChange}
+                          onSeedance2ReferenceAudioUrlsChange={onSeedance2ReferenceAudioUrlsChange}
+                          onSeedance2ReturnLastFrameChange={onSeedance2ReturnLastFrameChange}
+                          onSeedance2WebSearchChange={onSeedance2WebSearchChange}
+                        />
+                      </div>
+                    ) : null}
+                    {!isKieKlingModelSelected && !isAnySeedanceModelSelected ? (
                       <p className="video-kling-tip">
                         Tip: Switch to the Kling 3.0 model to access multi-shot capability.
                       </p>
@@ -637,89 +739,94 @@ export function VideoPropertiesPanel({
               <div
                 className={`video-direction-column-shell ${hasAnyPromptText ? "has-active-prompt-content" : ""} ${isCustomMultiShotWorkspace ? "is-custom-multishot-workspace" : ""}`}
               >
-                {!hasAnyPromptText ? (
+                {!hasAnyPromptText && !isCustomMultiShotWorkspace ? (
                   <p className="video-panel-hero-text">How will you direct this scene?</p>
                 ) : null}
                 <div className="video-shot-workspace-shell" style={customShotWorkspaceStyle}>
-                  <div className="video-shot-workspace-scroll" ref={shotWorkspaceScrollRef}>
-                    <div className="video-shot-workspace-stack" ref={shotWorkspaceStackRef}>
-                      <div className="video-prompt-generate-row">
-                        <div className="video-prompt-generate-main">
-                          <div className="video-prompt-stack">
-                            <div className="video-primary-prompt-shell">
-                              {showShotLabels ? (
-                                <div className="video-shot-label-row video-shot-label-row--primary">
-                                  <span className="video-shot-label-pill">Shot 1</span>
-                                  <span className="video-shot-label-divider" aria-hidden="true" />
-                                </div>
-                              ) : null}
-                              <ReferencePromptStep
-                                promptBadge={promptBadge}
-                                promptOrder={promptOrder}
-                                referenceText={primaryPromptValue}
-                                onPromptTextChange={handlePrimaryPromptChange}
-                                collapsed={collapsedSteps.prompt}
-                                onToggleCollapse={() => toggleStep("prompt")}
-                                onDrop={handlePromptDrop}
-                                beginnerMode={beginnerMode}
-                                agentIsSending={agentIsSending}
-                                agentError={agentError}
-                                onAgentEnhanceSend={onAgentEnhanceSend}
-                                showEnhanceButton={false}
-                                hideHeader={true}
-                                autoResize
-                                promptPlaceholder={primaryPromptPlaceholder}
-                                beginnerHelperText={primaryPromptHelperText}
+                  <div className="video-shot-workspace-scroll">
+                    <div className="video-shot-scroll-viewport" ref={shotWorkspaceScrollRef}>
+                      <div className="video-shot-workspace-stack" ref={shotWorkspaceStackRef}>
+                        <div className="video-prompt-generate-row">
+                          <div className="video-prompt-generate-main">
+                            <div className="video-prompt-stack">
+                              <div className="video-primary-prompt-shell">
+                                {showShotLabels ? (
+                                  <div className="video-shot-label-row video-shot-label-row--primary">
+                                    <span className="video-shot-label-pill">Shot 1</span>
+                                    <span className="video-shot-label-divider" aria-hidden="true" />
+                                  </div>
+                                ) : null}
+                                <ReferencePromptStep
+                                  promptBadge={promptBadge}
+                                  promptOrder={promptOrder}
+                                  referenceText={primaryPromptValue}
+                                  onPromptTextChange={handlePrimaryPromptChange}
+                                  collapsed={collapsedSteps.prompt}
+                                  onToggleCollapse={() => toggleStep("prompt")}
+                                  onDrop={handlePromptDrop}
+                                  beginnerMode={beginnerMode}
+                                  agentIsSending={agentIsSending}
+                                  agentError={agentError}
+                                  onAgentEnhanceSend={onAgentEnhanceSend}
+                                  showEnhanceButton={false}
+                                  hideHeader={true}
+                                  autoResize
+                                  autoResizeLayoutKey={promptAutoResizeLayoutKey}
+                                  promptPlaceholder={primaryPromptPlaceholder}
+                                  beginnerHelperText={primaryPromptHelperText}
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                        {customKlingPrompts.slice(1).map((shot, index) => (
+                          <div className="video-secondary-prompt-shell" key={shot.id}>
+                            {showShotLabels ? (
+                              <div className="video-shot-label-row">
+                                <span className="video-shot-label-pill">{`Shot ${index + 2}`}</span>
+                                <button
+                                  type="button"
+                                  className="video-shot-remove-button"
+                                  aria-label={`Remove shot ${index + 2}`}
+                                  onClick={() => removeKlingShot(shot.id)}
+                                >
+                                  <Trash size={14} weight="regular" aria-hidden="true" />
+                                </button>
+                              </div>
+                            ) : null}
+                            <div className="prompt-enhanced-wrapper">
+                              <textarea
+                                className="prompt-input agent-step-textarea enhanced-prompt-input"
+                                value={shot.prompt}
+                                onChange={(event) =>
+                                  handleCustomShotPromptChange(shot.id, event.target.value)
+                                }
+                                onInput={(event) =>
+                                  resizeTextareaToViewport(
+                                    event.currentTarget as HTMLTextAreaElement
+                                  )
+                                }
+                                rows={4}
+                                placeholder={`Describe shot ${index + 2}.`}
                               />
                             </div>
                           </div>
-                        </div>
-                      </div>
-                      {customKlingPrompts.slice(1).map((shot, index) => (
-                        <div className="video-secondary-prompt-shell" key={shot.id}>
-                          {showShotLabels ? (
-                            <div className="video-shot-label-row">
-                              <span className="video-shot-label-pill">{`Shot ${index + 2}`}</span>
+                        ))}
+                        {shouldShowAddCustomShotButton ? (
+                          <div className="video-add-shot-row">
+                            <div className="video-add-shot-main">
                               <button
                                 type="button"
-                                className="video-shot-remove-button"
-                                aria-label={`Remove shot ${index + 2}`}
-                                onClick={() => removeKlingShot(shot.id)}
+                                className="video-add-shot-button"
+                                onClick={handleAddShotPrompt}
+                                aria-label="Add another shot prompt"
                               >
-                                <Trash size={14} weight="regular" aria-hidden="true" />
+                                + Add Custom Shot
                               </button>
                             </div>
-                          ) : null}
-                          <div className="prompt-enhanced-wrapper">
-                            <textarea
-                              className="prompt-input agent-step-textarea enhanced-prompt-input"
-                              value={shot.prompt}
-                              onChange={(event) =>
-                                handleCustomShotPromptChange(shot.id, event.target.value)
-                              }
-                              onInput={(event) =>
-                                resizeTextareaToContent(event.currentTarget as HTMLTextAreaElement)
-                              }
-                              rows={4}
-                              placeholder={`Describe shot ${index + 2}.`}
-                            />
                           </div>
-                        </div>
-                      ))}
-                      {shouldShowAddCustomShotButton ? (
-                        <div className="video-add-shot-row">
-                          <div className="video-add-shot-main">
-                            <button
-                              type="button"
-                              className="video-add-shot-button"
-                              onClick={handleAddShotPrompt}
-                              aria-label="Add another shot prompt"
-                            >
-                              + Add Custom Shot
-                            </button>
-                          </div>
-                        </div>
-                      ) : null}
+                        ) : null}
+                      </div>
                     </div>
                   </div>
                 </div>

@@ -1,0 +1,75 @@
+# Kie.ai Seedance 1.5 Pro (Runtime-Gated Contract)
+
+This document tracks the internal ShortPulse runtime contract for `kie-ai/seedance-1.5-pro`.
+
+## Scope
+- Provider: `kie`
+- Model id: `kie-ai/seedance-1.5-pro`
+- Canonical source reference: [Kie Seedance 1.5 Pro](https://docs.kie.ai/market/bytedance/seedance-1-5-pro)
+- Runtime status: runtime-gated (selectable when Kie integration is enabled and model allowlist gates pass; fail-closed otherwise)
+- Primary-source snapshot: captured from Kie docs on `2026-04-06`
+
+## Current Runtime Contract
+- Endpoint: `POST /api/v1/jobs/createTask`
+- Status/details polling:
+  - default model-contract endpoint: `https://api.kie.ai/api/v1/jobs/recordInfo?taskId={requestId}`
+  - configured via `SHORTPULSE_KIE_STATUS_BASE_URLS`
+  - supports optional `{requestId}` template token for query-style endpoints
+  - falls back to legacy `/{requestId}/status` probing when template is not used
+- Submit shape normalizes to:
+  - root: `model="bytedance/seedance-1.5-pro"`, optional `callBackUrl`
+  - payload body under `input`
+  - product-level behavior inferred from image count:
+    - `0` images: prompt-only generation
+    - `1` image: first-frame image-to-video
+    - `2` images: first/last-frame image-to-video
+- Allowed aspects: `1:1`, `21:9`, `4:3`, `3:4`, `16:9`, `9:16`
+- Allowed resolutions: `480p`, `720p`, `1080p`
+- Allowed durations: `4`, `8`, `12` (seconds)
+- Required fields:
+  - `prompt`
+- Optional validated fields:
+  - `input_urls` (`0-2` http(s) URLs)
+  - `aspect_ratio`
+  - `resolution`
+  - `duration`
+  - `generate_audio`
+  - `fixed_lens`
+  - `nsfw_checker`
+  - canonical callback URL field `callback_url` (edge aliases `callBackUrl` / `callbackUrl` normalized at ingress)
+
+## Product-facing payload rules
+- Prompt-only:
+  - submits top-level prompt under `input.prompt`
+  - omits `input.input_urls`
+- One-image:
+  - submits the first frame as `input.input_urls[0]`
+- Two-image:
+  - submits first and last frames as `input.input_urls[0..1]`
+- All active Seedance 1.5 submissions also pass:
+  - `aspect_ratio`
+  - `duration`
+  - `resolution`
+  - optional `generate_audio`
+  - optional `fixed_lens`
+
+## Pricing (ShortPulse runtime)
+- Current billing policy uses the existing `seedance-1.5-per-second` runtime estimator.
+- This is an internal ShortPulse pricing policy decision, not a claim that Kie and Fal publish identical retail pricing.
+- Re-verify pricing evidence before any pricing-policy change or public billing update.
+
+## Guardrails
+1. Kie integration remains disabled by default.
+2. Kie paths fail closed unless model is explicitly allowlisted.
+3. Public `/api/fal/*` route contracts remain stable even though the provider path is Kie-backed.
+4. Seedance 1.5 accepts at most two input URLs.
+
+## Related Routes
+- Submit proxy: `/api/fal/kie-seedance-submit`
+- Status proxy: `/api/fal/kie-seedance-status`
+
+## Legacy docs
+- `docs/api/api-fal-seedance-1-5-pro.md`
+- `docs/api/api-fal-seedance-1-5-pro-i2v.md`
+
+Those documents are retained as historical references for disabled Fal routes and are not the active product contract.

@@ -5,7 +5,7 @@ Purpose: canonical integration references for first-party API routes and externa
 ## Scope
 - First-party Next.js API route map (`api-internal-routes`).
 - OpenAI platform references (`api-responses`, `api-chat-completions`).
-- Fal model references used by AI Studio generation routes.
+- Fal and Kie model references used by AI Studio generation routes.
 - Request payload defaults, status polling behavior, output shapes, and pricing notes.
 
 ## File conventions
@@ -23,10 +23,11 @@ Purpose: canonical integration references for first-party API routes and externa
 - `docs/api/api-fal-veo3.md`
 - `docs/api/api-fal-veo3-image-to-video.md`
 - `docs/api/api-fal-veo3-first-last-frame.md`
-- `docs/api/api-fal-seedance-1-5-pro.md`
-- `docs/api/api-fal-seedance-1-5-pro-i2v.md`
+- `docs/api/api-fal-seedance-1-5-pro.md` (legacy/disabled)
+- `docs/api/api-fal-seedance-1-5-pro-i2v.md` (legacy/disabled)
 - `docs/api/api-kie-veo-3-1-fast-image-to-video.md`
 - `docs/api/api-kie-kling-3-0.md`
+- `docs/api/api-kie-seedance-1-5-pro.md`
 - `docs/api/api-fal-flux-2.md`
 - `docs/api/api-fal-flux-2-klein-9b.md`
 - `docs/api/api-fal-flux-2-edit.md`

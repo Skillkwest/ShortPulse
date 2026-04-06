@@ -209,7 +209,7 @@ export function VideoPropertiesPanel({
     isKeyframesMode,
     isMotionMode,
     isStandardMode,
-    isSeedanceI2VModel,
+    isSeedanceModel,
     isVeoModel,
     referenceStepTitle,
     referenceStepSubtitle,
@@ -524,7 +524,7 @@ export function VideoPropertiesPanel({
                         durationOptions={durationOptions}
                         resolutionOptions={resolutionOptions}
                         videoGenerateAudioValue={videoGenerateAudioValue}
-                        isSeedanceI2VModel={isSeedanceI2VModel}
+                        isSeedanceModel={isSeedanceModel}
                         videoCameraFixed={videoCameraFixed}
                         isVeoModel={isVeoModel}
                         videoAutoFix={videoAutoFix}

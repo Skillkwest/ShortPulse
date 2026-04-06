@@ -58,10 +58,11 @@ Start here for all repository documentation.
 - `docs/api/api-fal-veo3.md`
 - `docs/api/api-fal-veo3-image-to-video.md`
 - `docs/api/api-fal-veo3-first-last-frame.md`
-- `docs/api/api-fal-seedance-1-5-pro.md`
-- `docs/api/api-fal-seedance-1-5-pro-i2v.md`
+- `docs/api/api-fal-seedance-1-5-pro.md` (legacy/disabled)
+- `docs/api/api-fal-seedance-1-5-pro-i2v.md` (legacy/disabled)
 - `docs/api/api-kie-veo-3-1-fast-image-to-video.md`
 - `docs/api/api-kie-kling-3-0.md`
+- `docs/api/api-kie-seedance-1-5-pro.md`
 - `docs/api/api-fal-flux-2.md`
 - `docs/api/api-fal-flux-2-klein-9b.md`
 - `docs/api/api-fal-flux-2-edit.md`

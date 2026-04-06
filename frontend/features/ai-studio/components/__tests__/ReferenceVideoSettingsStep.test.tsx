@@ -25,7 +25,7 @@ const baseProps = {
   durationOptions: [5, 8, 10],
   resolutionOptions: [{ value: "1080p", label: "1080p (Full HD)" }],
   videoGenerateAudioValue: true,
-  isSeedanceI2VModel: false,
+  isSeedanceModel: false,
   videoCameraFixed: false,
   isVeoModel: false,
   videoAutoFix: false,
@@ -76,7 +76,7 @@ describe("ReferenceVideoSettingsStep", () => {
   });
 
   it("shows the Seedance fixed-lens toggle only for Seedance video models", () => {
-    render(<ReferenceVideoSettingsStep {...baseProps} isSeedanceI2VModel videoCameraFixed />);
+    render(<ReferenceVideoSettingsStep {...baseProps} isSeedanceModel videoCameraFixed />);
 
     expect(screen.getByText("Camera Fixed")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Unlock camera" }));

@@ -36,7 +36,7 @@ export type VideoSettingsCardPrefabProps = {
   showMultiShotToggle?: boolean;
   multiShotEnabled?: boolean;
   isMotionMode: boolean;
-  isSeedanceI2VModel: boolean;
+  isSeedanceModel: boolean;
   videoCameraFixed: boolean;
   isVeoModel: boolean;
   videoAutoFix: boolean;
@@ -236,7 +236,7 @@ export function VideoSettingsCardPrefab({
   showMultiShotToggle = false,
   multiShotEnabled = false,
   isMotionMode,
-  isSeedanceI2VModel,
+  isSeedanceModel,
   videoCameraFixed,
   isVeoModel,
   videoAutoFix,
@@ -425,7 +425,7 @@ export function VideoSettingsCardPrefab({
         </div>
       ) : null}
 
-      {!isMotionMode && isSeedanceI2VModel && shouldShowSeedanceCameraFixed ? (
+      {!isMotionMode && isSeedanceModel && shouldShowSeedanceCameraFixed ? (
         <div className="video-settings-prefab__toggle-row">
           <div className="video-settings-prefab__toggle-copy">
             <span className="video-settings-prefab__toggle-label">Camera Fixed</span>

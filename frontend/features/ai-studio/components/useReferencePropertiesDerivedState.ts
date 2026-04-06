@@ -82,7 +82,7 @@ export const useReferencePropertiesDerivedState = ({
   const isVeoImageToVideoModel = modelId === KIE_VEO_31_FAST_I2V_MODEL_ID;
   const isVeoImageToVideoStandard = isStandardMode && isVeoImageToVideoModel;
   const isVeoFirstLastModel = isKeyframesMode && modelId === KIE_VEO_31_FAST_I2V_MODEL_ID;
-  const isSeedanceI2VModel = modelId === KIE_SEEDANCE_15_PRO_MODEL_ID;
+  const isSeedanceModel = modelId === KIE_SEEDANCE_15_PRO_MODEL_ID;
   const isVeoModel =
     modelId?.includes("veo3.1") === true ||
     modelId?.includes("veo-3.1") === true ||
@@ -214,7 +214,7 @@ export const useReferencePropertiesDerivedState = ({
     isKeyframesMode,
     isMotionMode,
     isStandardMode,
-    isSeedanceI2VModel,
+    isSeedanceModel,
     isVeoImageToVideoStandard,
     isVeoFirstLastModel,
     isVeoModel,

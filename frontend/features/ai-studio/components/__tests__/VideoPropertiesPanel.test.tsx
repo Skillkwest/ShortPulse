@@ -97,7 +97,7 @@ vi.mock("../useReferencePropertiesDerivedState", () => ({
     isKeyframesMode: false,
     isMotionMode: false,
     isStandardMode: true,
-    isSeedanceI2VModel: false,
+    isSeedanceModel: false,
     isVeoModel: false,
     referenceStepTitle: "Add References",
     referenceStepSubtitle: "Add references",

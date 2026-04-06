@@ -295,10 +295,11 @@ const hiddenModelIdsByContext: Partial<Record<ModelModalContext, string[]>> = {
   "text-image": ["fal/flux-2", "fal-ai/nano-banana"],
 };
 
-const isDisabledLegacyVideoModel = (modelId: string): boolean =>
-  modelId.startsWith("fal-ai/veo3.1") ||
-  modelId.startsWith("fal-ai/kling-video/") ||
-  modelId.startsWith("fal-ai/bytedance/seedance/");
+const isDisabledLegacyVideoModel = (option: ModelOption): boolean =>
+  option.value.startsWith("fal-ai/") &&
+  (option.mediaType === "video" ||
+    option.mediaType === "image-to-video" ||
+    option.mediaType === "keyframes");
 
 /**
  * Renders the floating model selection modal.
@@ -378,8 +379,7 @@ function ModelModalContent({
   const visibleOptions = useMemo(
     () =>
       options.filter(
-        (option) =>
-          !contextHiddenModelIds.has(option.value) && !isDisabledLegacyVideoModel(option.value)
+        (option) => !contextHiddenModelIds.has(option.value) && !isDisabledLegacyVideoModel(option)
       ),
     [contextHiddenModelIds, options]
   );

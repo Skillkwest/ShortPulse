@@ -9,12 +9,15 @@ import { estimateDescribeTokens, estimatePromptTokens } from "../logic/tokenEsti
 import { TEXT_PROMPT_MODEL_ID } from "../logic/promptGeneration";
 import { normalizeImageResolutionForPricing } from "../logic/imageResolution";
 import { KIE_VEO_31_FAST_I2V_MODEL_ID } from "../../../lib/model-runtime/providerModelIds";
+import { resolveVideoGenerationLaneFromFrameInputs } from "../logic/referenceInputs";
 import {
   resolveEffectiveEditSubmitModelId,
   type EditSubmitIntent,
 } from "../logic/editSubmitIntent";
 import { isCreateWorkflow, isEditWorkflow, isVideoWorkflow } from "../logic/workflowIdentity";
 import type { StudioMode, StudioOutput, ToolId } from "../types";
+
+const FAL_VEO_FIRST_LAST_MODEL_ID = "fal-ai/veo3.1/first-last-frame-to-video";
 
 type ViewModelInput = {
   mode: StudioMode;
@@ -62,6 +65,7 @@ export const useAiStudioViewModel = ({
   const isCreateWorkflowSelected = isCreateWorkflow(selectedTool);
   const isEditWorkflowSelected = isEditWorkflow(selectedTool);
   const isVideoWorkflowSelected = isVideoWorkflow(selectedTool);
+  const selectedModelConfig = useMemo(() => (model ? getModelConfig(model) : null), [model]);
   const effectiveEditSubmitModelId = useMemo(
     () =>
       resolveEffectiveEditSubmitModelId({
@@ -80,6 +84,15 @@ export const useAiStudioViewModel = ({
   const hasDescribeImage = Boolean(referenceImageUrl || activeOutput?.previewUrl);
   const isVideoTool = isVideoWorkflowSelected;
   const isImageTool = (isCreateWorkflowSelected && mode === "image") || isEditWorkflowSelected;
+  const resolvedVideoLane = useMemo(
+    () =>
+      resolveVideoGenerationLaneFromFrameInputs({
+        primary: referenceImageUrl,
+        extras: extraImageUrls,
+        referenceMode: videoReferenceMode,
+      }),
+    [extraImageUrls, referenceImageUrl, videoReferenceMode]
+  );
   const pricingImageResolution = useMemo(
     () => normalizeImageResolutionForPricing(imageResolution),
     [imageResolution]
@@ -273,21 +286,19 @@ export const useAiStudioViewModel = ({
       if (!referenceImageUrl) return "Add a reference image before generating.";
     }
     if (isDescribeMode && !hasDescribeImage) return "Add or select an image to describe.";
-    if (isVideoTool && videoReferenceMode === "standard" && !referenceImageUrl) {
-      return "Add a reference image before generating.";
-    }
-    const isVeoFirstLastModel =
-      model === "fal-ai/veo3.1/first-last-frame-to-video" || model === KIE_VEO_31_FAST_I2V_MODEL_ID;
+    const isDedicatedVeoFirstLastModel = model === FAL_VEO_FIRST_LAST_MODEL_ID;
+    const isKeyframeCapableVeoModel =
+      isDedicatedVeoFirstLastModel || model === KIE_VEO_31_FAST_I2V_MODEL_ID;
     const hasBothVeoFrames = Boolean(referenceImageUrl && extraImageUrls[0]);
     if (
       isVideoTool &&
-      videoReferenceMode === "keyframes" &&
-      isVeoFirstLastModel &&
+      (resolvedVideoLane === "first-last" || isDedicatedVeoFirstLastModel) &&
+      isKeyframeCapableVeoModel &&
       !hasBothVeoFrames
     ) {
       return "Add both first and last frame images before generating.";
     }
-    if (isVideoTool && videoReferenceMode === "motion") {
+    if (isVideoTool && resolvedVideoLane === "motion") {
       const hasCharacterImage = Boolean(referenceImageUrl);
       const hasMotionVideo = Boolean(motionReferenceVideoUrl);
       if (!hasCharacterImage && !hasMotionVideo) {
@@ -313,14 +324,15 @@ export const useAiStudioViewModel = ({
     motionReferenceVideoUrl,
     referenceImageUrl,
     requiresModelSelection,
+    selectedModelConfig,
     mode,
     isCreateWorkflowSelected,
     isEditWorkflowSelected,
-    videoReferenceMode,
+    resolvedVideoLane,
   ]);
 
   const isGenerateDisabled = Boolean(generationGuardrail);
-  const modelConfig = useMemo(() => (model ? getModelConfig(model) : null), [model]);
+  const modelConfig = selectedModelConfig;
 
   // Warning when user hasn't provided reference image for image-to-image or image-to-video models
   const referenceImageWarning = useMemo(() => {
@@ -341,7 +353,7 @@ export const useAiStudioViewModel = ({
     if (isVideoTool) {
       const hasReference = Boolean(referenceImageUrl);
       const hasMotionVideo = Boolean(motionReferenceVideoUrl);
-      if (videoReferenceMode === "motion") {
+      if (resolvedVideoLane === "motion") {
         if (!hasReference && !hasMotionVideo) {
           return "Motion Control requires a character image and motion reference video.";
         }
@@ -361,7 +373,7 @@ export const useAiStudioViewModel = ({
     isEditWorkflowSelected,
     referenceImageUrl,
     isVideoTool,
-    videoReferenceMode,
+    resolvedVideoLane,
     motionReferenceVideoUrl,
   ]);
 

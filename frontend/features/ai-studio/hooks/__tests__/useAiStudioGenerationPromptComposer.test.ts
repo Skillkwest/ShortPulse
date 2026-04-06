@@ -1,5 +1,6 @@
 import { act, renderHook } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
+import { KIE_VEO_31_FAST_I2V_MODEL_ID } from "../../../../lib/model-runtime/providerModelIds";
 import type { StudioOutput, ToolId } from "../../types";
 import { useAiStudioGenerationPromptComposer } from "../useAiStudioGenerationPromptComposer";
 
@@ -50,8 +51,12 @@ describe("useAiStudioGenerationPromptComposer", () => {
 
     expect(submitTask).toHaveBeenCalledWith(
       "submission prompt",
-      ["https://example.com/override.png", "https://example.com/ref.png"],
-      {
+      [
+        "https://example.com/override.png",
+        "https://example.com/ref.png",
+        "https://example.com/extra-1.png",
+      ],
+      expect.objectContaining({
         modeOverride: "video",
         selectedToolOverride: "video",
         displayPromptOverride: "display prompt",
@@ -62,7 +67,7 @@ describe("useAiStudioGenerationPromptComposer", () => {
           characterProfileImageUrl: null,
         },
         modelIdOverride: undefined,
-      }
+      })
     );
   });
 
@@ -163,11 +168,12 @@ describe("useAiStudioGenerationPromptComposer", () => {
 
     expect(submitTask).toHaveBeenCalledWith(
       "prompt override",
-      ["https://example.com/ref.png"],
-      expect.not.objectContaining({
-        styleContextOverride: expect.anything(),
+      ["https://example.com/ref.png", "https://example.com/extra-1.png"],
+      expect.objectContaining({
+        displayPromptOverride: "prompt override",
       })
     );
+    expect(submitTask.mock.calls[0]?.[2]).not.toHaveProperty("styleContextOverride");
   });
 
   it("uses video prompt and single primary input for standard video mode", () => {
@@ -193,13 +199,83 @@ describe("useAiStudioGenerationPromptComposer", () => {
     });
 
     expect(resolveReferenceInputsForTool).toHaveBeenCalledWith("video");
-    expect(submitTask).toHaveBeenCalledWith("video prompt", ["https://example.com/video-ref.png"], {
-      modeOverride: undefined,
-      selectedToolOverride: undefined,
-      displayPromptOverride: "video prompt",
-      characterContextOverride: undefined,
-      modelIdOverride: undefined,
+    expect(submitTask).toHaveBeenCalledWith(
+      "video prompt",
+      ["https://example.com/video-ref.png", "https://example.com/video-extra-1.png"],
+      {
+        modeOverride: undefined,
+        selectedToolOverride: undefined,
+        displayPromptOverride: "video prompt",
+        characterContextOverride: undefined,
+        modelIdOverride: undefined,
+        hideOutputFromReferenceGrid: undefined,
+        inpaintOverride: undefined,
+      }
+    );
+  });
+
+  it("includes the optional last frame for Kie Veo standard video runs", () => {
+    const submitTask = vi.fn();
+    const resolveReferenceInputsForTool = vi.fn(() => ({
+      referenceImageUrl: "https://example.com/video-ref.png",
+      extraImageUrls: [
+        "https://example.com/video-last.png",
+        "https://example.com/video-extra-2.png",
+        null,
+      ] as [string | null, string | null, string | null],
+    }));
+    const params = createParams({
+      model: KIE_VEO_31_FAST_I2V_MODEL_ID,
+      submitTask,
+      selectedTool: "video",
+      videoReferenceMode: "standard",
+      resolveReferenceInputsForTool,
     });
+    const { result } = renderHook(() => useAiStudioGenerationPromptComposer(params));
+
+    act(() => {
+      result.current.generateOutput();
+    });
+
+    expect(submitTask).toHaveBeenCalledWith(
+      "video prompt",
+      ["https://example.com/video-ref.png", "https://example.com/video-last.png"],
+      expect.objectContaining({
+        displayPromptOverride: "video prompt",
+      })
+    );
+  });
+
+  it("includes the optional end frame for Fal Kling standard video runs", () => {
+    const submitTask = vi.fn();
+    const resolveReferenceInputsForTool = vi.fn(() => ({
+      referenceImageUrl: "https://example.com/video-ref.png",
+      extraImageUrls: [
+        "https://example.com/video-end.png",
+        "https://example.com/video-extra-2.png",
+        null,
+      ] as [string | null, string | null, string | null],
+    }));
+    const params = createParams({
+      model: "fal-ai/kling-video/v3/pro/image-to-video",
+      submitTask,
+      selectedTool: "video",
+      videoReferenceMode: "standard",
+      resolveReferenceInputsForTool,
+    });
+    const { result } = renderHook(() => useAiStudioGenerationPromptComposer(params));
+
+    act(() => {
+      result.current.generateOutput();
+    });
+
+    expect(submitTask).toHaveBeenCalledWith(
+      "video prompt",
+      ["https://example.com/video-ref.png", "https://example.com/video-end.png"],
+      expect.objectContaining({
+        displayPromptOverride: "video prompt",
+      })
+    );
   });
 
   it("forwards output id overrides to submission for optimistic placeholder reuse", () => {
@@ -446,7 +522,7 @@ describe("useAiStudioGenerationPromptComposer", () => {
 
     expect(submitTask).toHaveBeenCalledWith(
       "Video visible prompt",
-      ["https://example.com/ref.png"],
+      ["https://example.com/ref.png", "https://example.com/extra-1.png"],
       expect.objectContaining({ displayPromptOverride: "Video visible prompt" })
     );
   });

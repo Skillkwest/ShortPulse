@@ -106,9 +106,9 @@ describe("buildKlingMultiPromptPayload", () => {
 });
 
 describe("resolveKlingShotType", () => {
-  it("sends only the provider-supported customize mode", () => {
+  it("passes through supported Kling shot types", () => {
     expect(resolveKlingShotType("customize")).toBe("customize");
-    expect(resolveKlingShotType("intelligent")).toBeUndefined();
+    expect(resolveKlingShotType("intelligent")).toBe("intelligent");
   });
 });
 

@@ -16,6 +16,7 @@ import { useReferencePropertiesDerivedState } from "./useReferencePropertiesDeri
 import { ReferenceVideoSettingsStep } from "./ReferenceVideoSettingsStep";
 import { useReferencePropertiesInteractions } from "./useReferencePropertiesInteractions";
 import { KIE_KLING_30_MODEL_ID } from "../../../lib/model-runtime/providerModelIds";
+import { resolveVideoGenerationLaneFromFrameInputs } from "../logic/referenceInputs";
 
 export type VideoPropertiesPanelProps = {
   aspect: string;
@@ -270,11 +271,6 @@ export function VideoPropertiesPanel({
   const isVeo31ModelSelected =
     modelId?.includes("veo3.1") === true || modelId?.includes("veo-3.1") === true;
   const isSeedanceModelSelected = modelId === "fal-ai/bytedance/seedance/v1.5/pro/image-to-video";
-  React.useEffect(() => {
-    if (activeVideoMode === "keyframes") {
-      onVideoReferenceModeChange?.("standard");
-    }
-  }, [activeVideoMode, onVideoReferenceModeChange]);
 
   React.useEffect(() => {
     if (isVeo31ModelSelected && videoAutoFix) {
@@ -289,6 +285,18 @@ export function VideoPropertiesPanel({
   }, [isSeedanceModelSelected, onVideoCameraFixedChange, videoCameraFixed]);
 
   const visibleVideoMode = activeVideoMode === "motion" ? "motion" : "standard";
+  const resolvedVideoLane = resolveVideoGenerationLaneFromFrameInputs({
+    primary: referenceImageUrl,
+    extras: extraImageUrls,
+    referenceMode: activeVideoMode,
+  });
+  const modelPickerContext: ModelModalContext =
+    resolvedVideoLane === "text"
+      ? "text-video"
+      : resolvedVideoLane === "first-last"
+        ? "reference-keyframes"
+        : "reference-video";
+  const standardVideoRequiresReferenceImage = modelConfig?.mediaType === "image-to-video";
   const videoModeIndex = visibleVideoMode === "motion" ? 1 : 0;
   const videoModeTabsStyle = React.useMemo(
     () =>
@@ -329,6 +337,7 @@ export function VideoPropertiesPanel({
   }, [createInitialMultiShot, isMultiShotEnabled, onKlingMultiPromptsChange]);
   const showShotModeSelector = activeVideoMode === "standard";
   const shouldShowShotModeSelector = showShotModeSelector && isKieKlingModelSelected;
+  const textareaResizeFrameMapRef = React.useRef(new WeakMap<HTMLTextAreaElement, number>());
 
   React.useEffect(() => {
     if (activeVideoMode !== "standard") {
@@ -342,9 +351,17 @@ export function VideoPropertiesPanel({
 
   const resizeTextareaToContent = React.useCallback((textarea: HTMLTextAreaElement | null) => {
     if (!textarea) return;
-    const computedMinHeight = Number.parseFloat(window.getComputedStyle(textarea).minHeight) || 0;
-    textarea.style.height = "auto";
-    textarea.style.height = `${Math.max(textarea.scrollHeight, computedMinHeight)}px`;
+    const previousFrameId = textareaResizeFrameMapRef.current.get(textarea);
+    if (typeof previousFrameId === "number") {
+      window.cancelAnimationFrame(previousFrameId);
+    }
+    const frameId = window.requestAnimationFrame(() => {
+      const computedMinHeight = Number.parseFloat(window.getComputedStyle(textarea).minHeight) || 0;
+      textarea.style.height = "auto";
+      textarea.style.height = `${Math.max(textarea.scrollHeight, computedMinHeight)}px`;
+      textareaResizeFrameMapRef.current.delete(textarea);
+    });
+    textareaResizeFrameMapRef.current.set(textarea, frameId);
   }, []);
 
   const handleAddShotPrompt = React.useCallback(() => {
@@ -361,16 +378,11 @@ export function VideoPropertiesPanel({
     setAdditionalPromptTexts([]);
   }, [additionalPromptTexts.length, shouldShowAddCustomShotButton]);
 
-  const handleAdditionalPromptChange = React.useCallback(
-    (index: number, value: string) => {
-      runWithViewTransition(() => {
-        setAdditionalPromptTexts((current) =>
-          current.map((promptText, promptIndex) => (promptIndex === index ? value : promptText))
-        );
-      });
-    },
-    [runWithViewTransition]
-  );
+  const handleAdditionalPromptChange = React.useCallback((index: number, value: string) => {
+    setAdditionalPromptTexts((current) =>
+      current.map((promptText, promptIndex) => (promptIndex === index ? value : promptText))
+    );
+  }, []);
   const handleRemoveShotPrompt = React.useCallback((index: number) => {
     setAdditionalPromptTexts((current) =>
       current.filter((_, promptIndex) => promptIndex !== index)
@@ -378,11 +390,9 @@ export function VideoPropertiesPanel({
   }, []);
   const handlePrimaryPromptChange = React.useCallback(
     (value: string) => {
-      runWithViewTransition(() => {
-        onPromptTextChange(value);
-      });
+      onPromptTextChange(value);
     },
-    [onPromptTextChange, runWithViewTransition]
+    [onPromptTextChange]
   );
   const showShotLabels = shouldShowAddCustomShotButton;
   const totalShotCount = 1 + additionalPromptTexts.length;
@@ -506,6 +516,7 @@ export function VideoPropertiesPanel({
                         modelLogoSrc={modelLogoSrc}
                         isModelModalOpen={isModelModalOpen}
                         modelModalAnchor={modelModalAnchor}
+                        modelModalContext={modelPickerContext}
                         aspect={aspect}
                         aspectOptionsForModel={aspectOptionsForModel}
                         videoSettingsOrder={videoSettingsOrder}
@@ -735,7 +746,9 @@ export function VideoPropertiesPanel({
                       disabled={
                         isGenerateDisabled ||
                         !referenceText?.trim() ||
-                        (activeVideoMode === "standard" && !referenceImageUrl)
+                        (activeVideoMode === "standard" &&
+                          standardVideoRequiresReferenceImage &&
+                          !referenceImageUrl)
                       }
                       isBusy={agentIsSending}
                       cost={costCredits != null ? costCredits : "—"}

@@ -49,6 +49,76 @@ describe("ModelModal", () => {
     expect(screen.getByRole("button", { name: /Seedream 4\.5/i })).toBeInTheDocument();
   });
 
+  it("hides all Fal Veo 3.1 chips even when passed explicitly", () => {
+    const options: ModelOption[] = [
+      {
+        value: "fal-ai/veo3.1",
+        label: "Google Veo 3.1",
+        mediaType: "video",
+      },
+      {
+        value: "fal-ai/veo3.1/image-to-video",
+        label: "Google Veo 3.1 I2V",
+        mediaType: "image-to-video",
+      },
+      {
+        value: "fal-ai/veo3.1/first-last-frame-to-video",
+        label: "Google Veo 3.1 (First/Last Frame)",
+        mediaType: "keyframes",
+      },
+      {
+        value: "fal-ai/bytedance/seedance/v1.5/pro/image-to-video",
+        label: "Seedance 1.5 Pro",
+        mediaType: "image-to-video",
+      },
+    ];
+
+    const { container } = render(
+      <ModelModal
+        isOpen
+        onClose={vi.fn()}
+        onSelect={vi.fn()}
+        options={options}
+        context="reference-video"
+      />
+    );
+
+    expect(readChipTitles(container)).toEqual(["Seedance 1.5 Pro"]);
+    expect(screen.queryByRole("button", { name: "Google Veo 3.1" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Google Veo 3.1 I2V" })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Google Veo 3.1 (First/Last Frame)" })
+    ).not.toBeInTheDocument();
+  });
+
+  it("hides Sora 2 chips even when passed explicitly", () => {
+    const options: ModelOption[] = [
+      {
+        value: "fal-ai/sora-2/text-to-video/pro",
+        label: "Sora 2 Pro",
+        mediaType: "video",
+      },
+      {
+        value: "fal-ai/bytedance/seedance/v1.5/pro/text-to-video",
+        label: "Seedance 1.5 Pro",
+        mediaType: "video",
+      },
+    ];
+
+    const { container } = render(
+      <ModelModal
+        isOpen
+        onClose={vi.fn()}
+        onSelect={vi.fn()}
+        options={options}
+        context="text-video"
+      />
+    );
+
+    expect(readChipTitles(container)).toEqual(["Seedance 1.5 Pro"]);
+    expect(screen.queryByRole("button", { name: "Sora 2 Pro" })).not.toBeInTheDocument();
+  });
+
   it("orders text-image chips by provider-grouped workflow priority", () => {
     const options: ModelOption[] = [
       { value: "fal-ai/nano-banana-pro", label: "Nano Banana Pro", mediaType: "image" },
@@ -126,18 +196,13 @@ describe("ModelModal", () => {
   it("orders reference-video chips by provider-grouped workflow priority", () => {
     const options: ModelOption[] = [
       {
-        value: "fal-ai/bytedance/seedance/v1.5/pro/image-to-video",
-        label: "Seedance 1.5 Pro",
-        mediaType: "image-to-video",
-      },
-      {
-        value: "fal-ai/kling-video/v3/pro/image-to-video",
-        label: "Kling 3.0",
-        mediaType: "image-to-video",
-      },
-      {
         value: "fal-ai/veo3.1/image-to-video",
         label: "Google Veo 3.1",
+        mediaType: "image-to-video",
+      },
+      {
+        value: "fal-ai/bytedance/seedance/v1.5/pro/image-to-video",
+        label: "Seedance 1.5 Pro",
         mediaType: "image-to-video",
       },
       {
@@ -148,6 +213,11 @@ describe("ModelModal", () => {
       {
         value: KIE_KLING_30_MODEL_ID,
         label: "Kling 3.0 (Kie)",
+        mediaType: "image-to-video",
+      },
+      {
+        value: "fal-ai/kling-video/v3/pro/image-to-video",
+        label: "Kling 3.0",
         mediaType: "image-to-video",
       },
     ];
@@ -162,15 +232,15 @@ describe("ModelModal", () => {
     );
 
     expect(readChipTitles(container)).toEqual([
-      "Google Veo 3.1",
       "Veo 3.1 Fast I2V (Kie)",
       "Kling 3.0 (Kie)",
       "Seedance 1.5 Pro",
       "Kling 3.0",
     ]);
+    expect(screen.queryByRole("button", { name: "Google Veo 3.1" })).not.toBeInTheDocument();
   });
 
-  it("orders reference-keyframes chips with Fal Veo first then Kie Veo", () => {
+  it("hides Fal Veo keyframe chips and keeps Kie Veo visible", () => {
     const options: ModelOption[] = [
       {
         value: KIE_VEO_31_FAST_I2V_MODEL_ID,
@@ -193,10 +263,10 @@ describe("ModelModal", () => {
       />
     );
 
-    expect(readChipTitles(container)).toEqual([
-      "Google Veo 3.1 (First/Last Frame)",
-      "Veo 3.1 Fast I2V (Kie)",
-    ]);
+    expect(readChipTitles(container)).toEqual(["Veo 3.1 Fast I2V (Kie)"]);
+    expect(
+      screen.queryByRole("button", { name: "Google Veo 3.1 (First/Last Frame)" })
+    ).not.toBeInTheDocument();
   });
 
   it("uses settings-aware credit resolver when provided", () => {

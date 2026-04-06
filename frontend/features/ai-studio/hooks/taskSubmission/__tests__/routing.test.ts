@@ -5,7 +5,6 @@ describe("resolveSubmissionHandlerRoute", () => {
   it("routes known video models to video handler", () => {
     expect(resolveSubmissionHandlerRoute("fal-ai/veo3.1")).toBe("video");
     expect(resolveSubmissionHandlerRoute("fal-ai/kling-video/v3/pro/image-to-video")).toBe("video");
-    expect(resolveSubmissionHandlerRoute("fal-ai/sora-2/text-to-video/pro")).toBe("video");
   });
 
   it("routes known image/edit models to image handler", () => {

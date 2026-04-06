@@ -151,23 +151,6 @@ export const resolveSeedanceI2VDuration = (requestedDurationSeconds: number): st
   Math.max(4, Math.min(12, requestedDurationSeconds)).toString();
 
 /**
- * Resolves Sora-supported aspect ratio with model defaults.
- */
-export const resolveSoraAspect = (
-  aspect: string,
-  modelConfig: SubmissionModelConfig
-): "16:9" | "9:16" => {
-  const resolved = resolveAspectForModelConfig(aspect, modelConfig, "16:9");
-  return resolved === "9:16" ? "9:16" : "16:9";
-};
-
-/**
- * Normalizes Sora resolution choices.
- */
-export const resolveSoraResolution = (requestedResolution?: string): "720p" | "1080p" =>
-  requestedResolution?.toLowerCase().includes("720") ? "720p" : "1080p";
-
-/**
  * Resolves VEO text-to-video aspect ratio with model defaults.
  */
 export const resolveVeoTextAspect = (

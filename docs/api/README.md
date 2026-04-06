@@ -23,7 +23,6 @@ Purpose: canonical integration references for first-party API routes and externa
 - `docs/api/api-fal-veo3.md`
 - `docs/api/api-fal-veo3-image-to-video.md`
 - `docs/api/api-fal-veo3-first-last-frame.md`
-- `docs/api/api-fal-sora-2-pro.md`
 - `docs/api/api-fal-seedance-1-5-pro.md`
 - `docs/api/api-fal-seedance-1-5-pro-i2v.md`
 - `docs/api/api-kie-veo-3-1-fast-image-to-video.md`

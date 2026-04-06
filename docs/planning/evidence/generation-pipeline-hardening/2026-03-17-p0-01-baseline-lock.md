@@ -52,7 +52,6 @@
    - `fal-ai/veo3.1`: `prompt`, `aspect_ratio`, `duration`, `resolution`, `generate_audio`, `auto_fix`, `enable_safety_checker`, `seed`, `safety_tolerance`
    - `fal-ai/veo3.1/image-to-video`: `prompt`, `image_url`, `image_urls`, `aspect_ratio`, `duration`, `resolution`, `generate_audio`, `auto_fix`, `enable_safety_checker`, `seed`, `safety_tolerance`
    - `fal-ai/veo3.1/first-last-frame-to-video`: `prompt`, `first_frame_url`, `last_frame_url`, `aspect_ratio`, `duration`, `resolution`, `generate_audio`
-   - `fal-ai/sora-2/text-to-video/pro`: `prompt`, `aspect_ratio`, `resolution`, `delete_video`, `duration`
    - `fal-ai/bytedance/seedance/v1.5/pro/text-to-video`: `prompt`, `aspect_ratio`, `resolution`, `generate_audio`, `enable_safety_checker`, `cfg_scale`
    - `fal-ai/bytedance/seedance/v1.5/pro/image-to-video`: `prompt`, `image_url`, `image_urls`, `aspect_ratio`, `resolution`, `generate_audio`, `duration`, `cfg_scale`
 

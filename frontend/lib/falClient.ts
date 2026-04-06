@@ -193,14 +193,6 @@ export type FalKlingStatusResponse = {
   request_id?: string;
 };
 
-export type FalSoraSubmitRequest = {
-  prompt: string;
-  resolution?: "720p" | "1080p";
-  aspect_ratio?: "16:9" | "9:16";
-  duration?: 4 | 8 | 12 | "4" | "8" | "12";
-  delete_video?: boolean;
-};
-
 export type FalVeoSubmitRequest = {
   prompt: string;
   aspect_ratio?: "16:9" | "9:16";
@@ -580,10 +572,6 @@ const submitEndpointRegistry = {
     route: `${FAL_API_BASE}/kling-v3-text-submit`,
     missingRequestIdMessage: "Fal Kling v3 text-to-video did not return a request_id",
   },
-  sora: {
-    route: `${FAL_API_BASE}/sora-submit`,
-    missingRequestIdMessage: "Fal Sora did not return a request_id",
-  },
   veo: {
     route: `${FAL_API_BASE}/veo-submit`,
     missingRequestIdMessage: "Fal Veo did not return a request_id",
@@ -695,7 +683,6 @@ const statusEndpointRegistry = {
     statusTimeoutMs: STATUS_TIMEOUT_STANDARD_MS,
   },
   kling: { route: `${FAL_API_BASE}/kling-status`, statusTimeoutMs: STATUS_TIMEOUT_STANDARD_MS },
-  sora: { route: `${FAL_API_BASE}/sora-status`, statusTimeoutMs: STATUS_TIMEOUT_STANDARD_MS },
   veo: { route: `${FAL_API_BASE}/veo-status`, statusTimeoutMs: STATUS_TIMEOUT_VEO_MS },
   veoImageToVideo: {
     route: `${FAL_API_BASE}/veo-image-to-video-status`,
@@ -912,11 +899,6 @@ export const submitFalKlingV3Text = (payload: FalKlingV3TextSubmitRequest) =>
   submitFalEndpoint("klingV3Text", payload);
 export const fetchFalKlingStatus = (requestId: string) =>
   fetchFalStatusEndpoint<FalKlingStatusResponse>("kling", requestId);
-
-export const submitFalSoraPro = (payload: FalSoraSubmitRequest) =>
-  submitFalEndpoint("sora", payload);
-export const fetchFalSoraStatus = (requestId: string) =>
-  fetchFalStatusEndpoint<FalStatusResponse>("sora", requestId);
 
 export const submitFalVeo = (payload: FalVeoSubmitRequest) => submitFalEndpoint("veo", payload);
 export const submitFalVeoImageToVideo = (payload: FalVeoImageToVideoSubmitRequest) =>

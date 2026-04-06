@@ -5,7 +5,6 @@ import veoStatus from "../../pages/api/fal/veo-status";
 import veoImageStatus from "../../pages/api/fal/veo-image-to-video-status";
 import seedanceStatus from "../../pages/api/fal/seedance-status";
 import seedanceI2vStatus from "../../pages/api/fal/seedance-i2v-status";
-import soraStatus from "../../pages/api/fal/sora-status";
 
 type MockResponse = {
   status: ReturnType<typeof vi.fn>;
@@ -34,7 +33,6 @@ describe("disabled Fal video status routes", () => {
       [veoImageStatus, "Fal Veo 3.1 image status route is disabled."],
       [seedanceStatus, "Fal Seedance status route is disabled."],
       [seedanceI2vStatus, "Fal Seedance image status route is disabled."],
-      [soraStatus, "Fal Sora status route is disabled."],
     ] as const;
 
     for (const [handler, expectedError] of handlers) {

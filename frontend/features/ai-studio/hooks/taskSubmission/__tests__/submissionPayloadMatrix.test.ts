@@ -272,7 +272,6 @@ describe("task submission payload matrix", () => {
       "fal-ai/veo3.1/first-last-frame-to-video",
       "fal-ai/bytedance/seedance/v1.5/pro/text-to-video",
       "fal-ai/bytedance/seedance/v1.5/pro/image-to-video",
-      "fal-ai/sora-2/text-to-video/pro",
     ]);
     const generationModelIds = listModelConfigs()
       .filter(

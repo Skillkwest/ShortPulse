@@ -29,7 +29,6 @@ vi.mock("../../../../lib/falClient", () => ({
   fetchFalNanoBananaEditStatus: vi.fn(),
   fetchFalNanoBananaProStatus: vi.fn(),
   fetchFalNanoBananaProEditStatus: vi.fn(),
-  fetchFalSoraStatus: vi.fn(),
   fetchFalSeedanceStatus: vi.fn(),
   fetchFalSeedanceI2VStatus: vi.fn(),
   fetchFalSeedreamStatus: vi.fn(),

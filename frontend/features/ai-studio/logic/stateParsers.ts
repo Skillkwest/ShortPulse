@@ -25,7 +25,6 @@ export type Provider =
   | "fal-nano-banana-2-edit"
   | "fal-nano-banana-pro"
   | "fal-nano-banana-pro-edit"
-  | "fal-sora"
   | "fal-seedance"
   | "fal-seedance-i2v"
   | "fal-seedream"
@@ -52,7 +51,6 @@ export const normalizeProviderForPolling = (
     if (normalized.includes("kling")) return "fal-kling";
     if (normalized.includes("seedance") && normalized.includes("i2v")) return "fal-seedance-i2v";
     if (normalized.includes("seedance")) return "fal-seedance";
-    if (normalized.includes("sora")) return "fal-sora";
     if (normalized.includes("seedream")) return "fal-seedream";
     if (normalized.includes("veo") && normalized.includes("i2v")) return "fal-veo-i2v";
     if (normalized.includes("veo")) return "fal-veo";
@@ -110,11 +108,6 @@ export const resolveKlingV3Duration = (seconds: number): number => {
   if (!Number.isFinite(seconds)) return 5;
   const rounded = Math.round(seconds);
   return Math.min(15, Math.max(3, rounded));
-};
-export const resolveSoraDuration = (seconds: number): 4 | 8 | 12 => {
-  if (seconds <= 4) return 4;
-  if (seconds <= 8) return 8;
-  return 12;
 };
 export const computeModalPosition = (target: HTMLElement): { top: number; left: number } => {
   const rect = target.getBoundingClientRect();

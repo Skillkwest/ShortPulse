@@ -13,7 +13,6 @@ import {
   modelOptions,
   ModelOption,
   SEEDREAM_LOGO_SRC,
-  SORA2_LOGO_SRC,
 } from "../constants";
 import { buildDefaultPricingParams, computeCostForModel } from "../logic/pricing";
 import { stripEditLabel } from "../utils/modelLabels";
@@ -106,13 +105,6 @@ const modelMeta: Record<string, ModelMeta> = {
     description:
       "Veo 3.1 image-to-video animates a single frame into 4, 6, or 8 second clips up to 4K.",
     tags: ["Video", "Image-to-Video", "4-8s", "720p-4K", "Audio"],
-    verified: true,
-  },
-  "fal-ai/sora-2/text-to-video/pro": {
-    provider: "OpenAI",
-    description:
-      "Sora 2 Pro text-to-video supports 4, 8, or 12 second clips at 720p or 1080p with audio.",
-    tags: ["Video", "Text-to-Video", "4-12s", "720p/1080p", "Audio"],
     verified: true,
   },
   "fal-ai/bytedance/seedance/v1.5/pro/image-to-video": {
@@ -272,7 +264,6 @@ const sectionLogos: Record<string, string> = {
   "Google DeepMind": GOOGLE_LOGO_SRC,
   Kling: KLING_LOGO_SRC,
   "Kling AI": KLING_LOGO_SRC,
-  OpenAI: SORA2_LOGO_SRC,
   ByteDance: SEEDREAM_LOGO_SRC,
   Seedream: SEEDREAM_LOGO_SRC,
 };
@@ -350,7 +341,6 @@ const globallyHiddenModelIds = new Set([
   "fal-ai/kling-video/v3/pro/text-to-video",
   "fal-ai/bytedance/seedance/v1.5/pro/image-to-video",
   "fal-ai/bytedance/seedance/v1.5/pro/text-to-video",
-  "fal-ai/sora-2/text-to-video/pro",
 ]);
 
 /**

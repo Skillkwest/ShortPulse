@@ -286,7 +286,6 @@ const normalizeProviderToken = (value: string | null | undefined): string | null
     if (normalized.includes("kling")) return "fal-kling";
     if (normalized.includes("seedance") && normalized.includes("i2v")) return "fal-seedance-i2v";
     if (normalized.includes("seedance")) return "fal-seedance";
-    if (normalized.includes("sora")) return "fal-sora";
     if (normalized.includes("seedream")) return "fal-seedream";
     if (normalized.includes("veo") && normalized.includes("i2v")) return "fal-veo-i2v";
     if (normalized.includes("veo")) return "fal-veo";

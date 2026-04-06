@@ -350,17 +350,6 @@ describe("generationBilling reservation RPC handling", () => {
         },
       },
       {
-        modelId: "fal-ai/sora-2/text-to-video/pro",
-        route: "/api/fal/sora-pro-submit",
-        requestId: "req-sora",
-        payload: {
-          prompt: "city timelapse",
-          duration: 11,
-          resolution: "720p",
-          aspect_ratio: "16:9",
-        },
-      },
-      {
         modelId: "kie-ai/kling-3.0",
         route: "/api/fal/kie-kling-submit",
         requestId: "req-kie-kling",
@@ -556,14 +545,14 @@ describe("generationBilling reservation RPC handling", () => {
     const charge = await chargeGenerationRequest({
       req: req as never,
       res: res as never,
-      modelId: "fal-ai/sora-2/text-to-video/pro",
+      modelId: "kie-ai/veo-3.1-fast-i2v",
       payload: {
         prompt: "test prompt",
         duration: 8,
         resolution: "720p",
         aspect_ratio: "16:9",
       },
-      reason: "Fal Sora generation",
+      reason: "Kie Veo generation",
     });
 
     expect(charge).toBeNull();

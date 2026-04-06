@@ -43,8 +43,7 @@ export const resolveGenerationModeFromPayload = (
     lowered.includes("video") ||
     lowered.includes("seedance") ||
     lowered.includes("kling") ||
-    lowered.includes("veo") ||
-    lowered.includes("sora")
+    lowered.includes("veo")
   ) {
     return "video";
   }

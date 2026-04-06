@@ -15,7 +15,6 @@ export type PricingStrategyId =
   | "seedream-5-lite-per-image"
   | "veo-3-per-second"
   | "kling-3-per-second"
-  | "sora-2-pro-per-second"
   | "seedance-1.5-per-second";
 
 export type PricingParams = {

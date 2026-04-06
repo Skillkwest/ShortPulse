@@ -122,8 +122,6 @@ Route (pages)
 ├ ƒ /api/fal/seedream-edit-submit
 ├ ƒ /api/fal/seedream-status
 ├ ƒ /api/fal/seedream-submit
-├ ƒ /api/fal/sora-status
-├ ƒ /api/fal/sora-submit
 ├ ƒ /api/fal/status
 ├ ƒ /api/fal/submit
 ├ ƒ /api/fal/veo-first-last-frame-submit

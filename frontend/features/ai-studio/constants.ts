@@ -17,7 +17,6 @@ export const FLUX_LOGO_SRC = "/flux-logo.png";
 export const GOOGLE_LOGO_SRC = "/google-logo.png";
 export const KLING_LOGO_SRC = "/kling-logo.png";
 export const SEEDREAM_LOGO_SRC = "/seedream-logo.png";
-export const SORA2_LOGO_SRC = "/sora-2-logo.png";
 
 // Map model ids to their logo assets used in selectors and chips.
 export const modelLogos: Record<string, string> = {

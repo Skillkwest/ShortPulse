@@ -15,7 +15,6 @@ vi.mock("../../../../../lib/falClient", () => ({
   submitKieVeoImageToVideo: vi.fn(),
   submitFalSeedance: vi.fn(),
   submitFalSeedanceI2V: vi.fn(),
-  submitFalSoraPro: vi.fn(),
   submitFalVeo: vi.fn(),
   submitFalVeoFirstLast: vi.fn(),
   submitFalVeoImageToVideo: vi.fn(),
@@ -655,36 +654,6 @@ describe("handleVideoModelSubmission (Fal Seedance text-to-video)", () => {
       modelConfig: getModelConfig("fal-ai/bytedance/seedance/v1.5/pro/image-to-video"),
       preparedImageInputs: ["https://example.com/reference.png"],
       videoReferenceMode: "standard",
-    });
-
-    const handled = await handleVideoModelSubmission(args);
-
-    expect(handled).toBe(true);
-    expect(args.notifyGenerationFailure).toHaveBeenCalledWith(
-      "out-1",
-      "Fal-hosted video generation is disabled. Use Kie Veo 3.1 or Kie Kling 3.0 instead."
-    );
-  });
-});
-
-describe("handleVideoModelSubmission (Fal Sora text-to-video)", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    vi.spyOn(console, "error").mockImplementation(() => undefined);
-  });
-
-  afterEach(() => {
-    vi.restoreAllMocks();
-  });
-
-  it("fails closed for legacy Fal Sora text-to-video submits", async () => {
-    const args = makeArgs({
-      finalModel: "fal-ai/sora-2/text-to-video/pro",
-      modelConfig: getModelConfig("fal-ai/sora-2/text-to-video/pro"),
-      aspect: "4:3",
-      requestedDurationSeconds: 10,
-      requestedResolution: "720p",
-      requestedAudio: false,
     });
 
     const handled = await handleVideoModelSubmission(args);

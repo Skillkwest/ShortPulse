@@ -9,7 +9,7 @@
 ## Scope
 1. Added canonical lowercase/kebab-case asset filenames in `frontend/public` while retaining all legacy filenames.
 2. Migrated active runtime references to canonical asset paths for:
-- AI Studio model logos (`Flux`, `Google`, `Kling`, `Seedream`, `Sora 2`)
+- AI Studio model logos (`Flux`, `Google`, `Kling`, `Seedream`)
 - Character mode badge logo (`tiny-logo`)
 - Saved Creators header background (`background-gray`)
 - Dashboard card image path (`performance-analytics`)
@@ -20,7 +20,6 @@
 - `frontend/public/google-logo.png`
 - `frontend/public/kling-logo.png`
 - `frontend/public/seedream-logo.png`
-- `frontend/public/sora-2-logo.png`
 - `frontend/public/tiny-logo.png`
 - `frontend/public/background-gray.png`
 - `frontend/public/menu-button.png`

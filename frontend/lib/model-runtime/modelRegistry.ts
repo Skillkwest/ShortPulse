@@ -552,23 +552,6 @@ const registry: Record<string, ModelConfig> = {
     allowedDurations: contractAllowedDurations("fal-ai/veo3.1/image-to-video", [4, 6, 8]),
     supportsImageToVideo: true,
   },
-  "fal-ai/sora-2/text-to-video/pro": {
-    id: "fal-ai/sora-2/text-to-video/pro",
-    label: "Sora 2 Pro",
-    provider: "fal",
-    mediaType: "video",
-    defaultAspect: contractDefaultAspect("fal-ai/sora-2/text-to-video/pro", "16:9"),
-    allowedAspects: contractAllowedAspects("fal-ai/sora-2/text-to-video/pro", ["16:9", "9:16"]),
-    pricingStrategy: "sora-2-pro-per-second",
-    defaultDurationSeconds: contractDefaultDuration("fal-ai/sora-2/text-to-video/pro", 8),
-    defaultResolution: contractDefaultResolution("fal-ai/sora-2/text-to-video/pro", "1080p"),
-    defaultAudio: true,
-    allowedResolutions: contractAllowedResolutions("fal-ai/sora-2/text-to-video/pro", [
-      "720p",
-      "1080p",
-    ]),
-    allowedDurations: contractAllowedDurations("fal-ai/sora-2/text-to-video/pro", [4, 8, 12]),
-  },
   "fal-ai/bytedance/seedance/v1.5/pro/text-to-video": {
     id: "fal-ai/bytedance/seedance/v1.5/pro/text-to-video",
     label: "Seedance 1.5 Pro",

@@ -53,8 +53,6 @@ const EXPECTED_FAL_ROUTE_FILES = [
   "seedream-submit.ts",
   "seedream-v5-lite-edit-submit.ts",
   "seedream-v5-lite-submit.ts",
-  "sora-status.ts",
-  "sora-submit.ts",
   "status.ts",
   "submit.ts",
   "veo-first-last-frame-submit.ts",

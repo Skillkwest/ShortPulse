@@ -16,7 +16,6 @@ Purpose: track remaining non-canonical public asset filenames retained intention
 - `Google LOGO.png` (legacy; canonical path now `/google-logo.png`)
 - `Kling LOGO.png` (legacy; canonical path now `/kling-logo.png`)
 - `Seedream LOGO.png` (legacy; canonical path now `/seedream-logo.png`)
-- `Sora 2 LOGO.png` (legacy; canonical path now `/sora-2-logo.png`)
 - `flux LOGO.png` (legacy; canonical path now `/flux-logo.png`)
 - `tiny logo.png` (legacy; canonical path now `/tiny-logo.png`)
 - `Gray.png` (legacy; canonical path now `/background-gray.png`)

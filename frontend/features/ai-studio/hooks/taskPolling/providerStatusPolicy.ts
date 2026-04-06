@@ -39,7 +39,6 @@ export const longRunningVideoProviders = new Set<Provider>([
   "fal-kling-3",
   "fal-seedance",
   "fal-seedance-i2v",
-  "fal-sora",
   "fal-veo",
   "fal-veo-i2v",
   "kie-veo",

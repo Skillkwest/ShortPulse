@@ -33,8 +33,7 @@ const isVideoLikeModel = (modelId: string): boolean => {
     lowered.includes("video") ||
     lowered.includes("kling") ||
     lowered.includes("veo") ||
-    lowered.includes("seedance") ||
-    lowered.includes("sora")
+    lowered.includes("seedance")
   );
 };
 

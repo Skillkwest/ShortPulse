@@ -29,7 +29,6 @@ const FAL_VEO_FIRST_LAST_MODEL_ID = "fal-ai/veo3.1/first-last-frame-to-video";
 const FAL_VEO_DISABLED_MESSAGE = "Fal Veo 3.1 is disabled. Use Kie Veo 3.1 instead.";
 const FAL_SEEDANCE_TEXT_MODEL_ID = "fal-ai/bytedance/seedance/v1.5/pro/text-to-video";
 const FAL_SEEDANCE_IMAGE_MODEL_ID = "fal-ai/bytedance/seedance/v1.5/pro/image-to-video";
-const FAL_SORA_TEXT_MODEL_ID = "fal-ai/sora-2/text-to-video/pro";
 const FAL_NON_KIE_VIDEO_DISABLED_MESSAGE =
   "Fal-hosted video generation is disabled. Use Kie Veo 3.1 or Kie Kling 3.0 instead.";
 
@@ -56,7 +55,6 @@ const handoffSubmitResponse = ({
     | "fal-kling-3"
     | "fal-seedance"
     | "fal-seedance-i2v"
-    | "fal-sora"
     | "fal-veo"
     | "fal-veo-i2v"
     | "kie-veo"
@@ -156,11 +154,7 @@ export const handleVideoModelSubmission = async ({
     return true;
   }
 
-  if (
-    finalModel === FAL_SEEDANCE_TEXT_MODEL_ID ||
-    finalModel === FAL_SEEDANCE_IMAGE_MODEL_ID ||
-    finalModel === FAL_SORA_TEXT_MODEL_ID
-  ) {
+  if (finalModel === FAL_SEEDANCE_TEXT_MODEL_ID || finalModel === FAL_SEEDANCE_IMAGE_MODEL_ID) {
     notifyGenerationFailure(id, FAL_NON_KIE_VIDEO_DISABLED_MESSAGE);
     return true;
   }

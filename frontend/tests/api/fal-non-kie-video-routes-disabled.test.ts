@@ -1,7 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import seedanceSubmit from "../../pages/api/fal/seedance-submit";
 import seedanceI2vSubmit from "../../pages/api/fal/seedance-i2v-submit";
-import soraSubmit from "../../pages/api/fal/sora-submit";
 
 type MockResponse = {
   status: ReturnType<typeof vi.fn>;
@@ -40,18 +39,6 @@ describe("disabled non-Kie Fal video routes", () => {
     expect(res.status).toHaveBeenCalledWith(410);
     expect(res.json).toHaveBeenCalledWith({
       error: "Fal Seedance image-to-video is disabled.",
-      detail: "Use Kie Veo 3.1 or Kie Kling 3.0 instead.",
-    });
-  });
-
-  it("returns 410 for Fal Sora submit", () => {
-    const res = createResponse();
-
-    soraSubmit({ method: "POST" } as never, res as never);
-
-    expect(res.status).toHaveBeenCalledWith(410);
-    expect(res.json).toHaveBeenCalledWith({
-      error: "Fal Sora text-to-video is disabled.",
       detail: "Use Kie Veo 3.1 or Kie Kling 3.0 instead.",
     });
   });

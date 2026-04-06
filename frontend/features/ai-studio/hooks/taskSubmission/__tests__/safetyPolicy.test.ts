@@ -79,7 +79,6 @@ describe("resolveVideoSubmissionSafetyPayload", () => {
     expect(resolveVideoSubmissionSafetyPayload("fal-ai/kling-video/v3/pro/text-to-video")).toEqual(
       {}
     );
-    expect(resolveVideoSubmissionSafetyPayload("fal-ai/sora-2/text-to-video/pro")).toEqual({});
     expect(resolveVideoSubmissionSafetyPayload("fal-ai/veo3.1/first-last-frame-to-video")).toEqual(
       {}
     );

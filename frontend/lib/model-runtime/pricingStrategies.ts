@@ -31,8 +31,6 @@ const KLING_3_KIE_RATE_AUDIO_ON_1080P_USD_PER_SECOND = 0.2;
 const KLING_3_KIE_RATE_AUDIO_OFF_720P_USD_PER_SECOND = 0.1;
 const KLING_3_KIE_RATE_AUDIO_ON_720P_USD_PER_SECOND = 0.15;
 const KIE_VEO_31_FAST_I2V_PER_VIDEO_USD = 0.3;
-const SORA2_PRO_720P_USD_PER_SECOND = 0.3;
-const SORA2_PRO_1080P_USD_PER_SECOND = 0.5;
 const SEEDANCE_AUDIO_RATE_USD_PER_M_TOKEN = 2.4;
 const SEEDANCE_NO_AUDIO_RATE_USD_PER_M_TOKEN = 1.2;
 const SEEDANCE_DEFAULT_FPS = 24;
@@ -359,22 +357,6 @@ const computeVeoPerSecondCost: StrategyFn = (params) => {
   });
 };
 
-const computeSora2ProPerSecondCost: StrategyFn = (params) => {
-  const duration = resolveDefaultDuration(params, 8);
-  const res = resolveDefaultResolution(params, "1080p").toLowerCase();
-  const usdPerSecond = res.includes("720")
-    ? SORA2_PRO_720P_USD_PER_SECOND
-    : SORA2_PRO_1080P_USD_PER_SECOND;
-  const usd = usdPerSecond * duration;
-  return toCostBreakdown({
-    modelId: params.modelId,
-    usdRaw: usd,
-    megapixels: 0,
-    width: 0,
-    height: 0,
-  });
-};
-
 const resolveSeedanceDuration = (value?: number) => {
   if (typeof value !== "number" || !Number.isFinite(value)) return 10;
   if (value <= 4) return 4;
@@ -428,6 +410,5 @@ export const pricingStrategies: Record<PricingStrategyId, StrategyFn> = {
   "seedream-5-lite-per-image": computeSeedream5LitePerImageCost,
   "kling-3-per-second": computeKling3PerSecondCost,
   "veo-3-per-second": computeVeoPerSecondCost,
-  "sora-2-pro-per-second": computeSora2ProPerSecondCost,
   "seedance-1.5-per-second": computeSeedancePerSecondCost,
 };

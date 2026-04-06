@@ -82,11 +82,6 @@ const videoReferenceOptions: ModelOption[] = [
     mediaType: "video",
   },
   {
-    value: "fal-ai/sora-2/text-to-video/pro",
-    label: "Sora 2 Pro",
-    mediaType: "video",
-  },
-  {
     value: KIE_VEO_31_FAST_I2V_MODEL_ID,
     label: "Veo 3.1 Fast I2V (Kie)",
     mediaType: "image-to-video",

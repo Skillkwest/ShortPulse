@@ -51,6 +51,5 @@ describe("model options vs registry", () => {
     const optionIds = new Set(modelOptions.map((option) => option.value));
     expect(optionIds.has("fal-ai/bytedance/seedance/v1.5/pro/text-to-video")).toBe(false);
     expect(optionIds.has("fal-ai/bytedance/seedance/v1.5/pro/image-to-video")).toBe(false);
-    expect(optionIds.has("fal-ai/sora-2/text-to-video/pro")).toBe(false);
   });
 });

@@ -22,7 +22,6 @@ import {
   fetchFalNanoBananaProStatus,
   fetchFalNanoBananaProEditStatus,
   fetchFalStatus,
-  fetchFalSoraStatus,
   fetchFalSeedanceStatus,
   fetchFalSeedanceI2VStatus,
   fetchFalSeedreamStatus,
@@ -209,8 +208,6 @@ const fetchStatusByProvider = async (provider: Provider, taskId: string) => {
       return fetchFalSeedanceStatus(taskId);
     case "fal-seedance-i2v":
       return fetchFalSeedanceI2VStatus(taskId);
-    case "fal-sora":
-      return fetchFalSoraStatus(taskId);
     case "fal-seedream":
       return fetchFalSeedreamStatus(taskId);
     case "fal-veo":

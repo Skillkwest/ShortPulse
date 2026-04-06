@@ -14,7 +14,6 @@ const VIDEO_MODELS = new Set([
   "fal-ai/bytedance/seedance/v1.5/pro/text-to-video",
   "fal-ai/bytedance/seedance/v1.5/pro/image-to-video",
   "fal-ai/veo3.1/first-last-frame-to-video",
-  "fal-ai/sora-2/text-to-video/pro",
   "fal-ai/veo3.1",
   KIE_VEO_31_FAST_I2V_MODEL_ID,
   KIE_KLING_30_MODEL_ID,

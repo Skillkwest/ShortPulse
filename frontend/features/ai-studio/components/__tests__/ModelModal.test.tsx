@@ -94,11 +94,6 @@ describe("ModelModal", () => {
   it("hides disabled non-Kie Fal video chips even when passed explicitly", () => {
     const options: ModelOption[] = [
       {
-        value: "fal-ai/sora-2/text-to-video/pro",
-        label: "Sora 2 Pro",
-        mediaType: "video",
-      },
-      {
         value: "fal-ai/bytedance/seedance/v1.5/pro/text-to-video",
         label: "Seedance 1.5 Pro",
         mediaType: "video",
@@ -121,7 +116,6 @@ describe("ModelModal", () => {
     );
 
     expect(readChipTitles(container)).toEqual(["Veo 3.1 Fast I2V (Kie)"]);
-    expect(screen.queryByRole("button", { name: "Sora 2 Pro" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Seedance 1.5 Pro" })).not.toBeInTheDocument();
   });
 

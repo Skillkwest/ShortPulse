@@ -22,16 +22,6 @@ describe("generationBilling pricing params normalization", () => {
     expect(params.resolution).toBe("1080p");
   });
 
-  it("rounds non-enum duration to the next allowed duration bucket", () => {
-    const params = buildPricingParams("fal-ai/sora-2/text-to-video/pro", {
-      duration: 11,
-      resolution: "720p",
-    });
-
-    expect(params.durationSeconds).toBe(12);
-    expect(params.resolution).toBe("720p");
-  });
-
   it("maps enable_google_search to webSearch for nano-banana pricing", () => {
     const params = buildPricingParams("fal-ai/nano-banana-pro", {
       enable_google_search: true,

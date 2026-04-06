@@ -37,7 +37,6 @@ Short version: models declare metadata in runtime catalog/registry, pricing stra
   - Fal lanes: `$0.112/s` audio-off, `$0.168/s` audio-on, `$0.196/s` audio+voice
   - Kie lane (`kie-ai/kling-3.0`): `1080p` `$0.135/s` audio-off, `$0.20/s` audio-on; `720p` `$0.10/s` audio-off, `$0.15/s` audio-on.
 - `veo-3-per-second`: Fal lanes use `$0.20/$0.40` (no-audio/audio) for non-4K and `$0.40/$0.60` for 4K; `kie-ai/veo-3.1-fast-i2v` uses fixed `$0.30` per video.
-- `sora-2-pro-per-second`: `$0.30/s` at `720p`, `$0.50/s` at `1080p`.
 - `seedance-1.5-per-second`: token formula (`tokens = width*height*24*duration/1024`), `$2.4` per 1M tokens with audio / `$1.2` without audio.
 - `gpt41nano-per-token`: `$0.10` per 1M input + `$0.025` per 1M output, then shared markup/quantization policy.
 

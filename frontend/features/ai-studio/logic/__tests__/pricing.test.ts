@@ -326,29 +326,3 @@ describe("computeCostForModel (Seedream)", () => {
     expect(auto2k?.credits).toBe(auto3k?.credits);
   });
 });
-
-describe("computeCostForModel (Sora 2 Pro)", () => {
-  const modelId = "fal-ai/sora-2/text-to-video/pro";
-
-  it("uses 1080p per-second pricing at default duration", () => {
-    const cost = computeCostForModel(modelId, {
-      durationSeconds: 8,
-      resolution: "1080p",
-    });
-    expect(cost).not.toBeNull();
-    expect(cost?.usdRaw).toBeCloseTo(4, 6);
-    expect(cost?.rawCredits).toBe(412);
-    expect(cost?.credits).toBe(415);
-  });
-
-  it("uses 720p per-second pricing", () => {
-    const cost = computeCostForModel(modelId, {
-      durationSeconds: 8,
-      resolution: "720p",
-    });
-    expect(cost).not.toBeNull();
-    expect(cost?.usdRaw).toBeCloseTo(2.4, 6);
-    expect(cost?.rawCredits).toBe(248);
-    expect(cost?.credits).toBe(250);
-  });
-});

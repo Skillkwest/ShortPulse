@@ -131,7 +131,6 @@ describe("useAiStudioPageDerivations", () => {
     expect(values.has("fal-ai/veo3.1")).toBe(false);
     expect(values.has("kie-ai/veo-3.1-fast-i2v")).toBe(true);
     expect(values.has("fal-ai/kling-video/v3/pro/text-to-video")).toBe(false);
-    expect(values.has("fal-ai/sora-2/text-to-video/pro")).toBe(false);
     expect(values.has("fal-ai/bytedance/seedance/v1.5/pro/text-to-video")).toBe(false);
   });
 
@@ -153,7 +152,6 @@ describe("useAiStudioPageDerivations", () => {
     expect(values.has("fal-ai/kling-video/v3/pro/image-to-video")).toBe(false);
     expect(values.has("kie-ai/kling-3.0")).toBe(true);
     expect(values.has("fal-ai/veo3.1")).toBe(false);
-    expect(values.has("fal-ai/sora-2/text-to-video/pro")).toBe(false);
     expect(values.has("fal-ai/bytedance/seedance/v1.5/pro/image-to-video")).toBe(false);
   });
 

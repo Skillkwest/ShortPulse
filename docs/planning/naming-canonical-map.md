@@ -27,7 +27,6 @@ Purpose: single source of truth for canonical terms, compatibility policy, and s
 | Public asset path | `/Google%20LOGO.png` | `/google-logo.png` | Canonical path active in runtime references; legacy file retained | >= 2 release cycles |
 | Public asset path | `/Kling%20LOGO.png` | `/kling-logo.png` | Canonical path active in runtime references; legacy file retained | >= 2 release cycles |
 | Public asset path | `/Seedream%20LOGO.png` | `/seedream-logo.png` | Canonical path active in runtime references; legacy file retained | >= 2 release cycles |
-| Public asset path | `/Sora%202%20LOGO.png` | `/sora-2-logo.png` | Canonical path active in runtime references; legacy file retained | >= 2 release cycles |
 | Public asset path | `/tiny%20logo.png` | `/tiny-logo.png` | Canonical path active in runtime references; legacy file retained | >= 2 release cycles |
 | Public asset path | `/Gray.png` | `/background-gray.png` | Canonical path active in runtime references; legacy file retained | >= 2 release cycles |
 | Public asset path | `/dashboard/performance%20analytics.png` | `/dashboard/performance-analytics.png` | Canonical path active in runtime references; legacy file retained | >= 2 release cycles |

@@ -35,7 +35,6 @@ const BLOCKED_VIDEO_SELECTOR_MODEL_IDS = new Set([
   "fal-ai/kling-video/v3/pro/image-to-video",
   "fal-ai/bytedance/seedance/v1.5/pro/text-to-video",
   "fal-ai/bytedance/seedance/v1.5/pro/image-to-video",
-  "fal-ai/sora-2/text-to-video/pro",
 ]);
 
 type ModelConfigLike = {

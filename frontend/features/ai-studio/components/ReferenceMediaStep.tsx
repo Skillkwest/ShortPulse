@@ -108,6 +108,8 @@ export const ReferenceMediaStep: React.FC<ReferenceMediaStepProps> = ({
 }) => {
   const showHeader = !isVideoVariant;
   const isCollapsed = showHeader ? collapsedReference : false;
+  const shouldShowPrimaryOptionalPill = isVideoVariant && isStandardMode && !referenceImageUrl;
+  const shouldShowLastFrameOptionalPill = isVideoVariant && isStandardMode && !extraImageUrls[0];
   const mediaContent = (
     <>
       {isMotionMode ? (
@@ -281,7 +283,7 @@ export const ReferenceMediaStep: React.FC<ReferenceMediaStepProps> = ({
                   )}
                 </span>
               ) : null}
-              {isVideoVariant && isStandardMode ? (
+              {shouldShowPrimaryOptionalPill ? (
                 <span className="dropzone-tag-pill dropzone-tag-pill--bottom">Optional</span>
               ) : null}
               {referenceImageUrl ? (
@@ -323,7 +325,7 @@ export const ReferenceMediaStep: React.FC<ReferenceMediaStepProps> = ({
                   <span className="dropzone-tag">
                     <span>Last frame</span>
                   </span>
-                  {isStandardMode ? (
+                  {shouldShowLastFrameOptionalPill ? (
                     <span className="dropzone-tag-pill dropzone-tag-pill--bottom">Optional</span>
                   ) : null}
                   {extraImageUrls[0] ? (

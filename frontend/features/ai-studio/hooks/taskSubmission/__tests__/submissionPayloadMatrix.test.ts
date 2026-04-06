@@ -19,8 +19,6 @@ import {
   submitFalFluxProFill,
   submitFalFlux2Pro,
   submitFalFlux2ProEdit,
-  submitFalKlingV3ImageToVideo,
-  submitFalKlingV3Text,
   submitFalNanoBanana,
   submitFalNanoBananaEdit,
   submitFalNanoBanana2,
@@ -47,8 +45,6 @@ vi.mock("../../../../../lib/falClient", () => ({
   submitFalFluxProFill: vi.fn(),
   submitFalFlux2Pro: vi.fn(),
   submitFalFlux2ProEdit: vi.fn(),
-  submitFalKlingV3ImageToVideo: vi.fn(),
-  submitFalKlingV3Text: vi.fn(),
   submitFalNanoBanana: vi.fn(),
   submitFalNanoBananaEdit: vi.fn(),
   submitFalNanoBanana2: vi.fn(),
@@ -188,18 +184,6 @@ const CASES: Record<string, CaseConfig> = {
     expectedSafetyChecker: false,
     expectedReferenceField: "image_urls",
   },
-  "fal-ai/kling-video/v3/pro/text-to-video": {
-    route: "video",
-    submitName: "submitFalKlingV3Text",
-    expectsAudioField: true,
-    expectedReferenceField: "none",
-  },
-  "fal-ai/kling-video/v3/pro/image-to-video": {
-    route: "video",
-    submitName: "submitFalKlingV3ImageToVideo",
-    expectsAudioField: true,
-    expectedReferenceField: "start_image_url",
-  },
   "fal-ai/veo3.1": {
     route: "video",
     submitName: "submitFalVeo",
@@ -314,8 +298,6 @@ const submitSpyByName = {
   submitFalFluxProFill: vi.mocked(submitFalFluxProFill),
   submitFalFlux2Pro: vi.mocked(submitFalFlux2Pro),
   submitFalFlux2ProEdit: vi.mocked(submitFalFlux2ProEdit),
-  submitFalKlingV3ImageToVideo: vi.mocked(submitFalKlingV3ImageToVideo),
-  submitFalKlingV3Text: vi.mocked(submitFalKlingV3Text),
   submitFalNanoBanana: vi.mocked(submitFalNanoBanana),
   submitFalNanoBananaEdit: vi.mocked(submitFalNanoBananaEdit),
   submitFalNanoBanana2: vi.mocked(submitFalNanoBanana2),
@@ -348,8 +330,17 @@ describe("task submission payload matrix", () => {
   });
 
   it("keeps matrix coverage in sync with every non-text model in model registry", () => {
+    const blockedMatrixModelIds = new Set([
+      "fal-ai/kling-video/v3/pro/text-to-video",
+      "fal-ai/kling-video/v3/pro/image-to-video",
+    ]);
     const generationModelIds = listModelConfigs()
-      .filter((config) => config.mediaType !== "text" && config.provider === "fal")
+      .filter(
+        (config) =>
+          config.mediaType !== "text" &&
+          config.provider === "fal" &&
+          !blockedMatrixModelIds.has(config.id)
+      )
       .map((config) => config.id)
       .sort();
     expect(Object.keys(CASES).sort()).toEqual(generationModelIds);

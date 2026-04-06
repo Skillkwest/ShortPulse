@@ -5,8 +5,6 @@ import {
   type FalSubmitResponse,
   submitKieKlingImageToVideo,
   submitKieVeoImageToVideo,
-  submitFalKlingV3ImageToVideo,
-  submitFalKlingV3Text,
   submitFalSeedance,
   submitFalSeedanceI2V,
   submitFalSoraPro,
@@ -18,18 +16,12 @@ import {
   KIE_KLING_30_MODEL_ID,
   KIE_VEO_31_FAST_I2V_MODEL_ID,
 } from "../../../../lib/model-runtime/providerModelIds";
-import {
-  resolveKlingAspectRatio,
-  resolveKlingV3Duration,
-  resolveSoraDuration,
-} from "../../logic/stateParsers";
+import { resolveSoraDuration } from "../../logic/stateParsers";
 import { needsVideoUpload, prepareVideoUrlForSubmission } from "../../utils/videoUpload";
 import type { VideoSubmissionArgs } from "./types";
 import {
   buildKieKlingElementsPayload,
   buildKieKlingMultiPromptPayload,
-  buildKlingElementsPayload,
-  buildKlingMultiPromptPayload,
   resolveKieKlingDuration,
   resolveKieKlingMode,
   resolveSeedanceI2VAspect,
@@ -43,11 +35,13 @@ import {
   resolveVeoDuration,
   resolveVeoResolution,
   resolveVeoTextAspect,
-  resolveKlingShotType,
   resolveKlingResolution,
-  buildKlingVoiceIds,
 } from "./videoPayloads";
 import { resolveVideoSubmissionSafetyPayload } from "./safetyPolicy";
+
+const FAL_KLING_IMAGE_MODEL_ID = "fal-ai/kling-video/v3/pro/image-to-video";
+const FAL_KLING_TEXT_MODEL_ID = "fal-ai/kling-video/v3/pro/text-to-video";
+const FAL_KLING_DISABLED_MESSAGE = "Fal Kling 3.0 is disabled. Use Kie Kling 3.0 instead.";
 
 const isCharacterScopedMediaUrl = (value: string): boolean => {
   const normalized = (() => {
@@ -167,10 +161,12 @@ export const handleVideoModelSubmission = async ({
     return true;
   }
 
-  const isLegacyFalKlingMotionModel =
-    finalModel === "fal-ai/kling-video/v3/pro/image-to-video" && videoReferenceMode === "motion";
+  if (finalModel === FAL_KLING_IMAGE_MODEL_ID || finalModel === FAL_KLING_TEXT_MODEL_ID) {
+    notifyGenerationFailure(id, FAL_KLING_DISABLED_MESSAGE);
+    return true;
+  }
 
-  if (finalModel === KIE_KLING_30_MODEL_ID || isLegacyFalKlingMotionModel) {
+  if (finalModel === KIE_KLING_30_MODEL_ID) {
     if (videoReferenceMode === "motion") {
       if (!videoReferenceImageUrl) {
         notifyGenerationFailure(id, "Motion Control requires a character image");
@@ -303,57 +299,6 @@ export const handleVideoModelSubmission = async ({
     return true;
   }
 
-  if (finalModel === "fal-ai/kling-video/v3/pro/image-to-video") {
-    const klingDuration = resolveKlingV3Duration(requestedDurationSeconds);
-    const endImageUrl = preparedImageInputs.length > 1 ? preparedImageInputs[1] : undefined;
-    const voiceIds = buildKlingVoiceIds(klingVoiceIds);
-    const multiPromptPayload = buildKlingMultiPromptPayload(klingMultiPrompts);
-    let elementsPayload: ReturnType<typeof buildKlingElementsPayload>;
-    try {
-      const preparedKlingElements = await Promise.all(
-        klingElements.map(async (element) => {
-          const videoUrl = element.videoUrl.trim();
-          if (!videoUrl) return element;
-          const preparedVideoUrl = await prepareVideoUrlForSubmission(videoUrl);
-          if (!preparedVideoUrl) {
-            throw new Error("Kling element video URL is missing.");
-          }
-          return {
-            ...element,
-            videoUrl: preparedVideoUrl,
-          };
-        })
-      );
-      elementsPayload = buildKlingElementsPayload(preparedKlingElements);
-    } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "Kling element reference preparation failed";
-      notifyGenerationFailure(id, `Kling element reference preparation failed: ${message}`);
-      return true;
-    }
-    const response = await submitFalKlingV3ImageToVideo({
-      prompt: cleanedPrompt,
-      start_image_url: preparedImageInputs[0],
-      end_image_url: endImageUrl,
-      duration: klingDuration,
-      aspect_ratio: resolveKlingAspectRatio(aspect),
-      resolution: resolveKlingResolution(requestedResolution),
-      negative_prompt: klingNegativePrompt,
-      cfg_scale: klingCfgScale,
-      generate_audio: requestedAudio,
-      voice_ids: voiceIds.length ? voiceIds : undefined,
-      multi_prompt: multiPromptPayload,
-      shot_type: resolveKlingShotType(klingShotType),
-      elements: elementsPayload,
-    });
-    handoffSubmitResponse({
-      response,
-      pollingProvider: "fal-kling-3",
-      startPollingWithGeneration,
-    });
-    return true;
-  }
-
   if (finalModel === "fal-ai/veo3.1/image-to-video") {
     if (!preparedImageInputs.length) {
       notifyGenerationFailure(id, "Veo 3.1 image-to-video requires a reference image.");
@@ -377,30 +322,6 @@ export const handleVideoModelSubmission = async ({
     handoffSubmitResponse({
       response,
       pollingProvider: "fal-veo-i2v",
-      startPollingWithGeneration,
-    });
-    return true;
-  }
-
-  if (finalModel === "fal-ai/kling-video/v3/pro/text-to-video") {
-    const klingDuration = resolveKlingV3Duration(requestedDurationSeconds);
-    const multiPromptPayload = buildKlingMultiPromptPayload(klingMultiPrompts);
-    const voiceIds = buildKlingVoiceIds(klingVoiceIds);
-    const shotType = resolveKlingShotType(klingShotType);
-    const response = await submitFalKlingV3Text({
-      prompt: cleanedPrompt,
-      aspect_ratio: resolveKlingAspectRatio(aspect),
-      duration: klingDuration,
-      negative_prompt: klingNegativePrompt.trim(),
-      cfg_scale: klingCfgScale,
-      generate_audio: requestedAudio,
-      ...(voiceIds.length ? { voice_ids: voiceIds } : {}),
-      ...(multiPromptPayload ? { multi_prompt: multiPromptPayload } : {}),
-      ...(shotType ? { shot_type: shotType } : {}),
-    });
-    handoffSubmitResponse({
-      response,
-      pollingProvider: "fal-kling",
       startPollingWithGeneration,
     });
     return true;

@@ -3,8 +3,6 @@ import type { VideoSubmissionArgs } from "../types";
 import { getModelConfig } from "../../../logic/pricing";
 import { handleVideoModelSubmission } from "../videoHandlers";
 import {
-  submitFalKlingV3ImageToVideo,
-  submitFalKlingV3Text,
   submitFalSeedance,
   submitFalSoraPro,
   submitFalVeoImageToVideo,
@@ -19,10 +17,8 @@ import {
 } from "../../../../../lib/model-runtime/providerModelIds";
 
 vi.mock("../../../../../lib/falClient", () => ({
-  submitFalKlingV3ImageToVideo: vi.fn(),
   submitKieKlingImageToVideo: vi.fn(),
   submitKieVeoImageToVideo: vi.fn(),
-  submitFalKlingV3Text: vi.fn(),
   submitFalSeedance: vi.fn(),
   submitFalSeedanceI2V: vi.fn(),
   submitFalSoraPro: vi.fn(),
@@ -40,14 +36,14 @@ vi.mock("../../../../../lib/mediaSignedUrlCache", () => ({
 
 const makeArgs = (overrides: Partial<VideoSubmissionArgs> = {}): VideoSubmissionArgs => ({
   id: "out-1",
-  finalModel: "fal-ai/kling-video/v3/pro/image-to-video",
+  finalModel: KIE_KLING_30_MODEL_ID,
   cleanedPrompt: "A dancer twirls",
   aspect: "16:9",
   requestedDurationSeconds: 6,
   requestedResolution: "1080p",
   requestedAudio: true,
   preparedImageInputs: ["https://example.com/character.png"],
-  modelConfig: getModelConfig("fal-ai/kling-video/v3/pro/image-to-video"),
+  modelConfig: getModelConfig(KIE_KLING_30_MODEL_ID),
   notifyGenerationFailure: vi.fn(),
   updateOutputById: vi.fn(),
   startPollingWithGeneration: vi.fn(),
@@ -519,87 +515,22 @@ describe("handleVideoModelSubmission (Kie Kling standard)", () => {
   });
 });
 
-describe("handleVideoModelSubmission (Kling 3 non-motion element videos)", () => {
+describe("handleVideoModelSubmission (disabled Fal Kling routes)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.spyOn(console, "error").mockImplementation(() => undefined);
-    vi.mocked(submitFalKlingV3ImageToVideo).mockResolvedValue({ request_id: "req-456" });
-    vi.mocked(getSignedMediaUrl).mockResolvedValue(
-      "https://example.com/signed/element-video-refreshed.mp4"
-    );
   });
 
   afterEach(() => {
     vi.restoreAllMocks();
   });
 
-  it("refreshes expiring Kling element video URLs before submit", async () => {
-    vi.spyOn(Date, "now").mockReturnValue(1_700_000_000_000);
-    const expSoon = Math.floor(Date.now() / 1000) + 60;
-    const payload = Buffer.from(
-      JSON.stringify({
-        url: "media_library/user-1/videos/element.mp4",
-        exp: expSoon,
-      })
-    ).toString("base64url");
-    const token = `header.${payload}.sig`;
-    const signedElementVideoUrl =
-      "https://example.supabase.co/storage/v1/object/sign/media_library/user-1/videos/element.mp4" +
-      `?token=${token}`;
+  it("fails closed for legacy Fal Kling image-to-video submits", async () => {
     const args = makeArgs({
-      videoReferenceMode: "kling3",
-      motionReferenceVideoUrl: null,
-      klingElements: [
-        {
-          id: "element-1",
-          frontalImageUrl: "",
-          referenceImageUrls: "",
-          videoUrl: signedElementVideoUrl,
-        },
-      ],
-    });
-
-    const handled = await handleVideoModelSubmission(args);
-
-    expect(handled).toBe(true);
-    expect(getSignedMediaUrl).toHaveBeenCalledWith({
-      bucket: "media_library",
-      storagePath: "user-1/videos/element.mp4",
-      forceRefresh: true,
-    });
-    expect(submitFalKlingV3ImageToVideo).toHaveBeenCalledWith(
-      expect.objectContaining({
-        resolution: "1080p",
-        elements: [{ video_url: "https://example.com/signed/element-video-refreshed.mp4" }],
-      })
-    );
-  });
-
-  it("fails gracefully when Kling element video URL refresh fails", async () => {
-    vi.spyOn(Date, "now").mockReturnValue(1_700_000_000_000);
-    const expSoon = Math.floor(Date.now() / 1000) + 60;
-    const payload = Buffer.from(
-      JSON.stringify({
-        url: "media_library/user-1/videos/element.mp4",
-        exp: expSoon,
-      })
-    ).toString("base64url");
-    const token = `header.${payload}.sig`;
-    const signedElementVideoUrl =
-      "https://example.supabase.co/storage/v1/object/sign/media_library/user-1/videos/element.mp4" +
-      `?token=${token}`;
-    vi.mocked(getSignedMediaUrl).mockResolvedValueOnce(null);
-    const args = makeArgs({
-      videoReferenceMode: "kling3",
-      motionReferenceVideoUrl: null,
-      klingElements: [
-        {
-          id: "element-1",
-          frontalImageUrl: "",
-          referenceImageUrls: "",
-          videoUrl: signedElementVideoUrl,
-        },
-      ],
+      finalModel: "fal-ai/kling-video/v3/pro/image-to-video",
+      modelConfig: getModelConfig("fal-ai/kling-video/v3/pro/image-to-video"),
+      videoReferenceMode: "standard",
+      preparedImageInputs: ["https://example.com/start.png", "https://example.com/end.png"],
     });
 
     const handled = await handleVideoModelSubmission(args);
@@ -607,64 +538,27 @@ describe("handleVideoModelSubmission (Kling 3 non-motion element videos)", () =>
     expect(handled).toBe(true);
     expect(args.notifyGenerationFailure).toHaveBeenCalledWith(
       "out-1",
-      expect.stringContaining("Kling element reference preparation failed")
+      "Fal Kling 3.0 is disabled. Use Kie Kling 3.0 instead."
     );
-    expect(submitFalKlingV3ImageToVideo).not.toHaveBeenCalled();
   });
 
-  it("passes end frame, intelligent shot type, voices, and image elements for Fal Kling standard submits", async () => {
+  it("fails closed for legacy Fal Kling text-to-video submits", async () => {
     const args = makeArgs({
-      finalModel: "fal-ai/kling-video/v3/pro/image-to-video",
-      modelConfig: getModelConfig("fal-ai/kling-video/v3/pro/image-to-video"),
+      finalModel: "fal-ai/kling-video/v3/pro/text-to-video",
+      modelConfig: getModelConfig("fal-ai/kling-video/v3/pro/text-to-video"),
       videoReferenceMode: "standard",
-      requestedDurationSeconds: 9,
-      requestedResolution: "720p",
-      requestedAudio: true,
-      preparedImageInputs: ["https://example.com/start.png", "https://example.com/end.png"],
-      klingShotType: "intelligent",
-      klingVoiceIds: [" voice_a ", "voice_b"],
-      klingNegativePrompt: "bad anatomy, blur",
-      klingCfgScale: 0.9,
-      klingMultiPrompts: [
-        { id: "shot-1", prompt: " First beat ", duration: 5 },
-        { id: "shot-2", prompt: "Second beat", duration: 8 },
-      ],
-      klingElements: [
-        {
-          id: "element-1",
-          frontalImageUrl: " https://example.com/front.png ",
-          referenceImageUrls: "https://example.com/ref-a.png,\nhttps://example.com/ref-b.png",
-          videoUrl: "",
-        },
-      ],
+      preparedImageInputs: [],
+      videoReferenceImageUrl: null,
+      motionReferenceVideoUrl: null,
     });
 
     const handled = await handleVideoModelSubmission(args);
 
     expect(handled).toBe(true);
-    expect(submitFalKlingV3ImageToVideo).toHaveBeenCalledWith({
-      prompt: "A dancer twirls",
-      start_image_url: "https://example.com/start.png",
-      end_image_url: "https://example.com/end.png",
-      duration: 9,
-      aspect_ratio: "16:9",
-      resolution: "720p",
-      negative_prompt: "bad anatomy, blur",
-      cfg_scale: 0.9,
-      generate_audio: true,
-      voice_ids: ["voice_a", "voice_b"],
-      multi_prompt: [
-        { prompt: "First beat", duration: 5 },
-        { prompt: "Second beat", duration: 8 },
-      ],
-      shot_type: "intelligent",
-      elements: [
-        {
-          frontal_image_url: "https://example.com/front.png",
-          reference_image_urls: ["https://example.com/ref-a.png", "https://example.com/ref-b.png"],
-        },
-      ],
-    });
+    expect(args.notifyGenerationFailure).toHaveBeenCalledWith(
+      "out-1",
+      "Fal Kling 3.0 is disabled. Use Kie Kling 3.0 instead."
+    );
   });
 });
 
@@ -732,86 +626,6 @@ describe("handleVideoModelSubmission (Fal Veo 3.1 image-to-video)", () => {
       "Veo 3.1 image-to-video requires a reference image."
     );
     expect(submitFalVeoImageToVideo).not.toHaveBeenCalled();
-  });
-});
-
-describe("handleVideoModelSubmission (Fal Kling 3 text-to-video)", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    vi.spyOn(console, "error").mockImplementation(() => undefined);
-    vi.mocked(submitFalKlingV3Text).mockResolvedValue({ request_id: "kling-text-1" });
-  });
-
-  afterEach(() => {
-    vi.restoreAllMocks();
-  });
-
-  it("passes advanced Kling text controls through the text-to-video payload", async () => {
-    const args = makeArgs({
-      finalModel: "fal-ai/kling-video/v3/pro/text-to-video",
-      modelConfig: getModelConfig("fal-ai/kling-video/v3/pro/text-to-video"),
-      requestedDurationSeconds: 9,
-      requestedAudio: true,
-      klingShotType: "intelligent",
-      klingVoiceIds: [" voice_a ", "voice_b"],
-      klingNegativePrompt: "bad anatomy, blur",
-      klingCfgScale: 0.9,
-      klingMultiPrompts: [
-        { id: "shot-1", prompt: " First beat ", duration: 5 },
-        { id: "shot-2", prompt: "Second beat", duration: 8 },
-      ],
-    });
-
-    const handled = await handleVideoModelSubmission(args);
-
-    expect(handled).toBe(true);
-    expect(submitFalKlingV3Text).toHaveBeenCalledWith({
-      prompt: "A dancer twirls",
-      aspect_ratio: "16:9",
-      duration: 9,
-      negative_prompt: "bad anatomy, blur",
-      cfg_scale: 0.9,
-      generate_audio: true,
-      voice_ids: ["voice_a", "voice_b"],
-      multi_prompt: [
-        { prompt: "First beat", duration: 5 },
-        { prompt: "Second beat", duration: 8 },
-      ],
-      shot_type: "intelligent",
-    });
-    expect(args.startPollingWithGeneration).toHaveBeenCalledWith(
-      "kling-text-1",
-      "fal-kling",
-      undefined,
-      { request_id: "kling-text-1" }
-    );
-  });
-
-  it("omits optional Kling text controls when they are empty", async () => {
-    const args = makeArgs({
-      finalModel: "fal-ai/kling-video/v3/pro/text-to-video",
-      modelConfig: getModelConfig("fal-ai/kling-video/v3/pro/text-to-video"),
-      requestedDurationSeconds: 5,
-      requestedAudio: false,
-      klingShotType: "customize",
-      klingVoiceIds: ["", ""],
-      klingNegativePrompt: "",
-      klingCfgScale: 0.5,
-      klingMultiPrompts: [],
-    });
-
-    const handled = await handleVideoModelSubmission(args);
-
-    expect(handled).toBe(true);
-    expect(submitFalKlingV3Text).toHaveBeenCalledWith({
-      prompt: "A dancer twirls",
-      aspect_ratio: "16:9",
-      duration: 5,
-      negative_prompt: "",
-      cfg_scale: 0.5,
-      generate_audio: false,
-      shot_type: "customize",
-    });
   });
 });
 

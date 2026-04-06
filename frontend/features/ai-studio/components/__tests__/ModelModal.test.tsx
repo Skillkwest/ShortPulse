@@ -196,16 +196,6 @@ describe("ModelModal", () => {
   it("orders reference-video chips by provider-grouped workflow priority", () => {
     const options: ModelOption[] = [
       {
-        value: "fal-ai/veo3.1/image-to-video",
-        label: "Google Veo 3.1",
-        mediaType: "image-to-video",
-      },
-      {
-        value: "fal-ai/bytedance/seedance/v1.5/pro/image-to-video",
-        label: "Seedance 1.5 Pro",
-        mediaType: "image-to-video",
-      },
-      {
         value: KIE_VEO_31_FAST_I2V_MODEL_ID,
         label: "Veo 3.1 Fast I2V (Kie)",
         mediaType: "image-to-video",
@@ -213,11 +203,6 @@ describe("ModelModal", () => {
       {
         value: KIE_KLING_30_MODEL_ID,
         label: "Kling 3.0 (Kie)",
-        mediaType: "image-to-video",
-      },
-      {
-        value: "fal-ai/kling-video/v3/pro/image-to-video",
-        label: "Kling 3.0",
         mediaType: "image-to-video",
       },
     ];
@@ -232,8 +217,6 @@ describe("ModelModal", () => {
     );
 
     expect(readChipTitles(container)).toEqual(["Veo 3.1 Fast I2V (Kie)", "Kling 3.0 (Kie)"]);
-    expect(screen.queryByRole("button", { name: "Google Veo 3.1" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Kling 3.0" })).not.toBeInTheDocument();
   });
 
   it("hides Fal Veo keyframe chips and keeps Kie Veo visible", () => {

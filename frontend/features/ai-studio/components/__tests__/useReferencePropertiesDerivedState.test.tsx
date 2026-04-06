@@ -2,7 +2,10 @@ import { renderHook } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import type { AspectOption } from "../../types";
 import { useReferencePropertiesDerivedState } from "../useReferencePropertiesDerivedState";
-import { KIE_KLING_30_MODEL_ID } from "../../../../lib/model-runtime/providerModelIds";
+import {
+  KIE_KLING_30_MODEL_ID,
+  KIE_VEO_31_FAST_I2V_MODEL_ID,
+} from "../../../../lib/model-runtime/providerModelIds";
 
 const aspectOptions: AspectOption[] = [
   {
@@ -44,7 +47,7 @@ describe("useReferencePropertiesDerivedState", () => {
     const { result } = renderHook(() =>
       useReferencePropertiesDerivedState({
         ...baseArgs,
-        modelId: "fal-ai/kling-video/v3/pro/image-to-video",
+        modelId: KIE_KLING_30_MODEL_ID,
       })
     );
 
@@ -54,32 +57,17 @@ describe("useReferencePropertiesDerivedState", () => {
     ]);
   });
 
-  it("falls back to default video resolutions when a model has no declared resolution support", () => {
+  it("returns declared resolution options for Kie Veo", () => {
     const { result } = renderHook(() =>
       useReferencePropertiesDerivedState({
         ...baseArgs,
-        modelId: "fal-ai/kling-video/v3/pro/text-to-video",
+        modelId: KIE_VEO_31_FAST_I2V_MODEL_ID,
       })
     );
 
     expect(result.current.resolutionOptions.map((option) => option.value)).toEqual([
       "720p",
       "1080p",
-    ]);
-  });
-
-  it("returns declared resolution options for other models that provide them", () => {
-    const { result } = renderHook(() =>
-      useReferencePropertiesDerivedState({
-        ...baseArgs,
-        modelId: "fal-ai/veo3.1/image-to-video",
-      })
-    );
-
-    expect(result.current.resolutionOptions.map((option) => option.value)).toEqual([
-      "720p",
-      "1080p",
-      "4k",
     ]);
   });
 
@@ -103,32 +91,12 @@ describe("useReferencePropertiesDerivedState", () => {
     expect(result.current.klingAssetsSummary).toBe("1 element · Prompt tokens ready");
   });
 
-  it("summarizes non-KIE Kling assets with voice counts", () => {
-    const { result } = renderHook(() =>
-      useReferencePropertiesDerivedState({
-        ...baseArgs,
-        modelId: "fal-ai/kling-video/v3/pro/image-to-video",
-        klingElements: [
-          {
-            id: "element-01",
-            frontalImageUrl: "",
-            referenceImageUrls: "",
-            videoUrl: "",
-          },
-        ],
-        klingVoiceIds: ["voice-1", ""],
-      })
-    );
-
-    expect(result.current.klingAssetsSummary).toBe("1 element · 1 voice");
-  });
-
-  it("does not render Kling-specific UI state for legacy Fal Kling model ids", () => {
+  it("does not render Kling-specific UI state outside the active Kie Kling mode", () => {
     const { result } = renderHook(() =>
       useReferencePropertiesDerivedState({
         ...baseArgs,
         videoReferenceMode: "kling3",
-        modelId: "fal-ai/kling-video/v3/pro/image-to-video",
+        modelId: KIE_VEO_31_FAST_I2V_MODEL_ID,
       })
     );
 

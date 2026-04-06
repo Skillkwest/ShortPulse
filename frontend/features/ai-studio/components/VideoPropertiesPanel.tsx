@@ -270,19 +270,12 @@ export function VideoPropertiesPanel({
   const isKieKlingModelSelected = modelId === KIE_KLING_30_MODEL_ID;
   const isVeo31ModelSelected =
     modelId?.includes("veo3.1") === true || modelId?.includes("veo-3.1") === true;
-  const isSeedanceModelSelected = modelId === "fal-ai/bytedance/seedance/v1.5/pro/image-to-video";
 
   React.useEffect(() => {
     if (isVeo31ModelSelected && videoAutoFix) {
       onVideoAutoFixChange?.(false);
     }
   }, [isVeo31ModelSelected, onVideoAutoFixChange, videoAutoFix]);
-
-  React.useEffect(() => {
-    if (isSeedanceModelSelected && videoCameraFixed) {
-      onVideoCameraFixedChange?.(false);
-    }
-  }, [isSeedanceModelSelected, onVideoCameraFixedChange, videoCameraFixed]);
 
   const visibleVideoMode = activeVideoMode === "motion" ? "motion" : "standard";
   const resolvedVideoLane = resolveVideoGenerationLaneFromFrameInputs({

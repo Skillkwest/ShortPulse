@@ -82,60 +82,25 @@ const modelMeta: Record<string, ModelMeta> = {
     tags: ["Image", "Image-to-Image", "High Fidelity"],
     verified: true,
   },
-  "fal-ai/kling-video/v3/pro/image-to-video": {
-    provider: "Kling AI",
-    description:
-      "Kling 3.0 image-to-video animates a source frame into 5 to 10 second clips with native audio.",
-    tags: ["Video", "Image-to-Video", "5-10s", "Audio"],
-  },
-  "fal-ai/kling-video/v3/pro/text-to-video": {
-    provider: "Kling AI",
-    description: "Kling 3.0 text-to-video generates 5 to 10 second clips with native audio.",
-    tags: ["Video", "Text-to-Video", "5-10s", "Audio"],
-  },
-  "fal-ai/veo3.1/first-last-frame-to-video": {
-    provider: "Google DeepMind",
-    description:
-      "Veo 3.1 first/last frame mode interpolates between two keyframes for 4, 6, or 8 second clips up to 4K.",
-    tags: ["Video", "First/Last Frame", "4-8s", "720p-4K", "Audio"],
-    verified: true,
-  },
-  "fal-ai/veo3.1/image-to-video": {
-    provider: "Google DeepMind",
-    description:
-      "Veo 3.1 image-to-video animates a single frame into 4, 6, or 8 second clips up to 4K.",
-    tags: ["Video", "Image-to-Video", "4-8s", "720p-4K", "Audio"],
-    verified: true,
-  },
-  "fal-ai/bytedance/seedance/v1.5/pro/image-to-video": {
-    provider: "ByteDance",
-    description:
-      "Seedance 1.5 Pro image-to-video supports 2 to 12 second clips at 480p, 720p, or 1080p with audio.",
-    tags: ["Video", "Image-to-Video", "2-12s", "480p-1080p", "Audio"],
-  },
-  "fal-ai/bytedance/seedance/v1.5/pro/text-to-video": {
-    provider: "ByteDance",
-    description:
-      "Seedance 1.5 Pro text-to-video supports 4 to 12 second outputs at 480p, 720p, or 1080p with audio.",
-    tags: ["Video", "Text-to-Video", "4-12s", "480p-1080p", "Audio"],
-  },
   "kie-ai/veo-3.1-fast-i2v": {
     provider: "Kie AI",
     description:
-      "Kie Veo 3.1 Fast supports standard image-to-video and first/last-frame transitions for 5 or 8 second clips at 720p or 1080p.",
-    tags: ["Video", "Image-to-Video", "First/Last Frame", "5-8s", "720p/1080p", "Audio"],
+      "Kie Veo 3.1 Fast handles text-to-video, single-image animation, and first/last-frame transitions at 720p or 1080p.",
+    tags: [
+      "Video",
+      "Text-to-Video",
+      "Image-to-Video",
+      "First/Last Frame",
+      "5-8s",
+      "720p/1080p",
+      "Audio",
+    ],
   },
   "kie-ai/kling-3.0": {
     provider: "Kie AI",
-    description: "Kie Kling 3.0 image-to-video supports 5 or 10 second clips with native audio.",
-    tags: ["Video", "Image-to-Video", "5-10s", "Audio"],
-  },
-  "fal-ai/veo3.1": {
-    provider: "Google DeepMind",
     description:
-      "Veo 3.1 text-to-video supports 4, 6, or 8 second outputs at 720p to 4K with audio.",
-    tags: ["Video", "Text-to-Video", "4-8s", "720p-4K", "Audio"],
-    verified: true,
+      "Kie Kling 3.0 supports image-to-video and motion-control workflows with native audio.",
+    tags: ["Video", "Image-to-Video", "Motion Transfer", "5-10s", "Audio"],
   },
   "fal-ai/bytedance/seedream/v4.5/text-to-image": {
     provider: "ByteDance",
@@ -299,8 +264,9 @@ const contextTooltipTagMap: Record<ModelModalContext, string> = {
 const providerPriorityByContext: Partial<Record<ModelModalContext, string[]>> = {
   "text-image": ["ByteDance", "Google", "Black Forest Labs"],
   "reference-image": ["ByteDance", "Google", "Black Forest Labs"],
-  "reference-video": ["Google DeepMind", "Kie AI", "ByteDance", "Kling AI"],
-  "reference-keyframes": ["Google DeepMind", "Kie AI"],
+  "reference-video": ["Kie AI"],
+  "reference-keyframes": ["Kie AI"],
+  "text-video": ["Kie AI"],
 };
 
 const modelPriorityByContext: Partial<Record<ModelModalContext, string[]>> = {
@@ -320,28 +286,19 @@ const modelPriorityByContext: Partial<Record<ModelModalContext, string[]>> = {
     "fal/flux-2/edit",
     "fal/flux-2-pro/edit",
   ],
-  "reference-video": [
-    "fal-ai/veo3.1/image-to-video",
-    "kie-ai/veo-3.1-fast-i2v",
-    "fal-ai/bytedance/seedance/v1.5/pro/image-to-video",
-    "kie-ai/kling-3.0",
-  ],
-  "reference-keyframes": ["fal-ai/veo3.1/first-last-frame-to-video", "kie-ai/veo-3.1-fast-i2v"],
+  "reference-video": ["kie-ai/veo-3.1-fast-i2v", "kie-ai/kling-3.0"],
+  "reference-keyframes": ["kie-ai/veo-3.1-fast-i2v"],
+  "text-video": ["kie-ai/veo-3.1-fast-i2v"],
 };
 
 const hiddenModelIdsByContext: Partial<Record<ModelModalContext, string[]>> = {
   "text-image": ["fal/flux-2", "fal-ai/nano-banana"],
 };
 
-const globallyHiddenModelIds = new Set([
-  "fal-ai/veo3.1/first-last-frame-to-video",
-  "fal-ai/veo3.1/image-to-video",
-  "fal-ai/veo3.1",
-  "fal-ai/kling-video/v3/pro/image-to-video",
-  "fal-ai/kling-video/v3/pro/text-to-video",
-  "fal-ai/bytedance/seedance/v1.5/pro/image-to-video",
-  "fal-ai/bytedance/seedance/v1.5/pro/text-to-video",
-]);
+const isDisabledLegacyVideoModel = (modelId: string): boolean =>
+  modelId.startsWith("fal-ai/veo3.1") ||
+  modelId.startsWith("fal-ai/kling-video/") ||
+  modelId.startsWith("fal-ai/bytedance/seedance/");
 
 /**
  * Renders the floating model selection modal.
@@ -422,7 +379,7 @@ function ModelModalContent({
     () =>
       options.filter(
         (option) =>
-          !contextHiddenModelIds.has(option.value) && !globallyHiddenModelIds.has(option.value)
+          !contextHiddenModelIds.has(option.value) && !isDisabledLegacyVideoModel(option.value)
       ),
     [contextHiddenModelIds, options]
   );

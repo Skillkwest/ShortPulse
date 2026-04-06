@@ -67,11 +67,11 @@ Purpose: provide a single hub for AI Studio SOPs, shared defaults, and the canon
 - Current contexts with explicit ordering:
   - `text-image` (Create): ByteDance -> Google -> Black Forest Labs.
   - `reference-image` (Edit): ByteDance -> Google -> Black Forest Labs.
-  - `reference-video` (Video standard): Google DeepMind -> Kie AI -> ByteDance -> Kling AI.
+  - `reference-video` (Video standard): Kie AI only.
   - `reference-keyframes`: Google DeepMind -> Kie AI.
 - Video policy invariant:
-  - `fal-ai/veo3.1/first-last-frame-to-video` and `kie-ai/veo-3.1-fast-i2v` are keyframes-compatible.
-  - Standard Video mode excludes first/last-frame and surfaces standard image-to-video options (Fal + Kie) only.
+  - `kie-ai/veo-3.1-fast-i2v` is the active Veo-family lane for text, single-image, and first/last-frame video generation.
+  - Standard Video mode is Kie-only and surfaces only `kie-ai/veo-3.1-fast-i2v` and `kie-ai/kling-3.0`.
 
 ## Fal reliability rollout notes (v2 architecture)
 - Primary tracker: `docs/planning/ai-studio-generation-runtime-v2-locked-execution.md`
@@ -112,14 +112,8 @@ Planned reliability module boundaries:
 | fal-ai/bytedance/seedream/v4.5/edit | Aspect: 1:1 (broad set allowed) | Image-to-image/edit; requires reference images; safety checker off by default; per-image pricing. |
 | fal-ai/bytedance/seedream/v5/lite/text-to-image | Aspect: 1:1 default (allowed: 1:1, 2:3, 3:2, 3:4, 4:3, 4:5, 5:4, 9:16, 16:9, 21:9); Resolution: auto_2K default (allowed: auto_2K, auto_3K) | Fal text-to-image queue; per-image pricing at $0.035 with shared credit rounding (5 billed credits). |
 | fal-ai/bytedance/seedream/v5/lite/edit | Aspect: 1:1 default (allowed: 1:1, 2:3, 3:2, 3:4, 4:3, 4:5, 5:4, 9:16, 16:9, 21:9); Resolution: auto_2K default (allowed: auto_2K, auto_3K) | Fal image-to-image/edit queue; requires reference images (up to 10); pricing mirrors Seedream 5 Lite text-to-image. |
-| fal-ai/kling-video/v3/pro/image-to-video | Aspect: 16:9 default (allowed: 16:9, 9:16, 1:1); Duration: 10s; Resolution: 1080p default (allowed: 720p, 1080p); `generate_audio: true` by default | Per-second pricing (`$0.112/s` audio-off, `$0.168/s` audio-on, `$0.196/s` with voice control). Image-to-video with required start image. |
-| fal-ai/kling-video/v3/pro/text-to-video | Aspect: 16:9 default (allowed: 16:9, 9:16, 1:1); Duration: 10s; `generate_audio: true` by default | Per-second pricing (`$0.112/s` audio-off, `$0.168/s` audio-on, `$0.196/s` with voice control). Text-to-video with multi-shot support. |
-| fal-ai/veo3.1/image-to-video | Aspect: auto default (allowed: auto, 16:9, 9:16); Duration: 8s; Resolution: 720p; Audio: on | Per-second pricing ($0.20/s audio-off, $0.40/s audio-on at 720p/1080p; 4K $0.40/$0.60). Requires a reference image; proxied via Fal queue. |
-| fal-ai/veo3.1 | Aspect: 16:9 default (allowed: 16:9, 9:16); Duration: 8s; Resolution: 1080p; Audio: on | Per-second pricing (same tiers as before); proxied via Fal queue. |
-| kie-ai/veo-3.1-fast-i2v | Aspect: 16:9 default (allowed: 16:9, 9:16); Duration: 5s default (allowed: 5, 8); Resolution: 720p default (allowed: 720p, 1080p); Audio: on | Kie image-to-video queue; fixed `$0.30` per generation from Kie credits conversion evidence (default billed 35 credits under current policy). |
-| kie-ai/kling-3.0 | Aspect: 16:9 default (allowed: 16:9, 9:16, 1:1); Duration: 10s default (allowed: 5, 10); Resolution: 1080p default (allowed: 720p, 1080p); Audio: on | Kie image-to-video queue; per-second pricing by resolution: `1080p` `$0.20/$0.135` (audio on/off), `720p` `$0.15/$0.10` (audio on/off); default lane bills 210 credits under current policy. |
-| fal-ai/bytedance/seedance/v1.5/pro/text-to-video | Aspect: 16:9 default (allowed: 16:9, 9:16, 1:1, 4:3, 3:4, 21:9); Duration: 10s; Resolution: 1080p; Audio: on | Token-based pricing (~$0.26 per 720p 5s video with audio); proxied via Fal queue. |
-| fal-ai/bytedance/seedance/v1.5/pro/image-to-video | Aspect: 16:9 default (allowed: 16:9, 9:16, 1:1, 4:3, 3:4, 21:9); Duration: 5s; Resolution: 720p; Audio: on | Token-based pricing; requires a reference image; supports start & end frames; proxied via Fal queue. |
+| kie-ai/veo-3.1-fast-i2v | Aspect: 16:9 default (allowed: 16:9, 9:16); Duration: 5s default (allowed: 5, 8); Resolution: 720p default (allowed: 720p, 1080p); Audio: on | Active Kie Veo lane for text-to-video, single-image animation, and first/last-frame generation. Fixed `$0.30` per generation from Kie credits conversion evidence (default billed 35 credits under current policy). |
+| kie-ai/kling-3.0 | Aspect: 16:9 default (allowed: 16:9, 9:16, 1:1); Duration: 10s default (allowed: 5, 10); Resolution: 1080p default (allowed: 720p, 1080p); Audio: on | Active Kie Kling lane for image-to-video and Motion Control. Per-second pricing by resolution: `1080p` `$0.20/$0.135` (audio on/off), `720p` `$0.15/$0.10` (audio on/off); default lane bills 210 credits under current policy. |
 | gpt-5-nano | Aspect: n/a; Token-based | Used for prompt refine + describe flows. |
 
 ## Standard SOP skeleton (apply to new/updated SOPs)

@@ -270,11 +270,6 @@ export function VideoPropertiesPanel({
   const isVeo31ModelSelected =
     modelId?.includes("veo3.1") === true || modelId?.includes("veo-3.1") === true;
   const isSeedanceModelSelected = modelId === "fal-ai/bytedance/seedance/v1.5/pro/image-to-video";
-  React.useEffect(() => {
-    if (activeVideoMode === "keyframes") {
-      onVideoReferenceModeChange?.("standard");
-    }
-  }, [activeVideoMode, onVideoReferenceModeChange]);
 
   React.useEffect(() => {
     if (isVeo31ModelSelected && videoAutoFix) {
@@ -289,6 +284,8 @@ export function VideoPropertiesPanel({
   }, [isSeedanceModelSelected, onVideoCameraFixedChange, videoCameraFixed]);
 
   const visibleVideoMode = activeVideoMode === "motion" ? "motion" : "standard";
+  const modelPickerContext: ModelModalContext =
+    activeVideoMode === "keyframes" ? "reference-keyframes" : "reference-video";
   const videoModeIndex = visibleVideoMode === "motion" ? 1 : 0;
   const videoModeTabsStyle = React.useMemo(
     () =>
@@ -506,6 +503,7 @@ export function VideoPropertiesPanel({
                         modelLogoSrc={modelLogoSrc}
                         isModelModalOpen={isModelModalOpen}
                         modelModalAnchor={modelModalAnchor}
+                        modelModalContext={modelPickerContext}
                         aspect={aspect}
                         aspectOptionsForModel={aspectOptionsForModel}
                         videoSettingsOrder={videoSettingsOrder}

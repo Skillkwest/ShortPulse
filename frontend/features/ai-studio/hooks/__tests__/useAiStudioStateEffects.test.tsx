@@ -1,7 +1,10 @@
 import { renderHook, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import type { MutableRefObject } from "react";
-import { KIE_KLING_30_MODEL_ID } from "../../../../lib/model-runtime/providerModelIds";
+import {
+  KIE_KLING_30_MODEL_ID,
+  KIE_VEO_31_FAST_I2V_MODEL_ID,
+} from "../../../../lib/model-runtime/providerModelIds";
 import { useAiStudioStateEffects } from "../useAiStudioStateEffects";
 
 const createArgs = (
@@ -126,6 +129,29 @@ describe("useAiStudioStateEffects", () => {
 
     await waitFor(() => {
       expect(setModel).toHaveBeenCalledWith(KIE_KLING_30_MODEL_ID);
+    });
+  });
+
+  it("promotes the dedicated Fal first/last-frame model into keyframes mode", async () => {
+    const setVideoReferenceMode = vi.fn();
+    renderHook(() =>
+      useAiStudioStateEffects(
+        createArgs({
+          selectedTool: "video",
+          model: "fal-ai/veo3.1/first-last-frame-to-video",
+          videoReferenceMode: "standard",
+          allowedModelValues: [
+            "fal-ai/veo3.1/first-last-frame-to-video",
+            "fal-ai/veo3.1/image-to-video",
+            KIE_VEO_31_FAST_I2V_MODEL_ID,
+          ],
+          setVideoReferenceMode,
+        })
+      )
+    );
+
+    await waitFor(() => {
+      expect(setVideoReferenceMode).toHaveBeenCalledWith("keyframes");
     });
   });
 

@@ -212,7 +212,7 @@ describe("modelSelectionPolicy", () => {
     expect(model).toBe(CREATE_DEFAULT_MODEL_ID);
   });
 
-  it("excludes first/last-frame + Fal Kling and keeps Fal/Kie i2v models in standard video reference mode", () => {
+  it("keeps Fal first/last-frame selectable alongside standard i2v models in standard video reference mode", () => {
     const values = resolveAiStudioAllowedModelOptions({
       selectedTool: "video",
       mode: "video",
@@ -222,6 +222,7 @@ describe("modelSelectionPolicy", () => {
     }).map((option) => option.value);
 
     expect(values).toEqual([
+      "fal-ai/veo3.1/first-last-frame-to-video",
       "fal-ai/veo3.1/image-to-video",
       "fal-ai/bytedance/seedance/v1.5/pro/image-to-video",
       KIE_VEO_31_FAST_I2V_MODEL_ID,

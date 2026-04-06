@@ -24,6 +24,7 @@ const KEYFRAME_COMPATIBLE_MODELS = new Set([
   "fal-ai/veo3.1/first-last-frame-to-video",
   KIE_VEO_31_FAST_I2V_MODEL_ID,
 ]);
+const FAL_VEO_FIRST_LAST_MODEL_ID = "fal-ai/veo3.1/first-last-frame-to-video";
 const allowedUiAspects = new Set(aspectOptions.map((option) => option.value));
 
 type VideoReferenceMode = "standard" | "modify" | "keyframes" | "kling3" | "motion";
@@ -254,12 +255,17 @@ export const useAiStudioStateEffects = ({
       return;
     }
 
+    if (model === FAL_VEO_FIRST_LAST_MODEL_ID && videoReferenceMode !== "keyframes") {
+      setVideoReferenceModeIfChanged("keyframes");
+      return;
+    }
+
     if (videoReferenceMode === "keyframes") {
       if (model && !KEYFRAME_COMPATIBLE_MODELS.has(model)) {
         lastNonKeyframesVideoModelRef.current = model;
-        setModelIfChanged("fal-ai/veo3.1/first-last-frame-to-video");
+        setModelIfChanged(FAL_VEO_FIRST_LAST_MODEL_ID);
       } else if (!model) {
-        setModelIfChanged("fal-ai/veo3.1/first-last-frame-to-video");
+        setModelIfChanged(FAL_VEO_FIRST_LAST_MODEL_ID);
       }
       return;
     }
@@ -280,7 +286,7 @@ export const useAiStudioStateEffects = ({
       return;
     }
 
-    if (model === "fal-ai/veo3.1/first-last-frame-to-video" && videoReferenceMode === "standard") {
+    if (model === FAL_VEO_FIRST_LAST_MODEL_ID && videoReferenceMode === "standard") {
       const fallback = lastNonKeyframesVideoModelRef.current ?? "fal-ai/veo3.1/image-to-video";
       setModelIfChanged(fallback);
       return;

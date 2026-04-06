@@ -25,6 +25,8 @@ export type ModelSelectionVideoReferenceMode =
   | "kling3"
   | "motion";
 
+const FAL_VEO_FIRST_LAST_MODEL_ID = "fal-ai/veo3.1/first-last-frame-to-video";
+
 type ModelConfigLike = {
   supportsImageToImage?: boolean;
   supportsTextToImage?: boolean;
@@ -94,9 +96,9 @@ export const resolveAiStudioAllowedModelOptions = ({
     }
     return selectableOptions.filter(
       (option) =>
-        option.mediaType === "image-to-video" &&
+        (option.value === FAL_VEO_FIRST_LAST_MODEL_ID || option.mediaType === "image-to-video") &&
         !option.value.includes("kling-video") &&
-        option.value !== "fal-ai/veo3.1/first-last-frame-to-video"
+        option.value !== "fal-ai/kling-video/v3/pro/image-to-video"
     );
   }
 

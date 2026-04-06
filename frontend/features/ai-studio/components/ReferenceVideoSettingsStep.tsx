@@ -16,6 +16,7 @@ type VideoSettingsModelPickerButtonProps = {
   modelLogoSrc?: string;
   isModelModalOpen: boolean;
   modelModalAnchor: string | null;
+  modelModalContext?: ModelModalContext | null;
   onModelPickerOpen: (
     anchorId: string,
     target: HTMLElement,
@@ -29,6 +30,7 @@ export const VideoSettingsModelPickerButton: React.FC<VideoSettingsModelPickerBu
   modelLogoSrc,
   isModelModalOpen,
   modelModalAnchor,
+  modelModalContext = "reference-video",
   onModelPickerOpen,
 }) => (
   <button
@@ -36,7 +38,7 @@ export const VideoSettingsModelPickerButton: React.FC<VideoSettingsModelPickerBu
     className={`model-picker-btn ${!modelId ? "is-empty" : ""} ${isModelModalOpen && modelModalAnchor === "video-settings-model" ? "is-open" : ""}`}
     data-model-anchor="video-settings-model"
     onClick={(event) =>
-      onModelPickerOpen("video-settings-model", event.currentTarget, "reference-video")
+      onModelPickerOpen("video-settings-model", event.currentTarget, modelModalContext)
     }
   >
     <div className="model-picker-row">
@@ -68,6 +70,7 @@ type ReferenceVideoSettingsStepProps = {
   modelLogoSrc?: string;
   isModelModalOpen: boolean;
   modelModalAnchor: string | null;
+  modelModalContext?: ModelModalContext | null;
   aspect: string;
   aspectOptionsForModel: AspectOption[];
   videoSettingsOrder: number;
@@ -107,6 +110,7 @@ export const ReferenceVideoSettingsStep: React.FC<ReferenceVideoSettingsStepProp
   modelLogoSrc,
   isModelModalOpen,
   modelModalAnchor,
+  modelModalContext = "reference-video",
   aspect,
   aspectOptionsForModel,
   videoSettingsOrder,
@@ -151,6 +155,7 @@ export const ReferenceVideoSettingsStep: React.FC<ReferenceVideoSettingsStepProp
               modelLogoSrc={modelLogoSrc}
               isModelModalOpen={isModelModalOpen}
               modelModalAnchor={modelModalAnchor}
+              modelModalContext={modelModalContext}
               onModelPickerOpen={onModelPickerOpen}
             />
           </div>

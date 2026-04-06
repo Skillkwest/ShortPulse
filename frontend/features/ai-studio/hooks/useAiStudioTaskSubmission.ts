@@ -59,6 +59,7 @@ const PREPARE_REFERENCE_TIMEOUT_ERROR =
   "Preparation timed out before generation started. Please retry.";
 const SUBMIT_NOT_STARTED_USER_ERROR = "Generation failed to start. Please retry.";
 const AUTH_SESSION_TIMEOUT_DETAIL = "Session check timed out before provider submit.";
+const FAL_VEO_FIRST_LAST_MODEL_ID = "fal-ai/veo3.1/first-last-frame-to-video";
 
 const preflightStageLevel = (
   status: PrepareImageStageEvent["status"]
@@ -267,9 +268,9 @@ export const useAiStudioTaskSubmission = ({
         const isKling3ImageModel =
           finalModel === "fal-ai/kling-video/v3/pro/image-to-video" ||
           finalModel === KIE_KLING_30_MODEL_ID;
+        const isDedicatedVeoFirstLastFrameModel = finalModel === FAL_VEO_FIRST_LAST_MODEL_ID;
         const isVeoFirstLastFrameModel =
-          finalModel === "fal-ai/veo3.1/first-last-frame-to-video" ||
-          finalModel === KIE_VEO_31_FAST_I2V_MODEL_ID;
+          isDedicatedVeoFirstLastFrameModel || finalModel === KIE_VEO_31_FAST_I2V_MODEL_ID;
         const isVeoImageToVideoModel =
           finalModel === "fal-ai/veo3.1/image-to-video" ||
           finalModel === KIE_VEO_31_FAST_I2V_MODEL_ID;
@@ -539,7 +540,8 @@ export const useAiStudioTaskSubmission = ({
 
         const requiresImageReference = isKling3ImageModel || isVeoImageToVideoModel;
         const isKeyframeFirstLastRun =
-          videoReferenceMode === "keyframes" && isVeoFirstLastFrameModel;
+          (videoReferenceMode === "keyframes" && isVeoFirstLastFrameModel) ||
+          isDedicatedVeoFirstLastFrameModel;
         if (requiresImageReference && !isKeyframeFirstLastRun && preparedImageInputs.length === 0) {
           applySubmissionFailure(id, {
             timestamp: "Missing image",
@@ -550,11 +552,7 @@ export const useAiStudioTaskSubmission = ({
           return;
         }
 
-        if (
-          videoReferenceMode === "keyframes" &&
-          isVeoFirstLastFrameModel &&
-          preparedImageInputs.length < 2
-        ) {
+        if (isKeyframeFirstLastRun && preparedImageInputs.length < 2) {
           applySubmissionFailure(id, {
             timestamp: "Missing frames",
             errorMessage: "First/Last Frame generation requires both a first and last frame image.",

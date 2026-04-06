@@ -308,6 +308,80 @@ describe("useAiStudioTaskSubmission", () => {
     );
   });
 
+  it("keeps Veo First/Last strict while mode sync is catching up from standard", async () => {
+    let outputs: StudioOutput[] = [];
+    const setOutputs = vi.fn((value: SetStateAction<StudioOutput[]>) => {
+      outputs = typeof value === "function" ? value(outputs) : value;
+    });
+
+    const setIsPromptGenerating = vi.fn();
+    const setUiError = vi.fn();
+    const setUiNotice = vi.fn();
+    const setSaved = vi.fn();
+    const notifyGenerationFailure = vi.fn();
+    const updateOutputById = createStatefulUpdateOutputById({
+      get: () => outputs,
+      set: (next) => {
+        outputs = next;
+      },
+    });
+    const startPollingTask = vi.fn();
+    const ensureGenerationRecord = vi.fn(async () => null);
+
+    const { result } = renderHook(() =>
+      useAiStudioTaskSubmission({
+        aspect: "16:9",
+        mode: "video",
+        model: "fal-ai/veo3.1/first-last-frame-to-video",
+        prompt: "",
+        selectedTool: "video",
+        imageResolution: "model_default",
+        videoDurationSeconds: 8,
+        videoResolution: "720p",
+        videoGenerateAudio: true,
+        videoReferenceMode: "standard",
+        videoReferenceImageUrl: "https://example.com/first.png",
+        motionReferenceVideoUrl: null,
+        videoCameraFixed: false,
+        videoAutoFix: false,
+        klingNegativePrompt: "blur, distort, and low quality",
+        klingCfgScale: 0.5,
+        klingShotType: "customize",
+        klingVoiceIds: ["", ""],
+        klingMultiPrompts: [],
+        klingElements: [],
+        setIsPromptGenerating: asDispatch(setIsPromptGenerating),
+        setUiError: asDispatch(setUiError),
+        setUiNotice: asDispatch(setUiNotice),
+        setOutputs: asDispatch(setOutputs),
+        setSaved: asDispatch(setSaved),
+        getDefaultDurationSeconds: () => 8,
+        notifyGenerationFailure,
+        updateOutputById,
+        startPollingTask,
+        ensureGenerationRecord,
+      })
+    );
+
+    await act(async () => {
+      await result.current(
+        "Bridge shot morphing between keyframes",
+        ["https://example.com/first.png"],
+        {
+          modeOverride: "video",
+          selectedToolOverride: "video",
+        }
+      );
+    });
+
+    expect(outputs[0]?.modelId).toBe("fal-ai/veo3.1/first-last-frame-to-video");
+    expect(outputs[0]?.taskState).toBe("fail");
+    expect(outputs[0]?.errorMessageShort).toBe("First/Last needs two images.");
+    expect(setSaved).toHaveBeenCalledWith(false);
+    expect(handleVideoModelSubmission).not.toHaveBeenCalled();
+    expect(resolveSubmissionHandlerRoute).not.toHaveBeenCalled();
+  });
+
   it("keeps Kie Veo keyframes strict when last frame is missing", async () => {
     let outputs: StudioOutput[] = [];
     const setOutputs = vi.fn((value: SetStateAction<StudioOutput[]>) => {

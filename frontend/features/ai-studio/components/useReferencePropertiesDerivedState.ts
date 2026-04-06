@@ -71,7 +71,8 @@ export const useReferencePropertiesDerivedState = ({
 }: UseReferencePropertiesDerivedStateArgs) => {
   const isVideoVariant = variant === "video";
   const activeVideoMode = videoReferenceMode ?? "standard";
-  const isKling3Mode = isVideoVariant && activeVideoMode === "kling3";
+  const isKling3Mode =
+    isVideoVariant && activeVideoMode === "kling3" && modelId === KIE_KLING_30_MODEL_ID;
   const isKeyframesMode = isVideoVariant && activeVideoMode === "keyframes";
   const isMotionMode = isVideoVariant && activeVideoMode === "motion";
   const isStandardMode =
@@ -88,8 +89,7 @@ export const useReferencePropertiesDerivedState = ({
     modelId?.includes("veo3.1") === true ||
     modelId?.includes("veo-3.1") === true ||
     modelId === KIE_VEO_31_FAST_I2V_MODEL_ID;
-  const isKling3Model =
-    modelId?.includes("kling-video/v3/pro") === true || modelId === KIE_KLING_30_MODEL_ID;
+  const isKling3Model = modelId === KIE_KLING_30_MODEL_ID;
 
   const referenceStepTitle = isVideoVariant
     ? isKling3Mode

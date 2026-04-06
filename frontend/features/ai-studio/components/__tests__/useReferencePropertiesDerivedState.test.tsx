@@ -122,4 +122,18 @@ describe("useReferencePropertiesDerivedState", () => {
 
     expect(result.current.klingAssetsSummary).toBe("1 element · 1 voice");
   });
+
+  it("does not render Kling-specific UI state for legacy Fal Kling model ids", () => {
+    const { result } = renderHook(() =>
+      useReferencePropertiesDerivedState({
+        ...baseArgs,
+        videoReferenceMode: "kling3",
+        modelId: "fal-ai/kling-video/v3/pro/image-to-video",
+      })
+    );
+
+    expect(result.current.isKling3Mode).toBe(false);
+    expect(result.current.klingAdvancedOrder).toBeUndefined();
+    expect(result.current.klingAssetsSummary).toBe("No elements · No voices");
+  });
 });

@@ -36,8 +36,6 @@ export const modelLogos: Record<string, string> = {
   "fal-ai/bytedance/seedream/v5/lite/edit": SEEDREAM_LOGO_SRC,
   "fal-ai/bytedance/seedream/v4.5/text-to-image": SEEDREAM_LOGO_SRC,
   "fal-ai/bytedance/seedream/v4.5/edit": SEEDREAM_LOGO_SRC,
-  "fal-ai/kling-video/v3/pro/text-to-video": KLING_LOGO_SRC,
-  "fal-ai/kling-video/v3/pro/image-to-video": KLING_LOGO_SRC,
   "fal-ai/veo3.1/first-last-frame-to-video": GOOGLE_LOGO_SRC,
   "fal-ai/veo3.1/image-to-video": GOOGLE_LOGO_SRC,
   "fal-ai/bytedance/seedance/v1.5/pro/text-to-video": SEEDREAM_LOGO_SRC,
@@ -59,16 +57,6 @@ export const aspectOptions: AspectOption[] = [
 
 // When you add/remove image models here, update `docs/sops/sop_image_generation.md` → "Supported image models".
 export const modelOptions: ModelOption[] = [
-  {
-    value: "fal-ai/kling-video/v3/pro/text-to-video",
-    label: "Kling 3.0",
-    mediaType: "video",
-  },
-  {
-    value: "fal-ai/kling-video/v3/pro/image-to-video",
-    label: "Kling 3.0",
-    mediaType: "image-to-video",
-  },
   {
     value: "fal-ai/veo3.1/first-last-frame-to-video",
     label: "Veo 3.1",
@@ -161,7 +149,7 @@ export const falNanoBananaProAllowedAspects = new Set(
 
 // Kling image-to-video supports a limited aspect list.
 export const klingAllowedAspects = new Set(
-  getModelAllowedAspects("fal-ai/kling-video/v3/pro/text-to-video", ["16:9", "9:16", "1:1"])
+  getModelAllowedAspects(KIE_KLING_30_MODEL_ID, ["16:9", "9:16", "1:1"])
 );
 
 // Map our aspect strings to Fal image_size enum values.

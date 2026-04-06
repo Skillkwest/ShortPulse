@@ -33,4 +33,10 @@ describe("model options vs registry", () => {
       expect(cfg?.provider).toBe("kie");
     });
   });
+
+  it("excludes legacy Fal Kling 3.0 option ids from AI Studio constants", () => {
+    const optionIds = new Set(modelOptions.map((option) => option.value));
+    expect(optionIds.has("fal-ai/kling-video/v3/pro/text-to-video")).toBe(false);
+    expect(optionIds.has("fal-ai/kling-video/v3/pro/image-to-video")).toBe(false);
+  });
 });

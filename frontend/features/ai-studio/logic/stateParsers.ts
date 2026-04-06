@@ -5,8 +5,8 @@
 import { klingAllowedAspects, modelOptions } from "../constants";
 import { resolveEffectiveAspectForModel } from "./modelApiContracts";
 import type { ModelMediaType, ModelOption } from "../constants";
-import type { FalKlingTextSubmitRequest } from "../../../lib/falClient";
 import type { StudioMode, StudioOutput } from "../types";
+import { KIE_KLING_30_MODEL_ID } from "../../../lib/model-runtime/providerModelIds";
 
 export type Provider =
   | "fal"
@@ -101,20 +101,11 @@ export const normalizeAspectForFalNanoBanana2 = (value: string) =>
   resolveEffectiveAspectForModel("fal-ai/nano-banana-2", value, "auto");
 export const normalizeAspectForFalNanoBananaPro = (value: string) =>
   resolveEffectiveAspectForModel("fal-ai/nano-banana-pro", value, "4:5");
-export const resolveKlingAspectRatio = (
-  value: string
-): FalKlingTextSubmitRequest["aspect_ratio"] => {
-  const resolved = resolveEffectiveAspectForModel(
-    "fal-ai/kling-video/v3/pro/text-to-video",
-    value,
-    "16:9"
-  );
-  return klingAllowedAspects.has(resolved)
-    ? (resolved as FalKlingTextSubmitRequest["aspect_ratio"])
-    : "16:9";
+export const resolveKlingAspectRatio = (value: string): "16:9" | "9:16" | "1:1" => {
+  const resolved = resolveEffectiveAspectForModel(KIE_KLING_30_MODEL_ID, value, "16:9");
+  return klingAllowedAspects.has(resolved) ? (resolved as "16:9" | "9:16" | "1:1") : "16:9";
 };
-export const resolveKlingDuration = (seconds: number): FalKlingTextSubmitRequest["duration"] =>
-  seconds <= 5 ? 5 : 10;
+export const resolveKlingDuration = (seconds: number): 5 | 10 => (seconds <= 5 ? 5 : 10);
 export const resolveKlingV3Duration = (seconds: number): number => {
   if (!Number.isFinite(seconds)) return 5;
   const rounded = Math.round(seconds);

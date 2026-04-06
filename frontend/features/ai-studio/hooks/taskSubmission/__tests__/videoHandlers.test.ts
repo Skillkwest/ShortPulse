@@ -2,13 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { VideoSubmissionArgs } from "../types";
 import { getModelConfig } from "../../../logic/pricing";
 import { handleVideoModelSubmission } from "../videoHandlers";
-import {
-  submitFalSeedance,
-  submitFalSoraPro,
-  submitFalVeoImageToVideo,
-  submitKieKlingImageToVideo,
-  submitKieVeoImageToVideo,
-} from "../../../../../lib/falClient";
+import { submitKieKlingImageToVideo, submitKieVeoImageToVideo } from "../../../../../lib/falClient";
 import { fetchWithAuth } from "../../../../../lib/authenticatedFetch";
 import { getSignedMediaUrl } from "../../../../../lib/mediaSignedUrlCache";
 import {
@@ -630,14 +624,13 @@ describe("handleVideoModelSubmission (Fal Seedance text-to-video)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.spyOn(console, "error").mockImplementation(() => undefined);
-    vi.mocked(submitFalSeedance).mockResolvedValue({ request_id: "seedance-text-1" });
   });
 
   afterEach(() => {
     vi.restoreAllMocks();
   });
 
-  it("submits the normalized Seedance text-to-video payload", async () => {
+  it("fails closed for legacy Fal Seedance text-to-video submits", async () => {
     const args = makeArgs({
       finalModel: "fal-ai/bytedance/seedance/v1.5/pro/text-to-video",
       modelConfig: getModelConfig("fal-ai/bytedance/seedance/v1.5/pro/text-to-video"),
@@ -650,21 +643,26 @@ describe("handleVideoModelSubmission (Fal Seedance text-to-video)", () => {
     const handled = await handleVideoModelSubmission(args);
 
     expect(handled).toBe(true);
-    expect(submitFalSeedance).toHaveBeenCalledWith({
-      prompt: "A dancer twirls",
-      duration: "12",
-      aspect_ratio: "21:9",
-      resolution: "720p",
-      negative_prompt: "blur, distort, and low quality",
-      cfg_scale: 0.5,
-      generate_audio: true,
-      enable_safety_checker: false,
+    expect(args.notifyGenerationFailure).toHaveBeenCalledWith(
+      "out-1",
+      "Fal-hosted video generation is disabled. Use Kie Veo 3.1 or Kie Kling 3.0 instead."
+    );
+  });
+
+  it("fails closed for legacy Fal Seedance image-to-video submits", async () => {
+    const args = makeArgs({
+      finalModel: "fal-ai/bytedance/seedance/v1.5/pro/image-to-video",
+      modelConfig: getModelConfig("fal-ai/bytedance/seedance/v1.5/pro/image-to-video"),
+      preparedImageInputs: ["https://example.com/reference.png"],
+      videoReferenceMode: "standard",
     });
-    expect(args.startPollingWithGeneration).toHaveBeenCalledWith(
-      "seedance-text-1",
-      "fal-seedance",
-      undefined,
-      { request_id: "seedance-text-1" }
+
+    const handled = await handleVideoModelSubmission(args);
+
+    expect(handled).toBe(true);
+    expect(args.notifyGenerationFailure).toHaveBeenCalledWith(
+      "out-1",
+      "Fal-hosted video generation is disabled. Use Kie Veo 3.1 or Kie Kling 3.0 instead."
     );
   });
 });
@@ -673,14 +671,13 @@ describe("handleVideoModelSubmission (Fal Sora text-to-video)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.spyOn(console, "error").mockImplementation(() => undefined);
-    vi.mocked(submitFalSoraPro).mockResolvedValue({ request_id: "sora-text-1" });
   });
 
   afterEach(() => {
     vi.restoreAllMocks();
   });
 
-  it("submits the normalized Sora text-to-video payload", async () => {
+  it("fails closed for legacy Fal Sora text-to-video submits", async () => {
     const args = makeArgs({
       finalModel: "fal-ai/sora-2/text-to-video/pro",
       modelConfig: getModelConfig("fal-ai/sora-2/text-to-video/pro"),
@@ -693,18 +690,9 @@ describe("handleVideoModelSubmission (Fal Sora text-to-video)", () => {
     const handled = await handleVideoModelSubmission(args);
 
     expect(handled).toBe(true);
-    expect(submitFalSoraPro).toHaveBeenCalledWith({
-      prompt: "A dancer twirls",
-      aspect_ratio: "16:9",
-      duration: 12,
-      resolution: "720p",
-      delete_video: true,
-    });
-    expect(args.startPollingWithGeneration).toHaveBeenCalledWith(
-      "sora-text-1",
-      "fal-sora",
-      undefined,
-      { request_id: "sora-text-1" }
+    expect(args.notifyGenerationFailure).toHaveBeenCalledWith(
+      "out-1",
+      "Fal-hosted video generation is disabled. Use Kie Veo 3.1 or Kie Kling 3.0 instead."
     );
   });
 });

@@ -1,15 +1,13 @@
-/**
- * Proxies Fal Kling status + result fetch.
- * Accepts { requestId }, returns normalized status payloads.
- */
-import { createFalStatusHandler } from "../../../lib/server/api/falStatusProxy";
-import {
-  getFalStatusBaseUrlsRequired,
-  getFalTimeoutMsOrDefault,
-} from "../../../lib/server/api/falRouteConfig";
+import type { NextApiRequest, NextApiResponse } from "next";
 
-export default createFalStatusHandler({
-  queueBaseUrl: getFalStatusBaseUrlsRequired("fal-ai/kling-video/v3/pro/text-to-video"),
-  routeLabel: "Fal Kling",
-  timeoutMs: getFalTimeoutMsOrDefault("fal-ai/kling-video/v3/pro/text-to-video", 60000),
-});
+export default function falKlingStatus(req: NextApiRequest, res: NextApiResponse) {
+  if (req.method === "OPTIONS") {
+    res.setHeader("Allow", "GET, POST, OPTIONS");
+    return res.status(204).end();
+  }
+
+  return res.status(410).json({
+    error: "Fal Kling 3.0 status route is disabled.",
+    detail: "Use Kie Kling 3.0 instead.",
+  });
+}

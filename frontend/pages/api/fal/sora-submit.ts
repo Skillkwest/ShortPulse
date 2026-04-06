@@ -1,14 +1,13 @@
-import { createFalSubmitHandler } from "../../../lib/server/api/falSubmitProxy";
-import { validateFalPayloadForModel } from "../../../lib/server/api/falPayloadValidation";
-import {
-  getFalSubmitUrlRequired,
-  getFalTimeoutMsOrDefault,
-} from "../../../lib/server/api/falRouteConfig";
+import type { NextApiRequest, NextApiResponse } from "next";
 
-export default createFalSubmitHandler({
-  modelId: "fal-ai/sora-2/text-to-video/pro",
-  submitUrl: getFalSubmitUrlRequired("fal-ai/sora-2/text-to-video/pro"),
-  routeLabel: "Fal Sora",
-  timeoutMs: getFalTimeoutMsOrDefault("fal-ai/sora-2/text-to-video/pro", 20000),
-  validatePayload: validateFalPayloadForModel("fal-ai/sora-2/text-to-video/pro"),
-});
+export default function falSoraSubmit(req: NextApiRequest, res: NextApiResponse) {
+  if (req.method !== "POST") {
+    res.setHeader("Allow", "POST");
+    return res.status(405).json({ error: "Method not allowed." });
+  }
+
+  return res.status(410).json({
+    error: "Fal Sora text-to-video is disabled.",
+    detail: "Use Kie Veo 3.1 or Kie Kling 3.0 instead.",
+  });
+}

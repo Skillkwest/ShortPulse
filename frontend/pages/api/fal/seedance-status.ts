@@ -1,15 +1,13 @@
-/**
- * Proxies Fal Seedance status + result fetch.
- * Accepts { requestId }, returns normalized status payloads.
- */
-import { createFalStatusHandler } from "../../../lib/server/api/falStatusProxy";
-import {
-  getFalStatusBaseUrlsRequired,
-  getFalTimeoutMsOrDefault,
-} from "../../../lib/server/api/falRouteConfig";
+import type { NextApiRequest, NextApiResponse } from "next";
 
-export default createFalStatusHandler({
-  queueBaseUrl: getFalStatusBaseUrlsRequired("fal-ai/bytedance/seedance/v1.5/pro/text-to-video"),
-  routeLabel: "Fal Seedance",
-  timeoutMs: getFalTimeoutMsOrDefault("fal-ai/bytedance/seedance/v1.5/pro/text-to-video", 60000),
-});
+export default function falSeedanceStatus(req: NextApiRequest, res: NextApiResponse) {
+  if (req.method === "OPTIONS") {
+    res.setHeader("Allow", "GET, POST, OPTIONS");
+    return res.status(204).end();
+  }
+
+  return res.status(410).json({
+    error: "Fal Seedance status route is disabled.",
+    detail: "Use Kie Veo 3.1 or Kie Kling 3.0 instead.",
+  });
+}

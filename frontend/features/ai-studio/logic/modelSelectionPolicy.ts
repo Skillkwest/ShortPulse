@@ -33,6 +33,9 @@ const BLOCKED_VIDEO_SELECTOR_MODEL_IDS = new Set([
   FAL_VEO_FIRST_LAST_MODEL_ID,
   "fal-ai/kling-video/v3/pro/text-to-video",
   "fal-ai/kling-video/v3/pro/image-to-video",
+  "fal-ai/bytedance/seedance/v1.5/pro/text-to-video",
+  "fal-ai/bytedance/seedance/v1.5/pro/image-to-video",
+  "fal-ai/sora-2/text-to-video/pro",
 ]);
 
 type ModelConfigLike = {
@@ -102,19 +105,12 @@ export const resolveAiStudioAllowedModelOptions = ({
       return selectorVideoOptions.filter((option) => option.value === KIE_KLING_30_MODEL_ID);
     }
     if (resolvedVideoLane === "text") {
-      return selectorVideoOptions.filter(
-        (option) =>
-          option.value === "fal-ai/bytedance/seedance/v1.5/pro/text-to-video" ||
-          option.value === "fal-ai/sora-2/text-to-video/pro" ||
-          option.value === KIE_VEO_31_FAST_I2V_MODEL_ID
-      );
+      return selectorVideoOptions.filter((option) => option.value === KIE_VEO_31_FAST_I2V_MODEL_ID);
     }
     if (resolvedVideoLane === "single-image") {
       return selectorVideoOptions.filter(
         (option) =>
-          option.value === "fal-ai/bytedance/seedance/v1.5/pro/image-to-video" ||
-          option.value === KIE_KLING_30_MODEL_ID ||
-          option.value === KIE_VEO_31_FAST_I2V_MODEL_ID
+          option.value === KIE_KLING_30_MODEL_ID || option.value === KIE_VEO_31_FAST_I2V_MODEL_ID
       );
     }
     if (resolvedVideoLane === "first-last") {

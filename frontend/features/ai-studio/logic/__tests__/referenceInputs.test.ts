@@ -161,6 +161,27 @@ describe("resolveAutoVideoModelForLane", () => {
       })
     ).toBe(KIE_KLING_30_MODEL_ID);
   });
+
+  it("migrates legacy non-Kie Fal video selections onto Kie-only compatible lanes", () => {
+    expect(
+      resolveAutoVideoModelForLane({
+        currentModel: "fal-ai/bytedance/seedance/v1.5/pro/text-to-video",
+        lane: "text",
+      })
+    ).toBe(KIE_VEO_31_FAST_I2V_MODEL_ID);
+    expect(
+      resolveAutoVideoModelForLane({
+        currentModel: "fal-ai/sora-2/text-to-video/pro",
+        lane: "text",
+      })
+    ).toBe(KIE_VEO_31_FAST_I2V_MODEL_ID);
+    expect(
+      resolveAutoVideoModelForLane({
+        currentModel: "fal-ai/bytedance/seedance/v1.5/pro/image-to-video",
+        lane: "single-image",
+      })
+    ).toBe(KIE_VEO_31_FAST_I2V_MODEL_ID);
+  });
 });
 
 describe("buildRegenerateReferencePool", () => {

@@ -348,6 +348,8 @@ const globallyHiddenModelIds = new Set([
   "fal-ai/veo3.1",
   "fal-ai/kling-video/v3/pro/image-to-video",
   "fal-ai/kling-video/v3/pro/text-to-video",
+  "fal-ai/bytedance/seedance/v1.5/pro/image-to-video",
+  "fal-ai/bytedance/seedance/v1.5/pro/text-to-video",
   "fal-ai/sora-2/text-to-video/pro",
 ]);
 

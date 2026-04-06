@@ -1,14 +1,13 @@
-import { createFalSubmitHandler } from "../../../lib/server/api/falSubmitProxy";
-import { validateFalPayloadForModel } from "../../../lib/server/api/falPayloadValidation";
-import {
-  getFalSubmitUrlRequired,
-  getFalTimeoutMsOrDefault,
-} from "../../../lib/server/api/falRouteConfig";
+import type { NextApiRequest, NextApiResponse } from "next";
 
-export default createFalSubmitHandler({
-  modelId: "fal-ai/bytedance/seedance/v1.5/pro/image-to-video",
-  submitUrl: getFalSubmitUrlRequired("fal-ai/bytedance/seedance/v1.5/pro/image-to-video"),
-  routeLabel: "Fal Seedance I2V",
-  timeoutMs: getFalTimeoutMsOrDefault("fal-ai/bytedance/seedance/v1.5/pro/image-to-video", 20000),
-  validatePayload: validateFalPayloadForModel("fal-ai/bytedance/seedance/v1.5/pro/image-to-video"),
-});
+export default function falSeedanceI2vSubmit(req: NextApiRequest, res: NextApiResponse) {
+  if (req.method !== "POST") {
+    res.setHeader("Allow", "POST");
+    return res.status(405).json({ error: "Method not allowed." });
+  }
+
+  return res.status(410).json({
+    error: "Fal Seedance image-to-video is disabled.",
+    detail: "Use Kie Veo 3.1 or Kie Kling 3.0 instead.",
+  });
+}

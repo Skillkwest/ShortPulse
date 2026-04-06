@@ -56,14 +56,10 @@ export const resolveVideoGenerationLaneFromInputs = ({
 };
 
 const isTextCompatibleVideoModel = (modelId: string | null | undefined): boolean =>
-  modelId === "fal-ai/bytedance/seedance/v1.5/pro/text-to-video" ||
-  modelId === "fal-ai/sora-2/text-to-video/pro" ||
   modelId === KIE_VEO_31_FAST_I2V_MODEL_ID;
 
 const isSingleImageCompatibleVideoModel = (modelId: string | null | undefined): boolean =>
-  modelId === "fal-ai/bytedance/seedance/v1.5/pro/image-to-video" ||
-  modelId === KIE_KLING_30_MODEL_ID ||
-  modelId === KIE_VEO_31_FAST_I2V_MODEL_ID;
+  modelId === KIE_KLING_30_MODEL_ID || modelId === KIE_VEO_31_FAST_I2V_MODEL_ID;
 
 const isFirstLastCompatibleVideoModel = (modelId: string | null | undefined): boolean =>
   modelId === KIE_VEO_31_FAST_I2V_MODEL_ID || modelId === KIE_KLING_30_MODEL_ID;

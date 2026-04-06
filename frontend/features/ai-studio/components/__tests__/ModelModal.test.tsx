@@ -83,7 +83,7 @@ describe("ModelModal", () => {
       />
     );
 
-    expect(readChipTitles(container)).toEqual(["Seedance 1.5 Pro"]);
+    expect(readChipTitles(container)).toEqual([]);
     expect(screen.queryByRole("button", { name: "Google Veo 3.1" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Google Veo 3.1 I2V" })).not.toBeInTheDocument();
     expect(
@@ -91,7 +91,7 @@ describe("ModelModal", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("hides Sora 2 chips even when passed explicitly", () => {
+  it("hides disabled non-Kie Fal video chips even when passed explicitly", () => {
     const options: ModelOption[] = [
       {
         value: "fal-ai/sora-2/text-to-video/pro",
@@ -102,6 +102,11 @@ describe("ModelModal", () => {
         value: "fal-ai/bytedance/seedance/v1.5/pro/text-to-video",
         label: "Seedance 1.5 Pro",
         mediaType: "video",
+      },
+      {
+        value: "kie-ai/veo-3.1-fast-i2v",
+        label: "Veo 3.1 Fast I2V (Kie)",
+        mediaType: "image-to-video",
       },
     ];
 
@@ -115,8 +120,9 @@ describe("ModelModal", () => {
       />
     );
 
-    expect(readChipTitles(container)).toEqual(["Seedance 1.5 Pro"]);
+    expect(readChipTitles(container)).toEqual(["Veo 3.1 Fast I2V (Kie)"]);
     expect(screen.queryByRole("button", { name: "Sora 2 Pro" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Seedance 1.5 Pro" })).not.toBeInTheDocument();
   });
 
   it("orders text-image chips by provider-grouped workflow priority", () => {
@@ -231,11 +237,7 @@ describe("ModelModal", () => {
       />
     );
 
-    expect(readChipTitles(container)).toEqual([
-      "Veo 3.1 Fast I2V (Kie)",
-      "Kling 3.0 (Kie)",
-      "Seedance 1.5 Pro",
-    ]);
+    expect(readChipTitles(container)).toEqual(["Veo 3.1 Fast I2V (Kie)", "Kling 3.0 (Kie)"]);
     expect(screen.queryByRole("button", { name: "Google Veo 3.1" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Kling 3.0" })).not.toBeInTheDocument();
   });

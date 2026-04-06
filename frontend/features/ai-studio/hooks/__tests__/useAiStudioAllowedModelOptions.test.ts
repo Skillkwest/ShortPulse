@@ -56,6 +56,8 @@ describe("useAiStudioAllowedModelOptions", () => {
     expect(values.has("fal-ai/veo3.1")).toBe(false);
     expect(values.has("fal-ai/veo3.1/image-to-video")).toBe(false);
     expect(values.has("fal-ai/kling-video/v3/pro/text-to-video")).toBe(false);
+    expect(values.has("fal-ai/bytedance/seedance/v1.5/pro/text-to-video")).toBe(false);
+    expect(values.has("fal-ai/sora-2/text-to-video/pro")).toBe(false);
     expect(values.has(KIE_VEO_31_FAST_I2V_MODEL_ID)).toBe(true);
   });
 

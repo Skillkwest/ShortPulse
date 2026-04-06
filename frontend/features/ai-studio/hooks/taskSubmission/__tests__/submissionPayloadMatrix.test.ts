@@ -25,13 +25,10 @@ import {
   submitFalNanoBanana2Edit,
   submitFalNanoBananaPro,
   submitFalNanoBananaProEdit,
-  submitFalSeedance,
-  submitFalSeedanceI2V,
   submitFalSeedream,
   submitFalSeedreamEdit,
   submitFalSeedreamV5Lite,
   submitFalSeedreamV5LiteEdit,
-  submitFalSoraPro,
 } from "../../../../../lib/falClient";
 
 vi.mock("../../../../../lib/falClient", () => ({
@@ -48,13 +45,10 @@ vi.mock("../../../../../lib/falClient", () => ({
   submitFalNanoBanana2Edit: vi.fn(),
   submitFalNanoBananaPro: vi.fn(),
   submitFalNanoBananaProEdit: vi.fn(),
-  submitFalSeedance: vi.fn(),
-  submitFalSeedanceI2V: vi.fn(),
   submitFalSeedream: vi.fn(),
   submitFalSeedreamEdit: vi.fn(),
   submitFalSeedreamV5Lite: vi.fn(),
   submitFalSeedreamV5LiteEdit: vi.fn(),
-  submitFalSoraPro: vi.fn(),
 }));
 
 type Route = "default" | "image" | "video";
@@ -178,29 +172,6 @@ const CASES: Record<string, CaseConfig> = {
     expectedSafetyChecker: false,
     expectedReferenceField: "image_urls",
   },
-  "fal-ai/sora-2/text-to-video/pro": {
-    route: "video",
-    submitName: "submitFalSoraPro",
-    requestedResolution: "1080p",
-    expectsAudioField: false,
-    expectedReferenceField: "none",
-  },
-  "fal-ai/bytedance/seedance/v1.5/pro/text-to-video": {
-    route: "video",
-    submitName: "submitFalSeedance",
-    requestedResolution: "1080p",
-    expectsAudioField: true,
-    expectedSafetyChecker: false,
-    expectedReferenceField: "none",
-  },
-  "fal-ai/bytedance/seedance/v1.5/pro/image-to-video": {
-    route: "video",
-    submitName: "submitFalSeedanceI2V",
-    requestedResolution: "1080p",
-    expectsAudioField: true,
-    expectedSafetyChecker: false,
-    expectedReferenceField: "image_url",
-  },
 };
 
 const parseAspectRatio = (aspect: string): number => {
@@ -273,13 +244,10 @@ const submitSpyByName = {
   submitFalNanoBanana2Edit: vi.mocked(submitFalNanoBanana2Edit),
   submitFalNanoBananaPro: vi.mocked(submitFalNanoBananaPro),
   submitFalNanoBananaProEdit: vi.mocked(submitFalNanoBananaProEdit),
-  submitFalSeedance: vi.mocked(submitFalSeedance),
-  submitFalSeedanceI2V: vi.mocked(submitFalSeedanceI2V),
   submitFalSeedream: vi.mocked(submitFalSeedream),
   submitFalSeedreamEdit: vi.mocked(submitFalSeedreamEdit),
   submitFalSeedreamV5Lite: vi.mocked(submitFalSeedreamV5Lite),
   submitFalSeedreamV5LiteEdit: vi.mocked(submitFalSeedreamV5LiteEdit),
-  submitFalSoraPro: vi.mocked(submitFalSoraPro),
 } as const;
 
 const resetFalSubmitMocks = () => {
@@ -302,6 +270,9 @@ describe("task submission payload matrix", () => {
       "fal-ai/veo3.1",
       "fal-ai/veo3.1/image-to-video",
       "fal-ai/veo3.1/first-last-frame-to-video",
+      "fal-ai/bytedance/seedance/v1.5/pro/text-to-video",
+      "fal-ai/bytedance/seedance/v1.5/pro/image-to-video",
+      "fal-ai/sora-2/text-to-video/pro",
     ]);
     const generationModelIds = listModelConfigs()
       .filter(

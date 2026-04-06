@@ -5,15 +5,11 @@ import {
   type FalSubmitResponse,
   submitKieKlingImageToVideo,
   submitKieVeoImageToVideo,
-  submitFalSeedance,
-  submitFalSeedanceI2V,
-  submitFalSoraPro,
 } from "../../../../lib/falClient";
 import {
   KIE_KLING_30_MODEL_ID,
   KIE_VEO_31_FAST_I2V_MODEL_ID,
 } from "../../../../lib/model-runtime/providerModelIds";
-import { resolveSoraDuration } from "../../logic/stateParsers";
 import { needsVideoUpload, prepareVideoUrlForSubmission } from "../../utils/videoUpload";
 import type { VideoSubmissionArgs } from "./types";
 import {
@@ -22,15 +18,7 @@ import {
   resolveKieKlingDuration,
   resolveKieKlingMode,
   resolveKlingResolution,
-  resolveSeedanceI2VAspect,
-  resolveSeedanceI2VDuration,
-  resolveSeedanceI2VResolution,
-  resolveSeedanceTextAspect,
-  resolveSeedanceTextResolution,
-  resolveSoraAspect,
-  resolveSoraResolution,
 } from "./videoPayloads";
-import { resolveVideoSubmissionSafetyPayload } from "./safetyPolicy";
 
 const FAL_KLING_IMAGE_MODEL_ID = "fal-ai/kling-video/v3/pro/image-to-video";
 const FAL_KLING_TEXT_MODEL_ID = "fal-ai/kling-video/v3/pro/text-to-video";
@@ -39,6 +27,11 @@ const FAL_VEO_TEXT_MODEL_ID = "fal-ai/veo3.1";
 const FAL_VEO_IMAGE_MODEL_ID = "fal-ai/veo3.1/image-to-video";
 const FAL_VEO_FIRST_LAST_MODEL_ID = "fal-ai/veo3.1/first-last-frame-to-video";
 const FAL_VEO_DISABLED_MESSAGE = "Fal Veo 3.1 is disabled. Use Kie Veo 3.1 instead.";
+const FAL_SEEDANCE_TEXT_MODEL_ID = "fal-ai/bytedance/seedance/v1.5/pro/text-to-video";
+const FAL_SEEDANCE_IMAGE_MODEL_ID = "fal-ai/bytedance/seedance/v1.5/pro/image-to-video";
+const FAL_SORA_TEXT_MODEL_ID = "fal-ai/sora-2/text-to-video/pro";
+const FAL_NON_KIE_VIDEO_DISABLED_MESSAGE =
+  "Fal-hosted video generation is disabled. Use Kie Veo 3.1 or Kie Kling 3.0 instead.";
 
 const isCharacterScopedMediaUrl = (value: string): boolean => {
   const normalized = (() => {
@@ -101,16 +94,10 @@ export const handleVideoModelSubmission = async ({
   videoReferenceMode,
   videoReferenceImageUrl,
   motionReferenceVideoUrl,
-  videoCameraFixed,
-  klingNegativePrompt,
   klingCfgScale,
-  klingShotType,
-  klingVoiceIds,
   klingMultiPrompts,
   klingElements,
 }: VideoSubmissionArgs): Promise<boolean> => {
-  const effectiveVideoCameraFixed =
-    finalModel === "fal-ai/bytedance/seedance/v1.5/pro/image-to-video" ? false : videoCameraFixed;
   const candidateMediaUrls = [
     ...preparedImageInputs,
     videoReferenceImageUrl ?? "",
@@ -166,6 +153,15 @@ export const handleVideoModelSubmission = async ({
     finalModel === FAL_VEO_FIRST_LAST_MODEL_ID
   ) {
     notifyGenerationFailure(id, FAL_VEO_DISABLED_MESSAGE);
+    return true;
+  }
+
+  if (
+    finalModel === FAL_SEEDANCE_TEXT_MODEL_ID ||
+    finalModel === FAL_SEEDANCE_IMAGE_MODEL_ID ||
+    finalModel === FAL_SORA_TEXT_MODEL_ID
+  ) {
+    notifyGenerationFailure(id, FAL_NON_KIE_VIDEO_DISABLED_MESSAGE);
     return true;
   }
 
@@ -297,74 +293,6 @@ export const handleVideoModelSubmission = async ({
     handoffSubmitResponse({
       response,
       pollingProvider: "kie-kling",
-      startPollingWithGeneration,
-    });
-    return true;
-  }
-
-  if (finalModel === "fal-ai/bytedance/seedance/v1.5/pro/text-to-video") {
-    const normalizedAspect = resolveSeedanceTextAspect(aspect, modelConfig);
-    const resolution = resolveSeedanceTextResolution(requestedResolution);
-    const response = await submitFalSeedance({
-      prompt: cleanedPrompt,
-      duration: requestedDurationSeconds.toString(),
-      aspect_ratio: normalizedAspect,
-      resolution,
-      negative_prompt: "blur, distort, and low quality",
-      cfg_scale: 0.5,
-      generate_audio: requestedAudio,
-      ...resolveVideoSubmissionSafetyPayload(finalModel),
-    });
-    handoffSubmitResponse({
-      response,
-      pollingProvider: "fal-seedance",
-      startPollingWithGeneration,
-    });
-    return true;
-  }
-
-  if (finalModel === "fal-ai/bytedance/seedance/v1.5/pro/image-to-video") {
-    if (preparedImageInputs.length < 1) {
-      notifyGenerationFailure(id, "Seedance I2V requires a reference image.");
-      return true;
-    }
-    const normalizedAspect = resolveSeedanceI2VAspect(aspect, modelConfig);
-    const resolution = resolveSeedanceI2VResolution(requestedResolution);
-    const duration = resolveSeedanceI2VDuration(requestedDurationSeconds);
-    const endImageUrl = preparedImageInputs.length > 1 ? preparedImageInputs[1] : undefined;
-    const response = await submitFalSeedanceI2V({
-      prompt: cleanedPrompt,
-      image_url: preparedImageInputs[0],
-      end_image_url: endImageUrl,
-      aspect_ratio: normalizedAspect,
-      resolution,
-      duration,
-      generate_audio: requestedAudio,
-      camera_fixed: effectiveVideoCameraFixed,
-      ...resolveVideoSubmissionSafetyPayload(finalModel),
-    });
-    handoffSubmitResponse({
-      response,
-      pollingProvider: "fal-seedance-i2v",
-      startPollingWithGeneration,
-    });
-    return true;
-  }
-
-  if (finalModel === "fal-ai/sora-2/text-to-video/pro") {
-    const soraDuration = resolveSoraDuration(requestedDurationSeconds);
-    const normalizedAspect = resolveSoraAspect(aspect, modelConfig);
-    const resolution = resolveSoraResolution(requestedResolution);
-    const response = await submitFalSoraPro({
-      prompt: cleanedPrompt,
-      aspect_ratio: normalizedAspect,
-      duration: soraDuration,
-      resolution,
-      delete_video: true,
-    });
-    handoffSubmitResponse({
-      response,
-      pollingProvider: "fal-sora",
       startPollingWithGeneration,
     });
     return true;

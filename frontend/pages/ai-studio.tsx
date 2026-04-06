@@ -599,6 +599,8 @@ export default function AiStudioPage() {
     editReferenceText,
     videoReferenceText,
     videoReferenceMode,
+    referenceImageUrl,
+    extraImageUrls,
     isCharacterModeEnabled: isCreateCharacterModeEnabled,
   });
 

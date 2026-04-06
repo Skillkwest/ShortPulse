@@ -255,6 +255,44 @@ describe("modelSelectionPolicy", () => {
     ]);
   });
 
+  it("narrows standard video selection to text-capable models when the resolved lane is text", () => {
+    const values = resolveAiStudioAllowedModelOptions({
+      selectedTool: "video",
+      mode: "video",
+      videoReferenceMode: "standard",
+      resolvedVideoLane: "text",
+      options: videoReferenceOptions,
+      getModelConfig,
+    }).map((option) => option.value);
+
+    expect(values).toEqual([
+      "fal-ai/kling-video/v3/pro/text-to-video",
+      "fal-ai/bytedance/seedance/v1.5/pro/text-to-video",
+      "fal-ai/veo3.1",
+      "fal-ai/sora-2/text-to-video/pro",
+      KIE_VEO_31_FAST_I2V_MODEL_ID,
+    ]);
+  });
+
+  it("narrows standard video selection to single-image models when the resolved lane is single-image", () => {
+    const values = resolveAiStudioAllowedModelOptions({
+      selectedTool: "video",
+      mode: "video",
+      videoReferenceMode: "standard",
+      resolvedVideoLane: "single-image",
+      options: videoReferenceOptions,
+      getModelConfig,
+    }).map((option) => option.value);
+
+    expect(values).toEqual([
+      "fal-ai/veo3.1/image-to-video",
+      "fal-ai/bytedance/seedance/v1.5/pro/image-to-video",
+      "fal-ai/kling-video/v3/pro/image-to-video",
+      KIE_VEO_31_FAST_I2V_MODEL_ID,
+      KIE_KLING_30_MODEL_ID,
+    ]);
+  });
+
   it("keeps keyframes mode restricted to first/last-capable Veo models", () => {
     const values = resolveAiStudioAllowedModelOptions({
       selectedTool: "video",

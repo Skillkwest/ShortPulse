@@ -39,6 +39,7 @@ export type VideoSubmissionArgs = BaseSubmissionArgs & {
   videoCameraFixed: boolean;
   klingNegativePrompt: string;
   klingCfgScale: number;
+  klingWorkflowMode?: "single" | "multi" | "custom";
   klingShotType: "customize" | "intelligent";
   klingVoiceIds: [string, string];
   klingMultiPrompts: { id: string; prompt: string; duration: number }[];

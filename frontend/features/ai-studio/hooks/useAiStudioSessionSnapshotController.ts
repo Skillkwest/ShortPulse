@@ -42,6 +42,7 @@ type UseAiStudioSessionSnapshotControllerParams = {
   videoAutoFix: boolean;
   klingNegativePrompt: string;
   klingCfgScale: number;
+  klingWorkflowMode: "single" | "multi" | "custom";
   klingShotType: "customize" | "intelligent";
   klingVoiceIds: [string, string];
   klingMultiPrompts: { id: string; prompt: string; duration: number }[];
@@ -78,6 +79,7 @@ type UseAiStudioSessionSnapshotControllerParams = {
   setVideoAutoFix: Dispatch<SetStateAction<boolean>>;
   setKlingNegativePrompt: Dispatch<SetStateAction<string>>;
   setKlingCfgScale: Dispatch<SetStateAction<number>>;
+  setKlingWorkflowMode: Dispatch<SetStateAction<"single" | "multi" | "custom">>;
   setKlingShotType: Dispatch<SetStateAction<"customize" | "intelligent">>;
   setKlingVoiceIds: Dispatch<SetStateAction<[string, string]>>;
   setKlingMultiPrompts: Dispatch<
@@ -118,6 +120,7 @@ export const useAiStudioSessionSnapshotController = ({
   videoAutoFix,
   klingNegativePrompt,
   klingCfgScale,
+  klingWorkflowMode,
   klingShotType,
   klingVoiceIds,
   klingMultiPrompts,
@@ -147,6 +150,7 @@ export const useAiStudioSessionSnapshotController = ({
   setVideoAutoFix,
   setKlingNegativePrompt,
   setKlingCfgScale,
+  setKlingWorkflowMode,
   setKlingShotType,
   setKlingVoiceIds,
   setKlingMultiPrompts,
@@ -184,6 +188,7 @@ export const useAiStudioSessionSnapshotController = ({
       setVideoAutoFix(workspace.videoAutoFix);
       setKlingNegativePrompt(workspace.klingNegativePrompt);
       setKlingCfgScale(workspace.klingCfgScale);
+      setKlingWorkflowMode(workspace.klingWorkflowMode);
       setKlingShotType(workspace.klingShotType);
       setKlingVoiceIds(workspace.klingVoiceIds);
       setKlingMultiPrompts(workspace.klingMultiPrompts);
@@ -247,6 +252,7 @@ export const useAiStudioSessionSnapshotController = ({
       setKlingElements,
       setKlingMultiPrompts,
       setKlingNegativePrompt,
+      setKlingWorkflowMode,
       setKlingShotType,
       setKlingVoiceIds,
       setMode,
@@ -309,6 +315,7 @@ export const useAiStudioSessionSnapshotController = ({
         videoAutoFix,
         klingNegativePrompt,
         klingCfgScale,
+        klingWorkflowMode,
         klingShotType,
         klingVoiceIds,
         klingMultiPrompts,
@@ -338,6 +345,7 @@ export const useAiStudioSessionSnapshotController = ({
       klingElements,
       klingMultiPrompts,
       klingNegativePrompt,
+      klingWorkflowMode,
       klingShotType,
       klingVoiceIds,
       mode,

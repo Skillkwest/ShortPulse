@@ -39,6 +39,7 @@ describe("useAiStudioWorkflowSettings kill switch", () => {
           videoAutoFix: false,
           klingNegativePrompt: "blur",
           klingCfgScale: 0.5,
+          klingWorkflowMode: "single",
           klingShotType: "customize",
           klingVoiceIds: ["", ""],
           klingMultiPrompts: [],
@@ -65,6 +66,9 @@ describe("useAiStudioWorkflowSettings kill switch", () => {
       const [videoAutoFix, setVideoAutoFix] = useState(false);
       const [klingNegativePrompt, setKlingNegativePrompt] = useState("blur");
       const [klingCfgScale, setKlingCfgScale] = useState(0.5);
+      const [klingWorkflowMode, setKlingWorkflowMode] = useState<"single" | "multi" | "custom">(
+        "single"
+      );
       const [klingShotType, setKlingShotType] = useState<"customize" | "intelligent">("customize");
       const [klingVoiceIds, setKlingVoiceIds] = useState<[string, string]>(["", ""]);
       const [klingMultiPrompts, setKlingMultiPrompts] = useState<
@@ -88,6 +92,7 @@ describe("useAiStudioWorkflowSettings kill switch", () => {
         videoAutoFix,
         klingNegativePrompt,
         klingCfgScale,
+        klingWorkflowMode,
         klingShotType,
         klingVoiceIds,
         klingMultiPrompts,
@@ -104,6 +109,7 @@ describe("useAiStudioWorkflowSettings kill switch", () => {
         setVideoAutoFix,
         setKlingNegativePrompt,
         setKlingCfgScale,
+        setKlingWorkflowMode,
         setKlingShotType,
         setKlingVoiceIds,
         setKlingMultiPrompts,

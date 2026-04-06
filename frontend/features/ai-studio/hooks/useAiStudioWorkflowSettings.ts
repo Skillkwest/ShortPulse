@@ -29,6 +29,7 @@ const DEFAULT_SHARED_ASPECT = "9:16";
 type WorkflowSettingsKey = "create" | "edit" | "video" | "kling";
 
 type VideoReferenceMode = "standard" | "modify" | "keyframes" | "kling3" | "motion";
+type KlingWorkflowMode = "single" | "multi" | "custom";
 type KlingShotType = "customize" | "intelligent";
 type KlingPromptShot = { id: string; prompt: string; duration: number };
 type KlingElement = {
@@ -50,6 +51,7 @@ type WorkflowSettingsSnapshot = {
   videoAutoFix: boolean;
   klingNegativePrompt: string;
   klingCfgScale: number;
+  klingWorkflowMode: KlingWorkflowMode;
   klingShotType: KlingShotType;
   klingVoiceIds: [string, string];
   klingMultiPrompts: KlingPromptShot[];
@@ -69,6 +71,7 @@ const DEFAULT_WORKFLOW_SETTINGS: WorkflowSettingsSnapshot = {
   videoAutoFix: false,
   klingNegativePrompt: "blur, distort, and low quality",
   klingCfgScale: 0.5,
+  klingWorkflowMode: "single",
   klingShotType: "customize",
   klingVoiceIds: ["", ""],
   klingMultiPrompts: [],
@@ -139,6 +142,14 @@ const cloneWorkflowSettingsSnapshot = (
     typeof snapshot?.klingCfgScale === "number" && Number.isFinite(snapshot.klingCfgScale)
       ? snapshot.klingCfgScale
       : defaults.klingCfgScale,
+  klingWorkflowMode:
+    snapshot?.klingWorkflowMode === "single" ||
+    snapshot?.klingWorkflowMode === "multi" ||
+    snapshot?.klingWorkflowMode === "custom"
+      ? snapshot.klingWorkflowMode
+      : Array.isArray(snapshot?.klingMultiPrompts) && snapshot.klingMultiPrompts.length > 0
+        ? "custom"
+        : defaults.klingWorkflowMode,
   klingShotType:
     snapshot?.klingShotType === "intelligent" || snapshot?.klingShotType === "customize"
       ? snapshot.klingShotType
@@ -187,6 +198,7 @@ type UseAiStudioWorkflowSettingsParams = {
   videoAutoFix: boolean;
   klingNegativePrompt: string;
   klingCfgScale: number;
+  klingWorkflowMode: KlingWorkflowMode;
   klingShotType: KlingShotType;
   klingVoiceIds: [string, string];
   klingMultiPrompts: KlingPromptShot[];
@@ -203,6 +215,7 @@ type UseAiStudioWorkflowSettingsParams = {
   setVideoAutoFix: Dispatch<SetStateAction<boolean>>;
   setKlingNegativePrompt: Dispatch<SetStateAction<string>>;
   setKlingCfgScale: Dispatch<SetStateAction<number>>;
+  setKlingWorkflowMode: Dispatch<SetStateAction<KlingWorkflowMode>>;
   setKlingShotType: Dispatch<SetStateAction<KlingShotType>>;
   setKlingVoiceIds: Dispatch<SetStateAction<[string, string]>>;
   setKlingMultiPrompts: Dispatch<SetStateAction<KlingPromptShot[]>>;
@@ -226,6 +239,7 @@ export const useAiStudioWorkflowSettings = ({
   videoAutoFix,
   klingNegativePrompt,
   klingCfgScale,
+  klingWorkflowMode,
   klingShotType,
   klingVoiceIds,
   klingMultiPrompts,
@@ -242,6 +256,7 @@ export const useAiStudioWorkflowSettings = ({
   setVideoAutoFix,
   setKlingNegativePrompt,
   setKlingCfgScale,
+  setKlingWorkflowMode,
   setKlingShotType,
   setKlingVoiceIds,
   setKlingMultiPrompts,
@@ -274,6 +289,7 @@ export const useAiStudioWorkflowSettings = ({
       videoAutoFix,
       klingNegativePrompt,
       klingCfgScale,
+      klingWorkflowMode,
       klingShotType,
       klingVoiceIds: [...klingVoiceIds] as [string, string],
       klingMultiPrompts: klingMultiPrompts.map((shot) => ({ ...shot })),
@@ -286,6 +302,7 @@ export const useAiStudioWorkflowSettings = ({
       klingElements,
       klingMultiPrompts,
       klingNegativePrompt,
+      klingWorkflowMode,
       klingShotType,
       klingVoiceIds,
       mode,
@@ -423,6 +440,7 @@ export const useAiStudioWorkflowSettings = ({
     setVideoAutoFix(snapshot.videoAutoFix);
     setKlingNegativePrompt(snapshot.klingNegativePrompt);
     setKlingCfgScale(snapshot.klingCfgScale);
+    setKlingWorkflowMode(snapshot.klingWorkflowMode);
     setKlingShotType(snapshot.klingShotType);
     setKlingVoiceIds([...snapshot.klingVoiceIds] as [string, string]);
     setKlingMultiPrompts(snapshot.klingMultiPrompts.map((shot) => ({ ...shot })));
@@ -437,6 +455,7 @@ export const useAiStudioWorkflowSettings = ({
     setKlingElements,
     setKlingMultiPrompts,
     setKlingNegativePrompt,
+    setKlingWorkflowMode,
     setKlingShotType,
     setKlingVoiceIds,
     setMode,

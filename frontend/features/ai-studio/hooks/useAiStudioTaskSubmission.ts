@@ -104,6 +104,7 @@ type UseAiStudioTaskSubmissionParams = {
   videoAutoFix: boolean;
   klingNegativePrompt: string;
   klingCfgScale: number;
+  klingWorkflowMode?: "single" | "multi" | "custom";
   klingShotType: "customize" | "intelligent";
   klingVoiceIds: [string, string];
   klingMultiPrompts: { id: string; prompt: string; duration: number }[];
@@ -154,6 +155,7 @@ export const useAiStudioTaskSubmission = ({
   videoAutoFix,
   klingNegativePrompt,
   klingCfgScale,
+  klingWorkflowMode,
   klingShotType,
   klingVoiceIds,
   klingMultiPrompts,

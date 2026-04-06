@@ -166,6 +166,7 @@ export type UseAiStudioPanelPropsParams = {
   >;
   klingNegativePrompt: string;
   klingCfgScale: number;
+  klingWorkflowMode?: "single" | "multi" | "custom";
   klingShotType: "customize" | "intelligent";
   klingVoiceIds: [string, string];
   klingMultiPrompts: { id: string; prompt: string; duration: number }[];
@@ -177,6 +178,7 @@ export type UseAiStudioPanelPropsParams = {
   }[];
   setKlingNegativePrompt: Dispatch<SetStateAction<string>>;
   setKlingCfgScale: Dispatch<SetStateAction<number>>;
+  setKlingWorkflowMode?: Dispatch<SetStateAction<"single" | "multi" | "custom">>;
   setKlingShotType: Dispatch<SetStateAction<"customize" | "intelligent">>;
   setKlingVoiceIds: Dispatch<SetStateAction<[string, string]>>;
   setKlingMultiPrompts: Dispatch<
@@ -307,12 +309,14 @@ export const useAiStudioPanelProps = ({
   setVideoReferenceMode,
   klingNegativePrompt,
   klingCfgScale,
+  klingWorkflowMode,
   klingShotType,
   klingVoiceIds,
   klingMultiPrompts,
   klingElements,
   setKlingNegativePrompt,
   setKlingCfgScale,
+  setKlingWorkflowMode,
   setKlingShotType,
   setKlingVoiceIds,
   setKlingMultiPrompts,
@@ -532,12 +536,14 @@ export const useAiStudioPanelProps = ({
     setVideoAutoFix,
     klingNegativePrompt,
     klingCfgScale,
+    klingWorkflowMode,
     klingShotType,
     klingVoiceIds,
     klingMultiPrompts,
     klingElements,
     setKlingNegativePrompt,
     setKlingCfgScale,
+    setKlingWorkflowMode,
     setKlingShotType,
     handleKlingVoiceIdChange,
     setKlingMultiPrompts,

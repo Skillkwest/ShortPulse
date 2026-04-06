@@ -23,6 +23,9 @@ const useHarness = (initialTool: ToolId | null) => {
   const [videoAutoFix, setVideoAutoFix] = useState(false);
   const [klingNegativePrompt, setKlingNegativePrompt] = useState("blur");
   const [klingCfgScale, setKlingCfgScale] = useState(0.5);
+  const [klingWorkflowMode, setKlingWorkflowMode] = useState<"single" | "multi" | "custom">(
+    "single"
+  );
   const [klingShotType, setKlingShotType] = useState<"customize" | "intelligent">("customize");
   const [klingVoiceIds, setKlingVoiceIds] = useState<[string, string]>(["", ""]);
   const [klingMultiPrompts, setKlingMultiPrompts] = useState<
@@ -46,6 +49,7 @@ const useHarness = (initialTool: ToolId | null) => {
     videoAutoFix,
     klingNegativePrompt,
     klingCfgScale,
+    klingWorkflowMode,
     klingShotType,
     klingVoiceIds,
     klingMultiPrompts,
@@ -62,6 +66,7 @@ const useHarness = (initialTool: ToolId | null) => {
     setVideoAutoFix,
     setKlingNegativePrompt,
     setKlingCfgScale,
+    setKlingWorkflowMode,
     setKlingShotType,
     setKlingVoiceIds,
     setKlingMultiPrompts,
@@ -100,7 +105,7 @@ describe("useAiStudioWorkflowSettings", () => {
       JSON.stringify({
         create: {
           mode: "video",
-          model: "fal-ai/veo3.1",
+          model: "kie-ai/veo-3.1-fast-i2v",
           aspect: "16:9",
           imageResolution: "2048x2048",
           videoReferenceMode: "standard",
@@ -111,6 +116,7 @@ describe("useAiStudioWorkflowSettings", () => {
           videoAutoFix: true,
           klingNegativePrompt: "noise",
           klingCfgScale: 0.8,
+          klingWorkflowMode: "custom",
           klingShotType: "intelligent",
           klingVoiceIds: ["a", "b"],
           klingMultiPrompts: [{ id: "shot-1", prompt: "A", duration: 6 }],
@@ -124,7 +130,7 @@ describe("useAiStudioWorkflowSettings", () => {
     const { result } = renderHook(() => useHarness("create"));
 
     await waitFor(() => expect(result.current.mode).toBe("video"));
-    expect(result.current.model).toBe("fal-ai/veo3.1");
+    expect(result.current.model).toBeNull();
     expect(result.current.aspect).toBe("16:9");
     expect(result.current.videoResolution).toBe("4k");
   });
@@ -147,6 +153,7 @@ describe("useAiStudioWorkflowSettings", () => {
           videoAutoFix: false,
           klingNegativePrompt: "blur",
           klingCfgScale: 0.5,
+          klingWorkflowMode: "single",
           klingShotType: "customize",
           klingVoiceIds: ["", ""],
           klingMultiPrompts: [],
@@ -181,6 +188,7 @@ describe("useAiStudioWorkflowSettings", () => {
           videoAutoFix: false,
           klingNegativePrompt: "blur",
           klingCfgScale: 0.5,
+          klingWorkflowMode: "single",
           klingShotType: "customize",
           klingVoiceIds: ["", ""],
           klingMultiPrompts: [],
@@ -215,6 +223,7 @@ describe("useAiStudioWorkflowSettings", () => {
           videoAutoFix: false,
           klingNegativePrompt: "blur",
           klingCfgScale: 0.5,
+          klingWorkflowMode: "single",
           klingShotType: "customize",
           klingVoiceIds: ["", ""],
           klingMultiPrompts: [],

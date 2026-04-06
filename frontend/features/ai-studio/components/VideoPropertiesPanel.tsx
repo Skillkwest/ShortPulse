@@ -31,6 +31,7 @@ export type VideoPropertiesPanelProps = {
   ) => void;
   klingNegativePrompt?: string;
   klingCfgScale?: number;
+  klingWorkflowMode?: "single" | "multi" | "custom";
   klingShotType?: "customize" | "intelligent";
   klingVoiceIds?: [string, string];
   klingMultiPrompts?: { id: string; prompt: string; duration: number }[];
@@ -42,6 +43,7 @@ export type VideoPropertiesPanelProps = {
   }[];
   onKlingNegativePromptChange?: (value: string) => void;
   onKlingCfgScaleChange?: (value: number) => void;
+  onKlingWorkflowModeChange?: (value: "single" | "multi" | "custom") => void;
   onKlingShotTypeChange?: (value: "customize" | "intelligent") => void;
   onKlingVoiceIdChange?: (index: 0 | 1, value: string) => void;
   onKlingMultiPromptsChange?: (value: { id: string; prompt: string; duration: number }[]) => void;
@@ -98,12 +100,14 @@ export function VideoPropertiesPanel({
   onVideoReferenceModeChange,
   klingNegativePrompt = "blur, distort, and low quality",
   klingCfgScale = 0.5,
+  klingWorkflowMode = "single",
   klingShotType = "customize",
   klingVoiceIds = ["", ""],
   klingMultiPrompts = [],
   klingElements = [],
   onKlingNegativePromptChange,
   onKlingCfgScaleChange,
+  onKlingWorkflowModeChange,
   onKlingShotTypeChange,
   onKlingVoiceIdChange,
   onKlingMultiPromptsChange,
@@ -150,16 +154,8 @@ export function VideoPropertiesPanel({
     });
   }, []);
 
-  const [uiShotMode, setUiShotMode] = React.useState<"single" | "scene-multi" | "custom-multi">(
-    "single"
-  );
-  const [additionalPromptTexts, setAdditionalPromptTexts] = React.useState<string[]>([]);
   const shotWorkspaceScrollRef = React.useRef<HTMLDivElement | null>(null);
   const shotWorkspaceStackRef = React.useRef<HTMLDivElement | null>(null);
-  const hasAnyPromptText =
-    Boolean(referenceText?.trim()) ||
-    additionalPromptTexts.length > 0 ||
-    additionalPromptTexts.some((promptText) => promptText.trim().length > 0);
   const modelLogoSrc = modelId ? modelLogos[modelId] : undefined;
   const {
     primaryInputRef,
@@ -291,6 +287,8 @@ export function VideoPropertiesPanel({
         : "reference-video";
   const standardVideoRequiresReferenceImage =
     activeVideoMode === "standard" && modelId === KIE_KLING_30_MODEL_ID;
+  const shouldShowKlingReferenceImageWarning =
+    standardVideoRequiresReferenceImage && !referenceImageUrl && !extraImageUrls[0];
   const videoModeIndex = visibleVideoMode === "motion" ? 1 : 0;
   const videoModeTabsStyle = React.useMemo(
     () =>
@@ -299,13 +297,19 @@ export function VideoPropertiesPanel({
       }) as React.CSSProperties,
     [videoModeIndex]
   );
-  const isMultiShotEnabled = klingMultiPrompts.length > 0;
+  const klingMode = klingWorkflowMode;
+  const isMultiShotEnabled = klingMode === "custom";
+  const isCustomKlingWorkflow = klingMode === "custom";
+  const customKlingPrompts = isCustomKlingWorkflow ? klingMultiPrompts : [];
+  const hasAnyPromptText = isCustomKlingWorkflow
+    ? customKlingPrompts.some((shot) => shot.prompt.trim().length > 0)
+    : Boolean(referenceText?.trim());
   const videoModeSummaryLabel = visibleVideoMode === "motion" ? "Motion Control" : "Standard";
   const shotModeSummaryLabel = !isKieKlingModelSelected
     ? "Single"
-    : uiShotMode === "scene-multi"
+    : klingMode === "multi"
       ? "Multi"
-      : uiShotMode === "custom-multi"
+      : klingMode === "custom"
         ? "Custom"
         : "Single";
   const createInitialMultiShot = React.useCallback(() => {
@@ -321,27 +325,9 @@ export function VideoPropertiesPanel({
       },
     ];
   }, [referenceText, videoDurationValue]);
-  const handleToggleMultiShot = React.useCallback(() => {
-    if (!onKlingMultiPromptsChange) return;
-    if (isMultiShotEnabled) {
-      onKlingMultiPromptsChange([]);
-      return;
-    }
-    onKlingMultiPromptsChange(createInitialMultiShot());
-  }, [createInitialMultiShot, isMultiShotEnabled, onKlingMultiPromptsChange]);
   const showShotModeSelector = activeVideoMode === "standard";
   const shouldShowShotModeSelector = showShotModeSelector && isKieKlingModelSelected;
   const textareaResizeFrameMapRef = React.useRef(new WeakMap<HTMLTextAreaElement, number>());
-
-  React.useEffect(() => {
-    if (activeVideoMode !== "standard") {
-      setUiShotMode("single");
-      return;
-    }
-    if (additionalPromptTexts.length > 0) {
-      setUiShotMode("custom-multi");
-    }
-  }, [activeVideoMode, additionalPromptTexts.length]);
 
   const resizeTextareaToContent = React.useCallback((textarea: HTMLTextAreaElement | null) => {
     if (!textarea) return;
@@ -358,38 +344,57 @@ export function VideoPropertiesPanel({
     textareaResizeFrameMapRef.current.set(textarea, frameId);
   }, []);
 
-  const handleAddShotPrompt = React.useCallback(() => {
+  const ensureCustomKlingShots = () => {
+    if (!onKlingMultiPromptsChange || klingMultiPrompts.length > 0) return;
+    onKlingMultiPromptsChange(createInitialMultiShot());
+  };
+  const handleSetKlingWorkflowMode = (nextMode: "single" | "multi" | "custom") => {
     runWithViewTransition(() => {
-      setUiShotMode("custom-multi");
-      setAdditionalPromptTexts((current) => [...current, ""]);
+      onKlingWorkflowModeChange?.(nextMode);
+      if (nextMode === "custom") {
+        ensureCustomKlingShots();
+      }
     });
-  }, [runWithViewTransition]);
-  const shouldShowAddCustomShotButton = isKieKlingModelSelected && uiShotMode === "custom-multi";
+  };
+  const handleAddShotPrompt = () => {
+    runWithViewTransition(() => {
+      onKlingWorkflowModeChange?.("custom");
+      ensureCustomKlingShots();
+      addKlingShot();
+    });
+  };
+  const shouldShowAddCustomShotButton =
+    isKieKlingModelSelected && klingMode === "custom" && Boolean(onKlingMultiPromptsChange);
   const isCustomMultiShotWorkspace = shouldShowAddCustomShotButton;
-
-  React.useEffect(() => {
-    if (shouldShowAddCustomShotButton || additionalPromptTexts.length === 0) return;
-    setAdditionalPromptTexts([]);
-  }, [additionalPromptTexts.length, shouldShowAddCustomShotButton]);
-
-  const handleAdditionalPromptChange = React.useCallback((index: number, value: string) => {
-    setAdditionalPromptTexts((current) =>
-      current.map((promptText, promptIndex) => (promptIndex === index ? value : promptText))
-    );
-  }, []);
-  const handleRemoveShotPrompt = React.useCallback((index: number) => {
-    setAdditionalPromptTexts((current) =>
-      current.filter((_, promptIndex) => promptIndex !== index)
-    );
-  }, []);
-  const handlePrimaryPromptChange = React.useCallback(
-    (value: string) => {
-      onPromptTextChange(value);
+  const handleCustomShotPromptChange = React.useCallback(
+    (shotId: string, value: string) => {
+      updateKlingMultiPrompt(shotId, "prompt", value);
     },
-    [onPromptTextChange]
+    [updateKlingMultiPrompt]
   );
+  const handlePrimaryPromptChange = (value: string) => {
+    if (isCustomKlingWorkflow) {
+      const firstShot = klingMultiPrompts[0];
+      if (firstShot) {
+        updateKlingMultiPrompt(firstShot.id, "prompt", value);
+        return;
+      }
+    }
+    onPromptTextChange(value);
+  };
   const showShotLabels = shouldShowAddCustomShotButton;
-  const totalShotCount = 1 + additionalPromptTexts.length;
+  const totalShotCount = isCustomKlingWorkflow ? Math.max(customKlingPrompts.length, 1) : 1;
+  const primaryPromptValue = isCustomKlingWorkflow
+    ? (customKlingPrompts[0]?.prompt ?? "")
+    : (referenceText ?? "");
+  const primaryPromptPlaceholder =
+    isKieKlingModelSelected && klingMode === "multi"
+      ? "Write the full multi-scene direction in one prompt. Use @Element01 style tags to reference Kling elements."
+      : "Describe the shot you want to create: subject, action, camera movement, framing, lighting, and mood.";
+  const primaryPromptHelperText =
+    isKieKlingModelSelected && klingMode === "multi"
+      ? "Write the complete scene sequence in one prompt. Reference uploaded elements with @Element01, @Element02, and so on."
+      : "Direct the shot: describe the subject, motion, camera movement, and mood you want in the clip.";
   const customShotWorkspaceStyle = isCustomMultiShotWorkspace
     ? ({ "--video-shot-count": totalShotCount } as React.CSSProperties)
     : undefined;
@@ -530,7 +535,14 @@ export function VideoPropertiesPanel({
                         onVideoGenerateAudioChange={onVideoGenerateAudioChange}
                         onVideoCameraFixedChange={onVideoCameraFixedChange}
                         onVideoAutoFixChange={onVideoAutoFixChange}
-                        onToggleMultiShot={handleToggleMultiShot}
+                        onToggleMultiShot={
+                          shouldShowShotModeSelector
+                            ? () =>
+                                handleSetKlingWorkflowMode(
+                                  klingMode === "custom" ? "single" : "custom"
+                                )
+                            : undefined
+                        }
                       />
                     </div>
                     {isKieKlingModelSelected && !isMotionMode ? (
@@ -550,11 +562,7 @@ export function VideoPropertiesPanel({
                                   {
                                     "--video-shot-mode-slots": 3,
                                     "--video-shot-mode-index":
-                                      uiShotMode === "scene-multi"
-                                        ? 1
-                                        : uiShotMode === "custom-multi"
-                                          ? 2
-                                          : 0,
+                                      klingMode === "multi" ? 1 : klingMode === "custom" ? 2 : 0,
                                   } as React.CSSProperties
                                 }
                               >
@@ -562,30 +570,30 @@ export function VideoPropertiesPanel({
                                 <button
                                   type="button"
                                   role="tab"
-                                  aria-selected={uiShotMode === "single"}
+                                  aria-selected={klingMode === "single"}
                                   aria-label="Single shot"
-                                  className={`video-shot-mode-tab ${uiShotMode === "single" ? "is-active" : ""}`}
-                                  onClick={() => setUiShotMode("single")}
+                                  className={`video-shot-mode-tab ${klingMode === "single" ? "is-active" : ""}`}
+                                  onClick={() => handleSetKlingWorkflowMode("single")}
                                 >
                                   Single
                                 </button>
                                 <button
                                   type="button"
                                   role="tab"
-                                  aria-selected={uiShotMode === "scene-multi"}
+                                  aria-selected={klingMode === "multi"}
                                   aria-label="Multi-shot"
-                                  className={`video-shot-mode-tab ${uiShotMode === "scene-multi" ? "is-active" : ""}`}
-                                  onClick={() => setUiShotMode("scene-multi")}
+                                  className={`video-shot-mode-tab ${klingMode === "multi" ? "is-active" : ""}`}
+                                  onClick={() => handleSetKlingWorkflowMode("multi")}
                                 >
                                   Multi
                                 </button>
                                 <button
                                   type="button"
                                   role="tab"
-                                  aria-selected={uiShotMode === "custom-multi"}
+                                  aria-selected={klingMode === "custom"}
                                   aria-label="Custom multi-shot"
-                                  className={`video-shot-mode-tab ${uiShotMode === "custom-multi" ? "is-active" : ""}`}
-                                  onClick={() => setUiShotMode("custom-multi")}
+                                  className={`video-shot-mode-tab ${klingMode === "custom" ? "is-active" : ""}`}
+                                  onClick={() => handleSetKlingWorkflowMode("custom")}
                                 >
                                   Custom
                                 </button>
@@ -648,7 +656,7 @@ export function VideoPropertiesPanel({
                               <ReferencePromptStep
                                 promptBadge={promptBadge}
                                 promptOrder={promptOrder}
-                                referenceText={referenceText}
+                                referenceText={primaryPromptValue}
                                 onPromptTextChange={handlePrimaryPromptChange}
                                 collapsed={collapsedSteps.prompt}
                                 onToggleCollapse={() => toggleStep("prompt")}
@@ -660,18 +668,15 @@ export function VideoPropertiesPanel({
                                 showEnhanceButton={false}
                                 hideHeader={true}
                                 autoResize
-                                promptPlaceholder="Describe the shot you want to create: subject, action, camera movement, framing, lighting, and mood."
-                                beginnerHelperText="Direct the shot: describe the subject, motion, camera movement, and mood you want in the clip."
+                                promptPlaceholder={primaryPromptPlaceholder}
+                                beginnerHelperText={primaryPromptHelperText}
                               />
                             </div>
                           </div>
                         </div>
                       </div>
-                      {additionalPromptTexts.map((promptText, index) => (
-                        <div
-                          className="video-secondary-prompt-shell"
-                          key={`video-shot-prompt-${index}`}
-                        >
+                      {customKlingPrompts.slice(1).map((shot, index) => (
+                        <div className="video-secondary-prompt-shell" key={shot.id}>
                           {showShotLabels ? (
                             <div className="video-shot-label-row">
                               <span className="video-shot-label-pill">{`Shot ${index + 2}`}</span>
@@ -679,7 +684,7 @@ export function VideoPropertiesPanel({
                                 type="button"
                                 className="video-shot-remove-button"
                                 aria-label={`Remove shot ${index + 2}`}
-                                onClick={() => handleRemoveShotPrompt(index)}
+                                onClick={() => removeKlingShot(shot.id)}
                               >
                                 <Trash size={14} weight="regular" aria-hidden="true" />
                               </button>
@@ -688,9 +693,9 @@ export function VideoPropertiesPanel({
                           <div className="prompt-enhanced-wrapper">
                             <textarea
                               className="prompt-input agent-step-textarea enhanced-prompt-input"
-                              value={promptText}
+                              value={shot.prompt}
                               onChange={(event) =>
-                                handleAdditionalPromptChange(index, event.target.value)
+                                handleCustomShotPromptChange(shot.id, event.target.value)
                               }
                               onInput={(event) =>
                                 resizeTextareaToContent(event.currentTarget as HTMLTextAreaElement)
@@ -733,15 +738,18 @@ export function VideoPropertiesPanel({
                       </div>
                     </div>
                   </div>
+                  {shouldShowKlingReferenceImageWarning ? (
+                    <div className="video-inline-warning-bubble" role="status" aria-live="polite">
+                      Reference image required for generation
+                    </div>
+                  ) : null}
                   <div className="video-right-generate-button">
                     <AgentGenerateButton
                       onClick={onRegenerate}
                       disabled={
                         isGenerateDisabled ||
-                        !referenceText?.trim() ||
-                        (activeVideoMode === "standard" &&
-                          standardVideoRequiresReferenceImage &&
-                          !referenceImageUrl)
+                        !hasAnyPromptText ||
+                        shouldShowKlingReferenceImageWarning
                       }
                       isBusy={agentIsSending}
                       cost={costCredits != null ? costCredits : "—"}

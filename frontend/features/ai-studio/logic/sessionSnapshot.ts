@@ -87,6 +87,7 @@ export type AiStudioSessionWorkspaceV1 = {
   videoAutoFix: boolean;
   klingNegativePrompt: string;
   klingCfgScale: number;
+  klingWorkflowMode?: "single" | "multi" | "custom";
   klingShotType: "customize" | "intelligent";
   klingVoiceIds: [string, string];
   klingMultiPrompts: { id: string; prompt: string; duration: number }[];
@@ -163,6 +164,7 @@ export type BuildAiStudioSessionSnapshotInput = {
   videoAutoFix: boolean;
   klingNegativePrompt: string;
   klingCfgScale: number;
+  klingWorkflowMode?: "single" | "multi" | "custom";
   klingShotType: "customize" | "intelligent";
   klingVoiceIds: [string, string];
   klingMultiPrompts: { id: string; prompt: string; duration: number }[];
@@ -322,6 +324,8 @@ export const buildAiStudioSessionSnapshot = (
       videoAutoFix: input.videoAutoFix,
       klingNegativePrompt: input.klingNegativePrompt,
       klingCfgScale: input.klingCfgScale,
+      klingWorkflowMode:
+        input.klingWorkflowMode ?? (input.klingMultiPrompts.length > 0 ? "custom" : "single"),
       klingShotType: input.klingShotType,
       klingVoiceIds: input.klingVoiceIds,
       klingMultiPrompts: input.klingMultiPrompts,

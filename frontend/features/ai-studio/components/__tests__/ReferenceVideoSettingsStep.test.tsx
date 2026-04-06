@@ -1,5 +1,5 @@
 import { fireEvent, render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ReferenceVideoSettingsStep } from "../ReferenceVideoSettingsStep";
 
 const baseProps = {
@@ -39,6 +39,10 @@ const baseProps = {
 };
 
 describe("ReferenceVideoSettingsStep", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
   it("hides resolution control when no options are available", () => {
     render(<ReferenceVideoSettingsStep {...baseProps} resolutionOptions={[]} />);
 
@@ -51,5 +55,23 @@ describe("ReferenceVideoSettingsStep", () => {
     fireEvent.click(screen.getByRole("button", { name: "Video resolution" }));
 
     expect(screen.getByRole("option", { name: "1080p (Full HD)" })).toBeTruthy();
+  });
+
+  it("keeps the model picker wired to the existing open handler", () => {
+    render(<ReferenceVideoSettingsStep {...baseProps} />);
+
+    fireEvent.click(screen.getByRole("button", { name: /veo 3.1/i }));
+
+    expect(baseProps.onModelPickerOpen).toHaveBeenCalledTimes(1);
+    expect(baseProps.onModelPickerOpen.mock.calls[0][0]).toBe("video-settings-model");
+    expect(baseProps.onModelPickerOpen.mock.calls[0][2]).toBe("reference-video");
+  });
+
+  it("keeps the audio toggle wired to the existing change handler", () => {
+    render(<ReferenceVideoSettingsStep {...baseProps} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Disable audio generation" }));
+
+    expect(baseProps.onVideoGenerateAudioChange).toHaveBeenCalledWith(false);
   });
 });

@@ -28,6 +28,7 @@ type UseAiStudioVideoPanelPropsParams = {
   setVideoAutoFix: Dispatch<SetStateAction<boolean>>;
   klingNegativePrompt: string;
   klingCfgScale: number;
+  klingWorkflowMode?: "single" | "multi" | "custom";
   klingShotType: "customize" | "intelligent";
   klingVoiceIds: [string, string];
   klingMultiPrompts: { id: string; prompt: string; duration: number }[];
@@ -39,6 +40,7 @@ type UseAiStudioVideoPanelPropsParams = {
   }[];
   setKlingNegativePrompt: Dispatch<SetStateAction<string>>;
   setKlingCfgScale: Dispatch<SetStateAction<number>>;
+  setKlingWorkflowMode?: Dispatch<SetStateAction<"single" | "multi" | "custom">>;
   setKlingShotType: Dispatch<SetStateAction<"customize" | "intelligent">>;
   handleKlingVoiceIdChange: (index: number, value: string) => void;
   setKlingMultiPrompts: Dispatch<
@@ -108,12 +110,14 @@ export const useAiStudioVideoPanelProps = ({
   setVideoAutoFix,
   klingNegativePrompt,
   klingCfgScale,
+  klingWorkflowMode,
   klingShotType,
   klingVoiceIds,
   klingMultiPrompts,
   klingElements,
   setKlingNegativePrompt,
   setKlingCfgScale,
+  setKlingWorkflowMode,
   setKlingShotType,
   handleKlingVoiceIdChange,
   setKlingMultiPrompts,
@@ -164,12 +168,14 @@ export const useAiStudioVideoPanelProps = ({
       onVideoAutoFixChange: setVideoAutoFix,
       klingNegativePrompt,
       klingCfgScale,
+      klingWorkflowMode,
       klingShotType,
       klingVoiceIds,
       klingMultiPrompts,
       klingElements,
       onKlingNegativePromptChange: setKlingNegativePrompt,
       onKlingCfgScaleChange: setKlingCfgScale,
+      onKlingWorkflowModeChange: setKlingWorkflowMode,
       onKlingShotTypeChange: setKlingShotType,
       onKlingVoiceIdChange: handleKlingVoiceIdChange,
       onKlingMultiPromptsChange: setKlingMultiPrompts,
@@ -218,6 +224,7 @@ export const useAiStudioVideoPanelProps = ({
       isModelModalOpen,
       isPromptGenerating,
       klingCfgScale,
+      klingWorkflowMode,
       klingElements,
       klingMultiPrompts,
       klingNegativePrompt,
@@ -232,6 +239,7 @@ export const useAiStudioVideoPanelProps = ({
       setAspect,
       setExtraImageUrl,
       setKlingCfgScale,
+      setKlingWorkflowMode,
       setKlingElements,
       setKlingMultiPrompts,
       setKlingNegativePrompt,

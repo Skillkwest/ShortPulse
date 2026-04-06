@@ -49,6 +49,8 @@ export type UseAiStudioCreationStateResult = {
   setKlingNegativePrompt: Dispatch<SetStateAction<string>>;
   klingCfgScale: number;
   setKlingCfgScale: Dispatch<SetStateAction<number>>;
+  klingWorkflowMode: "single" | "multi" | "custom";
+  setKlingWorkflowMode: Dispatch<SetStateAction<"single" | "multi" | "custom">>;
   klingShotType: "customize" | "intelligent";
   setKlingShotType: Dispatch<SetStateAction<"customize" | "intelligent">>;
   klingVoiceIds: [string, string];
@@ -118,6 +120,9 @@ export const useAiStudioCreationState = (): UseAiStudioCreationStateResult => {
     "blur, distort, and low quality"
   );
   const [klingCfgScale, setKlingCfgScale] = useState<number>(0.5);
+  const [klingWorkflowMode, setKlingWorkflowMode] = useState<"single" | "multi" | "custom">(
+    "single"
+  );
   const [klingShotType, setKlingShotType] = useState<"customize" | "intelligent">("customize");
   const [klingVoiceIds, setKlingVoiceIds] = useState<[string, string]>(["", ""]);
   const [klingMultiPrompts, setKlingMultiPrompts] = useState<
@@ -170,6 +175,8 @@ export const useAiStudioCreationState = (): UseAiStudioCreationStateResult => {
     setKlingNegativePrompt,
     klingCfgScale,
     setKlingCfgScale,
+    klingWorkflowMode,
+    setKlingWorkflowMode,
     klingShotType,
     setKlingShotType,
     klingVoiceIds,

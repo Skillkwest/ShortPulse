@@ -21,6 +21,7 @@ const FALLBACK_VIDEO_DURATION_SECONDS = 6;
 const FALLBACK_VIDEO_RESOLUTION = "1080p";
 const FALLBACK_IMAGE_RESOLUTION = "model_default";
 const FALLBACK_KLING_CFG_SCALE = 0.5;
+const FALLBACK_KLING_WORKFLOW_MODE = "single" as const;
 const FALLBACK_KLING_SHOT_TYPE = "customize" as const;
 const FALLBACK_PROMPT_ORIGIN = "manual" as const;
 
@@ -114,6 +115,14 @@ const asAgentRole = (value: unknown): AgentMessageRole | null => {
 
 const asKlingShotType = (value: unknown): "customize" | "intelligent" => {
   return value === "customize" || value === "intelligent" ? value : FALLBACK_KLING_SHOT_TYPE;
+};
+
+const asKlingWorkflowMode = (
+  value: unknown,
+  klingMultiPrompts: { id: string; prompt: string; duration: number }[]
+): "single" | "multi" | "custom" => {
+  if (value === "single" || value === "multi" || value === "custom") return value;
+  return klingMultiPrompts.length > 0 ? "custom" : FALLBACK_KLING_WORKFLOW_MODE;
 };
 
 const asExtraImageUrls = (value: unknown): [string | null, string | null, string | null] => {
@@ -340,6 +349,7 @@ export type AiStudioSessionHydrationPayload = {
     videoAutoFix: boolean;
     klingNegativePrompt: string;
     klingCfgScale: number;
+    klingWorkflowMode: "single" | "multi" | "custom";
     klingShotType: "customize" | "intelligent";
     klingVoiceIds: [string, string];
     klingMultiPrompts: { id: string; prompt: string; duration: number }[];
@@ -394,6 +404,7 @@ export const buildAiStudioSessionHydrationPayload = (
     candidateActiveOutputId && allOutputIds.has(candidateActiveOutputId)
       ? candidateActiveOutputId
       : null;
+  const klingMultiPrompts = asKlingMultiPrompts(workspace.klingMultiPrompts);
 
   return {
     workspace: {
@@ -418,9 +429,10 @@ export const buildAiStudioSessionHydrationPayload = (
       videoAutoFix: asBoolean(workspace.videoAutoFix),
       klingNegativePrompt: asString(workspace.klingNegativePrompt, ""),
       klingCfgScale: asFiniteNumber(workspace.klingCfgScale, FALLBACK_KLING_CFG_SCALE),
+      klingWorkflowMode: asKlingWorkflowMode(workspace.klingWorkflowMode, klingMultiPrompts),
       klingShotType: asKlingShotType(workspace.klingShotType),
       klingVoiceIds: asKlingVoiceIds(workspace.klingVoiceIds),
-      klingMultiPrompts: asKlingMultiPrompts(workspace.klingMultiPrompts),
+      klingMultiPrompts,
       klingElements: asKlingElements(workspace.klingElements),
       motionReferenceVideoUrl: sanitizeHydratedMediaUrl(
         asNullableString(workspace.motionReferenceVideoUrl)

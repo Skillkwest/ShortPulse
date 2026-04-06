@@ -246,7 +246,7 @@
 }
 
 .video-properties-panel .video-elements-placeholder-grid {
-  margin-top: 12px;
+  margin-top: 6px;
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 8px;
@@ -254,12 +254,22 @@
 
 .video-properties-panel .video-elements-placeholder-tile {
   aspect-ratio: 1 / 1;
-  border-radius: 10px;
-  border: 1px dashed rgba(201, 205, 214, 0.18);
-  background: rgba(22, 28, 34, 0.9);
+  border-radius: 8px;
+  border: 1px dashed rgba(160, 170, 182, 0.45);
+  background: #101215;
+  cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    background 0.2s ease;
+}
+
+.video-properties-panel .video-elements-placeholder-tile:hover {
+  border-color: rgba(201, 205, 214, 0.28);
+  background: #16181b;
 }
 
 .video-properties-panel .video-elements-placeholder-plus {
@@ -311,7 +321,7 @@
   grid-template-columns: minmax(0, 1fr);
   gap: 0;
   align-items: stretch;
-  margin-bottom: 6px;
+  margin-bottom: 2px;
 }
 
 .video-properties-panel .video-prompt-multishot-toggle {
@@ -347,14 +357,14 @@
   .video-direction-column-shell.is-custom-multishot-workspace
   .video-shot-workspace-shell {
   overflow: hidden;
-  flex: 1 1 auto;
+  flex: 0 0 auto;
   max-height: min(calc(230px + (var(--video-shot-count, 1) * 112px)), calc(100dvh - 195px));
 }
 
 .video-properties-panel
   .video-direction-column-shell.is-custom-multishot-workspace
   .video-shot-workspace-scroll {
-  flex: 1 1 auto;
+  flex: 0 0 auto;
   overflow-y: auto;
   padding-right: 6px;
 }
@@ -378,6 +388,7 @@
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 14px;
   margin-top: 0;
+  margin-bottom: 10px;
 }
 
 .video-properties-panel .video-add-shot-main {
@@ -422,6 +433,7 @@
   gap: 40px;
   width: 100%;
   margin-top: 8px;
+  padding-top: 12px;
   flex: 0 0 auto;
   view-transition-name: video-right-generate-slot;
 }
@@ -499,6 +511,27 @@
   justify-content: flex-end;
   width: auto;
   flex: 0 0 auto;
+}
+
+.video-properties-panel .video-inline-warning-bubble {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 28px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(245, 185, 66, 0.62);
+  background: rgba(245, 185, 66, 0.12);
+  color: rgba(255, 241, 204, 0.94);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.15;
+  letter-spacing: 0.01em;
+  white-space: normal;
+  flex: 0 1 auto;
+  max-width: 150px;
+  text-align: center;
+  box-shadow: none;
 }
 
 .video-properties-panel .video-generate-summary-value {

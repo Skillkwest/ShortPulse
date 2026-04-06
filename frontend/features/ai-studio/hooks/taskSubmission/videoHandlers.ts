@@ -85,7 +85,6 @@ export const handleVideoModelSubmission = async ({
   requestedResolution,
   requestedAudio,
   preparedImageInputs,
-  modelConfig,
   notifyGenerationFailure,
   updateOutputById,
   startPollingWithGeneration,
@@ -93,6 +92,7 @@ export const handleVideoModelSubmission = async ({
   videoReferenceImageUrl,
   motionReferenceVideoUrl,
   klingCfgScale,
+  klingWorkflowMode,
   klingMultiPrompts,
   klingElements,
 }: VideoSubmissionArgs): Promise<boolean> => {
@@ -239,7 +239,14 @@ export const handleVideoModelSubmission = async ({
       return true;
     }
     const multiPromptPayload = buildKieKlingMultiPromptPayload(klingMultiPrompts);
-    const multiShots = Boolean(multiPromptPayload?.length);
+    const effectiveKlingWorkflowMode =
+      klingWorkflowMode ?? (multiPromptPayload?.length ? "custom" : "single");
+    if (effectiveKlingWorkflowMode === "custom" && !multiPromptPayload?.length) {
+      notifyGenerationFailure(id, "Custom Kling mode requires at least one shot prompt.");
+      return true;
+    }
+    const multiShots =
+      effectiveKlingWorkflowMode === "custom" && Boolean(multiPromptPayload?.length);
     const imageUrls =
       multiShots || preparedImageInputs.length < 2
         ? [preparedImageInputs[0]]
@@ -269,8 +276,10 @@ export const handleVideoModelSubmission = async ({
     }
     const aspectRatio = ["16:9", "9:16", "1:1"].includes(aspect) ? aspect : "16:9";
     const duration = resolveKieKlingDuration(requestedDurationSeconds);
+    const klingPrompt =
+      multiShots && multiPromptPayload?.[0]?.prompt ? multiPromptPayload[0].prompt : cleanedPrompt;
     const response = await submitKieKlingImageToVideo({
-      prompt: cleanedPrompt,
+      prompt: klingPrompt,
       image_url: preparedImageInputs[0],
       image_urls: imageUrls,
       aspect_ratio: aspectRatio,

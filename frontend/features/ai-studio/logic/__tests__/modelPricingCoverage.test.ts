@@ -14,6 +14,8 @@ const AUDIO_STRATEGIES = new Set([
   "kling-3-per-second",
   "veo-3-per-second",
   "seedance-1.5-per-second",
+  "seedance-2-per-second",
+  "seedance-2-fast-per-second",
 ]);
 
 const WEB_SEARCH_STRATEGIES = new Set(["nano-banana-2-per-image", "nano-banana-per-image"]);

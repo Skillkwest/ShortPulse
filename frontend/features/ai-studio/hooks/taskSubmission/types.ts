@@ -37,6 +37,12 @@ export type VideoSubmissionArgs = BaseSubmissionArgs & {
   motionReferenceVideoUrl: string | null;
   videoAutoFix: boolean;
   videoCameraFixed: boolean;
+  seedance2InputMode?: "text" | "first-frame" | "first-last" | "multimodal";
+  seedance2ReferenceImageUrls?: string[];
+  seedance2ReferenceVideoUrls?: string[];
+  seedance2ReferenceAudioUrls?: string[];
+  seedance2ReturnLastFrame?: boolean;
+  seedance2WebSearch?: boolean;
   klingNegativePrompt: string;
   klingCfgScale: number;
   klingWorkflowMode?: "single" | "multi" | "custom";

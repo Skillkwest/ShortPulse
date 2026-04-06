@@ -88,6 +88,12 @@ export type AiStudioSessionWorkspaceV1 = {
   klingNegativePrompt: string;
   klingCfgScale: number;
   klingWorkflowMode?: "single" | "multi" | "custom";
+  seedance2InputMode?: "text" | "first-frame" | "first-last" | "multimodal";
+  seedance2ReferenceImageUrls?: string[];
+  seedance2ReferenceVideoUrls?: string[];
+  seedance2ReferenceAudioUrls?: string[];
+  seedance2ReturnLastFrame?: boolean;
+  seedance2WebSearch?: boolean;
   klingShotType: "customize" | "intelligent";
   klingVoiceIds: [string, string];
   klingMultiPrompts: { id: string; prompt: string; duration: number }[];
@@ -165,6 +171,12 @@ export type BuildAiStudioSessionSnapshotInput = {
   klingNegativePrompt: string;
   klingCfgScale: number;
   klingWorkflowMode?: "single" | "multi" | "custom";
+  seedance2InputMode?: "text" | "first-frame" | "first-last" | "multimodal";
+  seedance2ReferenceImageUrls?: string[];
+  seedance2ReferenceVideoUrls?: string[];
+  seedance2ReferenceAudioUrls?: string[];
+  seedance2ReturnLastFrame?: boolean;
+  seedance2WebSearch?: boolean;
   klingShotType: "customize" | "intelligent";
   klingVoiceIds: [string, string];
   klingMultiPrompts: { id: string; prompt: string; duration: number }[];
@@ -326,6 +338,12 @@ export const buildAiStudioSessionSnapshot = (
       klingCfgScale: input.klingCfgScale,
       klingWorkflowMode:
         input.klingWorkflowMode ?? (input.klingMultiPrompts.length > 0 ? "custom" : "single"),
+      seedance2InputMode: input.seedance2InputMode ?? "text",
+      seedance2ReferenceImageUrls: input.seedance2ReferenceImageUrls ?? [],
+      seedance2ReferenceVideoUrls: input.seedance2ReferenceVideoUrls ?? [],
+      seedance2ReferenceAudioUrls: input.seedance2ReferenceAudioUrls ?? [],
+      seedance2ReturnLastFrame: input.seedance2ReturnLastFrame ?? false,
+      seedance2WebSearch: input.seedance2WebSearch ?? false,
       klingShotType: input.klingShotType,
       klingVoiceIds: input.klingVoiceIds,
       klingMultiPrompts: input.klingMultiPrompts,

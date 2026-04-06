@@ -24,6 +24,7 @@ import {
 
 describe("kieStatusContracts", () => {
   it("normalizes lifecycle status aliases from Kie payloads", () => {
+    expect(readKieLifecycleStatus({ state: "waiting" })).toBe("running");
     expect(readKieLifecycleStatus({ state: "in_progress" })).toBe("running");
     expect(readKieLifecycleStatus({ status: "processing" })).toBe("running");
     expect(readKieLifecycleStatus({ status: "done" })).toBe("completed");

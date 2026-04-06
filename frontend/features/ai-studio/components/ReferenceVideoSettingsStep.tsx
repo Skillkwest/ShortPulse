@@ -32,6 +32,7 @@ type ReferenceVideoSettingsStepProps = {
   resolutionOptions: VideoSettingsResolutionOption[];
   videoGenerateAudioValue: boolean;
   isSeedanceModel: boolean;
+  showSeedanceCameraFixedControl?: boolean;
   videoCameraFixed: boolean;
   isVeoModel: boolean;
   videoAutoFix: boolean;
@@ -75,6 +76,7 @@ export const ReferenceVideoSettingsStep: React.FC<ReferenceVideoSettingsStepProp
   resolutionOptions,
   videoGenerateAudioValue,
   isSeedanceModel,
+  showSeedanceCameraFixedControl = true,
   videoCameraFixed,
   isVeoModel,
   videoAutoFix,
@@ -113,6 +115,7 @@ export const ReferenceVideoSettingsStep: React.FC<ReferenceVideoSettingsStepProp
       multiShotEnabled={multiShotEnabled}
       isMotionMode={isMotionMode}
       isSeedanceModel={isSeedanceModel}
+      showSeedanceCameraFixedControl={showSeedanceCameraFixedControl}
       videoCameraFixed={videoCameraFixed}
       isVeoModel={isVeoModel}
       videoAutoFix={videoAutoFix}

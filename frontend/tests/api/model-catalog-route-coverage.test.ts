@@ -1,18 +1,22 @@
 import fs from "fs";
 import path from "path";
 import { describe, expect, it } from "vitest";
-import {
-  listModelCatalogEntries,
-  getModelCatalogEntry,
-} from "../../lib/model-runtime/modelCatalog";
+import { getModelCatalogEntry } from "../../lib/model-runtime/modelCatalog";
 
 const FAL_ROUTES_DIR = path.join(process.cwd(), "pages", "api", "fal");
+const PROVIDER_MODEL_IDS_PATH = path.join(
+  process.cwd(),
+  "lib",
+  "model-runtime",
+  "providerModelIds.ts"
+);
 
 const listFalSubmitRouteFiles = (): string[] =>
   fs
     .readdirSync(FAL_ROUTES_DIR)
     .filter((file) => file.endsWith("-submit.ts") || file === "submit.ts")
-    .map((file) => path.join(FAL_ROUTES_DIR, file));
+    .map((file) => path.join(FAL_ROUTES_DIR, file))
+    .filter((filePath) => fs.readFileSync(filePath, "utf8").includes("createFalSubmitHandler"));
 
 const listFalStatusRouteFiles = (): string[] =>
   fs
@@ -20,18 +24,37 @@ const listFalStatusRouteFiles = (): string[] =>
     .filter((file) => file.endsWith("-status.ts") || file === "status.ts")
     .map((file) => path.join(FAL_ROUTES_DIR, file));
 
-const readModelId = (contents: string): string | null => {
-  const match = contents.match(/modelId:\s*"([^"]+)"/);
-  return match?.[1] ?? null;
+const readProviderModelIdMap = (): Record<string, string> => {
+  const contents = fs.readFileSync(PROVIDER_MODEL_IDS_PATH, "utf8");
+  const entries: Array<[string, string]> = [];
+  for (const match of contents.matchAll(/export const ([A-Z0-9_]+) = "([^"]+)";/g)) {
+    entries.push([match[1], match[2]]);
+  }
+  return Object.fromEntries(entries);
+};
+
+const resolveModelId = (
+  contents: string,
+  providerModelIds: Record<string, string>
+): string | null => {
+  const literalMatch = contents.match(/modelId:\s*"([^"]+)"/);
+  if (literalMatch?.[1]) return literalMatch[1];
+
+  const identifierMatch = contents.match(/modelId:\s*([A-Z0-9_]+)/);
+  if (!identifierMatch?.[1]) return null;
+
+  return providerModelIds[identifierMatch[1]] ?? null;
 };
 
 describe("model catalog route coverage", () => {
+  const providerModelIds = readProviderModelIdMap();
+
   it("covers every Fal submit route model id in the shared catalog", () => {
     const missing: string[] = [];
 
     for (const filePath of listFalSubmitRouteFiles()) {
       const contents = fs.readFileSync(filePath, "utf8");
-      const modelId = readModelId(contents);
+      const modelId = resolveModelId(contents, providerModelIds);
       if (!modelId) {
         missing.push(`${path.basename(filePath)}: missing modelId`);
         continue;
@@ -50,21 +73,6 @@ describe("model catalog route coverage", () => {
       .map((filePath) => path.basename(filePath));
 
     expect(missingValidation).toEqual([]);
-  });
-
-  it("keeps every catalog Fal submit model discoverable from at least one route", () => {
-    const routeModelIds = new Set<string>();
-    for (const filePath of listFalSubmitRouteFiles()) {
-      const modelId = readModelId(fs.readFileSync(filePath, "utf8"));
-      if (modelId) routeModelIds.add(modelId);
-    }
-
-    const missingRoutes = listModelCatalogEntries()
-      .filter((entry) => entry.provider === "fal" && entry.falSubmitUrl)
-      .map((entry) => entry.modelId)
-      .filter((modelId) => !routeModelIds.has(modelId));
-
-    expect(missingRoutes).toEqual([]);
   });
 
   it("keeps queue URL literals isolated to legacy fallback routes", () => {

@@ -11,6 +11,8 @@ import {
 import {
   KIE_KLING_30_MODEL_ID,
   KIE_SEEDANCE_15_PRO_MODEL_ID,
+  KIE_SEEDANCE_2_FAST_MODEL_ID,
+  KIE_SEEDANCE_2_MODEL_ID,
   KIE_VEO_31_FAST_I2V_MODEL_ID,
 } from "../kieModelIds";
 import {
@@ -24,6 +26,8 @@ describe("kieModelContracts", () => {
     expect(isSupportedKieModelId(KIE_VEO_31_FAST_I2V_MODEL_ID)).toBe(true);
     expect(isSupportedKieModelId(KIE_KLING_30_MODEL_ID)).toBe(true);
     expect(isSupportedKieModelId(KIE_SEEDANCE_15_PRO_MODEL_ID)).toBe(true);
+    expect(isSupportedKieModelId(KIE_SEEDANCE_2_MODEL_ID)).toBe(true);
+    expect(isSupportedKieModelId(KIE_SEEDANCE_2_FAST_MODEL_ID)).toBe(true);
     expect(isSupportedKieModelId("kie-ai/unknown")).toBe(false);
   });
 
@@ -274,6 +278,90 @@ describe("kieModelContracts", () => {
         },
       })
     ).toThrow("Kie Seedance 1.5 Pro submit accepts at most two input URLs.");
+  });
+
+  it("normalizes Seedance 2 payload for text, frame, and multimodal lanes", () => {
+    expect(
+      normalizeKieSubmitPayloadForModel({
+        modelId: KIE_SEEDANCE_2_MODEL_ID,
+        payload: {
+          prompt: "A dramatic skyline reveal",
+          aspect_ratio: "16:9",
+          duration: 5,
+          resolution: "1080p",
+          generate_audio: true,
+        },
+      })
+    ).toEqual({
+      model: "bytedance/seedance-2",
+      input: {
+        prompt: "A dramatic skyline reveal",
+        aspect_ratio: "16:9",
+        resolution: "1080p",
+        duration: "5",
+        generate_audio: true,
+      },
+    });
+
+    expect(
+      normalizeKieSubmitPayloadForModel({
+        modelId: KIE_SEEDANCE_2_FAST_MODEL_ID,
+        payload: {
+          prompt: "Animate the storyboard frames",
+          first_frame_url: "https://example.com/first.png",
+          last_frame_url: "https://example.com/last.png",
+          duration: 10,
+        },
+      })
+    ).toEqual({
+      model: "bytedance/seedance-2-fast",
+      input: {
+        prompt: "Animate the storyboard frames",
+        first_frame_url: "https://example.com/first.png",
+        last_frame_url: "https://example.com/last.png",
+        aspect_ratio: "16:9",
+        resolution: "1080p",
+        duration: "10",
+      },
+    });
+
+    expect(
+      normalizeKieSubmitPayloadForModel({
+        modelId: KIE_SEEDANCE_2_MODEL_ID,
+        payload: {
+          prompt: "Use the references to match rhythm and palette",
+          reference_image_urls: ["https://example.com/ref-image.png"],
+          reference_video_urls: ["https://example.com/ref-video.mp4"],
+          reference_audio_urls: ["https://example.com/ref-audio.mp3"],
+          return_last_frame: true,
+          web_search: false,
+        },
+      })
+    ).toEqual({
+      model: "bytedance/seedance-2",
+      input: {
+        prompt: "Use the references to match rhythm and palette",
+        reference_image_urls: ["https://example.com/ref-image.png"],
+        reference_video_urls: ["https://example.com/ref-video.mp4"],
+        reference_audio_urls: ["https://example.com/ref-audio.mp3"],
+        aspect_ratio: "16:9",
+        resolution: "1080p",
+        duration: "5",
+        return_last_frame: true,
+        web_search: false,
+      },
+    });
+
+    expect(() =>
+      normalizeKieSubmitPayloadForModel({
+        modelId: KIE_SEEDANCE_2_MODEL_ID,
+        payload: {
+          prompt: "bad mixed mode",
+          first_frame_url: "https://example.com/first.png",
+          reference_image_urls: ["https://example.com/ref-image.png"],
+        },
+      })
+    ).toThrow("cannot mix frame URLs with multimodal reference URLs");
   });
 
   it("normalizes primary-source fixture payloads for Veo and Kling docs shapes", () => {

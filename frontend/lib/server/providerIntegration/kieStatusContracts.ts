@@ -39,6 +39,7 @@ const kieExplicitErrorKeys = [
 const normalizeKieStatusAlias = (status: string): string => {
   const normalized = status.trim().toLowerCase();
   switch (normalized) {
+    case "waiting":
     case "in_progress":
     case "processing":
       return "running";

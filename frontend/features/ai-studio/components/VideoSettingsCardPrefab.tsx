@@ -37,6 +37,7 @@ export type VideoSettingsCardPrefabProps = {
   multiShotEnabled?: boolean;
   isMotionMode: boolean;
   isSeedanceModel: boolean;
+  showSeedanceCameraFixedControl?: boolean;
   videoCameraFixed: boolean;
   isVeoModel: boolean;
   videoAutoFix: boolean;
@@ -237,6 +238,7 @@ export function VideoSettingsCardPrefab({
   multiShotEnabled = false,
   isMotionMode,
   isSeedanceModel,
+  showSeedanceCameraFixedControl = true,
   videoCameraFixed,
   isVeoModel,
   videoAutoFix,
@@ -252,7 +254,7 @@ export function VideoSettingsCardPrefab({
   const shouldShowResolutionControl = resolutionOptions.length > 0;
   const isVeo31Model =
     modelId?.includes("veo3.1") === true || modelId?.includes("veo-3.1") === true;
-  const shouldShowSeedanceCameraFixed = true;
+  const shouldShowSeedanceCameraFixed = showSeedanceCameraFixedControl;
   const resolutionDropdownOptions = React.useMemo(
     () => resolutionOptions.map((option) => ({ value: option.value, label: option.label })),
     [resolutionOptions]

@@ -51,6 +51,20 @@ export type UseAiStudioCreationStateResult = {
   setKlingCfgScale: Dispatch<SetStateAction<number>>;
   klingWorkflowMode: "single" | "multi" | "custom";
   setKlingWorkflowMode: Dispatch<SetStateAction<"single" | "multi" | "custom">>;
+  seedance2InputMode: "text" | "first-frame" | "first-last" | "multimodal";
+  setSeedance2InputMode: Dispatch<
+    SetStateAction<"text" | "first-frame" | "first-last" | "multimodal">
+  >;
+  seedance2ReferenceImageUrls: string[];
+  setSeedance2ReferenceImageUrls: Dispatch<SetStateAction<string[]>>;
+  seedance2ReferenceVideoUrls: string[];
+  setSeedance2ReferenceVideoUrls: Dispatch<SetStateAction<string[]>>;
+  seedance2ReferenceAudioUrls: string[];
+  setSeedance2ReferenceAudioUrls: Dispatch<SetStateAction<string[]>>;
+  seedance2ReturnLastFrame: boolean;
+  setSeedance2ReturnLastFrame: Dispatch<SetStateAction<boolean>>;
+  seedance2WebSearch: boolean;
+  setSeedance2WebSearch: Dispatch<SetStateAction<boolean>>;
   klingShotType: "customize" | "intelligent";
   setKlingShotType: Dispatch<SetStateAction<"customize" | "intelligent">>;
   klingVoiceIds: [string, string];
@@ -123,6 +137,14 @@ export const useAiStudioCreationState = (): UseAiStudioCreationStateResult => {
   const [klingWorkflowMode, setKlingWorkflowMode] = useState<"single" | "multi" | "custom">(
     "single"
   );
+  const [seedance2InputMode, setSeedance2InputMode] = useState<
+    "text" | "first-frame" | "first-last" | "multimodal"
+  >("text");
+  const [seedance2ReferenceImageUrls, setSeedance2ReferenceImageUrls] = useState<string[]>([]);
+  const [seedance2ReferenceVideoUrls, setSeedance2ReferenceVideoUrls] = useState<string[]>([]);
+  const [seedance2ReferenceAudioUrls, setSeedance2ReferenceAudioUrls] = useState<string[]>([]);
+  const [seedance2ReturnLastFrame, setSeedance2ReturnLastFrame] = useState<boolean>(false);
+  const [seedance2WebSearch, setSeedance2WebSearch] = useState<boolean>(false);
   const [klingShotType, setKlingShotType] = useState<"customize" | "intelligent">("customize");
   const [klingVoiceIds, setKlingVoiceIds] = useState<[string, string]>(["", ""]);
   const [klingMultiPrompts, setKlingMultiPrompts] = useState<
@@ -177,6 +199,18 @@ export const useAiStudioCreationState = (): UseAiStudioCreationStateResult => {
     setKlingCfgScale,
     klingWorkflowMode,
     setKlingWorkflowMode,
+    seedance2InputMode,
+    setSeedance2InputMode,
+    seedance2ReferenceImageUrls,
+    setSeedance2ReferenceImageUrls,
+    seedance2ReferenceVideoUrls,
+    setSeedance2ReferenceVideoUrls,
+    seedance2ReferenceAudioUrls,
+    setSeedance2ReferenceAudioUrls,
+    seedance2ReturnLastFrame,
+    setSeedance2ReturnLastFrame,
+    seedance2WebSearch,
+    setSeedance2WebSearch,
     klingShotType,
     setKlingShotType,
     klingVoiceIds,

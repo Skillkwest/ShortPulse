@@ -23,6 +23,7 @@ type PromptStepEnhancedSurfaceProps = {
   promptSaveButtonClassName: string;
   promptSaveButtonUnstyled: boolean;
   autoResize: boolean;
+  autoResizeLayoutKey?: string | number;
   inlineAction?: React.ReactNode;
 };
 
@@ -44,6 +45,7 @@ export const PromptStepEnhancedSurface: React.FC<PromptStepEnhancedSurfaceProps>
   promptSaveButtonClassName,
   promptSaveButtonUnstyled,
   autoResize,
+  autoResizeLayoutKey,
   inlineAction,
 }) => {
   const textareaRef = React.useRef<HTMLTextAreaElement | null>(null);
@@ -74,13 +76,32 @@ export const PromptStepEnhancedSurface: React.FC<PromptStepEnhancedSurfaceProps>
       resizeTextareaToViewport();
     });
     return () => window.cancelAnimationFrame(frameId);
-  }, [autoResize, prompt, resizeTextareaToViewport]);
+  }, [autoResize, autoResizeLayoutKey, prompt, resizeTextareaToViewport]);
 
   React.useEffect(() => {
     if (!autoResize) return;
     const handleViewportResize = () => resizeTextareaToViewport();
     window.addEventListener("resize", handleViewportResize);
     return () => window.removeEventListener("resize", handleViewportResize);
+  }, [autoResize, resizeTextareaToViewport]);
+
+  React.useEffect(() => {
+    if (!autoResize || !textareaRef.current || typeof ResizeObserver === "undefined") return;
+    const textarea = textareaRef.current;
+    const observedNodes = [
+      textarea.parentElement,
+      textarea.closest(".video-shot-workspace-stack"),
+      textarea.closest(".video-direction-column-shell"),
+    ].filter((node): node is Element => Boolean(node));
+
+    if (!observedNodes.length) return;
+
+    const observer = new ResizeObserver(() => {
+      resizeTextareaToViewport();
+    });
+
+    observedNodes.forEach((node) => observer.observe(node));
+    return () => observer.disconnect();
   }, [autoResize, resizeTextareaToViewport]);
 
   return (

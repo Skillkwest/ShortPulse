@@ -5,6 +5,8 @@ import { useCallback, useRef, type Dispatch, type SetStateAction } from "react";
 import { randomId } from "../logic/ids";
 import { isVideoUrl, resolveModelLabel, type Provider } from "../logic/stateParsers";
 import type { StudioOutput } from "../types";
+import { getSignedMediaUrl } from "../../../lib/mediaSignedUrlCache";
+import { ensureSupabaseQueryClient } from "../../../lib/supabaseClient";
 import {
   GENERATED_MEDIA_REQUIRES_GENERATION_ID_ERROR,
   logMediaEvent,
@@ -12,6 +14,7 @@ import {
   saveMediaUrlToLibrary,
   savePromptRecord,
 } from "../logic/mediaLibraryPersistence";
+import { resolvePublishedGenerationOutputStoragePathByIndex } from "../logic/generatedMediaAuthority";
 
 type UseAiStudioPersistenceActionsArgs = {
   findOutputById: (id: string) => StudioOutput | null;
@@ -68,6 +71,58 @@ export const resolvePersistableOutputUrls = (output: StudioOutput): string[] => 
   if (output.mode !== "video") return baseUrls;
   const videoUrls = baseUrls.filter((value) => isVideoUrl(value));
   return videoUrls.length ? videoUrls : baseUrls;
+};
+
+const isLikelyStoragePath = (value: string | null | undefined): boolean => {
+  const normalized = normalizeOptionalUrl(value);
+  if (!normalized) return false;
+  return !/^https?:\/\//i.test(normalized) && !normalized.startsWith("blob:");
+};
+
+export const resolvePersistableOutputUrlsForSave = async (
+  output: StudioOutput
+): Promise<string[]> => {
+  if (output.mediaSource === "generated" || Boolean(output.generationId)) {
+    if (output.generationId) {
+      try {
+        const supabase = ensureSupabaseQueryClient();
+        const generationStoragePath = await resolvePublishedGenerationOutputStoragePathByIndex({
+          supabase,
+          generationId: output.generationId,
+          imageIndex: 0,
+        });
+        if (generationStoragePath) {
+          const signedUrl = await getSignedMediaUrl({
+            bucket: "media_library",
+            storagePath: generationStoragePath,
+          });
+          if (signedUrl) {
+            return uniqueUrls([signedUrl]);
+          }
+        }
+      } catch {
+        // fall through to output state and legacy result URL handling
+      }
+    }
+
+    const candidateStoragePaths = uniqueUrls(
+      output.mode === "video"
+        ? [output.fullStoragePath, output.previewStoragePath]
+        : [output.previewStoragePath, output.fullStoragePath]
+    ).filter((value) => isLikelyStoragePath(value));
+
+    for (const storagePath of candidateStoragePaths) {
+      const signedUrl = await getSignedMediaUrl({
+        bucket: "media_library",
+        storagePath,
+      });
+      if (signedUrl) {
+        return uniqueUrls([signedUrl]);
+      }
+    }
+  }
+
+  return resolvePersistableOutputUrls(output);
 };
 
 export const isDurablyGeneratedOutput = (output: StudioOutput): boolean =>
@@ -393,7 +448,7 @@ export const useAiStudioPersistenceActions = ({
             };
           }
 
-          const urls = resolvePersistableOutputUrls(output);
+          const urls = await resolvePersistableOutputUrlsForSave(output);
           if (!urls.length) {
             markOutputSaveFailed(outputId, "No media available to save.");
             setUiError("No media available to save.");

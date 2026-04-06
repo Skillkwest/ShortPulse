@@ -411,4 +411,6 @@ export const pricingStrategies: Record<PricingStrategyId, StrategyFn> = {
   "kling-3-per-second": computeKling3PerSecondCost,
   "veo-3-per-second": computeVeoPerSecondCost,
   "seedance-1.5-per-second": computeSeedancePerSecondCost,
+  "seedance-2-per-second": computeSeedancePerSecondCost,
+  "seedance-2-fast-per-second": computeSeedancePerSecondCost,
 };

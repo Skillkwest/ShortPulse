@@ -79,7 +79,6 @@
   flex-direction: column;
   min-height: 0;
   overflow: hidden;
-  view-transition-name: video-direction-column-shell;
 }
 
 .video-properties-panel .video-direction-column-shell,
@@ -208,6 +207,16 @@
 
 .video-properties-panel .video-setup-column--single .video-kling-tip {
   order: 4;
+  display: none;
+}
+
+.video-properties-panel .video-setup-column--single .video-setup-seedance-slot {
+  order: 3;
+}
+
+.video-properties-panel .video-setup-column--single .video-regional-disclaimer {
+  order: 5;
+  margin-top: auto;
 }
 
 .video-properties-panel .video-setup-column--single .reference-dropzone-block {
@@ -222,6 +231,87 @@
 .video-properties-panel .video-elements-card {
   min-height: 120px;
   justify-content: flex-start;
+}
+
+.video-properties-panel .seedance-advanced-card {
+  gap: 14px;
+}
+
+.video-properties-panel .seedance-advanced-card .step-card-header::before {
+  display: none;
+}
+
+.video-properties-panel .seedance-advanced-card .step-title {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(201, 205, 214, 0.58);
+}
+
+.video-properties-panel .seedance-advanced-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.video-properties-panel .seedance-toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.video-properties-panel .seedance-toggle-copy {
+  display: flex;
+  min-width: 0;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.video-properties-panel .seedance-toggle-label,
+.video-properties-panel .seedance-mode-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: rgba(238, 241, 246, 0.92);
+}
+
+.video-properties-panel .seedance-toggle-helper {
+  font-size: 11px;
+  line-height: 1.35;
+  color: rgba(201, 205, 214, 0.72);
+}
+
+.video-properties-panel .seedance-mode-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.video-properties-panel .seedance-mode-tabs {
+  width: 100%;
+}
+
+.video-properties-panel .seedance-reference-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 10px;
+}
+
+.video-properties-panel .seedance-reference-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.video-properties-panel .seedance-reference-textarea {
+  min-height: 88px;
+  resize: vertical;
 }
 
 .video-properties-panel .video-elements-card-title {
@@ -246,7 +336,7 @@
 }
 
 .video-properties-panel .video-elements-placeholder-grid {
-  margin-top: 6px;
+  margin-top: 2px;
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 8px;
@@ -284,6 +374,14 @@
   color: rgba(201, 205, 214, 0.66);
   font-size: 12px;
   line-height: 1.4;
+  letter-spacing: 0.01em;
+}
+
+.video-properties-panel .video-regional-disclaimer {
+  margin: 0 2px 0;
+  color: rgba(201, 205, 214, 0.4);
+  font-size: 10px;
+  line-height: 1.35;
   letter-spacing: 0.01em;
 }
 
@@ -338,10 +436,16 @@
   min-height: 0;
   display: flex;
   flex-direction: column;
-  view-transition-name: video-shot-workspace-shell;
 }
 
 .video-properties-panel .video-shot-workspace-scroll {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  flex: 1 1 auto;
+}
+
+.video-properties-panel .video-shot-scroll-viewport {
   display: flex;
   flex-direction: column;
   min-height: 0;
@@ -357,16 +461,45 @@
   .video-direction-column-shell.is-custom-multishot-workspace
   .video-shot-workspace-shell {
   overflow: hidden;
-  flex: 0 0 auto;
-  max-height: min(calc(230px + (var(--video-shot-count, 1) * 112px)), calc(100dvh - 195px));
+  flex: 1 1 auto;
 }
 
 .video-properties-panel
   .video-direction-column-shell.is-custom-multishot-workspace
-  .video-shot-workspace-scroll {
-  flex: 0 0 auto;
+  .video-shot-scroll-viewport {
+  flex: 1 1 auto;
   overflow-y: auto;
   padding-right: 6px;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable both-edges;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(201, 205, 214, 0.2) transparent;
+}
+
+.video-properties-panel
+  .video-direction-column-shell.is-custom-multishot-workspace
+  .video-shot-scroll-viewport::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+
+.video-properties-panel
+  .video-direction-column-shell.is-custom-multishot-workspace
+  .video-shot-scroll-viewport::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.video-properties-panel
+  .video-direction-column-shell.is-custom-multishot-workspace
+  .video-shot-scroll-viewport::-webkit-scrollbar-thumb {
+  background: rgba(201, 205, 214, 0.2);
+  border-radius: 999px;
+}
+
+.video-properties-panel
+  .video-direction-column-shell.is-custom-multishot-workspace
+  .video-shot-scroll-viewport::-webkit-scrollbar-thumb:hover {
+  background: rgba(201, 205, 214, 0.32);
 }
 
 .video-properties-panel .video-prompt-stack {
@@ -435,7 +568,6 @@
   margin-top: 8px;
   padding-top: 12px;
   flex: 0 0 auto;
-  view-transition-name: video-right-generate-slot;
 }
 
 .video-properties-panel .video-right-generate-slot::before {
@@ -455,16 +587,6 @@
   );
   opacity: 0.9;
   pointer-events: none;
-}
-
-::view-transition-old(video-direction-column-shell),
-::view-transition-new(video-direction-column-shell),
-::view-transition-old(video-shot-workspace-shell),
-::view-transition-new(video-shot-workspace-shell),
-::view-transition-old(video-right-generate-slot),
-::view-transition-new(video-right-generate-slot) {
-  animation-duration: 220ms;
-  animation-timing-function: cubic-bezier(0.22, 0.61, 0.36, 1);
 }
 
 .video-properties-panel .video-generate-summary-panel {
@@ -892,6 +1014,30 @@
   color: #5f6268;
   font-size: 15px;
   font-family: inherit;
+}
+
+.video-properties-panel .prompt-enhanced-wrapper .enhanced-prompt-input {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(201, 205, 214, 0.38) transparent;
+}
+
+.video-properties-panel .prompt-enhanced-wrapper .enhanced-prompt-input::-webkit-scrollbar {
+  width: 8px;
+}
+
+.video-properties-panel .prompt-enhanced-wrapper .enhanced-prompt-input::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.video-properties-panel .prompt-enhanced-wrapper .enhanced-prompt-input::-webkit-scrollbar-thumb {
+  background: rgba(201, 205, 214, 0.32);
+  border-radius: 999px;
+}
+
+.video-properties-panel
+  .prompt-enhanced-wrapper
+  .enhanced-prompt-input::-webkit-scrollbar-thumb:hover {
+  background: rgba(201, 205, 214, 0.48);
 }
 
 .video-properties-panel .video-secondary-prompt-shell .enhanced-prompt-input {

@@ -1,12 +1,29 @@
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { StudioOutput } from "../../types";
+const ensureSupabaseQueryClientMock = vi.hoisted(() => vi.fn());
+const getSignedMediaUrlMock = vi.hoisted(() => vi.fn());
+const resolvePublishedGenerationOutputStoragePathByIndexMock = vi.hoisted(() => vi.fn());
 import {
   hasDurableGenerationIdentity,
   isDurablyGeneratedOutput,
   mergeOutputWithPersistedDelivery,
   resolvePersistableOutputUrls,
+  resolvePersistableOutputUrlsForSave,
   type PersistedMediaDelivery,
 } from "../useAiStudioPersistenceActions";
+
+vi.mock("../../../../lib/mediaSignedUrlCache", () => ({
+  getSignedMediaUrl: getSignedMediaUrlMock,
+}));
+
+vi.mock("../../../../lib/supabaseClient", () => ({
+  ensureSupabaseQueryClient: ensureSupabaseQueryClientMock,
+}));
+
+vi.mock("../../logic/generatedMediaAuthority", () => ({
+  resolvePublishedGenerationOutputStoragePathByIndex:
+    resolvePublishedGenerationOutputStoragePathByIndexMock,
+}));
 
 const makeOutput = (overrides: Partial<StudioOutput> = {}): StudioOutput =>
   ({
@@ -107,6 +124,56 @@ describe("resolvePersistableOutputUrls", () => {
 
     expect(resolvePersistableOutputUrls(output)).toEqual([
       "https://provider.example.com/result-1.png",
+    ]);
+  });
+});
+
+describe("resolvePersistableOutputUrlsForSave", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    ensureSupabaseQueryClientMock.mockReturnValue({});
+  });
+
+  it("prefers signed storage urls for generated video saves", async () => {
+    resolvePublishedGenerationOutputStoragePathByIndexMock.mockResolvedValueOnce(
+      "user-1/generations/videos/full.mp4"
+    );
+    getSignedMediaUrlMock.mockResolvedValueOnce("https://signed.example.com/generated-full.mp4");
+    const output = makeOutput({
+      mode: "video",
+      mediaSource: "generated",
+      generationId: "gen-1",
+      resultUrls: ["https://provider.example.com/temp.mp4"],
+    });
+
+    await expect(resolvePersistableOutputUrlsForSave(output)).resolves.toEqual([
+      "https://signed.example.com/generated-full.mp4",
+    ]);
+    expect(ensureSupabaseQueryClientMock).toHaveBeenCalledTimes(1);
+    expect(resolvePublishedGenerationOutputStoragePathByIndexMock).toHaveBeenCalledWith({
+      supabase: expect.any(Object),
+      generationId: "gen-1",
+      imageIndex: 0,
+    });
+    expect(getSignedMediaUrlMock).toHaveBeenCalledWith({
+      bucket: "media_library",
+      storagePath: "user-1/generations/videos/full.mp4",
+    });
+  });
+
+  it("falls back to legacy result urls when storage signing fails", async () => {
+    resolvePublishedGenerationOutputStoragePathByIndexMock.mockResolvedValueOnce(null);
+    getSignedMediaUrlMock.mockResolvedValueOnce(null);
+    const output = makeOutput({
+      mode: "video",
+      mediaSource: "generated",
+      generationId: "gen-1",
+      resultUrls: ["https://provider.example.com/temp.mp4"],
+      previewStoragePath: "user-1/generations/videos/preview.mp4",
+    });
+
+    await expect(resolvePersistableOutputUrlsForSave(output)).resolves.toEqual([
+      "https://provider.example.com/temp.mp4",
     ]);
   });
 });

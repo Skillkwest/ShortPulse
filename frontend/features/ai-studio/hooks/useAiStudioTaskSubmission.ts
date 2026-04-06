@@ -102,6 +102,12 @@ type UseAiStudioTaskSubmissionParams = {
   motionReferenceVideoUrl: string | null;
   videoCameraFixed: boolean;
   videoAutoFix: boolean;
+  seedance2InputMode?: "text" | "first-frame" | "first-last" | "multimodal";
+  seedance2ReferenceImageUrls?: string[];
+  seedance2ReferenceVideoUrls?: string[];
+  seedance2ReferenceAudioUrls?: string[];
+  seedance2ReturnLastFrame?: boolean;
+  seedance2WebSearch?: boolean;
   klingNegativePrompt: string;
   klingCfgScale: number;
   klingWorkflowMode?: "single" | "multi" | "custom";
@@ -153,6 +159,12 @@ export const useAiStudioTaskSubmission = ({
   motionReferenceVideoUrl,
   videoCameraFixed,
   videoAutoFix,
+  seedance2InputMode = "text",
+  seedance2ReferenceImageUrls = [],
+  seedance2ReferenceVideoUrls = [],
+  seedance2ReferenceAudioUrls = [],
+  seedance2ReturnLastFrame = false,
+  seedance2WebSearch = false,
   klingNegativePrompt,
   klingCfgScale,
   klingWorkflowMode,
@@ -751,6 +763,12 @@ export const useAiStudioTaskSubmission = ({
               motionReferenceVideoUrl,
               videoAutoFix,
               videoCameraFixed,
+              seedance2InputMode,
+              seedance2ReferenceImageUrls,
+              seedance2ReferenceVideoUrls,
+              seedance2ReferenceAudioUrls,
+              seedance2ReturnLastFrame,
+              seedance2WebSearch,
               klingNegativePrompt,
               klingCfgScale,
               klingShotType,

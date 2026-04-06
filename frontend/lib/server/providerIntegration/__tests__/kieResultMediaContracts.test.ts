@@ -38,6 +38,25 @@ describe("kieResultMediaContracts", () => {
     expect(urls).toEqual(["https://cdn.shortpulse.test/kie-seedance-result.mp4"]);
   });
 
+  it("extracts media URLs from Seedance status envelopes that only expose data.resultJson", () => {
+    const urls = extractKieResultMediaUrls({
+      modelId: KIE_SEEDANCE_15_PRO_MODEL_ID,
+      payload: {
+        code: 200,
+        msg: "success",
+        data: {
+          taskId: "seedance-task-1",
+          model: "bytedance/seedance-1.5-pro",
+          state: "success",
+          resultJson:
+            '{"resultUrls":["https://tempfile.aiquickdraw.com/r/seedance-status-envelope.mp4"]}',
+        },
+      },
+    });
+
+    expect(urls).toEqual(["https://tempfile.aiquickdraw.com/r/seedance-status-envelope.mp4"]);
+  });
+
   it("extracts model-aware media URLs for Kie VEO i2v payloads", () => {
     const urls = extractKieResultMediaUrls({
       modelId: KIE_VEO_31_FAST_I2V_MODEL_ID,

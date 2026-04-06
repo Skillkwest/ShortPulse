@@ -10,6 +10,8 @@ import { TEXT_PROMPT_MODEL_ID } from "../logic/promptGeneration";
 import { normalizeImageResolutionForPricing } from "../logic/imageResolution";
 import {
   KIE_KLING_30_MODEL_ID,
+  KIE_SEEDANCE_2_FAST_MODEL_ID,
+  KIE_SEEDANCE_2_MODEL_ID,
   KIE_VEO_31_FAST_I2V_MODEL_ID,
 } from "../../../lib/model-runtime/providerModelIds";
 import { resolveVideoGenerationLaneFromFrameInputs } from "../logic/referenceInputs";
@@ -41,6 +43,10 @@ type ViewModelInput = {
   videoGenerateAudio: boolean;
   klingWorkflowMode?: "single" | "multi" | "custom";
   klingMultiPrompts?: { id: string; prompt: string; duration: number }[];
+  seedance2InputMode?: "text" | "first-frame" | "first-last" | "multimodal";
+  seedance2ReferenceImageUrls?: string[];
+  seedance2ReferenceVideoUrls?: string[];
+  seedance2ReferenceAudioUrls?: string[];
   balanceCredits: number | null;
   editSubmitIntent?: EditSubmitIntent;
   costParamsForModel: (overrides?: Omit<PricingParams, "modelId">) => PricingParams;
@@ -65,6 +71,10 @@ export const useAiStudioViewModel = ({
   videoGenerateAudio,
   klingWorkflowMode = "single",
   klingMultiPrompts = [],
+  seedance2InputMode = "text",
+  seedance2ReferenceImageUrls = [],
+  seedance2ReferenceVideoUrls = [],
+  seedance2ReferenceAudioUrls = [],
   balanceCredits,
   editSubmitIntent,
   costParamsForModel,
@@ -104,6 +114,12 @@ export const useAiStudioViewModel = ({
     () => normalizeImageResolutionForPricing(imageResolution),
     [imageResolution]
   );
+  const isSeedance2Model =
+    model === KIE_SEEDANCE_2_MODEL_ID || model === KIE_SEEDANCE_2_FAST_MODEL_ID;
+  const hasSeedance2MultimodalReferences =
+    seedance2ReferenceImageUrls.length > 0 ||
+    seedance2ReferenceVideoUrls.length > 0 ||
+    seedance2ReferenceAudioUrls.length > 0;
 
   const estimatedTextTokens = useMemo(() => estimatePromptTokens(prompt), [prompt]);
   const estimatedDescribeTokens = useMemo(
@@ -336,11 +352,28 @@ export const useAiStudioViewModel = ({
     ) {
       return "Add at least one custom Kling shot prompt before generating.";
     }
+    if (isVideoTool && isSeedance2Model) {
+      if (seedance2InputMode === "multimodal") {
+        if (!hasSeedance2MultimodalReferences) {
+          return "Add at least one image, video, or audio reference before generating with Seedance 2.0.";
+        }
+        if (referenceImageUrl || extraImageUrls[0]) {
+          return "Remove first/last frame images before generating in Seedance 2.0 multimodal mode.";
+        }
+      }
+      if (seedance2InputMode === "first-frame" && !referenceImageUrl) {
+        return "Add a first frame image before generating with Seedance 2.0.";
+      }
+      if (seedance2InputMode === "first-last" && !(referenceImageUrl && extraImageUrls[0])) {
+        return "Add both first and last frame images before generating with Seedance 2.0.";
+      }
+    }
     if (isCreditGuardrail) return "You do not have enough credits for this run.";
     return null;
   }, [
     extraImageUrls,
     hasDescribeImage,
+    hasSeedance2MultimodalReferences,
     isVideoTool,
     isCreditGuardrail,
     isDescribeMode,
@@ -355,7 +388,9 @@ export const useAiStudioViewModel = ({
     mode,
     isCreateWorkflowSelected,
     isEditWorkflowSelected,
+    isSeedance2Model,
     resolvedVideoLane,
+    seedance2InputMode,
     videoReferenceMode,
   ]);
 
@@ -400,16 +435,35 @@ export const useAiStudioViewModel = ({
       ) {
         return "Kling 3.0 requires a first frame image in Standard mode.";
       }
+      if (isSeedance2Model) {
+        if (seedance2InputMode === "multimodal") {
+          if (!hasSeedance2MultimodalReferences) {
+            return "Seedance 2.0 multimodal mode requires at least one image, video, or audio reference.";
+          }
+          if (hasReference || extraImageUrls[0]) {
+            return "Seedance 2.0 multimodal mode cannot be combined with first/last frame images.";
+          }
+        }
+        if (seedance2InputMode === "first-frame" && !hasReference) {
+          return "Seedance 2.0 requires a first frame image in first-frame mode.";
+        }
+        if (seedance2InputMode === "first-last" && !(hasReference && extraImageUrls[0])) {
+          return "Seedance 2.0 requires both first and last frame images in first/last-frame mode.";
+        }
+      }
     }
 
     return null;
   }, [
     model,
     modelConfig,
+    hasSeedance2MultimodalReferences,
     isEditWorkflowSelected,
+    isSeedance2Model,
     referenceImageUrl,
     isVideoTool,
     resolvedVideoLane,
+    seedance2InputMode,
     motionReferenceVideoUrl,
     extraImageUrls,
     videoReferenceMode,

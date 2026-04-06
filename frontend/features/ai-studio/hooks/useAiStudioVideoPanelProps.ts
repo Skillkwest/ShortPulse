@@ -26,6 +26,20 @@ type UseAiStudioVideoPanelPropsParams = {
   setVideoCameraFixed: Dispatch<SetStateAction<boolean>>;
   videoAutoFix: boolean;
   setVideoAutoFix: Dispatch<SetStateAction<boolean>>;
+  seedance2InputMode: "text" | "first-frame" | "first-last" | "multimodal";
+  seedance2ReferenceImageUrls: string[];
+  seedance2ReferenceVideoUrls: string[];
+  seedance2ReferenceAudioUrls: string[];
+  seedance2ReturnLastFrame: boolean;
+  seedance2WebSearch: boolean;
+  setSeedance2InputMode: Dispatch<
+    SetStateAction<"text" | "first-frame" | "first-last" | "multimodal">
+  >;
+  setSeedance2ReferenceImageUrls: Dispatch<SetStateAction<string[]>>;
+  setSeedance2ReferenceVideoUrls: Dispatch<SetStateAction<string[]>>;
+  setSeedance2ReferenceAudioUrls: Dispatch<SetStateAction<string[]>>;
+  setSeedance2ReturnLastFrame: Dispatch<SetStateAction<boolean>>;
+  setSeedance2WebSearch: Dispatch<SetStateAction<boolean>>;
   klingNegativePrompt: string;
   klingCfgScale: number;
   klingWorkflowMode?: "single" | "multi" | "custom";
@@ -108,6 +122,18 @@ export const useAiStudioVideoPanelProps = ({
   setVideoCameraFixed,
   videoAutoFix,
   setVideoAutoFix,
+  seedance2InputMode,
+  seedance2ReferenceImageUrls,
+  seedance2ReferenceVideoUrls,
+  seedance2ReferenceAudioUrls,
+  seedance2ReturnLastFrame,
+  seedance2WebSearch,
+  setSeedance2InputMode,
+  setSeedance2ReferenceImageUrls,
+  setSeedance2ReferenceVideoUrls,
+  setSeedance2ReferenceAudioUrls,
+  setSeedance2ReturnLastFrame,
+  setSeedance2WebSearch,
   klingNegativePrompt,
   klingCfgScale,
   klingWorkflowMode,
@@ -166,6 +192,18 @@ export const useAiStudioVideoPanelProps = ({
       onVideoCameraFixedChange: setVideoCameraFixed,
       videoAutoFix,
       onVideoAutoFixChange: setVideoAutoFix,
+      seedance2InputMode,
+      seedance2ReferenceImageUrls,
+      seedance2ReferenceVideoUrls,
+      seedance2ReferenceAudioUrls,
+      seedance2ReturnLastFrame,
+      seedance2WebSearch,
+      onSeedance2InputModeChange: setSeedance2InputMode,
+      onSeedance2ReferenceImageUrlsChange: setSeedance2ReferenceImageUrls,
+      onSeedance2ReferenceVideoUrlsChange: setSeedance2ReferenceVideoUrls,
+      onSeedance2ReferenceAudioUrlsChange: setSeedance2ReferenceAudioUrls,
+      onSeedance2ReturnLastFrameChange: setSeedance2ReturnLastFrame,
+      onSeedance2WebSearchChange: setSeedance2WebSearch,
       klingNegativePrompt,
       klingCfgScale,
       klingWorkflowMode,
@@ -236,6 +274,12 @@ export const useAiStudioVideoPanelProps = ({
       referenceImageUrl,
       referenceImageWarning,
       resolveOutputPreviewUrl,
+      seedance2InputMode,
+      seedance2ReferenceAudioUrls,
+      seedance2ReferenceImageUrls,
+      seedance2ReferenceVideoUrls,
+      seedance2ReturnLastFrame,
+      seedance2WebSearch,
       setAspect,
       setExtraImageUrl,
       setKlingCfgScale,
@@ -246,6 +290,12 @@ export const useAiStudioVideoPanelProps = ({
       setKlingShotType,
       setMotionReferenceVideoUrl,
       setReferenceImageUrl,
+      setSeedance2InputMode,
+      setSeedance2ReferenceAudioUrls,
+      setSeedance2ReferenceImageUrls,
+      setSeedance2ReferenceVideoUrls,
+      setSeedance2ReturnLastFrame,
+      setSeedance2WebSearch,
       setVideoDurationSeconds,
       setVideoGenerateAudio,
       setVideoReferenceMode,

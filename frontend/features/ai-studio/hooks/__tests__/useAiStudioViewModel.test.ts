@@ -2,7 +2,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { renderHook } from "@testing-library/react";
 import { computeCostForModel } from "../../logic/pricing";
 import type { PricingParams } from "../../logic/pricingTypes";
-import { KIE_VEO_31_FAST_I2V_MODEL_ID } from "../../../../lib/model-runtime/providerModelIds";
+import {
+  KIE_SEEDANCE_15_PRO_MODEL_ID,
+  KIE_SEEDANCE_2_FAST_MODEL_ID,
+  KIE_SEEDANCE_2_MODEL_ID,
+  KIE_VEO_31_FAST_I2V_MODEL_ID,
+} from "../../../../lib/model-runtime/providerModelIds";
 import {
   INPAINT_FLUX_FILL_MODEL_ID,
   MARKUP_NANO_BANANA_PRO_EDIT_MODEL_ID,
@@ -37,6 +42,10 @@ const baseInput = {
   videoGenerateAudio: false,
   klingWorkflowMode: "single" as const,
   klingMultiPrompts: [] as { id: string; prompt: string; duration: number }[],
+  seedance2InputMode: "text" as const,
+  seedance2ReferenceImageUrls: [] as string[],
+  seedance2ReferenceVideoUrls: [] as string[],
+  seedance2ReferenceAudioUrls: [] as string[],
   balanceCredits: null,
   costParamsForModel: makeCostParamsForModel("fal-ai/kling-video/v3/pro/image-to-video"),
 };
@@ -269,6 +278,175 @@ describe("useAiStudioViewModel motion guardrails", () => {
 
     expect(result.current.generationGuardrail).toBeNull();
     expect(result.current.isGenerateDisabled).toBe(false);
+  });
+
+  it("uses active Seedance 1.5 settings when computing the generate-button estimate", () => {
+    const costParamsForModel = (overrides?: Omit<PricingParams, "modelId">): PricingParams => ({
+      modelId: KIE_SEEDANCE_15_PRO_MODEL_ID,
+      aspect: "9:16",
+      durationSeconds: 4,
+      resolution: "480p",
+      audio: false,
+      ...overrides,
+    });
+    const expectedCost = computeCostForModel(
+      KIE_SEEDANCE_15_PRO_MODEL_ID,
+      costParamsForModel({
+        durationSeconds: 4,
+        resolution: "480p",
+        audio: false,
+      })
+    )?.credits;
+
+    const { result } = renderHook(() =>
+      useAiStudioViewModel({
+        ...baseInput,
+        model: KIE_SEEDANCE_15_PRO_MODEL_ID,
+        videoReferenceMode: "standard",
+        referenceImageUrl: "https://example.com/first.png",
+        motionReferenceVideoUrl: null,
+        videoDurationSeconds: 4,
+        videoResolution: "480p",
+        videoGenerateAudio: false,
+        costParamsForModel,
+      })
+    );
+
+    expect(result.current.currentCostCredits).toBe(expectedCost);
+  });
+
+  it("uses active Seedance 2 settings when computing the generate-button estimate", () => {
+    const costParamsForModel = (overrides?: Omit<PricingParams, "modelId">): PricingParams => ({
+      modelId: KIE_SEEDANCE_2_MODEL_ID,
+      aspect: "16:9",
+      durationSeconds: 5,
+      resolution: "1080p",
+      audio: true,
+      ...overrides,
+    });
+    const expectedCost = computeCostForModel(
+      KIE_SEEDANCE_2_MODEL_ID,
+      costParamsForModel({
+        durationSeconds: 5,
+        resolution: "1080p",
+        audio: true,
+      })
+    )?.credits;
+
+    const { result } = renderHook(() =>
+      useAiStudioViewModel({
+        ...baseInput,
+        model: KIE_SEEDANCE_2_MODEL_ID,
+        videoReferenceMode: "standard",
+        referenceImageUrl: "https://example.com/first.png",
+        extraImageUrls: ["https://example.com/last.png", null, null],
+        motionReferenceVideoUrl: null,
+        videoDurationSeconds: 5,
+        videoResolution: "1080p",
+        videoGenerateAudio: true,
+        seedance2InputMode: "first-last",
+        costParamsForModel,
+      })
+    );
+
+    expect(result.current.currentCostCredits).toBe(expectedCost);
+  });
+
+  it("uses active Seedance 2 Fast settings when computing the generate-button estimate", () => {
+    const costParamsForModel = (overrides?: Omit<PricingParams, "modelId">): PricingParams => ({
+      modelId: KIE_SEEDANCE_2_FAST_MODEL_ID,
+      aspect: "1:1",
+      durationSeconds: 10,
+      resolution: "720p",
+      audio: false,
+      ...overrides,
+    });
+    const expectedCost = computeCostForModel(
+      KIE_SEEDANCE_2_FAST_MODEL_ID,
+      costParamsForModel({
+        durationSeconds: 10,
+        resolution: "720p",
+        audio: false,
+      })
+    )?.credits;
+
+    const { result } = renderHook(() =>
+      useAiStudioViewModel({
+        ...baseInput,
+        model: KIE_SEEDANCE_2_FAST_MODEL_ID,
+        videoReferenceMode: "standard",
+        referenceImageUrl: null,
+        motionReferenceVideoUrl: null,
+        videoDurationSeconds: 10,
+        videoResolution: "720p",
+        videoGenerateAudio: false,
+        seedance2InputMode: "text",
+        costParamsForModel,
+      })
+    );
+
+    expect(result.current.currentCostCredits).toBe(expectedCost);
+  });
+
+  it("blocks Seedance 2.0 multimodal mode when no multimodal references are present", () => {
+    const { result } = renderHook(() =>
+      useAiStudioViewModel({
+        ...baseInput,
+        model: KIE_SEEDANCE_2_MODEL_ID,
+        videoReferenceMode: "standard",
+        referenceImageUrl: null,
+        motionReferenceVideoUrl: null,
+        seedance2InputMode: "multimodal",
+      })
+    );
+
+    expect(result.current.generationGuardrail).toBe(
+      "Add at least one image, video, or audio reference before generating with Seedance 2.0."
+    );
+    expect(result.current.referenceImageWarning).toBe(
+      "Seedance 2.0 multimodal mode requires at least one image, video, or audio reference."
+    );
+  });
+
+  it("blocks Seedance 2.0 Fast multimodal mode when frame images are mixed with multimodal references", () => {
+    const { result } = renderHook(() =>
+      useAiStudioViewModel({
+        ...baseInput,
+        model: KIE_SEEDANCE_2_FAST_MODEL_ID,
+        videoReferenceMode: "standard",
+        referenceImageUrl: "https://example.com/first.png",
+        motionReferenceVideoUrl: null,
+        seedance2InputMode: "multimodal",
+        seedance2ReferenceVideoUrls: ["https://example.com/reference.mp4"],
+      })
+    );
+
+    expect(result.current.generationGuardrail).toBe(
+      "Remove first/last frame images before generating in Seedance 2.0 multimodal mode."
+    );
+    expect(result.current.referenceImageWarning).toBe(
+      "Seedance 2.0 multimodal mode cannot be combined with first/last frame images."
+    );
+  });
+
+  it("requires both first and last frame images for explicit Seedance 2.0 first-last mode", () => {
+    const { result } = renderHook(() =>
+      useAiStudioViewModel({
+        ...baseInput,
+        model: KIE_SEEDANCE_2_MODEL_ID,
+        videoReferenceMode: "standard",
+        referenceImageUrl: "https://example.com/first.png",
+        motionReferenceVideoUrl: null,
+        seedance2InputMode: "first-last",
+      })
+    );
+
+    expect(result.current.generationGuardrail).toBe(
+      "Add both first and last frame images before generating with Seedance 2.0."
+    );
+    expect(result.current.referenceImageWarning).toBe(
+      "Seedance 2.0 requires both first and last frame images in first/last-frame mode."
+    );
   });
 });
 

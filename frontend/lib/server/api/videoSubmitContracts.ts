@@ -8,6 +8,8 @@ import { getModelConfig } from "../../model-runtime/pricing";
 import {
   KIE_KLING_30_MODEL_ID,
   KIE_SEEDANCE_15_PRO_MODEL_ID,
+  KIE_SEEDANCE_2_FAST_MODEL_ID,
+  KIE_SEEDANCE_2_MODEL_ID,
   KIE_VEO_31_FAST_I2V_MODEL_ID,
 } from "../../model-runtime/providerModelIds";
 
@@ -83,6 +85,30 @@ const VIDEO_ALIAS_MAP_BY_MODEL_ID: Record<string, Record<string, string>> = {
     fixedLens: "fixed_lens",
     generateAudio: "generate_audio",
     aspectRatio: "aspect_ratio",
+  },
+  [KIE_SEEDANCE_2_MODEL_ID]: {
+    callBackUrl: "callback_url",
+    firstFrameUrl: "first_frame_url",
+    lastFrameUrl: "last_frame_url",
+    referenceImageUrls: "reference_image_urls",
+    referenceVideoUrls: "reference_video_urls",
+    referenceAudioUrls: "reference_audio_urls",
+    returnLastFrame: "return_last_frame",
+    generateAudio: "generate_audio",
+    aspectRatio: "aspect_ratio",
+    webSearch: "web_search",
+  },
+  [KIE_SEEDANCE_2_FAST_MODEL_ID]: {
+    callBackUrl: "callback_url",
+    firstFrameUrl: "first_frame_url",
+    lastFrameUrl: "last_frame_url",
+    referenceImageUrls: "reference_image_urls",
+    referenceVideoUrls: "reference_video_urls",
+    referenceAudioUrls: "reference_audio_urls",
+    returnLastFrame: "return_last_frame",
+    generateAudio: "generate_audio",
+    aspectRatio: "aspect_ratio",
+    webSearch: "web_search",
   },
 };
 

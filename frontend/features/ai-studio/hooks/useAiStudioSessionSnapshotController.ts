@@ -43,6 +43,12 @@ type UseAiStudioSessionSnapshotControllerParams = {
   klingNegativePrompt: string;
   klingCfgScale: number;
   klingWorkflowMode: "single" | "multi" | "custom";
+  seedance2InputMode: "text" | "first-frame" | "first-last" | "multimodal";
+  seedance2ReferenceImageUrls: string[];
+  seedance2ReferenceVideoUrls: string[];
+  seedance2ReferenceAudioUrls: string[];
+  seedance2ReturnLastFrame: boolean;
+  seedance2WebSearch: boolean;
   klingShotType: "customize" | "intelligent";
   klingVoiceIds: [string, string];
   klingMultiPrompts: { id: string; prompt: string; duration: number }[];
@@ -80,6 +86,14 @@ type UseAiStudioSessionSnapshotControllerParams = {
   setKlingNegativePrompt: Dispatch<SetStateAction<string>>;
   setKlingCfgScale: Dispatch<SetStateAction<number>>;
   setKlingWorkflowMode: Dispatch<SetStateAction<"single" | "multi" | "custom">>;
+  setSeedance2InputMode: Dispatch<
+    SetStateAction<"text" | "first-frame" | "first-last" | "multimodal">
+  >;
+  setSeedance2ReferenceImageUrls: Dispatch<SetStateAction<string[]>>;
+  setSeedance2ReferenceVideoUrls: Dispatch<SetStateAction<string[]>>;
+  setSeedance2ReferenceAudioUrls: Dispatch<SetStateAction<string[]>>;
+  setSeedance2ReturnLastFrame: Dispatch<SetStateAction<boolean>>;
+  setSeedance2WebSearch: Dispatch<SetStateAction<boolean>>;
   setKlingShotType: Dispatch<SetStateAction<"customize" | "intelligent">>;
   setKlingVoiceIds: Dispatch<SetStateAction<[string, string]>>;
   setKlingMultiPrompts: Dispatch<
@@ -121,6 +135,12 @@ export const useAiStudioSessionSnapshotController = ({
   klingNegativePrompt,
   klingCfgScale,
   klingWorkflowMode,
+  seedance2InputMode,
+  seedance2ReferenceImageUrls,
+  seedance2ReferenceVideoUrls,
+  seedance2ReferenceAudioUrls,
+  seedance2ReturnLastFrame,
+  seedance2WebSearch,
   klingShotType,
   klingVoiceIds,
   klingMultiPrompts,
@@ -151,6 +171,12 @@ export const useAiStudioSessionSnapshotController = ({
   setKlingNegativePrompt,
   setKlingCfgScale,
   setKlingWorkflowMode,
+  setSeedance2InputMode,
+  setSeedance2ReferenceImageUrls,
+  setSeedance2ReferenceVideoUrls,
+  setSeedance2ReferenceAudioUrls,
+  setSeedance2ReturnLastFrame,
+  setSeedance2WebSearch,
   setKlingShotType,
   setKlingVoiceIds,
   setKlingMultiPrompts,
@@ -189,6 +215,12 @@ export const useAiStudioSessionSnapshotController = ({
       setKlingNegativePrompt(workspace.klingNegativePrompt);
       setKlingCfgScale(workspace.klingCfgScale);
       setKlingWorkflowMode(workspace.klingWorkflowMode);
+      setSeedance2InputMode(workspace.seedance2InputMode);
+      setSeedance2ReferenceImageUrls(workspace.seedance2ReferenceImageUrls);
+      setSeedance2ReferenceVideoUrls(workspace.seedance2ReferenceVideoUrls);
+      setSeedance2ReferenceAudioUrls(workspace.seedance2ReferenceAudioUrls);
+      setSeedance2ReturnLastFrame(workspace.seedance2ReturnLastFrame);
+      setSeedance2WebSearch(workspace.seedance2WebSearch);
       setKlingShotType(workspace.klingShotType);
       setKlingVoiceIds(workspace.klingVoiceIds);
       setKlingMultiPrompts(workspace.klingMultiPrompts);
@@ -253,6 +285,12 @@ export const useAiStudioSessionSnapshotController = ({
       setKlingMultiPrompts,
       setKlingNegativePrompt,
       setKlingWorkflowMode,
+      setSeedance2InputMode,
+      setSeedance2ReferenceAudioUrls,
+      setSeedance2ReferenceImageUrls,
+      setSeedance2ReferenceVideoUrls,
+      setSeedance2ReturnLastFrame,
+      setSeedance2WebSearch,
       setKlingShotType,
       setKlingVoiceIds,
       setMode,
@@ -316,6 +354,12 @@ export const useAiStudioSessionSnapshotController = ({
         klingNegativePrompt,
         klingCfgScale,
         klingWorkflowMode,
+        seedance2InputMode,
+        seedance2ReferenceImageUrls,
+        seedance2ReferenceVideoUrls,
+        seedance2ReferenceAudioUrls,
+        seedance2ReturnLastFrame,
+        seedance2WebSearch,
         klingShotType,
         klingVoiceIds,
         klingMultiPrompts,
@@ -346,6 +390,12 @@ export const useAiStudioSessionSnapshotController = ({
       klingMultiPrompts,
       klingNegativePrompt,
       klingWorkflowMode,
+      seedance2InputMode,
+      seedance2ReferenceAudioUrls,
+      seedance2ReferenceImageUrls,
+      seedance2ReferenceVideoUrls,
+      seedance2ReturnLastFrame,
+      seedance2WebSearch,
       klingShotType,
       klingVoiceIds,
       mode,

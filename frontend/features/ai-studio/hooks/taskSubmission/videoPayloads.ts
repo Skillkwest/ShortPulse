@@ -151,6 +151,21 @@ export const resolveSeedanceI2VDuration = (requestedDurationSeconds: number): st
   requestedDurationSeconds <= 4 ? "4" : requestedDurationSeconds <= 8 ? "8" : "12";
 
 /**
+ * Maps Seedance 2.x duration to the documented 5s/10s contract.
+ */
+export const resolveSeedance2Duration = (requestedDurationSeconds: number): string =>
+  requestedDurationSeconds <= 5 ? "5" : "10";
+
+/**
+ * Normalizes Seedance 2.x resolution to documented values.
+ */
+export const resolveSeedance2Resolution = (requestedResolution?: string): "720p" | "1080p" => {
+  const normalized = requestedResolution?.toLowerCase() ?? "";
+  if (normalized.includes("720")) return "720p";
+  return "1080p";
+};
+
+/**
  * Resolves VEO text-to-video aspect ratio with model defaults.
  */
 export const resolveVeoTextAspect = (

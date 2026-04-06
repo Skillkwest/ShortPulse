@@ -624,6 +624,14 @@ const submitEndpointRegistry = {
     route: `${FAL_API_BASE}/kie-seedance-submit`,
     missingRequestIdMessage: "Kie Seedance 1.5 Pro did not return a request_id",
   },
+  kieSeedance2Video: {
+    route: `${FAL_API_BASE}/kie-seedance-2-submit`,
+    missingRequestIdMessage: "Kie Seedance 2.0 did not return a request_id",
+  },
+  kieSeedance2FastVideo: {
+    route: `${FAL_API_BASE}/kie-seedance-2-fast-submit`,
+    missingRequestIdMessage: "Kie Seedance 2.0 Fast did not return a request_id",
+  },
 } as const;
 
 type StatusEndpointConfig = {
@@ -719,6 +727,14 @@ const statusEndpointRegistry = {
   },
   kieSeedanceVideo: {
     route: `${FAL_API_BASE}/kie-seedance-status`,
+    statusTimeoutMs: STATUS_TIMEOUT_STANDARD_MS,
+  },
+  kieSeedance2Video: {
+    route: `${FAL_API_BASE}/kie-seedance-2-status`,
+    statusTimeoutMs: STATUS_TIMEOUT_STANDARD_MS,
+  },
+  kieSeedance2FastVideo: {
+    route: `${FAL_API_BASE}/kie-seedance-2-fast-status`,
     statusTimeoutMs: STATUS_TIMEOUT_STANDARD_MS,
   },
 } as const satisfies Record<string, StatusEndpointConfig>;
@@ -958,3 +974,13 @@ export const submitKieSeedanceVideo = (payload: KieSubmitRequest) =>
   submitFalEndpoint("kieSeedanceVideo", payload);
 export const fetchKieSeedanceVideoStatus = (requestId: string) =>
   fetchFalStatusEndpoint<FalStatusResponse>("kieSeedanceVideo", requestId);
+
+export const submitKieSeedance2Video = (payload: KieSubmitRequest) =>
+  submitFalEndpoint("kieSeedance2Video", payload);
+export const fetchKieSeedance2VideoStatus = (requestId: string) =>
+  fetchFalStatusEndpoint<FalStatusResponse>("kieSeedance2Video", requestId);
+
+export const submitKieSeedance2FastVideo = (payload: KieSubmitRequest) =>
+  submitFalEndpoint("kieSeedance2FastVideo", payload);
+export const fetchKieSeedance2FastVideoStatus = (requestId: string) =>
+  fetchFalStatusEndpoint<FalStatusResponse>("kieSeedance2FastVideo", requestId);

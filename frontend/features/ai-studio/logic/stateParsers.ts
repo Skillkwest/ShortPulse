@@ -32,7 +32,9 @@ export type Provider =
   | "fal-veo-i2v"
   | "kie-veo"
   | "kie-kling"
-  | "kie-seedance";
+  | "kie-seedance"
+  | "kie-seedance-2"
+  | "kie-seedance-2-fast";
 
 export const normalizeProviderForPolling = (
   value: string | null | undefined,
@@ -84,6 +86,8 @@ export const normalizeProviderForPolling = (
     return "fal";
   }
   if (normalized.startsWith("kie")) {
+    if (normalized.includes("seedance-2-fast")) return "kie-seedance-2-fast";
+    if (normalized.includes("seedance-2")) return "kie-seedance-2";
     if (normalized.includes("seedance")) return "kie-seedance";
     return normalized.includes("kling") ? "kie-kling" : "kie-veo";
   }

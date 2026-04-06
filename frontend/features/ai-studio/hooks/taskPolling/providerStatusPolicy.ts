@@ -44,6 +44,8 @@ export const longRunningVideoProviders = new Set<Provider>([
   "kie-veo",
   "kie-kling",
   "kie-seedance",
+  "kie-seedance-2",
+  "kie-seedance-2-fast",
 ]);
 
 export const nonTerminalStates = new Set([
@@ -53,6 +55,7 @@ export const nonTerminalStates = new Set([
   "in-progress",
   "in_progress",
   "running",
+  "waiting",
   "processing",
   "starting",
   "submitted",

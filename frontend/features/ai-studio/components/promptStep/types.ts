@@ -100,4 +100,5 @@ export type PromptStepProps = {
   outputGenerateGuardrailReason?: string | null;
   hideHeader?: boolean;
   autoResize?: boolean;
+  autoResizeLayoutKey?: string | number;
 };

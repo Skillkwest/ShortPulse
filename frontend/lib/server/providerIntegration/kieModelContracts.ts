@@ -8,6 +8,8 @@ import { getModelCatalogEntry } from "../../model-runtime/modelCatalog";
 import {
   KIE_KLING_30_MODEL_ID,
   KIE_SEEDANCE_15_PRO_MODEL_ID,
+  KIE_SEEDANCE_2_FAST_MODEL_ID,
+  KIE_SEEDANCE_2_MODEL_ID,
   KIE_VEO_31_FAST_I2V_MODEL_ID,
   isKnownKieModelId,
   type SupportedKieModelId,
@@ -815,6 +817,145 @@ const normalizeKieSeedancePayload = (payload: Record<string, unknown>): Record<s
   };
 };
 
+const normalizeKieSeedance2Payload = ({
+  payload,
+  modelId,
+  providerModelName,
+  providerModelLabel,
+}: {
+  payload: Record<string, unknown>;
+  modelId: SupportedKieModelId;
+  providerModelName: "bytedance/seedance-2" | "bytedance/seedance-2-fast";
+  providerModelLabel: "Kie Seedance 2.0" | "Kie Seedance 2.0 Fast";
+}): Record<string, unknown> => {
+  const inputPayload = asRecord(payload.input);
+  const source = Object.keys(inputPayload).length ? inputPayload : payload;
+  const contract = readRequiredKieCatalogContract({
+    modelId,
+    modelLabel: providerModelLabel,
+  });
+  const normalized = normalizeCommonKieVideoFields({
+    payload: source,
+    modelLabel: providerModelLabel,
+    allowedAspects: contract.allowedAspects,
+    defaultAspect: contract.defaultAspect,
+    allowedDurations: contract.allowedDurations,
+  });
+  const prompt = asNonEmptyString(source.prompt);
+  if (!prompt) {
+    throw new Error(`${providerModelLabel} submit requires a prompt.`);
+  }
+  if (!contract.allowedResolutions?.length) {
+    throw new Error(`${providerModelLabel} model catalog contract is missing allowed resolutions.`);
+  }
+  const firstFrameUrl = normalizeOptionalStringField({
+    payload: source,
+    fields: ["first_frame_url", "firstFrameUrl"],
+  });
+  const lastFrameUrl = normalizeOptionalStringField({
+    payload: source,
+    fields: ["last_frame_url", "lastFrameUrl"],
+  });
+  const referenceImageUrls = readStringUrlList({
+    payload: source,
+    directFields: [],
+    listFields: ["reference_image_urls", "referenceImageUrls"],
+  });
+  const referenceVideoUrls = readStringUrlList({
+    payload: source,
+    directFields: [],
+    listFields: ["reference_video_urls", "referenceVideoUrls"],
+  });
+  const referenceAudioUrls = readStringUrlList({
+    payload: source,
+    directFields: [],
+    listFields: ["reference_audio_urls", "referenceAudioUrls"],
+  });
+  const hasFrameMode = Boolean(firstFrameUrl || lastFrameUrl);
+  const hasMultimodalReferences = Boolean(
+    referenceImageUrls.length || referenceVideoUrls.length || referenceAudioUrls.length
+  );
+  if (lastFrameUrl && !firstFrameUrl) {
+    throw new Error(`${providerModelLabel} last-frame mode requires a first_frame_url.`);
+  }
+  if (hasFrameMode && hasMultimodalReferences) {
+    throw new Error(
+      `${providerModelLabel} submit cannot mix frame URLs with multimodal reference URLs.`
+    );
+  }
+  const resolution =
+    normalizeOptionalResolution({
+      payload: source,
+      allowedValues: contract.allowedResolutions,
+      modelLabel: providerModelLabel,
+    }) ??
+    contract.defaultResolution ??
+    "1080p";
+  const durationValue =
+    asPositiveInteger(source.duration) ??
+    asPositiveInteger(source.duration_seconds) ??
+    contract.allowedDurations[0];
+  if (!durationValue || !contract.allowedDurations.includes(durationValue)) {
+    throw new Error(
+      `${providerModelLabel} submit uses unsupported duration: ${durationValue}. Allowed: ${contract.allowedDurations.join(", ")}`
+    );
+  }
+  const generateAudio =
+    source.generate_audio === undefined
+      ? null
+      : normalizeOptionalBooleanField({
+          payload: source,
+          field: "generate_audio",
+          modelLabel: providerModelLabel,
+        });
+  const returnLastFrame =
+    source.return_last_frame === undefined
+      ? null
+      : normalizeOptionalBooleanField({
+          payload: source,
+          field: "return_last_frame",
+          modelLabel: providerModelLabel,
+        });
+  const webSearch =
+    source.web_search === undefined
+      ? normalizeOptionalBooleanFields({
+          payload: source,
+          fields: ["webSearch"],
+          modelLabel: providerModelLabel,
+        })
+      : normalizeOptionalBooleanField({
+          payload: source,
+          field: "web_search",
+          modelLabel: providerModelLabel,
+        });
+  const callbackValue = normalizeOptionalStringField({
+    payload,
+    fields: ["callBackUrl", "callbackUrl", "callback_url"],
+  });
+  const callbackUrl = callbackValue ? asHttpUrlString(callbackValue) : null;
+  if (callbackValue && !callbackUrl) {
+    throw new Error(`${providerModelLabel} submit field callBackUrl must be a valid http(s) URL.`);
+  }
+  return {
+    model: providerModelName,
+    ...(callbackUrl ? { callBackUrl: callbackUrl } : {}),
+    input: {
+      prompt,
+      ...(firstFrameUrl ? { first_frame_url: firstFrameUrl } : {}),
+      ...(lastFrameUrl ? { last_frame_url: lastFrameUrl } : {}),
+      ...(referenceImageUrls.length ? { reference_image_urls: referenceImageUrls } : {}),
+      ...(referenceVideoUrls.length ? { reference_video_urls: referenceVideoUrls } : {}),
+      ...(referenceAudioUrls.length ? { reference_audio_urls: referenceAudioUrls } : {}),
+      aspect_ratio: normalized.aspect_ratio,
+      resolution,
+      duration: String(durationValue),
+      ...(generateAudio !== null ? { generate_audio: generateAudio } : {}),
+      ...(returnLastFrame !== null ? { return_last_frame: returnLastFrame } : {}),
+      ...(webSearch !== null ? { web_search: webSearch } : {}),
+    },
+  };
+};
+
 /**
  * Returns true when the model id is supported by current Kie submit contracts.
  */
@@ -851,6 +992,22 @@ export const normalizeKieSubmitPayloadForModel = ({
   }
   if (modelId === KIE_SEEDANCE_15_PRO_MODEL_ID) {
     return normalizeKieSeedancePayload(source);
+  }
+  if (modelId === KIE_SEEDANCE_2_MODEL_ID) {
+    return normalizeKieSeedance2Payload({
+      payload: source,
+      modelId,
+      providerModelName: "bytedance/seedance-2",
+      providerModelLabel: "Kie Seedance 2.0",
+    });
+  }
+  if (modelId === KIE_SEEDANCE_2_FAST_MODEL_ID) {
+    return normalizeKieSeedance2Payload({
+      payload: source,
+      modelId,
+      providerModelName: "bytedance/seedance-2-fast",
+      providerModelLabel: "Kie Seedance 2.0 Fast",
+    });
   }
   throw new Error(`Unsupported Kie model contract: ${modelId}`);
 };

@@ -1,5 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { computeCostForModel } from "../../lib/model-runtime/pricing";
+import {
+  KIE_SEEDANCE_15_PRO_MODEL_ID,
+  KIE_SEEDANCE_2_FAST_MODEL_ID,
+  KIE_SEEDANCE_2_MODEL_ID,
+} from "../../lib/model-runtime/providerModelIds";
 import { chargeGenerationRequest } from "../../lib/server/api/generationBilling";
 import { buildPricingParams } from "../../lib/server/api/generationBilling/pricingParams";
 
@@ -372,6 +377,49 @@ describe("generationBilling reservation RPC handling", () => {
           duration: 8,
           resolution: "720p",
           generate_audio: true,
+        },
+      },
+      {
+        modelId: KIE_SEEDANCE_15_PRO_MODEL_ID,
+        route: "/api/fal/kie-seedance-submit",
+        requestId: "req-kie-seedance-15",
+        payload: {
+          prompt: "the woman smiles and poses",
+          input_urls: ["https://example.com/first.png"],
+          duration: 4,
+          resolution: "480p",
+          aspect_ratio: "9:16",
+          fixed_lens: false,
+          generate_audio: false,
+        },
+      },
+      {
+        modelId: KIE_SEEDANCE_2_MODEL_ID,
+        route: "/api/fal/kie-seedance-2-submit",
+        requestId: "req-kie-seedance-2",
+        payload: {
+          prompt: "cinematic sports ad",
+          first_frame_url: "https://example.com/first.png",
+          last_frame_url: "https://example.com/last.png",
+          duration: 5,
+          resolution: "1080p",
+          aspect_ratio: "16:9",
+          generate_audio: true,
+          return_last_frame: false,
+          web_search: false,
+        },
+      },
+      {
+        modelId: KIE_SEEDANCE_2_FAST_MODEL_ID,
+        route: "/api/fal/kie-seedance-2-fast-submit",
+        requestId: "req-kie-seedance-2-fast",
+        payload: {
+          prompt: "product hero turntable shot",
+          duration: 10,
+          resolution: "720p",
+          aspect_ratio: "1:1",
+          generate_audio: false,
+          web_search: false,
         },
       },
     ] as const;

@@ -129,6 +129,12 @@ export type UseAiStudioPanelPropsParams = {
   videoGenerateAudio: boolean;
   videoCameraFixed: boolean;
   videoAutoFix: boolean;
+  seedance2InputMode: "text" | "first-frame" | "first-last" | "multimodal";
+  seedance2ReferenceImageUrls: string[];
+  seedance2ReferenceVideoUrls: string[];
+  seedance2ReferenceAudioUrls: string[];
+  seedance2ReturnLastFrame: boolean;
+  seedance2WebSearch: boolean;
   setAspect: (value: string) => void;
   setVideoDurationSeconds: Dispatch<SetStateAction<number>>;
   setVideoResolution: Dispatch<SetStateAction<string>>;
@@ -136,6 +142,14 @@ export type UseAiStudioPanelPropsParams = {
   setVideoGenerateAudio: Dispatch<SetStateAction<boolean>>;
   setVideoCameraFixed: Dispatch<SetStateAction<boolean>>;
   setVideoAutoFix: Dispatch<SetStateAction<boolean>>;
+  setSeedance2InputMode: Dispatch<
+    SetStateAction<"text" | "first-frame" | "first-last" | "multimodal">
+  >;
+  setSeedance2ReferenceImageUrls: Dispatch<SetStateAction<string[]>>;
+  setSeedance2ReferenceVideoUrls: Dispatch<SetStateAction<string[]>>;
+  setSeedance2ReferenceAudioUrls: Dispatch<SetStateAction<string[]>>;
+  setSeedance2ReturnLastFrame: Dispatch<SetStateAction<boolean>>;
+  setSeedance2WebSearch: Dispatch<SetStateAction<boolean>>;
   beginnerMode: boolean;
   referenceImageUrl: string | null;
   extraImageUrls: [string | null, string | null, string | null];
@@ -283,6 +297,12 @@ export const useAiStudioPanelProps = ({
   videoGenerateAudio,
   videoCameraFixed,
   videoAutoFix,
+  seedance2InputMode,
+  seedance2ReferenceImageUrls,
+  seedance2ReferenceVideoUrls,
+  seedance2ReferenceAudioUrls,
+  seedance2ReturnLastFrame,
+  seedance2WebSearch,
   setAspect,
   setVideoDurationSeconds,
   setVideoResolution,
@@ -290,6 +310,12 @@ export const useAiStudioPanelProps = ({
   setVideoGenerateAudio,
   setVideoCameraFixed,
   setVideoAutoFix,
+  setSeedance2InputMode,
+  setSeedance2ReferenceImageUrls,
+  setSeedance2ReferenceVideoUrls,
+  setSeedance2ReferenceAudioUrls,
+  setSeedance2ReturnLastFrame,
+  setSeedance2WebSearch,
   beginnerMode,
   referenceImageUrl,
   extraImageUrls,
@@ -534,6 +560,18 @@ export const useAiStudioPanelProps = ({
     setVideoCameraFixed,
     videoAutoFix,
     setVideoAutoFix,
+    seedance2InputMode,
+    seedance2ReferenceImageUrls,
+    seedance2ReferenceVideoUrls,
+    seedance2ReferenceAudioUrls,
+    seedance2ReturnLastFrame,
+    seedance2WebSearch,
+    setSeedance2InputMode,
+    setSeedance2ReferenceImageUrls,
+    setSeedance2ReferenceVideoUrls,
+    setSeedance2ReferenceAudioUrls,
+    setSeedance2ReturnLastFrame,
+    setSeedance2WebSearch,
     klingNegativePrompt,
     klingCfgScale,
     klingWorkflowMode,

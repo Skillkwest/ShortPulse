@@ -21,6 +21,7 @@ Use this document to keep the expectations clear whenever I’m making changes i
 17. **Treat `npm run db:reset` as blocked by policy.** The script intentionally exits non-zero to prevent local reset workflows that violate this repo's Supabase operations policy.
 18. **Do not continue by adjacency or momentum.** New work must start from a concrete problem statement and a repo-backed reason it is a better use of time than stopping; nearby files or easy-to-add tests are not enough.
 19. **Do not commit transpiled JS sidecars for frontend source modules.** Under `frontend/features/`, `frontend/lib/`, and `frontend/prefabs/`, `.ts/.tsx` files are the source of truth; generated CommonJS/compiled `.js` siblings should be removed or ignored rather than committed.
+20. **Use the branch ladder deliberately.** `working-development` is the only active coding branch. Promote changes forward with PRs or explicit branch promotion in this order: `working-development` -> `staging-preview` -> `production`. Keep `staging-preview` and `production` protected so they stay integration/release branches, and create a tag for checkpoints instead of spawning extra long-lived branches.
 
 ## Canonical run commands (always respond with these)
 - **Frontend startup** (new terminal):

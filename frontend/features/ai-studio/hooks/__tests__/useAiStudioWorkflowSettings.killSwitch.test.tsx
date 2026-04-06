@@ -69,6 +69,14 @@ describe("useAiStudioWorkflowSettings kill switch", () => {
       const [klingWorkflowMode, setKlingWorkflowMode] = useState<"single" | "multi" | "custom">(
         "single"
       );
+      const [seedance2InputMode, setSeedance2InputMode] = useState<
+        "text" | "first-frame" | "first-last" | "multimodal"
+      >("text");
+      const [seedance2ReferenceImageUrls, setSeedance2ReferenceImageUrls] = useState<string[]>([]);
+      const [seedance2ReferenceVideoUrls, setSeedance2ReferenceVideoUrls] = useState<string[]>([]);
+      const [seedance2ReferenceAudioUrls, setSeedance2ReferenceAudioUrls] = useState<string[]>([]);
+      const [seedance2ReturnLastFrame, setSeedance2ReturnLastFrame] = useState(false);
+      const [seedance2WebSearch, setSeedance2WebSearch] = useState(false);
       const [klingShotType, setKlingShotType] = useState<"customize" | "intelligent">("customize");
       const [klingVoiceIds, setKlingVoiceIds] = useState<[string, string]>(["", ""]);
       const [klingMultiPrompts, setKlingMultiPrompts] = useState<
@@ -93,6 +101,12 @@ describe("useAiStudioWorkflowSettings kill switch", () => {
         klingNegativePrompt,
         klingCfgScale,
         klingWorkflowMode,
+        seedance2InputMode,
+        seedance2ReferenceImageUrls,
+        seedance2ReferenceVideoUrls,
+        seedance2ReferenceAudioUrls,
+        seedance2ReturnLastFrame,
+        seedance2WebSearch,
         klingShotType,
         klingVoiceIds,
         klingMultiPrompts,
@@ -110,6 +124,12 @@ describe("useAiStudioWorkflowSettings kill switch", () => {
         setKlingNegativePrompt,
         setKlingCfgScale,
         setKlingWorkflowMode,
+        setSeedance2InputMode,
+        setSeedance2ReferenceImageUrls,
+        setSeedance2ReferenceVideoUrls,
+        setSeedance2ReferenceAudioUrls,
+        setSeedance2ReturnLastFrame,
+        setSeedance2WebSearch,
         setKlingShotType,
         setKlingVoiceIds,
         setKlingMultiPrompts,

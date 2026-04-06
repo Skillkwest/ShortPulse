@@ -4,12 +4,16 @@
 import {
   type FalSubmitResponse,
   submitKieKlingImageToVideo,
+  submitKieSeedance2FastVideo,
+  submitKieSeedance2Video,
   submitKieSeedanceVideo,
   submitKieVeoImageToVideo,
 } from "../../../../lib/falClient";
 import {
   KIE_KLING_30_MODEL_ID,
   KIE_SEEDANCE_15_PRO_MODEL_ID,
+  KIE_SEEDANCE_2_FAST_MODEL_ID,
+  KIE_SEEDANCE_2_MODEL_ID,
   KIE_VEO_31_FAST_I2V_MODEL_ID,
 } from "../../../../lib/model-runtime/providerModelIds";
 import { needsVideoUpload, prepareVideoUrlForSubmission } from "../../utils/videoUpload";
@@ -20,6 +24,8 @@ import {
   resolveKieKlingDuration,
   resolveKieKlingMode,
   resolveKlingResolution,
+  resolveSeedance2Duration,
+  resolveSeedance2Resolution,
   resolveSeedanceI2VDuration,
   resolveSeedanceI2VResolution,
   resolveSeedanceTextAspect,
@@ -64,7 +70,9 @@ const handoffSubmitResponse = ({
     | "fal-veo-i2v"
     | "kie-veo"
     | "kie-kling"
-    | "kie-seedance";
+    | "kie-seedance"
+    | "kie-seedance-2"
+    | "kie-seedance-2-fast";
   patch?: Parameters<VideoSubmissionArgs["startPollingWithGeneration"]>[2];
   startPollingWithGeneration: VideoSubmissionArgs["startPollingWithGeneration"];
 }) => {
@@ -99,6 +107,12 @@ export const handleVideoModelSubmission = async ({
   videoReferenceImageUrl,
   motionReferenceVideoUrl,
   videoCameraFixed,
+  seedance2InputMode = "text",
+  seedance2ReferenceImageUrls = [],
+  seedance2ReferenceVideoUrls = [],
+  seedance2ReferenceAudioUrls = [],
+  seedance2ReturnLastFrame = false,
+  seedance2WebSearch = false,
   klingCfgScale,
   klingWorkflowMode,
   klingMultiPrompts,
@@ -108,6 +122,9 @@ export const handleVideoModelSubmission = async ({
     ...preparedImageInputs,
     videoReferenceImageUrl ?? "",
     motionReferenceVideoUrl ?? "",
+    ...seedance2ReferenceImageUrls,
+    ...seedance2ReferenceVideoUrls,
+    ...seedance2ReferenceAudioUrls,
     ...klingElements.map((element) => element.videoUrl.trim()),
   ]
     .map((value) => value.trim())
@@ -184,6 +201,59 @@ export const handleVideoModelSubmission = async ({
     handoffSubmitResponse({
       response,
       pollingProvider: "kie-seedance",
+      startPollingWithGeneration,
+    });
+    return true;
+  }
+
+  if (finalModel === KIE_SEEDANCE_2_MODEL_ID || finalModel === KIE_SEEDANCE_2_FAST_MODEL_ID) {
+    const hasPreparedFirstFrame = preparedImageInputs.length >= 1;
+    const hasPreparedLastFrame = preparedImageInputs.length >= 2;
+    const hasMultimodalReferences = Boolean(
+      seedance2ReferenceImageUrls.length ||
+      seedance2ReferenceVideoUrls.length ||
+      seedance2ReferenceAudioUrls.length
+    );
+    const effectiveInputMode =
+      seedance2InputMode === "multimodal" && hasMultimodalReferences
+        ? "multimodal"
+        : hasPreparedLastFrame
+          ? "first-last"
+          : hasPreparedFirstFrame
+            ? "first-frame"
+            : "text";
+    const submitSeedance2 =
+      finalModel === KIE_SEEDANCE_2_FAST_MODEL_ID
+        ? submitKieSeedance2FastVideo
+        : submitKieSeedance2Video;
+    const pollingProvider =
+      finalModel === KIE_SEEDANCE_2_FAST_MODEL_ID ? "kie-seedance-2-fast" : "kie-seedance-2";
+
+    const response = await submitSeedance2({
+      prompt: cleanedPrompt,
+      ...(effectiveInputMode === "first-frame" || effectiveInputMode === "first-last"
+        ? { first_frame_url: preparedImageInputs[0] }
+        : {}),
+      ...(effectiveInputMode === "first-last" ? { last_frame_url: preparedImageInputs[1] } : {}),
+      ...(effectiveInputMode === "multimodal" && seedance2ReferenceImageUrls.length
+        ? { reference_image_urls: seedance2ReferenceImageUrls }
+        : {}),
+      ...(effectiveInputMode === "multimodal" && seedance2ReferenceVideoUrls.length
+        ? { reference_video_urls: seedance2ReferenceVideoUrls }
+        : {}),
+      ...(effectiveInputMode === "multimodal" && seedance2ReferenceAudioUrls.length
+        ? { reference_audio_urls: seedance2ReferenceAudioUrls }
+        : {}),
+      aspect_ratio: resolveSeedanceTextAspect(aspect, modelConfig),
+      duration: resolveSeedance2Duration(requestedDurationSeconds),
+      resolution: resolveSeedance2Resolution(requestedResolution),
+      generate_audio: requestedAudio,
+      return_last_frame: seedance2ReturnLastFrame,
+      web_search: seedance2WebSearch,
+    });
+    handoffSubmitResponse({
+      response,
+      pollingProvider,
       startPollingWithGeneration,
     });
     return true;

@@ -24,6 +24,7 @@ type ReferencePromptStepProps = {
   promptSaveButtonUnstyled?: boolean;
   hideHeader?: boolean;
   autoResize?: boolean;
+  autoResizeLayoutKey?: string | number;
   promptPlaceholder?: string;
   promptInlineAction?: React.ReactNode;
 };
@@ -51,6 +52,7 @@ export const ReferencePromptStep: React.FC<ReferencePromptStepProps> = ({
   promptSaveButtonUnstyled = false,
   hideHeader = false,
   autoResize = false,
+  autoResizeLayoutKey,
   promptPlaceholder = "Describe the image you want to generate. You can also drag & drop a reference prompt here to get started.",
   promptInlineAction,
 }) => {
@@ -87,6 +89,7 @@ export const ReferencePromptStep: React.FC<ReferencePromptStepProps> = ({
         promptSaveButtonUnstyled={promptSaveButtonUnstyled}
         hideHeader={hideHeader}
         autoResize={autoResize}
+        autoResizeLayoutKey={autoResizeLayoutKey}
         promptInlineAction={promptInlineAction}
       />
     </div>

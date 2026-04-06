@@ -235,9 +235,9 @@ describe("ModelModal", () => {
       "Veo 3.1 Fast I2V (Kie)",
       "Kling 3.0 (Kie)",
       "Seedance 1.5 Pro",
-      "Kling 3.0",
     ]);
     expect(screen.queryByRole("button", { name: "Google Veo 3.1" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Kling 3.0" })).not.toBeInTheDocument();
   });
 
   it("hides Fal Veo keyframe chips and keeps Kie Veo visible", () => {

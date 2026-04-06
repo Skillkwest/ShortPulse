@@ -100,9 +100,9 @@ describe("useAiStudioStateEffects", () => {
       useAiStudioStateEffects(
         createArgs({
           selectedTool: "kling",
-          model: "fal-ai/kling-video/v3/pro/image-to-video",
+          model: KIE_KLING_30_MODEL_ID,
           videoReferenceMode: "kling3",
-          allowedModelValues: ["fal-ai/kling-video/v3/pro/image-to-video"],
+          allowedModelValues: [KIE_KLING_30_MODEL_ID],
           setModel,
           setVideoReferenceMode,
           hasPendingWorkflowRestore: false,
@@ -113,6 +113,46 @@ describe("useAiStudioStateEffects", () => {
     await waitFor(() => {
       expect(setModel).not.toHaveBeenCalled();
       expect(setVideoReferenceMode).not.toHaveBeenCalled();
+    });
+  });
+
+  it("migrates legacy Fal Kling image selections onto Kie Kling when a frame image is present", async () => {
+    const setModel = vi.fn();
+    renderHook(() =>
+      useAiStudioStateEffects(
+        createArgs({
+          selectedTool: "video",
+          model: "fal-ai/kling-video/v3/pro/image-to-video",
+          referenceImageUrl: "https://example.com/first.png",
+          extraImageUrls: [null, null, null],
+          allowedModelValues: [KIE_KLING_30_MODEL_ID, KIE_VEO_31_FAST_I2V_MODEL_ID],
+          setModel,
+        })
+      )
+    );
+
+    await waitFor(() => {
+      expect(setModel).toHaveBeenCalledWith(KIE_KLING_30_MODEL_ID);
+    });
+  });
+
+  it("migrates legacy Fal Kling text selections onto Kie Veo when no frame images are present", async () => {
+    const setModel = vi.fn();
+    renderHook(() =>
+      useAiStudioStateEffects(
+        createArgs({
+          selectedTool: "video",
+          model: "fal-ai/kling-video/v3/pro/text-to-video",
+          referenceImageUrl: null,
+          extraImageUrls: [null, null, null],
+          allowedModelValues: [KIE_KLING_30_MODEL_ID, KIE_VEO_31_FAST_I2V_MODEL_ID],
+          setModel,
+        })
+      )
+    );
+
+    await waitFor(() => {
+      expect(setModel).toHaveBeenCalledWith(KIE_VEO_31_FAST_I2V_MODEL_ID);
     });
   });
 

@@ -678,6 +678,150 @@ describe("useAiStudioTaskSubmission", () => {
     );
   });
 
+  it("remaps legacy Fal Kling text submissions onto Kie Veo when no frame images are present", async () => {
+    let outputs: StudioOutput[] = [];
+    const setOutputs = vi.fn((value: SetStateAction<StudioOutput[]>) => {
+      outputs = typeof value === "function" ? value(outputs) : value;
+    });
+
+    const setIsPromptGenerating = vi.fn();
+    const setUiError = vi.fn();
+    const setUiNotice = vi.fn();
+    const setSaved = vi.fn();
+    const notifyGenerationFailure = vi.fn();
+    const updateOutputById = createStatefulUpdateOutputById({
+      get: () => outputs,
+      set: (next) => {
+        outputs = next;
+      },
+    });
+    const startPollingTask = vi.fn();
+    const ensureGenerationRecord = vi.fn(async () => null);
+
+    const { result } = renderHook(() =>
+      useAiStudioTaskSubmission({
+        aspect: "16:9",
+        mode: "video",
+        model: "fal-ai/kling-video/v3/pro/text-to-video",
+        prompt: "",
+        selectedTool: "video",
+        imageResolution: "model_default",
+        videoDurationSeconds: 8,
+        videoResolution: "720p",
+        videoGenerateAudio: true,
+        videoReferenceMode: "standard",
+        videoReferenceImageUrl: null,
+        motionReferenceVideoUrl: null,
+        videoCameraFixed: false,
+        videoAutoFix: false,
+        klingNegativePrompt: "",
+        klingCfgScale: 0.5,
+        klingShotType: "customize",
+        klingVoiceIds: ["", ""],
+        klingMultiPrompts: [],
+        klingElements: [],
+        setIsPromptGenerating: asDispatch(setIsPromptGenerating),
+        setUiError: asDispatch(setUiError),
+        setUiNotice: asDispatch(setUiNotice),
+        setOutputs: asDispatch(setOutputs),
+        setSaved: asDispatch(setSaved),
+        getDefaultDurationSeconds: () => 8,
+        notifyGenerationFailure,
+        updateOutputById,
+        startPollingTask,
+        ensureGenerationRecord,
+      })
+    );
+
+    await act(async () => {
+      await result.current("A dancer in dramatic stage light", [], {
+        modeOverride: "video",
+        selectedToolOverride: "video",
+      });
+    });
+
+    expect(outputs[0]?.modelId).toBe(KIE_VEO_31_FAST_I2V_MODEL_ID);
+    expect(handleVideoModelSubmission).toHaveBeenCalledWith(
+      expect.objectContaining({
+        finalModel: KIE_VEO_31_FAST_I2V_MODEL_ID,
+        preparedImageInputs: [],
+      })
+    );
+    expect(resolveSubmissionHandlerRoute).toHaveBeenCalledWith(KIE_VEO_31_FAST_I2V_MODEL_ID);
+  });
+
+  it("remaps legacy Fal Kling image submissions onto Kie Kling when a frame image is present", async () => {
+    let outputs: StudioOutput[] = [];
+    const setOutputs = vi.fn((value: SetStateAction<StudioOutput[]>) => {
+      outputs = typeof value === "function" ? value(outputs) : value;
+    });
+
+    const setIsPromptGenerating = vi.fn();
+    const setUiError = vi.fn();
+    const setUiNotice = vi.fn();
+    const setSaved = vi.fn();
+    const notifyGenerationFailure = vi.fn();
+    const updateOutputById = createStatefulUpdateOutputById({
+      get: () => outputs,
+      set: (next) => {
+        outputs = next;
+      },
+    });
+    const startPollingTask = vi.fn();
+    const ensureGenerationRecord = vi.fn(async () => null);
+
+    const { result } = renderHook(() =>
+      useAiStudioTaskSubmission({
+        aspect: "16:9",
+        mode: "video",
+        model: "fal-ai/kling-video/v3/pro/image-to-video",
+        prompt: "",
+        selectedTool: "video",
+        imageResolution: "model_default",
+        videoDurationSeconds: 8,
+        videoResolution: "720p",
+        videoGenerateAudio: true,
+        videoReferenceMode: "standard",
+        videoReferenceImageUrl: "https://example.com/first.png",
+        motionReferenceVideoUrl: null,
+        videoCameraFixed: false,
+        videoAutoFix: false,
+        klingNegativePrompt: "",
+        klingCfgScale: 0.5,
+        klingShotType: "customize",
+        klingVoiceIds: ["", ""],
+        klingMultiPrompts: [],
+        klingElements: [],
+        setIsPromptGenerating: asDispatch(setIsPromptGenerating),
+        setUiError: asDispatch(setUiError),
+        setUiNotice: asDispatch(setUiNotice),
+        setOutputs: asDispatch(setOutputs),
+        setSaved: asDispatch(setSaved),
+        getDefaultDurationSeconds: () => 8,
+        notifyGenerationFailure,
+        updateOutputById,
+        startPollingTask,
+        ensureGenerationRecord,
+      })
+    );
+
+    await act(async () => {
+      await result.current("A dancer in dramatic stage light", ["https://example.com/first.png"], {
+        modeOverride: "video",
+        selectedToolOverride: "video",
+      });
+    });
+
+    expect(outputs[0]?.modelId).toBe(KIE_KLING_30_MODEL_ID);
+    expect(handleVideoModelSubmission).toHaveBeenCalledWith(
+      expect.objectContaining({
+        finalModel: KIE_KLING_30_MODEL_ID,
+        preparedImageInputs: ["https://example.com/first.png"],
+      })
+    );
+    expect(resolveSubmissionHandlerRoute).toHaveBeenCalledWith(KIE_KLING_30_MODEL_ID);
+  });
+
   it("labels create submissions with the selected model when character mode is enabled", async () => {
     let outputs: StudioOutput[] = [];
     const setOutputs = vi.fn((value: SetStateAction<StudioOutput[]>) => {

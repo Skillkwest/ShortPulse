@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { KIE_VEO_31_FAST_I2V_MODEL_ID } from "../../../../lib/model-runtime/providerModelIds";
+import {
+  KIE_KLING_30_MODEL_ID,
+  KIE_VEO_31_FAST_I2V_MODEL_ID,
+} from "../../../../lib/model-runtime/providerModelIds";
 import {
   buildImageReferenceInputs,
   buildRegenerateReferencePool,
@@ -130,6 +133,33 @@ describe("resolveAutoVideoModelForLane", () => {
         lane: "first-last",
       })
     ).toBe(KIE_VEO_31_FAST_I2V_MODEL_ID);
+  });
+
+  it("migrates legacy Fal Kling selections onto Kie-only compatible lanes", () => {
+    expect(
+      resolveAutoVideoModelForLane({
+        currentModel: "fal-ai/kling-video/v3/pro/text-to-video",
+        lane: "text",
+      })
+    ).toBe(KIE_VEO_31_FAST_I2V_MODEL_ID);
+    expect(
+      resolveAutoVideoModelForLane({
+        currentModel: "fal-ai/kling-video/v3/pro/image-to-video",
+        lane: "single-image",
+      })
+    ).toBe(KIE_KLING_30_MODEL_ID);
+    expect(
+      resolveAutoVideoModelForLane({
+        currentModel: "fal-ai/kling-video/v3/pro/image-to-video",
+        lane: "first-last",
+      })
+    ).toBe(KIE_KLING_30_MODEL_ID);
+    expect(
+      resolveAutoVideoModelForLane({
+        currentModel: "fal-ai/kling-video/v3/pro/image-to-video",
+        lane: "motion",
+      })
+    ).toBe(KIE_KLING_30_MODEL_ID);
   });
 });
 

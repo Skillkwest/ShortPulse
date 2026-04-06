@@ -1,19 +1,19 @@
 /**
  * Reference input ordering helpers shared by generate/regenerate flows.
  */
-import { KIE_VEO_31_FAST_I2V_MODEL_ID } from "../../../lib/model-runtime/providerModelIds";
+import {
+  KIE_KLING_30_MODEL_ID,
+  KIE_VEO_31_FAST_I2V_MODEL_ID,
+} from "../../../lib/model-runtime/providerModelIds";
 import type { ToolId } from "../types";
 
 type VideoReferenceMode = "standard" | "modify" | "keyframes" | "kling3" | "motion";
 export type ResolvedVideoGenerationLane = "text" | "single-image" | "first-last" | "motion";
 
-const FAL_VEO_TEXT_MODEL_ID = "fal-ai/veo3.1";
-const FAL_VEO_IMAGE_MODEL_ID = "fal-ai/veo3.1/image-to-video";
-const FAL_VEO_FIRST_LAST_MODEL_ID = "fal-ai/veo3.1/first-last-frame-to-video";
-const isFalVeoVideoModel = (modelId: string | null | undefined): boolean =>
-  modelId === FAL_VEO_TEXT_MODEL_ID ||
-  modelId === FAL_VEO_IMAGE_MODEL_ID ||
-  modelId === FAL_VEO_FIRST_LAST_MODEL_ID;
+const FAL_KLING_TEXT_MODEL_ID = "fal-ai/kling-video/v3/pro/text-to-video";
+const FAL_KLING_IMAGE_MODEL_ID = "fal-ai/kling-video/v3/pro/image-to-video";
+const isFalKlingVideoModel = (modelId: string | null | undefined): boolean =>
+  modelId === FAL_KLING_TEXT_MODEL_ID || modelId === FAL_KLING_IMAGE_MODEL_ID;
 
 const isImageTool = (tool: ToolId | null): boolean => tool === "image" || tool === "edit";
 const isVideoTool = (tool: ToolId | null): boolean => tool === "video" || tool === "kling";
@@ -56,23 +56,17 @@ export const resolveVideoGenerationLaneFromInputs = ({
 };
 
 const isTextCompatibleVideoModel = (modelId: string | null | undefined): boolean =>
-  (modelId !== null &&
-    !isFalVeoVideoModel(modelId) &&
-    modelId === "fal-ai/kling-video/v3/pro/text-to-video") ||
   modelId === "fal-ai/bytedance/seedance/v1.5/pro/text-to-video" ||
   modelId === "fal-ai/sora-2/text-to-video/pro" ||
   modelId === KIE_VEO_31_FAST_I2V_MODEL_ID;
 
 const isSingleImageCompatibleVideoModel = (modelId: string | null | undefined): boolean =>
-  (modelId !== null &&
-    !isFalVeoVideoModel(modelId) &&
-    modelId === "fal-ai/kling-video/v3/pro/image-to-video") ||
   modelId === "fal-ai/bytedance/seedance/v1.5/pro/image-to-video" ||
-  modelId === "kie-ai/kling-3.0" ||
+  modelId === KIE_KLING_30_MODEL_ID ||
   modelId === KIE_VEO_31_FAST_I2V_MODEL_ID;
 
 const isFirstLastCompatibleVideoModel = (modelId: string | null | undefined): boolean =>
-  modelId === KIE_VEO_31_FAST_I2V_MODEL_ID;
+  modelId === KIE_VEO_31_FAST_I2V_MODEL_ID || modelId === KIE_KLING_30_MODEL_ID;
 
 export const resolveAutoVideoModelForLane = ({
   currentModel,
@@ -82,19 +76,23 @@ export const resolveAutoVideoModelForLane = ({
   lane: ResolvedVideoGenerationLane;
 }): string | null => {
   if (lane === "motion") {
+    if (isFalKlingVideoModel(currentModel)) return KIE_KLING_30_MODEL_ID;
     return currentModel;
   }
 
   if (lane === "text") {
+    if (isFalKlingVideoModel(currentModel)) return KIE_VEO_31_FAST_I2V_MODEL_ID;
     if (isTextCompatibleVideoModel(currentModel)) return currentModel;
     return KIE_VEO_31_FAST_I2V_MODEL_ID;
   }
 
   if (lane === "single-image") {
+    if (isFalKlingVideoModel(currentModel)) return KIE_KLING_30_MODEL_ID;
     if (isSingleImageCompatibleVideoModel(currentModel)) return currentModel;
     return KIE_VEO_31_FAST_I2V_MODEL_ID;
   }
 
+  if (isFalKlingVideoModel(currentModel)) return KIE_KLING_30_MODEL_ID;
   if (isFirstLastCompatibleVideoModel(currentModel)) return currentModel;
   return KIE_VEO_31_FAST_I2V_MODEL_ID;
 };

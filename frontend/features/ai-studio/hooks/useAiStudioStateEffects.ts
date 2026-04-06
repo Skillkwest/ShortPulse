@@ -31,10 +31,14 @@ const KEYFRAME_COMPATIBLE_MODELS = new Set([
 const FAL_VEO_FIRST_LAST_MODEL_ID = "fal-ai/veo3.1/first-last-frame-to-video";
 const FAL_VEO_IMAGE_MODEL_ID = "fal-ai/veo3.1/image-to-video";
 const FAL_VEO_TEXT_MODEL_ID = "fal-ai/veo3.1";
+const FAL_KLING_TEXT_MODEL_ID = "fal-ai/kling-video/v3/pro/text-to-video";
+const FAL_KLING_IMAGE_MODEL_ID = "fal-ai/kling-video/v3/pro/image-to-video";
 const isBlockedFalVeoVideoModel = (modelId: string | null | undefined): boolean =>
   modelId === FAL_VEO_TEXT_MODEL_ID ||
   modelId === FAL_VEO_IMAGE_MODEL_ID ||
   modelId === FAL_VEO_FIRST_LAST_MODEL_ID;
+const isBlockedFalKlingVideoModel = (modelId: string | null | undefined): boolean =>
+  modelId === FAL_KLING_TEXT_MODEL_ID || modelId === FAL_KLING_IMAGE_MODEL_ID;
 const allowedUiAspects = new Set(aspectOptions.map((option) => option.value));
 
 type VideoReferenceMode = "standard" | "modify" | "keyframes" | "kling3" | "motion";
@@ -290,20 +294,10 @@ export const useAiStudioStateEffects = ({
     }
 
     if (videoReferenceMode === "kling3") {
-      if (model !== "fal-ai/kling-video/v3/pro/image-to-video") {
+      if (model !== KIE_KLING_30_MODEL_ID) {
         lastNonKling3VideoModelRef.current = model;
-        setModelIfChanged("fal-ai/kling-video/v3/pro/image-to-video");
+        setModelIfChanged(KIE_KLING_30_MODEL_ID);
       }
-      return;
-    }
-
-    if (previousMode === "kling3" && model === "fal-ai/kling-video/v3/pro/image-to-video") {
-      const fallback = lastNonKling3VideoModelRef.current;
-      if (fallback && fallback !== "fal-ai/kling-video/v3/pro/image-to-video") {
-        setModelIfChanged(fallback);
-        return;
-      }
-      setModelIfChanged(null);
       return;
     }
 
@@ -329,12 +323,6 @@ export const useAiStudioStateEffects = ({
       } else if (!model) {
         setModelIfChanged(KIE_KLING_30_MODEL_ID);
       }
-      return;
-    }
-
-    if (model === "fal-ai/kling-video/v3/pro/image-to-video" && videoReferenceMode === "standard") {
-      const fallback = lastNonMotionVideoModelRef.current ?? KIE_VEO_31_FAST_I2V_MODEL_ID;
-      setModelIfChanged(fallback);
       return;
     }
 
@@ -364,14 +352,45 @@ export const useAiStudioStateEffects = ({
 
   useEffect(() => {
     if (hasPendingWorkflowRestore) return;
+    if (!isVideoWorkflow(selectedTool)) return;
+    if (!isBlockedFalKlingVideoModel(model)) return;
+
+    if (videoReferenceMode === "motion" || videoReferenceMode === "kling3") {
+      setModelIfChanged(KIE_KLING_30_MODEL_ID);
+      return;
+    }
+
+    const resolvedVideoLane = resolveVideoGenerationLaneFromFrameInputs({
+      primary: referenceImageUrl,
+      extras: extraImageUrls,
+      referenceMode: videoReferenceMode,
+    });
+
+    const nextModel = resolveAutoVideoModelForLane({
+      currentModel: model,
+      lane: resolvedVideoLane,
+    });
+    setModelIfChanged(nextModel);
+  }, [
+    extraImageUrls,
+    hasPendingWorkflowRestore,
+    model,
+    referenceImageUrl,
+    selectedTool,
+    setModelIfChanged,
+    videoReferenceMode,
+  ]);
+
+  useEffect(() => {
+    if (hasPendingWorkflowRestore) return;
     if (resolveWorkflowId(selectedTool) !== "video" || selectedTool === "kling") return;
     if (videoReferenceMode === "keyframes" || videoReferenceMode === "motion") return;
     if (videoReferenceMode === "kling3") {
       setVideoReferenceModeIfChanged("standard");
     }
-    if (model === "fal-ai/kling-video/v3/pro/image-to-video") {
+    if (model === FAL_KLING_IMAGE_MODEL_ID) {
       const fallback = lastNonKling3VideoModelRef.current;
-      if (fallback && fallback !== "fal-ai/kling-video/v3/pro/image-to-video") {
+      if (fallback && fallback !== FAL_KLING_IMAGE_MODEL_ID) {
         setModelIfChanged(fallback);
       } else {
         setModelIfChanged(null);
@@ -393,8 +412,8 @@ export const useAiStudioStateEffects = ({
     if (videoReferenceMode !== "kling3") {
       setVideoReferenceModeIfChanged("kling3");
     }
-    if (model !== "fal-ai/kling-video/v3/pro/image-to-video") {
-      setModelIfChanged("fal-ai/kling-video/v3/pro/image-to-video");
+    if (model !== KIE_KLING_30_MODEL_ID) {
+      setModelIfChanged(KIE_KLING_30_MODEL_ID);
     }
     if (!showCreateTools) {
       setShowCreateTools(true);

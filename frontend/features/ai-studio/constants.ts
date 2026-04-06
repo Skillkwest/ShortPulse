@@ -36,11 +36,8 @@ export const modelLogos: Record<string, string> = {
   "fal-ai/bytedance/seedream/v5/lite/edit": SEEDREAM_LOGO_SRC,
   "fal-ai/bytedance/seedream/v4.5/text-to-image": SEEDREAM_LOGO_SRC,
   "fal-ai/bytedance/seedream/v4.5/edit": SEEDREAM_LOGO_SRC,
-  "fal-ai/veo3.1/first-last-frame-to-video": GOOGLE_LOGO_SRC,
-  "fal-ai/veo3.1/image-to-video": GOOGLE_LOGO_SRC,
   "fal-ai/bytedance/seedance/v1.5/pro/text-to-video": SEEDREAM_LOGO_SRC,
   "fal-ai/bytedance/seedance/v1.5/pro/image-to-video": SEEDREAM_LOGO_SRC,
-  "fal-ai/veo3.1": GOOGLE_LOGO_SRC,
   "fal-ai/sora-2/text-to-video/pro": SORA2_LOGO_SRC,
   [KIE_VEO_31_FAST_I2V_MODEL_ID]: GOOGLE_LOGO_SRC,
   [KIE_KLING_30_MODEL_ID]: KLING_LOGO_SRC,
@@ -57,16 +54,6 @@ export const aspectOptions: AspectOption[] = [
 
 // When you add/remove image models here, update `docs/sops/sop_image_generation.md` → "Supported image models".
 export const modelOptions: ModelOption[] = [
-  {
-    value: "fal-ai/veo3.1/first-last-frame-to-video",
-    label: "Veo 3.1",
-    mediaType: "keyframes",
-  },
-  {
-    value: "fal-ai/veo3.1/image-to-video",
-    label: "Veo 3.1",
-    mediaType: "image-to-video",
-  },
   {
     value: "fal-ai/bytedance/seedance/v1.5/pro/image-to-video",
     label: "Seedance 1.5 Pro",
@@ -87,7 +74,6 @@ export const modelOptions: ModelOption[] = [
     label: "Seedance 1.5 Pro",
     mediaType: "video",
   },
-  { value: "fal-ai/veo3.1", label: "Google Veo 3.1", mediaType: "video" },
   { value: "fal-ai/sora-2/text-to-video/pro", label: "Sora 2 Pro", mediaType: "video" },
   { value: "fal/flux-2-pro/edit", label: "FLUX.2 Pro", mediaType: "image" },
   { value: "fal/flux-2/edit", label: "FLUX.2", mediaType: "image" },

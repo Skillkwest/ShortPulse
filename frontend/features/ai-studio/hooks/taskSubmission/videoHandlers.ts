@@ -8,9 +8,6 @@ import {
   submitFalSeedance,
   submitFalSeedanceI2V,
   submitFalSoraPro,
-  submitFalVeo,
-  submitFalVeoFirstLast,
-  submitFalVeoImageToVideo,
 } from "../../../../lib/falClient";
 import {
   KIE_KLING_30_MODEL_ID,
@@ -24,6 +21,7 @@ import {
   buildKieKlingMultiPromptPayload,
   resolveKieKlingDuration,
   resolveKieKlingMode,
+  resolveKlingResolution,
   resolveSeedanceI2VAspect,
   resolveSeedanceI2VDuration,
   resolveSeedanceI2VResolution,
@@ -31,17 +29,16 @@ import {
   resolveSeedanceTextResolution,
   resolveSoraAspect,
   resolveSoraResolution,
-  resolveVeoAspect,
-  resolveVeoDuration,
-  resolveVeoResolution,
-  resolveVeoTextAspect,
-  resolveKlingResolution,
 } from "./videoPayloads";
 import { resolveVideoSubmissionSafetyPayload } from "./safetyPolicy";
 
 const FAL_KLING_IMAGE_MODEL_ID = "fal-ai/kling-video/v3/pro/image-to-video";
 const FAL_KLING_TEXT_MODEL_ID = "fal-ai/kling-video/v3/pro/text-to-video";
 const FAL_KLING_DISABLED_MESSAGE = "Fal Kling 3.0 is disabled. Use Kie Kling 3.0 instead.";
+const FAL_VEO_TEXT_MODEL_ID = "fal-ai/veo3.1";
+const FAL_VEO_IMAGE_MODEL_ID = "fal-ai/veo3.1/image-to-video";
+const FAL_VEO_FIRST_LAST_MODEL_ID = "fal-ai/veo3.1/first-last-frame-to-video";
+const FAL_VEO_DISABLED_MESSAGE = "Fal Veo 3.1 is disabled. Use Kie Veo 3.1 instead.";
 
 const isCharacterScopedMediaUrl = (value: string): boolean => {
   const normalized = (() => {
@@ -104,7 +101,6 @@ export const handleVideoModelSubmission = async ({
   videoReferenceMode,
   videoReferenceImageUrl,
   motionReferenceVideoUrl,
-  videoAutoFix,
   videoCameraFixed,
   klingNegativePrompt,
   klingCfgScale,
@@ -113,8 +109,6 @@ export const handleVideoModelSubmission = async ({
   klingMultiPrompts,
   klingElements,
 }: VideoSubmissionArgs): Promise<boolean> => {
-  const effectiveVideoAutoFix =
-    finalModel.includes("veo3.1") || finalModel.includes("veo-3.1") ? false : videoAutoFix;
   const effectiveVideoCameraFixed =
     finalModel === "fal-ai/bytedance/seedance/v1.5/pro/image-to-video" ? false : videoCameraFixed;
   const candidateMediaUrls = [
@@ -163,6 +157,15 @@ export const handleVideoModelSubmission = async ({
 
   if (finalModel === FAL_KLING_IMAGE_MODEL_ID || finalModel === FAL_KLING_TEXT_MODEL_ID) {
     notifyGenerationFailure(id, FAL_KLING_DISABLED_MESSAGE);
+    return true;
+  }
+
+  if (
+    finalModel === FAL_VEO_TEXT_MODEL_ID ||
+    finalModel === FAL_VEO_IMAGE_MODEL_ID ||
+    finalModel === FAL_VEO_FIRST_LAST_MODEL_ID
+  ) {
+    notifyGenerationFailure(id, FAL_VEO_DISABLED_MESSAGE);
     return true;
   }
 
@@ -299,34 +302,6 @@ export const handleVideoModelSubmission = async ({
     return true;
   }
 
-  if (finalModel === "fal-ai/veo3.1/image-to-video") {
-    if (!preparedImageInputs.length) {
-      notifyGenerationFailure(id, "Veo 3.1 image-to-video requires a reference image.");
-      return true;
-    }
-    const normalizedAspect = resolveVeoAspect(aspect);
-    const duration = resolveVeoDuration(requestedDurationSeconds);
-    const resolution = resolveVeoResolution(requestedResolution);
-    const primaryImageUrl = preparedImageInputs[0];
-    const response = await submitFalVeoImageToVideo({
-      prompt: cleanedPrompt,
-      image_url: primaryImageUrl,
-      image_urls: [primaryImageUrl],
-      aspect_ratio: normalizedAspect,
-      duration,
-      resolution,
-      generate_audio: requestedAudio,
-      auto_fix: effectiveVideoAutoFix,
-      ...resolveVideoSubmissionSafetyPayload(finalModel),
-    });
-    handoffSubmitResponse({
-      response,
-      pollingProvider: "fal-veo-i2v",
-      startPollingWithGeneration,
-    });
-    return true;
-  }
-
   if (finalModel === "fal-ai/bytedance/seedance/v1.5/pro/text-to-video") {
     const normalizedAspect = resolveSeedanceTextAspect(aspect, modelConfig);
     const resolution = resolveSeedanceTextResolution(requestedResolution);
@@ -376,29 +351,6 @@ export const handleVideoModelSubmission = async ({
     return true;
   }
 
-  if (finalModel === "fal-ai/veo3.1/first-last-frame-to-video") {
-    const normalizedAspect = resolveVeoAspect(aspect);
-    const duration = resolveVeoDuration(requestedDurationSeconds);
-    const resolution = resolveVeoResolution(requestedResolution);
-    const response = await submitFalVeoFirstLast({
-      prompt: cleanedPrompt,
-      first_frame_url: preparedImageInputs[0],
-      last_frame_url: preparedImageInputs[1],
-      aspect_ratio: normalizedAspect,
-      duration,
-      resolution,
-      generate_audio: requestedAudio,
-      auto_fix: effectiveVideoAutoFix,
-      ...resolveVideoSubmissionSafetyPayload(finalModel),
-    });
-    handoffSubmitResponse({
-      response,
-      pollingProvider: "fal-veo",
-      startPollingWithGeneration,
-    });
-    return true;
-  }
-
   if (finalModel === "fal-ai/sora-2/text-to-video/pro") {
     const soraDuration = resolveSoraDuration(requestedDurationSeconds);
     const normalizedAspect = resolveSoraAspect(aspect, modelConfig);
@@ -413,26 +365,6 @@ export const handleVideoModelSubmission = async ({
     handoffSubmitResponse({
       response,
       pollingProvider: "fal-sora",
-      startPollingWithGeneration,
-    });
-    return true;
-  }
-
-  if (finalModel === "fal-ai/veo3.1") {
-    const normalizedAspect = resolveVeoTextAspect(aspect, modelConfig);
-    const resolution = resolveVeoResolution(requestedResolution, "1080p");
-    const response = await submitFalVeo({
-      prompt: cleanedPrompt,
-      aspect_ratio: normalizedAspect,
-      duration: `${Math.max(4, Math.min(8, requestedDurationSeconds))}s`,
-      resolution,
-      generate_audio: requestedAudio,
-      auto_fix: effectiveVideoAutoFix,
-      ...resolveVideoSubmissionSafetyPayload(finalModel),
-    });
-    handoffSubmitResponse({
-      response,
-      pollingProvider: "fal-veo",
       startPollingWithGeneration,
     });
     return true;

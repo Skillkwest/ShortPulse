@@ -1,14 +1,13 @@
-import { createFalSubmitHandler } from "../../../lib/server/api/falSubmitProxy";
-import { validateFalPayloadForModel } from "../../../lib/server/api/falPayloadValidation";
-import {
-  getFalSubmitUrlRequired,
-  getFalTimeoutMsOrDefault,
-} from "../../../lib/server/api/falRouteConfig";
+import type { NextApiRequest, NextApiResponse } from "next";
 
-export default createFalSubmitHandler({
-  modelId: "fal-ai/veo3.1",
-  submitUrl: getFalSubmitUrlRequired("fal-ai/veo3.1"),
-  routeLabel: "Fal Veo",
-  timeoutMs: getFalTimeoutMsOrDefault("fal-ai/veo3.1", 20000),
-  validatePayload: validateFalPayloadForModel("fal-ai/veo3.1"),
-});
+export default function falVeoSubmit(req: NextApiRequest, res: NextApiResponse) {
+  if (req.method !== "POST") {
+    res.setHeader("Allow", "POST");
+    return res.status(405).json({ error: "Method not allowed." });
+  }
+
+  return res.status(410).json({
+    error: "Fal Veo 3.1 text-to-video is disabled.",
+    detail: "Use Kie Veo 3.1 or another active video model instead.",
+  });
+}

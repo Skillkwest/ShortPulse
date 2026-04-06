@@ -1,26 +1,13 @@
-/**
- * Proxies Fal Veo 3.1 image-to-video submit requests through the shared submit engine.
- * Uses ordered submit targets to absorb provider alias drift without route-level duplication.
- */
 import type { NextApiRequest, NextApiResponse } from "next";
-import { createFalSubmitHandler } from "../../../lib/server/api/falSubmitProxy";
-import { validateFalPayloadForModel } from "../../../lib/server/api/falPayloadValidation";
-import { getFalModelProfileByModelId } from "../../../lib/server/falIntegration/modelProfiles";
 
-const veoI2vProfile = getFalModelProfileByModelId("fal-ai/veo3.1/image-to-video");
-const missingProfileHandler = async (req: NextApiRequest, res: NextApiResponse) => {
+export default function falVeoImageToVideoSubmit(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== "POST") {
-    return res.status(405).json({ error: "Method not allowed" });
+    res.setHeader("Allow", "POST");
+    return res.status(405).json({ error: "Method not allowed." });
   }
-  return res.status(500).json({ error: "Fal Veo image-to-video is unavailable." });
-};
 
-export default veoI2vProfile
-  ? createFalSubmitHandler({
-      modelId: "fal-ai/veo3.1/image-to-video",
-      submitTargets: veoI2vProfile.submitTargets,
-      routeLabel: "Fal Veo image-to-video",
-      timeoutMs: veoI2vProfile.timeoutMs,
-      validatePayload: validateFalPayloadForModel("fal-ai/veo3.1/image-to-video"),
-    })
-  : missingProfileHandler;
+  return res.status(410).json({
+    error: "Fal Veo 3.1 image-to-video is disabled.",
+    detail: "Use Kie Veo 3.1 or another active video model instead.",
+  });
+}

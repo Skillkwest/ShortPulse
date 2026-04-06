@@ -562,25 +562,20 @@ describe("handleVideoModelSubmission (disabled Fal Kling routes)", () => {
   });
 });
 
-describe("handleVideoModelSubmission (Fal Veo 3.1 image-to-video)", () => {
+describe("handleVideoModelSubmission (disabled Fal Veo routes)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.spyOn(console, "error").mockImplementation(() => undefined);
-    vi.mocked(submitFalVeoImageToVideo).mockResolvedValue({ request_id: "veo-i2v-1" });
   });
 
   afterEach(() => {
     vi.restoreAllMocks();
   });
 
-  it("submits the normalized Veo image-to-video payload with a primary image reference", async () => {
+  it("fails closed for legacy Fal Veo image-to-video submits", async () => {
     const args = makeArgs({
       finalModel: "fal-ai/veo3.1/image-to-video",
       modelConfig: getModelConfig("fal-ai/veo3.1/image-to-video"),
-      aspect: "4:5",
-      requestedDurationSeconds: 7,
-      requestedResolution: "4k",
-      requestedAudio: true,
       preparedImageInputs: ["https://example.com/reference.png"],
       videoReferenceMode: "standard",
     });
@@ -588,30 +583,33 @@ describe("handleVideoModelSubmission (Fal Veo 3.1 image-to-video)", () => {
     const handled = await handleVideoModelSubmission(args);
 
     expect(handled).toBe(true);
-    expect(submitFalVeoImageToVideo).toHaveBeenCalledWith({
-      prompt: "A dancer twirls",
-      image_url: "https://example.com/reference.png",
-      image_urls: ["https://example.com/reference.png"],
-      aspect_ratio: "auto",
-      duration: "8s",
-      resolution: "4k",
-      generate_audio: true,
-      auto_fix: false,
-      enable_safety_checker: false,
-      safety_tolerance: 5,
-    });
-    expect(args.startPollingWithGeneration).toHaveBeenCalledWith(
-      "veo-i2v-1",
-      "fal-veo-i2v",
-      undefined,
-      { request_id: "veo-i2v-1" }
+    expect(args.notifyGenerationFailure).toHaveBeenCalledWith(
+      "out-1",
+      "Fal Veo 3.1 is disabled. Use Kie Veo 3.1 instead."
     );
   });
 
-  it("fails when Veo image-to-video is submitted without a prepared reference image", async () => {
+  it("fails closed for legacy Fal Veo first-last submits", async () => {
     const args = makeArgs({
-      finalModel: "fal-ai/veo3.1/image-to-video",
-      modelConfig: getModelConfig("fal-ai/veo3.1/image-to-video"),
+      finalModel: "fal-ai/veo3.1/first-last-frame-to-video",
+      modelConfig: getModelConfig("fal-ai/veo3.1/first-last-frame-to-video"),
+      preparedImageInputs: ["https://example.com/start.png", "https://example.com/end.png"],
+      videoReferenceMode: "standard",
+    });
+
+    const handled = await handleVideoModelSubmission(args);
+
+    expect(handled).toBe(true);
+    expect(args.notifyGenerationFailure).toHaveBeenCalledWith(
+      "out-1",
+      "Fal Veo 3.1 is disabled. Use Kie Veo 3.1 instead."
+    );
+  });
+
+  it("fails closed for legacy Fal Veo text submits", async () => {
+    const args = makeArgs({
+      finalModel: "fal-ai/veo3.1",
+      modelConfig: getModelConfig("fal-ai/veo3.1"),
       preparedImageInputs: [],
       videoReferenceImageUrl: null,
       motionReferenceVideoUrl: null,
@@ -623,9 +621,8 @@ describe("handleVideoModelSubmission (Fal Veo 3.1 image-to-video)", () => {
     expect(handled).toBe(true);
     expect(args.notifyGenerationFailure).toHaveBeenCalledWith(
       "out-1",
-      "Veo 3.1 image-to-video requires a reference image."
+      "Fal Veo 3.1 is disabled. Use Kie Veo 3.1 instead."
     );
-    expect(submitFalVeoImageToVideo).not.toHaveBeenCalled();
   });
 });
 

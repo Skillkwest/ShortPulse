@@ -39,4 +39,11 @@ describe("model options vs registry", () => {
     expect(optionIds.has("fal-ai/kling-video/v3/pro/text-to-video")).toBe(false);
     expect(optionIds.has("fal-ai/kling-video/v3/pro/image-to-video")).toBe(false);
   });
+
+  it("excludes legacy Fal Veo 3.1 option ids from AI Studio constants", () => {
+    const optionIds = new Set(modelOptions.map((option) => option.value));
+    expect(optionIds.has("fal-ai/veo3.1")).toBe(false);
+    expect(optionIds.has("fal-ai/veo3.1/image-to-video")).toBe(false);
+    expect(optionIds.has("fal-ai/veo3.1/first-last-frame-to-video")).toBe(false);
+  });
 });

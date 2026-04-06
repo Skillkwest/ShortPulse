@@ -32,9 +32,6 @@ import {
   submitFalSeedreamV5Lite,
   submitFalSeedreamV5LiteEdit,
   submitFalSoraPro,
-  submitFalVeo,
-  submitFalVeoFirstLast,
-  submitFalVeoImageToVideo,
 } from "../../../../../lib/falClient";
 
 vi.mock("../../../../../lib/falClient", () => ({
@@ -58,9 +55,6 @@ vi.mock("../../../../../lib/falClient", () => ({
   submitFalSeedreamV5Lite: vi.fn(),
   submitFalSeedreamV5LiteEdit: vi.fn(),
   submitFalSoraPro: vi.fn(),
-  submitFalVeo: vi.fn(),
-  submitFalVeoFirstLast: vi.fn(),
-  submitFalVeoImageToVideo: vi.fn(),
 }));
 
 type Route = "default" | "image" | "video";
@@ -184,31 +178,6 @@ const CASES: Record<string, CaseConfig> = {
     expectedSafetyChecker: false,
     expectedReferenceField: "image_urls",
   },
-  "fal-ai/veo3.1": {
-    route: "video",
-    submitName: "submitFalVeo",
-    requestedResolution: "4k",
-    expectsAudioField: true,
-    expectedSafetyChecker: false,
-    expectedSafetyTolerance: 5,
-    expectedReferenceField: "none",
-  },
-  "fal-ai/veo3.1/image-to-video": {
-    route: "video",
-    submitName: "submitFalVeoImageToVideo",
-    requestedResolution: "4k",
-    expectsAudioField: true,
-    expectedSafetyChecker: false,
-    expectedSafetyTolerance: 5,
-    expectedReferenceField: "image_urls",
-  },
-  "fal-ai/veo3.1/first-last-frame-to-video": {
-    route: "video",
-    submitName: "submitFalVeoFirstLast",
-    requestedResolution: "4k",
-    expectsAudioField: true,
-    expectedReferenceField: "first_last_frame_urls",
-  },
   "fal-ai/sora-2/text-to-video/pro": {
     route: "video",
     submitName: "submitFalSoraPro",
@@ -311,9 +280,6 @@ const submitSpyByName = {
   submitFalSeedreamV5Lite: vi.mocked(submitFalSeedreamV5Lite),
   submitFalSeedreamV5LiteEdit: vi.mocked(submitFalSeedreamV5LiteEdit),
   submitFalSoraPro: vi.mocked(submitFalSoraPro),
-  submitFalVeo: vi.mocked(submitFalVeo),
-  submitFalVeoFirstLast: vi.mocked(submitFalVeoFirstLast),
-  submitFalVeoImageToVideo: vi.mocked(submitFalVeoImageToVideo),
 } as const;
 
 const resetFalSubmitMocks = () => {
@@ -333,6 +299,9 @@ describe("task submission payload matrix", () => {
     const blockedMatrixModelIds = new Set([
       "fal-ai/kling-video/v3/pro/text-to-video",
       "fal-ai/kling-video/v3/pro/image-to-video",
+      "fal-ai/veo3.1",
+      "fal-ai/veo3.1/image-to-video",
+      "fal-ai/veo3.1/first-last-frame-to-video",
     ]);
     const generationModelIds = listModelConfigs()
       .filter(

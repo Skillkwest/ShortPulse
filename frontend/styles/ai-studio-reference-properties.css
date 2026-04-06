@@ -463,17 +463,6 @@
   padding: 6px 28px 6px 8px;
   border-color: rgba(201, 205, 214, 0.22);
   background: var(--create-expert-selector-bg, var(--color-bg));
-  background-image:
-    linear-gradient(45deg, transparent 50%, #f8f8f8 50%),
-    linear-gradient(135deg, #f8f8f8 50%, transparent 50%);
-  background-position:
-    calc(100% - 18px) calc(50% + 2px),
-    calc(100% - 14px) calc(50% + 2px);
-  background-size:
-    5px 5px,
-    5px 5px;
-  background-repeat: no-repeat;
-  box-shadow: none;
 }
 
 .video-settings-card .aspect-trigger {
@@ -485,17 +474,6 @@
   box-sizing: border-box;
   overflow: hidden;
   align-items: center;
-  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.2);
-  background-image:
-    linear-gradient(45deg, transparent 50%, rgba(248, 248, 248, 0.9) 50%),
-    linear-gradient(135deg, rgba(248, 248, 248, 0.9) 50%, transparent 50%);
-  background-position:
-    calc(100% - 18px) calc(50% + 1px),
-    calc(100% - 14px) calc(50% + 1px);
-  background-size:
-    5px 5px,
-    5px 5px;
-  background-repeat: no-repeat;
 }
 
 .video-settings-card .aspect-trigger .aspect-meta {

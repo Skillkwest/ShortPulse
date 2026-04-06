@@ -4,6 +4,7 @@ import { getModelConfig } from "../../../logic/pricing";
 import { handleVideoModelSubmission } from "../videoHandlers";
 import {
   submitFalKlingV3ImageToVideo,
+  submitFalKlingV3Text,
   submitFalVeoImageToVideo,
   submitKieKlingImageToVideo,
   submitKieVeoImageToVideo,
@@ -727,5 +728,85 @@ describe("handleVideoModelSubmission (Fal Veo 3.1 image-to-video)", () => {
       "Veo 3.1 image-to-video requires a reference image."
     );
     expect(submitFalVeoImageToVideo).not.toHaveBeenCalled();
+  });
+});
+
+describe("handleVideoModelSubmission (Fal Kling 3 text-to-video)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    vi.mocked(submitFalKlingV3Text).mockResolvedValue({ request_id: "kling-text-1" });
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("passes advanced Kling text controls through the text-to-video payload", async () => {
+    const args = makeArgs({
+      finalModel: "fal-ai/kling-video/v3/pro/text-to-video",
+      modelConfig: getModelConfig("fal-ai/kling-video/v3/pro/text-to-video"),
+      requestedDurationSeconds: 9,
+      requestedAudio: true,
+      klingShotType: "intelligent",
+      klingVoiceIds: [" voice_a ", "voice_b"],
+      klingNegativePrompt: "bad anatomy, blur",
+      klingCfgScale: 0.9,
+      klingMultiPrompts: [
+        { id: "shot-1", prompt: " First beat ", duration: 5 },
+        { id: "shot-2", prompt: "Second beat", duration: 8 },
+      ],
+    });
+
+    const handled = await handleVideoModelSubmission(args);
+
+    expect(handled).toBe(true);
+    expect(submitFalKlingV3Text).toHaveBeenCalledWith({
+      prompt: "A dancer twirls",
+      aspect_ratio: "16:9",
+      duration: 9,
+      negative_prompt: "bad anatomy, blur",
+      cfg_scale: 0.9,
+      generate_audio: true,
+      voice_ids: ["voice_a", "voice_b"],
+      multi_prompt: [
+        { prompt: "First beat", duration: 5 },
+        { prompt: "Second beat", duration: 8 },
+      ],
+      shot_type: "intelligent",
+    });
+    expect(args.startPollingWithGeneration).toHaveBeenCalledWith(
+      "kling-text-1",
+      "fal-kling",
+      undefined,
+      { request_id: "kling-text-1" }
+    );
+  });
+
+  it("omits optional Kling text controls when they are empty", async () => {
+    const args = makeArgs({
+      finalModel: "fal-ai/kling-video/v3/pro/text-to-video",
+      modelConfig: getModelConfig("fal-ai/kling-video/v3/pro/text-to-video"),
+      requestedDurationSeconds: 5,
+      requestedAudio: false,
+      klingShotType: "customize",
+      klingVoiceIds: ["", ""],
+      klingNegativePrompt: "",
+      klingCfgScale: 0.5,
+      klingMultiPrompts: [],
+    });
+
+    const handled = await handleVideoModelSubmission(args);
+
+    expect(handled).toBe(true);
+    expect(submitFalKlingV3Text).toHaveBeenCalledWith({
+      prompt: "A dancer twirls",
+      aspect_ratio: "16:9",
+      duration: 5,
+      negative_prompt: "",
+      cfg_scale: 0.5,
+      generate_audio: false,
+      shot_type: "customize",
+    });
   });
 });

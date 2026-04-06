@@ -393,13 +393,19 @@ export const handleVideoModelSubmission = async ({
 
   if (finalModel === "fal-ai/kling-video/v3/pro/text-to-video") {
     const klingDuration = resolveKlingV3Duration(requestedDurationSeconds);
+    const multiPromptPayload = buildKlingMultiPromptPayload(klingMultiPrompts);
+    const voiceIds = buildKlingVoiceIds(klingVoiceIds);
+    const shotType = resolveKlingShotType(klingShotType);
     const response = await submitFalKlingV3Text({
       prompt: cleanedPrompt,
       aspect_ratio: resolveKlingAspectRatio(aspect),
       duration: klingDuration,
-      negative_prompt: "blur, distort, and low quality",
-      cfg_scale: 0.5,
+      negative_prompt: klingNegativePrompt.trim(),
+      cfg_scale: klingCfgScale,
       generate_audio: requestedAudio,
+      ...(voiceIds.length ? { voice_ids: voiceIds } : {}),
+      ...(multiPromptPayload ? { multi_prompt: multiPromptPayload } : {}),
+      ...(shotType ? { shot_type: shotType } : {}),
     });
     handoffSubmitResponse({
       response,

@@ -5,6 +5,7 @@
 import Image from "next/image";
 import React from "react";
 import {
+  At,
   Globe,
   FlowArrow,
   ImageSquare,
@@ -57,6 +58,7 @@ type IconComponent = ForwardRefExoticComponent<IconProps & RefAttributes<SVGSVGE
 const toolIcons: Record<ToolId, IconComponent> = {
   create: Sparkle,
   "media-library": ImageSquare,
+  elements: At,
   workflows: FlowArrow,
   presets: Sliders,
   styles: Palette,
@@ -246,6 +248,7 @@ function AiStudioToolbarComponent({
             const IconComponent = toolIcons[tool.id];
             const isCharacterShortcut = tool.id === "character";
             const isMediaLibraryTool = tool.id === "media-library";
+            const isElementsTool = tool.id === "elements";
             const isActive = isCharacterShortcut
               ? isCharacterSelected
               : isMediaLibraryTool
@@ -263,6 +266,11 @@ function AiStudioToolbarComponent({
                     return;
                   }
                   if (isMediaLibraryTool && isActive) {
+                    onToggleCreateTools(false);
+                    onSelectTool(null);
+                    return;
+                  }
+                  if (isElementsTool && isActive) {
                     onToggleCreateTools(false);
                     onSelectTool(null);
                     return;

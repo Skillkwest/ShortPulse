@@ -37,6 +37,7 @@ type UseCharacterManagerDraftResult = {
   characters: CharacterManagerListItem[];
   selectedCharacterId: string | null;
   characterName: string;
+  characterVoice: string;
   characterDescription: string;
   characterSheetAssignments: CharacterSheetAssignments;
   activeCharacterSheetPresetId: CharacterSheetPresetId;
@@ -56,6 +57,7 @@ type UseCharacterManagerDraftResult = {
   isSavingProfileImage: boolean;
   isSavingCharacterSheetPreset: boolean;
   setCharacterName: (value: string) => void;
+  setCharacterVoice: (value: string) => void;
   setCharacterDescription: (value: string) => void;
   setProfileImageFile: (file: File) => Promise<void>;
   saveProfileImageTransform: (transform: CharacterProfileImageTransform) => Promise<boolean>;
@@ -105,6 +107,7 @@ export const useCharacterManagerDraft = (): UseCharacterManagerDraftResult => {
   const [characterId, setCharacterId] = useState<string | null>(null);
   const [characterSheetId, setCharacterSheetId] = useState<string | null>(null);
   const [characterName, setCharacterNameState] = useState("New Character");
+  const [characterVoice, setCharacterVoiceState] = useState("");
   const [characterDescription, setCharacterDescriptionState] = useState("");
   const [characterSheetAssignments, setCharacterSheetAssignments] =
     useState<CharacterSheetAssignments>(() => createEmptyCharacterSheetAssignments());
@@ -349,6 +352,10 @@ export const useCharacterManagerDraft = (): UseCharacterManagerDraftResult => {
     setCharacterNameState(value.slice(0, 80));
   }, []);
 
+  const setCharacterVoice = useCallback((value: string) => {
+    setCharacterVoiceState(value.slice(0, 80));
+  }, []);
+
   const {
     setCharacterDescription,
     setActiveCharacterSheetPreset,
@@ -438,6 +445,7 @@ export const useCharacterManagerDraft = (): UseCharacterManagerDraftResult => {
         nextSlots: snapshot.slots,
         nextUserId: snapshot.userId,
       });
+      setCharacterVoiceState("");
       await refreshCharacterListSilently(snapshot.characterId, {
         publishSyncEvent: true,
         reason: "create",
@@ -490,6 +498,7 @@ export const useCharacterManagerDraft = (): UseCharacterManagerDraftResult => {
             nextSlots: snapshot.slots,
             nextUserId: snapshot.userId,
           });
+          setCharacterVoiceState("");
           await refreshCharacterListSilently(snapshot.characterId);
         } else {
           const snapshot = await createCharacterManagerDraft();
@@ -510,6 +519,7 @@ export const useCharacterManagerDraft = (): UseCharacterManagerDraftResult => {
             nextSlots: snapshot.slots,
             nextUserId: snapshot.userId,
           });
+          setCharacterVoiceState("");
           await refreshCharacterListSilently(snapshot.characterId);
         }
 
@@ -548,6 +558,7 @@ export const useCharacterManagerDraft = (): UseCharacterManagerDraftResult => {
           nextSlots: snapshot.slots,
           nextUserId: snapshot.userId,
         });
+        setCharacterVoiceState("");
         await refreshCharacterListSilently(snapshot.characterId);
       } catch (nextError) {
         setError(toErrorMessage(nextError, "Failed to switch character."));
@@ -572,6 +583,7 @@ export const useCharacterManagerDraft = (): UseCharacterManagerDraftResult => {
     characters,
     selectedCharacterId: characterId,
     characterName,
+    characterVoice,
     characterDescription,
     characterSheetAssignments,
     activeCharacterSheetPresetId,
@@ -591,6 +603,7 @@ export const useCharacterManagerDraft = (): UseCharacterManagerDraftResult => {
     isSavingProfileImage,
     isSavingCharacterSheetPreset,
     setCharacterName,
+    setCharacterVoice,
     setCharacterDescription,
     setProfileImageFile,
     saveProfileImageTransform,

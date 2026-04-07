@@ -17,7 +17,6 @@ type CharacterManagerWorkflowTabsProps = {
   isCreatingCharacter: boolean;
   loading: boolean;
   onCreateCharacter: () => void;
-  title: string;
 };
 
 /**
@@ -33,8 +32,9 @@ export function CharacterManagerWorkflowTabs({
   isCreatingCharacter,
   loading,
   onCreateCharacter,
-  title,
 }: CharacterManagerWorkflowTabsProps) {
+  const shouldShowProfileTab = !isEmbeddedSurface || activeTab === "create";
+  const shouldRenderEmbeddedHeader = !isEmbeddedSurface || activeTab === "create";
   const tabRow = (
     <div
       className={
@@ -56,17 +56,19 @@ export function CharacterManagerWorkflowTabs({
       >
         Manage Characters
       </button>
-      <button
-        type="button"
-        role="tab"
-        aria-selected={activeTab === "create"}
-        className={`character-mode-tab character-mode-tab--profile ${
-          activeTab === "create" ? "is-active" : ""
-        }`}
-        onClick={() => setActiveTab("create")}
-      >
-        Character Profile
-      </button>
+      {shouldShowProfileTab ? (
+        <button
+          type="button"
+          role="tab"
+          aria-selected={activeTab === "create"}
+          className={`character-mode-tab character-mode-tab--profile ${
+            activeTab === "create" ? "is-active" : ""
+          }`}
+          onClick={() => setActiveTab("create")}
+        >
+          Character Profile
+        </button>
+      ) : null}
     </div>
   );
 
@@ -89,12 +91,8 @@ export function CharacterManagerWorkflowTabs({
   );
 
   if (isEmbeddedSurface) {
-    return (
-      <header className="character-library-panel-header">
-        <p className="eyebrow">{title}</p>
-        {tabRow}
-      </header>
-    );
+    if (!shouldRenderEmbeddedHeader) return null;
+    return <header className="character-library-panel-header">{tabRow}</header>;
   }
 
   return (

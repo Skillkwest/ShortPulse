@@ -8,6 +8,7 @@ export type PropertiesPanelKind =
   | WorkflowId
   | "styles"
   | "presets"
+  | "elements"
   | "media-library"
   | "sound"
   | "text-to-speech";
@@ -17,6 +18,7 @@ export type PropertiesPanelKind =
  */
 export const resolvePropertiesPanelKind = (selectedTool: ToolId | null): PropertiesPanelKind => {
   if (selectedTool === "media-library") return "media-library";
+  if (selectedTool === "elements") return "elements";
   if (selectedTool === "styles") return "styles";
   if (selectedTool === "presets") return "presets";
   if (selectedTool === "text-to-speech") return "text-to-speech";

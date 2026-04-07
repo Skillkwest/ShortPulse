@@ -1,6 +1,6 @@
 /**
  * AI Studio Character panel scroll-lock hook.
- * Locks the properties rail scroll only while the embedded Character Profile tab is active.
+ * Locks the properties rail scroll only while the embedded Character Manager tab is active.
  */
 import React from "react";
 import type { CharacterWorkflowTab } from "../../character-manager/types";
@@ -18,7 +18,7 @@ export function useCharacterPanelPropertiesScrollLock({
   rootRef,
 }: UseCharacterPanelPropertiesScrollLockParams) {
   React.useEffect(() => {
-    if (activeTab !== "create") return;
+    if (activeTab !== "manage") return;
     const rootNode = rootRef.current;
     if (!rootNode) return;
     const propertiesPanel = rootNode.closest(".ai-properties");

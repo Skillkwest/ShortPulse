@@ -45,6 +45,7 @@ vi.mock("../../hooks/useCharacterManagerDraft", () => ({
     characters: [],
     selectedCharacterId: "character-1",
     characterName: "Taylor",
+    characterVoice: "",
     characterDescription: "",
     characterSheetAssignments: createEmptyCharacterSheetAssignments(),
     activeCharacterSheetPresetId: "1",
@@ -73,6 +74,7 @@ vi.mock("../../hooks/useCharacterManagerDraft", () => ({
     isSavingProfileImage: false,
     isSavingCharacterSheetPreset: false,
     setCharacterName: () => undefined,
+    setCharacterVoice: () => undefined,
     setCharacterDescription: () => undefined,
     setProfileImageFile: async () => undefined,
     saveProfileImageTransform: async () => true,
@@ -144,6 +146,21 @@ describe("CharacterManagerShell layout", () => {
     expect(nameInput?.closest("[data-layout-region]")).toBe(sheetRegion);
   });
 
+  it("renders a voice field below the name field in profile mode", () => {
+    render(<CharacterManagerShell surface="panel" initialWorkflowTab="create" />);
+    expect(screen.getByLabelText("Voice:")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Create Voice" })).toBeInTheDocument();
+  });
+
+  it("hides the Character Profile tab in embedded manage mode", () => {
+    render(<CharacterManagerShell surface="panel" initialWorkflowTab="manage" />);
+    expect(
+      screen.queryByRole("tablist", { name: "Character workflow mode" })
+    ).not.toBeInTheDocument();
+    expect(screen.queryByRole("tab", { name: "Manage Characters" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("tab", { name: "Character Profile" })).not.toBeInTheDocument();
+  });
+
   it("renders create layout regions in stable order on panel surface", () => {
     const { container } = render(<CharacterManagerShell surface="panel" beginnerModeOverride />);
     expect(resolveLayoutOrder(container)).toEqual(["quickswap", "sheet"]);
@@ -165,7 +182,7 @@ describe("CharacterManagerShell layout", () => {
       <div className="ai-properties" style={{ overflowY: "auto", overscrollBehaviorY: "auto" }}>
         <CharacterManagerShell
           surface="panel"
-          initialWorkflowTab="manage"
+          initialWorkflowTab="create"
           beginnerModeOverride
           onActiveTabChange={onActiveTabChange}
         />
@@ -176,13 +193,13 @@ describe("CharacterManagerShell layout", () => {
       throw new Error("Expected ai-properties wrapper to exist.");
     }
 
-    expect(onActiveTabChange).toHaveBeenCalledWith("manage");
+    expect(onActiveTabChange).toHaveBeenCalledWith("create");
     expect(propertiesRail.style.overflowY).toBe("auto");
     expect(propertiesRail.style.overscrollBehaviorY).toBe("auto");
 
-    fireEvent.click(screen.getByRole("tab", { name: "Character Profile" }));
+    fireEvent.click(screen.getByRole("tab", { name: "Manage Characters" }));
 
-    expect(onActiveTabChange).toHaveBeenLastCalledWith("create");
+    expect(onActiveTabChange).toHaveBeenLastCalledWith("manage");
     expect(propertiesRail.style.overflowY).toBe("auto");
     expect(propertiesRail.style.overscrollBehaviorY).toBe("auto");
   });

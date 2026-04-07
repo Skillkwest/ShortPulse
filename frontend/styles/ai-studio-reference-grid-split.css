@@ -361,8 +361,13 @@
 }
 
 .ai-studio-page[data-selected-tool="character"] .reference-grid-horizontal-divider-wrap {
-  --reference-divider-active-color: #4ae074;
-  --reference-divider-active-ring: rgba(74, 224, 116, 0.28);
+  --reference-divider-active-color: rgba(37, 204, 255, 0.88);
+  --reference-divider-active-ring: rgba(37, 204, 255, 0.28);
+}
+
+.ai-studio-page[data-selected-tool="presets"] .reference-grid-horizontal-divider-wrap {
+  --reference-divider-active-color: rgba(214, 220, 228, 0.74);
+  --reference-divider-active-ring: rgba(214, 220, 228, 0.24);
 }
 
 .ai-studio-page[data-selected-tool="canvas"]
@@ -382,9 +387,9 @@
 .ai-studio-page[data-selected-tool="character"]
   .reference-grid-horizontal-divider-wrap:focus-visible
   .reference-grid-horizontal-divider-pill {
-  color: rgba(143, 223, 166, 0.86);
-  border-color: rgba(74, 224, 116, 0.36);
-  background: rgba(74, 224, 116, 0.07);
+  color: rgba(163, 198, 214, 0.88);
+  border-color: rgba(37, 204, 255, 0.36);
+  background: rgba(37, 204, 255, 0.07);
 }
 
 .reference-all-refs-section {

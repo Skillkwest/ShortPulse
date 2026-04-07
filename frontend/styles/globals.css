@@ -53,6 +53,8 @@
 @import "./character-manager.css";
 @import "./character-manager-workspace.css";
 @import "./character-manager-embedded.css";
+@import "./elements-manager.css";
+@import "./elements-manager-embedded.css";
 @import "./workspace-tools.css";
 @import "./workspace-media.css";
 @import "./workspace-profile.css";

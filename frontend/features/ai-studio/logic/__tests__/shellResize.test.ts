@@ -5,6 +5,7 @@
 import { describe, expect, it } from "vitest";
 import {
   AI_SHELL_DIVIDER_TRACK_PX,
+  AI_SHELL_LEFT_CHARACTER_DEFAULT_RATIO,
   AI_SHELL_LEFT_CANVAS_DEFAULT_RATIO,
   AI_SHELL_LEFT_CHARACTER_MIN_PX,
   AI_SHELL_LEFT_EXPERT_CREATE_MAX_PX,
@@ -109,6 +110,12 @@ describe("getDefaultAiShellLeftWidth", () => {
     expect(
       getDefaultAiShellLeftWidth(1600, { preferredRatio: AI_SHELL_LEFT_CANVAS_DEFAULT_RATIO })
     ).toBe(clampAiShellLeftWidth(1600 * AI_SHELL_LEFT_CANVAS_DEFAULT_RATIO, 1600));
+  });
+
+  it("supports a wider character default ratio for the character tool", () => {
+    expect(
+      getDefaultAiShellLeftWidth(1600, { preferredRatio: AI_SHELL_LEFT_CHARACTER_DEFAULT_RATIO })
+    ).toBe(clampAiShellLeftWidth(1600 * AI_SHELL_LEFT_CHARACTER_DEFAULT_RATIO, 1600));
   });
 });
 

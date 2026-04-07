@@ -104,7 +104,7 @@ export const CHARACTER_SHEET_DROP_ZONES = [
   { key: "portrait", label: "Portrait" },
   { key: "close_up", label: "Close-up" },
   { key: "front_shot", label: "Full-body" },
-  { key: "back_shot", label: "Action or Expression" },
+  { key: "back_shot", label: "Back View" },
 ] as const satisfies ReadonlyArray<{ key: CharacterSheetDropZoneKey; label: string }>;
 
 export const CHARACTER_SHEET_PRESET_IDS = [

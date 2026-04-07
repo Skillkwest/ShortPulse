@@ -255,6 +255,7 @@ vi.mock("../../../../prefabs/agent", () => ({
 
 const collapseToMinMock = vi.fn();
 const expandToMaxMock = vi.fn();
+const resetToDefaultWidthMock = vi.fn();
 vi.mock("../hooks/useAiStudioShellResize", () => ({
   useAiStudioShellResize: () => ({
     shellRef: { current: null },
@@ -263,7 +264,7 @@ vi.mock("../hooks/useAiStudioShellResize", () => ({
     isResizing: false,
     shellStyle: {},
     collapseToMin: collapseToMinMock,
-    resetToDefaultWidth: vi.fn(),
+    resetToDefaultWidth: resetToDefaultWidthMock,
     expandToMax: expandToMaxMock,
     dividerProps: {},
     rightColumnHidden: false,

@@ -103,6 +103,7 @@ export type StudioOutput = {
 export type ToolId =
   | "create"
   | "media-library"
+  | "elements"
   | "workflows"
   | "presets"
   | "styles"

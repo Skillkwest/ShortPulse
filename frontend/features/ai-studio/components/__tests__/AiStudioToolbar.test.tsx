@@ -67,6 +67,7 @@ describe("AiStudioToolbar", () => {
     { button: "Sound", expected: "text-to-speech" as const },
     { button: "Canvas", expected: "canvas" as const },
     { button: "Characters", expected: "character" as const },
+    { button: "Elements", expected: "elements" as const },
     { button: "Prompt Presets", expected: "presets" as const },
     { button: "Styles", expected: "styles" as const },
   ])("routes $button clicks to $expected", ({ button, expected }) => {
@@ -138,6 +139,7 @@ describe("AiStudioToolbar", () => {
     expect(libraryButtons.map((button) => button.textContent?.trim())).toEqual([
       "Media",
       "Characters",
+      "Elements",
       "Prompt Presets",
       "Styles",
     ]);
@@ -233,6 +235,27 @@ describe("AiStudioToolbar", () => {
     expect(onSelectTool).toHaveBeenCalledWith("character");
   });
 
+  it("routes Elements clicks to canonical elements selection and closes create tools", () => {
+    const onSelectTool = vi.fn();
+    const onToggleCreateTools = vi.fn();
+
+    render(
+      <AiStudioToolbar
+        selectedTool={null}
+        showCreateTools={true}
+        beginnerMode={false}
+        onSelectTool={onSelectTool}
+        onToggleCreateTools={onToggleCreateTools}
+        onToggleBeginnerMode={vi.fn()}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Elements" }));
+
+    expect(onToggleCreateTools).toHaveBeenCalledWith(false);
+    expect(onSelectTool).toHaveBeenCalledWith("elements");
+  });
+
   it("toggles Characters off when it is already active", () => {
     const onSelectTool = vi.fn();
     const onToggleCreateTools = vi.fn();
@@ -249,6 +272,27 @@ describe("AiStudioToolbar", () => {
     );
 
     fireEvent.click(screen.getByRole("button", { name: "Characters" }));
+
+    expect(onToggleCreateTools).toHaveBeenCalledWith(false);
+    expect(onSelectTool).toHaveBeenCalledWith(null);
+  });
+
+  it("toggles Elements off when it is already active", () => {
+    const onSelectTool = vi.fn();
+    const onToggleCreateTools = vi.fn();
+
+    render(
+      <AiStudioToolbar
+        selectedTool="elements"
+        showCreateTools={false}
+        beginnerMode={false}
+        onSelectTool={onSelectTool}
+        onToggleCreateTools={onToggleCreateTools}
+        onToggleBeginnerMode={vi.fn()}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Elements" }));
 
     expect(onToggleCreateTools).toHaveBeenCalledWith(false);
     expect(onSelectTool).toHaveBeenCalledWith(null);

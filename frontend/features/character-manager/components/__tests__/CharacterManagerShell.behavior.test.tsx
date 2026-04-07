@@ -409,6 +409,7 @@ vi.mock("../../hooks/useCharacterManagerDraft", async () => {
         characters: characterManagerMockState.characters,
         selectedCharacterId: characterManagerMockState.selectedCharacterId,
         characterName: "Taylor",
+        characterVoice: "",
         characterDescription: "",
         characterSheetAssignments,
         activeCharacterSheetPresetId,
@@ -432,6 +433,7 @@ vi.mock("../../hooks/useCharacterManagerDraft", async () => {
         isSavingProfileImage: false,
         isSavingCharacterSheetPreset: false,
         setCharacterName: () => undefined,
+        setCharacterVoice: () => undefined,
         setCharacterDescription: () => undefined,
         setProfileImageFile: async () => undefined,
         saveProfileImageTransform: async () => true,
@@ -845,14 +847,20 @@ describe("CharacterManagerShell behavior", () => {
     expect(screen.queryByRole("button", { name: "Delete preset 1" })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Delete preset 2" }));
 
+    const deleteDialog = screen.getByRole("dialog", { name: "Delete preset “2”?" });
     expect(screen.getByText("Delete preset “2”?")).toBeInTheDocument();
     expect(
-      screen.getByText(
-        "This removes saved references from this preset tab. Do you wish to continue?"
+      within(deleteDialog).getByText((_, element) =>
+        Boolean(
+          element?.classList.contains("character-delete-confirm-copy") &&
+          element.textContent?.includes(
+            "This will permanently remove saved references from preset 2. This action cannot be undone."
+          )
+        )
       )
     ).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "No" }));
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
     await waitFor(() => {
       expect(screen.queryByText("Delete preset “2”?")).not.toBeInTheDocument();
     });
@@ -867,7 +875,7 @@ describe("CharacterManagerShell behavior", () => {
 
     fireEvent.click(screen.getByRole("tab", { name: "2" }));
     fireEvent.click(screen.getByRole("button", { name: "Delete preset 2" }));
-    fireEvent.click(screen.getByRole("button", { name: "Yes" }));
+    fireEvent.click(screen.getByRole("button", { name: "Delete" }));
 
     await waitFor(() => {
       expect(screen.queryByRole("tab", { name: "2" })).not.toBeInTheDocument();
@@ -882,7 +890,7 @@ describe("CharacterManagerShell behavior", () => {
     expect(screen.getByRole("tab", { name: "3" })).toHaveAttribute("aria-selected", "true");
 
     fireEvent.click(screen.getByRole("button", { name: "Delete preset 2" }));
-    fireEvent.click(screen.getByRole("button", { name: "Yes" }));
+    fireEvent.click(screen.getByRole("button", { name: "Delete" }));
 
     await waitFor(() => {
       expect(screen.queryByRole("tab", { name: "2" })).not.toBeInTheDocument();
@@ -1119,7 +1127,7 @@ describe("CharacterManagerShell behavior", () => {
       expect(screen.getAllByRole("button", { name: /Remove reference/i })).toHaveLength(14);
     });
 
-    fireEvent.click(getCharacterSheetZone("Action or Expression"));
+    fireEvent.click(getCharacterSheetZone("Full-body"));
 
     const characterSheetUploadInput = screen.getByTestId(
       "character-sheet-upload-input"
@@ -1129,9 +1137,7 @@ describe("CharacterManagerShell behavior", () => {
     });
 
     await waitFor(() => {
-      expect(getZoneImageSrc("Action or Expression")).toBe(
-        "https://example.com/preset-1-back_shot-1.png"
-      );
+      expect(getZoneImageSrc("Full-body")).toBe("https://example.com/preset-1-front_shot-1.png");
       expect(screen.getAllByRole("button", { name: /Remove reference/i })).toHaveLength(14);
     });
   });
@@ -1910,7 +1916,7 @@ describe("CharacterManagerShell behavior", () => {
     expect(
       screen.getByText("Pulling your character sheet and references into view.")
     ).toBeInTheDocument();
-    expect(document.querySelectorAll(".character-create-loading-thumbnail")).toHaveLength(6);
+    expect(document.querySelectorAll(".character-create-loading-thumbnail")).toHaveLength(15);
     expect(document.querySelectorAll(".character-create-loading-reference")).toHaveLength(4);
     expect(screen.queryByText("Character Sheet")).not.toBeInTheDocument();
   });
@@ -1929,7 +1935,7 @@ describe("CharacterManagerShell behavior", () => {
     await renderShell({ initialWorkflowTab: "create" });
 
     expect(screen.getByText("Loading character profile...")).toBeInTheDocument();
-    expect(document.querySelectorAll(".character-create-loading-thumbnail")).toHaveLength(6);
+    expect(document.querySelectorAll(".character-create-loading-thumbnail")).toHaveLength(15);
     expect(screen.queryByText("Character Sheet")).not.toBeInTheDocument();
   });
 

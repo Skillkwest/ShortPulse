@@ -24,6 +24,7 @@ import { VideoPropertiesPanel } from "./VideoPropertiesPanel";
 import { SoundPropertiesPanel } from "./SoundPropertiesPanel";
 import { TextToSpeechPropertiesPanel } from "./TextToSpeechPropertiesPanel";
 import { MediaLibraryPanel } from "./MediaLibraryPanel";
+import { ElementsPanel } from "./ElementsPanel";
 import { useAiStudioShellResize } from "../hooks/useAiStudioShellResize";
 import { useAiStudioShellDndController } from "../hooks/useAiStudioShellDndController";
 import { useStylesLibraryDeletedStyleIdsPreference } from "../hooks/useStylesLibraryDeletedStyleIdsPreference";
@@ -58,6 +59,7 @@ import {
 import { useVisibleErrorTelemetry } from "../../../lib/useVisibleErrorTelemetry";
 import {
   AI_SHELL_LEFT_CHARACTER_MIN_PX,
+  AI_SHELL_LEFT_CHARACTER_DEFAULT_RATIO,
   AI_SHELL_LEFT_CANVAS_DEFAULT_RATIO,
   AI_SHELL_LEFT_EXPERT_CREATE_MAX_PX,
   AI_SHELL_LEFT_EXPERT_CREATE_MIN_PX,
@@ -838,9 +840,11 @@ export function AiStudioPageContent({
     ? 0.65
     : selectedTool === "canvas"
       ? AI_SHELL_LEFT_CANVAS_DEFAULT_RATIO
-      : selectedTool === "video" || selectedTool === "kling"
-        ? AI_SHELL_LEFT_VIDEO_DEFAULT_RATIO
-        : undefined;
+      : selectedTool === "character"
+        ? AI_SHELL_LEFT_CHARACTER_DEFAULT_RATIO
+        : selectedTool === "video" || selectedTool === "kling"
+          ? AI_SHELL_LEFT_VIDEO_DEFAULT_RATIO
+          : undefined;
   const {
     shellRef,
     leftColumnRef,
@@ -877,10 +881,17 @@ export function AiStudioPageContent({
     const isEditToolSelected = selectedTool === "edit";
     const isCharacterToolSelected = selectedTool === "character";
     const isSoundToolSelected = isSoundWorkflow(selectedTool);
-    const shouldExpandForToolSelection =
-      (isEditToolSelected || isCharacterToolSelected) && previousSelectedTool !== selectedTool;
-    if (shouldExpandForToolSelection) {
-      expandToMax();
+    const shouldResetForCharacterSelection =
+      isCharacterToolSelected && previousSelectedTool !== selectedTool;
+    if (shouldResetForCharacterSelection) {
+      collapseToMin();
+      previousSelectedToolRef.current = selectedTool;
+      return;
+    }
+    const shouldCollapseForEditSelection =
+      isEditToolSelected && previousSelectedTool !== selectedTool;
+    if (shouldCollapseForEditSelection) {
+      collapseToMin();
       previousSelectedToolRef.current = selectedTool;
       return;
     }
@@ -913,7 +924,7 @@ export function AiStudioPageContent({
       }
     }
     previousSelectedToolRef.current = selectedTool;
-  }, [collapseToMin, expandToMax, resetToDefaultWidth, selectedTool, showExpertCreatePanel]);
+  }, [collapseToMin, resetToDefaultWidth, selectedTool, showExpertCreatePanel]);
   const rightColumnRef = React.useRef<HTMLDivElement | null>(null);
   const handleStylesPanelToggle = React.useCallback(() => {
     setPanelVisibility((previous) => {
@@ -1114,6 +1125,7 @@ export function AiStudioPageContent({
       selectedPresetId,
     ]
   );
+  const elementsPropertiesPanelContent = React.useMemo(() => <ElementsPanel />, []);
   const stylesPropertiesPanelContent = React.useMemo(
     () => (
       <StylesLibraryPanel
@@ -1178,6 +1190,8 @@ export function AiStudioPageContent({
           return characterPropertiesPanelContent;
         case "presets":
           return presetsPropertiesPanelContent;
+        case "elements":
+          return elementsPropertiesPanelContent;
         case "styles":
           return stylesPropertiesPanelContent;
         case "media-library":
@@ -1191,11 +1205,11 @@ export function AiStudioPageContent({
       canvasPropertiesPanelContent,
       characterPropertiesPanelContent,
       createPropertiesPanelContent,
+      elementsPropertiesPanelContent,
       editPropertiesPanelContent,
       mediaLibraryPropertiesPanelContent,
       presetsPropertiesPanelContent,
       stylesPropertiesPanelContent,
-      selectedTool,
       videoPropertiesPanelContent,
     ]
   );

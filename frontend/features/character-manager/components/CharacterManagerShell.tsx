@@ -13,7 +13,15 @@ import React, {
   useRef,
   useState,
 } from "react";
-import { Plus, PencilSimpleLine, ShieldCheck, Trash, UploadSimple, XCircle } from "phosphor-react";
+import {
+  Plus,
+  PencilSimpleLine,
+  ShieldCheck,
+  Trash,
+  UploadSimple,
+  UserCircle,
+  XCircle,
+} from "phosphor-react";
 import {
   isAdaptiveSurfaceEnabled,
   logAdaptiveDetailFullQualityUsed,
@@ -53,6 +61,7 @@ import {
 import { hasDroppedImageReferenceTransfer } from "../logic/characterDropPayload";
 import { CharacterCreateWorkspaceSurface } from "./CharacterCreateWorkspaceSurface";
 import { CharacterDescriptionEditorCard } from "./CharacterDescriptionEditorCard";
+import { CharacterProfileLoadingSkeleton } from "./CharacterProfileLoadingSkeleton";
 import { CharacterManagerWorkflowBody } from "./CharacterManagerWorkflowBody";
 import { CharacterSheetPresetTabs, getCharacterSheetPresetTabId } from "./CharacterSheetPresetTabs";
 import { CharacterQuickSwapDeckSection } from "./CharacterQuickSwapDeckSection";
@@ -82,7 +91,6 @@ const CHARACTER_CHIP_AVATAR_SIZE = 44;
 const CHARACTER_DESCRIPTION_MAX_LENGTH = 150;
 const CHARACTER_DESCRIPTION_HELPER_TEXT =
   "Tip: Character description will be used as part of consistency generation.";
-const CHARACTER_LIBRARY_PANEL_TITLE = "Characters";
 const DEFAULT_REFERENCE_PREVIEW_ASPECT_RATIO = 4 / 5;
 const DEFAULT_PLAN_TIER = "business";
 const DND_REFERENCE_SLOT_KEY = "application/x-shortpulse-reference-slot-key";
@@ -138,6 +146,7 @@ export function CharacterManagerShell({
     characters,
     selectedCharacterId,
     characterName,
+    characterVoice,
     characterDescription,
     activeCharacterSheetPresetId,
     visibleCharacterSheetPresetIds,
@@ -154,6 +163,7 @@ export function CharacterManagerShell({
     isSavingProfileImage,
     isSavingCharacterSheetPreset,
     setCharacterName,
+    setCharacterVoice,
     setCharacterDescription,
     setProfileImageFile,
     saveProfileImageTransform,
@@ -615,6 +625,7 @@ export function CharacterManagerShell({
     <RootContainer
       id={isEmbeddedSurface ? undefined : "main-content"}
       className={rootClassName}
+      data-active-tab={activeTab}
       data-beginner-mode={effectiveBeginnerMode ? "on" : "off"}
       data-surface={surface}
     >
@@ -669,7 +680,6 @@ export function CharacterManagerShell({
           isCreatingCharacter={isCreatingCharacter}
           loading={loading}
           onCreateCharacter={handleCreateNewCharacter}
-          title={CHARACTER_LIBRARY_PANEL_TITLE}
         />
       </section>
 
@@ -688,58 +698,7 @@ export function CharacterManagerShell({
         createPanel={
           <section className="character-simple-panel">
             {isCreateProfileLoading ? (
-              <div className="character-create-loading" role="status" aria-live="polite">
-                <span className="character-create-loading-spinner" aria-hidden="true" />
-                <p className="character-create-loading-title">Loading character profile...</p>
-                <p className="tiny subdued character-create-loading-copy">
-                  Pulling your character sheet and references into view.
-                </p>
-                <CharacterCreateWorkspaceSurface
-                  surface={surface}
-                  quickSwap={
-                    <section className="character-section character-create-loading-card">
-                      <div className="character-create-loading-heading">
-                        <span className="character-create-loading-line character-create-loading-line--title" />
-                        <span className="character-create-loading-line character-create-loading-line--subtitle" />
-                      </div>
-                      <div className="character-create-loading-quickswap-grid" aria-hidden="true">
-                        {Array.from({ length: 6 }, (_, index) => (
-                          <span
-                            key={`character-create-loading-quickswap-${index + 1}`}
-                            className="character-create-loading-thumbnail"
-                          />
-                        ))}
-                      </div>
-                    </section>
-                  }
-                  characterSheet={
-                    <section className="character-section character-section--references character-create-loading-card">
-                      <div className="character-create-loading-heading">
-                        <span className="character-create-loading-line character-create-loading-line--title" />
-                        <span className="character-create-loading-line character-create-loading-line--subtitle" />
-                      </div>
-                      <div className="character-create-loading-profile-row">
-                        <span className="character-create-loading-profile-avatar" />
-                        <span className="character-create-loading-profile-name" />
-                      </div>
-                      <div className="character-create-loading-tab-row">
-                        <span className="character-create-loading-tab" />
-                        <span className="character-create-loading-tab" />
-                        <span className="character-create-loading-tab character-create-loading-tab--short" />
-                      </div>
-                      <span className="character-create-loading-description" />
-                      <div className="character-create-loading-references-grid">
-                        {Array.from({ length: 4 }, (_, index) => (
-                          <span
-                            key={`character-create-loading-reference-${index + 1}`}
-                            className="character-create-loading-reference"
-                          />
-                        ))}
-                      </div>
-                    </section>
-                  }
-                />
-              </div>
+              <CharacterProfileLoadingSkeleton surface={surface} />
             ) : (
               <CharacterCreateWorkspaceSurface
                 surface={surface}
@@ -890,8 +849,8 @@ export function CharacterManagerShell({
                                 unoptimized
                               />
                             ) : (
-                              <span className="character-profile-initials" aria-hidden>
-                                {profileInitials}
+                              <span className="character-profile-placeholder-icon" aria-hidden>
+                                <UserCircle size={46} weight="light" aria-hidden="true" />
                               </span>
                             )}
                           </button>
@@ -1029,6 +988,44 @@ export function CharacterManagerShell({
                               placeholder="Enter character name"
                               disabled={loading}
                             />
+                          </label>
+                          <label
+                            className="control-row character-simple-field"
+                            htmlFor="character-manager-voice"
+                          >
+                            <span className="input-label">Voice:</span>
+                            <div className="character-voice-row">
+                              <input
+                                id="character-manager-voice"
+                                className="character-name-input character-voice-input"
+                                type="text"
+                                value={characterVoice}
+                                maxLength={80}
+                                onChange={(event) => setCharacterVoice(event.target.value)}
+                                placeholder="Enter voice"
+                                disabled={loading}
+                              />
+                              <button
+                                type="button"
+                                className="character-voice-create-btn"
+                                style={{
+                                  gap: "5px",
+                                  minHeight: "44px",
+                                  padding: "0 12px",
+                                  border: "1px solid rgba(37, 204, 255, 0.58)",
+                                  borderRadius: "14px",
+                                  background: "rgba(28, 32, 37, 0.94)",
+                                  color: "rgba(110, 214, 233, 0.96)",
+                                  fontWeight: 500,
+                                  fontSize: "0.8rem",
+                                  letterSpacing: "0.01em",
+                                  boxShadow: "0 6px 14px rgba(0, 0, 0, 0.18)",
+                                }}
+                                aria-label="Create Voice"
+                              >
+                                + Create Voice
+                              </button>
+                            </div>
                           </label>
                         </div>
                       </div>
@@ -1188,32 +1185,36 @@ export function CharacterManagerShell({
         }
         managePanel={
           <section className="panel media-panel character-manage-panel">
-            <div className={isEmbeddedSurface ? "character-manage-panel-header" : undefined}>
-              <div>
-                <h2>Character Library</h2>
-                <p className="tiny subdued">Select a character to edit their character profile.</p>
+            <div className="character-manage-header-row">
+              <div className="character-manage-title-stack">
+                <h2>Characters</h2>
+                <p className="tiny subdued character-manage-helper">
+                  Select a character to edit their character profile.
+                </p>
               </div>
               {isEmbeddedSurface ? (
-                <button
-                  type="button"
-                  className="character-mode-create-btn character-mode-create-btn--inline"
-                  onClick={handleCreateNewCharacter}
-                  disabled={isCreatingCharacter || loading}
-                >
-                  {isCreatingCharacter ? (
-                    "Creating..."
-                  ) : (
-                    <>
-                      <Plus
-                        size={14}
-                        weight="bold"
-                        className="character-mode-create-btn-icon"
-                        aria-hidden
-                      />
-                      <span>Create New Character</span>
-                    </>
-                  )}
-                </button>
+                <div className="character-manage-header-actions">
+                  <button
+                    type="button"
+                    className="character-mode-create-btn character-mode-create-btn--inline"
+                    onClick={handleCreateNewCharacter}
+                    disabled={isCreatingCharacter || loading}
+                  >
+                    {isCreatingCharacter ? (
+                      "Creating..."
+                    ) : (
+                      <>
+                        <Plus
+                          size={14}
+                          weight="bold"
+                          className="character-mode-create-btn-icon"
+                          aria-hidden
+                        />
+                        <span>Create New Character</span>
+                      </>
+                    )}
+                  </button>
+                </div>
               ) : null}
             </div>
 
@@ -1277,83 +1278,85 @@ export function CharacterManagerShell({
                   </div>
                 ) : null}
 
-                <div className="character-manage-list" role="list" aria-label="Character list">
-                  {visibleManageCharacters.map((character) => {
-                    const isSelected = character.characterId === selectedCharacterId;
-                    const chipName = character.characterName || "Untitled character";
-                    const chipInitials = getCharacterInitials(chipName);
-                    return (
-                      <article
-                        key={character.characterId}
-                        role="listitem"
-                        className={`character-list-card ${isSelected ? "is-active" : ""} ${
-                          pageBusy ? "is-disabled" : ""
-                        }`}
-                      >
-                        <button
-                          type="button"
-                          className="character-list-select-btn"
-                          onClick={() => {
-                            void selectCharacter(character.characterId);
-                            setActiveTab("create");
-                          }}
-                          disabled={pageBusy}
+                <div className="character-manage-chip-container">
+                  <div className="character-manage-list" role="list" aria-label="Character list">
+                    {visibleManageCharacters.map((character) => {
+                      const isSelected = character.characterId === selectedCharacterId;
+                      const chipName = character.characterName || "Untitled character";
+                      const chipInitials = getCharacterInitials(chipName);
+                      return (
+                        <article
+                          key={character.characterId}
+                          role="listitem"
+                          className={`character-list-card ${isSelected ? "is-active" : ""} ${
+                            pageBusy ? "is-disabled" : ""
+                          }`}
                         >
-                          <div className="character-list-main">
-                            <span className="character-list-avatar" aria-hidden="true">
-                              {character.profileImageUrl ? (
-                                <Image
-                                  src={
-                                    resolveCharacterGridPreviewUrl(
-                                      character.profileImageUrl,
-                                      CHARACTER_CHIP_AVATAR_SIZE
-                                    ) ?? character.profileImageUrl
-                                  }
-                                  alt=""
-                                  className="character-list-avatar-image"
-                                  style={
-                                    character.profileImageTransform
-                                      ? buildProfileImageTransformStyle(
-                                          character.profileImageTransform,
-                                          CHARACTER_CHIP_AVATAR_SIZE
-                                        )
-                                      : undefined
-                                  }
-                                  width={CHARACTER_CHIP_AVATAR_SIZE}
-                                  height={CHARACTER_CHIP_AVATAR_SIZE}
-                                  unoptimized
-                                />
-                              ) : (
-                                <span className="character-list-avatar-initials">
-                                  {chipInitials}
-                                </span>
-                              )}
-                            </span>
-                            <div className="character-list-copy">
-                              <p className="metric-label tiny">
-                                {isSelected ? "Selected" : "Character"}
-                              </p>
-                              <p className="character-list-name">{chipName}</p>
+                          <button
+                            type="button"
+                            className="character-list-select-btn"
+                            onClick={() => {
+                              void selectCharacter(character.characterId);
+                              setActiveTab("create");
+                            }}
+                            disabled={pageBusy}
+                          >
+                            <div className="character-list-main">
+                              <span className="character-list-avatar" aria-hidden="true">
+                                {character.profileImageUrl ? (
+                                  <Image
+                                    src={
+                                      resolveCharacterGridPreviewUrl(
+                                        character.profileImageUrl,
+                                        CHARACTER_CHIP_AVATAR_SIZE
+                                      ) ?? character.profileImageUrl
+                                    }
+                                    alt=""
+                                    className="character-list-avatar-image"
+                                    style={
+                                      character.profileImageTransform
+                                        ? buildProfileImageTransformStyle(
+                                            character.profileImageTransform,
+                                            CHARACTER_CHIP_AVATAR_SIZE
+                                          )
+                                        : undefined
+                                    }
+                                    width={CHARACTER_CHIP_AVATAR_SIZE}
+                                    height={CHARACTER_CHIP_AVATAR_SIZE}
+                                    unoptimized
+                                  />
+                                ) : (
+                                  <span className="character-list-avatar-initials">
+                                    {chipInitials}
+                                  </span>
+                                )}
+                              </span>
+                              <div className="character-list-copy">
+                                <p className="metric-label tiny">
+                                  {isSelected ? "Selected" : "Character"}
+                                </p>
+                                <p className="character-list-name">{chipName}</p>
+                              </div>
                             </div>
-                          </div>
-                        </button>
-                        <button
-                          type="button"
-                          className="character-list-delete-btn"
-                          aria-label={`Delete character: ${chipName}`}
-                          onClick={() => {
-                            setDeleteTargetCharacter({
-                              characterId: character.characterId,
-                              characterName: chipName,
-                            });
-                          }}
-                          disabled={pageBusy}
-                        >
-                          <Trash size={12} weight="bold" />
-                        </button>
-                      </article>
-                    );
-                  })}
+                          </button>
+                          <button
+                            type="button"
+                            className="character-list-delete-btn"
+                            aria-label={`Delete character: ${chipName}`}
+                            onClick={() => {
+                              setDeleteTargetCharacter({
+                                characterId: character.characterId,
+                                characterName: chipName,
+                              });
+                            }}
+                            disabled={pageBusy}
+                          >
+                            <Trash size={12} weight="bold" />
+                          </button>
+                        </article>
+                      );
+                    })}
+                  </div>
                 </div>
               </>
             )}
@@ -1448,7 +1451,7 @@ export function CharacterManagerShell({
                     }}
                     disabled={isDeletingCharacter}
                   >
-                    {isDeletingCharacter ? "Deleting..." : "Yes, delete character"}
+                    {isDeletingCharacter ? "Deleting..." : "Delete"}
                   </button>
                 </div>
               </div>
@@ -1468,7 +1471,9 @@ export function CharacterManagerShell({
                   Delete preset &ldquo;{deleteTargetCharacterSheetPresetLabel}&rdquo;?
                 </h3>
                 <p className="subdued tiny character-delete-confirm-copy">
-                  This removes saved references from this preset tab. Do you wish to continue?
+                  This will permanently remove saved references from preset{" "}
+                  <strong>{deleteTargetCharacterSheetPresetLabel}</strong>. This action cannot be
+                  undone.
                 </p>
                 <div className="modal-actions">
                   <button
@@ -1477,7 +1482,7 @@ export function CharacterManagerShell({
                     onClick={cancelDeleteCharacterSheetPreset}
                     disabled={isSavingCharacterSheetPreset}
                   >
-                    No
+                    Cancel
                   </button>
                   <button
                     type="button"
@@ -1487,7 +1492,7 @@ export function CharacterManagerShell({
                     }}
                     disabled={isSavingCharacterSheetPreset}
                   >
-                    {isSavingCharacterSheetPreset ? "Deleting..." : "Yes"}
+                    {isSavingCharacterSheetPreset ? "Deleting..." : "Delete"}
                   </button>
                 </div>
               </div>

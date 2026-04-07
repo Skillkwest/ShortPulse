@@ -3,7 +3,7 @@
  * Verifies embedded Character Manager region order and section presence.
  */
 import type { ReactNode } from "react";
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { CharacterPanel } from "../CharacterPanel";
 import {
@@ -123,32 +123,22 @@ vi.mock("../../../character-manager/hooks/useCharacterQuickSwapTipPreference", (
 }));
 
 describe("CharacterPanel layout", () => {
-  it("defaults embedded character workflow to Character Profile and keeps layout stable", () => {
+  it("defaults embedded character workflow to Manage Characters and keeps layout stable", () => {
     const { container } = render(<CharacterPanel beginnerMode />);
     const quickSwapHelperCopy =
       "The quick swap deck is a small library of images you can quickly access to swap out your character's style on the fly.";
-    const workflowTablist = screen.getByRole("tablist", { name: "Character workflow mode" });
-    const workflowTabs = within(workflowTablist).getAllByRole("tab");
-
-    expect(workflowTabs[0]).toHaveTextContent("Manage Characters");
-    expect(workflowTabs[1]).toHaveTextContent("Character Profile");
-    expect(screen.getByRole("tab", { name: "Character Profile" })).toHaveAttribute(
-      "aria-selected",
-      "true"
-    );
-    expect(screen.getByText("Characters")).toBeInTheDocument();
+    expect(
+      screen.queryByRole("tablist", { name: "Character workflow mode" })
+    ).not.toBeInTheDocument();
 
     const regions = Array.from(container.querySelectorAll("[data-layout-region]"))
       .map((node) => node.getAttribute("data-layout-region"))
       .filter((value): value is string => Boolean(value));
-    expect(regions).toEqual(["quickswap", "sheet"]);
-    expect(screen.getByRole("heading", { name: "QuickSwap Deck" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Character Sheet" })).toBeInTheDocument();
-    expect(screen.queryByText(quickSwapHelperCopy)).not.toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole("tab", { name: "Manage Characters" }));
-    expect(screen.getByRole("heading", { name: "Character Library" })).toBeInTheDocument();
+    expect(regions).toEqual([]);
+    expect(screen.getByRole("heading", { name: "Characters" })).toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "QuickSwap Deck" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Character Sheet" })).not.toBeInTheDocument();
+    expect(screen.queryByText(quickSwapHelperCopy)).not.toBeInTheDocument();
   });
 
   it("keeps embedded QuickSwap chrome lean in expert mode", () => {
@@ -165,7 +155,7 @@ describe("CharacterPanel layout", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("locks properties rail scrolling only while Character Profile tab is active", () => {
+  it("locks the properties rail scroll in Manage Characters mode", () => {
     const { container } = render(
       <div className="ai-properties" style={{ overflowY: "auto", overscrollBehaviorY: "auto" }}>
         <CharacterPanel beginnerMode />
@@ -176,14 +166,6 @@ describe("CharacterPanel layout", () => {
       throw new Error("Expected ai-properties wrapper to exist.");
     }
 
-    expect(propertiesRail.style.overflowY).toBe("hidden");
-    expect(propertiesRail.style.overscrollBehaviorY).toBe("none");
-
-    fireEvent.click(screen.getByRole("tab", { name: "Manage Characters" }));
-    expect(propertiesRail.style.overflowY).toBe("auto");
-    expect(propertiesRail.style.overscrollBehaviorY).toBe("auto");
-
-    fireEvent.click(screen.getByRole("tab", { name: "Character Profile" }));
     expect(propertiesRail.style.overflowY).toBe("hidden");
     expect(propertiesRail.style.overscrollBehaviorY).toBe("none");
   });

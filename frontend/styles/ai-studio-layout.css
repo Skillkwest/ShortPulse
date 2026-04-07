@@ -541,7 +541,15 @@ body:has(.ai-studio-page[data-selected-tool="canvas"]) {
 }
 
 .ai-studio-page[data-selected-tool="video"] .ai-hero-shortcut-button[aria-pressed="true"] {
-  color: rgb(193, 101, 255);
+  color: rgba(255, 77, 151, 0.96);
+}
+
+.ai-studio-page[data-selected-tool="elements"] .ai-hero-shortcut-button[aria-pressed="true"] {
+  color: rgba(255, 77, 151, 0.96);
+}
+
+.ai-studio-page[data-selected-tool="elements"] .ai-hero-shortcut-button:first-child {
+  display: none;
 }
 
 .ai-studio-page[data-selected-tool="sound"] .ai-hero-shortcut-button[aria-pressed="true"],
@@ -559,6 +567,10 @@ body:has(.ai-studio-page[data-selected-tool="canvas"]) {
 
 .ai-studio-page[data-selected-tool="canvas"] .ai-hero-shortcut-button[aria-pressed="true"] {
   color: rgba(247, 239, 224, 0.96);
+}
+
+.ai-studio-page[data-selected-tool="presets"] .ai-hero-shortcut-button[aria-pressed="true"] {
+  color: rgba(214, 220, 228, 0.94);
 }
 
 .ai-hero-shortcut-icon-button {
@@ -900,7 +912,7 @@ body:has(.ai-studio-page[data-selected-tool="canvas"]) {
 
 .ai-shell.ai-shell-resizable.ai-shell-character-open {
   grid-template-columns:
-    var(--ai-shell-left-width, minmax(1060px, 1.28fr)) var(--ai-shell-divider-track-width)
+    var(--ai-shell-left-width, minmax(900px, 1.18fr)) var(--ai-shell-divider-track-width)
     minmax(var(--ai-shell-right-min-width, 320px), 1fr);
   transition: none;
 }
@@ -1057,6 +1069,16 @@ body:has(.ai-studio-page[data-selected-tool="canvas"]) {
   box-shadow: 0 0 0 1px rgba(105, 220, 203, 0.25);
 }
 
+.ai-studio-page[data-selected-tool="create"] .ai-shell-divider:hover::before,
+.ai-studio-page[data-selected-tool="create"] .ai-shell-divider:focus-visible::before,
+.ai-studio-page[data-selected-tool="create"] .ai-shell.ai-shell-resizing .ai-shell-divider::before,
+.ai-studio-page[data-selected-tool="text"] .ai-shell-divider:hover::before,
+.ai-studio-page[data-selected-tool="text"] .ai-shell-divider:focus-visible::before,
+.ai-studio-page[data-selected-tool="text"] .ai-shell.ai-shell-resizing .ai-shell-divider::before {
+  background: rgba(37, 204, 255, 0.88);
+  box-shadow: 0 0 0 1px rgba(37, 204, 255, 0.28);
+}
+
 .ai-studio-page[data-selected-tool="sound"] .ai-shell-divider:hover::before,
 .ai-studio-page[data-selected-tool="sound"] .ai-shell-divider:focus-visible::before,
 .ai-studio-page[data-selected-tool="sound"] .ai-shell.ai-shell-resizing .ai-shell-divider::before,
@@ -1097,13 +1119,27 @@ body:has(.ai-studio-page[data-selected-tool="canvas"]) {
 .ai-studio-page[data-selected-tool="character"]
   .ai-shell.ai-shell-resizing
   .ai-shell-divider::before {
-  background: #4ae074;
-  box-shadow: 0 0 0 1px rgba(74, 224, 116, 0.28);
+  background: rgba(37, 204, 255, 0.88);
+  box-shadow: 0 0 0 1px rgba(37, 204, 255, 0.28);
+}
+
+.ai-studio-page[data-selected-tool="presets"] .ai-shell-divider:hover::before,
+.ai-studio-page[data-selected-tool="presets"] .ai-shell-divider:focus-visible::before,
+.ai-studio-page[data-selected-tool="presets"]
+  .ai-shell.ai-shell-resizing
+  .ai-shell-divider::before {
+  background: rgba(214, 220, 228, 0.74);
+  box-shadow: 0 0 0 1px rgba(214, 220, 228, 0.24);
 }
 
 .ai-shell-divider:focus-visible {
   outline: 2px solid rgba(105, 220, 203, 0.85);
   outline-offset: -2px;
+}
+
+.ai-studio-page[data-selected-tool="create"] .ai-shell-divider:focus-visible,
+.ai-studio-page[data-selected-tool="text"] .ai-shell-divider:focus-visible {
+  outline-color: rgba(37, 204, 255, 0.82);
 }
 
 .ai-studio-page[data-selected-tool="canvas"] .ai-shell-divider:focus-visible,
@@ -1112,7 +1148,11 @@ body:has(.ai-studio-page[data-selected-tool="canvas"]) {
 }
 
 .ai-studio-page[data-selected-tool="character"] .ai-shell-divider:focus-visible {
-  outline-color: rgba(74, 224, 116, 0.82);
+  outline-color: rgba(37, 204, 255, 0.82);
+}
+
+.ai-studio-page[data-selected-tool="presets"] .ai-shell-divider:focus-visible {
+  outline-color: rgba(214, 220, 228, 0.82);
 }
 
 body.ai-shell-resizing,

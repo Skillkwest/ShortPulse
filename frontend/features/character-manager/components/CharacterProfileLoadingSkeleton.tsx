@@ -1,0 +1,80 @@
+import React from "react";
+
+type CharacterProfileLoadingSkeletonProps = {
+  surface: "page" | "panel";
+};
+
+/**
+ * Dedicated loading prefab for the Character Profile view.
+ * Keeps loading-state layout isolated from the live QuickSwap and Character Sheet shells.
+ */
+export function CharacterProfileLoadingSkeleton({ surface }: CharacterProfileLoadingSkeletonProps) {
+  return (
+    <div className="character-profile-loading-prefab" role="status" aria-live="polite">
+      <span className="character-create-loading-spinner" aria-hidden="true" />
+      <p className="character-create-loading-title">Loading character profile...</p>
+      <p className="tiny subdued character-create-loading-copy">
+        Pulling your character sheet and references into view.
+      </p>
+
+      <div
+        className={`character-profile-loading-prefab-workspace ${
+          surface === "panel" ? "is-embedded" : ""
+        }`}
+      >
+        <section
+          className="character-profile-loading-prefab-card character-profile-loading-prefab-card--sheet"
+          data-layout-region="sheet"
+          aria-hidden="true"
+        >
+          <div className="character-profile-loading-prefab-heading">
+            <span className="character-create-loading-line character-create-loading-line--title" />
+            <span className="character-create-loading-line character-create-loading-line--subtitle" />
+          </div>
+
+          <div className="character-profile-loading-prefab-profile-row">
+            <span className="character-create-loading-profile-avatar" />
+            <span className="character-create-loading-profile-name" />
+          </div>
+
+          <div className="character-profile-loading-prefab-tab-row">
+            <span className="character-create-loading-tab" />
+            <span className="character-create-loading-tab" />
+            <span className="character-create-loading-tab character-create-loading-tab--short" />
+          </div>
+
+          <span className="character-create-loading-description" />
+
+          <div className="character-profile-loading-prefab-references-grid">
+            {Array.from({ length: 4 }, (_, index) => (
+              <span
+                key={`character-profile-loading-reference-${index + 1}`}
+                className="character-create-loading-reference"
+              />
+            ))}
+          </div>
+        </section>
+
+        <section
+          className="character-profile-loading-prefab-card character-profile-loading-prefab-card--quickswap"
+          data-layout-region="quickswap"
+          aria-hidden="true"
+        >
+          <div className="character-profile-loading-prefab-heading">
+            <span className="character-create-loading-line character-create-loading-line--title" />
+            <span className="character-create-loading-line character-create-loading-line--subtitle" />
+          </div>
+
+          <div className="character-profile-loading-prefab-quickswap-grid">
+            {Array.from({ length: 15 }, (_, index) => (
+              <span
+                key={`character-profile-loading-quickswap-${index + 1}`}
+                className="character-create-loading-thumbnail"
+              />
+            ))}
+          </div>
+        </section>
+      </div>
+    </div>
+  );
+}

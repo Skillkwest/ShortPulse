@@ -3,9 +3,19 @@
  * Owns AI Studio panel-specific layout and appearance overrides without changing shared component contracts.
  */
 .character-manager-page--embedded {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  height: 100%;
   padding-bottom: 0;
-  --character-embedded-sheet-max-width: 760px;
+  --character-embedded-sheet-max-width: 560px;
   --character-embedded-sheet-card-max-width: 188px;
+}
+
+.character-manager-page--embedded[data-active-tab="manage"] {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .character-manager-page--embedded[data-beginner-mode="on"] {
@@ -15,7 +25,7 @@
 
 .character-manager-page--embedded .character-mode-panel {
   margin-top: 0;
-  margin-bottom: 16px;
+  margin-bottom: 0;
   padding: 0;
 }
 
@@ -28,39 +38,89 @@
   margin: 0 0 12px;
 }
 
-.character-manager-page--embedded .character-library-panel-header .eyebrow,
-.character-manager-page--embedded .character-library-panel-header .helper-text {
-  margin: 0;
-}
-
-.character-manager-page--embedded .character-library-panel-header .character-mode-tab-row {
-  margin-right: 0;
-}
-
 .character-manager-page--embedded .character-mode-tab-row {
   width: 100%;
   max-width: none;
   margin-right: 0;
 }
 
-.character-manager-page--embedded .character-manage-panel {
-  padding: 22px 24px 24px;
-  gap: 20px;
+.character-manager-page--embedded[data-active-tab="manage"] .character-manage-panel {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  padding: 0;
+  overflow: hidden;
 }
 
-.character-manager-page--embedded .character-manage-panel-header {
-  gap: 20px;
+.character-manager-page--embedded .character-manage-header-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 12px;
+  margin: 0;
 }
 
-.character-manager-page--embedded .character-manage-panel h2 {
-  margin-top: 0;
+.character-manager-page--embedded .character-manage-title-stack {
+  display: grid;
+  gap: 2px;
+  align-self: start;
 }
 
+.character-manager-page--embedded .character-manage-title-stack h2 {
+  margin: 0;
+}
+
+.character-manager-page--embedded .character-manage-helper {
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.45;
+  color: rgba(220, 229, 238, 0.78);
+}
+
+.character-manager-page--embedded .character-manage-header-actions {
+  display: flex;
+  align-items: start;
+  justify-content: flex-end;
+  align-self: start;
+}
+
+.character-manager-page--embedded
+  .character-manage-header-actions
+  > .character-mode-create-btn--inline {
+  margin: 0;
+}
+
+.character-manager-page--embedded .character-manage-window-status,
 .character-manager-page--embedded .character-manage-list {
+  margin-inline: 0px;
+}
+
+.character-manager-page--embedded[data-active-tab="manage"] .character-manage-chip-container {
+  flex: 1 1 auto;
+  min-height: 0;
+  padding-top: 80px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(201, 205, 214, 0.2) transparent;
+  box-sizing: border-box;
+}
+
+.character-manager-page--embedded[data-active-tab="manage"] .character-manage-window-status {
+  margin-top: 0;
+  margin-bottom: 40px;
+}
+
+.character-manager-page--embedded[data-active-tab="manage"] .character-manage-list {
+  margin-top: 0;
+  padding-top: 0;
   gap: 14px;
 }
 
 .character-manager-page--embedded .character-manage-loading {
+  margin: 0 24px;
   min-height: 178px;
 }
 
@@ -69,13 +129,19 @@
   padding: 12px;
 }
 
-.character-manager-page--embedded .character-create-loading-profile-row {
-  grid-template-columns: 92px minmax(0, 1fr);
+.character-manager-page--embedded .character-profile-loading-prefab {
+  width: 100%;
 }
 
-.character-manager-page--embedded .character-create-loading-profile-avatar {
-  width: 92px;
-  height: 92px;
+.character-manager-page--embedded .character-profile-loading-prefab-profile-row {
+  grid-template-columns: 150px minmax(0, 1fr);
+}
+
+.character-manager-page--embedded
+  .character-profile-loading-prefab-card--sheet
+  .character-create-loading-profile-avatar {
+  width: 150px;
+  height: 150px;
 }
 
 .character-manager-page--embedded .character-manage-panel .character-list-card {
@@ -86,6 +152,18 @@
 
 .character-manager-page--embedded .character-create-workspace-layout {
   align-items: start;
+  height: auto;
+  min-height: 0;
+}
+
+.character-manager-page--embedded .character-simple-panel {
+  align-self: start;
+  min-height: 0;
+  height: auto;
+}
+
+.character-manager-page--embedded[data-active-tab="manage"] .character-manage-panel {
+  align-self: stretch;
 }
 
 .character-manager-page--embedded .character-section--references {
@@ -131,7 +209,7 @@
 }
 
 .character-manager-page--embedded .character-section--references .character-reference-empty-grid {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   justify-content: stretch;
   justify-items: stretch;
 }
@@ -150,7 +228,7 @@
 
 .character-manager-page--embedded .character-profile-card-top-row {
   display: grid;
-  grid-template-columns: 80px minmax(0, 1fr);
+  grid-template-columns: 160px minmax(0, 1fr);
   align-items: start;
   gap: 10px;
 }
@@ -160,17 +238,26 @@
 }
 
 .character-manager-page--embedded .character-profile-photo-btn {
-  width: 80px;
-  height: 80px;
+  width: 150px;
+  height: 150px;
 }
 
-.character-manager-page--embedded .character-profile-initials {
-  font-size: 24px;
+.character-manager-page--embedded .character-profile-placeholder-icon svg {
+  width: 44px;
+  height: 44px;
 }
 
 .character-manager-page--embedded .character-profile-fields {
   align-content: start;
   gap: 8px;
+}
+
+.character-manager-page--embedded .character-voice-row {
+  align-items: stretch;
+}
+
+.character-manager-page--embedded .character-voice-input {
+  flex-basis: 0;
 }
 
 .character-manager-page--embedded .character-profile-description-block {
@@ -215,6 +302,10 @@
   max-width: var(--character-embedded-sheet-card-max-width);
 }
 
+.character-manager-page--embedded .character-character-sheet-media {
+  aspect-ratio: 1 / 1;
+}
+
 .character-manager-page--embedded
   .character-section--reference-drop:not(.is-collapsed)
   .character-section-head {
@@ -232,11 +323,16 @@
     grid-template-columns: minmax(0, var(--character-embedded-sheet-max-width)) minmax(0, 1fr);
   }
 
+  .character-manager-page--embedded .character-profile-loading-prefab-workspace {
+    grid-template-columns: minmax(0, var(--character-embedded-sheet-max-width)) minmax(320px, 1fr);
+  }
+
   .character-manager-page--embedded .character-layout-region--sheet {
     min-width: 0;
     align-self: start;
     width: 100%;
     max-width: var(--character-embedded-sheet-max-width);
+    height: auto;
   }
 
   .character-manager-page--embedded .character-layout-region--quickswap {
@@ -260,22 +356,17 @@
 }
 
 .character-manager-page--embedded .character-mode-tab.is-active {
-  border-color: rgba(201, 205, 214, 0.52);
+  border-color: transparent;
   border-radius: 999px;
-  background: linear-gradient(
-    135deg,
-    rgba(31, 35, 40, 0.98) 0%,
-    rgba(201, 205, 214, 0.1) 54%,
-    rgba(201, 205, 214, 0.17) 100%
-  );
+  background: linear-gradient(135deg, #2563eb 0%, #06b6d4 50%, #22d3ee 100%);
   color: #f4f8fc;
   transform: scale(1);
   padding: 0 12px;
   box-shadow:
-    0 0 0 2px rgba(201, 205, 214, 0.24),
-    0 6px 14px rgba(0, 0, 0, 0.32),
-    inset 0 0 0 1px rgba(201, 205, 214, 0.22),
-    inset 0 1px 0 rgba(201, 205, 214, 0.14);
+    0 0 0 3px #6ed6e9,
+    0 4px 12px rgba(0, 0, 0, 0.35),
+    inset 0 0 0 2px rgba(0, 0, 0, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.35);
 }
 
 @media (max-width: 1280px) and (min-width: 1101px) {
@@ -286,11 +377,15 @@
   }
 
   .character-manager-page--embedded .character-section--references .character-reference-empty-grid {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
 
 @media (max-width: 1100px) {
+  .character-manager-page--embedded .character-profile-loading-prefab-workspace {
+    grid-template-columns: 1fr;
+  }
+
   .character-manager-page--embedded .character-section--references {
     justify-self: stretch;
     width: 100%;
@@ -298,7 +393,7 @@
   }
 
   .character-manager-page--embedded .character-section--references .character-reference-empty-grid {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
   .character-manager-page--embedded .character-profile-card {
@@ -307,6 +402,14 @@
 }
 
 @media (max-width: 860px) {
+  .character-manager-page--embedded .character-profile-loading-prefab-references-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .character-manager-page--embedded .character-profile-loading-prefab-quickswap-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .character-manager-page--embedded .character-section--references .character-reference-empty-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }

@@ -11,6 +11,9 @@ import {
 } from "./aiStudioStateConfig";
 import type { ExpertEditSessionState } from "../components/edit/expertEditSessionState";
 
+export type AiStudioSubmitPanelKey = "create" | "edit" | "video";
+type AiStudioPanelGeneratingState = Record<AiStudioSubmitPanelKey, boolean>;
+
 export type UseAiStudioCreationStateResult = {
   promptRef: MutableRefObject<HTMLTextAreaElement | null>;
   mode: StudioMode;
@@ -89,8 +92,11 @@ export type UseAiStudioCreationStateResult = {
       }[]
     >
   >;
+  createIsGenerating: boolean;
+  editIsGenerating: boolean;
+  videoIsGenerating: boolean;
   isPromptGenerating: boolean;
-  setIsPromptGenerating: Dispatch<SetStateAction<boolean>>;
+  setPanelGenerating: (panel: AiStudioSubmitPanelKey, value: boolean) => void;
   uiError: string | null;
   setUiError: Dispatch<SetStateAction<string | null>>;
   uiNotice: string | null;
@@ -153,13 +159,31 @@ export const useAiStudioCreationState = (): UseAiStudioCreationStateResult => {
   const [klingElements, setKlingElements] = useState<
     { id: string; frontalImageUrl: string; referenceImageUrls: string; videoUrl: string }[]
   >([{ id: randomId(), frontalImageUrl: "", referenceImageUrls: "", videoUrl: "" }]);
-  const [isPromptGenerating, setIsPromptGenerating] = useState<boolean>(false);
+  const [panelGeneratingState, setPanelGeneratingState] = useState<AiStudioPanelGeneratingState>({
+    create: false,
+    edit: false,
+    video: false,
+  });
   const [uiError, setUiError] = useState<string | null>(null);
   const [uiNotice, setUiNotice] = useState<string | null>(null);
   const lastVideoReferenceModeRef = useRef(videoReferenceMode);
   const lastNonKling3VideoModelRef = useRef<string | null>(null);
   const lastNonKeyframesVideoModelRef = useRef<string | null>(null);
   const lastNonMotionVideoModelRef = useRef<string | null>(null);
+  const createIsGenerating = panelGeneratingState.create;
+  const editIsGenerating = panelGeneratingState.edit;
+  const videoIsGenerating = panelGeneratingState.video;
+  const isPromptGenerating = createIsGenerating || editIsGenerating || videoIsGenerating;
+
+  const setPanelGenerating = (panel: AiStudioSubmitPanelKey, value: boolean) => {
+    setPanelGeneratingState((prev) => {
+      if (prev[panel] === value) return prev;
+      return {
+        ...prev,
+        [panel]: value,
+      };
+    });
+  };
 
   return {
     promptRef,
@@ -219,8 +243,11 @@ export const useAiStudioCreationState = (): UseAiStudioCreationStateResult => {
     setKlingMultiPrompts,
     klingElements,
     setKlingElements,
+    createIsGenerating,
+    editIsGenerating,
+    videoIsGenerating,
     isPromptGenerating,
-    setIsPromptGenerating,
+    setPanelGenerating,
     uiError,
     setUiError,
     uiNotice,

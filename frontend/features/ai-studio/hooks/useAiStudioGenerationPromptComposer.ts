@@ -18,6 +18,7 @@ import type { StudioMode, StudioOutput, ToolId } from "../types";
 export type ReferenceInputsMode = "merge" | "replace";
 
 export type AiStudioGenerateSubmissionOverrides = {
+  selectedToolOverride?: ToolId | null;
   submissionPromptOverride?: string | null;
   displayPromptOverride?: string | null;
   referenceInputsOverride?: string[];
@@ -215,8 +216,9 @@ export const useAiStudioGenerationPromptComposer = ({
 
   const regenerateOutput = useCallback(
     (options?: AiStudioGenerateSubmissionOverrides) => {
+      const effectiveTool = options?.selectedToolOverride ?? selectedTool;
       const promptForTool = resolvePromptForTool({
-        tool: selectedTool,
+        tool: effectiveTool,
         prompt,
         editReferenceText,
         videoReferenceText,
@@ -231,7 +233,7 @@ export const useAiStudioGenerationPromptComposer = ({
           : displayPromptToUse;
       const effectiveModelId = options?.modelIdOverride ?? model;
       const compiledSubmissionPrompt = appendStylePromptToSubmission({
-        tool: selectedTool,
+        tool: effectiveTool,
         submissionPrompt: submissionPromptToUse,
         selectedStylePrompt,
         modelId: effectiveModelId,
@@ -239,13 +241,13 @@ export const useAiStudioGenerationPromptComposer = ({
       });
       const styleContextOverrideCandidate =
         options?.styleContextOverride ?? selectedStyleContext ?? undefined;
-      const styleContextOverrideToSubmit = shouldAttachStyleContextForTool(selectedTool)
+      const styleContextOverrideToSubmit = shouldAttachStyleContextForTool(effectiveTool)
         ? styleContextOverrideCandidate
         : undefined;
       const { referenceImageUrl: referenceUrl, extraImageUrls: extraUrls } =
-        resolveReferenceInputsForTool(selectedTool);
+        resolveReferenceInputsForTool(effectiveTool);
       const referencePool = buildRegenerateReferencePool({
-        selectedTool,
+        selectedTool: effectiveTool,
         useReferenceImageIndicator,
         activeOutputPreviewUrl,
         referenceUrl,
@@ -259,6 +261,7 @@ export const useAiStudioGenerationPromptComposer = ({
         options?.referenceInputsMode
       );
       submitTask(compiledSubmissionPrompt, imageInputs, {
+        selectedToolOverride: effectiveTool,
         displayPromptOverride: displayPromptToUse,
         characterContextOverride: options?.characterContextOverride,
         modelIdOverride: options?.modelIdOverride,

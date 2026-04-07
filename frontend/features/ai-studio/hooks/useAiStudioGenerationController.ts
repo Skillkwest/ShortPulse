@@ -56,6 +56,8 @@ type RegenerateWithDebitOptions = {
   styleContextOverride?: StudioOutput["styleContext"];
 };
 
+type GeneratePanelKey = "create" | "edit" | "video";
+
 const PREFLIGHT_TIMEOUT_ERROR = "Preparation timed out before generation started. Please retry.";
 const PREFLIGHT_TIMEOUT_MS = 10_000;
 const isCreateTool = (tool: ToolId | null): boolean => tool === "create" || tool === "text";
@@ -69,7 +71,6 @@ type UseAiStudioGenerationControllerParams<TBundle, TFallbackCode extends string
   resolveIsCharacterModeEnabledForTool?: (tool: ToolId | null) => boolean;
   prompt: string;
   agentInput: string;
-  agentBusy: boolean;
   chatModeEnabled: boolean;
   currentCostCredits: number | null;
   promptReferenceGenerateCostCredits?: number | null;
@@ -148,6 +149,7 @@ type UseAiStudioGenerationControllerParams<TBundle, TFallbackCode extends string
     }
   ) => void;
   regenerateOutput: (options?: {
+    selectedToolOverride?: ToolId | null;
     submissionPromptOverride?: string | null;
     displayPromptOverride?: string | null;
     referenceInputsOverride?: string[];
@@ -203,18 +205,45 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
   regenerateOutput,
   activeOutputId,
 }: UseAiStudioGenerationControllerParams<TBundle, TFallbackCode>) => {
-  const generateClickLockedRef = useRef(false);
-  const [isGenerateClickLocked, setIsGenerateClickLocked] = useState(false);
-  const tryAcquireGenerateClickLock = useCallback(() => {
-    if (generateClickLockedRef.current) return false;
-    generateClickLockedRef.current = true;
-    setIsGenerateClickLocked(true);
+  const generateClickLockedRef = useRef<Record<GeneratePanelKey, boolean>>({
+    create: false,
+    edit: false,
+    video: false,
+  });
+  const [generateClickLockedState, setGenerateClickLockedState] = useState<
+    Record<GeneratePanelKey, boolean>
+  >({
+    create: false,
+    edit: false,
+    video: false,
+  });
+  const resolvePanelKeyForTool = useCallback((tool: ToolId | null): GeneratePanelKey => {
+    if (tool === "video" || tool === "kling") return "video";
+    if (tool === "image" || tool === "edit") return "edit";
+    return "create";
+  }, []);
+  const tryAcquireGenerateClickLock = useCallback((panel: GeneratePanelKey) => {
+    if (generateClickLockedRef.current[panel]) return false;
+    generateClickLockedRef.current[panel] = true;
+    setGenerateClickLockedState((prev) => {
+      if (prev[panel]) return prev;
+      return {
+        ...prev,
+        [panel]: true,
+      };
+    });
     return true;
   }, []);
 
-  const releaseGenerateClickLock = useCallback(() => {
-    generateClickLockedRef.current = false;
-    setIsGenerateClickLocked(false);
+  const releaseGenerateClickLock = useCallback((panel: GeneratePanelKey) => {
+    generateClickLockedRef.current[panel] = false;
+    setGenerateClickLockedState((prev) => {
+      if (!prev[panel]) return prev;
+      return {
+        ...prev,
+        [panel]: false,
+      };
+    });
   }, []);
 
   const resolveGuardrailBlockMessage = useCallback(
@@ -284,12 +313,13 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
 
   const handleGenerate = useCallback(
     async (promptOverride?: string | null, options?: GenerateOptions): Promise<GenerateResult> => {
-      if (!tryAcquireGenerateClickLock()) {
+      const effectiveTool = options?.toolOverride ?? selectedTool;
+      const panelKey = resolvePanelKeyForTool(effectiveTool);
+      if (!tryAcquireGenerateClickLock(panelKey)) {
         return { accepted: false, optimisticOutputId: null };
       }
       try {
         const effectiveMode = options?.modeOverride ?? mode;
-        const effectiveTool = options?.toolOverride ?? selectedTool;
         const isCharacterModeEnabledForTool = resolveIsCharacterModeEnabledForTool
           ? resolveIsCharacterModeEnabledForTool(effectiveTool)
           : isCharacterModeEnabled;
@@ -457,7 +487,7 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
           optimisticOutputId: optimisticOutputId ?? null,
         };
       } finally {
-        releaseGenerateClickLock();
+        releaseGenerateClickLock(panelKey);
       }
     },
     [
@@ -479,6 +509,7 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
       resolveEffectiveSubmitModelId,
       resolveCharacterModeSubmissionOverrides,
       resolveDefaultPromptForTool,
+      resolvePanelKeyForTool,
       resolveUserReferenceInputsForTool,
       resolveIsCharacterModeEnabledForTool,
       selectedTool,
@@ -555,15 +586,19 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
   ]);
 
   const runRegenerateWithDebit = useCallback(
-    async (options?: RegenerateWithDebitOptions) => {
-      if (!tryAcquireGenerateClickLock()) return;
+    async (
+      panelKey: GeneratePanelKey,
+      tool: ToolId | null,
+      options?: RegenerateWithDebitOptions
+    ) => {
+      if (!tryAcquireGenerateClickLock(panelKey)) return;
       try {
         const effectiveSubmitModelId =
           options?.inpaintOverride?.modelId ??
           options?.modelIdOverride ??
-          resolveEffectiveSubmitModelId(selectedTool);
+          resolveEffectiveSubmitModelId(tool);
         const isCharacterModeEnabledForTool = resolveIsCharacterModeEnabledForTool
-          ? resolveIsCharacterModeEnabledForTool(selectedTool)
+          ? resolveIsCharacterModeEnabledForTool(tool)
           : isCharacterModeEnabled;
         const hasSubmitModelOverride = Boolean(
           options?.inpaintOverride?.modelId ?? options?.modelIdOverride
@@ -603,7 +638,7 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
           }
         }
 
-        const promptToUse = resolveDefaultPromptForTool(selectedTool);
+        const promptToUse = resolveDefaultPromptForTool(tool);
         const promptForGuardrails =
           typeof options?.displayPromptOverride === "string"
             ? options.displayPromptOverride
@@ -613,13 +648,13 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
             ? options.submissionPromptOverride
             : promptForGuardrails;
         const regenerateStartDecision = resolveGenerationStartDecision({
-          tool: selectedTool,
+          tool,
           mode,
           modelId: effectiveSubmitModelId,
           promptText: promptForGuardrails,
           checkCreateTextMode: false,
           checkPrompt: shouldCheckPromptAtGenerationStart({
-            tool: selectedTool,
+            tool,
             modelId: effectiveSubmitModelId,
           }),
         });
@@ -632,20 +667,20 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
         try {
           trackCharacterModeEvent?.("generation_preflight_started", {
             trigger: "regenerate",
-            tool: selectedTool,
+            tool,
             model_id: effectiveSubmitModelId,
             is_character_mode: isCharacterModeEnabledForTool,
           });
           const characterModeBundleForSubmit = await withDeadline({
             timeoutMs: PREFLIGHT_TIMEOUT_MS,
             timeoutMessage: PREFLIGHT_TIMEOUT_ERROR,
-            run: () => refreshCharacterModeInjectionBundleForSubmission(selectedTool),
+            run: () => refreshCharacterModeInjectionBundleForSubmission(tool),
           });
           const userReferenceInputs =
-            options?.referenceInputsOverride ?? resolveUserReferenceInputsForTool(selectedTool);
+            options?.referenceInputsOverride ?? resolveUserReferenceInputsForTool(tool);
           characterModeOverrides = resolveCharacterModeSubmissionOverrides(
             promptForCharacterComposition,
-            selectedTool,
+            tool,
             characterModeBundleForSubmit,
             userReferenceInputs
           );
@@ -653,7 +688,7 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
           if (error instanceof DeadlineExceededError) {
             trackCharacterModeEvent?.("generation_preflight_timeout", {
               trigger: "regenerate",
-              tool: selectedTool,
+              tool,
               model_id: effectiveSubmitModelId,
               is_character_mode: isCharacterModeEnabledForTool,
               duration_ms: error.timeoutMs,
@@ -675,7 +710,7 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
         const regenerateCharacterModeDecision =
           characterModeOverrides &&
           resolveGenerationStartDecision({
-            tool: selectedTool,
+            tool,
             mode,
             modelId: effectiveSubmitModelId,
             promptText: promptForGuardrails,
@@ -690,9 +725,9 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
           regenerateCharacterModeDecision &&
           !regenerateCharacterModeDecision.allow
         ) {
-          trackCharacterModeFallback(characterModeOverrides, selectedTool);
+          trackCharacterModeFallback(characterModeOverrides, tool);
           trackCharacterModeEvent?.("character_mode_submit_blocked_no_references", {
-            tool: selectedTool,
+            tool,
             fallback_code: characterModeOverrides.fallbackCode,
             has_character_description: characterModeOverrides.hasCharacterDescription,
             character_reference_count: characterModeOverrides.characterReferenceCount,
@@ -701,7 +736,7 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
           return;
         }
 
-        trackCharacterModeFallback(characterModeOverrides, selectedTool);
+        trackCharacterModeFallback(characterModeOverrides, tool);
         const effectiveModelId = effectiveSubmitModelId;
         const wasSubmitModelCoerced =
           effectiveModelId != null && model != null && effectiveModelId !== model;
@@ -710,7 +745,7 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
           setModel(effectiveModelId);
           trackCharacterModeEvent?.("character_mode_submit_invariant_coerced", {
             trigger: "regenerate",
-            tool: selectedTool,
+            tool,
             from_model_id: model,
             to_model_id: effectiveModelId,
           });
@@ -724,6 +759,7 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
         const resolvedSubmissionPromptOverride =
           characterModeOverrides?.submissionPromptOverride ?? options?.submissionPromptOverride;
         regenerateOutput({
+          selectedToolOverride: tool,
           modelIdOverride: effectiveModelId,
           submissionPromptOverride: resolvedSubmissionPromptOverride,
           displayPromptOverride: resolvedDisplayPromptOverride,
@@ -745,7 +781,7 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
           setUiNotice(characterModeOverrides.notice);
         }
       } finally {
-        releaseGenerateClickLock();
+        releaseGenerateClickLock(panelKey);
       }
     },
     [
@@ -769,7 +805,6 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
       resolveDefaultPromptForTool,
       resolveCostCreditsForModel,
       resolveUserReferenceInputsForTool,
-      selectedTool,
       setModel,
       setUiError,
       setUiNotice,
@@ -780,18 +815,20 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
   );
 
   const handleRegenerateWithDebit = useCallback(async () => {
-    await runRegenerateWithDebit();
+    await runRegenerateWithDebit("video", "video");
   }, [runRegenerateWithDebit]);
 
   const handleImageRegenerateWithDebit = useCallback(
     async (options?: RegenerateWithDebitOptions) => {
-      await runRegenerateWithDebit(options);
+      await runRegenerateWithDebit("edit", "edit", options);
     },
     [runRegenerateWithDebit]
   );
 
   return {
-    isGenerateClickLocked,
+    isCreateGenerateClickLocked: generateClickLockedState.create,
+    isEditGenerateClickLocked: generateClickLockedState.edit,
+    isVideoGenerateClickLocked: generateClickLockedState.video,
     handleGenerate,
     handlePrimarySubmit,
     handleChatOffInlineGenerate,

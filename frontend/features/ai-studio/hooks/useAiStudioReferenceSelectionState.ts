@@ -66,24 +66,35 @@ export const useAiStudioReferenceSelectionState = ({
   const setImageReferenceImageUrl = useCallback((url: string | null) => {
     setImageReferenceImageUrlState(url);
   }, []);
+  const setVideoReferenceImageUrlForPanel = useCallback((url: string | null) => {
+    setVideoReferenceImageUrl(url);
+  }, []);
+
+  const setImageExtraImageUrl = useCallback((index: number, url: string | null) => {
+    setImageExtraImageUrls((prev) => {
+      const next: [string | null, string | null, string | null] = [...prev];
+      next[index] = url;
+      return next;
+    });
+  }, []);
+
+  const setVideoExtraImageUrl = useCallback((index: number, url: string | null) => {
+    setVideoExtraImageUrls((prev) => {
+      const next: [string | null, string | null, string | null] = [...prev];
+      next[index] = url;
+      return next;
+    });
+  }, []);
 
   const setExtraImageUrl = useCallback(
     (index: number, url: string | null) => {
       if (isVideoReferenceTool) {
-        setVideoExtraImageUrls((prev) => {
-          const next: [string | null, string | null, string | null] = [...prev];
-          next[index] = url;
-          return next;
-        });
+        setVideoExtraImageUrl(index, url);
         return;
       }
-      setImageExtraImageUrls((prev) => {
-        const next: [string | null, string | null, string | null] = [...prev];
-        next[index] = url;
-        return next;
-      });
+      setImageExtraImageUrl(index, url);
     },
-    [isVideoReferenceTool]
+    [isVideoReferenceTool, setImageExtraImageUrl, setVideoExtraImageUrl]
   );
 
   const clearReferenceImages = useCallback(() => {
@@ -133,8 +144,11 @@ export const useAiStudioReferenceSelectionState = ({
     referenceImageUrl,
     setReferenceImageUrl,
     setImageReferenceImageUrl,
+    setVideoReferenceImageUrl: setVideoReferenceImageUrlForPanel,
     extraImageUrls,
     setExtraImageUrl,
+    setImageExtraImageUrl,
+    setVideoExtraImageUrl,
     clearReferenceImages,
     toggleReferenceIndicator,
     resolveReferenceInputsForTool,

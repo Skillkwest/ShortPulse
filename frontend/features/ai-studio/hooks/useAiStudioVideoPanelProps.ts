@@ -93,10 +93,8 @@ type UseAiStudioVideoPanelPropsParams = {
   isGenerateDisabled: boolean;
   isGenerateClickLocked: boolean;
   isPromptGenerating: boolean;
+  isReferencePromptEnhancing: boolean;
   generationGuardrail: string | null;
-  agentBusy: boolean;
-  agentAttachmentError: string | null;
-  agentError?: string | null;
   handleReferencePromptEnhance: () => void;
   beginnerMode: boolean;
 };
@@ -166,10 +164,8 @@ export const useAiStudioVideoPanelProps = ({
   isGenerateDisabled,
   isGenerateClickLocked,
   isPromptGenerating,
+  isReferencePromptEnhancing,
   generationGuardrail,
-  agentBusy,
-  agentAttachmentError,
-  agentError,
   handleReferencePromptEnhance,
   beginnerMode,
 }: UseAiStudioVideoPanelPropsParams): AiStudioVideoPanelContract =>
@@ -236,15 +232,11 @@ export const useAiStudioVideoPanelProps = ({
       referenceImageWarning,
       resolvePreviewUrlById: resolveOutputPreviewUrl,
       isGenerateDisabled: isGenerateDisabled || isGenerateClickLocked || isPromptGenerating,
-      agentIsSending: agentBusy || isPromptGenerating,
-      agentError: agentAttachmentError ?? agentError ?? undefined,
+      agentIsSending: isReferencePromptEnhancing || isPromptGenerating,
       onAgentEnhanceSend: handleReferencePromptEnhance,
       beginnerMode,
     }),
     [
-      agentAttachmentError,
-      agentBusy,
-      agentError,
       aspect,
       beginnerMode,
       currentCostCredits,
@@ -261,6 +253,7 @@ export const useAiStudioVideoPanelProps = ({
       isGenerateDisabled,
       isModelModalOpen,
       isPromptGenerating,
+      isReferencePromptEnhancing,
       klingCfgScale,
       klingWorkflowMode,
       klingElements,

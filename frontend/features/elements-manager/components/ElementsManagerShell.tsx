@@ -3,7 +3,7 @@
  * Rebuilds the Elements surface as a local-state clone of the embedded Character workflow shell.
  */
 import React from "react";
-import { Plus, Trash } from "phosphor-react";
+import { Plus, Trash, UserCircle } from "phosphor-react";
 import { CharacterCreateWorkspaceSurface } from "../../character-manager/components/CharacterCreateWorkspaceSurface";
 import { CharacterDescriptionEditorCard } from "../../character-manager/components/CharacterDescriptionEditorCard";
 import {
@@ -88,7 +88,11 @@ export function ElementsManagerShell({ onActiveTabChange }: ElementsManagerShell
   }, [activeTab, onActiveTabChange]);
 
   return (
-    <div className="elements-manager-shell elements-manager-shell--character-clone">
+    <div
+      className="character-manager-page character-manager-page--embedded elements-manager-shell elements-manager-shell--character-clone"
+      data-active-tab={activeTab}
+      data-surface="panel"
+    >
       <ElementsManagerWorkflowTabs activeTab={activeTab} setActiveTab={setActiveTab} />
 
       {activeTab === "manage" ? (
@@ -236,7 +240,8 @@ export function ElementsManagerShell({ onActiveTabChange }: ElementsManagerShell
                         aria-label="Element hero"
                       >
                         <span className="elements-character-hero-initials" aria-hidden="true">
-                          {profileInitials}
+                          <UserCircle size={40} weight="light" aria-hidden="true" />
+                          <span className="elements-character-hero-token">{profileInitials}</span>
                         </span>
                       </button>
                       <span className="character-profile-edit-indicator" aria-hidden="true">

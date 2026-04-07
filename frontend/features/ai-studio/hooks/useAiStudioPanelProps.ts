@@ -87,7 +87,9 @@ export type UseAiStudioPanelPropsParams = {
   ) => void;
   handleManualPromptChange: (value: string) => void;
   toggleReferenceIndicator: () => void;
-  isPromptGenerating: boolean;
+  createIsGenerating: boolean;
+  editIsGenerating: boolean;
+  videoIsGenerating: boolean;
   isPrimaryEditStageGenerating: boolean;
   isPromptRefining: boolean;
   describeInFlightCount: number;
@@ -95,7 +97,9 @@ export type UseAiStudioPanelPropsParams = {
   promptReferenceGenerateCostCredits: number | null;
   hasSufficientCreditsForPromptReferenceGenerate: boolean;
   isGenerateDisabled: boolean;
-  isGenerateClickLocked: boolean;
+  isCreateGenerateClickLocked: boolean;
+  isEditGenerateClickLocked: boolean;
+  isVideoGenerateClickLocked: boolean;
   generationGuardrail: string | null;
   handleExpandChat: () => void;
   handleClearAgentChat: () => void;
@@ -151,8 +155,8 @@ export type UseAiStudioPanelPropsParams = {
   setSeedance2ReturnLastFrame: Dispatch<SetStateAction<boolean>>;
   setSeedance2WebSearch: Dispatch<SetStateAction<boolean>>;
   beginnerMode: boolean;
-  referenceImageUrl: string | null;
-  extraImageUrls: [string | null, string | null, string | null];
+  editReferenceImageUrl: string | null;
+  editExtraImageUrls: [string | null, string | null, string | null];
   editReferenceText: string;
   handleImageRegenerateWithDebit: (options?: {
     referenceInputsOverride?: string[];
@@ -170,10 +174,12 @@ export type UseAiStudioPanelPropsParams = {
   resolveOutputPreviewUrl: (id: string | null | undefined) => string | null;
   isReferencePromptEnhancing: boolean;
   handleReferencePromptEnhance: () => void;
-  setReferenceImageUrl: (url: string | null) => void;
-  setExtraImageUrl: (index: number, url: string | null) => void;
+  setEditReferenceImageUrl: (url: string | null) => void;
+  setEditExtraImageUrl: (index: number, url: string | null) => void;
   handleEditPromptTextChange: (value: string) => void;
   videoReferenceText: string;
+  videoReferenceImageUrl: string | null;
+  videoExtraImageUrls: [string | null, string | null, string | null];
   videoReferenceMode: "standard" | "modify" | "keyframes" | "kling3" | "motion";
   setVideoReferenceMode: Dispatch<
     SetStateAction<"standard" | "modify" | "keyframes" | "kling3" | "motion">
@@ -204,6 +210,8 @@ export type UseAiStudioPanelPropsParams = {
     >
   >;
   motionReferenceVideoUrl: string | null;
+  setVideoReferenceImageUrl: (url: string | null) => void;
+  setVideoExtraImageUrl: (index: number, url: string | null) => void;
   setMotionReferenceVideoUrl: (url: string | null) => void;
   handleVideoPromptTextChange: (value: string) => void;
   handleRegenerateWithDebit: () => void;
@@ -257,7 +265,9 @@ export const useAiStudioPanelProps = ({
   handleOpenModelModal,
   handleManualPromptChange,
   toggleReferenceIndicator,
-  isPromptGenerating,
+  createIsGenerating,
+  editIsGenerating,
+  videoIsGenerating,
   isPrimaryEditStageGenerating,
   isPromptRefining,
   describeInFlightCount,
@@ -265,7 +275,9 @@ export const useAiStudioPanelProps = ({
   promptReferenceGenerateCostCredits,
   hasSufficientCreditsForPromptReferenceGenerate,
   isGenerateDisabled,
-  isGenerateClickLocked,
+  isCreateGenerateClickLocked,
+  isEditGenerateClickLocked,
+  isVideoGenerateClickLocked,
   generationGuardrail,
   handleExpandChat,
   handleClearAgentChat,
@@ -317,8 +329,8 @@ export const useAiStudioPanelProps = ({
   setSeedance2ReturnLastFrame,
   setSeedance2WebSearch,
   beginnerMode,
-  referenceImageUrl,
-  extraImageUrls,
+  editReferenceImageUrl,
+  editExtraImageUrls,
   editReferenceText,
   handleImageRegenerateWithDebit,
   onEditSubmitIntentChange,
@@ -327,10 +339,12 @@ export const useAiStudioPanelProps = ({
   resolveOutputPreviewUrl,
   isReferencePromptEnhancing,
   handleReferencePromptEnhance,
-  setReferenceImageUrl,
-  setExtraImageUrl,
+  setEditReferenceImageUrl,
+  setEditExtraImageUrl,
   handleEditPromptTextChange,
   videoReferenceText,
+  videoReferenceImageUrl,
+  videoExtraImageUrls,
   videoReferenceMode,
   setVideoReferenceMode,
   klingNegativePrompt,
@@ -348,6 +362,8 @@ export const useAiStudioPanelProps = ({
   setKlingMultiPrompts,
   setKlingElements,
   motionReferenceVideoUrl,
+  setVideoReferenceImageUrl,
+  setVideoExtraImageUrl,
   setMotionReferenceVideoUrl,
   handleVideoPromptTextChange,
   handleRegenerateWithDebit,
@@ -439,14 +455,14 @@ export const useAiStudioPanelProps = ({
     handleOpenModelModal,
     handleManualPromptChange,
     toggleReferenceIndicator,
-    isPromptGenerating,
+    isPromptGenerating: createIsGenerating,
     isPromptRefining,
     describeInFlightCount,
     currentCostCredits,
     promptReferenceGenerateCostCredits,
     hasSufficientCreditsForPromptReferenceGenerate,
     isGenerateDisabled,
-    isGenerateClickLocked,
+    isGenerateClickLocked: isCreateGenerateClickLocked,
     generationGuardrail,
     handleExpandChat,
     handleClearAgentChat,
@@ -473,22 +489,22 @@ export const useAiStudioPanelProps = ({
     aspect,
     model,
     currentModelLabel,
-    referenceImageUrl,
-    extraImageUrls,
+    referenceImageUrl: editReferenceImageUrl,
+    extraImageUrls: editExtraImageUrls,
     editReferenceText,
     isModelModalOpen,
     modelModalAnchor,
     setAspect,
     handleOpenModelModal,
-    setReferenceImageUrl,
-    setExtraImageUrl,
+    setReferenceImageUrl: setEditReferenceImageUrl,
+    setExtraImageUrl: setEditExtraImageUrl,
     handleEditPromptTextChange,
     handleEditPromptSave,
     handleImageRegenerateWithDebit,
     currentCostCredits,
     isGenerateDisabled,
-    isGenerateClickLocked,
-    isPromptGenerating,
+    isGenerateClickLocked: isEditGenerateClickLocked,
+    isPromptGenerating: editIsGenerating,
     generationGuardrail,
     referenceImageWarning,
     resolveOutputPreviewUrl,
@@ -503,23 +519,23 @@ export const useAiStudioPanelProps = ({
     aspect,
     model,
     currentModelLabel,
-    referenceImageUrl,
-    extraImageUrls,
+    referenceImageUrl: editReferenceImageUrl,
+    extraImageUrls: editExtraImageUrls,
     editReferenceText,
     isModelModalOpen,
     modelModalAnchor,
     setAspect,
     handleOpenModelModal,
-    setReferenceImageUrl,
-    setExtraImageUrl,
+    setReferenceImageUrl: setEditReferenceImageUrl,
+    setExtraImageUrl: setEditExtraImageUrl,
     handleEditPromptTextChange,
     handleImageRegenerateWithDebit,
     onEditSubmitIntentChange,
     addSessionMediaReference,
     currentCostCredits,
     isGenerateDisabled,
-    isGenerateClickLocked,
-    isPromptGenerating,
+    isGenerateClickLocked: isEditGenerateClickLocked,
+    isPromptGenerating: editIsGenerating,
     generationGuardrail,
     isPrimaryStageGenerating: isPrimaryEditStageGenerating,
     referenceImageWarning,
@@ -546,8 +562,8 @@ export const useAiStudioPanelProps = ({
     aspect,
     model,
     currentModelLabel,
-    referenceImageUrl,
-    extraImageUrls,
+    referenceImageUrl: videoReferenceImageUrl,
+    extraImageUrls: videoExtraImageUrls,
     videoReferenceMode,
     setVideoReferenceMode,
     videoDurationSeconds,
@@ -593,8 +609,8 @@ export const useAiStudioPanelProps = ({
     modelModalAnchor,
     setAspect,
     handleOpenModelModal,
-    setReferenceImageUrl,
-    setExtraImageUrl,
+    setReferenceImageUrl: setVideoReferenceImageUrl,
+    setExtraImageUrl: setVideoExtraImageUrl,
     handleVideoPromptTextChange,
     handleVideoPromptSave,
     handleRegenerateWithDebit,
@@ -602,12 +618,10 @@ export const useAiStudioPanelProps = ({
     referenceImageWarning,
     resolveOutputPreviewUrl,
     isGenerateDisabled,
-    isGenerateClickLocked,
-    isPromptGenerating,
+    isGenerateClickLocked: isVideoGenerateClickLocked,
+    isPromptGenerating: videoIsGenerating,
+    isReferencePromptEnhancing,
     generationGuardrail,
-    agentBusy,
-    agentAttachmentError,
-    agentError,
     handleReferencePromptEnhance,
     beginnerMode: beginnerPolicy.video.beginnerMode,
   });

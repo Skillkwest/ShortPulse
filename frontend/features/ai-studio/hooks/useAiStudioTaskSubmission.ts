@@ -52,6 +52,7 @@ import {
 import { resolvePrepareReferenceTimeoutBudget } from "./taskSubmission/preflightTimeout";
 import type { StudioMode, StudioOutput, ToolId } from "../types";
 import { DISPATCH_HANDOFF_INITIAL_POLL_DELAY_MS } from "./useAiStudioTasks";
+import type { AiStudioSubmitPanelKey } from "./useAiStudioCreationState";
 
 type GenerationMetadata = Record<string, unknown>;
 type SubmissionInvariantError = Error & {
@@ -120,7 +121,7 @@ type UseAiStudioTaskSubmissionParams = {
     referenceImageUrls: string;
     videoUrl: string;
   }[];
-  setIsPromptGenerating: Dispatch<SetStateAction<boolean>>;
+  setPanelGenerating: (panel: AiStudioSubmitPanelKey, value: boolean) => void;
   setUiError: Dispatch<SetStateAction<string | null>>;
   setUiNotice: Dispatch<SetStateAction<string | null>>;
   setOutputs: Dispatch<SetStateAction<StudioOutput[]>>;
@@ -167,12 +168,11 @@ export const useAiStudioTaskSubmission = ({
   seedance2WebSearch = false,
   klingNegativePrompt,
   klingCfgScale,
-  klingWorkflowMode,
   klingShotType,
   klingVoiceIds,
   klingMultiPrompts,
   klingElements,
-  setIsPromptGenerating,
+  setPanelGenerating,
   setUiError,
   setUiNotice,
   setOutputs,
@@ -221,6 +221,7 @@ export const useAiStudioTaskSubmission = ({
         imageResolutionOverride?: string;
         inpaintOverride?: InpaintSubmissionOverride | null;
         hideOutputFromReferenceGrid?: boolean;
+        submissionOwner?: AiStudioSubmitPanelKey;
       }
     ) => {
       setUiError(null);
@@ -248,7 +249,6 @@ export const useAiStudioTaskSubmission = ({
       if (shouldSkipTextCreateSubmission(effectiveTool, effectiveMode)) {
         removeOptimisticPlaceholder();
         setUiError(CREATE_TEXT_MODE_SUBMIT_BLOCK_ERROR);
-        setIsPromptGenerating(false);
         return;
       }
       const resolvedVideoLane = resolveVideoGenerationLaneFromInputs({
@@ -287,7 +287,14 @@ export const useAiStudioTaskSubmission = ({
         return;
       }
 
-      setIsPromptGenerating(true);
+      const submissionOwner: AiStudioSubmitPanelKey =
+        options?.submissionOwner ??
+        (effectiveTool === "video" || effectiveTool === "kling"
+          ? "video"
+          : effectiveTool === "image" || effectiveTool === "edit"
+            ? "edit"
+            : "create");
+      setPanelGenerating(submissionOwner, true);
       try {
         const id = optimisticOutputId ?? `out-${randomId()}`;
         clearQueueStatusPolling(id);
@@ -867,13 +874,13 @@ export const useAiStudioTaskSubmission = ({
           notifyGenerationFailure(id, message, message);
         }
       } finally {
-        setIsPromptGenerating(false);
+        setPanelGenerating(submissionOwner, false);
       }
     },
     [
       aspect,
       clearQueueStatusPolling,
-      setIsPromptGenerating,
+      setPanelGenerating,
       setOutputs,
       setSaved,
       setUiError,
@@ -883,6 +890,12 @@ export const useAiStudioTaskSubmission = ({
       mode,
       notifyGenerationFailure,
       prompt,
+      seedance2InputMode,
+      seedance2ReferenceAudioUrls,
+      seedance2ReferenceImageUrls,
+      seedance2ReferenceVideoUrls,
+      seedance2ReturnLastFrame,
+      seedance2WebSearch,
       selectedTool,
       startPollingTask,
       ensureGenerationRecord,

@@ -66,7 +66,9 @@ const createParams = (
     handleOpenModelModal: vi.fn(),
     handleManualPromptChange: vi.fn(),
     toggleReferenceIndicator: vi.fn(),
-    isPromptGenerating: false,
+    createIsGenerating: false,
+    editIsGenerating: false,
+    videoIsGenerating: false,
     isPrimaryEditStageGenerating: false,
     isPromptRefining: false,
     describeInFlightCount: 0,
@@ -74,7 +76,9 @@ const createParams = (
     promptReferenceGenerateCostCredits: 25,
     hasSufficientCreditsForPromptReferenceGenerate: true,
     isGenerateDisabled: false,
-    isGenerateClickLocked: false,
+    isCreateGenerateClickLocked: false,
+    isEditGenerateClickLocked: false,
+    isVideoGenerateClickLocked: false,
     generationGuardrail: null,
     handleExpandChat: vi.fn(),
     handleClearAgentChat: vi.fn(),
@@ -102,8 +106,8 @@ const createParams = (
     setVideoCameraFixed: asDispatch<boolean>(vi.fn()),
     setVideoAutoFix: asDispatch<boolean>(vi.fn()),
     beginnerMode: true,
-    referenceImageUrl: null,
-    extraImageUrls: [null, null, null],
+    editReferenceImageUrl: null,
+    editExtraImageUrls: [null, null, null],
     editReferenceText: "Edit prompt",
     handleImageRegenerateWithDebit: vi.fn(),
     addSessionMediaReference: vi.fn(),
@@ -114,10 +118,12 @@ const createParams = (
     }),
     isReferencePromptEnhancing: false,
     handleReferencePromptEnhance: vi.fn(),
-    setReferenceImageUrl: vi.fn(),
-    setExtraImageUrl: vi.fn(),
+    setEditReferenceImageUrl: vi.fn(),
+    setEditExtraImageUrl: vi.fn(),
     handleEditPromptTextChange: vi.fn(),
     videoReferenceText: "Video prompt",
+    videoReferenceImageUrl: null,
+    videoExtraImageUrls: [null, null, null],
     videoReferenceMode: "standard",
     setVideoReferenceMode: asDispatch<"standard" | "keyframes" | "kling3" | "motion">(vi.fn()),
     klingNegativePrompt: "",
@@ -135,6 +141,8 @@ const createParams = (
       { id: string; frontalImageUrl: string; referenceImageUrls: string; videoUrl: string }[]
     >(vi.fn()),
     motionReferenceVideoUrl: null,
+    setVideoReferenceImageUrl: vi.fn(),
+    setVideoExtraImageUrl: vi.fn(),
     setMotionReferenceVideoUrl: vi.fn(),
     handleVideoPromptTextChange: vi.fn(),
     handleRegenerateWithDebit: vi.fn(),
@@ -152,7 +160,7 @@ describe("useAiStudioPanelProps", () => {
       useAiStudioPanelProps(
         createParams({
           isPromptRefining: true,
-          isGenerateClickLocked: true,
+          isCreateGenerateClickLocked: true,
         })
       )
     );
@@ -288,8 +296,12 @@ describe("useAiStudioPanelProps", () => {
         createParams({
           agentBusy: true,
           isGenerateDisabled: false,
-          isGenerateClickLocked: false,
-          isPromptGenerating: false,
+          isCreateGenerateClickLocked: false,
+          isEditGenerateClickLocked: false,
+          isVideoGenerateClickLocked: false,
+          createIsGenerating: false,
+          editIsGenerating: false,
+          videoIsGenerating: false,
           isPromptRefining: false,
           describeInFlightCount: 0,
         })
@@ -306,7 +318,9 @@ describe("useAiStudioPanelProps", () => {
     const { result } = renderHook(() =>
       useAiStudioPanelProps(
         createParams({
-          isPromptGenerating: true,
+          createIsGenerating: false,
+          editIsGenerating: true,
+          videoIsGenerating: true,
           isReferencePromptEnhancing: false,
           agentBusy: false,
         })
@@ -326,8 +340,12 @@ describe("useAiStudioPanelProps", () => {
         createParams({
           isGenerateDisabled: true,
           generationGuardrail: "Select a model before generating.",
-          isGenerateClickLocked: false,
-          isPromptGenerating: false,
+          isCreateGenerateClickLocked: false,
+          isEditGenerateClickLocked: false,
+          isVideoGenerateClickLocked: false,
+          createIsGenerating: false,
+          editIsGenerating: false,
+          videoIsGenerating: false,
           isPromptRefining: false,
           describeInFlightCount: 0,
         })

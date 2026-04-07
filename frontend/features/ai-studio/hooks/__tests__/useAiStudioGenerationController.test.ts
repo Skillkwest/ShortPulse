@@ -18,7 +18,6 @@ const createParams = (
   isCharacterModeEnabled: false,
   prompt: "",
   agentInput: "",
-  agentBusy: false,
   chatModeEnabled: true,
   currentCostCredits: 3,
   resolveCostCreditsForModel: vi.fn(() => null),
@@ -387,7 +386,6 @@ describe("useAiStudioGenerationController", () => {
   it("allows generate submissions while agent send is in flight", async () => {
     const generateOutput = vi.fn();
     const params = createParams({
-      agentBusy: true,
       generateOutput,
     });
     const { result } = renderHook(() => useAiStudioGenerationController(params));
@@ -684,9 +682,10 @@ describe("useAiStudioGenerationController", () => {
       await result.current.handleRegenerateWithDebit();
     });
 
-    expect(resolveDefaultPromptForTool).toHaveBeenCalledWith("create");
-    expect(refreshCharacterModeInjectionBundleForSubmission).toHaveBeenCalledWith("create");
+    expect(resolveDefaultPromptForTool).toHaveBeenCalledWith("video");
+    expect(refreshCharacterModeInjectionBundleForSubmission).toHaveBeenCalledWith("video");
     expect(regenerateOutput).toHaveBeenCalledWith({
+      selectedToolOverride: "video",
       modelIdOverride: "fal-ai/bytedance/seedream/v4.5/text-to-image",
       submissionPromptOverride: "submission",
       displayPromptOverride: "display",
@@ -1010,7 +1009,6 @@ describe("useAiStudioGenerationController", () => {
   it("allows regenerate submissions while agent send is in flight", async () => {
     const regenerateOutput = vi.fn();
     const params = createParams({
-      agentBusy: true,
       regenerateOutput,
     });
     const { result } = renderHook(() => useAiStudioGenerationController(params));
@@ -1110,7 +1108,7 @@ describe("useAiStudioGenerationController", () => {
     );
   });
 
-  it("blocks character-mode regenerate when no character references are available", async () => {
+  it("keeps edit regenerate routed to the edit lane even when character overrides have no references", async () => {
     const setUiError = vi.fn();
     const regenerateOutput = vi.fn();
     const trackCharacterModeEvent = vi.fn();
@@ -1132,16 +1130,20 @@ describe("useAiStudioGenerationController", () => {
     const { result } = renderHook(() => useAiStudioGenerationController(params));
 
     await act(async () => {
-      await result.current.handleRegenerateWithDebit();
+      await result.current.handleImageRegenerateWithDebit();
     });
 
-    expect(regenerateOutput).not.toHaveBeenCalled();
-    expect(setUiError).toHaveBeenCalledWith(
-      "Character Mode requires at least one character image before generating."
-    );
-    expect(trackCharacterModeEvent).toHaveBeenCalledWith(
+    expect(regenerateOutput).toHaveBeenCalledWith({
+      selectedToolOverride: "edit",
+      modelIdOverride: "fal-ai/bytedance/seedream/v4.5/text-to-image",
+      submissionPromptOverride: "character + prompt",
+      displayPromptOverride: "user prompt",
+      referenceInputsOverride: [],
+    });
+    expect(setUiError).not.toHaveBeenCalled();
+    expect(trackCharacterModeEvent).not.toHaveBeenCalledWith(
       "character_mode_submit_blocked_no_references",
-      expect.objectContaining({ fallback_code: "no_references", tool: "create" })
+      expect.anything()
     );
   });
 

@@ -92,7 +92,6 @@ describe("useAiStudioTaskSubmission", () => {
     const updateOutputById = vi.fn((id: string, updater: (item: StudioOutput) => StudioOutput) => {
       outputs = outputs.map((item) => (item.id === id ? updater(item) : item));
     });
-    const setIsPromptGenerating = vi.fn();
     const setUiError = vi.fn();
     const setUiNotice = vi.fn();
     const setSaved = vi.fn();
@@ -133,7 +132,7 @@ describe("useAiStudioTaskSubmission", () => {
         klingVoiceIds: ["", ""],
         klingMultiPrompts: [],
         klingElements: [],
-        setIsPromptGenerating: asDispatch(setIsPromptGenerating),
+        setPanelGenerating: vi.fn(),
         setUiError: asDispatch(setUiError),
         setUiNotice: asDispatch(setUiNotice),
         setOutputs: asDispatch(setOutputs),
@@ -172,7 +171,6 @@ describe("useAiStudioTaskSubmission", () => {
     const updateOutputById = vi.fn((id: string, updater: (item: StudioOutput) => StudioOutput) => {
       outputs = outputs.map((item) => (item.id === id ? updater(item) : item));
     });
-    const setIsPromptGenerating = vi.fn();
     const setUiError = vi.fn();
     const setUiNotice = vi.fn();
     const setSaved = vi.fn();
@@ -210,7 +208,7 @@ describe("useAiStudioTaskSubmission", () => {
         klingVoiceIds: ["", ""],
         klingMultiPrompts: [],
         klingElements: [],
-        setIsPromptGenerating: asDispatch(setIsPromptGenerating),
+        setPanelGenerating: vi.fn(),
         setUiError: asDispatch(setUiError),
         setUiNotice: asDispatch(setUiNotice),
         setOutputs: asDispatch(setOutputs),
@@ -241,8 +239,6 @@ describe("useAiStudioTaskSubmission", () => {
     const setOutputs = vi.fn((value: SetStateAction<StudioOutput[]>) => {
       outputs = typeof value === "function" ? value(outputs) : value;
     });
-
-    const setIsPromptGenerating = vi.fn();
     const setUiError = vi.fn();
     const setUiNotice = vi.fn();
     const setSaved = vi.fn();
@@ -278,7 +274,7 @@ describe("useAiStudioTaskSubmission", () => {
         klingVoiceIds: ["", ""],
         klingMultiPrompts: [],
         klingElements: [],
-        setIsPromptGenerating: asDispatch(setIsPromptGenerating),
+        setPanelGenerating: vi.fn(),
         setUiError: asDispatch(setUiError),
         setUiNotice: asDispatch(setUiNotice),
         setOutputs: asDispatch(setOutputs),
@@ -314,8 +310,6 @@ describe("useAiStudioTaskSubmission", () => {
     const setOutputs = vi.fn((value: SetStateAction<StudioOutput[]>) => {
       outputs = typeof value === "function" ? value(outputs) : value;
     });
-
-    const setIsPromptGenerating = vi.fn();
     const setUiError = vi.fn();
     const setUiNotice = vi.fn();
     const setSaved = vi.fn();
@@ -351,7 +345,7 @@ describe("useAiStudioTaskSubmission", () => {
         klingVoiceIds: ["", ""],
         klingMultiPrompts: [],
         klingElements: [],
-        setIsPromptGenerating: asDispatch(setIsPromptGenerating),
+        setPanelGenerating: vi.fn(),
         setUiError: asDispatch(setUiError),
         setUiNotice: asDispatch(setUiNotice),
         setOutputs: asDispatch(setOutputs),
@@ -391,8 +385,6 @@ describe("useAiStudioTaskSubmission", () => {
     const setOutputs = vi.fn((value: SetStateAction<StudioOutput[]>) => {
       outputs = typeof value === "function" ? value(outputs) : value;
     });
-
-    const setIsPromptGenerating = vi.fn();
     const setUiError = vi.fn();
     const setUiNotice = vi.fn();
     const setSaved = vi.fn();
@@ -428,7 +420,7 @@ describe("useAiStudioTaskSubmission", () => {
         klingVoiceIds: ["", ""],
         klingMultiPrompts: [],
         klingElements: [],
-        setIsPromptGenerating: asDispatch(setIsPromptGenerating),
+        setPanelGenerating: vi.fn(),
         setUiError: asDispatch(setUiError),
         setUiNotice: asDispatch(setUiNotice),
         setOutputs: asDispatch(setOutputs),
@@ -464,8 +456,6 @@ describe("useAiStudioTaskSubmission", () => {
     const setOutputs = vi.fn((value: SetStateAction<StudioOutput[]>) => {
       outputs = typeof value === "function" ? value(outputs) : value;
     });
-
-    const setIsPromptGenerating = vi.fn();
     const setUiError = vi.fn();
     const setUiNotice = vi.fn();
     const setSaved = vi.fn();
@@ -501,7 +491,7 @@ describe("useAiStudioTaskSubmission", () => {
         klingVoiceIds: ["", ""],
         klingMultiPrompts: [],
         klingElements: [],
-        setIsPromptGenerating: asDispatch(setIsPromptGenerating),
+        setPanelGenerating: vi.fn(),
         setUiError: asDispatch(setUiError),
         setUiNotice: asDispatch(setUiNotice),
         setOutputs: asDispatch(setOutputs),
@@ -537,8 +527,6 @@ describe("useAiStudioTaskSubmission", () => {
     const setOutputs = vi.fn((value: SetStateAction<StudioOutput[]>) => {
       outputs = typeof value === "function" ? value(outputs) : value;
     });
-
-    const setIsPromptGenerating = vi.fn();
     const setUiError = vi.fn();
     const setUiNotice = vi.fn();
     const setSaved = vi.fn();
@@ -574,7 +562,7 @@ describe("useAiStudioTaskSubmission", () => {
         klingVoiceIds: ["", ""],
         klingMultiPrompts: [],
         klingElements: [],
-        setIsPromptGenerating: asDispatch(setIsPromptGenerating),
+        setPanelGenerating: vi.fn(),
         setUiError: asDispatch(setUiError),
         setUiNotice: asDispatch(setUiNotice),
         setOutputs: asDispatch(setOutputs),
@@ -610,8 +598,6 @@ describe("useAiStudioTaskSubmission", () => {
     const setOutputs = vi.fn((value: SetStateAction<StudioOutput[]>) => {
       outputs = typeof value === "function" ? value(outputs) : value;
     });
-
-    const setIsPromptGenerating = vi.fn();
     const setUiError = vi.fn();
     const setUiNotice = vi.fn();
     const setSaved = vi.fn();
@@ -647,7 +633,7 @@ describe("useAiStudioTaskSubmission", () => {
         klingVoiceIds: ["", ""],
         klingMultiPrompts: [],
         klingElements: [],
-        setIsPromptGenerating: asDispatch(setIsPromptGenerating),
+        setPanelGenerating: vi.fn(),
         setUiError: asDispatch(setUiError),
         setUiNotice: asDispatch(setUiNotice),
         setOutputs: asDispatch(setOutputs),
@@ -683,8 +669,6 @@ describe("useAiStudioTaskSubmission", () => {
     const setOutputs = vi.fn((value: SetStateAction<StudioOutput[]>) => {
       outputs = typeof value === "function" ? value(outputs) : value;
     });
-
-    const setIsPromptGenerating = vi.fn();
     const setUiError = vi.fn();
     const setUiNotice = vi.fn();
     const setSaved = vi.fn();
@@ -720,7 +704,7 @@ describe("useAiStudioTaskSubmission", () => {
         klingVoiceIds: ["", ""],
         klingMultiPrompts: [],
         klingElements: [],
-        setIsPromptGenerating: asDispatch(setIsPromptGenerating),
+        setPanelGenerating: vi.fn(),
         setUiError: asDispatch(setUiError),
         setUiNotice: asDispatch(setUiNotice),
         setOutputs: asDispatch(setOutputs),
@@ -755,8 +739,6 @@ describe("useAiStudioTaskSubmission", () => {
     const setOutputs = vi.fn((value: SetStateAction<StudioOutput[]>) => {
       outputs = typeof value === "function" ? value(outputs) : value;
     });
-
-    const setIsPromptGenerating = vi.fn();
     const setUiError = vi.fn();
     const setUiNotice = vi.fn();
     const setSaved = vi.fn();
@@ -792,7 +774,7 @@ describe("useAiStudioTaskSubmission", () => {
         klingVoiceIds: ["", ""],
         klingMultiPrompts: [],
         klingElements: [],
-        setIsPromptGenerating: asDispatch(setIsPromptGenerating),
+        setPanelGenerating: vi.fn(),
         setUiError: asDispatch(setUiError),
         setUiNotice: asDispatch(setUiNotice),
         setOutputs: asDispatch(setOutputs),
@@ -827,8 +809,6 @@ describe("useAiStudioTaskSubmission", () => {
     const setOutputs = vi.fn((value: SetStateAction<StudioOutput[]>) => {
       outputs = typeof value === "function" ? value(outputs) : value;
     });
-
-    const setIsPromptGenerating = vi.fn();
     const setUiError = vi.fn();
     const setUiNotice = vi.fn();
     const setSaved = vi.fn();
@@ -864,7 +844,7 @@ describe("useAiStudioTaskSubmission", () => {
         klingVoiceIds: ["", ""],
         klingMultiPrompts: [],
         klingElements: [],
-        setIsPromptGenerating: asDispatch(setIsPromptGenerating),
+        setPanelGenerating: vi.fn(),
         setUiError: asDispatch(setUiError),
         setUiNotice: asDispatch(setUiNotice),
         setOutputs: asDispatch(setOutputs),
@@ -893,8 +873,6 @@ describe("useAiStudioTaskSubmission", () => {
     const setOutputs = vi.fn((value: SetStateAction<StudioOutput[]>) => {
       outputs = typeof value === "function" ? value(outputs) : value;
     });
-
-    const setIsPromptGenerating = vi.fn();
     const setUiError = vi.fn();
     const setUiNotice = vi.fn();
     const setSaved = vi.fn();
@@ -930,7 +908,7 @@ describe("useAiStudioTaskSubmission", () => {
         klingVoiceIds: ["", ""],
         klingMultiPrompts: [],
         klingElements: [],
-        setIsPromptGenerating: asDispatch(setIsPromptGenerating),
+        setPanelGenerating: vi.fn(),
         setUiError: asDispatch(setUiError),
         setUiNotice: asDispatch(setUiNotice),
         setOutputs: asDispatch(setOutputs),
@@ -961,8 +939,6 @@ describe("useAiStudioTaskSubmission", () => {
     const setOutputs = vi.fn((value: SetStateAction<StudioOutput[]>) => {
       outputs = typeof value === "function" ? value(outputs) : value;
     });
-
-    const setIsPromptGenerating = vi.fn();
     const setUiError = vi.fn();
     const setUiNotice = vi.fn();
     const setSaved = vi.fn();
@@ -1000,7 +976,7 @@ describe("useAiStudioTaskSubmission", () => {
         klingVoiceIds: ["", ""],
         klingMultiPrompts: [],
         klingElements: [],
-        setIsPromptGenerating: asDispatch(setIsPromptGenerating),
+        setPanelGenerating: vi.fn(),
         setUiError: asDispatch(setUiError),
         setUiNotice: asDispatch(setUiNotice),
         setOutputs: asDispatch(setOutputs),
@@ -1035,8 +1011,6 @@ describe("useAiStudioTaskSubmission", () => {
     const setOutputs = vi.fn((value: SetStateAction<StudioOutput[]>) => {
       outputs = typeof value === "function" ? value(outputs) : value;
     });
-
-    const setIsPromptGenerating = vi.fn();
     const setUiError = vi.fn();
     const setUiNotice = vi.fn();
     const setSaved = vi.fn();
@@ -1074,7 +1048,7 @@ describe("useAiStudioTaskSubmission", () => {
         klingVoiceIds: ["", ""],
         klingMultiPrompts: [],
         klingElements: [],
-        setIsPromptGenerating: asDispatch(setIsPromptGenerating),
+        setPanelGenerating: vi.fn(),
         setUiError: asDispatch(setUiError),
         setUiNotice: asDispatch(setUiNotice),
         setOutputs: asDispatch(setOutputs),
@@ -1134,7 +1108,7 @@ describe("useAiStudioTaskSubmission", () => {
         klingVoiceIds: ["", ""],
         klingMultiPrompts: [],
         klingElements: [],
-        setIsPromptGenerating: asDispatch(vi.fn()),
+        setPanelGenerating: vi.fn(),
         setUiError: asDispatch(vi.fn()),
         setUiNotice: asDispatch(vi.fn()),
         setOutputs: asDispatch(setOutputs),
@@ -1192,7 +1166,7 @@ describe("useAiStudioTaskSubmission", () => {
         klingVoiceIds: ["", ""],
         klingMultiPrompts: [],
         klingElements: [],
-        setIsPromptGenerating: asDispatch(vi.fn()),
+        setPanelGenerating: vi.fn(),
         setUiError: asDispatch(vi.fn()),
         setUiNotice: asDispatch(vi.fn()),
         setOutputs: asDispatch(setOutputs),
@@ -1229,8 +1203,6 @@ describe("useAiStudioTaskSubmission", () => {
       const setOutputs = vi.fn((value: SetStateAction<StudioOutput[]>) => {
         outputs = typeof value === "function" ? value(outputs) : value;
       });
-
-      const setIsPromptGenerating = vi.fn();
       const setUiError = vi.fn();
       const setUiNotice = vi.fn();
       const setSaved = vi.fn();
@@ -1273,7 +1245,7 @@ describe("useAiStudioTaskSubmission", () => {
           klingVoiceIds: ["", ""],
           klingMultiPrompts: [],
           klingElements: [],
-          setIsPromptGenerating: asDispatch(setIsPromptGenerating),
+          setPanelGenerating: vi.fn(),
           setUiError: asDispatch(setUiError),
           setUiNotice: asDispatch(setUiNotice),
           setOutputs: asDispatch(setOutputs),
@@ -1315,8 +1287,6 @@ describe("useAiStudioTaskSubmission", () => {
       const setOutputs = vi.fn((value: SetStateAction<StudioOutput[]>) => {
         outputs = typeof value === "function" ? value(outputs) : value;
       });
-
-      const setIsPromptGenerating = vi.fn();
       const setUiError = vi.fn();
       const setUiNotice = vi.fn();
       const setSaved = vi.fn();
@@ -1347,7 +1317,7 @@ describe("useAiStudioTaskSubmission", () => {
           klingVoiceIds: ["", ""],
           klingMultiPrompts: [],
           klingElements: [],
-          setIsPromptGenerating: asDispatch(setIsPromptGenerating),
+          setPanelGenerating: vi.fn(),
           setUiError: asDispatch(setUiError),
           setUiNotice: asDispatch(setUiNotice),
           setOutputs: asDispatch(setOutputs),
@@ -1383,8 +1353,6 @@ describe("useAiStudioTaskSubmission", () => {
     const setOutputs = vi.fn((value: SetStateAction<StudioOutput[]>) => {
       outputs = typeof value === "function" ? value(outputs) : value;
     });
-
-    const setIsPromptGenerating = vi.fn();
     const setUiError = vi.fn();
     const setUiNotice = vi.fn();
     const setSaved = vi.fn();
@@ -1422,7 +1390,7 @@ describe("useAiStudioTaskSubmission", () => {
         klingVoiceIds: ["", ""],
         klingMultiPrompts: [],
         klingElements: [],
-        setIsPromptGenerating: asDispatch(setIsPromptGenerating),
+        setPanelGenerating: vi.fn(),
         setUiError: asDispatch(setUiError),
         setUiNotice: asDispatch(setUiNotice),
         setOutputs: asDispatch(setOutputs),
@@ -1456,8 +1424,6 @@ describe("useAiStudioTaskSubmission", () => {
     const setOutputs = vi.fn((value: SetStateAction<StudioOutput[]>) => {
       outputs = typeof value === "function" ? value(outputs) : value;
     });
-
-    const setIsPromptGenerating = vi.fn();
     const setUiError = vi.fn();
     const setUiNotice = vi.fn();
     const setSaved = vi.fn();
@@ -1495,7 +1461,7 @@ describe("useAiStudioTaskSubmission", () => {
         klingVoiceIds: ["", ""],
         klingMultiPrompts: [],
         klingElements: [],
-        setIsPromptGenerating: asDispatch(setIsPromptGenerating),
+        setPanelGenerating: vi.fn(),
         setUiError: asDispatch(setUiError),
         setUiNotice: asDispatch(setUiNotice),
         setOutputs: asDispatch(setOutputs),
@@ -1533,8 +1499,6 @@ describe("useAiStudioTaskSubmission", () => {
     const setOutputs = vi.fn((value: SetStateAction<StudioOutput[]>) => {
       outputs = typeof value === "function" ? value(outputs) : value;
     });
-
-    const setIsPromptGenerating = vi.fn();
     const setUiError = vi.fn();
     const setUiNotice = vi.fn();
     const setSaved = vi.fn();
@@ -1572,7 +1536,7 @@ describe("useAiStudioTaskSubmission", () => {
         klingVoiceIds: ["", ""],
         klingMultiPrompts: [],
         klingElements: [],
-        setIsPromptGenerating: asDispatch(setIsPromptGenerating),
+        setPanelGenerating: vi.fn(),
         setUiError: asDispatch(setUiError),
         setUiNotice: asDispatch(setUiNotice),
         setOutputs: asDispatch(setOutputs),
@@ -1638,8 +1602,6 @@ describe("useAiStudioTaskSubmission", () => {
     const setOutputs = vi.fn((value: SetStateAction<StudioOutput[]>) => {
       outputs = typeof value === "function" ? value(outputs) : value;
     });
-
-    const setIsPromptGenerating = vi.fn();
     const setUiError = vi.fn();
     const setUiNotice = vi.fn();
     const setSaved = vi.fn();
@@ -1677,7 +1639,7 @@ describe("useAiStudioTaskSubmission", () => {
         klingVoiceIds: ["", ""],
         klingMultiPrompts: [],
         klingElements: [],
-        setIsPromptGenerating: asDispatch(setIsPromptGenerating),
+        setPanelGenerating: vi.fn(),
         setUiError: asDispatch(setUiError),
         setUiNotice: asDispatch(setUiNotice),
         setOutputs: asDispatch(setOutputs),
@@ -1713,8 +1675,6 @@ describe("useAiStudioTaskSubmission", () => {
     const setOutputs = vi.fn((value: SetStateAction<StudioOutput[]>) => {
       outputs = typeof value === "function" ? value(outputs) : value;
     });
-
-    const setIsPromptGenerating = vi.fn();
     const setUiError = vi.fn();
     const setUiNotice = vi.fn();
     const setSaved = vi.fn();
@@ -1752,7 +1712,7 @@ describe("useAiStudioTaskSubmission", () => {
         klingVoiceIds: ["", ""],
         klingMultiPrompts: [],
         klingElements: [],
-        setIsPromptGenerating: asDispatch(setIsPromptGenerating),
+        setPanelGenerating: vi.fn(),
         setUiError: asDispatch(setUiError),
         setUiNotice: asDispatch(setUiNotice),
         setOutputs: asDispatch(setOutputs),
@@ -1793,8 +1753,6 @@ describe("useAiStudioTaskSubmission", () => {
     const setOutputs = vi.fn((value: SetStateAction<StudioOutput[]>) => {
       outputs = typeof value === "function" ? value(outputs) : value;
     });
-
-    const setIsPromptGenerating = vi.fn();
     const setUiError = vi.fn();
     const setUiNotice = vi.fn();
     const setSaved = vi.fn();
@@ -1827,7 +1785,7 @@ describe("useAiStudioTaskSubmission", () => {
         klingVoiceIds: ["", ""],
         klingMultiPrompts: [],
         klingElements: [],
-        setIsPromptGenerating: asDispatch(setIsPromptGenerating),
+        setPanelGenerating: vi.fn(),
         setUiError: asDispatch(setUiError),
         setUiNotice: asDispatch(setUiNotice),
         setOutputs: asDispatch(setOutputs),
@@ -1876,8 +1834,6 @@ describe("useAiStudioTaskSubmission", () => {
     const setOutputs = vi.fn((value: SetStateAction<StudioOutput[]>) => {
       outputs = typeof value === "function" ? value(outputs) : value;
     });
-
-    const setIsPromptGenerating = vi.fn();
     const setUiError = vi.fn();
     const setUiNotice = vi.fn();
     const setSaved = vi.fn();
@@ -1910,7 +1866,7 @@ describe("useAiStudioTaskSubmission", () => {
         klingVoiceIds: ["", ""],
         klingMultiPrompts: [],
         klingElements: [],
-        setIsPromptGenerating: asDispatch(setIsPromptGenerating),
+        setPanelGenerating: vi.fn(),
         setUiError: asDispatch(setUiError),
         setUiNotice: asDispatch(setUiNotice),
         setOutputs: asDispatch(setOutputs),
@@ -1943,8 +1899,6 @@ describe("useAiStudioTaskSubmission", () => {
     const setOutputs = vi.fn((value: SetStateAction<StudioOutput[]>) => {
       outputs = typeof value === "function" ? value(outputs) : value;
     });
-
-    const setIsPromptGenerating = vi.fn();
     const setUiError = vi.fn();
     const setUiNotice = vi.fn();
     const setSaved = vi.fn();
@@ -1977,7 +1931,7 @@ describe("useAiStudioTaskSubmission", () => {
         klingVoiceIds: ["", ""],
         klingMultiPrompts: [],
         klingElements: [],
-        setIsPromptGenerating: asDispatch(setIsPromptGenerating),
+        setPanelGenerating: vi.fn(),
         setUiError: asDispatch(setUiError),
         setUiNotice: asDispatch(setUiNotice),
         setOutputs: asDispatch(setOutputs),
@@ -2021,8 +1975,6 @@ describe("useAiStudioTaskSubmission", () => {
     const setOutputs = vi.fn((value: SetStateAction<StudioOutput[]>) => {
       outputs = typeof value === "function" ? value(outputs) : value;
     });
-
-    const setIsPromptGenerating = vi.fn();
     const setUiError = vi.fn();
     const setUiNotice = vi.fn();
     const setSaved = vi.fn();
@@ -2053,7 +2005,7 @@ describe("useAiStudioTaskSubmission", () => {
         klingVoiceIds: ["", ""],
         klingMultiPrompts: [],
         klingElements: [],
-        setIsPromptGenerating: asDispatch(setIsPromptGenerating),
+        setPanelGenerating: vi.fn(),
         setUiError: asDispatch(setUiError),
         setUiNotice: asDispatch(setUiNotice),
         setOutputs: asDispatch(setOutputs),
@@ -2083,8 +2035,6 @@ describe("useAiStudioTaskSubmission", () => {
     const setOutputs = vi.fn((value: SetStateAction<StudioOutput[]>) => {
       outputs = typeof value === "function" ? value(outputs) : value;
     });
-
-    const setIsPromptGenerating = vi.fn();
     const setUiError = vi.fn();
     const setUiNotice = vi.fn();
     const setSaved = vi.fn();
@@ -2115,7 +2065,7 @@ describe("useAiStudioTaskSubmission", () => {
         klingVoiceIds: ["", ""],
         klingMultiPrompts: [],
         klingElements: [],
-        setIsPromptGenerating: asDispatch(setIsPromptGenerating),
+        setPanelGenerating: vi.fn(),
         setUiError: asDispatch(setUiError),
         setUiNotice: asDispatch(setUiNotice),
         setOutputs: asDispatch(setOutputs),
@@ -2147,8 +2097,6 @@ describe("useAiStudioTaskSubmission", () => {
     const setOutputs = vi.fn((value: SetStateAction<StudioOutput[]>) => {
       outputs = typeof value === "function" ? value(outputs) : value;
     });
-
-    const setIsPromptGenerating = vi.fn();
     const setUiError = vi.fn();
     const setUiNotice = vi.fn();
     const setSaved = vi.fn();
@@ -2181,7 +2129,7 @@ describe("useAiStudioTaskSubmission", () => {
         klingVoiceIds: ["", ""],
         klingMultiPrompts: [],
         klingElements: [],
-        setIsPromptGenerating: asDispatch(setIsPromptGenerating),
+        setPanelGenerating: vi.fn(),
         setUiError: asDispatch(setUiError),
         setUiNotice: asDispatch(setUiNotice),
         setOutputs: asDispatch(setOutputs),
@@ -2215,8 +2163,6 @@ describe("useAiStudioTaskSubmission", () => {
     const setOutputs = vi.fn((value: SetStateAction<StudioOutput[]>) => {
       outputs = typeof value === "function" ? value(outputs) : value;
     });
-
-    const setIsPromptGenerating = vi.fn();
     const setUiError = vi.fn();
     const setUiNotice = vi.fn();
     const setSaved = vi.fn();
@@ -2249,7 +2195,7 @@ describe("useAiStudioTaskSubmission", () => {
         klingVoiceIds: ["", ""],
         klingMultiPrompts: [],
         klingElements: [],
-        setIsPromptGenerating: asDispatch(setIsPromptGenerating),
+        setPanelGenerating: vi.fn(),
         setUiError: asDispatch(setUiError),
         setUiNotice: asDispatch(setUiNotice),
         setOutputs: asDispatch(setOutputs),
@@ -2286,8 +2232,6 @@ describe("useAiStudioTaskSubmission", () => {
     const setOutputs = vi.fn((value: SetStateAction<StudioOutput[]>) => {
       outputs = typeof value === "function" ? value(outputs) : value;
     });
-
-    const setIsPromptGenerating = vi.fn();
     const setUiError = vi.fn();
     const setUiNotice = vi.fn();
     const setSaved = vi.fn();
@@ -2320,7 +2264,7 @@ describe("useAiStudioTaskSubmission", () => {
         klingVoiceIds: ["", ""],
         klingMultiPrompts: [],
         klingElements: [],
-        setIsPromptGenerating: asDispatch(setIsPromptGenerating),
+        setPanelGenerating: vi.fn(),
         setUiError: asDispatch(setUiError),
         setUiNotice: asDispatch(setUiNotice),
         setOutputs: asDispatch(setOutputs),
@@ -2359,8 +2303,6 @@ describe("useAiStudioTaskSubmission", () => {
     const setOutputs = vi.fn((value: SetStateAction<StudioOutput[]>) => {
       outputs = typeof value === "function" ? value(outputs) : value;
     });
-
-    const setIsPromptGenerating = vi.fn();
     const setUiError = vi.fn();
     const setUiNotice = vi.fn();
     const setSaved = vi.fn();
@@ -2393,7 +2335,7 @@ describe("useAiStudioTaskSubmission", () => {
         klingVoiceIds: ["", ""],
         klingMultiPrompts: [],
         klingElements: [],
-        setIsPromptGenerating: asDispatch(setIsPromptGenerating),
+        setPanelGenerating: vi.fn(),
         setUiError: asDispatch(setUiError),
         setUiNotice: asDispatch(setUiNotice),
         setOutputs: asDispatch(setOutputs),
@@ -2428,8 +2370,6 @@ describe("useAiStudioTaskSubmission", () => {
     const setOutputs = vi.fn((value: SetStateAction<StudioOutput[]>) => {
       outputs = typeof value === "function" ? value(outputs) : value;
     });
-
-    const setIsPromptGenerating = vi.fn();
     const setUiError = vi.fn();
     const setUiNotice = vi.fn();
     const setSaved = vi.fn();
@@ -2462,7 +2402,7 @@ describe("useAiStudioTaskSubmission", () => {
         klingVoiceIds: ["", ""],
         klingMultiPrompts: [],
         klingElements: [],
-        setIsPromptGenerating: asDispatch(setIsPromptGenerating),
+        setPanelGenerating: vi.fn(),
         setUiError: asDispatch(setUiError),
         setUiNotice: asDispatch(setUiNotice),
         setOutputs: asDispatch(setOutputs),
@@ -2494,7 +2434,6 @@ describe("useAiStudioTaskSubmission", () => {
 
   it("fails immediately when image routing does not start a provider task", async () => {
     const setOutputs = vi.fn();
-    const setIsPromptGenerating = vi.fn();
     const setUiError = vi.fn();
     const setUiNotice = vi.fn();
     const setSaved = vi.fn();
@@ -2528,7 +2467,7 @@ describe("useAiStudioTaskSubmission", () => {
         klingVoiceIds: ["", ""],
         klingMultiPrompts: [],
         klingElements: [],
-        setIsPromptGenerating: asDispatch(setIsPromptGenerating),
+        setPanelGenerating: vi.fn(),
         setUiError: asDispatch(setUiError),
         setUiNotice: asDispatch(setUiNotice),
         setOutputs: asDispatch(setOutputs),
@@ -2563,7 +2502,6 @@ describe("useAiStudioTaskSubmission", () => {
 
   it("preserves handler-specific submit failures instead of overriding with submit-not-started", async () => {
     const setOutputs = vi.fn();
-    const setIsPromptGenerating = vi.fn();
     const setUiError = vi.fn();
     const setUiNotice = vi.fn();
     const setSaved = vi.fn();
@@ -2602,7 +2540,7 @@ describe("useAiStudioTaskSubmission", () => {
         klingVoiceIds: ["", ""],
         klingMultiPrompts: [],
         klingElements: [],
-        setIsPromptGenerating: asDispatch(setIsPromptGenerating),
+        setPanelGenerating: vi.fn(),
         setUiError: asDispatch(setUiError),
         setUiNotice: asDispatch(setUiNotice),
         setOutputs: asDispatch(setOutputs),
@@ -2638,7 +2576,6 @@ describe("useAiStudioTaskSubmission", () => {
 
   it("maps auth-session timeout during submit to an immediate start failure with telemetry", async () => {
     const setOutputs = vi.fn();
-    const setIsPromptGenerating = vi.fn();
     const setUiError = vi.fn();
     const setUiNotice = vi.fn();
     const setSaved = vi.fn();
@@ -2676,7 +2613,7 @@ describe("useAiStudioTaskSubmission", () => {
         klingVoiceIds: ["", ""],
         klingMultiPrompts: [],
         klingElements: [],
-        setIsPromptGenerating: asDispatch(setIsPromptGenerating),
+        setPanelGenerating: vi.fn(),
         setUiError: asDispatch(setUiError),
         setUiNotice: asDispatch(setUiNotice),
         setOutputs: asDispatch(setOutputs),
@@ -2720,8 +2657,6 @@ describe("useAiStudioTaskSubmission", () => {
       const setOutputs = vi.fn((value: SetStateAction<StudioOutput[]>) => {
         outputs = typeof value === "function" ? value(outputs) : value;
       });
-
-      const setIsPromptGenerating = vi.fn();
       const setUiError = vi.fn();
       const setUiNotice = vi.fn();
       const setSaved = vi.fn();
@@ -2786,7 +2721,7 @@ describe("useAiStudioTaskSubmission", () => {
           klingVoiceIds: ["", ""],
           klingMultiPrompts: [],
           klingElements: [],
-          setIsPromptGenerating: asDispatch(setIsPromptGenerating),
+          setPanelGenerating: vi.fn(),
           setUiError: asDispatch(setUiError),
           setUiNotice: asDispatch(setUiNotice),
           setOutputs: asDispatch(setOutputs),
@@ -2843,8 +2778,6 @@ describe("useAiStudioTaskSubmission", () => {
       const setOutputs = vi.fn((value: SetStateAction<StudioOutput[]>) => {
         outputs = typeof value === "function" ? value(outputs) : value;
       });
-
-      const setIsPromptGenerating = vi.fn();
       const setUiError = vi.fn();
       const setUiNotice = vi.fn();
       const setSaved = vi.fn();
@@ -2900,7 +2833,7 @@ describe("useAiStudioTaskSubmission", () => {
           klingVoiceIds: ["", ""],
           klingMultiPrompts: [],
           klingElements: [],
-          setIsPromptGenerating: asDispatch(setIsPromptGenerating),
+          setPanelGenerating: vi.fn(),
           setUiError: asDispatch(setUiError),
           setUiNotice: asDispatch(setUiNotice),
           setOutputs: asDispatch(setOutputs),
@@ -2942,8 +2875,6 @@ describe("useAiStudioTaskSubmission", () => {
       const setOutputs = vi.fn((value: SetStateAction<StudioOutput[]>) => {
         outputs = typeof value === "function" ? value(outputs) : value;
       });
-
-      const setIsPromptGenerating = vi.fn();
       const setUiError = vi.fn();
       const setUiNotice = vi.fn();
       const setSaved = vi.fn();
@@ -3012,7 +2943,7 @@ describe("useAiStudioTaskSubmission", () => {
           klingVoiceIds: ["", ""],
           klingMultiPrompts: [],
           klingElements: [],
-          setIsPromptGenerating: asDispatch(setIsPromptGenerating),
+          setPanelGenerating: vi.fn(),
           setUiError: asDispatch(setUiError),
           setUiNotice: asDispatch(setUiNotice),
           setOutputs: asDispatch(setOutputs),

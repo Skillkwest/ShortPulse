@@ -28,6 +28,11 @@ Purpose: active planning artifacts and current execution backlogs.
 - `generation-pipeline-continuation-compatibility-retirement-2026-04-05.md`: bucket subplan for fallback deletion and compatibility retirement.
 - `generation-pipeline-continuation-reference-grid-read-model-simplification-2026-04-05.md`: bucket subplan for Reference Grid read-model simplification.
 - `ai-studio-live-session-check-media-panel-handoff-2026-04-05.md`: execution-oriented handoff for the staging AI Studio Media Library panel lag investigation, including trusted evidence, decision gates, and the ordered remediation plan for follow-on agents.
+- `ai-studio-elements-library-ui-build-plan-2026-04-06.md`: implementation-ready UI/UX build contract for the new AI Studio Elements library surface, using Character Library shell patterns and future Kling compatibility constraints.
+- `ai-studio-elements-library-ui-spec-2026-04-06.md`: concrete UI contract for left-rail placement, manage/profile behavior, editor fields, and interaction states for the Elements library.
+- `ai-studio-elements-library-wireframes-2026-04-06.md`: text wireframes for the embedded `Manage Elements` and `Element Profile` surfaces, including narrow-panel adaptation.
+- `ai-studio-elements-library-component-state-map-2026-04-06.md`: proposed feature/file layout, component responsibilities, and state model for implementing the Elements library without reopening the design lane.
+- `ai-studio-elements-library-implementation-checklist-2026-04-06.md`: execution checklist for the first UI-only Elements library build, including host wiring, feature scaffold, validation targets, and out-of-scope guardrails.
 - `foundation-lanes-master-roadmap-2026-03-16.md`: canonical multi-lane foundational hardening roadmap (outcomes, sequencing, dependency rules, and required validation bundle).
 - `foundation-lanes-execution-tracker-2026-03-16.md`: live tracker for lane status, Lane A phase checklist, slice-level validation records, and signoff progression.
 - `foundation-rebuild-playbook-2026-03-16.md`: mandatory rebuild method contract (entry criteria, explicit do-not-rebuild criteria, strangler cutover model, and rollback/evidence rules).

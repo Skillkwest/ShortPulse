@@ -20,6 +20,7 @@ describe("resolvePropertiesPanelKind", () => {
     expect(resolvePropertiesPanelKind("video")).toBe("video");
     expect(resolvePropertiesPanelKind("kling")).toBe("video");
     expect(resolvePropertiesPanelKind("character")).toBe("character");
+    expect(resolvePropertiesPanelKind("elements")).toBe("elements");
     expect(resolvePropertiesPanelKind("canvas")).toBe("canvas");
     expect(resolvePropertiesPanelKind("presets")).toBe("presets");
     expect(resolvePropertiesPanelKind("styles")).toBe("styles");

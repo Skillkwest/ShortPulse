@@ -1,10 +1,20 @@
+/**
+ * View-state controller for the Elements library panel.
+ * Mirrors the embedded Character UX with local-only live editing and delete flows.
+ */
 import React from "react";
-import { createMockElementsLibrary } from "../constants";
+import {
+  ELEMENT_REFERENCE_SET_IDS,
+  MAX_ELEMENT_REFERENCE_SET_TAB_COUNT,
+  createDefaultElementReferenceSetState,
+  createEmptyElementDraft,
+  createMockElementsLibrary,
+} from "../constants";
 import type {
-  ElementAssetType,
+  ElementDraft,
   ElementLibraryItem,
-  ElementsProfileMode,
   ElementsWorkflowTab,
+  ElementReferenceSetId,
 } from "../types";
 import { useElementsManagerDraft } from "./useElementsManagerDraft";
 
@@ -14,28 +24,45 @@ const createIdFromName = (name: string): string =>
       .trim()
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, "-")
-      .replace(/^-+|-+$/g, "") || "draft"
+      .replace(/^-+|-+$/g, "") || `draft-${Date.now()}`
   }`;
 
-const validateDraft = ({
-  assetType,
-  imageReferenceUrls,
-  videoReferenceUrl,
-  name,
-}: {
-  assetType: ElementAssetType;
-  imageReferenceUrls: string[];
-  videoReferenceUrl: string;
-  name: string;
-}): string | null => {
-  if (!name.trim()) return "Element name is required.";
-  if (assetType === "image" && imageReferenceUrls.filter(Boolean).length < 2) {
-    return "Image elements need at least 2 reference images.";
+const getNextReferenceSetId = (
+  visibleReferenceSetIds: readonly ElementReferenceSetId[]
+): ElementReferenceSetId | null =>
+  ELEMENT_REFERENCE_SET_IDS.find((setId) => !visibleReferenceSetIds.includes(setId)) ?? null;
+
+const buildElementItemFromDraft = (
+  draft: ElementDraft,
+  options?: {
+    id?: string;
+    updatedAt?: string | null;
+    status?: ElementLibraryItem["status"];
   }
-  if (assetType === "video" && !videoReferenceUrl.trim()) {
-    return "Video elements need one reference video.";
-  }
-  return null;
+): ElementLibraryItem => {
+  const activeReferenceSet = draft.referenceSets[draft.activeReferenceSetId];
+  return {
+    id: options?.id ?? createIdFromName(draft.name),
+    name: draft.name.trim(),
+    alias: draft.alias.trim(),
+    description: activeReferenceSet.description.trim(),
+    assetType: draft.assetType,
+    thumbnailUrl: null,
+    imageReferenceUrls:
+      draft.assetType === "image"
+        ? activeReferenceSet.imageReferenceUrls.filter(Boolean).slice(0, 4)
+        : [],
+    videoReferenceUrl:
+      draft.assetType === "video" ? activeReferenceSet.videoReferenceUrl.trim() || null : null,
+    updatedAt: options?.updatedAt ?? new Date().toISOString(),
+    status: options?.status ?? "ready",
+    referenceSetState: {
+      activeSetId: draft.activeReferenceSetId,
+      tabOrder: draft.visibleReferenceSetIds,
+      tabLabels: draft.referenceSetLabels,
+      sets: draft.referenceSets,
+    },
+  };
 };
 
 export const useElementsManagerViewState = () => {
@@ -44,29 +71,107 @@ export const useElementsManagerViewState = () => {
     createMockElementsLibrary()
   );
   const [selectedElementId, setSelectedElementId] = React.useState<string | null>(null);
-  const [profileMode, setProfileMode] = React.useState<ElementsProfileMode>("create");
   const [pendingDeleteElementId, setPendingDeleteElementId] = React.useState<string | null>(null);
-  const [errorMessage, setErrorMessage] = React.useState<string | null>(null);
-  const { draft, hydrateDraft, updateDraftField, resetDraft } = useElementsManagerDraft();
+  const { draft, hydrateDraft, setDraft, resetDraft } = useElementsManagerDraft();
 
   const selectedElement = elements.find((item) => item.id === selectedElementId) ?? null;
 
+  const syncSelectedElement = React.useCallback(
+    (nextDraft: ElementDraft, overrideId?: string | null) => {
+      const targetId = overrideId ?? selectedElementId;
+      if (!targetId) return;
+      const nextItem = buildElementItemFromDraft(nextDraft, {
+        id: targetId,
+        status: "ready",
+      });
+      setElements((current) =>
+        current.map((item) => (item.id === targetId ? { ...item, ...nextItem } : item))
+      );
+    },
+    [selectedElementId]
+  );
+
+  const updateDraftField = React.useCallback(
+    <K extends keyof ElementDraft>(field: K, value: ElementDraft[K]) => {
+      setDraft((current) => {
+        const nextDraft = { ...current, [field]: value };
+        if (selectedElementId) {
+          syncSelectedElement(nextDraft, selectedElementId);
+        }
+        return nextDraft;
+      });
+    },
+    [selectedElementId, setDraft, syncSelectedElement]
+  );
+
+  const updateActiveReferenceSet = React.useCallback(
+    (
+      updater: (
+        current: ElementDraft["referenceSets"][ElementReferenceSetId]
+      ) => ElementDraft["referenceSets"][ElementReferenceSetId]
+    ) => {
+      setDraft((current) => {
+        const nextReferenceSets = {
+          ...current.referenceSets,
+          [current.activeReferenceSetId]: updater(
+            current.referenceSets[current.activeReferenceSetId]
+          ),
+        };
+        const nextDraft = {
+          ...current,
+          referenceSets: nextReferenceSets,
+          description: nextReferenceSets[current.activeReferenceSetId].description,
+          imageReferenceUrls: nextReferenceSets[current.activeReferenceSetId].imageReferenceUrls,
+          videoReferenceUrl: nextReferenceSets[current.activeReferenceSetId].videoReferenceUrl,
+        };
+        if (selectedElementId) {
+          syncSelectedElement(nextDraft, selectedElementId);
+        }
+        return nextDraft;
+      });
+    },
+    [selectedElementId, setDraft, syncSelectedElement]
+  );
+
+  const setActiveReferenceSet = React.useCallback(
+    (setId: ElementReferenceSetId) => {
+      setDraft((current) => {
+        const nextDraft = {
+          ...current,
+          activeReferenceSetId: setId,
+          description: current.referenceSets[setId].description,
+          imageReferenceUrls: current.referenceSets[setId].imageReferenceUrls,
+          videoReferenceUrl: current.referenceSets[setId].videoReferenceUrl,
+        };
+        if (selectedElementId) {
+          syncSelectedElement(nextDraft, selectedElementId);
+        }
+        return nextDraft;
+      });
+    },
+    [selectedElementId, setDraft, syncSelectedElement]
+  );
+
   const handleCreateElement = React.useCallback(() => {
+    const nextDraft = createEmptyElementDraft();
+    const nextId = createIdFromName(`draft-${elements.length + 1}`);
+    const nextItem = buildElementItemFromDraft(nextDraft, {
+      id: nextId,
+      status: "draft",
+    });
+    setElements((current) => [nextItem, ...current]);
+    setSelectedElementId(nextId);
+    hydrateDraft(nextItem);
     setActiveTab("profile");
-    setProfileMode("create");
-    setSelectedElementId(null);
-    setErrorMessage(null);
-    resetDraft();
-  }, [resetDraft]);
+  }, [elements.length, hydrateDraft]);
 
   const handleSelectElement = React.useCallback(
     (elementId: string) => {
       const nextSelected = elements.find((item) => item.id === elementId) ?? null;
+      if (!nextSelected) return;
       setSelectedElementId(elementId);
-      setProfileMode("edit");
-      setActiveTab("profile");
-      setErrorMessage(null);
       hydrateDraft(nextSelected);
+      setActiveTab("profile");
     },
     [elements, hydrateDraft]
   );
@@ -74,65 +179,84 @@ export const useElementsManagerViewState = () => {
   const handleDeleteElement = React.useCallback(() => {
     if (!pendingDeleteElementId) return;
     setElements((current) => current.filter((item) => item.id !== pendingDeleteElementId));
-    const deletingSelected = selectedElementId === pendingDeleteElementId;
-    setPendingDeleteElementId(null);
-    setErrorMessage(null);
-    if (deletingSelected) {
+    if (selectedElementId === pendingDeleteElementId) {
       setSelectedElementId(null);
-      setProfileMode("create");
-      setActiveTab("manage");
       resetDraft();
+      setActiveTab("manage");
     }
+    setPendingDeleteElementId(null);
   }, [pendingDeleteElementId, resetDraft, selectedElementId]);
 
-  const handleSaveElement = React.useCallback(() => {
-    const validationError = validateDraft(draft);
-    if (validationError) {
-      setErrorMessage(validationError);
-      return false;
-    }
-
-    const nextItem: ElementLibraryItem = {
-      id:
-        profileMode === "edit" && selectedElement
-          ? selectedElement.id
-          : createIdFromName(draft.name),
-      name: draft.name.trim(),
-      alias: draft.alias.trim(),
-      description: draft.description.trim(),
-      assetType: draft.assetType,
-      thumbnailUrl: null,
-      imageReferenceUrls:
-        draft.assetType === "image" ? draft.imageReferenceUrls.filter(Boolean).slice(0, 4) : [],
-      videoReferenceUrl: draft.assetType === "video" ? draft.videoReferenceUrl.trim() : null,
-      updatedAt: new Date().toISOString(),
-      status: "ready",
-    };
-
-    setElements((current) => {
-      if (profileMode === "edit" && selectedElement) {
-        return current.map((item) => (item.id === selectedElement.id ? nextItem : item));
+  const onAddReferenceSet = React.useCallback(() => {
+    setDraft((current) => {
+      if (current.visibleReferenceSetIds.length >= MAX_ELEMENT_REFERENCE_SET_TAB_COUNT) {
+        return current;
       }
-      return [nextItem, ...current];
+      const nextSetId = getNextReferenceSetId(current.visibleReferenceSetIds);
+      if (!nextSetId) return current;
+      const nextReferenceSets = {
+        ...current.referenceSets,
+        [nextSetId]:
+          current.referenceSets[nextSetId] ??
+          createDefaultElementReferenceSetState().sets[nextSetId],
+      };
+      const nextDraft = {
+        ...current,
+        activeReferenceSetId: nextSetId,
+        visibleReferenceSetIds: [...current.visibleReferenceSetIds, nextSetId],
+        referenceSets: nextReferenceSets,
+        description: nextReferenceSets[nextSetId].description,
+        imageReferenceUrls: nextReferenceSets[nextSetId].imageReferenceUrls,
+        videoReferenceUrl: nextReferenceSets[nextSetId].videoReferenceUrl,
+      };
+      syncSelectedElement(nextDraft);
+      return nextDraft;
     });
+  }, [setDraft, syncSelectedElement]);
 
-    setSelectedElementId(nextItem.id);
-    setProfileMode("edit");
-    setActiveTab("profile");
-    setErrorMessage(null);
-    hydrateDraft(nextItem);
-    return true;
-  }, [draft, hydrateDraft, profileMode, selectedElement]);
-
-  const handleTabChange = React.useCallback(
-    (tab: ElementsWorkflowTab) => {
-      setActiveTab(tab);
-      if (tab === "profile" && !selectedElementId && profileMode !== "create") {
-        setProfileMode("create");
-        resetDraft();
-      }
+  const onRenameReferenceSet = React.useCallback(
+    (setId: ElementReferenceSetId, nextLabel: string) => {
+      setDraft((current) => {
+        const nextDraft = {
+          ...current,
+          referenceSetLabels: {
+            ...current.referenceSetLabels,
+            [setId]: nextLabel.trim() || current.referenceSetLabels[setId],
+          },
+        };
+        syncSelectedElement(nextDraft);
+        return nextDraft;
+      });
     },
-    [profileMode, resetDraft, selectedElementId]
+    [setDraft, syncSelectedElement]
+  );
+
+  const onDeleteReferenceSet = React.useCallback(
+    (setId: ElementReferenceSetId) => {
+      setDraft((current) => {
+        if (setId === "1") return current;
+        const nextVisibleReferenceSetIds = current.visibleReferenceSetIds.filter(
+          (visibleSetId) => visibleSetId !== setId
+        );
+        const fallbackSetId = nextVisibleReferenceSetIds[0] ?? "1";
+        const nextReferenceSets = {
+          ...current.referenceSets,
+          [setId]: createDefaultElementReferenceSetState().sets[setId],
+        };
+        const nextDraft = {
+          ...current,
+          activeReferenceSetId: fallbackSetId,
+          visibleReferenceSetIds: nextVisibleReferenceSetIds,
+          referenceSets: nextReferenceSets,
+          description: nextReferenceSets[fallbackSetId].description,
+          imageReferenceUrls: nextReferenceSets[fallbackSetId].imageReferenceUrls,
+          videoReferenceUrl: nextReferenceSets[fallbackSetId].videoReferenceUrl,
+        };
+        syncSelectedElement(nextDraft);
+        return nextDraft;
+      });
+    },
+    [setDraft, syncSelectedElement]
   );
 
   return {
@@ -140,17 +264,19 @@ export const useElementsManagerViewState = () => {
     elements,
     selectedElement,
     selectedElementId,
-    profileMode,
     pendingDeleteElementId,
-    errorMessage,
     draft,
-    setActiveTab: handleTabChange,
+    setActiveTab,
     updateDraftField,
+    updateActiveReferenceSet,
+    setActiveReferenceSet,
+    onAddReferenceSet,
+    onRenameReferenceSet,
+    onDeleteReferenceSet,
     onCreateElement: handleCreateElement,
     onSelectElement: handleSelectElement,
     onRequestDeleteElement: setPendingDeleteElementId,
     onCancelDeleteElement: () => setPendingDeleteElementId(null),
     onConfirmDeleteElement: handleDeleteElement,
-    onSaveElement: handleSaveElement,
   };
 };

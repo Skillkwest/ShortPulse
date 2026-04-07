@@ -118,7 +118,9 @@ body:has(.ai-studio-page[data-selected-tool="canvas"]) {
   html:has(.ai-studio-page[data-selected-tool="music"]),
   body:has(.ai-studio-page[data-selected-tool="music"]),
   html:has(.ai-studio-page[data-selected-tool="character"]),
-  body:has(.ai-studio-page[data-selected-tool="character"]) {
+  body:has(.ai-studio-page[data-selected-tool="character"]),
+  html:has(.ai-studio-page[data-selected-tool="elements"]),
+  body:has(.ai-studio-page[data-selected-tool="elements"]) {
     overflow-y: hidden;
   }
 }

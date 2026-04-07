@@ -10,3 +10,9 @@ import { isCharacterWorkflow } from "./workflowIdentity";
  */
 export const isPrimaryCharacterTool = (tool: ToolId | null | undefined): boolean =>
   isCharacterWorkflow(tool);
+
+/**
+ * Returns true when the active tool should use the wide embedded library shell treatment.
+ */
+export const isCharacterShellTool = (tool: ToolId | null | undefined): boolean =>
+  isCharacterWorkflow(tool) || tool === "elements";

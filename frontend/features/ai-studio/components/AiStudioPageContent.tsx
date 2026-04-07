@@ -47,7 +47,7 @@ import type {
   LibraryPromptReferencePayload,
 } from "../reference-grid/referenceGridTypes";
 import { resolvePropertiesPanelKind } from "../logic/propertiesPanelRouting";
-import { isPrimaryCharacterTool } from "../logic/primaryCharacterTool";
+import { isCharacterShellTool, isPrimaryCharacterTool } from "../logic/primaryCharacterTool";
 import { isCreateWorkflow, isSoundWorkflow } from "../logic/workflowIdentity";
 import {
   PERF_FLAG_SHELL_BOUNDARY_SPLIT,
@@ -633,6 +633,7 @@ export function AiStudioPageContent({
     propertiesPanelKind === "edit" && propertiesEditExpert.expertEditEligible;
   const showStylesPanelEligible = showExpertEditPanel || showExpertCreatePanel;
   const isPrimaryCharacterPanelOpen = isPrimaryCharacterTool(selectedTool);
+  const isCharacterShellPanelOpen = isCharacterShellTool(selectedTool);
   const [panelVisibility, setPanelVisibility] = React.useState<PanelVisibilityState>(
     createInitialPanelVisibility
   );
@@ -822,7 +823,7 @@ export function AiStudioPageContent({
   const { activeCount } = useOutputCounts();
   const isPerformanceDenseSession =
     FLAG_HIGH_DENSITY_SHELL_MODE && activeCount >= PERFORMANCE_DENSE_REFERENCE_COUNT;
-  const minLeftWidthPx = isPrimaryCharacterPanelOpen
+  const minLeftWidthPx = isCharacterShellPanelOpen
     ? AI_SHELL_LEFT_CHARACTER_MIN_PX
     : selectedTool === "video" || selectedTool === "kling"
       ? AI_SHELL_LEFT_VIDEO_MIN_PX
@@ -840,7 +841,7 @@ export function AiStudioPageContent({
     ? 0.65
     : selectedTool === "canvas"
       ? AI_SHELL_LEFT_CANVAS_DEFAULT_RATIO
-      : selectedTool === "character"
+      : selectedTool === "character" || selectedTool === "elements"
         ? AI_SHELL_LEFT_CHARACTER_DEFAULT_RATIO
         : selectedTool === "video" || selectedTool === "kling"
           ? AI_SHELL_LEFT_VIDEO_DEFAULT_RATIO
@@ -869,7 +870,7 @@ export function AiStudioPageContent({
     showDivider ? "ai-shell-resizable" : "",
     showExpertCreatePanel ? "ai-shell-expert-create" : "",
     showExpertEditPanel ? "ai-shell-expert-edit" : "",
-    isPrimaryCharacterPanelOpen ? "ai-shell-character-open" : "",
+    isCharacterShellPanelOpen ? "ai-shell-character-open" : "",
     isPerformanceDenseSession ? "ai-shell-performance-dense" : "",
     isResizing ? "ai-shell-resizing" : "",
   ]
@@ -879,11 +880,12 @@ export function AiStudioPageContent({
   React.useEffect(() => {
     const previousSelectedTool = previousSelectedToolRef.current;
     const isEditToolSelected = selectedTool === "edit";
-    const isCharacterToolSelected = selectedTool === "character";
+    const isCharacterShellToolSelected =
+      selectedTool === "character" || selectedTool === "elements";
     const isSoundToolSelected = isSoundWorkflow(selectedTool);
-    const shouldResetForCharacterSelection =
-      isCharacterToolSelected && previousSelectedTool !== selectedTool;
-    if (shouldResetForCharacterSelection) {
+    const shouldResetForCharacterShellSelection =
+      isCharacterShellToolSelected && previousSelectedTool !== selectedTool;
+    if (shouldResetForCharacterShellSelection) {
       collapseToMin();
       previousSelectedToolRef.current = selectedTool;
       return;

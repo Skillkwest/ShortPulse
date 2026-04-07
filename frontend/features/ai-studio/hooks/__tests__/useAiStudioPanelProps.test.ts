@@ -329,8 +329,10 @@ describe("useAiStudioPanelProps", () => {
 
     expect(result.current.propertiesImage.isGenerateDisabled).toBe(false);
     expect(result.current.propertiesImage.agentIsSending).toBe(false);
-    expect(result.current.propertiesVideo.isGenerateDisabled).toBe(true);
-    expect(result.current.propertiesVideo.agentIsSending).toBe(true);
+    expect(result.current.propertiesEditExpert.isGenerateDisabled).toBe(false);
+    expect(result.current.propertiesEditExpert.isGenerateBusy).toBe(false);
+    expect(result.current.propertiesVideo.isGenerateDisabled).toBe(false);
+    expect(result.current.propertiesVideo.agentIsSending).toBe(false);
     expect(result.current.propertiesCreate.isChatOffInlineGenerateDisabled).toBe(false);
   });
 

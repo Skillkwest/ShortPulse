@@ -52,8 +52,6 @@ type UseAiStudioEditExpertPanelPropsParams = {
   addSessionMediaReference?: (payload: { url: string; mimeType?: string | null }) => void;
   currentCostCredits: number | null;
   isGenerateDisabled: boolean;
-  isGenerateClickLocked: boolean;
-  isPromptGenerating: boolean;
   generationGuardrail: string | null;
   isPrimaryStageGenerating: boolean;
   referenceImageWarning: string | null;
@@ -101,8 +99,6 @@ export const useAiStudioEditExpertPanelProps = ({
   addSessionMediaReference,
   currentCostCredits,
   isGenerateDisabled,
-  isGenerateClickLocked,
-  isPromptGenerating,
   generationGuardrail,
   isPrimaryStageGenerating,
   referenceImageWarning,
@@ -169,8 +165,8 @@ export const useAiStudioEditExpertPanelProps = ({
         }),
       onAddSessionMediaReference: addSessionMediaReference,
       costCredits: currentCostCredits,
-      isGenerateDisabled: isGenerateDisabled || isGenerateClickLocked || isPromptGenerating,
-      isGenerateBusy: isPromptGenerating,
+      isGenerateDisabled,
+      isGenerateBusy: false,
       guardrailReason: generationGuardrail,
       isPrimaryStageGenerating,
       referenceImageWarning,
@@ -208,11 +204,9 @@ export const useAiStudioEditExpertPanelProps = ({
       imageResolution,
       isCharacterModeEnabled,
       isCharacterOptionsLoading,
-      isGenerateClickLocked,
       isGenerateDisabled,
       isPrimaryStageGenerating,
       isModelModalOpen,
-      isPromptGenerating,
       model,
       modelModalAnchor,
       referenceImageUrl,

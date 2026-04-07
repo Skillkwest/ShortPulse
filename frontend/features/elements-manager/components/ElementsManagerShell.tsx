@@ -81,8 +81,6 @@ export function ElementsManagerShell({ onActiveTabChange }: ElementsManagerShell
         ? [activeReferenceSet.videoReferenceUrl]
         : []
   );
-  const profileInitials = buildElementInitials(draft.name);
-
   React.useEffect(() => {
     onActiveTabChange?.(activeTab);
   }, [activeTab, onActiveTabChange]);
@@ -101,7 +99,7 @@ export function ElementsManagerShell({ onActiveTabChange }: ElementsManagerShell
             <div className="character-manage-title-stack">
               <h2>Elements</h2>
               <p className="tiny subdued character-manage-helper">
-                Select an element to edit its cloned library profile.
+                Select an element to edit its reference profile.
               </p>
             </div>
             <div className="character-manage-header-actions">
@@ -175,7 +173,7 @@ export function ElementsManagerShell({ onActiveTabChange }: ElementsManagerShell
                     <div className="character-section-title-copy">
                       <h3 className="character-section-title">Element Deck</h3>
                       <p className="character-section-helper tiny subdued">
-                        Keep reusable reference looks here for fast element swaps and revisions.
+                        Keep reusable reference looks here for quick swaps and revisions.
                       </p>
                     </div>
                   </div>
@@ -239,9 +237,8 @@ export function ElementsManagerShell({ onActiveTabChange }: ElementsManagerShell
                         className="character-profile-photo-btn"
                         aria-label="Element hero"
                       >
-                        <span className="elements-character-hero-initials" aria-hidden="true">
-                          <UserCircle size={40} weight="light" aria-hidden="true" />
-                          <span className="elements-character-hero-token">{profileInitials}</span>
+                        <span className="character-profile-placeholder-icon" aria-hidden="true">
+                          <UserCircle size={46} weight="light" aria-hidden="true" />
                         </span>
                       </button>
                       <span className="character-profile-edit-indicator" aria-hidden="true">
@@ -283,7 +280,7 @@ export function ElementsManagerShell({ onActiveTabChange }: ElementsManagerShell
                       <div className="control-row character-simple-field">
                         <span className="input-label">Type:</span>
                         <div
-                          className="elements-character-type-toggle"
+                          className="character-voice-row elements-character-type-toggle"
                           role="group"
                           aria-label="Element type"
                         >
@@ -444,8 +441,7 @@ export function ElementsManagerShell({ onActiveTabChange }: ElementsManagerShell
           <div className="modal-card character-delete-confirm-card">
             <h3 id="delete-element-title">Delete this element?</h3>
             <p className="subdued tiny character-delete-confirm-copy">
-              This will permanently remove the selected element and its cloned reference shell from
-              the local Elements library.
+              This will permanently remove the selected element from the local Elements library.
             </p>
             <div className="modal-actions">
               <button type="button" className="btn-secondary" onClick={onCancelDeleteElement}>

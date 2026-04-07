@@ -26,7 +26,7 @@ export type CharacterReferenceSlotDefinition = {
   hint: string;
 };
 
-export type CharacterSheetDropZoneKey = "portrait" | "close_up" | "front_shot" | "back_shot";
+export type CharacterSheetDropZoneKey = "portrait" | "close_up" | "front_shot";
 
 export type CharacterSheetAssignments = Record<
   CharacterSheetDropZoneKey,

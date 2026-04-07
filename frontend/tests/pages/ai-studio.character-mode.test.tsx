@@ -394,7 +394,6 @@ const createCharacterSnapshot = (
         portrait: "portrait_close",
         close_up: null,
         front_shot: null,
-        back_shot: null,
       },
       activeCharacterSheetPresetId: "1",
       characterSheetPresets: {
@@ -407,7 +406,6 @@ const createCharacterSnapshot = (
           },
           close_up: null,
           front_shot: null,
-          back_shot: null,
         },
       },
       visibleCharacterSheetPresetIds: ["1"],
@@ -420,7 +418,6 @@ const createCharacterSnapshot = (
         },
         close_up: null,
         front_shot: null,
-        back_shot: null,
       },
       profileImageUrl: null,
       profileImageTransform: { zoom: 1, offsetX: 0, offsetY: 0 },

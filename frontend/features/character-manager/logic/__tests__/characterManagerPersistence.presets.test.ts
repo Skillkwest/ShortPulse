@@ -51,7 +51,6 @@ describe("characterManagerPersistence preset preview hydration", () => {
             },
             close_up: null,
             front_shot: null,
-            back_shot: null,
           },
           "2": {
             portrait: {
@@ -60,7 +59,6 @@ describe("characterManagerPersistence preset preview hydration", () => {
             },
             close_up: null,
             front_shot: null,
-            back_shot: null,
           },
         },
       },
@@ -111,7 +109,7 @@ describe("characterManagerPersistence preset preview hydration", () => {
         tab_order: ["1"],
         tab_labels: { "1": "1" },
         presets: {
-          "1": { portrait: null, close_up: null, front_shot: null, back_shot: null },
+          "1": { portrait: null, close_up: null, front_shot: null },
         },
       },
     };
@@ -166,9 +164,8 @@ describe("characterManagerPersistence preset preview hydration", () => {
             },
             close_up: null,
             front_shot: null,
-            back_shot: null,
           },
-          "2": { portrait: null, close_up: null, front_shot: null, back_shot: null },
+          "2": { portrait: null, close_up: null, front_shot: null },
         },
       },
     };
@@ -222,8 +219,8 @@ describe("characterManagerPersistence preset preview hydration", () => {
         tab_order: ["1", "2"],
         tab_labels: { "1": "1", "2": "2" },
         presets: {
-          "1": { portrait: null, close_up: null, front_shot: null, back_shot: null },
-          "2": { portrait: null, close_up: null, front_shot: null, back_shot: null },
+          "1": { portrait: null, close_up: null, front_shot: null },
+          "2": { portrait: null, close_up: null, front_shot: null },
         },
       },
     };
@@ -279,9 +276,8 @@ describe("characterManagerPersistence preset preview hydration", () => {
             },
             close_up: null,
             front_shot: null,
-            back_shot: null,
           },
-          "2": { portrait: null, close_up: null, front_shot: null, back_shot: null },
+          "2": { portrait: null, close_up: null, front_shot: null },
         },
       },
     };
@@ -335,8 +331,8 @@ describe("characterManagerPersistence preset preview hydration", () => {
         tab_order: ["1", "2"],
         tab_labels: { "1": "1", "2": "Look 2" },
         presets: {
-          "1": { portrait: null, close_up: null, front_shot: null, back_shot: null },
-          "2": { portrait: null, close_up: null, front_shot: null, back_shot: null },
+          "1": { portrait: null, close_up: null, front_shot: null },
+          "2": { portrait: null, close_up: null, front_shot: null },
         },
       },
     };
@@ -386,10 +382,10 @@ describe("characterManagerPersistence preset preview hydration", () => {
         tab_order: ["1", "2", "3", "4"],
         tab_labels: { "1": "1", "2": "2", "3": "Look 3", "4": "4" },
         presets: {
-          "1": { portrait: null, close_up: null, front_shot: null, back_shot: null },
-          "2": { portrait: null, close_up: null, front_shot: null, back_shot: null },
-          "3": { portrait: null, close_up: null, front_shot: null, back_shot: null },
-          "4": { portrait: null, close_up: null, front_shot: null, back_shot: null },
+          "1": { portrait: null, close_up: null, front_shot: null },
+          "2": { portrait: null, close_up: null, front_shot: null },
+          "3": { portrait: null, close_up: null, front_shot: null },
+          "4": { portrait: null, close_up: null, front_shot: null },
         },
       },
     };
@@ -437,7 +433,7 @@ describe("characterManagerPersistence preset preview hydration", () => {
         tab_order: ["1", "2"],
         tab_labels: { "1": "1", "2": "Look 2" },
         presets: {
-          "1": { portrait: null, close_up: null, front_shot: null, back_shot: null },
+          "1": { portrait: null, close_up: null, front_shot: null },
           "2": {
             portrait: {
               media_file_id: "media-delete-me",
@@ -445,7 +441,6 @@ describe("characterManagerPersistence preset preview hydration", () => {
             },
             close_up: null,
             front_shot: null,
-            back_shot: null,
           },
         },
       },
@@ -504,8 +499,8 @@ describe("characterManagerPersistence preset preview hydration", () => {
         tab_labels: { "1": "1", "2": "Look 2" },
         tab_descriptions: { "1": "Legacy", "2": "Old tab description" },
         presets: {
-          "1": { portrait: null, close_up: null, front_shot: null, back_shot: null },
-          "2": { portrait: null, close_up: null, front_shot: null, back_shot: null },
+          "1": { portrait: null, close_up: null, front_shot: null },
+          "2": { portrait: null, close_up: null, front_shot: null },
         },
       },
     };
@@ -557,8 +552,8 @@ describe("characterManagerPersistence preset preview hydration", () => {
         tab_labels: { "1": "1", "2": "Look 2" },
         tab_descriptions: { "1": "Keep me", "2": "Delete me" },
         presets: {
-          "1": { portrait: null, close_up: null, front_shot: null, back_shot: null },
-          "2": { portrait: null, close_up: null, front_shot: null, back_shot: null },
+          "1": { portrait: null, close_up: null, front_shot: null },
+          "2": { portrait: null, close_up: null, front_shot: null },
         },
       },
     };

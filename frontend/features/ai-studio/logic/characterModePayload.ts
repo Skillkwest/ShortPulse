@@ -13,7 +13,6 @@ const CHARACTER_SHEET_ZONE_ORDER: CharacterSheetDropZoneKey[] = [
   "portrait",
   "close_up",
   "front_shot",
-  "back_shot",
 ];
 
 const normalizeText = (value: string | null | undefined): string => {

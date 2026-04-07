@@ -65,7 +65,6 @@ const createSnapshotWithPresetReference = (
         portrait: null,
         close_up: null,
         front_shot: null,
-        back_shot: null,
       },
       activeCharacterSheetPresetId: "1",
       characterSheetPresets: {
@@ -78,7 +77,6 @@ const createSnapshotWithPresetReference = (
           },
           close_up: null,
           front_shot: null,
-          back_shot: null,
         },
       },
       visibleCharacterSheetPresetIds: ["1"],
@@ -95,7 +93,6 @@ const createSnapshotWithPresetReference = (
         },
         close_up: null,
         front_shot: null,
-        back_shot: null,
       },
       profileImageUrl: null,
       profileImageTransform: {

@@ -1533,7 +1533,8 @@ body.character-manager-body {
   margin-bottom: 0;
 }
 
-.character-sheet-references-helper {
+.character-sheet-references-helper,
+.character-sheet-preset-panel .character-sheet-references-helper.tiny.subdued {
   margin: 0 0 16px;
   color: rgba(142, 154, 167, 0.38);
   line-height: 1.25;

@@ -69,7 +69,6 @@ const createSnapshotWithPresetReferences = (
         portrait: "portrait_close",
         close_up: "front_full",
         front_shot: null,
-        back_shot: null,
       },
       activeCharacterSheetPresetId: "1",
       characterSheetPresets: {
@@ -86,7 +85,6 @@ const createSnapshotWithPresetReferences = (
             previewUrl: "https://example.com/closeup.png",
           },
           front_shot: null,
-          back_shot: null,
         },
       },
       visibleCharacterSheetPresetIds: ["1"],
@@ -107,7 +105,6 @@ const createSnapshotWithPresetReferences = (
           previewUrl: "https://example.com/closeup.png",
         },
         front_shot: null,
-        back_shot: null,
       },
       profileImageUrl: null,
       profileImageTransform: {

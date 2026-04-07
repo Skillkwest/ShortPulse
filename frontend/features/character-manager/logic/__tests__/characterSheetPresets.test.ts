@@ -45,11 +45,6 @@ describe("characterSheetPresets metadata helpers", () => {
         previewUrl: null,
       },
       front_shot: null,
-      back_shot: {
-        mediaFileId: "",
-        storagePath: "  ",
-        previewUrl: null,
-      },
     });
 
     expect(normalized.portrait).toEqual({
@@ -63,7 +58,6 @@ describe("characterSheetPresets metadata helpers", () => {
       previewUrl: null,
     });
     expect(normalized.front_shot).toBeNull();
-    expect(normalized.back_shot).toBeNull();
   });
 
   it("parses preset state from metadata and round-trips through serializer", () => {
@@ -86,7 +80,6 @@ describe("characterSheetPresets metadata helpers", () => {
             portrait: null,
             close_up: null,
             front_shot: null,
-            back_shot: null,
           },
           "2": {
             portrait: {
@@ -143,8 +136,8 @@ describe("characterSheetPresets metadata helpers", () => {
             "2": "2",
           },
           presets: {
-            "1": { portrait: null, close_up: null, front_shot: null, back_shot: null },
-            "2": { portrait: null, close_up: null, front_shot: null, back_shot: null },
+            "1": { portrait: null, close_up: null, front_shot: null },
+            "2": { portrait: null, close_up: null, front_shot: null },
           },
         },
       },
@@ -170,7 +163,7 @@ describe("characterSheetPresets metadata helpers", () => {
           "1": overLimit,
         },
         presets: {
-          "1": { portrait: null, close_up: null, front_shot: null, back_shot: null },
+          "1": { portrait: null, close_up: null, front_shot: null },
         },
       },
     });
@@ -183,9 +176,9 @@ describe("characterSheetPresets metadata helpers", () => {
       character_sheet_presets_v1: {
         active_preset_id: "3",
         presets: {
-          "1": { portrait: null, close_up: null, front_shot: null, back_shot: null },
-          "2": { portrait: null, close_up: null, front_shot: null, back_shot: null },
-          "4": { portrait: null, close_up: null, front_shot: null, back_shot: null },
+          "1": { portrait: null, close_up: null, front_shot: null },
+          "2": { portrait: null, close_up: null, front_shot: null },
+          "4": { portrait: null, close_up: null, front_shot: null },
         },
       },
     });
@@ -230,7 +223,6 @@ describe("characterSheetPresets metadata helpers", () => {
               media_file_id: "media-front",
               storage_path: "user/chars/presets/front.png",
             },
-            back_shot: null,
           },
         },
       },
@@ -294,7 +286,6 @@ describe("characterSheetPresets metadata helpers", () => {
                               },
                               close_up: null,
                               front_shot: null,
-                              back_shot: null,
                             },
                           },
                         },

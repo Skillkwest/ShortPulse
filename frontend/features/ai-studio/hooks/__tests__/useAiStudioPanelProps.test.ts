@@ -314,7 +314,7 @@ describe("useAiStudioPanelProps", () => {
     expect(result.current.propertiesVideo.isGenerateDisabled).toBe(false);
   });
 
-  it("locks image/video generate actions while a submit is in flight", () => {
+  it("keeps edit generate available while edit submits are in flight but still locks video", () => {
     const { result } = renderHook(() =>
       useAiStudioPanelProps(
         createParams({
@@ -327,8 +327,8 @@ describe("useAiStudioPanelProps", () => {
       )
     );
 
-    expect(result.current.propertiesImage.isGenerateDisabled).toBe(true);
-    expect(result.current.propertiesImage.agentIsSending).toBe(true);
+    expect(result.current.propertiesImage.isGenerateDisabled).toBe(false);
+    expect(result.current.propertiesImage.agentIsSending).toBe(false);
     expect(result.current.propertiesVideo.isGenerateDisabled).toBe(true);
     expect(result.current.propertiesVideo.agentIsSending).toBe(true);
     expect(result.current.propertiesCreate.isChatOffInlineGenerateDisabled).toBe(false);

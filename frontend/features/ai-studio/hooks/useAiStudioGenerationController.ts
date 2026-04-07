@@ -61,6 +61,7 @@ type GeneratePanelKey = "create" | "edit" | "video";
 const PREFLIGHT_TIMEOUT_ERROR = "Preparation timed out before generation started. Please retry.";
 const PREFLIGHT_TIMEOUT_MS = 10_000;
 const isCreateTool = (tool: ToolId | null): boolean => tool === "create" || tool === "text";
+const shouldEnforceGenerateClickLock = (panel: GeneratePanelKey): boolean => panel !== "edit";
 
 type UseAiStudioGenerationControllerParams<TBundle, TFallbackCode extends string> = {
   mode: StudioMode;
@@ -591,7 +592,8 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
       tool: ToolId | null,
       options?: RegenerateWithDebitOptions
     ) => {
-      if (!tryAcquireGenerateClickLock(panelKey)) return;
+      const enforceClickLock = shouldEnforceGenerateClickLock(panelKey);
+      if (enforceClickLock && !tryAcquireGenerateClickLock(panelKey)) return;
       try {
         const effectiveSubmitModelId =
           options?.inpaintOverride?.modelId ??
@@ -781,7 +783,9 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
           setUiNotice(characterModeOverrides.notice);
         }
       } finally {
-        releaseGenerateClickLock(panelKey);
+        if (enforceClickLock) {
+          releaseGenerateClickLock(panelKey);
+        }
       }
     },
     [

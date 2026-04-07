@@ -34,8 +34,6 @@ type UseAiStudioEditPanelPropsParams = {
   handleImageRegenerateWithDebit: () => void;
   currentCostCredits: number | null;
   isGenerateDisabled: boolean;
-  isGenerateClickLocked: boolean;
-  isPromptGenerating: boolean;
   generationGuardrail: string | null;
   referenceImageWarning: string | null;
   resolveOutputPreviewUrl: (id: string | null | undefined) => string | null;
@@ -67,8 +65,6 @@ export const useAiStudioEditPanelProps = ({
   handleImageRegenerateWithDebit,
   currentCostCredits,
   isGenerateDisabled,
-  isGenerateClickLocked,
-  isPromptGenerating,
   generationGuardrail,
   referenceImageWarning,
   resolveOutputPreviewUrl,
@@ -97,11 +93,11 @@ export const useAiStudioEditPanelProps = ({
       onSave: handleEditPromptSave,
       onRegenerate: handleImageRegenerateWithDebit,
       costCredits: currentCostCredits,
-      isGenerateDisabled: isGenerateDisabled || isGenerateClickLocked || isPromptGenerating,
+      isGenerateDisabled: isGenerateDisabled,
       guardrailReason: generationGuardrail,
       referenceImageWarning,
       resolvePreviewUrlById: resolveOutputPreviewUrl,
-      agentIsSending: isReferencePromptEnhancing || isPromptGenerating,
+      agentIsSending: isReferencePromptEnhancing,
       onAgentEnhanceSend: handleReferencePromptEnhance,
       imageResolution,
       onImageResolutionChange: setImageResolution,
@@ -121,10 +117,8 @@ export const useAiStudioEditPanelProps = ({
       handleOpenModelModal,
       handleReferencePromptEnhance,
       imageResolution,
-      isGenerateClickLocked,
       isGenerateDisabled,
       isModelModalOpen,
-      isPromptGenerating,
       isReferencePromptEnhancing,
       model,
       modelModalAnchor,

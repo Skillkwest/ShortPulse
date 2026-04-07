@@ -503,8 +503,6 @@ export const useAiStudioPanelProps = ({
     handleImageRegenerateWithDebit,
     currentCostCredits,
     isGenerateDisabled,
-    isGenerateClickLocked: isEditGenerateClickLocked,
-    isPromptGenerating: editIsGenerating,
     generationGuardrail,
     referenceImageWarning,
     resolveOutputPreviewUrl,

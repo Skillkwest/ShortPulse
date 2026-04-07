@@ -347,6 +347,27 @@ describe("useAiStudioGenerationController", () => {
     expect(generateOutput).toHaveBeenCalledTimes(1);
   });
 
+  it("allows repeated edit regenerates without locking the edit lane", async () => {
+    const refreshCharacterModeInjectionBundleForSubmission = vi.fn(async () => null);
+    const regenerateOutput = vi.fn();
+    const params = createParams({
+      regenerateOutput,
+      refreshCharacterModeInjectionBundleForSubmission,
+    });
+    const { result } = renderHook(() => useAiStudioGenerationController(params));
+
+    await act(async () => {
+      await result.current.handleImageRegenerateWithDebit();
+    });
+
+    await act(async () => {
+      await result.current.handleImageRegenerateWithDebit();
+    });
+
+    expect(regenerateOutput).toHaveBeenCalledTimes(2);
+    expect(refreshCharacterModeInjectionBundleForSubmission).toHaveBeenCalledTimes(2);
+  });
+
   it("still blocks on non-cap guardrails while other props change", async () => {
     const generateOutput = vi.fn();
     const initialParams = createParams({

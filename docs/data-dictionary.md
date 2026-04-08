@@ -102,6 +102,53 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
 - `created_at` / `updated_at` (timestamptz)
 - RLS: select/insert/update/delete allowed only when `user_id = auth.uid()`.
 
+### elements
+- `id` (uuid, pk)
+- `user_id` (uuid, default `auth.uid()`): Owner for RLS scoping.
+- `name` (text): Element display name.
+- `alias` (text): Prompt alias / shorthand token.
+- `status` (text): draft | ready | archived.
+- `metadata` (jsonb, default `{}`)
+  - Element profile image linkage keys:
+    - `profile_image_storage_path` (text path in `media_library`)
+    - `profile_image_media_asset_id` (uuid of linked `element_media_assets` row)
+    - `profile_image_zoom` (number; persisted profile crop zoom)
+    - `profile_image_offset_x` (number; persisted profile crop horizontal offset)
+    - `profile_image_offset_y` (number; persisted profile crop vertical offset)
+  - Element reference-set UI keys:
+    - `active_reference_set_id` (`"1"`..`"10"`)
+    - `active_reference_set_asset_type` (`image | video` for the active set)
+    - `reference_set_tab_order` (visible reference-set id list, default `["1"]`)
+- `created_at` / `updated_at` (timestamptz)
+- RLS: select/insert/update/delete allowed only when `user_id = auth.uid()`.
+
+### element_reference_sets
+- `id` (uuid, pk)
+- `element_id` (uuid): Parent element.
+- `user_id` (uuid, default `auth.uid()`): Owner for RLS scoping.
+- `set_key` (text): Fixed reference-set id (`"1"`..`"10"`).
+- `label` (text): User-facing tab label.
+- `description` (text): Prompting/reference description for the set.
+- `asset_type` (text): image | video.
+- `deck_reference_urls` (jsonb array): Saved deck URLs for the active element look.
+- `image_reference_urls` (jsonb array): Saved image-sheet URLs for the set.
+- `video_reference_url` (text, nullable): Saved motion-reference URL when the set is video-backed.
+- `created_at` / `updated_at` (timestamptz)
+- RLS: select/insert/update/delete allowed only when `user_id = auth.uid()`.
+
+### element_media_assets
+- `id` (uuid, pk)
+- `user_id` (uuid, default `auth.uid()`): Owner for RLS scoping.
+- `element_id` (uuid): Parent element.
+- `asset_kind` (text): `profile`.
+- `storage_path` (text): Canonical private object path under `<user_id>/elements/<element_id>/...`.
+- `filename` (text)
+- `file_type` (text)
+- `file_size` (bigint)
+- `metadata` (jsonb, default `{}`)
+- `created_at` / `updated_at` (timestamptz)
+- RLS: select/insert/update/delete allowed only when `user_id = auth.uid()`.
+
 ### character_reference_packs
 - `id` (uuid, pk)
 - `character_id` (uuid): Parent character.

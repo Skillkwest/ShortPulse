@@ -122,6 +122,11 @@ Current set:
 - `074_add_generation_worker_ops.sql`
 - `075_add_generation_worker_leases.sql`
 - `076_add_generation_projection_publication_and_observation_tables.sql`
+- `077_add_generation_projection_source_ref.sql`
+- `078_add_generation_fields_to_queue_claim.sql`
+- `079_add_queued_dispatch_success_commit_rpc.sql`
+- `080_add_elements_library_foundation.sql`
+- `081_add_generation_observation_inbox_claim_rpc.sql`
 
 ### 3) Rollbacks (`sql/migrations/rollback/`)
 Use only when explicitly reverting a migration in a controlled window. Prefer targeted corrective forward SQL when possible.

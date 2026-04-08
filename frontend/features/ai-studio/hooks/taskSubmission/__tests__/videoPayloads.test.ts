@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildKlingElementsPayload,
   buildKlingMultiPromptPayload,
+  resolveKieKlingAspect,
   resolveKlingShotType,
   resolveSeedanceI2VAspect,
   resolveSeedanceTextAspect,
@@ -65,6 +66,34 @@ describe("resolveSeedanceI2VAspect", () => {
         })
       )
     ).toBe("9:16");
+  });
+});
+
+describe("resolveKieKlingAspect", () => {
+  it("keeps supported Kling aspects unchanged", () => {
+    expect(
+      resolveKieKlingAspect(
+        "1:1",
+        makeModelConfig({
+          id: "kie-ai/kling-3.0",
+          allowedAspects: ["16:9", "9:16", "1:1"],
+          defaultAspect: "16:9",
+        })
+      )
+    ).toBe("1:1");
+  });
+
+  it("falls back to the Kling default when the selected aspect is unsupported", () => {
+    expect(
+      resolveKieKlingAspect(
+        "21:9",
+        makeModelConfig({
+          id: "kie-ai/kling-3.0",
+          allowedAspects: ["16:9", "9:16", "1:1"],
+          defaultAspect: "16:9",
+        })
+      )
+    ).toBe("16:9");
   });
 });
 

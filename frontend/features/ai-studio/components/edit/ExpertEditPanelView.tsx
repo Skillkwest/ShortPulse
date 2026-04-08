@@ -30,6 +30,7 @@ import { parseAspectRatioToken } from "../../logic/expertEditLayerCrop";
 import {
   analyzeExpertEditPromptTokens,
   buildExpertEditSecondarySlotToken,
+  buildExpertEditPrimarySlotToken,
   buildExpertEditPromptHighlightSegments,
   extractExpertEditPromptTokenFromTransfer,
   insertExpertEditPromptTokenAtSelection,
@@ -440,10 +441,12 @@ function PrimaryCanvasFrameStack({
 
 type PromptTokenPickerState = {
   isOpen: boolean;
-  selectedSlotIndex: (typeof secondaries)[number] | null;
+  selectedSlotIndex: (typeof secondaries)[number] | "main" | null;
   replaceStart: number;
   replaceEnd: number;
 };
+
+type PromptTokenPickerSelection = (typeof secondaries)[number] | "main";
 
 export function ExpertEditPanelView({
   aspect,
@@ -1040,6 +1043,13 @@ export function ExpertEditPanelView({
     () => analyzeExpertEditPromptTokens(promptTextValue, extraImageUrls),
     [extraImageUrls, promptTextValue]
   );
+  const promptTokenPickerOptions = React.useMemo<PromptTokenPickerSelection[]>(
+    () => [
+      ...(populatedLayerCount > 0 ? (["main"] as PromptTokenPickerSelection[]) : []),
+      ...secondaries.filter((index) => Boolean(extraImageUrls[index])),
+    ],
+    [extraImageUrls, populatedLayerCount]
+  );
   const promptHighlightSegments = React.useMemo(
     () => buildExpertEditPromptHighlightSegments(promptTextValue, promptTokenAnalysis.diagnostics),
     [promptTextValue, promptTokenAnalysis.diagnostics]
@@ -1100,31 +1110,39 @@ export function ExpertEditPanelView({
     );
   }, []);
 
+  const resolvePromptTokenPickerToken = React.useCallback(
+    (selection: PromptTokenPickerSelection | null) => {
+      if (selection === "main") return buildExpertEditPrimarySlotToken();
+      if (selection == null) return null;
+      return buildExpertEditSecondarySlotToken(selection);
+    },
+    []
+  );
+
   const cyclePromptTokenPickerSelection = React.useCallback(
     (direction: 1 | -1) => {
-      if (populatedPromptTokenSlotIndexes.length <= 0) return;
+      if (promptTokenPickerOptions.length <= 0) return;
       setPromptTokenPickerState((previous) => {
         if (!previous.isOpen) return previous;
-        const currentSelection =
-          previous.selectedSlotIndex ??
-          (populatedPromptTokenSlotIndexes[0] as (typeof secondaries)[number]);
-        const currentIndex = populatedPromptTokenSlotIndexes.indexOf(currentSelection);
+        const currentSelection: PromptTokenPickerSelection =
+          previous.selectedSlotIndex ?? promptTokenPickerOptions[0] ?? "main";
+        const currentIndex = promptTokenPickerOptions.indexOf(currentSelection);
         const safeCurrentIndex = currentIndex >= 0 ? currentIndex : 0;
         const nextIndex =
-          (safeCurrentIndex + direction + populatedPromptTokenSlotIndexes.length) %
-          populatedPromptTokenSlotIndexes.length;
+          (safeCurrentIndex + direction + promptTokenPickerOptions.length) %
+          promptTokenPickerOptions.length;
         return {
           ...previous,
-          selectedSlotIndex: populatedPromptTokenSlotIndexes[nextIndex] ?? null,
+          selectedSlotIndex: promptTokenPickerOptions[nextIndex] ?? null,
         };
       });
     },
-    [populatedPromptTokenSlotIndexes]
+    [promptTokenPickerOptions]
   );
 
   const insertPromptTokenFromPicker = React.useCallback(
-    (slotIndex: number) => {
-      const token = buildExpertEditSecondarySlotToken(slotIndex);
+    (selection: PromptTokenPickerSelection) => {
+      const token = resolvePromptTokenPickerToken(selection);
       if (!token) return;
       const insertedPrompt = insertExpertEditPromptTokenAtSelection({
         prompt: promptTextValue,
@@ -1145,6 +1163,7 @@ export function ExpertEditPanelView({
       promptTextValue,
       promptTokenPickerState.replaceEnd,
       promptTokenPickerState.replaceStart,
+      resolvePromptTokenPickerToken,
     ]
   );
 
@@ -1189,7 +1208,7 @@ export function ExpertEditPanelView({
 
   const openPromptTokenPickerAtSelection = React.useCallback(
     (selectionStart: number, selectionEnd: number) => {
-      if (populatedPromptTokenSlotIndexes.length <= 0) return;
+      if (promptTokenPickerOptions.length <= 0) return;
       const normalizedSelectionStart = clampCaretPosition({
         caretPosition: selectionStart,
         textLength: promptTextValue.length,
@@ -1200,12 +1219,12 @@ export function ExpertEditPanelView({
       });
       setPromptTokenPickerState({
         isOpen: true,
-        selectedSlotIndex: populatedPromptTokenSlotIndexes[0] ?? null,
+        selectedSlotIndex: promptTokenPickerOptions[0] ?? null,
         replaceStart: Math.min(normalizedSelectionStart, normalizedSelectionEnd),
         replaceEnd: Math.max(normalizedSelectionStart, normalizedSelectionEnd),
       });
     },
-    [populatedPromptTokenSlotIndexes, promptTextValue.length]
+    [promptTokenPickerOptions, promptTextValue.length]
   );
 
   const handlePromptKeyDown = React.useCallback(
@@ -1254,7 +1273,7 @@ export function ExpertEditPanelView({
         !event.metaKey &&
         !event.ctrlKey &&
         !event.altKey &&
-        populatedPromptTokenSlotIndexes.length > 0
+        promptTokenPickerOptions.length > 0
       ) {
         event.preventDefault();
         const selectionStart = event.currentTarget.selectionStart ?? promptTextValue.length;
@@ -1269,7 +1288,7 @@ export function ExpertEditPanelView({
         !event.metaKey &&
         !event.ctrlKey &&
         !event.altKey &&
-        populatedPromptTokenSlotIndexes.length > 0
+        promptTokenPickerOptions.length > 0
       ) {
         pendingPromptTokenPickerTriggerRef.current = {
           selectionStart: event.currentTarget.selectionStart ?? promptTextValue.length,
@@ -1282,7 +1301,7 @@ export function ExpertEditPanelView({
       cyclePromptTokenPickerSelection,
       insertPromptTokenFromPicker,
       openPromptTokenPickerAtSelection,
-      populatedPromptTokenSlotIndexes.length,
+      promptTokenPickerOptions.length,
       promptTextValue.length,
       promptTokenPickerState.isOpen,
       promptTokenPickerState.selectedSlotIndex,
@@ -1333,7 +1352,7 @@ export function ExpertEditPanelView({
     const pendingTrigger = pendingPromptTokenPickerTriggerRef.current;
     if (!pendingTrigger) return;
     pendingPromptTokenPickerTriggerRef.current = null;
-    if (populatedPromptTokenSlotIndexes.length <= 0) return;
+    if (promptTokenPickerOptions.length <= 0) return;
     const replaceStart = clampCaretPosition({
       caretPosition: pendingTrigger.selectionStart,
       textLength: promptTextValue.length,
@@ -1342,11 +1361,11 @@ export function ExpertEditPanelView({
     if (promptTextValue.slice(replaceStart, replaceEnd) !== "@") return;
     setPromptTokenPickerState({
       isOpen: true,
-      selectedSlotIndex: populatedPromptTokenSlotIndexes[0] ?? null,
+      selectedSlotIndex: promptTokenPickerOptions[0] ?? null,
       replaceStart,
       replaceEnd,
     });
-  }, [populatedPromptTokenSlotIndexes, promptTextValue]);
+  }, [promptTokenPickerOptions, promptTextValue]);
 
   React.useEffect(() => {
     if (!promptTokenAnalysis.inlineError && showPromptTokenInlineError) {
@@ -1356,24 +1375,24 @@ export function ExpertEditPanelView({
 
   React.useEffect(() => {
     if (!promptTokenPickerState.isOpen) return;
-    if (populatedPromptTokenSlotIndexes.length <= 0) {
+    if (promptTokenPickerOptions.length <= 0) {
       closePromptTokenPicker();
       return;
     }
     if (
       promptTokenPickerState.selectedSlotIndex == null ||
-      !populatedPromptTokenSlotIndexes.includes(
-        promptTokenPickerState.selectedSlotIndex as (typeof secondaries)[number]
+      !promptTokenPickerOptions.includes(
+        promptTokenPickerState.selectedSlotIndex as PromptTokenPickerSelection
       )
     ) {
       setPromptTokenPickerState((previous) => ({
         ...previous,
-        selectedSlotIndex: populatedPromptTokenSlotIndexes[0] ?? null,
+        selectedSlotIndex: promptTokenPickerOptions[0] ?? null,
       }));
     }
   }, [
     closePromptTokenPicker,
-    populatedPromptTokenSlotIndexes,
+    promptTokenPickerOptions,
     promptTokenPickerState.isOpen,
     promptTokenPickerState.selectedSlotIndex,
   ]);
@@ -5623,6 +5642,36 @@ export function ExpertEditPanelView({
                           </p>
                         </div>
                         <div className="edit-expert-prompt-token-picker-grid">
+                          <button
+                            type="button"
+                            className={`edit-expert-prompt-token-picker-option ${
+                              promptTokenPickerState.selectedSlotIndex === "main"
+                                ? "is-selected"
+                                : ""
+                            }`.trim()}
+                            data-slot-index="main"
+                            aria-label="Primary edit image"
+                            onMouseDown={(event) => event.preventDefault()}
+                            onClick={() => insertPromptTokenFromPicker("main")}
+                          >
+                            <span
+                              className="edit-expert-prompt-token-picker-option-thumb"
+                              aria-hidden="true"
+                              style={
+                                hostPrimaryImageUrl
+                                  ? { backgroundImage: `url(${hostPrimaryImageUrl})` }
+                                  : undefined
+                              }
+                            />
+                            <span className="edit-expert-prompt-token-picker-option-copy">
+                              <span className="edit-expert-prompt-token-picker-option-label">
+                                Primary
+                              </span>
+                              <span className="edit-expert-prompt-token-picker-option-token">
+                                {buildExpertEditPrimarySlotToken()}
+                              </span>
+                            </span>
+                          </button>
                           {populatedPromptTokenSlotIndexes.map((slotIndex) => {
                             const token = buildExpertEditSecondarySlotToken(slotIndex);
                             const previewUrl = extraImageUrls[slotIndex];

@@ -3,23 +3,15 @@
  * Presents a provider-aware TTS composition surface with a ShortPulse color palette.
  */
 import React from "react";
-import { CaretDown, Microphone, Sliders } from "phosphor-react";
+import { CaretDown, Microphone } from "phosphor-react";
 import { AgentGenerateButton } from "../../../prefabs/agent/buttons/AgentGenerateButton";
+import { VOICE_LIBRARY_OPTIONS } from "../voiceLibrary";
 
 type TtsSliderProps = {
   label: string;
   helper: string;
   value: number;
   displayValue: string;
-};
-
-type TtsSelectorCardProps = {
-  label?: string;
-  title: string;
-  detail?: string;
-  icon?: React.ElementType;
-  disabled?: boolean;
-  compact?: boolean;
 };
 
 type TtsOutputFormatOption = {
@@ -30,12 +22,6 @@ type TtsOutputFormatOption = {
 type TtsLanguageOption = {
   value: string;
   label: string;
-};
-
-type TtsVoiceOption = {
-  value: string;
-  title: string;
-  descriptor: string;
 };
 
 const voiceSliders = [
@@ -126,28 +112,6 @@ const languageOptions: TtsLanguageOption[] = [
   { value: "VIE", label: "Vietnamese" },
 ] as const;
 
-const voiceOptions: TtsVoiceOption[] = [
-  { value: "darian", title: "Darian", descriptor: "Warm Grounded Storyteller" },
-  { value: "talia", title: "Talia", descriptor: "Warm Soft Guide" },
-  { value: "elara", title: "Elara", descriptor: "Crisp Pro Narrator" },
-  { value: "baxter", title: "Baxter", descriptor: "Dry Calm Aussie" },
-  { value: "eldrin", title: "Eldrin", descriptor: "Crisp British Baritone" },
-  { value: "kellan", title: "Kellan", descriptor: "Casual Friendly Speaker" },
-  { value: "elowen", title: "Elowen", descriptor: "Upbeat Modern Narrator" },
-  { value: "kaelen", title: "Kaelen", descriptor: "Amateur Warrior" },
-  { value: "lawrence", title: "Lawrence", descriptor: "Bright and Informative" },
-  { value: "alicia", title: "Alicia", descriptor: "Polished Global Anchor" },
-  { value: "maisie", title: "Maisie", descriptor: "Friendly Casual Neighbor" },
-  { value: "warren", title: "Warren", descriptor: "Effortless and Cool" },
-  { value: "jade", title: "Jade", descriptor: "Upbeat and Natural" },
-  { value: "eddie", title: "Eddie", descriptor: "Helpful and Comforting" },
-  { value: "caleb", title: "Caleb", descriptor: "Trusted Guide" },
-  { value: "sawyer", title: "Sawyer", descriptor: "Midnight Storyteller" },
-  { value: "finley", title: "Finley", descriptor: "Articulate Anchor" },
-  { value: "florence", title: "Florence", descriptor: "Atmospheric Storyteller" },
-  { value: "wyatt", title: "Wyatt", descriptor: "Seasoned Mentor" },
-] as const;
-
 /**
  * Renders a lightweight TTS slider row used throughout the settings panel.
  */
@@ -166,52 +130,13 @@ function TtsSlider({ label, helper, value, displayValue }: TtsSliderProps) {
   );
 }
 
-function TtsSelectorCard({
-  label,
-  title,
-  detail,
-  icon: Icon,
-  disabled = false,
-  compact = false,
-}: TtsSelectorCardProps) {
-  return (
-    <section
-      className={[
-        "tts-properties-selector-card",
-        compact ? "tts-properties-selector-card--compact" : "",
-        disabled ? "is-disabled" : "",
-      ]
-        .filter(Boolean)
-        .join(" ")}
-    >
-      {label ? (
-        <div className="tts-properties-selector-topline">
-          <span className="tts-properties-selector-label">{label}</span>
-        </div>
-      ) : null}
-      <button type="button" className="tts-properties-selector-button" aria-disabled={disabled}>
-        {Icon ? (
-          <span className="tts-properties-selector-avatar" aria-hidden="true">
-            <Icon size={14} weight="bold" />
-          </span>
-        ) : null}
-        <span className="tts-properties-selector-copy">
-          <strong>{title}</strong>
-          {detail ? <span>{detail}</span> : null}
-        </span>
-        <CaretDown size={14} weight="bold" aria-hidden="true" />
-      </button>
-    </section>
-  );
-}
-
 function TtsVoiceDropdown({
   value,
   options,
   onSelect,
 }: {
   value: string;
-  options: readonly TtsVoiceOption[];
+  options: readonly (typeof VOICE_LIBRARY_OPTIONS)[number][];
   onSelect: (value: string) => void;
 }) {
   const [isOpen, setIsOpen] = React.useState(false);
@@ -371,7 +296,7 @@ export const TextToSpeechPropertiesPanel = React.memo(function TextToSpeechPrope
 
               <TtsVoiceDropdown
                 value={selectedVoice}
-                options={voiceOptions}
+                options={VOICE_LIBRARY_OPTIONS}
                 onSelect={setSelectedVoice}
               />
             </section>

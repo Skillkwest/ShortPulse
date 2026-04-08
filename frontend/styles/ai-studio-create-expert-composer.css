@@ -79,7 +79,7 @@
 
 .create-expert-panel .create-expert-prompt-step .agent-input-prefab {
   border-color: rgba(201, 205, 214, 0.2);
-  background: rgba(37, 41, 47, 0.64);
+  background: var(--ai-create-prompt-input-bg);
   box-shadow: 0 10px 28px rgba(0, 0, 0, 0.28);
 }
 

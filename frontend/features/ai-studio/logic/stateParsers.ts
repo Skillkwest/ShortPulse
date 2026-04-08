@@ -251,6 +251,75 @@ export const mapAgentMedia = (outputs: OutputLike[]) =>
       thumbnailAlt: item.prompt ?? item.previewText ?? null,
     }));
 
+const extractVideoPosterDataUrl = async (videoUrl: string): Promise<string | null> => {
+  if (typeof document === "undefined") return null;
+  const video = document.createElement("video");
+  video.preload = "metadata";
+  video.muted = true;
+  video.playsInline = true;
+  video.crossOrigin = "anonymous";
+
+  return await new Promise<string | null>((resolve) => {
+    let settled = false;
+    const finalize = (value: string | null) => {
+      if (settled) return;
+      settled = true;
+      video.removeEventListener("loadeddata", handleLoadedData);
+      video.removeEventListener("error", handleFailure);
+      video.removeEventListener("seeked", handleSeeked);
+      video.removeAttribute("src");
+      video.load();
+      resolve(value);
+    };
+
+    const handleFailure = () => finalize(null);
+    const handleSeeked = () => {
+      try {
+        const width = video.videoWidth || 0;
+        const height = video.videoHeight || 0;
+        if (width <= 0 || height <= 0) {
+          finalize(null);
+          return;
+        }
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+        const context = canvas.getContext("2d");
+        if (!context) {
+          finalize(null);
+          return;
+        }
+        context.drawImage(video, 0, 0, width, height);
+        finalize(canvas.toDataURL("image/jpeg", 0.72));
+      } catch {
+        finalize(null);
+      }
+    };
+    const handleLoadedData = () => {
+      try {
+        if (video.readyState < HTMLMediaElement.HAVE_CURRENT_DATA) {
+          finalize(null);
+          return;
+        }
+        const targetTime = Number.isFinite(video.duration) && video.duration > 0 ? 0.05 : 0;
+        if (Math.abs((video.currentTime ?? 0) - targetTime) < 0.001) {
+          handleSeeked();
+          return;
+        }
+        video.currentTime = targetTime;
+      } catch {
+        finalize(null);
+      }
+    };
+
+    video.addEventListener("loadeddata", handleLoadedData, { once: true });
+    video.addEventListener("error", handleFailure, { once: true });
+    video.addEventListener("seeked", handleSeeked, { once: true });
+    video.src = videoUrl;
+    video.load();
+  });
+};
+
 export const mapUploadsFromFiles = async (
   files: FileList,
   mode: StudioMode,
@@ -292,6 +361,8 @@ export const mapUploadsFromFiles = async (
       // for deterministic cleanup via URL.revokeObjectURL.
       const previewBase = objectUrl ?? fallbackDataUrl ?? "";
       const previewUrl = isVideo ? `${previewBase}#video=1` : previewBase;
+      const previewPosterUrl =
+        isVideo && previewBase ? await extractVideoPosterDataUrl(previewBase) : null;
       return {
         id: `upload-${randomIdFn()}`,
         prompt: file.name,
@@ -302,6 +373,7 @@ export const mapUploadsFromFiles = async (
         status: "ready" as const,
         timestamp: timestampLabel,
         previewUrl,
+        previewPosterUrl,
         previewTier: "full" as const,
         mediaSource: "upload" as const,
         localObjectUrl: objectUrl,

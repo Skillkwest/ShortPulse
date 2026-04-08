@@ -45,10 +45,12 @@ import {
  * Provides AI Studio state and handlers for create/regenerate flows.
  */
 export const useAiStudioState = ({
+  sessionId = null,
   isCharacterModeEnabled = false,
   selectedStylePrompt = null,
   selectedStyleContext = null,
 }: {
+  sessionId?: string | null;
   isCharacterModeEnabled?: boolean;
   selectedStylePrompt?: string | null;
   selectedStyleContext?: StudioOutput["styleContext"] | null;
@@ -114,7 +116,6 @@ export const useAiStudioState = ({
     createIsGenerating,
     editIsGenerating,
     videoIsGenerating,
-    isPromptGenerating,
     setPanelGenerating,
     uiError,
     setUiError,
@@ -199,6 +200,7 @@ export const useAiStudioState = ({
   const { detailOutput, currentModelLabel, isPrimaryEditStageGenerating } =
     useAiStudioOutputDerivations({ outputs, activeOutputById, detailOutputId, model });
   const { hasPendingWorkflowRestore } = useAiStudioWorkflowSettings({
+    sessionId,
     selectedTool,
     mode,
     model,
@@ -352,7 +354,6 @@ export const useAiStudioState = ({
     activeOutputId,
     setActiveOutputId,
     pendingAutoSavesRef,
-    setUiError,
   });
   const { deleteOutput } = useAiStudioDeleteOutputController({
     quickSlotIds: referenceProjectionState.quickSlotIds,
@@ -574,7 +575,6 @@ export const useAiStudioState = ({
   });
 
   return {
-    isPromptGenerating,
     isPrimaryEditStageGenerating,
     promptRef,
     mode,

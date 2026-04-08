@@ -10,6 +10,7 @@
   /* Adjust the Width of the left sidebar. */
   --ai-rail-width: 196px;
   --ai-gutter: 16px;
+  --ai-create-prompt-input-bg: rgba(37, 41, 47, 0.64);
   --ai-container-card-bg: rgba(201, 205, 214, 0.02);
   --ai-container-card-border: rgba(201, 205, 214, 0.02);
   --ai-surface-card: rgba(14, 16, 20, 0.85);
@@ -543,11 +544,15 @@ body:has(.ai-studio-page[data-selected-tool="canvas"]) {
 }
 
 .ai-studio-page[data-selected-tool="video"] .ai-hero-shortcut-button[aria-pressed="true"] {
-  color: rgba(255, 77, 151, 0.96);
+  color: rgba(212, 177, 255, 0.98);
 }
 
 .ai-studio-page[data-selected-tool="elements"] .ai-hero-shortcut-button[aria-pressed="true"] {
   color: rgba(255, 77, 151, 0.96);
+}
+
+.ai-studio-page[data-selected-tool="elements"] .ai-hero-shortcut-button:focus-visible {
+  outline-color: rgba(255, 123, 167, 0.72);
 }
 
 .ai-studio-page[data-selected-tool="elements"] .ai-hero-shortcut-button:first-child {
@@ -597,6 +602,10 @@ body:has(.ai-studio-page[data-selected-tool="canvas"]) {
   outline: 1px solid rgba(101, 204, 255, 0.7);
   outline-offset: 3px;
   border-radius: 3px;
+}
+
+.ai-studio-page[data-selected-tool="elements"] .ai-hero-shortcut-icon-button:focus-visible {
+  outline-color: rgba(255, 123, 167, 0.72);
 }
 
 .ai-hero .header-stat-card {
@@ -1125,6 +1134,15 @@ body:has(.ai-studio-page[data-selected-tool="canvas"]) {
   box-shadow: 0 0 0 1px rgba(37, 204, 255, 0.28);
 }
 
+.ai-studio-page[data-selected-tool="elements"] .ai-shell-divider:hover::before,
+.ai-studio-page[data-selected-tool="elements"] .ai-shell-divider:focus-visible::before,
+.ai-studio-page[data-selected-tool="elements"]
+  .ai-shell.ai-shell-resizing
+  .ai-shell-divider::before {
+  background: rgba(255, 77, 151, 0.96);
+  box-shadow: 0 0 0 1px rgba(255, 123, 167, 0.28);
+}
+
 .ai-studio-page[data-selected-tool="presets"] .ai-shell-divider:hover::before,
 .ai-studio-page[data-selected-tool="presets"] .ai-shell-divider:focus-visible::before,
 .ai-studio-page[data-selected-tool="presets"]
@@ -1151,6 +1169,10 @@ body:has(.ai-studio-page[data-selected-tool="canvas"]) {
 
 .ai-studio-page[data-selected-tool="character"] .ai-shell-divider:focus-visible {
   outline-color: rgba(37, 204, 255, 0.82);
+}
+
+.ai-studio-page[data-selected-tool="elements"] .ai-shell-divider:focus-visible {
+  outline-color: rgba(255, 77, 151, 0.82);
 }
 
 .ai-studio-page[data-selected-tool="presets"] .ai-shell-divider:focus-visible {

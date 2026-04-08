@@ -73,6 +73,7 @@ export function PromptStep({
   promptSaveButtonUnstyled = false,
   beginnerPinHelperText,
   promptInlineAction = null,
+  promptInlineActionClassName = "",
   chatPromptSaveButtonClassName = "",
   chatPromptSaveButtonUnstyled = false,
   embedSendButtonInInput = false,
@@ -90,6 +91,12 @@ export function PromptStep({
   hideHeader = false,
   autoResize = false,
   autoResizeLayoutKey,
+  promptTextareaRef,
+  promptHighlightSegments,
+  onPromptFocus,
+  onPromptBlur,
+  onPromptSelect,
+  onPromptKeyDown,
 }: PromptStepProps) {
   const [promptMode, setPromptMode] = React.useState<"enhanced" | "chat">(
     chatOnly ? "chat" : "enhanced"
@@ -114,9 +121,24 @@ export function PromptStep({
   const effectiveTitle = beginnerMode ? (beginnerTitle ?? "Build Your Prompt") : title;
 
   const handleEnhancedPromptKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (event.key !== "Enter" || event.shiftKey || agentIsSending) return;
+    onPromptKeyDown?.(event);
+    if (event.defaultPrevented) {
+      return;
+    }
+    if (
+      event.key !== "Enter" ||
+      event.shiftKey ||
+      event.metaKey ||
+      event.ctrlKey ||
+      event.altKey ||
+      agentIsSending ||
+      hideEnhanceButton ||
+      !onAgentEnhanceSend
+    ) {
+      return;
+    }
     event.preventDefault();
-    onAgentEnhanceSend?.();
+    onAgentEnhanceSend();
   };
 
   const handleAgentInputKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -324,6 +346,12 @@ export function PromptStep({
                 autoResize={autoResize}
                 autoResizeLayoutKey={autoResizeLayoutKey}
                 inlineAction={promptInlineAction}
+                inlineActionClassName={promptInlineActionClassName}
+                promptTextareaRef={promptTextareaRef}
+                promptHighlightSegments={promptHighlightSegments}
+                onPromptFocus={onPromptFocus}
+                onPromptBlur={onPromptBlur}
+                onPromptSelect={onPromptSelect}
               />
             )}
           </>

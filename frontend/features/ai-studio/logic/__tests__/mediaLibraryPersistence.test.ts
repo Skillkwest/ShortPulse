@@ -258,6 +258,7 @@ describe("saveMediaUrlToLibrary", () => {
         storage_path: "user-1/generations/images/publication-full.png",
         file_type: "image",
         filename: "publication.png",
+        poster_variant_path: null,
       },
       error: null,
     });
@@ -338,6 +339,110 @@ describe("saveMediaUrlToLibrary", () => {
     expect(generationOutputUpdate).toHaveBeenCalledWith(
       expect.objectContaining({
         media_file_id: "media-from-publication",
+      })
+    );
+  });
+
+  it("does not re-upload a poster when a publication-owned video row already has one", async () => {
+    const publicationMediaMaybeSingle = vi.fn().mockResolvedValue({
+      data: {
+        id: "media-from-publication-video",
+        preview_storage_path: "user-1/generations/videos/publication-preview.mp4",
+        storage_path: "user-1/generations/videos/publication-full.mp4",
+        file_type: "video",
+        filename: "publication-video.mp4",
+        poster_variant_path: "user-1/variants/videos/media-from-publication-video/poster_720.jpg",
+      },
+      error: null,
+    });
+    const mediaFileSelectBuilder = createMediaFileSelectBuilder(publicationMediaMaybeSingle);
+    const publicationSelectBuilder = createMaybeSingleEqBuilder(
+      vi.fn().mockResolvedValue({
+        data: { owned_media_file_id: "media-from-publication-video" },
+        error: null,
+      })
+    );
+    const generationOutputMaybeSingle = vi
+      .fn()
+      .mockResolvedValueOnce({
+        data: {
+          id: "gen-output-existing-video",
+          media_file_id: "stale-canonical-media-video",
+        },
+        error: null,
+      })
+      .mockResolvedValueOnce({
+        data: { id: "gen-output-existing-video" },
+        error: null,
+      });
+    const generationOutputSelectBuilder = createGenerationOutputSelectBuilder(
+      generationOutputMaybeSingle
+    );
+    const generationOutputUpdate = vi.fn(() => ({
+      eq: vi.fn(() => ({
+        eq: vi.fn(async () => ({ error: null })),
+      })),
+    }));
+    const insert = vi.fn();
+    const upload = vi.fn();
+    const mediaUpdate = vi.fn();
+    const variantUpsert = vi.fn();
+
+    ensureSupabaseQueryClientMock.mockReturnValue({
+      from: vi.fn((table: string) => {
+        if (table === "media_files") {
+          return {
+            select: vi.fn(() => mediaFileSelectBuilder),
+            insert,
+            update: mediaUpdate,
+          };
+        }
+        if (table === "media_asset_variants") {
+          return {
+            upsert: variantUpsert,
+          };
+        }
+        if (table === "generation_publications") {
+          return {
+            select: vi.fn(() => publicationSelectBuilder),
+          };
+        }
+        if (table === "ai_generation_outputs") {
+          return {
+            select: vi.fn(() => generationOutputSelectBuilder),
+            update: generationOutputUpdate,
+            insert: vi.fn(),
+          };
+        }
+        throw new Error(`Unexpected table: ${table}`);
+      }),
+      storage: {
+        from: vi.fn(() => ({
+          upload,
+          remove: vi.fn(),
+        })),
+      },
+    });
+
+    vi.stubGlobal("fetch", vi.fn());
+
+    const result = await saveMediaUrlToLibrary({
+      url: "https://cdn.shortpulse.test/output.mp4",
+      mode: "video",
+      source: "ai_studio",
+      generationId: "gen-video-publication-1",
+      index: 0,
+      posterUrlHint: "https://cdn.shortpulse.test/poster.jpg",
+    });
+
+    expect(result.mediaFileId).toBe("media-from-publication-video");
+    expect(upload).not.toHaveBeenCalled();
+    expect(variantUpsert).not.toHaveBeenCalled();
+    expect(mediaUpdate).not.toHaveBeenCalled();
+    expect(insert).not.toHaveBeenCalled();
+    expect(generationOutputUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        media_file_id: "media-from-publication-video",
       })
     );
   });
@@ -578,6 +683,149 @@ describe("saveMediaUrlToLibrary", () => {
     expect(insert).not.toHaveBeenCalled();
   });
 
+  it("surfaces server-copy trust failures for generated video saves when provider urls are blocked in-browser", async () => {
+    const maybeSingle = vi.fn().mockResolvedValue({
+      data: null,
+      error: null,
+    });
+    const selectBuilder = createMediaFileSelectBuilder(maybeSingle);
+    const generationOutputMaybeSingle = vi.fn().mockResolvedValue({
+      data: null,
+      error: null,
+    });
+    const generationOutputSelectBuilder = createGenerationOutputSelectBuilder(
+      generationOutputMaybeSingle
+    );
+
+    ensureSupabaseQueryClientMock.mockReturnValue({
+      from: vi.fn((table: string) => {
+        if (table === "media_files") {
+          return {
+            select: vi.fn(() => selectBuilder),
+            insert: vi.fn(),
+          };
+        }
+        if (table === "ai_generation_outputs") {
+          return {
+            select: vi.fn(() => generationOutputSelectBuilder),
+            update: vi.fn(),
+            insert: vi.fn(),
+          };
+        }
+        throw new Error(`Unexpected table: ${table}`);
+      }),
+      storage: {
+        from: vi.fn(() => ({
+          upload: vi.fn(),
+          remove: vi.fn(),
+        })),
+      },
+    });
+
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new TypeError("Failed to fetch")));
+    fetchWithAuthMock.mockResolvedValue({
+      ok: false,
+      status: 422,
+      json: async () => ({
+        error: "Untrusted media URL.",
+        details: "URL host is not in the trusted media allowlist.",
+      }),
+    });
+
+    await expect(
+      saveMediaUrlToLibrary({
+        url: "https://tempfile.aiquickdraw.com/r/generated-video.mp4",
+        mode: "video",
+        source: "ai_studio",
+        generationId: "gen-1",
+        index: 0,
+      })
+    ).rejects.toThrow("Untrusted media URL.");
+
+    expect(fetchWithAuthMock).toHaveBeenCalledWith(
+      "/api/media/copy-from-url",
+      expect.objectContaining({
+        method: "POST",
+      })
+    );
+  });
+
+  it("supports generated video server-copy fallback when browser fetch is blocked", async () => {
+    const maybeSingle = vi.fn().mockResolvedValue({
+      data: null,
+      error: null,
+    });
+    const selectBuilder = createMediaFileSelectBuilder(maybeSingle);
+    const generationOutputMaybeSingle = vi.fn().mockResolvedValue({
+      data: null,
+      error: null,
+    });
+    const generationOutputSelectBuilder = createGenerationOutputSelectBuilder(
+      generationOutputMaybeSingle
+    );
+
+    ensureSupabaseQueryClientMock.mockReturnValue({
+      from: vi.fn((table: string) => {
+        if (table === "media_files") {
+          return {
+            select: vi.fn(() => selectBuilder),
+            insert: vi.fn(),
+          };
+        }
+        if (table === "ai_generation_outputs") {
+          return {
+            select: vi.fn(() => generationOutputSelectBuilder),
+            update: vi.fn(),
+            insert: vi.fn(),
+          };
+        }
+        throw new Error(`Unexpected table: ${table}`);
+      }),
+      storage: {
+        from: vi.fn(() => ({
+          upload: vi.fn(),
+          remove: vi.fn(),
+        })),
+      },
+    });
+
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new TypeError("Failed to fetch")));
+    fetchWithAuthMock.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        mediaFileId: "media-generated-video",
+        storagePath: "user-1/generations/videos/generated-video.mp4",
+        fileType: "video",
+        fileSize: 456,
+        delivery: {
+          previewStoragePath: "user-1/generations/videos/generated-video.mp4",
+          fullStoragePath: "user-1/generations/videos/generated-video.mp4",
+          previewUrl: "https://cdn.shortpulse.test/generated-video-preview.mp4",
+          fullUrl: "https://cdn.shortpulse.test/generated-video-full.mp4",
+        },
+      }),
+    });
+
+    const result = await saveMediaUrlToLibrary({
+      url: "https://tempfile.aiquickdraw.com/r/generated-video.mp4",
+      mode: "video",
+      source: "ai_studio",
+      generationId: "gen-1",
+      index: 0,
+    });
+
+    expect(result.mediaFileId).toBe("media-generated-video");
+    expect(result.fileType).toBe("video");
+    expect(result.storagePath).toBe("user-1/generations/videos/generated-video.mp4");
+    expect(fetchWithAuthMock).toHaveBeenCalledWith(
+      "/api/media/copy-from-url",
+      expect.objectContaining({
+        method: "POST",
+      })
+    );
+  });
+
   it("does not use server copy fallback for explicit HTTP download failures", async () => {
     ensureSupabaseQueryClientMock.mockReturnValue({
       from: vi.fn(() => ({
@@ -720,6 +968,146 @@ describe("saveMediaUrlToLibrary", () => {
     );
   });
 
+  it("persists a durable poster variant when saving a new video with a poster hint", async () => {
+    vi.spyOn(globalThis.crypto, "randomUUID")
+      .mockReturnValueOnce("uuid-video")
+      .mockReturnValueOnce("uuid-poster");
+    vi.stubGlobal(
+      "createImageBitmap",
+      vi.fn(async () => ({
+        width: 1280,
+        height: 720,
+        close: vi.fn(),
+      }))
+    );
+
+    const maybeSingle = vi.fn().mockResolvedValue({
+      data: null,
+      error: null,
+    });
+    const selectBuilder = createMediaFileSelectBuilder(maybeSingle);
+    const generationOutputMaybeSingle = vi.fn().mockResolvedValue({ data: null, error: null });
+    const generationOutputSelectBuilder = createGenerationOutputSelectBuilder(
+      generationOutputMaybeSingle
+    );
+    const generationOutputInsert = vi.fn(async () => ({ error: null }));
+    const single = vi.fn().mockResolvedValue({
+      data: { id: "media-video-1" },
+      error: null,
+    });
+    const insert = vi.fn(() => ({
+      select: vi.fn(() => ({
+        single,
+      })),
+    }));
+    const mediaUpdateEqUser = vi.fn(async () => ({ error: null }));
+    const mediaUpdateEqId = vi.fn(() => ({
+      eq: mediaUpdateEqUser,
+    }));
+    const mediaUpdate = vi.fn(() => ({
+      eq: mediaUpdateEqId,
+    }));
+    const variantUpsert = vi.fn(async () => ({ error: null }));
+    const upload = vi.fn().mockResolvedValue({ error: null });
+
+    ensureSupabaseQueryClientMock.mockReturnValue({
+      from: vi.fn((table: string) => {
+        if (table === "media_files") {
+          return {
+            select: vi.fn(() => selectBuilder),
+            insert,
+            update: mediaUpdate,
+          };
+        }
+        if (table === "media_asset_variants") {
+          return {
+            upsert: variantUpsert,
+          };
+        }
+        if (table === "ai_generation_outputs") {
+          return {
+            select: vi.fn(() => generationOutputSelectBuilder),
+            insert: generationOutputInsert,
+            update: vi.fn(),
+          };
+        }
+        throw new Error(`Unexpected table: ${table}`);
+      }),
+      storage: {
+        from: vi.fn(() => ({
+          upload,
+          remove: vi.fn(),
+        })),
+      },
+    });
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((url: string) => {
+        if (url.includes("output.mp4")) {
+          return Promise.resolve(
+            new Response(new Blob(["video"], { type: "video/mp4" }), {
+              status: 200,
+              headers: { "content-type": "video/mp4" },
+            })
+          );
+        }
+        if (url.includes("poster.jpg")) {
+          return Promise.resolve(
+            new Response(new Blob(["poster"], { type: "image/jpeg" }), {
+              status: 200,
+              headers: { "content-type": "image/jpeg" },
+            })
+          );
+        }
+        throw new Error(`Unexpected fetch: ${url}`);
+      })
+    );
+
+    const result = await saveMediaUrlToLibrary({
+      url: "https://cdn.shortpulse.test/output.mp4",
+      mode: "video",
+      source: "ai_studio",
+      generationId: "gen-video-1",
+      index: 0,
+      posterUrlHint: "https://cdn.shortpulse.test/poster.jpg",
+    });
+
+    expect(result.mediaFileId).toBe("media-video-1");
+    expect(upload).toHaveBeenNthCalledWith(
+      1,
+      "user-1/generations/videos/uuid-video-0.mp4",
+      expect.anything(),
+      expect.objectContaining({
+        contentType: "video/mp4",
+      })
+    );
+    expect(upload).toHaveBeenNthCalledWith(
+      2,
+      "user-1/variants/videos/media-video-1/poster_720.jpg",
+      expect.anything(),
+      expect.objectContaining({
+        contentType: "image/jpeg",
+        upsert: true,
+      })
+    );
+    expect(variantUpsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        media_file_id: "media-video-1",
+        variant_kind: "poster_720",
+        storage_path: "user-1/variants/videos/media-video-1/poster_720.jpg",
+      }),
+      expect.objectContaining({
+        onConflict: "media_file_id,variant_kind",
+      })
+    );
+    expect(mediaUpdate).toHaveBeenCalledWith({
+      poster_variant_path: "user-1/variants/videos/media-video-1/poster_720.jpg",
+    });
+    expect(mediaUpdateEqId).toHaveBeenCalledWith("id", "media-video-1");
+    expect(mediaUpdateEqUser).toHaveBeenCalledWith("user_id", "user-1");
+  });
+
   it("rejects ai_studio saves without a durable generation id", async () => {
     const fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
@@ -736,6 +1124,82 @@ describe("saveMediaUrlToLibrary", () => {
     expect(fetchMock).not.toHaveBeenCalled();
     expect(ensureSupabaseQueryClientMock).not.toHaveBeenCalled();
     expect(fetchWithAuthMock).not.toHaveBeenCalled();
+  });
+
+  it("forwards poster hints through server-copy fallback for blocked video saves", async () => {
+    const maybeSingle = vi.fn().mockResolvedValue({
+      data: null,
+      error: null,
+    });
+    const selectBuilder = createMediaFileSelectBuilder(maybeSingle);
+    const generationOutputMaybeSingle = vi.fn().mockResolvedValue({
+      data: null,
+      error: null,
+    });
+    const generationOutputSelectBuilder = createGenerationOutputSelectBuilder(
+      generationOutputMaybeSingle
+    );
+
+    ensureSupabaseQueryClientMock.mockReturnValue({
+      from: vi.fn((table: string) => {
+        if (table === "media_files") {
+          return {
+            select: vi.fn(() => selectBuilder),
+            insert: vi.fn(),
+          };
+        }
+        if (table === "ai_generation_outputs") {
+          return {
+            select: vi.fn(() => generationOutputSelectBuilder),
+            update: vi.fn(),
+            insert: vi.fn(),
+          };
+        }
+        throw new Error(`Unexpected table: ${table}`);
+      }),
+      storage: {
+        from: vi.fn(() => ({
+          upload: vi.fn(),
+          remove: vi.fn(),
+        })),
+      },
+    });
+
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new TypeError("Failed to fetch")));
+    fetchWithAuthMock.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        mediaFileId: "media-generated-video",
+        storagePath: "user-1/generations/videos/generated-video.mp4",
+        fileType: "video",
+        fileSize: 456,
+        delivery: {
+          previewStoragePath: "user-1/generations/videos/generated-video.mp4",
+          fullStoragePath: "user-1/generations/videos/generated-video.mp4",
+          previewUrl: "https://cdn.shortpulse.test/generated-video-preview.mp4",
+          fullUrl: "https://cdn.shortpulse.test/generated-video-full.mp4",
+        },
+      }),
+    });
+
+    await saveMediaUrlToLibrary({
+      url: "https://tempfile.aiquickdraw.com/r/generated-video.mp4",
+      mode: "video",
+      source: "ai_studio",
+      generationId: "gen-1",
+      index: 0,
+      posterUrlHint: "https://cdn.shortpulse.test/generated-video-poster.jpg",
+    });
+
+    expect(fetchWithAuthMock).toHaveBeenCalledWith(
+      "/api/media/copy-from-url",
+      expect.objectContaining({
+        body: expect.stringContaining(
+          '"posterUrlHint":"https://cdn.shortpulse.test/generated-video-poster.jpg"'
+        ),
+      })
+    );
   });
 });
 

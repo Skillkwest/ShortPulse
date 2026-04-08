@@ -4,6 +4,8 @@
  */
 import React from "react";
 import { AgentEnhanceButton, AgentSaveButton } from "../../../../prefabs/agent";
+import type { PromptTokenHighlightSegment } from "../../logic/promptTokenHighlight";
+import { syncTextareaMirrorScroll } from "../edit/expertEditInteractionUtils";
 
 type PromptStepEnhancedSurfaceProps = {
   prompt: string;
@@ -25,6 +27,12 @@ type PromptStepEnhancedSurfaceProps = {
   autoResize: boolean;
   autoResizeLayoutKey?: string | number;
   inlineAction?: React.ReactNode;
+  inlineActionClassName?: string;
+  promptTextareaRef?: React.MutableRefObject<HTMLTextAreaElement | null>;
+  promptHighlightSegments?: PromptTokenHighlightSegment[];
+  onPromptFocus?: (event: React.FocusEvent<HTMLTextAreaElement>) => void;
+  onPromptBlur?: (event: React.FocusEvent<HTMLTextAreaElement>) => void;
+  onPromptSelect?: (event: React.SyntheticEvent<HTMLTextAreaElement>) => void;
 };
 
 export const PromptStepEnhancedSurface: React.FC<PromptStepEnhancedSurfaceProps> = ({
@@ -47,8 +55,28 @@ export const PromptStepEnhancedSurface: React.FC<PromptStepEnhancedSurfaceProps>
   autoResize,
   autoResizeLayoutKey,
   inlineAction,
+  inlineActionClassName,
+  promptTextareaRef,
+  promptHighlightSegments,
+  onPromptFocus,
+  onPromptBlur,
+  onPromptSelect,
 }) => {
-  const textareaRef = React.useRef<HTMLTextAreaElement | null>(null);
+  const localTextareaRef = React.useRef<HTMLTextAreaElement | null>(null);
+  const textareaRef = promptTextareaRef ?? localTextareaRef;
+  const assignTextareaRef = React.useCallback(
+    (node: HTMLTextAreaElement | null) => {
+      localTextareaRef.current = node;
+      if (promptTextareaRef) {
+        promptTextareaRef.current = node;
+      }
+    },
+    [promptTextareaRef]
+  );
+  const promptHighlightRef = React.useRef<HTMLDivElement | null>(null);
+  const hasPromptTokenHighlight = Boolean(
+    promptHighlightSegments?.some((segment) => segment.kind !== "plain")
+  );
   const resizeTextareaToViewport = React.useCallback(() => {
     if (!autoResize || !textareaRef.current) return;
     const textarea = textareaRef.current;
@@ -68,22 +96,38 @@ export const PromptStepEnhancedSurface: React.FC<PromptStepEnhancedSurfaceProps>
     );
     textarea.style.height = `${nextHeight}px`;
     textarea.style.overflowY = textarea.scrollHeight > availableHeight ? "auto" : "hidden";
-  }, [autoResize]);
+  }, [autoResize, textareaRef]);
+
+  const handlePromptScroll = React.useCallback(() => {
+    if (!hasPromptTokenHighlight) return;
+    syncTextareaMirrorScroll({
+      textarea: textareaRef.current,
+      mirror: promptHighlightRef.current,
+    });
+  }, [hasPromptTokenHighlight, textareaRef]);
 
   React.useEffect(() => {
     if (!autoResize || !textareaRef.current) return;
     const frameId = window.requestAnimationFrame(() => {
       resizeTextareaToViewport();
+      handlePromptScroll();
     });
     return () => window.cancelAnimationFrame(frameId);
-  }, [autoResize, autoResizeLayoutKey, prompt, resizeTextareaToViewport]);
+  }, [
+    autoResize,
+    autoResizeLayoutKey,
+    prompt,
+    resizeTextareaToViewport,
+    textareaRef,
+    handlePromptScroll,
+  ]);
 
   React.useEffect(() => {
     if (!autoResize) return;
     const handleViewportResize = () => resizeTextareaToViewport();
     window.addEventListener("resize", handleViewportResize);
     return () => window.removeEventListener("resize", handleViewportResize);
-  }, [autoResize, resizeTextareaToViewport]);
+  }, [autoResize, resizeTextareaToViewport, textareaRef]);
 
   React.useEffect(() => {
     if (!autoResize || !textareaRef.current || typeof ResizeObserver === "undefined") return;
@@ -102,28 +146,57 @@ export const PromptStepEnhancedSurface: React.FC<PromptStepEnhancedSurfaceProps>
 
     observedNodes.forEach((node) => observer.observe(node));
     return () => observer.disconnect();
-  }, [autoResize, resizeTextareaToViewport]);
+  }, [autoResize, resizeTextareaToViewport, textareaRef]);
+
+  React.useEffect(() => {
+    handlePromptScroll();
+  }, [handlePromptScroll, prompt]);
 
   return (
     <>
       <div className="step2-input-row enhanced-mode">
-        <div className="prompt-enhanced-wrapper">
+        <div
+          className={`prompt-enhanced-wrapper ${hasPromptTokenHighlight ? "has-token-highlight" : ""}`.trim()}
+        >
+          {hasPromptTokenHighlight ? (
+            <div ref={promptHighlightRef} className="prompt-token-highlight" aria-hidden="true">
+              {promptHighlightSegments?.map((segment, index) => (
+                <span
+                  key={`prompt-token-highlight-${index}-${segment.kind}`}
+                  className={`prompt-token-highlight-segment is-${segment.kind}`}
+                >
+                  {segment.text}
+                </span>
+              ))}
+              <span className="prompt-token-highlight-segment prompt-token-highlight-segment--buffer">
+                {"\n"}
+              </span>
+            </div>
+          ) : null}
           {promptThinking ? (
             <div className="prompt-thinking-overlay" aria-live="polite">
               <span className="prompt-thinking-text">Thinking...</span>
             </div>
           ) : null}
           <textarea
-            ref={textareaRef}
+            ref={assignTextareaRef}
             className="prompt-input agent-step-textarea enhanced-prompt-input"
             value={prompt}
             onChange={(event) => onPromptChange(event.target.value)}
             onKeyDown={handleEnhancedPromptKeyDown}
+            onFocus={onPromptFocus}
+            onBlur={onPromptBlur}
+            onSelect={onPromptSelect}
+            onScroll={handlePromptScroll}
             rows={6}
             placeholder={promptPlaceholder}
             aria-busy={promptThinking}
           />
-          {inlineAction ? <div className="prompt-inline-action-slot">{inlineAction}</div> : null}
+          {inlineAction ? (
+            <div className={`prompt-inline-action-slot ${inlineActionClassName ?? ""}`.trim()}>
+              {inlineAction}
+            </div>
+          ) : null}
         </div>
       </div>
       <div className="enhanced-actions-row prompt-actions-compact">

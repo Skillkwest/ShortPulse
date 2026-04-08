@@ -4,6 +4,7 @@ import {
   analyzeExpertEditPromptTokens,
   buildExpertEditSubmissionReferenceInputs,
   buildExpertEditPromptHighlightSegments,
+  buildExpertEditPrimarySlotToken,
   compileExpertEditSubmissionPrompt,
   extractExpertEditPromptTokenFromTransfer,
   insertExpertEditPromptTokenAtSelection,
@@ -35,6 +36,20 @@ describe("expertEditPromptReferences", () => {
     expect(analysis.inlineError).toBeNull();
   });
 
+  it("detects @main as the primary image token", () => {
+    const analysis = analyzeExpertEditPromptTokens("Use @main with the background.", [
+      "https://example.com/a.png",
+      null,
+      null,
+    ]);
+
+    expect(analysis.hasTokenReferences).toBe(true);
+    expect(analysis.hasInvalidTokens).toBe(false);
+    expect(analysis.referencedSlotIndexes).toEqual([]);
+    expect(analysis.inlineError).toBeNull();
+    expect(buildExpertEditPrimarySlotToken()).toBe("@main");
+  });
+
   it("flags invalid tokens for missing index, out of range, and empty slots", () => {
     const missingIndex = analyzeExpertEditPromptTokens("Apply @img to the background.", [
       "https://example.com/a.png",
@@ -42,7 +57,7 @@ describe("expertEditPromptReferences", () => {
       null,
     ]);
     expect(missingIndex.hasInvalidTokens).toBe(true);
-    expect(missingIndex.inlineError).toMatch(/Use @img1, @img2, or @img3/i);
+    expect(missingIndex.inlineError).toMatch(/Use @main, @img1, @img2, or @img3/i);
 
     const outOfRange = analyzeExpertEditPromptTokens("Use @img4 for hair.", [
       "https://example.com/a.png",
@@ -85,7 +100,7 @@ describe("expertEditPromptReferences", () => {
 
   it("compiles tokenized prompts to figure references and appends mapping", () => {
     const compiled = compileExpertEditSubmissionPrompt({
-      displayPrompt: "Put @img2 in the background. Match @img1 hair.",
+      displayPrompt: "Put @main in the background. Match @img2 hair.",
       secondarySlots: ["https://example.com/slot-1.png", "https://example.com/slot-2.png", null],
       referenceInputs: [
         "https://example.com/primary.png",
@@ -95,11 +110,10 @@ describe("expertEditPromptReferences", () => {
     });
 
     expect(compiled.hasTokenReferences).toBe(true);
-    expect(compiled.submissionPrompt).toContain("Put Figure 3 in the background.");
-    expect(compiled.submissionPrompt).toContain("Match Figure 2 hair.");
+    expect(compiled.submissionPrompt).toContain("Put Figure 1 in the background.");
+    expect(compiled.submissionPrompt).toContain("Match Figure 3 hair.");
     expect(compiled.submissionPrompt).toContain("Reference map:");
     expect(compiled.submissionPrompt).toContain("Figure 1 = primary base image.");
-    expect(compiled.submissionPrompt).toContain("Figure 2 = @img1 secondary reference.");
     expect(compiled.submissionPrompt).toContain("Figure 3 = @img2 secondary reference.");
     expect(compiled.submissionPrompt).toContain(
       "Treat all secondary references as edits to Figure 1 unless explicitly overridden."
@@ -144,6 +158,9 @@ describe("expertEditPromptReferences", () => {
     expect(transfer.getData(EXPERT_EDIT_PROMPT_TOKEN_TRANSFER_MIME)).toBe("@img2");
     expect(transfer.getData("text/plain")).toBe("@img2");
     expect(extractExpertEditPromptTokenFromTransfer(transfer)).toBe("@img2");
+    expect(
+      extractExpertEditPromptTokenFromTransfer(createTransfer({ "text/plain": "@main" }))
+    ).toBe("@main");
     expect(resolveExpertEditPromptTokenSlotIndex("@img2")).toBe(1);
   });
 

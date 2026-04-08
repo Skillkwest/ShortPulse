@@ -272,6 +272,14 @@ describe("sessionSnapshotHydrator", () => {
     expect(payload.workspace.motionReferenceVideoUrl).toBeNull();
     expect(payload.workspace.klingElements[0]).toEqual({
       id: "k1",
+      sourceKind: null,
+      sourceElementId: null,
+      sourceCharacterId: null,
+      slotIndex: undefined,
+      name: "",
+      alias: "",
+      description: "",
+      profileImageUrl: null,
       frontalImageUrl: "",
       referenceImageUrls: "https://example.com/ref-2.png",
       videoUrl: "",

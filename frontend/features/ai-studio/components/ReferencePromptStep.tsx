@@ -2,6 +2,7 @@
  * Prompt step wrapper for reference properties flows.
  */
 import React from "react";
+import type { PromptTokenHighlightSegment } from "../logic/promptTokenHighlight";
 import { PromptStep } from "./PromptStep";
 
 type ReferencePromptStepProps = {
@@ -27,6 +28,13 @@ type ReferencePromptStepProps = {
   autoResizeLayoutKey?: string | number;
   promptPlaceholder?: string;
   promptInlineAction?: React.ReactNode;
+  promptInlineActionClassName?: string;
+  promptTextareaRef?: React.RefObject<HTMLTextAreaElement | null>;
+  promptHighlightSegments?: PromptTokenHighlightSegment[];
+  onPromptFocus?: (event: React.FocusEvent<HTMLTextAreaElement>) => void;
+  onPromptBlur?: (event: React.FocusEvent<HTMLTextAreaElement>) => void;
+  onPromptSelect?: (event: React.SyntheticEvent<HTMLTextAreaElement>) => void;
+  onPromptKeyDown?: (event: React.KeyboardEvent<HTMLTextAreaElement>) => void;
 };
 
 /**
@@ -55,6 +63,13 @@ export const ReferencePromptStep: React.FC<ReferencePromptStepProps> = ({
   autoResizeLayoutKey,
   promptPlaceholder = "Describe the image you want to generate. You can also drag & drop a reference prompt here to get started.",
   promptInlineAction,
+  promptInlineActionClassName,
+  promptTextareaRef,
+  promptHighlightSegments,
+  onPromptFocus,
+  onPromptBlur,
+  onPromptSelect,
+  onPromptKeyDown,
 }) => {
   return (
     <div className="reference-dropzone-block prompt-block" style={{ order: promptOrder }}>
@@ -91,6 +106,13 @@ export const ReferencePromptStep: React.FC<ReferencePromptStepProps> = ({
         autoResize={autoResize}
         autoResizeLayoutKey={autoResizeLayoutKey}
         promptInlineAction={promptInlineAction}
+        promptInlineActionClassName={promptInlineActionClassName}
+        promptTextareaRef={promptTextareaRef}
+        promptHighlightSegments={promptHighlightSegments}
+        onPromptFocus={onPromptFocus}
+        onPromptBlur={onPromptBlur}
+        onPromptSelect={onPromptSelect}
+        onPromptKeyDown={onPromptKeyDown}
       />
     </div>
   );

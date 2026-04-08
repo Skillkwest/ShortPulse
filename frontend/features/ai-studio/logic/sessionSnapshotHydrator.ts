@@ -169,38 +169,53 @@ const asKlingMultiPrompts = (
     .filter((item): item is { id: string; prompt: string; duration: number } => Boolean(item));
 };
 
-const asKlingElements = (
-  value: unknown
-): { id: string; frontalImageUrl: string; referenceImageUrls: string; videoUrl: string }[] => {
+type HydratedKlingElementRow = {
+  id: string;
+  slotIndex?: number;
+  sourceKind?: "element" | "character" | null;
+  sourceElementId?: string | null;
+  sourceCharacterId?: string | null;
+  name?: string;
+  alias?: string;
+  description?: string;
+  profileImageUrl?: string | null;
+  frontalImageUrl: string;
+  referenceImageUrls: string;
+  videoUrl: string;
+};
+
+const asKlingElements = (value: unknown): HydratedKlingElementRow[] => {
   if (!Array.isArray(value)) return [];
-  return value
-    .map((item, index) => {
-      if (!item || typeof item !== "object") return null;
-      const row = item as Record<string, unknown>;
-      const frontalImageUrl = sanitizeHydratedMediaUrl(asNullableString(row.frontalImageUrl)) ?? "";
-      const referenceImageUrls = asString(row.referenceImageUrls, "")
-        .split(/[,\n]+/)
-        .map((url) => sanitizeHydratedMediaUrl(url))
-        .filter((url): url is string => Boolean(url))
-        .join(", ");
-      const videoUrl = sanitizeHydratedMediaUrl(asNullableString(row.videoUrl)) ?? "";
-      return {
-        id: asString(row.id, `kling-element-${index}`),
-        frontalImageUrl,
-        referenceImageUrls,
-        videoUrl,
-      };
-    })
-    .filter(
-      (
-        item
-      ): item is {
-        id: string;
-        frontalImageUrl: string;
-        referenceImageUrls: string;
-        videoUrl: string;
-      } => Boolean(item)
-    );
+  const rows: Array<HydratedKlingElementRow | null> = value.map((item, index) => {
+    if (!item || typeof item !== "object") return null;
+    const row = item as Record<string, unknown>;
+    const frontalImageUrl = sanitizeHydratedMediaUrl(asNullableString(row.frontalImageUrl)) ?? "";
+    const referenceImageUrls = asString(row.referenceImageUrls, "")
+      .split(/[,\n]+/)
+      .map((url) => sanitizeHydratedMediaUrl(url))
+      .filter((url): url is string => Boolean(url))
+      .join(", ");
+    const videoUrl = sanitizeHydratedMediaUrl(asNullableString(row.videoUrl)) ?? "";
+    return {
+      id: asString(row.id, `kling-element-${index}`),
+      slotIndex:
+        typeof row.slotIndex === "number" && Number.isFinite(row.slotIndex)
+          ? Math.max(0, Math.trunc(row.slotIndex))
+          : undefined,
+      sourceKind:
+        row.sourceKind === "character" || row.sourceKind === "element" ? row.sourceKind : null,
+      sourceElementId: asNullableString(row.sourceElementId),
+      sourceCharacterId: asNullableString(row.sourceCharacterId),
+      name: asString(row.name, ""),
+      alias: asString(row.alias, ""),
+      description: asString(row.description, ""),
+      profileImageUrl: sanitizeHydratedMediaUrl(asNullableString(row.profileImageUrl)),
+      frontalImageUrl,
+      referenceImageUrls,
+      videoUrl,
+    };
+  });
+  return rows.filter((item): item is HydratedKlingElementRow => Boolean(item));
 };
 
 const RESTORED_QUEUE_WAITING_TIMESTAMP = "Waiting in queue...";

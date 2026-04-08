@@ -294,4 +294,27 @@ describe("PromptStep agent actions", () => {
     ).toBeNull();
     expect(screen.queryByText("Thinking…")).toBeNull();
   });
+
+  it("does not trigger hidden enhance shortcuts from Enter or Cmd+Enter", () => {
+    const onAgentEnhanceSend = vi.fn();
+    render(
+      <PromptStep
+        stepNumber={1}
+        prompt="video prompt"
+        onPromptChange={vi.fn()}
+        isCollapsed={false}
+        onToggleCollapse={vi.fn()}
+        promptOnly
+        enhanceOnly
+        hideEnhanceButton
+        onAgentEnhanceSend={onAgentEnhanceSend}
+      />
+    );
+
+    const composer = screen.getByPlaceholderText("Describe what you want, then refine it.");
+    fireEvent.keyDown(composer, { key: "Enter" });
+    fireEvent.keyDown(composer, { key: "Enter", metaKey: true });
+
+    expect(onAgentEnhanceSend).not.toHaveBeenCalled();
+  });
 });

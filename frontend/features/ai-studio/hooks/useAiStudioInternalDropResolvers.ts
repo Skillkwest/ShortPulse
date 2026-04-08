@@ -7,7 +7,11 @@ import { resolveCanvasDropImageSourceUrl } from "../components/canvas/canvasDrop
 import type { ResolveCanvasDropReference } from "../components/canvas/canvasTypes";
 import type { PersistOutputSaveResult } from "./useAiStudioPersistenceActions";
 import { resolveMediaLibraryInternalDropResolver } from "../logic/mediaLibraryInternalDropResolver";
-import { resolveInternalReferenceSource } from "../logic/referenceSource/internalReferenceSource";
+import {
+  resolveInternalReferenceSource,
+  type ResolveInternalReferenceDrop,
+  type ResolvedInternalReferenceSource,
+} from "../logic/referenceSource/internalReferenceSource";
 import type { StudioOutput } from "../types";
 import type { InternalReferenceDragPayload, ReferenceDragSourceSurface } from "../utils/dragDrop";
 import type { ResolveCharacterDropReference } from "../../character-manager/hooks/useCharacterManagerDroppedReferenceController";
@@ -48,6 +52,18 @@ const normalizeReferenceDragSourceSurface = (value: unknown): ReferenceDragSourc
   return null;
 };
 
+const loadBlobFromUrl = async (url: string): Promise<Blob> => {
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error(`Unable to download dropped image (${response.status}).`);
+  }
+  const blob = await response.blob();
+  if (!(blob instanceof Blob) || blob.size <= 0) {
+    throw new Error("Dropped image returned no data.");
+  }
+  return blob;
+};
+
 /**
  * Builds internal-reference drop resolvers used by the AI Studio page shell.
  */
@@ -65,6 +81,7 @@ export const useAiStudioInternalDropResolvers = ({
   resolveStyleLibraryInternalDrop: (
     payload: InternalReferenceDragPayload
   ) => ReturnType<typeof resolveInternalReferenceSource>;
+  resolveElementProfileImageDropSource: ResolveInternalReferenceDrop;
 } => {
   const resolveCharacterDropReference = useCallback<ResolveCharacterDropReference>(
     async (payload: InternalReferenceDragPayload) => {
@@ -166,10 +183,76 @@ export const useAiStudioInternalDropResolvers = ({
     [ensureOutputPersisted, getOutputById, getOutputSnapshot]
   );
 
+  const resolveElementProfileImageDropSource = useCallback(
+    async (payload: InternalReferenceDragPayload) => {
+      const resolvedSource = await resolveInternalReferenceSource({
+        payload,
+        getOutputById,
+        getOutputSnapshot,
+        ensureOutputPersisted,
+        resolveSavedMediaIdFromOutput,
+      });
+      if (resolvedSource) return resolvedSource;
+
+      const outputId = (payload.outputId ?? payload.referenceId ?? "").trim();
+      const imageIndex = Math.max(0, Math.floor(payload.imageIndex ?? 0));
+      const output = outputId ? getOutputById(outputId) : null;
+      if (output?.mode !== "image") return null;
+
+      const previewUrl =
+        output.localObjectUrl?.replace(/#video=1$/i, "").trim() ||
+        output.resultUrls?.[imageIndex]?.trim() ||
+        output.previewUrl?.trim() ||
+        payload.referenceRenderUrl?.trim() ||
+        payload.referenceUrl?.trim() ||
+        null;
+      if (!previewUrl) return null;
+
+      const mediaId =
+        payload.mediaId?.trim() || resolveSavedMediaIdFromOutput(output, imageIndex) || null;
+
+      const fallbackResolvedSource: ResolvedInternalReferenceSource = {
+        kind: "internal",
+        sourceKind: output.localObjectUrl?.trim()
+          ? "local_file"
+          : output.mediaSource === "library"
+            ? "media_library"
+            : output.mediaSource === "generated"
+              ? "generated_output"
+              : "external_url",
+        sourceId: mediaId ?? outputId ?? `element-profile:${imageIndex}`,
+        provenance: {
+          origin: payload.origin ?? null,
+          outputId: outputId || null,
+          mediaId,
+          imageIndex,
+          sourceSurface: normalizeReferenceDragSourceSurface(payload.sourceSurface ?? null),
+          resolutionReason: output.localObjectUrl?.trim()
+            ? "local_object_url"
+            : "payload_reference_url",
+        },
+        outputId: outputId || null,
+        mediaId,
+        mediaSource: output.mediaSource ?? null,
+        preview: {
+          url: previewUrl,
+        },
+        previewStoragePath: null,
+        fullStoragePath: null,
+        promptText: (output.prompt || output.previewText || "").trim() || null,
+        preparedImageUrl: null,
+        loadBlob: async () => await loadBlobFromUrl(previewUrl),
+      };
+      return fallbackResolvedSource;
+    },
+    [ensureOutputPersisted, getOutputById, getOutputSnapshot]
+  );
+
   return {
     resolveCharacterDropReference,
     resolveCanvasDropReference,
     resolveMediaLibraryInternalDropItem,
     resolveStyleLibraryInternalDrop,
+    resolveElementProfileImageDropSource,
   };
 };

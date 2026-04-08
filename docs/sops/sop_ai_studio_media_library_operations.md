@@ -73,13 +73,16 @@ Define the authoritative AI Studio Media Library panel UX contract (`toolId: med
 4. Folder moves/assignments must not create duplicate underlying media/prompt rows.
 
 ### 4) `all_media` display contract
-1. `All Media` renders one root-level tab strip with three tabs:
+1. `All Media` renders one root-level tab strip with five tabs:
+   - `All Media` tab: aggregate root view showing saved media cards plus saved prompt cards in the same folder surface.
    - `Images` tab: masonry grid preserving each image’s true aspect ratio.
    - `Videos` tab: masonry grid preserving each video’s true aspect ratio.
    - `Prompts` tab: prompt cards use text reference-card presentation.
+   - `Audio` may remain visible as a reserved tab before saved-audio browsing is implemented.
 2. Search and pagination apply consistently to the active tab through shared list APIs.
 3. `All Media` media tabs auto-load the next page when scrolling near the bottom, with one global footer control retained as manual fallback.
 4. Panel card previews may use balanced-fast image compaction for browse speed when adaptive media + panel compression flags are enabled; detail modal stays full-quality.
+5. In the aggregate `All Media` tab, video cards should remain poster-first and only attach/play hover previews on pointer hover; they should not begin live autoplay just from entering the mixed masonry viewport.
 
 ### 5) Drag/drop and ingest contract
 1. Users can drag images, videos, and prompts from any folder into any folder (subject to membership semantics above).
@@ -138,7 +141,7 @@ Define the authoritative AI Studio Media Library panel UX contract (`toolId: med
 ## Current Runtime Delta (as of 2026-03-24)
 1. `All Media` inline-tab layout:
    - Status: Aligned.
-   - Current: `Images`, `Videos`, and `Prompts` render as root-level tabs in the same `All Media` folder, with prompt text cards and masonry media cards at true aspect ratio.
+   - Current: `All Media`, `Images`, `Videos`, `Audio` (reserved), and `Prompts` render as root-level tabs in the same `All Media` folder. The aggregate `All Media` view shows saved media cards plus saved prompt cards, while `Prompts` remains the prompt-only view.
 2. `All Media` media pagination behavior:
    - Status: Aligned.
    - Current: Root media tabs auto-load additional pages near the bottom, and one global footer control remains visible as a manual fallback.
@@ -192,6 +195,12 @@ Define the authoritative AI Studio Media Library panel UX contract (`toolId: med
 18. Media Library panel expand affordance:
    - Status: Aligned.
    - Current: The root saved-media count row includes a small expand control that expands the left panel to its maximum practical shell width and snaps the folder/reference split to its maximum top height for a larger media browsing viewport.
+19. Mixed-feed video preview behavior:
+   - Status: Aligned.
+   - Current: `All Media` renders video cards as poster-backed mixed-feed items and only mounts hover video playback on pointer hover, while the mixed masonry feed reuses the shared virtualization path to keep browse performance bounded.
+20. Legacy saved-video poster backfill:
+   - Status: Operator-supported.
+   - Current: forward saves persist durable `poster_720` variants when a poster hint exists, and legacy video rows missing `poster_variant_path` can be backfilled in controlled batches with `cd frontend && npm run media:backfill-video-posters -- --dry-run|--apply`.
 
 ## Error and feedback behavior
 - Unresolved drop item: `Unable to resolve dropped reference.`
@@ -207,7 +216,8 @@ Define the authoritative AI Studio Media Library panel UX contract (`toolId: med
    - Create, rename, delete custom folders.
    - Reparent a folder via `Move to...` and confirm invalid destinations are absent.
 2. `All Media` display:
-   - `All Media` root tabs render as `Images`, `Videos`, and `Prompts`.
+   - `All Media` root tabs render as `All Media`, `Images`, `Videos`, `Audio`, and `Prompts`.
+   - The aggregate `All Media` tab renders saved media plus saved prompts in one mixed masonry feed.
    - `Prompts` tab renders text reference cards.
    - `Images` and `Videos` tabs render masonry with true aspect ratio.
 3. Membership semantics:

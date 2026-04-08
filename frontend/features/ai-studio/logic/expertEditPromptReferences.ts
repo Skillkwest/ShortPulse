@@ -1,22 +1,26 @@
 /**
  * Expert Edit prompt-reference token helpers.
- * Owns `@imgN` parsing, validation, highlight segmentation, drag-drop token utilities,
+ * Owns `@main` and `@imgN` parsing, validation, highlight segmentation, drag-drop token utilities,
  * and provider-facing prompt compilation.
  */
+import { insertPromptTokenAtSelection } from "./promptTokenInsertion";
 
 export const EXPERT_EDIT_PROMPT_TOKEN_TRANSFER_MIME = "text/ai-studio-expert-edit-img-token";
-const EXPERT_EDIT_PROMPT_TOKEN_REGEX = /@img\d*/gi;
+export const EXPERT_EDIT_PRIMARY_SLOT_TOKEN = "@main";
+const EXPERT_EDIT_PROMPT_TOKEN_REGEX = /@(?:img\d*|main)/gi;
 const VALID_IMG_TOKEN_REGEX = /^@img([1-3])$/i;
 const MAX_SECONDARY_REFERENCES = 3;
 const MAX_EXPERT_EDIT_REFERENCE_INPUTS = 8;
 
 export type ExpertEditPromptTokenInvalidReason = "missing_index" | "out_of_range" | "empty_slot";
+export type ExpertEditPromptTokenKind = "primary" | "secondary";
 
 export type ExpertEditPromptTokenDiagnostic = {
   token: string;
   normalizedToken: string;
   start: number;
   end: number;
+  kind: ExpertEditPromptTokenKind;
   slotIndex: number | null;
   isValid: boolean;
   invalidReason: ExpertEditPromptTokenInvalidReason | null;
@@ -54,10 +58,10 @@ const normalizeSlotUrl = (value: string | null | undefined): string => {
 const buildInlineError = (diagnostic: ExpertEditPromptTokenDiagnostic): string | null => {
   if (diagnostic.isValid) return null;
   if (diagnostic.invalidReason === "missing_index") {
-    return "Use @img1, @img2, or @img3 to reference a secondary image.";
+    return "Use @main, @img1, @img2, or @img3 to reference an image.";
   }
   if (diagnostic.invalidReason === "out_of_range") {
-    return `${diagnostic.token} is out of range. Use @img1, @img2, or @img3.`;
+    return `${diagnostic.token} is out of range. Use @main, @img1, @img2, or @img3.`;
   }
   if (diagnostic.invalidReason === "empty_slot" && diagnostic.slotIndex != null) {
     return `@img${diagnostic.slotIndex + 1} has no image in secondary slot ${diagnostic.slotIndex + 1}.`;
@@ -88,6 +92,21 @@ export const analyzeExpertEditPromptTokens = (
     const start = match.index ?? 0;
     const end = start + token.length;
     const normalizedToken = token.toLowerCase();
+
+    if (normalizedToken === EXPERT_EDIT_PRIMARY_SLOT_TOKEN) {
+      diagnostics.push({
+        token,
+        normalizedToken,
+        start,
+        end,
+        kind: "primary",
+        slotIndex: null,
+        isValid: true,
+        invalidReason: null,
+      });
+      continue;
+    }
+
     const slotIndex = resolveSlotIndexFromToken(token);
 
     if (token.toLowerCase() === "@img") {
@@ -96,6 +115,7 @@ export const analyzeExpertEditPromptTokens = (
         normalizedToken,
         start,
         end,
+        kind: "secondary",
         slotIndex: null,
         isValid: false,
         invalidReason: "missing_index",
@@ -109,6 +129,7 @@ export const analyzeExpertEditPromptTokens = (
         normalizedToken,
         start,
         end,
+        kind: "secondary",
         slotIndex: null,
         isValid: false,
         invalidReason: "out_of_range",
@@ -122,6 +143,7 @@ export const analyzeExpertEditPromptTokens = (
         normalizedToken,
         start,
         end,
+        kind: "secondary",
         slotIndex,
         isValid: false,
         invalidReason: "empty_slot",
@@ -134,6 +156,7 @@ export const analyzeExpertEditPromptTokens = (
       normalizedToken,
       start,
       end,
+      kind: "secondary",
       slotIndex,
       isValid: true,
       invalidReason: null,
@@ -238,6 +261,18 @@ const resolveFigureNumberBySlotIndex = (
   return inputIndex + 1;
 };
 
+const resolveFigureNumberByTokenKind = (
+  diagnostic: ExpertEditPromptTokenDiagnostic,
+  secondarySlots: [string | null, string | null, string | null],
+  referenceInputs: string[]
+): number | null => {
+  if (diagnostic.kind === "primary") {
+    return 1;
+  }
+  if (diagnostic.slotIndex == null) return null;
+  return resolveFigureNumberBySlotIndex(diagnostic.slotIndex, secondarySlots, referenceInputs);
+};
+
 const appendFigureMap = ({
   prompt,
   diagnostics,
@@ -299,9 +334,9 @@ export const compileExpertEditSubmissionPrompt = ({
   let cursor = 0;
   analysis.diagnostics.forEach((diagnostic) => {
     compiledPromptParts.push(prompt.slice(cursor, diagnostic.start));
-    if (diagnostic.isValid && diagnostic.slotIndex != null) {
-      const figureNumber = resolveFigureNumberBySlotIndex(
-        diagnostic.slotIndex,
+    if (diagnostic.isValid) {
+      const figureNumber = resolveFigureNumberByTokenKind(
+        diagnostic,
         secondarySlots,
         referenceInputs
       );
@@ -334,6 +369,11 @@ export const buildExpertEditSecondarySlotToken = (slotIndex: number): string | n
   return `@img${slotIndex + 1}`;
 };
 
+/**
+ * Returns the canonical token for the primary image reference.
+ */
+export const buildExpertEditPrimarySlotToken = (): string => EXPERT_EDIT_PRIMARY_SLOT_TOKEN;
+
 export const setExpertEditPromptTokenDragData = (
   transfer: DataTransfer,
   slotIndex: number
@@ -347,11 +387,11 @@ export const setExpertEditPromptTokenDragData = (
 
 export const extractExpertEditPromptTokenFromTransfer = (transfer: DataTransfer): string | null => {
   const customToken = transfer.getData(EXPERT_EDIT_PROMPT_TOKEN_TRANSFER_MIME).trim();
-  if (VALID_IMG_TOKEN_REGEX.test(customToken)) {
+  if (VALID_IMG_TOKEN_REGEX.test(customToken) || customToken.toLowerCase() === "@main") {
     return customToken.toLowerCase();
   }
   const plainTextToken = transfer.getData("text/plain").trim();
-  if (VALID_IMG_TOKEN_REGEX.test(plainTextToken)) {
+  if (VALID_IMG_TOKEN_REGEX.test(plainTextToken) || plainTextToken.toLowerCase() === "@main") {
     return plainTextToken.toLowerCase();
   }
   return null;
@@ -361,28 +401,4 @@ export const resolveExpertEditPromptTokenSlotIndex = (token: string): number | n
   return resolveSlotIndexFromToken(token);
 };
 
-export const insertExpertEditPromptTokenAtSelection = ({
-  prompt,
-  token,
-  selectionStart,
-  selectionEnd,
-}: {
-  prompt: string;
-  token: string;
-  selectionStart: number;
-  selectionEnd: number;
-}): { prompt: string; caret: number } => {
-  const sourcePrompt = typeof prompt === "string" ? prompt : "";
-  const start = Math.max(0, Math.min(sourcePrompt.length, selectionStart));
-  const end = Math.max(start, Math.min(sourcePrompt.length, selectionEnd));
-  const before = sourcePrompt.slice(0, start);
-  const after = sourcePrompt.slice(end);
-  const needsLeadingSpace = Boolean(before.length && !/\s$/.test(before));
-  const needsTrailingSpace = Boolean(after.length && !/^\s/.test(after));
-  const inserted = `${needsLeadingSpace ? " " : ""}${token}${needsTrailingSpace ? " " : ""}`;
-  const nextPrompt = `${before}${inserted}${after}`;
-  return {
-    prompt: nextPrompt,
-    caret: before.length + inserted.length,
-  };
-};
+export const insertExpertEditPromptTokenAtSelection = insertPromptTokenAtSelection;

@@ -10,21 +10,21 @@ import type { MediaLibrarySurfaceConfig, MediaLibrarySurfaceKind } from "./types
 const PANEL_SIGN_SMALL_SCREEN_QUERY = "(max-width: 900px)";
 
 const PANEL_SIGN_BUDGET_DESKTOP = {
-  initialSignLimit: 4,
-  prefetchWindow: 4,
-  signBatchSize: 4,
+  initialSignLimit: 8,
+  prefetchWindow: 12,
+  signBatchSize: 6,
 };
 
 const PANEL_SIGN_BUDGET_SMALL_SCREEN = {
-  initialSignLimit: 3,
-  prefetchWindow: 3,
-  signBatchSize: 3,
+  initialSignLimit: 6,
+  prefetchWindow: 9,
+  signBatchSize: 4,
 };
 
 const PANEL_SIGN_BUDGET_CONSTRAINED = {
-  initialSignLimit: 2,
-  prefetchWindow: 2,
-  signBatchSize: 2,
+  initialSignLimit: 4,
+  prefetchWindow: 6,
+  signBatchSize: 3,
 };
 
 /**

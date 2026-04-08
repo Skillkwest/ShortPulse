@@ -6,8 +6,17 @@ import React from "react";
 import { ElementsManagerShell } from "../../elements-manager/components/ElementsManagerShell";
 import type { ElementsWorkflowTab } from "../../elements-manager/types";
 import { useElementsPanelPropertiesScrollLock } from "../hooks/useElementsPanelPropertiesScrollLock";
+import type { ResolveInternalReferenceDrop } from "../logic/referenceSource/internalReferenceSource";
 
-export function ElementsPanel() {
+type ElementsPanelProps = {
+  resolveProfileImageDropSource?: ResolveInternalReferenceDrop;
+  createRequestKey?: number;
+};
+
+export function ElementsPanel({
+  resolveProfileImageDropSource,
+  createRequestKey = 0,
+}: ElementsPanelProps) {
   const panelRootRef = React.useRef<HTMLDivElement | null>(null);
   const [activeTab, setActiveTab] = React.useState<ElementsWorkflowTab>("manage");
 
@@ -18,7 +27,11 @@ export function ElementsPanel() {
 
   return (
     <div ref={panelRootRef} className="elements-panel-root">
-      <ElementsManagerShell onActiveTabChange={setActiveTab} />
+      <ElementsManagerShell
+        externalCreateRequestKey={createRequestKey}
+        onActiveTabChange={setActiveTab}
+        resolveProfileImageDropSource={resolveProfileImageDropSource}
+      />
     </div>
   );
 }

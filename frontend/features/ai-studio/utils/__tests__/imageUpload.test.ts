@@ -6,12 +6,17 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const fetchWithAuthMock = vi.fn();
 const getSignedMediaUrlMock = vi.fn();
+const maybeTranscodeLocalImageBlobForUploadMock = vi.fn();
 
 vi.mock("../../../../lib/authenticatedFetch", () => ({
   fetchWithAuth: (...args: unknown[]) => fetchWithAuthMock(...args),
 }));
 vi.mock("../../../../lib/mediaSignedUrlCache", () => ({
   getSignedMediaUrl: (...args: unknown[]) => getSignedMediaUrlMock(...args),
+}));
+vi.mock("../../../../lib/adaptive-media", () => ({
+  maybeTranscodeLocalImageBlobForUpload: (...args: unknown[]) =>
+    maybeTranscodeLocalImageBlobForUploadMock(...args),
 }));
 
 import {
@@ -30,8 +35,9 @@ const jsonResponse = (payload: unknown, status = 200): Response =>
 
 describe("imageUpload", () => {
   beforeEach(() => {
-    vi.clearAllMocks();
+    vi.resetAllMocks();
     getSignedMediaUrlMock.mockResolvedValue("https://example.com/signed/refreshed.png");
+    maybeTranscodeLocalImageBlobForUploadMock.mockImplementation(async (blob: Blob) => blob);
   });
 
   afterEach(() => {
@@ -73,6 +79,35 @@ describe("imageUpload", () => {
     expect(options.body).toBeTruthy();
     expect((options.body as Blob).constructor?.name).toBe("Blob");
     expect((options.body as Blob).type).toBe("image/png");
+  });
+
+  it("uploads the transcode result when local preprocessing returns a resized blob", async () => {
+    const localUrl = "blob:reference-1-transcoded";
+    const imageBlob = new Blob(["image-data"], { type: "image/png" });
+    const transcodedBlob = new Blob(["encoded-image"], { type: "image/webp" });
+    global.fetch = vi
+      .fn()
+      .mockResolvedValue(
+        new Response(imageBlob, { headers: { "Content-Type": "image/png" } })
+      ) as typeof fetch;
+    maybeTranscodeLocalImageBlobForUploadMock.mockResolvedValueOnce(transcodedBlob);
+    fetchWithAuthMock.mockResolvedValue(
+      jsonResponse({
+        url: "https://example.com/signed/reference-1.webp",
+        path: "user/images/reference-1.webp",
+        size: transcodedBlob.size,
+      })
+    );
+
+    const signedUrl = await uploadImageToStorage(localUrl);
+
+    expect(signedUrl).toBe("https://example.com/signed/reference-1.webp");
+    expect(maybeTranscodeLocalImageBlobForUploadMock).toHaveBeenCalledTimes(1);
+    const [, options] = fetchWithAuthMock.mock.calls[0] as [string, RequestInit];
+    expect(options.headers).toMatchObject({
+      "Content-Type": "image/webp",
+    });
+    expect((options.body as Blob).type).toBe("image/webp");
   });
 
   it("falls back to image/jpeg when source blob has no image mime type", async () => {
@@ -235,5 +270,27 @@ describe("imageUpload", () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  it("surfaces a direct size-limit message for 413 upload failures", async () => {
+    const localUrl = "blob:oversized-reference";
+    const imageBlob = new Blob(["image-data"], { type: "image/png" });
+    global.fetch = vi
+      .fn()
+      .mockResolvedValue(
+        new Response(imageBlob, { headers: { "Content-Type": "image/png" } })
+      ) as typeof fetch;
+    fetchWithAuthMock.mockResolvedValue(
+      jsonResponse(
+        {
+          error: "Upload failed: file too large",
+        },
+        413
+      )
+    );
+
+    await expect(uploadImageToStorage(localUrl)).rejects.toThrow(
+      "Reference image is too large. ShortPulse accepts reference images up to 25 MB."
+    );
   });
 });

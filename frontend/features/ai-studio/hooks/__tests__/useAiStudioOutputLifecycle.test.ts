@@ -31,7 +31,6 @@ const useHarness = (
 ) => {
   const [outputs, setOutputs] = useState<StudioOutput[]>(initialOutputs);
   const [activeOutputId, setActiveOutputId] = useState<string | null>(initialActiveOutputId);
-  const [uiError, setUiError] = useState<string | null>(null);
   const pendingAutoSavesRef = useRef<Record<string, { taskId: string }>>({
     "out-1": { taskId: "task-1" },
   });
@@ -77,13 +76,11 @@ const useHarness = (
     activeOutputId,
     setActiveOutputId,
     pendingAutoSavesRef,
-    setUiError,
   });
 
   return {
     outputs,
     activeOutputId,
-    uiError,
     pendingAutoSavesRef,
     ...lifecycle,
   };
@@ -94,7 +91,7 @@ describe("useAiStudioOutputLifecycle", () => {
     vi.clearAllMocks();
   });
 
-  it("normalizes failure output state and emits a UI error", () => {
+  it("normalizes failure output state without raising a duplicate UI error", () => {
     const { result } = renderHook(() =>
       useHarness([makeOutput("out-1", { taskState: "running" })], "out-1")
     );
@@ -112,7 +109,6 @@ describe("useAiStudioOutputLifecycle", () => {
     expect(result.current.outputs[0]?.timestamp).toBe("Failed");
     expect(result.current.outputs[0]?.errorMessage).toBe("Provider failure");
     expect(result.current.outputs[0]?.errorDetail).toBe("Detailed reason");
-    expect(result.current.uiError).toContain("failed");
     expect(result.current.pendingAutoSavesRef.current["out-1"]).toBeUndefined();
     expect(reportAppErrorMock).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -170,7 +166,6 @@ describe("useAiStudioOutputLifecycle", () => {
 
     expect(result.current.outputs[0]?.taskState).toBe("fail");
     expect(result.current.outputs[0]?.errorDetail).toBe("Detailed reason");
-    expect(result.current.uiError).toContain("failed");
   });
 
   it("fails fast when a generated placeholder never receives a task id", async () => {

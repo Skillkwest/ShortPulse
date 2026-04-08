@@ -30,6 +30,7 @@ import { useAiStudioShellDndController } from "../hooks/useAiStudioShellDndContr
 import { useStylesLibraryDeletedStyleIdsPreference } from "../hooks/useStylesLibraryDeletedStyleIdsPreference";
 import { useStylesLibraryStyleDetailsPreference } from "../hooks/useStylesLibraryStyleDetailsPreference";
 import type { ResolveCharacterDropReference } from "../../character-manager/hooks/useCharacterManagerDroppedReferenceController";
+import type { ResolveInternalReferenceDrop } from "../logic/referenceSource/internalReferenceSource";
 import type { CanvasPropertiesPanelProps } from "./canvas/useAiStudioCanvasWorkspaceState";
 import type { ResolveCanvasDropReference } from "./canvas/canvasTypes";
 import type { AiStudioReferenceGridContract } from "../hooks/contracts/pageContentContracts";
@@ -493,6 +494,8 @@ export type AiStudioPageContentProps = {
   onDismissFailure: (id: string) => void;
   onInspectFailure: (id: string) => void;
   selectedTool: ToolId | null;
+  characterCreateRequestKey?: number;
+  elementCreateRequestKey?: number;
   showCreateTools: boolean;
   onSelectTool: (tool: ToolId | null) => void;
   onToggleCreateTools: (value: boolean) => void;
@@ -551,6 +554,7 @@ export type AiStudioPageContentProps = {
   handleReferenceCanvasFiles?: (files: FileList) => void;
   triggerFilePicker: () => void;
   resolveCharacterDropReference?: ResolveCharacterDropReference;
+  resolveElementProfileImageDropSource?: ResolveInternalReferenceDrop;
   onSelectedStylePromptChange?: (stylePrompt: string | null) => void;
   onSelectedStyleContextChange?: (styleContext: StudioOutput["styleContext"] | null) => void;
 };
@@ -573,6 +577,8 @@ export function AiStudioPageContent({
   visibleFailures,
   onDismissFailure,
   selectedTool,
+  characterCreateRequestKey = 0,
+  elementCreateRequestKey = 0,
   showCreateTools,
   onSelectTool,
   onToggleCreateTools,
@@ -609,6 +615,7 @@ export function AiStudioPageContent({
   handleReferenceCanvasFiles,
   triggerFilePicker,
   resolveCharacterDropReference,
+  resolveElementProfileImageDropSource,
   onSelectedStylePromptChange,
   onSelectedStyleContextChange,
 }: AiStudioPageContentProps) {
@@ -1106,10 +1113,11 @@ export function AiStudioPageContent({
     () => (
       <CharacterPanel
         beginnerMode={beginnerMode}
+        createRequestKey={characterCreateRequestKey}
         resolveCharacterDropReference={resolveCharacterDropReference}
       />
     ),
-    [beginnerMode, resolveCharacterDropReference]
+    [beginnerMode, characterCreateRequestKey, resolveCharacterDropReference]
   );
   const presetsPropertiesPanelContent = React.useMemo(
     () => (
@@ -1127,7 +1135,15 @@ export function AiStudioPageContent({
       selectedPresetId,
     ]
   );
-  const elementsPropertiesPanelContent = React.useMemo(() => <ElementsPanel />, []);
+  const elementsPropertiesPanelContent = React.useMemo(
+    () => (
+      <ElementsPanel
+        createRequestKey={elementCreateRequestKey}
+        resolveProfileImageDropSource={resolveElementProfileImageDropSource}
+      />
+    ),
+    [elementCreateRequestKey, resolveElementProfileImageDropSource]
+  );
   const stylesPropertiesPanelContent = React.useMemo(
     () => (
       <StylesLibraryPanel

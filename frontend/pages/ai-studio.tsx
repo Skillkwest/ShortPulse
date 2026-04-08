@@ -100,6 +100,8 @@ export default function AiStudioPage() {
   const [isEditCharacterBundleLoading, setIsEditCharacterBundleLoading] = useState(false);
   const [isCreateCharacterModeEnabled, setIsCreateCharacterModeEnabled] = useState(false);
   const [isEditCharacterModeEnabled, setIsEditCharacterModeEnabled] = useState(false);
+  const [characterCreateRequestKey, setCharacterCreateRequestKey] = useState(0);
+  const [elementCreateRequestKey, setElementCreateRequestKey] = useState(0);
   const [editSelectedCharacterId, setEditSelectedCharacterId] = useState("");
   const [selectedStylePrompt, setSelectedStylePrompt] = useState<string | null>(null);
   const [selectedStyleContext, setSelectedStyleContext] = useState<
@@ -257,6 +259,7 @@ export default function AiStudioPage() {
     getOutputById,
     getOutputSnapshot,
   } = useAiStudioState({
+    sessionId,
     isCharacterModeEnabled: isCreateCharacterModeEnabled,
     selectedStylePrompt,
     selectedStyleContext,
@@ -328,11 +331,20 @@ export default function AiStudioPage() {
     },
     [resetEditSubmitIntent, selectedTool, setSelectedTool]
   );
+  const handleOpenCharacterCreate = useCallback(() => {
+    setSelectedToolWithEditIntentReset("character");
+    setCharacterCreateRequestKey((current) => current + 1);
+  }, [setSelectedToolWithEditIntentReset]);
+  const handleOpenElementCreate = useCallback(() => {
+    setSelectedToolWithEditIntentReset("elements");
+    setElementCreateRequestKey((current) => current + 1);
+  }, [setSelectedToolWithEditIntentReset]);
   const {
     resolveCharacterDropReference,
     resolveCanvasDropReference,
     resolveMediaLibraryInternalDropItem,
     resolveStyleLibraryInternalDrop,
+    resolveElementProfileImageDropSource,
   } = useAiStudioInternalDropResolvers({
     getOutputById,
     getOutputSnapshot,
@@ -945,6 +957,8 @@ export default function AiStudioPage() {
     setMotionReferenceVideoUrl,
     handleVideoPromptTextChange,
     handleRegenerateWithDebit,
+    onCreateCharacter: handleOpenCharacterCreate,
+    onCreateElement: handleOpenElementCreate,
   });
   const referenceGridHookProps = useAiStudioReferenceGridProps({
     outputs: FLAG_PAGE_OUTPUT_DECOUPLE ? undefined : outputs,
@@ -1057,6 +1071,8 @@ export default function AiStudioPage() {
         onDismissFailure={dismissFailure}
         onInspectFailure={focusFailure}
         selectedTool={selectedTool}
+        characterCreateRequestKey={characterCreateRequestKey}
+        elementCreateRequestKey={elementCreateRequestKey}
         showCreateTools={showCreateTools}
         onSelectTool={handleToolSelect}
         onToggleCreateTools={setShowCreateTools}
@@ -1127,6 +1143,7 @@ export default function AiStudioPage() {
         handleReferenceGridFiles={handleReferenceGridFiles}
         triggerFilePicker={triggerFilePicker}
         resolveCharacterDropReference={resolveCharacterDropReference}
+        resolveElementProfileImageDropSource={resolveElementProfileImageDropSource}
         onSelectedStylePromptChange={setSelectedStylePrompt}
         onSelectedStyleContextChange={setSelectedStyleContext}
       />

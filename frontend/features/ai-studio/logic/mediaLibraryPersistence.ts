@@ -33,6 +33,7 @@ const CONTENT_TYPE_EXTENSION: Record<string, string> = {
   "image/gif": "gif",
   "image/heic": "heic",
   "image/heif": "heif",
+  "image/avif": "avif",
   "video/mp4": "mp4",
   "video/webm": "webm",
   "video/quicktime": "mov",
@@ -226,6 +227,7 @@ export type SaveMediaUrlInput = {
   fullStoragePathHint?: string | null;
   previewUrlHint?: string | null;
   fullUrlHint?: string | null;
+  posterUrlHint?: string | null;
   metadata?: Record<string, unknown>;
 };
 
@@ -321,7 +323,12 @@ const readExistingAiStudioMediaRowByOutputIndex = async ({
   userId: string;
   generationId: string;
   index: number;
-}): Promise<{ id: string; storagePath: string | null; fileType: "image" | "video" } | null> => {
+}): Promise<{
+  id: string;
+  storagePath: string | null;
+  fileType: "image" | "video";
+  posterVariantPath: string | null;
+} | null> => {
   const publicationMediaRow = await resolvePublishedGenerationMediaByIndex({
     supabase,
     generationId,
@@ -332,6 +339,7 @@ const readExistingAiStudioMediaRowByOutputIndex = async ({
       id: publicationMediaRow.mediaFileId,
       storagePath: publicationMediaRow.storagePath,
       fileType: publicationMediaRow.fileType,
+      posterVariantPath: publicationMediaRow.posterVariantPath,
     };
   }
 
@@ -348,7 +356,7 @@ const readExistingAiStudioMediaRowByOutputIndex = async ({
     if (mediaFileId) {
       const { data: canonicalMediaRow, error: canonicalMediaError } = await supabase
         .from("media_files")
-        .select("id, storage_path, file_type")
+        .select("id, storage_path, file_type, poster_variant_path")
         .eq("user_id", userId)
         .eq("id", mediaFileId)
         .limit(1)
@@ -361,7 +369,12 @@ const readExistingAiStudioMediaRowByOutputIndex = async ({
             String(canonicalMediaRow.file_type ?? "").toLowerCase() === "video"
               ? ("video" as const)
               : ("image" as const);
-          return { id, storagePath, fileType };
+          return {
+            id,
+            storagePath,
+            fileType,
+            posterVariantPath: asOptionalString(canonicalMediaRow.poster_variant_path),
+          };
         }
       }
     }
@@ -369,7 +382,7 @@ const readExistingAiStudioMediaRowByOutputIndex = async ({
 
   const { data, error } = await supabase
     .from("media_files")
-    .select("id, storage_path, file_type")
+    .select("id, storage_path, file_type, poster_variant_path")
     .eq("user_id", userId)
     .eq("source", "ai_studio")
     .eq("source_ref", generationId)
@@ -384,7 +397,104 @@ const readExistingAiStudioMediaRowByOutputIndex = async ({
     String(data.file_type ?? "").toLowerCase() === "video"
       ? ("video" as const)
       : ("image" as const);
-  return { id, storagePath, fileType };
+  return {
+    id,
+    storagePath,
+    fileType,
+    posterVariantPath: asOptionalString(data.poster_variant_path),
+  };
+};
+
+const normalizePosterSourceUrl = (
+  fileType: "image" | "video",
+  value: string | null | undefined
+): string | null => {
+  if (fileType !== "video" || typeof value !== "string") return null;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  if (/^(?:blob:|data:image\/|https?:\/\/)/i.test(trimmed)) {
+    return trimmed;
+  }
+  return null;
+};
+
+const upsertVideoPosterVariant = async ({
+  supabase,
+  userId,
+  mediaFileId,
+  posterSourceUrl,
+}: {
+  supabase: ReturnType<typeof ensureSupabaseQueryClient>;
+  userId: string;
+  mediaFileId: string;
+  posterSourceUrl: string;
+}): Promise<string | null> => {
+  const fetched = await fetchBlobWithTimeout(posterSourceUrl);
+  const contentType = fetched.contentType ?? fetched.blob.type ?? null;
+  if (!contentType?.startsWith("image/")) {
+    throw new Error("Video poster source did not resolve to an image.");
+  }
+
+  const extension = resolveExtension(contentType, posterSourceUrl);
+  const storagePath = assertUserScopedMediaStoragePath({
+    path: `${userId}/variants/videos/${mediaFileId}/poster_720.${extension}`,
+    userId,
+    label: "AI Studio video poster storage path",
+  });
+
+  const { error: uploadError } = await supabase.storage
+    .from(BUCKET)
+    .upload(storagePath, fetched.blob, {
+      upsert: true,
+      contentType,
+    });
+  if (uploadError) {
+    throw uploadError;
+  }
+
+  const dimensions = await readImageDimensionsFromBlob(fetched.blob);
+  const byteSize = Number.isFinite(fetched.blob.size) ? fetched.blob.size : null;
+
+  const { error: variantError } = await supabase.from("media_asset_variants").upsert(
+    {
+      media_file_id: mediaFileId,
+      user_id: userId,
+      variant_kind: "poster_720",
+      storage_path: storagePath,
+      mime_type: contentType,
+      width: dimensions?.width ?? null,
+      height: dimensions?.height ?? null,
+      byte_size: byteSize,
+      status: "ready",
+      metadata: {
+        generated_by: "ai_studio_media_persistence",
+        poster_source: posterSourceUrl.startsWith("data:image/")
+          ? "inline_data_url"
+          : posterSourceUrl.startsWith("blob:")
+            ? "blob_url"
+            : "remote_url",
+      },
+    },
+    {
+      onConflict: "media_file_id,variant_kind",
+    }
+  );
+  if (variantError) {
+    throw variantError;
+  }
+
+  const { error: updateError } = await supabase
+    .from("media_files")
+    .update({
+      poster_variant_path: storagePath,
+    })
+    .eq("id", mediaFileId)
+    .eq("user_id", userId);
+  if (updateError) {
+    throw updateError;
+  }
+
+  return storagePath;
 };
 
 // Generated media rows can land a moment after the task reports success, so
@@ -562,6 +672,19 @@ export const saveMediaUrlToLibrary = async (input: SaveMediaUrlInput) => {
       } catch {
         // best-effort canonical output linkage only
       }
+      const posterSourceUrl = normalizePosterSourceUrl(existingRow.fileType, input.posterUrlHint);
+      if (existingRow.id && posterSourceUrl && !existingRow.posterVariantPath) {
+        try {
+          await upsertVideoPosterVariant({
+            supabase,
+            userId,
+            mediaFileId: existingRow.id,
+            posterSourceUrl,
+          });
+        } catch {
+          // best-effort durable poster hydration only
+        }
+      }
       const delivery = {
         previewStoragePath: input.previewStoragePathHint ?? existingRow.storagePath,
         fullStoragePath: input.fullStoragePathHint ?? existingRow.storagePath,
@@ -691,14 +814,29 @@ export const saveMediaUrlToLibrary = async (input: SaveMediaUrlInput) => {
     fullUrl: input.fullUrlHint ?? input.previewUrlHint ?? null,
   };
 
-  if (input.source === "ai_studio" && input.generationId && data?.id) {
+  const mediaFileId = data?.id ?? null;
+  const posterSourceUrl = normalizePosterSourceUrl(fileType, input.posterUrlHint);
+  if (mediaFileId && posterSourceUrl) {
+    try {
+      await upsertVideoPosterVariant({
+        supabase,
+        userId,
+        mediaFileId,
+        posterSourceUrl,
+      });
+    } catch {
+      // best-effort durable poster hydration only
+    }
+  }
+
+  if (input.source === "ai_studio" && input.generationId && mediaFileId) {
     try {
       await attachMediaFileToAiStudioGenerationOutput({
         supabase,
         userId,
         generationId: input.generationId,
         index: input.index,
-        mediaFileId: data.id,
+        mediaFileId,
         resultUrl: input.url,
       });
     } catch {
@@ -707,7 +845,7 @@ export const saveMediaUrlToLibrary = async (input: SaveMediaUrlInput) => {
   }
 
   return {
-    mediaFileId: data?.id ?? null,
+    mediaFileId,
     storagePath,
     fileType,
     fileSize: blob.size,

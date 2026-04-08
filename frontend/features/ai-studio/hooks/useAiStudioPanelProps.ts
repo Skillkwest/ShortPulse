@@ -21,6 +21,7 @@ import type { StudioMode, StudioOutput } from "../types";
 import type { InpaintSubmissionOverride } from "../logic/inpaintSubmission";
 import type { EditSubmitIntent } from "../logic/editSubmitIntent";
 import { createWorkflowBeginnerModePolicy } from "../logic/beginnerWorkflowPolicy";
+import type { AiStudioKlingElement } from "../logic/klingElements";
 import type { AiStudioPanelContracts } from "./contracts/pageContentContracts";
 import type {
   ExpertEditCustomPresetOverrides,
@@ -190,12 +191,7 @@ export type UseAiStudioPanelPropsParams = {
   klingShotType: "customize" | "intelligent";
   klingVoiceIds: [string, string];
   klingMultiPrompts: { id: string; prompt: string; duration: number }[];
-  klingElements: {
-    id: string;
-    frontalImageUrl: string;
-    referenceImageUrls: string;
-    videoUrl: string;
-  }[];
+  klingElements: AiStudioKlingElement[];
   setKlingNegativePrompt: Dispatch<SetStateAction<string>>;
   setKlingCfgScale: Dispatch<SetStateAction<number>>;
   setKlingWorkflowMode?: Dispatch<SetStateAction<"single" | "multi" | "custom">>;
@@ -204,17 +200,15 @@ export type UseAiStudioPanelPropsParams = {
   setKlingMultiPrompts: Dispatch<
     SetStateAction<{ id: string; prompt: string; duration: number }[]>
   >;
-  setKlingElements: Dispatch<
-    SetStateAction<
-      { id: string; frontalImageUrl: string; referenceImageUrls: string; videoUrl: string }[]
-    >
-  >;
+  setKlingElements: Dispatch<SetStateAction<AiStudioKlingElement[]>>;
   motionReferenceVideoUrl: string | null;
   setVideoReferenceImageUrl: (url: string | null) => void;
   setVideoExtraImageUrl: (index: number, url: string | null) => void;
   setMotionReferenceVideoUrl: (url: string | null) => void;
   handleVideoPromptTextChange: (value: string) => void;
   handleRegenerateWithDebit: () => void;
+  onCreateCharacter: () => void;
+  onCreateElement: () => void;
 };
 
 /**
@@ -363,6 +357,8 @@ export const useAiStudioPanelProps = ({
   setMotionReferenceVideoUrl,
   handleVideoPromptTextChange,
   handleRegenerateWithDebit,
+  onCreateCharacter,
+  onCreateElement,
 }: UseAiStudioPanelPropsParams): AiStudioPanelContracts => {
   const isDevBuild = process.env.NODE_ENV === "development";
   const explicitExpertCreateUiFlag = process.env.NEXT_PUBLIC_ENABLE_EXPERT_CREATE_UI;
@@ -610,10 +606,10 @@ export const useAiStudioPanelProps = ({
     referenceImageWarning,
     resolveOutputPreviewUrl,
     isGenerateDisabled,
-    isReferencePromptEnhancing,
     generationGuardrail,
-    handleReferencePromptEnhance,
     beginnerMode: beginnerPolicy.video.beginnerMode,
+    onCreateCharacter,
+    onCreateElement,
   });
 
   return {

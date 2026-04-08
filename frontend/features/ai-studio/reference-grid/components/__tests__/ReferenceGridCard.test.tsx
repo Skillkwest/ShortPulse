@@ -1,8 +1,25 @@
 import type React from "react";
-import { render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { fireEvent, render, screen } from "@testing-library/react";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import type { StudioOutput } from "../../../types";
 import { ReferenceGridCard } from "../ReferenceGridCard";
+
+const playMock = vi.fn();
+const pauseMock = vi.fn();
+
+beforeAll(() => {
+  vi.spyOn(HTMLMediaElement.prototype, "play").mockImplementation(() => {
+    playMock();
+    return Promise.resolve();
+  });
+  vi.spyOn(HTMLMediaElement.prototype, "pause").mockImplementation(() => {
+    pauseMock();
+  });
+});
+
+afterAll(() => {
+  vi.restoreAllMocks();
+});
 
 const createOutput = (overrides: Partial<StudioOutput> = {}): StudioOutput => ({
   id: "out-1",
@@ -49,6 +66,28 @@ const createProps = (
 });
 
 describe("ReferenceGridCard", () => {
+  it("starts and stops video playback on hover", async () => {
+    render(
+      <ReferenceGridCard
+        {...createProps({
+          item: createOutput({ mode: "video" }),
+          isVideoPreview: true,
+          cardPreviewUrl: "https://example.com/video.mp4",
+          canAutoplayVideo: false,
+          videoPreload: "metadata",
+        })}
+      />
+    );
+
+    const card = screen.getByRole("button");
+
+    fireEvent.pointerEnter(card);
+    expect(playMock).toHaveBeenCalled();
+
+    fireEvent.pointerLeave(card);
+    expect(pauseMock).toHaveBeenCalled();
+  });
+
   it("shows an NSFW pill for provider safety failures", () => {
     render(
       <ReferenceGridCard
@@ -80,5 +119,63 @@ describe("ReferenceGridCard", () => {
     );
 
     expect(screen.queryByText("NSFW")).toBeNull();
+  });
+
+  it("renders a loading spinner overlay when the card is loading", () => {
+    const { container } = render(
+      <ReferenceGridCard
+        {...createProps({
+          item: createOutput({ mode: "video", taskState: "success" }),
+          isLoading: true,
+          loadingVisual: "spinner",
+          isVideoPreview: true,
+          cardPreviewUrl: "blob:local-video-1",
+        })}
+      />
+    );
+
+    expect(container.querySelector(".reference-loading")).not.toBeNull();
+    expect(container.querySelector(".reference-spinner")).not.toBeNull();
+  });
+
+  it("hides the poster image on hover for poster-backed videos", async () => {
+    render(
+      <ReferenceGridCard
+        {...createProps({
+          item: createOutput({
+            mode: "video",
+            previewPosterUrl: "data:image/jpeg;base64,poster",
+            localObjectUrl: "blob:local-video-1",
+          }),
+          videoPosterUrl: "data:image/jpeg;base64,poster",
+          hoverVideoUrl: "blob:local-video-1",
+          isVideoPreview: false,
+          isImagePreview: false,
+          cardPreviewUrl: "blob:local-video-1#video=1",
+          canAutoplayVideo: false,
+          videoPreload: "none",
+        })}
+      />
+    );
+
+    const card = screen.getByRole("button");
+    const posterImage = document.querySelector(
+      ".reference-card-image--poster"
+    ) as HTMLImageElement | null;
+    const videoNode = document.querySelector(".reference-card-video") as HTMLVideoElement | null;
+
+    expect(posterImage).not.toBeNull();
+    expect(videoNode).not.toBeNull();
+    expect(videoNode?.classList.contains("is-visible")).toBe(false);
+    expect(posterImage?.classList.contains("is-hidden")).toBe(false);
+
+    fireEvent.pointerEnter(card);
+    expect(playMock).toHaveBeenCalled();
+    expect(videoNode?.classList.contains("is-visible")).toBe(true);
+    expect(posterImage?.classList.contains("is-hidden")).toBe(true);
+
+    fireEvent.pointerLeave(card);
+    expect(pauseMock).toHaveBeenCalled();
+    expect(posterImage?.classList.contains("is-hidden")).toBe(false);
   });
 });

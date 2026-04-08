@@ -11,11 +11,13 @@ import type { CharacterWorkflowTab } from "../../character-manager/types";
 type CharacterPanelProps = {
   beginnerMode: boolean;
   resolveCharacterDropReference?: ResolveCharacterDropReference;
+  createRequestKey?: number;
 };
 
 export function CharacterPanel({
   beginnerMode,
   resolveCharacterDropReference,
+  createRequestKey = 0,
 }: CharacterPanelProps) {
   const panelRootRef = React.useRef<HTMLDivElement | null>(null);
   const [activeTab, setActiveTab] = React.useState<CharacterWorkflowTab>("manage");
@@ -30,6 +32,7 @@ export function CharacterPanel({
       <CharacterManagerShell
         surface="panel"
         initialWorkflowTab="manage"
+        externalCreateRequestKey={createRequestKey}
         beginnerModeOverride={beginnerMode}
         resolveCharacterDropReference={resolveCharacterDropReference}
         onActiveTabChange={setActiveTab}

@@ -1291,3 +1291,30 @@
 .kling-element-actions .helper-text {
   color: var(--ai-card-text-muted);
 }
+
+.kling-element-row--attached {
+  gap: 12px;
+}
+
+.kling-element-grid--summary {
+  display: block;
+}
+
+.kling-element-summary-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.kling-element-summary-name {
+  font-size: 14px;
+  line-height: 1.25;
+  font-weight: 600;
+  color: #f1f5ff;
+}
+
+.kling-element-actions--summary {
+  justify-content: flex-start;
+  gap: 8px;
+  flex-wrap: wrap;
+}

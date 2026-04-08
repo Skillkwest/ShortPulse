@@ -46,6 +46,7 @@ import { useMediaLibraryPanelMutationController } from "../hooks/useMediaLibrary
 import { useMediaLibraryPanelSelectionController } from "../hooks/useMediaLibraryPanelSelectionController";
 import type { InternalReferenceDragPayload } from "../utils/dragDrop";
 import { MediaLibraryPanelFoldersSection } from "./MediaLibraryPanelFoldersSection";
+import { MediaLibraryAllItemsGrid } from "./media-library-modal/MediaLibraryAllItemsGrid";
 import { MediaLibraryMediaGrid } from "./media-library-modal/MediaLibraryMediaGrid";
 import { MediaLibraryPanelPreviewModal } from "./media-library-modal/MediaLibraryPanelPreviewModal";
 import { MediaLibraryPromptGrid } from "./media-library-modal/MediaLibraryPromptGrid";
@@ -152,6 +153,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
   const [folderContextMenu, setFolderContextMenu] = useState<FolderContextMenuState | null>(null);
   const [moveFolderPicker, setMoveFolderPicker] = useState<MoveFolderPickerState | null>(null);
   const [projectNameDraft, setProjectNameDraft] = useState(projectName ?? "");
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
   const mediaDownloadInFlightRef = useRef<Record<string, boolean>>({});
   const rootUploadInputRef = useRef<HTMLInputElement | null>(null);
@@ -175,7 +177,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
 
   const normalizedSearch = "";
   const shouldShowMedia = itemType !== "prompts" && itemType !== "audio";
-  const shouldShowPrompts = itemType === "prompts" || (!isRootFolderSelected && itemType === "all");
+  const shouldShowPrompts = itemType === "prompts" || itemType === "all";
   // Folder canvas remains a secondary domain and is no longer the default folder browse surface.
   const showFolderCanvas = false;
   const {
@@ -353,10 +355,12 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
       .then((userId) => {
         if (cancelled) return;
         currentUserIdRef.current = userId;
+        setCurrentUserId(userId);
       })
       .catch(() => {
         if (cancelled) return;
         currentUserIdRef.current = null;
+        setCurrentUserId(null);
       });
     return () => {
       cancelled = true;
@@ -652,7 +656,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
         y: Math.max(FOLDER_CONTEXT_MENU_VIEWPORT_PADDING_PX, boundedY),
       });
     },
-    [setActiveFolderId]
+    []
   );
 
   const handleContextRename = useCallback(() => {
@@ -836,6 +840,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
         onSignedUrlLoaded={(id) => {
           signedUrlRetryRef.current[id] = 0;
         }}
+        currentUserId={currentUserId}
       />
     ),
     [
@@ -857,6 +862,84 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
       setPendingLibraryDelete,
       selectedIds,
       activeFolderId,
+      currentUserId,
+    ]
+  );
+
+  const renderAllItemsGrid = useCallback(
+    () => (
+      <MediaLibraryAllItemsGrid
+        mediaRows={mediaRows}
+        promptRows={visiblePromptRows}
+        selectedIds={selectedIds}
+        optimizerFallbackMediaIds={optimizerFallbackMediaIds}
+        adaptivePressureLevel={mediaAdaptivePressure.previewPressureLevel}
+        adaptivePreviewQualityEnabled={adaptivePreviewQualityEnabled}
+        resolveCardPreviewUrl={resolvePanelCardPreviewUrl}
+        scrollContainerRef={panelBodyRef as React.MutableRefObject<HTMLElement | null>}
+        getMediaCardRef={getMediaCardRef}
+        onSelectMediaFile={(file) => {
+          void handleSelectMediaFileWithSelection(file);
+        }}
+        onSelectPromptCard={handleSelectPromptCardWithSelection}
+        onMediaDoubleClick={handleMediaCardDoubleClick}
+        onMediaDragStart={handleMediaCardDragStart}
+        onPromptDragStart={handlePromptCardDragStart}
+        onMediaDragEnd={handleCardDragEnd}
+        onPromptDragEnd={handleCardDragEnd}
+        onMediaContextMenu={handleMediaCardContextMenu}
+        showRemoveAction={canShowFolderItemRemoveAction}
+        onRemoveMediaFromFolder={(file) => {
+          void handleRemoveItemFromActiveFolder({ kind: "media", id: file.id });
+        }}
+        onRemovePromptFromFolder={(prompt) => {
+          void handleRemoveItemFromActiveFolder({ kind: "prompt", id: prompt.id });
+        }}
+        showDeleteAction={activeFolderId === MEDIA_LIBRARY_ROOT_FOLDER_ID}
+        onDeleteMediaFromLibrary={(file) => {
+          setPendingLibraryDelete({
+            kind: "media",
+            file,
+          });
+        }}
+        onDeletePromptFromLibrary={(prompt) => {
+          setPendingLibraryDelete({
+            kind: "prompt",
+            prompt,
+          });
+        }}
+        onDownloadMediaFile={handleDownloadMediaFile}
+        onMediaPreviewError={handleMediaPreviewError}
+        onMediaPaint={() => undefined}
+        onSignedUrlLoaded={(id) => {
+          signedUrlRetryRef.current[id] = 0;
+        }}
+      />
+    ),
+    [
+      activeFolderId,
+      adaptivePreviewQualityEnabled,
+      canShowFolderItemRemoveAction,
+      getMediaCardRef,
+      handleCardDragEnd,
+      handleDownloadMediaFile,
+      handleMediaCardDoubleClick,
+      handleMediaCardDragStart,
+      handleMediaCardContextMenu,
+      handleMediaPreviewError,
+      handlePromptCardDragStart,
+      handleRemoveItemFromActiveFolder,
+      handleSelectMediaFileWithSelection,
+      handleSelectPromptCardWithSelection,
+      mediaAdaptivePressure.previewPressureLevel,
+      mediaRows,
+      optimizerFallbackMediaIds,
+      panelBodyRef,
+      resolvePanelCardPreviewUrl,
+      selectedIds,
+      setPendingLibraryDelete,
+      signedUrlRetryRef,
+      visiblePromptRows,
     ]
   );
 
@@ -1208,14 +1291,22 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
                 data-testid="media-library-panel-root-dropzone"
                 {...(rootFolderDropZoneProps ?? {})}
               >
-                {mediaLoading && mediaRows.length === 0 ? (
-                  <p className="tiny subdued">Loading media…</p>
+                {mediaLoading &&
+                mediaRows.length === 0 &&
+                promptLoading &&
+                visiblePromptRows.length === 0 ? (
+                  <p className="tiny subdued">Loading saved items…</p>
                 ) : null}
-                {!mediaLoading && mediaRows.length === 0 ? (
-                  <p className="tiny subdued">No media found for this folder.</p>
+                {!mediaLoading &&
+                mediaRows.length === 0 &&
+                !promptLoading &&
+                visiblePromptRows.length === 0 ? (
+                  <p className="tiny subdued">No saved items found for this folder.</p>
                 ) : null}
                 <div id="media-library-panel-all-media-section">
-                  {mediaRows.length > 0 ? renderMediaGrid(mediaRows) : null}
+                  {mediaRows.length > 0 || visiblePromptRows.length > 0
+                    ? renderAllItemsGrid()
+                    : null}
                 </div>
               </section>
             ) : null}
@@ -1269,8 +1360,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
                 </section>
               </>
             ) : null}
-
-            {!showFolderCanvas && shouldShowPrompts && isRootFolderSelected
+            {!showFolderCanvas && isRootFolderSelected && itemType === "prompts"
               ? renderPromptsSection({ showHeading: false })
               : null}
 

@@ -3,6 +3,7 @@
  */
 import type { FalSubmitResponse } from "../../../../lib/falClient";
 import type { InpaintSubmissionOverride } from "../../logic/inpaintSubmission";
+import type { AiStudioKlingElement } from "../../logic/klingElements";
 import { getModelConfig } from "../../logic/pricing";
 import { Provider } from "../../logic/stateParsers";
 import { StudioOutput } from "../../types";
@@ -49,12 +50,7 @@ export type VideoSubmissionArgs = BaseSubmissionArgs & {
   klingShotType: "customize" | "intelligent";
   klingVoiceIds: [string, string];
   klingMultiPrompts: { id: string; prompt: string; duration: number }[];
-  klingElements: {
-    id: string;
-    frontalImageUrl: string;
-    referenceImageUrls: string;
-    videoUrl: string;
-  }[];
+  klingElements: AiStudioKlingElement[];
 };
 
 export type ImageSubmissionArgs = BaseSubmissionArgs & {

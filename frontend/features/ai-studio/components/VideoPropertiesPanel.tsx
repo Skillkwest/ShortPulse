@@ -6,6 +6,7 @@ import { Trash } from "phosphor-react";
 import type { AspectOption } from "../types";
 import { modelLogos } from "../constants";
 import { AgentGenerateButton } from "../../../prefabs/agent";
+import { ElementPickerModal } from "./ElementPickerModal";
 import type { ModelModalContext } from "./ModelModal";
 import { ReferenceKlingAdvancedSteps } from "./ReferenceKlingAdvancedSteps";
 import { ReferenceMediaStep } from "./ReferenceMediaStep";
@@ -23,6 +24,26 @@ import {
 } from "../../../lib/model-runtime/providerModelIds";
 import { resolveVideoGenerationLaneFromFrameInputs } from "../logic/referenceInputs";
 import { isSeedance2UiEnabled } from "../logic/seedance2Availability";
+import {
+  getAiStudioKlingElementReferenceUrls,
+  type AiStudioKlingEntitySourceKind,
+  type AiStudioKlingElement,
+  resolveAiStudioKlingElementTokens,
+} from "../logic/klingElements";
+import { loadSavedKlingEntityBySource } from "../logic/klingEntityAdapters";
+import {
+  analyzeKlingPromptTokens,
+  buildKlingElementPromptToken,
+  buildKlingPromptHighlightSegments,
+  extractKlingElementPromptTokenFromTransfer,
+  setKlingElementPromptTokenDragData,
+} from "../logic/klingPromptReferences";
+import { insertPromptTokenAtSelection } from "../logic/promptTokenInsertion";
+import { buildElementProfileImageBackgroundStyle } from "../../elements-manager/logic/elementProfileImageTransform";
+import { syncTextareaMirrorScroll } from "./edit/expertEditInteractionUtils";
+
+const VIDEO_KLING_ELEMENT_SLOT_COUNT = 3;
+const VIDEO_KLING_ELEMENT_SLOT_SIZE = 68;
 
 export type VideoPropertiesPanelProps = {
   aspect: string;
@@ -41,21 +62,14 @@ export type VideoPropertiesPanelProps = {
   klingShotType?: "customize" | "intelligent";
   klingVoiceIds?: [string, string];
   klingMultiPrompts?: { id: string; prompt: string; duration: number }[];
-  klingElements?: {
-    id: string;
-    frontalImageUrl: string;
-    referenceImageUrls: string;
-    videoUrl: string;
-  }[];
+  klingElements?: AiStudioKlingElement[];
   onKlingNegativePromptChange?: (value: string) => void;
   onKlingCfgScaleChange?: (value: number) => void;
   onKlingWorkflowModeChange?: (value: "single" | "multi" | "custom") => void;
   onKlingShotTypeChange?: (value: "customize" | "intelligent") => void;
   onKlingVoiceIdChange?: (index: 0 | 1, value: string) => void;
   onKlingMultiPromptsChange?: (value: { id: string; prompt: string; duration: number }[]) => void;
-  onKlingElementsChange?: (
-    value: { id: string; frontalImageUrl: string; referenceImageUrls: string; videoUrl: string }[]
-  ) => void;
+  onKlingElementsChange?: (value: AiStudioKlingElement[]) => void;
   motionVideoUrl?: string | null;
   onMotionVideoChange?: (url: string | null) => void;
   videoDurationSeconds?: number;
@@ -104,6 +118,8 @@ export type VideoPropertiesPanelProps = {
   agentError?: string;
   onAgentEnhanceSend?: () => void;
   beginnerMode?: boolean;
+  onCreateCharacter?: () => void;
+  onCreateElement?: () => void;
 };
 
 /**
@@ -168,14 +184,45 @@ export function VideoPropertiesPanel({
   resolvePreviewUrlById,
   costCredits,
   isGenerateDisabled = false,
-  agentIsSending = false,
-  agentError,
-  onAgentEnhanceSend,
   beginnerMode = false,
+  onCreateCharacter,
+  onCreateElement,
 }: VideoPropertiesPanelProps) {
+  type KlingPromptTarget = "primary" | string;
   const shotWorkspaceScrollRef = React.useRef<HTMLDivElement | null>(null);
   const shotWorkspaceStackRef = React.useRef<HTMLDivElement | null>(null);
+  const primaryPromptTextareaRef = React.useRef<HTMLTextAreaElement | null>(null);
+  const customPromptTextareaRefs = React.useRef<Record<string, HTMLTextAreaElement | null>>({});
+  const customPromptHighlightRefs = React.useRef<Record<string, HTMLDivElement | null>>({});
+  const pendingPromptCaretRef = React.useRef<{ target: "primary" | string; caret: number } | null>(
+    null
+  );
+  const activePromptTargetRef = React.useRef<KlingPromptTarget>("primary");
+  const pendingPromptTokenPickerTriggerRef = React.useRef<{
+    target: KlingPromptTarget;
+    selectionStart: number;
+    selectionEnd: number;
+  } | null>(null);
+  const [elementPickerSlotIndex, setElementPickerSlotIndex] = React.useState<number | null>(null);
+  const [isElementPickerOpen, setIsElementPickerOpen] = React.useState(false);
+  const [elementPickerError, setElementPickerError] = React.useState<string | null>(null);
+  const [promptTokenPickerState, setPromptTokenPickerState] = React.useState<{
+    isOpen: boolean;
+    selectedSlotIndex: number | null;
+    replaceStart: number;
+    replaceEnd: number;
+    target: KlingPromptTarget;
+  }>({
+    isOpen: false,
+    selectedSlotIndex: null,
+    replaceStart: 0,
+    replaceEnd: 0,
+    target: "primary",
+  });
   const modelLogoSrc = modelId ? modelLogos[modelId] : undefined;
+  const videoPromptAgentIsSending = false;
+  const videoPromptAgentError = undefined;
+  const videoPromptEnhanceSend = undefined;
   const {
     primaryInputRef,
     extraOneInputRef,
@@ -221,6 +268,212 @@ export function VideoPropertiesPanel({
     klingElements,
     onKlingElementsChange,
   });
+
+  const commitSelectedKlingElements = React.useCallback(
+    (elements: Array<AiStudioKlingElement | null>) => {
+      onKlingElementsChange?.(
+        elements
+          .filter((item): item is AiStudioKlingElement => Boolean(item))
+          .sort((a, b) => {
+            const left = a.slotIndex ?? 0;
+            const right = b.slotIndex ?? 0;
+            return left - right;
+          })
+      );
+    },
+    [onKlingElementsChange]
+  );
+
+  const selectedKlingElements = React.useMemo(() => {
+    const slots = Array.from(
+      { length: VIDEO_KLING_ELEMENT_SLOT_COUNT },
+      () => null as AiStudioKlingElement | null
+    );
+    const legacyElements: AiStudioKlingElement[] = [];
+
+    klingElements.forEach((element) => {
+      const slotIndex =
+        typeof element.slotIndex === "number" &&
+        Number.isInteger(element.slotIndex) &&
+        element.slotIndex >= 0 &&
+        element.slotIndex < VIDEO_KLING_ELEMENT_SLOT_COUNT
+          ? element.slotIndex
+          : null;
+
+      if (slotIndex == null) {
+        legacyElements.push(element);
+        return;
+      }
+
+      if (!slots[slotIndex]) {
+        slots[slotIndex] = element.slotIndex === slotIndex ? element : { ...element, slotIndex };
+        return;
+      }
+
+      legacyElements.push(element);
+    });
+
+    legacyElements.forEach((element) => {
+      const emptySlotIndex = slots.findIndex((slot) => slot == null);
+      if (emptySlotIndex < 0) return;
+      slots[emptySlotIndex] = { ...element, slotIndex: emptySlotIndex };
+    });
+
+    return slots;
+  }, [klingElements]);
+
+  React.useEffect(() => {
+    if (!onKlingElementsChange) return;
+    if (
+      !selectedKlingElements.some(
+        (element) => element?.sourceElementId || element?.sourceCharacterId
+      )
+    ) {
+      return;
+    }
+
+    let cancelled = false;
+
+    const normalizeAttachedElements = async () => {
+      const normalizedSlots = await Promise.all(
+        selectedKlingElements.map(async (element, index) => {
+          if (!element) return null;
+          const slotIndex = element.slotIndex ?? index;
+
+          if (!element.sourceElementId && !element.sourceCharacterId) {
+            const hasLocalMedia = Boolean(
+              element.videoUrl.trim() ||
+              getAiStudioKlingElementReferenceUrls(element).length ||
+              element.profileImageUrl?.trim()
+            );
+            return hasLocalMedia ? { ...element, slotIndex } : null;
+          }
+
+          try {
+            const sourceKind =
+              element.sourceKind ?? (element.sourceCharacterId ? "character" : "element");
+            const sourceId = element.sourceCharacterId ?? element.sourceElementId;
+            if (!sourceId) return null;
+            const refreshedElement = await loadSavedKlingEntityBySource({
+              sourceKind,
+              sourceId,
+            });
+            const hasUsableMedia = Boolean(
+              refreshedElement.videoUrl.trim() ||
+              getAiStudioKlingElementReferenceUrls(refreshedElement).length
+            );
+            if (!hasUsableMedia) return null;
+            return { ...refreshedElement, slotIndex };
+          } catch {
+            return null;
+          }
+        })
+      );
+
+      if (cancelled) return;
+
+      const currentSignature = JSON.stringify(
+        selectedKlingElements.map((element, index) =>
+          element
+            ? {
+                slotIndex: element.slotIndex ?? index,
+                sourceKind: element.sourceKind ?? null,
+                sourceElementId: element.sourceElementId ?? null,
+                sourceCharacterId: element.sourceCharacterId ?? null,
+                name: element.name ?? "",
+                alias: element.alias ?? "",
+                description: element.description ?? "",
+                profileImageUrl: element.profileImageUrl ?? null,
+                profileImageTransform: element.profileImageTransform ?? null,
+                frontalImageUrl: element.frontalImageUrl,
+                referenceImageUrls: element.referenceImageUrls,
+                videoUrl: element.videoUrl,
+              }
+            : null
+        )
+      );
+      const nextSignature = JSON.stringify(
+        normalizedSlots.map((element) =>
+          element
+            ? {
+                slotIndex: element.slotIndex,
+                sourceKind: element.sourceKind ?? null,
+                sourceElementId: element.sourceElementId ?? null,
+                sourceCharacterId: element.sourceCharacterId ?? null,
+                name: element.name ?? "",
+                alias: element.alias ?? "",
+                description: element.description ?? "",
+                profileImageUrl: element.profileImageUrl ?? null,
+                profileImageTransform: element.profileImageTransform ?? null,
+                frontalImageUrl: element.frontalImageUrl,
+                referenceImageUrls: element.referenceImageUrls,
+                videoUrl: element.videoUrl,
+              }
+            : null
+        )
+      );
+
+      if (currentSignature !== nextSignature) {
+        commitSelectedKlingElements(normalizedSlots);
+      }
+    };
+
+    void normalizeAttachedElements();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [commitSelectedKlingElements, onKlingElementsChange, selectedKlingElements]);
+
+  const openElementPicker = React.useCallback((slotIndex: number) => {
+    setElementPickerError(null);
+    setElementPickerSlotIndex(slotIndex);
+    setIsElementPickerOpen(true);
+  }, []);
+
+  const closeElementPicker = React.useCallback(() => {
+    setIsElementPickerOpen(false);
+    setElementPickerSlotIndex(null);
+  }, []);
+
+  const handleElementSelection = React.useCallback(
+    async ({
+      sourceKind,
+      sourceId,
+    }: {
+      sourceKind: AiStudioKlingEntitySourceKind;
+      sourceId: string;
+    }) => {
+      if (elementPickerSlotIndex == null) return;
+      try {
+        const selectedElement = await loadSavedKlingEntityBySource({ sourceKind, sourceId });
+        const next = Array.from(
+          { length: VIDEO_KLING_ELEMENT_SLOT_COUNT },
+          (_, index) => selectedKlingElements[index] ?? null
+        );
+        next[elementPickerSlotIndex] = { ...selectedElement, slotIndex: elementPickerSlotIndex };
+        commitSelectedKlingElements(next);
+        setElementPickerError(null);
+      } catch {
+        setElementPickerError("Unable to attach that saved element.");
+      } finally {
+        closeElementPicker();
+      }
+    },
+    [commitSelectedKlingElements, closeElementPicker, elementPickerSlotIndex, selectedKlingElements]
+  );
+
+  const removeSelectedElement = React.useCallback(
+    (slotIndex: number) => {
+      const next = Array.from(
+        { length: VIDEO_KLING_ELEMENT_SLOT_COUNT },
+        (_, index) => selectedKlingElements[index] ?? null
+      );
+      next[slotIndex] = null;
+      commitSelectedKlingElements(next);
+    },
+    [commitSelectedKlingElements, selectedKlingElements]
+  );
 
   const {
     activeVideoMode,
@@ -325,7 +578,14 @@ export function VideoPropertiesPanel({
   const klingMode = klingWorkflowMode;
   const isMultiShotEnabled = isKieKlingModelSelected && klingMode === "custom";
   const isCustomKlingWorkflow = isKieKlingModelSelected && klingMode === "custom";
-  const customKlingPrompts = isCustomKlingWorkflow ? klingMultiPrompts : [];
+  const hasParkedCustomKlingShots =
+    isKieKlingModelSelected &&
+    klingMode !== "custom" &&
+    klingMultiPrompts.some((shot) => shot.prompt.trim().length > 0);
+  const customKlingPrompts = React.useMemo(
+    () => (isCustomKlingWorkflow ? klingMultiPrompts : []),
+    [isCustomKlingWorkflow, klingMultiPrompts]
+  );
   const hasAnyPromptText = isCustomKlingWorkflow
     ? customKlingPrompts.some((shot) => shot.prompt.trim().length > 0)
     : Boolean(referenceText?.trim());
@@ -385,7 +645,7 @@ export function VideoPropertiesPanel({
         availableHeight
       );
       textarea.style.height = `${nextHeight}px`;
-      textarea.style.overflowY = textarea.scrollHeight > availableHeight ? "auto" : "hidden";
+      textarea.style.overflowY = "hidden";
       textareaResizeFrameMapRef.current.delete(textarea);
     });
     textareaResizeFrameMapRef.current.set(textarea, frameId);
@@ -415,30 +675,344 @@ export function VideoPropertiesPanel({
     },
     [updateKlingMultiPrompt]
   );
-  const handlePrimaryPromptChange = (value: string) => {
-    if (isCustomKlingWorkflow) {
-      const firstShot = klingMultiPrompts[0];
-      if (firstShot) {
-        updateKlingMultiPrompt(firstShot.id, "prompt", value);
-        return;
+  const handlePrimaryPromptChange = React.useCallback(
+    (value: string) => {
+      if (isCustomKlingWorkflow) {
+        const firstShot = klingMultiPrompts[0];
+        if (firstShot) {
+          updateKlingMultiPrompt(firstShot.id, "prompt", value);
+          return;
+        }
       }
-    }
-    onPromptTextChange(value);
-  };
+      onPromptTextChange(value);
+    },
+    [isCustomKlingWorkflow, klingMultiPrompts, onPromptTextChange, updateKlingMultiPrompt]
+  );
   const showShotLabels = shouldShowAddCustomShotButton;
   const totalShotCount = isCustomKlingWorkflow ? Math.max(customKlingPrompts.length, 1) : 1;
   const promptAutoResizeLayoutKey = `${visibleVideoMode}-${klingMode}-${totalShotCount}`;
   const primaryPromptValue = isCustomKlingWorkflow
     ? (customKlingPrompts[0]?.prompt ?? "")
     : (referenceText ?? "");
+  const klingElementPromptTokens = React.useMemo(
+    () => resolveAiStudioKlingElementTokens(selectedKlingElements).map((token) => token.trim()),
+    [selectedKlingElements]
+  );
+  const populatedKlingPromptTokenSlotIndexes = React.useMemo(
+    () =>
+      selectedKlingElements.flatMap((element, index) => {
+        if (!element) return [];
+        const token = klingElementPromptTokens[index] ?? "";
+        return token ? [index] : [];
+      }),
+    [klingElementPromptTokens, selectedKlingElements]
+  );
+  const klingPromptAttachedAliases = React.useMemo(
+    () =>
+      populatedKlingPromptTokenSlotIndexes.map((slotIndex) => ({
+        alias: klingElementPromptTokens[slotIndex] ?? "",
+        sourceKind: selectedKlingElements[slotIndex]?.sourceKind ?? null,
+      })),
+    [klingElementPromptTokens, populatedKlingPromptTokenSlotIndexes, selectedKlingElements]
+  );
   const primaryPromptPlaceholder =
-    isKieKlingModelSelected && klingMode === "multi"
-      ? "Write the full multi-scene direction in one prompt. Use @Element01 style tags to reference Kling elements."
-      : "Describe the shot you want to create: subject, action, camera movement, framing, lighting, and mood.";
+    "Describe the shot you want to create: subject, action, camera movement, framing, lighting, and mood.";
   const primaryPromptHelperText =
-    isKieKlingModelSelected && klingMode === "multi"
-      ? "Write the complete scene sequence in one prompt. Reference uploaded elements with @Element01, @Element02, and so on."
-      : "Direct the shot: describe the subject, motion, camera movement, and mood you want in the clip.";
+    "Direct the shot: describe the subject, motion, camera movement, and mood you want in the clip.";
+  const primaryPromptTokenDiagnostics = React.useMemo(
+    () => analyzeKlingPromptTokens(primaryPromptValue, klingPromptAttachedAliases),
+    [klingPromptAttachedAliases, primaryPromptValue]
+  );
+  const primaryPromptHighlightSegments = React.useMemo(
+    () => buildKlingPromptHighlightSegments(primaryPromptValue, primaryPromptTokenDiagnostics),
+    [primaryPromptTokenDiagnostics, primaryPromptValue]
+  );
+  const getPromptValueForTarget = React.useCallback(
+    (target: KlingPromptTarget): string => {
+      if (target === "primary") return primaryPromptValue;
+      return customKlingPrompts.find((shot) => shot.id === target)?.prompt ?? "";
+    },
+    [customKlingPrompts, primaryPromptValue]
+  );
+  const getPromptTextareaForTarget = React.useCallback((target: KlingPromptTarget) => {
+    if (target === "primary") return primaryPromptTextareaRef.current;
+    return customPromptTextareaRefs.current[target] ?? null;
+  }, []);
+  const setActivePromptTarget = React.useCallback((target: KlingPromptTarget) => {
+    activePromptTargetRef.current = target;
+  }, []);
+  const applyPromptUpdateForTarget = React.useCallback(
+    (target: KlingPromptTarget, nextPrompt: string, caret?: number | null) => {
+      if (typeof caret === "number") {
+        pendingPromptCaretRef.current = {
+          target,
+          caret,
+        };
+      }
+      if (target === "primary") {
+        handlePrimaryPromptChange(nextPrompt);
+        return;
+      }
+      handleCustomShotPromptChange(target, nextPrompt);
+    },
+    [handleCustomShotPromptChange, handlePrimaryPromptChange]
+  );
+  const closePromptTokenPicker = React.useCallback(() => {
+    pendingPromptTokenPickerTriggerRef.current = null;
+    setPromptTokenPickerState((previous) =>
+      previous.isOpen
+        ? {
+            ...previous,
+            isOpen: false,
+            selectedSlotIndex: null,
+          }
+        : previous
+    );
+  }, []);
+  const resolvePromptTokenPickerToken = React.useCallback(
+    (slotIndex: number | null) => {
+      if (slotIndex == null) return null;
+      const element = selectedKlingElements[slotIndex];
+      if (!element) return null;
+      return buildKlingElementPromptToken(klingElementPromptTokens[slotIndex] ?? "");
+    },
+    [klingElementPromptTokens, selectedKlingElements]
+  );
+  const cyclePromptTokenPickerSelection = React.useCallback(
+    (direction: 1 | -1) => {
+      if (populatedKlingPromptTokenSlotIndexes.length <= 0) return;
+      setPromptTokenPickerState((previous) => {
+        if (!previous.isOpen) return previous;
+        const currentSelection =
+          previous.selectedSlotIndex ?? populatedKlingPromptTokenSlotIndexes[0] ?? null;
+        const currentIndex = populatedKlingPromptTokenSlotIndexes.indexOf(currentSelection ?? -1);
+        const safeCurrentIndex = currentIndex >= 0 ? currentIndex : 0;
+        const nextIndex =
+          (safeCurrentIndex + direction + populatedKlingPromptTokenSlotIndexes.length) %
+          populatedKlingPromptTokenSlotIndexes.length;
+        return {
+          ...previous,
+          selectedSlotIndex: populatedKlingPromptTokenSlotIndexes[nextIndex] ?? null,
+        };
+      });
+    },
+    [populatedKlingPromptTokenSlotIndexes]
+  );
+  const openPromptTokenPickerAtSelection = React.useCallback(
+    (target: KlingPromptTarget, selectionStart: number, selectionEnd: number) => {
+      if (populatedKlingPromptTokenSlotIndexes.length <= 0) return;
+      const promptValue = getPromptValueForTarget(target);
+      const normalizedSelectionStart = Math.max(0, Math.min(promptValue.length, selectionStart));
+      const normalizedSelectionEnd = Math.max(0, Math.min(promptValue.length, selectionEnd));
+      setPromptTokenPickerState({
+        isOpen: true,
+        selectedSlotIndex: populatedKlingPromptTokenSlotIndexes[0] ?? null,
+        replaceStart: Math.min(normalizedSelectionStart, normalizedSelectionEnd),
+        replaceEnd: Math.max(normalizedSelectionStart, normalizedSelectionEnd),
+        target,
+      });
+    },
+    [getPromptValueForTarget, populatedKlingPromptTokenSlotIndexes]
+  );
+  const insertKlingElementToken = React.useCallback(
+    (token: string) => {
+      const target = activePromptTargetRef.current;
+      const promptValue = getPromptValueForTarget(target);
+      const textarea = getPromptTextareaForTarget(target);
+      const selectionStart = textarea?.selectionStart ?? promptValue.length;
+      const selectionEnd = textarea?.selectionEnd ?? selectionStart;
+      const normalizedToken = buildKlingElementPromptToken(token);
+      if (!normalizedToken) return;
+      const insertedPrompt = insertPromptTokenAtSelection({
+        prompt: promptValue,
+        token: normalizedToken,
+        selectionStart,
+        selectionEnd,
+      });
+      closePromptTokenPicker();
+      applyPromptUpdateForTarget(target, insertedPrompt.prompt, insertedPrompt.caret);
+    },
+    [
+      applyPromptUpdateForTarget,
+      closePromptTokenPicker,
+      getPromptTextareaForTarget,
+      getPromptValueForTarget,
+    ]
+  );
+  const insertPromptTokenFromPicker = React.useCallback(
+    (slotIndex: number) => {
+      const token = resolvePromptTokenPickerToken(slotIndex);
+      if (!token) return;
+      const promptValue = getPromptValueForTarget(promptTokenPickerState.target);
+      const insertedPrompt = insertPromptTokenAtSelection({
+        prompt: promptValue,
+        token,
+        selectionStart: promptTokenPickerState.replaceStart,
+        selectionEnd: promptTokenPickerState.replaceEnd,
+      });
+      applyPromptUpdateForTarget(
+        promptTokenPickerState.target,
+        insertedPrompt.prompt,
+        insertedPrompt.caret
+      );
+      setPromptTokenPickerState((previous) => ({
+        ...previous,
+        isOpen: false,
+        selectedSlotIndex: null,
+      }));
+    },
+    [
+      applyPromptUpdateForTarget,
+      getPromptValueForTarget,
+      promptTokenPickerState.replaceEnd,
+      promptTokenPickerState.replaceStart,
+      promptTokenPickerState.target,
+      resolvePromptTokenPickerToken,
+    ]
+  );
+  const handlePromptDropWithKlingTokenInsert = React.useCallback(
+    (
+      event: React.DragEvent<HTMLDivElement | HTMLTextAreaElement>,
+      options?: { shotId?: string; promptValue?: string }
+    ) => {
+      const droppedToken = extractKlingElementPromptTokenFromTransfer(event.dataTransfer);
+      if (!droppedToken) {
+        handlePromptDrop(event);
+        return;
+      }
+      event.preventDefault();
+      const target: KlingPromptTarget = options?.shotId ?? "primary";
+      setActivePromptTarget(target);
+      const promptValue = options?.promptValue ?? primaryPromptValue;
+      const targetTextarea =
+        event.target instanceof HTMLTextAreaElement
+          ? event.target
+          : options?.shotId
+            ? customPromptTextareaRefs.current[options.shotId]
+            : primaryPromptTextareaRef.current;
+      const selectionStart = targetTextarea?.selectionStart ?? promptValue.length;
+      const selectionEnd = targetTextarea?.selectionEnd ?? selectionStart;
+      const insertedPrompt = insertPromptTokenAtSelection({
+        prompt: promptValue,
+        token: droppedToken,
+        selectionStart,
+        selectionEnd,
+      });
+      closePromptTokenPicker();
+      applyPromptUpdateForTarget(target, insertedPrompt.prompt, insertedPrompt.caret);
+    },
+    [
+      applyPromptUpdateForTarget,
+      closePromptTokenPicker,
+      handlePromptDrop,
+      primaryPromptValue,
+      setActivePromptTarget,
+    ]
+  );
+  const handlePromptSelection = React.useCallback(
+    (target: KlingPromptTarget) => {
+      setActivePromptTarget(target);
+    },
+    [setActivePromptTarget]
+  );
+  const handlePromptBlur = React.useCallback(
+    (event: React.FocusEvent<HTMLTextAreaElement>) => {
+      const relatedTarget = event.relatedTarget as HTMLElement | null;
+      if (relatedTarget?.closest(".video-kling-prompt-token-picker")) {
+        return;
+      }
+      closePromptTokenPicker();
+    },
+    [closePromptTokenPicker]
+  );
+  const handlePromptKeyDown = React.useCallback(
+    (
+      event: React.KeyboardEvent<HTMLTextAreaElement>,
+      options?: { shotId?: string; promptValue?: string }
+    ) => {
+      const target: KlingPromptTarget = options?.shotId ?? "primary";
+      setActivePromptTarget(target);
+      const promptValue = options?.promptValue ?? event.currentTarget.value;
+      if (promptTokenPickerState.isOpen && promptTokenPickerState.target === target) {
+        if (event.key === "Tab") {
+          event.preventDefault();
+          cyclePromptTokenPickerSelection(event.shiftKey ? -1 : 1);
+          return;
+        }
+        if (event.key === "Enter") {
+          if (promptTokenPickerState.selectedSlotIndex != null) {
+            event.preventDefault();
+            insertPromptTokenFromPicker(promptTokenPickerState.selectedSlotIndex);
+          }
+          return;
+        }
+        if (event.key === "Escape") {
+          event.preventDefault();
+          closePromptTokenPicker();
+          return;
+        }
+        if (event.key === "ArrowRight" || event.key === "ArrowDown") {
+          event.preventDefault();
+          cyclePromptTokenPickerSelection(1);
+          return;
+        }
+        if (event.key === "ArrowLeft" || event.key === "ArrowUp") {
+          event.preventDefault();
+          cyclePromptTokenPickerSelection(-1);
+          return;
+        }
+        if (
+          event.key === "Backspace" ||
+          event.key === "Delete" ||
+          (event.key.length === 1 && !event.metaKey && !event.ctrlKey && !event.altKey)
+        ) {
+          closePromptTokenPicker();
+        }
+      }
+
+      if (
+        event.key === "Tab" &&
+        !event.defaultPrevented &&
+        !event.shiftKey &&
+        !event.metaKey &&
+        !event.ctrlKey &&
+        !event.altKey &&
+        populatedKlingPromptTokenSlotIndexes.length > 0
+      ) {
+        event.preventDefault();
+        const selectionStart = event.currentTarget.selectionStart ?? promptValue.length;
+        const selectionEnd = event.currentTarget.selectionEnd ?? selectionStart;
+        openPromptTokenPickerAtSelection(target, selectionStart, selectionEnd);
+        return;
+      }
+
+      if (
+        event.key === "@" &&
+        !event.defaultPrevented &&
+        !event.metaKey &&
+        !event.ctrlKey &&
+        !event.altKey &&
+        populatedKlingPromptTokenSlotIndexes.length > 0
+      ) {
+        pendingPromptTokenPickerTriggerRef.current = {
+          target,
+          selectionStart: event.currentTarget.selectionStart ?? promptValue.length,
+          selectionEnd: event.currentTarget.selectionEnd ?? promptValue.length,
+        };
+      }
+    },
+    [
+      closePromptTokenPicker,
+      cyclePromptTokenPickerSelection,
+      insertPromptTokenFromPicker,
+      openPromptTokenPickerAtSelection,
+      populatedKlingPromptTokenSlotIndexes.length,
+      promptTokenPickerState.isOpen,
+      promptTokenPickerState.selectedSlotIndex,
+      promptTokenPickerState.target,
+      setActivePromptTarget,
+    ]
+  );
   const customShotWorkspaceStyle = isCustomMultiShotWorkspace
     ? ({ "--video-shot-count": totalShotCount } as React.CSSProperties)
     : undefined;
@@ -489,6 +1063,130 @@ export function VideoPropertiesPanel({
     window.addEventListener("resize", handleViewportResize);
     return () => window.removeEventListener("resize", handleViewportResize);
   }, [resizeTextareaToViewport]);
+
+  React.useEffect(() => {
+    const pendingCaret = pendingPromptCaretRef.current;
+    if (!pendingCaret) return;
+    const textarea =
+      pendingCaret.target === "primary"
+        ? primaryPromptTextareaRef.current
+        : customPromptTextareaRefs.current[pendingCaret.target];
+    if (!textarea) return;
+    const maxCaret = Math.max(0, Math.min(textarea.value.length, pendingCaret.caret));
+    textarea.focus();
+    textarea.setSelectionRange(maxCaret, maxCaret);
+    pendingPromptCaretRef.current = null;
+  }, [customKlingPrompts, primaryPromptValue]);
+
+  React.useEffect(() => {
+    const pendingTrigger = pendingPromptTokenPickerTriggerRef.current;
+    if (!pendingTrigger) return;
+    pendingPromptTokenPickerTriggerRef.current = null;
+    if (populatedKlingPromptTokenSlotIndexes.length <= 0) return;
+    const promptValue = getPromptValueForTarget(pendingTrigger.target);
+    const replaceStart = Math.max(0, Math.min(promptValue.length, pendingTrigger.selectionStart));
+    const replaceEnd = Math.min(promptValue.length, replaceStart + 1);
+    if (promptValue.slice(replaceStart, replaceEnd) !== "@") return;
+    setPromptTokenPickerState({
+      isOpen: true,
+      selectedSlotIndex: populatedKlingPromptTokenSlotIndexes[0] ?? null,
+      replaceStart,
+      replaceEnd,
+      target: pendingTrigger.target,
+    });
+  }, [
+    customKlingPrompts,
+    getPromptValueForTarget,
+    populatedKlingPromptTokenSlotIndexes,
+    primaryPromptValue,
+  ]);
+
+  React.useEffect(() => {
+    if (!promptTokenPickerState.isOpen) return;
+    if (populatedKlingPromptTokenSlotIndexes.length <= 0) {
+      closePromptTokenPicker();
+      return;
+    }
+    if (
+      promptTokenPickerState.selectedSlotIndex == null ||
+      !populatedKlingPromptTokenSlotIndexes.includes(promptTokenPickerState.selectedSlotIndex)
+    ) {
+      setPromptTokenPickerState((previous) => ({
+        ...previous,
+        selectedSlotIndex: populatedKlingPromptTokenSlotIndexes[0] ?? null,
+      }));
+    }
+  }, [
+    closePromptTokenPicker,
+    populatedKlingPromptTokenSlotIndexes,
+    promptTokenPickerState.isOpen,
+    promptTokenPickerState.selectedSlotIndex,
+  ]);
+
+  const renderPromptTokenPicker = React.useCallback(
+    (target: KlingPromptTarget) => {
+      if (!promptTokenPickerState.isOpen || promptTokenPickerState.target !== target) {
+        return null;
+      }
+
+      return (
+        <div
+          className="video-kling-prompt-token-picker"
+          role="group"
+          aria-label="Kling element picker"
+        >
+          <div className="video-kling-prompt-token-picker-header">
+            <p className="video-kling-prompt-token-picker-title">Kling Elements</p>
+            <p className="video-kling-prompt-token-picker-hint">Type or click to insert.</p>
+          </div>
+          <div className="video-kling-prompt-token-picker-grid">
+            {populatedKlingPromptTokenSlotIndexes.map((slotIndex) => {
+              const element = selectedKlingElements[slotIndex];
+              if (!element) return null;
+              const token = resolvePromptTokenPickerToken(slotIndex);
+              const previewUrl =
+                element.profileImageUrl?.trim() ||
+                element.frontalImageUrl.trim() ||
+                getAiStudioKlingElementReferenceUrls(element)[0] ||
+                "";
+              return (
+                <button
+                  key={`video-kling-token-picker-slot-${slotIndex}`}
+                  type="button"
+                  className={`video-kling-prompt-token-picker-option ${
+                    promptTokenPickerState.selectedSlotIndex === slotIndex ? "is-selected" : ""
+                  }`.trim()}
+                  onMouseDown={(event) => event.preventDefault()}
+                  onClick={() => insertPromptTokenFromPicker(slotIndex)}
+                >
+                  <span
+                    className="video-kling-prompt-token-picker-option-thumb"
+                    aria-hidden="true"
+                    style={previewUrl ? { backgroundImage: `url(${previewUrl})` } : undefined}
+                  />
+                  <span className="video-kling-prompt-token-picker-option-copy">
+                    <span className="video-kling-prompt-token-picker-option-label">
+                      {element.name?.trim() || `Element ${slotIndex + 1}`}
+                    </span>
+                    <span className="video-kling-prompt-token-picker-option-token">{token}</span>
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      );
+    },
+    [
+      insertPromptTokenFromPicker,
+      populatedKlingPromptTokenSlotIndexes,
+      promptTokenPickerState.isOpen,
+      promptTokenPickerState.selectedSlotIndex,
+      promptTokenPickerState.target,
+      resolvePromptTokenPickerToken,
+      selectedKlingElements,
+    ]
+  );
 
   return (
     <div className="tool-properties reference-properties-panel video-properties-panel">
@@ -670,29 +1368,122 @@ export function VideoPropertiesPanel({
                                   Custom
                                 </button>
                               </div>
+                              {hasParkedCustomKlingShots ? (
+                                <div
+                                  className="video-shot-mode-note"
+                                  role="note"
+                                  aria-label="Saved custom shot prompts are inactive"
+                                >
+                                  Saved custom shots are parked. Only the primary prompt is sent
+                                  until you switch back to Custom.
+                                </div>
+                              ) : null}
                             </div>
                           ) : null}
-                          <div className="video-elements-card-title video-elements-card-title--sub">
-                            Add @Elements
+                          <div className="video-kling-elements-picker-anchor">
+                            {renderPromptTokenPicker(activePromptTargetRef.current)}
+                            <div className="video-elements-card-title video-elements-card-title--sub">
+                              Add Characters / @Elements
+                            </div>
+                            <div
+                              className="video-elements-placeholder-grid"
+                              aria-label="Element reference slots"
+                            >
+                              {Array.from({ length: VIDEO_KLING_ELEMENT_SLOT_COUNT }).map(
+                                (_, index) => {
+                                  const selectedElement = selectedKlingElements[index] ?? null;
+                                  const previewUrl =
+                                    selectedElement?.profileImageUrl ??
+                                    getAiStudioKlingElementReferenceUrls(
+                                      selectedElement ?? {
+                                        frontalImageUrl: "",
+                                        referenceImageUrls: "",
+                                      }
+                                    )[0] ??
+                                    null;
+                                  const previewAvatarStyle = previewUrl
+                                    ? buildElementProfileImageBackgroundStyle(
+                                        previewUrl,
+                                        selectedElement?.profileImageTransform ?? null,
+                                        VIDEO_KLING_ELEMENT_SLOT_SIZE
+                                      )
+                                    : undefined;
+                                  const dragToken = selectedElement
+                                    ? (klingElementPromptTokens[index] ?? "")
+                                    : "";
+
+                                  if (!selectedElement) {
+                                    return (
+                                      <button
+                                        key={`video-element-slot-${index}`}
+                                        type="button"
+                                        className="video-elements-placeholder-tile"
+                                        onClick={() => openElementPicker(index)}
+                                        aria-label={`Add element to slot ${index + 1}`}
+                                      >
+                                        <span
+                                          className="video-elements-placeholder-plus"
+                                          aria-hidden="true"
+                                        >
+                                          +
+                                        </span>
+                                      </button>
+                                    );
+                                  }
+
+                                  return (
+                                    <div
+                                      key={`video-element-slot-${index}`}
+                                      className={`video-elements-placeholder-tile video-elements-placeholder-tile--filled ${
+                                        selectedElement.sourceKind === "character"
+                                          ? "video-elements-placeholder-tile--character"
+                                          : "video-elements-placeholder-tile--element"
+                                      }`}
+                                      draggable={Boolean(dragToken)}
+                                      onDragStart={(event) => {
+                                        event.dataTransfer.effectAllowed = "copy";
+                                        setKlingElementPromptTokenDragData(
+                                          event.dataTransfer,
+                                          dragToken
+                                        );
+                                      }}
+                                    >
+                                      <button
+                                        type="button"
+                                        className="video-elements-placeholder-select"
+                                        onClick={() => openElementPicker(index)}
+                                        aria-label={`Replace attached element ${selectedElement.name || selectedElement.alias || index + 1}`}
+                                      >
+                                        {previewUrl ? (
+                                          <span
+                                            className="video-elements-slot-avatar-image"
+                                            style={previewAvatarStyle}
+                                            aria-hidden="true"
+                                          />
+                                        ) : null}
+                                      </button>
+                                      <span className="video-elements-slot-actions">
+                                        <button
+                                          type="button"
+                                          className="ghost-btn mini"
+                                          aria-label={`Remove attached element ${selectedElement.name || index + 1}`}
+                                          onClick={(event) => {
+                                            event.stopPropagation();
+                                            removeSelectedElement(index);
+                                          }}
+                                        >
+                                          <Trash size={12} />
+                                        </button>
+                                      </span>
+                                    </div>
+                                  );
+                                }
+                              )}
+                            </div>
                           </div>
-                          <div
-                            className="video-elements-placeholder-grid"
-                            aria-label="Element reference slots"
-                          >
-                            {Array.from({ length: 3 }).map((_, index) => (
-                              <div
-                                key={`video-element-slot-${index}`}
-                                className="video-elements-placeholder-tile"
-                              >
-                                <span
-                                  className="video-elements-placeholder-plus"
-                                  aria-hidden="true"
-                                >
-                                  +
-                                </span>
-                              </div>
-                            ))}
-                          </div>
+                          {elementPickerError ? (
+                            <p className="tiny helper-text">{elementPickerError}</p>
+                          ) : null}
                         </div>
                       </div>
                     ) : null}
@@ -763,17 +1554,23 @@ export function VideoPropertiesPanel({
                                   onPromptTextChange={handlePrimaryPromptChange}
                                   collapsed={collapsedSteps.prompt}
                                   onToggleCollapse={() => toggleStep("prompt")}
-                                  onDrop={handlePromptDrop}
+                                  onDrop={handlePromptDropWithKlingTokenInsert}
                                   beginnerMode={beginnerMode}
-                                  agentIsSending={agentIsSending}
-                                  agentError={agentError}
-                                  onAgentEnhanceSend={onAgentEnhanceSend}
+                                  agentIsSending={videoPromptAgentIsSending}
+                                  agentError={videoPromptAgentError}
+                                  onAgentEnhanceSend={videoPromptEnhanceSend}
                                   showEnhanceButton={false}
                                   hideHeader={true}
                                   autoResize
                                   autoResizeLayoutKey={promptAutoResizeLayoutKey}
                                   promptPlaceholder={primaryPromptPlaceholder}
                                   beginnerHelperText={primaryPromptHelperText}
+                                  promptTextareaRef={primaryPromptTextareaRef}
+                                  promptHighlightSegments={primaryPromptHighlightSegments}
+                                  onPromptFocus={() => handlePromptSelection("primary")}
+                                  onPromptBlur={handlePromptBlur}
+                                  onPromptSelect={() => handlePromptSelection("primary")}
+                                  onPromptKeyDown={handlePromptKeyDown}
                                 />
                               </div>
                             </div>
@@ -794,18 +1591,65 @@ export function VideoPropertiesPanel({
                                 </button>
                               </div>
                             ) : null}
-                            <div className="prompt-enhanced-wrapper">
+                            <div className="prompt-enhanced-wrapper has-token-highlight">
+                              <div
+                                className="prompt-token-highlight"
+                                aria-hidden="true"
+                                ref={(node) => {
+                                  customPromptHighlightRefs.current[shot.id] = node;
+                                }}
+                              >
+                                {buildKlingPromptHighlightSegments(
+                                  shot.prompt,
+                                  analyzeKlingPromptTokens(shot.prompt, klingPromptAttachedAliases)
+                                ).map((segment, segmentIndex) => (
+                                  <span
+                                    key={`custom-shot-highlight-${shot.id}-${segmentIndex}-${segment.kind}`}
+                                    className={`prompt-token-highlight-segment is-${segment.kind}`}
+                                  >
+                                    {segment.text}
+                                  </span>
+                                ))}
+                                <span className="prompt-token-highlight-segment prompt-token-highlight-segment--buffer">
+                                  {"\n"}
+                                </span>
+                              </div>
                               <textarea
                                 className="prompt-input agent-step-textarea enhanced-prompt-input"
+                                ref={(node) => {
+                                  customPromptTextareaRefs.current[shot.id] = node;
+                                }}
                                 value={shot.prompt}
+                                onFocus={() => handlePromptSelection(shot.id)}
+                                onBlur={handlePromptBlur}
                                 onChange={(event) =>
                                   handleCustomShotPromptChange(shot.id, event.target.value)
                                 }
+                                onKeyDown={(event) =>
+                                  handlePromptKeyDown(event, {
+                                    shotId: shot.id,
+                                    promptValue: shot.prompt,
+                                  })
+                                }
+                                onSelect={() => handlePromptSelection(shot.id)}
                                 onInput={(event) =>
                                   resizeTextareaToViewport(
                                     event.currentTarget as HTMLTextAreaElement
                                   )
                                 }
+                                onScroll={(event) =>
+                                  syncTextareaMirrorScroll({
+                                    textarea: event.currentTarget,
+                                    mirror: customPromptHighlightRefs.current[shot.id],
+                                  })
+                                }
+                                onDrop={(event) =>
+                                  handlePromptDropWithKlingTokenInsert(event, {
+                                    shotId: shot.id,
+                                    promptValue: shot.prompt,
+                                  })
+                                }
+                                onDragOver={(event) => event.preventDefault()}
                                 rows={4}
                                 placeholder={`Describe shot ${index + 2}.`}
                               />
@@ -858,7 +1702,7 @@ export function VideoPropertiesPanel({
                         !hasAnyPromptText ||
                         shouldShowKlingReferenceImageWarning
                       }
-                      isBusy={agentIsSending}
+                      isBusy={false}
                       cost={costCredits != null ? costCredits : "—"}
                     />
                   </div>
@@ -898,6 +1742,8 @@ export function VideoPropertiesPanel({
             onKlingVoiceIdChange={onKlingVoiceIdChange}
             onKlingCfgScaleChange={onKlingCfgScaleChange}
             onKlingNegativePromptChange={onKlingNegativePromptChange}
+            onInsertKlingElementToken={insertKlingElementToken}
+            onOpenKlingElementPicker={openElementPicker}
             addKlingShot={addKlingShot}
             removeKlingShot={removeKlingShot}
             updateKlingMultiPrompt={updateKlingMultiPrompt}
@@ -907,6 +1753,54 @@ export function VideoPropertiesPanel({
           />
         </div>
       </div>
+      <ElementPickerModal
+        isOpen={isElementPickerOpen}
+        onClose={closeElementPicker}
+        onCreateCharacter={onCreateCharacter}
+        onCreateElement={onCreateElement}
+        onSelect={handleElementSelection}
+        selectedEntities={selectedKlingElements
+          .filter((element): element is NonNullable<(typeof selectedKlingElements)[number]> =>
+            Boolean(element)
+          )
+          .map((element) => {
+            const sourceKind =
+              element.sourceKind ??
+              (element.sourceCharacterId
+                ? "character"
+                : element.sourceElementId
+                  ? "element"
+                  : null);
+            const sourceId = element.sourceCharacterId ?? element.sourceElementId ?? "";
+            if (!sourceKind || !sourceId) return null;
+            return { sourceKind, sourceId };
+          })
+          .filter(
+            (
+              selection
+            ): selection is {
+              sourceKind: AiStudioKlingEntitySourceKind;
+              sourceId: string;
+            } => Boolean(selection)
+          )}
+        selectedSourceKind={
+          elementPickerSlotIndex != null
+            ? (selectedKlingElements[elementPickerSlotIndex]?.sourceKind ??
+              (selectedKlingElements[elementPickerSlotIndex]?.sourceCharacterId
+                ? "character"
+                : selectedKlingElements[elementPickerSlotIndex]?.sourceElementId
+                  ? "element"
+                  : null))
+            : null
+        }
+        selectedSourceId={
+          elementPickerSlotIndex != null
+            ? (selectedKlingElements[elementPickerSlotIndex]?.sourceCharacterId ??
+              selectedKlingElements[elementPickerSlotIndex]?.sourceElementId ??
+              null)
+            : null
+        }
+      />
     </div>
   );
 }

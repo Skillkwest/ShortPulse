@@ -44,6 +44,16 @@ const useHarness = (initialOutputs: StudioOutput[]) => {
   };
 };
 
+const createDeferred = <T>() => {
+  let resolve!: (value: T | PromiseLike<T>) => void;
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((res, rej) => {
+    resolve = res;
+    reject = rej;
+  });
+  return { promise, resolve, reject };
+};
+
 describe("useAiStudioSessionReferenceDurability", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -158,5 +168,131 @@ describe("useAiStudioSessionReferenceDurability", () => {
     await waitFor(() => {
       expect(uploadImageAssetToStorageMock).toHaveBeenCalledTimes(1);
     });
+  });
+
+  it("processes queued local video references serially", async () => {
+    const first = createDeferred<{
+      url: string;
+      path: string;
+      size: number;
+    }>();
+    const second = createDeferred<{
+      url: string;
+      path: string;
+      size: number;
+    }>();
+    uploadVideoAssetToStorageMock
+      .mockImplementationOnce(() => first.promise)
+      .mockImplementationOnce(() => second.promise);
+
+    const { result } = renderHook(() =>
+      useHarness([
+        createOutput({
+          id: "video-1",
+          mode: "video",
+          previewUrl: "blob:local-video-1#video=1",
+        }),
+        createOutput({
+          id: "video-2",
+          mode: "video",
+          previewUrl: "blob:local-video-2#video=1",
+        }),
+      ])
+    );
+
+    await waitFor(() => {
+      expect(uploadVideoAssetToStorageMock).toHaveBeenCalledTimes(1);
+      expect(uploadVideoAssetToStorageMock).toHaveBeenNthCalledWith(
+        1,
+        "blob:local-video-1#video=1"
+      );
+    });
+    expect(uploadVideoAssetToStorageMock).not.toHaveBeenCalledWith("blob:local-video-2#video=1");
+
+    first.resolve({
+      url: "https://signed/user-1/videos/ref-1.mp4",
+      path: "user-1/videos/ref-1.mp4",
+      size: 111,
+    });
+
+    await waitFor(() => {
+      expect(uploadVideoAssetToStorageMock).toHaveBeenCalledTimes(2);
+      expect(uploadVideoAssetToStorageMock).toHaveBeenNthCalledWith(
+        2,
+        "blob:local-video-2#video=1"
+      );
+      expect(result.current.outputs[0]?.previewStoragePath).toBe("user-1/videos/ref-1.mp4");
+    });
+
+    second.resolve({
+      url: "https://signed/user-1/videos/ref-2.mp4",
+      path: "user-1/videos/ref-2.mp4",
+      size: 222,
+    });
+
+    await waitFor(() => {
+      expect(result.current.outputs[1]?.previewStoragePath).toBe("user-1/videos/ref-2.mp4");
+    });
+  });
+
+  it("continues processing later queued videos after an earlier video upload fails", async () => {
+    uploadVideoAssetToStorageMock
+      .mockRejectedValueOnce(new Error("multipart parser exploded"))
+      .mockResolvedValueOnce({
+        url: "https://signed/user-1/videos/ref-2.mp4",
+        path: "user-1/videos/ref-2.mp4",
+        size: 222,
+      });
+
+    const { result } = renderHook(() =>
+      useHarness([
+        createOutput({
+          id: "video-fail",
+          mode: "video",
+          previewUrl: "blob:local-video-fail#video=1",
+        }),
+        createOutput({
+          id: "video-ok",
+          mode: "video",
+          previewUrl: "blob:local-video-ok#video=1",
+        }),
+      ])
+    );
+
+    await waitFor(() => {
+      expect(uploadVideoAssetToStorageMock).toHaveBeenCalledTimes(2);
+    });
+
+    expect(result.current.outputs[0]?.previewUrl).toBe("blob:local-video-fail#video=1");
+    expect(result.current.outputs[0]?.previewStoragePath).toBeUndefined();
+    expect(result.current.outputs[1]?.previewStoragePath).toBe("user-1/videos/ref-2.mp4");
+  });
+
+  it("does not retry the same failed local video signature during the session", async () => {
+    uploadVideoAssetToStorageMock.mockRejectedValueOnce(new Error("multipart parser exploded"));
+
+    const { result } = renderHook(() =>
+      useHarness([
+        createOutput({
+          id: "video-1",
+          mode: "video",
+          previewUrl: "blob:local-video-fail-once#video=1",
+        }),
+      ])
+    );
+
+    await waitFor(() => {
+      expect(uploadVideoAssetToStorageMock).toHaveBeenCalledTimes(1);
+    });
+
+    act(() => {
+      result.current.setOutputsState((rows) => [...rows]);
+    });
+
+    await waitFor(() => {
+      expect(uploadVideoAssetToStorageMock).toHaveBeenCalledTimes(1);
+    });
+    expect(result.current.outputs[0]?.previewUrl).toBe("blob:local-video-fail-once#video=1");
+    expect(result.current.outputs[0]?.previewStoragePath).toBeUndefined();
   });
 });

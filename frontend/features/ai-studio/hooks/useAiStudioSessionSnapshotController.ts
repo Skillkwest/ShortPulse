@@ -22,6 +22,7 @@ import {
 } from "../logic/sessionRestoreMediaSigning";
 import type { ReferenceProjectionState } from "../reference-projections";
 import type { StudioMode, StudioOutput, ToolId } from "../types";
+import type { AiStudioKlingElement } from "../logic/klingElements";
 
 type UseAiStudioSessionSnapshotControllerParams = {
   mode: StudioMode;
@@ -52,12 +53,7 @@ type UseAiStudioSessionSnapshotControllerParams = {
   klingShotType: "customize" | "intelligent";
   klingVoiceIds: [string, string];
   klingMultiPrompts: { id: string; prompt: string; duration: number }[];
-  klingElements: {
-    id: string;
-    frontalImageUrl: string;
-    referenceImageUrls: string;
-    videoUrl: string;
-  }[];
+  klingElements: AiStudioKlingElement[];
   motionReferenceVideoUrl: string | null;
   outputs: StudioOutput[];
   archivedOutputs: StudioOutput[];
@@ -99,11 +95,7 @@ type UseAiStudioSessionSnapshotControllerParams = {
   setKlingMultiPrompts: Dispatch<
     SetStateAction<{ id: string; prompt: string; duration: number }[]>
   >;
-  setKlingElements: Dispatch<
-    SetStateAction<
-      { id: string; frontalImageUrl: string; referenceImageUrls: string; videoUrl: string }[]
-    >
-  >;
+  setKlingElements: Dispatch<SetStateAction<AiStudioKlingElement[]>>;
   setMotionReferenceVideoUrl: Dispatch<SetStateAction<string | null>>;
   setOutputsState: Dispatch<SetStateAction<StudioOutput[]>>;
   setArchivedOutputs: Dispatch<SetStateAction<StudioOutput[]>>;

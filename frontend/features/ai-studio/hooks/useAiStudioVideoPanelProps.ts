@@ -4,6 +4,7 @@
  */
 import { useMemo, type Dispatch, type SetStateAction } from "react";
 import { aspectOptions } from "../constants";
+import type { AiStudioKlingElement } from "../logic/klingElements";
 import type { AiStudioVideoPanelContract } from "./contracts/pageContentContracts";
 
 type UseAiStudioVideoPanelPropsParams = {
@@ -46,12 +47,7 @@ type UseAiStudioVideoPanelPropsParams = {
   klingShotType: "customize" | "intelligent";
   klingVoiceIds: [string, string];
   klingMultiPrompts: { id: string; prompt: string; duration: number }[];
-  klingElements: {
-    id: string;
-    frontalImageUrl: string;
-    referenceImageUrls: string;
-    videoUrl: string;
-  }[];
+  klingElements: AiStudioKlingElement[];
   setKlingNegativePrompt: Dispatch<SetStateAction<string>>;
   setKlingCfgScale: Dispatch<SetStateAction<number>>;
   setKlingWorkflowMode?: Dispatch<SetStateAction<"single" | "multi" | "custom">>;
@@ -60,11 +56,7 @@ type UseAiStudioVideoPanelPropsParams = {
   setKlingMultiPrompts: Dispatch<
     SetStateAction<{ id: string; prompt: string; duration: number }[]>
   >;
-  setKlingElements: Dispatch<
-    SetStateAction<
-      { id: string; frontalImageUrl: string; referenceImageUrls: string; videoUrl: string }[]
-    >
-  >;
+  setKlingElements: Dispatch<SetStateAction<AiStudioKlingElement[]>>;
   motionReferenceVideoUrl: string | null;
   setMotionReferenceVideoUrl: (url: string | null) => void;
   videoReferenceText: string;
@@ -91,10 +83,10 @@ type UseAiStudioVideoPanelPropsParams = {
   referenceImageWarning: string | null;
   resolveOutputPreviewUrl: (id: string | null | undefined) => string | null;
   isGenerateDisabled: boolean;
-  isReferencePromptEnhancing: boolean;
   generationGuardrail: string | null;
-  handleReferencePromptEnhance: () => void;
   beginnerMode: boolean;
+  onCreateCharacter: () => void;
+  onCreateElement: () => void;
 };
 
 /**
@@ -160,10 +152,10 @@ export const useAiStudioVideoPanelProps = ({
   referenceImageWarning,
   resolveOutputPreviewUrl,
   isGenerateDisabled,
-  isReferencePromptEnhancing,
   generationGuardrail,
-  handleReferencePromptEnhance,
   beginnerMode,
+  onCreateCharacter,
+  onCreateElement,
 }: UseAiStudioVideoPanelPropsParams): AiStudioVideoPanelContract =>
   useMemo(
     () => ({
@@ -228,9 +220,11 @@ export const useAiStudioVideoPanelProps = ({
       referenceImageWarning,
       resolvePreviewUrlById: resolveOutputPreviewUrl,
       isGenerateDisabled,
-      agentIsSending: isReferencePromptEnhancing,
-      onAgentEnhanceSend: handleReferencePromptEnhance,
+      agentIsSending: false,
+      onAgentEnhanceSend: undefined,
       beginnerMode,
+      onCreateCharacter,
+      onCreateElement,
     }),
     [
       aspect,
@@ -241,13 +235,11 @@ export const useAiStudioVideoPanelProps = ({
       generationGuardrail,
       handleKlingVoiceIdChange,
       handleOpenModelModal,
-      handleReferencePromptEnhance,
       handleRegenerateWithDebit,
       handleVideoPromptSave,
       handleVideoPromptTextChange,
       isGenerateDisabled,
       isModelModalOpen,
-      isReferencePromptEnhancing,
       klingCfgScale,
       klingWorkflowMode,
       klingElements,
@@ -258,6 +250,8 @@ export const useAiStudioVideoPanelProps = ({
       model,
       modelModalAnchor,
       motionReferenceVideoUrl,
+      onCreateCharacter,
+      onCreateElement,
       referenceImageUrl,
       referenceImageWarning,
       resolveOutputPreviewUrl,

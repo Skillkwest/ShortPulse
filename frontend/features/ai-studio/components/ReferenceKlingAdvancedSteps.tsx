@@ -2,16 +2,13 @@
  * Kling advanced configuration step cards for reference-based generation flows.
  */
 import React from "react";
+import type { AiStudioKlingElement } from "../logic/klingElements";
+import { resolveAiStudioKlingElementToken } from "../logic/klingElements";
 import { ReferenceStepHeaderActionButton } from "./ReferenceStepHeaderActionButton";
 
 type KlingShot = { id: string; prompt: string; duration: number };
 
-type KlingElement = {
-  id: string;
-  frontalImageUrl: string;
-  referenceImageUrls: string;
-  videoUrl: string;
-};
+type KlingElement = AiStudioKlingElement;
 
 type ReferenceKlingAdvancedStepsProps = {
   isKling3Mode: boolean;
@@ -45,6 +42,8 @@ type ReferenceKlingAdvancedStepsProps = {
   onKlingVoiceIdChange?: (index: 0 | 1, value: string) => void;
   onKlingCfgScaleChange?: (value: number) => void;
   onKlingNegativePromptChange?: (value: string) => void;
+  onInsertKlingElementToken?: (token: string) => void;
+  onOpenKlingElementPicker?: (slotIndex: number) => void;
   addKlingShot: () => void;
   removeKlingShot: (id: string) => void;
   updateKlingMultiPrompt: (id: string, key: "prompt" | "duration", value: string | number) => void;
@@ -94,16 +93,21 @@ export const ReferenceKlingAdvancedSteps: React.FC<ReferenceKlingAdvancedStepsPr
   onKlingVoiceIdChange,
   onKlingCfgScaleChange,
   onKlingNegativePromptChange,
+  onInsertKlingElementToken,
+  onOpenKlingElementPicker,
   addKlingShot,
   removeKlingShot,
   updateKlingMultiPrompt,
   addKlingElement,
   removeKlingElement,
-  updateKlingElement,
 }) => {
   if (!isKling3Mode) return null;
   const klingAssetsCardOrder = klingAssetsOrder ?? (klingAdvancedOrder ?? 5) + 1;
   const klingGuidanceCardOrder = klingGuidanceOrder ?? klingAssetsCardOrder + 1;
+  const firstEmptySlotIndex = [0, 1, 2].find(
+    (slotIndex) =>
+      !klingElements.some((element, index) => (element.slotIndex ?? index) === slotIndex)
+  );
 
   return (
     <>
@@ -234,51 +238,89 @@ export const ReferenceKlingAdvancedSteps: React.FC<ReferenceKlingAdvancedStepsPr
             <div className="control-row compact full-span">
               <label className="input-label">Elements (characters/objects)</label>
               <div className="kling-elements-list">
-                {klingElements.map((element) => (
-                  <div className="kling-element-row" key={element.id}>
-                    <div className="kling-element-grid">
-                      <input
-                        className="model-select"
-                        placeholder="Frontal image URL"
-                        value={element.frontalImageUrl}
-                        onChange={(event) =>
-                          updateKlingElement(element.id, "frontalImageUrl", event.target.value)
-                        }
-                      />
-                      <input
-                        className="model-select"
-                        placeholder="Reference images (comma or newline separated)"
-                        value={element.referenceImageUrls}
-                        onChange={(event) =>
-                          updateKlingElement(element.id, "referenceImageUrls", event.target.value)
-                        }
-                      />
-                      <input
-                        className="model-select"
-                        placeholder="Reference video URL (optional)"
-                        value={element.videoUrl}
-                        onChange={(event) =>
-                          updateKlingElement(element.id, "videoUrl", event.target.value)
-                        }
-                      />
+                {klingElements.length === 0 ? (
+                  <p className="tiny helper-text">
+                    Attach saved Characters or Elements from the Kling 3.0 settings slots above.
+                  </p>
+                ) : null}
+                {klingElements.map((element, index) => {
+                  const token = resolveAiStudioKlingElementToken(element, index, klingElements);
+                  const referenceCount = [
+                    element.frontalImageUrl.trim(),
+                    ...element.referenceImageUrls
+                      .split(/[,\n]+/)
+                      .map((value) => value.trim())
+                      .filter(Boolean),
+                  ].filter(Boolean).length;
+                  return (
+                    <div className="kling-element-row kling-element-row--attached" key={element.id}>
+                      <div className="kling-element-grid kling-element-grid--summary">
+                        <div className="kling-element-summary-copy">
+                          <span className="kling-element-summary-name">
+                            {element.name?.trim() || `Attached element ${index + 1}`}
+                          </span>
+                          <span className="tiny helper-text">@{token}</span>
+                          {element.description?.trim() ? (
+                            <span className="tiny helper-text">{element.description.trim()}</span>
+                          ) : null}
+                          <span className="tiny helper-text">
+                            {element.videoUrl.trim()
+                              ? "Video element reference attached"
+                              : `${referenceCount} sheet reference${referenceCount === 1 ? "" : "s"} attached`}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="kling-element-actions kling-element-actions--summary">
+                        <button
+                          type="button"
+                          className="ghost-btn mini"
+                          onClick={() => onInsertKlingElementToken?.(token)}
+                          disabled={!token.trim()}
+                        >
+                          Insert @{token}
+                        </button>
+                        {onOpenKlingElementPicker ? (
+                          <button
+                            type="button"
+                            className="ghost-btn mini"
+                            onClick={() => onOpenKlingElementPicker(element.slotIndex ?? index)}
+                          >
+                            Replace
+                          </button>
+                        ) : null}
+                        <button
+                          type="button"
+                          className="ghost-btn mini"
+                          onClick={() => removeKlingElement(element.id)}
+                        >
+                          Remove
+                        </button>
+                      </div>
                     </div>
-                    <div className="kling-element-actions">
-                      <span className="tiny helper-text">
-                        Reference as @Element{element.id.slice(-2)}
-                      </span>
-                      <button
-                        type="button"
-                        className="ghost-btn mini"
-                        onClick={() => removeKlingElement(element.id)}
-                      >
-                        Remove
-                      </button>
-                    </div>
-                  </div>
-                ))}
-                <button type="button" className="ghost-btn small" onClick={addKlingElement}>
-                  + Add element
-                </button>
+                  );
+                })}
+                {onOpenKlingElementPicker ? (
+                  <button
+                    type="button"
+                    className="ghost-btn small"
+                    onClick={() => {
+                      if (firstEmptySlotIndex == null) return;
+                      onOpenKlingElementPicker(firstEmptySlotIndex);
+                    }}
+                    disabled={firstEmptySlotIndex == null}
+                  >
+                    + Add saved entity
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    className="ghost-btn small"
+                    onClick={addKlingElement}
+                    disabled={klingElements.length >= 3}
+                  >
+                    + Add element
+                  </button>
+                )}
               </div>
             </div>
             {!isKieKlingModel ? (
@@ -303,8 +345,7 @@ export const ReferenceKlingAdvancedSteps: React.FC<ReferenceKlingAdvancedStepsPr
             ) : (
               <div className="control-row compact full-span">
                 <span className="tiny helper-text">
-                  Use `@Element01`-style tokens in the prompt to bind KIE element references to
-                  specific subjects.
+                  Use each saved element alias as its prompt token, for example `@redlantern`.
                 </span>
               </div>
             )}

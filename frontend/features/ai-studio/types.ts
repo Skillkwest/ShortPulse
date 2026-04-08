@@ -85,6 +85,7 @@ export type StudioOutput = {
   errorDetail?: string | null;
   resultUrls?: string[];
   previewUrl?: string;
+  previewPosterUrl?: string | null;
   previewStoragePath?: string | null;
   fullStoragePath?: string | null;
   previewTier?: StudioOutputPreviewTier;

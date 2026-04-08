@@ -51,6 +51,7 @@ import {
 } from "./taskSubmission/submitInvariants";
 import { resolvePrepareReferenceTimeoutBudget } from "./taskSubmission/preflightTimeout";
 import type { StudioMode, StudioOutput, ToolId } from "../types";
+import type { AiStudioKlingElement } from "../logic/klingElements";
 import { DISPATCH_HANDOFF_INITIAL_POLL_DELAY_MS } from "./useAiStudioTasks";
 import type { AiStudioSubmitPanelKey } from "./useAiStudioCreationState";
 
@@ -115,12 +116,7 @@ type UseAiStudioTaskSubmissionParams = {
   klingShotType: "customize" | "intelligent";
   klingVoiceIds: [string, string];
   klingMultiPrompts: { id: string; prompt: string; duration: number }[];
-  klingElements: {
-    id: string;
-    frontalImageUrl: string;
-    referenceImageUrls: string;
-    videoUrl: string;
-  }[];
+  klingElements: AiStudioKlingElement[];
   setPanelGenerating: (panel: AiStudioSubmitPanelKey, value: boolean) => void;
   setUiError: Dispatch<SetStateAction<string | null>>;
   setUiNotice: Dispatch<SetStateAction<string | null>>;

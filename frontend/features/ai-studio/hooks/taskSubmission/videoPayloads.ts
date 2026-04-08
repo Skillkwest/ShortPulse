@@ -2,6 +2,10 @@
  * Shared payload normalization helpers for video model submission handlers.
  */
 import { resolveKlingV3Duration } from "../../logic/stateParsers";
+import {
+  getAiStudioKlingElementReferenceUrls,
+  resolveAiStudioKlingElementToken,
+} from "../../logic/klingElements";
 import { getModelApiContract, resolveEffectiveAspectForModel } from "../../logic/modelApiContracts";
 import type { SubmissionModelConfig, VideoSubmissionArgs } from "./types";
 
@@ -75,6 +79,20 @@ export const resolveKieKlingMode = (requestedResolution?: string): "std" | "pro"
  */
 export const resolveKieKlingDuration = (requestedDurationSeconds: number): number =>
   Math.max(3, Math.min(15, Math.round(requestedDurationSeconds)));
+
+/**
+ * Resolves Kie Kling aspect ratio with model-aware fallback defaults.
+ */
+export const resolveKieKlingAspect = (
+  aspect: string,
+  modelConfig: SubmissionModelConfig
+): "16:9" | "9:16" | "1:1" => {
+  const resolved = resolveAspectForModelConfig(aspect, modelConfig, "16:9");
+  if (resolved === "16:9" || resolved === "9:16" || resolved === "1:1") {
+    return resolved;
+  }
+  return "16:9";
+};
 
 /**
  * Normalizes VEO resolution selection to accepted enum values.
@@ -226,7 +244,12 @@ export const buildKieKlingMultiPromptPayload = (
 export const buildKlingElementsPayload = (
   klingElements: VideoSubmissionArgs["klingElements"]
 ): KlingElementPayload[] | undefined => {
-  const payload = klingElements.reduce<KlingElementPayload[]>((accumulator, element) => {
+  const orderedElements = [...klingElements].sort((a, b) => {
+    const left = a.slotIndex ?? 0;
+    const right = b.slotIndex ?? 0;
+    return left - right;
+  });
+  const payload = orderedElements.reduce<KlingElementPayload[]>((accumulator, element) => {
     const referenceList = element.referenceImageUrls
       .split(/[,\n]+/)
       .map((item) => item.trim())
@@ -255,32 +278,40 @@ export const buildKlingElementsPayload = (
 export const buildKieKlingElementsPayload = (
   klingElements: VideoSubmissionArgs["klingElements"]
 ): KieKlingElementPayload[] | undefined => {
-  const payload = klingElements.reduce<KieKlingElementPayload[]>((accumulator, element, index) => {
-    const tokenName = `Element${String(index + 1).padStart(2, "0")}`;
-    const referenceList = element.referenceImageUrls
-      .split(/[,\n]+/)
-      .map((item) => item.trim())
-      .filter(Boolean);
-    const imageList = [element.frontalImageUrl.trim(), ...referenceList].filter(Boolean);
+  const orderedElements = [...klingElements].sort((a, b) => {
+    const left = a.slotIndex ?? 0;
+    const right = b.slotIndex ?? 0;
+    return left - right;
+  });
+  const payload = orderedElements.reduce<KieKlingElementPayload[]>(
+    (accumulator, element, index) => {
+      const tokenName = resolveAiStudioKlingElementToken(element, index, orderedElements);
+      const imageList = Array.from(new Set(getAiStudioKlingElementReferenceUrls(element))).slice(
+        0,
+        4
+      );
+      const displayName = element.name?.trim() || tokenName;
 
-    if (element.videoUrl.trim()) {
-      accumulator.push({
-        name: tokenName,
-        description: `Reference video for ${tokenName}`,
-        element_input_video_urls: [element.videoUrl.trim()],
-      });
+      if (element.videoUrl.trim()) {
+        accumulator.push({
+          name: tokenName,
+          description: `Reference video for ${displayName}`,
+          element_input_video_urls: [element.videoUrl.trim()],
+        });
+        return accumulator;
+      }
+
+      if (imageList.length) {
+        accumulator.push({
+          name: tokenName,
+          description: `Reference images for ${displayName}`,
+          element_input_urls: imageList,
+        });
+      }
       return accumulator;
-    }
-
-    if (imageList.length) {
-      accumulator.push({
-        name: tokenName,
-        description: `Reference images for ${tokenName}`,
-        element_input_urls: Array.from(new Set(imageList)).slice(0, 4),
-      });
-    }
-    return accumulator;
-  }, []);
+    },
+    []
+  );
 
   return payload.length ? payload : undefined;
 };

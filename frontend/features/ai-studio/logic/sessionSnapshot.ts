@@ -13,6 +13,7 @@ import type {
   StudioOutputStyleContext,
   ToolId,
 } from "../types";
+import type { AiStudioKlingElement } from "./klingElements";
 import {
   serializeAiStudioSessionCanvasState,
   type AiStudioSessionCanvasSnapshotV1,
@@ -97,12 +98,7 @@ export type AiStudioSessionWorkspaceV1 = {
   klingShotType: "customize" | "intelligent";
   klingVoiceIds: [string, string];
   klingMultiPrompts: { id: string; prompt: string; duration: number }[];
-  klingElements: {
-    id: string;
-    frontalImageUrl: string;
-    referenceImageUrls: string;
-    videoUrl: string;
-  }[];
+  klingElements: AiStudioKlingElement[];
   motionReferenceVideoUrl: string | null;
 };
 
@@ -180,12 +176,7 @@ export type BuildAiStudioSessionSnapshotInput = {
   klingShotType: "customize" | "intelligent";
   klingVoiceIds: [string, string];
   klingMultiPrompts: { id: string; prompt: string; duration: number }[];
-  klingElements: {
-    id: string;
-    frontalImageUrl: string;
-    referenceImageUrls: string;
-    videoUrl: string;
-  }[];
+  klingElements: AiStudioKlingElement[];
   motionReferenceVideoUrl: string | null;
   outputs: StudioOutput[];
   archivedOutputs: StudioOutput[];
@@ -219,14 +210,7 @@ const sanitizeWorkspaceExtraImageUrls = (
   sanitizeWorkspaceMediaUrl(values[2]),
 ];
 
-const sanitizeWorkspaceKlingElements = (
-  elements: {
-    id: string;
-    frontalImageUrl: string;
-    referenceImageUrls: string;
-    videoUrl: string;
-  }[]
-) =>
+const sanitizeWorkspaceKlingElements = (elements: AiStudioKlingElement[]) =>
   elements.map((element) => {
     const sanitizedReferenceImageUrls = element.referenceImageUrls
       .split(/[,\n]+/)
@@ -235,6 +219,26 @@ const sanitizeWorkspaceKlingElements = (
       .join(", ");
     return {
       ...element,
+      slotIndex:
+        typeof element.slotIndex === "number" && Number.isFinite(element.slotIndex)
+          ? Math.max(0, Math.trunc(element.slotIndex))
+          : undefined,
+      sourceKind:
+        element.sourceKind === "character" || element.sourceKind === "element"
+          ? element.sourceKind
+          : null,
+      sourceElementId:
+        typeof element.sourceElementId === "string" || element.sourceElementId === null
+          ? (element.sourceElementId ?? null)
+          : null,
+      sourceCharacterId:
+        typeof element.sourceCharacterId === "string" || element.sourceCharacterId === null
+          ? (element.sourceCharacterId ?? null)
+          : null,
+      name: element.name?.trim() ?? "",
+      alias: element.alias?.trim() ?? "",
+      description: element.description?.trim() ?? "",
+      profileImageUrl: sanitizeWorkspaceMediaUrl(element.profileImageUrl) ?? null,
       frontalImageUrl: sanitizeMediaUrl(element.frontalImageUrl) ?? "",
       referenceImageUrls: sanitizedReferenceImageUrls,
       videoUrl: sanitizeMediaUrl(element.videoUrl) ?? "",

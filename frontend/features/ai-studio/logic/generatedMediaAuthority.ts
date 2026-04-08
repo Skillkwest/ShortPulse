@@ -9,6 +9,7 @@ type MediaFileRow = {
   filename?: unknown;
   preview_storage_path?: unknown;
   file_type?: unknown;
+  poster_variant_path?: unknown;
 };
 
 type GenerationOutputRow = {
@@ -31,6 +32,7 @@ export type GeneratedMediaFileRecord = {
 export type GeneratedMediaLibraryRow = GeneratedMediaFileRecord & {
   mediaFileId: string;
   fileType: "image" | "video";
+  posterVariantPath: string | null;
 };
 
 const asTrimmedString = (value: unknown): string | null => {
@@ -96,22 +98,25 @@ const toGeneratedMediaLibraryRow = (
     storagePath: baseRecord.storagePath,
     filename: baseRecord.filename,
     fileType: asTrimmedString(row?.file_type)?.toLowerCase() === "video" ? "video" : "image",
+    posterVariantPath: asTrimmedString(row?.poster_variant_path),
   };
 };
 
 const runMaybeSingleMediaLibraryQuery = async <TRow extends MediaFileRow>(args: {
   runSelect: (
     columns:
-      | "id, preview_storage_path, storage_path, filename, file_type"
-      | "id, storage_path, filename, file_type"
+      | "id, preview_storage_path, storage_path, filename, file_type, poster_variant_path"
+      | "id, storage_path, filename, file_type, poster_variant_path"
   ) => Promise<{ data: TRow | null; error: unknown }>;
 }): Promise<TRow | null> => {
   const primary = await args.runSelect(
-    "id, preview_storage_path, storage_path, filename, file_type"
+    "id, preview_storage_path, storage_path, filename, file_type, poster_variant_path"
   );
   if (!primary.error) return primary.data;
   if (!isPreviewStoragePathSchemaError(primary.error)) return null;
-  const fallback = await args.runSelect("id, storage_path, filename, file_type");
+  const fallback = await args.runSelect(
+    "id, storage_path, filename, file_type, poster_variant_path"
+  );
   return fallback.error ? null : fallback.data;
 };
 

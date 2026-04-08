@@ -12,7 +12,7 @@ import {
   useAiStudioWorkflowSettings,
 } from "../useAiStudioWorkflowSettings";
 
-const useHarness = (initialTool: ToolId | null) => {
+const useHarness = (initialTool: ToolId | null, sessionId = "session-1") => {
   const [selectedTool, setSelectedTool] = useState<ToolId | null>(initialTool);
   const [mode, setMode] = useState<StudioMode>("text");
   const [model, setModelState] = useState<string | null>(null);
@@ -49,6 +49,7 @@ const useHarness = (initialTool: ToolId | null) => {
   >([{ id: "el-1", frontalImageUrl: "", referenceImageUrls: "", videoUrl: "" }]);
 
   const workflow = useAiStudioWorkflowSettings({
+    sessionId,
     selectedTool,
     mode,
     model,
@@ -99,6 +100,7 @@ const useHarness = (initialTool: ToolId | null) => {
   });
 
   return {
+    sessionId,
     selectedTool,
     setSelectedTool,
     mode,
@@ -114,6 +116,8 @@ const useHarness = (initialTool: ToolId | null) => {
     setKlingWorkflowMode,
     klingMultiPrompts,
     setKlingMultiPrompts,
+    klingElements,
+    setKlingElements,
     ...workflow,
   };
 };
@@ -163,6 +167,7 @@ describe("useAiStudioWorkflowSettings", () => {
     expect(result.current.model).toBeNull();
     expect(result.current.aspect).toBe("16:9");
     expect(result.current.videoResolution).toBe("4k");
+    expect(result.current.klingElements).toEqual([]);
   });
 
   it("falls back to Seedream when saved create model is invalid for create image mode", async () => {
@@ -328,6 +333,43 @@ describe("useAiStudioWorkflowSettings", () => {
     });
   });
 
+  it("preserves Kling elements when switching away from and back to video within the same session", async () => {
+    window.sessionStorage.clear();
+    const { result } = renderHook(() => useHarness("video"));
+
+    await waitFor(() =>
+      expect(window.sessionStorage.getItem(WORKFLOW_SETTINGS_SESSION_KEY)).not.toBeNull()
+    );
+    await waitFor(() => {
+      expect(result.current.klingElements).toEqual([]);
+    });
+
+    act(() => {
+      result.current.setKlingElements([
+        { id: "el-1", frontalImageUrl: "", referenceImageUrls: "", videoUrl: "" },
+      ]);
+    });
+
+    act(() => {
+      result.current.setSelectedTool("create");
+    });
+
+    await waitFor(() => expect(result.current.selectedTool).toBe("create"));
+
+    act(() => {
+      result.current.setSelectedTool("video");
+    });
+
+    await waitFor(() => expect(result.current.selectedTool).toBe("video"));
+    expect(result.current.klingElements).toEqual([
+      { id: "el-1", frontalImageUrl: "", referenceImageUrls: "", videoUrl: "" },
+    ]);
+
+    const raw = window.sessionStorage.getItem(WORKFLOW_SETTINGS_SESSION_KEY);
+    const parsed = raw ? (JSON.parse(raw) as Record<string, { klingElements?: unknown[] }>) : {};
+    expect(parsed.video?.klingElements).toEqual([]);
+  });
+
   it("preserves create selector changes when switching to edit before persistence catches up", async () => {
     window.sessionStorage.clear();
     const { result } = renderHook(() => useHarness("create"));
@@ -408,6 +450,53 @@ describe("useAiStudioWorkflowSettings", () => {
     await waitFor(() => {
       expect(result.current.klingWorkflowMode).toBe("single");
       expect(result.current.klingMultiPrompts).toEqual([]);
+    });
+  });
+
+  it("does not restore persisted Kling elements from workflow session storage", async () => {
+    window.sessionStorage.clear();
+    window.sessionStorage.setItem(
+      WORKFLOW_SETTINGS_SESSION_KEY,
+      JSON.stringify({
+        video: {
+          mode: "video",
+          model: KIE_KLING_30_MODEL_ID,
+          aspect: "9:16",
+          imageResolution: "model_default",
+          videoReferenceMode: "standard",
+          videoDurationSeconds: 6,
+          videoResolution: "1080p",
+          videoGenerateAudio: false,
+          videoCameraFixed: false,
+          videoAutoFix: false,
+          klingNegativePrompt: "blur",
+          klingCfgScale: 0.5,
+          klingWorkflowMode: "single",
+          klingShotType: "customize",
+          klingVoiceIds: ["", ""],
+          klingMultiPrompts: [],
+          klingElements: [
+            {
+              id: "el-1",
+              frontalImageUrl: "https://example.com/front.png",
+              referenceImageUrls: "",
+              videoUrl: "",
+            },
+          ],
+        },
+      })
+    );
+    window.sessionStorage.setItem("aiStudioWorkflowSettingsSessionId.v1", "session-old");
+
+    const { result } = renderHook(() => useHarness("video", "session-old"));
+
+    await waitFor(() => expect(result.current.selectedTool).toBe("video"));
+    expect(result.current.klingElements).toEqual([]);
+
+    await waitFor(() => {
+      const raw = window.sessionStorage.getItem(WORKFLOW_SETTINGS_SESSION_KEY);
+      const parsed = raw ? (JSON.parse(raw) as Record<string, { klingElements?: unknown[] }>) : {};
+      expect(parsed.video?.klingElements).toEqual([]);
     });
   });
 });

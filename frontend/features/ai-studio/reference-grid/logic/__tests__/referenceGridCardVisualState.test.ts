@@ -47,6 +47,29 @@ describe("referenceGridCardVisualState", () => {
     expect(state.loadingVisual).toBe("hydrating");
   });
 
+  it("uses spinner visual for local video references pending durable persistence", () => {
+    const state = classifyReferenceGridCardVisualState({
+      item: createOutput({
+        mode: "video",
+        taskState: "success",
+        previewUrl: "blob:local-video-1",
+        previewStoragePath: null,
+        fullStoragePath: null,
+      }),
+      authorityTier: "preview-only",
+      cardPreviewUrl: "blob:local-video-1",
+      isLoaded: true,
+      decodeBudgetEnabled: true,
+      isImagePreview: false,
+      isPriorityHydration: false,
+    });
+
+    expect(state.isGenerationLoading).toBe(false);
+    expect(state.isLocalVideoPersistenceLoading).toBe(true);
+    expect(state.isMediaHydrating).toBe(false);
+    expect(state.loadingVisual).toBe("spinner");
+  });
+
   it("does not mark failures as loading", () => {
     const state = classifyReferenceGridCardVisualState({
       item: createOutput({ taskState: "fail" }),

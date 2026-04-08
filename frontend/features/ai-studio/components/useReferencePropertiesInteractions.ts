@@ -11,6 +11,7 @@ import {
   isVideoDragTransfer,
   looksLikeVideoUrl,
 } from "../utils/dragDrop";
+import { createEmptyAiStudioKlingElement, type AiStudioKlingElement } from "../logic/klingElements";
 
 export type ReferenceStepKey =
   | "reference"
@@ -26,12 +27,7 @@ export type ReferenceStepKey =
 
 type KlingMultiPrompt = { id: string; prompt: string; duration: number };
 
-type KlingElement = {
-  id: string;
-  frontalImageUrl: string;
-  referenceImageUrls: string;
-  videoUrl: string;
-};
+type KlingElement = AiStudioKlingElement;
 
 type UseReferencePropertiesInteractionsParams = {
   referenceImageUrl: string | null;
@@ -162,10 +158,8 @@ export const useReferencePropertiesInteractions = ({
   };
 
   const addKlingElement = () => {
-    onKlingElementsChange?.([
-      ...klingElements,
-      { id: makeId(), frontalImageUrl: "", referenceImageUrls: "", videoUrl: "" },
-    ]);
+    if (klingElements.length >= 3) return;
+    onKlingElementsChange?.([...klingElements, createEmptyAiStudioKlingElement()]);
   };
 
   const removeKlingElement = (id: string) => {

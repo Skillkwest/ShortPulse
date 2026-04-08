@@ -4,6 +4,7 @@
  */
 import React from "react";
 import { ArrowClockwise, CheckCircle, DownloadSimple, FloppyDisk, X } from "phosphor-react";
+import { isVideoUrl } from "../../logic/stateParsers";
 import { canRerollOutput } from "../../logic/generationReplay";
 import { canDragReferenceOutput } from "../../logic/referenceOutputAuthority";
 import {
@@ -24,6 +25,8 @@ export type ReferenceGridCardProps = {
   isLoading: boolean;
   loadingVisual: "none" | "spinner" | "hydrating";
   cardPreviewUrl: string | null;
+  videoPosterUrl?: string | null;
+  hoverVideoUrl?: string | null;
   isVideoPreview: boolean;
   isImagePreview: boolean;
   canAutoplayVideo: boolean;
@@ -96,6 +99,8 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
   isLoading,
   loadingVisual,
   cardPreviewUrl,
+  videoPosterUrl,
+  hoverVideoUrl,
   isVideoPreview,
   isImagePreview,
   canAutoplayVideo,
@@ -128,6 +133,10 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
   onDownload,
   hideReferenceActions = false,
 }: ReferenceGridCardProps) {
+  const videoNodeRef = React.useRef<HTMLVideoElement | null>(null);
+  const hoverAutoplayStartedRef = React.useRef(false);
+  const [isHoveringVideo, setIsHoveringVideo] = React.useState(false);
+  const [isHoverVideoVisible, setIsHoverVideoVisible] = React.useState(false);
   const isFailing = item.taskState === "fail";
   const isSelected = activeOutputId === item.id;
   const saveDisabled = item.saveState === "saving";
@@ -149,8 +158,28 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
   const canDragReference =
     Boolean(item.previewText) || (!!cardPreviewUrl && canDragReferenceOutput(item));
   const dragPreviewKind = isImagePreview ? "image" : isVideoPreview ? "video" : "text";
+  const resolvedVideoPosterUrl = videoPosterUrl?.trim() || null;
+  const resolvedHoverVideoUrl =
+    hoverVideoUrl?.trim() ||
+    (isVideoPreview && cardPreviewUrl && isVideoUrl(cardPreviewUrl) ? cardPreviewUrl : "") ||
+    null;
+  const hasPosterBackedVideoPreview = Boolean(
+    item.mode === "video" && resolvedVideoPosterUrl && resolvedHoverVideoUrl
+  );
+  const shouldRenderVideoElement = Boolean(
+    (isVideoPreview && resolvedHoverVideoUrl) || hasPosterBackedVideoPreview
+  );
+  const shouldRenderImageElement = Boolean(
+    (isImagePreview && cardPreviewUrl) || hasPosterBackedVideoPreview
+  );
+  const primaryImageSrc = hasPosterBackedVideoPreview
+    ? (resolvedVideoPosterUrl ?? undefined)
+    : imageSrc;
+  const primaryImageDataSrc = hasPosterBackedVideoPreview ? resolvedVideoPosterUrl : cardPreviewUrl;
   const dragImageSrc =
-    dragPreviewKind === "image" ? (imageSrc ?? cardPreviewUrl ?? undefined) : undefined;
+    dragPreviewKind === "image" || hasPosterBackedVideoPreview
+      ? (primaryImageSrc ?? primaryImageDataSrc ?? undefined)
+      : undefined;
   const saveIcon =
     item.saveState === "failed" ? (
       <ArrowClockwise size={16} weight="bold" aria-hidden />
@@ -160,7 +189,7 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
 
   return (
     <div
-      className={`reference-card ${cardPreviewUrl ? "has-preview" : ""} ${isVideoPreview ? "has-video" : ""} ${item.previewText ? "has-text" : ""} ${isSelected ? "is-active" : ""} ${isLoading ? "is-loading" : ""} ${isLinkedPromptReference ? "is-linked-prompt-ref" : ""}`}
+      className={`reference-card ${cardPreviewUrl || resolvedVideoPosterUrl ? "has-preview" : ""} ${isVideoPreview || hasPosterBackedVideoPreview ? "has-video" : ""} ${hasPosterBackedVideoPreview ? "has-video-poster" : ""} ${item.previewText ? "has-text" : ""} ${isSelected ? "is-active" : ""} ${isLoading ? "is-loading" : ""} ${isLinkedPromptReference ? "is-linked-prompt-ref" : ""}`}
       role="button"
       aria-busy={isLoading}
       data-loading={isLoading ? "true" : "false"}
@@ -192,36 +221,82 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
       onDrop={onCardDrop ? (event) => onCardDrop(event, item) : undefined}
       onDragEnter={onCardDragEnter ? (event) => onCardDragEnter(event, item) : undefined}
       onDragLeave={onCardDragLeave ? (event) => onCardDragLeave(event, item) : undefined}
+      onPointerEnter={() => {
+        if (!resolvedHoverVideoUrl) return;
+        setIsHoveringVideo(true);
+        const node = videoNodeRef.current;
+        if (!node || !node.paused || node.ended) {
+          hoverAutoplayStartedRef.current = false;
+          return;
+        }
+        hoverAutoplayStartedRef.current = true;
+        void node.play().catch(() => {
+          hoverAutoplayStartedRef.current = false;
+          setIsHoveringVideo(false);
+        });
+      }}
+      onPointerLeave={() => {
+        setIsHoveringVideo(false);
+        if (!hoverAutoplayStartedRef.current || canAutoplayVideo) return;
+        hoverAutoplayStartedRef.current = false;
+        videoNodeRef.current?.pause();
+      }}
     >
-      {isVideoPreview && cardPreviewUrl ? (
+      {shouldRenderVideoElement ? (
         <video
-          className="reference-card-video"
-          ref={(node) => registerVideoNode(videoNodeKey, item.id, node)}
-          src={cardPreviewUrl}
+          className={`reference-card-video ${hasPosterBackedVideoPreview ? "reference-card-video--poster-backed" : ""} ${isHoveringVideo || isHoverVideoVisible ? "is-visible" : ""}`}
+          ref={(node) => {
+            videoNodeRef.current = node;
+            registerVideoNode(videoNodeKey, item.id, node);
+          }}
+          src={resolvedHoverVideoUrl ?? undefined}
           autoPlay={canAutoplayVideo}
           muted
           loop
           playsInline
           preload={videoPreload}
           onLoadedData={() => markLoaded(item.id)}
-          onError={() => markLoaded(item.id, { notifyAutoSave: false })}
-          onPlay={() => onAutoplayStarted(item.id)}
-          onPause={() => onAutoplayStopped(item.id)}
+          onError={() => {
+            setIsHoveringVideo(false);
+            setIsHoverVideoVisible(false);
+            markLoaded(item.id, { notifyAutoSave: false });
+          }}
+          onPlay={() => {
+            setIsHoverVideoVisible(true);
+            onAutoplayStarted(item.id);
+          }}
+          onPause={() => {
+            setIsHoverVideoVisible(false);
+            onAutoplayStopped(item.id);
+          }}
         />
       ) : null}
-      {isImagePreview && cardPreviewUrl ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={imageSrc}
-          data-src={cardPreviewUrl}
-          alt=""
-          className="reference-card-image"
-          loading={imageLoading}
-          decoding="async"
-          {...(imageFetchPriority ? { fetchpriority: imageFetchPriority } : {})}
-          onLoad={() => markLoaded(item.id)}
-          onError={() => markLoaded(item.id, { notifyAutoSave: false })}
-        />
+      {shouldRenderImageElement ? (
+        <>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={primaryImageSrc}
+            data-src={primaryImageDataSrc ?? undefined}
+            alt=""
+            className={`reference-card-image reference-card-image--cover ${hasPosterBackedVideoPreview ? "reference-card-image--poster" : ""} ${isHoveringVideo || isHoverVideoVisible ? "is-hidden" : ""}`}
+            loading={imageLoading}
+            decoding="async"
+            {...(imageFetchPriority ? { fetchpriority: imageFetchPriority } : {})}
+            onLoad={() => markLoaded(item.id)}
+            onError={() => markLoaded(item.id, { notifyAutoSave: false })}
+          />
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={primaryImageSrc}
+            data-src={primaryImageDataSrc ?? undefined}
+            alt=""
+            aria-hidden="true"
+            className={`reference-card-image reference-card-image--contain ${hasPosterBackedVideoPreview ? "reference-card-image--poster" : ""} ${isHoveringVideo || isHoverVideoVisible ? "is-hidden" : ""}`}
+            loading={imageLoading}
+            decoding="async"
+            {...(imageFetchPriority ? { fetchpriority: imageFetchPriority } : {})}
+          />
+        </>
       ) : null}
       {isFailing ? (
         <div className="reference-fail-overlay">

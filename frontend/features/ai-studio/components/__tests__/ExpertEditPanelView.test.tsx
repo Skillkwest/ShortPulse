@@ -457,8 +457,9 @@ describe("ExpertEditPanelView", () => {
       );
     };
 
-    render(<ControlledPromptPanel />);
+    const renderResult = render(<ControlledPromptPanel />);
     return {
+      container: renderResult.container,
       onPromptTextChangeSpy,
       promptInput: screen.getByLabelText("Edit prompt") as HTMLTextAreaElement,
     };
@@ -1021,12 +1022,13 @@ describe("ExpertEditPanelView", () => {
     expect(onPromptTextChange).toHaveBeenCalledWith("Blend @img1 scene");
   });
 
-  it("opens the anchored reference picker and selects the first populated slot after typing @", () => {
-    const { promptInput, onPromptTextChangeSpy } = renderControlledPromptPanel({
+  it("opens the anchored reference picker and selects @main after typing @", () => {
+    const { container, promptInput, onPromptTextChangeSpy } = renderControlledPromptPanel({
       initialPrompt: "Blend ",
       extraImageUrls: ["https://example.com/slot-1.png", "https://example.com/slot-2.png", null],
     });
 
+    uploadPrimaryFile(container, "primary-layer.png");
     promptInput.focus();
     promptInput.setSelectionRange(6, 6);
     fireEvent.keyDown(promptInput, { key: "@", shiftKey: true });
@@ -1034,33 +1036,47 @@ describe("ExpertEditPanelView", () => {
 
     expect(onPromptTextChangeSpy).toHaveBeenCalledWith("Blend @");
     expect(screen.getByRole("group", { name: /reference image picker/i })).toBeInTheDocument();
-    expect(screen.getByLabelText("Secondary edit image 1").className).toContain(
-      "is-picker-selected"
-    );
-    expect(screen.getByLabelText("Secondary edit image 2").className).not.toContain(
-      "is-picker-selected"
-    );
+    expect(screen.getByLabelText("Primary edit image").className).toContain("is-selected");
+    expect(screen.getByLabelText("Secondary edit image 1").className).not.toContain("is-selected");
   });
 
   it("opens the anchored reference picker on Tab when populated references exist", () => {
-    const { promptInput, onPromptTextChangeSpy } = renderControlledPromptPanel({
+    const { container, promptInput, onPromptTextChangeSpy } = renderControlledPromptPanel({
       initialPrompt: "Blend scene",
       extraImageUrls: ["https://example.com/slot-1.png", "https://example.com/slot-2.png", null],
     });
 
+    uploadPrimaryFile(container, "primary-layer.png");
     promptInput.focus();
     promptInput.setSelectionRange(6, 6);
     fireEvent.keyDown(promptInput, { key: "Tab" });
 
     expect(onPromptTextChangeSpy).not.toHaveBeenCalled();
     expect(screen.getByRole("group", { name: /reference image picker/i })).toBeInTheDocument();
+    expect(screen.getByLabelText("Primary edit image").className).toContain("is-selected");
+  });
+
+  it("cycles the anchored reference picker selection from @main to the first secondary slot", () => {
+    const { container, promptInput } = renderControlledPromptPanel({
+      initialPrompt: "Blend ",
+      extraImageUrls: ["https://example.com/slot-1.png", "https://example.com/slot-2.png", null],
+    });
+
+    uploadPrimaryFile(container, "primary-layer.png");
+    promptInput.focus();
+    promptInput.setSelectionRange(6, 6);
+    fireEvent.keyDown(promptInput, { key: "@" });
+    fireEvent.change(promptInput, { target: { value: "Blend @" } });
+    fireEvent.keyDown(promptInput, { key: "Tab" });
+
+    expect(screen.getByLabelText("Primary edit image").className).not.toContain("is-selected");
     expect(screen.getByLabelText("Secondary edit image 1").className).toContain(
       "is-picker-selected"
     );
   });
 
   it("cycles the anchored reference picker selection with Tab", () => {
-    const { promptInput } = renderControlledPromptPanel({
+    const { container, promptInput } = renderControlledPromptPanel({
       initialPrompt: "Blend ",
       extraImageUrls: [
         "https://example.com/slot-1.png",
@@ -1069,34 +1085,50 @@ describe("ExpertEditPanelView", () => {
       ],
     });
 
+    uploadPrimaryFile(container, "primary-layer.png");
     promptInput.focus();
     promptInput.setSelectionRange(6, 6);
-    fireEvent.keyDown(promptInput, { key: "@", shiftKey: true });
-    fireEvent.change(promptInput, { target: { value: "Blend @" } });
+    fireEvent.keyDown(promptInput, { key: "Tab" });
     fireEvent.keyDown(promptInput, { key: "Tab" });
 
-    expect(screen.getByLabelText("Secondary edit image 1").className).not.toContain(
-      "is-picker-selected"
-    );
-    expect(screen.getByLabelText("Secondary edit image 2").className).toContain(
+    expect(screen.getByLabelText("Primary edit image").className).not.toContain("is-selected");
+    expect(screen.getByLabelText("Secondary edit image 1").className).toContain(
       "is-picker-selected"
     );
   });
 
   it("inserts the selected picker token on Enter after opening with Tab", () => {
-    const { promptInput, onPromptTextChangeSpy } = renderControlledPromptPanel({
+    const { container, promptInput, onPromptTextChangeSpy } = renderControlledPromptPanel({
       initialPrompt: "Blend scene",
       extraImageUrls: ["https://example.com/slot-1.png", "https://example.com/slot-2.png", null],
     });
 
+    uploadPrimaryFile(container, "primary-layer.png");
     promptInput.focus();
     promptInput.setSelectionRange(6, 6);
     fireEvent.keyDown(promptInput, { key: "Tab" });
     fireEvent.keyDown(promptInput, { key: "Tab" });
     fireEvent.keyDown(promptInput, { key: "Enter" });
 
-    expect(onPromptTextChangeSpy).toHaveBeenLastCalledWith("Blend @img2 scene");
-    expect(promptInput.value).toBe("Blend @img2 scene");
+    expect(onPromptTextChangeSpy).toHaveBeenLastCalledWith("Blend @img1 scene");
+    expect(promptInput.value).toBe("Blend @img1 scene");
+    expect(screen.queryByRole("group", { name: /reference image picker/i })).toBeNull();
+  });
+
+  it("inserts @main on Enter when the picker is opened and not cycled", () => {
+    const { container, promptInput, onPromptTextChangeSpy } = renderControlledPromptPanel({
+      initialPrompt: "Blend scene",
+      extraImageUrls: ["https://example.com/slot-1.png", "https://example.com/slot-2.png", null],
+    });
+
+    uploadPrimaryFile(container, "primary-layer.png");
+    promptInput.focus();
+    promptInput.setSelectionRange(6, 6);
+    fireEvent.keyDown(promptInput, { key: "Tab" });
+    fireEvent.keyDown(promptInput, { key: "Enter" });
+
+    expect(onPromptTextChangeSpy).toHaveBeenLastCalledWith("Blend @main scene");
+    expect(promptInput.value).toBe("Blend @main scene");
     expect(screen.queryByRole("group", { name: /reference image picker/i })).toBeNull();
   });
 

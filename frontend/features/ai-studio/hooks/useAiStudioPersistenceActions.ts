@@ -48,6 +48,15 @@ const normalizeOptionalUrl = (value: string | null | undefined): string | null =
   return normalized.length ? normalized : null;
 };
 
+const resolvePersistablePosterUrl = (output: StudioOutput): string | null => {
+  if (output.mode !== "video") return null;
+  const explicitPosterUrl = normalizeOptionalUrl(output.previewPosterUrl);
+  if (explicitPosterUrl) return explicitPosterUrl;
+  const previewUrl = normalizeOptionalUrl(output.previewUrl);
+  if (previewUrl && !isVideoUrl(previewUrl)) return previewUrl;
+  return null;
+};
+
 const uniqueUrls = (values: Array<string | null | undefined>): string[] => {
   const next: string[] = [];
   values.forEach((value) => {
@@ -320,6 +329,7 @@ export const useAiStudioPersistenceActions = ({
             fullStoragePathHint: output.fullStoragePath ?? null,
             previewUrlHint: output.previewUrl ?? null,
             fullUrlHint: output.previewUrl ?? null,
+            posterUrlHint: resolvePersistablePosterUrl(output),
             metadata: {
               task_id: output.taskId ?? null,
               generation_trace_id: output.generationTraceId ?? output.taskId ?? null,

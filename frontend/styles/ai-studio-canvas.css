@@ -282,7 +282,7 @@
 .reference-card {
   border: none;
   border-radius: 8px;
-  background: linear-gradient(180deg, rgba(17, 20, 27, 0.9), rgba(17, 20, 27, 0.95));
+  background: var(--ai-create-prompt-input-bg);
   color: inherit;
   text-align: left;
   display: block;
@@ -309,7 +309,7 @@
 }
 
 .reference-card.is-loading {
-  background: var(--ai-container-card-bg);
+  background: var(--ai-create-prompt-input-bg);
   border: none;
   box-shadow: none;
   outline: none;
@@ -321,9 +321,9 @@
 
 .reference-canvas-panel.is-loading-placeholder-timeout-mode .reference-card.is-loading,
 .reference-canvas-panel.is-loading-placeholder-timeout-mode .reference-card.is-loading.is-active {
-  background: #131518;
+  background: var(--ai-create-prompt-input-bg);
   background-image: none;
-  box-shadow: inset 0 0 0 2px #131518;
+  box-shadow: inset 0 0 0 2px var(--ai-create-prompt-input-bg);
 }
 
 .reference-card.is-loading:hover {
@@ -356,19 +356,19 @@
 .reference-canvas-panel.is-loading-placeholder-timeout-mode
   .reference-card.is-loading
   .reference-loading {
-  background: #131518;
+  background: var(--ai-create-prompt-input-bg);
   background-image: none;
-  box-shadow: inset 0 0 0 2px #131518;
+  box-shadow: inset 0 0 0 2px var(--ai-create-prompt-input-bg);
 }
 
 .reference-canvas-panel.is-loading-placeholder-timeout-mode
   .reference-card.is-loading
   .reference-loading.is-static {
-  background: #131518;
+  background: var(--ai-create-prompt-input-bg);
   background-image: none;
 }
 .reference-card:hover {
-  background-color: rgba(25, 29, 38, 0.95);
+  background-color: var(--ai-create-prompt-input-bg);
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
   transform: translateY(-1px);
 }
@@ -389,7 +389,7 @@
 }
 
 .reference-card.is-active {
-  background-color: var(--reference-selection-active-bg);
+  background: var(--ai-create-prompt-input-bg);
   box-shadow: 0 0 0 2px var(--reference-selection-active-outline);
   transform: translateY(-1px);
   z-index: 1;
@@ -406,7 +406,7 @@
 }
 
 .reference-card.is-loading.is-active {
-  background: var(--ai-container-card-bg);
+  background: var(--ai-create-prompt-input-bg);
   border: none;
   box-shadow: none;
   transform: none;
@@ -499,7 +499,7 @@
   display: flex;
   align-items: flex-start;
   justify-content: flex-start;
-  background: var(--ai-container-card-bg);
+  background: var(--ai-create-prompt-input-bg);
   padding: 10px;
   min-height: 0;
   overflow: hidden;
@@ -519,7 +519,7 @@
 }
 
 .reference-card.has-video {
-  background: var(--ai-surface-control-elevated, rgba(12, 15, 22, 0.92));
+  background: var(--ai-create-prompt-input-bg);
 }
 
 .reference-card-video {
@@ -532,10 +532,19 @@
   border-radius: inherit;
 }
 
+.reference-card-video--poster-backed {
+  opacity: 0;
+  transition: opacity 0.18s ease;
+}
+
+.reference-card-video--poster-backed.is-visible {
+  opacity: 1;
+}
+
 .reference-canvas-panel.is-loading-placeholder-timeout-mode
   .reference-card.is-loading
   .reference-card-video {
-  background-color: #131518;
+  background-color: var(--ai-create-prompt-input-bg);
 }
 
 .reference-card-image {
@@ -548,12 +557,48 @@
   z-index: 0;
   border-radius: inherit;
   pointer-events: none;
+  transition:
+    opacity 0.22s ease,
+    transform 0.22s ease;
+  will-change: opacity, transform;
+}
+
+.reference-card-image--cover {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.reference-card-image--contain {
+  opacity: 0;
+  object-fit: contain;
+  transform: scale(1.03);
+}
+
+.reference-card:hover .reference-card-image--cover,
+.reference-card:focus-visible .reference-card-image--cover {
+  opacity: 0;
+  transform: scale(1.01);
+}
+
+.reference-card-image--poster.is-hidden {
+  opacity: 0;
+}
+
+.reference-card:hover .reference-card-image--contain,
+.reference-card:focus-visible .reference-card-image--contain {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.reference-card:hover .reference-card-video,
+.reference-card:focus-visible .reference-card-video {
+  object-fit: contain;
 }
 
 .reference-canvas-panel.is-loading-placeholder-timeout-mode
   .reference-card.is-loading
   .reference-card-image {
-  background-color: #131518;
+  background-color: var(--ai-create-prompt-input-bg);
 }
 
 .reference-card-text {

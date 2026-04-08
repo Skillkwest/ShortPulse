@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { ReferenceKlingAdvancedSteps } from "../ReferenceKlingAdvancedSteps";
 
@@ -23,6 +23,8 @@ const baseProps = {
   klingElements: [
     {
       id: "element-01",
+      alias: "redlantern",
+      name: "Red Lantern",
       frontalImageUrl: "",
       referenceImageUrls: "",
       videoUrl: "",
@@ -47,6 +49,8 @@ const baseProps = {
   addKlingElement: vi.fn(),
   removeKlingElement: vi.fn(),
   updateKlingElement: vi.fn(),
+  onInsertKlingElementToken: vi.fn(),
+  onOpenKlingElementPicker: vi.fn(),
 };
 
 describe("ReferenceKlingAdvancedSteps", () => {
@@ -63,9 +67,7 @@ describe("ReferenceKlingAdvancedSteps", () => {
     expect(screen.queryByText("Assets & Voices")).toBeNull();
     expect(screen.queryByText("Voice IDs (optional)")).toBeNull();
     expect(screen.queryByText("Negative prompt")).toBeNull();
-    expect(
-      screen.getByText(/Use `@Element01`-style tokens in the prompt to bind KIE element/i)
-    ).toBeTruthy();
+    expect(screen.getByText(/Use each saved element alias as its prompt token/i)).toBeTruthy();
     expect(
       screen.getByText(
         /KIE Kling guidance here is CFG-based\. Quality mode, sound, and multi-shot setup/i
@@ -79,6 +81,21 @@ describe("ReferenceKlingAdvancedSteps", () => {
     expect(screen.getByText("Assets & Voices")).toBeTruthy();
     expect(screen.getByText("Voice IDs (optional)")).toBeTruthy();
     expect(screen.getByText("Negative prompt")).toBeTruthy();
-    expect(screen.queryByText(/Use `@Element01`-style tokens/i)).toBeNull();
+    expect(screen.queryByText(/saved element alias as its prompt token/i)).toBeNull();
+  });
+
+  it("offers alias-token insertion for attached KIE elements", () => {
+    render(
+      <ReferenceKlingAdvancedSteps
+        {...baseProps}
+        isKieKlingModel
+        klingAssetsSummary="1 element · Prompt tokens ready"
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Insert @redlantern" }));
+
+    expect(baseProps.onInsertKlingElementToken).toHaveBeenCalledWith("redlantern");
+    expect(screen.getByRole("button", { name: "Replace" })).toBeInTheDocument();
   });
 });

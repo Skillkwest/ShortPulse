@@ -10,6 +10,7 @@ import type {
   AgentOutputBubbleMediaState,
   AgentOutputGenerateInput,
 } from "../../../../prefabs/agent";
+import type { PromptTokenHighlightSegment } from "../../logic/promptTokenHighlight";
 
 export type PromptStepInlineGenerateConfig = {
   onGenerate: () => void;
@@ -84,6 +85,7 @@ export type PromptStepProps = {
   promptSaveButtonUnstyled?: boolean;
   beginnerPinHelperText?: string;
   promptInlineAction?: React.ReactNode;
+  promptInlineActionClassName?: string;
   chatPromptSaveButtonClassName?: string;
   chatPromptSaveButtonUnstyled?: boolean;
   embedSendButtonInInput?: boolean;
@@ -101,4 +103,10 @@ export type PromptStepProps = {
   hideHeader?: boolean;
   autoResize?: boolean;
   autoResizeLayoutKey?: string | number;
+  promptTextareaRef?: React.RefObject<HTMLTextAreaElement | null>;
+  promptHighlightSegments?: PromptTokenHighlightSegment[];
+  onPromptFocus?: (event: React.FocusEvent<HTMLTextAreaElement>) => void;
+  onPromptBlur?: (event: React.FocusEvent<HTMLTextAreaElement>) => void;
+  onPromptSelect?: (event: React.SyntheticEvent<HTMLTextAreaElement>) => void;
+  onPromptKeyDown?: (event: React.KeyboardEvent<HTMLTextAreaElement>) => void;
 };

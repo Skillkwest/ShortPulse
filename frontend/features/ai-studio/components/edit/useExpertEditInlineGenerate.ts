@@ -103,7 +103,8 @@ export const useExpertEditInlineGenerate = ({
       const tokenAnalysis = analyzeExpertEditPromptTokens(promptText, extraImageUrls);
       if (tokenAnalysis.hasInvalidTokens) {
         const message =
-          tokenAnalysis.inlineError ?? "Use @img1, @img2, or @img3 with populated references.";
+          tokenAnalysis.inlineError ??
+          "Use @main, @img1, @img2, or @img3 with populated references.";
         onInvalidPromptReferenceToken?.(message);
         return;
       }

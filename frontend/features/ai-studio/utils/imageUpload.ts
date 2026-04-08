@@ -4,6 +4,7 @@
  */
 import { fetchWithAuth } from "../../../lib/authenticatedFetch";
 import { getSignedMediaUrl } from "../../../lib/mediaSignedUrlCache";
+import { maybeTranscodeLocalImageBlobForUpload } from "../../../lib/adaptive-media";
 
 type ImageUploadResponse = {
   url: string;
@@ -46,6 +47,8 @@ const FETCH_LOCAL_IMAGE_TIMEOUT_MS = 12_000;
 const UPLOAD_IMAGE_ROUTE_TIMEOUT_MS = 45_000;
 const SIGNED_URL_REFRESH_TIMEOUT_MS = 10_000;
 const UPLOAD_IMAGE_AUTH_TIMEOUT_MS = 12_000;
+const UPLOAD_TOO_LARGE_ERROR_MESSAGE =
+  "Reference image is too large. ShortPulse accepts reference images up to 25 MB.";
 const localImageUrlCache = new Map<string, ImageUploadCacheEntry>();
 
 const isBlobUrl = (url: string): boolean => url.startsWith("blob:");
@@ -346,7 +349,11 @@ export const uploadImageAssetToStorage = async (
     throw new Error(`Unable to read local image input (${response.status}).`);
   }
   const fetchedBlob = await response.blob();
-  const blob = normalizeUploadBlob(fetchedBlob);
+  const normalizedBlob = normalizeUploadBlob(fetchedBlob);
+  const shouldTranscodeLocal = needsImageUpload(localUrl);
+  const blob = shouldTranscodeLocal
+    ? await maybeTranscodeLocalImageBlobForUpload(normalizedBlob)
+    : normalizedBlob;
   const extension = inferExtension(blob.type);
   const filename = `reference-${Date.now()}-${Math.random().toString(36).slice(2)}.${extension}`;
 
@@ -371,6 +378,9 @@ export const uploadImageAssetToStorage = async (
 
   if (!uploadResponse.ok) {
     const payload = await uploadResponse.json().catch(() => ({}));
+    if (uploadResponse.status === 413) {
+      throw new Error(UPLOAD_TOO_LARGE_ERROR_MESSAGE);
+    }
     const error =
       typeof payload?.error === "string" && payload.error.trim().length
         ? payload.error

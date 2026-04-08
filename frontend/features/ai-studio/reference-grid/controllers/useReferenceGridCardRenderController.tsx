@@ -7,7 +7,9 @@ import { ReferenceGridCard } from "../components/ReferenceGridCard";
 import type { ReferenceGridMediaAuthorityTier } from "../../logic/referenceGridMedia";
 import type { StudioOutput } from "../../types";
 import type { ReferenceDragSourceSurface } from "../../utils/dragDrop";
+import { isVideoUrl } from "../../logic/stateParsers";
 import { isReferenceOutputFailing } from "../logic/referenceGridLoadingState";
+import { isLocalVideoReferencePendingPersistence } from "../logic/referenceGridCardVisualState";
 import type { ReferenceGridMediaOutput } from "../logic/referenceGridMediaOutput";
 import {
   incrementFreezeInvestigationCounter,
@@ -130,8 +132,12 @@ export const useReferenceGridCardRenderController = ({
         card.isVideoPreview &&
         !shouldPreferCuratedSurface &&
         (activeOutputId === currentOutput.id || autoplayEnabledIdSet.has(currentOutput.id));
+      const isLocalVideoPersistenceLoading = isLocalVideoReferencePendingPersistence(currentOutput);
       const suppressDormantVideoLoading =
-        card.isVideoPreview && !shouldWarmVideoPreview && !isGenerationLoading;
+        card.isVideoPreview &&
+        !shouldWarmVideoPreview &&
+        !isGenerationLoading &&
+        !isLocalVideoPersistenceLoading;
       const isCardLoading = suppressDormantVideoLoading
         ? false
         : suppressDuplicateAllRefsLoading
@@ -140,7 +146,7 @@ export const useReferenceGridCardRenderController = ({
       const loadingVisual: "none" | "spinner" | "hydrating" =
         suppressDormantVideoLoading || suppressDuplicateAllRefsLoading
           ? "none"
-          : isGenerationLoading
+          : isGenerationLoading || isLocalVideoPersistenceLoading
             ? "spinner"
             : isHydrationLoading
               ? "hydrating"
@@ -155,6 +161,24 @@ export const useReferenceGridCardRenderController = ({
         isPromptOnly && linkedPromptReferenceIdSet.has(currentOutput.id);
       const canRetryStatus =
         Boolean(onRetryStatus && currentOutput.taskId) && (isFailing || isGenerationLoading);
+      const videoPosterUrl =
+        currentOutput.mode === "video"
+          ? currentOutput.previewPosterUrl?.trim() ||
+            (card.isImagePreview ? card.cardPreviewUrl : "") ||
+            null
+          : null;
+      const hoverVideoUrl =
+        currentOutput.mode === "video"
+          ? currentOutput.localObjectUrl?.trim() ||
+            (card.isVideoPreview ? card.cardPreviewUrl : "") ||
+            currentOutput.resultUrls?.find(
+              (value) => typeof value === "string" && isVideoUrl(value)
+            ) ||
+            (currentOutput.previewUrl && isVideoUrl(currentOutput.previewUrl)
+              ? currentOutput.previewUrl
+              : "") ||
+            null
+          : null;
       const videoNodeKey = `${options.surface}:${currentOutput.id}`;
       return (
         <ReferenceGridCard
@@ -167,6 +191,8 @@ export const useReferenceGridCardRenderController = ({
           isLoading={isCardLoading}
           loadingVisual={loadingVisual}
           cardPreviewUrl={card.cardPreviewUrl}
+          videoPosterUrl={videoPosterUrl}
+          hoverVideoUrl={hoverVideoUrl}
           isVideoPreview={card.isVideoPreview}
           isImagePreview={card.isImagePreview}
           canAutoplayVideo={canAutoplayVideo}

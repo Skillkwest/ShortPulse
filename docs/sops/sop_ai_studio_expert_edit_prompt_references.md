@@ -1,12 +1,12 @@
-# SOP: AI Studio Expert Edit `@img` Prompt References
+# SOP: AI Studio Expert Edit `@main` and `@img` Prompt References
 
-Purpose: define the complete behavior contract for Expert Edit prompt-reference tokens (`@img1`, `@img2`, `@img3`), including authoring UX, generate preflight, submission compilation, and maintenance guardrails.
+Purpose: define the complete behavior contract for Expert Edit prompt-reference tokens (`@main`, `@img1`, `@img2`, `@img3`), including authoring UX, generate preflight, submission compilation, and maintenance guardrails.
 
 ## Scope
 
 - In scope:
   - Expert Edit prompt token authoring in `/ai-studio`.
-  - Secondary-slot token mapping (`@img1..@img3`) and drag-to-insert behavior.
+  - Primary-slot token mapping (`@main`) and secondary-slot token mapping (`@img1..@img3`) plus drag-to-insert behavior.
   - Submit-time prompt compilation to provider-friendly `Figure N` text.
   - Prompt override plumbing (`displayPromptOverride` vs `submissionPromptOverride`).
   - Error handling and test coverage requirements.
@@ -29,19 +29,20 @@ Purpose: define the complete behavior contract for Expert Edit prompt-reference 
 
 ## User-facing behavior contract
 
-1. Expert Edit prompt accepts `@img1`, `@img2`, `@img3` references to secondary slots 1..3.
+1. Expert Edit prompt accepts `@main` for the primary image plus `@img1`, `@img2`, `@img3` references to secondary slots 1..3.
 2. Users can type token text manually.
 3. Users can drag a populated secondary slot into the prompt to insert the corresponding token at caret.
 4. Valid tokens are highlighted in the Expert Edit amber color (`rgb(255, 194, 80)`).
 5. Invalid tokens are highlighted in warning red.
 6. Invalid-token warning feedback is deferred until Generate is attempted.
 7. Generate is blocked when invalid token references exist.
-8. Only secondary references explicitly linked by valid `@img1..@img3` tokens are included in provider `image_urls`; unlinked populated slots stay in the UI but are not sent to the model.
+8. Only secondary references explicitly linked by valid `@img1..@img3` tokens are included in provider `image_urls`; the primary image is always present as the first reference and `@main` resolves to that primary figure.
 
 ## Token grammar and validation
 
 | Token input | Validity rule | Result |
 | --- | --- | --- |
+| `@main` | Valid when the primary image is available | Valid primary reference token. |
 | `@img1`, `@img2`, `@img3` | Valid only if matching secondary slot is populated | Valid reference token. |
 | `@img` | Missing numeric suffix | Invalid (`missing_index`). |
 | `@img4+` | Out of supported range | Invalid (`out_of_range`). |
@@ -59,14 +60,14 @@ Normalization rules:
 1. Prompt text remains plain string state (`editReferenceText`).
 2. Mirror highlight layer is computed from token diagnostics and rendered over the textarea.
 3. Text and token wrapping must stay aligned between textarea and mirror layer.
-4. Typing a bare `@` opens an anchored reference picker when at least one secondary slot is populated.
-5. Pressing `Tab` while the prompt textarea is focused also opens the anchored picker when it is closed and at least one secondary slot is populated.
-6. Picker selection defaults to the first populated secondary slot.
+4. Typing a bare `@` opens an anchored reference picker when at least one reference token is available.
+5. Pressing `Tab` while the prompt textarea is focused also opens the anchored picker when it is closed and at least one reference token is available.
+6. Picker selection defaults to `@main` when the primary image is available.
 7. While picker is open:
-   - `Tab` / `Shift+Tab` cycles populated slots.
-   - `Enter` inserts the selected `@imgN` token by replacing the typed bare `@` or the current caret/selection when the picker was opened by `Tab`.
+   - `Tab` / `Shift+Tab` cycles the primary tile and populated secondary slots.
+   - `Enter` inserts the selected `@main` or `@imgN` token by replacing the typed bare `@` or the current caret/selection when the picker was opened by `Tab`.
    - ordinary typing closes the picker and preserves manual prompt entry.
-8. Opening the picker adds a visible selection outline to the selected populated secondary slot.
+8. Opening the picker adds a visible selection outline to the selected tile, including the primary tile.
 
 ### Drag-to-insert tokens
 
@@ -98,12 +99,12 @@ Normalization rules:
 ### Compilation contract
 
 Input:
-- display prompt (raw user text with `@imgN`)
+- display prompt (raw user text with `@main` and/or `@imgN`)
 - secondary slots
 - final `referenceInputs` order
 
 Output:
-- token text replaced with mapped `Figure N` references based on final `referenceInputs` order.
+- token text replaced with mapped `Figure N` references based on final `referenceInputs` order (`@main` -> `Figure 1`).
 - appended reference-map block:
   - `Figure 1 = primary base image.`
   - `Figure X = @imgN secondary reference.`
@@ -172,9 +173,9 @@ Minimum suite coverage:
    - deferred invalid warning (only after Generate attempt).
    - invalid token blocks generate callback.
    - drag secondary slot inserts token at caret.
-   - bare `@` opens anchored picker with first populated slot selected.
-   - `Tab` opens anchored picker at the current caret when populated secondary references exist.
-   - picker `Tab` cycling updates the selected populated slot.
+   - bare `@` opens anchored picker with `@main` selected first.
+   - `Tab` opens anchored picker at the current caret when a reference token is available.
+   - picker `Tab` cycling updates the selected primary/secondary tile.
    - picker `Enter` inserts the selected token and closes the picker.
    - ordinary typing after picker open closes the picker and preserves manual text entry.
    - token generate path sends both display/submission prompt overrides.
@@ -211,9 +212,9 @@ Minimum suite coverage:
 6. Manual smoke:
    - type valid/invalid tokens in Expert Edit prompt.
    - drag secondary slot into prompt and verify caret insertion.
-   - type `@` with populated secondary references and verify anchored picker open + default slot highlight.
-   - press `Tab` in the prompt with populated secondary references and verify anchored picker opens at the current caret.
-   - press `Tab` / `Shift+Tab` to cycle selected secondary reference.
-   - press `Enter` to insert selected `@imgN` token and close the picker.
+   - type `@` with populated references and verify anchored picker open + `@main` default highlight.
+   - press `Tab` in the prompt with references available and verify anchored picker opens at the current caret.
+   - press `Tab` / `Shift+Tab` to cycle the primary and secondary selections.
+   - press `Enter` to insert selected `@main` or `@imgN` token and close the picker.
    - verify Generate blocks on invalid token and succeeds on valid token.
    - verify reference token highlight color and prompt readability are stable.

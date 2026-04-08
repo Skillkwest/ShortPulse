@@ -1,6 +1,6 @@
 import { useRef, useState, type Dispatch, type MutableRefObject, type SetStateAction } from "react";
-import { randomId } from "../logic/ids";
 import { StudioMode } from "../types";
+import { createEmptyAiStudioKlingElement, type AiStudioKlingElement } from "../logic/klingElements";
 import {
   hasStoredVideoPreferences,
   IMAGE_RESOLUTION_STORAGE_KEY,
@@ -76,26 +76,11 @@ export type UseAiStudioCreationStateResult = {
   setKlingMultiPrompts: Dispatch<
     SetStateAction<{ id: string; prompt: string; duration: number }[]>
   >;
-  klingElements: {
-    id: string;
-    frontalImageUrl: string;
-    referenceImageUrls: string;
-    videoUrl: string;
-  }[];
-  setKlingElements: Dispatch<
-    SetStateAction<
-      {
-        id: string;
-        frontalImageUrl: string;
-        referenceImageUrls: string;
-        videoUrl: string;
-      }[]
-    >
-  >;
+  klingElements: AiStudioKlingElement[];
+  setKlingElements: Dispatch<SetStateAction<AiStudioKlingElement[]>>;
   createIsGenerating: boolean;
   editIsGenerating: boolean;
   videoIsGenerating: boolean;
-  isPromptGenerating: boolean;
   setPanelGenerating: (panel: AiStudioSubmitPanelKey, value: boolean) => void;
   uiError: string | null;
   setUiError: Dispatch<SetStateAction<string | null>>;
@@ -156,9 +141,9 @@ export const useAiStudioCreationState = (): UseAiStudioCreationStateResult => {
   const [klingMultiPrompts, setKlingMultiPrompts] = useState<
     { id: string; prompt: string; duration: number }[]
   >([]);
-  const [klingElements, setKlingElements] = useState<
-    { id: string; frontalImageUrl: string; referenceImageUrls: string; videoUrl: string }[]
-  >([{ id: randomId(), frontalImageUrl: "", referenceImageUrls: "", videoUrl: "" }]);
+  const [klingElements, setKlingElements] = useState<AiStudioKlingElement[]>([
+    createEmptyAiStudioKlingElement(),
+  ]);
   const [panelGeneratingState, setPanelGeneratingState] = useState<AiStudioPanelGeneratingState>({
     create: false,
     edit: false,
@@ -173,7 +158,6 @@ export const useAiStudioCreationState = (): UseAiStudioCreationStateResult => {
   const createIsGenerating = panelGeneratingState.create;
   const editIsGenerating = panelGeneratingState.edit;
   const videoIsGenerating = panelGeneratingState.video;
-  const isPromptGenerating = createIsGenerating || editIsGenerating || videoIsGenerating;
 
   const setPanelGenerating = (panel: AiStudioSubmitPanelKey, value: boolean) => {
     setPanelGeneratingState((prev) => {
@@ -246,7 +230,6 @@ export const useAiStudioCreationState = (): UseAiStudioCreationStateResult => {
     createIsGenerating,
     editIsGenerating,
     videoIsGenerating,
-    isPromptGenerating,
     setPanelGenerating,
     uiError,
     setUiError,

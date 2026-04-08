@@ -158,12 +158,13 @@ export const uploadVideoAssetToStorage = async (
     const extension = blob.type.split("/")[1] || "mp4";
     const filename = `motion-reference-${timestamp}-${randomString}.${extension}`;
 
-    const formData = new FormData();
-    formData.append("file", blob, filename);
-
     const uploadResponse = await fetchWithAuth("/api/upload-video", {
       method: "POST",
-      body: formData,
+      headers: {
+        "Content-Type": blob.type || "video/mp4",
+        "x-shortpulse-upload-filename": filename,
+      },
+      body: blob,
     });
 
     if (!uploadResponse.ok) {

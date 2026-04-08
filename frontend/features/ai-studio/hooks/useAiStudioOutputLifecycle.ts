@@ -35,7 +35,6 @@ type UseAiStudioOutputLifecycleParams = {
   activeOutputId: string | null;
   setActiveOutputId: Dispatch<SetStateAction<string | null>>;
   pendingAutoSavesRef: MutableRefObject<Record<string, unknown>>;
-  setUiError: Dispatch<SetStateAction<string | null>>;
 };
 
 type GenerationFailureContext = {
@@ -58,7 +57,6 @@ export const useAiStudioOutputLifecycle = ({
   activeOutputId,
   setActiveOutputId,
   pendingAutoSavesRef,
-  setUiError,
 }: UseAiStudioOutputLifecycleParams) => {
   const outputsRef = useRef<StudioOutput[]>([]);
   const outputByIdRef = useRef<Record<string, StudioOutput>>({});
@@ -284,11 +282,6 @@ export const useAiStudioOutputLifecycle = ({
           errorDetail: safeDetail,
         };
       });
-      const label = outputContext?.model ?? outputContext?.modelId ?? "Generation";
-      const detailMessage = safeDetail;
-      setUiError(
-        detailMessage ? `${label} failed: ${detailMessage}` : `${label} failed to complete.`
-      );
       void reportAppError({
         source: "generation.workflow_failure",
         scope: "generation",
@@ -313,7 +306,7 @@ export const useAiStudioOutputLifecycle = ({
         },
       });
     },
-    [findOutputById, pendingAutoSavesRef, setUiError, updateOutputById]
+    [findOutputById, pendingAutoSavesRef, updateOutputById]
   );
 
   const updateOutputPrompt = useCallback(

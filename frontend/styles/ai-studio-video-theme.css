@@ -333,18 +333,25 @@
 
 .video-properties-panel .video-elements-card-title--sub {
   margin-top: 10px;
+  margin-bottom: 10px;
+}
+
+.video-properties-panel .video-kling-elements-picker-anchor {
+  position: relative;
+  margin-top: 10px;
 }
 
 .video-properties-panel .video-elements-placeholder-grid {
-  margin-top: 2px;
+  margin-top: 0;
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 8px;
 }
 
 .video-properties-panel .video-elements-placeholder-tile {
+  position: relative;
   aspect-ratio: 1 / 1;
-  border-radius: 8px;
+  border-radius: 999px;
   border: 1px dashed rgba(160, 170, 182, 0.45);
   background: #101215;
   cursor: pointer;
@@ -357,9 +364,131 @@
     background 0.2s ease;
 }
 
+.video-properties-panel .video-elements-placeholder-tile--filled {
+  overflow: visible;
+  align-items: stretch;
+  justify-content: stretch;
+  border-radius: 999px;
+  border-style: solid;
+  border-color: rgba(255, 255, 255, 0.08);
+  background: #101215;
+}
+
+.video-properties-panel
+  .video-elements-placeholder-tile--filled.video-elements-placeholder-tile--character {
+  border-color: rgba(37, 204, 255, 0.62);
+}
+
+.video-properties-panel
+  .video-elements-placeholder-tile--filled.video-elements-placeholder-tile--element {
+  border-color: rgba(255, 123, 167, 0.62);
+}
+
 .video-properties-panel .video-elements-placeholder-tile:hover {
   border-color: rgba(201, 205, 214, 0.28);
   background: #16181b;
+}
+
+.video-properties-panel .video-elements-placeholder-select {
+  position: relative;
+  display: flex;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
+  overflow: hidden;
+}
+
+.video-properties-panel .video-elements-slot-avatar-image {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background-color: #101215;
+}
+
+.video-properties-panel
+  .video-elements-placeholder-tile--filled
+  .video-elements-placeholder-select {
+  border-radius: 999px;
+}
+
+.video-properties-panel .video-elements-placeholder-tile--filled:hover {
+  background: #101215;
+}
+
+.video-properties-panel .video-elements-placeholder-tile--filled::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+  pointer-events: none;
+}
+
+.video-properties-panel
+  .video-elements-placeholder-tile--filled.video-elements-placeholder-tile--character::after {
+  box-shadow: inset 0 0 0 1px rgba(37, 204, 255, 0.18);
+}
+
+.video-properties-panel
+  .video-elements-placeholder-tile--filled.video-elements-placeholder-tile--element::after {
+  box-shadow: inset 0 0 0 1px rgba(255, 123, 167, 0.18);
+}
+
+.video-properties-panel .video-elements-slot-actions {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  z-index: 2;
+}
+
+.video-properties-panel .video-elements-slot-actions .ghost-btn {
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border-radius: 999px;
+  border-color: rgba(255, 103, 144, 0.42);
+  background: rgba(20, 8, 12, 0.88);
+  color: rgba(255, 214, 224, 0.96);
+  box-shadow:
+    0 6px 14px rgba(0, 0, 0, 0.34),
+    0 0 0 1px rgba(255, 255, 255, 0.03);
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-2px) scale(0.92);
+  transition:
+    opacity 0.14s ease,
+    transform 0.14s ease,
+    color 0.14s ease,
+    box-shadow 0.14s ease,
+    background 0.14s ease,
+    border-color 0.14s ease;
+}
+
+.video-properties-panel
+  .video-elements-placeholder-tile--filled:hover
+  .video-elements-slot-actions
+  .ghost-btn,
+.video-properties-panel
+  .video-elements-placeholder-tile--filled:focus-within
+  .video-elements-slot-actions
+  .ghost-btn,
+.video-properties-panel .video-elements-slot-actions .ghost-btn:focus-visible {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0) scale(1);
+}
+
+.video-properties-panel .video-elements-slot-actions .ghost-btn:hover,
+.video-properties-panel .video-elements-slot-actions .ghost-btn:focus-visible {
+  background: rgba(160, 14, 52, 0.98);
+  border-color: rgba(255, 146, 172, 0.98);
+  color: #ffffff;
+  box-shadow:
+    0 10px 22px rgba(76, 8, 24, 0.46),
+    0 0 0 1px rgba(255, 120, 150, 0.18);
 }
 
 .video-properties-panel .video-elements-placeholder-plus {
@@ -367,6 +496,10 @@
   font-size: 22px;
   line-height: 1;
   font-weight: 400;
+}
+
+.video-properties-panel .video-elements-placeholder-tile:hover .video-elements-placeholder-plus {
+  color: rgba(236, 244, 248, 0.84);
 }
 
 .video-properties-panel .video-kling-tip {
@@ -570,6 +703,14 @@
   flex: 0 0 auto;
 }
 
+.video-properties-panel
+  .video-direction-column-shell.is-custom-multishot-workspace
+  .video-right-generate-slot {
+  margin-top: 4px;
+  padding-top: 8px;
+  gap: 28px;
+}
+
 .video-properties-panel .video-right-generate-slot::before {
   content: "";
   position: absolute;
@@ -587,6 +728,12 @@
   );
   opacity: 0.9;
   pointer-events: none;
+}
+
+.video-properties-panel
+  .video-direction-column-shell.is-custom-multishot-workspace
+  .video-right-generate-slot::before {
+  top: -4px;
 }
 
 .video-properties-panel .video-generate-summary-panel {
@@ -918,6 +1065,16 @@
   color: rgba(201, 205, 214, 0.58);
 }
 
+.video-properties-panel .video-shot-mode-note {
+  border: 1px solid rgba(201, 205, 214, 0.12);
+  border-radius: 8px;
+  background: rgba(201, 205, 214, 0.04);
+  color: rgba(223, 228, 238, 0.82);
+  font-size: 11px;
+  line-height: 1.45;
+  padding: 8px 10px;
+}
+
 .video-properties-panel .video-shot-mode-tab.is-active {
   border-color: transparent;
   background: transparent;
@@ -948,16 +1105,31 @@
   color: #f5f9ff;
   font-size: 14px;
   font-family: var(--font-secondary);
+  line-height: 1.55;
   overflow-y: auto;
   min-height: 500px;
-  padding-right: 16px;
-  padding-bottom: 16px;
+  padding: 12px 16px;
   outline: none !important;
   -webkit-appearance: none;
   appearance: none;
   resize: none;
   overscroll-behavior: contain;
   transition: none;
+}
+
+.video-properties-panel
+  .video-direction-column-shell.is-custom-multishot-workspace
+  .video-primary-prompt-shell
+  .prompt-enhanced-wrapper
+  .enhanced-prompt-input {
+  min-height: 124px;
+}
+
+.video-properties-panel
+  .video-direction-column-shell.is-custom-multishot-workspace
+  .video-secondary-prompt-shell
+  .enhanced-prompt-input {
+  overflow-y: hidden;
 }
 
 .video-properties-panel .video-primary-prompt-shell .prompt-enhanced-wrapper::before {
@@ -1016,6 +1188,62 @@
   font-family: inherit;
 }
 
+.video-properties-panel .prompt-enhanced-wrapper.has-token-highlight {
+  position: relative;
+}
+
+.video-properties-panel .prompt-enhanced-wrapper .prompt-token-highlight {
+  position: absolute;
+  inset: 1px;
+  padding: 12px 16px;
+  border-radius: inherit;
+  box-sizing: border-box;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  word-break: break-word;
+  overflow: auto;
+  pointer-events: none;
+  font-size: 14px;
+  line-height: 1.55;
+  font-family: var(--font-secondary);
+  font-weight: inherit;
+  letter-spacing: inherit;
+  z-index: 2;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.video-properties-panel .prompt-enhanced-wrapper .prompt-token-highlight::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  display: none;
+}
+
+.video-properties-panel .prompt-enhanced-wrapper .prompt-token-highlight-segment {
+  color: rgba(245, 249, 255, 0.94);
+}
+
+.video-properties-panel .prompt-enhanced-wrapper .prompt-token-highlight-segment.is-token {
+  color: #ff4fa3;
+}
+
+.video-properties-panel
+  .prompt-enhanced-wrapper
+  .prompt-token-highlight-segment.is-character-token {
+  color: #22d3ee;
+}
+
+.video-properties-panel .prompt-enhanced-wrapper .prompt-token-highlight-segment.is-invalid-token {
+  color: rgba(255, 132, 132, 0.96);
+}
+
+.video-properties-panel
+  .prompt-enhanced-wrapper.has-token-highlight
+  .enhanced-prompt-input:not(:placeholder-shown) {
+  color: transparent;
+  caret-color: #f5f9ff;
+}
+
 .video-properties-panel .prompt-enhanced-wrapper .enhanced-prompt-input {
   scrollbar-width: thin;
   scrollbar-color: rgba(201, 205, 214, 0.38) transparent;
@@ -1053,6 +1281,130 @@
 
 .video-properties-panel .prompt-inline-action-slot .agent-generate-prefab {
   margin: 0;
+}
+
+.video-properties-panel .video-kling-prompt-token-picker {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: calc(100% + 10px);
+  padding: 12px 14px;
+  border: 1px solid rgba(255, 79, 163, 0.26);
+  border-radius: 16px;
+  background: linear-gradient(180deg, rgba(18, 20, 25, 0.98) 0%, rgba(12, 14, 18, 0.98) 100%);
+  box-shadow:
+    0 18px 42px rgba(0, 0, 0, 0.44),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.03);
+  z-index: 7;
+}
+
+.video-properties-panel .video-kling-elements-picker-anchor .video-kling-prompt-token-picker {
+  bottom: calc(100% + 12px);
+}
+
+.video-properties-panel .video-kling-prompt-token-picker-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.video-properties-panel .video-kling-prompt-token-picker-title {
+  margin: 0;
+  color: rgba(255, 232, 242, 0.96);
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: 0.02em;
+}
+
+.video-properties-panel .video-kling-prompt-token-picker-hint {
+  margin: 0;
+  color: rgba(212, 219, 230, 0.72);
+  font-size: 11px;
+  line-height: 1.2;
+  text-align: right;
+}
+
+.video-properties-panel .video-kling-prompt-token-picker-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(154px, 1fr));
+  gap: 8px;
+}
+
+.video-properties-panel .video-kling-prompt-token-picker-option {
+  width: 100%;
+  min-width: 0;
+  border: 1px solid rgba(201, 205, 214, 0.16);
+  border-radius: 14px;
+  background: rgba(28, 32, 39, 0.9);
+  color: rgba(245, 249, 255, 0.94);
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr);
+  gap: 8px;
+  align-items: center;
+  min-height: 108px;
+  padding: 7px;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    border-color 0.16s ease,
+    background 0.16s ease,
+    box-shadow 0.16s ease,
+    transform 0.16s ease;
+}
+
+.video-properties-panel .video-kling-prompt-token-picker-option:hover {
+  border-color: rgba(255, 79, 163, 0.44);
+  background: rgba(36, 40, 47, 0.94);
+}
+
+.video-properties-panel .video-kling-prompt-token-picker-option.is-selected {
+  border-color: rgba(255, 79, 163, 0.92);
+  background: rgba(58, 33, 47, 0.94);
+  box-shadow:
+    0 0 0 2px rgba(255, 79, 163, 0.16),
+    0 10px 20px rgba(0, 0, 0, 0.24);
+  transform: translateY(-1px);
+}
+
+.video-properties-panel .video-kling-prompt-token-picker-option-thumb {
+  width: 72px;
+  aspect-ratio: 3 / 4;
+  border-radius: 9px;
+  background-color: rgba(255, 255, 255, 0.05);
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+}
+
+.video-properties-panel .video-kling-prompt-token-picker-option-copy {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 3px;
+  min-height: 100%;
+}
+
+.video-properties-panel .video-kling-prompt-token-picker-option-label {
+  color: rgba(245, 249, 255, 0.92);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.25;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.video-properties-panel .video-kling-prompt-token-picker-option-token {
+  color: #ff4fa3;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.25;
+  letter-spacing: 0.02em;
 }
 
 .video-properties-panel .video-reference-mode-tabs {

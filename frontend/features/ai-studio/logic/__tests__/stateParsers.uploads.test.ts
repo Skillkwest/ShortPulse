@@ -15,11 +15,26 @@ const toFileList = (files: File[]): FileList => {
 
 describe("mapUploadsFromFiles", () => {
   const originalCreateObjectURL = URL.createObjectURL;
+  const originalVideoElement = HTMLMediaElement.prototype.load;
+  const originalCanvasGetContext = HTMLCanvasElement.prototype.getContext;
+  const originalCanvasToDataUrl = HTMLCanvasElement.prototype.toDataURL;
 
   afterEach(() => {
     Object.defineProperty(URL, "createObjectURL", {
       configurable: true,
       value: originalCreateObjectURL,
+    });
+    Object.defineProperty(HTMLMediaElement.prototype, "load", {
+      configurable: true,
+      value: originalVideoElement,
+    });
+    Object.defineProperty(HTMLCanvasElement.prototype, "getContext", {
+      configurable: true,
+      value: originalCanvasGetContext,
+    });
+    Object.defineProperty(HTMLCanvasElement.prototype, "toDataURL", {
+      configurable: true,
+      value: originalCanvasToDataUrl,
     });
     vi.restoreAllMocks();
   });
@@ -32,6 +47,39 @@ describe("mapUploadsFromFiles", () => {
     Object.defineProperty(URL, "createObjectURL", {
       configurable: true,
       value: createObjectUrlMock,
+    });
+    Object.defineProperty(HTMLMediaElement.prototype, "load", {
+      configurable: true,
+      value: function load(this: HTMLMediaElement) {
+        if (!this.currentSrc && !this.getAttribute("src")) return;
+        Object.defineProperty(this, "readyState", {
+          configurable: true,
+          value: HTMLMediaElement.HAVE_CURRENT_DATA,
+        });
+        Object.defineProperty(this, "videoWidth", {
+          configurable: true,
+          value: 720,
+        });
+        Object.defineProperty(this, "videoHeight", {
+          configurable: true,
+          value: 1280,
+        });
+        queueMicrotask(() => {
+          this.dispatchEvent(new Event("loadeddata"));
+          this.dispatchEvent(new Event("seeked"));
+        });
+      },
+    });
+    Object.defineProperty(HTMLCanvasElement.prototype, "getContext", {
+      configurable: true,
+      value: () =>
+        ({
+          drawImage: () => undefined,
+        }) as unknown as CanvasRenderingContext2D,
+    });
+    Object.defineProperty(HTMLCanvasElement.prototype, "toDataURL", {
+      configurable: true,
+      value: () => "data:image/jpeg;base64,video-poster",
     });
 
     const files = toFileList([
@@ -59,6 +107,7 @@ describe("mapUploadsFromFiles", () => {
     expect(outputs[1]?.mode).toBe("video");
     expect(outputs[1]?.previewUrl).toBe("blob:https://local/video-1#video=1");
     expect(outputs[1]?.localObjectUrl).toBe("blob:https://local/video-1");
+    expect(outputs[1]?.previewPosterUrl).toBe("data:image/jpeg;base64,video-poster");
   });
 
   it("falls back to data URLs when object URLs are unavailable", async () => {

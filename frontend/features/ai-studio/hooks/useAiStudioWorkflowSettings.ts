@@ -12,6 +12,7 @@ import {
   type SetStateAction,
 } from "react";
 import { randomId } from "../logic/ids";
+import { type AiStudioKlingElement } from "../logic/klingElements";
 import { normalizeSeedance2UiModelId } from "../logic/seedance2Availability";
 import type { StudioMode, ToolId } from "../types";
 import { resolveWorkflowId } from "../logic/workflowIdentity";
@@ -23,6 +24,7 @@ import {
 } from "../logic/modelSelectionPolicy";
 
 export const WORKFLOW_SETTINGS_SESSION_KEY = "aiStudioWorkflowSettingsByTool.v1";
+const WORKFLOW_SETTINGS_SESSION_ID_KEY = "aiStudioWorkflowSettingsSessionId.v1";
 const SHARED_ASPECT_SESSION_KEY = "aiStudioSharedAspect.v1";
 const WORKFLOW_SETTINGS_PERSIST_ENABLED =
   process.env.NEXT_PUBLIC_AI_STUDIO_WORKFLOW_SETTINGS_PERSIST_ENABLED !== "false";
@@ -35,12 +37,7 @@ type KlingWorkflowMode = "single" | "multi" | "custom";
 type Seedance2InputMode = "text" | "first-frame" | "first-last" | "multimodal";
 type KlingShotType = "customize" | "intelligent";
 type KlingPromptShot = { id: string; prompt: string; duration: number };
-type KlingElement = {
-  id: string;
-  frontalImageUrl: string;
-  referenceImageUrls: string;
-  videoUrl: string;
-};
+type KlingElement = AiStudioKlingElement;
 type WorkflowSettingsSnapshot = {
   mode: StudioMode;
   model: string | null;
@@ -90,7 +87,7 @@ const DEFAULT_WORKFLOW_SETTINGS: WorkflowSettingsSnapshot = {
   klingShotType: "customize",
   klingVoiceIds: ["", ""],
   klingMultiPrompts: [],
-  klingElements: [{ id: randomId(), frontalImageUrl: "", referenceImageUrls: "", videoUrl: "" }],
+  klingElements: [],
 };
 
 const resolveDefaultWorkflowSettingsForKey = (): WorkflowSettingsSnapshot =>
@@ -215,21 +212,11 @@ const cloneWorkflowSettingsSnapshot = (
         }))
         .filter((shot) => Boolean(shot.id))
     : [],
-  klingElements: Array.isArray(snapshot?.klingElements)
-    ? snapshot.klingElements
-        .map((element) => ({
-          id: typeof element?.id === "string" ? element.id : randomId(),
-          frontalImageUrl:
-            typeof element?.frontalImageUrl === "string" ? element.frontalImageUrl : "",
-          referenceImageUrls:
-            typeof element?.referenceImageUrls === "string" ? element.referenceImageUrls : "",
-          videoUrl: typeof element?.videoUrl === "string" ? element.videoUrl : "",
-        }))
-        .filter((element) => Boolean(element.id))
-    : defaults.klingElements.map((element) => ({ ...element })),
+  klingElements: [],
 });
 
 type UseAiStudioWorkflowSettingsParams = {
+  sessionId?: string | null;
   selectedTool: ToolId | null;
   mode: StudioMode;
   model: string | null;
@@ -283,6 +270,7 @@ type UseAiStudioWorkflowSettingsParams = {
  * Restores and persists per-tool workflow settings and returns restoration guard state.
  */
 export const useAiStudioWorkflowSettings = ({
+  sessionId = null,
   selectedTool,
   mode,
   model,
@@ -340,6 +328,7 @@ export const useAiStudioWorkflowSettings = ({
   const previousWorkflowSettingsKeyRef = useRef<WorkflowSettingsKey | null>(null);
   const initialSelectedToolRef = useRef(selectedTool);
   const sharedAspectRef = useRef(DEFAULT_SHARED_ASPECT);
+  const persistedWorkflowSessionIdRef = useRef<string | null>(null);
   const activeWorkflowSettingsKey = useMemo(
     () => resolveWorkflowSettingsKey(selectedTool),
     [selectedTool]
@@ -410,6 +399,7 @@ export const useAiStudioWorkflowSettings = ({
       workflowSettingsRef.current[key] = {
         ...currentWorkflowSnapshot,
         mode: preserveExistingMode ? existingSnapshot.mode : currentWorkflowSnapshot.mode,
+        klingElements: currentWorkflowSnapshot.klingElements.map((element) => ({ ...element })),
       };
     },
     [currentWorkflowSnapshot]
@@ -420,18 +410,22 @@ export const useAiStudioWorkflowSettings = ({
     if (typeof window === "undefined") return;
     try {
       const raw = window.sessionStorage.getItem(WORKFLOW_SETTINGS_SESSION_KEY);
+      const storedWorkflowSessionId =
+        window.sessionStorage.getItem(WORKFLOW_SETTINGS_SESSION_ID_KEY)?.trim() || null;
       if (!raw) return;
       const parsed = JSON.parse(raw) as Partial<
         Record<WorkflowSettingsKey, Partial<WorkflowSettingsSnapshot>>
       >;
       const next: Partial<Record<WorkflowSettingsKey, WorkflowSettingsSnapshot>> = {};
       (["create", "edit", "video", "kling"] as const).forEach((key) => {
-        next[key] = cloneWorkflowSettingsSnapshot(
+        const snapshot = cloneWorkflowSettingsSnapshot(
           parsed?.[key],
           resolveDefaultWorkflowSettingsForKey()
         );
+        next[key] = { ...snapshot, klingElements: [] };
       });
       workflowSettingsRef.current = next;
+      persistedWorkflowSessionIdRef.current = storedWorkflowSessionId;
       const storedSharedAspect = window.sessionStorage.getItem(SHARED_ASPECT_SESSION_KEY)?.trim();
       const initialWorkflowKey = resolveWorkflowSettingsKey(initialSelectedToolRef.current);
       const initialSnapshotAspect = initialWorkflowKey ? next[initialWorkflowKey]?.aspect : null;
@@ -446,10 +440,11 @@ export const useAiStudioWorkflowSettings = ({
     } catch {
       workflowSettingsRef.current = {};
       sharedAspectRef.current = DEFAULT_SHARED_ASPECT;
+      persistedWorkflowSessionIdRef.current = sessionId;
     } finally {
       setWorkflowSettingsHydrated(true);
     }
-  }, []);
+  }, [sessionId]);
 
   useEffect(() => {
     if (!WORKFLOW_SETTINGS_PERSIST_ENABLED) return;
@@ -571,15 +566,25 @@ export const useAiStudioWorkflowSettings = ({
     sharedAspectRef.current = aspect;
     if (typeof window === "undefined") return;
     window.sessionStorage.setItem(SHARED_ASPECT_SESSION_KEY, aspect);
+    if (sessionId) {
+      window.sessionStorage.setItem(WORKFLOW_SETTINGS_SESSION_ID_KEY, sessionId);
+      persistedWorkflowSessionIdRef.current = sessionId;
+    }
+    const sanitizedSnapshots = Object.fromEntries(
+      (["create", "edit", "video", "kling"] as const)
+        .filter((key) => workflowSettingsRef.current[key])
+        .map((key) => [key, { ...workflowSettingsRef.current[key], klingElements: [] }])
+    );
     window.sessionStorage.setItem(
       WORKFLOW_SETTINGS_SESSION_KEY,
-      JSON.stringify(workflowSettingsRef.current)
+      JSON.stringify(sanitizedSnapshots)
     );
   }, [
     activeWorkflowSettingsKey,
     aspect,
     currentWorkflowSnapshot,
     hasPendingWorkflowRestore,
+    sessionId,
     workflowSettingsHydrated,
   ]);
 

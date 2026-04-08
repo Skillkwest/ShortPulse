@@ -19,7 +19,14 @@ import {
 import { needsVideoUpload, prepareVideoUrlForSubmission } from "../../utils/videoUpload";
 import type { VideoSubmissionArgs } from "./types";
 import {
+  getAiStudioKlingElementReferenceUrls,
+  resolveAiStudioKlingElementToken,
+  type AiStudioKlingElement,
+} from "../../logic/klingElements";
+import { prepareImageUrlForSubmission } from "../../utils/imageUpload";
+import {
   buildKieKlingElementsPayload,
+  resolveKieKlingAspect,
   buildKieKlingMultiPromptPayload,
   resolveKieKlingDuration,
   resolveKieKlingMode,
@@ -52,6 +59,123 @@ const isCharacterScopedMediaUrl = (value: string): boolean => {
     }
   })().toLowerCase();
   return normalized.includes("/characters/") || normalized.includes("%2fcharacters%2f");
+};
+
+const escapeRegExp = (value: string): string => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+const hasKlingElementMedia = (element: AiStudioKlingElement): boolean =>
+  Boolean(element.videoUrl.trim() || getAiStudioKlingElementReferenceUrls(element).length);
+
+const prepareKlingElementForSubmission = async (
+  element: AiStudioKlingElement
+): Promise<AiStudioKlingElement> => {
+  const frontalImageUrl = element.frontalImageUrl.trim();
+  const referenceUrls = element.referenceImageUrls
+    .split(/[,\n]+/)
+    .map((value) => value.trim())
+    .filter(Boolean);
+  const [preparedFrontalImageUrl, preparedReferenceUrls, preparedVideoUrl] = await Promise.all([
+    prepareImageUrlForSubmission(frontalImageUrl || null),
+    Promise.all(referenceUrls.map((url) => prepareImageUrlForSubmission(url))),
+    prepareVideoUrlForSubmission(element.videoUrl || null),
+  ]);
+
+  return {
+    ...element,
+    frontalImageUrl: preparedFrontalImageUrl ?? "",
+    referenceImageUrls: preparedReferenceUrls.filter(Boolean).join(", "),
+    videoUrl: preparedVideoUrl ?? "",
+  };
+};
+
+const ensurePromptIncludesAttachedElementTokens = (
+  prompt: string,
+  klingElements: AiStudioKlingElement[]
+): string => {
+  const trimmedPrompt = prompt.trim();
+  const availableTokens = klingElements.reduce<string[]>((accumulator, element, index) => {
+    if (!hasKlingElementMedia(element)) return accumulator;
+    const token = resolveAiStudioKlingElementToken(element, index, klingElements).trim();
+    if (!token || accumulator.includes(token)) return accumulator;
+    accumulator.push(token);
+    return accumulator;
+  }, []);
+
+  if (!availableTokens.length) return trimmedPrompt;
+
+  const missingTokens = availableTokens.filter((token) => {
+    const tokenPattern = new RegExp(`(^|\\s)@${escapeRegExp(token)}(?=$|[\\s,.;:!?])`);
+    return !tokenPattern.test(trimmedPrompt);
+  });
+
+  if (!missingTokens.length) return trimmedPrompt;
+  const suffix = missingTokens.map((token) => `@${token}`).join(" ");
+  return trimmedPrompt ? `${trimmedPrompt} ${suffix}` : suffix;
+};
+
+type ResolvedKieKlingShotModePayload = {
+  prompt: string;
+  imageUrls: string[];
+  multiShots: boolean;
+  multiPrompt:
+    | Array<{
+        prompt: string;
+        duration: number;
+      }>
+    | undefined;
+  generateAudio: boolean;
+  sound: boolean;
+};
+
+const resolveKieKlingShotModePayload = ({
+  cleanedPrompt,
+  klingWorkflowMode,
+  klingMultiPrompts,
+  preparedImageInputs,
+  requestedAudio,
+  preparedKlingElements,
+}: {
+  cleanedPrompt: string;
+  klingWorkflowMode: VideoSubmissionArgs["klingWorkflowMode"];
+  klingMultiPrompts: VideoSubmissionArgs["klingMultiPrompts"];
+  preparedImageInputs: string[];
+  requestedAudio: boolean;
+  preparedKlingElements: AiStudioKlingElement[];
+}): ResolvedKieKlingShotModePayload | { error: string } => {
+  const normalizedMode =
+    klingWorkflowMode === "multi" || klingWorkflowMode === "custom" ? klingWorkflowMode : "single";
+
+  if (normalizedMode === "custom") {
+    const customShots = buildKieKlingMultiPromptPayload(klingMultiPrompts)?.map((shot) => ({
+      ...shot,
+      prompt: ensurePromptIncludesAttachedElementTokens(shot.prompt, preparedKlingElements),
+    }));
+
+    if (!customShots?.length) {
+      return { error: "Custom Kling mode requires at least one shot prompt." };
+    }
+
+    return {
+      prompt: customShots[0].prompt,
+      imageUrls: preparedImageInputs.length ? [preparedImageInputs[0]] : [],
+      multiShots: true,
+      multiPrompt: customShots,
+      generateAudio: true,
+      sound: true,
+    };
+  }
+
+  return {
+    prompt: ensurePromptIncludesAttachedElementTokens(cleanedPrompt, preparedKlingElements),
+    imageUrls:
+      preparedImageInputs.length >= 2
+        ? preparedImageInputs.slice(0, 2)
+        : preparedImageInputs.slice(0, 1),
+    multiShots: false,
+    multiPrompt: undefined,
+    generateAudio: requestedAudio,
+    sound: requestedAudio,
+  };
 };
 
 const handoffSubmitResponse = ({
@@ -309,6 +433,7 @@ export const handleVideoModelSubmission = async ({
       }
 
       const motionResolution = resolveKlingResolution(requestedResolution);
+      const motionAspectRatio = resolveKieKlingAspect(aspect, modelConfig);
       const finalPrompt = cleanedPrompt || "Transfer motion from reference video to character";
       const response = await submitKieKlingImageToVideo({
         prompt: finalPrompt,
@@ -317,6 +442,7 @@ export const handleVideoModelSubmission = async ({
         input_urls: [characterImageUrl],
         video_url: motionVideoUrlFinal,
         video_urls: [motionVideoUrlFinal],
+        aspect_ratio: motionAspectRatio,
         resolution: motionResolution,
         mode: motionResolution,
         generate_audio: requestedAudio,
@@ -338,34 +464,11 @@ export const handleVideoModelSubmission = async ({
       notifyGenerationFailure(id, "Kie Kling 3.0 requires at least one reference image.");
       return true;
     }
-    const multiPromptPayload = buildKieKlingMultiPromptPayload(klingMultiPrompts);
-    const effectiveKlingWorkflowMode =
-      klingWorkflowMode ?? (multiPromptPayload?.length ? "custom" : "single");
-    if (effectiveKlingWorkflowMode === "custom" && !multiPromptPayload?.length) {
-      notifyGenerationFailure(id, "Custom Kling mode requires at least one shot prompt.");
-      return true;
-    }
-    const multiShots =
-      effectiveKlingWorkflowMode === "custom" && Boolean(multiPromptPayload?.length);
-    const imageUrls =
-      multiShots || preparedImageInputs.length < 2
-        ? [preparedImageInputs[0]]
-        : preparedImageInputs.slice(0, 2);
     let elementsPayload: ReturnType<typeof buildKieKlingElementsPayload>;
+    let preparedKlingElements: AiStudioKlingElement[] = klingElements;
     try {
-      const preparedKlingElements = await Promise.all(
-        klingElements.map(async (element) => {
-          const videoUrl = element.videoUrl.trim();
-          if (!videoUrl) return element;
-          const preparedVideoUrl = await prepareVideoUrlForSubmission(videoUrl);
-          if (!preparedVideoUrl) {
-            throw new Error("Kling element video URL is missing.");
-          }
-          return {
-            ...element,
-            videoUrl: preparedVideoUrl,
-          };
-        })
+      preparedKlingElements = await Promise.all(
+        klingElements.map(async (element) => await prepareKlingElementForSubmission(element))
       );
       elementsPayload = buildKieKlingElementsPayload(preparedKlingElements);
     } catch (error) {
@@ -374,23 +477,33 @@ export const handleVideoModelSubmission = async ({
       notifyGenerationFailure(id, `Kling element reference preparation failed: ${message}`);
       return true;
     }
-    const aspectRatio = ["16:9", "9:16", "1:1"].includes(aspect) ? aspect : "16:9";
+    const aspectRatio = resolveKieKlingAspect(aspect, modelConfig);
     const duration = resolveKieKlingDuration(requestedDurationSeconds);
-    const klingPrompt =
-      multiShots && multiPromptPayload?.[0]?.prompt ? multiPromptPayload[0].prompt : cleanedPrompt;
+    const resolvedShotModePayload = resolveKieKlingShotModePayload({
+      cleanedPrompt,
+      klingWorkflowMode,
+      klingMultiPrompts,
+      preparedImageInputs,
+      requestedAudio,
+      preparedKlingElements,
+    });
+    if ("error" in resolvedShotModePayload) {
+      notifyGenerationFailure(id, resolvedShotModePayload.error);
+      return true;
+    }
     const response = await submitKieKlingImageToVideo({
-      prompt: klingPrompt,
+      prompt: resolvedShotModePayload.prompt,
       image_url: preparedImageInputs[0],
-      image_urls: imageUrls,
+      image_urls: resolvedShotModePayload.imageUrls,
       aspect_ratio: aspectRatio,
       duration,
       resolution: resolveKlingResolution(requestedResolution),
       mode: resolveKieKlingMode(requestedResolution),
       cfg_scale: klingCfgScale,
-      generate_audio: multiShots ? true : requestedAudio,
-      sound: multiShots ? true : requestedAudio,
-      multi_shots: multiShots,
-      multi_prompt: multiPromptPayload,
+      generate_audio: resolvedShotModePayload.generateAudio,
+      sound: resolvedShotModePayload.sound,
+      multi_shots: resolvedShotModePayload.multiShots,
+      multi_prompt: resolvedShotModePayload.multiPrompt,
       kling_elements: elementsPayload,
     });
     handoffSubmitResponse({

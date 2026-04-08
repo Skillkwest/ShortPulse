@@ -1754,11 +1754,48 @@ describe("ReferenceGrid curated split", () => {
     );
 
     const imageNode = container.querySelector(".reference-card-image") as HTMLImageElement | null;
-    expect(container.querySelector(".reference-card-video")).toBeNull();
+    const videoNode = container.querySelector(".reference-card-video") as HTMLVideoElement | null;
     expect(imageNode).not.toBeNull();
     expect(imageNode?.getAttribute("data-src")).toBe(
       "https://example.com/uploaded-video-poster.jpg"
     );
+    expect(videoNode).not.toBeNull();
+    expect(videoNode?.getAttribute("src")).toBe("https://example.com/uploaded-video-full.mp4");
+  });
+
+  it("renders poster-backed local video cards with an image thumbnail and a hover video surface", () => {
+    const localVideoWithPoster: StudioOutput = {
+      id: "upload-video-local-poster-1",
+      prompt: "Uploaded local video with poster preview",
+      mode: "video",
+      aspect: "16:9",
+      model: "Upload",
+      status: "ready",
+      timestamp: "Now",
+      previewUrl: "blob:local-video-1#video=1",
+      previewPosterUrl: "data:image/jpeg;base64,local-video-poster",
+      localObjectUrl: "blob:local-video-1",
+      mediaSource: "upload",
+    };
+
+    const { container } = render(
+      <ReferenceGrid
+        {...createProps({
+          outputs: [localVideoWithPoster],
+          activeOutputId: localVideoWithPoster.id,
+        })}
+      />
+    );
+
+    const posterImage = container.querySelector(
+      ".reference-card-image--poster"
+    ) as HTMLImageElement | null;
+    const videoNode = container.querySelector(".reference-card-video") as HTMLVideoElement | null;
+
+    expect(posterImage).not.toBeNull();
+    expect(posterImage?.getAttribute("data-src")).toBe("data:image/jpeg;base64,local-video-poster");
+    expect(videoNode).not.toBeNull();
+    expect(videoNode?.getAttribute("src")).toBe("blob:local-video-1");
   });
 
   it("hides save action when uploaded video is already saved", () => {

@@ -223,6 +223,14 @@ describe("sessionSnapshot", () => {
     expect(snapshot.workspace.motionReferenceVideoUrl).toBeNull();
     expect(snapshot.workspace.klingElements[0]).toEqual({
       id: "element-1",
+      sourceKind: null,
+      sourceElementId: null,
+      sourceCharacterId: null,
+      slotIndex: undefined,
+      name: "",
+      alias: "",
+      description: "",
+      profileImageUrl: null,
       frontalImageUrl: "",
       referenceImageUrls: "https://cdn.shortpulse.dev/ref-1.png",
       videoUrl: "",

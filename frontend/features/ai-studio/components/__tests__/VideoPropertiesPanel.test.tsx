@@ -3,9 +3,124 @@
  * Verifies the Kling standard-mode reference-image warning near the generate row.
  */
 import React from "react";
-import { render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { VideoPropertiesPanel } from "../VideoPropertiesPanel";
+import {
+  listCharacterManagerCharacters,
+  loadCharacterManagerDraftByCharacterId,
+} from "../../../character-manager/logic/characterManagerPersistence";
+import { loadElementManagerDraftByElementId } from "../../../elements-manager/logic/elementsManagerPersistence";
+import { buildElementProfileImageBackgroundStyle } from "../../../elements-manager/logic/elementProfileImageTransform";
+import { KLING_ELEMENT_PROMPT_TOKEN_TRANSFER_MIME } from "../../logic/klingPromptReferences";
+
+const referencePromptStepMock = vi.fn(() => <div data-testid="reference-prompt-step" />);
+
+vi.mock("../../../character-manager/logic/characterManagerPersistence", () => ({
+  listCharacterManagerCharacters: vi.fn(async () => [
+    {
+      characterId: "character-taylor",
+      characterName: "Taylor",
+      characterStatus: "active",
+      characterSheetId: "sheet-taylor",
+      profileImageUrl: "https://example.com/taylor-profile.jpg",
+      profileImageTransform: { zoom: 1, offsetX: 0, offsetY: 0 },
+      characterSheetStatus: "ready",
+      updatedAt: "2026-04-07T00:00:00.000Z",
+    },
+  ]),
+  loadCharacterManagerDraftByCharacterId: vi.fn(async () => ({
+    userId: "user-1",
+    characterId: "character-taylor",
+    characterSheetId: "sheet-taylor",
+    characterName: "Taylor",
+    legacyCharacterDescription: "A poised woman in the scene.",
+    characterDescription: "A poised woman in the scene.",
+    characterSheetAssignments: {
+      portrait: "portrait_close",
+      close_up: "front_left_34",
+      front_shot: "front_full",
+    },
+    activeCharacterSheetPresetId: "1",
+    characterSheetPresets: {} as never,
+    visibleCharacterSheetPresetIds: ["1"],
+    characterSheetPresetLabels: { "1": "Preset 1" } as never,
+    characterSheetPresetDescriptions: { "1": "" } as never,
+    characterSheetPresetAssignments: {
+      portrait: {
+        mediaFileId: "portrait-1",
+        storagePath: "user/characters/portrait-1.png",
+        previewUrl: "https://example.com/taylor-01.jpg",
+      },
+      close_up: {
+        mediaFileId: "close-up-1",
+        storagePath: "user/characters/close-up-1.png",
+        previewUrl: "https://example.com/taylor-02.jpg",
+      },
+      front_shot: {
+        mediaFileId: "front-shot-1",
+        storagePath: "user/characters/front-shot-1.png",
+        previewUrl: "https://example.com/taylor-03.jpg",
+      },
+    },
+    profileImageUrl: "https://example.com/taylor-profile.jpg",
+    profileImageTransform: { zoom: 1, offsetX: 0, offsetY: 0 },
+    slots: {
+      front_full: null,
+      side_profile: null,
+      back_full: null,
+      top_down: null,
+      front_left_34: null,
+      front_right_34: null,
+      back_left_34: null,
+      back_right_34: null,
+      portrait_close: null,
+      fullbody_wide: null,
+    },
+  })),
+}));
+
+vi.mock("../../../elements-manager/logic/elementsManagerPersistence", () => ({
+  fetchElementsManagerList: vi.fn(async () => [
+    {
+      elementId: "element-red-lantern",
+      elementName: "Red Lantern",
+      elementAlias: "redlantern",
+      elementAssetType: "image",
+      elementStatus: "ready",
+      profileImageUrl: "https://example.com/red-lantern-profile.jpg",
+      profileImageTransform: { zoom: 1.35, offsetX: 8, offsetY: -6 },
+      updatedAt: "2026-04-07T00:00:00.000Z",
+    },
+  ]),
+  loadElementManagerDraftByElementId: vi.fn(async () => ({
+    elementId: "element-red-lantern",
+    name: "Red Lantern",
+    alias: "redlantern",
+    status: "ready",
+    profileImageUrl: "https://example.com/red-lantern-profile.jpg",
+    profileImageTransform: { zoom: 1.35, offsetX: 8, offsetY: -6 },
+    updatedAt: "2026-04-07T00:00:00.000Z",
+    referenceSetState: {
+      activeSetId: "1",
+      tabOrder: ["1"],
+      tabLabels: { "1": "Double click me" },
+      sets: {
+        "1": {
+          assetType: "image",
+          description: "Warm lacquered lantern",
+          deckReferenceUrls: [],
+          imageReferenceUrls: [
+            "https://example.com/red-lantern-01.jpg",
+            "https://example.com/red-lantern-02.jpg",
+            "https://example.com/red-lantern-03.jpg",
+          ],
+          videoReferenceUrl: "",
+        },
+      },
+    },
+  })),
+}));
 
 vi.mock("next/image", () => ({
   default: (props: React.ImgHTMLAttributes<HTMLImageElement> & { unoptimized?: boolean }) => {
@@ -39,7 +154,24 @@ vi.mock("../ReferenceMediaStep", () => ({
 }));
 
 vi.mock("../ReferencePromptStep", () => ({
-  ReferencePromptStep: () => <div data-testid="reference-prompt-step" />,
+  ReferencePromptStep: (props: {
+    referenceText?: string | null;
+    onPromptTextChange?: (value: string) => void;
+    onDrop?: (event: React.DragEvent<HTMLTextAreaElement>) => void;
+    promptTextareaRef?: React.RefObject<HTMLTextAreaElement | null>;
+  }) => {
+    referencePromptStepMock(props);
+    return (
+      <textarea
+        aria-label="Video prompt"
+        ref={props.promptTextareaRef}
+        value={props.referenceText ?? ""}
+        onChange={(event) => props.onPromptTextChange?.(event.target.value)}
+        onDrop={(event) => props.onDrop?.(event)}
+        onDragOver={(event) => event.preventDefault()}
+      />
+    );
+  },
 }));
 
 vi.mock("../ReferenceVideoSettingsStep", () => ({
@@ -159,7 +291,121 @@ const baseProps: React.ComponentProps<typeof VideoPropertiesPanel> = {
   onRegenerate: vi.fn(),
 };
 
+const createTransferStore = () => {
+  const store: Record<string, string> = {};
+  return {
+    effectAllowed: "copy",
+    dropEffect: "copy",
+    types: [],
+    setData: vi.fn((type: string, value: string) => {
+      store[type] = value;
+    }),
+    getData: vi.fn((type: string) => store[type] ?? ""),
+  } as unknown as DataTransfer;
+};
+
+function KlingModeStateHarness() {
+  const [klingWorkflowMode, setKlingWorkflowMode] = React.useState<"single" | "multi" | "custom">(
+    "custom"
+  );
+  const [klingMultiPrompts, setKlingMultiPrompts] = React.useState([
+    { id: "shot-1", prompt: "Shot one prompt", duration: 5 },
+    { id: "shot-2", prompt: "Shot two prompt", duration: 5 },
+  ]);
+
+  return (
+    <>
+      <VideoPropertiesPanel
+        {...baseProps}
+        klingWorkflowMode={klingWorkflowMode}
+        klingMultiPrompts={klingMultiPrompts}
+        onKlingWorkflowModeChange={setKlingWorkflowMode}
+        onKlingMultiPromptsChange={setKlingMultiPrompts}
+      />
+      <div data-testid="kling-mode-state">{klingWorkflowMode}</div>
+      <div data-testid="kling-shot-cache">
+        {klingMultiPrompts.map((shot) => `${shot.id}:${shot.prompt}`).join("|")}
+      </div>
+    </>
+  );
+}
+
+function KlingPromptDropHarness() {
+  const [referenceText, setReferenceText] = React.useState("Taylor walks forward");
+  const [klingElements, setKlingElements] = React.useState([
+    {
+      id: "element-01",
+      slotIndex: 0,
+      sourceElementId: "element-red-lantern",
+      name: "Taylor",
+      alias: "taylor",
+      description: "Lead performer",
+      profileImageUrl: "https://example.com/taylor-profile.jpg",
+      frontalImageUrl: "https://example.com/taylor-01.jpg",
+      referenceImageUrls: "https://example.com/taylor-02.jpg",
+      videoUrl: "",
+    },
+  ]);
+
+  return (
+    <VideoPropertiesPanel
+      {...baseProps}
+      referenceText={referenceText}
+      onPromptTextChange={setReferenceText}
+      klingElements={klingElements}
+      onKlingElementsChange={setKlingElements}
+    />
+  );
+}
+
+function KlingSparseSlotHarness() {
+  const [klingElements, setKlingElements] = React.useState([
+    {
+      id: "character-taylor",
+      slotIndex: 0,
+      sourceKind: "character" as const,
+      sourceCharacterId: "character-taylor",
+      sourceElementId: null,
+      name: "Taylor",
+      alias: "",
+      description: "Lead performer",
+      profileImageUrl: "https://example.com/taylor-profile.jpg",
+      frontalImageUrl: "https://example.com/taylor-01.jpg",
+      referenceImageUrls: "https://example.com/taylor-02.jpg",
+      videoUrl: "",
+    },
+    {
+      id: "element-taylor",
+      slotIndex: 1,
+      sourceKind: "element" as const,
+      sourceCharacterId: null,
+      sourceElementId: "element-red-lantern",
+      name: "Taylor",
+      alias: "taylor",
+      description: "Stage prop",
+      profileImageUrl: "https://example.com/red-lantern-profile.jpg",
+      frontalImageUrl: "https://example.com/red-lantern-01.jpg",
+      referenceImageUrls: "https://example.com/red-lantern-02.jpg",
+      videoUrl: "",
+    },
+  ]);
+
+  return (
+    <VideoPropertiesPanel
+      {...baseProps}
+      klingElements={klingElements}
+      onKlingElementsChange={setKlingElements}
+    />
+  );
+}
+
 describe("VideoPropertiesPanel", () => {
+  beforeEach(() => {
+    referencePromptStepMock.mockClear();
+    vi.mocked(listCharacterManagerCharacters).mockClear();
+    vi.mocked(loadCharacterManagerDraftByCharacterId).mockClear();
+  });
+
   it("shows the Kling reference image warning when both standard frame slots are empty", () => {
     render(<VideoPropertiesPanel {...baseProps} />);
 
@@ -219,6 +465,98 @@ describe("VideoPropertiesPanel", () => {
     expect(screen.queryByText("Seedance 2.0 is currently unavailable in the U.S.")).toBeNull();
   });
 
+  it("uses the standard single-shot prompt guidance when Kling Multi mode is selected", () => {
+    render(<VideoPropertiesPanel {...baseProps} klingWorkflowMode="multi" />);
+
+    const promptProps = referencePromptStepMock.mock.calls.at(0)?.[0] as
+      | { promptPlaceholder?: string; beginnerHelperText?: string }
+      | undefined;
+    expect(promptProps).toEqual(
+      expect.objectContaining({
+        promptPlaceholder:
+          "Describe the shot you want to create: subject, action, camera movement, framing, lighting, and mood.",
+        beginnerHelperText:
+          "Direct the shot: describe the subject, motion, camera movement, and mood you want in the clip.",
+      })
+    );
+  });
+
+  it("preserves custom shot text when switching from custom to single or multi", () => {
+    render(<KlingModeStateHarness />);
+
+    expect(screen.getByTestId("kling-mode-state")).toHaveTextContent("custom");
+    expect(screen.getByTestId("kling-shot-cache")).toHaveTextContent(
+      "shot-1:Shot one prompt|shot-2:Shot two prompt"
+    );
+
+    fireEvent.click(screen.getByRole("tab", { name: "Single shot" }));
+    expect(screen.getByTestId("kling-mode-state")).toHaveTextContent("single");
+    expect(screen.getByTestId("kling-shot-cache")).toHaveTextContent(
+      "shot-1:Shot one prompt|shot-2:Shot two prompt"
+    );
+
+    fireEvent.click(screen.getByRole("tab", { name: "Multi-shot" }));
+    expect(screen.getByTestId("kling-mode-state")).toHaveTextContent("multi");
+    expect(screen.getByTestId("kling-shot-cache")).toHaveTextContent(
+      "shot-1:Shot one prompt|shot-2:Shot two prompt"
+    );
+
+    fireEvent.click(screen.getByRole("tab", { name: "Custom multi-shot" }));
+    expect(screen.getByTestId("kling-mode-state")).toHaveTextContent("custom");
+    expect(screen.getByTestId("kling-shot-cache")).toHaveTextContent(
+      "shot-1:Shot one prompt|shot-2:Shot two prompt"
+    );
+  });
+
+  it("shows a parked custom shots note when single or multi is active with cached custom prompts", () => {
+    const { rerender } = render(
+      <VideoPropertiesPanel
+        {...baseProps}
+        klingWorkflowMode="single"
+        klingMultiPrompts={[
+          { id: "shot-1", prompt: "Shot one prompt", duration: 5 },
+          { id: "shot-2", prompt: "Shot two prompt", duration: 5 },
+        ]}
+      />
+    );
+
+    expect(
+      screen.getByRole("note", { name: "Saved custom shot prompts are inactive" })
+    ).toHaveTextContent(
+      "Saved custom shots are parked. Only the primary prompt is sent until you switch back to Custom."
+    );
+
+    rerender(
+      <VideoPropertiesPanel
+        {...baseProps}
+        klingWorkflowMode="multi"
+        klingMultiPrompts={[
+          { id: "shot-1", prompt: "Shot one prompt", duration: 5 },
+          { id: "shot-2", prompt: "Shot two prompt", duration: 5 },
+        ]}
+      />
+    );
+
+    expect(
+      screen.getByRole("note", { name: "Saved custom shot prompts are inactive" })
+    ).toBeInTheDocument();
+
+    rerender(
+      <VideoPropertiesPanel
+        {...baseProps}
+        klingWorkflowMode="custom"
+        klingMultiPrompts={[
+          { id: "shot-1", prompt: "Shot one prompt", duration: 5 },
+          { id: "shot-2", prompt: "Shot two prompt", duration: 5 },
+        ]}
+      />
+    );
+
+    expect(
+      screen.queryByRole("note", { name: "Saved custom shot prompts are inactive" })
+    ).toBeNull();
+  });
+
   it("renders the Seedance 1.5 advanced settings card when Seedance 1.5 is active", () => {
     render(
       <VideoPropertiesPanel
@@ -243,5 +581,360 @@ describe("VideoPropertiesPanel", () => {
     );
 
     expect(screen.queryByTestId("reference-seedance-advanced-steps")).toBeNull();
+  });
+
+  it("opens the elements picker and attaches a saved element to a Kling slot", async () => {
+    const onKlingElementsChange = vi.fn();
+    render(<VideoPropertiesPanel {...baseProps} onKlingElementsChange={onKlingElementsChange} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Add element to slot 1" }));
+    expect(screen.getByRole("dialog", { name: "Choose Kling entity" })).toBeInTheDocument();
+
+    fireEvent.click(await screen.findByRole("button", { name: /red lantern/i }));
+
+    await waitFor(() => {
+      expect(onKlingElementsChange).toHaveBeenCalledWith([
+        expect.objectContaining({
+          slotIndex: 0,
+          sourceKind: "element",
+          sourceElementId: "element-red-lantern",
+          sourceCharacterId: null,
+          name: "Red Lantern",
+          alias: "redlantern",
+          profileImageTransform: { zoom: 1.35, offsetX: 8, offsetY: -6 },
+          frontalImageUrl: "https://example.com/red-lantern-01.jpg",
+          referenceImageUrls:
+            "https://example.com/red-lantern-02.jpg, https://example.com/red-lantern-03.jpg",
+        }),
+      ]);
+    });
+  });
+
+  it("attaches a saved character to a Kling slot through the combined picker", async () => {
+    const onKlingElementsChange = vi.fn();
+    render(<VideoPropertiesPanel {...baseProps} onKlingElementsChange={onKlingElementsChange} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Add element to slot 1" }));
+    fireEvent.click(await screen.findByRole("button", { name: /taylor/i }));
+
+    await waitFor(() => {
+      expect(onKlingElementsChange).toHaveBeenCalledWith([
+        expect.objectContaining({
+          slotIndex: 0,
+          sourceKind: "character",
+          sourceElementId: null,
+          sourceCharacterId: "character-taylor",
+          name: "Taylor",
+          alias: "",
+          frontalImageUrl: "https://example.com/taylor-01.jpg",
+          referenceImageUrls:
+            "https://example.com/taylor-02.jpg, https://example.com/taylor-03.jpg",
+        }),
+      ]);
+    });
+  });
+
+  it("applies the saved crop framing in the elements picker avatar and attached slot preview", async () => {
+    const { container } = render(
+      <VideoPropertiesPanel
+        {...baseProps}
+        klingElements={[
+          {
+            id: "element-red-lantern",
+            slotIndex: 0,
+            sourceElementId: "element-red-lantern",
+            name: "Red Lantern",
+            alias: "redlantern",
+            description: "",
+            profileImageUrl: "https://example.com/red-lantern-profile.jpg",
+            profileImageTransform: { zoom: 1.35, offsetX: 8, offsetY: -6 },
+            frontalImageUrl: "",
+            referenceImageUrls: "",
+            videoUrl: "",
+          },
+        ]}
+      />
+    );
+
+    const slotPreview = container.querySelector(
+      ".video-elements-slot-avatar-image"
+    ) as HTMLDivElement | null;
+    if (!slotPreview) {
+      throw new Error("Expected an attached element preview image.");
+    }
+    expect(slotPreview).toHaveStyle(
+      buildElementProfileImageBackgroundStyle(
+        "https://example.com/red-lantern-profile.jpg",
+        { zoom: 1.35, offsetX: 8, offsetY: -6 },
+        68
+      )
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Add element to slot 2" }));
+
+    await waitFor(() => {
+      expect(container.querySelector(".ai-character-list-avatar-image")).toBeInTheDocument();
+    });
+    const elementsList = screen.getByRole("list", { name: "Elements options" });
+    const redLanternCard = within(elementsList)
+      .getByRole("button", { name: /red lantern/i })
+      .closest("article");
+    const pickerAvatar = redLanternCard?.querySelector(".ai-character-list-avatar-image");
+    if (!(pickerAvatar instanceof HTMLElement)) {
+      throw new Error("Expected a picker avatar element.");
+    }
+    expect(pickerAvatar).toHaveStyle(
+      buildElementProfileImageBackgroundStyle(
+        "https://example.com/red-lantern-profile.jpg",
+        { zoom: 1.35, offsetX: 8, offsetY: -6 },
+        44
+      )
+    );
+  });
+
+  it("shows selected picker chips for entities already attached in other Kling slots", async () => {
+    render(
+      <VideoPropertiesPanel
+        {...baseProps}
+        klingElements={[
+          {
+            id: "element-red-lantern",
+            slotIndex: 0,
+            sourceKind: "element",
+            sourceElementId: "element-red-lantern",
+            sourceCharacterId: null,
+            name: "Red Lantern",
+            alias: "redlantern",
+            description: "",
+            profileImageUrl: "https://example.com/red-lantern-profile.jpg",
+            profileImageTransform: { zoom: 1.35, offsetX: 8, offsetY: -6 },
+            frontalImageUrl: "",
+            referenceImageUrls: "",
+            videoUrl: "",
+          },
+        ]}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Add element to slot 2" }));
+
+    const elementsList = await screen.findByRole("list", { name: "Elements options" });
+    const redLanternCard = await within(elementsList).findByRole("button", {
+      name: /red lantern/i,
+    });
+    expect(redLanternCard.closest("article")).toHaveClass("is-active");
+    expect(within(redLanternCard).getByText("Selected")).toBeInTheDocument();
+  });
+
+  it("clears orphaned saved elements that no longer resolve from persistence", async () => {
+    vi.mocked(loadElementManagerDraftByElementId).mockRejectedValueOnce(new Error("missing"));
+    const onKlingElementsChange = vi.fn();
+
+    render(
+      <VideoPropertiesPanel
+        {...baseProps}
+        klingElements={[
+          {
+            id: "ghost-element",
+            slotIndex: 0,
+            sourceElementId: "missing-element",
+            name: "Mantis",
+            alias: "mantis",
+            description: "",
+            profileImageUrl: "https://example.com/ghost-profile.jpg",
+            frontalImageUrl: "",
+            referenceImageUrls: "",
+            videoUrl: "",
+          },
+        ]}
+        onKlingElementsChange={onKlingElementsChange}
+      />
+    );
+
+    await waitFor(() => {
+      expect(onKlingElementsChange).toHaveBeenCalledWith([]);
+    });
+  });
+
+  it("does not pass agent enhance behavior into the video prompt surface", () => {
+    render(
+      <VideoPropertiesPanel
+        {...baseProps}
+        agentIsSending
+        agentError="Agent leaked in"
+        onAgentEnhanceSend={vi.fn()}
+      />
+    );
+
+    const promptProps = referencePromptStepMock.mock.calls.at(0)?.[0] as
+      | { agentIsSending?: boolean; agentError?: string; onAgentEnhanceSend?: unknown }
+      | undefined;
+    expect(promptProps?.agentIsSending).toBe(false);
+    expect(promptProps?.agentError).toBeUndefined();
+    expect(promptProps?.onAgentEnhanceSend).toBeUndefined();
+    expect(screen.getByRole("button", { name: /generate/i })).toHaveAttribute("aria-busy", "false");
+  });
+
+  it("writes Kling element token drag data for attached tiles", () => {
+    render(
+      <VideoPropertiesPanel
+        {...baseProps}
+        klingElements={[
+          {
+            id: "element-01",
+            slotIndex: 0,
+            sourceElementId: "element-red-lantern",
+            name: "Taylor",
+            alias: "taylor",
+            description: "Lead performer",
+            profileImageUrl: "https://example.com/taylor-profile.jpg",
+            frontalImageUrl: "https://example.com/taylor-01.jpg",
+            referenceImageUrls: "https://example.com/taylor-02.jpg",
+            videoUrl: "",
+          },
+        ]}
+      />
+    );
+
+    const transfer = createTransferStore();
+    const tile = screen.getByLabelText("Replace attached element Taylor");
+    fireEvent.dragStart(tile.closest(".video-elements-placeholder-tile--filled") as HTMLElement, {
+      dataTransfer: transfer,
+    });
+
+    expect(transfer.setData).toHaveBeenCalledWith(
+      KLING_ELEMENT_PROMPT_TOKEN_TRANSFER_MIME,
+      "@taylor"
+    );
+    expect(transfer.setData).toHaveBeenCalledWith("text/prompt", "@taylor");
+    expect(transfer.setData).toHaveBeenCalledWith("text/plain", "@taylor");
+  });
+
+  it("writes Kling character token drag data for attached character tiles", () => {
+    render(
+      <VideoPropertiesPanel
+        {...baseProps}
+        klingElements={[
+          {
+            id: "character-01",
+            slotIndex: 0,
+            sourceKind: "character",
+            sourceCharacterId: "character-taylor",
+            sourceElementId: null,
+            name: "Taylor",
+            alias: "",
+            description: "Lead performer",
+            profileImageUrl: "https://example.com/taylor-profile.jpg",
+            frontalImageUrl: "https://example.com/taylor-01.jpg",
+            referenceImageUrls: "https://example.com/taylor-02.jpg",
+            videoUrl: "",
+          },
+        ]}
+      />
+    );
+
+    const transfer = createTransferStore();
+    const tile = screen.getByLabelText("Replace attached element Taylor");
+    fireEvent.dragStart(tile.closest(".video-elements-placeholder-tile--filled") as HTMLElement, {
+      dataTransfer: transfer,
+    });
+
+    expect(transfer.setData).toHaveBeenCalledWith(
+      KLING_ELEMENT_PROMPT_TOKEN_TRANSFER_MIME,
+      "@taylor"
+    );
+    expect(transfer.setData).toHaveBeenCalledWith("text/prompt", "@taylor");
+    expect(transfer.setData).toHaveBeenCalledWith("text/plain", "@taylor");
+  });
+
+  it("removes an attached Kling slot when clicking the trash button", () => {
+    const onKlingElementsChange = vi.fn();
+    render(
+      <VideoPropertiesPanel
+        {...baseProps}
+        onKlingElementsChange={onKlingElementsChange}
+        klingElements={[
+          {
+            id: "character-01",
+            slotIndex: 0,
+            sourceKind: "character",
+            sourceCharacterId: "character-taylor",
+            sourceElementId: null,
+            name: "Taylor",
+            alias: "",
+            description: "Lead performer",
+            profileImageUrl: "https://example.com/taylor-profile.jpg",
+            frontalImageUrl: "https://example.com/taylor-01.jpg",
+            referenceImageUrls: "https://example.com/taylor-02.jpg",
+            videoUrl: "",
+          },
+        ]}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Remove attached element Taylor" }));
+
+    expect(onKlingElementsChange).toHaveBeenCalledWith([]);
+  });
+
+  it("keeps slot 1 stable when slot 0 is deleted from a sparse Kling slot layout", async () => {
+    render(<KlingSparseSlotHarness />);
+
+    expect(screen.getAllByRole("button", { name: "Remove attached element Taylor" })).toHaveLength(
+      2
+    );
+
+    fireEvent.click(screen.getAllByRole("button", { name: "Remove attached element Taylor" })[0]);
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Add element to slot 1" })).toBeInTheDocument();
+      expect(
+        screen.getByRole("button", { name: "Remove attached element Taylor" })
+      ).toBeInTheDocument();
+      expect(
+        screen.getAllByRole("button", { name: "Replace attached element Taylor" })
+      ).toHaveLength(1);
+    });
+  });
+
+  it("allows deleting the remaining higher-slot Kling entity after slot 0 was cleared", async () => {
+    render(<KlingSparseSlotHarness />);
+
+    fireEvent.click(screen.getAllByRole("button", { name: "Remove attached element Taylor" })[0]);
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Add element to slot 1" })).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Remove attached element Red Lantern" }));
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Add element to slot 1" })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Add element to slot 2" })).toBeInTheDocument();
+      expect(
+        screen.queryByRole("button", { name: "Remove attached element Red Lantern" })
+      ).toBeNull();
+    });
+  });
+
+  it("inserts a dragged Kling alias token at the video prompt caret", async () => {
+    render(<KlingPromptDropHarness />);
+
+    const promptInput = screen.getByLabelText("Video prompt") as HTMLTextAreaElement;
+    promptInput.focus();
+    promptInput.setSelectionRange(6, 6);
+
+    const transfer = createTransferStore();
+    const tile = screen.getByLabelText("Replace attached element Taylor");
+    await act(async () => {
+      fireEvent.dragStart(tile.closest(".video-elements-placeholder-tile--filled") as HTMLElement, {
+        dataTransfer: transfer,
+      });
+      fireEvent.drop(promptInput, { dataTransfer: transfer });
+    });
+
+    await waitFor(() => {
+      expect(promptInput.value).toBe("Taylor @taylor walks forward");
+    });
   });
 });

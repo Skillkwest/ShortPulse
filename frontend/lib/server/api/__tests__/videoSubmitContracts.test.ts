@@ -94,6 +94,73 @@ describe("videoSubmitContracts", () => {
     expect(redactedValue).not.toContain("token=abc");
   });
 
+  it("allows character-scoped media URLs inside Kling element payloads", () => {
+    const result = normalizeVideoSubmitIngressPayload({
+      modelId: "kie-ai/kling-3.0",
+      payload: {
+        prompt: "@taylor walks into the scene",
+        image_url: "https://cdn.shortpulse.test/ref.png",
+        kling_elements: [
+          {
+            name: "taylor",
+            description: "Reference images for Taylor",
+            element_input_urls: [
+              "https://example.supabase.co/storage/v1/object/sign/media_library/user/characters/char-a/ref.png?token=abc",
+            ],
+          },
+        ],
+      },
+    });
+
+    expect(result).toEqual({
+      ok: true,
+      payload: {
+        prompt: "@taylor walks into the scene",
+        image_url: "https://cdn.shortpulse.test/ref.png",
+        kling_elements: [
+          {
+            name: "taylor",
+            description: "Reference images for Taylor",
+            element_input_urls: [
+              "https://example.supabase.co/storage/v1/object/sign/media_library/user/characters/char-a/ref.png?token=abc",
+            ],
+          },
+        ],
+      },
+      aliasUsage: [],
+      queueCompatibilityApplied: false,
+      envelopeVersion: null,
+    });
+  });
+
+  it("still rejects blocked character metadata fields inside Kling element payloads", () => {
+    const result = normalizeVideoSubmitIngressPayload({
+      modelId: "kie-ai/kling-3.0",
+      payload: {
+        prompt: "@taylor walks into the scene",
+        image_url: "https://cdn.shortpulse.test/ref.png",
+        kling_elements: [
+          {
+            name: "taylor",
+            description: "Reference images for Taylor",
+            profile_image_url:
+              "https://example.supabase.co/storage/v1/object/sign/media_library/user/characters/char-a/ref.png?token=abc",
+          },
+        ],
+      },
+    });
+
+    expect(result).toEqual(
+      expect.objectContaining({
+        ok: false,
+        code: "VIDEO_CHARACTER_MEDIA_BLOCKED",
+        detail: expect.objectContaining({
+          reason: "blocked_character_metadata_field",
+        }),
+      })
+    );
+  });
+
   it("unwraps queue envelope v2 payloads", () => {
     const envelope = wrapQueueSubmitPayloadEnvelope({
       modelId: "kie-ai/veo-3.1-fast-i2v",

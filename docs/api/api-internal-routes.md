@@ -124,7 +124,7 @@ Purpose: document the first-party Next.js API surface in `frontend/pages/api/` (
   - `NEXT_PUBLIC_AI_STUDIO_SESSION_RESTORE_APPLY_ENABLED` (`true` by default once the legacy master opt-in is enabled; when `false`, loaded restore candidates are not hydrated into UI state).
   - `NEXT_PUBLIC_AI_STUDIO_SESSION_RESTORE_APPLY_AGENT_ENABLED` (`true` by default once the legacy master opt-in is enabled; when `false`, one-shot restore apply hydrates workspace/output/canvas state but skips agent transcript/input hydration).
 - Media preview trust policy:
-  - `SHORTPULSE_MEDIA_DIRECT_URL_ALLOWED_HOSTS` (server-side comma-separated trusted hosts)
+  - `SHORTPULSE_MEDIA_DIRECT_URL_ALLOWED_HOSTS` (server-side comma-separated trusted hosts; extends built-in trusted provider result hosts such as `tempfile.aiquickdraw.com`)
   - `SHORTPULSE_MEDIA_ALLOW_EXTERNAL_DIRECT_PREVIEWS` (`false` by default; when `true`, allowlisted external direct preview hosts are allowed)
   - `NEXT_PUBLIC_MEDIA_DIRECT_URL_ALLOWED_HOSTS` (client-side trusted hosts for optimizer decisions)
   - `NEXT_PUBLIC_MEDIA_ALLOW_EXTERNAL_DIRECT_PREVIEWS` (`false` by default; mirror server value)

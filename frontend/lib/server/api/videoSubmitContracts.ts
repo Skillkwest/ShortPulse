@@ -190,13 +190,22 @@ const containsCharactersSegment = (value: string): boolean => {
   );
 };
 
+const isAllowedCharacterScopedVideoPath = (keyPath: string[]): boolean => {
+  if (keyPath.length < 3) return false;
+  const [rootKey, , leafKey] = keyPath;
+  return (
+    rootKey === "kling_elements" &&
+    (leafKey === "element_input_urls" || leafKey === "element_input_video_urls")
+  );
+};
+
 const detectCharacterMediaLeak = (
   value: unknown,
   keyPath: string[] = []
 ): { keyPath: string; value: string; reason: string } | null => {
   if (typeof value === "string") {
     const keyPathText = keyPath.join(".");
-    if (containsCharactersSegment(value)) {
+    if (containsCharactersSegment(value) && !isAllowedCharacterScopedVideoPath(keyPath)) {
       return {
         keyPath: keyPathText,
         value: redactPotentialSensitiveString(value),

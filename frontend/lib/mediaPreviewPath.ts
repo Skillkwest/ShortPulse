@@ -150,6 +150,62 @@ export const resolveDurablePreviewStoragePath = (row: MediaRowLike): string | nu
 };
 
 /**
+ * Resolves a durable poster-image storage path for video rows when available.
+ * Prefers explicit poster/thumb image variants over loop-preview video variants.
+ */
+export const resolveVideoPosterStoragePath = (row: MediaRowLike): string | null => {
+  const type = (row.file_type ?? "").toLowerCase();
+  if (!type.startsWith("video")) return null;
+
+  const root = toRecord(row.metadata);
+  const variantPaths = toRecord(root.variant_paths ?? root.variantPaths);
+  const variants = toRecord(root.variants);
+  const posterVariant = toRecord(variants.poster_720 ?? variants.poster720);
+  const thumbVariant = toRecord(variants.thumb_240 ?? variants.thumb240);
+
+  return firstNonEmpty(
+    asStoragePath(row.poster_variant_path),
+    asStoragePath(row.thumb_variant_path),
+    asStoragePath(root.poster_variant_path),
+    asStoragePath(root.thumb_variant_path),
+    asStoragePath(variantPaths.poster),
+    asStoragePath(variantPaths.thumb),
+    asStoragePath(variantPaths.image),
+    asStoragePath(posterVariant.storage_path),
+    asStoragePath(posterVariant.path),
+    asStoragePath(thumbVariant.storage_path),
+    asStoragePath(thumbVariant.path)
+  );
+};
+
+/**
+ * Returns ordered storage-path candidates to try when signing a video poster image.
+ * The first item is the preferred poster/thumb image path.
+ */
+export const resolveVideoPosterSigningStoragePaths = (
+  row: MediaRowLike,
+  userId?: string | null
+): string[] => {
+  const preferredPath = resolveVideoPosterStoragePath(row);
+  const candidates = [
+    preferredPath,
+    asStoragePath(row.poster_variant_path),
+    asStoragePath(row.thumb_variant_path),
+  ];
+
+  const deduped: string[] = [];
+  const seen = new Set<string>();
+  for (const candidate of candidates) {
+    for (const expandedCandidate of expandScopedStoragePathCandidates(candidate, userId)) {
+      if (!expandedCandidate || seen.has(expandedCandidate)) continue;
+      seen.add(expandedCandidate);
+      deduped.push(expandedCandidate);
+    }
+  }
+  return deduped;
+};
+
+/**
  * Chooses a preview variant path when available; otherwise returns the original storage path.
  */
 export const resolvePreviewStoragePath = (row: MediaRowLike): string | null => {

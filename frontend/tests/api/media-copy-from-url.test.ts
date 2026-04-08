@@ -136,6 +136,14 @@ const createSupabaseAdmin = (options?: {
     })),
   }));
   const generationOutputInsertMock = vi.fn(async () => ({ error: null }));
+  const mediaUpdateEqUserMock = vi.fn(async () => ({ error: null }));
+  const mediaUpdateEqIdMock = vi.fn(() => ({
+    eq: mediaUpdateEqUserMock,
+  }));
+  const mediaUpdateMock = vi.fn(() => ({
+    eq: mediaUpdateEqIdMock,
+  }));
+  const mediaAssetVariantUpsertMock = vi.fn(async () => ({ error: null }));
 
   const fromMock = vi.fn((table: string) => {
     if (table === "media_files") {
@@ -150,9 +158,15 @@ const createSupabaseAdmin = (options?: {
       mediaSelectBuilder.limit.mockReturnValue(mediaSelectBuilder);
       return {
         select: vi.fn(() => mediaSelectBuilder),
+        update: mediaUpdateMock,
         insert: vi.fn(() => ({
           select: vi.fn(() => ({ single: singleMock })),
         })),
+      };
+    }
+    if (table === "media_asset_variants") {
+      return {
+        upsert: mediaAssetVariantUpsertMock,
       };
     }
     if (table === "ai_generation_outputs") {
@@ -191,6 +205,10 @@ const createSupabaseAdmin = (options?: {
     removeMock,
     generationOutputUpdateMock,
     generationOutputInsertMock,
+    mediaUpdateMock,
+    mediaUpdateEqIdMock,
+    mediaUpdateEqUserMock,
+    mediaAssetVariantUpsertMock,
     admin: {
       from: fromMock,
       storage: {
@@ -271,6 +289,140 @@ describe("POST /api/media/copy-from-url", () => {
     expect(res.json).toHaveBeenCalledWith({
       error: "Generated media is missing durable generation tracking.",
     });
+  });
+
+  it("persists a durable poster variant when saving a new copied video with a poster hint", async () => {
+    detectVideoMimeTypeMock.mockImplementation((buffer: Buffer) =>
+      buffer.toString() === "video-buffer" ? "video/mp4" : null
+    );
+    detectImageMimeTypeMock.mockImplementation((buffer: Buffer) =>
+      buffer.toString() === "poster-buffer" ? "image/jpeg" : "image/png"
+    );
+    extractImageDimensionsFromBufferMock.mockReturnValue({ width: 1280, height: 720 });
+
+    const supabase = createSupabaseAdmin({
+      insertRow: {
+        id: "media-video-1",
+        storage_path: "user-1/generations/videos/media-video-1.mp4",
+        file_type: "video",
+      },
+    });
+    getSupabaseAdminMock.mockReturnValue(supabase.admin);
+
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(Buffer.from("video-buffer"), {
+          status: 200,
+          headers: { "content-type": "video/mp4" },
+        })
+      )
+      .mockResolvedValueOnce(
+        new Response(Buffer.from("poster-buffer"), {
+          status: 200,
+          headers: { "content-type": "image/jpeg" },
+        })
+      );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const req = {
+      method: "POST",
+      headers: { host: "app.shortpulse.test", "x-forwarded-proto": "https" },
+      body: {
+        url: "https://trusted.example.com/output.mp4",
+        source: "ai_studio",
+        mode: "video",
+        generationId: "gen-1",
+        index: 0,
+        posterUrlHint: "https://cdn.example.com/poster.jpg",
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(supabase.uploadMock).toHaveBeenNthCalledWith(
+      1,
+      expect.stringMatching(/^user-1\/generations\/videos\//),
+      expect.any(Buffer),
+      expect.objectContaining({
+        contentType: "video/mp4",
+      })
+    );
+    expect(supabase.uploadMock).toHaveBeenNthCalledWith(
+      2,
+      "user-1/variants/videos/media-video-1/poster_720.jpg",
+      expect.any(Buffer),
+      expect.objectContaining({
+        contentType: "image/jpeg",
+        upsert: true,
+      })
+    );
+    expect(supabase.mediaAssetVariantUpsertMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        media_file_id: "media-video-1",
+        variant_kind: "poster_720",
+        storage_path: "user-1/variants/videos/media-video-1/poster_720.jpg",
+      }),
+      expect.objectContaining({
+        onConflict: "media_file_id,variant_kind",
+      })
+    );
+    expect(supabase.mediaUpdateMock).toHaveBeenCalledWith({
+      poster_variant_path: "user-1/variants/videos/media-video-1/poster_720.jpg",
+    });
+    expect(res.status).toHaveBeenCalledWith(200);
+  });
+
+  it("skips oversized inline poster payloads without failing the main video save", async () => {
+    detectVideoMimeTypeMock.mockImplementation((buffer: Buffer) =>
+      buffer.toString() === "video-buffer" ? "video/mp4" : null
+    );
+
+    const supabase = createSupabaseAdmin({
+      insertRow: {
+        id: "media-video-oversized-poster",
+        storage_path: "user-1/generations/videos/media-video-oversized-poster.mp4",
+        file_type: "video",
+      },
+    });
+    getSupabaseAdminMock.mockReturnValue(supabase.admin);
+
+    const fetchMock = vi.fn().mockResolvedValueOnce(
+      new Response(Buffer.from("video-buffer"), {
+        status: 200,
+        headers: { "content-type": "video/mp4" },
+      })
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const oversizedPosterPayload = "A".repeat(35_000_000);
+    const req = {
+      method: "POST",
+      headers: { host: "app.shortpulse.test", "x-forwarded-proto": "https" },
+      body: {
+        url: "https://trusted.example.com/output.mp4",
+        source: "ai_studio",
+        mode: "video",
+        generationId: "gen-oversized-poster",
+        index: 0,
+        posterUrlHint: `data:image/jpeg;base64,${oversizedPosterPayload}`,
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(supabase.uploadMock).toHaveBeenCalledTimes(1);
+    expect(supabase.mediaAssetVariantUpsertMock).not.toHaveBeenCalled();
+    expect(supabase.mediaUpdateMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        mediaFileId: "media-video-oversized-poster",
+        fileType: "video",
+      })
+    );
   });
 
   it("returns an existing ai_studio media row without re-fetching or re-uploading", async () => {

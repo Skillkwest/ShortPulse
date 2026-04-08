@@ -50,6 +50,20 @@ describe("mediaPreviewTrustPolicy", () => {
     ).toBe(false);
   });
 
+  it("allows built-in trusted provider result hosts when external previews are enabled", () => {
+    vi.stubEnv("SHORTPULSE_MEDIA_ALLOW_EXTERNAL_DIRECT_PREVIEWS", "true");
+
+    expect(
+      isTrustedMediaDirectPreviewUrl(
+        "https://tempfile.aiquickdraw.com/user-1/generations/videos/a.mp4",
+        { userId: "user-1", requireUserScope: false }
+      )
+    ).toBe(true);
+    expect(
+      canUseNextImageOptimizerForUrl("https://tempfile.aiquickdraw.com/user-1/images/a.png")
+    ).toBe(true);
+  });
+
   it("filters trusted direct preview URLs with dedupe", () => {
     vi.stubEnv("SHORTPULSE_MEDIA_ALLOW_EXTERNAL_DIRECT_PREVIEWS", "true");
     vi.stubEnv("SHORTPULSE_MEDIA_DIRECT_URL_ALLOWED_HOSTS", "cdn.example.com");

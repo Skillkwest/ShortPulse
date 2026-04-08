@@ -6,6 +6,7 @@
 const MEDIA_BUCKET = "media_library";
 const NEXT_IMAGE_OPTIMIZER_PREFIX = "/_next/image";
 const TRAVERSAL_SEGMENT_REGEX = /(?:^|\/)\.\.(?:\/|$)/;
+const BUILT_IN_EXTERNAL_DIRECT_PREVIEW_HOSTS = ["tempfile.aiquickdraw.com"];
 
 const normalizeHostname = (value: string): string => value.trim().toLowerCase().replace(/\.$/, "");
 
@@ -98,7 +99,10 @@ const isHostTrustedForExternalUse = (hostname: string): boolean => {
     process.env.SHORTPULSE_MEDIA_DIRECT_URL_ALLOWED_HOSTS ??
       process.env.NEXT_PUBLIC_MEDIA_DIRECT_URL_ALLOWED_HOSTS
   );
-  return allowlistedHosts.some((allowedHost) => matchesHost(hostname, allowedHost));
+  const builtInHosts = BUILT_IN_EXTERNAL_DIRECT_PREVIEW_HOSTS;
+  return [...allowlistedHosts, ...builtInHosts].some((allowedHost) =>
+    matchesHost(hostname, allowedHost)
+  );
 };
 
 const isHostTrustedForMediaPreview = (hostname: string): boolean => {
@@ -121,6 +125,9 @@ export const resolveMediaPreviewTrustedHosts = (): string[] => {
       process.env.SHORTPULSE_MEDIA_DIRECT_URL_ALLOWED_HOSTS ??
         process.env.NEXT_PUBLIC_MEDIA_DIRECT_URL_ALLOWED_HOSTS
     )) {
+      hosts.add(host);
+    }
+    for (const host of BUILT_IN_EXTERNAL_DIRECT_PREVIEW_HOSTS) {
       hosts.add(host);
     }
   }

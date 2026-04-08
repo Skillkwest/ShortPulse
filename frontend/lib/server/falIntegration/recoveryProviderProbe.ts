@@ -230,6 +230,13 @@ export const probeProviderResult = async ({
         };
       }
     }
+    if (bestStatus?.isCompleted) {
+      return {
+        state: "completed",
+        payload: payloadByStatusIndex.get(bestStatus.index) ?? null,
+        mediaUrls: [],
+      };
+    }
 
     const responseProbeResults = await Promise.all(
       resolveProviderResponseUrls({
@@ -363,6 +370,19 @@ export const probeProviderResult = async ({
           mediaUrls: extractRecoveryMediaUrls(payload, { provider: providerKey, modelId }),
         };
       }
+    }
+    if (
+      bestResult?.status &&
+      isProviderCompletedStatus({
+        provider: providerKey,
+        status: bestResult.status,
+      })
+    ) {
+      return {
+        state: "completed",
+        payload: payloadByResultIndex.get(bestResult.index) ?? null,
+        mediaUrls: [],
+      };
     }
 
     if (

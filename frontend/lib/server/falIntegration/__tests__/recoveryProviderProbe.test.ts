@@ -86,4 +86,41 @@ describe("recoveryProviderProbe trusted base policy", () => {
     });
     expect(fetchMock).toHaveBeenCalled();
   });
+
+  it("treats terminal fal completed-without-media as completed instead of running", async () => {
+    process.env.SHORTPULSE_FAL_TRUSTED_HOSTS = "queue.fal.run";
+
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            status: "COMPLETED",
+            request_id: "req-1",
+            error_type: "runner_disconnected",
+          }),
+          { status: 200 }
+        )
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ detail: "Request not found" }), { status: 404 })
+      );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const observation = await probeProviderResult({
+      requestId: "req-1",
+      modelId: "fal-ai/nano-banana-pro",
+      apiKey: "test-fal-key",
+    });
+
+    expect(observation).toEqual({
+      state: "completed",
+      payload: {
+        status: "COMPLETED",
+        request_id: "req-1",
+        error_type: "runner_disconnected",
+      },
+      mediaUrls: [],
+    });
+  });
 });

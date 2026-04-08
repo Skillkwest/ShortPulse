@@ -75,6 +75,7 @@ type CopyFromUrlRequest = {
   fullStoragePathHint?: unknown;
   previewUrlHint?: unknown;
   fullUrlHint?: unknown;
+  posterUrlHint?: unknown;
   metadata?: unknown;
 };
 
@@ -132,6 +133,16 @@ const parseFileTypeHint = (value: unknown): "image" | "video" | undefined => {
   const parsed = asOptionalString(value);
   if (parsed === "image" || parsed === "video") return parsed;
   return undefined;
+};
+
+const normalizePosterSourceUrl = (fileType: "image" | "video", value: unknown): string | null => {
+  if (fileType !== "video") return null;
+  const parsed = asOptionalString(value);
+  if (!parsed) return null;
+  if (/^(?:data:image\/|https?:\/\/)/i.test(parsed)) {
+    return parsed;
+  }
+  return null;
 };
 
 const parseIndex = (value: unknown): number => {
@@ -350,6 +361,137 @@ const fetchUrlWithRedirectValidation = async ({
   } finally {
     clearTimeout(timeoutId);
   }
+};
+
+const parseInlineImageDataUrl = (
+  value: string
+): { buffer: Buffer; contentType: string | null } | null => {
+  const match = value.match(/^data:(image\/[a-z0-9.+-]+)?;base64,(.+)$/i);
+  if (!match) return null;
+  const estimatedByteLength = Math.floor((match[2].length * 3) / 4);
+  if (estimatedByteLength > MAX_IMAGE_BYTES) {
+    throw new Error("Fetched media exceeds size limit.");
+  }
+  try {
+    const buffer = Buffer.from(match[2], "base64");
+    if (buffer.byteLength > MAX_IMAGE_BYTES) {
+      throw new Error("Fetched media exceeds size limit.");
+    }
+    return {
+      buffer,
+      contentType: match[1] ?? null,
+    };
+  } catch (error) {
+    if (error instanceof Error && error.message.includes("size limit")) {
+      throw error;
+    }
+    return null;
+  }
+};
+
+const fetchPosterSource = async (
+  req: NextApiRequest,
+  posterSourceUrl: string
+): Promise<{ buffer: Buffer; contentType: string | null }> => {
+  const inlineData = parseInlineImageDataUrl(posterSourceUrl);
+  if (inlineData) {
+    return inlineData;
+  }
+
+  const parsedPosterUrl = parseUrlFromRequest(posterSourceUrl, req);
+  if (!parsedPosterUrl) {
+    throw new Error("Invalid poster url.");
+  }
+  const trustValidation = await validateTrustedUrl(parsedPosterUrl);
+  if (!trustValidation.ok) {
+    throw new Error(`Untrusted poster URL. ${trustValidation.error}`);
+  }
+  const fetched = await fetchUrlWithRedirectValidation({
+    startUrl: parsedPosterUrl,
+    maxBytes: MAX_IMAGE_BYTES,
+  });
+  return {
+    buffer: fetched.buffer,
+    contentType: fetched.contentType,
+  };
+};
+
+const persistVideoPosterVariant = async ({
+  userId,
+  mediaFileId,
+  posterSourceUrl,
+  req,
+}: {
+  userId: string;
+  mediaFileId: string;
+  posterSourceUrl: string;
+  req: NextApiRequest;
+}): Promise<string | null> => {
+  const fetched = await fetchPosterSource(req, posterSourceUrl);
+  const mimeType = resolveMediaMimeType({
+    contentType: fetched.contentType,
+    buffer: fetched.buffer,
+    fileType: "image",
+  });
+  const extension = resolveExtension(mimeType, posterSourceUrl);
+  const storagePath = assertUserScopedMediaStoragePath({
+    path: `${userId}/variants/videos/${mediaFileId}/poster_720.${extension}`,
+    userId,
+    label: "AI Studio copied video poster storage path",
+  });
+
+  const { error: uploadError } = await getSupabaseAdmin()
+    .storage.from(MEDIA_BUCKET)
+    .upload(storagePath, fetched.buffer, {
+      upsert: true,
+      contentType: mimeType,
+    });
+  if (uploadError) {
+    throw uploadError;
+  }
+
+  const dimensions = extractImageDimensionsFromBuffer(fetched.buffer);
+
+  const { error: variantError } = await getSupabaseAdmin()
+    .from("media_asset_variants")
+    .upsert(
+      {
+        media_file_id: mediaFileId,
+        user_id: userId,
+        variant_kind: "poster_720",
+        storage_path: storagePath,
+        mime_type: mimeType,
+        width: dimensions?.width ?? null,
+        height: dimensions?.height ?? null,
+        byte_size: fetched.buffer.byteLength,
+        status: "ready",
+        metadata: {
+          generated_by: "media-copy-from-url",
+          poster_source: posterSourceUrl.startsWith("data:image/")
+            ? "inline_data_url"
+            : "remote_url",
+        },
+      },
+      {
+        onConflict: "media_file_id,variant_kind",
+      }
+    );
+  if (variantError) {
+    throw variantError;
+  }
+
+  const { error: updateError } = await getSupabaseAdmin()
+    .from("media_files")
+    .update({
+      poster_variant_path: storagePath,
+    })
+    .eq("id", mediaFileId)
+    .eq("user_id", userId);
+  if (updateError) {
+    throw updateError;
+  }
+
+  return storagePath;
 };
 
 const sanitizeFilename = (value: string) => value.replace(/[^\w.-]+/g, "_");
@@ -601,6 +743,7 @@ export default async function handler(
   const fullStoragePathHint = asOptionalString(input.fullStoragePathHint);
   const previewUrlHint = asOptionalString(input.previewUrlHint);
   const fullUrlHint = asOptionalString(input.fullUrlHint);
+  const posterUrlHint = normalizePosterSourceUrl(mode, input.posterUrlHint);
   const promptText = asOptionalString(input.promptText);
   const provider = asOptionalString(input.provider);
   const modelId = asOptionalString(input.modelId);
@@ -618,6 +761,18 @@ export default async function handler(
         index,
       });
       if (existing) {
+        if (posterUrlHint && !existing.posterVariantPath) {
+          try {
+            await persistVideoPosterVariant({
+              userId: user.id,
+              mediaFileId: existing.id,
+              posterSourceUrl: posterUrlHint,
+              req,
+            });
+          } catch {
+            // best-effort durable poster hydration only
+          }
+        }
         try {
           await attachMediaFileToGenerationOutput({
             generationId,
@@ -806,6 +961,18 @@ export default async function handler(
     });
 
     const insertedMediaFileId = asOptionalString(data?.id);
+    if (insertedMediaFileId && posterUrlHint) {
+      try {
+        await persistVideoPosterVariant({
+          userId: user.id,
+          mediaFileId: insertedMediaFileId,
+          posterSourceUrl: posterUrlHint,
+          req,
+        });
+      } catch {
+        // best-effort durable poster hydration only
+      }
+    }
     if (source === "ai_studio" && generationId && insertedMediaFileId) {
       try {
         await attachMediaFileToGenerationOutput({

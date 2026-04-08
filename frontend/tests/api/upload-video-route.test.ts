@@ -1,3 +1,4 @@
+import { EventEmitter } from "events";
 import fs from "fs";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import handler from "../../pages/api/upload-video";
@@ -91,6 +92,72 @@ describe("POST /api/upload-video", () => {
   });
 
   it("returns legacy signed upload metadata while using shared validation", async () => {
+    const rawBody = Buffer.concat([
+      Buffer.from([0x00, 0x00, 0x00, 0x18]),
+      Buffer.from("ftypmp42", "ascii"),
+    ]);
+    const uploadMock = vi.fn(async () => ({ error: null }));
+    const createSignedUrlMock = vi.fn(async () => ({
+      data: {
+        signedUrl: "https://signed.example/motion-video",
+      },
+      error: null,
+    }));
+    getSupabaseAdminMock.mockReturnValue({
+      storage: {
+        from: vi.fn(() => ({
+          upload: uploadMock,
+          createSignedUrl: createSignedUrlMock,
+        })),
+      },
+    });
+
+    const req = Object.assign(new EventEmitter(), {
+      method: "POST",
+      headers: {
+        "content-type": "video/mp4",
+        "x-shortpulse-upload-filename": "clip.mp4",
+      },
+      destroy: vi.fn(),
+    });
+    const res = createMockResponse();
+    const handlerPromise = handler(req as never, res as never);
+    await new Promise<void>((resolve) => {
+      setImmediate(() => {
+        req.emit("data", rawBody);
+        req.emit("end");
+        resolve();
+      });
+    });
+    await handlerPromise;
+
+    expect(uploadMock).toHaveBeenCalledWith(
+      expect.stringMatching(/^user-1\/videos\/motion-control\//),
+      expect.any(Buffer),
+      expect.objectContaining({ contentType: "video/mp4", upsert: false })
+    );
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith({
+      url: "https://signed.example/motion-video",
+      path: expect.stringMatching(/^user-1\/videos\/motion-control\//),
+      size: rawBody.length,
+    });
+    expect(writeAppErrorLogMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        source: "telemetry.media.upload_adapter.upload_video_used",
+        route: "upload-video",
+        userId: "user-1",
+        userEmail: "u@example.com",
+        metadata: expect.objectContaining({
+          method: "POST",
+          route_label: "upload-video",
+          file_size: rawBody.length,
+        }),
+      })
+    );
+  });
+
+  it("continues to accept multipart uploads for compatibility", async () => {
     vi.spyOn(fs, "readFileSync").mockReturnValue(
       Buffer.concat([Buffer.from([0x00, 0x00, 0x00, 0x18]), Buffer.from("ftypmp42", "ascii")])
     );
@@ -125,6 +192,7 @@ describe("POST /api/upload-video", () => {
       path: expect.stringMatching(/^user-1\/videos\/motion-control\//),
       size: 32,
     });
+    expect(fs.unlinkSync).toHaveBeenCalledWith("/tmp/mock-video");
     expect(writeAppErrorLogMock).toHaveBeenCalledWith(
       expect.objectContaining({
         source: "telemetry.media.upload_adapter.upload_video_used",
@@ -140,7 +208,55 @@ describe("POST /api/upload-video", () => {
     );
   });
 
-  it("accepts generic octet-stream declared mime when file signature is a supported video", async () => {
+  it("accepts generic octet-stream declared mime when file signature is a supported raw video", async () => {
+    const rawBody = Buffer.concat([
+      Buffer.from([0x00, 0x00, 0x00, 0x18]),
+      Buffer.from("ftypiso6", "ascii"),
+    ]);
+    const uploadMock = vi.fn(async () => ({ error: null }));
+    const createSignedUrlMock = vi.fn(async () => ({
+      data: {
+        signedUrl: "https://signed.example/motion-video",
+      },
+      error: null,
+    }));
+    getSupabaseAdminMock.mockReturnValue({
+      storage: {
+        from: vi.fn(() => ({
+          upload: uploadMock,
+          createSignedUrl: createSignedUrlMock,
+        })),
+      },
+    });
+
+    const req = Object.assign(new EventEmitter(), {
+      method: "POST",
+      headers: {
+        "content-type": "application/octet-stream",
+        "x-shortpulse-upload-filename": "clip.mp4",
+      },
+      destroy: vi.fn(),
+    });
+    const res = createMockResponse();
+    const handlerPromise = handler(req as never, res as never);
+    await new Promise<void>((resolve) => {
+      setImmediate(() => {
+        req.emit("data", rawBody);
+        req.emit("end");
+        resolve();
+      });
+    });
+    await handlerPromise;
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(uploadMock).toHaveBeenCalledWith(
+      expect.stringMatching(/^user-1\/videos\/motion-control\//),
+      expect.any(Buffer),
+      expect.objectContaining({ contentType: "video/mp4" })
+    );
+  });
+
+  it("accepts generic octet-stream declared mime when file signature is a supported multipart video", async () => {
     mockFile = {
       filepath: "/tmp/mock-video",
       mimetype: "application/octet-stream",

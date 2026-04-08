@@ -1,4 +1,6 @@
 /** @type {import('next').NextConfig} */
+const BUILT_IN_EXTERNAL_DIRECT_PREVIEW_HOSTS = ["tempfile.aiquickdraw.com"];
+
 const normalizeHostname = (value) => value.trim().toLowerCase().replace(/\.$/, "");
 
 const parseHostEntry = (value) => {
@@ -43,6 +45,9 @@ const resolveTrustedImageHosts = () => {
     process.env.SHORTPULSE_MEDIA_DIRECT_URL_ALLOWED_HOSTS ??
       process.env.NEXT_PUBLIC_MEDIA_DIRECT_URL_ALLOWED_HOSTS
   )) {
+    hosts.add(host);
+  }
+  for (const host of BUILT_IN_EXTERNAL_DIRECT_PREVIEW_HOSTS) {
     hosts.add(host);
   }
 

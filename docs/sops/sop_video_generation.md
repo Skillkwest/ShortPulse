@@ -10,6 +10,13 @@ For Create properties panel, model-selector, and submission wiring details, see 
 - Reference handling (drag/drop) and output book-keeping.
 - Text/describe flows are covered in `docs/sops/sop_text_generation.md`; this SOP focuses on video behaviors.
 
+## Quarantine note
+
+- `kie-ai/seedance-2.0` and `kie-ai/seedance-2.0-fast` are currently quarantined.
+- Treat any existing UI/runtime plumbing for those models as dormant scaffolding only.
+- Exclude them from active buildout, reliability audits, rollout gates, and default validation unless the task explicitly reactivates them after provider go-live approval.
+- Active ShortPulse video scope remains the live Kie paths that are currently intended for product use.
+
 ## Key components
 
 | Component | Role |
@@ -89,8 +96,9 @@ For Create properties panel, model-selector, and submission wiring details, see 
   - First frame is required for Kling Standard.
   - Last frame is optional; when present it is sent as the second image reference on the standard single-shot path.
 - `Multi`
-  - One primary prompt box for full multi-scene direction.
+  - One primary prompt box.
   - Uses the same standard single-shot Kling route as `Single`.
+  - For now, product behavior is intentionally identical to `Single`; it sends only the primary prompt to Kling.
   - Elements can be referenced inline with `@ElementName` notation and are resolved through `kling_elements`.
   - First frame is required for Kling Standard.
   - Last frame is optional; when present it is sent as the second image reference on the standard single-shot path.
@@ -143,7 +151,7 @@ For Create properties panel, model-selector, and submission wiring details, see 
 - For Kling Standard:
   - `Single` and `Multi` use the primary prompt textarea as the submitted top-level prompt.
   - `Custom` uses the persisted shot list (`klingMultiPrompts`) to build `multi_prompt[]`.
-  - `Multi` is a writing mode for a single authored multi-scene prompt, not a separate provider-side multi-shot route.
+  - `Multi` is currently a UI alias of `Single`, not a distinct provider-side or prompt-shaping mode.
 - Improvement: consider reusing the last describe result as a starting prompt when switching from describe → video.
 
 ## Error handling & UX

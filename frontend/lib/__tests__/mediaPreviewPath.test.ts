@@ -4,6 +4,8 @@ import {
   resolveDurablePreviewStoragePath,
   resolveMediaSigningStoragePaths,
   resolvePreviewStoragePath,
+  resolveVideoPosterSigningStoragePaths,
+  resolveVideoPosterStoragePath,
 } from "../mediaPreviewPath";
 
 describe("mediaPreviewPath", () => {
@@ -65,6 +67,51 @@ describe("mediaPreviewPath", () => {
       "user-1/uploads/images/original.png",
       "variants/images/media-1/thumb_480",
       "uploads/images/original.png",
+    ]);
+  });
+
+  it("prefers explicit video poster variants over loop previews", () => {
+    expect(
+      resolveVideoPosterStoragePath({
+        file_type: "video/mp4",
+        storage_path: "user-1/uploads/videos/original.mp4",
+        preview_variant_path: "user-1/variants/videos/media-1/preview_loop_360p.mp4",
+        poster_variant_path: "user-1/variants/videos/media-1/poster_720.jpg",
+      })
+    ).toBe("user-1/variants/videos/media-1/poster_720.jpg");
+  });
+
+  it("resolves video poster variants from metadata when columns are absent", () => {
+    expect(
+      resolveVideoPosterStoragePath({
+        file_type: "video/mp4",
+        storage_path: "user-1/uploads/videos/original.mp4",
+        metadata: {
+          variant_paths: {
+            poster: "user-1/variants/videos/media-2/poster_720.jpg",
+          },
+          variants: {
+            preview_loop_360p: {
+              storage_path: "user-1/variants/videos/media-2/preview_loop_360p.mp4",
+            },
+          },
+        },
+      })
+    ).toBe("user-1/variants/videos/media-2/poster_720.jpg");
+  });
+
+  it("expands unscoped video poster candidates into user-scoped signing paths first", () => {
+    expect(
+      resolveVideoPosterSigningStoragePaths(
+        {
+          file_type: "video/mp4",
+          poster_variant_path: "variants/videos/media-3/poster_720.jpg",
+        },
+        "user-1"
+      )
+    ).toEqual([
+      "user-1/variants/videos/media-3/poster_720.jpg",
+      "variants/videos/media-3/poster_720.jpg",
     ]);
   });
 });

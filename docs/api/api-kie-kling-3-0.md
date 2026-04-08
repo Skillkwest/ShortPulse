@@ -62,7 +62,7 @@ This document tracks the internal ShortPulse runtime contract for `kie-ai/kling-
   - submits top-level `prompt`
   - sends first frame and optional last frame
   - keeps `multi_shots=false`
-  - uses app-level multi-scene writing guidance only; it is not a separate provider route
+  - currently behaves exactly like `Single` in product UX; it is not a separate provider route or prompt-shaping mode
 - `Custom`
   - submits `multi_prompt[]`
   - sends first frame only

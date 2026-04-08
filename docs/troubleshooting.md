@@ -6,6 +6,21 @@ For Fal/OpenAI/Stripe incident triage, use `docs/sops/sop_provider_incident_resp
 For AI Studio Fal polling, client status timeouts are intentionally higher than server status-route budgets.
 If regressions reappear, check `app_error_logs` for `source='client.api_network'` with abort-like messages on `/api/fal/*-status` endpoints.
 
+## AI Studio reference upload returns `413`
+Symptoms:
+- AI Studio shows `Reference upload failed` and the detail mentions `413`, `file too large`, or `Reference image is too large`.
+- Nano Banana / Nano Banana Pro rows fail before provider submit begins.
+
+Checklist:
+- AI Studio now auto-resizes local/blob/data reference images before upload when possible.
+- Treat this as a reference-image upload size limit, not a model/reference token error.
+- Confirm the reference image is under the 25 MB upload cap used by `POST /api/upload-image`.
+- If the image came from a browser capture, preview export, or Trello attachment, re-export it at a smaller size or compress it before retrying.
+
+Mitigation:
+- Re-upload a smaller reference image and retry the generation.
+- If the image is already small but still trips 413, capture the upload response and inspect `app_error_logs` for the `upload-image` route.
+
 ## Admin runtime/API error handoff workflow
 Use the `/admin` Errors panel `Copy triage` buttons as the default handoff format.
 

@@ -499,18 +499,29 @@ export const uploadSignedStorageAssetForUser = async ({
   path: string;
   size: number;
 }> => {
-  const uploaded = await uploadStorageAssetForUser({
-    req,
-    userId,
-    defaultDestinationTab,
-    storageFolderOverride,
-  });
+  let uploaded: UploadedStorageAsset | null = null;
+  try {
+    uploaded = await uploadStorageAssetForUser({
+      req,
+      userId,
+      defaultDestinationTab,
+      storageFolderOverride,
+    });
 
-  return {
-    url: uploaded.signedUrl,
-    path: uploaded.storagePath,
-    size: uploaded.size,
-  };
+    return {
+      url: uploaded.signedUrl,
+      path: uploaded.storagePath,
+      size: uploaded.size,
+    };
+  } finally {
+    if (uploaded?.parsedUpload.tempFilePath) {
+      try {
+        fs.unlinkSync(uploaded.parsedUpload.tempFilePath);
+      } catch {
+        // best-effort temp file cleanup
+      }
+    }
+  }
 };
 
 /**

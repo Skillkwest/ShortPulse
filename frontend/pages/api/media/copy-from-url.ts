@@ -381,9 +381,9 @@ const parseInlineImageDataUrl = (
       buffer,
       contentType: match[1] ?? null,
     };
-  } catch (error) {
-    if (error instanceof Error && error.message.includes("size limit")) {
-      throw error;
+  } catch (decodeError) {
+    if (decodeError instanceof Error && decodeError.message.includes("size limit")) {
+      throw decodeError;
     }
     return null;
   }

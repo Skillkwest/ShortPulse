@@ -702,9 +702,9 @@ describe("MediaLibraryPanel", () => {
     expect(latestArgs).toBeTruthy();
     expect(latestArgs.surface).toBe("media-library-panel");
     expect(latestArgs.signBudget).toEqual({
-      initialSignLimit: 4,
-      prefetchWindow: 4,
-      signBatchSize: 4,
+      initialSignLimit: 8,
+      prefetchWindow: 12,
+      signBatchSize: 6,
     });
   });
 

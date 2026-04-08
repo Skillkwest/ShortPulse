@@ -325,7 +325,10 @@ describe("useAiStudioGenerationPromptComposer", () => {
       {
         displayPromptOverride: "",
         characterContextOverride: undefined,
+        hideOutputFromReferenceGrid: undefined,
+        inpaintOverride: undefined,
         modelIdOverride: undefined,
+        selectedToolOverride: "create",
       }
     );
   });
@@ -365,7 +368,10 @@ describe("useAiStudioGenerationPromptComposer", () => {
       {
         displayPromptOverride: "keep me",
         characterContextOverride: undefined,
+        hideOutputFromReferenceGrid: undefined,
+        inpaintOverride: undefined,
         modelIdOverride: undefined,
+        selectedToolOverride: "create",
       }
     );
   });

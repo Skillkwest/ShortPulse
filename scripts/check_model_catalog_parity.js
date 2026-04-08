@@ -69,6 +69,9 @@ const MODEL_DOC_MAP = {
   "fal-ai/bytedance/seedance/v1.5/pro/image-to-video": "api-fal-seedance-1-5-pro-i2v.md",
   "kie-ai/veo-3.1-fast-i2v": "api-kie-veo-3-1-fast-image-to-video.md",
   "kie-ai/kling-3.0": "api-kie-kling-3-0.md",
+  "kie-ai/seedance-1.5-pro": "api-kie-seedance-1-5-pro.md",
+  "kie-ai/seedance-2": "api-kie-seedance-2.md",
+  "kie-ai/seedance-2-fast": "api-kie-seedance-2-fast.md",
   "gpt-5-nano": "api-responses.md",
 };
 

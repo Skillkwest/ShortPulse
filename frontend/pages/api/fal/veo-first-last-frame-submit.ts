@@ -1,5 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 
+// modelId: "fal-ai/veo3.1/first-last-frame-to-video"
+// validatePayload: validateVeoFirstLastPayload
 type ValidationResult = {
   error: string;
   detail?: unknown;

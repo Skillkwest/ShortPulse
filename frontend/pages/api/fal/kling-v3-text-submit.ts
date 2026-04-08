@@ -1,5 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 
+// modelId: "fal-ai/kling-video/v3/pro/text-to-video"
+// validatePayload: disabledRouteValidation
 export default function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== "POST") {
     res.setHeader("Allow", "POST");

@@ -1,5 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 
+// modelId: "fal-ai/bytedance/seedance/v1.5/pro/image-to-video"
+// validatePayload: disabledRouteValidation
 export default function falSeedanceI2vSubmit(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== "POST") {
     res.setHeader("Allow", "POST");

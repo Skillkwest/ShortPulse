@@ -1,16 +1,15 @@
 import { createFalSubmitHandler } from "../../../lib/server/api/falSubmitProxy";
 import { validateFalPayloadForModel } from "../../../lib/server/api/falPayloadValidation";
-import { KIE_SEEDANCE_2_FAST_MODEL_ID } from "../../../lib/model-runtime/providerModelIds";
 import {
   getKieSubmitUrlRequired,
   getKieTimeoutMsOrDefault,
 } from "../../../lib/server/api/falRouteConfig";
 
 export default createFalSubmitHandler({
-  modelId: KIE_SEEDANCE_2_FAST_MODEL_ID,
+  modelId: "kie-ai/seedance-2-fast",
   provider: "kie",
-  submitUrl: getKieSubmitUrlRequired(KIE_SEEDANCE_2_FAST_MODEL_ID),
+  submitUrl: getKieSubmitUrlRequired("kie-ai/seedance-2-fast"),
   routeLabel: "Kie Seedance 2.0 Fast",
-  timeoutMs: getKieTimeoutMsOrDefault(KIE_SEEDANCE_2_FAST_MODEL_ID, 20000),
-  validatePayload: validateFalPayloadForModel(KIE_SEEDANCE_2_FAST_MODEL_ID),
+  timeoutMs: getKieTimeoutMsOrDefault("kie-ai/seedance-2-fast", 20000),
+  validatePayload: validateFalPayloadForModel("kie-ai/seedance-2-fast"),
 });

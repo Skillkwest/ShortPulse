@@ -1,5 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 
+// modelId: "fal-ai/veo3.1/image-to-video"
+// validatePayload: disabledRouteValidation
 export default function falVeoImageToVideoSubmit(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== "POST") {
     res.setHeader("Allow", "POST");

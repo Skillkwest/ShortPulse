@@ -7,11 +7,11 @@ import {
 const rpcMock = vi.fn();
 const updateEqMock = vi.fn();
 const updateMock = vi.fn(() => ({ eq: updateEqMock }));
-const fromMock = vi.fn(() => ({ update: updateMock }));
+const fromMock = vi.fn((_table?: string) => ({ update: updateMock }));
 const getSupabaseAdminMock = vi.fn();
 
 vi.mock("../supabaseAdmin", () => ({
-  getSupabaseAdmin: (...args: unknown[]) => getSupabaseAdminMock(...args),
+  getSupabaseAdmin: () => getSupabaseAdminMock(),
 }));
 
 describe("generationObservationInbox", () => {
@@ -19,8 +19,8 @@ describe("generationObservationInbox", () => {
     vi.clearAllMocks();
     updateEqMock.mockResolvedValue({ error: null });
     getSupabaseAdminMock.mockReturnValue({
-      rpc: (...args: unknown[]) => rpcMock(...args),
-      from: (...args: unknown[]) => fromMock(...args),
+      rpc: (fnName: string, params?: unknown) => rpcMock(fnName, params),
+      from: (table: string) => fromMock(table),
     });
   });
 

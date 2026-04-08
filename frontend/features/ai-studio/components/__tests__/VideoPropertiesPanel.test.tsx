@@ -12,9 +12,24 @@ import {
 } from "../../../character-manager/logic/characterManagerPersistence";
 import { loadElementManagerDraftByElementId } from "../../../elements-manager/logic/elementsManagerPersistence";
 import { buildElementProfileImageBackgroundStyle } from "../../../elements-manager/logic/elementProfileImageTransform";
+import type { AiStudioKlingElement } from "../../logic/klingElements";
 import { KLING_ELEMENT_PROMPT_TOKEN_TRANSFER_MIME } from "../../logic/klingPromptReferences";
 
-const referencePromptStepMock = vi.fn(() => <div data-testid="reference-prompt-step" />);
+type ReferencePromptStepMockProps = {
+  referenceText?: string | null;
+  onPromptTextChange?: (value: string) => void;
+  onDrop?: (event: React.DragEvent<HTMLTextAreaElement>) => void;
+  promptTextareaRef?: React.Ref<HTMLTextAreaElement>;
+  promptPlaceholder?: string;
+  beginnerHelperText?: string;
+  agentIsSending?: boolean;
+  agentError?: string;
+  onAgentEnhanceSend?: unknown;
+};
+
+const referencePromptStepMock = vi.fn((_props: ReferencePromptStepMockProps) => (
+  <div data-testid="reference-prompt-step" />
+));
 
 vi.mock("../../../character-manager/logic/characterManagerPersistence", () => ({
   listCharacterManagerCharacters: vi.fn(async () => [
@@ -154,12 +169,7 @@ vi.mock("../ReferenceMediaStep", () => ({
 }));
 
 vi.mock("../ReferencePromptStep", () => ({
-  ReferencePromptStep: (props: {
-    referenceText?: string | null;
-    onPromptTextChange?: (value: string) => void;
-    onDrop?: (event: React.DragEvent<HTMLTextAreaElement>) => void;
-    promptTextareaRef?: React.RefObject<HTMLTextAreaElement | null>;
-  }) => {
+  ReferencePromptStep: (props: ReferencePromptStepMockProps) => {
     referencePromptStepMock(props);
     return (
       <textarea
@@ -332,7 +342,7 @@ function KlingModeStateHarness() {
 
 function KlingPromptDropHarness() {
   const [referenceText, setReferenceText] = React.useState("Taylor walks forward");
-  const [klingElements, setKlingElements] = React.useState([
+  const [klingElements, setKlingElements] = React.useState<AiStudioKlingElement[]>([
     {
       id: "element-01",
       slotIndex: 0,
@@ -359,7 +369,7 @@ function KlingPromptDropHarness() {
 }
 
 function KlingSparseSlotHarness() {
-  const [klingElements, setKlingElements] = React.useState([
+  const [klingElements, setKlingElements] = React.useState<AiStudioKlingElement[]>([
     {
       id: "character-taylor",
       slotIndex: 0,
@@ -468,7 +478,7 @@ describe("VideoPropertiesPanel", () => {
   it("uses the standard single-shot prompt guidance when Kling Multi mode is selected", () => {
     render(<VideoPropertiesPanel {...baseProps} klingWorkflowMode="multi" />);
 
-    const promptProps = referencePromptStepMock.mock.calls.at(0)?.[0] as
+    const promptProps = referencePromptStepMock.mock.calls[0]?.[0] as
       | { promptPlaceholder?: string; beginnerHelperText?: string }
       | undefined;
     expect(promptProps).toEqual(
@@ -667,7 +677,7 @@ describe("VideoPropertiesPanel", () => {
         "https://example.com/red-lantern-profile.jpg",
         { zoom: 1.35, offsetX: 8, offsetY: -6 },
         68
-      )
+      ) as Record<string, unknown>
     );
 
     fireEvent.click(screen.getByRole("button", { name: "Add element to slot 2" }));
@@ -688,7 +698,7 @@ describe("VideoPropertiesPanel", () => {
         "https://example.com/red-lantern-profile.jpg",
         { zoom: 1.35, offsetX: 8, offsetY: -6 },
         44
-      )
+      ) as Record<string, unknown>
     );
   });
 
@@ -766,7 +776,7 @@ describe("VideoPropertiesPanel", () => {
       />
     );
 
-    const promptProps = referencePromptStepMock.mock.calls.at(0)?.[0] as
+    const promptProps = referencePromptStepMock.mock.calls[0]?.[0] as
       | { agentIsSending?: boolean; agentError?: string; onAgentEnhanceSend?: unknown }
       | undefined;
     expect(promptProps?.agentIsSending).toBe(false);

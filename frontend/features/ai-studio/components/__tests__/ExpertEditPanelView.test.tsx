@@ -1145,8 +1145,8 @@ describe("ExpertEditPanelView", () => {
     fireEvent.keyDown(promptInput, { key: "Tab" });
     fireEvent.keyDown(promptInput, { key: "Enter" });
 
-    expect(onPromptTextChangeSpy).toHaveBeenLastCalledWith("Blend @img2");
-    expect(promptInput.value).toBe("Blend @img2");
+    expect(onPromptTextChangeSpy).toHaveBeenLastCalledWith("Blend @img2 ");
+    expect(promptInput.value).toBe("Blend @img2 ");
     expect(screen.queryByRole("group", { name: /reference image picker/i })).toBeNull();
   });
 

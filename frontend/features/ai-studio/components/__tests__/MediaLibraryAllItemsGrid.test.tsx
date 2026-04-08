@@ -245,13 +245,10 @@ describe("MediaLibraryAllItemsGrid", () => {
 
   it("falls back to a visible video preview when a saved video has no poster asset", async () => {
     const props = baseProps();
-    props.mediaRows = [
-      {
-        ...props.mediaRows[0],
-        poster_variant_path: null,
-        thumb_variant_path: null,
-      },
-    ];
+    const rowWithoutPoster = { ...props.mediaRows[0] } as Record<string, unknown>;
+    delete rowWithoutPoster.poster_variant_path;
+    delete rowWithoutPoster.thumb_variant_path;
+    props.mediaRows = [rowWithoutPoster as (typeof props.mediaRows)[number]];
 
     const { container } = render(<MediaLibraryAllItemsGrid {...props} />);
 

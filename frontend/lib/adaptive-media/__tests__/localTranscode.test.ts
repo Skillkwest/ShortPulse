@@ -18,11 +18,12 @@ describe("localTranscode upload preprocessing", () => {
     if (typeof originalCreateImageBitmap === "function") {
       globalThis.createImageBitmap = originalCreateImageBitmap;
     } else {
-      delete (
+      Reflect.deleteProperty(
         globalThis as typeof globalThis & {
           createImageBitmap?: typeof createImageBitmap;
-        }
-      ).createImageBitmap;
+        },
+        "createImageBitmap"
+      );
     }
   });
 

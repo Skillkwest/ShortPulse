@@ -36,9 +36,10 @@ const readRequestedRunMode = (req: NextApiRequest): "primary" | "rescue" => {
     req.body && typeof req.body === "object" && !Array.isArray(req.body)
       ? (req.body as { runMode?: unknown }).runMode
       : null;
-  return typeof rawMode === "string" && rawMode.trim().toLowerCase() === "full"
-    ? "primary"
-    : "rescue";
+  const normalizedMode = typeof rawMode === "string" ? rawMode.trim().toLowerCase() : "";
+  if (normalizedMode === "rescue") return "rescue";
+  if (normalizedMode === "full" || normalizedMode === "primary") return "primary";
+  return "primary";
 };
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {

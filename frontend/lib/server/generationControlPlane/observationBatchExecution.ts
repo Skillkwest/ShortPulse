@@ -1,7 +1,7 @@
 import {
+  claimPendingGenerationObservations,
   markGenerationObservationProcessingState,
-  readPendingGenerationObservations,
-  type PendingGenerationObservation,
+  type ClaimedGenerationObservation,
 } from "../api/generationObservationInbox";
 import {
   executeGenerationRecovery,
@@ -38,7 +38,7 @@ const resolveObservationProcessingState = (resultState: string): "processed" | "
   return "processed";
 };
 
-const buildObservation = (row: PendingGenerationObservation): RecoveryObservation | null => {
+const buildObservation = (row: ClaimedGenerationObservation): RecoveryObservation | null => {
   const state = resolveRecoveryObservationState(row.observationType);
   if (!state) return null;
   return {
@@ -50,13 +50,16 @@ const buildObservation = (row: PendingGenerationObservation): RecoveryObservatio
 
 export const processPendingGenerationObservations = async ({
   limit,
+  leaseSeconds,
   routeLabel,
 }: {
   limit: number;
+  leaseSeconds: number;
   routeLabel: string;
 }): Promise<ObservationBatchExecutionMetrics> => {
-  const rows = await readPendingGenerationObservations({
+  const rows = await claimPendingGenerationObservations({
     limit,
+    leaseSeconds,
   });
 
   let processed = 0;

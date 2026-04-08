@@ -137,6 +137,7 @@ describe("runGenerationControlPlaneCycle", () => {
     expect(repairGenerationRequestIdsFromReservationsMock).not.toHaveBeenCalled();
     expect(processPendingGenerationObservationsMock).toHaveBeenCalledWith({
       limit: 10,
+      leaseSeconds: expect.any(Number),
       routeLabel: "worker/generation-control-plane",
     });
     expect(claimGenerationRecoveryBatchMock).toHaveBeenCalledWith({
@@ -210,6 +211,7 @@ describe("runGenerationControlPlaneCycle", () => {
     });
     expect(processPendingGenerationObservationsMock).toHaveBeenCalledWith({
       limit: 5,
+      leaseSeconds: expect.any(Number),
       routeLabel: "internal/generation-recovery/run",
     });
     expect(claimGenerationRecoveryBatchMock).toHaveBeenCalledWith({
@@ -239,6 +241,7 @@ describe("runGenerationControlPlaneCycle", () => {
     expect(repairGenerationRequestIdsFromReservationsMock).not.toHaveBeenCalled();
     expect(processPendingGenerationObservationsMock).toHaveBeenCalledWith({
       limit: 10,
+      leaseSeconds: expect.any(Number),
       routeLabel: "worker/generation-control-plane",
     });
     expect(claimGenerationRecoveryBatchMock).toHaveBeenCalledWith({

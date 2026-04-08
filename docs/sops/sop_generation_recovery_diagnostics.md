@@ -59,6 +59,7 @@ Purpose: canonical operator runbook for queue dispatch, recovery execution, and 
    - scheduler/reconciler (`/api/internal/generation-recovery/run`)
    - webhook ingestion (`/api/fal/webhook`) when enabled, now via the explicit ingress boundary in `frontend/lib/server/falIntegration/falWebhookIngress.ts`.
    - best-effort wake hints from queued submit and terminal recovery transitions, which can prompt the same control-plane route when capacity frees up.
+   - hosted/default POSTs to `/api/internal/generation-recovery/run` execute the primary queue-dispatch + recovery path; bounded recovery-only runs require explicit `{"runMode":"rescue"}`.
 4. Queue dispatch and recovery claim flows use lease-based claim semantics to prevent duplicate concurrent processing.
 
 ## Credit Settlement Invariants
@@ -133,6 +134,8 @@ Use this path when local `SUPABASE_DB_URL` is unavailable.
 
 ### 2) Scheduler/recovery drain loop
 1. Trigger `/api/internal/generation-recovery/run` repeatedly on normal cadence (recommended 1m).
+   - Default/hosted invocation is primary mode and includes queue dispatch when `SHORTPULSE_FAL_QUEUE_ENABLED=true`.
+   - Use explicit `{"runMode":"rescue"}` only for bounded/manual recovery-only passes.
 2. Monitor response metrics per pass:
    - recovery: `claimed`, `processed`, `recovered`, `requeued`, `exhausted`, `errors`
    - queue dispatch: `queueClaimed`, `queueSubmitted`, `queueRetried`, `queueExhausted`, `queueDispatchErrors`

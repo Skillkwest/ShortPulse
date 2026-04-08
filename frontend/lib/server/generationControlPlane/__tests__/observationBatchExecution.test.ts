@@ -6,7 +6,7 @@ const markGenerationObservationProcessingStateMock = vi.fn();
 const executeGenerationRecoveryMock = vi.fn();
 
 vi.mock("../../api/generationObservationInbox", () => ({
-  readPendingGenerationObservations: (...args: unknown[]) =>
+  claimPendingGenerationObservations: (...args: unknown[]) =>
     readPendingGenerationObservationsMock(...args),
   markGenerationObservationProcessingState: (...args: unknown[]) =>
     markGenerationObservationProcessingStateMock(...args),
@@ -51,6 +51,7 @@ describe("processPendingGenerationObservations", () => {
     await expect(
       processPendingGenerationObservations({
         limit: 10,
+        leaseSeconds: 120,
         routeLabel: "worker/generation-control-plane",
       })
     ).resolves.toEqual({
@@ -71,6 +72,10 @@ describe("processPendingGenerationObservations", () => {
         mediaUrls: [],
       },
       routeLabel: "worker/generation-control-plane",
+    });
+    expect(readPendingGenerationObservationsMock).toHaveBeenCalledWith({
+      limit: 10,
+      leaseSeconds: 120,
     });
     expect(markGenerationObservationProcessingStateMock).toHaveBeenCalledWith({
       idempotencyKey: "fal:webhook:event-1",
@@ -99,6 +104,7 @@ describe("processPendingGenerationObservations", () => {
     await expect(
       processPendingGenerationObservations({
         limit: 10,
+        leaseSeconds: 120,
         routeLabel: "worker/generation-control-plane",
       })
     ).resolves.toEqual({
@@ -137,6 +143,7 @@ describe("processPendingGenerationObservations", () => {
     await expect(
       processPendingGenerationObservations({
         limit: 10,
+        leaseSeconds: 120,
         routeLabel: "worker/generation-control-plane",
       })
     ).resolves.toEqual({

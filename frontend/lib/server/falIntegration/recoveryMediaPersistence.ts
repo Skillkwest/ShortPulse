@@ -6,6 +6,7 @@
  */
 
 import { randomUUID } from "crypto";
+import { isTrustedMediaDirectPreviewUrl } from "../../mediaPreviewTrustPolicy";
 import { withCanonicalImageDimensions } from "../../mediaDimensionMetadata";
 import { assertUserScopedMediaStoragePath } from "../../mediaStoragePath";
 import { getSupabaseAdmin } from "../api/supabaseAdmin";
@@ -21,6 +22,8 @@ import {
   resolveFileType,
   sanitizeFilename,
 } from "./recoveryExecutionRuntime";
+import { isTrustedFalProviderUrl } from "./providerTrustPolicy";
+import { isTrustedKieProviderUrl } from "../providerIntegration/providerRuntimeConfig";
 
 type JsonObject = Record<string, unknown>;
 
@@ -63,9 +66,47 @@ const runWithConcurrency = async <TItem>(
   await Promise.all(activeWorkers);
 };
 
+const isTrustedRecoveryMediaUrl = ({
+  url,
+  provider,
+}: {
+  url: string;
+  provider: string;
+}): boolean => {
+  const normalizedProvider = provider.trim().toLowerCase();
+  if (normalizedProvider === "fal" && isTrustedFalProviderUrl(url)) {
+    return true;
+  }
+  if (normalizedProvider === "kie" && isTrustedKieProviderUrl(url)) {
+    return true;
+  }
+  return isTrustedMediaDirectPreviewUrl(url, {
+    requireUserScope: false,
+  });
+};
+
+const assertTrustedRecoveryMediaUrl = ({
+  url,
+  provider,
+}: {
+  url: string;
+  provider: string;
+}): void => {
+  if (!isTrustedRecoveryMediaUrl({ url, provider })) {
+    throw new Error(`Untrusted recovery media URL blocked (${provider}): ${url}`);
+  }
+};
+
 const fetchBufferWithRetry = async (
-  url: string
+  url: string,
+  options: {
+    provider: string;
+  }
 ): Promise<{ buffer: Buffer; contentType: string | null }> => {
+  assertTrustedRecoveryMediaUrl({
+    url,
+    provider: options.provider,
+  });
   let lastError: unknown = null;
   for (let attempt = 1; attempt <= FETCH_RETRY_ATTEMPTS; attempt += 1) {
     const controller = new AbortController();
@@ -196,7 +237,9 @@ export const persistRecoveryMediaFilesForGeneration = async ({
     index: number;
     mediaUrl: string;
   }): Promise<void> => {
-    const { buffer, contentType } = await fetchBufferWithRetry(mediaUrl);
+    const { buffer, contentType } = await fetchBufferWithRetry(mediaUrl, {
+      provider: generation.provider,
+    });
     const fileType = resolveFileType(contentType, mediaUrl);
     const extension = resolveExtension(contentType, mediaUrl);
     const imageDimensions = fileType === "image" ? extractImageDimensionsFromBuffer(buffer) : null;

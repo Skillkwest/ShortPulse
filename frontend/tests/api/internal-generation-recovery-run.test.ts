@@ -77,6 +77,15 @@ describe("POST /api/internal/generation-recovery/run", () => {
     process.env.SHORTPULSE_FAL_INTEGRATION_MODEL_ALLOWLIST = "*";
     process.env.SHORTPULSE_FAL_QUEUE_ENABLED = "false";
     dispatchGenerationSubmitQueueBatchMock.mockReset();
+    dispatchGenerationSubmitQueueBatchMock.mockResolvedValue({
+      claimed: 0,
+      submitted: 0,
+      retried: 0,
+      requeuedNoCapacity: 0,
+      exhausted: 0,
+      skipped: 0,
+      errors: 0,
+    });
     repairGenerationRequestIdsFromReservationsMock.mockReset();
     repairGenerationRequestIdsFromReservationsMock.mockResolvedValue({
       scanned: 0,
@@ -137,14 +146,14 @@ describe("POST /api/internal/generation-recovery/run", () => {
     expect(res.json).toHaveBeenCalledWith(
       expect.objectContaining({
         ok: true,
-        runMode: "rescue",
+        runMode: "primary",
         stageTimings: expect.any(Object),
       })
     );
   });
 
-  it("runs in bounded rescue mode by default", async () => {
-    process.env.SHORTPULSE_FAL_LEGACY_DIRECT_SUBMIT_ENABLED = "true";
+  it("runs in primary mode by default", async () => {
+    process.env.SHORTPULSE_FAL_QUEUE_ENABLED = "true";
     const supabase = createSupabaseMock();
     getSupabaseAdminMock.mockReturnValue({
       rpc: supabase.rpc,
@@ -171,23 +180,25 @@ describe("POST /api/internal/generation-recovery/run", () => {
     expect(supabase.rpc).toHaveBeenCalledWith(
       "claim_generation_recovery_batch",
       expect.objectContaining({
-        p_limit: 5,
+        p_limit: 10,
         p_max_attempts: 5,
         p_min_age_seconds: 0,
       })
     );
-    expect(repairGenerationRequestIdsFromReservationsMock).toHaveBeenCalledWith({
-      limit: 5,
-    });
+    expect(dispatchGenerationSubmitQueueBatchMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        limit: 25,
+        routeLabel: "internal/generation-recovery/run",
+      })
+    );
+    expect(repairGenerationRequestIdsFromReservationsMock).not.toHaveBeenCalled();
     expect(supabase.updateEq2).toHaveBeenCalled();
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith(
       expect.objectContaining({
         ok: true,
         claimed: 1,
-        runMode: "rescue",
-        queueClaimed: 0,
-        queueSubmitted: 0,
+        runMode: "primary",
         reservationCleanupScanned: 7,
         reservationCleanupReleased: 3,
         reservationCleanupErrors: 0,
@@ -276,16 +287,16 @@ describe("POST /api/internal/generation-recovery/run", () => {
 
     await handler(req as never, res as never);
 
-    expect(dispatchGenerationSubmitQueueBatchMock).not.toHaveBeenCalled();
+    expect(dispatchGenerationSubmitQueueBatchMock).toHaveBeenCalled();
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith(
       expect.objectContaining({
         ok: true,
-        queueDispatchErrors: 0,
-        runMode: "rescue",
+        queueDispatchErrors: 1,
+        runMode: "primary",
       })
     );
-    expect(logApiRouteExceptionMock).not.toHaveBeenCalledWith(
+    expect(logApiRouteExceptionMock).toHaveBeenCalledWith(
       expect.objectContaining({
         metadata: expect.objectContaining({
           stage: "queue_dispatch",
@@ -294,7 +305,7 @@ describe("POST /api/internal/generation-recovery/run", () => {
     );
   });
 
-  it("continues recovery when request-id repair fails in rescue mode", async () => {
+  it("continues recovery when request-id repair fails in explicit rescue mode", async () => {
     process.env.SHORTPULSE_FAL_LEGACY_DIRECT_SUBMIT_ENABLED = "true";
     repairGenerationRequestIdsFromReservationsMock.mockRejectedValueOnce(
       new Error("repair unavailable")
@@ -320,6 +331,9 @@ describe("POST /api/internal/generation-recovery/run", () => {
 
     const req = {
       method: "POST",
+      body: {
+        runMode: "rescue",
+      },
       headers: {
         "x-shortpulse-cron-secret": "cron-secret",
       },
@@ -338,6 +352,39 @@ describe("POST /api/internal/generation-recovery/run", () => {
         metadata: expect.objectContaining({
           stage: "request_id_repair_batch",
         }),
+      })
+    );
+  });
+
+  it("supports an explicit rescue run for bounded/manual operator use", async () => {
+    process.env.SHORTPULSE_FAL_LEGACY_DIRECT_SUBMIT_ENABLED = "true";
+    process.env.SHORTPULSE_FAL_QUEUE_ENABLED = "true";
+    const supabase = createSupabaseMock();
+    getSupabaseAdminMock.mockReturnValue({
+      rpc: supabase.rpc,
+      from: supabase.from,
+    });
+
+    const req = {
+      method: "POST",
+      body: {
+        runMode: "rescue",
+      },
+      headers: {
+        "x-shortpulse-cron-secret": "cron-secret",
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(dispatchGenerationSubmitQueueBatchMock).not.toHaveBeenCalled();
+    expect(repairGenerationRequestIdsFromReservationsMock).toHaveBeenCalledWith({
+      limit: 5,
+    });
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        runMode: "rescue",
       })
     );
   });
@@ -363,6 +410,7 @@ describe("POST /api/internal/generation-recovery/run", () => {
     await handler(req as never, res as never);
 
     expect(repairGenerationRequestIdsFromReservationsMock).not.toHaveBeenCalled();
+    expect(dispatchGenerationSubmitQueueBatchMock).not.toHaveBeenCalled();
     expect(res.json).toHaveBeenCalledWith(
       expect.objectContaining({
         runMode: "primary",

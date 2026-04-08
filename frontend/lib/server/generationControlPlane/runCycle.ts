@@ -200,6 +200,7 @@ export const runGenerationControlPlaneCycle = async ({
     try {
       const observationMetrics = await processPendingGenerationObservations({
         limit: effectiveReconcilerBatchSize,
+        leaseSeconds: flags.reconcilerLeaseSeconds,
         routeLabel: context.routeLabel,
       });
       observationClaimed = observationMetrics.claimed;

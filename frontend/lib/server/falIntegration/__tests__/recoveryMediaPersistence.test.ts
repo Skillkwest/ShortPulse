@@ -5,6 +5,7 @@ import {
 } from "../recoveryMediaPersistence";
 
 const getSupabaseAdminMock = vi.fn();
+const ORIGINAL_ENV = { ...process.env };
 
 vi.mock("../../api/supabaseAdmin", () => ({
   getSupabaseAdmin: (...args: unknown[]) => getSupabaseAdminMock(...args),
@@ -128,10 +129,13 @@ const createSupabaseScenario = (scenario: SupabaseScenario) => {
 describe("recoveryMediaPersistence", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    process.env.SHORTPULSE_MEDIA_ALLOW_EXTERNAL_DIRECT_PREVIEWS = "true";
+    process.env.SHORTPULSE_MEDIA_DIRECT_URL_ALLOWED_HOSTS = "cdn.shortpulse.test";
   });
 
   afterEach(() => {
     vi.unstubAllGlobals();
+    process.env = { ...ORIGINAL_ENV };
   });
 
   it("reads existing recovery media rows with parsed output indexes", async () => {
@@ -449,5 +453,70 @@ describe("recoveryMediaPersistence", () => {
         }),
       }),
     ]);
+  });
+
+  it("rejects untrusted recovery media urls before fetch", async () => {
+    const scenario = createSupabaseScenario({
+      generationOutputListResponses: [{ data: [], error: null }],
+      listResponses: [{ data: [], error: null }],
+    });
+    getSupabaseAdminMock.mockReturnValue(scenario.adminClient);
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(
+      persistRecoveryMediaFilesForGeneration({
+        generation: {
+          id: "gen-1",
+          user_id: "user-1",
+          request_id: "req-1",
+          model_id: "fal-ai/veo3.1",
+          provider: "fal",
+          prompt_text: "Animate stills",
+          metadata: {},
+        },
+        mediaUrls: ["https://malicious.example.com/frame-a.png"],
+      })
+    ).rejects.toThrow("Untrusted recovery media URL blocked");
+
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(scenario.upload).not.toHaveBeenCalled();
+  });
+
+  it("accepts trusted provider-host recovery media urls without media preview allowlist", async () => {
+    delete process.env.SHORTPULSE_MEDIA_ALLOW_EXTERNAL_DIRECT_PREVIEWS;
+    delete process.env.SHORTPULSE_MEDIA_DIRECT_URL_ALLOWED_HOSTS;
+    const scenario = createSupabaseScenario({
+      generationOutputListResponses: [{ data: [], error: null }],
+      listResponses: [{ data: [], error: null }],
+      insertResponses: [{ data: { id: "media-new-1" }, error: null }],
+      uploadResponses: [{ error: null }],
+    });
+    getSupabaseAdminMock.mockReturnValue(scenario.adminClient);
+
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(Uint8Array.from([1, 2, 3]), {
+        status: 200,
+        headers: { "content-type": "image/png" },
+      })
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(
+      persistRecoveryMediaFilesForGeneration({
+        generation: {
+          id: "gen-1",
+          user_id: "user-1",
+          request_id: "req-1",
+          model_id: "fal-ai/veo3.1",
+          provider: "fal",
+          prompt_text: "Animate stills",
+          metadata: {},
+        },
+        mediaUrls: ["https://queue.fal.run/fal-ai/veo3.1/result.png"],
+      })
+    ).resolves.toEqual(["media-new-1"]);
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 });

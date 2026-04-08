@@ -15,9 +15,14 @@ export type PersistGenerationObservationInput = {
   observedAt?: string;
 };
 
-export type GenerationObservationProcessingState = "pending" | "processed" | "ignored" | "failed";
+export type GenerationObservationProcessingState =
+  | "pending"
+  | "processing"
+  | "processed"
+  | "ignored"
+  | "failed";
 
-export type PendingGenerationObservation = {
+export type ClaimedGenerationObservation = {
   id: string;
   generationId: string | null;
   generationAttemptId: string | null;
@@ -87,7 +92,7 @@ export const persistGenerationObservation = async ({
   if (error) throw error;
 };
 
-const parsePendingGenerationObservation = (value: unknown): PendingGenerationObservation | null => {
+const parseClaimedGenerationObservation = (value: unknown): ClaimedGenerationObservation | null => {
   const row = asObject(value);
   const id = asString(row?.id);
   const provider = asString(row?.provider);
@@ -119,37 +124,24 @@ const parsePendingGenerationObservation = (value: unknown): PendingGenerationObs
   };
 };
 
-export const readPendingGenerationObservations = async ({
+export const claimPendingGenerationObservations = async ({
   limit,
+  leaseSeconds,
 }: {
   limit: number;
-}): Promise<PendingGenerationObservation[]> => {
-  const { data, error } = await getSupabaseAdmin()
-    .from("generation_observation_inbox")
-    .select(
-      [
-        "id",
-        "generation_id",
-        "generation_attempt_id",
-        "user_id",
-        "provider",
-        "provider_request_id",
-        "observation_source",
-        "observation_type",
-        "idempotency_key",
-        "payload",
-        "observed_at",
-      ].join(", ")
-    )
-    .eq("processing_state", "pending")
-    .order("observed_at", { ascending: true })
-    .limit(Math.max(1, Math.trunc(limit)));
-
-  if (error || !Array.isArray(data)) return [];
+  leaseSeconds: number;
+}): Promise<ClaimedGenerationObservation[]> => {
+  const { data, error } = await getSupabaseAdmin().rpc("claim_generation_observation_inbox_batch", {
+    p_limit: Math.max(1, Math.trunc(limit)),
+    p_lease_seconds: Math.max(1, Math.trunc(leaseSeconds)),
+  });
+  if (error || !Array.isArray(data)) {
+    throw error ?? new Error("claim_generation_observation_inbox_batch returned non-array payload");
+  }
 
   return data
-    .map((row) => parsePendingGenerationObservation(row))
-    .filter((row): row is PendingGenerationObservation => Boolean(row));
+    .map((row) => parseClaimedGenerationObservation(row))
+    .filter((row): row is ClaimedGenerationObservation => Boolean(row));
 };
 
 export const markGenerationObservationProcessingState = async ({
@@ -169,7 +161,10 @@ export const markGenerationObservationProcessingState = async ({
   const row: Record<string, unknown> = {
     processing_state: processingState,
     processing_error: asString(processingError),
-    processed_at: processingState === "pending" ? null : new Date().toISOString(),
+    processed_at:
+      processingState === "pending" || processingState === "processing"
+        ? null
+        : new Date().toISOString(),
     updated_at: new Date().toISOString(),
   };
 

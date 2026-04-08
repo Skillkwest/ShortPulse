@@ -509,7 +509,12 @@ const readExistingAiStudioMediaRowByOutputIndexWithRetry = async ({
   userId: string;
   generationId: string;
   index: number;
-}): Promise<{ id: string; storagePath: string | null; fileType: "image" | "video" } | null> => {
+}): Promise<{
+  id: string;
+  storagePath: string | null;
+  fileType: "image" | "video";
+  posterVariantPath: string | null;
+} | null> => {
   for (let attempt = 0; attempt < AI_STUDIO_EXISTING_ROW_RETRY_ATTEMPTS; attempt += 1) {
     const existingRow = await readExistingAiStudioMediaRowByOutputIndex({
       supabase,

@@ -153,7 +153,6 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
   const [folderContextMenu, setFolderContextMenu] = useState<FolderContextMenuState | null>(null);
   const [moveFolderPicker, setMoveFolderPicker] = useState<MoveFolderPickerState | null>(null);
   const [projectNameDraft, setProjectNameDraft] = useState(projectName ?? "");
-  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
   const mediaDownloadInFlightRef = useRef<Record<string, boolean>>({});
   const rootUploadInputRef = useRef<HTMLInputElement | null>(null);
@@ -355,12 +354,10 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
       .then((userId) => {
         if (cancelled) return;
         currentUserIdRef.current = userId;
-        setCurrentUserId(userId);
       })
       .catch(() => {
         if (cancelled) return;
         currentUserIdRef.current = null;
-        setCurrentUserId(null);
       });
     return () => {
       cancelled = true;
@@ -840,7 +837,6 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
         onSignedUrlLoaded={(id) => {
           signedUrlRetryRef.current[id] = 0;
         }}
-        currentUserId={currentUserId}
       />
     ),
     [
@@ -862,7 +858,6 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
       setPendingLibraryDelete,
       selectedIds,
       activeFolderId,
-      currentUserId,
     ]
   );
 

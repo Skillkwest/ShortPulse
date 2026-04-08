@@ -729,10 +729,10 @@ export function MediaLibraryAllItemsGrid({
             });
         const fetchPriorityAttr = renderItem.index < 8 ? "high" : "auto";
         const signedPosterUrl = signedPosterUrlById[file.id] ?? null;
-        const hoverVideoUrl =
-          isVideoFile(file.file_type) &&
-          (signedVideoUrlById[file.id] ??
-            (file.signedUrl && isVideoUrl(file.signedUrl) ? file.signedUrl : null));
+        const hoverVideoUrl = isVideoFile(file.file_type)
+          ? (signedVideoUrlById[file.id] ??
+            (file.signedUrl && isVideoUrl(file.signedUrl) ? file.signedUrl : null))
+          : null;
         const posterSourceUrl = resolveVideoPosterSourceUrl(file, signedPosterUrl, hoverVideoUrl);
         const posterPreviewUrl = posterSourceUrl
           ? resolveCardPreviewUrl

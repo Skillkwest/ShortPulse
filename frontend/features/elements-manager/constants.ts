@@ -1,9 +1,10 @@
 /**
- * Local-only Elements library constants and mock fixtures.
- * Provides Character-shell-compatible draft defaults without any persistence dependencies.
+ * Elements library constants and draft defaults.
  */
 import type {
+  ElementAssetType,
   ElementDraft,
+  ElementProfileImageTransform,
   ElementLibraryItem,
   ElementReferenceSet,
   ElementReferenceSetId,
@@ -11,6 +12,12 @@ import type {
   ElementReferenceSetMap,
   ElementReferenceSetState,
 } from "./types";
+
+export const DEFAULT_ELEMENT_PROFILE_IMAGE_TRANSFORM: ElementProfileImageTransform = {
+  zoom: 1,
+  offsetX: 0,
+  offsetY: 0,
+};
 
 export const ELEMENT_REFERENCE_SET_IDS: ElementReferenceSetId[] = [
   "1",
@@ -28,7 +35,9 @@ export const ELEMENT_REFERENCE_SET_IDS: ElementReferenceSetId[] = [
 export const MAX_ELEMENT_REFERENCE_SET_TAB_COUNT = ELEMENT_REFERENCE_SET_IDS.length;
 
 export const createEmptyElementReferenceSet = (): ElementReferenceSet => ({
+  assetType: "image",
   description: "",
+  deckReferenceUrls: [],
   imageReferenceUrls: [],
   videoReferenceUrl: "",
 });
@@ -62,6 +71,9 @@ export const createEmptyElementDraft = (): ElementDraft => {
     alias: "",
     description: defaultSetState.sets[defaultSetState.activeSetId].description,
     assetType: "image",
+    profileImageUrl: null,
+    profileImageTransform: DEFAULT_ELEMENT_PROFILE_IMAGE_TRANSFORM,
+    deckReferenceUrls: defaultSetState.sets[defaultSetState.activeSetId].deckReferenceUrls,
     imageReferenceUrls: defaultSetState.sets[defaultSetState.activeSetId].imageReferenceUrls,
     videoReferenceUrl: defaultSetState.sets[defaultSetState.activeSetId].videoReferenceUrl,
     activeReferenceSetId: defaultSetState.activeSetId,
@@ -72,7 +84,9 @@ export const createEmptyElementDraft = (): ElementDraft => {
 };
 
 const createReferenceSetState = (seed: {
+  assetType?: ElementAssetType;
   description: string;
+  deckReferenceUrls?: string[];
   imageReferenceUrls?: string[];
   videoReferenceUrl?: string;
   activeSetId?: ElementReferenceSetId;
@@ -80,7 +94,9 @@ const createReferenceSetState = (seed: {
   const sets = createEmptyElementReferenceSetMap();
   const activeSetId = seed.activeSetId ?? "1";
   sets[activeSetId] = {
+    assetType: seed.assetType ?? (seed.videoReferenceUrl ? "video" : "image"),
     description: seed.description,
+    deckReferenceUrls: seed.deckReferenceUrls ?? seed.imageReferenceUrls ?? [],
     imageReferenceUrls: seed.imageReferenceUrls ?? [],
     videoReferenceUrl: seed.videoReferenceUrl ?? "",
   };
@@ -97,7 +113,13 @@ export const createMockElementsLibrary = (): ElementLibraryItem[] => [
     alias: "redlantern",
     description: "Small glowing lantern used in night market scenes.",
     assetType: "image",
+    profileImageUrl: null,
+    profileImageTransform: DEFAULT_ELEMENT_PROFILE_IMAGE_TRANSFORM,
     thumbnailUrl: null,
+    deckReferenceUrls: [
+      "https://example.com/reference/red-lantern-01.jpg",
+      "https://example.com/reference/red-lantern-02.jpg",
+    ],
     imageReferenceUrls: [
       "https://example.com/reference/red-lantern-01.jpg",
       "https://example.com/reference/red-lantern-02.jpg",
@@ -106,7 +128,12 @@ export const createMockElementsLibrary = (): ElementLibraryItem[] => [
     updatedAt: "2026-04-06T09:00:00.000Z",
     status: "ready",
     referenceSetState: createReferenceSetState({
+      assetType: "image",
       description: "Warm lacquered lantern with a gold frame and soft ember glow.",
+      deckReferenceUrls: [
+        "https://example.com/reference/red-lantern-01.jpg",
+        "https://example.com/reference/red-lantern-02.jpg",
+      ],
       imageReferenceUrls: [
         "https://example.com/reference/red-lantern-01.jpg",
         "https://example.com/reference/red-lantern-02.jpg",
@@ -119,7 +146,14 @@ export const createMockElementsLibrary = (): ElementLibraryItem[] => [
     alias: "sedan",
     description: "Classic four-door car for cinematic street scenes.",
     assetType: "image",
+    profileImageUrl: null,
+    profileImageTransform: DEFAULT_ELEMENT_PROFILE_IMAGE_TRANSFORM,
     thumbnailUrl: null,
+    deckReferenceUrls: [
+      "https://example.com/reference/vintage-sedan-01.jpg",
+      "https://example.com/reference/vintage-sedan-02.jpg",
+      "https://example.com/reference/vintage-sedan-03.jpg",
+    ],
     imageReferenceUrls: [
       "https://example.com/reference/vintage-sedan-01.jpg",
       "https://example.com/reference/vintage-sedan-02.jpg",
@@ -129,7 +163,13 @@ export const createMockElementsLibrary = (): ElementLibraryItem[] => [
     updatedAt: "2026-04-05T17:15:00.000Z",
     status: "ready",
     referenceSetState: createReferenceSetState({
+      assetType: "image",
       description: "Cream paint, chrome trim, rounded hood, and dramatic city-street reflections.",
+      deckReferenceUrls: [
+        "https://example.com/reference/vintage-sedan-01.jpg",
+        "https://example.com/reference/vintage-sedan-02.jpg",
+        "https://example.com/reference/vintage-sedan-03.jpg",
+      ],
       imageReferenceUrls: [
         "https://example.com/reference/vintage-sedan-01.jpg",
         "https://example.com/reference/vintage-sedan-02.jpg",
@@ -143,12 +183,16 @@ export const createMockElementsLibrary = (): ElementLibraryItem[] => [
     alias: "crowd",
     description: "Walking crowd plate for city movement reference.",
     assetType: "video",
+    profileImageUrl: null,
+    profileImageTransform: DEFAULT_ELEMENT_PROFILE_IMAGE_TRANSFORM,
     thumbnailUrl: null,
+    deckReferenceUrls: [],
     imageReferenceUrls: [],
     videoReferenceUrl: "https://example.com/reference/street-crowd.mp4",
     updatedAt: "2026-04-04T14:30:00.000Z",
     status: "ready",
     referenceSetState: createReferenceSetState({
+      assetType: "video",
       description: "Loose evening foot traffic with layered depth and soft motion blur.",
       videoReferenceUrl: "https://example.com/reference/street-crowd.mp4",
     }),

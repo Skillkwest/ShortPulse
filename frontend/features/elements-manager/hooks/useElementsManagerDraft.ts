@@ -18,7 +18,10 @@ const buildDraftFromItem = (item: ElementLibraryItem): ElementDraft => {
     name: item.name,
     alias: item.alias,
     description: activeSet.description,
-    assetType: item.assetType,
+    assetType: activeSet.assetType ?? item.assetType,
+    profileImageUrl: item.profileImageUrl,
+    profileImageTransform: item.profileImageTransform,
+    deckReferenceUrls: activeSet.deckReferenceUrls,
     imageReferenceUrls: activeSet.imageReferenceUrls,
     videoReferenceUrl: activeSet.videoReferenceUrl,
     activeReferenceSetId: referenceSetState.activeSetId,
@@ -37,7 +40,11 @@ const syncActiveReferenceSet = (
   return {
     ...current,
     activeReferenceSetId,
+    assetType: activeReferenceSet.assetType,
     description: activeReferenceSet.description,
+    profileImageUrl: current.profileImageUrl,
+    profileImageTransform: current.profileImageTransform,
+    deckReferenceUrls: activeReferenceSet.deckReferenceUrls,
     imageReferenceUrls: activeReferenceSet.imageReferenceUrls,
     videoReferenceUrl: activeReferenceSet.videoReferenceUrl,
   };

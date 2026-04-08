@@ -37,6 +37,8 @@ Define the operational contract for the `/character` Character Manager surface, 
    - Preset zone uploads are independent of QuickSwap Deck capacity/archival.
    - Removing a QuickSwap Deck reference does not clear preset zone assignments.
    - No activation gate or completion requirement is enforced in the current UI.
+   - Character Profile voice controls are currently hidden from the UI.
+   - Dormant voice state/modal code remains quarantined for a later rollout; see `docs/character-profile-voice-quarantine.md`.
 5. Dropped external reference URLs are trust-scoped:
    - Trusted local/internal/supabase-hosted image URLs are accepted for Character Sheet and QuickSwap drop flows.
    - Arbitrary external hosts are blocked from drop ingestion.

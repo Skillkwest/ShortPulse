@@ -28,10 +28,8 @@ export function ElementsManagerWorkflowTabs({
         <button
           type="button"
           role="tab"
-          aria-selected={activeTab === "manage"}
-          className={`character-mode-tab character-mode-tab--manage ${
-            activeTab === "manage" ? "is-active" : ""
-          }`}
+          aria-selected={false}
+          className="character-mode-tab character-mode-tab--manage"
           onClick={() => setActiveTab("manage")}
         >
           Manage Elements
@@ -39,10 +37,8 @@ export function ElementsManagerWorkflowTabs({
         <button
           type="button"
           role="tab"
-          aria-selected={activeTab === "profile"}
-          className={`character-mode-tab character-mode-tab--profile ${
-            activeTab === "profile" ? "is-active" : ""
-          }`}
+          aria-selected={true}
+          className="character-mode-tab character-mode-tab--profile is-active"
           onClick={() => setActiveTab("profile")}
         >
           Element Profile

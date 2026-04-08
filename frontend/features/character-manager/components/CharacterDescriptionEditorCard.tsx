@@ -6,7 +6,7 @@ import React from "react";
 
 type CharacterDescriptionEditorCardProps = {
   description: string;
-  helperText: string;
+  helperText?: string;
   maxLength: number;
   rows: number;
   disabled: boolean;
@@ -39,12 +39,14 @@ export function CharacterDescriptionEditorCard({
           value={description}
           maxLength={maxLength}
           onChange={(event) => onChangeDescription(event.target.value)}
-          placeholder="A gorgeous woman in her early 30s with brown hair and dark amber eyes, she has a slim, toned waist, a curvy lower body, and thick thighs."
+          placeholder="A sleek midnight-blue sports car with a low profile, sculpted bodywork, glowing headlights, and polished alloy rims."
           disabled={disabled}
         />
       </div>
       <div className="character-description-footer-row">
-        <p className="character-description-helper tiny subdued">{helperText}</p>
+        {helperText ? (
+          <p className="character-description-helper tiny subdued">{helperText}</p>
+        ) : null}
         <p className="character-description-count tiny subdued">
           {description.length}/{maxLength}
         </p>

@@ -69,6 +69,7 @@
 
 .character-manager-page--embedded .character-manage-title-stack h2 {
   margin: 0;
+  color: var(--ai-accent);
 }
 
 .character-manager-page--embedded .character-manage-helper {
@@ -256,7 +257,7 @@
   align-items: stretch;
 }
 
-.character-manager-page--embedded .character-voice-input {
+.character-manager-page--embedded .character-voice-selector-btn {
   flex-basis: 0;
 }
 

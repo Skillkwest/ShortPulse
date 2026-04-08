@@ -11,8 +11,14 @@ type ElementProfileEditorProps = {
   draft: ElementDraft;
   errorMessage: string | null;
   onFieldChange: <K extends keyof ElementDraft>(field: K, value: ElementDraft[K]) => void;
-  onSave: () => void;
+  onSave?: () => void;
   onRequestDelete?: () => void;
+  heroMedia?: React.ReactNode;
+  detailsContent?: React.ReactNode;
+  referenceAssetsContent?: React.ReactNode;
+  deckContent?: React.ReactNode;
+  footerActions?: React.ReactNode;
+  showDefaultActions?: boolean;
 };
 
 export function ElementProfileEditor({
@@ -22,6 +28,12 @@ export function ElementProfileEditor({
   onFieldChange,
   onSave,
   onRequestDelete,
+  heroMedia,
+  detailsContent,
+  referenceAssetsContent,
+  deckContent,
+  footerActions,
+  showDefaultActions = true,
 }: ElementProfileEditorProps) {
   const tokenPreview = draft.alias || draft.name || "ElementName";
   const referenceCount =
@@ -57,16 +69,18 @@ export function ElementProfileEditor({
             <div className="elements-sheet-profile-card">
               <div className="elements-sheet-profile-top-row">
                 <div className="elements-sheet-profile-hero">
-                  <button
-                    type="button"
-                    className={`elements-sheet-profile-hero-btn elements-sheet-profile-hero-btn--${draft.assetType}`}
-                    aria-label="Edit element hero"
-                  >
-                    <span className="elements-sheet-profile-token">@</span>
-                    <span className="elements-sheet-profile-type">
-                      {draft.assetType === "image" ? "Image" : "Video"}
-                    </span>
-                  </button>
+                  {heroMedia ?? (
+                    <button
+                      type="button"
+                      className={`elements-sheet-profile-hero-btn elements-sheet-profile-hero-btn--${draft.assetType}`}
+                      aria-label="Edit element hero"
+                    >
+                      <span className="elements-sheet-profile-token">@</span>
+                      <span className="elements-sheet-profile-type">
+                        {draft.assetType === "image" ? "Image" : "Video"}
+                      </span>
+                    </button>
+                  )}
                   <span className="elements-sheet-edit-indicator" aria-hidden="true">
                     Element hero
                   </span>
@@ -95,46 +109,50 @@ export function ElementProfileEditor({
               </div>
             </div>
 
-            <section className="elements-profile-section elements-profile-section--details">
-              <div className="elements-sheet-references-title-row elements-sheet-profile-fields elements-sheet-profile-fields--label-serif">
-                <p className="elements-field-label">Element Details:</p>
-              </div>
-              <label className="elements-field">
-                <span className="elements-field-label">Prompt Alias</span>
-                <input
-                  className="elements-input"
-                  value={draft.alias}
-                  onChange={(event) => onFieldChange("alias", event.target.value)}
-                  placeholder="Optional alias for @prompt references"
+            {detailsContent ?? (
+              <section className="elements-profile-section elements-profile-section--details">
+                <div className="elements-sheet-references-title-row elements-sheet-profile-fields elements-sheet-profile-fields--label-serif">
+                  <p className="elements-field-label">Element Details:</p>
+                </div>
+                <label className="elements-field">
+                  <span className="elements-field-label">Prompt Alias</span>
+                  <input
+                    className="elements-input"
+                    value={draft.alias}
+                    onChange={(event) => onFieldChange("alias", event.target.value)}
+                    placeholder="Optional alias for @prompt references"
+                  />
+                </label>
+                <label className="elements-field">
+                  <span className="elements-field-label">Description</span>
+                  <textarea
+                    className="elements-textarea"
+                    value={draft.description}
+                    onChange={(event) => onFieldChange("description", event.target.value)}
+                    rows={4}
+                    placeholder="Describe the object's look, material, silhouette, lighting behavior, or scene role."
+                  />
+                </label>
+                <p className="elements-sheet-references-helper tiny subdued">
+                  This name will later map to prompt references for Kling element binding.
+                </p>
+                <ElementTypeSelector
+                  assetType={draft.assetType}
+                  onChange={(nextType) => {
+                    onFieldChange("assetType", nextType);
+                    if (nextType === "image") {
+                      onFieldChange("videoReferenceUrl", "");
+                    } else {
+                      onFieldChange("imageReferenceUrls", []);
+                    }
+                  }}
                 />
-              </label>
-              <label className="elements-field">
-                <span className="elements-field-label">Description</span>
-                <textarea
-                  className="elements-textarea"
-                  value={draft.description}
-                  onChange={(event) => onFieldChange("description", event.target.value)}
-                  rows={4}
-                  placeholder="Describe the object's look, material, silhouette, lighting behavior, or scene role."
-                />
-              </label>
-              <p className="elements-sheet-references-helper tiny subdued">
-                This name will later map to prompt references for Kling element binding.
-              </p>
-              <ElementTypeSelector
-                assetType={draft.assetType}
-                onChange={(nextType) => {
-                  onFieldChange("assetType", nextType);
-                  if (nextType === "image") {
-                    onFieldChange("videoReferenceUrl", "");
-                  } else {
-                    onFieldChange("imageReferenceUrls", []);
-                  }
-                }}
-              />
-            </section>
+              </section>
+            )}
 
-            <ElementReferenceAssetsCard draft={draft} onFieldChange={onFieldChange} />
+            {referenceAssetsContent ?? (
+              <ElementReferenceAssetsCard draft={draft} onFieldChange={onFieldChange} />
+            )}
 
             <section className="elements-profile-section elements-profile-section--notes">
               <h3 className="elements-profile-section-title">Prompt Notes</h3>
@@ -146,21 +164,25 @@ export function ElementProfileEditor({
             </section>
           </section>
         }
-        elementDeck={<ElementsReferenceDeckSection draft={draft} />}
+        elementDeck={deckContent ?? <ElementsReferenceDeckSection draft={draft} />}
       />
       {errorMessage ? <p className="elements-profile-error tiny">{errorMessage}</p> : null}
-      <div className="elements-profile-actions">
-        {mode === "edit" ? (
-          <button type="button" className="elements-secondary-btn" onClick={onRequestDelete}>
-            Delete Element
+      {showDefaultActions ? (
+        <div className="elements-profile-actions">
+          {mode === "edit" ? (
+            <button type="button" className="elements-secondary-btn" onClick={onRequestDelete}>
+              Delete Element
+            </button>
+          ) : (
+            <span />
+          )}
+          <button type="button" className="elements-primary-btn" onClick={onSave}>
+            {mode === "create" ? "Save Element" : "Save Changes"}
           </button>
-        ) : (
-          <span />
-        )}
-        <button type="button" className="elements-primary-btn" onClick={onSave}>
-          {mode === "create" ? "Save Element" : "Save Changes"}
-        </button>
-      </div>
+        </div>
+      ) : footerActions ? (
+        <div className="elements-profile-actions">{footerActions}</div>
+      ) : null}
     </section>
   );
 }

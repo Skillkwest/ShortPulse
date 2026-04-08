@@ -2,6 +2,14 @@
  * Elements Manager embedded overrides.
  * Keeps the cloned Character-based Elements panel compact at smaller widths.
  */
+.elements-manager-shell--character-clone .character-profile-photo-btn.is-drop-active {
+  border-color: rgba(239, 78, 135, 0.92);
+  box-shadow:
+    0 0 0 2px rgba(239, 78, 135, 0.18),
+    0 0 18px rgba(239, 78, 135, 0.28);
+  transform: translateY(-1px);
+}
+
 @media (max-width: 1180px) {
   .elements-manager-shell--character-clone .character-profile-card-top-row {
     grid-template-columns: 150px minmax(0, 1fr);

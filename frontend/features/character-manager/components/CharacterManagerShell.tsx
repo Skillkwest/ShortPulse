@@ -76,6 +76,7 @@ import type {
 type CharacterManagerShellProps = {
   surface?: CharacterManagerShellSurface;
   initialWorkflowTab?: CharacterWorkflowTab;
+  externalCreateRequestKey?: number;
   beginnerModeOverride?: boolean;
   showBeginnerModeToggle?: boolean;
   resolveCharacterDropReference?: ResolveCharacterDropReference;
@@ -137,6 +138,7 @@ function buildProfileImageTransformStyle(
 export function CharacterManagerShell({
   surface = "page",
   initialWorkflowTab,
+  externalCreateRequestKey = 0,
   beginnerModeOverride,
   showBeginnerModeToggle = true,
   resolveCharacterDropReference,
@@ -146,7 +148,6 @@ export function CharacterManagerShell({
     characters,
     selectedCharacterId,
     characterName,
-    characterVoice,
     characterDescription,
     activeCharacterSheetPresetId,
     visibleCharacterSheetPresetIds,
@@ -163,7 +164,6 @@ export function CharacterManagerShell({
     isSavingProfileImage,
     isSavingCharacterSheetPreset,
     setCharacterName,
-    setCharacterVoice,
     setCharacterDescription,
     setProfileImageFile,
     saveProfileImageTransform,
@@ -266,11 +266,6 @@ export function CharacterManagerShell({
     isEmbeddedSurface,
     defaultPlanTier: DEFAULT_PLAN_TIER,
   });
-  const profileInitials = useMemo(() => {
-    const words = characterName.trim().split(/\s+/).filter(Boolean).slice(0, 2);
-    if (!words.length) return "NC";
-    return words.map((word) => word[0]?.toUpperCase() ?? "").join("");
-  }, [characterName]);
   const accountDisplayName =
     (user?.user_metadata?.display_name as string | undefined) ??
     (user?.user_metadata?.full_name as string | undefined) ??
@@ -374,6 +369,7 @@ export function CharacterManagerShell({
     : PROFILE_PREVIEW_IMAGE_SIZE;
   const quickSwapContentId = useId();
   const characterSheetPresetTabsIdBase = `character-sheet-preset-${useId()}`;
+  const lastHandledExternalCreateRequestKeyRef = useRef(0);
   const characterSheetPresetPanelId = `${characterSheetPresetTabsIdBase}-panel`;
   const activeCharacterSheetPresetTabId = getCharacterSheetPresetTabId(
     characterSheetPresetTabsIdBase,
@@ -555,6 +551,14 @@ export function CharacterManagerShell({
     saveProfileImageTransform,
     defaultProfileImageTransform: DEFAULT_PROFILE_IMAGE_TRANSFORM,
   });
+
+  useEffect(() => {
+    if (!isEmbeddedSurface) return;
+    if (externalCreateRequestKey === 0) return;
+    if (lastHandledExternalCreateRequestKeyRef.current === externalCreateRequestKey) return;
+    lastHandledExternalCreateRequestKeyRef.current = externalCreateRequestKey;
+    handleCreateNewCharacter();
+  }, [externalCreateRequestKey, handleCreateNewCharacter, isEmbeddedSurface]);
   const { handleReferenceDragStart, handleCharacterSheetDragStart, handleReferenceDragEnd } =
     useCharacterManagerDragInteractions({
       pageBusy,
@@ -988,44 +992,6 @@ export function CharacterManagerShell({
                               placeholder="Enter character name"
                               disabled={loading}
                             />
-                          </label>
-                          <label
-                            className="control-row character-simple-field"
-                            htmlFor="character-manager-voice"
-                          >
-                            <span className="input-label">Voice:</span>
-                            <div className="character-voice-row">
-                              <input
-                                id="character-manager-voice"
-                                className="character-name-input character-voice-input"
-                                type="text"
-                                value={characterVoice}
-                                maxLength={80}
-                                onChange={(event) => setCharacterVoice(event.target.value)}
-                                placeholder="Enter voice"
-                                disabled={loading}
-                              />
-                              <button
-                                type="button"
-                                className="character-voice-create-btn"
-                                style={{
-                                  gap: "5px",
-                                  minHeight: "44px",
-                                  padding: "0 12px",
-                                  border: "1px solid rgba(37, 204, 255, 0.58)",
-                                  borderRadius: "14px",
-                                  background: "rgba(28, 32, 37, 0.94)",
-                                  color: "rgba(110, 214, 233, 0.96)",
-                                  fontWeight: 500,
-                                  fontSize: "0.8rem",
-                                  letterSpacing: "0.01em",
-                                  boxShadow: "0 6px 14px rgba(0, 0, 0, 0.18)",
-                                }}
-                                aria-label="Create Voice"
-                              >
-                                + Create Voice
-                              </button>
-                            </div>
                           </label>
                         </div>
                       </div>

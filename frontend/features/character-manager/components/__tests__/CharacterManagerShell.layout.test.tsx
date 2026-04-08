@@ -146,10 +146,10 @@ describe("CharacterManagerShell layout", () => {
     expect(nameInput?.closest("[data-layout-region]")).toBe(sheetRegion);
   });
 
-  it("renders a voice field below the name field in profile mode", () => {
+  it("hides the quarantined voice controls in profile mode", () => {
     render(<CharacterManagerShell surface="panel" initialWorkflowTab="create" />);
-    expect(screen.getByLabelText("Voice:")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Create Voice" })).toBeInTheDocument();
+    expect(screen.queryByText("Voice:")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Create Voice" })).not.toBeInTheDocument();
   });
 
   it("hides the Character Profile tab in embedded manage mode", () => {

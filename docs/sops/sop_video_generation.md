@@ -45,6 +45,12 @@ For Create properties panel, model-selector, and submission wiring details, see 
 5. Reference Grid prepends the new output card; Studio Preview shows the latest video thumbnail/preview if available.  
 6. On success, outputs are auto-saved to the Media Library as `source = ai_studio`, and audit events are logged. Save/Media Library buttons remain available for manual re-save and downstream use.
 
+### Control-plane reliability notes
+
+- Hosted/default `POST /api/internal/generation-recovery/run` invocations execute the primary queue-dispatch + recovery loop by default. Explicit `{"runMode":"rescue"}` is now reserved for bounded/manual recovery-only passes.
+- Observation inbox processing is lease-claimed before execution; concurrent hosted control-plane runs should not process the same pending observation row simultaneously under normal operation.
+- Recovery autosave/persistence fail-closes untrusted provider-returned media URLs. Recovery execution will not server-fetch arbitrary external result URLs outside trusted provider hosts or the explicit trusted media host policy.
+
 ### Model picker policy (Create → Video)
 
 - Model chips are ordered deterministically by provider + workflow priority in the modal.

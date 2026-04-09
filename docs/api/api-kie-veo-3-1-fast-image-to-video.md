@@ -7,7 +7,7 @@ This document tracks the internal ShortPulse runtime contract for `kie-ai/veo-3.
 - Model id: `kie-ai/veo-3.1-fast-i2v`
 - Canonical source reference: `https://api.kie.ai/api/v1/veo/generate` (Veo 3.1 API docs)
 - Runtime status: runtime-gated (selectable when Kie integration is enabled and model allowlist gates pass; fail-closed otherwise)
-- Primary-source snapshot: captured from Kie docs + pricing evidence on `2026-03-14`
+- Primary-source snapshot: captured from Kie docs + pricing evidence on `2026-04-09`
 
 ## Current Runtime Contract
 - Endpoint: `POST /api/v1/veo/generate`
@@ -38,19 +38,17 @@ This document tracks the internal ShortPulse runtime contract for `kie-ai/veo-3.
   - `REFERENCE_2_VIDEO` supports `1-3` images and requires `aspect_ratio=16:9`.
 
 ## Pricing (ShortPulse runtime)
-- Evidence source: user-provided Kie pricing dashboard capture dated `2026-03-14`.
+- Evidence source: current public Kie Veo pricing evidence plus repo-local prior dashboard capture.
 - Kie dashboard evidence rows for Google Veo 3.1 Fast:
-  - `text-to-video, Fast` = `60` credits / `$0.30`
-  - `image-to-video, Fast` = `60` credits / `$0.30`
-  - `reference-to-video, Fast` = `60` credits / `$0.30`
-- Kie credit conversion shown in evidence: `1 Kie credit ~= $0.005` (matches `$0.30` for `60` credits).
-- Runtime pricing basis: fixed `$0.30` per generation (independent of duration/resolution inputs currently exposed in UI).
-- First/last-frame implementation mapping: `generationType=FIRST_AND_LAST_FRAMES_2_VIDEO` in ShortPulse uses the same Fast Veo lane pricing basis (`$0.30` per generation).
+  - current public Veo Fast pricing = `80` credits / `$0.40` per video
+- Kie credit conversion shown in evidence: `1 Kie credit ~= $0.005`.
+- Runtime pricing basis: fixed `$0.40` per generation (independent of duration/resolution inputs currently exposed in UI).
+- First/last-frame implementation mapping: `generationType=FIRST_AND_LAST_FRAMES_2_VIDEO` in ShortPulse uses the same Fast Veo lane pricing basis (`$0.40` per generation).
 - ShortPulse conversion policy:
   - `markedCredits = usd * 100 * 1.03`
   - `rawCredits = ceil(markedCredits)`
   - `credits = ceil(rawCredits / 5) * 5`
-- Default lane outcome: `$0.30` -> `rawCredits=31` -> `35` billed credits.
+- Default lane outcome: `$0.40` -> `rawCredits=42` -> `45` billed credits.
 
 ## Guardrails
 1. Kie integration remains disabled by default.

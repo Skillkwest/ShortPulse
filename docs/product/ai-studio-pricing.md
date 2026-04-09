@@ -35,9 +35,9 @@ Short version: models declare metadata in runtime catalog/registry, pricing stra
 - `seedream-5-lite-per-image`: `$0.035` per image.
 - `kling-3-per-second`:
   - Fal lanes: `$0.112/s` audio-off, `$0.168/s` audio-on, `$0.196/s` audio+voice
-  - Kie lane (`kie-ai/kling-3.0`): `1080p` `$0.135/s` audio-off, `$0.20/s` audio-on; `720p` `$0.10/s` audio-off, `$0.15/s` audio-on.
-- `veo-3-per-second`: Fal lanes use `$0.20/$0.40` (no-audio/audio) for non-4K and `$0.40/$0.60` for 4K; `kie-ai/veo-3.1-fast-i2v` uses fixed `$0.30` per video.
-- `seedance-1.5-per-second`: token formula (`tokens = width*height*24*duration/1024`), `$2.4` per 1M tokens with audio / `$1.2` without audio.
+  - Kie lane (`kie-ai/kling-3.0`): bill on Kie `mode` rather than raw `resolution`; observed `std` audio-off = `14` Kie credits/s (`$0.07/s`), observed `pro` audio-off = `18` Kie credits/s (`$0.09/s`), and current runtime keeps a `1.5x` sound-on premium for those mode baselines until richer Kie evidence is captured.
+- `veo-3-per-second`: Fal lanes use `$0.20/$0.40` (no-audio/audio) for non-4K and `$0.40/$0.60` for 4K; `kie-ai/veo-3.1-fast-i2v` uses fixed `$0.40` per video from current Kie pricing evidence.
+- `seedance-1.5-per-second`: Kie-log-backed rate table for `kie-ai/seedance-1.5-pro`: `720p` `$0.0175/s` audio-off and `$0.035/s` audio-on; `1080p` `$0.0375/s` audio-off and `$0.075/s` audio-on; `480p` remains a conservative interim baseline pending direct Kie evidence.
 - `gpt41nano-per-token`: `$0.10` per 1M input + `$0.025` per 1M output, then shared markup/quantization policy.
 
 ## Tests

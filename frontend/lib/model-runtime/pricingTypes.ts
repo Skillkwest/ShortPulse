@@ -28,6 +28,7 @@ export type PricingParams = {
   outputTokens?: number;
   durationSeconds?: number;
   resolution?: string;
+  mode?: string;
   webSearch?: boolean;
   audio?: boolean;
   voiceControl?: boolean;

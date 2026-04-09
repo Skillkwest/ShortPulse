@@ -145,9 +145,9 @@ describe("computeCostForModel (Veo 3.1)", () => {
       audio: true,
     });
     expect(cost).not.toBeNull();
-    expect(cost?.usdRaw).toBeCloseTo(0.3, 6);
-    expect(cost?.rawCredits).toBe(31);
-    expect(cost?.credits).toBe(35);
+    expect(cost?.usdRaw).toBeCloseTo(0.4, 6);
+    expect(cost?.rawCredits).toBe(42);
+    expect(cost?.credits).toBe(45);
   });
 
   it("keeps kie-ai/veo-3.1-fast-i2v pricing invariant across duration/resolution/audio inputs", () => {
@@ -161,9 +161,9 @@ describe("computeCostForModel (Veo 3.1)", () => {
     for (const params of cases) {
       const cost = computeCostForModel("kie-ai/veo-3.1-fast-i2v", params);
       expect(cost).not.toBeNull();
-      expect(cost?.usdRaw).toBeCloseTo(0.3, 6);
-      expect(cost?.rawCredits).toBe(31);
-      expect(cost?.credits).toBe(35);
+      expect(cost?.usdRaw).toBeCloseTo(0.4, 6);
+      expect(cost?.rawCredits).toBe(42);
+      expect(cost?.credits).toBe(45);
     }
   });
 });
@@ -196,28 +196,92 @@ describe("computeCostForModel (Kling 3.0)", () => {
     expect(cost?.credits).toBe(105);
   });
 
-  it("uses kie-ai/kling-3.0 1080p per-second rates with markup", () => {
+  it("uses kie-ai/kling-3.0 pro-mode per-second rates with markup", () => {
     const cost = computeCostForModel("kie-ai/kling-3.0", {
-      durationSeconds: 10,
+      durationSeconds: 4,
       resolution: "1080p",
-      audio: true,
+      mode: "pro",
+      audio: false,
     });
     expect(cost).not.toBeNull();
-    expect(cost?.usdRaw).toBeCloseTo(2, 6);
-    expect(cost?.rawCredits).toBe(206);
-    expect(cost?.credits).toBe(210);
+    expect(cost?.usdRaw).toBeCloseTo(0.36, 6);
+    expect(cost?.rawCredits).toBe(38);
+    expect(cost?.credits).toBe(40);
   });
 
-  it("uses kie-ai/kling-3.0 720p per-second rates with markup", () => {
+  it("uses kie-ai/kling-3.0 std-mode per-second rates with markup", () => {
     const cost = computeCostForModel("kie-ai/kling-3.0", {
-      durationSeconds: 10,
+      durationSeconds: 4,
+      resolution: "720p",
+      mode: "std",
+      audio: false,
+    });
+    expect(cost).not.toBeNull();
+    expect(cost?.usdRaw).toBeCloseTo(0.28, 6);
+    expect(cost?.rawCredits).toBe(29);
+    expect(cost?.credits).toBe(30);
+  });
+
+  it("falls back to resolution-derived mode when explicit mode is absent", () => {
+    const cost = computeCostForModel("kie-ai/kling-3.0", {
+      durationSeconds: 3,
       resolution: "720p",
       audio: false,
     });
     expect(cost).not.toBeNull();
-    expect(cost?.usdRaw).toBeCloseTo(1, 6);
-    expect(cost?.rawCredits).toBe(103);
-    expect(cost?.credits).toBe(105);
+    expect(cost?.usdRaw).toBeCloseTo(0.21, 6);
+    expect(cost?.rawCredits).toBe(22);
+    expect(cost?.credits).toBe(25);
+  });
+});
+
+describe("computeCostForModel (Kie Seedance 1.5)", () => {
+  it("matches observed 4s 720p audio-off Kie pricing", () => {
+    const cost = computeCostForModel("kie-ai/seedance-1.5-pro", {
+      durationSeconds: 4,
+      resolution: "720p",
+      audio: false,
+    });
+    expect(cost).not.toBeNull();
+    expect(cost?.usdRaw).toBeCloseTo(0.07, 6);
+    expect(cost?.rawCredits).toBe(8);
+    expect(cost?.credits).toBe(10);
+  });
+
+  it("matches observed 12s 1080p audio-off Kie pricing", () => {
+    const cost = computeCostForModel("kie-ai/seedance-1.5-pro", {
+      durationSeconds: 12,
+      resolution: "1080p",
+      audio: false,
+    });
+    expect(cost).not.toBeNull();
+    expect(cost?.usdRaw).toBeCloseTo(0.45, 6);
+    expect(cost?.rawCredits).toBe(47);
+    expect(cost?.credits).toBe(50);
+  });
+
+  it("matches observed 12s 720p audio-on Kie pricing", () => {
+    const cost = computeCostForModel("kie-ai/seedance-1.5-pro", {
+      durationSeconds: 12,
+      resolution: "720p",
+      audio: true,
+    });
+    expect(cost).not.toBeNull();
+    expect(cost?.usdRaw).toBeCloseTo(0.42, 6);
+    expect(cost?.rawCredits).toBe(44);
+    expect(cost?.credits).toBe(45);
+  });
+
+  it("matches observed 12s 1080p audio-on Kie pricing", () => {
+    const cost = computeCostForModel("kie-ai/seedance-1.5-pro", {
+      durationSeconds: 12,
+      resolution: "1080p",
+      audio: true,
+    });
+    expect(cost).not.toBeNull();
+    expect(cost?.usdRaw).toBeCloseTo(0.9, 6);
+    expect(cost?.rawCredits).toBe(93);
+    expect(cost?.credits).toBe(95);
   });
 });
 

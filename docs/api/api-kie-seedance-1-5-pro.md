@@ -54,9 +54,14 @@ This document tracks the internal ShortPulse runtime contract for `kie-ai/seedan
   - optional `fixed_lens`
 
 ## Pricing (ShortPulse runtime)
-- Current billing policy uses the existing `seedance-1.5-per-second` runtime estimator.
-- This is an internal ShortPulse pricing policy decision, not a claim that Kie and Fal publish identical retail pricing.
-- Re-verify pricing evidence before any pricing-policy change or public billing update.
+- Runtime billing now uses Kie-log-backed active-lane rates rather than the old token estimator.
+- Kie credit conversion used by runtime: `1 Kie credit = $0.005`.
+- Observed rates from recent Kie logs:
+  - `720p`, audio off: `14` Kie credits for `4s` (`3.5` credits/s, `$0.0175/s`)
+  - `720p`, audio on: `84` Kie credits for `12s` (`7` credits/s, `$0.035/s`)
+  - `1080p`, audio off: `90` Kie credits for `12s` (`7.5` credits/s, `$0.0375/s`)
+  - `1080p`, audio on: `180` Kie credits for `12s` (`15` credits/s, `$0.075/s`)
+- `480p` remains a conservative interim baseline until direct Kie evidence is captured.
 
 ## Guardrails
 1. Kie integration remains disabled by default.

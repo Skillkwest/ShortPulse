@@ -5,7 +5,11 @@ import { getModelConfig } from "./modelRegistry";
 import { resolveAspectSize } from "./modelSizes";
 import { convertUsdToCredits } from "./pricingCredits";
 import { CostBreakdown, PricingParams, PricingStrategyId } from "./pricingTypes";
-import { KIE_KLING_30_MODEL_ID, KIE_VEO_31_FAST_I2V_MODEL_ID } from "./providerModelIds";
+import {
+  KIE_KLING_30_MODEL_ID,
+  KIE_SEEDANCE_15_PRO_MODEL_ID,
+  KIE_VEO_31_FAST_I2V_MODEL_ID,
+} from "./providerModelIds";
 
 const FAL_COST_PER_MP_USD = 0.025;
 const FLUX2_COST_PER_MP_USD = 0.012;
@@ -26,11 +30,12 @@ const VEO_NO_AUDIO_RATE_4K_USD_PER_SECOND = 0.4;
 const KLING_3_FAL_RATE_AUDIO_OFF_USD_PER_SECOND = 0.112;
 const KLING_3_FAL_RATE_AUDIO_ON_USD_PER_SECOND = 0.168;
 const KLING_3_FAL_RATE_AUDIO_VOICE_USD_PER_SECOND = 0.196;
-const KLING_3_KIE_RATE_AUDIO_OFF_1080P_USD_PER_SECOND = 0.135;
-const KLING_3_KIE_RATE_AUDIO_ON_1080P_USD_PER_SECOND = 0.2;
-const KLING_3_KIE_RATE_AUDIO_OFF_720P_USD_PER_SECOND = 0.1;
-const KLING_3_KIE_RATE_AUDIO_ON_720P_USD_PER_SECOND = 0.15;
-const KIE_VEO_31_FAST_I2V_PER_VIDEO_USD = 0.3;
+const KIE_CREDIT_USD = 0.005;
+const KLING_3_KIE_STD_AUDIO_OFF_CREDITS_PER_SECOND = 14;
+const KLING_3_KIE_STD_AUDIO_ON_CREDITS_PER_SECOND = 21;
+const KLING_3_KIE_PRO_AUDIO_OFF_CREDITS_PER_SECOND = 18;
+const KLING_3_KIE_PRO_AUDIO_ON_CREDITS_PER_SECOND = 27;
+const KIE_VEO_31_FAST_I2V_PER_VIDEO_USD = 0.4;
 const SEEDANCE_AUDIO_RATE_USD_PER_M_TOKEN = 2.4;
 const SEEDANCE_NO_AUDIO_RATE_USD_PER_M_TOKEN = 1.2;
 const SEEDANCE_DEFAULT_FPS = 24;
@@ -39,6 +44,8 @@ const SEEDANCE_RESOLUTION_MAP = {
   "720p": { width: 1280, height: 720 },
   "480p": { width: 854, height: 480 },
 };
+
+const kieCreditsToUsd = (credits: number): number => credits * KIE_CREDIT_USD;
 
 type StrategyFn = (params: PricingParams) => CostBreakdown | null;
 
@@ -290,19 +297,27 @@ const computeKling3PerSecondCost: StrategyFn = (params) => {
   const isKieModel = params.modelId === KIE_KLING_30_MODEL_ID;
   const rates = isKieModel
     ? (() => {
-        const res = resolveDefaultResolution(params, "1080p").toLowerCase();
-        const is720p = res.includes("720");
+        const normalizedMode = (params.mode ?? "").trim().toLowerCase();
+        const inferredMode =
+          normalizedMode === "std" || normalizedMode === "pro"
+            ? normalizedMode
+            : resolveDefaultResolution(params, "1080p").toLowerCase().includes("720")
+              ? "std"
+              : "pro";
         return {
-          audioOff: is720p
-            ? KLING_3_KIE_RATE_AUDIO_OFF_720P_USD_PER_SECOND
-            : KLING_3_KIE_RATE_AUDIO_OFF_1080P_USD_PER_SECOND,
-          audioOn: is720p
-            ? KLING_3_KIE_RATE_AUDIO_ON_720P_USD_PER_SECOND
-            : KLING_3_KIE_RATE_AUDIO_ON_1080P_USD_PER_SECOND,
-          // Kie pricing evidence does not publish a separate voice-control tier.
-          audioVoice: is720p
-            ? KLING_3_KIE_RATE_AUDIO_ON_720P_USD_PER_SECOND
-            : KLING_3_KIE_RATE_AUDIO_ON_1080P_USD_PER_SECOND,
+          audioOff:
+            inferredMode === "std"
+              ? kieCreditsToUsd(KLING_3_KIE_STD_AUDIO_OFF_CREDITS_PER_SECOND)
+              : kieCreditsToUsd(KLING_3_KIE_PRO_AUDIO_OFF_CREDITS_PER_SECOND),
+          // Sound-on pricing remains inferred from observed Kie mode costs with a standard 1.5x premium.
+          audioOn:
+            inferredMode === "std"
+              ? kieCreditsToUsd(KLING_3_KIE_STD_AUDIO_ON_CREDITS_PER_SECOND)
+              : kieCreditsToUsd(KLING_3_KIE_PRO_AUDIO_ON_CREDITS_PER_SECOND),
+          audioVoice:
+            inferredMode === "std"
+              ? kieCreditsToUsd(KLING_3_KIE_STD_AUDIO_ON_CREDITS_PER_SECOND)
+              : kieCreditsToUsd(KLING_3_KIE_PRO_AUDIO_ON_CREDITS_PER_SECOND),
         };
       })()
     : {
@@ -371,6 +386,28 @@ const resolveSeedanceDuration = (value?: number) => {
 };
 
 const computeSeedancePerSecondCost: StrategyFn = (params) => {
+  if (params.modelId === KIE_SEEDANCE_15_PRO_MODEL_ID) {
+    const duration = resolveSeedanceDuration(params.durationSeconds);
+    const res = resolveDefaultResolution(params, "720p").toLowerCase();
+    const resolutionKey = res.includes("1080") ? "1080p" : res.includes("480") ? "480p" : "720p";
+    const hasAudio = resolveDefaultAudio(params, false);
+    const kieCreditsPerSecond = (() => {
+      if (resolutionKey === "1080p") return hasAudio ? 15 : 7.5;
+      if (resolutionKey === "720p") return hasAudio ? 7 : 3.5;
+      // 480p has no direct evidence yet; keep a conservative half-step relative to 720p.
+      return hasAudio ? 4 : 2;
+    })();
+    const usdRaw = kieCreditsToUsd(kieCreditsPerSecond * duration);
+    const resolution = SEEDANCE_RESOLUTION_MAP[resolutionKey];
+    return toCostBreakdown({
+      modelId: params.modelId,
+      usdRaw,
+      megapixels: 0,
+      width: resolution.width,
+      height: resolution.height,
+    });
+  }
+
   const duration = resolveSeedanceDuration(params.durationSeconds);
   const res = resolveDefaultResolution(params, "1080p").toLowerCase();
   const resolutionKey = res.includes("1080")

@@ -69,16 +69,19 @@ This document tracks the internal ShortPulse runtime contract for `kie-ai/kling-
   - sets `multi_shots=true`
 
 ## Pricing (ShortPulse runtime)
-- Evidence source: user-provided Kie pricing dashboard capture dated `2026-03-14`.
-- Kie credit conversion shown in evidence: `1 Kie credit ~= $0.005`.
-- Kie Kling 3.0 rates used by runtime:
-  - `1080p`: audio on `$0.20/s`, audio off `$0.135/s`
-  - `720p`: audio on `$0.15/s`, audio off `$0.10/s`
+- Evidence source: user-provided Kie logs captured `2026-04-07` through `2026-04-09`.
+- Kie credit conversion used by runtime: `1 Kie credit = $0.005`.
+- Observed Kie Kling 3.0 rates used by runtime:
+  - `std` mode, sound off: `14` Kie credits / second (`$0.07/s`)
+  - `pro` mode, sound off: `18` Kie credits / second (`$0.09/s`)
+  - sound-on rates currently keep a `1.5x` premium on those mode baselines until richer Kie evidence is captured for each lane
 - ShortPulse conversion policy:
   - `markedCredits = usd * 100 * 1.03`
   - `rawCredits = ceil(markedCredits)`
   - `credits = ceil(rawCredits / 5) * 5`
-- Default lane (`10s`, `1080p`, audio on): `$2.00` -> `rawCredits=206` -> `210` billed credits.
+- Representative observed outcomes:
+  - `std`, `4s`, sound off: `56` Kie credits -> `$0.28` -> `30` billed credits
+  - `pro`, `4s`, sound off: `72` Kie credits -> `$0.36` -> `40` billed credits
 
 ## Guardrails
 1. Kie integration remains disabled by default.

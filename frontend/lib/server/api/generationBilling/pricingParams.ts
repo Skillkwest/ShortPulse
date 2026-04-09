@@ -162,7 +162,9 @@ export const summarizePayload = (payload: JsonObject): JsonObject => {
     "duration",
     "duration_seconds",
     "resolution",
+    "mode",
     "generate_audio",
+    "sound",
     "voice_ids",
     "image_size",
     "model",
@@ -201,7 +203,11 @@ export const buildPricingParams = (
   const resolution = normalizeResolutionForModel(resolveResolution(payload), modelId);
   if (resolution) params.resolution = resolution;
 
-  const audio = asBoolean(payload.generate_audio) ?? asBoolean(payload.audio);
+  const mode = asString(payload.mode);
+  if (mode) params.mode = mode;
+
+  const audio =
+    asBoolean(payload.generate_audio) ?? asBoolean(payload.sound) ?? asBoolean(payload.audio);
   if (audio !== undefined) params.audio = audio;
 
   const voiceIds = payload.voice_ids;

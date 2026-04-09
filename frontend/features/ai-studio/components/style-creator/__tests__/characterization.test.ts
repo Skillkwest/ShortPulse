@@ -59,7 +59,7 @@ const installFileReaderMock = (result: string) => {
     onerror: null | (() => void) = null;
     result: string | null = null;
 
-    readAsDataURL(_blob: Blob) {
+    readAsDataURL() {
       this.result = result;
       this.onload?.();
     }

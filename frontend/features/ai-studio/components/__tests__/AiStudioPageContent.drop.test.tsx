@@ -1,10 +1,20 @@
-import React from "react";
+import type { CSSProperties, DragEventHandler, ReactNode, Ref } from "react";
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { AiStudioPageContent, type AiStudioPageContentProps } from "../AiStudioPageContent";
 import { EDIT_PRESET_SURFACE_PRESET_IDS } from "../edit/expertEditPresets";
+import type { ReferenceGridProps } from "../../reference-grid/referenceGridTypes";
+import type { StudioOutput } from "../../types";
 
 const createPropertiesPanelRenderSpy = vi.fn();
+type StudioPreviewMockProps = {
+  activeOutput: StudioOutput | null;
+  referenceImageUrl: string | null;
+  referenceText: string | null;
+  onReferenceImageChange: (url: string | null) => void;
+  onReferenceTextChange: (text: string) => void;
+  onRegenerate: () => void;
+};
 
 vi.mock("next/link", () => ({
   default: ({
@@ -12,7 +22,7 @@ vi.mock("next/link", () => ({
     href,
     ...props
   }: {
-    children: React.ReactNode;
+    children: ReactNode;
     href: string;
     [key: string]: unknown;
   }) => (
@@ -137,27 +147,26 @@ vi.mock("../StudioPreview", () => ({
 }));
 
 vi.mock("../AiStudioShellFrame", async () => {
-  const React = await import("react");
   const { ReferenceGrid } = await import("../ReferenceGrid");
   const { StudioPreview } = await import("../StudioPreview");
 
   return {
     AiStudioShellFrame: (props: {
-      shellRef?: React.Ref<HTMLElement>;
+      shellRef?: Ref<HTMLElement>;
       shellClassName?: string;
-      shellStyle?: React.CSSProperties;
-      propertiesPanelContent?: React.ReactNode;
-      rightColumnRef?: React.Ref<HTMLDivElement>;
+      shellStyle?: CSSProperties;
+      propertiesPanelContent?: ReactNode;
+      rightColumnRef?: Ref<HTMLDivElement>;
       rightColumnDropMode?: string;
-      onRightColumnDropCapture?: React.DragEventHandler<HTMLDivElement>;
-      onRightColumnDragOverCapture?: React.DragEventHandler<HTMLDivElement>;
-      onRightColumnDragEnterCapture?: React.DragEventHandler<HTMLDivElement>;
-      onRightColumnDragLeaveCapture?: React.DragEventHandler<HTMLDivElement>;
-      onShellDragOverCapture?: React.DragEventHandler<HTMLElement>;
-      onShellDropCapture?: React.DragEventHandler<HTMLElement>;
-      referenceGridProps?: Record<string, unknown>;
-      railCanvasProps?: Record<string, unknown>;
-      studioPreviewProps?: Record<string, unknown>;
+      onRightColumnDropCapture?: DragEventHandler<HTMLDivElement>;
+      onRightColumnDragOverCapture?: DragEventHandler<HTMLDivElement>;
+      onRightColumnDragEnterCapture?: DragEventHandler<HTMLDivElement>;
+      onRightColumnDragLeaveCapture?: DragEventHandler<HTMLDivElement>;
+      onShellDragOverCapture?: DragEventHandler<HTMLElement>;
+      onShellDropCapture?: DragEventHandler<HTMLElement>;
+      referenceGridProps?: Partial<ReferenceGridProps>;
+      railCanvasProps?: ReferenceGridProps["railCanvasProps"];
+      studioPreviewProps?: Partial<StudioPreviewMockProps>;
     }) => (
       <section
         ref={props.shellRef}
@@ -177,10 +186,21 @@ vi.mock("../AiStudioShellFrame", async () => {
           onDragLeaveCapture={props.onRightColumnDragLeaveCapture}
         >
           <ReferenceGrid
-            {...((props.referenceGridProps ?? {}) as any)}
-            railCanvasProps={props.railCanvasProps as any}
+            {...({
+              activeOutputId: null,
+              ...(props.referenceGridProps ?? {}),
+              railCanvasProps: props.railCanvasProps,
+            } as ReferenceGridProps)}
           />
-          <StudioPreview {...((props.studioPreviewProps ?? {}) as any)} />
+          <StudioPreview
+            activeOutput={null}
+            referenceImageUrl={null}
+            referenceText={null}
+            onReferenceImageChange={() => undefined}
+            onReferenceTextChange={() => undefined}
+            onRegenerate={() => undefined}
+            {...(props.studioPreviewProps ?? {})}
+          />
         </div>
       </section>
     ),

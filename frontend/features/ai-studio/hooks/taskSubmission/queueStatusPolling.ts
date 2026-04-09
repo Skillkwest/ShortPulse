@@ -12,10 +12,7 @@ import type { SubmissionPatch } from "./types";
 import { normalizeProviderForPolling, type Provider } from "../../logic/stateParsers";
 import { applyQueuedSubmissionPatch } from "./outputLifecyclePatches";
 import type { StudioOutput, ToolId } from "../../types";
-import {
-  QUEUE_STATUS_NOT_FOUND_MAX_RETRIES,
-  shouldEscalateQueuedNotFoundRecovery,
-} from "./queueStatusNotFoundPolicy";
+import { shouldEscalateQueuedNotFoundRecovery } from "./queueStatusNotFoundPolicy";
 
 export const QUEUE_STATUS_MAX_WAIT_MS = 30 * 60 * 1000;
 export const clampQueuePollMs = (value: number) =>

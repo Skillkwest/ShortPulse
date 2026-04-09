@@ -382,7 +382,6 @@ export const useAiStudioViewModel = ({
     motionReferenceVideoUrl,
     referenceImageUrl,
     requiresModelSelection,
-    selectedModelConfig,
     klingMultiPrompts,
     klingWorkflowMode,
     mode,

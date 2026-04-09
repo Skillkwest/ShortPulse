@@ -637,7 +637,7 @@ describe("generationQueue/dispatch no-capacity handling", () => {
     getFalModelProfileByModelIdMock.mockReturnValue({
       submitTargets: [{ url: "https://queue.fal.run/test" }],
     });
-    dispatchProviderSubmitMock.mockImplementation(async (_args: unknown) => ({
+    dispatchProviderSubmitMock.mockImplementation(async () => ({
       response: { ok: true, status: 200 },
       data: { request_id: `req-${dispatchProviderSubmitMock.mock.calls.length}` },
       providerRequestId: `req-${dispatchProviderSubmitMock.mock.calls.length}`,

@@ -237,6 +237,8 @@ export function MediaLibraryPanelFoldersSection({
                       onClick={() => handleOpenFolder(folder.id)}
                       aria-label={`${folder.name} folder`}
                     >
+                      {/* Decorative folder tile image; raw img preserves current chip sizing and load behavior. */}
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img
                         className="media-library-panel-folder-chip-image"
                         src={FOLDER_TILE_IMAGE_SRC}
@@ -288,6 +290,8 @@ export function MediaLibraryPanelFoldersSection({
                       onClick={() => handleOpenFolder(folder.id)}
                       aria-label={`${folder.name} folder`}
                     >
+                      {/* Decorative folder tile image; raw img preserves current chip sizing and load behavior. */}
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img
                         className="media-library-panel-folder-chip-image"
                         src={FOLDER_TILE_IMAGE_SRC}
@@ -340,6 +344,8 @@ export function MediaLibraryPanelFoldersSection({
             height: `${openingFolderGhost.height}px`,
           }}
         >
+          {/* Ghost overlay mirrors the live folder tile exactly during transition. */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={FOLDER_TILE_IMAGE_SRC} alt="" />
         </div>
       ) : null}

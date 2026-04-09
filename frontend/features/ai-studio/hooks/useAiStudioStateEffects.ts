@@ -336,6 +336,7 @@ export const useAiStudioStateEffects = ({
     lastNonKling3VideoModelRef,
     lastNonMotionVideoModelRef,
     lastVideoReferenceModeRef,
+    setVideoReferenceModeIfChanged,
     model,
     selectedTool,
     setModelIfChanged,

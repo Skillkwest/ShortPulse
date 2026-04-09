@@ -16,7 +16,6 @@ const routerState = vi.hoisted(() => ({
   isReady: true,
   asPath: "/",
 }));
-const getSessionMock = vi.hoisted(() => vi.fn());
 const signInWithPasswordMock = vi.hoisted(() => vi.fn());
 const signUpMock = vi.hoisted(() => vi.fn());
 const resetPasswordForEmailMock = vi.hoisted(() => vi.fn());

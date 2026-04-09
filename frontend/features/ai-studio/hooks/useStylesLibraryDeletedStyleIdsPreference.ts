@@ -31,14 +31,6 @@ const normalizeDeletedStyleIds = (value: unknown): string[] => {
   return normalized;
 };
 
-const areStringArraysEqual = (left: readonly string[], right: readonly string[]): boolean => {
-  if (left.length !== right.length) return false;
-  for (let index = 0; index < left.length; index += 1) {
-    if (left[index] !== right[index]) return false;
-  }
-  return true;
-};
-
 const readLocalDeletedStyleIds = (): string[] => {
   if (typeof window === "undefined") return [];
   const stored = window.localStorage.getItem(DELETED_STYLE_IDS_STORAGE_KEY);

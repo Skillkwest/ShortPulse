@@ -7,7 +7,10 @@ import {
 const rpcMock = vi.fn();
 const updateEqMock = vi.fn();
 const updateMock = vi.fn(() => ({ eq: updateEqMock }));
-const fromMock = vi.fn((_table?: string) => ({ update: updateMock }));
+const fromMock = vi.fn((table?: string) => {
+  void table;
+  return { update: updateMock };
+});
 const getSupabaseAdminMock = vi.fn();
 
 vi.mock("../supabaseAdmin", () => ({

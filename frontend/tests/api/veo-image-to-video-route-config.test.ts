@@ -1,7 +1,13 @@
 import { describe, expect, it, vi } from "vitest";
 
-const createFalSubmitHandlerMock = vi.fn((_config?: Record<string, unknown>) => vi.fn());
-const validateFalPayloadForModelMock = vi.fn((_modelId?: string) => undefined);
+const createFalSubmitHandlerMock = vi.fn((config?: Record<string, unknown>) => {
+  void config;
+  return vi.fn();
+});
+const validateFalPayloadForModelMock = vi.fn((modelId?: string) => {
+  void modelId;
+  return undefined;
+});
 
 vi.mock("../../lib/server/api/falSubmitProxy", () => ({
   createFalSubmitHandler: (config: Record<string, unknown>) => createFalSubmitHandlerMock(config),

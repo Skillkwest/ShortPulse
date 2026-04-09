@@ -26,7 +26,7 @@ describe("generationAttempts", () => {
     }: {
       columns: string;
       filters?: Array<[string, string]>;
-    }): any => {
+    }): unknown => {
       const query = {
         eq: vi.fn((field: string, value: string) =>
           buildQuery({ columns, filters: [...filters, [field, value]] })
@@ -67,7 +67,7 @@ describe("generationAttempts", () => {
           insert: vi.fn((payload: Record<string, unknown>) => {
             insertCalls.push(payload);
             return {
-              select: vi.fn((_columns: string) => ({
+              select: vi.fn(() => ({
                 single: vi.fn(async () => ({
                   data: {
                     id: "attempt-1",
@@ -154,7 +154,7 @@ describe("generationAttempts", () => {
     }: {
       columns: string;
       filters?: Array<[string, string]>;
-    }): any => {
+    }): unknown => {
       const query = {
         eq: vi.fn((field: string, value: string) =>
           buildQuery({ columns, filters: [...filters, [field, value]] })
@@ -200,7 +200,7 @@ describe("generationAttempts", () => {
             return buildQuery({ columns });
           }),
           insert: vi.fn(() => ({
-            select: vi.fn((_columns: string) => ({
+            select: vi.fn(() => ({
               single: vi.fn(async () => ({
                 data: null,
                 error: {

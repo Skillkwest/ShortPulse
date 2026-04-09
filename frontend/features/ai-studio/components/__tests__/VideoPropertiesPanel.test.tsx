@@ -53,9 +53,10 @@ const createReferenceSetState = (overrides?: {
   };
 };
 
-const referencePromptStepMock = vi.fn((_props: ReferencePromptStepMockProps) => (
-  <div data-testid="reference-prompt-step" />
-));
+const referencePromptStepMock = vi.fn((props: ReferencePromptStepMockProps) => {
+  void props;
+  return <div data-testid="reference-prompt-step" />;
+});
 
 vi.mock("../../../character-manager/logic/characterManagerPersistence", () => ({
   listCharacterManagerCharacters: vi.fn(async () => [

@@ -97,7 +97,6 @@ export const useAiStudioPageDerivations = ({
     return allowedOptions;
   }, [
     extraImageUrls,
-    getModelConfig,
     isCharacterModeEnabled,
     mode,
     model,

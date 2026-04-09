@@ -172,7 +172,6 @@ export function ElementsManagerShell({
         ? [activeReferenceSet.videoReferenceUrl]
         : []
   );
-  const profileInitials = buildElementInitials(draft.name);
   React.useEffect(() => {
     onActiveTabChange?.(activeTab);
   }, [activeTab, onActiveTabChange]);

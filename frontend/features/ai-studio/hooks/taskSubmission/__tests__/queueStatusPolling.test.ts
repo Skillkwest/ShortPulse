@@ -6,7 +6,6 @@ import {
   QUEUE_STATUS_MAX_WAIT_MS,
   startQueuedStatusPolling,
 } from "../queueStatusPolling";
-import { QUEUE_STATUS_NOT_FOUND_MAX_RETRIES } from "../queueStatusNotFoundPolicy";
 
 vi.mock("../../../../../lib/falClient", () => ({
   fetchFalQueueStatus: vi.fn(),

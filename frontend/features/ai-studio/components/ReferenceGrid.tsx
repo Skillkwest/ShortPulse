@@ -14,10 +14,7 @@ import {
 import { isAdaptiveSurfaceEnabled } from "../../../lib/adaptive-media";
 import { ReferenceGridSections } from "../reference-grid/components/ReferenceGridSections";
 import { useReferenceGridClipboardController } from "../reference-grid/controllers/useReferenceGridClipboardController";
-import {
-  useReferenceGridDropController,
-  type ReferenceGridDropMode,
-} from "../reference-grid/controllers/useReferenceGridDropController";
+import { useReferenceGridDropController } from "../reference-grid/controllers/useReferenceGridDropController";
 import { useReferenceGridCuratedDndController } from "../reference-grid/controllers/useReferenceGridCuratedDndController";
 import { useReferenceGridScrollController } from "../reference-grid/controllers/useReferenceGridScrollController";
 import { useReferenceGridVideoLifecycleController } from "../reference-grid/controllers/useReferenceGridVideoLifecycleController";
@@ -100,7 +97,6 @@ function ReferenceGridComponent({
     allOutputIds,
     archivedOutputs,
     curatedOutputs,
-    outputById,
     suspendBackgroundVisualWork,
     isStylesPanelOpen,
     showReferenceGridSection,

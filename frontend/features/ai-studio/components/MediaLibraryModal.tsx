@@ -208,6 +208,8 @@ export function MediaLibraryModal({
 
   useEffect(() => {
     if (isOpen) {
+      // Intentional reset on open to preserve modal session behavior without altering interaction flow.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setSelectedIds(new Set());
       setSearch("");
       setDebouncedSearch("");

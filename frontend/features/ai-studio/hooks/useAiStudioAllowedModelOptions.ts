@@ -42,14 +42,6 @@ export const useAiStudioAllowedModelOptions = ({
         options: modelOptions,
         getModelConfig,
       }),
-    [
-      extraImageUrls,
-      isCharacterModeEnabled,
-      mode,
-      referenceImageUrl,
-      resolvedVideoLane,
-      selectedTool,
-      videoReferenceMode,
-    ]
+    [isCharacterModeEnabled, mode, resolvedVideoLane, selectedTool, videoReferenceMode]
   );
 };

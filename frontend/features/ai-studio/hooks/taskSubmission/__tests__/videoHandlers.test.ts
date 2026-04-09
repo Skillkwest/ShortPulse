@@ -4,6 +4,7 @@ import { getModelConfig } from "../../../logic/pricing";
 import { handleVideoModelSubmission } from "../videoHandlers";
 import {
   submitKieKlingImageToVideo,
+  submitKieSeedance2Video,
   submitKieSeedanceVideo,
   submitKieVeoImageToVideo,
 } from "../../../../../lib/falClient";
@@ -12,11 +13,13 @@ import { getSignedMediaUrl } from "../../../../../lib/mediaSignedUrlCache";
 import {
   KIE_KLING_30_MODEL_ID,
   KIE_SEEDANCE_15_PRO_MODEL_ID,
+  KIE_SEEDANCE_2_MODEL_ID,
   KIE_VEO_31_FAST_I2V_MODEL_ID,
 } from "../../../../../lib/model-runtime/providerModelIds";
 
 vi.mock("../../../../../lib/falClient", () => ({
   submitKieKlingImageToVideo: vi.fn(),
+  submitKieSeedance2Video: vi.fn(),
   submitKieSeedanceVideo: vi.fn(),
   submitKieVeoImageToVideo: vi.fn(),
   submitFalSeedance: vi.fn(),
@@ -303,11 +306,32 @@ describe("handleVideoModelSubmission (Kie Veo keyframes)", () => {
   });
 
   it("submits first+last frame payload in keyframes mode", async () => {
+    vi.mocked(fetchWithAuth)
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          url: "https://tempfile.aiquickdraw.com/shortpulse/kie-video/images/veo-first.png",
+        }),
+      } as Response)
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          url: "https://tempfile.aiquickdraw.com/shortpulse/kie-video/images/veo-last.png",
+        }),
+      } as Response);
+
     const args = makeArgs({
       finalModel: KIE_VEO_31_FAST_I2V_MODEL_ID,
       modelConfig: getModelConfig(KIE_VEO_31_FAST_I2V_MODEL_ID),
       videoReferenceMode: "keyframes",
-      preparedImageInputs: ["https://example.com/first.png", "https://example.com/last.png"],
+      aspect: "9:16",
+      requestedDurationSeconds: 8,
+      requestedResolution: "1080p",
+      requestedAudio: false,
+      preparedImageInputs: [
+        "https://example.supabase.co/storage/v1/object/sign/media_library/user/first.png?token=abc",
+        "https://example.supabase.co/storage/v1/object/sign/media_library/user/last.png?token=def",
+      ],
     });
 
     const handled = await handleVideoModelSubmission(args);
@@ -315,15 +339,28 @@ describe("handleVideoModelSubmission (Kie Veo keyframes)", () => {
     expect(handled).toBe(true);
     expect(submitKieVeoImageToVideo).toHaveBeenCalledWith(
       expect.objectContaining({
-        image_url: "https://example.com/first.png",
-        image_urls: ["https://example.com/first.png", "https://example.com/last.png"],
+        image_url: "https://tempfile.aiquickdraw.com/shortpulse/kie-video/images/veo-first.png",
+        image_urls: [
+          "https://tempfile.aiquickdraw.com/shortpulse/kie-video/images/veo-first.png",
+          "https://tempfile.aiquickdraw.com/shortpulse/kie-video/images/veo-last.png",
+        ],
         generation_type: "FIRST_AND_LAST_FRAMES_2_VIDEO",
+        aspect_ratio: "9:16",
+        duration: 8,
+        resolution: "1080p",
+        generate_audio: false,
       })
     );
   });
 
   it("submits single-image payload in standard mode with first/last generation type", async () => {
     vi.mocked(submitKieVeoImageToVideo).mockResolvedValue({ request_id: "req-kie-veo-standard" });
+    vi.mocked(fetchWithAuth).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        url: "https://tempfile.aiquickdraw.com/shortpulse/kie-video/images/veo-single.png",
+      }),
+    } as Response);
 
     const handled = await handleVideoModelSubmission(
       makeArgs({
@@ -332,15 +369,17 @@ describe("handleVideoModelSubmission (Kie Veo keyframes)", () => {
         videoReferenceMode: "standard",
         requestedDurationSeconds: 4,
         requestedResolution: "720p",
-        preparedImageInputs: ["https://example.com/first.png"],
+        preparedImageInputs: [
+          "https://example.supabase.co/storage/v1/object/sign/media_library/user/first.png?token=abc",
+        ],
       })
     );
 
     expect(handled).toBe(true);
     expect(submitKieVeoImageToVideo).toHaveBeenCalledWith({
       prompt: "A dancer twirls",
-      image_url: "https://example.com/first.png",
-      image_urls: ["https://example.com/first.png"],
+      image_url: "https://tempfile.aiquickdraw.com/shortpulse/kie-video/images/veo-single.png",
+      image_urls: ["https://tempfile.aiquickdraw.com/shortpulse/kie-video/images/veo-single.png"],
       generation_type: "FIRST_AND_LAST_FRAMES_2_VIDEO",
       aspect_ratio: "16:9",
       duration: 5,
@@ -351,21 +390,41 @@ describe("handleVideoModelSubmission (Kie Veo keyframes)", () => {
 
   it("promotes Kie Veo standard mode to first+last when two frames are present", async () => {
     vi.mocked(submitKieVeoImageToVideo).mockResolvedValue({ request_id: "req-kie-veo-dual" });
+    vi.mocked(fetchWithAuth)
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          url: "https://tempfile.aiquickdraw.com/shortpulse/kie-video/images/veo-standard-first.png",
+        }),
+      } as Response)
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          url: "https://tempfile.aiquickdraw.com/shortpulse/kie-video/images/veo-standard-last.png",
+        }),
+      } as Response);
 
     const handled = await handleVideoModelSubmission(
       makeArgs({
         finalModel: KIE_VEO_31_FAST_I2V_MODEL_ID,
         modelConfig: getModelConfig(KIE_VEO_31_FAST_I2V_MODEL_ID),
         videoReferenceMode: "standard",
-        preparedImageInputs: ["https://example.com/first.png", "https://example.com/last.png"],
+        preparedImageInputs: [
+          "https://example.supabase.co/storage/v1/object/sign/media_library/user/first.png?token=abc",
+          "https://example.supabase.co/storage/v1/object/sign/media_library/user/last.png?token=def",
+        ],
       })
     );
 
     expect(handled).toBe(true);
     expect(submitKieVeoImageToVideo).toHaveBeenCalledWith(
       expect.objectContaining({
-        image_url: "https://example.com/first.png",
-        image_urls: ["https://example.com/first.png", "https://example.com/last.png"],
+        image_url:
+          "https://tempfile.aiquickdraw.com/shortpulse/kie-video/images/veo-standard-first.png",
+        image_urls: [
+          "https://tempfile.aiquickdraw.com/shortpulse/kie-video/images/veo-standard-first.png",
+          "https://tempfile.aiquickdraw.com/shortpulse/kie-video/images/veo-standard-last.png",
+        ],
         generation_type: "FIRST_AND_LAST_FRAMES_2_VIDEO",
       })
     );
@@ -376,6 +435,10 @@ describe("handleVideoModelSubmission (Kie Veo keyframes)", () => {
       finalModel: KIE_VEO_31_FAST_I2V_MODEL_ID,
       modelConfig: getModelConfig(KIE_VEO_31_FAST_I2V_MODEL_ID),
       videoReferenceMode: "standard",
+      aspect: "9:16",
+      requestedDurationSeconds: 8,
+      requestedResolution: "1080p",
+      requestedAudio: false,
       preparedImageInputs: [],
     });
 
@@ -387,6 +450,10 @@ describe("handleVideoModelSubmission (Kie Veo keyframes)", () => {
         image_url: undefined,
         image_urls: [],
         generation_type: "TEXT_2_VIDEO",
+        aspect_ratio: "9:16",
+        duration: 8,
+        resolution: "1080p",
+        generate_audio: false,
       })
     );
   });
@@ -457,10 +524,27 @@ describe("handleVideoModelSubmission (Kie Seedance 1.5 Pro)", () => {
   });
 
   it("submits one or two input URLs for Seedance image lanes", async () => {
+    vi.mocked(fetchWithAuth)
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          url: "https://tempfile.aiquickdraw.com/shortpulse/kie-video/images/first.png",
+        }),
+      } as Response)
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          url: "https://tempfile.aiquickdraw.com/shortpulse/kie-video/images/last.png",
+        }),
+      } as Response);
+
     const args = makeArgs({
       finalModel: KIE_SEEDANCE_15_PRO_MODEL_ID,
       modelConfig: getModelConfig(KIE_SEEDANCE_15_PRO_MODEL_ID),
-      preparedImageInputs: ["https://example.com/first.png", "https://example.com/last.png"],
+      preparedImageInputs: [
+        "https://example.supabase.co/storage/v1/object/sign/media_library/user/first.png?token=abc",
+        "https://example.supabase.co/storage/v1/object/sign/media_library/user/last.png?token=def",
+      ],
       requestedDurationSeconds: 12,
       requestedResolution: "480p",
       aspect: "9:16",
@@ -471,15 +555,75 @@ describe("handleVideoModelSubmission (Kie Seedance 1.5 Pro)", () => {
     const handled = await handleVideoModelSubmission(args);
 
     expect(handled).toBe(true);
+    expect(fetchWithAuth).toHaveBeenCalledTimes(2);
     expect(submitKieSeedanceVideo).toHaveBeenCalledWith({
       prompt: "A dancer twirls",
-      input_urls: ["https://example.com/first.png", "https://example.com/last.png"],
+      input_urls: [
+        "https://tempfile.aiquickdraw.com/shortpulse/kie-video/images/first.png",
+        "https://tempfile.aiquickdraw.com/shortpulse/kie-video/images/last.png",
+      ],
       aspect_ratio: "9:16",
       duration: "12",
       resolution: "480p",
       fixed_lens: false,
       generate_audio: false,
     });
+  });
+});
+
+describe("handleVideoModelSubmission (Kie Seedance 2)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    vi.mocked(submitKieSeedance2Video).mockResolvedValue({ request_id: "kie-seedance-2" });
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("uploads first and last frame URLs to Kie temporary storage before submit", async () => {
+    vi.mocked(fetchWithAuth)
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          url: "https://tempfile.aiquickdraw.com/shortpulse/kie-video/images/first-frame.png",
+        }),
+      } as Response)
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          url: "https://tempfile.aiquickdraw.com/shortpulse/kie-video/images/last-frame.png",
+        }),
+      } as Response);
+
+    const args = makeArgs({
+      finalModel: KIE_SEEDANCE_2_MODEL_ID,
+      modelConfig: getModelConfig(KIE_SEEDANCE_2_MODEL_ID),
+      preparedImageInputs: [
+        "https://example.supabase.co/storage/v1/object/sign/media_library/user/first.png?token=abc",
+        "https://example.supabase.co/storage/v1/object/sign/media_library/user/last.png?token=def",
+      ],
+      requestedDurationSeconds: 10,
+      requestedResolution: "720p",
+      aspect: "9:16",
+      requestedAudio: false,
+      videoReferenceMode: "standard",
+      seedance2InputMode: "first-last",
+    });
+
+    const handled = await handleVideoModelSubmission(args);
+
+    expect(handled).toBe(true);
+    expect(fetchWithAuth).toHaveBeenCalledTimes(2);
+    expect(submitKieSeedance2Video).toHaveBeenCalledWith(
+      expect.objectContaining({
+        first_frame_url:
+          "https://tempfile.aiquickdraw.com/shortpulse/kie-video/images/first-frame.png",
+        last_frame_url:
+          "https://tempfile.aiquickdraw.com/shortpulse/kie-video/images/last-frame.png",
+      })
+    );
   });
 });
 

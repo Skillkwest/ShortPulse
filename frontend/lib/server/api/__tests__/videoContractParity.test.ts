@@ -56,7 +56,7 @@ describe("video contract parity", () => {
     const normalized = assertNormalizedVideoPayload("kie-ai/veo-3.1-fast-i2v", {
       prompt: "A cinematic drone shot over a neon city at dusk",
       generationType: "TEXT_2_VIDEO",
-      aspectRatio: "16:9",
+      aspectRatio: "9:16",
       duration: 5,
       resolution: "720p",
       generateAudio: true,
@@ -77,12 +77,53 @@ describe("video contract parity", () => {
       expect.objectContaining({
         prompt: "A cinematic drone shot over a neon city at dusk",
         generationType: "TEXT_2_VIDEO",
-        aspect_ratio: "16:9",
+        aspect_ratio: "9:16",
         duration: 5,
         resolution: "720p",
         generate_audio: true,
       })
     );
+  });
+
+  it("keeps Kie Seedance 1.5 ingress aliases aligned with route contract and provider normalizer", () => {
+    const normalized = assertNormalizedVideoPayload("kie-ai/seedance-1.5-pro", {
+      prompt: "animate the portrait into a short fashion clip",
+      inputUrls: ["https://cdn.shortpulse.test/first.png", "https://cdn.shortpulse.test/last.png"],
+      aspectRatio: "9:16",
+      duration: 12,
+      resolution: "1080p",
+      generateAudio: false,
+      fixedLens: true,
+      callbackUrl: "https://api.shortpulse.test/callback",
+    });
+
+    const contractResult = evaluateFalPayloadContractForModel("kie-ai/seedance-1.5-pro", {
+      enforceAllowedTopLevelFields: true,
+      projectAllowedTopLevelFields: true,
+    })(normalized.payload);
+    expect(contractResult.valid).toBe(true);
+    if (!contractResult.valid) throw new Error(contractResult.error);
+
+    const providerPayload = normalizeKieSubmitPayloadForModel({
+      modelId: "kie-ai/seedance-1.5-pro",
+      payload: contractResult.projectedPayload,
+    });
+    expect(providerPayload).toEqual({
+      model: "bytedance/seedance-1.5-pro",
+      callBackUrl: "https://api.shortpulse.test/callback",
+      input: {
+        prompt: "animate the portrait into a short fashion clip",
+        input_urls: [
+          "https://cdn.shortpulse.test/first.png",
+          "https://cdn.shortpulse.test/last.png",
+        ],
+        aspect_ratio: "9:16",
+        resolution: "1080p",
+        duration: "12",
+        generate_audio: false,
+        fixed_lens: true,
+      },
+    });
   });
 
   it("keeps Kie Kling motion aliases aligned with route contract and provider normalizer", () => {

@@ -33,11 +33,13 @@ import {
   resolveKieKlingDuration,
   resolveKieKlingMode,
   resolveKlingResolution,
+  resolveSeedanceI2VAspect,
   resolveSeedance2Duration,
   resolveSeedance2Resolution,
   resolveSeedanceI2VDuration,
   resolveSeedanceI2VResolution,
-  resolveSeedanceTextAspect,
+  resolveVeoResolution,
+  resolveVeoTextAspect,
 } from "./videoPayloads";
 
 const FAL_KLING_IMAGE_MODEL_ID = "fal-ai/kling-video/v3/pro/image-to-video";
@@ -91,7 +93,7 @@ const uploadUrlToKieTemporaryFile = async ({
   cache,
 }: {
   url: string;
-  mediaKind: "image" | "video";
+  mediaKind: "image" | "video" | "audio";
   cache: Map<string, Promise<string>>;
 }): Promise<string> => {
   const normalizedUrl = url.trim();
@@ -111,8 +113,10 @@ const uploadUrlToKieTemporaryFile = async ({
         fileUrl: normalizedUrl,
         uploadPath:
           mediaKind === "image"
-            ? "shortpulse/kling-elements/images"
-            : "shortpulse/kling-elements/videos",
+            ? "shortpulse/kie-video/images"
+            : mediaKind === "video"
+              ? "shortpulse/kie-video/videos"
+              : "shortpulse/kie-video/audio",
       }),
       shortpulseLogScope: "generation",
     });
@@ -149,6 +153,27 @@ const uploadUrlToKieTemporaryFile = async ({
     throw error;
   }
 };
+
+const uploadUrlsToKieTemporaryFiles = async ({
+  urls,
+  mediaKind,
+  cache,
+}: {
+  urls: string[];
+  mediaKind: "image" | "video" | "audio";
+  cache: Map<string, Promise<string>>;
+}): Promise<string[]> =>
+  (
+    await Promise.all(
+      urls.map(async (url) =>
+        uploadUrlToKieTemporaryFile({
+          url,
+          mediaKind,
+          cache,
+        })
+      )
+    )
+  ).filter(Boolean);
 
 const prepareKlingElementForSubmission = async (
   element: AiStudioKlingElement
@@ -399,13 +424,19 @@ export const handleVideoModelSubmission = async ({
   if (finalModel === KIE_VEO_31_FAST_I2V_MODEL_ID) {
     const resolvedGenerationType =
       preparedImageInputs.length === 0 ? "TEXT_2_VIDEO" : "FIRST_AND_LAST_FRAMES_2_VIDEO";
-    const keyframeImageUrls =
+    const keyframeImageUrlsRaw =
       preparedImageInputs.length >= 2
         ? preparedImageInputs.slice(0, 2)
         : preparedImageInputs.slice(0, 1);
-    const aspectRatio = aspect === "9:16" ? "9:16" : "16:9";
+    const kieUploadCache = new Map<string, Promise<string>>();
+    const keyframeImageUrls = await uploadUrlsToKieTemporaryFiles({
+      urls: keyframeImageUrlsRaw,
+      mediaKind: "image",
+      cache: kieUploadCache,
+    });
+    const aspectRatio = resolveVeoTextAspect(aspect, modelConfig);
     const duration = requestedDurationSeconds <= 5 ? 5 : 8;
-    const resolution = requestedResolution?.toLowerCase().includes("1080") ? "1080p" : "720p";
+    const resolution = resolveVeoResolution(requestedResolution);
     const response = await submitKieVeoImageToVideo({
       prompt: cleanedPrompt,
       image_url: keyframeImageUrls[0],
@@ -444,14 +475,20 @@ export const handleVideoModelSubmission = async ({
   }
 
   if (finalModel === KIE_SEEDANCE_15_PRO_MODEL_ID) {
-    const inputUrls =
+    const inputUrlsRaw =
       preparedImageInputs.length >= 2
         ? preparedImageInputs.slice(0, 2)
         : preparedImageInputs.slice(0, 1);
+    const kieUploadCache = new Map<string, Promise<string>>();
+    const inputUrls = await uploadUrlsToKieTemporaryFiles({
+      urls: inputUrlsRaw,
+      mediaKind: "image",
+      cache: kieUploadCache,
+    });
     const response = await submitKieSeedanceVideo({
       prompt: cleanedPrompt,
       input_urls: inputUrls,
-      aspect_ratio: resolveSeedanceTextAspect(aspect, modelConfig),
+      aspect_ratio: resolveSeedanceI2VAspect(aspect, modelConfig),
       duration: resolveSeedanceI2VDuration(requestedDurationSeconds),
       resolution: resolveSeedanceI2VResolution(requestedResolution),
       fixed_lens: videoCameraFixed,
@@ -487,23 +524,67 @@ export const handleVideoModelSubmission = async ({
         : submitKieSeedance2Video;
     const pollingProvider =
       finalModel === KIE_SEEDANCE_2_FAST_MODEL_ID ? "kie-seedance-2-fast" : "kie-seedance-2";
+    const kieUploadCache = new Map<string, Promise<string>>();
+    const [
+      firstFrameUrl,
+      lastFrameUrl,
+      referenceImageUrls,
+      referenceVideoUrls,
+      referenceAudioUrls,
+    ] = await Promise.all([
+      effectiveInputMode === "first-frame" || effectiveInputMode === "first-last"
+        ? uploadUrlToKieTemporaryFile({
+            url: preparedImageInputs[0] ?? "",
+            mediaKind: "image",
+            cache: kieUploadCache,
+          })
+        : Promise.resolve(""),
+      effectiveInputMode === "first-last"
+        ? uploadUrlToKieTemporaryFile({
+            url: preparedImageInputs[1] ?? "",
+            mediaKind: "image",
+            cache: kieUploadCache,
+          })
+        : Promise.resolve(""),
+      effectiveInputMode === "multimodal"
+        ? uploadUrlsToKieTemporaryFiles({
+            urls: seedance2ReferenceImageUrls,
+            mediaKind: "image",
+            cache: kieUploadCache,
+          })
+        : Promise.resolve([]),
+      effectiveInputMode === "multimodal"
+        ? uploadUrlsToKieTemporaryFiles({
+            urls: seedance2ReferenceVideoUrls,
+            mediaKind: "video",
+            cache: kieUploadCache,
+          })
+        : Promise.resolve([]),
+      effectiveInputMode === "multimodal"
+        ? uploadUrlsToKieTemporaryFiles({
+            urls: seedance2ReferenceAudioUrls,
+            mediaKind: "audio",
+            cache: kieUploadCache,
+          })
+        : Promise.resolve([]),
+    ]);
 
     const response = await submitSeedance2({
       prompt: cleanedPrompt,
       ...(effectiveInputMode === "first-frame" || effectiveInputMode === "first-last"
-        ? { first_frame_url: preparedImageInputs[0] }
+        ? { first_frame_url: firstFrameUrl }
         : {}),
-      ...(effectiveInputMode === "first-last" ? { last_frame_url: preparedImageInputs[1] } : {}),
-      ...(effectiveInputMode === "multimodal" && seedance2ReferenceImageUrls.length
-        ? { reference_image_urls: seedance2ReferenceImageUrls }
+      ...(effectiveInputMode === "first-last" ? { last_frame_url: lastFrameUrl } : {}),
+      ...(effectiveInputMode === "multimodal" && referenceImageUrls.length
+        ? { reference_image_urls: referenceImageUrls }
         : {}),
-      ...(effectiveInputMode === "multimodal" && seedance2ReferenceVideoUrls.length
-        ? { reference_video_urls: seedance2ReferenceVideoUrls }
+      ...(effectiveInputMode === "multimodal" && referenceVideoUrls.length
+        ? { reference_video_urls: referenceVideoUrls }
         : {}),
-      ...(effectiveInputMode === "multimodal" && seedance2ReferenceAudioUrls.length
-        ? { reference_audio_urls: seedance2ReferenceAudioUrls }
+      ...(effectiveInputMode === "multimodal" && referenceAudioUrls.length
+        ? { reference_audio_urls: referenceAudioUrls }
         : {}),
-      aspect_ratio: resolveSeedanceTextAspect(aspect, modelConfig),
+      aspect_ratio: resolveSeedanceI2VAspect(aspect, modelConfig),
       duration: resolveSeedance2Duration(requestedDurationSeconds),
       resolution: resolveSeedance2Resolution(requestedResolution),
       generate_audio: requestedAudio,

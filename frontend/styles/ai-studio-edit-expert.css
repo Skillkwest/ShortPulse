@@ -1548,7 +1548,7 @@
 }
 
 .edit-expert-primary-canvas-frame-stack.has-preview .edit-expert-primary-canvas-frame {
-  border-color: rgba(201, 205, 214, 0.24);
+  border: 0;
   background: rgba(148, 160, 161, 0.03);
   box-shadow: inset 0 0 0 1px rgba(201, 205, 214, 0.12);
 }
@@ -1589,7 +1589,7 @@
 
 .edit-expert-primary-composition-surface.has-preview {
   background-color: #94a0a108;
-  box-shadow: inset 0 0 0 1px rgba(201, 205, 214, 0.2);
+  box-shadow: none;
   touch-action: none;
 }
 
@@ -1617,6 +1617,10 @@
   background-size: 100% 100%;
   background-repeat: no-repeat;
   background-position: center;
+}
+
+.edit-expert-primary-canvas-frame-stack.has-preview .edit-expert-primary-layer-frame {
+  background-size: calc(100% + 4px) calc(100% + 4px);
 }
 
 .edit-expert-primary-layer-selection-overlay {

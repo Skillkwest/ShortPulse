@@ -11,6 +11,17 @@ import {
   WORKFLOW_SETTINGS_SESSION_KEY,
   useAiStudioWorkflowSettings,
 } from "../useAiStudioWorkflowSettings";
+import type { AiStudioKlingElement } from "../../logic/klingElements";
+
+const createTestKlingElement = (
+  overrides: Partial<AiStudioKlingElement> = {}
+): AiStudioKlingElement => ({
+  id: "el-1",
+  frontalImageUrl: "",
+  referenceImageUrls: "",
+  videoUrl: "",
+  ...overrides,
+});
 
 const useHarness = (initialTool: ToolId | null, sessionId = "session-1") => {
   const [selectedTool, setSelectedTool] = useState<ToolId | null>(initialTool);
@@ -44,9 +55,9 @@ const useHarness = (initialTool: ToolId | null, sessionId = "session-1") => {
   const [klingMultiPrompts, setKlingMultiPrompts] = useState<
     { id: string; prompt: string; duration: number }[]
   >([]);
-  const [klingElements, setKlingElements] = useState<
-    { id: string; frontalImageUrl: string; referenceImageUrls: string; videoUrl: string }[]
-  >([{ id: "el-1", frontalImageUrl: "", referenceImageUrls: "", videoUrl: "" }]);
+  const [klingElements, setKlingElements] = useState<AiStudioKlingElement[]>([
+    createTestKlingElement(),
+  ]);
 
   const workflow = useAiStudioWorkflowSettings({
     sessionId,

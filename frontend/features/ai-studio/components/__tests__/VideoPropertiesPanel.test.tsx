@@ -10,8 +10,13 @@ import {
   listCharacterManagerCharacters,
   loadCharacterManagerDraftByCharacterId,
 } from "../../../character-manager/logic/characterManagerPersistence";
+import { createDefaultElementReferenceSetState } from "../../../elements-manager/constants";
 import { loadElementManagerDraftByElementId } from "../../../elements-manager/logic/elementsManagerPersistence";
 import { buildElementProfileImageBackgroundStyle } from "../../../elements-manager/logic/elementProfileImageTransform";
+import type {
+  ElementReferenceSetLabelMap,
+  ElementReferenceSetMap,
+} from "../../../elements-manager/types";
 import type { AiStudioKlingElement } from "../../logic/klingElements";
 import { KLING_ELEMENT_PROMPT_TOKEN_TRANSFER_MIME } from "../../logic/klingPromptReferences";
 
@@ -25,6 +30,27 @@ type ReferencePromptStepMockProps = {
   agentIsSending?: boolean;
   agentError?: string;
   onAgentEnhanceSend?: unknown;
+};
+
+const createReferenceSetState = (overrides?: {
+  activeSetId?: ReturnType<typeof createDefaultElementReferenceSetState>["activeSetId"];
+  tabOrder?: ReturnType<typeof createDefaultElementReferenceSetState>["tabOrder"];
+  tabLabels?: Partial<ElementReferenceSetLabelMap>;
+  sets?: Partial<ElementReferenceSetMap>;
+}) => {
+  const defaults = createDefaultElementReferenceSetState();
+  return {
+    ...defaults,
+    ...overrides,
+    tabLabels: {
+      ...defaults.tabLabels,
+      ...overrides?.tabLabels,
+    },
+    sets: {
+      ...defaults.sets,
+      ...overrides?.sets,
+    },
+  };
 };
 
 const referencePromptStepMock = vi.fn((_props: ReferencePromptStepMockProps) => (
@@ -116,10 +142,9 @@ vi.mock("../../../elements-manager/logic/elementsManagerPersistence", () => ({
     profileImageUrl: "https://example.com/red-lantern-profile.jpg",
     profileImageTransform: { zoom: 1.35, offsetX: 8, offsetY: -6 },
     updatedAt: "2026-04-07T00:00:00.000Z",
-    referenceSetState: {
+    referenceSetState: createReferenceSetState({
       activeSetId: "1",
       tabOrder: ["1"],
-      tabLabels: { "1": "Double click me" },
       sets: {
         "1": {
           assetType: "image",
@@ -133,7 +158,7 @@ vi.mock("../../../elements-manager/logic/elementsManagerPersistence", () => ({
           videoReferenceUrl: "",
         },
       },
-    },
+    }),
   })),
 }));
 
@@ -651,10 +676,9 @@ describe("VideoPropertiesPanel", () => {
       profileImageUrl: "https://example.com/deck-orchid-profile.jpg",
       profileImageTransform: { zoom: 1.12, offsetX: 2, offsetY: -4 },
       updatedAt: "2026-04-07T00:00:00.000Z",
-      referenceSetState: {
+      referenceSetState: createReferenceSetState({
         activeSetId: "1",
         tabOrder: ["1"],
-        tabLabels: { "1": "Double click me" },
         sets: {
           "1": {
             assetType: "image",
@@ -667,7 +691,7 @@ describe("VideoPropertiesPanel", () => {
             videoReferenceUrl: "",
           },
         },
-      },
+      }),
       userId: "user-1",
     });
     const onKlingElementsChange = vi.fn();
@@ -823,10 +847,9 @@ describe("VideoPropertiesPanel", () => {
       profileImageUrl: "https://example.com/red-lantern-profile.jpg",
       profileImageTransform: { zoom: 1.35, offsetX: 8, offsetY: -6 },
       updatedAt: "2026-04-07T00:00:00.000Z",
-      referenceSetState: {
+      referenceSetState: createReferenceSetState({
         activeSetId: "1",
         tabOrder: ["1"],
-        tabLabels: { "1": "Double click me" },
         sets: {
           "1": {
             assetType: "image",
@@ -836,7 +859,7 @@ describe("VideoPropertiesPanel", () => {
             videoReferenceUrl: "",
           },
         },
-      },
+      }),
       userId: "user-1",
     });
     const onKlingElementsChange = vi.fn();

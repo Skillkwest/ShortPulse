@@ -754,6 +754,68 @@ describe("createFalStatusHandler", () => {
     );
   });
 
+  it("returns a terminal lifecycle failure when kie veo status is blocked by safety filters", async () => {
+    process.env.SHORTPULSE_KIE_INTEGRATION_ENABLED = "true";
+    process.env.SHORTPULSE_KIE_MODEL_ALLOWLIST = "kie-ai/veo-3.1-fast-i2v";
+    process.env.SHORTPULSE_KIE_TRUSTED_HOSTS = "kie.ai";
+    process.env.KIE_API_KEY = "test-kie-key";
+
+    const policyMessage =
+      "Request blocked: The input content was flagged by safety filters for containing sexual or explicit material.";
+
+    const fetchMock = vi.fn().mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          code: 400,
+          msg: "error",
+          data: {
+            taskId: "req-kie-policy-blocked",
+          },
+          error_message: policyMessage,
+        }),
+        {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }
+      )
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const handler = createFalStatusHandler({
+      provider: "kie",
+      modelId: "kie-ai/veo-3.1-fast-i2v",
+      queueBaseUrl: "https://api.kie.ai/api/v1/veo/record-info?taskId={requestId}",
+      routeLabel: "Kie Veo 3.1 Fast I2V",
+      timeoutMs: 15000,
+    });
+
+    const req = {
+      method: "POST",
+      body: { requestId: "req-kie-policy-blocked" },
+      headers: {},
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        status: "error",
+        state: "error",
+        error: policyMessage,
+        shortpulseLifecycle: expect.objectContaining({
+          taskState: "fail",
+          isTerminal: true,
+          errorMessage: policyMessage,
+          errorDetail: policyMessage,
+          providerState: "failed",
+          queueState: "failed",
+        }),
+      })
+    );
+  });
+
   it("returns terminal status payload media without depending on result fetch probes", async () => {
     const fetchMock = vi.fn().mockResolvedValueOnce(
       new Response(

@@ -658,6 +658,7 @@ export const createFalStatusHandler = ({
         payload: statusData.json,
       });
       if (contentPolicyMessage) {
+        const contentPolicyStatus = readPayloadLifecycleStatus(statusData.json) ?? "failed";
         return respondErrorWithLogging({
           requestId,
           error: contentPolicyMessage,
@@ -665,6 +666,14 @@ export const createFalStatusHandler = ({
           source: "api.fal_status.content_policy",
           stage: "status",
           detail: contentPolicyMessage,
+          lifecycle: buildShortPulseLifecycleHint({
+            taskState: "fail",
+            isTerminal: true,
+            errorMessage: contentPolicyMessage,
+            errorDetail: contentPolicyMessage,
+            providerState: contentPolicyStatus,
+            queueState: "failed",
+          }),
         });
       }
 

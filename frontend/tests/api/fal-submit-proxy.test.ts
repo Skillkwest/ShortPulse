@@ -1276,11 +1276,27 @@ describe("createFalSubmitHandler", () => {
     expect(chargeGenerationRequestMock).not.toHaveBeenCalled();
     expect(res.status).toHaveBeenCalledWith(400);
     expect(res.json).toHaveBeenCalledWith({
-      error: "Missing required media input for kie-ai/veo-3.1-fast-i2v submission.",
+      error: "Unknown top-level field(s) for kie-ai/veo-3.1-fast-i2v submission.",
       code: "GENERATION_PAYLOAD_CONTRACT_VIOLATION",
       detail: {
-        any_of_fields: ["image_url"],
-        any_of_array_fields: ["image_urls"],
+        unknown_fields: ["imageUrl"],
+        allowed_top_level_fields: [
+          "prompt",
+          "image_url",
+          "image_urls",
+          "aspect_ratio",
+          "duration",
+          "duration_seconds",
+          "resolution",
+          "generate_audio",
+          "generation_type",
+          "model",
+          "callback_url",
+          "seed",
+          "watermark",
+          "enable_translation",
+          "enable_fallback",
+        ],
       },
     });
   });

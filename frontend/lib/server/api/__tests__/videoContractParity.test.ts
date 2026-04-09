@@ -52,6 +52,39 @@ describe("video contract parity", () => {
     );
   });
 
+  it("keeps prompt-only Kie Veo text-to-video payloads aligned with route contract and provider normalizer", () => {
+    const normalized = assertNormalizedVideoPayload("kie-ai/veo-3.1-fast-i2v", {
+      prompt: "A cinematic drone shot over a neon city at dusk",
+      generationType: "TEXT_2_VIDEO",
+      aspectRatio: "16:9",
+      duration: 5,
+      resolution: "720p",
+      generateAudio: true,
+    });
+
+    const contractResult = evaluateFalPayloadContractForModel("kie-ai/veo-3.1-fast-i2v", {
+      enforceAllowedTopLevelFields: true,
+      projectAllowedTopLevelFields: true,
+    })(normalized.payload);
+    expect(contractResult.valid).toBe(true);
+    if (!contractResult.valid) throw new Error(contractResult.error);
+
+    const providerPayload = normalizeKieSubmitPayloadForModel({
+      modelId: "kie-ai/veo-3.1-fast-i2v",
+      payload: contractResult.projectedPayload,
+    });
+    expect(providerPayload).toEqual(
+      expect.objectContaining({
+        prompt: "A cinematic drone shot over a neon city at dusk",
+        generationType: "TEXT_2_VIDEO",
+        aspect_ratio: "16:9",
+        duration: 5,
+        resolution: "720p",
+        generate_audio: true,
+      })
+    );
+  });
+
   it("keeps Kie Kling motion aliases aligned with route contract and provider normalizer", () => {
     const normalized = assertNormalizedVideoPayload("kie-ai/kling-3.0", {
       prompt: "motion transfer",

@@ -909,12 +909,10 @@ const catalog: Record<string, ModelCatalogEntry> = {
         "enable_fallback",
       ],
       requiredStringFields: ["prompt"],
-      requiredAnyOfStringFields: ["image_url"],
-      requiredAnyOfStringArrayFields: ["image_urls"],
       enumFields: {
         aspect_ratio: ["16:9", "9:16"],
         resolution: ["720p", "1080p"],
-        generation_type: ["FIRST_AND_LAST_FRAMES_2_VIDEO", "REFERENCE_2_VIDEO"],
+        generation_type: ["TEXT_2_VIDEO", "FIRST_AND_LAST_FRAMES_2_VIDEO", "REFERENCE_2_VIDEO"],
         model: ["veo3", "veo3_fast"],
       },
       optionalBooleanFields: ["generate_audio", "enable_translation", "enable_fallback"],

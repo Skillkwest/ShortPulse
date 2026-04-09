@@ -700,6 +700,60 @@ describe("createFalStatusHandler", () => {
     );
   });
 
+  it("captures kie veo success payload media from data.response.originUrls", async () => {
+    process.env.SHORTPULSE_KIE_INTEGRATION_ENABLED = "true";
+    process.env.SHORTPULSE_KIE_MODEL_ALLOWLIST = "kie-ai/veo-3.1-fast-i2v";
+    process.env.SHORTPULSE_KIE_TRUSTED_HOSTS = "kie.ai";
+    process.env.KIE_API_KEY = "test-kie-key";
+
+    const fetchMock = vi.fn().mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          code: 200,
+          msg: "success",
+          data: {
+            taskId: "req-kie-origin-success",
+            successFlag: 1,
+            response: {
+              originUrls: ["https://cdn.shortpulse.test/kie-veo-origin-result.mp4"],
+            },
+          },
+        }),
+        {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }
+      )
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const handler = createFalStatusHandler({
+      provider: "kie",
+      modelId: "kie-ai/veo-3.1-fast-i2v",
+      queueBaseUrl: "https://api.kie.ai/api/v1/veo/record-info?taskId={requestId}",
+      routeLabel: "Kie Veo 3.1 Fast I2V",
+      timeoutMs: 15000,
+    });
+
+    const req = {
+      method: "POST",
+      body: { requestId: "req-kie-origin-success" },
+      headers: {},
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        status: "completed",
+        state: "completed",
+      })
+    );
+  });
+
   it("returns terminal status payload media without depending on result fetch probes", async () => {
     const fetchMock = vi.fn().mockResolvedValueOnce(
       new Response(

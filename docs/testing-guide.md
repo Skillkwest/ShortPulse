@@ -42,6 +42,6 @@ Purpose: outline how to test the ShortPulse app (client UI plus internal API rou
 
 ## Gaps/TBD
 
-- CI currently enforces lint/unit tests/build; add Playwright execution once environment credentials and stable test data are provisioned.
+- CI currently enforces split frontend lint/type-check/docs-contracts/fast-tests/unit-tests/build lanes plus policy/security gates; add Playwright execution once environment credentials and stable test data are provisioned.
 - Expand E2E coverage beyond character pipeline into media library, billing, and admin operations.
 - A repo-wide Prettier baseline pass is still pending before format checks are enforced in CI.

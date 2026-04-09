@@ -40,3 +40,4 @@ Examples:
 - `docs/planning/evidence/lane-f/2026-03-17-f6-01-lane-f-convergence-cycle-1.md`
 - `docs/planning/evidence/lane-f/2026-03-17-f6-01-lane-f-convergence-cycle-2.md`
 - `docs/planning/evidence/lane-f/2026-03-17-f6-01-lane-f-closeout-review.md`
+- `docs/planning/evidence/lane-f/2026-04-09-f7-01-frontend-ci-split-compatibility-gate.md`

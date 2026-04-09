@@ -139,3 +139,35 @@ Configured and documented, but not enforceable on the current repository plan; p
 Prototype-mode waiver applies; this remains non-blocking for MVP feature iteration and explicitly blocking for production-readiness completion.
 Branch-protection mapping evidence was refreshed on 2026-03-17 and remains aligned with current workflow check names and current required-check target inventory.
 Reviewer/date metadata was refreshed on 2026-03-17 to keep the manual-control evidence current.
+
+## Refresh snapshot (2026-04-09)
+
+Workflow job-name/source-of-truth check (from `.github/workflows/ci.yml`):
+- `deadcode`
+- `frontend_lint`
+- `frontend_docs_contracts`
+- `frontend_fast_tests`
+- `frontend_unit_tests`
+- `frontend_build`
+- `frontend`
+- `phase11_fal_regression`
+- `type_check`
+- `expert_edit_coordinate_parity`
+- `docs_semantic_drift`
+- `migration_parity`
+- `sql_lint`
+- `archive_manifest_check`
+- `architecture_boundary`
+- `size_budget`
+- `agent_contract_tests`
+- `agent_disable_continuity`
+- `agent_rollback_verification`
+- `adaptive_media_gate`
+- `ai_studio_perf_gate`
+- `secret_scan`
+- `security`
+
+Policy-drift result:
+- required-check continuity is preserved because `frontend` still exists as the compatibility aggregator job
+- no GitHub UI/ruleset migration was performed in this refresh
+- workflow inventory now includes the split frontend lanes and matches `docs/planning/ci-policy-checks.md`

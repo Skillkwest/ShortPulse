@@ -33,7 +33,7 @@ jobs:
         run: bash ../scripts/ci_npm_ci_with_retry.sh
       - run: npm run deadcode:check
 
-  frontend:
+  frontend_lint:
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -50,12 +50,111 @@ jobs:
       - name: Install dependencies (npm ci with transient retry)
         run: bash ../scripts/ci_npm_ci_with_retry.sh
       - run: npm run lint
-      - run: npm run docs:check
+
+  frontend_docs_contracts:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install dependencies (npm ci with transient retry)
+        run: bash ../scripts/ci_npm_ci_with_retry.sh
+      - run: npm run docs:check:frontend-contracts
         env:
           SHORTPULSE_MODEL_CATALOG_STALE_MODE: enforce
-      - run: npm run test -- auth-helper proxy-internal-utils auth-guarded-ai-routes fal-status.auth-context fal-status.ownership auth-latency-benchmark
+
+  frontend_fast_tests:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install dependencies (npm ci with transient retry)
+        run: bash ../scripts/ci_npm_ci_with_retry.sh
+      - run: npm run test:frontend-fast-lane
+
+  frontend_unit_tests:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install dependencies (npm ci with transient retry)
+        run: bash ../scripts/ci_npm_ci_with_retry.sh
       - run: npm test
+
+  frontend_build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install dependencies (npm ci with transient retry)
+        run: bash ../scripts/ci_npm_ci_with_retry.sh
       - run: npm run build
+
+  frontend:
+    runs-on: ubuntu-latest
+    if: ${{ always() }}
+    needs:
+      - frontend_lint
+      - frontend_docs_contracts
+      - frontend_fast_tests
+      - frontend_unit_tests
+      - frontend_build
+      - type_check
+    steps:
+      - name: Verify split frontend checks
+        env:
+          NEEDS_CONTEXT: ${{ toJson(needs) }}
+        run: |
+          node <<'EOF'
+          const needs = JSON.parse(process.env.NEEDS_CONTEXT);
+          const failed = Object.entries(needs).filter(([, job]) => job.result !== "success");
+
+          if (failed.length === 0) {
+            console.log("frontend compatibility gate passed.");
+            process.exit(0);
+          }
+
+          console.error("frontend compatibility gate failed because these jobs did not succeed:");
+          for (const [jobId, job] of failed) {
+            console.error(`- ${jobId}: ${job.result}`);
+          }
+          process.exit(1);
+          EOF
 
   phase11_fal_regression:
     runs-on: ubuntu-latest

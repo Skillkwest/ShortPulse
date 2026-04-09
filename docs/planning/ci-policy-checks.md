@@ -1,6 +1,6 @@
 # CI And Policy-As-Code Checks
 
-Date: 2026-03-17
+Date: 2026-04-09
 Authority: Working
 Owner: Engineering
 Canonical trunk-governance contract: `docs/planning/trunk-safety-contract.md`
@@ -8,6 +8,11 @@ Canonical trunk-governance contract: `docs/planning/trunk-safety-contract.md`
 ## Current CI jobs
 
 - `deadcode`
+- `frontend_lint`
+- `frontend_docs_contracts`
+- `frontend_fast_tests`
+- `frontend_unit_tests`
+- `frontend_build`
 - `frontend`
 - `phase11_fal_regression`
 - `type_check`
@@ -42,6 +47,25 @@ Canonical trunk-governance contract: `docs/planning/trunk-safety-contract.md`
 - `scripts/check_secret_exposure.js` (new)
 - `scripts/ci_npm_ci_with_retry.sh` (new)
 - `scripts/phase11_checkpoint_window_guard.mjs` (new)
+- `frontend/package.json#test:frontend-fast-lane` (new)
+- `frontend/package.json#docs:check:frontend-contracts` (new)
+
+## Frontend CI split contract
+
+- Split lanes:
+  - `frontend_lint` -> `npm run lint`
+  - `type_check` -> `npm run type-check`
+  - `frontend_docs_contracts` -> `npm run docs:check:frontend-contracts`
+  - `frontend_fast_tests` -> `npm run test:frontend-fast-lane`
+  - `frontend_unit_tests` -> `npm test`
+  - `frontend_build` -> `npm run build`
+- Compatibility gate:
+  - `frontend` remains the stable compatibility check-run name during the split.
+  - `frontend` is an always-run aggregator over the split frontend lanes and fails if any dependency does not succeed.
+  - This preserves required-check continuity without rerunning the old monolithic commands.
+- Docs ownership rule:
+  - `frontend_docs_contracts` owns links/model-catalog/naming/operator-map checks only.
+  - `docs_semantic_drift`, `migration_parity`, and `archive_manifest_check` remain standalone CI jobs and must not be re-bundled into the frontend lane.
 
 ## Reference-grid foundation guardrail lane
 
@@ -124,6 +148,8 @@ Mode policy:
 
 ## Frontend fast-lane suites
 
+- Gate job ID: `frontend_fast_tests`
+- Command: `npm run test:frontend-fast-lane`
 - `auth-helper`
 - `proxy-internal-utils`
 - `auth-guarded-ai-routes`
@@ -170,7 +196,7 @@ Mode policy:
 ## Workflow reliability policy
 
 - `CI` workflow (`.github/workflows/ci.yml`)
-  - Triggers: `pull_request`, `push` to `main`, `workflow_dispatch`
+  - Triggers: `pull_request`, `push` to `production`, `workflow_dispatch`
   - Concurrency group: `ci-${{ github.event.pull_request.number || github.ref || github.run_id }}`
   - Cancellation posture:
     - `pull_request` and `push`: cancel stale in-progress runs
@@ -346,6 +372,10 @@ Current required check names (to be mirrored exactly in GitHub settings):
 - `secret_scan`
 - `security`
 - `deadcode`
+
+Current required-check continuity note:
+- `frontend` is now a compatibility aggregator over `frontend_lint`, `frontend_docs_contracts`, `frontend_fast_tests`, `frontend_unit_tests`, `frontend_build`, and `type_check`.
+- Keep `frontend` bound in GitHub settings until an explicit required-check migration packet replaces it.
 
 Target required check names (running in `enforce` mode in CI; branch-level enforcement still constrained by repository plan tier):
 - `docs_semantic_drift`

@@ -11,6 +11,7 @@ Use this checklist before merging to `main` (and before any deploy/release proce
 - `npm -C frontend run docs:check`
 - `npm -C frontend run deadcode:check`
 - When a PR touches CI/release governance surfaces in Lane F, preserve the documented workflow concurrency/trigger posture in `docs/planning/ci-policy-checks.md`
+- When a PR touches frontend CI split surfaces, preserve `frontend` as the compatibility aggregator until required-check mapping is deliberately migrated in the same governance lane
 - When a PR touches environment/release-governance surfaces in Lane F, preserve canonical GitHub Environment names (`staging`, `production`) and keep current-vs-planned protection posture explicit in `docs/deployment.md`
 - When closing or converging Lane F governance, run `npm -C frontend run validate:lane-f-governance`
 - When a PR touches Lane D runtime-safety seams, run `npm -C frontend run validate:lane-d-runtime`

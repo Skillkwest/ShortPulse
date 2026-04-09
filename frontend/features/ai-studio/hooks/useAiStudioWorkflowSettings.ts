@@ -325,6 +325,7 @@ export const useAiStudioWorkflowSettings = ({
   const workflowSettingsRef = useRef<
     Partial<Record<WorkflowSettingsKey, WorkflowSettingsSnapshot>>
   >({});
+  const inMemoryKlingElementsRef = useRef<Partial<Record<WorkflowSettingsKey, KlingElement[]>>>({});
   const previousWorkflowSettingsKeyRef = useRef<WorkflowSettingsKey | null>(null);
   const initialSelectedToolRef = useRef(selectedTool);
   const sharedAspectRef = useRef(DEFAULT_SHARED_ASPECT);
@@ -396,10 +397,14 @@ export const useAiStudioWorkflowSettings = ({
       const defaults = resolveDefaultWorkflowSettingsForKey();
       const existingSnapshot =
         workflowSettingsRef.current[key] ?? cloneWorkflowSettingsSnapshot(defaults, defaults);
+      const currentKlingElements = currentWorkflowSnapshot.klingElements.map((element) => ({
+        ...element,
+      }));
+      inMemoryKlingElementsRef.current[key] = currentKlingElements;
       workflowSettingsRef.current[key] = {
         ...currentWorkflowSnapshot,
         mode: preserveExistingMode ? existingSnapshot.mode : currentWorkflowSnapshot.mode,
-        klingElements: currentWorkflowSnapshot.klingElements.map((element) => ({ ...element })),
+        klingElements: currentKlingElements,
       };
     },
     [currentWorkflowSnapshot]
@@ -423,6 +428,7 @@ export const useAiStudioWorkflowSettings = ({
           resolveDefaultWorkflowSettingsForKey()
         );
         next[key] = { ...snapshot, klingElements: [] };
+        inMemoryKlingElementsRef.current[key] = [];
       });
       workflowSettingsRef.current = next;
       persistedWorkflowSessionIdRef.current = storedWorkflowSessionId;
@@ -473,6 +479,9 @@ export const useAiStudioWorkflowSettings = ({
       snapshot = cloneWorkflowSettingsSnapshot(defaults, defaults);
       workflowSettingsRef.current[activeWorkflowSettingsKey] = snapshot;
     }
+    const inMemoryKlingElements = (
+      inMemoryKlingElementsRef.current[activeWorkflowSettingsKey] ?? []
+    ).map((element) => ({ ...element }));
 
     if (activeWorkflowSettingsKey === "create") {
       const resolvedCreateModel = resolveCreateWorkflowStartupModel({
@@ -526,7 +535,11 @@ export const useAiStudioWorkflowSettings = ({
     setKlingShotType(snapshot.klingShotType);
     setKlingVoiceIds([...snapshot.klingVoiceIds] as [string, string]);
     setKlingMultiPrompts(snapshot.klingMultiPrompts.map((shot) => ({ ...shot })));
-    setKlingElements(snapshot.klingElements.map((element) => ({ ...element })));
+    setKlingElements(
+      (snapshot.klingElements.length ? snapshot.klingElements : inMemoryKlingElements).map(
+        (element) => ({ ...element })
+      )
+    );
   }, [
     activeWorkflowSettingsKey,
     currentWorkflowSnapshot,
@@ -562,6 +575,8 @@ export const useAiStudioWorkflowSettings = ({
     if (!workflowSettingsHydrated) return;
     if (!activeWorkflowSettingsKey) return;
     if (hasPendingWorkflowRestore) return;
+    inMemoryKlingElementsRef.current[activeWorkflowSettingsKey] =
+      currentWorkflowSnapshot.klingElements.map((element) => ({ ...element }));
     workflowSettingsRef.current[activeWorkflowSettingsKey] = currentWorkflowSnapshot;
     sharedAspectRef.current = aspect;
     if (typeof window === "undefined") return;

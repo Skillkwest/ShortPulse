@@ -9,6 +9,7 @@ import {
   submitKieSeedanceVideo,
   submitKieVeoImageToVideo,
 } from "../../../../lib/falClient";
+import { fetchWithAuth } from "../../../../lib/authenticatedFetch";
 import {
   KIE_KLING_30_MODEL_ID,
   KIE_SEEDANCE_15_PRO_MODEL_ID,
@@ -21,6 +22,7 @@ import type { VideoSubmissionArgs } from "./types";
 import {
   getAiStudioKlingElementReferenceUrls,
   resolveAiStudioKlingElementToken,
+  resolveKieKlingElementToken,
   type AiStudioKlingElement,
 } from "../../logic/klingElements";
 import { prepareImageUrlForSubmission } from "../../utils/imageUpload";
@@ -49,6 +51,12 @@ const FAL_SEEDANCE_TEXT_MODEL_ID = "fal-ai/bytedance/seedance/v1.5/pro/text-to-v
 const FAL_SEEDANCE_IMAGE_MODEL_ID = "fal-ai/bytedance/seedance/v1.5/pro/image-to-video";
 const FAL_NON_KIE_VIDEO_DISABLED_MESSAGE =
   "Fal-hosted video generation is disabled. Use Kie Veo 3.1, Kie Kling 3.0, or Kie Seedance 1.5 instead.";
+const KIE_UPLOAD_ROUTE = "/api/kie/upload-url";
+const KIE_HOSTED_MEDIA_HOST_SUFFIXES = [
+  "kieai.redpandaai.co",
+  "tempfile.aiquickdraw.com",
+  "tempfileb.aiquickdraw.com",
+] as const;
 
 const isCharacterScopedMediaUrl = (value: string): boolean => {
   const normalized = (() => {
@@ -65,6 +73,82 @@ const escapeRegExp = (value: string): string => value.replace(/[.*+?^${}()|[\]\\
 
 const hasKlingElementMedia = (element: AiStudioKlingElement): boolean =>
   Boolean(element.videoUrl.trim() || getAiStudioKlingElementReferenceUrls(element).length);
+
+const isKieHostedTemporaryMediaUrl = (value: string): boolean => {
+  try {
+    const hostname = new URL(value).hostname.trim().toLowerCase();
+    return KIE_HOSTED_MEDIA_HOST_SUFFIXES.some(
+      (suffix) => hostname === suffix || hostname.endsWith(`.${suffix}`)
+    );
+  } catch {
+    return false;
+  }
+};
+
+const uploadUrlToKieTemporaryFile = async ({
+  url,
+  mediaKind,
+  cache,
+}: {
+  url: string;
+  mediaKind: "image" | "video";
+  cache: Map<string, Promise<string>>;
+}): Promise<string> => {
+  const normalizedUrl = url.trim();
+  if (!normalizedUrl) return "";
+  if (isKieHostedTemporaryMediaUrl(normalizedUrl)) return normalizedUrl;
+
+  const cached = cache.get(normalizedUrl);
+  if (cached) return await cached;
+
+  const uploadPromise = (async () => {
+    const response = await fetchWithAuth(KIE_UPLOAD_ROUTE, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        fileUrl: normalizedUrl,
+        uploadPath:
+          mediaKind === "image"
+            ? "shortpulse/kling-elements/images"
+            : "shortpulse/kling-elements/videos",
+      }),
+      shortpulseLogScope: "generation",
+    });
+
+    const payload = (await response.json().catch(() => ({}))) as {
+      error?: string;
+      details?: string;
+      url?: string;
+    };
+    if (!response.ok) {
+      const error =
+        typeof payload.error === "string" && payload.error.trim().length
+          ? payload.error
+          : "Kie temporary upload failed";
+      const details =
+        typeof payload.details === "string" && payload.details.trim().length
+          ? payload.details
+          : null;
+      throw new Error(details ? `${error}: ${details}` : error);
+    }
+
+    const uploadedUrl = payload.url?.trim();
+    if (!uploadedUrl) {
+      throw new Error("Kie temporary upload failed: missing uploaded URL.");
+    }
+    return uploadedUrl;
+  })();
+
+  cache.set(normalizedUrl, uploadPromise);
+  try {
+    return await uploadPromise;
+  } catch (error) {
+    cache.delete(normalizedUrl);
+    throw error;
+  }
+};
 
 const prepareKlingElementForSubmission = async (
   element: AiStudioKlingElement
@@ -88,29 +172,80 @@ const prepareKlingElementForSubmission = async (
   };
 };
 
-const ensurePromptIncludesAttachedElementTokens = (
+const prepareKieHostedKlingElementForSubmission = async ({
+  element,
+  cache,
+}: {
+  element: AiStudioKlingElement;
+  cache: Map<string, Promise<string>>;
+}): Promise<AiStudioKlingElement> => {
+  const prepared = await prepareKlingElementForSubmission(element);
+  const preparedImageUrls = getAiStudioKlingElementReferenceUrls(prepared);
+
+  const [klingHostedImageUrls, klingHostedVideoUrl] = await Promise.all([
+    Promise.all(
+      preparedImageUrls.map(
+        async (url) =>
+          await uploadUrlToKieTemporaryFile({
+            url,
+            mediaKind: "image",
+            cache,
+          })
+      )
+    ),
+    prepared.videoUrl.trim()
+      ? uploadUrlToKieTemporaryFile({
+          url: prepared.videoUrl,
+          mediaKind: "video",
+          cache,
+        })
+      : Promise.resolve(""),
+  ]);
+
+  return {
+    ...prepared,
+    frontalImageUrl: klingHostedImageUrls[0] ?? "",
+    referenceImageUrls: klingHostedImageUrls.slice(1).join(", "),
+    videoUrl: klingHostedVideoUrl,
+  };
+};
+
+const rewritePromptWithKieElementTokens = (
   prompt: string,
   klingElements: AiStudioKlingElement[]
 ): string => {
   const trimmedPrompt = prompt.trim();
-  const availableTokens = klingElements.reduce<string[]>((accumulator, element, index) => {
-    if (!hasKlingElementMedia(element)) return accumulator;
-    const token = resolveAiStudioKlingElementToken(element, index, klingElements).trim();
-    if (!token || accumulator.includes(token)) return accumulator;
-    accumulator.push(token);
-    return accumulator;
-  }, []);
+  const availableTokenPairs = klingElements.reduce<Array<{ uiToken: string; kieToken: string }>>(
+    (accumulator, element, index) => {
+      if (!hasKlingElementMedia(element)) return accumulator;
+      const uiToken = resolveAiStudioKlingElementToken(element, index, klingElements).trim();
+      const kieToken = resolveKieKlingElementToken(element, index, klingElements).trim();
+      if (!uiToken || !kieToken) return accumulator;
+      if (accumulator.some((pair) => pair.kieToken === kieToken)) return accumulator;
+      accumulator.push({ uiToken, kieToken });
+      return accumulator;
+    },
+    []
+  );
 
-  if (!availableTokens.length) return trimmedPrompt;
+  if (!availableTokenPairs.length) return trimmedPrompt;
 
-  const missingTokens = availableTokens.filter((token) => {
-    const tokenPattern = new RegExp(`(^|\\s)@${escapeRegExp(token)}(?=$|[\\s,.;:!?])`);
-    return !tokenPattern.test(trimmedPrompt);
-  });
+  let rewrittenPrompt = trimmedPrompt;
+  for (const { uiToken, kieToken } of availableTokenPairs) {
+    const legacyTokenPattern = new RegExp(`(^|\\s)@${escapeRegExp(uiToken)}(?=$|[\\s,.;:!?])`, "g");
+    rewrittenPrompt = rewrittenPrompt.replace(legacyTokenPattern, `$1@${kieToken}`);
+  }
 
-  if (!missingTokens.length) return trimmedPrompt;
+  const missingTokens = availableTokenPairs
+    .map((pair) => pair.kieToken)
+    .filter((token) => {
+      const tokenPattern = new RegExp(`(^|\\s)@${escapeRegExp(token)}(?=$|[\\s,.;:!?])`);
+      return !tokenPattern.test(rewrittenPrompt);
+    });
+
+  if (!missingTokens.length) return rewrittenPrompt;
   const suffix = missingTokens.map((token) => `@${token}`).join(" ");
-  return trimmedPrompt ? `${trimmedPrompt} ${suffix}` : suffix;
+  return rewrittenPrompt ? `${rewrittenPrompt} ${suffix}` : suffix;
 };
 
 type ResolvedKieKlingShotModePayload = {
@@ -148,7 +283,7 @@ const resolveKieKlingShotModePayload = ({
   if (normalizedMode === "custom") {
     const customShots = buildKieKlingMultiPromptPayload(klingMultiPrompts)?.map((shot) => ({
       ...shot,
-      prompt: ensurePromptIncludesAttachedElementTokens(shot.prompt, preparedKlingElements),
+      prompt: rewritePromptWithKieElementTokens(shot.prompt, preparedKlingElements),
     }));
 
     if (!customShots?.length) {
@@ -166,7 +301,7 @@ const resolveKieKlingShotModePayload = ({
   }
 
   return {
-    prompt: ensurePromptIncludesAttachedElementTokens(cleanedPrompt, preparedKlingElements),
+    prompt: rewritePromptWithKieElementTokens(cleanedPrompt, preparedKlingElements),
     imageUrls:
       preparedImageInputs.length >= 2
         ? preparedImageInputs.slice(0, 2)
@@ -467,8 +602,15 @@ export const handleVideoModelSubmission = async ({
     let elementsPayload: ReturnType<typeof buildKieKlingElementsPayload>;
     let preparedKlingElements: AiStudioKlingElement[] = klingElements;
     try {
+      const kieUploadCache = new Map<string, Promise<string>>();
       preparedKlingElements = await Promise.all(
-        klingElements.map(async (element) => await prepareKlingElementForSubmission(element))
+        klingElements.map(
+          async (element) =>
+            await prepareKieHostedKlingElementForSubmission({
+              element,
+              cache: kieUploadCache,
+            })
+        )
       );
       elementsPayload = buildKieKlingElementsPayload(preparedKlingElements);
     } catch (error) {

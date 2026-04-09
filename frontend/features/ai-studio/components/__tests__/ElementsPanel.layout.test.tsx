@@ -10,6 +10,7 @@ import type {
   ResolveInternalReferenceDrop,
   ResolvedInternalReferenceSource,
 } from "../../logic/referenceSource/internalReferenceSource";
+import { uploadImageToStorage } from "../../utils/imageUpload";
 
 const elementsManagerPersistenceMockState = vi.hoisted(() => {
   const referenceSetIds = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10"] as const;
@@ -181,6 +182,14 @@ vi.mock("../../../elements-manager/logic/elementsManagerPersistence", () => ({
   })),
 }));
 
+vi.mock("../../utils/imageUpload", () => ({
+  uploadImageToStorage: vi.fn(async (url: string) =>
+    url.startsWith("blob:") || url.startsWith("data:image/")
+      ? "https://example.com/uploaded/internal-drop.png"
+      : url
+  ),
+}));
+
 const createDataTransfer = () => {
   const dataStore = new Map<string, string>();
   return {
@@ -239,6 +248,7 @@ const stubProfileImageFetch = () => {
 describe("ElementsPanel layout", () => {
   beforeEach(() => {
     elementsManagerPersistenceMockState.reset();
+    vi.mocked(uploadImageToStorage).mockClear();
   });
 
   it("defaults embedded elements workflow to Manage Elements and keeps layout stable", async () => {
@@ -406,7 +416,7 @@ describe("ElementsPanel layout", () => {
     });
   });
 
-  it("supports switching an element to video mode and clearing the motion reference", async () => {
+  it("quarantines the type section and hides element type toggles", async () => {
     render(<ElementsPanel />);
 
     const openProfileButton = await screen.findByRole("button", {
@@ -415,34 +425,9 @@ describe("ElementsPanel layout", () => {
     fireEvent.click(openProfileButton);
     await waitForElementProfileShell();
 
-    fireEvent.click(screen.getByRole("button", { name: "Video Element" }));
-    expect(screen.getByText("Drop motion reference here")).toBeInTheDocument();
-
-    const motionReferenceZone = screen.getByText("Motion Reference").closest("article");
-    if (!motionReferenceZone) {
-      throw new Error("Expected motion-reference drop zone to exist.");
-    }
-
-    const videoDrag = createDataTransfer();
-    addInternalReferenceDragPayload(videoDrag, {
-      outputId: "output-elements-video-1",
-      mediaId: "media-elements-video-1",
-      sourceSurface: "all-refs",
-      referenceUrl: "https://example.com/elements-motion.mp4",
-    });
-
-    fireEvent.dragOver(motionReferenceZone, { dataTransfer: videoDrag });
-    fireEvent.drop(motionReferenceZone, { dataTransfer: videoDrag });
-
-    await waitFor(() => {
-      expect(screen.getByLabelText("Motion Reference reference")).toBeInTheDocument();
-    });
-
-    fireEvent.click(screen.getByRole("button", { name: "Clear Motion Reference reference" }));
-
-    await waitFor(() => {
-      expect(screen.queryByLabelText("Motion Reference reference")).not.toBeInTheDocument();
-    });
+    expect(screen.queryByText("Type:")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Image Element" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Video Element" })).not.toBeInTheDocument();
   });
 
   it("locks the properties rail scroll in Manage Elements mode", async () => {
@@ -758,5 +743,72 @@ describe("ElementsPanel layout", () => {
     expect(
       screen.queryByText("Processing drop and syncing your Element Deck.")
     ).not.toBeInTheDocument();
+  });
+
+  it("accepts transient internal reference-grid drops into the element deck via resolver fallback", async () => {
+    const resolveProfileImageDropSource = vi.fn(
+      async (): Promise<ResolvedInternalReferenceSource | null> => ({
+        kind: "internal",
+        sourceKind: "local_file",
+        sourceId: "output-elements-deck-transient-1",
+        outputId: "output-elements-deck-transient-1",
+        mediaId: null,
+        mediaSource: null,
+        preview: { url: "blob:elements-transient-reference" },
+        previewStoragePath: null,
+        fullStoragePath: null,
+        promptText: "Transient beach reference",
+        provenance: {
+          origin: INTERNAL_REFERENCE_DRAG_ORIGIN,
+          outputId: "output-elements-deck-transient-1",
+          mediaId: null,
+          imageIndex: 0,
+          sourceSurface: "all-refs",
+          resolutionReason: "local_object_url",
+        },
+        preparedImageUrl: null,
+        loadBlob: async () => new Blob(["transient-image"], { type: "image/png" }),
+      })
+    ) as ResolveInternalReferenceDrop;
+
+    const { container } = render(
+      <ElementsPanel resolveProfileImageDropSource={resolveProfileImageDropSource} />
+    );
+
+    const openProfileButton = await screen.findByRole("button", {
+      name: "Open element profile: Red Lantern",
+    });
+    fireEvent.click(openProfileButton);
+    await waitForElementProfileShell();
+
+    const deckDropContent = container.querySelector(
+      ".character-section--reference-drop .character-reference-drop-content"
+    ) as HTMLDivElement | null;
+    if (!deckDropContent) {
+      throw new Error("Expected element deck drop content to exist.");
+    }
+
+    const internalDrag = createDataTransfer();
+    addInternalReferenceDragPayload(internalDrag, {
+      outputId: "output-elements-deck-transient-1",
+      sourceSurface: "all-refs",
+    });
+
+    fireEvent.dragEnter(deckDropContent, { dataTransfer: internalDrag });
+    fireEvent.dragOver(deckDropContent, { dataTransfer: internalDrag });
+    fireEvent.drop(deckDropContent, { dataTransfer: internalDrag });
+
+    await waitFor(() => {
+      expect(screen.getByAltText("Reference 3")).toHaveAttribute(
+        "src",
+        "https://example.com/uploaded/internal-drop.png"
+      );
+    });
+    expect(resolveProfileImageDropSource).toHaveBeenCalledWith(
+      expect.objectContaining({
+        outputId: "output-elements-deck-transient-1",
+      })
+    );
+    expect(uploadImageToStorage).toHaveBeenCalledWith("blob:elements-transient-reference");
   });
 });

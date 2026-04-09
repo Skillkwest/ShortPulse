@@ -518,7 +518,7 @@ describe("VideoPropertiesPanel", () => {
     );
   });
 
-  it("shows a parked custom shots note when single or multi is active with cached custom prompts", () => {
+  it("does not show a parked custom shots note when cached custom prompts exist", () => {
     const { rerender } = render(
       <VideoPropertiesPanel
         {...baseProps}
@@ -531,10 +531,8 @@ describe("VideoPropertiesPanel", () => {
     );
 
     expect(
-      screen.getByRole("note", { name: "Saved custom shot prompts are inactive" })
-    ).toHaveTextContent(
-      "Saved custom shots are parked. Only the primary prompt is sent until you switch back to Custom."
-    );
+      screen.queryByRole("note", { name: "Saved custom shot prompts are inactive" })
+    ).toBeNull();
 
     rerender(
       <VideoPropertiesPanel
@@ -548,8 +546,8 @@ describe("VideoPropertiesPanel", () => {
     );
 
     expect(
-      screen.getByRole("note", { name: "Saved custom shot prompts are inactive" })
-    ).toBeInTheDocument();
+      screen.queryByRole("note", { name: "Saved custom shot prompts are inactive" })
+    ).toBeNull();
 
     rerender(
       <VideoPropertiesPanel
@@ -639,6 +637,56 @@ describe("VideoPropertiesPanel", () => {
           frontalImageUrl: "https://example.com/taylor-01.jpg",
           referenceImageUrls:
             "https://example.com/taylor-02.jpg, https://example.com/taylor-03.jpg",
+        }),
+      ]);
+    });
+  });
+
+  it("attaches a saved element when its usable media lives in deck references", async () => {
+    vi.mocked(loadElementManagerDraftByElementId).mockResolvedValueOnce({
+      elementId: "element-deck-only",
+      name: "Deck Orchid",
+      alias: "deckorchid",
+      status: "ready",
+      profileImageUrl: "https://example.com/deck-orchid-profile.jpg",
+      profileImageTransform: { zoom: 1.12, offsetX: 2, offsetY: -4 },
+      updatedAt: "2026-04-07T00:00:00.000Z",
+      referenceSetState: {
+        activeSetId: "1",
+        tabOrder: ["1"],
+        tabLabels: { "1": "Double click me" },
+        sets: {
+          "1": {
+            assetType: "image",
+            description: "Deck-backed orchid",
+            deckReferenceUrls: [
+              "https://example.com/deck-orchid-01.jpg",
+              "https://example.com/deck-orchid-02.jpg",
+            ],
+            imageReferenceUrls: [],
+            videoReferenceUrl: "",
+          },
+        },
+      },
+      userId: "user-1",
+    });
+    const onKlingElementsChange = vi.fn();
+    render(<VideoPropertiesPanel {...baseProps} onKlingElementsChange={onKlingElementsChange} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Add element to slot 1" }));
+    fireEvent.click(await screen.findByRole("button", { name: /red lantern/i }));
+
+    await waitFor(() => {
+      expect(onKlingElementsChange).toHaveBeenCalledWith([
+        expect.objectContaining({
+          slotIndex: 0,
+          sourceKind: "element",
+          sourceElementId: "element-deck-only",
+          sourceCharacterId: null,
+          name: "Deck Orchid",
+          alias: "deckorchid",
+          frontalImageUrl: "https://example.com/deck-orchid-01.jpg",
+          referenceImageUrls: "https://example.com/deck-orchid-02.jpg",
         }),
       ]);
     });
@@ -764,6 +812,66 @@ describe("VideoPropertiesPanel", () => {
     await waitFor(() => {
       expect(onKlingElementsChange).toHaveBeenCalledWith([]);
     });
+  });
+
+  it("preserves attached saved elements across remount when persistence no longer returns usable media", async () => {
+    vi.mocked(loadElementManagerDraftByElementId).mockResolvedValueOnce({
+      elementId: "element-red-lantern",
+      name: "Red Lantern",
+      alias: "redlantern",
+      status: "ready",
+      profileImageUrl: "https://example.com/red-lantern-profile.jpg",
+      profileImageTransform: { zoom: 1.35, offsetX: 8, offsetY: -6 },
+      updatedAt: "2026-04-07T00:00:00.000Z",
+      referenceSetState: {
+        activeSetId: "1",
+        tabOrder: ["1"],
+        tabLabels: { "1": "Double click me" },
+        sets: {
+          "1": {
+            assetType: "image",
+            description: "Warm lacquered lantern",
+            deckReferenceUrls: [],
+            imageReferenceUrls: [],
+            videoReferenceUrl: "",
+          },
+        },
+      },
+      userId: "user-1",
+    });
+    const onKlingElementsChange = vi.fn();
+
+    render(
+      <VideoPropertiesPanel
+        {...baseProps}
+        onKlingElementsChange={onKlingElementsChange}
+        klingElements={[
+          {
+            id: "element-red-lantern",
+            slotIndex: 0,
+            sourceKind: "element",
+            sourceElementId: "element-red-lantern",
+            sourceCharacterId: null,
+            name: "Red Lantern",
+            alias: "redlantern",
+            description: "",
+            profileImageUrl: "https://example.com/red-lantern-profile.jpg",
+            profileImageTransform: { zoom: 1.35, offsetX: 8, offsetY: -6 },
+            frontalImageUrl: "https://example.com/red-lantern-01.jpg",
+            referenceImageUrls: "https://example.com/red-lantern-02.jpg",
+            videoUrl: "",
+          },
+        ]}
+      />
+    );
+
+    await waitFor(() => {
+      expect(loadElementManagerDraftByElementId).toHaveBeenCalledWith("element-red-lantern");
+    });
+    expect(onKlingElementsChange).not.toHaveBeenCalledWith([]);
+    expect(
+      screen.getByRole("button", { name: "Replace attached element Red Lantern" })
+    ).toBeInTheDocument();
   });
 
   it("does not pass agent enhance behavior into the video prompt surface", () => {

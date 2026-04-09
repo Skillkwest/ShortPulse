@@ -210,6 +210,19 @@ const sanitizeWorkspaceExtraImageUrls = (
   sanitizeWorkspaceMediaUrl(values[2]),
 ];
 
+const sanitizeWorkspaceKlingProfileImageTransform = (
+  value: AiStudioKlingElement["profileImageTransform"]
+): AiStudioKlingElement["profileImageTransform"] => {
+  if (!value || typeof value !== "object") return null;
+  const zoom = typeof value.zoom === "number" && Number.isFinite(value.zoom) ? value.zoom : null;
+  const offsetX =
+    typeof value.offsetX === "number" && Number.isFinite(value.offsetX) ? value.offsetX : null;
+  const offsetY =
+    typeof value.offsetY === "number" && Number.isFinite(value.offsetY) ? value.offsetY : null;
+  if (zoom === null || offsetX === null || offsetY === null) return null;
+  return { zoom, offsetX, offsetY };
+};
+
 const sanitizeWorkspaceKlingElements = (elements: AiStudioKlingElement[]) =>
   elements.map((element) => {
     const sanitizedReferenceImageUrls = element.referenceImageUrls
@@ -239,6 +252,9 @@ const sanitizeWorkspaceKlingElements = (elements: AiStudioKlingElement[]) =>
       alias: element.alias?.trim() ?? "",
       description: element.description?.trim() ?? "",
       profileImageUrl: sanitizeWorkspaceMediaUrl(element.profileImageUrl) ?? null,
+      profileImageTransform: sanitizeWorkspaceKlingProfileImageTransform(
+        element.profileImageTransform
+      ),
       frontalImageUrl: sanitizeMediaUrl(element.frontalImageUrl) ?? "",
       referenceImageUrls: sanitizedReferenceImageUrls,
       videoUrl: sanitizeMediaUrl(element.videoUrl) ?? "",

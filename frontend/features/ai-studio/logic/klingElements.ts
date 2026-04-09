@@ -127,3 +127,34 @@ export const resolveAiStudioKlingElementToken = (
     deriveAiStudioKlingElementBaseToken(element, index)
   );
 };
+
+export const resolveKieKlingElementTokens = (
+  elements: Array<Pick<AiStudioKlingElement, "alias" | "name" | "sourceKind"> | null | undefined>
+): string[] =>
+  resolveAiStudioKlingElementTokens(elements).map((token, index) => {
+    const normalized = token
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9_]+/g, "_")
+      .replace(/_+/g, "_")
+      .replace(/^_+|_+$/g, "");
+    const fallback = `element_${String(index + 1).padStart(2, "0")}`;
+    const base = normalized || fallback;
+    return base.startsWith("element_") ? base : `element_${base}`;
+  });
+
+export const resolveKieKlingElementToken = (
+  element: Pick<AiStudioKlingElement, "alias" | "name" | "sourceKind">,
+  index: number,
+  allElements?: Array<Pick<AiStudioKlingElement, "alias" | "name" | "sourceKind">>
+): string => {
+  if (!allElements) {
+    return (
+      resolveKieKlingElementTokens([element])[0] ?? `element_${String(index + 1).padStart(2, "0")}`
+    );
+  }
+  return (
+    resolveKieKlingElementTokens(allElements)[index] ??
+    `element_${String(index + 1).padStart(2, "0")}`
+  );
+};

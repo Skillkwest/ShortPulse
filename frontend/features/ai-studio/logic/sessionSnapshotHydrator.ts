@@ -169,6 +169,20 @@ const asKlingMultiPrompts = (
     .filter((item): item is { id: string; prompt: string; duration: number } => Boolean(item));
 };
 
+const asKlingProfileImageTransform = (
+  value: unknown
+): { zoom: number; offsetX: number; offsetY: number } | null => {
+  if (!value || typeof value !== "object") return null;
+  const row = value as Record<string, unknown>;
+  const zoom = typeof row.zoom === "number" && Number.isFinite(row.zoom) ? row.zoom : null;
+  const offsetX =
+    typeof row.offsetX === "number" && Number.isFinite(row.offsetX) ? row.offsetX : null;
+  const offsetY =
+    typeof row.offsetY === "number" && Number.isFinite(row.offsetY) ? row.offsetY : null;
+  if (zoom === null || offsetX === null || offsetY === null) return null;
+  return { zoom, offsetX, offsetY };
+};
+
 type HydratedKlingElementRow = {
   id: string;
   slotIndex?: number;
@@ -179,6 +193,7 @@ type HydratedKlingElementRow = {
   alias?: string;
   description?: string;
   profileImageUrl?: string | null;
+  profileImageTransform?: { zoom: number; offsetX: number; offsetY: number } | null;
   frontalImageUrl: string;
   referenceImageUrls: string;
   videoUrl: string;
@@ -210,6 +225,7 @@ const asKlingElements = (value: unknown): HydratedKlingElementRow[] => {
       alias: asString(row.alias, ""),
       description: asString(row.description, ""),
       profileImageUrl: sanitizeHydratedMediaUrl(asNullableString(row.profileImageUrl)),
+      profileImageTransform: asKlingProfileImageTransform(row.profileImageTransform),
       frontalImageUrl,
       referenceImageUrls,
       videoUrl,

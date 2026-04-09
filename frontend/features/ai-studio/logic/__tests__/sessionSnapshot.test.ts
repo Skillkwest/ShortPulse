@@ -195,6 +195,7 @@ describe("sessionSnapshot", () => {
       klingElements: [
         {
           id: "element-1",
+          profileImageTransform: { zoom: 1.25, offsetX: 4, offsetY: -3 },
           frontalImageUrl: "data:image/png;base64,abc",
           referenceImageUrls: "blob:http://localhost/1, https://cdn.shortpulse.dev/ref-1.png",
           videoUrl: "blob:http://localhost/motion-element",
@@ -231,6 +232,7 @@ describe("sessionSnapshot", () => {
       alias: "",
       description: "",
       profileImageUrl: null,
+      profileImageTransform: { zoom: 1.25, offsetX: 4, offsetY: -3 },
       frontalImageUrl: "",
       referenceImageUrls: "https://cdn.shortpulse.dev/ref-1.png",
       videoUrl: "",

@@ -362,7 +362,16 @@ export function VideoPropertiesPanel({
               refreshedElement.videoUrl.trim() ||
               getAiStudioKlingElementReferenceUrls(refreshedElement).length
             );
-            if (!hasUsableMedia) return null;
+            if (!hasUsableMedia) {
+              const hasSessionPresence = Boolean(
+                element.videoUrl.trim() ||
+                getAiStudioKlingElementReferenceUrls(element).length ||
+                element.profileImageUrl?.trim() ||
+                element.name?.trim() ||
+                element.alias?.trim()
+              );
+              return hasSessionPresence ? { ...element, slotIndex } : null;
+            }
             return { ...refreshedElement, slotIndex };
           } catch {
             return null;
@@ -578,10 +587,6 @@ export function VideoPropertiesPanel({
   const klingMode = klingWorkflowMode;
   const isMultiShotEnabled = isKieKlingModelSelected && klingMode === "custom";
   const isCustomKlingWorkflow = isKieKlingModelSelected && klingMode === "custom";
-  const hasParkedCustomKlingShots =
-    isKieKlingModelSelected &&
-    klingMode !== "custom" &&
-    klingMultiPrompts.some((shot) => shot.prompt.trim().length > 0);
   const customKlingPrompts = React.useMemo(
     () => (isCustomKlingWorkflow ? klingMultiPrompts : []),
     [isCustomKlingWorkflow, klingMultiPrompts]
@@ -1368,16 +1373,6 @@ export function VideoPropertiesPanel({
                                   Custom
                                 </button>
                               </div>
-                              {hasParkedCustomKlingShots ? (
-                                <div
-                                  className="video-shot-mode-note"
-                                  role="note"
-                                  aria-label="Saved custom shot prompts are inactive"
-                                >
-                                  Saved custom shots are parked. Only the primary prompt is sent
-                                  until you switch back to Custom.
-                                </div>
-                              ) : null}
                             </div>
                           ) : null}
                           <div className="video-kling-elements-picker-anchor">

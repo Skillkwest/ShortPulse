@@ -258,6 +258,7 @@ describe("sessionSnapshotHydrator", () => {
           klingElements: [
             {
               id: "k1",
+              profileImageTransform: { zoom: 1.4, offsetX: 6, offsetY: -2 },
               frontalImageUrl: "data:image/png;base64,abc",
               referenceImageUrls: "blob:http://localhost/ref-1, https://example.com/ref-2.png",
               videoUrl: "blob:http://localhost/video-1",
@@ -280,6 +281,7 @@ describe("sessionSnapshotHydrator", () => {
       alias: "",
       description: "",
       profileImageUrl: null,
+      profileImageTransform: { zoom: 1.4, offsetX: 6, offsetY: -2 },
       frontalImageUrl: "",
       referenceImageUrls: "https://example.com/ref-2.png",
       videoUrl: "",

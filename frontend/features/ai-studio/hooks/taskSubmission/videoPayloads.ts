@@ -4,7 +4,7 @@
 import { resolveKlingV3Duration } from "../../logic/stateParsers";
 import {
   getAiStudioKlingElementReferenceUrls,
-  resolveAiStudioKlingElementToken,
+  resolveKieKlingElementToken,
 } from "../../logic/klingElements";
 import { getModelApiContract, resolveEffectiveAspectForModel } from "../../logic/modelApiContracts";
 import type { SubmissionModelConfig, VideoSubmissionArgs } from "./types";
@@ -285,7 +285,7 @@ export const buildKieKlingElementsPayload = (
   });
   const payload = orderedElements.reduce<KieKlingElementPayload[]>(
     (accumulator, element, index) => {
-      const tokenName = resolveAiStudioKlingElementToken(element, index, orderedElements);
+      const tokenName = resolveKieKlingElementToken(element, index, orderedElements);
       const imageList = Array.from(new Set(getAiStudioKlingElementReferenceUrls(element))).slice(
         0,
         4

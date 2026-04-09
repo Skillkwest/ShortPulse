@@ -81,7 +81,10 @@ export const loadSavedKlingEntityBySource = async ({
 
   const snapshot = await loadElementManagerDraftByElementId(sourceId);
   const activeSet = snapshot.referenceSetState.sets[snapshot.referenceSetState.activeSetId];
-  const imageUrls = activeSet.imageReferenceUrls.map((value) => value.trim()).filter(Boolean);
+  const imageUrls = [...activeSet.imageReferenceUrls, ...activeSet.deckReferenceUrls]
+    .map((value) => value.trim())
+    .filter(Boolean)
+    .filter((value, index, collection) => collection.indexOf(value) === index);
   return {
     id: snapshot.elementId,
     slotIndex: undefined,

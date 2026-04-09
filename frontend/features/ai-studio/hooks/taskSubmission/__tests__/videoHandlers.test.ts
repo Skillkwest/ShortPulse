@@ -488,6 +488,16 @@ describe("handleVideoModelSubmission (Kie Kling standard)", () => {
     vi.clearAllMocks();
     vi.spyOn(console, "error").mockImplementation(() => undefined);
     vi.mocked(submitKieKlingImageToVideo).mockResolvedValue({ request_id: "kie-kling-std-1" });
+    vi.mocked(fetchWithAuth).mockImplementation(async (_url, init) => {
+      const payload =
+        typeof init?.body === "string" ? (JSON.parse(init.body) as { fileUrl?: string }) : {};
+      return {
+        ok: true,
+        json: async () => ({
+          url: payload.fileUrl ?? "",
+        }),
+      } as Response;
+    });
   });
 
   afterEach(() => {
@@ -564,7 +574,7 @@ describe("handleVideoModelSubmission (Kie Kling standard)", () => {
     expect(handled).toBe(true);
     expect(submitKieKlingImageToVideo).toHaveBeenCalledWith(
       expect.objectContaining({
-        prompt: "First shot @redlantern @steamtrain",
+        prompt: "First shot @element_redlantern @element_steamtrain",
         image_urls: ["https://example.com/start.png"],
         aspect_ratio: "16:9",
         resolution: "1080p",
@@ -573,12 +583,12 @@ describe("handleVideoModelSubmission (Kie Kling standard)", () => {
         sound: true,
         multi_shots: true,
         multi_prompt: [
-          { prompt: "First shot @redlantern @steamtrain", duration: 5 },
-          { prompt: "Second shot @redlantern @steamtrain", duration: 7 },
+          { prompt: "First shot @element_redlantern @element_steamtrain", duration: 5 },
+          { prompt: "Second shot @element_redlantern @element_steamtrain", duration: 7 },
         ],
         kling_elements: [
           {
-            name: "redlantern",
+            name: "element_redlantern",
             description: "Reference images for Red Lantern",
             element_input_urls: [
               "https://example.com/element-a.png",
@@ -586,7 +596,7 @@ describe("handleVideoModelSubmission (Kie Kling standard)", () => {
             ],
           },
           {
-            name: "steamtrain",
+            name: "element_steamtrain",
             description: "Reference video for Steam Train",
             element_input_video_urls: ["https://example.com/element-video.mp4"],
           },
@@ -647,10 +657,10 @@ describe("handleVideoModelSubmission (Kie Kling standard)", () => {
     expect(handled).toBe(true);
     expect(submitKieKlingImageToVideo).toHaveBeenCalledWith(
       expect.objectContaining({
-        prompt: "the woman walks into the scene @taylor",
+        prompt: "the woman walks into the scene @element_taylor",
         kling_elements: [
           {
-            name: "taylor",
+            name: "element_taylor",
             description: "Reference images for Taylor",
             element_input_urls: [
               "https://example.com/taylor-front.png",
@@ -689,10 +699,10 @@ describe("handleVideoModelSubmission (Kie Kling standard)", () => {
     expect(handled).toBe(true);
     expect(submitKieKlingImageToVideo).toHaveBeenCalledWith(
       expect.objectContaining({
-        prompt: "the woman walks into the scene @taylorswift",
+        prompt: "the woman walks into the scene @element_taylorswift",
         kling_elements: [
           {
-            name: "taylorswift",
+            name: "element_taylorswift",
             description: "Reference images for Taylor Swift",
             element_input_urls: [
               "https://example.com/taylor-front.png",
@@ -745,6 +755,12 @@ describe("handleVideoModelSubmission (Kie Kling standard)", () => {
     vi.mocked(getSignedMediaUrl).mockResolvedValueOnce(
       "https://example.com/refreshed-taylor-front.png"
     );
+    vi.mocked(fetchWithAuth).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        url: "https://tempfile.aiquickdraw.com/shortpulse/kling-elements/images/taylor-front.png",
+      }),
+    } as Response);
 
     const args = makeArgs({
       finalModel: KIE_KLING_30_MODEL_ID,
@@ -773,13 +789,75 @@ describe("handleVideoModelSubmission (Kie Kling standard)", () => {
       storagePath: "user-1/elements/taylor/front.png",
       forceRefresh: true,
     });
+    expect(fetchWithAuth).toHaveBeenCalledWith(
+      "/api/kie/upload-url",
+      expect.objectContaining({
+        method: "POST",
+      })
+    );
     expect(submitKieKlingImageToVideo).toHaveBeenCalledWith(
       expect.objectContaining({
         kling_elements: [
           {
-            name: "taylor",
+            name: "element_taylor",
             description: "Reference images for Taylor",
-            element_input_urls: ["https://example.com/refreshed-taylor-front.png"],
+            element_input_urls: [
+              "https://tempfile.aiquickdraw.com/shortpulse/kling-elements/images/taylor-front.png",
+            ],
+          },
+        ],
+      })
+    );
+  });
+
+  it("uploads Kling element reference images to Kie temporary storage before submit", async () => {
+    vi.mocked(fetchWithAuth)
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          url: "https://tempfile.aiquickdraw.com/shortpulse/kling-elements/images/taylor-front.png",
+        }),
+      } as Response)
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          url: "https://tempfile.aiquickdraw.com/shortpulse/kling-elements/images/taylor-side.png",
+        }),
+      } as Response);
+
+    const args = makeArgs({
+      finalModel: KIE_KLING_30_MODEL_ID,
+      modelConfig: getModelConfig(KIE_KLING_30_MODEL_ID),
+      videoReferenceMode: "standard",
+      cleanedPrompt: "the woman walks into the scene",
+      preparedImageInputs: ["https://example.com/start.png"],
+      klingElements: [
+        {
+          id: "element-1",
+          slotIndex: 0,
+          name: "Taylor",
+          alias: "taylor",
+          frontalImageUrl: "https://example.com/taylor-front.png",
+          referenceImageUrls: "https://example.com/taylor-side.png",
+          videoUrl: "",
+        },
+      ],
+    });
+
+    const handled = await handleVideoModelSubmission(args);
+
+    expect(handled).toBe(true);
+    expect(fetchWithAuth).toHaveBeenCalledTimes(2);
+    expect(submitKieKlingImageToVideo).toHaveBeenCalledWith(
+      expect.objectContaining({
+        kling_elements: [
+          {
+            name: "element_taylor",
+            description: "Reference images for Taylor",
+            element_input_urls: [
+              "https://tempfile.aiquickdraw.com/shortpulse/kling-elements/images/taylor-front.png",
+              "https://tempfile.aiquickdraw.com/shortpulse/kling-elements/images/taylor-side.png",
+            ],
           },
         ],
       })
@@ -812,13 +890,13 @@ describe("handleVideoModelSubmission (Kie Kling standard)", () => {
     expect(handled).toBe(true);
     expect(submitKieKlingImageToVideo).toHaveBeenCalledWith(
       expect.objectContaining({
-        prompt: "Scene one shifts into scene two with @redlantern throughout.",
+        prompt: "Scene one shifts into scene two with @element_redlantern throughout.",
         image_urls: ["https://example.com/start.png", "https://example.com/end.png"],
         multi_shots: false,
         multi_prompt: undefined,
         kling_elements: [
           {
-            name: "redlantern",
+            name: "element_redlantern",
             description: "Reference images for Red Lantern",
             element_input_urls: ["https://example.com/element-a.png"],
           },

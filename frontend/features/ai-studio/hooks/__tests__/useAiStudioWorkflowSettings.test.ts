@@ -370,6 +370,57 @@ describe("useAiStudioWorkflowSettings", () => {
     expect(parsed.video?.klingElements).toEqual([]);
   });
 
+  it("restores in-memory Kling elements on same-session video return even though session storage strips them", async () => {
+    window.sessionStorage.clear();
+    const { result } = renderHook(() => useHarness("video"));
+
+    await waitFor(() =>
+      expect(window.sessionStorage.getItem(WORKFLOW_SETTINGS_SESSION_KEY)).not.toBeNull()
+    );
+
+    act(() => {
+      result.current.setKlingElements([
+        {
+          id: "element-1",
+          slotIndex: 0,
+          sourceKind: "element",
+          sourceElementId: "element-beach",
+          sourceCharacterId: null,
+          name: "Beach",
+          alias: "beach",
+          frontalImageUrl: "https://example.com/beach-front.png",
+          referenceImageUrls: "https://example.com/beach-side.png",
+          videoUrl: "",
+        },
+      ]);
+    });
+
+    await waitFor(() => {
+      const raw = window.sessionStorage.getItem(WORKFLOW_SETTINGS_SESSION_KEY);
+      const parsed = raw ? (JSON.parse(raw) as Record<string, { klingElements?: unknown[] }>) : {};
+      expect(parsed.video?.klingElements).toEqual([]);
+    });
+
+    act(() => {
+      result.current.setSelectedTool("create");
+    });
+    await waitFor(() => expect(result.current.selectedTool).toBe("create"));
+
+    act(() => {
+      result.current.setSelectedTool("video");
+    });
+
+    await waitFor(() => expect(result.current.selectedTool).toBe("video"));
+    expect(result.current.klingElements).toEqual([
+      expect.objectContaining({
+        id: "element-1",
+        slotIndex: 0,
+        name: "Beach",
+        alias: "beach",
+      }),
+    ]);
+  });
+
   it("preserves create selector changes when switching to edit before persistence catches up", async () => {
     window.sessionStorage.clear();
     const { result } = renderHook(() => useHarness("create"));

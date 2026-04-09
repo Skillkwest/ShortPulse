@@ -622,7 +622,7 @@ describe("VideoPropertiesPanel", () => {
     render(<VideoPropertiesPanel {...baseProps} onKlingElementsChange={onKlingElementsChange} />);
 
     fireEvent.click(screen.getByRole("button", { name: "Add element to slot 1" }));
-    expect(screen.getByRole("dialog", { name: "Choose Kling entity" })).toBeInTheDocument();
+    expect(screen.getByRole("dialog", { name: "Choose Characters/Elements" })).toBeInTheDocument();
 
     fireEvent.click(await screen.findByRole("button", { name: /red lantern/i }));
 

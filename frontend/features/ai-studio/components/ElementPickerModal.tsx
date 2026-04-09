@@ -104,11 +104,11 @@ export const ElementPickerModal = ({
           className="model-modal ai-character-picker-modal"
           role="dialog"
           aria-modal="true"
-          aria-label="Choose Kling entity"
+          aria-label="Choose Characters/Elements"
         >
           <div className="model-modal-header">
             <div className="model-modal-title-group">
-              <h3 className="model-modal-title">Kling Entity Picker</h3>
+              <h3 className="model-modal-title">Choose Characters/Elements</h3>
               <p className="model-modal-subtitle">
                 Select a saved Character or Element for the Kling 3.0 element slots.
               </p>
@@ -116,7 +116,7 @@ export const ElementPickerModal = ({
             <button
               type="button"
               className="ghost-btn mini model-modal-close"
-              aria-label="Close Kling entity picker"
+              aria-label="Close Characters/Elements picker"
               onClick={onClose}
             >
               ×

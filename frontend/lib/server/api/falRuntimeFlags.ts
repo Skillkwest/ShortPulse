@@ -27,13 +27,11 @@ export type FalRuntimeFlags = {
   reconcilerLeaseSeconds: number;
   circuitBreakerEnabled: boolean;
   circuitBreakerThreshold15m: number;
-  webhookEnabled: boolean;
   webhookVerifyMode: FalWebhookVerifyMode;
   webhookJwksUrl: string | null;
   webhookToleranceSeconds: number;
-  webhookCanaryUserAllowlist: Set<string>;
-  webhookCanaryModelAllowlist: Set<string>;
   publicApiBaseUrl: string | null;
+  webhookCallbackBaseUrl: string | null;
   directDebitFallbackEnabled: boolean;
   admission: GenerationAdmissionConfig;
   reservationCleanupEnabled: boolean;
@@ -45,7 +43,6 @@ export type FalRuntimeFlags = {
   admissionAtomicEnabled: boolean;
   queueEnabled: boolean;
   workerOwnedSubmitEnabled: boolean;
-  legacyDirectSubmitEnabled: boolean;
   queueMaxPerUser: number;
   queueDispatchBatchSize: number;
   queueLeaseSeconds: number;
@@ -157,7 +154,6 @@ export const readFalRuntimeFlags = (): FalRuntimeFlags => ({
     20,
     1
   ),
-  webhookEnabled: parseBoolean(process.env.SHORTPULSE_FAL_WEBHOOK_ENABLED, false),
   webhookVerifyMode: parseWebhookVerifyMode(process.env.SHORTPULSE_FAL_WEBHOOK_VERIFY_MODE),
   webhookJwksUrl:
     process.env.SHORTPULSE_FAL_WEBHOOK_JWKS_URL?.trim() ||
@@ -167,14 +163,13 @@ export const readFalRuntimeFlags = (): FalRuntimeFlags => ({
     300,
     1
   ),
-  webhookCanaryUserAllowlist: parseAllowlist(
-    process.env.SHORTPULSE_FAL_WEBHOOK_CANARY_USER_ALLOWLIST
-  ),
-  webhookCanaryModelAllowlist: parseAllowlist(
-    process.env.SHORTPULSE_FAL_WEBHOOK_CANARY_MODEL_ALLOWLIST
-  ),
   publicApiBaseUrl: normalizeBaseUrl(
     process.env.SHORTPULSE_PUBLIC_API_BASE_URL ?? process.env.APP_BASE_URL
+  ),
+  webhookCallbackBaseUrl: normalizeBaseUrl(
+    process.env.SHORTPULSE_FAL_WEBHOOK_CALLBACK_BASE_URL ??
+      process.env.SHORTPULSE_PUBLIC_API_BASE_URL ??
+      process.env.APP_BASE_URL
   ),
   directDebitFallbackEnabled: parseBoolean(
     process.env.SHORTPULSE_FAL_DIRECT_DEBIT_FALLBACK_ENABLED,
@@ -230,10 +225,6 @@ export const readFalRuntimeFlags = (): FalRuntimeFlags => ({
   queueEnabled: parseBoolean(process.env.SHORTPULSE_FAL_QUEUE_ENABLED, false),
   workerOwnedSubmitEnabled: parseBoolean(
     process.env.SHORTPULSE_FAL_WORKER_OWNED_SUBMIT_ENABLED,
-    false
-  ),
-  legacyDirectSubmitEnabled: parseBoolean(
-    process.env.SHORTPULSE_FAL_LEGACY_DIRECT_SUBMIT_ENABLED,
     false
   ),
   queueMaxPerUser: parseInteger(process.env.SHORTPULSE_FAL_QUEUE_MAX_PER_USER, 20, 1),

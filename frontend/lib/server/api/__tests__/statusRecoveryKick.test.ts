@@ -29,7 +29,6 @@ const createDefaultFlags = () => ({
   reconcilerLeaseSeconds: 120,
   circuitBreakerEnabled: false,
   circuitBreakerThreshold15m: 20,
-  webhookEnabled: true,
   webhookVerifyMode: "dual",
   webhookJwksUrl: "https://example.com/jwks.json",
   webhookToleranceSeconds: 300,

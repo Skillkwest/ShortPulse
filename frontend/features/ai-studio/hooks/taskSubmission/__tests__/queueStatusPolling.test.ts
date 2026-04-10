@@ -479,7 +479,7 @@ describe("queueStatusPolling", () => {
       await vi.advanceTimersByTimeAsync(90_000);
       expect(fetchFalQueueStatusMock).toHaveBeenCalledTimes(9);
       expect(output.taskState).toBe("pending");
-      expect(output.timestamp).not.toBe("Waiting for server recovery...");
+      expect(output.timestamp).not.toBe("Processing...");
 
       await vi.advanceTimersByTimeAsync(40_000);
 
@@ -487,7 +487,8 @@ describe("queueStatusPolling", () => {
       expect(notifyGenerationFailure).not.toHaveBeenCalled();
       expect(onDispatched).not.toHaveBeenCalled();
       expect(output.taskState).toBe("pending");
-      expect(output.timestamp).toBe("Waiting for server recovery...");
+      expect(output.timestamp).toBe("Processing...");
+      expect(output.queueState).toBeUndefined();
     } finally {
       vi.useRealTimers();
     }
@@ -543,7 +544,8 @@ describe("queueStatusPolling", () => {
       expect(notifyGenerationFailure).not.toHaveBeenCalled();
       expect(onDispatched).not.toHaveBeenCalled();
       expect(output.taskState).toBe("pending");
-      expect(output.timestamp).toBe("Waiting for server recovery...");
+      expect(output.timestamp).toBe("Processing...");
+      expect(output.queueState).toBeUndefined();
     } finally {
       vi.useRealTimers();
     }

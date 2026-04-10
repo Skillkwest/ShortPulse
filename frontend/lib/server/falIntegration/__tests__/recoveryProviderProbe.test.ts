@@ -123,4 +123,52 @@ describe("recoveryProviderProbe trusted base policy", () => {
       mediaUrls: [],
     });
   });
+
+  it("probes response and result endpoints before settling completed without media", async () => {
+    process.env.SHORTPULSE_FAL_TRUSTED_HOSTS = "queue.fal.run";
+
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            status: "COMPLETED",
+            request_id: "req-1",
+            response_url: "https://queue.fal.run/fal-ai/bytedance/requests/req-1",
+          }),
+          { status: 200 }
+        )
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            images: [{ url: "https://fal.media/files/result.png" }],
+          }),
+          { status: 200 }
+        )
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            images: [{ url: "https://fal.media/files/result.png" }],
+          }),
+          { status: 200 }
+        )
+      );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const observation = await probeProviderResult({
+      requestId: "req-1",
+      modelId: "fal-ai/bytedance/seedream/v4.5/edit",
+      apiKey: "test-fal-key",
+    });
+
+    expect(observation).toEqual({
+      state: "completed",
+      payload: {
+        images: [{ url: "https://fal.media/files/result.png" }],
+      },
+      mediaUrls: ["https://fal.media/files/result.png"],
+    });
+  });
 });

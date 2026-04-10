@@ -1,4 +1,5 @@
 import {
+  dispatchProviderResultRequest,
   dispatchProviderResponseProbeRequest,
   resolveProviderResponseUrls,
 } from "../providerIntegration/statusProviderDispatcher";
@@ -12,6 +13,8 @@ import {
   isProviderRetryableUpstreamResponse,
   resolveProviderSuccessfulPayloadStatus,
 } from "../providerIntegration/statusProviderPolicy";
+import { selectBestProviderResultCandidate } from "../providerIntegration/statusProviderSelection";
+import type { ResultProbeCandidate } from "./contracts";
 
 export type JsonObject = Record<string, unknown>;
 
@@ -172,6 +175,7 @@ export const probeResponseUrlsForMedia = async ({
   statusHint,
   apiKey,
   signal,
+  requestResponseProbe,
 }: {
   provider?: string;
   modelId?: string | null;
@@ -179,17 +183,20 @@ export const probeResponseUrlsForMedia = async ({
   statusHint: string | null;
   apiKey: string;
   signal: AbortSignal;
+  requestResponseProbe?: (responseUrl: string, signal: AbortSignal) => Promise<Response>;
 }): Promise<{ payload: JsonObject; payloadStatus: string } | null> => {
   const trustedResponseUrls = resolveProviderResponseUrls({ provider, responseUrls, modelId });
   const probeResults = await Promise.all(
     trustedResponseUrls.map(async (responseUrl) => {
       try {
-        const responseProbe = await dispatchProviderResponseProbeRequest({
-          provider,
-          responseUrl,
-          apiKey,
-          signal,
-        });
+        const responseProbe = requestResponseProbe
+          ? await requestResponseProbe(responseUrl, signal)
+          : await dispatchProviderResponseProbeRequest({
+              provider,
+              responseUrl,
+              apiKey,
+              signal,
+            });
         const responseProbeData = await readJsonSafe(responseProbe);
         return {
           responseProbe,
@@ -234,4 +241,110 @@ export const probeResponseUrlsForMedia = async ({
     };
   }
   return null;
+};
+
+export const probeResultBasesForMedia = async ({
+  provider = "fal",
+  modelId = null,
+  resultBaseUrls,
+  requestId,
+  statusHint,
+  apiKey,
+  signal,
+  requestResult,
+}: {
+  provider?: string;
+  modelId?: string | null;
+  resultBaseUrls: string[];
+  requestId: string;
+  statusHint: string | null;
+  apiKey: string;
+  signal: AbortSignal;
+  requestResult?: (baseUrl: string, signal: AbortSignal) => Promise<Response>;
+}): Promise<{ payload: JsonObject; payloadStatus: string } | null> => {
+  const resultCandidates: Array<{
+    probe: ResultProbeCandidate;
+    response: Response;
+    data: JsonReadResult;
+  }> = [];
+
+  const resultProbeResults = await Promise.all(
+    resultBaseUrls.map(async (baseUrl, index) => {
+      try {
+        const response = requestResult
+          ? await requestResult(baseUrl, signal)
+          : await dispatchProviderResultRequest({
+              provider,
+              baseUrl,
+              requestId,
+              apiKey,
+              signal,
+            });
+        const data = await readJsonSafe(response);
+        const candidateStatus = data.isJson
+          ? readProviderLifecycleStatus({
+              provider,
+              modelId,
+              payload: data.json,
+            })
+          : null;
+        const probe: ResultProbeCandidate = {
+          index,
+          baseUrl,
+          isJson: data.isJson,
+          isRetryableAlias: response.status === 404 || response.status === 405,
+          httpStatus: response.status,
+          isHttpOk: response.ok,
+          status: candidateStatus,
+          hasError: data.isJson ? Boolean(data.json.error) || Boolean(data.json.detail) : true,
+          hasMedia: data.isJson
+            ? providerPayloadHasMedia({
+                provider,
+                modelId,
+                payload: data.json,
+              })
+            : false,
+        };
+        return { probe, response, data };
+      } catch {
+        return null;
+      }
+    })
+  );
+
+  for (const resultProbeResult of resultProbeResults) {
+    if (!resultProbeResult) continue;
+    const { probe, response, data } = resultProbeResult;
+    if (probe.isRetryableAlias) continue;
+    resultCandidates.push({ probe, response, data });
+  }
+
+  const bestResultProbe = selectBestProviderResultCandidate({
+    provider,
+    candidates: resultCandidates.map((candidate) => candidate.probe),
+  });
+  const bestResultCandidate =
+    bestResultProbe &&
+    resultCandidates.find((candidate) => candidate.probe.index === bestResultProbe.index);
+  if (
+    !bestResultCandidate ||
+    !bestResultCandidate.probe.isHttpOk ||
+    !bestResultCandidate.data.isJson ||
+    !bestResultCandidate.probe.hasMedia
+  ) {
+    return null;
+  }
+
+  return {
+    payload: bestResultCandidate.data.json,
+    payloadStatus: resolveProviderSuccessfulPayloadStatus({
+      provider,
+      candidates: [
+        bestResultCandidate.probe.status,
+        bestResultCandidate.data.json.status,
+        bestResultCandidate.data.json.state,
+        statusHint,
+      ],
+    }),
+  };
 };

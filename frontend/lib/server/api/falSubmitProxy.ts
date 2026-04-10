@@ -6,7 +6,6 @@ import { requireApiUser } from "./auth";
 import { chargeGenerationRequest } from "./generationBilling";
 import { resolveRuntimeSafetyProfile } from "./agentSafetyPolicyControlPlane";
 import { logGenerationFailure } from "./appErrorLogs";
-import { ensureLegacyDirectSubmitGenerationRecord } from "./generationSubmitPersistence";
 import { readFalRuntimeFlags } from "./falRuntimeFlags";
 import {
   hasFreshLocalGenerationWorkerHeartbeat,
@@ -29,12 +28,6 @@ import {
   resolveGenerationResolutionFromPayload,
   readGenerationDurationSeconds,
 } from "./generationQueue/metadata";
-import { resolveWebhookCallbackUrl, withWebhookTargets } from "./falSubmitTargeting";
-import {
-  collectKieSubmitMediaDiagnostics,
-  dispatchProviderSubmit,
-  ProviderSubmitValidationError,
-} from "../providerIntegration/submitProviderDispatcher";
 import { readProviderApiKey } from "../providerIntegration/providerRuntimeConfig";
 import { getModelPayloadValidationSpec } from "../../model-runtime/modelCatalog";
 import { evaluateFalPayloadContractForModel } from "./falPayloadValidation";
@@ -157,10 +150,10 @@ const buildWorkerOwnedSubmitMisconfiguredPayload = (retryAfterSeconds: number) =
   retryAfterSeconds,
 });
 
-const buildLegacyDirectSubmitDisabledPayload = (retryAfterSeconds: number) => ({
+const buildQueueRequiredPayload = (retryAfterSeconds: number) => ({
   error:
-    "Direct inline generation submit is disabled for this runtime. Enable the durable queue or re-enable the legacy fallback and retry.",
-  code: "GENERATION_DIRECT_SUBMIT_DISABLED",
+    "Durable queue-backed generation submit is required for this runtime. Enable the queue and retry.",
+  code: "GENERATION_QUEUE_REQUIRED",
   retryAfterSeconds,
 });
 
@@ -177,10 +170,6 @@ const buildQueuedSubmitPayload = ({
   generationId,
   pollAfterMs: 2000,
 });
-
-// Queueing is the canonical submit path whenever it is available.
-const shouldUseQueuedSubmitPath = ({ queueEnabled }: { queueEnabled: boolean }): boolean =>
-  queueEnabled;
 
 const isWorkerOwnedSubmitMisconfigured = ({
   queueEnabled,
@@ -214,8 +203,6 @@ const applyRewrittenPromptToPayload = ({
 export const createFalSubmitHandler = ({
   modelId,
   provider = "fal",
-  submitUrl,
-  submitTargets,
   skipBilling = false,
   routeLabel,
   timeoutMs = 20000,
@@ -235,9 +222,8 @@ export const createFalSubmitHandler = ({
     }
 
     const providerKey = provider.trim().toLowerCase();
-    let apiKey: string;
     try {
-      apiKey = readProviderApiKey(providerKey);
+      readProviderApiKey(providerKey);
     } catch (error) {
       await logGenerationFailure({
         req,
@@ -569,9 +555,7 @@ export const createFalSubmitHandler = ({
         });
       }
 
-      const queuedSubmitSelected = shouldUseQueuedSubmitPath({
-        queueEnabled: runtimeFlags.queueEnabled,
-      });
+      const queuedSubmitSelected = runtimeFlags.queueEnabled;
       const workerOwnedSubmitMisconfigured = isWorkerOwnedSubmitMisconfigured({
         queueEnabled: runtimeFlags.queueEnabled,
         workerOwnedSubmitEnabled: runtimeFlags.workerOwnedSubmitEnabled,
@@ -798,62 +782,30 @@ export const createFalSubmitHandler = ({
         );
       }
 
-      if (!runtimeFlags.legacyDirectSubmitEnabled) {
-        const retryAfterSeconds = 20;
-        await charge.refund(
-          "Auto-release: legacy direct submit is disabled and no queued path was selected.",
-          {
-            reason: "legacy_direct_submit_disabled",
-            queue_enabled: runtimeFlags.queueEnabled,
-            worker_owned_submit_enabled: runtimeFlags.workerOwnedSubmitEnabled,
-            admission_enforced: admissionDecision.enforced,
-          }
-        );
-        await logGenerationFailure({
-          req,
-          routeLabel,
-          source: "api.fal_submit.legacy_direct_submit_disabled",
-          message:
-            "Legacy direct submit was disabled before the request reached the inline submit path.",
-          statusCode: 503,
-          userId: charge.userId,
-          metadata: {
-            model_id: modelId,
-            source_ref: charge.sourceRef,
-            queue_enabled: runtimeFlags.queueEnabled,
-            worker_owned_submit_enabled: runtimeFlags.workerOwnedSubmitEnabled,
-            admission_enforced: admissionDecision.enforced,
-          },
-        });
-        res.setHeader("Retry-After", String(retryAfterSeconds));
-        return res.status(503).json(buildLegacyDirectSubmitDisabledPayload(retryAfterSeconds));
-      }
-
-      if (admissionDecision.enforced) {
-        await charge.refund("Auto-release: generation admission limited.", {
-          reason: admissionDecision.reason,
-          global_active: admissionDecision.snapshot.globalActive,
-          global_max: admissionDecision.snapshot.globalMax,
-          tier: admissionDecision.snapshot.tier,
-          tier_active: admissionDecision.snapshot.tierActive,
-          tier_max: admissionDecision.snapshot.tierMax,
-        });
-        res.setHeader("Retry-After", String(admissionDecision.retryAfterSeconds));
-        return res.status(429).json(
-          buildAdmissionLimitPayload({
-            retryAfterSeconds: admissionDecision.retryAfterSeconds,
-            admissionScope,
-            admissionReason: admissionDecision.reason,
-            snapshot: {
-              globalMax: admissionDecision.snapshot.globalMax,
-              globalActive: admissionDecision.snapshot.globalActive,
-              tier: admissionDecision.snapshot.tier,
-              tierMax: admissionDecision.snapshot.tierMax,
-              tierActive: admissionDecision.snapshot.tierActive,
-            },
-          })
-        );
-      }
+      const retryAfterSeconds = 20;
+      await charge.refund("Auto-release: durable queue-backed submit is required.", {
+        reason: "queue_required",
+        queue_enabled: runtimeFlags.queueEnabled,
+        worker_owned_submit_enabled: runtimeFlags.workerOwnedSubmitEnabled,
+        admission_enforced: admissionDecision.enforced,
+      });
+      await logGenerationFailure({
+        req,
+        routeLabel,
+        source: "api.fal_submit.queue_required",
+        message: "Durable queue-backed submit was required before reaching any inline path.",
+        statusCode: 503,
+        userId: charge.userId,
+        metadata: {
+          model_id: modelId,
+          source_ref: charge.sourceRef,
+          queue_enabled: runtimeFlags.queueEnabled,
+          worker_owned_submit_enabled: runtimeFlags.workerOwnedSubmitEnabled,
+          admission_enforced: admissionDecision.enforced,
+        },
+      });
+      res.setHeader("Retry-After", String(retryAfterSeconds));
+      return res.status(503).json(buildQueueRequiredPayload(retryAfterSeconds));
     } catch (error) {
       await logGenerationFailure({
         req,
@@ -876,254 +828,6 @@ export const createFalSubmitHandler = ({
       return res.status(503).json(buildAdmissionUnavailablePayload(retryAfterSeconds));
     }
 
-    const resolvedSubmitTargets: SubmitTarget[] =
-      submitTargets && submitTargets.length ? submitTargets : submitUrl ? [{ submitUrl }] : [];
-    if (!resolvedSubmitTargets.length) {
-      await logGenerationFailure({
-        req,
-        routeLabel,
-        source: "api.fal_submit.config_missing_target",
-        message: "No Fal submit target configured for route",
-        statusCode: 500,
-        metadata: { model_id: modelId },
-      });
-      return res.status(500).json({ error: "No Fal submit target configured for route" });
-    }
-    const webhookCallbackUrl = resolveWebhookCallbackUrl(runtimeFlags, {
-      userId: charge.userId,
-      modelId,
-    });
-    const resolvedTargetsWithWebhook = withWebhookTargets(
-      resolvedSubmitTargets,
-      webhookCallbackUrl
-    );
-
-    const submitViaLegacyDirectFallback = async (): Promise<void> => {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
-      try {
-        await logGenerationFailure({
-          req,
-          routeLabel,
-          source: "telemetry.api.fal_submit.legacy_direct_submit",
-          message: "Generation is using the legacy inline submit fallback path.",
-          statusCode: 200,
-          userId: charge.userId,
-          metadata: {
-            model_id: modelId,
-            source_ref: charge.sourceRef,
-            generation_submit_authority: "api",
-            generation_submit_path: "legacy_direct_submit",
-          },
-        });
-        const upstreamResult = await dispatchProviderSubmit({
-          provider: providerKey,
-          modelId,
-          targets: resolvedTargetsWithWebhook,
-          payload,
-          apiKey,
-          signal: controller.signal,
-          requestStartTimeoutSeconds: Math.max(1, Math.ceil(timeoutMs / 1000)),
-        });
-        const upstream = upstreamResult.response;
-        const data = upstreamResult.data;
-
-        let persistedGenerationId: string | null = null;
-
-        if (!upstream.ok) {
-          const upstreamErrorMessage =
-            (typeof data.error === "string" && data.error) ||
-            (typeof data.message === "string" && data.message) ||
-            (typeof data.msg === "string" && data.msg) ||
-            `${routeLabel} submit rejected`;
-          const kieMediaDiagnostics =
-            providerKey === "kie"
-              ? (upstreamResult.providerDiagnostics ??
-                collectKieSubmitMediaDiagnostics(payload as Record<string, unknown>))
-              : null;
-          await charge.refund("Auto-refund: Fal submit rejected.", {
-            upstream_status: upstream.status,
-            upstream_error: data,
-            upstream_target_url: upstreamResult.targetUrl,
-          });
-          await logGenerationFailure({
-            req,
-            routeLabel,
-            source: "api.fal_submit.upstream_error",
-            message: upstreamErrorMessage,
-            statusCode: upstream.status,
-            userId: charge.userId,
-            metadata: {
-              model_id: modelId,
-              upstream_payload: data,
-              upstream_target_url: upstreamResult.targetUrl,
-              upstream_target_index: upstreamResult.targetIndex,
-              ...(kieMediaDiagnostics ? { media_diagnostics: kieMediaDiagnostics } : {}),
-            },
-          });
-        } else {
-          const providerRequestId = upstreamResult.providerRequestId;
-          if (!providerRequestId) {
-            await charge.refund("Auto-refund: Fal submit missing request id.", {
-              upstream_status: upstream.status,
-              upstream_payload: data,
-            });
-            await logGenerationFailure({
-              req,
-              routeLabel,
-              source: "api.fal_submit.missing_request_id",
-              message: `${routeLabel} submit response did not include request_id`,
-              statusCode: 502,
-              userId: charge.userId,
-              metadata: {
-                model_id: modelId,
-                upstream_payload: data,
-              },
-            });
-            res.status(502).json({
-              error: `${routeLabel} submit response did not include request_id`,
-            });
-            return;
-          }
-          const markSubmittedResult = await charge.markSubmitted(providerRequestId, {
-            route: req.url ?? null,
-            upstream_status: upstream.status,
-            upstream_target_url: upstreamResult.targetUrl,
-            upstream_target_index: upstreamResult.targetIndex,
-            webhook_callback_url: webhookCallbackUrl,
-            webhook_registered: Boolean(webhookCallbackUrl),
-          });
-          const persistenceResult = await ensureLegacyDirectSubmitGenerationRecord({
-            userId: charge.userId,
-            modelId,
-            routeLabel,
-            payload,
-            providerRequestId,
-            sourceRef: charge.sourceRef,
-            submitTargetUrl: upstreamResult.targetUrl,
-            submitTargetIndex: upstreamResult.targetIndex,
-          });
-          if (!persistenceResult.ok) {
-            await logGenerationFailure({
-              req,
-              routeLabel,
-              source: "api.fal_submit.persist_generation_failed",
-              message: "Failed to persist ai_generations row after submit.",
-              statusCode: 500,
-              userId: charge.userId,
-              metadata: {
-                model_id: modelId,
-                provider_request_id: providerRequestId,
-                source_ref: charge.sourceRef,
-                persistence_error: persistenceResult.error,
-              },
-            });
-          } else {
-            persistedGenerationId = persistenceResult.generationId ?? null;
-          }
-          if (!markSubmittedResult.ok) {
-            await logGenerationFailure({
-              req,
-              routeLabel,
-              source: "api.fal_submit.mark_submitted_failed",
-              message: "Accepted submit could not durably link billing state to provider request.",
-              statusCode: 500,
-              userId: charge.userId,
-              metadata: {
-                model_id: modelId,
-                billing_mode: charge.billingMode,
-                provider_request_id: providerRequestId,
-                source_ref: charge.sourceRef,
-                linkage_status: markSubmittedResult.status,
-                linkage_message: markSubmittedResult.message ?? null,
-                linkage_code: markSubmittedResult.code ?? null,
-                persistence_ok: persistenceResult.ok,
-                persistence_error: persistenceResult.ok ? null : persistenceResult.error,
-              },
-            });
-          }
-          if (!markSubmittedResult.ok || !persistenceResult.ok) {
-            await charge.refund(
-              "Auto-compensation: accepted submit could not be durably tracked.",
-              {
-                provider_request_id: providerRequestId,
-                submit_link_status: markSubmittedResult.status,
-                submit_link_message: markSubmittedResult.message ?? null,
-                submit_link_code: markSubmittedResult.code ?? null,
-                persistence_ok: persistenceResult.ok,
-                persistence_error: persistenceResult.ok ? null : persistenceResult.error,
-                upstream_status: upstream.status,
-                upstream_target_url: upstreamResult.targetUrl,
-                upstream_target_index: upstreamResult.targetIndex,
-              }
-            );
-            res.status(500).json({
-              error:
-                "Unable to finalize generation tracking. Please verify recent outputs before retrying.",
-              code: "GENERATION_SUBMIT_TRACKING_FAILED",
-            });
-            return;
-          }
-        }
-        const responsePayload = {
-          ...data,
-          ...(upstreamResult.providerRequestId &&
-          typeof data.request_id !== "string" &&
-          typeof data.requestId !== "string"
-            ? { request_id: upstreamResult.providerRequestId }
-            : {}),
-          ...(persistedGenerationId != null ? { generationId: persistedGenerationId } : {}),
-        };
-        res.status(upstream.status).json(responsePayload);
-      } catch (error) {
-        if (error instanceof ProviderSubmitValidationError) {
-          await charge.refund("Auto-refund: provider submit preflight validation failed.", {
-            code: error.code,
-            detail: error.detail,
-          });
-          await logGenerationFailure({
-            req,
-            routeLabel,
-            source: "api.fal_submit.validation_failed",
-            message: error.message,
-            statusCode: error.statusCode,
-            userId: charge.userId,
-            metadata: {
-              model_id: modelId,
-              code: error.code,
-              detail: error.detail,
-            },
-          });
-          res.status(error.statusCode).json({
-            error: error.message,
-            code: error.code,
-            detail: error.detail ?? null,
-          });
-          return;
-        }
-        await charge.refund("Auto-refund: Fal submit transport failure.", {
-          error: String(error),
-        });
-        await logGenerationFailure({
-          req,
-          routeLabel,
-          source: "api.fal_submit.transport_error",
-          message: `${routeLabel} submit failed`,
-          statusCode: 500,
-          userId: charge.userId,
-          stack: error instanceof Error ? (error.stack ?? null) : null,
-          metadata: {
-            model_id: modelId,
-            detail: String(error),
-          },
-        });
-        res.status(500).json({ error: `${routeLabel} submit failed`, detail: String(error) });
-      } finally {
-        clearTimeout(timeoutId);
-      }
-    };
-
-    await submitViaLegacyDirectFallback();
     return;
   };
 };

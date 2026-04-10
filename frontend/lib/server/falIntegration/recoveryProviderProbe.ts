@@ -4,7 +4,6 @@ import { readFalRuntimeFlags } from "../api/falRuntimeFlags";
 import {
   dispatchProviderResponseProbeRequest,
   dispatchProviderResultRequest,
-  resolveProviderResponseUrls,
   dispatchProviderStatusRequest,
 } from "../providerIntegration/statusProviderDispatcher";
 import {
@@ -30,6 +29,7 @@ import {
   normalizeProviderKey,
 } from "../providerIntegration/providerKey";
 import { recoveryFetchWithTimeout } from "./recoveryFetchWithTimeout";
+import { probeResultBasesForMedia, probeResponseUrlsForMedia } from "./statusProxyRuntime";
 
 type JsonObject = Record<string, unknown>;
 
@@ -230,59 +230,74 @@ export const probeProviderResult = async ({
         };
       }
     }
+    const responseProbe = await probeResponseUrlsForMedia({
+      provider: providerKey,
+      modelId,
+      responseUrls: Array.from(responseUrlSet),
+      statusHint: bestStatus?.status ?? null,
+      apiKey,
+      signal: pollingSession.signal,
+      requestResponseProbe: (responseUrl, signal) =>
+        recoveryFetchWithTimeout({
+          timeoutMs: runtimeFlags.recoveryProbeTimeoutMs,
+          signal: pollingSession.signal,
+          execute: () =>
+            dispatchProviderResponseProbeRequest({
+              provider: providerKey,
+              responseUrl,
+              apiKey,
+              signal,
+            }),
+        }),
+    });
+    if (responseProbe) {
+      return {
+        state: "completed",
+        payload: responseProbe.payload,
+        mediaUrls: extractRecoveryMediaUrls(responseProbe.payload, {
+          provider: providerKey,
+          modelId,
+        }),
+      };
+    }
+
+    const resultMediaProbe = await probeResultBasesForMedia({
+      provider: providerKey,
+      modelId,
+      resultBaseUrls: queueBaseUrls,
+      requestId,
+      statusHint: bestStatus?.status ?? null,
+      apiKey,
+      signal: pollingSession.signal,
+      requestResult: (baseUrl, signal) =>
+        recoveryFetchWithTimeout({
+          timeoutMs: runtimeFlags.recoveryProbeTimeoutMs,
+          signal: pollingSession.signal,
+          execute: () =>
+            dispatchProviderResultRequest({
+              provider: providerKey,
+              baseUrl,
+              requestId,
+              apiKey,
+              signal,
+            }),
+        }),
+    });
+    if (resultMediaProbe) {
+      return {
+        state: "completed",
+        payload: resultMediaProbe.payload,
+        mediaUrls: extractRecoveryMediaUrls(resultMediaProbe.payload, {
+          provider: providerKey,
+          modelId,
+        }),
+      };
+    }
     if (bestStatus?.isCompleted) {
       return {
         state: "completed",
         payload: payloadByStatusIndex.get(bestStatus.index) ?? null,
         mediaUrls: [],
-      };
-    }
-
-    const responseProbeResults = await Promise.all(
-      resolveProviderResponseUrls({
-        provider: providerKey,
-        responseUrls: Array.from(responseUrlSet),
-        modelId,
-      }).map(async (responseUrl) => {
-        try {
-          const responseProbe = await recoveryFetchWithTimeout({
-            timeoutMs: runtimeFlags.recoveryProbeTimeoutMs,
-            signal: pollingSession.signal,
-            execute: (signal) =>
-              dispatchProviderResponseProbeRequest({
-                provider: providerKey,
-                responseUrl,
-                apiKey,
-                signal,
-              }),
-          });
-          const responseData = await readJsonSafe(responseProbe);
-          return { responseProbe, responseData };
-        } catch {
-          return null;
-        }
-      })
-    );
-    for (const responseProbeResult of responseProbeResults) {
-      if (!responseProbeResult) continue;
-      const { responseProbe, responseData } = responseProbeResult;
-      if (
-        !responseProbe.ok ||
-        !providerPayloadHasMedia({
-          provider: providerKey,
-          modelId,
-          payload: responseData.json,
-        })
-      ) {
-        continue;
-      }
-      return {
-        state: "completed",
-        payload: responseData.json,
-        mediaUrls: extractRecoveryMediaUrls(responseData.json, {
-          provider: providerKey,
-          modelId,
-        }),
       };
     }
 

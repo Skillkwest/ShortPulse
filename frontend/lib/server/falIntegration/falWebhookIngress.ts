@@ -1,8 +1,10 @@
 import { getSupabaseAdmin } from "../api/supabaseAdmin";
 import { lookupGenerationAttemptByProviderRequest } from "../api/generationAttempts";
 import { persistGenerationObservation } from "../api/generationObservationInbox";
+import { readPersistedGenerationStatusContext } from "../api/falStatusPersistedResults";
 import { readRecoveryGenerationRow } from "./recoveryGenerationLookup";
 import { requestGenerationControlPlaneWake } from "../generationControlPlane/controlPlaneWake";
+import { executeGenerationRecovery } from "./recoveryExecution";
 import {
   asProviderRecord,
   readCanonicalProviderEventId,
@@ -175,25 +177,54 @@ export const ingestFalWebhookEvent = async ({
   const identity = await resolveWebhookObservationIdentity({
     requestId,
   });
-  await persistGenerationObservation({
-    generationId: identity.generationId,
-    generationAttemptId: identity.generationAttemptId,
-    userId: identity.userId,
-    provider: "fal",
-    providerRequestId: requestId,
-    observationSource: "webhook",
-    observationType: observationState,
-    idempotencyKey: observationIdempotencyKey,
-    payload,
-  });
-  void requestGenerationControlPlaneWake({
-    routeLabel: "fal/webhook",
-    reason: "webhook_observation",
-  });
+  let immediateRecoverySettled = false;
+  try {
+    await executeGenerationRecovery({
+      actor: "webhook",
+      generationId: identity.generationId,
+      requestId,
+      userId: identity.userId,
+      observation: {
+        state: observationState,
+        payload,
+        mediaUrls: [],
+      },
+      routeLabel: "fal/webhook",
+    });
+    if (identity.userId) {
+      const canonicalContext = await readPersistedGenerationStatusContext({
+        userId: identity.userId,
+        requestId,
+      });
+      immediateRecoverySettled =
+        canonicalContext.resultUrls.length > 0 || canonicalContext.taskState === "fail";
+    }
+  } catch {
+    // Fall back to the observation inbox + control plane when immediate persistence fails.
+  }
+  if (!immediateRecoverySettled) {
+    await persistGenerationObservation({
+      generationId: identity.generationId,
+      generationAttemptId: identity.generationAttemptId,
+      userId: identity.userId,
+      provider: "fal",
+      providerRequestId: requestId,
+      observationSource: "webhook",
+      observationType: observationState,
+      idempotencyKey: observationIdempotencyKey,
+      payload,
+    });
+    void requestGenerationControlPlaneWake({
+      routeLabel: "fal/webhook",
+      reason: "webhook_observation",
+    });
+  }
 
   await markWebhookEventProcessed({
     eventId,
-    processingStatus: "accepted_pending_observation",
+    processingStatus: immediateRecoverySettled
+      ? "accepted_immediate_recovery"
+      : "accepted_pending_observation",
     processingError: null,
   });
 

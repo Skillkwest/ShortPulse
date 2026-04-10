@@ -190,8 +190,7 @@ describe("runGenerationControlPlaneCycle", () => {
     expect(logApiRouteExceptionMock).not.toHaveBeenCalled();
   });
 
-  it("skips queue dispatch and runs bounded request-id repair in rescue mode", async () => {
-    process.env.SHORTPULSE_FAL_LEGACY_DIRECT_SUBMIT_ENABLED = "true";
+  it("skips queue dispatch and does not run request-id repair in rescue mode", async () => {
     const supabase = createSupabaseMock();
     getSupabaseAdminMock.mockReturnValue({
       rpc: supabase.rpc,
@@ -206,9 +205,7 @@ describe("runGenerationControlPlaneCycle", () => {
     });
 
     expect(dispatchGenerationSubmitQueueBatchMock).not.toHaveBeenCalled();
-    expect(repairGenerationRequestIdsFromReservationsMock).toHaveBeenCalledWith({
-      limit: 5,
-    });
+    expect(repairGenerationRequestIdsFromReservationsMock).not.toHaveBeenCalled();
     expect(processPendingGenerationObservationsMock).toHaveBeenCalledWith({
       limit: 5,
       leaseSeconds: expect.any(Number),
@@ -223,8 +220,7 @@ describe("runGenerationControlPlaneCycle", () => {
     });
   });
 
-  it("skips request-id repair in primary mode when legacy direct submit is disabled", async () => {
-    process.env.SHORTPULSE_FAL_LEGACY_DIRECT_SUBMIT_ENABLED = "false";
+  it("skips request-id repair in primary mode", async () => {
     const supabase = createSupabaseMock();
     getSupabaseAdminMock.mockReturnValue({
       rpc: supabase.rpc,
@@ -253,8 +249,7 @@ describe("runGenerationControlPlaneCycle", () => {
     });
   });
 
-  it("skips request-id repair in primary mode even when legacy direct submit remains enabled", async () => {
-    process.env.SHORTPULSE_FAL_LEGACY_DIRECT_SUBMIT_ENABLED = "true";
+  it("skips request-id repair in primary mode even during rescue-oriented compatibility conditions", async () => {
     const supabase = createSupabaseMock();
     getSupabaseAdminMock.mockReturnValue({
       rpc: supabase.rpc,

@@ -48,7 +48,7 @@ const requireEnv = (name) => {
 
 loadLocalEnv({
   argv: process.argv.slice(2),
-  defaultPaths: ["../.env.agent.local", ".env.local"],
+  defaultPaths: ["../.env.agent.local", ".env.development.local", ".env.local"],
 });
 
 let stopped = false;

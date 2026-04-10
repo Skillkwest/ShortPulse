@@ -1,10 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { FalRuntimeFlags } from "../falRuntimeFlags";
-import {
-  isWebhookCanaryEligible,
-  resolveWebhookCallbackUrl,
-  withWebhookTargets,
-} from "../falSubmitTargeting";
+import { resolveWebhookCallbackUrl, withWebhookTargets } from "../falSubmitTargeting";
 
 const createFlags = (overrides: Partial<FalRuntimeFlags> = {}): FalRuntimeFlags => ({
   integrationMode: "on",
@@ -17,13 +13,11 @@ const createFlags = (overrides: Partial<FalRuntimeFlags> = {}): FalRuntimeFlags 
   reconcilerLeaseSeconds: 120,
   circuitBreakerEnabled: false,
   circuitBreakerThreshold15m: 20,
-  webhookEnabled: true,
   webhookVerifyMode: "fal_only",
   webhookJwksUrl: "https://example.test/jwks",
   webhookToleranceSeconds: 300,
-  webhookCanaryUserAllowlist: new Set<string>(),
-  webhookCanaryModelAllowlist: new Set<string>(),
   publicApiBaseUrl: "https://shortpulse.test",
+  webhookCallbackBaseUrl: "https://shortpulse.test",
   directDebitFallbackEnabled: false,
   admission: {
     mode: "off",
@@ -48,7 +42,6 @@ const createFlags = (overrides: Partial<FalRuntimeFlags> = {}): FalRuntimeFlags 
   queueMaxAttempts: 5,
   queueBaseBackoffSeconds: 5,
   workerOwnedSubmitEnabled: overrides.workerOwnedSubmitEnabled ?? false,
-  legacyDirectSubmitEnabled: overrides.legacyDirectSubmitEnabled ?? false,
   ...overrides,
   videoSubmitCanonicalMode: overrides.videoSubmitCanonicalMode ?? "on",
   videoQueueCompatNormalizationEnabled: overrides.videoQueueCompatNormalizationEnabled ?? true,
@@ -66,44 +59,29 @@ const createFlags = (overrides: Partial<FalRuntimeFlags> = {}): FalRuntimeFlags 
   runningHardTimeoutSeconds: overrides.runningHardTimeoutSeconds ?? 0,
 });
 
-describe("falSubmitTargeting webhook canary", () => {
-  it("returns callback URL when webhook enabled and no canary allowlists are configured", () => {
+describe("falSubmitTargeting webhook callback", () => {
+  it("returns callback URL when integration is active and a public base URL exists", () => {
     const callback = resolveWebhookCallbackUrl(createFlags());
     expect(callback).toBe("https://shortpulse.test/api/fal/webhook");
   });
 
-  it("returns null when caller is outside configured canary allowlists", () => {
+  it("returns null when integration is legacy", () => {
     const callback = resolveWebhookCallbackUrl(
       createFlags({
-        webhookCanaryUserAllowlist: new Set(["user-1"]),
-        webhookCanaryModelAllowlist: new Set(["fal-ai/nano-banana-pro"]),
-      }),
-      {
-        userId: "user-2",
-        modelId: "fal-ai/nano-banana-pro",
-      }
+        integrationMode: "legacy",
+      })
     );
     expect(callback).toBeNull();
   });
 
-  it("accepts wildcard/prefix canary matches for user and model", () => {
-    const flags = createFlags({
-      webhookCanaryUserAllowlist: new Set(["user-*"]),
-      webhookCanaryModelAllowlist: new Set(["fal-ai/*"]),
-    });
-    expect(
-      isWebhookCanaryEligible({
-        flags,
-        userId: "user-42",
-        modelId: "fal-ai/nano-banana-pro",
+  it("prefers the dedicated webhook callback base URL", () => {
+    const callback = resolveWebhookCallbackUrl(
+      createFlags({
+        publicApiBaseUrl: "http://localhost:3000",
+        webhookCallbackBaseUrl: "https://shortpulse-preview.test",
       })
-    ).toBe(true);
-    expect(
-      resolveWebhookCallbackUrl(flags, {
-        userId: "user-42",
-        modelId: "fal-ai/nano-banana-pro",
-      })
-    ).toBe("https://shortpulse.test/api/fal/webhook");
+    );
+    expect(callback).toBe("https://shortpulse-preview.test/api/fal/webhook");
   });
 });
 

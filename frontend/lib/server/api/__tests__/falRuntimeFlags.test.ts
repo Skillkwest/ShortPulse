@@ -25,15 +25,12 @@ describe("readFalRuntimeFlags admission config", () => {
     delete process.env.SHORTPULSE_FAL_ADMISSION_ATOMIC_ENABLED;
     delete process.env.SHORTPULSE_FAL_QUEUE_ENABLED;
     delete process.env.SHORTPULSE_FAL_WORKER_OWNED_SUBMIT_ENABLED;
-    delete process.env.SHORTPULSE_FAL_LEGACY_DIRECT_SUBMIT_ENABLED;
     delete process.env.SHORTPULSE_FAL_QUEUE_MAX_PER_USER;
     delete process.env.SHORTPULSE_FAL_QUEUE_DISPATCH_BATCH_SIZE;
     delete process.env.SHORTPULSE_FAL_QUEUE_LEASE_SECONDS;
     delete process.env.SHORTPULSE_FAL_QUEUE_MAX_ATTEMPTS;
     delete process.env.SHORTPULSE_FAL_QUEUE_BASE_BACKOFF_SECONDS;
     delete process.env.SHORTPULSE_FAL_QUEUE_MAX_WAIT_SECONDS;
-    delete process.env.SHORTPULSE_FAL_WEBHOOK_CANARY_USER_ALLOWLIST;
-    delete process.env.SHORTPULSE_FAL_WEBHOOK_CANARY_MODEL_ALLOWLIST;
     delete process.env.SHORTPULSE_FAL_RECOVERY_PROBE_TIMEOUT_MS;
     delete process.env.SHORTPULSE_FAL_STATUS_TRANSIENT_FAILURES_ENABLED;
     delete process.env.SHORTPULSE_FAL_NO_MEDIA_EXHAUST_MIN_AGE_SECONDS;
@@ -64,15 +61,12 @@ describe("readFalRuntimeFlags admission config", () => {
     expect(flags.admissionAtomicEnabled).toBe(false);
     expect(flags.queueEnabled).toBe(false);
     expect(flags.workerOwnedSubmitEnabled).toBe(false);
-    expect(flags.legacyDirectSubmitEnabled).toBe(false);
     expect(flags.queueMaxPerUser).toBe(20);
     expect(flags.queueDispatchBatchSize).toBe(25);
     expect(flags.queueLeaseSeconds).toBe(30);
     expect(flags.queueMaxAttempts).toBe(5);
     expect(flags.queueBaseBackoffSeconds).toBe(3);
     expect(flags.queueMaxWaitSeconds).toBe(1200);
-    expect(Array.from(flags.webhookCanaryUserAllowlist)).toEqual([]);
-    expect(Array.from(flags.webhookCanaryModelAllowlist)).toEqual([]);
     expect(flags.recoveryProbeTimeoutMs).toBe(15000);
     expect(flags.statusTransientFailuresEnabled).toBe(false);
     expect(flags.noMediaExhaustMinAgeSeconds).toBe(7200);
@@ -99,15 +93,12 @@ describe("readFalRuntimeFlags admission config", () => {
     process.env.SHORTPULSE_FAL_ADMISSION_ATOMIC_ENABLED = "true";
     process.env.SHORTPULSE_FAL_QUEUE_ENABLED = "true";
     process.env.SHORTPULSE_FAL_WORKER_OWNED_SUBMIT_ENABLED = "true";
-    process.env.SHORTPULSE_FAL_LEGACY_DIRECT_SUBMIT_ENABLED = "false";
     process.env.SHORTPULSE_FAL_QUEUE_MAX_PER_USER = "40";
     process.env.SHORTPULSE_FAL_QUEUE_DISPATCH_BATCH_SIZE = "11";
     process.env.SHORTPULSE_FAL_QUEUE_LEASE_SECONDS = "45";
     process.env.SHORTPULSE_FAL_QUEUE_MAX_ATTEMPTS = "7";
     process.env.SHORTPULSE_FAL_QUEUE_BASE_BACKOFF_SECONDS = "9";
     process.env.SHORTPULSE_FAL_QUEUE_MAX_WAIT_SECONDS = "1800";
-    process.env.SHORTPULSE_FAL_WEBHOOK_CANARY_USER_ALLOWLIST = "user-1,user-2";
-    process.env.SHORTPULSE_FAL_WEBHOOK_CANARY_MODEL_ALLOWLIST = "fal-ai/*,fal-ai/nano-banana-pro";
     process.env.SHORTPULSE_FAL_RECOVERY_PROBE_TIMEOUT_MS = "22000";
     process.env.SHORTPULSE_FAL_STATUS_TRANSIENT_FAILURES_ENABLED = "true";
     process.env.SHORTPULSE_FAL_NO_MEDIA_EXHAUST_MIN_AGE_SECONDS = "10800";
@@ -138,18 +129,12 @@ describe("readFalRuntimeFlags admission config", () => {
     expect(flags.admissionAtomicEnabled).toBe(true);
     expect(flags.queueEnabled).toBe(true);
     expect(flags.workerOwnedSubmitEnabled).toBe(true);
-    expect(flags.legacyDirectSubmitEnabled).toBe(false);
     expect(flags.queueMaxPerUser).toBe(40);
     expect(flags.queueDispatchBatchSize).toBe(11);
     expect(flags.queueLeaseSeconds).toBe(45);
     expect(flags.queueMaxAttempts).toBe(7);
     expect(flags.queueBaseBackoffSeconds).toBe(9);
     expect(flags.queueMaxWaitSeconds).toBe(1800);
-    expect(Array.from(flags.webhookCanaryUserAllowlist)).toEqual(["user-1", "user-2"]);
-    expect(Array.from(flags.webhookCanaryModelAllowlist)).toEqual([
-      "fal-ai/*",
-      "fal-ai/nano-banana-pro",
-    ]);
     expect(flags.recoveryProbeTimeoutMs).toBe(22000);
     expect(flags.statusTransientFailuresEnabled).toBe(true);
     expect(flags.noMediaExhaustMinAgeSeconds).toBe(10800);
@@ -168,5 +153,15 @@ describe("readFalRuntimeFlags admission config", () => {
     expect(flags.reconcilerEnabled).toBe(true);
     expect(flags.reservationCleanupEnabled).toBe(true);
     expect(flags.providerAttachedReservationCleanupEnabled).toBe(true);
+  });
+
+  it("prefers a dedicated webhook callback base URL over the app base URL", () => {
+    process.env.APP_BASE_URL = "http://localhost:3000";
+    process.env.SHORTPULSE_PUBLIC_API_BASE_URL = "http://localhost:3000";
+    process.env.SHORTPULSE_FAL_WEBHOOK_CALLBACK_BASE_URL = "https://shortpulse-preview.test";
+
+    const flags = readFalRuntimeFlags();
+    expect(flags.publicApiBaseUrl).toBe("http://localhost:3000");
+    expect(flags.webhookCallbackBaseUrl).toBe("https://shortpulse-preview.test");
   });
 });

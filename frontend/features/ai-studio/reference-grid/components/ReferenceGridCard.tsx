@@ -16,6 +16,8 @@ import { isProviderSafetyBlockedOutput } from "../../hooks/taskPolling/providerS
 import type { ReferenceDragSourceSurface } from "../../utils/dragDrop";
 import type { StudioOutput } from "../../types";
 
+const HYDRATION_FALLBACK_LOADED_MS = 1500;
+
 export type ReferenceGridCardProps = {
   item: StudioOutput;
   authorityTier: ReferenceGridMediaAuthorityTier;
@@ -186,6 +188,30 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
     ) : (
       <FloppyDisk size={16} weight="bold" aria-hidden />
     );
+
+  React.useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (!isLoading || loadingVisual !== "hydrating") return;
+    const hasRenderableMedia = Boolean(
+      primaryImageSrc ?? primaryImageDataSrc ?? resolvedHoverVideoUrl ?? cardPreviewUrl
+    );
+    if (!hasRenderableMedia) return;
+    // Some preview URLs never emit a terminal load/error event in the grid runtime.
+    // Fail open so completed generations do not look indefinitely in-flight.
+    const timeoutId = window.setTimeout(() => {
+      markLoaded(item.id, { notifyAutoSave: false });
+    }, HYDRATION_FALLBACK_LOADED_MS);
+    return () => window.clearTimeout(timeoutId);
+  }, [
+    cardPreviewUrl,
+    isLoading,
+    item.id,
+    loadingVisual,
+    markLoaded,
+    primaryImageDataSrc,
+    primaryImageSrc,
+    resolvedHoverVideoUrl,
+  ]);
 
   return (
     <div

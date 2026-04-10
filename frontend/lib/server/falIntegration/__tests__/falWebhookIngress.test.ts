@@ -4,8 +4,10 @@ import { ingestFalWebhookEvent, parseFalWebhookPayload } from "../falWebhookIngr
 const getSupabaseAdminMock = vi.fn();
 const lookupGenerationAttemptByProviderRequestMock = vi.fn();
 const persistGenerationObservationMock = vi.fn();
+const readPersistedGenerationStatusContextMock = vi.fn();
 const readRecoveryGenerationRowMock = vi.fn();
 const requestGenerationControlPlaneWakeMock = vi.fn();
+const executeGenerationRecoveryMock = vi.fn();
 
 vi.mock("../../api/supabaseAdmin", () => ({
   getSupabaseAdmin: (...args: unknown[]) => getSupabaseAdminMock(...args),
@@ -20,6 +22,11 @@ vi.mock("../../api/generationObservationInbox", () => ({
   persistGenerationObservation: (...args: unknown[]) => persistGenerationObservationMock(...args),
 }));
 
+vi.mock("../../api/falStatusPersistedResults", () => ({
+  readPersistedGenerationStatusContext: (...args: unknown[]) =>
+    readPersistedGenerationStatusContextMock(...args),
+}));
+
 vi.mock("../recoveryGenerationLookup", () => ({
   readRecoveryGenerationRow: (...args: unknown[]) => readRecoveryGenerationRowMock(...args),
 }));
@@ -27,6 +34,10 @@ vi.mock("../recoveryGenerationLookup", () => ({
 vi.mock("../../generationControlPlane/controlPlaneWake", () => ({
   requestGenerationControlPlaneWake: (...args: unknown[]) =>
     requestGenerationControlPlaneWakeMock(...args),
+}));
+
+vi.mock("../recoveryExecution", () => ({
+  executeGenerationRecovery: (...args: unknown[]) => executeGenerationRecoveryMock(...args),
 }));
 
 const createSupabaseMock = () => {
@@ -50,8 +61,22 @@ describe("falWebhookIngress", () => {
     vi.clearAllMocks();
     lookupGenerationAttemptByProviderRequestMock.mockResolvedValue({ data: null, error: null });
     persistGenerationObservationMock.mockResolvedValue(undefined);
+    readPersistedGenerationStatusContextMock.mockResolvedValue({
+      generationId: "gen-1",
+      resultUrls: ["https://cdn.shortpulse.test/output.png"],
+      taskState: "success",
+    });
     readRecoveryGenerationRowMock.mockResolvedValue(null);
     requestGenerationControlPlaneWakeMock.mockResolvedValue(undefined);
+    executeGenerationRecoveryMock.mockResolvedValue({
+      ok: true,
+      state: "recovered",
+      generationId: "gen-1",
+      requestId: "req-1",
+      mediaFileIds: [],
+      mediaUrls: [],
+      processed: true,
+    });
   });
 
   it("returns duplicate when the event insert conflicts on event id", async () => {
@@ -118,7 +143,7 @@ describe("falWebhookIngress", () => {
     expect(persistGenerationObservationMock).not.toHaveBeenCalled();
   });
 
-  it("persists terminal events into the observation inbox and wakes the control plane", async () => {
+  it("skips fallback observation when immediate webhook recovery settles canonical success", async () => {
     const supabase = createSupabaseMock();
     getSupabaseAdminMock.mockReturnValue({ from: supabase.from });
     lookupGenerationAttemptByProviderRequestMock.mockResolvedValue({
@@ -132,6 +157,70 @@ describe("falWebhookIngress", () => {
       },
       error: null,
     });
+    await expect(
+      ingestFalWebhookEvent({
+        payload: parseFalWebhookPayload(
+          JSON.stringify({
+            id: "event-1",
+            request_id: "req-1",
+            status: "completed",
+            payload: {
+              images: [{ url: "https://cdn.shortpulse.test/output.png" }],
+            },
+          })
+        ),
+        headers: {
+          requestId: "req-1",
+          userId: "fal-user-1",
+          eventId: "event-1",
+          timestamp: "123",
+        },
+        verificationMethod: "fal",
+        payloadHash: "hash-1",
+        maxAttempts: 5,
+      })
+    ).resolves.toEqual({
+      kind: "accepted",
+      requestId: "req-1",
+      status: "completed",
+    });
+    expect(persistGenerationObservationMock).not.toHaveBeenCalled();
+    expect(executeGenerationRecoveryMock).toHaveBeenCalledWith({
+      actor: "webhook",
+      generationId: "gen-1",
+      requestId: "req-1",
+      userId: "user-1",
+      observation: {
+        state: "completed",
+        payload: expect.any(Object),
+        mediaUrls: [],
+      },
+      routeLabel: "fal/webhook",
+    });
+    expect(requestGenerationControlPlaneWakeMock).not.toHaveBeenCalled();
+    expect(supabase.updateEq).toHaveBeenCalledWith("event_id", "event-1");
+  });
+
+  it("persists terminal events into the observation inbox and wakes the control plane when immediate recovery does not settle", async () => {
+    const supabase = createSupabaseMock();
+    getSupabaseAdminMock.mockReturnValue({ from: supabase.from });
+    lookupGenerationAttemptByProviderRequestMock.mockResolvedValue({
+      data: {
+        id: "attempt-1",
+        generationId: "gen-1",
+        userId: "user-1",
+        attemptNumber: 1,
+        providerRequestId: "req-1",
+        metadata: {},
+      },
+      error: null,
+    });
+    readPersistedGenerationStatusContextMock.mockResolvedValue({
+      generationId: "gen-1",
+      resultUrls: [],
+      taskState: "running",
+    });
+
     await expect(
       ingestFalWebhookEvent({
         payload: parseFalWebhookPayload(
@@ -174,6 +263,6 @@ describe("falWebhookIngress", () => {
       routeLabel: "fal/webhook",
       reason: "webhook_observation",
     });
-    expect(supabase.updateEq).toHaveBeenCalled();
+    expect(supabase.updateEq).toHaveBeenCalledWith("event_id", "event-1");
   });
 });

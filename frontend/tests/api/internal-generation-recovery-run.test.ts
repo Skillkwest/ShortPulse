@@ -305,59 +305,7 @@ describe("POST /api/internal/generation-recovery/run", () => {
     );
   });
 
-  it("continues recovery when request-id repair fails in explicit rescue mode", async () => {
-    process.env.SHORTPULSE_FAL_LEGACY_DIRECT_SUBMIT_ENABLED = "true";
-    repairGenerationRequestIdsFromReservationsMock.mockRejectedValueOnce(
-      new Error("repair unavailable")
-    );
-
-    const supabase = createSupabaseMock();
-    supabase.rpc = vi.fn(async (functionName: string) => {
-      if (functionName === "release_stale_generation_reservations") {
-        return {
-          data: [{ scanned_count: 0, released_count: 0, error_count: 0 }],
-          error: null,
-        };
-      }
-      if (functionName === "claim_generation_recovery_batch") {
-        return { data: [], error: null };
-      }
-      return { data: [], error: null };
-    });
-    getSupabaseAdminMock.mockReturnValue({
-      rpc: supabase.rpc,
-      from: supabase.from,
-    });
-
-    const req = {
-      method: "POST",
-      body: {
-        runMode: "rescue",
-      },
-      headers: {
-        "x-shortpulse-cron-secret": "cron-secret",
-      },
-    };
-    const res = createMockResponse();
-
-    await handler(req as never, res as never);
-
-    expect(repairGenerationRequestIdsFromReservationsMock).toHaveBeenCalledWith({
-      limit: 5,
-    });
-    expect(res.status).toHaveBeenCalledWith(200);
-    expect(logApiRouteExceptionMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        routeLabel: "internal/generation-recovery/run",
-        metadata: expect.objectContaining({
-          stage: "request_id_repair_batch",
-        }),
-      })
-    );
-  });
-
   it("supports an explicit rescue run for bounded/manual operator use", async () => {
-    process.env.SHORTPULSE_FAL_LEGACY_DIRECT_SUBMIT_ENABLED = "true";
     process.env.SHORTPULSE_FAL_QUEUE_ENABLED = "true";
     const supabase = createSupabaseMock();
     getSupabaseAdminMock.mockReturnValue({
@@ -379,9 +327,7 @@ describe("POST /api/internal/generation-recovery/run", () => {
     await handler(req as never, res as never);
 
     expect(dispatchGenerationSubmitQueueBatchMock).not.toHaveBeenCalled();
-    expect(repairGenerationRequestIdsFromReservationsMock).toHaveBeenCalledWith({
-      limit: 5,
-    });
+    expect(repairGenerationRequestIdsFromReservationsMock).not.toHaveBeenCalled();
     expect(res.json).toHaveBeenCalledWith(
       expect.objectContaining({
         runMode: "rescue",

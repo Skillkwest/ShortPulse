@@ -881,6 +881,17 @@ describe("executeGenerationRecovery", () => {
         failureReasonCode: "terminal_success_no_media",
       })
     );
+    expect(upsertGenerationProjectionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        generationId: "gen-1",
+        taskState: "fail",
+        publicationState: "suppressed",
+        errorMessageShort: "No media returned.",
+        errorDetail: "Provider terminal success without media payload.",
+        resultUrls: [],
+        savedMediaIds: [],
+      })
+    );
   });
 
   it("defers no-media exhaustion when attempts reached max but generation age is below no-media minimum threshold", async () => {

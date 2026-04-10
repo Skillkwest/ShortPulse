@@ -47,7 +47,7 @@ describe("useAiStudioOutputStoreSelectors", () => {
     expect(result.current.getOutputById("archived-1")).toBe(archivedOutput);
   });
 
-  it("prefers selector-store output when present", () => {
+  it("prefers fresher local output state over selector-store snapshots", () => {
     const localOutput = makeOutput("out-1");
     const storeOutput = {
       ...localOutput,
@@ -63,6 +63,25 @@ describe("useAiStudioOutputStoreSelectors", () => {
     const { result } = renderHook(() =>
       useAiStudioOutputStoreSelectors({
         outputs: [localOutput],
+        archivedOutputs: [],
+      })
+    );
+
+    expect(result.current.getOutputById("out-1")).toBe(localOutput);
+  });
+
+  it("still falls back to selector-store output when page state does not have the item", () => {
+    const storeOutput = makeOutput("out-1");
+    setAiStudioOutputStoreSnapshot({
+      outputOrder: ["out-1"],
+      outputById: { "out-1": storeOutput },
+      archivedOutputOrder: [],
+      archivedOutputById: {},
+    });
+
+    const { result } = renderHook(() =>
+      useAiStudioOutputStoreSelectors({
+        outputs: [],
         archivedOutputs: [],
       })
     );

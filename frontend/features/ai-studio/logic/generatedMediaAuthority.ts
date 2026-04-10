@@ -1,5 +1,5 @@
 import { asCanonicalStoragePath } from "../../../lib/adaptive-media";
-import { readSupabaseUserId, type ensureSupabaseQueryClient } from "../../../lib/supabaseClient";
+import { ensureSupabaseQueryClient, readSupabaseUserId } from "../../../lib/supabaseClient";
 
 type SupabaseClient = ReturnType<typeof ensureSupabaseQueryClient>;
 
@@ -19,6 +19,8 @@ type GenerationOutputRow = {
 
 type GenerationPublicationRow = {
   owned_media_file_id?: unknown;
+  preview_url?: unknown;
+  full_url?: unknown;
   preview_storage_path?: unknown;
   full_storage_path?: unknown;
   created_at?: unknown;
@@ -33,6 +35,13 @@ export type GeneratedMediaLibraryRow = GeneratedMediaFileRecord & {
   mediaFileId: string;
   fileType: "image" | "video";
   posterVariantPath: string | null;
+};
+
+export type PublishedGenerationDelivery = {
+  previewUrl: string | null;
+  fullUrl: string | null;
+  previewStoragePath: string | null;
+  fullStoragePath: string | null;
 };
 
 const asTrimmedString = (value: unknown): string | null => {
@@ -350,4 +359,67 @@ export const resolveLatestPublishedGenerationMediaFile = async ({
   }
 
   return null;
+};
+
+export const resolveLatestPublishedGenerationDeliveryByGenerationId = async ({
+  supabase,
+  generationId,
+  userId,
+}: {
+  supabase: SupabaseClient;
+  generationId: string;
+  userId?: string | null;
+}): Promise<PublishedGenerationDelivery | null> => {
+  try {
+    let query = supabase
+      .from("generation_publications")
+      .select("preview_url, full_url, preview_storage_path, full_storage_path, created_at")
+      .eq("generation_id", generationId)
+      .eq("publication_state", "published")
+      .order("created_at", { ascending: false })
+      .limit(50);
+    const resolvedUserId = asTrimmedString(userId);
+    if (resolvedUserId) {
+      query = query.eq("user_id", resolvedUserId);
+    }
+    const { data, error } = await query;
+    if (error) return null;
+
+    for (const rawRow of Array.isArray(data) ? data : []) {
+      const row = rawRow as GenerationPublicationRow;
+      const previewUrl = asTrimmedString(row.preview_url);
+      const fullUrl = asTrimmedString(row.full_url);
+      const previewStoragePath = asCanonicalStoragePath(asTrimmedString(row.preview_storage_path));
+      const fullStoragePath = asCanonicalStoragePath(asTrimmedString(row.full_storage_path));
+      if (previewUrl || fullUrl || previewStoragePath || fullStoragePath) {
+        return {
+          previewUrl,
+          fullUrl,
+          previewStoragePath,
+          fullStoragePath,
+        };
+      }
+    }
+
+    return null;
+  } catch {
+    return null;
+  }
+};
+
+export const resolveLatestPublishedGenerationDelivery = async ({
+  generationId,
+}: {
+  generationId: string;
+}): Promise<PublishedGenerationDelivery | null> => {
+  const resolvedGenerationId = asTrimmedString(generationId);
+  if (!resolvedGenerationId) return null;
+  const supabase = ensureSupabaseQueryClient();
+  const userId = await readSupabaseUserId();
+  if (!userId) return null;
+  return await resolveLatestPublishedGenerationDeliveryByGenerationId({
+    supabase,
+    generationId: resolvedGenerationId,
+    userId,
+  });
 };

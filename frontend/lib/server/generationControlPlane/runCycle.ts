@@ -1,7 +1,6 @@
 import { logApiRouteException } from "../api/appErrorLogs";
 import { readFalRuntimeFlags } from "../api/falRuntimeFlags";
 import { dispatchGenerationSubmitQueueBatch } from "../api/generationQueue/dispatch";
-import { repairGenerationRequestIdsFromReservations } from "../api/generationQueue/requestIdRepair";
 import { getSupabaseAdmin } from "../api/supabaseAdmin";
 import { processPendingGenerationObservations } from "./observationBatchExecution";
 import { claimGenerationRecoveryBatch } from "./recoveryBatchAcquisition";
@@ -79,7 +78,6 @@ export const runGenerationControlPlaneCycle = async ({
   const effectiveReconcilerBatchSize = rescueMode
     ? Math.min(flags.reconcilerBatchSize, 5)
     : flags.reconcilerBatchSize;
-  const shouldRunRequestIdRepair = rescueMode && flags.legacyDirectSubmitEnabled;
   const stageTimings: GenerationControlPlaneStageTimings = {
     queueDispatch: { durationMs: 0 },
     reservationCleanup: { durationMs: 0 },
@@ -215,24 +213,6 @@ export const runGenerationControlPlaneCycle = async ({
         error,
         metadata: {
           stage: "observation_inbox_processing",
-        },
-      });
-    }
-  });
-
-  await measureStage("requestIdRepair", async () => {
-    try {
-      if (shouldRunRequestIdRepair) {
-        await repairGenerationRequestIdsFromReservations({
-          limit: effectiveReconcilerBatchSize,
-        });
-      }
-    } catch (error) {
-      await logControlPlaneException({
-        context,
-        error,
-        metadata: {
-          stage: "request_id_repair_batch",
         },
       });
     }

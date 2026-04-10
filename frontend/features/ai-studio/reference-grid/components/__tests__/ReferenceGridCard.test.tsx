@@ -1,6 +1,6 @@
 import type React from "react";
-import { fireEvent, render, screen } from "@testing-library/react";
-import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import { act, fireEvent, render, screen } from "@testing-library/react";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import type { StudioOutput } from "../../../types";
 import { ReferenceGridCard } from "../ReferenceGridCard";
 
@@ -19,6 +19,14 @@ beforeAll(() => {
 
 afterAll(() => {
   vi.restoreAllMocks();
+});
+
+beforeEach(() => {
+  vi.useFakeTimers();
+});
+
+afterEach(() => {
+  vi.useRealTimers();
 });
 
 const createOutput = (overrides: Partial<StudioOutput> = {}): StudioOutput => ({
@@ -136,6 +144,33 @@ describe("ReferenceGridCard", () => {
 
     expect(container.querySelector(".reference-loading")).not.toBeNull();
     expect(container.querySelector(".reference-spinner")).not.toBeNull();
+  });
+
+  it("marks hydrating image previews as loaded after the fallback timeout", async () => {
+    const markLoaded = vi.fn();
+
+    render(
+      <ReferenceGridCard
+        {...createProps({
+          item: createOutput({
+            taskState: "success",
+            previewUrl: "https://example.com/hydrating.png",
+          }),
+          isLoading: true,
+          loadingVisual: "hydrating",
+          isImagePreview: true,
+          cardPreviewUrl: "https://example.com/hydrating.png",
+          imageSrc: "https://example.com/hydrating.png",
+          markLoaded,
+        })}
+      />
+    );
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1500);
+    });
+
+    expect(markLoaded).toHaveBeenCalledWith("out-1", { notifyAutoSave: false });
   });
 
   it("hides the poster image on hover for poster-backed videos", async () => {

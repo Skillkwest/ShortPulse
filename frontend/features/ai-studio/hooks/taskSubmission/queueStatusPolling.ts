@@ -21,7 +21,7 @@ const HIDDEN_TAB_QUEUE_STATUS_RETRY_MS = 10_000;
 const MAX_ACTIVE_QUEUE_STATUS_FETCHES = 3;
 let activeQueueStatusFetches = 0;
 const SLOT_SATURATED_BREADCRUMB_LIMIT = 2;
-const SERVER_RECOVERY_PENDING_TIMESTAMP = "Waiting for server recovery...";
+const QUEUE_STATUS_STALLED_TIMESTAMP = "Processing...";
 
 const isDocumentVisible = (): boolean =>
   typeof document === "undefined" || document.visibilityState === "visible";
@@ -151,9 +151,10 @@ export const markQueuedStatusRecoveryPending = ({
 }): void => {
   updateOutputById(outputId, (item) => ({
     ...item,
+    queueState: undefined,
     taskState: item.taskState === "fail" ? "pending" : (item.taskState ?? "pending"),
     status: "ready",
-    timestamp: SERVER_RECOVERY_PENDING_TIMESTAMP,
+    timestamp: QUEUE_STATUS_STALLED_TIMESTAMP,
     errorMessage: null,
     errorMessageShort: null,
     errorDetail: null,
@@ -189,7 +190,7 @@ export const syncQueuedStatusLifecycle = ({
       lifecycle?.statusLabel ??
       (queueStatus.status === "dispatching"
         ? "Dispatching..."
-        : item.timestamp === SERVER_RECOVERY_PENDING_TIMESTAMP
+        : item.timestamp === QUEUE_STATUS_STALLED_TIMESTAMP
           ? item.timestamp
           : "Waiting in queue..."),
     errorMessage: null,

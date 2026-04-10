@@ -128,7 +128,7 @@ export const buildRecoveredSuccessUpdate = ({
 }: {
   nowIso: string;
   metadata: JsonObject;
-  actor: "reconciler" | "admin_replay" | "webhook";
+  actor: "reconciler" | "admin_replay" | "webhook" | "poll";
   autosaveEnabled?: boolean;
   autosaveDecision?: string;
   autosaveDecisionReason?: string;

@@ -47,7 +47,7 @@ import { applyRecoveryTransition } from "./recoveryTransitionService";
 type JsonObject = Record<string, unknown>;
 
 export type RecoveryProbeState = "running" | "failed" | "completed";
-export type RecoveryActor = "reconciler" | "admin_replay" | "webhook";
+export type RecoveryActor = "reconciler" | "admin_replay" | "webhook" | "poll";
 export type RecoveryResultState =
   | "recovered"
   | "already_persisted"
@@ -830,6 +830,13 @@ export const executeGenerationRecovery = async ({
       generationAgeSeconds,
       exhaustMinAgeSeconds: runtimeFlags.noMediaExhaustMinAgeSeconds,
       enforceMinAgeForExhaustion: true,
+    });
+    await syncFailedGenerationProjection({
+      completedAt: nowIso,
+      errorDetail: "Provider terminal success without media payload.",
+      errorMessage: "Generation failed.",
+      errorMessageShort: "No media returned.",
+      generation,
     });
     await applyRecoveryTransition({
       generation,

@@ -17,9 +17,9 @@ describe("pollingSchedulePolicy", () => {
   });
 
   it("backs off poll delay with max cap", () => {
-    expect(getPollDelayMs(0)).toBe(2200);
-    expect(getPollDelayMs(1)).toBe(3000);
-    expect(getPollDelayMs(99)).toBe(10000);
+    expect(getPollDelayMs(0)).toBe(1200);
+    expect(getPollDelayMs(1)).toBe(1700);
+    expect(getPollDelayMs(99)).toBe(4500);
   });
 
   it("expands retry delay when status concurrency is saturated", () => {
@@ -34,7 +34,7 @@ describe("pollingSchedulePolicy", () => {
       fallbackDelayMs: 5000,
     });
     expect(imagePolicy.maxNoMediaAttempts).toBe(6);
-    expect(imagePolicy.retryDelayMs).toBe(2000);
+    expect(imagePolicy.retryDelayMs).toBe(1200);
 
     const videoPolicy = resolveNoMediaRetryPolicy({
       provider: "fal-kling",

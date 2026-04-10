@@ -31,7 +31,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   const flags = readFalRuntimeFlags();
-  if (!flags.webhookEnabled || flags.integrationMode === "legacy") {
+  if (flags.integrationMode === "legacy") {
     return res.status(404).json({ error: "Not found" });
   }
 

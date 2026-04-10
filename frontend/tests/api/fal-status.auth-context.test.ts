@@ -207,7 +207,7 @@ describe("POST /api/fal/status middleware auth-context ownership", () => {
           providerState: "completed",
           recoveryPending: true,
           queueState: "dispatched",
-          statusLabel: "Waiting for server recovery...",
+          statusLabel: "Processing...",
         }),
       })
     );

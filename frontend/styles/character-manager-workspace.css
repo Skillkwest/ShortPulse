@@ -39,10 +39,19 @@
   min-width: 0;
 }
 
+.character-create-workspace-layout--sheet-only {
+  grid-template-columns: minmax(0, 1fr);
+}
+
 @media (min-width: 1101px) {
   .character-create-workspace-layout {
     grid-template-columns: minmax(0, 1.5fr) minmax(0, 0.5fr);
     grid-template-areas: "sheet quickswap";
+  }
+
+  .character-create-workspace-layout--sheet-only {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: "sheet";
   }
 
   .character-layout-region--quickswap {

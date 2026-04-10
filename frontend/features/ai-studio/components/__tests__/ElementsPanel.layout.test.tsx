@@ -43,7 +43,7 @@ const elementsManagerPersistenceMockState = vi.hoisted(() => {
     >,
   });
   const defaultTransform = { zoom: 1, offsetX: 0, offsetY: 0 };
-  const seededDeckReferenceUrls = [
+  const seededReferenceImageUrls = [
     "https://example.com/reference/red-lantern-01.jpg",
     "https://example.com/reference/red-lantern-02.jpg",
   ];
@@ -56,8 +56,8 @@ const elementsManagerPersistenceMockState = vi.hoisted(() => {
         "1": {
           assetType: "image" as const,
           description: "Warm lacquered lantern with a gold frame and soft ember glow.",
-          deckReferenceUrls: seededDeckReferenceUrls,
-          imageReferenceUrls: seededDeckReferenceUrls,
+          deckReferenceUrls: seededReferenceImageUrls,
+          imageReferenceUrls: seededReferenceImageUrls,
           videoReferenceUrl: "",
         },
       },
@@ -232,8 +232,8 @@ const addInternalReferenceDragPayload = (
 };
 
 const waitForElementProfileShell = async (timeout = 2000) => {
-  await screen.findByRole("heading", { name: "Reference Assets" }, { timeout });
-  await screen.findByRole("heading", { name: "Identity and Notes" }, { timeout });
+  await screen.findByDisplayValue("Red Lantern", undefined, { timeout });
+  await screen.findByText("References", undefined, { timeout });
 };
 
 const stubProfileImageFetch = () => {
@@ -276,8 +276,8 @@ describe("ElementsPanel layout", () => {
     });
   });
 
-  it("opens the profile editor when selecting a library card", async () => {
-    render(<ElementsPanel />);
+  it("opens the profile editor as a single-column profile workspace", async () => {
+    const { container } = render(<ElementsPanel />);
 
     const openProfileButton = await screen.findByRole("button", {
       name: "Open element profile: Red Lantern",
@@ -297,15 +297,24 @@ describe("ElementsPanel layout", () => {
       "aria-selected",
       "true"
     );
-    expect(screen.getByRole("heading", { name: "Red Lantern" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Reference Assets" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Identity and Notes" })).toBeInTheDocument();
+    expect(container.querySelector(".elements-profile-hero")).toBeNull();
+    expect(screen.queryByRole("heading", { name: "Red Lantern" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Reference Assets" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Identity and Notes" })).not.toBeInTheDocument();
     expect(screen.getByDisplayValue("Red Lantern")).toBeInTheDocument();
     expect(screen.getByDisplayValue("redlantern")).toBeInTheDocument();
-    expect(screen.getByRole("tab", { name: "Double click me" })).toBeInTheDocument();
+    expect(screen.queryByRole("tab", { name: "Double click me" })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Add character sheet preset tab" })
+    ).not.toBeInTheDocument();
+
+    const regions = Array.from(container.querySelectorAll("[data-layout-region]"))
+      .map((node) => node.getAttribute("data-layout-region"))
+      .filter((value): value is string => Boolean(value));
+    expect(regions).toEqual(["sheet"]);
   });
 
-  it("shows a delete confirmation dialog before removing an element reference tab", async () => {
+  it("does not render the shared preset-tab system in the elements profile", async () => {
     render(<ElementsPanel />);
 
     const openProfileButton = await screen.findByRole("button", {
@@ -313,18 +322,11 @@ describe("ElementsPanel layout", () => {
     });
     fireEvent.click(openProfileButton);
     await waitForElementProfileShell();
-    fireEvent.click(screen.getByRole("button", { name: "Add character sheet preset tab" }));
-    fireEvent.click(screen.getByRole("button", { name: "Delete preset 2" }));
 
-    const deleteDialog = screen.getByRole("dialog", {
-      name: "Delete reference set “Reference Set 2”?",
-    });
+    expect(screen.queryByRole("tab", { name: "Double click me" })).not.toBeInTheDocument();
     expect(
-      within(deleteDialog).getByText("Delete reference set “Reference Set 2”?")
-    ).toBeInTheDocument();
-
-    fireEvent.click(within(deleteDialog).getByRole("button", { name: "Cancel" }));
-
+      screen.queryByRole("button", { name: "Add character sheet preset tab" })
+    ).not.toBeInTheDocument();
     expect(screen.queryByRole("dialog", { name: /Delete reference set/i })).not.toBeInTheDocument();
   });
 
@@ -421,7 +423,7 @@ describe("ElementsPanel layout", () => {
     });
   });
 
-  it("shows element profile guidance and asset type controls", async () => {
+  it("shows element profile guidance without redundant summary chrome", async () => {
     render(<ElementsPanel />);
 
     const openProfileButton = await screen.findByRole("button", {
@@ -430,42 +432,13 @@ describe("ElementsPanel layout", () => {
     fireEvent.click(openProfileButton);
     await waitForElementProfileShell();
 
-    expect(screen.getByLabelText("Element profile summary")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Image Element" })).toHaveAttribute(
-      "aria-pressed",
-      "true"
-    );
-    expect(screen.getByRole("button", { name: "Video Element" })).toHaveAttribute(
-      "aria-pressed",
-      "false"
-    );
-    expect(screen.getByText("Reference guidance")).toBeInTheDocument();
-    expect(screen.getByText(/@redlantern/i)).toBeInTheDocument();
-  });
-
-  it("switches the profile asset type and resets incompatible references", async () => {
-    render(<ElementsPanel />);
-
-    const openProfileButton = await screen.findByRole("button", {
-      name: "Open element profile: Red Lantern",
-    });
-    fireEvent.click(openProfileButton);
-    await waitForElementProfileShell();
-
-    fireEvent.click(screen.getByRole("button", { name: "Video Element" }));
-
-    await waitFor(() => {
-      expect(screen.getByRole("button", { name: "Video Element" })).toHaveAttribute(
-        "aria-pressed",
-        "true"
-      );
-      expect(screen.getByRole("button", { name: "Image Element" })).toHaveAttribute(
-        "aria-pressed",
-        "false"
-      );
-    });
-    expect(screen.getByText("Motion Reference")).toBeInTheDocument();
-    expect(screen.queryByText("Primary Look")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Element profile summary")).not.toBeInTheDocument();
+    expect(screen.queryByText("Element Type")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Image Element" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Video Element" })).not.toBeInTheDocument();
+    expect(screen.queryByText("Prompt Guidance:")).not.toBeInTheDocument();
+    expect(screen.queryByText(/@redlantern/i)).not.toBeInTheDocument();
+    expect(screen.getByText("References")).toBeInTheDocument();
   });
 
   it("locks the properties rail scroll in Manage Elements mode", async () => {
@@ -485,8 +458,8 @@ describe("ElementsPanel layout", () => {
     expect(propertiesRail.style.overscrollBehaviorY).toBe("none");
   });
 
-  it("accepts an internal reference-grid drop into the element sheet and deck locally", async () => {
-    const { container } = render(<ElementsPanel />);
+  it("accepts an internal reference-grid drop into the element sheet locally", async () => {
+    render(<ElementsPanel />);
 
     const openProfileButton = await screen.findByRole("button", {
       name: "Open element profile: Red Lantern",
@@ -497,13 +470,6 @@ describe("ElementsPanel layout", () => {
     const portraitLikeZone = screen.getByText("Support Angle").closest("article");
     if (!portraitLikeZone) {
       throw new Error("Expected support-angle drop zone to exist.");
-    }
-
-    const deckDropContent = container.querySelector(
-      ".character-section--reference-drop .character-reference-drop-content"
-    ) as HTMLDivElement | null;
-    if (!deckDropContent) {
-      throw new Error("Expected element deck drop content to exist.");
     }
 
     const internalDrag = createDataTransfer();
@@ -520,136 +486,6 @@ describe("ElementsPanel layout", () => {
     await waitFor(() => {
       expect(screen.getByAltText("Support Angle reference")).toBeInTheDocument();
     });
-
-    const secondInternalDrag = createDataTransfer();
-    addInternalReferenceDragPayload(secondInternalDrag, {
-      outputId: "output-elements-2",
-      mediaId: "media-elements-2",
-      sourceSurface: "all-refs",
-      referenceUrl: "https://example.com/elements-deck-drop.png",
-    });
-
-    fireEvent.dragEnter(deckDropContent, { dataTransfer: secondInternalDrag });
-    fireEvent.dragOver(deckDropContent, { dataTransfer: secondInternalDrag });
-    fireEvent.drop(deckDropContent, { dataTransfer: secondInternalDrag });
-
-    await waitFor(() => {
-      expect(screen.getByAltText("Reference 3")).toBeInTheDocument();
-    });
-  });
-
-  it("assigns an element deck card into an empty element reference slot", async () => {
-    render(<ElementsPanel />);
-
-    const openProfileButton = await screen.findByRole("button", {
-      name: "Open element profile: Red Lantern",
-    });
-    fireEvent.click(openProfileButton);
-    await waitForElementProfileShell();
-
-    const deckList = screen.getByRole("list", { name: "Element deck references" });
-    const deckCards = within(deckList).getAllByRole("listitem");
-    const targetSlot = screen.getByText("Support Angle").closest("article");
-
-    if (!targetSlot) {
-      throw new Error("Expected support-angle slot to exist.");
-    }
-
-    const dragTransfer = createDataTransfer();
-    fireEvent.dragStart(deckCards[0], { dataTransfer: dragTransfer });
-
-    const originalGetData = dragTransfer.getData;
-    dragTransfer.getData = () => "";
-    fireEvent.dragEnter(targetSlot, { dataTransfer: dragTransfer });
-    fireEvent.dragOver(targetSlot, { dataTransfer: dragTransfer });
-    dragTransfer.getData = originalGetData;
-    fireEvent.drop(targetSlot, { dataTransfer: dragTransfer });
-    fireEvent.dragEnd(deckCards[0], { dataTransfer: dragTransfer });
-
-    await waitFor(() => {
-      expect(screen.getByAltText("Support Angle reference")).toBeInTheDocument();
-    });
-  });
-
-  it("clearing an element sheet slot does not remove the source deck reference", async () => {
-    render(<ElementsPanel />);
-
-    const openProfileButton = await screen.findByRole("button", {
-      name: "Open element profile: Red Lantern",
-    });
-    fireEvent.click(openProfileButton);
-    await waitForElementProfileShell();
-
-    const deckList = screen.getByRole("list", { name: "Element deck references" });
-    expect(within(deckList).getAllByRole("listitem")).toHaveLength(2);
-
-    fireEvent.click(screen.getByRole("button", { name: "Clear Secondary Angle reference" }));
-
-    await waitFor(() => {
-      expect(screen.queryByAltText("Secondary Angle reference")).not.toBeInTheDocument();
-    });
-
-    expect(within(deckList).getAllByRole("listitem")).toHaveLength(2);
-    expect(screen.getByAltText("Primary Look")).toBeInTheDocument();
-    expect(screen.getByAltText("Reference 2")).toBeInTheDocument();
-  });
-
-  it("uses an image-only drag ghost for filled element deck cards", async () => {
-    render(<ElementsPanel />);
-
-    const openProfileButton = await screen.findByRole("button", {
-      name: "Open element profile: Red Lantern",
-    });
-    fireEvent.click(openProfileButton);
-    await waitForElementProfileShell();
-
-    const deckList = screen.getByRole("list", { name: "Element deck references" });
-    const deckCards = within(deckList).getAllByRole("listitem");
-    const dragTransfer = createDataTransfer();
-
-    fireEvent.dragStart(deckCards[0], { dataTransfer: dragTransfer });
-
-    const deckGhost = document.body.querySelector(".character-drag-ghost") as HTMLElement | null;
-    expect(deckGhost).toBeInTheDocument();
-    expect(deckGhost?.classList.contains("elements-drag-ghost")).toBe(true);
-    expect(deckGhost?.classList.contains("character-drag-ghost--image-only")).toBe(true);
-    expect(deckGhost?.querySelector(".character-reference-delete-btn")).toBeNull();
-
-    fireEvent.dragEnd(deckCards[0], { dataTransfer: dragTransfer });
-    expect(document.body.querySelector(".character-drag-ghost")).toBeNull();
-  });
-
-  it("saves a new profile image when a deck card is dropped on the profile photo", async () => {
-    const fetchMock = stubProfileImageFetch();
-    render(<ElementsPanel />);
-
-    const openProfileButton = await screen.findByRole("button", {
-      name: "Open element profile: Red Lantern",
-    });
-    fireEvent.click(openProfileButton);
-    await waitForElementProfileShell();
-
-    const deckList = screen.getByRole("list", { name: "Element deck references" });
-    const deckCards = within(deckList).getAllByRole("listitem");
-    const profileButton = screen.getByRole("button", { name: "Upload element profile photo" });
-    const dragTransfer = createDataTransfer();
-
-    fireEvent.dragStart(deckCards[0], { dataTransfer: dragTransfer });
-    const originalDeckGetData = dragTransfer.getData;
-    dragTransfer.getData = () => "";
-    fireEvent.dragEnter(profileButton, { dataTransfer: dragTransfer });
-    fireEvent.dragOver(profileButton, { dataTransfer: dragTransfer });
-    dragTransfer.getData = originalDeckGetData;
-    fireEvent.drop(profileButton, { dataTransfer: dragTransfer });
-    fireEvent.dragEnd(deckCards[0], { dataTransfer: dragTransfer });
-
-    await waitFor(() => {
-      expect(screen.getByAltText("Element profile")).toHaveAttribute(
-        "src",
-        "blob:red-lantern-01.jpg"
-      );
-    });
-    expect(fetchMock).toHaveBeenCalledWith("https://example.com/reference/red-lantern-01.jpg");
   });
 
   it("saves a new profile image when a reference-grid image is dropped on the profile photo", async () => {
@@ -744,109 +580,5 @@ describe("ElementsPanel layout", () => {
         mediaId: "media-elements-profile-2",
       })
     );
-  });
-
-  it("does not show a pending save overlay for local internal deck drops", async () => {
-    const { container } = render(<ElementsPanel />);
-
-    const openProfileButton = await screen.findByRole("button", {
-      name: "Open element profile: Red Lantern",
-    });
-    fireEvent.click(openProfileButton);
-    await waitForElementProfileShell();
-
-    const deckDropContent = container.querySelector(
-      ".character-section--reference-drop .character-reference-drop-content"
-    ) as HTMLDivElement | null;
-    if (!deckDropContent) {
-      throw new Error("Expected element deck drop content to exist.");
-    }
-
-    const internalDrag = createDataTransfer();
-    addInternalReferenceDragPayload(internalDrag, {
-      outputId: "output-elements-pending-1",
-      mediaId: "media-elements-pending-1",
-      sourceSurface: "all-refs",
-      referenceUrl: "https://example.com/elements-pending-drop.png",
-    });
-
-    fireEvent.dragEnter(deckDropContent, { dataTransfer: internalDrag });
-    fireEvent.dragOver(deckDropContent, { dataTransfer: internalDrag });
-    fireEvent.drop(deckDropContent, { dataTransfer: internalDrag });
-
-    await waitFor(() => {
-      expect(screen.getByAltText("Reference 3")).toBeInTheDocument();
-    });
-    expect(screen.queryByText("Adding image to Element Deck...")).not.toBeInTheDocument();
-    expect(
-      screen.queryByText("Processing drop and syncing your Element Deck.")
-    ).not.toBeInTheDocument();
-  });
-
-  it("accepts transient internal reference-grid drops into the element deck via resolver fallback", async () => {
-    const resolveProfileImageDropSource = vi.fn(
-      async (): Promise<ResolvedInternalReferenceSource | null> => ({
-        kind: "internal",
-        sourceKind: "local_file",
-        sourceId: "output-elements-deck-transient-1",
-        outputId: "output-elements-deck-transient-1",
-        mediaId: null,
-        mediaSource: null,
-        preview: { url: "blob:elements-transient-reference" },
-        previewStoragePath: null,
-        fullStoragePath: null,
-        promptText: "Transient beach reference",
-        provenance: {
-          origin: INTERNAL_REFERENCE_DRAG_ORIGIN,
-          outputId: "output-elements-deck-transient-1",
-          mediaId: null,
-          imageIndex: 0,
-          sourceSurface: "all-refs",
-          resolutionReason: "local_object_url",
-        },
-        preparedImageUrl: null,
-        loadBlob: async () => new Blob(["transient-image"], { type: "image/png" }),
-      })
-    ) as ResolveInternalReferenceDrop;
-
-    const { container } = render(
-      <ElementsPanel resolveProfileImageDropSource={resolveProfileImageDropSource} />
-    );
-
-    const openProfileButton = await screen.findByRole("button", {
-      name: "Open element profile: Red Lantern",
-    });
-    fireEvent.click(openProfileButton);
-    await waitForElementProfileShell();
-
-    const deckDropContent = container.querySelector(
-      ".character-section--reference-drop .character-reference-drop-content"
-    ) as HTMLDivElement | null;
-    if (!deckDropContent) {
-      throw new Error("Expected element deck drop content to exist.");
-    }
-
-    const internalDrag = createDataTransfer();
-    addInternalReferenceDragPayload(internalDrag, {
-      outputId: "output-elements-deck-transient-1",
-      sourceSurface: "all-refs",
-    });
-
-    fireEvent.dragEnter(deckDropContent, { dataTransfer: internalDrag });
-    fireEvent.dragOver(deckDropContent, { dataTransfer: internalDrag });
-    fireEvent.drop(deckDropContent, { dataTransfer: internalDrag });
-
-    await waitFor(() => {
-      expect(screen.getByAltText("Reference 3")).toHaveAttribute(
-        "src",
-        "https://example.com/uploaded/internal-drop.png"
-      );
-    });
-    expect(resolveProfileImageDropSource).toHaveBeenCalledWith(
-      expect.objectContaining({
-        outputId: "output-elements-deck-transient-1",
-      })
-    );
-    expect(uploadImageToStorage).toHaveBeenCalledWith("blob:elements-transient-reference");
   });
 });

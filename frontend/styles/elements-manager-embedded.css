@@ -28,10 +28,6 @@
   .elements-manager-shell--character-clone .character-reference-empty-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
-
-  .elements-manager-shell--character-clone .elements-profile-summary {
-    width: 100%;
-  }
 }
 
 @media (max-width: 860px) {

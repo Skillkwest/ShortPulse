@@ -5,7 +5,7 @@
 import React from "react";
 
 type CharacterCreateWorkspaceLayoutProps = {
-  quickSwap: React.ReactNode;
+  quickSwap?: React.ReactNode;
   characterSheet: React.ReactNode;
 };
 
@@ -16,14 +16,21 @@ export function CharacterCreateWorkspaceLayout({
   quickSwap,
   characterSheet,
 }: CharacterCreateWorkspaceLayoutProps) {
+  const hasQuickSwap = quickSwap != null;
   return (
-    <div className="character-create-workspace-layout">
-      <div
-        className="character-layout-region character-layout-region--quickswap"
-        data-layout-region="quickswap"
-      >
-        {quickSwap}
-      </div>
+    <div
+      className={`character-create-workspace-layout ${
+        hasQuickSwap ? "" : "character-create-workspace-layout--sheet-only"
+      }`.trim()}
+    >
+      {hasQuickSwap ? (
+        <div
+          className="character-layout-region character-layout-region--quickswap"
+          data-layout-region="quickswap"
+        >
+          {quickSwap}
+        </div>
+      ) : null}
       <div
         className="character-layout-region character-layout-region--sheet"
         data-layout-region="sheet"

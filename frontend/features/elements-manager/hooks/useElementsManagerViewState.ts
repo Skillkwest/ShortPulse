@@ -699,41 +699,6 @@ export const useElementsManagerViewState = ({
     [updateActiveReferenceSet]
   );
 
-  const appendActiveDeckReference = React.useCallback(
-    (referenceUrl: string) => {
-      const normalizedReferenceUrl = referenceUrl.trim();
-      if (!normalizedReferenceUrl) return;
-      updateActiveReferenceSet((current) => {
-        const nextDeckReferenceUrls = [...current.deckReferenceUrls];
-        const nextOpenIndex = nextDeckReferenceUrls.findIndex((value) => !value.trim());
-        if (nextOpenIndex >= 0) {
-          nextDeckReferenceUrls[nextOpenIndex] = normalizedReferenceUrl;
-        } else if (nextDeckReferenceUrls.length < 6) {
-          nextDeckReferenceUrls.push(normalizedReferenceUrl);
-        } else {
-          return current;
-        }
-        return {
-          ...current,
-          deckReferenceUrls: nextDeckReferenceUrls.slice(0, 6),
-        };
-      });
-    },
-    [updateActiveReferenceSet]
-  );
-
-  const removeActiveDeckReferenceAtIndex = React.useCallback(
-    (index: number) => {
-      updateActiveReferenceSet((current) => ({
-        ...current,
-        deckReferenceUrls: current.deckReferenceUrls.filter(
-          (_, currentIndex) => currentIndex !== index
-        ),
-      }));
-    },
-    [updateActiveReferenceSet]
-  );
-
   const clearActiveImageReferenceAtIndex = React.useCallback(
     (index: number) => {
       updateActiveReferenceSet((current) => {
@@ -1063,8 +1028,6 @@ export const useElementsManagerViewState = ({
     onRenameReferenceSet,
     onDeleteReferenceSet,
     assignActiveImageReferenceAtIndex,
-    appendActiveDeckReference,
-    removeActiveDeckReferenceAtIndex,
     clearActiveImageReferenceAtIndex,
     assignActiveVideoReference,
     clearActiveVideoReference,

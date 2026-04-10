@@ -7,20 +7,14 @@ import Image from "next/image";
 import { PencilSimpleLine, Plus, Trash, UploadSimple, UserCircle } from "phosphor-react";
 import {
   extractInternalReferenceDragPayload,
-  getNormalizedTransferTypes,
   hasInternalReferenceDragTypeHints,
 } from "../../../lib/internalReferenceDragPayload";
 import { uploadImageToStorage } from "../../ai-studio/utils/imageUpload";
 import { CharacterDescriptionEditorCard } from "../../character-manager/components/CharacterDescriptionEditorCard";
 import { CharacterCreateWorkspaceSurface } from "../../character-manager/components/CharacterCreateWorkspaceSurface";
-import {
-  CharacterSheetPresetTabs,
-  getCharacterSheetPresetTabId,
-} from "../../character-manager/components/CharacterSheetPresetTabs";
 import { buildElementProfileImageTransformStyle } from "../logic/elementProfileImageTransform";
 import { useElementsManagerViewState } from "../hooks/useElementsManagerViewState";
 import { ElementsManagerWorkflowTabs } from "./ElementsManagerWorkflowTabs";
-import type { ElementAssetType, ElementReferenceSetId } from "../types";
 import { DEFAULT_ELEMENT_PROFILE_IMAGE_TRANSFORM } from "../constants";
 import type { ResolveInternalReferenceDrop } from "../../ai-studio/logic/referenceSource/internalReferenceSource";
 
@@ -30,75 +24,17 @@ type ElementsManagerShellProps = {
   externalCreateRequestKey?: number;
 };
 
-const ELEMENT_DECK_REFERENCE_MIME_TYPE = "application/x-shortpulse-elements-deck-reference";
 const IMAGE_REFERENCE_SLOT_LABELS = ["Primary Look", "Secondary Angle", "Support Angle"] as const;
-const DRAG_GHOST_SCALE = 0.74;
-const DRAG_GHOST_IMAGE_BLOB_SELECTOR =
-  ".character-reference-upload-image-wrap, .character-character-sheet-media";
 const PROFILE_ZOOM_MIN = 1;
 const PROFILE_ZOOM_MAX = 2.4;
 const PROFILE_OFFSET_MIN = -40;
 const PROFILE_OFFSET_MAX = 40;
 const PROFILE_PREVIEW_IMAGE_EMBEDDED_SIZE = 92;
-const ACTIVE_GRID_GAP_PX = 4;
-const ACTIVE_CARD_MIN_WIDTH_PX = 108;
-const ACTIVE_CARD_MAX_COLUMNS = 4;
-
-type ElementsDeckReferencePayload = {
-  referenceUrl?: string;
-  index?: number;
-};
-
-const buildElementDeckEntries = (assetType: ElementAssetType, references: string[]) => {
-  if (assetType === "video") {
-    return references.slice(0, 1).map((reference, index) => ({
-      id: `video-reference-${index + 1}`,
-      label: "Motion Reference",
-      reference,
-    }));
-  }
-  return references.slice(0, 6).map((reference, index) => ({
-    id: `image-reference-${index + 1}`,
-    label: index === 0 ? "Primary Look" : `Reference ${index + 1}`,
-    reference,
-  }));
-};
 
 const buildElementInitials = (name: string): string => {
   const words = name.trim().split(/\s+/).filter(Boolean).slice(0, 2);
   if (!words.length) return "EL";
   return words.map((word) => word[0]?.toUpperCase() ?? "").join("");
-};
-
-const parseElementDeckReferencePayload = (
-  transfer: DataTransfer | null | undefined
-): ElementsDeckReferencePayload | null => {
-  const rawPayload = transfer?.getData(ELEMENT_DECK_REFERENCE_MIME_TYPE).trim();
-  if (!rawPayload) return null;
-  try {
-    const parsed = JSON.parse(rawPayload) as ElementsDeckReferencePayload;
-    const referenceUrl = parsed.referenceUrl?.trim();
-    if (!referenceUrl) return null;
-    return {
-      referenceUrl,
-      index: typeof parsed.index === "number" ? parsed.index : undefined,
-    };
-  } catch {
-    return null;
-  }
-};
-
-const hasElementDeckReferenceTypeHints = (transfer: DataTransfer | null | undefined): boolean => {
-  if (!transfer) return false;
-  return getNormalizedTransferTypes(transfer).includes(ELEMENT_DECK_REFERENCE_MIME_TYPE);
-};
-
-const resolveActiveGridColumnCount = (viewportWidth: number): number => {
-  if (viewportWidth <= 0) return 2;
-  const readableColumnCount = Math.floor(
-    (viewportWidth + ACTIVE_GRID_GAP_PX) / (ACTIVE_CARD_MIN_WIDTH_PX + ACTIVE_GRID_GAP_PX)
-  );
-  return Math.max(2, Math.min(ACTIVE_CARD_MAX_COLUMNS, readableColumnCount || 2));
 };
 
 export function ElementsManagerShell({
@@ -109,7 +45,6 @@ export function ElementsManagerShell({
   const {
     activeTab,
     elements,
-    selectedElement,
     selectedElementId,
     pendingDeleteElementId,
     draft,
@@ -117,19 +52,11 @@ export function ElementsManagerShell({
     setActiveTab,
     updateDraftField,
     updateActiveReferenceSet,
-    onSetAssetType,
-    setActiveReferenceSet,
-    onAddReferenceSet,
-    onRenameReferenceSet,
-    onDeleteReferenceSet,
     assignActiveImageReferenceAtIndex,
     assignActiveVideoReference,
-    appendActiveDeckReference,
-    removeActiveDeckReferenceAtIndex,
     clearActiveImageReferenceAtIndex,
     clearActiveVideoReference,
     onSetProfileImageFile,
-    onSetProfileImageFromUrl,
     onSetProfileImageFromInternalDrop,
     onSaveProfileImageTransform,
     onClearProfileImage,
@@ -141,43 +68,16 @@ export function ElementsManagerShell({
   } = useElementsManagerViewState({
     resolveProfileImageDropSource,
   });
-  const [pendingDeleteReferenceSetId, setPendingDeleteReferenceSetId] =
-    React.useState<ElementReferenceSetId | null>(null);
   const lastHandledExternalCreateRequestKeyRef = React.useRef(0);
-  const presetTabsIdBase = `element-reference-set-${React.useId()}`;
-  const presetPanelId = `${presetTabsIdBase}-panel`;
-  const activePresetTabId = getCharacterSheetPresetTabId(
-    presetTabsIdBase,
-    draft.activeReferenceSetId
-  );
-  const pendingDeleteReferenceSetLabel = pendingDeleteReferenceSetId
-    ? (draft.referenceSetLabels[pendingDeleteReferenceSetId] ?? pendingDeleteReferenceSetId)
-    : null;
   const activeReferenceSet = draft.referenceSets[draft.activeReferenceSetId];
-  const activeImageReferenceCount =
-    draft.assetType === "image" ? activeReferenceSet.imageReferenceUrls.filter(Boolean).length : 0;
-  const activeVideoReferenceCount =
-    draft.assetType === "video" && activeReferenceSet.videoReferenceUrl.trim() ? 1 : 0;
-  const [isDeckDropActive, setIsDeckDropActive] = React.useState(false);
   const [activeSheetDropIndex, setActiveSheetDropIndex] = React.useState<number | null>(null);
   const [isProfileAdjusterVisible, setIsProfileAdjusterVisible] = React.useState(false);
   const [profileAdjustDraft, setProfileAdjustDraft] = React.useState<
     typeof draft.profileImageTransform | null
   >(null);
   const [isProfileDropActive, setIsProfileDropActive] = React.useState(false);
-  const dragGhostMapRef = React.useRef(new Map<HTMLElement, HTMLElement>());
-  const activeDeckScrollRef = React.useRef<HTMLDivElement | null>(null);
   const profileFileInputRef = React.useRef<HTMLInputElement | null>(null);
   const suppressProfilePickerClickRef = React.useRef(false);
-  const [activeDeckViewportWidth, setActiveDeckViewportWidth] = React.useState(0);
-  const deckEntries = buildElementDeckEntries(
-    draft.assetType,
-    draft.assetType === "image"
-      ? activeReferenceSet.deckReferenceUrls.filter(Boolean)
-      : activeReferenceSet.videoReferenceUrl.trim()
-        ? [activeReferenceSet.videoReferenceUrl]
-        : []
-  );
   React.useEffect(() => {
     onActiveTabChange?.(activeTab);
   }, [activeTab, onActiveTabChange]);
@@ -189,31 +89,6 @@ export function ElementsManagerShell({
     onCreateElement();
   }, [externalCreateRequestKey, onCreateElement]);
 
-  React.useEffect(
-    () => () => {
-      for (const ghost of dragGhostMapRef.current.values()) {
-        ghost.remove();
-      }
-      dragGhostMapRef.current.clear();
-    },
-    []
-  );
-
-  React.useEffect(() => {
-    const node = activeDeckScrollRef.current;
-    if (!node) return;
-    const syncMetrics = () => {
-      setActiveDeckViewportWidth(node.clientWidth);
-    };
-    syncMetrics();
-    if (typeof ResizeObserver !== "function") return;
-    const observer = new ResizeObserver(syncMetrics);
-    observer.observe(node);
-    return () => {
-      observer.disconnect();
-    };
-  }, [deckEntries.length]);
-
   React.useEffect(() => {
     setIsProfileAdjusterVisible(false);
     setProfileAdjustDraft(null);
@@ -224,20 +99,6 @@ export function ElementsManagerShell({
     isProfileAdjusterVisible && profileAdjustDraft
       ? profileAdjustDraft
       : draft.profileImageTransform;
-  const effectiveDeckGridColumnCount = React.useMemo(
-    () => resolveActiveGridColumnCount(activeDeckViewportWidth),
-    [activeDeckViewportWidth]
-  );
-  const activeDeckScrollStyle = React.useMemo<
-    React.CSSProperties & {
-      "--character-quickswap-columns"?: string;
-    }
-  >(
-    () => ({
-      "--character-quickswap-columns": String(effectiveDeckGridColumnCount),
-    }),
-    [effectiveDeckGridColumnCount]
-  );
 
   const openProfilePicker = React.useCallback(() => {
     if (suppressProfilePickerClickRef.current) {
@@ -281,30 +142,10 @@ export function ElementsManagerShell({
     }
   }, [onClearProfileImage]);
 
-  const resolveProfileDropReference = React.useCallback((transfer: DataTransfer) => {
-    const deckReferencePayload = parseElementDeckReferencePayload(transfer);
-    if (deckReferencePayload?.referenceUrl?.trim()) {
-      return {
-        kind: "direct" as const,
-        source: {
-          url: deckReferencePayload.referenceUrl.trim(),
-        },
-      };
-    }
-    const internalReferencePayload = extractInternalReferenceDragPayload(transfer);
-    if (!internalReferencePayload) return null;
-    return {
-      kind: "internal" as const,
-      payload: internalReferencePayload,
-    };
-  }, []);
-
   const canAcceptProfileImageDrop = React.useCallback(
     (transfer: DataTransfer | null | undefined): boolean =>
       Boolean(
-        hasElementDeckReferenceTypeHints(transfer) ||
-        hasInternalReferenceDragTypeHints(transfer) ||
-        extractInternalReferenceDragPayload(transfer)
+        hasInternalReferenceDragTypeHints(transfer) || extractInternalReferenceDragPayload(transfer)
       ),
     []
   );
@@ -341,20 +182,11 @@ export function ElementsManagerShell({
       event.stopPropagation();
       suppressProfilePickerClickRef.current = true;
       setIsProfileDropActive(false);
-      const droppedReference = resolveProfileDropReference(event.dataTransfer);
+      const droppedReference = extractInternalReferenceDragPayload(event.dataTransfer);
       if (!droppedReference) return;
-      if (droppedReference.kind === "direct") {
-        void onSetProfileImageFromUrl(droppedReference.source);
-        return;
-      }
-      void onSetProfileImageFromInternalDrop(droppedReference.payload);
+      void onSetProfileImageFromInternalDrop(droppedReference);
     },
-    [
-      canAcceptProfileImageDrop,
-      onSetProfileImageFromInternalDrop,
-      onSetProfileImageFromUrl,
-      resolveProfileDropReference,
-    ]
+    [canAcceptProfileImageDrop, onSetProfileImageFromInternalDrop]
   );
 
   const canAcceptInternalReferenceDrag = React.useCallback(
@@ -413,45 +245,11 @@ export function ElementsManagerShell({
     [resolveProfileImageDropSource]
   );
 
-  const handleDeckDragOver = React.useCallback(
-    (event: React.DragEvent<HTMLElement>) => {
+  const handleSheetDragEnter = React.useCallback(
+    (slotIndex: number) => (event: React.DragEvent<HTMLElement>) => {
       if (!canAcceptInternalReferenceDrag(event.dataTransfer)) return;
       event.preventDefault();
       event.dataTransfer.dropEffect = "copy";
-      if (!isDeckDropActive) setIsDeckDropActive(true);
-    },
-    [canAcceptInternalReferenceDrag, isDeckDropActive]
-  );
-
-  const handleDeckDrop = React.useCallback(
-    (event: React.DragEvent<HTMLElement>) => {
-      if (!canAcceptInternalReferenceDrag(event.dataTransfer)) return;
-      event.preventDefault();
-      setIsDeckDropActive(false);
-      void resolveDroppedReferenceUrl(event.dataTransfer).then((droppedReferenceUrl) => {
-        if (!droppedReferenceUrl) return;
-        if (draft.assetType === "video") {
-          assignActiveVideoReference(droppedReferenceUrl);
-          return;
-        }
-        appendActiveDeckReference(droppedReferenceUrl);
-      });
-    },
-    [
-      appendActiveDeckReference,
-      assignActiveVideoReference,
-      canAcceptInternalReferenceDrag,
-      draft.assetType,
-      resolveDroppedReferenceUrl,
-    ]
-  );
-
-  const handleSheetDragEnter = React.useCallback(
-    (slotIndex: number) => (event: React.DragEvent<HTMLElement>) => {
-      const hasDeckReferencePayload = hasElementDeckReferenceTypeHints(event.dataTransfer);
-      if (!hasDeckReferencePayload && !canAcceptInternalReferenceDrag(event.dataTransfer)) return;
-      event.preventDefault();
-      event.dataTransfer.dropEffect = hasDeckReferencePayload ? "move" : "copy";
       setActiveSheetDropIndex(slotIndex);
     },
     [canAcceptInternalReferenceDrag]
@@ -459,10 +257,9 @@ export function ElementsManagerShell({
 
   const handleSheetDragOver = React.useCallback(
     (slotIndex: number) => (event: React.DragEvent<HTMLElement>) => {
-      const hasDeckReferencePayload = hasElementDeckReferenceTypeHints(event.dataTransfer);
-      if (!hasDeckReferencePayload && !canAcceptInternalReferenceDrag(event.dataTransfer)) return;
+      if (!canAcceptInternalReferenceDrag(event.dataTransfer)) return;
       event.preventDefault();
-      event.dataTransfer.dropEffect = hasDeckReferencePayload ? "move" : "copy";
+      event.dataTransfer.dropEffect = "copy";
       setActiveSheetDropIndex(slotIndex);
     },
     [canAcceptInternalReferenceDrag]
@@ -470,17 +267,6 @@ export function ElementsManagerShell({
 
   const handleSheetDrop = React.useCallback(
     (slotIndex: number) => (event: React.DragEvent<HTMLElement>) => {
-      const deckReferencePayload = parseElementDeckReferencePayload(event.dataTransfer);
-      if (deckReferencePayload) {
-        event.preventDefault();
-        setActiveSheetDropIndex(null);
-        if (draft.assetType === "video") {
-          assignActiveVideoReference(deckReferencePayload.referenceUrl ?? "");
-          return;
-        }
-        assignActiveImageReferenceAtIndex(slotIndex, deckReferencePayload.referenceUrl ?? "");
-        return;
-      }
       if (!canAcceptInternalReferenceDrag(event.dataTransfer)) return;
       event.preventDefault();
       setActiveSheetDropIndex(null);
@@ -501,54 +287,6 @@ export function ElementsManagerShell({
       resolveDroppedReferenceUrl,
     ]
   );
-
-  const applyDragGhost = React.useCallback((event: React.DragEvent<HTMLElement>) => {
-    const dragNode = event.currentTarget as HTMLElement;
-    const transfer = event.dataTransfer;
-    try {
-      const blobNode = dragNode.querySelector<HTMLElement>(DRAG_GHOST_IMAGE_BLOB_SELECTOR);
-      const ghostSourceNode = blobNode ?? dragNode;
-      const sourceRect = ghostSourceNode.getBoundingClientRect();
-      const fallbackRect = dragNode.getBoundingClientRect();
-      const sourceWidth = sourceRect.width > 0 ? sourceRect.width : fallbackRect.width;
-      const sourceHeight = sourceRect.height > 0 ? sourceRect.height : fallbackRect.height;
-      const ghost = ghostSourceNode.cloneNode(true) as HTMLElement;
-      const scaledWidth = Math.max(56, sourceWidth * DRAG_GHOST_SCALE);
-      const scaledHeight = Math.max(72, sourceHeight * DRAG_GHOST_SCALE);
-      ghost.classList.add("character-drag-ghost");
-      ghost.classList.add("elements-drag-ghost");
-      if (blobNode) {
-        ghost.classList.add("character-drag-ghost--image-only");
-      }
-      ghost.style.boxSizing = "border-box";
-      ghost.style.width = `${scaledWidth}px`;
-      ghost.style.height = `${scaledHeight}px`;
-      ghost.style.transform = `scale(${DRAG_GHOST_SCALE}) rotate(-2deg)`;
-      ghost.style.transformOrigin = "center";
-      ghost.style.position = "absolute";
-      ghost.style.top = "-9999px";
-      ghost.style.left = "-9999px";
-      ghost.style.pointerEvents = "none";
-      ghost.style.opacity = "0.96";
-
-      document.body.appendChild(ghost);
-      dragGhostMapRef.current.set(dragNode, ghost);
-      transfer.setDragImage(ghost, scaledWidth / 2, scaledHeight / 2);
-    } catch {
-      transfer.setDragImage(dragNode, dragNode.offsetWidth / 2, dragNode.offsetHeight / 2);
-    }
-    dragNode.classList.add("is-dragging");
-  }, []);
-
-  const handleDeckCardDragEnd = React.useCallback((event: React.DragEvent<HTMLElement>) => {
-    const dragNode = event.currentTarget as HTMLElement;
-    dragNode.classList.remove("is-dragging");
-    const ghost = dragGhostMapRef.current.get(dragNode);
-    if (ghost) {
-      ghost.remove();
-      dragGhostMapRef.current.delete(dragNode);
-    }
-  }, []);
 
   return (
     <div
@@ -649,177 +387,10 @@ export function ElementsManagerShell({
         </section>
       ) : (
         <section className="character-simple-panel">
-          <header className="elements-profile-hero">
-            <div className="elements-profile-hero-copy">
-              <p className="elements-profile-eyebrow">Element Profile</p>
-              <h2>{draft.name.trim() || "New Element"}</h2>
-              <p className="tiny subdued elements-profile-helper">
-                Shape a reusable subject, prop, or scene element with a name, alias, and reference
-                assets that stay ready for future prompt binding.
-              </p>
-            </div>
-            <div className="elements-profile-summary" aria-label="Element profile summary">
-              <span className="elements-profile-summary-chip">
-                {draft.assetType === "video" ? "Video Element" : "Image Element"}
-              </span>
-              <span className="elements-profile-summary-chip">
-                {draft.assetType === "video"
-                  ? `${activeVideoReferenceCount} video reference`
-                  : `${activeImageReferenceCount} image reference${activeImageReferenceCount === 1 ? "" : "s"}`}
-              </span>
-              <span className="elements-profile-summary-chip">
-                {(selectedElement?.status ?? "draft") === "ready" ? "Ready" : "Draft"}
-              </span>
-            </div>
-          </header>
           <CharacterCreateWorkspaceSurface
             surface="panel"
-            quickSwap={
-              <section className="character-section character-section--reference-drop no-collapse-toggle">
-                <div className="character-section-head">
-                  <div className="character-section-title-row">
-                    <div className="character-section-title-copy">
-                      <h3 className="character-section-title">Reference Assets</h3>
-                    </div>
-                  </div>
-                </div>
-
-                <div
-                  className={`character-reference-drop-content ${isDeckDropActive ? "is-drop-active" : ""}`}
-                  onDragEnter={handleDeckDragOver}
-                  onDragOver={handleDeckDragOver}
-                  onDragLeave={(event) => {
-                    if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
-                      setIsDeckDropActive(false);
-                    }
-                  }}
-                  onDrop={(event) => {
-                    void handleDeckDrop(event);
-                  }}
-                >
-                  {isDeckDropActive ? (
-                    <div className="character-reference-drop-overlay" aria-live="polite">
-                      <div className="character-reference-drop-overlay-content">
-                        <UploadSimple
-                          size={34}
-                          weight="bold"
-                          className="character-reference-drop-overlay-icon"
-                          aria-hidden="true"
-                        />
-                        <p className="character-reference-drop-overlay-title">
-                          Drop reference assets here
-                        </p>
-                        <p className="tiny subdued">
-                          {draft.assetType === "video"
-                            ? "Add a dragged motion reference to this video element."
-                            : "Add dragged reference-grid images to this element."}
-                        </p>
-                      </div>
-                    </div>
-                  ) : null}
-
-                  <div
-                    ref={activeDeckScrollRef}
-                    className="character-quickswap-active-scroll"
-                    style={activeDeckScrollStyle}
-                  >
-                    <div
-                      className="character-reference-upload-grid character-reference-upload-grid--drop-card"
-                      role="list"
-                      aria-label="Element deck references"
-                    >
-                      {deckEntries.map((entry) => (
-                        <article
-                          key={entry.id}
-                          role="listitem"
-                          className="character-reference-upload-card"
-                          draggable
-                          onDragStart={(event) => {
-                            event.dataTransfer.effectAllowed = "move";
-                            event.dataTransfer.setData(
-                              ELEMENT_DECK_REFERENCE_MIME_TYPE,
-                              JSON.stringify({
-                                referenceUrl: entry.reference,
-                                index: deckEntries.findIndex(
-                                  (candidate) => candidate.id === entry.id
-                                ),
-                              })
-                            );
-                            event.dataTransfer.setData("text/plain", entry.reference);
-                            applyDragGhost(event);
-                          }}
-                          onDragEnd={handleDeckCardDragEnd}
-                        >
-                          <button
-                            type="button"
-                            className="character-list-delete-btn character-reference-delete-btn"
-                            aria-label={`Remove element deck reference: ${entry.label}`}
-                            onClick={() => {
-                              if (draft.assetType === "video") {
-                                clearActiveVideoReference();
-                                return;
-                              }
-                              const entryIndex = deckEntries.findIndex(
-                                (candidate) => candidate.id === entry.id
-                              );
-                              if (entryIndex >= 0) {
-                                removeActiveDeckReferenceAtIndex(entryIndex);
-                              }
-                            }}
-                          >
-                            <Trash size={12} weight="bold" />
-                          </button>
-                          <div className="character-reference-upload-image-wrap">
-                            {draft.assetType === "video" ? (
-                              <video
-                                src={entry.reference}
-                                className="character-reference-upload-image"
-                                muted
-                                playsInline
-                                preload="metadata"
-                              />
-                            ) : (
-                              <Image
-                                src={entry.reference}
-                                alt={entry.label}
-                                className="character-reference-upload-image"
-                                width={320}
-                                height={400}
-                                unoptimized
-                              />
-                            )}
-                          </div>
-                        </article>
-                      ))}
-
-                      <div className="character-reference-upload-placeholder">
-                        <UploadSimple
-                          size={16}
-                          weight="bold"
-                          className="character-reference-upload-placeholder-icon"
-                          aria-hidden="true"
-                        />
-                        <span className="character-reference-upload-placeholder-label">
-                          {draft.assetType === "video"
-                            ? "Drag motion reference here"
-                            : "Drag reference here"}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </section>
-            }
             characterSheet={
               <section className="character-section character-section--references">
-                <div className="character-section-head">
-                  <div className="character-section-title-row">
-                    <div className="character-section-title-copy">
-                      <h3 className="character-section-title">Identity and Notes</h3>
-                    </div>
-                  </div>
-                </div>
-
                 <div className="character-profile-card">
                   <div className="character-profile-card-top-row">
                     <div className="character-profile-photo-stack">
@@ -973,40 +544,6 @@ export function ElementsManagerShell({
                     </div>
 
                     <div className="character-profile-fields character-profile-fields--label-serif">
-                      <div className="elements-type-selector-block">
-                        <p className="elements-profile-section-title">Element Type</p>
-                        <div
-                          className="elements-type-toggle"
-                          role="group"
-                          aria-label="Element type"
-                        >
-                          <button
-                            type="button"
-                            className={`elements-type-chip ${
-                              draft.assetType === "image" ? "is-active" : ""
-                            }`}
-                            aria-pressed={draft.assetType === "image"}
-                            onClick={() => onSetAssetType("image")}
-                          >
-                            Image Element
-                          </button>
-                          <button
-                            type="button"
-                            className={`elements-type-chip ${
-                              draft.assetType === "video" ? "is-active" : ""
-                            }`}
-                            aria-pressed={draft.assetType === "video"}
-                            onClick={() => onSetAssetType("video")}
-                          >
-                            Video Element
-                          </button>
-                        </div>
-                        <p className="tiny subdued elements-character-type-toggle">
-                          {draft.assetType === "video"
-                            ? "Video elements keep one motion reference ready for future prompt binding."
-                            : "Image elements keep multiple visual references ready for future prompt binding."}
-                        </p>
-                      </div>
                       <label
                         className="control-row character-simple-field"
                         htmlFor="element-manager-name"
@@ -1039,26 +576,7 @@ export function ElementsManagerShell({
                   </div>
                 </div>
 
-                <CharacterSheetPresetTabs
-                  presetIds={draft.visibleReferenceSetIds}
-                  activePresetId={draft.activeReferenceSetId}
-                  presetLabels={draft.referenceSetLabels}
-                  onSelectPreset={setActiveReferenceSet}
-                  onAddPreset={onAddReferenceSet}
-                  onRenamePreset={onRenameReferenceSet}
-                  onDeletePreset={(setId) => {
-                    setPendingDeleteReferenceSetId(setId);
-                  }}
-                  panelId={presetPanelId}
-                  idBase={presetTabsIdBase}
-                />
-
-                <div
-                  className="character-sheet-preset-panel"
-                  role="tabpanel"
-                  id={presetPanelId}
-                  aria-labelledby={activePresetTabId}
-                >
+                <div className="character-sheet-preset-panel">
                   <CharacterDescriptionEditorCard
                     description={activeReferenceSet.description}
                     maxLength={150}
@@ -1073,19 +591,7 @@ export function ElementsManagerShell({
                   />
 
                   <div className="character-sheet-references-title-row character-profile-fields character-profile-fields--label-serif">
-                    <p className="input-label">Prompt Guidance:</p>
-                  </div>
-                  <p className="character-sheet-references-helper tiny subdued">
-                    Future Kling prompts can reference this element by name, for example:{" "}
-                    <code>@{draft.alias.trim() || draft.name.trim() || "element"}</code>.
-                  </p>
-                  <div className="elements-profile-guidance-card">
-                    <p className="elements-profile-guidance-title">Reference guidance</p>
-                    <p className="tiny subdued">
-                      {draft.assetType === "image"
-                        ? "Drag or upload 2 to 4 images into the reference slots. The first two slots are required."
-                        : "Provide one motion reference in the asset slot below. The element stays ready for future scene prompts."}
-                    </p>
+                    <p className="input-label">References</p>
                   </div>
                   <div className="character-reference-empty-grid">
                     {(draft.assetType === "image"
@@ -1212,44 +718,6 @@ export function ElementsManagerShell({
                 type="button"
                 className="btn-danger character-delete-confirm-btn"
                 onClick={onConfirmDeleteElement}
-              >
-                Delete
-              </button>
-            </div>
-          </div>
-        </div>
-      ) : null}
-      {pendingDeleteReferenceSetId ? (
-        <div
-          className="modal-overlay"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="delete-element-reference-set-title"
-        >
-          <div className="modal-card character-delete-confirm-card">
-            <h3 id="delete-element-reference-set-title">
-              Delete reference set &ldquo;{pendingDeleteReferenceSetLabel}&rdquo;?
-            </h3>
-            <p className="subdued tiny character-delete-confirm-copy">
-              This will permanently remove saved references from preset{" "}
-              <strong>{pendingDeleteReferenceSetLabel}</strong>. This action cannot be undone.
-            </p>
-            <div className="modal-actions">
-              <button
-                type="button"
-                className="btn-secondary"
-                onClick={() => setPendingDeleteReferenceSetId(null)}
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                className="btn-danger character-delete-confirm-btn"
-                onClick={() => {
-                  if (!pendingDeleteReferenceSetId) return;
-                  onDeleteReferenceSet(pendingDeleteReferenceSetId);
-                  setPendingDeleteReferenceSetId(null);
-                }}
               >
                 Delete
               </button>

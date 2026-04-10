@@ -8,7 +8,7 @@ import { CharacterCreateWorkspaceLayout } from "./CharacterCreateWorkspaceLayout
 
 type CharacterCreateWorkspaceSurfaceProps = {
   surface: CharacterManagerShellSurface;
-  quickSwap: React.ReactNode;
+  quickSwap?: React.ReactNode;
   characterSheet: React.ReactNode;
 };
 

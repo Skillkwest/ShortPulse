@@ -80,8 +80,7 @@ export const loadSavedKlingEntityBySource = async ({
   }
 
   const snapshot = await loadElementManagerDraftByElementId(sourceId);
-  const activeSet = snapshot.referenceSetState.sets[snapshot.referenceSetState.activeSetId];
-  const imageUrls = [...activeSet.imageReferenceUrls, ...activeSet.deckReferenceUrls]
+  const imageUrls = snapshot.imageReferenceUrls
     .map((value) => value.trim())
     .filter(Boolean)
     .filter((value, index, collection) => collection.indexOf(value) === index);
@@ -93,11 +92,11 @@ export const loadSavedKlingEntityBySource = async ({
     sourceCharacterId: null,
     name: snapshot.name,
     alias: snapshot.alias,
-    description: activeSet.description,
+    description: snapshot.description,
     profileImageUrl: snapshot.profileImageUrl,
     profileImageTransform: snapshot.profileImageTransform,
     frontalImageUrl: imageUrls[0] ?? "",
     referenceImageUrls: imageUrls.slice(1).join(", "),
-    videoUrl: activeSet.videoReferenceUrl.trim(),
+    videoUrl: snapshot.videoReferenceUrl?.trim() ?? "",
   };
 };

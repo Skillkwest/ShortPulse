@@ -115,10 +115,15 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
     - `profile_image_zoom` (number; persisted profile crop zoom)
     - `profile_image_offset_x` (number; persisted profile crop horizontal offset)
     - `profile_image_offset_y` (number; persisted profile crop vertical offset)
-  - Element reference-set UI keys:
-    - `active_reference_set_id` (`"1"`..`"10"`)
-    - `active_reference_set_asset_type` (`image | video` for the active set)
-    - `reference_set_tab_order` (visible reference-set id list, default `["1"]`)
+  - Element reference metadata keys:
+    - `active_reference_set_id` (`"1"` today; retained only for persistence compatibility)
+    - `active_reference_set_asset_type` (`image | video` for the persisted compatibility row)
+    - `reference_set_tab_order` (currently persisted as `["1"]` for compatibility)
+  - Active product/runtime contract:
+    - one `description`
+    - one `assetType`
+    - one `imageReferenceUrls` collection
+    - one optional `videoReferenceUrl`
 - `created_at` / `updated_at` (timestamptz)
 - RLS: select/insert/update/delete allowed only when `user_id = auth.uid()`.
 
@@ -126,13 +131,13 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
 - `id` (uuid, pk)
 - `element_id` (uuid): Parent element.
 - `user_id` (uuid, default `auth.uid()`): Owner for RLS scoping.
-- `set_key` (text): Fixed reference-set id (`"1"`..`"10"`).
-- `label` (text): User-facing tab label.
-- `description` (text): Prompting/reference description for the set.
-- `asset_type` (text): image | video.
-- `deck_reference_urls` (jsonb array): Saved deck URLs for the active element look.
-- `image_reference_urls` (jsonb array): Saved image-sheet URLs for the set.
-- `video_reference_url` (text, nullable): Saved motion-reference URL when the set is video-backed.
+- `set_key` (text): Compatibility set id. The active product contract persists only `"1"` today.
+- `label` (text): Compatibility label for the persisted set row.
+- `description` (text): Persisted description for the active Elements reference collection.
+- `asset_type` (text): image | video for the active Elements reference collection.
+- `deck_reference_urls` (jsonb array): Legacy compatibility alias retained to avoid schema churn. Mirrors image references when persisted and is merged back during hydration.
+- `image_reference_urls` (jsonb array): Saved image references for the active Elements collection.
+- `video_reference_url` (text, nullable): Saved motion-reference URL when the active collection is video-backed.
 - `created_at` / `updated_at` (timestamptz)
 - RLS: select/insert/update/delete allowed only when `user_id = auth.uid()`.
 

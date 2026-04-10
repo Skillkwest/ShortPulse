@@ -41,12 +41,10 @@ export type ElementLibraryItem = {
   profileImageUrl: string | null;
   profileImageTransform: ElementProfileImageTransform;
   thumbnailUrl: string | null;
-  deckReferenceUrls: string[];
   imageReferenceUrls: string[];
   videoReferenceUrl: string | null;
   updatedAt: string | null;
   status: ElementStatus;
-  referenceSetState: ElementReferenceSetState;
 };
 
 export type ElementsWorkflowTab = "manage" | "profile";
@@ -60,11 +58,6 @@ export type ElementDraft = {
   assetType: ElementAssetType;
   profileImageUrl: string | null;
   profileImageTransform: ElementProfileImageTransform;
-  deckReferenceUrls: string[];
   imageReferenceUrls: string[];
   videoReferenceUrl: string;
-  activeReferenceSetId: ElementReferenceSetId;
-  visibleReferenceSetIds: ElementReferenceSetId[];
-  referenceSetLabels: ElementReferenceSetLabelMap;
-  referenceSets: ElementReferenceSetMap;
 };

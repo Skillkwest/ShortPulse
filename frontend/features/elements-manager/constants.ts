@@ -2,7 +2,6 @@
  * Elements library constants and draft defaults.
  */
 import type {
-  ElementAssetType,
   ElementDraft,
   ElementProfileImageTransform,
   ElementLibraryItem,
@@ -65,45 +64,16 @@ export const createDefaultElementReferenceSetState = (
 });
 
 export const createEmptyElementDraft = (): ElementDraft => {
-  const defaultSetState = createDefaultElementReferenceSetState();
   return {
     name: "",
     alias: "",
-    description: defaultSetState.sets[defaultSetState.activeSetId].description,
+    description: "",
     assetType: "image",
     profileImageUrl: null,
     profileImageTransform: DEFAULT_ELEMENT_PROFILE_IMAGE_TRANSFORM,
-    deckReferenceUrls: defaultSetState.sets[defaultSetState.activeSetId].deckReferenceUrls,
-    imageReferenceUrls: defaultSetState.sets[defaultSetState.activeSetId].imageReferenceUrls,
-    videoReferenceUrl: defaultSetState.sets[defaultSetState.activeSetId].videoReferenceUrl,
-    activeReferenceSetId: defaultSetState.activeSetId,
-    visibleReferenceSetIds: defaultSetState.tabOrder,
-    referenceSetLabels: defaultSetState.tabLabels,
-    referenceSets: defaultSetState.sets,
+    imageReferenceUrls: [],
+    videoReferenceUrl: "",
   };
-};
-
-const createReferenceSetState = (seed: {
-  assetType?: ElementAssetType;
-  description: string;
-  deckReferenceUrls?: string[];
-  imageReferenceUrls?: string[];
-  videoReferenceUrl?: string;
-  activeSetId?: ElementReferenceSetId;
-}): ElementReferenceSetState => {
-  const sets = createEmptyElementReferenceSetMap();
-  const activeSetId = seed.activeSetId ?? "1";
-  sets[activeSetId] = {
-    assetType: seed.assetType ?? (seed.videoReferenceUrl ? "video" : "image"),
-    description: seed.description,
-    deckReferenceUrls: seed.deckReferenceUrls ?? seed.imageReferenceUrls ?? [],
-    imageReferenceUrls: seed.imageReferenceUrls ?? [],
-    videoReferenceUrl: seed.videoReferenceUrl ?? "",
-  };
-  return createDefaultElementReferenceSetState({
-    activeSetId,
-    sets,
-  });
 };
 
 export const createMockElementsLibrary = (): ElementLibraryItem[] => [
@@ -116,10 +86,6 @@ export const createMockElementsLibrary = (): ElementLibraryItem[] => [
     profileImageUrl: null,
     profileImageTransform: DEFAULT_ELEMENT_PROFILE_IMAGE_TRANSFORM,
     thumbnailUrl: null,
-    deckReferenceUrls: [
-      "https://example.com/reference/red-lantern-01.jpg",
-      "https://example.com/reference/red-lantern-02.jpg",
-    ],
     imageReferenceUrls: [
       "https://example.com/reference/red-lantern-01.jpg",
       "https://example.com/reference/red-lantern-02.jpg",
@@ -127,18 +93,6 @@ export const createMockElementsLibrary = (): ElementLibraryItem[] => [
     videoReferenceUrl: null,
     updatedAt: "2026-04-06T09:00:00.000Z",
     status: "ready",
-    referenceSetState: createReferenceSetState({
-      assetType: "image",
-      description: "Warm lacquered lantern with a gold frame and soft ember glow.",
-      deckReferenceUrls: [
-        "https://example.com/reference/red-lantern-01.jpg",
-        "https://example.com/reference/red-lantern-02.jpg",
-      ],
-      imageReferenceUrls: [
-        "https://example.com/reference/red-lantern-01.jpg",
-        "https://example.com/reference/red-lantern-02.jpg",
-      ],
-    }),
   },
   {
     id: "element-vintage-sedan",
@@ -149,11 +103,6 @@ export const createMockElementsLibrary = (): ElementLibraryItem[] => [
     profileImageUrl: null,
     profileImageTransform: DEFAULT_ELEMENT_PROFILE_IMAGE_TRANSFORM,
     thumbnailUrl: null,
-    deckReferenceUrls: [
-      "https://example.com/reference/vintage-sedan-01.jpg",
-      "https://example.com/reference/vintage-sedan-02.jpg",
-      "https://example.com/reference/vintage-sedan-03.jpg",
-    ],
     imageReferenceUrls: [
       "https://example.com/reference/vintage-sedan-01.jpg",
       "https://example.com/reference/vintage-sedan-02.jpg",
@@ -162,20 +111,6 @@ export const createMockElementsLibrary = (): ElementLibraryItem[] => [
     videoReferenceUrl: null,
     updatedAt: "2026-04-05T17:15:00.000Z",
     status: "ready",
-    referenceSetState: createReferenceSetState({
-      assetType: "image",
-      description: "Cream paint, chrome trim, rounded hood, and dramatic city-street reflections.",
-      deckReferenceUrls: [
-        "https://example.com/reference/vintage-sedan-01.jpg",
-        "https://example.com/reference/vintage-sedan-02.jpg",
-        "https://example.com/reference/vintage-sedan-03.jpg",
-      ],
-      imageReferenceUrls: [
-        "https://example.com/reference/vintage-sedan-01.jpg",
-        "https://example.com/reference/vintage-sedan-02.jpg",
-        "https://example.com/reference/vintage-sedan-03.jpg",
-      ],
-    }),
   },
   {
     id: "element-street-crowd",
@@ -186,15 +121,9 @@ export const createMockElementsLibrary = (): ElementLibraryItem[] => [
     profileImageUrl: null,
     profileImageTransform: DEFAULT_ELEMENT_PROFILE_IMAGE_TRANSFORM,
     thumbnailUrl: null,
-    deckReferenceUrls: [],
     imageReferenceUrls: [],
     videoReferenceUrl: "https://example.com/reference/street-crowd.mp4",
     updatedAt: "2026-04-04T14:30:00.000Z",
     status: "ready",
-    referenceSetState: createReferenceSetState({
-      assetType: "video",
-      description: "Loose evening foot traffic with layered depth and soft motion blur.",
-      videoReferenceUrl: "https://example.com/reference/street-crowd.mp4",
-    }),
   },
 ];

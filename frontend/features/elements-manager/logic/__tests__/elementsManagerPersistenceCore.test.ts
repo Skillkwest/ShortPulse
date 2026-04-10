@@ -117,12 +117,13 @@ describe("elementsManagerPersistenceCore", () => {
     const snapshot = await loadElementManagerDraftByElementId("element-1");
 
     expect(snapshot.profileImageUrl).toContain("token=fresh");
-    expect(snapshot.referenceSetState.sets["1"].deckReferenceUrls).toEqual([
+    expect(snapshot.description).toBe("saved element");
+    expect(snapshot.assetType).toBe("image");
+    expect(snapshot.imageReferenceUrls).toEqual([
+      "https://example.supabase.co/storage/v1/object/sign/media_library/user-1/expired-slot.png?token=fresh",
       "https://example.supabase.co/storage/v1/object/sign/media_library/user-1/expired-deck.png?token=fresh",
     ]);
-    expect(snapshot.referenceSetState.sets["1"].imageReferenceUrls).toEqual([
-      "https://example.supabase.co/storage/v1/object/sign/media_library/user-1/expired-slot.png?token=fresh",
-    ]);
+    expect(snapshot.videoReferenceUrl).toBeNull();
     expect(refreshSupabaseSignedUrlIfNeededMock).toHaveBeenCalledTimes(2);
   });
 
@@ -194,94 +195,10 @@ describe("elementsManagerPersistenceCore", () => {
       name: "Taylor",
       alias: "taylor",
       profileImageTransform: { zoom: 1.2, offsetX: 4, offsetY: -2 },
-      referenceSetState: {
-        activeSetId: "1",
-        tabOrder: ["1", "3"],
-        tabLabels: {
-          "1": "Double click me",
-          "2": "Reference Set 2",
-          "3": "Reference Set 3",
-          "4": "Reference Set 4",
-          "5": "Reference Set 5",
-          "6": "Reference Set 6",
-          "7": "Reference Set 7",
-          "8": "Reference Set 8",
-          "9": "Reference Set 9",
-          "10": "Reference Set 10",
-        },
-        sets: {
-          "1": {
-            assetType: "image",
-            description: "front",
-            deckReferenceUrls: ["https://example.com/front.png"],
-            imageReferenceUrls: ["https://example.com/front.png"],
-            videoReferenceUrl: "",
-          },
-          "2": {
-            assetType: "image",
-            description: "",
-            deckReferenceUrls: [],
-            imageReferenceUrls: [],
-            videoReferenceUrl: "",
-          },
-          "3": {
-            assetType: "video",
-            description: "motion",
-            deckReferenceUrls: [],
-            imageReferenceUrls: [],
-            videoReferenceUrl: "https://example.com/motion.mp4",
-          },
-          "4": {
-            assetType: "image",
-            description: "",
-            deckReferenceUrls: [],
-            imageReferenceUrls: [],
-            videoReferenceUrl: "",
-          },
-          "5": {
-            assetType: "image",
-            description: "",
-            deckReferenceUrls: [],
-            imageReferenceUrls: [],
-            videoReferenceUrl: "",
-          },
-          "6": {
-            assetType: "image",
-            description: "",
-            deckReferenceUrls: [],
-            imageReferenceUrls: [],
-            videoReferenceUrl: "",
-          },
-          "7": {
-            assetType: "image",
-            description: "",
-            deckReferenceUrls: [],
-            imageReferenceUrls: [],
-            videoReferenceUrl: "",
-          },
-          "8": {
-            assetType: "image",
-            description: "",
-            deckReferenceUrls: [],
-            imageReferenceUrls: [],
-            videoReferenceUrl: "",
-          },
-          "9": {
-            assetType: "image",
-            description: "",
-            deckReferenceUrls: [],
-            imageReferenceUrls: [],
-            videoReferenceUrl: "",
-          },
-          "10": {
-            assetType: "image",
-            description: "",
-            deckReferenceUrls: [],
-            imageReferenceUrls: [],
-            videoReferenceUrl: "",
-          },
-        },
-      },
+      description: "front",
+      assetType: "image",
+      imageReferenceUrls: ["https://example.com/front.png"],
+      videoReferenceUrl: null,
     });
 
     expect(result).toEqual({
@@ -291,7 +208,7 @@ describe("elementsManagerPersistenceCore", () => {
     expect(operations).toEqual([
       "elements.update",
       "reference_sets.upsert",
-      "reference_sets.delete:2,4,5,6,7,8,9,10",
+      "reference_sets.delete:2,3,4,5,6,7,8,9,10",
     ]);
   });
 });

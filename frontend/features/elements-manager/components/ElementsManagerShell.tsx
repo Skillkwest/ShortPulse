@@ -1,6 +1,6 @@
 /**
  * Elements library shell.
- * Hosts the embedded Elements manage/profile workflow while reusing shared Character-style controls.
+ * Hosts the embedded Elements manage/profile workflow while preserving the current panel contract.
  */
 import React from "react";
 import Image from "next/image";
@@ -10,10 +10,10 @@ import {
   hasInternalReferenceDragTypeHints,
 } from "../../../lib/internalReferenceDragPayload";
 import { uploadImageToStorage } from "../../ai-studio/utils/imageUpload";
-import { CharacterDescriptionEditorCard } from "../../character-manager/components/CharacterDescriptionEditorCard";
-import { CharacterCreateWorkspaceSurface } from "../../character-manager/components/CharacterCreateWorkspaceSurface";
 import { buildElementProfileImageTransformStyle } from "../logic/elementProfileImageTransform";
 import { useElementsManagerViewState } from "../hooks/useElementsManagerViewState";
+import { ElementsCreateWorkspaceSurface } from "./ElementsCreateWorkspaceSurface";
+import { ElementsDescriptionEditorCard } from "./ElementsDescriptionEditorCard";
 import { ElementsManagerWorkflowTabs } from "./ElementsManagerWorkflowTabs";
 import { DEFAULT_ELEMENT_PROFILE_IMAGE_TRANSFORM } from "../constants";
 import type { ResolveInternalReferenceDrop } from "../../ai-studio/logic/referenceSource/internalReferenceSource";
@@ -51,7 +51,6 @@ export function ElementsManagerShell({
     error,
     setActiveTab,
     updateDraftField,
-    updateActiveReferenceSet,
     assignActiveImageReferenceAtIndex,
     assignActiveVideoReference,
     clearActiveImageReferenceAtIndex,
@@ -69,7 +68,6 @@ export function ElementsManagerShell({
     resolveProfileImageDropSource,
   });
   const lastHandledExternalCreateRequestKeyRef = React.useRef(0);
-  const activeReferenceSet = draft.referenceSets[draft.activeReferenceSetId];
   const [activeSheetDropIndex, setActiveSheetDropIndex] = React.useState<number | null>(null);
   const [isProfileAdjusterVisible, setIsProfileAdjusterVisible] = React.useState(false);
   const [profileAdjustDraft, setProfileAdjustDraft] = React.useState<
@@ -290,7 +288,7 @@ export function ElementsManagerShell({
 
   return (
     <div
-      className="character-manager-page character-manager-page--embedded elements-manager-shell elements-manager-shell--character-clone"
+      className="elements-manager-shell elements-manager-shell--panel"
       data-active-tab={activeTab}
       data-surface="panel"
     >
@@ -304,24 +302,24 @@ export function ElementsManagerShell({
       <ElementsManagerWorkflowTabs activeTab={activeTab} setActiveTab={setActiveTab} />
 
       {activeTab === "manage" ? (
-        <section className="panel media-panel character-manage-panel elements-manage-panel">
-          <div className="character-manage-header-row">
-            <div className="character-manage-title-stack">
+        <section className="panel media-panel elements-manage-panel">
+          <div className="elements-manage-header-row">
+            <div className="elements-manage-title-stack">
               <h2>Elements Library</h2>
-              <p className="tiny subdued character-manage-helper">
+              <p className="tiny subdued elements-manage-helper">
                 Select an element to edit its element profile.
               </p>
             </div>
-            <div className="character-manage-header-actions">
+            <div className="elements-manage-header-actions">
               <button
                 type="button"
-                className="character-mode-create-btn character-mode-create-btn--inline"
+                className="elements-manage-create-btn"
                 onClick={onCreateElement}
               >
                 <Plus
                   size={14}
                   weight="bold"
-                  className="character-mode-create-btn-icon"
+                  className="elements-manage-create-btn-icon"
                   aria-hidden
                 />
                 <span>Create New Element</span>
@@ -329,8 +327,8 @@ export function ElementsManagerShell({
             </div>
           </div>
 
-          <div className="character-manage-chip-container">
-            <div className="character-manage-list" role="list" aria-label="Element list">
+          <div className="elements-manage-chip-container">
+            <div className="elements-manage-list" role="list" aria-label="Element list">
               {elements.map((item) => {
                 const isSelected = item.id === selectedElementId;
                 const itemName = item.name || "Untitled element";
@@ -338,19 +336,19 @@ export function ElementsManagerShell({
                   <article
                     key={item.id}
                     role="listitem"
-                    className={`character-list-card ${isSelected ? "is-active" : ""}`}
+                    className={`elements-list-card ${isSelected ? "is-active" : ""}`}
                   >
                     <button
                       type="button"
-                      className="character-list-select-btn"
+                      className="elements-list-select-btn"
                       aria-label={`Open element profile: ${itemName}`}
                       onClick={() => onSelectElement(item.id)}
                     >
-                      <div className="character-list-main">
-                        <span className="character-list-avatar" aria-hidden="true">
+                      <div className="elements-list-main">
+                        <span className="elements-list-avatar" aria-hidden="true">
                           {item.profileImageUrl ? (
                             <div
-                              className="ai-character-list-avatar-image"
+                              className="elements-list-avatar-image"
                               style={{
                                 backgroundImage: `url("${item.profileImageUrl}")`,
                                 backgroundRepeat: "no-repeat",
@@ -359,20 +357,20 @@ export function ElementsManagerShell({
                               }}
                             />
                           ) : (
-                            <span className="character-list-avatar-initials">
+                            <span className="elements-list-avatar-initials">
                               {buildElementInitials(itemName)}
                             </span>
                           )}
                         </span>
-                        <div className="character-list-copy">
+                        <div className="elements-list-copy">
                           <p className="metric-label tiny">{isSelected ? "Selected" : "Element"}</p>
-                          <p className="character-list-name">{itemName}</p>
+                          <p className="elements-list-name">{itemName}</p>
                         </div>
                       </div>
                     </button>
                     <button
                       type="button"
-                      className="character-list-delete-btn"
+                      className="elements-list-delete-btn"
                       aria-label={`Delete element: ${itemName}`}
                       onClick={() => onRequestDeleteElement(item.id)}
                     >
@@ -383,229 +381,222 @@ export function ElementsManagerShell({
               })}
             </div>
           </div>
-          {error ? <p className="tiny character-delete-confirm-copy">{error}</p> : null}
+          {error ? <p className="tiny elements-delete-confirm-copy">{error}</p> : null}
         </section>
       ) : (
-        <section className="character-simple-panel">
-          <CharacterCreateWorkspaceSurface
+        <section className="elements-profile-panel">
+          <ElementsCreateWorkspaceSurface
             surface="panel"
-            characterSheet={
-              <section className="character-section character-section--references">
-                <div className="character-profile-card">
-                  <div className="character-profile-card-top-row">
-                    <div className="character-profile-photo-stack">
-                      <button
-                        type="button"
-                        className={`character-profile-photo-btn ${
-                          draft.profileImageUrl ? "has-image" : ""
-                        } ${isProfileDropActive ? "is-drop-active" : ""}`}
-                        onClick={openProfilePicker}
-                        onDragEnter={handleProfileDragEnter}
-                        onDragOver={handleProfileDragOver}
-                        onDragLeave={handleProfileDragLeave}
-                        onDrop={handleProfileDrop}
-                        aria-label={
-                          draft.profileImageUrl && !isProfileAdjusterVisible
-                            ? "Edit element profile photo adjustments"
-                            : "Upload element profile photo"
-                        }
-                      >
-                        {draft.profileImageUrl ? (
-                          <Image
-                            src={draft.profileImageUrl}
-                            alt="Element profile"
-                            className="character-profile-photo"
-                            style={buildElementProfileImageTransformStyle(
-                              activeProfileImageTransform,
-                              profileImageRenderSize
-                            )}
-                            width={profileImageRenderSize}
-                            height={profileImageRenderSize}
-                            unoptimized
-                          />
-                        ) : (
-                          <span className="character-profile-placeholder-icon" aria-hidden="true">
-                            <UserCircle size={46} weight="light" aria-hidden="true" />
-                          </span>
-                        )}
-                      </button>
+            elementSheet={
+              <section className="elements-profile-section">
+                <div className="elements-profile-top-row">
+                  <div className="elements-profile-photo-stack">
+                    <button
+                      type="button"
+                      className={`elements-profile-photo-btn ${
+                        draft.profileImageUrl ? "has-image" : ""
+                      } ${isProfileDropActive ? "is-drop-active" : ""}`}
+                      onClick={openProfilePicker}
+                      onDragEnter={handleProfileDragEnter}
+                      onDragOver={handleProfileDragOver}
+                      onDragLeave={handleProfileDragLeave}
+                      onDrop={handleProfileDrop}
+                      aria-label={
+                        draft.profileImageUrl && !isProfileAdjusterVisible
+                          ? "Edit element profile photo adjustments"
+                          : "Upload element profile photo"
+                      }
+                    >
                       {draft.profileImageUrl ? (
-                        <span className="character-profile-edit-indicator" aria-hidden="true">
-                          <PencilSimpleLine size={14} weight="bold" />
-                          <span>Edit photo</span>
+                        <Image
+                          src={draft.profileImageUrl}
+                          alt="Element profile"
+                          className="elements-profile-photo"
+                          style={buildElementProfileImageTransformStyle(
+                            activeProfileImageTransform,
+                            profileImageRenderSize
+                          )}
+                          width={profileImageRenderSize}
+                          height={profileImageRenderSize}
+                          unoptimized
+                        />
+                      ) : (
+                        <span className="elements-profile-placeholder-icon" aria-hidden="true">
+                          <UserCircle size={46} weight="light" aria-hidden="true" />
                         </span>
-                      ) : null}
-                      {draft.profileImageUrl && isProfileAdjusterVisible ? (
-                        <div
-                          className="character-profile-adjuster"
-                          role="group"
-                          aria-label="Element profile crop controls"
-                        >
-                          <div className="character-profile-adjuster-row">
-                            <label
-                              className="character-profile-adjuster-label"
-                              htmlFor="element-profile-adjust-zoom"
-                            >
-                              <span>Zoom</span>
-                              <span>{Math.round(activeProfileImageTransform.zoom * 100)}%</span>
-                            </label>
-                            <input
-                              id="element-profile-adjust-zoom"
-                              className="character-profile-adjuster-range"
-                              type="range"
-                              min={PROFILE_ZOOM_MIN}
-                              max={PROFILE_ZOOM_MAX}
-                              step={0.01}
-                              value={activeProfileImageTransform.zoom}
-                              onChange={(event) => {
-                                const nextZoom = Number(event.target.value);
-                                setProfileAdjustDraft((previous) => ({
-                                  ...(previous ?? draft.profileImageTransform),
-                                  zoom: nextZoom,
-                                }));
-                              }}
-                            />
-                          </div>
-                          <div className="character-profile-adjuster-row">
-                            <label
-                              className="character-profile-adjuster-label"
-                              htmlFor="element-profile-adjust-x"
-                            >
-                              <span>Horizontal</span>
-                              <span>
-                                {activeProfileImageTransform.offsetX > 0
-                                  ? `+${activeProfileImageTransform.offsetX}`
-                                  : activeProfileImageTransform.offsetX}
-                              </span>
-                            </label>
-                            <input
-                              id="element-profile-adjust-x"
-                              className="character-profile-adjuster-range"
-                              type="range"
-                              min={PROFILE_OFFSET_MIN}
-                              max={PROFILE_OFFSET_MAX}
-                              step={1}
-                              value={activeProfileImageTransform.offsetX}
-                              onChange={(event) => {
-                                const nextOffsetX = Number(event.target.value);
-                                setProfileAdjustDraft((previous) => ({
-                                  ...(previous ?? draft.profileImageTransform),
-                                  offsetX: nextOffsetX,
-                                }));
-                              }}
-                            />
-                          </div>
-                          <div className="character-profile-adjuster-row">
-                            <label
-                              className="character-profile-adjuster-label"
-                              htmlFor="element-profile-adjust-y"
-                            >
-                              <span>Vertical</span>
-                              <span>
-                                {activeProfileImageTransform.offsetY > 0
-                                  ? `+${activeProfileImageTransform.offsetY}`
-                                  : activeProfileImageTransform.offsetY}
-                              </span>
-                            </label>
-                            <input
-                              id="element-profile-adjust-y"
-                              className="character-profile-adjuster-range"
-                              type="range"
-                              min={PROFILE_OFFSET_MIN}
-                              max={PROFILE_OFFSET_MAX}
-                              step={1}
-                              value={activeProfileImageTransform.offsetY}
-                              onChange={(event) => {
-                                const nextOffsetY = Number(event.target.value);
-                                setProfileAdjustDraft((previous) => ({
-                                  ...(previous ?? draft.profileImageTransform),
-                                  offsetY: nextOffsetY,
-                                }));
-                              }}
-                            />
-                          </div>
-                          <button
-                            type="button"
-                            className="ghost-btn small character-profile-adjuster-reset"
-                            onClick={saveProfileAdjustments}
+                      )}
+                    </button>
+                    {draft.profileImageUrl ? (
+                      <span className="elements-profile-edit-indicator" aria-hidden="true">
+                        <PencilSimpleLine size={14} weight="bold" />
+                        <span>Edit photo</span>
+                      </span>
+                    ) : null}
+                    {draft.profileImageUrl && isProfileAdjusterVisible ? (
+                      <div
+                        className="elements-profile-adjuster"
+                        role="group"
+                        aria-label="Element profile crop controls"
+                      >
+                        <div className="elements-profile-adjuster-row">
+                          <label
+                            className="elements-profile-adjuster-label"
+                            htmlFor="element-profile-adjust-zoom"
                           >
-                            Save
-                          </button>
-                          <button
-                            type="button"
-                            className="ghost-btn small character-profile-adjuster-remove character-remove-btn"
-                            onClick={clearProfilePreview}
-                            disabled={!draft.profileImageUrl}
-                          >
-                            Remove photo
-                          </button>
+                            <span>Zoom</span>
+                            <span>{Math.round(activeProfileImageTransform.zoom * 100)}%</span>
+                          </label>
+                          <input
+                            id="element-profile-adjust-zoom"
+                            className="elements-profile-adjuster-range"
+                            type="range"
+                            min={PROFILE_ZOOM_MIN}
+                            max={PROFILE_ZOOM_MAX}
+                            step={0.01}
+                            value={activeProfileImageTransform.zoom}
+                            onChange={(event) => {
+                              const nextZoom = Number(event.target.value);
+                              setProfileAdjustDraft((previous) => ({
+                                ...(previous ?? draft.profileImageTransform),
+                                zoom: nextZoom,
+                              }));
+                            }}
+                          />
                         </div>
-                      ) : null}
-                    </div>
+                        <div className="elements-profile-adjuster-row">
+                          <label
+                            className="elements-profile-adjuster-label"
+                            htmlFor="element-profile-adjust-x"
+                          >
+                            <span>Horizontal</span>
+                            <span>
+                              {activeProfileImageTransform.offsetX > 0
+                                ? `+${activeProfileImageTransform.offsetX}`
+                                : activeProfileImageTransform.offsetX}
+                            </span>
+                          </label>
+                          <input
+                            id="element-profile-adjust-x"
+                            className="elements-profile-adjuster-range"
+                            type="range"
+                            min={PROFILE_OFFSET_MIN}
+                            max={PROFILE_OFFSET_MAX}
+                            step={1}
+                            value={activeProfileImageTransform.offsetX}
+                            onChange={(event) => {
+                              const nextOffsetX = Number(event.target.value);
+                              setProfileAdjustDraft((previous) => ({
+                                ...(previous ?? draft.profileImageTransform),
+                                offsetX: nextOffsetX,
+                              }));
+                            }}
+                          />
+                        </div>
+                        <div className="elements-profile-adjuster-row">
+                          <label
+                            className="elements-profile-adjuster-label"
+                            htmlFor="element-profile-adjust-y"
+                          >
+                            <span>Vertical</span>
+                            <span>
+                              {activeProfileImageTransform.offsetY > 0
+                                ? `+${activeProfileImageTransform.offsetY}`
+                                : activeProfileImageTransform.offsetY}
+                            </span>
+                          </label>
+                          <input
+                            id="element-profile-adjust-y"
+                            className="elements-profile-adjuster-range"
+                            type="range"
+                            min={PROFILE_OFFSET_MIN}
+                            max={PROFILE_OFFSET_MAX}
+                            step={1}
+                            value={activeProfileImageTransform.offsetY}
+                            onChange={(event) => {
+                              const nextOffsetY = Number(event.target.value);
+                              setProfileAdjustDraft((previous) => ({
+                                ...(previous ?? draft.profileImageTransform),
+                                offsetY: nextOffsetY,
+                              }));
+                            }}
+                          />
+                        </div>
+                        <button
+                          type="button"
+                          className="ghost-btn small elements-profile-adjuster-reset"
+                          onClick={saveProfileAdjustments}
+                        >
+                          Save
+                        </button>
+                        <button
+                          type="button"
+                          className="ghost-btn small elements-profile-adjuster-remove"
+                          onClick={clearProfilePreview}
+                          disabled={!draft.profileImageUrl}
+                        >
+                          Remove photo
+                        </button>
+                      </div>
+                    ) : null}
+                  </div>
 
-                    <div className="character-profile-fields character-profile-fields--label-serif">
-                      <label
-                        className="control-row character-simple-field"
-                        htmlFor="element-manager-name"
-                      >
-                        <span className="input-label">Name:</span>
-                        <input
-                          id="element-manager-name"
-                          className="character-name-input"
-                          type="text"
-                          value={draft.name}
-                          onChange={(event) => updateDraftField("name", event.target.value)}
-                          placeholder="Enter element name"
-                        />
-                      </label>
-                      <label
-                        className="control-row character-simple-field"
-                        htmlFor="element-manager-alias"
-                      >
-                        <span className="input-label">Alias:</span>
-                        <input
-                          id="element-manager-alias"
-                          className="character-name-input"
-                          type="text"
-                          value={draft.alias}
-                          onChange={(event) => updateDraftField("alias", event.target.value)}
-                          placeholder="Enter element alias"
-                        />
-                      </label>
-                    </div>
+                  <div className="elements-profile-fields">
+                    <label
+                      className="control-row elements-profile-field"
+                      htmlFor="element-manager-name"
+                    >
+                      <span className="input-label">Name:</span>
+                      <input
+                        id="element-manager-name"
+                        className="elements-name-input"
+                        type="text"
+                        value={draft.name}
+                        onChange={(event) => updateDraftField("name", event.target.value)}
+                        placeholder="Enter element name"
+                      />
+                    </label>
+                    <label
+                      className="control-row elements-profile-field"
+                      htmlFor="element-manager-alias"
+                    >
+                      <span className="input-label">Alias:</span>
+                      <input
+                        id="element-manager-alias"
+                        className="elements-name-input"
+                        type="text"
+                        value={draft.alias}
+                        onChange={(event) => updateDraftField("alias", event.target.value)}
+                        placeholder="Enter element alias"
+                      />
+                    </label>
                   </div>
                 </div>
 
-                <div className="character-sheet-preset-panel">
-                  <CharacterDescriptionEditorCard
-                    description={activeReferenceSet.description}
+                <div className="elements-profile-sheet-panel">
+                  <ElementsDescriptionEditorCard
+                    description={draft.description}
                     maxLength={150}
                     rows={2}
                     disabled={false}
-                    onChangeDescription={(value) =>
-                      updateActiveReferenceSet((current) => ({
-                        ...current,
-                        description: value,
-                      }))
-                    }
+                    onChangeDescription={(value) => updateDraftField("description", value)}
                   />
 
-                  <div className="character-sheet-references-title-row character-profile-fields character-profile-fields--label-serif">
+                  <div className="elements-references-title-row elements-profile-fields">
                     <p className="input-label">References</p>
                   </div>
-                  <div className="character-reference-empty-grid">
+                  <div className="elements-references-grid">
                     {(draft.assetType === "image"
                       ? IMAGE_REFERENCE_SLOT_LABELS
                       : ["Motion Reference"]
                     ).map((slotLabel, index) => {
                       const slotValue =
                         draft.assetType === "image"
-                          ? (activeReferenceSet.imageReferenceUrls[index] ?? "")
-                          : activeReferenceSet.videoReferenceUrl;
+                          ? (draft.imageReferenceUrls[index] ?? "")
+                          : draft.videoReferenceUrl;
                       return (
                         <article
                           key={`${slotLabel}-${index + 1}`}
-                          className={`character-character-sheet-card ${
+                          className={`elements-reference-card ${
                             slotValue ? "is-filled" : "is-empty"
                           } ${activeSheetDropIndex === index ? "is-drop-active" : ""}`}
                           onDragEnter={handleSheetDragEnter(index)}
@@ -622,7 +613,7 @@ export function ElementsManagerShell({
                           {slotValue ? (
                             <button
                               type="button"
-                              className="character-list-delete-btn character-reference-delete-btn character-character-sheet-delete-btn"
+                              className="elements-reference-delete-btn"
                               aria-label={`Clear ${slotLabel} reference`}
                               onClick={(event) => {
                                 event.stopPropagation();
@@ -636,13 +627,13 @@ export function ElementsManagerShell({
                               <Trash size={12} weight="bold" />
                             </button>
                           ) : null}
-                          <div className="character-character-sheet-media">
+                          <div className="elements-reference-media">
                             {slotValue ? (
                               draft.assetType === "video" ? (
                                 <video
                                   src={slotValue}
                                   aria-label={`${slotLabel} reference`}
-                                  className="character-character-sheet-image"
+                                  className="elements-reference-image"
                                   muted
                                   playsInline
                                   preload="metadata"
@@ -651,18 +642,18 @@ export function ElementsManagerShell({
                                 <Image
                                   src={slotValue}
                                   alt={`${slotLabel} reference`}
-                                  className="character-character-sheet-image"
+                                  className="elements-reference-image"
                                   width={240}
                                   height={300}
                                   unoptimized
                                 />
                               )
                             ) : (
-                              <span className="character-character-sheet-drop-copy tiny">
+                              <span className="elements-reference-drop-copy tiny">
                                 <UploadSimple
                                   size={14}
                                   weight="bold"
-                                  className="character-character-sheet-drop-icon"
+                                  className="elements-reference-drop-icon"
                                   aria-hidden="true"
                                 />
                                 <span>
@@ -671,7 +662,7 @@ export function ElementsManagerShell({
                                     : "Drop reference here"}
                                 </span>
                                 <span
-                                  className={`character-character-sheet-drop-requirement ${
+                                  className={`elements-reference-drop-requirement ${
                                     draft.assetType === "image" && index < 2
                                       ? "is-required"
                                       : "is-optional"
@@ -686,7 +677,7 @@ export function ElementsManagerShell({
                               </span>
                             )}
                           </div>
-                          <span className="character-reference-empty-hint">{slotLabel}</span>
+                          <span className="elements-reference-empty-hint">{slotLabel}</span>
                         </article>
                       );
                     })}
@@ -705,9 +696,9 @@ export function ElementsManagerShell({
           aria-modal="true"
           aria-labelledby="delete-element-title"
         >
-          <div className="modal-card character-delete-confirm-card">
+          <div className="modal-card elements-delete-confirm-card">
             <h3 id="delete-element-title">Delete this element?</h3>
-            <p className="subdued tiny character-delete-confirm-copy">
+            <p className="subdued tiny elements-delete-confirm-copy">
               This will permanently remove the selected element from your Elements library.
             </p>
             <div className="modal-actions">
@@ -716,7 +707,7 @@ export function ElementsManagerShell({
               </button>
               <button
                 type="button"
-                className="btn-danger character-delete-confirm-btn"
+                className="btn-danger elements-delete-confirm-btn"
                 onClick={onConfirmDeleteElement}
               >
                 Delete

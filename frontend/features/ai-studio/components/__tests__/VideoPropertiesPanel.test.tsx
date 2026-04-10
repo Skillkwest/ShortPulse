@@ -10,13 +10,8 @@ import {
   listCharacterManagerCharacters,
   loadCharacterManagerDraftByCharacterId,
 } from "../../../character-manager/logic/characterManagerPersistence";
-import { createDefaultElementReferenceSetState } from "../../../elements-manager/constants";
 import { loadElementManagerDraftByElementId } from "../../../elements-manager/logic/elementsManagerPersistence";
 import { buildElementProfileImageBackgroundStyle } from "../../../elements-manager/logic/elementProfileImageTransform";
-import type {
-  ElementReferenceSetLabelMap,
-  ElementReferenceSetMap,
-} from "../../../elements-manager/types";
 import type { AiStudioKlingElement } from "../../logic/klingElements";
 import { KLING_ELEMENT_PROMPT_TOKEN_TRANSFER_MIME } from "../../logic/klingPromptReferences";
 
@@ -30,27 +25,6 @@ type ReferencePromptStepMockProps = {
   agentIsSending?: boolean;
   agentError?: string;
   onAgentEnhanceSend?: unknown;
-};
-
-const createReferenceSetState = (overrides?: {
-  activeSetId?: ReturnType<typeof createDefaultElementReferenceSetState>["activeSetId"];
-  tabOrder?: ReturnType<typeof createDefaultElementReferenceSetState>["tabOrder"];
-  tabLabels?: Partial<ElementReferenceSetLabelMap>;
-  sets?: Partial<ElementReferenceSetMap>;
-}) => {
-  const defaults = createDefaultElementReferenceSetState();
-  return {
-    ...defaults,
-    ...overrides,
-    tabLabels: {
-      ...defaults.tabLabels,
-      ...overrides?.tabLabels,
-    },
-    sets: {
-      ...defaults.sets,
-      ...overrides?.sets,
-    },
-  };
 };
 
 const referencePromptStepMock = vi.fn((props: ReferencePromptStepMockProps) => {
@@ -142,24 +116,15 @@ vi.mock("../../../elements-manager/logic/elementsManagerPersistence", () => ({
     status: "ready",
     profileImageUrl: "https://example.com/red-lantern-profile.jpg",
     profileImageTransform: { zoom: 1.35, offsetX: 8, offsetY: -6 },
+    description: "Warm lacquered lantern",
+    assetType: "image",
+    imageReferenceUrls: [
+      "https://example.com/red-lantern-01.jpg",
+      "https://example.com/red-lantern-02.jpg",
+      "https://example.com/red-lantern-03.jpg",
+    ],
+    videoReferenceUrl: null,
     updatedAt: "2026-04-07T00:00:00.000Z",
-    referenceSetState: createReferenceSetState({
-      activeSetId: "1",
-      tabOrder: ["1"],
-      sets: {
-        "1": {
-          assetType: "image",
-          description: "Warm lacquered lantern",
-          deckReferenceUrls: [],
-          imageReferenceUrls: [
-            "https://example.com/red-lantern-01.jpg",
-            "https://example.com/red-lantern-02.jpg",
-            "https://example.com/red-lantern-03.jpg",
-          ],
-          videoReferenceUrl: "",
-        },
-      },
-    }),
   })),
 }));
 
@@ -676,23 +641,14 @@ describe("VideoPropertiesPanel", () => {
       status: "ready",
       profileImageUrl: "https://example.com/deck-orchid-profile.jpg",
       profileImageTransform: { zoom: 1.12, offsetX: 2, offsetY: -4 },
+      description: "Deck-backed orchid",
+      assetType: "image",
+      imageReferenceUrls: [
+        "https://example.com/deck-orchid-01.jpg",
+        "https://example.com/deck-orchid-02.jpg",
+      ],
+      videoReferenceUrl: null,
       updatedAt: "2026-04-07T00:00:00.000Z",
-      referenceSetState: createReferenceSetState({
-        activeSetId: "1",
-        tabOrder: ["1"],
-        sets: {
-          "1": {
-            assetType: "image",
-            description: "Deck-backed orchid",
-            deckReferenceUrls: [
-              "https://example.com/deck-orchid-01.jpg",
-              "https://example.com/deck-orchid-02.jpg",
-            ],
-            imageReferenceUrls: [],
-            videoReferenceUrl: "",
-          },
-        },
-      }),
       userId: "user-1",
     });
     const onKlingElementsChange = vi.fn();
@@ -847,20 +803,11 @@ describe("VideoPropertiesPanel", () => {
       status: "ready",
       profileImageUrl: "https://example.com/red-lantern-profile.jpg",
       profileImageTransform: { zoom: 1.35, offsetX: 8, offsetY: -6 },
+      description: "Warm lacquered lantern",
+      assetType: "image",
+      imageReferenceUrls: [],
+      videoReferenceUrl: null,
       updatedAt: "2026-04-07T00:00:00.000Z",
-      referenceSetState: createReferenceSetState({
-        activeSetId: "1",
-        tabOrder: ["1"],
-        sets: {
-          "1": {
-            assetType: "image",
-            description: "Warm lacquered lantern",
-            deckReferenceUrls: [],
-            imageReferenceUrls: [],
-            videoReferenceUrl: "",
-          },
-        },
-      }),
       userId: "user-1",
     });
     const onKlingElementsChange = vi.fn();

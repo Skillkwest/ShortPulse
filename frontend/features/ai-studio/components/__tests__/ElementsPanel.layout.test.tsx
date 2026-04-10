@@ -1,6 +1,6 @@
 /**
  * AI Studio Elements panel layout tests.
- * Verifies the cloned Character-style Elements shell and manage-mode scroll locking.
+ * Verifies the embedded Elements shell layout contract and manage-mode scroll locking.
  */
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
@@ -13,56 +13,11 @@ import type {
 import { uploadImageToStorage } from "../../utils/imageUpload";
 
 const elementsManagerPersistenceMockState = vi.hoisted(() => {
-  const referenceSetIds = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10"] as const;
-  const createEmptyReferenceSet = () => ({
-    description: "",
-    deckReferenceUrls: [] as string[],
-    imageReferenceUrls: [] as string[],
-    videoReferenceUrl: "",
-  });
-  const createDefaultElementReferenceSetState = () => ({
-    activeSetId: "1" as const,
-    tabOrder: ["1"] as const,
-    tabLabels: Object.fromEntries(
-      referenceSetIds.map((setId) => [
-        setId,
-        setId === "1" ? "Double click me" : `Reference Set ${setId}`,
-      ])
-    ) as Record<(typeof referenceSetIds)[number], string>,
-    sets: Object.fromEntries(
-      referenceSetIds.map((setId) => [
-        setId,
-        {
-          ...createEmptyReferenceSet(),
-          assetType: "image" as const,
-        },
-      ])
-    ) as Record<
-      (typeof referenceSetIds)[number],
-      ReturnType<typeof createEmptyReferenceSet> & { assetType: "image" }
-    >,
-  });
   const defaultTransform = { zoom: 1, offsetX: 0, offsetY: 0 };
   const seededReferenceImageUrls = [
     "https://example.com/reference/red-lantern-01.jpg",
     "https://example.com/reference/red-lantern-02.jpg",
   ];
-  const seededReferenceSetState = (() => {
-    const base = createDefaultElementReferenceSetState();
-    return {
-      ...base,
-      sets: {
-        ...base.sets,
-        "1": {
-          assetType: "image" as const,
-          description: "Warm lacquered lantern with a gold frame and soft ember glow.",
-          deckReferenceUrls: seededReferenceImageUrls,
-          imageReferenceUrls: seededReferenceImageUrls,
-          videoReferenceUrl: "",
-        },
-      },
-    };
-  })();
   const makeSnapshot = (overrides?: Partial<Record<string, unknown>>) => ({
     elementId: "element-red-lantern",
     name: "Red Lantern",
@@ -70,8 +25,11 @@ const elementsManagerPersistenceMockState = vi.hoisted(() => {
     status: "ready" as const,
     profileImageUrl: null as string | null,
     profileImageTransform: defaultTransform,
+    description: "Warm lacquered lantern with a gold frame and soft ember glow.",
+    assetType: "image" as const,
+    imageReferenceUrls: seededReferenceImageUrls,
+    videoReferenceUrl: null as string | null,
     updatedAt: "2026-04-06T09:00:00.000Z",
-    referenceSetState: seededReferenceSetState,
     ...overrides,
   });
   const initialList = [
@@ -91,7 +49,6 @@ const elementsManagerPersistenceMockState = vi.hoisted(() => {
   ]);
 
   return {
-    createDefaultElementReferenceSetState,
     list: [...initialList],
     snapshots: new Map(initialSnapshots),
     reset: () => {
@@ -112,9 +69,11 @@ vi.mock("../../../elements-manager/logic/elementsManagerPersistence", () => ({
       status: "ready" as const,
       profileImageUrl: null as string | null,
       profileImageTransform: { zoom: 1, offsetX: 0, offsetY: 0 },
+      description: "",
+      assetType: "image" as const,
+      imageReferenceUrls: [],
+      videoReferenceUrl: null as string | null,
       updatedAt: "2026-04-07T00:00:00.000Z",
-      referenceSetState:
-        elementsManagerPersistenceMockState.createDefaultElementReferenceSetState(),
     };
     elementsManagerPersistenceMockState.snapshots.set(snapshot.elementId, snapshot);
     elementsManagerPersistenceMockState.list = [
@@ -146,35 +105,46 @@ vi.mock("../../../elements-manager/logic/elementsManagerPersistence", () => ({
     }
     return snapshot;
   }),
-  saveElementManagerDraftSnapshot: vi.fn(async ({ elementId, name, alias, referenceSetState }) => {
-    const snapshot = elementsManagerPersistenceMockState.snapshots.get(elementId);
-    if (!snapshot) {
-      throw new Error(`Missing element snapshot: ${elementId}`);
-    }
-    const nextSnapshot = {
-      ...snapshot,
+  saveElementManagerDraftSnapshot: vi.fn(
+    async ({
+      elementId,
       name,
       alias,
-      referenceSetState,
-      updatedAt: "2026-04-07T00:00:00.000Z",
-    };
-    elementsManagerPersistenceMockState.snapshots.set(elementId, nextSnapshot);
-    elementsManagerPersistenceMockState.list = elementsManagerPersistenceMockState.list.map(
-      (item) =>
-        item.elementId === elementId
-          ? {
-              ...item,
-              elementName: name,
-              elementAlias: alias,
-              elementAssetType:
-                referenceSetState.sets[referenceSetState.activeSetId]?.assetType ??
-                item.elementAssetType,
-              updatedAt: nextSnapshot.updatedAt,
-            }
-          : item
-    );
-    return { updatedAt: nextSnapshot.updatedAt, status: nextSnapshot.status };
-  }),
+      description,
+      assetType,
+      imageReferenceUrls,
+      videoReferenceUrl,
+    }) => {
+      const snapshot = elementsManagerPersistenceMockState.snapshots.get(elementId);
+      if (!snapshot) {
+        throw new Error(`Missing element snapshot: ${elementId}`);
+      }
+      const nextSnapshot = {
+        ...snapshot,
+        name,
+        alias,
+        description,
+        assetType,
+        imageReferenceUrls,
+        videoReferenceUrl,
+        updatedAt: "2026-04-07T00:00:00.000Z",
+      };
+      elementsManagerPersistenceMockState.snapshots.set(elementId, nextSnapshot);
+      elementsManagerPersistenceMockState.list = elementsManagerPersistenceMockState.list.map(
+        (item) =>
+          item.elementId === elementId
+            ? {
+                ...item,
+                elementName: name,
+                elementAlias: alias,
+                elementAssetType: assetType ?? item.elementAssetType,
+                updatedAt: nextSnapshot.updatedAt,
+              }
+            : item
+      );
+      return { updatedAt: nextSnapshot.updatedAt, status: nextSnapshot.status };
+    }
+  ),
   saveElementProfileImageAdjustments: vi.fn(async ({ transform }) => transform),
   uploadElementProfileImage: vi.fn(async ({ file }) => ({
     profileImageUrl: `blob:${file.name}`,
@@ -265,6 +235,12 @@ describe("ElementsPanel layout", () => {
       .map((node) => node.getAttribute("data-layout-region"))
       .filter((value): value is string => Boolean(value));
     expect(regions).toEqual([]);
+    expect(container!.querySelector(".elements-panel-root > .elements-manager-shell")).toBeTruthy();
+    expect(container!.querySelector(".elements-manager-shell--panel")).toBeTruthy();
+    expect(container!.querySelector(".character-manager-page")).toBeNull();
+    expect(container!.querySelector(".character-manager-page--embedded")).toBeNull();
+    expect(container!.querySelector(".elements-manager-shell--character-clone")).toBeNull();
+    expect(container!.querySelector(".elements-manage-list")).toBeTruthy();
     expect(screen.getByRole("heading", { name: "Elements Library" })).toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Element Deck" })).not.toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Element Sheet" })).not.toBeInTheDocument();
@@ -312,6 +288,9 @@ describe("ElementsPanel layout", () => {
       .map((node) => node.getAttribute("data-layout-region"))
       .filter((value): value is string => Boolean(value));
     expect(regions).toEqual(["sheet"]);
+    expect(container.querySelector(".elements-profile-panel")).toBeTruthy();
+    expect(container.querySelector(".elements-workflow-tab-row")).toBeTruthy();
+    expect(container.querySelector(".elements-references-grid")).toBeTruthy();
   });
 
   it("does not render the shared preset-tab system in the elements profile", async () => {

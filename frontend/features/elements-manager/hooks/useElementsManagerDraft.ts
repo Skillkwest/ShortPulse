@@ -1,89 +1,27 @@
 /**
  * Draft-state controller for the local Elements profile shell.
- * Keeps nested reference-set state explicit while mirroring the active set onto flat draft fields.
+ * Owns the flat Elements draft used by the embedded profile editor.
  */
 import React from "react";
-import { createDefaultElementReferenceSetState, createEmptyElementDraft } from "../constants";
-import type {
-  ElementDraft,
-  ElementLibraryItem,
-  ElementReferenceSet,
-  ElementReferenceSetId,
-} from "../types";
+import { createEmptyElementDraft } from "../constants";
+import type { ElementDraft, ElementLibraryItem } from "../types";
 
-const buildDraftFromItem = (item: ElementLibraryItem): ElementDraft => {
-  const referenceSetState = item.referenceSetState ?? createDefaultElementReferenceSetState();
-  const activeSet = referenceSetState.sets[referenceSetState.activeSetId];
-  return {
-    name: item.name,
-    alias: item.alias,
-    description: activeSet.description,
-    assetType: activeSet.assetType ?? item.assetType,
-    profileImageUrl: item.profileImageUrl,
-    profileImageTransform: item.profileImageTransform,
-    deckReferenceUrls: activeSet.deckReferenceUrls,
-    imageReferenceUrls: activeSet.imageReferenceUrls,
-    videoReferenceUrl: activeSet.videoReferenceUrl,
-    activeReferenceSetId: referenceSetState.activeSetId,
-    visibleReferenceSetIds: referenceSetState.tabOrder,
-    referenceSetLabels: referenceSetState.tabLabels,
-    referenceSets: referenceSetState.sets,
-  };
-};
-
-const syncActiveReferenceSet = (
-  current: ElementDraft,
-  nextSetId?: ElementReferenceSetId
-): ElementDraft => {
-  const activeReferenceSetId = nextSetId ?? current.activeReferenceSetId;
-  const activeReferenceSet = current.referenceSets[activeReferenceSetId];
-  return {
-    ...current,
-    activeReferenceSetId,
-    assetType: activeReferenceSet.assetType,
-    description: activeReferenceSet.description,
-    profileImageUrl: current.profileImageUrl,
-    profileImageTransform: current.profileImageTransform,
-    deckReferenceUrls: activeReferenceSet.deckReferenceUrls,
-    imageReferenceUrls: activeReferenceSet.imageReferenceUrls,
-    videoReferenceUrl: activeReferenceSet.videoReferenceUrl,
-  };
-};
+const buildDraftFromItem = (item: ElementLibraryItem): ElementDraft => ({
+  name: item.name,
+  alias: item.alias,
+  description: item.description,
+  assetType: item.assetType,
+  profileImageUrl: item.profileImageUrl,
+  profileImageTransform: item.profileImageTransform,
+  imageReferenceUrls: item.imageReferenceUrls,
+  videoReferenceUrl: item.videoReferenceUrl ?? "",
+});
 
 export const useElementsManagerDraft = () => {
   const [draft, setDraft] = React.useState<ElementDraft>(createEmptyElementDraft);
 
   const hydrateDraft = React.useCallback((item: ElementLibraryItem | null) => {
     setDraft(item ? buildDraftFromItem(item) : createEmptyElementDraft());
-  }, []);
-
-  const updateDraftField = React.useCallback(
-    <K extends keyof ElementDraft>(field: K, value: ElementDraft[K]) => {
-      setDraft((current) => ({ ...current, [field]: value }));
-    },
-    []
-  );
-
-  const updateActiveReferenceSet = React.useCallback(
-    (updater: (currentSet: ElementReferenceSet) => ElementReferenceSet) => {
-      setDraft((current) => {
-        const nextReferenceSets = {
-          ...current.referenceSets,
-          [current.activeReferenceSetId]: updater(
-            current.referenceSets[current.activeReferenceSetId]
-          ),
-        };
-        return syncActiveReferenceSet({
-          ...current,
-          referenceSets: nextReferenceSets,
-        });
-      });
-    },
-    []
-  );
-
-  const setActiveReferenceSet = React.useCallback((setId: ElementReferenceSetId) => {
-    setDraft((current) => syncActiveReferenceSet(current, setId));
   }, []);
 
   const resetDraft = React.useCallback(() => {
@@ -93,9 +31,6 @@ export const useElementsManagerDraft = () => {
   return {
     draft,
     hydrateDraft,
-    updateDraftField,
-    updateActiveReferenceSet,
-    setActiveReferenceSet,
     setDraft,
     resetDraft,
   };

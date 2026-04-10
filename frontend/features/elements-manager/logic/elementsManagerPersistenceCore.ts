@@ -78,7 +78,10 @@ export type ElementManagerDraftSnapshot = {
   status: ElementStatus;
   profileImageUrl: string | null;
   profileImageTransform: ElementProfileImageTransform;
-  referenceSetState: ElementReferenceSetState;
+  description: string;
+  assetType: ElementAssetType;
+  imageReferenceUrls: string[];
+  videoReferenceUrl: string | null;
   updatedAt: string;
 };
 
@@ -165,6 +168,58 @@ const sanitizeFileStem = (filename: string): string => {
 
 const isElementReferenceSetId = (value: string): value is ElementReferenceSetId =>
   ELEMENT_REFERENCE_SET_IDS.includes(value as ElementReferenceSetId);
+
+const LEGACY_ACTIVE_REFERENCE_SET_ID: ElementReferenceSetId = "1";
+
+const flattenReferenceSetState = (referenceSetState: ElementReferenceSetState) => {
+  const activeSet =
+    referenceSetState.sets[referenceSetState.activeSetId] ??
+    referenceSetState.sets[LEGACY_ACTIVE_REFERENCE_SET_ID];
+  const imageReferenceUrls = [
+    ...(activeSet?.imageReferenceUrls ?? []),
+    ...(activeSet?.deckReferenceUrls ?? []),
+  ]
+    .map((value) => value.trim())
+    .filter(Boolean)
+    .filter((value, index, collection) => collection.indexOf(value) === index)
+    .slice(0, 6);
+  return {
+    description: activeSet?.description ?? "",
+    assetType: activeSet?.assetType ?? "image",
+    imageReferenceUrls,
+    videoReferenceUrl: activeSet?.videoReferenceUrl.trim() || null,
+  };
+};
+
+const buildLegacyReferenceSetStateFromFlatDraft = ({
+  assetType,
+  description,
+  imageReferenceUrls,
+  videoReferenceUrl,
+}: {
+  assetType: ElementAssetType;
+  description: string;
+  imageReferenceUrls: string[];
+  videoReferenceUrl: string | null;
+}): ElementReferenceSetState =>
+  createDefaultElementReferenceSetState({
+    activeSetId: LEGACY_ACTIVE_REFERENCE_SET_ID,
+    tabOrder: [LEGACY_ACTIVE_REFERENCE_SET_ID],
+    tabLabels: createDefaultElementReferenceSetLabels(),
+    sets: {
+      ...createEmptyElementReferenceSetMap(),
+      [LEGACY_ACTIVE_REFERENCE_SET_ID]: {
+        assetType,
+        description: description.trim(),
+        // Keep deck_reference_urls as a bounded storage alias to avoid schema churn.
+        deckReferenceUrls:
+          assetType === "image" ? imageReferenceUrls.filter(Boolean).slice(0, 6) : [],
+        imageReferenceUrls:
+          assetType === "image" ? imageReferenceUrls.filter(Boolean).slice(0, 6) : [],
+        videoReferenceUrl: assetType === "video" ? (videoReferenceUrl?.trim() ?? "") : "",
+      },
+    },
+  });
 
 export const resolveSupabaseContext = async (): Promise<ElementsContext> => {
   const userId = await readSupabaseUserId();
@@ -461,9 +516,8 @@ export const loadElementManagerDraftByElementId = async (
     status,
     profileImageUrl: await toSignedProfileImageUrl(row.metadata),
     profileImageTransform: getElementProfileImageTransform(row.metadata),
-    referenceSetState: await buildReferenceSetState(
-      row.metadata,
-      (referenceRows ?? []) as ElementReferenceSetRow[]
+    ...flattenReferenceSetState(
+      await buildReferenceSetState(row.metadata, (referenceRows ?? []) as ElementReferenceSetRow[])
     ),
     updatedAt: row.updated_at ?? new Date().toISOString(),
   };
@@ -474,13 +528,19 @@ export const saveElementManagerDraftSnapshot = async ({
   name,
   alias,
   profileImageTransform,
-  referenceSetState,
+  description,
+  assetType,
+  imageReferenceUrls,
+  videoReferenceUrl,
 }: {
   elementId: string;
   name: string;
   alias: string;
   profileImageTransform: ElementProfileImageTransform;
-  referenceSetState: ElementReferenceSetState;
+  description: string;
+  assetType: ElementAssetType;
+  imageReferenceUrls: string[];
+  videoReferenceUrl: string | null;
 }): Promise<{ updatedAt: string; status: ElementStatus }> => {
   const { supabase, userId } = await resolveSupabaseContext();
   const { data: existingRow, error: existingError } = await supabase
@@ -497,11 +557,17 @@ export const saveElementManagerDraftSnapshot = async ({
   }
 
   const nextTransform = normalizeProfileImageTransform(profileImageTransform);
+  const legacyReferenceSetState = buildLegacyReferenceSetStateFromFlatDraft({
+    assetType,
+    description,
+    imageReferenceUrls,
+    videoReferenceUrl,
+  });
   const nextMetadata = toObjectRecord((existingRow as { metadata: unknown }).metadata);
-  nextMetadata[ELEMENT_ACTIVE_REFERENCE_SET_ID_KEY] = referenceSetState.activeSetId;
+  nextMetadata[ELEMENT_ACTIVE_REFERENCE_SET_ID_KEY] = legacyReferenceSetState.activeSetId;
   nextMetadata[ELEMENT_ACTIVE_REFERENCE_SET_ASSET_TYPE_KEY] =
-    referenceSetState.sets[referenceSetState.activeSetId]?.assetType ?? "image";
-  nextMetadata[ELEMENT_REFERENCE_SET_TAB_ORDER_KEY] = referenceSetState.tabOrder;
+    legacyReferenceSetState.sets[legacyReferenceSetState.activeSetId]?.assetType ?? "image";
+  nextMetadata[ELEMENT_REFERENCE_SET_TAB_ORDER_KEY] = legacyReferenceSetState.tabOrder;
   nextMetadata[ELEMENT_PROFILE_IMAGE_ZOOM_KEY] = nextTransform.zoom;
   nextMetadata[ELEMENT_PROFILE_IMAGE_OFFSET_X_KEY] = nextTransform.offsetX;
   nextMetadata[ELEMENT_PROFILE_IMAGE_OFFSET_Y_KEY] = nextTransform.offsetY;
@@ -523,13 +589,14 @@ export const saveElementManagerDraftSnapshot = async ({
     throw new Error(asErrorMessage(updateError, "Failed to save element."));
   }
 
-  const setRows = referenceSetState.tabOrder.map((setId) => {
-    const set = referenceSetState.sets[setId];
+  const setRows = legacyReferenceSetState.tabOrder.map((setId) => {
+    const set = legacyReferenceSetState.sets[setId];
     return {
       element_id: elementId,
       user_id: userId,
       set_key: setId,
-      label: referenceSetState.tabLabels[setId] ?? createDefaultElementReferenceSetLabels()[setId],
+      label:
+        legacyReferenceSetState.tabLabels[setId] ?? createDefaultElementReferenceSetLabels()[setId],
       description: set.description.trim(),
       asset_type: set.assetType,
       deck_reference_urls: set.deckReferenceUrls.filter(Boolean).slice(0, 6),
@@ -548,7 +615,7 @@ export const saveElementManagerDraftSnapshot = async ({
   }
 
   const staleSetIds = ELEMENT_REFERENCE_SET_IDS.filter(
-    (setId) => !referenceSetState.tabOrder.includes(setId)
+    (setId) => !legacyReferenceSetState.tabOrder.includes(setId)
   );
   if (staleSetIds.length) {
     const { error: deleteError } = await supabase

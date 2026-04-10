@@ -134,7 +134,7 @@ export const ElementPickerModal = ({
                         "kling-entity-picker-section-title kling-entity-picker-section-title--characters",
                       supportsCreateAction: true,
                       createActionClassName:
-                        "character-mode-create-btn character-mode-create-btn--inline kling-entity-picker-create-btn kling-entity-picker-create-btn--characters",
+                        "ai-library-create-btn ai-library-create-btn--inline kling-entity-picker-create-btn kling-entity-picker-create-btn--characters",
                       createActionLabel: "Create New Character",
                       onCreateAction: onCreateCharacter,
                     },
@@ -145,7 +145,7 @@ export const ElementPickerModal = ({
                         "kling-entity-picker-section-title kling-entity-picker-section-title--elements",
                       supportsCreateAction: true,
                       createActionClassName:
-                        "character-mode-create-btn character-mode-create-btn--inline kling-entity-picker-create-btn kling-entity-picker-create-btn--elements",
+                        "ai-library-create-btn ai-library-create-btn--inline kling-entity-picker-create-btn kling-entity-picker-create-btn--elements",
                       createActionLabel: "Create New Element",
                       onCreateAction: onCreateElement,
                     },
@@ -176,7 +176,7 @@ export const ElementPickerModal = ({
                               <Plus
                                 size={14}
                                 weight="bold"
-                                className="character-mode-create-btn-icon"
+                                className="ai-library-create-btn-icon"
                                 aria-hidden
                               />
                               <span>{createActionLabel}</span>

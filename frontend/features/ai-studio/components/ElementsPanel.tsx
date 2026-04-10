@@ -1,6 +1,6 @@
 /**
  * Primary Elements panel for AI Studio.
- * Mounts the Character-style Elements shell and applies manage-mode properties-rail scroll locking.
+ * Mounts the embedded Elements shell and applies manage-mode properties-rail scroll locking.
  */
 import React from "react";
 import { ElementsManagerShell } from "../../elements-manager/components/ElementsManagerShell";

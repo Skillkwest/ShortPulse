@@ -1,24 +1,17 @@
 /**
  * View-state controller for the Elements library panel.
- * Mirrors the embedded Character UX while persisting element data to Supabase.
+ * Owns Elements panel state transitions while persisting element data to Supabase.
  */
 import React from "react";
 import { ensureSupabaseQueryClient } from "../../../lib/supabaseClient";
 import type { InternalReferenceDragPayload } from "../../../lib/internalReferenceDragPayload";
 import type { ResolveInternalReferenceDrop } from "../../ai-studio/logic/referenceSource/internalReferenceSource";
-import {
-  ELEMENT_REFERENCE_SET_IDS,
-  MAX_ELEMENT_REFERENCE_SET_TAB_COUNT,
-  createDefaultElementReferenceSetState,
-  createEmptyElementDraft,
-} from "../constants";
+import { createEmptyElementDraft } from "../constants";
 import type {
   ElementAssetType,
   ElementDraft,
   ElementLibraryItem,
   ElementsWorkflowTab,
-  ElementReferenceSetId,
-  ElementReferenceSetState,
 } from "../types";
 import { useElementsManagerDraft } from "./useElementsManagerDraft";
 import {
@@ -48,11 +41,6 @@ type DroppedStorageCandidate = {
   bucket: string;
   storagePath: string;
 };
-
-const getNextReferenceSetId = (
-  visibleReferenceSetIds: readonly ElementReferenceSetId[]
-): ElementReferenceSetId | null =>
-  ELEMENT_REFERENCE_SET_IDS.find((setId) => !visibleReferenceSetIds.includes(setId)) ?? null;
 
 const toErrorMessage = (error: unknown, fallback: string): string =>
   error instanceof Error && error.message.trim().length ? error.message : fallback;
@@ -251,57 +239,20 @@ const buildElementItemFromDraft = (
     status?: ElementLibraryItem["status"];
   }
 ): ElementLibraryItem => {
-  const activeReferenceSet = draft.referenceSets[draft.activeReferenceSetId];
   return {
     id: options.id,
     name: draft.name.trim(),
     alias: draft.alias.trim(),
-    description: activeReferenceSet.description.trim(),
+    description: draft.description.trim(),
     assetType: draft.assetType,
     profileImageUrl: draft.profileImageUrl,
     profileImageTransform: draft.profileImageTransform,
     thumbnailUrl: draft.profileImageUrl,
-    deckReferenceUrls:
-      draft.assetType === "image"
-        ? activeReferenceSet.deckReferenceUrls.filter(Boolean).slice(0, 6)
-        : [],
     imageReferenceUrls:
-      draft.assetType === "image"
-        ? activeReferenceSet.imageReferenceUrls.filter(Boolean).slice(0, 6)
-        : [],
-    videoReferenceUrl:
-      draft.assetType === "video" ? activeReferenceSet.videoReferenceUrl.trim() || null : null,
+      draft.assetType === "image" ? draft.imageReferenceUrls.filter(Boolean).slice(0, 6) : [],
+    videoReferenceUrl: draft.assetType === "video" ? draft.videoReferenceUrl.trim() || null : null,
     updatedAt: options.updatedAt ?? new Date().toISOString(),
     status: options.status ?? "ready",
-    referenceSetState: {
-      activeSetId: draft.activeReferenceSetId,
-      tabOrder: draft.visibleReferenceSetIds,
-      tabLabels: draft.referenceSetLabels,
-      sets: draft.referenceSets,
-    },
-  };
-};
-
-const buildDraftFromReferenceSetState = (
-  item: Pick<ElementLibraryItem, "name" | "alias" | "profileImageUrl" | "profileImageTransform"> & {
-    referenceSetState: ElementReferenceSetState;
-  }
-): ElementDraft => {
-  const activeSet = item.referenceSetState.sets[item.referenceSetState.activeSetId];
-  return {
-    name: item.name,
-    alias: item.alias,
-    description: activeSet.description,
-    assetType: activeSet.assetType,
-    profileImageUrl: item.profileImageUrl,
-    profileImageTransform: item.profileImageTransform,
-    deckReferenceUrls: activeSet.deckReferenceUrls,
-    imageReferenceUrls: activeSet.imageReferenceUrls,
-    videoReferenceUrl: activeSet.videoReferenceUrl,
-    activeReferenceSetId: item.referenceSetState.activeSetId,
-    visibleReferenceSetIds: item.referenceSetState.tabOrder,
-    referenceSetLabels: item.referenceSetState.tabLabels,
-    referenceSets: item.referenceSetState.sets,
   };
 };
 
@@ -309,13 +260,16 @@ const buildElementItemFromSnapshot = (
   snapshot: Awaited<ReturnType<typeof loadElementManagerDraftByElementId>>
 ): ElementLibraryItem =>
   buildElementItemFromDraft(
-    buildDraftFromReferenceSetState({
+    {
       name: snapshot.name,
       alias: snapshot.alias,
+      description: snapshot.description,
+      assetType: snapshot.assetType,
       profileImageUrl: snapshot.profileImageUrl,
       profileImageTransform: snapshot.profileImageTransform,
-      referenceSetState: snapshot.referenceSetState,
-    }),
+      imageReferenceUrls: snapshot.imageReferenceUrls,
+      videoReferenceUrl: snapshot.videoReferenceUrl ?? "",
+    },
     {
       id: snapshot.elementId,
       updatedAt: snapshot.updatedAt,
@@ -326,7 +280,6 @@ const buildElementItemFromSnapshot = (
 const buildLibraryItemFromListRow = (
   row: Awaited<ReturnType<typeof fetchElementsManagerList>>[number]
 ): ElementLibraryItem => {
-  const defaultState = createDefaultElementReferenceSetState();
   return {
     id: row.elementId,
     name: row.elementName,
@@ -336,12 +289,10 @@ const buildLibraryItemFromListRow = (
     profileImageUrl: row.profileImageUrl,
     profileImageTransform: row.profileImageTransform,
     thumbnailUrl: row.profileImageUrl,
-    deckReferenceUrls: [],
     imageReferenceUrls: [],
     videoReferenceUrl: null,
     updatedAt: row.updatedAt,
     status: row.elementStatus,
-    referenceSetState: defaultState,
   };
 };
 
@@ -352,10 +303,9 @@ const serializeDraftState = (draft: ElementDraft): string =>
     assetType: draft.assetType,
     profileImageUrl: draft.profileImageUrl,
     profileImageTransform: draft.profileImageTransform,
-    activeReferenceSetId: draft.activeReferenceSetId,
-    visibleReferenceSetIds: draft.visibleReferenceSetIds,
-    referenceSetLabels: draft.referenceSetLabels,
-    referenceSets: draft.referenceSets,
+    description: draft.description,
+    imageReferenceUrls: draft.imageReferenceUrls,
+    videoReferenceUrl: draft.videoReferenceUrl,
   });
 
 type UseElementsManagerViewStateParams = {
@@ -452,65 +402,6 @@ export const useElementsManagerViewState = ({
     <K extends keyof ElementDraft>(field: K, value: ElementDraft[K]) => {
       setDraft((current) => {
         const nextDraft: ElementDraft = { ...current, [field]: value };
-        if (field === "assetType") {
-          nextDraft.referenceSets = {
-            ...current.referenceSets,
-            [current.activeReferenceSetId]: {
-              ...current.referenceSets[current.activeReferenceSetId],
-              assetType: value,
-            },
-          };
-        }
-        syncSelectedElement(nextDraft);
-        return nextDraft;
-      });
-    },
-    [setDraft, syncSelectedElement]
-  );
-
-  const updateActiveReferenceSet = React.useCallback(
-    (
-      updater: (
-        current: ElementDraft["referenceSets"][ElementReferenceSetId]
-      ) => ElementDraft["referenceSets"][ElementReferenceSetId]
-    ) => {
-      setDraft((current) => {
-        const nextReferenceSets = {
-          ...current.referenceSets,
-          [current.activeReferenceSetId]: updater(
-            current.referenceSets[current.activeReferenceSetId]
-          ),
-        };
-        const activeSet = nextReferenceSets[current.activeReferenceSetId];
-        const nextDraft: ElementDraft = {
-          ...current,
-          assetType: activeSet.assetType,
-          referenceSets: nextReferenceSets,
-          description: activeSet.description,
-          deckReferenceUrls: activeSet.deckReferenceUrls,
-          imageReferenceUrls: activeSet.imageReferenceUrls,
-          videoReferenceUrl: activeSet.videoReferenceUrl,
-        };
-        syncSelectedElement(nextDraft);
-        return nextDraft;
-      });
-    },
-    [setDraft, syncSelectedElement]
-  );
-
-  const setActiveReferenceSet = React.useCallback(
-    (setId: ElementReferenceSetId) => {
-      setDraft((current) => {
-        const activeSet = current.referenceSets[setId];
-        const nextDraft: ElementDraft = {
-          ...current,
-          activeReferenceSetId: setId,
-          assetType: activeSet.assetType,
-          description: activeSet.description,
-          deckReferenceUrls: activeSet.deckReferenceUrls,
-          imageReferenceUrls: activeSet.imageReferenceUrls,
-          videoReferenceUrl: activeSet.videoReferenceUrl,
-        };
         syncSelectedElement(nextDraft);
         return nextDraft;
       });
@@ -528,15 +419,16 @@ export const useElementsManagerViewState = ({
       const snapshot = await loadElementManagerDraftByElementId(created.elementId);
       const nextItem = buildElementItemFromSnapshot(snapshot);
       suppressNextPersistRef.current = true;
-      lastPersistedDraftRef.current = serializeDraftState(
-        buildDraftFromReferenceSetState({
-          name: snapshot.name,
-          alias: snapshot.alias,
-          profileImageUrl: snapshot.profileImageUrl,
-          profileImageTransform: snapshot.profileImageTransform,
-          referenceSetState: snapshot.referenceSetState,
-        })
-      );
+      lastPersistedDraftRef.current = serializeDraftState({
+        name: snapshot.name,
+        alias: snapshot.alias,
+        description: snapshot.description,
+        assetType: snapshot.assetType,
+        profileImageUrl: snapshot.profileImageUrl,
+        profileImageTransform: snapshot.profileImageTransform,
+        imageReferenceUrls: snapshot.imageReferenceUrls,
+        videoReferenceUrl: snapshot.videoReferenceUrl ?? "",
+      });
       updateElementListEntry(nextItem);
       setSelectedElementId(snapshot.elementId);
       hydrateDraft(nextItem);
@@ -557,13 +449,16 @@ export const useElementsManagerViewState = ({
       try {
         const snapshot = await loadElementManagerDraftByElementId(elementId);
         const nextItem = buildElementItemFromSnapshot(snapshot);
-        const nextDraft = buildDraftFromReferenceSetState({
+        const nextDraft: ElementDraft = {
           name: snapshot.name,
           alias: snapshot.alias,
+          description: snapshot.description,
+          assetType: snapshot.assetType,
           profileImageUrl: snapshot.profileImageUrl,
           profileImageTransform: snapshot.profileImageTransform,
-          referenceSetState: snapshot.referenceSetState,
-        });
+          imageReferenceUrls: snapshot.imageReferenceUrls,
+          videoReferenceUrl: snapshot.videoReferenceUrl ?? "",
+        };
         suppressNextPersistRef.current = true;
         lastPersistedDraftRef.current = serializeDraftState(nextDraft);
         updateElementListEntry(nextItem);
@@ -600,154 +495,68 @@ export const useElementsManagerViewState = ({
     }
   }, [pendingDeleteElementId, resetDraft]);
 
-  const onAddReferenceSet = React.useCallback(() => {
-    setDraft((current) => {
-      if (current.visibleReferenceSetIds.length >= MAX_ELEMENT_REFERENCE_SET_TAB_COUNT) {
-        return current;
-      }
-      const nextSetId = getNextReferenceSetId(current.visibleReferenceSetIds);
-      if (!nextSetId) return current;
-      const defaults = createDefaultElementReferenceSetState();
-      const nextReferenceSets = {
-        ...current.referenceSets,
-        [nextSetId]: current.referenceSets[nextSetId] ?? defaults.sets[nextSetId],
-      };
-      const nextDraft = {
-        ...current,
-        activeReferenceSetId: nextSetId,
-        assetType: "image" as const,
-        visibleReferenceSetIds: [...current.visibleReferenceSetIds, nextSetId],
-        referenceSetLabels: {
-          ...current.referenceSetLabels,
-          [nextSetId]: current.referenceSetLabels[nextSetId] ?? defaults.tabLabels[nextSetId],
-        },
-        referenceSets: nextReferenceSets,
-        description: nextReferenceSets[nextSetId].description,
-        deckReferenceUrls: nextReferenceSets[nextSetId].deckReferenceUrls,
-        imageReferenceUrls: nextReferenceSets[nextSetId].imageReferenceUrls,
-        videoReferenceUrl: nextReferenceSets[nextSetId].videoReferenceUrl,
-      };
-      syncSelectedElement(nextDraft);
-      return nextDraft;
-    });
-  }, [setDraft, syncSelectedElement]);
-
-  const onRenameReferenceSet = React.useCallback(
-    (setId: ElementReferenceSetId, nextLabel: string) => {
-      setDraft((current) => {
-        const nextDraft = {
-          ...current,
-          referenceSetLabels: {
-            ...current.referenceSetLabels,
-            [setId]: nextLabel.trim() || current.referenceSetLabels[setId],
-          },
-        };
-        syncSelectedElement(nextDraft);
-        return nextDraft;
-      });
-    },
-    [setDraft, syncSelectedElement]
-  );
-
-  const onDeleteReferenceSet = React.useCallback(
-    (setId: ElementReferenceSetId) => {
-      setDraft((current) => {
-        if (setId === "1") return current;
-        const nextVisibleReferenceSetIds = current.visibleReferenceSetIds.filter(
-          (visibleSetId) => visibleSetId !== setId
-        );
-        const fallbackSetId = nextVisibleReferenceSetIds[0] ?? "1";
-        const nextReferenceSets = {
-          ...current.referenceSets,
-          [setId]: createDefaultElementReferenceSetState().sets[setId],
-        };
-        const fallbackSet = nextReferenceSets[fallbackSetId];
-        const nextDraft = {
-          ...current,
-          activeReferenceSetId: fallbackSetId,
-          assetType: fallbackSet.assetType,
-          visibleReferenceSetIds: nextVisibleReferenceSetIds,
-          referenceSets: nextReferenceSets,
-          description: fallbackSet.description,
-          deckReferenceUrls: fallbackSet.deckReferenceUrls,
-          imageReferenceUrls: fallbackSet.imageReferenceUrls,
-          videoReferenceUrl: fallbackSet.videoReferenceUrl,
-        };
-        syncSelectedElement(nextDraft);
-        return nextDraft;
-      });
-    },
-    [setDraft, syncSelectedElement]
-  );
-
   const assignActiveImageReferenceAtIndex = React.useCallback(
     (index: number, referenceUrl: string) => {
       const normalizedReferenceUrl = referenceUrl.trim();
       if (!normalizedReferenceUrl) return;
-      updateActiveReferenceSet((current) => {
+      setDraft((current) => {
         const nextImageReferenceUrls = [...current.imageReferenceUrls];
         while (nextImageReferenceUrls.length <= index) {
           nextImageReferenceUrls.push("");
         }
         nextImageReferenceUrls[index] = normalizedReferenceUrl;
-        return {
+        const nextDraft = {
           ...current,
           imageReferenceUrls: nextImageReferenceUrls.slice(0, 6),
         };
+        syncSelectedElement(nextDraft);
+        return nextDraft;
       });
     },
-    [updateActiveReferenceSet]
+    [setDraft, syncSelectedElement]
   );
 
   const clearActiveImageReferenceAtIndex = React.useCallback(
     (index: number) => {
-      updateActiveReferenceSet((current) => {
+      setDraft((current) => {
         const nextImageReferenceUrls = [...current.imageReferenceUrls];
         if (index >= nextImageReferenceUrls.length) return current;
         nextImageReferenceUrls[index] = "";
-        return {
+        const nextDraft = {
           ...current,
           imageReferenceUrls: nextImageReferenceUrls,
         };
+        syncSelectedElement(nextDraft);
+        return nextDraft;
       });
     },
-    [updateActiveReferenceSet]
+    [setDraft, syncSelectedElement]
   );
 
   const assignActiveVideoReference = React.useCallback(
     (referenceUrl: string) => {
       const normalizedReferenceUrl = referenceUrl.trim();
-      updateActiveReferenceSet((current) => ({
-        ...current,
-        videoReferenceUrl: normalizedReferenceUrl,
-      }));
+      setDraft((current) => {
+        const nextDraft = {
+          ...current,
+          videoReferenceUrl: normalizedReferenceUrl,
+        };
+        syncSelectedElement(nextDraft);
+        return nextDraft;
+      });
     },
-    [updateActiveReferenceSet]
+    [setDraft, syncSelectedElement]
   );
 
   const onSetAssetType = React.useCallback(
     (assetType: ElementAssetType) => {
       setDraft((current) => {
         if (current.assetType === assetType) return current;
-
-        const nextReferenceSet = {
-          ...current.referenceSets[current.activeReferenceSetId],
-          assetType,
-          deckReferenceUrls: assetType === "image" ? current.deckReferenceUrls : [],
-          imageReferenceUrls: assetType === "image" ? current.imageReferenceUrls : [],
-          videoReferenceUrl: assetType === "video" ? current.videoReferenceUrl : "",
-        };
-        const nextReferenceSets = {
-          ...current.referenceSets,
-          [current.activeReferenceSetId]: nextReferenceSet,
-        };
         const nextDraft = {
           ...current,
           assetType,
-          referenceSets: nextReferenceSets,
-          deckReferenceUrls: nextReferenceSet.deckReferenceUrls,
-          imageReferenceUrls: nextReferenceSet.imageReferenceUrls,
-          videoReferenceUrl: nextReferenceSet.videoReferenceUrl,
+          imageReferenceUrls: assetType === "image" ? current.imageReferenceUrls : [],
+          videoReferenceUrl: assetType === "video" ? current.videoReferenceUrl : "",
         };
         syncSelectedElement(nextDraft);
         return nextDraft;
@@ -757,14 +566,16 @@ export const useElementsManagerViewState = ({
   );
 
   const clearActiveVideoReference = React.useCallback(() => {
-    updateActiveReferenceSet((current) => {
+    setDraft((current) => {
       if (!current.videoReferenceUrl.trim()) return current;
-      return {
+      const nextDraft = {
         ...current,
         videoReferenceUrl: "",
       };
+      syncSelectedElement(nextDraft);
+      return nextDraft;
     });
-  }, [updateActiveReferenceSet]);
+  }, [setDraft, syncSelectedElement]);
 
   const saveProfileImageFile = React.useCallback(
     async (profileFile: File) => {
@@ -971,12 +782,10 @@ export const useElementsManagerViewState = ({
         name: draft.name,
         alias: draft.alias,
         profileImageTransform: draft.profileImageTransform,
-        referenceSetState: {
-          activeSetId: draft.activeReferenceSetId,
-          tabOrder: draft.visibleReferenceSetIds,
-          tabLabels: draft.referenceSetLabels,
-          sets: draft.referenceSets,
-        },
+        description: draft.description,
+        assetType: draft.assetType,
+        imageReferenceUrls: draft.imageReferenceUrls,
+        videoReferenceUrl: draft.videoReferenceUrl || null,
       })
         .then((result) => {
           lastPersistedDraftRef.current = serializedDraft;
@@ -1021,12 +830,7 @@ export const useElementsManagerViewState = ({
     isSavingProfileImage,
     setActiveTab,
     updateDraftField,
-    updateActiveReferenceSet,
     onSetAssetType,
-    setActiveReferenceSet,
-    onAddReferenceSet,
-    onRenameReferenceSet,
-    onDeleteReferenceSet,
     assignActiveImageReferenceAtIndex,
     clearActiveImageReferenceAtIndex,
     assignActiveVideoReference,

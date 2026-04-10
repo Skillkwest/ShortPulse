@@ -1,6 +1,6 @@
 /**
  * Elements workflow tab chrome.
- * Matches the embedded Character header contract while using Elements-specific labels.
+ * Renders the embedded Elements workflow tabs for the manage/profile surface.
  */
 import React from "react";
 import type { ElementsWorkflowTab } from "../types";
@@ -19,17 +19,13 @@ export function ElementsManagerWorkflowTabs({
   }
 
   return (
-    <header className="character-library-panel-header">
-      <div
-        className="character-mode-tab-row character-mode-tab-row--embedded-header"
-        role="tablist"
-        aria-label="Elements workflow mode"
-      >
+    <header className="elements-workflow-header">
+      <div className="elements-workflow-tab-row" role="tablist" aria-label="Elements workflow mode">
         <button
           type="button"
           role="tab"
           aria-selected={false}
-          className="character-mode-tab character-mode-tab--manage"
+          className="elements-workflow-tab elements-workflow-tab--manage"
           onClick={() => setActiveTab("manage")}
         >
           Manage Elements
@@ -38,7 +34,7 @@ export function ElementsManagerWorkflowTabs({
           type="button"
           role="tab"
           aria-selected={true}
-          className="character-mode-tab character-mode-tab--profile is-active"
+          className="elements-workflow-tab elements-workflow-tab--profile is-active"
           onClick={() => setActiveTab("profile")}
         >
           Element Profile

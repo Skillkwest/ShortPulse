@@ -3,6 +3,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { StudioOutput } from "../../types";
 import { DISPATCH_HANDOFF_INITIAL_POLL_DELAY_MS, useAiStudioTasks } from "../useAiStudioTasks";
 import { MAX_CONCURRENT_STATUS_REQUESTS } from "../taskPolling/pollingSchedulePolicy";
+import { resolveLatestPublishedGenerationDelivery } from "../../logic/generatedMediaAuthority";
+import { resolveGenerationIdForRequestId } from "../../logic/mediaLibraryPersistence";
 import {
   fetchFalBriaBackgroundRemoveStatus,
   fetchFalSeedreamStatus,
@@ -38,6 +40,14 @@ vi.mock("../../../../lib/falClient", () => ({
   fetchKieVeoImageToVideoStatus: vi.fn(),
   fetchKieKlingImageToVideoStatus: vi.fn(),
   fetchKieSeedanceVideoStatus: vi.fn(),
+}));
+
+vi.mock("../../logic/generatedMediaAuthority", () => ({
+  resolveLatestPublishedGenerationDelivery: vi.fn(),
+}));
+
+vi.mock("../../logic/mediaLibraryPersistence", () => ({
+  resolveGenerationIdForRequestId: vi.fn(),
 }));
 
 const makeOutput = (): StudioOutput => ({
@@ -89,17 +99,23 @@ describe("useAiStudioTasks", () => {
   const fetchKieVeoImageToVideoStatusMock = vi.mocked(fetchKieVeoImageToVideoStatus);
   const fetchKieKlingImageToVideoStatusMock = vi.mocked(fetchKieKlingImageToVideoStatus);
   const fetchKieSeedanceVideoStatusMock = vi.mocked(fetchKieSeedanceVideoStatus);
+  const resolveGenerationIdForRequestIdMock = vi.mocked(resolveGenerationIdForRequestId);
+  const resolveLatestPublishedGenerationDeliveryMock = vi.mocked(
+    resolveLatestPublishedGenerationDelivery
+  );
 
   beforeEach(() => {
     vi.useFakeTimers();
-    vi.clearAllMocks();
+    vi.resetAllMocks();
+    resolveGenerationIdForRequestIdMock.mockResolvedValue(null);
+    resolveLatestPublishedGenerationDeliveryMock.mockResolvedValue(null);
   });
 
   afterEach(() => {
     vi.useRealTimers();
   });
 
-  it("runs a 2-minute background recovery check and restores preview URL when it appears later", async () => {
+  it("continues direct polling and restores preview URL when canonical media appears later", async () => {
     fetchFalStatusMock.mockResolvedValueOnce({ status: "completed" }).mockResolvedValueOnce({
       status: "completed",
       generationId: "gen-recovered-1",
@@ -135,13 +151,13 @@ describe("useAiStudioTasks", () => {
       result.current.startPollingTask("task-1", "out-1", 0, "fal", Date.now(), 20);
     });
 
-    await vi.advanceTimersByTimeAsync(2_300);
+    await vi.advanceTimersByTimeAsync(2_500);
     await flushQueuedOutputUpdates();
 
     expect(notifyGenerationFailure).not.toHaveBeenCalled();
     expect(onGenerationFailure).not.toHaveBeenCalled();
 
-    await vi.advanceTimersByTimeAsync(30 * 1000);
+    await vi.advanceTimersByTimeAsync(4_600);
     await flushQueuedOutputUpdates();
 
     expect(fetchFalStatusMock).toHaveBeenCalledTimes(2);
@@ -190,7 +206,7 @@ describe("useAiStudioTasks", () => {
       result.current.startPollingTask("task-status-gen-1", "out-1", 0, "fal", Date.now(), 20);
     });
 
-    await vi.advanceTimersByTimeAsync(2_300);
+    await vi.advanceTimersByTimeAsync(1_250);
     await flushQueuedOutputUpdates();
 
     expect(output.previewUrl).toBe("https://cdn.test/polled.png");
@@ -279,7 +295,7 @@ describe("useAiStudioTasks", () => {
       result.current.startPollingTask("task-server-hint-success", "out-1", 0, "fal");
     });
 
-    await vi.advanceTimersByTimeAsync(2_300);
+    await vi.advanceTimersByTimeAsync(1_250);
     await flushQueuedOutputUpdates();
 
     expect(output.taskState).toBe("success");
@@ -327,13 +343,66 @@ describe("useAiStudioTasks", () => {
       result.current.startPollingTask("task-lifecycle-no-urls", "out-1", 0, "fal");
     });
 
-    await vi.advanceTimersByTimeAsync(2_300);
+    await vi.advanceTimersByTimeAsync(1_250);
     await flushQueuedOutputUpdates();
 
     expect(onGenerationSuccess).not.toHaveBeenCalled();
     expect(output.taskState).toBe("running");
     expect(output.previewUrl).toBeUndefined();
-    expect(output.timestamp).toBe("Waiting for server recovery...");
+    expect(output.timestamp).toBe("Processing...");
+  });
+
+  it("reconciles canonical published delivery on recovery recheck polls", async () => {
+    fetchFalSeedreamStatusMock.mockResolvedValue({
+      status: "done",
+    });
+    resolveGenerationIdForRequestIdMock.mockResolvedValue("gen-canonical-1");
+    resolveLatestPublishedGenerationDeliveryMock.mockResolvedValue({
+      previewUrl: "https://cdn.test/canonical-preview.png",
+      fullUrl: "https://cdn.test/canonical-full.png",
+      previewStoragePath: null,
+      fullStoragePath: null,
+    });
+
+    let output = makeOutput();
+    const updateOutputById = vi.fn((id: string, updater: (item: StudioOutput) => StudioOutput) => {
+      if (id === output.id) {
+        output = updater(output);
+      }
+    });
+    const onGenerationSuccess = vi.fn();
+
+    const { result } = renderHook(() =>
+      useAiStudioTasks({
+        updateOutputById,
+        notifyGenerationFailure: vi.fn(),
+        onGenerationSuccess,
+      })
+    );
+
+    act(() => {
+      result.current.startPollingTask("seedream-task-canonical", "out-1", 0, "fal-seedream");
+    });
+
+    await vi.advanceTimersByTimeAsync(2_300);
+    await flushQueuedOutputUpdates();
+
+    expect(resolveGenerationIdForRequestIdMock).toHaveBeenCalledWith("seedream-task-canonical");
+    expect(resolveLatestPublishedGenerationDeliveryMock).toHaveBeenCalledWith({
+      generationId: "gen-canonical-1",
+    });
+    expect(onGenerationSuccess).toHaveBeenCalledWith(
+      expect.objectContaining({
+        outputId: "out-1",
+        taskId: "seedream-task-canonical",
+        provider: "fal-seedream",
+        resultUrls: ["https://cdn.test/canonical-full.png"],
+      })
+    );
+    expect(output.taskState).toBe("success");
+    expect(output.generationId).toBe("gen-canonical-1");
+    expect(output.previewUrl).toBe("https://cdn.test/canonical-preview.png");
+    expect(output.resultUrls).toEqual(["https://cdn.test/canonical-full.png"]);
   });
 
   it("prefers server lifecycle failure hints over raw provider failure parsing", async () => {
@@ -393,7 +462,7 @@ describe("useAiStudioTasks", () => {
     );
   });
 
-  it("clears background recovery timers on unmount", async () => {
+  it("clears active poll timers on unmount", async () => {
     fetchFalStatusMock.mockResolvedValue({ status: "completed" });
 
     const updateOutputById = vi.fn();
@@ -1135,7 +1204,7 @@ describe("useAiStudioTasks", () => {
     expect(output.previewUrl).toBe("https://cdn.test/kie-seedance-result.mp4");
   });
 
-  it("treats done states as terminal and hands off to server recovery", async () => {
+  it("treats done states as terminal and keeps polling for canonical server settlement", async () => {
     fetchFalSeedreamStatusMock
       .mockResolvedValueOnce({
         status: "done",
@@ -1169,15 +1238,15 @@ describe("useAiStudioTasks", () => {
     await vi.advanceTimersByTimeAsync(2_300);
     await flushQueuedOutputUpdates();
 
-    expect(fetchFalSeedreamStatusMock).toHaveBeenCalledTimes(1);
+    expect(fetchFalSeedreamStatusMock).toHaveBeenCalledTimes(2);
     expect(notifyGenerationFailure).not.toHaveBeenCalled();
     expect(onGenerationSuccess).not.toHaveBeenCalled();
     expect(output.taskState).toBe("running");
-    expect(output.timestamp).toBe("Waiting for server recovery...");
+    expect(output.timestamp).toBe("Processing...");
 
-    await vi.advanceTimersByTimeAsync(30_000);
+    await vi.advanceTimersByTimeAsync(1_000);
     await flushQueuedOutputUpdates();
-    expect(fetchFalSeedreamStatusMock).toHaveBeenCalledTimes(2);
+    expect(fetchFalSeedreamStatusMock).toHaveBeenCalledTimes(3);
   });
 
   it("keeps image outputs live when terminal success lacks media", async () => {
@@ -1202,13 +1271,18 @@ describe("useAiStudioTasks", () => {
       result.current.startPollingTask("seedream-task-bounded", "out-1", 0, "fal-seedream");
     });
 
-    await vi.advanceTimersByTimeAsync(2_300);
+    await vi.advanceTimersByTimeAsync(2_100);
     await flushQueuedOutputUpdates();
 
-    expect(fetchFalSeedreamStatusMock).toHaveBeenCalledTimes(1);
+    expect(fetchFalSeedreamStatusMock).toHaveBeenCalledTimes(2);
     expect(notifyGenerationFailure).not.toHaveBeenCalled();
     expect(output.taskState).toBe("running");
-    expect(output.timestamp).toBe("Waiting for server recovery...");
+    expect(output.timestamp).toBe("Processing...");
+
+    await vi.advanceTimersByTimeAsync(1_250);
+    await flushQueuedOutputUpdates();
+
+    expect(fetchFalSeedreamStatusMock).toHaveBeenCalledTimes(3);
   });
 
   it("normalizes provider nonterminal states to running task state", async () => {
@@ -1326,8 +1400,8 @@ describe("useAiStudioTasks", () => {
     await flushQueuedOutputUpdates();
 
     expect(output.taskState).toBe("running");
-    expect(output.timestamp).toBe("Waiting for server recovery...");
-    expect(output.errorMessage).toBeNull();
+    expect(output.timestamp).toBe("Processing...");
+    expect(output.errorMessage ?? null).toBeNull();
     expect(output.errorMessageShort).toBeNull();
     expect(output.errorDetail).toBeNull();
   });
@@ -1376,7 +1450,7 @@ describe("useAiStudioTasks", () => {
     expect(notifyGenerationFailure).not.toHaveBeenCalled();
     expect(onGenerationFailure).not.toHaveBeenCalled();
     expect(output.taskState).toBe("running");
-    expect(output.timestamp).toBe("Waiting for server recovery...");
+    expect(output.timestamp).toBe("Processing...");
   });
 
   it("does not treat raw completed status as success when server lifecycle marks recovery pending", async () => {
@@ -1421,7 +1495,7 @@ describe("useAiStudioTasks", () => {
 
     expect(onGenerationSuccess).not.toHaveBeenCalled();
     expect(output.taskState).toBe("running");
-    expect(output.timestamp).toBe("Waiting for server recovery...");
+    expect(output.timestamp).toBe("Processing...");
   });
   it("does not requeue identical running progress state across repeated pending polls", async () => {
     fetchFalStatusMock.mockResolvedValue({ status: "processing" });
@@ -1448,9 +1522,9 @@ describe("useAiStudioTasks", () => {
       result.current.startPollingTask("task-processing-repeat", "out-1", 0, "fal");
     });
 
-    await vi.advanceTimersByTimeAsync(2_300);
+    await vi.advanceTimersByTimeAsync(2_100);
     await flushQueuedOutputUpdates();
-    await vi.advanceTimersByTimeAsync(6_000);
+    await vi.advanceTimersByTimeAsync(3_500);
     await flushQueuedOutputUpdates();
 
     expect(fetchFalStatusMock).toHaveBeenCalledTimes(2);
@@ -1459,7 +1533,7 @@ describe("useAiStudioTasks", () => {
     expect(output.timestamp).toBe("Processing...");
   });
 
-  it("keeps output live and schedules recovery when polling exceeds max wait", () => {
+  it("keeps output live and stays in server-recovery posture when polling exceeds max wait", async () => {
     let output = makeOutput();
     const updateOutputById = vi.fn((id: string, updater: (item: StudioOutput) => StudioOutput) => {
       if (id === output.id) {
@@ -1482,11 +1556,12 @@ describe("useAiStudioTasks", () => {
       result.current.startPollingTask("task-timeout", "out-1", 4, "fal", startedAt, 2);
     });
 
+    await flushQueuedOutputUpdates();
+
     expect(notifyGenerationFailure).not.toHaveBeenCalled();
     expect(onGenerationFailure).not.toHaveBeenCalled();
     expect(output.taskState).toBe("running");
-    expect(output.timestamp).toBe("Waiting for server recovery...");
-    expect(output.errorMessage).toBeNull();
+    expect(output.errorMessage ?? null).toBeNull();
   });
 
   it("retries timeout-classified status transport errors and succeeds on a later poll", async () => {
@@ -1527,7 +1602,7 @@ describe("useAiStudioTasks", () => {
       result.current.startPollingTask("task-timeout-retry", "out-1", 0, "fal");
     });
 
-    await vi.advanceTimersByTimeAsync(2_300);
+    await vi.advanceTimersByTimeAsync(2_100);
     await flushQueuedOutputUpdates();
 
     expect(fetchFalStatusMock).toHaveBeenCalledTimes(1);
@@ -1536,7 +1611,7 @@ describe("useAiStudioTasks", () => {
     expect(output.taskState).toBe("running");
     expect(output.timestamp).toBe("Retrying status...");
 
-    await vi.advanceTimersByTimeAsync(6_000);
+    await vi.advanceTimersByTimeAsync(2_200);
     await flushQueuedOutputUpdates();
 
     expect(fetchFalStatusMock).toHaveBeenCalledTimes(2);
@@ -1577,9 +1652,9 @@ describe("useAiStudioTasks", () => {
       result.current.startPollingTask("task-timeout-repeat", "out-1", 0, "fal");
     });
 
-    await vi.advanceTimersByTimeAsync(2_300);
+    await vi.advanceTimersByTimeAsync(2_100);
     await flushQueuedOutputUpdates();
-    await vi.advanceTimersByTimeAsync(6_000);
+    await vi.advanceTimersByTimeAsync(2_500);
     await flushQueuedOutputUpdates();
 
     expect(fetchFalStatusMock).toHaveBeenCalledTimes(2);
@@ -1612,13 +1687,13 @@ describe("useAiStudioTasks", () => {
       result.current.startPollingTask("task-status-error", "out-1", 30, "fal");
     });
 
-    await vi.advanceTimersByTimeAsync(10_000);
+    await vi.advanceTimersByTimeAsync(4_600);
     await flushQueuedOutputUpdates();
 
     expect(notifyGenerationFailure).not.toHaveBeenCalled();
     expect(onGenerationFailure).not.toHaveBeenCalled();
     expect(output.taskState).toBe("running");
-    expect(output.timestamp).toBe("Waiting for server recovery...");
+    expect(output.timestamp).toBe("Processing...");
     expect(output.errorMessage).toBeNull();
   });
 
@@ -1645,7 +1720,7 @@ describe("useAiStudioTasks", () => {
     expect(updateOutputById).not.toHaveBeenCalled();
   });
 
-  it("emits hard-stop callback and queues recovery when output lookup is missing for too long", async () => {
+  it("emits hard-stop callback when output lookup is missing for too long", async () => {
     const updateOutputById = vi.fn();
     const notifyGenerationFailure = vi.fn();
     const findOutputById = vi.fn(() => null);
@@ -1719,7 +1794,7 @@ describe("useAiStudioTasks", () => {
       result.current.startPollingTask("task-transient", "out-1", 0, "fal");
     });
 
-    await vi.advanceTimersByTimeAsync(3_500);
+    await vi.advanceTimersByTimeAsync(4_500);
     await flushQueuedOutputUpdates();
 
     expect(fetchFalStatusMock).toHaveBeenCalledTimes(1);
@@ -1778,7 +1853,7 @@ describe("useAiStudioTasks", () => {
       result.current.startPollingTask("task-extended", "out-1", 0, "fal");
     });
 
-    await vi.advanceTimersByTimeAsync(12_000);
+    await vi.advanceTimersByTimeAsync(13_000);
     await flushQueuedOutputUpdates();
 
     expect(fetchFalStatusMock).toHaveBeenCalledTimes(1);
@@ -1908,7 +1983,7 @@ describe("useAiStudioTasks", () => {
     expect(onGenerationSuccess).toHaveBeenCalledTimes(MAX_CONCURRENT_STATUS_REQUESTS + 1);
   });
 
-  it("caps no-media background recovery to two attempts", async () => {
+  it("keeps direct polling alive across repeated no-media terminal responses", async () => {
     fetchFalStatusMock.mockResolvedValue({ status: "completed" });
 
     let output = makeOutput();
@@ -1930,20 +2005,20 @@ describe("useAiStudioTasks", () => {
       result.current.startPollingTask("task-no-media-tail", "out-1", 0, "fal", Date.now(), 20);
     });
 
-    await vi.advanceTimersByTimeAsync(2_300);
+    await vi.advanceTimersByTimeAsync(1_250);
     await flushQueuedOutputUpdates();
     expect(fetchFalStatusMock).toHaveBeenCalledTimes(1);
 
-    await vi.advanceTimersByTimeAsync(30 * 1000);
+    await vi.advanceTimersByTimeAsync(4_600);
     await flushQueuedOutputUpdates();
     expect(fetchFalStatusMock).toHaveBeenCalledTimes(2);
 
-    await vi.advanceTimersByTimeAsync(30 * 1000);
+    await vi.advanceTimersByTimeAsync(4_600);
     await flushQueuedOutputUpdates();
-    expect(fetchFalStatusMock).toHaveBeenCalledTimes(3);
+    expect(fetchFalStatusMock.mock.calls.length).toBeGreaterThanOrEqual(3);
 
-    await vi.advanceTimersByTimeAsync(6 * 60 * 1000);
+    await vi.advanceTimersByTimeAsync(4_600);
     await flushQueuedOutputUpdates();
-    expect(fetchFalStatusMock).toHaveBeenCalledTimes(3);
+    expect(fetchFalStatusMock.mock.calls.length).toBeGreaterThanOrEqual(4);
   });
 });

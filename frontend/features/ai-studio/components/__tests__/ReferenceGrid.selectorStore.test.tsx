@@ -58,9 +58,16 @@ const makeOutput = (id: string, overrides: Partial<StudioOutput> = {}): StudioOu
 
 describe("ReferenceGrid selector-store bridge", () => {
   beforeEach(() => {
+    vi.useFakeTimers();
     resetAiStudioOutputStore();
     vi.stubGlobal("ResizeObserver", MockResizeObserver);
     vi.stubGlobal("IntersectionObserver", MockIntersectionObserver);
+    vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) => {
+      return window.setTimeout(() => callback(0), 0);
+    });
+    vi.stubGlobal("cancelAnimationFrame", (frameId: number) => {
+      window.clearTimeout(frameId);
+    });
     if (!window.matchMedia) {
       Object.defineProperty(window, "matchMedia", {
         writable: true,
@@ -79,6 +86,7 @@ describe("ReferenceGrid selector-store bridge", () => {
   });
 
   afterEach(() => {
+    vi.useRealTimers();
     vi.unstubAllGlobals();
   });
 
@@ -120,5 +128,52 @@ describe("ReferenceGrid selector-store bridge", () => {
     });
 
     expect(container.querySelector(".reference-loading")).toBeTruthy();
+  });
+
+  it("clears loading visual when a selector snapshot entry settles with media", async () => {
+    const { container } = render(<ReferenceGrid {...baseProps} />);
+
+    act(() => {
+      setAiStudioOutputStoreSnapshot({
+        outputOrder: ["pending-1"],
+        outputById: {
+          "pending-1": makeOutput("pending-1", {
+            mode: "image",
+            previewText: undefined,
+            previewUrl: undefined,
+            taskState: "pending",
+            mediaSource: "generated",
+          }),
+        },
+        archivedOutputOrder: [],
+        archivedOutputById: {},
+      });
+    });
+
+    expect(container.querySelector(".reference-loading")).toBeTruthy();
+
+    act(() => {
+      setAiStudioOutputStoreSnapshot({
+        outputOrder: ["pending-1"],
+        outputById: {
+          "pending-1": makeOutput("pending-1", {
+            mode: "image",
+            previewText: undefined,
+            previewUrl: "https://cdn.example.com/settled.png",
+            resultUrls: ["https://cdn.example.com/settled.png"],
+            taskState: "success",
+            mediaSource: "generated",
+          }),
+        },
+        archivedOutputOrder: [],
+        archivedOutputById: {},
+      });
+    });
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1600);
+    });
+
+    expect(container.querySelector(".reference-loading")).toBeNull();
   });
 });

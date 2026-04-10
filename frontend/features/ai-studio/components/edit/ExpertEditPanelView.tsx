@@ -1,4 +1,3 @@
-import Image from "next/image";
 import React from "react";
 import {
   ArrowClockwise,
@@ -13,29 +12,17 @@ import {
   GearSix,
   PaintBrush,
   PencilSimple,
-  Plus,
   Sliders,
   StackSimple,
   TrashSimple,
   X,
 } from "phosphor-react";
-import { AgentGenerateButton } from "../../../../prefabs/agent/buttons/AgentGenerateButton";
 import { modelLogos } from "../../constants";
 import { AspectDropdown } from "../AspectDropdown";
-import { ResolutionDropdown } from "../ResolutionDropdown";
 import { stripEditLabel } from "../../utils/modelLabels";
-import { extractDragDropPayload, isImageDragTransfer } from "../../utils/dragDrop";
 import { composePrimaryStageLayersToBlob } from "../../logic/expertEditStageFlatten";
 import { parseAspectRatioToken } from "../../logic/expertEditLayerCrop";
-import {
-  analyzeExpertEditPromptTokens,
-  buildExpertEditSecondarySlotToken,
-  buildExpertEditPrimarySlotToken,
-  buildExpertEditPromptHighlightSegments,
-  extractExpertEditPromptTokenFromTransfer,
-  insertExpertEditPromptTokenAtSelection,
-  setExpertEditPromptTokenDragData,
-} from "../../logic/expertEditPromptReferences";
+import { setExpertEditPromptTokenDragData } from "../../logic/expertEditPromptReferences";
 import {
   INPAINT_FLUX_FILL_MODEL_LABEL,
   MARKUP_NANO_BANANA_PRO_EDIT_MODEL_LABEL,
@@ -68,21 +55,34 @@ import {
 } from "./markupStrokeController";
 import { useExpertEditInlineGenerate } from "./useExpertEditInlineGenerate";
 import { ExpertEditMarkupModalShell } from "./ExpertEditMarkupModalShell";
+import { useExpertEditPrimaryIngress } from "./useExpertEditPrimaryIngress";
+import { useExpertEditPromptTokenController } from "./useExpertEditPromptTokenController";
+import { useExpertEditSessionHostSync } from "./useExpertEditSessionHostSync";
+import {
+  ExpertEditStageContextMenu,
+  PrimaryCanvasFrameStack,
+  PrimaryCompositionSurface,
+  PrimaryStageShell,
+  PrimaryStageViewportLayer,
+} from "./ExpertEditStagePrimitives";
 import { useExpertEditStageInteractionRouter } from "./useExpertEditStageInteractionRouter";
 import { useExpertEditMarkupDrawController } from "./useExpertEditMarkupDrawController";
 import { useExpertEditMarkupViewportController } from "./useExpertEditMarkupViewportController";
 import { useExpertEditTransformController } from "./useExpertEditTransformController";
 import { ExpertEditPresetsSurface } from "./ExpertEditPresetsSurface";
-import { StylesControl } from "../StylesControl";
 import { ExpertEditCharacterPickerModal } from "./ExpertEditCharacterPickerModal";
 import { ExpertEditModeRailPanel } from "./ExpertEditModeRailPanel";
+import {
+  ExpertEditSecondaryReferences,
+  ExpertEditSelectorControls,
+} from "./ExpertEditReferenceControls";
+import { ExpertEditPromptComposer } from "./ExpertEditPromptComposer";
 import {
   COMPOSITE_REGENERATE_COHESION_PROMPT,
   FLATTEN_IMAGE_ACTION_ID,
   INPAINT_COLLAPSE_ANIMATION_MS,
   INPAINT_STROKE_SIZE_DEFAULT,
   LAYER_LIMIT_REACHED_TOAST,
-  MAX_LAYERS,
   LOCKED_EDIT_TOOL_MODEL_LOGO_SRC,
   MARKUP_COLOR_DEFAULT,
   MARKUP_COLOR_SWATCHES,
@@ -104,7 +104,6 @@ import {
   resolveElementViewportSize,
   resolveImageDimensionsFromUrl,
   resolveValidStageRect,
-  secondaries,
   selectedLayerTransformHandleCorners,
   type ExpertEditPanelViewProps,
   type InpaintHistoryState,
@@ -133,7 +132,6 @@ import {
   sortPresetIdsByCanonicalOrder,
 } from "./expertEditPresets";
 import {
-  cloneBlobObjectUrl,
   resolveBlobDimensions,
   resolvePresetDragPayload,
   revokeObjectUrlSafe,
@@ -185,22 +183,17 @@ import {
   LAYER_OPACITY_DEFAULT,
   LAYER_REORDER_DRAG_MIME,
   collectOwnedLayerImageUrls,
-  cloneLayerForSessionState,
-  enforceLayerStackInvariants,
   formatLayerName,
   isLayerIndexInBounds,
   isLayerReorderDrag,
   isAutoLayerName,
   layerHasImage,
   resolveLayerIndexOrFallback,
-  resolveLayerIndexOrNull,
-  resolveStaleOwnedLayerImageUrls,
   resolveLayersAfterContextMenuRemoveImage,
   resolveLayerReorderFromIndex,
   resolveLayerStateAfterDelete,
   resolveInitialExpertEditSessionState,
   resolveReorderedLayerState,
-  resolveLayerIdCounterFromLayers,
   resolveLowestUnusedAutoLayerNumber,
   resolveMarkupStrokeIdCounterFromStrokes,
   type ExpertEditLayer,
@@ -211,8 +204,6 @@ import {
   buildMarkupBrushReticleCursor,
 } from "./expertEditCursorUtils";
 import {
-  autoResizeTextareaWithinComputedBounds,
-  clampCaretPosition,
   clearWindowAnimationFrameRef,
   clearTransientObjectUrlRevokeTimers,
   clearWindowTimeoutRef,
@@ -223,18 +214,13 @@ import {
   resolveInpaintCollapseToggleDecision,
   resolveRailToolForGenerationMode,
   runPointerStageTerminalAction,
-  scheduleWindowAnimationFrame,
   scheduleTransientObjectUrlRevoke as scheduleTransientObjectUrlRevokeTimer,
   resolveStageContextMenuPosition,
-  syncTextareaMirrorScroll,
   unlockDocumentCursor,
   type TransformPointerSession,
 } from "./expertEditInteractionUtils";
 import {
-  EXPERT_EDIT_SESSION_STATE_VERSION,
-  areExpertEditSessionStatesEqual,
   areMarkupStrokeSnapshotsEqual,
-  cloneExpertEditSessionState,
   cloneInpaintHistoryState,
   cloneInpaintMaskSnapshot,
   cloneMarkupHistoryState,
@@ -258,195 +244,6 @@ const resolvePrimaryCanvasNominalHeightPx = () => {
     EDIT_EXPERT_PRIMARY_SIZE_MAX_PX
   );
 };
-
-type PrimaryStageShellProps = {
-  children: React.ReactNode;
-  overlayActions?: React.ReactNode;
-  isEmpty: boolean;
-  isBusy: boolean;
-  stageRef: React.Ref<HTMLDivElement>;
-  onPointerDownCapture: React.PointerEventHandler<HTMLDivElement>;
-  onPointerMoveCapture: React.PointerEventHandler<HTMLDivElement>;
-  onPointerUpCapture: React.PointerEventHandler<HTMLDivElement>;
-  onPointerCancelCapture: React.PointerEventHandler<HTMLDivElement>;
-};
-
-function PrimaryStageShell({
-  children,
-  overlayActions = null,
-  isEmpty,
-  isBusy,
-  stageRef,
-  onPointerDownCapture,
-  onPointerMoveCapture,
-  onPointerUpCapture,
-  onPointerCancelCapture,
-}: PrimaryStageShellProps) {
-  return (
-    <div
-      ref={stageRef}
-      className={`edit-expert-column-wrapper edit-expert-column-wrapper--center edit-expert-primary-stage-shell ${
-        isEmpty ? "is-empty-stage" : ""
-      }`}
-      style={{ minHeight: "calc(var(--edit-expert-primary-size) + 72px)" }}
-      aria-label={isEmpty ? "Primary edit stage" : undefined}
-      aria-busy={isEmpty && isBusy ? true : undefined}
-      onPointerDownCapture={onPointerDownCapture}
-      onPointerMoveCapture={onPointerMoveCapture}
-      onPointerUpCapture={onPointerUpCapture}
-      onPointerCancelCapture={onPointerCancelCapture}
-    >
-      {children}
-      {overlayActions}
-    </div>
-  );
-}
-
-type PrimaryCompositionSurfaceProps = {
-  children: React.ReactNode;
-  isVisible: boolean;
-  isBusy: boolean;
-  isDragActive: boolean;
-  isPresetsOpen: boolean;
-  surfaceRef: React.Ref<HTMLDivElement>;
-  style: React.CSSProperties;
-  onDrop?: React.DragEventHandler<HTMLDivElement>;
-  onDragEnter?: React.DragEventHandler<HTMLDivElement>;
-  onDragOver?: React.DragEventHandler<HTMLDivElement>;
-  onDragLeave?: React.DragEventHandler<HTMLDivElement>;
-  onPointerDown?: React.PointerEventHandler<HTMLDivElement>;
-  onPointerMove?: React.PointerEventHandler<HTMLDivElement>;
-  onPointerUp?: React.PointerEventHandler<HTMLDivElement>;
-  onPointerCancel?: React.PointerEventHandler<HTMLDivElement>;
-  onPointerLeave?: React.PointerEventHandler<HTMLDivElement>;
-  onMouseDown?: React.MouseEventHandler<HTMLDivElement>;
-  onAuxClick?: React.MouseEventHandler<HTMLDivElement>;
-  onContextMenu?: React.MouseEventHandler<HTMLDivElement>;
-  onClick?: React.MouseEventHandler<HTMLDivElement>;
-  onDoubleClick?: React.MouseEventHandler<HTMLDivElement>;
-};
-
-function PrimaryCompositionSurface({
-  children,
-  isVisible,
-  isBusy,
-  isDragActive,
-  isPresetsOpen,
-  surfaceRef,
-  style,
-  onDrop,
-  onDragEnter,
-  onDragOver,
-  onDragLeave,
-  onPointerDown,
-  onPointerMove,
-  onPointerUp,
-  onPointerCancel,
-  onPointerLeave,
-  onMouseDown,
-  onAuxClick,
-  onContextMenu,
-  onClick,
-  onDoubleClick,
-}: PrimaryCompositionSurfaceProps) {
-  return (
-    <div
-      ref={surfaceRef}
-      className={`edit-expert-primary-composition-surface ${
-        isVisible ? "has-preview" : "is-hidden-stage-surface"
-      } ${isPresetsOpen ? "is-presets-open" : ""} ${isDragActive ? "is-dragging" : ""}`}
-      style={style}
-      onDrop={onDrop}
-      onDragEnter={onDragEnter}
-      onDragOver={onDragOver}
-      onDragLeave={onDragLeave}
-      onPointerDown={onPointerDown}
-      onPointerMove={onPointerMove}
-      onPointerUp={onPointerUp}
-      onPointerCancel={onPointerCancel}
-      onPointerLeave={onPointerLeave}
-      onMouseDown={onMouseDown}
-      onAuxClick={onAuxClick}
-      onContextMenu={onContextMenu}
-      onClick={onClick}
-      onDoubleClick={onDoubleClick}
-      aria-label={isVisible ? "Primary composition surface" : undefined}
-      aria-busy={isVisible && isBusy ? true : undefined}
-      aria-hidden={!isVisible}
-    >
-      {children}
-    </div>
-  );
-}
-
-type PrimaryStageViewportLayerProps = {
-  children: React.ReactNode;
-  style: React.CSSProperties;
-};
-
-function PrimaryStageViewportLayer({ children, style }: PrimaryStageViewportLayerProps) {
-  return (
-    <div className="edit-expert-markup-viewport" style={style}>
-      {children}
-    </div>
-  );
-}
-
-type PrimaryCanvasFrameStackProps = {
-  children: React.ReactNode;
-  isPopulated: boolean;
-  isDragActive: boolean;
-  frameStackRef?: React.Ref<HTMLDivElement>;
-  style: React.CSSProperties;
-  onDrop?: React.DragEventHandler<HTMLDivElement>;
-  onDragEnter?: React.DragEventHandler<HTMLDivElement>;
-  onDragOver?: React.DragEventHandler<HTMLDivElement>;
-  onDragLeave?: React.DragEventHandler<HTMLDivElement>;
-};
-
-function PrimaryCanvasFrameStack({
-  children,
-  isPopulated,
-  isDragActive,
-  frameStackRef,
-  style,
-  onDrop,
-  onDragEnter,
-  onDragOver,
-  onDragLeave,
-}: PrimaryCanvasFrameStackProps) {
-  return (
-    <div
-      ref={frameStackRef}
-      className={`edit-expert-primary-canvas-frame-stack ${isPopulated ? "has-preview" : "is-empty"} ${
-        isDragActive ? "is-dragging" : ""
-      }`}
-      style={style}
-      data-testid="edit-expert-primary-canvas-frame-stack"
-      onDrop={onDrop}
-      onDragEnter={onDragEnter}
-      onDragOver={onDragOver}
-      onDragLeave={onDragLeave}
-    >
-      <div className="edit-expert-primary-canvas-frame" aria-hidden="true" />
-      {!isPopulated ? (
-        <p className="edit-expert-primary-empty-helper" aria-hidden="true">
-          Drag &amp; drop an image from the Reference Grid
-        </p>
-      ) : null}
-      {children}
-    </div>
-  );
-}
-
-type PromptTokenPickerState = {
-  isOpen: boolean;
-  selectedSlotIndex: (typeof secondaries)[number] | "main" | null;
-  replaceStart: number;
-  replaceEnd: number;
-};
-
-type PromptTokenPickerSelection = (typeof secondaries)[number] | "main";
 
 export function ExpertEditPanelView({
   aspect,
@@ -544,14 +341,6 @@ export function ExpertEditPanelView({
   const markupStrokeIdCounterRef = React.useRef(
     resolveMarkupStrokeIdCounterFromStrokes(initialSessionState.markupStrokes)
   );
-  const promptTextareaRef = React.useRef<HTMLTextAreaElement | null>(null);
-  const promptInputShellRef = React.useRef<HTMLDivElement | null>(null);
-  const promptHighlightRef = React.useRef<HTMLDivElement | null>(null);
-  const pendingPromptCaretRef = React.useRef<number | null>(null);
-  const pendingPromptTokenPickerTriggerRef = React.useRef<{
-    selectionStart: number;
-    selectionEnd: number;
-  } | null>(null);
   const transformPointerSessionRef = React.useRef<TransformPointerSession>(
     createIdleTransformPointerSession()
   );
@@ -651,7 +440,6 @@ export function ExpertEditPanelView({
     React.useState<ExpertEditCustomPresetOverrides>({});
   const [isPresetPanelDropActive, setIsPresetPanelDropActive] = React.useState(false);
   const [isPresetsSurfaceDropActive, setIsPresetsSurfaceDropActive] = React.useState(false);
-  const [primaryDragActive, setPrimaryDragActive] = React.useState(false);
   const [layers, setLayers] = React.useState<ExpertEditLayer[]>(() => [
     ...initialSessionState.layerState.layers,
   ]);
@@ -685,14 +473,6 @@ export function ExpertEditPanelView({
   const [statusToastMessage, setStatusToastMessage] = React.useState<string | null>(null);
   const [statusToastTone, setStatusToastTone] = React.useState<"info" | "warning">("info");
   const [isStatusToastFading, setIsStatusToastFading] = React.useState(false);
-  const [showPromptTokenInlineError, setShowPromptTokenInlineError] = React.useState(false);
-  const [promptTokenPickerState, setPromptTokenPickerState] =
-    React.useState<PromptTokenPickerState>({
-      isOpen: false,
-      selectedSlotIndex: null,
-      replaceStart: 0,
-      replaceEnd: 0,
-    });
   const [isTransformPointerDragging, setIsTransformPointerDragging] = React.useState(false);
   const [activeTransformDragMode, setActiveTransformDragMode] =
     React.useState<TransformPointerSession["dragMode"]>("move");
@@ -976,13 +756,7 @@ export function ExpertEditPanelView({
       : "is-active-inpaint";
   const activeCollapsedRailTool =
     inpaintRailTools.find((tool) => tool.id === selectedRailTool) ?? inpaintRailTools[0];
-  const handlePromptTextChange = React.useCallback(
-    (value: string) => {
-      setShowPromptTokenInlineError(false);
-      onPromptTextChange(value);
-    },
-    [onPromptTextChange]
-  );
+  const promptTextValue = referenceText ?? "";
 
   const {
     extraOneInputRef,
@@ -990,7 +764,6 @@ export function ExpertEditPanelView({
     extraThreeInputRef,
     extraDragActive,
     handleFileSelection,
-    handlePromptDrop,
     handleExtraDrop,
     handleExtraDragEnter,
     handleExtraDragOver,
@@ -1000,7 +773,7 @@ export function ExpertEditPanelView({
     extraImageUrls,
     onPrimaryImageChange: () => {},
     onExtraImageChange,
-    onPromptTextChange: handlePromptTextChange,
+    onPromptTextChange,
     resolvePreviewUrlById,
     klingMultiPrompts: [],
     klingElements: [],
@@ -1038,29 +811,6 @@ export function ExpertEditPanelView({
   });
 
   const inputRefs = [extraOneInputRef, extraTwoInputRef, extraThreeInputRef] as const;
-  const promptTextValue = referenceText ?? "";
-  const promptTokenAnalysis = React.useMemo(
-    () => analyzeExpertEditPromptTokens(promptTextValue, extraImageUrls),
-    [extraImageUrls, promptTextValue]
-  );
-  const promptTokenPickerOptions = React.useMemo<PromptTokenPickerSelection[]>(
-    () => [
-      ...(populatedLayerCount > 0 ? (["main"] as PromptTokenPickerSelection[]) : []),
-      ...secondaries.filter((index) => Boolean(extraImageUrls[index])),
-    ],
-    [extraImageUrls, populatedLayerCount]
-  );
-  const promptHighlightSegments = React.useMemo(
-    () => buildExpertEditPromptHighlightSegments(promptTextValue, promptTokenAnalysis.diagnostics),
-    [promptTextValue, promptTokenAnalysis.diagnostics]
-  );
-  const promptTokenInlineError = showPromptTokenInlineError
-    ? promptTokenAnalysis.inlineError
-    : null;
-  const populatedPromptTokenSlotIndexes = React.useMemo(
-    () => secondaries.filter((index) => Boolean(extraImageUrls[index])),
-    [extraImageUrls]
-  );
   const shouldShowResolutionControl = imageResolutionOptions.length > 0;
   const hasPromptText = promptTextValue.trim().length > 0;
   const inlineGenerateDisabled = isGenerateDisabled || populatedLayerCount <= 0 || !hasPromptText;
@@ -1090,312 +840,33 @@ export function ExpertEditPanelView({
     },
     []
   );
-  const handleInvalidPromptReferenceToken = React.useCallback(
-    (message: string) => {
-      setShowPromptTokenInlineError(true);
-      showStatusToast(message, "warning");
-    },
-    [showStatusToast]
-  );
-  const closePromptTokenPicker = React.useCallback(() => {
-    pendingPromptTokenPickerTriggerRef.current = null;
-    setPromptTokenPickerState((previous) =>
-      previous.isOpen
-        ? {
-            ...previous,
-            isOpen: false,
-            selectedSlotIndex: null,
-          }
-        : previous
-    );
-  }, []);
-
-  const resolvePromptTokenPickerToken = React.useCallback(
-    (selection: PromptTokenPickerSelection | null) => {
-      if (selection === "main") return buildExpertEditPrimarySlotToken();
-      if (selection == null) return null;
-      return buildExpertEditSecondarySlotToken(selection);
-    },
-    []
-  );
-
-  const cyclePromptTokenPickerSelection = React.useCallback(
-    (direction: 1 | -1) => {
-      if (promptTokenPickerOptions.length <= 0) return;
-      setPromptTokenPickerState((previous) => {
-        if (!previous.isOpen) return previous;
-        const currentSelection: PromptTokenPickerSelection =
-          previous.selectedSlotIndex ?? promptTokenPickerOptions[0] ?? "main";
-        const currentIndex = promptTokenPickerOptions.indexOf(currentSelection);
-        const safeCurrentIndex = currentIndex >= 0 ? currentIndex : 0;
-        const nextIndex =
-          (safeCurrentIndex + direction + promptTokenPickerOptions.length) %
-          promptTokenPickerOptions.length;
-        return {
-          ...previous,
-          selectedSlotIndex: promptTokenPickerOptions[nextIndex] ?? null,
-        };
-      });
-    },
-    [promptTokenPickerOptions]
-  );
-
-  const insertPromptTokenFromPicker = React.useCallback(
-    (selection: PromptTokenPickerSelection) => {
-      const token = resolvePromptTokenPickerToken(selection);
-      if (!token) return;
-      const insertedPrompt = insertExpertEditPromptTokenAtSelection({
-        prompt: promptTextValue,
-        token,
-        selectionStart: promptTokenPickerState.replaceStart,
-        selectionEnd: promptTokenPickerState.replaceEnd,
-      });
-      pendingPromptCaretRef.current = insertedPrompt.caret;
-      handlePromptTextChange(insertedPrompt.prompt);
-      setPromptTokenPickerState((previous) => ({
-        ...previous,
-        isOpen: false,
-        selectedSlotIndex: null,
-      }));
-    },
-    [
-      handlePromptTextChange,
-      promptTextValue,
-      promptTokenPickerState.replaceEnd,
-      promptTokenPickerState.replaceStart,
-      resolvePromptTokenPickerToken,
-    ]
-  );
-
-  const syncPromptHighlightScroll = React.useCallback(() => {
-    syncTextareaMirrorScroll({
-      textarea: promptTextareaRef.current,
-      mirror: promptHighlightRef.current,
-    });
-  }, []);
-
-  const syncPromptTextareaHeight = React.useCallback(() => {
-    autoResizeTextareaWithinComputedBounds(promptTextareaRef.current);
-  }, []);
-
-  const handlePromptScroll = React.useCallback(() => {
-    syncPromptHighlightScroll();
-  }, [syncPromptHighlightScroll]);
-
-  const handlePromptDropWithTokenInsert = React.useCallback(
-    (event: React.DragEvent<HTMLTextAreaElement>) => {
-      event.preventDefault();
-      const droppedToken = extractExpertEditPromptTokenFromTransfer(event.dataTransfer);
-      if (!droppedToken) {
-        handlePromptDrop(event);
-        return;
-      }
-      const textarea = promptTextareaRef.current;
-      const selectionStart = textarea?.selectionStart ?? promptTextValue.length;
-      const selectionEnd = textarea?.selectionEnd ?? selectionStart;
-      const insertedPrompt = insertExpertEditPromptTokenAtSelection({
-        prompt: promptTextValue,
-        token: droppedToken,
-        selectionStart,
-        selectionEnd,
-      });
-      pendingPromptCaretRef.current = insertedPrompt.caret;
-      closePromptTokenPicker();
-      handlePromptTextChange(insertedPrompt.prompt);
-    },
-    [closePromptTokenPicker, handlePromptDrop, handlePromptTextChange, promptTextValue]
-  );
-
-  const openPromptTokenPickerAtSelection = React.useCallback(
-    (selectionStart: number, selectionEnd: number) => {
-      if (promptTokenPickerOptions.length <= 0) return;
-      const normalizedSelectionStart = clampCaretPosition({
-        caretPosition: selectionStart,
-        textLength: promptTextValue.length,
-      });
-      const normalizedSelectionEnd = clampCaretPosition({
-        caretPosition: selectionEnd,
-        textLength: promptTextValue.length,
-      });
-      setPromptTokenPickerState({
-        isOpen: true,
-        selectedSlotIndex: promptTokenPickerOptions[0] ?? null,
-        replaceStart: Math.min(normalizedSelectionStart, normalizedSelectionEnd),
-        replaceEnd: Math.max(normalizedSelectionStart, normalizedSelectionEnd),
-      });
-    },
-    [promptTokenPickerOptions, promptTextValue.length]
-  );
-
-  const handlePromptKeyDown = React.useCallback(
-    (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
-      if (promptTokenPickerState.isOpen) {
-        if (event.key === "Tab") {
-          event.preventDefault();
-          cyclePromptTokenPickerSelection(event.shiftKey ? -1 : 1);
-          return;
-        }
-        if (event.key === "Enter") {
-          if (promptTokenPickerState.selectedSlotIndex != null) {
-            event.preventDefault();
-            insertPromptTokenFromPicker(promptTokenPickerState.selectedSlotIndex);
-          }
-          return;
-        }
-        if (event.key === "Escape") {
-          event.preventDefault();
-          closePromptTokenPicker();
-          return;
-        }
-        if (event.key === "ArrowRight" || event.key === "ArrowDown") {
-          event.preventDefault();
-          cyclePromptTokenPickerSelection(1);
-          return;
-        }
-        if (event.key === "ArrowLeft" || event.key === "ArrowUp") {
-          event.preventDefault();
-          cyclePromptTokenPickerSelection(-1);
-          return;
-        }
-        if (
-          event.key === "Backspace" ||
-          event.key === "Delete" ||
-          (event.key.length === 1 && !event.metaKey && !event.ctrlKey && !event.altKey)
-        ) {
-          closePromptTokenPicker();
-        }
-      }
-
-      if (
-        event.key === "Tab" &&
-        !event.defaultPrevented &&
-        !event.shiftKey &&
-        !event.metaKey &&
-        !event.ctrlKey &&
-        !event.altKey &&
-        promptTokenPickerOptions.length > 0
-      ) {
-        event.preventDefault();
-        const selectionStart = event.currentTarget.selectionStart ?? promptTextValue.length;
-        const selectionEnd = event.currentTarget.selectionEnd ?? selectionStart;
-        openPromptTokenPickerAtSelection(selectionStart, selectionEnd);
-        return;
-      }
-
-      if (
-        event.key === "@" &&
-        !event.defaultPrevented &&
-        !event.metaKey &&
-        !event.ctrlKey &&
-        !event.altKey &&
-        promptTokenPickerOptions.length > 0
-      ) {
-        pendingPromptTokenPickerTriggerRef.current = {
-          selectionStart: event.currentTarget.selectionStart ?? promptTextValue.length,
-          selectionEnd: event.currentTarget.selectionEnd ?? promptTextValue.length,
-        };
-      }
-    },
-    [
-      closePromptTokenPicker,
-      cyclePromptTokenPickerSelection,
-      insertPromptTokenFromPicker,
-      openPromptTokenPickerAtSelection,
-      promptTokenPickerOptions.length,
-      promptTextValue.length,
-      promptTokenPickerState.isOpen,
-      promptTokenPickerState.selectedSlotIndex,
-    ]
-  );
+  const {
+    promptInputShellRef,
+    promptHighlightRef,
+    promptTextareaRef,
+    promptHighlightSegments,
+    promptTokenPickerState,
+    promptTokenInlineError,
+    populatedPromptTokenSlotIndexes,
+    handlePromptTextChange,
+    handleInvalidPromptReferenceToken,
+    handlePromptKeyDown,
+    handlePromptDropWithTokenInsert,
+    handlePromptScroll,
+    closePromptTokenPicker,
+    insertPromptTokenFromPicker,
+  } = useExpertEditPromptTokenController({
+    promptTextValue,
+    extraImageUrls,
+    populatedLayerCount,
+    onPromptTextChange,
+    showStatusToast,
+  });
 
   React.useEffect(() => {
     if (!onEditSubmitIntentChange) return;
     onEditSubmitIntentChange(effectiveEditSubmitIntent);
   }, [effectiveEditSubmitIntent, onEditSubmitIntentChange]);
-
-  React.useEffect(() => {
-    const caretPosition = pendingPromptCaretRef.current;
-    if (caretPosition == null) return;
-    const textarea = promptTextareaRef.current;
-    if (!textarea) return;
-    const maxCaret = clampCaretPosition({
-      caretPosition,
-      textLength: promptTextValue.length,
-    });
-    textarea.focus();
-    textarea.setSelectionRange(maxCaret, maxCaret);
-    pendingPromptCaretRef.current = null;
-  }, [promptTextValue]);
-
-  React.useEffect(() => {
-    syncPromptTextareaHeight();
-  }, [promptTextValue, syncPromptTextareaHeight]);
-
-  React.useEffect(() => {
-    const promptInputShell = promptInputShellRef.current;
-    if (!promptInputShell || typeof ResizeObserver === "undefined") return;
-    const resizeObserver = new ResizeObserver(() => {
-      syncPromptTextareaHeight();
-      syncPromptHighlightScroll();
-    });
-    resizeObserver.observe(promptInputShell);
-    return () => {
-      resizeObserver.disconnect();
-    };
-  }, [syncPromptHighlightScroll, syncPromptTextareaHeight]);
-
-  React.useEffect(() => {
-    syncPromptHighlightScroll();
-  }, [promptTextValue, syncPromptHighlightScroll]);
-
-  React.useEffect(() => {
-    const pendingTrigger = pendingPromptTokenPickerTriggerRef.current;
-    if (!pendingTrigger) return;
-    pendingPromptTokenPickerTriggerRef.current = null;
-    if (promptTokenPickerOptions.length <= 0) return;
-    const replaceStart = clampCaretPosition({
-      caretPosition: pendingTrigger.selectionStart,
-      textLength: promptTextValue.length,
-    });
-    const replaceEnd = Math.min(promptTextValue.length, replaceStart + 1);
-    if (promptTextValue.slice(replaceStart, replaceEnd) !== "@") return;
-    setPromptTokenPickerState({
-      isOpen: true,
-      selectedSlotIndex: promptTokenPickerOptions[0] ?? null,
-      replaceStart,
-      replaceEnd,
-    });
-  }, [promptTokenPickerOptions, promptTextValue]);
-
-  React.useEffect(() => {
-    if (!promptTokenAnalysis.inlineError && showPromptTokenInlineError) {
-      setShowPromptTokenInlineError(false);
-    }
-  }, [promptTokenAnalysis.inlineError, showPromptTokenInlineError]);
-
-  React.useEffect(() => {
-    if (!promptTokenPickerState.isOpen) return;
-    if (promptTokenPickerOptions.length <= 0) {
-      closePromptTokenPicker();
-      return;
-    }
-    if (
-      promptTokenPickerState.selectedSlotIndex == null ||
-      !promptTokenPickerOptions.includes(
-        promptTokenPickerState.selectedSlotIndex as PromptTokenPickerSelection
-      )
-    ) {
-      setPromptTokenPickerState((previous) => ({
-        ...previous,
-        selectedSlotIndex: promptTokenPickerOptions[0] ?? null,
-      }));
-    }
-  }, [
-    closePromptTokenPicker,
-    promptTokenPickerOptions,
-    promptTokenPickerState.isOpen,
-    promptTokenPickerState.selectedSlotIndex,
-  ]);
 
   React.useEffect(() => {
     return () => {
@@ -2186,69 +1657,28 @@ export function ExpertEditPanelView({
     });
   }, []);
 
-  const applyPrimaryImageIngress = React.useCallback(
-    (payload: { url: string; ownsImageUrl: boolean }) => {
-      const candidateUrl = payload.url.trim();
-      if (!candidateUrl) {
-        if (payload.ownsImageUrl && payload.url.startsWith("blob:")) {
-          revokeObjectUrlSafe(payload.url);
-        }
-        return;
-      }
-
-      const targetIndex = resolveLayerIndexOrFallback({
-        selectedLayerIndex,
-        layerCount: layers.length,
-      });
-      const targetLayer = layers[targetIndex];
-      if (!targetLayer) return;
-
-      const foundationIndex = foundationLayerId
-        ? layers.findIndex((layer) => layer.id === foundationLayerId)
-        : -1;
-      const foundationLayer = foundationIndex >= 0 ? layers[foundationIndex] : null;
-      const hasAnyPopulatedLayer = layers.some((layer) => layerHasImage(layer));
-      if (!hasAnyPopulatedLayer && foundationLayer) {
-        const nextLayers = [...layers];
-        nextLayers[foundationIndex] = {
-          ...foundationLayer,
-          imageUrl: candidateUrl,
-          ownsImageUrl: payload.ownsImageUrl,
-          opacity: LAYER_OPACITY_DEFAULT,
-          transform: defaultLayerTransform(),
-        };
-        setLayers(nextLayers);
-        setSelectedLayerIndex(foundationIndex);
-        setEditingLayerIndex(null);
-        setEditingLayerValue("");
-        return;
-      }
-
-      if (layers.length >= MAX_LAYERS) {
-        if (payload.ownsImageUrl && candidateUrl.startsWith("blob:")) {
-          revokeObjectUrlSafe(candidateUrl);
-        }
-        showStatusToast(LAYER_LIMIT_REACHED_TOAST);
-        return;
-      }
-
-      const insertedLayer = createLayer({
-        indexOneBased: resolveLowestUnusedAutoLayerNumber({ layers }),
-        imageUrl: candidateUrl,
-        ownsImageUrl: payload.ownsImageUrl,
-      });
-      const nextLayers = enforceLayerStackInvariants({
-        layers: [...layers.slice(0, targetIndex), insertedLayer, ...layers.slice(targetIndex)],
-        foundationLayerId,
-      });
-      setLayers(nextLayers);
-      const insertedIndex = nextLayers.findIndex((layer) => layer.id === insertedLayer.id);
-      setSelectedLayerIndex(insertedIndex >= 0 ? insertedIndex : 0);
-      setEditingLayerIndex(null);
-      setEditingLayerValue("");
-    },
-    [createLayer, foundationLayerId, layers, selectedLayerIndex, showStatusToast]
-  );
+  const {
+    primaryDragActive,
+    clearPrimaryDragActive,
+    handlePrimaryFileSelection,
+    handlePrimaryDragEnter,
+    handlePrimaryDragOver,
+    handlePrimaryDragLeave,
+    handlePrimaryDrop,
+  } = useExpertEditPrimaryIngress({
+    layers,
+    selectedLayerIndex,
+    foundationLayerId,
+    isMorePresetsSurfaceOpen,
+    createLayer,
+    setLayers,
+    setSelectedLayerIndex,
+    setEditingLayerIndex,
+    setEditingLayerValue,
+    showStatusToast,
+    revokeObjectUrlSafe,
+    resolvePreviewUrlById,
+  });
 
   const handleManualFlatten = React.useCallback(async () => {
     if (populatedLayerCount <= 0) {
@@ -2381,25 +1811,6 @@ export function ExpertEditPanelView({
     resolveStageFlattenSnapshot,
   });
 
-  const handlePrimaryFileSelection = React.useCallback(
-    (event: React.ChangeEvent<HTMLInputElement>) => {
-      const file = event.target.files?.[0];
-      if (!file) return;
-      const objectUrl = URL.createObjectURL(file);
-      applyPrimaryImageIngress({ url: objectUrl, ownsImageUrl: true });
-      event.target.value = "";
-    },
-    [applyPrimaryImageIngress]
-  );
-
-  const allowPrimaryImageDrag = React.useCallback((event: React.DragEvent<HTMLDivElement>) => {
-    if (isImageDragTransfer(event.dataTransfer)) {
-      event.preventDefault();
-      return true;
-    }
-    return false;
-  }, []);
-
   const handleSecondaryPromptTokenDragStart = React.useCallback(
     (event: React.DragEvent<HTMLDivElement>, index: number) => {
       if (!extraImageUrls[index]) {
@@ -2414,71 +1825,6 @@ export function ExpertEditPanelView({
       event.dataTransfer.effectAllowed = "copy";
     },
     [extraImageUrls]
-  );
-
-  const handlePrimaryDragEnter = React.useCallback(
-    (event: React.DragEvent<HTMLDivElement>) => {
-      if (isMorePresetsSurfaceOpen) {
-        event.preventDefault();
-        setPrimaryDragActive(false);
-        return;
-      }
-      if (allowPrimaryImageDrag(event)) {
-        setPrimaryDragActive(true);
-      }
-    },
-    [allowPrimaryImageDrag, isMorePresetsSurfaceOpen]
-  );
-
-  const handlePrimaryDragOver = React.useCallback(
-    (event: React.DragEvent<HTMLDivElement>) => {
-      if (isMorePresetsSurfaceOpen) {
-        event.preventDefault();
-        setPrimaryDragActive(false);
-        return;
-      }
-      if (allowPrimaryImageDrag(event)) {
-        setPrimaryDragActive(true);
-      }
-    },
-    [allowPrimaryImageDrag, isMorePresetsSurfaceOpen]
-  );
-
-  const handlePrimaryDragLeave = React.useCallback(() => {
-    setPrimaryDragActive(false);
-  }, []);
-
-  const handlePrimaryDrop = React.useCallback(
-    (event: React.DragEvent<HTMLDivElement>) => {
-      if (isMorePresetsSurfaceOpen) {
-        event.preventDefault();
-        setPrimaryDragActive(false);
-        return;
-      }
-      event.preventDefault();
-      setPrimaryDragActive(false);
-      const { imageUrl, fromFile, referenceId } = extractDragDropPayload(event.dataTransfer);
-      void (async () => {
-        let nextUrl = imageUrl;
-        if ((!nextUrl || nextUrl.startsWith("blob:")) && referenceId && resolvePreviewUrlById) {
-          nextUrl = resolvePreviewUrlById(referenceId);
-        }
-        if (!nextUrl) return;
-        const isBlobUrl = nextUrl.startsWith("blob:");
-        const canAcceptBlob = fromFile || Boolean(referenceId);
-        if (isBlobUrl && !canAcceptBlob) return;
-        let ownsImageUrl = Boolean(fromFile && isBlobUrl);
-        if (isBlobUrl && !ownsImageUrl) {
-          const clonedBlobUrl = await cloneBlobObjectUrl(nextUrl);
-          if (clonedBlobUrl) {
-            nextUrl = clonedBlobUrl;
-            ownsImageUrl = true;
-          }
-        }
-        applyPrimaryImageIngress({ url: nextUrl, ownsImageUrl });
-      })();
-    },
-    [applyPrimaryImageIngress, isMorePresetsSurfaceOpen, resolvePreviewUrlById]
   );
 
   const commitTransformHistoryTransition = React.useCallback(
@@ -3364,10 +2710,10 @@ export function ExpertEditPanelView({
 
   const closeMorePresetsSurface = React.useCallback(() => {
     setIsMorePresetsSurfaceOpen(false);
-    setPrimaryDragActive(false);
+    clearPrimaryDragActive();
     setIsPresetsSurfaceDropActive(false);
     setIsPresetPanelDropActive(false);
-  }, []);
+  }, [clearPrimaryDragActive]);
 
   const toggleMorePresetsSurface = React.useCallback(() => {
     setIsMorePresetsSurfaceOpen((previous) => !previous);
@@ -3529,139 +2875,30 @@ export function ExpertEditPanelView({
     }
   }, [layers.length, selectedLayerIndex]);
 
-  const buildCurrentSessionState = React.useCallback((): ExpertEditSessionState => {
-    const normalizedSelectedLayerIndex = resolveLayerIndexOrNull({
-      selectedLayerIndex,
-      layerCount: layers.length,
-    });
-    const normalizedLayerIdCounter = Math.max(
-      layerIdCounterRef.current,
-      resolveLayerIdCounterFromLayers(layers)
-    );
-    return {
-      version: EXPERT_EDIT_SESSION_STATE_VERSION,
-      layers: {
-        layerIdCounter: normalizedLayerIdCounter,
-        foundationLayerId,
-        selectedLayerIndex: normalizedSelectedLayerIndex,
-        layers: layers.map((layer) => cloneLayerForSessionState(layer)),
-      },
-      markup: {
-        strokes: cloneMarkupStrokesSnapshot(markupStrokes),
-        history: cloneMarkupHistoryState(markupHistoryState),
-      },
-      inpaint: {
-        history: cloneInpaintHistoryState(inpaintHistoryState),
-      },
-    };
-  }, [
+  useExpertEditSessionHostSync({
     foundationLayerId,
-    inpaintHistoryState,
-    layers,
-    markupHistoryState,
-    markupStrokes,
     selectedLayerIndex,
-  ]);
-
-  React.useEffect(() => {
-    if (!onSessionStateChange) {
-      pendingSessionStateRef.current = null;
-      clearWindowAnimationFrameRef(sessionDispatchFrameRef);
-      return;
-    }
-    const nextState = buildCurrentSessionState();
-    const lastState = lastDispatchedSessionStateRef.current;
-    if (lastState && areExpertEditSessionStatesEqual(lastState, nextState)) {
-      return;
-    }
-    pendingSessionStateRef.current = nextState;
-    const dispatch = () => {
-      const pendingState = pendingSessionStateRef.current;
-      pendingSessionStateRef.current = null;
-      if (!pendingState) return;
-      const previousState = lastDispatchedSessionStateRef.current;
-      if (previousState && areExpertEditSessionStatesEqual(previousState, pendingState)) {
-        return;
-      }
-      const clonedState = cloneExpertEditSessionState(pendingState);
-      lastDispatchedSessionStateRef.current = clonedState;
-      onSessionStateChange(clonedState);
-    };
-    scheduleWindowAnimationFrame({
-      frameRef: sessionDispatchFrameRef,
-      callback: dispatch,
-    });
-  }, [buildCurrentSessionState, onSessionStateChange]);
-
-  React.useEffect(() => {
-    const previousLayers = previousLayersRef.current;
-    if (!previousLayers.length) {
-      previousLayersRef.current = layers;
-      return;
-    }
-    resolveStaleOwnedLayerImageUrls({
-      previousLayers,
-      activeLayers: layers,
-    }).forEach((url) => {
-      revokeObjectUrlSafe(url);
-    });
-    previousLayersRef.current = layers;
-  }, [layers]);
-
-  React.useEffect(() => {
-    if (previousPrimaryPropRef.current === referenceImageUrl) return;
-    previousPrimaryPropRef.current = referenceImageUrl;
-    if (referenceImageUrl === lastDispatchedPrimaryRef.current) return;
-
-    setLayers((previous) => {
-      if (!previous.length) return previous;
-      const lockedRemoveBackgroundIndex = removeBackgroundPendingLayerId
-        ? previous.findIndex((layer) => layer.id === removeBackgroundPendingLayerId)
-        : -1;
-      const targetIndex =
-        lockedRemoveBackgroundIndex >= 0
-          ? lockedRemoveBackgroundIndex
-          : resolveLayerIndexOrFallback({
-              selectedLayerIndex,
-              layerCount: previous.length,
-            });
-      const targetLayer = previous[targetIndex];
-      if (!targetLayer) return previous;
-      if (targetLayer.imageUrl === referenceImageUrl && !targetLayer.ownsImageUrl) {
-        return previous;
-      }
-      const preserveLayerTransform = lockedRemoveBackgroundIndex >= 0;
-      const nextLayers = [...previous];
-      nextLayers[targetIndex] = {
-        ...targetLayer,
-        imageUrl: referenceImageUrl,
-        ownsImageUrl: false,
-        transform: preserveLayerTransform ? targetLayer.transform : defaultLayerTransform(),
-      };
-      return enforceLayerStackInvariants({
-        layers: nextLayers,
-        foundationLayerId,
-      });
-    });
-  }, [foundationLayerId, referenceImageUrl, removeBackgroundPendingLayerId, selectedLayerIndex]);
-
-  React.useEffect(() => {
-    if (!removeBackgroundPendingLayerId) return;
-    const pendingLayer =
-      layers.find((layer) => layer.id === removeBackgroundPendingLayerId) ?? null;
-    if (!pendingLayer) {
-      clearRemoveBackgroundPending();
-      return;
-    }
-    const pendingSourceUrl = removeBackgroundPendingSourceUrlRef.current;
-    if (
-      typeof pendingLayer.imageUrl === "string" &&
-      pendingLayer.imageUrl.length > 0 &&
-      pendingLayer.imageUrl !== pendingSourceUrl
-    ) {
-      clearRemoveBackgroundPending();
-    }
-  }, [clearRemoveBackgroundPending, layers, removeBackgroundPendingLayerId]);
+    layers,
+    markupStrokes,
+    markupHistoryState,
+    inpaintHistoryState,
+    referenceImageUrl,
+    hostPrimaryImageUrl,
+    removeBackgroundPendingLayerId,
+    layerIdCounterRef,
+    previousLayersRef,
+    lastDispatchedSessionStateRef,
+    pendingSessionStateRef,
+    sessionDispatchFrameRef,
+    lastDispatchedPrimaryRef,
+    previousPrimaryPropRef,
+    removeBackgroundPendingSourceUrlRef,
+    setLayers,
+    clearRemoveBackgroundPending,
+    onPrimaryImageChange,
+    onSessionStateChange,
+    revokeObjectUrlSafe,
+  });
 
   React.useEffect(() => {
     if (!isMoveToolSelected) {
@@ -4074,12 +3311,6 @@ export function ExpertEditPanelView({
     pendingInpaintHistoryApplyRef.current = null;
     restoreInpaintMaskSnapshot(pendingEntry);
   }, [inpaintHistoryState, restoreInpaintMaskSnapshot]);
-
-  React.useEffect(() => {
-    if (lastDispatchedPrimaryRef.current === hostPrimaryImageUrl) return;
-    lastDispatchedPrimaryRef.current = hostPrimaryImageUrl;
-    onPrimaryImageChange(hostPrimaryImageUrl);
-  }, [hostPrimaryImageUrl, onPrimaryImageChange]);
 
   React.useEffect(
     () => () => {
@@ -5522,266 +4753,64 @@ export function ExpertEditPanelView({
                 </div>
               ) : null}
               {shouldShowSecondaryReferenceAndStylesRow ? (
-                <>
-                  <div className="edit-expert-secondary-control">
-                    <p className="edit-expert-secondary-title">Reference Images</p>
-                    <div className="edit-expert-secondary-row">
-                      {secondaries.map((index) => {
-                        const previewUrl = extraImageUrls[index];
-                        const inputRef = inputRefs[index];
-                        return (
-                          <div
-                            className="edit-expert-secondary-slot"
-                            key={`expert-edit-secondary-${index}`}
-                          >
-                            <div
-                              className={`reference-dropzone extra ${previewUrl ? "has-preview" : ""} ${
-                                extraDragActive[index] ? "is-dragging" : ""
-                              } ${
-                                promptTokenPickerState.isOpen && previewUrl
-                                  ? "is-picker-target"
-                                  : ""
-                              } ${
-                                promptTokenPickerState.isOpen &&
-                                promptTokenPickerState.selectedSlotIndex === index
-                                  ? "is-picker-selected"
-                                  : ""
-                              }`.trim()}
-                              draggable={Boolean(previewUrl)}
-                              onDragStart={(event) =>
-                                handleSecondaryPromptTokenDragStart(event, index)
-                              }
-                              onDrop={handleExtraDrop(index)}
-                              onDragEnter={handleExtraDragEnter(index)}
-                              onDragOver={handleExtraDragOver(index)}
-                              onDragLeave={handleExtraDragLeave(index)}
-                              onClick={() => inputRef.current?.click()}
-                              style={
-                                previewUrl ? { backgroundImage: `url(${previewUrl})` } : undefined
-                              }
-                              aria-label={`Secondary edit image ${index + 1}`}
-                            >
-                              {previewUrl ? (
-                                <button
-                                  type="button"
-                                  className="dropzone-clear"
-                                  aria-label={`Remove secondary image ${index + 1}`}
-                                  onClick={(event) => {
-                                    event.stopPropagation();
-                                    onExtraImageChange(index, null);
-                                  }}
-                                >
-                                  <TrashSimple size={14} weight="regular" />
-                                </button>
-                              ) : (
-                                <Plus size={18} weight="regular" />
-                              )}
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                  <StylesControl
-                    isOpen={isStylesPanelOpen}
-                    selectedStyleId={selectedStyleId}
-                    styles={stylesCatalog}
-                    onToggle={handleStylesPanelToggle}
-                  />
-                </>
+                <ExpertEditSecondaryReferences
+                  extraImageUrls={extraImageUrls}
+                  inputRefs={inputRefs}
+                  extraDragActive={extraDragActive}
+                  isPromptTokenPickerOpen={promptTokenPickerState.isOpen}
+                  promptTokenPickerSelectedSlotIndex={promptTokenPickerState.selectedSlotIndex}
+                  onSecondaryDragStart={handleSecondaryPromptTokenDragStart}
+                  onSecondaryDrop={handleExtraDrop}
+                  onSecondaryDragEnter={handleExtraDragEnter}
+                  onSecondaryDragOver={handleExtraDragOver}
+                  onSecondaryDragLeave={handleExtraDragLeave}
+                  onExtraImageChange={onExtraImageChange}
+                  isStylesPanelOpen={isStylesPanelOpen}
+                  selectedStyleId={selectedStyleId}
+                  stylesCatalog={stylesCatalog}
+                  onStylesPanelToggle={handleStylesPanelToggle}
+                />
               ) : null}
             </div>
-            <div className="edit-expert-bottom-row">
-              <div className="edit-expert-prompt-shell">
-                <div className="edit-expert-prompt-row">
-                  <div className="edit-expert-prompt-input-shell" ref={promptInputShellRef}>
-                    <div
-                      ref={promptHighlightRef}
-                      className="edit-expert-prompt-highlight"
-                      aria-hidden="true"
-                    >
-                      {promptHighlightSegments.map((segment, index) => (
-                        <span
-                          key={`prompt-highlight-${index}-${segment.kind}`}
-                          className={`edit-expert-prompt-highlight-segment is-${segment.kind}`}
-                        >
-                          {segment.text}
-                        </span>
-                      ))}
-                      <span className="edit-expert-prompt-highlight-segment edit-expert-prompt-highlight-segment--buffer">
-                        {"\n"}
-                      </span>
-                    </div>
-                    <textarea
-                      ref={promptTextareaRef}
-                      className="prompt-drop-input edit-expert-prompt-input"
-                      value={promptTextValue}
-                      onChange={(event) => handlePromptTextChange(event.target.value)}
-                      onKeyDown={handlePromptKeyDown}
-                      onDrop={handlePromptDropWithTokenInsert}
-                      onDragOver={(event) => event.preventDefault()}
-                      onScroll={handlePromptScroll}
-                      onBlur={closePromptTokenPicker}
-                      placeholder="Write your prompt..."
-                      aria-label="Edit prompt"
-                      spellCheck={false}
-                      autoCorrect="off"
-                      autoCapitalize="off"
-                      data-gramm="false"
-                    />
-                    {promptTokenPickerState.isOpen ? (
-                      <div
-                        className="edit-expert-prompt-token-picker"
-                        role="group"
-                        aria-label="Reference image picker"
-                      >
-                        <div className="edit-expert-prompt-token-picker-header">
-                          <p className="edit-expert-prompt-token-picker-title">Reference Images</p>
-                          <p className="edit-expert-prompt-token-picker-hint">
-                            Tab to cycle. Enter to insert.
-                          </p>
-                        </div>
-                        <div className="edit-expert-prompt-token-picker-grid">
-                          <button
-                            type="button"
-                            className={`edit-expert-prompt-token-picker-option ${
-                              promptTokenPickerState.selectedSlotIndex === "main"
-                                ? "is-selected"
-                                : ""
-                            }`.trim()}
-                            data-slot-index="main"
-                            aria-label="Primary edit image"
-                            onMouseDown={(event) => event.preventDefault()}
-                            onClick={() => insertPromptTokenFromPicker("main")}
-                          >
-                            <span
-                              className="edit-expert-prompt-token-picker-option-thumb"
-                              aria-hidden="true"
-                              style={
-                                hostPrimaryImageUrl
-                                  ? { backgroundImage: `url(${hostPrimaryImageUrl})` }
-                                  : undefined
-                              }
-                            />
-                            <span className="edit-expert-prompt-token-picker-option-copy">
-                              <span className="edit-expert-prompt-token-picker-option-label">
-                                Primary
-                              </span>
-                              <span className="edit-expert-prompt-token-picker-option-token">
-                                {buildExpertEditPrimarySlotToken()}
-                              </span>
-                            </span>
-                          </button>
-                          {populatedPromptTokenSlotIndexes.map((slotIndex) => {
-                            const token = buildExpertEditSecondarySlotToken(slotIndex);
-                            const previewUrl = extraImageUrls[slotIndex];
-                            return (
-                              <button
-                                key={`prompt-token-picker-slot-${slotIndex}`}
-                                type="button"
-                                className={`edit-expert-prompt-token-picker-option ${
-                                  promptTokenPickerState.selectedSlotIndex === slotIndex
-                                    ? "is-selected"
-                                    : ""
-                                }`.trim()}
-                                data-slot-index={slotIndex}
-                                onMouseDown={(event) => event.preventDefault()}
-                                onClick={() => insertPromptTokenFromPicker(slotIndex)}
-                              >
-                                <span
-                                  className="edit-expert-prompt-token-picker-option-thumb"
-                                  aria-hidden="true"
-                                  style={
-                                    previewUrl
-                                      ? { backgroundImage: `url(${previewUrl})` }
-                                      : undefined
-                                  }
-                                />
-                                <span className="edit-expert-prompt-token-picker-option-copy">
-                                  <span className="edit-expert-prompt-token-picker-option-label">
-                                    Reference {slotIndex + 1}
-                                  </span>
-                                  <span className="edit-expert-prompt-token-picker-option-token">
-                                    {token}
-                                  </span>
-                                </span>
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    ) : null}
-                  </div>
-                </div>
-                {promptTokenInlineError ? (
-                  <p className="edit-expert-prompt-token-error" role="alert">
-                    {promptTokenInlineError}
-                  </p>
-                ) : null}
-              </div>
-              <div className="edit-expert-inline-generate edit-expert-inline-generate--outside">
-                <AgentGenerateButton
-                  onClick={handleInlineGenerate}
-                  disabled={inlineGenerateDisabled}
-                  isBusy={isGenerateBusy}
-                  cost={costCredits != null ? costCredits : "—"}
-                />
-                {inlineGenerateDisabled && inlineGuardrailReason ? (
-                  <div className="inline-warning-hint">{inlineGuardrailReason}</div>
-                ) : null}
-              </div>
-            </div>
-            <div className="edit-expert-selector-row create-expert-secondary-row create-expert-controls-row">
-              <div className="create-expert-controls">
-                <div className="create-expert-control create-expert-model-control">
-                  <button
-                    type="button"
-                    className={`model-picker-btn create-expert-picker-control create-expert-model-picker-trigger ${
-                      !modelId ? "is-empty" : ""
-                    } ${isModelPickerLocked ? "is-locked" : ""} ${
-                      isModelModalOpen && modelModalAnchor === "reference-model" ? "is-open" : ""
-                    }`}
-                    data-model-anchor="reference-model"
-                    aria-label="Open model picker"
-                    disabled={isModelPickerLocked}
-                    onClick={(event) =>
-                      onModelPickerOpen("reference-model", event.currentTarget, "reference-image")
-                    }
-                  >
-                    {effectiveModelPickerLogoSrc ? (
-                      <Image
-                        className="model-chip-logo-img"
-                        src={effectiveModelPickerLogoSrc}
-                        alt=""
-                        aria-hidden
-                        width={74}
-                        height={18}
-                        unoptimized={false}
-                      />
-                    ) : null}
-                    <span className="model-picker-name">{effectiveModelPickerLabel}</span>
-                  </button>
-                </div>
-
-                <div className="create-expert-control create-expert-aspect-control">
-                  <AspectDropdown
-                    aspect={aspect}
-                    onSelect={onAspectChange}
-                    options={aspectOptionsForModel}
-                  />
-                </div>
-
-                {shouldShowResolutionControl ? (
-                  <div className="create-expert-control create-expert-resolution-control">
-                    <ResolutionDropdown
-                      value={imageResolutionValue}
-                      options={imageResolutionOptions}
-                      onSelect={onImageResolutionChange}
-                    />
-                  </div>
-                ) : null}
-              </div>
-            </div>
+            <ExpertEditPromptComposer
+              promptInputShellRef={promptInputShellRef}
+              promptHighlightRef={promptHighlightRef}
+              promptTextareaRef={promptTextareaRef}
+              promptHighlightSegments={promptHighlightSegments}
+              promptTextValue={promptTextValue}
+              onPromptTextChange={handlePromptTextChange}
+              onPromptKeyDown={handlePromptKeyDown}
+              onPromptDrop={handlePromptDropWithTokenInsert}
+              onPromptScroll={handlePromptScroll}
+              onPromptBlur={closePromptTokenPicker}
+              promptTokenPickerState={promptTokenPickerState}
+              hostPrimaryImageUrl={hostPrimaryImageUrl}
+              populatedPromptTokenSlotIndexes={populatedPromptTokenSlotIndexes}
+              extraImageUrls={extraImageUrls}
+              onInsertPromptTokenFromPicker={insertPromptTokenFromPicker}
+              promptTokenInlineError={promptTokenInlineError}
+              onGenerate={handleInlineGenerate}
+              inlineGenerateDisabled={inlineGenerateDisabled}
+              isGenerateBusy={isGenerateBusy}
+              costCredits={costCredits}
+              inlineGuardrailReason={inlineGuardrailReason}
+            />
+            <ExpertEditSelectorControls
+              modelId={modelId}
+              isModelPickerLocked={isModelPickerLocked}
+              isModelModalOpen={isModelModalOpen}
+              modelModalAnchor={modelModalAnchor}
+              effectiveModelPickerLogoSrc={effectiveModelPickerLogoSrc}
+              effectiveModelPickerLabel={effectiveModelPickerLabel}
+              onModelPickerOpen={onModelPickerOpen}
+              aspect={aspect}
+              onAspectChange={onAspectChange}
+              aspectOptionsForModel={aspectOptionsForModel}
+              shouldShowResolutionControl={shouldShowResolutionControl}
+              imageResolutionValue={imageResolutionValue}
+              imageResolutionOptions={imageResolutionOptions}
+              onImageResolutionChange={onImageResolutionChange}
+            />
           </div>
         </div>
       </div>
@@ -5846,49 +4875,18 @@ export function ExpertEditPanelView({
       />
 
       {stageContextMenuState.isOpen ? (
-        <div
-          ref={stageContextMenuRef}
-          className="edit-expert-stage-context-menu"
-          role="menu"
-          aria-label="Stage actions"
-          style={{
-            left: `${stageContextMenuState.x}px`,
-            top: `${stageContextMenuState.y}px`,
-          }}
-          onContextMenu={(event) => event.preventDefault()}
-        >
-          <button type="button" role="menuitem" onClick={handleStageContextMenuRecenter}>
-            Recenter
-          </button>
-          <button
-            type="button"
-            role="menuitem"
-            onClick={handleStageContextMenuExpand}
-            disabled={isMarkupExpandSelected}
-          >
-            Expand
-          </button>
-          <button type="button" role="menuitem" onClick={handleStageContextMenuAddImage}>
-            Add Image
-          </button>
-          <button
-            type="button"
-            role="menuitem"
-            className="is-danger"
-            onClick={handleStageContextMenuReset}
-          >
-            Reset
-          </button>
-          <button
-            type="button"
-            role="menuitem"
-            className="is-danger"
-            onClick={handleStageContextMenuRemoveImage}
-            disabled={!selectedLayerImageUrl}
-          >
-            Remove Image
-          </button>
-        </div>
+        <ExpertEditStageContextMenu
+          menuRef={stageContextMenuRef}
+          x={stageContextMenuState.x}
+          y={stageContextMenuState.y}
+          isMarkupExpandSelected={isMarkupExpandSelected}
+          hasSelectedLayerImage={Boolean(selectedLayerImageUrl)}
+          onRecenter={handleStageContextMenuRecenter}
+          onExpand={handleStageContextMenuExpand}
+          onAddImage={handleStageContextMenuAddImage}
+          onReset={handleStageContextMenuReset}
+          onRemoveImage={handleStageContextMenuRemoveImage}
+        />
       ) : null}
 
       <input

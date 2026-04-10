@@ -36,6 +36,10 @@ import {
 } from "./transitionGuard";
 import { readActiveProviderCapacitySnapshot } from "./activeProviderCapacity";
 import {
+  readRecoveryBackpressureDecision,
+  shouldEmitRecoveryBackpressureTelemetry,
+} from "../generationAdmission/recoveryBackpressure";
+import {
   isVideoGenerationModelId,
   normalizeVideoQueueDispatchPayload,
 } from "../videoSubmitContracts";
@@ -273,6 +277,7 @@ type DispatchCapacityDecision = {
   atCap: boolean;
   scope: "per_user" | "shared_provider";
   snapshot: ProviderCapacitySnapshot;
+  effectiveGlobalMax: number | null;
 };
 
 type DispatchCapacityCoordinator = {
@@ -286,6 +291,7 @@ type DispatchCapacityCoordinator = {
 type DispatchCapacitySnapshotCache = {
   userSnapshots: Map<string, Promise<ProviderCapacitySnapshot>>;
   sharedSnapshots: Map<string, Promise<ProviderCapacitySnapshot>>;
+  sharedBackpressure: Map<string, Promise<number>>;
 };
 
 const createReservationCounts = (): DispatchCapacityReservationCounts => ({
@@ -364,6 +370,7 @@ const createDispatchCapacityCoordinator = (): DispatchCapacityCoordinator => {
   const snapshotCache: DispatchCapacitySnapshotCache = {
     userSnapshots: new Map(),
     sharedSnapshots: new Map(),
+    sharedBackpressure: new Map(),
   };
 
   const readCachedSnapshot = <T>({
@@ -430,9 +437,23 @@ const createDispatchCapacityCoordinator = (): DispatchCapacityCoordinator => {
                 }),
             })
           : Promise.resolve(null);
-        const [userSnapshot, sharedSnapshot] = await Promise.all([
+        const sharedBackpressurePromise = flags.admission.sharedProviderEnabled
+          ? readCachedSnapshot({
+              cache: snapshotCache.sharedBackpressure,
+              key: provider,
+              load: async () =>
+                (
+                  await readRecoveryBackpressureDecision({
+                    provider,
+                    requestedGlobalMax: flags.admission.sharedProviderGlobalMax,
+                  })
+                ).effectiveGlobalMax,
+            })
+          : Promise.resolve(null);
+        const [userSnapshot, sharedSnapshot, sharedEffectiveGlobalMax] = await Promise.all([
           userSnapshotPromise,
           sharedSnapshotPromise,
+          sharedBackpressurePromise,
         ]);
         const userGlobalKey = buildUserGlobalCapacityKey({ userId, provider });
         const userTierKey = buildUserTierCapacityKey({
@@ -444,8 +465,7 @@ const createDispatchCapacityCoordinator = (): DispatchCapacityCoordinator => {
           global: readMapReservationCounts(userReservations, userGlobalKey).global,
           tier: readMapReservationCounts(userReservations, userTierKey).tier,
         };
-
-        if (flags.admission.sharedProviderEnabled && sharedSnapshot) {
+        if (flags.admission.sharedProviderEnabled && sharedSnapshot && sharedEffectiveGlobalMax) {
           const sharedGlobalKey = buildSharedGlobalCapacityKey({ provider });
           const sharedTierKey = buildSharedTierCapacityKey({
             provider,
@@ -461,7 +481,7 @@ const createDispatchCapacityCoordinator = (): DispatchCapacityCoordinator => {
               snapshot: sharedSnapshot,
               reservedGlobal: sharedCounts.global,
               reservedTier: sharedCounts.tier,
-              globalMax: flags.admission.sharedProviderGlobalMax,
+              globalMax: sharedEffectiveGlobalMax,
               tierMax: flags.admission.tierLimits[sharedSnapshot.tier as GenerationAdmissionTier],
             })
           ) {
@@ -469,6 +489,7 @@ const createDispatchCapacityCoordinator = (): DispatchCapacityCoordinator => {
               atCap: true,
               scope: "shared_provider" as const,
               snapshot: sharedSnapshot,
+              effectiveGlobalMax: sharedEffectiveGlobalMax,
             };
           }
 
@@ -485,6 +506,7 @@ const createDispatchCapacityCoordinator = (): DispatchCapacityCoordinator => {
               atCap: true,
               scope: "per_user" as const,
               snapshot: userSnapshot,
+              effectiveGlobalMax: sharedEffectiveGlobalMax,
             };
           }
 
@@ -496,6 +518,7 @@ const createDispatchCapacityCoordinator = (): DispatchCapacityCoordinator => {
             atCap: false,
             scope: "per_user" as const,
             snapshot: userSnapshot,
+            effectiveGlobalMax: sharedEffectiveGlobalMax,
           };
         }
 
@@ -512,6 +535,7 @@ const createDispatchCapacityCoordinator = (): DispatchCapacityCoordinator => {
             atCap: true,
             scope: "per_user" as const,
             snapshot: userSnapshot,
+            effectiveGlobalMax: null,
           };
         }
 
@@ -521,6 +545,7 @@ const createDispatchCapacityCoordinator = (): DispatchCapacityCoordinator => {
           atCap: false,
           scope: "per_user" as const,
           snapshot: userSnapshot,
+          effectiveGlobalMax: null,
         };
       }),
   };
@@ -953,6 +978,36 @@ const processClaimedQueueItem = async ({
         tier: capacityDecision.snapshot.tier,
         stale_ignored_global: capacityDecision.snapshot.staleIgnoredGlobal,
         stale_ignored_tier: capacityDecision.snapshot.staleIgnoredTier,
+      },
+    });
+  }
+  if (
+    capacityDecision.effectiveGlobalMax !== null &&
+    capacityDecision.effectiveGlobalMax < runtimeFlags.admission.sharedProviderGlobalMax &&
+    attemptNumber === 1 &&
+    shouldEmitRecoveryBackpressureTelemetry({
+      actor: "queue_dispatch",
+      provider,
+      level:
+        runtimeFlags.admission.sharedProviderGlobalMax - capacityDecision.effectiveGlobalMax >= 2
+          ? 2
+          : 1,
+      effectiveGlobalMax: capacityDecision.effectiveGlobalMax,
+    })
+  ) {
+    await logGenerationFailure({
+      req,
+      routeLabel,
+      source: "telemetry.queue.dispatch.recovery_backpressure_applied",
+      statusCode: 200,
+      message: "Applied recovery-lag backpressure to shared-provider queue dispatch capacity.",
+      userId: item.userId,
+      metadata: {
+        queue_id: item.queueId,
+        generation_id: item.generationId,
+        model_id: item.modelId,
+        requested_global_max: runtimeFlags.admission.sharedProviderGlobalMax,
+        effective_global_max: capacityDecision.effectiveGlobalMax,
       },
     });
   }

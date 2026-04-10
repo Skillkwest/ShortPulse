@@ -167,6 +167,10 @@ export const runGenerationControlPlaneWorkerLoop = async ({
   while (!shouldStop()) {
     const shouldRunCycle = await beforeRun();
     if (!shouldRunCycle) {
+      await writeHeartbeat({
+        updatedAt: new Date().toISOString(),
+        status: "running",
+      });
       logger.info("[generation-worker] skip reason=not_leader");
       if (shouldStop()) break;
       await sleep(intervalMs);

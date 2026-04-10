@@ -853,6 +853,26 @@ export const readGenerationQueueStatus = async ({
     projectionContext?.taskState?.toLowerCase() ?? projectionContext?.status?.toLowerCase() ?? null;
   const projectionQueueState = asString(projectionContext?.queueState)?.toLowerCase();
 
+  if (projectionOnlyStatus === "fail") {
+    const message =
+      projectionContext?.errorMessageShort ??
+      projectionContext?.errorDetail ??
+      "Generation failed before dispatch.";
+    return {
+      status: "failed",
+      generationId: resolvedGenerationId ?? generationId ?? "",
+      sourceRef: projectionOnlySourceRef,
+      message,
+      shortpulseLifecycle: {
+        taskState: "fail",
+        queueState: "failed",
+        isTerminal: true,
+        errorMessage: message,
+        statusLabel: null,
+      },
+    };
+  }
+
   if (projectionOnlyRequestId) {
     const pollingProvider = resolveQueuePollingProvider({
       provider: projectionContext?.provider ?? "fal",
@@ -871,26 +891,6 @@ export const readGenerationQueueStatus = async ({
         queueState: "dispatched",
         isTerminal: false,
         statusLabel: "Submitted",
-      },
-    };
-  }
-
-  if (projectionOnlyStatus === "fail") {
-    const message =
-      projectionContext?.errorMessageShort ??
-      projectionContext?.errorDetail ??
-      "Generation failed before dispatch.";
-    return {
-      status: "failed",
-      generationId: resolvedGenerationId ?? generationId ?? "",
-      sourceRef: projectionOnlySourceRef,
-      message,
-      shortpulseLifecycle: {
-        taskState: "fail",
-        queueState: "failed",
-        isTerminal: true,
-        errorMessage: message,
-        statusLabel: null,
       },
     };
   }
@@ -1007,6 +1007,27 @@ export const readGenerationQueueStatus = async ({
     }));
   const generationStatus = projectionOnlyStatus ?? asString(generationRow?.status)?.toLowerCase();
 
+  if (generationStatus === "fail") {
+    const message =
+      projectionContext?.errorMessageShort ??
+      projectionContext?.errorDetail ??
+      asString(generationRow?.error_message) ??
+      "Generation failed before dispatch.";
+    return {
+      status: "failed",
+      generationId: resolvedGenerationId ?? generationId ?? "",
+      sourceRef: resolvedSourceRefWithLegacyFallback ?? null,
+      message,
+      shortpulseLifecycle: {
+        taskState: "fail",
+        queueState: "failed",
+        isTerminal: true,
+        errorMessage: message,
+        statusLabel: null,
+      },
+    };
+  }
+
   if (requestId) {
     const dispatchedModelId = projectionContext?.modelId ?? asString(generationRow?.model_id);
     const dispatchedProvider =
@@ -1028,27 +1049,6 @@ export const readGenerationQueueStatus = async ({
         queueState: "dispatched",
         isTerminal: false,
         statusLabel: "Submitted",
-      },
-    };
-  }
-
-  if (generationStatus === "fail") {
-    const message =
-      projectionContext?.errorMessageShort ??
-      projectionContext?.errorDetail ??
-      asString(generationRow?.error_message) ??
-      "Generation failed before dispatch.";
-    return {
-      status: "failed",
-      generationId: resolvedGenerationId ?? generationId ?? "",
-      sourceRef: resolvedSourceRefWithLegacyFallback ?? null,
-      message,
-      shortpulseLifecycle: {
-        taskState: "fail",
-        queueState: "failed",
-        isTerminal: true,
-        errorMessage: message,
-        statusLabel: null,
       },
     };
   }

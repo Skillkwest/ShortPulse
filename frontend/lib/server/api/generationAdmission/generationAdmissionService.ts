@@ -20,10 +20,15 @@ import {
   type ActiveProviderCapacitySnapshot,
 } from "../generationQueue/activeProviderCapacity";
 import { resolveProviderFromModelId } from "../../providerIntegration/providerRuntimeConfig";
+import {
+  readRecoveryBackpressureDecision,
+  type RecoveryBackpressureDecision,
+} from "./recoveryBackpressure";
 
 export type ScopedGenerationAdmissionDecision = {
   decision: GenerationAdmissionDecision;
   capacitySnapshot: ActiveProviderCapacitySnapshot;
+  backpressure: RecoveryBackpressureDecision | null;
 };
 
 const buildOffModeSnapshot = ({
@@ -88,9 +93,18 @@ export const evaluateScopedGenerationAdmission = async ({
         staleIgnoredGlobal: 0,
         staleIgnoredTier: 0,
       },
+      backpressure: null,
     };
   }
 
+  const backpressure =
+    scopeUserId == null && config.sharedProviderEnabled
+      ? await readRecoveryBackpressureDecision({
+          provider,
+          requestedGlobalMax: globalMax,
+        })
+      : null;
+  const effectiveGlobalMax = backpressure?.effectiveGlobalMax ?? globalMax;
   const capacitySnapshot = await readActiveProviderCapacitySnapshot({
     userId: scopeUserId,
     provider,
@@ -110,13 +124,14 @@ export const evaluateScopedGenerationAdmission = async ({
       retryAfterSeconds: config.retryAfterSeconds,
       snapshot: {
         globalActive: capacitySnapshot.globalActive + 1,
-        globalMax,
+        globalMax: effectiveGlobalMax,
         tier: capacitySnapshot.tier,
         tierActive: capacitySnapshot.tierActive + 1,
         tierMax,
       },
     }),
     capacitySnapshot,
+    backpressure,
   };
 };
 

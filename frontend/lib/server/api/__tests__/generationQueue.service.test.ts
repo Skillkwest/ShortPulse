@@ -644,6 +644,49 @@ describe("generationQueue/service.readGenerationQueueStatus", () => {
     });
   });
 
+  it("prefers projected terminal failure over a projected request id", async () => {
+    getSupabaseAdminMock.mockReturnValue(
+      createStatusSupabaseMock({
+        queueRow: null,
+        generationRow: {
+          id: "gen-projection-fail-with-request",
+          status: "running",
+          request_id: "req-from-generation-row",
+          provider: "fal",
+          model_id: "fal-ai/bytedance/seedream/v4.5/edit",
+          metadata: { source_ref: "src-projection-fail-with-request" },
+        },
+        projectionRow: {
+          generation_id: "gen-projection-fail-with-request",
+          request_id: "req-from-projection",
+          status: "ready",
+          task_state: "fail",
+          queue_state: "dispatched",
+          error_message_short: "Projection failed after dispatch",
+        },
+      })
+    );
+
+    await expect(
+      readGenerationQueueStatus({
+        userId: "user-1",
+        generationId: "gen-projection-fail-with-request",
+      })
+    ).resolves.toEqual({
+      status: "failed",
+      generationId: "gen-projection-fail-with-request",
+      sourceRef: "src-projection-fail-with-request",
+      message: "Projection failed after dispatch",
+      shortpulseLifecycle: {
+        taskState: "fail",
+        queueState: "failed",
+        isTerminal: true,
+        errorMessage: "Projection failed after dispatch",
+        statusLabel: null,
+      },
+    });
+  });
+
   it("returns queued from generation_projection when legacy queue rows are absent", async () => {
     getSupabaseAdminMock.mockReturnValue(
       createStatusSupabaseMock({
@@ -680,6 +723,42 @@ describe("generationQueue/service.readGenerationQueueStatus", () => {
         queueState: "queued",
         isTerminal: false,
         statusLabel: "Waiting in queue...",
+      },
+    });
+  });
+
+  it("prefers terminal generation failure over a legacy request id", async () => {
+    getSupabaseAdminMock.mockReturnValue(
+      createStatusSupabaseMock({
+        queueRow: null,
+        generationRow: {
+          id: "gen-fail-with-request",
+          status: "fail",
+          request_id: "req-failed-generation",
+          error_message: "Generation failed after submit",
+          provider: "fal",
+          model_id: "fal-ai/bytedance/seedream/v4.5/edit",
+          metadata: { source_ref: "src-fail-with-request" },
+        },
+      })
+    );
+
+    await expect(
+      readGenerationQueueStatus({
+        userId: "user-1",
+        generationId: "gen-fail-with-request",
+      })
+    ).resolves.toEqual({
+      status: "failed",
+      generationId: "gen-fail-with-request",
+      sourceRef: "src-fail-with-request",
+      message: "Generation failed after submit",
+      shortpulseLifecycle: {
+        taskState: "fail",
+        queueState: "failed",
+        isTerminal: true,
+        errorMessage: "Generation failed after submit",
+        statusLabel: null,
       },
     });
   });

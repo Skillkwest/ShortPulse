@@ -19,6 +19,7 @@ const removeQueueItemMock = vi.fn();
 const updateQueueItemForRetryMock = vi.fn();
 const applyAcceptedRunningGenerationTransitionMock = vi.fn();
 const applyGenerationLifecycleTransitionMock = vi.fn();
+const readRecoveryBackpressureDecisionMock = vi.fn();
 
 const buildMutationSuccess = (operation: "retry" | "exhaust" | "release" | "remove") => ({
   ok: true,
@@ -70,6 +71,12 @@ vi.mock("../generationBilling/reservationRpcAdapter", () => ({
 vi.mock("../generationQueue/activeProviderCapacity", () => ({
   readActiveProviderCapacitySnapshot: (...args: unknown[]) =>
     readActiveProviderCapacitySnapshotMock(...args),
+}));
+
+vi.mock("../generationAdmission/recoveryBackpressure", () => ({
+  readRecoveryBackpressureDecision: (...args: unknown[]) =>
+    readRecoveryBackpressureDecisionMock(...args),
+  shouldEmitRecoveryBackpressureTelemetry: vi.fn(() => true),
 }));
 
 vi.mock("../../falIntegration/modelProfiles", () => ({
@@ -202,6 +209,18 @@ describe("generationQueue/dispatch no-capacity handling", () => {
     withWebhookTargetsMock.mockImplementation((targets: unknown) => targets);
     applyAcceptedRunningGenerationTransitionMock.mockResolvedValue({ ok: true });
     applyGenerationLifecycleTransitionMock.mockResolvedValue({ ok: true });
+    readRecoveryBackpressureDecisionMock.mockResolvedValue({
+      level: 0,
+      requestedGlobalMax: 3,
+      effectiveGlobalMax: 3,
+      reduction: 0,
+      signals: {
+        staleProviderAttachedReservations: 0,
+        staleRecoverableGenerations: 0,
+        recentQueueWaitTimeouts: 0,
+        recentRecoveryP95Ms: null,
+      },
+    });
   });
 
   it("requeues when capacity is full but queue age is still below max wait", async () => {
@@ -307,6 +326,98 @@ describe("generationQueue/dispatch no-capacity handling", () => {
     expect(releaseQueueLeaseBackToQueuedMock).not.toHaveBeenCalled();
     expect(dispatchProviderSubmitMock).not.toHaveBeenCalled();
     expect(claimGenerationSubmitQueueBatchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("applies shared-provider recovery backpressure during capacity checks", async () => {
+    readFalRuntimeFlagsMock.mockReturnValue({
+      videoQueueCompatNormalizationEnabled: true,
+      queueEnabled: true,
+      queueLeaseSeconds: 30,
+      queueMaxAttempts: 5,
+      queueBaseBackoffSeconds: 5,
+      queueMaxWaitSeconds: 1200,
+      runningExhaustMinAgeSeconds: 7200,
+      providerAttachedReservationCleanupMinAgeSeconds: 7200,
+      admission: {
+        globalMax: 4,
+        sharedProviderEnabled: true,
+        sharedProviderGlobalMax: 3,
+        tierLimits: {
+          video_long: 2,
+          image_heavy: 3,
+          image_standard: 4,
+        },
+      },
+      publicApiBaseUrl: null,
+    });
+    readRecoveryBackpressureDecisionMock.mockResolvedValueOnce({
+      level: 1,
+      requestedGlobalMax: 3,
+      effectiveGlobalMax: 2,
+      reduction: 1,
+      signals: {
+        staleProviderAttachedReservations: 12,
+        staleRecoverableGenerations: 0,
+        recentQueueWaitTimeouts: 0,
+        recentRecoveryP95Ms: null,
+      },
+    });
+    readActiveProviderCapacitySnapshotMock
+      .mockResolvedValueOnce({
+        tier: "image_heavy",
+        globalActive: 1,
+        tierActive: 1,
+        staleIgnoredGlobal: 0,
+        staleIgnoredTier: 0,
+      })
+      .mockResolvedValueOnce({
+        tier: "image_heavy",
+        globalActive: 2,
+        tierActive: 1,
+        staleIgnoredGlobal: 0,
+        staleIgnoredTier: 0,
+      });
+    claimGenerationSubmitQueueBatchMock.mockResolvedValueOnce([
+      {
+        queueId: "queue-1",
+        generationId: "gen-1",
+        userId: "user-1",
+        modelId: "fal-ai/nano-banana-pro",
+        sourceRef: "source-1",
+        submitRoute: "/api/fal/nano-banana-pro-submit",
+        submitPayload: { prompt: "hello" },
+        timeoutMs: 20_000,
+        attempts: 0,
+        status: "dispatching",
+        nextAttemptAt: null,
+        leaseUntil: new Date(Date.now() + 30_000).toISOString(),
+        createdAt: new Date(Date.now() - 60_000).toISOString(),
+      },
+    ]);
+
+    const result = await dispatchGenerationSubmitQueueBatch({
+      req: undefined,
+      routeLabel: "test/dispatch",
+      limit: 1,
+      userId: "user-1",
+    });
+
+    expect(result).toEqual(
+      expect.objectContaining({
+        claimed: 1,
+        requeuedNoCapacity: 1,
+      })
+    );
+    expect(readRecoveryBackpressureDecisionMock).toHaveBeenCalledWith({
+      provider: "fal",
+      requestedGlobalMax: 3,
+    });
+    expect(dispatchProviderSubmitMock).not.toHaveBeenCalled();
+    expect(logGenerationFailureMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        source: "telemetry.queue.dispatch.recovery_backpressure_applied",
+      })
+    );
   });
 
   it("reuses a per-user capacity snapshot across same-batch claims when both items can dispatch", async () => {

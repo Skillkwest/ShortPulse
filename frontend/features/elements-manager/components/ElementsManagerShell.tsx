@@ -109,6 +109,7 @@ export function ElementsManagerShell({
   const {
     activeTab,
     elements,
+    selectedElement,
     selectedElementId,
     pendingDeleteElementId,
     draft,
@@ -116,6 +117,7 @@ export function ElementsManagerShell({
     setActiveTab,
     updateDraftField,
     updateActiveReferenceSet,
+    onSetAssetType,
     setActiveReferenceSet,
     onAddReferenceSet,
     onRenameReferenceSet,
@@ -152,6 +154,10 @@ export function ElementsManagerShell({
     ? (draft.referenceSetLabels[pendingDeleteReferenceSetId] ?? pendingDeleteReferenceSetId)
     : null;
   const activeReferenceSet = draft.referenceSets[draft.activeReferenceSetId];
+  const activeImageReferenceCount =
+    draft.assetType === "image" ? activeReferenceSet.imageReferenceUrls.filter(Boolean).length : 0;
+  const activeVideoReferenceCount =
+    draft.assetType === "video" && activeReferenceSet.videoReferenceUrl.trim() ? 1 : 0;
   const [isDeckDropActive, setIsDeckDropActive] = React.useState(false);
   const [activeSheetDropIndex, setActiveSheetDropIndex] = React.useState<number | null>(null);
   const [isProfileAdjusterVisible, setIsProfileAdjusterVisible] = React.useState(false);
@@ -643,6 +649,29 @@ export function ElementsManagerShell({
         </section>
       ) : (
         <section className="character-simple-panel">
+          <header className="elements-profile-hero">
+            <div className="elements-profile-hero-copy">
+              <p className="elements-profile-eyebrow">Element Profile</p>
+              <h2>{draft.name.trim() || "New Element"}</h2>
+              <p className="tiny subdued elements-profile-helper">
+                Shape a reusable subject, prop, or scene element with a name, alias, and reference
+                assets that stay ready for future prompt binding.
+              </p>
+            </div>
+            <div className="elements-profile-summary" aria-label="Element profile summary">
+              <span className="elements-profile-summary-chip">
+                {draft.assetType === "video" ? "Video Element" : "Image Element"}
+              </span>
+              <span className="elements-profile-summary-chip">
+                {draft.assetType === "video"
+                  ? `${activeVideoReferenceCount} video reference`
+                  : `${activeImageReferenceCount} image reference${activeImageReferenceCount === 1 ? "" : "s"}`}
+              </span>
+              <span className="elements-profile-summary-chip">
+                {(selectedElement?.status ?? "draft") === "ready" ? "Ready" : "Draft"}
+              </span>
+            </div>
+          </header>
           <CharacterCreateWorkspaceSurface
             surface="panel"
             quickSwap={
@@ -650,7 +679,7 @@ export function ElementsManagerShell({
                 <div className="character-section-head">
                   <div className="character-section-title-row">
                     <div className="character-section-title-copy">
-                      <h3 className="character-section-title">Element Deck</h3>
+                      <h3 className="character-section-title">Reference Assets</h3>
                     </div>
                   </div>
                 </div>
@@ -678,12 +707,12 @@ export function ElementsManagerShell({
                           aria-hidden="true"
                         />
                         <p className="character-reference-drop-overlay-title">
-                          Drop reference images here
+                          Drop reference assets here
                         </p>
                         <p className="tiny subdued">
                           {draft.assetType === "video"
-                            ? "Add a dragged motion reference to this element."
-                            : "Add dragged reference-grid images to this element deck."}
+                            ? "Add a dragged motion reference to this video element."
+                            : "Add dragged reference-grid images to this element."}
                         </p>
                       </div>
                     </div>
@@ -786,7 +815,7 @@ export function ElementsManagerShell({
                 <div className="character-section-head">
                   <div className="character-section-title-row">
                     <div className="character-section-title-copy">
-                      <h3 className="character-section-title">Element Sheet</h3>
+                      <h3 className="character-section-title">Identity and Notes</h3>
                     </div>
                   </div>
                 </div>
@@ -944,6 +973,40 @@ export function ElementsManagerShell({
                     </div>
 
                     <div className="character-profile-fields character-profile-fields--label-serif">
+                      <div className="elements-type-selector-block">
+                        <p className="elements-profile-section-title">Element Type</p>
+                        <div
+                          className="elements-type-toggle"
+                          role="group"
+                          aria-label="Element type"
+                        >
+                          <button
+                            type="button"
+                            className={`elements-type-chip ${
+                              draft.assetType === "image" ? "is-active" : ""
+                            }`}
+                            aria-pressed={draft.assetType === "image"}
+                            onClick={() => onSetAssetType("image")}
+                          >
+                            Image Element
+                          </button>
+                          <button
+                            type="button"
+                            className={`elements-type-chip ${
+                              draft.assetType === "video" ? "is-active" : ""
+                            }`}
+                            aria-pressed={draft.assetType === "video"}
+                            onClick={() => onSetAssetType("video")}
+                          >
+                            Video Element
+                          </button>
+                        </div>
+                        <p className="tiny subdued elements-character-type-toggle">
+                          {draft.assetType === "video"
+                            ? "Video elements keep one motion reference ready for future prompt binding."
+                            : "Image elements keep multiple visual references ready for future prompt binding."}
+                        </p>
+                      </div>
                       <label
                         className="control-row character-simple-field"
                         htmlFor="element-manager-name"
@@ -1010,13 +1073,20 @@ export function ElementsManagerShell({
                   />
 
                   <div className="character-sheet-references-title-row character-profile-fields character-profile-fields--label-serif">
-                    <p className="input-label">Element References:</p>
+                    <p className="input-label">Prompt Guidance:</p>
                   </div>
                   <p className="character-sheet-references-helper tiny subdued">
-                    {draft.assetType === "image"
-                      ? "Drag or upload references into each slot. These images define your reusable element."
-                      : "Drop a motion reference into the slot below for this video element."}
+                    Future Kling prompts can reference this element by name, for example:{" "}
+                    <code>@{draft.alias.trim() || draft.name.trim() || "element"}</code>.
                   </p>
+                  <div className="elements-profile-guidance-card">
+                    <p className="elements-profile-guidance-title">Reference guidance</p>
+                    <p className="tiny subdued">
+                      {draft.assetType === "image"
+                        ? "Drag or upload 2 to 4 images into the reference slots. The first two slots are required."
+                        : "Provide one motion reference in the asset slot below. The element stays ready for future scene prompts."}
+                    </p>
+                  </div>
                   <div className="character-reference-empty-grid">
                     {(draft.assetType === "image"
                       ? IMAGE_REFERENCE_SLOT_LABELS

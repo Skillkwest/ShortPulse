@@ -15,6 +15,7 @@ import {
 import { requestGenerationControlPlaneWake } from "../generationControlPlane/controlPlaneWake";
 import { evaluateGenerationAdmissionDecision } from "./generationAdmission/generationAdmissionPolicy";
 import { evaluateScopedGenerationAdmission } from "./generationAdmission/generationAdmissionService";
+import { shouldEmitRecoveryBackpressureTelemetry } from "./generationAdmission/recoveryBackpressure";
 import type { SubmitTarget } from "../falIntegration/contracts";
 import {
   countUserQueuedGenerationSubmits,
@@ -462,19 +463,20 @@ export const createFalSubmitHandler = ({
         scopeUserId?: string | null;
         globalMax: number;
       }) => {
-        const { decision, capacitySnapshot } = await evaluateScopedGenerationAdmission({
-          scopeUserId,
-          provider: providerKey,
-          modelId,
-          config: runtimeFlags.admission,
-          globalMax,
-          staleIgnoreMinAgeSeconds: runtimeFlags.queueMaxWaitSeconds,
-          activeGenerationStaleIgnoreMinAgeSeconds: Math.max(
-            runtimeFlags.runningExhaustMinAgeSeconds,
-            runtimeFlags.providerAttachedReservationCleanupMinAgeSeconds
-          ),
-          orphanGraceSeconds: Math.max(60, runtimeFlags.queueBaseBackoffSeconds * 12),
-        });
+        const { decision, capacitySnapshot, backpressure } =
+          await evaluateScopedGenerationAdmission({
+            scopeUserId,
+            provider: providerKey,
+            modelId,
+            config: runtimeFlags.admission,
+            globalMax,
+            staleIgnoreMinAgeSeconds: runtimeFlags.queueMaxWaitSeconds,
+            activeGenerationStaleIgnoreMinAgeSeconds: Math.max(
+              runtimeFlags.runningExhaustMinAgeSeconds,
+              runtimeFlags.providerAttachedReservationCleanupMinAgeSeconds
+            ),
+            orphanGraceSeconds: Math.max(60, runtimeFlags.queueBaseBackoffSeconds * 12),
+          });
         if (capacitySnapshot.staleIgnoredGlobal > 0) {
           await logGenerationFailure({
             req,
@@ -489,6 +491,37 @@ export const createFalSubmitHandler = ({
               tier: capacitySnapshot.tier,
               stale_ignored_global: capacitySnapshot.staleIgnoredGlobal,
               stale_ignored_tier: capacitySnapshot.staleIgnoredTier,
+            },
+          });
+        }
+        if (
+          scopeUserId == null &&
+          backpressure &&
+          shouldEmitRecoveryBackpressureTelemetry({
+            actor: "submit",
+            provider: providerKey,
+            level: backpressure.level,
+            effectiveGlobalMax: backpressure.effectiveGlobalMax,
+          })
+        ) {
+          await logGenerationFailure({
+            req,
+            routeLabel,
+            source: "telemetry.api.fal_submit.recovery_backpressure_applied",
+            message: "Applied recovery-lag backpressure to shared-provider admission.",
+            statusCode: 200,
+            userId: charge.userId,
+            metadata: {
+              model_id: modelId,
+              requested_global_max: backpressure.requestedGlobalMax,
+              effective_global_max: backpressure.effectiveGlobalMax,
+              reduction: backpressure.reduction,
+              backpressure_level: backpressure.level,
+              stale_provider_attached_reservations:
+                backpressure.signals.staleProviderAttachedReservations,
+              stale_recoverable_generations: backpressure.signals.staleRecoverableGenerations,
+              recent_queue_wait_timeouts: backpressure.signals.recentQueueWaitTimeouts,
+              recent_recovery_p95_ms: backpressure.signals.recentRecoveryP95Ms,
             },
           });
         }
@@ -575,7 +608,7 @@ export const createFalSubmitHandler = ({
       if (runtimeFlags.queueEnabled && (admissionDecision.enforced || queuedSubmitSelected)) {
         if (
           isLocalDevGenerationWorkerRequired(runtimeFlags) &&
-          !hasFreshLocalGenerationWorkerHeartbeat()
+          !(await hasFreshLocalGenerationWorkerHeartbeat())
         ) {
           await charge.refund("Auto-release: local generation queue worker heartbeat missing.", {
             reason: "local_queue_worker_missing",

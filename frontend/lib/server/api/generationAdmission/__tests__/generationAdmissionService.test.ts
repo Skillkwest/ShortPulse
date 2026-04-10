@@ -5,10 +5,16 @@ import {
 } from "../generationAdmissionService";
 
 const readActiveProviderCapacitySnapshotMock = vi.fn();
+const readRecoveryBackpressureDecisionMock = vi.fn();
 
 vi.mock("../../generationQueue/activeProviderCapacity", () => ({
   readActiveProviderCapacitySnapshot: (...args: unknown[]) =>
     readActiveProviderCapacitySnapshotMock(...args),
+}));
+
+vi.mock("../recoveryBackpressure", () => ({
+  readRecoveryBackpressureDecision: (...args: unknown[]) =>
+    readRecoveryBackpressureDecisionMock(...args),
 }));
 
 describe("generationAdmissionService", () => {
@@ -20,6 +26,18 @@ describe("generationAdmissionService", () => {
       tierActive: 0,
       staleIgnoredGlobal: 0,
       staleIgnoredTier: 0,
+    });
+    readRecoveryBackpressureDecisionMock.mockResolvedValue({
+      level: 0,
+      requestedGlobalMax: 4,
+      effectiveGlobalMax: 4,
+      reduction: 0,
+      signals: {
+        staleProviderAttachedReservations: 0,
+        staleRecoverableGenerations: 0,
+        recentQueueWaitTimeouts: 0,
+        recentRecoveryP95Ms: null,
+      },
     });
   });
 
@@ -99,6 +117,7 @@ describe("generationAdmissionService", () => {
     expect(result.decision.snapshot.tier).toBe("video_long");
     expect(result.decision.snapshot.tierActive).toBe(3);
     expect(result.capacitySnapshot.staleIgnoredGlobal).toBe(1);
+    expect(result.backpressure).toBeNull();
   });
 
   it("allows in shadow mode while still marking would-limit state", async () => {
@@ -139,6 +158,7 @@ describe("generationAdmissionService", () => {
     expect(result.decision.snapshot.tier).toBe("image_heavy");
     expect(result.decision.snapshot.tierActive).toBe(2);
     expect(result.decision.snapshot.tierMax).toBe(1);
+    expect(result.backpressure).toBeNull();
   });
 
   it("keeps the legacy user helper aligned with the scoped admission helper", async () => {
@@ -180,5 +200,63 @@ describe("generationAdmissionService", () => {
     });
     expect(decision.snapshot.globalActive).toBe(2);
     expect(decision.snapshot.tierActive).toBe(2);
+  });
+
+  it("reduces shared-provider global max when recovery backpressure is active", async () => {
+    readActiveProviderCapacitySnapshotMock.mockResolvedValueOnce({
+      tier: "image_standard",
+      globalActive: 5,
+      tierActive: 1,
+      staleIgnoredGlobal: 0,
+      staleIgnoredTier: 0,
+    });
+    readRecoveryBackpressureDecisionMock.mockResolvedValueOnce({
+      level: 1,
+      requestedGlobalMax: 6,
+      effectiveGlobalMax: 5,
+      reduction: 1,
+      signals: {
+        staleProviderAttachedReservations: 12,
+        staleRecoverableGenerations: 4,
+        recentQueueWaitTimeouts: 0,
+        recentRecoveryP95Ms: null,
+      },
+    });
+
+    const result = await evaluateScopedGenerationAdmission({
+      scopeUserId: null,
+      provider: "fal",
+      modelId: "fal-ai/nano-banana",
+      config: {
+        mode: "enforce",
+        globalMax: 4,
+        tierLimits: {
+          video_long: 2,
+          image_heavy: 3,
+          image_standard: 4,
+        },
+        retryAfterSeconds: 20,
+        sharedProviderEnabled: true,
+        sharedProviderGlobalMax: 6,
+      },
+      globalMax: 6,
+      staleIgnoreMinAgeSeconds: 900,
+      activeGenerationStaleIgnoreMinAgeSeconds: 900,
+      orphanGraceSeconds: 60,
+    });
+
+    expect(readRecoveryBackpressureDecisionMock).toHaveBeenCalledWith({
+      provider: "fal",
+      requestedGlobalMax: 6,
+    });
+    expect(result.decision.snapshot.globalMax).toBe(5);
+    expect(result.decision.snapshot.globalActive).toBe(6);
+    expect(result.decision.enforced).toBe(true);
+    expect(result.backpressure).toEqual(
+      expect.objectContaining({
+        level: 1,
+        effectiveGlobalMax: 5,
+      })
+    );
   });
 });

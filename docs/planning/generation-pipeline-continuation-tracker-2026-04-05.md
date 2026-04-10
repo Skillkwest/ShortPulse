@@ -1,6 +1,6 @@
 # Generation Pipeline Continuation Tracker Index (2026-04-05)
 
-Last updated: 2026-04-05  
+Last updated: 2026-04-09
 Status: Active  
 Master plan: `docs/planning/generation-pipeline-continuation-master-plan-2026-04-05.md`
 
@@ -76,6 +76,7 @@ Use this checklist during implementation and self-audit:
 3. grid does not infer settled state from missing preview alone
 4. compatibility surface gets smaller or more explicit
 5. keep-only shared helpers remain intact unless a new repo-backed reason appears
+6. no UI, UX, or interaction-behavior changes are introduced unless a separate lane explicitly authorizes them
 
 ## Running Keep / Cut Matrix
 Keep:
@@ -92,6 +93,7 @@ Keep:
 Temporary keep:
 1. `frontend/lib/server/api/falStatusPersistedResults.ts` legacy terminal-failure fallback until projection-backed failure is proven sufficient
 2. `frontend/features/ai-studio/hooks/useAiStudioOutputLifecycle.ts` submit-start fail-closed sweep until the repo has a better authoritative pre-task-start boundary
+3. `frontend/lib/server/api/generationQueue/statusRecoveryKick.ts` as a bounded queue-status scoped compatibility helper until explicit runtime evidence proves it can be removed without hurting convergence
 
 Compatibility-only:
 1. legacy direct-submit seam in `frontend/lib/server/api/falSubmitProxy.ts` and `frontend/lib/server/api/generationSubmitPersistence.ts`

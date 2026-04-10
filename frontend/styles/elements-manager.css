@@ -303,6 +303,68 @@
   color: var(--elements-theme-accent);
 }
 
+.elements-profile-hero {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px 18px;
+  margin: 0 0 16px;
+  padding: 16px 18px;
+  border: 1px solid rgba(201, 205, 214, 0.14);
+  border-radius: 20px;
+  background:
+    linear-gradient(180deg, rgba(19, 15, 22, 0.98), rgba(12, 14, 19, 0.92)),
+    radial-gradient(circle at top left, rgba(255, 77, 151, 0.12), transparent 46%);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.24);
+}
+
+.elements-profile-hero-copy {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  max-width: 52ch;
+}
+
+.elements-profile-eyebrow {
+  margin: 0;
+  color: rgba(255, 140, 204, 0.88);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.elements-profile-hero h2 {
+  margin: 0;
+  color: rgba(255, 240, 247, 0.98);
+  font-size: 1.12rem;
+  font-weight: 700;
+}
+
+.elements-profile-helper {
+  max-width: 56ch;
+}
+
+.elements-profile-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.elements-profile-summary-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 123, 167, 0.18);
+  background: rgba(255, 77, 151, 0.12);
+  color: rgba(255, 230, 241, 0.94);
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
 .elements-character-deck-card,
 .elements-character-sheet-placeholder {
   display: grid;
@@ -452,6 +514,23 @@
 
 .elements-character-reference-textarea {
   resize: vertical;
+}
+
+.elements-profile-guidance-card {
+  display: grid;
+  gap: 6px;
+  margin: 0 0 12px;
+  padding: 12px 14px;
+  border: 1px solid rgba(201, 205, 214, 0.14);
+  border-radius: 16px;
+  background: rgba(8, 12, 18, 0.72);
+}
+
+.elements-profile-guidance-title {
+  margin: 0;
+  color: rgba(233, 239, 245, 0.96);
+  font-size: 0.78rem;
+  font-weight: 700;
 }
 
 .elements-manager-shell--character-clone .character-quickswap-active-scroll {

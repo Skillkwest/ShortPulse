@@ -1,6 +1,6 @@
 # Generation Pipeline Continuation: Compatibility Retirement (2026-04-05)
 
-Last updated: 2026-04-05  
+Last updated: 2026-04-09
 Status: Active
 Parent plan: `docs/planning/generation-pipeline-continuation-master-plan-2026-04-05.md`
 Tracker index: `docs/planning/generation-pipeline-continuation-tracker-2026-04-05.md`
@@ -45,7 +45,21 @@ These surfaces stay in place as migration or shared helpers:
 ## Current Audit Notes
 1. The legacy direct-submit seam is explicitly compatibility-only and the runtime fails closed by default when no queued path is selected unless the legacy fallback is deliberately re-enabled.
 2. The remaining legacy terminal-failure fallback in `falStatusPersistedResults.ts` is still needed for historical rows that may lack projection-backed failure coverage.
-3. No further compatibility-retirement code cut is justified from repo evidence alone; the next deletion decisions require operational/runtime evidence rather than more local cleanup.
+3. `frontend/lib/server/api/generationQueue/statusRecoveryKick.ts` remains classified as a bounded queue-status scoped helper, not a competing recovery engine.
+4. Current repo evidence does not justify deleting `statusRecoveryKick.ts` immediately:
+   - polling remains observational at the route level,
+   - the helper is already constrained by due/age/state checks,
+   - no live forward-path call-site expansion was found during the 2026-04-09 repo refresh.
+5. No further compatibility-retirement code cut is justified from repo evidence alone; the next deletion decisions require operational/runtime evidence rather than more local cleanup.
+
+## Pending seam decision
+Decide explicitly in the next implementation lane whether `frontend/lib/server/api/generationQueue/statusRecoveryKick.ts` should be:
+1. `temporary keep`: retained as a bounded compatibility helper during authority cutover closeout
+2. `remove`: retired after operational evidence confirms webhook-first plus scheduled recovery is sufficient without polling-adjacent claim assistance
+
+Decision rule:
+1. keep it only if it still protects a live user-facing gap that the scheduler/webhook path does not cover
+2. retire it only after evidence shows no meaningful regression in queue-status convergence without it
 
 ## Runtime Evidence Snapshot (2026-04-05)
 Read-only staging snapshot taken from local workspace credentials:

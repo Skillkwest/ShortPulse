@@ -169,7 +169,13 @@ describe("generationControlPlane/workerLoop", () => {
 
     expect(runCycle).not.toHaveBeenCalled();
     expect(sleep).not.toHaveBeenCalled();
-    expect(writeHeartbeat).toHaveBeenCalledTimes(1);
+    expect(writeHeartbeat).toHaveBeenCalledTimes(2);
+    expect(writeHeartbeat).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        status: "running",
+      })
+    );
     expect(writeHeartbeat).toHaveBeenLastCalledWith(
       expect.objectContaining({
         status: "stopped",

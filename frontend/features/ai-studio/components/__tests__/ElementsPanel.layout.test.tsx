@@ -232,8 +232,8 @@ const addInternalReferenceDragPayload = (
 };
 
 const waitForElementProfileShell = async (timeout = 2000) => {
-  await screen.findByRole("heading", { name: "Element Deck" }, { timeout });
-  await screen.findByRole("heading", { name: "Element Sheet" }, { timeout });
+  await screen.findByRole("heading", { name: "Reference Assets" }, { timeout });
+  await screen.findByRole("heading", { name: "Identity and Notes" }, { timeout });
 };
 
 const stubProfileImageFetch = () => {
@@ -293,8 +293,13 @@ describe("ElementsPanel layout", () => {
       "aria-selected",
       "true"
     );
-    expect(screen.getByRole("heading", { name: "Element Deck" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Element Sheet" })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Element Profile" })).toHaveAttribute(
+      "aria-selected",
+      "true"
+    );
+    expect(screen.getByRole("heading", { name: "Red Lantern" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Reference Assets" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Identity and Notes" })).toBeInTheDocument();
     expect(screen.getByDisplayValue("Red Lantern")).toBeInTheDocument();
     expect(screen.getByDisplayValue("redlantern")).toBeInTheDocument();
     expect(screen.getByRole("tab", { name: "Double click me" })).toBeInTheDocument();
@@ -416,7 +421,7 @@ describe("ElementsPanel layout", () => {
     });
   });
 
-  it("quarantines the type section and hides element type toggles", async () => {
+  it("shows element profile guidance and asset type controls", async () => {
     render(<ElementsPanel />);
 
     const openProfileButton = await screen.findByRole("button", {
@@ -425,9 +430,42 @@ describe("ElementsPanel layout", () => {
     fireEvent.click(openProfileButton);
     await waitForElementProfileShell();
 
-    expect(screen.queryByText("Type:")).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Image Element" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Video Element" })).not.toBeInTheDocument();
+    expect(screen.getByLabelText("Element profile summary")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Image Element" })).toHaveAttribute(
+      "aria-pressed",
+      "true"
+    );
+    expect(screen.getByRole("button", { name: "Video Element" })).toHaveAttribute(
+      "aria-pressed",
+      "false"
+    );
+    expect(screen.getByText("Reference guidance")).toBeInTheDocument();
+    expect(screen.getByText(/@redlantern/i)).toBeInTheDocument();
+  });
+
+  it("switches the profile asset type and resets incompatible references", async () => {
+    render(<ElementsPanel />);
+
+    const openProfileButton = await screen.findByRole("button", {
+      name: "Open element profile: Red Lantern",
+    });
+    fireEvent.click(openProfileButton);
+    await waitForElementProfileShell();
+
+    fireEvent.click(screen.getByRole("button", { name: "Video Element" }));
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Video Element" })).toHaveAttribute(
+        "aria-pressed",
+        "true"
+      );
+      expect(screen.getByRole("button", { name: "Image Element" })).toHaveAttribute(
+        "aria-pressed",
+        "false"
+      );
+    });
+    expect(screen.getByText("Motion Reference")).toBeInTheDocument();
+    expect(screen.queryByText("Primary Look")).not.toBeInTheDocument();
   });
 
   it("locks the properties rail scroll in Manage Elements mode", async () => {

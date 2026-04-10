@@ -13,6 +13,7 @@ import {
   createEmptyElementDraft,
 } from "../constants";
 import type {
+  ElementAssetType,
   ElementDraft,
   ElementLibraryItem,
   ElementsWorkflowTab,
@@ -759,6 +760,37 @@ export const useElementsManagerViewState = ({
     [updateActiveReferenceSet]
   );
 
+  const onSetAssetType = React.useCallback(
+    (assetType: ElementAssetType) => {
+      setDraft((current) => {
+        if (current.assetType === assetType) return current;
+
+        const nextReferenceSet = {
+          ...current.referenceSets[current.activeReferenceSetId],
+          assetType,
+          deckReferenceUrls: assetType === "image" ? current.deckReferenceUrls : [],
+          imageReferenceUrls: assetType === "image" ? current.imageReferenceUrls : [],
+          videoReferenceUrl: assetType === "video" ? current.videoReferenceUrl : "",
+        };
+        const nextReferenceSets = {
+          ...current.referenceSets,
+          [current.activeReferenceSetId]: nextReferenceSet,
+        };
+        const nextDraft = {
+          ...current,
+          assetType,
+          referenceSets: nextReferenceSets,
+          deckReferenceUrls: nextReferenceSet.deckReferenceUrls,
+          imageReferenceUrls: nextReferenceSet.imageReferenceUrls,
+          videoReferenceUrl: nextReferenceSet.videoReferenceUrl,
+        };
+        syncSelectedElement(nextDraft);
+        return nextDraft;
+      });
+    },
+    [setDraft, syncSelectedElement]
+  );
+
   const clearActiveVideoReference = React.useCallback(() => {
     updateActiveReferenceSet((current) => {
       if (!current.videoReferenceUrl.trim()) return current;
@@ -1025,6 +1057,7 @@ export const useElementsManagerViewState = ({
     setActiveTab,
     updateDraftField,
     updateActiveReferenceSet,
+    onSetAssetType,
     setActiveReferenceSet,
     onAddReferenceSet,
     onRenameReferenceSet,

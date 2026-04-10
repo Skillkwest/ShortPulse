@@ -36,7 +36,9 @@ import {
   PERF_FLAG_RAF_STATUS_FLUSH,
   PERF_FLAG_REFERENCE_GRID_UPDATE_BACKPRESSURE,
 } from "../logic/perfProfileFlags";
+import { resolveLatestPublishedGenerationDelivery } from "../logic/generatedMediaAuthority";
 import { resolveNormalizedOutputDelivery } from "../logic/referenceGridMedia";
+import { resolveGenerationIdForRequestId } from "../logic/mediaLibraryPersistence";
 import { Provider } from "../logic/stateParsers";
 import { StudioOutput } from "../types";
 import {
@@ -49,6 +51,8 @@ import {
   getStatusConcurrencyRetryDelayMs,
   isStatusErrorRetryBudgetExhausted,
   MAX_CONCURRENT_STATUS_REQUESTS,
+  POLL_DELAY_INITIAL_MS,
+  resolveNoMediaRetryPolicy,
 } from "./taskPolling/pollingSchedulePolicy";
 import {
   condenseError,
@@ -91,6 +95,14 @@ type GenerationFailureContext = {
   maxWaitMs?: number;
 };
 
+type CanonicalPublishedReconcile = {
+  generationId: string | null;
+  previewUrl: string | null;
+  previewStoragePath: string | null;
+  fullStoragePath: string | null;
+  resultUrls: string[];
+};
+
 type TaskCallbacks = {
   updateOutputById: (id: string, updater: (item: StudioOutput) => StudioOutput) => void;
   findOutputById?: (id: string) => StudioOutput | null;
@@ -121,6 +133,7 @@ const AI_STUDIO_FLAG_RAF_STATUS_FLUSH = PERF_FLAG_RAF_STATUS_FLUSH;
 const OUTPUT_PROGRESS_UPDATE_MIN_INTERVAL_MS = 700;
 const HIDDEN_TAB_STATUS_POLL_RETRY_MS = 15_000;
 const SERVER_RECOVERY_PENDING_TIMESTAMP = "Waiting for server recovery...";
+const RECOVERY_RECHECK_TIMESTAMP = "Processing...";
 export const DISPATCH_HANDOFF_INITIAL_POLL_DELAY_MS = 250;
 
 const isDocumentVisible = (): boolean =>
@@ -141,6 +154,12 @@ const areStringArraysEqual = (left: string[] | undefined, right: string[]) => {
   if (!left) return right.length === 0;
   if (left.length !== right.length) return false;
   return left.every((value, index) => value === right[index]);
+};
+
+const asTrimmedString = (value: string | null | undefined): string | null => {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
 };
 
 const resolveLifecycleTaskState = (
@@ -178,8 +197,6 @@ const normalizeLifecycleQueueState = (
       return "queued";
     case "dispatching":
       return "dispatching";
-    case "dispatched":
-      return "dispatched";
     default:
       return undefined;
   }
@@ -366,18 +383,118 @@ export function useAiStudioTasks({
     [updateOutputById]
   );
 
+  const resolveCanonicalPublishedReconcile = useCallback(
+    async ({ outputId, taskId }: { outputId: string; taskId: string }) => {
+      try {
+        const existingOutput = findOutputById?.(outputId) ?? null;
+        const generationId =
+          asTrimmedString(existingOutput?.generationId) ??
+          (await resolveGenerationIdForRequestId(taskId));
+        if (!generationId) return null;
+        const delivery = await resolveLatestPublishedGenerationDelivery({ generationId });
+        if (!delivery) return null;
+        const previewUrl =
+          asTrimmedString(delivery.previewUrl) ?? asTrimmedString(delivery.fullUrl) ?? null;
+        const fullUrl =
+          asTrimmedString(delivery.fullUrl) ?? asTrimmedString(delivery.previewUrl) ?? null;
+        if (!previewUrl && !delivery.previewStoragePath && !delivery.fullStoragePath) {
+          return null;
+        }
+        return {
+          generationId,
+          previewUrl,
+          previewStoragePath: delivery.previewStoragePath,
+          fullStoragePath: delivery.fullStoragePath,
+          resultUrls: fullUrl ? [fullUrl] : previewUrl ? [previewUrl] : [],
+        } satisfies CanonicalPublishedReconcile;
+      } catch {
+        return null;
+      }
+    },
+    [findOutputById]
+  );
+
+  const settleOutputFromCanonicalPublishedState = useCallback(
+    async ({
+      outputId,
+      taskId,
+      provider,
+      timestamp = "Just now",
+    }: {
+      outputId: string;
+      taskId: string;
+      provider: Provider;
+      timestamp?: string;
+    }) => {
+      const canonicalPublished = await resolveCanonicalPublishedReconcile({
+        outputId,
+        taskId,
+      });
+      if (!canonicalPublished) return false;
+      queueOutputUpdate(outputId, (item) => {
+        const nextResultUrls =
+          canonicalPublished.resultUrls.length > 0
+            ? canonicalPublished.resultUrls
+            : (item.resultUrls ?? []);
+        const nextDelivery = resolveNormalizedOutputDelivery({
+          previewStoragePath:
+            canonicalPublished.previewStoragePath ?? item.previewStoragePath ?? null,
+          fullStoragePath: canonicalPublished.fullStoragePath ?? item.fullStoragePath ?? null,
+          previewUrl: canonicalPublished.previewUrl ?? item.previewUrl ?? null,
+          resultUrls: nextResultUrls,
+        });
+        return {
+          ...item,
+          generationId: item.generationId ?? canonicalPublished.generationId ?? item.generationId,
+          taskState: "success",
+          status: "ready",
+          timestamp,
+          resultUrls: areStringArraysEqual(item.resultUrls, nextResultUrls)
+            ? item.resultUrls
+            : nextResultUrls,
+          previewUrl:
+            item.previewUrl === (canonicalPublished.previewUrl ?? item.previewUrl)
+              ? item.previewUrl
+              : (canonicalPublished.previewUrl ?? item.previewUrl),
+          previewStoragePath:
+            item.previewStoragePath === nextDelivery.previewStoragePath
+              ? item.previewStoragePath
+              : nextDelivery.previewStoragePath,
+          fullStoragePath:
+            item.fullStoragePath === nextDelivery.fullStoragePath
+              ? item.fullStoragePath
+              : nextDelivery.fullStoragePath,
+          mediaSource: item.mediaSource ?? "generated",
+          previewTier: item.mode === "video" ? "preview_loop" : "full",
+          archivedAt: null,
+          archiveReason: null,
+          errorMessage: null,
+          errorMessageShort: null,
+          errorDetail: null,
+        };
+      });
+      if (onGenerationSuccess && canonicalPublished.resultUrls.length > 0) {
+        onGenerationSuccess({
+          outputId,
+          taskId,
+          provider,
+          resultUrls: canonicalPublished.resultUrls,
+        });
+      }
+      clearPollTimer(outputId);
+      return true;
+    },
+    [clearPollTimer, onGenerationSuccess, queueOutputUpdate, resolveCanonicalPublishedReconcile]
+  );
+
   const {
-    clearRecoveryTimer,
     handleOutputLookupHardStop,
     outputLookupHardStopNotifiedRef,
     outputLookupMissesRef,
     outputLookupMissingSinceRef,
     resetRecoveryState,
-    scheduleBackgroundRecovery,
   } = useAiStudioTaskRecoveryController({
     clearPollTimer,
-    fetchStatusByProvider,
-    onGenerationSuccess,
     onPollingOutputLookupHardStop,
     queueOutputUpdate,
   });
@@ -490,9 +607,47 @@ export function useAiStudioTasks({
           window.clearTimeout(existingTimeoutId);
           delete pollTimersRef.current[outputId];
         }
-        clearRecoveryTimer(outputId);
       }
 
+      const delay =
+        attempt === 0 && typeof options?.initialDelayMs === "number"
+          ? options.initialDelayMs
+          : getPollDelayMs(attempt);
+      const scheduleRecoveryRecheckPoll = ({
+        nextStartedAt = Date.now(),
+        nextNoMediaAttempt = noMediaAttempt,
+        nextDelayMs = Math.max(POLL_DELAY_INITIAL_MS, delay),
+      }: {
+        nextStartedAt?: number;
+        nextNoMediaAttempt?: number;
+        nextDelayMs?: number;
+      }) => {
+        const retryDelayMs =
+          nextNoMediaAttempt > 0
+            ? resolveNoMediaRetryPolicy({
+                provider,
+                noMediaAttempt: Math.max(0, nextNoMediaAttempt - 1),
+                fallbackDelayMs: nextDelayMs,
+              }).retryDelayMs
+            : nextDelayMs;
+        pollTimersRef.current[outputId] = window.setTimeout(
+          () =>
+            pollTask(
+              taskId,
+              outputId,
+              0,
+              provider,
+              nextStartedAt,
+              nextNoMediaAttempt,
+              activePollSessionId,
+              {
+                ...options,
+                initialDelayMs: 0,
+              }
+            ),
+          retryDelayMs
+        );
+      };
       const elapsedMs = Date.now() - startedAt;
       const maxWaitMs = getPollMaxWaitMs(provider);
       if (elapsedMs > maxWaitMs) {
@@ -516,20 +671,17 @@ export function useAiStudioTasks({
           timestamp:
             item.timestamp === SERVER_RECOVERY_PENDING_TIMESTAMP
               ? item.timestamp
-              : SERVER_RECOVERY_PENDING_TIMESTAMP,
+              : RECOVERY_RECHECK_TIMESTAMP,
           errorMessage: null,
           errorMessageShort: null,
           errorDetail: null,
         }));
-        scheduleBackgroundRecovery(taskId, outputId, provider, "poll_timeout");
-        clearPollTimer(outputId);
+        scheduleRecoveryRecheckPoll({
+          nextStartedAt: Date.now(),
+          nextNoMediaAttempt: 0,
+        });
         return;
       }
-
-      const delay =
-        attempt === 0 && typeof options?.initialDelayMs === "number"
-          ? options.initialDelayMs
-          : getPollDelayMs(attempt);
       const timeoutId = window.setTimeout(async () => {
         if ((pollSessionsRef.current[outputId] ?? 0) !== activePollSessionId) {
           return;
@@ -629,6 +781,17 @@ export function useAiStudioTasks({
             delete outputLookupMissingSinceRef.current[outputId];
             delete outputLookupHardStopNotifiedRef.current[outputId];
 
+            if (noMediaAttempt > 0) {
+              const canonicalSettled = await settleOutputFromCanonicalPublishedState({
+                outputId,
+                taskId,
+                provider,
+              });
+              if (canonicalSettled) {
+                return;
+              }
+            }
+
             const status = (await fetchStatusByProvider(provider, taskId)) as PollStatus;
             const statusGenerationId = resolvePollStatusGenerationId(status);
             const lifecycleHint = readShortPulseLifecycleHint(status);
@@ -654,9 +817,18 @@ export function useAiStudioTasks({
             const lifecycleTaskState = resolveLifecycleTaskState(lifecycleHint);
             const lifecycleStatusLabel =
               lifecycleHint?.statusLabel?.trim() ||
-              (lifecycleHint?.recoveryPending ? SERVER_RECOVERY_PENDING_TIMESTAMP : null);
+              (lifecycleHint?.recoveryPending ? RECOVERY_RECHECK_TIMESTAMP : null);
             if (lifecycleTaskState === "success") {
               if (lifecycleResultUrls.length === 0) {
+                const canonicalSettled = await settleOutputFromCanonicalPublishedState({
+                  outputId,
+                  taskId,
+                  provider,
+                  timestamp: lifecycleStatusLabel ?? "Just now",
+                });
+                if (canonicalSettled) {
+                  return;
+                }
                 addBreadcrumb({
                   type: "ui",
                   level: "warn",
@@ -678,18 +850,14 @@ export function useAiStudioTasks({
                   timestamp:
                     item.timestamp === SERVER_RECOVERY_PENDING_TIMESTAMP
                       ? item.timestamp
-                      : SERVER_RECOVERY_PENDING_TIMESTAMP,
+                      : RECOVERY_RECHECK_TIMESTAMP,
                   errorMessage: null,
                   errorMessageShort: null,
                   errorDetail: null,
                 }));
-                scheduleBackgroundRecovery(
-                  taskId,
-                  outputId,
-                  provider,
-                  "no_media_after_terminal_success"
-                );
-                clearPollTimer(outputId);
+                scheduleRecoveryRecheckPoll({
+                  nextNoMediaAttempt: noMediaAttempt + 1,
+                });
                 return;
               }
 
@@ -744,7 +912,6 @@ export function useAiStudioTasks({
                   resultUrls: resolvedUrls,
                 });
               }
-              clearRecoveryTimer(outputId);
               clearPollTimer(outputId);
               return;
             }
@@ -825,7 +992,19 @@ export function useAiStudioTasks({
                         item.queueState) !== item.queueState;
                     const taskStateChanged = item.taskState !== nextTaskState;
                     const timestampChanged = item.timestamp !== nextTimestamp;
-                    if (!queueStateChanged && !taskStateChanged && !timestampChanged) return item;
+                    const recoveryPendingErrorResetNeeded =
+                      lifecycleHint?.recoveryPending === true &&
+                      (item.errorMessage !== null ||
+                        item.errorMessageShort !== null ||
+                        item.errorDetail !== null);
+                    if (
+                      !queueStateChanged &&
+                      !taskStateChanged &&
+                      !timestampChanged &&
+                      !recoveryPendingErrorResetNeeded
+                    ) {
+                      return item;
+                    }
                     lastProgressUpdateAtRef.current[outputId] = now;
                     lastProgressSignatureRef.current[outputId] = nextProgressSignature;
                     return {
@@ -881,7 +1060,19 @@ export function useAiStudioTasks({
                     const queueStateChanged = nextQueueState !== item.queueState;
                     const taskStateChanged = item.taskState !== nextTaskState;
                     const timestampChanged = item.timestamp !== nextTimestamp;
-                    if (!queueStateChanged && !taskStateChanged && !timestampChanged) return item;
+                    const recoveryPendingErrorResetNeeded =
+                      lifecycleHint.recoveryPending === true &&
+                      (item.errorMessage !== null ||
+                        item.errorMessageShort !== null ||
+                        item.errorDetail !== null);
+                    if (
+                      !queueStateChanged &&
+                      !taskStateChanged &&
+                      !timestampChanged &&
+                      !recoveryPendingErrorResetNeeded
+                    ) {
+                      return item;
+                    }
                     lastProgressUpdateAtRef.current[outputId] = now;
                     lastProgressSignatureRef.current[outputId] = nextProgressSignature;
                     return {
@@ -920,6 +1111,14 @@ export function useAiStudioTasks({
             const { state } = resolveProviderStatusState(status);
 
             if (terminalSuccessStates.has(state)) {
+              const canonicalSettled = await settleOutputFromCanonicalPublishedState({
+                outputId,
+                taskId,
+                provider,
+              });
+              if (canonicalSettled) {
+                return;
+              }
               addBreadcrumb({
                 type: "ui",
                 level: "warn",
@@ -939,18 +1138,14 @@ export function useAiStudioTasks({
                 timestamp:
                   item.timestamp === SERVER_RECOVERY_PENDING_TIMESTAMP
                     ? item.timestamp
-                    : SERVER_RECOVERY_PENDING_TIMESTAMP,
+                    : RECOVERY_RECHECK_TIMESTAMP,
                 errorMessage: null,
                 errorMessageShort: null,
                 errorDetail: null,
               }));
-              scheduleBackgroundRecovery(
-                taskId,
-                outputId,
-                provider,
-                "no_media_after_terminal_success"
-              );
-              clearPollTimer(outputId);
+              scheduleRecoveryRecheckPoll({
+                nextNoMediaAttempt: noMediaAttempt + 1,
+              });
               return;
             }
 
@@ -974,13 +1169,12 @@ export function useAiStudioTasks({
                 timestamp:
                   item.timestamp === SERVER_RECOVERY_PENDING_TIMESTAMP
                     ? item.timestamp
-                    : SERVER_RECOVERY_PENDING_TIMESTAMP,
+                    : RECOVERY_RECHECK_TIMESTAMP,
                 errorMessage: null,
                 errorMessageShort: null,
                 errorDetail: null,
               }));
-              scheduleBackgroundRecovery(taskId, outputId, provider, "status_poll_error");
-              clearPollTimer(outputId);
+              scheduleRecoveryRecheckPoll({});
               return;
             }
 
@@ -1040,13 +1234,15 @@ export function useAiStudioTasks({
                 timestamp:
                   item.timestamp === SERVER_RECOVERY_PENDING_TIMESTAMP
                     ? item.timestamp
-                    : SERVER_RECOVERY_PENDING_TIMESTAMP,
+                    : RECOVERY_RECHECK_TIMESTAMP,
                 errorMessage: null,
                 errorMessageShort: null,
                 errorDetail: null,
               }));
-              scheduleBackgroundRecovery(taskId, outputId, provider, "status_poll_error");
-              clearPollTimer(outputId);
+              scheduleRecoveryRecheckPoll({
+                nextStartedAt: Date.now(),
+                nextNoMediaAttempt: 0,
+              });
               return;
             }
             const now = Date.now();
@@ -1103,7 +1299,6 @@ export function useAiStudioTasks({
     },
     [
       clearPollTimer,
-      clearRecoveryTimer,
       findOutputById,
       handleOutputLookupHardStop,
       notifyGenerationFailure,
@@ -1113,7 +1308,7 @@ export function useAiStudioTasks({
       outputLookupMissesRef,
       outputLookupMissingSinceRef,
       queueOutputUpdate,
-      scheduleBackgroundRecovery,
+      settleOutputFromCanonicalPublishedState,
     ]
   );
 

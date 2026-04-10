@@ -8,7 +8,9 @@ import { logGenerationFailure } from "./appErrorLogs";
 import { readFalRuntimeFlags } from "./falRuntimeFlags";
 import { persistGenerationObservation } from "./generationObservationInbox";
 import { resolveProviderRequestOwnership } from "./generationBilling";
+import { executeGenerationRecovery } from "../falIntegration/recoveryExecution";
 import {
+  buildPersistedFailedPayload,
   buildPersistedCompletedPayload,
   readPersistedGenerationStatusContext,
 } from "./falStatusPersistedResults";
@@ -17,6 +19,7 @@ import {
   buildFalStatusErrorPayload,
   buildShortPulseLifecycleHint,
   buildFalStatusTransientPayload,
+  probeResultBasesForMedia,
   probeResponseUrlsForMedia,
   readJsonSafe,
   type JsonObject,
@@ -105,7 +108,7 @@ const resolveLifecycleStatusLabel = ({
   recoveryPending?: boolean;
 }): string | null => {
   if (taskState === "success") return "Just now";
-  if (recoveryPending) return "Waiting for server recovery...";
+  if (recoveryPending) return "Processing...";
   if (taskState === "pending") return "Processing...";
   if (taskState === "running") return "Processing...";
   return null;
@@ -248,14 +251,13 @@ export const createFalStatusHandler = ({
           requestId,
           generationId,
           lifecycle: buildShortPulseLifecycleHint({
-            taskState: "running",
-            isTerminal: false,
+            taskState: "success",
+            isTerminal: true,
             providerState: persistedGenerationContext.status ?? "completed",
             recoveryPending: true,
             queueState: ACTIVE_POLLING_QUEUE_STATE,
             statusLabel: resolveLifecycleStatusLabel({
-              taskState: "running",
-              recoveryPending: true,
+              taskState: "success",
             }),
           }),
         })
@@ -354,6 +356,57 @@ export const createFalStatusHandler = ({
         });
       }
     };
+
+    const executeImmediateRecovery = async ({
+      observationType,
+      payload,
+    }: {
+      observationType: "completed" | "failed";
+      payload: JsonObject;
+    }) => {
+      try {
+        await executeGenerationRecovery({
+          actor: "poll",
+          generationId,
+          requestId,
+          userId: user.id,
+          observation: {
+            state: observationType === "completed" ? "completed" : "failed",
+            payload,
+            mediaUrls:
+              observationType === "completed"
+                ? readProviderMediaUrls({
+                    provider: providerKey,
+                    modelId,
+                    payload,
+                  })
+                : [],
+          },
+          routeLabel,
+        });
+      } catch (error) {
+        await logGenerationFailure({
+          req,
+          routeLabel,
+          source: "telemetry.api.fal_status.immediate_recovery_failed",
+          message: "Failed to execute immediate generation recovery from polling.",
+          statusCode: 200,
+          userId: user.id,
+          userEmail: user.email ?? null,
+          metadata: {
+            provider_request_id: requestId,
+            observation_type: observationType,
+            detail: error instanceof Error ? error.message : String(error),
+          },
+        });
+      }
+    };
+
+    const readCanonicalStatusContext = async () =>
+      readPersistedGenerationStatusContext({
+        userId: user.id,
+        requestId,
+      });
 
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
@@ -484,6 +537,44 @@ export const createFalStatusHandler = ({
           modelId,
           payload,
         });
+        await executeImmediateRecovery({
+          observationType: "completed",
+          payload,
+        });
+        const canonicalContext = await readCanonicalStatusContext();
+        if (canonicalContext.resultUrls.length > 0) {
+          return res.status(200).json(
+            buildPersistedCompletedPayload({
+              requestId,
+              resultUrls: canonicalContext.resultUrls,
+              generationId: canonicalContext.generationId ?? generationId,
+            })
+          );
+        }
+        if (canonicalContext.taskState === "fail") {
+          return respondError({
+            res,
+            requestId,
+            error: canonicalContext.errorMessageShort?.trim() || "Generation failed",
+            detail:
+              canonicalContext.errorDetail ??
+              canonicalContext.errorMessageShort ??
+              "Generation failed",
+            alwaysHttp200,
+            statusCode: 422,
+            generationId: canonicalContext.generationId ?? generationId,
+            lifecycle: buildShortPulseLifecycleHint({
+              taskState: "fail",
+              isTerminal: true,
+              errorMessage: canonicalContext.errorMessageShort?.trim() || "Generation failed",
+              errorDetail:
+                canonicalContext.errorDetail ??
+                canonicalContext.errorMessageShort ??
+                "Generation failed",
+              queueState: canonicalContext.queueState ?? "failed",
+            }),
+          });
+        }
         await persistPollObservation({
           observationType: "completed",
           payload,
@@ -692,6 +783,31 @@ export const createFalStatusHandler = ({
           status: normalizedStatus,
         })
       ) {
+        await executeImmediateRecovery({
+          observationType: "failed",
+          payload: statusData.json,
+        });
+        const canonicalContext = await readCanonicalStatusContext();
+        if (canonicalContext.taskState === "fail") {
+          return res.status(200).json(
+            buildPersistedFailedPayload({
+              requestId,
+              generationId: canonicalContext.generationId ?? generationId,
+              errorMessage:
+                canonicalContext.errorMessageShort?.trim() ||
+                asProviderString(statusData.json.error) ||
+                asProviderString(statusData.json.message) ||
+                asProviderString(statusData.json.statusMessage) ||
+                "Generation failed",
+              errorDetail:
+                canonicalContext.errorDetail ??
+                canonicalContext.errorMessageShort ??
+                statusData.json,
+              providerState: normalizedStatus,
+              queueState: canonicalContext.queueState ?? "failed",
+            })
+          );
+        }
         await persistPollObservation({
           observationType: "failed",
           payload: statusData.json,
@@ -779,32 +895,19 @@ export const createFalStatusHandler = ({
 
         // Probe direct result endpoints as a fallback when status is lagging.
         // Fal occasionally materializes result payload before status transitions.
-        const directResultProbeResults = await Promise.all(
-          orderedResultBases.map(async (baseUrl) => {
-            try {
-              const probeResponse = await dispatchProviderResultRequest({
-                provider: providerKey,
-                baseUrl,
-                requestId,
-                apiKey,
-                signal: controller.signal,
-              });
-              const probeData = await readJsonSafe(probeResponse);
-              return { probeResponse, probeData };
-            } catch {
-              return null;
-            }
-          })
-        );
-        for (const directResultProbeResult of directResultProbeResults) {
-          if (!directResultProbeResult) continue;
-          const { probeResponse, probeData } = directResultProbeResult;
-          if (!probeResponse.ok || !probeData.isJson || !payloadHasMedia(probeData.json)) {
-            continue;
-          }
+        const directResultProbe = await probeResultBasesForMedia({
+          provider: providerKey,
+          modelId,
+          resultBaseUrls: orderedResultBases,
+          requestId,
+          statusHint: normalizedStatus,
+          apiKey,
+          signal: controller.signal,
+        });
+        if (directResultProbe) {
           return captureAndRespondSuccess({
-            payload: probeData.json,
-            payloadStatus: "completed",
+            payload: directResultProbe.payload,
+            payloadStatus: directResultProbe.payloadStatus,
           });
         }
         return res.status(alwaysHttp200 ? 200 : statusResp.status).json(
@@ -1027,6 +1130,30 @@ export const createFalStatusHandler = ({
             )
           );
         }
+        await executeImmediateRecovery({
+          observationType: "failed",
+          payload: resultData.json,
+        });
+        const canonicalContext = await readCanonicalStatusContext();
+        if (canonicalContext.taskState === "fail") {
+          return res.status(200).json(
+            buildPersistedFailedPayload({
+              requestId,
+              generationId: canonicalContext.generationId ?? generationId,
+              errorMessage:
+                canonicalContext.errorMessageShort?.trim() ||
+                asProviderString(resultData.json.error) ||
+                asProviderString(resultData.json.message) ||
+                "Generation failed",
+              errorDetail:
+                canonicalContext.errorDetail ??
+                canonicalContext.errorMessageShort ??
+                resultData.json,
+              providerState: readPayloadLifecycleStatus(resultData.json) ?? normalizedStatus,
+              queueState: canonicalContext.queueState ?? "failed",
+            })
+          );
+        }
         await persistPollObservation({
           observationType: "failed",
           payload: resultData.json,
@@ -1074,6 +1201,29 @@ export const createFalStatusHandler = ({
       }
 
       if (explicitResultFailure) {
+        await executeImmediateRecovery({
+          observationType: "failed",
+          payload: resultData.json,
+        });
+        const canonicalContext = await readCanonicalStatusContext();
+        if (canonicalContext.taskState === "fail") {
+          return res.status(200).json(
+            buildPersistedFailedPayload({
+              requestId,
+              generationId: canonicalContext.generationId ?? generationId,
+              errorMessage:
+                canonicalContext.errorMessageShort?.trim() ||
+                resultErrorMessage ||
+                "Generation failed to produce media output",
+              errorDetail:
+                canonicalContext.errorDetail ??
+                canonicalContext.errorMessageShort ??
+                resultData.json,
+              providerState: resultStatus ?? normalizedStatus,
+              queueState: canonicalContext.queueState ?? "failed",
+            })
+          );
+        }
         await persistPollObservation({
           observationType: "failed",
           payload: resultData.json,

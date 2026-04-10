@@ -364,7 +364,7 @@ describe("useAiStudioOutputLifecycle", () => {
     }
   });
 
-  it("fails task-backed outputs that never resolve preview media", async () => {
+  it("does not locally timeout task-backed outputs that never resolve preview media", async () => {
     vi.useFakeTimers();
     try {
       const { result } = renderHook(() =>
@@ -388,15 +388,13 @@ describe("useAiStudioOutputLifecycle", () => {
       });
 
       expect(result.current.outputs[0]?.taskState).toBe("running");
-      expect(result.current.outputs[0]?.timestamp).toBe("Waiting for server recovery...");
-      expect(result.current.outputs[0]?.errorMessage).toBeNull();
-      expect(reportAppErrorMock).toHaveBeenCalledWith(
+      expect(result.current.outputs[0]?.timestamp).toBe("Processing...");
+      expect(result.current.outputs[0]?.errorMessage).toBeUndefined();
+      expect(reportAppErrorMock).not.toHaveBeenCalledWith(
         expect.objectContaining({
           source: "generation.task_backed_stale_timeout",
           metadata: expect.objectContaining({
             output_id: "generation-db-tasked-timeout",
-            failure_reason_code: "TASK_BACKED_STALE_TIMEOUT",
-            task_id: "req-tasked-timeout",
           }),
         })
       );

@@ -16,7 +16,6 @@ import { evaluateStaleOutputCleanup, type OutputLifecycleMap } from "../logic/st
 import type { StudioOutput } from "../types";
 
 const SUBMIT_START_TIMEOUT_MS = 90_000;
-const TASK_BACKED_LOADING_TIMEOUT_MS = 12 * 60 * 1000;
 const QUEUE_WAIT_TIMEOUT_MS = 30 * 60 * 1000;
 const AUTO_FAILED_OUTPUT_REMOVAL_MS = 2 * 60 * 1000;
 const STALE_OUTPUT_SWEEP_INTERVAL_MS = 15_000;
@@ -102,13 +101,12 @@ export const useAiStudioOutputLifecycle = ({
     const outputsSnapshot = outputsRef.current;
     const cleanup = evaluateStaleOutputCleanup(outputsSnapshot, lifecycle, now, {
       submitStartTimeoutMs: SUBMIT_START_TIMEOUT_MS,
-      taskBackedLoadingTimeoutMs: TASK_BACKED_LOADING_TIMEOUT_MS,
+      taskBackedLoadingTimeoutMs: 0,
       queueWaitTimeoutMs: QUEUE_WAIT_TIMEOUT_MS,
       autoFailedRetentionMs: AUTO_FAILED_OUTPUT_REMOVAL_MS,
     });
     const staleLoadingSet = new Set(cleanup.staleLoadingIds);
     const submitStartTimeoutSet = new Set(cleanup.submitStartTimeoutIds);
-    const taskBackedTimeoutSet = new Set(cleanup.taskBackedTimeoutIds);
     const queueWaitTimeoutSet = new Set(cleanup.queueWaitTimeoutIds);
     const removableSet = new Set(cleanup.removableIds);
     const locallyFailedSet = submitStartTimeoutSet;
@@ -129,20 +127,13 @@ export const useAiStudioOutputLifecycle = ({
     for (const staleOutput of outputsSnapshot) {
       if (!staleLoadingSet.has(staleOutput.id)) continue;
       const isSubmitStartTimeout = submitStartTimeoutSet.has(staleOutput.id);
-      const isTaskBackedTimeout = taskBackedTimeoutSet.has(staleOutput.id);
       void reportAppError({
-        source: isSubmitStartTimeout
-          ? "fal_submit_not_started"
-          : isTaskBackedTimeout
-            ? "generation.task_backed_stale_timeout"
-            : "generation.queue_wait_timeout",
+        source: isSubmitStartTimeout ? "fal_submit_not_started" : "generation.queue_wait_timeout",
         scope: "generation",
         severity: "high",
         message: isSubmitStartTimeout
           ? "Generation failed to start before task initialization."
-          : isTaskBackedTimeout
-            ? "Generation polling stopped making visible progress after provider dispatch."
-            : "Generation timed out while waiting in queue.",
+          : "Generation timed out while waiting in queue.",
         route: currentRoute(),
         metadata: {
           output_id: staleOutput.id,
@@ -151,11 +142,7 @@ export const useAiStudioOutputLifecycle = ({
           provider: staleOutput.provider ?? null,
           task_id: staleOutput.taskId ?? null,
           queue_state: staleOutput.queueState ?? null,
-          failure_reason_code: isSubmitStartTimeout
-            ? "SUBMIT_START_TIMEOUT"
-            : isTaskBackedTimeout
-              ? "TASK_BACKED_STALE_TIMEOUT"
-              : "QUEUE_WAIT_TIMEOUT",
+          failure_reason_code: isSubmitStartTimeout ? "SUBMIT_START_TIMEOUT" : "QUEUE_WAIT_TIMEOUT",
         },
       });
     }
@@ -173,18 +160,13 @@ export const useAiStudioOutputLifecycle = ({
           next.push(item);
           return;
         }
-        const isTaskBackedTimeout = taskBackedTimeoutSet.has(item.id);
         const isQueueWaitTimeout = queueWaitTimeoutSet.has(item.id);
         changed = true;
-        if (isTaskBackedTimeout || isQueueWaitTimeout) {
+        if (isQueueWaitTimeout) {
           next.push({
             ...item,
             status: "ready",
-            taskState: isTaskBackedTimeout
-              ? "running"
-              : item.taskState === "pending"
-                ? "pending"
-                : "running",
+            taskState: item.taskState === "pending" ? "pending" : "running",
             timestamp:
               item.timestamp === SERVER_RECOVERY_PENDING_TIMESTAMP
                 ? item.timestamp

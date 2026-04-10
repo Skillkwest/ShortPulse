@@ -9,7 +9,6 @@ import { normalizeProviderForPolling, type Provider } from "../logic/stateParser
 import type { StudioOutput } from "../types";
 import {
   markQueuedStatusRecoveryPending,
-  normalizeQueuedLifecycleQueueState,
   resolveDispatchedPollingProvider,
   syncQueuedStatusLifecycle,
 } from "./taskSubmission/queueStatusPolling";
@@ -29,36 +28,12 @@ type UseAiStudioTaskOrchestrationParams = {
   setPrimaryEditReferenceImageUrl?: (url: string | null) => void;
 };
 
-type StuckSpinnerRetryState = {
-  firstSeenAtMs: number;
-  lastRetryAtMs: number;
-  retries: number;
-};
-
-const STUCK_SPINNER_RETRY_INTERVAL_MS = 30_000;
-const STUCK_SPINNER_RETRY_AGE_MS = 90_000;
-const STUCK_SPINNER_MAX_AUTO_RETRIES = 2;
 const QUEUE_RESUME_SCAN_INTERVAL_MS = 20_000;
 const QUEUE_RESUME_MIN_RECHECK_MS = 12_000;
 const QUEUE_RESUME_MAX_CONCURRENT = 3;
 
 const isDocumentVisible = (): boolean =>
   typeof document === "undefined" || document.visibilityState === "visible";
-
-const isAutoRetryEligible = (output: StudioOutput): boolean => {
-  const hasTerminalNoMediaFailure =
-    output.errorMessageShort === "No media returned." ||
-    /no media url was returned/i.test(output.errorMessage ?? "");
-  if (hasTerminalNoMediaFailure) return false;
-  const hasTaskId = typeof output.taskId === "string" && output.taskId.trim().length > 0;
-  if (!hasTaskId) return false;
-  if (output.previewUrl || output.previewText) return false;
-  return (
-    output.taskState === "pending" ||
-    output.taskState === "running" ||
-    output.taskState === "success"
-  );
-};
 
 const hasSettledOutputPayload = (output: StudioOutput): boolean => {
   if (output.status === "saved") return true;
@@ -94,20 +69,6 @@ const isQueueResumeEligible = (output: StudioOutput): boolean => {
   return !hasSettledOutputPayload(output);
 };
 
-const isTaskPollingResumeEligible = ({
-  output,
-  hasActivePollTimer,
-}: {
-  output: StudioOutput;
-  hasActivePollTimer: boolean;
-}): boolean => {
-  const taskId = typeof output.taskId === "string" ? output.taskId.trim() : "";
-  if (!taskId || hasActivePollTimer) return false;
-  if (hasSettledOutputPayload(output)) return false;
-  if (output.taskState === "fail") return false;
-  return true;
-};
-
 /**
  * Returns task submission and polling handlers used by AI Studio state orchestration.
  */
@@ -119,21 +80,14 @@ export const useAiStudioTaskOrchestration = ({
 }: UseAiStudioTaskOrchestrationParams) => {
   const { updateOutputById, notifyGenerationFailure, setUiNotice, setOutputs } =
     taskSubmissionConfig;
-  const outputsRef = useRef<StudioOutput[]>(outputs);
   const queueResumeCandidatesRef = useRef<StudioOutput[]>([]);
-  const stuckSpinnerRetryStateRef = useRef<Record<string, StuckSpinnerRetryState>>({});
   const queueResumeInFlightRef = useRef<Record<string, boolean>>({});
   const queueResumeLastCheckedAtRef = useRef<Record<string, number>>({});
   const queueResumeNotFoundRetriesRef = useRef<Record<string, number>>({});
   const queueResumeSignatureRef = useRef<string>("");
 
   useEffect(() => {
-    outputsRef.current = outputs;
-    queueResumeCandidatesRef.current = outputs.filter(
-      (output) =>
-        isQueueResumeEligible(output) ||
-        isTaskPollingResumeEligible({ output, hasActivePollTimer: false })
-    );
+    queueResumeCandidatesRef.current = outputs.filter((output) => isQueueResumeEligible(output));
   }, [outputs]);
 
   const handlePollingOutputLookupHardStop = useCallback(
@@ -193,7 +147,7 @@ export const useAiStudioTaskOrchestration = ({
     [clearPrimaryReferenceReplacementOutput, findOutputById, isPrimaryReferenceReplacementOutput]
   );
 
-  const { startPollingTask, clearPollTimer, pollTimersRef } = useAiStudioTasks({
+  const { startPollingTask, clearPollTimer } = useAiStudioTasks({
     updateOutputById,
     findOutputById,
     notifyGenerationFailure,
@@ -247,21 +201,6 @@ export const useAiStudioTaskOrchestration = ({
     outputsSnapshot.forEach((output) => {
       const lastCheckedAt = queueResumeLastCheckedAtRef.current[output.id] ?? 0;
       if (now - lastCheckedAt < QUEUE_RESUME_MIN_RECHECK_MS) return;
-      const hasActivePollTimer = typeof pollTimersRef.current[output.id] === "number";
-      if (isTaskPollingResumeEligible({ output, hasActivePollTimer })) {
-        activeResumeIds.add(output.id);
-        queueResumeLastCheckedAtRef.current[output.id] = now;
-        const outputProvider = (output.provider as Provider | undefined) ?? "fal";
-        const provider =
-          typeof output.modelId === "string" && output.modelId.trim().length > 0
-            ? normalizeProviderForPolling(output.modelId, outputProvider)
-            : outputProvider;
-        clearPollTimer(output.id);
-        startPollingTask(output.taskId!.trim(), output.id, 0, provider, Date.now(), 0, undefined, {
-          initialDelayMs: DISPATCH_HANDOFF_INITIAL_POLL_DELAY_MS,
-        });
-        return;
-      }
       if (!isQueueResumeEligible(output)) return;
       activeResumeIds.add(output.id);
       if (inFlightCount >= QUEUE_RESUME_MAX_CONCURRENT) return;
@@ -316,7 +255,7 @@ export const useAiStudioTaskOrchestration = ({
                     : item.generationId),
                 taskId: requestId,
                 generationTraceId: requestId,
-                queueState: normalizeQueuedLifecycleQueueState(lifecycle?.queueState, "dispatched"),
+                queueState: undefined,
                 taskState: lifecycle?.taskState ?? "running",
                 status: "ready",
                 timestamp: lifecycle?.statusLabel ?? "Submitted",
@@ -378,55 +317,7 @@ export const useAiStudioTaskOrchestration = ({
         delete queueResumeNotFoundRetriesRef.current[outputId];
       }
     });
-  }, [clearPollTimer, findOutputById, pollTimersRef, startPollingTask, updateOutputById]);
-
-  const runStuckSpinnerWatchdog = useCallback(() => {
-    if (!isDocumentVisible()) return;
-    const now = Date.now();
-    const activeEligibleIds = new Set<string>();
-    const outputsSnapshot = outputsRef.current;
-
-    outputsSnapshot.forEach((output) => {
-      if (!isAutoRetryEligible(output)) return;
-      activeEligibleIds.add(output.id);
-
-      const existing = stuckSpinnerRetryStateRef.current[output.id];
-      if (!existing) {
-        stuckSpinnerRetryStateRef.current[output.id] = {
-          firstSeenAtMs: now,
-          lastRetryAtMs: 0,
-          retries: 0,
-        };
-        return;
-      }
-
-      if (pollTimersRef.current[output.id]) return;
-      if (existing.retries >= STUCK_SPINNER_MAX_AUTO_RETRIES) return;
-
-      const ageMs = now - existing.firstSeenAtMs;
-      if (ageMs < STUCK_SPINNER_RETRY_AGE_MS) return;
-      if (existing.lastRetryAtMs > 0 && now - existing.lastRetryAtMs < STUCK_SPINNER_RETRY_AGE_MS) {
-        return;
-      }
-
-      existing.retries += 1;
-      existing.lastRetryAtMs = now;
-      retryOutputStatus(output.id);
-    });
-
-    Object.keys(stuckSpinnerRetryStateRef.current).forEach((outputId) => {
-      if (!activeEligibleIds.has(outputId)) {
-        delete stuckSpinnerRetryStateRef.current[outputId];
-      }
-    });
-  }, [pollTimersRef, retryOutputStatus]);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    runStuckSpinnerWatchdog();
-    const intervalId = window.setInterval(runStuckSpinnerWatchdog, STUCK_SPINNER_RETRY_INTERVAL_MS);
-    return () => window.clearInterval(intervalId);
-  }, [runStuckSpinnerWatchdog]);
+  }, [clearPollTimer, findOutputById, startPollingTask, updateOutputById]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;

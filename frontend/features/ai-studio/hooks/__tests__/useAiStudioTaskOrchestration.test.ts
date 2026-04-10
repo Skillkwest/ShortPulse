@@ -504,189 +504,7 @@ describe("useAiStudioTaskOrchestration", () => {
     expect(outputs[0]?.errorMessage).toBeNull();
   });
 
-  it("auto-retries stuck spinner outputs when task exists but no poll timer is active", () => {
-    vi.useFakeTimers();
-    try {
-      let outputs = [
-        createOutput({ id: "out-1", taskId: "task-123", provider: "fal", taskState: "running" }),
-      ];
-      const updateOutputById = vi.fn(
-        (id: string, updater: (item: StudioOutput) => StudioOutput) => {
-          outputs = outputs.map((item) => (item.id === id ? updater(item) : item));
-        }
-      );
-
-      renderHook(() =>
-        useAiStudioTaskOrchestration({
-          taskSubmissionConfig: {
-            aspect: "9:16",
-            mode: "image",
-            model: "model-id",
-            prompt: "Prompt",
-            selectedTool: "create",
-            imageResolution: "model_default",
-            videoDurationSeconds: 6,
-            videoResolution: "1080p",
-            videoGenerateAudio: false,
-            videoReferenceMode: "standard",
-            videoReferenceImageUrl: null,
-            motionReferenceVideoUrl: null,
-            videoCameraFixed: false,
-            videoAutoFix: false,
-            klingNegativePrompt: "blur",
-            klingCfgScale: 0.5,
-            klingShotType: "customize",
-            klingVoiceIds: ["", ""],
-            klingMultiPrompts: [],
-            klingElements: [],
-            setPanelGenerating: vi.fn(),
-            setUiError: asDispatch<string | null>(vi.fn()),
-            setUiNotice: asDispatch<string | null>(vi.fn()),
-            setOutputs: asDispatch<StudioOutput[]>(vi.fn()),
-            setSaved: asDispatch<boolean>(vi.fn()),
-            getDefaultDurationSeconds: vi.fn(() => 6),
-            notifyGenerationFailure: vi.fn(),
-            updateOutputById,
-            ensureGenerationRecord: vi.fn(async () => null),
-          },
-          outputs,
-          findOutputById: (id: string) => outputs.find((item) => item.id === id) ?? null,
-        })
-      );
-
-      act(() => {
-        vi.advanceTimersByTime(90_000);
-      });
-
-      expect(clearPollTimer).toHaveBeenCalledWith("out-1");
-      expect(startPollingTask).toHaveBeenCalledWith("task-123", "out-1", 0, "fal");
-    } finally {
-      vi.useRealTimers();
-    }
-  });
-
-  it("does not auto-retry while poll timer is already active", () => {
-    vi.useFakeTimers();
-    try {
-      const outputs = [
-        createOutput({ id: "out-1", taskId: "task-123", provider: "fal", taskState: "running" }),
-      ];
-      pollTimersRef.current["out-1"] = 123;
-
-      renderHook(() =>
-        useAiStudioTaskOrchestration({
-          taskSubmissionConfig: {
-            aspect: "9:16",
-            mode: "image",
-            model: "model-id",
-            prompt: "Prompt",
-            selectedTool: "create",
-            imageResolution: "model_default",
-            videoDurationSeconds: 6,
-            videoResolution: "1080p",
-            videoGenerateAudio: false,
-            videoReferenceMode: "standard",
-            videoReferenceImageUrl: null,
-            motionReferenceVideoUrl: null,
-            videoCameraFixed: false,
-            videoAutoFix: false,
-            klingNegativePrompt: "blur",
-            klingCfgScale: 0.5,
-            klingShotType: "customize",
-            klingVoiceIds: ["", ""],
-            klingMultiPrompts: [],
-            klingElements: [],
-            setPanelGenerating: vi.fn(),
-            setUiError: asDispatch<string | null>(vi.fn()),
-            setUiNotice: asDispatch<string | null>(vi.fn()),
-            setOutputs: asDispatch<StudioOutput[]>(vi.fn()),
-            setSaved: asDispatch<boolean>(vi.fn()),
-            getDefaultDurationSeconds: vi.fn(() => 6),
-            notifyGenerationFailure: vi.fn(),
-            updateOutputById: vi.fn(),
-            ensureGenerationRecord: vi.fn(async () => null),
-          },
-          outputs,
-          findOutputById: (id: string) => outputs.find((item) => item.id === id) ?? null,
-        })
-      );
-
-      act(() => {
-        vi.advanceTimersByTime(4 * 60 * 1000);
-      });
-
-      expect(clearPollTimer).not.toHaveBeenCalled();
-      expect(startPollingTask).not.toHaveBeenCalled();
-    } finally {
-      vi.useRealTimers();
-    }
-  });
-
-  it("does not auto-retry outputs that already failed with terminal no-media state", () => {
-    vi.useFakeTimers();
-    try {
-      const outputs = [
-        createOutput({
-          id: "out-no-media",
-          taskId: "task-456",
-          provider: "fal",
-          taskState: "fail",
-          errorMessageShort: "No media returned.",
-          previewUrl: undefined,
-          previewText: undefined,
-        }),
-      ];
-
-      renderHook(() =>
-        useAiStudioTaskOrchestration({
-          taskSubmissionConfig: {
-            aspect: "9:16",
-            mode: "image",
-            model: "model-id",
-            prompt: "Prompt",
-            selectedTool: "create",
-            imageResolution: "model_default",
-            videoDurationSeconds: 6,
-            videoResolution: "1080p",
-            videoGenerateAudio: false,
-            videoReferenceMode: "standard",
-            videoReferenceImageUrl: null,
-            motionReferenceVideoUrl: null,
-            videoCameraFixed: false,
-            videoAutoFix: false,
-            klingNegativePrompt: "blur",
-            klingCfgScale: 0.5,
-            klingShotType: "customize",
-            klingVoiceIds: ["", ""],
-            klingMultiPrompts: [],
-            klingElements: [],
-            setPanelGenerating: vi.fn(),
-            setUiError: asDispatch<string | null>(vi.fn()),
-            setUiNotice: asDispatch<string | null>(vi.fn()),
-            setOutputs: asDispatch<StudioOutput[]>(vi.fn()),
-            setSaved: asDispatch<boolean>(vi.fn()),
-            getDefaultDurationSeconds: vi.fn(() => 6),
-            notifyGenerationFailure: vi.fn(),
-            updateOutputById: vi.fn(),
-            ensureGenerationRecord: vi.fn(async () => null),
-          },
-          outputs,
-          findOutputById: (id: string) => outputs.find((item) => item.id === id) ?? null,
-        })
-      );
-
-      act(() => {
-        vi.advanceTimersByTime(4 * 60 * 1000);
-      });
-
-      expect(clearPollTimer).not.toHaveBeenCalled();
-      expect(startPollingTask).not.toHaveBeenCalled();
-    } finally {
-      vi.useRealTimers();
-    }
-  });
-
-  it("resumes unresolved task-backed outputs when polling is no longer active", async () => {
+  it("does not resume task-backed outputs from the browser watchdog once a task id exists", async () => {
     const outputs = [
       createOutput({
         id: "out-task-resume",
@@ -742,22 +560,20 @@ describe("useAiStudioTaskOrchestration", () => {
     });
 
     expect(fetchFalQueueStatusMock).not.toHaveBeenCalled();
-    expect(clearPollTimer).toHaveBeenCalledWith("out-task-resume");
-    expect(startPollingTask).toHaveBeenCalledWith(
+    expect(clearPollTimer).not.toHaveBeenCalledWith("out-task-resume");
+    expect(startPollingTask).not.toHaveBeenCalledWith(
       "req-task-resume",
       "out-task-resume",
       0,
-      "fal-seedream",
-      expect.any(Number),
-      0,
-      undefined,
-      {
-        initialDelayMs: DISPATCH_HANDOFF_INITIAL_POLL_DELAY_MS,
-      }
+      expect.anything(),
+      expect.anything(),
+      expect.anything(),
+      expect.anything(),
+      expect.anything()
     );
   });
 
-  it("does not restart task-backed polling when an active poll timer already exists", async () => {
+  it("still does not restart task-backed polling when an active poll timer already exists", async () => {
     pollTimersRef.current["out-task-active"] = 123;
     const outputs = [
       createOutput({
@@ -906,7 +722,7 @@ describe("useAiStudioTaskOrchestration", () => {
       }
     );
     expect(outputs[0]?.taskId).toBe("req-queued-1");
-    expect(outputs[0]?.queueState).toBe("dispatched");
+    expect(outputs[0]?.queueState).toBeUndefined();
     expect(outputs[0]?.taskState).toBe("running");
     expect(notifyGenerationFailure).not.toHaveBeenCalled();
   });
@@ -1326,7 +1142,7 @@ describe("useAiStudioTaskOrchestration", () => {
       }
     );
     expect(outputs[0]?.taskId).toBe("req-missing-queue-state");
-    expect(outputs[0]?.queueState).toBe("dispatched");
+    expect(outputs[0]?.queueState).toBeUndefined();
     expect(outputs[0]?.taskState).toBe("running");
     expect(notifyGenerationFailure).not.toHaveBeenCalled();
   });
@@ -1415,7 +1231,7 @@ describe("useAiStudioTaskOrchestration", () => {
       }
     );
     expect(outputs[0]?.taskId).toBe("req-dispatching-restore");
-    expect(outputs[0]?.queueState).toBe("dispatched");
+    expect(outputs[0]?.queueState).toBeUndefined();
     expect(outputs[0]?.taskState).toBe("running");
     expect(notifyGenerationFailure).not.toHaveBeenCalled();
   });
@@ -1507,7 +1323,7 @@ describe("useAiStudioTaskOrchestration", () => {
     expect(outputs[0]?.generationId).toBe("gen-source-ref-only");
     expect(outputs[0]?.taskId).toBe("req-source-ref-only");
     expect(outputs[0]?.sourceRef).toBe("source-ref-only");
-    expect(outputs[0]?.queueState).toBe("dispatched");
+    expect(outputs[0]?.queueState).toBeUndefined();
     expect(outputs[0]?.taskState).toBe("running");
     expect(notifyGenerationFailure).not.toHaveBeenCalled();
   });
@@ -1595,7 +1411,7 @@ describe("useAiStudioTaskOrchestration", () => {
       }
     );
     expect(outputs[0]?.taskId).toBe("req-dispatched-missing-task-id");
-    expect(outputs[0]?.queueState).toBe("dispatched");
+    expect(outputs[0]?.queueState).toBeUndefined();
     expect(outputs[0]?.taskState).toBe("running");
     expect(notifyGenerationFailure).not.toHaveBeenCalled();
   });
@@ -1668,7 +1484,8 @@ describe("useAiStudioTaskOrchestration", () => {
     expect(startPollingTask).not.toHaveBeenCalled();
     expect(notifyGenerationFailure).not.toHaveBeenCalled();
     expect(outputs[0]?.taskState).toBe("pending");
-    expect(outputs[0]?.timestamp).toBe("Waiting for server recovery...");
+    expect(outputs[0]?.timestamp).toBe("Processing...");
+    expect(outputs[0]?.queueState).toBeUndefined();
     expect(outputs[0]?.errorMessage).toBeNull();
   });
 
@@ -1891,7 +1708,8 @@ describe("useAiStudioTaskOrchestration", () => {
       expect(notifyGenerationFailure).not.toHaveBeenCalled();
       expect(updateOutputById).toHaveBeenCalled();
       expect(output.taskState).toBe("pending");
-      expect(output.timestamp).toBe("Waiting for server recovery...");
+      expect(output.timestamp).toBe("Processing...");
+      expect(output.queueState).toBeUndefined();
     } finally {
       vi.useRealTimers();
     }

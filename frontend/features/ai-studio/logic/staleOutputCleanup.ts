@@ -52,13 +52,6 @@ const isQueuedOutput = (output: StudioOutput): boolean => {
   return hasGenerationId && !hasTaskId;
 };
 
-const isTaskBackedLoadingWithoutPreview = (output: StudioOutput): boolean => {
-  if (!isGeneratedOutput(output)) return false;
-  if (output.previewUrl || output.previewText) return false;
-  if (!output.taskId) return false;
-  return output.taskState === "pending" || output.taskState === "running";
-};
-
 const isFailedWithoutPreview = (output: StudioOutput): boolean =>
   output.taskState === "fail" && !output.previewUrl && !output.previewText && !output.taskId;
 
@@ -82,7 +75,7 @@ export const evaluateStaleOutputCleanup = (
     const previous = lifecycle[output.id];
     const nextState: OutputLifecycleState = previous ? { ...previous } : {};
 
-    if (isLoadingWithoutPreview(output) || isTaskBackedLoadingWithoutPreview(output)) {
+    if (isLoadingWithoutPreview(output)) {
       if (nextState.pendingSinceMs == null) {
         const queuedSinceMs =
           isQueuedOutput(output) && typeof output.queueEnqueuedAtMs === "number"
@@ -94,12 +87,7 @@ export const evaluateStaleOutputCleanup = (
             : now;
       }
       const elapsedMs = now - nextState.pendingSinceMs;
-      if (isTaskBackedLoadingWithoutPreview(output)) {
-        if (elapsedMs >= config.taskBackedLoadingTimeoutMs) {
-          staleLoadingIds.push(output.id);
-          taskBackedTimeoutIds.push(output.id);
-        }
-      } else if (isQueuedOutput(output)) {
+      if (isQueuedOutput(output)) {
         if (elapsedMs >= config.queueWaitTimeoutMs) {
           staleLoadingIds.push(output.id);
           queueWaitTimeoutIds.push(output.id);

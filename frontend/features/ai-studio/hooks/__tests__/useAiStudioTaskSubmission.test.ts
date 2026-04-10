@@ -2765,7 +2765,7 @@ describe("useAiStudioTaskSubmission", () => {
       );
       expect(outputs[0]?.taskId).toBe("req-queued-1");
       expect(outputs[0]?.taskState).toBe("running");
-      expect(outputs[0]?.queueState).toBe("dispatched");
+      expect(outputs[0]?.queueState).toBeUndefined();
     } finally {
       vi.useRealTimers();
     }

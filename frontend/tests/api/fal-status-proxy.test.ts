@@ -123,7 +123,6 @@ describe("createFalStatusHandler", () => {
 
   afterEach(() => {
     expect(settleGenerationOutcomeMock).not.toHaveBeenCalled();
-    expect(executeGenerationRecoveryMock).not.toHaveBeenCalled();
     vi.unstubAllGlobals();
   });
 
@@ -210,7 +209,98 @@ describe("createFalStatusHandler", () => {
         idempotencyKey: "poll:fal:req-1:completed",
       })
     );
+    expect(executeGenerationRecoveryMock).toHaveBeenCalledWith({
+      actor: "poll",
+      generationId: "gen-1",
+      requestId: "req-1",
+      userId: "user-1",
+      observation: {
+        state: "completed",
+        payload: expect.any(Object),
+        mediaUrls: ["https://cdn.shortpulse.test/seedream-image.png"],
+      },
+      routeLabel: "Fal Seedream",
+    });
     expect(logGenerationFailureMock).not.toHaveBeenCalled();
+  });
+
+  it("skips fallback poll observation when immediate success recovery settles canonical outputs", async () => {
+    persistedGenerationRows = [
+      {
+        id: "gen-1",
+        status: "processing",
+        metadata: {},
+      },
+    ];
+    executeGenerationRecoveryMock.mockImplementationOnce(async () => {
+      persistedProjectionRows = [
+        {
+          generation_id: "gen-1",
+          result_urls: ["https://cdn.shortpulse.test/seedream-image.png"],
+          status: "ready",
+          task_state: "success",
+          queue_state: "dispatched",
+        },
+      ];
+      return {
+        ok: true,
+        state: "recovered",
+        generationId: "gen-1",
+        requestId: "req-1",
+        mediaFileIds: [],
+        mediaUrls: ["https://cdn.shortpulse.test/seedream-image.png"],
+        processed: true,
+      };
+    });
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            status: "IN_PROGRESS",
+            response_url: "https://queue.fal.run/fal-ai/bytedance/seedream/v4.5/requests/req-1",
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } }
+        )
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            status: "IN_PROGRESS",
+            data: {
+              images: [{ url: "https://cdn.shortpulse.test/seedream-image.png" }],
+            },
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } }
+        )
+      );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const handler = createFalStatusHandler({
+      queueBaseUrl: "https://queue.fal.run/fal-ai/bytedance/seedream/v4.5/text-to-image/requests",
+      routeLabel: "Fal Seedream",
+      timeoutMs: 15000,
+    });
+
+    const req = {
+      method: "POST",
+      body: { requestId: "req-1" },
+      headers: {},
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        request_id: "req-1",
+        generationId: "gen-1",
+        status: "completed",
+        resultUrls: ["https://cdn.shortpulse.test/seedream-image.png"],
+      })
+    );
+    expect(persistGenerationObservationMock).not.toHaveBeenCalled();
   });
 
   it("polls the provider when only legacy success metadata exists without canonical outputs", async () => {
@@ -336,7 +426,7 @@ describe("createFalStatusHandler", () => {
     );
   });
 
-  it("returns recovery-pending payload when projection reports success without canonical outputs", async () => {
+  it("returns terminal success lifecycle when projection reports success without canonical outputs", async () => {
     persistedProjectionRows = [
       {
         generation_id: "gen-projection-success-pending-1",
@@ -382,12 +472,12 @@ describe("createFalStatusHandler", () => {
         status: "IN_PROGRESS",
         state: "running",
         shortpulseLifecycle: expect.objectContaining({
-          taskState: "running",
-          isTerminal: false,
+          taskState: "success",
+          isTerminal: true,
           providerState: "ready",
           recoveryPending: true,
           queueState: "dispatched",
-          statusLabel: "Waiting for server recovery...",
+          statusLabel: "Just now",
         }),
       })
     );
@@ -1287,7 +1377,7 @@ describe("createFalStatusHandler", () => {
           providerState: "completed",
           recoveryPending: true,
           queueState: "dispatched",
-          statusLabel: "Waiting for server recovery...",
+          statusLabel: "Processing...",
         }),
       })
     );
@@ -1339,7 +1429,7 @@ describe("createFalStatusHandler", () => {
           providerState: "completed",
           recoveryPending: true,
           queueState: "dispatched",
-          statusLabel: "Waiting for server recovery...",
+          statusLabel: "Processing...",
         }),
       })
     );

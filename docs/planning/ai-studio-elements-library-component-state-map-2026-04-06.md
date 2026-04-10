@@ -1,7 +1,9 @@
 # AI Studio Elements Library Component And State Map (2026-04-06)
 
-Status: Ready to implement  
+Status: Superseded historical reference  
 Owner: Frontend Engineering
+
+> Historical note: superseded by the Elements decoupling packet dated 2026-04-09. Keep this document only as an early implementation-planning reference for the original Elements feature shape.
 
 ## Purpose
 

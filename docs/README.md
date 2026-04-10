@@ -142,6 +142,13 @@ Start here for all repository documentation.
 - `docs/planning/ai-studio-elements-library-wireframes-2026-04-06.md`
 - `docs/planning/ai-studio-elements-library-component-state-map-2026-04-06.md`
 - `docs/planning/ai-studio-elements-library-implementation-checklist-2026-04-06.md`
+- `docs/planning/ai-studio-elements-library-decoupling-roadmap-2026-04-09.md`
+- `docs/planning/ai-studio-elements-library-decoupling-tracker-2026-04-09.md`
+- `docs/planning/ai-studio-elements-library-decoupling-lane-1-primitives-and-host-contract-2026-04-09.md`
+- `docs/planning/ai-studio-elements-library-decoupling-lane-2-dom-contract-dual-wire-2026-04-09.md`
+- `docs/planning/ai-studio-elements-library-decoupling-lane-3-style-ownership-cutover-2026-04-09.md`
+- `docs/planning/ai-studio-elements-library-decoupling-lane-4-runtime-test-doc-contract-cleanup-2026-04-09.md`
+- `docs/planning/ai-studio-elements-library-decoupling-lane-5-data-model-compatibility-retirement-2026-04-09.md`
 - `docs/planning/staging-preview-integration-ledger-2026-04-04.md`
 - `docs/planning/staging-preview-ui-properties-extraction-plan-2026-04-04.md`
 - `docs/planning/master-rollout-proposal.md`

@@ -1,7 +1,9 @@
 # AI Studio Elements Library Wireframes (2026-04-06)
 
-Status: Ready to implement  
+Status: Superseded historical reference  
 Owner: Product + Frontend Engineering
+
+> Historical note: superseded by the Elements decoupling packet dated 2026-04-09. Retain this document only as a first-pass wireframe reference for the original embedded Elements surface shape.
 
 ## Purpose
 

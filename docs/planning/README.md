@@ -34,6 +34,13 @@ Purpose: active planning artifacts and current execution backlogs.
 - `ai-studio-elements-library-wireframes-2026-04-06.md`: text wireframes for the embedded `Manage Elements` and `Element Profile` surfaces, including narrow-panel adaptation.
 - `ai-studio-elements-library-component-state-map-2026-04-06.md`: proposed feature/file layout, component responsibilities, and state model for implementing the Elements library without reopening the design lane.
 - `ai-studio-elements-library-implementation-checklist-2026-04-06.md`: execution checklist for the first UI-only Elements library build, including host wiring, feature scaffold, validation targets, and out-of-scope guardrails.
+- `ai-studio-elements-library-decoupling-roadmap-2026-04-09.md`: repo-backed strangler roadmap for removing live Elements-to-Character coupling across host, DOM, style, adjacent consumers, and stale model seams.
+- `ai-studio-elements-library-decoupling-tracker-2026-04-09.md`: lane tracker and validation matrix for the completed Elements decoupling program.
+- `ai-studio-elements-library-decoupling-lane-1-primitives-and-host-contract-2026-04-09.md`: lane plan for replacing direct Character UI imports and establishing an explicit Elements host contract.
+- `ai-studio-elements-library-decoupling-lane-2-dom-contract-dual-wire-2026-04-09.md`: lane plan for dual-wiring Elements-owned root selectors, region contracts, and DOM hooks before style cutover.
+- `ai-studio-elements-library-decoupling-lane-3-style-ownership-cutover-2026-04-09.md`: lane plan for moving Elements panel styling and adjacent runtime contracts onto Elements-owned selectors.
+- `ai-studio-elements-library-decoupling-lane-4-runtime-test-doc-contract-cleanup-2026-04-09.md`: lane plan for aligning runtime comments, tests, and historical planning docs with the post-cutover architecture.
+- `ai-studio-elements-library-decoupling-lane-5-data-model-compatibility-retirement-2026-04-09.md`: lane plan for flattening the active Elements runtime model while bounding reference-set residue to persistence compatibility.
 - `foundation-lanes-master-roadmap-2026-03-16.md`: canonical multi-lane foundational hardening roadmap (outcomes, sequencing, dependency rules, and required validation bundle).
 - `foundation-lanes-execution-tracker-2026-03-16.md`: live tracker for lane status, Lane A phase checklist, slice-level validation records, and signoff progression.
 - `foundation-rebuild-playbook-2026-03-16.md`: mandatory rebuild method contract (entry criteria, explicit do-not-rebuild criteria, strangler cutover model, and rollback/evidence rules).

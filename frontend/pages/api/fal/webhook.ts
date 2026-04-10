@@ -1,5 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from "next";
-import { logApiRouteException } from "../../../lib/server/api/appErrorLogs";
+import { logApiRouteException, logGenerationFailure } from "../../../lib/server/api/appErrorLogs";
 import { readFalRuntimeFlags } from "../../../lib/server/api/falRuntimeFlags";
 import {
   readFalWebhookHeaders,
@@ -25,6 +25,32 @@ export const config = {
   },
 };
 
+const ROUTE_LABEL = "fal/webhook";
+
+const logWebhookReject = async ({
+  req,
+  message,
+  source,
+  metadata = {},
+}: {
+  req: NextApiRequest;
+  message: string;
+  source:
+    | "api.fal_webhook.signature_invalid"
+    | "api.fal_webhook.payload_hash_invalid"
+    | "api.fal_webhook.payload_invalid";
+  metadata?: Record<string, unknown>;
+}) => {
+  await logGenerationFailure({
+    req,
+    routeLabel: ROUTE_LABEL,
+    source,
+    message,
+    statusCode: 400,
+    metadata,
+  });
+};
+
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" });
@@ -45,6 +71,19 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       flags,
     });
     if (!verification.ok) {
+      await logWebhookReject({
+        req,
+        source: "api.fal_webhook.signature_invalid",
+        message: verification.reason ?? "Invalid webhook signature",
+        metadata: {
+          verification_reason: verification.reason ?? null,
+          verification_mode: flags.webhookVerifyMode,
+          fal_request_id: webhookHeaders.requestId,
+          fal_event_id: webhookHeaders.eventId,
+          fal_user_id_present: Boolean(webhookHeaders.userId),
+          fal_signature_present: Boolean(webhookHeaders.signature),
+        },
+      });
       return res.status(400).json({ error: "Invalid webhook signature" });
     }
     if (
@@ -53,6 +92,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         expectedHash: readHeaderValue(req.headers["x-fal-webhook-payload-hash"]),
       })
     ) {
+      await logWebhookReject({
+        req,
+        source: "api.fal_webhook.payload_hash_invalid",
+        message: "Invalid webhook payload hash",
+        metadata: {
+          fal_request_id: webhookHeaders.requestId,
+          fal_event_id: webhookHeaders.eventId,
+          expected_payload_hash_present: Boolean(
+            readHeaderValue(req.headers["x-fal-webhook-payload-hash"])
+          ),
+        },
+      });
       return res.status(400).json({ error: "Invalid webhook payload hash" });
     }
 
@@ -60,6 +111,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     try {
       payload = parseFalWebhookPayload(rawBody);
     } catch {
+      await logWebhookReject({
+        req,
+        source: "api.fal_webhook.payload_invalid",
+        message: "Invalid webhook payload",
+        metadata: {
+          fal_request_id: webhookHeaders.requestId,
+          fal_event_id: webhookHeaders.eventId,
+        },
+      });
       return res.status(400).json({ error: "Invalid webhook payload" });
     }
     const result = await ingestFalWebhookEvent({
@@ -88,7 +148,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     await logApiRouteException({
       req,
       error,
-      routeLabel: "fal/webhook",
+      routeLabel: ROUTE_LABEL,
       metadata: {
         fal_signature_present: Boolean(webhookHeaders.signature),
       },

@@ -7,6 +7,7 @@ const verifyFalWebhookSignatureMock = vi.fn();
 const verifyFalWebhookBodyHashMock = vi.fn();
 const readFalWebhookHeadersMock = vi.fn();
 const logApiRouteExceptionMock = vi.fn();
+const logGenerationFailureMock = vi.fn();
 const parseFalWebhookPayloadMock = vi.fn((rawBody: string) => JSON.parse(rawBody));
 const ingestFalWebhookEventMock = vi.fn();
 
@@ -24,6 +25,7 @@ vi.mock("../../lib/server/falIntegration/falWebhookIngress", () => ({
 
 vi.mock("../../lib/server/api/appErrorLogs", () => ({
   logApiRouteException: (input: unknown) => logApiRouteExceptionMock(input),
+  logGenerationFailure: (input: unknown) => logGenerationFailureMock(input),
 }));
 
 const createMockResponse = () => ({
@@ -47,7 +49,11 @@ describe("POST /api/fal/webhook", () => {
 
   it("rejects invalid webhook signatures", async () => {
     readRawBodyMock.mockResolvedValue(JSON.stringify({ request_id: "req-1" }));
-    verifyFalWebhookSignatureMock.mockResolvedValue({ ok: false, method: null });
+    verifyFalWebhookSignatureMock.mockResolvedValue({
+      ok: false,
+      method: null,
+      reason: "missing_required_fal_headers",
+    });
 
     const req = {
       method: "POST",
@@ -62,6 +68,14 @@ describe("POST /api/fal/webhook", () => {
     expect(res.status).toHaveBeenCalledWith(400);
     expect(res.json).toHaveBeenCalledWith({ error: "Invalid webhook signature" });
     expect(ingestFalWebhookEventMock).not.toHaveBeenCalled();
+    expect(logGenerationFailureMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        routeLabel: "fal/webhook",
+        source: "api.fal_webhook.signature_invalid",
+        statusCode: 400,
+        message: "missing_required_fal_headers",
+      })
+    );
   });
 
   it("returns 413 when webhook payload exceeds max size", async () => {
@@ -79,6 +93,38 @@ describe("POST /api/fal/webhook", () => {
 
     expect(res.status).toHaveBeenCalledWith(413);
     expect(res.json).toHaveBeenCalledWith({ error: "Webhook payload too large." });
+  });
+
+  it("rejects invalid payload hashes with structured logging", async () => {
+    readRawBodyMock.mockResolvedValue(JSON.stringify({ request_id: "req-1" }));
+    verifyFalWebhookSignatureMock.mockResolvedValue({
+      ok: true,
+      method: "fal",
+      payloadHash: "hash-1",
+    });
+    verifyFalWebhookBodyHashMock.mockReturnValue(false);
+
+    const req = {
+      method: "POST",
+      headers: {
+        "x-fal-webhook-signature": "sig",
+        "x-fal-webhook-payload-hash": "bad-hash",
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith({ error: "Invalid webhook payload hash" });
+    expect(logGenerationFailureMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        routeLabel: "fal/webhook",
+        source: "api.fal_webhook.payload_hash_invalid",
+        statusCode: 400,
+        message: "Invalid webhook payload hash",
+      })
+    );
   });
 
   it("delegates verified webhook payloads to falWebhookIngress and returns accepted results", async () => {
@@ -220,5 +266,38 @@ describe("POST /api/fal/webhook", () => {
 
     expect(res.status).toHaveBeenCalledWith(500);
     expect(res.json).toHaveBeenCalledWith({ error: "Webhook processing failed." });
+  });
+
+  it("logs invalid webhook payload parsing failures", async () => {
+    readRawBodyMock.mockResolvedValue("{not-json");
+    verifyFalWebhookSignatureMock.mockResolvedValue({
+      ok: true,
+      method: "fal",
+      payloadHash: "hash-1",
+    });
+    parseFalWebhookPayloadMock.mockImplementationOnce(() => {
+      throw new Error("bad json");
+    });
+
+    const req = {
+      method: "POST",
+      headers: {
+        "x-fal-webhook-signature": "sig",
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith({ error: "Invalid webhook payload" });
+    expect(logGenerationFailureMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        routeLabel: "fal/webhook",
+        source: "api.fal_webhook.payload_invalid",
+        statusCode: 400,
+        message: "Invalid webhook payload",
+      })
+    );
   });
 });

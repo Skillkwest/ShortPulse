@@ -169,6 +169,20 @@ const fetchFalJwksKeys = async (jwksUrl: string, forceRefresh = false): Promise<
   return keys;
 };
 
+export const buildFalWebhookSignedMessage = ({
+  requestId,
+  userId,
+  timestamp,
+  payloadHash,
+}: {
+  requestId: string;
+  userId: string;
+  timestamp: string;
+  payloadHash: string;
+}): string => {
+  return [requestId, userId, timestamp, payloadHash].join("\n");
+};
+
 const verifyWithFalJwks = async ({
   rawBody,
   headers,
@@ -190,7 +204,12 @@ const verifyWithFalJwks = async ({
   }
 
   const payloadHash = crypto.createHash("sha256").update(rawBody, "utf8").digest("hex");
-  const message = `${headers.requestId}${headers.userId}${headers.timestamp}${payloadHash}`;
+  const message = buildFalWebhookSignedMessage({
+    requestId: headers.requestId,
+    userId: headers.userId,
+    timestamp: headers.timestamp,
+    payloadHash,
+  });
   const messageBytes = Buffer.from(message, "utf8");
   const signatureCandidates = parseFalSignatureCandidates(headers.signature);
   if (!signatureCandidates.length) {

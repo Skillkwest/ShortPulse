@@ -1,7 +1,10 @@
 import crypto from "crypto";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { type FalRuntimeFlags } from "../../lib/server/api/falRuntimeFlags";
-import { verifyFalWebhookSignature } from "../../lib/server/api/falWebhook";
+import {
+  buildFalWebhookSignedMessage,
+  verifyFalWebhookSignature,
+} from "../../lib/server/api/falWebhook";
 
 const createFlags = (overrides: Partial<FalRuntimeFlags> = {}): FalRuntimeFlags => ({
   integrationMode: "on",
@@ -59,21 +62,6 @@ const createFlags = (overrides: Partial<FalRuntimeFlags> = {}): FalRuntimeFlags 
   runningHardTimeoutSeconds: overrides.runningHardTimeoutSeconds ?? 0,
 });
 
-const buildFalSignedMessage = ({
-  requestId,
-  userId,
-  timestamp,
-  rawBody,
-}: {
-  requestId: string;
-  userId: string;
-  timestamp: string;
-  rawBody: string;
-}) => {
-  const payloadHash = crypto.createHash("sha256").update(rawBody, "utf8").digest("hex");
-  return `${requestId}${userId}${timestamp}${payloadHash}`;
-};
-
 describe("verifyFalWebhookSignature", () => {
   afterEach(() => {
     vi.unstubAllGlobals();
@@ -107,7 +95,12 @@ describe("verifyFalWebhookSignature", () => {
     const timestamp = String(Math.floor(Date.now() / 1000));
     const requestId = "req-1";
     const userId = "user-1";
-    const message = buildFalSignedMessage({ requestId, userId, timestamp, rawBody });
+    const message = buildFalWebhookSignedMessage({
+      requestId,
+      userId,
+      timestamp,
+      payloadHash: crypto.createHash("sha256").update(rawBody, "utf8").digest("hex"),
+    });
     const signature = crypto
       .sign(null, Buffer.from(message, "utf8"), privateKey)
       .toString("base64url");
@@ -213,7 +206,12 @@ describe("verifyFalWebhookSignature", () => {
     const timestamp = String(Math.floor(Date.now() / 1000) - 10_000);
     const requestId = "req-1";
     const userId = "user-1";
-    const message = buildFalSignedMessage({ requestId, userId, timestamp, rawBody });
+    const message = buildFalWebhookSignedMessage({
+      requestId,
+      userId,
+      timestamp,
+      payloadHash: crypto.createHash("sha256").update(rawBody, "utf8").digest("hex"),
+    });
     const signature = crypto
       .sign(null, Buffer.from(message, "utf8"), privateKey)
       .toString("base64url");

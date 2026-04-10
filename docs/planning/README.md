@@ -28,6 +28,7 @@ Purpose: active planning artifacts and current execution backlogs.
 - `generation-pipeline-continuation-compatibility-retirement-2026-04-05.md`: bucket subplan for fallback deletion and compatibility retirement.
 - `generation-pipeline-continuation-reference-grid-read-model-simplification-2026-04-05.md`: bucket subplan for Reference Grid read-model simplification.
 - `ai-studio-live-session-check-media-panel-handoff-2026-04-05.md`: execution-oriented handoff for the staging AI Studio Media Library panel lag investigation, including trusted evidence, decision gates, and the ordered remediation plan for follow-on agents.
+- `ai-studio-expert-edit-properties-panel-fresh-start-lean-up-plan-2026-04-10.md`: fresh-start, live-repo-audit-backed roadmap for making the Expert Edit properties panel leaner without changing behavior, layout, or current interaction semantics.
 - `ai-studio-elements-library-ui-build-plan-2026-04-06.md`: implementation-ready UI/UX build contract for the new AI Studio Elements library surface, using Character Library shell patterns and future Kling compatibility constraints.
 - `ai-studio-elements-library-ui-spec-2026-04-06.md`: concrete UI contract for left-rail placement, manage/profile behavior, editor fields, and interaction states for the Elements library.
 - `ai-studio-elements-library-wireframes-2026-04-06.md`: text wireframes for the embedded `Manage Elements` and `Element Profile` surfaces, including narrow-panel adaptation.

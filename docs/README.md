@@ -136,6 +136,7 @@ Start here for all repository documentation.
 - `docs/planning/generation-pipeline-continuation-compatibility-retirement-2026-04-05.md`
 - `docs/planning/generation-pipeline-continuation-reference-grid-read-model-simplification-2026-04-05.md`
 - `docs/planning/ai-studio-live-session-check-media-panel-handoff-2026-04-05.md`
+- `docs/planning/ai-studio-expert-edit-properties-panel-fresh-start-lean-up-plan-2026-04-10.md`
 - `docs/planning/ai-studio-elements-library-ui-build-plan-2026-04-06.md`
 - `docs/planning/ai-studio-elements-library-ui-spec-2026-04-06.md`
 - `docs/planning/ai-studio-elements-library-wireframes-2026-04-06.md`

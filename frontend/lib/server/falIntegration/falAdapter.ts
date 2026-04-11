@@ -16,20 +16,39 @@ export const toRecord = (value: unknown): Record<string, unknown> =>
     ? (value as Record<string, unknown>)
     : {};
 
+const readUrlLikeField = (record: Record<string, unknown>): string | null =>
+  asString(record.url) ||
+  asString(record.download_url) ||
+  asString(record.video_url) ||
+  asString(record.image_url) ||
+  asString(record.file_url) ||
+  asString(record.media_url) ||
+  asString(record.signed_url) ||
+  asString(record.public_url) ||
+  asString(record.href);
+
+const extractUrlFromValue = (value: unknown): string | null => {
+  if (typeof value === "string") return asString(value);
+  const record = toRecord(value);
+  if (!Object.keys(record).length) return null;
+
+  const nestedAsset = toRecord(record.asset);
+  const nestedFile = toRecord(record.file);
+  const nestedAssets = toRecord(record.assets);
+
+  return (
+    readUrlLikeField(record) ||
+    readUrlLikeField(nestedFile) ||
+    readUrlLikeField(nestedAsset) ||
+    readUrlLikeField(toRecord(nestedAsset.file)) ||
+    readUrlLikeField(toRecord(nestedAssets.file))
+  );
+};
+
 const extractUrlArray = (value: unknown): string[] => {
   if (!Array.isArray(value)) return [];
   return value
-    .map((item) => {
-      if (typeof item === "string") return asString(item);
-      const record = toRecord(item);
-      return (
-        asString(record.url) ||
-        asString(record.download_url) ||
-        asString(record.video_url) ||
-        asString(record.image_url) ||
-        asString(record.file_url)
-      );
-    })
+    .map((item) => extractUrlFromValue(item))
     .filter((url): url is string => Boolean(url));
 };
 
@@ -76,6 +95,7 @@ export const extractMediaPayloadUrls = (payload: JsonObject): string[] => {
   for (const candidate of candidates) {
     urls.push(...extractUrlArray(candidate.images));
     urls.push(...extractUrlArray(candidate.videos));
+    urls.push(...extractUrlArray(candidate.files));
     urls.push(...extractUrlArray(candidate.outputs));
     urls.push(...extractUrlArray(candidate.artifacts));
     const resultUrlCandidates =
@@ -83,23 +103,21 @@ export const extractMediaPayloadUrls = (payload: JsonObject): string[] => {
       candidate.result_urls ??
       candidate.image_urls ??
       candidate.video_urls ??
+      candidate.file_urls ??
       toRecord(candidate.info).result_urls;
     urls.push(...extractUrlArray(resultUrlCandidates));
     const mediaUrl =
-      asString(candidate.url) ||
+      extractUrlFromValue(candidate) ||
+      extractUrlFromValue(candidate.file) ||
       asString(candidate.video) ||
       asString(candidate.image) ||
-      asString(toRecord(candidate.video).url) ||
-      asString(toRecord(candidate.image).url) ||
-      asString(candidate.video_url) ||
-      asString(candidate.image_url) ||
-      asString(toRecord(toRecord(candidate.assets).video).url) ||
-      asString(toRecord(toRecord(candidate.assets).image).url) ||
-      asString(toRecord(toRecord(candidate.assets).video).download_url) ||
-      asString(toRecord(toRecord(candidate.assets).image).download_url) ||
-      asString(candidate.file_url) ||
-      asString(candidate.media_url) ||
-      asString(candidate.download_url);
+      extractUrlFromValue(candidate.media) ||
+      extractUrlFromValue(toRecord(candidate.video)) ||
+      extractUrlFromValue(toRecord(candidate.image)) ||
+      extractUrlFromValue(toRecord(candidate.asset)) ||
+      extractUrlFromValue(toRecord(toRecord(candidate.assets).video)) ||
+      extractUrlFromValue(toRecord(toRecord(candidate.assets).image)) ||
+      extractUrlFromValue(toRecord(toRecord(candidate.assets).file));
     if (mediaUrl) urls.push(mediaUrl);
   }
   return Array.from(new Set(urls.map((url) => url.trim()).filter((url) => Boolean(url))));

@@ -9,6 +9,7 @@ describe("providerTrustPolicy", () => {
   it("allows trusted Fal hosts and blocks malformed suffix lookalikes", () => {
     expect(isTrustedFalProviderUrl("https://queue.fal.run/fal-ai/model")).toBe(true);
     expect(isTrustedFalProviderUrl("https://rest.alpha.fal.ai/v1/queue")).toBe(true);
+    expect(isTrustedFalProviderUrl("https://fal.media/files/result.png")).toBe(true);
     expect(isTrustedFalProviderUrl("https://evilfal.run/fal-ai/model")).toBe(false);
     expect(isTrustedFalProviderUrl("https://fal.run.evil.example/fal-ai/model")).toBe(false);
   });

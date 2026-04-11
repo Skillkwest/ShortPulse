@@ -3,7 +3,7 @@
  * Centralizes host/protocol validation so request auth headers never go to untrusted origins.
  */
 
-const DEFAULT_TRUSTED_HOSTS = ["fal.run", "fal.ai"];
+const DEFAULT_TRUSTED_HOSTS = ["fal.run", "fal.ai", "fal.media"];
 
 const normalizeHostname = (hostname: string): string =>
   hostname.trim().toLowerCase().replace(/\.$/, "");

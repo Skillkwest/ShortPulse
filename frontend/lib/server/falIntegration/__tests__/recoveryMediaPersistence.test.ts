@@ -519,4 +519,41 @@ describe("recoveryMediaPersistence", () => {
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
+
+  it("accepts fal media-host recovery media urls by default", async () => {
+    delete process.env.SHORTPULSE_MEDIA_ALLOW_EXTERNAL_DIRECT_PREVIEWS;
+    delete process.env.SHORTPULSE_MEDIA_DIRECT_URL_ALLOWED_HOSTS;
+    const scenario = createSupabaseScenario({
+      generationOutputListResponses: [{ data: [], error: null }],
+      listResponses: [{ data: [], error: null }],
+      insertResponses: [{ data: { id: "media-new-1" }, error: null }],
+      uploadResponses: [{ error: null }],
+    });
+    getSupabaseAdminMock.mockReturnValue(scenario.adminClient);
+
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(Uint8Array.from([1, 2, 3]), {
+        status: 200,
+        headers: { "content-type": "image/png" },
+      })
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(
+      persistRecoveryMediaFilesForGeneration({
+        generation: {
+          id: "gen-1",
+          user_id: "user-1",
+          request_id: "req-1",
+          model_id: "fal-ai/veo3.1",
+          provider: "fal",
+          prompt_text: "Animate stills",
+          metadata: {},
+        },
+        mediaUrls: ["https://fal.media/files/result.png"],
+      })
+    ).resolves.toEqual(["media-new-1"]);
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
 });

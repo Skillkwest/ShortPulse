@@ -60,6 +60,27 @@ describe("statusProviderPayload", () => {
     );
   });
 
+  it("reads fal file-image payloads from file-oriented result shapes", () => {
+    const payload = {
+      result: {
+        files: [
+          { url: "https://fal.media/files/direct-file.png" },
+          { file: { signed_url: "https://fal.media/files/nested-file.png" } },
+        ],
+        file: {
+          public_url: "https://fal.media/files/root-file.png",
+        },
+      },
+    };
+
+    expect(providerPayloadHasMedia({ provider: "fal", payload })).toBe(true);
+    expect(readProviderMediaUrls({ provider: "fal", payload })).toEqual([
+      "https://fal.media/files/direct-file.png",
+      "https://fal.media/files/nested-file.png",
+      "https://fal.media/files/root-file.png",
+    ]);
+  });
+
   it("reads fal content-policy messages", () => {
     const payload = {
       detail: [

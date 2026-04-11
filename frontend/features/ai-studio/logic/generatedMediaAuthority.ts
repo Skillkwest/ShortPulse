@@ -56,6 +56,14 @@ export type VisibleGenerationDelivery = {
 
 export type PublishedGenerationDelivery = VisibleGenerationDelivery;
 
+export type VisibleGenerationReconcile = {
+  generationId: string;
+  previewUrl: string | null;
+  previewStoragePath: string | null;
+  fullStoragePath: string | null;
+  resultUrls: string[];
+};
+
 const asTrimmedString = (value: unknown): string | null => {
   if (typeof value !== "string") return null;
   const trimmed = value.trim();
@@ -507,6 +515,59 @@ export const resolveVisibleGenerationDelivery = async ({
     generationId: resolvedGenerationId,
     userId,
   });
+};
+
+export const resolveVisibleGenerationReconcile = async ({
+  generationId,
+  requestId,
+}: {
+  generationId?: string | null;
+  requestId?: string | null;
+}): Promise<VisibleGenerationReconcile | null> => {
+  const normalizedGenerationId = asTrimmedString(generationId);
+  const normalizedRequestId = asTrimmedString(requestId);
+  if (!normalizedGenerationId && !normalizedRequestId) return null;
+
+  const supabase = ensureSupabaseQueryClient();
+  const userId = await readSupabaseUserId();
+  if (!userId) return null;
+
+  const resolvedGenerationId =
+    normalizedGenerationId ??
+    (await resolveGenerationIdForRequestId({
+      supabase,
+      requestId: normalizedRequestId,
+      userId,
+    }));
+  if (!resolvedGenerationId) return null;
+
+  const delivery = await resolveVisibleGenerationDeliveryByGenerationId({
+    supabase,
+    generationId: resolvedGenerationId,
+    userId,
+  });
+  if (!delivery) return null;
+
+  const resultUrls = [delivery.fullUrl ?? delivery.previewUrl].filter((value): value is string =>
+    Boolean(value)
+  );
+
+  if (
+    !delivery.previewUrl &&
+    resultUrls.length === 0 &&
+    !delivery.previewStoragePath &&
+    !delivery.fullStoragePath
+  ) {
+    return null;
+  }
+
+  return {
+    generationId: resolvedGenerationId,
+    previewUrl: delivery.previewUrl,
+    previewStoragePath: delivery.previewStoragePath,
+    fullStoragePath: delivery.fullStoragePath,
+    resultUrls,
+  };
 };
 
 export const resolveLatestPublishedGenerationDeliveryByGenerationId =

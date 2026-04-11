@@ -6,6 +6,7 @@ import { useAiStudioTaskOrchestration } from "../useAiStudioTaskOrchestration";
 import { useAiStudioTaskSubmission } from "../useAiStudioTaskSubmission";
 import { DISPATCH_HANDOFF_INITIAL_POLL_DELAY_MS, useAiStudioTasks } from "../useAiStudioTasks";
 import { fetchFalQueueStatus } from "../../../../lib/falClient";
+import { resolveVisibleGenerationReconcile } from "../../logic/generatedMediaAuthority";
 
 vi.mock("../useAiStudioTaskSubmission", () => ({
   useAiStudioTaskSubmission: vi.fn(),
@@ -18,6 +19,10 @@ vi.mock("../useAiStudioTasks", () => ({
 
 vi.mock("../../../../lib/falClient", () => ({
   fetchFalQueueStatus: vi.fn(),
+}));
+
+vi.mock("../../logic/generatedMediaAuthority", () => ({
+  resolveVisibleGenerationReconcile: vi.fn(),
 }));
 
 const asDispatch = <T>(fn: (value: SetStateAction<T>) => void): Dispatch<SetStateAction<T>> =>
@@ -43,6 +48,7 @@ describe("useAiStudioTaskOrchestration", () => {
   const useAiStudioTaskSubmissionMock = vi.mocked(useAiStudioTaskSubmission);
   const useAiStudioTasksMock = vi.mocked(useAiStudioTasks);
   const fetchFalQueueStatusMock = vi.mocked(fetchFalQueueStatus);
+  const resolveVisibleGenerationReconcileMock = vi.mocked(resolveVisibleGenerationReconcile);
 
   let capturedTaskCallbacks: TasksCallbacks | null;
   let startPollingTask: ReturnType<typeof vi.fn>;
@@ -63,6 +69,7 @@ describe("useAiStudioTaskOrchestration", () => {
       sourceRef: null,
       retryAfterMs: 2000,
     });
+    resolveVisibleGenerationReconcileMock.mockResolvedValue(null);
     useAiStudioTasksMock.mockImplementation(((callbacks: TasksCallbacks) => {
       capturedTaskCallbacks = callbacks;
       return {
@@ -638,6 +645,88 @@ describe("useAiStudioTaskOrchestration", () => {
     );
   });
 
+  it("settles unresolved generated outputs from projection-backed delivery even without a task handoff", async () => {
+    vi.useFakeTimers();
+    try {
+      let outputs = [
+        createOutput({
+          id: "out-projection-ready",
+          generationId: "gen-projection-ready",
+          provider: "fal",
+          modelId: "fal-ai/nano-banana-2/edit",
+          taskState: "running",
+          timestamp: "Processing...",
+          mediaSource: "generated",
+        }),
+      ];
+      const updateOutputById = vi.fn(
+        (id: string, updater: (item: StudioOutput) => StudioOutput) => {
+          outputs = outputs.map((item) => (item.id === id ? updater(item) : item));
+        }
+      );
+      resolveVisibleGenerationReconcileMock.mockResolvedValue({
+        generationId: "gen-projection-ready",
+        previewUrl: "https://cdn.test/projection-ready-preview.png",
+        previewStoragePath: null,
+        fullStoragePath: null,
+        resultUrls: ["https://cdn.test/projection-ready-full.png"],
+      });
+
+      renderHook(() =>
+        useAiStudioTaskOrchestration({
+          taskSubmissionConfig: {
+            aspect: "9:16",
+            mode: "image",
+            model: "model-id",
+            prompt: "Prompt",
+            selectedTool: "edit",
+            imageResolution: "model_default",
+            videoDurationSeconds: 6,
+            videoResolution: "1080p",
+            videoGenerateAudio: false,
+            videoReferenceMode: "standard",
+            videoReferenceImageUrl: null,
+            motionReferenceVideoUrl: null,
+            videoCameraFixed: false,
+            videoAutoFix: false,
+            klingNegativePrompt: "blur",
+            klingCfgScale: 0.5,
+            klingShotType: "customize",
+            klingVoiceIds: ["", ""],
+            klingMultiPrompts: [],
+            klingElements: [],
+            setPanelGenerating: vi.fn(),
+            setUiError: asDispatch<string | null>(vi.fn()),
+            setUiNotice: asDispatch<string | null>(vi.fn()),
+            setOutputs: asDispatch<StudioOutput[]>(vi.fn()),
+            setSaved: asDispatch<boolean>(vi.fn()),
+            getDefaultDurationSeconds: vi.fn(() => 6),
+            notifyGenerationFailure: vi.fn(),
+            updateOutputById,
+            ensureGenerationRecord: vi.fn(async () => null),
+          },
+          outputs,
+          findOutputById: (id: string) => outputs.find((item) => item.id === id) ?? null,
+        })
+      );
+
+      await act(async () => {
+        await Promise.resolve();
+        await Promise.resolve();
+      });
+
+      expect(resolveVisibleGenerationReconcileMock).toHaveBeenCalledWith({
+        generationId: "gen-projection-ready",
+        requestId: undefined,
+      });
+      expect(outputs[0]?.taskState).toBe("success");
+      expect(outputs[0]?.previewUrl).toBe("https://cdn.test/projection-ready-preview.png");
+      expect(outputs[0]?.resultUrls).toEqual(["https://cdn.test/projection-ready-full.png"]);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("prefers server-authored pollingProvider when queue resume dispatches", async () => {
     let outputs = [
       createOutput({
@@ -713,7 +802,7 @@ describe("useAiStudioTaskOrchestration", () => {
       "req-queued-1",
       "out-queued",
       0,
-      "fal-seedream",
+      "fal-seedream-edit",
       expect.any(Number),
       0,
       undefined,
@@ -798,7 +887,7 @@ describe("useAiStudioTaskOrchestration", () => {
       "req-fallback",
       "out-queued-fallback",
       0,
-      "fal-seedream",
+      "fal-seedream-edit",
       expect.any(Number),
       0,
       undefined,
@@ -1133,7 +1222,7 @@ describe("useAiStudioTaskOrchestration", () => {
       "req-missing-queue-state",
       "out-queued-metadata-missing",
       0,
-      "fal-seedream",
+      "fal-seedream-edit",
       expect.any(Number),
       0,
       undefined,
@@ -1222,7 +1311,7 @@ describe("useAiStudioTaskOrchestration", () => {
       "req-dispatching-restore",
       "out-dispatching-restore",
       0,
-      "fal-seedream",
+      "fal-seedream-edit",
       expect.any(Number),
       0,
       undefined,
@@ -1312,7 +1401,7 @@ describe("useAiStudioTaskOrchestration", () => {
       "req-source-ref-only",
       "out-queued-source-ref-only",
       0,
-      "fal-seedream",
+      "fal-seedream-edit",
       expect.any(Number),
       0,
       undefined,
@@ -1402,7 +1491,7 @@ describe("useAiStudioTaskOrchestration", () => {
       "req-dispatched-missing-task-id",
       "out-dispatched-metadata-missing-task-id",
       0,
-      "fal-seedream",
+      "fal-seedream-edit",
       expect.any(Number),
       0,
       undefined,

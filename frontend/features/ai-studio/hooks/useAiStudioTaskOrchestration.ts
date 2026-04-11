@@ -5,6 +5,8 @@
 import { useCallback, useEffect, useRef } from "react";
 import { fetchFalQueueStatus } from "../../../lib/falClient";
 import { BRIA_BACKGROUND_REMOVE_MODEL_ID } from "../logic/editPromptPolicy";
+import { resolveVisibleGenerationReconcile } from "../logic/generatedMediaAuthority";
+import { resolveNormalizedOutputDelivery } from "../logic/referenceGridMedia";
 import { normalizeProviderForPolling, type Provider } from "../logic/stateParsers";
 import type { StudioOutput } from "../types";
 import {
@@ -31,6 +33,9 @@ type UseAiStudioTaskOrchestrationParams = {
 const QUEUE_RESUME_SCAN_INTERVAL_MS = 20_000;
 const QUEUE_RESUME_MIN_RECHECK_MS = 12_000;
 const QUEUE_RESUME_MAX_CONCURRENT = 3;
+const VISIBLE_GENERATION_SCAN_INTERVAL_MS = 4_000;
+const VISIBLE_GENERATION_MIN_RECHECK_MS = 2_500;
+const VISIBLE_GENERATION_MAX_CONCURRENT = 3;
 
 const isDocumentVisible = (): boolean =>
   typeof document === "undefined" || document.visibilityState === "visible";
@@ -51,6 +56,15 @@ const hasSettledOutputPayload = (output: StudioOutput): boolean => {
   }
   return (output.resultUrls ?? []).some((url) => typeof url === "string" && url.trim().length > 0);
 };
+
+const isVisibleGenerationWatchdogEligible = (output: StudioOutput): boolean => {
+  if (output.mediaSource !== "generated") return false;
+  if (hasSettledOutputPayload(output)) return false;
+  const generationId = typeof output.generationId === "string" ? output.generationId.trim() : "";
+  const taskId = typeof output.taskId === "string" ? output.taskId.trim() : "";
+  return generationId.length > 0 || taskId.length > 0;
+};
+
 const isQueueResumeEligible = (output: StudioOutput): boolean => {
   const generationId = typeof output.generationId === "string" ? output.generationId.trim() : "";
   const sourceRef = typeof output.sourceRef === "string" ? output.sourceRef.trim() : "";
@@ -85,9 +99,16 @@ export const useAiStudioTaskOrchestration = ({
   const queueResumeLastCheckedAtRef = useRef<Record<string, number>>({});
   const queueResumeNotFoundRetriesRef = useRef<Record<string, number>>({});
   const queueResumeSignatureRef = useRef<string>("");
+  const visibleGenerationCandidatesRef = useRef<StudioOutput[]>([]);
+  const visibleGenerationInFlightRef = useRef<Record<string, boolean>>({});
+  const visibleGenerationLastCheckedAtRef = useRef<Record<string, number>>({});
+  const visibleGenerationSignatureRef = useRef<string>("");
 
   useEffect(() => {
     queueResumeCandidatesRef.current = outputs.filter((output) => isQueueResumeEligible(output));
+    visibleGenerationCandidatesRef.current = outputs.filter((output) =>
+      isVisibleGenerationWatchdogEligible(output)
+    );
   }, [outputs]);
 
   const handlePollingOutputLookupHardStop = useCallback(
@@ -146,6 +167,96 @@ export const useAiStudioTaskOrchestration = ({
     },
     [clearPrimaryReferenceReplacementOutput, findOutputById, isPrimaryReferenceReplacementOutput]
   );
+
+  const runVisibleGenerationWatchdog = useCallback(() => {
+    if (!isDocumentVisible()) return;
+    const now = Date.now();
+    const activeCandidateIds = new Set<string>();
+    const outputsSnapshot = visibleGenerationCandidatesRef.current;
+
+    let inFlightCount = Object.values(visibleGenerationInFlightRef.current).filter(Boolean).length;
+    outputsSnapshot.forEach((output) => {
+      const lastCheckedAt = visibleGenerationLastCheckedAtRef.current[output.id] ?? 0;
+      if (now - lastCheckedAt < VISIBLE_GENERATION_MIN_RECHECK_MS) return;
+      if (!isVisibleGenerationWatchdogEligible(output)) return;
+      activeCandidateIds.add(output.id);
+      if (inFlightCount >= VISIBLE_GENERATION_MAX_CONCURRENT) return;
+      if (visibleGenerationInFlightRef.current[output.id]) return;
+
+      const generationId = output.generationId?.trim() ?? "";
+      const requestId = output.taskId?.trim() ?? "";
+      if (!generationId && !requestId) return;
+
+      visibleGenerationInFlightRef.current[output.id] = true;
+      visibleGenerationLastCheckedAtRef.current[output.id] = now;
+      inFlightCount += 1;
+
+      void (async () => {
+        try {
+          const visibleGeneration = await resolveVisibleGenerationReconcile({
+            generationId: generationId || undefined,
+            requestId: requestId || undefined,
+          });
+          if (!visibleGeneration) return;
+          if (!findOutputById(output.id)) return;
+          updateOutputById(output.id, (item) => {
+            const nextResultUrls =
+              visibleGeneration.resultUrls.length > 0
+                ? visibleGeneration.resultUrls
+                : (item.resultUrls ?? []);
+            const nextDelivery = resolveNormalizedOutputDelivery({
+              previewStoragePath:
+                visibleGeneration.previewStoragePath ?? item.previewStoragePath ?? null,
+              fullStoragePath: visibleGeneration.fullStoragePath ?? item.fullStoragePath ?? null,
+              previewUrl: visibleGeneration.previewUrl ?? item.previewUrl ?? null,
+              resultUrls: nextResultUrls,
+            });
+            return {
+              ...item,
+              generationId: item.generationId ?? visibleGeneration.generationId,
+              queueState: undefined,
+              taskState: "success",
+              status: "ready",
+              timestamp: "Just now",
+              resultUrls: nextResultUrls,
+              previewUrl: visibleGeneration.previewUrl ?? item.previewUrl,
+              previewStoragePath: nextDelivery.previewStoragePath,
+              fullStoragePath: nextDelivery.fullStoragePath,
+              mediaSource: item.mediaSource ?? "generated",
+              previewTier: item.mode === "video" ? "preview_loop" : "full",
+              archivedAt: null,
+              archiveReason: null,
+              errorMessage: null,
+              errorMessageShort: null,
+              errorDetail: null,
+            };
+          });
+          const resolvedUrls =
+            visibleGeneration.resultUrls.length > 0
+              ? visibleGeneration.resultUrls
+              : visibleGeneration.previewUrl
+                ? [visibleGeneration.previewUrl]
+                : [];
+          if (resolvedUrls.length > 0) {
+            handleGenerationSuccess({
+              outputId: output.id,
+              resultUrls: resolvedUrls,
+            });
+          }
+        } catch {
+          // Projection-backed settle remains best-effort; normal poll/recovery paths remain active.
+        } finally {
+          delete visibleGenerationInFlightRef.current[output.id];
+        }
+      })();
+    });
+
+    Object.keys(visibleGenerationLastCheckedAtRef.current).forEach((outputId) => {
+      if (!activeCandidateIds.has(outputId) && !visibleGenerationInFlightRef.current[outputId]) {
+        delete visibleGenerationLastCheckedAtRef.current[outputId];
+      }
+    });
+  }, [findOutputById, handleGenerationSuccess, updateOutputById]);
 
   const { startPollingTask, clearPollTimer } = useAiStudioTasks({
     updateOutputById,
@@ -342,6 +453,27 @@ export const useAiStudioTaskOrchestration = ({
     if (!queueResumeSignature) return;
     runQueuedOutputResumeWatchdog();
   }, [outputs, runQueuedOutputResumeWatchdog]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    runVisibleGenerationWatchdog();
+    const intervalId = window.setInterval(
+      runVisibleGenerationWatchdog,
+      VISIBLE_GENERATION_SCAN_INTERVAL_MS
+    );
+    return () => window.clearInterval(intervalId);
+  }, [runVisibleGenerationWatchdog]);
+
+  useEffect(() => {
+    const visibleGenerationSignature = visibleGenerationCandidatesRef.current
+      .map((output) => `${output.id}:${output.generationId ?? ""}:${output.taskId ?? ""}`)
+      .sort()
+      .join("|");
+    if (visibleGenerationSignatureRef.current === visibleGenerationSignature) return;
+    visibleGenerationSignatureRef.current = visibleGenerationSignature;
+    if (!visibleGenerationSignature) return;
+    runVisibleGenerationWatchdog();
+  }, [outputs, runVisibleGenerationWatchdog]);
 
   return {
     submitTask,

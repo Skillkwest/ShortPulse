@@ -39,9 +39,8 @@ import {
   PERF_FLAG_RAF_STATUS_FLUSH,
   PERF_FLAG_REFERENCE_GRID_UPDATE_BACKPRESSURE,
 } from "../logic/perfProfileFlags";
-import { resolveVisibleGenerationDelivery } from "../logic/generatedMediaAuthority";
+import { resolveVisibleGenerationReconcile } from "../logic/generatedMediaAuthority";
 import { resolveNormalizedOutputDelivery } from "../logic/referenceGridMedia";
-import { resolveGenerationIdForRequestId } from "../logic/mediaLibraryPersistence";
 import { Provider } from "../logic/stateParsers";
 import { StudioOutput } from "../types";
 import {
@@ -96,14 +95,6 @@ type GenerationFailureContext = {
   noMediaAttempt?: number;
   elapsedMs?: number;
   maxWaitMs?: number;
-};
-
-type CanonicalPublishedReconcile = {
-  generationId: string | null;
-  previewUrl: string | null;
-  previewStoragePath: string | null;
-  fullStoragePath: string | null;
-  resultUrls: string[];
 };
 
 type TaskCallbacks = {
@@ -392,37 +383,6 @@ export function useAiStudioTasks({
     [updateOutputById]
   );
 
-  const resolveVisibleGenerationReconcile = useCallback(
-    async ({ outputId, taskId }: { outputId: string; taskId: string }) => {
-      try {
-        const existingOutput = findOutputById?.(outputId) ?? null;
-        const generationId =
-          asTrimmedString(existingOutput?.generationId) ??
-          (await resolveGenerationIdForRequestId(taskId));
-        if (!generationId) return null;
-        const delivery = await resolveVisibleGenerationDelivery({ generationId });
-        if (!delivery) return null;
-        const previewUrl =
-          asTrimmedString(delivery.previewUrl) ?? asTrimmedString(delivery.fullUrl) ?? null;
-        const fullUrl =
-          asTrimmedString(delivery.fullUrl) ?? asTrimmedString(delivery.previewUrl) ?? null;
-        if (!previewUrl && !delivery.previewStoragePath && !delivery.fullStoragePath) {
-          return null;
-        }
-        return {
-          generationId,
-          previewUrl,
-          previewStoragePath: delivery.previewStoragePath,
-          fullStoragePath: delivery.fullStoragePath,
-          resultUrls: fullUrl ? [fullUrl] : previewUrl ? [previewUrl] : [],
-        } satisfies CanonicalPublishedReconcile;
-      } catch {
-        return null;
-      }
-    },
-    [findOutputById]
-  );
-
   const settleOutputFromVisibleGenerationState = useCallback(
     async ({
       outputId,
@@ -435,10 +395,11 @@ export function useAiStudioTasks({
       provider: Provider;
       timestamp?: string;
     }) => {
+      const existingOutput = findOutputById?.(outputId) ?? null;
       const visibleGeneration = await resolveVisibleGenerationReconcile({
-        outputId,
-        taskId,
-      });
+        generationId: asTrimmedString(existingOutput?.generationId),
+        requestId: taskId,
+      }).catch(() => null);
       if (!visibleGeneration) return false;
       queueOutputUpdate(outputId, (item) => {
         const nextResultUrls =
@@ -493,7 +454,7 @@ export function useAiStudioTasks({
       clearPollTimer(outputId);
       return true;
     },
-    [clearPollTimer, onGenerationSuccess, queueOutputUpdate, resolveVisibleGenerationReconcile]
+    [clearPollTimer, findOutputById, onGenerationSuccess, queueOutputUpdate]
   );
 
   const {

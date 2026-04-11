@@ -3,8 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { StudioOutput } from "../../types";
 import { DISPATCH_HANDOFF_INITIAL_POLL_DELAY_MS, useAiStudioTasks } from "../useAiStudioTasks";
 import { MAX_CONCURRENT_STATUS_REQUESTS } from "../taskPolling/pollingSchedulePolicy";
-import { resolveVisibleGenerationDelivery } from "../../logic/generatedMediaAuthority";
-import { resolveGenerationIdForRequestId } from "../../logic/mediaLibraryPersistence";
+import { resolveVisibleGenerationReconcile } from "../../logic/generatedMediaAuthority";
 import {
   fetchFalBriaBackgroundRemoveStatus,
   fetchFalSeedreamStatus,
@@ -43,11 +42,7 @@ vi.mock("../../../../lib/falClient", () => ({
 }));
 
 vi.mock("../../logic/generatedMediaAuthority", () => ({
-  resolveVisibleGenerationDelivery: vi.fn(),
-}));
-
-vi.mock("../../logic/mediaLibraryPersistence", () => ({
-  resolveGenerationIdForRequestId: vi.fn(),
+  resolveVisibleGenerationReconcile: vi.fn(),
 }));
 
 const makeOutput = (): StudioOutput => ({
@@ -99,14 +94,12 @@ describe("useAiStudioTasks", () => {
   const fetchKieVeoImageToVideoStatusMock = vi.mocked(fetchKieVeoImageToVideoStatus);
   const fetchKieKlingImageToVideoStatusMock = vi.mocked(fetchKieKlingImageToVideoStatus);
   const fetchKieSeedanceVideoStatusMock = vi.mocked(fetchKieSeedanceVideoStatus);
-  const resolveGenerationIdForRequestIdMock = vi.mocked(resolveGenerationIdForRequestId);
-  const resolveVisibleGenerationDeliveryMock = vi.mocked(resolveVisibleGenerationDelivery);
+  const resolveVisibleGenerationReconcileMock = vi.mocked(resolveVisibleGenerationReconcile);
 
   beforeEach(() => {
     vi.useFakeTimers();
     vi.resetAllMocks();
-    resolveGenerationIdForRequestIdMock.mockResolvedValue(null);
-    resolveVisibleGenerationDeliveryMock.mockResolvedValue(null);
+    resolveVisibleGenerationReconcileMock.mockResolvedValue(null);
   });
 
   afterEach(() => {
@@ -354,12 +347,12 @@ describe("useAiStudioTasks", () => {
     fetchFalSeedreamStatusMock.mockResolvedValue({
       status: "done",
     });
-    resolveGenerationIdForRequestIdMock.mockResolvedValue("gen-canonical-1");
-    resolveVisibleGenerationDeliveryMock.mockResolvedValue({
+    resolveVisibleGenerationReconcileMock.mockResolvedValue({
+      generationId: "gen-canonical-1",
       previewUrl: "https://cdn.test/canonical-preview.png",
-      fullUrl: "https://cdn.test/canonical-full.png",
       previewStoragePath: null,
       fullStoragePath: null,
+      resultUrls: ["https://cdn.test/canonical-full.png"],
     });
 
     let output = makeOutput();
@@ -385,9 +378,9 @@ describe("useAiStudioTasks", () => {
     await vi.advanceTimersByTimeAsync(2_300);
     await flushQueuedOutputUpdates();
 
-    expect(resolveGenerationIdForRequestIdMock).toHaveBeenCalledWith("seedream-task-canonical");
-    expect(resolveVisibleGenerationDeliveryMock).toHaveBeenCalledWith({
-      generationId: "gen-canonical-1",
+    expect(resolveVisibleGenerationReconcileMock).toHaveBeenCalledWith({
+      generationId: null,
+      requestId: "seedream-task-canonical",
     });
     expect(onGenerationSuccess).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -407,12 +400,12 @@ describe("useAiStudioTasks", () => {
     fetchFalSeedreamStatusMock.mockResolvedValue({
       status: "processing",
     });
-    resolveGenerationIdForRequestIdMock.mockResolvedValue("gen-projection-1");
-    resolveVisibleGenerationDeliveryMock.mockResolvedValue({
+    resolveVisibleGenerationReconcileMock.mockResolvedValue({
+      generationId: "gen-projection-1",
       previewUrl: "https://cdn.test/projection-preview.png",
-      fullUrl: "https://cdn.test/projection-full.png",
       previewStoragePath: null,
       fullStoragePath: null,
+      resultUrls: ["https://cdn.test/projection-full.png"],
     });
 
     let output = makeOutput();
@@ -439,9 +432,9 @@ describe("useAiStudioTasks", () => {
     await flushQueuedOutputUpdates();
 
     expect(fetchFalSeedreamStatusMock).not.toHaveBeenCalled();
-    expect(resolveGenerationIdForRequestIdMock).toHaveBeenCalledWith("seedream-task-projection");
-    expect(resolveVisibleGenerationDeliveryMock).toHaveBeenCalledWith({
-      generationId: "gen-projection-1",
+    expect(resolveVisibleGenerationReconcileMock).toHaveBeenCalledWith({
+      generationId: null,
+      requestId: "seedream-task-projection",
     });
     expect(onGenerationSuccess).toHaveBeenCalledWith(
       expect.objectContaining({

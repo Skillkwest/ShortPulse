@@ -1,5 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { resolveVisibleGenerationDelivery } from "../generatedMediaAuthority";
+import {
+  resolveVisibleGenerationDelivery,
+  resolveVisibleGenerationReconcile,
+} from "../generatedMediaAuthority";
 
 const ensureSupabaseQueryClientMock = vi.hoisted(() => vi.fn());
 const readSupabaseUserIdMock = vi.hoisted(() => vi.fn());
@@ -137,6 +140,55 @@ describe("generatedMediaAuthority", () => {
       fullUrl: "https://cdn.test/published-full.png",
       previewStoragePath: null,
       fullStoragePath: null,
+    });
+  });
+
+  it("resolves visible generation reconcile by request id through projection identity", async () => {
+    const projectionIdentityBuilder = createAwaitableSelectBuilder({
+      data: {
+        generation_id: "gen-request-1",
+      },
+      error: null,
+    });
+    const projectionDeliveryBuilder = createAwaitableSelectBuilder({
+      data: {
+        preview_url: "https://fal.test/request-preview.png",
+        result_urls: ["https://fal.test/request-full.png"],
+        preview_storage_path: null,
+        full_storage_path: null,
+        task_state: "success",
+        hidden_in_reference_grid: false,
+        reference_grid_visible: true,
+      },
+      error: null,
+    });
+
+    const generationProjectionSelect = vi
+      .fn()
+      .mockImplementationOnce(() => projectionIdentityBuilder)
+      .mockImplementationOnce(() => projectionDeliveryBuilder);
+
+    ensureSupabaseQueryClientMock.mockReturnValue({
+      from: vi.fn((table: string) => {
+        if (table === "generation_projection") {
+          return {
+            select: generationProjectionSelect,
+          };
+        }
+        throw new Error(`Unexpected table: ${table}`);
+      }),
+    });
+
+    await expect(
+      resolveVisibleGenerationReconcile({
+        requestId: "req-visible-1",
+      })
+    ).resolves.toEqual({
+      generationId: "gen-request-1",
+      previewUrl: "https://fal.test/request-preview.png",
+      previewStoragePath: null,
+      fullStoragePath: null,
+      resultUrls: ["https://fal.test/request-full.png"],
     });
   });
 });

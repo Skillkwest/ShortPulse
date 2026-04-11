@@ -162,8 +162,6 @@ describe("recoveryLifecycleTransitions", () => {
         queuePlan,
       })
     ).toEqual({
-      status: "fail",
-      completed_at: nowIso,
       failure_reason_code: "terminal_success_no_media",
       recovery_state: "queued",
       last_recovery_at: nowIso,

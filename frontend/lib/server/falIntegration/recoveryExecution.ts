@@ -794,6 +794,18 @@ export const executeGenerationRecovery = async ({
   }
 
   if (!recoveredUrls.length) {
+    const nextDelaySeconds = resolveRetryDelaySeconds(
+      Math.max(attempts, 1),
+      "terminal_success_no_media"
+    );
+    const queuePlan = buildRecoveryQueuePlan({
+      attempts,
+      effectiveMaxAttempts,
+      nextDelaySeconds,
+      generationAgeSeconds,
+      exhaustMinAgeSeconds: runtimeFlags.noMediaExhaustMinAgeSeconds,
+      enforceMinAgeForExhaustion: true,
+    });
     await applyRecoveryTransition({
       generation,
       attemptTransition: {
@@ -808,39 +820,29 @@ export const executeGenerationRecovery = async ({
         },
       },
     });
-    await settleGenerationOutcome({
-      userId: generation.user_id,
-      providerRequestId: generation.request_id,
-      outcome: "fail",
-      reason: "Provider terminal success without media payload.",
-      routeLabel,
-      detail: {
-        actor,
-        generation_id: generation.id,
-      },
-    });
-    const nextDelaySeconds = resolveRetryDelaySeconds(
-      Math.max(attempts, 1),
-      "terminal_success_no_media"
-    );
-    const queuePlan = buildRecoveryQueuePlan({
-      attempts,
-      effectiveMaxAttempts,
-      nextDelaySeconds,
-      generationAgeSeconds,
-      exhaustMinAgeSeconds: runtimeFlags.noMediaExhaustMinAgeSeconds,
-      enforceMinAgeForExhaustion: true,
-    });
-    await syncFailedGenerationProjection({
-      completedAt: nowIso,
-      errorDetail: "Provider terminal success without media payload.",
-      errorMessage: "Generation failed.",
-      errorMessageShort: "No media returned.",
-      generation,
-    });
+    if (queuePlan.isExhausted) {
+      await settleGenerationOutcome({
+        userId: generation.user_id,
+        providerRequestId: generation.request_id,
+        outcome: "fail",
+        reason: "Provider terminal success without media payload.",
+        routeLabel,
+        detail: {
+          actor,
+          generation_id: generation.id,
+        },
+      });
+      await syncFailedGenerationProjection({
+        completedAt: nowIso,
+        errorDetail: "Provider terminal success without media payload.",
+        errorMessage: "Generation failed.",
+        errorMessageShort: "No media returned.",
+        generation,
+      });
+    }
     await applyRecoveryTransition({
       generation,
-      generationUpdates: buildNoMediaUpdate({ nowIso, queuePlan }),
+      generationUpdates: buildNoMediaUpdate({ nowIso, attempts, queuePlan }),
     });
     void requestGenerationControlPlaneWake({
       routeLabel,

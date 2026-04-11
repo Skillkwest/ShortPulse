@@ -860,19 +860,16 @@ describe("executeGenerationRecovery", () => {
         processed: true,
       })
     );
-    expect(settleGenerationOutcomeMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        outcome: "fail",
-      })
-    );
+    expect(settleGenerationOutcomeMock).not.toHaveBeenCalled();
     expect(scenario.updatePayloads).toHaveLength(1);
     expect(scenario.updatePayloads[0]).toEqual(
       expect.objectContaining({
-        status: "fail",
         failure_reason_code: "terminal_success_no_media",
         recovery_state: "queued",
       })
     );
+    expect(scenario.updatePayloads[0]).not.toHaveProperty("status");
+    expect(scenario.updatePayloads[0]).not.toHaveProperty("completed_at");
     expect(typeof scenario.updatePayloads[0]?.next_recovery_at).toBe("string");
     expect(updateGenerationAttemptStateMock).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -881,17 +878,7 @@ describe("executeGenerationRecovery", () => {
         failureReasonCode: "terminal_success_no_media",
       })
     );
-    expect(upsertGenerationProjectionMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        generationId: "gen-1",
-        taskState: "fail",
-        publicationState: "suppressed",
-        errorMessageShort: "No media returned.",
-        errorDetail: "Provider terminal success without media payload.",
-        resultUrls: [],
-        savedMediaIds: [],
-      })
-    );
+    expect(upsertGenerationProjectionMock).not.toHaveBeenCalled();
   });
 
   it("defers no-media exhaustion when attempts reached max but generation age is below no-media minimum threshold", async () => {
@@ -927,11 +914,16 @@ describe("executeGenerationRecovery", () => {
     expect(scenario.updatePayloads).toHaveLength(1);
     expect(scenario.updatePayloads[0]).toEqual(
       expect.objectContaining({
-        status: "fail",
         failure_reason_code: "terminal_success_no_media",
         recovery_state: "queued",
       })
     );
+    expect(scenario.updatePayloads[0]).toEqual(
+      expect.objectContaining({
+        recovery_attempts: 4,
+      })
+    );
+    expect(scenario.updatePayloads[0]).not.toHaveProperty("status");
     expect(typeof scenario.updatePayloads[0]?.next_recovery_at).toBe("string");
   });
 

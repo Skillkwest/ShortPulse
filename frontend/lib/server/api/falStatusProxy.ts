@@ -1189,17 +1189,6 @@ export const createFalStatusHandler = ({
         resultStatus === "error" || resultStatus === "failed" || Boolean(resultErrorMessage);
       const resultHasMedia = payloadHasMedia(resultData.json);
 
-      if (!explicitResultFailure && !resultHasMedia && statusTransientFailuresEnabled) {
-        return respondTransientWithTelemetry({
-          source: "telemetry.fal.status.transient.no_media",
-          stage: "result",
-          detail: {
-            result_status: resultStatus,
-          },
-          upstreamStatus: resultResp.status,
-        });
-      }
-
       if (explicitResultFailure) {
         await executeImmediateRecovery({
           observationType: "failed",
@@ -1247,22 +1236,62 @@ export const createFalStatusHandler = ({
       }
 
       if (!resultHasMedia) {
-        return respondErrorWithLogging({
-          requestId,
-          error: resultErrorMessage || "Generation failed to produce media output",
-          statusCode: 502,
-          source: "api.fal_status.result_missing_media",
-          stage: "result",
-          detail: resultData.json,
-          lifecycle: buildShortPulseLifecycleHint({
-            taskState: "fail",
-            isTerminal: true,
-            errorMessage: resultErrorMessage || "Generation failed to produce media output",
-            errorDetail: resultData.json,
-            providerState: resultStatus ?? normalizedStatus,
-            queueState: "failed",
-          }),
+        await executeImmediateRecovery({
+          observationType: "completed",
+          payload: resultData.json,
         });
+        const canonicalContext = await readCanonicalStatusContext();
+        if (canonicalContext.resultUrls.length > 0) {
+          return res.status(200).json(
+            buildPersistedCompletedPayload({
+              requestId,
+              resultUrls: canonicalContext.resultUrls,
+              generationId: canonicalContext.generationId ?? generationId,
+            })
+          );
+        }
+        if (canonicalContext.taskState === "fail") {
+          return res.status(200).json(
+            buildPersistedFailedPayload({
+              requestId,
+              generationId: canonicalContext.generationId ?? generationId,
+              errorMessage:
+                canonicalContext.errorMessageShort?.trim() ||
+                resultErrorMessage ||
+                "Generation failed to produce media output",
+              errorDetail:
+                canonicalContext.errorDetail ??
+                canonicalContext.errorMessageShort ??
+                resultData.json,
+              providerState: resultStatus ?? normalizedStatus,
+              queueState: canonicalContext.queueState ?? "failed",
+            })
+          );
+        }
+        await persistPollObservation({
+          observationType: "completed",
+          payload: resultData.json,
+        });
+        return res.status(200).json(
+          buildFalStatusTransientPayload({
+            requestId,
+            detail: {
+              stage: "result",
+              result_status: resultStatus,
+            },
+            generationId: canonicalContext.generationId ?? generationId,
+            lifecycle: buildShortPulseLifecycleHint({
+              taskState: "success",
+              isTerminal: true,
+              providerState: resultStatus ?? normalizedStatus ?? "completed",
+              recoveryPending: true,
+              queueState: ACTIVE_POLLING_QUEUE_STATE,
+              statusLabel: resolveLifecycleStatusLabel({
+                taskState: "success",
+              }),
+            }),
+          })
+        );
       }
 
       return captureAndRespondSuccess({

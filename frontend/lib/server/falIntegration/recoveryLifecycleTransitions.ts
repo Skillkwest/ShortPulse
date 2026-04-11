@@ -105,18 +105,37 @@ export const buildProviderFailedUpdate = (nowIso: string): Record<string, unknow
 
 export const buildNoMediaUpdate = ({
   nowIso,
+  attempts,
   queuePlan,
 }: {
   nowIso: string;
+  attempts?: number;
   queuePlan: RecoveryQueuePlan;
-}): Record<string, unknown> => ({
-  status: "fail",
-  completed_at: nowIso,
-  failure_reason_code: "terminal_success_no_media",
-  recovery_state: queuePlan.recoveryState,
-  last_recovery_at: nowIso,
-  next_recovery_at: queuePlan.nextRecoveryAt,
-});
+}): Record<string, unknown> => {
+  if (queuePlan.isExhausted) {
+    return {
+      status: "fail",
+      completed_at: nowIso,
+      failure_reason_code: "terminal_success_no_media",
+      recovery_state: queuePlan.recoveryState,
+      last_recovery_at: nowIso,
+      next_recovery_at: queuePlan.nextRecoveryAt,
+    };
+  }
+
+  const update: Record<string, unknown> = {
+    failure_reason_code: "terminal_success_no_media",
+    recovery_state: queuePlan.recoveryState,
+    last_recovery_at: nowIso,
+    next_recovery_at: queuePlan.nextRecoveryAt,
+  };
+  if (typeof attempts === "number") {
+    update.recovery_attempts = queuePlan.exhaustionDeferredByMinAge
+      ? Math.max(attempts - 1, 0)
+      : attempts;
+  }
+  return update;
+};
 
 export const buildRecoveredSuccessUpdate = ({
   nowIso,

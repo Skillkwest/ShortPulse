@@ -1636,7 +1636,7 @@ describe("createFalStatusHandler", () => {
     );
   });
 
-  it("treats completed-without-media as transient when status transient failures are enabled", async () => {
+  it("treats completed-without-media as recovery-pending and persists a completed observation", async () => {
     process.env.SHORTPULSE_FAL_STATUS_TRANSIENT_FAILURES_ENABLED = "true";
     const fetchMock = vi
       .fn()
@@ -1682,14 +1682,24 @@ describe("createFalStatusHandler", () => {
         request_id: "req-transient-no-media",
       })
     );
-    expect(logGenerationFailureMock).toHaveBeenCalledWith(
+    expect(executeGenerationRecoveryMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        source: "telemetry.fal.status.transient.no_media",
+        actor: "poll",
+        requestId: "req-transient-no-media",
+        observation: expect.objectContaining({
+          state: "completed",
+        }),
+      })
+    );
+    expect(persistGenerationObservationMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        providerRequestId: "req-transient-no-media",
+        observationType: "completed",
       })
     );
   });
 
-  it("keeps missing-media terminal behavior when status transient failures are disabled", async () => {
+  it("keeps missing-media in recovery-pending state when status transient failures are disabled", async () => {
     const fetchMock = vi
       .fn()
       .mockResolvedValueOnce(
@@ -1729,9 +1739,18 @@ describe("createFalStatusHandler", () => {
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith(
       expect.objectContaining({
-        status: "error",
-        state: "error",
+        status: "IN_PROGRESS",
+        state: "running",
         request_id: "req-terminal-no-media",
+      })
+    );
+    expect(executeGenerationRecoveryMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        actor: "poll",
+        requestId: "req-terminal-no-media",
+        observation: expect.objectContaining({
+          state: "completed",
+        }),
       })
     );
   });

@@ -23,6 +23,8 @@ const EXPECTED_FAL_ROUTE_FILES = [
   "flux2pro-edit-submit.ts",
   "flux2pro-status.ts",
   "flux2pro-submit.ts",
+  "image-status.ts",
+  "image-submit.ts",
   "kie-kling-status.ts",
   "kie-kling-submit.ts",
   "kie-seedance-2-fast-status.ts",

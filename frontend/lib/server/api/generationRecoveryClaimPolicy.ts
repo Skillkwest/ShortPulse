@@ -50,6 +50,7 @@ export const tryClaimRecoveryCandidate = async ({
   oldestAllowedIso,
   nowIso,
   leaseUntilIso,
+  bypassMinAge = false,
   supabaseAdmin = getSupabaseAdmin(),
 }: {
   candidate: RecoveryClaimCandidate;
@@ -57,6 +58,7 @@ export const tryClaimRecoveryCandidate = async ({
   oldestAllowedIso: string;
   nowIso: string;
   leaseUntilIso: string;
+  bypassMinAge?: boolean;
   supabaseAdmin?: ReturnType<typeof getSupabaseAdmin>;
 }): Promise<RecoveryClaimResult> => {
   const providerFamily = resolveSupportedRecoveryProviderFamily(candidate.provider);
@@ -83,8 +85,11 @@ export const tryClaimRecoveryCandidate = async ({
     .eq("recovery_state", candidate.recoveryState ?? "queued")
     .ilike("provider", `${providerFamily}%`)
     .lt("recovery_attempts", maxAttempts)
-    .lte("created_at", oldestAllowedIso)
     .or(`next_recovery_at.is.null,next_recovery_at.lte.${nowIso}`);
+
+  if (!bypassMinAge) {
+    claimQuery = claimQuery.lte("created_at", oldestAllowedIso);
+  }
 
   claimQuery =
     candidate.recoveryAttempts === null

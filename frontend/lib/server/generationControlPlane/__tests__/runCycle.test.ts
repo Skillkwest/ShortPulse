@@ -6,6 +6,7 @@ const logApiRouteExceptionMock = vi.fn();
 const dispatchGenerationSubmitQueueBatchMock = vi.fn();
 const processPendingGenerationObservationsMock = vi.fn();
 const repairGenerationRequestIdsFromReservationsMock = vi.fn();
+const repairStaleTerminalGenerationProjectionsMock = vi.fn();
 const claimGenerationRecoveryBatchMock = vi.fn();
 const executeClaimedRecoveryBatchMock = vi.fn();
 
@@ -30,6 +31,11 @@ vi.mock("../observationBatchExecution", () => ({
 vi.mock("../../api/generationQueue/requestIdRepair", () => ({
   repairGenerationRequestIdsFromReservations: (...args: unknown[]) =>
     repairGenerationRequestIdsFromReservationsMock(...args),
+}));
+
+vi.mock("../../api/generationProjection", () => ({
+  repairStaleTerminalGenerationProjections: (...args: unknown[]) =>
+    repairStaleTerminalGenerationProjectionsMock(...args),
 }));
 
 vi.mock("../recoveryBatchAcquisition", () => ({
@@ -97,6 +103,11 @@ describe("runGenerationControlPlaneCycle", () => {
       repaired: 0,
       errors: 0,
     });
+    repairStaleTerminalGenerationProjectionsMock.mockResolvedValue({
+      scanned: 0,
+      repaired: 0,
+      skipped: 0,
+    });
     claimGenerationRecoveryBatchMock.mockResolvedValue({
       rows: [],
       claimSource: "rpc",
@@ -154,6 +165,10 @@ describe("runGenerationControlPlaneCycle", () => {
       maxAttempts: 5,
       routeLabel: "worker/generation-control-plane",
       logException: expect.any(Function),
+    });
+    expect(repairStaleTerminalGenerationProjectionsMock).toHaveBeenCalledWith({
+      supabaseAdmin: expect.any(Object),
+      limit: 10,
     });
     expect(result).toEqual(
       expect.objectContaining({
@@ -239,6 +254,10 @@ describe("runGenerationControlPlaneCycle", () => {
       limit: 10,
       leaseSeconds: expect.any(Number),
       routeLabel: "worker/generation-control-plane",
+    });
+    expect(repairStaleTerminalGenerationProjectionsMock).toHaveBeenCalledWith({
+      supabaseAdmin: expect.any(Object),
+      limit: 10,
     });
     expect(claimGenerationRecoveryBatchMock).toHaveBeenCalledWith({
       supabaseAdmin: expect.any(Object),

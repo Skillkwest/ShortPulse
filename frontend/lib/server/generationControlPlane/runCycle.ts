@@ -1,5 +1,6 @@
 import { logApiRouteException } from "../api/appErrorLogs";
 import { readFalRuntimeFlags } from "../api/falRuntimeFlags";
+import { repairStaleTerminalGenerationProjections } from "../api/generationProjection";
 import { dispatchGenerationSubmitQueueBatch } from "../api/generationQueue/dispatch";
 import { getSupabaseAdmin } from "../api/supabaseAdmin";
 import { processPendingGenerationObservations } from "./observationBatchExecution";
@@ -254,6 +255,21 @@ export const runGenerationControlPlaneCycle = async ({
           }),
       })
     );
+
+  try {
+    await repairStaleTerminalGenerationProjections({
+      supabaseAdmin,
+      limit: Math.max(effectiveReconcilerBatchSize, 10),
+    });
+  } catch (error) {
+    await logControlPlaneException({
+      context,
+      error,
+      metadata: {
+        stage: "projection_repair",
+      },
+    });
+  }
 
   return {
     ok: true,

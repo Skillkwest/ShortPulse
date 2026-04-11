@@ -5,6 +5,7 @@ type JsonObject = Record<string, unknown>;
 export type UpsertGenerationProjectionInput = {
   generationId: string;
   userId: string;
+  supabaseAdmin?: ReturnType<typeof getSupabaseAdmin>;
   sourceRef?: string | null;
   requestId?: string | null;
   provider?: string | null;
@@ -45,6 +46,14 @@ const asStringArray = (value: unknown): string[] => {
   return value.map((item) => asString(item)).filter((item): item is string => Boolean(item));
 };
 
+const asObject = (value: unknown): JsonObject =>
+  value && typeof value === "object" && !Array.isArray(value) ? (value as JsonObject) : {};
+
+const asBoolean = (value: unknown): boolean | null => {
+  if (typeof value === "boolean") return value;
+  return null;
+};
+
 export type GenerationProjectionStatusContext = {
   generationId: string;
   resultUrls: string[];
@@ -79,9 +88,133 @@ export type GenerationProjectionOwnershipContext = {
   userIds: string[];
 };
 
+type RepairableProjectionRow = {
+  generationId: string;
+  userId: string;
+  sourceRef: string | null;
+  requestId: string | null;
+  provider: string | null;
+  providerRequestId: string | null;
+  latestAttemptId: string | null;
+  displayPrompt: string | null;
+  modelId: string | null;
+  hiddenInReferenceGrid: boolean;
+  referenceGridVisible: boolean | null;
+  generationReplay: JsonObject;
+  characterContext: JsonObject;
+  styleContext: JsonObject;
+  startedAt: string | null;
+};
+
+type RepairableGenerationRow = {
+  generationId: string;
+  userId: string;
+  requestId: string | null;
+  provider: string | null;
+  modelId: string | null;
+  promptText: string | null;
+  status: string | null;
+  failureReasonCode: string | null;
+  completedAt: string | null;
+};
+
+export type TerminalGenerationProjectionRepairMetrics = {
+  scanned: number;
+  repaired: number;
+  skipped: number;
+};
+
+const parseRepairableProjectionRow = (value: unknown): RepairableProjectionRow | null => {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const row = value as Record<string, unknown>;
+  const generationId = asString(row.generation_id);
+  const userId = asString(row.user_id);
+  if (!generationId || !userId) return null;
+
+  return {
+    generationId,
+    userId,
+    sourceRef: asString(row.source_ref),
+    requestId: asString(row.request_id),
+    provider: asString(row.provider),
+    providerRequestId: asString(row.provider_request_id),
+    latestAttemptId: asString(row.latest_attempt_id),
+    displayPrompt: asString(row.display_prompt),
+    modelId: asString(row.model_id),
+    hiddenInReferenceGrid: asBoolean(row.hidden_in_reference_grid) ?? false,
+    referenceGridVisible: asBoolean(row.reference_grid_visible),
+    generationReplay: asObject(row.generation_replay),
+    characterContext: asObject(row.character_context),
+    styleContext: asObject(row.style_context),
+    startedAt: asString(row.started_at),
+  };
+};
+
+const parseRepairableGenerationRow = (value: unknown): RepairableGenerationRow | null => {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const row = value as Record<string, unknown>;
+  const generationId = asString(row.id);
+  const userId = asString(row.user_id);
+  if (!generationId || !userId) return null;
+
+  return {
+    generationId,
+    userId,
+    requestId: asString(row.request_id),
+    provider: asString(row.provider),
+    modelId: asString(row.model_id),
+    promptText: asString(row.prompt_text),
+    status: asString(row.status),
+    failureReasonCode: asString(row.failure_reason_code),
+    completedAt: asString(row.completed_at),
+  };
+};
+
+const readFailedProjectionMessage = (
+  failureReasonCode: string | null
+): {
+  errorMessage: string;
+  errorMessageShort: string;
+  errorDetail: string;
+} => {
+  switch (failureReasonCode) {
+    case "terminal_success_no_media":
+      return {
+        errorMessage: "Generation failed.",
+        errorMessageShort: "No media returned.",
+        errorDetail: "Provider terminal success without media payload.",
+      };
+    case "provider_running_timeout":
+      return {
+        errorMessage: "Generation timed out during recovery.",
+        errorMessageShort: "Generation timed out",
+        errorDetail: "Provider exceeded running hard-timeout during recovery execution.",
+      };
+    case "provider_error":
+      return {
+        errorMessage: "Generation failed.",
+        errorMessageShort: "Generation failed",
+        errorDetail: "Provider reported failed state during recovery execution.",
+      };
+    case "recovery_exhausted":
+      return {
+        errorMessage: "Generation recovery exhausted.",
+        errorMessageShort: "Generation failed",
+        errorDetail: "Generation recovery exhausted before media could be recovered.",
+      };
+    default:
+      return {
+        errorMessage: "Generation failed.",
+        errorMessageShort: "Generation failed",
+        errorDetail: "Generation completed with a terminal failure state.",
+      };
+  }
+};
+
 export const upsertGenerationProjection = async ({
   generationId,
   userId,
+  supabaseAdmin,
   sourceRef,
   requestId,
   provider,
@@ -158,7 +291,8 @@ export const upsertGenerationProjection = async ({
     payload.reference_grid_visible = referenceGridVisible;
   }
 
-  const { error } = await getSupabaseAdmin().from("generation_projection").upsert(payload, {
+  const adminClient = supabaseAdmin ?? getSupabaseAdmin();
+  const { error } = await adminClient.from("generation_projection").upsert(payload, {
     onConflict: "generation_id",
   });
   if (error) throw error;
@@ -444,5 +578,128 @@ export const readGenerationProjectionOwnershipByProviderRequestId = async ({
           .filter((userId): userId is string => Boolean(userId))
       )
     ),
+  };
+};
+
+export const repairStaleTerminalGenerationProjections = async ({
+  supabaseAdmin,
+  limit = 25,
+  minAgeSeconds = 15 * 60,
+  now = new Date(),
+}: {
+  supabaseAdmin?: ReturnType<typeof getSupabaseAdmin>;
+  limit?: number;
+  minAgeSeconds?: number;
+  now?: Date;
+}): Promise<TerminalGenerationProjectionRepairMetrics> => {
+  const adminClient = supabaseAdmin ?? getSupabaseAdmin();
+  const cutoffIso = new Date(now.getTime() - Math.max(0, minAgeSeconds) * 1000).toISOString();
+
+  const staleProjectionResponse = await adminClient
+    .from("generation_projection")
+    .select(
+      [
+        "generation_id",
+        "user_id",
+        "source_ref",
+        "request_id",
+        "provider",
+        "provider_request_id",
+        "latest_attempt_id",
+        "display_prompt",
+        "model_id",
+        "hidden_in_reference_grid",
+        "reference_grid_visible",
+        "generation_replay",
+        "character_context",
+        "style_context",
+        "started_at",
+      ].join(", ")
+    )
+    .in("task_state", ["pending", "running"])
+    .lte("updated_at", cutoffIso)
+    .order("updated_at", { ascending: true })
+    .limit(limit);
+  if (staleProjectionResponse.error) throw staleProjectionResponse.error;
+
+  const projectionRows = Array.isArray(staleProjectionResponse.data)
+    ? staleProjectionResponse.data
+        .map((row) => parseRepairableProjectionRow(row))
+        .filter((row): row is RepairableProjectionRow => Boolean(row))
+    : [];
+  if (!projectionRows.length) {
+    return { scanned: 0, repaired: 0, skipped: 0 };
+  }
+
+  const generationResponse = await adminClient
+    .from("ai_generations")
+    .select(
+      "id, user_id, request_id, provider, model_id, prompt_text, status, failure_reason_code, completed_at"
+    )
+    .in(
+      "id",
+      projectionRows.map((row) => row.generationId)
+    )
+    .limit(projectionRows.length);
+  if (generationResponse.error) throw generationResponse.error;
+
+  const generationById = new Map(
+    (Array.isArray(generationResponse.data) ? generationResponse.data : [])
+      .map((row) => parseRepairableGenerationRow(row))
+      .filter((row): row is RepairableGenerationRow => Boolean(row))
+      .map((row) => [row.generationId, row])
+  );
+
+  let repaired = 0;
+  let skipped = 0;
+
+  for (const projection of projectionRows) {
+    const generation = generationById.get(projection.generationId);
+    if (
+      !generation ||
+      generation.userId !== projection.userId ||
+      generation.status !== "fail" ||
+      !generation.completedAt
+    ) {
+      skipped += 1;
+      continue;
+    }
+
+    const message = readFailedProjectionMessage(generation.failureReasonCode);
+    await upsertGenerationProjection({
+      supabaseAdmin: adminClient,
+      generationId: projection.generationId,
+      userId: projection.userId,
+      sourceRef: projection.sourceRef,
+      requestId: projection.requestId ?? generation.requestId,
+      provider: projection.provider ?? generation.provider,
+      providerRequestId: projection.providerRequestId ?? generation.requestId,
+      latestAttemptId: projection.latestAttemptId,
+      status: "ready",
+      taskState: "fail",
+      displayPrompt: projection.displayPrompt ?? generation.promptText,
+      modelId: projection.modelId ?? generation.modelId,
+      errorMessage: message.errorMessage,
+      errorMessageShort: message.errorMessageShort,
+      errorDetail: message.errorDetail,
+      saveState: "idle",
+      hiddenInReferenceGrid: projection.hiddenInReferenceGrid,
+      referenceGridVisible: projection.referenceGridVisible ?? !projection.hiddenInReferenceGrid,
+      publicationState: "suppressed",
+      resultUrls: [],
+      savedMediaIds: [],
+      generationReplay: projection.generationReplay,
+      characterContext: projection.characterContext,
+      styleContext: projection.styleContext,
+      startedAt: projection.startedAt,
+      completedAt: generation.completedAt,
+    });
+    repaired += 1;
+  }
+
+  return {
+    scanned: projectionRows.length,
+    repaired,
+    skipped,
   };
 };

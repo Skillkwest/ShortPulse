@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { resolveLatestPublishedGenerationDelivery } from "../generatedMediaAuthority";
+import { resolveVisibleGenerationDelivery } from "../generatedMediaAuthority";
 
 const ensureSupabaseQueryClientMock = vi.hoisted(() => vi.fn());
 const readSupabaseUserIdMock = vi.hoisted(() => vi.fn());
@@ -74,7 +74,7 @@ describe("generatedMediaAuthority", () => {
     });
 
     await expect(
-      resolveLatestPublishedGenerationDelivery({
+      resolveVisibleGenerationDelivery({
         generationId: "gen-suppressed-1",
       })
     ).resolves.toEqual({
@@ -85,7 +85,7 @@ describe("generatedMediaAuthority", () => {
     });
   });
 
-  it("prefers published generation delivery when it exists", async () => {
+  it("falls back to published generation delivery when projection is not renderable", async () => {
     const publicationsBuilder = createAwaitableSelectBuilder({
       data: [
         {
@@ -99,18 +99,29 @@ describe("generatedMediaAuthority", () => {
       error: null,
     });
 
-    const projectionSelect = vi.fn();
+    const projectionBuilder = createAwaitableSelectBuilder({
+      data: {
+        preview_url: null,
+        result_urls: [],
+        preview_storage_path: null,
+        full_storage_path: null,
+        task_state: "running",
+        hidden_in_reference_grid: false,
+        reference_grid_visible: true,
+      },
+      error: null,
+    });
 
     ensureSupabaseQueryClientMock.mockReturnValue({
       from: vi.fn((table: string) => {
+        if (table === "generation_projection") {
+          return {
+            select: vi.fn(() => projectionBuilder),
+          };
+        }
         if (table === "generation_publications") {
           return {
             select: vi.fn(() => publicationsBuilder),
-          };
-        }
-        if (table === "generation_projection") {
-          return {
-            select: projectionSelect,
           };
         }
         throw new Error(`Unexpected table: ${table}`);
@@ -118,7 +129,7 @@ describe("generatedMediaAuthority", () => {
     });
 
     await expect(
-      resolveLatestPublishedGenerationDelivery({
+      resolveVisibleGenerationDelivery({
         generationId: "gen-published-1",
       })
     ).resolves.toEqual({
@@ -127,7 +138,5 @@ describe("generatedMediaAuthority", () => {
       previewStoragePath: null,
       fullStoragePath: null,
     });
-
-    expect(projectionSelect).not.toHaveBeenCalled();
   });
 });

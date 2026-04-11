@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { StudioOutput } from "../../types";
 import { DISPATCH_HANDOFF_INITIAL_POLL_DELAY_MS, useAiStudioTasks } from "../useAiStudioTasks";
 import { MAX_CONCURRENT_STATUS_REQUESTS } from "../taskPolling/pollingSchedulePolicy";
-import { resolveLatestPublishedGenerationDelivery } from "../../logic/generatedMediaAuthority";
+import { resolveVisibleGenerationDelivery } from "../../logic/generatedMediaAuthority";
 import { resolveGenerationIdForRequestId } from "../../logic/mediaLibraryPersistence";
 import {
   fetchFalBriaBackgroundRemoveStatus,
@@ -43,7 +43,7 @@ vi.mock("../../../../lib/falClient", () => ({
 }));
 
 vi.mock("../../logic/generatedMediaAuthority", () => ({
-  resolveLatestPublishedGenerationDelivery: vi.fn(),
+  resolveVisibleGenerationDelivery: vi.fn(),
 }));
 
 vi.mock("../../logic/mediaLibraryPersistence", () => ({
@@ -100,15 +100,13 @@ describe("useAiStudioTasks", () => {
   const fetchKieKlingImageToVideoStatusMock = vi.mocked(fetchKieKlingImageToVideoStatus);
   const fetchKieSeedanceVideoStatusMock = vi.mocked(fetchKieSeedanceVideoStatus);
   const resolveGenerationIdForRequestIdMock = vi.mocked(resolveGenerationIdForRequestId);
-  const resolveLatestPublishedGenerationDeliveryMock = vi.mocked(
-    resolveLatestPublishedGenerationDelivery
-  );
+  const resolveVisibleGenerationDeliveryMock = vi.mocked(resolveVisibleGenerationDelivery);
 
   beforeEach(() => {
     vi.useFakeTimers();
     vi.resetAllMocks();
     resolveGenerationIdForRequestIdMock.mockResolvedValue(null);
-    resolveLatestPublishedGenerationDeliveryMock.mockResolvedValue(null);
+    resolveVisibleGenerationDeliveryMock.mockResolvedValue(null);
   });
 
   afterEach(() => {
@@ -352,12 +350,12 @@ describe("useAiStudioTasks", () => {
     expect(output.timestamp).toBe("Processing...");
   });
 
-  it("reconciles canonical published delivery on recovery recheck polls", async () => {
+  it("reconciles visible generation delivery on recovery recheck polls", async () => {
     fetchFalSeedreamStatusMock.mockResolvedValue({
       status: "done",
     });
     resolveGenerationIdForRequestIdMock.mockResolvedValue("gen-canonical-1");
-    resolveLatestPublishedGenerationDeliveryMock.mockResolvedValue({
+    resolveVisibleGenerationDeliveryMock.mockResolvedValue({
       previewUrl: "https://cdn.test/canonical-preview.png",
       fullUrl: "https://cdn.test/canonical-full.png",
       previewStoragePath: null,
@@ -388,7 +386,7 @@ describe("useAiStudioTasks", () => {
     await flushQueuedOutputUpdates();
 
     expect(resolveGenerationIdForRequestIdMock).toHaveBeenCalledWith("seedream-task-canonical");
-    expect(resolveLatestPublishedGenerationDeliveryMock).toHaveBeenCalledWith({
+    expect(resolveVisibleGenerationDeliveryMock).toHaveBeenCalledWith({
       generationId: "gen-canonical-1",
     });
     expect(onGenerationSuccess).toHaveBeenCalledWith(
@@ -403,6 +401,60 @@ describe("useAiStudioTasks", () => {
     expect(output.generationId).toBe("gen-canonical-1");
     expect(output.previewUrl).toBe("https://cdn.test/canonical-preview.png");
     expect(output.resultUrls).toEqual(["https://cdn.test/canonical-full.png"]);
+  });
+
+  it("reconciles projection-backed delivery on ordinary retry polls", async () => {
+    fetchFalSeedreamStatusMock.mockResolvedValue({
+      status: "processing",
+    });
+    resolveGenerationIdForRequestIdMock.mockResolvedValue("gen-projection-1");
+    resolveVisibleGenerationDeliveryMock.mockResolvedValue({
+      previewUrl: "https://cdn.test/projection-preview.png",
+      fullUrl: "https://cdn.test/projection-full.png",
+      previewStoragePath: null,
+      fullStoragePath: null,
+    });
+
+    let output = makeOutput();
+    const updateOutputById = vi.fn((id: string, updater: (item: StudioOutput) => StudioOutput) => {
+      if (id === output.id) {
+        output = updater(output);
+      }
+    });
+    const onGenerationSuccess = vi.fn();
+
+    const { result } = renderHook(() =>
+      useAiStudioTasks({
+        updateOutputById,
+        notifyGenerationFailure: vi.fn(),
+        onGenerationSuccess,
+      })
+    );
+
+    act(() => {
+      result.current.startPollingTask("seedream-task-projection", "out-1", 1, "fal-seedream");
+    });
+
+    await vi.advanceTimersByTimeAsync(1_500);
+    await flushQueuedOutputUpdates();
+
+    expect(fetchFalSeedreamStatusMock).not.toHaveBeenCalled();
+    expect(resolveGenerationIdForRequestIdMock).toHaveBeenCalledWith("seedream-task-projection");
+    expect(resolveVisibleGenerationDeliveryMock).toHaveBeenCalledWith({
+      generationId: "gen-projection-1",
+    });
+    expect(onGenerationSuccess).toHaveBeenCalledWith(
+      expect.objectContaining({
+        outputId: "out-1",
+        taskId: "seedream-task-projection",
+        provider: "fal-seedream",
+        resultUrls: ["https://cdn.test/projection-full.png"],
+      })
+    );
+    expect(output.taskState).toBe("success");
+    expect(output.generationId).toBe("gen-projection-1");
+    expect(output.previewUrl).toBe("https://cdn.test/projection-preview.png");
+    expect(output.resultUrls).toEqual(["https://cdn.test/projection-full.png"]);
   });
 
   it("prefers server lifecycle failure hints over raw provider failure parsing", async () => {

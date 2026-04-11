@@ -47,12 +47,14 @@ export type GeneratedMediaLibraryRow = GeneratedMediaFileRecord & {
   posterVariantPath: string | null;
 };
 
-export type PublishedGenerationDelivery = {
+export type VisibleGenerationDelivery = {
   previewUrl: string | null;
   fullUrl: string | null;
   previewStoragePath: string | null;
   fullStoragePath: string | null;
 };
+
+export type PublishedGenerationDelivery = VisibleGenerationDelivery;
 
 const asTrimmedString = (value: unknown): string | null => {
   if (typeof value !== "string") return null;
@@ -81,7 +83,7 @@ const sanitizeFilename = (value: string | null | undefined): string | null => {
 
 const toProjectionDelivery = (
   row: GenerationProjectionDeliveryRow | null | undefined
-): PublishedGenerationDelivery | null => {
+): VisibleGenerationDelivery | null => {
   if (!row) return null;
   if (asTrimmedString(row.task_state) !== "success") return null;
   if (row.hidden_in_reference_grid === true) return null;
@@ -404,7 +406,7 @@ export const resolveLatestPublishedGenerationMediaFile = async ({
   return null;
 };
 
-export const resolveLatestPublishedGenerationDeliveryByGenerationId = async ({
+const resolvePublishedGenerationDeliveryByGenerationId = async ({
   supabase,
   generationId,
   userId,
@@ -412,7 +414,7 @@ export const resolveLatestPublishedGenerationDeliveryByGenerationId = async ({
   supabase: SupabaseClient;
   generationId: string;
   userId?: string | null;
-}): Promise<PublishedGenerationDelivery | null> => {
+}): Promise<VisibleGenerationDelivery | null> => {
   try {
     let query = supabase
       .from("generation_publications")
@@ -443,7 +445,23 @@ export const resolveLatestPublishedGenerationDeliveryByGenerationId = async ({
         };
       }
     }
+    return null;
+  } catch {
+    return null;
+  }
+};
 
+export const resolveVisibleGenerationDeliveryByGenerationId = async ({
+  supabase,
+  generationId,
+  userId,
+}: {
+  supabase: SupabaseClient;
+  generationId: string;
+  userId?: string | null;
+}): Promise<VisibleGenerationDelivery | null> => {
+  try {
+    const resolvedUserId = asTrimmedString(userId);
     let projectionQuery = supabase
       .from("generation_projection")
       .select(
@@ -455,27 +473,43 @@ export const resolveLatestPublishedGenerationDeliveryByGenerationId = async ({
       projectionQuery = projectionQuery.eq("user_id", resolvedUserId);
     }
     const { data: projectionData, error: projectionError } = await projectionQuery.maybeSingle();
-    if (projectionError) return null;
+    if (!projectionError) {
+      const projectionDelivery = toProjectionDelivery(
+        projectionData as GenerationProjectionDeliveryRow | null
+      );
+      if (projectionDelivery) {
+        return projectionDelivery;
+      }
+    }
 
-    return toProjectionDelivery(projectionData as GenerationProjectionDeliveryRow | null);
+    return await resolvePublishedGenerationDeliveryByGenerationId({
+      supabase,
+      generationId,
+      userId: resolvedUserId,
+    });
   } catch {
     return null;
   }
 };
 
-export const resolveLatestPublishedGenerationDelivery = async ({
+export const resolveVisibleGenerationDelivery = async ({
   generationId,
 }: {
   generationId: string;
-}): Promise<PublishedGenerationDelivery | null> => {
+}): Promise<VisibleGenerationDelivery | null> => {
   const resolvedGenerationId = asTrimmedString(generationId);
   if (!resolvedGenerationId) return null;
   const supabase = ensureSupabaseQueryClient();
   const userId = await readSupabaseUserId();
   if (!userId) return null;
-  return await resolveLatestPublishedGenerationDeliveryByGenerationId({
+  return await resolveVisibleGenerationDeliveryByGenerationId({
     supabase,
     generationId: resolvedGenerationId,
     userId,
   });
 };
+
+export const resolveLatestPublishedGenerationDeliveryByGenerationId =
+  resolveVisibleGenerationDeliveryByGenerationId;
+
+export const resolveLatestPublishedGenerationDelivery = resolveVisibleGenerationDelivery;

@@ -39,7 +39,7 @@ import {
   PERF_FLAG_RAF_STATUS_FLUSH,
   PERF_FLAG_REFERENCE_GRID_UPDATE_BACKPRESSURE,
 } from "../logic/perfProfileFlags";
-import { resolveLatestPublishedGenerationDelivery } from "../logic/generatedMediaAuthority";
+import { resolveVisibleGenerationDelivery } from "../logic/generatedMediaAuthority";
 import { resolveNormalizedOutputDelivery } from "../logic/referenceGridMedia";
 import { resolveGenerationIdForRequestId } from "../logic/mediaLibraryPersistence";
 import { Provider } from "../logic/stateParsers";
@@ -392,7 +392,7 @@ export function useAiStudioTasks({
     [updateOutputById]
   );
 
-  const resolveCanonicalPublishedReconcile = useCallback(
+  const resolveVisibleGenerationReconcile = useCallback(
     async ({ outputId, taskId }: { outputId: string; taskId: string }) => {
       try {
         const existingOutput = findOutputById?.(outputId) ?? null;
@@ -400,7 +400,7 @@ export function useAiStudioTasks({
           asTrimmedString(existingOutput?.generationId) ??
           (await resolveGenerationIdForRequestId(taskId));
         if (!generationId) return null;
-        const delivery = await resolveLatestPublishedGenerationDelivery({ generationId });
+        const delivery = await resolveVisibleGenerationDelivery({ generationId });
         if (!delivery) return null;
         const previewUrl =
           asTrimmedString(delivery.previewUrl) ?? asTrimmedString(delivery.fullUrl) ?? null;
@@ -423,7 +423,7 @@ export function useAiStudioTasks({
     [findOutputById]
   );
 
-  const settleOutputFromCanonicalPublishedState = useCallback(
+  const settleOutputFromVisibleGenerationState = useCallback(
     async ({
       outputId,
       taskId,
@@ -435,26 +435,26 @@ export function useAiStudioTasks({
       provider: Provider;
       timestamp?: string;
     }) => {
-      const canonicalPublished = await resolveCanonicalPublishedReconcile({
+      const visibleGeneration = await resolveVisibleGenerationReconcile({
         outputId,
         taskId,
       });
-      if (!canonicalPublished) return false;
+      if (!visibleGeneration) return false;
       queueOutputUpdate(outputId, (item) => {
         const nextResultUrls =
-          canonicalPublished.resultUrls.length > 0
-            ? canonicalPublished.resultUrls
+          visibleGeneration.resultUrls.length > 0
+            ? visibleGeneration.resultUrls
             : (item.resultUrls ?? []);
         const nextDelivery = resolveNormalizedOutputDelivery({
           previewStoragePath:
-            canonicalPublished.previewStoragePath ?? item.previewStoragePath ?? null,
-          fullStoragePath: canonicalPublished.fullStoragePath ?? item.fullStoragePath ?? null,
-          previewUrl: canonicalPublished.previewUrl ?? item.previewUrl ?? null,
+            visibleGeneration.previewStoragePath ?? item.previewStoragePath ?? null,
+          fullStoragePath: visibleGeneration.fullStoragePath ?? item.fullStoragePath ?? null,
+          previewUrl: visibleGeneration.previewUrl ?? item.previewUrl ?? null,
           resultUrls: nextResultUrls,
         });
         return {
           ...item,
-          generationId: item.generationId ?? canonicalPublished.generationId ?? item.generationId,
+          generationId: item.generationId ?? visibleGeneration.generationId ?? item.generationId,
           taskState: "success",
           status: "ready",
           timestamp,
@@ -462,9 +462,9 @@ export function useAiStudioTasks({
             ? item.resultUrls
             : nextResultUrls,
           previewUrl:
-            item.previewUrl === (canonicalPublished.previewUrl ?? item.previewUrl)
+            item.previewUrl === (visibleGeneration.previewUrl ?? item.previewUrl)
               ? item.previewUrl
-              : (canonicalPublished.previewUrl ?? item.previewUrl),
+              : (visibleGeneration.previewUrl ?? item.previewUrl),
           previewStoragePath:
             item.previewStoragePath === nextDelivery.previewStoragePath
               ? item.previewStoragePath
@@ -482,18 +482,18 @@ export function useAiStudioTasks({
           errorDetail: null,
         };
       });
-      if (onGenerationSuccess && canonicalPublished.resultUrls.length > 0) {
+      if (onGenerationSuccess && visibleGeneration.resultUrls.length > 0) {
         onGenerationSuccess({
           outputId,
           taskId,
           provider,
-          resultUrls: canonicalPublished.resultUrls,
+          resultUrls: visibleGeneration.resultUrls,
         });
       }
       clearPollTimer(outputId);
       return true;
     },
-    [clearPollTimer, onGenerationSuccess, queueOutputUpdate, resolveCanonicalPublishedReconcile]
+    [clearPollTimer, onGenerationSuccess, queueOutputUpdate, resolveVisibleGenerationReconcile]
   );
 
   const {
@@ -790,13 +790,13 @@ export function useAiStudioTasks({
             delete outputLookupMissingSinceRef.current[outputId];
             delete outputLookupHardStopNotifiedRef.current[outputId];
 
-            if (noMediaAttempt > 0) {
-              const canonicalSettled = await settleOutputFromCanonicalPublishedState({
+            if (attempt > 0 || noMediaAttempt > 0) {
+              const visibleGenerationSettled = await settleOutputFromVisibleGenerationState({
                 outputId,
                 taskId,
                 provider,
               });
-              if (canonicalSettled) {
+              if (visibleGenerationSettled) {
                 return;
               }
             }
@@ -829,13 +829,13 @@ export function useAiStudioTasks({
               (lifecycleHint?.recoveryPending ? RECOVERY_RECHECK_TIMESTAMP : null);
             if (lifecycleTaskState === "success") {
               if (lifecycleResultUrls.length === 0) {
-                const canonicalSettled = await settleOutputFromCanonicalPublishedState({
+                const visibleGenerationSettled = await settleOutputFromVisibleGenerationState({
                   outputId,
                   taskId,
                   provider,
                   timestamp: lifecycleStatusLabel ?? "Just now",
                 });
-                if (canonicalSettled) {
+                if (visibleGenerationSettled) {
                   return;
                 }
                 addBreadcrumb({
@@ -1120,12 +1120,12 @@ export function useAiStudioTasks({
             const { state } = resolveProviderStatusState(status);
 
             if (terminalSuccessStates.has(state)) {
-              const canonicalSettled = await settleOutputFromCanonicalPublishedState({
+              const visibleGenerationSettled = await settleOutputFromVisibleGenerationState({
                 outputId,
                 taskId,
                 provider,
               });
-              if (canonicalSettled) {
+              if (visibleGenerationSettled) {
                 return;
               }
               addBreadcrumb({
@@ -1317,7 +1317,7 @@ export function useAiStudioTasks({
       outputLookupMissesRef,
       outputLookupMissingSinceRef,
       queueOutputUpdate,
-      settleOutputFromCanonicalPublishedState,
+      settleOutputFromVisibleGenerationState,
     ]
   );
 

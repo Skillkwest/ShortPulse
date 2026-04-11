@@ -143,6 +143,65 @@ describe("falWebhookIngress", () => {
     expect(persistGenerationObservationMock).not.toHaveBeenCalled();
   });
 
+  it("synthesizes an event id when Fal omits one but request id is present", async () => {
+    const supabase = createSupabaseMock();
+    getSupabaseAdminMock.mockReturnValue({ from: supabase.from });
+    lookupGenerationAttemptByProviderRequestMock.mockResolvedValue({
+      data: {
+        id: "attempt-1",
+        generationId: "gen-1",
+        userId: "user-1",
+        attemptNumber: 1,
+        providerRequestId: "req-1",
+        metadata: {},
+      },
+      error: null,
+    });
+    readPersistedGenerationStatusContextMock.mockResolvedValue({
+      generationId: "gen-1",
+      resultUrls: [],
+      taskState: "running",
+    });
+
+    await expect(
+      ingestFalWebhookEvent({
+        payload: parseFalWebhookPayload(
+          JSON.stringify({
+            request_id: "req-1",
+            status: "completed",
+            payload: {
+              images: [{ url: "https://cdn.shortpulse.test/output.png" }],
+            },
+          })
+        ),
+        headers: {
+          requestId: "req-1",
+          userId: "fal-user-1",
+          eventId: null,
+          timestamp: "123",
+        },
+        verificationMethod: "fal",
+        payloadHash: "hash-1",
+        maxAttempts: 5,
+      })
+    ).resolves.toEqual({
+      kind: "accepted",
+      requestId: "req-1",
+      status: "completed",
+    });
+
+    expect(persistGenerationObservationMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        idempotencyKey: expect.stringMatching(/^fal:webhook:synthetic:req-1:/),
+        providerRequestId: "req-1",
+      })
+    );
+    expect(supabase.updateEq).toHaveBeenCalledWith(
+      "event_id",
+      expect.stringMatching(/^synthetic:req-1:/)
+    );
+  });
+
   it("skips fallback observation when immediate webhook recovery settles canonical success", async () => {
     const supabase = createSupabaseMock();
     getSupabaseAdminMock.mockReturnValue({ from: supabase.from });

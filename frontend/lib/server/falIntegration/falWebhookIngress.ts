@@ -1,3 +1,4 @@
+import crypto from "crypto";
 import { getSupabaseAdmin } from "../api/supabaseAdmin";
 import { lookupGenerationAttemptByProviderRequest } from "../api/generationAttempts";
 import { persistGenerationObservation } from "../api/generationObservationInbox";
@@ -61,6 +62,27 @@ const markWebhookEventProcessed = async ({
 
 const buildWebhookObservationIdempotencyKey = (eventId: string): string => `fal:webhook:${eventId}`;
 
+const buildSyntheticWebhookEventId = ({
+  requestId,
+  timestamp,
+  normalizedStatus,
+  payloadHash,
+}: {
+  requestId: string | null;
+  timestamp: string | null;
+  normalizedStatus: string | null;
+  payloadHash: string | null;
+}): string | null => {
+  if (!requestId) return null;
+  const fingerprint = crypto
+    .createHash("sha256")
+    .update(
+      [requestId, timestamp ?? "na", normalizedStatus ?? "unknown", payloadHash ?? "na"].join("\n")
+    )
+    .digest("hex");
+  return `synthetic:${requestId}:${fingerprint.slice(0, 24)}`;
+};
+
 const resolveWebhookObservationIdentity = async ({
   requestId,
 }: {
@@ -122,13 +144,20 @@ export const ingestFalWebhookEvent = async ({
   maxAttempts: number;
 }): Promise<FalWebhookIngressResult> => {
   void maxAttempts;
-  const eventId = headers.eventId ?? resolveEventId(payload);
+  const requestId = headers.requestId ?? resolveRequestId(payload);
+  const normalizedStatus = resolveNormalizedStatus(payload);
+  const eventId =
+    headers.eventId ??
+    resolveEventId(payload) ??
+    buildSyntheticWebhookEventId({
+      requestId,
+      timestamp: headers.timestamp,
+      normalizedStatus,
+      payloadHash,
+    });
   if (!eventId) {
     return { kind: "ignored", reason: "missing_event_id" };
   }
-
-  const requestId = headers.requestId ?? resolveRequestId(payload);
-  const normalizedStatus = resolveNormalizedStatus(payload);
   const observationState = resolveObservationState(normalizedStatus);
   const observationIdempotencyKey = buildWebhookObservationIdempotencyKey(eventId);
   const insertResult = await getSupabaseAdmin()

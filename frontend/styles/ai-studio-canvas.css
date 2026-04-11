@@ -557,10 +557,8 @@
   z-index: 0;
   border-radius: inherit;
   pointer-events: none;
-  transition:
-    opacity 0.22s ease,
-    transform 0.22s ease;
-  will-change: opacity, transform;
+  transition: none;
+  will-change: auto;
 }
 
 .reference-card-image--cover {

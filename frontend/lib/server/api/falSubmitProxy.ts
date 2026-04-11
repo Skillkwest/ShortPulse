@@ -21,6 +21,7 @@ import {
   enqueueGenerationSubmit,
 } from "./generationQueue/service";
 import { upsertGenerationProjection } from "./generationProjection";
+import { resolveWebhookCallbackUrl } from "./falSubmitTargeting";
 import {
   resolveGenerationAspectFromPayload,
   resolveGenerationModeFromPayload,
@@ -651,6 +652,11 @@ export const createFalSubmitHandler = ({
                 payload: payload as JsonValue,
               }) as JsonValue)
             : (payload as JsonValue);
+        const webhookCallbackUrl = resolveWebhookCallbackUrl(runtimeFlags, {
+          userId: charge.userId,
+          modelId,
+          requestHeaders: req.headers,
+        });
         const enqueueResult = await enqueueGenerationSubmit({
           userId: charge.userId,
           sourceRef: charge.sourceRef,
@@ -684,6 +690,7 @@ export const createFalSubmitHandler = ({
               tier_max: admissionDecision.snapshot.tierMax,
             },
             admission_scope: admissionScope,
+            fal_webhook_callback_url: webhookCallbackUrl,
           },
         });
 

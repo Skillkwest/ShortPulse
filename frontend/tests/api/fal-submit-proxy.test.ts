@@ -66,6 +66,7 @@ describe("createFalSubmitHandler", () => {
     delete process.env.STUDIO_AGENT_SAFETY_INPUT_PRECHECK_FIELD_MODES_GENERATION_SUBMIT;
     delete process.env.SHORTPULSE_FAL_ADMISSION_MODE;
     delete process.env.SHORTPULSE_FAL_WORKER_OWNED_SUBMIT_ENABLED;
+    process.env.SHORTPULSE_FAL_INTEGRATION_MODE = "on";
     process.env.SHORTPULSE_FAL_QUEUE_ENABLED = "true";
 
     chargeGenerationRequestMock.mockResolvedValue({
@@ -142,7 +143,10 @@ describe("createFalSubmitHandler", () => {
     const req = {
       method: "POST",
       body: { prompt: "portrait" },
-      headers: {},
+      headers: {
+        host: "shortpulse-git-working-development-kirk-artmans-projects.vercel.app",
+        "x-forwarded-proto": "https",
+      },
       url: "/api/fal/nano-banana-submit",
     };
     const res = createMockResponse();
@@ -158,6 +162,8 @@ describe("createFalSubmitHandler", () => {
         modelId: "fal-ai/nano-banana",
         metadata: expect.objectContaining({
           generation_submit_authority: "worker",
+          fal_webhook_callback_url:
+            "https://shortpulse-git-working-development-kirk-artmans-projects.vercel.app/api/fal/webhook",
         }),
       })
     );

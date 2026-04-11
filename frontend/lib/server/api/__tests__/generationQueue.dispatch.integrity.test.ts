@@ -10,6 +10,7 @@ const markGenerationReservationSubmittedMock = vi.fn();
 const resolveGenerationAdmissionTierMock = vi.fn();
 const getFalModelProfileByModelIdMock = vi.fn();
 const dispatchProviderSubmitMock = vi.fn();
+const readQueuedWebhookCallbackUrlMock = vi.fn();
 const resolveWebhookCallbackUrlMock = vi.fn();
 const withWebhookTargetsMock = vi.fn();
 const claimGenerationSubmitQueueBatchMock = vi.fn();
@@ -61,6 +62,7 @@ vi.mock("../generationAcceptedTransitionService", () => ({
 }));
 
 vi.mock("../falSubmitTargeting", () => ({
+  readQueuedWebhookCallbackUrl: (...args: unknown[]) => readQueuedWebhookCallbackUrlMock(...args),
   resolveWebhookCallbackUrl: (...args: unknown[]) => resolveWebhookCallbackUrlMock(...args),
   withWebhookTargets: (...args: unknown[]) => withWebhookTargetsMock(...args),
 }));
@@ -264,6 +266,7 @@ describe("generationQueue/dispatch transition integrity", () => {
     getFalModelProfileByModelIdMock.mockReturnValue({
       submitTargets: [{ route: "/api/fal/nano-banana-pro-submit", url: "https://fal.test" }],
     });
+    readQueuedWebhookCallbackUrlMock.mockReturnValue(null);
     resolveWebhookCallbackUrlMock.mockReturnValue(null);
     withWebhookTargetsMock.mockImplementation((targets: unknown) => targets);
     dispatchProviderSubmitMock.mockResolvedValue({

@@ -8,7 +8,11 @@ import {
 } from "../generationBilling/reservationRpcAdapter";
 import { getFalModelProfileByModelId } from "../../falIntegration/modelProfiles";
 import type { SubmitTarget } from "../../falIntegration/contracts";
-import { resolveWebhookCallbackUrl, withWebhookTargets } from "../falSubmitTargeting";
+import {
+  readQueuedWebhookCallbackUrl,
+  resolveWebhookCallbackUrl,
+  withWebhookTargets,
+} from "../falSubmitTargeting";
 import { dispatchProviderSubmit } from "../../providerIntegration/submitProviderDispatcher";
 import { evaluateFalPayloadContractForModel } from "../falPayloadValidation";
 import {
@@ -1123,16 +1127,21 @@ const processClaimedQueueItem = async ({
   const { webhookCallbackUrl, providerSubmitTargetResolution } = await measureDispatchStage({
     stageTimings,
     stage: "targetResolution",
-    work: async () => ({
-      webhookCallbackUrl: resolveWebhookCallbackUrl(runtimeFlags, {
-        userId: item.userId,
-        modelId: item.modelId,
-      }),
-      providerSubmitTargetResolution: readQueueSubmitTargets({
-        provider,
-        modelId: item.modelId,
-      }),
-    }),
+    work: async () => {
+      const queuedWebhookCallbackUrl = readQueuedWebhookCallbackUrl(item.generationMetadata);
+      return {
+        webhookCallbackUrl:
+          queuedWebhookCallbackUrl ??
+          resolveWebhookCallbackUrl(runtimeFlags, {
+            userId: item.userId,
+            modelId: item.modelId,
+          }),
+        providerSubmitTargetResolution: readQueueSubmitTargets({
+          provider,
+          modelId: item.modelId,
+        }),
+      };
+    },
   });
   const providerSubmitTargets = providerSubmitTargetResolution.targets;
   const submitTargets = isFalProviderKey(provider)

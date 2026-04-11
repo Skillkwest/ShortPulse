@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import type { FalRuntimeFlags } from "../falRuntimeFlags";
-import { resolveWebhookCallbackUrl, withWebhookTargets } from "../falSubmitTargeting";
+import {
+  readQueuedWebhookCallbackUrl,
+  resolveWebhookCallbackUrl,
+  withWebhookTargets,
+} from "../falSubmitTargeting";
 
 const createFlags = (overrides: Partial<FalRuntimeFlags> = {}): FalRuntimeFlags => ({
   integrationMode: "on",
@@ -82,6 +86,53 @@ describe("falSubmitTargeting webhook callback", () => {
       })
     );
     expect(callback).toBe("https://shortpulse-preview.test/api/fal/webhook");
+  });
+
+  it("prefers the active request host for public deployments", () => {
+    const callback = resolveWebhookCallbackUrl(createFlags(), {
+      requestHeaders: {
+        host: "shortpulse-git-working-development-kirk-artmans-projects.vercel.app",
+        "x-forwarded-proto": "https",
+      },
+    });
+
+    expect(callback).toBe(
+      "https://shortpulse-git-working-development-kirk-artmans-projects.vercel.app/api/fal/webhook"
+    );
+  });
+
+  it("falls back to the configured callback base for localhost requests", () => {
+    const callback = resolveWebhookCallbackUrl(
+      createFlags({
+        publicApiBaseUrl: "http://localhost:3000",
+        webhookCallbackBaseUrl: "https://shortpulse-preview.test",
+      }),
+      {
+        requestHeaders: {
+          host: "localhost:3000",
+        },
+      }
+    );
+
+    expect(callback).toBe("https://shortpulse-preview.test/api/fal/webhook");
+  });
+});
+
+describe("falSubmitTargeting queued callback metadata", () => {
+  it("reads a valid persisted webhook callback URL", () => {
+    expect(
+      readQueuedWebhookCallbackUrl({
+        fal_webhook_callback_url: "https://shortpulse.test/api/fal/webhook",
+      })
+    ).toBe("https://shortpulse.test/api/fal/webhook");
+  });
+
+  it("ignores invalid persisted webhook callback URLs", () => {
+    expect(
+      readQueuedWebhookCallbackUrl({
+        fal_webhook_callback_url: "not-a-url",
+      })
+    ).toBeNull();
   });
 });
 

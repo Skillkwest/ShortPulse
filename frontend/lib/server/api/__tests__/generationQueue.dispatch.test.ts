@@ -9,6 +9,7 @@ const markGenerationReservationSubmittedMock = vi.fn();
 const readActiveProviderCapacitySnapshotMock = vi.fn();
 const getFalModelProfileByModelIdMock = vi.fn();
 const dispatchProviderSubmitMock = vi.fn();
+const readQueuedWebhookCallbackUrlMock = vi.fn();
 const resolveWebhookCallbackUrlMock = vi.fn();
 const withWebhookTargetsMock = vi.fn();
 const claimGenerationSubmitQueueBatchMock = vi.fn();
@@ -98,6 +99,7 @@ vi.mock("../generationLifecycleTransitionService", () => ({
 }));
 
 vi.mock("../falSubmitTargeting", () => ({
+  readQueuedWebhookCallbackUrl: (...args: unknown[]) => readQueuedWebhookCallbackUrlMock(...args),
   resolveWebhookCallbackUrl: (...args: unknown[]) => resolveWebhookCallbackUrlMock(...args),
   withWebhookTargets: (...args: unknown[]) => withWebhookTargetsMock(...args),
 }));
@@ -205,6 +207,7 @@ describe("generationQueue/dispatch no-capacity handling", () => {
       staleIgnoredTier: 0,
     });
     getFalModelProfileByModelIdMock.mockReturnValue({ submitTargets: [] });
+    readQueuedWebhookCallbackUrlMock.mockReturnValue(null);
     resolveWebhookCallbackUrlMock.mockReturnValue(null);
     withWebhookTargetsMock.mockImplementation((targets: unknown) => targets);
     applyAcceptedRunningGenerationTransitionMock.mockResolvedValue({ ok: true });
@@ -518,6 +521,79 @@ describe("generationQueue/dispatch no-capacity handling", () => {
     );
     expect(readActiveProviderCapacitySnapshotMock).toHaveBeenCalledTimes(1);
     expect(dispatchProviderSubmitMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("prefers the queued webhook callback URL over worker runtime flags", async () => {
+    readActiveProviderCapacitySnapshotMock.mockResolvedValueOnce({
+      tier: "image_standard",
+      globalActive: 0,
+      tierActive: 0,
+      staleIgnoredGlobal: 0,
+      staleIgnoredTier: 0,
+    });
+    getFalModelProfileByModelIdMock.mockReturnValue({
+      submitTargets: [{ url: "https://queue.fal.run/test" }],
+    });
+    readQueuedWebhookCallbackUrlMock.mockReturnValue(
+      "https://shortpulse-git-working-development-kirk-artmans-projects.vercel.app/api/fal/webhook"
+    );
+    resolveWebhookCallbackUrlMock.mockReturnValue(
+      "https://shortpulse-sleepyseamonster-kirk-artmans-projects.vercel.app/api/fal/webhook"
+    );
+    dispatchProviderSubmitMock.mockResolvedValueOnce({
+      response: { ok: true, status: 200 },
+      data: { request_id: "req-1" },
+      providerRequestId: "req-1",
+      targetUrl:
+        "https://queue.fal.run/test?fal_webhook=https%3A%2F%2Fshortpulse-git-working-development-kirk-artmans-projects.vercel.app%2Fapi%2Ffal%2Fwebhook",
+      targetIndex: 0,
+    });
+    claimGenerationSubmitQueueBatchMock
+      .mockResolvedValueOnce([
+        {
+          queueId: "queue-1",
+          generationId: "gen-1",
+          userId: "user-1",
+          modelId: "fal-ai/nano-banana-pro",
+          sourceRef: "source-1",
+          submitRoute: "/api/fal/nano-banana-pro-submit",
+          submitPayload: { prompt: "hello-1" },
+          timeoutMs: 20_000,
+          attempts: 0,
+          status: "dispatching",
+          generationMetadata: {
+            fal_webhook_callback_url:
+              "https://shortpulse-git-working-development-kirk-artmans-projects.vercel.app/api/fal/webhook",
+          },
+          nextAttemptAt: null,
+          leaseUntil: new Date(Date.now() + 30_000).toISOString(),
+          createdAt: new Date(Date.now() - 60_000).toISOString(),
+        },
+      ])
+      .mockResolvedValueOnce([]);
+
+    const result = await dispatchGenerationSubmitQueueBatch({
+      req: undefined,
+      routeLabel: "test/dispatch",
+      limit: 1,
+      userId: "user-1",
+    });
+
+    expect(result).toEqual(
+      expect.objectContaining({
+        claimed: 1,
+        submitted: 1,
+      })
+    );
+    expect(readQueuedWebhookCallbackUrlMock).toHaveBeenCalledWith({
+      fal_webhook_callback_url:
+        "https://shortpulse-git-working-development-kirk-artmans-projects.vercel.app/api/fal/webhook",
+    });
+    expect(resolveWebhookCallbackUrlMock).not.toHaveBeenCalled();
+    expect(withWebhookTargetsMock).toHaveBeenCalledWith(
+      expect.any(Array),
+      "https://shortpulse-git-working-development-kirk-artmans-projects.vercel.app/api/fal/webhook"
+    );
   });
 
   it("enforces local reservation limits across same-batch claims without rereading capacity", async () => {

@@ -35,6 +35,8 @@ const handoffSubmitResponse = ({
   response: FalSubmitResponse;
   pollingProvider:
     | "fal-seedream"
+    | "fal-seedream-edit"
+    | "fal-seedream-v5-lite-edit"
     | "fal-nano-banana-edit"
     | "fal-nano-banana-2-edit"
     | "fal-nano-banana-pro-edit"
@@ -189,7 +191,7 @@ export const handleImageModelSubmission = async ({
     });
     handoffSubmitResponse({
       response,
-      pollingProvider: "fal-seedream",
+      pollingProvider: "fal-seedream-edit",
       startPollingWithGeneration,
     });
     return true;
@@ -211,7 +213,7 @@ export const handleImageModelSubmission = async ({
     });
     handoffSubmitResponse({
       response,
-      pollingProvider: "fal-seedream",
+      pollingProvider: "fal-seedream-v5-lite-edit",
       startPollingWithGeneration,
     });
     return true;

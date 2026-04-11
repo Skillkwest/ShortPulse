@@ -9,6 +9,7 @@ import {
 } from "../../../lib/server/api/falRouteConfig";
 
 export default createFalStatusHandler({
+  modelId: "fal/flux-2/edit",
   queueBaseUrl: getFalStatusBaseUrlsRequired("fal/flux-2/edit"),
   routeLabel: "Fal FLUX 2 Edit",
   timeoutMs: getFalTimeoutMsOrDefault("fal/flux-2/edit", 60000),

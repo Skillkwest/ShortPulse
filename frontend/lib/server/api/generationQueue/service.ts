@@ -286,6 +286,15 @@ const normalizeProviderToken = (value: string | null | undefined): string | null
     if (normalized.includes("kling")) return "fal-kling";
     if (normalized.includes("seedance") && normalized.includes("i2v")) return "fal-seedance-i2v";
     if (normalized.includes("seedance")) return "fal-seedance";
+    if (
+      normalized.includes("seedream") &&
+      normalized.includes("v5") &&
+      normalized.includes("edit")
+    ) {
+      return "fal-seedream-v5-lite-edit";
+    }
+    if (normalized.includes("seedream") && normalized.includes("v5")) return "fal-seedream-v5-lite";
+    if (normalized.includes("seedream") && normalized.includes("edit")) return "fal-seedream-edit";
     if (normalized.includes("seedream")) return "fal-seedream";
     if (normalized.includes("veo") && normalized.includes("i2v")) return "fal-veo-i2v";
     if (normalized.includes("veo")) return "fal-veo";

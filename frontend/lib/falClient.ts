@@ -705,6 +705,18 @@ const statusEndpointRegistry = {
     route: `${FAL_API_BASE}/seedream-status`,
     statusTimeoutMs: STATUS_TIMEOUT_STANDARD_MS,
   },
+  seedreamEdit: {
+    route: `${FAL_API_BASE}/seedream-edit-status`,
+    statusTimeoutMs: STATUS_TIMEOUT_STANDARD_MS,
+  },
+  seedreamV5Lite: {
+    route: `${FAL_API_BASE}/seedream-v5-lite-status`,
+    statusTimeoutMs: STATUS_TIMEOUT_STANDARD_MS,
+  },
+  seedreamV5LiteEdit: {
+    route: `${FAL_API_BASE}/seedream-v5-lite-edit-status`,
+    statusTimeoutMs: STATUS_TIMEOUT_STANDARD_MS,
+  },
   seedance: {
     route: `${FAL_API_BASE}/seedance-status`,
     statusTimeoutMs: STATUS_TIMEOUT_STANDARD_MS,
@@ -944,6 +956,12 @@ export const submitFalSeedreamV5LiteEdit = (payload: FalSeedreamEditSubmitReques
   submitFalEndpoint("seedreamV5LiteEdit", payload);
 export const fetchFalSeedreamStatus = (requestId: string) =>
   fetchFalStatusEndpoint<FalStatusResponse>("seedream", requestId);
+export const fetchFalSeedreamEditStatus = (requestId: string) =>
+  fetchFalStatusEndpoint<FalStatusResponse>("seedreamEdit", requestId);
+export const fetchFalSeedreamV5LiteStatus = (requestId: string) =>
+  fetchFalStatusEndpoint<FalStatusResponse>("seedreamV5Lite", requestId);
+export const fetchFalSeedreamV5LiteEditStatus = (requestId: string) =>
+  fetchFalStatusEndpoint<FalStatusResponse>("seedreamV5LiteEdit", requestId);
 
 export const submitFalSeedance = (payload: FalSeedanceSubmitRequest) =>
   submitFalEndpoint("seedance", payload);

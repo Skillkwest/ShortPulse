@@ -1,6 +1,7 @@
 /**
  * Shared charged submit proxy for Fal generation endpoints.
  */
+import { randomUUID } from "crypto";
 import type { NextApiRequest, NextApiResponse } from "next";
 import { requireApiUser } from "./auth";
 import { chargeGenerationRequest } from "./generationBilling";
@@ -21,7 +22,7 @@ import {
   enqueueGenerationSubmit,
 } from "./generationQueue/service";
 import { upsertGenerationProjection } from "./generationProjection";
-import { resolveWebhookCallbackUrl } from "./falSubmitTargeting";
+import { resolveWebhookCallbackUrl, withWebhookTargets } from "./falSubmitTargeting";
 import {
   resolveGenerationAspectFromPayload,
   resolveGenerationModeFromPayload,
@@ -30,6 +31,7 @@ import {
   readGenerationDurationSeconds,
 } from "./generationQueue/metadata";
 import { readProviderApiKey } from "../providerIntegration/providerRuntimeConfig";
+import { dispatchProviderSubmit } from "../providerIntegration/submitProviderDispatcher";
 import { getModelPayloadValidationSpec } from "../../model-runtime/modelCatalog";
 import { evaluateFalPayloadContractForModel } from "./falPayloadValidation";
 import {
@@ -44,6 +46,9 @@ import {
   normalizeVideoSubmitIngressPayload,
   wrapQueueSubmitPayloadEnvelope,
 } from "./videoSubmitContracts";
+import { getSupabaseAdmin } from "./supabaseAdmin";
+import { applyAcceptedRunningGenerationTransition } from "./generationAcceptedTransitionService";
+import { buildAcceptedRunningGenerationUpdate } from "./generationRequestTransitions";
 
 type FalSubmitConfig = {
   modelId: string;
@@ -198,12 +203,36 @@ const applyRewrittenPromptToPayload = ({
   }
 };
 
+const asProviderString = (value: unknown): string | null => {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  return trimmed.length ? trimmed : null;
+};
+
+const resolveInlineSubmitTargets = ({
+  submitTargets,
+  submitUrl,
+}: {
+  submitTargets?: SubmitTarget[];
+  submitUrl?: string;
+}): SubmitTarget[] => {
+  if (Array.isArray(submitTargets) && submitTargets.length > 0) {
+    return submitTargets;
+  }
+  if (typeof submitUrl === "string" && submitUrl.trim().length > 0) {
+    return [{ submitUrl: submitUrl.trim() }];
+  }
+  return [];
+};
+
 /**
  * Builds a Next.js API handler that debits credits before forwarding to Fal.
  */
 export const createFalSubmitHandler = ({
   modelId,
   provider = "fal",
+  submitUrl,
+  submitTargets,
   skipBilling = false,
   routeLabel,
   timeoutMs = 20000,
@@ -557,10 +586,298 @@ export const createFalSubmitHandler = ({
       }
 
       const queuedSubmitSelected = runtimeFlags.queueEnabled;
+      const inlineSubmitTargets = resolveInlineSubmitTargets({ submitTargets, submitUrl });
+      const canUseInlineImageSubmit =
+        providerKey === "fal" &&
+        generationMode === "image" &&
+        inlineSubmitTargets.length > 0 &&
+        !admissionDecision.wouldLimit;
       const workerOwnedSubmitMisconfigured = isWorkerOwnedSubmitMisconfigured({
         queueEnabled: runtimeFlags.queueEnabled,
         workerOwnedSubmitEnabled: runtimeFlags.workerOwnedSubmitEnabled,
       });
+
+      if (canUseInlineImageSubmit) {
+        const webhookCallbackUrl = resolveWebhookCallbackUrl(runtimeFlags, {
+          userId: charge.userId,
+          modelId,
+          requestHeaders: req.headers,
+        });
+        const controller = new AbortController();
+        const timeoutHandle = setTimeout(() => controller.abort(), timeoutMs);
+        try {
+          const dispatchAtIso = new Date().toISOString();
+          const preparedTargets = withWebhookTargets(inlineSubmitTargets, webhookCallbackUrl);
+          const submitResult = await dispatchProviderSubmit({
+            provider: providerKey,
+            modelId,
+            targets: preparedTargets,
+            payload: payload as JsonValue,
+            apiKey: readProviderApiKey(providerKey),
+            signal: controller.signal,
+            requestStartTimeoutSeconds: Math.max(1, Math.ceil(timeoutMs / 1000)),
+          });
+
+          if (!submitResult.response.ok || !submitResult.providerRequestId) {
+            const upstreamMessage =
+              asProviderString(submitResult.data.error) ??
+              asProviderString(submitResult.data.message) ??
+              asProviderString(submitResult.data.detail) ??
+              (submitResult.providerRequestId
+                ? "Provider submit failed."
+                : "Provider submit response missing request id.");
+            await charge.refund("Auto-release: inline provider submit failed.", {
+              reason: submitResult.providerRequestId
+                ? "direct_submit_failed"
+                : "direct_submit_missing_request_id",
+              upstream_status: submitResult.response.status,
+              upstream_target_url: submitResult.targetUrl,
+              upstream_target_index: submitResult.targetIndex,
+              upstream_payload: submitResult.data,
+            });
+            await logGenerationFailure({
+              req,
+              routeLabel,
+              source: "api.fal_submit.direct_submit_failed",
+              message: upstreamMessage,
+              statusCode: submitResult.response.status || 502,
+              userId: charge.userId,
+              metadata: {
+                model_id: modelId,
+                source_ref: charge.sourceRef,
+                upstream_status: submitResult.response.status,
+                upstream_target_url: submitResult.targetUrl,
+                upstream_target_index: submitResult.targetIndex,
+                provider_request_id: submitResult.providerRequestId,
+              },
+            });
+            return res.status(submitResult.response.status || 502).json({
+              error: upstreamMessage,
+              detail: submitResult.data,
+            });
+          }
+
+          const providerRequestId = submitResult.providerRequestId;
+          const markSubmittedResult = await charge.markSubmitted(providerRequestId, {
+            generation_submit_authority: "direct",
+            submit_route: req.url ?? routeLabel,
+            submit_marked_at: dispatchAtIso,
+            provider: providerKey,
+            model_id: modelId,
+            upstream_target_url: submitResult.targetUrl,
+            upstream_target_index: submitResult.targetIndex,
+            fal_webhook_callback_url: webhookCallbackUrl,
+          });
+
+          if (!markSubmittedResult.ok) {
+            await charge.refund(
+              "Auto-release: failed to bind provider request id after direct submit.",
+              {
+                reason: "direct_submit_mark_submitted_failed",
+                provider_request_id: providerRequestId,
+                source_ref: charge.sourceRef,
+                submit_link_status: markSubmittedResult.status,
+                submit_link_code: markSubmittedResult.code ?? null,
+                submit_link_message: markSubmittedResult.message ?? null,
+              }
+            );
+            await logGenerationFailure({
+              req,
+              routeLabel,
+              source: "api.fal_submit.direct_submit_mark_submitted_failed",
+              message:
+                markSubmittedResult.message ??
+                "Failed to record provider request ownership after direct submit.",
+              statusCode: 500,
+              userId: charge.userId,
+              metadata: {
+                model_id: modelId,
+                source_ref: charge.sourceRef,
+                provider_request_id: providerRequestId,
+                submit_link_status: markSubmittedResult.status,
+                submit_link_code: markSubmittedResult.code ?? null,
+              },
+            });
+            return res.status(500).json({
+              error: "Failed to start generation tracking. Please retry.",
+            });
+          }
+
+          const generationId = randomUUID();
+          const nextRecoveryAtIso = new Date(Date.now() + 2 * 60 * 1000).toISOString();
+          const generationMetadata = {
+            source_ref: charge.sourceRef,
+            generation_submit_authority: "direct",
+            route: req.url ?? null,
+            route_label: routeLabel,
+            fal_webhook_callback_url: webhookCallbackUrl,
+            upstream_target_url: submitResult.targetUrl,
+            upstream_target_index: submitResult.targetIndex,
+            provider_diagnostics: submitResult.providerDiagnostics ?? null,
+          };
+          const transitionResult = await applyAcceptedRunningGenerationTransition({
+            applyGenerationMutation: async () => {
+              const response = await getSupabaseAdmin()
+                .from("ai_generations")
+                .insert({
+                  id: generationId,
+                  user_id: charge.userId,
+                  mode: resolveGenerationModeFromPayload(modelId, payload),
+                  provider: providerKey,
+                  model_id: modelId,
+                  prompt_text: resolveGenerationPromptFromPayload(routeLabel, payload),
+                  aspect: resolveGenerationAspectFromPayload(payload),
+                  duration_seconds: readGenerationDurationSeconds(payload),
+                  resolution: resolveGenerationResolutionFromPayload(payload),
+                  ...buildAcceptedRunningGenerationUpdate({
+                    provider: providerKey,
+                    modelId,
+                    providerRequestId,
+                    nextRecoveryAtIso,
+                    metadata: generationMetadata,
+                  }),
+                })
+                .select("id")
+                .single();
+              if (response.error) {
+                return {
+                  ok: false,
+                  error: response.error.message ?? "generation_insert_failed",
+                };
+              }
+              return { ok: true };
+            },
+            attemptInput: {
+              generationId,
+              userId: charge.userId,
+              provider: providerKey,
+              modelId,
+              providerRequestId,
+              dispatchSource: "direct_submit",
+              submitRoute: req.url ?? routeLabel,
+              metadata: {
+                source_ref: charge.sourceRef,
+                generation_submit_authority: "direct",
+                submit_target_url: submitResult.targetUrl,
+                submit_target_index: submitResult.targetIndex,
+                provider_diagnostics: submitResult.providerDiagnostics ?? null,
+              },
+              observedAt: dispatchAtIso,
+            },
+          });
+
+          if (!transitionResult.ok) {
+            await logGenerationFailure({
+              req,
+              routeLabel,
+              source: "telemetry.api.fal_submit.direct_transition_failed",
+              message: "Direct submit accepted, but generation transition failed.",
+              statusCode: 200,
+              userId: charge.userId,
+              metadata: {
+                model_id: modelId,
+                generation_id: generationId,
+                source_ref: charge.sourceRef,
+                provider_request_id: providerRequestId,
+                stage: transitionResult.stage,
+                error: transitionResult.error,
+              },
+            });
+            return res.status(200).json({ request_id: providerRequestId });
+          }
+
+          try {
+            await upsertGenerationProjection({
+              generationId,
+              userId: charge.userId,
+              sourceRef: charge.sourceRef,
+              requestId: providerRequestId,
+              provider: providerKey,
+              providerRequestId,
+              status: "ready",
+              taskState: "running",
+              queueState: "dispatched",
+              displayPrompt: resolveGenerationPromptFromPayload(routeLabel, payload),
+              modelId,
+              saveState: "idle",
+              publicationState: "pending",
+              resultUrls: [],
+              savedMediaIds: [],
+              startedAt: dispatchAtIso,
+            });
+          } catch (projectionError) {
+            await logGenerationFailure({
+              req,
+              routeLabel,
+              source: "telemetry.api.fal_submit.direct_projection_failed",
+              message: "Direct submit projection sync failed.",
+              statusCode: 200,
+              userId: charge.userId,
+              metadata: {
+                generation_id: generationId,
+                source_ref: charge.sourceRef,
+                provider_request_id: providerRequestId,
+                projection_error:
+                  projectionError instanceof Error
+                    ? projectionError.message
+                    : String(projectionError),
+              },
+            }).catch(() => undefined);
+          }
+
+          void requestGenerationControlPlaneWake({
+            routeLabel,
+            reason: "direct_submit_accepted",
+          });
+          await logGenerationFailure({
+            req,
+            routeLabel,
+            source: "telemetry.api.fal_submit.direct_submitted",
+            message: "Generation submitted directly to provider.",
+            statusCode: 200,
+            userId: charge.userId,
+            metadata: {
+              model_id: modelId,
+              generation_id: generationId,
+              source_ref: charge.sourceRef,
+              provider_request_id: providerRequestId,
+              upstream_target_url: submitResult.targetUrl,
+              upstream_target_index: submitResult.targetIndex,
+            },
+          });
+
+          return res.status(200).json({
+            request_id: providerRequestId,
+            generationId,
+          });
+        } catch (error) {
+          const detail = error instanceof Error ? error.message : String(error);
+          await charge.refund(
+            "Auto-release: direct provider submit threw before request tracking completed.",
+            {
+              reason: "direct_submit_error",
+              detail,
+            }
+          );
+          await logGenerationFailure({
+            req,
+            routeLabel,
+            source: "api.fal_submit.direct_submit_error",
+            message: detail,
+            statusCode: 502,
+            userId: charge.userId,
+            metadata: {
+              model_id: modelId,
+              source_ref: charge.sourceRef,
+            },
+          });
+          return res.status(502).json({
+            error: "Failed to submit generation to provider. Please retry.",
+          });
+        } finally {
+          clearTimeout(timeoutHandle);
+        }
+      }
 
       if (workerOwnedSubmitMisconfigured) {
         const retryAfterSeconds = 20;

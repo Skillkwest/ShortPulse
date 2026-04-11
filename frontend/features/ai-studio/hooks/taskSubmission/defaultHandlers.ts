@@ -28,7 +28,12 @@ const handoffSubmitResponse = ({
   startPollingWithGeneration,
 }: {
   response: FalSubmitResponse;
-  pollingProvider: "fal-seedream" | "fal-nano-banana" | "fal-nano-banana-2" | "fal-nano-banana-pro";
+  pollingProvider:
+    | "fal-seedream"
+    | "fal-seedream-v5-lite"
+    | "fal-nano-banana"
+    | "fal-nano-banana-2"
+    | "fal-nano-banana-pro";
   startPollingWithGeneration: ImageSubmissionArgs["startPollingWithGeneration"];
 }) => {
   if ("status" in response && response.status === "queued") {
@@ -56,6 +61,7 @@ export const handleDefaultModelSubmission = async ({
   let response: FalSubmitResponse;
   let pollingProvider:
     | "fal-seedream"
+    | "fal-seedream-v5-lite"
     | "fal-nano-banana"
     | "fal-nano-banana-2"
     | "fal-nano-banana-pro";
@@ -79,7 +85,10 @@ export const handleDefaultModelSubmission = async ({
         : {}),
       output_format: "png",
     });
-    pollingProvider = "fal-seedream";
+    pollingProvider =
+      finalModel === "fal-ai/bytedance/seedream/v5/lite/text-to-image"
+        ? "fal-seedream-v5-lite"
+        : "fal-seedream";
   } else if (finalModel === "fal-ai/nano-banana") {
     response = await submitFalNanoBanana({
       prompt: cleanedPrompt,

@@ -28,6 +28,9 @@ import {
   fetchFalSeedanceStatus,
   fetchFalSeedanceI2VStatus,
   fetchFalSeedreamStatus,
+  fetchFalSeedreamEditStatus,
+  fetchFalSeedreamV5LiteStatus,
+  fetchFalSeedreamV5LiteEditStatus,
   fetchFalVeoStatus,
   fetchFalVeoImageToVideoStatus,
 } from "../../../lib/falClient";
@@ -230,6 +233,12 @@ const fetchStatusByProvider = async (provider: Provider, taskId: string) => {
       return fetchFalSeedanceI2VStatus(taskId);
     case "fal-seedream":
       return fetchFalSeedreamStatus(taskId);
+    case "fal-seedream-edit":
+      return fetchFalSeedreamEditStatus(taskId);
+    case "fal-seedream-v5-lite":
+      return fetchFalSeedreamV5LiteStatus(taskId);
+    case "fal-seedream-v5-lite-edit":
+      return fetchFalSeedreamV5LiteEditStatus(taskId);
     case "fal-veo":
       return fetchFalVeoStatus(taskId);
     case "fal-veo-i2v":

@@ -11,6 +11,8 @@ const enqueueGenerationSubmitMock = vi.fn();
 const upsertGenerationProjectionMock = vi.fn();
 const requestGenerationControlPlaneWakeMock = vi.fn();
 const requireApiUserMock = vi.fn();
+const dispatchProviderSubmitMock = vi.fn();
+const applyAcceptedRunningGenerationTransitionMock = vi.fn();
 
 vi.mock("../../lib/server/api/auth", () => ({
   requireApiUser: (...args: unknown[]) => requireApiUserMock(...args),
@@ -44,6 +46,15 @@ vi.mock("../../lib/server/api/generationQueue/service", () => ({
 
 vi.mock("../../lib/server/api/generationProjection", () => ({
   upsertGenerationProjection: (...args: unknown[]) => upsertGenerationProjectionMock(...args),
+}));
+
+vi.mock("../../lib/server/providerIntegration/submitProviderDispatcher", () => ({
+  dispatchProviderSubmit: (...args: unknown[]) => dispatchProviderSubmitMock(...args),
+}));
+
+vi.mock("../../lib/server/api/generationAcceptedTransitionService", () => ({
+  applyAcceptedRunningGenerationTransition: (...args: unknown[]) =>
+    applyAcceptedRunningGenerationTransitionMock(...args),
 }));
 
 vi.mock("../../lib/server/generationControlPlane/controlPlaneWake", () => ({
@@ -92,6 +103,18 @@ describe("createFalSubmitHandler", () => {
     });
     requestGenerationControlPlaneWakeMock.mockResolvedValue(undefined);
     upsertGenerationProjectionMock.mockResolvedValue(undefined);
+    dispatchProviderSubmitMock.mockResolvedValue({
+      response: new Response(JSON.stringify({ request_id: "req-direct-1" }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      }),
+      data: { request_id: "req-direct-1" },
+      targetUrl: "https://queue.fal.run/fal-ai/nano-banana",
+      targetIndex: 0,
+      providerRequestId: "req-direct-1",
+      providerDiagnostics: null,
+    });
+    applyAcceptedRunningGenerationTransitionMock.mockResolvedValue({ ok: true });
     evaluateScopedGenerationAdmissionMock.mockResolvedValue({
       decision: {
         mode: "off",
@@ -130,13 +153,10 @@ describe("createFalSubmitHandler", () => {
     vi.unstubAllGlobals();
   });
 
-  it("queues new work by default whenever the durable queue is enabled", async () => {
-    const fetchMock = vi.fn();
-    vi.stubGlobal("fetch", fetchMock);
-
+  it("submits Fal image routes directly and returns a provider request id", async () => {
     const handler = createFalSubmitHandler({
       modelId: "fal-ai/nano-banana",
-      submitTargets: [{ submitUrl: "https://queue.fal.run/fal-ai/nano-banana" }],
+      submitUrl: "https://queue.fal.run/fal-ai/nano-banana",
       routeLabel: "Fal Nano Banana",
     });
 
@@ -153,28 +173,44 @@ describe("createFalSubmitHandler", () => {
 
     await handler(req as never, res as never);
 
-    expect(fetchMock).not.toHaveBeenCalled();
-    expect(countUserQueuedGenerationSubmitsMock).toHaveBeenCalledWith("user-1");
-    expect(enqueueGenerationSubmitMock).toHaveBeenCalledWith(
+    const charge = await chargeGenerationRequestMock.mock.results[0]?.value;
+    expect(dispatchProviderSubmitMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        provider: "fal",
+        modelId: "fal-ai/nano-banana",
+        targets: [
+          {
+            submitUrl:
+              "https://queue.fal.run/fal-ai/nano-banana?webhook_url=https%3A%2F%2Fshortpulse-git-working-development-kirk-artmans-projects.vercel.app%2Fapi%2Ffal%2Fwebhook&fal_webhook=https%3A%2F%2Fshortpulse-git-working-development-kirk-artmans-projects.vercel.app%2Fapi%2Ffal%2Fwebhook",
+          },
+        ],
+      })
+    );
+    expect(charge.markSubmitted).toHaveBeenCalledWith(
+      "req-direct-1",
+      expect.objectContaining({
+        generation_submit_authority: "direct",
+      })
+    );
+    expect(applyAcceptedRunningGenerationTransitionMock).toHaveBeenCalled();
+    expect(upsertGenerationProjectionMock).toHaveBeenCalledWith(
       expect.objectContaining({
         userId: "user-1",
         sourceRef: "source-ref-1",
-        modelId: "fal-ai/nano-banana",
-        metadata: expect.objectContaining({
-          generation_submit_authority: "worker",
-          fal_webhook_callback_url:
-            "https://shortpulse-git-working-development-kirk-artmans-projects.vercel.app/api/fal/webhook",
-        }),
+        requestId: "req-direct-1",
+        providerRequestId: "req-direct-1",
+        taskState: "running",
+        queueState: "dispatched",
       })
     );
-    expect(res.status).toHaveBeenCalledWith(202);
-    expect(res.json).toHaveBeenCalledWith({
-      status: "queued",
-      code: "GENERATION_QUEUED",
-      sourceRef: "source-ref-1",
-      generationId: "gen-queued-1",
-      pollAfterMs: 2000,
-    });
+    expect(enqueueGenerationSubmitMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        request_id: "req-direct-1",
+        generationId: expect.any(String),
+      })
+    );
   });
 
   it("fails closed when queueing is required in local dev and the worker heartbeat is missing", async () => {
@@ -183,7 +219,6 @@ describe("createFalSubmitHandler", () => {
 
     const handler = createFalSubmitHandler({
       modelId: "fal-ai/nano-banana",
-      submitTargets: [{ submitUrl: "https://queue.fal.run/fal-ai/nano-banana" }],
       routeLabel: "Fal Nano Banana",
     });
 
@@ -215,7 +250,6 @@ describe("createFalSubmitHandler", () => {
 
     const handler = createFalSubmitHandler({
       modelId: "fal-ai/nano-banana",
-      submitTargets: [{ submitUrl: "https://queue.fal.run/fal-ai/nano-banana" }],
       routeLabel: "Fal Nano Banana",
     });
 
@@ -244,7 +278,6 @@ describe("createFalSubmitHandler", () => {
 
     const handler = createFalSubmitHandler({
       modelId: "fal-ai/nano-banana",
-      submitTargets: [{ submitUrl: "https://queue.fal.run/fal-ai/nano-banana" }],
       routeLabel: "Fal Nano Banana",
     });
 
@@ -305,7 +338,6 @@ describe("createFalSubmitHandler", () => {
 
     const handler = createFalSubmitHandler({
       modelId: "fal-ai/nano-banana",
-      submitTargets: [{ submitUrl: "https://queue.fal.run/fal-ai/nano-banana" }],
       routeLabel: "Fal Nano Banana",
     });
 
@@ -333,7 +365,6 @@ describe("createFalSubmitHandler", () => {
   it("fails closed before billing on unknown top-level fields", async () => {
     const handler = createFalSubmitHandler({
       modelId: "fal-ai/nano-banana",
-      submitTargets: [{ submitUrl: "https://queue.fal.run/fal-ai/nano-banana" }],
       routeLabel: "Fal Nano Banana",
     });
 

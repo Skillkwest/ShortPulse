@@ -557,7 +557,7 @@ export const createFalStatusHandler = ({
           modelId,
           payload,
         });
-        await persistPollObservation({
+        void persistPollObservation({
           observationType: "completed",
           payload,
           wakeReason: "poll_completed_observation",

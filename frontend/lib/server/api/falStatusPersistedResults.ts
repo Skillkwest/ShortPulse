@@ -16,6 +16,7 @@ export type PersistedGenerationStatusContext = {
   status?: string | null;
   recoveryPending?: boolean;
   completionState?: "completed_awaiting_media" | null;
+  deliveryState?: "transient_provider" | "canonical_owned" | null;
   queueState?: "queued" | "dispatching" | "dispatched" | "failed" | null;
   errorMessageShort?: string | null;
   errorDetail?: string | null;
@@ -49,10 +50,18 @@ export const buildPersistedCompletedPayload = ({
   requestId,
   resultUrls,
   generationId,
+  deliveryState = "canonical_owned",
+  recoveryPending = false,
+  completionState = null,
+  providerState = "completed",
 }: {
   requestId: string;
   resultUrls: string[];
   generationId?: string | null;
+  deliveryState?: "transient_provider" | "canonical_owned";
+  recoveryPending?: boolean;
+  completionState?: "completed_awaiting_media" | null;
+  providerState?: string | null;
 }) => ({
   request_id: requestId,
   ...(typeof generationId === "string" && generationId.trim().length > 0
@@ -67,12 +76,17 @@ export const buildPersistedCompletedPayload = ({
     taskState: "success",
     isTerminal: true,
     resultUrls,
-    providerState: "completed",
-    deliveryState: "canonical_owned",
+    providerState,
+    recoveryPending,
+    ...(completionState ? { completionState } : {}),
+    deliveryState,
     queueState: "dispatched",
     statusLabel: "Just now",
   }),
 });
+
+const areAllOutputsOwned = (rows: Array<{ mediaFileId: string | null }>): boolean =>
+  rows.length > 0 && rows.every((row) => typeof row.mediaFileId === "string" && row.mediaFileId);
 
 export const buildPersistedFailedPayload = ({
   requestId,
@@ -128,11 +142,18 @@ export const readPersistedGenerationStatusContext = async ({
       supabaseAdmin: adminClient,
     }).catch(() => null);
     if (projectionContext?.resultUrls.length) {
+      const deliveryState =
+        projectionContext.publicationState === "published"
+          ? "canonical_owned"
+          : "transient_provider";
       return {
         generationId: projectionContext.generationId,
         resultUrls: projectionContext.resultUrls,
         status: projectionContext.status,
         taskState: "success",
+        deliveryState,
+        recoveryPending: false,
+        completionState: null,
         queueState: normalizePersistedQueueState(projectionContext.queueState) ?? "dispatched",
         errorMessageShort: projectionContext.errorMessageShort,
         errorDetail: projectionContext.errorDetail,
@@ -146,11 +167,17 @@ export const readPersistedGenerationStatusContext = async ({
           supabaseAdmin: adminClient,
         });
         if (projectedOutputRows.length) {
+          const deliveryState = areAllOutputsOwned(projectedOutputRows)
+            ? "canonical_owned"
+            : "transient_provider";
           return {
             generationId: projectionContext.generationId,
             resultUrls: projectedOutputRows.map((row) => row.resultUrl),
             status: projectionContext.status,
             taskState: "success",
+            deliveryState,
+            recoveryPending: false,
+            completionState: null,
             queueState: normalizePersistedQueueState(projectionContext.queueState) ?? "dispatched",
             errorMessageShort: projectionContext.errorMessageShort,
             errorDetail: projectionContext.errorDetail,
@@ -224,11 +251,17 @@ export const readPersistedGenerationStatusContext = async ({
             supabaseAdmin: adminClient,
           });
           if (outputRows.length) {
+            const deliveryState = areAllOutputsOwned(outputRows)
+              ? "canonical_owned"
+              : "transient_provider";
             return {
               generationId,
               resultUrls: outputRows.map((row) => row.resultUrl),
               status,
               taskState: "success",
+              deliveryState,
+              recoveryPending: false,
+              completionState: null,
               queueState: "dispatched",
               errorMessageShort: null,
               errorDetail: null,

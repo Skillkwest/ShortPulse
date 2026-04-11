@@ -428,6 +428,7 @@ describe("createFalStatusHandler", () => {
       {
         generation_id: "gen-projection-success-pending-1",
         result_urls: [],
+        publication_state: "suppressed",
         status: "ready",
         task_state: "success",
         queue_state: "dispatched",
@@ -476,6 +477,54 @@ describe("createFalStatusHandler", () => {
           completionState: "completed_awaiting_media",
           queueState: "dispatched",
           statusLabel: "Processing...",
+        }),
+      })
+    );
+  });
+
+  it("returns transient completed payloads for persisted provider-only projection urls", async () => {
+    persistedProjectionRows = [
+      {
+        generation_id: "gen-projection-transient-1",
+        result_urls: ["https://cdn.shortpulse.test/provider-only.png"],
+        publication_state: "suppressed",
+        status: "ready",
+        task_state: "success",
+        queue_state: "dispatched",
+      },
+    ];
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    const handler = createFalStatusHandler({
+      queueBaseUrl: "https://queue.fal.run/fal-ai/bytedance/seedream/v4.5/text-to-image/requests",
+      routeLabel: "Fal Seedream",
+      timeoutMs: 15000,
+    });
+
+    const req = {
+      method: "POST",
+      body: { requestId: "req-transient-projection" },
+      headers: {},
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        request_id: "req-transient-projection",
+        generationId: "gen-projection-transient-1",
+        status: "completed",
+        resultUrls: ["https://cdn.shortpulse.test/provider-only.png"],
+        shortpulseLifecycle: expect.objectContaining({
+          taskState: "success",
+          isTerminal: true,
+          deliveryState: "transient_provider",
+          providerState: "ready",
+          queueState: "dispatched",
         }),
       })
     );

@@ -157,6 +157,7 @@ describe("falStatusPersistedResults", () => {
       {
         generation_id: "gen-projection-1",
         result_urls: ["https://cdn.shortpulse.test/projection-a.mp4"],
+        publication_state: "published",
         status: "ready",
         task_state: "success",
       },
@@ -181,6 +182,9 @@ describe("falStatusPersistedResults", () => {
       resultUrls: ["https://cdn.shortpulse.test/projection-a.mp4"],
       status: "ready",
       taskState: "success",
+      deliveryState: "canonical_owned",
+      recoveryPending: false,
+      completionState: null,
       queueState: "dispatched",
       errorMessageShort: null,
       errorDetail: null,
@@ -229,6 +233,7 @@ describe("falStatusPersistedResults", () => {
       {
         generation_id: "gen-projection-success-pending-1",
         result_urls: [],
+        publication_state: "suppressed",
         status: "ready",
         task_state: "success",
         queue_state: "dispatched",
@@ -267,6 +272,7 @@ describe("falStatusPersistedResults", () => {
       {
         generation_id: "gen-projection-output-1",
         result_urls: [],
+        publication_state: "suppressed",
         status: "ready",
         task_state: "running",
       },
@@ -281,7 +287,11 @@ describe("falStatusPersistedResults", () => {
       },
     ];
     persistedOutputRows = [
-      { output_index: 0, result_url: "https://cdn.shortpulse.test/projected-output.mp4" },
+      {
+        output_index: 0,
+        result_url: "https://cdn.shortpulse.test/projected-output.mp4",
+        media_file_id: "media-projected-1",
+      },
     ];
 
     await expect(
@@ -294,6 +304,9 @@ describe("falStatusPersistedResults", () => {
       resultUrls: ["https://cdn.shortpulse.test/projected-output.mp4"],
       status: "ready",
       taskState: "success",
+      deliveryState: "canonical_owned",
+      recoveryPending: false,
+      completionState: null,
       queueState: "dispatched",
       errorMessageShort: null,
       errorDetail: null,
@@ -313,8 +326,16 @@ describe("falStatusPersistedResults", () => {
       },
     ];
     persistedOutputRows = [
-      { output_index: 1, result_url: "https://cdn.shortpulse.test/output-b.mp4" },
-      { output_index: 0, result_url: "https://cdn.shortpulse.test/output-a.mp4" },
+      {
+        output_index: 1,
+        result_url: "https://cdn.shortpulse.test/output-b.mp4",
+        media_file_id: "media-b",
+      },
+      {
+        output_index: 0,
+        result_url: "https://cdn.shortpulse.test/output-a.mp4",
+        media_file_id: "media-a",
+      },
     ];
 
     await expect(
@@ -330,6 +351,9 @@ describe("falStatusPersistedResults", () => {
       ],
       status: "success",
       taskState: "success",
+      deliveryState: "canonical_owned",
+      recoveryPending: false,
+      completionState: null,
       queueState: "dispatched",
       errorMessageShort: null,
       errorDetail: null,
@@ -352,7 +376,11 @@ describe("falStatusPersistedResults", () => {
       },
     ];
     persistedOutputRows = [
-      { output_index: 0, result_url: "https://cdn.shortpulse.test/output-a.mp4" },
+      {
+        output_index: 0,
+        result_url: "https://cdn.shortpulse.test/output-a.mp4",
+        media_file_id: "media-a",
+      },
     ];
 
     await expect(
@@ -365,6 +393,9 @@ describe("falStatusPersistedResults", () => {
       resultUrls: ["https://cdn.shortpulse.test/output-a.mp4"],
       status: "processing",
       taskState: "success",
+      deliveryState: "canonical_owned",
+      recoveryPending: false,
+      completionState: null,
       queueState: "dispatched",
       errorMessageShort: null,
       errorDetail: null,

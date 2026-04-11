@@ -219,6 +219,10 @@ export const createFalStatusHandler = ({
           requestId,
           resultUrls: persistedGenerationContext.resultUrls,
           generationId,
+          deliveryState: persistedGenerationContext.deliveryState ?? "canonical_owned",
+          recoveryPending: persistedGenerationContext.recoveryPending === true,
+          completionState: persistedGenerationContext.completionState ?? null,
+          providerState: persistedGenerationContext.status ?? "completed",
         })
       );
     }

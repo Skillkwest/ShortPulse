@@ -562,6 +562,14 @@ describe("executeGenerationRecovery", () => {
     ]);
     getSupabaseAdminMock.mockReturnValue(scenario.admin);
     persistRecoveryMediaFilesForGenerationMock.mockResolvedValue(["media-1", "media-2"]);
+    persistGenerationOutputRecordsMock.mockResolvedValue([
+      {
+        id: "output-1",
+        outputIndex: 0,
+        resultUrl: "https://cdn.shortpulse.test/recovered.png",
+        mediaFileId: "media-1",
+      },
+    ]);
 
     const result = await executeGenerationRecovery({
       actor: "webhook",
@@ -704,13 +712,6 @@ describe("executeGenerationRecovery", () => {
         mediaFileIds: [],
       })
     );
-    expect(upsertGenerationPublicationMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        generationId: "gen-1",
-        generationOutputId: "output-1",
-        publicationState: "published",
-      })
-    );
     expect(upsertGenerationProjectionMock).toHaveBeenCalledWith(
       expect.objectContaining({
         generationId: "gen-1",
@@ -718,11 +719,12 @@ describe("executeGenerationRecovery", () => {
         status: "ready",
         taskState: "success",
         saveState: "idle",
-        publicationState: "published",
+        publicationState: "suppressed",
         resultUrls: ["https://cdn.shortpulse.test/recovered.png"],
         savedMediaIds: [],
       })
     );
+    expect(upsertGenerationPublicationMock).not.toHaveBeenCalled();
     expect(settleGenerationOutcomeMock).toHaveBeenCalledWith(
       expect.objectContaining({
         outcome: "success",

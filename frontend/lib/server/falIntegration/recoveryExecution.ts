@@ -289,34 +289,41 @@ const syncRecoveredGenerationProjection = async ({
   const normalizedSavedMediaIds = mediaFileIds
     .map((value) => asOptionalString(value))
     .filter((value): value is string => Boolean(value));
+  const hasCanonicalOwnedMedia =
+    outputRows.length > 0 &&
+    outputRows.every(
+      (row) => typeof row.mediaFileId === "string" && row.mediaFileId.trim().length > 0
+    );
   const generationMetadata = asObject(generation.metadata);
   const hiddenInReferenceGrid =
     readMetadataBoolean(generationMetadata, "hidden_in_reference_grid", "hiddenInReferenceGrid") ??
     false;
 
-  await Promise.all(
-    outputRows.map((row) => {
-      if (!row.id) return Promise.resolve();
-      return upsertGenerationPublication({
-        generationId: generation.id,
-        generationOutputId: row.id,
-        userId: generation.user_id,
-        publicationState: "published",
-        reusable: true,
-        visibleInAiStudio: true,
-        visibleInReferenceGrid: !hiddenInReferenceGrid,
-        ownedMediaFileId: row.mediaFileId,
-        previewUrl: row.resultUrl,
-        fullUrl: row.resultUrl,
-        publishedAt: nowIso,
-        metadata: {
-          recovery_actor: actor,
-          recovery_execution: true,
-          autosave_decision: autosaveDecision,
-        },
-      });
-    })
-  );
+  if (hasCanonicalOwnedMedia) {
+    await Promise.all(
+      outputRows.map((row) => {
+        if (!row.id) return Promise.resolve();
+        return upsertGenerationPublication({
+          generationId: generation.id,
+          generationOutputId: row.id,
+          userId: generation.user_id,
+          publicationState: "published",
+          reusable: true,
+          visibleInAiStudio: true,
+          visibleInReferenceGrid: !hiddenInReferenceGrid,
+          ownedMediaFileId: row.mediaFileId,
+          previewUrl: row.resultUrl,
+          fullUrl: row.resultUrl,
+          publishedAt: nowIso,
+          metadata: {
+            recovery_actor: actor,
+            recovery_execution: true,
+            autosave_decision: autosaveDecision,
+          },
+        });
+      })
+    );
+  }
 
   await upsertGenerationProjection({
     generationId: generation.id,
@@ -336,7 +343,7 @@ const syncRecoveredGenerationProjection = async ({
     saveState: "idle",
     hiddenInReferenceGrid,
     referenceGridVisible: !hiddenInReferenceGrid,
-    publicationState: "published",
+    publicationState: hasCanonicalOwnedMedia ? "published" : "suppressed",
     resultUrls: normalizedResultUrls,
     savedMediaIds: normalizedSavedMediaIds,
     generationReplay: readMetadataObject(

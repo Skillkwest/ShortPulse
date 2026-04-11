@@ -26,6 +26,16 @@ type GenerationPublicationRow = {
   created_at?: unknown;
 };
 
+type GenerationProjectionDeliveryRow = {
+  preview_url?: unknown;
+  result_urls?: unknown;
+  preview_storage_path?: unknown;
+  full_storage_path?: unknown;
+  task_state?: unknown;
+  hidden_in_reference_grid?: unknown;
+  reference_grid_visible?: unknown;
+};
+
 export type GeneratedMediaFileRecord = {
   storagePath: string;
   filename: string | null;
@@ -50,6 +60,13 @@ const asTrimmedString = (value: unknown): string | null => {
   return trimmed.length ? trimmed : null;
 };
 
+const asTrimmedStringArray = (value: unknown): string[] => {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((entry) => asTrimmedString(entry))
+    .filter((entry): entry is string => Boolean(entry));
+};
+
 const sanitizeFilename = (value: string | null | undefined): string | null => {
   if (typeof value !== "string") return null;
   const trimmed = value.trim();
@@ -60,6 +77,32 @@ const sanitizeFilename = (value: string | null | undefined): string | null => {
     .replace(/[. ]+$/g, "")
     .trim();
   return safe.length ? safe : null;
+};
+
+const toProjectionDelivery = (
+  row: GenerationProjectionDeliveryRow | null | undefined
+): PublishedGenerationDelivery | null => {
+  if (!row) return null;
+  if (asTrimmedString(row.task_state) !== "success") return null;
+  if (row.hidden_in_reference_grid === true) return null;
+  if (row.reference_grid_visible === false) return null;
+
+  const resultUrls = asTrimmedStringArray(row.result_urls);
+  const previewUrl = asTrimmedString(row.preview_url) ?? resultUrls[0] ?? null;
+  const fullUrl = resultUrls[0] ?? previewUrl;
+  const previewStoragePath = asCanonicalStoragePath(asTrimmedString(row.preview_storage_path));
+  const fullStoragePath = asCanonicalStoragePath(asTrimmedString(row.full_storage_path));
+
+  if (!previewUrl && !fullUrl && !previewStoragePath && !fullStoragePath) {
+    return null;
+  }
+
+  return {
+    previewUrl,
+    fullUrl,
+    previewStoragePath,
+    fullStoragePath,
+  };
 };
 
 const isPreviewStoragePathSchemaError = (error: unknown): boolean => {
@@ -401,7 +444,20 @@ export const resolveLatestPublishedGenerationDeliveryByGenerationId = async ({
       }
     }
 
-    return null;
+    let projectionQuery = supabase
+      .from("generation_projection")
+      .select(
+        "preview_url, result_urls, preview_storage_path, full_storage_path, task_state, hidden_in_reference_grid, reference_grid_visible"
+      )
+      .eq("generation_id", generationId)
+      .limit(1);
+    if (resolvedUserId) {
+      projectionQuery = projectionQuery.eq("user_id", resolvedUserId);
+    }
+    const { data: projectionData, error: projectionError } = await projectionQuery.maybeSingle();
+    if (projectionError) return null;
+
+    return toProjectionDelivery(projectionData as GenerationProjectionDeliveryRow | null);
   } catch {
     return null;
   }

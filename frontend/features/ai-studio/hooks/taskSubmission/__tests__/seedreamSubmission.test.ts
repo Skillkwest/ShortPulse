@@ -146,6 +146,7 @@ describe("Seedream submission payloads", () => {
     const payload = vi.mocked(submitFalSeedreamV5Lite).mock.calls[0]?.[0];
     expect(payload).toBeDefined();
     expectAspectLockedAutoSize(payload?.image_size, "16:9");
+    expect(payload).not.toHaveProperty("output_format");
     expect(args.startPollingWithGeneration).toHaveBeenCalledWith(
       "seedream-v5-lite-req",
       "fal-seedream-v5-lite",

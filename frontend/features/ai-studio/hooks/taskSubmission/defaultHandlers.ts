@@ -83,7 +83,9 @@ export const handleDefaultModelSubmission = async ({
       ...(finalModel === "fal-ai/bytedance/seedream/v5/lite/text-to-image"
         ? { enable_safety_checker: false }
         : {}),
-      output_format: "png",
+      ...(finalModel === "fal-ai/bytedance/seedream/v5/lite/text-to-image"
+        ? {}
+        : { output_format: "png" }),
     });
     pollingProvider =
       finalModel === "fal-ai/bytedance/seedream/v5/lite/text-to-image"

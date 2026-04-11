@@ -12,6 +12,7 @@ import {
   readCanonicalProviderRequestId,
   readCanonicalProviderStatus,
 } from "../providerIntegration/canonicalProviderPayload";
+import { readProviderMediaUrls } from "../providerIntegration/statusProviderPayload";
 
 type JsonObject = Record<string, unknown>;
 
@@ -206,6 +207,13 @@ export const ingestFalWebhookEvent = async ({
   const identity = await resolveWebhookObservationIdentity({
     requestId,
   });
+  const observationMediaUrls =
+    observationState === "completed"
+      ? readProviderMediaUrls({
+          provider: "fal",
+          payload,
+        })
+      : [];
   let immediateRecoverySettled = false;
   try {
     await executeGenerationRecovery({
@@ -216,7 +224,7 @@ export const ingestFalWebhookEvent = async ({
       observation: {
         state: observationState,
         payload,
-        mediaUrls: [],
+        mediaUrls: observationMediaUrls,
       },
       routeLabel: "fal/webhook",
     });

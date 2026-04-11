@@ -252,7 +252,7 @@ describe("falWebhookIngress", () => {
       observation: {
         state: "completed",
         payload: expect.any(Object),
-        mediaUrls: [],
+        mediaUrls: ["https://cdn.shortpulse.test/output.png"],
       },
       routeLabel: "fal/webhook",
     });
@@ -323,5 +323,51 @@ describe("falWebhookIngress", () => {
       reason: "webhook_observation",
     });
     expect(supabase.updateEq).toHaveBeenCalledWith("event_id", "event-1");
+  });
+
+  it("passes extracted Fal media URLs into immediate webhook recovery", async () => {
+    const supabase = createSupabaseMock();
+    getSupabaseAdminMock.mockReturnValue({ from: supabase.from });
+    lookupGenerationAttemptByProviderRequestMock.mockResolvedValue({
+      data: {
+        id: "attempt-1",
+        generationId: "gen-1",
+        userId: "user-1",
+        attemptNumber: 1,
+        providerRequestId: "req-1",
+        metadata: {},
+      },
+      error: null,
+    });
+
+    await ingestFalWebhookEvent({
+      payload: parseFalWebhookPayload(
+        JSON.stringify({
+          id: "event-1",
+          request_id: "req-1",
+          status: "OK",
+          payload: {
+            images: [{ url: "https://cdn.shortpulse.test/from-webhook.png" }],
+          },
+        })
+      ),
+      headers: {
+        requestId: "req-1",
+        userId: "fal-user-1",
+        eventId: "event-1",
+        timestamp: "123",
+      },
+      verificationMethod: "fal",
+      payloadHash: "hash-1",
+      maxAttempts: 5,
+    });
+
+    expect(executeGenerationRecoveryMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        observation: expect.objectContaining({
+          mediaUrls: ["https://cdn.shortpulse.test/from-webhook.png"],
+        }),
+      })
+    );
   });
 });

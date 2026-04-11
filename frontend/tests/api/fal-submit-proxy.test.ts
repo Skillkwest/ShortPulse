@@ -213,6 +213,41 @@ describe("createFalSubmitHandler", () => {
     );
   });
 
+  it("submits Fal edit image routes directly and skips the worker queue", async () => {
+    const handler = createFalSubmitHandler({
+      modelId: "fal-ai/nano-banana-2/edit",
+      submitUrl: "https://queue.fal.run/fal-ai/nano-banana-2/edit",
+      routeLabel: "Fal Nano Banana 2 Edit",
+    });
+
+    const req = {
+      method: "POST",
+      body: { prompt: "portrait", image_urls: ["https://example.com/base.png"] },
+      headers: {
+        host: "localhost:3000",
+        "x-forwarded-proto": "http",
+      },
+      url: "/api/fal/image-submit",
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(dispatchProviderSubmitMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        modelId: "fal-ai/nano-banana-2/edit",
+      })
+    );
+    expect(enqueueGenerationSubmitMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        request_id: "req-direct-1",
+        generationId: expect.any(String),
+      })
+    );
+  });
+
   it("fails closed when queueing is required in local dev and the worker heartbeat is missing", async () => {
     hasFreshLocalGenerationWorkerHeartbeatMock.mockResolvedValue(false);
     isLocalDevGenerationWorkerRequiredMock.mockReturnValue(true);
@@ -244,13 +279,13 @@ describe("createFalSubmitHandler", () => {
     });
   });
 
-  it("fails closed when worker-owned submit is enabled but the durable queue is disabled", async () => {
+  it("fails closed for worker-owned non-inline submits when the durable queue is disabled", async () => {
     process.env.SHORTPULSE_FAL_QUEUE_ENABLED = "false";
     process.env.SHORTPULSE_FAL_WORKER_OWNED_SUBMIT_ENABLED = "true";
 
     const handler = createFalSubmitHandler({
-      modelId: "fal-ai/nano-banana",
-      routeLabel: "Fal Nano Banana",
+      modelId: "fal-ai/kling-video/v2/master/image-to-video",
+      routeLabel: "Fal Kling",
     });
 
     const req = {
@@ -264,48 +299,40 @@ describe("createFalSubmitHandler", () => {
     await handler(req as never, res as never);
 
     expect(enqueueGenerationSubmitMock).not.toHaveBeenCalled();
-    expect(res.status).toHaveBeenCalledWith(503);
-    expect(res.json).toHaveBeenCalledWith({
-      error:
-        "Worker-owned generation submit requires the durable submit queue to be enabled. Fix the runtime configuration and retry.",
-      code: "GENERATION_WORKER_OWNED_SUBMIT_MISCONFIGURED",
-      retryAfterSeconds: 20,
-    });
-  });
-
-  it("fails closed when the durable queue is disabled", async () => {
-    process.env.SHORTPULSE_FAL_QUEUE_ENABLED = "false";
-
-    const handler = createFalSubmitHandler({
-      modelId: "fal-ai/nano-banana",
-      routeLabel: "Fal Nano Banana",
-    });
-
-    const req = {
-      method: "POST",
-      body: { prompt: "portrait" },
-      headers: {},
-      url: "/api/fal/nano-banana-submit",
-    };
-    const res = createMockResponse();
-
-    await handler(req as never, res as never);
-
-    const charge = await chargeGenerationRequestMock.mock.results[0]?.value;
-    expect(enqueueGenerationSubmitMock).not.toHaveBeenCalled();
-    expect(charge.refund).toHaveBeenCalledWith(
-      "Auto-release: durable queue-backed submit is required.",
-      expect.objectContaining({
-        reason: "queue_required",
-        queue_enabled: false,
-      })
-    );
     expect(res.status).toHaveBeenCalledWith(503);
     expect(res.json).toHaveBeenCalledWith({
       error:
         "Durable queue-backed generation submit is required for this runtime. Enable the queue and retry.",
       code: "GENERATION_QUEUE_REQUIRED",
       retryAfterSeconds: 20,
+    });
+  });
+
+  it("still submits active Fal image routes directly when the durable queue is disabled", async () => {
+    process.env.SHORTPULSE_FAL_QUEUE_ENABLED = "false";
+
+    const handler = createFalSubmitHandler({
+      modelId: "fal-ai/nano-banana",
+      submitUrl: "https://queue.fal.run/fal-ai/nano-banana",
+      routeLabel: "Fal Nano Banana",
+    });
+
+    const req = {
+      method: "POST",
+      body: { prompt: "portrait" },
+      headers: {},
+      url: "/api/fal/nano-banana-submit",
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(enqueueGenerationSubmitMock).not.toHaveBeenCalled();
+    expect(dispatchProviderSubmitMock).toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith({
+      request_id: "req-direct-1",
+      generationId: expect.any(String),
     });
   });
 

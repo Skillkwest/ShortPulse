@@ -585,13 +585,13 @@ export const createFalSubmitHandler = ({
         });
       }
 
-      const queuedSubmitSelected = runtimeFlags.queueEnabled;
       const inlineSubmitTargets = resolveInlineSubmitTargets({ submitTargets, submitUrl });
-      const canUseInlineImageSubmit =
-        providerKey === "fal" &&
-        generationMode === "image" &&
-        inlineSubmitTargets.length > 0 &&
-        !admissionDecision.wouldLimit;
+      const supportsInlineImageSubmit =
+        providerKey === "fal" && generationMode === "image" && inlineSubmitTargets.length > 0;
+      const canUseInlineImageSubmit = supportsInlineImageSubmit && !admissionDecision.wouldLimit;
+      const queuedSubmitSelected =
+        runtimeFlags.queueEnabled &&
+        (!supportsInlineImageSubmit || admissionDecision.enforced || admissionDecision.wouldLimit);
       const workerOwnedSubmitMisconfigured = isWorkerOwnedSubmitMisconfigured({
         queueEnabled: runtimeFlags.queueEnabled,
         workerOwnedSubmitEnabled: runtimeFlags.workerOwnedSubmitEnabled,
@@ -879,7 +879,7 @@ export const createFalSubmitHandler = ({
         }
       }
 
-      if (workerOwnedSubmitMisconfigured) {
+      if (workerOwnedSubmitMisconfigured && queuedSubmitSelected) {
         const retryAfterSeconds = 20;
         await charge.refund(
           "Auto-release: worker-owned submit requires queue-enabled runtime configuration.",
@@ -907,7 +907,7 @@ export const createFalSubmitHandler = ({
         return res.status(503).json(buildWorkerOwnedSubmitMisconfiguredPayload(retryAfterSeconds));
       }
 
-      if (runtimeFlags.queueEnabled && (admissionDecision.enforced || queuedSubmitSelected)) {
+      if (queuedSubmitSelected) {
         if (
           isLocalDevGenerationWorkerRequired(runtimeFlags) &&
           !(await hasFreshLocalGenerationWorkerHeartbeat())
@@ -996,9 +996,7 @@ export const createFalSubmitHandler = ({
               runtimeFlags.videoQueueCompatNormalizationEnabled && isVideoGenerationModelId(modelId)
                 ? "video_submit_payload_v2"
                 : "legacy_raw",
-            queue_reason: queuedSubmitSelected
-              ? (admissionDecision.reason ?? "queue_enabled_default")
-              : admissionDecision.reason,
+            queue_reason: admissionDecision.reason ?? "queue_enabled_default",
             queue_snapshot: {
               global_active: admissionDecision.snapshot.globalActive,
               global_max: admissionDecision.snapshot.globalMax,
@@ -1086,7 +1084,7 @@ export const createFalSubmitHandler = ({
             generation_id: enqueueResult.generationId,
             queue_status: enqueueResult.queueStatus,
             admission_reason: admissionDecision.reason,
-            worker_owned_submit: queuedSubmitSelected,
+            worker_owned_submit: true,
             global_active: admissionDecision.snapshot.globalActive,
             global_max: admissionDecision.snapshot.globalMax,
             tier: admissionDecision.snapshot.tier,
@@ -1102,6 +1100,37 @@ export const createFalSubmitHandler = ({
           buildQueuedSubmitPayload({
             sourceRef: queuedSourceRef,
             generationId: enqueueResult.generationId,
+          })
+        );
+      }
+
+      if (supportsInlineImageSubmit && admissionDecision.wouldLimit) {
+        const retryAfterSeconds = admissionDecision.retryAfterSeconds;
+        await charge.refund("Auto-release: image submit admission limit reached.", {
+          reason: "direct_image_submit_limited",
+          queue_enabled: runtimeFlags.queueEnabled,
+          worker_owned_submit_enabled: runtimeFlags.workerOwnedSubmitEnabled,
+          admission_enforced: admissionDecision.enforced,
+          admission_reason: admissionDecision.reason,
+          global_active: admissionDecision.snapshot.globalActive,
+          global_max: admissionDecision.snapshot.globalMax,
+          tier: admissionDecision.snapshot.tier,
+          tier_active: admissionDecision.snapshot.tierActive,
+          tier_max: admissionDecision.snapshot.tierMax,
+        });
+        res.setHeader("Retry-After", String(retryAfterSeconds));
+        return res.status(429).json(
+          buildAdmissionLimitPayload({
+            retryAfterSeconds,
+            admissionScope,
+            admissionReason: admissionDecision.reason,
+            snapshot: {
+              globalMax: admissionDecision.snapshot.globalMax,
+              globalActive: admissionDecision.snapshot.globalActive,
+              tier: admissionDecision.snapshot.tier,
+              tierMax: admissionDecision.snapshot.tierMax,
+              tierActive: admissionDecision.snapshot.tierActive,
+            },
           })
         );
       }

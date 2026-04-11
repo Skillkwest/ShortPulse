@@ -7,6 +7,7 @@ const settleGenerationOutcomeMock = vi.fn();
 const resolveProviderRequestOwnershipMock = vi.fn();
 const executeGenerationRecoveryMock = vi.fn();
 const persistGenerationObservationMock = vi.fn();
+const requestGenerationControlPlaneWakeMock = vi.fn();
 const getSupabaseAdminMock = vi.fn();
 let persistedProjectionRows: Array<Record<string, unknown>> = [];
 let persistedGenerationRows: Array<Record<string, unknown>> = [];
@@ -32,6 +33,11 @@ vi.mock("../../lib/server/falIntegration/recoveryExecution", () => ({
 
 vi.mock("../../lib/server/api/generationObservationInbox", () => ({
   persistGenerationObservation: (...args: unknown[]) => persistGenerationObservationMock(...args),
+}));
+
+vi.mock("../../lib/server/generationControlPlane/controlPlaneWake", () => ({
+  requestGenerationControlPlaneWake: (...args: unknown[]) =>
+    requestGenerationControlPlaneWakeMock(...args),
 }));
 
 vi.mock("../../lib/server/api/supabaseAdmin", () => ({
@@ -73,6 +79,8 @@ describe("createFalStatusHandler", () => {
     persistedOutputRows = [];
     persistGenerationObservationMock.mockReset();
     persistGenerationObservationMock.mockResolvedValue(undefined);
+    requestGenerationControlPlaneWakeMock.mockReset();
+    requestGenerationControlPlaneWakeMock.mockResolvedValue(undefined);
     getSupabaseAdminMock.mockImplementation(() => {
       const generationQueryChain = {
         eq: vi.fn(),
@@ -196,6 +204,8 @@ describe("createFalStatusHandler", () => {
         taskState: "success",
         isTerminal: true,
         resultUrls: ["https://cdn.shortpulse.test/seedream-image.png"],
+        recoveryPending: true,
+        deliveryState: "transient_provider",
       })
     );
     expect(persistGenerationObservationMock).toHaveBeenCalledWith(
@@ -209,22 +219,15 @@ describe("createFalStatusHandler", () => {
         idempotencyKey: "poll:fal:req-1:completed",
       })
     );
-    expect(executeGenerationRecoveryMock).toHaveBeenCalledWith({
-      actor: "poll",
-      generationId: "gen-1",
-      requestId: "req-1",
-      userId: "user-1",
-      observation: {
-        state: "completed",
-        payload: expect.any(Object),
-        mediaUrls: ["https://cdn.shortpulse.test/seedream-image.png"],
-      },
+    expect(requestGenerationControlPlaneWakeMock).toHaveBeenCalledWith({
       routeLabel: "Fal Seedream",
+      reason: "poll_completed_observation",
     });
+    expect(executeGenerationRecoveryMock).not.toHaveBeenCalled();
     expect(logGenerationFailureMock).not.toHaveBeenCalled();
   });
 
-  it("skips fallback poll observation when immediate success recovery settles canonical outputs", async () => {
+  it("returns transient provider delivery without waiting for canonical persistence", async () => {
     persistedGenerationRows = [
       {
         id: "gen-1",
@@ -232,26 +235,6 @@ describe("createFalStatusHandler", () => {
         metadata: {},
       },
     ];
-    executeGenerationRecoveryMock.mockImplementationOnce(async () => {
-      persistedProjectionRows = [
-        {
-          generation_id: "gen-1",
-          result_urls: ["https://cdn.shortpulse.test/seedream-image.png"],
-          status: "ready",
-          task_state: "success",
-          queue_state: "dispatched",
-        },
-      ];
-      return {
-        ok: true,
-        state: "recovered",
-        generationId: "gen-1",
-        requestId: "req-1",
-        mediaFileIds: [],
-        mediaUrls: ["https://cdn.shortpulse.test/seedream-image.png"],
-        processed: true,
-      };
-    });
     const fetchMock = vi
       .fn()
       .mockResolvedValueOnce(
@@ -297,10 +280,24 @@ describe("createFalStatusHandler", () => {
         request_id: "req-1",
         generationId: "gen-1",
         status: "completed",
-        resultUrls: ["https://cdn.shortpulse.test/seedream-image.png"],
+        shortpulseLifecycle: expect.objectContaining({
+          resultUrls: ["https://cdn.shortpulse.test/seedream-image.png"],
+          deliveryState: "transient_provider",
+          recoveryPending: true,
+        }),
       })
     );
-    expect(persistGenerationObservationMock).not.toHaveBeenCalled();
+    expect(persistGenerationObservationMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        providerRequestId: "req-1",
+        observationType: "completed",
+      })
+    );
+    expect(requestGenerationControlPlaneWakeMock).toHaveBeenCalledWith({
+      routeLabel: "Fal Seedream",
+      reason: "poll_completed_observation",
+    });
+    expect(executeGenerationRecoveryMock).not.toHaveBeenCalled();
   });
 
   it("polls the provider when only legacy success metadata exists without canonical outputs", async () => {
@@ -472,12 +469,13 @@ describe("createFalStatusHandler", () => {
         status: "IN_PROGRESS",
         state: "running",
         shortpulseLifecycle: expect.objectContaining({
-          taskState: "success",
-          isTerminal: true,
-          providerState: "ready",
+          taskState: "running",
+          isTerminal: false,
+          providerState: "completed",
           recoveryPending: true,
+          completionState: "completed_awaiting_media",
           queueState: "dispatched",
-          statusLabel: "Just now",
+          statusLabel: "Processing...",
         }),
       })
     );
@@ -1680,14 +1678,11 @@ describe("createFalStatusHandler", () => {
         status: "IN_PROGRESS",
         state: "running",
         request_id: "req-transient-no-media",
-      })
-    );
-    expect(executeGenerationRecoveryMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        actor: "poll",
-        requestId: "req-transient-no-media",
-        observation: expect.objectContaining({
-          state: "completed",
+        shortpulseLifecycle: expect.objectContaining({
+          taskState: "running",
+          isTerminal: false,
+          completionState: "completed_awaiting_media",
+          recoveryPending: true,
         }),
       })
     );
@@ -1697,6 +1692,11 @@ describe("createFalStatusHandler", () => {
         observationType: "completed",
       })
     );
+    expect(requestGenerationControlPlaneWakeMock).toHaveBeenCalledWith({
+      routeLabel: "Fal Nano Banana Pro",
+      reason: "poll_completed_no_media_observation",
+    });
+    expect(executeGenerationRecoveryMock).not.toHaveBeenCalled();
   });
 
   it("keeps missing-media in recovery-pending state when status transient failures are disabled", async () => {
@@ -1742,16 +1742,18 @@ describe("createFalStatusHandler", () => {
         status: "IN_PROGRESS",
         state: "running",
         request_id: "req-terminal-no-media",
-      })
-    );
-    expect(executeGenerationRecoveryMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        actor: "poll",
-        requestId: "req-terminal-no-media",
-        observation: expect.objectContaining({
-          state: "completed",
+        shortpulseLifecycle: expect.objectContaining({
+          taskState: "running",
+          isTerminal: false,
+          completionState: "completed_awaiting_media",
+          recoveryPending: true,
         }),
       })
     );
+    expect(requestGenerationControlPlaneWakeMock).toHaveBeenCalledWith({
+      routeLabel: "Fal Nano Banana Pro",
+      reason: "poll_completed_no_media_observation",
+    });
+    expect(executeGenerationRecoveryMock).not.toHaveBeenCalled();
   });
 });

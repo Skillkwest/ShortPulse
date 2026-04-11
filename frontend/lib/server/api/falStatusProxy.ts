@@ -1,6 +1,6 @@
 /**
  * Shared provider status proxy.
- * Polls provider status/result endpoints without mutating settlement or recovery state.
+ * Polls provider status/result endpoints and queues lightweight observations for background recovery.
  */
 import type { NextApiRequest, NextApiResponse } from "next";
 import { requireApiUser } from "./auth";
@@ -9,6 +9,7 @@ import { readFalRuntimeFlags } from "./falRuntimeFlags";
 import { persistGenerationObservation } from "./generationObservationInbox";
 import { resolveProviderRequestOwnership } from "./generationBilling";
 import { executeGenerationRecovery } from "../falIntegration/recoveryExecution";
+import { requestGenerationControlPlaneWake } from "../generationControlPlane/controlPlaneWake";
 import {
   buildPersistedFailedPayload,
   buildPersistedCompletedPayload,
@@ -245,19 +246,21 @@ export const createFalStatusHandler = ({
         }),
       });
     }
-    if (persistedGenerationContext.taskState === "success") {
+    if (persistedGenerationContext.completionState === "completed_awaiting_media") {
       return res.status(200).json(
         buildFalStatusTransientPayload({
           requestId,
           generationId,
           lifecycle: buildShortPulseLifecycleHint({
-            taskState: "success",
-            isTerminal: true,
-            providerState: persistedGenerationContext.status ?? "completed",
+            taskState: "running",
+            isTerminal: false,
+            providerState: "completed",
             recoveryPending: true,
+            completionState: "completed_awaiting_media",
             queueState: ACTIVE_POLLING_QUEUE_STATE,
             statusLabel: resolveLifecycleStatusLabel({
-              taskState: "success",
+              taskState: "running",
+              recoveryPending: true,
             }),
           }),
         })
@@ -324,9 +327,11 @@ export const createFalStatusHandler = ({
     const persistPollObservation = async ({
       observationType,
       payload,
+      wakeReason,
     }: {
       observationType: "completed" | "failed";
       payload: JsonObject;
+      wakeReason?: string;
     }) => {
       try {
         await persistGenerationObservation({
@@ -339,6 +344,12 @@ export const createFalStatusHandler = ({
           idempotencyKey: `poll:${providerKey}:${requestId}:${observationType}`,
           payload,
         });
+        if (wakeReason) {
+          void requestGenerationControlPlaneWake({
+            routeLabel,
+            reason: wakeReason,
+          });
+        }
       } catch (error) {
         await logGenerationFailure({
           req,
@@ -537,47 +548,10 @@ export const createFalStatusHandler = ({
           modelId,
           payload,
         });
-        await executeImmediateRecovery({
-          observationType: "completed",
-          payload,
-        });
-        const canonicalContext = await readCanonicalStatusContext();
-        if (canonicalContext.resultUrls.length > 0) {
-          return res.status(200).json(
-            buildPersistedCompletedPayload({
-              requestId,
-              resultUrls: canonicalContext.resultUrls,
-              generationId: canonicalContext.generationId ?? generationId,
-            })
-          );
-        }
-        if (canonicalContext.taskState === "fail") {
-          return respondError({
-            res,
-            requestId,
-            error: canonicalContext.errorMessageShort?.trim() || "Generation failed",
-            detail:
-              canonicalContext.errorDetail ??
-              canonicalContext.errorMessageShort ??
-              "Generation failed",
-            alwaysHttp200,
-            statusCode: 422,
-            generationId: canonicalContext.generationId ?? generationId,
-            lifecycle: buildShortPulseLifecycleHint({
-              taskState: "fail",
-              isTerminal: true,
-              errorMessage: canonicalContext.errorMessageShort?.trim() || "Generation failed",
-              errorDetail:
-                canonicalContext.errorDetail ??
-                canonicalContext.errorMessageShort ??
-                "Generation failed",
-              queueState: canonicalContext.queueState ?? "failed",
-            }),
-          });
-        }
         await persistPollObservation({
           observationType: "completed",
           payload,
+          wakeReason: "poll_completed_observation",
         });
         return res.status(200).json({
           ...attachGenerationId(payload),
@@ -589,6 +563,8 @@ export const createFalStatusHandler = ({
             isTerminal: true,
             resultUrls,
             providerState: payloadStatus,
+            deliveryState: "transient_provider",
+            recoveryPending: true,
             queueState: ACTIVE_POLLING_QUEUE_STATE,
             statusLabel: resolveLifecycleStatusLabel({
               taskState: "success",
@@ -1236,41 +1212,10 @@ export const createFalStatusHandler = ({
       }
 
       if (!resultHasMedia) {
-        await executeImmediateRecovery({
-          observationType: "completed",
-          payload: resultData.json,
-        });
-        const canonicalContext = await readCanonicalStatusContext();
-        if (canonicalContext.resultUrls.length > 0) {
-          return res.status(200).json(
-            buildPersistedCompletedPayload({
-              requestId,
-              resultUrls: canonicalContext.resultUrls,
-              generationId: canonicalContext.generationId ?? generationId,
-            })
-          );
-        }
-        if (canonicalContext.taskState === "fail") {
-          return res.status(200).json(
-            buildPersistedFailedPayload({
-              requestId,
-              generationId: canonicalContext.generationId ?? generationId,
-              errorMessage:
-                canonicalContext.errorMessageShort?.trim() ||
-                resultErrorMessage ||
-                "Generation failed to produce media output",
-              errorDetail:
-                canonicalContext.errorDetail ??
-                canonicalContext.errorMessageShort ??
-                resultData.json,
-              providerState: resultStatus ?? normalizedStatus,
-              queueState: canonicalContext.queueState ?? "failed",
-            })
-          );
-        }
         await persistPollObservation({
           observationType: "completed",
           payload: resultData.json,
+          wakeReason: "poll_completed_no_media_observation",
         });
         return res.status(200).json(
           buildFalStatusTransientPayload({
@@ -1279,15 +1224,17 @@ export const createFalStatusHandler = ({
               stage: "result",
               result_status: resultStatus,
             },
-            generationId: canonicalContext.generationId ?? generationId,
+            generationId,
             lifecycle: buildShortPulseLifecycleHint({
-              taskState: "success",
-              isTerminal: true,
+              taskState: "running",
+              isTerminal: false,
               providerState: resultStatus ?? normalizedStatus ?? "completed",
               recoveryPending: true,
+              completionState: "completed_awaiting_media",
               queueState: ACTIVE_POLLING_QUEUE_STATE,
               statusLabel: resolveLifecycleStatusLabel({
-                taskState: "success",
+                taskState: "running",
+                recoveryPending: true,
               }),
             }),
           })

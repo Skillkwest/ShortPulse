@@ -14,6 +14,8 @@ export type PersistedGenerationStatusContext = {
   resultUrls: string[];
   taskState?: string | null;
   status?: string | null;
+  recoveryPending?: boolean;
+  completionState?: "completed_awaiting_media" | null;
   queueState?: "queued" | "dispatching" | "dispatched" | "failed" | null;
   errorMessageShort?: string | null;
   errorDetail?: string | null;
@@ -66,6 +68,7 @@ export const buildPersistedCompletedPayload = ({
     isTerminal: true,
     resultUrls,
     providerState: "completed",
+    deliveryState: "canonical_owned",
     queueState: "dispatched",
     statusLabel: "Just now",
   }),
@@ -178,6 +181,8 @@ export const readPersistedGenerationStatusContext = async ({
         resultUrls: [],
         status: projectionContext.status,
         taskState: "success",
+        recoveryPending: true,
+        completionState: "completed_awaiting_media",
         queueState: normalizePersistedQueueState(projectionContext.queueState) ?? "dispatched",
         errorMessageShort: projectionContext.errorMessageShort,
         errorDetail: projectionContext.errorDetail,

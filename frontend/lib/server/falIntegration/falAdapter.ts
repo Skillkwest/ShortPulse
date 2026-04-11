@@ -58,8 +58,10 @@ export const extractMediaPayloadUrls = (payload: JsonObject): string[] => {
   const output = toRecord(payload.output);
   const result = toRecord(payload.result);
   const response = toRecord(payload.response);
+  const rootPayload = toRecord(payload.payload);
   const candidates = [
     payload,
+    rootPayload,
     data,
     output,
     result,
@@ -67,6 +69,7 @@ export const extractMediaPayloadUrls = (payload: JsonObject): string[] => {
     toRecord(data.result),
     toRecord(result.data),
     toRecord(response.result),
+    toRecord(rootPayload.result),
   ].filter((item) => Object.keys(item).length > 0);
 
   const urls: string[] = [];
@@ -107,8 +110,10 @@ export const extractResponseUrl = (payload: JsonObject): string | null => {
   const output = toRecord(payload.output);
   const result = toRecord(payload.result);
   const response = toRecord(payload.response);
+  const rootPayload = toRecord(payload.payload);
   const candidates = [
     payload,
+    rootPayload,
     data,
     output,
     result,
@@ -116,6 +121,7 @@ export const extractResponseUrl = (payload: JsonObject): string | null => {
     toRecord(data.result),
     toRecord(result.data),
     toRecord(response.result),
+    toRecord(rootPayload.result),
   ];
   for (const candidate of candidates) {
     const responseUrl =

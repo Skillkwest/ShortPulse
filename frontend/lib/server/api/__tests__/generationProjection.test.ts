@@ -1,5 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
-import { repairStaleTerminalGenerationProjections } from "../generationProjection";
+import {
+  repairStaleTerminalGenerationProjections,
+  upsertGenerationProjection,
+} from "../generationProjection";
 
 const createSupabaseAdmin = ({
   projectionRows,
@@ -156,5 +159,42 @@ describe("repairStaleTerminalGenerationProjections", () => {
       skipped: 1,
     });
     expect(supabaseAdmin.upsert).not.toHaveBeenCalled();
+  });
+});
+
+describe("upsertGenerationProjection", () => {
+  it("writes explicit null string fields so later success clears stale errors", async () => {
+    const supabaseAdmin = createSupabaseAdmin({
+      projectionRows: [],
+      generationRows: [],
+    });
+
+    await upsertGenerationProjection({
+      generationId: "gen-clear",
+      userId: "user-clear",
+      status: "ready",
+      taskState: "success",
+      publicationState: "published",
+      errorMessage: null,
+      errorMessageShort: null,
+      errorDetail: null,
+      supabaseAdmin: supabaseAdmin as never,
+    });
+
+    expect(supabaseAdmin.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        generation_id: "gen-clear",
+        user_id: "user-clear",
+        status: "ready",
+        task_state: "success",
+        publication_state: "published",
+        error_message: null,
+        error_message_short: null,
+        error_detail: null,
+      }),
+      expect.objectContaining({
+        onConflict: "generation_id",
+      })
+    );
   });
 });

@@ -43,6 +43,23 @@ describe("statusProviderPayload", () => {
     expect(providerPayloadHasMedia({ provider: "fal", payload })).toBe(true);
   });
 
+  it("reads fal media URLs from webhook payload envelopes", () => {
+    const payload = {
+      payload: {
+        images: [{ url: "https://cdn.shortpulse.test/webhook-image.png" }],
+        response_url: "https://queue.fal.run/fal-ai/model/requests/req-2",
+      },
+    };
+
+    expect(providerPayloadHasMedia({ provider: "fal", payload })).toBe(true);
+    expect(readProviderMediaUrls({ provider: "fal", payload })).toEqual([
+      "https://cdn.shortpulse.test/webhook-image.png",
+    ]);
+    expect(readProviderResponseUrl({ provider: "fal", payload })).toBe(
+      "https://queue.fal.run/fal-ai/model/requests/req-2"
+    );
+  });
+
   it("reads fal content-policy messages", () => {
     const payload = {
       detail: [

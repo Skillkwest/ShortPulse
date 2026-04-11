@@ -60,6 +60,20 @@ describe("recoveryExecutionRuntime", () => {
     ]);
   });
 
+  it("collects recovered urls from Fal webhook payload envelopes", () => {
+    const urls = collectRecoveredUrls({
+      provider: "fal",
+      mediaUrls: [],
+      payload: {
+        payload: {
+          images: [{ url: "https://cdn.shortpulse.test/from-webhook.png" }],
+        },
+      },
+    });
+
+    expect(urls).toEqual(["https://cdn.shortpulse.test/from-webhook.png"]);
+  });
+
   it("collects recovered urls from kie model-aware payloads", () => {
     const urls = collectRecoveredUrls({
       provider: "kie",

@@ -278,6 +278,10 @@ export const upsertGenerationProjection = async ({
   };
 
   for (const [key, value] of Object.entries(stringFields)) {
+    if (value === null) {
+      payload[key] = null;
+      continue;
+    }
     const normalized = asString(value);
     if (normalized) {
       payload[key] = normalized;

@@ -20,8 +20,11 @@ const isFalQueueUrl = (value: string): boolean => {
   }
 };
 
-const appendFalWebhookParam = (targetUrl: string, webhookUrl: string): string => {
+const appendFalWebhookParams = (targetUrl: string, webhookUrl: string): string => {
   const parsed = new URL(targetUrl);
+  if (!parsed.searchParams.get("webhook_url")) {
+    parsed.searchParams.set("webhook_url", webhookUrl);
+  }
   if (!parsed.searchParams.get("fal_webhook")) {
     parsed.searchParams.set("fal_webhook", webhookUrl);
   }
@@ -121,7 +124,7 @@ export const withWebhookTargets = (
     if (!isFalQueueUrl(target.submitUrl)) return target;
     return {
       ...target,
-      submitUrl: appendFalWebhookParam(target.submitUrl, webhookUrl),
+      submitUrl: appendFalWebhookParams(target.submitUrl, webhookUrl),
     };
   });
 };

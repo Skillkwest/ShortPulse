@@ -137,7 +137,7 @@ describe("falSubmitTargeting queued callback metadata", () => {
 });
 
 describe("falSubmitTargeting webhook target rewriting", () => {
-  it("adds fal_webhook only to trusted Fal queue submit targets", () => {
+  it("adds Fal webhook params only to trusted Fal queue submit targets", () => {
     const rewritten = withWebhookTargets(
       [
         { submitUrl: "https://queue.fal.run/fal-ai/flux/dev" },
@@ -146,6 +146,7 @@ describe("falSubmitTargeting webhook target rewriting", () => {
       "https://shortpulse.test/api/fal/webhook"
     );
 
+    expect(rewritten[0]?.submitUrl).toContain("webhook_url=");
     expect(rewritten[0]?.submitUrl).toContain("fal_webhook=");
     expect(rewritten[1]?.submitUrl).toBe("https://example.invalid/submit");
   });

@@ -545,7 +545,7 @@ describe("generationQueue/dispatch no-capacity handling", () => {
       data: { request_id: "req-1" },
       providerRequestId: "req-1",
       targetUrl:
-        "https://queue.fal.run/test?fal_webhook=https%3A%2F%2Fshortpulse-git-working-development-kirk-artmans-projects.vercel.app%2Fapi%2Ffal%2Fwebhook",
+        "https://queue.fal.run/test?webhook_url=https%3A%2F%2Fshortpulse-git-working-development-kirk-artmans-projects.vercel.app%2Fapi%2Ffal%2Fwebhook&fal_webhook=https%3A%2F%2Fshortpulse-git-working-development-kirk-artmans-projects.vercel.app%2Fapi%2Ffal%2Fwebhook",
       targetIndex: 0,
     });
     claimGenerationSubmitQueueBatchMock

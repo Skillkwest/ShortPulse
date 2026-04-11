@@ -144,6 +144,25 @@ const buildNonterminalLifecycleHint = ({
     }),
   });
 
+const isRecoverableNoMediaFailure = ({
+  taskState,
+  errorMessageShort,
+  errorDetail,
+}: {
+  taskState?: string | null;
+  errorMessageShort?: string | null;
+  errorDetail?: string | null;
+}): boolean => {
+  if (taskState !== "fail") return false;
+  const normalizedShort = errorMessageShort?.trim().toLowerCase() ?? "";
+  const normalizedDetail = errorDetail?.trim().toLowerCase() ?? "";
+  return (
+    normalizedShort === "no media returned." ||
+    normalizedShort === "no media returned" ||
+    normalizedDetail.includes("terminal success without media payload")
+  );
+};
+
 /**
  * Builds a provider status route that normalizes polling responses without side effects.
  */
@@ -203,6 +222,13 @@ export const createFalStatusHandler = ({
       userId: user.id,
       requestId,
     });
+    const shouldProbeProviderBeforeFail =
+      persistedGenerationContext.completionState === "completed_awaiting_media" ||
+      isRecoverableNoMediaFailure({
+        taskState: persistedGenerationContext.taskState,
+        errorMessageShort: persistedGenerationContext.errorMessageShort,
+        errorDetail: persistedGenerationContext.errorDetail,
+      });
     const generationId = persistedGenerationContext.generationId;
     const attachGenerationId = (payload: JsonObject): JsonObject => {
       if (!generationId) return payload;
@@ -226,7 +252,7 @@ export const createFalStatusHandler = ({
         })
       );
     }
-    if (persistedGenerationContext.taskState === "fail") {
+    if (persistedGenerationContext.taskState === "fail" && !shouldProbeProviderBeforeFail) {
       return respondError({
         res,
         requestId,
@@ -250,27 +276,6 @@ export const createFalStatusHandler = ({
         }),
       });
     }
-    if (persistedGenerationContext.completionState === "completed_awaiting_media") {
-      return res.status(200).json(
-        buildFalStatusTransientPayload({
-          requestId,
-          generationId,
-          lifecycle: buildShortPulseLifecycleHint({
-            taskState: "running",
-            isTerminal: false,
-            providerState: "completed",
-            recoveryPending: true,
-            completionState: "completed_awaiting_media",
-            queueState: ACTIVE_POLLING_QUEUE_STATE,
-            statusLabel: resolveLifecycleStatusLabel({
-              taskState: "running",
-              recoveryPending: true,
-            }),
-          }),
-        })
-      );
-    }
-
     let apiKey: string;
     try {
       apiKey = readProviderApiKey(providerKey);

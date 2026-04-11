@@ -443,7 +443,15 @@ describe("createFalStatusHandler", () => {
         },
       },
     ];
-    const fetchMock = vi.fn();
+    const fetchMock = vi.fn().mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          status: "IN_PROGRESS",
+          request_id: "req-1",
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } }
+      )
+    );
     vi.stubGlobal("fetch", fetchMock);
 
     const handler = createFalStatusHandler({
@@ -461,20 +469,17 @@ describe("createFalStatusHandler", () => {
 
     await handler(req as never, res as never);
 
-    expect(fetchMock).not.toHaveBeenCalled();
+    expect(fetchMock).toHaveBeenCalled();
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith(
       expect.objectContaining({
         request_id: "req-1",
         generationId: "gen-projection-success-pending-1",
         status: "IN_PROGRESS",
-        state: "running",
         shortpulseLifecycle: expect.objectContaining({
           taskState: "running",
           isTerminal: false,
-          providerState: "completed",
-          recoveryPending: true,
-          completionState: "completed_awaiting_media",
+          providerState: "in_progress",
           queueState: "dispatched",
           statusLabel: "Processing...",
         }),
@@ -577,6 +582,60 @@ describe("createFalStatusHandler", () => {
           isTerminal: true,
           errorMessage: "Generation failed",
           errorDetail: "Provider reported failed state during recovery execution.",
+        }),
+      })
+    );
+  });
+
+  it("probes provider status before honoring a recoverable no-media failure", async () => {
+    persistedProjectionRows = [
+      {
+        generation_id: "gen-projection-no-media-1",
+        result_urls: [],
+        status: "ready",
+        task_state: "fail",
+        error_message_short: "No media returned.",
+        error_detail: "Provider terminal success without media payload.",
+      },
+    ];
+    const fetchMock = vi.fn().mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          status: "COMPLETED",
+          images: [{ url: "https://cdn.shortpulse.test/recovered-from-provider.png" }],
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } }
+      )
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const handler = createFalStatusHandler({
+      queueBaseUrl: "https://queue.fal.run/fal-ai/nano-banana-pro/requests",
+      routeLabel: "Fal Nano Banana Pro",
+      timeoutMs: 15000,
+    });
+
+    const req = {
+      method: "POST",
+      body: { requestId: "req-projection-no-media" },
+      headers: {},
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        request_id: "req-projection-no-media",
+        generationId: "gen-projection-no-media-1",
+        status: "completed",
+        shortpulseLifecycle: expect.objectContaining({
+          taskState: "success",
+          isTerminal: true,
+          resultUrls: ["https://cdn.shortpulse.test/recovered-from-provider.png"],
+          deliveryState: "transient_provider",
         }),
       })
     );

@@ -76,7 +76,7 @@ export const dispatchProviderStatusRequest = async ({
 }): Promise<Response> => {
   if (isFalProviderKey(provider)) {
     return await fetch(`${baseUrl}/${requestId}/status`, {
-      method: "GET",
+      method: "POST",
       headers: { Authorization: `Key ${apiKey}` },
       signal,
     });
@@ -114,7 +114,7 @@ export const dispatchProviderResultRequest = async ({
 }): Promise<Response> => {
   if (isFalProviderKey(provider)) {
     return await fetch(`${baseUrl}/${requestId}`, {
-      method: "GET",
+      method: "POST",
       headers: { Authorization: `Key ${apiKey}` },
       signal,
     });
@@ -150,7 +150,7 @@ export const dispatchProviderResponseProbeRequest = async ({
 }): Promise<Response> => {
   if (isFalProviderKey(provider)) {
     return await fetch(responseUrl, {
-      method: "GET",
+      method: "POST",
       headers: { Authorization: `Key ${apiKey}` },
       signal,
     });

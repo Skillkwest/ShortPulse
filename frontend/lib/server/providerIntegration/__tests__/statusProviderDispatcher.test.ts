@@ -33,7 +33,7 @@ describe("statusProviderDispatcher", () => {
     expect(bases).toEqual(["https://queue.fal.run/fal-ai/model/requests"]);
   });
 
-  it("dispatches fal status and result requests", async () => {
+  it("dispatches fal status and result requests with POST", async () => {
     const fetchMock = vi
       .fn()
       .mockResolvedValueOnce(new Response(JSON.stringify({ status: "running" }), { status: 200 }))
@@ -69,21 +69,21 @@ describe("statusProviderDispatcher", () => {
       1,
       "https://queue.fal.run/fal-ai/model/requests/req-1/status",
       expect.objectContaining({
-        method: "GET",
+        method: "POST",
       })
     );
     expect(fetchMock).toHaveBeenNthCalledWith(
       2,
       "https://queue.fal.run/fal-ai/model/requests/req-1",
       expect.objectContaining({
-        method: "GET",
+        method: "POST",
       })
     );
     expect(fetchMock).toHaveBeenNthCalledWith(
       3,
       "https://queue.fal.run/fal-ai/model/requests/req-1",
       expect.objectContaining({
-        method: "GET",
+        method: "POST",
       })
     );
   });

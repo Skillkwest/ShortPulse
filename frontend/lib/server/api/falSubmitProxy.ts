@@ -7,7 +7,7 @@ import { requireApiUser } from "./auth";
 import { chargeGenerationRequest } from "./generationBilling";
 import { resolveRuntimeSafetyProfile } from "./agentSafetyPolicyControlPlane";
 import { logGenerationFailure } from "./appErrorLogs";
-import { readFalRuntimeFlags } from "./falRuntimeFlags";
+import { readFalRuntimeFlags, type FalRuntimeFlags } from "./falRuntimeFlags";
 import {
   hasFreshLocalGenerationWorkerHeartbeat,
   isLocalDevGenerationWorkerRequired,
@@ -184,6 +184,9 @@ const isWorkerOwnedSubmitMisconfigured = ({
   queueEnabled: boolean;
   workerOwnedSubmitEnabled: boolean;
 }): boolean => workerOwnedSubmitEnabled && !queueEnabled;
+
+const hasConfiguredControlPlaneWake = (runtimeFlags: FalRuntimeFlags): boolean =>
+  Boolean(runtimeFlags.publicApiBaseUrl && runtimeFlags.reconcilerCronSecret);
 
 const applyRewrittenPromptToPayload = ({
   payload,
@@ -588,9 +591,18 @@ export const createFalSubmitHandler = ({
       const inlineSubmitTargets = resolveInlineSubmitTargets({ submitTargets, submitUrl });
       const supportsInlineImageSubmit =
         providerKey === "fal" && generationMode === "image" && inlineSubmitTargets.length > 0;
-      const canUseInlineImageSubmit = supportsInlineImageSubmit && !admissionDecision.wouldLimit;
+      const localQueueWorkerRequired = isLocalDevGenerationWorkerRequired(runtimeFlags);
+      const bypassQueueForInlineImage =
+        supportsInlineImageSubmit &&
+        admissionDecision.wouldLimit &&
+        runtimeFlags.queueEnabled &&
+        !localQueueWorkerRequired &&
+        !hasConfiguredControlPlaneWake(runtimeFlags);
+      const canUseInlineImageSubmit =
+        supportsInlineImageSubmit && (!admissionDecision.wouldLimit || bypassQueueForInlineImage);
       const queuedSubmitSelected =
         runtimeFlags.queueEnabled &&
+        !bypassQueueForInlineImage &&
         (!supportsInlineImageSubmit || admissionDecision.enforced || admissionDecision.wouldLimit);
       const workerOwnedSubmitMisconfigured = isWorkerOwnedSubmitMisconfigured({
         queueEnabled: runtimeFlags.queueEnabled,
@@ -714,6 +726,9 @@ export const createFalSubmitHandler = ({
             upstream_target_url: submitResult.targetUrl,
             upstream_target_index: submitResult.targetIndex,
             provider_diagnostics: submitResult.providerDiagnostics ?? null,
+            submit_queue_bypass_reason: bypassQueueForInlineImage
+              ? "queue_wake_unconfigured"
+              : null,
           };
           const transitionResult = await applyAcceptedRunningGenerationTransition({
             applyGenerationMutation: async () => {
@@ -908,10 +923,7 @@ export const createFalSubmitHandler = ({
       }
 
       if (queuedSubmitSelected) {
-        if (
-          isLocalDevGenerationWorkerRequired(runtimeFlags) &&
-          !(await hasFreshLocalGenerationWorkerHeartbeat())
-        ) {
+        if (localQueueWorkerRequired && !(await hasFreshLocalGenerationWorkerHeartbeat())) {
           await charge.refund("Auto-release: local generation queue worker heartbeat missing.", {
             reason: "local_queue_worker_missing",
             app_base_url: runtimeFlags.publicApiBaseUrl,

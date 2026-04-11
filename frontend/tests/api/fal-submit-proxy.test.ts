@@ -336,6 +336,66 @@ describe("createFalSubmitHandler", () => {
     });
   });
 
+  it("bypasses queue admission for inline Fal image submits when queue wake is unconfigured", async () => {
+    evaluateScopedGenerationAdmissionMock.mockResolvedValue({
+      decision: {
+        mode: "enforce",
+        allowed: false,
+        enforced: false,
+        wouldLimit: true,
+        reason: "global_and_tier_limit",
+        retryAfterSeconds: 20,
+        snapshot: {
+          globalActive: 9,
+          globalMax: 4,
+          tier: "image_standard",
+          tierActive: 7,
+          tierMax: 4,
+        },
+      },
+      capacitySnapshot: {
+        tier: "image_standard",
+        globalActive: 9,
+        tierActive: 7,
+        staleIgnoredGlobal: 0,
+        staleIgnoredTier: 0,
+      },
+    });
+    delete process.env.SHORTPULSE_PUBLIC_API_BASE_URL;
+    delete process.env.APP_BASE_URL;
+    delete process.env.SHORTPULSE_FAL_RECONCILER_CRON_SECRET;
+
+    const handler = createFalSubmitHandler({
+      modelId: "fal-ai/nano-banana",
+      submitUrl: "https://queue.fal.run/fal-ai/nano-banana",
+      routeLabel: "Fal Nano Banana",
+    });
+
+    const req = {
+      method: "POST",
+      body: { prompt: "portrait" },
+      headers: {},
+      url: "/api/fal/image-submit",
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(dispatchProviderSubmitMock).toHaveBeenCalled();
+    expect(enqueueGenerationSubmitMock).not.toHaveBeenCalled();
+    expect(upsertGenerationProjectionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        taskState: "running",
+        queueState: "dispatched",
+      })
+    );
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith({
+      request_id: "req-direct-1",
+      generationId: expect.any(String),
+    });
+  });
+
   it("returns 429 and releases reservation when the per-user queue depth limit is hit", async () => {
     evaluateScopedGenerationAdmissionMock.mockResolvedValue({
       decision: {

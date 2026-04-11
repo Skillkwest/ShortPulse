@@ -7,10 +7,10 @@ import { longRunningVideoProviders } from "./providerStatusPolicy";
 export const MAX_CONCURRENT_STATUS_REQUESTS = 4;
 export const IMAGE_POLL_MAX_WAIT_MS = 18 * 60 * 1000;
 export const VIDEO_POLL_MAX_WAIT_MS = 30 * 60 * 1000;
-export const POLL_DELAY_INITIAL_MS = 1_200;
-export const POLL_DELAY_BACKOFF_STEP_MS = 500;
-export const POLL_DELAY_MAX_MS = 4_500;
-export const IMAGE_NO_MEDIA_RETRY_DELAYS_MS = [800, 1200, 1800, 2500, 3500, 4500];
+export const POLL_DELAY_INITIAL_MS = 900;
+export const POLL_DELAY_BACKOFF_STEP_MS = 300;
+export const POLL_DELAY_MAX_MS = 3_000;
+export const IMAGE_NO_MEDIA_RETRY_DELAYS_MS = [300, 600, 900, 1200, 1600, 2200];
 export const STATUS_NOT_FOUND_MAX_ATTEMPTS = 5;
 export const STATUS_ERROR_MAX_ATTEMPTS = 30;
 

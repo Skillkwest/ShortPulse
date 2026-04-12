@@ -5,6 +5,7 @@ import {
   KIE_KLING_30_MODEL_ID,
   KIE_SEEDANCE_15_PRO_MODEL_ID,
   KIE_SEEDANCE_2_MODEL_ID,
+  KIE_VEO_31_FAST_I2V_MODEL_ID,
 } from "../../../../lib/model-runtime/providerModelIds";
 import type { StudioMode, ToolId } from "../../types";
 import {
@@ -143,7 +144,7 @@ describe("useAiStudioWorkflowSettings", () => {
     expect(result.current.model).toBe("fal-ai/bytedance/seedream/v4.5/text-to-image");
   });
 
-  it("restores saved create workflow settings from session storage without overwriting the shared aspect", async () => {
+  it("restores saved create video workflow settings from session storage without overwriting the shared aspect", async () => {
     window.sessionStorage.clear();
     window.sessionStorage.setItem(
       WORKFLOW_SETTINGS_SESSION_KEY,
@@ -175,7 +176,7 @@ describe("useAiStudioWorkflowSettings", () => {
     const { result } = renderHook(() => useHarness("create"));
 
     await waitFor(() => expect(result.current.mode).toBe("video"));
-    expect(result.current.model).toBeNull();
+    expect(result.current.model).toBe(KIE_VEO_31_FAST_I2V_MODEL_ID);
     expect(result.current.aspect).toBe("16:9");
     expect(result.current.videoResolution).toBe("4k");
     expect(result.current.klingElements).toEqual([]);
@@ -455,6 +456,53 @@ describe("useAiStudioWorkflowSettings", () => {
     await waitFor(() => expect(result.current.selectedTool).toBe("create"));
     expect(result.current.aspect).toBe("16:9");
     expect(result.current.imageResolution).toBe("2k");
+  });
+
+  it("restores the previously selected create model after switching away and back", async () => {
+    window.sessionStorage.clear();
+    const { result } = renderHook(() => useHarness("create"));
+
+    await waitFor(() =>
+      expect(result.current.model).toBe("fal-ai/bytedance/seedream/v4.5/text-to-image")
+    );
+
+    act(() => {
+      result.current.setModelState("fal-ai/bytedance/seedream/v5/lite/text-to-image");
+      result.current.setSelectedTool("edit");
+    });
+
+    await waitFor(() => expect(result.current.selectedTool).toBe("edit"));
+    await waitFor(() => expect(result.current.model).toBe("fal-ai/bytedance/seedream/v4.5/edit"));
+
+    act(() => {
+      result.current.setSelectedTool("create");
+    });
+
+    await waitFor(() => expect(result.current.selectedTool).toBe("create"));
+    expect(result.current.model).toBe("fal-ai/bytedance/seedream/v5/lite/text-to-image");
+  });
+
+  it("restores the previously selected create model after switching to video and back", async () => {
+    window.sessionStorage.clear();
+    const { result } = renderHook(() => useHarness("create"));
+
+    await waitFor(() =>
+      expect(result.current.model).toBe("fal-ai/bytedance/seedream/v4.5/text-to-image")
+    );
+
+    act(() => {
+      result.current.setModelState("fal-ai/nano-banana");
+      result.current.setSelectedTool("video");
+    });
+
+    await waitFor(() => expect(result.current.selectedTool).toBe("video"));
+
+    act(() => {
+      result.current.setSelectedTool("create");
+    });
+
+    await waitFor(() => expect(result.current.selectedTool).toBe("create"));
+    expect(result.current.model).toBe("fal-ai/nano-banana");
   });
 
   it("keeps aspect synchronized across create, edit, and video workflow switches", async () => {

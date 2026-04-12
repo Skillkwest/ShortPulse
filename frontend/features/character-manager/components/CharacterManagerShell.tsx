@@ -156,13 +156,16 @@ export function CharacterManagerShell({
     profileImageUrl,
     profileImageTransform,
     error,
+    setErrorMessage,
     loading,
     isSavingName,
     isCreatingCharacter,
+    isSavingCharacter,
     isDeletingCharacter,
     isSwitchingCharacter,
     isSavingProfileImage,
     isSavingCharacterSheetPreset,
+    hasUnsavedCharacterDraft,
     setCharacterName,
     setCharacterDescription,
     setProfileImageFile,
@@ -175,6 +178,7 @@ export function CharacterManagerShell({
     deleteCharacterSheetPreset,
     setCharacterSheetPresetFile,
     createCharacter,
+    saveCharacter,
     selectCharacter,
     deleteCharacter,
     clearMessages,
@@ -200,6 +204,7 @@ export function CharacterManagerShell({
     loading ||
     isSwitchingCharacter ||
     isCreatingCharacter ||
+    isSavingCharacter ||
     isDeletingCharacter ||
     isSavingProfileImage;
 
@@ -529,9 +534,11 @@ export function CharacterManagerShell({
     saveProfileAdjustments,
   } = useCharacterManagerShellActionHandlers({
     pageBusy,
+    hasPersistedCharacter: Boolean(selectedCharacterId),
     quickSwapMutating,
     isDropResolutionBusy,
     clearAllMessages,
+    setError: setErrorMessage,
     appendQuickSwapFiles: appendQuickSwapFilesFromHook,
     setPendingCharacterSheetUploadZoneKey,
     characterSheetFileInputRef,
@@ -682,8 +689,13 @@ export function CharacterManagerShell({
           effectiveBeginnerMode={effectiveBeginnerMode}
           setBeginnerMode={setBeginnerMode}
           isCreatingCharacter={isCreatingCharacter}
+          isSavingCharacter={isSavingCharacter}
+          hasUnsavedCharacterDraft={hasUnsavedCharacterDraft}
           loading={loading}
           onCreateCharacter={handleCreateNewCharacter}
+          onSaveCharacter={() => {
+            void saveCharacter();
+          }}
         />
       </section>
 
@@ -695,6 +707,9 @@ export function CharacterManagerShell({
       ) : null}
       <p className="sr-only" role="status" aria-live="polite">
         {isSavingName ? "Saving character name..." : ""}
+      </p>
+      <p className="sr-only" role="status" aria-live="polite">
+        {isSavingCharacter ? "Saving character..." : ""}
       </p>
 
       <CharacterManagerWorkflowBody

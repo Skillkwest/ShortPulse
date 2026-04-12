@@ -103,7 +103,11 @@ export const useCharacterQuickSwapDeck = ({
   const appendFiles = useCallback(
     async (files: File[]) => {
       const trimmedCharacterId = characterId?.trim() ?? "";
-      if (disabled || !trimmedCharacterId || !files.length) return false;
+      if (disabled || !files.length) return false;
+      if (!trimmedCharacterId) {
+        setError("Save this character before uploading QuickSwap references.");
+        return false;
+      }
       setMutating(true);
       try {
         await appendQuickSwapFiles({
@@ -126,7 +130,13 @@ export const useCharacterQuickSwapDeck = ({
     async (mediaFileId: string, options?: { suppressError?: boolean }) => {
       const trimmedCharacterId = characterId?.trim() ?? "";
       const trimmedMediaFileId = mediaFileId.trim();
-      if (disabled || !trimmedCharacterId || !trimmedMediaFileId) return false;
+      if (disabled || !trimmedMediaFileId) return false;
+      if (!trimmedCharacterId) {
+        if (!options?.suppressError) {
+          setError("Save this character before adding QuickSwap references.");
+        }
+        return false;
+      }
       setMutating(true);
       try {
         await appendQuickSwapExistingMediaReference({

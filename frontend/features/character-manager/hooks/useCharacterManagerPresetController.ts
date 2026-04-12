@@ -307,8 +307,14 @@ export const useCharacterManagerPresetController = ({
     async (presetId: CharacterSheetPresetId) => {
       clearMessages();
       if (!characterId) {
-        setError("Character draft is still loading. Try again in a moment.");
-        return false;
+        const nextAssignments =
+          characterSheetPresetsRef.current[presetId] ??
+          createEmptyCharacterSheetPresetAssignments();
+        setActiveCharacterSheetPresetIdState(presetId);
+        activeCharacterSheetPresetIdRef.current = presetId;
+        setCharacterSheetPresetAssignments(nextAssignments);
+        setCharacterDescriptionState(characterSheetPresetDescriptionsRef.current[presetId] ?? "");
+        return true;
       }
       const previousPresetId = activeCharacterSheetPresetIdRef.current;
       const previousAssignments =
@@ -375,11 +381,6 @@ export const useCharacterManagerPresetController = ({
   const saveCharacterSheetPresetAssignments = React.useCallback(
     async (assignments: CharacterSheetPresetAssignments) => {
       clearMessages();
-      if (!characterId) {
-        setError("Character draft is still loading. Try again in a moment.");
-        return false;
-      }
-
       const activePresetId = activeCharacterSheetPresetIdRef.current;
       const previousPresets = characterSheetPresetsRef.current;
       const previousAssignments =
@@ -392,6 +393,9 @@ export const useCharacterManagerPresetController = ({
       setCharacterSheetPresets(optimisticPresets);
       characterSheetPresetsRef.current = optimisticPresets;
       setCharacterSheetPresetAssignments(normalizedAssignments);
+      if (!characterId) {
+        return true;
+      }
 
       const requestId = characterSheetPresetAssignmentsRequestRef.current + 1;
       characterSheetPresetAssignmentsRequestRef.current = requestId;
@@ -443,11 +447,6 @@ export const useCharacterManagerPresetController = ({
 
   const addCharacterSheetPreset = React.useCallback(async () => {
     clearMessages();
-    if (!characterId) {
-      setError("Character draft is still loading. Try again in a moment.");
-      return false;
-    }
-
     const previousPresetId = activeCharacterSheetPresetIdRef.current;
     const previousVisiblePresetIds = [...visibleCharacterSheetPresetIdsRef.current];
     const previousPresetLabels = { ...characterSheetPresetLabelsRef.current };
@@ -482,6 +481,9 @@ export const useCharacterManagerPresetController = ({
       characterSheetPresetsRef.current[nextPresetId] ?? createEmptyCharacterSheetPresetAssignments()
     );
     setCharacterDescriptionState(optimisticDescriptions[nextPresetId] ?? "");
+    if (!characterId) {
+      return true;
+    }
 
     const requestId = characterSheetPresetTabOrderRequestRef.current + 1;
     characterSheetPresetTabOrderRequestRef.current = requestId;
@@ -542,10 +544,6 @@ export const useCharacterManagerPresetController = ({
   const renameCharacterSheetPreset = React.useCallback(
     async (presetId: CharacterSheetPresetId, nextLabel: string) => {
       clearMessages();
-      if (!characterId) {
-        setError("Character draft is still loading. Try again in a moment.");
-        return false;
-      }
       if (!visibleCharacterSheetPresetIdsRef.current.includes(presetId)) {
         return false;
       }
@@ -561,6 +559,9 @@ export const useCharacterManagerPresetController = ({
       };
       setCharacterSheetPresetLabels(optimisticLabels);
       characterSheetPresetLabelsRef.current = optimisticLabels;
+      if (!characterId) {
+        return true;
+      }
 
       const requestId = characterSheetPresetTabLabelRequestRef.current + 1;
       characterSheetPresetTabLabelRequestRef.current = requestId;
@@ -607,10 +608,6 @@ export const useCharacterManagerPresetController = ({
   const deleteCharacterSheetPreset = React.useCallback(
     async (presetId: CharacterSheetPresetId) => {
       clearMessages();
-      if (!characterId) {
-        setError("Character draft is still loading. Try again in a moment.");
-        return false;
-      }
       if (presetId === "1") {
         setError("Preset tab 1 cannot be deleted.");
         return false;
@@ -671,6 +668,9 @@ export const useCharacterManagerPresetController = ({
       activeCharacterSheetPresetIdRef.current = nextActivePresetId;
       setCharacterSheetPresetAssignments(nextActiveAssignments);
       setCharacterDescriptionState(optimisticDescriptions[nextActivePresetId] ?? "");
+      if (!characterId) {
+        return true;
+      }
 
       const requestId = characterSheetPresetTabOrderRequestRef.current + 1;
       characterSheetPresetTabOrderRequestRef.current = requestId;

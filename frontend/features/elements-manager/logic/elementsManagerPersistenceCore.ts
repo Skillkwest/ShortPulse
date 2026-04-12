@@ -85,6 +85,16 @@ export type ElementManagerDraftSnapshot = {
   updatedAt: string;
 };
 
+export type SaveElementManagerDraftInput = {
+  name: string;
+  alias: string;
+  profileImageTransform: ElementProfileImageTransform;
+  description: string;
+  assetType: ElementAssetType;
+  imageReferenceUrls: string[];
+  videoReferenceUrl: string | null;
+};
+
 const asErrorMessage = (error: unknown, fallback: string): string =>
   error instanceof Error && error.message.trim().length ? error.message : fallback;
 
@@ -475,6 +485,51 @@ export const createElementDraftRow = async ({
     elementId: elementRow.id,
     updatedAt: elementRow.updated_at ?? new Date().toISOString(),
   };
+};
+
+export const saveElementManagerDraft = async ({
+  name,
+  alias,
+  profileImageTransform,
+  description,
+  assetType,
+  imageReferenceUrls,
+  videoReferenceUrl,
+}: SaveElementManagerDraftInput): Promise<ElementManagerDraftSnapshot> => {
+  const trimmedName = name.trim();
+  if (trimmedName.length < 2) {
+    throw new Error("Element name must be at least 2 characters.");
+  }
+
+  const { supabase, userId } = await resolveSupabaseContext();
+  const created = await createElementDraftRow({ name: trimmedName });
+
+  const cleanupCreatedDraft = async () => {
+    await supabase
+      .from("element_reference_sets")
+      .delete()
+      .eq("user_id", userId)
+      .eq("element_id", created.elementId);
+    await supabase.from("elements").delete().eq("user_id", userId).eq("id", created.elementId);
+  };
+
+  try {
+    await saveElementManagerDraftSnapshot({
+      elementId: created.elementId,
+      name: trimmedName,
+      alias,
+      profileImageTransform,
+      description,
+      assetType,
+      imageReferenceUrls,
+      videoReferenceUrl,
+    });
+  } catch (error) {
+    await cleanupCreatedDraft();
+    throw error;
+  }
+
+  return await loadElementManagerDraftByElementId(created.elementId);
 };
 
 export const loadElementManagerDraftByElementId = async (

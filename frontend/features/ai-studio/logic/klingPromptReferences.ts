@@ -1,6 +1,6 @@
 /**
  * Kling prompt token drag helpers.
- * Owns the `@alias` drag/drop contract used by the video prompt surface.
+ * Owns the video prompt token contract used by the video prompt surface.
  */
 import type { PromptTokenHighlightSegment } from "./promptTokenHighlight";
 import type { AiStudioKlingEntitySourceKind } from "./klingElements";
@@ -23,7 +23,8 @@ export type KlingPromptTokenDiagnostic = {
 };
 
 export type KlingPromptTokenSlot = {
-  alias: string;
+  token: string;
+  legacyAliases?: string[];
   sourceKind: AiStudioKlingEntitySourceKind | null;
 };
 
@@ -70,7 +71,14 @@ export const analyzeKlingPromptTokens = (
 ): KlingPromptTokenDiagnostic[] => {
   const normalizedPrompt = typeof prompt === "string" ? prompt : "";
   const normalizedSlots = attachedSlots.map((slot, index) => ({
-    alias: normalizeKlingElementAlias(slot.alias).toLowerCase(),
+    token: normalizeKlingElementAlias(slot.token).toLowerCase(),
+    legacyAliases: Array.from(
+      new Set(
+        (slot.legacyAliases ?? [])
+          .map((alias) => normalizeKlingElementAlias(alias).toLowerCase())
+          .filter(Boolean)
+      )
+    ),
     sourceKind: slot.sourceKind ?? null,
     slotIndex: index,
   }));
@@ -80,7 +88,9 @@ export const analyzeKlingPromptTokens = (
     const token = match[0] ?? "";
     const normalizedToken = normalizeKlingElementAlias(token).toLowerCase();
     const start = match.index ?? 0;
-    const matchingSlots = normalizedSlots.filter((slot) => slot.alias === normalizedToken);
+    const matchingSlots = normalizedSlots.filter(
+      (slot) => slot.token === normalizedToken || slot.legacyAliases.includes(normalizedToken)
+    );
     const preferredMatch =
       matchingSlots.find((slot) => slot.sourceKind === "character") ?? matchingSlots[0] ?? null;
     diagnostics.push({

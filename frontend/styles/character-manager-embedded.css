@@ -38,8 +38,25 @@
   margin: 0 0 12px;
 }
 
-.character-manager-page--embedded .character-mode-tab-row {
+.character-manager-page--embedded .character-library-panel-header-main {
   width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.character-manager-page--embedded .character-library-panel-header-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-shrink: 0;
+}
+
+.character-manager-page--embedded .character-mode-tab-row {
+  width: auto;
+  flex: 1 1 auto;
+  min-width: 0;
   max-width: none;
   margin-right: 0;
 }

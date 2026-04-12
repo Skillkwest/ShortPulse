@@ -262,6 +262,22 @@ describe("modelSelectionPolicy", () => {
     expect(values.has(KIE_VEO_31_FAST_I2V_MODEL_ID)).toBe(false);
   });
 
+  it("includes image-to-video Kie options in create/video model selection", () => {
+    const values = new Set(
+      resolveAiStudioAllowedModelOptions({
+        selectedTool: "create",
+        mode: "video",
+        videoReferenceMode: "standard",
+        options: videoReferenceOptions,
+        getModelConfig,
+      }).map((option) => option.value)
+    );
+
+    expect(values.has(KIE_VEO_31_FAST_I2V_MODEL_ID)).toBe(true);
+    expect(values.has(KIE_KLING_30_MODEL_ID)).toBe(true);
+    expect(values.has(KIE_SEEDANCE_15_PRO_MODEL_ID)).toBe(true);
+  });
+
   it("ignores saved kie model ids for startup fallback selection", () => {
     const model = resolveCreateWorkflowStartupModel({
       mode: "image",

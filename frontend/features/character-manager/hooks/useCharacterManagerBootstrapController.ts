@@ -4,10 +4,15 @@
  */
 import React from "react";
 import { readSupabaseUserId } from "../../../lib/supabaseClient";
-import { CHARACTER_SHEET_PRESET_IDS } from "../constants";
+import {
+  CHARACTER_SHEET_PRESET_IDS,
+  createDefaultCharacterSheetPresetState,
+  createEmptyCharacterSheetAssignments,
+  createEmptyCharacterSlotMap,
+} from "../constants";
 import {
   listCharacterManagerCharacters,
-  loadOrCreateCharacterManagerDraft,
+  loadLatestCharacterManagerDraft,
   type CharacterManagerListItem,
 } from "../logic/characterManagerPersistence";
 import {
@@ -28,6 +33,13 @@ import type {
   CharacterSheetPresetState,
   CharacterSlotFileMap,
 } from "../types";
+
+const DEFAULT_LOCAL_CHARACTER_NAME = "New Character";
+const DEFAULT_LOCAL_PROFILE_IMAGE_TRANSFORM: CharacterProfileImageTransform = {
+  zoom: 1,
+  offsetX: 0,
+  offsetY: 0,
+};
 
 type ApplySnapshotInput = {
   nextCharacterId: string;
@@ -101,6 +113,10 @@ type UseCharacterManagerBootstrapControllerParams = {
 
 type UseCharacterManagerBootstrapControllerResult = {
   applySnapshot: (input: ApplySnapshotInput) => void;
+  applyLocalDraft: (input: {
+    nextUserId: string | null;
+    preservePersistedSelection?: boolean;
+  }) => void;
   refreshCharacterList: (
     preferredCharacterId?: string | null,
     options?: {
@@ -289,6 +305,93 @@ export const useCharacterManagerBootstrapController = ({
     ]
   );
 
+  const applyLocalDraft = React.useCallback(
+    ({
+      nextUserId,
+      preservePersistedSelection = false,
+    }: {
+      nextUserId: string | null;
+      preservePersistedSelection?: boolean;
+    }) => {
+      const presetState = createDefaultCharacterSheetPresetState();
+      const activePresetId = presetState.activePresetId;
+      setCharacterId(null);
+      selectedCharacterStorageScopeRef.current = nextUserId;
+      if (!preservePersistedSelection) {
+        persistSelectedCharacterId(null, nextUserId ? { userId: nextUserId } : undefined);
+      }
+      setCharacterSheetId(null);
+      suppressNextNamePersistRef.current = true;
+      setCharacterNameState(DEFAULT_LOCAL_CHARACTER_NAME);
+      setCharacterDescriptionState(presetState.tabDescriptions[activePresetId] ?? "");
+      const emptyAssignments = createEmptyCharacterSheetAssignments();
+      setCharacterSheetAssignments(emptyAssignments);
+      characterSheetAssignmentsRef.current = emptyAssignments;
+      characterSheetAssignmentsRequestRef.current = 0;
+      setActiveCharacterSheetPresetIdState(activePresetId);
+      activeCharacterSheetPresetIdRef.current = activePresetId;
+      setCharacterSheetPresets(presetState.presets);
+      characterSheetPresetsRef.current = presetState.presets;
+      setVisibleCharacterSheetPresetIds(presetState.tabOrder);
+      visibleCharacterSheetPresetIdsRef.current = presetState.tabOrder;
+      setCharacterSheetPresetLabels(presetState.tabLabels);
+      characterSheetPresetLabelsRef.current = presetState.tabLabels;
+      setCharacterSheetPresetDescriptions(presetState.tabDescriptions);
+      characterSheetPresetDescriptionsRef.current = presetState.tabDescriptions;
+      setCharacterSheetPresetAssignments(presetState.presets[activePresetId]);
+      characterSheetPresetAssignmentsRequestRef.current = 0;
+      setProfileImageUrl(null);
+      setProfileImageTransform(DEFAULT_LOCAL_PROFILE_IMAGE_TRANSFORM);
+      const emptySlots = createEmptyCharacterSlotMap();
+      setSlots(emptySlots);
+      slotsRef.current = emptySlots;
+      lastPersistedNameRef.current = DEFAULT_LOCAL_CHARACTER_NAME;
+      lastPersistedDescriptionMapRef.current = presetState.tabDescriptions;
+      descriptionPersistRequestRef.current = createPresetRequestCounterMap();
+      for (const presetId of CHARACTER_SHEET_PRESET_IDS) {
+        const timerId = descriptionPersistTimerRefs.current[presetId];
+        if (timerId) {
+          window.clearTimeout(timerId);
+          descriptionPersistTimerRefs.current[presetId] = null;
+        }
+      }
+      setSlotBusyKeys(new Set());
+    },
+    [
+      activeCharacterSheetPresetIdRef,
+      characterSheetAssignmentsRef,
+      characterSheetAssignmentsRequestRef,
+      characterSheetPresetAssignmentsRequestRef,
+      characterSheetPresetDescriptionsRef,
+      characterSheetPresetLabelsRef,
+      characterSheetPresetsRef,
+      createPresetRequestCounterMap,
+      descriptionPersistRequestRef,
+      descriptionPersistTimerRefs,
+      lastPersistedDescriptionMapRef,
+      lastPersistedNameRef,
+      selectedCharacterStorageScopeRef,
+      setActiveCharacterSheetPresetIdState,
+      setCharacterDescriptionState,
+      setCharacterId,
+      setCharacterNameState,
+      setCharacterSheetAssignments,
+      setCharacterSheetId,
+      setCharacterSheetPresetAssignments,
+      setCharacterSheetPresetDescriptions,
+      setCharacterSheetPresetLabels,
+      setCharacterSheetPresets,
+      setProfileImageTransform,
+      setProfileImageUrl,
+      setSlotBusyKeys,
+      setSlots,
+      setVisibleCharacterSheetPresetIds,
+      slotsRef,
+      suppressNextNamePersistRef,
+      visibleCharacterSheetPresetIdsRef,
+    ]
+  );
+
   React.useEffect(() => {
     let active = true;
     const bootstrap = async () => {
@@ -297,28 +400,37 @@ export const useCharacterManagerBootstrapController = ({
       try {
         const scopedUserId = (await readSupabaseUserId())?.trim() ?? null;
         selectedCharacterStorageScopeRef.current = scopedUserId;
-        const snapshot = await loadOrCreateCharacterManagerDraft(
-          readPersistedSelectedCharacterId(scopedUserId ? { userId: scopedUserId } : undefined)
+        const preferredCharacterId = readPersistedSelectedCharacterId(
+          scopedUserId ? { userId: scopedUserId } : undefined
         );
+        const snapshot = await loadLatestCharacterManagerDraft(preferredCharacterId);
         if (!active) return;
-        applySnapshot({
-          nextCharacterId: snapshot.characterId,
-          nextCharacterSheetId: snapshot.characterSheetId,
-          nextCharacterName: snapshot.characterName,
-          nextCharacterDescription: snapshot.characterDescription,
-          nextCharacterSheetAssignments: snapshot.characterSheetAssignments,
-          nextActiveCharacterSheetPresetId: snapshot.activeCharacterSheetPresetId,
-          nextCharacterSheetPresets: snapshot.characterSheetPresets,
-          nextVisibleCharacterSheetPresetIds: snapshot.visibleCharacterSheetPresetIds,
-          nextCharacterSheetPresetLabels: snapshot.characterSheetPresetLabels,
-          nextCharacterSheetPresetDescriptions: snapshot.characterSheetPresetDescriptions,
-          nextCharacterSheetPresetAssignments: snapshot.characterSheetPresetAssignments,
-          nextProfileImageUrl: snapshot.profileImageUrl,
-          nextProfileImageTransform: snapshot.profileImageTransform,
-          nextSlots: snapshot.slots,
-          nextUserId: snapshot.userId,
-        });
-        await refreshCharacterListSilently(snapshot.characterId);
+        if (snapshot) {
+          applySnapshot({
+            nextCharacterId: snapshot.characterId,
+            nextCharacterSheetId: snapshot.characterSheetId,
+            nextCharacterName: snapshot.characterName,
+            nextCharacterDescription: snapshot.characterDescription,
+            nextCharacterSheetAssignments: snapshot.characterSheetAssignments,
+            nextActiveCharacterSheetPresetId: snapshot.activeCharacterSheetPresetId,
+            nextCharacterSheetPresets: snapshot.characterSheetPresets,
+            nextVisibleCharacterSheetPresetIds: snapshot.visibleCharacterSheetPresetIds,
+            nextCharacterSheetPresetLabels: snapshot.characterSheetPresetLabels,
+            nextCharacterSheetPresetDescriptions: snapshot.characterSheetPresetDescriptions,
+            nextCharacterSheetPresetAssignments: snapshot.characterSheetPresetAssignments,
+            nextProfileImageUrl: snapshot.profileImageUrl,
+            nextProfileImageTransform: snapshot.profileImageTransform,
+            nextSlots: snapshot.slots,
+            nextUserId: snapshot.userId,
+          });
+          await refreshCharacterListSilently(snapshot.characterId);
+        } else {
+          await refreshCharacterListSilently(null);
+          if (!active) return;
+          applyLocalDraft({
+            nextUserId: scopedUserId,
+          });
+        }
       } catch (nextError) {
         if (!active) return;
         setError(toErrorMessage(nextError, "Failed to load Character Manager draft."));
@@ -333,6 +445,7 @@ export const useCharacterManagerBootstrapController = ({
       active = false;
     };
   }, [
+    applyLocalDraft,
     applySnapshot,
     refreshCharacterListSilently,
     selectedCharacterStorageScopeRef,
@@ -343,6 +456,7 @@ export const useCharacterManagerBootstrapController = ({
 
   return {
     applySnapshot,
+    applyLocalDraft,
     refreshCharacterList,
     refreshCharacterListSilently,
   };

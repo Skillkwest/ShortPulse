@@ -37,6 +37,22 @@ const buildElementInitials = (name: string): string => {
   return words.map((word) => word[0]?.toUpperCase() ?? "").join("");
 };
 
+const hasLocalImageFileDrag = (transfer: DataTransfer | null | undefined): boolean => {
+  if (!transfer) return false;
+  const files = Array.from(transfer.files ?? []);
+  if (files.some((file) => file.type.startsWith("image/"))) {
+    return true;
+  }
+  const items = Array.from(transfer.items ?? []);
+  return items.some((item) => item.kind === "file" && item.type.startsWith("image/"));
+};
+
+const getDroppedLocalImageFile = (transfer: DataTransfer | null | undefined): File | null => {
+  if (!transfer) return null;
+  const files = Array.from(transfer.files ?? []);
+  return files.find((file) => file.type.startsWith("image/")) ?? null;
+};
+
 export function ElementsManagerShell({
   onActiveTabChange,
   resolveProfileImageDropSource,
@@ -49,6 +65,9 @@ export function ElementsManagerShell({
     pendingDeleteElementId,
     draft,
     error,
+    loading,
+    isSavingElement,
+    hasUnsavedElementDraft,
     setActiveTab,
     updateDraftField,
     assignActiveImageReferenceAtIndex,
@@ -60,10 +79,12 @@ export function ElementsManagerShell({
     onSaveProfileImageTransform,
     onClearProfileImage,
     onCreateElement,
+    onSaveElement,
     onSelectElement,
     onRequestDeleteElement,
     onCancelDeleteElement,
     onConfirmDeleteElement,
+    reportSaveElementRequired,
   } = useElementsManagerViewState({
     resolveProfileImageDropSource,
   });
@@ -99,6 +120,10 @@ export function ElementsManagerShell({
       : draft.profileImageTransform;
 
   const openProfilePicker = React.useCallback(() => {
+    if (hasUnsavedElementDraft) {
+      reportSaveElementRequired();
+      return;
+    }
     if (suppressProfilePickerClickRef.current) {
       suppressProfilePickerClickRef.current = false;
       return;
@@ -109,13 +134,28 @@ export function ElementsManagerShell({
       return;
     }
     profileFileInputRef.current?.click();
-  }, [draft.profileImageTransform, draft.profileImageUrl, isProfileAdjusterVisible]);
+  }, [
+    draft.profileImageTransform,
+    draft.profileImageUrl,
+    hasUnsavedElementDraft,
+    isProfileAdjusterVisible,
+    reportSaveElementRequired,
+  ]);
 
   const handleProfileSelection = React.useCallback(
     (event: React.ChangeEvent<HTMLInputElement>) => {
       const file = event.target.files?.[0] ?? null;
       event.target.value = "";
       if (!file) return;
+      setProfileAdjustDraft(DEFAULT_ELEMENT_PROFILE_IMAGE_TRANSFORM);
+      setIsProfileAdjusterVisible(true);
+      void onSetProfileImageFile(file);
+    },
+    [onSetProfileImageFile]
+  );
+
+  const applyProfileImageFile = React.useCallback(
+    (file: File) => {
       setProfileAdjustDraft(DEFAULT_ELEMENT_PROFILE_IMAGE_TRANSFORM);
       setIsProfileAdjusterVisible(true);
       void onSetProfileImageFile(file);
@@ -143,9 +183,12 @@ export function ElementsManagerShell({
   const canAcceptProfileImageDrop = React.useCallback(
     (transfer: DataTransfer | null | undefined): boolean =>
       Boolean(
-        hasInternalReferenceDragTypeHints(transfer) || extractInternalReferenceDragPayload(transfer)
+        !hasUnsavedElementDraft &&
+        (hasLocalImageFileDrag(transfer) ||
+          hasInternalReferenceDragTypeHints(transfer) ||
+          extractInternalReferenceDragPayload(transfer))
       ),
-    []
+    [hasUnsavedElementDraft]
   );
 
   const handleProfileDragEnter = React.useCallback(
@@ -180,25 +223,43 @@ export function ElementsManagerShell({
       event.stopPropagation();
       suppressProfilePickerClickRef.current = true;
       setIsProfileDropActive(false);
+      const droppedFile = getDroppedLocalImageFile(event.dataTransfer);
+      if (droppedFile) {
+        applyProfileImageFile(droppedFile);
+        return;
+      }
       const droppedReference = extractInternalReferenceDragPayload(event.dataTransfer);
       if (!droppedReference) return;
       void onSetProfileImageFromInternalDrop(droppedReference);
     },
-    [canAcceptProfileImageDrop, onSetProfileImageFromInternalDrop]
+    [applyProfileImageFile, canAcceptProfileImageDrop, onSetProfileImageFromInternalDrop]
   );
 
-  const canAcceptInternalReferenceDrag = React.useCallback(
+  const canAcceptSheetDrop = React.useCallback(
     (transfer: DataTransfer | null | undefined): boolean =>
       Boolean(
         transfer &&
-        (extractInternalReferenceDragPayload(transfer) ||
+        !hasUnsavedElementDraft &&
+        ((draft.assetType === "image" && hasLocalImageFileDrag(transfer)) ||
+          extractInternalReferenceDragPayload(transfer) ||
           hasInternalReferenceDragTypeHints(transfer))
       ),
-    []
+    [draft.assetType, hasUnsavedElementDraft]
   );
 
   const resolveDroppedReferenceUrl = React.useCallback(
     async (transfer: DataTransfer): Promise<string | null> => {
+      const localImageFile =
+        draft.assetType === "image" ? getDroppedLocalImageFile(transfer) : null;
+      if (localImageFile) {
+        const localObjectUrl = URL.createObjectURL(localImageFile);
+        try {
+          return await uploadImageToStorage(localObjectUrl);
+        } finally {
+          URL.revokeObjectURL(localObjectUrl);
+        }
+      }
+
       const payload = extractInternalReferenceDragPayload(transfer);
       if (!payload) return null;
 
@@ -240,32 +301,32 @@ export function ElementsManagerShell({
         return directReferenceUrl;
       }
     },
-    [resolveProfileImageDropSource]
+    [draft.assetType, resolveProfileImageDropSource]
   );
 
   const handleSheetDragEnter = React.useCallback(
     (slotIndex: number) => (event: React.DragEvent<HTMLElement>) => {
-      if (!canAcceptInternalReferenceDrag(event.dataTransfer)) return;
+      if (!canAcceptSheetDrop(event.dataTransfer)) return;
       event.preventDefault();
       event.dataTransfer.dropEffect = "copy";
       setActiveSheetDropIndex(slotIndex);
     },
-    [canAcceptInternalReferenceDrag]
+    [canAcceptSheetDrop]
   );
 
   const handleSheetDragOver = React.useCallback(
     (slotIndex: number) => (event: React.DragEvent<HTMLElement>) => {
-      if (!canAcceptInternalReferenceDrag(event.dataTransfer)) return;
+      if (!canAcceptSheetDrop(event.dataTransfer)) return;
       event.preventDefault();
       event.dataTransfer.dropEffect = "copy";
       setActiveSheetDropIndex(slotIndex);
     },
-    [canAcceptInternalReferenceDrag]
+    [canAcceptSheetDrop]
   );
 
   const handleSheetDrop = React.useCallback(
     (slotIndex: number) => (event: React.DragEvent<HTMLElement>) => {
-      if (!canAcceptInternalReferenceDrag(event.dataTransfer)) return;
+      if (!canAcceptSheetDrop(event.dataTransfer)) return;
       event.preventDefault();
       setActiveSheetDropIndex(null);
       void resolveDroppedReferenceUrl(event.dataTransfer).then((droppedReferenceUrl) => {
@@ -280,7 +341,7 @@ export function ElementsManagerShell({
     [
       assignActiveImageReferenceAtIndex,
       assignActiveVideoReference,
-      canAcceptInternalReferenceDrag,
+      canAcceptSheetDrop,
       draft.assetType,
       resolveDroppedReferenceUrl,
     ]
@@ -299,10 +360,18 @@ export function ElementsManagerShell({
         hidden
         onChange={handleProfileSelection}
       />
-      <ElementsManagerWorkflowTabs activeTab={activeTab} setActiveTab={setActiveTab} />
+      <ElementsManagerWorkflowTabs
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
+        isSavingElement={isSavingElement}
+        hasUnsavedElementDraft={hasUnsavedElementDraft}
+        loading={loading}
+        onSaveElement={onSaveElement}
+      />
+      {error ? <p className="tiny elements-manager-feedback">{error}</p> : null}
 
       {activeTab === "manage" ? (
-        <section className="panel media-panel elements-manage-panel">
+        <>
           <div className="elements-manage-header-row">
             <div className="elements-manage-title-stack">
               <h2>Elements Library</h2>
@@ -381,8 +450,7 @@ export function ElementsManagerShell({
               })}
             </div>
           </div>
-          {error ? <p className="tiny elements-delete-confirm-copy">{error}</p> : null}
-        </section>
+        </>
       ) : (
         <section className="elements-profile-panel">
           <ElementsCreateWorkspaceSurface

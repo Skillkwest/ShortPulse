@@ -242,6 +242,32 @@ describe("useAiStudioAgentComposer", () => {
     expect(result.current.agentAttachments).toEqual([]);
   });
 
+  it("replaces existing composer text when a prompt card is dropped", () => {
+    extractDragDropPayloadMock.mockReturnValue({
+      imageUrl: null,
+      promptText: "Dropped prompt should replace existing text",
+      referenceId: "out-1",
+      fromFile: false,
+    });
+
+    const { result } = renderHook(() =>
+      useAiStudioAgentComposer({
+        agentSessionEnabled: true,
+        ensureAgentSession: vi.fn(),
+        findOutputById: createFindOutputById([makeOutput("out-1")]),
+        resolveOutputPreviewUrlById: () => null,
+      })
+    );
+
+    act(() => {
+      result.current.handleAgentInputChange("Existing draft text");
+      result.current.handleAgentAttachmentDrop(makeDragEvent());
+    });
+
+    expect(result.current.agentInput).toBe("Dropped prompt should replace existing text");
+    expect(result.current.agentAttachments).toEqual([]);
+  });
+
   it("preserves input text when composer reset requests preserveInput", () => {
     const { result } = renderHook(() =>
       useAiStudioAgentComposer({

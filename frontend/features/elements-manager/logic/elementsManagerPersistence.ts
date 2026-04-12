@@ -9,6 +9,7 @@ export {
   deleteElementManagerDraft,
   fetchElementsManagerList,
   loadElementManagerDraftByElementId,
+  saveElementManagerDraft,
   saveElementManagerDraftSnapshot,
   saveElementProfileImageAdjustments,
   uploadElementProfileImage,
@@ -16,4 +17,5 @@ export {
 export type {
   ElementManagerDraftSnapshot,
   ElementsManagerListItem,
+  SaveElementManagerDraftInput,
 } from "./elementsManagerPersistenceCore";

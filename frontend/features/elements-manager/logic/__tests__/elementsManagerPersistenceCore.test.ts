@@ -32,6 +32,7 @@ vi.mock("../../../../lib/mediaStoragePath", () => ({
 
 import {
   loadElementManagerDraftByElementId,
+  saveElementManagerDraft,
   saveElementManagerDraftSnapshot,
 } from "../elementsManagerPersistenceCore";
 
@@ -205,6 +206,147 @@ describe("elementsManagerPersistenceCore", () => {
       updatedAt: "2026-04-07T01:00:00.000Z",
       status: "ready",
     });
+    expect(operations).toEqual([
+      "elements.update",
+      "reference_sets.upsert",
+      "reference_sets.delete:2,3,4,5,6,7,8,9,10",
+    ]);
+  });
+
+  it("creates and persists a new element only when the explicit save flow runs", async () => {
+    const operations: string[] = [];
+    const savedElementId = "element-new";
+    const supabaseMock = {
+      from: (table: string) => {
+        if (table === "elements") {
+          return {
+            insert: () => ({
+              select: () => ({
+                single: async () => ({
+                  data: { id: savedElementId, updated_at: "2026-04-07T01:00:00.000Z" },
+                  error: null,
+                }),
+              }),
+            }),
+            select: () => ({
+              eq: () => ({
+                eq: () => ({
+                  maybeSingle: async () => ({
+                    data: {
+                      metadata: {
+                        active_reference_set_id: "1",
+                        active_reference_set_asset_type: "image",
+                        reference_set_tab_order: ["1"],
+                      },
+                    },
+                    error: null,
+                  }),
+                  neq: () => ({
+                    maybeSingle: async () => ({
+                      data: {
+                        id: savedElementId,
+                        name: "Taylor",
+                        alias: "taylor_element",
+                        status: "ready",
+                        metadata: {
+                          active_reference_set_id: "1",
+                          active_reference_set_asset_type: "image",
+                          reference_set_tab_order: ["1"],
+                        },
+                        updated_at: "2026-04-07T02:00:00.000Z",
+                      },
+                      error: null,
+                    }),
+                  }),
+                }),
+              }),
+            }),
+            update: () => {
+              operations.push("elements.update");
+              return {
+                eq: () => ({
+                  eq: () => ({
+                    select: () => ({
+                      single: async () => ({
+                        data: { updated_at: "2026-04-07T02:00:00.000Z" },
+                        error: null,
+                      }),
+                    }),
+                  }),
+                }),
+              };
+            },
+            delete: () => ({
+              eq: () => ({
+                eq: async () => ({ error: null }),
+              }),
+            }),
+          };
+        }
+
+        if (table === "element_reference_sets") {
+          return {
+            insert: async () => ({ error: null }),
+            upsert: async () => {
+              operations.push("reference_sets.upsert");
+              return { error: null };
+            },
+            delete: () => ({
+              eq: () => ({
+                eq: () => ({
+                  in: async (_column: string, staleSetIds: string[]) => {
+                    operations.push(`reference_sets.delete:${staleSetIds.join(",")}`);
+                    return { error: null };
+                  },
+                }),
+              }),
+            }),
+            select: () => ({
+              eq: () => ({
+                eq: async () => ({
+                  data: [
+                    {
+                      id: "set-1",
+                      element_id: savedElementId,
+                      set_key: "1",
+                      label: "Double click me",
+                      description: "new element",
+                      asset_type: "image",
+                      deck_reference_urls: ["https://example.com/taylor-front.png"],
+                      image_reference_urls: ["https://example.com/taylor-front.png"],
+                      video_reference_url: null,
+                      updated_at: "2026-04-07T02:00:00.000Z",
+                    },
+                  ],
+                  error: null,
+                }),
+              }),
+            }),
+          };
+        }
+
+        throw new Error(`Unexpected table: ${table}`);
+      },
+    };
+
+    ensureSupabaseQueryClientMock.mockReturnValue(supabaseMock);
+
+    const snapshot = await saveElementManagerDraft({
+      name: "Taylor",
+      alias: "taylor_element",
+      profileImageTransform: { zoom: 1, offsetX: 0, offsetY: 0 },
+      description: "new element",
+      assetType: "image",
+      imageReferenceUrls: ["https://example.com/taylor-front.png"],
+      videoReferenceUrl: null,
+    });
+
+    expect(snapshot.elementId).toBe(savedElementId);
+    expect(snapshot.name).toBe("Taylor");
+    expect(snapshot.alias).toBe("taylor_element");
+    expect(snapshot.status).toBe("ready");
+    expect(snapshot.description).toBe("new element");
+    expect(snapshot.imageReferenceUrls).toEqual(["https://example.com/taylor-front.png"]);
     expect(operations).toEqual([
       "elements.update",
       "reference_sets.upsert",

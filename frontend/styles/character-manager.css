@@ -755,6 +755,10 @@ body.character-manager-body {
   flex-shrink: 0;
 }
 
+.character-mode-save-btn {
+  min-width: 138px;
+}
+
 .character-simple-draft-meta {
   display: flex;
   align-items: center;

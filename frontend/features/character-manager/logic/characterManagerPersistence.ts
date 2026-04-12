@@ -33,6 +33,7 @@ import {
   CHARACTER_PROFILE_IMAGE_ZOOM_KEY,
   CHARACTER_REFERENCE_SOURCE,
   CHARACTER_SHEET_ASSIGNMENTS_KEY,
+  CHARACTER_SHEET_PRESETS_KEY,
   LEGACY_CHARACTER_SHEET_ASSIGNMENTS_KEY,
   cleanupOrphanedMedia,
   createCharacterMediaAsset,
@@ -53,6 +54,7 @@ import {
   normalizeCharacterSheetAssignments,
   resolveCharacterSheet,
   resolveSupabaseContext,
+  serializeCharacterSheetPresetState,
 } from "./characterManagerPersistenceCore";
 import {
   clearDeletedPresetAssignments,
@@ -93,6 +95,14 @@ export type CharacterManagerDraftSnapshot = {
   profileImageUrl: string | null;
   profileImageTransform: CharacterProfileImageTransform;
   slots: CharacterSlotFileMap;
+};
+
+type SaveCharacterManagerDraftInput = {
+  name: string;
+  activeCharacterSheetPresetId: CharacterSheetPresetId;
+  visibleCharacterSheetPresetIds: CharacterSheetPresetState["tabOrder"];
+  characterSheetPresetLabels: CharacterSheetPresetLabelMap;
+  characterSheetPresetDescriptions: CharacterSheetPresetDescriptionMap;
 };
 
 type SaveCharacterSlotInput = {
@@ -292,6 +302,73 @@ const toCharacterSnapshot = async (input: {
 export const listCharacterManagerCharacters = fetchCharacterManagerList;
 
 /**
+ * Loads a preferred/saved character draft when one exists and returns null for first-run users.
+ */
+export const loadLatestCharacterManagerDraft = async (
+  preferredCharacterId?: string | null
+): Promise<CharacterManagerDraftSnapshot | null> => {
+  const { supabase, userId } = await resolveSupabaseContext();
+  const normalizedPreferredCharacterId = preferredCharacterId?.trim() || null;
+  if (normalizedPreferredCharacterId) {
+    const { data: preferredCharacterData, error: preferredCharacterError } = await supabase
+      .from("characters")
+      .select("id, name, description, status, metadata")
+      .eq("user_id", userId)
+      .eq("id", normalizedPreferredCharacterId)
+      .maybeSingle();
+    if (preferredCharacterError) {
+      throw new Error(asErrorMessage(preferredCharacterError, "Failed to load characters."));
+    }
+    const preferredCharacter = preferredCharacterData as {
+      id: string;
+      name: string | null;
+      description: string | null;
+      status: string;
+      metadata: unknown;
+    } | null;
+    if (preferredCharacter && preferredCharacter.status !== "archived") {
+      return toCharacterSnapshot({
+        userId,
+        characterId: preferredCharacter.id,
+        characterName: preferredCharacter.name || DEFAULT_CHARACTER_NAME,
+        characterDescription: preferredCharacter.description ?? "",
+        characterMetadata: preferredCharacter.metadata,
+      });
+    }
+  }
+
+  const { data, error } = await supabase
+    .from("characters")
+    .select("id, name, description, metadata")
+    .eq("user_id", userId)
+    .neq("status", "archived")
+    .order("updated_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) {
+    throw new Error(asErrorMessage(error, "Failed to load characters."));
+  }
+
+  if (!data) {
+    return null;
+  }
+
+  const character = data as {
+    id: string;
+    name: string | null;
+    description: string | null;
+    metadata: unknown;
+  };
+  return toCharacterSnapshot({
+    userId,
+    characterId: character.id,
+    characterName: character.name || DEFAULT_CHARACTER_NAME,
+    characterDescription: character.description ?? "",
+    characterMetadata: character.metadata,
+  });
+};
+
+/**
  * Loads the latest character draft and its reference slot state. Creates one when missing.
  */
 export const loadOrCreateCharacterManagerDraft = async (
@@ -359,6 +436,81 @@ export const loadOrCreateCharacterManagerDraft = async (
     characterDescription: character.description ?? "",
     characterMetadata: character.metadata,
   });
+};
+
+/**
+ * Persists a locally staged Character Profile into the database and returns the saved snapshot.
+ */
+export const saveCharacterManagerDraft = async ({
+  name,
+  activeCharacterSheetPresetId,
+  visibleCharacterSheetPresetIds,
+  characterSheetPresetLabels,
+  characterSheetPresetDescriptions,
+}: SaveCharacterManagerDraftInput): Promise<CharacterManagerDraftSnapshot> => {
+  const trimmedName = name.trim();
+  if (trimmedName.length < 2) {
+    throw new Error("Character name must be at least 2 characters.");
+  }
+
+  const { supabase, userId } = await resolveSupabaseContext();
+  const { character, characterSheet } = await createDraftCharacter(trimmedName);
+  const normalizedPresetState = normalizeCharacterSheetPresetState({
+    activePresetId: activeCharacterSheetPresetId,
+    presets: createDefaultCharacterSheetPresetState().presets,
+    tabOrder: visibleCharacterSheetPresetIds,
+    tabLabels: characterSheetPresetLabels,
+    tabDescriptions: characterSheetPresetDescriptions,
+  });
+  const activeDescription =
+    normalizedPresetState.tabDescriptions[normalizedPresetState.activePresetId] ?? "";
+  const nextMetadata = toMetadataRecord(character.metadata);
+  nextMetadata[CHARACTER_SHEET_PRESETS_KEY] =
+    serializeCharacterSheetPresetState(normalizedPresetState);
+
+  const cleanupCreatedDraft = async () => {
+    await supabase
+      .from("character_reference_packs")
+      .delete()
+      .eq("user_id", userId)
+      .eq("character_id", character.id);
+    await supabase.from("characters").delete().eq("user_id", userId).eq("id", character.id);
+  };
+
+  const { error: updateError } = await supabase
+    .from("characters")
+    .update({
+      name: trimmedName,
+      description: toLegacyCharacterDescription(activeDescription),
+      metadata: nextMetadata,
+    })
+    .eq("user_id", userId)
+    .eq("id", character.id);
+  if (updateError) {
+    await cleanupCreatedDraft();
+    throw new Error(asErrorMessage(updateError, "Failed to save character."));
+  }
+
+  return {
+    userId,
+    characterId: character.id,
+    characterSheetId: characterSheet.id,
+    characterName: trimmedName,
+    legacyCharacterDescription: toLegacyCharacterDescription(activeDescription),
+    characterDescription: activeDescription,
+    characterSheetAssignments: getCharacterSheetAssignments(nextMetadata),
+    activeCharacterSheetPresetId: normalizedPresetState.activePresetId,
+    characterSheetPresets: normalizedPresetState.presets,
+    visibleCharacterSheetPresetIds: normalizedPresetState.tabOrder,
+    characterSheetPresetLabels: normalizedPresetState.tabLabels,
+    characterSheetPresetDescriptions: normalizedPresetState.tabDescriptions,
+    characterSheetPresetAssignments:
+      normalizedPresetState.presets[normalizedPresetState.activePresetId] ??
+      createEmptyCharacterSheetPresetAssignments(),
+    profileImageUrl: null,
+    profileImageTransform: { ...DEFAULT_CHARACTER_PROFILE_IMAGE_TRANSFORM },
+    slots: await loadSlotFilesForCharacterSheet(characterSheet.id),
+  };
 };
 
 /**

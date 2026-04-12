@@ -249,7 +249,13 @@ export const ElementPickerModal = ({
                                               : "Element"}
                                         </p>
                                         <p className="ai-character-list-name">{option.name}</p>
-                                        {token ? <p className="tiny subdued">@{token}</p> : null}
+                                        {token ? (
+                                          <p
+                                            className={`tiny ai-character-list-token ai-character-list-token--${option.sourceKind}`}
+                                          >
+                                            @{token}
+                                          </p>
+                                        ) : null}
                                       </div>
                                     </div>
                                   </button>

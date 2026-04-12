@@ -54,7 +54,12 @@ const isImageMediaOption = (option: ModelOption): boolean => {
 };
 
 const isVideoMediaOption = (option: ModelOption): boolean => {
-  return !option.mediaType || option.mediaType === "video" || option.mediaType === "multi";
+  return (
+    !option.mediaType ||
+    option.mediaType === "video" ||
+    option.mediaType === "image-to-video" ||
+    option.mediaType === "multi"
+  );
 };
 
 const isOptionProviderSelectable = ({

@@ -30,6 +30,8 @@ type PromptStepEnhancedSurfaceProps = {
   inlineActionClassName?: string;
   promptTextareaRef?: React.MutableRefObject<HTMLTextAreaElement | null>;
   promptHighlightSegments?: PromptTokenHighlightSegment[];
+  onPromptDrop?: (event: React.DragEvent<HTMLTextAreaElement>) => void;
+  onPromptDragOver?: (event: React.DragEvent<HTMLTextAreaElement>) => void;
   onPromptFocus?: (event: React.FocusEvent<HTMLTextAreaElement>) => void;
   onPromptBlur?: (event: React.FocusEvent<HTMLTextAreaElement>) => void;
   onPromptSelect?: (event: React.SyntheticEvent<HTMLTextAreaElement>) => void;
@@ -58,6 +60,8 @@ export const PromptStepEnhancedSurface: React.FC<PromptStepEnhancedSurfaceProps>
   inlineActionClassName,
   promptTextareaRef,
   promptHighlightSegments,
+  onPromptDrop,
+  onPromptDragOver,
   onPromptFocus,
   onPromptBlur,
   onPromptSelect,
@@ -152,6 +156,22 @@ export const PromptStepEnhancedSurface: React.FC<PromptStepEnhancedSurfaceProps>
     handlePromptScroll();
   }, [handlePromptScroll, prompt]);
 
+  const handleTextareaDrop = React.useCallback(
+    (event: React.DragEvent<HTMLTextAreaElement>) => {
+      onPromptDrop?.(event);
+      event.stopPropagation();
+    },
+    [onPromptDrop]
+  );
+
+  const handleTextareaDragOver = React.useCallback(
+    (event: React.DragEvent<HTMLTextAreaElement>) => {
+      onPromptDragOver?.(event);
+      event.stopPropagation();
+    },
+    [onPromptDragOver]
+  );
+
   return (
     <>
       <div className="step2-input-row enhanced-mode">
@@ -187,6 +207,8 @@ export const PromptStepEnhancedSurface: React.FC<PromptStepEnhancedSurfaceProps>
             onFocus={onPromptFocus}
             onBlur={onPromptBlur}
             onSelect={onPromptSelect}
+            onDrop={handleTextareaDrop}
+            onDragOver={handleTextareaDragOver}
             onScroll={handlePromptScroll}
             rows={6}
             placeholder={promptPlaceholder}

@@ -765,6 +765,24 @@ describe("VideoPropertiesPanel", () => {
     expect(within(redLanternCard).getByText("Selected")).toBeInTheDocument();
   });
 
+  it("marks picker alias tokens by source kind for popup styling", async () => {
+    render(<VideoPropertiesPanel {...baseProps} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Add element to slot 1" }));
+
+    const charactersList = await screen.findByRole("list", { name: "Characters options" });
+    const elementsList = await screen.findByRole("list", { name: "Elements options" });
+
+    expect(within(charactersList).getByText("@taylor")).toHaveClass(
+      "ai-character-list-token",
+      "ai-character-list-token--character"
+    );
+    expect(within(elementsList).getByText("@redlantern")).toHaveClass(
+      "ai-character-list-token",
+      "ai-character-list-token--element"
+    );
+  });
+
   it("clears orphaned saved elements that no longer resolve from persistence", async () => {
     vi.mocked(loadElementManagerDraftByElementId).mockRejectedValueOnce(new Error("missing"));
     const onKlingElementsChange = vi.fn();
@@ -893,10 +911,10 @@ describe("VideoPropertiesPanel", () => {
 
     expect(transfer.setData).toHaveBeenCalledWith(
       KLING_ELEMENT_PROMPT_TOKEN_TRANSFER_MIME,
-      "@taylor"
+      "@element1"
     );
-    expect(transfer.setData).toHaveBeenCalledWith("text/prompt", "@taylor");
-    expect(transfer.setData).toHaveBeenCalledWith("text/plain", "@taylor");
+    expect(transfer.setData).toHaveBeenCalledWith("text/prompt", "@element1");
+    expect(transfer.setData).toHaveBeenCalledWith("text/plain", "@element1");
   });
 
   it("writes Kling character token drag data for attached character tiles", () => {
@@ -930,10 +948,10 @@ describe("VideoPropertiesPanel", () => {
 
     expect(transfer.setData).toHaveBeenCalledWith(
       KLING_ELEMENT_PROMPT_TOKEN_TRANSFER_MIME,
-      "@taylor"
+      "@element1"
     );
-    expect(transfer.setData).toHaveBeenCalledWith("text/prompt", "@taylor");
-    expect(transfer.setData).toHaveBeenCalledWith("text/plain", "@taylor");
+    expect(transfer.setData).toHaveBeenCalledWith("text/prompt", "@element1");
+    expect(transfer.setData).toHaveBeenCalledWith("text/plain", "@element1");
   });
 
   it("removes an attached Kling slot when clicking the trash button", () => {
@@ -1023,7 +1041,24 @@ describe("VideoPropertiesPanel", () => {
     });
 
     await waitFor(() => {
-      expect(promptInput.value).toBe("Taylor @taylor walks forward");
+      expect(promptInput.value).toBe("Taylor @element1 walks forward");
+    });
+  });
+
+  it("replaces the primary video prompt when a prompt card is dropped", async () => {
+    render(<KlingPromptDropHarness />);
+
+    const promptInput = screen.getByLabelText("Video prompt") as HTMLTextAreaElement;
+    const transfer = createTransferStore();
+    transfer.setData("text/prompt", "Dropped primary video prompt");
+    transfer.setData("text/plain", "Dropped primary video prompt");
+
+    await act(async () => {
+      fireEvent.drop(promptInput, { dataTransfer: transfer });
+    });
+
+    await waitFor(() => {
+      expect(promptInput.value).toBe("Dropped primary video prompt");
     });
   });
 });

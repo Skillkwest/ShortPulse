@@ -24,7 +24,7 @@
   --create-expert-resolution-width: 120px;
   --create-expert-selector-gap: 6px;
   --create-expert-controls-gap: 6px;
-  --create-expert-inline-gutter: clamp(10px, 4vw, 44px);
+  --create-expert-inline-gutter: clamp(4px, 1.6vw, 18px);
   --create-expert-character-toggle-gap: 6px;
   --create-expert-selector-height: 40px;
   --create-expert-selector-bg: var(--color-bg);
@@ -33,8 +33,9 @@
   /*
    * Reuse Edit styles-control chrome in Expert Create.
    * These tokens are normally scoped to `.edit-expert-panel`.
-   * Define the full subset used by `StylesControl` so Create keeps the
-   * same button shell/chrome without inheriting broader Edit-only panel styles.
+   * Define only the color/surface subset used by `StylesControl` so Create keeps
+   * the same chrome without inheriting broader Edit-only panel styles.
+   * Size is owned directly in the Create stylesheet.
    */
   --edit-expert-neutral-surface-soft: rgba(201, 205, 214, 0.02);
   --edit-expert-neutral-shadow: rgba(0, 0, 0, 0.28);
@@ -44,13 +45,6 @@
   --edit-expert-control-hover-border: rgba(205, 210, 220, 0.2);
   --edit-expert-control-hover-surface: rgba(52, 56, 64, 0.95);
   --edit-expert-control-text: var(--edit-expert-neutral-text-strong);
-  --edit-expert-secondary-width: clamp(64px, calc(var(--app-fixed-width) * 0.078), 82px);
-  --edit-expert-secondary-shell-padding: 8px;
-  --edit-expert-secondary-shell-width: calc(
-    var(--edit-expert-secondary-width) + (var(--edit-expert-secondary-shell-padding) * 2)
-  );
-  --edit-expert-secondary-shell-height: calc(var(--edit-expert-secondary-width) + 24px);
-  --edit-expert-tools-title-to-control-gap: 8px;
 }
 
 .create-expert-panel .tool-header {

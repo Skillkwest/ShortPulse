@@ -175,8 +175,9 @@
   --ai-character-card-bg: rgba(201, 205, 214, 0.07);
   --ai-character-card-border: rgba(201, 205, 214, 0.07);
   --ai-character-shadow-md: 0 8px 18px rgba(0, 0, 0, 0.24), 0 1px 4px rgba(0, 0, 0, 0.16);
-  --ai-character-active-border: rgba(37, 204, 255, 0.58);
-  --ai-character-active-text: rgba(110, 214, 233, 0.96);
+  --ai-character-hover-border: rgba(201, 205, 214, 0.28);
+  --ai-character-active-border: rgba(201, 205, 214, 0.44);
+  --ai-character-active-text: #f3fbff;
   width: min(760px, 92vw);
 }
 
@@ -346,7 +347,7 @@
 }
 
 .ai-character-list-card:hover {
-  border-color: rgba(37, 204, 255, 0.28);
+  border-color: var(--ai-character-hover-border);
   cursor: pointer;
   box-shadow:
     0 8px 20px rgba(0, 0, 0, 0.3),
@@ -362,20 +363,8 @@
   color: var(--ai-character-active-text);
 }
 
-.ai-character-picker-modal .ai-character-picker-card--element.is-active {
-  border-color: rgba(255, 123, 167, 0.58);
-}
-
-.ai-character-picker-modal .ai-character-picker-card--element:hover {
-  border-color: rgba(255, 123, 167, 0.32);
-}
-
-.ai-character-picker-modal .ai-character-picker-card--element.is-active .ai-character-list-name {
-  color: rgba(255, 185, 217, 0.96);
-}
-
-.ai-character-picker-modal .ai-character-picker-card--element.is-active .metric-label {
-  color: rgba(255, 185, 217, 0.78);
+.ai-character-list-card.is-active .metric-label {
+  color: rgba(201, 205, 214, 0.82);
 }
 
 .ai-character-list-select-btn {
@@ -440,6 +429,20 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.ai-character-list-token {
+  margin: 0;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+.ai-character-list-token--character {
+  color: rgba(110, 214, 233, 0.96);
+}
+
+.ai-character-list-token--element {
+  color: rgba(255, 185, 217, 0.96);
 }
 
 .ai-character-picker-empty {

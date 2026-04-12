@@ -16,11 +16,10 @@ import type {
 import { useElementsManagerDraft } from "./useElementsManagerDraft";
 import {
   clearElementProfileImage,
-  createElementDraftRow,
-  DEFAULT_ELEMENT_NAME,
   deleteElementManagerDraft,
   fetchElementsManagerList,
   loadElementManagerDraftByElementId,
+  saveElementManagerDraft,
   saveElementManagerDraftSnapshot,
   saveElementProfileImageAdjustments,
   uploadElementProfileImage,
@@ -44,6 +43,8 @@ type DroppedStorageCandidate = {
 
 const toErrorMessage = (error: unknown, fallback: string): string =>
   error instanceof Error && error.message.trim().length ? error.message : fallback;
+
+const SAVE_ELEMENT_FIRST_MESSAGE = "Save the element before adding a profile photo or references.";
 
 const sanitizeFilenameSegment = (value: string): string =>
   value
@@ -324,16 +325,17 @@ export const useElementsManagerViewState = ({
   const [isCreatingElement, setIsCreatingElement] = React.useState(false);
   const [isDeletingElement, setIsDeletingElement] = React.useState(false);
   const [isSwitchingElement, setIsSwitchingElement] = React.useState(false);
+  const [isSavingElement, setIsSavingElement] = React.useState(false);
   const [isSavingProfileImage, setIsSavingProfileImage] = React.useState(false);
   const { draft, hydrateDraft, setDraft, resetDraft } = useElementsManagerDraft();
 
-  const selectedElement = elements.find((item) => item.id === selectedElementId) ?? null;
   const selectedElementIdRef = React.useRef<string | null>(null);
   const suppressNextPersistRef = React.useRef(false);
   const persistTimerRef = React.useRef<number | null>(null);
   const lastPersistedDraftRef = React.useRef<string>(
     serializeDraftState(createEmptyElementDraft())
   );
+  const hasUnsavedElementDraft = selectedElementId === null;
 
   React.useEffect(() => {
     selectedElementIdRef.current = selectedElementId;
@@ -413,13 +415,38 @@ export const useElementsManagerViewState = ({
     setError(null);
     setIsCreatingElement(true);
     try {
-      const created = await createElementDraftRow({
-        name: DEFAULT_ELEMENT_NAME,
-      });
-      const snapshot = await loadElementManagerDraftByElementId(created.elementId);
-      const nextItem = buildElementItemFromSnapshot(snapshot);
+      const nextDraft = createEmptyElementDraft();
       suppressNextPersistRef.current = true;
-      lastPersistedDraftRef.current = serializeDraftState({
+      lastPersistedDraftRef.current = serializeDraftState(nextDraft);
+      setSelectedElementId(null);
+      resetDraft();
+      setActiveTab("profile");
+    } catch (nextError) {
+      setError(toErrorMessage(nextError, "Failed to create a new element."));
+    } finally {
+      setIsCreatingElement(false);
+    }
+  }, [resetDraft]);
+
+  const handleSaveElement = React.useCallback(async () => {
+    if (selectedElementIdRef.current) {
+      return true;
+    }
+
+    setError(null);
+    setIsSavingElement(true);
+    try {
+      const snapshot = await saveElementManagerDraft({
+        name: draft.name,
+        alias: draft.alias,
+        profileImageTransform: draft.profileImageTransform,
+        description: draft.description,
+        assetType: draft.assetType,
+        imageReferenceUrls: draft.imageReferenceUrls,
+        videoReferenceUrl: draft.videoReferenceUrl || null,
+      });
+      const nextItem = buildElementItemFromSnapshot(snapshot);
+      const nextDraft: ElementDraft = {
         name: snapshot.name,
         alias: snapshot.alias,
         description: snapshot.description,
@@ -428,17 +455,21 @@ export const useElementsManagerViewState = ({
         profileImageTransform: snapshot.profileImageTransform,
         imageReferenceUrls: snapshot.imageReferenceUrls,
         videoReferenceUrl: snapshot.videoReferenceUrl ?? "",
-      });
+      };
+      suppressNextPersistRef.current = true;
+      lastPersistedDraftRef.current = serializeDraftState(nextDraft);
       updateElementListEntry(nextItem);
       setSelectedElementId(snapshot.elementId);
       hydrateDraft(nextItem);
       setActiveTab("profile");
+      return true;
     } catch (nextError) {
-      setError(toErrorMessage(nextError, "Failed to create a new element."));
+      setError(toErrorMessage(nextError, "Failed to save element."));
+      return false;
     } finally {
-      setIsCreatingElement(false);
+      setIsSavingElement(false);
     }
-  }, [hydrateDraft, updateElementListEntry]);
+  }, [draft, hydrateDraft, updateElementListEntry]);
 
   const handleSelectElement = React.useCallback(
     async (elementId: string) => {
@@ -580,7 +611,10 @@ export const useElementsManagerViewState = ({
   const saveProfileImageFile = React.useCallback(
     async (profileFile: File) => {
       const targetId = selectedElementIdRef.current;
-      if (!targetId) return;
+      if (!targetId) {
+        setError(SAVE_ELEMENT_FIRST_MESSAGE);
+        return;
+      }
       setError(null);
       setIsSavingProfileImage(true);
       try {
@@ -621,7 +655,10 @@ export const useElementsManagerViewState = ({
       const normalizedSourceUrl = normalizedSource.url?.trim() ?? "";
       if (!normalizedSourceUrl && !normalizedSource.loadBlob) return;
       const targetId = selectedElementIdRef.current;
-      if (!targetId) return;
+      if (!targetId) {
+        setError(SAVE_ELEMENT_FIRST_MESSAGE);
+        return;
+      }
       setError(null);
       setIsSavingProfileImage(true);
       try {
@@ -709,7 +746,10 @@ export const useElementsManagerViewState = ({
   const onSaveProfileImageTransform = React.useCallback(
     async (transform: ElementDraft["profileImageTransform"]) => {
       const targetId = selectedElementIdRef.current;
-      if (!targetId) return false;
+      if (!targetId) {
+        setError(SAVE_ELEMENT_FIRST_MESSAGE);
+        return false;
+      }
       setError(null);
       try {
         const persistedTransform = await saveElementProfileImageAdjustments({
@@ -736,7 +776,10 @@ export const useElementsManagerViewState = ({
 
   const onClearProfileImage = React.useCallback(async () => {
     const targetId = selectedElementIdRef.current;
-    if (!targetId) return;
+    if (!targetId) {
+      setError(SAVE_ELEMENT_FIRST_MESSAGE);
+      return;
+    }
     setError(null);
     setIsSavingProfileImage(true);
     try {
@@ -818,7 +861,6 @@ export const useElementsManagerViewState = ({
   return {
     activeTab,
     elements,
-    selectedElement,
     selectedElementId,
     pendingDeleteElementId,
     draft,
@@ -827,7 +869,9 @@ export const useElementsManagerViewState = ({
     isCreatingElement,
     isDeletingElement,
     isSwitchingElement,
+    isSavingElement,
     isSavingProfileImage,
+    hasUnsavedElementDraft,
     setActiveTab,
     updateDraftField,
     onSetAssetType,
@@ -843,6 +887,9 @@ export const useElementsManagerViewState = ({
     onCreateElement: () => {
       void handleCreateElement();
     },
+    onSaveElement: () => {
+      void handleSaveElement();
+    },
     onSelectElement: (elementId: string) => {
       void handleSelectElement(elementId);
     },
@@ -851,5 +898,6 @@ export const useElementsManagerViewState = ({
     onConfirmDeleteElement: () => {
       void handleDeleteElement();
     },
+    reportSaveElementRequired: () => setError(SAVE_ELEMENT_FIRST_MESSAGE),
   };
 };

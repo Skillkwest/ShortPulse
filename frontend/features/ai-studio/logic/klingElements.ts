@@ -128,8 +128,27 @@ export const resolveAiStudioKlingElementToken = (
   );
 };
 
+const buildCanonicalKieKlingElementToken = (slotIndex: number): string => `element${slotIndex + 1}`;
+
 export const resolveKieKlingElementTokens = (
-  elements: Array<Pick<AiStudioKlingElement, "alias" | "name" | "sourceKind"> | null | undefined>
+  elements: Array<
+    Pick<AiStudioKlingElement, "alias" | "name" | "sourceKind" | "slotIndex"> | null | undefined
+  >
+): string[] =>
+  elements.map((element, index) => buildCanonicalKieKlingElementToken(element?.slotIndex ?? index));
+
+export const resolveKieKlingElementToken = (
+  element: Pick<AiStudioKlingElement, "alias" | "name" | "sourceKind" | "slotIndex">,
+  index: number,
+  _allElements?: Array<Pick<AiStudioKlingElement, "alias" | "name" | "sourceKind" | "slotIndex">>
+): string => {
+  return buildCanonicalKieKlingElementToken(element.slotIndex ?? index);
+};
+
+export const resolveLegacyKieKlingElementTokens = (
+  elements: Array<
+    Pick<AiStudioKlingElement, "alias" | "name" | "sourceKind" | "slotIndex"> | null | undefined
+  >
 ): string[] =>
   resolveAiStudioKlingElementTokens(elements).map((token, index) => {
     const normalized = token
@@ -138,23 +157,25 @@ export const resolveKieKlingElementTokens = (
       .replace(/[^a-z0-9_]+/g, "_")
       .replace(/_+/g, "_")
       .replace(/^_+|_+$/g, "");
-    const fallback = `element_${String(index + 1).padStart(2, "0")}`;
+    const fallback = `element_${String((elements[index]?.slotIndex ?? index) + 1).padStart(2, "0")}`;
     const base = normalized || fallback;
     return base.startsWith("element_") ? base : `element_${base}`;
   });
 
-export const resolveKieKlingElementToken = (
-  element: Pick<AiStudioKlingElement, "alias" | "name" | "sourceKind">,
+export const resolveLegacyKieKlingElementToken = (
+  element: Pick<AiStudioKlingElement, "alias" | "name" | "sourceKind" | "slotIndex">,
   index: number,
-  allElements?: Array<Pick<AiStudioKlingElement, "alias" | "name" | "sourceKind">>
+  allElements?: Array<Pick<AiStudioKlingElement, "alias" | "name" | "sourceKind" | "slotIndex">>
 ): string => {
   if (!allElements) {
     return (
-      resolveKieKlingElementTokens([element])[0] ?? `element_${String(index + 1).padStart(2, "0")}`
+      resolveLegacyKieKlingElementTokens([element])[0] ??
+      `element_${String(index + 1).padStart(2, "0")}`
     );
   }
+
   return (
-    resolveKieKlingElementTokens(allElements)[index] ??
-    `element_${String(index + 1).padStart(2, "0")}`
+    resolveLegacyKieKlingElementTokens(allElements)[index] ??
+    `element_${String((element.slotIndex ?? index) + 1).padStart(2, "0")}`
   );
 };

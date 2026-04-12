@@ -7,7 +7,7 @@ import type { ModelModalContext } from "../components/ModelModal";
 import type { PromptOrigin } from "../logic/agentPromptOwnership";
 import { isReferencePromptTool } from "../logic/promptTargeting";
 import { isPrimaryCharacterTool } from "../logic/primaryCharacterTool";
-import { isCreateWorkflow, normalizeToolId } from "../logic/workflowIdentity";
+import { normalizeToolId } from "../logic/workflowIdentity";
 import type { StudioMode, ToolId } from "../types";
 
 const MEDIA_LIBRARY_PANEL_ENABLED =
@@ -115,7 +115,7 @@ export const useAiStudioWorkspaceActions = ({
       if (isMediaLibraryOpen) {
         setIsMediaLibraryOpen(false);
       }
-      if (isCreateWorkflow(nextTool) || nextTool === "edit") {
+      if (nextTool === "edit") {
         setMode("image");
       }
       if (!nextTool) {

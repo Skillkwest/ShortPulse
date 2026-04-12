@@ -6,6 +6,7 @@ import { Trash } from "phosphor-react";
 import type { AspectOption } from "../types";
 import { modelLogos } from "../constants";
 import { AgentGenerateButton } from "../../../prefabs/agent";
+import { extractDragDropPayload } from "../utils/dragDrop";
 import { ElementPickerModal } from "./ElementPickerModal";
 import type { ModelModalContext } from "./ModelModal";
 import { ReferenceKlingAdvancedSteps } from "./ReferenceKlingAdvancedSteps";
@@ -29,6 +30,8 @@ import {
   type AiStudioKlingEntitySourceKind,
   type AiStudioKlingElement,
   resolveAiStudioKlingElementTokens,
+  resolveKieKlingElementTokens,
+  resolveLegacyKieKlingElementTokens,
 } from "../logic/klingElements";
 import { loadSavedKlingEntityBySource } from "../logic/klingEntityAdapters";
 import {
@@ -243,7 +246,6 @@ export function VideoPropertiesPanel({
     addKlingElement,
     removeKlingElement,
     handleFileSelection,
-    handlePromptDrop,
     handlePrimaryDrop,
     handleExtraDrop,
     handlePrimaryDragEnter,
@@ -699,34 +701,52 @@ export function VideoPropertiesPanel({
   const primaryPromptValue = isCustomKlingWorkflow
     ? (customKlingPrompts[0]?.prompt ?? "")
     : (referenceText ?? "");
-  const klingElementPromptTokens = React.useMemo(
+  const klingElementDisplayTokens = React.useMemo(
     () => resolveAiStudioKlingElementTokens(selectedKlingElements).map((token) => token.trim()),
+    [selectedKlingElements]
+  );
+  const klingElementCanonicalPromptTokens = React.useMemo(
+    () => resolveKieKlingElementTokens(selectedKlingElements).map((token) => token.trim()),
+    [selectedKlingElements]
+  );
+  const klingElementLegacyProviderTokens = React.useMemo(
+    () => resolveLegacyKieKlingElementTokens(selectedKlingElements).map((token) => token.trim()),
     [selectedKlingElements]
   );
   const populatedKlingPromptTokenSlotIndexes = React.useMemo(
     () =>
       selectedKlingElements.flatMap((element, index) => {
         if (!element) return [];
-        const token = klingElementPromptTokens[index] ?? "";
+        const token = klingElementCanonicalPromptTokens[index] ?? "";
         return token ? [index] : [];
       }),
-    [klingElementPromptTokens, selectedKlingElements]
+    [klingElementCanonicalPromptTokens, selectedKlingElements]
   );
-  const klingPromptAttachedAliases = React.useMemo(
+  const klingPromptAttachedSlots = React.useMemo(
     () =>
       populatedKlingPromptTokenSlotIndexes.map((slotIndex) => ({
-        alias: klingElementPromptTokens[slotIndex] ?? "",
+        token: klingElementCanonicalPromptTokens[slotIndex] ?? "",
+        legacyAliases: [
+          klingElementDisplayTokens[slotIndex] ?? "",
+          klingElementLegacyProviderTokens[slotIndex] ?? "",
+        ].filter(Boolean),
         sourceKind: selectedKlingElements[slotIndex]?.sourceKind ?? null,
       })),
-    [klingElementPromptTokens, populatedKlingPromptTokenSlotIndexes, selectedKlingElements]
+    [
+      klingElementCanonicalPromptTokens,
+      klingElementDisplayTokens,
+      klingElementLegacyProviderTokens,
+      populatedKlingPromptTokenSlotIndexes,
+      selectedKlingElements,
+    ]
   );
   const primaryPromptPlaceholder =
     "Describe the shot you want to create: subject, action, camera movement, framing, lighting, and mood.";
   const primaryPromptHelperText =
     "Direct the shot: describe the subject, motion, camera movement, and mood you want in the clip.";
   const primaryPromptTokenDiagnostics = React.useMemo(
-    () => analyzeKlingPromptTokens(primaryPromptValue, klingPromptAttachedAliases),
-    [klingPromptAttachedAliases, primaryPromptValue]
+    () => analyzeKlingPromptTokens(primaryPromptValue, klingPromptAttachedSlots),
+    [klingPromptAttachedSlots, primaryPromptValue]
   );
   const primaryPromptHighlightSegments = React.useMemo(
     () => buildKlingPromptHighlightSegments(primaryPromptValue, primaryPromptTokenDiagnostics),
@@ -779,9 +799,18 @@ export function VideoPropertiesPanel({
       if (slotIndex == null) return null;
       const element = selectedKlingElements[slotIndex];
       if (!element) return null;
-      return buildKlingElementPromptToken(klingElementPromptTokens[slotIndex] ?? "");
+      return buildKlingElementPromptToken(klingElementCanonicalPromptTokens[slotIndex] ?? "");
     },
-    [klingElementPromptTokens, selectedKlingElements]
+    [klingElementCanonicalPromptTokens, selectedKlingElements]
+  );
+  const resolvePromptTokenPickerDisplayToken = React.useCallback(
+    (slotIndex: number | null) => {
+      if (slotIndex == null) return null;
+      const element = selectedKlingElements[slotIndex];
+      if (!element) return null;
+      return buildKlingElementPromptToken(klingElementDisplayTokens[slotIndex] ?? "");
+    },
+    [klingElementDisplayTokens, selectedKlingElements]
   );
   const cyclePromptTokenPickerSelection = React.useCallback(
     (direction: 1 | -1) => {
@@ -880,14 +909,18 @@ export function VideoPropertiesPanel({
       event: React.DragEvent<HTMLDivElement | HTMLTextAreaElement>,
       options?: { shotId?: string; promptValue?: string }
     ) => {
+      const target: KlingPromptTarget = options?.shotId ?? "primary";
+      setActivePromptTarget(target);
       const droppedToken = extractKlingElementPromptTokenFromTransfer(event.dataTransfer);
       if (!droppedToken) {
-        handlePromptDrop(event);
+        event.preventDefault();
+        const { promptText } = extractDragDropPayload(event.dataTransfer);
+        if (!promptText) return;
+        closePromptTokenPicker();
+        applyPromptUpdateForTarget(target, promptText);
         return;
       }
       event.preventDefault();
-      const target: KlingPromptTarget = options?.shotId ?? "primary";
-      setActivePromptTarget(target);
       const promptValue = options?.promptValue ?? primaryPromptValue;
       const targetTextarea =
         event.target instanceof HTMLTextAreaElement
@@ -906,13 +939,7 @@ export function VideoPropertiesPanel({
       closePromptTokenPicker();
       applyPromptUpdateForTarget(target, insertedPrompt.prompt, insertedPrompt.caret);
     },
-    [
-      applyPromptUpdateForTarget,
-      closePromptTokenPicker,
-      handlePromptDrop,
-      primaryPromptValue,
-      setActivePromptTarget,
-    ]
+    [applyPromptUpdateForTarget, closePromptTokenPicker, primaryPromptValue, setActivePromptTarget]
   );
   const handlePromptSelection = React.useCallback(
     (target: KlingPromptTarget) => {
@@ -1148,7 +1175,7 @@ export function VideoPropertiesPanel({
             {populatedKlingPromptTokenSlotIndexes.map((slotIndex) => {
               const element = selectedKlingElements[slotIndex];
               if (!element) return null;
-              const token = resolvePromptTokenPickerToken(slotIndex);
+              const displayToken = resolvePromptTokenPickerDisplayToken(slotIndex);
               const previewUrl =
                 element.profileImageUrl?.trim() ||
                 element.frontalImageUrl.trim() ||
@@ -1173,7 +1200,9 @@ export function VideoPropertiesPanel({
                     <span className="video-kling-prompt-token-picker-option-label">
                       {element.name?.trim() || `Element ${slotIndex + 1}`}
                     </span>
-                    <span className="video-kling-prompt-token-picker-option-token">{token}</span>
+                    <span className="video-kling-prompt-token-picker-option-token">
+                      {displayToken}
+                    </span>
                   </span>
                 </button>
               );
@@ -1188,6 +1217,7 @@ export function VideoPropertiesPanel({
       promptTokenPickerState.isOpen,
       promptTokenPickerState.selectedSlotIndex,
       promptTokenPickerState.target,
+      resolvePromptTokenPickerDisplayToken,
       resolvePromptTokenPickerToken,
       selectedKlingElements,
     ]
@@ -1404,7 +1434,7 @@ export function VideoPropertiesPanel({
                                       )
                                     : undefined;
                                   const dragToken = selectedElement
-                                    ? (klingElementPromptTokens[index] ?? "")
+                                    ? (klingElementCanonicalPromptTokens[index] ?? "")
                                     : "";
 
                                   if (!selectedElement) {
@@ -1596,7 +1626,7 @@ export function VideoPropertiesPanel({
                               >
                                 {buildKlingPromptHighlightSegments(
                                   shot.prompt,
-                                  analyzeKlingPromptTokens(shot.prompt, klingPromptAttachedAliases)
+                                  analyzeKlingPromptTokens(shot.prompt, klingPromptAttachedSlots)
                                 ).map((segment, segmentIndex) => (
                                   <span
                                     key={`custom-shot-highlight-${shot.id}-${segmentIndex}-${segment.kind}`}

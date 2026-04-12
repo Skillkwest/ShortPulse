@@ -30,6 +30,12 @@
   --ai-accent: var(--elements-theme-accent);
 }
 
+.elements-manager-shell--panel[data-active-tab="manage"] {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+}
+
 .elements-manager-shell--panel .elements-workflow-header {
   display: flex;
   flex-direction: column;
@@ -37,6 +43,14 @@
   justify-content: flex-start;
   gap: 8px;
   margin: 0 0 12px;
+}
+
+.elements-manager-shell--panel .elements-workflow-header-main {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 12px;
+  width: 100%;
 }
 
 .elements-manager-shell--panel .elements-workflow-tab-row {
@@ -51,6 +65,12 @@
   align-items: center;
   justify-content: start;
   flex: 0 0 auto;
+}
+
+.elements-manager-shell--panel .elements-workflow-header-actions {
+  display: flex;
+  align-items: start;
+  justify-content: flex-end;
 }
 
 .elements-manager-shell--panel .elements-workflow-tab {
@@ -163,10 +183,15 @@
     box-shadow 0.18s ease;
 }
 
+.elements-manager-shell--panel .elements-manager-feedback {
+  margin: 0 0 12px;
+  color: rgba(255, 184, 184, 0.9);
+}
+
 .elements-manager-shell--panel[data-active-tab="manage"] .elements-manage-chip-container {
   flex: 1 1 auto;
   min-height: 0;
-  padding-top: 80px;
+  padding-top: 16px;
   overflow-y: auto;
   overflow-x: hidden;
   scrollbar-gutter: stable;
@@ -928,6 +953,10 @@
 .elements-manager-shell--panel .elements-manage-create-btn:disabled {
   border-color: rgba(255, 123, 167, 0.3);
   color: rgba(61, 18, 34, 0.72);
+}
+
+.elements-manager-shell--panel .elements-manage-save-btn {
+  min-width: 128px;
 }
 
 .elements-manager-shell--panel .elements-profile-adjuster-range::-webkit-slider-runnable-track {

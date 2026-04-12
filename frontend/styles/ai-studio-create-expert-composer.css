@@ -118,7 +118,26 @@
   .agent-composer-leading
   .edit-expert-styles-control {
   margin-top: 0;
+  width: calc(clamp(58px, calc(var(--app-fixed-width) * 0.072), 74px) + 12px);
+  min-width: calc(clamp(58px, calc(var(--app-fixed-width) * 0.072), 74px) + 12px);
   transform: translateY(-12px);
+}
+
+.create-expert-panel
+  .create-expert-prompt-step
+  .agent-composer-leading
+  .edit-expert-styles-wrapper {
+  width: calc(clamp(58px, calc(var(--app-fixed-width) * 0.072), 74px) + 12px);
+  min-width: calc(clamp(58px, calc(var(--app-fixed-width) * 0.072), 74px) + 12px);
+  min-height: calc(clamp(58px, calc(var(--app-fixed-width) * 0.072), 74px) + 20px);
+  padding: 6px;
+  gap: 8px;
+}
+
+.create-expert-panel .create-expert-prompt-step .agent-composer-leading .edit-expert-styles-btn {
+  width: clamp(58px, calc(var(--app-fixed-width) * 0.072), 74px);
+  min-width: clamp(58px, calc(var(--app-fixed-width) * 0.072), 74px);
+  height: clamp(58px, calc(var(--app-fixed-width) * 0.072), 74px);
 }
 
 .create-expert-panel .create-expert-prompt-step .agent-composer-input-shell {

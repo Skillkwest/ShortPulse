@@ -15,6 +15,9 @@ Define the operational contract for the `/character` Character Manager surface, 
    - Overflow references are auto-archived (restorable).
 3. Uploaded references persist to Supabase per character in `character_quick_swap_items`.
 4. Character Sheet drop zones are persisted per character with dynamic preset tabs (`1`..`10`):
+   - `Create New Character` opens a local unsaved Character Profile draft only.
+   - The character is first created in Supabase and added to the library when the user presses `Save Character`.
+   - Until the first save, persistence-dependent actions stay blocked (for example profile image uploads, QuickSwap uploads, and preset/shot uploads).
    - New users start with one visible preset tab (`1`) labeled `Double click me` to prompt rename.
    - A `+` control at the end of the tab rail appends the next preset id and activates it.
    - Double-clicking a tab enters rename mode; `Enter`/blur autosaves and `Escape` cancels.
@@ -101,7 +104,7 @@ Define the operational contract for the `/character` Character Manager surface, 
 
 ## Operational Flow
 1. Character bootstrap
-- Load or create a character draft on entry.
+- Load the preferred/latest persisted character draft on entry when one exists; otherwise stage a local unsaved Character Profile draft.
 - Prefer the persisted selected character id when available.
 - Hydrate profile image, name, description, and persisted QuickSwap active/archive state.
 
@@ -119,9 +122,10 @@ Define the operational contract for the `/character` Character Manager surface, 
 - Keep preset media lifecycle independent from QuickSwap Deck entries.
 
 4. Character lifecycle
-- Create character: create draft + refresh rail.
+- Create character: stage a new local unsaved draft in the editor without persisting.
+- Save character: create the persisted character + sheet, refresh the rail, and select the newly saved character.
 - Select character: load selected snapshot + refresh rail.
-- Delete character: delete target and load next available snapshot (or create one).
+- Delete character: delete target and load next available snapshot (or fall back to a local unsaved draft when the library is empty).
 
 ## Security And Data Isolation Checks
 - RLS must be enabled on Character Manager tables and scoped to `auth.uid()`.

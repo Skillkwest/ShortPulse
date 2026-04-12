@@ -23,6 +23,7 @@ import {
   getAiStudioKlingElementReferenceUrls,
   resolveAiStudioKlingElementToken,
   resolveKieKlingElementToken,
+  resolveLegacyKieKlingElementToken,
   type AiStudioKlingElement,
 } from "../../logic/klingElements";
 import { prepareImageUrlForSubmission } from "../../utils/imageUpload";
@@ -240,29 +241,40 @@ const rewritePromptWithKieElementTokens = (
   klingElements: AiStudioKlingElement[]
 ): string => {
   const trimmedPrompt = prompt.trim();
-  const availableTokenPairs = klingElements.reduce<Array<{ uiToken: string; kieToken: string }>>(
-    (accumulator, element, index) => {
-      if (!hasKlingElementMedia(element)) return accumulator;
-      const uiToken = resolveAiStudioKlingElementToken(element, index, klingElements).trim();
-      const kieToken = resolveKieKlingElementToken(element, index, klingElements).trim();
-      if (!uiToken || !kieToken) return accumulator;
-      if (accumulator.some((pair) => pair.kieToken === kieToken)) return accumulator;
-      accumulator.push({ uiToken, kieToken });
-      return accumulator;
-    },
-    []
-  );
+  const availableTokenPairs = klingElements.reduce<
+    Array<{ canonicalToken: string; legacyTokens: string[] }>
+  >((accumulator, element, index) => {
+    if (!hasKlingElementMedia(element)) return accumulator;
+    const canonicalToken = resolveKieKlingElementToken(element, index, klingElements).trim();
+    const legacyTokens = Array.from(
+      new Set(
+        [
+          resolveAiStudioKlingElementToken(element, index, klingElements).trim(),
+          resolveLegacyKieKlingElementToken(element, index, klingElements).trim(),
+        ].filter(Boolean)
+      )
+    ).filter((token) => token.toLowerCase() !== canonicalToken.toLowerCase());
+    if (!canonicalToken) return accumulator;
+    if (accumulator.some((pair) => pair.canonicalToken === canonicalToken)) return accumulator;
+    accumulator.push({ canonicalToken, legacyTokens });
+    return accumulator;
+  }, []);
 
   if (!availableTokenPairs.length) return trimmedPrompt;
 
   let rewrittenPrompt = trimmedPrompt;
-  for (const { uiToken, kieToken } of availableTokenPairs) {
-    const legacyTokenPattern = new RegExp(`(^|\\s)@${escapeRegExp(uiToken)}(?=$|[\\s,.;:!?])`, "g");
-    rewrittenPrompt = rewrittenPrompt.replace(legacyTokenPattern, `$1@${kieToken}`);
+  for (const { canonicalToken, legacyTokens } of availableTokenPairs) {
+    for (const legacyToken of legacyTokens) {
+      const legacyTokenPattern = new RegExp(
+        `(^|\\s)@${escapeRegExp(legacyToken)}(?=$|[\\s,.;:!?])`,
+        "g"
+      );
+      rewrittenPrompt = rewrittenPrompt.replace(legacyTokenPattern, `$1@${canonicalToken}`);
+    }
   }
 
   const missingTokens = availableTokenPairs
-    .map((pair) => pair.kieToken)
+    .map((pair) => pair.canonicalToken)
     .filter((token) => {
       const tokenPattern = new RegExp(`(^|\\s)@${escapeRegExp(token)}(?=$|[\\s,.;:!?])`);
       return !tokenPattern.test(rewrittenPrompt);

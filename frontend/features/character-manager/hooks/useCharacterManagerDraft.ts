@@ -14,9 +14,9 @@ import { useCharacterManagerAssetController } from "./useCharacterManagerAssetCo
 import { useCharacterManagerBootstrapController } from "./useCharacterManagerBootstrapController";
 import { useCharacterManagerPresetController } from "./useCharacterManagerPresetController";
 import {
-  createCharacterManagerDraft,
   deleteCharacterManagerDraft,
   loadCharacterManagerDraftByCharacterId,
+  saveCharacterManagerDraft,
   updateCharacterManagerName,
 } from "../logic/characterManagerPersistence";
 import { publishCharacterListChanged } from "../logic/characterListSyncEvents";
@@ -52,10 +52,12 @@ type UseCharacterManagerDraftResult = {
   loading: boolean;
   isSavingName: boolean;
   isCreatingCharacter: boolean;
+  isSavingCharacter: boolean;
   isDeletingCharacter: boolean;
   isSwitchingCharacter: boolean;
   isSavingProfileImage: boolean;
   isSavingCharacterSheetPreset: boolean;
+  hasUnsavedCharacterDraft: boolean;
   setCharacterName: (value: string) => void;
   setCharacterVoice: (value: string) => void;
   setCharacterDescription: (value: string) => void;
@@ -77,10 +79,12 @@ type UseCharacterManagerDraftResult = {
   setSlotFile: (slotKey: CharacterReferenceSlotKey, file: File) => Promise<boolean>;
   clearSlot: (slotKey: CharacterReferenceSlotKey) => Promise<void>;
   createCharacter: () => Promise<void>;
+  saveCharacter: () => Promise<boolean>;
   selectCharacter: (characterId: string) => Promise<void>;
   deleteCharacter: (characterId: string) => Promise<boolean>;
   isSlotBusy: (slotKey: CharacterReferenceSlotKey) => boolean;
   clearMessages: () => void;
+  setErrorMessage: (message: string | null) => void;
 };
 
 const toErrorMessage = (error: unknown, fallback: string): string =>
@@ -138,6 +142,7 @@ export const useCharacterManagerDraft = (): UseCharacterManagerDraftResult => {
   const [loading, setLoading] = useState(true);
   const [isSavingName, setIsSavingName] = useState(false);
   const [isCreatingCharacter, setIsCreatingCharacter] = useState(false);
+  const [isSavingCharacter, setIsSavingCharacter] = useState(false);
   const [isDeletingCharacter, setIsDeletingCharacter] = useState(false);
   const [isSwitchingCharacter, setIsSwitchingCharacter] = useState(false);
   const [isSavingProfileImage, setIsSavingProfileImage] = useState(false);
@@ -227,7 +232,7 @@ export const useCharacterManagerDraft = (): UseCharacterManagerDraftResult => {
     characterSheetPresetDescriptionsRef.current = characterSheetPresetDescriptions;
   }, [characterSheetPresetDescriptions]);
 
-  const { applySnapshot, refreshCharacterList, refreshCharacterListSilently } =
+  const { applySnapshot, applyLocalDraft, refreshCharacterList, refreshCharacterListSilently } =
     useCharacterManagerBootstrapController({
       setCharacters,
       setCharacterId,
@@ -398,6 +403,7 @@ export const useCharacterManagerDraft = (): UseCharacterManagerDraftResult => {
     setCharacterSheetPresetFile,
     setSlotFile,
     clearSlot,
+    persistUnsavedDraftAssets,
   } = useCharacterManagerAssetController({
     characterId,
     characterSheetId,
@@ -407,6 +413,7 @@ export const useCharacterManagerDraft = (): UseCharacterManagerDraftResult => {
     setIsSavingProfileImage,
     setProfileImageUrl,
     setProfileImageTransform,
+    profileImageTransform,
     defaultProfileImageTransform: DEFAULT_PROFILE_IMAGE_TRANSFORM,
     refreshCharacterListSilently,
     selectedCharacterStorageScopeRef,
@@ -427,7 +434,36 @@ export const useCharacterManagerDraft = (): UseCharacterManagerDraftResult => {
     clearMessages();
     setIsCreatingCharacter(true);
     try {
-      const snapshot = await createCharacterManagerDraft("New Character");
+      applyLocalDraft({
+        nextUserId: selectedCharacterStorageScopeRef.current,
+        preservePersistedSelection: true,
+      });
+      setCharacterVoiceState("");
+    } finally {
+      setIsCreatingCharacter(false);
+    }
+  }, [applyLocalDraft, clearMessages]);
+
+  const saveCharacter = useCallback(async () => {
+    if (characterId) {
+      return true;
+    }
+
+    clearMessages();
+    setIsSavingCharacter(true);
+    try {
+      const initialSnapshot = await saveCharacterManagerDraft({
+        name: characterName,
+        activeCharacterSheetPresetId: activeCharacterSheetPresetIdRef.current,
+        visibleCharacterSheetPresetIds: visibleCharacterSheetPresetIdsRef.current,
+        characterSheetPresetLabels: characterSheetPresetLabelsRef.current,
+        characterSheetPresetDescriptions: characterSheetPresetDescriptionsRef.current,
+      });
+      await persistUnsavedDraftAssets({
+        characterId: initialSnapshot.characterId,
+        characterSheetId: initialSnapshot.characterSheetId,
+      });
+      const snapshot = await loadCharacterManagerDraftByCharacterId(initialSnapshot.characterId);
       applySnapshot({
         nextCharacterId: snapshot.characterId,
         nextCharacterSheetId: snapshot.characterSheetId,
@@ -450,12 +486,21 @@ export const useCharacterManagerDraft = (): UseCharacterManagerDraftResult => {
         publishSyncEvent: true,
         reason: "create",
       });
+      return true;
     } catch (nextError) {
-      setError(toErrorMessage(nextError, "Failed to create a new character draft."));
+      setError(toErrorMessage(nextError, "Failed to save character."));
+      return false;
     } finally {
-      setIsCreatingCharacter(false);
+      setIsSavingCharacter(false);
     }
-  }, [applySnapshot, clearMessages, refreshCharacterListSilently]);
+  }, [
+    applySnapshot,
+    characterId,
+    characterName,
+    clearMessages,
+    persistUnsavedDraftAssets,
+    refreshCharacterListSilently,
+  ]);
 
   const deleteCharacter = useCallback(
     async (targetCharacterId: string) => {
@@ -501,26 +546,10 @@ export const useCharacterManagerDraft = (): UseCharacterManagerDraftResult => {
           setCharacterVoiceState("");
           await refreshCharacterListSilently(snapshot.characterId);
         } else {
-          const snapshot = await createCharacterManagerDraft();
-          applySnapshot({
-            nextCharacterId: snapshot.characterId,
-            nextCharacterSheetId: snapshot.characterSheetId,
-            nextCharacterName: snapshot.characterName,
-            nextCharacterDescription: snapshot.characterDescription,
-            nextCharacterSheetAssignments: snapshot.characterSheetAssignments,
-            nextActiveCharacterSheetPresetId: snapshot.activeCharacterSheetPresetId,
-            nextCharacterSheetPresets: snapshot.characterSheetPresets,
-            nextVisibleCharacterSheetPresetIds: snapshot.visibleCharacterSheetPresetIds,
-            nextCharacterSheetPresetLabels: snapshot.characterSheetPresetLabels,
-            nextCharacterSheetPresetDescriptions: snapshot.characterSheetPresetDescriptions,
-            nextCharacterSheetPresetAssignments: snapshot.characterSheetPresetAssignments,
-            nextProfileImageUrl: snapshot.profileImageUrl,
-            nextProfileImageTransform: snapshot.profileImageTransform,
-            nextSlots: snapshot.slots,
-            nextUserId: snapshot.userId,
+          applyLocalDraft({
+            nextUserId: selectedCharacterStorageScopeRef.current,
           });
           setCharacterVoiceState("");
-          await refreshCharacterListSilently(snapshot.characterId);
         }
 
         return true;
@@ -531,7 +560,14 @@ export const useCharacterManagerDraft = (): UseCharacterManagerDraftResult => {
         setIsDeletingCharacter(false);
       }
     },
-    [applySnapshot, characterId, clearMessages, refreshCharacterList, refreshCharacterListSilently]
+    [
+      applyLocalDraft,
+      applySnapshot,
+      characterId,
+      clearMessages,
+      refreshCharacterList,
+      refreshCharacterListSilently,
+    ]
   );
 
   const selectCharacter = useCallback(
@@ -598,10 +634,12 @@ export const useCharacterManagerDraft = (): UseCharacterManagerDraftResult => {
     loading,
     isSavingName,
     isCreatingCharacter,
+    isSavingCharacter,
     isDeletingCharacter,
     isSwitchingCharacter,
     isSavingProfileImage,
     isSavingCharacterSheetPreset,
+    hasUnsavedCharacterDraft: !characterId,
     setCharacterName,
     setCharacterVoice,
     setCharacterDescription,
@@ -618,9 +656,11 @@ export const useCharacterManagerDraft = (): UseCharacterManagerDraftResult => {
     setSlotFile,
     clearSlot,
     createCharacter,
+    saveCharacter,
     selectCharacter,
     deleteCharacter,
     isSlotBusy,
     clearMessages,
+    setErrorMessage: setError,
   };
 };

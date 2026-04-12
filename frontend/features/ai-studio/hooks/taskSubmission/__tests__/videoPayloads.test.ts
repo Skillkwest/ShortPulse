@@ -3,6 +3,7 @@
  */
 import { describe, expect, it } from "vitest";
 import {
+  buildKieKlingElementsPayload,
   buildKlingElementsPayload,
   buildKlingMultiPromptPayload,
   resolveKieKlingAspect,
@@ -163,6 +164,44 @@ describe("buildKlingElementsPayload", () => {
       {
         frontal_image_url: "https://example.com/front.png",
         reference_image_urls: ["https://example.com/ref-a.png", "https://example.com/ref-b.png"],
+      },
+    ]);
+  });
+});
+
+describe("buildKieKlingElementsPayload", () => {
+  it("uses stable slot-based element names", () => {
+    const payload = buildKieKlingElementsPayload([
+      {
+        id: "slot-3",
+        slotIndex: 2,
+        name: "Beach",
+        alias: "beach",
+        frontalImageUrl: "https://example.com/beach-front.png",
+        referenceImageUrls: "",
+        videoUrl: "",
+      },
+      {
+        id: "slot-1",
+        slotIndex: 0,
+        name: "Taylor",
+        alias: "taylor",
+        frontalImageUrl: "",
+        referenceImageUrls: "",
+        videoUrl: "https://example.com/taylor-motion.mp4",
+      },
+    ]);
+
+    expect(payload).toEqual([
+      {
+        name: "element1",
+        description: "Reference video for Taylor",
+        element_input_video_urls: ["https://example.com/taylor-motion.mp4"],
+      },
+      {
+        name: "element3",
+        description: "Reference images for Beach",
+        element_input_urls: ["https://example.com/beach-front.png"],
       },
     ]);
   });

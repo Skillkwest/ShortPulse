@@ -349,6 +349,8 @@ export function PromptStep({
                 inlineActionClassName={promptInlineActionClassName}
                 promptTextareaRef={promptTextareaRef}
                 promptHighlightSegments={promptHighlightSegments}
+                onPromptDrop={onDrop}
+                onPromptDragOver={onDragOver}
                 onPromptFocus={onPromptFocus}
                 onPromptBlur={onPromptBlur}
                 onPromptSelect={onPromptSelect}

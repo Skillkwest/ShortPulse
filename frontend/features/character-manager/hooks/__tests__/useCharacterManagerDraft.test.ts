@@ -9,6 +9,7 @@ import {
   createDefaultCharacterSheetPresetLabels,
   createDefaultCharacterSheetPresetState,
   createEmptyCharacterSheetAssignments,
+  createEmptyCharacterSheetPresetAssignments,
   createEmptyCharacterSlotMap,
 } from "../../constants";
 import { useCharacterManagerDraft } from "../useCharacterManagerDraft";
@@ -16,9 +17,14 @@ import { readSupabaseUserId } from "../../../../lib/supabaseClient";
 import {
   clearCharacterManagerProfileImage,
   deleteCharacterManagerCharacterSheetPreset,
+  loadCharacterManagerDraftByCharacterId,
+  loadLatestCharacterManagerDraft,
   listCharacterManagerCharacters,
-  loadOrCreateCharacterManagerDraft,
+  saveCharacterManagerDraft,
   saveCharacterManagerActiveCharacterSheetPreset,
+  saveCharacterManagerCharacterSheetAssignments,
+  saveCharacterManagerCharacterSheetPresetAsset,
+  saveCharacterManagerCharacterSheetPresetAssignments,
   saveCharacterManagerProfileImage,
   saveCharacterManagerSlot,
 } from "../../logic/characterManagerPersistence";
@@ -41,10 +47,11 @@ vi.mock("../../logic/characterManagerPersistence", () => ({
   createCharacterManagerDraft: vi.fn(),
   deleteCharacterManagerDraft: vi.fn(),
   deleteCharacterManagerCharacterSheetPreset: vi.fn(),
+  loadLatestCharacterManagerDraft: vi.fn(),
   listCharacterManagerCharacters: vi.fn(),
   loadCharacterManagerDraftByCharacterId: vi.fn(),
-  loadOrCreateCharacterManagerDraft: vi.fn(),
   saveCharacterManagerActiveCharacterSheetPreset: vi.fn(),
+  saveCharacterManagerDraft: vi.fn(),
   saveCharacterManagerCharacterSheetAssignments: vi.fn(),
   saveCharacterManagerCharacterSheetPresetAsset: vi.fn(),
   saveCharacterManagerCharacterSheetPresetAssignments: vi.fn(),
@@ -71,10 +78,23 @@ vi.mock("../../logic/referenceValidation", () => ({
 }));
 
 const readSupabaseUserIdMock = vi.mocked(readSupabaseUserId);
-const loadOrCreateCharacterManagerDraftMock = vi.mocked(loadOrCreateCharacterManagerDraft);
+const loadLatestCharacterManagerDraftMock = vi.mocked(loadLatestCharacterManagerDraft);
+const loadCharacterManagerDraftByCharacterIdMock = vi.mocked(
+  loadCharacterManagerDraftByCharacterId
+);
 const listCharacterManagerCharactersMock = vi.mocked(listCharacterManagerCharacters);
+const saveCharacterManagerDraftMock = vi.mocked(saveCharacterManagerDraft);
 const saveCharacterManagerActiveCharacterSheetPresetMock = vi.mocked(
   saveCharacterManagerActiveCharacterSheetPreset
+);
+const saveCharacterManagerCharacterSheetAssignmentsMock = vi.mocked(
+  saveCharacterManagerCharacterSheetAssignments
+);
+const saveCharacterManagerCharacterSheetPresetAssetMock = vi.mocked(
+  saveCharacterManagerCharacterSheetPresetAsset
+);
+const saveCharacterManagerCharacterSheetPresetAssignmentsMock = vi.mocked(
+  saveCharacterManagerCharacterSheetPresetAssignments
 );
 const saveCharacterManagerProfileImageMock = vi.mocked(saveCharacterManagerProfileImage);
 const clearCharacterManagerProfileImageMock = vi.mocked(clearCharacterManagerProfileImage);
@@ -87,7 +107,7 @@ const persistSelectedCharacterIdMock = vi.mocked(persistSelectedCharacterId);
 const readPersistedSelectedCharacterIdMock = vi.mocked(readPersistedSelectedCharacterId);
 const validateCharacterReferenceFileMock = vi.mocked(validateCharacterReferenceFile);
 
-type DraftSnapshot = Awaited<ReturnType<typeof loadOrCreateCharacterManagerDraft>>;
+type DraftSnapshot = NonNullable<Awaited<ReturnType<typeof loadLatestCharacterManagerDraft>>>;
 
 const createPresetMedia = (id: string, previewUrl: string | null) => ({
   mediaFileId: `media-${id}`,
@@ -143,7 +163,7 @@ const createDraftSnapshot = (): DraftSnapshot => {
 const configureBootstrap = (snapshot: DraftSnapshot) => {
   readSupabaseUserIdMock.mockResolvedValue(snapshot.userId);
   readPersistedSelectedCharacterIdMock.mockReturnValue(null);
-  loadOrCreateCharacterManagerDraftMock.mockResolvedValue(snapshot);
+  loadLatestCharacterManagerDraftMock.mockResolvedValue(snapshot);
   listCharacterManagerCharactersMock.mockResolvedValue([
     {
       characterId: snapshot.characterId,
@@ -158,13 +178,20 @@ describe("useCharacterManagerDraft", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     readSupabaseUserIdMock.mockResolvedValue("user-1");
+    loadCharacterManagerDraftByCharacterIdMock.mockResolvedValue(createDraftSnapshot() as never);
+    saveCharacterManagerCharacterSheetAssignmentsMock.mockResolvedValue(
+      createEmptyCharacterSheetAssignments() as never
+    );
+    saveCharacterManagerCharacterSheetPresetAssignmentsMock.mockResolvedValue(
+      createDefaultCharacterSheetPresetState() as never
+    );
   });
 
   it("uses the user-scoped persisted selection during bootstrap", async () => {
     const snapshot = createDraftSnapshot();
     readSupabaseUserIdMock.mockResolvedValue(snapshot.userId);
     readPersistedSelectedCharacterIdMock.mockReturnValue("char-scoped");
-    loadOrCreateCharacterManagerDraftMock.mockResolvedValue(snapshot);
+    loadLatestCharacterManagerDraftMock.mockResolvedValue(snapshot);
     listCharacterManagerCharactersMock.mockResolvedValue([
       {
         characterId: snapshot.characterId,
@@ -182,8 +209,280 @@ describe("useCharacterManagerDraft", () => {
     });
 
     expect(readPersistedSelectedCharacterIdMock).toHaveBeenCalledWith({ userId: "user-1" });
-    expect(loadOrCreateCharacterManagerDraftMock).toHaveBeenCalledWith("char-scoped");
+    expect(loadLatestCharacterManagerDraftMock).toHaveBeenCalledWith("char-scoped");
     expect(persistSelectedCharacterIdMock).toHaveBeenCalledWith("char-1", { userId: "user-1" });
+  });
+
+  it("boots into a local unsaved draft when the library is empty", async () => {
+    readSupabaseUserIdMock.mockResolvedValue("user-1");
+    readPersistedSelectedCharacterIdMock.mockReturnValue(null);
+    loadLatestCharacterManagerDraftMock.mockResolvedValue(null);
+    listCharacterManagerCharactersMock.mockResolvedValue([] as never);
+
+    const { result } = renderHook(() => useCharacterManagerDraft());
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+    });
+
+    expect(result.current.selectedCharacterId).toBeNull();
+    expect(result.current.hasUnsavedCharacterDraft).toBe(true);
+    expect(result.current.characterName).toBe("New Character");
+    expect(result.current.characterDescription).toBe("");
+    expect(persistSelectedCharacterIdMock).toHaveBeenCalledWith(null, { userId: "user-1" });
+  });
+
+  it("only persists a new character when saveCharacter is pressed", async () => {
+    readSupabaseUserIdMock.mockResolvedValue("user-1");
+    readPersistedSelectedCharacterIdMock.mockReturnValue(null);
+    loadLatestCharacterManagerDraftMock.mockResolvedValue(null);
+    listCharacterManagerCharactersMock.mockResolvedValueOnce([] as never).mockResolvedValueOnce([
+      {
+        characterId: "char-saved",
+        characterName: "Fresh Save",
+        profileImageUrl: null,
+        updatedAt: "2026-03-17T00:00:01.000Z",
+      },
+    ] as never);
+    saveCharacterManagerDraftMock.mockResolvedValue({
+      ...createDraftSnapshot(),
+      characterId: "char-saved",
+      characterSheetId: "sheet-saved",
+      characterName: "Fresh Save",
+      characterDescription: "Saved description",
+      characterSheetPresetDescriptions: {
+        ...createDraftSnapshot().characterSheetPresetDescriptions,
+        "1": "Saved description",
+      },
+    } as never);
+    loadCharacterManagerDraftByCharacterIdMock.mockResolvedValue({
+      ...createDraftSnapshot(),
+      characterId: "char-saved",
+      characterSheetId: "sheet-saved",
+      characterName: "Fresh Save",
+      characterDescription: "Saved description",
+      characterSheetPresetDescriptions: {
+        ...createDraftSnapshot().characterSheetPresetDescriptions,
+        "1": "Saved description",
+      },
+    } as never);
+
+    const { result } = renderHook(() => useCharacterManagerDraft());
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+      expect(result.current.selectedCharacterId).toBeNull();
+    });
+
+    act(() => {
+      result.current.setCharacterName("Fresh Save");
+      result.current.setCharacterDescription("Saved description");
+    });
+
+    await act(async () => {
+      const ok = await result.current.saveCharacter();
+      expect(ok).toBe(true);
+    });
+
+    expect(saveCharacterManagerDraftMock).toHaveBeenCalledWith({
+      name: "Fresh Save",
+      activeCharacterSheetPresetId: "1",
+      visibleCharacterSheetPresetIds: ["1"],
+      characterSheetPresetLabels: expect.objectContaining({ "1": "Double click me" }),
+      characterSheetPresetDescriptions: expect.objectContaining({ "1": "Saved description" }),
+    });
+    await waitFor(() => {
+      expect(result.current.selectedCharacterId).toBe("char-saved");
+      expect(result.current.hasUnsavedCharacterDraft).toBe(false);
+      expect(result.current.characters[0]?.characterId).toBe("char-saved");
+    });
+  });
+
+  it("stages local draft assets before save and flushes them during the first save", async () => {
+    readSupabaseUserIdMock.mockResolvedValue("user-1");
+    readPersistedSelectedCharacterIdMock.mockReturnValue(null);
+    loadLatestCharacterManagerDraftMock.mockResolvedValue(null);
+    listCharacterManagerCharactersMock.mockResolvedValueOnce([] as never).mockResolvedValueOnce([
+      {
+        characterId: "char-saved",
+        characterName: "Draft Hero",
+        profileImageUrl: "https://signed.example/profile-saved.png",
+        updatedAt: "2026-03-17T00:00:01.000Z",
+      },
+    ] as never);
+    const persistedPresetAsset = createPresetMedia(
+      "draft-portrait",
+      "https://signed.example/preset-draft.png"
+    );
+    const hydratedSnapshot = {
+      ...createDraftSnapshot(),
+      characterId: "char-saved",
+      characterSheetId: "sheet-saved",
+      characterName: "Draft Hero",
+      profileImageUrl: "https://signed.example/profile-saved.png",
+      characterSheetPresets: {
+        ...createDraftSnapshot().characterSheetPresets,
+        "1": {
+          ...createDraftSnapshot().characterSheetPresets["1"],
+          portrait: persistedPresetAsset,
+        },
+      },
+      characterSheetPresetAssignments: {
+        ...createDraftSnapshot().characterSheetPresets["1"],
+        portrait: persistedPresetAsset,
+      },
+      slots: {
+        ...createEmptyCharacterSlotMap(),
+        front_full: {
+          mediaFileId: "media-front-full",
+          storagePath: "characters/char-saved/front-full.png",
+          validationStatus: "pass",
+          validationNotes: {
+            validatorVersion: 1,
+            mimeType: "image/png",
+            width: 1024,
+            height: 1280,
+            aspectRatio: 0.8,
+            sha256: "front-full",
+            hardErrors: [],
+            warnings: [],
+            evaluatedAt: "2026-03-17T00:00:00.000Z",
+          },
+          name: "front-full.png",
+          size: 1024,
+          type: "image/png",
+          previewUrl: "https://signed.example/front-full.png",
+          updatedAt: "2026-03-17T00:00:00.000Z",
+        },
+      },
+    } as DraftSnapshot;
+    saveCharacterManagerDraftMock.mockResolvedValue({
+      ...hydratedSnapshot,
+      profileImageUrl: null,
+      characterSheetPresets: createDefaultCharacterSheetPresetState().presets,
+      characterSheetPresetAssignments: createEmptyCharacterSheetPresetAssignments(),
+      slots: createEmptyCharacterSlotMap(),
+    } as never);
+    loadCharacterManagerDraftByCharacterIdMock.mockResolvedValue(hydratedSnapshot as never);
+    saveCharacterManagerProfileImageMock.mockResolvedValue(
+      "https://signed.example/profile-saved.png" as never
+    );
+    saveCharacterManagerCharacterSheetPresetAssetMock.mockResolvedValue(
+      persistedPresetAsset as never
+    );
+    saveCharacterManagerCharacterSheetPresetAssignmentsMock.mockResolvedValue(
+      createDefaultCharacterSheetPresetState() as never
+    );
+    saveCharacterManagerCharacterSheetAssignmentsMock.mockResolvedValue(
+      createEmptyCharacterSheetAssignments() as never
+    );
+    validateCharacterReferenceFileMock.mockResolvedValue({
+      status: "pass",
+      notes: {
+        validatorVersion: 1,
+        mimeType: "image/png",
+        width: 1024,
+        height: 1280,
+        aspectRatio: 0.8,
+        sha256: "front-full",
+        hardErrors: [],
+        warnings: [],
+        evaluatedAt: "2026-03-17T00:00:00.000Z",
+      },
+    } as never);
+    saveCharacterManagerSlotMock.mockResolvedValue(hydratedSnapshot.slots.front_full as never);
+
+    const { result } = renderHook(() => useCharacterManagerDraft());
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+      expect(result.current.selectedCharacterId).toBeNull();
+    });
+
+    const profileFile = new File(["profile"], "profile.png", { type: "image/png" });
+    const presetFile = new File(["preset"], "preset.png", { type: "image/png" });
+    const slotFile = new File(["slot"], "front-full.png", { type: "image/png" });
+
+    await act(async () => {
+      await result.current.setProfileImageFile(profileFile);
+      await result.current.setCharacterSheetPresetFile("portrait", presetFile);
+      await result.current.setSlotFile("front_full", slotFile);
+    });
+
+    expect(result.current.profileImageUrl).toMatch(/^blob:/);
+    expect(result.current.characterSheetPresetAssignments.portrait?.previewUrl).toMatch(/^blob:/);
+    expect(result.current.slots.front_full?.previewUrl).toMatch(/^blob:/);
+
+    await act(async () => {
+      const ok = await result.current.saveCharacter();
+      expect(ok).toBe(true);
+    });
+
+    expect(saveCharacterManagerProfileImageMock).toHaveBeenCalledWith({
+      characterId: "char-saved",
+      file: profileFile,
+    });
+    expect(saveCharacterManagerCharacterSheetPresetAssetMock).toHaveBeenCalledWith({
+      characterId: "char-saved",
+      file: presetFile,
+    });
+    expect(saveCharacterManagerCharacterSheetPresetAssignmentsMock).toHaveBeenCalledWith({
+      characterId: "char-saved",
+      presetId: "1",
+      assignments: expect.objectContaining({
+        portrait: persistedPresetAsset,
+      }),
+    });
+    expect(saveCharacterManagerSlotMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        characterId: "char-saved",
+        characterSheetId: "sheet-saved",
+        slotKey: "front_full",
+        file: slotFile,
+      })
+    );
+    expect(loadCharacterManagerDraftByCharacterIdMock).toHaveBeenCalledWith("char-saved");
+
+    await waitFor(() => {
+      expect(result.current.selectedCharacterId).toBe("char-saved");
+      expect(result.current.profileImageUrl).toBe("https://signed.example/profile-saved.png");
+      expect(result.current.characterSheetPresetAssignments.portrait?.previewUrl).toBe(
+        "https://signed.example/preset-draft.png"
+      );
+      expect(result.current.slots.front_full?.previewUrl).toBe(
+        "https://signed.example/front-full.png"
+      );
+    });
+  });
+
+  it("allows preset tabs to be added and switched before the first save", async () => {
+    readSupabaseUserIdMock.mockResolvedValue("user-1");
+    readPersistedSelectedCharacterIdMock.mockReturnValue(null);
+    loadLatestCharacterManagerDraftMock.mockResolvedValue(null);
+    listCharacterManagerCharactersMock.mockResolvedValue([] as never);
+
+    const { result } = renderHook(() => useCharacterManagerDraft());
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+      expect(result.current.selectedCharacterId).toBeNull();
+    });
+
+    await act(async () => {
+      const added = await result.current.addCharacterSheetPreset();
+      expect(added).toBe(true);
+    });
+
+    expect(result.current.visibleCharacterSheetPresetIds).toEqual(["1", "2"]);
+    expect(result.current.activeCharacterSheetPresetId).toBe("2");
+
+    await act(async () => {
+      const switched = await result.current.setActiveCharacterSheetPreset("1");
+      expect(switched).toBe(true);
+    });
+
+    expect(result.current.activeCharacterSheetPresetId).toBe("1");
+    expect(saveCharacterManagerActiveCharacterSheetPresetMock).not.toHaveBeenCalled();
   });
 
   it("keeps local preset preview urls stable when switching the active preset", async () => {
@@ -231,7 +530,7 @@ describe("useCharacterManagerDraft", () => {
     const snapshot = createDraftSnapshot();
     readSupabaseUserIdMock.mockResolvedValue(snapshot.userId);
     readPersistedSelectedCharacterIdMock.mockReturnValue(null);
-    loadOrCreateCharacterManagerDraftMock.mockResolvedValue(snapshot);
+    loadLatestCharacterManagerDraftMock.mockResolvedValue(snapshot);
     listCharacterManagerCharactersMock
       .mockResolvedValueOnce([
         {
@@ -239,6 +538,14 @@ describe("useCharacterManagerDraft", () => {
           characterName: snapshot.characterName,
           profileImageUrl: snapshot.profileImageUrl,
           updatedAt: "2026-03-17T00:00:00.000Z",
+        },
+      ] as never)
+      .mockResolvedValueOnce([
+        {
+          characterId: snapshot.characterId,
+          characterName: snapshot.characterName,
+          profileImageUrl: "https://signed.example/profile.png",
+          updatedAt: "2026-03-17T00:00:01.000Z",
         },
       ] as never)
       .mockResolvedValueOnce([

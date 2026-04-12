@@ -9,9 +9,11 @@ import type { CharacterSheetDropZoneKey, CharacterProfileImageTransform } from "
 
 type UseCharacterManagerShellActionHandlersParams = {
   pageBusy: boolean;
+  hasPersistedCharacter: boolean;
   quickSwapMutating: boolean;
   isDropResolutionBusy: boolean;
   clearAllMessages: () => void;
+  setError: (message: string | null) => void;
   appendQuickSwapFiles: (files: File[]) => Promise<unknown>;
   setPendingCharacterSheetUploadZoneKey: Dispatch<SetStateAction<CharacterSheetDropZoneKey | null>>;
   characterSheetFileInputRef: RefObject<HTMLInputElement | null>;
@@ -46,9 +48,11 @@ type UseCharacterManagerShellActionHandlersResult = {
 
 export const useCharacterManagerShellActionHandlers = ({
   pageBusy,
+  hasPersistedCharacter,
   quickSwapMutating,
   isDropResolutionBusy,
   clearAllMessages,
+  setError,
   appendQuickSwapFiles,
   setPendingCharacterSheetUploadZoneKey,
   characterSheetFileInputRef,
@@ -72,10 +76,23 @@ export const useCharacterManagerShellActionHandlers = ({
     async (incomingFiles: FileList | File[]) => {
       const files = Array.from(incomingFiles);
       if (!files.length || pageBusy || quickSwapMutating || isDropResolutionBusy) return;
+      if (!hasPersistedCharacter) {
+        clearAllMessages();
+        setError("Save this character before uploading QuickSwap references.");
+        return;
+      }
       clearAllMessages();
       await appendQuickSwapFiles(files);
     },
-    [appendQuickSwapFiles, clearAllMessages, isDropResolutionBusy, pageBusy, quickSwapMutating]
+    [
+      appendQuickSwapFiles,
+      clearAllMessages,
+      hasPersistedCharacter,
+      isDropResolutionBusy,
+      pageBusy,
+      quickSwapMutating,
+      setError,
+    ]
   );
 
   const handleSimpleFileSelection = useCallback(
@@ -126,9 +143,22 @@ export const useCharacterManagerShellActionHandlers = ({
 
   const openQuickSwapUploadPicker = useCallback(() => {
     if (pageBusy || quickSwapMutating || isDropResolutionBusy) return;
+    if (!hasPersistedCharacter) {
+      clearAllMessages();
+      setError("Save this character before uploading QuickSwap references.");
+      return;
+    }
     clearAllMessages();
     simpleFileInputRef.current?.click();
-  }, [clearAllMessages, isDropResolutionBusy, pageBusy, quickSwapMutating, simpleFileInputRef]);
+  }, [
+    clearAllMessages,
+    hasPersistedCharacter,
+    isDropResolutionBusy,
+    pageBusy,
+    quickSwapMutating,
+    setError,
+    simpleFileInputRef,
+  ]);
 
   const handleProfileSelection = useCallback(
     (event: ChangeEvent<HTMLInputElement>) => {

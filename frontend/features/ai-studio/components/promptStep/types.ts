@@ -105,6 +105,8 @@ export type PromptStepProps = {
   autoResizeLayoutKey?: string | number;
   promptTextareaRef?: React.RefObject<HTMLTextAreaElement | null>;
   promptHighlightSegments?: PromptTokenHighlightSegment[];
+  onPromptDrop?: (event: React.DragEvent<HTMLTextAreaElement>) => void;
+  onPromptDragOver?: (event: React.DragEvent<HTMLTextAreaElement>) => void;
   onPromptFocus?: (event: React.FocusEvent<HTMLTextAreaElement>) => void;
   onPromptBlur?: (event: React.FocusEvent<HTMLTextAreaElement>) => void;
   onPromptSelect?: (event: React.SyntheticEvent<HTMLTextAreaElement>) => void;

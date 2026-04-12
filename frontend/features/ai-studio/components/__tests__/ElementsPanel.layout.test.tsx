@@ -10,6 +10,7 @@ import type {
   ResolveInternalReferenceDrop,
   ResolvedInternalReferenceSource,
 } from "../../logic/referenceSource/internalReferenceSource";
+import { saveElementManagerDraft } from "../../../elements-manager/logic/elementsManagerPersistence";
 import { uploadImageToStorage } from "../../utils/imageUpload";
 
 const elementsManagerPersistenceMockState = vi.hoisted(() => {
@@ -61,36 +62,6 @@ const elementsManagerPersistenceMockState = vi.hoisted(() => {
 vi.mock("../../../elements-manager/logic/elementsManagerPersistence", () => ({
   DEFAULT_ELEMENT_NAME: "New Element",
   clearElementProfileImage: vi.fn(async () => undefined),
-  createElementDraftRow: vi.fn(async () => {
-    const snapshot = {
-      elementId: "element-new-element",
-      name: "New Element",
-      alias: "",
-      status: "ready" as const,
-      profileImageUrl: null as string | null,
-      profileImageTransform: { zoom: 1, offsetX: 0, offsetY: 0 },
-      description: "",
-      assetType: "image" as const,
-      imageReferenceUrls: [],
-      videoReferenceUrl: null as string | null,
-      updatedAt: "2026-04-07T00:00:00.000Z",
-    };
-    elementsManagerPersistenceMockState.snapshots.set(snapshot.elementId, snapshot);
-    elementsManagerPersistenceMockState.list = [
-      {
-        elementId: snapshot.elementId,
-        elementName: snapshot.name,
-        elementAlias: snapshot.alias,
-        elementAssetType: "image" as const,
-        elementStatus: snapshot.status,
-        profileImageUrl: snapshot.profileImageUrl,
-        profileImageTransform: snapshot.profileImageTransform,
-        updatedAt: snapshot.updatedAt,
-      },
-      ...elementsManagerPersistenceMockState.list,
-    ];
-    return { elementId: snapshot.elementId };
-  }),
   deleteElementManagerDraft: vi.fn(async ({ elementId }: { elementId: string }) => {
     elementsManagerPersistenceMockState.snapshots.delete(elementId);
     elementsManagerPersistenceMockState.list = elementsManagerPersistenceMockState.list.filter(
@@ -105,6 +76,46 @@ vi.mock("../../../elements-manager/logic/elementsManagerPersistence", () => ({
     }
     return snapshot;
   }),
+  saveElementManagerDraft: vi.fn(
+    async ({
+      name,
+      alias,
+      description,
+      assetType,
+      imageReferenceUrls,
+      videoReferenceUrl,
+      profileImageTransform,
+    }) => {
+      const snapshot = {
+        elementId: "element-new-element",
+        name,
+        alias,
+        status: "ready" as const,
+        profileImageUrl: null as string | null,
+        profileImageTransform,
+        description,
+        assetType,
+        imageReferenceUrls,
+        videoReferenceUrl,
+        updatedAt: "2026-04-07T00:00:00.000Z",
+      };
+      elementsManagerPersistenceMockState.snapshots.set(snapshot.elementId, snapshot);
+      elementsManagerPersistenceMockState.list = [
+        {
+          elementId: snapshot.elementId,
+          elementName: snapshot.name,
+          elementAlias: snapshot.alias,
+          elementAssetType: snapshot.assetType,
+          elementStatus: snapshot.status,
+          profileImageUrl: snapshot.profileImageUrl,
+          profileImageTransform: snapshot.profileImageTransform,
+          updatedAt: snapshot.updatedAt,
+        },
+        ...elementsManagerPersistenceMockState.list,
+      ];
+      return snapshot;
+    }
+  ),
   saveElementManagerDraftSnapshot: vi.fn(
     async ({
       elementId,
@@ -176,6 +187,23 @@ const createDataTransfer = () => {
   };
 };
 
+const createFileDataTransfer = (file: File) => ({
+  files: [file],
+  items: [
+    {
+      kind: "file",
+      type: file.type,
+      getAsFile: () => file,
+    },
+  ],
+  types: ["Files"],
+  effectAllowed: "all",
+  dropEffect: "move",
+  setDragImage: () => undefined,
+  setData: () => undefined,
+  getData: () => "",
+});
+
 const addInternalReferenceDragPayload = (
   transfer: ReturnType<typeof createDataTransfer>,
   options?: {
@@ -218,6 +246,7 @@ const stubProfileImageFetch = () => {
 describe("ElementsPanel layout", () => {
   beforeEach(() => {
     elementsManagerPersistenceMockState.reset();
+    vi.mocked(saveElementManagerDraft).mockClear();
     vi.mocked(uploadImageToStorage).mockClear();
   });
 
@@ -240,6 +269,7 @@ describe("ElementsPanel layout", () => {
     expect(container!.querySelector(".character-manager-page")).toBeNull();
     expect(container!.querySelector(".character-manager-page--embedded")).toBeNull();
     expect(container!.querySelector(".elements-manager-shell--character-clone")).toBeNull();
+    expect(container!.querySelector(".panel.media-panel.elements-manage-panel")).toBeNull();
     expect(container!.querySelector(".elements-manage-list")).toBeTruthy();
     expect(screen.getByRole("heading", { name: "Elements Library" })).toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Element Deck" })).not.toBeInTheDocument();
@@ -250,6 +280,62 @@ describe("ElementsPanel layout", () => {
         screen.getByRole("button", { name: "Open element profile: Red Lantern" })
       ).toBeInTheDocument();
     });
+  });
+
+  it("stages a new element locally and only persists it after Save Element is clicked", async () => {
+    render(<ElementsPanel />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Create New Element" }));
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Save Element" })).toBeInTheDocument();
+    });
+    expect(screen.getByRole("button", { name: "Save Element" })).toBeEnabled();
+    expect(screen.getByLabelText("Name:")).toHaveValue("");
+    expect(screen.getByLabelText("Alias:")).toHaveValue("");
+    expect(saveElementManagerDraft).not.toHaveBeenCalled();
+    expect(elementsManagerPersistenceMockState.list).toHaveLength(1);
+
+    fireEvent.change(screen.getByLabelText("Name:"), { target: { value: "Taylor" } });
+    fireEvent.change(screen.getByLabelText("Alias:"), { target: { value: "taylor_element" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save Element" }));
+
+    await waitFor(() => {
+      expect(saveElementManagerDraft).toHaveBeenCalledWith({
+        name: "Taylor",
+        alias: "taylor_element",
+        profileImageTransform: { zoom: 1, offsetX: 0, offsetY: 0 },
+        description: "",
+        assetType: "image",
+        imageReferenceUrls: [],
+        videoReferenceUrl: null,
+      });
+    });
+
+    fireEvent.click(screen.getByRole("tab", { name: "Manage Elements" }));
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole("button", { name: "Open element profile: Taylor" })
+      ).toBeInTheDocument();
+    });
+    expect(elementsManagerPersistenceMockState.list).toHaveLength(2);
+  });
+
+  it("requires saving a new element before adding profile photos or references", async () => {
+    render(<ElementsPanel />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Create New Element" }));
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Save Element" })).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Upload element profile photo" }));
+
+    expect(
+      screen.getByText("Save the element before adding a profile photo or references.")
+    ).toBeInTheDocument();
   });
 
   it("opens the profile editor as a single-column profile workspace", async () => {
@@ -467,6 +553,49 @@ describe("ElementsPanel layout", () => {
     });
   });
 
+  it("accepts a local image file drop into an element reference slot", async () => {
+    Object.defineProperty(URL, "createObjectURL", {
+      configurable: true,
+      writable: true,
+      value: vi.fn(() => "blob:element-reference-local-file"),
+    });
+    Object.defineProperty(URL, "revokeObjectURL", {
+      configurable: true,
+      writable: true,
+      value: vi.fn(),
+    });
+
+    render(<ElementsPanel />);
+
+    const openProfileButton = await screen.findByRole("button", {
+      name: "Open element profile: Red Lantern",
+    });
+    fireEvent.click(openProfileButton);
+    await waitForElementProfileShell();
+
+    const supportAngleZone = screen.getByText("Support Angle").closest("article");
+    if (!supportAngleZone) {
+      throw new Error("Expected support-angle drop zone to exist.");
+    }
+
+    const localFile = new File(["local-reference"], "support-angle.png", {
+      type: "image/png",
+    });
+    const fileDrag = createFileDataTransfer(localFile);
+
+    fireEvent.dragEnter(supportAngleZone, { dataTransfer: fileDrag });
+    fireEvent.dragOver(supportAngleZone, { dataTransfer: fileDrag });
+    fireEvent.drop(supportAngleZone, { dataTransfer: fileDrag });
+
+    await waitFor(() => {
+      expect(screen.getByAltText("Support Angle reference")).toHaveAttribute(
+        "src",
+        "https://example.com/uploaded/internal-drop.png"
+      );
+    });
+    expect(uploadImageToStorage).toHaveBeenCalledWith("blob:element-reference-local-file");
+  });
+
   it("saves a new profile image when a reference-grid image is dropped on the profile photo", async () => {
     const fetchMock = stubProfileImageFetch();
     render(<ElementsPanel />);
@@ -500,6 +629,31 @@ describe("ElementsPanel layout", () => {
       );
     });
     expect(fetchMock).toHaveBeenCalledWith("https://example.com/reference/mantis-profile.png");
+  });
+
+  it("saves a new profile image when a local image file is dropped on the profile photo", async () => {
+    render(<ElementsPanel />);
+
+    const openProfileButton = await screen.findByRole("button", {
+      name: "Open element profile: Red Lantern",
+    });
+    fireEvent.click(openProfileButton);
+    await waitForElementProfileShell();
+
+    const profileButton = screen.getByRole("button", { name: "Upload element profile photo" });
+    const localFile = new File(["profile-image"], "local-profile.png", { type: "image/png" });
+    const fileDrag = createFileDataTransfer(localFile);
+
+    fireEvent.dragEnter(profileButton, { dataTransfer: fileDrag });
+    fireEvent.dragOver(profileButton, { dataTransfer: fileDrag });
+    fireEvent.drop(profileButton, { dataTransfer: fileDrag });
+
+    await waitFor(() => {
+      expect(screen.getByAltText("Element profile")).toHaveAttribute(
+        "src",
+        "blob:local-profile.png"
+      );
+    });
   });
 
   it("saves a new profile image when an internal reference drop needs resolver fallback", async () => {

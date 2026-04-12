@@ -15,8 +15,11 @@ type CharacterManagerWorkflowTabsProps = {
   effectiveBeginnerMode: boolean;
   setBeginnerMode: React.Dispatch<React.SetStateAction<boolean>>;
   isCreatingCharacter: boolean;
+  isSavingCharacter: boolean;
+  hasUnsavedCharacterDraft: boolean;
   loading: boolean;
   onCreateCharacter: () => void;
+  onSaveCharacter: () => void;
 };
 
 /**
@@ -30,8 +33,11 @@ export function CharacterManagerWorkflowTabs({
   effectiveBeginnerMode,
   setBeginnerMode,
   isCreatingCharacter,
+  isSavingCharacter,
+  hasUnsavedCharacterDraft,
   loading,
   onCreateCharacter,
+  onSaveCharacter,
 }: CharacterManagerWorkflowTabsProps) {
   const shouldShowProfileTab = !isEmbeddedSurface || activeTab === "create";
   const shouldRenderEmbeddedHeader = !isEmbeddedSurface || activeTab === "create";
@@ -90,9 +96,32 @@ export function CharacterManagerWorkflowTabs({
     </button>
   );
 
+  const saveButton =
+    activeTab === "create" ? (
+      <button
+        type="button"
+        className={`character-mode-create-btn character-mode-save-btn${
+          isEmbeddedSurface ? " character-mode-create-btn--inline" : ""
+        }`}
+        onClick={onSaveCharacter}
+        disabled={!hasUnsavedCharacterDraft || isSavingCharacter || loading}
+      >
+        {isSavingCharacter ? "Saving..." : hasUnsavedCharacterDraft ? "Save Character" : "Saved"}
+      </button>
+    ) : null;
+
   if (isEmbeddedSurface) {
     if (!shouldRenderEmbeddedHeader) return null;
-    return <header className="character-library-panel-header">{tabRow}</header>;
+    return (
+      <header className="character-library-panel-header">
+        <div className="character-library-panel-header-main">
+          {tabRow}
+          {saveButton ? (
+            <div className="character-library-panel-header-actions">{saveButton}</div>
+          ) : null}
+        </div>
+      </header>
+    );
   }
 
   return (
@@ -117,6 +146,7 @@ export function CharacterManagerWorkflowTabs({
           </button>
         </div>
       ) : null}
+      {saveButton}
       {activeTab === "manage" ? createButton : null}
     </div>
   );

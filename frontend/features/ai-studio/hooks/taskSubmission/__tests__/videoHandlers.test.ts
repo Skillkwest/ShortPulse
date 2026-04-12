@@ -718,7 +718,7 @@ describe("handleVideoModelSubmission (Kie Kling standard)", () => {
     expect(handled).toBe(true);
     expect(submitKieKlingImageToVideo).toHaveBeenCalledWith(
       expect.objectContaining({
-        prompt: "First shot @element_redlantern @element_steamtrain",
+        prompt: "First shot @element1 @element2",
         image_urls: ["https://example.com/start.png"],
         aspect_ratio: "16:9",
         resolution: "1080p",
@@ -727,12 +727,12 @@ describe("handleVideoModelSubmission (Kie Kling standard)", () => {
         sound: true,
         multi_shots: true,
         multi_prompt: [
-          { prompt: "First shot @element_redlantern @element_steamtrain", duration: 5 },
-          { prompt: "Second shot @element_redlantern @element_steamtrain", duration: 7 },
+          { prompt: "First shot @element1 @element2", duration: 5 },
+          { prompt: "Second shot @element1 @element2", duration: 7 },
         ],
         kling_elements: [
           {
-            name: "element_redlantern",
+            name: "element1",
             description: "Reference images for Red Lantern",
             element_input_urls: [
               "https://example.com/element-a.png",
@@ -740,7 +740,7 @@ describe("handleVideoModelSubmission (Kie Kling standard)", () => {
             ],
           },
           {
-            name: "element_steamtrain",
+            name: "element2",
             description: "Reference video for Steam Train",
             element_input_video_urls: ["https://example.com/element-video.mp4"],
           },
@@ -801,10 +801,10 @@ describe("handleVideoModelSubmission (Kie Kling standard)", () => {
     expect(handled).toBe(true);
     expect(submitKieKlingImageToVideo).toHaveBeenCalledWith(
       expect.objectContaining({
-        prompt: "the woman walks into the scene @element_taylor",
+        prompt: "the woman walks into the scene @element1",
         kling_elements: [
           {
-            name: "element_taylor",
+            name: "element1",
             description: "Reference images for Taylor",
             element_input_urls: [
               "https://example.com/taylor-front.png",
@@ -843,10 +843,10 @@ describe("handleVideoModelSubmission (Kie Kling standard)", () => {
     expect(handled).toBe(true);
     expect(submitKieKlingImageToVideo).toHaveBeenCalledWith(
       expect.objectContaining({
-        prompt: "the woman walks into the scene @element_taylorswift",
+        prompt: "the woman walks into the scene @element1",
         kling_elements: [
           {
-            name: "element_taylorswift",
+            name: "element1",
             description: "Reference images for Taylor Swift",
             element_input_urls: [
               "https://example.com/taylor-front.png",
@@ -943,7 +943,7 @@ describe("handleVideoModelSubmission (Kie Kling standard)", () => {
       expect.objectContaining({
         kling_elements: [
           {
-            name: "element_taylor",
+            name: "element1",
             description: "Reference images for Taylor",
             element_input_urls: [
               "https://tempfile.aiquickdraw.com/shortpulse/kling-elements/images/taylor-front.png",
@@ -996,7 +996,7 @@ describe("handleVideoModelSubmission (Kie Kling standard)", () => {
       expect.objectContaining({
         kling_elements: [
           {
-            name: "element_taylor",
+            name: "element1",
             description: "Reference images for Taylor",
             element_input_urls: [
               "https://tempfile.aiquickdraw.com/shortpulse/kling-elements/images/taylor-front.png",
@@ -1034,13 +1034,13 @@ describe("handleVideoModelSubmission (Kie Kling standard)", () => {
     expect(handled).toBe(true);
     expect(submitKieKlingImageToVideo).toHaveBeenCalledWith(
       expect.objectContaining({
-        prompt: "Scene one shifts into scene two with @element_redlantern throughout.",
+        prompt: "Scene one shifts into scene two with @element1 throughout.",
         image_urls: ["https://example.com/start.png", "https://example.com/end.png"],
         multi_shots: false,
         multi_prompt: undefined,
         kling_elements: [
           {
-            name: "element_redlantern",
+            name: "element1",
             description: "Reference images for Red Lantern",
             element_input_urls: ["https://example.com/element-a.png"],
           },

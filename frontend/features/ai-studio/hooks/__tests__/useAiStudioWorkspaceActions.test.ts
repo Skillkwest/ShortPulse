@@ -59,7 +59,7 @@ describe("useAiStudioWorkspaceActions", () => {
     expect(setPromptOrigin).toHaveBeenCalledWith("manual");
   });
 
-  it("selects tool, enforces image mode for create/text/edit, and closes tray on clear", () => {
+  it("selects tool, preserves create workflow mode, enforces image mode for edit, and closes tray on clear", () => {
     const setSelectedTool = vi.fn();
     const setMode = vi.fn();
     const setShowCreateTools = vi.fn();
@@ -82,7 +82,7 @@ describe("useAiStudioWorkspaceActions", () => {
     });
 
     expect(setSelectedTool).toHaveBeenCalledTimes(5);
-    expect(setMode).toHaveBeenCalledTimes(3);
+    expect(setMode).toHaveBeenCalledTimes(1);
     expect(setMode).toHaveBeenCalledWith("image");
     expect(setShowCreateTools).toHaveBeenCalledWith(false);
   });

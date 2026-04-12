@@ -26,6 +26,14 @@
 }
 
 @media (max-width: 860px) {
+  .elements-manager-shell--panel .elements-workflow-header-main {
+    grid-template-columns: 1fr;
+  }
+
+  .elements-manager-shell--panel .elements-workflow-header-actions {
+    width: 100%;
+  }
+
   .elements-manager-shell--panel .elements-profile-top-row {
     grid-template-columns: minmax(0, 1fr);
   }

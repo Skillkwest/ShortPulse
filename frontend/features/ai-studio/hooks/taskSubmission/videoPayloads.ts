@@ -285,7 +285,11 @@ export const buildKieKlingElementsPayload = (
   });
   const payload = orderedElements.reduce<KieKlingElementPayload[]>(
     (accumulator, element, index) => {
-      const tokenName = resolveKieKlingElementToken(element, index, orderedElements);
+      const tokenName = resolveKieKlingElementToken(
+        element,
+        element.slotIndex ?? index,
+        orderedElements
+      );
       const imageList = Array.from(new Set(getAiStudioKlingElementReferenceUrls(element))).slice(
         0,
         4

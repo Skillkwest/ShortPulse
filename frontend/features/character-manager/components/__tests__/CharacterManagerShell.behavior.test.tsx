@@ -239,7 +239,9 @@ const characterManagerMockState = vi.hoisted(() => ({
   characters: [] as MockCharacterListEntry[],
   selectedCharacterId: "character-1",
   loading: false,
+  isSavingCharacter: false,
   isSwitchingCharacter: false,
+  saveCharacter: vi.fn(async () => true),
 }));
 
 const quickSwapDeckMockState = vi.hoisted(() => ({
@@ -428,10 +430,12 @@ vi.mock("../../hooks/useCharacterManagerDraft", async () => {
         loading: characterManagerMockState.loading,
         isSavingName: false,
         isCreatingCharacter: false,
+        isSavingCharacter: characterManagerMockState.isSavingCharacter,
         isDeletingCharacter: false,
         isSwitchingCharacter: characterManagerMockState.isSwitchingCharacter,
         isSavingProfileImage: false,
         isSavingCharacterSheetPreset: false,
+        hasUnsavedCharacterDraft: !characterManagerMockState.selectedCharacterId,
         setCharacterName: () => undefined,
         setCharacterVoice: () => undefined,
         setCharacterDescription: () => undefined,
@@ -556,12 +560,14 @@ vi.mock("../../hooks/useCharacterManagerDraft", async () => {
           return undefined;
         },
         createCharacter: async () => undefined,
+        saveCharacter: characterManagerMockState.saveCharacter,
         selectCharacter: async (characterId: string) => {
           characterManagerMockState.selectedCharacterId = characterId;
         },
         deleteCharacter: async () => true,
         isSlotBusy: () => false,
         clearMessages: () => undefined,
+        setErrorMessage: () => undefined,
       };
     },
   };
@@ -672,7 +678,10 @@ describe("CharacterManagerShell behavior", () => {
     characterManagerMockState.characters = [];
     characterManagerMockState.selectedCharacterId = "character-1";
     characterManagerMockState.loading = false;
+    characterManagerMockState.isSavingCharacter = false;
     characterManagerMockState.isSwitchingCharacter = false;
+    characterManagerMockState.saveCharacter.mockReset();
+    characterManagerMockState.saveCharacter.mockResolvedValue(true);
     supabaseClientMockState.mediaLookupMaybeSingle.mockReset();
     supabaseClientMockState.mediaLookupMaybeSingle.mockResolvedValue({ data: null, error: null });
     supabaseClientMockState.storageDownload.mockReset();
@@ -1892,6 +1901,14 @@ describe("CharacterManagerShell behavior", () => {
         })
       ).not.toBeInTheDocument();
     });
+  });
+
+  it("shows Save Character in embedded profile mode for unsaved drafts", async () => {
+    characterManagerMockState.selectedCharacterId = "";
+    render(<CharacterManagerShell surface="panel" initialWorkflowTab="create" />);
+
+    expect(screen.getByRole("button", { name: "Save Character" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Saved" })).not.toBeInTheDocument();
   });
 
   it("shows a loading spinner in Manage Characters while the character list is loading", async () => {

@@ -152,11 +152,39 @@
   margin-top: 12px;
 }
 
+.create-expert-panel .create-expert-prompt-step .agent-message.agent-user {
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+}
+
+.create-expert-panel .create-expert-prompt-step .agent-message.agent-user.is-draggable:hover,
+.create-expert-panel .create-expert-prompt-step .agent-message.agent-user.is-draggable:active,
+.create-expert-panel .create-expert-prompt-step .agent-message.agent-user.is-draggable.is-dragging {
+  border-color: transparent;
+  box-shadow: none;
+}
+
 .create-expert-panel
   .create-expert-prompt-step
-  .agent-message.agent-user:not(.agent-user-attachments) {
-  background: rgba(49, 54, 60, 0.26);
-  border-color: rgba(201, 205, 214, 0);
+  .agent-message.agent-user
+  .agent-message-attachments {
+  justify-content: flex-end;
+}
+
+.create-expert-panel
+  .create-expert-prompt-step
+  .agent-message.agent-user
+  .agent-attachment-card-list--message {
+  justify-content: flex-end;
+}
+
+.create-expert-panel
+  .create-expert-prompt-step
+  .agent-message.agent-user
+  .agent-attachment-card--message {
+  border-color: transparent;
+  box-shadow: none;
 }
 
 .create-expert-panel .create-expert-prompt-step .agent-message.agent-user,

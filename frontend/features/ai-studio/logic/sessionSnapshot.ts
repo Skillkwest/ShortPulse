@@ -2,7 +2,7 @@
  * AI Studio session snapshot schema + serializer.
  * Builds durable write-shadow payloads while excluding transient/local-only fields.
  */
-import type { AgentMessage, AgentMessageRole } from "../../../prefabs/agent/types";
+import type { AgentAttachment, AgentMessage, AgentMessageRole } from "../../../prefabs/agent/types";
 import type {
   GenerationReplayConfig,
   StudioMode,
@@ -67,6 +67,16 @@ export type AiStudioSessionAgentMessageV1 = {
   id: string | null;
   role: AgentMessageRole;
   content: string;
+  attachments?: {
+    id: string;
+    kind: AgentAttachment["kind"];
+    referenceId?: string | null;
+    text?: string | null;
+    imageUrl?: string | null;
+    aspect?: string | null;
+    deliveryStatus?: AgentAttachment["deliveryStatus"];
+    deliveryError?: string | null;
+  }[];
 };
 
 export type AiStudioSessionWorkspaceV1 = {
@@ -210,6 +220,28 @@ const sanitizeWorkspaceExtraImageUrls = (
   sanitizeWorkspaceMediaUrl(values[2]),
 ];
 
+const sanitizeAgentAttachments = (
+  attachments: AgentMessage["attachments"]
+): AiStudioSessionAgentMessageV1["attachments"] => {
+  if (!attachments?.length) return undefined;
+  const sanitized: NonNullable<AiStudioSessionAgentMessageV1["attachments"]> = [];
+  attachments.forEach((attachment) => {
+    const id = attachment.id?.trim();
+    if (!id) return;
+    sanitized.push({
+      id,
+      kind: attachment.kind,
+      referenceId: attachment.referenceId ?? null,
+      text: attachment.text?.trim() || null,
+      imageUrl: sanitizeMediaUrl(attachment.imageUrl) ?? null,
+      aspect: attachment.aspect?.trim() || null,
+      deliveryStatus: attachment.deliveryStatus,
+      deliveryError: attachment.deliveryError?.trim() || null,
+    });
+  });
+  return sanitized.length > 0 ? sanitized : undefined;
+};
+
 const sanitizeWorkspaceKlingProfileImageTransform = (
   value: AiStudioKlingElement["profileImageTransform"]
 ): AiStudioKlingElement["profileImageTransform"] => {
@@ -311,6 +343,7 @@ const sanitizeAgentMessage = (message: AgentMessage): AiStudioSessionAgentMessag
   id: message.id ?? null,
   role: message.role,
   content: message.content,
+  attachments: sanitizeAgentAttachments(message.attachments),
 });
 
 const computeChecksum = (value: unknown): string => {

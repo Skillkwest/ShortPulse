@@ -2845,6 +2845,25 @@ export function ExpertEditPanelView({
   }, [handleDeleteLayer, layers.length, resolvedSelectedLayerIndex]);
 
   React.useEffect(() => {
+    if (!layers.length || typeof window === "undefined") return;
+    const handleDeleteHotkey = (event: KeyboardEvent) => {
+      if (event.defaultPrevented) return;
+      if (event.metaKey || event.ctrlKey || event.altKey) return;
+      if (isKeyboardEventFromEditableTarget(event)) return;
+      if (event.key !== "Delete" && event.key !== "Backspace") return;
+      if (!isLayerIndexInBounds({ index: resolvedSelectedLayerIndex, layerCount: layers.length })) {
+        return;
+      }
+      event.preventDefault();
+      handleDeleteSelectedLayer();
+    };
+    window.addEventListener("keydown", handleDeleteHotkey);
+    return () => {
+      window.removeEventListener("keydown", handleDeleteHotkey);
+    };
+  }, [handleDeleteSelectedLayer, layers.length, resolvedSelectedLayerIndex]);
+
+  React.useEffect(() => {
     if (layers.length <= 0) {
       setFoundationLayerId((previous) => (previous === null ? previous : null));
       return;
@@ -4043,7 +4062,19 @@ export function ExpertEditPanelView({
     const shouldShowUtilityActions = true;
     const layersToolbarBody = (
       <>
-        <div className="edit-expert-layers-toolbar-card">
+        <div
+          className={`edit-expert-layers-toolbar-card ${
+            isModalScope ? "" : "edit-expert-layers-toolbar-card--inline"
+          }`.trim()}
+        >
+          {!isModalScope ? (
+            <div className="edit-expert-layers-toolbar-title-card edit-expert-layers-toolbar-title-card--embedded">
+              <p className="edit-expert-layers-toolbar-title">Layers</p>
+              <span className="edit-expert-layers-toolbar-title-icon" aria-hidden="true">
+                <StackSimple size={14} weight="regular" />
+              </span>
+            </div>
+          ) : null}
           <div className="edit-expert-layers-toolbar-list">
             {layers.map((layer, index) =>
               editingLayerIndex === index ? (
@@ -4125,7 +4156,7 @@ export function ExpertEditPanelView({
       <div
         ref={isModalScope ? handleMarkupModalLayersRef : undefined}
         className={`edit-expert-layers-toolbar ${
-          isModalScope ? "edit-expert-layers-toolbar--modal" : ""
+          isModalScope ? "edit-expert-layers-toolbar--modal" : "edit-expert-layers-toolbar--inline"
         }`.trim()}
         aria-label={isModalScope ? "Expanded canvas layers toolbar" : "Edit layers toolbar"}
       >
@@ -4147,15 +4178,7 @@ export function ExpertEditPanelView({
             {layersToolbarBody}
           </>
         ) : (
-          <div className="edit-expert-column-wrapper edit-expert-column-wrapper--right">
-            <div className="edit-expert-layers-toolbar-title-card">
-              <p className="edit-expert-layers-toolbar-title">Layers</p>
-              <span className="edit-expert-layers-toolbar-title-icon" aria-hidden="true">
-                <StackSimple size={14} weight="regular" />
-              </span>
-            </div>
-            {layersToolbarBody}
-          </div>
+          <>{layersToolbarBody}</>
         )}
       </div>
     );
@@ -4328,13 +4351,13 @@ export function ExpertEditPanelView({
                 renderMoveControlsContent={renderMoveControlsContent}
               />
             ) : null}
-            <div className="edit-expert-preset-toolbar-title-card">
-              <p className="edit-expert-preset-toolbar-title">Prompt Presets</p>
-              <span className="edit-expert-preset-toolbar-title-icon" aria-hidden="true">
-                <Sliders size={14} weight="regular" />
-              </span>
-            </div>
-            <div className="edit-expert-preset-toolbar-card">
+            <div className="edit-expert-preset-toolbar-card edit-expert-preset-toolbar-card--inline">
+              <div className="edit-expert-preset-toolbar-title-card edit-expert-preset-toolbar-title-card--embedded">
+                <p className="edit-expert-preset-toolbar-title">Prompt Presets</p>
+                <span className="edit-expert-preset-toolbar-title-icon" aria-hidden="true">
+                  <Sliders size={14} weight="regular" />
+                </span>
+              </div>
               <div className="edit-expert-preset-toolbar-list">
                 <div
                   className={`edit-expert-preset-dropzone ${
@@ -4406,7 +4429,6 @@ export function ExpertEditPanelView({
             />
           </div>
         </div>
-        {!isMarkupExpandSelected ? renderLayersToolbar("main") : null}
 
         <div className="edit-expert-primary-column">
           {isGenerationModeToggleEnabled ? (

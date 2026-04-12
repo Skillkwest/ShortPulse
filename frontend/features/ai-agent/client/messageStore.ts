@@ -67,8 +67,12 @@ export const buildApiMessagesForTurn = ({
   const baseHistory = previousMessagesForApi.slice(-MAX_API_HISTORY_MESSAGES);
   return [...baseHistory, { role: "user", content: userPayloadForApi }].reduce<AgentApiMessage[]>(
     (acc, message) => {
+      const normalizedContent = message.content.trim();
+      if (!normalizedContent) {
+        return acc;
+      }
       if (message.role === "user" || message.role === "assistant") {
-        acc.push({ role: message.role, content: message.content });
+        acc.push({ role: message.role, content: normalizedContent });
       }
       return acc;
     },

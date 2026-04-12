@@ -66,6 +66,10 @@
   gap: 8px;
 }
 
+.agent-attachment-card-list--message {
+  justify-content: flex-start;
+}
+
 .agent-attachment-card {
   position: relative;
   width: 92px;
@@ -77,6 +81,11 @@
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.05),
     0 10px 20px rgba(0, 0, 0, 0.35);
+}
+
+.agent-attachment-card--message {
+  width: 72px;
+  border-radius: 9px;
 }
 
 .agent-attachment-card.is-preparing,

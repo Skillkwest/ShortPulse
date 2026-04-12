@@ -30,10 +30,13 @@ export type AgentAssistantMessageEditRequest = {
   content: string;
 };
 
+export type AgentMessageAttachment = AgentAttachment;
+
 export type AgentMessage = {
   id?: string;
   role: AgentMessageRole;
   content: string;
+  attachments?: AgentMessageAttachment[];
 };
 
 export type AgentAttachment = {

@@ -8,7 +8,7 @@ import type {
   AiStudioSessionSnapshotV1,
 } from "./sessionSnapshot";
 import type { StudioMode, StudioOutput, ToolId } from "../types";
-import type { AgentMessage, AgentMessageRole } from "../../../prefabs/agent/types";
+import type { AgentAttachment, AgentMessage, AgentMessageRole } from "../../../prefabs/agent/types";
 import { normalizeSeedance2UiModelId } from "./seedance2Availability";
 import {
   parseAiStudioSessionCanvasState,
@@ -113,6 +113,10 @@ const asAgentRole = (value: unknown): AgentMessageRole | null => {
     return value;
   }
   return null;
+};
+
+const asAgentAttachmentKind = (value: unknown): AgentAttachment["kind"] | null => {
+  return value === "image" || value === "prompt" ? value : null;
 };
 
 const asKlingShotType = (value: unknown): "customize" | "intelligent" => {
@@ -340,6 +344,52 @@ const dedupeOutputs = (rows: StudioOutput[]): StudioOutput[] => {
   return [...byId.values()];
 };
 
+const normalizeAgentAttachments = (value: unknown): AgentAttachment[] => {
+  if (!Array.isArray(value)) return [];
+  const seenIds = new Set<string>();
+  const normalized: AgentAttachment[] = [];
+  value.forEach((row, index) => {
+    if (!row || typeof row !== "object") return;
+    const attachment = row as Record<string, unknown>;
+    const idCandidate = asString(attachment.id, "").trim() || `agent-attachment-restored-${index}`;
+    let resolvedId = idCandidate;
+    if (seenIds.has(resolvedId)) {
+      let collisionIndex = 1;
+      let nextId = `${resolvedId}-${collisionIndex}`;
+      while (seenIds.has(nextId)) {
+        collisionIndex += 1;
+        nextId = `${resolvedId}-${collisionIndex}`;
+      }
+      resolvedId = nextId;
+    }
+    seenIds.add(resolvedId);
+    const kind = asAgentAttachmentKind(attachment.kind);
+    if (!kind) return;
+    const imageUrl = sanitizeHydratedMediaUrl(asNullableString(attachment.imageUrl));
+    const text = asNullableString(attachment.text)?.trim() || null;
+    if (kind === "image" && !imageUrl) return;
+    normalized.push({
+      id: resolvedId,
+      kind,
+      referenceId: asNullableString(attachment.referenceId),
+      text,
+      imageUrl,
+      aspect: asNullableString(attachment.aspect),
+      deliveryStatus:
+        attachment.deliveryStatus === "pending" ||
+        attachment.deliveryStatus === "preparing" ||
+        attachment.deliveryStatus === "ready" ||
+        attachment.deliveryStatus === "failed"
+          ? attachment.deliveryStatus
+          : kind === "prompt"
+            ? "ready"
+            : "pending",
+      deliveryError: asNullableString(attachment.deliveryError),
+    });
+  });
+  return normalized;
+};
+
 const normalizeAgentMessages = (value: unknown): AgentMessage[] => {
   if (!Array.isArray(value)) return [];
   const seenIds = new Set<string>();
@@ -350,7 +400,8 @@ const normalizeAgentMessages = (value: unknown): AgentMessage[] => {
     const role = asAgentRole(message.role);
     if (!role) return;
     const content = asString(message.content, "").trim();
-    if (!content) return;
+    const attachments = normalizeAgentAttachments(message.attachments);
+    if (!content && attachments.length === 0) return;
 
     const candidateId = asString(message.id, "").trim();
     let resolvedId = candidateId || `agent-${role}-restored-${index}`;
@@ -368,6 +419,7 @@ const normalizeAgentMessages = (value: unknown): AgentMessage[] => {
       id: resolvedId,
       role,
       content,
+      attachments: attachments.length > 0 ? attachments : undefined,
     });
   });
   return normalized;

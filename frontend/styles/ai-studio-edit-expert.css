@@ -3,8 +3,20 @@
  * Owns the advanced edit workspace surfaces layered on top of the scoped expert tokens.
  */
 .edit-expert-panel {
+  position: relative;
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  width: 100%;
+  min-width: 0;
   gap: var(--edit-expert-panel-gap);
   min-height: 420px;
+  padding: 12px;
+  border: 0;
+  border-radius: 0;
+  background: #94a0a108;
+  box-sizing: border-box;
+  overflow: hidden;
   --edit-expert-center-column-max-width: 860px;
   --create-expert-selector-width: 175px;
   --create-expert-model-selector-width: 170px;
@@ -113,8 +125,7 @@
   display: grid;
   grid-template-columns:
     var(--edit-expert-side-rail-width-left, var(--edit-expert-side-rail-width))
-    minmax(0, 1fr)
-    var(--edit-expert-side-rail-width-right, var(--edit-expert-side-rail-width));
+    minmax(0, 1fr);
   column-gap: var(--edit-expert-side-rail-gap);
   align-items: start;
   position: relative;
@@ -465,8 +476,35 @@
 }
 
 /* Add breathing room above Prompt Presets when a tool rail panel (Move/In-paint/Markup) is visible. */
-.edit-expert-mode-rail-panel + .edit-expert-preset-toolbar-title-card {
+.edit-expert-mode-rail-panel + .edit-expert-preset-toolbar-card {
   margin-top: 12px;
+}
+
+.edit-expert-preset-toolbar-title-card--embedded {
+  position: relative;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  margin-bottom: 2px;
+  padding: 0 2px 8px;
+}
+
+.edit-expert-preset-toolbar-title-card--embedded::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 1px;
+  border-radius: 999px;
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0),
+    rgba(255, 255, 255, 0.2),
+    rgba(255, 255, 255, 0)
+  );
+  opacity: 0.55;
 }
 
 .edit-expert-preset-toolbar-card {
@@ -481,6 +519,10 @@
   flex-direction: column;
   gap: 6px;
   z-index: 110;
+}
+
+.edit-expert-preset-toolbar-card--inline {
+  gap: 10px;
 }
 
 .edit-expert-preset-actions,
@@ -1205,16 +1247,17 @@
 
 .edit-expert-layers-toolbar {
   position: relative;
-  grid-column: 3;
-  grid-row: 1;
-  transform: none;
-  width: var(--edit-expert-side-rail-width-right, var(--edit-expert-side-rail-width));
   display: flex;
   flex-direction: column;
   gap: 8px;
   z-index: 104;
   min-height: 0;
-  align-self: start;
+}
+
+.edit-expert-layers-toolbar--inline {
+  width: 100%;
+  align-self: stretch;
+  margin-top: 28px;
 }
 
 .edit-expert-layers-toolbar-title-card {
@@ -1229,6 +1272,33 @@
   align-items: center;
   justify-content: space-between;
   z-index: 109;
+}
+
+.edit-expert-layers-toolbar-title-card--embedded {
+  position: relative;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  margin-bottom: 2px;
+  padding: 0 2px 8px;
+}
+
+.edit-expert-layers-toolbar-title-card--embedded::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 1px;
+  border-radius: 999px;
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0),
+    rgba(255, 255, 255, 0.2),
+    rgba(255, 255, 255, 0)
+  );
+  opacity: 0.55;
 }
 
 .edit-expert-layers-toolbar-title {
@@ -1261,6 +1331,10 @@
   flex-direction: column;
   gap: 8px;
   z-index: 110;
+}
+
+.edit-expert-layers-toolbar-card--inline {
+  gap: 10px;
 }
 
 .edit-expert-layers-toolbar-list {
@@ -1307,6 +1381,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  color: #f5f9ff;
 }
 
 .edit-expert-layer-input {
@@ -1315,7 +1390,7 @@
   border-radius: 5px;
   border: 1px solid var(--edit-expert-control-surface);
   background: var(--edit-expert-control-surface);
-  color: var(--edit-expert-muted-text);
+  color: #f5f9ff;
   font-size: 13px;
   font-weight: 500;
   line-height: 1.15;

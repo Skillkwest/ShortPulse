@@ -3,7 +3,12 @@
  * Manages chat state locally and exposes a send helper with structured responses.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { AgentApiContext, AgentApiRequest, AgentMessage } from "../../prefabs/agent";
+import type {
+  AgentApiContext,
+  AgentApiRequest,
+  AgentAttachment,
+  AgentMessage,
+} from "../../prefabs/agent";
 import { removeAspectRatioLanguage, sanitizeGenerationPromptText } from "../agent-core/promptText";
 import {
   resolveStudioAgentSafetyInputPrecheckFieldModes,
@@ -37,6 +42,8 @@ import {
   type UseAiAgentOptions,
 } from "./useAiAgentTypes";
 const createAgentMessageId = (role: "user" | "assistant") => `agent-${role}-${randomId()}`;
+const cloneAgentAttachments = (attachments: AgentAttachment[] = []): AgentAttachment[] =>
+  attachments.map((attachment) => ({ ...attachment }));
 export const useAiAgent = ({
   initialMessages = EMPTY_MESSAGES,
   enabled = true,
@@ -73,14 +80,16 @@ export const useAiAgent = ({
     messagesRef.current = messages;
   }, [messages]);
 
-  const appendUserMessage = useCallback((text: string) => {
+  const appendUserMessage = useCallback((text: string, attachments: AgentAttachment[] = []) => {
     const trimmed = text.trim();
-    if (!trimmed) return null;
+    const normalizedAttachments = cloneAgentAttachments(attachments);
+    if (!trimmed && normalizedAttachments.length === 0) return null;
     const userMessageId = createAgentMessageId("user");
     const uiUserMessage: AgentMessage = {
       id: userMessageId,
       role: "user",
       content: trimmed,
+      attachments: normalizedAttachments.length > 0 ? normalizedAttachments : undefined,
     };
     const nextUiMessages = appendUiMessage(messagesRef.current, uiUserMessage);
     setMessages(nextUiMessages);

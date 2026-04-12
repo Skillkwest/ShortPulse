@@ -11,6 +11,10 @@ import type {
   UseAiStudioAgentOrchestrationParams,
 } from "./agentOrchestration/types";
 
+const cloneMessageAttachments = (
+  attachments: UseAiStudioAgentOrchestrationParams["agentAttachments"]
+) => attachments.map((attachment) => ({ ...attachment }));
+
 export const useAiStudioAgentOrchestration = ({
   agentIsSending,
   agentUiBusyRef,
@@ -22,7 +26,6 @@ export const useAiStudioAgentOrchestration = ({
   agentAttachments,
   setAgentAttachments,
   setAgentAttachmentError,
-  markAttachmentDelivery,
   prompt,
   latestAgentPrompt,
   setLatestAgentPrompt,
@@ -32,6 +35,7 @@ export const useAiStudioAgentOrchestration = ({
   setPromptOrigin,
   sendToAgent,
   appendUserMessage,
+  updateMessageById,
   getAgentContext,
   trackAgentUiEvent,
   addAgentPromptReference,
@@ -72,10 +76,11 @@ export const useAiStudioAgentOrchestration = ({
       const outboundText =
         trimmed || droppedPromptText || (allowImageOnlySend ? "" : prompt.trim());
       if (!outboundText && !allowImageOnlySend) return;
+      const outboundAttachments = cloneMessageAttachments(agentAttachments);
       trackAgentUiEvent("studio_agent_send_requested", {
         mode_hint: options?.modeHint ?? "chat",
-        has_attachments: agentAttachments.length > 0,
-        image_attachments: agentAttachments.filter((item) => item.kind === "image").length,
+        has_attachments: outboundAttachments.length > 0,
+        image_attachments: outboundAttachments.filter((item) => item.kind === "image").length,
         prompt_chars: outboundText.length,
       });
       if (!agentSessionEnabled) setAgentSessionEnabled(true);
@@ -84,17 +89,57 @@ export const useAiStudioAgentOrchestration = ({
       setAgentUiBusy(true);
       const sentFromComposer = typeof textOverride !== "string";
       const userMessageText = trimmed || outboundText;
-      const optimisticUserMessageId = userMessageText ? appendUserMessage(userMessageText) : null;
+      const optimisticUserMessageId = appendUserMessage(userMessageText, outboundAttachments);
+      const patchOptimisticMessageAttachments = (
+        updater: (
+          attachments: UseAiStudioAgentOrchestrationParams["agentAttachments"]
+        ) => UseAiStudioAgentOrchestrationParams["agentAttachments"]
+      ) => {
+        if (!optimisticUserMessageId) return;
+        updateMessageById(optimisticUserMessageId, (message) => {
+          if (message.role !== "user") return message;
+          const currentAttachments = cloneMessageAttachments(message.attachments ?? []);
+          return {
+            ...message,
+            attachments: updater(currentAttachments),
+          };
+        });
+      };
+      const updateOptimisticAttachmentDelivery = (
+        ids: string[],
+        status: "pending" | "preparing" | "ready" | "failed",
+        deliveryError?:
+          | string
+          | null
+          | ((attachment: (typeof outboundAttachments)[number]) => string | null)
+      ) => {
+        if (!ids.length) return;
+        patchOptimisticMessageAttachments((attachments) =>
+          attachments.map((attachment) => {
+            if (!ids.includes(attachment.id)) return attachment;
+            const resolvedError =
+              typeof deliveryError === "function" ? deliveryError(attachment) : deliveryError;
+            return {
+              ...attachment,
+              deliveryStatus: attachment.kind === "prompt" ? "ready" : status,
+              deliveryError: attachment.kind === "prompt" ? null : (resolvedError ?? null),
+            };
+          })
+        );
+      };
       if (sentFromComposer && trimmed) {
         setAgentInput("");
       }
+      if (outboundAttachments.length > 0) {
+        setAgentAttachments([]);
+      }
       try {
-        const imageAttachmentsMissingUrl = agentAttachments.filter(
+        const imageAttachmentsMissingUrl = outboundAttachments.filter(
           (attachment) => attachment.kind === "image" && !attachment.imageUrl?.trim()
         );
         if (imageAttachmentsMissingUrl.length > 0) {
           const failedIds = imageAttachmentsMissingUrl.map((attachment) => attachment.id);
-          markAttachmentDelivery(
+          updateOptimisticAttachmentDelivery(
             failedIds,
             "failed",
             "Image URL missing. Remove this image and attach it again."
@@ -108,22 +153,22 @@ export const useAiStudioAgentOrchestration = ({
           return;
         }
 
-        const imageAttachmentIds = agentAttachments
+        const imageAttachmentIds = outboundAttachments
           .filter(
             (attachment) => attachment.kind === "image" && Boolean(attachment.imageUrl?.trim())
           )
           .map((attachment) => attachment.id);
         let preparedImageUrls = new Map<string, string>();
         if (imageAttachmentIds.length > 0) {
-          markAttachmentDelivery(imageAttachmentIds, "preparing");
+          updateOptimisticAttachmentDelivery(imageAttachmentIds, "preparing");
 
           const preparedImageResult = await prepareAgentImageAttachments({
-            attachments: agentAttachments,
+            attachments: outboundAttachments,
             preparedImageUrlCache: preparedImageUrlCacheRef.current,
           });
           if (!preparedImageResult.ok) {
             if (preparedImageResult.reason === "missing_url") {
-              markAttachmentDelivery(
+              updateOptimisticAttachmentDelivery(
                 preparedImageResult.failedIds,
                 "failed",
                 "Image URL missing. Remove this image and attach it again."
@@ -136,7 +181,7 @@ export const useAiStudioAgentOrchestration = ({
               });
               return;
             }
-            markAttachmentDelivery(
+            updateOptimisticAttachmentDelivery(
               preparedImageResult.failedIds,
               "failed",
               "Image upload/preparation failed. Remove this image and try again."
@@ -152,13 +197,13 @@ export const useAiStudioAgentOrchestration = ({
           }
 
           preparedImageUrls = preparedImageResult.preparedImageUrls;
-          markAttachmentDelivery(imageAttachmentIds, "ready", null);
+          updateOptimisticAttachmentDelivery(imageAttachmentIds, "ready", null);
         }
 
         const baseContext = getAgentContext({
           lastAssistantMessage,
           selectedOverride: options?.selectedOverride,
-          modeHint: options?.modeHint ?? (agentAttachments.length ? "reference" : undefined),
+          modeHint: options?.modeHint ?? (outboundAttachments.length ? "reference" : undefined),
         });
         const shouldInjectLatestAgentPrompt = Boolean(latestAgentPrompt) && outboundText.length > 0;
         if (shouldInjectLatestAgentPrompt) {
@@ -167,7 +212,7 @@ export const useAiStudioAgentOrchestration = ({
         }
         const mediaPatchedContext = mergeAttachmentContext({
           baseContext,
-          attachments: agentAttachments,
+          attachments: outboundAttachments,
           preparedImageUrls,
         });
 
@@ -205,9 +250,6 @@ export const useAiStudioAgentOrchestration = ({
         }
 
         setAgentActions(actions);
-        if (agentAttachments.length) {
-          setAgentAttachments([]);
-        }
 
         if (options?.captureResult && appliedPrompt) {
           return { prompt: appliedPrompt, referenceTitle: actions?.referenceCard?.title };
@@ -224,10 +266,10 @@ export const useAiStudioAgentOrchestration = ({
       agentSessionEnabled,
       agentUiBusyRef,
       appendUserMessage,
+      updateMessageById,
       getAgentContext,
       lastAssistantMessage,
       latestAgentPrompt,
-      markAttachmentDelivery,
       prompt,
       selectedTool,
       sendToAgent,

@@ -29,6 +29,7 @@ Purpose: operational playbook for the AI Studio chat agent—where it lives in t
 ## Data flow (chat send)
 1) User types in `AgentInputBar` → `handleAgentSend` in `frontend/pages/ai-studio.tsx`.
 2) Optional: user drags prompt/image references from the Reference Grid into the chat surface. These are staged as `AgentAttachment[]` and shown in the attachment tray.
+   - In Create inline chat, once the user sends the turn, those attachments move onto the matching user chat bubble so the composer clears immediately while the preview remains in history with its related text.
 3) `getAgentContext` (in `useAiStudioState`) builds a focused base context: selected output → media (image) or prompt snippet; sets `focusedSource`, `selectedReferenceIds`, and `lastAssistantMessage`.
 4) Staged attachments are merged into context before send:
    - prompt attachments become `context.references` entries (`kind: "prompt"`),

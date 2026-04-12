@@ -3,7 +3,12 @@
  * Keeps high-churn hook modules focused on behavior orchestration.
  */
 import type { Dispatch, MutableRefObject, SetStateAction } from "react";
-import type { AgentActions, AgentAttachment, AgentContext } from "../../../../prefabs/agent";
+import type {
+  AgentActions,
+  AgentAttachment,
+  AgentContext,
+  AgentMessage,
+} from "../../../../prefabs/agent";
 import type { PromptOrigin } from "../../logic/agentPromptOwnership";
 import type { StudioOutput, ToolId } from "../../types";
 
@@ -26,11 +31,6 @@ export type UseAiStudioAgentOrchestrationParams = {
   agentAttachments: AgentAttachment[];
   setAgentAttachments: Dispatch<SetStateAction<AgentAttachment[]>>;
   setAgentAttachmentError: Dispatch<SetStateAction<string | null>>;
-  markAttachmentDelivery: (
-    ids: string[],
-    status: "pending" | "preparing" | "ready" | "failed",
-    deliveryError?: string | null | ((attachment: AgentAttachment) => string | null)
-  ) => void;
   prompt: string;
   latestAgentPrompt: string | null;
   setLatestAgentPrompt: Dispatch<SetStateAction<string | null>>;
@@ -46,7 +46,11 @@ export type UseAiStudioAgentOrchestrationParams = {
     skipUserEcho?: boolean;
     optimisticUserMessageId?: string | null;
   }) => Promise<{ response: unknown; actions: AgentActions | undefined }>;
-  appendUserMessage: (text: string) => string | null;
+  appendUserMessage: (text: string, attachments?: AgentAttachment[]) => string | null;
+  updateMessageById: (
+    messageId: string,
+    updater: (message: AgentMessage) => AgentMessage
+  ) => boolean;
   getAgentContext: (params: {
     lastAssistantMessage: string | null;
     selectedOverride?: StudioOutput | null;

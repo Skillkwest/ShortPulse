@@ -416,6 +416,61 @@ export const AgentChatPanel: React.FC<AgentChatPanelProps> = ({
     [handleOutputBubbleMediaDragStart]
   );
 
+  const renderAttachmentCards = useCallback(
+    (
+      attachments: AgentAttachment[],
+      options?: {
+        removable?: boolean;
+        compact?: boolean;
+      }
+    ) => {
+      const removable = options?.removable ?? false;
+      const compact = options?.compact ?? false;
+      if (!attachments.length) return null;
+      return (
+        <div
+          className={`agent-attachment-card-list${compact ? " agent-attachment-card-list--message" : ""}`}
+        >
+          {attachments.map((attachment) => {
+            const isLinkedPromptRef =
+              attachment.kind === "prompt" && Boolean(attachment.referenceId);
+            const attachmentStatusClass =
+              attachment.kind === "image" ? `is-${attachment.deliveryStatus ?? "pending"}` : "";
+            return (
+              <div
+                key={attachment.id}
+                className={`agent-attachment-card${compact ? " agent-attachment-card--message" : ""} agent-attachment-card--${attachment.kind} ${isLinkedPromptRef ? "is-linked-prompt-ref" : ""} ${attachmentStatusClass}`.trim()}
+              >
+                {attachment.kind === "image" && attachment.imageUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={attachment.imageUrl} alt="" className="agent-attachment-card-media" />
+                ) : (
+                  <div className="agent-attachment-card-prompt" aria-hidden="true">
+                    <span className="agent-attachment-card-prompt-marker">T</span>
+                  </div>
+                )}
+                {isLinkedPromptRef ? (
+                  <span className="agent-attachment-link-dot" aria-hidden="true" />
+                ) : null}
+                {removable && onRemoveAttachment ? (
+                  <button
+                    type="button"
+                    className="agent-attachment-remove agent-attachment-remove--card"
+                    aria-label="Remove attachment"
+                    onClick={() => onRemoveAttachment(attachment.id)}
+                  >
+                    ×
+                  </button>
+                ) : null}
+              </div>
+            );
+          })}
+        </div>
+      );
+    },
+    [onRemoveAttachment]
+  );
+
   return (
     <div
       className={`agent-chat-panel${highlightLatestAssistantOnly ? " agent-chat-panel--latest-assistant-only" : ""}`}
@@ -520,12 +575,15 @@ export const AgentChatPanel: React.FC<AgentChatPanelProps> = ({
                 const hasOutputThumbnail = Boolean(
                   bubbleMedia && bubbleMedia.state !== "idle" && showOutputGenerateButton
                 );
+                const messageAttachments = message.attachments ?? [];
+                const hasMessageAttachments = messageAttachments.length > 0;
+                const hasMessageContent = Boolean(message.content.trim());
                 const key =
                   message.id || `${message.role}-${index}-${message.content.slice(0, 12)}`;
                 return (
                   <div
                     key={key}
-                    className={`agent-message agent-${message.role}${isClickable ? " is-clickable" : ""}${isDraggable ? " is-draggable" : ""}${isLatestAssistantMessage ? " is-latest-assistant" : ""}${isStaleAssistantMessage ? " is-stale-assistant" : ""}${showOutputGenerateButton ? " agent-message--with-output-generate" : ""}${hasOutputThumbnail ? " agent-message--with-output-thumbnail" : ""}${isEditingMessage ? " is-editing-assistant-message" : ""}`}
+                    className={`agent-message agent-${message.role}${isClickable ? " is-clickable" : ""}${isDraggable ? " is-draggable" : ""}${isLatestAssistantMessage ? " is-latest-assistant" : ""}${isStaleAssistantMessage ? " is-stale-assistant" : ""}${showOutputGenerateButton ? " agent-message--with-output-generate" : ""}${hasOutputThumbnail ? " agent-message--with-output-thumbnail" : ""}${hasMessageAttachments ? " agent-message--with-attachments" : ""}${isEditingMessage ? " is-editing-assistant-message" : ""}`}
                     onClick={
                       isClickable && !isEditingMessage
                         ? () => handleMessageClick(message)
@@ -584,16 +642,25 @@ export const AgentChatPanel: React.FC<AgentChatPanelProps> = ({
                         }}
                       />
                     ) : (
-                      <p
-                        className="tiny"
-                        ref={
-                          message.role === "assistant"
-                            ? (node) => setAssistantMessageTextRef(resolvedMessageId, node)
-                            : undefined
-                        }
-                      >
-                        {message.content}
-                      </p>
+                      <div className="agent-message-body">
+                        {hasMessageAttachments ? (
+                          <div className="agent-message-attachments">
+                            {renderAttachmentCards(messageAttachments, { compact: true })}
+                          </div>
+                        ) : null}
+                        {hasMessageContent ? (
+                          <p
+                            className="tiny"
+                            ref={
+                              message.role === "assistant"
+                                ? (node) => setAssistantMessageTextRef(resolvedMessageId, node)
+                                : undefined
+                            }
+                          >
+                            {message.content}
+                          </p>
+                        ) : null}
+                      </div>
                     )}
                     {showOutputGenerateButton && !isEditingMessage ? (
                       <div className="agent-output-bubble-controls">
@@ -621,48 +688,7 @@ export const AgentChatPanel: React.FC<AgentChatPanelProps> = ({
                   className="agent-message agent-user agent-user-attachments"
                   aria-label="Attached references"
                 >
-                  <div className="agent-attachment-card-list">
-                    {stagedAttachments.map((attachment) => {
-                      const isLinkedPromptRef =
-                        attachment.kind === "prompt" && Boolean(attachment.referenceId);
-                      const attachmentStatusClass =
-                        attachment.kind === "image"
-                          ? `is-${attachment.deliveryStatus ?? "pending"}`
-                          : "";
-                      return (
-                        <div
-                          key={attachment.id}
-                          className={`agent-attachment-card agent-attachment-card--${attachment.kind} ${isLinkedPromptRef ? "is-linked-prompt-ref" : ""} ${attachmentStatusClass}`}
-                        >
-                          {attachment.kind === "image" && attachment.imageUrl ? (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img
-                              src={attachment.imageUrl}
-                              alt=""
-                              className="agent-attachment-card-media"
-                            />
-                          ) : (
-                            <div className="agent-attachment-card-prompt" aria-hidden="true">
-                              <span className="agent-attachment-card-prompt-marker">T</span>
-                            </div>
-                          )}
-                          {isLinkedPromptRef ? (
-                            <span className="agent-attachment-link-dot" aria-hidden="true" />
-                          ) : null}
-                          {onRemoveAttachment ? (
-                            <button
-                              type="button"
-                              className="agent-attachment-remove agent-attachment-remove--card"
-                              aria-label="Remove attachment"
-                              onClick={() => onRemoveAttachment(attachment.id)}
-                            >
-                              ×
-                            </button>
-                          ) : null}
-                        </div>
-                      );
-                    })}
-                  </div>
+                  {renderAttachmentCards(stagedAttachments, { removable: true })}
                 </div>
               ) : null}
               {shouldRenderThinkingInHistory ? (

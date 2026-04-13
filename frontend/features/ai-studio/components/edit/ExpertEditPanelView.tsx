@@ -50,6 +50,7 @@ import { useExpertEditPromptTokenController } from "./useExpertEditPromptTokenCo
 import { useExpertEditSessionBridge } from "./useExpertEditSessionBridge";
 import { useExpertEditStageChrome } from "./useExpertEditStageChrome";
 import { useExpertEditStageHistory } from "./useExpertEditStageHistory";
+import { useExpertEditStageLifecycle } from "./useExpertEditStageLifecycle";
 import { useExpertEditStageViewport } from "./useExpertEditStageViewport";
 import { ExpertEditStageContextMenu } from "./ExpertEditStagePrimitives";
 import {
@@ -71,7 +72,6 @@ import {
 import { ExpertEditPromptComposer } from "./ExpertEditPromptComposer";
 import {
   COMPOSITE_REGENERATE_COHESION_PROMPT,
-  INPAINT_COLLAPSE_ANIMATION_MS,
   INPAINT_STROKE_SIZE_DEFAULT,
   LAYER_LIMIT_REACHED_TOAST,
   LOCKED_EDIT_TOOL_MODEL_LOGO_SRC,
@@ -88,7 +88,6 @@ import {
   editGenerationModeOptions,
   editPresetUtilityActions,
   inpaintRailTools,
-  isSpaceActivationKey,
   type ExpertEditPanelViewProps,
   type InpaintMode,
   type InpaintSelectionTab,
@@ -161,12 +160,9 @@ import {
   buildMarkupBrushReticleCursor,
 } from "./expertEditCursorUtils";
 import {
-  clearTransientObjectUrlRevokeTimers,
   clearWindowTimeoutRef,
   isEventTargetInsideElement,
-  isKeyboardEventFromEditableTarget,
   lockDocumentCursor,
-  resolveInpaintCollapseToggleDecision,
   resolveRailToolForGenerationMode,
   runPointerStageTerminalAction,
   scheduleTransientObjectUrlRevoke as scheduleTransientObjectUrlRevokeTimer,
@@ -1725,6 +1721,38 @@ export function ExpertEditPanelView({
     onStylesPanelToggle?.();
   }, [onStylesPanelToggle]);
 
+  const { handleInpaintCollapseToggle } = useExpertEditStageLifecycle({
+    isMoveToolSelected,
+    clearTransformPointerSession,
+    isMarkupExpandSelected,
+    isMorePresetsSurfaceOpen,
+    setIsMarkupPanSpacePressed,
+    isVideoToolSelected,
+    clearMarkupDrawGestureSession,
+    canUndoGeneralAction,
+    canRedoGeneralAction,
+    handleUndoGeneralAction,
+    handleRedoGeneralAction,
+    inlineStageWrapperRef,
+    handleNativeMarkupViewportWheel,
+    markupModalStageRef,
+    markupModalStageSize,
+    shouldShowInpaintBrushReticle,
+    unlockGlobalCursor,
+    queuePendingHistoryApplyEntry,
+    clearHistoryEphemera,
+    inpaintCollapseTimerRef,
+    toastVisibleTimerRef,
+    toastFadeTimerRef,
+    transientRevokeTimersRef,
+    revokeObjectUrlSafe,
+    isInpaintCollapsed,
+    shouldOpenMarkupModalFromCollapsedTools,
+    openMarkupModal,
+    setIsInpaintCollapsed,
+    setIsInpaintCollapsing,
+  });
+
   useExpertEditSessionBridge({
     initialReferenceImageUrl: referenceImageUrl,
     foundationLayerId,
@@ -1744,175 +1772,6 @@ export function ExpertEditPanelView({
     onSessionStateChange,
     revokeObjectUrlSafe,
   });
-
-  React.useEffect(() => {
-    if (!isMoveToolSelected) {
-      clearTransformPointerSession();
-    }
-  }, [clearTransformPointerSession, isMoveToolSelected]);
-
-  React.useEffect(() => {
-    const isMarkupPanKeyboardListeningEnabled = isMarkupExpandSelected || !isMorePresetsSurfaceOpen;
-    if (!isMarkupPanKeyboardListeningEnabled) {
-      setIsMarkupPanSpacePressed(false);
-      return;
-    }
-    if (typeof window === "undefined") return;
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (!isSpaceActivationKey(event)) return;
-      setIsMarkupPanSpacePressed(true);
-    };
-    const handleKeyUp = (event: KeyboardEvent) => {
-      if (!isSpaceActivationKey(event)) return;
-      setIsMarkupPanSpacePressed(false);
-    };
-    const handleWindowBlur = () => {
-      setIsMarkupPanSpacePressed(false);
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    window.addEventListener("keyup", handleKeyUp);
-    window.addEventListener("blur", handleWindowBlur);
-    return () => {
-      window.removeEventListener("keydown", handleKeyDown);
-      window.removeEventListener("keyup", handleKeyUp);
-      window.removeEventListener("blur", handleWindowBlur);
-    };
-  }, [isMarkupExpandSelected, isMorePresetsSurfaceOpen]);
-
-  React.useEffect(() => {
-    if (isVideoToolSelected) return;
-    clearMarkupDrawGestureSession();
-  }, [clearMarkupDrawGestureSession, isVideoToolSelected]);
-
-  React.useEffect(() => {
-    if (!isMarkupExpandSelected || typeof window === "undefined") return;
-    const handleHistoryHotkey = (event: KeyboardEvent) => {
-      if (event.defaultPrevented) return;
-      if (event.altKey) return;
-      if (isKeyboardEventFromEditableTarget(event)) return;
-      const hasModifier = event.metaKey || event.ctrlKey;
-      if (!hasModifier) return;
-      const key = event.key.toLowerCase();
-      const isUndo = key === "z" && !event.shiftKey;
-      const isRedo = (key === "z" && event.shiftKey) || key === "y";
-      if (!isUndo && !isRedo) return;
-      event.preventDefault();
-      if (isUndo) {
-        if (!canUndoGeneralAction) return;
-        handleUndoGeneralAction();
-        return;
-      }
-      if (!canRedoGeneralAction) return;
-      handleRedoGeneralAction();
-    };
-    window.addEventListener("keydown", handleHistoryHotkey);
-    return () => {
-      window.removeEventListener("keydown", handleHistoryHotkey);
-    };
-  }, [
-    canRedoGeneralAction,
-    canUndoGeneralAction,
-    handleRedoGeneralAction,
-    handleUndoGeneralAction,
-    isMarkupExpandSelected,
-  ]);
-
-  React.useEffect(() => {
-    if (isMarkupExpandSelected) return;
-    const inlineStageElement = inlineStageWrapperRef.current;
-    if (!inlineStageElement) return;
-
-    const handleInlineStageWheel = (event: WheelEvent) => {
-      if (isMorePresetsSurfaceOpen) return;
-      handleNativeMarkupViewportWheel(event, "inline", inlineStageElement);
-      if (event.defaultPrevented) {
-        event.stopPropagation();
-      }
-    };
-
-    inlineStageElement.addEventListener("wheel", handleInlineStageWheel, { passive: false });
-    return () => {
-      inlineStageElement.removeEventListener("wheel", handleInlineStageWheel);
-    };
-  }, [
-    handleNativeMarkupViewportWheel,
-    inlineStageWrapperRef,
-    isMarkupExpandSelected,
-    isMorePresetsSurfaceOpen,
-  ]);
-
-  React.useEffect(() => {
-    if (!isMarkupExpandSelected) return;
-    const modalStageElement = markupModalStageRef.current;
-    if (!modalStageElement) return;
-
-    const handleModalStageWheel = (event: WheelEvent) => {
-      handleNativeMarkupViewportWheel(event, "modal", modalStageElement);
-      if (event.defaultPrevented) {
-        event.stopPropagation();
-      }
-    };
-
-    modalStageElement.addEventListener("wheel", handleModalStageWheel, {
-      passive: false,
-    });
-    return () => {
-      modalStageElement.removeEventListener("wheel", handleModalStageWheel);
-    };
-  }, [
-    handleNativeMarkupViewportWheel,
-    isMarkupExpandSelected,
-    markupModalStageRef,
-    markupModalStageSize,
-  ]);
-
-  React.useEffect(() => {
-    if (!shouldShowInpaintBrushReticle || isMorePresetsSurfaceOpen) {
-      unlockGlobalCursor();
-    }
-  }, [isMorePresetsSurfaceOpen, shouldShowInpaintBrushReticle, unlockGlobalCursor]);
-
-  React.useEffect(
-    () => () => {
-      unlockGlobalCursor();
-      queuePendingHistoryApplyEntry(null);
-      clearHistoryEphemera();
-      clearWindowTimeoutRef(inpaintCollapseTimerRef);
-      clearWindowTimeoutRef(toastVisibleTimerRef);
-      clearWindowTimeoutRef(toastFadeTimerRef);
-      clearTransientObjectUrlRevokeTimers({
-        timersByUrl: transientRevokeTimersRef.current,
-        revokeObjectUrl: revokeObjectUrlSafe,
-      });
-    },
-    [clearHistoryEphemera, queuePendingHistoryApplyEntry, unlockGlobalCursor]
-  );
-
-  const handleInpaintCollapseToggle = React.useCallback(() => {
-    const collapseDecision = resolveInpaintCollapseToggleDecision({
-      isInpaintCollapsed,
-      shouldOpenMarkupModalFromCollapsedTools,
-    });
-    if (collapseDecision === "open_markup_modal") {
-      openMarkupModal();
-      return;
-    }
-
-    clearWindowTimeoutRef(inpaintCollapseTimerRef);
-
-    if (collapseDecision === "expand_inpaint") {
-      setIsInpaintCollapsed(false);
-      setIsInpaintCollapsing(false);
-      return;
-    }
-
-    setIsInpaintCollapsing(true);
-    inpaintCollapseTimerRef.current = window.setTimeout(() => {
-      setIsInpaintCollapsed(true);
-      setIsInpaintCollapsing(false);
-      inpaintCollapseTimerRef.current = null;
-    }, INPAINT_COLLAPSE_ANIMATION_MS);
-  }, [isInpaintCollapsed, openMarkupModal, shouldOpenMarkupModalFromCollapsedTools]);
 
   const applyMarkupColorFromHex = React.useCallback((value: string) => {
     const parsed = parseHexColor(value);

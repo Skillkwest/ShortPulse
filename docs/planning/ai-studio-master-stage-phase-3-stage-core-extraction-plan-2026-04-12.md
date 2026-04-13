@@ -89,6 +89,7 @@ Completed on 2026-04-12:
 10. Extracted the session bridge into `frontend/features/ai-studio/components/edit/useExpertEditSessionBridge.ts`, moving session-dispatch refs, host-sync orchestration, and session-owned unmount cleanup out of `ExpertEditPanelView.tsx`.
 11. Extracted stage history and general action orchestration into `frontend/features/ai-studio/components/edit/useExpertEditStageHistory.ts`, moving markup and inpaint history state, history baselines, restore/apply effects, general undo/redo dispatch, and reset/clear-generation flows out of the panel hotspot while leaving transform history and tool-specific routing in place.
 12. Extracted stage chrome orchestration into `frontend/features/ai-studio/components/edit/useExpertEditStageChrome.ts`, moving modal open/close behavior, stage context-menu state, inline pan-capture handlers, and modal/context-menu lifecycle effects out of the panel hotspot while keeping the modal-open state local to support viewport geometry setup.
+13. Extracted stage lifecycle behavior into `frontend/features/ai-studio/components/edit/useExpertEditStageLifecycle.ts`, moving stage wheel listeners, modal undo/redo hotkeys, markup-pan keyboard handling, cursor cleanup, and inpaint-collapse lifecycle behavior out of the panel hotspot while preserving the existing stage interaction contract.
 
 ## Rollback Note
 If extraction destabilizes the stage before the new seams are strong enough, keep one temporary adapter from the old orchestrator to the new stage core. Do not copy logic back into the old hotspot.

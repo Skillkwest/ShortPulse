@@ -2,7 +2,6 @@
  * Boundary adapter that maps hook-owned contracts into `AiStudioPageContent` props.
  */
 import type { AiStudioPageContentProps } from "../../components/AiStudioPageContent";
-import type { CanvasPropertiesPanelProps } from "../../components/canvas/useAiStudioCanvasWorkspaceState";
 import type {
   AiStudioPanelContracts,
   AiStudioPreviewDetailContracts,
@@ -11,8 +10,6 @@ import type {
 
 type AiStudioPageContentAdapterInput = {
   panelProps: AiStudioPanelContracts;
-  canvasProps: CanvasPropertiesPanelProps;
-  railCanvasProps: CanvasPropertiesPanelProps;
   referenceGridProps: AiStudioReferenceGridContract;
   previewDetailProps: AiStudioPreviewDetailContracts;
 };
@@ -20,12 +17,8 @@ type AiStudioPageContentAdapterInput = {
 export type AiStudioPageContentAdapterOutput = Pick<
   AiStudioPageContentProps,
   | "propertiesCreate"
-  | "propertiesText"
-  | "propertiesImage"
   | "propertiesEditExpert"
   | "propertiesVideo"
-  | "propertiesCanvas"
-  | "railCanvasProps"
   | "referenceGridProps"
   | "studioPreviewProps"
   | "detailModalOutput"
@@ -43,18 +36,12 @@ export type AiStudioPageContentAdapterOutput = Pick<
  */
 export const mapHookContractsToPageContentProps = ({
   panelProps,
-  canvasProps,
-  railCanvasProps,
   referenceGridProps,
   previewDetailProps,
 }: AiStudioPageContentAdapterInput): AiStudioPageContentAdapterOutput => ({
   propertiesCreate: panelProps.propertiesCreate,
-  propertiesText: panelProps.propertiesText,
-  propertiesImage: panelProps.propertiesImage,
   propertiesEditExpert: panelProps.propertiesEditExpert,
   propertiesVideo: panelProps.propertiesVideo,
-  propertiesCanvas: canvasProps,
-  railCanvasProps,
   referenceGridProps,
   studioPreviewProps: previewDetailProps.studioPreviewProps,
   detailModalOutput: previewDetailProps.detailModalOutput,

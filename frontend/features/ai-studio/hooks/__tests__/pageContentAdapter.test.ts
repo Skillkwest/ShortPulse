@@ -4,11 +4,8 @@ import { mapHookContractsToPageContentProps } from "../contracts/pageContentAdap
 describe("mapHookContractsToPageContentProps", () => {
   it("maps hook contracts to AiStudioPageContent props without mutation", () => {
     const propertiesCreate = { id: "create" } as unknown as Record<string, unknown>;
-    const propertiesImage = { id: "image" } as unknown as Record<string, unknown>;
     const propertiesEditExpert = { expertEditEligible: true } as unknown as Record<string, unknown>;
     const propertiesVideo = { id: "video" } as unknown as Record<string, unknown>;
-    const propertiesCanvas = { id: "canvas" } as unknown as Record<string, unknown>;
-    const railCanvasProps = { id: "rail-canvas" } as unknown as Record<string, unknown>;
     const referenceGridProps = { id: "grid" } as unknown as Record<string, unknown>;
     const studioPreviewProps = { id: "preview" } as unknown as Record<string, unknown>;
     const onDetailClose = vi.fn();
@@ -22,13 +19,9 @@ describe("mapHookContractsToPageContentProps", () => {
     const result = mapHookContractsToPageContentProps({
       panelProps: {
         propertiesCreate: propertiesCreate as never,
-        propertiesImage: propertiesImage as never,
         propertiesEditExpert: propertiesEditExpert as never,
         propertiesVideo: propertiesVideo as never,
-        propertiesText: propertiesCreate as never,
       },
-      canvasProps: propertiesCanvas as never,
-      railCanvasProps: railCanvasProps as never,
       referenceGridProps: referenceGridProps as never,
       previewDetailProps: {
         studioPreviewProps: studioPreviewProps as never,
@@ -44,12 +37,8 @@ describe("mapHookContractsToPageContentProps", () => {
     });
 
     expect(result.propertiesCreate).toBe(propertiesCreate);
-    expect(result.propertiesText).toBe(propertiesCreate);
-    expect(result.propertiesImage).toBe(propertiesImage);
     expect(result.propertiesEditExpert).toBe(propertiesEditExpert);
     expect(result.propertiesVideo).toBe(propertiesVideo);
-    expect(result.propertiesCanvas).toBe(propertiesCanvas);
-    expect(result.railCanvasProps).toBe(railCanvasProps);
     expect(result.referenceGridProps).toBe(referenceGridProps);
     expect(result.studioPreviewProps).toBe(studioPreviewProps);
     expect(result.detailModalOutput).toBeNull();

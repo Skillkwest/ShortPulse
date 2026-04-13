@@ -29,7 +29,6 @@ import type {
 } from "../components/edit/expertEditPresets";
 import type { ExpertEditSessionState } from "../components/edit/expertEditSessionState";
 import { useAiStudioCreatePanelProps } from "./useAiStudioCreatePanelProps";
-import { useAiStudioEditPanelProps } from "./useAiStudioEditPanelProps";
 import { useAiStudioEditExpertPanelProps } from "./useAiStudioEditExpertPanelProps";
 import { useAiStudioVideoPanelProps } from "./useAiStudioVideoPanelProps";
 
@@ -173,8 +172,6 @@ export type UseAiStudioPanelPropsParams = {
   addSessionMediaReference?: (payload: { url: string; mimeType?: string | null }) => void;
   referenceImageWarning: string | null;
   resolveOutputPreviewUrl: (id: string | null | undefined) => string | null;
-  isReferencePromptEnhancing: boolean;
-  handleReferencePromptEnhance: () => void;
   setEditReferenceImageUrl: (url: string | null) => void;
   setEditExtraImageUrl: (index: number, url: string | null) => void;
   handleEditPromptTextChange: (value: string) => void;
@@ -327,8 +324,6 @@ export const useAiStudioPanelProps = ({
   addSessionMediaReference,
   referenceImageWarning,
   resolveOutputPreviewUrl,
-  isReferencePromptEnhancing,
-  handleReferencePromptEnhance,
   setEditReferenceImageUrl,
   setEditExtraImageUrl,
   handleEditPromptTextChange,
@@ -369,24 +364,11 @@ export const useAiStudioPanelProps = ({
       : normalizedExpertCreateUiFlag === "false"
         ? false
         : isDevBuild;
-  const explicitExpertEditUiFlag = process.env.NEXT_PUBLIC_ENABLE_EXPERT_EDIT_UI;
-  const normalizedExpertEditUiFlag = explicitExpertEditUiFlag?.trim().toLowerCase();
-  const isExpertEditUiEnabledByEnv =
-    normalizedExpertEditUiFlag === "false"
-      ? false
-      : normalizedExpertEditUiFlag === "true"
-        ? true
-        : true;
   const beginnerPolicy = createWorkflowBeginnerModePolicy(
     beginnerMode,
-    isExpertCreateUiEnabledByEnv,
-    isExpertEditUiEnabledByEnv
+    isExpertCreateUiEnabledByEnv
   );
 
-  const handleEditPromptSave = useCallback(
-    () => savePromptReference(editReferenceText ?? ""),
-    [editReferenceText, savePromptReference]
-  );
   const handleVideoPromptSave = useCallback(
     () => savePromptReference(videoReferenceText ?? ""),
     [savePromptReference, videoReferenceText]
@@ -477,33 +459,6 @@ export const useAiStudioPanelProps = ({
     expertCreateUiEligible: beginnerPolicy.create.expertCreateEligible,
   });
 
-  const propertiesImage = useAiStudioEditPanelProps({
-    aspect,
-    model,
-    currentModelLabel,
-    referenceImageUrl: editReferenceImageUrl,
-    extraImageUrls: editExtraImageUrls,
-    editReferenceText,
-    isModelModalOpen,
-    modelModalAnchor,
-    setAspect,
-    handleOpenModelModal,
-    setReferenceImageUrl: setEditReferenceImageUrl,
-    setExtraImageUrl: setEditExtraImageUrl,
-    handleEditPromptTextChange,
-    handleEditPromptSave,
-    handleImageRegenerateWithDebit,
-    currentCostCredits,
-    isGenerateDisabled,
-    generationGuardrail,
-    referenceImageWarning,
-    resolveOutputPreviewUrl,
-    isReferencePromptEnhancing,
-    handleReferencePromptEnhance,
-    imageResolution,
-    setImageResolution,
-    beginnerMode: beginnerPolicy.edit.beginnerMode,
-  });
   const propertiesEditExpert = useAiStudioEditExpertPanelProps({
     expertEditEligible: beginnerPolicy.edit.expertEditEligible,
     aspect,
@@ -614,9 +569,6 @@ export const useAiStudioPanelProps = ({
 
   return {
     propertiesCreate,
-    // Temporary alias while downstream callsites are migrated.
-    propertiesText: propertiesCreate,
-    propertiesImage,
     propertiesEditExpert,
     propertiesVideo,
   };

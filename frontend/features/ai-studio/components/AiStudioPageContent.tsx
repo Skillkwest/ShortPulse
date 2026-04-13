@@ -11,17 +11,17 @@ import { CreatePropertiesPanel, ComposeSendCard } from "./CreatePropertiesPanel"
 import { DetailModal } from "./DetailModal";
 import { ModelModal, type ModelModalContext } from "./ModelModal";
 import { AiStudioShellFrame } from "./AiStudioShellFrame";
-import { EditPropertiesPanel } from "./EditPropertiesPanel";
 import { ExpertEditPanelView } from "./edit/ExpertEditPanelView";
 import { EXPERT_EDIT_STYLE_CATALOG, type ExpertEditStyleTile } from "./edit/expertEditStyles";
 import { StudioPreview } from "./StudioPreview";
 import type { ModelOption } from "../constants";
 import { CharacterPanel } from "./CharacterPanel";
-import { CanvasPropertiesPanel } from "./canvas/CanvasPropertiesPanel";
 import { StylesLibraryPanel } from "./StylesLibraryPanel";
 import { PresetsLibraryPanel } from "./PresetsLibraryPanel";
 import { VideoPropertiesPanel } from "./VideoPropertiesPanel";
 import { SoundPropertiesPanel } from "./SoundPropertiesPanel";
+import { VoicesPropertiesPanel } from "./VoicesPropertiesPanel";
+import { VoiceChangerPropertiesPanel } from "./VoiceChangerPropertiesPanel";
 import { TextToSpeechPropertiesPanel } from "./TextToSpeechPropertiesPanel";
 import { MediaLibraryPanel } from "./MediaLibraryPanel";
 import { ElementsPanel } from "./ElementsPanel";
@@ -31,8 +31,6 @@ import { useStylesLibraryDeletedStyleIdsPreference } from "../hooks/useStylesLib
 import { useStylesLibraryStyleDetailsPreference } from "../hooks/useStylesLibraryStyleDetailsPreference";
 import type { ResolveCharacterDropReference } from "../../character-manager/hooks/useCharacterManagerDroppedReferenceController";
 import type { ResolveInternalReferenceDrop } from "../logic/referenceSource/internalReferenceSource";
-import type { CanvasPropertiesPanelProps } from "./canvas/useAiStudioCanvasWorkspaceState";
-import type { ResolveCanvasDropReference } from "./canvas/canvasTypes";
 import type { AiStudioReferenceGridContract } from "../hooks/contracts/pageContentContracts";
 import type {
   AgentActions,
@@ -61,7 +59,6 @@ import { useVisibleErrorTelemetry } from "../../../lib/useVisibleErrorTelemetry"
 import {
   AI_SHELL_LEFT_CHARACTER_MIN_PX,
   AI_SHELL_LEFT_CHARACTER_DEFAULT_RATIO,
-  AI_SHELL_LEFT_CANVAS_DEFAULT_RATIO,
   AI_SHELL_LEFT_EXPERT_CREATE_MAX_PX,
   AI_SHELL_LEFT_EXPERT_CREATE_MIN_PX,
   AI_SHELL_LEFT_EXPERT_EDIT_MIN_PX,
@@ -137,7 +134,6 @@ const comingSoonCopy: Record<
 const isComingSoonTool = (tool: ToolId | null): tool is ComingSoonToolId =>
   tool === "templates" || tool === "workflows" || tool === "my-generations" || tool === "community";
 const AI_STUDIO_HEADER_SHORTCUT_BUTTONS = [
-  { id: "canvas", label: "Canvas" },
   { id: "quick-slot-inventory", label: "Quick Slot Inventory" },
   { id: "reference-grid", label: "Reference Grid" },
 ] as const;
@@ -309,10 +305,8 @@ const getEventTargetElement = (target: EventTarget | null): Element | null => {
 };
 
 type CreateSectionProps = React.ComponentProps<typeof CreatePropertiesPanel>;
-type EditSectionProps = React.ComponentProps<typeof EditPropertiesPanel>;
 type EditExpertSectionProps = React.ComponentProps<typeof ExpertEditPanelView>;
 type VideoSectionProps = React.ComponentProps<typeof VideoPropertiesPanel>;
-type CanvasSectionProps = CanvasPropertiesPanelProps;
 const PERFORMANCE_DENSE_REFERENCE_COUNT = 40;
 const FLAG_SHELL_DECOUPLE = PERF_FLAG_SHELL_DECOUPLE;
 const FLAG_DND_BACKPRESSURE = PERF_FLAG_SHELL_DND_BACKPRESSURE;
@@ -473,10 +467,6 @@ const AiStudioAlertsStack = React.memo(function AiStudioAlertsStack({
 
 export type AiStudioPageContentProps = {
   referenceGridFileInputRef: React.RefObject<HTMLInputElement>;
-  /**
-   * @deprecated Use `referenceGridFileInputRef`.
-   */
-  referenceCanvasFileInputRef?: React.RefObject<HTMLInputElement>;
   onFileBrowserSelection: (event: React.ChangeEvent<HTMLInputElement>) => void;
   uiError: string | null;
   uiNotice: string | null;
@@ -500,25 +490,14 @@ export type AiStudioPageContentProps = {
   onSelectTool: (tool: ToolId | null) => void;
   onToggleCreateTools: (value: boolean) => void;
   propertiesCreate: CreateSectionProps;
-  /**
-   * @deprecated Use `propertiesCreate`.
-   */
-  propertiesText?: CreateSectionProps;
-  propertiesImage: EditSectionProps;
   propertiesEditExpert: EditExpertSectionProps;
   propertiesVideo: VideoSectionProps;
-  propertiesCanvas: CanvasSectionProps;
-  railCanvasProps?: CanvasSectionProps;
   refreshCharacterOptions?: () => Promise<
     Array<{ id: string; name: string; profileImageUrl: string | null }>
   >;
   resolveCharacterAvatarUrlById?: (characterId: string | null | undefined) => string | null;
   isTemplateView: boolean;
   referenceGridProps: AiStudioReferenceGridContract;
-  /**
-   * @deprecated Use `referenceGridProps`.
-   */
-  referenceCanvasProps?: AiStudioReferenceGridContract;
   studioPreviewProps: React.ComponentProps<typeof StudioPreview>;
   detailModalOutput: StudioOutput | null;
   onDetailClose: () => void;
@@ -536,7 +515,6 @@ export type AiStudioPageContentProps = {
     id: string;
   } | null>;
   resolveStyleLibraryInternalDrop?: ResolveInternalStyleDrop;
-  resolveCanvasDropReference?: ResolveCanvasDropReference;
   onOpenMediaLibrary?: () => void;
   modelModalState: {
     isOpen: boolean;
@@ -548,10 +526,6 @@ export type AiStudioPageContentProps = {
   };
   agentChat: AgentChatProps;
   handleReferenceGridFiles: (files: FileList) => void;
-  /**
-   * @deprecated Use `handleReferenceGridFiles`.
-   */
-  handleReferenceCanvasFiles?: (files: FileList) => void;
   triggerFilePicker: () => void;
   resolveCharacterDropReference?: ResolveCharacterDropReference;
   resolveElementProfileImageDropSource?: ResolveInternalReferenceDrop;
@@ -561,7 +535,6 @@ export type AiStudioPageContentProps = {
 
 export function AiStudioPageContent({
   referenceGridFileInputRef,
-  referenceCanvasFileInputRef,
   onFileBrowserSelection,
   uiError,
   uiNotice,
@@ -583,17 +556,12 @@ export function AiStudioPageContent({
   onSelectTool,
   onToggleCreateTools,
   propertiesCreate,
-  propertiesText,
-  propertiesImage,
   propertiesEditExpert,
   propertiesVideo,
-  propertiesCanvas,
-  railCanvasProps,
   refreshCharacterOptions,
   resolveCharacterAvatarUrlById,
   isTemplateView,
   referenceGridProps,
-  referenceCanvasProps,
   studioPreviewProps,
   detailModalOutput,
   onDetailClose,
@@ -612,18 +580,15 @@ export function AiStudioPageContent({
   modelModalState,
   agentChat,
   handleReferenceGridFiles,
-  handleReferenceCanvasFiles,
   triggerFilePicker,
   resolveCharacterDropReference,
   resolveElementProfileImageDropSource,
   onSelectedStylePromptChange,
   onSelectedStyleContextChange,
 }: AiStudioPageContentProps) {
-  const resolvedReferenceGridFileInputRef =
-    referenceGridFileInputRef ?? referenceCanvasFileInputRef;
-  const resolvedCreateProperties = propertiesCreate ?? propertiesText;
-  const resolvedReferenceGridProps = referenceGridProps ?? referenceCanvasProps;
-  const resolvedHandleReferenceGridFiles = handleReferenceGridFiles ?? handleReferenceCanvasFiles;
+  const resolvedReferenceGridFileInputRef = referenceGridFileInputRef;
+  const resolvedCreateProperties = propertiesCreate;
+  const resolvedReferenceGridProps = referenceGridProps;
   const selectedComingSoonTool = isComingSoonTool(selectedTool) ? selectedTool : null;
   const comingSoon = selectedComingSoonTool ? comingSoonCopy[selectedComingSoonTool] : null;
   const ComingSoonIcon = comingSoon ? comingSoon.icon : null;
@@ -636,8 +601,7 @@ export function AiStudioPageContent({
     resolvedCreateProperties.expertCreateUiEligible &&
     !resolvedCreateProperties.beginnerMode
   );
-  const showExpertEditPanel =
-    propertiesPanelKind === "edit" && propertiesEditExpert.expertEditEligible;
+  const showExpertEditPanel = propertiesPanelKind === "edit";
   const showStylesPanelEligible = showExpertEditPanel || showExpertCreatePanel;
   const isPrimaryCharacterPanelOpen = isPrimaryCharacterTool(selectedTool);
   const isCharacterShellPanelOpen = isCharacterShellTool(selectedTool);
@@ -758,21 +722,17 @@ export function AiStudioPageContent({
     resolvedReferenceGridProps.onRemoveCuratedReference &&
     resolvedReferenceGridProps.onReorderCuratedReference
   );
-  const isCanvasToggleAvailable =
-    !isPrimaryCharacterPanelOpen && Boolean(railCanvasProps) && selectedTool !== "canvas";
   const isStylesToggleAvailable = !isPrimaryCharacterPanelOpen && showStylesPanelEligible;
   const panelToggleAvailability = React.useMemo(
     () => ({
-      canvas: isCanvasToggleAvailable,
       quickSlot: isQuickSlotToggleAvailable,
       styles: isStylesToggleAvailable,
     }),
-    [isCanvasToggleAvailable, isQuickSlotToggleAvailable, isStylesToggleAvailable]
+    [isQuickSlotToggleAvailable, isStylesToggleAvailable]
   );
   const effectivePanelVisibility = React.useMemo(() => {
     if (isPrimaryCharacterPanelOpen) {
       return {
-        canvas: false,
         quickSlot: isQuickSlotToggleAvailable,
         referenceGrid: true,
         styles: false,
@@ -784,7 +744,6 @@ export function AiStudioPageContent({
     });
     if (selectedTool === "styles") {
       return {
-        canvas: false,
         quickSlot: false,
         referenceGrid: true,
         styles: false,
@@ -807,14 +766,7 @@ export function AiStudioPageContent({
       }),
     [effectivePanelVisibility, panelToggleAvailability]
   );
-  const visibleHeaderShortcutButtons = React.useMemo(
-    () =>
-      AI_STUDIO_HEADER_SHORTCUT_BUTTONS.filter((shortcut) => {
-        if (isPrimaryCharacterPanelOpen && shortcut.id === "canvas") return false;
-        return true;
-      }),
-    [isPrimaryCharacterPanelOpen]
-  );
+  const visibleHeaderShortcutButtons = React.useMemo(() => AI_STUDIO_HEADER_SHORTCUT_BUTTONS, []);
   const handleHeaderShortcutToggle = React.useCallback(
     (shortcutId: HeaderShortcutId) => {
       setPanelVisibility((previous) => {
@@ -841,18 +793,14 @@ export function AiStudioPageContent({
           : undefined;
   const maxLeftWidthPx = showExpertCreatePanel ? AI_SHELL_LEFT_EXPERT_CREATE_MAX_PX : undefined;
   const minRightWidthPx =
-    selectedTool === "canvas" || selectedTool === "media-library"
-      ? AI_SHELL_RIGHT_CANVAS_MIN_PX
-      : undefined;
+    selectedTool === "media-library" ? AI_SHELL_RIGHT_CANVAS_MIN_PX : undefined;
   const defaultLeftRatio = isSoundWorkflow(selectedTool)
     ? 0.65
-    : selectedTool === "canvas"
-      ? AI_SHELL_LEFT_CANVAS_DEFAULT_RATIO
-      : selectedTool === "character" || selectedTool === "elements"
-        ? AI_SHELL_LEFT_CHARACTER_DEFAULT_RATIO
-        : selectedTool === "video" || selectedTool === "kling"
-          ? AI_SHELL_LEFT_VIDEO_DEFAULT_RATIO
-          : undefined;
+    : selectedTool === "character" || selectedTool === "elements"
+      ? AI_SHELL_LEFT_CHARACTER_DEFAULT_RATIO
+      : selectedTool === "video" || selectedTool === "kling"
+        ? AI_SHELL_LEFT_VIDEO_DEFAULT_RATIO
+        : undefined;
   const {
     shellRef,
     leftColumnRef,
@@ -907,7 +855,6 @@ export function AiStudioPageContent({
     // Expert Create should always open at its minimum left width when Create is selected.
     const isCreateToolSelected = isCreateWorkflow(selectedTool);
     const shouldCollapseForExpertCreateSelection = showExpertCreatePanel && isCreateToolSelected;
-    const isInitialCanvasSelection = previousSelectedTool == null && selectedTool === "canvas";
     const isInitialSoundSelection =
       previousSelectedTool !== selectedTool &&
       isSoundToolSelected &&
@@ -921,9 +868,8 @@ export function AiStudioPageContent({
       previousSelectedTool !== selectedTool &&
       (selectedTool === "video" || selectedTool === "kling");
     if (
-      (!isInitialCanvasSelection &&
-        (shouldCollapseAiShellOnToolSelect(previousSelectedTool, selectedTool) ||
-          shouldResetForVideoSelection)) ||
+      shouldCollapseAiShellOnToolSelect(previousSelectedTool, selectedTool) ||
+      shouldResetForVideoSelection ||
       shouldCollapseForExpertCreateSelection
     ) {
       if (shouldResetForVideoSelection) {
@@ -1029,10 +975,6 @@ export function AiStudioPageContent({
     },
     [propertiesEditExpert.customPresetOverrides, propertiesEditExpert.onCustomPresetOverridesChange]
   );
-  const isTargetInsideRailCanvas = React.useCallback((target: EventTarget | null): boolean => {
-    const element = getEventTargetElement(target);
-    return Boolean(element?.closest('[data-canvas-instance="rail"]'));
-  }, []);
   const isTargetInsideQuickSlot = React.useCallback((target: EventTarget | null): boolean => {
     const element = getEventTargetElement(target);
     return Boolean(element?.closest(".reference-curated-section"));
@@ -1093,21 +1035,12 @@ export function AiStudioPageContent({
     [resolvedCreatePropertiesWithStyles, showExpertCreatePanel]
   );
   const editPropertiesPanelContent = React.useMemo(
-    () =>
-      showExpertEditPanel ? (
-        <ExpertEditPanelView {...resolvedExpertEditProperties} />
-      ) : (
-        <EditPropertiesPanel {...propertiesImage} />
-      ),
-    [propertiesImage, resolvedExpertEditProperties, showExpertEditPanel]
+    () => <ExpertEditPanelView {...resolvedExpertEditProperties} />,
+    [resolvedExpertEditProperties]
   );
   const videoPropertiesPanelContent = React.useMemo(
     () => <VideoPropertiesPanel {...propertiesVideo} />,
     [propertiesVideo]
-  );
-  const canvasPropertiesPanelContent = React.useMemo(
-    () => <CanvasPropertiesPanel {...propertiesCanvas} />,
-    [propertiesCanvas]
   );
   const characterPropertiesPanelContent = React.useMemo(
     () => (
@@ -1200,10 +1133,12 @@ export function AiStudioPageContent({
           return videoPropertiesPanelContent;
         case "sound":
           return <SoundPropertiesPanel />;
+        case "voices":
+          return <VoicesPropertiesPanel />;
+        case "voice-changer":
+          return <VoiceChangerPropertiesPanel />;
         case "text-to-speech":
           return <TextToSpeechPropertiesPanel />;
-        case "canvas":
-          return canvasPropertiesPanelContent;
         case "character":
           return characterPropertiesPanelContent;
         case "presets":
@@ -1220,7 +1155,6 @@ export function AiStudioPageContent({
       }
     },
     [
-      canvasPropertiesPanelContent,
       characterPropertiesPanelContent,
       createPropertiesPanelContent,
       elementsPropertiesPanelContent,
@@ -1273,7 +1207,7 @@ export function AiStudioPageContent({
     rightColumnRef: rightColumnRef as React.RefObject<HTMLElement | null>,
     resolveDropMode: (transfer) => resolveRightColumnDropMode(transfer) as RightColumnDropMode,
     resolveDropPayload: (transfer) => resolveRightColumnDropPayload(transfer),
-    onDropFiles: resolvedHandleReferenceGridFiles,
+    onDropFiles: handleReferenceGridFiles,
     onDropMediaReference: resolvedReferenceGridPropsWithStylesPanel.onPasteMediaReference,
     onDropLibraryMediaReference: onAddLibraryMediaReference,
     onDropLibraryPromptReference: onAddLibraryPromptReference,
@@ -1281,18 +1215,6 @@ export function AiStudioPageContent({
     useRafBackpressure: FLAG_SHELL_DECOUPLE && FLAG_DND_BACKPRESSURE,
     shouldBypassCapture: (event, context) => {
       const payloadKind = context.payload?.kind;
-      if (isTargetInsideRailCanvas(event.target)) {
-        if (
-          payloadKind === "text" ||
-          payloadKind === "internal" ||
-          payloadKind === "libraryMedia" ||
-          payloadKind === "libraryPrompt"
-        ) {
-          return true;
-        }
-        if (context.dropMode === "text") return true;
-        return false;
-      }
       if (isTargetInsideQuickSlot(event.target)) {
         if (payloadKind === "libraryMedia" || payloadKind === "libraryPrompt") {
           return true;
@@ -1398,9 +1320,8 @@ export function AiStudioPageContent({
               onShellDropCapture={handleShellDropCapture}
               agentChat={agentChat}
               referenceGridProps={resolvedReferenceGridPropsWithStylesPanel}
-              railCanvasProps={railCanvasProps}
               studioPreviewProps={studioPreviewProps}
-              handleReferenceGridFiles={resolvedHandleReferenceGridFiles}
+              handleReferenceGridFiles={handleReferenceGridFiles}
               triggerFilePicker={triggerFilePicker}
               onOpenMediaLibrary={onOpenMediaLibrary}
               beginnerMode={beginnerMode}

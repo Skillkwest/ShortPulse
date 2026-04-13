@@ -72,19 +72,13 @@ vi.mock("../ReferenceGrid", () => ({
       onSelectStyle?: (styleId: string | null) => void;
     };
     panelVisibility?: {
-      canvas: boolean;
       quickSlot: boolean;
       referenceGrid: boolean;
       styles: boolean;
     };
-    railCanvasProps?: {
-      onViewportDragOver?: (event: React.DragEvent<HTMLDivElement>) => void;
-      onViewportDrop?: (event: React.DragEvent<HTMLDivElement>) => void;
-    };
   }) => (
     <div
       data-testid="reference-grid"
-      data-panel-canvas={props.panelVisibility?.canvas ? "visible" : "hidden"}
       data-panel-quick-slot={props.panelVisibility?.quickSlot ? "visible" : "hidden"}
       data-panel-reference-grid={props.panelVisibility?.referenceGrid ? "visible" : "hidden"}
       data-panel-styles={props.panelVisibility?.styles ? "visible" : "hidden"}
@@ -109,23 +103,10 @@ vi.mock("../ReferenceGrid", () => ({
         onDragOver={(event: React.DragEvent<HTMLDivElement>) => event.preventDefault()}
         onDrop={(event: React.DragEvent<HTMLDivElement>) => event.preventDefault()}
       />
-      <div
-        data-testid="reference-grid-rail-canvas"
-        data-canvas-instance="rail"
-        onDragOver={(event: React.DragEvent<HTMLDivElement>) =>
-          props.railCanvasProps?.onViewportDragOver?.(event)
-        }
-        onDrop={(event: React.DragEvent<HTMLDivElement>) =>
-          props.railCanvasProps?.onViewportDrop?.(event)
-        }
-      />
     </div>
   ),
 }));
 
-vi.mock("../EditPropertiesPanel", () => ({
-  EditPropertiesPanel: () => <div data-testid="edit-properties" />,
-}));
 vi.mock("../edit/ExpertEditPanelView", () => ({
   ExpertEditPanelView: (props: {
     isStylesPanelOpen?: boolean;
@@ -165,7 +146,6 @@ vi.mock("../AiStudioShellFrame", async () => {
       onShellDragOverCapture?: DragEventHandler<HTMLElement>;
       onShellDropCapture?: DragEventHandler<HTMLElement>;
       referenceGridProps?: Partial<ReferenceGridProps>;
-      railCanvasProps?: ReferenceGridProps["railCanvasProps"];
       studioPreviewProps?: Partial<StudioPreviewMockProps>;
     }) => (
       <section
@@ -189,7 +169,6 @@ vi.mock("../AiStudioShellFrame", async () => {
             {...({
               activeOutputId: null,
               ...(props.referenceGridProps ?? {}),
-              railCanvasProps: props.railCanvasProps,
             } as ReferenceGridProps)}
           />
           <StudioPreview
@@ -265,9 +244,6 @@ vi.mock("../MediaLibraryPanel", () => ({
 vi.mock("../VideoPropertiesPanel", () => ({
   VideoPropertiesPanel: () => <div data-testid="video-properties" />,
 }));
-vi.mock("../canvas/CanvasPropertiesPanel", () => ({
-  CanvasPropertiesPanel: () => <div data-testid="canvas-properties" />,
-}));
 
 vi.mock("../../../../prefabs/agent", () => ({
   AgentChatPanel: () => <div data-testid="agent-chat-panel" />,
@@ -328,13 +304,10 @@ const createProps = (
   onSelectTool: vi.fn(),
   onToggleCreateTools: vi.fn(),
   propertiesCreate: {} as AiStudioPageContentProps["propertiesCreate"],
-  propertiesImage: {} as AiStudioPageContentProps["propertiesImage"],
   propertiesEditExpert: {
     expertEditEligible: false,
   } as AiStudioPageContentProps["propertiesEditExpert"],
   propertiesVideo: {} as AiStudioPageContentProps["propertiesVideo"],
-  propertiesCanvas: {} as AiStudioPageContentProps["propertiesCanvas"],
-  railCanvasProps: {} as AiStudioPageContentProps["railCanvasProps"],
   isTemplateView: false,
   referenceGridProps: {
     outputs: [],
@@ -405,9 +378,9 @@ describe("AiStudioPageContent right column drop router", () => {
     const baseProps = createProps({
       selectedTool: "create",
       propertiesCreate: stableCreateProps,
-      propertiesImage: {
+      propertiesEditExpert: {
         inactivePanelVersion: 1,
-      } as unknown as AiStudioPageContentProps["propertiesImage"],
+      } as unknown as AiStudioPageContentProps["propertiesEditExpert"],
     });
 
     const { rerender } = render(<AiStudioPageContent {...baseProps} />);
@@ -418,9 +391,9 @@ describe("AiStudioPageContent right column drop router", () => {
         {...createProps({
           ...baseProps,
           propertiesCreate: stableCreateProps,
-          propertiesImage: {
+          propertiesEditExpert: {
             inactivePanelVersion: 2,
-          } as unknown as AiStudioPageContentProps["propertiesImage"],
+          } as unknown as AiStudioPageContentProps["propertiesEditExpert"],
         })}
       />
     );
@@ -434,11 +407,11 @@ describe("AiStudioPageContent right column drop router", () => {
     expect(screen.getByRole("button", { name: "Reference Grid" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Quick Slot Inventory" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Styles" })).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Canvas" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Canvas" })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Styles visibility" })).toBeInTheDocument();
   });
 
-  it("hides the canvas header shortcut when the character properties panel is open", () => {
+  it("keeps header shortcuts limited to quick slot and reference grid in character workflow", () => {
     render(<AiStudioPageContent {...createProps({ selectedTool: "character" })} />);
 
     const shortcutButtons = within(screen.getByLabelText("AI Studio header shortcuts"));
@@ -472,22 +445,17 @@ describe("AiStudioPageContent right column drop router", () => {
 
     const shortcutButtons = within(screen.getByLabelText("AI Studio header shortcuts"));
     const referenceGrid = screen.getByTestId("reference-grid");
-    const canvasButton = shortcutButtons.getByRole("button", { name: "Canvas" });
     const quickSlotButton = shortcutButtons.getByRole("button", { name: "Quick Slot Inventory" });
     const referenceGridButton = shortcutButtons.getByRole("button", { name: "Reference Grid" });
 
-    expect(canvasButton).toHaveAttribute("aria-pressed", "false");
     expect(quickSlotButton).toHaveAttribute("aria-pressed", "true");
     expect(referenceGridButton).toHaveAttribute("aria-pressed", "true");
 
-    fireEvent.click(canvasButton);
     fireEvent.click(quickSlotButton);
     fireEvent.click(referenceGridButton);
 
-    expect(referenceGrid).toHaveAttribute("data-panel-canvas", "visible");
     expect(referenceGrid).toHaveAttribute("data-panel-quick-slot", "hidden");
     expect(referenceGrid).toHaveAttribute("data-panel-reference-grid", "hidden");
-    expect(canvasButton).toHaveAttribute("aria-pressed", "true");
     expect(quickSlotButton).toHaveAttribute("aria-pressed", "false");
     expect(referenceGridButton).toHaveAttribute("aria-pressed", "false");
   });
@@ -505,20 +473,26 @@ describe("AiStudioPageContent right column drop router", () => {
     const { rerender } = render(<AiStudioPageContent {...baseProps} />);
     const getShortcutButtons = () => within(screen.getByLabelText("AI Studio header shortcuts"));
 
-    fireEvent.click(getShortcutButtons().getByRole("button", { name: "Canvas" }));
-    expect(screen.getByTestId("reference-grid")).toHaveAttribute("data-panel-canvas", "visible");
-
-    rerender(<AiStudioPageContent {...createProps({ ...baseProps, selectedTool: "edit" })} />);
-    expect(screen.getByTestId("reference-grid")).toHaveAttribute("data-panel-canvas", "visible");
     fireEvent.click(getShortcutButtons().getByRole("button", { name: "Quick Slot Inventory" }));
     expect(screen.getByTestId("reference-grid")).toHaveAttribute("data-panel-quick-slot", "hidden");
 
-    rerender(<AiStudioPageContent {...createProps({ ...baseProps, selectedTool: "create" })} />);
-    expect(screen.getByTestId("reference-grid")).toHaveAttribute("data-panel-canvas", "visible");
+    rerender(<AiStudioPageContent {...createProps({ ...baseProps, selectedTool: "edit" })} />);
     expect(screen.getByTestId("reference-grid")).toHaveAttribute("data-panel-quick-slot", "hidden");
+    fireEvent.click(getShortcutButtons().getByRole("button", { name: "Reference Grid" }));
+    expect(screen.getByTestId("reference-grid")).toHaveAttribute(
+      "data-panel-reference-grid",
+      "hidden"
+    );
+
+    rerender(<AiStudioPageContent {...createProps({ ...baseProps, selectedTool: "create" })} />);
+    expect(screen.getByTestId("reference-grid")).toHaveAttribute("data-panel-quick-slot", "hidden");
+    expect(screen.getByTestId("reference-grid")).toHaveAttribute(
+      "data-panel-reference-grid",
+      "hidden"
+    );
   });
 
-  it("disables the header canvas toggle in canvas workflow", () => {
+  it("keeps header shortcuts limited to quick slot and reference grid for stale canvas selection", () => {
     render(
       <AiStudioPageContent
         {...createProps({
@@ -534,10 +508,11 @@ describe("AiStudioPageContent right column drop router", () => {
     );
 
     const shortcutButtons = within(screen.getByLabelText("AI Studio header shortcuts"));
-    const canvasButton = shortcutButtons.getByRole("button", { name: "Canvas" });
-
-    expect(canvasButton).toBeDisabled();
-    expect(canvasButton).toHaveAttribute("aria-pressed", "false");
+    expect(shortcutButtons.queryByRole("button", { name: "Canvas" })).not.toBeInTheDocument();
+    expect(
+      shortcutButtons.getByRole("button", { name: "Quick Slot Inventory" })
+    ).toBeInTheDocument();
+    expect(shortcutButtons.getByRole("button", { name: "Reference Grid" })).toBeInTheDocument();
   });
 
   it("locks character workflow header toggles to quick slot + reference grid", () => {
@@ -564,7 +539,6 @@ describe("AiStudioPageContent right column drop router", () => {
     expect(referenceGridButton).not.toBeDisabled();
     expect(quickSlotButton).toHaveAttribute("aria-pressed", "true");
     expect(referenceGridButton).toHaveAttribute("aria-pressed", "true");
-    expect(screen.getByTestId("reference-grid")).toHaveAttribute("data-panel-canvas", "hidden");
     expect(screen.getByTestId("reference-grid")).toHaveAttribute(
       "data-panel-quick-slot",
       "visible"
@@ -614,7 +588,7 @@ describe("AiStudioPageContent right column drop router", () => {
     expect(onPasteTextReference).not.toHaveBeenCalled();
   });
 
-  it("does not collapse to minimum when canvas is selected on initial hydration", () => {
+  it("does not collapse to minimum when stale canvas selection is hydrated", () => {
     collapseToMinMock.mockClear();
     const { rerender } = render(<AiStudioPageContent {...createProps({ selectedTool: null })} />);
     rerender(<AiStudioPageContent {...createProps({ selectedTool: "canvas" })} />);
@@ -718,7 +692,7 @@ describe("AiStudioPageContent right column drop router", () => {
     expect(screen.getByRole("button", { name: "Dismiss" })).toBeInTheDocument();
   });
 
-  it("routes workflows to panel surfaces and renders Canvas as a dedicated panel", () => {
+  it("routes workflows to panel surfaces and demotes stale canvas selection to create", () => {
     const { rerender } = render(
       <AiStudioPageContent {...createProps({ selectedTool: "create" })} />
     );
@@ -728,10 +702,10 @@ describe("AiStudioPageContent right column drop router", () => {
     expect(screen.getByTestId("text-properties")).toBeInTheDocument();
 
     rerender(<AiStudioPageContent {...createProps({ selectedTool: "edit" })} />);
-    expect(screen.getByTestId("edit-properties")).toBeInTheDocument();
+    expect(screen.getByTestId("expert-edit-properties")).toBeInTheDocument();
 
     rerender(<AiStudioPageContent {...createProps({ selectedTool: "image" })} />);
-    expect(screen.getByTestId("edit-properties")).toBeInTheDocument();
+    expect(screen.getByTestId("expert-edit-properties")).toBeInTheDocument();
 
     rerender(<AiStudioPageContent {...createProps({ selectedTool: "video" })} />);
     expect(screen.getByTestId("video-properties")).toBeInTheDocument();
@@ -741,6 +715,12 @@ describe("AiStudioPageContent right column drop router", () => {
 
     rerender(<AiStudioPageContent {...createProps({ selectedTool: "sound" })} />);
     expect(screen.getByRole("heading", { name: "Sound Properties" })).toBeInTheDocument();
+
+    rerender(<AiStudioPageContent {...createProps({ selectedTool: "voices" })} />);
+    expect(screen.getByRole("heading", { name: "Voices" })).toBeInTheDocument();
+
+    rerender(<AiStudioPageContent {...createProps({ selectedTool: "voice-changer" })} />);
+    expect(screen.getByRole("heading", { name: "Voice Changer" })).toBeInTheDocument();
 
     rerender(<AiStudioPageContent {...createProps({ selectedTool: "text-to-speech" })} />);
     expect(screen.getByRole("heading", { name: "Text to Speech" })).toBeInTheDocument();
@@ -752,7 +732,7 @@ describe("AiStudioPageContent right column drop router", () => {
     expect(screen.getByTestId("character-panel")).toBeInTheDocument();
 
     rerender(<AiStudioPageContent {...createProps({ selectedTool: "canvas" })} />);
-    expect(screen.getByTestId("canvas-properties")).toBeInTheDocument();
+    expect(screen.getByTestId("text-properties")).toBeInTheDocument();
 
     rerender(<AiStudioPageContent {...createProps({ selectedTool: "styles" })} />);
     expect(screen.getByTestId("styles-library-panel")).toBeInTheDocument();
@@ -772,7 +752,6 @@ describe("AiStudioPageContent right column drop router", () => {
       "data-panel-reference-grid",
       "visible"
     );
-    expect(screen.getByTestId("reference-grid")).toHaveAttribute("data-panel-canvas", "hidden");
     expect(screen.getByTestId("reference-grid")).toHaveAttribute("data-panel-quick-slot", "hidden");
     expect(screen.getByTestId("reference-grid")).toHaveAttribute("data-panel-styles", "hidden");
     expect(screen.queryByText("Coming soon")).not.toBeInTheDocument();
@@ -885,7 +864,6 @@ describe("AiStudioPageContent right column drop router", () => {
     );
 
     const shortcutButtons = within(screen.getByLabelText("AI Studio header shortcuts"));
-    const canvasButton = shortcutButtons.getByRole("button", { name: "Canvas" });
     const quickSlotButton = shortcutButtons.getByRole("button", { name: "Quick Slot Inventory" });
     const expertPanelStylesButton = within(screen.getByTestId("expert-edit-properties")).getByRole(
       "button",
@@ -896,10 +874,8 @@ describe("AiStudioPageContent right column drop router", () => {
     fireEvent.click(expertPanelStylesButton);
 
     expect(screen.getByTestId("expert-edit-styles-open")).toHaveTextContent("open");
-    expect(canvasButton).toHaveAttribute("aria-pressed", "false");
     expect(quickSlotButton).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByTestId("reference-grid")).toHaveAttribute("data-panel-styles", "visible");
-    expect(screen.getByTestId("reference-grid")).toHaveAttribute("data-panel-canvas", "hidden");
     expect(screen.getByTestId("reference-grid")).toHaveAttribute(
       "data-panel-quick-slot",
       "visible"
@@ -907,7 +883,6 @@ describe("AiStudioPageContent right column drop router", () => {
 
     fireEvent.click(expertPanelStylesButton);
     expect(screen.getByTestId("expert-edit-styles-open")).toHaveTextContent("closed");
-    expect(canvasButton).toHaveAttribute("aria-pressed", "false");
     expect(quickSlotButton).toHaveAttribute("aria-pressed", "true");
   });
 
@@ -1018,7 +993,7 @@ describe("AiStudioPageContent right column drop router", () => {
     expect(onPasteTextReference).toHaveBeenCalledWith("dropped prompt text");
   });
 
-  it("keeps right-column text drop routing intact while Canvas is active", () => {
+  it("keeps right-column text drop routing intact while stale canvas selection is active", () => {
     const onPasteTextReference = vi.fn();
     const baseProps = createProps();
     const props = createProps({
@@ -1041,80 +1016,6 @@ describe("AiStudioPageContent right column drop router", () => {
     fireEvent.drop(rightColumn as HTMLElement, { dataTransfer });
 
     expect(onPasteTextReference).toHaveBeenCalledWith("Dropped note");
-  });
-
-  it("lets rail-canvas viewport handle text drops before shell routing", () => {
-    const onPasteTextReference = vi.fn();
-    const onRailViewportDrop = vi.fn((event: React.DragEvent<HTMLDivElement>) => {
-      event.preventDefault();
-    });
-    const props = createProps({
-      referenceGridProps: {
-        ...createProps().referenceGridProps,
-        onPasteTextReference,
-      },
-      railCanvasProps: {
-        onViewportDragOver: (event: React.DragEvent<HTMLDivElement>) => {
-          event.preventDefault();
-        },
-        onViewportDrop: onRailViewportDrop,
-      } as unknown as AiStudioPageContentProps["railCanvasProps"],
-    });
-
-    const { getByTestId } = render(<AiStudioPageContent {...props} />);
-    const railCanvasViewport = getByTestId("reference-grid-rail-canvas");
-    const dataTransfer = {
-      types: ["text/plain"],
-      files: makeEmptyFileList(),
-      getData: (type: string) => (type === "text/plain" ? "Canvas note" : ""),
-    } as unknown as DataTransfer;
-
-    fireEvent.dragOver(railCanvasViewport, { dataTransfer });
-    fireEvent.drop(railCanvasViewport, { dataTransfer });
-
-    expect(onRailViewportDrop).toHaveBeenCalled();
-    expect(onPasteTextReference).not.toHaveBeenCalled();
-  });
-
-  it("lets rail-canvas viewport handle media-library drops before shell routing", () => {
-    const onAddLibraryMediaReference = vi.fn();
-    const onRailViewportDrop = vi.fn((event: React.DragEvent<HTMLDivElement>) => {
-      event.preventDefault();
-    });
-    const props = createProps({
-      onAddLibraryMediaReference,
-      railCanvasProps: {
-        onViewportDragOver: (event: React.DragEvent<HTMLDivElement>) => {
-          event.preventDefault();
-        },
-        onViewportDrop: onRailViewportDrop,
-      } as unknown as AiStudioPageContentProps["railCanvasProps"],
-    });
-
-    const { getByTestId } = render(<AiStudioPageContent {...props} />);
-    const railCanvasViewport = getByTestId("reference-grid-rail-canvas");
-    const dataTransfer = {
-      types: [
-        "text/shortpulse-media-library-marker",
-        "text/shortpulse-media-library-kind",
-        "text/shortpulse-media-library-id",
-        "text/reference-url",
-      ],
-      files: makeEmptyFileList(),
-      getData: (type: string) => {
-        if (type === "text/shortpulse-media-library-marker") return "shortpulse-media-library-v1";
-        if (type === "text/shortpulse-media-library-kind") return "libraryMedia";
-        if (type === "text/shortpulse-media-library-id") return "media-canvas-1";
-        if (type === "text/reference-url") return "https://cdn.example.com/canvas-image.png";
-        return "";
-      },
-    } as unknown as DataTransfer;
-
-    fireEvent.dragOver(railCanvasViewport, { dataTransfer });
-    fireEvent.drop(railCanvasViewport, { dataTransfer });
-
-    expect(onRailViewportDrop).toHaveBeenCalled();
-    expect(onAddLibraryMediaReference).not.toHaveBeenCalled();
   });
 
   it("lets quick-slot targets bypass shell library-media routing", () => {

@@ -116,8 +116,6 @@ const createParams = (
       if (!id) return null;
       return outputs.find((item) => item.id === id)?.previewUrl ?? null;
     }),
-    isReferencePromptEnhancing: false,
-    handleReferencePromptEnhance: vi.fn(),
     setEditReferenceImageUrl: vi.fn(),
     setEditExtraImageUrl: vi.fn(),
     handleEditPromptTextChange: vi.fn(),
@@ -310,7 +308,7 @@ describe("useAiStudioPanelProps", () => {
 
     expect(result.current.propertiesCreate.agentIsSending).toBe(true);
     expect(result.current.propertiesCreate.isGenerateDisabled).toBe(false);
-    expect(result.current.propertiesImage.isGenerateDisabled).toBe(false);
+    expect(result.current.propertiesEditExpert.isGenerateDisabled).toBe(false);
     expect(result.current.propertiesVideo.isGenerateDisabled).toBe(false);
   });
 
@@ -321,14 +319,11 @@ describe("useAiStudioPanelProps", () => {
           createIsGenerating: false,
           editIsGenerating: true,
           videoIsGenerating: true,
-          isReferencePromptEnhancing: false,
           agentBusy: false,
         })
       )
     );
 
-    expect(result.current.propertiesImage.isGenerateDisabled).toBe(false);
-    expect(result.current.propertiesImage.agentIsSending).toBe(false);
     expect(result.current.propertiesEditExpert.isGenerateDisabled).toBe(false);
     expect(result.current.propertiesEditExpert.isGenerateBusy).toBe(false);
     expect(result.current.propertiesVideo.isGenerateDisabled).toBe(false);
@@ -358,7 +353,6 @@ describe("useAiStudioPanelProps", () => {
   });
 
   it("forwards primary-stage generation state into expert edit props", () => {
-    vi.stubEnv("NEXT_PUBLIC_ENABLE_EXPERT_EDIT_UI", "true");
     const { result } = renderHook(() =>
       useAiStudioPanelProps(
         createParams({
@@ -383,8 +377,8 @@ describe("useAiStudioPanelProps", () => {
       )
     );
 
-    expect(result.current.propertiesImage.resolvePreviewUrlById?.(null)).toBeNull();
-    expect(result.current.propertiesImage.resolvePreviewUrlById?.("out-1")).toBe(
+    expect(result.current.propertiesEditExpert.resolvePreviewUrlById?.(null)).toBeNull();
+    expect(result.current.propertiesEditExpert.resolvePreviewUrlById?.("out-1")).toBe(
       "https://example.com/out-1.png"
     );
     expect(result.current.propertiesVideo.resolvePreviewUrlById?.(null)).toBeNull();
@@ -486,22 +480,7 @@ describe("useAiStudioPanelProps", () => {
     expect(result.current.propertiesEditExpert.expertEditEligible).toBe(true);
   });
 
-  it("allows env override to disable expert edit UI", () => {
-    vi.stubEnv("NODE_ENV", "production");
-    vi.stubEnv("NEXT_PUBLIC_ENABLE_EXPERT_EDIT_UI", "false");
-    const { result } = renderHook(() =>
-      useAiStudioPanelProps(
-        createParams({
-          beginnerMode: false,
-        })
-      )
-    );
-
-    expect(result.current.propertiesEditExpert.expertEditEligible).toBe(false);
-  });
-
   it("disables expert edit UI when beginner mode is on", () => {
-    vi.stubEnv("NEXT_PUBLIC_ENABLE_EXPERT_EDIT_UI", "true");
     const { result } = renderHook(() =>
       useAiStudioPanelProps(
         createParams({

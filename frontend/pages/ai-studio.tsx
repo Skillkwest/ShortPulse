@@ -477,12 +477,10 @@ export default function AiStudioPage() {
     agentPrimarySource,
     stagedAgentPrompt,
     isPromptRefining,
-    isReferencePromptEnhancing,
     describeInFlightCount,
     handleAgentInputChange,
     handleAgentSend,
     handleAgentEnhanceSend,
-    handleReferencePromptEnhance,
     handleAgentDescribeTargets,
     handleAgentAttachmentDragOver,
     handleAgentAttachmentDragEnter,
@@ -913,8 +911,6 @@ export default function AiStudioPage() {
     addSessionMediaReference: addPastedMediaReference,
     referenceImageWarning,
     resolveOutputPreviewUrl: resolvePanelOutputPreviewUrl,
-    isReferencePromptEnhancing,
-    handleReferencePromptEnhance,
     setEditReferenceImageUrl: setImageReferenceImageUrl,
     setEditExtraImageUrl: setImageExtraImageUrl,
     handleEditPromptTextChange,
@@ -999,7 +995,6 @@ export default function AiStudioPage() {
   });
   const {
     propertiesCreate,
-    propertiesImage,
     propertiesEditExpert,
     propertiesVideo,
     referenceGridProps,
@@ -1059,7 +1054,6 @@ export default function AiStudioPage() {
         onSelectTool={handleToolSelect}
         onToggleCreateTools={setShowCreateTools}
         propertiesCreate={propertiesCreate}
-        propertiesImage={propertiesImage}
         propertiesEditExpert={propertiesEditExpert}
         propertiesVideo={propertiesVideo}
         refreshCharacterOptions={refreshCharacterOptions}

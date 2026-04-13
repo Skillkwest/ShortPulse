@@ -32,6 +32,19 @@ This phase should close the loop on:
 3. keep rollback scope narrow and explicit while final deletion proceeds,
 4. align active docs/tests with the final canonical stage-only posture.
 
+## Completed Slice On 2026-04-12
+1. Removed dead `propertiesImage` and `propertiesText` compatibility aliases from the canonical AI Studio page-content contract in:
+   - `frontend/features/ai-studio/components/AiStudioPageContent.tsx`
+   - `frontend/features/ai-studio/hooks/contracts/pageContentAdapter.ts`
+   - `frontend/features/ai-studio/hooks/contracts/pageContentContracts.ts`
+   - `frontend/features/ai-studio/hooks/useAiStudioPanelProps.ts`
+   - `frontend/pages/ai-studio.tsx`
+2. Updated focused shell and contract coverage in:
+   - `frontend/features/ai-studio/hooks/__tests__/pageContentAdapter.test.ts`
+   - `frontend/features/ai-studio/hooks/__tests__/useAiStudioPanelProps.test.ts`
+   - `frontend/features/ai-studio/components/__tests__/AiStudioPageContent.drop.test.tsx`
+3. Trimmed the now-unused Expert Edit prompt-enhance props out of `frontend/features/ai-studio/hooks/useAiStudioPanelProps.ts` and the page-level call site so the canonical shell no longer threads dead edit-panel baggage.
+
 ## Exit Criteria
 1. the canonical master stage is the only editor path,
 2. deleted systems no longer appear in runtime routing, tests, or documentation as active editor foundations,

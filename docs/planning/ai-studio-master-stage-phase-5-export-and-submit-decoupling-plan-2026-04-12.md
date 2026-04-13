@@ -68,6 +68,8 @@ Completed on 2026-04-12:
 4. Re-ran focused app-level parity coverage for standard flatten submit, markup secondary-reference export, inpaint FLUX Fill submission, and export-under-zoom behavior to confirm the new export boundary preserved existing editor behavior.
 5. Extracted prompt/reference preparation into `frontend/features/ai-studio/components/edit/expertEditSubmissionPreparation.ts`, moving token validation, reference-input construction, and prompt-override compilation out of `useExpertEditInlineGenerate.ts` while keeping submit dispatch and object-url lifecycle handling local.
 6. Added focused submission-preparation coverage in `frontend/features/ai-studio/components/edit/__tests__/expertEditSubmissionPreparation.test.ts` and re-ran app-level parity tests for invalid-token blocking, prompt-override compilation, referenced-secondary filtering, and markup-reference submission behavior.
+7. Extracted provider submit-dispatch option assembly into `frontend/features/ai-studio/components/edit/expertEditSubmissionDispatch.ts`, moving FLUX Fill override construction, markup model-lock override construction, and fallback/error branching out of `useExpertEditInlineGenerate.ts`.
+8. Added focused submit-dispatch coverage in `frontend/features/ai-studio/components/edit/__tests__/expertEditSubmissionDispatch.test.ts` and re-ran app-level parity tests for invalid-token blocking, prompt-override submission, referenced-secondary filtering, markup model-lock override, and inpaint FLUX Fill submission behavior.
 
 ## Rollback Note
 If decoupling breaks submission parity, temporarily route the submit adapter back through the old export path while keeping the new export boundary intact. Do not recouple stage geometry directly into submit handlers.

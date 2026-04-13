@@ -1,13 +1,9 @@
 import React from "react";
 import type { ExpertEditStageFlattenLayer } from "../../logic/expertEditStageFlatten";
-import {
-  INPAINT_FLUX_FILL_MODEL_ID,
-  MARKUP_NANO_BANANA_PRO_EDIT_MODEL_ID,
-  isMarkupModelLockEnabled,
-  type InpaintSubmissionOverride,
-} from "../../logic/inpaintSubmission";
+import { type InpaintSubmissionOverride } from "../../logic/inpaintSubmission";
 import type { EditSubmitIntent } from "../../logic/editSubmitIntent";
 import { exportExpertEditStageArtifacts } from "./expertEditStageExport";
+import { resolveExpertEditSubmissionDispatch } from "./expertEditSubmissionDispatch";
 import {
   prepareExpertEditSubmission,
   validateExpertEditSubmissionPrompt,
@@ -108,8 +104,6 @@ export const useExpertEditInlineGenerate = ({
       let flattenedMarkupReferenceUrl: string | null = null;
       let inpaintMaskUrl: string | null = null;
       try {
-        const isInpaintSubmitSelected = editSubmitIntent === "inpaint";
-        const isMarkupSubmitSelected = editSubmitIntent === "markup";
         const exportArtifacts = await exportExpertEditStageArtifacts({
           layers,
           reusablePrimarySourceUrl,
@@ -139,51 +133,29 @@ export const useExpertEditInlineGenerate = ({
           return;
         }
         const { promptOverrideOptions, referenceInputs } = preparedSubmission;
-
-        if (isInpaintSubmitSelected) {
-          if (!onRegenerateWithReferenceInputs) {
-            showStatusToast("Inpaint generate is unavailable in this session.");
-            return;
-          }
-          if (!hasSelectedLayerMask) {
-            showStatusToast("Mask selection is required for inpaint.");
-            return;
-          }
-          if (!flattenedBlob || !flattenedUrl) {
-            showStatusToast("Unable to flatten layers.");
-            return;
-          }
-          const inpaintMaskBlob = exportArtifacts.inpaintMaskBlob;
-          if (!inpaintMaskBlob) {
-            showStatusToast("Mask selection is required for inpaint.");
-            return;
-          }
-          inpaintMaskUrl = URL.createObjectURL(inpaintMaskBlob);
-          await onRegenerateWithReferenceInputs(referenceInputs, {
-            inpaintOverride: {
-              modelId: INPAINT_FLUX_FILL_MODEL_ID,
-              baseImageInput: flattenedUrl,
-              maskInput: inpaintMaskUrl,
-              outputFormat: "png",
-            },
-            referenceInputsMode: "replace",
-            ...promptOverrideOptions,
-          });
+        const inpaintMaskBlob = exportArtifacts.inpaintMaskBlob;
+        inpaintMaskUrl = inpaintMaskBlob ? URL.createObjectURL(inpaintMaskBlob) : null;
+        const submitDispatch = resolveExpertEditSubmissionDispatch({
+          editSubmitIntent,
+          hasSubmissionHandler: Boolean(onRegenerateWithReferenceInputs),
+          hasSelectedLayerMask,
+          flattenedUrl,
+          inpaintMaskUrl,
+          referenceInputs,
+          promptOverrideOptions,
+        });
+        if (submitDispatch.status === "error") {
+          showStatusToast(submitDispatch.message);
           return;
         }
-
-        if (!onRegenerateWithReferenceInputs) {
+        if (submitDispatch.status === "fallback_regenerate") {
           onRegenerate();
           return;
         }
-        await onRegenerateWithReferenceInputs(referenceInputs, {
-          ...promptOverrideOptions,
-          modelIdOverride:
-            isMarkupSubmitSelected && isMarkupModelLockEnabled()
-              ? MARKUP_NANO_BANANA_PRO_EDIT_MODEL_ID
-              : undefined,
-          referenceInputsMode: "replace",
-        });
+        await onRegenerateWithReferenceInputs?.(
+          submitDispatch.referenceInputs,
+          submitDispatch.options
+        );
       } catch (error) {
         if (flattenedUrl) {
           revokeObjectUrlSafe(flattenedUrl);

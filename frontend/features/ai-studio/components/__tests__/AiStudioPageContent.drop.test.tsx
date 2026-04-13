@@ -492,29 +492,6 @@ describe("AiStudioPageContent right column drop router", () => {
     );
   });
 
-  it("keeps header shortcuts limited to quick slot and reference grid for stale canvas selection", () => {
-    render(
-      <AiStudioPageContent
-        {...createProps({
-          selectedTool: "canvas",
-          referenceGridProps: {
-            ...createProps().referenceGridProps,
-            onAddCuratedReference: vi.fn(),
-            onRemoveCuratedReference: vi.fn(),
-            onReorderCuratedReference: vi.fn(),
-          },
-        })}
-      />
-    );
-
-    const shortcutButtons = within(screen.getByLabelText("AI Studio header shortcuts"));
-    expect(shortcutButtons.queryByRole("button", { name: "Canvas" })).not.toBeInTheDocument();
-    expect(
-      shortcutButtons.getByRole("button", { name: "Quick Slot Inventory" })
-    ).toBeInTheDocument();
-    expect(shortcutButtons.getByRole("button", { name: "Reference Grid" })).toBeInTheDocument();
-  });
-
   it("locks character workflow header toggles to quick slot + reference grid", () => {
     render(
       <AiStudioPageContent
@@ -586,13 +563,6 @@ describe("AiStudioPageContent right column drop router", () => {
 
     expect(onPasteMediaReference).not.toHaveBeenCalled();
     expect(onPasteTextReference).not.toHaveBeenCalled();
-  });
-
-  it("does not collapse to minimum when stale canvas selection is hydrated", () => {
-    collapseToMinMock.mockClear();
-    const { rerender } = render(<AiStudioPageContent {...createProps({ selectedTool: null })} />);
-    rerender(<AiStudioPageContent {...createProps({ selectedTool: "canvas" })} />);
-    expect(collapseToMinMock).not.toHaveBeenCalled();
   });
 
   it("renders high-contrast alert banner variants for error and warning notices", () => {
@@ -692,7 +662,7 @@ describe("AiStudioPageContent right column drop router", () => {
     expect(screen.getByRole("button", { name: "Dismiss" })).toBeInTheDocument();
   });
 
-  it("routes workflows to panel surfaces and demotes stale canvas selection to create", () => {
+  it("routes live workflows to their canonical panel surfaces", () => {
     const { rerender } = render(
       <AiStudioPageContent {...createProps({ selectedTool: "create" })} />
     );
@@ -730,9 +700,6 @@ describe("AiStudioPageContent right column drop router", () => {
 
     rerender(<AiStudioPageContent {...createProps({ selectedTool: "character" })} />);
     expect(screen.getByTestId("character-panel")).toBeInTheDocument();
-
-    rerender(<AiStudioPageContent {...createProps({ selectedTool: "canvas" })} />);
-    expect(screen.getByTestId("text-properties")).toBeInTheDocument();
 
     rerender(<AiStudioPageContent {...createProps({ selectedTool: "styles" })} />);
     expect(screen.getByTestId("styles-library-panel")).toBeInTheDocument();
@@ -993,11 +960,11 @@ describe("AiStudioPageContent right column drop router", () => {
     expect(onPasteTextReference).toHaveBeenCalledWith("dropped prompt text");
   });
 
-  it("keeps right-column text drop routing intact while stale canvas selection is active", () => {
+  it("keeps right-column text drop routing intact for live tool selections", () => {
     const onPasteTextReference = vi.fn();
     const baseProps = createProps();
     const props = createProps({
-      selectedTool: "canvas",
+      selectedTool: "create",
       referenceGridProps: {
         ...baseProps.referenceGridProps,
         onPasteTextReference,

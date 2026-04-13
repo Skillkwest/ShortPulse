@@ -52,6 +52,7 @@ This phase should close the loop on:
 6. Updated focused workflow, routing, shell-resize, workspace-action, page-derivation, and snapshot-hydration coverage so the canonical shell no longer treats `canvas` as a live tool.
 7. Removed the dead page-shell `resolveCanvasDropReference` adapter from `frontend/features/ai-studio/hooks/useAiStudioInternalDropResolvers.ts`, so canonical AI Studio no longer carries generic canvas drop-resolution logic through the page-level shell API.
 8. Kept folder-canvas behavior untouched as an explicit secondary-surface domain and updated focused `useAiStudioInternalDropResolvers` coverage to reflect that the page hook now resolves only character, media-library, style, and element-profile drops.
+9. Deleted stale `canvas` migration assertions from `frontend/features/ai-studio/components/__tests__/AiStudioPageContent.drop.test.tsx`, so the canonical page-content contract no longer claims shell-level `canvas` compatibility beyond the dedicated hydration migration seam.
 
 ## Exit Criteria
 1. the canonical master stage is the only editor path,

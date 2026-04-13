@@ -154,6 +154,7 @@ Completed slice on 2026-04-12:
 6. Updated focused workflow, routing, shell-resize, workspace-action, page-derivation, and snapshot-hydration tests so the active shell/test surface no longer carries `canvas` as a live tool identity.
 7. Removed the dead page-shell `resolveCanvasDropReference` adapter from `frontend/features/ai-studio/hooks/useAiStudioInternalDropResolvers.ts`, so canonical AI Studio page orchestration no longer exposes generic canvas drop-resolution logic after the canvas-path demotion.
 8. Updated focused `frontend/features/ai-studio/hooks/__tests__/useAiStudioInternalDropResolvers.test.ts` coverage so the page hook contract now reflects only character, media-library, style, and element-profile internal-drop resolution while folder-canvas behavior remains isolated to the secondary Media Library domain.
+9. Deleted stale `canvas` compatibility expectations from `frontend/features/ai-studio/components/__tests__/AiStudioPageContent.drop.test.tsx`, narrowing the canonical page-content test surface to live tools only and leaving `selectedTool=\"canvas\"` handling documented solely through the snapshot-hydration migration seam.
 
 ## Phase Links
 1. `docs/planning/ai-studio-master-stage-phase-1-target-contract-and-bakeoff-plan-2026-04-12.md`

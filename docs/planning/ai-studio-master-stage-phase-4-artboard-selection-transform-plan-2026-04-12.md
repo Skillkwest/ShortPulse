@@ -68,6 +68,7 @@ Completed on 2026-04-12:
 4. Extracted stage interaction handler assembly and router wiring into `frontend/features/ai-studio/components/edit/useExpertEditStageInteractions.ts`, moving move/inpaint/markup handler composition out of `ExpertEditPanelView.tsx` while keeping the active transform path and stage-routing behavior unchanged.
 5. Tightened the extracted interaction path by moving inline/modal stage router assembly and move/inpaint/markup handler composition into `frontend/features/ai-studio/components/edit/useExpertEditStageInteractions.ts`, reducing panel-local interaction glue without introducing another compatibility layer.
 6. Extracted transform-runtime glue into `frontend/features/ai-studio/components/edit/useExpertEditStageTransformRuntime.ts`, moving transform-history transition ownership, selected-layer overlay gating, move recenter behavior, and stage cursor/style resolution out of `ExpertEditPanelView.tsx` while preserving the canonical move/resize/rotate path.
+7. Extracted the inline/modal stage workspace shell into `frontend/features/ai-studio/components/edit/ExpertEditStageWorkspace.tsx`, moving canonical stage-surface, modal-surface, and context-menu assembly out of `ExpertEditPanelView.tsx` while keeping the live artboard interaction path unchanged.
 
 ## Rollback Note
 If the new transform system is not stable enough for general use, keep a narrowly-scoped adapter to the prior transform path while preserving the new artboard-first data model. Do not reopen generic Canvas as a fallback editor.

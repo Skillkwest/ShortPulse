@@ -1,5 +1,4 @@
 import React from "react";
-import { TrashSimple } from "phosphor-react";
 import { modelLogos } from "../../constants";
 import { stripEditLabel } from "../../utils/modelLabels";
 import { setExpertEditPromptTokenDragData } from "../../logic/expertEditPromptReferences";
@@ -35,11 +34,7 @@ import { useExpertEditStageInteractions } from "./useExpertEditStageInteractions
 import { useExpertEditStageLifecycle } from "./useExpertEditStageLifecycle";
 import { useExpertEditStageTransformRuntime } from "./useExpertEditStageTransformRuntime";
 import { useExpertEditStageViewport } from "./useExpertEditStageViewport";
-import { ExpertEditStageContextMenu } from "./ExpertEditStagePrimitives";
-import {
-  ExpertEditInlineStageSurface,
-  ExpertEditModalStageSurface,
-} from "./ExpertEditStageSurface";
+import { ExpertEditStageWorkspace } from "./ExpertEditStageWorkspace";
 import { useExpertEditMarkupDrawController } from "./useExpertEditMarkupDrawController";
 import { useExpertEditMarkupViewportController } from "./useExpertEditMarkupViewportController";
 import { ExpertEditInlinePostStageTools } from "./ExpertEditInlinePostStageTools";
@@ -1551,17 +1546,25 @@ export function ExpertEditPanelView({
       onDragOverCapture={handleMarkupModalRootDragCapture}
       onDropCapture={handleMarkupModalRootDragCapture}
     >
-      <div className="edit-expert-main-stage">
-        <div className="edit-expert-preset-toolbar" aria-label="Edit preset toolbar">
-          <div className="edit-expert-column-wrapper edit-expert-column-wrapper--left">
-            {isGenerationModeToggleEnabled && !shouldHideSelectedModeRailPanel ? (
-              <ExpertEditModeRailPanel
-                selectedRailTool={selectedRailTool}
-                renderMarkupModalInpaintPanel={renderMarkupModalInpaintPanel}
-                renderMarkupControlsContent={renderMarkupControlsContent}
-                renderMoveControlsContent={renderMoveControlsContent}
-              />
-            ) : null}
+      <ExpertEditStageWorkspace
+        isGenerationModeToggleEnabled={isGenerationModeToggleEnabled}
+        generationModeTabsStyle={generationModeTabsStyle}
+        effectiveEditSubmitIntent={effectiveEditSubmitIntent}
+        editGenerationModeOptions={editGenerationModeOptions}
+        onGenerationModeChange={handleGenerationModeChange}
+        onClearGenerationArtifacts={clearGenerationModeSelectionArtifacts}
+        headerLeftRail={
+          isGenerationModeToggleEnabled && !shouldHideSelectedModeRailPanel ? (
+            <ExpertEditModeRailPanel
+              selectedRailTool={selectedRailTool}
+              renderMarkupModalInpaintPanel={renderMarkupModalInpaintPanel}
+              renderMarkupControlsContent={renderMarkupControlsContent}
+              renderMoveControlsContent={renderMoveControlsContent}
+            />
+          ) : null
+        }
+        presetToolbar={
+          <>
             <ExpertEditPresetToolbarCard
               hasSelectedPresetIds={hasSelectedPresetIds}
               selectedPanelPresets={selectedPanelPresets}
@@ -1603,127 +1606,71 @@ export function ExpertEditPanelView({
               onCustomPresetSave={handleCustomPresetSave}
               isDropActive={isPresetsSurfaceDropActive}
             />
-          </div>
-        </div>
-
-        <div className="edit-expert-primary-column">
-          {isGenerationModeToggleEnabled ? (
-            <div className="edit-expert-primary-column-header">
-              <div className="edit-expert-generation-mode-header-controls">
-                <div
-                  className="edit-expert-generation-mode-tabs"
-                  role="tablist"
-                  aria-label="Generation mode"
-                  style={generationModeTabsStyle}
-                >
-                  <span className="edit-expert-generation-mode-indicator" aria-hidden="true" />
-                  {editGenerationModeOptions.map((modeOption) => (
-                    <button
-                      key={modeOption.id}
-                      type="button"
-                      className={`edit-expert-generation-mode-tab ${
-                        effectiveEditSubmitIntent === modeOption.id ? "is-active" : ""
-                      }`}
-                      role="tab"
-                      aria-selected={effectiveEditSubmitIntent === modeOption.id}
-                      onClick={() => handleGenerationModeChange(modeOption.id)}
-                    >
-                      {modeOption.label}
-                    </button>
-                  ))}
-                </div>
-                <button
-                  type="button"
-                  className="edit-expert-inpaint-action-btn edit-expert-generation-mode-clear-btn"
-                  aria-label="Clear all in-paint selections and markup strokes"
-                  onClick={clearGenerationModeSelectionArtifacts}
-                >
-                  <TrashSimple size={19} weight="regular" />
-                </button>
-              </div>
-            </div>
-          ) : null}
-          <ExpertEditInlineStageSurface
-            stageRef={inlineStageWrapperRef}
-            isEmpty={!hasPrimaryCompositePreview}
-            isBusy={isPrimaryStageBusy}
-            overlayActions={
-              hasPrimaryCompositePreview && selectedLayer ? (
-                <div className="edit-expert-stage-overlay-ui">
-                  <button
-                    type="button"
-                    className="edit-expert-layer-delete-btn edit-expert-stage-delete-btn"
-                    aria-label={`Delete selected layer (${selectedLayer.name})`}
-                    onClick={handleDeleteSelectedLayer}
-                  >
-                    <TrashSimple size={12} weight="regular" />
-                  </button>
-                </div>
-              ) : null
-            }
-            onPointerDownCapture={handleInlineStagePointerDownCapture}
-            onPointerMoveCapture={handleInlineStagePointerMoveCapture}
-            onPointerUpCapture={handleInlineStagePointerUpCapture}
-            onPointerCancelCapture={handleInlineStagePointerCancelCapture}
-            viewportStyle={inlineMarkupViewportStyle}
-            frameStackRef={handlePrimaryCanvasFrameStackRef}
-            isPopulated={hasPrimaryCompositePreview}
-            isDragActive={primaryDragActive}
-            frameStyle={primaryCanvasFrameBoundsStyle}
-            onDrop={handlePrimaryDrop}
-            onDragEnter={handlePrimaryDragEnter}
-            onDragOver={handlePrimaryDragOver}
-            onDragLeave={handlePrimaryDragLeave}
-            surfaceRef={primaryCompositionSurfaceRef}
-            isVisible={hasPrimaryCompositePreview}
-            isPresetsOpen={isMorePresetsSurfaceOpen}
-            surfaceStyle={
-              hasPrimaryCompositePreview
-                ? primaryCompositionSurfaceStyle
-                : emptyPrimaryCompositionSurfaceStyle
-            }
-            shouldRenderInteractive={shouldRenderInlineInteractiveStage}
-            interactionHandlers={{
-              onPointerDown: inlineStageInteractionRouter.onPointerDown,
-              onPointerMove: inlineStageInteractionRouter.onPointerMove,
-              onPointerUp: inlineStageInteractionRouter.onPointerUp,
-              onPointerCancel: inlineStageInteractionRouter.onPointerCancel,
-              onPointerLeave: inlineStageInteractionRouter.onPointerLeave,
-            }}
-            onStageMouseDown={handleMarkupStageMiddleClickSuppress}
-            onStageAuxClick={handleMarkupStageMiddleClickSuppress}
-            onStageContextMenu={handlePrimaryDropzoneContextMenu}
-            onStageClick={handlePrimaryDropzoneClick}
-            onStageDoubleClick={handlePrimaryDropzoneDoubleClick}
-            sceneContent={
-              <ExpertEditStageScene
-                scope="inline"
-                layers={layers}
-                markupStrokes={markupStrokes}
-                overlayCanvasRef={overlayCanvasRef}
-                stageSize={inlineCompositionSurfaceViewportSize}
-                stageElement={primaryCanvasFrameStackElement}
-                inlineFallbackStageSize={inlineCompositionSurfaceViewportSize}
-                resolveLayerImageAspectRatio={resolveLayerImageAspectRatio}
-                resolveRenderableLayerTransform={resolveRenderableLayerTransform}
-                isFlattenPending={isFlattenPending}
-                isRemoveBackgroundPending={isRemoveBackgroundPending}
-                isPrimaryStageGenerating={isPrimaryStageGenerating}
-              />
-            }
-            transformOverlay={renderSelectedLayerTransformOverlay(
-              "inline",
-              inlineCompositionSurfaceViewportSize,
-              primaryCanvasFrameStackElement,
-              {
-                onPointerDown: inlineStageInteractionRouter.onPointerDown,
-                onPointerMove: inlineStageInteractionRouter.onPointerMove,
-                onPointerUp: inlineStageInteractionRouter.onPointerUp,
-                onPointerCancel: inlineStageInteractionRouter.onPointerCancel,
-                onPointerLeave: inlineStageInteractionRouter.onPointerLeave,
-              }
-            )}
+          </>
+        }
+        hasPrimaryCompositePreview={hasPrimaryCompositePreview}
+        selectedLayerName={selectedLayer?.name ?? null}
+        onDeleteSelectedLayer={handleDeleteSelectedLayer}
+        isPrimaryStageBusy={isPrimaryStageBusy}
+        onInlineStagePointerDownCapture={handleInlineStagePointerDownCapture}
+        onInlineStagePointerMoveCapture={handleInlineStagePointerMoveCapture}
+        onInlineStagePointerUpCapture={handleInlineStagePointerUpCapture}
+        onInlineStagePointerCancelCapture={handleInlineStagePointerCancelCapture}
+        inlineViewportStyle={inlineMarkupViewportStyle}
+        inlineStageRef={inlineStageWrapperRef}
+        frameStackRef={handlePrimaryCanvasFrameStackRef}
+        isPrimaryDragActive={primaryDragActive}
+        frameStyle={primaryCanvasFrameBoundsStyle}
+        onPrimaryDrop={handlePrimaryDrop}
+        onPrimaryDragEnter={handlePrimaryDragEnter}
+        onPrimaryDragOver={handlePrimaryDragOver}
+        onPrimaryDragLeave={handlePrimaryDragLeave}
+        primarySurfaceRef={primaryCompositionSurfaceRef}
+        isMorePresetsSurfaceOpen={isMorePresetsSurfaceOpen}
+        primarySurfaceStyle={primaryCompositionSurfaceStyle}
+        emptyPrimarySurfaceStyle={emptyPrimaryCompositionSurfaceStyle}
+        shouldRenderInlineInteractiveStage={shouldRenderInlineInteractiveStage}
+        inlineInteractionHandlers={{
+          onPointerDown: inlineStageInteractionRouter.onPointerDown,
+          onPointerMove: inlineStageInteractionRouter.onPointerMove,
+          onPointerUp: inlineStageInteractionRouter.onPointerUp,
+          onPointerCancel: inlineStageInteractionRouter.onPointerCancel,
+          onPointerLeave: inlineStageInteractionRouter.onPointerLeave,
+        }}
+        onStageMouseDown={handleMarkupStageMiddleClickSuppress}
+        onStageAuxClick={handleMarkupStageMiddleClickSuppress}
+        onStageContextMenu={handlePrimaryDropzoneContextMenu}
+        onStageClick={handlePrimaryDropzoneClick}
+        onStageDoubleClick={handlePrimaryDropzoneDoubleClick}
+        inlineSceneContent={
+          <ExpertEditStageScene
+            scope="inline"
+            layers={layers}
+            markupStrokes={markupStrokes}
+            overlayCanvasRef={overlayCanvasRef}
+            stageSize={inlineCompositionSurfaceViewportSize}
+            stageElement={primaryCanvasFrameStackElement}
+            inlineFallbackStageSize={inlineCompositionSurfaceViewportSize}
+            resolveLayerImageAspectRatio={resolveLayerImageAspectRatio}
+            resolveRenderableLayerTransform={resolveRenderableLayerTransform}
+            isFlattenPending={isFlattenPending}
+            isRemoveBackgroundPending={isRemoveBackgroundPending}
+            isPrimaryStageGenerating={isPrimaryStageGenerating}
           />
+        }
+        inlineTransformOverlay={renderSelectedLayerTransformOverlay(
+          "inline",
+          inlineCompositionSurfaceViewportSize,
+          primaryCanvasFrameStackElement,
+          {
+            onPointerDown: inlineStageInteractionRouter.onPointerDown,
+            onPointerMove: inlineStageInteractionRouter.onPointerMove,
+            onPointerUp: inlineStageInteractionRouter.onPointerUp,
+            onPointerCancel: inlineStageInteractionRouter.onPointerCancel,
+            onPointerLeave: inlineStageInteractionRouter.onPointerLeave,
+          }
+        )}
+        mainLayersPanel={
           <ExpertEditLayersPanel
             scope="main"
             layers={layers}
@@ -1754,6 +1701,8 @@ export function ExpertEditPanelView({
             onFlatten={() => void handleManualFlatten()}
             onRemoveBackground={handleRemoveBackground}
           />
+        }
+        inlinePostStageTools={
           <ExpertEditInlinePostStageTools
             isInpaintCollapsed={isInpaintCollapsed}
             isInpaintCollapsing={isInpaintCollapsing}
@@ -1799,6 +1748,8 @@ export function ExpertEditPanelView({
               ) : null
             }
           />
+        }
+        promptAndSelectors={
           <div className="edit-expert-column-wrapper edit-expert-column-wrapper--center edit-expert-post-stage-wrapper">
             <ExpertEditPromptComposer
               promptInputShellRef={promptInputShellRef}
@@ -1840,122 +1791,118 @@ export function ExpertEditPanelView({
               onImageResolutionChange={onImageResolutionChange}
             />
           </div>
-        </div>
-      </div>
-
-      {statusToastMessage && !isLayerLimitStatusToast ? (
-        <div
-          className={`edit-expert-stage-status-toast ${
-            statusToastTone === "warning" ? "is-warning" : "is-info"
-          } ${isStatusToastFading ? "is-fading" : ""}`.trim()}
-          role="status"
-          aria-live="polite"
-        >
-          {statusToastMessage}
-        </div>
-      ) : null}
-
-      <ExpertEditModalStageSurface
-        isOpen={isMarkupExpandSelected}
-        modalRef={handleMarkupModalRef}
-        controlsColumnRef={handleMarkupModalControlsRef}
-        stageRef={handleMarkupModalStageRef}
-        stageStyle={markupModalStageStyle}
-        generalPanel={renderMarkupModalGeneralPanel}
-        movePanel={renderMoveControlsContent("modal")}
-        inpaintPanel={renderMarkupModalInpaintPanel("modal")}
-        markupPanel={renderMarkupControlsContent("modal")}
-        viewportStyle={modalMarkupViewportStyle}
-        sceneContent={
-          <ExpertEditStageScene
-            scope="modal"
-            layers={layers}
-            markupStrokes={markupStrokes}
-            overlayCanvasRef={modalOverlayCanvasRef}
-            stageSize={markupModalViewportSize}
-            stageElement={markupModalStageElement}
-            inlineFallbackStageSize={inlineCompositionSurfaceViewportSize}
-            resolveLayerImageAspectRatio={resolveLayerImageAspectRatio}
-            resolveRenderableLayerTransform={resolveRenderableLayerTransform}
-            isFlattenPending={isFlattenPending}
-            isRemoveBackgroundPending={isRemoveBackgroundPending}
-            isPrimaryStageGenerating={isPrimaryStageGenerating}
-          />
         }
-        transformOverlay={renderSelectedLayerTransformOverlay(
-          "modal",
-          markupModalViewportSize,
-          markupModalStageElement,
-          {
+        statusToast={
+          statusToastMessage && !isLayerLimitStatusToast ? (
+            <div
+              className={`edit-expert-stage-status-toast ${
+                statusToastTone === "warning" ? "is-warning" : "is-info"
+              } ${isStatusToastFading ? "is-fading" : ""}`.trim()}
+              role="status"
+              aria-live="polite"
+            >
+              {statusToastMessage}
+            </div>
+          ) : null
+        }
+        modalSurface={{
+          isOpen: isMarkupExpandSelected,
+          modalRef: handleMarkupModalRef,
+          controlsColumnRef: handleMarkupModalControlsRef,
+          stageRef: handleMarkupModalStageRef,
+          stageStyle: markupModalStageStyle,
+          generalPanel: renderMarkupModalGeneralPanel,
+          movePanel: renderMoveControlsContent("modal"),
+          inpaintPanel: renderMarkupModalInpaintPanel("modal"),
+          markupPanel: renderMarkupControlsContent("modal"),
+          viewportStyle: modalMarkupViewportStyle,
+          sceneContent: (
+            <ExpertEditStageScene
+              scope="modal"
+              layers={layers}
+              markupStrokes={markupStrokes}
+              overlayCanvasRef={modalOverlayCanvasRef}
+              stageSize={markupModalViewportSize}
+              stageElement={markupModalStageElement}
+              inlineFallbackStageSize={inlineCompositionSurfaceViewportSize}
+              resolveLayerImageAspectRatio={resolveLayerImageAspectRatio}
+              resolveRenderableLayerTransform={resolveRenderableLayerTransform}
+              isFlattenPending={isFlattenPending}
+              isRemoveBackgroundPending={isRemoveBackgroundPending}
+              isPrimaryStageGenerating={isPrimaryStageGenerating}
+            />
+          ),
+          transformOverlay: renderSelectedLayerTransformOverlay(
+            "modal",
+            markupModalViewportSize,
+            markupModalStageElement,
+            {
+              onPointerDown: modalStageInteractionRouter.onPointerDown,
+              onPointerMove: modalStageInteractionRouter.onPointerMove,
+              onPointerUp: modalStageInteractionRouter.onPointerUp,
+              onPointerCancel: modalStageInteractionRouter.onPointerCancel,
+              onPointerLeave: modalStageInteractionRouter.onPointerLeave,
+            }
+          ),
+          layersPanel: (
+            <ExpertEditLayersPanel
+              scope="modal"
+              layers={layers}
+              editingLayerIndex={editingLayerIndex}
+              editingLayerValue={editingLayerValue}
+              draggingLayerIndex={draggingLayerIndex}
+              dragOverLayerIndex={dragOverLayerIndex}
+              resolvedSelectedLayerIndex={resolvedSelectedLayerIndex}
+              statusToastMessage={statusToastMessage}
+              statusToastTone={statusToastTone}
+              isStatusToastFading={isStatusToastFading}
+              isLayerLimitStatusToast={isLayerLimitStatusToast}
+              isGenerateDisabled={isGenerateDisabled}
+              selectedLayerImageUrl={selectedLayerImageUrl}
+              isRemoveBackgroundPending={isRemoveBackgroundPending}
+              populatedLayerCount={populatedLayerCount}
+              isFlattenPending={isFlattenPending}
+              setEditingLayerValue={setEditingLayerValue}
+              onCommitLayerRename={handleCommitLayerRename}
+              onClearLayerEditing={clearLayerEditing}
+              onBeginLayerRename={beginLayerRename}
+              onLayerDragStart={handleLayerDragStart}
+              onLayerDragOver={handleLayerDragOver}
+              onLayerDrop={handleLayerDrop}
+              onLayerDragEnd={handleLayerDragEnd}
+              onSelectLayer={handleSelectLayer}
+              onDeleteLayer={handleDeleteLayer}
+              onFlatten={() => void handleManualFlatten()}
+              onRemoveBackground={handleRemoveBackground}
+              onCloseModal={closeMarkupModal}
+              modalLayersRef={handleMarkupModalLayersRef}
+            />
+          ),
+          onClose: closeMarkupModal,
+          onDragShield: handleMarkupModalDragShield,
+          interactionHandlers: {
             onPointerDown: modalStageInteractionRouter.onPointerDown,
             onPointerMove: modalStageInteractionRouter.onPointerMove,
             onPointerUp: modalStageInteractionRouter.onPointerUp,
             onPointerCancel: modalStageInteractionRouter.onPointerCancel,
             onPointerLeave: modalStageInteractionRouter.onPointerLeave,
-          }
-        )}
-        layersPanel={
-          <ExpertEditLayersPanel
-            scope="modal"
-            layers={layers}
-            editingLayerIndex={editingLayerIndex}
-            editingLayerValue={editingLayerValue}
-            draggingLayerIndex={draggingLayerIndex}
-            dragOverLayerIndex={dragOverLayerIndex}
-            resolvedSelectedLayerIndex={resolvedSelectedLayerIndex}
-            statusToastMessage={statusToastMessage}
-            statusToastTone={statusToastTone}
-            isStatusToastFading={isStatusToastFading}
-            isLayerLimitStatusToast={isLayerLimitStatusToast}
-            isGenerateDisabled={isGenerateDisabled}
-            selectedLayerImageUrl={selectedLayerImageUrl}
-            isRemoveBackgroundPending={isRemoveBackgroundPending}
-            populatedLayerCount={populatedLayerCount}
-            isFlattenPending={isFlattenPending}
-            setEditingLayerValue={setEditingLayerValue}
-            onCommitLayerRename={handleCommitLayerRename}
-            onClearLayerEditing={clearLayerEditing}
-            onBeginLayerRename={beginLayerRename}
-            onLayerDragStart={handleLayerDragStart}
-            onLayerDragOver={handleLayerDragOver}
-            onLayerDrop={handleLayerDrop}
-            onLayerDragEnd={handleLayerDragEnd}
-            onSelectLayer={handleSelectLayer}
-            onDeleteLayer={handleDeleteLayer}
-            onFlatten={() => void handleManualFlatten()}
-            onRemoveBackground={handleRemoveBackground}
-            onCloseModal={closeMarkupModal}
-            modalLayersRef={handleMarkupModalLayersRef}
-          />
-        }
-        onClose={closeMarkupModal}
-        onDragShield={handleMarkupModalDragShield}
-        onStageMouseDown={handleMarkupStageMiddleClickSuppress}
-        onStageAuxClick={handleMarkupStageMiddleClickSuppress}
-        interactionHandlers={{
-          onPointerDown: modalStageInteractionRouter.onPointerDown,
-          onPointerMove: modalStageInteractionRouter.onPointerMove,
-          onPointerUp: modalStageInteractionRouter.onPointerUp,
-          onPointerCancel: modalStageInteractionRouter.onPointerCancel,
-          onPointerLeave: modalStageInteractionRouter.onPointerLeave,
+          },
+          onStageWheel: noopStageWheel,
         }}
-        onStageWheel={noopStageWheel}
+        contextMenu={{
+          isOpen: stageContextMenuState.isOpen,
+          menuRef: stageContextMenuRef,
+          x: stageContextMenuState.x,
+          y: stageContextMenuState.y,
+          isMarkupExpandSelected,
+          hasSelectedLayerImage: Boolean(selectedLayerImageUrl),
+          onRecenter: handleStageContextMenuRecenter,
+          onExpand: handleStageContextMenuExpand,
+          onAddImage: handleStageContextMenuAddImage,
+          onReset: handleStageContextMenuReset,
+          onRemoveImage: handleStageContextMenuRemoveImage,
+        }}
       />
-
-      {stageContextMenuState.isOpen ? (
-        <ExpertEditStageContextMenu
-          menuRef={stageContextMenuRef}
-          x={stageContextMenuState.x}
-          y={stageContextMenuState.y}
-          isMarkupExpandSelected={isMarkupExpandSelected}
-          hasSelectedLayerImage={Boolean(selectedLayerImageUrl)}
-          onRecenter={handleStageContextMenuRecenter}
-          onExpand={handleStageContextMenuExpand}
-          onAddImage={handleStageContextMenuAddImage}
-          onReset={handleStageContextMenuReset}
-          onRemoveImage={handleStageContextMenuRemoveImage}
-        />
-      ) : null}
 
       <input
         ref={primaryInputRef}

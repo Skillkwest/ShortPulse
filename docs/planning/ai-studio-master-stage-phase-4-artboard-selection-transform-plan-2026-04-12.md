@@ -75,6 +75,7 @@ Completed on 2026-04-12:
 11. Extracted move/inpaint/general control-panel rendering into `frontend/features/ai-studio/components/edit/useExpertEditStageControlPanels.tsx`, moving remaining control-panel render ownership out of `ExpertEditPanelView.tsx` while keeping rail and modal control behavior stable.
 12. Extracted the preset and left-rail sidebar assembly into `frontend/features/ai-studio/components/edit/ExpertEditStageSidebar.tsx`, moving the More Presets surface, utility actions, and left-rail mode panel composition out of `ExpertEditPanelView.tsx` while keeping preset and generation-mode behavior unchanged.
 13. Extracted the auxiliary panel shell into `frontend/features/ai-studio/components/edit/ExpertEditPanelAuxiliary.tsx`, moving status-toast rendering, hidden upload inputs, and character-picker modal composition out of `ExpertEditPanelView.tsx` while restoring the two-wrapper primary-column layout contract.
+14. Extracted generation-mode and preset-selection state into `frontend/features/ai-studio/components/edit/useExpertEditGenerationPresetRuntime.ts`, moving generation-mode tab state, selected preset normalization, More Presets open-state ownership, and canonical preset update handlers out of `ExpertEditPanelView.tsx` while keeping focused generation/preset interactions stable.
 
 ## Rollback Note
 If the new transform system is not stable enough for general use, keep a narrowly-scoped adapter to the prior transform path while preserving the new artboard-first data model. Do not reopen generic Canvas as a fallback editor.

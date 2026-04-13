@@ -9,10 +9,6 @@ import {
   isMarkupCollapsedOpenModalEnabled,
   isMarkupModelLockEnabled,
 } from "../../logic/inpaintSubmission";
-import {
-  resolveEditSubmitIntentFromRailSelection,
-  type EditSubmitIntent,
-} from "../../logic/editSubmitIntent";
 import { useReferencePropertiesConstraintEffects } from "../useReferencePropertiesConstraintEffects";
 import { useReferencePropertiesDerivedState } from "../useReferencePropertiesDerivedState";
 import { useReferencePropertiesInteractions } from "../useReferencePropertiesInteractions";
@@ -27,6 +23,7 @@ import { useExpertEditInlineGenerate } from "./useExpertEditInlineGenerate";
 import { useExpertEditDocumentState } from "./useExpertEditDocumentState";
 import { useExpertEditLayerActions } from "./useExpertEditLayerActions";
 import { useExpertEditPromptTokenController } from "./useExpertEditPromptTokenController";
+import { useExpertEditGenerationPresetRuntime } from "./useExpertEditGenerationPresetRuntime";
 import { useExpertEditSessionBridge } from "./useExpertEditSessionBridge";
 import { useExpertEditMarkupControlsRuntime } from "./useExpertEditMarkupControlsRuntime";
 import { useExpertEditPresetRuntime } from "./useExpertEditPresetRuntime";
@@ -67,15 +64,6 @@ import {
 } from "./expertEditPanelViewContract";
 export type { ExpertEditPanelViewProps } from "./expertEditPanelViewContract";
 export { COMPOSITE_REGENERATE_COHESION_PROMPT } from "./expertEditPanelViewContract";
-import {
-  EDIT_PRESET_DEFAULT_PANEL_PRESET_IDS,
-  type ExpertEditCustomPresetOverrides,
-  type ExpertEditPresetId,
-  normalizeExpertEditCustomPresetOverrides,
-  normalizePresetPanelPresetIds,
-  resolveExpertEditPresetCatalog,
-  resolveExpertEditPresetLabelById,
-} from "./expertEditPresets";
 import { resolveBlobDimensions, revokeObjectUrlSafe } from "./expertEditPanelUtilities";
 import {
   createIdleMarkupPanPointerSession,
@@ -96,7 +84,6 @@ import { buildInpaintBrushReticleCursor } from "./expertEditCursorUtils";
 import {
   clearWindowTimeoutRef,
   lockDocumentCursor,
-  resolveRailToolForGenerationMode,
   runPointerStageTerminalAction,
   scheduleTransientObjectUrlRevoke as scheduleTransientObjectUrlRevokeTimer,
   unlockDocumentCursor,
@@ -182,8 +169,6 @@ export function ExpertEditPanelView({
   );
   const [selectedInpaintMode, setSelectedInpaintMode] = React.useState<InpaintMode>("brush");
   const isGenerationModeToggleEnabled = isEditGenerationModeToggleEnabled();
-  const [selectedGenerationMode, setSelectedGenerationMode] =
-    React.useState<EditSubmitIntent>("standard");
   const [selectedRailTool, setSelectedRailTool] = React.useState<RailTool>("move");
   const [inpaintStrokeSize, setInpaintStrokeSize] = React.useState(INPAINT_STROKE_SIZE_DEFAULT);
   const [markupStrokeSize, setMarkupStrokeSize] = React.useState(MARKUP_STROKE_SIZE_DEFAULT);
@@ -201,12 +186,28 @@ export function ExpertEditPanelView({
   );
   const [isInpaintCollapsed, setIsInpaintCollapsed] = React.useState(true);
   const [isInpaintCollapsing, setIsInpaintCollapsing] = React.useState(false);
-  const [isMorePresetsSurfaceOpen, setIsMorePresetsSurfaceOpen] = React.useState(false);
-  const [internalSelectedPresetIds, setInternalSelectedPresetIds] = React.useState<
-    ExpertEditPresetId[]
-  >(() => normalizePresetPanelPresetIds(EDIT_PRESET_DEFAULT_PANEL_PRESET_IDS));
-  const [internalCustomPresetOverrides, setInternalCustomPresetOverrides] =
-    React.useState<ExpertEditCustomPresetOverrides>({});
+  const {
+    availablePresets,
+    customPresetOverrides,
+    effectiveEditSubmitIntent,
+    generationModeTabsStyle,
+    handleGenerationModeChange,
+    hasSelectedPresetIds,
+    isMorePresetsSurfaceOpen,
+    selectedPanelPresets,
+    setIsMorePresetsSurfaceOpen,
+    toggleMorePresetsSurface,
+    updateCustomPresetOverrides,
+    updateSelectedPresetIds,
+  } = useExpertEditGenerationPresetRuntime({
+    isGenerationModeToggleEnabled,
+    selectedRailTool,
+    setSelectedRailTool,
+    controlledPresetIds,
+    onSelectedPresetIdsChange,
+    controlledCustomPresetOverrides,
+    onCustomPresetOverridesChange,
+  });
   const [statusToastMessage, setStatusToastMessage] = React.useState<string | null>(null);
   const [statusToastTone, setStatusToastTone] = React.useState<"info" | "warning">("info");
   const [isStatusToastFading, setIsStatusToastFading] = React.useState(false);
@@ -322,107 +323,10 @@ export function ExpertEditPanelView({
     isMarkupExpandSelected,
   });
   const isLayerLimitStatusToast = statusToastMessage === LAYER_LIMIT_REACHED_TOAST;
-  const isCustomOverridesControlled =
-    controlledCustomPresetOverrides != null && onCustomPresetOverridesChange != null;
-  const customPresetOverrides = React.useMemo(
-    () =>
-      normalizeExpertEditCustomPresetOverrides(
-        isCustomOverridesControlled
-          ? controlledCustomPresetOverrides
-          : internalCustomPresetOverrides
-      ),
-    [controlledCustomPresetOverrides, internalCustomPresetOverrides, isCustomOverridesControlled]
-  );
-  const normalizedControlledPresetIds = React.useMemo(
-    () =>
-      controlledPresetIds == null
-        ? null
-        : normalizePresetPanelPresetIds(controlledPresetIds, customPresetOverrides),
-    [controlledPresetIds, customPresetOverrides]
-  );
-  const controlledPresetChangeHandler = onSelectedPresetIdsChange ?? null;
-  const isPresetPanelControlled =
-    normalizedControlledPresetIds != null && controlledPresetChangeHandler != null;
-  const selectedPresetIds = isPresetPanelControlled
-    ? normalizedControlledPresetIds
-    : internalSelectedPresetIds;
-  const updateSelectedPresetIds = React.useCallback(
-    (updater: (previous: ExpertEditPresetId[]) => ExpertEditPresetId[]) => {
-      if (isPresetPanelControlled) {
-        const next = normalizePresetPanelPresetIds(
-          updater(normalizedControlledPresetIds),
-          customPresetOverrides
-        );
-        controlledPresetChangeHandler(next);
-        return;
-      }
-      setInternalSelectedPresetIds((previous) =>
-        normalizePresetPanelPresetIds(updater(previous), customPresetOverrides)
-      );
-    },
-    [
-      controlledPresetChangeHandler,
-      customPresetOverrides,
-      isPresetPanelControlled,
-      normalizedControlledPresetIds,
-    ]
-  );
-  const updateCustomPresetOverrides = React.useCallback(
-    (updater: (previous: ExpertEditCustomPresetOverrides) => ExpertEditCustomPresetOverrides) => {
-      if (isCustomOverridesControlled) {
-        const nextValue = normalizeExpertEditCustomPresetOverrides(updater(customPresetOverrides));
-        onCustomPresetOverridesChange(nextValue);
-        return;
-      }
-      setInternalCustomPresetOverrides((previous) =>
-        normalizeExpertEditCustomPresetOverrides(updater(previous))
-      );
-    },
-    [customPresetOverrides, isCustomOverridesControlled, onCustomPresetOverridesChange]
-  );
-  const availablePresets = React.useMemo(() => {
-    const selectedPresetIdSet = new Set(selectedPresetIds);
-    return resolveExpertEditPresetCatalog(customPresetOverrides).filter(
-      (preset) => !selectedPresetIdSet.has(preset.presetId)
-    );
-  }, [customPresetOverrides, selectedPresetIds]);
-  const selectedPanelPresets = React.useMemo(
-    () =>
-      selectedPresetIds.map((presetId) => ({
-        presetId,
-        label: resolveExpertEditPresetLabelById(presetId, customPresetOverrides),
-      })),
-    [customPresetOverrides, selectedPresetIds]
-  );
-  const hasSelectedPresetIds = selectedPresetIds.length > 0;
 
   const modelLogoSrc = modelId ? modelLogos[modelId] : undefined;
   const isInpaintToolSelected = selectedRailTool === "inpaint";
   const isVideoToolSelected = selectedRailTool === "video";
-  const railSelectionSubmitIntent = React.useMemo(
-    () =>
-      resolveEditSubmitIntentFromRailSelection({
-        isInpaintSelected: isInpaintToolSelected,
-        isMarkupSelected: isVideoToolSelected,
-      }),
-    [isInpaintToolSelected, isVideoToolSelected]
-  );
-  const effectiveEditSubmitIntent = isGenerationModeToggleEnabled
-    ? selectedGenerationMode
-    : railSelectionSubmitIntent;
-  const effectiveGenerationModeIndex = React.useMemo(() => {
-    const resolvedIndex = editGenerationModeOptions.findIndex(
-      (modeOption) => modeOption.id === effectiveEditSubmitIntent
-    );
-    return resolvedIndex >= 0 ? resolvedIndex : 0;
-  }, [effectiveEditSubmitIntent]);
-  const generationModeTabsStyle = React.useMemo(
-    () =>
-      ({
-        "--edit-expert-generation-mode-index": effectiveGenerationModeIndex,
-      }) as React.CSSProperties,
-    [effectiveGenerationModeIndex]
-  );
   const isInpaintSubmitMode = effectiveEditSubmitIntent === "inpaint";
   const isMarkupSubmitMode = effectiveEditSubmitIntent === "markup";
   const shouldShowSecondaryReferenceAndStylesRow = !isMarkupSubmitMode;
@@ -1037,20 +941,11 @@ export function ExpertEditPanelView({
       handleInpaintStagePointerCancel,
       handleInpaintStagePointerLeave,
     });
-  const handleGenerationModeChange = React.useCallback((nextMode: EditSubmitIntent) => {
-    setSelectedGenerationMode(nextMode);
-    setSelectedRailTool(resolveRailToolForGenerationMode(nextMode));
-  }, []);
-
   const closeMorePresetsSurface = React.useCallback(() => {
     setIsMorePresetsSurfaceOpen(false);
     clearPrimaryDragActive();
     resetPresetDropState();
-  }, [clearPrimaryDragActive, resetPresetDropState]);
-
-  const toggleMorePresetsSurface = React.useCallback(() => {
-    setIsMorePresetsSurfaceOpen((previous) => !previous);
-  }, []);
+  }, [clearPrimaryDragActive, resetPresetDropState, setIsMorePresetsSurfaceOpen]);
   const handleStylesPanelToggle = React.useCallback(() => {
     onStylesPanelToggle?.();
   }, [onStylesPanelToggle]);

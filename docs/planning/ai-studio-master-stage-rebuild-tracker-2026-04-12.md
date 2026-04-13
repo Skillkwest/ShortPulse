@@ -89,6 +89,7 @@ Completed slice on 2026-04-12:
 10. Extracted move/inpaint/general control-panel rendering into `frontend/features/ai-studio/components/edit/useExpertEditStageControlPanels.tsx`, moving the remaining move, inpaint, modal-general, and preset-utility render ownership out of `ExpertEditPanelView.tsx` while keeping rail and modal control behavior stable under focused control coverage.
 11. Extracted the preset and left-rail sidebar assembly into `frontend/features/ai-studio/components/edit/ExpertEditStageSidebar.tsx`, moving the More Presets surface, utility actions, and left-rail mode panel composition out of `ExpertEditPanelView.tsx` while keeping preset and generation-mode behavior stable under focused sidebar coverage.
 12. Extracted the auxiliary panel shell into `frontend/features/ai-studio/components/edit/ExpertEditPanelAuxiliary.tsx`, moving status-toast rendering, hidden upload inputs, and character-picker modal composition out of `ExpertEditPanelView.tsx` while restoring the two-wrapper primary-column layout contract under focused shell coverage.
+13. Extracted generation-mode and preset-selection runtime into `frontend/features/ai-studio/components/edit/useExpertEditGenerationPresetRuntime.ts`, moving generation-mode tab state, selected preset normalization, More Presets open-state ownership, and canonical preset update handlers out of `ExpertEditPanelView.tsx` while keeping focused generation-mode and preset coverage stable.
 
 Completed slice on 2026-04-12:
 1. Extracted stage viewport/artboard ownership from `ExpertEditPanelView.tsx` into:

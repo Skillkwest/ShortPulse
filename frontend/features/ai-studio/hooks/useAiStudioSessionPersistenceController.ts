@@ -26,7 +26,6 @@ type UseAiStudioSessionPersistenceControllerParams = {
     snapshot: AiStudioSessionSnapshot
   ) => AiStudioSessionHydrationPayload;
   hydrateFromSessionAgentSnapshot: (agent: AiStudioSessionHydrationPayload["agent"]) => void;
-  hydrateFromSessionCanvasSnapshot?: (canvas: AiStudioSessionHydrationPayload["canvas"]) => void;
   hydrateFromSessionExpertEditSnapshot?: (
     expertEdit: AiStudioSessionHydrationPayload["expertEdit"]
   ) => void;
@@ -80,7 +79,6 @@ export const useAiStudioSessionPersistenceController = ({
   sessionTitleOverride,
   hydrateFromSessionSnapshot,
   hydrateFromSessionAgentSnapshot,
-  hydrateFromSessionCanvasSnapshot,
   hydrateFromSessionExpertEditSnapshot,
   onPersistenceWarning,
 }: UseAiStudioSessionPersistenceControllerParams): AiStudioSessionPersistenceController => {
@@ -108,7 +106,6 @@ export const useAiStudioSessionPersistenceController = ({
     sessionRestoreCandidate,
     hydrateFromSessionSnapshot,
     hydrateFromSessionAgentSnapshot,
-    hydrateFromSessionCanvasSnapshot,
     hydrateFromSessionExpertEditSnapshot,
     skipApplyForSessionId: skipRestoreApplyForSessionId,
   });

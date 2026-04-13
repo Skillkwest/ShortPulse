@@ -21,7 +21,6 @@ type UseAiStudioSessionRestoreHydrationParams = {
     snapshot: AiStudioSessionSnapshot
   ) => AiStudioSessionHydrationPayload;
   hydrateFromSessionAgentSnapshot: (agent: AiStudioSessionHydrationPayload["agent"]) => void;
-  hydrateFromSessionCanvasSnapshot?: (canvas: AiStudioSessionHydrationPayload["canvas"]) => void;
   hydrateFromSessionExpertEditSnapshot?: (
     expertEdit: AiStudioSessionHydrationPayload["expertEdit"]
   ) => void;
@@ -38,7 +37,6 @@ export const useAiStudioSessionRestoreHydration = ({
   sessionRestoreCandidate,
   hydrateFromSessionSnapshot,
   hydrateFromSessionAgentSnapshot,
-  hydrateFromSessionCanvasSnapshot,
   hydrateFromSessionExpertEditSnapshot,
   applyEnabled = RESTORE_APPLY_ENABLED,
   agentApplyEnabled = RESTORE_APPLY_AGENT_ENABLED,
@@ -94,7 +92,6 @@ export const useAiStudioSessionRestoreHydration = ({
     if (agentApplyEnabled) {
       hydrateFromSessionAgentSnapshot(payload.agent);
     }
-    hydrateFromSessionCanvasSnapshot?.(payload.canvas);
     hydrateFromSessionExpertEditSnapshot?.(payload.expertEdit);
     sessionHydrationAppliedRef.current = sessionId;
 
@@ -107,13 +104,11 @@ export const useAiStudioSessionRestoreHydration = ({
         source: sessionRestoreCandidate.source,
         snapshot_updated_at: snapshot.updatedAt,
         agent_hydration_applied: agentApplyEnabled,
-        canvas_hydration_applied: Boolean(hydrateFromSessionCanvasSnapshot),
         expert_edit_hydration_applied: Boolean(hydrateFromSessionExpertEditSnapshot),
       },
     });
   }, [
     hydrateFromSessionExpertEditSnapshot,
-    hydrateFromSessionCanvasSnapshot,
     agentApplyEnabled,
     applyEnabled,
     hydrateFromSessionSnapshot,

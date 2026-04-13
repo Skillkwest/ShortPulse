@@ -112,6 +112,5 @@ describe("useAiStudioPageSessionPersistence", () => {
     expect(params?.hydrateFromSessionSnapshot).toBe(hydrateFromSessionSnapshot);
     expect(params?.hydrateFromSessionAgentSnapshot).toBe(hydrateFromSessionAgentSnapshot);
     expect(params?.hydrateFromSessionExpertEditSnapshot).toBe(hydrateFromSessionExpertEditSnapshot);
-    expect(params?.hydrateFromSessionCanvasSnapshot).toBeUndefined();
   });
 });

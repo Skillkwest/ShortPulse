@@ -77,6 +77,10 @@ Phase 6 now starts from the stable Phase 5 export boundary and should target the
    - `frontend/features/ai-studio/logic/__tests__/sessionSnapshotHydrator.test.ts`
    - `frontend/features/ai-studio/hooks/__tests__/useAiStudioPageSessionPersistence.test.ts`
    - `frontend/features/ai-studio/hooks/__tests__/useAiStudioSessionRestoreHydration.test.ts`
+8. Removed the dead page-level canvas hydration branch from the shared session-persistence controller and restore hook now that the canonical `/ai-studio` page no longer passes a canvas restore adapter:
+   - `frontend/features/ai-studio/hooks/useAiStudioSessionPersistenceController.ts`
+   - `frontend/features/ai-studio/hooks/useAiStudioSessionRestoreHydration.ts`
+   - focused controller-hook tests updated accordingly.
 
 ## Next Slice
 1. Audit the generic page snapshot payload for other editor-only state that should move behind dedicated optional extensions or be removed entirely from durable writes.

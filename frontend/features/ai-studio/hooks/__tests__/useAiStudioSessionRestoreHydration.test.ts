@@ -177,7 +177,6 @@ describe("useAiStudioSessionRestoreHydration", () => {
   it("applies hydration once per sid when apply gate is enabled", async () => {
     const hydrateFromSessionSnapshot = vi.fn().mockReturnValue(createHydrationPayload());
     const hydrateFromSessionAgentSnapshot = vi.fn();
-    const hydrateFromSessionCanvasSnapshot = vi.fn();
     const hydrateFromSessionExpertEditSnapshot = vi.fn();
 
     const { rerender } = renderHook(
@@ -187,7 +186,6 @@ describe("useAiStudioSessionRestoreHydration", () => {
           sessionRestoreCandidate: candidate,
           hydrateFromSessionSnapshot,
           hydrateFromSessionAgentSnapshot,
-          hydrateFromSessionCanvasSnapshot,
           hydrateFromSessionExpertEditSnapshot,
           applyEnabled: true,
           agentApplyEnabled: true,
@@ -203,14 +201,12 @@ describe("useAiStudioSessionRestoreHydration", () => {
     await waitFor(() => {
       expect(hydrateFromSessionSnapshot).toHaveBeenCalledTimes(1);
       expect(hydrateFromSessionAgentSnapshot).toHaveBeenCalledTimes(1);
-      expect(hydrateFromSessionCanvasSnapshot).toHaveBeenCalledTimes(1);
       expect(hydrateFromSessionExpertEditSnapshot).toHaveBeenCalledTimes(1);
       expect(addBreadcrumbMock).toHaveBeenCalledWith(
         expect.objectContaining({
           message: "ai_studio_session_hydration_applied",
           data: expect.objectContaining({
             agent_hydration_applied: true,
-            canvas_hydration_applied: true,
             expert_edit_hydration_applied: true,
           }),
         })
@@ -231,7 +227,6 @@ describe("useAiStudioSessionRestoreHydration", () => {
     await waitFor(() => {
       expect(hydrateFromSessionSnapshot).toHaveBeenCalledTimes(2);
       expect(hydrateFromSessionAgentSnapshot).toHaveBeenCalledTimes(2);
-      expect(hydrateFromSessionCanvasSnapshot).toHaveBeenCalledTimes(2);
       expect(hydrateFromSessionExpertEditSnapshot).toHaveBeenCalledTimes(2);
     });
   });

@@ -21,9 +21,6 @@ import {
   MARKUP_COLOR_SWATCHES,
   MARKUP_STROKE_SIZE_DEFAULT,
   MARKUP_STROKE_SIZE_MAX,
-  MOVE_STAGE_ZOOM_SLIDER_DEFAULT,
-  MOVE_STAGE_ZOOM_SLIDER_MAX,
-  MOVE_STAGE_ZOOM_SLIDER_MIN,
   clampNumber,
   editPresetUtilityActions,
   type InpaintMode,
@@ -33,6 +30,11 @@ import {
 } from "./expertEditPanelViewContract";
 import type { HsvColor } from "./expertEditColorUtils";
 import { EDIT_PRESET_MORE_LABEL, type ExpertEditPresetId } from "./expertEditPresets";
+import {
+  MOVE_STAGE_ZOOM_SLIDER_DEFAULT,
+  MOVE_STAGE_ZOOM_SLIDER_MAX,
+  MOVE_STAGE_ZOOM_SLIDER_MIN,
+} from "./expertEditViewportUtils";
 
 type ExpertEditMarkupControlsContentProps = {
   scope: "inline" | "modal";

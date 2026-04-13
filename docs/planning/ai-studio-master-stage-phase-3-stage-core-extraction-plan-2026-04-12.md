@@ -92,6 +92,7 @@ Completed on 2026-04-12:
 13. Extracted stage lifecycle behavior into `frontend/features/ai-studio/components/edit/useExpertEditStageLifecycle.ts`, moving stage wheel listeners, modal undo/redo hotkeys, markup-pan keyboard handling, cursor cleanup, and inpaint-collapse lifecycle behavior out of the panel hotspot while preserving the existing stage interaction contract.
 14. Extracted stage controls render composition into `frontend/features/ai-studio/components/edit/ExpertEditStageControls.tsx`, moving markup/move/inpaint panel rendering, modal general controls, prompt preset toolbar rendering, and preset utility action rendering out of the panel hotspot while keeping the stage-interaction contract unchanged.
 15. Extracted stage-scene render composition into `frontend/features/ai-studio/components/edit/ExpertEditStageScene.tsx`, moving layer-frame rendering, markup stroke overlay rendering, and primary stage busy-overlay rendering out of `ExpertEditPanelView.tsx` while keeping transform overlays and stage routing in place.
+16. Extracted the inline post-stage tool shell into `frontend/features/ai-studio/components/edit/ExpertEditInlinePostStageTools.tsx`, moving the inline inpaint/move/markup tool row and collapse shell out of `ExpertEditPanelView.tsx` while keeping prompt, selector, and stage-routing behavior unchanged.
 
 ## Rollback Note
 If extraction destabilizes the stage before the new seams are strong enough, keep one temporary adapter from the old orchestrator to the new stage core. Do not copy logic back into the old hotspot.

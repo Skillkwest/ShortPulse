@@ -65,6 +65,8 @@ Completed on 2026-04-12:
    - rotation behavior with undo/redo,
    - expanded-modal transform behavior.
 3. Kept the transform math and controller path rooted in the extracted stage-core seams without widening into export, persistence, or provider submission work.
+4. Extracted stage interaction handler assembly and router wiring into `frontend/features/ai-studio/components/edit/useExpertEditStageInteractions.ts`, moving move/inpaint/markup handler composition out of `ExpertEditPanelView.tsx` while keeping the active transform path and stage-routing behavior unchanged.
+5. Tightened the extracted interaction path by moving inline/modal stage router assembly and move/inpaint/markup handler composition into `frontend/features/ai-studio/components/edit/useExpertEditStageInteractions.ts`, reducing panel-local interaction glue without introducing another compatibility layer.
 
 ## Rollback Note
 If the new transform system is not stable enough for general use, keep a narrowly-scoped adapter to the prior transform path while preserving the new artboard-first data model. Do not reopen generic Canvas as a fallback editor.

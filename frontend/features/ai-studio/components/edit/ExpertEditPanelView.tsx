@@ -31,6 +31,7 @@ import { useExpertEditPromptTokenController } from "./useExpertEditPromptTokenCo
 import { useExpertEditSessionBridge } from "./useExpertEditSessionBridge";
 import { useExpertEditStageChrome } from "./useExpertEditStageChrome";
 import { useExpertEditStageHistory } from "./useExpertEditStageHistory";
+import { useExpertEditStageInteractions } from "./useExpertEditStageInteractions";
 import { useExpertEditStageLifecycle } from "./useExpertEditStageLifecycle";
 import { useExpertEditStageViewport } from "./useExpertEditStageViewport";
 import { ExpertEditStageContextMenu } from "./ExpertEditStagePrimitives";
@@ -38,7 +39,6 @@ import {
   ExpertEditInlineStageSurface,
   ExpertEditModalStageSurface,
 } from "./ExpertEditStageSurface";
-import { useExpertEditStageInteractionRouter } from "./useExpertEditStageInteractionRouter";
 import { useExpertEditMarkupDrawController } from "./useExpertEditMarkupDrawController";
 import { useExpertEditMarkupViewportController } from "./useExpertEditMarkupViewportController";
 import { useExpertEditTransformSession } from "./useExpertEditTransformSession";
@@ -1291,14 +1291,6 @@ export function ExpertEditPanelView({
     []
   );
 
-  const handleMarkupStagePointerTerminal = React.useCallback(
-    (event: React.PointerEvent<HTMLDivElement>) => {
-      if (endMarkupPanGesture(event)) return;
-      endMarkupDrawGesture(event);
-    },
-    [endMarkupDrawGesture, endMarkupPanGesture]
-  );
-
   const handleInpaintStagePointerDown = React.useCallback(
     (event: React.PointerEvent<HTMLDivElement>) => {
       if (shouldShowInpaintBrushReticle) {
@@ -1360,189 +1352,30 @@ export function ExpertEditPanelView({
     [finalizeInpaintGestureHistory, handleInpaintPointerLeave, unlockGlobalCursor]
   );
 
-  const moveStageHandlers = React.useMemo(
-    () => ({
-      onPointerDown: (
-        event: React.PointerEvent<HTMLDivElement>,
-        context: { scope: "inline" | "modal" }
-      ) => {
-        if (context.scope === "modal" && beginMarkupPanGesture(event, context.scope)) return;
-        if (!EXPERT_EDIT_IMAGE_TRANSFORM_EDITING_ENABLED) return;
-        handleMovePointerDown(event);
-      },
-      onPointerMove: (
-        event: React.PointerEvent<HTMLDivElement>,
-        context: { scope: "inline" | "modal" }
-      ) => {
-        if (context.scope === "modal" && continueMarkupPanGesture(event)) return;
-        if (!EXPERT_EDIT_IMAGE_TRANSFORM_EDITING_ENABLED) return;
-        handleMovePointerMove(event);
-      },
-      onPointerUp: (
-        event: React.PointerEvent<HTMLDivElement>,
-        context: { scope: "inline" | "modal" }
-      ) => {
-        if (context.scope === "modal" && endMarkupPanGesture(event)) return;
-        if (!EXPERT_EDIT_IMAGE_TRANSFORM_EDITING_ENABLED) return;
-        endTransformPointerSession(event);
-      },
-      onPointerCancel: (
-        event: React.PointerEvent<HTMLDivElement>,
-        context: { scope: "inline" | "modal" }
-      ) => {
-        if (context.scope === "modal" && endMarkupPanGesture(event)) return;
-        if (!EXPERT_EDIT_IMAGE_TRANSFORM_EDITING_ENABLED) return;
-        endTransformPointerSession(event);
-      },
-      onPointerLeave: (
-        event: React.PointerEvent<HTMLDivElement>,
-        context: { scope: "inline" | "modal" }
-      ) => {
-        if (context.scope === "modal" && endMarkupPanGestureOnLeave(event)) return;
-        if (!EXPERT_EDIT_IMAGE_TRANSFORM_EDITING_ENABLED) return;
-        handleMovePointerLeave(event);
-      },
-      onWheel: (
-        event: React.WheelEvent<HTMLDivElement>,
-        context: { scope: "inline" | "modal" }
-      ) => {
-        if (context.scope !== "modal") return;
-        handleMarkupViewportWheel(event, context.scope);
-      },
-    }),
-    [
+  const { inlineStageInteractionRouter, modalStageInteractionRouter } =
+    useExpertEditStageInteractions({
+      activeStageInteractionMode,
+      isMorePresetsSurfaceOpen,
+      transformEditingEnabled: EXPERT_EDIT_IMAGE_TRANSFORM_EDITING_ENABLED,
       beginMarkupPanGesture,
       continueMarkupPanGesture,
       endMarkupPanGesture,
       endMarkupPanGestureOnLeave,
-      handleMovePointerDown,
-      handleMovePointerLeave,
-      handleMovePointerMove,
       handleMarkupViewportWheel,
+      handleMovePointerDown,
+      handleMovePointerMove,
+      handleMovePointerLeave,
       endTransformPointerSession,
-    ]
-  );
-
-  const inpaintStageHandlers = React.useMemo(
-    () => ({
-      onPointerDown: (
-        event: React.PointerEvent<HTMLDivElement>,
-        context: { scope: "inline" | "modal" }
-      ) => {
-        if (context.scope === "modal" && beginMarkupPanGesture(event, context.scope)) return;
-        handleInpaintStagePointerDown(event);
-      },
-      onPointerMove: (
-        event: React.PointerEvent<HTMLDivElement>,
-        context: { scope: "inline" | "modal" }
-      ) => {
-        if (context.scope === "modal" && continueMarkupPanGesture(event)) return;
-        handleInpaintStagePointerMove(event);
-      },
-      onPointerUp: (
-        event: React.PointerEvent<HTMLDivElement>,
-        context: { scope: "inline" | "modal" }
-      ) => {
-        if (context.scope === "modal" && endMarkupPanGesture(event)) return;
-        handleInpaintStagePointerUp(event);
-      },
-      onPointerCancel: (
-        event: React.PointerEvent<HTMLDivElement>,
-        context: { scope: "inline" | "modal" }
-      ) => {
-        if (context.scope === "modal" && endMarkupPanGesture(event)) return;
-        handleInpaintStagePointerCancel(event);
-      },
-      onPointerLeave: (
-        event: React.PointerEvent<HTMLDivElement>,
-        context: { scope: "inline" | "modal" }
-      ) => {
-        if (context.scope === "modal" && endMarkupPanGestureOnLeave(event)) return;
-        handleInpaintStagePointerLeave(event);
-      },
-      onWheel: (
-        event: React.WheelEvent<HTMLDivElement>,
-        context: { scope: "inline" | "modal" }
-      ) => {
-        if (context.scope !== "modal") return;
-        handleMarkupViewportWheel(event, context.scope);
-      },
-    }),
-    [
-      beginMarkupPanGesture,
-      continueMarkupPanGesture,
-      endMarkupPanGesture,
-      endMarkupPanGestureOnLeave,
-      handleInpaintStagePointerCancel,
+      beginMarkupDrawGesture,
+      continueMarkupDrawGesture,
+      endMarkupDrawGesture,
+      endMarkupDrawGestureOnLeave,
       handleInpaintStagePointerDown,
-      handleInpaintStagePointerLeave,
       handleInpaintStagePointerMove,
       handleInpaintStagePointerUp,
-      handleMarkupViewportWheel,
-    ]
-  );
-
-  const markupStageHandlers = React.useMemo(
-    () => ({
-      onPointerDown: (
-        event: React.PointerEvent<HTMLDivElement>,
-        context: { scope: "inline" | "modal" }
-      ) => {
-        if (context.scope === "modal" && beginMarkupPanGesture(event, context.scope)) return;
-        beginMarkupDrawGesture(event);
-      },
-      onPointerMove: (
-        event: React.PointerEvent<HTMLDivElement>,
-        context: { scope: "inline" | "modal" }
-      ) => {
-        if (context.scope === "modal" && continueMarkupPanGesture(event)) return;
-        continueMarkupDrawGesture(event);
-      },
-      onPointerUp: handleMarkupStagePointerTerminal,
-      onPointerCancel: handleMarkupStagePointerTerminal,
-      onPointerLeave: (
-        event: React.PointerEvent<HTMLDivElement>,
-        context: { scope: "inline" | "modal" }
-      ) => {
-        if (context.scope === "modal" && endMarkupPanGestureOnLeave(event)) return;
-        endMarkupDrawGestureOnLeave(event);
-      },
-      onWheel: (
-        event: React.WheelEvent<HTMLDivElement>,
-        context: { scope: "inline" | "modal" }
-      ) => {
-        if (context.scope !== "modal") return;
-        handleMarkupViewportWheel(event, context.scope);
-      },
-    }),
-    [
-      beginMarkupDrawGesture,
-      beginMarkupPanGesture,
-      continueMarkupDrawGesture,
-      continueMarkupPanGesture,
-      endMarkupDrawGestureOnLeave,
-      endMarkupPanGestureOnLeave,
-      handleMarkupStagePointerTerminal,
-      handleMarkupViewportWheel,
-    ]
-  );
-
-  const inlineStageInteractionRouter = useExpertEditStageInteractionRouter({
-    scope: "inline",
-    mode: activeStageInteractionMode,
-    isBlocked: isMorePresetsSurfaceOpen,
-    moveHandlers: moveStageHandlers,
-    inpaintHandlers: inpaintStageHandlers,
-    markupHandlers: markupStageHandlers,
-  });
-
-  const modalStageInteractionRouter = useExpertEditStageInteractionRouter({
-    scope: "modal",
-    mode: activeStageInteractionMode,
-    moveHandlers: moveStageHandlers,
-    inpaintHandlers: inpaintStageHandlers,
-    markupHandlers: markupStageHandlers,
-  });
+      handleInpaintStagePointerCancel,
+      handleInpaintStagePointerLeave,
+    });
   const handleGenerationModeChange = React.useCallback((nextMode: EditSubmitIntent) => {
     setSelectedGenerationMode(nextMode);
     setSelectedRailTool(resolveRailToolForGenerationMode(nextMode));

@@ -21,7 +21,6 @@ import { modelLogos } from "../../constants";
 import { AspectDropdown } from "../AspectDropdown";
 import { stripEditLabel } from "../../utils/modelLabels";
 import { composePrimaryStageLayersToBlob } from "../../logic/expertEditStageFlatten";
-import { parseAspectRatioToken } from "../../logic/expertEditLayerCrop";
 import { setExpertEditPromptTokenDragData } from "../../logic/expertEditPromptReferences";
 import {
   INPAINT_FLUX_FILL_MODEL_LABEL,
@@ -51,24 +50,21 @@ import {
   resolveMarkupStrokeWidthPx,
   type MarkupDrawPointerSession,
   type MarkupStroke,
-  type MarkupViewportState,
 } from "./markupStrokeController";
 import { useExpertEditInlineGenerate } from "./useExpertEditInlineGenerate";
-import { ExpertEditMarkupModalShell } from "./ExpertEditMarkupModalShell";
-import { useExpertEditPrimaryIngress } from "./useExpertEditPrimaryIngress";
+import { useExpertEditDocumentState } from "./useExpertEditDocumentState";
 import { useExpertEditPromptTokenController } from "./useExpertEditPromptTokenController";
 import { useExpertEditSessionHostSync } from "./useExpertEditSessionHostSync";
+import { useExpertEditStageViewport } from "./useExpertEditStageViewport";
+import { ExpertEditStageContextMenu } from "./ExpertEditStagePrimitives";
 import {
-  ExpertEditStageContextMenu,
-  PrimaryCanvasFrameStack,
-  PrimaryCompositionSurface,
-  PrimaryStageShell,
-  PrimaryStageViewportLayer,
-} from "./ExpertEditStagePrimitives";
+  ExpertEditInlineStageSurface,
+  ExpertEditModalStageSurface,
+} from "./ExpertEditStageSurface";
 import { useExpertEditStageInteractionRouter } from "./useExpertEditStageInteractionRouter";
 import { useExpertEditMarkupDrawController } from "./useExpertEditMarkupDrawController";
 import { useExpertEditMarkupViewportController } from "./useExpertEditMarkupViewportController";
-import { useExpertEditTransformController } from "./useExpertEditTransformController";
+import { useExpertEditTransformSession } from "./useExpertEditTransformSession";
 import { ExpertEditPresetsSurface } from "./ExpertEditPresetsSurface";
 import { ExpertEditCharacterPickerModal } from "./ExpertEditCharacterPickerModal";
 import { ExpertEditModeRailPanel } from "./ExpertEditModeRailPanel";
@@ -101,10 +97,6 @@ import {
   editPresetUtilityActions,
   inpaintRailTools,
   isSpaceActivationKey,
-  resolveElementViewportSize,
-  resolveImageDimensionsFromUrl,
-  resolveValidStageRect,
-  selectedLayerTransformHandleCorners,
   type ExpertEditPanelViewProps,
   type InpaintHistoryState,
   type InpaintMode,
@@ -152,23 +144,13 @@ import {
   MOVE_STAGE_ZOOM_SLIDER_DEFAULT,
   MOVE_STAGE_ZOOM_SLIDER_MAX,
   MOVE_STAGE_ZOOM_SLIDER_MIN,
-  createDefaultMarkupViewportState,
   createIdleMarkupPanPointerSession,
   isResolvedStageViewportSize,
-  resolveMarkupViewportOffsetPixels,
-  resolveMoveStageZoomSliderValue,
   resolveRenderableStageViewportSize,
-  resolveStageViewportSize,
   type MarkupPanPointerSession,
   type StageViewportSize,
 } from "./expertEditViewportUtils";
 import {
-  resolveNestedSurfaceOffsetFromClientRect,
-  resolveNestedSurfacePointFromClientPoint,
-  resolveScenePointFromPixelSpace,
-} from "./stageSceneGeometry";
-import {
-  applyTransformHistoryEntryToLayers,
   areLayerTransformsEqual,
   areTransformHistoryEntriesEqual,
   buildTransformHistoryEntry,
@@ -181,20 +163,10 @@ import {
 } from "./expertEditLayerTransformUtils";
 import {
   LAYER_OPACITY_DEFAULT,
-  LAYER_REORDER_DRAG_MIME,
   collectOwnedLayerImageUrls,
   formatLayerName,
-  isLayerIndexInBounds,
-  isLayerReorderDrag,
-  isAutoLayerName,
   layerHasImage,
-  resolveLayerIndexOrFallback,
-  resolveLayersAfterContextMenuRemoveImage,
-  resolveLayerReorderFromIndex,
-  resolveLayerStateAfterDelete,
   resolveInitialExpertEditSessionState,
-  resolveReorderedLayerState,
-  resolveLowestUnusedAutoLayerNumber,
   resolveMarkupStrokeIdCounterFromStrokes,
   type ExpertEditLayer,
 } from "./expertEditLayerSessionUtils";
@@ -207,7 +179,6 @@ import {
   clearWindowAnimationFrameRef,
   clearTransientObjectUrlRevokeTimers,
   clearWindowTimeoutRef,
-  createIdleTransformPointerSession,
   isEventTargetInsideElement,
   isKeyboardEventFromEditableTarget,
   lockDocumentCursor,
@@ -217,7 +188,6 @@ import {
   scheduleTransientObjectUrlRevoke as scheduleTransientObjectUrlRevokeTimer,
   resolveStageContextMenuPosition,
   unlockDocumentCursor,
-  type TransformPointerSession,
 } from "./expertEditInteractionUtils";
 import {
   areMarkupStrokeSnapshotsEqual,
@@ -228,22 +198,7 @@ import {
   type ExpertEditSessionState,
 } from "./expertEditSessionState";
 
-const EDIT_EXPERT_CENTER_COLUMN_MAX_WIDTH_PX = 860;
-const EDIT_EXPERT_PRIMARY_SIZE_MIN_PX = 420;
-const EDIT_EXPERT_PRIMARY_SIZE_MAX_PX = 540;
-const EDIT_EXPERT_PRIMARY_SIZE_VIEWPORT_FACTOR = 0.355;
 const EXPERT_EDIT_IMAGE_TRANSFORM_EDITING_ENABLED = false;
-
-const resolvePrimaryCanvasNominalHeightPx = () => {
-  if (typeof window === "undefined" || !Number.isFinite(window.innerWidth)) {
-    return EDIT_EXPERT_PRIMARY_SIZE_MIN_PX;
-  }
-  return clampNumber(
-    window.innerWidth * EDIT_EXPERT_PRIMARY_SIZE_VIEWPORT_FACTOR,
-    EDIT_EXPERT_PRIMARY_SIZE_MIN_PX,
-    EDIT_EXPERT_PRIMARY_SIZE_MAX_PX
-  );
-};
 
 export function ExpertEditPanelView({
   aspect,
@@ -297,7 +252,6 @@ export function ExpertEditPanelView({
       sessionState,
     })
   );
-  const layerIdCounterRef = React.useRef(initialSessionState.layerState.layerIdCounter);
   const previousLayersRef = React.useRef<ExpertEditLayer[]>([]);
   const lastDispatchedSessionStateRef = React.useRef<ExpertEditSessionState | null>(null);
   const pendingSessionStateRef = React.useRef<ExpertEditSessionState | null>(null);
@@ -322,13 +276,6 @@ export function ExpertEditPanelView({
     htmlCursor: "",
   });
   const primaryInputRef = React.useRef<HTMLInputElement | null>(null);
-  const inlineStageWrapperRef = React.useRef<HTMLDivElement | null>(null);
-  const primaryCanvasFrameStackRef = React.useRef<HTMLDivElement | null>(null);
-  const primaryCompositionSurfaceRef = React.useRef<HTMLDivElement | null>(null);
-  const markupModalRef = React.useRef<HTMLDivElement | null>(null);
-  const markupModalControlsRef = React.useRef<HTMLDivElement | null>(null);
-  const markupModalStageRef = React.useRef<HTMLDivElement | null>(null);
-  const markupModalLayersRef = React.useRef<HTMLDivElement | null>(null);
   const stageContextMenuRef = React.useRef<HTMLDivElement | null>(null);
   const markupColorPickerAnchorRef = React.useRef<HTMLDivElement | null>(null);
   const markupColorSaturationRef = React.useRef<HTMLDivElement | null>(null);
@@ -341,43 +288,12 @@ export function ExpertEditPanelView({
   const markupStrokeIdCounterRef = React.useRef(
     resolveMarkupStrokeIdCounterFromStrokes(initialSessionState.markupStrokes)
   );
-  const transformPointerSessionRef = React.useRef<TransformPointerSession>(
-    createIdleTransformPointerSession()
-  );
-  const transformGestureBaselineRef = React.useRef<TransformHistoryEntry | null>(null);
-  const pendingHistoryApplyEntryRef = React.useRef<TransformHistoryEntry | null>(null);
   const markupGestureBaselineRef = React.useRef<MarkupStroke[] | null>(null);
   const inpaintGestureBaselineRef = React.useRef<InpaintMaskSnapshot | null>(null);
   const pendingMarkupHistoryApplyRef = React.useRef<MarkupStroke[] | null>(null);
   const pendingInpaintHistoryApplyRef = React.useRef<InpaintMaskSnapshot | null>(null);
   const inpaintSessionRestorePendingRef = React.useRef(
     initialSessionState.inpaintHistory.present.layers.length > 0
-  );
-  const createLayer = React.useCallback(
-    ({
-      indexOneBased,
-      imageUrl,
-      name,
-      opacity = LAYER_OPACITY_DEFAULT,
-      isAutoNamed = true,
-      ownsImageUrl = false,
-    }: {
-      indexOneBased: number;
-      imageUrl?: string | null;
-      name?: string;
-      opacity?: number;
-      isAutoNamed?: boolean;
-      ownsImageUrl?: boolean;
-    }): ExpertEditLayer => ({
-      id: `layer-${layerIdCounterRef.current++}`,
-      name: name ?? formatLayerName(indexOneBased),
-      imageUrl: imageUrl ?? null,
-      opacity: clampLayerOpacity(opacity),
-      isAutoNamed,
-      ownsImageUrl,
-      transform: defaultLayerTransform(),
-    }),
-    []
   );
   const [selectedInpaintMode, setSelectedInpaintMode] = React.useState<InpaintMode>("brush");
   const isGenerationModeToggleEnabled = isEditGenerationModeToggleEnabled();
@@ -398,23 +314,8 @@ export function ExpertEditPanelView({
   const [markupColorHsv, setMarkupColorHsv] = React.useState<HsvColor>(() =>
     hexToHsv(MARKUP_COLOR_DEFAULT)
   );
-  const [markupViewport, setMarkupViewport] = React.useState<MarkupViewportState>(() =>
-    createDefaultMarkupViewportState()
-  );
   const [isMarkupPanDragging, setIsMarkupPanDragging] = React.useState(false);
   const [isMarkupPanSpacePressed, setIsMarkupPanSpacePressed] = React.useState(false);
-  const [inlineStageViewportSize, setInlineStageViewportSize] = React.useState<StageViewportSize>({
-    width: 1,
-    height: 1,
-  });
-  const [markupModalStageSize, setMarkupModalStageSize] = React.useState<StageViewportSize | null>(
-    null
-  );
-  const [markupModalViewportSize, setMarkupModalViewportSize] = React.useState<StageViewportSize>({
-    width: 1,
-    height: 1,
-  });
-  const [markupModalDomVersion, setMarkupModalDomVersion] = React.useState(0);
   const [stageContextMenuState, setStageContextMenuState] = React.useState<{
     isOpen: boolean;
     x: number;
@@ -424,9 +325,6 @@ export function ExpertEditPanelView({
     x: 0,
     y: 0,
   });
-  const [moveStageZoomSliderValue, setMoveStageZoomSliderValue] = React.useState(() =>
-    resolveMoveStageZoomSliderValue(MARKUP_VIEWPORT_DEFAULT_SCALE)
-  );
   const [markupStrokes, setMarkupStrokes] = React.useState<MarkupStroke[]>(() =>
     cloneMarkupStrokesSnapshot(initialSessionState.markupStrokes)
   );
@@ -440,15 +338,73 @@ export function ExpertEditPanelView({
     React.useState<ExpertEditCustomPresetOverrides>({});
   const [isPresetPanelDropActive, setIsPresetPanelDropActive] = React.useState(false);
   const [isPresetsSurfaceDropActive, setIsPresetsSurfaceDropActive] = React.useState(false);
-  const [layers, setLayers] = React.useState<ExpertEditLayer[]>(() => [
-    ...initialSessionState.layerState.layers,
-  ]);
-  const [layerImageDimensionCache, setLayerImageDimensionCache] = React.useState<
-    Record<string, { url: string; width: number; height: number }>
-  >({});
-  const [foundationLayerId, setFoundationLayerId] = React.useState<string | null>(
-    initialSessionState.layerState.foundationLayerId
+  const [statusToastMessage, setStatusToastMessage] = React.useState<string | null>(null);
+  const [statusToastTone, setStatusToastTone] = React.useState<"info" | "warning">("info");
+  const [isStatusToastFading, setIsStatusToastFading] = React.useState(false);
+  const showStatusToast = React.useCallback(
+    (message: string, tone: "info" | "warning" = "info") => {
+      clearWindowTimeoutRef(toastVisibleTimerRef);
+      clearWindowTimeoutRef(toastFadeTimerRef);
+      setStatusToastMessage(message);
+      setStatusToastTone(tone);
+      setIsStatusToastFading(false);
+      toastVisibleTimerRef.current = window.setTimeout(() => {
+        setIsStatusToastFading(true);
+        toastFadeTimerRef.current = window.setTimeout(() => {
+          setStatusToastMessage(null);
+          setIsStatusToastFading(false);
+          toastFadeTimerRef.current = null;
+        }, STATUS_TOAST_FADE_MS);
+        toastVisibleTimerRef.current = null;
+      }, STATUS_TOAST_VISIBLE_MS);
+    },
+    []
   );
+  const {
+    beginLayerRename,
+    clearLayerEditing,
+    clearPrimaryDragActive,
+    createLayer,
+    dragOverLayerIndex,
+    draggingLayerIndex,
+    editingLayerIndex,
+    editingLayerValue,
+    foundationLayerId,
+    handleCommitLayerRename,
+    handleDeleteLayer,
+    handleDeleteSelectedLayer,
+    handleLayerDragEnd,
+    handleLayerDragOver,
+    handleLayerDragStart,
+    handleLayerDrop,
+    handlePrimaryDragEnter,
+    handlePrimaryDragLeave,
+    handlePrimaryDragOver,
+    handlePrimaryDrop,
+    handlePrimaryFileSelection,
+    handleRemoveSelectedLayerImage,
+    handleSelectLayer,
+    hasPrimaryCompositePreview,
+    hostPrimaryImageUrl,
+    layerIdCounterRef,
+    layers,
+    populatedLayerCount,
+    primaryDragActive,
+    resolveLayerImageAspectRatio,
+    resolvedSelectedLayerIndex,
+    selectedLayer,
+    selectedLayerImageUrl,
+    selectedLayerIndex,
+    setEditingLayerValue,
+    setLayers,
+    setSelectedLayerIndex,
+  } = useExpertEditDocumentState({
+    initialLayerState: initialSessionState.layerState,
+    isMorePresetsSurfaceOpen,
+    showStatusToast,
+    revokeObjectUrlSafe,
+    resolvePreviewUrlById,
+  });
   const [transformHistoryState, setTransformHistoryState] = React.useState<TransformHistoryState>(
     () => ({
       past: [],
@@ -462,52 +418,6 @@ export function ExpertEditPanelView({
   const [inpaintHistoryState, setInpaintHistoryState] = React.useState<InpaintHistoryState>(() =>
     cloneInpaintHistoryState(initialSessionState.inpaintHistory)
   );
-  const [selectedLayerIndex, setSelectedLayerIndex] = React.useState<number | null>(
-    initialSessionState.layerState.selectedLayerIndex
-  );
-  const [editingLayerIndex, setEditingLayerIndex] = React.useState<number | null>(null);
-  const [editingLayerValue, setEditingLayerValue] = React.useState("");
-  const [draggingLayerIndex, setDraggingLayerIndex] = React.useState<number | null>(null);
-  const [dragOverLayerIndex, setDragOverLayerIndex] = React.useState<number | null>(null);
-  const draggingLayerIndexRef = React.useRef<number | null>(null);
-  const [statusToastMessage, setStatusToastMessage] = React.useState<string | null>(null);
-  const [statusToastTone, setStatusToastTone] = React.useState<"info" | "warning">("info");
-  const [isStatusToastFading, setIsStatusToastFading] = React.useState(false);
-  const [isTransformPointerDragging, setIsTransformPointerDragging] = React.useState(false);
-  const [activeTransformDragMode, setActiveTransformDragMode] =
-    React.useState<TransformPointerSession["dragMode"]>("move");
-  const syncMarkupModalTrackedRef = React.useCallback(
-    (refObject: React.MutableRefObject<HTMLDivElement | null>, node: HTMLDivElement | null) => {
-      if (refObject.current === node) return;
-      refObject.current = node;
-      setMarkupModalDomVersion((previous) => previous + 1);
-    },
-    []
-  );
-  const handleMarkupModalRef = React.useCallback(
-    (node: HTMLDivElement | null) => {
-      syncMarkupModalTrackedRef(markupModalRef, node);
-    },
-    [syncMarkupModalTrackedRef]
-  );
-  const handleMarkupModalControlsRef = React.useCallback(
-    (node: HTMLDivElement | null) => {
-      syncMarkupModalTrackedRef(markupModalControlsRef, node);
-    },
-    [syncMarkupModalTrackedRef]
-  );
-  const handleMarkupModalStageRef = React.useCallback(
-    (node: HTMLDivElement | null) => {
-      syncMarkupModalTrackedRef(markupModalStageRef, node);
-    },
-    [syncMarkupModalTrackedRef]
-  );
-  const handleMarkupModalLayersRef = React.useCallback(
-    (node: HTMLDivElement | null) => {
-      syncMarkupModalTrackedRef(markupModalLayersRef, node);
-    },
-    [syncMarkupModalTrackedRef]
-  );
   const [removeBackgroundPendingLayerId, setRemoveBackgroundPendingLayerId] = React.useState<
     string | null
   >(null);
@@ -517,14 +427,6 @@ export function ExpertEditPanelView({
     setMarkupStrokeSize(resolvedMarkupStrokeSize);
   }, [markupStrokeSize, resolvedMarkupStrokeSize]);
   const markupColor = React.useMemo(() => rgbToHex(hsvToRgb(markupColorHsv)), [markupColorHsv]);
-  const resolvedSelectedLayerIndex = resolveLayerIndexOrFallback({
-    selectedLayerIndex,
-    layerCount: layers.length,
-  });
-  const currentTransformHistoryEntry = React.useMemo(
-    () => buildTransformHistoryEntry(layers),
-    [layers]
-  );
   const canUndoTransformHistory = transformHistoryState.past.length > 0;
   const canRedoTransformHistory = transformHistoryState.future.length > 0;
   const canUndoMarkupHistory = markupHistoryState.past.length > 0;
@@ -532,99 +434,43 @@ export function ExpertEditPanelView({
   const canUndoInpaintHistory = inpaintHistoryState.past.length > 0;
   const canRedoInpaintHistory = inpaintHistoryState.future.length > 0;
   const selectedStyleId = controlledSelectedStyleId ?? null;
-  const selectedLayer = layers[resolvedSelectedLayerIndex] ?? null;
-  const selectedLayerImageUrl = selectedLayer?.imageUrl ?? null;
-  React.useEffect(() => {
-    setLayerImageDimensionCache((previousCache) => {
-      let didChange = false;
-      const nextCache: Record<string, { url: string; width: number; height: number }> = {};
-      layers.forEach((layer) => {
-        if (!layer.imageUrl) return;
-        const cached = previousCache[layer.id];
-        if (!cached || cached.url !== layer.imageUrl) {
-          didChange = true;
-          return;
-        }
-        nextCache[layer.id] = cached;
-      });
-      if (!didChange && Object.keys(previousCache).length === Object.keys(nextCache).length) {
-        return previousCache;
-      }
-      return nextCache;
-    });
-  }, [layers]);
-  React.useEffect(() => {
-    const pendingLayers = layers.filter((layer) => {
-      if (!layer.imageUrl) return false;
-      const cached = layerImageDimensionCache[layer.id];
-      return !cached || cached.url !== layer.imageUrl;
-    });
-    if (pendingLayers.length <= 0) return;
-
-    let isCancelled = false;
-    pendingLayers.forEach((layer) => {
-      const imageUrl = layer.imageUrl;
-      if (!imageUrl) return;
-      void resolveImageDimensionsFromUrl(imageUrl)
-        .then((dimensions) => {
-          if (isCancelled) return;
-          setLayerImageDimensionCache((previousCache) => {
-            const current = previousCache[layer.id];
-            if (
-              current &&
-              current.url === imageUrl &&
-              current.width === dimensions.width &&
-              current.height === dimensions.height
-            ) {
-              return previousCache;
-            }
-            return {
-              ...previousCache,
-              [layer.id]: {
-                url: imageUrl,
-                width: dimensions.width,
-                height: dimensions.height,
-              },
-            };
-          });
-        })
-        .catch(() => {
-          if (isCancelled) return;
-          setLayerImageDimensionCache((previousCache) => {
-            const current = previousCache[layer.id];
-            if (current && current.url === imageUrl) {
-              return previousCache;
-            }
-            return {
-              ...previousCache,
-              [layer.id]: {
-                url: imageUrl,
-                width: 1,
-                height: 1,
-              },
-            };
-          });
-        });
-    });
-
-    return () => {
-      isCancelled = true;
-    };
-  }, [layerImageDimensionCache, layers]);
-  const populatedLayerCount = React.useMemo(
-    () => layers.filter((layer) => layerHasImage(layer)).length,
-    [layers]
-  );
-  const hasPrimaryCompositePreview = populatedLayerCount > 0;
+  const {
+    inlineStageWrapperRef,
+    primaryCanvasFrameStackRef,
+    primaryCompositionSurfaceRef,
+    markupModalRef,
+    markupModalStageRef,
+    handleMarkupModalRef,
+    handleMarkupModalControlsRef,
+    handleMarkupModalStageRef,
+    handleMarkupModalLayersRef,
+    markupViewport,
+    setMarkupViewport,
+    setInlineStageViewportSize,
+    markupModalStageSize,
+    markupModalViewportSize,
+    setMarkupModalViewportSize,
+    moveStageZoomSliderValue,
+    setMoveStageZoomSliderValue,
+    primaryCompositionSurfaceAspectRatio,
+    primaryCompositionSurfaceAspectRatioValue,
+    inlineMarkupViewportStyle,
+    inlineCompositionSurfaceViewportSize,
+    modalMarkupViewportStyle,
+    primaryCanvasFrameBoundsStyle,
+    resolveInlineStageRect,
+    resolveInteractionViewportOffsetPixels,
+    resolveInlineCompositionSurfacePoint,
+    resolveInlineCompositionScenePoint,
+  } = useExpertEditStageViewport({
+    aspect,
+    hasPrimaryCompositePreview,
+    isMarkupExpandSelected,
+  });
   const isRemoveBackgroundPending = removeBackgroundPendingLayerId != null;
   const isPrimaryStageBusy =
     isFlattenPending || isRemoveBackgroundPending || isPrimaryStageGenerating;
   const isLayerLimitStatusToast = statusToastMessage === LAYER_LIMIT_REACHED_TOAST;
-  const hostPrimaryImageUrl = React.useMemo(
-    () =>
-      selectedLayerImageUrl ?? layers.find((layer) => Boolean(layer.imageUrl))?.imageUrl ?? null,
-    [layers, selectedLayerImageUrl]
-  );
   const isCustomOverridesControlled =
     controlledCustomPresetOverrides != null && onCustomPresetOverridesChange != null;
   const customPresetOverrides = React.useMemo(
@@ -820,25 +666,6 @@ export function ExpertEditPanelView({
   const inpaintLayerSources = React.useMemo(
     () => layers.map((layer) => ({ id: layer.id, imageUrl: layer.imageUrl })),
     [layers]
-  );
-  const showStatusToast = React.useCallback(
-    (message: string, tone: "info" | "warning" = "info") => {
-      clearWindowTimeoutRef(toastVisibleTimerRef);
-      clearWindowTimeoutRef(toastFadeTimerRef);
-      setStatusToastMessage(message);
-      setStatusToastTone(tone);
-      setIsStatusToastFading(false);
-      toastVisibleTimerRef.current = window.setTimeout(() => {
-        setIsStatusToastFading(true);
-        toastFadeTimerRef.current = window.setTimeout(() => {
-          setStatusToastMessage(null);
-          setIsStatusToastFading(false);
-          toastFadeTimerRef.current = null;
-        }, STATUS_TOAST_FADE_MS);
-        toastVisibleTimerRef.current = null;
-      }, STATUS_TOAST_VISIBLE_MS);
-    },
-    []
   );
   const {
     promptInputShellRef,
@@ -1068,171 +895,6 @@ export function ExpertEditPanelView({
     [removePresetFromPanel]
   );
 
-  const resolveInteractionViewportOffsetPixels = (
-    interactionRect: DOMRect,
-    currentTarget: HTMLDivElement
-  ) => {
-    if (!hasPrimaryCompositePreview) {
-      return {
-        offsetX: 0,
-        offsetY: 0,
-      };
-    }
-
-    const resolveInlineInteractionAuthorityRect = () => {
-      const wrapperRect = resolveValidStageRect(
-        inlineStageWrapperRef.current?.getBoundingClientRect() ?? null
-      );
-      if (wrapperRect) return wrapperRect;
-      const compositionSurfaceRect = resolveValidStageRect(
-        primaryCompositionSurfaceRef.current?.getBoundingClientRect() ?? null
-      );
-      if (compositionSurfaceRect) return compositionSurfaceRect;
-      return resolveValidStageRect(currentTarget.getBoundingClientRect() ?? interactionRect);
-    };
-
-    const authoritativeViewportSize =
-      currentTarget === markupModalStageRef.current
-        ? isResolvedStageViewportSize(markupModalViewportSize)
-          ? markupModalViewportSize
-          : resolveStageViewportSize(
-              resolveValidStageRect(
-                markupModalStageRef.current?.getBoundingClientRect() ?? interactionRect
-              )
-            )
-        : isResolvedStageViewportSize(inlineStageViewportSize)
-          ? inlineStageViewportSize
-          : resolveStageViewportSize(resolveInlineInteractionAuthorityRect() ?? interactionRect);
-
-    return resolveMarkupViewportOffsetPixels(markupViewport, authoritativeViewportSize);
-  };
-
-  const resolveInlineCompositionSurfacePoint = React.useCallback(
-    ({
-      clientX,
-      clientY,
-      clampToBounds,
-    }: {
-      clientX: number;
-      clientY: number;
-      clampToBounds: boolean;
-    }) => {
-      const wrapperRect = resolveValidStageRect(
-        inlineStageWrapperRef.current?.getBoundingClientRect() ?? null
-      );
-      const frameStackElement = primaryCanvasFrameStackRef.current;
-      const surfaceElement = primaryCompositionSurfaceRef.current;
-      if (!wrapperRect) {
-        return null;
-      }
-      const fallbackSurfaceRect = resolveValidStageRect(
-        surfaceElement?.getBoundingClientRect() ?? null
-      );
-      const surfaceWidth = Math.max(
-        1,
-        frameStackElement?.clientWidth ||
-          surfaceElement?.clientWidth ||
-          fallbackSurfaceRect?.width ||
-          1
-      );
-      const surfaceHeight = Math.max(
-        1,
-        frameStackElement?.clientHeight ||
-          surfaceElement?.clientHeight ||
-          fallbackSurfaceRect?.height ||
-          1
-      );
-      if (surfaceWidth <= 0 || surfaceHeight <= 0) {
-        return null;
-      }
-      const viewportTransform = {
-        scale: markupViewport.scale,
-        offsetX: markupViewport.offsetXRatio * wrapperRect.width,
-        offsetY: markupViewport.offsetYRatio * wrapperRect.height,
-      };
-      const resolvedSurfaceOffset = fallbackSurfaceRect
-        ? resolveNestedSurfaceOffsetFromClientRect({
-            viewportRect: wrapperRect,
-            viewportTransform,
-            surfaceRect: fallbackSurfaceRect,
-            surfaceWidth,
-            surfaceHeight,
-          })
-        : null;
-      return resolveNestedSurfacePointFromClientPoint({
-        clientX,
-        clientY,
-        viewportRect: wrapperRect,
-        viewportTransform,
-        surfaceOffsetX:
-          resolvedSurfaceOffset?.offsetX ??
-          frameStackElement?.offsetLeft ??
-          surfaceElement?.offsetLeft ??
-          0,
-        surfaceOffsetY:
-          resolvedSurfaceOffset?.offsetY ??
-          frameStackElement?.offsetTop ??
-          surfaceElement?.offsetTop ??
-          0,
-        surfaceWidth,
-        surfaceHeight,
-        clampToBounds,
-      });
-    },
-    [markupViewport]
-  );
-
-  const resolveInlineCompositionScenePoint = React.useCallback(
-    ({
-      clientX,
-      clientY,
-      clampToBounds,
-    }: {
-      clientX: number;
-      clientY: number;
-      clampToBounds: boolean;
-    }) => {
-      const surfacePoint = resolveInlineCompositionSurfacePoint({
-        clientX,
-        clientY,
-        clampToBounds,
-      });
-      const frameStackElement = primaryCanvasFrameStackRef.current;
-      const surfaceElement = primaryCompositionSurfaceRef.current;
-      const fallbackSurfaceRect = resolveValidStageRect(
-        surfaceElement?.getBoundingClientRect() ?? null
-      );
-      const surfaceWidth = Math.max(
-        1,
-        frameStackElement?.clientWidth ||
-          surfaceElement?.clientWidth ||
-          fallbackSurfaceRect?.width ||
-          1
-      );
-      const surfaceHeight = Math.max(
-        1,
-        frameStackElement?.clientHeight ||
-          surfaceElement?.clientHeight ||
-          fallbackSurfaceRect?.height ||
-          1
-      );
-      if (!surfacePoint || surfaceWidth <= 0 || surfaceHeight <= 0) {
-        return null;
-      }
-      const scenePoint = resolveScenePointFromPixelSpace({
-        x: surfacePoint.x,
-        y: surfacePoint.y,
-        spaceWidth: surfaceWidth,
-        spaceHeight: surfaceHeight,
-      });
-      return {
-        sceneX: scenePoint.x,
-        sceneY: scenePoint.y,
-      };
-    },
-    [resolveInlineCompositionSurfacePoint]
-  );
-
   const {
     overlayCanvasRef,
     modalOverlayCanvasRef,
@@ -1291,32 +953,6 @@ export function ExpertEditPanelView({
     isMoveToolSelected &&
     Boolean(selectedLayerImageUrl) &&
     hasPrimaryCompositePreview;
-  const primaryCompositionSurfaceAspectRatio = React.useMemo(() => {
-    const parsedAspectRatio = parseAspectRatioToken(aspect);
-    if (
-      parsedAspectRatio == null ||
-      !Number.isFinite(parsedAspectRatio) ||
-      parsedAspectRatio <= 0
-    ) {
-      return "1 / 1";
-    }
-    return aspect.replace(":", " / ");
-  }, [aspect]);
-  const primaryCompositionSurfaceAspectRatioValue = React.useMemo(
-    () => parseAspectRatioToken(aspect) ?? 1,
-    [aspect]
-  );
-  const resolveLayerImageAspectRatio = React.useCallback(
-    (layer: ExpertEditLayer | null) => {
-      if (!layer?.imageUrl) return 1;
-      const dimensions = layerImageDimensionCache[layer.id];
-      if (!dimensions || dimensions.url !== layer.imageUrl || dimensions.height <= 0) {
-        return 1;
-      }
-      return Math.max(0.0001, dimensions.width / dimensions.height);
-    },
-    [layerImageDimensionCache]
-  );
   const selectedLayerImageAspectRatio = React.useMemo(
     () => resolveLayerImageAspectRatio(selectedLayer),
     [resolveLayerImageAspectRatio, selectedLayer]
@@ -1330,170 +966,6 @@ export function ExpertEditPanelView({
   );
   const morePresetsSurfaceId = React.useId();
   const activeStageRenderScale = markupViewport.scale;
-  const primaryCompositionSurfaceCursor = React.useMemo(() => {
-    if (
-      EXPERT_EDIT_IMAGE_TRANSFORM_EDITING_ENABLED &&
-      isMoveToolSelected &&
-      selectedLayerImageUrl
-    ) {
-      if (activeTransformDragMode === "rotate") {
-        return isTransformPointerDragging ? "grabbing" : "crosshair";
-      }
-      if (activeTransformDragMode === "resize") {
-        return "nwse-resize";
-      }
-      if (activeTransformDragMode === "move" && isTransformPointerDragging) {
-        return "grabbing";
-      }
-      return "grab";
-    }
-    if (shouldShowInpaintBrushReticle) {
-      return buildInpaintBrushReticleCursor(inpaintStrokeSize, activeStageRenderScale);
-    }
-    if (shouldShowInpaintLassoCursor) {
-      return buildInpaintLassoCursor();
-    }
-    if (shouldShowMarkupBrushReticle) {
-      return buildMarkupBrushReticleCursor(
-        resolvedMarkupStrokeSize,
-        MARKUP_STROKE_SIZE_MAX,
-        activeStageRenderScale
-      );
-    }
-    return undefined;
-  }, [
-    activeStageRenderScale,
-    activeTransformDragMode,
-    inpaintStrokeSize,
-    isTransformPointerDragging,
-    isMoveToolSelected,
-    resolvedMarkupStrokeSize,
-    selectedLayerImageUrl,
-    shouldShowInpaintBrushReticle,
-    shouldShowInpaintLassoCursor,
-    shouldShowMarkupBrushReticle,
-  ]);
-  const primaryCanvasFrameBoundsStyle = React.useMemo<React.CSSProperties>(() => {
-    const nominalHeight = resolvePrimaryCanvasNominalHeightPx();
-    const availableWidth = isResolvedStageViewportSize(inlineStageViewportSize)
-      ? inlineStageViewportSize.width
-      : EDIT_EXPERT_CENTER_COLUMN_MAX_WIDTH_PX;
-    const availableHeight = isResolvedStageViewportSize(inlineStageViewportSize)
-      ? Math.min(inlineStageViewportSize.height, nominalHeight)
-      : nominalHeight;
-    const containedFrameRect = resolveContainedLayerRect({
-      imageAspectRatio: primaryCompositionSurfaceAspectRatioValue,
-      viewportWidth: availableWidth,
-      viewportHeight: availableHeight,
-    });
-    return {
-      width: `${Math.round(containedFrameRect.width * 100) / 100}px`,
-      height: `${Math.round(containedFrameRect.height * 100) / 100}px`,
-      aspectRatio: primaryCompositionSurfaceAspectRatio,
-    };
-  }, [
-    inlineStageViewportSize,
-    primaryCompositionSurfaceAspectRatio,
-    primaryCompositionSurfaceAspectRatioValue,
-  ]);
-  const markupViewportCursor = React.useMemo(() => {
-    if (isMarkupPanDragging) return "grabbing";
-    if (isMarkupPanSpacePressed) return "grab";
-    return undefined;
-  }, [isMarkupPanDragging, isMarkupPanSpacePressed]);
-
-  const inlineMarkupViewportStyle = React.useMemo<React.CSSProperties>(() => {
-    const viewportOffset = resolveMarkupViewportOffsetPixels(
-      markupViewport,
-      inlineStageViewportSize
-    );
-    return {
-      transform: `translate3d(${Math.round(viewportOffset.offsetX * 100) / 100}px, ${Math.round(viewportOffset.offsetY * 100) / 100}px, 0) scale(${Math.round(markupViewport.scale * 10000) / 10000})`,
-      transformOrigin: "center center",
-    };
-  }, [inlineStageViewportSize, markupViewport]);
-
-  const inlineCompositionSurfaceViewportSize = (() => {
-    const frameStackViewportSize = resolveElementViewportSize(primaryCanvasFrameStackRef.current);
-    if (isResolvedStageViewportSize(frameStackViewportSize)) {
-      return frameStackViewportSize;
-    }
-    return resolveElementViewportSize(primaryCompositionSurfaceRef.current);
-  })();
-
-  const modalMarkupViewportStyle = React.useMemo<React.CSSProperties>(() => {
-    const viewportOffset = resolveMarkupViewportOffsetPixels(
-      markupViewport,
-      markupModalViewportSize
-    );
-    return {
-      transform: `translate3d(${Math.round(viewportOffset.offsetX * 100) / 100}px, ${Math.round(viewportOffset.offsetY * 100) / 100}px, 0) scale(${Math.round(markupViewport.scale * 10000) / 10000})`,
-      transformOrigin: "center center",
-    };
-  }, [markupModalViewportSize, markupViewport]);
-
-  const primaryCompositionSurfaceStyle = React.useMemo(() => {
-    const style: React.CSSProperties = {};
-    if (!isMorePresetsSurfaceOpen) {
-      if (markupViewportCursor) {
-        style.cursor = markupViewportCursor;
-      } else if (primaryCompositionSurfaceCursor) {
-        style.cursor = primaryCompositionSurfaceCursor;
-      }
-    }
-    return style;
-  }, [isMorePresetsSurfaceOpen, markupViewportCursor, primaryCompositionSurfaceCursor]);
-  const emptyPrimaryCompositionSurfaceStyle = React.useMemo<React.CSSProperties>(
-    () => ({
-      cursor: "default",
-    }),
-    []
-  );
-  const noopStageWheel = React.useCallback(() => {}, []);
-  const markupModalStageStyle = React.useMemo<React.CSSProperties>(() => {
-    const modalCursor =
-      markupViewportCursor ??
-      primaryCompositionSurfaceCursor ??
-      (isVideoToolSelected ? "crosshair" : undefined);
-    const cursorStyle = modalCursor ? { cursor: modalCursor } : null;
-    if (markupModalStageSize) {
-      return {
-        width: `${markupModalStageSize.width}px`,
-        height: `${markupModalStageSize.height}px`,
-        maxWidth: "100%",
-        maxHeight: "100%",
-        ...(cursorStyle ?? {}),
-      };
-    }
-    return {
-      aspectRatio: primaryCompositionSurfaceAspectRatio,
-      width: "100%",
-      maxWidth: "100%",
-      maxHeight: "100%",
-      ...(cursorStyle ?? {}),
-    };
-  }, [
-    isVideoToolSelected,
-    markupModalStageSize,
-    markupViewportCursor,
-    primaryCompositionSurfaceAspectRatio,
-    primaryCompositionSurfaceCursor,
-  ]);
-
-  const resolveInlineStageRect = React.useCallback(
-    (currentTarget?: HTMLDivElement | null): DOMRect | null => {
-      const wrapperRect = resolveValidStageRect(
-        inlineStageWrapperRef.current?.getBoundingClientRect() ?? null
-      );
-      if (wrapperRect) return wrapperRect;
-      const primaryCompositionSurfaceRect = resolveValidStageRect(
-        primaryCompositionSurfaceRef.current?.getBoundingClientRect() ?? null
-      );
-      if (primaryCompositionSurfaceRect) return primaryCompositionSurfaceRect;
-      return resolveValidStageRect(currentTarget?.getBoundingClientRect() ?? null);
-    },
-    []
-  );
 
   const resolveStageFlattenSnapshot = React.useCallback(() => {
     return {
@@ -1657,29 +1129,6 @@ export function ExpertEditPanelView({
     });
   }, []);
 
-  const {
-    primaryDragActive,
-    clearPrimaryDragActive,
-    handlePrimaryFileSelection,
-    handlePrimaryDragEnter,
-    handlePrimaryDragOver,
-    handlePrimaryDragLeave,
-    handlePrimaryDrop,
-  } = useExpertEditPrimaryIngress({
-    layers,
-    selectedLayerIndex,
-    foundationLayerId,
-    isMorePresetsSurfaceOpen,
-    createLayer,
-    setLayers,
-    setSelectedLayerIndex,
-    setEditingLayerIndex,
-    setEditingLayerValue,
-    showStatusToast,
-    revokeObjectUrlSafe,
-    resolvePreviewUrlById,
-  });
-
   const handleManualFlatten = React.useCallback(async () => {
     if (populatedLayerCount <= 0) {
       showStatusToast("Add at least one layer image before flattening.");
@@ -1713,8 +1162,7 @@ export function ExpertEditPanelView({
       };
       setLayers([flattenedLayer]);
       setSelectedLayerIndex(0);
-      setEditingLayerIndex(null);
-      setEditingLayerValue("");
+      clearLayerEditing();
       if (flattenedReferenceUrl) {
         onAddSessionMediaReference?.({
           url: flattenedReferenceUrl,
@@ -1728,12 +1176,16 @@ export function ExpertEditPanelView({
     }
   }, [
     createLayer,
+    clearLayerEditing,
     foundationLayerId,
     isFlattenPending,
+    layerIdCounterRef,
     layers,
     onAddSessionMediaReference,
     populatedLayerCount,
     resolveStageFlattenSnapshot,
+    setLayers,
+    setSelectedLayerIndex,
     showStatusToast,
   ]);
 
@@ -1849,9 +1301,133 @@ export function ExpertEditPanelView({
     []
   );
 
-  const applyTransformHistoryEntry = React.useCallback((entry: TransformHistoryEntry) => {
-    setLayers((previousLayers) => applyTransformHistoryEntryToLayers(previousLayers, entry));
-  }, []);
+  const {
+    activeTransformDragMode,
+    clearTransformPointerSession,
+    endTransformPointerSession,
+    handleMovePointerDown,
+    handleMovePointerMove,
+    handleMovePointerLeave,
+    isTransformPointerDragging,
+    queuePendingHistoryApplyEntry,
+    renderSelectedLayerTransformOverlay,
+  } = useExpertEditTransformSession({
+    layers,
+    setLayers,
+    selectedLayer,
+    selectedLayerImageAspectRatio,
+    shouldShowSelectedLayerTransformOverlay,
+    resolveRenderableLayerTransform,
+    sceneZoomScale: markupViewport.scale,
+    viewportOffsetXRatio: markupViewport.offsetXRatio,
+    viewportOffsetYRatio: markupViewport.offsetYRatio,
+    resolveViewportOffsetPixels: resolveInteractionViewportOffsetPixels,
+    commitTransformHistoryTransition,
+    showStatusToast,
+    transformHistoryState,
+    setTransformHistoryState,
+  });
+
+  const primaryCompositionSurfaceCursor = React.useMemo(() => {
+    if (
+      EXPERT_EDIT_IMAGE_TRANSFORM_EDITING_ENABLED &&
+      isMoveToolSelected &&
+      selectedLayerImageUrl
+    ) {
+      if (activeTransformDragMode === "rotate") {
+        return isTransformPointerDragging ? "grabbing" : "crosshair";
+      }
+      if (activeTransformDragMode === "resize") {
+        return "nwse-resize";
+      }
+      if (activeTransformDragMode === "move" && isTransformPointerDragging) {
+        return "grabbing";
+      }
+      return "grab";
+    }
+    if (shouldShowInpaintBrushReticle) {
+      return buildInpaintBrushReticleCursor(inpaintStrokeSize, activeStageRenderScale);
+    }
+    if (shouldShowInpaintLassoCursor) {
+      return buildInpaintLassoCursor();
+    }
+    if (shouldShowMarkupBrushReticle) {
+      return buildMarkupBrushReticleCursor(
+        resolvedMarkupStrokeSize,
+        MARKUP_STROKE_SIZE_MAX,
+        activeStageRenderScale
+      );
+    }
+    return undefined;
+  }, [
+    activeStageRenderScale,
+    activeTransformDragMode,
+    inpaintStrokeSize,
+    isTransformPointerDragging,
+    isMoveToolSelected,
+    resolvedMarkupStrokeSize,
+    selectedLayerImageUrl,
+    shouldShowInpaintBrushReticle,
+    shouldShowInpaintLassoCursor,
+    shouldShowMarkupBrushReticle,
+  ]);
+
+  const markupViewportCursor = React.useMemo(() => {
+    if (isMarkupPanDragging) return "grabbing";
+    if (isMarkupPanSpacePressed) return "grab";
+    return undefined;
+  }, [isMarkupPanDragging, isMarkupPanSpacePressed]);
+
+  const primaryCompositionSurfaceStyle = React.useMemo(() => {
+    const style: React.CSSProperties = {};
+    if (!isMorePresetsSurfaceOpen) {
+      if (markupViewportCursor) {
+        style.cursor = markupViewportCursor;
+      } else if (primaryCompositionSurfaceCursor) {
+        style.cursor = primaryCompositionSurfaceCursor;
+      }
+    }
+    return style;
+  }, [isMorePresetsSurfaceOpen, markupViewportCursor, primaryCompositionSurfaceCursor]);
+
+  const emptyPrimaryCompositionSurfaceStyle = React.useMemo<React.CSSProperties>(
+    () => ({
+      cursor: "default",
+    }),
+    []
+  );
+
+  const noopStageWheel = React.useCallback(() => {}, []);
+
+  const markupModalStageStyle = React.useMemo<React.CSSProperties>(() => {
+    const modalCursor =
+      markupViewportCursor ??
+      primaryCompositionSurfaceCursor ??
+      (isVideoToolSelected ? "crosshair" : undefined);
+    const cursorStyle = modalCursor ? { cursor: modalCursor } : null;
+    if (markupModalStageSize) {
+      return {
+        width: `${markupModalStageSize.width}px`,
+        height: `${markupModalStageSize.height}px`,
+        maxWidth: "100%",
+        maxHeight: "100%",
+        ...(cursorStyle ?? {}),
+      };
+    }
+    return {
+      aspectRatio: primaryCompositionSurfaceAspectRatio,
+      width: "100%",
+      maxWidth: "100%",
+      maxHeight: "100%",
+      ...(cursorStyle ?? {}),
+    };
+  }, [
+    isVideoToolSelected,
+    markupModalStageSize,
+    markupViewportCursor,
+    primaryCompositionSurfaceAspectRatio,
+    primaryCompositionSurfaceCursor,
+  ]);
 
   const commitMarkupHistoryTransition = React.useCallback(
     (nextEntry: MarkupStroke[], baselineEntry?: MarkupStroke[] | null) => {
@@ -1961,28 +1537,28 @@ export function ExpertEditPanelView({
       if (!previousHistory.past.length) return previousHistory;
       const targetEntry = previousHistory.past[previousHistory.past.length - 1] ?? null;
       if (!targetEntry) return previousHistory;
-      pendingHistoryApplyEntryRef.current = targetEntry;
+      queuePendingHistoryApplyEntry(targetEntry);
       return {
         past: previousHistory.past.slice(0, -1),
         present: targetEntry,
         future: [previousHistory.present, ...previousHistory.future],
       };
     });
-  }, []);
+  }, [queuePendingHistoryApplyEntry]);
 
   const handleRedoMoveAction = React.useCallback(() => {
     setTransformHistoryState((previousHistory) => {
       if (!previousHistory.future.length) return previousHistory;
       const targetEntry = previousHistory.future[0] ?? null;
       if (!targetEntry) return previousHistory;
-      pendingHistoryApplyEntryRef.current = targetEntry;
+      queuePendingHistoryApplyEntry(targetEntry);
       return {
         past: [...previousHistory.past, previousHistory.present],
         present: targetEntry,
         future: previousHistory.future.slice(1),
       };
     });
-  }, []);
+  }, [queuePendingHistoryApplyEntry]);
 
   const handleUndoMarkupAction = React.useCallback(() => {
     setMarkupHistoryState((previousHistory) => {
@@ -2152,7 +1728,7 @@ export function ExpertEditPanelView({
       }
     }
     resetMarkupViewport();
-  }, [commitTransformHistoryTransition, layers, resetMarkupViewport, selectedLayer]);
+  }, [commitTransformHistoryTransition, layers, resetMarkupViewport, selectedLayer, setLayers]);
 
   const resetAllMoveToolTransforms = React.useCallback(() => {
     const baselineEntry = buildTransformHistoryEntry(layers);
@@ -2168,7 +1744,7 @@ export function ExpertEditPanelView({
     if (areTransformHistoryEntriesEqual(baselineEntry, nextEntry)) return;
     setLayers(nextLayers);
     commitTransformHistoryTransition(nextEntry, baselineEntry);
-  }, [commitTransformHistoryTransition, layers]);
+  }, [commitTransformHistoryTransition, layers, setLayers]);
 
   const handleResetGeneralAction = React.useCallback(() => {
     resetAllMoveToolTransforms();
@@ -2251,30 +1827,6 @@ export function ExpertEditPanelView({
     },
     []
   );
-
-  const {
-    clearTransformPointerSession,
-    endTransformPointerSession,
-    handleMovePointerDown,
-    handleMovePointerMove,
-    handleMovePointerLeave,
-  } = useExpertEditTransformController({
-    layers,
-    selectedLayer,
-    selectedLayerImageAspectRatio,
-    sceneZoomScale: markupViewport.scale,
-    shouldApplyViewportTransform: true,
-    viewportOffsetXRatio: markupViewport.offsetXRatio,
-    viewportOffsetYRatio: markupViewport.offsetYRatio,
-    resolveViewportOffsetPixels: resolveInteractionViewportOffsetPixels,
-    transformPointerSessionRef,
-    transformGestureBaselineRef,
-    setLayers,
-    setActiveTransformDragMode,
-    setIsTransformPointerDragging,
-    commitTransformHistoryTransition,
-    showStatusToast,
-  });
 
   const handleMarkupStagePointerTerminal = React.useCallback(
     (event: React.PointerEvent<HTMLDivElement>) => {
@@ -2528,9 +2080,11 @@ export function ExpertEditPanelView({
     inpaintHandlers: inpaintStageHandlers,
     markupHandlers: markupStageHandlers,
   });
+  const shouldRenderInlineInteractiveStage = hasPrimaryCompositePreview && !isMarkupExpandSelected;
 
   const handleInlineStagePointerDownCapture = React.useCallback(
     (event: React.PointerEvent<HTMLDivElement>) => {
+      if (isMarkupExpandSelected) return;
       if (isMorePresetsSurfaceOpen) return;
       if (
         event.target instanceof Element &&
@@ -2541,11 +2095,12 @@ export function ExpertEditPanelView({
       if (!beginMarkupPanGesture(event, "inline")) return;
       event.stopPropagation();
     },
-    [beginMarkupPanGesture, isMorePresetsSurfaceOpen]
+    [beginMarkupPanGesture, isMarkupExpandSelected, isMorePresetsSurfaceOpen]
   );
 
   const handleInlineStagePointerMoveCapture = React.useCallback(
     (event: React.PointerEvent<HTMLDivElement>) => {
+      if (isMarkupExpandSelected) return;
       if (isMorePresetsSurfaceOpen) return;
       if (
         event.target instanceof Element &&
@@ -2556,11 +2111,12 @@ export function ExpertEditPanelView({
       if (!continueMarkupPanGesture(event)) return;
       event.stopPropagation();
     },
-    [continueMarkupPanGesture, isMorePresetsSurfaceOpen]
+    [continueMarkupPanGesture, isMarkupExpandSelected, isMorePresetsSurfaceOpen]
   );
 
   const handleInlineStagePointerUpCapture = React.useCallback(
     (event: React.PointerEvent<HTMLDivElement>) => {
+      if (isMarkupExpandSelected) return;
       if (isMorePresetsSurfaceOpen) return;
       if (
         event.target instanceof Element &&
@@ -2571,11 +2127,12 @@ export function ExpertEditPanelView({
       if (!endMarkupPanGesture(event)) return;
       event.stopPropagation();
     },
-    [endMarkupPanGesture, isMorePresetsSurfaceOpen]
+    [endMarkupPanGesture, isMarkupExpandSelected, isMorePresetsSurfaceOpen]
   );
 
   const handleInlineStagePointerCancelCapture = React.useCallback(
     (event: React.PointerEvent<HTMLDivElement>) => {
+      if (isMarkupExpandSelected) return;
       if (isMorePresetsSurfaceOpen) return;
       if (
         event.target instanceof Element &&
@@ -2586,7 +2143,7 @@ export function ExpertEditPanelView({
       if (!endMarkupPanGesture(event)) return;
       event.stopPropagation();
     },
-    [endMarkupPanGesture, isMorePresetsSurfaceOpen]
+    [endMarkupPanGesture, isMarkupExpandSelected, isMorePresetsSurfaceOpen]
   );
 
   const closeStageContextMenu = React.useCallback(() => {
@@ -2674,20 +2231,9 @@ export function ExpertEditPanelView({
   }, [closeStageContextMenu, handleResetGeneralAction]);
 
   const handleStageContextMenuRemoveImage = React.useCallback(() => {
-    const selectedLayerId = selectedLayer?.id ?? null;
-    if (!selectedLayerId) {
-      closeStageContextMenu();
-      return;
-    }
-    setLayers((previousLayers) =>
-      resolveLayersAfterContextMenuRemoveImage({
-        layers: previousLayers,
-        selectedLayerId,
-        foundationLayerId,
-      })
-    );
+    handleRemoveSelectedLayerImage();
     closeStageContextMenu();
-  }, [closeStageContextMenu, foundationLayerId, selectedLayer?.id]);
+  }, [closeStageContextMenu, handleRemoveSelectedLayerImage]);
 
   const handlePrimaryDropzoneClick = React.useCallback(() => {
     if (isMorePresetsSurfaceOpen || !hasPrimaryCompositePreview) return;
@@ -2722,92 +2268,17 @@ export function ExpertEditPanelView({
     onStylesPanelToggle?.();
   }, [onStylesPanelToggle]);
 
-  const handleReorderLayers = React.useCallback(
-    (fromIndex: number, toIndex: number) => {
-      const nextLayerState = resolveReorderedLayerState({
-        layers,
-        fromIndex,
-        toIndex,
-        resolvedSelectedLayerIndex,
-        editingLayerIndex,
-      });
-      if (!nextLayerState) return;
-      setLayers(nextLayerState.nextLayers);
-      if (nextLayerState.nextSelectedLayerIndex !== undefined) {
-        setSelectedLayerIndex(nextLayerState.nextSelectedLayerIndex);
-      }
-      if (nextLayerState.nextEditingLayerIndex !== undefined) {
-        setEditingLayerIndex(nextLayerState.nextEditingLayerIndex);
-      }
-      draggingLayerIndexRef.current = null;
-      setDragOverLayerIndex(null);
-      setDraggingLayerIndex(null);
-    },
-    [editingLayerIndex, layers, resolvedSelectedLayerIndex]
-  );
-
-  const handleLayerDragStart = React.useCallback(
-    (event: React.DragEvent<HTMLDivElement>, index: number) => {
-      if (editingLayerIndex === index) {
-        event.preventDefault();
-        return;
-      }
-      event.stopPropagation();
-      event.dataTransfer.effectAllowed = "move";
-      event.dataTransfer.setData(LAYER_REORDER_DRAG_MIME, String(index));
-      draggingLayerIndexRef.current = index;
-      setDraggingLayerIndex(index);
-      setDragOverLayerIndex(index);
-    },
-    [editingLayerIndex]
-  );
-
-  const handleLayerDragOver = React.useCallback(
-    (event: React.DragEvent<HTMLDivElement>, index: number) => {
-      const isLayerReorderDragActive = isLayerReorderDrag({
-        draggingLayerIndex: draggingLayerIndexRef.current,
-        dataTransferTypes: Array.from(event.dataTransfer?.types ?? []),
-      });
-      if (!isLayerReorderDragActive) return;
-      event.preventDefault();
-      event.stopPropagation();
-      event.dataTransfer.dropEffect = "move";
-      if (dragOverLayerIndex !== index) {
-        setDragOverLayerIndex(index);
-      }
-    },
-    [dragOverLayerIndex]
-  );
-
-  const handleLayerDrop = React.useCallback(
-    (event: React.DragEvent<HTMLDivElement>, index: number) => {
-      event.preventDefault();
-      event.stopPropagation();
-      const fromIndex = resolveLayerReorderFromIndex({
-        transferIndexRaw: event.dataTransfer.getData(LAYER_REORDER_DRAG_MIME),
-        draggingLayerIndexRef: draggingLayerIndexRef.current,
-        draggingLayerIndex,
-      });
-      if (fromIndex == null) return;
-      handleReorderLayers(fromIndex, index);
-    },
-    [draggingLayerIndex, handleReorderLayers]
-  );
-
-  const handleLayerDragEnd = React.useCallback(() => {
-    draggingLayerIndexRef.current = null;
-    setDraggingLayerIndex(null);
-    setDragOverLayerIndex(null);
-  }, []);
-
   const handleMarkupModalDragShield = React.useCallback((event: React.DragEvent<HTMLElement>) => {
     event.preventDefault();
     event.stopPropagation();
   }, []);
 
-  const isDragTargetInsideMarkupModal = React.useCallback((target: EventTarget | null) => {
-    return isEventTargetInsideElement(markupModalRef.current, target);
-  }, []);
+  const isDragTargetInsideMarkupModal = React.useCallback(
+    (target: EventTarget | null) => {
+      return isEventTargetInsideElement(markupModalRef.current, target);
+    },
+    [markupModalRef]
+  );
 
   const handleMarkupModalRootDragCapture = React.useCallback(
     (event: React.DragEvent<HTMLDivElement>) => {
@@ -2818,81 +2289,6 @@ export function ExpertEditPanelView({
     },
     [isDragTargetInsideMarkupModal, isMarkupExpandSelected]
   );
-
-  const handleDeleteLayer = React.useCallback(
-    (index: number) => {
-      const nextLayerState = resolveLayerStateAfterDelete({
-        layers,
-        index,
-        foundationLayerId,
-        resolvedSelectedLayerIndex,
-        editingLayerIndex,
-      });
-      if (!nextLayerState) return;
-      setLayers(nextLayerState.normalizedLayers);
-      setEditingLayerValue("");
-      setEditingLayerIndex(nextLayerState.nextEditingLayerIndex);
-      setSelectedLayerIndex(nextLayerState.nextSelectedLayerIndex);
-    },
-    [editingLayerIndex, foundationLayerId, layers, resolvedSelectedLayerIndex]
-  );
-
-  const handleDeleteSelectedLayer = React.useCallback(() => {
-    if (!isLayerIndexInBounds({ index: resolvedSelectedLayerIndex, layerCount: layers.length })) {
-      return;
-    }
-    handleDeleteLayer(resolvedSelectedLayerIndex);
-  }, [handleDeleteLayer, layers.length, resolvedSelectedLayerIndex]);
-
-  React.useEffect(() => {
-    if (!layers.length || typeof window === "undefined") return;
-    const handleDeleteHotkey = (event: KeyboardEvent) => {
-      if (event.defaultPrevented) return;
-      if (event.metaKey || event.ctrlKey || event.altKey) return;
-      if (isKeyboardEventFromEditableTarget(event)) return;
-      if (event.key !== "Delete" && event.key !== "Backspace") return;
-      if (!isLayerIndexInBounds({ index: resolvedSelectedLayerIndex, layerCount: layers.length })) {
-        return;
-      }
-      event.preventDefault();
-      handleDeleteSelectedLayer();
-    };
-    window.addEventListener("keydown", handleDeleteHotkey);
-    return () => {
-      window.removeEventListener("keydown", handleDeleteHotkey);
-    };
-  }, [handleDeleteSelectedLayer, layers.length, resolvedSelectedLayerIndex]);
-
-  React.useEffect(() => {
-    if (layers.length <= 0) {
-      setFoundationLayerId((previous) => (previous === null ? previous : null));
-      return;
-    }
-    const hasCurrentFoundation = foundationLayerId
-      ? layers.some((layer) => layer.id === foundationLayerId)
-      : false;
-    const resolvedFoundationId = hasCurrentFoundation ? foundationLayerId : (layers[0]?.id ?? null);
-    setFoundationLayerId((previous) =>
-      previous === resolvedFoundationId ? previous : resolvedFoundationId
-    );
-  }, [foundationLayerId, layers]);
-
-  React.useEffect(() => {
-    const syncedSliderValue = resolveMoveStageZoomSliderValue(markupViewport.scale);
-    setMoveStageZoomSliderValue((previous) =>
-      previous === syncedSliderValue ? previous : syncedSliderValue
-    );
-  }, [markupViewport.scale]);
-
-  React.useEffect(() => {
-    if (!layers.length) {
-      setSelectedLayerIndex(null);
-      return;
-    }
-    if (!isLayerIndexInBounds({ index: selectedLayerIndex, layerCount: layers.length })) {
-      setSelectedLayerIndex(0);
-    }
-  }, [layers.length, selectedLayerIndex]);
 
   useExpertEditSessionHostSync({
     foundationLayerId,
@@ -3066,166 +2462,12 @@ export function ExpertEditPanelView({
     return () => {
       inlineStageElement.removeEventListener("wheel", handleInlineStageWheel);
     };
-  }, [handleNativeMarkupViewportWheel, isMarkupExpandSelected, isMorePresetsSurfaceOpen]);
-
-  React.useEffect(() => {
-    if (isMarkupExpandSelected) return;
-    const inlineStageElement = inlineStageWrapperRef.current;
-    if (!inlineStageElement) return;
-
-    const updateInlineSize = () => {
-      const nextViewportSize = resolveStageViewportSize(resolveInlineStageRect(inlineStageElement));
-      setInlineStageViewportSize((previous) =>
-        previous.width === nextViewportSize.width && previous.height === nextViewportSize.height
-          ? previous
-          : nextViewportSize
-      );
-    };
-
-    updateInlineSize();
-
-    if (typeof ResizeObserver === "undefined") {
-      if (typeof window === "undefined") return;
-      window.addEventListener("resize", updateInlineSize);
-      return () => {
-        window.removeEventListener("resize", updateInlineSize);
-      };
-    }
-
-    const resizeObserver = new ResizeObserver(() => {
-      updateInlineSize();
-    });
-    resizeObserver.observe(inlineStageElement);
-    return () => {
-      resizeObserver.disconnect();
-    };
-  }, [aspect, isMarkupExpandSelected, resolveInlineStageRect]);
-
-  React.useEffect(() => {
-    if (!isMarkupExpandSelected) {
-      setMarkupModalStageSize(null);
-      return;
-    }
-    const markupModalElement = markupModalRef.current;
-    if (!markupModalElement) return;
-
-    const updateStageSize = () => {
-      const modalRect = markupModalElement.getBoundingClientRect();
-      const controlsRect = markupModalControlsRef.current?.getBoundingClientRect();
-      const layersRect = markupModalLayersRef.current?.getBoundingClientRect();
-      const computedStyle = window.getComputedStyle(markupModalElement);
-      const horizontalGapRaw = Number.parseFloat(computedStyle.columnGap || computedStyle.gap);
-      const horizontalGap = Number.isFinite(horizontalGapRaw) ? horizontalGapRaw : 0;
-      const paddingLeft = Number.parseFloat(computedStyle.paddingLeft) || 0;
-      const paddingRight = Number.parseFloat(computedStyle.paddingRight) || 0;
-      const paddingTop = Number.parseFloat(computedStyle.paddingTop) || 0;
-      const paddingBottom = Number.parseFloat(computedStyle.paddingBottom) || 0;
-      const controlsWidth = controlsRect?.width ?? 0;
-      const layersWidth = layersRect?.width ?? 0;
-      const availableWidth =
-        modalRect.width -
-        paddingLeft -
-        paddingRight -
-        controlsWidth -
-        layersWidth -
-        horizontalGap * 2;
-      const availableHeight = modalRect.height - paddingTop - paddingBottom;
-      const safeAspectRatio =
-        Number.isFinite(primaryCompositionSurfaceAspectRatioValue) &&
-        primaryCompositionSurfaceAspectRatioValue > 0
-          ? primaryCompositionSurfaceAspectRatioValue
-          : 1;
-      if (availableWidth <= 0 || availableHeight <= 0) {
-        setMarkupModalStageSize((previous) => (previous == null ? previous : null));
-        return;
-      }
-      let fittedWidth = availableWidth;
-      let fittedHeight = fittedWidth / safeAspectRatio;
-      if (fittedHeight > availableHeight) {
-        fittedHeight = availableHeight;
-        fittedWidth = fittedHeight * safeAspectRatio;
-      }
-      const nextStageSize = {
-        width: Math.max(1, Math.floor(fittedWidth)),
-        height: Math.max(1, Math.floor(fittedHeight)),
-      };
-      setMarkupModalStageSize((previous) => {
-        if (!previous) {
-          return nextStageSize;
-        }
-        return previous.width === nextStageSize.width && previous.height === nextStageSize.height
-          ? previous
-          : nextStageSize;
-      });
-    };
-
-    updateStageSize();
-
-    if (typeof ResizeObserver === "undefined") {
-      if (typeof window === "undefined") return;
-      window.addEventListener("resize", updateStageSize);
-      return () => {
-        window.removeEventListener("resize", updateStageSize);
-      };
-    }
-
-    const resizeObserver = new ResizeObserver(() => {
-      updateStageSize();
-    });
-    resizeObserver.observe(markupModalElement);
-    if (markupModalControlsRef.current) {
-      resizeObserver.observe(markupModalControlsRef.current);
-    }
-    if (markupModalLayersRef.current) {
-      resizeObserver.observe(markupModalLayersRef.current);
-    }
-
-    if (typeof window !== "undefined") {
-      window.addEventListener("resize", updateStageSize);
-    }
-
-    return () => {
-      resizeObserver.disconnect();
-      if (typeof window !== "undefined") {
-        window.removeEventListener("resize", updateStageSize);
-      }
-    };
-  }, [isMarkupExpandSelected, markupModalDomVersion, primaryCompositionSurfaceAspectRatioValue]);
-
-  React.useEffect(() => {
-    if (!isMarkupExpandSelected) return;
-    const modalStageElement = markupModalStageRef.current;
-    if (!modalStageElement) return;
-
-    const updateModalViewportSize = () => {
-      const nextViewportSize = resolveStageViewportSize(
-        modalStageElement.getBoundingClientRect() ?? null
-      );
-      setMarkupModalViewportSize((previous) =>
-        previous.width === nextViewportSize.width && previous.height === nextViewportSize.height
-          ? previous
-          : nextViewportSize
-      );
-    };
-
-    updateModalViewportSize();
-
-    if (typeof ResizeObserver === "undefined") {
-      if (typeof window === "undefined") return;
-      window.addEventListener("resize", updateModalViewportSize);
-      return () => {
-        window.removeEventListener("resize", updateModalViewportSize);
-      };
-    }
-
-    const resizeObserver = new ResizeObserver(() => {
-      updateModalViewportSize();
-    });
-    resizeObserver.observe(modalStageElement);
-    return () => {
-      resizeObserver.disconnect();
-    };
-  }, [isMarkupExpandSelected, markupModalDomVersion, markupModalStageSize]);
+  }, [
+    handleNativeMarkupViewportWheel,
+    inlineStageWrapperRef,
+    isMarkupExpandSelected,
+    isMorePresetsSurfaceOpen,
+  ]);
 
   React.useEffect(() => {
     if (!isMarkupExpandSelected) return;
@@ -3245,48 +2487,18 @@ export function ExpertEditPanelView({
     return () => {
       modalStageElement.removeEventListener("wheel", handleModalStageWheel);
     };
-  }, [handleNativeMarkupViewportWheel, isMarkupExpandSelected, markupModalDomVersion]);
+  }, [
+    handleNativeMarkupViewportWheel,
+    isMarkupExpandSelected,
+    markupModalStageRef,
+    markupModalStageSize,
+  ]);
 
   React.useEffect(() => {
     if (!shouldShowInpaintBrushReticle || isMorePresetsSurfaceOpen) {
       unlockGlobalCursor();
     }
   }, [isMorePresetsSurfaceOpen, shouldShowInpaintBrushReticle, unlockGlobalCursor]);
-
-  React.useEffect(() => {
-    setLayers((previousLayers) => {
-      let hasChanges = false;
-      const nextLayers = previousLayers.map((layer) => {
-        if (!layer.imageUrl) {
-          return layer;
-        }
-        const nextTransform = resolveRenderableLayerTransform(layer);
-        if (areLayerTransformsEqual(layer.transform, nextTransform)) {
-          return layer;
-        }
-        hasChanges = true;
-        return {
-          ...layer,
-          transform: nextTransform,
-        };
-      });
-      return hasChanges ? nextLayers : previousLayers;
-    });
-  }, [resolveRenderableLayerTransform, setLayers]);
-
-  React.useEffect(() => {
-    if (isTransformPointerDragging) return;
-    setTransformHistoryState((previousHistory) => {
-      if (areTransformHistoryEntriesEqual(previousHistory.present, currentTransformHistoryEntry)) {
-        return previousHistory;
-      }
-      return {
-        past: [],
-        present: currentTransformHistoryEntry,
-        future: [],
-      };
-    });
-  }, [currentTransformHistoryEntry, isTransformPointerDragging]);
 
   React.useEffect(() => {
     if (!inpaintSessionRestorePendingRef.current) return;
@@ -3311,13 +2523,6 @@ export function ExpertEditPanelView({
   }, [captureInpaintMaskSnapshot, inpaintLayerSources]);
 
   React.useEffect(() => {
-    const pendingEntry = pendingHistoryApplyEntryRef.current;
-    if (!pendingEntry) return;
-    pendingHistoryApplyEntryRef.current = null;
-    applyTransformHistoryEntry(pendingEntry);
-  }, [applyTransformHistoryEntry, transformHistoryState]);
-
-  React.useEffect(() => {
     const pendingEntry = pendingMarkupHistoryApplyRef.current;
     if (!pendingEntry) return;
     pendingMarkupHistoryApplyRef.current = null;
@@ -3334,7 +2539,7 @@ export function ExpertEditPanelView({
   React.useEffect(
     () => () => {
       unlockGlobalCursor();
-      pendingHistoryApplyEntryRef.current = null;
+      queuePendingHistoryApplyEntry(null);
       pendingMarkupHistoryApplyRef.current = null;
       pendingInpaintHistoryApplyRef.current = null;
       pendingSessionStateRef.current = null;
@@ -3357,7 +2562,7 @@ export function ExpertEditPanelView({
       }
       previousLayersRef.current = [];
     },
-    [onSessionStateChange, unlockGlobalCursor]
+    [onSessionStateChange, queuePendingHistoryApplyEntry, unlockGlobalCursor]
   );
 
   const handleInpaintCollapseToggle = React.useCallback(() => {
@@ -3385,42 +2590,6 @@ export function ExpertEditPanelView({
       inpaintCollapseTimerRef.current = null;
     }, INPAINT_COLLAPSE_ANIMATION_MS);
   }, [isInpaintCollapsed, openMarkupModal, shouldOpenMarkupModalFromCollapsedTools]);
-
-  const handleCommitLayerRename = React.useCallback(
-    (index: number) => {
-      const nextName = editingLayerValue.trim();
-      if (nextName.length > 0) {
-        const targetLayer = layers[index];
-        if (!targetLayer) {
-          setEditingLayerIndex(null);
-          setEditingLayerValue("");
-          return;
-        }
-        const shouldRemainAutoNamed = isAutoLayerName(nextName);
-        const mappedName = shouldRemainAutoNamed
-          ? formatLayerName(
-              resolveLowestUnusedAutoLayerNumber({
-                layers,
-                excludeLayerId: targetLayer.id,
-              })
-            )
-          : nextName;
-        const nextLayers = layers.map((layer, layerIndex) =>
-          layerIndex === index
-            ? {
-                ...layer,
-                name: mappedName,
-                isAutoNamed: shouldRemainAutoNamed,
-              }
-            : layer
-        );
-        setLayers(nextLayers);
-      }
-      setEditingLayerIndex(null);
-      setEditingLayerValue("");
-    },
-    [editingLayerValue, layers]
-  );
 
   const applyMarkupColorFromHex = React.useCallback((value: string) => {
     const parsed = parseHexColor(value);
@@ -4095,8 +3264,7 @@ export function ExpertEditPanelView({
                     }
                     if (event.key === "Escape") {
                       event.preventDefault();
-                      setEditingLayerIndex(null);
-                      setEditingLayerValue("");
+                      clearLayerEditing();
                     }
                   }}
                 />
@@ -4117,10 +3285,9 @@ export function ExpertEditPanelView({
                     className={`edit-expert-preset-btn edit-expert-layer-btn ${
                       resolvedSelectedLayerIndex === index ? "is-selected" : ""
                     }`}
-                    onClick={() => setSelectedLayerIndex(index)}
+                    onClick={() => handleSelectLayer(index)}
                     onDoubleClick={() => {
-                      setEditingLayerIndex(index);
-                      setEditingLayerValue(layer.name);
+                      beginLayerRename(index, layer.name);
                     }}
                   >
                     <span className="edit-expert-layer-label">{layer.name}</span>
@@ -4183,81 +3350,6 @@ export function ExpertEditPanelView({
       </div>
     );
   };
-
-  const renderSelectedLayerTransformOverlay = React.useCallback(
-    (
-      scope: "inline" | "modal",
-      preferredViewportSize: StageViewportSize,
-      stageElement: HTMLDivElement | null,
-      interactionHandlers?: Pick<
-        React.HTMLAttributes<HTMLDivElement>,
-        "onPointerDown" | "onPointerMove" | "onPointerUp" | "onPointerCancel" | "onPointerLeave"
-      >
-    ): React.ReactNode | null => {
-      if (!shouldShowSelectedLayerTransformOverlay || !selectedLayer) {
-        return null;
-      }
-      const viewportSize = resolveRenderableStageViewportSize({
-        preferredSize: preferredViewportSize,
-        stageElement,
-      });
-      const constrainedTransform = resolveRenderableLayerTransform(selectedLayer);
-      const layerRect = resolveContainedLayerRect({
-        imageAspectRatio: selectedLayerImageAspectRatio,
-        viewportWidth: viewportSize.width,
-        viewportHeight: viewportSize.height,
-      });
-      const translateX = constrainedTransform.translateXRatio * viewportSize.width;
-      const translateY = constrainedTransform.translateYRatio * viewportSize.height;
-      const selectedLayerScale = Math.max(0.0001, constrainedTransform.scale);
-      return (
-        <div
-          className="edit-expert-primary-layer-selection-overlay"
-          onPointerDown={interactionHandlers?.onPointerDown}
-          onPointerMove={interactionHandlers?.onPointerMove}
-          onPointerUp={interactionHandlers?.onPointerUp}
-          onPointerCancel={interactionHandlers?.onPointerCancel}
-          onPointerLeave={interactionHandlers?.onPointerLeave}
-          style={{
-            left: `${layerRect.leftPercent}%`,
-            top: `${layerRect.topPercent}%`,
-            width: `${layerRect.widthPercent}%`,
-            height: `${layerRect.heightPercent}%`,
-            transform: `translate(${Math.round(translateX * 100) / 100}px, ${
-              Math.round(translateY * 100) / 100
-            }px) rotate(${constrainedTransform.rotationDeg}deg)`,
-            transformOrigin: "center center",
-          }}
-          aria-hidden="true"
-          data-testid={`edit-expert-transform-overlay-${scope}`}
-        >
-          <div
-            className="edit-expert-primary-layer-selection-box"
-            style={{
-              width: `${Math.max(0.0001, selectedLayerScale * 100)}%`,
-              height: `${Math.max(0.0001, selectedLayerScale * 100)}%`,
-            }}
-          >
-            <span className="edit-expert-primary-layer-selection-outline" />
-            {selectedLayerTransformHandleCorners.map((corner) => (
-              <span
-                key={`${scope}-selected-layer-handle-${corner}`}
-                className={`edit-expert-primary-layer-selection-handle is-corner-${corner}`}
-                data-edit-expert-transform-drag-mode="resize"
-                data-testid={`edit-expert-transform-handle-${scope}-${corner}`}
-              />
-            ))}
-          </div>
-        </div>
-      );
-    },
-    [
-      resolveRenderableLayerTransform,
-      selectedLayer,
-      selectedLayerImageAspectRatio,
-      shouldShowSelectedLayerTransformOverlay,
-    ]
-  );
 
   const renderPrimaryStageSceneContent = React.useCallback(
     ({
@@ -4467,7 +3559,7 @@ export function ExpertEditPanelView({
               </div>
             </div>
           ) : null}
-          <PrimaryStageShell
+          <ExpertEditInlineStageSurface
             stageRef={inlineStageWrapperRef}
             isEmpty={!hasPrimaryCompositePreview}
             isBusy={isPrimaryStageBusy}
@@ -4489,94 +3581,56 @@ export function ExpertEditPanelView({
             onPointerMoveCapture={handleInlineStagePointerMoveCapture}
             onPointerUpCapture={handleInlineStagePointerUpCapture}
             onPointerCancelCapture={handleInlineStagePointerCancelCapture}
-          >
-            <PrimaryStageViewportLayer style={inlineMarkupViewportStyle}>
-              <PrimaryCanvasFrameStack
-                frameStackRef={primaryCanvasFrameStackRef}
-                isPopulated={hasPrimaryCompositePreview}
-                isDragActive={primaryDragActive}
-                style={primaryCanvasFrameBoundsStyle}
-                onDrop={handlePrimaryDrop}
-                onDragEnter={handlePrimaryDragEnter}
-                onDragOver={handlePrimaryDragOver}
-                onDragLeave={handlePrimaryDragLeave}
-              >
-                <PrimaryCompositionSurface
-                  surfaceRef={primaryCompositionSurfaceRef}
-                  isVisible={hasPrimaryCompositePreview}
-                  isBusy={isPrimaryStageBusy}
-                  isDragActive={primaryDragActive}
-                  isPresetsOpen={isMorePresetsSurfaceOpen}
-                  style={
-                    hasPrimaryCompositePreview
-                      ? primaryCompositionSurfaceStyle
-                      : emptyPrimaryCompositionSurfaceStyle
-                  }
-                  onPointerDown={
-                    hasPrimaryCompositePreview
-                      ? inlineStageInteractionRouter.onPointerDown
-                      : undefined
-                  }
-                  onPointerMove={
-                    hasPrimaryCompositePreview
-                      ? inlineStageInteractionRouter.onPointerMove
-                      : undefined
-                  }
-                  onPointerUp={
-                    hasPrimaryCompositePreview
-                      ? inlineStageInteractionRouter.onPointerUp
-                      : undefined
-                  }
-                  onPointerCancel={
-                    hasPrimaryCompositePreview
-                      ? inlineStageInteractionRouter.onPointerCancel
-                      : undefined
-                  }
-                  onPointerLeave={
-                    hasPrimaryCompositePreview
-                      ? inlineStageInteractionRouter.onPointerLeave
-                      : undefined
-                  }
-                  onMouseDown={
-                    hasPrimaryCompositePreview ? handleMarkupStageMiddleClickSuppress : undefined
-                  }
-                  onAuxClick={
-                    hasPrimaryCompositePreview ? handleMarkupStageMiddleClickSuppress : undefined
-                  }
-                  onContextMenu={
-                    hasPrimaryCompositePreview ? handlePrimaryDropzoneContextMenu : undefined
-                  }
-                  onClick={hasPrimaryCompositePreview ? handlePrimaryDropzoneClick : undefined}
-                  onDoubleClick={
-                    hasPrimaryCompositePreview ? handlePrimaryDropzoneDoubleClick : undefined
-                  }
-                >
-                  {hasPrimaryCompositePreview
-                    ? renderPrimaryStageSceneContent({
-                        scope: "inline",
-                        overlayCanvas: overlayCanvasRef,
-                        stageSize: inlineCompositionSurfaceViewportSize,
-                        stageElement: primaryCanvasFrameStackRef.current,
-                      })
-                    : null}
-                </PrimaryCompositionSurface>
-                {hasPrimaryCompositePreview
-                  ? renderSelectedLayerTransformOverlay(
-                      "inline",
-                      inlineCompositionSurfaceViewportSize,
-                      primaryCanvasFrameStackRef.current,
-                      {
-                        onPointerDown: inlineStageInteractionRouter.onPointerDown,
-                        onPointerMove: inlineStageInteractionRouter.onPointerMove,
-                        onPointerUp: inlineStageInteractionRouter.onPointerUp,
-                        onPointerCancel: inlineStageInteractionRouter.onPointerCancel,
-                        onPointerLeave: inlineStageInteractionRouter.onPointerLeave,
-                      }
-                    )
-                  : null}
-              </PrimaryCanvasFrameStack>
-            </PrimaryStageViewportLayer>
-          </PrimaryStageShell>
+            viewportStyle={inlineMarkupViewportStyle}
+            frameStackRef={primaryCanvasFrameStackRef}
+            isPopulated={hasPrimaryCompositePreview}
+            isDragActive={primaryDragActive}
+            frameStyle={primaryCanvasFrameBoundsStyle}
+            onDrop={handlePrimaryDrop}
+            onDragEnter={handlePrimaryDragEnter}
+            onDragOver={handlePrimaryDragOver}
+            onDragLeave={handlePrimaryDragLeave}
+            surfaceRef={primaryCompositionSurfaceRef}
+            isVisible={hasPrimaryCompositePreview}
+            isPresetsOpen={isMorePresetsSurfaceOpen}
+            surfaceStyle={
+              hasPrimaryCompositePreview
+                ? primaryCompositionSurfaceStyle
+                : emptyPrimaryCompositionSurfaceStyle
+            }
+            shouldRenderInteractive={shouldRenderInlineInteractiveStage}
+            interactionHandlers={{
+              onPointerDown: inlineStageInteractionRouter.onPointerDown,
+              onPointerMove: inlineStageInteractionRouter.onPointerMove,
+              onPointerUp: inlineStageInteractionRouter.onPointerUp,
+              onPointerCancel: inlineStageInteractionRouter.onPointerCancel,
+              onPointerLeave: inlineStageInteractionRouter.onPointerLeave,
+            }}
+            onStageMouseDown={handleMarkupStageMiddleClickSuppress}
+            onStageAuxClick={handleMarkupStageMiddleClickSuppress}
+            onStageContextMenu={handlePrimaryDropzoneContextMenu}
+            onStageClick={handlePrimaryDropzoneClick}
+            onStageDoubleClick={handlePrimaryDropzoneDoubleClick}
+            sceneContent={renderPrimaryStageSceneContent({
+              scope: "inline",
+              overlayCanvas: overlayCanvasRef,
+              stageSize: inlineCompositionSurfaceViewportSize,
+              stageElement: primaryCanvasFrameStackRef.current,
+            })}
+            transformOverlay={renderSelectedLayerTransformOverlay(
+              "inline",
+              inlineCompositionSurfaceViewportSize,
+              primaryCanvasFrameStackRef.current,
+              {
+                onPointerDown: inlineStageInteractionRouter.onPointerDown,
+                onPointerMove: inlineStageInteractionRouter.onPointerMove,
+                onPointerUp: inlineStageInteractionRouter.onPointerUp,
+                onPointerCancel: inlineStageInteractionRouter.onPointerCancel,
+                onPointerLeave: inlineStageInteractionRouter.onPointerLeave,
+              }
+            )}
+          />
+          {renderLayersToolbar("main")}
           <div className="edit-expert-column-wrapper edit-expert-column-wrapper--center edit-expert-post-stage-wrapper">
             <div
               className={`edit-expert-inpaint-row ${isInpaintCollapsed ? "is-collapsed" : ""} ${
@@ -4849,7 +3903,7 @@ export function ExpertEditPanelView({
         </div>
       ) : null}
 
-      <ExpertEditMarkupModalShell
+      <ExpertEditModalStageSurface
         isOpen={isMarkupExpandSelected}
         modalRef={handleMarkupModalRef}
         controlsColumnRef={handleMarkupModalControlsRef}
@@ -4859,40 +3913,37 @@ export function ExpertEditPanelView({
         movePanel={renderMarkupModalMovePanel()}
         inpaintPanel={renderMarkupModalInpaintPanel("modal")}
         markupPanel={renderMarkupControlsContent("modal")}
-        stageContent={
-          <>
-            <PrimaryStageViewportLayer style={modalMarkupViewportStyle}>
-              {renderPrimaryStageSceneContent({
-                scope: "modal",
-                overlayCanvas: modalOverlayCanvasRef,
-                stageSize: markupModalViewportSize,
-                stageElement: markupModalStageRef.current,
-              })}
-            </PrimaryStageViewportLayer>
-            {renderSelectedLayerTransformOverlay(
-              "modal",
-              markupModalViewportSize,
-              markupModalStageRef.current,
-              {
-                onPointerDown: modalStageInteractionRouter.onPointerDown,
-                onPointerMove: modalStageInteractionRouter.onPointerMove,
-                onPointerUp: modalStageInteractionRouter.onPointerUp,
-                onPointerCancel: modalStageInteractionRouter.onPointerCancel,
-                onPointerLeave: modalStageInteractionRouter.onPointerLeave,
-              }
-            )}
-          </>
-        }
+        viewportStyle={modalMarkupViewportStyle}
+        sceneContent={renderPrimaryStageSceneContent({
+          scope: "modal",
+          overlayCanvas: modalOverlayCanvasRef,
+          stageSize: markupModalViewportSize,
+          stageElement: markupModalStageRef.current,
+        })}
+        transformOverlay={renderSelectedLayerTransformOverlay(
+          "modal",
+          markupModalViewportSize,
+          markupModalStageRef.current,
+          {
+            onPointerDown: modalStageInteractionRouter.onPointerDown,
+            onPointerMove: modalStageInteractionRouter.onPointerMove,
+            onPointerUp: modalStageInteractionRouter.onPointerUp,
+            onPointerCancel: modalStageInteractionRouter.onPointerCancel,
+            onPointerLeave: modalStageInteractionRouter.onPointerLeave,
+          }
+        )}
         layersPanel={renderLayersToolbar("modal")}
         onClose={closeMarkupModal}
         onDragShield={handleMarkupModalDragShield}
         onStageMouseDown={handleMarkupStageMiddleClickSuppress}
         onStageAuxClick={handleMarkupStageMiddleClickSuppress}
-        onStagePointerDown={modalStageInteractionRouter.onPointerDown}
-        onStagePointerMove={modalStageInteractionRouter.onPointerMove}
-        onStagePointerUp={modalStageInteractionRouter.onPointerUp}
-        onStagePointerCancel={modalStageInteractionRouter.onPointerCancel}
-        onStagePointerLeave={modalStageInteractionRouter.onPointerLeave}
+        interactionHandlers={{
+          onPointerDown: modalStageInteractionRouter.onPointerDown,
+          onPointerMove: modalStageInteractionRouter.onPointerMove,
+          onPointerUp: modalStageInteractionRouter.onPointerUp,
+          onPointerCancel: modalStageInteractionRouter.onPointerCancel,
+          onPointerLeave: modalStageInteractionRouter.onPointerLeave,
+        }}
         onStageWheel={noopStageWheel}
       />
 

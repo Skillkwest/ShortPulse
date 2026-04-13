@@ -51,6 +51,25 @@ export function useExpertEditPrimaryIngress({
   resolvePreviewUrlById,
 }: UseExpertEditPrimaryIngressArgs) {
   const [primaryDragActive, setPrimaryDragActive] = React.useState(false);
+  const layersRef = React.useRef(layers);
+  const selectedLayerIndexRef = React.useRef(selectedLayerIndex);
+  const foundationLayerIdRef = React.useRef(foundationLayerId);
+  const isMorePresetsSurfaceOpenRef = React.useRef(isMorePresetsSurfaceOpen);
+  const resolvePreviewUrlByIdRef = React.useRef(resolvePreviewUrlById);
+
+  React.useLayoutEffect(() => {
+    layersRef.current = layers;
+    selectedLayerIndexRef.current = selectedLayerIndex;
+    foundationLayerIdRef.current = foundationLayerId;
+    isMorePresetsSurfaceOpenRef.current = isMorePresetsSurfaceOpen;
+    resolvePreviewUrlByIdRef.current = resolvePreviewUrlById;
+  }, [
+    foundationLayerId,
+    isMorePresetsSurfaceOpen,
+    layers,
+    resolvePreviewUrlById,
+    selectedLayerIndex,
+  ]);
 
   const clearPrimaryDragActive = React.useCallback(() => {
     setPrimaryDragActive(false);
@@ -66,20 +85,23 @@ export function useExpertEditPrimaryIngress({
         return;
       }
 
+      const currentLayers = layersRef.current;
+      const currentSelectedLayerIndex = selectedLayerIndexRef.current;
+      const currentFoundationLayerId = foundationLayerIdRef.current;
       const targetIndex = resolveLayerIndexOrFallback({
-        selectedLayerIndex,
-        layerCount: layers.length,
+        selectedLayerIndex: currentSelectedLayerIndex,
+        layerCount: currentLayers.length,
       });
-      const targetLayer = layers[targetIndex];
+      const targetLayer = currentLayers[targetIndex];
       if (!targetLayer) return;
 
-      const foundationIndex = foundationLayerId
-        ? layers.findIndex((layer) => layer.id === foundationLayerId)
+      const foundationIndex = currentFoundationLayerId
+        ? currentLayers.findIndex((layer) => layer.id === currentFoundationLayerId)
         : -1;
-      const foundationLayer = foundationIndex >= 0 ? layers[foundationIndex] : null;
-      const hasAnyPopulatedLayer = layers.some((layer) => layerHasImage(layer));
+      const foundationLayer = foundationIndex >= 0 ? currentLayers[foundationIndex] : null;
+      const hasAnyPopulatedLayer = currentLayers.some((layer) => layerHasImage(layer));
       if (!hasAnyPopulatedLayer && foundationLayer) {
-        const nextLayers = [...layers];
+        const nextLayers = [...currentLayers];
         nextLayers[foundationIndex] = {
           ...foundationLayer,
           imageUrl: candidateUrl,
@@ -94,7 +116,7 @@ export function useExpertEditPrimaryIngress({
         return;
       }
 
-      if (layers.length >= MAX_LAYERS) {
+      if (currentLayers.length >= MAX_LAYERS) {
         if (payload.ownsImageUrl && candidateUrl.startsWith("blob:")) {
           revokeObjectUrlSafe(candidateUrl);
         }
@@ -103,13 +125,17 @@ export function useExpertEditPrimaryIngress({
       }
 
       const insertedLayer = createLayer({
-        indexOneBased: resolveLowestUnusedAutoLayerNumber({ layers }),
+        indexOneBased: resolveLowestUnusedAutoLayerNumber({ layers: currentLayers }),
         imageUrl: candidateUrl,
         ownsImageUrl: payload.ownsImageUrl,
       });
       const nextLayers = enforceLayerStackInvariants({
-        layers: [...layers.slice(0, targetIndex), insertedLayer, ...layers.slice(targetIndex)],
-        foundationLayerId,
+        layers: [
+          ...currentLayers.slice(0, targetIndex),
+          insertedLayer,
+          ...currentLayers.slice(targetIndex),
+        ],
+        foundationLayerId: currentFoundationLayerId,
       });
       setLayers(nextLayers);
       const insertedIndex = nextLayers.findIndex((layer) => layer.id === insertedLayer.id);
@@ -119,10 +145,7 @@ export function useExpertEditPrimaryIngress({
     },
     [
       createLayer,
-      foundationLayerId,
-      layers,
       revokeObjectUrlSafe,
-      selectedLayerIndex,
       setEditingLayerIndex,
       setEditingLayerValue,
       setLayers,
@@ -152,7 +175,7 @@ export function useExpertEditPrimaryIngress({
 
   const handlePrimaryDragEnter = React.useCallback(
     (event: React.DragEvent<HTMLDivElement>) => {
-      if (isMorePresetsSurfaceOpen) {
+      if (isMorePresetsSurfaceOpenRef.current) {
         event.preventDefault();
         setPrimaryDragActive(false);
         return;
@@ -161,12 +184,12 @@ export function useExpertEditPrimaryIngress({
         setPrimaryDragActive(true);
       }
     },
-    [allowPrimaryImageDrag, isMorePresetsSurfaceOpen]
+    [allowPrimaryImageDrag]
   );
 
   const handlePrimaryDragOver = React.useCallback(
     (event: React.DragEvent<HTMLDivElement>) => {
-      if (isMorePresetsSurfaceOpen) {
+      if (isMorePresetsSurfaceOpenRef.current) {
         event.preventDefault();
         setPrimaryDragActive(false);
         return;
@@ -175,7 +198,7 @@ export function useExpertEditPrimaryIngress({
         setPrimaryDragActive(true);
       }
     },
-    [allowPrimaryImageDrag, isMorePresetsSurfaceOpen]
+    [allowPrimaryImageDrag]
   );
 
   const handlePrimaryDragLeave = React.useCallback(() => {
@@ -184,7 +207,7 @@ export function useExpertEditPrimaryIngress({
 
   const handlePrimaryDrop = React.useCallback(
     (event: React.DragEvent<HTMLDivElement>) => {
-      if (isMorePresetsSurfaceOpen) {
+      if (isMorePresetsSurfaceOpenRef.current) {
         event.preventDefault();
         setPrimaryDragActive(false);
         return;
@@ -194,8 +217,9 @@ export function useExpertEditPrimaryIngress({
       const { imageUrl, fromFile, referenceId } = extractDragDropPayload(event.dataTransfer);
       void (async () => {
         let nextUrl = imageUrl;
-        if ((!nextUrl || nextUrl.startsWith("blob:")) && referenceId && resolvePreviewUrlById) {
-          nextUrl = resolvePreviewUrlById(referenceId);
+        const resolvePreview = resolvePreviewUrlByIdRef.current;
+        if ((!nextUrl || nextUrl.startsWith("blob:")) && referenceId && resolvePreview) {
+          nextUrl = resolvePreview(referenceId);
         }
         if (!nextUrl) return;
         const isBlobUrl = nextUrl.startsWith("blob:");
@@ -212,7 +236,7 @@ export function useExpertEditPrimaryIngress({
         applyPrimaryImageIngress({ url: nextUrl, ownsImageUrl });
       })();
     },
-    [applyPrimaryImageIngress, isMorePresetsSurfaceOpen, resolvePreviewUrlById]
+    [applyPrimaryImageIngress]
   );
 
   return {

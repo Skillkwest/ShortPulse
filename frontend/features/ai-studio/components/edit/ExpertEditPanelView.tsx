@@ -13,9 +13,7 @@ import {
   PaintBrush,
   PencilSimple,
   Sliders,
-  StackSimple,
   TrashSimple,
-  X,
 } from "phosphor-react";
 import { modelLogos } from "../../constants";
 import { AspectDropdown } from "../AspectDropdown";
@@ -65,6 +63,7 @@ import { useExpertEditStageInteractionRouter } from "./useExpertEditStageInterac
 import { useExpertEditMarkupDrawController } from "./useExpertEditMarkupDrawController";
 import { useExpertEditMarkupViewportController } from "./useExpertEditMarkupViewportController";
 import { useExpertEditTransformSession } from "./useExpertEditTransformSession";
+import { ExpertEditLayersPanel, ExpertEditLayerUtilityActions } from "./ExpertEditLayersPanel";
 import { ExpertEditPresetsSurface } from "./ExpertEditPresetsSurface";
 import { ExpertEditCharacterPickerModal } from "./ExpertEditCharacterPickerModal";
 import { ExpertEditModeRailPanel } from "./ExpertEditModeRailPanel";
@@ -75,7 +74,6 @@ import {
 import { ExpertEditPromptComposer } from "./ExpertEditPromptComposer";
 import {
   COMPOSITE_REGENERATE_COHESION_PROMPT,
-  FLATTEN_IMAGE_ACTION_ID,
   INPAINT_COLLAPSE_ANIMATION_MS,
   INPAINT_STROKE_SIZE_DEFAULT,
   LAYER_LIMIT_REACHED_TOAST,
@@ -85,7 +83,6 @@ import {
   MARKUP_STROKE_SIZE_DEFAULT,
   MARKUP_STROKE_SIZE_MAX,
   PRESET_PANEL_LIMIT_TOAST,
-  REMOVE_BACKGROUND_ACTION_ID,
   REMOVE_BACKGROUND_PENDING_TIMEOUT_MS,
   STATUS_TOAST_FADE_MS,
   STATUS_TOAST_VISIBLE_MS,
@@ -93,7 +90,6 @@ import {
   TRANSFORM_HISTORY_LIMIT,
   clampNumber,
   editGenerationModeOptions,
-  editLayerUtilityActions,
   editPresetUtilityActions,
   inpaintRailTools,
   isSpaceActivationKey,
@@ -3056,61 +3052,6 @@ export function ExpertEditPanelView({
       );
     });
 
-  const renderLayerUtilityActionButtons = () =>
-    editLayerUtilityActions.map((action) => {
-      const Icon = action.icon;
-      const actionCreditCost = action.creditCost;
-      const isFlattenAction = action.id === FLATTEN_IMAGE_ACTION_ID;
-      const isFlattenActionPending = isFlattenAction && isFlattenPending;
-      const isActionDisabled = Boolean(
-        (action.id === REMOVE_BACKGROUND_ACTION_ID &&
-          (isGenerateDisabled || !selectedLayerImageUrl || isRemoveBackgroundPending)) ||
-        (isFlattenAction && (populatedLayerCount <= 0 || isFlattenPending))
-      );
-      return (
-        <button
-          key={action.id}
-          type="button"
-          className={`edit-expert-preset-action-btn ${action.buttonClassName ?? ""}`.trim()}
-          aria-label={isFlattenActionPending ? "Flattening layers" : action.label}
-          aria-busy={isFlattenActionPending || undefined}
-          disabled={isActionDisabled}
-          onClick={
-            isFlattenAction
-              ? () => void handleManualFlatten()
-              : action.id === REMOVE_BACKGROUND_ACTION_ID
-                ? handleRemoveBackground
-                : undefined
-          }
-        >
-          <span className="edit-expert-preset-action-btn-icon" aria-hidden="true">
-            {isFlattenActionPending ? (
-              <span className="edit-expert-preset-action-btn-spinner" />
-            ) : (
-              <Icon size={20} weight="regular" />
-            )}
-          </span>
-          <span className="edit-expert-preset-action-btn-copy">
-            <span>{isFlattenActionPending ? "Flattening..." : action.label}</span>
-          </span>
-          {actionCreditCost != null ? (
-            <span className="edit-expert-preset-action-btn-cost-column" aria-hidden="true">
-              <span className="edit-expert-preset-action-btn-cost">
-                <span className="model-chip-icon">✦</span>
-                <span className="model-chip-credits">{actionCreditCost}</span>
-              </span>
-            </span>
-          ) : null}
-        </button>
-      );
-    });
-
-  const renderLayerUtilityActions = (className = "edit-expert-layers-actions") => (
-    <div className={className} aria-label="Layer utility actions">
-      {renderLayerUtilityActionButtons()}
-    </div>
-  );
-
   const renderMarkupModalInpaintPanel = (scope: "modal" | "rail" = "modal") => {
     const isRailScope = scope === "rail";
     const modeIconSize = 19;
@@ -3222,131 +3163,6 @@ export function ExpertEditPanelView({
             </button>
           ) : null}
         </div>
-      </div>
-    );
-  };
-
-  const renderLayersToolbar = (scope: "main" | "modal") => {
-    const isModalScope = scope === "modal";
-    const shouldShowUtilityActions = true;
-    const layersToolbarBody = (
-      <>
-        <div
-          className={`edit-expert-layers-toolbar-card ${
-            isModalScope ? "" : "edit-expert-layers-toolbar-card--inline"
-          }`.trim()}
-        >
-          {!isModalScope ? (
-            <div className="edit-expert-layers-toolbar-title-card edit-expert-layers-toolbar-title-card--embedded">
-              <p className="edit-expert-layers-toolbar-title">Layers</p>
-              <span className="edit-expert-layers-toolbar-title-icon" aria-hidden="true">
-                <StackSimple size={14} weight="regular" />
-              </span>
-            </div>
-          ) : null}
-          <div className="edit-expert-layers-toolbar-list">
-            {layers.map((layer, index) =>
-              editingLayerIndex === index ? (
-                <input
-                  key={layer.id}
-                  type="text"
-                  className="edit-expert-layer-input"
-                  value={editingLayerValue}
-                  autoFocus
-                  aria-label={`Rename ${layer.name}`}
-                  onChange={(event) => setEditingLayerValue(event.target.value)}
-                  onBlur={() => handleCommitLayerRename(index)}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter") {
-                      event.preventDefault();
-                      handleCommitLayerRename(index);
-                      return;
-                    }
-                    if (event.key === "Escape") {
-                      event.preventDefault();
-                      clearLayerEditing();
-                    }
-                  }}
-                />
-              ) : (
-                <div
-                  key={layer.id}
-                  className={`edit-expert-layer-row ${
-                    draggingLayerIndex === index ? "is-dragging" : ""
-                  } ${dragOverLayerIndex === index ? "is-drop-target" : ""}`.trim()}
-                  draggable={editingLayerIndex !== index}
-                  onDragStart={(event) => handleLayerDragStart(event, index)}
-                  onDragOver={(event) => handleLayerDragOver(event, index)}
-                  onDrop={(event) => handleLayerDrop(event, index)}
-                  onDragEnd={handleLayerDragEnd}
-                >
-                  <button
-                    type="button"
-                    className={`edit-expert-preset-btn edit-expert-layer-btn ${
-                      resolvedSelectedLayerIndex === index ? "is-selected" : ""
-                    }`}
-                    onClick={() => handleSelectLayer(index)}
-                    onDoubleClick={() => {
-                      beginLayerRename(index, layer.name);
-                    }}
-                  >
-                    <span className="edit-expert-layer-label">{layer.name}</span>
-                  </button>
-                  <button
-                    type="button"
-                    className="edit-expert-layer-delete-btn"
-                    aria-label={`Delete ${layer.name}`}
-                    onClick={() => handleDeleteLayer(index)}
-                  >
-                    <TrashSimple size={12} weight="regular" />
-                  </button>
-                </div>
-              )
-            )}
-          </div>
-        </div>
-        {shouldShowUtilityActions && isModalScope ? renderLayerUtilityActions() : null}
-        {statusToastMessage && isLayerLimitStatusToast ? (
-          <div
-            className={`edit-expert-stage-status-toast edit-expert-stage-status-toast--layers ${
-              statusToastTone === "warning" ? "is-warning" : "is-info"
-            } ${isStatusToastFading ? "is-fading" : ""}`.trim()}
-            role="status"
-            aria-live="polite"
-          >
-            {statusToastMessage}
-          </div>
-        ) : null}
-      </>
-    );
-    return (
-      <div
-        ref={isModalScope ? handleMarkupModalLayersRef : undefined}
-        className={`edit-expert-layers-toolbar ${
-          isModalScope ? "edit-expert-layers-toolbar--modal" : "edit-expert-layers-toolbar--inline"
-        }`.trim()}
-        aria-label={isModalScope ? "Expanded canvas layers toolbar" : "Edit layers toolbar"}
-      >
-        {isModalScope ? (
-          <>
-            <div className="edit-expert-layers-toolbar-header-row">
-              <div className="edit-expert-layers-toolbar-title-card">
-                <p className="edit-expert-layers-toolbar-title">Layers</p>
-              </div>
-              <button
-                type="button"
-                className="edit-expert-markup-modal-close-btn"
-                aria-label="Close expanded markup canvas"
-                onClick={closeMarkupModal}
-              >
-                <X size={14} weight="bold" />
-              </button>
-            </div>
-            {layersToolbarBody}
-          </>
-        ) : (
-          <>{layersToolbarBody}</>
-        )}
       </div>
     );
   };
@@ -3504,7 +3320,16 @@ export function ExpertEditPanelView({
             </div>
             <div className="edit-expert-utility-actions" aria-label="Edit utility actions">
               {renderPresetUtilityActionButtons()}
-              {renderLayerUtilityActionButtons()}
+              <ExpertEditLayerUtilityActions
+                isGenerateDisabled={isGenerateDisabled}
+                selectedLayerImageUrl={selectedLayerImageUrl}
+                isRemoveBackgroundPending={isRemoveBackgroundPending}
+                populatedLayerCount={populatedLayerCount}
+                isFlattenPending={isFlattenPending}
+                onFlatten={() => void handleManualFlatten()}
+                onRemoveBackground={handleRemoveBackground}
+                className={null}
+              />
             </div>
             <ExpertEditPresetsSurface
               id={morePresetsSurfaceId}
@@ -3630,7 +3455,36 @@ export function ExpertEditPanelView({
               }
             )}
           />
-          {renderLayersToolbar("main")}
+          <ExpertEditLayersPanel
+            scope="main"
+            layers={layers}
+            editingLayerIndex={editingLayerIndex}
+            editingLayerValue={editingLayerValue}
+            draggingLayerIndex={draggingLayerIndex}
+            dragOverLayerIndex={dragOverLayerIndex}
+            resolvedSelectedLayerIndex={resolvedSelectedLayerIndex}
+            statusToastMessage={statusToastMessage}
+            statusToastTone={statusToastTone}
+            isStatusToastFading={isStatusToastFading}
+            isLayerLimitStatusToast={isLayerLimitStatusToast}
+            isGenerateDisabled={isGenerateDisabled}
+            selectedLayerImageUrl={selectedLayerImageUrl}
+            isRemoveBackgroundPending={isRemoveBackgroundPending}
+            populatedLayerCount={populatedLayerCount}
+            isFlattenPending={isFlattenPending}
+            setEditingLayerValue={setEditingLayerValue}
+            onCommitLayerRename={handleCommitLayerRename}
+            onClearLayerEditing={clearLayerEditing}
+            onBeginLayerRename={beginLayerRename}
+            onLayerDragStart={handleLayerDragStart}
+            onLayerDragOver={handleLayerDragOver}
+            onLayerDrop={handleLayerDrop}
+            onLayerDragEnd={handleLayerDragEnd}
+            onSelectLayer={handleSelectLayer}
+            onDeleteLayer={handleDeleteLayer}
+            onFlatten={() => void handleManualFlatten()}
+            onRemoveBackground={handleRemoveBackground}
+          />
           <div className="edit-expert-column-wrapper edit-expert-column-wrapper--center edit-expert-post-stage-wrapper">
             <div
               className={`edit-expert-inpaint-row ${isInpaintCollapsed ? "is-collapsed" : ""} ${
@@ -3932,7 +3786,40 @@ export function ExpertEditPanelView({
             onPointerLeave: modalStageInteractionRouter.onPointerLeave,
           }
         )}
-        layersPanel={renderLayersToolbar("modal")}
+        layersPanel={
+          <ExpertEditLayersPanel
+            scope="modal"
+            layers={layers}
+            editingLayerIndex={editingLayerIndex}
+            editingLayerValue={editingLayerValue}
+            draggingLayerIndex={draggingLayerIndex}
+            dragOverLayerIndex={dragOverLayerIndex}
+            resolvedSelectedLayerIndex={resolvedSelectedLayerIndex}
+            statusToastMessage={statusToastMessage}
+            statusToastTone={statusToastTone}
+            isStatusToastFading={isStatusToastFading}
+            isLayerLimitStatusToast={isLayerLimitStatusToast}
+            isGenerateDisabled={isGenerateDisabled}
+            selectedLayerImageUrl={selectedLayerImageUrl}
+            isRemoveBackgroundPending={isRemoveBackgroundPending}
+            populatedLayerCount={populatedLayerCount}
+            isFlattenPending={isFlattenPending}
+            setEditingLayerValue={setEditingLayerValue}
+            onCommitLayerRename={handleCommitLayerRename}
+            onClearLayerEditing={clearLayerEditing}
+            onBeginLayerRename={beginLayerRename}
+            onLayerDragStart={handleLayerDragStart}
+            onLayerDragOver={handleLayerDragOver}
+            onLayerDrop={handleLayerDrop}
+            onLayerDragEnd={handleLayerDragEnd}
+            onSelectLayer={handleSelectLayer}
+            onDeleteLayer={handleDeleteLayer}
+            onFlatten={() => void handleManualFlatten()}
+            onRemoveBackground={handleRemoveBackground}
+            onCloseModal={closeMarkupModal}
+            modalLayersRef={handleMarkupModalLayersRef}
+          />
+        }
         onClose={closeMarkupModal}
         onDragShield={handleMarkupModalDragShield}
         onStageMouseDown={handleMarkupStageMiddleClickSuppress}

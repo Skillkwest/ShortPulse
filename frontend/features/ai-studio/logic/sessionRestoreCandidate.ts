@@ -11,8 +11,6 @@ export type AiStudioSessionRestoreSource = "none" | "local" | "remote";
 export type AiStudioSessionRestoreCandidate = {
   snapshot: AiStudioSessionSnapshot | null;
   source: AiStudioSessionRestoreSource;
-  localSnapshot: AiStudioSessionSnapshot | null;
-  remoteSnapshot: AiStudioSessionSnapshot | null;
 };
 
 const asRecord = (value: unknown): Record<string, unknown> | null => {
@@ -71,8 +69,6 @@ export const selectAiStudioSessionRestoreSnapshot = ({
     return {
       snapshot: null,
       source: "none",
-      localSnapshot,
-      remoteSnapshot,
     };
   }
 
@@ -80,8 +76,6 @@ export const selectAiStudioSessionRestoreSnapshot = ({
     return {
       snapshot: remoteSnapshot,
       source: remoteSnapshot ? "remote" : "none",
-      localSnapshot,
-      remoteSnapshot,
     };
   }
 
@@ -89,8 +83,6 @@ export const selectAiStudioSessionRestoreSnapshot = ({
     return {
       snapshot: localSnapshot,
       source: "local",
-      localSnapshot,
-      remoteSnapshot,
     };
   }
 
@@ -100,16 +92,12 @@ export const selectAiStudioSessionRestoreSnapshot = ({
     return {
       snapshot: remoteSnapshot,
       source: "remote",
-      localSnapshot,
-      remoteSnapshot,
     };
   }
 
   return {
     snapshot: localSnapshot,
     source: "local",
-    localSnapshot,
-    remoteSnapshot,
   };
 };
 

@@ -50,6 +50,8 @@ This phase should close the loop on:
    - `frontend/features/ai-studio/logic/sessionSnapshotHydrator.ts`
 5. Kept `selectedTool="canvas"` readable only as a raw hydration migration seam by demoting it to `create` during snapshot restore while removing it from canonical tool/workflow/test allowlists.
 6. Updated focused workflow, routing, shell-resize, workspace-action, page-derivation, and snapshot-hydration coverage so the canonical shell no longer treats `canvas` as a live tool.
+7. Removed the dead page-shell `resolveCanvasDropReference` adapter from `frontend/features/ai-studio/hooks/useAiStudioInternalDropResolvers.ts`, so canonical AI Studio no longer carries generic canvas drop-resolution logic through the page-level shell API.
+8. Kept folder-canvas behavior untouched as an explicit secondary-surface domain and updated focused `useAiStudioInternalDropResolvers` coverage to reflect that the page hook now resolves only character, media-library, style, and element-profile drops.
 
 ## Exit Criteria
 1. the canonical master stage is the only editor path,

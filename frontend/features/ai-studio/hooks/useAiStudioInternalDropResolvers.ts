@@ -1,10 +1,8 @@
 /**
  * AI Studio internal-drop resolver hook.
- * Centralizes page-scoped drop resolution for character, canvas, media-library, and styles surfaces.
+ * Centralizes page-scoped drop resolution for character, media-library, styles, and element-profile surfaces.
  */
 import { useCallback } from "react";
-import { resolveCanvasDropImageSourceUrl } from "../components/canvas/canvasDropResolvers";
-import type { ResolveCanvasDropReference } from "../components/canvas/canvasTypes";
 import type { PersistOutputSaveResult } from "./useAiStudioPersistenceActions";
 import { resolveMediaLibraryInternalDropResolver } from "../logic/mediaLibraryInternalDropResolver";
 import {
@@ -74,7 +72,6 @@ export const useAiStudioInternalDropResolvers = ({
   saveReferenceToLibrary,
 }: UseAiStudioInternalDropResolversParams): {
   resolveCharacterDropReference: ResolveCharacterDropReference;
-  resolveCanvasDropReference: ResolveCanvasDropReference;
   resolveMediaLibraryInternalDropItem: (
     payload: InternalReferenceDragPayload
   ) => Promise<{ kind: "media" | "prompt"; id: string } | null>;
@@ -115,46 +112,6 @@ export const useAiStudioInternalDropResolvers = ({
       };
     },
     [ensureOutputPersisted, getOutputById, getOutputSnapshot]
-  );
-
-  const resolveCanvasDropReference = useCallback<ResolveCanvasDropReference>(
-    (payload: InternalReferenceDragPayload) => {
-      const outputId = (payload.outputId ?? payload.referenceId ?? "").trim();
-      const imageIndex = Math.max(0, Math.floor(payload.imageIndex ?? 0));
-      const output = outputId ? getOutputById(outputId) : null;
-      if (!output) return null;
-
-      if (output.mode === "text") {
-        const text = (output.prompt || output.previewText || "").trim();
-        if (!text) return null;
-        return {
-          kind: "text",
-          outputId: outputId || null,
-          text,
-          sourceSurface: payload.sourceSurface ?? null,
-        };
-      }
-
-      if (output.mode !== "image") return null;
-
-      const sourceUrl = resolveCanvasDropImageSourceUrl({
-        output,
-        imageIndex,
-      });
-      if (!sourceUrl) return null;
-
-      return {
-        kind: "image",
-        outputId: outputId || null,
-        mediaId: resolveSavedMediaIdFromOutput(output, imageIndex),
-        src: sourceUrl,
-        alt: (output.prompt || output.previewText || "Canvas reference").trim(),
-        width: payload.width,
-        height: payload.height,
-        sourceSurface: payload.sourceSurface ?? null,
-      };
-    },
-    [getOutputById]
   );
 
   const resolveMediaLibraryInternalDropItem = useCallback(
@@ -250,7 +207,6 @@ export const useAiStudioInternalDropResolvers = ({
 
   return {
     resolveCharacterDropReference,
-    resolveCanvasDropReference,
     resolveMediaLibraryInternalDropItem,
     resolveStyleLibraryInternalDrop,
     resolveElementProfileImageDropSource,

@@ -198,64 +198,6 @@ describe("useAiStudioInternalDropResolvers", () => {
     );
   });
 
-  it("resolves canvas drops for text and image outputs", () => {
-    const imageOutput = makeOutput();
-    const textOutput = makeOutput({
-      mode: "text",
-      prompt: "  Prompt from output  ",
-      previewText: "Fallback preview text",
-      savedMediaIds: [],
-    });
-    const outputById: Record<string, StudioOutput> = {
-      "out-image": imageOutput,
-      "out-text": textOutput,
-    };
-    const { result } = renderHook(() =>
-      useAiStudioInternalDropResolvers({
-        getOutputById: (outputId) => outputById[outputId] ?? null,
-        getOutputSnapshot: () => ({
-          outputOrder: Object.keys(outputById),
-          archivedOutputOrder: [],
-          outputById,
-          archivedOutputById: {},
-        }),
-        ensureOutputPersisted: vi.fn(async () => ({
-          ok: true,
-          mediaFileIds: ["media-0", "media-1"],
-          delivery: null,
-          error: null,
-        })),
-        saveReferenceToLibrary: vi.fn(),
-      })
-    );
-
-    expect(
-      result.current.resolveCanvasDropReference(
-        makePayload({ outputId: "out-text", imageIndex: 0, sourceSurface: "curated" })
-      )
-    ).toEqual({
-      kind: "text",
-      outputId: "out-text",
-      text: "Prompt from output",
-      sourceSurface: "curated",
-    });
-
-    expect(
-      result.current.resolveCanvasDropReference(
-        makePayload({ outputId: "out-image", imageIndex: 1, width: 640, height: 480 })
-      )
-    ).toEqual({
-      kind: "image",
-      outputId: "out-image",
-      mediaId: "media-1",
-      src: "https://cdn.example.com/result-1.png",
-      alt: "User visible prompt",
-      width: 640,
-      height: 480,
-      sourceSurface: "all-refs",
-    });
-  });
-
   it("delegates media-library and style internal-drop resolution with shared timeout policy", async () => {
     const output = makeOutput();
     resolveMediaLibraryInternalDropResolverMock.mockResolvedValue({ kind: "media", id: "media-1" });

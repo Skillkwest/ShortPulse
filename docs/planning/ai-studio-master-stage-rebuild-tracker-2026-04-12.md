@@ -152,6 +152,8 @@ Completed slice on 2026-04-12:
 4. Removed legacy `canvas` as a first-class canonical tool identity from `frontend/features/ai-studio/types.ts` and `frontend/features/ai-studio/logic/workflowIdentity.ts`, so the live AI Studio shell no longer recognizes `canvas` as an active workflow/tool.
 5. Reduced `frontend/features/ai-studio/logic/sessionSnapshotHydrator.ts` to a read-only migration seam for stale `selectedTool="canvas"` snapshots by keeping raw-value demotion to `create` while removing `canvas` from the canonical tool allowlist.
 6. Updated focused workflow, routing, shell-resize, workspace-action, page-derivation, and snapshot-hydration tests so the active shell/test surface no longer carries `canvas` as a live tool identity.
+7. Removed the dead page-shell `resolveCanvasDropReference` adapter from `frontend/features/ai-studio/hooks/useAiStudioInternalDropResolvers.ts`, so canonical AI Studio page orchestration no longer exposes generic canvas drop-resolution logic after the canvas-path demotion.
+8. Updated focused `frontend/features/ai-studio/hooks/__tests__/useAiStudioInternalDropResolvers.test.ts` coverage so the page hook contract now reflects only character, media-library, style, and element-profile internal-drop resolution while folder-canvas behavior remains isolated to the secondary Media Library domain.
 
 ## Phase Links
 1. `docs/planning/ai-studio-master-stage-phase-1-target-contract-and-bakeoff-plan-2026-04-12.md`

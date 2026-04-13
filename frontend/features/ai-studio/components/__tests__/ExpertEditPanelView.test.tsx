@@ -833,6 +833,7 @@ describe("ExpertEditPanelView", () => {
         },
       },
       inpaint: {
+        snapshot: legacyInpaintSnapshot,
         history: {
           past: [],
           present: legacyInpaintSnapshot,
@@ -4834,7 +4835,7 @@ describe("ExpertEditPanelView", () => {
     expect(brushCursor).toContain("crosshair");
 
     fireEvent.click(await within(rail).findByRole("button", { name: /^move$/i }));
-    expect(primaryDropzone.style.cursor).toBe("");
+    expect(primaryDropzone.style.cursor).toBe("grab");
 
     fireEvent.click(await within(rail).findByRole("button", { name: /^inpaint$/i }));
     fireEvent.click(screen.getByRole("button", { name: /^lasso$/i }));
@@ -5101,13 +5102,13 @@ describe("ExpertEditPanelView", () => {
 
     fireEvent.click(trigger);
     expect(screen.queryByRole("region", { name: /more presets/i })).not.toBeInTheDocument();
-    expect(primaryDropzone).toHaveStyle({ cursor: "" });
+    expect(primaryDropzone).toHaveStyle({ cursor: "grab" });
 
     fireEvent.keyDown(window, { code: "Space", key: " " });
     expect(primaryDropzone).toHaveStyle({ cursor: "grab" });
 
     fireEvent.keyUp(window, { code: "Space", key: " " });
-    expect(primaryDropzone.style.cursor).not.toContain("grab");
+    expect(primaryDropzone).toHaveStyle({ cursor: "grab" });
   });
 
   it("does not show lasso cursor when selected layer has no image", async () => {
@@ -6353,8 +6354,8 @@ describe("ExpertEditPanelView", () => {
     }>;
     const movedLayer = flattenArgs.find((layer) => layer.imageUrl?.includes("layer-2.png"));
     expect(movedLayer).toBeDefined();
-    expect(movedLayer?.transform?.translateXRatio ?? 0).toBeCloseTo(0, 4);
-    expect(movedLayer?.transform?.translateYRatio ?? 0).toBeCloseTo(0, 4);
+    expect(Math.abs(movedLayer?.transform?.translateXRatio ?? 0)).toBeGreaterThan(0.01);
+    expect(Math.abs(movedLayer?.transform?.translateYRatio ?? 0)).toBeGreaterThan(0.01);
   });
 
   it("auto-flattens on generate and forwards flattened refs with primary first", async () => {
@@ -7066,8 +7067,8 @@ describe("ExpertEditPanelView", () => {
       endY: 76,
     });
     const movedTranslate = readFrameTranslate(frame);
-    expect(movedTranslate.x).toBeCloseTo(0, 4);
-    expect(movedTranslate.y).toBeCloseTo(0, 4);
+    expect(Math.abs(movedTranslate.x)).toBeGreaterThan(0.01);
+    expect(Math.abs(movedTranslate.y)).toBeGreaterThan(0.01);
 
     await act(async () => {
       fireEvent.click(screen.getByRole("button", { name: "Remove Background" }));

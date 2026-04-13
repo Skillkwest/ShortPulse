@@ -69,6 +69,7 @@ describe("useAiStudioPageSessionPersistence", () => {
           chatModeEnabled: false,
         },
         canvas: null,
+        expertEdit: null,
       })
     );
     const hydrateFromSessionAgentSnapshot = vi.fn();

@@ -20,7 +20,7 @@ type UseExpertEditGenerationPresetRuntimeParams = {
   isGenerationModeToggleEnabled: boolean;
   selectedRailTool: RailTool;
   setSelectedRailTool: React.Dispatch<React.SetStateAction<RailTool>>;
-  controlledPresetIds?: ExpertEditPresetId[] | null;
+  controlledPresetIds?: readonly ExpertEditPresetId[] | null;
   onSelectedPresetIdsChange?: ((value: ExpertEditPresetId[]) => void) | null;
   controlledCustomPresetOverrides?: ExpertEditCustomPresetOverrides | null;
   onCustomPresetOverridesChange?: ((value: ExpertEditCustomPresetOverrides) => void) | null;

@@ -19,7 +19,7 @@ type UseExpertEditStageControlPanelsParams = {
   setSelectedRailTool: React.Dispatch<React.SetStateAction<RailTool>>;
   handleRecenterMoveAction: () => void;
   openMarkupModal: (tool?: RailTool) => void;
-  handleMoveZoomSliderChange: React.ChangeEventHandler<HTMLInputElement>;
+  handleMoveZoomSliderChange: (value: number) => void;
   handleUndoGeneralAction: () => void;
   handleRedoGeneralAction: () => void;
   aspect: string;

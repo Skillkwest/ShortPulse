@@ -21,6 +21,7 @@ const createFlags = (overrides: Partial<FalRuntimeFlags> = {}): FalRuntimeFlags 
   webhookJwksUrl: "https://example.test/jwks",
   webhookToleranceSeconds: 300,
   publicApiBaseUrl: "https://shortpulse.test",
+  webhookCallbackBaseUrl: "https://shortpulse.test",
   directDebitFallbackEnabled: false,
   admission: {
     mode: "off",

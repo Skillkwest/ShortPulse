@@ -11,9 +11,9 @@ type ExpertEditPanelAuxiliaryProps = {
   isStatusToastFading: boolean;
   isLayerLimitStatusToast: boolean;
   primaryInputRef: React.Ref<HTMLInputElement>;
-  extraOneInputRef: React.RefObject<HTMLInputElement | null>;
-  extraTwoInputRef: React.RefObject<HTMLInputElement | null>;
-  extraThreeInputRef: React.RefObject<HTMLInputElement | null>;
+  extraOneInputRef: React.Ref<HTMLInputElement>;
+  extraTwoInputRef: React.Ref<HTMLInputElement>;
+  extraThreeInputRef: React.Ref<HTMLInputElement>;
   handlePrimaryFileSelection: React.ChangeEventHandler<HTMLInputElement>;
   handleExtraFileSelection: (index: 0 | 1 | 2) => React.ChangeEventHandler<HTMLInputElement>;
   characterPicker: ExpertEditCharacterPickerModalProps;

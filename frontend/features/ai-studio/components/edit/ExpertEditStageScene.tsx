@@ -22,7 +22,7 @@ type ExpertEditStageSceneProps = {
   scope: "inline" | "modal";
   layers: ExpertEditLayer[];
   markupStrokes: MarkupStroke[];
-  overlayCanvasRef: React.RefObject<HTMLCanvasElement | null>;
+  overlayCanvasRef: React.Ref<HTMLCanvasElement>;
   stageSize: StageViewportSize;
   stageElement: HTMLDivElement | null;
   inlineFallbackStageSize: StageViewportSize;

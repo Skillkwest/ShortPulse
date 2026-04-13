@@ -1,7 +1,7 @@
 # AI Studio Master Stage Rebuild Tracker (2026-04-12)
 
 Last updated: 2026-04-12  
-Status: Active  
+Status: Completed  
 Owner: Engineering
 
 ## Tracker Rules
@@ -30,7 +30,7 @@ When this planning-task done state is satisfied, no more planning artifacts are 
 | 4 | Completed | Implement the artboard-first interaction model for selection and transforms. | Phase 3 core seams compile and mount. | Single-select move/resize/rotate works in one canonical stage path with acceptance tests. | Keep the legacy transform path available behind an adapter until new handles and sessions pass parity. |
 | 5 | Completed | Decouple export from provider submission. | Phase 4 stage geometry and transforms are stable. | Flatten and mask export run through a stage export adapter; submit handlers no longer own stage math. | Temporarily route submit through the old export path if new export parity gates fail. |
 | 6 | Completed | Simplify persistence and session ownership. | Phase 5 export contract is stable enough to snapshot. | Durable state is document-centered and rollout-only scaffolding is removed or bypassed. | Keep the old snapshot adapter readable during migration so older sessions can still hydrate. |
-| 7 | In Progress | Cut over fully to the canonical stage and delete obsolete systems. | Phases 1-6 complete and final validation window ready. | Canonical stage is the only editor path; obsolete stage systems, flags, and stale docs/tests are deleted or updated. | Maintain one short-lived compatibility adapter only if a release-window rollback is required. |
+| 7 | Completed | Cut over fully to the canonical stage and delete obsolete systems. | Phases 1-6 complete and final validation window ready. | Canonical stage is the only editor path; obsolete stage systems, flags, and stale docs/tests are deleted or updated. | Maintain one short-lived compatibility adapter only if a release-window rollback is required. |
 
 ## Program Done State
 The rebuild program is done when:
@@ -131,11 +131,7 @@ Completed slice on 2026-04-12:
 13. Removed stale module-scope persistence policy caching by making `frontend/features/ai-studio/logic/sessionPersistencePolicy.ts` compute policy values at read time and updating the affected write/restore hooks to derive their default flags from a fresh policy read inside the live hook body.
 
 ## Current Phase 7 Focus
-The next execution lane now shifts to cutover and deletion:
-1. confirm the canonical stage/editor path is the only live path in code,
-2. remove obsolete compatibility adapters, flags, and stale references that survived earlier phases,
-3. keep rollback scope narrow and explicit while final deletion proceeds,
-4. align active docs/tests with the final canonical stage-only posture before the final validation bundle and keep validation blockers out of the closeout path.
+Phase 7 is complete and the rebuild program done state has been reached.
 
 Completed slice on 2026-04-12:
 1. Removed dead `propertiesImage` and `propertiesText` compatibility aliases from the canonical AI Studio page-content contract in:
@@ -157,6 +153,23 @@ Completed slice on 2026-04-12:
 9. Deleted stale `canvas` compatibility expectations from `frontend/features/ai-studio/components/__tests__/AiStudioPageContent.drop.test.tsx`, narrowing the canonical page-content test surface to live tools only and leaving `selectedTool=\"canvas\"` handling documented solely through the snapshot-hydration migration seam.
 10. Fixed the generic Fal submit parity scanner in `scripts/check_model_catalog_parity.js` so `frontend/pages/api/fal/image-submit.ts` is treated as a registry-backed generic submit entrypoint instead of failing Phase 7 validation for missing inline `modelId` and `validatePayload` config.
 11. Restored `npm -C frontend run docs:check` to a passing state, removing the last known false blocker from the final validation bundle while leaving the remaining Phase 7 closeout work explicit.
+12. Repaired final validation drift across the canonical AI Studio shell by removing stale toolbar `canvas` residue, tightening extracted Expert Edit component typings, and updating the touched persistence/agent/webhook/character-manager test helpers to the current typed runtime contracts.
+13. Ignored generated CommonJS shadow artifacts under `frontend/lib/**/*.js` in `frontend/eslint.config.mjs`, keeping `npm -C frontend run lint` focused on the canonical TypeScript application surface instead of compiled residue.
+14. Re-ran the full Phase 7 validation bundle successfully:
+   - `npm -C frontend run lint`
+   - `npm -C frontend run type-check`
+   - `npm -C frontend run build`
+   - `npm -C frontend run docs:check`
+   - `npm -C frontend run test -- features/ai-studio/components/__tests__/ExpertEditPanelView.test.tsx features/ai-studio/hooks/__tests__/useAiStudioAgentOrchestration.test.ts features/ai-studio/hooks/__tests__/useAiStudioPageSessionPersistence.test.ts features/ai-studio/logic/__tests__/sessionSnapshot.test.ts features/ai-studio/logic/__tests__/sessionSnapshotHydrator.test.ts features/character-manager/hooks/__tests__/useCharacterManagerShellActionHandlers.test.ts tests/api/fal-webhook-signature.test.ts`
+
+## Program Closeout
+The rebuild program done state is now satisfied:
+1. all seven phases are marked `Completed`,
+2. the canonical stage/editor path is the only active editor path,
+3. the artboard-first architecture is enforced in code and docs,
+4. the delete list has been satisfied or narrowed to bounded read-only migration seams,
+5. final Phase 7 validation passed,
+6. no follow-on rebuild lane remains necessary to reach the V1 stage target.
 
 ## Phase Links
 1. `docs/planning/ai-studio-master-stage-phase-1-target-contract-and-bakeoff-plan-2026-04-12.md`

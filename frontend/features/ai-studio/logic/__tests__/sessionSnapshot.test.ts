@@ -138,7 +138,7 @@ describe("sessionSnapshot", () => {
     expect(snapshot.workspace.klingWorkflowMode).toBe("multi");
     expect(snapshot.outputs.active[0]?.id).toBe("out-1");
     expect(snapshot.agent.messages[0]?.role).toBe("assistant");
-    expect(snapshot.canvas.viewports.main.zoom).toBe(1);
+    expect(snapshot.canvas?.viewports.main.zoom).toBe(1);
     expect(snapshot.expertEdit?.state.markup.strokes).toHaveLength(1);
     expect(snapshot.expertEdit?.state.layers.layers[1]?.imageUrl).toBeNull();
     expect(snapshot.expertEdit?.state.layers.layers[1]?.ownsImageUrl).toBe(false);

@@ -35,6 +35,7 @@ describe("useCharacterManagerShellActionHandlers", () => {
     const simpleInput = createInputRef();
     const nameInput = createInputRef();
     const clearAllMessages = vi.fn();
+    const setError = vi.fn();
     const appendQuickSwapFiles = vi.fn().mockResolvedValue(true);
     const setPendingCharacterSheetUploadZoneKey = vi.fn();
     const setProfileAdjustDraft = vi.fn();
@@ -47,9 +48,11 @@ describe("useCharacterManagerShellActionHandlers", () => {
 
     const params = {
       pageBusy: false,
+      hasPersistedCharacter: false,
       quickSwapMutating: false,
       isDropResolutionBusy: false,
       clearAllMessages,
+      setError,
       appendQuickSwapFiles,
       setPendingCharacterSheetUploadZoneKey,
       characterSheetFileInputRef: characterSheetInput as { current: HTMLInputElement | null },
@@ -81,6 +84,7 @@ describe("useCharacterManagerShellActionHandlers", () => {
       simpleInput,
       nameInput,
       clearAllMessages,
+      setError,
       appendQuickSwapFiles,
       setPendingCharacterSheetUploadZoneKey,
       setProfileAdjustDraft,

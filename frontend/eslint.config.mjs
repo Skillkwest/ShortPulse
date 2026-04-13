@@ -17,6 +17,7 @@ export default tseslint.config(
       ".swc/**",
       "*.config.js",
       "*.config.mjs",
+      "lib/**/*.js",
     ],
   },
   js.configs.recommended,

@@ -301,8 +301,8 @@ describe("sessionSnapshotHydrator", () => {
       createSnapshot({
         workspace: {
           ...createSnapshot().workspace,
-          selectedTool: "canvas",
-        },
+          selectedTool: "canvas" as unknown as AiStudioSessionSnapshot["workspace"]["selectedTool"],
+        } as AiStudioSessionSnapshotV1["workspace"],
       })
     );
 

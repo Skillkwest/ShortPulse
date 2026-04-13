@@ -5,19 +5,16 @@ import { ExpertEditStageContextMenu } from "./ExpertEditStagePrimitives";
 import {
   ExpertEditInlineStageSurface,
   ExpertEditModalStageSurface,
+  type StageInteractionHandlers,
 } from "./ExpertEditStageSurface";
-
-type StageInteractionHandlers = Pick<
-  React.HTMLAttributes<HTMLDivElement>,
-  "onPointerDown" | "onPointerMove" | "onPointerUp" | "onPointerCancel" | "onPointerLeave"
->;
+import type { EditSubmitIntent } from "../../logic/editSubmitIntent";
 
 type ExpertEditStageWorkspaceProps = {
   isGenerationModeToggleEnabled: boolean;
   generationModeTabsStyle: React.CSSProperties;
-  effectiveEditSubmitIntent: string;
-  editGenerationModeOptions: ReadonlyArray<{ id: string; label: string }>;
-  onGenerationModeChange: (nextMode: string) => void;
+  effectiveEditSubmitIntent: EditSubmitIntent;
+  editGenerationModeOptions: ReadonlyArray<{ id: EditSubmitIntent; label: string }>;
+  onGenerationModeChange: (nextMode: EditSubmitIntent) => void;
   onClearGenerationArtifacts: () => void;
   sidebar: React.ReactNode;
   hasPrimaryCompositePreview: boolean;

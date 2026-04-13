@@ -1,6 +1,6 @@
 # AI Studio Master Stage Phase 7: Cutover And Deletion Plan (2026-04-12)
 
-Status: In Progress  
+Status: Completed  
 Owner: Engineering
 
 ## Goal
@@ -27,10 +27,7 @@ This phase should close the loop on:
 3. a final validation window is ready.
 
 ## Current Focus
-1. confirm the canonical stage/editor path is the only live path in code,
-2. remove obsolete compatibility adapters, flags, and stale references that survived earlier phases,
-3. keep rollback scope narrow and explicit while final deletion proceeds,
-4. align active docs/tests with the final canonical stage-only posture and keep the final validation bundle unblocked.
+Phase 7 is complete. The final cutover/deletion lane is closed and no follow-on rebuild work remains necessary to reach the V1 stage target.
 
 ## Completed Slice On 2026-04-12
 1. Removed dead `propertiesImage` and `propertiesText` compatibility aliases from the canonical AI Studio page-content contract in:
@@ -55,12 +52,29 @@ This phase should close the loop on:
 9. Deleted stale `canvas` migration assertions from `frontend/features/ai-studio/components/__tests__/AiStudioPageContent.drop.test.tsx`, so the canonical page-content contract no longer claims shell-level `canvas` compatibility beyond the dedicated hydration migration seam.
 10. Fixed the generic Fal submit parity gate in `scripts/check_model_catalog_parity.js` so `frontend/pages/api/fal/image-submit.ts` is recognized as a registry-backed generic submit route rather than being forced to inline a static `createFalSubmitHandler({ modelId, validatePayload })` config.
 11. Restored `npm -C frontend run docs:check` to a passing state, removing the longstanding false failure that had been blocking the final Phase 7 validation bundle.
+12. Repaired final validation drift uncovered by the closeout bundle by:
+   - removing stale canonical `canvas` icon/type residue from `frontend/features/ai-studio/components/AiStudioToolbar.tsx`,
+   - tightening extracted Expert Edit stage-shell/control/lifecycle typings across the canonical AI Studio edit surface,
+   - updating persistence/agent-orchestration/webhook/character-manager test helpers to match the current typed runtime contracts,
+   - ignoring generated CommonJS shadow artifacts under `frontend/lib/**/*.js` in `frontend/eslint.config.mjs` so lint evaluates the canonical TypeScript app surface instead of compiled residue.
+13. Re-ran the full Phase 7 validation bundle successfully:
+   - `npm -C frontend run lint`
+   - `npm -C frontend run type-check`
+   - `npm -C frontend run build`
+   - `npm -C frontend run docs:check`
+   - `npm -C frontend run test -- features/ai-studio/components/__tests__/ExpertEditPanelView.test.tsx features/ai-studio/hooks/__tests__/useAiStudioAgentOrchestration.test.ts features/ai-studio/hooks/__tests__/useAiStudioPageSessionPersistence.test.ts features/ai-studio/logic/__tests__/sessionSnapshot.test.ts features/ai-studio/logic/__tests__/sessionSnapshotHydrator.test.ts features/character-manager/hooks/__tests__/useCharacterManagerShellActionHandlers.test.ts tests/api/fal-webhook-signature.test.ts`
 
 ## Exit Criteria
 1. the canonical master stage is the only editor path,
 2. deleted systems no longer appear in runtime routing, tests, or documentation as active editor foundations,
 3. the rebuild program done state from the master spec is satisfied,
 4. the final validation bundle passes.
+
+Status check:
+1. satisfied
+2. satisfied
+3. satisfied
+4. satisfied
 
 ## Final Validation Bundle
 1. `npm -C frontend run lint`

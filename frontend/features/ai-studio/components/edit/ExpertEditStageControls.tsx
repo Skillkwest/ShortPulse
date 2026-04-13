@@ -35,6 +35,7 @@ import {
   MOVE_STAGE_ZOOM_SLIDER_MAX,
   MOVE_STAGE_ZOOM_SLIDER_MIN,
 } from "./expertEditViewportUtils";
+import type { AspectOption } from "../../types";
 
 type ExpertEditMarkupControlsContentProps = {
   scope: "inline" | "modal";
@@ -44,8 +45,8 @@ type ExpertEditMarkupControlsContentProps = {
   resolvedMarkupStrokeSize: number;
   markupColor: string;
   markupColorHsv: HsvColor;
-  markupColorPickerAnchorRef: React.RefObject<HTMLDivElement | null>;
-  markupColorSaturationRef: React.RefObject<HTMLDivElement | null>;
+  markupColorPickerAnchorRef: React.Ref<HTMLDivElement>;
+  markupColorSaturationRef: React.Ref<HTMLDivElement>;
   isMarkupColorPickerOpen: boolean;
   setSelectedRailTool: React.Dispatch<React.SetStateAction<RailTool>>;
   setSelectedMarkupMode: React.Dispatch<React.SetStateAction<MarkupMode>>;
@@ -394,7 +395,7 @@ export function ExpertEditMoveControlsContent({
 
 type ExpertEditMarkupModalGeneralPanelProps = {
   aspect: string;
-  aspectOptionsForModel: { value: string; label: string }[];
+  aspectOptionsForModel: AspectOption[];
   canUndoGeneralAction: boolean;
   canRedoGeneralAction: boolean;
   isGeneralResetDisabled: boolean;
@@ -669,7 +670,7 @@ type ExpertEditPresetToolbarCardProps = {
   ) => void;
   handlePresetDragEnd: () => void;
   handlePresetPanelDragOver: (event: React.DragEvent<HTMLElement>) => void;
-  handlePresetPanelDragLeave: () => void;
+  handlePresetPanelDragLeave: (event: React.DragEvent<HTMLElement>) => void;
   handlePresetPanelDrop: (event: React.DragEvent<HTMLElement>) => void;
   toggleMorePresetsSurface: () => void;
 };

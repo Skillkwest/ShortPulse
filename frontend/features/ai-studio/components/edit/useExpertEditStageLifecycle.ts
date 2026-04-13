@@ -8,6 +8,7 @@ import {
   clearWindowTimeoutRef,
   isKeyboardEventFromEditableTarget,
   resolveInpaintCollapseToggleDecision,
+  type ObjectUrlRevokeTimers,
 } from "./expertEditInteractionUtils";
 import { isSpaceActivationKey } from "./expertEditPanelViewContract";
 
@@ -35,10 +36,10 @@ type UseExpertEditStageLifecycleArgs = {
   unlockGlobalCursor: () => void;
   queuePendingHistoryApplyEntry: (entry: TransformHistoryEntry | null) => void;
   clearHistoryEphemera: () => void;
-  inpaintCollapseTimerRef: React.RefObject<number | null>;
-  toastVisibleTimerRef: React.RefObject<number | null>;
-  toastFadeTimerRef: React.RefObject<number | null>;
-  transientRevokeTimersRef: React.RefObject<Map<string, number>>;
+  inpaintCollapseTimerRef: React.MutableRefObject<number | null>;
+  toastVisibleTimerRef: React.MutableRefObject<number | null>;
+  toastFadeTimerRef: React.MutableRefObject<number | null>;
+  transientRevokeTimersRef: React.MutableRefObject<ObjectUrlRevokeTimers>;
   revokeObjectUrlSafe: (url: string) => void;
   isInpaintCollapsed: boolean;
   shouldOpenMarkupModalFromCollapsedTools: boolean;

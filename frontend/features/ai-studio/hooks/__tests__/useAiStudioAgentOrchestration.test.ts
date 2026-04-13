@@ -34,7 +34,6 @@ const createParams = (
   agentAttachments: [],
   setAgentAttachments: asDispatch<AgentAttachment[]>(vi.fn()),
   setAgentAttachmentError: asDispatch<string | null>(vi.fn()),
-  markAttachmentDelivery: vi.fn(),
   prompt: "",
   latestAgentPrompt: null,
   setLatestAgentPrompt: asDispatch<string | null>(vi.fn()),
@@ -44,6 +43,7 @@ const createParams = (
   setPromptOrigin: asDispatch<"manual" | "agent" | "reference">(vi.fn()),
   sendToAgent: vi.fn(async () => ({ response: null, actions: undefined })),
   appendUserMessage: vi.fn(() => "msg-1"),
+  updateMessageById: vi.fn(() => false),
   getAgentContext: vi.fn(() => ({})),
   trackAgentUiEvent: vi.fn(),
   addAgentPromptReference: vi.fn(),
@@ -109,7 +109,6 @@ describe("useAiStudioAgentOrchestration", () => {
           aspect: null,
         },
       ],
-      markAttachmentDelivery: vi.fn(),
       getAgentContext,
     });
 
@@ -119,7 +118,13 @@ describe("useAiStudioAgentOrchestration", () => {
       await result.current.handleAgentSend();
     });
 
-    expect(appendUserMessage).not.toHaveBeenCalled();
+    expect(appendUserMessage).toHaveBeenCalledWith("", [
+      expect.objectContaining({
+        id: "img-1",
+        kind: "image",
+        referenceId: "ref-image-1",
+      }),
+    ]);
     expect(sendToAgent).toHaveBeenCalledWith(
       expect.objectContaining({
         text: "",
@@ -171,7 +176,6 @@ describe("useAiStudioAgentOrchestration", () => {
           aspect: null,
         },
       ],
-      markAttachmentDelivery: vi.fn(),
       getAgentContext,
     });
 

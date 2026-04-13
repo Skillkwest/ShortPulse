@@ -94,7 +94,8 @@ Completed slice on 2026-04-12:
 10. Extracted stage history and general undo/redo/reset orchestration into `frontend/features/ai-studio/components/edit/useExpertEditStageHistory.ts`, moving markup and inpaint history state, baseline refs, session restore/apply effects, and clear/reset action wiring out of `ExpertEditPanelView.tsx`.
 11. Extracted stage chrome orchestration into `frontend/features/ai-studio/components/edit/useExpertEditStageChrome.ts`, moving modal open/close behavior, stage context-menu state, inline pan-capture handlers, and modal/context-menu lifecycle effects out of `ExpertEditPanelView.tsx` while keeping the upstream modal-open state local for viewport geometry.
 12. Extracted stage lifecycle behavior into `frontend/features/ai-studio/components/edit/useExpertEditStageLifecycle.ts`, moving stage wheel listeners, modal history hotkeys, markup-pan keyboard state, cursor cleanup, and inpaint-collapse lifecycle behavior out of `ExpertEditPanelView.tsx`.
-13. Kept transform-history, inpaint/tool routing, export wiring, persistence ownership, and the remaining stage-control render composition in `ExpertEditPanelView.tsx` so the current Phase 3 slices stay behavior-neutral and do not widen into later phases.
+13. Extracted stage controls render composition into `frontend/features/ai-studio/components/edit/ExpertEditStageControls.tsx`, moving markup/move/inpaint panel rendering, modal general controls, prompt preset toolbar rendering, and preset utility action rendering out of `ExpertEditPanelView.tsx`.
+14. Kept transform-history, inpaint/tool routing, export wiring, persistence ownership, stage-scene render composition, and the remaining shell assembly in `ExpertEditPanelView.tsx` so the current Phase 3 slices stay behavior-neutral and do not widen into later phases.
 
 ## Phase Links
 1. `docs/planning/ai-studio-master-stage-phase-1-target-contract-and-bakeoff-plan-2026-04-12.md`

@@ -1,22 +1,13 @@
 import React from "react";
 import {
-  ArrowClockwise,
-  ArrowCounterClockwise,
-  ArrowsInCardinal,
   ArrowsOutSimple,
-  ArrowsOutCardinal,
   CaretRight,
   CircleDashed,
   CircleHalf,
-  Eraser,
-  GearSix,
   PaintBrush,
-  PencilSimple,
-  Sliders,
   TrashSimple,
 } from "phosphor-react";
 import { modelLogos } from "../../constants";
-import { AspectDropdown } from "../AspectDropdown";
 import { stripEditLabel } from "../../utils/modelLabels";
 import { setExpertEditPromptTokenDragData } from "../../logic/expertEditPromptReferences";
 import {
@@ -62,6 +53,14 @@ import { useExpertEditMarkupDrawController } from "./useExpertEditMarkupDrawCont
 import { useExpertEditMarkupViewportController } from "./useExpertEditMarkupViewportController";
 import { useExpertEditTransformSession } from "./useExpertEditTransformSession";
 import { ExpertEditLayersPanel, ExpertEditLayerUtilityActions } from "./ExpertEditLayersPanel";
+import {
+  ExpertEditMarkupControlsContent,
+  ExpertEditMarkupModalGeneralPanel,
+  ExpertEditMarkupModalInpaintPanel,
+  ExpertEditMoveControlsContent,
+  ExpertEditPresetToolbarCard,
+  ExpertEditPresetUtilityActionButtons,
+} from "./ExpertEditStageControls";
 import { ExpertEditPresetsSurface } from "./ExpertEditPresetsSurface";
 import { ExpertEditCharacterPickerModal } from "./ExpertEditCharacterPickerModal";
 import { ExpertEditModeRailPanel } from "./ExpertEditModeRailPanel";
@@ -76,7 +75,6 @@ import {
   LAYER_LIMIT_REACHED_TOAST,
   LOCKED_EDIT_TOOL_MODEL_LOGO_SRC,
   MARKUP_COLOR_DEFAULT,
-  MARKUP_COLOR_SWATCHES,
   MARKUP_STROKE_SIZE_DEFAULT,
   MARKUP_STROKE_SIZE_MAX,
   PRESET_PANEL_LIMIT_TOAST,
@@ -86,7 +84,6 @@ import {
   TRANSFORM_HISTORY_LIMIT,
   clampNumber,
   editGenerationModeOptions,
-  editPresetUtilityActions,
   inpaintRailTools,
   type ExpertEditPanelViewProps,
   type InpaintMode,
@@ -99,7 +96,6 @@ export { COMPOSITE_REGENERATE_COHESION_PROMPT } from "./expertEditPanelViewContr
 import {
   EDIT_PRESET_DEFAULT_PANEL_PRESET_IDS,
   EDIT_PRESET_PANEL_MAX,
-  EDIT_PRESET_MORE_LABEL,
   type ExpertEditCustomPresetOverride,
   type ExpertEditCustomPresetOverrides,
   type ExpertEditCustomPresetId,
@@ -128,9 +124,6 @@ import {
   type HsvColor,
 } from "./expertEditColorUtils";
 import {
-  MOVE_STAGE_ZOOM_SLIDER_DEFAULT,
-  MOVE_STAGE_ZOOM_SLIDER_MAX,
-  MOVE_STAGE_ZOOM_SLIDER_MIN,
   createIdleMarkupPanPointerSession,
   isResolvedStageViewportSize,
   resolveRenderableStageViewportSize,
@@ -1862,496 +1855,153 @@ export function ExpertEditPanelView({
     };
   }, [isMarkupColorPickerOpen]);
 
-  const renderMarkupControlsContent = (scope: "inline" | "modal") => {
-    const isModalScope = scope === "modal";
-    const isMarkupToolActive = isVideoToolSelected;
-    const modeIconSize = isModalScope ? 19 : 16;
-    const strokeSizeControlId = `edit-expert-markup-stroke-size-${scope}`;
-    const colorPickerId = `edit-expert-markup-color-picker-${scope}`;
-    const hueSliderId = `edit-expert-markup-color-hue-${scope}`;
-    return (
-      <div className="edit-expert-markup-controls-content">
-        <div className="edit-expert-inpaint-mode-row" role="group" aria-label="Markup tool mode">
-          <button
-            type="button"
-            className={`edit-expert-inpaint-mode-btn ${isModalScope ? "edit-expert-markup-icon-only-btn" : ""} ${
-              selectedMarkupMode === "pen" && isMarkupToolActive ? "is-active" : ""
-            }`.trim()}
-            aria-pressed={selectedMarkupMode === "pen" && isMarkupToolActive}
-            aria-label="Pen"
-            onClick={() => {
-              setSelectedRailTool("video");
-              setSelectedMarkupMode("pen");
-            }}
-          >
-            <PencilSimple size={modeIconSize} weight="regular" />
-            {!isModalScope ? <span>Pen</span> : null}
-          </button>
-          <button
-            type="button"
-            className={`edit-expert-inpaint-mode-btn edit-expert-markup-eraser-btn ${
-              isModalScope ? "edit-expert-markup-icon-only-btn" : ""
-            } ${selectedMarkupMode === "eraser" && isMarkupToolActive ? "is-active" : ""}`.trim()}
-            aria-pressed={selectedMarkupMode === "eraser" && isMarkupToolActive}
-            aria-label="Eraser"
-            onClick={() => {
-              setSelectedRailTool("video");
-              setSelectedMarkupMode("eraser");
-            }}
-          >
-            <Eraser size={modeIconSize} weight="regular" />
-            {!isModalScope ? <span>Eraser</span> : null}
-          </button>
-          {isModalScope ? (
-            <button
-              type="button"
-              className="edit-expert-inpaint-action-btn edit-expert-markup-clear-btn-modal"
-              aria-label="Clear markup strokes"
-              onClick={clearMarkupStrokesWithHistory}
-            >
-              <TrashSimple size={19} weight="regular" />
-            </button>
-          ) : (
-            <button
-              type="button"
-              className={`edit-expert-inpaint-mode-btn edit-expert-markup-collapse-btn ${
-                isMarkupExpandSelected ? "is-active" : ""
-              }`}
-              aria-pressed={isMarkupExpandSelected}
-              onClick={() => {
-                if (isMarkupExpandSelected) {
-                  closeMarkupModal();
-                  return;
-                }
-                openMarkupModal("video");
-              }}
-              aria-label="Expand markup tools"
-            >
-              <ArrowsOutSimple size={modeIconSize} weight="regular" />
-            </button>
-          )}
-        </div>
-        <div className="edit-expert-inpaint-stroke-row">
-          <label className="edit-expert-inpaint-stroke-label" htmlFor={strokeSizeControlId}>
-            Stroke Size
-          </label>
-          <input
-            id={strokeSizeControlId}
-            className="edit-expert-inpaint-stroke-slider"
-            type="range"
-            min={1}
-            max={MARKUP_STROKE_SIZE_MAX}
-            value={resolvedMarkupStrokeSize}
-            onChange={(event) =>
-              setMarkupStrokeSize(
-                clampNumber(Number(event.target.value), 1, MARKUP_STROKE_SIZE_MAX)
-              )
-            }
-            onDoubleClick={() => setMarkupStrokeSize(MARKUP_STROKE_SIZE_DEFAULT)}
-            aria-label="Stroke size"
-          />
-        </div>
-        <div className="edit-expert-markup-color-row">
-          <span className="edit-expert-markup-color-label">Color</span>
-          <div className="edit-expert-markup-color-picker-anchor" ref={markupColorPickerAnchorRef}>
-            <button
-              id={colorPickerId}
-              type="button"
-              className="edit-expert-markup-color-picker"
-              style={{ backgroundColor: markupColor }}
-              aria-label="Markup color"
-              aria-expanded={isMarkupColorPickerOpen}
-              aria-haspopup="dialog"
-              onClick={() => setIsMarkupColorPickerOpen((previous) => !previous)}
-            />
-            {isMarkupColorPickerOpen ? (
-              <div
-                className="edit-expert-markup-color-popover"
-                role="dialog"
-                aria-label="Markup color picker"
-                onClick={(event) => event.stopPropagation()}
-              >
-                <div className="edit-expert-markup-color-popover-header">
-                  <p className="edit-expert-markup-color-popover-title">Markup Color</p>
-                  <span className="edit-expert-markup-color-popover-value">
-                    {markupColor.toUpperCase()}
-                  </span>
-                </div>
-                <div
-                  ref={markupColorSaturationRef}
-                  className="edit-expert-markup-color-popover-saturation"
-                  style={{
-                    background: `linear-gradient(to top, #000000, rgba(0, 0, 0, 0)), linear-gradient(to right, #ffffff, hsl(${Math.round(markupColorHsv.h)}, 100%, 50%))`,
-                  }}
-                  onPointerDown={handleMarkupSaturationPointerDown}
-                  onPointerMove={handleMarkupSaturationPointerMove}
-                  onPointerUp={handleMarkupSaturationPointerUp}
-                  onPointerCancel={handleMarkupSaturationPointerUp}
-                >
-                  <span
-                    className="edit-expert-markup-color-popover-saturation-thumb"
-                    style={{
-                      left: `${markupColorHsv.s * 100}%`,
-                      top: `${(1 - markupColorHsv.v) * 100}%`,
-                    }}
-                    aria-hidden="true"
-                  />
-                </div>
-                <div className="edit-expert-markup-color-popover-hue">
-                  <label
-                    htmlFor={hueSliderId}
-                    className="edit-expert-markup-color-popover-hue-label"
-                  >
-                    Hue
-                  </label>
-                  <input
-                    id={hueSliderId}
-                    type="range"
-                    min={0}
-                    max={360}
-                    step={1}
-                    value={Math.round(markupColorHsv.h)}
-                    className="edit-expert-markup-color-popover-hue-slider"
-                    aria-label="Markup hue"
-                    onChange={handleMarkupHueChange}
-                  />
-                </div>
-                <div
-                  className="edit-expert-markup-color-popover-swatches"
-                  aria-label="Markup swatches"
-                >
-                  {MARKUP_COLOR_SWATCHES.map((swatch) => (
-                    <button
-                      key={swatch}
-                      type="button"
-                      className={`edit-expert-markup-color-popover-swatch ${
-                        markupColor.toLowerCase() === swatch.toLowerCase() ? "is-active" : ""
-                      }`}
-                      style={{ backgroundColor: swatch }}
-                      aria-label={`Select ${swatch} color`}
-                      onClick={() => applyMarkupColorFromHex(swatch)}
-                    />
-                  ))}
-                </div>
-              </div>
-            ) : null}
-          </div>
-          {!isModalScope ? (
-            <button
-              type="button"
-              className="edit-expert-inpaint-action-btn edit-expert-markup-clear-btn"
-              aria-label="Clear markup strokes"
-              onClick={clearMarkupStrokesWithHistory}
-            >
-              <TrashSimple size={18} weight="regular" />
-            </button>
-          ) : null}
-        </div>
-      </div>
-    );
-  };
+  const renderMarkupControlsContent = React.useCallback(
+    (scope: "inline" | "modal") => (
+      <ExpertEditMarkupControlsContent
+        scope={scope}
+        selectedMarkupMode={selectedMarkupMode}
+        isVideoToolSelected={isVideoToolSelected}
+        isMarkupExpandSelected={isMarkupExpandSelected}
+        resolvedMarkupStrokeSize={resolvedMarkupStrokeSize}
+        markupColor={markupColor}
+        markupColorHsv={markupColorHsv}
+        markupColorPickerAnchorRef={markupColorPickerAnchorRef}
+        markupColorSaturationRef={markupColorSaturationRef}
+        isMarkupColorPickerOpen={isMarkupColorPickerOpen}
+        setSelectedRailTool={setSelectedRailTool}
+        setSelectedMarkupMode={setSelectedMarkupMode}
+        setMarkupStrokeSize={setMarkupStrokeSize}
+        setIsMarkupColorPickerOpen={setIsMarkupColorPickerOpen}
+        clearMarkupStrokesWithHistory={clearMarkupStrokesWithHistory}
+        closeMarkupModal={closeMarkupModal}
+        openMarkupModal={openMarkupModal}
+        applyMarkupColorFromHex={applyMarkupColorFromHex}
+        handleMarkupSaturationPointerDown={handleMarkupSaturationPointerDown}
+        handleMarkupSaturationPointerMove={handleMarkupSaturationPointerMove}
+        handleMarkupSaturationPointerUp={handleMarkupSaturationPointerUp}
+        handleMarkupHueChange={handleMarkupHueChange}
+      />
+    ),
+    [
+      applyMarkupColorFromHex,
+      clearMarkupStrokesWithHistory,
+      closeMarkupModal,
+      handleMarkupHueChange,
+      handleMarkupSaturationPointerDown,
+      handleMarkupSaturationPointerMove,
+      handleMarkupSaturationPointerUp,
+      isMarkupColorPickerOpen,
+      isMarkupExpandSelected,
+      isVideoToolSelected,
+      markupColor,
+      markupColorHsv,
+      openMarkupModal,
+      resolvedMarkupStrokeSize,
+      selectedMarkupMode,
+      setSelectedRailTool,
+    ]
+  );
 
-  const renderMoveControlsContent = (scope: "inline" | "modal") => {
-    const isModalScope = scope === "modal";
-    const isAdjustSelected = isMoveToolSelected;
-    const modeIconSize = isModalScope ? 18 : 16;
-    const recenterIconSize = isModalScope ? 16 : 14;
-    const zoomSliderId = isModalScope
-      ? "edit-expert-move-zoom-slider-modal"
-      : "edit-expert-move-zoom-slider";
-    return (
-      <div className="edit-expert-move-controls-content">
-        <div
-          className={`edit-expert-move-mode-row ${isModalScope ? "edit-expert-move-mode-row--modal" : ""}`.trim()}
-          role="group"
-          aria-label="Move tool mode"
-        >
-          <button
-            type="button"
-            className={`edit-expert-move-mode-btn edit-expert-move-adjust-btn ${
-              isAdjustSelected ? "is-active" : ""
-            }`.trim()}
-            aria-pressed={isAdjustSelected}
-            aria-label="Adjust"
-            onClick={() => setSelectedRailTool("move")}
-          >
-            <ArrowsOutCardinal size={modeIconSize} weight="regular" />
-            Adjust
-          </button>
-          <button
-            type="button"
-            className="edit-expert-move-mode-btn edit-expert-move-center-btn"
-            aria-label="Center move action"
-            onClick={handleRecenterMoveAction}
-            disabled={!isModalScope && isMoveTransformCentered && isMarkupViewportAtRest}
-          >
-            <ArrowsInCardinal size={recenterIconSize} weight="regular" />
-            Center
-          </button>
-          {!isModalScope ? (
-            <button
-              type="button"
-              className="edit-expert-move-mode-btn edit-expert-move-expand-btn"
-              aria-label="Expand markup tools"
-              onClick={() => openMarkupModal("video")}
-            >
-              <ArrowsOutSimple size={modeIconSize} weight="regular" />
-            </button>
-          ) : null}
-        </div>
-        <div className="edit-expert-move-zoom-row">
-          <label className="edit-expert-move-zoom-label" htmlFor={zoomSliderId}>
-            Zoom
-          </label>
-          <input
-            id={zoomSliderId}
-            className="edit-expert-move-zoom-slider"
-            type="range"
-            min={MOVE_STAGE_ZOOM_SLIDER_MIN}
-            max={MOVE_STAGE_ZOOM_SLIDER_MAX}
-            step={1}
-            value={moveStageZoomSliderValue}
-            onChange={(event) => handleMoveZoomSliderChange(Number(event.target.value))}
-            onDoubleClick={() => handleMoveZoomSliderChange(MOVE_STAGE_ZOOM_SLIDER_DEFAULT)}
-            aria-label="Zoom stage"
-          />
-        </div>
-        {!isModalScope ? (
-          <div className="edit-expert-move-history-row">
-            <button
-              type="button"
-              className="edit-expert-move-history-btn"
-              aria-label="Undo move action"
-              onClick={handleUndoGeneralAction}
-              disabled={!canUndoGeneralAction}
-            >
-              <ArrowCounterClockwise size={14} weight="regular" />
-              Undo
-            </button>
-            <button
-              type="button"
-              className="edit-expert-move-history-btn"
-              aria-label="Redo move action"
-              onClick={handleRedoGeneralAction}
-              disabled={!canRedoGeneralAction}
-            >
-              <ArrowClockwise size={14} weight="regular" />
-              Redo
-            </button>
-          </div>
-        ) : null}
-      </div>
-    );
-  };
+  const renderMoveControlsContent = React.useCallback(
+    (scope: "inline" | "modal") => (
+      <ExpertEditMoveControlsContent
+        scope={scope}
+        isMoveToolSelected={isMoveToolSelected}
+        moveStageZoomSliderValue={moveStageZoomSliderValue}
+        isMoveTransformCentered={isMoveTransformCentered}
+        isMarkupViewportAtRest={isMarkupViewportAtRest}
+        canUndoGeneralAction={canUndoGeneralAction}
+        canRedoGeneralAction={canRedoGeneralAction}
+        setSelectedRailTool={setSelectedRailTool}
+        handleRecenterMoveAction={handleRecenterMoveAction}
+        openMarkupModal={openMarkupModal}
+        handleMoveZoomSliderChange={handleMoveZoomSliderChange}
+        handleUndoGeneralAction={handleUndoGeneralAction}
+        handleRedoGeneralAction={handleRedoGeneralAction}
+      />
+    ),
+    [
+      canRedoGeneralAction,
+      canUndoGeneralAction,
+      handleMoveZoomSliderChange,
+      handleRecenterMoveAction,
+      handleRedoGeneralAction,
+      handleUndoGeneralAction,
+      isMarkupViewportAtRest,
+      isMoveToolSelected,
+      isMoveTransformCentered,
+      moveStageZoomSliderValue,
+      openMarkupModal,
+      setSelectedRailTool,
+    ]
+  );
 
-  const renderMarkupModalGeneralPanel = () => {
-    return (
-      <div className="edit-expert-markup-modal-general-content">
-        <div
-          className="edit-expert-markup-modal-general-row"
-          role="group"
-          aria-label="General actions"
-        >
-          <button
-            type="button"
-            className="edit-expert-markup-modal-general-btn edit-expert-markup-modal-general-btn--icon"
-            aria-label="Undo action"
-            onClick={handleUndoGeneralAction}
-            disabled={!canUndoGeneralAction}
-          >
-            <ArrowCounterClockwise size={15} weight="regular" />
-          </button>
-          <button
-            type="button"
-            className="edit-expert-markup-modal-general-btn edit-expert-markup-modal-general-btn--icon"
-            aria-label="Redo action"
-            onClick={handleRedoGeneralAction}
-            disabled={!canRedoGeneralAction}
-          >
-            <ArrowClockwise size={15} weight="regular" />
-          </button>
-          <button
-            type="button"
-            className="edit-expert-markup-modal-general-btn edit-expert-markup-modal-general-btn--reset"
-            aria-label="Reset stage"
-            onClick={handleResetGeneralAction}
-            disabled={isGeneralResetDisabled}
-          >
-            Reset
-          </button>
-        </div>
-        <div
-          className="edit-expert-markup-modal-general-row edit-expert-markup-modal-general-row--aspect"
-          role="group"
-          aria-label="Aspect ratio selector"
-        >
-          <p className="edit-expert-markup-modal-general-subtitle">Frame</p>
-          <AspectDropdown
-            aspect={aspect}
-            onSelect={onAspectChange}
-            options={aspectOptionsForModel}
-          />
-        </div>
-      </div>
-    );
-  };
+  const renderMarkupModalGeneralPanel = React.useMemo(
+    () => (
+      <ExpertEditMarkupModalGeneralPanel
+        aspect={aspect}
+        aspectOptionsForModel={aspectOptionsForModel}
+        canUndoGeneralAction={canUndoGeneralAction}
+        canRedoGeneralAction={canRedoGeneralAction}
+        isGeneralResetDisabled={isGeneralResetDisabled}
+        onAspectChange={onAspectChange}
+        handleUndoGeneralAction={handleUndoGeneralAction}
+        handleRedoGeneralAction={handleRedoGeneralAction}
+        handleResetGeneralAction={handleResetGeneralAction}
+      />
+    ),
+    [
+      aspect,
+      aspectOptionsForModel,
+      canRedoGeneralAction,
+      canUndoGeneralAction,
+      handleRedoGeneralAction,
+      handleResetGeneralAction,
+      handleUndoGeneralAction,
+      isGeneralResetDisabled,
+      onAspectChange,
+    ]
+  );
 
-  const renderMarkupModalMovePanel = () => {
-    return renderMoveControlsContent("modal");
-  };
+  const renderPresetUtilityActionButtons = React.useMemo(
+    () => (
+      <ExpertEditPresetUtilityActionButtons
+        isGenerateDisabled={isGenerateDisabled}
+        selectedLayerImageUrl={selectedLayerImageUrl}
+        handleCompositeRegeneratePromptInsert={handleCompositeRegeneratePromptInsert}
+      />
+    ),
+    [handleCompositeRegeneratePromptInsert, isGenerateDisabled, selectedLayerImageUrl]
+  );
 
-  const renderPresetUtilityActionButtons = () =>
-    editPresetUtilityActions.map((action) => {
-      const Icon = action.icon;
-      const isActionDisabled = Boolean(
-        isGenerateDisabled || (action.requiresPrimaryImage && !selectedLayerImageUrl)
-      );
-      const actionCreditCost = action.creditCost;
-      return (
-        <button
-          key={action.id}
-          type="button"
-          className={`edit-expert-preset-action-btn ${action.buttonClassName ?? ""}`.trim()}
-          aria-label={action.label}
-          disabled={isActionDisabled}
-          onClick={
-            action.id === "composite-regenerate" ? handleCompositeRegeneratePromptInsert : undefined
-          }
-        >
-          {!action.hideIcon ? (
-            <span className="edit-expert-preset-action-btn-icon" aria-hidden="true">
-              <Icon size={20} weight={action.iconWeight ?? "regular"} />
-            </span>
-          ) : null}
-          <span className="edit-expert-preset-action-btn-copy">
-            <span>{action.label}</span>
-          </span>
-          {actionCreditCost != null ? (
-            <span className="edit-expert-preset-action-btn-cost-column" aria-hidden="true">
-              <span className="edit-expert-preset-action-btn-cost">
-                <span className="model-chip-icon">✦</span>
-                <span className="model-chip-credits">{actionCreditCost}</span>
-              </span>
-            </span>
-          ) : null}
-        </button>
-      );
-    });
-
-  const renderMarkupModalInpaintPanel = (scope: "modal" | "rail" = "modal") => {
-    const isRailScope = scope === "rail";
-    const modeIconSize = 19;
-    const strokeSizeControlId = `edit-expert-markup-modal-inpaint-stroke-size-${scope}`;
-    return (
-      <div
-        className={`edit-expert-markup-modal-inpaint-content ${
-          isRailScope ? "edit-expert-markup-modal-inpaint-content--rail" : ""
-        }`.trim()}
-      >
-        <div
-          className={`edit-expert-inpaint-mode-row ${
-            isRailScope ? "edit-expert-inpaint-mode-row--rail" : ""
-          }`.trim()}
-          role="group"
-          aria-label="In-paint tool mode"
-        >
-          <button
-            type="button"
-            className={`edit-expert-inpaint-mode-btn edit-expert-markup-icon-only-btn ${
-              selectedInpaintMode === "brush" && isInpaintToolSelected ? "is-active" : ""
-            }`}
-            aria-pressed={selectedInpaintMode === "brush" && isInpaintToolSelected}
-            aria-label="Brush"
-            onClick={() => {
-              setSelectedRailTool("inpaint");
-              setSelectedInpaintMode("brush");
-            }}
-          >
-            <PaintBrush size={modeIconSize} weight="regular" />
-          </button>
-          <button
-            type="button"
-            className={`edit-expert-inpaint-mode-btn edit-expert-markup-icon-only-btn ${
-              selectedInpaintMode === "lasso" && isInpaintToolSelected ? "is-active" : ""
-            }`}
-            aria-pressed={selectedInpaintMode === "lasso" && isInpaintToolSelected}
-            aria-label="Lasso"
-            onClick={() => {
-              setSelectedRailTool("inpaint");
-              setSelectedInpaintMode("lasso");
-            }}
-          >
-            <CircleDashed size={modeIconSize} weight="regular" />
-          </button>
-          <button
-            type="button"
-            className="edit-expert-inpaint-action-btn edit-expert-markup-modal-inpaint-clear-btn"
-            aria-label="Clear in-paint selection"
-            onClick={clearInpaintSelectionWithHistory}
-          >
-            <TrashSimple size={19} weight="regular" />
-          </button>
-        </div>
-        <div className="edit-expert-inpaint-stroke-row">
-          <label className="edit-expert-inpaint-stroke-label" htmlFor={strokeSizeControlId}>
-            Stroke Size
-          </label>
-          <input
-            id={strokeSizeControlId}
-            className="edit-expert-inpaint-stroke-slider"
-            type="range"
-            min={1}
-            max={100}
-            value={inpaintStrokeSize}
-            onChange={(event) => setInpaintStrokeSize(Number(event.target.value))}
-            onDoubleClick={() => setInpaintStrokeSize(INPAINT_STROKE_SIZE_DEFAULT)}
-            aria-label="In-paint stroke size"
-          />
-        </div>
-        <div className="edit-expert-inpaint-selection-row">
-          <div
-            className="edit-expert-inpaint-select-tabs"
-            role="tablist"
-            aria-label="In-paint selection mode"
-          >
-            <button
-              type="button"
-              className={`edit-expert-inpaint-select-tab ${
-                selectedInpaintSelectionTab === "select" ? "is-active" : ""
-              }`}
-              role="tab"
-              aria-selected={selectedInpaintSelectionTab === "select"}
-              onClick={() => setSelectedInpaintSelectionTab("select")}
-            >
-              Select
-            </button>
-            <button
-              type="button"
-              className={`edit-expert-inpaint-select-tab ${
-                selectedInpaintSelectionTab === "unselect" ? "is-active" : ""
-              }`}
-              role="tab"
-              aria-selected={selectedInpaintSelectionTab === "unselect"}
-              onClick={() => setSelectedInpaintSelectionTab("unselect")}
-            >
-              Unselect
-            </button>
-          </div>
-          {!isRailScope ? (
-            <button
-              type="button"
-              className="edit-expert-inpaint-action-btn edit-expert-markup-modal-inpaint-invert-btn"
-              aria-label="Invert in-paint selection"
-              onClick={invertInpaintSelectionWithHistory}
-              disabled={!imageHasInteractiveMask}
-            >
-              <CircleHalf size={18} weight="regular" />
-            </button>
-          ) : null}
-        </div>
-      </div>
-    );
-  };
+  const renderMarkupModalInpaintPanel = React.useCallback(
+    (scope: "modal" | "rail" = "modal") => (
+      <ExpertEditMarkupModalInpaintPanel
+        scope={scope}
+        selectedInpaintMode={selectedInpaintMode}
+        isInpaintToolSelected={isInpaintToolSelected}
+        inpaintStrokeSize={inpaintStrokeSize}
+        selectedInpaintSelectionTab={selectedInpaintSelectionTab}
+        imageHasInteractiveMask={imageHasInteractiveMask}
+        setSelectedRailTool={setSelectedRailTool}
+        setSelectedInpaintMode={setSelectedInpaintMode}
+        setInpaintStrokeSize={setInpaintStrokeSize}
+        setSelectedInpaintSelectionTab={setSelectedInpaintSelectionTab}
+        clearInpaintSelectionWithHistory={clearInpaintSelectionWithHistory}
+        invertInpaintSelectionWithHistory={invertInpaintSelectionWithHistory}
+      />
+    ),
+    [
+      clearInpaintSelectionWithHistory,
+      imageHasInteractiveMask,
+      inpaintStrokeSize,
+      invertInpaintSelectionWithHistory,
+      isInpaintToolSelected,
+      selectedInpaintMode,
+      selectedInpaintSelectionTab,
+      setSelectedRailTool,
+    ]
+  );
 
   const renderPrimaryStageSceneContent = React.useCallback(
     ({
@@ -2445,67 +2095,23 @@ export function ExpertEditPanelView({
                 renderMoveControlsContent={renderMoveControlsContent}
               />
             ) : null}
-            <div className="edit-expert-preset-toolbar-card edit-expert-preset-toolbar-card--inline">
-              <div className="edit-expert-preset-toolbar-title-card edit-expert-preset-toolbar-title-card--embedded">
-                <p className="edit-expert-preset-toolbar-title">Prompt Presets</p>
-                <span className="edit-expert-preset-toolbar-title-icon" aria-hidden="true">
-                  <Sliders size={14} weight="regular" />
-                </span>
-              </div>
-              <div className="edit-expert-preset-toolbar-list">
-                <div
-                  className={`edit-expert-preset-dropzone ${
-                    hasSelectedPresetIds ? "is-populated" : "is-empty"
-                  } ${isPresetPanelDropActive ? "is-drop-active" : ""}`.trim()}
-                  aria-label="Preset panel list"
-                  onDragOver={handlePresetPanelDragOver}
-                  onDragLeave={handlePresetPanelDragLeave}
-                  onDrop={handlePresetPanelDrop}
-                >
-                  {hasSelectedPresetIds ? (
-                    selectedPanelPresets.map((preset) => (
-                      <button
-                        key={preset.presetId}
-                        type="button"
-                        draggable
-                        className="edit-expert-preset-btn edit-expert-preset-btn--selected"
-                        aria-label={`Apply ${preset.label} preset`}
-                        onClick={() => handlePanelPresetApply(preset.presetId)}
-                        onDragStart={(event) => handlePanelPresetDragStart(event, preset.presetId)}
-                        onDragEnd={handlePresetDragEnd}
-                      >
-                        {preset.label}
-                      </button>
-                    ))
-                  ) : (
-                    <button
-                      type="button"
-                      className="edit-expert-preset-empty-drop"
-                      aria-label="Empty preset drop target"
-                      onClick={() => setIsMorePresetsSurfaceOpen(true)}
-                    >
-                      Drag presets here
-                    </button>
-                  )}
-                </div>
-                <div className="edit-expert-preset-divider" aria-hidden="true" />
-                <button
-                  type="button"
-                  className="edit-expert-preset-btn"
-                  aria-label={`Apply ${EDIT_PRESET_MORE_LABEL} preset`}
-                  aria-expanded={isMorePresetsSurfaceOpen}
-                  aria-controls={morePresetsSurfaceId}
-                  onClick={toggleMorePresetsSurface}
-                >
-                  <span className="edit-expert-preset-btn-icon" aria-hidden="true">
-                    <GearSix size={12} weight="regular" />
-                  </span>
-                  {EDIT_PRESET_MORE_LABEL}
-                </button>
-              </div>
-            </div>
+            <ExpertEditPresetToolbarCard
+              hasSelectedPresetIds={hasSelectedPresetIds}
+              selectedPanelPresets={selectedPanelPresets}
+              isPresetPanelDropActive={isPresetPanelDropActive}
+              isMorePresetsSurfaceOpen={isMorePresetsSurfaceOpen}
+              morePresetsSurfaceId={morePresetsSurfaceId}
+              setIsMorePresetsSurfaceOpen={setIsMorePresetsSurfaceOpen}
+              handlePanelPresetApply={handlePanelPresetApply}
+              handlePanelPresetDragStart={handlePanelPresetDragStart}
+              handlePresetDragEnd={handlePresetDragEnd}
+              handlePresetPanelDragOver={handlePresetPanelDragOver}
+              handlePresetPanelDragLeave={handlePresetPanelDragLeave}
+              handlePresetPanelDrop={handlePresetPanelDrop}
+              toggleMorePresetsSurface={toggleMorePresetsSurface}
+            />
             <div className="edit-expert-utility-actions" aria-label="Edit utility actions">
-              {renderPresetUtilityActionButtons()}
+              {renderPresetUtilityActionButtons}
               <ExpertEditLayerUtilityActions
                 isGenerateDisabled={isGenerateDisabled}
                 selectedLayerImageUrl={selectedLayerImageUrl}
@@ -2949,8 +2555,8 @@ export function ExpertEditPanelView({
         controlsColumnRef={handleMarkupModalControlsRef}
         stageRef={handleMarkupModalStageRef}
         stageStyle={markupModalStageStyle}
-        generalPanel={renderMarkupModalGeneralPanel()}
-        movePanel={renderMarkupModalMovePanel()}
+        generalPanel={renderMarkupModalGeneralPanel}
+        movePanel={renderMoveControlsContent("modal")}
         inpaintPanel={renderMarkupModalInpaintPanel("modal")}
         markupPanel={renderMarkupControlsContent("modal")}
         viewportStyle={modalMarkupViewportStyle}

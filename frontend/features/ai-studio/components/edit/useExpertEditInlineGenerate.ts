@@ -1,11 +1,6 @@
 import React from "react";
 import type { ExpertEditStageFlattenLayer } from "../../logic/expertEditStageFlatten";
 import {
-  analyzeExpertEditPromptTokens,
-  buildExpertEditSubmissionReferenceInputs,
-  compileExpertEditSubmissionPrompt,
-} from "../../logic/expertEditPromptReferences";
-import {
   INPAINT_FLUX_FILL_MODEL_ID,
   MARKUP_NANO_BANANA_PRO_EDIT_MODEL_ID,
   isMarkupModelLockEnabled,
@@ -13,6 +8,10 @@ import {
 } from "../../logic/inpaintSubmission";
 import type { EditSubmitIntent } from "../../logic/editSubmitIntent";
 import { exportExpertEditStageArtifacts } from "./expertEditStageExport";
+import {
+  prepareExpertEditSubmission,
+  validateExpertEditSubmissionPrompt,
+} from "./expertEditSubmissionPreparation";
 import type { MarkupStroke } from "./markupStrokeController";
 
 type RegenerateWithReferenceInputsHandler = (
@@ -96,12 +95,12 @@ export const useExpertEditInlineGenerate = ({
         showStatusToast("Add at least one layer image before generating.");
         return;
       }
-      const tokenAnalysis = analyzeExpertEditPromptTokens(promptText, extraImageUrls);
-      if (tokenAnalysis.hasInvalidTokens) {
-        const message =
-          tokenAnalysis.inlineError ??
-          "Use @main, @img1, @img2, or @img3 with populated references.";
-        onInvalidPromptReferenceToken?.(message);
+      const promptValidation = validateExpertEditSubmissionPrompt({
+        promptText,
+        extraImageUrls,
+      });
+      if (promptValidation.status === "invalid_tokens") {
+        onInvalidPromptReferenceToken?.(promptValidation.message);
         return;
       }
 
@@ -129,23 +128,17 @@ export const useExpertEditInlineGenerate = ({
             exportArtifacts.flattenedMarkupReferenceBlob
           );
         }
-        const referenceInputs = buildExpertEditSubmissionReferenceInputs({
+        const preparedSubmission = prepareExpertEditSubmission({
+          promptText,
+          extraImageUrls,
           flattenedPrimaryUrl: primaryReferenceUrl,
           flattenedMarkupReferenceUrl,
-          secondarySlots: extraImageUrls,
-          referencedSlotIndexes: tokenAnalysis.referencedSlotIndexes,
         });
-        const compiledPrompt = compileExpertEditSubmissionPrompt({
-          displayPrompt: promptText,
-          secondarySlots: extraImageUrls,
-          referenceInputs,
-        });
-        const promptOverrideOptions = compiledPrompt.hasTokenReferences
-          ? {
-              displayPromptOverride: promptText,
-              submissionPromptOverride: compiledPrompt.submissionPrompt,
-            }
-          : undefined;
+        if (preparedSubmission.status === "invalid_tokens") {
+          onInvalidPromptReferenceToken?.(preparedSubmission.message);
+          return;
+        }
+        const { promptOverrideOptions, referenceInputs } = preparedSubmission;
 
         if (isInpaintSubmitSelected) {
           if (!onRegenerateWithReferenceInputs) {

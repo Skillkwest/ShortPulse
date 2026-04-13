@@ -1,0 +1,136 @@
+import React from "react";
+
+import type { AspectOption } from "../../types";
+import { ResolutionDropdown } from "../ResolutionDropdown";
+import { ExpertEditPromptComposer } from "./ExpertEditPromptComposer";
+import { ExpertEditSelectorControls } from "./ExpertEditReferenceControls";
+
+type PromptHighlightSegment = {
+  kind: string;
+  text: string;
+};
+
+type PromptTokenPickerState = {
+  isOpen: boolean;
+  selectedSlotIndex: 0 | 1 | 2 | "main" | null;
+};
+
+type ExpertEditPromptSelectorsColumnProps = {
+  promptInputShellRef: React.Ref<HTMLDivElement>;
+  promptHighlightRef: React.Ref<HTMLDivElement>;
+  promptTextareaRef: React.Ref<HTMLTextAreaElement>;
+  promptHighlightSegments: readonly PromptHighlightSegment[];
+  promptTextValue: string;
+  onPromptTextChange: (value: string) => void;
+  onPromptKeyDown: React.KeyboardEventHandler<HTMLTextAreaElement>;
+  onPromptDrop: React.DragEventHandler<HTMLTextAreaElement>;
+  onPromptScroll: React.UIEventHandler<HTMLTextAreaElement>;
+  onPromptBlur: React.FocusEventHandler<HTMLTextAreaElement>;
+  promptTokenPickerState: PromptTokenPickerState;
+  hostPrimaryImageUrl: string | null;
+  populatedPromptTokenSlotIndexes: readonly (0 | 1 | 2)[];
+  extraImageUrls: readonly (string | null)[];
+  onInsertPromptTokenFromPicker: (selection: 0 | 1 | 2 | "main") => void;
+  promptTokenInlineError: string | null;
+  onGenerate: () => void;
+  inlineGenerateDisabled: boolean;
+  isGenerateBusy?: boolean;
+  costCredits?: number | null;
+  inlineGuardrailReason?: string | null;
+  modelId: string | null;
+  isModelPickerLocked: boolean;
+  isModelModalOpen: boolean;
+  modelModalAnchor: string | null;
+  effectiveModelPickerLogoSrc?: string;
+  effectiveModelPickerLabel: string;
+  onModelPickerOpen: (anchorId: string, target: HTMLElement, context?: "reference-image") => void;
+  aspect: string;
+  onAspectChange: (value: string) => void;
+  aspectOptionsForModel: AspectOption[];
+  shouldShowResolutionControl: boolean;
+  imageResolutionValue: string;
+  imageResolutionOptions: React.ComponentProps<typeof ResolutionDropdown>["options"];
+  onImageResolutionChange?: (value: string) => void;
+};
+
+export function ExpertEditPromptSelectorsColumn({
+  promptInputShellRef,
+  promptHighlightRef,
+  promptTextareaRef,
+  promptHighlightSegments,
+  promptTextValue,
+  onPromptTextChange,
+  onPromptKeyDown,
+  onPromptDrop,
+  onPromptScroll,
+  onPromptBlur,
+  promptTokenPickerState,
+  hostPrimaryImageUrl,
+  populatedPromptTokenSlotIndexes,
+  extraImageUrls,
+  onInsertPromptTokenFromPicker,
+  promptTokenInlineError,
+  onGenerate,
+  inlineGenerateDisabled,
+  isGenerateBusy = false,
+  costCredits = null,
+  inlineGuardrailReason = null,
+  modelId,
+  isModelPickerLocked,
+  isModelModalOpen,
+  modelModalAnchor,
+  effectiveModelPickerLogoSrc,
+  effectiveModelPickerLabel,
+  onModelPickerOpen,
+  aspect,
+  onAspectChange,
+  aspectOptionsForModel,
+  shouldShowResolutionControl,
+  imageResolutionValue,
+  imageResolutionOptions,
+  onImageResolutionChange,
+}: ExpertEditPromptSelectorsColumnProps) {
+  return (
+    <div className="edit-expert-column-wrapper edit-expert-column-wrapper--center edit-expert-post-stage-wrapper">
+      <ExpertEditPromptComposer
+        promptInputShellRef={promptInputShellRef}
+        promptHighlightRef={promptHighlightRef}
+        promptTextareaRef={promptTextareaRef}
+        promptHighlightSegments={promptHighlightSegments}
+        promptTextValue={promptTextValue}
+        onPromptTextChange={onPromptTextChange}
+        onPromptKeyDown={onPromptKeyDown}
+        onPromptDrop={onPromptDrop}
+        onPromptScroll={onPromptScroll}
+        onPromptBlur={onPromptBlur}
+        promptTokenPickerState={promptTokenPickerState}
+        hostPrimaryImageUrl={hostPrimaryImageUrl}
+        populatedPromptTokenSlotIndexes={populatedPromptTokenSlotIndexes}
+        extraImageUrls={extraImageUrls}
+        onInsertPromptTokenFromPicker={onInsertPromptTokenFromPicker}
+        promptTokenInlineError={promptTokenInlineError}
+        onGenerate={onGenerate}
+        inlineGenerateDisabled={inlineGenerateDisabled}
+        isGenerateBusy={isGenerateBusy}
+        costCredits={costCredits}
+        inlineGuardrailReason={inlineGuardrailReason}
+      />
+      <ExpertEditSelectorControls
+        modelId={modelId}
+        isModelPickerLocked={isModelPickerLocked}
+        isModelModalOpen={isModelModalOpen}
+        modelModalAnchor={modelModalAnchor}
+        effectiveModelPickerLogoSrc={effectiveModelPickerLogoSrc}
+        effectiveModelPickerLabel={effectiveModelPickerLabel}
+        onModelPickerOpen={onModelPickerOpen}
+        aspect={aspect}
+        onAspectChange={onAspectChange}
+        aspectOptionsForModel={aspectOptionsForModel}
+        shouldShowResolutionControl={shouldShowResolutionControl}
+        imageResolutionValue={imageResolutionValue}
+        imageResolutionOptions={imageResolutionOptions}
+        onImageResolutionChange={onImageResolutionChange}
+      />
+    </div>
+  );
+}

@@ -28,6 +28,7 @@ import { useExpertEditDocumentState } from "./useExpertEditDocumentState";
 import { useExpertEditLayerActions } from "./useExpertEditLayerActions";
 import { useExpertEditPromptTokenController } from "./useExpertEditPromptTokenController";
 import { useExpertEditSessionBridge } from "./useExpertEditSessionBridge";
+import { useExpertEditMarkupControlsRuntime } from "./useExpertEditMarkupControlsRuntime";
 import { useExpertEditPresetRuntime } from "./useExpertEditPresetRuntime";
 import { useExpertEditStageChrome } from "./useExpertEditStageChrome";
 import { useExpertEditStageHistory } from "./useExpertEditStageHistory";
@@ -42,7 +43,6 @@ import { ExpertEditInlinePostStageTools } from "./ExpertEditInlinePostStageTools
 import { ExpertEditLayersPanel, ExpertEditLayerUtilityActions } from "./ExpertEditLayersPanel";
 import { ExpertEditStageScene } from "./ExpertEditStageScene";
 import {
-  ExpertEditMarkupControlsContent,
   ExpertEditMarkupModalGeneralPanel,
   ExpertEditMarkupModalInpaintPanel,
   ExpertEditMoveControlsContent,
@@ -52,17 +52,13 @@ import {
 import { ExpertEditPresetsSurface } from "./ExpertEditPresetsSurface";
 import { ExpertEditCharacterPickerModal } from "./ExpertEditCharacterPickerModal";
 import { ExpertEditModeRailPanel } from "./ExpertEditModeRailPanel";
-import {
-  ExpertEditSecondaryReferences,
-  ExpertEditSelectorControls,
-} from "./ExpertEditReferenceControls";
-import { ExpertEditPromptComposer } from "./ExpertEditPromptComposer";
+import { ExpertEditSecondaryReferences } from "./ExpertEditReferenceControls";
+import { ExpertEditPromptSelectorsColumn } from "./ExpertEditPromptSelectorsColumn";
 import {
   COMPOSITE_REGENERATE_COHESION_PROMPT,
   INPAINT_STROKE_SIZE_DEFAULT,
   LAYER_LIMIT_REACHED_TOAST,
   LOCKED_EDIT_TOOL_MODEL_LOGO_SRC,
-  MARKUP_COLOR_DEFAULT,
   MARKUP_STROKE_SIZE_DEFAULT,
   MARKUP_STROKE_SIZE_MAX,
   STATUS_TOAST_FADE_MS,
@@ -74,7 +70,6 @@ import {
   type ExpertEditPanelViewProps,
   type InpaintMode,
   type InpaintSelectionTab,
-  type MarkupMode,
   type RailTool,
 } from "./expertEditPanelViewContract";
 export type { ExpertEditPanelViewProps } from "./expertEditPanelViewContract";
@@ -89,14 +84,6 @@ import {
   resolveExpertEditPresetLabelById,
 } from "./expertEditPresets";
 import { resolveBlobDimensions, revokeObjectUrlSafe } from "./expertEditPanelUtilities";
-import {
-  hexToHsv,
-  hsvToRgb,
-  parseHexColor,
-  rgbToHex,
-  rgbToHsv,
-  type HsvColor,
-} from "./expertEditColorUtils";
 import {
   createIdleMarkupPanPointerSession,
   type MarkupPanPointerSession,
@@ -115,7 +102,6 @@ import {
 import { buildInpaintBrushReticleCursor } from "./expertEditCursorUtils";
 import {
   clearWindowTimeoutRef,
-  isEventTargetInsideElement,
   lockDocumentCursor,
   resolveRailToolForGenerationMode,
   runPointerStageTerminalAction,
@@ -192,8 +178,6 @@ export function ExpertEditPanelView({
   });
   const primaryInputRef = React.useRef<HTMLInputElement | null>(null);
   const stageContextMenuRef = React.useRef<HTMLDivElement | null>(null);
-  const markupColorPickerAnchorRef = React.useRef<HTMLDivElement | null>(null);
-  const markupColorSaturationRef = React.useRef<HTMLDivElement | null>(null);
   const markupPanPointerSessionRef = React.useRef<MarkupPanPointerSession>(
     createIdleMarkupPanPointerSession()
   );
@@ -216,12 +200,7 @@ export function ExpertEditPanelView({
   );
   const [selectedInpaintSelectionTab, setSelectedInpaintSelectionTab] =
     React.useState<InpaintSelectionTab>("select");
-  const [selectedMarkupMode, setSelectedMarkupMode] = React.useState<MarkupMode>("pen");
   const [isMarkupExpandSelected, setIsMarkupExpandSelected] = React.useState(false);
-  const [isMarkupColorPickerOpen, setIsMarkupColorPickerOpen] = React.useState(false);
-  const [markupColorHsv, setMarkupColorHsv] = React.useState<HsvColor>(() =>
-    hexToHsv(MARKUP_COLOR_DEFAULT)
-  );
   const [isMarkupPanDragging, setIsMarkupPanDragging] = React.useState(false);
   const [isMarkupPanSpacePressed, setIsMarkupPanSpacePressed] = React.useState(false);
   const [markupStrokes, setMarkupStrokes] = React.useState<MarkupStroke[]>(() =>
@@ -313,7 +292,6 @@ export function ExpertEditPanelView({
     if (markupStrokeSize === resolvedMarkupStrokeSize) return;
     setMarkupStrokeSize(resolvedMarkupStrokeSize);
   }, [markupStrokeSize, resolvedMarkupStrokeSize]);
-  const markupColor = React.useMemo(() => rgbToHex(hsvToRgb(markupColorHsv)), [markupColorHsv]);
   const selectedStyleId = controlledSelectedStyleId ?? null;
   const {
     inlineStageWrapperRef,
@@ -927,6 +905,18 @@ export function ExpertEditPanelView({
     inpaintCollapseTimerRef,
   });
 
+  const { markupColor, renderMarkupControlsContent, selectedMarkupMode } =
+    useExpertEditMarkupControlsRuntime({
+      isVideoToolSelected,
+      isMarkupExpandSelected,
+      resolvedMarkupStrokeSize,
+      clearMarkupStrokesWithHistory,
+      closeMarkupModal,
+      openMarkupModal,
+      setSelectedRailTool,
+      setMarkupStrokeSize,
+    });
+
   const {
     beginMarkupDrawGesture,
     continueMarkupDrawGesture,
@@ -1123,142 +1113,6 @@ export function ExpertEditPanelView({
     onSessionStateChange,
     revokeObjectUrlSafe,
   });
-
-  const applyMarkupColorFromHex = React.useCallback((value: string) => {
-    const parsed = parseHexColor(value);
-    if (!parsed) return;
-    setMarkupColorHsv(rgbToHsv(parsed));
-    setIsMarkupColorPickerOpen(false);
-  }, []);
-
-  const applyMarkupSaturationValueFromPointer = React.useCallback(
-    (clientX: number, clientY: number) => {
-      const saturationSurface = markupColorSaturationRef.current;
-      if (!saturationSurface) return;
-      const rect = saturationSurface.getBoundingClientRect();
-      if (!Number.isFinite(rect.width) || !Number.isFinite(rect.height)) return;
-      if (rect.width <= 0 || rect.height <= 0) return;
-      const saturation = clampNumber((clientX - rect.left) / rect.width, 0, 1);
-      const value = 1 - clampNumber((clientY - rect.top) / rect.height, 0, 1);
-      setMarkupColorHsv((previous) => ({
-        ...previous,
-        s: saturation,
-        v: value,
-      }));
-    },
-    []
-  );
-
-  const handleMarkupSaturationPointerDown = React.useCallback(
-    (event: React.PointerEvent<HTMLDivElement>) => {
-      event.preventDefault();
-      applyMarkupSaturationValueFromPointer(event.clientX, event.clientY);
-      if (event.currentTarget.setPointerCapture) {
-        event.currentTarget.setPointerCapture(event.pointerId);
-      }
-    },
-    [applyMarkupSaturationValueFromPointer]
-  );
-
-  const handleMarkupSaturationPointerMove = React.useCallback(
-    (event: React.PointerEvent<HTMLDivElement>) => {
-      const isPointerActive =
-        event.buttons > 0 || event.currentTarget.hasPointerCapture(event.pointerId);
-      if (!isPointerActive) return;
-      event.preventDefault();
-      applyMarkupSaturationValueFromPointer(event.clientX, event.clientY);
-    },
-    [applyMarkupSaturationValueFromPointer]
-  );
-
-  const handleMarkupSaturationPointerUp = React.useCallback(
-    (event: React.PointerEvent<HTMLDivElement>) => {
-      if (event.currentTarget.hasPointerCapture(event.pointerId)) {
-        event.currentTarget.releasePointerCapture(event.pointerId);
-      }
-      setIsMarkupColorPickerOpen(false);
-    },
-    []
-  );
-
-  const handleMarkupHueChange = React.useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
-    const nextHue = clampNumber(Number(event.target.value), 0, 360);
-    setMarkupColorHsv((previous) => ({
-      ...previous,
-      h: nextHue,
-    }));
-  }, []);
-
-  React.useEffect(() => {
-    if (!isVideoToolSelected) {
-      setIsMarkupColorPickerOpen(false);
-    }
-  }, [isVideoToolSelected]);
-
-  React.useEffect(() => {
-    if (!isMarkupColorPickerOpen || typeof document === "undefined") return;
-    const handlePointerDown = (event: PointerEvent) => {
-      if (isEventTargetInsideElement(markupColorPickerAnchorRef.current, event.target)) return;
-      setIsMarkupColorPickerOpen(false);
-    };
-    const handleEscape = (event: KeyboardEvent) => {
-      if (event.key !== "Escape") return;
-      setIsMarkupColorPickerOpen(false);
-    };
-    document.addEventListener("pointerdown", handlePointerDown);
-    document.addEventListener("keydown", handleEscape);
-    return () => {
-      document.removeEventListener("pointerdown", handlePointerDown);
-      document.removeEventListener("keydown", handleEscape);
-    };
-  }, [isMarkupColorPickerOpen]);
-
-  const renderMarkupControlsContent = React.useCallback(
-    (scope: "inline" | "modal") => (
-      <ExpertEditMarkupControlsContent
-        scope={scope}
-        selectedMarkupMode={selectedMarkupMode}
-        isVideoToolSelected={isVideoToolSelected}
-        isMarkupExpandSelected={isMarkupExpandSelected}
-        resolvedMarkupStrokeSize={resolvedMarkupStrokeSize}
-        markupColor={markupColor}
-        markupColorHsv={markupColorHsv}
-        markupColorPickerAnchorRef={markupColorPickerAnchorRef}
-        markupColorSaturationRef={markupColorSaturationRef}
-        isMarkupColorPickerOpen={isMarkupColorPickerOpen}
-        setSelectedRailTool={setSelectedRailTool}
-        setSelectedMarkupMode={setSelectedMarkupMode}
-        setMarkupStrokeSize={setMarkupStrokeSize}
-        setIsMarkupColorPickerOpen={setIsMarkupColorPickerOpen}
-        clearMarkupStrokesWithHistory={clearMarkupStrokesWithHistory}
-        closeMarkupModal={closeMarkupModal}
-        openMarkupModal={openMarkupModal}
-        applyMarkupColorFromHex={applyMarkupColorFromHex}
-        handleMarkupSaturationPointerDown={handleMarkupSaturationPointerDown}
-        handleMarkupSaturationPointerMove={handleMarkupSaturationPointerMove}
-        handleMarkupSaturationPointerUp={handleMarkupSaturationPointerUp}
-        handleMarkupHueChange={handleMarkupHueChange}
-      />
-    ),
-    [
-      applyMarkupColorFromHex,
-      clearMarkupStrokesWithHistory,
-      closeMarkupModal,
-      handleMarkupHueChange,
-      handleMarkupSaturationPointerDown,
-      handleMarkupSaturationPointerMove,
-      handleMarkupSaturationPointerUp,
-      isMarkupColorPickerOpen,
-      isMarkupExpandSelected,
-      isVideoToolSelected,
-      markupColor,
-      markupColorHsv,
-      openMarkupModal,
-      resolvedMarkupStrokeSize,
-      selectedMarkupMode,
-      setSelectedRailTool,
-    ]
-  );
 
   const renderMoveControlsContent = React.useCallback(
     (scope: "inline" | "modal") => (
@@ -1576,47 +1430,43 @@ export function ExpertEditPanelView({
           />
         }
         promptAndSelectors={
-          <div className="edit-expert-column-wrapper edit-expert-column-wrapper--center edit-expert-post-stage-wrapper">
-            <ExpertEditPromptComposer
-              promptInputShellRef={promptInputShellRef}
-              promptHighlightRef={promptHighlightRef}
-              promptTextareaRef={promptTextareaRef}
-              promptHighlightSegments={promptHighlightSegments}
-              promptTextValue={promptTextValue}
-              onPromptTextChange={handlePromptTextChange}
-              onPromptKeyDown={handlePromptKeyDown}
-              onPromptDrop={handlePromptDropWithTokenInsert}
-              onPromptScroll={handlePromptScroll}
-              onPromptBlur={closePromptTokenPicker}
-              promptTokenPickerState={promptTokenPickerState}
-              hostPrimaryImageUrl={hostPrimaryImageUrl}
-              populatedPromptTokenSlotIndexes={populatedPromptTokenSlotIndexes}
-              extraImageUrls={extraImageUrls}
-              onInsertPromptTokenFromPicker={insertPromptTokenFromPicker}
-              promptTokenInlineError={promptTokenInlineError}
-              onGenerate={handleInlineGenerate}
-              inlineGenerateDisabled={inlineGenerateDisabled}
-              isGenerateBusy={isGenerateBusy}
-              costCredits={costCredits}
-              inlineGuardrailReason={inlineGuardrailReason}
-            />
-            <ExpertEditSelectorControls
-              modelId={modelId}
-              isModelPickerLocked={isModelPickerLocked}
-              isModelModalOpen={isModelModalOpen}
-              modelModalAnchor={modelModalAnchor}
-              effectiveModelPickerLogoSrc={effectiveModelPickerLogoSrc}
-              effectiveModelPickerLabel={effectiveModelPickerLabel}
-              onModelPickerOpen={onModelPickerOpen}
-              aspect={aspect}
-              onAspectChange={onAspectChange}
-              aspectOptionsForModel={aspectOptionsForModel}
-              shouldShowResolutionControl={shouldShowResolutionControl}
-              imageResolutionValue={imageResolutionValue}
-              imageResolutionOptions={imageResolutionOptions}
-              onImageResolutionChange={onImageResolutionChange}
-            />
-          </div>
+          <ExpertEditPromptSelectorsColumn
+            promptInputShellRef={promptInputShellRef}
+            promptHighlightRef={promptHighlightRef}
+            promptTextareaRef={promptTextareaRef}
+            promptHighlightSegments={promptHighlightSegments}
+            promptTextValue={promptTextValue}
+            onPromptTextChange={handlePromptTextChange}
+            onPromptKeyDown={handlePromptKeyDown}
+            onPromptDrop={handlePromptDropWithTokenInsert}
+            onPromptScroll={handlePromptScroll}
+            onPromptBlur={closePromptTokenPicker}
+            promptTokenPickerState={promptTokenPickerState}
+            hostPrimaryImageUrl={hostPrimaryImageUrl}
+            populatedPromptTokenSlotIndexes={populatedPromptTokenSlotIndexes}
+            extraImageUrls={extraImageUrls}
+            onInsertPromptTokenFromPicker={insertPromptTokenFromPicker}
+            promptTokenInlineError={promptTokenInlineError}
+            onGenerate={handleInlineGenerate}
+            inlineGenerateDisabled={inlineGenerateDisabled}
+            isGenerateBusy={isGenerateBusy}
+            costCredits={costCredits}
+            inlineGuardrailReason={inlineGuardrailReason}
+            modelId={modelId}
+            isModelPickerLocked={isModelPickerLocked}
+            isModelModalOpen={isModelModalOpen}
+            modelModalAnchor={modelModalAnchor}
+            effectiveModelPickerLogoSrc={effectiveModelPickerLogoSrc}
+            effectiveModelPickerLabel={effectiveModelPickerLabel}
+            onModelPickerOpen={onModelPickerOpen}
+            aspect={aspect}
+            onAspectChange={onAspectChange}
+            aspectOptionsForModel={aspectOptionsForModel}
+            shouldShowResolutionControl={shouldShowResolutionControl}
+            imageResolutionValue={imageResolutionValue}
+            imageResolutionOptions={imageResolutionOptions}
+            onImageResolutionChange={onImageResolutionChange}
+          />
         }
         statusToast={
           statusToastMessage && !isLayerLimitStatusToast ? (

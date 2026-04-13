@@ -155,6 +155,7 @@ export type AiStudioSessionSnapshotV2 = {
   workspace: AiStudioSessionWorkspaceV1;
   outputs: AiStudioSessionOutputsV1;
   agent: AiStudioSessionAgentV1;
+  // Legacy compatibility extension for older canvas sessions. Canonical /ai-studio writes omit this.
   canvas?: AiStudioSessionCanvasSnapshotV1;
   expertEdit?: AiStudioSessionExpertEditSnapshotV1;
 };
@@ -204,6 +205,7 @@ export type BuildAiStudioSessionSnapshotInput = {
   latestAgentPrompt: string | null;
   promptOrigin: "manual" | "agent" | "reference";
   chatModeEnabled: boolean;
+  // Legacy compatibility input for optional canvas session serialization. Canonical /ai-studio writes omit this.
   canvasState?: AiStudioSessionCanvasState;
   expertEditSessionState?: ExpertEditSessionState | null;
 };

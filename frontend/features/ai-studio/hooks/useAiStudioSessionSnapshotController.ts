@@ -10,7 +10,6 @@ import {
   type AiStudioSessionSnapshot,
   type AiStudioSessionSnapshotV2,
 } from "../logic/sessionSnapshot";
-import type { AiStudioSessionCanvasState } from "../logic/sessionSnapshotCanvas";
 import {
   buildAiStudioSessionHydrationPayload,
   type AiStudioSessionHydrationPayload,
@@ -314,7 +313,6 @@ export const useAiStudioSessionSnapshotController = ({
       latestAgentPrompt,
       promptOrigin,
       chatModeEnabled,
-      canvasState,
       expertEditSessionState,
     }: {
       sessionId: string;
@@ -324,7 +322,6 @@ export const useAiStudioSessionSnapshotController = ({
       latestAgentPrompt: string | null;
       promptOrigin: "manual" | "agent" | "reference";
       chatModeEnabled: boolean;
-      canvasState?: AiStudioSessionCanvasState;
       expertEditSessionState?: ExpertEditSessionState | null;
     }): AiStudioSessionSnapshotV2 =>
       buildAiStudioSessionSnapshot({
@@ -370,7 +367,6 @@ export const useAiStudioSessionSnapshotController = ({
         latestAgentPrompt,
         promptOrigin,
         chatModeEnabled,
-        canvasState,
         expertEditSessionState,
       }),
     [

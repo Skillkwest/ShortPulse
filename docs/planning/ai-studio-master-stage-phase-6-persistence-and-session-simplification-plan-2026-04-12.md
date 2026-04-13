@@ -86,6 +86,7 @@ Phase 6 now starts from the stable Phase 5 export boundary and should target the
    - `frontend/features/ai-studio/logic/__tests__/sessionPersistencePolicy.test.ts`
    - `frontend/features/ai-studio/logic/__tests__/sessionShadowPersistence.test.ts`
    - active environment/docs references in `README.md`, `frontend/.env.example`, `docs/local-development.md`, `docs/deployment.md`, `docs/troubleshooting.md`, `docs/api/api-internal-routes.md`, and `docs/sops/sop_ai_studio_session_persistence_reference_only.md`.
+10. Removed the dead `canvasState` write surface from `frontend/features/ai-studio/hooks/useAiStudioSessionSnapshotController.ts`, which makes the canonical `/ai-studio` snapshot controller explicit about only writing workspace, outputs, agent state, and the bounded Expert Edit extension while leaving `canvas` as a read-only compatibility extension in the shared snapshot schema.
 
 ## Next Slice
 1. Audit the generic page snapshot payload for other editor-only state that should move behind dedicated optional extensions or be removed entirely from durable writes.

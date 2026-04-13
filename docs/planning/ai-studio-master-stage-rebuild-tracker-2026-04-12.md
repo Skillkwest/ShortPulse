@@ -112,24 +112,14 @@ The next execution lane now shifts to persistence and session simplification:
 4. do not widen into Phase 7 deletions until the persistence contract is explicit.
 
 Completed slice on 2026-04-12:
-1. Extracted stage viewport/artboard ownership from `ExpertEditPanelView.tsx` into:
-   - `frontend/features/ai-studio/components/edit/useExpertEditStageViewport.ts`
-   - `frontend/features/ai-studio/components/edit/expertEditStageViewportGeometry.ts`
-2. Moved inline/modal stage refs, viewport sizing, modal shell sizing, artboard fit math, and ref-aware client-to-surface geometry helpers behind the new stage-core seam.
-3. Extracted the inline and expanded modal stage-shell mounts into `frontend/features/ai-studio/components/edit/ExpertEditStageSurface.tsx`, reducing direct render-shell ownership in `ExpertEditPanelView.tsx`.
-4. Extracted transform-session ownership into `frontend/features/ai-studio/components/edit/useExpertEditTransformSession.tsx` and `frontend/features/ai-studio/components/edit/ExpertEditTransformOverlay.tsx`, moving transform pointer refs, history application, controller wiring, and selected-layer overlay rendering behind a dedicated seam.
-5. Removed untracked generated `.js` shadow files from the AI Studio edit path so lint/tests resolve the canonical TypeScript sources during Phase 3 validation.
-6. Extracted document/layer state ownership into `frontend/features/ai-studio/components/edit/useExpertEditDocumentState.ts`, moving layer stack state, selection, rename/delete/reorder behavior, primary ingress wiring, and layer-derived selectors behind a dedicated document-store seam.
-7. Extracted inline/modal layers UI and shared layer utility actions into `frontend/features/ai-studio/components/edit/ExpertEditLayersPanel.tsx`, reducing layer-surface rendering and layer-action button ownership inside `ExpertEditPanelView.tsx`.
-8. Extracted manual flatten and remove-background execution into `frontend/features/ai-studio/components/edit/useExpertEditLayerActions.ts`, moving pending-state ownership, flatten export orchestration, and remove-background dispatch behind a dedicated layer-actions seam.
-9. Extracted the session bridge into `frontend/features/ai-studio/components/edit/useExpertEditSessionBridge.ts`, moving session-dispatch refs, host-sync orchestration, and session-owned unmount cleanup out of `ExpertEditPanelView.tsx`.
-10. Extracted stage history and general undo/redo/reset orchestration into `frontend/features/ai-studio/components/edit/useExpertEditStageHistory.ts`, moving markup and inpaint history state, baseline refs, session restore/apply effects, and clear/reset action wiring out of `ExpertEditPanelView.tsx`.
-11. Extracted stage chrome orchestration into `frontend/features/ai-studio/components/edit/useExpertEditStageChrome.ts`, moving modal open/close behavior, stage context-menu state, inline pan-capture handlers, and modal/context-menu lifecycle effects out of `ExpertEditPanelView.tsx` while keeping the upstream modal-open state local for viewport geometry.
-12. Extracted stage lifecycle behavior into `frontend/features/ai-studio/components/edit/useExpertEditStageLifecycle.ts`, moving stage wheel listeners, modal history hotkeys, markup-pan keyboard state, cursor cleanup, and inpaint-collapse lifecycle behavior out of `ExpertEditPanelView.tsx`.
-13. Extracted stage controls render composition into `frontend/features/ai-studio/components/edit/ExpertEditStageControls.tsx`, moving markup/move/inpaint panel rendering, modal general controls, prompt preset toolbar rendering, and preset utility action rendering out of `ExpertEditPanelView.tsx`.
-14. Extracted stage-scene render composition into `frontend/features/ai-studio/components/edit/ExpertEditStageScene.tsx`, moving layer-frame rendering, markup stroke overlays, and primary stage busy-overlay rendering out of `ExpertEditPanelView.tsx`.
-15. Extracted the inline post-stage tool shell into `frontend/features/ai-studio/components/edit/ExpertEditInlinePostStageTools.tsx`, moving the inline inpaint/move/markup tool row and collapse shell out of `ExpertEditPanelView.tsx` while leaving prompt, selector, and stage-routing behavior unchanged.
-16. Closed Phase 3 once the remaining `ExpertEditPanelView.tsx` ownership was primarily orchestration glue and later-phase interaction/runtime behavior rather than missing stage-core seams.
+1. Slimmed `frontend/features/ai-studio/components/edit/expertEditSessionState.ts` so new Expert Edit session payloads persist only durable layers, current markup strokes, and the current inpaint mask snapshot.
+2. Removed full markup and inpaint undo/redo stacks from new session writes in `frontend/features/ai-studio/components/edit/useExpertEditSessionHostSync.ts`, which keeps transient runtime history out of durable persistence.
+3. Kept backward-compatible hydration in `frontend/features/ai-studio/components/edit/expertEditLayerSessionUtils.ts` by restoring current markup strokes and the current inpaint mask from older `history.present` payloads when legacy session snapshots load.
+4. Updated focused restore/persistence coverage in `frontend/features/ai-studio/components/__tests__/ExpertEditPanelView.test.tsx` so the canonical edit path now verifies:
+   - durable writes carry current markup strokes instead of full history,
+   - durable writes carry the current inpaint snapshot instead of full history,
+   - older history-based snapshots still hydrate correctly,
+   - remount restores current stage content without restoring transient undo/redo stacks.
 
 ## Phase Links
 1. `docs/planning/ai-studio-master-stage-phase-1-target-contract-and-bakeoff-plan-2026-04-12.md`

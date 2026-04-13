@@ -9,8 +9,7 @@ import {
   type LayerTransform,
 } from "./expertEditLayerTransformUtils";
 import {
-  cloneInpaintHistoryState,
-  cloneMarkupHistoryState,
+  cloneInpaintMaskSnapshot,
   cloneMarkupStrokesSnapshot,
   type ExpertEditInpaintHistoryState,
   type ExpertEditLayerSessionLayer,
@@ -477,16 +476,24 @@ export const resolveInitialExpertEditSessionState = ({
     referenceImageUrl,
     layerState: sessionState?.layers,
   });
-  const markupHistory = sessionState?.markup?.history
-    ? cloneMarkupHistoryState(sessionState.markup.history)
-    : createEmptyMarkupHistoryState();
-  const markupStrokesFromHistory = cloneMarkupStrokesSnapshot(markupHistory.present);
-  const inpaintHistory = sessionState?.inpaint?.history
-    ? cloneInpaintHistoryState(sessionState.inpaint.history)
-    : createEmptyInpaintHistoryState();
+  const markupStrokes =
+    sessionState?.markup?.strokes && sessionState.markup.strokes.length > 0
+      ? cloneMarkupStrokesSnapshot(sessionState.markup.strokes)
+      : sessionState?.markup?.history
+        ? cloneMarkupStrokesSnapshot(sessionState.markup.history.present)
+        : [];
+  const markupHistory = createEmptyMarkupHistoryState();
+  markupHistory.present = cloneMarkupStrokesSnapshot(markupStrokes);
+  const inpaintSnapshot = sessionState?.inpaint?.snapshot
+    ? cloneInpaintMaskSnapshot(sessionState.inpaint.snapshot)
+    : sessionState?.inpaint?.history
+      ? cloneInpaintMaskSnapshot(sessionState.inpaint.history.present)
+      : createEmptyInpaintHistoryState().present;
+  const inpaintHistory = createEmptyInpaintHistoryState();
+  inpaintHistory.present = cloneInpaintMaskSnapshot(inpaintSnapshot);
   return {
     layerState,
-    markupStrokes: markupStrokesFromHistory,
+    markupStrokes,
     markupHistory,
     inpaintHistory,
   };

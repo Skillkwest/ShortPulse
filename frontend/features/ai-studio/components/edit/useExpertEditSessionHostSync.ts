@@ -1,6 +1,6 @@
 import React from "react";
 
-import type { InpaintHistoryState, MarkupHistoryState } from "./expertEditPanelViewContract";
+import type { InpaintMaskSnapshot } from "./useInpaintMaskController";
 import { defaultLayerTransform } from "./expertEditLayerTransformUtils";
 import {
   cloneLayerForSessionState,
@@ -15,8 +15,7 @@ import {
   EXPERT_EDIT_SESSION_STATE_VERSION,
   areExpertEditSessionStatesEqual,
   cloneExpertEditSessionState,
-  cloneInpaintHistoryState,
-  cloneMarkupHistoryState,
+  cloneInpaintMaskSnapshot,
   cloneMarkupStrokesSnapshot,
   type ExpertEditSessionState,
 } from "./expertEditSessionState";
@@ -31,8 +30,7 @@ type UseExpertEditSessionHostSyncArgs = {
   selectedLayerIndex: number | null;
   layers: ExpertEditLayer[];
   markupStrokes: MarkupStroke[];
-  markupHistoryState: MarkupHistoryState;
-  inpaintHistoryState: InpaintHistoryState;
+  inpaintSnapshot: InpaintMaskSnapshot;
   referenceImageUrl: string | null;
   hostPrimaryImageUrl: string | null;
   removeBackgroundPendingLayerId: string | null;
@@ -56,8 +54,7 @@ export function useExpertEditSessionHostSync({
   selectedLayerIndex,
   layers,
   markupStrokes,
-  markupHistoryState,
-  inpaintHistoryState,
+  inpaintSnapshot,
   referenceImageUrl,
   hostPrimaryImageUrl,
   removeBackgroundPendingLayerId,
@@ -94,18 +91,16 @@ export function useExpertEditSessionHostSync({
       },
       markup: {
         strokes: cloneMarkupStrokesSnapshot(markupStrokes),
-        history: cloneMarkupHistoryState(markupHistoryState),
       },
       inpaint: {
-        history: cloneInpaintHistoryState(inpaintHistoryState),
+        snapshot: cloneInpaintMaskSnapshot(inpaintSnapshot),
       },
     };
   }, [
     foundationLayerId,
-    inpaintHistoryState,
+    inpaintSnapshot,
     layerIdCounterRef,
     layers,
-    markupHistoryState,
     markupStrokes,
     selectedLayerIndex,
   ]);

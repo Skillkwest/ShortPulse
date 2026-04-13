@@ -2,10 +2,10 @@ import React from "react";
 
 import { clearWindowAnimationFrameRef } from "./expertEditInteractionUtils";
 import { collectOwnedLayerImageUrls, type ExpertEditLayer } from "./expertEditLayerSessionUtils";
-import type { InpaintHistoryState, MarkupHistoryState } from "./expertEditPanelViewContract";
 import type { ExpertEditSessionState } from "./expertEditSessionState";
 import { useExpertEditSessionHostSync } from "./useExpertEditSessionHostSync";
 import type { MarkupStroke } from "./markupStrokeController";
+import type { InpaintMaskSnapshot } from "./useInpaintMaskController";
 
 type UseExpertEditSessionBridgeArgs = {
   initialReferenceImageUrl: string | null;
@@ -13,8 +13,7 @@ type UseExpertEditSessionBridgeArgs = {
   selectedLayerIndex: number | null;
   layers: ExpertEditLayer[];
   markupStrokes: MarkupStroke[];
-  markupHistoryState: MarkupHistoryState;
-  inpaintHistoryState: InpaintHistoryState;
+  inpaintSnapshot: InpaintMaskSnapshot;
   referenceImageUrl: string | null;
   hostPrimaryImageUrl: string | null;
   removeBackgroundPendingLayerId: string | null;
@@ -33,8 +32,7 @@ export function useExpertEditSessionBridge({
   selectedLayerIndex,
   layers,
   markupStrokes,
-  markupHistoryState,
-  inpaintHistoryState,
+  inpaintSnapshot,
   referenceImageUrl,
   hostPrimaryImageUrl,
   removeBackgroundPendingLayerId,
@@ -58,8 +56,7 @@ export function useExpertEditSessionBridge({
     selectedLayerIndex,
     layers,
     markupStrokes,
-    markupHistoryState,
-    inpaintHistoryState,
+    inpaintSnapshot,
     referenceImageUrl,
     hostPrimaryImageUrl,
     removeBackgroundPendingLayerId,

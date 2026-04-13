@@ -715,7 +715,6 @@ export function ExpertEditPanelView({
   });
 
   const {
-    markupHistoryState,
     inpaintHistoryState,
     beginInpaintGestureHistory,
     finalizeInpaintGestureHistory,
@@ -988,8 +987,7 @@ export function ExpertEditPanelView({
     selectedLayerIndex,
     layers,
     markupStrokes,
-    markupHistoryState,
-    inpaintHistoryState,
+    inpaintSnapshot: inpaintHistoryState.present,
     referenceImageUrl,
     hostPrimaryImageUrl,
     removeBackgroundPendingLayerId,

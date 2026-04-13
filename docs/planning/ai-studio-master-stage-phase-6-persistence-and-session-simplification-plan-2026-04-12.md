@@ -55,5 +55,19 @@ Phase 6 now starts from the stable Phase 5 export boundary and should target the
 3. keep backward-compatible hydration for older snapshots while slimming new writes,
 4. avoid widening into Phase 7 deletions until the persistence contract is explicit.
 
+## Completed Slice On 2026-04-12
+1. Slimmed `frontend/features/ai-studio/components/edit/expertEditSessionState.ts` so new Expert Edit session writes persist only durable layer state, current markup strokes, and the current inpaint mask snapshot.
+2. Removed full markup and inpaint undo/redo stacks from new persistence writes in `frontend/features/ai-studio/components/edit/useExpertEditSessionHostSync.ts`, which keeps transient runtime history out of durable session payloads.
+3. Kept backward-compatible hydration in `frontend/features/ai-studio/components/edit/expertEditLayerSessionUtils.ts` by restoring current markup strokes and the current inpaint mask from older `history.present` payloads when legacy session snapshots are loaded.
+4. Updated focused restore/persistence coverage in `frontend/features/ai-studio/components/__tests__/ExpertEditPanelView.test.tsx` so the canonical edit path now asserts:
+   - durable writes carry markup strokes instead of full history,
+   - durable writes carry an inpaint snapshot instead of full history,
+   - older history-based snapshots still hydrate correctly,
+   - remount restores current stage content without restoring transient undo/redo stacks.
+
+## Next Slice
+1. Trace the canonical page/session snapshot bridge and remove any remaining Expert Edit persistence fields that are still carrying transient editor runtime rather than durable document state.
+2. Keep older session hydration readable during the migration window, but normalize new writes to the slimmer durable contract only.
+
 ## Rollback Note
 If snapshot migration causes unacceptable restore regressions, keep a read-only compatibility adapter for older snapshots while continuing to write only the new snapshot format.

@@ -320,18 +320,9 @@ const createEmptyExpertEditSessionState = (): ExpertEditSessionState => ({
   },
   markup: {
     strokes: [],
-    history: {
-      past: [],
-      present: [],
-      future: [],
-    },
   },
   inpaint: {
-    history: {
-      past: [],
-      present: { layers: [] },
-      future: [],
-    },
+    snapshot: { layers: [] },
   },
 });
 
@@ -348,11 +339,6 @@ const createSessionStateWithMarkupStroke = (): ExpertEditSessionState => {
   };
   sessionState.markup = {
     strokes: [stroke],
-    history: {
-      past: [],
-      present: [stroke],
-      future: [],
-    },
   };
   return sessionState;
 };
@@ -742,23 +728,8 @@ describe("ExpertEditPanelView", () => {
           ],
         },
       ],
-      history: {
-        past: [],
-        present: [
-          {
-            id: "markup-stroke-1",
-            color: "#f43f5e",
-            sizeRatio: 0.01,
-            points: [
-              { sceneX: -0.12, sceneY: -0.08 },
-              { sceneX: 0.16, sceneY: 0.12 },
-            ],
-          },
-        ],
-        future: [],
-      },
     };
-    sessionState.inpaint.history.present = {
+    sessionState.inpaint.snapshot = {
       layers: [
         {
           layerId: "layer-1",
@@ -782,13 +753,13 @@ describe("ExpertEditPanelView", () => {
     const latestState = onSessionStateChange.mock.calls.at(-1)?.[0] as ExpertEditSessionState;
     expect(latestState?.layers.layers).toHaveLength(2);
     expect(latestState?.layers.selectedLayerIndex).toBe(1);
-    expect(latestState?.markup.history.present).toHaveLength(1);
+    expect(latestState?.markup.strokes).toHaveLength(1);
 
     unmount();
     expect(revokeObjectURLMock).not.toHaveBeenCalledWith("blob:session-layer-2");
   });
 
-  it("restores inpaint mask history present snapshot from session state on mount", () => {
+  it("restores inpaint mask snapshot from session state on mount", () => {
     const sessionState = createEmptyExpertEditSessionState();
     const restoredSnapshot: InpaintMaskSnapshot = {
       layers: [
@@ -800,7 +771,7 @@ describe("ExpertEditPanelView", () => {
         },
       ],
     };
-    sessionState.inpaint.history.present = restoredSnapshot;
+    sessionState.inpaint.snapshot = restoredSnapshot;
     const restoreMaskSnapshot = vi.fn();
     const useInpaintMaskControllerSpy = vi
       .spyOn(InpaintMaskControllerModule, "useInpaintMaskController")
@@ -830,7 +801,85 @@ describe("ExpertEditPanelView", () => {
     }
   });
 
-  it("preserves markup strokes and history across unmount/remount via unified session state", async () => {
+  it("hydrates legacy markup and inpaint history payloads from older session snapshots", async () => {
+    const legacyMarkupStroke = {
+      id: "markup-stroke-legacy",
+      color: "#f43f5e",
+      sizeRatio: 0.011,
+      points: [
+        { sceneX: -0.1, sceneY: -0.08 },
+        { sceneX: 0.12, sceneY: 0.09 },
+      ],
+    };
+    const legacyInpaintSnapshot: InpaintMaskSnapshot = {
+      layers: [
+        {
+          layerId: "layer-1",
+          width: 2,
+          height: 2,
+          alpha: new Uint8ClampedArray([0, 255, 255, 0]),
+        },
+      ],
+    };
+    const legacySessionState = {
+      ...createEmptyExpertEditSessionState(),
+      version: 1 as const,
+      markup: {
+        strokes: [],
+        history: {
+          past: [[legacyMarkupStroke]],
+          present: [legacyMarkupStroke],
+          future: [],
+        },
+      },
+      inpaint: {
+        history: {
+          past: [],
+          present: legacyInpaintSnapshot,
+          future: [],
+        },
+      } as ExpertEditSessionState["inpaint"],
+    } as ExpertEditSessionState;
+    const restoreMaskSnapshot = vi.fn();
+    const useInpaintMaskControllerSpy = vi
+      .spyOn(InpaintMaskControllerModule, "useInpaintMaskController")
+      .mockReturnValue({
+        overlayCanvasRef: { current: null },
+        modalOverlayCanvasRef: { current: null },
+        hasSelectedLayerMask: true,
+        imageHasInteractiveMask: true,
+        captureMaskSnapshot: vi.fn(() => ({ layers: [] })),
+        restoreMaskSnapshot,
+        clearAllMasks: vi.fn(),
+        clearSelectedLayerMask: vi.fn(),
+        invertSelectedLayerMask: vi.fn(),
+        exportSelectedLayerMaskBlob: vi.fn(async () => null),
+        onPointerDown: vi.fn(),
+        onPointerMove: vi.fn(),
+        onPointerUp: vi.fn(),
+        onPointerCancel: vi.fn(),
+        onPointerLeave: vi.fn(),
+      });
+    try {
+      render(
+        <ExpertEditPanelView
+          {...baseProps}
+          referenceImageUrl="https://example.com/legacy-session.png"
+          sessionState={legacySessionState}
+        />
+      );
+      await waitFor(() =>
+        expect(
+          document.querySelectorAll(".edit-expert-markup-strokes-overlay polyline").length
+        ).toBeGreaterThan(0)
+      );
+      expect(restoreMaskSnapshot).toHaveBeenCalledWith(legacyInpaintSnapshot);
+    } finally {
+      useInpaintMaskControllerSpy.mockRestore();
+    }
+  });
+
+  it("preserves markup strokes across unmount/remount via unified session state without restoring undo history", async () => {
     const sessionState = createEmptyExpertEditSessionState();
     const persistedStroke = {
       id: "markup-stroke-2",
@@ -843,11 +892,6 @@ describe("ExpertEditPanelView", () => {
     };
     sessionState.markup = {
       strokes: [persistedStroke],
-      history: {
-        past: [[]],
-        present: [persistedStroke],
-        future: [],
-      },
     };
     const onSessionStateChange = vi.fn();
     const firstRender = render(
@@ -868,7 +912,7 @@ describe("ExpertEditPanelView", () => {
     const persistedSessionState = onSessionStateChange.mock.calls.at(-1)?.[0] as
       | ExpertEditSessionState
       | undefined;
-    expect(persistedSessionState?.markup.history.present).toHaveLength(1);
+    expect(persistedSessionState?.markup.strokes).toHaveLength(1);
 
     firstRender.unmount();
 
@@ -889,23 +933,13 @@ describe("ExpertEditPanelView", () => {
     );
 
     const expandedModal = await screen.findByRole("dialog", { name: /expanded markup canvas/i });
-    const undoButton = within(expandedModal).getByRole("button", { name: /undo action/i });
-    await waitFor(() => expect(undoButton).toBeEnabled());
-    fireEvent.click(undoButton);
-    await waitFor(() =>
-      expect(
-        expandedModal.querySelectorAll(".edit-expert-markup-strokes-overlay polyline").length
-      ).toBe(0)
-    );
-
-    const redoButton = within(expandedModal).getByRole("button", { name: /redo action/i });
-    await waitFor(() => expect(redoButton).toBeEnabled());
-    fireEvent.click(redoButton);
     await waitFor(() =>
       expect(
         expandedModal.querySelectorAll(".edit-expert-markup-strokes-overlay polyline").length
       ).toBeGreaterThan(0)
     );
+    expect(within(expandedModal).getByRole("button", { name: /undo action/i })).toBeDisabled();
+    expect(within(expandedModal).getByRole("button", { name: /redo action/i })).toBeDisabled();
   });
 
   it("keeps Remove Background disabled when generate is globally disabled", () => {

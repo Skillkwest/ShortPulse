@@ -6,7 +6,8 @@
 import type { MarkupStroke } from "./markupStrokeController";
 import { areInpaintMaskSnapshotsEqual, type InpaintMaskSnapshot } from "./useInpaintMaskController";
 
-export const EXPERT_EDIT_SESSION_STATE_VERSION = 1 as const;
+export const EXPERT_EDIT_SESSION_STATE_VERSION = 2 as const;
+export type ExpertEditSessionStateVersion = 1 | typeof EXPERT_EDIT_SESSION_STATE_VERSION;
 
 export type ExpertEditLayerSessionTransform = {
   translateXRatio: number;
@@ -46,15 +47,16 @@ export type ExpertEditInpaintHistoryState = {
 
 export type ExpertEditMarkupSessionState = {
   strokes: MarkupStroke[];
-  history: ExpertEditMarkupHistoryState;
+  history?: ExpertEditMarkupHistoryState;
 };
 
 export type ExpertEditInpaintSessionState = {
-  history: ExpertEditInpaintHistoryState;
+  snapshot: InpaintMaskSnapshot;
+  history?: ExpertEditInpaintHistoryState;
 };
 
 export type ExpertEditSessionState = {
-  version: typeof EXPERT_EDIT_SESSION_STATE_VERSION;
+  version: ExpertEditSessionStateVersion;
   layers: ExpertEditLayerSessionState;
   markup: ExpertEditMarkupSessionState;
   inpaint: ExpertEditInpaintSessionState;
@@ -128,10 +130,9 @@ export const cloneExpertEditSessionState = (
   layers: cloneLayerSessionState(state.layers),
   markup: {
     strokes: cloneMarkupStrokesSnapshot(state.markup.strokes),
-    history: cloneMarkupHistoryState(state.markup.history),
   },
   inpaint: {
-    history: cloneInpaintHistoryState(state.inpaint.history),
+    snapshot: cloneInpaintMaskSnapshot(state.inpaint.snapshot),
   },
 });
 
@@ -246,5 +247,4 @@ export const areExpertEditSessionStatesEqual = (
   left.version === right.version &&
   areLayerSessionStatesEqual(left.layers, right.layers) &&
   areMarkupStrokeSnapshotsEqual(left.markup.strokes, right.markup.strokes) &&
-  areMarkupHistoryStatesEqual(left.markup.history, right.markup.history) &&
-  areInpaintHistoryStatesEqual(left.inpaint.history, right.inpaint.history);
+  areInpaintMaskSnapshotsEqual(left.inpaint.snapshot, right.inpaint.snapshot);

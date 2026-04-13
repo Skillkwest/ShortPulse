@@ -34,11 +34,7 @@ import { useReferencePropertiesConstraintEffects } from "../useReferenceProperti
 import { useReferencePropertiesDerivedState } from "../useReferencePropertiesDerivedState";
 import { useReferencePropertiesInteractions } from "../useReferencePropertiesInteractions";
 import { useCreateCharacterModeController } from "../create/useCreateCharacterModeController";
-import {
-  areInpaintMaskSnapshotsEqual,
-  type InpaintMaskSnapshot,
-  useInpaintMaskController,
-} from "./useInpaintMaskController";
+import { useInpaintMaskController } from "./useInpaintMaskController";
 import {
   createIdleMarkupDrawPointerSession,
   resolveMarkupStrokePointRadiusPx,
@@ -52,6 +48,7 @@ import { useExpertEditDocumentState } from "./useExpertEditDocumentState";
 import { useExpertEditLayerActions } from "./useExpertEditLayerActions";
 import { useExpertEditPromptTokenController } from "./useExpertEditPromptTokenController";
 import { useExpertEditSessionBridge } from "./useExpertEditSessionBridge";
+import { useExpertEditStageHistory } from "./useExpertEditStageHistory";
 import { useExpertEditStageViewport } from "./useExpertEditStageViewport";
 import { ExpertEditStageContextMenu } from "./ExpertEditStagePrimitives";
 import {
@@ -92,10 +89,8 @@ import {
   inpaintRailTools,
   isSpaceActivationKey,
   type ExpertEditPanelViewProps,
-  type InpaintHistoryState,
   type InpaintMode,
   type InpaintSelectionTab,
-  type MarkupHistoryState,
   type MarkupMode,
   type RailTool,
 } from "./expertEditPanelViewContract";
@@ -133,8 +128,6 @@ import {
   type HsvColor,
 } from "./expertEditColorUtils";
 import {
-  MARKUP_VIEWPORT_DEFAULT_SCALE,
-  MARKUP_VIEWPORT_EPSILON,
   MOVE_STAGE_ZOOM_SLIDER_DEFAULT,
   MOVE_STAGE_ZOOM_SLIDER_MAX,
   MOVE_STAGE_ZOOM_SLIDER_MIN,
@@ -179,14 +172,7 @@ import {
   resolveStageContextMenuPosition,
   unlockDocumentCursor,
 } from "./expertEditInteractionUtils";
-import {
-  areMarkupStrokeSnapshotsEqual,
-  cloneInpaintHistoryState,
-  cloneInpaintMaskSnapshot,
-  cloneMarkupHistoryState,
-  cloneMarkupStrokesSnapshot,
-} from "./expertEditSessionState";
-
+import { cloneMarkupStrokesSnapshot } from "./expertEditSessionState";
 const EXPERT_EDIT_IMAGE_TRANSFORM_EDITING_ENABLED = false;
 
 export function ExpertEditPanelView({
@@ -268,13 +254,6 @@ export function ExpertEditPanelView({
   );
   const markupStrokeIdCounterRef = React.useRef(
     resolveMarkupStrokeIdCounterFromStrokes(initialSessionState.markupStrokes)
-  );
-  const markupGestureBaselineRef = React.useRef<MarkupStroke[] | null>(null);
-  const inpaintGestureBaselineRef = React.useRef<InpaintMaskSnapshot | null>(null);
-  const pendingMarkupHistoryApplyRef = React.useRef<MarkupStroke[] | null>(null);
-  const pendingInpaintHistoryApplyRef = React.useRef<InpaintMaskSnapshot | null>(null);
-  const inpaintSessionRestorePendingRef = React.useRef(
-    initialSessionState.inpaintHistory.present.layers.length > 0
   );
   const [selectedInpaintMode, setSelectedInpaintMode] = React.useState<InpaintMode>("brush");
   const isGenerationModeToggleEnabled = isEditGenerationModeToggleEnabled();
@@ -393,23 +372,11 @@ export function ExpertEditPanelView({
       future: [],
     })
   );
-  const [markupHistoryState, setMarkupHistoryState] = React.useState<MarkupHistoryState>(() =>
-    cloneMarkupHistoryState(initialSessionState.markupHistory)
-  );
-  const [inpaintHistoryState, setInpaintHistoryState] = React.useState<InpaintHistoryState>(() =>
-    cloneInpaintHistoryState(initialSessionState.inpaintHistory)
-  );
   React.useEffect(() => {
     if (markupStrokeSize === resolvedMarkupStrokeSize) return;
     setMarkupStrokeSize(resolvedMarkupStrokeSize);
   }, [markupStrokeSize, resolvedMarkupStrokeSize]);
   const markupColor = React.useMemo(() => rgbToHex(hsvToRgb(markupColorHsv)), [markupColorHsv]);
-  const canUndoTransformHistory = transformHistoryState.past.length > 0;
-  const canRedoTransformHistory = transformHistoryState.future.length > 0;
-  const canUndoMarkupHistory = markupHistoryState.past.length > 0;
-  const canRedoMarkupHistory = markupHistoryState.future.length > 0;
-  const canUndoInpaintHistory = inpaintHistoryState.past.length > 0;
-  const canRedoInpaintHistory = inpaintHistoryState.future.length > 0;
   const selectedStyleId = controlledSelectedStyleId ?? null;
   const {
     inlineStageWrapperRef,
@@ -1319,260 +1286,6 @@ export function ExpertEditPanelView({
     primaryCompositionSurfaceCursor,
   ]);
 
-  const commitMarkupHistoryTransition = React.useCallback(
-    (nextEntry: MarkupStroke[], baselineEntry?: MarkupStroke[] | null) => {
-      setMarkupHistoryState((previousHistory) => {
-        const previousEntry = baselineEntry ?? previousHistory.present;
-        if (areMarkupStrokeSnapshotsEqual(previousEntry, nextEntry)) {
-          return previousHistory;
-        }
-        const nextPast = [...previousHistory.past, previousEntry];
-        const trimmedPast =
-          nextPast.length > TRANSFORM_HISTORY_LIMIT
-            ? nextPast.slice(nextPast.length - TRANSFORM_HISTORY_LIMIT)
-            : nextPast;
-        return {
-          past: trimmedPast,
-          present: nextEntry,
-          future: [],
-        };
-      });
-    },
-    []
-  );
-
-  const commitInpaintHistoryTransition = React.useCallback(
-    (nextEntry: InpaintMaskSnapshot, baselineEntry?: InpaintMaskSnapshot | null) => {
-      setInpaintHistoryState((previousHistory) => {
-        const previousEntry = baselineEntry ?? previousHistory.present;
-        if (areInpaintMaskSnapshotsEqual(previousEntry, nextEntry)) {
-          return previousHistory;
-        }
-        const nextPast = [...previousHistory.past, previousEntry];
-        const trimmedPast =
-          nextPast.length > TRANSFORM_HISTORY_LIMIT
-            ? nextPast.slice(nextPast.length - TRANSFORM_HISTORY_LIMIT)
-            : nextPast;
-        return {
-          past: trimmedPast,
-          present: nextEntry,
-          future: [],
-        };
-      });
-    },
-    []
-  );
-
-  const beginInpaintGestureHistory = React.useCallback(() => {
-    inpaintGestureBaselineRef.current = captureInpaintMaskSnapshot();
-  }, [captureInpaintMaskSnapshot]);
-
-  const finalizeInpaintGestureHistory = React.useCallback(() => {
-    const baselineEntry = inpaintGestureBaselineRef.current;
-    if (!baselineEntry) return;
-    inpaintGestureBaselineRef.current = null;
-    const nextEntry = captureInpaintMaskSnapshot();
-    commitInpaintHistoryTransition(nextEntry, baselineEntry);
-  }, [captureInpaintMaskSnapshot, commitInpaintHistoryTransition]);
-
-  const clearInpaintSelectionWithHistory = React.useCallback(() => {
-    const baselineEntry = captureInpaintMaskSnapshot();
-    clearSelectedLayerMask();
-    const nextEntry = captureInpaintMaskSnapshot();
-    commitInpaintHistoryTransition(nextEntry, baselineEntry);
-  }, [captureInpaintMaskSnapshot, clearSelectedLayerMask, commitInpaintHistoryTransition]);
-
-  const invertInpaintSelectionWithHistory = React.useCallback(() => {
-    const baselineEntry = captureInpaintMaskSnapshot();
-    invertSelectedLayerMask();
-    const nextEntry = captureInpaintMaskSnapshot();
-    commitInpaintHistoryTransition(nextEntry, baselineEntry);
-  }, [captureInpaintMaskSnapshot, commitInpaintHistoryTransition, invertSelectedLayerMask]);
-
-  const clearAllInpaintMasksWithHistory = React.useCallback(() => {
-    const baselineEntry = captureInpaintMaskSnapshot();
-    clearAllInpaintMasks();
-    const nextEntry = captureInpaintMaskSnapshot();
-    commitInpaintHistoryTransition(nextEntry, baselineEntry);
-  }, [captureInpaintMaskSnapshot, clearAllInpaintMasks, commitInpaintHistoryTransition]);
-
-  const beginMarkupGestureHistory = React.useCallback(() => {
-    if (markupGestureBaselineRef.current) return;
-    markupGestureBaselineRef.current = cloneMarkupStrokesSnapshot(markupStrokes);
-  }, [markupStrokes]);
-
-  const finalizeMarkupGestureHistory = React.useCallback(() => {
-    const baselineEntry = markupGestureBaselineRef.current;
-    if (!baselineEntry) return;
-    markupGestureBaselineRef.current = null;
-    const commit = () => {
-      const nextEntry = cloneMarkupStrokesSnapshot(markupStrokes);
-      commitMarkupHistoryTransition(nextEntry, baselineEntry);
-    };
-    if (typeof window === "undefined") {
-      commit();
-      return;
-    }
-    window.requestAnimationFrame(commit);
-  }, [commitMarkupHistoryTransition, markupStrokes]);
-
-  const clearMarkupStrokesWithHistory = React.useCallback(() => {
-    const baselineEntry = cloneMarkupStrokesSnapshot(markupStrokes);
-    setMarkupStrokes([]);
-    commitMarkupHistoryTransition([], baselineEntry);
-  }, [commitMarkupHistoryTransition, markupStrokes]);
-
-  const handleUndoMoveAction = React.useCallback(() => {
-    setTransformHistoryState((previousHistory) => {
-      if (!previousHistory.past.length) return previousHistory;
-      const targetEntry = previousHistory.past[previousHistory.past.length - 1] ?? null;
-      if (!targetEntry) return previousHistory;
-      queuePendingHistoryApplyEntry(targetEntry);
-      return {
-        past: previousHistory.past.slice(0, -1),
-        present: targetEntry,
-        future: [previousHistory.present, ...previousHistory.future],
-      };
-    });
-  }, [queuePendingHistoryApplyEntry]);
-
-  const handleRedoMoveAction = React.useCallback(() => {
-    setTransformHistoryState((previousHistory) => {
-      if (!previousHistory.future.length) return previousHistory;
-      const targetEntry = previousHistory.future[0] ?? null;
-      if (!targetEntry) return previousHistory;
-      queuePendingHistoryApplyEntry(targetEntry);
-      return {
-        past: [...previousHistory.past, previousHistory.present],
-        present: targetEntry,
-        future: previousHistory.future.slice(1),
-      };
-    });
-  }, [queuePendingHistoryApplyEntry]);
-
-  const handleUndoMarkupAction = React.useCallback(() => {
-    setMarkupHistoryState((previousHistory) => {
-      if (!previousHistory.past.length) return previousHistory;
-      const targetEntry = previousHistory.past[previousHistory.past.length - 1] ?? null;
-      if (!targetEntry) return previousHistory;
-      pendingMarkupHistoryApplyRef.current = cloneMarkupStrokesSnapshot(targetEntry);
-      return {
-        past: previousHistory.past.slice(0, -1),
-        present: targetEntry,
-        future: [previousHistory.present, ...previousHistory.future],
-      };
-    });
-  }, []);
-
-  const handleRedoMarkupAction = React.useCallback(() => {
-    setMarkupHistoryState((previousHistory) => {
-      if (!previousHistory.future.length) return previousHistory;
-      const targetEntry = previousHistory.future[0] ?? null;
-      if (!targetEntry) return previousHistory;
-      pendingMarkupHistoryApplyRef.current = cloneMarkupStrokesSnapshot(targetEntry);
-      return {
-        past: [...previousHistory.past, previousHistory.present],
-        present: targetEntry,
-        future: previousHistory.future.slice(1),
-      };
-    });
-  }, []);
-
-  const handleUndoInpaintAction = React.useCallback(() => {
-    setInpaintHistoryState((previousHistory) => {
-      if (!previousHistory.past.length) return previousHistory;
-      const targetEntry = previousHistory.past[previousHistory.past.length - 1] ?? null;
-      if (!targetEntry) return previousHistory;
-      pendingInpaintHistoryApplyRef.current = targetEntry;
-      return {
-        past: previousHistory.past.slice(0, -1),
-        present: targetEntry,
-        future: [previousHistory.present, ...previousHistory.future],
-      };
-    });
-  }, []);
-
-  const handleRedoInpaintAction = React.useCallback(() => {
-    setInpaintHistoryState((previousHistory) => {
-      if (!previousHistory.future.length) return previousHistory;
-      const targetEntry = previousHistory.future[0] ?? null;
-      if (!targetEntry) return previousHistory;
-      pendingInpaintHistoryApplyRef.current = targetEntry;
-      return {
-        past: [...previousHistory.past, previousHistory.present],
-        present: targetEntry,
-        future: previousHistory.future.slice(1),
-      };
-    });
-  }, []);
-
-  const canUndoGeneralAction =
-    canUndoTransformHistory || canUndoMarkupHistory || canUndoInpaintHistory;
-  const canRedoGeneralAction =
-    canRedoTransformHistory || canRedoMarkupHistory || canRedoInpaintHistory;
-
-  const handleUndoGeneralAction = React.useCallback(() => {
-    if (isInpaintToolSelected && canUndoInpaintHistory) {
-      handleUndoInpaintAction();
-      return;
-    }
-    if (isVideoToolSelected && canUndoMarkupHistory) {
-      handleUndoMarkupAction();
-      return;
-    }
-    if (canUndoTransformHistory) {
-      handleUndoMoveAction();
-      return;
-    }
-    if (canUndoInpaintHistory) {
-      handleUndoInpaintAction();
-      return;
-    }
-    if (canUndoMarkupHistory) {
-      handleUndoMarkupAction();
-    }
-  }, [
-    canUndoInpaintHistory,
-    canUndoMarkupHistory,
-    canUndoTransformHistory,
-    handleUndoInpaintAction,
-    handleUndoMarkupAction,
-    handleUndoMoveAction,
-    isInpaintToolSelected,
-    isVideoToolSelected,
-  ]);
-
-  const handleRedoGeneralAction = React.useCallback(() => {
-    if (isInpaintToolSelected && canRedoInpaintHistory) {
-      handleRedoInpaintAction();
-      return;
-    }
-    if (isVideoToolSelected && canRedoMarkupHistory) {
-      handleRedoMarkupAction();
-      return;
-    }
-    if (canRedoTransformHistory) {
-      handleRedoMoveAction();
-      return;
-    }
-    if (canRedoInpaintHistory) {
-      handleRedoInpaintAction();
-      return;
-    }
-    if (canRedoMarkupHistory) {
-      handleRedoMarkupAction();
-    }
-  }, [
-    canRedoInpaintHistory,
-    canRedoMarkupHistory,
-    canRedoTransformHistory,
-    handleRedoInpaintAction,
-    handleRedoMarkupAction,
-    handleRedoMoveAction,
-    isInpaintToolSelected,
-    isVideoToolSelected,
-  ]);
-
   const {
     handleMoveZoomSliderChange,
     resetMarkupViewport,
@@ -1600,6 +1313,52 @@ export function ExpertEditPanelView({
     },
   });
 
+  const {
+    markupHistoryState,
+    inpaintHistoryState,
+    beginInpaintGestureHistory,
+    finalizeInpaintGestureHistory,
+    clearInpaintSelectionWithHistory,
+    invertInpaintSelectionWithHistory,
+    beginMarkupGestureHistory,
+    finalizeMarkupGestureHistory,
+    clearMarkupStrokesWithHistory,
+    canUndoGeneralAction,
+    canRedoGeneralAction,
+    handleUndoGeneralAction,
+    handleRedoGeneralAction,
+    handleResetGeneralAction,
+    clearGenerationModeSelectionArtifacts,
+    isMoveTransformCentered,
+    isMarkupViewportAtRest,
+    isGeneralResetDisabled,
+    clearHistoryEphemera,
+  } = useExpertEditStageHistory({
+    initialMarkupHistoryState: initialSessionState.markupHistory,
+    initialInpaintHistoryState: initialSessionState.inpaintHistory,
+    initialInpaintPresentSnapshot: initialSessionState.inpaintHistory.present,
+    layers,
+    selectedLayer,
+    setLayers,
+    markupStrokes,
+    setMarkupStrokes,
+    hasPrimaryCompositePreview,
+    inpaintLayerSources,
+    markupViewport,
+    resetMarkupViewport,
+    captureInpaintMaskSnapshot,
+    restoreInpaintMaskSnapshot,
+    clearSelectedLayerMask,
+    invertSelectedLayerMask,
+    clearAllInpaintMasks,
+    isInpaintToolSelected,
+    isVideoToolSelected,
+    queuePendingHistoryApplyEntry,
+    transformHistoryState,
+    setTransformHistoryState,
+    commitTransformHistoryTransition,
+  });
+
   const handleRecenterMoveAction = React.useCallback(() => {
     if (EXPERT_EDIT_IMAGE_TRANSFORM_EDITING_ENABLED && selectedLayer) {
       const nextLayers = layers.map((layer) =>
@@ -1619,62 +1378,6 @@ export function ExpertEditPanelView({
     }
     resetMarkupViewport();
   }, [commitTransformHistoryTransition, layers, resetMarkupViewport, selectedLayer, setLayers]);
-
-  const resetAllMoveToolTransforms = React.useCallback(() => {
-    const baselineEntry = buildTransformHistoryEntry(layers);
-    const nextLayers = layers.map((layer) =>
-      areLayerTransformsEqual(layer.transform, defaultLayerTransform())
-        ? layer
-        : {
-            ...layer,
-            transform: defaultLayerTransform(),
-          }
-    );
-    const nextEntry = buildTransformHistoryEntry(nextLayers);
-    if (areTransformHistoryEntriesEqual(baselineEntry, nextEntry)) return;
-    setLayers(nextLayers);
-    commitTransformHistoryTransition(nextEntry, baselineEntry);
-  }, [commitTransformHistoryTransition, layers, setLayers]);
-
-  const handleResetGeneralAction = React.useCallback(() => {
-    resetAllMoveToolTransforms();
-    resetMarkupViewport();
-    clearAllInpaintMasksWithHistory();
-    clearMarkupStrokesWithHistory();
-  }, [
-    clearAllInpaintMasksWithHistory,
-    clearMarkupStrokesWithHistory,
-    resetAllMoveToolTransforms,
-    resetMarkupViewport,
-  ]);
-
-  const clearGenerationModeSelectionArtifacts = React.useCallback(() => {
-    clearAllInpaintMasksWithHistory();
-    clearMarkupStrokesWithHistory();
-  }, [clearAllInpaintMasksWithHistory, clearMarkupStrokesWithHistory]);
-
-  const hasAnyMoveTransformChanges = React.useMemo(
-    () =>
-      layers.some((layer) => !areLayerTransformsEqual(layer.transform, defaultLayerTransform())),
-    [layers]
-  );
-  const isMoveTransformCentered = React.useMemo(() => {
-    if (!selectedLayer) return true;
-    return areLayerTransformsEqual(selectedLayer.transform, defaultLayerTransform());
-  }, [selectedLayer]);
-  const isMarkupViewportAtRest = React.useMemo(
-    () =>
-      Math.abs(markupViewport.scale - MARKUP_VIEWPORT_DEFAULT_SCALE) <= MARKUP_VIEWPORT_EPSILON &&
-      Math.abs(markupViewport.offsetXRatio) <= MARKUP_VIEWPORT_EPSILON &&
-      Math.abs(markupViewport.offsetYRatio) <= MARKUP_VIEWPORT_EPSILON,
-    [markupViewport]
-  );
-  const hasInpaintMaskContent = inpaintHistoryState.present.layers.length > 0;
-  const isGeneralResetDisabled =
-    !hasAnyMoveTransformChanges &&
-    isMarkupViewportAtRest &&
-    markupStrokes.length === 0 &&
-    !hasInpaintMaskContent;
 
   const {
     beginMarkupDrawGesture,
@@ -2240,17 +1943,6 @@ export function ExpertEditPanelView({
   }, [clearMarkupDrawGestureSession, isVideoToolSelected]);
 
   React.useEffect(() => {
-    if (hasPrimaryCompositePreview || markupStrokes.length <= 0) return;
-    setMarkupStrokes([]);
-    markupGestureBaselineRef.current = null;
-    setMarkupHistoryState({
-      past: [],
-      present: [],
-      future: [],
-    });
-  }, [hasPrimaryCompositePreview, markupStrokes.length]);
-
-  React.useEffect(() => {
     if (!isMarkupExpandSelected || typeof document === "undefined") return;
     const previousBodyOverflow = document.body.style.overflow;
     const previousHtmlOverflow = document.documentElement.style.overflow;
@@ -2385,51 +2077,11 @@ export function ExpertEditPanelView({
     }
   }, [isMorePresetsSurfaceOpen, shouldShowInpaintBrushReticle, unlockGlobalCursor]);
 
-  React.useEffect(() => {
-    if (!inpaintSessionRestorePendingRef.current) return;
-    restoreInpaintMaskSnapshot(
-      cloneInpaintMaskSnapshot(initialSessionState.inpaintHistory.present)
-    );
-    inpaintSessionRestorePendingRef.current = false;
-  }, [initialSessionState.inpaintHistory.present, restoreInpaintMaskSnapshot]);
-
-  React.useEffect(() => {
-    if (inpaintSessionRestorePendingRef.current) return;
-    const snapshot = captureInpaintMaskSnapshot();
-    setInpaintHistoryState((previousHistory) =>
-      areInpaintMaskSnapshotsEqual(previousHistory.present, snapshot)
-        ? previousHistory
-        : {
-            past: [],
-            present: snapshot,
-            future: [],
-          }
-    );
-  }, [captureInpaintMaskSnapshot, inpaintLayerSources]);
-
-  React.useEffect(() => {
-    const pendingEntry = pendingMarkupHistoryApplyRef.current;
-    if (!pendingEntry) return;
-    pendingMarkupHistoryApplyRef.current = null;
-    setMarkupStrokes(cloneMarkupStrokesSnapshot(pendingEntry));
-  }, [markupHistoryState]);
-
-  React.useEffect(() => {
-    const pendingEntry = pendingInpaintHistoryApplyRef.current;
-    if (!pendingEntry) return;
-    pendingInpaintHistoryApplyRef.current = null;
-    restoreInpaintMaskSnapshot(pendingEntry);
-  }, [inpaintHistoryState, restoreInpaintMaskSnapshot]);
-
   React.useEffect(
     () => () => {
       unlockGlobalCursor();
       queuePendingHistoryApplyEntry(null);
-      pendingMarkupHistoryApplyRef.current = null;
-      pendingInpaintHistoryApplyRef.current = null;
-      markupGestureBaselineRef.current = null;
-      inpaintGestureBaselineRef.current = null;
-      inpaintSessionRestorePendingRef.current = false;
+      clearHistoryEphemera();
       clearWindowTimeoutRef(inpaintCollapseTimerRef);
       clearWindowTimeoutRef(toastVisibleTimerRef);
       clearWindowTimeoutRef(toastFadeTimerRef);
@@ -2438,7 +2090,7 @@ export function ExpertEditPanelView({
         revokeObjectUrl: revokeObjectUrlSafe,
       });
     },
-    [queuePendingHistoryApplyEntry, unlockGlobalCursor]
+    [clearHistoryEphemera, queuePendingHistoryApplyEntry, unlockGlobalCursor]
   );
 
   const handleInpaintCollapseToggle = React.useCallback(() => {

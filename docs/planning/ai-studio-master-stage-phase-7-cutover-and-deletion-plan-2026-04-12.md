@@ -30,7 +30,7 @@ This phase should close the loop on:
 1. confirm the canonical stage/editor path is the only live path in code,
 2. remove obsolete compatibility adapters, flags, and stale references that survived earlier phases,
 3. keep rollback scope narrow and explicit while final deletion proceeds,
-4. align active docs/tests with the final canonical stage-only posture.
+4. align active docs/tests with the final canonical stage-only posture and keep the final validation bundle unblocked.
 
 ## Completed Slice On 2026-04-12
 1. Removed dead `propertiesImage` and `propertiesText` compatibility aliases from the canonical AI Studio page-content contract in:
@@ -53,6 +53,8 @@ This phase should close the loop on:
 7. Removed the dead page-shell `resolveCanvasDropReference` adapter from `frontend/features/ai-studio/hooks/useAiStudioInternalDropResolvers.ts`, so canonical AI Studio no longer carries generic canvas drop-resolution logic through the page-level shell API.
 8. Kept folder-canvas behavior untouched as an explicit secondary-surface domain and updated focused `useAiStudioInternalDropResolvers` coverage to reflect that the page hook now resolves only character, media-library, style, and element-profile drops.
 9. Deleted stale `canvas` migration assertions from `frontend/features/ai-studio/components/__tests__/AiStudioPageContent.drop.test.tsx`, so the canonical page-content contract no longer claims shell-level `canvas` compatibility beyond the dedicated hydration migration seam.
+10. Fixed the generic Fal submit parity gate in `scripts/check_model_catalog_parity.js` so `frontend/pages/api/fal/image-submit.ts` is recognized as a registry-backed generic submit route rather than being forced to inline a static `createFalSubmitHandler({ modelId, validatePayload })` config.
+11. Restored `npm -C frontend run docs:check` to a passing state, removing the longstanding false failure that had been blocking the final Phase 7 validation bundle.
 
 ## Exit Criteria
 1. the canonical master stage is the only editor path,

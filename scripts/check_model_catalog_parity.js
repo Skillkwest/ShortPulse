@@ -190,12 +190,14 @@ function listFalSubmitRouteDefinitions() {
     const helperValidatorMatch = content.match(
       /validatePayload\s*:\s*validateFalPayloadForModel\("([^"]+)"\)/
     );
+    const usesGenericImageSubmitResolver = /resolveFalImageSubmitHandler\s*\(/.test(content);
 
     return {
       fileName,
       modelId: modelIdMatch ? modelIdMatch[1] : null,
       hasValidatePayload: Boolean(validatePayloadMatch),
       helperValidatorModelId: helperValidatorMatch ? helperValidatorMatch[1] : null,
+      usesGenericImageSubmitResolver,
     };
   });
 }
@@ -439,6 +441,9 @@ function run() {
 
   for (const route of falSubmitRouteDefinitions) {
     const routeLabel = `frontend/pages/api/fal/${route.fileName}`;
+    if (route.usesGenericImageSubmitResolver) {
+      continue;
+    }
     if (!route.modelId) {
       errors.push(`${routeLabel} missing modelId in createFalSubmitHandler config.`);
       continue;

@@ -135,7 +135,7 @@ The next execution lane now shifts to cutover and deletion:
 1. confirm the canonical stage/editor path is the only live path in code,
 2. remove obsolete compatibility adapters, flags, and stale references that survived earlier phases,
 3. keep rollback scope narrow and explicit while final deletion proceeds,
-4. align active docs/tests with the final canonical stage-only posture before the final validation bundle.
+4. align active docs/tests with the final canonical stage-only posture before the final validation bundle and keep validation blockers out of the closeout path.
 
 Completed slice on 2026-04-12:
 1. Removed dead `propertiesImage` and `propertiesText` compatibility aliases from the canonical AI Studio page-content contract in:
@@ -155,6 +155,8 @@ Completed slice on 2026-04-12:
 7. Removed the dead page-shell `resolveCanvasDropReference` adapter from `frontend/features/ai-studio/hooks/useAiStudioInternalDropResolvers.ts`, so canonical AI Studio page orchestration no longer exposes generic canvas drop-resolution logic after the canvas-path demotion.
 8. Updated focused `frontend/features/ai-studio/hooks/__tests__/useAiStudioInternalDropResolvers.test.ts` coverage so the page hook contract now reflects only character, media-library, style, and element-profile internal-drop resolution while folder-canvas behavior remains isolated to the secondary Media Library domain.
 9. Deleted stale `canvas` compatibility expectations from `frontend/features/ai-studio/components/__tests__/AiStudioPageContent.drop.test.tsx`, narrowing the canonical page-content test surface to live tools only and leaving `selectedTool=\"canvas\"` handling documented solely through the snapshot-hydration migration seam.
+10. Fixed the generic Fal submit parity scanner in `scripts/check_model_catalog_parity.js` so `frontend/pages/api/fal/image-submit.ts` is treated as a registry-backed generic submit entrypoint instead of failing Phase 7 validation for missing inline `modelId` and `validatePayload` config.
+11. Restored `npm -C frontend run docs:check` to a passing state, removing the last known false blocker from the final validation bundle while leaving the remaining Phase 7 closeout work explicit.
 
 ## Phase Links
 1. `docs/planning/ai-studio-master-stage-phase-1-target-contract-and-bakeoff-plan-2026-04-12.md`

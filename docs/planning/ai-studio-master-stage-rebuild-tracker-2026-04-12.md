@@ -120,6 +120,13 @@ Completed slice on 2026-04-12:
    - durable writes carry the current inpaint snapshot instead of full history,
    - older history-based snapshots still hydrate correctly,
    - remount restores current stage content without restoring transient undo/redo stacks.
+5. Added `frontend/features/ai-studio/logic/sessionSnapshotExpertEdit.ts` and wired it through the canonical page snapshot builder/hydrator so slim durable Expert Edit state now persists through the same bounded extension pattern used by optional canvas payloads.
+6. Updated `frontend/pages/ai-studio.tsx`, `frontend/features/ai-studio/hooks/useAiStudioPageSessionPersistence.ts`, `frontend/features/ai-studio/hooks/useAiStudioSessionPersistenceController.ts`, and `frontend/features/ai-studio/hooks/useAiStudioSessionRestoreHydration.ts` so page-level restore can rehydrate `expertEditSessionState` from the snapshot bridge.
+7. Added focused snapshot/hydration bridge coverage in:
+   - `frontend/features/ai-studio/logic/__tests__/sessionSnapshot.test.ts`
+   - `frontend/features/ai-studio/logic/__tests__/sessionSnapshotHydrator.test.ts`
+   - `frontend/features/ai-studio/hooks/__tests__/useAiStudioPageSessionPersistence.test.ts`
+   - `frontend/features/ai-studio/hooks/__tests__/useAiStudioSessionRestoreHydration.test.ts`
 
 ## Phase Links
 1. `docs/planning/ai-studio-master-stage-phase-1-target-contract-and-bakeoff-plan-2026-04-12.md`

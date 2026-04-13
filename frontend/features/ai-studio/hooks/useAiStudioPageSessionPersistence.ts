@@ -6,9 +6,9 @@ import { useCallback } from "react";
 import type { AgentMessage } from "../../ai-agent/types";
 import type { PromptOrigin } from "../logic/agentPromptOwnership";
 import type { AiStudioSessionSnapshot } from "../logic/sessionSnapshot";
-import type { AiStudioSessionCanvasState } from "../logic/sessionSnapshotCanvas";
 import type { AiStudioSessionHydrationPayload } from "../logic/sessionSnapshotHydrator";
 import { useAiStudioSessionPersistenceController } from "./useAiStudioSessionPersistenceController";
+import type { ExpertEditSessionState } from "../components/edit/expertEditSessionState";
 
 type BuildPageSessionSnapshotArgs = {
   sessionId: string;
@@ -17,7 +17,7 @@ type BuildPageSessionSnapshotArgs = {
   latestAgentPrompt: string | null;
   promptOrigin: PromptOrigin;
   chatModeEnabled: boolean;
-  canvasState: AiStudioSessionCanvasState;
+  expertEditSessionState?: ExpertEditSessionState | null;
 };
 
 type UseAiStudioPageSessionPersistenceParams = {
@@ -29,12 +29,14 @@ type UseAiStudioPageSessionPersistenceParams = {
   latestAgentPrompt: string | null;
   promptOrigin: PromptOrigin;
   chatModeEnabled: boolean;
-  canvasSessionState: AiStudioSessionCanvasState;
+  expertEditSessionState?: ExpertEditSessionState | null;
   hydrateFromSessionSnapshot: (
     snapshot: AiStudioSessionSnapshot
   ) => AiStudioSessionHydrationPayload;
   hydrateFromSessionAgentSnapshot: (agent: AiStudioSessionHydrationPayload["agent"]) => void;
-  hydrateSessionState: (snapshot: AiStudioSessionCanvasState) => void;
+  hydrateFromSessionExpertEditSnapshot?: (
+    expertEdit: AiStudioSessionHydrationPayload["expertEdit"]
+  ) => void;
   setUiNotice: (message: string | null) => void;
 };
 
@@ -50,10 +52,10 @@ export const useAiStudioPageSessionPersistence = ({
   latestAgentPrompt,
   promptOrigin,
   chatModeEnabled,
-  canvasSessionState,
+  expertEditSessionState,
   hydrateFromSessionSnapshot,
   hydrateFromSessionAgentSnapshot,
-  hydrateSessionState,
+  hydrateFromSessionExpertEditSnapshot,
   setUiNotice,
 }: UseAiStudioPageSessionPersistenceParams) => {
   const buildSessionSnapshotForSessionId = useCallback(
@@ -65,25 +67,17 @@ export const useAiStudioPageSessionPersistence = ({
         latestAgentPrompt,
         promptOrigin,
         chatModeEnabled,
-        canvasState: canvasSessionState,
+        expertEditSessionState,
       }),
     [
       agentInput,
       agentMessages,
       buildSessionSnapshot,
-      canvasSessionState,
       chatModeEnabled,
+      expertEditSessionState,
       latestAgentPrompt,
       promptOrigin,
     ]
-  );
-
-  const hydrateFromSessionCanvasSnapshot = useCallback(
-    (canvasPayload: AiStudioSessionHydrationPayload["canvas"]) => {
-      if (!canvasPayload) return;
-      hydrateSessionState(canvasPayload);
-    },
-    [hydrateSessionState]
   );
 
   const handleSessionPersistenceWarning = useCallback(
@@ -99,7 +93,7 @@ export const useAiStudioPageSessionPersistence = ({
     sessionTitleOverride,
     hydrateFromSessionSnapshot,
     hydrateFromSessionAgentSnapshot,
-    hydrateFromSessionCanvasSnapshot,
+    hydrateFromSessionExpertEditSnapshot,
     onPersistenceWarning: handleSessionPersistenceWarning,
   });
 };

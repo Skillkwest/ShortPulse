@@ -19,6 +19,11 @@ import {
   type AiStudioSessionCanvasSnapshotV1,
   type AiStudioSessionCanvasState,
 } from "./sessionSnapshotCanvas";
+import {
+  serializeAiStudioSessionExpertEditState,
+  type AiStudioSessionExpertEditSnapshotV1,
+} from "./sessionSnapshotExpertEdit";
+import type { ExpertEditSessionState } from "../components/edit/expertEditSessionState";
 
 export const LATEST_AI_STUDIO_SESSION_SCHEMA_VERSION = 2;
 
@@ -150,7 +155,8 @@ export type AiStudioSessionSnapshotV2 = {
   workspace: AiStudioSessionWorkspaceV1;
   outputs: AiStudioSessionOutputsV1;
   agent: AiStudioSessionAgentV1;
-  canvas: AiStudioSessionCanvasSnapshotV1;
+  canvas?: AiStudioSessionCanvasSnapshotV1;
+  expertEdit?: AiStudioSessionExpertEditSnapshotV1;
 };
 
 export type AiStudioSessionSnapshot = AiStudioSessionSnapshotV1 | AiStudioSessionSnapshotV2;
@@ -198,7 +204,8 @@ export type BuildAiStudioSessionSnapshotInput = {
   latestAgentPrompt: string | null;
   promptOrigin: "manual" | "agent" | "reference";
   chatModeEnabled: boolean;
-  canvasState: AiStudioSessionCanvasState;
+  canvasState?: AiStudioSessionCanvasState;
+  expertEditSessionState?: ExpertEditSessionState | null;
 };
 
 const sanitizeMediaUrl = (value: string | null | undefined): string | undefined => {
@@ -364,7 +371,12 @@ export const buildAiStudioSessionSnapshot = (
   input: BuildAiStudioSessionSnapshotInput
 ): AiStudioSessionSnapshotV2 => {
   const updatedAt = input.updatedAt ?? new Date().toISOString();
-  const canvas = serializeAiStudioSessionCanvasState(input.canvasState);
+  const canvas = input.canvasState
+    ? serializeAiStudioSessionCanvasState(input.canvasState)
+    : undefined;
+  const expertEdit = input.expertEditSessionState
+    ? serializeAiStudioSessionExpertEditState(input.expertEditSessionState)
+    : undefined;
 
   const basePayload = {
     schemaVersion: LATEST_AI_STUDIO_SESSION_SCHEMA_VERSION,
@@ -417,7 +429,8 @@ export const buildAiStudioSessionSnapshot = (
       promptOrigin: input.promptOrigin,
       chatModeEnabled: input.chatModeEnabled,
     },
-    canvas,
+    ...(canvas ? { canvas } : {}),
+    ...(expertEdit ? { expertEdit } : {}),
   } as const;
 
   return {

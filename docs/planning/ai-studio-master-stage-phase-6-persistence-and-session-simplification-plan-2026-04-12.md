@@ -64,9 +64,22 @@ Phase 6 now starts from the stable Phase 5 export boundary and should target the
    - durable writes carry an inpaint snapshot instead of full history,
    - older history-based snapshots still hydrate correctly,
    - remount restores current stage content without restoring transient undo/redo stacks.
+5. Added an optional Expert Edit snapshot extension to the canonical page/session bridge in:
+   - `frontend/features/ai-studio/logic/sessionSnapshotExpertEdit.ts`
+   - `frontend/features/ai-studio/logic/sessionSnapshot.ts`
+   - `frontend/features/ai-studio/logic/sessionSnapshotHydrator.ts`
+   - `frontend/features/ai-studio/hooks/useAiStudioPageSessionPersistence.ts`
+   - `frontend/features/ai-studio/hooks/useAiStudioSessionPersistenceController.ts`
+   - `frontend/features/ai-studio/hooks/useAiStudioSessionRestoreHydration.ts`
+6. Wired the page-level restore path in `frontend/pages/ai-studio.tsx` so the canonical session snapshot can now rehydrate slim durable Expert Edit state back into `expertEditSessionState`.
+7. Added focused snapshot/hydration bridge coverage for the new Expert Edit payload in:
+   - `frontend/features/ai-studio/logic/__tests__/sessionSnapshot.test.ts`
+   - `frontend/features/ai-studio/logic/__tests__/sessionSnapshotHydrator.test.ts`
+   - `frontend/features/ai-studio/hooks/__tests__/useAiStudioPageSessionPersistence.test.ts`
+   - `frontend/features/ai-studio/hooks/__tests__/useAiStudioSessionRestoreHydration.test.ts`
 
 ## Next Slice
-1. Trace the canonical page/session snapshot bridge and remove any remaining Expert Edit persistence fields that are still carrying transient editor runtime rather than durable document state.
+1. Audit the generic page snapshot payload for other editor-only state that should move behind dedicated optional extensions or be removed entirely from durable writes.
 2. Keep older session hydration readable during the migration window, but normalize new writes to the slimmer durable contract only.
 
 ## Rollback Note

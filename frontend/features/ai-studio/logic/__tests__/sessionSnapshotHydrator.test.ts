@@ -88,6 +88,7 @@ describe("sessionSnapshotHydrator", () => {
     expect(payload.agent.chatModeEnabled).toBe(true);
     expect(payload.workspace.klingWorkflowMode).toBe("single");
     expect(payload.canvas).toBeNull();
+    expect(payload.expertEdit).toBeNull();
   });
 
   it("resets persisted custom Kling prompt workspace during hydration", () => {
@@ -172,6 +173,90 @@ describe("sessionSnapshotHydrator", () => {
     expect(payload.canvas?.textEditSession?.itemId).toBe("canvas-text-1");
   });
 
+  it("hydrates expert edit payload for schema v2 snapshots", () => {
+    const snapshotV2: AiStudioSessionSnapshot = {
+      ...createSnapshot(),
+      schemaVersion: 2,
+      meta: {
+        generatedAt: "2026-03-02T00:00:00.000Z",
+        checksum: "fnv1a32:1234abcd",
+      },
+      expertEdit: {
+        schemaVersion: 1,
+        state: {
+          version: 2,
+          layers: {
+            layerIdCounter: 3,
+            foundationLayerId: "layer-1",
+            selectedLayerIndex: 1,
+            layers: [
+              {
+                id: "layer-1",
+                name: "layer 1",
+                imageUrl: "https://cdn.shortpulse.dev/base.png",
+                opacity: 100,
+                isAutoNamed: true,
+                ownsImageUrl: false,
+                transform: {
+                  translateXRatio: 0,
+                  translateYRatio: 0,
+                  scale: 1,
+                  rotationDeg: 0,
+                },
+              },
+              {
+                id: "layer-2",
+                name: "layer 2",
+                imageUrl: "blob:http://localhost/local-layer",
+                opacity: 100,
+                isAutoNamed: true,
+                ownsImageUrl: true,
+                transform: {
+                  translateXRatio: 0.1,
+                  translateYRatio: -0.1,
+                  scale: 1.2,
+                  rotationDeg: 8,
+                },
+              },
+            ],
+          },
+          markup: {
+            strokes: [
+              {
+                id: "markup-stroke-1",
+                color: "#f43f5e",
+                sizeRatio: 0.01,
+                points: [
+                  { sceneX: -0.1, sceneY: -0.1 },
+                  { sceneX: 0.1, sceneY: 0.1 },
+                ],
+              },
+            ],
+          },
+          inpaint: {
+            snapshot: {
+              layers: [
+                {
+                  layerId: "layer-1",
+                  width: 2,
+                  height: 2,
+                  alpha: new Uint8ClampedArray([0, 255, 255, 0]),
+                },
+              ],
+            },
+          },
+        },
+      },
+    };
+
+    const payload = buildAiStudioSessionHydrationPayload(snapshotV2);
+    expect(payload.expertEdit).not.toBeNull();
+    expect(payload.expertEdit?.layers.layers).toHaveLength(2);
+    expect(payload.expertEdit?.layers.layers[1]?.imageUrl).toBeNull();
+    expect(payload.expertEdit?.markup.strokes).toHaveLength(1);
+    expect(payload.expertEdit?.inpaint.snapshot.layers).toHaveLength(1);
+  });
+
   it("keeps styles as a valid restored selected tool", () => {
     const payload = buildAiStudioSessionHydrationPayload(
       createSnapshot({
@@ -209,6 +294,19 @@ describe("sessionSnapshotHydrator", () => {
     );
 
     expect(payload.workspace.selectedTool).toBe("media-library");
+  });
+
+  it("demotes legacy canvas selected tool during hydration", () => {
+    const payload = buildAiStudioSessionHydrationPayload(
+      createSnapshot({
+        workspace: {
+          ...createSnapshot().workspace,
+          selectedTool: "canvas",
+        },
+      })
+    );
+
+    expect(payload.workspace.selectedTool).toBe("create");
   });
 
   it("keeps Sound child tools as valid restored selected tools", () => {

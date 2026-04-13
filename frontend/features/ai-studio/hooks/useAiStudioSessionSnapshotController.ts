@@ -23,6 +23,7 @@ import {
 import type { ReferenceProjectionState } from "../reference-projections";
 import type { StudioMode, StudioOutput, ToolId } from "../types";
 import type { AiStudioKlingElement } from "../logic/klingElements";
+import type { ExpertEditSessionState } from "../components/edit/expertEditSessionState";
 
 type UseAiStudioSessionSnapshotControllerParams = {
   mode: StudioMode;
@@ -314,6 +315,7 @@ export const useAiStudioSessionSnapshotController = ({
       promptOrigin,
       chatModeEnabled,
       canvasState,
+      expertEditSessionState,
     }: {
       sessionId: string;
       updatedAt?: string;
@@ -322,7 +324,8 @@ export const useAiStudioSessionSnapshotController = ({
       latestAgentPrompt: string | null;
       promptOrigin: "manual" | "agent" | "reference";
       chatModeEnabled: boolean;
-      canvasState: AiStudioSessionCanvasState;
+      canvasState?: AiStudioSessionCanvasState;
+      expertEditSessionState?: ExpertEditSessionState | null;
     }): AiStudioSessionSnapshotV2 =>
       buildAiStudioSessionSnapshot({
         sessionId,
@@ -368,6 +371,7 @@ export const useAiStudioSessionSnapshotController = ({
         promptOrigin,
         chatModeEnabled,
         canvasState,
+        expertEditSessionState,
       }),
     [
       activeOutputId,

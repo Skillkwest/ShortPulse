@@ -23,7 +23,6 @@ import { addBreadcrumb } from "../lib/clientBreadcrumbs";
 import { useAiStudioAgentBridge } from "../features/ai-studio/hooks/useAiStudioAgentBridge";
 import { useAiStudioAgentOutputGenerationBridge } from "../features/ai-studio/hooks/useAiStudioAgentOutputGenerationBridge";
 import { useAiStudioGenerationController } from "../features/ai-studio/hooks/useAiStudioGenerationController";
-import { useAiStudioDualCanvasWorkspaceState } from "../features/ai-studio/components/canvas/useAiStudioCanvasWorkspaceState";
 import {
   hasUsableCharacterModeInjectionBundle,
   useAiStudioCharacterModeController,
@@ -341,7 +340,6 @@ export default function AiStudioPage() {
   }, [setSelectedToolWithEditIntentReset]);
   const {
     resolveCharacterDropReference,
-    resolveCanvasDropReference,
     resolveMediaLibraryInternalDropItem,
     resolveStyleLibraryInternalDrop,
     resolveElementProfileImageDropSource,
@@ -350,18 +348,6 @@ export default function AiStudioPage() {
     getOutputSnapshot,
     ensureOutputPersisted,
     saveReferenceToLibrary,
-  });
-  const {
-    mainCanvasProps,
-    railCanvasProps,
-    sessionState: canvasSessionState,
-    hydrateSessionState,
-  } = useAiStudioDualCanvasWorkspaceState({
-    resolveCanvasDropReference,
-    onPinTextReference: addPastedPromptReference,
-    onItemLimitReached: () => {
-      setUiNotice("Canvas supports up to 300 items. Remove one item before adding another.");
-    },
   });
   useAiStudioMediaAutosaveOrchestrator({
     outputs,
@@ -543,10 +529,10 @@ export default function AiStudioPage() {
     latestAgentPrompt,
     promptOrigin,
     chatModeEnabled,
-    canvasSessionState,
+    expertEditSessionState,
     hydrateFromSessionSnapshot,
     hydrateFromSessionAgentSnapshot,
-    hydrateSessionState,
+    hydrateFromSessionExpertEditSnapshot: setExpertEditSessionState,
     setUiNotice,
   });
 
@@ -1016,8 +1002,6 @@ export default function AiStudioPage() {
     propertiesImage,
     propertiesEditExpert,
     propertiesVideo,
-    propertiesCanvas,
-    railCanvasProps: railCanvasPanelProps,
     referenceGridProps,
     studioPreviewProps,
     detailModalOutput,
@@ -1029,8 +1013,6 @@ export default function AiStudioPage() {
     onDetailSavePrompt,
   } = mapHookContractsToPageContentProps({
     panelProps,
-    canvasProps: mainCanvasProps,
-    railCanvasProps,
     referenceGridProps: referenceGridPageProps,
     previewDetailProps,
   });
@@ -1080,8 +1062,6 @@ export default function AiStudioPage() {
         propertiesImage={propertiesImage}
         propertiesEditExpert={propertiesEditExpert}
         propertiesVideo={propertiesVideo}
-        propertiesCanvas={propertiesCanvas}
-        railCanvasProps={railCanvasPanelProps}
         refreshCharacterOptions={refreshCharacterOptions}
         resolveCharacterAvatarUrlById={resolveCharacterAvatarUrlById}
         isTemplateView={isTemplateView}
@@ -1100,7 +1080,6 @@ export default function AiStudioPage() {
         onProjectNameCommit={handleProjectNameCommit}
         resolveMediaLibraryInternalDropItem={resolveMediaLibraryInternalDropItem}
         resolveStyleLibraryInternalDrop={resolveStyleLibraryInternalDrop}
-        resolveCanvasDropReference={resolveCanvasDropReference}
         onOpenMediaLibrary={handleOpenMediaLibraryPanelOnly}
         modelModalState={{
           isOpen: isModelModalOpen,

@@ -14,6 +14,8 @@ import {
   parseAiStudioSessionCanvasState,
   type AiStudioSessionCanvasState,
 } from "./sessionSnapshotCanvas";
+import { parseAiStudioSessionExpertEditState } from "./sessionSnapshotExpertEdit";
+import type { ExpertEditSessionState } from "../components/edit/expertEditSessionState";
 
 const FALLBACK_MODE: StudioMode = "text";
 const FALLBACK_ASPECT = "9:16";
@@ -79,6 +81,7 @@ const asMode = (value: unknown): StudioMode => {
 
 const asToolId = (value: unknown): ToolId | null => {
   if (typeof value !== "string") return null;
+  if (value === "canvas") return "create";
   return TOOL_IDS.has(value as ToolId) ? (value as ToolId) : null;
 };
 
@@ -478,6 +481,7 @@ export type AiStudioSessionHydrationPayload = {
     chatModeEnabled: boolean;
   };
   canvas: AiStudioSessionCanvasState | null;
+  expertEdit: ExpertEditSessionState | null;
 };
 
 /**
@@ -492,6 +496,12 @@ export const buildAiStudioSessionHydrationPayload = (
   const canvas =
     snapshot.schemaVersion >= 2
       ? parseAiStudioSessionCanvasState((snapshot as Record<string, unknown>).canvas ?? null)
+      : null;
+  const expertEdit =
+    snapshot.schemaVersion >= 2
+      ? parseAiStudioSessionExpertEditState(
+          (snapshot as Record<string, unknown>).expertEdit ?? null
+        )
       : null;
 
   const activeOutputs = dedupeOutputs((outputs.active ?? []).map(hydrateOutput));
@@ -583,5 +593,6 @@ export const buildAiStudioSessionHydrationPayload = (
       chatModeEnabled: asBoolean(agent.chatModeEnabled, true),
     },
     canvas,
+    expertEdit,
   };
 };

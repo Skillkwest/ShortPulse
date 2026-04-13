@@ -26,7 +26,10 @@ type UseAiStudioSessionPersistenceControllerParams = {
     snapshot: AiStudioSessionSnapshot
   ) => AiStudioSessionHydrationPayload;
   hydrateFromSessionAgentSnapshot: (agent: AiStudioSessionHydrationPayload["agent"]) => void;
-  hydrateFromSessionCanvasSnapshot: (canvas: AiStudioSessionHydrationPayload["canvas"]) => void;
+  hydrateFromSessionCanvasSnapshot?: (canvas: AiStudioSessionHydrationPayload["canvas"]) => void;
+  hydrateFromSessionExpertEditSnapshot?: (
+    expertEdit: AiStudioSessionHydrationPayload["expertEdit"]
+  ) => void;
   onPersistenceWarning?: (message: string) => void;
 };
 
@@ -78,6 +81,7 @@ export const useAiStudioSessionPersistenceController = ({
   hydrateFromSessionSnapshot,
   hydrateFromSessionAgentSnapshot,
   hydrateFromSessionCanvasSnapshot,
+  hydrateFromSessionExpertEditSnapshot,
   onPersistenceWarning,
 }: UseAiStudioSessionPersistenceControllerParams): AiStudioSessionPersistenceController => {
   const { persistenceEnabled, writeShadowEnabled, restoreShadowEnabled } =
@@ -105,6 +109,7 @@ export const useAiStudioSessionPersistenceController = ({
     hydrateFromSessionSnapshot,
     hydrateFromSessionAgentSnapshot,
     hydrateFromSessionCanvasSnapshot,
+    hydrateFromSessionExpertEditSnapshot,
     skipApplyForSessionId: skipRestoreApplyForSessionId,
   });
 

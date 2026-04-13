@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { buildAiStudioSessionSnapshot } from "../sessionSnapshot";
 import type { StudioOutput } from "../../types";
 import type { AiStudioSessionCanvasState } from "../sessionSnapshotCanvas";
+import type { ExpertEditSessionState } from "../../components/edit/expertEditSessionState";
 
 const createOutput = (overrides: Partial<StudioOutput> = {}): StudioOutput => ({
   id: "out-1",
@@ -22,6 +23,70 @@ const createCanvasState = (): AiStudioSessionCanvasState => ({
   textEditOwnerInstanceId: null,
   mainCamera: { x: 0, y: 0, zoom: 1 },
   railCamera: { x: 0, y: 0, zoom: 1 },
+});
+
+const createExpertEditSessionState = (): ExpertEditSessionState => ({
+  version: 2,
+  layers: {
+    layerIdCounter: 3,
+    foundationLayerId: "layer-1",
+    selectedLayerIndex: 1,
+    layers: [
+      {
+        id: "layer-1",
+        name: "layer 1",
+        imageUrl: "https://cdn.shortpulse.dev/base.png",
+        opacity: 100,
+        isAutoNamed: true,
+        ownsImageUrl: false,
+        transform: {
+          translateXRatio: 0,
+          translateYRatio: 0,
+          scale: 1,
+          rotationDeg: 0,
+        },
+      },
+      {
+        id: "layer-2",
+        name: "layer 2",
+        imageUrl: "blob:http://localhost/local-layer",
+        opacity: 100,
+        isAutoNamed: true,
+        ownsImageUrl: true,
+        transform: {
+          translateXRatio: 0.1,
+          translateYRatio: -0.1,
+          scale: 1.2,
+          rotationDeg: 8,
+        },
+      },
+    ],
+  },
+  markup: {
+    strokes: [
+      {
+        id: "markup-stroke-1",
+        color: "#f43f5e",
+        sizeRatio: 0.01,
+        points: [
+          { sceneX: -0.1, sceneY: -0.1 },
+          { sceneX: 0.1, sceneY: 0.1 },
+        ],
+      },
+    ],
+  },
+  inpaint: {
+    snapshot: {
+      layers: [
+        {
+          layerId: "layer-1",
+          width: 2,
+          height: 2,
+          alpha: new Uint8ClampedArray([0, 255, 255, 0]),
+        },
+      ],
+    },
+  },
 });
 
 describe("sessionSnapshot", () => {
@@ -64,6 +129,7 @@ describe("sessionSnapshot", () => {
       promptOrigin: "agent",
       chatModeEnabled: true,
       canvasState: createCanvasState(),
+      expertEditSessionState: createExpertEditSessionState(),
     });
 
     expect(snapshot.schemaVersion).toBe(2);
@@ -73,6 +139,54 @@ describe("sessionSnapshot", () => {
     expect(snapshot.outputs.active[0]?.id).toBe("out-1");
     expect(snapshot.agent.messages[0]?.role).toBe("assistant");
     expect(snapshot.canvas.viewports.main.zoom).toBe(1);
+    expect(snapshot.expertEdit?.state.markup.strokes).toHaveLength(1);
+    expect(snapshot.expertEdit?.state.layers.layers[1]?.imageUrl).toBeNull();
+    expect(snapshot.expertEdit?.state.layers.layers[1]?.ownsImageUrl).toBe(false);
+    expect(snapshot.meta.checksum.startsWith("fnv1a32:")).toBe(true);
+  });
+
+  it("omits canvas payload when the canonical page does not own canvas session state", () => {
+    const snapshot = buildAiStudioSessionSnapshot({
+      sessionId: "f7f45245-f204-4ece-8f9e-c9a66a9d8d2a",
+      mode: "image",
+      selectedTool: "create",
+      prompt: "A cinematic portrait",
+      model: "fal-ai/bytedance/seedream/v4.5/text-to-image",
+      aspect: "9:16",
+      referenceImageUrl: null,
+      extraImageUrls: [null, null, null],
+      editReferenceText: "",
+      videoReferenceText: "",
+      videoReferenceMode: "standard",
+      videoDurationSeconds: 6,
+      videoResolution: "1080p",
+      imageResolution: "model_default",
+      videoGenerateAudio: false,
+      videoCameraFixed: false,
+      videoAutoFix: false,
+      klingNegativePrompt: "",
+      klingCfgScale: 0.5,
+      klingWorkflowMode: "multi",
+      klingShotType: "customize",
+      klingVoiceIds: ["", ""],
+      klingMultiPrompts: [],
+      klingElements: [],
+      motionReferenceVideoUrl: null,
+      outputs: [createOutput()],
+      archivedOutputs: [],
+      activeOutputId: "out-1",
+      curatedReferenceIds: ["out-1"],
+      removedFromAllRefsIds: [],
+      agentMessages: [{ id: "a-1", role: "assistant", content: "Here is your prompt." }],
+      agentInput: "",
+      latestAgentPrompt: "Here is your prompt.",
+      promptOrigin: "agent",
+      chatModeEnabled: true,
+    });
+
+    expect(snapshot.schemaVersion).toBe(2);
+    expect("canvas" in snapshot).toBe(false);
+    expect("expertEdit" in snapshot).toBe(false);
     expect(snapshot.meta.checksum.startsWith("fnv1a32:")).toBe(true);
   });
 

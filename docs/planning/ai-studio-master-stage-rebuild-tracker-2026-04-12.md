@@ -149,6 +149,9 @@ Completed slice on 2026-04-12:
    - `frontend/features/ai-studio/hooks/__tests__/useAiStudioPanelProps.test.ts`
    - `frontend/features/ai-studio/components/__tests__/AiStudioPageContent.drop.test.tsx`
 3. Trimmed the now-unused Expert Edit prompt-enhance props out of `frontend/features/ai-studio/hooks/useAiStudioPanelProps.ts` and the page-level call site so the canonical shell no longer threads dead edit-panel baggage.
+4. Removed legacy `canvas` as a first-class canonical tool identity from `frontend/features/ai-studio/types.ts` and `frontend/features/ai-studio/logic/workflowIdentity.ts`, so the live AI Studio shell no longer recognizes `canvas` as an active workflow/tool.
+5. Reduced `frontend/features/ai-studio/logic/sessionSnapshotHydrator.ts` to a read-only migration seam for stale `selectedTool="canvas"` snapshots by keeping raw-value demotion to `create` while removing `canvas` from the canonical tool allowlist.
+6. Updated focused workflow, routing, shell-resize, workspace-action, page-derivation, and snapshot-hydration tests so the active shell/test surface no longer carries `canvas` as a live tool identity.
 
 ## Phase Links
 1. `docs/planning/ai-studio-master-stage-phase-1-target-contract-and-bakeoff-plan-2026-04-12.md`

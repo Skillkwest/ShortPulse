@@ -44,6 +44,12 @@ This phase should close the loop on:
    - `frontend/features/ai-studio/hooks/__tests__/useAiStudioPanelProps.test.ts`
    - `frontend/features/ai-studio/components/__tests__/AiStudioPageContent.drop.test.tsx`
 3. Trimmed the now-unused Expert Edit prompt-enhance props out of `frontend/features/ai-studio/hooks/useAiStudioPanelProps.ts` and the page-level call site so the canonical shell no longer threads dead edit-panel baggage.
+4. Removed legacy `canvas` as a first-class canonical tool identity from:
+   - `frontend/features/ai-studio/types.ts`
+   - `frontend/features/ai-studio/logic/workflowIdentity.ts`
+   - `frontend/features/ai-studio/logic/sessionSnapshotHydrator.ts`
+5. Kept `selectedTool="canvas"` readable only as a raw hydration migration seam by demoting it to `create` during snapshot restore while removing it from canonical tool/workflow/test allowlists.
+6. Updated focused workflow, routing, shell-resize, workspace-action, page-derivation, and snapshot-hydration coverage so the canonical shell no longer treats `canvas` as a live tool.
 
 ## Exit Criteria
 1. the canonical master stage is the only editor path,

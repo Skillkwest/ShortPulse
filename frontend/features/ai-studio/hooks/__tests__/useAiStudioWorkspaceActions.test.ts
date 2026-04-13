@@ -82,6 +82,7 @@ describe("useAiStudioWorkspaceActions", () => {
     });
 
     expect(setSelectedTool).toHaveBeenCalledTimes(5);
+    expect(setSelectedTool).toHaveBeenNthCalledWith(4, "video");
     expect(setMode).toHaveBeenCalledTimes(1);
     expect(setMode).toHaveBeenCalledWith("image");
     expect(setShowCreateTools).toHaveBeenCalledWith(false);
@@ -119,7 +120,7 @@ describe("useAiStudioWorkspaceActions", () => {
             addOutputsFromFiles,
           })
         ),
-      { initialProps: { selectedTool: "canvas" as ToolId } }
+      { initialProps: { selectedTool: "create" as ToolId } }
     );
 
     const targetA = { files: createFileList(), value: "filled" } as unknown as HTMLInputElement;

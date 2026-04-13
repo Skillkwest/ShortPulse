@@ -50,7 +50,6 @@ const TOOL_IDS = new Set<ToolId>([
   "text",
   "kling",
   "edit",
-  "canvas",
 ]);
 
 const asString = (value: unknown, fallback = ""): string => {

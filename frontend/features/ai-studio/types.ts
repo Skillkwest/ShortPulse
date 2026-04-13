@@ -4,7 +4,7 @@
  */
 export type StudioMode = "text" | "image" | "video";
 
-export type WorkflowId = "create" | "edit" | "video" | "character" | "canvas" | "none";
+export type WorkflowId = "create" | "edit" | "video" | "character" | "none";
 
 export type AspectOption = {
   value: string;
@@ -122,8 +122,7 @@ export type ToolId =
   | "music"
   | "text"
   | "kling"
-  | "edit"
-  | "canvas";
+  | "edit";
 
 export type StylesLibraryStyleDetails = {
   style: string;

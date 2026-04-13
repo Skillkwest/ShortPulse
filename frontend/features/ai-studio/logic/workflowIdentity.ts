@@ -20,8 +20,6 @@ export const resolveWorkflowId = (tool: ToolId | null | undefined): WorkflowId =
       return "video";
     case "character":
       return "character";
-    case "canvas":
-      return "canvas";
     default:
       return "none";
   }
@@ -51,8 +49,6 @@ export const normalizeToolId = (tool: ToolId | null | undefined): ToolId | null 
       return "video";
     case "character":
       return "character";
-    case "canvas":
-      return "canvas";
     default:
       return null;
   }
@@ -81,9 +77,3 @@ export const isVideoWorkflow = (tool: ToolId | null | undefined): boolean =>
  */
 export const isCharacterWorkflow = (tool: ToolId | null | undefined): boolean =>
   resolveWorkflowId(tool) === "character";
-
-/**
- * Returns true when the workflow is the canonical Canvas workflow.
- */
-export const isCanvasWorkflow = (tool: ToolId | null | undefined): boolean =>
-  resolveWorkflowId(tool) === "canvas";

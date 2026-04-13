@@ -145,8 +145,8 @@ describe("shouldCollapseAiShellOnToolSelect", () => {
   it("does not collapse when re-selecting the same tool or choosing other tools", () => {
     expect(shouldCollapseAiShellOnToolSelect("edit", "edit")).toBe(false);
     expect(shouldCollapseAiShellOnToolSelect("video", "video")).toBe(false);
-    expect(shouldCollapseAiShellOnToolSelect("text", "canvas")).toBe(false);
-    expect(shouldCollapseAiShellOnToolSelect("canvas", "canvas")).toBe(false);
+    expect(shouldCollapseAiShellOnToolSelect("text", "create")).toBe(false);
+    expect(shouldCollapseAiShellOnToolSelect("create", "create")).toBe(false);
     expect(shouldCollapseAiShellOnToolSelect("character", "character")).toBe(false);
     expect(shouldCollapseAiShellOnToolSelect("text", "create")).toBe(false);
     expect(shouldCollapseAiShellOnToolSelect("edit", null)).toBe(false);

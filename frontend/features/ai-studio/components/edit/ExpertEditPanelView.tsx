@@ -28,9 +28,6 @@ import { useCreateCharacterModeController } from "../create/useCreateCharacterMo
 import { useInpaintMaskController } from "./useInpaintMaskController";
 import {
   createIdleMarkupDrawPointerSession,
-  resolveMarkupStrokePointRadiusPx,
-  resolveMarkupStrokePointToSurfacePoint,
-  resolveMarkupStrokeWidthPx,
   type MarkupDrawPointerSession,
   type MarkupStroke,
 } from "./markupStrokeController";
@@ -53,6 +50,7 @@ import { useExpertEditMarkupDrawController } from "./useExpertEditMarkupDrawCont
 import { useExpertEditMarkupViewportController } from "./useExpertEditMarkupViewportController";
 import { useExpertEditTransformSession } from "./useExpertEditTransformSession";
 import { ExpertEditLayersPanel, ExpertEditLayerUtilityActions } from "./ExpertEditLayersPanel";
+import { ExpertEditStageScene } from "./ExpertEditStageScene";
 import {
   ExpertEditMarkupControlsContent,
   ExpertEditMarkupModalGeneralPanel,
@@ -125,19 +123,14 @@ import {
 } from "./expertEditColorUtils";
 import {
   createIdleMarkupPanPointerSession,
-  isResolvedStageViewportSize,
-  resolveRenderableStageViewportSize,
   type MarkupPanPointerSession,
-  type StageViewportSize,
 } from "./expertEditViewportUtils";
 import {
   areLayerTransformsEqual,
   areTransformHistoryEntriesEqual,
   buildTransformHistoryEntry,
-  clampLayerOpacity,
   defaultLayerTransform,
   resolveClippedLayerTransform,
-  resolveContainedLayerRect,
   type TransformHistoryEntry,
   type TransformHistoryState,
 } from "./expertEditLayerTransformUtils";
@@ -903,142 +896,6 @@ export function ExpertEditPanelView({
   const isRemoveBackgroundPending = removeBackgroundPendingLayerId != null;
   const isPrimaryStageBusy =
     isFlattenPending || isRemoveBackgroundPending || isPrimaryStageGenerating;
-  const renderMarkupStrokeOverlay = React.useCallback(
-    (
-      keyPrefix: string,
-      stageSize: StageViewportSize,
-      stageElement: HTMLDivElement | null = null
-    ) => {
-      if (!markupStrokes.length) return null;
-      const resolvedStageSize = resolveRenderableStageViewportSize({
-        preferredSize: stageSize,
-        stageElement,
-      });
-      const effectiveStageSize =
-        keyPrefix === "modal" &&
-        !isResolvedStageViewportSize(resolvedStageSize) &&
-        isResolvedStageViewportSize(inlineCompositionSurfaceViewportSize)
-          ? inlineCompositionSurfaceViewportSize
-          : resolvedStageSize;
-      const stageWidth = Math.max(1, effectiveStageSize.width);
-      const stageHeight = Math.max(1, effectiveStageSize.height);
-      return (
-        <svg
-          className="edit-expert-markup-strokes-overlay"
-          viewBox={`0 0 ${stageWidth} ${stageHeight}`}
-          aria-hidden="true"
-        >
-          {markupStrokes.map((stroke) => {
-            const strokeWidthPx = resolveMarkupStrokeWidthPx({
-              stroke,
-              stageHeight,
-            });
-            if (stroke.points.length <= 1) {
-              const point = stroke.points[0];
-              if (!point) return null;
-              const pointPx = resolveMarkupStrokePointToSurfacePoint({
-                point,
-                stageWidth,
-                stageHeight,
-              });
-              return (
-                <circle
-                  key={`${keyPrefix}-${stroke.id}-point`}
-                  cx={pointPx.x}
-                  cy={pointPx.y}
-                  r={resolveMarkupStrokePointRadiusPx({
-                    stroke,
-                    stageHeight,
-                  })}
-                  fill={stroke.color}
-                />
-              );
-            }
-            const pointsValue = stroke.points
-              .map((point) => {
-                const pointPx = resolveMarkupStrokePointToSurfacePoint({
-                  point,
-                  stageWidth,
-                  stageHeight,
-                });
-                return `${pointPx.x},${pointPx.y}`;
-              })
-              .join(" ");
-            return (
-              <polyline
-                key={`${keyPrefix}-${stroke.id}`}
-                points={pointsValue}
-                fill="none"
-                stroke={stroke.color}
-                strokeWidth={strokeWidthPx}
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            );
-          })}
-        </svg>
-      );
-    },
-    [inlineCompositionSurfaceViewportSize, markupStrokes]
-  );
-
-  const renderPrimaryStageBusyOverlay = React.useCallback((): React.ReactNode | null => {
-    if (isFlattenPending) {
-      return (
-        <div
-          className="edit-expert-primary-layer-loading-overlay"
-          data-testid="edit-expert-flatten-loading-overlay"
-        >
-          <div
-            className="edit-expert-primary-layer-loading"
-            role="status"
-            aria-label="Flattening layers"
-            aria-live="polite"
-          >
-            <span className="edit-expert-primary-layer-loading-spinner" aria-hidden="true" />
-            <span className="edit-expert-primary-layer-loading-text">Flattening layers...</span>
-          </div>
-        </div>
-      );
-    }
-    if (isRemoveBackgroundPending) {
-      return (
-        <div
-          className="edit-expert-primary-layer-loading-overlay"
-          data-testid="edit-expert-remove-background-loading-overlay"
-        >
-          <div
-            className="edit-expert-primary-layer-loading"
-            role="status"
-            aria-label="Removing background"
-            aria-live="polite"
-          >
-            <span className="edit-expert-primary-layer-loading-spinner" aria-hidden="true" />
-            <span className="edit-expert-primary-layer-loading-text">Removing background...</span>
-          </div>
-        </div>
-      );
-    }
-    if (isPrimaryStageGenerating) {
-      return (
-        <div
-          className="edit-expert-primary-layer-loading-overlay"
-          data-testid="edit-expert-inline-generate-loading-overlay"
-        >
-          <div
-            className="edit-expert-primary-layer-loading"
-            role="status"
-            aria-label="Generating image"
-            aria-live="polite"
-          >
-            <span className="edit-expert-primary-layer-loading-spinner" aria-hidden="true" />
-            <span className="edit-expert-primary-layer-loading-text">Generating...</span>
-          </div>
-        </div>
-      );
-    }
-    return null;
-  }, [isFlattenPending, isPrimaryStageGenerating, isRemoveBackgroundPending]);
 
   const lockGlobalCursor = React.useCallback((cursor: string) => {
     lockDocumentCursor({
@@ -2003,76 +1860,6 @@ export function ExpertEditPanelView({
     ]
   );
 
-  const renderPrimaryStageSceneContent = React.useCallback(
-    ({
-      scope,
-      overlayCanvas,
-      stageSize,
-      stageElement,
-    }: {
-      scope: "inline" | "modal";
-      overlayCanvas: React.RefObject<HTMLCanvasElement>;
-      stageSize: StageViewportSize;
-      stageElement: HTMLDivElement | null;
-    }) => {
-      const renderStageSize = resolveRenderableStageViewportSize({
-        preferredSize: stageSize,
-        stageElement,
-      });
-      return (
-        <>
-          {layers.map((layer, index) =>
-            layer.imageUrl
-              ? (() => {
-                  const constrainedTransform = resolveRenderableLayerTransform(layer);
-                  const layerRect = resolveContainedLayerRect({
-                    imageAspectRatio: resolveLayerImageAspectRatio(layer),
-                    viewportWidth: renderStageSize.width,
-                    viewportHeight: renderStageSize.height,
-                  });
-                  const translateX = constrainedTransform.translateXRatio * renderStageSize.width;
-                  const translateY = constrainedTransform.translateYRatio * renderStageSize.height;
-                  return (
-                    <div
-                      key={scope === "modal" ? `markup-modal-${layer.id}` : layer.id}
-                      className="edit-expert-primary-layer-frame"
-                      style={{
-                        left: `${layerRect.leftPercent}%`,
-                        top: `${layerRect.topPercent}%`,
-                        width: `${layerRect.widthPercent}%`,
-                        height: `${layerRect.heightPercent}%`,
-                        backgroundImage: `url(${layer.imageUrl})`,
-                        zIndex: layers.length - index,
-                        opacity: clampLayerOpacity(layer.opacity),
-                        transform: `translate(${Math.round(translateX * 100) / 100}px, ${
-                          Math.round(translateY * 100) / 100
-                        }px) scale(${constrainedTransform.scale}) rotate(${constrainedTransform.rotationDeg}deg)`,
-                        transformOrigin: "center center",
-                      }}
-                    />
-                  );
-                })()
-              : null
-          )}
-          <canvas
-            ref={overlayCanvas}
-            className="edit-expert-inpaint-overlay-canvas"
-            aria-hidden="true"
-          />
-          {renderMarkupStrokeOverlay(scope, renderStageSize, stageElement)}
-          {renderPrimaryStageBusyOverlay()}
-        </>
-      );
-    },
-    [
-      layers,
-      resolveRenderableLayerTransform,
-      resolveLayerImageAspectRatio,
-      renderMarkupStrokeOverlay,
-      renderPrimaryStageBusyOverlay,
-    ]
-  );
-
   return (
     <div
       className={`tool-properties edit-expert-panel ${
@@ -2228,12 +2015,22 @@ export function ExpertEditPanelView({
             onStageContextMenu={handlePrimaryDropzoneContextMenu}
             onStageClick={handlePrimaryDropzoneClick}
             onStageDoubleClick={handlePrimaryDropzoneDoubleClick}
-            sceneContent={renderPrimaryStageSceneContent({
-              scope: "inline",
-              overlayCanvas: overlayCanvasRef,
-              stageSize: inlineCompositionSurfaceViewportSize,
-              stageElement: primaryCanvasFrameStackElement,
-            })}
+            sceneContent={
+              <ExpertEditStageScene
+                scope="inline"
+                layers={layers}
+                markupStrokes={markupStrokes}
+                overlayCanvasRef={overlayCanvasRef}
+                stageSize={inlineCompositionSurfaceViewportSize}
+                stageElement={primaryCanvasFrameStackElement}
+                inlineFallbackStageSize={inlineCompositionSurfaceViewportSize}
+                resolveLayerImageAspectRatio={resolveLayerImageAspectRatio}
+                resolveRenderableLayerTransform={resolveRenderableLayerTransform}
+                isFlattenPending={isFlattenPending}
+                isRemoveBackgroundPending={isRemoveBackgroundPending}
+                isPrimaryStageGenerating={isPrimaryStageGenerating}
+              />
+            }
             transformOverlay={renderSelectedLayerTransformOverlay(
               "inline",
               inlineCompositionSurfaceViewportSize,
@@ -2560,12 +2357,22 @@ export function ExpertEditPanelView({
         inpaintPanel={renderMarkupModalInpaintPanel("modal")}
         markupPanel={renderMarkupControlsContent("modal")}
         viewportStyle={modalMarkupViewportStyle}
-        sceneContent={renderPrimaryStageSceneContent({
-          scope: "modal",
-          overlayCanvas: modalOverlayCanvasRef,
-          stageSize: markupModalViewportSize,
-          stageElement: markupModalStageElement,
-        })}
+        sceneContent={
+          <ExpertEditStageScene
+            scope="modal"
+            layers={layers}
+            markupStrokes={markupStrokes}
+            overlayCanvasRef={modalOverlayCanvasRef}
+            stageSize={markupModalViewportSize}
+            stageElement={markupModalStageElement}
+            inlineFallbackStageSize={inlineCompositionSurfaceViewportSize}
+            resolveLayerImageAspectRatio={resolveLayerImageAspectRatio}
+            resolveRenderableLayerTransform={resolveRenderableLayerTransform}
+            isFlattenPending={isFlattenPending}
+            isRemoveBackgroundPending={isRemoveBackgroundPending}
+            isPrimaryStageGenerating={isPrimaryStageGenerating}
+          />
+        }
         transformOverlay={renderSelectedLayerTransformOverlay(
           "modal",
           markupModalViewportSize,

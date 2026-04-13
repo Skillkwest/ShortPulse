@@ -81,6 +81,11 @@ Phase 6 now starts from the stable Phase 5 export boundary and should target the
    - `frontend/features/ai-studio/hooks/useAiStudioSessionPersistenceController.ts`
    - `frontend/features/ai-studio/hooks/useAiStudioSessionRestoreHydration.ts`
    - focused controller-hook tests updated accordingly.
+9. Collapsed legacy rollout-era persistence flagging to one default-off client master switch by removing `NEXT_PUBLIC_AI_STUDIO_LEGACY_SESSION_PERSISTENCE_ENABLED` from:
+   - `frontend/features/ai-studio/logic/sessionPersistencePolicy.ts`
+   - `frontend/features/ai-studio/logic/__tests__/sessionPersistencePolicy.test.ts`
+   - `frontend/features/ai-studio/logic/__tests__/sessionShadowPersistence.test.ts`
+   - active environment/docs references in `README.md`, `frontend/.env.example`, `docs/local-development.md`, `docs/deployment.md`, `docs/troubleshooting.md`, `docs/api/api-internal-routes.md`, and `docs/sops/sop_ai_studio_session_persistence_reference_only.md`.
 
 ## Next Slice
 1. Audit the generic page snapshot payload for other editor-only state that should move behind dedicated optional extensions or be removed entirely from durable writes.

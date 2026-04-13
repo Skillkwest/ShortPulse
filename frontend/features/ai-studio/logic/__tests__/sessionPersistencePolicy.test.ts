@@ -1,6 +1,6 @@
 /**
  * Unit coverage for AI Studio session-persistence policy gates.
- * Verifies master and lane flags collapse to deterministic client behavior.
+ * Verifies the single persistence master switch and lane flags collapse to deterministic behavior.
  */
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -10,7 +10,6 @@ const loadPolicy = async () => {
 };
 
 describe("readAiStudioSessionPersistencePolicy", () => {
-  const originalLegacyMaster = process.env.NEXT_PUBLIC_AI_STUDIO_LEGACY_SESSION_PERSISTENCE_ENABLED;
   const originalMaster = process.env.NEXT_PUBLIC_AI_STUDIO_SESSION_PERSISTENCE_ENABLED;
   const originalWrite = process.env.NEXT_PUBLIC_AI_STUDIO_SESSION_WRITE_SHADOW_ENABLED;
   const originalRemote = process.env.NEXT_PUBLIC_AI_STUDIO_SESSION_REMOTE_SHADOW_ENABLED;
@@ -20,11 +19,6 @@ describe("readAiStudioSessionPersistencePolicy", () => {
 
   afterEach(() => {
     vi.resetModules();
-    if (typeof originalLegacyMaster === "string") {
-      process.env.NEXT_PUBLIC_AI_STUDIO_LEGACY_SESSION_PERSISTENCE_ENABLED = originalLegacyMaster;
-    } else {
-      delete process.env.NEXT_PUBLIC_AI_STUDIO_LEGACY_SESSION_PERSISTENCE_ENABLED;
-    }
     if (typeof originalMaster === "string") {
       process.env.NEXT_PUBLIC_AI_STUDIO_SESSION_PERSISTENCE_ENABLED = originalMaster;
     } else {
@@ -58,7 +52,6 @@ describe("readAiStudioSessionPersistencePolicy", () => {
   });
 
   it("defaults all legacy persistence lanes to disabled", async () => {
-    delete process.env.NEXT_PUBLIC_AI_STUDIO_LEGACY_SESSION_PERSISTENCE_ENABLED;
     delete process.env.NEXT_PUBLIC_AI_STUDIO_SESSION_PERSISTENCE_ENABLED;
     delete process.env.NEXT_PUBLIC_AI_STUDIO_SESSION_WRITE_SHADOW_ENABLED;
     delete process.env.NEXT_PUBLIC_AI_STUDIO_SESSION_REMOTE_SHADOW_ENABLED;
@@ -79,9 +72,8 @@ describe("readAiStudioSessionPersistencePolicy", () => {
     });
   });
 
-  it("requires the explicit legacy master flag before any lane can turn on", async () => {
-    delete process.env.NEXT_PUBLIC_AI_STUDIO_LEGACY_SESSION_PERSISTENCE_ENABLED;
-    process.env.NEXT_PUBLIC_AI_STUDIO_SESSION_PERSISTENCE_ENABLED = "true";
+  it("requires the explicit persistence master flag before any lane can turn on", async () => {
+    delete process.env.NEXT_PUBLIC_AI_STUDIO_SESSION_PERSISTENCE_ENABLED;
     process.env.NEXT_PUBLIC_AI_STUDIO_SESSION_WRITE_SHADOW_ENABLED = "true";
     process.env.NEXT_PUBLIC_AI_STUDIO_SESSION_REMOTE_SHADOW_ENABLED = "true";
     process.env.NEXT_PUBLIC_AI_STUDIO_SESSION_RESTORE_SHADOW_ENABLED = "true";
@@ -101,8 +93,7 @@ describe("readAiStudioSessionPersistencePolicy", () => {
     });
   });
 
-  it("disables all lanes when the legacy master is on but the persistence flag is false", async () => {
-    process.env.NEXT_PUBLIC_AI_STUDIO_LEGACY_SESSION_PERSISTENCE_ENABLED = "true";
+  it("disables all lanes when the persistence flag is false", async () => {
     process.env.NEXT_PUBLIC_AI_STUDIO_SESSION_PERSISTENCE_ENABLED = "false";
     process.env.NEXT_PUBLIC_AI_STUDIO_SESSION_WRITE_SHADOW_ENABLED = "true";
     process.env.NEXT_PUBLIC_AI_STUDIO_SESSION_REMOTE_SHADOW_ENABLED = "true";
@@ -123,8 +114,7 @@ describe("readAiStudioSessionPersistencePolicy", () => {
     });
   });
 
-  it("allows legacy persistence lanes when both master flags are enabled", async () => {
-    process.env.NEXT_PUBLIC_AI_STUDIO_LEGACY_SESSION_PERSISTENCE_ENABLED = "true";
+  it("allows persistence lanes when the persistence flag is enabled", async () => {
     process.env.NEXT_PUBLIC_AI_STUDIO_SESSION_PERSISTENCE_ENABLED = "true";
     process.env.NEXT_PUBLIC_AI_STUDIO_SESSION_WRITE_SHADOW_ENABLED = "true";
     process.env.NEXT_PUBLIC_AI_STUDIO_SESSION_REMOTE_SHADOW_ENABLED = "true";
@@ -146,7 +136,6 @@ describe("readAiStudioSessionPersistencePolicy", () => {
   });
 
   it("requires remote shadow lane for remote restore reads", async () => {
-    process.env.NEXT_PUBLIC_AI_STUDIO_LEGACY_SESSION_PERSISTENCE_ENABLED = "true";
     process.env.NEXT_PUBLIC_AI_STUDIO_SESSION_PERSISTENCE_ENABLED = "true";
     process.env.NEXT_PUBLIC_AI_STUDIO_SESSION_WRITE_SHADOW_ENABLED = "true";
     process.env.NEXT_PUBLIC_AI_STUDIO_SESSION_REMOTE_SHADOW_ENABLED = "false";

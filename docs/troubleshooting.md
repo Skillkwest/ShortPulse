@@ -247,7 +247,7 @@ Symptoms:
 Checklist:
 - Confirm tokens are in supported range: only `@img1`, `@img2`, `@img3`.
 - Confirm referenced secondary slots are populated (for example, `@img2` requires slot 2 image present).
-- Confirm behavior is in Expert Edit workflow (`NEXT_PUBLIC_ENABLE_EXPERT_EDIT_UI` not forcing legacy Edit).
+- Confirm behavior is in the canonical Expert Edit workflow (legacy Edit fallback has been removed).
 - Verify prompt references use the Expert Edit token logic path:
   - `frontend/features/ai-studio/logic/expertEditPromptReferences.ts`
   - `frontend/features/ai-studio/components/edit/ExpertEditPanelView.tsx`
@@ -573,9 +573,9 @@ Checklist:
 
 ## AI Studio session persistence emergency rollback posture
 Checklist:
-- Default posture is now legacy session persistence hard-off.
+- Default posture is now client session persistence hard-off.
 - Confirm this client master gate is unset or `false`:
-  - `NEXT_PUBLIC_AI_STUDIO_LEGACY_SESSION_PERSISTENCE_ENABLED`
+  - `NEXT_PUBLIC_AI_STUDIO_SESSION_PERSISTENCE_ENABLED`
 - If forcing a full rollback baseline, also confirm these flags are `false` in the active frontend/server runtime:
   - `SHORTPULSE_AI_STUDIO_SESSIONS_API_ENABLED`
   - `NEXT_PUBLIC_AI_STUDIO_SESSION_RESTORE_SHADOW_ENABLED`
@@ -608,8 +608,8 @@ Checklist:
 
 ## AI Studio session restore candidate does not appear
 Checklist:
-- Confirm legacy session persistence is explicitly opted in:
-  - `NEXT_PUBLIC_AI_STUDIO_LEGACY_SESSION_PERSISTENCE_ENABLED=true`
+- Confirm client session persistence is explicitly opted in:
+  - `NEXT_PUBLIC_AI_STUDIO_SESSION_PERSISTENCE_ENABLED=true`
 - Ensure `NEXT_PUBLIC_AI_STUDIO_SESSION_RESTORE_SHADOW_ENABLED` is not `false` in the frontend environment.
 - Ensure `sid` is present and valid in URL (`/ai-studio?sid=<uuid>`).
 - If remote restore candidate is expected, ensure `SHORTPULSE_AI_STUDIO_SESSIONS_API_ENABLED` is not `false`.
@@ -618,8 +618,8 @@ Checklist:
 
 ## AI Studio session snapshot is loaded but not applied to UI
 Checklist:
-- Confirm legacy session persistence is explicitly opted in:
-  - `NEXT_PUBLIC_AI_STUDIO_LEGACY_SESSION_PERSISTENCE_ENABLED=true`
+- Confirm client session persistence is explicitly opted in:
+  - `NEXT_PUBLIC_AI_STUDIO_SESSION_PERSISTENCE_ENABLED=true`
 - Ensure `NEXT_PUBLIC_AI_STUDIO_SESSION_RESTORE_APPLY_ENABLED` is not `false`.
 - Ensure restore-candidate loading is enabled:
   - `NEXT_PUBLIC_AI_STUDIO_SESSION_RESTORE_SHADOW_ENABLED` is not `false`.

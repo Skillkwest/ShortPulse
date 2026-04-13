@@ -58,9 +58,7 @@ const createSnapshot = () => ({
 
 const loadPersistModule = async (remoteEnabled: boolean) => {
   vi.resetModules();
-  process.env.NEXT_PUBLIC_AI_STUDIO_LEGACY_SESSION_PERSISTENCE_ENABLED = remoteEnabled
-    ? "true"
-    : "false";
+  process.env.NEXT_PUBLIC_AI_STUDIO_SESSION_PERSISTENCE_ENABLED = remoteEnabled ? "true" : "false";
   process.env.NEXT_PUBLIC_AI_STUDIO_SESSION_REMOTE_SHADOW_ENABLED = remoteEnabled
     ? "true"
     : "false";
@@ -69,7 +67,7 @@ const loadPersistModule = async (remoteEnabled: boolean) => {
 
 describe("sessionShadowPersistence", () => {
   const originalRemoteFlag = process.env.NEXT_PUBLIC_AI_STUDIO_SESSION_REMOTE_SHADOW_ENABLED;
-  const originalLegacyFlag = process.env.NEXT_PUBLIC_AI_STUDIO_LEGACY_SESSION_PERSISTENCE_ENABLED;
+  const originalPersistenceFlag = process.env.NEXT_PUBLIC_AI_STUDIO_SESSION_PERSISTENCE_ENABLED;
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -81,10 +79,10 @@ describe("sessionShadowPersistence", () => {
     } else {
       delete process.env.NEXT_PUBLIC_AI_STUDIO_SESSION_REMOTE_SHADOW_ENABLED;
     }
-    if (typeof originalLegacyFlag === "string") {
-      process.env.NEXT_PUBLIC_AI_STUDIO_LEGACY_SESSION_PERSISTENCE_ENABLED = originalLegacyFlag;
+    if (typeof originalPersistenceFlag === "string") {
+      process.env.NEXT_PUBLIC_AI_STUDIO_SESSION_PERSISTENCE_ENABLED = originalPersistenceFlag;
     } else {
-      delete process.env.NEXT_PUBLIC_AI_STUDIO_LEGACY_SESSION_PERSISTENCE_ENABLED;
+      delete process.env.NEXT_PUBLIC_AI_STUDIO_SESSION_PERSISTENCE_ENABLED;
     }
   });
 
@@ -95,7 +93,7 @@ describe("sessionShadowPersistence", () => {
     expect(saveRemoteMock).not.toHaveBeenCalled();
   });
 
-  it("mirrors to remote when the legacy persistence master flag enables remote shadow", async () => {
+  it("mirrors to remote when the persistence flag enables remote shadow", async () => {
     saveRemoteMock.mockResolvedValue(undefined);
     const persist = await loadPersistModule(true);
     await persist("f7f45245-f204-4ece-8f9e-c9a66a9d8d2a", createSnapshot(), { keepalive: true });

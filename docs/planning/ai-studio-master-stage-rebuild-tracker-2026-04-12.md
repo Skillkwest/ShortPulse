@@ -128,6 +128,7 @@ Completed slice on 2026-04-12:
    - `frontend/features/ai-studio/hooks/__tests__/useAiStudioPageSessionPersistence.test.ts`
    - `frontend/features/ai-studio/hooks/__tests__/useAiStudioSessionRestoreHydration.test.ts`
 8. Removed the dead page-level canvas hydration branch from `frontend/features/ai-studio/hooks/useAiStudioSessionPersistenceController.ts` and `frontend/features/ai-studio/hooks/useAiStudioSessionRestoreHydration.ts`, since the canonical `/ai-studio` page no longer provides a canvas restore adapter and the branch was only adding unused controller complexity.
+9. Removed the extra rollout-era legacy master flag from client persistence gating by making `NEXT_PUBLIC_AI_STUDIO_SESSION_PERSISTENCE_ENABLED` the single default-off master switch and updating the active env/docs/test surface to match.
 
 ## Phase Links
 1. `docs/planning/ai-studio-master-stage-phase-1-target-contract-and-bakeoff-plan-2026-04-12.md`

@@ -69,10 +69,9 @@ Set these in Vercel project settings (`Production` + `Preview` as applicable):
   - `SHORTPULSE_VERCEL_API_TOKEN` (required by `scripts/verify_deployment_route_parity.mjs`; fallback supports `VERCEL_API_TOKEN`)
 - Optional agent/runtime toggles:
   - `NEXT_PUBLIC_ENABLE_EXPERT_CREATE_UI` (defaults to off in production; set `true` for the current Expert Create UI)
-  - `NEXT_PUBLIC_ENABLE_EXPERT_EDIT_UI` (defaults to on when unset; set explicitly to avoid fallback drift)
   - `NEXT_PUBLIC_ENABLE_STUDIO_AGENT`
   - `NEXT_PUBLIC_AGENT_V2`
-  - `NEXT_PUBLIC_AI_STUDIO_LEGACY_SESSION_PERSISTENCE_ENABLED` (set `true` only for legacy AI Studio save/restore)
+  - `NEXT_PUBLIC_AI_STUDIO_SESSION_PERSISTENCE_ENABLED` (set `true` only for AI Studio save/restore)
   - `SHORTPULSE_RELEASE` (optional explicit release/build tag for incident logs)
   - `NEXT_PUBLIC_SHORTPULSE_RELEASE` (optional client bundle release tag for incident logs)
   - `STUDIO_AGENT_ENABLED`
@@ -108,13 +107,12 @@ Set these in Vercel project settings (`Production` + `Preview` as applicable):
   - `SHORTPULSE_MEDIA_SIGNED_TRANSFORMS_ENABLED` (defaults to `false`; server half of dual-flag signed-transform policy)
   - `NEXT_PUBLIC_MEDIA_SIGNED_TRANSFORMS_ENABLED` (defaults to `false`; client half of dual-flag signed-transform policy)
   - `SHORTPULSE_AI_STUDIO_SESSIONS_API_ENABLED` (defaults to `true`; server-authenticated AI Studio session save/get/list routes)
-  - `NEXT_PUBLIC_AI_STUDIO_LEGACY_SESSION_PERSISTENCE_ENABLED` (defaults to `false`; legacy session persistence master opt-in)
-  - `NEXT_PUBLIC_AI_STUDIO_SESSION_PERSISTENCE_ENABLED` (defaults to `true` once legacy opt-in is enabled; client master switch)
+  - `NEXT_PUBLIC_AI_STUDIO_SESSION_PERSISTENCE_ENABLED` (defaults to `false`; client master switch)
   - `NEXT_PUBLIC_AI_STUDIO_SESSION_WRITE_SHADOW_ENABLED` (defaults to `true` once legacy opt-in is enabled; write path shadow lane)
-  - `NEXT_PUBLIC_AI_STUDIO_SESSION_REMOTE_SHADOW_ENABLED` (defaults to `true` once legacy opt-in is enabled; remote write shadow lane)
-  - `NEXT_PUBLIC_AI_STUDIO_SESSION_RESTORE_SHADOW_ENABLED` (defaults to `true` once legacy opt-in is enabled; restore read lane)
-  - `NEXT_PUBLIC_AI_STUDIO_SESSION_RESTORE_APPLY_ENABLED` (defaults to `true` once legacy opt-in is enabled; restore apply lane)
-  - `NEXT_PUBLIC_AI_STUDIO_SESSION_RESTORE_APPLY_AGENT_ENABLED` (defaults to `true` once legacy opt-in is enabled; restore agent lane)
+  - `NEXT_PUBLIC_AI_STUDIO_SESSION_REMOTE_SHADOW_ENABLED` (defaults to `true` once persistence is enabled; remote write shadow lane)
+  - `NEXT_PUBLIC_AI_STUDIO_SESSION_RESTORE_SHADOW_ENABLED` (defaults to `true` once persistence is enabled; restore read lane)
+  - `NEXT_PUBLIC_AI_STUDIO_SESSION_RESTORE_APPLY_ENABLED` (defaults to `true` once persistence is enabled; restore apply lane)
+  - `NEXT_PUBLIC_AI_STUDIO_SESSION_RESTORE_APPLY_AGENT_ENABLED` (defaults to `true` once persistence is enabled; restore agent lane)
   - `OPENAI_PROMPT_SYSTEM`
   - `SHORTPULSE_FAL_INTEGRATION_MODE` (`legacy|shadow|on`)
   - `SHORTPULSE_FAL_INTEGRATION_MODEL_ALLOWLIST` (comma-separated model IDs or prefixes like `fal-ai/bytedance/*`)

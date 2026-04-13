@@ -48,6 +48,7 @@ import { useExpertEditDocumentState } from "./useExpertEditDocumentState";
 import { useExpertEditLayerActions } from "./useExpertEditLayerActions";
 import { useExpertEditPromptTokenController } from "./useExpertEditPromptTokenController";
 import { useExpertEditSessionBridge } from "./useExpertEditSessionBridge";
+import { useExpertEditStageChrome } from "./useExpertEditStageChrome";
 import { useExpertEditStageHistory } from "./useExpertEditStageHistory";
 import { useExpertEditStageViewport } from "./useExpertEditStageViewport";
 import { ExpertEditStageContextMenu } from "./ExpertEditStagePrimitives";
@@ -169,7 +170,6 @@ import {
   resolveRailToolForGenerationMode,
   runPointerStageTerminalAction,
   scheduleTransientObjectUrlRevoke as scheduleTransientObjectUrlRevokeTimer,
-  resolveStageContextMenuPosition,
   unlockDocumentCursor,
 } from "./expertEditInteractionUtils";
 import { cloneMarkupStrokesSnapshot } from "./expertEditSessionState";
@@ -276,15 +276,6 @@ export function ExpertEditPanelView({
   );
   const [isMarkupPanDragging, setIsMarkupPanDragging] = React.useState(false);
   const [isMarkupPanSpacePressed, setIsMarkupPanSpacePressed] = React.useState(false);
-  const [stageContextMenuState, setStageContextMenuState] = React.useState<{
-    isOpen: boolean;
-    x: number;
-    y: number;
-  }>({
-    isOpen: false,
-    x: 0,
-    y: 0,
-  });
   const [markupStrokes, setMarkupStrokes] = React.useState<MarkupStroke[]>(() =>
     cloneMarkupStrokesSnapshot(initialSessionState.markupStrokes)
   );
@@ -1380,6 +1371,48 @@ export function ExpertEditPanelView({
   }, [commitTransformHistoryTransition, layers, resetMarkupViewport, selectedLayer, setLayers]);
 
   const {
+    stageContextMenuState,
+    shouldRenderInlineInteractiveStage,
+    openMarkupModal,
+    closeMarkupModal,
+    handleInlineStagePointerDownCapture,
+    handleInlineStagePointerMoveCapture,
+    handleInlineStagePointerUpCapture,
+    handleInlineStagePointerCancelCapture,
+    handlePrimaryDropzoneContextMenu,
+    handlePrimaryDropzoneClick,
+    handlePrimaryDropzoneDoubleClick,
+    handleStageContextMenuRecenter,
+    handleStageContextMenuExpand,
+    handleStageContextMenuAddImage,
+    handleStageContextMenuReset,
+    handleStageContextMenuRemoveImage,
+    handleMarkupModalDragShield,
+    handleMarkupModalRootDragCapture,
+  } = useExpertEditStageChrome({
+    hasPrimaryCompositePreview,
+    isMarkupExpandSelected,
+    isMorePresetsSurfaceOpen,
+    isMoveToolSelected,
+    selectedRailTool,
+    shouldOpenMarkupModalFromCollapsedTools,
+    beginMarkupPanGesture,
+    continueMarkupPanGesture,
+    endMarkupPanGesture,
+    handleRecenterMoveAction,
+    handleResetGeneralAction,
+    handleRemoveSelectedLayerImage,
+    setSelectedRailTool,
+    setIsMarkupExpandSelected,
+    setIsInpaintCollapsed,
+    setIsInpaintCollapsing,
+    primaryInputRef,
+    stageContextMenuRef,
+    markupModalRef,
+    inpaintCollapseTimerRef,
+  });
+
+  const {
     beginMarkupDrawGesture,
     continueMarkupDrawGesture,
     endMarkupDrawGesture,
@@ -1673,179 +1706,10 @@ export function ExpertEditPanelView({
     inpaintHandlers: inpaintStageHandlers,
     markupHandlers: markupStageHandlers,
   });
-  const shouldRenderInlineInteractiveStage = hasPrimaryCompositePreview && !isMarkupExpandSelected;
-
-  const handleInlineStagePointerDownCapture = React.useCallback(
-    (event: React.PointerEvent<HTMLDivElement>) => {
-      if (isMarkupExpandSelected) return;
-      if (isMorePresetsSurfaceOpen) return;
-      if (
-        event.target instanceof Element &&
-        event.target.closest(".edit-expert-stage-overlay-ui")
-      ) {
-        return;
-      }
-      if (!beginMarkupPanGesture(event, "inline")) return;
-      event.stopPropagation();
-    },
-    [beginMarkupPanGesture, isMarkupExpandSelected, isMorePresetsSurfaceOpen]
-  );
-
-  const handleInlineStagePointerMoveCapture = React.useCallback(
-    (event: React.PointerEvent<HTMLDivElement>) => {
-      if (isMarkupExpandSelected) return;
-      if (isMorePresetsSurfaceOpen) return;
-      if (
-        event.target instanceof Element &&
-        event.target.closest(".edit-expert-stage-overlay-ui")
-      ) {
-        return;
-      }
-      if (!continueMarkupPanGesture(event)) return;
-      event.stopPropagation();
-    },
-    [continueMarkupPanGesture, isMarkupExpandSelected, isMorePresetsSurfaceOpen]
-  );
-
-  const handleInlineStagePointerUpCapture = React.useCallback(
-    (event: React.PointerEvent<HTMLDivElement>) => {
-      if (isMarkupExpandSelected) return;
-      if (isMorePresetsSurfaceOpen) return;
-      if (
-        event.target instanceof Element &&
-        event.target.closest(".edit-expert-stage-overlay-ui")
-      ) {
-        return;
-      }
-      if (!endMarkupPanGesture(event)) return;
-      event.stopPropagation();
-    },
-    [endMarkupPanGesture, isMarkupExpandSelected, isMorePresetsSurfaceOpen]
-  );
-
-  const handleInlineStagePointerCancelCapture = React.useCallback(
-    (event: React.PointerEvent<HTMLDivElement>) => {
-      if (isMarkupExpandSelected) return;
-      if (isMorePresetsSurfaceOpen) return;
-      if (
-        event.target instanceof Element &&
-        event.target.closest(".edit-expert-stage-overlay-ui")
-      ) {
-        return;
-      }
-      if (!endMarkupPanGesture(event)) return;
-      event.stopPropagation();
-    },
-    [endMarkupPanGesture, isMarkupExpandSelected, isMorePresetsSurfaceOpen]
-  );
-
-  const closeStageContextMenu = React.useCallback(() => {
-    setStageContextMenuState((previous) =>
-      previous.isOpen ? { ...previous, isOpen: false } : previous
-    );
-  }, []);
-
-  const openStageContextMenu = React.useCallback((clientX: number, clientY: number) => {
-    if (typeof window === "undefined") return;
-    const { x, y } = resolveStageContextMenuPosition({
-      clientX,
-      clientY,
-      viewportWidth: window.innerWidth,
-      viewportHeight: window.innerHeight,
-    });
-    setStageContextMenuState({
-      isOpen: true,
-      x,
-      y,
-    });
-  }, []);
-
-  const handlePrimaryDropzoneContextMenu = React.useCallback(
-    (event: React.MouseEvent<HTMLDivElement>) => {
-      if (isMorePresetsSurfaceOpen) return;
-      if (!hasPrimaryCompositePreview) {
-        event.preventDefault();
-        return;
-      }
-      event.preventDefault();
-      openStageContextMenu(event.clientX, event.clientY);
-    },
-    [hasPrimaryCompositePreview, isMorePresetsSurfaceOpen, openStageContextMenu]
-  );
-
-  const handleStageContextMenuRecenter = React.useCallback(() => {
-    handleRecenterMoveAction();
-    closeStageContextMenu();
-  }, [closeStageContextMenu, handleRecenterMoveAction]);
-
-  const openMarkupModal = React.useCallback(
-    (tool?: RailTool) => {
-      if (tool && tool !== selectedRailTool) {
-        setSelectedRailTool(tool);
-      }
-      if (shouldOpenMarkupModalFromCollapsedTools) {
-        clearWindowTimeoutRef(inpaintCollapseTimerRef);
-        setIsInpaintCollapsed(true);
-        setIsInpaintCollapsing(false);
-      }
-      setIsMarkupExpandSelected(true);
-    },
-    [selectedRailTool, shouldOpenMarkupModalFromCollapsedTools]
-  );
-
-  const closeMarkupModal = React.useCallback(() => {
-    setIsMarkupExpandSelected(false);
-    if (shouldOpenMarkupModalFromCollapsedTools) {
-      clearWindowTimeoutRef(inpaintCollapseTimerRef);
-      setIsInpaintCollapsed(true);
-      setIsInpaintCollapsing(false);
-      setSelectedRailTool("move");
-    }
-  }, [shouldOpenMarkupModalFromCollapsedTools]);
-
   const handleGenerationModeChange = React.useCallback((nextMode: EditSubmitIntent) => {
     setSelectedGenerationMode(nextMode);
     setSelectedRailTool(resolveRailToolForGenerationMode(nextMode));
   }, []);
-
-  const handleStageContextMenuExpand = React.useCallback(() => {
-    openMarkupModal("video");
-    closeStageContextMenu();
-  }, [closeStageContextMenu, openMarkupModal]);
-
-  const handleStageContextMenuAddImage = React.useCallback(() => {
-    closeStageContextMenu();
-    primaryInputRef.current?.click();
-  }, [closeStageContextMenu]);
-
-  const handleStageContextMenuReset = React.useCallback(() => {
-    handleResetGeneralAction();
-    closeStageContextMenu();
-  }, [closeStageContextMenu, handleResetGeneralAction]);
-
-  const handleStageContextMenuRemoveImage = React.useCallback(() => {
-    handleRemoveSelectedLayerImage();
-    closeStageContextMenu();
-  }, [closeStageContextMenu, handleRemoveSelectedLayerImage]);
-
-  const handlePrimaryDropzoneClick = React.useCallback(() => {
-    if (isMorePresetsSurfaceOpen || !hasPrimaryCompositePreview) return;
-  }, [hasPrimaryCompositePreview, isMorePresetsSurfaceOpen]);
-
-  const handlePrimaryDropzoneDoubleClick = React.useCallback(
-    (event: React.MouseEvent<HTMLDivElement>) => {
-      if (isMorePresetsSurfaceOpen || !hasPrimaryCompositePreview) return;
-      if (!isMoveToolSelected) return;
-      event.preventDefault();
-      handleRecenterMoveAction();
-    },
-    [
-      handleRecenterMoveAction,
-      hasPrimaryCompositePreview,
-      isMorePresetsSurfaceOpen,
-      isMoveToolSelected,
-    ]
-  );
 
   const closeMorePresetsSurface = React.useCallback(() => {
     setIsMorePresetsSurfaceOpen(false);
@@ -1860,28 +1724,6 @@ export function ExpertEditPanelView({
   const handleStylesPanelToggle = React.useCallback(() => {
     onStylesPanelToggle?.();
   }, [onStylesPanelToggle]);
-
-  const handleMarkupModalDragShield = React.useCallback((event: React.DragEvent<HTMLElement>) => {
-    event.preventDefault();
-    event.stopPropagation();
-  }, []);
-
-  const isDragTargetInsideMarkupModal = React.useCallback(
-    (target: EventTarget | null) => {
-      return isEventTargetInsideElement(markupModalRef.current, target);
-    },
-    [markupModalRef]
-  );
-
-  const handleMarkupModalRootDragCapture = React.useCallback(
-    (event: React.DragEvent<HTMLDivElement>) => {
-      if (!isMarkupExpandSelected) return;
-      if (isDragTargetInsideMarkupModal(event.target)) return;
-      event.preventDefault();
-      event.stopPropagation();
-    },
-    [isDragTargetInsideMarkupModal, isMarkupExpandSelected]
-  );
 
   useExpertEditSessionBridge({
     initialReferenceImageUrl: referenceImageUrl,
@@ -1943,30 +1785,6 @@ export function ExpertEditPanelView({
   }, [clearMarkupDrawGestureSession, isVideoToolSelected]);
 
   React.useEffect(() => {
-    if (!isMarkupExpandSelected || typeof document === "undefined") return;
-    const previousBodyOverflow = document.body.style.overflow;
-    const previousHtmlOverflow = document.documentElement.style.overflow;
-    document.body.style.overflow = "hidden";
-    document.documentElement.style.overflow = "hidden";
-    return () => {
-      document.body.style.overflow = previousBodyOverflow;
-      document.documentElement.style.overflow = previousHtmlOverflow;
-    };
-  }, [isMarkupExpandSelected]);
-
-  React.useEffect(() => {
-    if (!isMarkupExpandSelected || typeof window === "undefined") return;
-    const handleEscape = (event: KeyboardEvent) => {
-      if (event.key !== "Escape") return;
-      closeMarkupModal();
-    };
-    window.addEventListener("keydown", handleEscape);
-    return () => {
-      window.removeEventListener("keydown", handleEscape);
-    };
-  }, [closeMarkupModal, isMarkupExpandSelected]);
-
-  React.useEffect(() => {
     if (!isMarkupExpandSelected || typeof window === "undefined") return;
     const handleHistoryHotkey = (event: KeyboardEvent) => {
       if (event.defaultPrevented) return;
@@ -1998,29 +1816,6 @@ export function ExpertEditPanelView({
     handleUndoGeneralAction,
     isMarkupExpandSelected,
   ]);
-
-  React.useEffect(() => {
-    if (!stageContextMenuState.isOpen || typeof document === "undefined") return;
-    const handlePointerDown = (event: PointerEvent) => {
-      if (isEventTargetInsideElement(stageContextMenuRef.current, event.target)) return;
-      closeStageContextMenu();
-    };
-    const handleEscape = (event: KeyboardEvent) => {
-      if (event.key !== "Escape") return;
-      closeStageContextMenu();
-    };
-    document.addEventListener("pointerdown", handlePointerDown);
-    document.addEventListener("keydown", handleEscape);
-    return () => {
-      document.removeEventListener("pointerdown", handlePointerDown);
-      document.removeEventListener("keydown", handleEscape);
-    };
-  }, [closeStageContextMenu, stageContextMenuState.isOpen]);
-
-  React.useEffect(() => {
-    if (!isMorePresetsSurfaceOpen && !isMarkupExpandSelected) return;
-    closeStageContextMenu();
-  }, [closeStageContextMenu, isMarkupExpandSelected, isMorePresetsSurfaceOpen]);
 
   React.useEffect(() => {
     if (isMarkupExpandSelected) return;

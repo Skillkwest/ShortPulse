@@ -92,7 +92,8 @@ Completed slice on 2026-04-12:
 8. Extracted manual flatten and remove-background execution into `frontend/features/ai-studio/components/edit/useExpertEditLayerActions.ts`, moving pending-state ownership, flatten export orchestration, and remove-background dispatch behind a dedicated layer-actions seam.
 9. Extracted the session bridge into `frontend/features/ai-studio/components/edit/useExpertEditSessionBridge.ts`, moving session-dispatch refs, host-sync orchestration, and session-owned unmount cleanup out of `ExpertEditPanelView.tsx`.
 10. Extracted stage history and general undo/redo/reset orchestration into `frontend/features/ai-studio/components/edit/useExpertEditStageHistory.ts`, moving markup and inpaint history state, baseline refs, session restore/apply effects, and clear/reset action wiring out of `ExpertEditPanelView.tsx`.
-11. Kept transform-history, inpaint/tool routing, export wiring, and persistence ownership in `ExpertEditPanelView.tsx` so the current Phase 3 slices stay behavior-neutral and do not widen into later phases.
+11. Extracted stage chrome orchestration into `frontend/features/ai-studio/components/edit/useExpertEditStageChrome.ts`, moving modal open/close behavior, stage context-menu state, inline pan-capture handlers, and modal/context-menu lifecycle effects out of `ExpertEditPanelView.tsx` while keeping the upstream modal-open state local for viewport geometry.
+12. Kept transform-history, inpaint/tool routing, export wiring, and persistence ownership in `ExpertEditPanelView.tsx` so the current Phase 3 slices stay behavior-neutral and do not widen into later phases.
 
 ## Phase Links
 1. `docs/planning/ai-studio-master-stage-phase-1-target-contract-and-bakeoff-plan-2026-04-12.md`

@@ -86,6 +86,7 @@ Completed on 2026-04-12:
 7. Extracted document/layer state ownership into `frontend/features/ai-studio/components/edit/useExpertEditDocumentState.ts`, centralizing layer stack state, selection, rename/delete/reorder flows, primary ingress wiring, and layer-derived selectors.
 8. Extracted the inline/modal layers UI and shared layer utility actions into `frontend/features/ai-studio/components/edit/ExpertEditLayersPanel.tsx`, reducing layer-surface rendering ownership inside `ExpertEditPanelView.tsx`.
 9. Extracted manual flatten and remove-background execution into `frontend/features/ai-studio/components/edit/useExpertEditLayerActions.ts`, moving pending-state ownership, flatten export orchestration, and remove-background dispatch out of the panel hotspot while keeping session sync wired through one adapter seam.
+10. Extracted the session bridge into `frontend/features/ai-studio/components/edit/useExpertEditSessionBridge.ts`, moving session-dispatch refs, host-sync orchestration, and session-owned unmount cleanup out of `ExpertEditPanelView.tsx`.
 
 ## Rollback Note
 If extraction destabilizes the stage before the new seams are strong enough, keep one temporary adapter from the old orchestrator to the new stage core. Do not copy logic back into the old hotspot.

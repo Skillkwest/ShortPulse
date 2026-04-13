@@ -51,7 +51,7 @@ import { useExpertEditInlineGenerate } from "./useExpertEditInlineGenerate";
 import { useExpertEditDocumentState } from "./useExpertEditDocumentState";
 import { useExpertEditLayerActions } from "./useExpertEditLayerActions";
 import { useExpertEditPromptTokenController } from "./useExpertEditPromptTokenController";
-import { useExpertEditSessionHostSync } from "./useExpertEditSessionHostSync";
+import { useExpertEditSessionBridge } from "./useExpertEditSessionBridge";
 import { useExpertEditStageViewport } from "./useExpertEditStageViewport";
 import { ExpertEditStageContextMenu } from "./ExpertEditStagePrimitives";
 import {
@@ -156,7 +156,6 @@ import {
   type TransformHistoryState,
 } from "./expertEditLayerTransformUtils";
 import {
-  collectOwnedLayerImageUrls,
   layerHasImage,
   resolveInitialExpertEditSessionState,
   resolveMarkupStrokeIdCounterFromStrokes,
@@ -168,7 +167,6 @@ import {
   buildMarkupBrushReticleCursor,
 } from "./expertEditCursorUtils";
 import {
-  clearWindowAnimationFrameRef,
   clearTransientObjectUrlRevokeTimers,
   clearWindowTimeoutRef,
   isEventTargetInsideElement,
@@ -187,7 +185,6 @@ import {
   cloneInpaintMaskSnapshot,
   cloneMarkupHistoryState,
   cloneMarkupStrokesSnapshot,
-  type ExpertEditSessionState,
 } from "./expertEditSessionState";
 
 const EXPERT_EDIT_IMAGE_TRANSFORM_EDITING_ENABLED = false;
@@ -244,12 +241,6 @@ export function ExpertEditPanelView({
       sessionState,
     })
   );
-  const previousLayersRef = React.useRef<ExpertEditLayer[]>([]);
-  const lastDispatchedSessionStateRef = React.useRef<ExpertEditSessionState | null>(null);
-  const pendingSessionStateRef = React.useRef<ExpertEditSessionState | null>(null);
-  const sessionDispatchFrameRef = React.useRef<number | null>(null);
-  const lastDispatchedPrimaryRef = React.useRef<string | null>(referenceImageUrl);
-  const previousPrimaryPropRef = React.useRef<string | null>(referenceImageUrl);
   const inpaintCollapseTimerRef = React.useRef<number | null>(null);
   const toastVisibleTimerRef = React.useRef<number | null>(null);
   const toastFadeTimerRef = React.useRef<number | null>(null);
@@ -2189,7 +2180,8 @@ export function ExpertEditPanelView({
     [isDragTargetInsideMarkupModal, isMarkupExpandSelected]
   );
 
-  useExpertEditSessionHostSync({
+  useExpertEditSessionBridge({
+    initialReferenceImageUrl: referenceImageUrl,
     foundationLayerId,
     selectedLayerIndex,
     layers,
@@ -2200,12 +2192,6 @@ export function ExpertEditPanelView({
     hostPrimaryImageUrl,
     removeBackgroundPendingLayerId,
     layerIdCounterRef,
-    previousLayersRef,
-    lastDispatchedSessionStateRef,
-    pendingSessionStateRef,
-    sessionDispatchFrameRef,
-    lastDispatchedPrimaryRef,
-    previousPrimaryPropRef,
     removeBackgroundPendingSourceUrlRef,
     setLayers,
     clearRemoveBackgroundPending,
@@ -2441,12 +2427,9 @@ export function ExpertEditPanelView({
       queuePendingHistoryApplyEntry(null);
       pendingMarkupHistoryApplyRef.current = null;
       pendingInpaintHistoryApplyRef.current = null;
-      pendingSessionStateRef.current = null;
-      lastDispatchedSessionStateRef.current = null;
       markupGestureBaselineRef.current = null;
       inpaintGestureBaselineRef.current = null;
       inpaintSessionRestorePendingRef.current = false;
-      clearWindowAnimationFrameRef(sessionDispatchFrameRef);
       clearWindowTimeoutRef(inpaintCollapseTimerRef);
       clearWindowTimeoutRef(toastVisibleTimerRef);
       clearWindowTimeoutRef(toastFadeTimerRef);
@@ -2454,13 +2437,8 @@ export function ExpertEditPanelView({
         timersByUrl: transientRevokeTimersRef.current,
         revokeObjectUrl: revokeObjectUrlSafe,
       });
-      if (!onSessionStateChange) {
-        const ownedUrlsOnUnmount = collectOwnedLayerImageUrls(previousLayersRef.current);
-        ownedUrlsOnUnmount.forEach((url) => revokeObjectUrlSafe(url));
-      }
-      previousLayersRef.current = [];
     },
-    [onSessionStateChange, queuePendingHistoryApplyEntry, unlockGlobalCursor]
+    [queuePendingHistoryApplyEntry, unlockGlobalCursor]
   );
 
   const handleInpaintCollapseToggle = React.useCallback(() => {

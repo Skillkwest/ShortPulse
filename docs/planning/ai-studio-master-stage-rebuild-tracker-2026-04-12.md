@@ -90,7 +90,8 @@ Completed slice on 2026-04-12:
 6. Extracted document/layer state ownership into `frontend/features/ai-studio/components/edit/useExpertEditDocumentState.ts`, moving layer stack state, selection, rename/delete/reorder behavior, primary ingress wiring, and layer-derived selectors behind a dedicated document-store seam.
 7. Extracted inline/modal layers UI and shared layer utility actions into `frontend/features/ai-studio/components/edit/ExpertEditLayersPanel.tsx`, reducing layer-surface rendering and layer-action button ownership inside `ExpertEditPanelView.tsx`.
 8. Extracted manual flatten and remove-background execution into `frontend/features/ai-studio/components/edit/useExpertEditLayerActions.ts`, moving pending-state ownership, flatten export orchestration, and remove-background dispatch behind a dedicated layer-actions seam.
-9. Kept inpaint/tool/persistence ownership in `ExpertEditPanelView.tsx` so the current Phase 3 slices stay behavior-neutral and do not widen into later phases.
+9. Extracted the session bridge into `frontend/features/ai-studio/components/edit/useExpertEditSessionBridge.ts`, moving session-dispatch refs, host-sync orchestration, and session-owned unmount cleanup out of `ExpertEditPanelView.tsx`.
+10. Kept inpaint/tool/persistence ownership in `ExpertEditPanelView.tsx` so the current Phase 3 slices stay behavior-neutral and do not widen into later phases.
 
 ## Phase Links
 1. `docs/planning/ai-studio-master-stage-phase-1-target-contract-and-bakeoff-plan-2026-04-12.md`

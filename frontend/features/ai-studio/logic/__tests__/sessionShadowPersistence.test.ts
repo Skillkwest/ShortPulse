@@ -1,4 +1,5 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { persistAiStudioSessionShadow } from "../sessionShadowPersistence";
 
 const saveLocalMock = vi.fn();
 const saveRemoteMock = vi.fn();
@@ -56,47 +57,23 @@ const createSnapshot = () => ({
   },
 });
 
-const loadPersistModule = async (remoteEnabled: boolean) => {
-  vi.resetModules();
-  process.env.NEXT_PUBLIC_AI_STUDIO_SESSION_PERSISTENCE_ENABLED = remoteEnabled ? "true" : "false";
-  process.env.NEXT_PUBLIC_AI_STUDIO_SESSION_REMOTE_SHADOW_ENABLED = remoteEnabled
-    ? "true"
-    : "false";
-  return (await import("../sessionShadowPersistence")).persistAiStudioSessionShadow;
-};
-
 describe("sessionShadowPersistence", () => {
-  const originalRemoteFlag = process.env.NEXT_PUBLIC_AI_STUDIO_SESSION_REMOTE_SHADOW_ENABLED;
-  const originalPersistenceFlag = process.env.NEXT_PUBLIC_AI_STUDIO_SESSION_PERSISTENCE_ENABLED;
-
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  afterEach(() => {
-    if (typeof originalRemoteFlag === "string") {
-      process.env.NEXT_PUBLIC_AI_STUDIO_SESSION_REMOTE_SHADOW_ENABLED = originalRemoteFlag;
-    } else {
-      delete process.env.NEXT_PUBLIC_AI_STUDIO_SESSION_REMOTE_SHADOW_ENABLED;
-    }
-    if (typeof originalPersistenceFlag === "string") {
-      process.env.NEXT_PUBLIC_AI_STUDIO_SESSION_PERSISTENCE_ENABLED = originalPersistenceFlag;
-    } else {
-      delete process.env.NEXT_PUBLIC_AI_STUDIO_SESSION_PERSISTENCE_ENABLED;
-    }
-  });
-
   it("always persists local shadow", async () => {
-    const persist = await loadPersistModule(false);
-    await persist("f7f45245-f204-4ece-8f9e-c9a66a9d8d2a", createSnapshot());
+    await persistAiStudioSessionShadow("f7f45245-f204-4ece-8f9e-c9a66a9d8d2a", createSnapshot());
     expect(saveLocalMock).toHaveBeenCalledTimes(1);
     expect(saveRemoteMock).not.toHaveBeenCalled();
   });
 
-  it("mirrors to remote when the persistence flag enables remote shadow", async () => {
+  it("mirrors to remote when explicitly requested by the controller", async () => {
     saveRemoteMock.mockResolvedValue(undefined);
-    const persist = await loadPersistModule(true);
-    await persist("f7f45245-f204-4ece-8f9e-c9a66a9d8d2a", createSnapshot(), { keepalive: true });
+    await persistAiStudioSessionShadow("f7f45245-f204-4ece-8f9e-c9a66a9d8d2a", createSnapshot(), {
+      keepalive: true,
+      mirrorRemote: true,
+    });
     expect(saveLocalMock).toHaveBeenCalledTimes(1);
     expect(saveRemoteMock).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -108,10 +85,11 @@ describe("sessionShadowPersistence", () => {
 
   it("swallows remote shadow failures because local shadow remains authoritative", async () => {
     saveRemoteMock.mockRejectedValue(new Error("server failed"));
-    const persist = await loadPersistModule(true);
-    await expect(persist("f7f45245-f204-4ece-8f9e-c9a66a9d8d2a", createSnapshot())).resolves.toBe(
-      undefined
-    );
+    await expect(
+      persistAiStudioSessionShadow("f7f45245-f204-4ece-8f9e-c9a66a9d8d2a", createSnapshot(), {
+        mirrorRemote: true,
+      })
+    ).resolves.toBe(undefined);
     expect(saveLocalMock).toHaveBeenCalledTimes(1);
     expect(saveRemoteMock).toHaveBeenCalledTimes(1);
   });

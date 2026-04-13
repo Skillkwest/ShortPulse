@@ -82,7 +82,7 @@ export const useAiStudioSessionPersistenceController = ({
   hydrateFromSessionExpertEditSnapshot,
   onPersistenceWarning,
 }: UseAiStudioSessionPersistenceControllerParams): AiStudioSessionPersistenceController => {
-  const { persistenceEnabled, writeShadowEnabled, restoreShadowEnabled } =
+  const { persistenceEnabled, writeShadowEnabled, remoteShadowEnabled, restoreShadowEnabled } =
     readAiStudioSessionPersistencePolicy();
   const [skipRestoreApplyForSessionId, setSkipRestoreApplyForSessionId] = useState<string | null>(
     null
@@ -118,11 +118,25 @@ export const useAiStudioSessionPersistenceController = ({
     [onPersistenceWarning]
   );
 
+  const persistSessionSnapshot = useCallback(
+    (
+      activeSessionId: string,
+      snapshot: AiStudioSessionSnapshot,
+      options?: { keepalive?: boolean; title?: string | null }
+    ) =>
+      persistAiStudioSessionShadow(activeSessionId, snapshot, {
+        keepalive: options?.keepalive,
+        title: options?.title,
+        mirrorRemote: persistenceEnabled && writeShadowEnabled && remoteShadowEnabled,
+      }),
+    [persistenceEnabled, remoteShadowEnabled, writeShadowEnabled]
+  );
+
   useAiStudioSessionWriteShadow({
     sessionId,
     snapshot: sessionSnapshot,
     enabled: persistenceEnabled && writeShadowEnabled,
-    persistSnapshot: persistAiStudioSessionShadow,
+    persistSnapshot: persistSessionSnapshot,
     resolveSnapshotTitle: (snapshot) =>
       sessionTitleOverride ?? resolveAiStudioSessionSnapshotTitle(snapshot),
     onPersistError: handlePersistError,

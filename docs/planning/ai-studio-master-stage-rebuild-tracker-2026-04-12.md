@@ -130,6 +130,7 @@ Completed slice on 2026-04-12:
 8. Removed the dead page-level canvas hydration branch from `frontend/features/ai-studio/hooks/useAiStudioSessionPersistenceController.ts` and `frontend/features/ai-studio/hooks/useAiStudioSessionRestoreHydration.ts`, since the canonical `/ai-studio` page no longer provides a canvas restore adapter and the branch was only adding unused controller complexity.
 9. Removed the extra rollout-era legacy master flag from client persistence gating by making `NEXT_PUBLIC_AI_STUDIO_SESSION_PERSISTENCE_ENABLED` the single default-off master switch and updating the active env/docs/test surface to match.
 10. Removed the dead `canvasState` write surface from `frontend/features/ai-studio/hooks/useAiStudioSessionSnapshotController.ts`, making the canonical page snapshot controller explicit that `canvas` is no longer part of active `/ai-studio` durable writes and survives only as a bounded read-only compatibility extension in the shared snapshot schema.
+11. Simplified shadow-persistence control flow by moving the remote-shadow decision up into `frontend/features/ai-studio/hooks/useAiStudioSessionPersistenceController.ts` and reducing `frontend/features/ai-studio/logic/sessionShadowPersistence.ts` to a plain local-first transport with optional remote mirroring.
 
 ## Phase Links
 1. `docs/planning/ai-studio-master-stage-phase-1-target-contract-and-bakeoff-plan-2026-04-12.md`

@@ -148,7 +148,7 @@ import {
   unlockDocumentCursor,
 } from "./expertEditInteractionUtils";
 import { cloneMarkupStrokesSnapshot } from "./expertEditSessionState";
-const EXPERT_EDIT_IMAGE_TRANSFORM_EDITING_ENABLED = false;
+const EXPERT_EDIT_IMAGE_TRANSFORM_EDITING_ENABLED = true;
 
 export function ExpertEditPanelView({
   aspect,

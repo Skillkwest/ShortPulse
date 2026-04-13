@@ -77,6 +77,10 @@ The next execution lane now shifts to the first artboard-first interaction slice
 4. do not widen into export, persistence, or provider-submission cleanup during this lane.
 
 Completed slice on 2026-04-12:
+1. Enabled the canonical single-select transform path in `frontend/features/ai-studio/components/edit/ExpertEditPanelView.tsx`, replacing the previous frozen placeholder behavior so move-mode interactions now use the extracted transform-session/controller path.
+2. Updated focused `ExpertEditPanelView` transform coverage to assert the real Phase 4 move/resize/rotate behavior, including transform overlay visibility, selected-layer-only resize behavior, move history and recenter behavior, rotation undo/redo behavior, and expanded-modal transform behavior.
+
+Completed slice on 2026-04-12:
 1. Extracted stage viewport/artboard ownership from `ExpertEditPanelView.tsx` into:
    - `frontend/features/ai-studio/components/edit/useExpertEditStageViewport.ts`
    - `frontend/features/ai-studio/components/edit/expertEditStageViewportGeometry.ts`

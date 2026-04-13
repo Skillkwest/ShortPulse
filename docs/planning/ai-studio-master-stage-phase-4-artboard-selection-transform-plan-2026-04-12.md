@@ -55,5 +55,16 @@ Phase 4 starts from the extracted stage-core seams and should now target the fir
 2. keep the current artboard and viewport contracts stable while doing that,
 3. do not widen into export, persistence, or provider submission cleanup during this lane.
 
+## Current Progress
+Completed on 2026-04-12:
+1. Enabled the canonical single-select transform path in `frontend/features/ai-studio/components/edit/ExpertEditPanelView.tsx` so move-mode interactions now use the extracted transform-session/controller path instead of the previous frozen placeholder behavior.
+2. Updated focused app-level transform coverage in `frontend/features/ai-studio/components/__tests__/ExpertEditPanelView.test.tsx` to assert the real Phase 4 behavior for:
+   - overlay and handle visibility in move mode,
+   - resize behavior,
+   - move history and recenter behavior,
+   - rotation behavior with undo/redo,
+   - expanded-modal transform behavior.
+3. Kept the transform math and controller path rooted in the extracted stage-core seams without widening into export, persistence, or provider submission work.
+
 ## Rollback Note
 If the new transform system is not stable enough for general use, keep a narrowly-scoped adapter to the prior transform path while preserving the new artboard-first data model. Do not reopen generic Canvas as a fallback editor.

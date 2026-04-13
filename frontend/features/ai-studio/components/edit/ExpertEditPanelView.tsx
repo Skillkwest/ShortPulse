@@ -33,6 +33,7 @@ import { useExpertEditStageChrome } from "./useExpertEditStageChrome";
 import { useExpertEditStageHistory } from "./useExpertEditStageHistory";
 import { useExpertEditStageInteractions } from "./useExpertEditStageInteractions";
 import { useExpertEditStageLifecycle } from "./useExpertEditStageLifecycle";
+import { useExpertEditStageTransformRuntime } from "./useExpertEditStageTransformRuntime";
 import { useExpertEditStageViewport } from "./useExpertEditStageViewport";
 import { ExpertEditStageContextMenu } from "./ExpertEditStagePrimitives";
 import {
@@ -41,7 +42,6 @@ import {
 } from "./ExpertEditStageSurface";
 import { useExpertEditMarkupDrawController } from "./useExpertEditMarkupDrawController";
 import { useExpertEditMarkupViewportController } from "./useExpertEditMarkupViewportController";
-import { useExpertEditTransformSession } from "./useExpertEditTransformSession";
 import { ExpertEditInlinePostStageTools } from "./ExpertEditInlinePostStageTools";
 import { ExpertEditLayersPanel, ExpertEditLayerUtilityActions } from "./ExpertEditLayersPanel";
 import { ExpertEditStageScene } from "./ExpertEditStageScene";
@@ -120,24 +120,16 @@ import {
 } from "./expertEditViewportUtils";
 import {
   areLayerTransformsEqual,
-  areTransformHistoryEntriesEqual,
   buildTransformHistoryEntry,
   defaultLayerTransform,
-  resolveClippedLayerTransform,
-  type TransformHistoryEntry,
   type TransformHistoryState,
 } from "./expertEditLayerTransformUtils";
 import {
   layerHasImage,
   resolveInitialExpertEditSessionState,
   resolveMarkupStrokeIdCounterFromStrokes,
-  type ExpertEditLayer,
 } from "./expertEditLayerSessionUtils";
-import {
-  buildInpaintBrushReticleCursor,
-  buildInpaintLassoCursor,
-  buildMarkupBrushReticleCursor,
-} from "./expertEditCursorUtils";
+import { buildInpaintBrushReticleCursor } from "./expertEditCursorUtils";
 import {
   clearWindowTimeoutRef,
   isEventTargetInsideElement,
@@ -837,24 +829,7 @@ export function ExpertEditPanelView({
     Boolean(selectedLayerImageUrl) &&
     imageHasInteractiveMask;
   const shouldShowMarkupBrushReticle = isVideoToolSelected && hasPrimaryCompositePreview;
-  const shouldShowSelectedLayerTransformOverlay =
-    EXPERT_EDIT_IMAGE_TRANSFORM_EDITING_ENABLED &&
-    isMoveToolSelected &&
-    Boolean(selectedLayerImageUrl) &&
-    hasPrimaryCompositePreview;
-  const selectedLayerImageAspectRatio = React.useMemo(
-    () => resolveLayerImageAspectRatio(selectedLayer),
-    [resolveLayerImageAspectRatio, selectedLayer]
-  );
-  const resolveRenderableLayerTransform = React.useCallback(
-    (layer: ExpertEditLayer) =>
-      resolveClippedLayerTransform({
-        transform: layer.transform,
-      }),
-    []
-  );
   const morePresetsSurfaceId = React.useId();
-  const activeStageRenderScale = markupViewport.scale;
 
   const resolveStageFlattenSnapshot = React.useCallback(() => {
     return {
@@ -964,155 +939,13 @@ export function ExpertEditPanelView({
     [extraImageUrls]
   );
 
-  const commitTransformHistoryTransition = React.useCallback(
-    (nextEntry: TransformHistoryEntry, baselineEntry?: TransformHistoryEntry | null) => {
-      setTransformHistoryState((previousHistory) => {
-        const previousEntry = baselineEntry ?? previousHistory.present;
-        if (areTransformHistoryEntriesEqual(previousEntry, nextEntry)) {
-          return previousHistory;
-        }
-        const nextPast = [...previousHistory.past, previousEntry];
-        const trimmedPast =
-          nextPast.length > TRANSFORM_HISTORY_LIMIT
-            ? nextPast.slice(nextPast.length - TRANSFORM_HISTORY_LIMIT)
-            : nextPast;
-        return {
-          past: trimmedPast,
-          present: nextEntry,
-          future: [],
-        };
-      });
-    },
-    []
-  );
-
-  const {
-    activeTransformDragMode,
-    clearTransformPointerSession,
-    endTransformPointerSession,
-    handleMovePointerDown,
-    handleMovePointerMove,
-    handleMovePointerLeave,
-    isTransformPointerDragging,
-    queuePendingHistoryApplyEntry,
-    renderSelectedLayerTransformOverlay,
-  } = useExpertEditTransformSession({
-    layers,
-    setLayers,
-    selectedLayer,
-    selectedLayerImageAspectRatio,
-    shouldShowSelectedLayerTransformOverlay,
-    resolveRenderableLayerTransform,
-    sceneZoomScale: markupViewport.scale,
-    viewportOffsetXRatio: markupViewport.offsetXRatio,
-    viewportOffsetYRatio: markupViewport.offsetYRatio,
-    resolveViewportOffsetPixels: resolveInteractionViewportOffsetPixels,
-    commitTransformHistoryTransition,
-    showStatusToast,
-    transformHistoryState,
-    setTransformHistoryState,
-  });
-
-  const primaryCompositionSurfaceCursor = React.useMemo(() => {
-    if (
-      EXPERT_EDIT_IMAGE_TRANSFORM_EDITING_ENABLED &&
-      isMoveToolSelected &&
-      selectedLayerImageUrl
-    ) {
-      if (activeTransformDragMode === "rotate") {
-        return isTransformPointerDragging ? "grabbing" : "crosshair";
-      }
-      if (activeTransformDragMode === "resize") {
-        return "nwse-resize";
-      }
-      if (activeTransformDragMode === "move" && isTransformPointerDragging) {
-        return "grabbing";
-      }
-      return "grab";
-    }
-    if (shouldShowInpaintBrushReticle) {
-      return buildInpaintBrushReticleCursor(inpaintStrokeSize, activeStageRenderScale);
-    }
-    if (shouldShowInpaintLassoCursor) {
-      return buildInpaintLassoCursor();
-    }
-    if (shouldShowMarkupBrushReticle) {
-      return buildMarkupBrushReticleCursor(
-        resolvedMarkupStrokeSize,
-        MARKUP_STROKE_SIZE_MAX,
-        activeStageRenderScale
-      );
-    }
-    return undefined;
-  }, [
-    activeStageRenderScale,
-    activeTransformDragMode,
-    inpaintStrokeSize,
-    isTransformPointerDragging,
-    isMoveToolSelected,
-    resolvedMarkupStrokeSize,
-    selectedLayerImageUrl,
-    shouldShowInpaintBrushReticle,
-    shouldShowInpaintLassoCursor,
-    shouldShowMarkupBrushReticle,
-  ]);
-
   const markupViewportCursor = React.useMemo(() => {
     if (isMarkupPanDragging) return "grabbing";
     if (isMarkupPanSpacePressed) return "grab";
     return undefined;
   }, [isMarkupPanDragging, isMarkupPanSpacePressed]);
 
-  const primaryCompositionSurfaceStyle = React.useMemo(() => {
-    const style: React.CSSProperties = {};
-    if (!isMorePresetsSurfaceOpen) {
-      if (markupViewportCursor) {
-        style.cursor = markupViewportCursor;
-      } else if (primaryCompositionSurfaceCursor) {
-        style.cursor = primaryCompositionSurfaceCursor;
-      }
-    }
-    return style;
-  }, [isMorePresetsSurfaceOpen, markupViewportCursor, primaryCompositionSurfaceCursor]);
-
-  const emptyPrimaryCompositionSurfaceStyle = React.useMemo<React.CSSProperties>(
-    () => ({
-      cursor: "default",
-    }),
-    []
-  );
-
   const noopStageWheel = React.useCallback(() => {}, []);
-
-  const markupModalStageStyle = React.useMemo<React.CSSProperties>(() => {
-    const modalCursor =
-      markupViewportCursor ??
-      primaryCompositionSurfaceCursor ??
-      (isVideoToolSelected ? "crosshair" : undefined);
-    const cursorStyle = modalCursor ? { cursor: modalCursor } : null;
-    if (markupModalStageSize) {
-      return {
-        width: `${markupModalStageSize.width}px`,
-        height: `${markupModalStageSize.height}px`,
-        maxWidth: "100%",
-        maxHeight: "100%",
-        ...(cursorStyle ?? {}),
-      };
-    }
-    return {
-      aspectRatio: primaryCompositionSurfaceAspectRatio,
-      width: "100%",
-      maxWidth: "100%",
-      maxHeight: "100%",
-      ...(cursorStyle ?? {}),
-    };
-  }, [
-    isVideoToolSelected,
-    markupModalStageSize,
-    markupViewportCursor,
-    primaryCompositionSurfaceAspectRatio,
-    primaryCompositionSurfaceCursor,
-  ]);
 
   const {
     handleMoveZoomSliderChange,
@@ -1139,6 +972,49 @@ export function ExpertEditPanelView({
       }
       return currentTarget.getBoundingClientRect();
     },
+  });
+
+  const {
+    activeStageRenderScale,
+    clearTransformPointerSession,
+    commitTransformHistoryTransition,
+    endTransformPointerSession,
+    handleMovePointerDown,
+    handleMovePointerMove,
+    handleMovePointerLeave,
+    handleRecenterMoveAction,
+    markupModalStageStyle,
+    primaryCompositionSurfaceStyle,
+    emptyPrimaryCompositionSurfaceStyle,
+    queuePendingHistoryApplyEntry,
+    renderSelectedLayerTransformOverlay,
+    resolveRenderableLayerTransform,
+  } = useExpertEditStageTransformRuntime({
+    layers,
+    setLayers,
+    selectedLayer,
+    selectedLayerImageUrl,
+    hasPrimaryCompositePreview,
+    isMoveToolSelected,
+    isMorePresetsSurfaceOpen,
+    isVideoToolSelected,
+    markupViewport,
+    markupViewportCursor,
+    markupModalStageSize,
+    primaryCompositionSurfaceAspectRatio,
+    shouldShowInpaintBrushReticle,
+    shouldShowInpaintLassoCursor,
+    shouldShowMarkupBrushReticle,
+    inpaintStrokeSize,
+    resolvedMarkupStrokeSize,
+    maxMarkupStrokeSize: MARKUP_STROKE_SIZE_MAX,
+    transformHistoryLimit: TRANSFORM_HISTORY_LIMIT,
+    resolveLayerImageAspectRatio,
+    resolveViewportOffsetPixels: resolveInteractionViewportOffsetPixels,
+    showStatusToast,
+    transformHistoryState,
+    setTransformHistoryState,
+    resetMarkupViewport,
   });
 
   const {
@@ -1186,26 +1062,6 @@ export function ExpertEditPanelView({
     setTransformHistoryState,
     commitTransformHistoryTransition,
   });
-
-  const handleRecenterMoveAction = React.useCallback(() => {
-    if (EXPERT_EDIT_IMAGE_TRANSFORM_EDITING_ENABLED && selectedLayer) {
-      const nextLayers = layers.map((layer) =>
-        layer.id === selectedLayer.id
-          ? {
-              ...layer,
-              transform: defaultLayerTransform(),
-            }
-          : layer
-      );
-      const baselineEntry = buildTransformHistoryEntry(layers);
-      const nextEntry = buildTransformHistoryEntry(nextLayers);
-      if (!areTransformHistoryEntriesEqual(baselineEntry, nextEntry)) {
-        setLayers(nextLayers);
-        commitTransformHistoryTransition(nextEntry, baselineEntry);
-      }
-    }
-    resetMarkupViewport();
-  }, [commitTransformHistoryTransition, layers, resetMarkupViewport, selectedLayer, setLayers]);
 
   const {
     stageContextMenuState,

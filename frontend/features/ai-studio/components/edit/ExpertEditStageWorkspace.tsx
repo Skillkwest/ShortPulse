@@ -19,8 +19,7 @@ type ExpertEditStageWorkspaceProps = {
   editGenerationModeOptions: ReadonlyArray<{ id: string; label: string }>;
   onGenerationModeChange: (nextMode: string) => void;
   onClearGenerationArtifacts: () => void;
-  headerLeftRail: React.ReactNode;
-  presetToolbar: React.ReactNode;
+  sidebar: React.ReactNode;
   hasPrimaryCompositePreview: boolean;
   selectedLayerName: string | null;
   onDeleteSelectedLayer: () => void;
@@ -96,8 +95,7 @@ export function ExpertEditStageWorkspace({
   editGenerationModeOptions,
   onGenerationModeChange,
   onClearGenerationArtifacts,
-  headerLeftRail,
-  presetToolbar,
+  sidebar,
   hasPrimaryCompositePreview,
   selectedLayerName,
   onDeleteSelectedLayer,
@@ -139,10 +137,7 @@ export function ExpertEditStageWorkspace({
     <>
       <div className="edit-expert-main-stage">
         <div className="edit-expert-preset-toolbar" aria-label="Edit preset toolbar">
-          <div className="edit-expert-column-wrapper edit-expert-column-wrapper--left">
-            {headerLeftRail}
-            {presetToolbar}
-          </div>
+          {sidebar}
         </div>
 
         <div className="edit-expert-primary-column">

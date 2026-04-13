@@ -87,6 +87,7 @@ Completed slice on 2026-04-12:
 8. Extracted markup-controls runtime into `frontend/features/ai-studio/components/edit/useExpertEditMarkupControlsRuntime.tsx`, moving markup mode selection, color-picker state, hue/saturation handlers, and markup-controls rendering out of `ExpertEditPanelView.tsx` while keeping the live markup interaction path stable under focused markup coverage.
 9. Extracted prompt/model/aspect/resolution assembly into `frontend/features/ai-studio/components/edit/ExpertEditPromptSelectorsColumn.tsx`, moving prompt-composer and selector-row render ownership out of `ExpertEditPanelView.tsx` while keeping prompt token insertion, generate gating, and model-picker behavior stable under focused selector coverage.
 10. Extracted move/inpaint/general control-panel rendering into `frontend/features/ai-studio/components/edit/useExpertEditStageControlPanels.tsx`, moving the remaining move, inpaint, modal-general, and preset-utility render ownership out of `ExpertEditPanelView.tsx` while keeping rail and modal control behavior stable under focused control coverage.
+11. Extracted the preset and left-rail sidebar assembly into `frontend/features/ai-studio/components/edit/ExpertEditStageSidebar.tsx`, moving the More Presets surface, utility actions, and left-rail mode panel composition out of `ExpertEditPanelView.tsx` while keeping preset and generation-mode behavior stable under focused sidebar coverage.
 
 Completed slice on 2026-04-12:
 1. Extracted stage viewport/artboard ownership from `ExpertEditPanelView.tsx` into:

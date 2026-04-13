@@ -37,16 +37,14 @@ import { useExpertEditStageLifecycle } from "./useExpertEditStageLifecycle";
 import { useExpertEditStageControlPanels } from "./useExpertEditStageControlPanels";
 import { useExpertEditStageTransformRuntime } from "./useExpertEditStageTransformRuntime";
 import { useExpertEditStageViewport } from "./useExpertEditStageViewport";
+import { ExpertEditStageSidebar } from "./ExpertEditStageSidebar";
 import { ExpertEditStageWorkspace } from "./ExpertEditStageWorkspace";
 import { useExpertEditMarkupDrawController } from "./useExpertEditMarkupDrawController";
 import { useExpertEditMarkupViewportController } from "./useExpertEditMarkupViewportController";
 import { ExpertEditInlinePostStageTools } from "./ExpertEditInlinePostStageTools";
-import { ExpertEditLayersPanel, ExpertEditLayerUtilityActions } from "./ExpertEditLayersPanel";
+import { ExpertEditLayersPanel } from "./ExpertEditLayersPanel";
 import { ExpertEditStageScene } from "./ExpertEditStageScene";
-import { ExpertEditPresetToolbarCard } from "./ExpertEditStageControls";
-import { ExpertEditPresetsSurface } from "./ExpertEditPresetsSurface";
 import { ExpertEditCharacterPickerModal } from "./ExpertEditCharacterPickerModal";
-import { ExpertEditModeRailPanel } from "./ExpertEditModeRailPanel";
 import { ExpertEditSecondaryReferences } from "./ExpertEditReferenceControls";
 import { ExpertEditPromptSelectorsColumn } from "./ExpertEditPromptSelectorsColumn";
 import {
@@ -1165,60 +1163,44 @@ export function ExpertEditPanelView({
         editGenerationModeOptions={editGenerationModeOptions}
         onGenerationModeChange={handleGenerationModeChange}
         onClearGenerationArtifacts={clearGenerationModeSelectionArtifacts}
-        headerLeftRail={
-          isGenerationModeToggleEnabled && !shouldHideSelectedModeRailPanel ? (
-            <ExpertEditModeRailPanel
-              selectedRailTool={selectedRailTool}
-              renderMarkupModalInpaintPanel={renderMarkupModalInpaintPanel}
-              renderMarkupControlsContent={renderMarkupControlsContent}
-              renderMoveControlsContent={renderMoveControlsContent}
-            />
-          ) : null
-        }
-        presetToolbar={
-          <>
-            <ExpertEditPresetToolbarCard
-              hasSelectedPresetIds={hasSelectedPresetIds}
-              selectedPanelPresets={selectedPanelPresets}
-              isPresetPanelDropActive={isPresetPanelDropActive}
-              isMorePresetsSurfaceOpen={isMorePresetsSurfaceOpen}
-              morePresetsSurfaceId={morePresetsSurfaceId}
-              setIsMorePresetsSurfaceOpen={setIsMorePresetsSurfaceOpen}
-              handlePanelPresetApply={handlePanelPresetApply}
-              handlePanelPresetDragStart={handlePanelPresetDragStart}
-              handlePresetDragEnd={handlePresetDragEnd}
-              handlePresetPanelDragOver={handlePresetPanelDragOver}
-              handlePresetPanelDragLeave={handlePresetPanelDragLeave}
-              handlePresetPanelDrop={handlePresetPanelDrop}
-              toggleMorePresetsSurface={toggleMorePresetsSurface}
-            />
-            <div className="edit-expert-utility-actions" aria-label="Edit utility actions">
-              {renderPresetUtilityActionButtons}
-              <ExpertEditLayerUtilityActions
-                isGenerateDisabled={isGenerateDisabled}
-                selectedLayerImageUrl={selectedLayerImageUrl}
-                isRemoveBackgroundPending={isRemoveBackgroundPending}
-                populatedLayerCount={populatedLayerCount}
-                isFlattenPending={isFlattenPending}
-                onFlatten={() => void handleManualFlatten()}
-                onRemoveBackground={handleRemoveBackground}
-                className={null}
-              />
-            </div>
-            <ExpertEditPresetsSurface
-              id={morePresetsSurfaceId}
-              isOpen={isMorePresetsSurfaceOpen}
-              presets={availablePresets}
-              onClose={closeMorePresetsSurface}
-              onPresetDragStart={handleSurfacePresetDragStart}
-              onPresetDragEnd={handlePresetDragEnd}
-              onSurfaceDragOver={handlePresetsSurfaceDragOver}
-              onSurfaceDragLeave={handlePresetsSurfaceDragLeave}
-              onSurfaceDrop={handlePresetsSurfaceDrop}
-              onCustomPresetSave={handleCustomPresetSave}
-              isDropActive={isPresetsSurfaceDropActive}
-            />
-          </>
+        sidebar={
+          <ExpertEditStageSidebar
+            isGenerationModeToggleEnabled={isGenerationModeToggleEnabled}
+            shouldHideSelectedModeRailPanel={shouldHideSelectedModeRailPanel}
+            selectedRailTool={selectedRailTool}
+            renderMarkupModalInpaintPanel={renderMarkupModalInpaintPanel}
+            renderMarkupControlsContent={renderMarkupControlsContent}
+            renderMoveControlsContent={renderMoveControlsContent}
+            hasSelectedPresetIds={hasSelectedPresetIds}
+            selectedPanelPresets={selectedPanelPresets}
+            isPresetPanelDropActive={isPresetPanelDropActive}
+            isMorePresetsSurfaceOpen={isMorePresetsSurfaceOpen}
+            morePresetsSurfaceId={morePresetsSurfaceId}
+            setIsMorePresetsSurfaceOpen={setIsMorePresetsSurfaceOpen}
+            handlePanelPresetApply={handlePanelPresetApply}
+            handlePanelPresetDragStart={handlePanelPresetDragStart}
+            handlePresetDragEnd={handlePresetDragEnd}
+            handlePresetPanelDragOver={handlePresetPanelDragOver}
+            handlePresetPanelDragLeave={handlePresetPanelDragLeave}
+            handlePresetPanelDrop={handlePresetPanelDrop}
+            toggleMorePresetsSurface={toggleMorePresetsSurface}
+            renderPresetUtilityActionButtons={renderPresetUtilityActionButtons}
+            isGenerateDisabled={isGenerateDisabled}
+            selectedLayerImageUrl={selectedLayerImageUrl}
+            isRemoveBackgroundPending={isRemoveBackgroundPending}
+            populatedLayerCount={populatedLayerCount}
+            isFlattenPending={isFlattenPending}
+            handleManualFlatten={handleManualFlatten}
+            handleRemoveBackground={handleRemoveBackground}
+            availablePresets={availablePresets}
+            closeMorePresetsSurface={closeMorePresetsSurface}
+            handleSurfacePresetDragStart={handleSurfacePresetDragStart}
+            handlePresetsSurfaceDragOver={handlePresetsSurfaceDragOver}
+            handlePresetsSurfaceDragLeave={handlePresetsSurfaceDragLeave}
+            handlePresetsSurfaceDrop={handlePresetsSurfaceDrop}
+            handleCustomPresetSave={handleCustomPresetSave}
+            isPresetsSurfaceDropActive={isPresetsSurfaceDropActive}
+          />
         }
         hasPrimaryCompositePreview={hasPrimaryCompositePreview}
         selectedLayerName={selectedLayer?.name ?? null}

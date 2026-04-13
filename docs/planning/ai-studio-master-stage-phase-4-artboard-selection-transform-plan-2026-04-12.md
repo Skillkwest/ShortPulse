@@ -73,6 +73,7 @@ Completed on 2026-04-12:
 9. Extracted markup-controls runtime into `frontend/features/ai-studio/components/edit/useExpertEditMarkupControlsRuntime.tsx`, moving markup mode selection, color-picker state, hue/saturation handlers, and markup-controls rendering out of `ExpertEditPanelView.tsx` while keeping the live markup interaction path stable.
 10. Extracted prompt/model/aspect/resolution assembly into `frontend/features/ai-studio/components/edit/ExpertEditPromptSelectorsColumn.tsx`, moving prompt-composer and selector-row render ownership out of `ExpertEditPanelView.tsx` while keeping prompt token, generate, and model-picker behavior unchanged.
 11. Extracted move/inpaint/general control-panel rendering into `frontend/features/ai-studio/components/edit/useExpertEditStageControlPanels.tsx`, moving remaining control-panel render ownership out of `ExpertEditPanelView.tsx` while keeping rail and modal control behavior stable.
+12. Extracted the preset and left-rail sidebar assembly into `frontend/features/ai-studio/components/edit/ExpertEditStageSidebar.tsx`, moving the More Presets surface, utility actions, and left-rail mode panel composition out of `ExpertEditPanelView.tsx` while keeping preset and generation-mode behavior unchanged.
 
 ## Rollback Note
 If the new transform system is not stable enough for general use, keep a narrowly-scoped adapter to the prior transform path while preserving the new artboard-first data model. Do not reopen generic Canvas as a fallback editor.

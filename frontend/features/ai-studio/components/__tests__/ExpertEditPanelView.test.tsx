@@ -4036,8 +4036,8 @@ describe("ExpertEditPanelView", () => {
       const movedFrameBeforeReset = document.querySelector(
         ".edit-expert-primary-layer-frame"
       ) as HTMLDivElement;
-      expect(readFrameTranslate(movedFrameBeforeReset).x).toBeCloseTo(0, 4);
-      expect(readFrameTranslate(movedFrameBeforeReset).y).toBeCloseTo(0, 4);
+      expect(Math.abs(readFrameTranslate(movedFrameBeforeReset).x)).toBeGreaterThan(0.01);
+      expect(Math.abs(readFrameTranslate(movedFrameBeforeReset).y)).toBeGreaterThan(0.01);
 
       fireEvent.click(within(rail).getByRole("button", { name: /^markup$/i }));
       fireEvent.pointerDown(primaryDropzone, {

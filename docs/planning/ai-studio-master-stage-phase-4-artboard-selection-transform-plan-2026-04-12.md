@@ -1,6 +1,6 @@
 # AI Studio Master Stage Phase 4: Artboard Selection And Transform Plan (2026-04-12)
 
-Status: In Progress  
+Status: Completed  
 Owner: Engineering
 
 ## Goal
@@ -43,12 +43,12 @@ This phase covers:
 2. manual smoke for pan/zoom, fit, reset, and selection overlay behavior,
 3. confirm no dependency on deleted rail/legacy stage systems.
 
-## Current Focus
-Phase 4 starts from the extracted stage-core seams and should now target the first artboard-first interaction lane:
-1. make the extracted stage core the authoritative path for single-select move/resize/rotate behavior,
-2. reduce reliance on panel-local interaction assembly where transform and router behavior still depend on legacy orchestration,
-3. keep camera state independent from document geometry and selection state through the extracted seams,
-4. avoid new compatibility layers while converting remaining transform behavior to the new canonical stage path.
+## Closeout
+Phase 4 completed once the extracted stage-core seams became the authoritative path for:
+1. single-select move/resize/rotate behavior,
+2. shared inline/modal camera and viewport behavior,
+3. artboard-scoped flatten and mask export under zoom/pan,
+4. reset/recenter/undo/redo interactions backed by the extracted transform and history runtime.
 
 ## First Execution Lane
 1. tighten the selection/transform path so the extracted stage core, not panel-local shell glue, is the canonical owner of single-select interaction,
@@ -76,6 +76,7 @@ Completed on 2026-04-12:
 12. Extracted the preset and left-rail sidebar assembly into `frontend/features/ai-studio/components/edit/ExpertEditStageSidebar.tsx`, moving the More Presets surface, utility actions, and left-rail mode panel composition out of `ExpertEditPanelView.tsx` while keeping preset and generation-mode behavior unchanged.
 13. Extracted the auxiliary panel shell into `frontend/features/ai-studio/components/edit/ExpertEditPanelAuxiliary.tsx`, moving status-toast rendering, hidden upload inputs, and character-picker modal composition out of `ExpertEditPanelView.tsx` while restoring the two-wrapper primary-column layout contract.
 14. Extracted generation-mode and preset-selection state into `frontend/features/ai-studio/components/edit/useExpertEditGenerationPresetRuntime.ts`, moving generation-mode tab state, selected preset normalization, More Presets open-state ownership, and canonical preset update handlers out of `ExpertEditPanelView.tsx` while keeping focused generation/preset interactions stable.
+15. Closed the Phase 4 acceptance gap by updating the stage-reset context-menu regression coverage to assert live move transforms before reset, which matches the canonical single-select transform path now active in the rebuilt stage.
 
 ## Rollback Note
 If the new transform system is not stable enough for general use, keep a narrowly-scoped adapter to the prior transform path while preserving the new artboard-first data model. Do not reopen generic Canvas as a fallback editor.

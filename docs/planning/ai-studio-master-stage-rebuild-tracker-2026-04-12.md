@@ -27,8 +27,8 @@ When this planning-task done state is satisfied, no more planning artifacts are 
 | 1 | Completed | Lock the target contract and choose the stage substrate with a small bakeoff. | Master spec accepted as planning source of truth. | Coordinate/document/tool/export contracts written and bakeoff decision recorded. | Keep current stage untouched; discard spike branches/files if the bakeoff does not produce a clear winner. |
 | 2 | Completed | Remove duplicate stage surfaces and legacy entry points that should not survive the rebuild. | Phase 1 decision recorded. | Legacy edit fallback removed, rail canvas duplication removed, generic Canvas demoted or isolated from the canonical editor path, and any surviving modal is classified as presentation-shell-only. | Re-enable removed entry points behind the previous routing if deletion causes unacceptable product loss before Phase 3 lands. |
 | 3 | Completed | Extract a new stage core from the Expert Edit foundation. | Phase 2 deletion scope complete enough to avoid rebuilding into dead surfaces. | New stage shell, camera controller, artboard geometry, document store, and transform/session seams exist. | Keep old Expert Edit orchestration behind a temporary adapter until the new core reaches feature parity. |
-| 4 | In Progress | Implement the artboard-first interaction model for selection and transforms. | Phase 3 core seams compile and mount. | Single-select move/resize/rotate works in one canonical stage path with acceptance tests. | Keep the legacy transform path available behind an adapter until new handles and sessions pass parity. |
-| 5 | Proposed | Decouple export from provider submission. | Phase 4 stage geometry and transforms are stable. | Flatten and mask export run through a stage export adapter; submit handlers no longer own stage math. | Temporarily route submit through the old export path if new export parity gates fail. |
+| 4 | Completed | Implement the artboard-first interaction model for selection and transforms. | Phase 3 core seams compile and mount. | Single-select move/resize/rotate works in one canonical stage path with acceptance tests. | Keep the legacy transform path available behind an adapter until new handles and sessions pass parity. |
+| 5 | In Progress | Decouple export from provider submission. | Phase 4 stage geometry and transforms are stable. | Flatten and mask export run through a stage export adapter; submit handlers no longer own stage math. | Temporarily route submit through the old export path if new export parity gates fail. |
 | 6 | Proposed | Simplify persistence and session ownership. | Phase 5 export contract is stable enough to snapshot. | Durable state is document-centered and rollout-only scaffolding is removed or bypassed. | Keep the old snapshot adapter readable during migration so older sessions can still hydrate. |
 | 7 | Proposed | Cut over fully to the canonical stage and delete obsolete systems. | Phases 1-6 complete and final validation window ready. | Canonical stage is the only editor path; obsolete stage systems, flags, and stale docs/tests are deleted or updated. | Maintain one short-lived compatibility adapter only if a release-window rollback is required. |
 
@@ -70,11 +70,7 @@ Remaining Phase 2 scope:
 1. none. Phase 2 cleanup is complete.
 
 ## Current Phase 4 Focus
-The next execution lane now shifts to the first artboard-first interaction slice:
-1. make the extracted stage core the authoritative path for single-select move/resize/rotate behavior,
-2. keep camera state independent from document geometry and selection state,
-3. continue reducing reliance on panel-local interaction assembly where transform behavior still depends on legacy orchestration,
-4. do not widen into export, persistence, or provider-submission cleanup during this lane.
+Phase 4 is complete.
 
 Completed slice on 2026-04-12:
 1. Enabled the canonical single-select transform path in `frontend/features/ai-studio/components/edit/ExpertEditPanelView.tsx`, replacing the previous frozen placeholder behavior so move-mode interactions now use the extracted transform-session/controller path.
@@ -90,6 +86,14 @@ Completed slice on 2026-04-12:
 11. Extracted the preset and left-rail sidebar assembly into `frontend/features/ai-studio/components/edit/ExpertEditStageSidebar.tsx`, moving the More Presets surface, utility actions, and left-rail mode panel composition out of `ExpertEditPanelView.tsx` while keeping preset and generation-mode behavior stable under focused sidebar coverage.
 12. Extracted the auxiliary panel shell into `frontend/features/ai-studio/components/edit/ExpertEditPanelAuxiliary.tsx`, moving status-toast rendering, hidden upload inputs, and character-picker modal composition out of `ExpertEditPanelView.tsx` while restoring the two-wrapper primary-column layout contract under focused shell coverage.
 13. Extracted generation-mode and preset-selection runtime into `frontend/features/ai-studio/components/edit/useExpertEditGenerationPresetRuntime.ts`, moving generation-mode tab state, selected preset normalization, More Presets open-state ownership, and canonical preset update handlers out of `ExpertEditPanelView.tsx` while keeping focused generation-mode and preset coverage stable.
+14. Closed the Phase 4 acceptance window by updating the stage-reset context-menu regression coverage to assert live move transforms before reset, matching the canonical transform path now active in the rebuilt stage.
+
+## Current Phase 5 Focus
+The next execution lane now shifts to export/submission decoupling:
+1. extract a dedicated stage export adapter out of `frontend/features/ai-studio/components/edit/useExpertEditInlineGenerate.ts`,
+2. group flatten, markup-reference export, and inpaint-mask export behind that boundary,
+3. keep provider submission wiring intact until exported artifact ownership is explicit,
+4. do not widen into persistence cleanup during this lane.
 
 Completed slice on 2026-04-12:
 1. Extracted stage viewport/artboard ownership from `ExpertEditPanelView.tsx` into:

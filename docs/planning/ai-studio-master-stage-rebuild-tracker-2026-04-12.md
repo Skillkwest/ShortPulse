@@ -104,6 +104,8 @@ Completed slice on 2026-04-12:
 6. Added focused submission-preparation coverage in `frontend/features/ai-studio/components/edit/__tests__/expertEditSubmissionPreparation.test.ts` and re-ran app-level parity tests for invalid-token blocking, prompt-override compilation, referenced-secondary filtering, and markup-reference submission behavior.
 7. Extracted provider submit-dispatch option assembly into `frontend/features/ai-studio/components/edit/expertEditSubmissionDispatch.ts`, moving FLUX Fill override construction, markup model-lock override construction, and fallback/error branching out of `useExpertEditInlineGenerate.ts`.
 8. Added focused submit-dispatch coverage in `frontend/features/ai-studio/components/edit/__tests__/expertEditSubmissionDispatch.test.ts` and re-ran app-level parity tests for invalid-token blocking, prompt-override submission, referenced-secondary filtering, markup model-lock override, and inpaint FLUX Fill submission behavior.
+9. Extracted object-url lifecycle handling into `frontend/features/ai-studio/components/edit/expertEditSubmissionObjectUrls.ts`, moving URL creation, failure cleanup, and post-submit release/scheduling logic out of `useExpertEditInlineGenerate.ts`.
+10. Added focused object-url lifecycle coverage in `frontend/features/ai-studio/components/edit/__tests__/expertEditSubmissionObjectUrls.test.ts` and re-ran app-level parity tests for invalid-token blocking, markup-reference submission, prompt-override submission, and inpaint FLUX Fill behavior.
 
 Completed slice on 2026-04-12:
 1. Extracted stage viewport/artboard ownership from `ExpertEditPanelView.tsx` into:

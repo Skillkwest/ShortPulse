@@ -5,6 +5,11 @@ import type { EditSubmitIntent } from "../../logic/editSubmitIntent";
 import { exportExpertEditStageArtifacts } from "./expertEditStageExport";
 import { resolveExpertEditSubmissionDispatch } from "./expertEditSubmissionDispatch";
 import {
+  cleanupExpertEditSubmissionObjectUrls,
+  createExpertEditSubmissionObjectUrls,
+  revokeExpertEditSubmissionObjectUrls,
+} from "./expertEditSubmissionObjectUrls";
+import {
   prepareExpertEditSubmission,
   validateExpertEditSubmissionPrompt,
 } from "./expertEditSubmissionPreparation";
@@ -100,9 +105,11 @@ export const useExpertEditInlineGenerate = ({
         return;
       }
 
-      let flattenedUrl: string | null = null;
-      let flattenedMarkupReferenceUrl: string | null = null;
-      let inpaintMaskUrl: string | null = null;
+      const objectUrls = {
+        flattenedUrl: null,
+        flattenedMarkupReferenceUrl: null,
+        inpaintMaskUrl: null,
+      };
       try {
         const exportArtifacts = await exportExpertEditStageArtifacts({
           layers,
@@ -115,32 +122,33 @@ export const useExpertEditInlineGenerate = ({
           resolveStageFlattenSnapshot,
         });
         const flattenedBlob = exportArtifacts.flattenedBlob;
-        flattenedUrl = flattenedBlob ? URL.createObjectURL(flattenedBlob) : null;
-        const primaryReferenceUrl = exportArtifacts.reusablePrimarySourceUrl || flattenedUrl;
-        if (exportArtifacts.flattenedMarkupReferenceBlob) {
-          flattenedMarkupReferenceUrl = URL.createObjectURL(
-            exportArtifacts.flattenedMarkupReferenceBlob
-          );
-        }
+        Object.assign(
+          objectUrls,
+          createExpertEditSubmissionObjectUrls({
+            flattenedBlob,
+            flattenedMarkupReferenceBlob: exportArtifacts.flattenedMarkupReferenceBlob,
+            inpaintMaskBlob: exportArtifacts.inpaintMaskBlob,
+          })
+        );
+        const primaryReferenceUrl =
+          exportArtifacts.reusablePrimarySourceUrl || objectUrls.flattenedUrl;
         const preparedSubmission = prepareExpertEditSubmission({
           promptText,
           extraImageUrls,
           flattenedPrimaryUrl: primaryReferenceUrl,
-          flattenedMarkupReferenceUrl,
+          flattenedMarkupReferenceUrl: objectUrls.flattenedMarkupReferenceUrl,
         });
         if (preparedSubmission.status === "invalid_tokens") {
           onInvalidPromptReferenceToken?.(preparedSubmission.message);
           return;
         }
         const { promptOverrideOptions, referenceInputs } = preparedSubmission;
-        const inpaintMaskBlob = exportArtifacts.inpaintMaskBlob;
-        inpaintMaskUrl = inpaintMaskBlob ? URL.createObjectURL(inpaintMaskBlob) : null;
         const submitDispatch = resolveExpertEditSubmissionDispatch({
           editSubmitIntent,
           hasSubmissionHandler: Boolean(onRegenerateWithReferenceInputs),
           hasSelectedLayerMask,
-          flattenedUrl,
-          inpaintMaskUrl,
+          flattenedUrl: objectUrls.flattenedUrl,
+          inpaintMaskUrl: objectUrls.inpaintMaskUrl,
           referenceInputs,
           promptOverrideOptions,
         });
@@ -157,41 +165,18 @@ export const useExpertEditInlineGenerate = ({
           submitDispatch.options
         );
       } catch (error) {
-        if (flattenedUrl) {
-          revokeObjectUrlSafe(flattenedUrl);
-          flattenedUrl = null;
-        }
-        if (inpaintMaskUrl) {
-          revokeObjectUrlSafe(inpaintMaskUrl);
-          inpaintMaskUrl = null;
-        }
-        if (flattenedMarkupReferenceUrl) {
-          revokeObjectUrlSafe(flattenedMarkupReferenceUrl);
-          flattenedMarkupReferenceUrl = null;
-        }
+        revokeExpertEditSubmissionObjectUrls({
+          objectUrls,
+          revokeObjectUrlSafe,
+        });
         showStatusToast(resolveFlattenFailureToastMessage(error));
       } finally {
-        if (flattenedUrl) {
-          if (onRegenerateWithReferenceInputs) {
-            scheduleTransientObjectUrlRevoke(flattenedUrl);
-          } else {
-            revokeObjectUrlSafe(flattenedUrl);
-          }
-        }
-        if (inpaintMaskUrl) {
-          if (onRegenerateWithReferenceInputs) {
-            scheduleTransientObjectUrlRevoke(inpaintMaskUrl);
-          } else {
-            revokeObjectUrlSafe(inpaintMaskUrl);
-          }
-        }
-        if (flattenedMarkupReferenceUrl) {
-          if (onRegenerateWithReferenceInputs) {
-            scheduleTransientObjectUrlRevoke(flattenedMarkupReferenceUrl);
-          } else {
-            revokeObjectUrlSafe(flattenedMarkupReferenceUrl);
-          }
-        }
+        cleanupExpertEditSubmissionObjectUrls({
+          objectUrls,
+          hasSubmissionHandler: Boolean(onRegenerateWithReferenceInputs),
+          revokeObjectUrlSafe,
+          scheduleTransientObjectUrlRevoke,
+        });
       }
     };
     void run();

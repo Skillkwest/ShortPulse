@@ -34,6 +34,7 @@ import { useExpertEditStageChrome } from "./useExpertEditStageChrome";
 import { useExpertEditStageHistory } from "./useExpertEditStageHistory";
 import { useExpertEditStageInteractions } from "./useExpertEditStageInteractions";
 import { useExpertEditStageLifecycle } from "./useExpertEditStageLifecycle";
+import { useExpertEditStageControlPanels } from "./useExpertEditStageControlPanels";
 import { useExpertEditStageTransformRuntime } from "./useExpertEditStageTransformRuntime";
 import { useExpertEditStageViewport } from "./useExpertEditStageViewport";
 import { ExpertEditStageWorkspace } from "./ExpertEditStageWorkspace";
@@ -42,13 +43,7 @@ import { useExpertEditMarkupViewportController } from "./useExpertEditMarkupView
 import { ExpertEditInlinePostStageTools } from "./ExpertEditInlinePostStageTools";
 import { ExpertEditLayersPanel, ExpertEditLayerUtilityActions } from "./ExpertEditLayersPanel";
 import { ExpertEditStageScene } from "./ExpertEditStageScene";
-import {
-  ExpertEditMarkupModalGeneralPanel,
-  ExpertEditMarkupModalInpaintPanel,
-  ExpertEditMoveControlsContent,
-  ExpertEditPresetToolbarCard,
-  ExpertEditPresetUtilityActionButtons,
-} from "./ExpertEditStageControls";
+import { ExpertEditPresetToolbarCard } from "./ExpertEditStageControls";
 import { ExpertEditPresetsSurface } from "./ExpertEditPresetsSurface";
 import { ExpertEditCharacterPickerModal } from "./ExpertEditCharacterPickerModal";
 import { ExpertEditModeRailPanel } from "./ExpertEditModeRailPanel";
@@ -1114,106 +1109,43 @@ export function ExpertEditPanelView({
     revokeObjectUrlSafe,
   });
 
-  const renderMoveControlsContent = React.useCallback(
-    (scope: "inline" | "modal") => (
-      <ExpertEditMoveControlsContent
-        scope={scope}
-        isMoveToolSelected={isMoveToolSelected}
-        moveStageZoomSliderValue={moveStageZoomSliderValue}
-        isMoveTransformCentered={isMoveTransformCentered}
-        isMarkupViewportAtRest={isMarkupViewportAtRest}
-        canUndoGeneralAction={canUndoGeneralAction}
-        canRedoGeneralAction={canRedoGeneralAction}
-        setSelectedRailTool={setSelectedRailTool}
-        handleRecenterMoveAction={handleRecenterMoveAction}
-        openMarkupModal={openMarkupModal}
-        handleMoveZoomSliderChange={handleMoveZoomSliderChange}
-        handleUndoGeneralAction={handleUndoGeneralAction}
-        handleRedoGeneralAction={handleRedoGeneralAction}
-      />
-    ),
-    [
-      canRedoGeneralAction,
-      canUndoGeneralAction,
-      handleMoveZoomSliderChange,
-      handleRecenterMoveAction,
-      handleRedoGeneralAction,
-      handleUndoGeneralAction,
-      isMarkupViewportAtRest,
-      isMoveToolSelected,
-      isMoveTransformCentered,
-      moveStageZoomSliderValue,
-      openMarkupModal,
-      setSelectedRailTool,
-    ]
-  );
-
-  const renderMarkupModalGeneralPanel = React.useMemo(
-    () => (
-      <ExpertEditMarkupModalGeneralPanel
-        aspect={aspect}
-        aspectOptionsForModel={aspectOptionsForModel}
-        canUndoGeneralAction={canUndoGeneralAction}
-        canRedoGeneralAction={canRedoGeneralAction}
-        isGeneralResetDisabled={isGeneralResetDisabled}
-        onAspectChange={onAspectChange}
-        handleUndoGeneralAction={handleUndoGeneralAction}
-        handleRedoGeneralAction={handleRedoGeneralAction}
-        handleResetGeneralAction={handleResetGeneralAction}
-      />
-    ),
-    [
-      aspect,
-      aspectOptionsForModel,
-      canRedoGeneralAction,
-      canUndoGeneralAction,
-      handleRedoGeneralAction,
-      handleResetGeneralAction,
-      handleUndoGeneralAction,
-      isGeneralResetDisabled,
-      onAspectChange,
-    ]
-  );
-
-  const renderPresetUtilityActionButtons = React.useMemo(
-    () => (
-      <ExpertEditPresetUtilityActionButtons
-        isGenerateDisabled={isGenerateDisabled}
-        selectedLayerImageUrl={selectedLayerImageUrl}
-        handleCompositeRegeneratePromptInsert={handleCompositeRegeneratePromptInsert}
-      />
-    ),
-    [handleCompositeRegeneratePromptInsert, isGenerateDisabled, selectedLayerImageUrl]
-  );
-
-  const renderMarkupModalInpaintPanel = React.useCallback(
-    (scope: "modal" | "rail" = "modal") => (
-      <ExpertEditMarkupModalInpaintPanel
-        scope={scope}
-        selectedInpaintMode={selectedInpaintMode}
-        isInpaintToolSelected={isInpaintToolSelected}
-        inpaintStrokeSize={inpaintStrokeSize}
-        selectedInpaintSelectionTab={selectedInpaintSelectionTab}
-        imageHasInteractiveMask={imageHasInteractiveMask}
-        setSelectedRailTool={setSelectedRailTool}
-        setSelectedInpaintMode={setSelectedInpaintMode}
-        setInpaintStrokeSize={setInpaintStrokeSize}
-        setSelectedInpaintSelectionTab={setSelectedInpaintSelectionTab}
-        clearInpaintSelectionWithHistory={clearInpaintSelectionWithHistory}
-        invertInpaintSelectionWithHistory={invertInpaintSelectionWithHistory}
-      />
-    ),
-    [
-      clearInpaintSelectionWithHistory,
-      imageHasInteractiveMask,
-      inpaintStrokeSize,
-      invertInpaintSelectionWithHistory,
-      isInpaintToolSelected,
-      selectedInpaintMode,
-      selectedInpaintSelectionTab,
-      setSelectedRailTool,
-    ]
-  );
+  const {
+    renderMarkupModalGeneralPanel,
+    renderMarkupModalInpaintPanel,
+    renderMoveControlsContent,
+    renderPresetUtilityActionButtons,
+  } = useExpertEditStageControlPanels({
+    isMoveToolSelected,
+    moveStageZoomSliderValue,
+    isMoveTransformCentered,
+    isMarkupViewportAtRest,
+    canUndoGeneralAction,
+    canRedoGeneralAction,
+    setSelectedRailTool,
+    handleRecenterMoveAction,
+    openMarkupModal,
+    handleMoveZoomSliderChange,
+    handleUndoGeneralAction,
+    handleRedoGeneralAction,
+    aspect,
+    aspectOptionsForModel,
+    isGeneralResetDisabled,
+    onAspectChange,
+    handleResetGeneralAction,
+    isGenerateDisabled,
+    selectedLayerImageUrl,
+    handleCompositeRegeneratePromptInsert,
+    selectedInpaintMode,
+    isInpaintToolSelected,
+    inpaintStrokeSize,
+    selectedInpaintSelectionTab,
+    imageHasInteractiveMask,
+    setSelectedInpaintMode,
+    setInpaintStrokeSize,
+    setSelectedInpaintSelectionTab,
+    clearInpaintSelectionWithHistory,
+    invertInpaintSelectionWithHistory,
+  });
 
   return (
     <div

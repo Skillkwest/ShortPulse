@@ -47,7 +47,6 @@ type ExpertEditStageWorkspaceProps = {
   onStageDoubleClick: React.MouseEventHandler<HTMLDivElement>;
   inlineSceneContent: React.ReactNode;
   inlineTransformOverlay: React.ReactNode;
-  mainLayersPanel: React.ReactNode;
   inlinePostStageTools: React.ReactNode;
   promptAndSelectors: React.ReactNode;
   statusToast: React.ReactNode;
@@ -123,13 +122,14 @@ export function ExpertEditStageWorkspace({
   onStageDoubleClick,
   inlineSceneContent,
   inlineTransformOverlay,
-  mainLayersPanel,
   inlinePostStageTools,
   promptAndSelectors,
   statusToast,
   modalSurface,
   contextMenu,
 }: ExpertEditStageWorkspaceProps) {
+  const shouldShowGenerationModeClearButton = effectiveEditSubmitIntent !== "standard";
+
   return (
     <>
       <div className="edit-expert-main-stage">
@@ -137,7 +137,7 @@ export function ExpertEditStageWorkspace({
           {sidebar}
         </div>
 
-        <div className="edit-expert-primary-column">
+        <div className="edit-expert-primary-column edit-expert-primary-column-shell">
           {isGenerationModeToggleEnabled ? (
             <div className="edit-expert-primary-column-header">
               <div className="edit-expert-generation-mode-header-controls">
@@ -163,14 +163,16 @@ export function ExpertEditStageWorkspace({
                     </button>
                   ))}
                 </div>
-                <button
-                  type="button"
-                  className="edit-expert-inpaint-action-btn edit-expert-generation-mode-clear-btn"
-                  aria-label="Clear all in-paint selections and markup strokes"
-                  onClick={onClearGenerationArtifacts}
-                >
-                  <TrashSimple size={19} weight="regular" />
-                </button>
+                {shouldShowGenerationModeClearButton ? (
+                  <button
+                    type="button"
+                    className="edit-expert-inpaint-action-btn edit-expert-generation-mode-clear-btn"
+                    aria-label="Clear all in-paint selections and markup strokes"
+                    onClick={onClearGenerationArtifacts}
+                  >
+                    <TrashSimple size={19} weight="regular" />
+                  </button>
+                ) : null}
               </div>
             </div>
           ) : null}
@@ -221,7 +223,6 @@ export function ExpertEditStageWorkspace({
             sceneContent={inlineSceneContent}
             transformOverlay={inlineTransformOverlay}
           />
-          {mainLayersPanel}
           <div className="edit-expert-column-wrapper edit-expert-column-wrapper--center edit-expert-post-stage-wrapper">
             {inlinePostStageTools}
             {promptAndSelectors}

@@ -10,6 +10,7 @@ import type { ExpertEditLayer } from "./expertEditLayerSessionUtils";
 
 type ExpertEditLayersPanelProps = {
   scope: "main" | "modal";
+  placement?: "stage" | "sidebar";
   layers: ExpertEditLayer[];
   editingLayerIndex: number | null;
   editingLayerValue: string;
@@ -126,6 +127,7 @@ export function ExpertEditLayerUtilityActions({
 
 export function ExpertEditLayersPanel({
   scope,
+  placement = "stage",
   layers,
   editingLayerIndex,
   editingLayerValue,
@@ -261,7 +263,11 @@ export function ExpertEditLayersPanel({
     <div
       ref={isModalScope ? modalLayersRef : undefined}
       className={`edit-expert-layers-toolbar ${
-        isModalScope ? "edit-expert-layers-toolbar--modal" : "edit-expert-layers-toolbar--inline"
+        isModalScope
+          ? "edit-expert-layers-toolbar--modal"
+          : placement === "sidebar"
+            ? "edit-expert-layers-toolbar--sidebar"
+            : "edit-expert-layers-toolbar--inline"
       }`.trim()}
       aria-label={isModalScope ? "Expanded canvas layers toolbar" : "Edit layers toolbar"}
     >

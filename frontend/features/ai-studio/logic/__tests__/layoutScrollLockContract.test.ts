@@ -27,9 +27,9 @@ describe("ai-studio layout scroll lock contract", () => {
     const css = fs.readFileSync(layoutCssPath, "utf8");
 
     expect(css).toContain(".ai-shell.ai-shell-expert-edit");
-    expect(css).toContain("grid-template-columns: minmax(930px, 1.28fr) minmax(0, 1fr);");
+    expect(css).toContain("grid-template-columns: minmax(970px, 1.28fr) minmax(0, 1fr);");
     expect(css).toContain(".ai-shell.ai-shell-resizable.ai-shell-expert-edit");
-    expect(css).toContain("var(--ai-shell-left-width, minmax(930px, 1.28fr))");
+    expect(css).toContain("var(--ai-shell-left-width, minmax(970px, 1.28fr))");
     expect(css).toContain("transition: none;");
   });
 

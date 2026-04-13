@@ -140,7 +140,7 @@ For Create properties panel, model-selector, and submission wiring details, see 
 
 - Temporary policy note: beginner mode is currently globally force-disabled by runtime flags (`NEXT_PUBLIC_SHORTPULSE_BEGINNER_MODE_FORCE_OFF=true`, toggle hidden), so AI Studio runs in expert mode by default across sessions.
 - The image resolution step card appears only when `beginnerMode` is off.
-- The card is shown in both `CreatePropertiesPanel` (text-to-image) and `EditPropertiesPanel` (image-to-image).
+- The card is shown in both `CreatePropertiesPanel` (text-to-image) and `ExpertEditPanelView` (image-to-image).
 - Resolution options are model-driven from `modelRegistry.ts` (`allowedResolutions` + `defaultResolution`):
   - FLUX models / Nano Banana: `model_default` (no separate resolution enum exposed in current UI payload mapping).
   - Nano Banana 2 + Nano Banana 2 Edit: `0.5K`, `1K`, `2K`, `4K`.
@@ -152,7 +152,7 @@ For Create properties panel, model-selector, and submission wiring details, see 
 
 - Expert Edit is now the default Edit-workflow panel in expert mode.
 - Legacy Edit panel remains the beginner fallback path and is preserved unchanged.
-- Runtime kill switch: `NEXT_PUBLIC_ENABLE_EXPERT_EDIT_UI=false` reverts Edit to legacy panel.
+- Expert Edit is now the only Edit workflow surface.
 - Expert Edit panel contracts:
   1. One primary edit drop zone + exactly three secondary drop zones.
   2. Inline prompt/composer row includes model/aspect/resolution selectors and inline Generate button.
@@ -165,7 +165,7 @@ For Create properties panel, model-selector, and submission wiring details, see 
   9. Layer stack uses a permanent foundation `layer 1` (clearable, never removable), all non-foundation layers are content-backed only, and primary image ingress inserts a new populated layer above the selected layer while preserving panel-top = visual-top z-order.
   9a. Keyboard delete mirrors the visible delete affordance: when a layer is selected and focus is not inside an editable field, pressing `Delete` (and macOS `Backspace`) removes that selected layer through the same layer-stack rules.
   9b. The full Expert Edit properties body sits inside one primary wrapper surface so the preset rail, stage, layers rail, and lower controls remain visually contained by the same background shell used by Expert Create.
-  9c. The inline Expert Edit `Layers` panel is currently hidden from the left rail, but the underlying layer system remains active for stage selection, z-order management, flattening, and keyboard delete behavior. The expanded modal layers panel remains available when invoked by the existing canvas flows.
+  9c. The inline Expert Edit `Layers` panel lives in the left rail directly below `Prompt Presets`, and the underlying layer system remains active for stage selection, z-order management, flattening, and keyboard delete behavior. The expanded modal layers panel remains available when invoked by the existing canvas flows.
   9e. Inline Expert Edit presets chrome uses one shared card: the `Prompt Presets` title row is embedded at the top of the same surface that contains the preset list.
   10. Crop tool uses explicit aspect selection: no ratio is selected by default, ratio chips are toggleable, Crop mode renders a centered max-fit guide for the selected ratio, and `Crop` applies only to the active layer using stage-accurate pixels (including current move/resize/rotate) before resetting that layer transform. Crop selection does not change the global generation aspect selector.
   11. Styles selector is a right-rail panel (not a modal): the shared Styles control is available in Expert Edit and Expert Create, toggles a Styles section below Reference Grid, keeps a selected-style preview in the left Styles button, and auto-closes the right-rail Styles panel after style selection. Right-rail section visibility follows panel-header toggles, style-selection indicators are workflow-themed (Create blue, Edit amber, Video violet, Canvas cream), and the Styles helper text is hidden in expert mode.

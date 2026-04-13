@@ -35,6 +35,7 @@ type ExpertEditStageSidebarProps = {
   handlePresetPanelDragLeave: (event: React.DragEvent<HTMLElement>) => void;
   handlePresetPanelDrop: (event: React.DragEvent<HTMLElement>) => void;
   toggleMorePresetsSurface: () => void;
+  layersPanel: React.ReactNode;
   renderPresetUtilityActionButtons: React.ReactNode;
   isGenerateDisabled: boolean;
   selectedLayerImageUrl: string | null;
@@ -79,6 +80,7 @@ export function ExpertEditStageSidebar({
   handlePresetPanelDragLeave,
   handlePresetPanelDrop,
   toggleMorePresetsSurface,
+  layersPanel,
   renderPresetUtilityActionButtons,
   isGenerateDisabled,
   selectedLayerImageUrl,
@@ -97,7 +99,7 @@ export function ExpertEditStageSidebar({
   isPresetsSurfaceDropActive,
 }: ExpertEditStageSidebarProps) {
   return (
-    <div className="edit-expert-column-wrapper edit-expert-column-wrapper--left">
+    <div className="edit-expert-column-wrapper edit-expert-column-wrapper--left edit-expert-sidebar-shell">
       {isGenerationModeToggleEnabled && !shouldHideSelectedModeRailPanel ? (
         <ExpertEditModeRailPanel
           selectedRailTool={selectedRailTool}
@@ -121,6 +123,7 @@ export function ExpertEditStageSidebar({
         handlePresetPanelDrop={handlePresetPanelDrop}
         toggleMorePresetsSurface={toggleMorePresetsSurface}
       />
+      {layersPanel}
       <div className="edit-expert-utility-actions" aria-label="Edit utility actions">
         {renderPresetUtilityActionButtons}
         <ExpertEditLayerUtilityActions

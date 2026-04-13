@@ -1888,6 +1888,44 @@ describe("ExpertEditPanelView", () => {
     expect(markupTab).toHaveAttribute("aria-selected", "true");
   });
 
+  it("renders the center stage column inside a dedicated shell", () => {
+    const { container } = render(<ExpertEditPanelView {...baseProps} />);
+
+    const primaryColumn = container.querySelector(".edit-expert-primary-column");
+
+    expect(primaryColumn).not.toBeNull();
+    expect(primaryColumn).toHaveClass("edit-expert-primary-column-shell");
+  });
+
+  it("shows the generation-mode clear button only in inpaint and markup modes", () => {
+    vi.stubEnv("NEXT_PUBLIC_AI_STUDIO_EDIT_GENERATION_MODE_TOGGLE_ENABLED", "true");
+    render(<ExpertEditPanelView {...baseProps} />);
+
+    const modeTabs = screen.getByRole("tablist", { name: /generation mode/i });
+    const standardTab = within(modeTabs).getByRole("tab", { name: /^standard$/i });
+    const inpaintTab = within(modeTabs).getByRole("tab", { name: /^inpaint$/i });
+    const markupTab = within(modeTabs).getByRole("tab", { name: /^markup$/i });
+
+    expect(
+      screen.queryByRole("button", { name: /clear all in-paint selections and markup strokes/i })
+    ).toBeNull();
+
+    fireEvent.click(inpaintTab);
+    expect(
+      screen.getByRole("button", { name: /clear all in-paint selections and markup strokes/i })
+    ).toBeInTheDocument();
+
+    fireEvent.click(markupTab);
+    expect(
+      screen.getByRole("button", { name: /clear all in-paint selections and markup strokes/i })
+    ).toBeInTheDocument();
+
+    fireEvent.click(standardTab);
+    expect(
+      screen.queryByRole("button", { name: /clear all in-paint selections and markup strokes/i })
+    ).toBeNull();
+  });
+
   it("clears all inpaint masks and markup strokes from the generation mode header clear button", () => {
     vi.stubEnv("NEXT_PUBLIC_AI_STUDIO_EDIT_GENERATION_MODE_TOGGLE_ENABLED", "true");
     const clearAllMasks = vi.fn();
@@ -1917,6 +1955,7 @@ describe("ExpertEditPanelView", () => {
         <ExpertEditPanelView {...baseProps} sessionState={createSessionStateWithMarkupStroke()} />
       );
       const primaryDropzone = screen.getByLabelText("Primary composition surface");
+      fireEvent.click(screen.getByRole("tab", { name: /^inpaint$/i }));
       expect(
         primaryDropzone.querySelectorAll(".edit-expert-markup-strokes-overlay polyline")
       ).toHaveLength(1);
@@ -2013,6 +2052,30 @@ describe("ExpertEditPanelView", () => {
     expect(
       within(presetToolbar).queryByRole("group", { name: /^left rail move panel$/i })
     ).toBeNull();
+  });
+
+  it("renders the inline layers panel in the left rail below prompt presets", () => {
+    render(<ExpertEditPanelView {...baseProps} />);
+
+    const presetToolbar = screen.getByLabelText("Edit preset toolbar");
+    const layersToolbar = within(presetToolbar).getByLabelText("Edit layers toolbar");
+    const utilityActions = within(presetToolbar).getByLabelText("Edit utility actions");
+
+    expect(screen.getAllByLabelText("Edit layers toolbar")).toHaveLength(1);
+    expect(
+      layersToolbar.compareDocumentPosition(utilityActions) & Node.DOCUMENT_POSITION_FOLLOWING
+    ).not.toBe(0);
+  });
+
+  it("renders the left rail inside a dedicated sidebar wrapper", () => {
+    const { container } = render(<ExpertEditPanelView {...baseProps} />);
+
+    const presetToolbar = container.querySelector(".edit-expert-preset-toolbar");
+    const sidebarShell = container.querySelector(".edit-expert-sidebar-shell");
+
+    expect(presetToolbar).not.toBeNull();
+    expect(sidebarShell).not.toBeNull();
+    expect(presetToolbar?.contains(sidebarShell)).toBe(true);
   });
 
   it("opens the expanded markup canvas modal from the expand button", async () => {

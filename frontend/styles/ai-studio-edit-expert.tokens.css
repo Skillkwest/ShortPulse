@@ -65,8 +65,8 @@
   --ai-accent-shadow: var(--edit-expert-accent-shadow);
   --edit-expert-stage-max-width: clamp(360px, 58vw, 560px);
   --edit-expert-primary-size: clamp(332px, 30vw, 480px);
-  --edit-expert-side-rail-width: 196px;
-  --edit-expert-side-rail-width-left: 188px;
+  --edit-expert-side-rail-width: 204px;
+  --edit-expert-side-rail-width-left: 204px;
   --edit-expert-side-rail-width-right: 188px;
   --edit-expert-side-rail-gap: 8px;
   --edit-expert-secondary-width: clamp(64px, calc(var(--app-fixed-width) * 0.078), 82px);

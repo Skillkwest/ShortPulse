@@ -18,7 +18,6 @@ import {
 import { modelLogos } from "../../constants";
 import { AspectDropdown } from "../AspectDropdown";
 import { stripEditLabel } from "../../utils/modelLabels";
-import { composePrimaryStageLayersToBlob } from "../../logic/expertEditStageFlatten";
 import { setExpertEditPromptTokenDragData } from "../../logic/expertEditPromptReferences";
 import {
   INPAINT_FLUX_FILL_MODEL_LABEL,
@@ -31,7 +30,6 @@ import {
   resolveEditSubmitIntentFromRailSelection,
   type EditSubmitIntent,
 } from "../../logic/editSubmitIntent";
-import { BRIA_BACKGROUND_REMOVE_MODEL_ID } from "../../logic/editPromptPolicy";
 import { useReferencePropertiesConstraintEffects } from "../useReferencePropertiesConstraintEffects";
 import { useReferencePropertiesDerivedState } from "../useReferencePropertiesDerivedState";
 import { useReferencePropertiesInteractions } from "../useReferencePropertiesInteractions";
@@ -51,6 +49,7 @@ import {
 } from "./markupStrokeController";
 import { useExpertEditInlineGenerate } from "./useExpertEditInlineGenerate";
 import { useExpertEditDocumentState } from "./useExpertEditDocumentState";
+import { useExpertEditLayerActions } from "./useExpertEditLayerActions";
 import { useExpertEditPromptTokenController } from "./useExpertEditPromptTokenController";
 import { useExpertEditSessionHostSync } from "./useExpertEditSessionHostSync";
 import { useExpertEditStageViewport } from "./useExpertEditStageViewport";
@@ -83,7 +82,6 @@ import {
   MARKUP_STROKE_SIZE_DEFAULT,
   MARKUP_STROKE_SIZE_MAX,
   PRESET_PANEL_LIMIT_TOAST,
-  REMOVE_BACKGROUND_PENDING_TIMEOUT_MS,
   STATUS_TOAST_FADE_MS,
   STATUS_TOAST_VISIBLE_MS,
   TRANSIENT_OBJECT_URL_REVOKE_MS,
@@ -158,9 +156,7 @@ import {
   type TransformHistoryState,
 } from "./expertEditLayerTransformUtils";
 import {
-  LAYER_OPACITY_DEFAULT,
   collectOwnedLayerImageUrls,
-  formatLayerName,
   layerHasImage,
   resolveInitialExpertEditSessionState,
   resolveMarkupStrokeIdCounterFromStrokes,
@@ -257,8 +253,6 @@ export function ExpertEditPanelView({
   const inpaintCollapseTimerRef = React.useRef<number | null>(null);
   const toastVisibleTimerRef = React.useRef<number | null>(null);
   const toastFadeTimerRef = React.useRef<number | null>(null);
-  const removeBackgroundPendingTimeoutRef = React.useRef<number | null>(null);
-  const removeBackgroundPendingSourceUrlRef = React.useRef<string | null>(null);
   const transientRevokeTimersRef = React.useRef<Map<string, number>>(new Map());
   const activePresetDragPayloadRef = React.useRef<ExpertEditPresetDragPayload | null>(null);
   const presetDragPreviewCleanupRef = React.useRef<(() => void) | null>(null);
@@ -414,10 +408,6 @@ export function ExpertEditPanelView({
   const [inpaintHistoryState, setInpaintHistoryState] = React.useState<InpaintHistoryState>(() =>
     cloneInpaintHistoryState(initialSessionState.inpaintHistory)
   );
-  const [removeBackgroundPendingLayerId, setRemoveBackgroundPendingLayerId] = React.useState<
-    string | null
-  >(null);
-  const [isFlattenPending, setIsFlattenPending] = React.useState(false);
   React.useEffect(() => {
     if (markupStrokeSize === resolvedMarkupStrokeSize) return;
     setMarkupStrokeSize(resolvedMarkupStrokeSize);
@@ -432,11 +422,13 @@ export function ExpertEditPanelView({
   const selectedStyleId = controlledSelectedStyleId ?? null;
   const {
     inlineStageWrapperRef,
-    primaryCanvasFrameStackRef,
+    primaryCanvasFrameStackElement,
     primaryCompositionSurfaceRef,
     markupModalRef,
     markupModalStageRef,
+    markupModalStageElement,
     handleMarkupModalRef,
+    handlePrimaryCanvasFrameStackRef,
     handleMarkupModalControlsRef,
     handleMarkupModalStageRef,
     handleMarkupModalLayersRef,
@@ -463,9 +455,6 @@ export function ExpertEditPanelView({
     hasPrimaryCompositePreview,
     isMarkupExpandSelected,
   });
-  const isRemoveBackgroundPending = removeBackgroundPendingLayerId != null;
-  const isPrimaryStageBusy =
-    isFlattenPending || isRemoveBackgroundPending || isPrimaryStageGenerating;
   const isLayerLimitStatusToast = statusToastMessage === LAYER_LIMIT_REACHED_TOAST;
   const isCustomOverridesControlled =
     controlledCustomPresetOverrides != null && onCustomPresetOverridesChange != null;
@@ -699,24 +688,6 @@ export function ExpertEditPanelView({
       }
     };
   }, []);
-
-  const clearRemoveBackgroundPending = React.useCallback(() => {
-    clearWindowTimeoutRef(removeBackgroundPendingTimeoutRef);
-    removeBackgroundPendingSourceUrlRef.current = null;
-    setRemoveBackgroundPendingLayerId(null);
-  }, []);
-  const beginRemoveBackgroundPending = React.useCallback(
-    (layerId: string | null, sourceImageUrl: string | null) => {
-      clearRemoveBackgroundPending();
-      if (!layerId) return;
-      setRemoveBackgroundPendingLayerId(layerId);
-      removeBackgroundPendingSourceUrlRef.current = sourceImageUrl;
-      removeBackgroundPendingTimeoutRef.current = window.setTimeout(() => {
-        clearRemoveBackgroundPending();
-      }, REMOVE_BACKGROUND_PENDING_TIMEOUT_MS);
-    },
-    [clearRemoveBackgroundPending]
-  );
   const addPresetToPanel = React.useCallback(
     (presetId: ExpertEditPresetId | null | undefined) => {
       if (!presetId) return;
@@ -968,6 +939,32 @@ export function ExpertEditPanelView({
       outputAspectRatio: primaryCompositionSurfaceAspectRatioValue,
     };
   }, [primaryCompositionSurfaceAspectRatioValue]);
+  const {
+    isFlattenPending,
+    removeBackgroundPendingLayerId,
+    removeBackgroundPendingSourceUrlRef,
+    clearRemoveBackgroundPending,
+    handleManualFlatten,
+    handleRemoveBackground,
+  } = useExpertEditLayerActions({
+    layers,
+    foundationLayerId,
+    selectedLayer,
+    selectedLayerImageUrl,
+    populatedLayerCount,
+    createLayer,
+    layerIdCounterRef,
+    setLayers,
+    setSelectedLayerIndex,
+    clearLayerEditing,
+    onAddSessionMediaReference,
+    onRegenerateWithReferenceInputs,
+    showStatusToast,
+    resolveStageFlattenSnapshot,
+  });
+  const isRemoveBackgroundPending = removeBackgroundPendingLayerId != null;
+  const isPrimaryStageBusy =
+    isFlattenPending || isRemoveBackgroundPending || isPrimaryStageGenerating;
   const renderMarkupStrokeOverlay = React.useCallback(
     (
       keyPrefix: string,
@@ -1124,100 +1121,6 @@ export function ExpertEditPanelView({
       revokeObjectUrl: revokeObjectUrlSafe,
     });
   }, []);
-
-  const handleManualFlatten = React.useCallback(async () => {
-    if (populatedLayerCount <= 0) {
-      showStatusToast("Add at least one layer image before flattening.");
-      return;
-    }
-    if (isFlattenPending) return;
-
-    setIsFlattenPending(true);
-    try {
-      const flattenSnapshot = resolveStageFlattenSnapshot();
-      const exportBlob = await composePrimaryStageLayersToBlob(layers, {
-        mimeType: "image/png",
-        outputAspectRatio: flattenSnapshot.outputAspectRatio,
-      });
-      const flattenedLayerUrl = URL.createObjectURL(exportBlob);
-      const flattenedReferenceUrl = onAddSessionMediaReference
-        ? URL.createObjectURL(exportBlob)
-        : null;
-      const layerOne =
-        layers.find((layer) => layer.id === foundationLayerId) ??
-        layers[0] ??
-        createLayer({ indexOneBased: layerIdCounterRef.current });
-      const flattenedLayer: ExpertEditLayer = {
-        ...layerOne,
-        name: layerOne.isAutoNamed ? formatLayerName(1) : layerOne.name,
-        isAutoNamed: layerOne.isAutoNamed,
-        imageUrl: flattenedLayerUrl,
-        opacity: LAYER_OPACITY_DEFAULT,
-        ownsImageUrl: true,
-        transform: defaultLayerTransform(),
-      };
-      setLayers([flattenedLayer]);
-      setSelectedLayerIndex(0);
-      clearLayerEditing();
-      if (flattenedReferenceUrl) {
-        onAddSessionMediaReference?.({
-          url: flattenedReferenceUrl,
-          mimeType: exportBlob.type || "image/png",
-        });
-      }
-    } catch {
-      showStatusToast("Unable to flatten layers.");
-    } finally {
-      setIsFlattenPending(false);
-    }
-  }, [
-    createLayer,
-    clearLayerEditing,
-    foundationLayerId,
-    isFlattenPending,
-    layerIdCounterRef,
-    layers,
-    onAddSessionMediaReference,
-    populatedLayerCount,
-    resolveStageFlattenSnapshot,
-    setLayers,
-    setSelectedLayerIndex,
-    showStatusToast,
-  ]);
-
-  const handleRemoveBackground = React.useCallback(() => {
-    const run = async () => {
-      const selectedLayerInput = selectedLayerImageUrl?.trim() ?? "";
-      if (!selectedLayerInput) {
-        showStatusToast("Select a layer with an image before removing background.");
-        return;
-      }
-      if (!onRegenerateWithReferenceInputs) {
-        showStatusToast("Remove background is unavailable in this session.");
-        return;
-      }
-      const pendingLayerId = selectedLayer?.id ?? null;
-      beginRemoveBackgroundPending(pendingLayerId, selectedLayer?.imageUrl ?? null);
-
-      try {
-        await onRegenerateWithReferenceInputs([selectedLayerInput], {
-          modelIdOverride: BRIA_BACKGROUND_REMOVE_MODEL_ID,
-          referenceInputsMode: "replace",
-        });
-      } catch {
-        clearRemoveBackgroundPending();
-        showStatusToast("Unable to remove background.");
-      }
-    };
-    void run();
-  }, [
-    beginRemoveBackgroundPending,
-    clearRemoveBackgroundPending,
-    onRegenerateWithReferenceInputs,
-    selectedLayer,
-    selectedLayerImageUrl,
-    showStatusToast,
-  ]);
 
   const reusablePrimarySourceUrl = React.useMemo(() => {
     if (populatedLayerCount !== 1) return null;
@@ -2547,7 +2450,6 @@ export function ExpertEditPanelView({
       clearWindowTimeoutRef(inpaintCollapseTimerRef);
       clearWindowTimeoutRef(toastVisibleTimerRef);
       clearWindowTimeoutRef(toastFadeTimerRef);
-      clearWindowTimeoutRef(removeBackgroundPendingTimeoutRef);
       clearTransientObjectUrlRevokeTimers({
         timersByUrl: transientRevokeTimersRef.current,
         revokeObjectUrl: revokeObjectUrlSafe,
@@ -3407,7 +3309,7 @@ export function ExpertEditPanelView({
             onPointerUpCapture={handleInlineStagePointerUpCapture}
             onPointerCancelCapture={handleInlineStagePointerCancelCapture}
             viewportStyle={inlineMarkupViewportStyle}
-            frameStackRef={primaryCanvasFrameStackRef}
+            frameStackRef={handlePrimaryCanvasFrameStackRef}
             isPopulated={hasPrimaryCompositePreview}
             isDragActive={primaryDragActive}
             frameStyle={primaryCanvasFrameBoundsStyle}
@@ -3440,12 +3342,12 @@ export function ExpertEditPanelView({
               scope: "inline",
               overlayCanvas: overlayCanvasRef,
               stageSize: inlineCompositionSurfaceViewportSize,
-              stageElement: primaryCanvasFrameStackRef.current,
+              stageElement: primaryCanvasFrameStackElement,
             })}
             transformOverlay={renderSelectedLayerTransformOverlay(
               "inline",
               inlineCompositionSurfaceViewportSize,
-              primaryCanvasFrameStackRef.current,
+              primaryCanvasFrameStackElement,
               {
                 onPointerDown: inlineStageInteractionRouter.onPointerDown,
                 onPointerMove: inlineStageInteractionRouter.onPointerMove,
@@ -3772,12 +3674,12 @@ export function ExpertEditPanelView({
           scope: "modal",
           overlayCanvas: modalOverlayCanvasRef,
           stageSize: markupModalViewportSize,
-          stageElement: markupModalStageRef.current,
+          stageElement: markupModalStageElement,
         })}
         transformOverlay={renderSelectedLayerTransformOverlay(
           "modal",
           markupModalViewportSize,
-          markupModalStageRef.current,
+          markupModalStageElement,
           {
             onPointerDown: modalStageInteractionRouter.onPointerDown,
             onPointerMove: modalStageInteractionRouter.onPointerMove,

@@ -28,6 +28,7 @@ import { useExpertEditDocumentState } from "./useExpertEditDocumentState";
 import { useExpertEditLayerActions } from "./useExpertEditLayerActions";
 import { useExpertEditPromptTokenController } from "./useExpertEditPromptTokenController";
 import { useExpertEditSessionBridge } from "./useExpertEditSessionBridge";
+import { useExpertEditPresetRuntime } from "./useExpertEditPresetRuntime";
 import { useExpertEditStageChrome } from "./useExpertEditStageChrome";
 import { useExpertEditStageHistory } from "./useExpertEditStageHistory";
 import { useExpertEditStageInteractions } from "./useExpertEditStageInteractions";
@@ -64,7 +65,6 @@ import {
   MARKUP_COLOR_DEFAULT,
   MARKUP_STROKE_SIZE_DEFAULT,
   MARKUP_STROKE_SIZE_MAX,
-  PRESET_PANEL_LIMIT_TOAST,
   STATUS_TOAST_FADE_MS,
   STATUS_TOAST_VISIBLE_MS,
   TRANSIENT_OBJECT_URL_REVOKE_MS,
@@ -81,26 +81,14 @@ export type { ExpertEditPanelViewProps } from "./expertEditPanelViewContract";
 export { COMPOSITE_REGENERATE_COHESION_PROMPT } from "./expertEditPanelViewContract";
 import {
   EDIT_PRESET_DEFAULT_PANEL_PRESET_IDS,
-  EDIT_PRESET_PANEL_MAX,
-  type ExpertEditCustomPresetOverride,
   type ExpertEditCustomPresetOverrides,
-  type ExpertEditCustomPresetId,
   type ExpertEditPresetId,
-  type ExpertEditPresetDragPayload,
   normalizeExpertEditCustomPresetOverrides,
   normalizePresetPanelPresetIds,
   resolveExpertEditPresetCatalog,
   resolveExpertEditPresetLabelById,
-  resolveExpertEditPresetPromptById,
-  sortPresetIdsByCanonicalOrder,
 } from "./expertEditPresets";
-import {
-  resolveBlobDimensions,
-  resolvePresetDragPayload,
-  revokeObjectUrlSafe,
-  setOpaquePresetDragImage,
-  writePresetDragTransfer,
-} from "./expertEditPanelUtilities";
+import { resolveBlobDimensions, revokeObjectUrlSafe } from "./expertEditPanelUtilities";
 import {
   hexToHsv,
   hsvToRgb,
@@ -193,8 +181,6 @@ export function ExpertEditPanelView({
   const toastVisibleTimerRef = React.useRef<number | null>(null);
   const toastFadeTimerRef = React.useRef<number | null>(null);
   const transientRevokeTimersRef = React.useRef<Map<string, number>>(new Map());
-  const activePresetDragPayloadRef = React.useRef<ExpertEditPresetDragPayload | null>(null);
-  const presetDragPreviewCleanupRef = React.useRef<(() => void) | null>(null);
   const globalCursorLockRef = React.useRef<{
     active: boolean;
     bodyCursor: string;
@@ -249,8 +235,6 @@ export function ExpertEditPanelView({
   >(() => normalizePresetPanelPresetIds(EDIT_PRESET_DEFAULT_PANEL_PRESET_IDS));
   const [internalCustomPresetOverrides, setInternalCustomPresetOverrides] =
     React.useState<ExpertEditCustomPresetOverrides>({});
-  const [isPresetPanelDropActive, setIsPresetPanelDropActive] = React.useState(false);
-  const [isPresetsSurfaceDropActive, setIsPresetsSurfaceDropActive] = React.useState(false);
   const [statusToastMessage, setStatusToastMessage] = React.useState<string | null>(null);
   const [statusToastTone, setStatusToastTone] = React.useState<"info" | "warning">("info");
   const [isStatusToastFading, setIsStatusToastFading] = React.useState(false);
@@ -588,188 +572,31 @@ export function ExpertEditPanelView({
     if (!onEditSubmitIntentChange) return;
     onEditSubmitIntentChange(effectiveEditSubmitIntent);
   }, [effectiveEditSubmitIntent, onEditSubmitIntentChange]);
-
-  React.useEffect(() => {
-    return () => {
-      if (presetDragPreviewCleanupRef.current) {
-        presetDragPreviewCleanupRef.current();
-        presetDragPreviewCleanupRef.current = null;
-      }
-    };
-  }, []);
-  const addPresetToPanel = React.useCallback(
-    (presetId: ExpertEditPresetId | null | undefined) => {
-      if (!presetId) return;
-      updateSelectedPresetIds((previous) => {
-        if (previous.includes(presetId)) return previous;
-        if (previous.length >= EDIT_PRESET_PANEL_MAX) {
-          showStatusToast(PRESET_PANEL_LIMIT_TOAST, "warning");
-          return previous;
-        }
-        return sortPresetIdsByCanonicalOrder([...previous, presetId]);
-      });
-    },
-    [showStatusToast, updateSelectedPresetIds]
-  );
-  const removePresetFromPanel = React.useCallback(
-    (presetId: ExpertEditPresetId | null | undefined) => {
-      if (!presetId) return;
-      updateSelectedPresetIds((previous) =>
-        previous.includes(presetId)
-          ? previous.filter((candidatePresetId) => candidatePresetId !== presetId)
-          : previous
-      );
-    },
-    [updateSelectedPresetIds]
-  );
-
-  const handlePanelPresetApply = React.useCallback(
-    (presetId: ExpertEditPresetId) => {
-      const presetPrompt = resolveExpertEditPresetPromptById(presetId, customPresetOverrides);
-      if (!presetPrompt) return;
-      handlePromptTextChange(presetPrompt);
-    },
-    [customPresetOverrides, handlePromptTextChange]
-  );
   const handleCompositeRegeneratePromptInsert = React.useCallback(() => {
     handlePromptTextChange(COMPOSITE_REGENERATE_COHESION_PROMPT);
   }, [handlePromptTextChange]);
-
-  const handleCustomPresetSave = React.useCallback(
-    (presetId: ExpertEditCustomPresetId, override: ExpertEditCustomPresetOverride) => {
-      updateCustomPresetOverrides((previous) => ({
-        ...previous,
-        [presetId]: {
-          label: override.label,
-          prompt: override.prompt,
-        },
-      }));
-    },
-    [updateCustomPresetOverrides]
-  );
-
-  const beginPresetDragSession = React.useCallback(
-    (
-      event: React.DragEvent<HTMLButtonElement>,
-      payload: ExpertEditPresetDragPayload,
-      label: string
-    ) => {
-      event.stopPropagation();
-      activePresetDragPayloadRef.current = payload;
-      event.dataTransfer.effectAllowed = "move";
-      writePresetDragTransfer(event.dataTransfer, payload, label);
-      if (presetDragPreviewCleanupRef.current) {
-        presetDragPreviewCleanupRef.current();
-        presetDragPreviewCleanupRef.current = null;
-      }
-      presetDragPreviewCleanupRef.current = setOpaquePresetDragImage(
-        event.dataTransfer,
-        event.currentTarget
-      );
-      if (!presetDragPreviewCleanupRef.current) return;
-      window.setTimeout(() => {
-        if (presetDragPreviewCleanupRef.current) {
-          presetDragPreviewCleanupRef.current();
-          presetDragPreviewCleanupRef.current = null;
-        }
-      }, 0);
-    },
-    []
-  );
-
-  const handleSurfacePresetDragStart = React.useCallback(
-    (event: React.DragEvent<HTMLButtonElement>, presetId: ExpertEditPresetId) => {
-      beginPresetDragSession(
-        event,
-        { presetId, source: "surface" },
-        resolveExpertEditPresetLabelById(presetId, customPresetOverrides)
-      );
-    },
-    [beginPresetDragSession, customPresetOverrides]
-  );
-
-  const handlePanelPresetDragStart = React.useCallback(
-    (event: React.DragEvent<HTMLButtonElement>, presetId: ExpertEditPresetId) => {
-      beginPresetDragSession(
-        event,
-        { presetId, source: "panel" },
-        resolveExpertEditPresetLabelById(presetId, customPresetOverrides)
-      );
-    },
-    [beginPresetDragSession, customPresetOverrides]
-  );
-
-  const handlePresetDragEnd = React.useCallback(() => {
-    setIsPresetPanelDropActive(false);
-    setIsPresetsSurfaceDropActive(false);
-    activePresetDragPayloadRef.current = null;
-    if (presetDragPreviewCleanupRef.current) {
-      presetDragPreviewCleanupRef.current();
-      presetDragPreviewCleanupRef.current = null;
-    }
-  }, []);
-
-  const handlePresetPanelDragOver = React.useCallback((event: React.DragEvent<HTMLElement>) => {
-    const payload = resolvePresetDragPayload(
-      event.dataTransfer,
-      activePresetDragPayloadRef.current
-    );
-    if (!payload || payload.source !== "surface") return;
-    event.preventDefault();
-    event.stopPropagation();
-    event.dataTransfer.dropEffect = "move";
-    setIsPresetPanelDropActive(true);
-  }, []);
-
-  const handlePresetPanelDragLeave = React.useCallback(() => {
-    setIsPresetPanelDropActive(false);
-  }, []);
-
-  const handlePresetPanelDrop = React.useCallback(
-    (event: React.DragEvent<HTMLElement>) => {
-      const payload = resolvePresetDragPayload(
-        event.dataTransfer,
-        activePresetDragPayloadRef.current
-      );
-      if (!payload || payload.source !== "surface") return;
-      event.preventDefault();
-      event.stopPropagation();
-      setIsPresetPanelDropActive(false);
-      addPresetToPanel(payload.presetId);
-    },
-    [addPresetToPanel]
-  );
-
-  const handlePresetsSurfaceDragOver = React.useCallback((event: React.DragEvent<HTMLElement>) => {
-    const payload = resolvePresetDragPayload(
-      event.dataTransfer,
-      activePresetDragPayloadRef.current
-    );
-    if (!payload || payload.source !== "panel") return;
-    event.preventDefault();
-    event.stopPropagation();
-    event.dataTransfer.dropEffect = "move";
-    setIsPresetsSurfaceDropActive(true);
-  }, []);
-
-  const handlePresetsSurfaceDragLeave = React.useCallback(() => {
-    setIsPresetsSurfaceDropActive(false);
-  }, []);
-
-  const handlePresetsSurfaceDrop = React.useCallback(
-    (event: React.DragEvent<HTMLElement>) => {
-      const payload = resolvePresetDragPayload(
-        event.dataTransfer,
-        activePresetDragPayloadRef.current
-      );
-      if (!payload || payload.source !== "panel") return;
-      event.preventDefault();
-      event.stopPropagation();
-      setIsPresetsSurfaceDropActive(false);
-      removePresetFromPanel(payload.presetId);
-    },
-    [removePresetFromPanel]
-  );
+  const {
+    isPresetPanelDropActive,
+    isPresetsSurfaceDropActive,
+    resetPresetDropState,
+    handlePanelPresetApply,
+    handleCustomPresetSave,
+    handleSurfacePresetDragStart,
+    handlePanelPresetDragStart,
+    handlePresetDragEnd,
+    handlePresetPanelDragOver,
+    handlePresetPanelDragLeave,
+    handlePresetPanelDrop,
+    handlePresetsSurfaceDragOver,
+    handlePresetsSurfaceDragLeave,
+    handlePresetsSurfaceDrop,
+  } = useExpertEditPresetRuntime({
+    customPresetOverrides,
+    updateSelectedPresetIds,
+    updateCustomPresetOverrides,
+    handlePromptTextChange,
+    showStatusToast,
+  });
 
   const {
     overlayCanvasRef,
@@ -1235,9 +1062,8 @@ export function ExpertEditPanelView({
   const closeMorePresetsSurface = React.useCallback(() => {
     setIsMorePresetsSurfaceOpen(false);
     clearPrimaryDragActive();
-    setIsPresetsSurfaceDropActive(false);
-    setIsPresetPanelDropActive(false);
-  }, [clearPrimaryDragActive]);
+    resetPresetDropState();
+  }, [clearPrimaryDragActive, resetPresetDropState]);
 
   const toggleMorePresetsSurface = React.useCallback(() => {
     setIsMorePresetsSurfaceOpen((previous) => !previous);

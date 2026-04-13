@@ -28,8 +28,8 @@ When this planning-task done state is satisfied, no more planning artifacts are 
 | 2 | Completed | Remove duplicate stage surfaces and legacy entry points that should not survive the rebuild. | Phase 1 decision recorded. | Legacy edit fallback removed, rail canvas duplication removed, generic Canvas demoted or isolated from the canonical editor path, and any surviving modal is classified as presentation-shell-only. | Re-enable removed entry points behind the previous routing if deletion causes unacceptable product loss before Phase 3 lands. |
 | 3 | Completed | Extract a new stage core from the Expert Edit foundation. | Phase 2 deletion scope complete enough to avoid rebuilding into dead surfaces. | New stage shell, camera controller, artboard geometry, document store, and transform/session seams exist. | Keep old Expert Edit orchestration behind a temporary adapter until the new core reaches feature parity. |
 | 4 | Completed | Implement the artboard-first interaction model for selection and transforms. | Phase 3 core seams compile and mount. | Single-select move/resize/rotate works in one canonical stage path with acceptance tests. | Keep the legacy transform path available behind an adapter until new handles and sessions pass parity. |
-| 5 | In Progress | Decouple export from provider submission. | Phase 4 stage geometry and transforms are stable. | Flatten and mask export run through a stage export adapter; submit handlers no longer own stage math. | Temporarily route submit through the old export path if new export parity gates fail. |
-| 6 | Proposed | Simplify persistence and session ownership. | Phase 5 export contract is stable enough to snapshot. | Durable state is document-centered and rollout-only scaffolding is removed or bypassed. | Keep the old snapshot adapter readable during migration so older sessions can still hydrate. |
+| 5 | Completed | Decouple export from provider submission. | Phase 4 stage geometry and transforms are stable. | Flatten and mask export run through a stage export adapter; submit handlers no longer own stage math. | Temporarily route submit through the old export path if new export parity gates fail. |
+| 6 | In Progress | Simplify persistence and session ownership. | Phase 5 export contract is stable enough to snapshot. | Durable state is document-centered and rollout-only scaffolding is removed or bypassed. | Keep the old snapshot adapter readable during migration so older sessions can still hydrate. |
 | 7 | Proposed | Cut over fully to the canonical stage and delete obsolete systems. | Phases 1-6 complete and final validation window ready. | Canonical stage is the only editor path; obsolete stage systems, flags, and stale docs/tests are deleted or updated. | Maintain one short-lived compatibility adapter only if a release-window rollback is required. |
 
 ## Program Done State
@@ -89,11 +89,7 @@ Completed slice on 2026-04-12:
 14. Closed the Phase 4 acceptance window by updating the stage-reset context-menu regression coverage to assert live move transforms before reset, matching the canonical transform path now active in the rebuilt stage.
 
 ## Current Phase 5 Focus
-The next execution lane now shifts to export/submission decoupling:
-1. extract a dedicated stage export adapter out of `frontend/features/ai-studio/components/edit/useExpertEditInlineGenerate.ts`,
-2. group flatten, markup-reference export, and inpaint-mask export behind that boundary,
-3. keep provider submission wiring intact until exported artifact ownership is explicit,
-4. do not widen into persistence cleanup during this lane.
+Phase 5 is complete.
 
 Completed slice on 2026-04-12:
 1. Extracted a dedicated stage export adapter into `frontend/features/ai-studio/components/edit/expertEditStageExport.ts`, moving flatten export, markup-reference export, and inpaint-mask export orchestration out of `useExpertEditInlineGenerate.ts`.
@@ -106,6 +102,14 @@ Completed slice on 2026-04-12:
 8. Added focused submit-dispatch coverage in `frontend/features/ai-studio/components/edit/__tests__/expertEditSubmissionDispatch.test.ts` and re-ran app-level parity tests for invalid-token blocking, prompt-override submission, referenced-secondary filtering, markup model-lock override, and inpaint FLUX Fill submission behavior.
 9. Extracted object-url lifecycle handling into `frontend/features/ai-studio/components/edit/expertEditSubmissionObjectUrls.ts`, moving URL creation, failure cleanup, and post-submit release/scheduling logic out of `useExpertEditInlineGenerate.ts`.
 10. Added focused object-url lifecycle coverage in `frontend/features/ai-studio/components/edit/__tests__/expertEditSubmissionObjectUrls.test.ts` and re-ran app-level parity tests for invalid-token blocking, markup-reference submission, prompt-override submission, and inpaint FLUX Fill behavior.
+11. Closed Phase 5 once `useExpertEditInlineGenerate.ts` was reduced to a thin coordinator over validation, export, submission preparation, dispatch, and URL cleanup instead of acting as the export/submission implementation boundary itself.
+
+## Current Phase 6 Focus
+The next execution lane now shifts to persistence and session simplification:
+1. identify the remaining session payload written by the canonical edit path,
+2. separate durable document/artboard state from transient interaction/runtime state,
+3. keep backward-compatible hydration for older snapshots while slimming new writes,
+4. do not widen into Phase 7 deletions until the persistence contract is explicit.
 
 Completed slice on 2026-04-12:
 1. Extracted stage viewport/artboard ownership from `ExpertEditPanelView.tsx` into:

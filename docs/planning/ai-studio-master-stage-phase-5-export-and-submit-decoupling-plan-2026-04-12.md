@@ -1,6 +1,6 @@
 # AI Studio Master Stage Phase 5: Export And Submit Decoupling Plan (2026-04-12)
 
-Status: In Progress  
+Status: Completed  
 Owner: Engineering
 
 ## Goal
@@ -50,12 +50,12 @@ Phase 5 should create:
 2. parity checks for flatten/mask alignment,
 3. confirm provider payloads no longer depend on stage internals other than exported artifacts.
 
-## Current Focus
-Phase 5 now starts from the stable Phase 4 stage behavior and should target the first export-decoupling lane:
-1. extract a dedicated stage export adapter out of `frontend/features/ai-studio/components/edit/useExpertEditInlineGenerate.ts`,
-2. keep flatten, markup-reference export, and inpaint-mask export grouped behind that export boundary,
-3. leave provider submission and task-dispatch wiring intact until the new export boundary is stable,
-4. avoid broad prompt/provider cleanup until exported artifact ownership is explicit.
+## Closeout
+Phase 5 completed once:
+1. stage export artifacts were produced through dedicated boundaries instead of inline submit logic,
+2. prompt/reference preparation and provider submit-option assembly were split out of `useExpertEditInlineGenerate.ts`,
+3. object-url lifecycle handling was extracted behind a dedicated helper,
+4. focused export/submission tests and app-level parity checks confirmed behavior stayed stable.
 
 ## Current Progress
 Completed on 2026-04-12:
@@ -72,6 +72,7 @@ Completed on 2026-04-12:
 8. Added focused submit-dispatch coverage in `frontend/features/ai-studio/components/edit/__tests__/expertEditSubmissionDispatch.test.ts` and re-ran app-level parity tests for invalid-token blocking, prompt-override submission, referenced-secondary filtering, markup model-lock override, and inpaint FLUX Fill submission behavior.
 9. Extracted object-url lifecycle handling into `frontend/features/ai-studio/components/edit/expertEditSubmissionObjectUrls.ts`, moving URL creation, failure cleanup, and post-submit release/scheduling logic out of `useExpertEditInlineGenerate.ts`.
 10. Added focused object-url lifecycle coverage in `frontend/features/ai-studio/components/edit/__tests__/expertEditSubmissionObjectUrls.test.ts` and re-ran app-level parity tests for invalid-token blocking, markup-reference submission, prompt-override submission, and inpaint FLUX Fill behavior.
+11. Closed Phase 5 once `useExpertEditInlineGenerate.ts` was reduced to a thin coordinator over validation, export, submission preparation, dispatch, and URL cleanup instead of acting as the export/submission implementation boundary itself.
 
 ## Rollback Note
 If decoupling breaks submission parity, temporarily route the submit adapter back through the old export path while keeping the new export boundary intact. Do not recouple stage geometry directly into submit handlers.

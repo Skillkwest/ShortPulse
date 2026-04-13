@@ -29,8 +29,8 @@ When this planning-task done state is satisfied, no more planning artifacts are 
 | 3 | Completed | Extract a new stage core from the Expert Edit foundation. | Phase 2 deletion scope complete enough to avoid rebuilding into dead surfaces. | New stage shell, camera controller, artboard geometry, document store, and transform/session seams exist. | Keep old Expert Edit orchestration behind a temporary adapter until the new core reaches feature parity. |
 | 4 | Completed | Implement the artboard-first interaction model for selection and transforms. | Phase 3 core seams compile and mount. | Single-select move/resize/rotate works in one canonical stage path with acceptance tests. | Keep the legacy transform path available behind an adapter until new handles and sessions pass parity. |
 | 5 | Completed | Decouple export from provider submission. | Phase 4 stage geometry and transforms are stable. | Flatten and mask export run through a stage export adapter; submit handlers no longer own stage math. | Temporarily route submit through the old export path if new export parity gates fail. |
-| 6 | In Progress | Simplify persistence and session ownership. | Phase 5 export contract is stable enough to snapshot. | Durable state is document-centered and rollout-only scaffolding is removed or bypassed. | Keep the old snapshot adapter readable during migration so older sessions can still hydrate. |
-| 7 | Proposed | Cut over fully to the canonical stage and delete obsolete systems. | Phases 1-6 complete and final validation window ready. | Canonical stage is the only editor path; obsolete stage systems, flags, and stale docs/tests are deleted or updated. | Maintain one short-lived compatibility adapter only if a release-window rollback is required. |
+| 6 | Completed | Simplify persistence and session ownership. | Phase 5 export contract is stable enough to snapshot. | Durable state is document-centered and rollout-only scaffolding is removed or bypassed. | Keep the old snapshot adapter readable during migration so older sessions can still hydrate. |
+| 7 | In Progress | Cut over fully to the canonical stage and delete obsolete systems. | Phases 1-6 complete and final validation window ready. | Canonical stage is the only editor path; obsolete stage systems, flags, and stale docs/tests are deleted or updated. | Maintain one short-lived compatibility adapter only if a release-window rollback is required. |
 
 ## Program Done State
 The rebuild program is done when:
@@ -105,11 +105,7 @@ Completed slice on 2026-04-12:
 11. Closed Phase 5 once `useExpertEditInlineGenerate.ts` was reduced to a thin coordinator over validation, export, submission preparation, dispatch, and URL cleanup instead of acting as the export/submission implementation boundary itself.
 
 ## Current Phase 6 Focus
-The next execution lane now shifts to persistence and session simplification:
-1. identify the remaining session payload written by the canonical edit path,
-2. separate durable document/artboard state from transient interaction/runtime state,
-3. keep backward-compatible hydration for older snapshots while slimming new writes,
-4. do not widen into Phase 7 deletions until the persistence contract is explicit.
+Phase 6 is complete.
 
 Completed slice on 2026-04-12:
 1. Slimmed `frontend/features/ai-studio/components/edit/expertEditSessionState.ts` so new Expert Edit session payloads persist only durable layers, current markup strokes, and the current inpaint mask snapshot.
@@ -132,6 +128,14 @@ Completed slice on 2026-04-12:
 10. Removed the dead `canvasState` write surface from `frontend/features/ai-studio/hooks/useAiStudioSessionSnapshotController.ts`, making the canonical page snapshot controller explicit that `canvas` is no longer part of active `/ai-studio` durable writes and survives only as a bounded read-only compatibility extension in the shared snapshot schema.
 11. Simplified shadow-persistence control flow by moving the remote-shadow decision up into `frontend/features/ai-studio/hooks/useAiStudioSessionPersistenceController.ts` and reducing `frontend/features/ai-studio/logic/sessionShadowPersistence.ts` to a plain local-first transport with optional remote mirroring.
 12. Trimmed `frontend/features/ai-studio/logic/sessionRestoreCandidate.ts` so the restore resolver now returns only the canonical `snapshot` + `source` pair used by the live hook path instead of carrying unused `localSnapshot` and `remoteSnapshot` fields through the result shape.
+13. Removed stale module-scope persistence policy caching by making `frontend/features/ai-studio/logic/sessionPersistencePolicy.ts` compute policy values at read time and updating the affected write/restore hooks to derive their default flags from a fresh policy read inside the live hook body.
+
+## Current Phase 7 Focus
+The next execution lane now shifts to cutover and deletion:
+1. confirm the canonical stage/editor path is the only live path in code,
+2. remove obsolete compatibility adapters, flags, and stale references that survived earlier phases,
+3. keep rollback scope narrow and explicit while final deletion proceeds,
+4. align active docs/tests with the final canonical stage-only posture before the final validation bundle.
 
 ## Phase Links
 1. `docs/planning/ai-studio-master-stage-phase-1-target-contract-and-bakeoff-plan-2026-04-12.md`

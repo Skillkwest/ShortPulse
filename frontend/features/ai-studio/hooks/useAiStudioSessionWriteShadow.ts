@@ -47,7 +47,6 @@ type PendingSnapshotState = {
 
 const DEFAULT_DEBOUNCE_MS = 2500;
 const DEFAULT_MAX_DIRTY_MS = 15000;
-const { writeShadowEnabled: WRITE_SHADOW_ENABLED } = readAiStudioSessionPersistencePolicy();
 
 const utf8ByteLength = (value: string): number => {
   if (typeof TextEncoder !== "undefined") {
@@ -62,7 +61,7 @@ const utf8ByteLength = (value: string): number => {
 export const useAiStudioSessionWriteShadow = ({
   sessionId,
   snapshot,
-  enabled = WRITE_SHADOW_ENABLED,
+  enabled: enabledProp,
   debounceMs = DEFAULT_DEBOUNCE_MS,
   maxDirtyMs = DEFAULT_MAX_DIRTY_MS,
   maxSnapshotBytes = AI_STUDIO_SESSION_MAX_SNAPSHOT_BYTES,
@@ -70,6 +69,8 @@ export const useAiStudioSessionWriteShadow = ({
   resolveSnapshotTitle = resolveAiStudioSessionSnapshotTitle,
   onPersistError,
 }: UseAiStudioSessionWriteShadowArgs): void => {
+  const { writeShadowEnabled } = readAiStudioSessionPersistencePolicy();
+  const enabled = enabledProp ?? writeShadowEnabled;
   const pendingRef = useRef<PendingSnapshotState | null>(null);
   const lastSavedHashRef = useRef<string | null>(null);
   const lastSavedTitleRef = useRef<string | null>(null);

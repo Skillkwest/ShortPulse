@@ -1,6 +1,6 @@
 # AI Studio Master Stage Phase 6: Persistence And Session Simplification Plan (2026-04-12)
 
-Status: In Progress  
+Status: Completed  
 Owner: Engineering
 
 ## Goal
@@ -89,10 +89,11 @@ Phase 6 now starts from the stable Phase 5 export boundary and should target the
 10. Removed the dead `canvasState` write surface from `frontend/features/ai-studio/hooks/useAiStudioSessionSnapshotController.ts`, which makes the canonical `/ai-studio` snapshot controller explicit about only writing workspace, outputs, agent state, and the bounded Expert Edit extension while leaving `canvas` as a read-only compatibility extension in the shared snapshot schema.
 11. Simplified shadow-persistence control flow by making `frontend/features/ai-studio/hooks/useAiStudioSessionPersistenceController.ts` the single owner of the remote-shadow decision and reducing `frontend/features/ai-studio/logic/sessionShadowPersistence.ts` to a plain local-first transport with optional remote mirroring.
 12. Trimmed `frontend/features/ai-studio/logic/sessionRestoreCandidate.ts` so the restore resolver now returns only the canonical `snapshot` + `source` pair used by the live hook path instead of carrying unused `localSnapshot` and `remoteSnapshot` fields through the result shape.
+13. Removed stale module-scope persistence policy caching by making `frontend/features/ai-studio/logic/sessionPersistencePolicy.ts` compute policy values at read time and updating the affected write/restore hooks to derive their default flags from a fresh policy read inside the live hook body.
 
 ## Next Slice
-1. Audit the generic page snapshot payload for other editor-only state that should move behind dedicated optional extensions or be removed entirely from durable writes.
-2. Keep older session hydration readable during the migration window, but normalize new writes to the slimmer durable contract only.
+1. Phase 6 is complete. The next execution lane moves to Phase 7 cutover/deletion work.
+2. Keep older session hydration readable during the Phase 7 cleanup window, but do not widen the durable write contract again.
 
 ## Rollback Note
 If snapshot migration causes unacceptable restore regressions, keep a read-only compatibility adapter for older snapshots while continuing to write only the new snapshot format.

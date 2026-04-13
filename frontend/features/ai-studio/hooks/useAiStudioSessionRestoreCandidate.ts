@@ -10,11 +10,6 @@ import {
 import type { AiStudioSessionSnapshot } from "../logic/sessionSnapshot";
 import { readAiStudioSessionPersistencePolicy } from "../logic/sessionPersistencePolicy";
 
-const {
-  restoreShadowEnabled: RESTORE_CANDIDATE_ENABLED,
-  restoreRemoteEnabled: RESTORE_REMOTE_ENABLED,
-} = readAiStudioSessionPersistencePolicy();
-
 export type AiStudioSessionRestoreCandidateState = {
   status: "idle" | "loading" | "ready";
   snapshot: AiStudioSessionSnapshot | null;
@@ -32,11 +27,13 @@ type LoadedRestoreCandidate = {
  */
 export const useAiStudioSessionRestoreCandidate = ({
   sessionId,
-  enabled = RESTORE_CANDIDATE_ENABLED,
+  enabled: enabledProp,
 }: {
   sessionId: string | null;
   enabled?: boolean;
 }): AiStudioSessionRestoreCandidateState => {
+  const { restoreShadowEnabled, restoreRemoteEnabled } = readAiStudioSessionPersistencePolicy();
+  const enabled = enabledProp ?? restoreShadowEnabled;
   const [loadedCandidate, setLoadedCandidate] = useState<LoadedRestoreCandidate | null>(null);
 
   useEffect(() => {
@@ -46,7 +43,7 @@ export const useAiStudioSessionRestoreCandidate = ({
 
     void loadAiStudioSessionRestoreCandidate({
       sessionId,
-      remoteEnabled: RESTORE_REMOTE_ENABLED,
+      remoteEnabled: restoreRemoteEnabled,
     }).then((candidate) => {
       if (cancelled) return;
       setLoadedCandidate({
@@ -59,7 +56,7 @@ export const useAiStudioSessionRestoreCandidate = ({
     return () => {
       cancelled = true;
     };
-  }, [enabled, sessionId]);
+  }, [enabled, restoreRemoteEnabled, sessionId]);
 
   if (!enabled || !sessionId) {
     return {

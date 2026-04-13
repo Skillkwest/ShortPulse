@@ -9,11 +9,6 @@ import type { AiStudioSessionHydrationPayload } from "../logic/sessionSnapshotHy
 import type { AiStudioSessionRestoreCandidateState } from "./useAiStudioSessionRestoreCandidate";
 import { readAiStudioSessionPersistencePolicy } from "../logic/sessionPersistencePolicy";
 
-const {
-  restoreApplyEnabled: RESTORE_APPLY_ENABLED,
-  restoreApplyAgentEnabled: RESTORE_APPLY_AGENT_ENABLED,
-} = readAiStudioSessionPersistencePolicy();
-
 type UseAiStudioSessionRestoreHydrationParams = {
   sessionId: string | null;
   sessionRestoreCandidate: AiStudioSessionRestoreCandidateState;
@@ -38,10 +33,13 @@ export const useAiStudioSessionRestoreHydration = ({
   hydrateFromSessionSnapshot,
   hydrateFromSessionAgentSnapshot,
   hydrateFromSessionExpertEditSnapshot,
-  applyEnabled = RESTORE_APPLY_ENABLED,
-  agentApplyEnabled = RESTORE_APPLY_AGENT_ENABLED,
+  applyEnabled: applyEnabledProp,
+  agentApplyEnabled: agentApplyEnabledProp,
   skipApplyForSessionId = null,
 }: UseAiStudioSessionRestoreHydrationParams) => {
+  const { restoreApplyEnabled, restoreApplyAgentEnabled } = readAiStudioSessionPersistencePolicy();
+  const applyEnabled = applyEnabledProp ?? restoreApplyEnabled;
+  const agentApplyEnabled = agentApplyEnabledProp ?? restoreApplyAgentEnabled;
   const sessionRestoreCandidateLogKeyRef = useRef<string | null>(null);
   const sessionHydrationAppliedRef = useRef<string | null>(null);
 

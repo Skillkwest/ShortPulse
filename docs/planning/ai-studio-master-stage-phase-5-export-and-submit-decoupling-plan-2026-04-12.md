@@ -57,5 +57,15 @@ Phase 5 now starts from the stable Phase 4 stage behavior and should target the 
 3. leave provider submission and task-dispatch wiring intact until the new export boundary is stable,
 4. avoid broad prompt/provider cleanup until exported artifact ownership is explicit.
 
+## Current Progress
+Completed on 2026-04-12:
+1. Extracted a dedicated stage export adapter into `frontend/features/ai-studio/components/edit/expertEditStageExport.ts`, moving flatten export, markup-reference export, and inpaint-mask export orchestration out of `useExpertEditInlineGenerate.ts`.
+2. Kept provider submission wiring, prompt/reference compilation, and object-url lifecycle ownership inside `useExpertEditInlineGenerate.ts` so the first Phase 5 slice changes export boundaries without widening into submit-adapter refactors.
+3. Added focused export-boundary coverage in `frontend/features/ai-studio/components/edit/__tests__/expertEditStageExport.test.ts` for:
+   - reusable primary-source bypass,
+   - markup-reference export gating,
+   - inpaint-mask export using flattened blob dimensions.
+4. Re-ran focused app-level parity coverage for standard flatten submit, markup secondary-reference export, inpaint FLUX Fill submission, and export-under-zoom behavior to confirm the new export boundary preserved existing editor behavior.
+
 ## Rollback Note
 If decoupling breaks submission parity, temporarily route the submit adapter back through the old export path while keeping the new export boundary intact. Do not recouple stage geometry directly into submit handlers.

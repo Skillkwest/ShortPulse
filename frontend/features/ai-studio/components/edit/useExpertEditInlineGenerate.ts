@@ -1,8 +1,5 @@
 import React from "react";
-import {
-  composePrimaryStageLayersToBlob,
-  type ExpertEditStageFlattenLayer,
-} from "../../logic/expertEditStageFlatten";
+import type { ExpertEditStageFlattenLayer } from "../../logic/expertEditStageFlatten";
 import {
   analyzeExpertEditPromptTokens,
   buildExpertEditSubmissionReferenceInputs,
@@ -12,11 +9,10 @@ import {
   INPAINT_FLUX_FILL_MODEL_ID,
   MARKUP_NANO_BANANA_PRO_EDIT_MODEL_ID,
   isMarkupModelLockEnabled,
-  isMarkupStrokeSecondaryReferenceEnabled,
   type InpaintSubmissionOverride,
 } from "../../logic/inpaintSubmission";
 import type { EditSubmitIntent } from "../../logic/editSubmitIntent";
-import { composeFlattenedMarkupReferenceBlob } from "../../logic/expertEditMarkupReference";
+import { exportExpertEditStageArtifacts } from "./expertEditStageExport";
 import type { MarkupStroke } from "./markupStrokeController";
 
 type RegenerateWithReferenceInputsHandler = (
@@ -115,35 +111,23 @@ export const useExpertEditInlineGenerate = ({
       try {
         const isInpaintSubmitSelected = editSubmitIntent === "inpaint";
         const isMarkupSubmitSelected = editSubmitIntent === "markup";
-        const reusablePrimarySourceUrlTrimmed = reusablePrimarySourceUrl?.trim() ?? "";
-        const shouldReusePrimarySourceUrl =
-          !isInpaintSubmitSelected &&
-          !isMarkupSubmitSelected &&
-          reusablePrimarySourceUrlTrimmed.length > 0;
-        const flattenSnapshot = shouldReusePrimarySourceUrl
-          ? null
-          : resolveStageFlattenSnapshot?.();
-        const flattenedBlob = shouldReusePrimarySourceUrl
-          ? null
-          : await composePrimaryStageLayersToBlob(layers, {
-              mimeType: "image/png",
-              outputAspectRatio: flattenSnapshot?.outputAspectRatio,
-            });
+        const exportArtifacts = await exportExpertEditStageArtifacts({
+          layers,
+          reusablePrimarySourceUrl,
+          markupStrokes,
+          editSubmitIntent,
+          hasSelectedLayerMask,
+          exportSelectedLayerMaskBlob,
+          resolveBlobDimensions,
+          resolveStageFlattenSnapshot,
+        });
+        const flattenedBlob = exportArtifacts.flattenedBlob;
         flattenedUrl = flattenedBlob ? URL.createObjectURL(flattenedBlob) : null;
-        const primaryReferenceUrl = reusablePrimarySourceUrlTrimmed || flattenedUrl;
-        const shouldAttachMarkupReference =
-          isMarkupSubmitSelected &&
-          markupStrokes.length > 0 &&
-          isMarkupStrokeSecondaryReferenceEnabled();
-        if (shouldAttachMarkupReference && flattenedBlob) {
-          const flattenedMarkupReferenceBlob = await composeFlattenedMarkupReferenceBlob({
-            flattenedBlob,
-            markupStrokes,
-            resolveBlobDimensions,
-          });
-          if (flattenedMarkupReferenceBlob) {
-            flattenedMarkupReferenceUrl = URL.createObjectURL(flattenedMarkupReferenceBlob);
-          }
+        const primaryReferenceUrl = exportArtifacts.reusablePrimarySourceUrl || flattenedUrl;
+        if (exportArtifacts.flattenedMarkupReferenceBlob) {
+          flattenedMarkupReferenceUrl = URL.createObjectURL(
+            exportArtifacts.flattenedMarkupReferenceBlob
+          );
         }
         const referenceInputs = buildExpertEditSubmissionReferenceInputs({
           flattenedPrimaryUrl: primaryReferenceUrl,
@@ -176,12 +160,7 @@ export const useExpertEditInlineGenerate = ({
             showStatusToast("Unable to flatten layers.");
             return;
           }
-          const flattenedDimensions = await resolveBlobDimensions(flattenedBlob);
-          const inpaintMaskBlob = await exportSelectedLayerMaskBlob({
-            targetWidth: flattenedDimensions.width,
-            targetHeight: flattenedDimensions.height,
-            mimeType: "image/png",
-          });
+          const inpaintMaskBlob = exportArtifacts.inpaintMaskBlob;
           if (!inpaintMaskBlob) {
             showStatusToast("Mask selection is required for inpaint.");
             return;

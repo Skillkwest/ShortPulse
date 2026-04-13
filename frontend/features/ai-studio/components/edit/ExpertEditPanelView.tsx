@@ -37,6 +37,7 @@ import { useExpertEditStageLifecycle } from "./useExpertEditStageLifecycle";
 import { useExpertEditStageControlPanels } from "./useExpertEditStageControlPanels";
 import { useExpertEditStageTransformRuntime } from "./useExpertEditStageTransformRuntime";
 import { useExpertEditStageViewport } from "./useExpertEditStageViewport";
+import { ExpertEditPanelAuxiliary } from "./ExpertEditPanelAuxiliary";
 import { ExpertEditStageSidebar } from "./ExpertEditStageSidebar";
 import { ExpertEditStageWorkspace } from "./ExpertEditStageWorkspace";
 import { useExpertEditMarkupDrawController } from "./useExpertEditMarkupDrawController";
@@ -44,7 +45,6 @@ import { useExpertEditMarkupViewportController } from "./useExpertEditMarkupView
 import { ExpertEditInlinePostStageTools } from "./ExpertEditInlinePostStageTools";
 import { ExpertEditLayersPanel } from "./ExpertEditLayersPanel";
 import { ExpertEditStageScene } from "./ExpertEditStageScene";
-import { ExpertEditCharacterPickerModal } from "./ExpertEditCharacterPickerModal";
 import { ExpertEditSecondaryReferences } from "./ExpertEditReferenceControls";
 import { ExpertEditPromptSelectorsColumn } from "./ExpertEditPromptSelectorsColumn";
 import {
@@ -1382,19 +1382,7 @@ export function ExpertEditPanelView({
             onImageResolutionChange={onImageResolutionChange}
           />
         }
-        statusToast={
-          statusToastMessage && !isLayerLimitStatusToast ? (
-            <div
-              className={`edit-expert-stage-status-toast ${
-                statusToastTone === "warning" ? "is-warning" : "is-info"
-              } ${isStatusToastFading ? "is-fading" : ""}`.trim()}
-              role="status"
-              aria-live="polite"
-            >
-              {statusToastMessage}
-            </div>
-          ) : null
-        }
+        statusToast={null}
         modalSurface={{
           isOpen: isMarkupExpandSelected,
           modalRef: handleMarkupModalRef,
@@ -1493,46 +1481,30 @@ export function ExpertEditPanelView({
           onRemoveImage: handleStageContextMenuRemoveImage,
         }}
       />
-
-      <input
-        ref={primaryInputRef}
-        type="file"
-        accept="image/*"
-        style={{ display: "none" }}
-        onChange={handlePrimaryFileSelection}
-      />
-      <input
-        ref={extraOneInputRef}
-        type="file"
-        accept="image/*"
-        style={{ display: "none" }}
-        onChange={handleFileSelection((url) => onExtraImageChange(0, url))}
-      />
-      <input
-        ref={extraTwoInputRef}
-        type="file"
-        accept="image/*"
-        style={{ display: "none" }}
-        onChange={handleFileSelection((url) => onExtraImageChange(1, url))}
-      />
-      <input
-        ref={extraThreeInputRef}
-        type="file"
-        accept="image/*"
-        style={{ display: "none" }}
-        onChange={handleFileSelection((url) => onExtraImageChange(2, url))}
-      />
-
-      <ExpertEditCharacterPickerModal
-        isOpen={isCharacterPickerOpen}
-        characterModeEnabled={characterModeEnabled}
-        isCharacterOptionsLoading={isCharacterOptionsLoading}
-        onClose={closeCharacterPicker}
-        characterOptions={characterOptions}
-        selectedCharacterId={selectedCharacterId}
-        onSelectedCharacterIdChange={onSelectedCharacterIdChange}
-        refreshCharacterOptions={refreshCharacterOptions}
-        resolveCharacterAvatarUrlById={resolveCharacterAvatarUrlById}
+      <ExpertEditPanelAuxiliary
+        statusToastMessage={statusToastMessage}
+        statusToastTone={statusToastTone}
+        isStatusToastFading={isStatusToastFading}
+        isLayerLimitStatusToast={isLayerLimitStatusToast}
+        primaryInputRef={primaryInputRef}
+        extraOneInputRef={extraOneInputRef}
+        extraTwoInputRef={extraTwoInputRef}
+        extraThreeInputRef={extraThreeInputRef}
+        handlePrimaryFileSelection={handlePrimaryFileSelection}
+        handleExtraFileSelection={(index) =>
+          handleFileSelection((url) => onExtraImageChange(index, url))
+        }
+        characterPicker={{
+          isOpen: isCharacterPickerOpen,
+          characterModeEnabled,
+          isCharacterOptionsLoading,
+          onClose: closeCharacterPicker,
+          characterOptions,
+          selectedCharacterId,
+          onSelectedCharacterIdChange,
+          refreshCharacterOptions,
+          resolveCharacterAvatarUrlById,
+        }}
       />
     </div>
   );

@@ -91,7 +91,7 @@ export function ExpertEditPromptSelectorsColumn({
   onImageResolutionChange,
 }: ExpertEditPromptSelectorsColumnProps) {
   return (
-    <div className="edit-expert-column-wrapper edit-expert-column-wrapper--center edit-expert-post-stage-wrapper">
+    <>
       <ExpertEditPromptComposer
         promptInputShellRef={promptInputShellRef}
         promptHighlightRef={promptHighlightRef}
@@ -131,6 +131,6 @@ export function ExpertEditPromptSelectorsColumn({
         imageResolutionOptions={imageResolutionOptions}
         onImageResolutionChange={onImageResolutionChange}
       />
-    </div>
+    </>
   );
 }

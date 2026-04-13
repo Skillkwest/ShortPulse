@@ -66,7 +66,7 @@ export function ExpertEditInlinePostStageTools({
     inpaintRailTools.find((tool) => tool.id === selectedRailTool) ?? inpaintRailTools[0];
 
   return (
-    <div className="edit-expert-column-wrapper edit-expert-column-wrapper--center edit-expert-post-stage-wrapper">
+    <>
       <div
         className={`edit-expert-inpaint-row ${isInpaintCollapsed ? "is-collapsed" : ""} ${
           isInpaintCollapsing ? "is-collapsing" : ""
@@ -260,6 +260,6 @@ export function ExpertEditInlinePostStageTools({
         ) : null}
         {secondaryContent}
       </div>
-    </div>
+    </>
   );
 }

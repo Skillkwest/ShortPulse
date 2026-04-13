@@ -225,8 +225,10 @@ export function ExpertEditStageWorkspace({
             transformOverlay={inlineTransformOverlay}
           />
           {mainLayersPanel}
-          {inlinePostStageTools}
-          {promptAndSelectors}
+          <div className="edit-expert-column-wrapper edit-expert-column-wrapper--center edit-expert-post-stage-wrapper">
+            {inlinePostStageTools}
+            {promptAndSelectors}
+          </div>
         </div>
       </div>
 

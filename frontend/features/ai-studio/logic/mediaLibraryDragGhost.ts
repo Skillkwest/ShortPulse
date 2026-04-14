@@ -12,6 +12,7 @@ const DRAG_GHOST_WIDTH_PX = Math.round(DRAG_GHOST_HEIGHT_PX * DRAG_GHOST_ASPECT_
 const GHOST_SNAPSHOT_WIDTH = 384;
 const GHOST_SNAPSHOT_HEIGHT = 480;
 const GHOST_SNAPSHOT_QUALITY = 0.08;
+const TEXT_REFERENCE_GHOST_BACKGROUND = "rgba(37, 41, 47, 0.64)";
 
 const trimGhostText = (value: string | null | undefined): string => {
   const normalized = (value ?? "").trim();
@@ -130,7 +131,7 @@ const buildGhostNode = ({
   ghost.style.overflow = "hidden";
   ghost.style.borderRadius = "6px";
   ghost.style.border = "none";
-  ghost.style.background = "rgba(13, 18, 28, 0.92)";
+  ghost.style.background = TEXT_REFERENCE_GHOST_BACKGROUND;
   ghost.style.pointerEvents = "none";
   ghost.style.display = "flex";
   ghost.style.flexDirection = "column";

@@ -7,15 +7,7 @@ import {
   ExpertEditModalStageSurface,
   type StageInteractionHandlers,
 } from "./ExpertEditStageSurface";
-import type { EditSubmitIntent } from "../../logic/editSubmitIntent";
-
 type ExpertEditStageWorkspaceProps = {
-  isGenerationModeToggleEnabled: boolean;
-  generationModeTabsStyle: React.CSSProperties;
-  effectiveEditSubmitIntent: EditSubmitIntent;
-  editGenerationModeOptions: ReadonlyArray<{ id: EditSubmitIntent; label: string }>;
-  onGenerationModeChange: (nextMode: EditSubmitIntent) => void;
-  onClearGenerationArtifacts: () => void;
   sidebar: React.ReactNode;
   hasPrimaryCompositePreview: boolean;
   selectedLayerName: string | null;
@@ -85,12 +77,6 @@ type ExpertEditStageWorkspaceProps = {
 };
 
 export function ExpertEditStageWorkspace({
-  isGenerationModeToggleEnabled,
-  generationModeTabsStyle,
-  effectiveEditSubmitIntent,
-  editGenerationModeOptions,
-  onGenerationModeChange,
-  onClearGenerationArtifacts,
   sidebar,
   hasPrimaryCompositePreview,
   selectedLayerName,
@@ -128,8 +114,6 @@ export function ExpertEditStageWorkspace({
   modalSurface,
   contextMenu,
 }: ExpertEditStageWorkspaceProps) {
-  const shouldShowGenerationModeClearButton = effectiveEditSubmitIntent !== "standard";
-
   return (
     <>
       <div className="edit-expert-main-stage">
@@ -138,44 +122,6 @@ export function ExpertEditStageWorkspace({
         </div>
 
         <div className="edit-expert-primary-column edit-expert-primary-column-shell">
-          {isGenerationModeToggleEnabled ? (
-            <div className="edit-expert-primary-column-header">
-              <div className="edit-expert-generation-mode-header-controls">
-                <div
-                  className="edit-expert-generation-mode-tabs"
-                  role="tablist"
-                  aria-label="Generation mode"
-                  style={generationModeTabsStyle}
-                >
-                  <span className="edit-expert-generation-mode-indicator" aria-hidden="true" />
-                  {editGenerationModeOptions.map((modeOption) => (
-                    <button
-                      key={modeOption.id}
-                      type="button"
-                      className={`edit-expert-generation-mode-tab ${
-                        effectiveEditSubmitIntent === modeOption.id ? "is-active" : ""
-                      }`}
-                      role="tab"
-                      aria-selected={effectiveEditSubmitIntent === modeOption.id}
-                      onClick={() => onGenerationModeChange(modeOption.id)}
-                    >
-                      {modeOption.label}
-                    </button>
-                  ))}
-                </div>
-                {shouldShowGenerationModeClearButton ? (
-                  <button
-                    type="button"
-                    className="edit-expert-inpaint-action-btn edit-expert-generation-mode-clear-btn"
-                    aria-label="Clear all in-paint selections and markup strokes"
-                    onClick={onClearGenerationArtifacts}
-                  >
-                    <TrashSimple size={19} weight="regular" />
-                  </button>
-                ) : null}
-              </div>
-            </div>
-          ) : null}
           <ExpertEditInlineStageSurface
             stageRef={inlineStageRef}
             isEmpty={!hasPrimaryCompositePreview}
@@ -224,8 +170,10 @@ export function ExpertEditStageWorkspace({
             transformOverlay={inlineTransformOverlay}
           />
           <div className="edit-expert-column-wrapper edit-expert-column-wrapper--center edit-expert-post-stage-wrapper">
-            {inlinePostStageTools}
-            {promptAndSelectors}
+            <div className="edit-expert-post-stage-overlay-zone">
+              <div className="edit-expert-post-stage-base-layer">{inlinePostStageTools}</div>
+              <div className="edit-expert-post-stage-composer-overlay">{promptAndSelectors}</div>
+            </div>
           </div>
         </div>
       </div>

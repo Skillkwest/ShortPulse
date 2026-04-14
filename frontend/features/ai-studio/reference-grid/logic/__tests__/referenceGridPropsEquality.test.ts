@@ -46,7 +46,6 @@ const createProps = (overrides: Partial<ReferenceGridProps> = {}): ReferenceGrid
   onRestoreArchivedOutput: vi.fn(),
   onRestoreAllArchivedOutputs: vi.fn(),
   panelVisibility: {
-    canvas: false,
     quickSlot: true,
     referenceGrid: true,
     styles: false,
@@ -82,7 +81,6 @@ describe("areReferenceGridPropsEqual", () => {
     const next = createProps({
       activeOutputId: "output-2",
       panelVisibility: {
-        canvas: false,
         quickSlot: false,
         referenceGrid: true,
         styles: false,

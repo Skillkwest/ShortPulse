@@ -25,7 +25,6 @@ import { useExpertEditPrimaryIngress } from "./useExpertEditPrimaryIngress";
 type UseExpertEditDocumentStateParams = {
   initialLayerState: ExpertEditLayerSessionState;
   isMorePresetsSurfaceOpen: boolean;
-  showStatusToast: (message: string, tone?: "info" | "warning") => void;
   revokeObjectUrlSafe: (url: string) => void;
   resolvePreviewUrlById?: (id: string | null) => string | null;
 };
@@ -42,7 +41,6 @@ type CreateLayerArgs = {
 export function useExpertEditDocumentState({
   initialLayerState,
   isMorePresetsSurfaceOpen,
-  showStatusToast,
   revokeObjectUrlSafe,
   resolvePreviewUrlById,
 }: UseExpertEditDocumentStateParams) {
@@ -218,7 +216,6 @@ export function useExpertEditDocumentState({
     setSelectedLayerIndex,
     setEditingLayerIndex,
     setEditingLayerValue,
-    showStatusToast,
     revokeObjectUrlSafe,
     resolvePreviewUrlById,
   });

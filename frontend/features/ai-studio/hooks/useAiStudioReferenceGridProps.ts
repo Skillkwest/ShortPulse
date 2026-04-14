@@ -36,11 +36,6 @@ export type UseAiStudioReferenceGridPropsParams = {
 };
 
 /**
- * @deprecated Use `UseAiStudioReferenceGridPropsParams`.
- */
-export type UseAiStudioReferenceCanvasPropsParams = UseAiStudioReferenceGridPropsParams;
-
-/**
  * Returns the reference-grid props consumed by `AiStudioPageContent`.
  */
 export const useAiStudioReferenceGridProps = ({
@@ -123,8 +118,3 @@ export const useAiStudioReferenceGridProps = ({
     ]
   );
 };
-
-/**
- * @deprecated Use `useAiStudioReferenceGridProps`.
- */
-export const useAiStudioReferenceCanvasProps = useAiStudioReferenceGridProps;

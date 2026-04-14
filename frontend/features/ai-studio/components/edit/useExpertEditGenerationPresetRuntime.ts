@@ -35,6 +35,10 @@ export const useExpertEditGenerationPresetRuntime = ({
   controlledCustomPresetOverrides,
   onCustomPresetOverridesChange,
 }: UseExpertEditGenerationPresetRuntimeParams) => {
+  const visibleEditGenerationModeOptions = React.useMemo(
+    () => editGenerationModeOptions.filter((modeOption) => modeOption.id !== "markup"),
+    []
+  );
   const [selectedGenerationMode, setSelectedGenerationMode] =
     React.useState<EditSubmitIntent>("standard");
   const [isMorePresetsSurfaceOpen, setIsMorePresetsSurfaceOpen] = React.useState(false);
@@ -130,21 +134,31 @@ export const useExpertEditGenerationPresetRuntime = ({
     [selectedRailTool]
   );
 
+  React.useEffect(() => {
+    if (isGenerationModeToggleEnabled && selectedGenerationMode === "markup") {
+      setSelectedGenerationMode("standard");
+      setSelectedRailTool("move");
+    }
+  }, [isGenerationModeToggleEnabled, selectedGenerationMode, setSelectedRailTool]);
+
+  const visibleSelectedGenerationMode =
+    selectedGenerationMode === "markup" ? "standard" : selectedGenerationMode;
   const effectiveEditSubmitIntent = isGenerationModeToggleEnabled
-    ? selectedGenerationMode
+    ? visibleSelectedGenerationMode
     : railSelectionSubmitIntent;
   const effectiveGenerationModeIndex = React.useMemo(() => {
-    const resolvedIndex = editGenerationModeOptions.findIndex(
+    const resolvedIndex = visibleEditGenerationModeOptions.findIndex(
       (modeOption) => modeOption.id === effectiveEditSubmitIntent
     );
     return resolvedIndex >= 0 ? resolvedIndex : 0;
-  }, [effectiveEditSubmitIntent]);
+  }, [effectiveEditSubmitIntent, visibleEditGenerationModeOptions]);
   const generationModeTabsStyle = React.useMemo(
     () =>
       ({
         "--edit-expert-generation-mode-index": effectiveGenerationModeIndex,
+        "--edit-expert-generation-mode-slots": visibleEditGenerationModeOptions.length,
       }) as React.CSSProperties,
-    [effectiveGenerationModeIndex]
+    [effectiveGenerationModeIndex, visibleEditGenerationModeOptions.length]
   );
 
   const handleGenerationModeChange = React.useCallback(
@@ -163,6 +177,7 @@ export const useExpertEditGenerationPresetRuntime = ({
     availablePresets,
     customPresetOverrides,
     effectiveEditSubmitIntent,
+    visibleEditGenerationModeOptions,
     generationModeTabsStyle,
     handleGenerationModeChange,
     hasSelectedPresetIds: selectedPresetIds.length > 0,

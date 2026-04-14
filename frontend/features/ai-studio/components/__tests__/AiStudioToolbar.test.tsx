@@ -64,8 +64,7 @@ describe("AiStudioToolbar", () => {
     { button: "Create", expected: "create" as const },
     { button: "Edit", expected: "edit" as const },
     { button: "Video", expected: "video" as const },
-    { button: "Sound", expected: "text-to-speech" as const },
-    { button: "Canvas", expected: "canvas" as const },
+    { button: "Sound", expected: "voices" as const },
     { button: "Characters", expected: "character" as const },
     { button: "Elements", expected: "elements" as const },
     { button: "Prompt Presets", expected: "presets" as const },
@@ -91,6 +90,21 @@ describe("AiStudioToolbar", () => {
     expect(onSelectTool).toHaveBeenCalledWith(expected);
   });
 
+  it("does not expose Canvas as a top-level toolbar tool", () => {
+    render(
+      <AiStudioToolbar
+        selectedTool={null}
+        showCreateTools={false}
+        beginnerMode={false}
+        onSelectTool={vi.fn()}
+        onToggleCreateTools={vi.fn()}
+        onToggleBeginnerMode={vi.fn()}
+      />
+    );
+
+    expect(screen.queryByRole("button", { name: "Canvas" })).not.toBeInTheDocument();
+  });
+
   it("renders Sound child workflow buttons when a Sound child is active", () => {
     render(
       <AiStudioToolbar
@@ -110,9 +124,7 @@ describe("AiStudioToolbar", () => {
     expect(soundChildrenContainer).toHaveClass("toolbar-create-children");
     const soundChildren = within(soundChildrenContainer).getAllByRole("button");
     expect(soundChildren.map((button) => button.textContent?.trim())).toEqual([
-      "Voices",
-      "Text to Speech",
-      "Voice Changer",
+      "Voice",
       "Sound Effects",
       "Music",
     ]);
@@ -188,9 +200,7 @@ describe("AiStudioToolbar", () => {
   });
 
   it.each([
-    { button: "Voices", expected: "voices" as const },
-    { button: "Text to Speech", expected: "text-to-speech" as const },
-    { button: "Voice Changer", expected: "voice-changer" as const },
+    { button: "Voice", expected: "voices" as const },
     { button: "Sound Effects", expected: "sound-effects" as const },
     { button: "Music", expected: "music" as const },
   ])("routes Sound child $button clicks to $expected", ({ button, expected }) => {
@@ -312,7 +322,6 @@ describe("AiStudioToolbar", () => {
     { selectedTool: "sound-effects" as const, button: "Sound" },
     { selectedTool: "music" as const, button: "Sound" },
     { selectedTool: "character" as const, button: "Characters" },
-    { selectedTool: "canvas" as const, button: "Canvas" },
   ])("routes $button clicks when selectedTool is $selectedTool", ({ selectedTool, button }) => {
     const onSelectTool = vi.fn();
     const onToggleCreateTools = vi.fn();

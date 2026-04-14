@@ -11,9 +11,14 @@ import type {
   ExpertEditCustomPresetOverride,
 } from "./expertEditPresets";
 import type { RailTool } from "./expertEditPanelViewContract";
+import type { EditSubmitIntent } from "../../logic/editSubmitIntent";
 
 type ExpertEditStageSidebarProps = {
   isGenerationModeToggleEnabled: boolean;
+  generationModeTabsStyle: React.CSSProperties;
+  effectiveEditSubmitIntent: EditSubmitIntent;
+  editGenerationModeOptions: ReadonlyArray<{ id: EditSubmitIntent; label: string }>;
+  onGenerationModeChange: (nextMode: EditSubmitIntent) => void;
   shouldHideSelectedModeRailPanel: boolean;
   selectedRailTool: RailTool;
   renderMarkupModalInpaintPanel: (scope?: "modal" | "rail") => React.ReactNode;
@@ -62,6 +67,10 @@ type ExpertEditStageSidebarProps = {
 
 export function ExpertEditStageSidebar({
   isGenerationModeToggleEnabled,
+  generationModeTabsStyle,
+  effectiveEditSubmitIntent,
+  editGenerationModeOptions,
+  onGenerationModeChange,
   shouldHideSelectedModeRailPanel,
   selectedRailTool,
   renderMarkupModalInpaintPanel,
@@ -98,15 +107,55 @@ export function ExpertEditStageSidebar({
   handleCustomPresetSave,
   isPresetsSurfaceDropActive,
 }: ExpertEditStageSidebarProps) {
+  const shouldShowSidebarModePanel =
+    isGenerationModeToggleEnabled && !shouldHideSelectedModeRailPanel;
+  const shouldCollapseSidebarLayersPanel = selectedRailTool !== "move";
+
   return (
     <div className="edit-expert-column-wrapper edit-expert-column-wrapper--left edit-expert-sidebar-shell">
-      {isGenerationModeToggleEnabled && !shouldHideSelectedModeRailPanel ? (
-        <ExpertEditModeRailPanel
-          selectedRailTool={selectedRailTool}
-          renderMarkupModalInpaintPanel={renderMarkupModalInpaintPanel}
-          renderMarkupControlsContent={renderMarkupControlsContent}
-          renderMoveControlsContent={renderMoveControlsContent}
-        />
+      {isGenerationModeToggleEnabled ? (
+        <div className="edit-expert-sidebar-generation-mode-controls">
+          <div className="edit-expert-panel-title">Select Edit Mode</div>
+          <div
+            className="edit-expert-generation-mode-tabs edit-expert-generation-mode-tabs--sidebar"
+            role="tablist"
+            aria-label="Generation mode"
+            style={generationModeTabsStyle}
+          >
+            <span className="edit-expert-generation-mode-indicator" aria-hidden="true" />
+            {editGenerationModeOptions.map((modeOption) => (
+              <button
+                key={modeOption.id}
+                type="button"
+                className={`edit-expert-generation-mode-tab ${
+                  effectiveEditSubmitIntent === modeOption.id ? "is-active" : ""
+                }`}
+                role="tab"
+                aria-selected={effectiveEditSubmitIntent === modeOption.id}
+                onClick={() => onGenerationModeChange(modeOption.id)}
+              >
+                {modeOption.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      ) : null}
+      {isGenerationModeToggleEnabled ? (
+        <div
+          className={`edit-expert-sidebar-mode-panel-shell ${
+            shouldShowSidebarModePanel ? "is-expanded" : "is-collapsed"
+          }`.trim()}
+          aria-hidden={!shouldShowSidebarModePanel}
+        >
+          <div className="edit-expert-sidebar-mode-panel-shell-inner">
+            <ExpertEditModeRailPanel
+              selectedRailTool={selectedRailTool}
+              renderMarkupModalInpaintPanel={renderMarkupModalInpaintPanel}
+              renderMarkupControlsContent={renderMarkupControlsContent}
+              renderMoveControlsContent={renderMoveControlsContent}
+            />
+          </div>
+        </div>
       ) : null}
       <ExpertEditPresetToolbarCard
         hasSelectedPresetIds={hasSelectedPresetIds}
@@ -123,7 +172,11 @@ export function ExpertEditStageSidebar({
         handlePresetPanelDrop={handlePresetPanelDrop}
         toggleMorePresetsSurface={toggleMorePresetsSurface}
       />
-      {layersPanel}
+      {React.isValidElement(layersPanel)
+        ? React.cloneElement(layersPanel, {
+            isCollapsed: shouldCollapseSidebarLayersPanel,
+          } as { isCollapsed: boolean })
+        : layersPanel}
       <div className="edit-expert-utility-actions" aria-label="Edit utility actions">
         {renderPresetUtilityActionButtons}
         <ExpertEditLayerUtilityActions

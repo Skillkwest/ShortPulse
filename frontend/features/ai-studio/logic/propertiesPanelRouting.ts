@@ -11,7 +11,7 @@ export type PropertiesPanelKind =
   | "elements"
   | "media-library"
   | "sound"
-  | "text-to-speech";
+  | "voices";
 
 /**
  * Resolves which left-side properties panel should be rendered for a given tool.
@@ -21,7 +21,8 @@ export const resolvePropertiesPanelKind = (selectedTool: ToolId | null): Propert
   if (selectedTool === "elements") return "elements";
   if (selectedTool === "styles") return "styles";
   if (selectedTool === "presets") return "presets";
-  if (selectedTool === "text-to-speech") return "text-to-speech";
+  if (selectedTool === "voices") return "voices";
+  if (selectedTool === "voice-changer" || selectedTool === "text-to-speech") return "voices";
   if (isSoundWorkflow(selectedTool)) return "sound";
   return resolveWorkflowId(selectedTool);
 };

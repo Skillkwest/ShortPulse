@@ -146,13 +146,3 @@ export function ReferenceGridArchiveControls({
     </>
   );
 }
-
-/**
- * @deprecated Use `ReferenceGridArchiveControls`.
- */
-export type ReferenceCanvasArchiveControlsProps = ReferenceGridArchiveControlsProps;
-
-/**
- * @deprecated Use `ReferenceGridArchiveControls`.
- */
-export const ReferenceCanvasArchiveControls = ReferenceGridArchiveControls;

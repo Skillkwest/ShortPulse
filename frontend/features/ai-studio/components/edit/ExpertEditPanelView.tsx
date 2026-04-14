@@ -47,7 +47,6 @@ import { ExpertEditPromptSelectorsColumn } from "./ExpertEditPromptSelectorsColu
 import {
   COMPOSITE_REGENERATE_COHESION_PROMPT,
   INPAINT_STROKE_SIZE_DEFAULT,
-  LAYER_LIMIT_REACHED_TOAST,
   LOCKED_EDIT_TOOL_MODEL_LOGO_SRC,
   MARKUP_STROKE_SIZE_DEFAULT,
   MARKUP_STROKE_SIZE_MAX,
@@ -56,7 +55,6 @@ import {
   TRANSIENT_OBJECT_URL_REVOKE_MS,
   TRANSFORM_HISTORY_LIMIT,
   clampNumber,
-  editGenerationModeOptions,
   type ExpertEditPanelViewProps,
   type InpaintMode,
   type InpaintSelectionTab,
@@ -190,6 +188,7 @@ export function ExpertEditPanelView({
     availablePresets,
     customPresetOverrides,
     effectiveEditSubmitIntent,
+    visibleEditGenerationModeOptions,
     generationModeTabsStyle,
     handleGenerationModeChange,
     hasSelectedPresetIds,
@@ -271,7 +270,6 @@ export function ExpertEditPanelView({
   } = useExpertEditDocumentState({
     initialLayerState: initialSessionState.layerState,
     isMorePresetsSurfaceOpen,
-    showStatusToast,
     revokeObjectUrlSafe,
     resolvePreviewUrlById,
   });
@@ -322,8 +320,6 @@ export function ExpertEditPanelView({
     hasPrimaryCompositePreview,
     isMarkupExpandSelected,
   });
-  const isLayerLimitStatusToast = statusToastMessage === LAYER_LIMIT_REACHED_TOAST;
-
   const modelLogoSrc = modelId ? modelLogos[modelId] : undefined;
   const isInpaintToolSelected = selectedRailTool === "inpaint";
   const isVideoToolSelected = selectedRailTool === "video";
@@ -412,6 +408,7 @@ export function ExpertEditPanelView({
   const inputRefs = [extraOneInputRef, extraTwoInputRef, extraThreeInputRef] as const;
   const shouldShowResolutionControl = imageResolutionOptions.length > 0;
   const hasPromptText = promptTextValue.trim().length > 0;
+  const [isPromptComposerExpanded, setIsPromptComposerExpanded] = React.useState(false);
   const inlineGenerateDisabled = isGenerateDisabled || populatedLayerCount <= 0 || !hasPromptText;
   const suppressInlineReferenceGuardrail =
     guardrailReason === "Add a reference image before generating.";
@@ -439,9 +436,29 @@ export function ExpertEditPanelView({
     promptTextValue,
     extraImageUrls,
     populatedLayerCount,
+    isPromptComposerExpanded,
     onPromptTextChange,
     showStatusToast,
   });
+
+  const handlePromptFocus = React.useCallback(() => {
+    setIsPromptComposerExpanded(true);
+  }, []);
+
+  const handlePromptBlur = React.useCallback(
+    (event: React.FocusEvent<HTMLTextAreaElement>) => {
+      closePromptTokenPicker();
+      if (
+        promptInputShellRef.current &&
+        event.relatedTarget instanceof Node &&
+        promptInputShellRef.current.contains(event.relatedTarget)
+      ) {
+        return;
+      }
+      setIsPromptComposerExpanded(false);
+    },
+    [closePromptTokenPicker, promptInputShellRef]
+  );
 
   React.useEffect(() => {
     if (!onEditSubmitIntentChange) return;
@@ -728,7 +745,6 @@ export function ExpertEditPanelView({
     handleUndoGeneralAction,
     handleRedoGeneralAction,
     handleResetGeneralAction,
-    clearGenerationModeSelectionArtifacts,
     isMoveTransformCentered,
     isMarkupViewportAtRest,
     isGeneralResetDisabled,
@@ -1050,15 +1066,13 @@ export function ExpertEditPanelView({
       onDropCapture={handleMarkupModalRootDragCapture}
     >
       <ExpertEditStageWorkspace
-        isGenerationModeToggleEnabled={isGenerationModeToggleEnabled}
-        generationModeTabsStyle={generationModeTabsStyle}
-        effectiveEditSubmitIntent={effectiveEditSubmitIntent}
-        editGenerationModeOptions={editGenerationModeOptions}
-        onGenerationModeChange={handleGenerationModeChange}
-        onClearGenerationArtifacts={clearGenerationModeSelectionArtifacts}
         sidebar={
           <ExpertEditStageSidebar
             isGenerationModeToggleEnabled={isGenerationModeToggleEnabled}
+            generationModeTabsStyle={generationModeTabsStyle}
+            effectiveEditSubmitIntent={effectiveEditSubmitIntent}
+            editGenerationModeOptions={visibleEditGenerationModeOptions}
+            onGenerationModeChange={handleGenerationModeChange}
             shouldHideSelectedModeRailPanel={shouldHideSelectedModeRailPanel}
             selectedRailTool={selectedRailTool}
             renderMarkupModalInpaintPanel={renderMarkupModalInpaintPanel}
@@ -1077,6 +1091,35 @@ export function ExpertEditPanelView({
             handlePresetPanelDragLeave={handlePresetPanelDragLeave}
             handlePresetPanelDrop={handlePresetPanelDrop}
             toggleMorePresetsSurface={toggleMorePresetsSurface}
+            layersPanel={
+              <ExpertEditLayersPanel
+                scope="main"
+                placement="sidebar"
+                layers={layers}
+                editingLayerIndex={editingLayerIndex}
+                editingLayerValue={editingLayerValue}
+                draggingLayerIndex={draggingLayerIndex}
+                dragOverLayerIndex={dragOverLayerIndex}
+                resolvedSelectedLayerIndex={resolvedSelectedLayerIndex}
+                isGenerateDisabled={isGenerateDisabled}
+                selectedLayerImageUrl={selectedLayerImageUrl}
+                isRemoveBackgroundPending={isRemoveBackgroundPending}
+                populatedLayerCount={populatedLayerCount}
+                isFlattenPending={isFlattenPending}
+                setEditingLayerValue={setEditingLayerValue}
+                onCommitLayerRename={handleCommitLayerRename}
+                onClearLayerEditing={clearLayerEditing}
+                onBeginLayerRename={beginLayerRename}
+                onLayerDragStart={handleLayerDragStart}
+                onLayerDragOver={handleLayerDragOver}
+                onLayerDrop={handleLayerDrop}
+                onLayerDragEnd={handleLayerDragEnd}
+                onSelectLayer={handleSelectLayer}
+                onDeleteLayer={handleDeleteLayer}
+                onFlatten={() => void handleManualFlatten()}
+                onRemoveBackground={handleRemoveBackground}
+              />
+            }
             renderPresetUtilityActionButtons={renderPresetUtilityActionButtons}
             isGenerateDisabled={isGenerateDisabled}
             selectedLayerImageUrl={selectedLayerImageUrl}
@@ -1157,38 +1200,6 @@ export function ExpertEditPanelView({
             onPointerLeave: inlineStageInteractionRouter.onPointerLeave,
           }
         )}
-        mainLayersPanel={
-          <ExpertEditLayersPanel
-            scope="main"
-            layers={layers}
-            editingLayerIndex={editingLayerIndex}
-            editingLayerValue={editingLayerValue}
-            draggingLayerIndex={draggingLayerIndex}
-            dragOverLayerIndex={dragOverLayerIndex}
-            resolvedSelectedLayerIndex={resolvedSelectedLayerIndex}
-            statusToastMessage={statusToastMessage}
-            statusToastTone={statusToastTone}
-            isStatusToastFading={isStatusToastFading}
-            isLayerLimitStatusToast={isLayerLimitStatusToast}
-            isGenerateDisabled={isGenerateDisabled}
-            selectedLayerImageUrl={selectedLayerImageUrl}
-            isRemoveBackgroundPending={isRemoveBackgroundPending}
-            populatedLayerCount={populatedLayerCount}
-            isFlattenPending={isFlattenPending}
-            setEditingLayerValue={setEditingLayerValue}
-            onCommitLayerRename={handleCommitLayerRename}
-            onClearLayerEditing={clearLayerEditing}
-            onBeginLayerRename={beginLayerRename}
-            onLayerDragStart={handleLayerDragStart}
-            onLayerDragOver={handleLayerDragOver}
-            onLayerDrop={handleLayerDrop}
-            onLayerDragEnd={handleLayerDragEnd}
-            onSelectLayer={handleSelectLayer}
-            onDeleteLayer={handleDeleteLayer}
-            onFlatten={() => void handleManualFlatten()}
-            onRemoveBackground={handleRemoveBackground}
-          />
-        }
         inlinePostStageTools={
           <ExpertEditInlinePostStageTools
             isInpaintCollapsed={isInpaintCollapsed}
@@ -1238,16 +1249,18 @@ export function ExpertEditPanelView({
         }
         promptAndSelectors={
           <ExpertEditPromptSelectorsColumn
+            isPromptComposerExpanded={isPromptComposerExpanded}
             promptInputShellRef={promptInputShellRef}
             promptHighlightRef={promptHighlightRef}
             promptTextareaRef={promptTextareaRef}
             promptHighlightSegments={promptHighlightSegments}
             promptTextValue={promptTextValue}
             onPromptTextChange={handlePromptTextChange}
+            onPromptFocus={handlePromptFocus}
             onPromptKeyDown={handlePromptKeyDown}
             onPromptDrop={handlePromptDropWithTokenInsert}
             onPromptScroll={handlePromptScroll}
-            onPromptBlur={closePromptTokenPicker}
+            onPromptBlur={handlePromptBlur}
             promptTokenPickerState={promptTokenPickerState}
             hostPrimaryImageUrl={hostPrimaryImageUrl}
             populatedPromptTokenSlotIndexes={populatedPromptTokenSlotIndexes}
@@ -1324,10 +1337,6 @@ export function ExpertEditPanelView({
               draggingLayerIndex={draggingLayerIndex}
               dragOverLayerIndex={dragOverLayerIndex}
               resolvedSelectedLayerIndex={resolvedSelectedLayerIndex}
-              statusToastMessage={statusToastMessage}
-              statusToastTone={statusToastTone}
-              isStatusToastFading={isStatusToastFading}
-              isLayerLimitStatusToast={isLayerLimitStatusToast}
               isGenerateDisabled={isGenerateDisabled}
               selectedLayerImageUrl={selectedLayerImageUrl}
               isRemoveBackgroundPending={isRemoveBackgroundPending}
@@ -1378,7 +1387,6 @@ export function ExpertEditPanelView({
         statusToastMessage={statusToastMessage}
         statusToastTone={statusToastTone}
         isStatusToastFading={isStatusToastFading}
-        isLayerLimitStatusToast={isLayerLimitStatusToast}
         primaryInputRef={primaryInputRef}
         extraOneInputRef={extraOneInputRef}
         extraTwoInputRef={extraTwoInputRef}

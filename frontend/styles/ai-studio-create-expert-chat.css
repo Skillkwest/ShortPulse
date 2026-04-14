@@ -82,10 +82,42 @@
   min-height: 0;
 }
 
+.create-expert-panel .create-expert-prompt-step .create-expert-chat-composer-overlay-zone {
+  position: relative;
+  padding-bottom: var(--create-expert-chat-composer-overlay-reserve);
+  min-height: 0;
+}
+
+.create-expert-panel .create-expert-prompt-step .create-expert-chat-composer-base-layer {
+  position: relative;
+  z-index: 1;
+  min-height: 0;
+}
+
+.create-expert-panel
+  .create-expert-prompt-step
+  .create-expert-chat-composer-overlay-zone.is-composer-expanded
+  .create-expert-chat-composer-base-layer {
+  filter: blur(6px) brightness(0.56);
+}
+
+.create-expert-panel .create-expert-prompt-step .create-expert-chat-composer-overlay {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 9;
+  pointer-events: none;
+}
+
+.create-expert-panel .create-expert-prompt-step .create-expert-chat-composer-overlay > * {
+  pointer-events: auto;
+}
+
 .create-expert-panel
   .create-expert-prompt-step
   .agent-chat-inline-spacer.create-expert-chat-spacer {
-  min-height: 24px;
+  min-height: 92px;
 }
 
 .create-expert-panel .create-expert-prompt-step .agent-messages {
@@ -95,6 +127,13 @@
 
 .create-expert-panel .create-expert-prompt-step .agent-chat-panel {
   gap: 8px;
+}
+
+.create-expert-panel
+  .create-expert-prompt-step
+  .create-expert-chat-composer-overlay
+  .agent-composer-row {
+  margin-bottom: 0;
 }
 
 .create-expert-panel

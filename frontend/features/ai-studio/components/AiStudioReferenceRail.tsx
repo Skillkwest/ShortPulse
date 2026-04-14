@@ -5,14 +5,12 @@
 import React from "react";
 import { ReferenceGrid } from "./ReferenceGrid";
 import type { ToolId } from "../types";
-import type { CanvasPropertiesPanelProps } from "./canvas/useAiStudioCanvasWorkspaceState";
 import type { AiStudioReferenceGridContract } from "../hooks/contracts/pageContentContracts";
 import { areReferenceGridPropsEqual } from "../reference-grid/logic/referenceGridPropsEquality";
 import { recordAiStudioShellSectionRender } from "../logic/shellRenderCounters";
 
 type AiStudioReferenceRailProps = {
   referenceGridProps: AiStudioReferenceGridContract;
-  railCanvasProps?: CanvasPropertiesPanelProps;
   onDropFiles: (files: FileList) => void;
   onTriggerFilePicker: () => void;
   selectedTool: ToolId | null;
@@ -24,7 +22,6 @@ const areAiStudioReferenceRailPropsEqual = (
   next: Readonly<AiStudioReferenceRailProps>
 ): boolean =>
   areReferenceGridPropsEqual(previous.referenceGridProps, next.referenceGridProps) &&
-  previous.railCanvasProps === next.railCanvasProps &&
   previous.onDropFiles === next.onDropFiles &&
   previous.onTriggerFilePicker === next.onTriggerFilePicker &&
   previous.selectedTool === next.selectedTool &&
@@ -32,7 +29,6 @@ const areAiStudioReferenceRailPropsEqual = (
 
 export const AiStudioReferenceRail = React.memo(function AiStudioReferenceRail({
   referenceGridProps,
-  railCanvasProps,
   onDropFiles,
   onTriggerFilePicker,
   selectedTool,
@@ -44,7 +40,6 @@ export const AiStudioReferenceRail = React.memo(function AiStudioReferenceRail({
       <div className="reference-column-sticky">
         <ReferenceGrid
           {...referenceGridProps}
-          railCanvasProps={railCanvasProps}
           onDropFiles={onDropFiles}
           onTriggerFileSelect={onTriggerFilePicker}
           selectedTool={selectedTool}

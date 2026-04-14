@@ -2,6 +2,10 @@
  * AI Studio properties panels and control rows.
  * Base layout scaffolding for the properties column and form controls.
  */
+.ai-studio-page {
+  --ai-voice-workflow-panel-bg: rgba(201, 205, 214, 0.02);
+}
+
 .stacked-controls {
   flex-direction: column;
 }
@@ -236,6 +240,16 @@
   display: flex;
   flex-direction: column;
   gap: 0;
+}
+
+.ai-studio-page .tool-header .eyebrow {
+  display: none;
+}
+
+.ai-studio-page .tool-header .panel-title {
+  margin: 0;
+  align-self: flex-start;
+  text-align: left;
 }
 
 .tool-header .subdued {

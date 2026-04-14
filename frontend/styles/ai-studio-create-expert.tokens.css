@@ -5,7 +5,7 @@
 
 .ai-studio-page[data-beginner-mode="off"] {
   /* Expert Create properties container surface controls */
-  --ai-expert-create-properties-bg: transparent;
+  --ai-expert-create-properties-bg: var(--color-bg);
   --ai-expert-create-properties-border: 0;
   --ai-expert-create-properties-shadow: none;
   --ai-expert-create-properties-radius: 0;
@@ -24,12 +24,17 @@
   --create-expert-resolution-width: 120px;
   --create-expert-selector-gap: 6px;
   --create-expert-controls-gap: 6px;
-  --create-expert-inline-gutter: clamp(4px, 1.6vw, 18px);
+  --create-expert-inline-gutter: clamp(9px, 2.05vw, 25px);
   --create-expert-character-toggle-gap: 6px;
   --create-expert-selector-height: 40px;
   --create-expert-selector-bg: var(--color-bg);
   --create-expert-selector-hover-border: rgba(201, 205, 214, 0.3);
   --create-expert-output-generate-max-height: 140px;
+  --create-expert-agent-input-min-height: 64px;
+  --create-expert-agent-input-max-height: 680px;
+  --create-expert-chat-composer-overlay-reserve: 126px;
+  --create-expert-bottom-block-offset: 4px;
+  --create-expert-agent-input-bg: #25292f;
   /*
    * Reuse Edit styles-control chrome in Expert Create.
    * These tokens are normally scoped to `.edit-expert-panel`.
@@ -73,9 +78,16 @@
   font-size: clamp(22px, 2.6vw, 30px);
   line-height: 1.12;
   letter-spacing: -0.01em;
+  opacity: 1;
+  transition: opacity 180ms ease;
 }
 
 .create-expert-panel--no-history .create-expert-ready-text {
   transform: translateY(-32px);
   margin-bottom: 14px;
+}
+
+.create-expert-ready-text.is-hidden {
+  opacity: 0;
+  pointer-events: none;
 }

@@ -29,6 +29,7 @@ type UseExpertEditPromptTokenControllerArgs = {
   promptTextValue: string;
   extraImageUrls: [string | null, string | null, string | null];
   populatedLayerCount: number;
+  isPromptComposerExpanded: boolean;
   onPromptTextChange: (value: string) => void;
   showStatusToast: (message: string, tone?: "info" | "warning") => void;
 };
@@ -37,6 +38,7 @@ export function useExpertEditPromptTokenController({
   promptTextValue,
   extraImageUrls,
   populatedLayerCount,
+  isPromptComposerExpanded,
   onPromptTextChange,
   showStatusToast,
 }: UseExpertEditPromptTokenControllerArgs) {
@@ -334,7 +336,7 @@ export function useExpertEditPromptTokenController({
 
   React.useEffect(() => {
     syncPromptTextareaHeight();
-  }, [promptTextValue, syncPromptTextareaHeight]);
+  }, [isPromptComposerExpanded, promptTextValue, syncPromptTextareaHeight]);
 
   React.useEffect(() => {
     const promptInputShell = promptInputShellRef.current;

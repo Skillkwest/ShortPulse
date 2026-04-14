@@ -89,7 +89,6 @@ function ReferenceGridComponent({
   onRestoreArchivedOutput,
   onRestoreAllArchivedOutputs,
   panelVisibility,
-  railCanvasProps,
   stylesPanel,
 }: ReferenceGridProps) {
   incrementFreezeInvestigationCounter("referenceGrid.render");
@@ -102,7 +101,6 @@ function ReferenceGridComponent({
     showReferenceGridSection,
     showQuickSlotSection,
     isWideLayout,
-    showRailCanvasSection,
     isCuratedSplitActive,
     perfWatchdog,
     previewQualityPressureLevel,
@@ -115,8 +113,6 @@ function ReferenceGridComponent({
     curatedGridRef,
     panelRef,
     inventoryStackRef,
-    railCanvasSectionRef,
-    railCanvasHeaderRef,
     curatedSectionRef,
     curatedHeaderRef,
     allRefsHeaderRef,
@@ -152,7 +148,6 @@ function ReferenceGridComponent({
     setVirtualMetrics,
     curatedVirtualMetrics,
     setCuratedVirtualMetrics,
-    railCanvasSplit,
     horizontalSplit,
     stylesSplit,
     referenceGridStylesStackRef,
@@ -203,7 +198,6 @@ function ReferenceGridComponent({
     selectedTool,
     onOutputMediaLoaded,
     panelVisibility,
-    railCanvasProps,
     stylesPanel,
     onAddCuratedReference,
     onRemoveCuratedReference,
@@ -505,11 +499,6 @@ function ReferenceGridComponent({
         onOpenMediaLibrary={onOpenMediaLibrary}
         onRestoreArchivedOutput={onRestoreArchivedOutput}
         onRestoreAllArchivedOutputs={onRestoreAllArchivedOutputs}
-        railCanvasProps={railCanvasProps}
-        showRailCanvasSection={showRailCanvasSection}
-        railCanvasSplit={railCanvasSplit}
-        railCanvasSectionRef={railCanvasSectionRef}
-        railCanvasHeaderRef={railCanvasHeaderRef}
         horizontalSplit={horizontalSplit}
         stylesSplit={stylesSplit}
         referenceGridStylesStackRef={referenceGridStylesStackRef}
@@ -546,12 +535,4 @@ function ReferenceGridComponent({
 }
 
 export const ReferenceGrid = React.memo(ReferenceGridComponent, areReferenceGridPropsEqual);
-
-/**
- * @deprecated Use `ReferenceGrid`.
- */
-export const ReferenceCanvas = ReferenceGrid;
-export type {
-  ReferenceGridProps,
-  ReferenceGridProps as ReferenceCanvasProps,
-} from "../reference-grid/referenceGridTypes";
+export type { ReferenceGridProps } from "../reference-grid/referenceGridTypes";

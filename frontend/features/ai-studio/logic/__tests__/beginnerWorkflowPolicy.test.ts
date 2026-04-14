@@ -7,7 +7,7 @@ import { createWorkflowBeginnerModePolicy } from "../beginnerWorkflowPolicy";
 
 describe("createWorkflowBeginnerModePolicy", () => {
   it("enables beginner mode across workflows when preference is on", () => {
-    const policy = createWorkflowBeginnerModePolicy(true, true, true);
+    const policy = createWorkflowBeginnerModePolicy(true, true);
 
     expect(policy.create.beginnerMode).toBe(true);
     expect(policy.create.expertCreateEligible).toBe(false);
@@ -18,18 +18,12 @@ describe("createWorkflowBeginnerModePolicy", () => {
   });
 
   it("allows expert create only when beginner mode is off and env allows it", () => {
-    expect(createWorkflowBeginnerModePolicy(false, true, true).create.expertCreateEligible).toBe(
-      true
-    );
-    expect(createWorkflowBeginnerModePolicy(false, false, true).create.expertCreateEligible).toBe(
-      false
-    );
+    expect(createWorkflowBeginnerModePolicy(false, true).create.expertCreateEligible).toBe(true);
+    expect(createWorkflowBeginnerModePolicy(false, false).create.expertCreateEligible).toBe(false);
   });
 
-  it("allows expert edit only when beginner mode is off and env allows it", () => {
-    expect(createWorkflowBeginnerModePolicy(false, true, true).edit.expertEditEligible).toBe(true);
-    expect(createWorkflowBeginnerModePolicy(false, true, false).edit.expertEditEligible).toBe(
-      false
-    );
+  it("keeps expert edit available whenever beginner mode is off", () => {
+    expect(createWorkflowBeginnerModePolicy(false, true).edit.expertEditEligible).toBe(true);
+    expect(createWorkflowBeginnerModePolicy(false, false).edit.expertEditEligible).toBe(true);
   });
 });

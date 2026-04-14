@@ -197,13 +197,10 @@ export const editToolList: ToolConfig[] = [
   { id: "edit", label: "Edit", desc: "Edit and refine content" },
   { id: "video", label: "Video", desc: "Generate video content" },
   { id: "sound", label: "Sound", desc: "Open sound properties" },
-  { id: "canvas", label: "Canvas", desc: "Canvas workspace (coming soon)" },
 ];
 
 export const soundChildTools: ToolConfig[] = [
-  { id: "voices", label: "Voices", desc: "Create and manage voices" },
-  { id: "text-to-speech", label: "Text to Speech", desc: "Generate speech from text" },
-  { id: "voice-changer", label: "Voice Changer", desc: "Transform an existing voice" },
+  { id: "voices", label: "Voice", desc: "Create and manage voices" },
   { id: "sound-effects", label: "Sound Effects", desc: "Generate effects and accents" },
   { id: "music", label: "Music", desc: "Generate music beds and songs" },
 ];

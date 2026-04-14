@@ -46,7 +46,7 @@ Purpose: provide a single hub for AI Studio SOPs, shared defaults, and the canon
 ## Expert Edit rollout defaults
 - Expert Edit properties panel is enabled by default for Edit workflow in expert mode.
 - Beginner Edit remains legacy and intact as fallback behavior.
-- Runtime kill switch: `NEXT_PUBLIC_ENABLE_EXPERT_EDIT_UI=false` forces legacy Edit panel.
+- Expert Edit is now the only Edit workflow surface in AI Studio.
 - Chat mode control is hidden/off in Expert Edit; inline Generate remains the primary action.
 - Double-clicking image/video references in the Reference Grid or Quick Slot Inventory opens the shared detail modal; `Save` persists that media into `All Media` and renders to the left of `Download`.
 - `Libraries -> Media Library` is a first-class left-panel tool (`media-library`) in AI Studio and no longer modal-only by default. Runtime fallback: set `NEXT_PUBLIC_AI_STUDIO_MEDIA_LIBRARY_PANEL_ENABLED=false` to restore the legacy modal open path during rollback. Gesture/runtime gate: `NEXT_PUBLIC_AI_STUDIO_MEDIA_LIBRARY_GESTURE_V2_ENABLED` controls panel drag ghost + root right-click ingest + root delete semantics. Per-folder canvas spaces are always enabled for user-created folders, with independent camera/scene persistence via `/api/ai/media-folder-canvas/[folderId]` + `/api/ai/media-folder-canvas/save`. Target UX defines `All Media` as one master root folder with inline tabs (`Images`, `Videos`, `Prompts`) that organize content in-place (masonry for media with true aspect ratio, text reference cards for prompts), with near-bottom infinite scroll auto-load on media tabs and a global root media paginator footer retained as manual fallback, right-click media dispatch to Reference Grid, double-click preview-only modal behavior, and explicit folder membership move/assign semantics.
@@ -57,8 +57,7 @@ Purpose: provide a single hub for AI Studio SOPs, shared defaults, and the canon
 - Expert Edit prompt token behavior (`@img1..@img3`, deferred invalid warning on Generate, and submission compile mapping) is documented in `docs/sops/sop_ai_studio_expert_edit_prompt_references.md`.
 
 ## Canvas interaction guardrails
-- Dual-canvas layout (main + right-rail) shares scene data but keeps viewport camera state independent per instance.
-- For non-canvas workflows, right-rail Canvas visibility defaults to hidden on refresh/new session.
+- Canvas workspace internals remain dual-canvas-capable, but the canonical AI Studio shell no longer exposes the right-rail Canvas panel or a top-level Canvas workflow entry.
 - Draft-text and text-edit ownership are instance-scoped so double-click draft creation cannot be auto-cleared by the mirrored canvas instance.
 - Empty-space text draft creation must remain single-create per gesture (native `dblclick` plus pointer/click fallbacks are deduped).
 

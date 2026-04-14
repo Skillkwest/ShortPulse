@@ -148,6 +148,8 @@ type CharacterPickerModalProps = {
   resolveCharacterAvatarUrlById?: (characterId: string | null | undefined) => string | null;
 };
 
+const EXPERT_CREATE_AGENT_INPUT_MAX_HEIGHT_PX = 680;
+
 const CharacterPickerModal = ({
   isOpen,
   characterModeEnabled,
@@ -614,7 +616,10 @@ export function CreatePropertiesPanel({
     hideInputDropHint: true,
     useAgentResponseInlineGeneratePrefab: true,
     highlightLatestAssistantOnly: true,
-    agentInputMaxHeightPx: 132,
+    chatComposerOverlayEnabled: true,
+    stackTrailingComposerControls: true,
+    agentInputMaxHeightPx: EXPERT_CREATE_AGENT_INPUT_MAX_HEIGHT_PX,
+    agentInputCollapseOnBlur: true,
     composerLeadingContent: (
       <StylesControl
         isOpen={isStylesPanelOpen}

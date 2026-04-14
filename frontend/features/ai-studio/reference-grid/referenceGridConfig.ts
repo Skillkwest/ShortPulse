@@ -22,7 +22,6 @@ export const REFERENCE_AUTOPLAY_DETACH_DELAY_MS = 1400;
 export const REFERENCE_HIGH_DENSITY_CARD_COUNT = 180;
 export const REFERENCE_PRIORITY_HYDRATION_ROWS = 3;
 export const DEFAULT_CURATED_SPLIT_TOP_RATIO = 0.28;
-export const DEFAULT_CANVAS_SECTION_TOP_RATIO = 0.3;
 export const DEFAULT_STYLES_SPLIT_TOP_RATIO = 0.3;
 export const STYLES_REFERENCE_GRID_COLLAPSE_TOP_HEIGHT_PX = 22;
 export const STYLES_MIN_BOTTOM_SECTION_HEIGHT_PX_REFERENCE_GRID = 132;
@@ -30,20 +29,17 @@ export const STYLES_MIN_BOTTOM_SECTION_HEIGHT_PX_QUICK_SLOT = 96;
 export const STYLES_MIN_BOTTOM_HEADER_BUFFER_PX_REFERENCE_GRID = 84;
 export const STYLES_MIN_BOTTOM_HEADER_BUFFER_PX_QUICK_SLOT = 52;
 export const HORIZONTAL_DIVIDER_TRACK_MIN_HEIGHT_PX = 14;
-export const RAIL_CANVAS_MIN_BOTTOM_STACK_HEIGHT_PX = 12;
 export const CURATED_MIN_BOTTOM_STACK_HEIGHT_PX = 12;
 
 export type ReferenceSelectionTheme = "create" | "edit" | "video";
 
 export type ReferenceGridPanelVisibility = {
-  canvas: boolean;
   quickSlot: boolean;
   referenceGrid: boolean;
   styles: boolean;
 };
 
 export const DEFAULT_PANEL_VISIBILITY: ReferenceGridPanelVisibility = {
-  canvas: true,
   quickSlot: true,
   referenceGrid: true,
   styles: false,

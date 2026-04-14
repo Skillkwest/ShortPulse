@@ -523,7 +523,7 @@ describe("ExpertEditPanelView", () => {
     )?.toHaveStyle({ minHeight: "calc(var(--edit-expert-primary-size) + 72px)" });
   });
 
-  it("renders two center-column wrappers and keeps prompt/selectors in the lower wrapper", () => {
+  it("renders two center-column wrappers and splits the lower tools into base and overlay lanes", () => {
     const { container } = render(<ExpertEditPanelView {...baseProps} />);
     const primaryColumn = container.querySelector(".edit-expert-primary-column");
     expect(primaryColumn).not.toBeNull();
@@ -537,9 +537,49 @@ describe("ExpertEditPanelView", () => {
 
     expect(centerWrappers).toHaveLength(2);
     expect(centerWrappers[0]?.querySelector(".edit-expert-inpaint-row")).toBeNull();
-    expect(centerWrappers[1]?.querySelector(".edit-expert-inpaint-row")).not.toBeNull();
-    expect(centerWrappers[1]?.querySelector(".edit-expert-bottom-row")).not.toBeNull();
-    expect(centerWrappers[1]?.querySelector(".edit-expert-selector-row")).not.toBeNull();
+    const overlayZone = centerWrappers[1]?.querySelector(".edit-expert-post-stage-overlay-zone");
+    const baseLayer = overlayZone?.querySelector(".edit-expert-post-stage-base-layer");
+    const composerOverlay = overlayZone?.querySelector(".edit-expert-post-stage-composer-overlay");
+
+    expect(overlayZone).not.toBeNull();
+    expect(baseLayer?.querySelector(".edit-expert-inpaint-row")).not.toBeNull();
+    expect(composerOverlay?.querySelector(".edit-expert-bottom-row")).not.toBeNull();
+    expect(composerOverlay?.querySelector(".edit-expert-selector-row")).not.toBeNull();
+  });
+
+  it("collapses the sidebar layers panel in Inpaint mode and hides the Markup tab", () => {
+    vi.stubEnv("NEXT_PUBLIC_AI_STUDIO_EDIT_GENERATION_MODE_TOGGLE_ENABLED", "true");
+    const { container } = render(<ExpertEditPanelView {...baseProps} />);
+    const sidebarLayersPanel = container.querySelector(
+      ".edit-expert-layers-toolbar--sidebar"
+    ) as HTMLDivElement;
+    const modePanelShell = container.querySelector(
+      ".edit-expert-sidebar-mode-panel-shell"
+    ) as HTMLDivElement;
+    const layersListShell = sidebarLayersPanel.querySelector(
+      ".edit-expert-layers-toolbar-list-shell"
+    ) as HTMLDivElement;
+    const modeTabs = screen.getByRole("tablist", { name: /generation mode/i });
+    const inpaintTab = within(modeTabs).getByRole("tab", { name: /^inpaint$/i });
+    const standardTab = within(modeTabs).getByRole("tab", { name: /^standard$/i });
+
+    expect(sidebarLayersPanel).not.toBeNull();
+    expect(modePanelShell).not.toBeNull();
+    expect(modePanelShell.classList.contains("is-collapsed")).toBe(true);
+    expect(layersListShell.classList.contains("is-expanded")).toBe(true);
+    expect(within(sidebarLayersPanel).getByRole("button", { name: "layer 1" })).toBeInTheDocument();
+
+    fireEvent.click(inpaintTab);
+    expect(modePanelShell.classList.contains("is-expanded")).toBe(true);
+    expect(layersListShell.classList.contains("is-collapsed")).toBe(true);
+    expect(within(sidebarLayersPanel).queryByRole("button", { name: "layer 1" })).toBeNull();
+
+    expect(within(modeTabs).queryByRole("tab", { name: /^markup$/i })).toBeNull();
+
+    fireEvent.click(standardTab);
+    expect(modePanelShell.classList.contains("is-collapsed")).toBe(true);
+    expect(layersListShell.classList.contains("is-expanded")).toBe(true);
+    expect(within(sidebarLayersPanel).getByRole("button", { name: "layer 1" })).toBeInTheDocument();
   });
 
   it("does not render character controls in the edit selector row", () => {
@@ -1055,6 +1095,33 @@ describe("ExpertEditPanelView", () => {
     fireEvent.drop(promptInput, { dataTransfer: transfer });
 
     expect(onPromptTextChange).toHaveBeenCalledWith("Blend @img1 scene");
+  });
+
+  it("collapses the prompt on blur-outside and re-expands it on refocus without losing text", () => {
+    render(
+      <ExpertEditPanelView
+        {...baseProps}
+        referenceText={"Line one\nLine two\nLine three\nLine four\nLine five\nLine six"}
+      />
+    );
+
+    const promptInput = screen.getByLabelText("Edit prompt") as HTMLTextAreaElement;
+    const promptRow = promptInput.closest(".edit-expert-bottom-row") as HTMLDivElement;
+    const flattenButton = screen.getByRole("button", { name: /flatten layers/i });
+
+    expect(promptRow.className).toContain("is-collapsed");
+
+    fireEvent.focus(promptInput);
+    expect(promptRow.className).toContain("is-expanded");
+    expect(promptInput.value).toContain("Line six");
+
+    fireEvent.blur(promptInput, { relatedTarget: flattenButton });
+    expect(promptRow.className).toContain("is-collapsed");
+    expect(promptInput.value).toContain("Line six");
+
+    fireEvent.focus(promptInput);
+    expect(promptRow.className).toContain("is-expanded");
+    expect(promptInput.value).toContain("Line six");
   });
 
   it("opens the anchored reference picker and selects @main after typing @", () => {
@@ -1859,7 +1926,7 @@ describe("ExpertEditPanelView", () => {
     expect(onEditSubmitIntentChange).toHaveBeenLastCalledWith("standard");
   });
 
-  it("shows generation mode tabs above the primary stage and publishes intent when toggle flag is enabled", async () => {
+  it("shows generation mode tabs at the top of the left sidebar and publishes intent when toggle flag is enabled", async () => {
     vi.stubEnv("NEXT_PUBLIC_AI_STUDIO_EDIT_GENERATION_MODE_TOGGLE_ENABLED", "true");
     const onEditSubmitIntentChange = vi.fn();
     const { container } = render(
@@ -1867,25 +1934,25 @@ describe("ExpertEditPanelView", () => {
     );
 
     const tablist = screen.getByRole("tablist", { name: /generation mode/i });
+    const sidebarShell = container.querySelector(".edit-expert-sidebar-shell");
     const primaryColumn = container.querySelector(".edit-expert-primary-column");
     const selectorRow = container.querySelector(".edit-expert-selector-row");
+    const editModeTitle = screen.getByText("Select Edit Mode");
     const standardTab = within(tablist).getByRole("tab", { name: /^standard$/i });
     const inpaintTab = within(tablist).getByRole("tab", { name: /^inpaint$/i });
-    const markupTab = within(tablist).getByRole("tab", { name: /^markup$/i });
-
+    expect(sidebarShell).not.toBeNull();
     expect(primaryColumn).not.toBeNull();
-    expect(primaryColumn?.contains(tablist)).toBe(true);
+    expect(sidebarShell?.contains(editModeTitle)).toBe(true);
+    expect(sidebarShell?.contains(tablist)).toBe(true);
+    expect(primaryColumn?.contains(tablist)).toBe(false);
     expect(selectorRow?.contains(tablist)).toBe(false);
+    expect(within(tablist).queryByRole("tab", { name: /^markup$/i })).toBeNull();
     expect(standardTab).toHaveAttribute("aria-selected", "true");
     expect(onEditSubmitIntentChange).toHaveBeenCalledWith("standard");
 
     fireEvent.click(inpaintTab);
     expect(onEditSubmitIntentChange).toHaveBeenLastCalledWith("inpaint");
     expect(inpaintTab).toHaveAttribute("aria-selected", "true");
-
-    fireEvent.click(markupTab);
-    expect(onEditSubmitIntentChange).toHaveBeenLastCalledWith("markup");
-    expect(markupTab).toHaveAttribute("aria-selected", "true");
   });
 
   it("renders the center stage column inside a dedicated shell", () => {
@@ -1897,14 +1964,12 @@ describe("ExpertEditPanelView", () => {
     expect(primaryColumn).toHaveClass("edit-expert-primary-column-shell");
   });
 
-  it("shows the generation-mode clear button only in inpaint and markup modes", () => {
+  it("does not render a generation-mode clear button in the sidebar toggle row", () => {
     vi.stubEnv("NEXT_PUBLIC_AI_STUDIO_EDIT_GENERATION_MODE_TOGGLE_ENABLED", "true");
     render(<ExpertEditPanelView {...baseProps} />);
 
     const modeTabs = screen.getByRole("tablist", { name: /generation mode/i });
-    const standardTab = within(modeTabs).getByRole("tab", { name: /^standard$/i });
     const inpaintTab = within(modeTabs).getByRole("tab", { name: /^inpaint$/i });
-    const markupTab = within(modeTabs).getByRole("tab", { name: /^markup$/i });
 
     expect(
       screen.queryByRole("button", { name: /clear all in-paint selections and markup strokes/i })
@@ -1912,75 +1977,18 @@ describe("ExpertEditPanelView", () => {
 
     fireEvent.click(inpaintTab);
     expect(
-      screen.getByRole("button", { name: /clear all in-paint selections and markup strokes/i })
-    ).toBeInTheDocument();
-
-    fireEvent.click(markupTab);
-    expect(
-      screen.getByRole("button", { name: /clear all in-paint selections and markup strokes/i })
-    ).toBeInTheDocument();
-
-    fireEvent.click(standardTab);
-    expect(
       screen.queryByRole("button", { name: /clear all in-paint selections and markup strokes/i })
     ).toBeNull();
+    expect(within(modeTabs).queryByRole("tab", { name: /^markup$/i })).toBeNull();
   });
 
-  it("clears all inpaint masks and markup strokes from the generation mode header clear button", () => {
-    vi.stubEnv("NEXT_PUBLIC_AI_STUDIO_EDIT_GENERATION_MODE_TOGGLE_ENABLED", "true");
-    const clearAllMasks = vi.fn();
-    const clearSelectedLayerMask = vi.fn();
-    const invertSelectedLayerMask = vi.fn();
-    const useInpaintMaskControllerSpy = vi
-      .spyOn(InpaintMaskControllerModule, "useInpaintMaskController")
-      .mockReturnValue({
-        overlayCanvasRef: { current: null },
-        modalOverlayCanvasRef: { current: null },
-        hasSelectedLayerMask: true,
-        imageHasInteractiveMask: true,
-        captureMaskSnapshot: vi.fn((): InpaintMaskSnapshot => ({ layers: [] })),
-        restoreMaskSnapshot: vi.fn(),
-        clearAllMasks,
-        clearSelectedLayerMask,
-        invertSelectedLayerMask,
-        exportSelectedLayerMaskBlob: vi.fn(async () => null),
-        onPointerDown: vi.fn(),
-        onPointerMove: vi.fn(),
-        onPointerUp: vi.fn(),
-        onPointerCancel: vi.fn(),
-        onPointerLeave: vi.fn(),
-      });
-    try {
-      render(
-        <ExpertEditPanelView {...baseProps} sessionState={createSessionStateWithMarkupStroke()} />
-      );
-      const primaryDropzone = screen.getByLabelText("Primary composition surface");
-      fireEvent.click(screen.getByRole("tab", { name: /^inpaint$/i }));
-      expect(
-        primaryDropzone.querySelectorAll(".edit-expert-markup-strokes-overlay polyline")
-      ).toHaveLength(1);
-
-      fireEvent.click(
-        screen.getByRole("button", { name: /clear all in-paint selections and markup strokes/i })
-      );
-
-      expect(clearAllMasks).toHaveBeenCalledTimes(1);
-      expect(primaryDropzone.querySelector(".edit-expert-markup-strokes-overlay")).toBeNull();
-      expect(clearSelectedLayerMask).not.toHaveBeenCalled();
-      expect(invertSelectedLayerMask).not.toHaveBeenCalled();
-    } finally {
-      useInpaintMaskControllerSpy.mockRestore();
-    }
-  });
-
-  it("shows the reference-images and styles row in Standard/Inpaint and hides it in Markup", () => {
+  it("shows the reference-images and styles row in Standard and Inpaint while Markup stays hidden", () => {
     vi.stubEnv("NEXT_PUBLIC_AI_STUDIO_EDIT_GENERATION_MODE_TOGGLE_ENABLED", "true");
     render(<ExpertEditPanelView {...baseProps} />);
 
     const modeTabs = screen.getByRole("tablist", { name: /generation mode/i });
     const standardTab = within(modeTabs).getByRole("tab", { name: /^standard$/i });
     const inpaintTab = within(modeTabs).getByRole("tab", { name: /^inpaint$/i });
-    const markupTab = within(modeTabs).getByRole("tab", { name: /^markup$/i });
 
     expect(screen.getByText("Reference Images")).toBeInTheDocument();
     expect(screen.getByLabelText("Secondary edit image 1")).toBeInTheDocument();
@@ -1990,11 +1998,7 @@ describe("ExpertEditPanelView", () => {
     expect(screen.getByText("Reference Images")).toBeInTheDocument();
     expect(screen.getByLabelText("Secondary edit image 1")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Styles" })).toBeInTheDocument();
-
-    fireEvent.click(markupTab);
-    expect(screen.queryByText("Reference Images")).not.toBeInTheDocument();
-    expect(screen.queryByLabelText("Secondary edit image 1")).toBeNull();
-    expect(screen.queryByRole("button", { name: "Styles" })).not.toBeInTheDocument();
+    expect(within(modeTabs).queryByRole("tab", { name: /^markup$/i })).toBeNull();
 
     fireEvent.click(standardTab);
     expect(screen.getByText("Reference Images")).toBeInTheDocument();
@@ -2010,15 +2014,12 @@ describe("ExpertEditPanelView", () => {
     const modeTabs = screen.getByRole("tablist", { name: /generation mode/i });
     const standardTab = within(modeTabs).getByRole("tab", { name: /^standard$/i });
     const inpaintTab = within(modeTabs).getByRole("tab", { name: /^inpaint$/i });
-    const markupTab = within(modeTabs).getByRole("tab", { name: /^markup$/i });
 
     expect(panel).not.toHaveClass("is-generation-mode-tall-stage");
 
     fireEvent.click(inpaintTab);
     expect(panel).not.toHaveClass("is-generation-mode-tall-stage");
-
-    fireEvent.click(markupTab);
-    expect(panel).not.toHaveClass("is-generation-mode-tall-stage");
+    expect(within(modeTabs).queryByRole("tab", { name: /^markup$/i })).toBeNull();
 
     fireEvent.click(standardTab);
     expect(panel).not.toHaveClass("is-generation-mode-tall-stage");
@@ -2032,7 +2033,6 @@ describe("ExpertEditPanelView", () => {
     const modeTabs = screen.getByRole("tablist", { name: /generation mode/i });
     const standardTab = within(modeTabs).getByRole("tab", { name: /^standard$/i });
     const inpaintTab = within(modeTabs).getByRole("tab", { name: /^inpaint$/i });
-    const markupTab = within(modeTabs).getByRole("tab", { name: /^markup$/i });
 
     expect(
       within(presetToolbar).queryByRole("group", { name: /^left rail move panel$/i })
@@ -2042,11 +2042,7 @@ describe("ExpertEditPanelView", () => {
     expect(
       within(presetToolbar).getByRole("group", { name: /^left rail in-paint panel$/i })
     ).toBeInTheDocument();
-
-    fireEvent.click(markupTab);
-    expect(
-      within(presetToolbar).getByRole("group", { name: /^left rail markup panel$/i })
-    ).toBeInTheDocument();
+    expect(within(modeTabs).queryByRole("tab", { name: /^markup$/i })).toBeNull();
 
     fireEvent.click(standardTab);
     expect(
@@ -3866,18 +3862,14 @@ describe("ExpertEditPanelView", () => {
     const modelPickerButton = screen.getByRole("button", { name: /open model picker/i });
     const modeTabs = screen.getByRole("tablist", { name: /generation mode/i });
     const inpaintTab = within(modeTabs).getByRole("tab", { name: /^inpaint$/i });
-    const markupTab = within(modeTabs).getByRole("tab", { name: /^markup$/i });
     const standardTab = within(modeTabs).getByRole("tab", { name: /^standard$/i });
 
     expect(modelPickerButton).not.toBeDisabled();
+    expect(within(modeTabs).queryByRole("tab", { name: /^markup$/i })).toBeNull();
 
     fireEvent.click(inpaintTab);
     expect(modelPickerButton).toBeDisabled();
     expect(modelPickerButton).toHaveTextContent(INPAINT_FLUX_FILL_MODEL_LABEL);
-
-    fireEvent.click(markupTab);
-    expect(modelPickerButton).toBeDisabled();
-    expect(modelPickerButton).toHaveTextContent(MARKUP_NANO_BANANA_PRO_EDIT_MODEL_LABEL);
 
     fireEvent.click(standardTab);
     expect(modelPickerButton).not.toBeDisabled();
@@ -6211,31 +6203,18 @@ describe("ExpertEditPanelView", () => {
     );
   });
 
-  it("shows a toast and blocks creation when a 9th layer is attempted by primary drop/file add", () => {
-    vi.useFakeTimers();
+  it("blocks creation when a 7th layer is attempted by primary drop/file add", () => {
+    const { container } = render(<ExpertEditPanelView {...baseProps} />);
 
-    try {
-      const { container } = render(<ExpertEditPanelView {...baseProps} />);
-
-      for (let index = 1; index <= 8; index += 1) {
-        uploadPrimaryFile(container, `layer-${index}.png`);
-      }
-      expect(screen.getByRole("button", { name: "layer 8" })).toBeInTheDocument();
-      expect(screen.queryByRole("button", { name: /add layer/i })).not.toBeInTheDocument();
-
-      uploadPrimaryFile(container, "layer-9-over-limit.png");
-      expect(screen.queryByRole("button", { name: "layer 9" })).not.toBeInTheDocument();
-      const layerLimitToast = screen.getByText("Layer limit reached (8).");
-      expect(layerLimitToast).toBeInTheDocument();
-      expect(layerLimitToast.closest(".edit-expert-layers-toolbar")).toBeInTheDocument();
-
-      act(() => {
-        vi.advanceTimersByTime(1_400);
-      });
-      expect(screen.queryByText("Layer limit reached (8).")).not.toBeInTheDocument();
-    } finally {
-      vi.useRealTimers();
+    for (let index = 1; index <= 6; index += 1) {
+      uploadPrimaryFile(container, `layer-${index}.png`);
     }
+    expect(screen.getByRole("button", { name: "layer 6" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /add layer/i })).not.toBeInTheDocument();
+
+    uploadPrimaryFile(container, "layer-7-over-limit.png");
+    expect(screen.queryByRole("button", { name: "layer 7" })).not.toBeInTheDocument();
+    expect(screen.queryByText("Layer limit reached (6).")).not.toBeInTheDocument();
   });
 
   it("does not render the primary dropzone clear button", () => {

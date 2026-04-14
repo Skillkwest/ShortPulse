@@ -21,8 +21,6 @@ import { PresetsLibraryPanel } from "./PresetsLibraryPanel";
 import { VideoPropertiesPanel } from "./VideoPropertiesPanel";
 import { SoundPropertiesPanel } from "./SoundPropertiesPanel";
 import { VoicesPropertiesPanel } from "./VoicesPropertiesPanel";
-import { VoiceChangerPropertiesPanel } from "./VoiceChangerPropertiesPanel";
-import { TextToSpeechPropertiesPanel } from "./TextToSpeechPropertiesPanel";
 import { MediaLibraryPanel } from "./MediaLibraryPanel";
 import { ElementsPanel } from "./ElementsPanel";
 import { useAiStudioShellResize } from "../hooks/useAiStudioShellResize";
@@ -62,6 +60,7 @@ import {
   AI_SHELL_LEFT_EXPERT_CREATE_MAX_PX,
   AI_SHELL_LEFT_EXPERT_CREATE_MIN_PX,
   AI_SHELL_LEFT_EXPERT_EDIT_MIN_PX,
+  AI_SHELL_LEFT_SOUND_MIN_PX,
   AI_SHELL_LEFT_VIDEO_DEFAULT_RATIO,
   AI_SHELL_LEFT_VIDEO_MIN_PX,
   AI_SHELL_RIGHT_CANVAS_MIN_PX,
@@ -784,13 +783,15 @@ export function AiStudioPageContent({
     FLAG_HIGH_DENSITY_SHELL_MODE && activeCount >= PERFORMANCE_DENSE_REFERENCE_COUNT;
   const minLeftWidthPx = isCharacterShellPanelOpen
     ? AI_SHELL_LEFT_CHARACTER_MIN_PX
-    : selectedTool === "video" || selectedTool === "kling"
-      ? AI_SHELL_LEFT_VIDEO_MIN_PX
-      : showExpertCreatePanel
-        ? AI_SHELL_LEFT_EXPERT_CREATE_MIN_PX
-        : showExpertEditPanel
-          ? AI_SHELL_LEFT_EXPERT_EDIT_MIN_PX
-          : undefined;
+    : isSoundWorkflow(selectedTool)
+      ? AI_SHELL_LEFT_SOUND_MIN_PX
+      : selectedTool === "video" || selectedTool === "kling"
+        ? AI_SHELL_LEFT_VIDEO_MIN_PX
+        : showExpertCreatePanel
+          ? AI_SHELL_LEFT_EXPERT_CREATE_MIN_PX
+          : showExpertEditPanel
+            ? AI_SHELL_LEFT_EXPERT_EDIT_MIN_PX
+            : undefined;
   const maxLeftWidthPx = showExpertCreatePanel ? AI_SHELL_LEFT_EXPERT_CREATE_MAX_PX : undefined;
   const minRightWidthPx =
     selectedTool === "media-library" ? AI_SHELL_RIGHT_CANVAS_MIN_PX : undefined;
@@ -1135,10 +1136,6 @@ export function AiStudioPageContent({
           return <SoundPropertiesPanel />;
         case "voices":
           return <VoicesPropertiesPanel />;
-        case "voice-changer":
-          return <VoiceChangerPropertiesPanel />;
-        case "text-to-speech":
-          return <TextToSpeechPropertiesPanel />;
         case "character":
           return characterPropertiesPanelContent;
         case "presets":

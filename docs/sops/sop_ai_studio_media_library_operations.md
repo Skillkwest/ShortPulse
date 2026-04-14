@@ -154,9 +154,9 @@ Define the authoritative AI Studio Media Library panel UX contract (`toolId: med
 5. Drag ghost visibility for Media Library drags:
    - Status: Aligned.
    - Current: Media and prompt drag-start paths mount explicit custom drag ghost previews.
-6. Right-rail cross-surface ingest:
+6. Cross-surface ingest in the canonical AI Studio shell:
    - Status: Aligned.
-   - Current: Media Library media and prompt payloads route directly into Reference Grid, Quick Slot Inventory, and rail Canvas without shell fallback stealing the interaction.
+   - Current: Media Library media and prompt payloads route directly into Reference Grid and Quick Slot Inventory without shell fallback stealing the interaction. Dedicated canvas surfaces continue to own their own drops when mounted explicitly.
 7. Delete from `All Media` permanent remove:
    - Status: Aligned.
    - Current: Root-level delete action permanently removes media/prompt rows from library (including storage cleanup for media).
@@ -225,7 +225,8 @@ Define the authoritative AI Studio Media Library panel UX contract (`toolId: med
    - `Custom -> All Media` unassigns membership.
    - `Custom -> Custom` moves membership.
 4. Cross-surface ingest:
-   - Drag media/prompt into Reference Grid, Quick Slot Inventory, and Canvas; confirm the intended right-rail surface owns the drop without shell reroute.
+   - Drag media/prompt into Reference Grid and Quick Slot Inventory; confirm the intended target owns the drop without shell reroute.
+   - When validating explicit canvas surfaces, confirm the mounted canvas surface owns the drop directly.
    - Right-click media in `All Media` sends to Reference Grid.
 5. Internal reference resolver:
    - Existing-media id path.

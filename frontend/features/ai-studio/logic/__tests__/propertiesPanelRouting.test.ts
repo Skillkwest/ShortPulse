@@ -26,8 +26,8 @@ describe("resolvePropertiesPanelKind", () => {
     expect(resolvePropertiesPanelKind("media-library")).toBe("media-library");
     expect(resolvePropertiesPanelKind("sound")).toBe("sound");
     expect(resolvePropertiesPanelKind("voices")).toBe("voices");
-    expect(resolvePropertiesPanelKind("text-to-speech")).toBe("text-to-speech");
-    expect(resolvePropertiesPanelKind("voice-changer")).toBe("voice-changer");
+    expect(resolvePropertiesPanelKind("text-to-speech")).toBe("voices");
+    expect(resolvePropertiesPanelKind("voice-changer")).toBe("voices");
     expect(resolvePropertiesPanelKind("sound-effects")).toBe("sound");
     expect(resolvePropertiesPanelKind("music")).toBe("sound");
   });

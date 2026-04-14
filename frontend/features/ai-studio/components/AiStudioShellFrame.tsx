@@ -13,7 +13,6 @@ import type {
   AgentOutputGenerateInput,
 } from "../../ai-agent/types";
 import type { ToolId } from "../types";
-import type { CanvasPropertiesPanelProps } from "./canvas/useAiStudioCanvasWorkspaceState";
 import { AiStudioPropertiesRail } from "./AiStudioPropertiesRail";
 import { AiStudioReferenceRail } from "./AiStudioReferenceRail";
 import { AiStudioPreviewRail } from "./AiStudioPreviewRail";
@@ -73,7 +72,6 @@ type AiStudioShellFrameProps = {
   onShellDropCapture: (event: React.DragEvent<HTMLElement>) => void;
   agentChat: AgentChatProps;
   referenceGridProps: AiStudioReferenceGridContract;
-  railCanvasProps?: CanvasPropertiesPanelProps;
   studioPreviewProps: React.ComponentProps<typeof AiStudioPreviewRail>["studioPreviewProps"];
   handleReferenceGridFiles: (files: FileList) => void;
   triggerFilePicker: () => void;
@@ -92,7 +90,6 @@ type AiStudioShellRightColumnProps = {
   onRightColumnDragLeaveCapture: (event: React.DragEvent<HTMLElement>) => void;
   agentChat: AgentChatProps;
   referenceGridProps: AiStudioReferenceGridContract;
-  railCanvasProps?: CanvasPropertiesPanelProps;
   studioPreviewProps: React.ComponentProps<typeof AiStudioPreviewRail>["studioPreviewProps"];
   handleReferenceGridFiles: (files: FileList) => void;
   triggerFilePicker: () => void;
@@ -115,7 +112,6 @@ const areAiStudioShellRightColumnPropsEqual = (
   if (previous.agentChat !== next.agentChat) return false;
   if (!areReferenceGridPropsEqual(previous.referenceGridProps, next.referenceGridProps))
     return false;
-  if (previous.railCanvasProps !== next.railCanvasProps) return false;
   if (previous.studioPreviewProps !== next.studioPreviewProps) return false;
   if (previous.handleReferenceGridFiles !== next.handleReferenceGridFiles) return false;
   if (previous.triggerFilePicker !== next.triggerFilePicker) return false;
@@ -135,7 +131,6 @@ const AiStudioShellRightColumn = React.memo(function AiStudioShellRightColumn({
   onRightColumnDragLeaveCapture,
   agentChat,
   referenceGridProps,
-  railCanvasProps,
   studioPreviewProps,
   handleReferenceGridFiles,
   triggerFilePicker,
@@ -226,7 +221,6 @@ const AiStudioShellRightColumn = React.memo(function AiStudioShellRightColumn({
         <>
           <AiStudioReferenceRail
             referenceGridProps={referenceGridProps}
-            railCanvasProps={railCanvasProps}
             onDropFiles={handleReferenceGridFiles}
             onTriggerFilePicker={triggerFilePicker}
             selectedTool={selectedTool}
@@ -274,7 +268,6 @@ export const AiStudioShellFrame = React.memo(function AiStudioShellFrame({
   onShellDropCapture,
   agentChat,
   referenceGridProps,
-  railCanvasProps,
   studioPreviewProps,
   handleReferenceGridFiles,
   triggerFilePicker,
@@ -309,7 +302,6 @@ export const AiStudioShellFrame = React.memo(function AiStudioShellFrame({
         onRightColumnDragLeaveCapture={onRightColumnDragLeaveCapture}
         agentChat={agentChat}
         referenceGridProps={referenceGridProps}
-        railCanvasProps={railCanvasProps}
         studioPreviewProps={studioPreviewProps}
         handleReferenceGridFiles={handleReferenceGridFiles}
         triggerFilePicker={triggerFilePicker}

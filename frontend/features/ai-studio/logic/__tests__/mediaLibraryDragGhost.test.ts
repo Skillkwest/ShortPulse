@@ -107,6 +107,7 @@ describe("mediaLibraryDragGhost", () => {
     expect(setDragImage).toHaveBeenCalledTimes(1);
     const ghost = setDragImage.mock.calls[0]?.[0] as HTMLElement;
     expect(ghost.querySelector("img")).toBeNull();
+    expect(ghost.style.background).toBe("rgba(37, 41, 47, 0.64)");
     expect(ghost.textContent).toContain("cinematic");
 
     clearMediaLibraryDragGhost(node);

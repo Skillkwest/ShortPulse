@@ -30,7 +30,6 @@ type UseReferenceGridHorizontalSplitArgs = {
 type DragSession = {
   pointerId: number;
   containerHeight: number;
-  lastClientY: number;
 };
 
 type RatioBounds = {
@@ -68,6 +67,20 @@ const resolveElementHeight = (node: HTMLElement | null): number => {
     if (parentHeight > 0) return parentHeight;
     if (parent.clientHeight > 0) return parent.clientHeight;
     if (parent.offsetHeight > 0) return parent.offsetHeight;
+    parent = parent.parentElement;
+  }
+  return 0;
+};
+
+const resolveElementTop = (node: HTMLElement | null): number => {
+  if (!node) return 0;
+  const directTop = node.getBoundingClientRect().top;
+  if (Number.isFinite(directTop)) return directTop;
+
+  let parent = node.parentElement;
+  while (parent) {
+    const parentTop = parent.getBoundingClientRect().top;
+    if (Number.isFinite(parentTop)) return parentTop;
     parent = parent.parentElement;
   }
   return 0;
@@ -132,6 +145,10 @@ export const useReferenceGridHorizontalSplit = ({
 
   const resolveContainerHeight = useCallback((): number => {
     return resolveElementHeight(containerRef.current);
+  }, [containerRef]);
+
+  const resolveContainerTop = useCallback((): number => {
+    return resolveElementTop(containerRef.current);
   }, [containerRef]);
 
   const clampTopRatio = useCallback(
@@ -218,17 +235,20 @@ export const useReferenceGridHorizontalSplit = ({
     (event: PointerEvent) => {
       const session = dragSessionRef.current;
       if (!session || session.pointerId !== event.pointerId) return;
-      const deltaY = event.clientY - session.lastClientY;
-      if (Math.abs(deltaY) < 0.0001) return;
-      session.lastClientY = event.clientY;
       const liveContainerHeight = resolveContainerHeight();
       if (liveContainerHeight > 0 && liveContainerHeight !== session.containerHeight) {
         session.containerHeight = liveContainerHeight;
       }
+      const containerTop = resolveContainerTop();
+      const nextRatio = clampTopRatio(
+        (event.clientY - containerTop) / Math.max(1, session.containerHeight),
+        session.containerHeight
+      );
+      if (Math.abs(nextRatio - topRatioRef.current) < 0.001) return;
       setAllRefsExpandedThresholdRatio((prev) => (prev == null ? prev : null));
-      applyDeltaPx(deltaY, session.containerHeight);
+      commitTopRatio(nextRatio);
     },
-    [applyDeltaPx, resolveContainerHeight]
+    [clampTopRatio, commitTopRatio, resolveContainerHeight, resolveContainerTop]
   );
 
   const handleDividerPointerDown = useCallback(
@@ -251,7 +271,6 @@ export const useReferenceGridHorizontalSplit = ({
       dragSessionRef.current = {
         pointerId: event.pointerId,
         containerHeight: height,
-        lastClientY: event.clientY,
       };
 
       const handlePointerStop = (nativeEvent: PointerEvent) => {
@@ -466,14 +485,18 @@ export const useReferenceGridHorizontalSplit = ({
 
   const topSectionStyle = useMemo<CSSProperties>(
     () => ({
-      flex: `0 0 ${Math.round(topRatio * 1000) / 10}%`,
+      flexGrow: 0,
+      flexShrink: 0,
+      flexBasis: `${Math.round(topRatio * 1000) / 10}%`,
     }),
     [topRatio]
   );
 
   const bottomSectionStyle = useMemo<CSSProperties>(
     () => ({
-      flex: `1 1 ${Math.round((1 - topRatio) * 1000) / 10}%`,
+      flexGrow: 1,
+      flexShrink: 1,
+      flexBasis: `${Math.round((1 - topRatio) * 1000) / 10}%`,
     }),
     [topRatio]
   );

@@ -7,6 +7,7 @@ export type VoiceLibraryOption = {
   value: string;
   title: string;
   descriptor: string;
+  imageUrl?: string | null;
 };
 
 export const VOICE_LIBRARY_OPTIONS: readonly VoiceLibraryOption[] = [

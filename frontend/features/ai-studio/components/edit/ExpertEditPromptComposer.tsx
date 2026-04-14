@@ -16,12 +16,14 @@ type PromptTokenPickerState = {
 };
 
 type ExpertEditPromptComposerProps = {
+  isExpanded: boolean;
   promptInputShellRef: React.Ref<HTMLDivElement>;
   promptHighlightRef: React.Ref<HTMLDivElement>;
   promptTextareaRef: React.Ref<HTMLTextAreaElement>;
   promptHighlightSegments: readonly PromptHighlightSegment[];
   promptTextValue: string;
   onPromptTextChange: (value: string) => void;
+  onPromptFocus: React.FocusEventHandler<HTMLTextAreaElement>;
   onPromptKeyDown: React.KeyboardEventHandler<HTMLTextAreaElement>;
   onPromptDrop: React.DragEventHandler<HTMLTextAreaElement>;
   onPromptScroll: React.UIEventHandler<HTMLTextAreaElement>;
@@ -40,12 +42,14 @@ type ExpertEditPromptComposerProps = {
 };
 
 export function ExpertEditPromptComposer({
+  isExpanded,
   promptInputShellRef,
   promptHighlightRef,
   promptTextareaRef,
   promptHighlightSegments,
   promptTextValue,
   onPromptTextChange,
+  onPromptFocus,
   onPromptKeyDown,
   onPromptDrop,
   onPromptScroll,
@@ -63,7 +67,7 @@ export function ExpertEditPromptComposer({
   inlineGuardrailReason = null,
 }: ExpertEditPromptComposerProps) {
   return (
-    <div className="edit-expert-bottom-row">
+    <div className={`edit-expert-bottom-row ${isExpanded ? "is-expanded" : "is-collapsed"}`}>
       <div className="edit-expert-prompt-shell">
         <div className="edit-expert-prompt-row">
           <div className="edit-expert-prompt-input-shell" ref={promptInputShellRef}>
@@ -89,6 +93,7 @@ export function ExpertEditPromptComposer({
               className="prompt-drop-input edit-expert-prompt-input"
               value={promptTextValue}
               onChange={(event) => onPromptTextChange(event.target.value)}
+              onFocus={onPromptFocus}
               onKeyDown={onPromptKeyDown}
               onDrop={onPromptDrop}
               onDragOver={(event) => event.preventDefault()}

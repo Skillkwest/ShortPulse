@@ -15,7 +15,7 @@ Purpose: define how the new chat-based agent replaces prompt textareas across AI
 | `frontend/features/ai-agent/{logic,useAiAgent.ts}` | Feature module: manages chat state, context assembly, media downscaling, and action parsing. |
 | `frontend/prefabs/agent/{types.ts,buttons,inputs,panels}` | Prefab UI kit + shared agent types used by UI and API. |
 | `frontend/features/ai-studio/hooks/useAiStudioState.ts` | Supplies prompt/model/reference state to the agent and receives applied prompts. |
-| `frontend/features/ai-studio/components/{CreatePropertiesPanel,EditPropertiesPanel,VideoPropertiesPanel,DetailModal,StudioPreview}` | Replace prompt textareas with `AgentChatPanel` embeds; surface “Apply prompt”/“Generate” actions. |
+| `frontend/features/ai-studio/components/{CreatePropertiesPanel,VideoPropertiesPanel,DetailModal,StudioPreview}` plus `frontend/features/ai-studio/components/edit/ExpertEditPanelView.tsx` | Replace prompt textareas with `AgentChatPanel` embeds; surface “Apply prompt”/“Generate” actions. |
 | `frontend/features/ai-studio/components/ReferenceGrid.tsx` | Supplies lightweight reference metadata (id, type, prompt, preview URL) to the agent context. |
 
 ## Prerequisites

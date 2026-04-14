@@ -433,9 +433,15 @@ export const useAiStudioShellResize = ({
     resolveContainerWidth,
   ]);
 
+  const effectiveMinLeftWidthPx = Math.max(
+    AI_SHELL_LEFT_MIN_PX,
+    minLeftWidthPx ?? AI_SHELL_LEFT_MIN_PX
+  );
   const hasContainerRoom =
     containerWidthPx >=
-    AI_SHELL_LEFT_MIN_PX + (minRightWidthPx ?? AI_SHELL_RIGHT_MIN_PX) + AI_SHELL_DIVIDER_TRACK_PX;
+    effectiveMinLeftWidthPx +
+      (minRightWidthPx ?? AI_SHELL_RIGHT_MIN_PX) +
+      AI_SHELL_DIVIDER_TRACK_PX;
   const showDivider = enabled && isResizableViewport && hasContainerRoom;
   const bounds = getAiShellLeftWidthBounds(Math.max(containerWidthPx, 1), {
     minLeftWidthPx,

@@ -3,20 +3,17 @@
  * Centralizes global visibility state, derived render visibility, and header toggle behavior.
  */
 
-export type HeaderShortcutId = "canvas" | "quick-slot-inventory" | "reference-grid" | "styles";
+export type HeaderShortcutId = "quick-slot-inventory" | "reference-grid" | "styles";
 export type PanelVisibilityState = {
-  canvas: boolean;
   quickSlot: boolean;
   referenceGrid: boolean;
   styles: boolean;
 };
 export type PanelToggleAvailability = {
-  canvas: boolean;
   quickSlot: boolean;
   styles: boolean;
 };
 export type EffectivePanelVisibility = {
-  canvas: boolean;
   quickSlot: boolean;
   referenceGrid: boolean;
   styles: boolean;
@@ -28,15 +25,12 @@ export type HeaderShortcutState = {
 export type HeaderShortcutStateMap = Record<HeaderShortcutId, HeaderShortcutState>;
 
 const DEFAULT_PANEL_VISIBILITY_STATE: PanelVisibilityState = {
-  // Canvas rail panel starts hidden by default on fresh loads/sessions.
-  canvas: false,
   quickSlot: true,
   referenceGrid: true,
   styles: false,
 };
 
 const clonePanelVisibilityState = (state: PanelVisibilityState): PanelVisibilityState => ({
-  canvas: state.canvas,
   quickSlot: state.quickSlot,
   referenceGrid: state.referenceGrid,
   styles: state.styles,
@@ -58,7 +52,6 @@ export const resolveEffectivePanelVisibility = ({
   panelVisibility: PanelVisibilityState;
   availability: PanelToggleAvailability;
 }): EffectivePanelVisibility => ({
-  canvas: availability.canvas && panelVisibility.canvas,
   quickSlot: availability.quickSlot && panelVisibility.quickSlot,
   referenceGrid: panelVisibility.referenceGrid,
   styles: availability.styles && panelVisibility.styles,
@@ -74,10 +67,6 @@ export const resolveHeaderShortcutStateMap = ({
   effectiveVisibility: EffectivePanelVisibility;
   availability: PanelToggleAvailability;
 }): HeaderShortcutStateMap => ({
-  canvas: {
-    pressed: effectiveVisibility.canvas,
-    disabled: !availability.canvas,
-  },
   "quick-slot-inventory": {
     pressed: effectiveVisibility.quickSlot,
     disabled: !availability.quickSlot,
@@ -111,11 +100,9 @@ export const togglePanelVisibilityByShortcut = ({
       styles: !panelVisibility.styles,
     };
   }
-  if (shortcutId === "canvas" && !availability.canvas) return panelVisibility;
   if (shortcutId === "quick-slot-inventory" && !availability.quickSlot) return panelVisibility;
   return {
     ...panelVisibility,
-    canvas: shortcutId === "canvas" ? !panelVisibility.canvas : panelVisibility.canvas,
     quickSlot:
       shortcutId === "quick-slot-inventory"
         ? !panelVisibility.quickSlot

@@ -9,7 +9,6 @@ type ExpertEditPanelAuxiliaryProps = {
   statusToastMessage: string | null;
   statusToastTone: "info" | "warning";
   isStatusToastFading: boolean;
-  isLayerLimitStatusToast: boolean;
   primaryInputRef: React.Ref<HTMLInputElement>;
   extraOneInputRef: React.Ref<HTMLInputElement>;
   extraTwoInputRef: React.Ref<HTMLInputElement>;
@@ -23,7 +22,6 @@ export function ExpertEditPanelAuxiliary({
   statusToastMessage,
   statusToastTone,
   isStatusToastFading,
-  isLayerLimitStatusToast,
   primaryInputRef,
   extraOneInputRef,
   extraTwoInputRef,
@@ -34,7 +32,7 @@ export function ExpertEditPanelAuxiliary({
 }: ExpertEditPanelAuxiliaryProps) {
   return (
     <>
-      {statusToastMessage && !isLayerLimitStatusToast ? (
+      {statusToastMessage ? (
         <div
           className={`edit-expert-stage-status-toast ${
             statusToastTone === "warning" ? "is-warning" : "is-info"

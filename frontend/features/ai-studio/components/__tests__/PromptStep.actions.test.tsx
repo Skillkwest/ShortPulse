@@ -248,6 +248,42 @@ describe("PromptStep agent actions", () => {
     expect(onAgentAttachmentDrop).toHaveBeenCalledTimes(1);
   });
 
+  it("focuses the composer after a prompt-text drop into the input shell", () => {
+    const onAgentAttachmentDrop = vi.fn();
+    const requestAnimationFrameSpy = vi
+      .spyOn(window, "requestAnimationFrame")
+      .mockImplementation((callback: FrameRequestCallback) => {
+        callback(0);
+        return 1;
+      });
+
+    try {
+      const { container } = render(
+        <PromptStep
+          {...baseProps}
+          agentAttachmentDropTarget="input"
+          onAgentAttachmentDrop={onAgentAttachmentDrop}
+        />
+      );
+
+      const inputShell = container.querySelector(".agent-composer-input-shell");
+      const composerInput = screen.getByRole("textbox");
+      expect(inputShell).toBeTruthy();
+
+      fireEvent.drop(inputShell as Element, {
+        dataTransfer: {
+          types: ["text/plain"],
+          getData: (key: string) => (key === "text/plain" ? "Dropped prompt text" : ""),
+        },
+      });
+
+      expect(onAgentAttachmentDrop).toHaveBeenCalledTimes(1);
+      expect(composerInput).toHaveFocus();
+    } finally {
+      requestAnimationFrameSpy.mockRestore();
+    }
+  });
+
   it("renders thinking as a history row below the latest chat bubble", () => {
     const { container } = render(
       <PromptStep

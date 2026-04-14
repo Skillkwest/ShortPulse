@@ -10,7 +10,6 @@ export type ReferenceGridDropMode = "none" | "text" | "files";
 /**
  * @deprecated Use `ReferenceGridDropMode`.
  */
-export type ReferenceCanvasDropMode = ReferenceGridDropMode;
 
 type UseReferenceGridDropControllerArgs = {
   canvasDragDepthRef: MutableRefObject<number>;
@@ -122,8 +121,3 @@ export const useReferenceGridDropController = ({
     handleCanvasDragLeave,
   };
 };
-
-/**
- * @deprecated Use `useReferenceGridDropController`.
- */
-export const useReferenceGridCanvasDropController = useReferenceGridDropController;

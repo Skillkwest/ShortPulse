@@ -1,0 +1,339 @@
+/**
+ * AI Studio voice changer properties panel.
+ * Keeps the Voice Changer workflow visually aligned with the TTS layout while remaining isolated.
+ */
+.voice-changer-properties-panel {
+  --voice-changer-accent: #ffba72;
+  --voice-changer-accent-soft: rgba(255, 186, 114, 0.12);
+  --voice-changer-accent-medium: rgba(255, 186, 114, 0.28);
+  align-self: stretch;
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 14px;
+  min-height: 0;
+  height: 100%;
+  overflow: hidden;
+}
+
+.ai-studio-page[data-selected-tool="voice-changer"] .panel.ai-panel.ai-properties {
+  overflow: hidden;
+}
+
+.voice-changer-properties-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+}
+
+.voice-changer-properties-title {
+  margin: 0 0 0 auto;
+}
+
+.voice-changer-properties-shell {
+  display: grid;
+  grid-template-columns: minmax(0, 1.42fr) minmax(280px, 0.58fr);
+  gap: 14px;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.voice-changer-properties-column-shell {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  padding: 14px;
+  border-radius: 18px;
+  border: 1px solid rgba(201, 205, 214, 0.12);
+  background: linear-gradient(180deg, rgba(22, 22, 27, 0.96) 0%, rgba(17, 18, 23, 0.98) 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.02),
+    0 0 0 1px rgba(0, 0, 0, 0.12);
+  overflow: hidden;
+}
+
+.voice-changer-properties-column-shell--aside {
+  padding: 10px;
+  background: var(--ai-voice-workflow-panel-bg);
+}
+
+.voice-changer-properties-main,
+.voice-changer-properties-aside {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+  min-height: 0;
+}
+
+.voice-changer-properties-main {
+  overflow: hidden;
+  padding-top: 16px;
+  padding-right: 6px;
+  padding-left: 2px;
+}
+
+.voice-changer-properties-aside {
+  overflow: auto;
+  padding-right: 4px;
+}
+
+.voice-changer-properties-script-divider {
+  width: 100%;
+  height: 1px;
+  margin: 0 0 12px;
+  background: linear-gradient(
+    90deg,
+    rgba(201, 205, 214, 0),
+    rgba(201, 205, 214, 0.12),
+    rgba(201, 205, 214, 0.12) 72%,
+    rgba(201, 205, 214, 0)
+  );
+  opacity: 0.72;
+}
+
+.voice-changer-properties-compose-area {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 0;
+}
+
+.voice-changer-properties-script-input {
+  width: 100%;
+  min-height: 240px;
+  border: 0;
+  background: transparent;
+  color: #f6f4f0;
+  font-size: 16px;
+  font-family: var(--font-secondary);
+  line-height: 1.5;
+  outline: none;
+  resize: none;
+  box-shadow: none;
+  scrollbar-gutter: stable both-edges;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(201, 205, 214, 0.2) transparent;
+}
+
+.voice-changer-properties-script-input::placeholder {
+  color: #6b645d;
+  font-size: 17px;
+  font-family: inherit;
+}
+
+.voice-changer-properties-script-input::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+
+.voice-changer-properties-script-input::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.voice-changer-properties-script-input::-webkit-scrollbar-thumb {
+  background: rgba(201, 205, 214, 0.2);
+  border-radius: 999px;
+}
+
+.voice-changer-properties-script-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.voice-changer-properties-script-count {
+  margin: 0;
+  color: rgba(201, 205, 214, 0.66);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.voice-changer-properties-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px;
+  border-radius: 16px;
+  border: 1px solid rgba(201, 205, 214, 0.18);
+  background: var(--ai-voice-workflow-panel-bg);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.03),
+    0 12px 28px rgba(0, 0, 0, 0.24);
+}
+
+.voice-changer-properties-card-heading-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.voice-changer-properties-card-kicker,
+.voice-changer-properties-field-label {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(201, 205, 214, 0.54);
+}
+
+.voice-changer-properties-mode-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.voice-changer-properties-mode-tab {
+  min-height: 40px;
+  padding: 0 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(201, 205, 214, 0.12);
+  background: rgba(201, 205, 214, 0.05);
+  color: rgba(248, 245, 240, 0.92);
+  font-size: 12px;
+  font-weight: 700;
+  transition:
+    transform 0.16s ease,
+    border-color 0.16s ease,
+    background 0.16s ease;
+}
+
+.voice-changer-properties-mode-tab:hover,
+.voice-changer-properties-primary-btn:hover,
+.voice-changer-properties-upload-card:hover {
+  transform: translateY(-1px);
+}
+
+.voice-changer-properties-mode-tab.is-active {
+  border-color: rgba(255, 186, 114, 0.4);
+  background: linear-gradient(135deg, rgba(255, 186, 114, 0.16), rgba(255, 186, 114, 0.24));
+  color: rgba(255, 243, 228, 0.98);
+}
+
+.voice-changer-properties-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.voice-changer-properties-input,
+.voice-changer-properties-select-shell {
+  min-height: 42px;
+  border-radius: 12px;
+  border: 1px solid rgba(201, 205, 214, 0.14);
+  background: rgba(201, 205, 214, 0.04);
+}
+
+.voice-changer-properties-input {
+  width: 100%;
+  padding: 0 12px;
+  color: rgba(248, 245, 240, 0.98);
+  font-size: 13px;
+  font-weight: 600;
+  outline: none;
+}
+
+.voice-changer-properties-select-shell {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 12px;
+}
+
+.voice-changer-properties-input:focus,
+.voice-changer-properties-select-shell:focus-within {
+  border-color: rgba(255, 186, 114, 0.4);
+  box-shadow: 0 0 0 1px rgba(255, 186, 114, 0.12);
+}
+
+.voice-changer-properties-select {
+  width: 100%;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  color: rgba(248, 245, 240, 0.98);
+  font: inherit;
+  outline: none;
+  appearance: none;
+}
+
+.voice-changer-properties-upload-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 60px;
+  padding: 12px;
+  border-radius: 14px;
+  border: 1px dashed rgba(255, 186, 114, 0.22);
+  background: rgba(255, 186, 114, 0.05);
+  color: rgba(255, 243, 228, 0.95);
+  text-align: left;
+  transition:
+    transform 0.16s ease,
+    border-color 0.16s ease,
+    background 0.16s ease;
+}
+
+.voice-changer-properties-upload-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.voice-changer-properties-upload-copy strong {
+  font-size: 12px;
+}
+
+.voice-changer-properties-upload-copy span {
+  color: rgba(201, 205, 214, 0.72);
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.voice-changer-properties-primary-btn {
+  min-height: 40px;
+  padding: 0 16px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  background: linear-gradient(135deg, rgba(255, 186, 114, 0.95), rgba(255, 124, 124, 0.9));
+  color: #2b180d;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  transition:
+    transform 0.16s ease,
+    opacity 0.16s ease;
+}
+
+.voice-changer-properties-primary-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+@media (max-width: 1180px) {
+  .voice-changer-properties-shell {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 720px) {
+  .voice-changer-properties-script-actions {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .voice-changer-properties-primary-btn {
+    width: 100%;
+  }
+}

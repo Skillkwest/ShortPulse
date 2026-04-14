@@ -1,6 +1,6 @@
 import React from "react";
 import { extractDragDropPayload, isImageDragTransfer } from "../../utils/dragDrop";
-import { MAX_LAYERS, LAYER_LIMIT_REACHED_TOAST } from "./expertEditPanelViewContract";
+import { MAX_LAYERS } from "./expertEditPanelViewContract";
 import { cloneBlobObjectUrl } from "./expertEditPanelUtilities";
 import {
   LAYER_OPACITY_DEFAULT,
@@ -31,7 +31,6 @@ type UseExpertEditPrimaryIngressArgs = {
   setSelectedLayerIndex: React.Dispatch<React.SetStateAction<number | null>>;
   setEditingLayerIndex: React.Dispatch<React.SetStateAction<number | null>>;
   setEditingLayerValue: React.Dispatch<React.SetStateAction<string>>;
-  showStatusToast: (message: string, tone?: "info" | "warning") => void;
   revokeObjectUrlSafe: (url: string) => void;
   resolvePreviewUrlById?: (id: string | null) => string | null;
 };
@@ -46,7 +45,6 @@ export function useExpertEditPrimaryIngress({
   setSelectedLayerIndex,
   setEditingLayerIndex,
   setEditingLayerValue,
-  showStatusToast,
   revokeObjectUrlSafe,
   resolvePreviewUrlById,
 }: UseExpertEditPrimaryIngressArgs) {
@@ -120,7 +118,6 @@ export function useExpertEditPrimaryIngress({
         if (payload.ownsImageUrl && candidateUrl.startsWith("blob:")) {
           revokeObjectUrlSafe(candidateUrl);
         }
-        showStatusToast(LAYER_LIMIT_REACHED_TOAST);
         return;
       }
 
@@ -150,7 +147,6 @@ export function useExpertEditPrimaryIngress({
       setEditingLayerValue,
       setLayers,
       setSelectedLayerIndex,
-      showStatusToast,
     ]
   );
 

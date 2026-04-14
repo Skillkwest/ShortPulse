@@ -4,6 +4,7 @@
  */
 import React from "react";
 import type { AgentMessage } from "../../../prefabs/agent";
+import { extractDragDropPayload } from "../utils/dragDrop";
 import { PromptStepChatSurface } from "./promptStep/PromptStepChatSurface";
 import { PromptStepEnhancedSurface } from "./promptStep/PromptStepEnhancedSurface";
 import { PromptStepHeader } from "./promptStep/PromptStepHeader";
@@ -84,7 +85,11 @@ export function PromptStep({
   emptyAgentChatSpacerClassName = "",
   highlightLatestAssistantOnly = false,
   composerLeadingContent = null,
+  chatComposerOverlayEnabled = false,
+  stackTrailingComposerControls = false,
   agentInputMaxHeightPx,
+  agentInputCollapseOnBlur = false,
+  onAgentInputVisualRowCountChange,
   disableOutputGenerate = false,
   outputGenerateCostCredits = null,
   outputGenerateGuardrailReason = null,
@@ -192,6 +197,14 @@ export function PromptStep({
   const blockHistoryDrop = (event: React.DragEvent<HTMLDivElement>) => {
     event.preventDefault();
   };
+  const handleComposerAttachmentDrop = (event: React.DragEvent<HTMLDivElement>) => {
+    const droppedPromptText = event.dataTransfer
+      ? extractDragDropPayload(event.dataTransfer).promptText?.trim()
+      : null;
+    onAgentAttachmentDrop?.(event);
+    if (!droppedPromptText) return;
+    requestAnimationFrame(() => agentInputRef.current?.focus());
+  };
   const historyDropHandlers = dropToInputComposer
     ? {
         onDrop: blockHistoryDrop,
@@ -207,7 +220,7 @@ export function PromptStep({
       };
   const inputDropHandlers = dropToInputComposer
     ? {
-        onDrop: onAgentAttachmentDrop,
+        onDrop: handleComposerAttachmentDrop,
         onDragOver: onAgentAttachmentDragOver,
         onDragEnter: onAgentAttachmentDragEnter,
         onDragLeave: onAgentAttachmentDragLeave,
@@ -301,11 +314,15 @@ export function PromptStep({
                 outputGenerateCostCredits={outputGenerateCostCredits}
                 outputGenerateGuardrailReason={outputGenerateGuardrailReason}
                 composerLeadingContent={composerLeadingContent}
+                chatComposerOverlayEnabled={chatComposerOverlayEnabled}
+                stackTrailingComposerControls={stackTrailingComposerControls}
                 showComposerAttachments={showComposerAttachments}
                 agentInputRef={agentInputRef}
                 agentInput={agentInput}
                 handleAgentInputKeyDown={handleAgentInputKeyDown}
                 agentInputMaxHeightPx={agentInputMaxHeightPx}
+                agentInputCollapseOnBlur={agentInputCollapseOnBlur}
+                onAgentInputVisualRowCountChange={onAgentInputVisualRowCountChange}
                 embedSendButtonInInput={embedSendButtonInInput}
                 handleAgentSendClick={handleAgentSendClick}
                 agentIsSending={agentIsSending}

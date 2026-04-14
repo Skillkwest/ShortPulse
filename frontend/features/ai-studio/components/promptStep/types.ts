@@ -96,7 +96,11 @@ export type PromptStepProps = {
   emptyAgentChatSpacerClassName?: string;
   highlightLatestAssistantOnly?: boolean;
   composerLeadingContent?: React.ReactNode;
+  chatComposerOverlayEnabled?: boolean;
+  stackTrailingComposerControls?: boolean;
   agentInputMaxHeightPx?: number;
+  agentInputCollapseOnBlur?: boolean;
+  onAgentInputVisualRowCountChange?: (rowCount: number) => void;
   disableOutputGenerate?: boolean;
   outputGenerateCostCredits?: number | null;
   outputGenerateGuardrailReason?: string | null;

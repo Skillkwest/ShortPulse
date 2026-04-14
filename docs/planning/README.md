@@ -29,6 +29,15 @@ Purpose: active planning artifacts and current execution backlogs.
 - `generation-pipeline-continuation-reference-grid-read-model-simplification-2026-04-05.md`: bucket subplan for Reference Grid read-model simplification.
 - `ai-studio-live-session-check-media-panel-handoff-2026-04-05.md`: execution-oriented handoff for the staging AI Studio Media Library panel lag investigation, including trusted evidence, decision gates, and the ordered remediation plan for follow-on agents.
 - `ai-studio-expert-edit-properties-panel-fresh-start-lean-up-plan-2026-04-10.md`: fresh-start, live-repo-audit-backed roadmap for making the Expert Edit properties panel leaner without changing behavior, layout, or current interaction semantics.
+- `ai-studio-master-stage-rebuild-spec-2026-04-12.md`: canonical rebuild spec for the new AI Studio master stage, including the target editor model, delete list, and rebuild-program done state.
+- `ai-studio-master-stage-rebuild-tracker-2026-04-12.md`: operational tracker for the master-stage rebuild program with phase gates, rollback notes, and the planning-task done state.
+- `ai-studio-master-stage-phase-1-target-contract-and-bakeoff-plan-2026-04-12.md`: Phase 1 plan for locking stage contracts and choosing the rendering substrate with a small bakeoff.
+- `ai-studio-master-stage-phase-2-delete-duplicate-stage-surfaces-plan-2026-04-12.md`: Phase 2 plan for removing legacy edit fallback, generic Canvas editor ownership, and right-rail stage duplication.
+- `ai-studio-master-stage-phase-3-stage-core-extraction-plan-2026-04-12.md`: Phase 3 plan for extracting the new stage core from the Expert Edit foundation.
+- `ai-studio-master-stage-phase-4-artboard-selection-transform-plan-2026-04-12.md`: Phase 4 plan for implementing the artboard-first selection and transform system.
+- `ai-studio-master-stage-phase-5-export-and-submit-decoupling-plan-2026-04-12.md`: Phase 5 plan for separating stage export from provider submission.
+- `ai-studio-master-stage-phase-6-persistence-and-session-simplification-plan-2026-04-12.md`: Phase 6 plan for reducing persistence to a document-centered contract.
+- `ai-studio-master-stage-phase-7-cutover-and-deletion-plan-2026-04-12.md`: Phase 7 plan for final cutover, deletion, validation, and rebuild closeout.
 - `ai-studio-elements-library-ui-build-plan-2026-04-06.md`: implementation-ready UI/UX build contract for the new AI Studio Elements library surface, using Character Library shell patterns and future Kling compatibility constraints.
 - `ai-studio-elements-library-ui-spec-2026-04-06.md`: concrete UI contract for left-rail placement, manage/profile behavior, editor fields, and interaction states for the Elements library.
 - `ai-studio-elements-library-wireframes-2026-04-06.md`: text wireframes for the embedded `Manage Elements` and `Element Profile` surfaces, including narrow-panel adaptation.

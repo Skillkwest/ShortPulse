@@ -489,13 +489,3 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
     </div>
   );
 });
-
-/**
- * @deprecated Use `ReferenceGridCardProps`.
- */
-export type ReferenceCanvasCardProps = ReferenceGridCardProps;
-
-/**
- * @deprecated Use `ReferenceGridCard`.
- */
-export const ReferenceCanvasCard = ReferenceGridCard;

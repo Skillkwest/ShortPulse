@@ -1,10 +1,7 @@
 import { renderHook } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import type { StudioOutput } from "../../types";
-import {
-  useAiStudioReferenceCanvasProps,
-  useAiStudioReferenceGridProps,
-} from "../useAiStudioReferenceGridProps";
+import { useAiStudioReferenceGridProps } from "../useAiStudioReferenceGridProps";
 
 const output: StudioOutput = {
   id: "out-1",
@@ -153,9 +150,5 @@ describe("useAiStudioReferenceGridProps", () => {
     expect(result.current.topNotice).toBe(
       "4 max concurrent generations. Wait for one to finish before starting another."
     );
-  });
-
-  it("retains the legacy alias export for compatibility", () => {
-    expect(useAiStudioReferenceCanvasProps).toBe(useAiStudioReferenceGridProps);
   });
 });

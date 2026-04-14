@@ -1,5 +1,5 @@
 import { act, renderHook } from "@testing-library/react";
-import type { KeyboardEvent as ReactKeyboardEvent } from "react";
+import type { KeyboardEvent as ReactKeyboardEvent, PointerEvent as ReactPointerEvent } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { useReferenceGridHorizontalSplit } from "../useReferenceGridHorizontalSplit";
 
@@ -214,5 +214,46 @@ describe("useReferenceGridHorizontalSplit", () => {
 
     expect(result.current.topRatio).toBeCloseTo(0.75, 3);
     expect(result.current.topSectionHeightPx).toBeCloseTo(300, 3);
+  });
+
+  it("tracks the divider to the pointer's absolute Y position while dragging", () => {
+    vi.stubGlobal("ResizeObserver", MockResizeObserver);
+    const containerRef = { current: createContainer(400) };
+    const { result } = renderHook(() =>
+      useReferenceGridHorizontalSplit({
+        enabled: true,
+        containerRef,
+        defaultTopRatio: 0.5,
+        minTopSectionHeightPx: 100,
+        minBottomSectionHeightPx: 100,
+      })
+    );
+
+    const dividerNode = document.createElement("div");
+    Object.assign(dividerNode, {
+      setPointerCapture: vi.fn(),
+      releasePointerCapture: vi.fn(),
+    });
+
+    act(() => {
+      result.current.dividerProps.onPointerDown?.({
+        pointerId: 101,
+        button: 0,
+        clientY: 200,
+        pointerType: "mouse",
+        currentTarget: dividerNode,
+        preventDefault: vi.fn(),
+      } as unknown as ReactPointerEvent<HTMLDivElement>);
+    });
+
+    act(() => {
+      window.dispatchEvent(new PointerEvent("pointermove", { pointerId: 101, clientY: 120 }));
+    });
+
+    expect(result.current.topRatio).toBeCloseTo(0.3, 3);
+
+    act(() => {
+      window.dispatchEvent(new PointerEvent("pointerup", { pointerId: 101, clientY: 120 }));
+    });
   });
 });

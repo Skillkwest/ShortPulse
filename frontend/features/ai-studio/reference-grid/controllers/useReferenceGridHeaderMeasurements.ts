@@ -6,11 +6,9 @@ import { useEffect, useState, type MutableRefObject } from "react";
 
 type UseReferenceGridHeaderMeasurementsParams = {
   isCuratedSplitActive: boolean;
-  showRailCanvasSection: boolean;
   stylesSplitEnabled: boolean;
   isStylesPanelOpen: boolean;
   curatedHeaderRef: MutableRefObject<HTMLDivElement | null>;
-  railCanvasHeaderRef: MutableRefObject<HTMLDivElement | null>;
   allRefsHeaderRef: MutableRefObject<HTMLDivElement | null>;
   stylesHeaderRef: MutableRefObject<HTMLDivElement | null>;
 };
@@ -55,21 +53,15 @@ const useObservedHeaderHeight = ({
  */
 export const useReferenceGridHeaderMeasurements = ({
   isCuratedSplitActive,
-  showRailCanvasSection,
   stylesSplitEnabled,
   isStylesPanelOpen,
   curatedHeaderRef,
-  railCanvasHeaderRef,
   allRefsHeaderRef,
   stylesHeaderRef,
 }: UseReferenceGridHeaderMeasurementsParams) => {
   const curatedHeaderHeightPx = useObservedHeaderHeight({
     enabled: isCuratedSplitActive,
     ref: curatedHeaderRef,
-  });
-  const railCanvasHeaderHeightPx = useObservedHeaderHeight({
-    enabled: showRailCanvasSection,
-    ref: railCanvasHeaderRef,
   });
   const allRefsHeaderHeightPx = useObservedHeaderHeight({
     enabled: stylesSplitEnabled,
@@ -82,7 +74,6 @@ export const useReferenceGridHeaderMeasurements = ({
 
   return {
     curatedHeaderHeightPx,
-    railCanvasHeaderHeightPx,
     allRefsHeaderHeightPx,
     stylesHeaderHeightPx,
   };

@@ -4,6 +4,7 @@
  */
 
 export const AI_SHELL_LEFT_MIN_PX = 640;
+export const AI_SHELL_LEFT_SOUND_MIN_PX = 760;
 export const AI_SHELL_LEFT_VIDEO_MIN_PX = 820;
 export const AI_SHELL_LEFT_VIDEO_DEFAULT_RATIO = 0.6;
 export const AI_SHELL_LEFT_CHARACTER_DEFAULT_RATIO = 0.75;

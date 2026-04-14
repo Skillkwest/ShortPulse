@@ -175,8 +175,7 @@ export type InpaintMode = "lasso" | "brush" | "auto";
 export type InpaintSelectionTab = "select" | "unselect";
 export type MarkupMode = "pen" | "eraser";
 
-export const MAX_LAYERS = 8;
-export const LAYER_LIMIT_REACHED_TOAST = `Layer limit reached (${MAX_LAYERS}).`;
+export const MAX_LAYERS = 6;
 export const PRESET_PANEL_LIMIT_TOAST = "Preset panel is full (max 11).";
 export const INPAINT_COLLAPSE_ANIMATION_MS = 140;
 export const STATUS_TOAST_VISIBLE_MS = 1_000;

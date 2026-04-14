@@ -175,10 +175,6 @@ export const useAiStudioWorkspaceActions = ({
     handleCloseMediaLibrary,
     handleFileBrowserSelection,
     handleReferenceGridFiles,
-    /**
-     * @deprecated Use `handleReferenceGridFiles`.
-     */
-    handleReferenceCanvasFiles: handleReferenceGridFiles,
     handleSelectOutput,
   };
 };

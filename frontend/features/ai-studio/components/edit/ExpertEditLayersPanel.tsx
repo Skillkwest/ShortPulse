@@ -11,16 +11,13 @@ import type { ExpertEditLayer } from "./expertEditLayerSessionUtils";
 type ExpertEditLayersPanelProps = {
   scope: "main" | "modal";
   placement?: "stage" | "sidebar";
+  isCollapsed?: boolean;
   layers: ExpertEditLayer[];
   editingLayerIndex: number | null;
   editingLayerValue: string;
   draggingLayerIndex: number | null;
   dragOverLayerIndex: number | null;
   resolvedSelectedLayerIndex: number;
-  statusToastMessage: string | null;
-  statusToastTone: "info" | "warning";
-  isStatusToastFading: boolean;
-  isLayerLimitStatusToast: boolean;
   isGenerateDisabled: boolean;
   selectedLayerImageUrl: string | null;
   isRemoveBackgroundPending: boolean;
@@ -128,16 +125,13 @@ export function ExpertEditLayerUtilityActions({
 export function ExpertEditLayersPanel({
   scope,
   placement = "stage",
+  isCollapsed = false,
   layers,
   editingLayerIndex,
   editingLayerValue,
   draggingLayerIndex,
   dragOverLayerIndex,
   resolvedSelectedLayerIndex,
-  statusToastMessage,
-  statusToastTone,
-  isStatusToastFading,
-  isLayerLimitStatusToast,
   isGenerateDisabled,
   selectedLayerImageUrl,
   isRemoveBackgroundPending,
@@ -165,7 +159,7 @@ export function ExpertEditLayersPanel({
       <div
         className={`edit-expert-layers-toolbar-card ${
           isModalScope ? "" : "edit-expert-layers-toolbar-card--inline"
-        }`.trim()}
+        } ${!isModalScope && isCollapsed ? "is-collapsed" : ""}`.trim()}
       >
         {!isModalScope ? (
           <div className="edit-expert-layers-toolbar-title-card edit-expert-layers-toolbar-title-card--embedded">
@@ -175,63 +169,73 @@ export function ExpertEditLayersPanel({
             </span>
           </div>
         ) : null}
-        <div className="edit-expert-layers-toolbar-list">
-          {layers.map((layer, index) =>
-            editingLayerIndex === index ? (
-              <input
-                key={layer.id}
-                type="text"
-                className="edit-expert-layer-input"
-                value={editingLayerValue}
-                autoFocus
-                aria-label={`Rename ${layer.name}`}
-                onChange={(event) => setEditingLayerValue(event.target.value)}
-                onBlur={() => onCommitLayerRename(index)}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter") {
-                    event.preventDefault();
-                    onCommitLayerRename(index);
-                    return;
-                  }
-                  if (event.key === "Escape") {
-                    event.preventDefault();
-                    onClearLayerEditing();
-                  }
-                }}
-              />
-            ) : (
-              <div
-                key={layer.id}
-                className={`edit-expert-layer-row ${
-                  draggingLayerIndex === index ? "is-dragging" : ""
-                } ${dragOverLayerIndex === index ? "is-drop-target" : ""}`.trim()}
-                draggable={editingLayerIndex !== index}
-                onDragStart={(event) => onLayerDragStart(event, index)}
-                onDragOver={(event) => onLayerDragOver(event, index)}
-                onDrop={(event) => onLayerDrop(event, index)}
-                onDragEnd={onLayerDragEnd}
-              >
-                <button
-                  type="button"
-                  className={`edit-expert-preset-btn edit-expert-layer-btn ${
-                    resolvedSelectedLayerIndex === index ? "is-selected" : ""
-                  }`}
-                  onClick={() => onSelectLayer(index)}
-                  onDoubleClick={() => onBeginLayerRename(index, layer.name)}
+        <div
+          className={`edit-expert-layers-toolbar-list-shell ${
+            isCollapsed ? "is-collapsed" : "is-expanded"
+          }`.trim()}
+          aria-hidden={isCollapsed || undefined}
+        >
+          <div className="edit-expert-layers-toolbar-list">
+            {layers.map((layer, index) =>
+              editingLayerIndex === index ? (
+                <input
+                  key={layer.id}
+                  type="text"
+                  className="edit-expert-layer-input"
+                  value={editingLayerValue}
+                  autoFocus
+                  aria-label={`Rename ${layer.name}`}
+                  tabIndex={isCollapsed ? -1 : undefined}
+                  onChange={(event) => setEditingLayerValue(event.target.value)}
+                  onBlur={() => onCommitLayerRename(index)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") {
+                      event.preventDefault();
+                      onCommitLayerRename(index);
+                      return;
+                    }
+                    if (event.key === "Escape") {
+                      event.preventDefault();
+                      onClearLayerEditing();
+                    }
+                  }}
+                />
+              ) : (
+                <div
+                  key={layer.id}
+                  className={`edit-expert-layer-row ${
+                    draggingLayerIndex === index ? "is-dragging" : ""
+                  } ${dragOverLayerIndex === index ? "is-drop-target" : ""}`.trim()}
+                  draggable={!isCollapsed && editingLayerIndex !== index}
+                  onDragStart={(event) => onLayerDragStart(event, index)}
+                  onDragOver={(event) => onLayerDragOver(event, index)}
+                  onDrop={(event) => onLayerDrop(event, index)}
+                  onDragEnd={onLayerDragEnd}
                 >
-                  <span className="edit-expert-layer-label">{layer.name}</span>
-                </button>
-                <button
-                  type="button"
-                  className="edit-expert-layer-delete-btn"
-                  aria-label={`Delete ${layer.name}`}
-                  onClick={() => onDeleteLayer(index)}
-                >
-                  <TrashSimple size={12} weight="regular" />
-                </button>
-              </div>
-            )
-          )}
+                  <button
+                    type="button"
+                    className={`edit-expert-preset-btn edit-expert-layer-btn ${
+                      resolvedSelectedLayerIndex === index ? "is-selected" : ""
+                    }`}
+                    tabIndex={isCollapsed ? -1 : undefined}
+                    onClick={() => onSelectLayer(index)}
+                    onDoubleClick={() => onBeginLayerRename(index, layer.name)}
+                  >
+                    <span className="edit-expert-layer-label">{layer.name}</span>
+                  </button>
+                  <button
+                    type="button"
+                    className="edit-expert-layer-delete-btn"
+                    aria-label={`Delete ${layer.name}`}
+                    tabIndex={isCollapsed ? -1 : undefined}
+                    onClick={() => onDeleteLayer(index)}
+                  >
+                    <TrashSimple size={12} weight="regular" />
+                  </button>
+                </div>
+              )
+            )}
+          </div>
         </div>
       </div>
       {isModalScope ? (
@@ -244,17 +248,6 @@ export function ExpertEditLayersPanel({
           onFlatten={onFlatten}
           onRemoveBackground={onRemoveBackground}
         />
-      ) : null}
-      {statusToastMessage && isLayerLimitStatusToast ? (
-        <div
-          className={`edit-expert-stage-status-toast edit-expert-stage-status-toast--layers ${
-            statusToastTone === "warning" ? "is-warning" : "is-info"
-          } ${isStatusToastFading ? "is-fading" : ""}`.trim()}
-          role="status"
-          aria-live="polite"
-        >
-          {statusToastMessage}
-        </div>
       ) : null}
     </>
   );

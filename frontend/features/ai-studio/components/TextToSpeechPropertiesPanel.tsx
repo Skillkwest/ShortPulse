@@ -4,7 +4,8 @@
  */
 import React from "react";
 import { CaretDown, Microphone } from "phosphor-react";
-import { AgentGenerateButton } from "../../../prefabs/agent/buttons/AgentGenerateButton";
+import { useReferenceGridHorizontalSplit } from "../hooks/useReferenceGridHorizontalSplit";
+import { useSharedVoicesGrid } from "../hooks/useSharedVoicesGrid";
 import { VOICE_LIBRARY_OPTIONS } from "../voiceLibrary";
 
 type TtsSliderProps = {
@@ -112,6 +113,19 @@ const languageOptions: TtsLanguageOption[] = [
   { value: "VIE", label: "Vietnamese" },
 ] as const;
 
+const ttsGenerateCost = 15;
+const minTopPromptPaneHeightPx = 0;
+const minBottomPromptPaneHeightPx = 500;
+
+const getVoiceInitials = (value: string): string =>
+  value
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part.charAt(0).toUpperCase())
+    .join("");
+
 /**
  * Renders a lightweight TTS slider row used throughout the settings panel.
  */
@@ -127,6 +141,26 @@ function TtsSlider({ label, helper, value, displayValue }: TtsSliderProps) {
       <input type="range" min={0} max={100} step={1} value={value} aria-label={label} readOnly />
       <span className="tts-slider-helper">{helper}</span>
     </label>
+  );
+}
+
+function TtsVoiceAvatar({
+  imageUrl,
+  className,
+  iconSize,
+}: {
+  imageUrl?: string | null;
+  className: string;
+  iconSize: number;
+}) {
+  return (
+    <span className={className} aria-hidden="true">
+      {imageUrl ? (
+        <img src={imageUrl} alt="" className={`${className}-image`} />
+      ) : (
+        <Microphone size={iconSize} weight="bold" />
+      )}
+    </span>
   );
 }
 
@@ -168,9 +202,11 @@ function TtsVoiceDropdown({
         aria-label="Voice"
         onClick={() => setIsOpen((open) => !open)}
       >
-        <span className="tts-voice-trigger-icon" aria-hidden="true">
-          <Microphone size={14} weight="bold" />
-        </span>
+        <TtsVoiceAvatar
+          imageUrl={selectedVoice.imageUrl}
+          className="tts-voice-trigger-icon"
+          iconSize={14}
+        />
         <span className="tts-voice-trigger-copy">
           <strong>{selectedVoice.title}</strong>
           <span>{selectedVoice.descriptor}</span>
@@ -193,9 +229,11 @@ function TtsVoiceDropdown({
                   setIsOpen(false);
                 }}
               >
-                <span className="tts-voice-option-avatar" aria-hidden="true">
-                  <Microphone size={13} weight="bold" />
-                </span>
+                <TtsVoiceAvatar
+                  imageUrl={option.imageUrl}
+                  className="tts-voice-option-avatar"
+                  iconSize={13}
+                />
                 <span className="tts-voice-option-copy">
                   <strong>{option.title}</strong>
                   <span>{option.descriptor}</span>
@@ -217,42 +255,23 @@ export const TextToSpeechPropertiesPanel = React.memo(function TextToSpeechPrope
   const [selectedVoice, setSelectedVoice] = React.useState("darian");
   const [selectedLanguage, setSelectedLanguage] = React.useState("auto");
   const [outputFormat, setOutputFormat] = React.useState("mp3_44100_128");
+  const {
+    voices: sharedVoices,
+    selectedVoice: selectedSharedVoice,
+    setSelectedVoice: setSelectedSharedVoice,
+  } = useSharedVoicesGrid();
   const isGenerateActive = scriptText.trim().length > 0;
   const scriptCharacterCount = scriptText.length;
   const maxScriptCharacters = 5000;
-  const textareaRef = React.useRef<HTMLTextAreaElement | null>(null);
-
-  React.useLayoutEffect(() => {
-    const textarea = textareaRef.current;
-    if (!textarea) {
-      return;
-    }
-
-    const syncTextareaHeight = () => {
-      const field = textareaRef.current;
-      if (!field) {
-        return;
-      }
-
-      const minimumHeight = 220;
-      field.style.height = `${minimumHeight}px`;
-
-      const { top } = field.getBoundingClientRect();
-      const maximumHeight = Math.max(minimumHeight, Math.floor(window.innerHeight - top - 150));
-      const nextHeight = Math.min(field.scrollHeight, maximumHeight);
-
-      field.style.height = `${Math.max(minimumHeight, nextHeight)}px`;
-      field.style.maxHeight = `${maximumHeight}px`;
-      field.style.overflowY = field.scrollHeight > maximumHeight ? "auto" : "hidden";
-    };
-
-    syncTextareaHeight();
-    window.addEventListener("resize", syncTextareaHeight);
-
-    return () => {
-      window.removeEventListener("resize", syncTextareaHeight);
-    };
-  }, [scriptText]);
+  const splitContainerRef = React.useRef<HTMLDivElement | null>(null);
+  const { topSectionStyle, bottomSectionStyle, dividerProps } = useReferenceGridHorizontalSplit({
+    enabled: true,
+    containerRef: splitContainerRef,
+    defaultTopRatio: 0.995,
+    minTopSectionHeightPx: minTopPromptPaneHeightPx,
+    minBottomSectionHeightPx: minBottomPromptPaneHeightPx,
+    ariaLabel: "Resize text input and prompt sections",
+  });
 
   return (
     <section
@@ -265,24 +284,87 @@ export const TextToSpeechPropertiesPanel = React.memo(function TextToSpeechPrope
       </div>
 
       <div className="tts-properties-shell">
-        <div className="tts-properties-main">
-          <div className="tts-properties-script-divider" aria-hidden="true" />
-          <div className="tts-properties-script-area">
-            <textarea
-              ref={textareaRef}
-              className="prompt-input tts-properties-script-input"
-              value={scriptText}
-              onChange={(event) => setScriptText(event.target.value)}
-              maxLength={maxScriptCharacters}
-              placeholder="Start typing here or paste any text you want to turn into lifelike speech..."
-              aria-label="Text input"
-            />
+        <div className="tts-properties-main" ref={splitContainerRef}>
+          <section
+            className="tts-properties-voice-library"
+            aria-label="Available voices"
+            style={topSectionStyle}
+          >
+            <ul className="tts-properties-voice-grid" aria-label="Available voices list">
+              {sharedVoices.map((voice) => {
+                const isSelected = voice === selectedSharedVoice;
+                return (
+                  <li key={voice} className="tts-properties-voice-item">
+                    <div className={`tts-properties-voice-chip ${isSelected ? "is-selected" : ""}`}>
+                      <button
+                        type="button"
+                        className="tts-properties-voice-chip-select"
+                        aria-pressed={isSelected}
+                        aria-label={`${voice} voice`}
+                        onClick={() => setSelectedSharedVoice(voice)}
+                      >
+                        <span className="tts-properties-voice-chip-avatar" aria-hidden="true">
+                          {getVoiceInitials(voice)}
+                        </span>
+                        <span className="tts-properties-voice-chip-copy">
+                          <span className="tts-properties-voice-chip-label">Voice</span>
+                          <span className="tts-properties-voice-chip-name">{voice}</span>
+                        </span>
+                      </button>
+
+                      <button
+                        type="button"
+                        className="tts-properties-voice-chip-play"
+                        aria-label={`Play ${voice} sample`}
+                      >
+                        <span className="tts-properties-voice-chip-play-icon" aria-hidden="true">
+                          ▶
+                        </span>
+                      </button>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          </section>
+
+          <div className="tts-properties-horizontal-divider-wrap" {...dividerProps}>
+            <div className="tts-properties-horizontal-divider" aria-hidden="true" />
+          </div>
+
+          <div className="tts-properties-compose-area" style={bottomSectionStyle}>
+            <div className="tts-properties-script-input-shell">
+              <textarea
+                className="tts-properties-script-input"
+                value={scriptText}
+                onChange={(event) => setScriptText(event.target.value)}
+                maxLength={maxScriptCharacters}
+                placeholder="Start typing here or paste any text you want to turn into lifelike speech..."
+                aria-label="Text input"
+              />
+            </div>
+
             <div className="tts-properties-script-divider" aria-hidden="true" />
+
             <div className="tts-properties-script-actions">
               <p className="tts-properties-script-count" aria-live="polite">
                 {scriptCharacterCount.toLocaleString()} / {maxScriptCharacters.toLocaleString()}
               </p>
-              <AgentGenerateButton onClick={() => {}} disabled={!isGenerateActive} cost={15} />
+              <button
+                type="button"
+                className="tts-properties-generate-btn"
+                disabled={!isGenerateActive}
+                aria-label="Generate"
+              >
+                <span className="tts-properties-generate-label">Generate</span>
+                <span className="tts-properties-generate-pill" aria-hidden="true">
+                  <span className="tts-properties-generate-cost-icon">✦</span>
+                  <span className="tts-properties-generate-cost-value">
+                    {ttsGenerateCost}
+                    <span className="tts-properties-generate-cost-label">credits</span>
+                  </span>
+                </span>
+              </button>
             </div>
           </div>
         </div>

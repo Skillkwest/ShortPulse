@@ -200,7 +200,7 @@ Minimum suite coverage:
    - preserve scroll and wrapping parity with mirror.
    - run manual caret/selection QA in browser before merge.
 4. If disabling feature:
-   - use existing Expert Edit kill switch (`NEXT_PUBLIC_ENABLE_EXPERT_EDIT_UI=false`) to fallback to legacy Edit.
+   - verify behavior directly in the canonical Expert Edit surface.
 
 ## Verification checklist
 

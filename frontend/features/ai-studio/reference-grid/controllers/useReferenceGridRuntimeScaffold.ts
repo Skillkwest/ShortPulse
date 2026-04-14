@@ -37,14 +37,12 @@ import { useReferenceGridOutputCollections } from "./useReferenceGridOutputColle
 import type { ReferenceGridDropMode } from "./useReferenceGridDropController";
 import {
   CURATED_MIN_BOTTOM_STACK_HEIGHT_PX,
-  DEFAULT_CANVAS_SECTION_TOP_RATIO,
   DEFAULT_CURATED_SPLIT_TOP_RATIO,
   DEFAULT_PANEL_VISIBILITY,
   DEFAULT_STYLES_SPLIT_TOP_RATIO,
   FALLBACK_REFERENCE_ROW_HEIGHT,
   HORIZONTAL_DIVIDER_TRACK_MIN_HEIGHT_PX,
   QUICK_SLOT_INVENTORY_MAX_COLUMNS,
-  RAIL_CANVAS_MIN_BOTTOM_STACK_HEIGHT_PX,
   REFERENCE_AUTOPLAY_MAX_DESKTOP,
   REFERENCE_GRID_MAX_COLUMNS,
   REFERENCE_GRID_MAX_COLUMNS_WIDE,
@@ -73,7 +71,6 @@ type UseReferenceGridRuntimeScaffoldArgs = Pick<
   | "selectedTool"
   | "onOutputMediaLoaded"
   | "panelVisibility"
-  | "railCanvasProps"
   | "stylesPanel"
   | "onAddCuratedReference"
   | "onRemoveCuratedReference"
@@ -90,7 +87,6 @@ export const useReferenceGridRuntimeScaffold = ({
   selectedTool,
   onOutputMediaLoaded,
   panelVisibility,
-  railCanvasProps,
   stylesPanel,
   onAddCuratedReference,
   onRemoveCuratedReference,
@@ -109,13 +105,11 @@ export const useReferenceGridRuntimeScaffold = ({
 
   const panelVisibilityResolved = React.useMemo(
     () => ({
-      canvas: panelVisibility?.canvas ?? DEFAULT_PANEL_VISIBILITY.canvas,
       quickSlot: panelVisibility?.quickSlot ?? DEFAULT_PANEL_VISIBILITY.quickSlot,
       referenceGrid: panelVisibility?.referenceGrid ?? DEFAULT_PANEL_VISIBILITY.referenceGrid,
       styles: panelVisibility?.styles ?? Boolean(stylesPanel?.isOpen),
     }),
     [
-      panelVisibility?.canvas,
       panelVisibility?.quickSlot,
       panelVisibility?.referenceGrid,
       panelVisibility?.styles,
@@ -130,8 +124,6 @@ export const useReferenceGridRuntimeScaffold = ({
   const showReferenceGridSection = panelVisibilityResolved.referenceGrid;
   const showQuickSlotSection = isCuratedSplitEnabled && panelVisibilityResolved.quickSlot;
   const isWideLayout = selectedTool == null;
-  const showRailCanvasSection =
-    Boolean(railCanvasProps) && selectedTool !== "canvas" && panelVisibilityResolved.canvas;
   const isCuratedSplitActive = showQuickSlotSection;
 
   const perfWatchdog = useReferenceGridPerfWatchdog({
@@ -153,8 +145,6 @@ export const useReferenceGridRuntimeScaffold = ({
   const curatedGridRef = React.useRef<HTMLDivElement | null>(null);
   const panelRef = React.useRef<HTMLDivElement | null>(null);
   const inventoryStackRef = React.useRef<HTMLDivElement | null>(null);
-  const railCanvasSectionRef = React.useRef<HTMLDivElement | null>(null);
-  const railCanvasHeaderRef = React.useRef<HTMLDivElement | null>(null);
   const curatedSectionRef = React.useRef<HTMLDivElement | null>(null);
   const curatedHeaderRef = React.useRef<HTMLDivElement | null>(null);
   const allRefsHeaderRef = React.useRef<HTMLDivElement | null>(null);
@@ -190,21 +180,15 @@ export const useReferenceGridRuntimeScaffold = ({
   const stylesSplitShowsQuickSlotTop = showQuickSlotSection && !showReferenceGridSection;
   const stylesSplitEnabled =
     isStylesPanelOpen && (stylesSplitShowsReferenceGridTop || stylesSplitShowsQuickSlotTop);
-  const {
-    curatedHeaderHeightPx,
-    railCanvasHeaderHeightPx,
-    allRefsHeaderHeightPx,
-    stylesHeaderHeightPx,
-  } = useReferenceGridHeaderMeasurements({
-    isCuratedSplitActive,
-    showRailCanvasSection,
-    stylesSplitEnabled,
-    isStylesPanelOpen,
-    curatedHeaderRef,
-    railCanvasHeaderRef,
-    allRefsHeaderRef,
-    stylesHeaderRef,
-  });
+  const { curatedHeaderHeightPx, allRefsHeaderHeightPx, stylesHeaderHeightPx } =
+    useReferenceGridHeaderMeasurements({
+      isCuratedSplitActive,
+      stylesSplitEnabled,
+      isStylesPanelOpen,
+      curatedHeaderRef,
+      allRefsHeaderRef,
+      stylesHeaderRef,
+    });
   const stylesSplitTopHeaderHeightPx = stylesSplitShowsQuickSlotTop
     ? curatedHeaderHeightPx
     : Math.max(STYLES_REFERENCE_GRID_COLLAPSE_TOP_HEIGHT_PX, allRefsHeaderHeightPx);
@@ -219,10 +203,6 @@ export const useReferenceGridRuntimeScaffold = ({
     stylesSplitMinBottomBasePx,
     stylesHeaderHeightPx + stylesSplitMinBottomHeaderBufferPx
   );
-  const allRefsSectionMinHeaderHeightPx = Math.max(
-    STYLES_REFERENCE_GRID_COLLAPSE_TOP_HEIGHT_PX,
-    allRefsHeaderHeightPx
-  );
   const stylesSplitUsesNestedContainer =
     isStylesPanelOpen && showQuickSlotSection && showReferenceGridSection;
   const horizontalSplitMinBottomSectionHeightPx = stylesSplitUsesNestedContainer
@@ -230,40 +210,6 @@ export const useReferenceGridRuntimeScaffold = ({
       stylesSplitMinBottomSectionHeightPx +
       HORIZONTAL_DIVIDER_TRACK_MIN_HEIGHT_PX
     : CURATED_MIN_BOTTOM_STACK_HEIGHT_PX;
-  const railCanvasMinBottomSectionHeightPx = (() => {
-    if (showQuickSlotSection && showReferenceGridSection && isStylesPanelOpen) {
-      return (
-        curatedHeaderHeightPx +
-        HORIZONTAL_DIVIDER_TRACK_MIN_HEIGHT_PX +
-        horizontalSplitMinBottomSectionHeightPx
-      );
-    }
-    if (showQuickSlotSection && showReferenceGridSection) {
-      return (
-        curatedHeaderHeightPx +
-        HORIZONTAL_DIVIDER_TRACK_MIN_HEIGHT_PX +
-        allRefsSectionMinHeaderHeightPx
-      );
-    }
-    if (showQuickSlotSection && isStylesPanelOpen) {
-      return (
-        curatedHeaderHeightPx +
-        HORIZONTAL_DIVIDER_TRACK_MIN_HEIGHT_PX +
-        stylesSplitMinBottomSectionHeightPx
-      );
-    }
-    if (showReferenceGridSection && isStylesPanelOpen) {
-      return (
-        stylesSplitMinTopSectionHeightPx +
-        HORIZONTAL_DIVIDER_TRACK_MIN_HEIGHT_PX +
-        stylesSplitMinBottomSectionHeightPx
-      );
-    }
-    if (showQuickSlotSection) return curatedHeaderHeightPx;
-    if (showReferenceGridSection) return allRefsSectionMinHeaderHeightPx;
-    if (isStylesPanelOpen) return Math.max(24, stylesHeaderHeightPx);
-    return RAIL_CANVAS_MIN_BOTTOM_STACK_HEIGHT_PX;
-  })();
   const stylesSplitAriaLabel = stylesSplitShowsQuickSlotTop
     ? "Resize Quick Slot Inventory and Styles sections"
     : "Resize Reference Grid and Styles sections";
@@ -313,19 +259,6 @@ export const useReferenceGridRuntimeScaffold = ({
   });
 
   const referenceGridStylesStackRef = React.useRef<HTMLDivElement | null>(null);
-  const railCanvasSplit = useReferenceGridHorizontalSplit({
-    enabled: showRailCanvasSection,
-    containerRef: panelRef,
-    defaultTopRatio: DEFAULT_CANVAS_SECTION_TOP_RATIO,
-    minTopSectionHeightPx: railCanvasHeaderHeightPx,
-    minBottomSectionHeightPx: Math.max(
-      RAIL_CANVAS_MIN_BOTTOM_STACK_HEIGHT_PX,
-      railCanvasMinBottomSectionHeightPx
-    ),
-    allRefsSnapTopHeightPx: railCanvasHeaderHeightPx,
-    collapseTopHeightPx: railCanvasHeaderHeightPx,
-    ariaLabel: "Resize Canvas and Quick Slot Inventory sections",
-  });
   const horizontalSplit = useReferenceGridHorizontalSplit({
     enabled: isCuratedSplitActive,
     containerRef: inventoryStackRef,
@@ -521,7 +454,6 @@ export const useReferenceGridRuntimeScaffold = ({
     showReferenceGridSection,
     showQuickSlotSection,
     isWideLayout,
-    showRailCanvasSection,
     isCuratedSplitActive,
     perfWatchdog,
     previewQualityPressureLevel,
@@ -535,8 +467,6 @@ export const useReferenceGridRuntimeScaffold = ({
     curatedGridRef,
     panelRef,
     inventoryStackRef,
-    railCanvasSectionRef,
-    railCanvasHeaderRef,
     curatedSectionRef,
     curatedHeaderRef,
     allRefsHeaderRef,
@@ -575,7 +505,6 @@ export const useReferenceGridRuntimeScaffold = ({
     setVirtualMetrics,
     curatedVirtualMetrics,
     setCuratedVirtualMetrics,
-    railCanvasSplit,
     horizontalSplit,
     stylesSplit,
     referenceGridStylesStackRef,

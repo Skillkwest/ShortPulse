@@ -16,12 +16,14 @@ type PromptTokenPickerState = {
 };
 
 type ExpertEditPromptSelectorsColumnProps = {
+  isPromptComposerExpanded: boolean;
   promptInputShellRef: React.Ref<HTMLDivElement>;
   promptHighlightRef: React.Ref<HTMLDivElement>;
   promptTextareaRef: React.Ref<HTMLTextAreaElement>;
   promptHighlightSegments: readonly PromptHighlightSegment[];
   promptTextValue: string;
   onPromptTextChange: (value: string) => void;
+  onPromptFocus: React.FocusEventHandler<HTMLTextAreaElement>;
   onPromptKeyDown: React.KeyboardEventHandler<HTMLTextAreaElement>;
   onPromptDrop: React.DragEventHandler<HTMLTextAreaElement>;
   onPromptScroll: React.UIEventHandler<HTMLTextAreaElement>;
@@ -54,12 +56,14 @@ type ExpertEditPromptSelectorsColumnProps = {
 };
 
 export function ExpertEditPromptSelectorsColumn({
+  isPromptComposerExpanded,
   promptInputShellRef,
   promptHighlightRef,
   promptTextareaRef,
   promptHighlightSegments,
   promptTextValue,
   onPromptTextChange,
+  onPromptFocus,
   onPromptKeyDown,
   onPromptDrop,
   onPromptScroll,
@@ -93,12 +97,14 @@ export function ExpertEditPromptSelectorsColumn({
   return (
     <>
       <ExpertEditPromptComposer
+        isExpanded={isPromptComposerExpanded}
         promptInputShellRef={promptInputShellRef}
         promptHighlightRef={promptHighlightRef}
         promptTextareaRef={promptTextareaRef}
         promptHighlightSegments={promptHighlightSegments}
         promptTextValue={promptTextValue}
         onPromptTextChange={onPromptTextChange}
+        onPromptFocus={onPromptFocus}
         onPromptKeyDown={onPromptKeyDown}
         onPromptDrop={onPromptDrop}
         onPromptScroll={onPromptScroll}

@@ -6,8 +6,12 @@
   box-sizing: border-box;
 }
 
+.create-expert-bottom-block {
+  margin-top: var(--create-expert-bottom-block-offset);
+}
+
 .create-expert-controls-row {
-  margin-top: 2px;
+  margin-top: 6px;
   justify-content: center;
   padding-inline: clamp(6px, 2vw);
   box-sizing: border-box;

@@ -28,7 +28,6 @@ const arePanelVisibilityEqual = (
   left?: ReferenceGridProps["panelVisibility"],
   right?: ReferenceGridProps["panelVisibility"]
 ): boolean =>
-  left?.canvas === right?.canvas &&
   left?.quickSlot === right?.quickSlot &&
   left?.referenceGrid === right?.referenceGrid &&
   left?.styles === right?.styles;
@@ -138,9 +137,6 @@ export const areReferenceGridPropsEqual = (
     return false;
   }
   if (!arePanelVisibilityEqual(previous.panelVisibility, next.panelVisibility)) {
-    return false;
-  }
-  if (previous.railCanvasProps !== next.railCanvasProps) {
     return false;
   }
   if (!areStylesPanelsEqual(previous.stylesPanel, next.stylesPanel)) {

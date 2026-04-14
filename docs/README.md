@@ -137,6 +137,15 @@ Start here for all repository documentation.
 - `docs/planning/generation-pipeline-continuation-reference-grid-read-model-simplification-2026-04-05.md`
 - `docs/planning/ai-studio-live-session-check-media-panel-handoff-2026-04-05.md`
 - `docs/planning/ai-studio-expert-edit-properties-panel-fresh-start-lean-up-plan-2026-04-10.md`
+- `docs/planning/ai-studio-master-stage-rebuild-spec-2026-04-12.md`
+- `docs/planning/ai-studio-master-stage-rebuild-tracker-2026-04-12.md`
+- `docs/planning/ai-studio-master-stage-phase-1-target-contract-and-bakeoff-plan-2026-04-12.md`
+- `docs/planning/ai-studio-master-stage-phase-2-delete-duplicate-stage-surfaces-plan-2026-04-12.md`
+- `docs/planning/ai-studio-master-stage-phase-3-stage-core-extraction-plan-2026-04-12.md`
+- `docs/planning/ai-studio-master-stage-phase-4-artboard-selection-transform-plan-2026-04-12.md`
+- `docs/planning/ai-studio-master-stage-phase-5-export-and-submit-decoupling-plan-2026-04-12.md`
+- `docs/planning/ai-studio-master-stage-phase-6-persistence-and-session-simplification-plan-2026-04-12.md`
+- `docs/planning/ai-studio-master-stage-phase-7-cutover-and-deletion-plan-2026-04-12.md`
 - `docs/planning/ai-studio-elements-library-ui-build-plan-2026-04-06.md`
 - `docs/planning/ai-studio-elements-library-ui-spec-2026-04-06.md`
 - `docs/planning/ai-studio-elements-library-wireframes-2026-04-06.md`

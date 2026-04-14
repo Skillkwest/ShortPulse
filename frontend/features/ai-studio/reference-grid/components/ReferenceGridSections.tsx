@@ -1,8 +1,6 @@
 import React from "react";
 import { Prohibit } from "phosphor-react";
 import type { StudioOutput } from "../../types";
-import { CanvasPropertiesPanel } from "../../components/canvas/CanvasPropertiesPanel";
-import type { CanvasPropertiesPanelProps } from "../../components/canvas/useAiStudioCanvasWorkspaceState";
 import type { ExpertEditStyleTile } from "../../components/edit/expertEditStyles";
 import { resolveStylePreviewBackgroundImage } from "../../components/edit/expertEditStyles";
 import { ReferenceGridArchiveControls } from "./ReferenceGridArchiveControls";
@@ -22,9 +20,6 @@ const STYLES_REFERENCE_GRID_UPLOAD_HIDE_BUFFER_PX = 44;
 const STYLES_REFERENCE_GRID_COLLAPSE_TOP_HEIGHT_PX = 24;
 const QUICK_SLOT_COLLAPSE_TOP_HEIGHT_PX = 24;
 const QUICK_SLOT_HIDE_CONTENT_BUFFER_PX = 44;
-const CANVAS_COLLAPSE_TOP_HEIGHT_PX = 24;
-const CANVAS_HIDE_CONTENT_BUFFER_PX = 44;
-const REFERENCE_GRID_UPLOAD_HIDE_NEAR_LOWER_RANGE_PX = 124;
 const NONE_STYLE_ID = "__none_style__";
 const NONE_STYLE_TILE: ExpertEditStyleTile = {
   id: NONE_STYLE_ID,
@@ -52,9 +47,6 @@ type ReferenceGridSectionsProps = {
   onOpenMediaLibrary?: () => void;
   onRestoreArchivedOutput?: (id: string) => void;
   onRestoreAllArchivedOutputs?: () => void;
-  railCanvasProps?: CanvasPropertiesPanelProps;
-  showRailCanvasSection: boolean;
-  railCanvasSplit: HorizontalSplitViewModel;
   stylesSplit: HorizontalSplitViewModel;
   referenceGridStylesStackRef: React.MutableRefObject<HTMLDivElement | null>;
   stylesPanel?: {
@@ -63,8 +55,6 @@ type ReferenceGridSectionsProps = {
     styles: readonly ExpertEditStyleTile[];
     onSelectStyle?: (styleId: string | null) => void;
   };
-  railCanvasSectionRef: React.MutableRefObject<HTMLDivElement | null>;
-  railCanvasHeaderRef: React.MutableRefObject<HTMLDivElement | null>;
   horizontalSplit: HorizontalSplitViewModel;
   inventoryStackRef: React.MutableRefObject<HTMLDivElement | null>;
   curatedSectionRef: React.MutableRefObject<HTMLDivElement | null>;
@@ -113,14 +103,9 @@ export function ReferenceGridSections({
   onOpenMediaLibrary,
   onRestoreArchivedOutput,
   onRestoreAllArchivedOutputs,
-  railCanvasProps,
-  showRailCanvasSection,
-  railCanvasSplit,
   stylesSplit,
   referenceGridStylesStackRef,
   stylesPanel,
-  railCanvasSectionRef,
-  railCanvasHeaderRef,
   horizontalSplit,
   inventoryStackRef,
   curatedSectionRef,
@@ -153,7 +138,6 @@ export function ReferenceGridSections({
   const styleTilesWithNone = [NONE_STYLE_TILE, ...styleTiles];
   const hasInventorySections =
     showQuickSlotSection || showReferenceGridSection || showStylesSection;
-  const showCanvasInventoryDivider = showRailCanvasSection && hasInventorySections;
   const showQuickSlotReferenceDivider = showQuickSlotSection && showReferenceGridSection;
   const showStylesReferenceDivider = showStylesSection && showReferenceGridSection;
   const showQuickSlotStylesDivider =
@@ -192,139 +176,33 @@ export function ReferenceGridSections({
       : false;
   const showNestedReferenceStylesStack =
     showQuickSlotSection && showReferenceGridSection && showStylesSection;
-  const canvasInventoryDividerTitle = showQuickSlotSection
-    ? "Quick Slot Inventory"
+  const showQuickSlotTitleInHeader = true;
+  const showReferenceGridTitleInHeader = !showQuickSlotReferenceDivider;
+  const showStylesTitleInHeader = !showStylesInventoryDivider;
+  const topVisiblePanel = showQuickSlotSection
+    ? "quick-slot"
     : showReferenceGridSection
-      ? "Reference Grid"
-      : "Styles";
-  const showQuickSlotTitleInHeader = !showCanvasInventoryDivider;
-  const showReferenceGridTitleInHeader =
-    !showQuickSlotReferenceDivider && !showCanvasInventoryDivider;
-  const isStylesDirectlyUnderCanvasDivider =
-    showCanvasInventoryDivider &&
-    showStylesSection &&
-    !showQuickSlotSection &&
-    !showReferenceGridSection;
-  const showStylesTitleInHeader =
-    !showStylesInventoryDivider && !isStylesDirectlyUnderCanvasDivider;
-  const topVisiblePanel = showRailCanvasSection
-    ? "canvas"
-    : showQuickSlotSection
-      ? "quick-slot"
-      : showReferenceGridSection
-        ? "reference-grid"
-        : showStylesSection
-          ? "styles"
-          : null;
+      ? "reference-grid"
+      : showStylesSection
+        ? "styles"
+        : null;
   const showTopHeaderDivider =
-    topVisiblePanel === "canvas" ||
     topVisiblePanel === "quick-slot" ||
     topVisiblePanel === "reference-grid" ||
     topVisiblePanel === "styles";
-  const showTopCanvasHeaderDivider = showTopHeaderDivider && topVisiblePanel === "canvas";
   const showTopQuickSlotHeaderDivider = showTopHeaderDivider && topVisiblePanel === "quick-slot";
   const showTopReferenceHeaderDivider =
     showTopHeaderDivider && topVisiblePanel === "reference-grid";
   const showTopStylesHeaderDivider = showTopHeaderDivider && topVisiblePanel === "styles";
   const hideReferenceGridUploadActionsBase =
     allRefsInventoryExpanded || isReferenceGridCollapsedForStyles;
-  const isCanvasNearCollapsedForInventory =
-    showCanvasInventoryDivider &&
-    railCanvasSplit.topSectionHeightPx > 0 &&
-    railCanvasSplit.topSectionHeightPx <=
-      CANVAS_COLLAPSE_TOP_HEIGHT_PX + CANVAS_HIDE_CONTENT_BUFFER_PX;
-  const isCanvasInventoryExpanded = showCanvasInventoryDivider && railCanvasSplit.isAllRefsExpanded;
-  const isReferenceGridNearLowerRangeFromCanvasSplit =
-    showCanvasInventoryDivider &&
-    showReferenceGridSection &&
-    railCanvasSplit.bottomSectionHeightPx > 0 &&
-    railCanvasSplit.bottomSectionHeightPx <= REFERENCE_GRID_UPLOAD_HIDE_NEAR_LOWER_RANGE_PX;
-  const hideReferenceGridUploadActions =
-    hideReferenceGridUploadActionsBase || isReferenceGridNearLowerRangeFromCanvasSplit;
-  const showEmptyState = !showRailCanvasSection && !hasInventorySections;
+  const hideReferenceGridUploadActions = hideReferenceGridUploadActionsBase;
+  const showEmptyState = !hasInventorySections;
   return (
     <>
       <div className={`reference-grid-sections${isCuratedSplitEnabled ? " is-curated-split" : ""}`}>
-        {showRailCanvasSection && railCanvasProps ? (
-          <>
-            <div
-              ref={railCanvasSectionRef}
-              className={`reference-rail-canvas-section${
-                isCanvasInventoryExpanded ? " is-inventory-expanded" : ""
-              }${
-                isCanvasNearCollapsedForInventory && !isCanvasInventoryExpanded
-                  ? " is-divider-near-collapsed"
-                  : ""
-              }`}
-              style={showCanvasInventoryDivider ? railCanvasSplit.topSectionStyle : undefined}
-            >
-              <div
-                ref={railCanvasHeaderRef}
-                className={`reference-rail-canvas-header${
-                  showTopCanvasHeaderDivider ? " is-top-section-header" : ""
-                }`}
-              >
-                <p className="eyebrow">Canvas</p>
-                {showTopCanvasHeaderDivider ? (
-                  <span className="reference-section-title-divider" aria-hidden="true" />
-                ) : null}
-              </div>
-              <div className="reference-rail-canvas-body">
-                <CanvasPropertiesPanel {...railCanvasProps} />
-              </div>
-            </div>
-            {showCanvasInventoryDivider ? (
-              <div
-                className="reference-grid-horizontal-divider-wrap reference-grid-horizontal-divider-wrap--canvas-inventory"
-                {...railCanvasSplit.dividerProps}
-              >
-                <span className="reference-grid-horizontal-divider-title" aria-hidden="true">
-                  {canvasInventoryDividerTitle}
-                </span>
-                <button
-                  type="button"
-                  className="reference-grid-horizontal-divider-pill"
-                  onPointerDown={(event) => {
-                    event.stopPropagation();
-                  }}
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    railCanvasSplit.snapToInventoryExpanded();
-                  }}
-                >
-                  Canvas ↓
-                </button>
-                <div className="reference-grid-horizontal-divider" />
-                <button
-                  type="button"
-                  className="reference-grid-horizontal-divider-pill"
-                  onPointerDown={(event) => {
-                    event.stopPropagation();
-                  }}
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    const headerNode = railCanvasHeaderRef.current;
-                    const targetTopHeightPx =
-                      headerNode instanceof HTMLElement ? headerNode.offsetHeight : undefined;
-                    railCanvasSplit.snapToAllRefsExpanded(targetTopHeightPx);
-                  }}
-                >
-                  Inventory ↑
-                </button>
-              </div>
-            ) : null}
-          </>
-        ) : null}
         {hasInventorySections ? (
-          <div
-            ref={inventoryStackRef}
-            className={`reference-grid-inventory-stack${
-              showCanvasInventoryDivider && railCanvasSplit.isInventoryExpanded
-                ? " is-canvas-expanded"
-                : ""
-            }`}
-            style={showCanvasInventoryDivider ? railCanvasSplit.bottomSectionStyle : undefined}
-          >
+          <div ref={inventoryStackRef} className="reference-grid-inventory-stack">
             {showQuickSlotSection ? (
               <>
                 <div
@@ -874,13 +752,3 @@ export function ReferenceGridSections({
     </>
   );
 }
-
-/**
- * @deprecated Use `ReferenceGridSections`.
- */
-export type ReferenceCanvasSectionsProps = ReferenceGridSectionsProps;
-
-/**
- * @deprecated Use `ReferenceGridSections`.
- */
-export const ReferenceCanvasSections = ReferenceGridSections;

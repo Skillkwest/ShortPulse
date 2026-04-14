@@ -309,4 +309,3 @@ export const useReferenceGridCardRenderController = ({
 /**
  * @deprecated Use `ReferenceGridVisibleCard`.
  */
-export type ReferenceCanvasVisibleCard = ReferenceGridVisibleCard;

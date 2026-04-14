@@ -41,6 +41,137 @@ describe("CreatePropertiesPanel", () => {
     overrides: Partial<React.ComponentProps<typeof CreatePropertiesPanel>> = {}
   ) => render(<CreatePropertiesPanel {...baseProps} {...overrides} />);
 
+  it("lets the expert create composer grow to the taller shared cap", () => {
+    const scrollHeightDescriptor = Object.getOwnPropertyDescriptor(
+      HTMLTextAreaElement.prototype,
+      "scrollHeight"
+    );
+    const minHeightDescriptor = Object.getOwnPropertyDescriptor(
+      CSSStyleDeclaration.prototype,
+      "minHeight"
+    );
+    Object.defineProperty(HTMLTextAreaElement.prototype, "scrollHeight", {
+      configurable: true,
+      get: () => 900,
+    });
+    Object.defineProperty(CSSStyleDeclaration.prototype, "minHeight", {
+      configurable: true,
+      get() {
+        return "36px";
+      },
+    });
+
+    try {
+      renderPanel({
+        beginnerMode: false,
+        expertCreateUiEligible: true,
+        agentEnabled: true,
+        chatModeEnabled: true,
+        agentInput: "Long create prompt",
+        onAgentInputChange: vi.fn(),
+        onAgentSend: vi.fn(),
+      });
+
+      const composerInput = screen.getByRole("textbox");
+      fireEvent.focus(composerInput);
+
+      expect(composerInput).toHaveStyle({ height: "680px", overflowY: "auto" });
+    } finally {
+      if (scrollHeightDescriptor) {
+        Object.defineProperty(
+          HTMLTextAreaElement.prototype,
+          "scrollHeight",
+          scrollHeightDescriptor
+        );
+      } else {
+        delete (HTMLTextAreaElement.prototype as Partial<HTMLTextAreaElement>).scrollHeight;
+      }
+      if (minHeightDescriptor) {
+        Object.defineProperty(CSSStyleDeclaration.prototype, "minHeight", minHeightDescriptor);
+      }
+    }
+  });
+
+  it("renders the expert create prompt and selector controls inside one offset bottom block", () => {
+    const { container } = renderPanel({
+      beginnerMode: false,
+      expertCreateUiEligible: true,
+    });
+
+    const bottomBlock = container.querySelector(".create-expert-bottom-block");
+    expect(bottomBlock).toBeTruthy();
+    expect(bottomBlock?.querySelector(".create-expert-prompt-step")).toBeTruthy();
+    expect(bottomBlock?.querySelector(".create-expert-controls-row")).toBeTruthy();
+  });
+
+  it("collapses the expert create composer on blur-outside and re-expands it on refocus", async () => {
+    const scrollHeightDescriptor = Object.getOwnPropertyDescriptor(
+      HTMLTextAreaElement.prototype,
+      "scrollHeight"
+    );
+    const minHeightDescriptor = Object.getOwnPropertyDescriptor(
+      CSSStyleDeclaration.prototype,
+      "minHeight"
+    );
+    Object.defineProperty(HTMLTextAreaElement.prototype, "scrollHeight", {
+      configurable: true,
+      get: () => 220,
+    });
+    Object.defineProperty(CSSStyleDeclaration.prototype, "minHeight", {
+      configurable: true,
+      get() {
+        return "36px";
+      },
+    });
+
+    try {
+      renderPanel({
+        beginnerMode: false,
+        expertCreateUiEligible: true,
+        agentEnabled: true,
+        chatModeEnabled: true,
+        agentInput: "Long create prompt",
+        onAgentInputChange: vi.fn(),
+        onAgentSend: vi.fn(),
+      });
+
+      const composerInput = screen.getByRole("textbox");
+      const chatModeToggle = screen.getByRole("button", { name: "Disable chat mode" });
+
+      await waitFor(() => {
+        expect(composerInput).toHaveStyle({ height: "36px", overflowY: "hidden" });
+      });
+
+      fireEvent.focus(composerInput);
+      await waitFor(() => {
+        expect(composerInput).toHaveStyle({ height: "220px", overflowY: "hidden" });
+      });
+
+      fireEvent.blur(composerInput, { relatedTarget: chatModeToggle });
+      await waitFor(() => {
+        expect(composerInput).toHaveStyle({ height: "36px", overflowY: "hidden" });
+      });
+
+      fireEvent.focus(composerInput);
+      await waitFor(() => {
+        expect(composerInput).toHaveStyle({ height: "220px", overflowY: "hidden" });
+      });
+    } finally {
+      if (scrollHeightDescriptor) {
+        Object.defineProperty(
+          HTMLTextAreaElement.prototype,
+          "scrollHeight",
+          scrollHeightDescriptor
+        );
+      } else {
+        delete (HTMLTextAreaElement.prototype as Partial<HTMLTextAreaElement>).scrollHeight;
+      }
+      if (minHeightDescriptor) {
+        Object.defineProperty(CSSStyleDeclaration.prototype, "minHeight", minHeightDescriptor);
+      }
+    }
+  });
+
   it("shows image resolution controls in character mode for Seedream edit", () => {
     renderPanel({
       imageResolution: "model_default",
@@ -260,6 +391,300 @@ describe("CreatePropertiesPanel", () => {
       />
     );
     expect(screen.queryByText("What do you want to make?")).not.toBeInTheDocument();
+  });
+
+  it("fades the expert title out at eight visual rows and fades it back in below that threshold", async () => {
+    let scrollHeightPx = 180;
+    const scrollHeightDescriptor = Object.getOwnPropertyDescriptor(
+      HTMLTextAreaElement.prototype,
+      "scrollHeight"
+    );
+    const lineHeightDescriptor = Object.getOwnPropertyDescriptor(
+      CSSStyleDeclaration.prototype,
+      "lineHeight"
+    );
+    const paddingTopDescriptor = Object.getOwnPropertyDescriptor(
+      CSSStyleDeclaration.prototype,
+      "paddingTop"
+    );
+    const paddingBottomDescriptor = Object.getOwnPropertyDescriptor(
+      CSSStyleDeclaration.prototype,
+      "paddingBottom"
+    );
+    const minHeightDescriptor = Object.getOwnPropertyDescriptor(
+      CSSStyleDeclaration.prototype,
+      "minHeight"
+    );
+    Object.defineProperty(HTMLTextAreaElement.prototype, "scrollHeight", {
+      configurable: true,
+      get: () => scrollHeightPx,
+    });
+    Object.defineProperty(CSSStyleDeclaration.prototype, "lineHeight", {
+      configurable: true,
+      get() {
+        return "24px";
+      },
+    });
+    Object.defineProperty(CSSStyleDeclaration.prototype, "paddingTop", {
+      configurable: true,
+      get() {
+        return "6px";
+      },
+    });
+    Object.defineProperty(CSSStyleDeclaration.prototype, "paddingBottom", {
+      configurable: true,
+      get() {
+        return "6px";
+      },
+    });
+    Object.defineProperty(CSSStyleDeclaration.prototype, "minHeight", {
+      configurable: true,
+      get() {
+        return "36px";
+      },
+    });
+
+    try {
+      const { rerender } = renderPanel({
+        beginnerMode: false,
+        expertCreateUiEligible: true,
+        agentEnabled: true,
+        chatModeEnabled: false,
+        agentMessages: [],
+        stagedPrompt: null,
+        agentInput: "Seven visual rows",
+        onAgentInputChange: vi.fn(),
+        onAgentSend: vi.fn(),
+      });
+
+      const title = screen.getByText("What do you want to make?");
+      await waitFor(() => {
+        expect(title).not.toHaveClass("is-hidden");
+      });
+
+      scrollHeightPx = 204;
+      rerender(
+        <CreatePropertiesPanel
+          {...baseProps}
+          beginnerMode={false}
+          expertCreateUiEligible
+          agentEnabled
+          chatModeEnabled={false}
+          agentMessages={[]}
+          stagedPrompt={null}
+          agentInput="Eight visual rows"
+          onAgentInputChange={vi.fn()}
+          onAgentSend={vi.fn()}
+        />
+      );
+
+      await waitFor(() => {
+        expect(screen.getByText("What do you want to make?")).toHaveClass("is-hidden");
+      });
+
+      scrollHeightPx = 180;
+      rerender(
+        <CreatePropertiesPanel
+          {...baseProps}
+          beginnerMode={false}
+          expertCreateUiEligible
+          agentEnabled
+          chatModeEnabled={false}
+          agentMessages={[]}
+          stagedPrompt={null}
+          agentInput="Back below threshold"
+          onAgentInputChange={vi.fn()}
+          onAgentSend={vi.fn()}
+        />
+      );
+
+      await waitFor(() => {
+        expect(screen.getByText("What do you want to make?")).not.toHaveClass("is-hidden");
+      });
+    } finally {
+      if (scrollHeightDescriptor) {
+        Object.defineProperty(
+          HTMLTextAreaElement.prototype,
+          "scrollHeight",
+          scrollHeightDescriptor
+        );
+      } else {
+        delete (HTMLTextAreaElement.prototype as Partial<HTMLTextAreaElement>).scrollHeight;
+      }
+      if (lineHeightDescriptor) {
+        Object.defineProperty(CSSStyleDeclaration.prototype, "lineHeight", lineHeightDescriptor);
+      }
+      if (paddingTopDescriptor) {
+        Object.defineProperty(CSSStyleDeclaration.prototype, "paddingTop", paddingTopDescriptor);
+      }
+      if (paddingBottomDescriptor) {
+        Object.defineProperty(
+          CSSStyleDeclaration.prototype,
+          "paddingBottom",
+          paddingBottomDescriptor
+        );
+      }
+      if (minHeightDescriptor) {
+        Object.defineProperty(CSSStyleDeclaration.prototype, "minHeight", minHeightDescriptor);
+      }
+    }
+  });
+
+  it("renders the expert create composer in a bottom overlay lane when chat history exists", () => {
+    const { container } = renderPanel({
+      beginnerMode: false,
+      expertCreateUiEligible: true,
+      agentEnabled: true,
+      agentMessages: [
+        {
+          id: "assistant-1",
+          role: "assistant",
+          content: "Here is a revised prompt.",
+        },
+      ],
+      onAgentInputChange: vi.fn(),
+      onAgentSend: vi.fn(),
+    });
+
+    expect(container.querySelector(".create-expert-chat-composer-overlay-zone")).toBeTruthy();
+    expect(container.querySelector(".create-expert-chat-composer-base-layer")).toBeTruthy();
+    expect(container.querySelector(".create-expert-chat-composer-overlay")).toBeTruthy();
+  });
+
+  it("keeps the chat-history underlay unblurred until the composer reaches eight visual rows", async () => {
+    let scrollHeightPx = 180;
+    const scrollHeightDescriptor = Object.getOwnPropertyDescriptor(
+      HTMLTextAreaElement.prototype,
+      "scrollHeight"
+    );
+    const lineHeightDescriptor = Object.getOwnPropertyDescriptor(
+      CSSStyleDeclaration.prototype,
+      "lineHeight"
+    );
+    const paddingTopDescriptor = Object.getOwnPropertyDescriptor(
+      CSSStyleDeclaration.prototype,
+      "paddingTop"
+    );
+    const paddingBottomDescriptor = Object.getOwnPropertyDescriptor(
+      CSSStyleDeclaration.prototype,
+      "paddingBottom"
+    );
+    const minHeightDescriptor = Object.getOwnPropertyDescriptor(
+      CSSStyleDeclaration.prototype,
+      "minHeight"
+    );
+    Object.defineProperty(HTMLTextAreaElement.prototype, "scrollHeight", {
+      configurable: true,
+      get: () => scrollHeightPx,
+    });
+    Object.defineProperty(CSSStyleDeclaration.prototype, "lineHeight", {
+      configurable: true,
+      get() {
+        return "24px";
+      },
+    });
+    Object.defineProperty(CSSStyleDeclaration.prototype, "paddingTop", {
+      configurable: true,
+      get() {
+        return "6px";
+      },
+    });
+    Object.defineProperty(CSSStyleDeclaration.prototype, "paddingBottom", {
+      configurable: true,
+      get() {
+        return "6px";
+      },
+    });
+    Object.defineProperty(CSSStyleDeclaration.prototype, "minHeight", {
+      configurable: true,
+      get() {
+        return "36px";
+      },
+    });
+
+    try {
+      const { container, rerender } = renderPanel({
+        beginnerMode: false,
+        expertCreateUiEligible: true,
+        agentEnabled: true,
+        chatModeEnabled: true,
+        agentMessages: [
+          {
+            id: "assistant-1",
+            role: "assistant",
+            content: "Here is a revised prompt.",
+          },
+        ],
+        agentInput: "Seven visual rows",
+        onAgentInputChange: vi.fn(),
+        onAgentSend: vi.fn(),
+      });
+
+      const composerInput = screen.getByRole("textbox");
+      fireEvent.focus(composerInput);
+
+      await waitFor(() => {
+        expect(
+          container.querySelector(".create-expert-chat-composer-overlay-zone")
+        ).not.toHaveClass("is-composer-expanded");
+      });
+
+      scrollHeightPx = 204;
+      rerender(
+        <CreatePropertiesPanel
+          {...baseProps}
+          beginnerMode={false}
+          expertCreateUiEligible
+          agentEnabled
+          chatModeEnabled
+          agentMessages={[
+            {
+              id: "assistant-1",
+              role: "assistant",
+              content: "Here is a revised prompt.",
+            },
+          ]}
+          agentInput="Eight visual rows"
+          onAgentInputChange={vi.fn()}
+          onAgentSend={vi.fn()}
+        />
+      );
+
+      const nextComposerInput = screen.getByRole("textbox");
+      fireEvent.focus(nextComposerInput);
+
+      await waitFor(() => {
+        expect(container.querySelector(".create-expert-chat-composer-overlay-zone")).toHaveClass(
+          "is-composer-expanded"
+        );
+      });
+    } finally {
+      if (scrollHeightDescriptor) {
+        Object.defineProperty(
+          HTMLTextAreaElement.prototype,
+          "scrollHeight",
+          scrollHeightDescriptor
+        );
+      } else {
+        delete (HTMLTextAreaElement.prototype as Partial<HTMLTextAreaElement>).scrollHeight;
+      }
+      if (lineHeightDescriptor) {
+        Object.defineProperty(CSSStyleDeclaration.prototype, "lineHeight", lineHeightDescriptor);
+      }
+      if (paddingTopDescriptor) {
+        Object.defineProperty(CSSStyleDeclaration.prototype, "paddingTop", paddingTopDescriptor);
+      }
+      if (paddingBottomDescriptor) {
+        Object.defineProperty(
+          CSSStyleDeclaration.prototype,
+          "paddingBottom",
+          paddingBottomDescriptor
+        );
+      }
+      if (minHeightDescriptor) {
+        Object.defineProperty(CSSStyleDeclaration.prototype, "minHeight", minHeightDescriptor);
+      }
+    }
   });
 
   it("uses explicit no-history centered layout in expert create mode", () => {

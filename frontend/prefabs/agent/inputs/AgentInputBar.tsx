@@ -12,6 +12,9 @@ type AgentInputBarProps = {
   className?: string;
   onKeyDown?: (event: React.KeyboardEvent<HTMLTextAreaElement>) => void;
   maxHeightPx?: number;
+  collapseToMinHeightWhenBlurred?: boolean;
+  onFocusChange?: (isFocused: boolean) => void;
+  onVisualRowCountChange?: (rowCount: number) => void;
 };
 
 export const AgentInputBar = React.forwardRef<HTMLTextAreaElement, AgentInputBarProps>(
@@ -24,21 +27,56 @@ export const AgentInputBar = React.forwardRef<HTMLTextAreaElement, AgentInputBar
       className = "",
       onKeyDown,
       maxHeightPx = 240,
+      collapseToMinHeightWhenBlurred = false,
+      onFocusChange,
+      onVisualRowCountChange,
     }: AgentInputBarProps,
     forwardedRef
   ) {
     const localRef = useRef<HTMLTextAreaElement | null>(null);
     const resizeRafRef = useRef<number | null>(null);
+    const [isFocused, setIsFocused] = React.useState(false);
 
     useImperativeHandle(forwardedRef, () => localRef.current as HTMLTextAreaElement, []);
 
     const resizeToFit = useCallback(() => {
       const textarea = localRef.current;
       if (!textarea) return;
-      textarea.style.height = "auto";
+      const computedStyle = window.getComputedStyle(textarea);
+      const computedMinHeightPx = Number.parseFloat(computedStyle.minHeight) || 0;
+      const lineHeightPx = Number.parseFloat(computedStyle.lineHeight) || 0;
+      const paddingTopPx = Number.parseFloat(computedStyle.paddingTop) || 0;
+      const paddingBottomPx = Number.parseFloat(computedStyle.paddingBottom) || 0;
+      const contentHeightPx = Math.max(0, textarea.scrollHeight - paddingTopPx - paddingBottomPx);
+      const visualRowCount =
+        lineHeightPx > 0 ? Math.max(1, Math.ceil(contentHeightPx / lineHeightPx)) : 1;
+
+      onVisualRowCountChange?.(visualRowCount);
+
+      const applyHeight = (nextHeightPx: number) => {
+        const currentHeightPx = textarea.getBoundingClientRect().height;
+        if (currentHeightPx > 0 && Math.abs(currentHeightPx - nextHeightPx) > 0.5) {
+          textarea.style.height = `${currentHeightPx}px`;
+          void textarea.offsetHeight;
+        }
+        textarea.style.height = `${nextHeightPx}px`;
+      };
+
+      const isValueEmpty = value.length === 0;
+
+      if (
+        (collapseToMinHeightWhenBlurred && !isFocused) ||
+        (collapseToMinHeightWhenBlurred && isValueEmpty)
+      ) {
+        applyHeight(computedMinHeightPx);
+        textarea.style.overflowY = "hidden";
+        return;
+      }
+
       const nextHeightPx = Math.min(textarea.scrollHeight, maxHeightPx);
-      textarea.style.height = `${nextHeightPx}px`;
-    }, [maxHeightPx]);
+      applyHeight(nextHeightPx);
+      textarea.style.overflowY = textarea.scrollHeight > maxHeightPx ? "auto" : "hidden";
+    }, [collapseToMinHeightWhenBlurred, isFocused, maxHeightPx, onVisualRowCountChange, value]);
 
     const scheduleResizeToFit = useCallback(() => {
       if (resizeRafRef.current != null) {
@@ -95,6 +133,14 @@ export const AgentInputBar = React.forwardRef<HTMLTextAreaElement, AgentInputBar
           value={value}
           onChange={(event) => onChange(event.target.value)}
           onKeyDown={onKeyDown}
+          onFocus={() => {
+            setIsFocused(true);
+            onFocusChange?.(true);
+          }}
+          onBlur={() => {
+            setIsFocused(false);
+            onFocusChange?.(false);
+          }}
           placeholder={placeholder}
           disabled={disabled}
           ref={localRef}

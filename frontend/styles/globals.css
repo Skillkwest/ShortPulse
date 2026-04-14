@@ -28,6 +28,8 @@
 @import "./prefabs-agent-variants.css";
 @import "./ai-studio-properties.css";
 @import "./ai-studio-sound-properties.css";
+@import "./ai-studio-voices-properties.css";
+@import "./ai-studio-voice-changer-properties.css";
 @import "./ai-studio-tts-properties.css";
 @import "./ai-studio-character-controls.css";
 @import "./ai-studio-text-properties.css";

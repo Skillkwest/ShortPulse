@@ -71,6 +71,7 @@ export function ExpertCreatePanelView({
   imageResolutionOptions,
   onImageResolutionChange,
 }: ExpertCreatePanelViewProps) {
+  const [agentInputVisualRowCount, setAgentInputVisualRowCount] = React.useState(1);
   const costValue = costCredits != null ? costCredits : "—";
   const modelLogoWidth = useUnoptimizedModelLogo ? 50 : 74;
   const modelLogoHeight = useUnoptimizedModelLogo ? 12 : 18;
@@ -80,124 +81,130 @@ export function ExpertCreatePanelView({
     ...promptStepProps,
     hideEmptyAgentChatState: true,
     emptyAgentChatSpacerClassName: hasChatHistory ? "" : "create-expert-chat-spacer",
+    onAgentInputVisualRowCountChange: setAgentInputVisualRowCount,
   };
+  const shouldHideReadyTitle = agentInputVisualRowCount >= 8;
   const promptAndControls = (
     <>
       {!hasChatHistory ? (
-        <p className="create-expert-ready-text">What do you want to make?</p>
+        <p className={`create-expert-ready-text ${shouldHideReadyTitle ? "is-hidden" : ""}`.trim()}>
+          What do you want to make?
+        </p>
       ) : null}
-      <PromptStep {...promptStepLayoutProps} />
-      <div className="create-expert-secondary-row create-expert-controls-row">
-        <div className="create-expert-controls">
-          <div
-            className={`create-expert-control create-expert-character-mode-control ${
-              characterModeEnabled ? "is-character-mode-on" : "is-character-mode-off"
-            }`}
-          >
-            <div className="create-expert-character-mode-meta">
-              <p className="create-expert-character-mode-title">Character</p>
+      <div className="create-expert-bottom-block">
+        <PromptStep {...promptStepLayoutProps} />
+        <div className="create-expert-secondary-row create-expert-controls-row">
+          <div className="create-expert-controls">
+            <div
+              className={`create-expert-control create-expert-character-mode-control ${
+                characterModeEnabled ? "is-character-mode-on" : "is-character-mode-off"
+              }`}
+            >
+              <div className="create-expert-character-mode-meta">
+                <p className="create-expert-character-mode-title">Character</p>
+                <button
+                  type="button"
+                  className={`audio-toggle ai-character-mode-toggle create-expert-toggle-control ${characterModeEnabled ? "is-active" : ""}`}
+                  aria-pressed={characterModeEnabled}
+                  aria-label={
+                    characterModeEnabled ? "Disable character mode" : "Enable character mode"
+                  }
+                  onClick={onCharacterModeEnabledToggle}
+                >
+                  <span className="audio-toggle-track" aria-hidden="true">
+                    <span className="audio-toggle-dot" />
+                  </span>
+                </button>
+              </div>
+              {characterModeEnabled ? (
+                <button
+                  type="button"
+                  className={`model-picker-btn create-expert-picker-control create-expert-character-picker-trigger ${
+                    isCharacterSelectionEmpty ? "is-empty" : ""
+                  } ${isCharacterPickerOpen ? "is-open" : ""}`}
+                  aria-haspopup="dialog"
+                  aria-expanded={isCharacterPickerOpen}
+                  aria-label="Open character picker"
+                  disabled={characterSelectDisabled}
+                  onClick={onCharacterPickerOpen}
+                >
+                  {selectedCharacterProfileImageUrl ? (
+                    <Image
+                      src={selectedCharacterProfileImageUrl}
+                      alt={`${selectedCharacterName} profile`}
+                      className="ai-character-picker-trigger-avatar"
+                      width={20}
+                      height={20}
+                      unoptimized
+                      onError={onSelectedCharacterAvatarError}
+                      onLoad={onSelectedCharacterAvatarLoad}
+                    />
+                  ) : selectedCharacterInitials ? (
+                    <span className="ai-character-picker-trigger-avatar ai-character-picker-trigger-avatar--fallback">
+                      {selectedCharacterInitials}
+                    </span>
+                  ) : null}
+                  <span className="model-picker-name">{selectedCharacterName}</span>
+                </button>
+              ) : null}
+            </div>
+            <div className="create-expert-control create-expert-model-control">
+              <span className="create-expert-control-label">Model</span>
               <button
                 type="button"
-                className={`audio-toggle ai-character-mode-toggle create-expert-toggle-control ${characterModeEnabled ? "is-active" : ""}`}
-                aria-pressed={characterModeEnabled}
-                aria-label={
-                  characterModeEnabled ? "Disable character mode" : "Enable character mode"
-                }
-                onClick={onCharacterModeEnabledToggle}
+                className={`model-picker-btn create-expert-picker-control create-expert-model-picker-trigger ${
+                  isModelSelectionEmpty ? "is-empty" : ""
+                } ${isCreateModelPickerOpen ? "is-open" : ""}`}
+                data-model-anchor="create-model"
+                aria-label="Open model picker"
+                onClick={onCreateModelOpen}
               >
-                <span className="audio-toggle-track" aria-hidden="true">
-                  <span className="audio-toggle-dot" />
-                </span>
+                {effectiveModelLogoSrc ? (
+                  <Image
+                    className="model-chip-logo-img"
+                    src={effectiveModelLogoSrc}
+                    alt=""
+                    aria-hidden
+                    width={modelLogoWidth}
+                    height={modelLogoHeight}
+                    unoptimized={useUnoptimizedModelLogo}
+                  />
+                ) : null}
+                <span className="model-picker-name">{effectiveModelLabel}</span>
               </button>
             </div>
-            {characterModeEnabled ? (
-              <button
-                type="button"
-                className={`model-picker-btn create-expert-picker-control create-expert-character-picker-trigger ${
-                  isCharacterSelectionEmpty ? "is-empty" : ""
-                } ${isCharacterPickerOpen ? "is-open" : ""}`}
-                aria-haspopup="dialog"
-                aria-expanded={isCharacterPickerOpen}
-                aria-label="Open character picker"
-                disabled={characterSelectDisabled}
-                onClick={onCharacterPickerOpen}
-              >
-                {selectedCharacterProfileImageUrl ? (
-                  <Image
-                    src={selectedCharacterProfileImageUrl}
-                    alt={`${selectedCharacterName} profile`}
-                    className="ai-character-picker-trigger-avatar"
-                    width={20}
-                    height={20}
-                    unoptimized
-                    onError={onSelectedCharacterAvatarError}
-                    onLoad={onSelectedCharacterAvatarLoad}
-                  />
-                ) : selectedCharacterInitials ? (
-                  <span className="ai-character-picker-trigger-avatar ai-character-picker-trigger-avatar--fallback">
-                    {selectedCharacterInitials}
-                  </span>
-                ) : null}
-                <span className="model-picker-name">{selectedCharacterName}</span>
-              </button>
-            ) : null}
-          </div>
-          <div className="create-expert-control create-expert-model-control">
-            <span className="create-expert-control-label">Model</span>
-            <button
-              type="button"
-              className={`model-picker-btn create-expert-picker-control create-expert-model-picker-trigger ${
-                isModelSelectionEmpty ? "is-empty" : ""
-              } ${isCreateModelPickerOpen ? "is-open" : ""}`}
-              data-model-anchor="create-model"
-              aria-label="Open model picker"
-              onClick={onCreateModelOpen}
-            >
-              {effectiveModelLogoSrc ? (
-                <Image
-                  className="model-chip-logo-img"
-                  src={effectiveModelLogoSrc}
-                  alt=""
-                  aria-hidden
-                  width={modelLogoWidth}
-                  height={modelLogoHeight}
-                  unoptimized={useUnoptimizedModelLogo}
-                />
-              ) : null}
-              <span className="model-picker-name">{effectiveModelLabel}</span>
-            </button>
-          </div>
-          <div className="create-expert-control create-expert-aspect-control">
-            <span className="create-expert-control-label">Aspect</span>
-            <AspectDropdown
-              aspect={aspect}
-              onSelect={onAspectChange}
-              options={aspectOptionsForModel}
-            />
-          </div>
-          {shouldShowImageResolutionCard ? (
-            <div className="create-expert-control create-expert-resolution-control">
-              <span className="create-expert-control-label">Resolution</span>
-              <ResolutionDropdown
-                value={imageResolutionValue}
-                options={imageResolutionOptions}
-                onSelect={onImageResolutionChange}
+            <div className="create-expert-control create-expert-aspect-control">
+              <span className="create-expert-control-label">Aspect</span>
+              <AspectDropdown
+                aspect={aspect}
+                onSelect={onAspectChange}
+                options={aspectOptionsForModel}
               />
             </div>
-          ) : null}
+            {shouldShowImageResolutionCard ? (
+              <div className="create-expert-control create-expert-resolution-control">
+                <span className="create-expert-control-label">Resolution</span>
+                <ResolutionDropdown
+                  value={imageResolutionValue}
+                  options={imageResolutionOptions}
+                  onSelect={onImageResolutionChange}
+                />
+              </div>
+            ) : null}
+          </div>
         </div>
-      </div>
-      <div className="create-expert-secondary-row create-expert-generate-row">
-        <div className="create-expert-inline-generate">
-          <AgentGenerateButton
-            onClick={onGenerate}
-            disabled={isGenerateDisabled || isPromptGenerating}
-            isBusy={isPromptGenerating}
-            cost={costValue}
-          />
-          {isGenerateDisabled && inlineGuardrailReason ? (
-            <div className="inline-warning-hint">{inlineGuardrailReason}</div>
-          ) : null}
+        <div className="create-expert-secondary-row create-expert-generate-row">
+          <div className="create-expert-inline-generate">
+            <AgentGenerateButton
+              onClick={onGenerate}
+              disabled={isGenerateDisabled || isPromptGenerating}
+              isBusy={isPromptGenerating}
+              cost={costValue}
+            />
+            {isGenerateDisabled && inlineGuardrailReason ? (
+              <div className="inline-warning-hint">{inlineGuardrailReason}</div>
+            ) : null}
+          </div>
         </div>
       </div>
     </>

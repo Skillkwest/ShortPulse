@@ -1,6 +1,10 @@
+/**
+ * General history arbiter for Expert Edit.
+ * Coordinates transform history with the dedicated markup and inpaint history domains.
+ */
 import React from "react";
 
-import { areInpaintMaskSnapshotsEqual, type InpaintMaskSnapshot } from "./useInpaintMaskController";
+import type { InpaintMaskSnapshot } from "./useInpaintMaskController";
 import {
   areLayerTransformsEqual,
   areTransformHistoryEntriesEqual,
@@ -9,17 +13,12 @@ import {
   type TransformHistoryEntry,
   type TransformHistoryState,
 } from "./expertEditLayerTransformUtils";
-import {
-  areMarkupStrokeSnapshotsEqual,
-  cloneInpaintHistoryState,
-  cloneInpaintMaskSnapshot,
-  cloneMarkupHistoryState,
-  cloneMarkupStrokesSnapshot,
-} from "./expertEditSessionState";
 import { MARKUP_VIEWPORT_DEFAULT_SCALE, MARKUP_VIEWPORT_EPSILON } from "./expertEditViewportUtils";
 import type { InpaintHistoryState, MarkupHistoryState } from "./expertEditPanelViewContract";
 import type { ExpertEditLayer } from "./expertEditLayerSessionUtils";
 import type { MarkupStroke } from "./markupStrokeController";
+import { useExpertEditInpaintHistory } from "./useExpertEditInpaintHistory";
+import { useExpertEditMarkupHistory } from "./useExpertEditMarkupHistory";
 
 type UseExpertEditStageHistoryArgs = {
   initialMarkupHistoryState: MarkupHistoryState;
@@ -44,7 +43,7 @@ type UseExpertEditStageHistoryArgs = {
   invertSelectedLayerMask: () => void;
   clearAllInpaintMasks: () => void;
   isInpaintToolSelected: boolean;
-  isVideoToolSelected: boolean;
+  isMarkupToolSelected: boolean;
   queuePendingHistoryApplyEntry: (entry: TransformHistoryEntry | null) => void;
   transformHistoryState: TransformHistoryState;
   setTransformHistoryState: React.Dispatch<React.SetStateAction<TransformHistoryState>>;
@@ -73,173 +72,54 @@ export function useExpertEditStageHistory({
   invertSelectedLayerMask,
   clearAllInpaintMasks,
   isInpaintToolSelected,
-  isVideoToolSelected,
+  isMarkupToolSelected,
   queuePendingHistoryApplyEntry,
   transformHistoryState,
   setTransformHistoryState,
   commitTransformHistoryTransition,
 }: UseExpertEditStageHistoryArgs) {
-  const markupGestureBaselineRef = React.useRef<MarkupStroke[] | null>(null);
-  const inpaintGestureBaselineRef = React.useRef<InpaintMaskSnapshot | null>(null);
-  const pendingMarkupHistoryApplyRef = React.useRef<MarkupStroke[] | null>(null);
-  const pendingInpaintHistoryApplyRef = React.useRef<InpaintMaskSnapshot | null>(null);
-  const inpaintSessionRestorePendingRef = React.useRef(
-    initialInpaintPresentSnapshot.layers.length > 0
-  );
+  const {
+    canRedoInpaintHistory,
+    canUndoInpaintHistory,
+    clearAllInpaintMasksWithHistory,
+    clearInpaintHistoryEphemera,
+    clearInpaintSelectionWithHistory,
+    beginInpaintGestureHistory,
+    finalizeInpaintGestureHistory,
+    handleRedoInpaintAction,
+    handleUndoInpaintAction,
+    inpaintHistoryState,
+    invertInpaintSelectionWithHistory,
+  } = useExpertEditInpaintHistory({
+    initialInpaintHistoryState,
+    initialInpaintPresentSnapshot,
+    inpaintLayerSources,
+    captureInpaintMaskSnapshot,
+    restoreInpaintMaskSnapshot,
+    clearSelectedLayerMask,
+    invertSelectedLayerMask,
+    clearAllInpaintMasks,
+  });
 
-  const [markupHistoryState, setMarkupHistoryState] = React.useState<MarkupHistoryState>(() =>
-    cloneMarkupHistoryState(initialMarkupHistoryState)
-  );
-  const [inpaintHistoryState, setInpaintHistoryState] = React.useState<InpaintHistoryState>(() =>
-    cloneInpaintHistoryState(initialInpaintHistoryState)
-  );
+  const {
+    canRedoMarkupHistory,
+    canUndoMarkupHistory,
+    clearMarkupHistoryEphemera,
+    clearMarkupStrokesWithHistory,
+    beginMarkupGestureHistory,
+    finalizeMarkupGestureHistory,
+    handleRedoMarkupAction,
+    handleUndoMarkupAction,
+    markupHistoryState,
+  } = useExpertEditMarkupHistory({
+    initialMarkupHistoryState,
+    markupStrokes,
+    setMarkupStrokes,
+    hasPrimaryCompositePreview,
+  });
 
   const canUndoTransformHistory = transformHistoryState.past.length > 0;
   const canRedoTransformHistory = transformHistoryState.future.length > 0;
-  const canUndoMarkupHistory = markupHistoryState.past.length > 0;
-  const canRedoMarkupHistory = markupHistoryState.future.length > 0;
-  const canUndoInpaintHistory = inpaintHistoryState.past.length > 0;
-  const canRedoInpaintHistory = inpaintHistoryState.future.length > 0;
-
-  React.useEffect(() => {
-    if (hasPrimaryCompositePreview || markupStrokes.length <= 0) return;
-    setMarkupStrokes([]);
-    markupGestureBaselineRef.current = null;
-    setMarkupHistoryState({
-      past: [],
-      present: [],
-      future: [],
-    });
-  }, [hasPrimaryCompositePreview, markupStrokes.length, setMarkupStrokes]);
-
-  React.useEffect(() => {
-    if (!inpaintSessionRestorePendingRef.current) return;
-    restoreInpaintMaskSnapshot(cloneInpaintMaskSnapshot(initialInpaintPresentSnapshot));
-    inpaintSessionRestorePendingRef.current = false;
-  }, [initialInpaintPresentSnapshot, restoreInpaintMaskSnapshot]);
-
-  React.useEffect(() => {
-    if (inpaintSessionRestorePendingRef.current) return;
-    const snapshot = captureInpaintMaskSnapshot();
-    setInpaintHistoryState((previousHistory) =>
-      areInpaintMaskSnapshotsEqual(previousHistory.present, snapshot)
-        ? previousHistory
-        : {
-            past: [],
-            present: snapshot,
-            future: [],
-          }
-    );
-  }, [captureInpaintMaskSnapshot, inpaintLayerSources]);
-
-  React.useEffect(() => {
-    const pendingEntry = pendingMarkupHistoryApplyRef.current;
-    if (!pendingEntry) return;
-    pendingMarkupHistoryApplyRef.current = null;
-    setMarkupStrokes(cloneMarkupStrokesSnapshot(pendingEntry));
-  }, [markupHistoryState, setMarkupStrokes]);
-
-  React.useEffect(() => {
-    const pendingEntry = pendingInpaintHistoryApplyRef.current;
-    if (!pendingEntry) return;
-    pendingInpaintHistoryApplyRef.current = null;
-    restoreInpaintMaskSnapshot(pendingEntry);
-  }, [inpaintHistoryState, restoreInpaintMaskSnapshot]);
-
-  const commitMarkupHistoryTransition = React.useCallback(
-    (nextEntry: MarkupStroke[], baselineEntry?: MarkupStroke[] | null) => {
-      setMarkupHistoryState((previousHistory) => {
-        const previousEntry = baselineEntry ?? previousHistory.present;
-        if (areMarkupStrokeSnapshotsEqual(previousEntry, nextEntry)) {
-          return previousHistory;
-        }
-        const nextPast = [...previousHistory.past, previousEntry];
-        return {
-          past: nextPast,
-          present: nextEntry,
-          future: [],
-        };
-      });
-    },
-    []
-  );
-
-  const commitInpaintHistoryTransition = React.useCallback(
-    (nextEntry: InpaintMaskSnapshot, baselineEntry?: InpaintMaskSnapshot | null) => {
-      setInpaintHistoryState((previousHistory) => {
-        const previousEntry = baselineEntry ?? previousHistory.present;
-        if (areInpaintMaskSnapshotsEqual(previousEntry, nextEntry)) {
-          return previousHistory;
-        }
-        const nextPast = [...previousHistory.past, previousEntry];
-        return {
-          past: nextPast,
-          present: nextEntry,
-          future: [],
-        };
-      });
-    },
-    []
-  );
-
-  const beginInpaintGestureHistory = React.useCallback(() => {
-    inpaintGestureBaselineRef.current = captureInpaintMaskSnapshot();
-  }, [captureInpaintMaskSnapshot]);
-
-  const finalizeInpaintGestureHistory = React.useCallback(() => {
-    const baselineEntry = inpaintGestureBaselineRef.current;
-    if (!baselineEntry) return;
-    inpaintGestureBaselineRef.current = null;
-    const nextEntry = captureInpaintMaskSnapshot();
-    commitInpaintHistoryTransition(nextEntry, baselineEntry);
-  }, [captureInpaintMaskSnapshot, commitInpaintHistoryTransition]);
-
-  const clearInpaintSelectionWithHistory = React.useCallback(() => {
-    const baselineEntry = captureInpaintMaskSnapshot();
-    clearSelectedLayerMask();
-    const nextEntry = captureInpaintMaskSnapshot();
-    commitInpaintHistoryTransition(nextEntry, baselineEntry);
-  }, [captureInpaintMaskSnapshot, clearSelectedLayerMask, commitInpaintHistoryTransition]);
-
-  const invertInpaintSelectionWithHistory = React.useCallback(() => {
-    const baselineEntry = captureInpaintMaskSnapshot();
-    invertSelectedLayerMask();
-    const nextEntry = captureInpaintMaskSnapshot();
-    commitInpaintHistoryTransition(nextEntry, baselineEntry);
-  }, [captureInpaintMaskSnapshot, commitInpaintHistoryTransition, invertSelectedLayerMask]);
-
-  const clearAllInpaintMasksWithHistory = React.useCallback(() => {
-    const baselineEntry = captureInpaintMaskSnapshot();
-    clearAllInpaintMasks();
-    const nextEntry = captureInpaintMaskSnapshot();
-    commitInpaintHistoryTransition(nextEntry, baselineEntry);
-  }, [captureInpaintMaskSnapshot, clearAllInpaintMasks, commitInpaintHistoryTransition]);
-
-  const beginMarkupGestureHistory = React.useCallback(() => {
-    if (markupGestureBaselineRef.current) return;
-    markupGestureBaselineRef.current = cloneMarkupStrokesSnapshot(markupStrokes);
-  }, [markupStrokes]);
-
-  const finalizeMarkupGestureHistory = React.useCallback(() => {
-    const baselineEntry = markupGestureBaselineRef.current;
-    if (!baselineEntry) return;
-    markupGestureBaselineRef.current = null;
-    const commit = () => {
-      const nextEntry = cloneMarkupStrokesSnapshot(markupStrokes);
-      commitMarkupHistoryTransition(nextEntry, baselineEntry);
-    };
-    if (typeof window === "undefined") {
-      commit();
-      return;
-    }
-    window.requestAnimationFrame(commit);
-  }, [commitMarkupHistoryTransition, markupStrokes]);
-
-  const clearMarkupStrokesWithHistory = React.useCallback(() => {
-    const baselineEntry = cloneMarkupStrokesSnapshot(markupStrokes);
-    setMarkupStrokes([]);
-    commitMarkupHistoryTransition([], baselineEntry);
-  }, [commitMarkupHistoryTransition, markupStrokes, setMarkupStrokes]);
 
   const handleUndoMoveAction = React.useCallback(() => {
     setTransformHistoryState((previousHistory) => {
@@ -269,62 +149,6 @@ export function useExpertEditStageHistory({
     });
   }, [queuePendingHistoryApplyEntry, setTransformHistoryState]);
 
-  const handleUndoMarkupAction = React.useCallback(() => {
-    setMarkupHistoryState((previousHistory) => {
-      if (!previousHistory.past.length) return previousHistory;
-      const targetEntry = previousHistory.past[previousHistory.past.length - 1] ?? null;
-      if (!targetEntry) return previousHistory;
-      pendingMarkupHistoryApplyRef.current = cloneMarkupStrokesSnapshot(targetEntry);
-      return {
-        past: previousHistory.past.slice(0, -1),
-        present: targetEntry,
-        future: [previousHistory.present, ...previousHistory.future],
-      };
-    });
-  }, []);
-
-  const handleRedoMarkupAction = React.useCallback(() => {
-    setMarkupHistoryState((previousHistory) => {
-      if (!previousHistory.future.length) return previousHistory;
-      const targetEntry = previousHistory.future[0] ?? null;
-      if (!targetEntry) return previousHistory;
-      pendingMarkupHistoryApplyRef.current = cloneMarkupStrokesSnapshot(targetEntry);
-      return {
-        past: [...previousHistory.past, previousHistory.present],
-        present: targetEntry,
-        future: previousHistory.future.slice(1),
-      };
-    });
-  }, []);
-
-  const handleUndoInpaintAction = React.useCallback(() => {
-    setInpaintHistoryState((previousHistory) => {
-      if (!previousHistory.past.length) return previousHistory;
-      const targetEntry = previousHistory.past[previousHistory.past.length - 1] ?? null;
-      if (!targetEntry) return previousHistory;
-      pendingInpaintHistoryApplyRef.current = targetEntry;
-      return {
-        past: previousHistory.past.slice(0, -1),
-        present: targetEntry,
-        future: [previousHistory.present, ...previousHistory.future],
-      };
-    });
-  }, []);
-
-  const handleRedoInpaintAction = React.useCallback(() => {
-    setInpaintHistoryState((previousHistory) => {
-      if (!previousHistory.future.length) return previousHistory;
-      const targetEntry = previousHistory.future[0] ?? null;
-      if (!targetEntry) return previousHistory;
-      pendingInpaintHistoryApplyRef.current = targetEntry;
-      return {
-        past: [...previousHistory.past, previousHistory.present],
-        present: targetEntry,
-        future: previousHistory.future.slice(1),
-      };
-    });
-  }, []);
-
   const canUndoGeneralAction =
     canUndoTransformHistory || canUndoMarkupHistory || canUndoInpaintHistory;
   const canRedoGeneralAction =
@@ -335,7 +159,7 @@ export function useExpertEditStageHistory({
       handleUndoInpaintAction();
       return;
     }
-    if (isVideoToolSelected && canUndoMarkupHistory) {
+    if (isMarkupToolSelected && canUndoMarkupHistory) {
       handleUndoMarkupAction();
       return;
     }
@@ -358,7 +182,7 @@ export function useExpertEditStageHistory({
     handleUndoMarkupAction,
     handleUndoMoveAction,
     isInpaintToolSelected,
-    isVideoToolSelected,
+    isMarkupToolSelected,
   ]);
 
   const handleRedoGeneralAction = React.useCallback(() => {
@@ -366,7 +190,7 @@ export function useExpertEditStageHistory({
       handleRedoInpaintAction();
       return;
     }
-    if (isVideoToolSelected && canRedoMarkupHistory) {
+    if (isMarkupToolSelected && canRedoMarkupHistory) {
       handleRedoMarkupAction();
       return;
     }
@@ -389,7 +213,7 @@ export function useExpertEditStageHistory({
     handleRedoMarkupAction,
     handleRedoMoveAction,
     isInpaintToolSelected,
-    isVideoToolSelected,
+    isMarkupToolSelected,
   ]);
 
   const resetAllMoveToolTransforms = React.useCallback(() => {
@@ -451,12 +275,9 @@ export function useExpertEditStageHistory({
     !hasInpaintMaskContent;
 
   const clearHistoryEphemera = React.useCallback(() => {
-    pendingMarkupHistoryApplyRef.current = null;
-    pendingInpaintHistoryApplyRef.current = null;
-    markupGestureBaselineRef.current = null;
-    inpaintGestureBaselineRef.current = null;
-    inpaintSessionRestorePendingRef.current = false;
-  }, []);
+    clearMarkupHistoryEphemera();
+    clearInpaintHistoryEphemera();
+  }, [clearInpaintHistoryEphemera, clearMarkupHistoryEphemera]);
 
   return {
     markupHistoryState,

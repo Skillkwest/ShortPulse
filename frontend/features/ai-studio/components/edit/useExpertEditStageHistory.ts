@@ -19,6 +19,7 @@ import type { ExpertEditLayer } from "./expertEditLayerSessionUtils";
 import type { MarkupStroke } from "./markupStrokeController";
 import { useExpertEditInpaintHistory } from "./useExpertEditInpaintHistory";
 import { useExpertEditMarkupHistory } from "./useExpertEditMarkupHistory";
+import { useExpertEditTransformHistory } from "./useExpertEditTransformHistory";
 
 type UseExpertEditStageHistoryArgs = {
   initialMarkupHistoryState: MarkupHistoryState;
@@ -118,36 +119,22 @@ export function useExpertEditStageHistory({
     hasPrimaryCompositePreview,
   });
 
-  const canUndoTransformHistory = transformHistoryState.past.length > 0;
-  const canRedoTransformHistory = transformHistoryState.future.length > 0;
-
-  const handleUndoMoveAction = React.useCallback(() => {
-    setTransformHistoryState((previousHistory) => {
-      if (!previousHistory.past.length) return previousHistory;
-      const targetEntry = previousHistory.past[previousHistory.past.length - 1] ?? null;
-      if (!targetEntry) return previousHistory;
-      queuePendingHistoryApplyEntry(targetEntry);
-      return {
-        past: previousHistory.past.slice(0, -1),
-        present: targetEntry,
-        future: [previousHistory.present, ...previousHistory.future],
-      };
-    });
-  }, [queuePendingHistoryApplyEntry, setTransformHistoryState]);
-
-  const handleRedoMoveAction = React.useCallback(() => {
-    setTransformHistoryState((previousHistory) => {
-      if (!previousHistory.future.length) return previousHistory;
-      const targetEntry = previousHistory.future[0] ?? null;
-      if (!targetEntry) return previousHistory;
-      queuePendingHistoryApplyEntry(targetEntry);
-      return {
-        past: [...previousHistory.past, previousHistory.present],
-        present: targetEntry,
-        future: previousHistory.future.slice(1),
-      };
-    });
-  }, [queuePendingHistoryApplyEntry, setTransformHistoryState]);
+  const {
+    canRedoTransformHistory,
+    canUndoTransformHistory,
+    handleRedoMoveAction,
+    handleUndoMoveAction,
+    isMoveTransformCentered,
+    resetAllMoveToolTransforms,
+  } = useExpertEditTransformHistory({
+    layers,
+    selectedLayer,
+    setLayers,
+    queuePendingHistoryApplyEntry,
+    transformHistoryState,
+    setTransformHistoryState,
+    commitTransformHistoryTransition,
+  });
 
   const canUndoGeneralAction =
     canUndoTransformHistory || canUndoMarkupHistory || canUndoInpaintHistory;
@@ -216,22 +203,6 @@ export function useExpertEditStageHistory({
     isMarkupToolSelected,
   ]);
 
-  const resetAllMoveToolTransforms = React.useCallback(() => {
-    const baselineEntry = buildTransformHistoryEntry(layers);
-    const nextLayers = layers.map((layer) =>
-      areLayerTransformsEqual(layer.transform, defaultLayerTransform())
-        ? layer
-        : {
-            ...layer,
-            transform: defaultLayerTransform(),
-          }
-    );
-    const nextEntry = buildTransformHistoryEntry(nextLayers);
-    if (areTransformHistoryEntriesEqual(baselineEntry, nextEntry)) return;
-    setLayers(nextLayers);
-    commitTransformHistoryTransition(nextEntry, baselineEntry);
-  }, [commitTransformHistoryTransition, layers, setLayers]);
-
   const handleResetGeneralAction = React.useCallback(() => {
     resetAllMoveToolTransforms();
     resetMarkupViewport();
@@ -248,11 +219,6 @@ export function useExpertEditStageHistory({
     clearAllInpaintMasksWithHistory();
     clearMarkupStrokesWithHistory();
   }, [clearAllInpaintMasksWithHistory, clearMarkupStrokesWithHistory]);
-
-  const isMoveTransformCentered = React.useMemo(() => {
-    if (!selectedLayer) return true;
-    return areLayerTransformsEqual(selectedLayer.transform, defaultLayerTransform());
-  }, [selectedLayer]);
 
   const isMarkupViewportAtRest = React.useMemo(
     () =>

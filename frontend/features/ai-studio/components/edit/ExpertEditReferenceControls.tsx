@@ -12,7 +12,9 @@ type ExpertEditSecondaryReferencesProps = {
   inputRefs: readonly React.RefObject<HTMLInputElement | null>[];
   extraDragActive: readonly boolean[];
   isPromptTokenPickerOpen: boolean;
+  highlightPromptPickerSecondaryTargets?: boolean;
   promptTokenPickerSelectedSlotIndex: number | "main" | null;
+  allowPromptTokenSecondaryDrag?: boolean;
   onSecondaryDragStart: (event: React.DragEvent<HTMLDivElement>, index: number) => void;
   onSecondaryDrop: (index: number) => React.DragEventHandler<HTMLDivElement>;
   onSecondaryDragEnter: (index: number) => React.DragEventHandler<HTMLDivElement>;
@@ -30,7 +32,9 @@ export function ExpertEditSecondaryReferences({
   inputRefs,
   extraDragActive,
   isPromptTokenPickerOpen,
+  highlightPromptPickerSecondaryTargets = true,
   promptTokenPickerSelectedSlotIndex,
+  allowPromptTokenSecondaryDrag = true,
   onSecondaryDragStart,
   onSecondaryDrop,
   onSecondaryDragEnter,
@@ -54,12 +58,16 @@ export function ExpertEditSecondaryReferences({
                 <div
                   className={`reference-dropzone extra ${previewUrl ? "has-preview" : ""} ${
                     extraDragActive[index] ? "is-dragging" : ""
-                  } ${isPromptTokenPickerOpen && previewUrl ? "is-picker-target" : ""} ${
+                  } ${
+                    highlightPromptPickerSecondaryTargets && isPromptTokenPickerOpen && previewUrl
+                      ? "is-picker-target"
+                      : ""
+                  } ${
                     isPromptTokenPickerOpen && promptTokenPickerSelectedSlotIndex === index
                       ? "is-picker-selected"
                       : ""
                   }`.trim()}
-                  draggable={Boolean(previewUrl)}
+                  draggable={Boolean(previewUrl) && allowPromptTokenSecondaryDrag}
                   onDragStart={(event) => onSecondaryDragStart(event, index)}
                   onDrop={onSecondaryDrop(index)}
                   onDragEnter={onSecondaryDragEnter(index)}

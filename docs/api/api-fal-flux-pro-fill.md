@@ -9,7 +9,12 @@ ShortPulse catalog model id: `fal-ai/flux-pro/v1/fill`.
 
 ## Submit (Inpaint)
 ### Proxy endpoint
-`POST /api/fal/flux-pro-fill-submit`
+Active client path:
+- `POST /api/fal/image-submit` with `modelId: "fal-ai/flux-pro/v1/fill"`
+
+Legacy dedicated submit route:
+- `POST /api/fal/flux-pro-fill-submit`
+- retained for direct proxy coverage/tests, but not the primary client submit path.
 
 ### Fal queue
 `POST https://queue.fal.run/fal-ai/flux-pro/v1/fill`
@@ -36,7 +41,10 @@ Example payload:
 - `enhance_prompt` (boolean, optional)
 
 ## Status and result
-- Poll `POST /api/fal/flux-pro-fill-status` with `{ "requestId": "..." }`.
+- Active client polling path:
+  - `POST /api/fal/image-status` with `{ "modelId": "fal-ai/flux-pro/v1/fill", "requestId": "..." }`
+- Legacy dedicated status route:
+  - `POST /api/fal/flux-pro-fill-status`
 - Proxy checks configured status base URLs and fetches result on completion.
 - Catalog fallback bases include both:
   - `https://queue.fal.run/fal-ai/flux-pro/requests`
@@ -48,6 +56,7 @@ Example payload:
 ## ShortPulse defaults and wiring notes
 - Used as hidden internal inpaint model (not exposed in picker).
 - Expert Edit inpaint flow submits flattened base image + exported mask window.
+- Expert Edit inpaint currently supports only the primary base image plus mask. Secondary prompt-reference images are not transmitted to FLUX Fill.
 - Polling provider token: `fal-flux-pro-fill`.
 
 ## Pricing (ShortPulse)

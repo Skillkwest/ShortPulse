@@ -36,7 +36,8 @@ Purpose: define the complete behavior contract for Expert Edit prompt-reference 
 5. Invalid tokens are highlighted in warning red.
 6. Invalid-token warning feedback is deferred until Generate is attempted.
 7. Generate is blocked when invalid token references exist.
-8. Only secondary references explicitly linked by valid `@img1..@img3` tokens are included in provider `image_urls`; the primary image is always present as the first reference and `@main` resolves to that primary figure.
+8. Standard edit lanes include only secondary references explicitly linked by valid `@img1..@img3` tokens in provider `image_urls`; the primary image is always present as the first reference and `@main` resolves to that primary figure.
+9. Inpaint is an exception: the current FLUX Fill lane supports `@main` only. `@img1`, `@img2`, and `@img3` are invalid in inpaint because FLUX Fill receives only the flattened base image plus mask.
 
 ## Token grammar and validation
 
@@ -44,6 +45,7 @@ Purpose: define the complete behavior contract for Expert Edit prompt-reference 
 | --- | --- | --- |
 | `@main` | Valid when the primary image is available | Valid primary reference token. |
 | `@img1`, `@img2`, `@img3` | Valid only if matching secondary slot is populated | Valid reference token. |
+| `@img1`, `@img2`, `@img3` in inpaint | Invalid for the current FLUX Fill lane | Invalid (`secondary_tokens_disabled`). |
 | `@img` | Missing numeric suffix | Invalid (`missing_index`). |
 | `@img4+` | Out of supported range | Invalid (`out_of_range`). |
 | `@imgN` with empty slot | Slot has no image | Invalid (`empty_slot`). |
@@ -68,6 +70,7 @@ Normalization rules:
    - `Enter` inserts the selected `@main` or `@imgN` token by replacing the typed bare `@` or the current caret/selection when the picker was opened by `Tab`.
    - ordinary typing closes the picker and preserves manual prompt entry.
 8. Opening the picker adds a visible selection outline to the selected tile, including the primary tile.
+9. Inpaint mode limits the picker to `@main` only.
 
 ### Drag-to-insert tokens
 
@@ -81,6 +84,7 @@ Normalization rules:
 4. Token insertion applies spacing-safe insertion:
    - inserts leading/trailing spaces only when needed to avoid merged words.
 5. The anchored picker must reuse the same token insertion path as drag-to-insert so caret placement and spacing stay consistent.
+6. Inpaint mode disables secondary-slot token drag insertion because the current FLUX Fill lane does not transmit secondary reference images.
 
 ## Generate preflight and submit compilation
 
@@ -95,6 +99,10 @@ Normalization rules:
    - continue flatten flow.
    - build `referenceInputs` with flattened primary first and only token-linked secondary slots next.
    - compile provider-facing prompt when token references exist.
+4. Inpaint preflight is narrower:
+   - `@main` remains valid,
+   - `@img1..@img3` are blocked before flatten/submit/debit,
+   - FLUX Fill submits only the prepared base image and prepared mask.
 
 ### Compilation contract
 
@@ -165,7 +173,7 @@ Controller precedence:
 Minimum suite coverage:
 
 1. Token logic unit tests:
-   - valid/invalid detection (`missing_index`, `out_of_range`, `empty_slot`).
+   - valid/invalid detection (`missing_index`, `out_of_range`, `empty_slot`, `secondary_tokens_disabled`).
    - submission prompt compile and figure-map append behavior.
    - drag payload encode/decode helpers.
 2. Expert Edit component tests:
@@ -179,6 +187,8 @@ Minimum suite coverage:
    - picker `Enter` inserts the selected token and closes the picker.
    - ordinary typing after picker open closes the picker and preserves manual text entry.
    - token generate path sends both display/submission prompt overrides.
+   - inpaint picker limits token choices to `@main`.
+   - inpaint generate blocks secondary tokens with the lane-specific error.
 3. Controller/composer tests:
    - prompt override precedence.
    - character-mode precedence compatibility.
@@ -218,3 +228,4 @@ Minimum suite coverage:
    - press `Enter` to insert selected `@main` or `@imgN` token and close the picker.
    - verify Generate blocks on invalid token and succeeds on valid token.
    - verify reference token highlight color and prompt readability are stable.
+   - inpaint mode: verify picker only offers `@main` and `@img1..@img3` are rejected before submit.

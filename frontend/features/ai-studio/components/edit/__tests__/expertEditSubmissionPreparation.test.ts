@@ -117,4 +117,34 @@ describe("prepareExpertEditSubmission", () => {
       },
     });
   });
+
+  it("blocks secondary prompt tokens when secondary references are disabled", () => {
+    analyzeExpertEditPromptTokensMock.mockReturnValue({
+      hasInvalidTokens: true,
+      inlineError:
+        "Inpaint only supports @main. Secondary references are not sent to the inpaint model.",
+      referencedSlotIndexes: [],
+    });
+
+    const result = prepareExpertEditSubmission({
+      promptText: "Use @img1",
+      extraImageUrls: ["https://example.com/ref-1.png", null, null],
+      flattenedPrimaryUrl: "blob:flatten-1",
+      flattenedMarkupReferenceUrl: null,
+      allowSecondaryReferenceTokens: false,
+    });
+
+    expect(analyzeExpertEditPromptTokensMock).toHaveBeenCalledWith(
+      "Use @img1",
+      ["https://example.com/ref-1.png", null, null],
+      { allowSecondaryTokens: false }
+    );
+    expect(result).toEqual({
+      status: "invalid_tokens",
+      message:
+        "Inpaint only supports @main. Secondary references are not sent to the inpaint model.",
+    });
+    expect(buildExpertEditSubmissionReferenceInputsMock).not.toHaveBeenCalled();
+    expect(compileExpertEditSubmissionPromptMock).not.toHaveBeenCalled();
+  });
 });

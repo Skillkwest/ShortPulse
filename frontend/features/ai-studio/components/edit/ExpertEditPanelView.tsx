@@ -3,7 +3,9 @@ import { modelLogos } from "../../constants";
 import { stripEditLabel } from "../../utils/modelLabels";
 import { setExpertEditPromptTokenDragData } from "../../logic/expertEditPromptReferences";
 import {
+  INPAINT_FLUX_FILL_MODEL_ID,
   INPAINT_FLUX_FILL_MODEL_LABEL,
+  MARKUP_NANO_BANANA_PRO_EDIT_MODEL_ID,
   MARKUP_NANO_BANANA_PRO_EDIT_MODEL_LABEL,
   isEditGenerationModeToggleEnabled,
   isMarkupCollapsedOpenModalEnabled,
@@ -338,6 +340,11 @@ export function ExpertEditPanelView({
   const shouldLockMarkupModelPicker = isMarkupSubmitMode && isMarkupModelLockEnabled();
   const shouldOpenMarkupModalFromCollapsedTools = isMarkupCollapsedOpenModalEnabled();
   const isModelPickerLocked = isInpaintSubmitMode || shouldLockMarkupModelPicker;
+  const effectiveSelectorModelId = isInpaintSubmitMode
+    ? INPAINT_FLUX_FILL_MODEL_ID
+    : shouldLockMarkupModelPicker
+      ? MARKUP_NANO_BANANA_PRO_EDIT_MODEL_ID
+      : modelId;
   const effectiveModelPickerLabel = isInpaintSubmitMode
     ? INPAINT_FLUX_FILL_MODEL_LABEL
     : shouldLockMarkupModelPicker
@@ -377,7 +384,7 @@ export function ExpertEditPanelView({
   const { imageResolutionValue, imageResolutionOptions, modelConfig, aspectOptionsForModel } =
     useReferencePropertiesDerivedState({
       variant: "image",
-      modelId,
+      modelId: effectiveSelectorModelId,
       aspectOptions,
       klingMultiPrompts: [],
       klingElements: [],
@@ -436,6 +443,7 @@ export function ExpertEditPanelView({
     promptTextValue,
     extraImageUrls,
     populatedLayerCount,
+    allowSecondaryReferenceTokens: !isInpaintSubmitMode,
     isPromptComposerExpanded,
     onPromptTextChange,
     showStatusToast,
@@ -1231,7 +1239,9 @@ export function ExpertEditPanelView({
                   inputRefs={inputRefs}
                   extraDragActive={extraDragActive}
                   isPromptTokenPickerOpen={promptTokenPickerState.isOpen}
+                  highlightPromptPickerSecondaryTargets={!isInpaintSubmitMode}
                   promptTokenPickerSelectedSlotIndex={promptTokenPickerState.selectedSlotIndex}
+                  allowPromptTokenSecondaryDrag={!isInpaintSubmitMode}
                   onSecondaryDragStart={handleSecondaryPromptTokenDragStart}
                   onSecondaryDrop={handleExtraDrop}
                   onSecondaryDragEnter={handleExtraDragEnter}
@@ -1272,7 +1282,7 @@ export function ExpertEditPanelView({
             isGenerateBusy={isGenerateBusy}
             costCredits={costCredits}
             inlineGuardrailReason={inlineGuardrailReason}
-            modelId={modelId}
+            modelId={effectiveSelectorModelId}
             isModelPickerLocked={isModelPickerLocked}
             isModelModalOpen={isModelModalOpen}
             modelModalAnchor={modelModalAnchor}

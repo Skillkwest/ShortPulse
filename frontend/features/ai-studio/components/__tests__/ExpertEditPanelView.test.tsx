@@ -1074,6 +1074,77 @@ describe("ExpertEditPanelView", () => {
     expect(screen.getByRole("alert")).toHaveTextContent("slot 2");
   });
 
+  it("limits the inpaint prompt token picker to @main only", () => {
+    vi.stubEnv("NEXT_PUBLIC_AI_STUDIO_EDIT_GENERATION_MODE_TOGGLE_ENABLED", "true");
+    const { container, promptInput } = renderControlledPromptPanel({
+      initialPrompt: "Blend scene",
+      extraImageUrls: ["https://example.com/slot-1.png", "https://example.com/slot-2.png", null],
+    });
+
+    uploadPrimaryFile(container, "primary-layer.png");
+    fireEvent.click(screen.getByRole("tab", { name: /^inpaint$/i }));
+    promptInput.focus();
+    promptInput.setSelectionRange(6, 6);
+    fireEvent.keyDown(promptInput, { key: "Tab" });
+
+    const picker = screen.getByRole("group", { name: /reference image picker/i });
+    expect(within(picker).getByLabelText("Primary edit image")).toBeInTheDocument();
+    expect(within(picker).queryByText("Reference 1")).toBeNull();
+    expect(within(picker).queryByText("Reference 2")).toBeNull();
+    expect((screen.getByLabelText("Secondary edit image 1") as HTMLDivElement).draggable).toBe(
+      false
+    );
+  });
+
+  it("blocks inpaint generate when the prompt uses secondary reference tokens", async () => {
+    vi.stubEnv("NEXT_PUBLIC_AI_STUDIO_EDIT_GENERATION_MODE_TOGGLE_ENABLED", "true");
+    const onRegenerateWithReferenceInputs: NonNullable<
+      React.ComponentProps<typeof ExpertEditPanelView>["onRegenerateWithReferenceInputs"]
+    > = vi.fn(async () => {});
+    const { container } = render(
+      <ExpertEditPanelView
+        {...baseProps}
+        referenceText="Use @img1 for clothing."
+        extraImageUrls={["https://example.com/slot-1.png", null, null]}
+        onRegenerateWithReferenceInputs={onRegenerateWithReferenceInputs}
+      />
+    );
+
+    uploadPrimaryFile(container, "layer-1.png");
+    fireEvent.click(screen.getByRole("tab", { name: /^inpaint$/i }));
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /^generate$/i }));
+      await Promise.resolve();
+    });
+
+    expect(onRegenerateWithReferenceInputs).not.toHaveBeenCalled();
+    expect(composePrimaryStageLayersToBlobMock).not.toHaveBeenCalled();
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "Inpaint only supports @main. Secondary references are not sent to the inpaint model."
+    );
+  });
+
+  it("clamps the inpaint resolution selector to the effective FLUX Fill model", () => {
+    vi.stubEnv("NEXT_PUBLIC_AI_STUDIO_EDIT_GENERATION_MODE_TOGGLE_ENABLED", "true");
+    render(
+      <ExpertEditPanelView
+        {...baseProps}
+        modelId="fal-ai/nano-banana-pro/edit"
+        modelLabel="Nano Banana Pro Edit"
+        imageResolution="2K"
+        referenceText="Blend @main scene"
+      />
+    );
+
+    const resolutionTrigger = screen.getByRole("button", { name: "Image resolution" });
+    expect(resolutionTrigger).toHaveTextContent("2K");
+
+    fireEvent.click(screen.getByRole("tab", { name: /^inpaint$/i }));
+
+    expect(resolutionTrigger).toHaveTextContent("Model default");
+  });
+
   it("inserts @img token text at caret when dragging a populated secondary slot into prompt", () => {
     const onPromptTextChange = vi.fn();
     render(

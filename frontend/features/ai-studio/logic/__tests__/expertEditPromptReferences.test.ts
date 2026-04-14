@@ -76,6 +76,19 @@ describe("expertEditPromptReferences", () => {
     expect(emptySlot.inlineError).toMatch(/slot 2/i);
   });
 
+  it("treats secondary image tokens as invalid when secondary tokens are disabled", () => {
+    const analysis = analyzeExpertEditPromptTokens(
+      "Use @main for identity and @img1 for clothing.",
+      ["https://example.com/a.png", null, null],
+      { allowSecondaryTokens: false }
+    );
+
+    expect(analysis.hasTokenReferences).toBe(true);
+    expect(analysis.hasInvalidTokens).toBe(true);
+    expect(analysis.referencedSlotIndexes).toEqual([]);
+    expect(analysis.inlineError).toMatch(/Inpaint only supports @main/i);
+  });
+
   it("builds highlight segments for plain, valid-token, and invalid-token text", () => {
     const analysis = analyzeExpertEditPromptTokens("Blend @img1 then @img4.", [
       "https://example.com/a.png",

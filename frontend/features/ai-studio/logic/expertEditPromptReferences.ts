@@ -12,8 +12,16 @@ const VALID_IMG_TOKEN_REGEX = /^@img([1-3])$/i;
 const MAX_SECONDARY_REFERENCES = 3;
 const MAX_EXPERT_EDIT_REFERENCE_INPUTS = 8;
 
-export type ExpertEditPromptTokenInvalidReason = "missing_index" | "out_of_range" | "empty_slot";
+export type ExpertEditPromptTokenInvalidReason =
+  | "missing_index"
+  | "out_of_range"
+  | "empty_slot"
+  | "secondary_tokens_disabled";
 export type ExpertEditPromptTokenKind = "primary" | "secondary";
+
+export type ExpertEditPromptTokenAnalysisOptions = {
+  allowSecondaryTokens?: boolean;
+};
 
 export type ExpertEditPromptTokenDiagnostic = {
   token: string;
@@ -55,8 +63,14 @@ const normalizeSlotUrl = (value: string | null | undefined): string => {
   return value.trim();
 };
 
-const buildInlineError = (diagnostic: ExpertEditPromptTokenDiagnostic): string | null => {
+const buildInlineError = (
+  diagnostic: ExpertEditPromptTokenDiagnostic,
+  { allowSecondaryTokens = true }: ExpertEditPromptTokenAnalysisOptions = {}
+): string | null => {
   if (diagnostic.isValid) return null;
+  if (!allowSecondaryTokens && diagnostic.invalidReason === "secondary_tokens_disabled") {
+    return "Inpaint only supports @main. Secondary references are not sent to the inpaint model.";
+  }
   if (diagnostic.invalidReason === "missing_index") {
     return "Use @main, @img1, @img2, or @img3 to reference an image.";
   }
@@ -81,8 +95,10 @@ const resolveSlotIndexFromToken = (token: string): number | null => {
 
 export const analyzeExpertEditPromptTokens = (
   prompt: string,
-  secondarySlots: [string | null, string | null, string | null]
+  secondarySlots: [string | null, string | null, string | null],
+  options?: ExpertEditPromptTokenAnalysisOptions
 ): ExpertEditPromptTokenAnalysis => {
+  const { allowSecondaryTokens = true } = options ?? {};
   const diagnostics: ExpertEditPromptTokenDiagnostic[] = [];
   const normalizedPrompt = typeof prompt === "string" ? prompt : "";
   const normalizedSlots = secondarySlots.map((value) => normalizeSlotUrl(value));
@@ -103,6 +119,20 @@ export const analyzeExpertEditPromptTokens = (
         slotIndex: null,
         isValid: true,
         invalidReason: null,
+      });
+      continue;
+    }
+
+    if (!allowSecondaryTokens) {
+      diagnostics.push({
+        token,
+        normalizedToken,
+        start,
+        end,
+        kind: "secondary",
+        slotIndex: resolveSlotIndexFromToken(token),
+        isValid: false,
+        invalidReason: "secondary_tokens_disabled",
       });
       continue;
     }
@@ -178,7 +208,7 @@ export const analyzeExpertEditPromptTokens = (
     hasTokenReferences,
     hasInvalidTokens: Boolean(invalidDiagnostic),
     referencedSlotIndexes,
-    inlineError: invalidDiagnostic ? buildInlineError(invalidDiagnostic) : null,
+    inlineError: invalidDiagnostic ? buildInlineError(invalidDiagnostic, options) : null,
   };
 };
 
@@ -320,9 +350,12 @@ export const compileExpertEditSubmissionPrompt = ({
   displayPrompt,
   secondarySlots,
   referenceInputs,
-}: CompileExpertEditSubmissionPromptInput): CompileExpertEditSubmissionPromptResult => {
+  options,
+}: CompileExpertEditSubmissionPromptInput & {
+  options?: ExpertEditPromptTokenAnalysisOptions;
+}): CompileExpertEditSubmissionPromptResult => {
   const prompt = typeof displayPrompt === "string" ? displayPrompt : "";
-  const analysis = analyzeExpertEditPromptTokens(prompt, secondarySlots);
+  const analysis = analyzeExpertEditPromptTokens(prompt, secondarySlots, options);
   if (!analysis.hasTokenReferences || analysis.hasInvalidTokens) {
     return {
       submissionPrompt: prompt,

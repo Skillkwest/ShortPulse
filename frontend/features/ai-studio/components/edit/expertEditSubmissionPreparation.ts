@@ -32,16 +32,19 @@ export type PrepareExpertEditSubmissionResult =
 export const validateExpertEditSubmissionPrompt = ({
   promptText,
   extraImageUrls,
+  allowSecondaryReferenceTokens = true,
 }: {
   promptText: string;
   extraImageUrls: [string | null, string | null, string | null];
+  allowSecondaryReferenceTokens?: boolean;
 }): ValidateExpertEditSubmissionPromptResult => {
-  const tokenAnalysis = analyzeExpertEditPromptTokens(promptText, extraImageUrls);
+  const tokenAnalysis = analyzeExpertEditPromptTokens(promptText, extraImageUrls, {
+    allowSecondaryTokens: allowSecondaryReferenceTokens,
+  });
   if (tokenAnalysis.hasInvalidTokens) {
     return {
       status: "invalid_tokens",
-      message:
-        tokenAnalysis.inlineError ?? "Use @main, @img1, @img2, or @img3 with populated references.",
+      message: tokenAnalysis.inlineError ?? "Use supported prompt references for this edit mode.",
     };
   }
 
@@ -53,16 +56,21 @@ export const prepareExpertEditSubmission = ({
   extraImageUrls,
   flattenedPrimaryUrl,
   flattenedMarkupReferenceUrl,
+  allowSecondaryReferenceTokens = true,
 }: {
   promptText: string;
   extraImageUrls: [string | null, string | null, string | null];
   flattenedPrimaryUrl: string | null;
   flattenedMarkupReferenceUrl?: string | null;
+  allowSecondaryReferenceTokens?: boolean;
 }): PrepareExpertEditSubmissionResult => {
-  const tokenAnalysis = analyzeExpertEditPromptTokens(promptText, extraImageUrls);
+  const tokenAnalysis = analyzeExpertEditPromptTokens(promptText, extraImageUrls, {
+    allowSecondaryTokens: allowSecondaryReferenceTokens,
+  });
   const validation = validateExpertEditSubmissionPrompt({
     promptText,
     extraImageUrls,
+    allowSecondaryReferenceTokens,
   });
   if (validation.status === "invalid_tokens") {
     return validation;
@@ -78,6 +86,9 @@ export const prepareExpertEditSubmission = ({
     displayPrompt: promptText,
     secondarySlots: extraImageUrls,
     referenceInputs,
+    options: {
+      allowSecondaryTokens: allowSecondaryReferenceTokens,
+    },
   });
 
   return {

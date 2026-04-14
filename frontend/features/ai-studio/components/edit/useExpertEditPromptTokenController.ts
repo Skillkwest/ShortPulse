@@ -29,6 +29,7 @@ type UseExpertEditPromptTokenControllerArgs = {
   promptTextValue: string;
   extraImageUrls: [string | null, string | null, string | null];
   populatedLayerCount: number;
+  allowSecondaryReferenceTokens?: boolean;
   isPromptComposerExpanded: boolean;
   onPromptTextChange: (value: string) => void;
   showStatusToast: (message: string, tone?: "info" | "warning") => void;
@@ -38,6 +39,7 @@ export function useExpertEditPromptTokenController({
   promptTextValue,
   extraImageUrls,
   populatedLayerCount,
+  allowSecondaryReferenceTokens = true,
   isPromptComposerExpanded,
   onPromptTextChange,
   showStatusToast,
@@ -68,15 +70,20 @@ export function useExpertEditPromptTokenController({
   );
 
   const promptTokenAnalysis = React.useMemo(
-    () => analyzeExpertEditPromptTokens(promptTextValue, extraImageUrls),
-    [extraImageUrls, promptTextValue]
+    () =>
+      analyzeExpertEditPromptTokens(promptTextValue, extraImageUrls, {
+        allowSecondaryTokens: allowSecondaryReferenceTokens,
+      }),
+    [allowSecondaryReferenceTokens, extraImageUrls, promptTextValue]
   );
   const promptTokenPickerOptions = React.useMemo<PromptTokenPickerSelection[]>(
     () => [
       ...(populatedLayerCount > 0 ? (["main"] as PromptTokenPickerSelection[]) : []),
-      ...secondaries.filter((index) => Boolean(extraImageUrls[index])),
+      ...(allowSecondaryReferenceTokens
+        ? secondaries.filter((index) => Boolean(extraImageUrls[index]))
+        : []),
     ],
-    [extraImageUrls, populatedLayerCount]
+    [allowSecondaryReferenceTokens, extraImageUrls, populatedLayerCount]
   );
   const promptHighlightSegments = React.useMemo(
     () => buildExpertEditPromptHighlightSegments(promptTextValue, promptTokenAnalysis.diagnostics),
@@ -86,8 +93,11 @@ export function useExpertEditPromptTokenController({
     ? promptTokenAnalysis.inlineError
     : null;
   const populatedPromptTokenSlotIndexes = React.useMemo(
-    () => secondaries.filter((index) => Boolean(extraImageUrls[index])),
-    [extraImageUrls]
+    () =>
+      allowSecondaryReferenceTokens
+        ? secondaries.filter((index) => Boolean(extraImageUrls[index]))
+        : [],
+    [allowSecondaryReferenceTokens, extraImageUrls]
   );
 
   const handleInvalidPromptReferenceToken = React.useCallback(
@@ -202,6 +212,14 @@ export function useExpertEditPromptTokenController({
         handlePromptDrop(event);
         return;
       }
+      if (!allowSecondaryReferenceTokens && droppedToken !== buildExpertEditPrimarySlotToken()) {
+        closePromptTokenPicker();
+        showStatusToast(
+          "Inpaint only supports @main. Secondary references are not sent to the inpaint model.",
+          "warning"
+        );
+        return;
+      }
       const textarea = promptTextareaRef.current;
       const selectionStart = textarea?.selectionStart ?? promptTextValue.length;
       const selectionEnd = textarea?.selectionEnd ?? selectionStart;
@@ -215,7 +233,14 @@ export function useExpertEditPromptTokenController({
       closePromptTokenPicker();
       handlePromptTextChange(insertedPrompt.prompt);
     },
-    [closePromptTokenPicker, handlePromptDrop, handlePromptTextChange, promptTextValue]
+    [
+      allowSecondaryReferenceTokens,
+      closePromptTokenPicker,
+      handlePromptDrop,
+      handlePromptTextChange,
+      promptTextValue,
+      showStatusToast,
+    ]
   );
 
   const openPromptTokenPickerAtSelection = React.useCallback(

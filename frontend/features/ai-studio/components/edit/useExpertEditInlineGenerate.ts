@@ -92,6 +92,7 @@ export const useExpertEditInlineGenerate = ({
 }: UseExpertEditInlineGenerateParams) => {
   const handleInlineGenerate = React.useCallback(() => {
     const run = async () => {
+      const allowSecondaryReferenceTokens = editSubmitIntent !== "inpaint";
       if (populatedLayerCount <= 0) {
         showStatusToast("Add at least one layer image before generating.");
         return;
@@ -99,6 +100,7 @@ export const useExpertEditInlineGenerate = ({
       const promptValidation = validateExpertEditSubmissionPrompt({
         promptText,
         extraImageUrls,
+        allowSecondaryReferenceTokens,
       });
       if (promptValidation.status === "invalid_tokens") {
         onInvalidPromptReferenceToken?.(promptValidation.message);
@@ -137,6 +139,7 @@ export const useExpertEditInlineGenerate = ({
           extraImageUrls,
           flattenedPrimaryUrl: primaryReferenceUrl,
           flattenedMarkupReferenceUrl: objectUrls.flattenedMarkupReferenceUrl,
+          allowSecondaryReferenceTokens,
         });
         if (preparedSubmission.status === "invalid_tokens") {
           onInvalidPromptReferenceToken?.(preparedSubmission.message);

@@ -1,15 +1,8 @@
 import React from "react";
-import {
-  ArrowsOutSimple,
-  CaretRight,
-  CircleDashed,
-  CircleHalf,
-  PaintBrush,
-  TrashSimple,
-} from "phosphor-react";
+import { CaretRight } from "phosphor-react";
 
-import type { InpaintMode, InpaintSelectionTab, RailTool } from "./expertEditPanelViewContract";
-import { INPAINT_STROKE_SIZE_DEFAULT, inpaintRailTools } from "./expertEditPanelViewContract";
+import type { RailTool } from "./expertEditPanelViewContract";
+import { inpaintRailTools } from "./expertEditPanelViewContract";
 
 type ExpertEditInlinePostStageToolsProps = {
   isInpaintCollapsed: boolean;
@@ -17,21 +10,12 @@ type ExpertEditInlinePostStageToolsProps = {
   collapsedToolsThemeClass: string;
   selectedRailTool: RailTool;
   isInpaintToolSelected: boolean;
-  isVideoToolSelected: boolean;
+  isMarkupToolSelected: boolean;
   isMoveToolSelected: boolean;
   isInpaintLikeToolSelected: boolean;
-  selectedInpaintMode: InpaintMode;
-  inpaintStrokeSize: number;
-  selectedInpaintSelectionTab: InpaintSelectionTab;
-  imageHasInteractiveMask: boolean;
   setSelectedRailTool: React.Dispatch<React.SetStateAction<RailTool>>;
-  setSelectedInpaintMode: React.Dispatch<React.SetStateAction<InpaintMode>>;
-  setInpaintStrokeSize: React.Dispatch<React.SetStateAction<number>>;
-  setSelectedInpaintSelectionTab: React.Dispatch<React.SetStateAction<InpaintSelectionTab>>;
   handleInpaintCollapseToggle: () => void;
-  openMarkupModal: (tool?: RailTool) => void;
-  clearInpaintSelectionWithHistory: () => void;
-  invertInpaintSelectionWithHistory: () => void;
+  renderInpaintControlsContent: (scope: "inline" | "modal" | "rail") => React.ReactNode;
   renderMarkupControlsContent: (scope: "inline" | "modal") => React.ReactNode;
   renderMoveControlsContent: (scope: "inline" | "modal") => React.ReactNode;
   secondaryContent?: React.ReactNode;
@@ -43,21 +27,12 @@ export function ExpertEditInlinePostStageTools({
   collapsedToolsThemeClass,
   selectedRailTool,
   isInpaintToolSelected,
-  isVideoToolSelected,
+  isMarkupToolSelected,
   isMoveToolSelected,
   isInpaintLikeToolSelected,
-  selectedInpaintMode,
-  inpaintStrokeSize,
-  selectedInpaintSelectionTab,
-  imageHasInteractiveMask,
   setSelectedRailTool,
-  setSelectedInpaintMode,
-  setInpaintStrokeSize,
-  setSelectedInpaintSelectionTab,
   handleInpaintCollapseToggle,
-  openMarkupModal,
-  clearInpaintSelectionWithHistory,
-  invertInpaintSelectionWithHistory,
+  renderInpaintControlsContent,
   renderMarkupControlsContent,
   renderMoveControlsContent,
   secondaryContent = null,
@@ -135,125 +110,23 @@ export function ExpertEditInlinePostStageTools({
               <div
                 className={`edit-expert-inpaint-controls ${
                   isInpaintToolSelected ? "is-themed-inpaint" : ""
-                } ${isVideoToolSelected ? "is-themed-video" : ""} ${
+                } ${isMarkupToolSelected ? "is-themed-markup" : ""} ${
                   isMoveToolSelected ? "is-themed-move" : ""
                 }`.trim()}
                 role="group"
                 aria-label={
                   isInpaintLikeToolSelected
-                    ? isVideoToolSelected
+                    ? isMarkupToolSelected
                       ? "Markup tools"
                       : "Inpaint tools"
                     : "Move tools"
                 }
               >
-                {isInpaintToolSelected ? (
-                  <div className="edit-expert-inpaint-controls-content">
-                    <div className="edit-expert-inpaint-mode-row">
-                      <button
-                        type="button"
-                        className={`edit-expert-inpaint-mode-btn ${
-                          selectedInpaintMode === "brush" ? "is-active" : ""
-                        }`}
-                        aria-pressed={selectedInpaintMode === "brush"}
-                        onClick={() => setSelectedInpaintMode("brush")}
-                      >
-                        <PaintBrush size={16} weight="regular" />
-                        <span>Brush</span>
-                      </button>
-                      <button
-                        type="button"
-                        className={`edit-expert-inpaint-mode-btn ${
-                          selectedInpaintMode === "lasso" ? "is-active" : ""
-                        }`}
-                        aria-pressed={selectedInpaintMode === "lasso"}
-                        onClick={() => setSelectedInpaintMode("lasso")}
-                      >
-                        <CircleDashed size={16} weight="regular" />
-                        <span>Lasso</span>
-                      </button>
-                      <button
-                        type="button"
-                        className="edit-expert-inpaint-mode-btn edit-expert-inpaint-expand-btn"
-                        aria-label="Expand markup tools"
-                        onClick={() => openMarkupModal("video")}
-                      >
-                        <ArrowsOutSimple size={16} weight="regular" />
-                      </button>
-                    </div>
-                    <div className="edit-expert-inpaint-stroke-row">
-                      <label
-                        className="edit-expert-inpaint-stroke-label"
-                        htmlFor="edit-expert-inpaint-stroke-size"
-                      >
-                        Stroke Size
-                      </label>
-                      <input
-                        id="edit-expert-inpaint-stroke-size"
-                        className="edit-expert-inpaint-stroke-slider"
-                        type="range"
-                        min={1}
-                        max={100}
-                        value={inpaintStrokeSize}
-                        onChange={(event) => setInpaintStrokeSize(Number(event.target.value))}
-                        onDoubleClick={() => setInpaintStrokeSize(INPAINT_STROKE_SIZE_DEFAULT)}
-                        aria-label="Stroke size"
-                      />
-                    </div>
-                    <div className="edit-expert-inpaint-selection-row">
-                      <div
-                        className="edit-expert-inpaint-select-tabs"
-                        role="tablist"
-                        aria-label="Selection mode"
-                      >
-                        <button
-                          type="button"
-                          className={`edit-expert-inpaint-select-tab ${
-                            selectedInpaintSelectionTab === "select" ? "is-active" : ""
-                          }`}
-                          role="tab"
-                          aria-selected={selectedInpaintSelectionTab === "select"}
-                          onClick={() => setSelectedInpaintSelectionTab("select")}
-                        >
-                          Select
-                        </button>
-                        <button
-                          type="button"
-                          className={`edit-expert-inpaint-select-tab ${
-                            selectedInpaintSelectionTab === "unselect" ? "is-active" : ""
-                          }`}
-                          role="tab"
-                          aria-selected={selectedInpaintSelectionTab === "unselect"}
-                          onClick={() => setSelectedInpaintSelectionTab("unselect")}
-                        >
-                          Unselect
-                        </button>
-                      </div>
-                      <button
-                        type="button"
-                        className="edit-expert-inpaint-action-btn edit-expert-inpaint-invert-btn"
-                        aria-label="Invert selection"
-                        onClick={invertInpaintSelectionWithHistory}
-                        disabled={!imageHasInteractiveMask}
-                      >
-                        <CircleHalf size={18} weight="regular" />
-                      </button>
-                      <button
-                        type="button"
-                        className="edit-expert-inpaint-action-btn edit-expert-inpaint-clear-btn"
-                        aria-label="Clear selection"
-                        onClick={clearInpaintSelectionWithHistory}
-                        disabled={!imageHasInteractiveMask}
-                      >
-                        <TrashSimple size={18} weight="regular" />
-                      </button>
-                    </div>
-                  </div>
-                ) : isVideoToolSelected ? (
-                  renderMarkupControlsContent("inline")
-                ) : (
-                  renderMoveControlsContent("inline")
-                )}
+                {isInpaintToolSelected
+                  ? renderInpaintControlsContent("inline")
+                  : isMarkupToolSelected
+                    ? renderMarkupControlsContent("inline")
+                    : renderMoveControlsContent("inline")}
               </div>
             </div>
           </div>

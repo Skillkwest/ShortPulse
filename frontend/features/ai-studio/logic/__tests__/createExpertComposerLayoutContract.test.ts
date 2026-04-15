@@ -139,7 +139,7 @@ describe("create expert composer layout contract", () => {
     expect(overlay).toContain("bottom: 0;");
     expect(overlay).toContain("z-index: 9;");
     expect(chatSpacer).toContain("min-height: 92px;");
-    expect(expandedOverlayZone).toContain("filter: blur(6px) brightness(0.56);");
+    expect(expandedOverlayZone).toContain("filter: blur(6px);");
   });
 
   it("matches the collapsed empty prompt height to the adjacent create control columns", () => {

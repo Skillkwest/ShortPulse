@@ -26,9 +26,9 @@ type UseExpertEditStageTransformRuntimeParams = {
   hasPrimaryCompositePreview: boolean;
   isMoveToolSelected: boolean;
   isMorePresetsSurfaceOpen: boolean;
-  isVideoToolSelected: boolean;
-  markupViewport: MarkupViewportState;
-  markupViewportCursor: React.CSSProperties["cursor"];
+  isMarkupToolSelected: boolean;
+  stageViewport: MarkupViewportState;
+  stageViewportCursor: React.CSSProperties["cursor"];
   markupModalStageSize: StageViewportSize | null;
   primaryCompositionSurfaceAspectRatio: number | string;
   shouldShowInpaintBrushReticle: boolean;
@@ -46,7 +46,7 @@ type UseExpertEditStageTransformRuntimeParams = {
   showStatusToast: (message: string) => void;
   transformHistoryState: TransformHistoryState;
   setTransformHistoryState: React.Dispatch<React.SetStateAction<TransformHistoryState>>;
-  resetMarkupViewport: () => void;
+  resetStageViewport: () => void;
 };
 
 export const useExpertEditStageTransformRuntime = ({
@@ -57,9 +57,9 @@ export const useExpertEditStageTransformRuntime = ({
   hasPrimaryCompositePreview,
   isMoveToolSelected,
   isMorePresetsSurfaceOpen,
-  isVideoToolSelected,
-  markupViewport,
-  markupViewportCursor,
+  isMarkupToolSelected,
+  stageViewport,
+  stageViewportCursor,
   markupModalStageSize,
   primaryCompositionSurfaceAspectRatio,
   shouldShowInpaintBrushReticle,
@@ -74,9 +74,9 @@ export const useExpertEditStageTransformRuntime = ({
   showStatusToast,
   transformHistoryState,
   setTransformHistoryState,
-  resetMarkupViewport,
+  resetStageViewport,
 }: UseExpertEditStageTransformRuntimeParams) => {
-  const activeStageRenderScale = markupViewport.scale;
+  const activeStageRenderScale = stageViewport.scale;
   const shouldShowSelectedLayerTransformOverlay =
     isMoveToolSelected && Boolean(selectedLayerImageUrl) && hasPrimaryCompositePreview;
   const selectedLayerImageAspectRatio = React.useMemo(
@@ -130,9 +130,9 @@ export const useExpertEditStageTransformRuntime = ({
     selectedLayerImageAspectRatio,
     shouldShowSelectedLayerTransformOverlay,
     resolveRenderableLayerTransform,
-    sceneZoomScale: markupViewport.scale,
-    viewportOffsetXRatio: markupViewport.offsetXRatio,
-    viewportOffsetYRatio: markupViewport.offsetYRatio,
+    sceneZoomScale: stageViewport.scale,
+    viewportOffsetXRatio: stageViewport.offsetXRatio,
+    viewportOffsetYRatio: stageViewport.offsetYRatio,
     resolveViewportOffsetPixels,
     commitTransformHistoryTransition,
     showStatusToast,
@@ -184,14 +184,14 @@ export const useExpertEditStageTransformRuntime = ({
   const primaryCompositionSurfaceStyle = React.useMemo(() => {
     const style: React.CSSProperties = {};
     if (!isMorePresetsSurfaceOpen) {
-      if (markupViewportCursor) {
-        style.cursor = markupViewportCursor;
+      if (stageViewportCursor) {
+        style.cursor = stageViewportCursor;
       } else if (primaryCompositionSurfaceCursor) {
         style.cursor = primaryCompositionSurfaceCursor;
       }
     }
     return style;
-  }, [isMorePresetsSurfaceOpen, markupViewportCursor, primaryCompositionSurfaceCursor]);
+  }, [isMorePresetsSurfaceOpen, primaryCompositionSurfaceCursor, stageViewportCursor]);
 
   const emptyPrimaryCompositionSurfaceStyle = React.useMemo<React.CSSProperties>(
     () => ({
@@ -202,9 +202,9 @@ export const useExpertEditStageTransformRuntime = ({
 
   const markupModalStageStyle = React.useMemo<React.CSSProperties>(() => {
     const modalCursor =
-      markupViewportCursor ??
+      stageViewportCursor ??
       primaryCompositionSurfaceCursor ??
-      (isVideoToolSelected ? "crosshair" : undefined);
+      (isMarkupToolSelected ? "crosshair" : undefined);
     const cursorStyle = modalCursor ? { cursor: modalCursor } : null;
     if (markupModalStageSize) {
       return {
@@ -223,9 +223,9 @@ export const useExpertEditStageTransformRuntime = ({
       ...(cursorStyle ?? {}),
     };
   }, [
-    isVideoToolSelected,
+    isMarkupToolSelected,
     markupModalStageSize,
-    markupViewportCursor,
+    stageViewportCursor,
     primaryCompositionSurfaceAspectRatio,
     primaryCompositionSurfaceCursor,
   ]);
@@ -247,8 +247,8 @@ export const useExpertEditStageTransformRuntime = ({
         commitTransformHistoryTransition(nextEntry, baselineEntry);
       }
     }
-    resetMarkupViewport();
-  }, [commitTransformHistoryTransition, layers, resetMarkupViewport, selectedLayer, setLayers]);
+    resetStageViewport();
+  }, [commitTransformHistoryTransition, layers, resetStageViewport, selectedLayer, setLayers]);
 
   return {
     activeStageRenderScale,

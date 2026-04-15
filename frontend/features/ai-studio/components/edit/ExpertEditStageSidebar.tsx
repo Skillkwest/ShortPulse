@@ -1,3 +1,6 @@
+/**
+ * Left-rail shell for the Expert Edit stage, including mode controls, presets, layers, and utility actions.
+ */
 import React from "react";
 
 import { ExpertEditLayerUtilityActions } from "./ExpertEditLayersPanel";
@@ -10,7 +13,7 @@ import type {
   ExpertEditCustomPresetId,
   ExpertEditCustomPresetOverride,
 } from "./expertEditPresets";
-import type { RailTool } from "./expertEditPanelViewContract";
+import { REMOVE_BACKGROUND_ACTION_ID, type RailTool } from "./expertEditPanelViewContract";
 import type { EditSubmitIntent } from "../../logic/editSubmitIntent";
 
 type ExpertEditStageSidebarProps = {
@@ -21,7 +24,7 @@ type ExpertEditStageSidebarProps = {
   onGenerationModeChange: (nextMode: EditSubmitIntent) => void;
   shouldHideSelectedModeRailPanel: boolean;
   selectedRailTool: RailTool;
-  renderMarkupModalInpaintPanel: (scope?: "modal" | "rail") => React.ReactNode;
+  renderInpaintControlsContent: (scope: "inline" | "modal" | "rail") => React.ReactNode;
   renderMarkupControlsContent: (scope: "inline" | "modal") => React.ReactNode;
   renderMoveControlsContent: (scope: "inline" | "modal") => React.ReactNode;
   hasSelectedPresetIds: boolean;
@@ -73,7 +76,7 @@ export function ExpertEditStageSidebar({
   onGenerationModeChange,
   shouldHideSelectedModeRailPanel,
   selectedRailTool,
-  renderMarkupModalInpaintPanel,
+  renderInpaintControlsContent,
   renderMarkupControlsContent,
   renderMoveControlsContent,
   hasSelectedPresetIds,
@@ -150,7 +153,7 @@ export function ExpertEditStageSidebar({
           <div className="edit-expert-sidebar-mode-panel-shell-inner">
             <ExpertEditModeRailPanel
               selectedRailTool={selectedRailTool}
-              renderMarkupModalInpaintPanel={renderMarkupModalInpaintPanel}
+              renderInpaintControlsContent={renderInpaintControlsContent}
               renderMarkupControlsContent={renderMarkupControlsContent}
               renderMoveControlsContent={renderMoveControlsContent}
             />
@@ -187,7 +190,7 @@ export function ExpertEditStageSidebar({
           isFlattenPending={isFlattenPending}
           onFlatten={() => void handleManualFlatten()}
           onRemoveBackground={handleRemoveBackground}
-          className={null}
+          actionIds={[REMOVE_BACKGROUND_ACTION_ID]}
         />
       </div>
       <ExpertEditPresetsSurface

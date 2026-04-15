@@ -34,7 +34,8 @@ const countLocalUploadUnits = ({
   }
   const inpaintLocalUploads =
     (isLocalUploadCandidate(inpaintOverride.baseImageInput) ? 1 : 0) +
-    (isLocalUploadCandidate(inpaintOverride.maskInput) ? 1 : 0);
+    (isLocalUploadCandidate(inpaintOverride.maskInput) ? 1 : 0) +
+    (isLocalUploadCandidate(inpaintOverride.referenceImageInput) ? 1 : 0);
   return referenceLocalUploads + inpaintLocalUploads;
 };
 
@@ -54,7 +55,8 @@ const countPreflightWorkUnits = ({
   }
   const inpaintUnits =
     (hasNonEmptyUrl(inpaintOverride.baseImageInput) ? 1 : 0) +
-    (hasNonEmptyUrl(inpaintOverride.maskInput) ? 1 : 0);
+    (hasNonEmptyUrl(inpaintOverride.maskInput) ? 1 : 0) +
+    (hasNonEmptyUrl(inpaintOverride.referenceImageInput) ? 1 : 0);
   return referenceUnits + inpaintUnits;
 };
 

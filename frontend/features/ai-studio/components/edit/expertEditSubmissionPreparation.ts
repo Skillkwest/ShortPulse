@@ -26,6 +26,7 @@ export type PrepareExpertEditSubmissionResult =
   | {
       status: "ready";
       referenceInputs: string[];
+      linkedSecondaryReferenceInputs: string[];
       promptOverrideOptions?: ExpertEditSubmissionPromptOverrideOptions;
     };
 
@@ -33,13 +34,16 @@ export const validateExpertEditSubmissionPrompt = ({
   promptText,
   extraImageUrls,
   allowSecondaryReferenceTokens = true,
+  maxSecondaryReferenceTokens,
 }: {
   promptText: string;
   extraImageUrls: [string | null, string | null, string | null];
   allowSecondaryReferenceTokens?: boolean;
+  maxSecondaryReferenceTokens?: number;
 }): ValidateExpertEditSubmissionPromptResult => {
   const tokenAnalysis = analyzeExpertEditPromptTokens(promptText, extraImageUrls, {
     allowSecondaryTokens: allowSecondaryReferenceTokens,
+    maxSecondaryReferences: maxSecondaryReferenceTokens,
   });
   if (tokenAnalysis.hasInvalidTokens) {
     return {
@@ -57,20 +61,24 @@ export const prepareExpertEditSubmission = ({
   flattenedPrimaryUrl,
   flattenedMarkupReferenceUrl,
   allowSecondaryReferenceTokens = true,
+  maxSecondaryReferenceTokens,
 }: {
   promptText: string;
   extraImageUrls: [string | null, string | null, string | null];
   flattenedPrimaryUrl: string | null;
   flattenedMarkupReferenceUrl?: string | null;
   allowSecondaryReferenceTokens?: boolean;
+  maxSecondaryReferenceTokens?: number;
 }): PrepareExpertEditSubmissionResult => {
   const tokenAnalysis = analyzeExpertEditPromptTokens(promptText, extraImageUrls, {
     allowSecondaryTokens: allowSecondaryReferenceTokens,
+    maxSecondaryReferences: maxSecondaryReferenceTokens,
   });
   const validation = validateExpertEditSubmissionPrompt({
     promptText,
     extraImageUrls,
     allowSecondaryReferenceTokens,
+    maxSecondaryReferenceTokens,
   });
   if (validation.status === "invalid_tokens") {
     return validation;
@@ -82,18 +90,23 @@ export const prepareExpertEditSubmission = ({
     secondarySlots: extraImageUrls,
     referencedSlotIndexes: tokenAnalysis.referencedSlotIndexes,
   });
+  const linkedSecondaryReferenceInputs = tokenAnalysis.referencedSlotIndexes
+    .map((slotIndex) => extraImageUrls[slotIndex]?.trim() ?? "")
+    .filter((value) => value.length > 0);
   const compiledPrompt = compileExpertEditSubmissionPrompt({
     displayPrompt: promptText,
     secondarySlots: extraImageUrls,
     referenceInputs,
     options: {
       allowSecondaryTokens: allowSecondaryReferenceTokens,
+      maxSecondaryReferences: maxSecondaryReferenceTokens,
     },
   });
 
   return {
     status: "ready",
     referenceInputs,
+    linkedSecondaryReferenceInputs,
     promptOverrideOptions: compiledPrompt.hasTokenReferences
       ? {
           displayPromptOverride: promptText,

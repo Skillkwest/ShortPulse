@@ -10,6 +10,7 @@ import {
 } from "../../../../lib/model-runtime/providerModelIds";
 import {
   INPAINT_FLUX_FILL_MODEL_ID,
+  INPAINT_REFERENCE_MODEL_ID,
   MARKUP_NANO_BANANA_PRO_EDIT_MODEL_ID,
 } from "../../logic/inpaintSubmission";
 import { useAiStudioViewModel } from "../useAiStudioViewModel";
@@ -551,6 +552,38 @@ describe("useAiStudioViewModel edit guardrails", () => {
     expect(result.current.currentCostCredits).toBe(standardCostCredits);
     expect(result.current.isCreditGuardrail).toBe(false);
     expect(result.current.generationGuardrail).toBeNull();
+  });
+
+  it("switches inpaint cost to the reference inpaint model when exactly one linked secondary reference is active", () => {
+    const selectedModelId = "fal-ai/flux-2/klein/9b";
+    const editCostParamsForModel = makeCostParamsForModel(selectedModelId);
+    const fillCostCredits = computeCostForModel(
+      INPAINT_FLUX_FILL_MODEL_ID,
+      editCostParamsForModel({ aspect: "1:1", resolution: "model_default" })
+    )?.credits;
+    const referenceInpaintCostCredits = computeCostForModel(
+      INPAINT_REFERENCE_MODEL_ID,
+      editCostParamsForModel({ aspect: "1:1", resolution: "model_default" })
+    )?.credits;
+
+    const { result } = renderHook(() =>
+      useAiStudioViewModel({
+        ...editInput,
+        model: selectedModelId,
+        aspect: "1:1",
+        prompt: "Put the outfit from @img1 on @main",
+        extraImageUrls: ["https://example.com/look.png", null, null],
+        referenceImageUrl: "https://example.com/reference.png",
+        costParamsForModel: editCostParamsForModel,
+        balanceCredits: 10_000,
+        editSubmitIntent: "inpaint",
+      })
+    );
+
+    expect(fillCostCredits).not.toBeNull();
+    expect(referenceInpaintCostCredits).not.toBeNull();
+    expect(result.current.currentCostCredits).toBe(referenceInpaintCostCredits);
+    expect(result.current.currentCostCredits).not.toBe(fillCostCredits);
   });
 
   it("switches edit cost and credit guardrail to Pulse Markup v1 when markup lock flag is enabled", () => {

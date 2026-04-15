@@ -34,6 +34,7 @@ import {
   MARKUP_VIEWPORT_DEFAULT_SCALE,
   resolveMoveStageZoomSliderValue,
 } from "../edit/expertEditViewportUtils";
+import { MARKUP_OVERLAY_OPACITY } from "../edit/markupStrokeController";
 
 const { composePrimaryStageLayersToBlobMock, composeFlattenedMarkupReferenceBlobMock } = vi.hoisted(
   () => ({
@@ -2206,6 +2207,7 @@ describe("ExpertEditPanelView", () => {
     expect(markupColorPicker).toHaveAttribute("aria-expanded", "false");
     fireEvent.click(markupColorPicker);
     expect(screen.getByRole("dialog", { name: /markup color picker/i })).toBeInTheDocument();
+    expect(within(markupSettingsPanel).queryByRole("button", { name: /markup color/i })).toBeNull();
     expect(clearMarkupButton).toBeInTheDocument();
     expect(within(markupSettingsPanel).queryByRole("tab", { name: /^select$/i })).toBeNull();
     expect(
@@ -2305,7 +2307,7 @@ describe("ExpertEditPanelView", () => {
     expect(within(modeTabs).getByRole("tab", { name: /^markup$/i })).toBeInTheDocument();
   });
 
-  it("shows the reference-images and styles row in Standard and Inpaint while hiding them in Markup", () => {
+  it("shows the reference-images and styles row in Standard, Inpaint, and Markup", () => {
     vi.stubEnv("NEXT_PUBLIC_AI_STUDIO_EDIT_GENERATION_MODE_TOGGLE_ENABLED", "true");
     render(<ExpertEditPanelView {...baseProps} />);
 
@@ -2324,9 +2326,9 @@ describe("ExpertEditPanelView", () => {
     expect(screen.getByRole("button", { name: "Styles" })).toBeInTheDocument();
 
     fireEvent.click(markupTab);
-    expect(screen.queryByText("Reference Images")).toBeNull();
-    expect(screen.queryByLabelText("Secondary edit image 1")).toBeNull();
-    expect(screen.queryByRole("button", { name: "Styles" })).toBeNull();
+    expect(screen.getByText("Reference Images")).toBeInTheDocument();
+    expect(screen.getByLabelText("Secondary edit image 1")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Styles" })).toBeInTheDocument();
 
     fireEvent.click(standardTab);
     expect(screen.getByText("Reference Images")).toBeInTheDocument();
@@ -2371,9 +2373,13 @@ describe("ExpertEditPanelView", () => {
     ).toBeNull();
 
     fireEvent.click(inpaintTab);
+    const leftRailInpaintPanel = within(presetToolbar).getByRole("group", {
+      name: /^left rail in-paint panel$/i,
+    });
+    expect(leftRailInpaintPanel).toBeInTheDocument();
     expect(
-      within(presetToolbar).getByRole("group", { name: /^left rail in-paint panel$/i })
-    ).toBeInTheDocument();
+      within(leftRailInpaintPanel).queryByRole("button", { name: /invert in-paint selection/i })
+    ).toBeNull();
 
     fireEvent.click(markupTab);
     expect(
@@ -3509,8 +3515,8 @@ describe("ExpertEditPanelView", () => {
     const modalColorButton = within(modalToolbar).getByRole("button", { name: /markup color/i });
     fireEvent.click(modalColorButton);
 
-    expect(within(expandedModal).getByText("#F43F5E")).toBeInTheDocument();
-    const modalDefaultSwatch = within(expandedModal).getByRole("button", {
+    expect(screen.getByText("#F43F5E")).toBeInTheDocument();
+    const modalDefaultSwatch = screen.getByRole("button", {
       name: /select #f43f5e color/i,
     });
     expect(modalDefaultSwatch.className).toContain("is-active");
@@ -3540,7 +3546,7 @@ describe("ExpertEditPanelView", () => {
     });
 
     expect(screen.getByRole("dialog", { name: /markup color picker/i })).toBeInTheDocument();
-    expect(colorButton).toHaveAttribute("aria-expanded", "true");
+    expect(within(markupPanel).queryByRole("button", { name: /markup color/i })).toBeNull();
   });
 
   it("clears markup strokes and shares them with expanded markup modal", async () => {
@@ -4078,6 +4084,9 @@ describe("ExpertEditPanelView", () => {
     expect(modelPickerButton.querySelector(".model-chip-logo-img")).toHaveAttribute(
       "src",
       "/tiny-logo.png"
+    );
+    expect(modelPickerButton.querySelector(".model-chip-logo-img")).toHaveClass(
+      "model-chip-logo-img--locked-edit-tool"
     );
     fireEvent.click(modelPickerButton);
     expect(onModelPickerOpen).not.toHaveBeenCalled();
@@ -5876,6 +5885,11 @@ describe("ExpertEditPanelView", () => {
         expandedModal.querySelectorAll(".edit-expert-markup-strokes-overlay polygon").length
       ).toBeGreaterThan(0)
     );
+    expect(
+      expandedModal
+        .querySelector(".edit-expert-markup-strokes-overlay [data-markup-layer='strokes']")
+        ?.getAttribute("opacity")
+    ).toBe(String(MARKUP_OVERLAY_OPACITY));
   });
 
   it("supports keyboard undo/redo in the expanded markup modal", async () => {
@@ -7093,6 +7107,55 @@ describe("ExpertEditPanelView", () => {
     expect(submitOptions?.inpaintOverride).toBeUndefined();
   });
 
+  it("keeps the primary image first in markup submissions before the markup composite and linked secondary refs", async () => {
+    vi.stubEnv("NEXT_PUBLIC_AI_STUDIO_MARKUP_STROKE_SECONDARY_REFERENCE_ENABLED", "true");
+    const onRegenerateWithReferenceInputs: NonNullable<
+      React.ComponentProps<typeof ExpertEditPanelView>["onRegenerateWithReferenceInputs"]
+    > = vi.fn(async (referenceInputs, options) => {
+      void referenceInputs;
+      void options;
+    });
+    render(
+      <ExpertEditPanelView
+        {...baseProps}
+        referenceText="Apply @img1, @img2, and @img3 to Figure 1."
+        extraImageUrls={[
+          "https://example.com/ref-1.png",
+          "https://example.com/ref-2.png",
+          "https://example.com/ref-3.png",
+        ]}
+        sessionState={createSessionStateWithMarkupStroke()}
+        onRegenerateWithReferenceInputs={onRegenerateWithReferenceInputs}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /expand inpaint controls/i }));
+    const rail = screen.getByLabelText("Inpaint action tools");
+    fireEvent.click(within(rail).getByRole("button", { name: /^markup$/i }));
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /^generate$/i }));
+      await Promise.resolve();
+    });
+
+    expect(onRegenerateWithReferenceInputs).toHaveBeenCalledTimes(1);
+    const submissionCalls = (
+      onRegenerateWithReferenceInputs as unknown as {
+        mock: {
+          calls: Array<[string[]]>;
+        };
+      }
+    ).mock.calls;
+    const submittedReferences = submissionCalls[0]?.[0] ?? [];
+    expect(submittedReferences).toEqual([
+      expect.stringMatching(/^blob:flatten-/),
+      expect.stringMatching(/^blob:flatten-/),
+      "https://example.com/ref-1.png",
+      "https://example.com/ref-2.png",
+      "https://example.com/ref-3.png",
+    ]);
+  });
+
   it("auto-flatten generate skips markup-composite secondary reference when Markup mode is not selected", async () => {
     vi.stubEnv("NEXT_PUBLIC_AI_STUDIO_MARKUP_STROKE_SECONDARY_REFERENCE_ENABLED", "true");
     const onRegenerateWithReferenceInputs: NonNullable<
@@ -7605,6 +7668,17 @@ describe("ExpertEditPanelView", () => {
           };
         }
       ).mock.calls[0]?.[1];
+      const inpaintReferenceInputs = (
+        onRegenerateWithReferenceInputs as unknown as {
+          mock: {
+            calls: Array<
+              [string[], { inpaintOverride?: unknown; hideOutputFromReferenceGrid?: boolean }?]
+            >;
+          };
+        }
+      ).mock.calls[0]?.[0];
+      expect(inpaintReferenceInputs).toHaveLength(1);
+      expect(inpaintReferenceInputs?.[0]).toMatch(/^blob:flatten-/);
       expect(inpaintOptions?.inpaintOverride).toEqual({
         modelId: INPAINT_FLUX_FILL_MODEL_ID,
         baseImageInput: expect.stringMatching(/^blob:flatten-/),

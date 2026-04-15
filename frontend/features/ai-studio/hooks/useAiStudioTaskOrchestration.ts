@@ -40,6 +40,15 @@ const VISIBLE_GENERATION_MAX_CONCURRENT = 3;
 const isDocumentVisible = (): boolean =>
   typeof document === "undefined" || document.visibilityState === "visible";
 
+const hasSettledOutputLifecycle = (output: StudioOutput): boolean =>
+  output.taskState === "success" || output.taskState === "fail";
+
+const hasTerminalQueueResumeLifecycle = (output: StudioOutput): boolean =>
+  output.taskState === "success";
+
+const isOutputLifecycleInFlight = (output: StudioOutput): boolean =>
+  output.taskState === "pending" || output.taskState === "running";
+
 const hasSettledOutputPayload = (output: StudioOutput): boolean => {
   if (output.status === "saved") return true;
   if (Array.isArray(output.savedMediaIds) && output.savedMediaIds.length > 0) return true;
@@ -59,7 +68,8 @@ const hasSettledOutputPayload = (output: StudioOutput): boolean => {
 
 const isVisibleGenerationWatchdogEligible = (output: StudioOutput): boolean => {
   if (output.mediaSource !== "generated") return false;
-  if (hasSettledOutputPayload(output)) return false;
+  if (hasSettledOutputLifecycle(output)) return false;
+  if (!isOutputLifecycleInFlight(output) && hasSettledOutputPayload(output)) return false;
   const generationId = typeof output.generationId === "string" ? output.generationId.trim() : "";
   const taskId = typeof output.taskId === "string" ? output.taskId.trim() : "";
   return generationId.length > 0 || taskId.length > 0;
@@ -80,7 +90,12 @@ const isQueueResumeEligible = (output: StudioOutput): boolean => {
     return false;
   }
   if (typeof output.taskId === "string" && output.taskId.trim().length > 0) return false;
-  return !hasSettledOutputPayload(output);
+  if (hasTerminalQueueResumeLifecycle(output)) return false;
+  return (
+    isOutputLifecycleInFlight(output) ||
+    output.taskState === "fail" ||
+    !hasSettledOutputPayload(output)
+  );
 };
 
 /**

@@ -19,6 +19,7 @@ import {
 import {
   analyzeMaskCanvas,
   renderOverlayFrame,
+  renderLivePreviewFrame,
   resolveNextMarchingAntPhaseState,
   type MaskLayerMeta,
 } from "./inpaintMaskOverlay";
@@ -91,6 +92,8 @@ type ExportMaskBlobParams = {
 type UseInpaintMaskControllerResult = {
   overlayCanvasRef: React.RefObject<HTMLCanvasElement>;
   modalOverlayCanvasRef: React.RefObject<HTMLCanvasElement>;
+  previewCanvasRef: React.RefObject<HTMLCanvasElement>;
+  modalPreviewCanvasRef: React.RefObject<HTMLCanvasElement>;
   hasSelectedLayerMask: boolean;
   imageHasInteractiveMask: boolean;
   captureMaskSnapshot: () => InpaintMaskSnapshot;
@@ -285,6 +288,8 @@ export const useInpaintMaskController = ({
 }: UseInpaintMaskControllerParams): UseInpaintMaskControllerResult => {
   const overlayCanvasRef = React.useRef<HTMLCanvasElement>(null);
   const modalOverlayCanvasRef = React.useRef<HTMLCanvasElement>(null);
+  const previewCanvasRef = React.useRef<HTMLCanvasElement>(null);
+  const modalPreviewCanvasRef = React.useRef<HTMLCanvasElement>(null);
   const maskCanvasesRef = React.useRef<Map<string, HTMLCanvasElement>>(new Map());
   const maskMetaRef = React.useRef<Map<string, MaskLayerMeta>>(new Map());
   const layerImageSignatureRef = React.useRef<Map<string, string | null>>(new Map());
@@ -367,19 +372,31 @@ export const useInpaintMaskController = ({
       const selectedMaskMeta = selectedLayerId
         ? (maskMetaRef.current.get(selectedLayerId) ?? null)
         : null;
+      const isBrushPreviewActive = pointerSessionRef.current.active && paintMode === "brush";
       const lassoPreviewPoints = shouldRenderLassoPreview(
         pointerSessionRef.current.active,
         paintMode
       )
         ? pointerSessionRef.current.lassoPoints
         : [];
-      const overlayTargets = [overlayCanvasRef.current, modalOverlayCanvasRef.current];
-      overlayTargets.forEach((overlayCanvas) => {
+      const committedOverlayTargets = [overlayCanvasRef.current, modalOverlayCanvasRef.current];
+      committedOverlayTargets.forEach((overlayCanvas) => {
         if (!overlayCanvas) return;
         renderOverlayFrame({
           canvas: overlayCanvas,
           maskCanvas: selectedMaskCanvas,
           meta: selectedMaskMeta,
+          showCommittedMask: !isBrushPreviewActive,
+          phase,
+        });
+      });
+      const previewOverlayTargets = [previewCanvasRef.current, modalPreviewCanvasRef.current];
+      previewOverlayTargets.forEach((previewCanvas) => {
+        if (!previewCanvas) return;
+        renderLivePreviewFrame({
+          canvas: previewCanvas,
+          maskCanvas: selectedMaskCanvas,
+          showBrushPreview: isBrushPreviewActive,
           lassoPreviewPoints,
           phase,
         });
@@ -412,7 +429,8 @@ export const useInpaintMaskController = ({
       lastAntsTickRef.current = nextPhaseState.lastTickMs;
       renderOverlay(antsPhaseRef.current);
       const selectedMaskMeta = selectedLayerId ? maskMetaRef.current.get(selectedLayerId) : null;
-      const hasAnimatedMask = Boolean(selectedMaskMeta?.hasContent);
+      const hasAnimatedMask =
+        Boolean(selectedMaskMeta?.hasContent) && !pointerSessionRef.current.active;
       const isAnimatingLasso = pointerSessionRef.current.active && paintMode === "lasso";
       if (hasAnimatedMask || isAnimatingLasso) {
         overlayRafRef.current = window.requestAnimationFrame(run);
@@ -440,7 +458,10 @@ export const useInpaintMaskController = ({
         setHasSelectedLayerMask(meta.hasContent);
       }
       renderOverlayNow();
-      if (meta.hasContent || (pointerSessionRef.current.active && paintMode === "lasso")) {
+      if (
+        (meta.hasContent && !pointerSessionRef.current.active) ||
+        (pointerSessionRef.current.active && paintMode === "lasso")
+      ) {
         animateOverlay();
       } else {
         stopOverlayAnimation();
@@ -1166,6 +1187,8 @@ export const useInpaintMaskController = ({
   return {
     overlayCanvasRef,
     modalOverlayCanvasRef,
+    previewCanvasRef,
+    modalPreviewCanvasRef,
     hasSelectedLayerMask,
     imageHasInteractiveMask,
     captureMaskSnapshot,

@@ -1,6 +1,9 @@
 import React from "react";
 import type { ExpertEditStageFlattenLayer } from "../../logic/expertEditStageFlatten";
-import { type InpaintSubmissionOverride } from "../../logic/inpaintSubmission";
+import {
+  resolveInpaintPromptReferencePolicy,
+  type InpaintSubmissionOverride,
+} from "../../logic/inpaintSubmission";
 import type { EditSubmitIntent } from "../../logic/editSubmitIntent";
 import { exportExpertEditStageArtifacts } from "./expertEditStageExport";
 import { resolveExpertEditSubmissionDispatch } from "./expertEditSubmissionDispatch";
@@ -90,9 +93,26 @@ export const useExpertEditInlineGenerate = ({
   onInvalidPromptReferenceToken,
   resolveStageFlattenSnapshot,
 }: UseExpertEditInlineGenerateParams) => {
+  const inpaintPromptReferencePolicy = React.useMemo(
+    () =>
+      editSubmitIntent === "inpaint"
+        ? resolveInpaintPromptReferencePolicy({
+            promptText,
+            extraImageUrls,
+          })
+        : null,
+    [editSubmitIntent, extraImageUrls, promptText]
+  );
   const handleInlineGenerate = React.useCallback(() => {
     const run = async () => {
-      const allowSecondaryReferenceTokens = editSubmitIntent !== "inpaint";
+      const allowSecondaryReferenceTokens =
+        editSubmitIntent === "inpaint"
+          ? (inpaintPromptReferencePolicy?.allowSecondaryReferenceTokens ?? false)
+          : true;
+      const maxSecondaryReferenceTokens =
+        editSubmitIntent === "inpaint"
+          ? inpaintPromptReferencePolicy?.maxSecondaryReferenceTokens
+          : undefined;
       if (populatedLayerCount <= 0) {
         showStatusToast("Add at least one layer image before generating.");
         return;
@@ -101,6 +121,7 @@ export const useExpertEditInlineGenerate = ({
         promptText,
         extraImageUrls,
         allowSecondaryReferenceTokens,
+        maxSecondaryReferenceTokens,
       });
       if (promptValidation.status === "invalid_tokens") {
         onInvalidPromptReferenceToken?.(promptValidation.message);
@@ -140,18 +161,22 @@ export const useExpertEditInlineGenerate = ({
           flattenedPrimaryUrl: primaryReferenceUrl,
           flattenedMarkupReferenceUrl: objectUrls.flattenedMarkupReferenceUrl,
           allowSecondaryReferenceTokens,
+          maxSecondaryReferenceTokens,
         });
         if (preparedSubmission.status === "invalid_tokens") {
           onInvalidPromptReferenceToken?.(preparedSubmission.message);
           return;
         }
-        const { promptOverrideOptions, referenceInputs } = preparedSubmission;
+        const { linkedSecondaryReferenceInputs, promptOverrideOptions, referenceInputs } =
+          preparedSubmission;
         const submitDispatch = resolveExpertEditSubmissionDispatch({
           editSubmitIntent,
           hasSubmissionHandler: Boolean(onRegenerateWithReferenceInputs),
           hasSelectedLayerMask,
           flattenedUrl: objectUrls.flattenedUrl,
           inpaintMaskUrl: objectUrls.inpaintMaskUrl,
+          inpaintModelId: inpaintPromptReferencePolicy?.modelId,
+          inpaintReferenceImageInput: linkedSecondaryReferenceInputs[0] ?? null,
           referenceInputs,
           promptOverrideOptions,
         });
@@ -188,6 +213,7 @@ export const useExpertEditInlineGenerate = ({
     exportSelectedLayerMaskBlob,
     hasSelectedLayerMask,
     editSubmitIntent,
+    inpaintPromptReferencePolicy,
     layers,
     markupStrokes,
     onRegenerate,

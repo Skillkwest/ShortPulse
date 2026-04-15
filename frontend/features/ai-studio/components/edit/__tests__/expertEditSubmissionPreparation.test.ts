@@ -85,6 +85,7 @@ describe("prepareExpertEditSubmission", () => {
     expect(result).toEqual({
       status: "ready",
       referenceInputs: ["blob:flatten-1", "ref-2"],
+      linkedSecondaryReferenceInputs: ["https://example.com/ref-2.png"],
       promptOverrideOptions: undefined,
     });
     expect(buildExpertEditSubmissionReferenceInputsMock).toHaveBeenCalledWith({
@@ -111,6 +112,7 @@ describe("prepareExpertEditSubmission", () => {
     expect(result).toEqual({
       status: "ready",
       referenceInputs: ["blob:flatten-1", "ref-2"],
+      linkedSecondaryReferenceInputs: [],
       promptOverrideOptions: {
         displayPromptOverride: "Use @main",
         submissionPromptOverride: "Figure 1 = primary base image.",
@@ -146,5 +148,22 @@ describe("prepareExpertEditSubmission", () => {
     });
     expect(buildExpertEditSubmissionReferenceInputsMock).not.toHaveBeenCalled();
     expect(compileExpertEditSubmissionPromptMock).not.toHaveBeenCalled();
+  });
+
+  it("passes the max secondary reference limit into prompt analysis", () => {
+    prepareExpertEditSubmission({
+      promptText: "Use @img1",
+      extraImageUrls: ["https://example.com/ref-1.png", null, null],
+      flattenedPrimaryUrl: "blob:flatten-1",
+      flattenedMarkupReferenceUrl: null,
+      allowSecondaryReferenceTokens: true,
+      maxSecondaryReferenceTokens: 1,
+    });
+
+    expect(analyzeExpertEditPromptTokensMock).toHaveBeenCalledWith(
+      "Use @img1",
+      ["https://example.com/ref-1.png", null, null],
+      { allowSecondaryTokens: true, maxSecondaryReferences: 1 }
+    );
   });
 });

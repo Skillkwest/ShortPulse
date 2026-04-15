@@ -8,6 +8,7 @@ export type FalSubmitRequest = {
   prompt: string;
   image_url?: string;
   mask_url?: string;
+  reference_image_url?: string;
   image_size?: string | { width: number; height: number };
   image_urls?: string[];
   num_inference_steps?: number;
@@ -951,6 +952,14 @@ export const fetchFalFluxProFillStatus = (requestId: string) =>
     "fal-ai/flux-pro/v1/fill",
     requestId,
     "fluxProFill"
+  );
+export const submitFalFluxKontextInpaint = (payload: FalSubmitRequest) =>
+  submitFalImageViaGenericRoute("fal-ai/flux-kontext-lora/inpaint", payload);
+export const fetchFalFluxKontextInpaintStatus = (requestId: string) =>
+  fetchFalImageStatusViaGenericRoute<FalStatusResponse>(
+    "fal-ai/flux-kontext-lora/inpaint",
+    requestId,
+    "fluxKontextInpaint"
   );
 
 export const submitFalBriaBackgroundRemove = (payload: FalBriaBackgroundRemoveSubmitRequest) =>

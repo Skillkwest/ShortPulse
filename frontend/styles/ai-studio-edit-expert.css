@@ -433,20 +433,6 @@
   width: 100%;
 }
 
-.edit-expert-mode-rail-panel-body--markup .edit-expert-markup-color-picker-anchor {
-  overflow: visible;
-  z-index: 3;
-}
-
-.edit-expert-mode-rail-panel-body--markup .edit-expert-markup-color-popover {
-  left: calc(100% + 22px);
-  right: auto;
-  top: 50%;
-  bottom: auto;
-  transform: translateY(-50%);
-  z-index: 220;
-}
-
 .edit-expert-mode-rail-panel
   .edit-expert-markup-modal-controls-compact
   .edit-expert-inpaint-mode-btn,
@@ -2789,7 +2775,6 @@
 
 .edit-expert-inpaint-controls {
   width: 262px;
-  height: 122px;
   min-height: 122px;
   border-radius: 8px;
   border: 1px solid var(--edit-expert-neutral-border-soft);
@@ -3483,10 +3468,9 @@
 }
 
 .edit-expert-markup-color-popover {
-  position: absolute;
-  left: 0;
-  bottom: calc(100% + 8px);
-  width: 248px;
+  position: relative;
+  width: 100%;
+  max-width: 248px;
   border-radius: 12px;
   border: 1px solid rgba(201, 205, 214, 0.18);
   background: #131518;
@@ -3495,7 +3479,8 @@
   display: flex;
   flex-direction: column;
   gap: 10px;
-  z-index: 22;
+  z-index: 1;
+  box-sizing: border-box;
 }
 
 .edit-expert-markup-color-popover-header {
@@ -3614,27 +3599,6 @@
 .edit-expert-markup-color-popover-swatch.is-active {
   border-color: rgba(236, 240, 246, 0.9);
   box-shadow: 0 0 0 1px rgba(236, 240, 246, 0.3);
-}
-
-.edit-expert-panel .edit-expert-mode-rail-panel--markup,
-.edit-expert-panel .edit-expert-mode-rail-panel--markup .edit-expert-mode-rail-panel-body--markup,
-.edit-expert-panel
-  .edit-expert-mode-rail-panel--markup
-  .edit-expert-markup-modal-controls-compact--markup,
-.edit-expert-panel .edit-expert-mode-rail-panel--markup .edit-expert-markup-color-picker-anchor {
-  overflow: visible;
-}
-
-.edit-expert-panel
-  .edit-expert-mode-rail-panel--markup
-  .edit-expert-mode-rail-panel-body--markup
-  .edit-expert-markup-color-popover {
-  left: calc(100% + 24px);
-  right: auto;
-  top: 0;
-  bottom: auto;
-  transform: none;
-  z-index: 260;
 }
 
 .edit-expert-markup-modal-backdrop {
@@ -4769,6 +4733,10 @@
   width: 100%;
 }
 
+.edit-expert-inpaint-controls.is-themed-markup {
+  height: auto;
+}
+
 .edit-expert-inpaint-controls.is-themed-markup .edit-expert-markup-color-row {
   padding-inline: 6px;
   box-sizing: border-box;
@@ -5586,6 +5554,11 @@
 .edit-expert-panel .create-expert-controls .model-chip-logo-img {
   height: 14px;
   width: auto;
+}
+
+.edit-expert-panel .create-expert-controls .model-chip-logo-img--locked-edit-tool {
+  width: 18px;
+  object-fit: contain;
 }
 
 .edit-expert-panel .create-expert-toggle-control.is-active .audio-toggle-dot {

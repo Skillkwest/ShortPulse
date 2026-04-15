@@ -18,7 +18,7 @@ import { isEventTargetInsideElement } from "./expertEditInteractionUtils";
 import { ExpertEditMarkupControlsContent } from "./ExpertEditStageControls";
 
 type UseExpertEditMarkupControlsRuntimeParams = {
-  isVideoToolSelected: boolean;
+  isMarkupToolSelected: boolean;
   isMarkupExpandSelected: boolean;
   resolvedMarkupStrokeSize: number;
   clearMarkupStrokesWithHistory: () => void;
@@ -29,7 +29,7 @@ type UseExpertEditMarkupControlsRuntimeParams = {
 };
 
 export const useExpertEditMarkupControlsRuntime = ({
-  isVideoToolSelected,
+  isMarkupToolSelected,
   isMarkupExpandSelected,
   resolvedMarkupStrokeSize,
   clearMarkupStrokesWithHistory,
@@ -38,21 +38,28 @@ export const useExpertEditMarkupControlsRuntime = ({
   setSelectedRailTool,
   setMarkupStrokeSize,
 }: UseExpertEditMarkupControlsRuntimeParams) => {
-  const markupColorPickerAnchorRef = React.useRef<HTMLDivElement | null>(null);
+  const inlineMarkupColorPickerAnchorRef = React.useRef<HTMLDivElement | null>(null);
+  const modalMarkupColorPickerAnchorRef = React.useRef<HTMLDivElement | null>(null);
   const markupColorSaturationRef = React.useRef<HTMLDivElement | null>(null);
   const [selectedMarkupMode, setSelectedMarkupMode] = React.useState<MarkupMode>("pen");
-  const [isMarkupColorPickerOpen, setIsMarkupColorPickerOpen] = React.useState(false);
+  const [openMarkupColorPickerScope, setOpenMarkupColorPickerScope] = React.useState<
+    "inline" | "modal" | null
+  >(null);
   const [markupColorHsv, setMarkupColorHsv] = React.useState<HsvColor>(() =>
     hexToHsv(MARKUP_COLOR_DEFAULT)
   );
 
   const markupColor = React.useMemo(() => rgbToHex(hsvToRgb(markupColorHsv)), [markupColorHsv]);
 
+  const toggleMarkupColorPicker = React.useCallback((scope: "inline" | "modal") => {
+    setOpenMarkupColorPickerScope((previous) => (previous === scope ? null : scope));
+  }, []);
+
   const applyMarkupColorFromHex = React.useCallback((value: string) => {
     const parsed = parseHexColor(value);
     if (!parsed) return;
     setMarkupColorHsv(rgbToHsv(parsed));
-    setIsMarkupColorPickerOpen(false);
+    setOpenMarkupColorPickerScope(null);
   }, []);
 
   const applyMarkupSaturationValueFromPointer = React.useCallback(
@@ -100,7 +107,7 @@ export const useExpertEditMarkupControlsRuntime = ({
       if (event.currentTarget.hasPointerCapture(event.pointerId)) {
         event.currentTarget.releasePointerCapture(event.pointerId);
       }
-      setIsMarkupColorPickerOpen(false);
+      setOpenMarkupColorPickerScope(null);
     },
     []
   );
@@ -114,20 +121,24 @@ export const useExpertEditMarkupControlsRuntime = ({
   }, []);
 
   React.useEffect(() => {
-    if (!isVideoToolSelected) {
-      setIsMarkupColorPickerOpen(false);
+    if (!isMarkupToolSelected) {
+      setOpenMarkupColorPickerScope(null);
     }
-  }, [isVideoToolSelected]);
+  }, [isMarkupToolSelected]);
 
   React.useEffect(() => {
-    if (!isMarkupColorPickerOpen || typeof document === "undefined") return;
+    if (!openMarkupColorPickerScope || typeof document === "undefined") return;
     const handlePointerDown = (event: PointerEvent) => {
-      if (isEventTargetInsideElement(markupColorPickerAnchorRef.current, event.target)) return;
-      setIsMarkupColorPickerOpen(false);
+      const activeAnchor =
+        openMarkupColorPickerScope === "modal"
+          ? modalMarkupColorPickerAnchorRef.current
+          : inlineMarkupColorPickerAnchorRef.current;
+      if (isEventTargetInsideElement(activeAnchor, event.target)) return;
+      setOpenMarkupColorPickerScope(null);
     };
     const handleEscape = (event: KeyboardEvent) => {
       if (event.key !== "Escape") return;
-      setIsMarkupColorPickerOpen(false);
+      setOpenMarkupColorPickerScope(null);
     };
     document.addEventListener("pointerdown", handlePointerDown);
     document.addEventListener("keydown", handleEscape);
@@ -135,25 +146,27 @@ export const useExpertEditMarkupControlsRuntime = ({
       document.removeEventListener("pointerdown", handlePointerDown);
       document.removeEventListener("keydown", handleEscape);
     };
-  }, [isMarkupColorPickerOpen]);
+  }, [openMarkupColorPickerScope]);
 
   const renderMarkupControlsContent = React.useCallback(
     (scope: "inline" | "modal") => (
       <ExpertEditMarkupControlsContent
         scope={scope}
         selectedMarkupMode={selectedMarkupMode}
-        isVideoToolSelected={isVideoToolSelected}
+        isMarkupToolSelected={isMarkupToolSelected}
         isMarkupExpandSelected={isMarkupExpandSelected}
         resolvedMarkupStrokeSize={resolvedMarkupStrokeSize}
         markupColor={markupColor}
         markupColorHsv={markupColorHsv}
-        markupColorPickerAnchorRef={markupColorPickerAnchorRef}
+        markupColorPickerAnchorRef={
+          scope === "modal" ? modalMarkupColorPickerAnchorRef : inlineMarkupColorPickerAnchorRef
+        }
         markupColorSaturationRef={markupColorSaturationRef}
-        isMarkupColorPickerOpen={isMarkupColorPickerOpen}
+        isMarkupColorPickerOpen={openMarkupColorPickerScope === scope}
+        toggleMarkupColorPicker={toggleMarkupColorPicker}
         setSelectedRailTool={setSelectedRailTool}
         setSelectedMarkupMode={setSelectedMarkupMode}
         setMarkupStrokeSize={setMarkupStrokeSize}
-        setIsMarkupColorPickerOpen={setIsMarkupColorPickerOpen}
         clearMarkupStrokesWithHistory={clearMarkupStrokesWithHistory}
         closeMarkupModal={closeMarkupModal}
         openMarkupModal={openMarkupModal}
@@ -172,16 +185,17 @@ export const useExpertEditMarkupControlsRuntime = ({
       handleMarkupSaturationPointerDown,
       handleMarkupSaturationPointerMove,
       handleMarkupSaturationPointerUp,
-      isMarkupColorPickerOpen,
       isMarkupExpandSelected,
-      isVideoToolSelected,
+      isMarkupToolSelected,
       markupColor,
       markupColorHsv,
+      openMarkupColorPickerScope,
       openMarkupModal,
       resolvedMarkupStrokeSize,
       selectedMarkupMode,
       setMarkupStrokeSize,
       setSelectedRailTool,
+      toggleMarkupColorPicker,
     ]
   );
 

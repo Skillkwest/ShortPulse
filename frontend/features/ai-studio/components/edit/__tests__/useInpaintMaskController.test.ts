@@ -196,6 +196,21 @@ const createDropzoneRef = () => {
   return { current: element };
 };
 
+const createOverlayCanvas = (width = 200, height = 100) => {
+  const canvas = document.createElement("canvas");
+  Object.defineProperty(canvas, "clientWidth", {
+    configurable: true,
+    value: width,
+  });
+  Object.defineProperty(canvas, "clientHeight", {
+    configurable: true,
+    value: height,
+  });
+  canvas.width = width;
+  canvas.height = height;
+  return canvas;
+};
+
 const makeSnapshot = () => ({
   layers: [
     {
@@ -861,6 +876,171 @@ describe("useInpaintMaskController hook", () => {
       });
 
       expect(drawCallFound).toBe(true);
+    } finally {
+      Object.defineProperty(globalThis, "Image", {
+        configurable: true,
+        writable: true,
+        value: previousImage,
+      });
+    }
+  });
+
+  it("renders brush preview immediately on the transient preview canvas while painting", async () => {
+    const previousImage = globalThis.Image;
+    class MockImage {
+      onload: (() => void) | null = null;
+      onerror: (() => void) | null = null;
+      naturalWidth = 200;
+      naturalHeight = 100;
+
+      set src(_value: string) {
+        this.onload?.();
+      }
+    }
+    Object.defineProperty(globalThis, "Image", {
+      configurable: true,
+      writable: true,
+      value: MockImage,
+    });
+
+    try {
+      const surfaceRef = createDropzoneRef();
+      const dropzoneElement = surfaceRef.current as HTMLDivElement & {
+        setPointerCapture?: (pointerId: number) => void;
+      };
+      dropzoneElement.setPointerCapture = vi.fn();
+
+      const { result } = renderHook(() =>
+        useInpaintMaskController({
+          surfaceRef,
+          selectedLayerId: "layer-a",
+          selectedLayerImageUrl: "https://example.com/layer-a.png",
+          layerSources: [{ id: "layer-a", imageUrl: "https://example.com/layer-a.png" }],
+          enabled: true,
+          sceneScale: 1,
+          shouldApplyViewportTransform: false,
+          viewportOffsetXRatio: 0,
+          viewportOffsetYRatio: 0,
+          paintMode: "brush",
+          selectionMode: "select",
+          strokeSize: 24,
+        })
+      );
+
+      const previewCanvas = createOverlayCanvas();
+      result.current.previewCanvasRef.current = previewCanvas;
+
+      await waitFor(() => {
+        expect(result.current.imageHasInteractiveMask).toBe(true);
+      });
+
+      const previewContext = getOrCreateCanvasContext(previewCanvas);
+
+      await act(async () => {
+        result.current.onPointerDown({
+          pointerId: 91,
+          pointerType: "mouse",
+          button: 0,
+          clientX: 100,
+          clientY: 50,
+          currentTarget: dropzoneElement,
+          preventDefault: vi.fn(),
+        } as unknown as React.PointerEvent<HTMLDivElement>);
+      });
+
+      expect(previewContext.drawImage).toHaveBeenCalled();
+      expect(previewContext.fillRect).toHaveBeenCalled();
+    } finally {
+      Object.defineProperty(globalThis, "Image", {
+        configurable: true,
+        writable: true,
+        value: previousImage,
+      });
+    }
+  });
+
+  it("renders live lasso preview immediately on the transient preview canvas", async () => {
+    const previousImage = globalThis.Image;
+    class MockImage {
+      onload: (() => void) | null = null;
+      onerror: (() => void) | null = null;
+      naturalWidth = 200;
+      naturalHeight = 100;
+
+      set src(_value: string) {
+        this.onload?.();
+      }
+    }
+    Object.defineProperty(globalThis, "Image", {
+      configurable: true,
+      writable: true,
+      value: MockImage,
+    });
+
+    try {
+      const surfaceRef = createDropzoneRef();
+      const dropzoneElement = surfaceRef.current as HTMLDivElement & {
+        setPointerCapture?: (pointerId: number) => void;
+      };
+      dropzoneElement.setPointerCapture = vi.fn();
+
+      const { result } = renderHook(() =>
+        useInpaintMaskController({
+          surfaceRef,
+          selectedLayerId: "layer-a",
+          selectedLayerImageUrl: "https://example.com/layer-a.png",
+          layerSources: [{ id: "layer-a", imageUrl: "https://example.com/layer-a.png" }],
+          enabled: true,
+          sceneScale: 1,
+          shouldApplyViewportTransform: false,
+          viewportOffsetXRatio: 0,
+          viewportOffsetYRatio: 0,
+          paintMode: "lasso",
+          selectionMode: "select",
+          strokeSize: 24,
+        })
+      );
+
+      const previewCanvas = createOverlayCanvas();
+      result.current.previewCanvasRef.current = previewCanvas;
+
+      await waitFor(() => {
+        expect(result.current.imageHasInteractiveMask).toBe(true);
+      });
+
+      const previewContext = getOrCreateCanvasContext(previewCanvas);
+
+      await act(async () => {
+        result.current.onPointerDown({
+          pointerId: 92,
+          pointerType: "mouse",
+          button: 0,
+          clientX: 60,
+          clientY: 30,
+          currentTarget: dropzoneElement,
+          preventDefault: vi.fn(),
+        } as unknown as React.PointerEvent<HTMLDivElement>);
+      });
+
+      await act(async () => {
+        result.current.onPointerMove({
+          pointerId: 92,
+          pointerType: "mouse",
+          clientX: 140,
+          clientY: 60,
+          currentTarget: dropzoneElement,
+          nativeEvent: {
+            clientX: 140,
+            clientY: 60,
+            getCoalescedEvents: () => [],
+          },
+          preventDefault: vi.fn(),
+        } as unknown as React.PointerEvent<HTMLDivElement>);
+      });
+
+      expect(previewContext.lineTo).toHaveBeenCalled();
+      expect(previewContext.stroke).toHaveBeenCalled();
+      expect(previewContext.arc).toHaveBeenCalled();
     } finally {
       Object.defineProperty(globalThis, "Image", {
         configurable: true,

@@ -16,6 +16,7 @@ export type Provider =
   | "fal-flux2-pro"
   | "fal-flux2-pro-edit"
   | "fal-flux-pro-fill"
+  | "fal-flux-kontext-inpaint"
   | "fal-bria-background-remove"
   | "fal-kling"
   | "fal-nano-banana"
@@ -81,6 +82,9 @@ export const normalizeProviderForPolling = (
       return "fal-nano-banana-edit";
     }
     if (normalized.includes("nano-banana")) return "fal-nano-banana";
+    if (normalized.includes("flux-kontext") && normalized.includes("inpaint")) {
+      return "fal-flux-kontext-inpaint";
+    }
     if (normalized.includes("flux-pro") && normalized.includes("fill")) return "fal-flux-pro-fill";
     if (
       normalized.includes("bria") &&

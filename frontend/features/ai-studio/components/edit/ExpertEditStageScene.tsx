@@ -3,6 +3,7 @@ import React from "react";
 import {
   isMarkupStrokeClosedShape,
   MARKUP_LASSO_FILL_OPACITY,
+  MARKUP_OVERLAY_OPACITY,
   resolveMarkupStrokeKind,
   resolveMarkupStrokePointRadiusPx,
   resolveMarkupStrokePointToSurfacePoint,
@@ -123,73 +124,75 @@ const renderMarkupStrokeOverlay = ({
       viewBox={`0 0 ${stageWidth} ${stageHeight}`}
       aria-hidden="true"
     >
-      {markupStrokes.map((stroke) => {
-        const strokeWidthPx = resolveMarkupStrokeWidthPx({
-          stroke,
-          stageHeight,
-        });
-        const strokeKind = resolveMarkupStrokeKind(stroke);
-        if (stroke.points.length <= 1) {
-          const point = stroke.points[0];
-          if (!point) return null;
-          const pointPx = resolveMarkupStrokePointToSurfacePoint({
-            point,
-            stageWidth,
+      <g data-markup-layer="strokes" opacity={MARKUP_OVERLAY_OPACITY}>
+        {markupStrokes.map((stroke) => {
+          const strokeWidthPx = resolveMarkupStrokeWidthPx({
+            stroke,
             stageHeight,
           });
-          return (
-            <circle
-              key={`${scope}-${stroke.id}-point`}
-              cx={pointPx.x}
-              cy={pointPx.y}
-              r={resolveMarkupStrokePointRadiusPx({
-                stroke,
-                stageHeight,
-              })}
-              fill={stroke.color}
-            />
-          );
-        }
-
-        const pointsValue = stroke.points
-          .map((point) => {
+          const strokeKind = resolveMarkupStrokeKind(stroke);
+          if (stroke.points.length <= 1) {
+            const point = stroke.points[0];
+            if (!point) return null;
             const pointPx = resolveMarkupStrokePointToSurfacePoint({
               point,
               stageWidth,
               stageHeight,
             });
-            return `${pointPx.x},${pointPx.y}`;
-          })
-          .join(" ");
+            return (
+              <circle
+                key={`${scope}-${stroke.id}-point`}
+                cx={pointPx.x}
+                cy={pointPx.y}
+                r={resolveMarkupStrokePointRadiusPx({
+                  stroke,
+                  stageHeight,
+                })}
+                fill={stroke.color}
+              />
+            );
+          }
 
-        if (isMarkupStrokeClosedShape(stroke)) {
+          const pointsValue = stroke.points
+            .map((point) => {
+              const pointPx = resolveMarkupStrokePointToSurfacePoint({
+                point,
+                stageWidth,
+                stageHeight,
+              });
+              return `${pointPx.x},${pointPx.y}`;
+            })
+            .join(" ");
+
+          if (isMarkupStrokeClosedShape(stroke)) {
+            return (
+              <polygon
+                key={`${scope}-${stroke.id}`}
+                points={pointsValue}
+                fill={stroke.color}
+                fillOpacity={MARKUP_LASSO_FILL_OPACITY}
+                stroke={stroke.color}
+                strokeWidth={strokeWidthPx}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            );
+          }
+
           return (
-            <polygon
+            <polyline
               key={`${scope}-${stroke.id}`}
               points={pointsValue}
-              fill={stroke.color}
-              fillOpacity={MARKUP_LASSO_FILL_OPACITY}
+              fill="none"
               stroke={stroke.color}
               strokeWidth={strokeWidthPx}
               strokeLinecap="round"
               strokeLinejoin="round"
+              data-markup-kind={strokeKind}
             />
           );
-        }
-
-        return (
-          <polyline
-            key={`${scope}-${stroke.id}`}
-            points={pointsValue}
-            fill="none"
-            stroke={stroke.color}
-            strokeWidth={strokeWidthPx}
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            data-markup-kind={strokeKind}
-          />
-        );
-      })}
+        })}
+      </g>
     </svg>
   );
 };

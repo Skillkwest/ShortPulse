@@ -192,7 +192,7 @@ export function useExpertEditStageChrome({
   }, [closeStageContextMenu, handleRecenterMoveAction]);
 
   const handleStageContextMenuExpand = React.useCallback(() => {
-    openMarkupModal("video");
+    openMarkupModal("markup");
     closeStageContextMenu();
   }, [closeStageContextMenu, openMarkupModal]);
 

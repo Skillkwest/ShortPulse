@@ -37,7 +37,9 @@ Purpose: define the complete behavior contract for Expert Edit prompt-reference 
 6. Invalid-token warning feedback is deferred until Generate is attempted.
 7. Generate is blocked when invalid token references exist.
 8. Standard edit lanes include only secondary references explicitly linked by valid `@img1..@img3` tokens in provider `image_urls`; the primary image is always present as the first reference and `@main` resolves to that primary figure.
-9. Inpaint is an exception: the current FLUX Fill lane supports `@main` only. `@img1`, `@img2`, and `@img3` are invalid in inpaint because FLUX Fill receives only the flattened base image plus mask.
+9. Inpaint has two explicit contracts:
+   - default FLUX Fill inpaint supports `@main` only because `fal-ai/flux-pro/v1/fill` receives only the flattened base image plus mask.
+   - reference-aware inpaint allows `@main` plus exactly one unique secondary token and routes to `fal-ai/flux-kontext-lora/inpaint` with `image_url + mask_url + reference_image_url`.
 
 ## Token grammar and validation
 
@@ -45,7 +47,8 @@ Purpose: define the complete behavior contract for Expert Edit prompt-reference 
 | --- | --- | --- |
 | `@main` | Valid when the primary image is available | Valid primary reference token. |
 | `@img1`, `@img2`, `@img3` | Valid only if matching secondary slot is populated | Valid reference token. |
-| `@img1`, `@img2`, `@img3` in inpaint | Invalid for the current FLUX Fill lane | Invalid (`secondary_tokens_disabled`). |
+| `@img1`, `@img2`, `@img3` in default inpaint | Invalid for the FLUX Fill lane | Invalid (`secondary_tokens_disabled`). |
+| More than one unique `@imgN` in reference inpaint | Exceeds the single-reference masked lane | Invalid (`too_many_secondary_references`). |
 | `@img` | Missing numeric suffix | Invalid (`missing_index`). |
 | `@img4+` | Out of supported range | Invalid (`out_of_range`). |
 | `@imgN` with empty slot | Slot has no image | Invalid (`empty_slot`). |
@@ -70,7 +73,8 @@ Normalization rules:
    - `Enter` inserts the selected `@main` or `@imgN` token by replacing the typed bare `@` or the current caret/selection when the picker was opened by `Tab`.
    - ordinary typing closes the picker and preserves manual prompt entry.
 8. Opening the picker adds a visible selection outline to the selected tile, including the primary tile.
-9. Inpaint mode limits the picker to `@main` only.
+9. Default inpaint mode limits the picker to `@main` only.
+10. Reference inpaint mode exposes populated secondary slots in the picker, but once one unique secondary reference is already linked, the picker remains constrained to that same linked slot plus `@main`.
 
 ### Drag-to-insert tokens
 
@@ -84,7 +88,8 @@ Normalization rules:
 4. Token insertion applies spacing-safe insertion:
    - inserts leading/trailing spaces only when needed to avoid merged words.
 5. The anchored picker must reuse the same token insertion path as drag-to-insert so caret placement and spacing stay consistent.
-6. Inpaint mode disables secondary-slot token drag insertion because the current FLUX Fill lane does not transmit secondary reference images.
+6. Default inpaint mode disables secondary-slot token drag insertion because FLUX Fill does not transmit secondary reference images.
+7. Reference inpaint mode permits secondary-slot token drag insertion only when the experimental single-reference lane is enabled.
 
 ## Generate preflight and submit compilation
 
@@ -99,10 +104,9 @@ Normalization rules:
    - continue flatten flow.
    - build `referenceInputs` with flattened primary first and only token-linked secondary slots next.
    - compile provider-facing prompt when token references exist.
-4. Inpaint preflight is narrower:
-   - `@main` remains valid,
-   - `@img1..@img3` are blocked before flatten/submit/debit,
-   - FLUX Fill submits only the prepared base image and prepared mask.
+4. Inpaint preflight is lane-aware:
+   - default FLUX Fill lane: `@main` remains valid, `@img1..@img3` are blocked before flatten/submit/debit, and submit sends only the prepared base image plus prepared mask.
+   - reference inpaint lane: exactly one unique `@imgN` is allowed, generate blocks if more than one unique secondary reference is linked, and submit sends the prepared base image, prepared mask, and one prepared `reference_image_url`.
 
 ### Compilation contract
 
@@ -173,7 +177,7 @@ Controller precedence:
 Minimum suite coverage:
 
 1. Token logic unit tests:
-   - valid/invalid detection (`missing_index`, `out_of_range`, `empty_slot`, `secondary_tokens_disabled`).
+   - valid/invalid detection (`missing_index`, `out_of_range`, `empty_slot`, `secondary_tokens_disabled`, `too_many_secondary_references`).
    - submission prompt compile and figure-map append behavior.
    - drag payload encode/decode helpers.
 2. Expert Edit component tests:
@@ -187,8 +191,10 @@ Minimum suite coverage:
    - picker `Enter` inserts the selected token and closes the picker.
    - ordinary typing after picker open closes the picker and preserves manual text entry.
    - token generate path sends both display/submission prompt overrides.
-   - inpaint picker limits token choices to `@main`.
-   - inpaint generate blocks secondary tokens with the lane-specific error.
+   - default inpaint picker limits token choices to `@main`.
+   - reference inpaint picker exposes populated secondary refs when the flag is enabled.
+   - default inpaint generate blocks secondary tokens with the lane-specific error.
+   - reference inpaint generate blocks prompts that link more than one unique secondary reference.
 3. Controller/composer tests:
    - prompt override precedence.
    - character-mode precedence compatibility.
@@ -228,4 +234,5 @@ Minimum suite coverage:
    - press `Enter` to insert selected `@main` or `@imgN` token and close the picker.
    - verify Generate blocks on invalid token and succeeds on valid token.
    - verify reference token highlight color and prompt readability are stable.
-   - inpaint mode: verify picker only offers `@main` and `@img1..@img3` are rejected before submit.
+   - default inpaint mode: verify picker only offers `@main` and `@img1..@img3` are rejected before submit.
+   - reference inpaint mode: verify picker offers populated secondary refs, exactly one unique `@imgN` is allowed, and submit uses the reference-aware masked lane.

@@ -393,6 +393,7 @@ export const useAiStudioTaskSubmission = ({
 
         let preparedImageInputs: string[] = [];
         let preparedInpaintOverride: InpaintSubmissionOverride | null = null;
+        const shouldPrepareStandardReferences = !options?.inpaintOverride;
         const preflightTimeoutBudget = resolvePrepareReferenceTimeoutBudget({
           imageInputs,
           inpaintOverride: options?.inpaintOverride,
@@ -436,19 +437,21 @@ export const useAiStudioTaskSubmission = ({
             timeoutMs: preflightTimeoutBudget.timeoutMs,
             timeoutMessage: PREPARE_REFERENCE_TIMEOUT_ERROR,
             run: async (abortSignal) => {
-              const preparedReferences = (
-                await Promise.all(
-                  imageInputs.map(async (url, index) => {
-                    const normalized = await prepareImageUrlForSubmission(url, {
-                      abortSignal,
-                      onStage: (event) => {
-                        emitPreflightStage(event, "reference", index);
-                      },
-                    });
-                    return normalized ?? null;
-                  })
-                )
-              ).filter((url): url is string => Boolean(url));
+              const preparedReferences = shouldPrepareStandardReferences
+                ? (
+                    await Promise.all(
+                      imageInputs.map(async (url, index) => {
+                        const normalized = await prepareImageUrlForSubmission(url, {
+                          abortSignal,
+                          onStage: (event) => {
+                            emitPreflightStage(event, "reference", index);
+                          },
+                        });
+                        return normalized ?? null;
+                      })
+                    )
+                  ).filter((url): url is string => Boolean(url))
+                : [];
               const inpaintOverride = options?.inpaintOverride;
               if (!inpaintOverride) {
                 return {
@@ -456,26 +459,36 @@ export const useAiStudioTaskSubmission = ({
                   preparedInpaint: null as InpaintSubmissionOverride | null,
                 };
               }
-              const [preparedBaseImageInput, preparedMaskInput] = await Promise.all([
-                prepareImageUrlForSubmission(inpaintOverride.baseImageInput, {
-                  abortSignal,
-                  onStage: (event) => {
-                    emitPreflightStage(event, "inpaint_base", 0);
-                  },
-                }),
-                prepareImageUrlForSubmission(inpaintOverride.maskInput, {
-                  abortSignal,
-                  onStage: (event) => {
-                    emitPreflightStage(event, "inpaint_mask", 0);
-                  },
-                }),
-              ]);
+              const [preparedBaseImageInput, preparedMaskInput, preparedReferenceImageInput] =
+                await Promise.all([
+                  prepareImageUrlForSubmission(inpaintOverride.baseImageInput, {
+                    abortSignal,
+                    onStage: (event) => {
+                      emitPreflightStage(event, "inpaint_base", 0);
+                    },
+                  }),
+                  prepareImageUrlForSubmission(inpaintOverride.maskInput, {
+                    abortSignal,
+                    onStage: (event) => {
+                      emitPreflightStage(event, "inpaint_mask", 0);
+                    },
+                  }),
+                  inpaintOverride.referenceImageInput
+                    ? prepareImageUrlForSubmission(inpaintOverride.referenceImageInput, {
+                        abortSignal,
+                        onStage: (event) => {
+                          emitPreflightStage(event, "reference", 0);
+                        },
+                      })
+                    : Promise.resolve(null),
+                ]);
               return {
                 preparedReferences,
                 preparedInpaint: {
                   modelId: inpaintOverride.modelId ?? null,
                   baseImageInput: preparedBaseImageInput ?? "",
                   maskInput: preparedMaskInput ?? "",
+                  referenceImageInput: preparedReferenceImageInput,
                   outputFormat: inpaintOverride.outputFormat,
                 } satisfies InpaintSubmissionOverride,
               };
@@ -519,6 +532,7 @@ export const useAiStudioTaskSubmission = ({
           return;
         }
         if (
+          !options?.inpaintOverride &&
           (isEditWorkflow || requiresImageToImageReferences) &&
           preparedImageInputs.length === 0
         ) {
@@ -540,6 +554,18 @@ export const useAiStudioTaskSubmission = ({
               errorMessage: "Inpaint generation requires a base image and mask.",
               errorMessageShort: "Mask required.",
               errorDetail: "Inpaint generation requires a base image and mask.",
+            });
+            return;
+          }
+          const requiresPreparedReferenceImage = Boolean(
+            options.inpaintOverride.referenceImageInput
+          );
+          if (requiresPreparedReferenceImage && !preparedInpaintOverride?.referenceImageInput) {
+            applySubmissionFailure(id, {
+              timestamp: "Missing reference",
+              errorMessage: "Reference inpaint generation requires a secondary reference image.",
+              errorMessageShort: "Reference image required.",
+              errorDetail: "Reference inpaint generation requires a secondary reference image.",
             });
             return;
           }

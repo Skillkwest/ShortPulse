@@ -15,6 +15,7 @@ import {
   submitFalBriaBackgroundRemove,
   submitFalFlux2,
   submitFalFlux2Edit,
+  submitFalFluxKontextInpaint,
   submitFalFlux2Klein,
   submitFalFluxProFill,
   submitFalFlux2Pro,
@@ -35,6 +36,7 @@ vi.mock("../../../../../lib/falClient", () => ({
   submitFalBriaBackgroundRemove: vi.fn(),
   submitFalFlux2: vi.fn(),
   submitFalFlux2Edit: vi.fn(),
+  submitFalFluxKontextInpaint: vi.fn(),
   submitFalFlux2Klein: vi.fn(),
   submitFalFluxProFill: vi.fn(),
   submitFalFlux2Pro: vi.fn(),
@@ -108,6 +110,11 @@ const CASES: Record<string, CaseConfig> = {
   "fal-ai/flux-pro/v1/fill": {
     route: "image",
     submitName: "submitFalFluxProFill",
+    expectedReferenceField: "none",
+  },
+  "fal-ai/flux-kontext-lora/inpaint": {
+    route: "image",
+    submitName: "submitFalFluxKontextInpaint",
     expectedReferenceField: "none",
   },
   "fal-ai/nano-banana": {
@@ -202,11 +209,15 @@ const makeImageArgs = (
     image_urls: ["https://cdn.test/ref-1.png", "https://cdn.test/ref-2.png"],
   },
   inpaintOverride:
-    modelId === "fal-ai/flux-pro/v1/fill"
+    modelId === "fal-ai/flux-pro/v1/fill" || modelId === "fal-ai/flux-kontext-lora/inpaint"
       ? {
-          modelId: "fal-ai/flux-pro/v1/fill",
+          modelId,
           baseImageInput: "https://cdn.test/inpaint-base.png",
           maskInput: "https://cdn.test/inpaint-mask.png",
+          referenceImageInput:
+            modelId === "fal-ai/flux-kontext-lora/inpaint"
+              ? "https://cdn.test/inpaint-reference.png"
+              : undefined,
           outputFormat: "png",
         }
       : undefined,
@@ -234,6 +245,7 @@ const submitSpyByName = {
   submitFalBriaBackgroundRemove: vi.mocked(submitFalBriaBackgroundRemove),
   submitFalFlux2: vi.mocked(submitFalFlux2),
   submitFalFlux2Edit: vi.mocked(submitFalFlux2Edit),
+  submitFalFluxKontextInpaint: vi.mocked(submitFalFluxKontextInpaint),
   submitFalFlux2Klein: vi.mocked(submitFalFlux2Klein),
   submitFalFluxProFill: vi.mocked(submitFalFluxProFill),
   submitFalFlux2Pro: vi.mocked(submitFalFlux2Pro),
@@ -361,6 +373,11 @@ describe("task submission payload matrix", () => {
       if (modelId === "fal-ai/flux-pro/v1/fill") {
         expect(typeof payload.image_url).toBe("string");
         expect(typeof payload.mask_url).toBe("string");
+      }
+      if (modelId === "fal-ai/flux-kontext-lora/inpaint") {
+        expect(typeof payload.image_url).toBe("string");
+        expect(typeof payload.mask_url).toBe("string");
+        expect(typeof payload.reference_image_url).toBe("string");
       }
       if (modelId === "fal-ai/bria/background/remove") {
         expect(typeof payload.image_url).toBe("string");

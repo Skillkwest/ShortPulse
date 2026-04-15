@@ -7,8 +7,6 @@ import React from "react";
 import type { InpaintMaskSnapshot } from "./useInpaintMaskController";
 import {
   areLayerTransformsEqual,
-  areTransformHistoryEntriesEqual,
-  buildTransformHistoryEntry,
   defaultLayerTransform,
   type TransformHistoryEntry,
   type TransformHistoryState,
@@ -32,12 +30,12 @@ type UseExpertEditStageHistoryArgs = {
   setMarkupStrokes: React.Dispatch<React.SetStateAction<MarkupStroke[]>>;
   hasPrimaryCompositePreview: boolean;
   inpaintLayerSources: Array<{ id: string; imageUrl: string | null }>;
-  markupViewport: {
+  stageViewport: {
     scale: number;
     offsetXRatio: number;
     offsetYRatio: number;
   };
-  resetMarkupViewport: () => void;
+  resetStageViewport: () => void;
   captureInpaintMaskSnapshot: () => InpaintMaskSnapshot;
   restoreInpaintMaskSnapshot: (snapshot: InpaintMaskSnapshot) => void;
   clearSelectedLayerMask: () => void;
@@ -65,8 +63,8 @@ export function useExpertEditStageHistory({
   setMarkupStrokes,
   hasPrimaryCompositePreview,
   inpaintLayerSources,
-  markupViewport,
-  resetMarkupViewport,
+  stageViewport,
+  resetStageViewport,
   captureInpaintMaskSnapshot,
   restoreInpaintMaskSnapshot,
   clearSelectedLayerMask,
@@ -205,14 +203,14 @@ export function useExpertEditStageHistory({
 
   const handleResetGeneralAction = React.useCallback(() => {
     resetAllMoveToolTransforms();
-    resetMarkupViewport();
+    resetStageViewport();
     clearAllInpaintMasksWithHistory();
     clearMarkupStrokesWithHistory();
   }, [
     clearAllInpaintMasksWithHistory,
     clearMarkupStrokesWithHistory,
     resetAllMoveToolTransforms,
-    resetMarkupViewport,
+    resetStageViewport,
   ]);
 
   const clearGenerationModeSelectionArtifacts = React.useCallback(() => {
@@ -220,12 +218,12 @@ export function useExpertEditStageHistory({
     clearMarkupStrokesWithHistory();
   }, [clearAllInpaintMasksWithHistory, clearMarkupStrokesWithHistory]);
 
-  const isMarkupViewportAtRest = React.useMemo(
+  const isStageViewportAtRest = React.useMemo(
     () =>
-      Math.abs(markupViewport.scale - MARKUP_VIEWPORT_DEFAULT_SCALE) <= MARKUP_VIEWPORT_EPSILON &&
-      Math.abs(markupViewport.offsetXRatio) <= MARKUP_VIEWPORT_EPSILON &&
-      Math.abs(markupViewport.offsetYRatio) <= MARKUP_VIEWPORT_EPSILON,
-    [markupViewport]
+      Math.abs(stageViewport.scale - MARKUP_VIEWPORT_DEFAULT_SCALE) <= MARKUP_VIEWPORT_EPSILON &&
+      Math.abs(stageViewport.offsetXRatio) <= MARKUP_VIEWPORT_EPSILON &&
+      Math.abs(stageViewport.offsetYRatio) <= MARKUP_VIEWPORT_EPSILON,
+    [stageViewport]
   );
 
   const hasInpaintMaskContent = inpaintHistoryState.present.layers.length > 0;
@@ -236,7 +234,7 @@ export function useExpertEditStageHistory({
   );
   const isGeneralResetDisabled =
     !hasAnyMoveTransformChanges &&
-    isMarkupViewportAtRest &&
+    isStageViewportAtRest &&
     markupStrokes.length === 0 &&
     !hasInpaintMaskContent;
 
@@ -262,7 +260,7 @@ export function useExpertEditStageHistory({
     handleResetGeneralAction,
     clearGenerationModeSelectionArtifacts,
     isMoveTransformCentered,
-    isMarkupViewportAtRest,
+    isStageViewportAtRest,
     isGeneralResetDisabled,
     clearHistoryEphemera,
   };

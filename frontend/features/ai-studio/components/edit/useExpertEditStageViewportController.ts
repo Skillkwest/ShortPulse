@@ -1,5 +1,5 @@
 /**
- * Markup viewport controller for Expert Edit stage interactions.
+ * Shared stage viewport controller for Expert Edit interactions.
  * Owns zoom, pan-session lifecycle, and viewport-size synchronization for inline and modal surfaces.
  */
 import React from "react";
@@ -27,7 +27,7 @@ import {
 } from "./expertEditViewportUtils";
 import type { MarkupViewportState } from "./markupStrokeController";
 
-type UseExpertEditMarkupViewportControllerParams = {
+type UseExpertEditStageViewportControllerParams = {
   markupViewport: MarkupViewportState;
   shouldApplyMarkupViewport: boolean;
   isMarkupPanSpacePressed: boolean;
@@ -40,10 +40,10 @@ type UseExpertEditMarkupViewportControllerParams = {
   resolveStageRect?: (scope: ExpertEditStageScope, currentTarget: HTMLDivElement) => DOMRect | null;
 };
 
-type UseExpertEditMarkupViewportControllerResult = {
+type UseExpertEditStageViewportControllerResult = {
   clearMarkupPanGestureState: () => void;
   handleMoveZoomSliderChange: (value: number) => void;
-  resetMarkupViewport: () => void;
+  resetStageViewport: () => void;
   beginMarkupPanGesture: (
     event: React.PointerEvent<HTMLDivElement>,
     scope: ExpertEditStageScope
@@ -51,14 +51,14 @@ type UseExpertEditMarkupViewportControllerResult = {
   continueMarkupPanGesture: (event: React.PointerEvent<HTMLDivElement>) => boolean;
   endMarkupPanGesture: (event: React.PointerEvent<HTMLDivElement>) => boolean;
   endMarkupPanGestureOnLeave: (event: React.PointerEvent<HTMLDivElement>) => boolean;
-  handleMarkupViewportWheel: (
+  handleStageViewportWheel: (
     event: Pick<
       React.WheelEvent<HTMLDivElement>,
       "clientX" | "clientY" | "currentTarget" | "deltaY" | "preventDefault"
     >,
     scope: ExpertEditStageScope
   ) => void;
-  handleNativeMarkupViewportWheel: (
+  handleNativeStageViewportWheel: (
     event: WheelEvent,
     scope: ExpertEditStageScope,
     currentTarget: HTMLDivElement
@@ -72,9 +72,9 @@ const isPointerButtonPressed = (buttons: number | undefined, mask: number) =>
   typeof buttons === "number" && (buttons & mask) === mask;
 
 /**
- * Returns the viewport and pan interaction handlers for markup mode.
+ * Returns shared stage viewport and pan interaction handlers for Expert Edit.
  */
-export const useExpertEditMarkupViewportController = ({
+export const useExpertEditStageViewportController = ({
   markupViewport,
   shouldApplyMarkupViewport,
   isMarkupPanSpacePressed,
@@ -85,7 +85,7 @@ export const useExpertEditMarkupViewportController = ({
   setInlineStageViewportSize,
   setMarkupModalViewportSize,
   resolveStageRect,
-}: UseExpertEditMarkupViewportControllerParams): UseExpertEditMarkupViewportControllerResult => {
+}: UseExpertEditStageViewportControllerParams): UseExpertEditStageViewportControllerResult => {
   const clearMarkupPanGestureState = React.useCallback(() => {
     markupPanPointerSessionRef.current = createIdleMarkupPanPointerSession();
     setIsMarkupPanDragging(false);
@@ -113,7 +113,7 @@ export const useExpertEditMarkupViewportController = ({
     [setMarkupViewport, setMoveStageZoomSliderValue]
   );
 
-  const resetMarkupViewport = React.useCallback(() => {
+  const resetStageViewport = React.useCallback(() => {
     const defaultViewport = createDefaultMarkupViewportState();
     setMoveStageZoomSliderValue(resolveMoveStageZoomSliderValue(defaultViewport.scale));
     setMarkupViewport(defaultViewport);
@@ -301,7 +301,7 @@ export const useExpertEditMarkupViewportController = ({
     [resolveStageRect, setMarkupViewport, shouldApplyMarkupViewport, syncViewportSizeByScope]
   );
 
-  const handleMarkupViewportWheel = React.useCallback(
+  const handleStageViewportWheel = React.useCallback(
     (
       event: Pick<
         React.WheelEvent<HTMLDivElement>,
@@ -323,7 +323,7 @@ export const useExpertEditMarkupViewportController = ({
     [applyMarkupViewportWheel]
   );
 
-  const handleNativeMarkupViewportWheel = React.useCallback(
+  const handleNativeStageViewportWheel = React.useCallback(
     (event: WheelEvent, scope: ExpertEditStageScope, currentTarget: HTMLDivElement) => {
       applyMarkupViewportWheel({
         clientX: event.clientX,
@@ -342,12 +342,12 @@ export const useExpertEditMarkupViewportController = ({
   return {
     clearMarkupPanGestureState,
     handleMoveZoomSliderChange,
-    resetMarkupViewport,
+    resetStageViewport,
     beginMarkupPanGesture,
     continueMarkupPanGesture,
     endMarkupPanGesture,
     endMarkupPanGestureOnLeave,
-    handleMarkupViewportWheel,
-    handleNativeMarkupViewportWheel,
+    handleStageViewportWheel,
+    handleNativeStageViewportWheel,
   };
 };

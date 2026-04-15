@@ -5,6 +5,7 @@ import type { AspectOption } from "../../types";
 import { AspectDropdown } from "../AspectDropdown";
 import { ResolutionDropdown } from "../ResolutionDropdown";
 import { StylesControl } from "../StylesControl";
+import { LOCKED_EDIT_TOOL_MODEL_LOGO_SRC } from "./expertEditPanelViewContract";
 import type { ExpertEditStyleTile } from "./expertEditStyles";
 
 type ExpertEditSecondaryReferencesProps = {
@@ -141,6 +142,8 @@ export function ExpertEditSelectorControls({
   imageResolutionOptions,
   onImageResolutionChange,
 }: ExpertEditSelectorControlsProps) {
+  const isLockedEditToolLogo = effectiveModelPickerLogoSrc === LOCKED_EDIT_TOOL_MODEL_LOGO_SRC;
+
   return (
     <div className="edit-expert-selector-row create-expert-secondary-row create-expert-controls-row">
       <div className="create-expert-controls">
@@ -161,7 +164,9 @@ export function ExpertEditSelectorControls({
           >
             {effectiveModelPickerLogoSrc ? (
               <Image
-                className="model-chip-logo-img"
+                className={`model-chip-logo-img ${
+                  isLockedEditToolLogo ? "model-chip-logo-img--locked-edit-tool" : ""
+                }`.trim()}
                 src={effectiveModelPickerLogoSrc}
                 alt=""
                 aria-hidden

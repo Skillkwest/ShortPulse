@@ -12,6 +12,13 @@ export type MaskLayerMeta = {
   contourPaths: number[][];
 };
 
+type OverlayCanvasRenderContext = {
+  ctx: CanvasRenderingContext2D;
+  width: number;
+  height: number;
+  dpr: number;
+};
+
 const MARCHING_ANTS_PHASE_MODULO = 120;
 export const INPAINT_MARCHING_ANTS_STEP_MS = 110;
 export const INPAINT_MARCHING_ANTS_DASH_PATTERN = [6, 4] as const;
@@ -127,6 +134,180 @@ export const resolveNextMarchingAntPhaseState = ({
     phase: (phase + 1) % MARCHING_ANTS_PHASE_MODULO,
     lastTickMs: nowMs,
   };
+};
+
+const resolveOverlayCanvasRenderContext = (
+  canvas: HTMLCanvasElement
+): OverlayCanvasRenderContext | null => {
+  const width = canvas.clientWidth;
+  const height = canvas.clientHeight;
+  const dpr = Math.max(1, window.devicePixelRatio || 1);
+  const pixelWidth = Math.max(1, Math.round(width * dpr));
+  const pixelHeight = Math.max(1, Math.round(height * dpr));
+  if (canvas.width !== pixelWidth || canvas.height !== pixelHeight) {
+    canvas.width = pixelWidth;
+    canvas.height = pixelHeight;
+  }
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return null;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, width, height);
+  return {
+    ctx,
+    width,
+    height,
+    dpr,
+  };
+};
+
+const renderTintedMaskOverlay = ({
+  ctx,
+  width,
+  height,
+  maskCanvas,
+}: {
+  ctx: CanvasRenderingContext2D;
+  width: number;
+  height: number;
+  maskCanvas: HTMLCanvasElement;
+}) => {
+  ctx.save();
+  const drawRect = resolveSceneMappedDrawRect({
+    sourceWidth: maskCanvas.width,
+    sourceHeight: maskCanvas.height,
+    targetWidth: width,
+    targetHeight: height,
+  });
+  ctx.drawImage(maskCanvas, drawRect.x, drawRect.y, drawRect.width, drawRect.height);
+  ctx.globalCompositeOperation = "source-in";
+  ctx.fillStyle = "rgba(255, 0, 60, 0.58)";
+  ctx.fillRect(0, 0, width, height);
+  ctx.restore();
+};
+
+const renderLassoPreviewOverlay = ({
+  ctx,
+  width,
+  height,
+  dpr,
+  maskCanvas,
+  lassoPreviewPoints,
+  phase,
+}: {
+  ctx: CanvasRenderingContext2D;
+  width: number;
+  height: number;
+  dpr: number;
+  maskCanvas: HTMLCanvasElement | null;
+  lassoPreviewPoints: InpaintPoint[];
+  phase: number;
+}) => {
+  const lassoRenderPoints = mapLassoPreviewPointsToOverlaySpace({
+    points: lassoPreviewPoints,
+    maskWidth: maskCanvas?.width ?? width,
+    maskHeight: maskCanvas?.height ?? height,
+    overlayWidth: width,
+    overlayHeight: height,
+  });
+
+  if (lassoRenderPoints.length <= 0) return;
+
+  ctx.save();
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
+  const firstPoint = lassoRenderPoints[0]!;
+  const lastPoint = lassoRenderPoints[lassoRenderPoints.length - 1]!;
+  const [dashSize, dashGap] = INPAINT_MARCHING_ANTS_DASH_PATTERN;
+  const baseOffset = -(phase * MARCHING_ANTS_DASH_OFFSET_STEP);
+  const lassoAntStrokeWidth = resolveLassoAntStrokeWidth(dpr);
+
+  if (lassoRenderPoints.length > 1) {
+    if (lassoRenderPoints.length > 2) {
+      ctx.fillStyle = LASSO_THEME_FILL;
+      tracePolylinePath(ctx, lassoRenderPoints);
+      ctx.closePath();
+      ctx.fill();
+    }
+
+    ctx.setLineDash([]);
+    ctx.lineWidth = LASSO_PREVIEW_GUIDE_STROKE_WIDTH + 1.1;
+    ctx.strokeStyle = "rgba(0, 0, 0, 0.72)";
+    tracePolylinePath(ctx, lassoRenderPoints);
+    ctx.stroke();
+
+    ctx.lineWidth = LASSO_PREVIEW_GUIDE_STROKE_WIDTH;
+    ctx.strokeStyle = LASSO_THEME_GUIDE;
+    tracePolylinePath(ctx, lassoRenderPoints);
+    ctx.stroke();
+
+    ctx.lineWidth = lassoAntStrokeWidth;
+    ctx.setLineDash([dashSize, dashGap]);
+    ctx.lineDashOffset = baseOffset;
+    ctx.strokeStyle = LASSO_THEME_MARCH_DARK;
+    tracePolylinePath(ctx, lassoRenderPoints);
+    ctx.stroke();
+    ctx.lineDashOffset = baseOffset + dashSize;
+    ctx.strokeStyle = LASSO_THEME_MARCH_LIGHT;
+    tracePolylinePath(ctx, lassoRenderPoints);
+    ctx.stroke();
+
+    if (lassoRenderPoints.length > 2) {
+      ctx.setLineDash([]);
+      ctx.lineWidth = LASSO_PREVIEW_GUIDE_STROKE_WIDTH + 0.95;
+      ctx.strokeStyle = "rgba(0, 0, 0, 0.66)";
+      ctx.beginPath();
+      ctx.moveTo(lastPoint.x, lastPoint.y);
+      ctx.lineTo(firstPoint.x, firstPoint.y);
+      ctx.stroke();
+
+      ctx.lineWidth = LASSO_PREVIEW_GUIDE_STROKE_WIDTH;
+      ctx.strokeStyle = LASSO_THEME_GUIDE;
+      ctx.beginPath();
+      ctx.moveTo(lastPoint.x, lastPoint.y);
+      ctx.lineTo(firstPoint.x, firstPoint.y);
+      ctx.stroke();
+
+      ctx.lineWidth = lassoAntStrokeWidth;
+      ctx.setLineDash([dashSize, dashGap]);
+      ctx.lineDashOffset = baseOffset + dashSize;
+      ctx.strokeStyle = LASSO_THEME_MARCH_LIGHT;
+      ctx.beginPath();
+      ctx.moveTo(lastPoint.x, lastPoint.y);
+      ctx.lineTo(firstPoint.x, firstPoint.y);
+      ctx.stroke();
+    }
+
+    ctx.setLineDash([]);
+    ctx.fillStyle = LASSO_THEME_ANCHOR;
+    ctx.beginPath();
+    ctx.arc(firstPoint.x, firstPoint.y, 3.1, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = LASSO_THEME_ENDPOINT;
+    ctx.beginPath();
+    ctx.arc(lastPoint.x, lastPoint.y, 2.8, 0, Math.PI * 2);
+    ctx.fill();
+  } else {
+    const pulseRadius = 4.2 + ((phase % 12) / 12) * 1.2;
+    ctx.setLineDash([]);
+    ctx.lineWidth = 1.65;
+    ctx.strokeStyle = "rgba(0, 0, 0, 0.74)";
+    ctx.beginPath();
+    ctx.arc(firstPoint.x, firstPoint.y, pulseRadius + 1, 0, Math.PI * 2);
+    ctx.stroke();
+
+    ctx.strokeStyle = LASSO_THEME_ANCHOR;
+    ctx.lineWidth = Math.max(lassoAntStrokeWidth, 1);
+    ctx.beginPath();
+    ctx.arc(firstPoint.x, firstPoint.y, pulseRadius, 0, Math.PI * 2);
+    ctx.stroke();
+
+    ctx.fillStyle = LASSO_THEME_ANCHOR;
+    ctx.beginPath();
+    ctx.arc(firstPoint.x, firstPoint.y, 2.4, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.restore();
 };
 
 export const buildContourPathsFromSegments = (contourSegments: number[]): number[][] => {
@@ -294,42 +475,26 @@ export const renderOverlayFrame = ({
   canvas,
   maskCanvas,
   meta,
-  lassoPreviewPoints,
   phase,
+  showCommittedMask = true,
 }: {
   canvas: HTMLCanvasElement;
   maskCanvas: HTMLCanvasElement | null;
   meta: MaskLayerMeta | null;
-  lassoPreviewPoints: InpaintPoint[];
   phase: number;
+  showCommittedMask?: boolean;
 }) => {
-  const width = canvas.clientWidth;
-  const height = canvas.clientHeight;
-  const dpr = Math.max(1, window.devicePixelRatio || 1);
-  const pixelWidth = Math.max(1, Math.round(width * dpr));
-  const pixelHeight = Math.max(1, Math.round(height * dpr));
-  if (canvas.width !== pixelWidth || canvas.height !== pixelHeight) {
-    canvas.width = pixelWidth;
-    canvas.height = pixelHeight;
-  }
-  const ctx = canvas.getContext("2d");
-  if (!ctx) return;
-  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  ctx.clearRect(0, 0, width, height);
+  const overlayRenderContext = resolveOverlayCanvasRenderContext(canvas);
+  if (!overlayRenderContext) return;
+  const { ctx, width, height, dpr } = overlayRenderContext;
 
-  if (maskCanvas && meta?.hasContent) {
-    ctx.save();
-    const drawRect = resolveSceneMappedDrawRect({
-      sourceWidth: maskCanvas.width,
-      sourceHeight: maskCanvas.height,
-      targetWidth: width,
-      targetHeight: height,
+  if (showCommittedMask && maskCanvas && meta?.hasContent) {
+    renderTintedMaskOverlay({
+      ctx,
+      width,
+      height,
+      maskCanvas,
     });
-    ctx.drawImage(maskCanvas, drawRect.x, drawRect.y, drawRect.width, drawRect.height);
-    ctx.globalCompositeOperation = "source-in";
-    ctx.fillStyle = "rgba(255, 0, 60, 0.58)";
-    ctx.fillRect(0, 0, width, height);
-    ctx.restore();
 
     if (meta.width > 0 && meta.height > 0 && meta.contourSegments.length > 0) {
       const [dashSize, dashGap] = INPAINT_MARCHING_ANTS_DASH_PATTERN;
@@ -384,111 +549,41 @@ export const renderOverlayFrame = ({
       drawContourStroke(MASK_CONTOUR_MARCH_LIGHT, baseOffset + dashSize);
     }
   }
+};
 
-  const lassoRenderPoints = mapLassoPreviewPointsToOverlaySpace({
-    points: lassoPreviewPoints,
-    maskWidth: maskCanvas?.width ?? width,
-    maskHeight: maskCanvas?.height ?? height,
-    overlayWidth: width,
-    overlayHeight: height,
-  });
+export const renderLivePreviewFrame = ({
+  canvas,
+  maskCanvas,
+  showBrushPreview,
+  lassoPreviewPoints,
+  phase,
+}: {
+  canvas: HTMLCanvasElement;
+  maskCanvas: HTMLCanvasElement | null;
+  showBrushPreview: boolean;
+  lassoPreviewPoints: InpaintPoint[];
+  phase: number;
+}) => {
+  const overlayRenderContext = resolveOverlayCanvasRenderContext(canvas);
+  if (!overlayRenderContext) return;
+  const { ctx, width, height, dpr } = overlayRenderContext;
 
-  if (lassoRenderPoints.length > 0) {
-    ctx.save();
-    ctx.lineCap = "round";
-    ctx.lineJoin = "round";
-    const firstPoint = lassoRenderPoints[0]!;
-    const lastPoint = lassoRenderPoints[lassoRenderPoints.length - 1]!;
-    const [dashSize, dashGap] = INPAINT_MARCHING_ANTS_DASH_PATTERN;
-    const baseOffset = -(phase * MARCHING_ANTS_DASH_OFFSET_STEP);
-    const lassoAntStrokeWidth = resolveLassoAntStrokeWidth(dpr);
-
-    if (lassoRenderPoints.length > 1) {
-      if (lassoRenderPoints.length > 2) {
-        ctx.fillStyle = LASSO_THEME_FILL;
-        tracePolylinePath(ctx, lassoRenderPoints);
-        ctx.closePath();
-        ctx.fill();
-      }
-
-      ctx.setLineDash([]);
-      ctx.lineWidth = LASSO_PREVIEW_GUIDE_STROKE_WIDTH + 1.1;
-      ctx.strokeStyle = "rgba(0, 0, 0, 0.72)";
-      tracePolylinePath(ctx, lassoRenderPoints);
-      ctx.stroke();
-
-      ctx.lineWidth = LASSO_PREVIEW_GUIDE_STROKE_WIDTH;
-      ctx.strokeStyle = LASSO_THEME_GUIDE;
-      tracePolylinePath(ctx, lassoRenderPoints);
-      ctx.stroke();
-
-      ctx.lineWidth = lassoAntStrokeWidth;
-      ctx.setLineDash([dashSize, dashGap]);
-      ctx.lineDashOffset = baseOffset;
-      ctx.strokeStyle = LASSO_THEME_MARCH_DARK;
-      tracePolylinePath(ctx, lassoRenderPoints);
-      ctx.stroke();
-      ctx.lineDashOffset = baseOffset + dashSize;
-      ctx.strokeStyle = LASSO_THEME_MARCH_LIGHT;
-      tracePolylinePath(ctx, lassoRenderPoints);
-      ctx.stroke();
-
-      if (lassoRenderPoints.length > 2) {
-        ctx.setLineDash([]);
-        ctx.lineWidth = LASSO_PREVIEW_GUIDE_STROKE_WIDTH + 0.95;
-        ctx.strokeStyle = "rgba(0, 0, 0, 0.66)";
-        ctx.beginPath();
-        ctx.moveTo(lastPoint.x, lastPoint.y);
-        ctx.lineTo(firstPoint.x, firstPoint.y);
-        ctx.stroke();
-
-        ctx.lineWidth = LASSO_PREVIEW_GUIDE_STROKE_WIDTH;
-        ctx.strokeStyle = LASSO_THEME_GUIDE;
-        ctx.beginPath();
-        ctx.moveTo(lastPoint.x, lastPoint.y);
-        ctx.lineTo(firstPoint.x, firstPoint.y);
-        ctx.stroke();
-
-        ctx.lineWidth = lassoAntStrokeWidth;
-        ctx.setLineDash([dashSize, dashGap]);
-        ctx.lineDashOffset = baseOffset + dashSize;
-        ctx.strokeStyle = LASSO_THEME_MARCH_LIGHT;
-        ctx.beginPath();
-        ctx.moveTo(lastPoint.x, lastPoint.y);
-        ctx.lineTo(firstPoint.x, firstPoint.y);
-        ctx.stroke();
-      }
-
-      ctx.setLineDash([]);
-      ctx.fillStyle = LASSO_THEME_ANCHOR;
-      ctx.beginPath();
-      ctx.arc(firstPoint.x, firstPoint.y, 3.1, 0, Math.PI * 2);
-      ctx.fill();
-
-      ctx.fillStyle = LASSO_THEME_ENDPOINT;
-      ctx.beginPath();
-      ctx.arc(lastPoint.x, lastPoint.y, 2.8, 0, Math.PI * 2);
-      ctx.fill();
-    } else {
-      const pulseRadius = 4.2 + ((phase % 12) / 12) * 1.2;
-      ctx.setLineDash([]);
-      ctx.lineWidth = 1.65;
-      ctx.strokeStyle = "rgba(0, 0, 0, 0.74)";
-      ctx.beginPath();
-      ctx.arc(firstPoint.x, firstPoint.y, pulseRadius + 1, 0, Math.PI * 2);
-      ctx.stroke();
-
-      ctx.strokeStyle = LASSO_THEME_ANCHOR;
-      ctx.lineWidth = Math.max(lassoAntStrokeWidth, 1);
-      ctx.beginPath();
-      ctx.arc(firstPoint.x, firstPoint.y, pulseRadius, 0, Math.PI * 2);
-      ctx.stroke();
-
-      ctx.fillStyle = LASSO_THEME_ANCHOR;
-      ctx.beginPath();
-      ctx.arc(firstPoint.x, firstPoint.y, 2.4, 0, Math.PI * 2);
-      ctx.fill();
-    }
-    ctx.restore();
+  if (showBrushPreview && maskCanvas) {
+    renderTintedMaskOverlay({
+      ctx,
+      width,
+      height,
+      maskCanvas,
+    });
   }
+
+  renderLassoPreviewOverlay({
+    ctx,
+    width,
+    height,
+    dpr,
+    maskCanvas,
+    lassoPreviewPoints,
+    phase,
+  });
 };

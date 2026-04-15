@@ -29,6 +29,20 @@ Purpose: active planning artifacts and current execution backlogs.
 - `generation-pipeline-continuation-reference-grid-read-model-simplification-2026-04-05.md`: bucket subplan for Reference Grid read-model simplification.
 - `ai-studio-live-session-check-media-panel-handoff-2026-04-05.md`: execution-oriented handoff for the staging AI Studio Media Library panel lag investigation, including trusted evidence, decision gates, and the ordered remediation plan for follow-on agents.
 - `ai-studio-expert-edit-properties-panel-fresh-start-lean-up-plan-2026-04-10.md`: fresh-start, live-repo-audit-backed roadmap for making the Expert Edit properties panel leaner without changing behavior, layout, or current interaction semantics.
+- `ai-studio-inpaint-reference-contract-master-plan-2026-04-14.md`: canonical master plan for resolving the inpaint token/payload/mask/UI contract mismatch in Expert Edit.
+- `ai-studio-inpaint-reference-contract-tracker-2026-04-14.md`: operational tracker for the inpaint-reference contract program with phase gates, rollback notes, and planning-task done state.
+- `ai-studio-inpaint-reference-contract-phase-1-target-contract-plan-2026-04-14.md`: Phase 1 plan for locking the supported inpaint token set, mask contract, and provider-lane direction.
+- `ai-studio-inpaint-reference-contract-phase-2-current-state-audit-and-guardrails-plan-2026-04-14.md`: Phase 2 plan for reconciling the chosen contract against the current runtime seams and implementation guardrails.
+- `ai-studio-inpaint-reference-contract-phase-3-lane-and-payload-alignment-plan-2026-04-14.md`: Phase 3 plan for aligning prompt-link behavior, preflight work, and provider payload transmission.
+- `ai-studio-inpaint-reference-contract-phase-4-mask-and-ui-contract-hardening-plan-2026-04-14.md`: Phase 4 plan for hardening mask invariants and effective-model-driven Edit panel behavior.
+- `ai-studio-inpaint-reference-contract-phase-5-validation-and-doc-closeout-plan-2026-04-14.md`: Phase 5 plan for validation, durable docs updates, and program closeout.
+- `ai-studio-inpaint-live-preview-master-plan-2026-04-14.md`: canonical master plan for making Expert Edit inpaint drawing feel immediate by separating transient preview from committed-mask analysis.
+- `ai-studio-inpaint-live-preview-phase-1-stage-preview-layer-plan-2026-04-14.md`: Phase 1 plan for adding the shared transient inpaint preview layer to the stage scene.
+- `ai-studio-inpaint-live-preview-phase-2-immediate-pointer-preview-plan-2026-04-14.md`: Phase 2 plan for driving immediate brush and lasso preview from live pointer input.
+- `ai-studio-inpaint-live-preview-phase-3-committed-mask-contract-preservation-plan-2026-04-14.md`: Phase 3 plan for preserving committed-mask, export, history, and submission behavior while the preview path changes.
+- `ai-studio-inpaint-live-preview-phase-4-inline-modal-parity-plan-2026-04-14.md`: Phase 4 plan for tightening inline/modal preview coordinate parity.
+- `ai-studio-inpaint-live-preview-phase-5-validation-and-stop-rule-plan-2026-04-14.md`: Phase 5 plan for targeted validation, done-state confirmation, and explicit stop-rule enforcement.
+- `ai-studio-inpaint-live-preview-tracker-2026-04-14.md`: operational tracker for the inpaint live-preview program with phase gates, rollback posture, and the explicit done state.
 - `ai-studio-master-stage-rebuild-spec-2026-04-12.md`: canonical rebuild spec for the new AI Studio master stage, including the target editor model, delete list, and rebuild-program done state.
 - `ai-studio-master-stage-rebuild-tracker-2026-04-12.md`: operational tracker for the master-stage rebuild program with phase gates, rollback notes, and the planning-task done state.
 - `ai-studio-master-stage-phase-1-target-contract-and-bakeoff-plan-2026-04-12.md`: Phase 1 plan for locking stage contracts and choosing the rendering substrate with a small bakeoff.

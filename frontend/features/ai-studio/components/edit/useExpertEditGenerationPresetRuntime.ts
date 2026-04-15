@@ -35,10 +35,7 @@ export const useExpertEditGenerationPresetRuntime = ({
   controlledCustomPresetOverrides,
   onCustomPresetOverridesChange,
 }: UseExpertEditGenerationPresetRuntimeParams) => {
-  const visibleEditGenerationModeOptions = React.useMemo(
-    () => editGenerationModeOptions.filter((modeOption) => modeOption.id !== "markup"),
-    []
-  );
+  const visibleEditGenerationModeOptions = React.useMemo(() => editGenerationModeOptions, []);
   const [selectedGenerationMode, setSelectedGenerationMode] =
     React.useState<EditSubmitIntent>("standard");
   const [isMorePresetsSurfaceOpen, setIsMorePresetsSurfaceOpen] = React.useState(false);
@@ -129,22 +126,12 @@ export const useExpertEditGenerationPresetRuntime = ({
     () =>
       resolveEditSubmitIntentFromRailSelection({
         isInpaintSelected: selectedRailTool === "inpaint",
-        isMarkupSelected: selectedRailTool === "video",
+        isMarkupSelected: selectedRailTool === "markup",
       }),
     [selectedRailTool]
   );
-
-  React.useEffect(() => {
-    if (isGenerationModeToggleEnabled && selectedGenerationMode === "markup") {
-      setSelectedGenerationMode("standard");
-      setSelectedRailTool("move");
-    }
-  }, [isGenerationModeToggleEnabled, selectedGenerationMode, setSelectedRailTool]);
-
-  const visibleSelectedGenerationMode =
-    selectedGenerationMode === "markup" ? "standard" : selectedGenerationMode;
   const effectiveEditSubmitIntent = isGenerationModeToggleEnabled
-    ? visibleSelectedGenerationMode
+    ? selectedGenerationMode
     : railSelectionSubmitIntent;
   const effectiveGenerationModeIndex = React.useMemo(() => {
     const resolvedIndex = visibleEditGenerationModeOptions.findIndex(

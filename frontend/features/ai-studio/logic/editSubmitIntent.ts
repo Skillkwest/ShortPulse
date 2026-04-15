@@ -3,9 +3,9 @@
  * Keeps expert-edit inpaint intent mapping centralized for orchestration and pricing coherence.
  */
 import {
-  INPAINT_FLUX_FILL_MODEL_ID,
   MARKUP_NANO_BANANA_PRO_EDIT_MODEL_ID,
   isMarkupModelLockEnabled,
+  resolveInpaintPromptReferencePolicy,
 } from "./inpaintSubmission";
 import { isEditWorkflow } from "./workflowIdentity";
 import type { ToolId } from "../types";
@@ -43,13 +43,20 @@ export const resolveEffectiveEditSubmitModelId = ({
   selectedTool,
   selectedModelId,
   editSubmitIntent,
+  promptText = "",
+  extraImageUrls = [null, null, null],
 }: {
   selectedTool: ToolId | null | undefined;
   selectedModelId: string | null;
   editSubmitIntent?: EditSubmitIntent;
+  promptText?: string;
+  extraImageUrls?: [string | null, string | null, string | null];
 }): string | null => {
   if (isEditWorkflow(selectedTool) && editSubmitIntent === "inpaint") {
-    return INPAINT_FLUX_FILL_MODEL_ID;
+    return resolveInpaintPromptReferencePolicy({
+      promptText,
+      extraImageUrls,
+    }).modelId;
   }
   if (isEditWorkflow(selectedTool) && editSubmitIntent === "markup" && isMarkupModelLockEnabled()) {
     return MARKUP_NANO_BANANA_PRO_EDIT_MODEL_ID;

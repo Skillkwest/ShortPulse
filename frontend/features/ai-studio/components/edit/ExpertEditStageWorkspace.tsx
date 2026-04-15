@@ -41,6 +41,7 @@ type ExpertEditStageWorkspaceProps = {
   inlineTransformOverlay: React.ReactNode;
   inlinePostStageTools: React.ReactNode;
   promptAndSelectors: React.ReactNode;
+  shouldBlurPromptUnderlay: boolean;
   statusToast: React.ReactNode;
   modalSurface: {
     isOpen: boolean;
@@ -110,6 +111,7 @@ export function ExpertEditStageWorkspace({
   inlineTransformOverlay,
   inlinePostStageTools,
   promptAndSelectors,
+  shouldBlurPromptUnderlay,
   statusToast,
   modalSurface,
   contextMenu,
@@ -121,7 +123,9 @@ export function ExpertEditStageWorkspace({
           {sidebar}
         </div>
 
-        <div className="edit-expert-primary-column edit-expert-primary-column-shell">
+        <div
+          className={`edit-expert-primary-column edit-expert-primary-column-shell ${shouldBlurPromptUnderlay ? "is-composer-expanded" : ""}`.trim()}
+        >
           <ExpertEditInlineStageSurface
             stageRef={inlineStageRef}
             isEmpty={!hasPrimaryCompositePreview}
@@ -170,7 +174,9 @@ export function ExpertEditStageWorkspace({
             transformOverlay={inlineTransformOverlay}
           />
           <div className="edit-expert-column-wrapper edit-expert-column-wrapper--center edit-expert-post-stage-wrapper">
-            <div className="edit-expert-post-stage-overlay-zone">
+            <div
+              className={`edit-expert-post-stage-overlay-zone ${shouldBlurPromptUnderlay ? "is-composer-expanded" : ""}`.trim()}
+            >
               <div className="edit-expert-post-stage-base-layer">{inlinePostStageTools}</div>
               <div className="edit-expert-post-stage-composer-overlay">{promptAndSelectors}</div>
             </div>

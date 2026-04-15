@@ -57,6 +57,7 @@ Example payload:
 - Used as hidden internal inpaint model (not exposed in picker).
 - Expert Edit inpaint flow submits flattened base image + exported mask window.
 - Expert Edit inpaint currently supports only the primary base image plus mask. Secondary prompt-reference images are not transmitted to FLUX Fill.
+- When the prompt links exactly one unique `@imgN`, ShortPulse switches to the separate `fal-ai/flux-kontext-lora/inpaint` lane instead of overloading FLUX Fill.
 - Polling provider token: `fal-flux-pro-fill`.
 
 ## Pricing (ShortPulse)

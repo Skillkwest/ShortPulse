@@ -6,14 +6,14 @@ import type { RailTool } from "./expertEditPanelViewContract";
 
 type ExpertEditModeRailPanelProps = {
   selectedRailTool: RailTool;
-  renderMarkupModalInpaintPanel: (scope?: "modal" | "rail") => React.ReactNode;
+  renderInpaintControlsContent: (scope: "inline" | "modal" | "rail") => React.ReactNode;
   renderMarkupControlsContent: (scope: "inline" | "modal") => React.ReactNode;
   renderMoveControlsContent: (scope: "inline" | "modal") => React.ReactNode;
 };
 
 export function ExpertEditModeRailPanel({
   selectedRailTool,
-  renderMarkupModalInpaintPanel,
+  renderInpaintControlsContent,
   renderMarkupControlsContent,
   renderMoveControlsContent,
 }: ExpertEditModeRailPanelProps) {
@@ -25,11 +25,11 @@ export function ExpertEditModeRailPanel({
           railLabel: "Left rail in-paint panel",
           body: (
             <div className="edit-expert-markup-modal-controls-compact edit-expert-markup-modal-controls-compact--inpaint edit-expert-mode-rail-panel-body edit-expert-mode-rail-panel-body--inpaint">
-              {renderMarkupModalInpaintPanel("rail")}
+              {renderInpaintControlsContent("rail")}
             </div>
           ),
         }
-      : selectedRailTool === "video"
+      : selectedRailTool === "markup"
         ? {
             panelClassName: "markup",
             title: "Markup",

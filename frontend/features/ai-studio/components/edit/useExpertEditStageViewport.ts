@@ -260,7 +260,7 @@ export const useExpertEditStageViewport = ({
     primaryCompositionSurfaceAspectRatio,
   ]);
 
-  const inlineMarkupViewportStyle = React.useMemo<React.CSSProperties>(() => {
+  const inlineStageViewportStyle = React.useMemo<React.CSSProperties>(() => {
     const viewportOffset = resolveMarkupViewportOffsetPixels(
       markupViewport,
       inlineStageViewportSize
@@ -279,7 +279,7 @@ export const useExpertEditStageViewport = ({
     [inlineCompositionSurfaceFrameRect.height, inlineCompositionSurfaceFrameRect.width]
   );
 
-  const modalMarkupViewportStyle = React.useMemo<React.CSSProperties>(() => {
+  const modalStageViewportStyle = React.useMemo<React.CSSProperties>(() => {
     const viewportOffset = resolveMarkupViewportOffsetPixels(
       markupViewport,
       markupModalViewportSize
@@ -468,8 +468,8 @@ export const useExpertEditStageViewport = ({
     handleMarkupModalControlsRef,
     handleMarkupModalStageRef,
     handleMarkupModalLayersRef,
-    markupViewport,
-    setMarkupViewport,
+    stageViewport: markupViewport,
+    setStageViewport: setMarkupViewport,
     setInlineStageViewportSize,
     markupModalStageSize,
     markupModalViewportSize,
@@ -478,9 +478,9 @@ export const useExpertEditStageViewport = ({
     setMoveStageZoomSliderValue,
     primaryCompositionSurfaceAspectRatio,
     primaryCompositionSurfaceAspectRatioValue,
-    inlineMarkupViewportStyle,
+    inlineStageViewportStyle,
     inlineCompositionSurfaceViewportSize,
-    modalMarkupViewportStyle,
+    modalStageViewportStyle,
     primaryCanvasFrameBoundsStyle,
     resolveInlineStageRect,
     resolveInteractionViewportOffsetPixels,

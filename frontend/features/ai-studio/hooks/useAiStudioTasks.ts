@@ -10,6 +10,7 @@ import {
   fetchKieSeedanceVideoStatus,
   fetchKieVeoImageToVideoStatus,
   fetchFalBriaBackgroundRemoveStatus,
+  fetchFalFluxKontextInpaintStatus,
   fetchFalFlux2ProStatus,
   fetchFalFluxProFillStatus,
   fetchFalFlux2Status,
@@ -206,6 +207,8 @@ const fetchStatusByProvider = async (provider: Provider, taskId: string) => {
       return fetchFalFlux2KleinStatus(taskId);
     case "fal-flux-pro-fill":
       return fetchFalFluxProFillStatus(taskId);
+    case "fal-flux-kontext-inpaint":
+      return fetchFalFluxKontextInpaintStatus(taskId);
     case "fal-bria-background-remove":
       return fetchFalBriaBackgroundRemoveStatus(taskId);
     case "fal-flux2-edit":

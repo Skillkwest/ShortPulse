@@ -3,6 +3,10 @@
 Add new work under `## Unreleased` at the top of this file. When promoting released work into dated sections, keep active dated headings in descending UTC order (newest first). Legacy imported entries below the legacy marker are preserved as historical notes and are not part of the enforced active chronology contract.
 
 ## Unreleased
+- Published a dedicated AI Studio inpaint-reference contract planning set:
+  - master plan, tracker, and five phase plans for locking the inpaint token/payload contract,
+  - explicit phase coverage for provider-lane decisions, prompt-link vs payload alignment, mask invariants, effective-model UI authority, and validation/doc closeout,
+  - indexed the new planning artifacts in `docs/README.md` and `docs/planning/README.md`.
 - Captured staging queue-latency validation outcome for the generation queue/recovery lane:
   - removed queue-resume defer and added wake/telemetry/diagnostic coverage landed in the repo,
   - live staging replay showed queued work advancing only when per-user capacity opened, not being diverted into recovery,

@@ -169,6 +169,30 @@ const registry: Record<string, ModelConfig> = {
     allowedResolutions: contractAllowedResolutions("fal-ai/flux-pro/v1/fill", ["model_default"]),
     supportsImageToImage: true,
   },
+  "fal-ai/flux-kontext-lora/inpaint": {
+    id: "fal-ai/flux-kontext-lora/inpaint",
+    label: "FLUX Kontext Inpaint",
+    provider: "fal",
+    mediaType: "image",
+    defaultAspect: contractDefaultAspect("fal-ai/flux-kontext-lora/inpaint", "1:1"),
+    allowedAspects: contractAllowedAspects("fal-ai/flux-kontext-lora/inpaint", [
+      "1:1",
+      "4:3",
+      "3:4",
+      "16:9",
+      "9:16",
+    ]),
+    pricingStrategy: "fal-flux-kontext-inpaint-per-mp",
+    sizeMap: falImageSizeMap,
+    defaultResolution: contractDefaultResolution(
+      "fal-ai/flux-kontext-lora/inpaint",
+      "model_default"
+    ),
+    allowedResolutions: contractAllowedResolutions("fal-ai/flux-kontext-lora/inpaint", [
+      "model_default",
+    ]),
+    supportsImageToImage: true,
+  },
   "fal-ai/bria/background/remove": {
     id: "fal-ai/bria/background/remove",
     label: "Bria Background Remove",

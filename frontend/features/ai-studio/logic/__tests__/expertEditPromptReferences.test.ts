@@ -89,6 +89,19 @@ describe("expertEditPromptReferences", () => {
     expect(analysis.inlineError).toMatch(/Inpaint only supports @main/i);
   });
 
+  it("treats more than one unique secondary reference as invalid when the limit is one", () => {
+    const analysis = analyzeExpertEditPromptTokens(
+      "Use @img1 for outfit and @img2 for trim.",
+      ["https://example.com/a.png", "https://example.com/b.png", null],
+      { allowSecondaryTokens: true, maxSecondaryReferences: 1 }
+    );
+
+    expect(analysis.hasTokenReferences).toBe(true);
+    expect(analysis.hasInvalidTokens).toBe(true);
+    expect(analysis.referencedSlotIndexes).toEqual([0]);
+    expect(analysis.inlineError).toMatch(/only one secondary reference image/i);
+  });
+
   it("builds highlight segments for plain, valid-token, and invalid-token text", () => {
     const analysis = analyzeExpertEditPromptTokens("Blend @img1 then @img4.", [
       "https://example.com/a.png",

@@ -6,6 +6,7 @@ import {
   submitFalBriaBackgroundRemove,
   submitFalFlux2,
   submitFalFlux2Edit,
+  submitFalFluxKontextInpaint,
   submitFalFlux2Klein,
   submitFalFluxProFill,
   submitFalFlux2Pro,
@@ -46,6 +47,7 @@ const handoffSubmitResponse = ({
     | "fal-flux2-pro"
     | "fal-flux2-pro-edit"
     | "fal-flux-pro-fill"
+    | "fal-flux-kontext-inpaint"
     | "fal-bria-background-remove";
   startPollingWithGeneration: ImageSubmissionArgs["startPollingWithGeneration"];
 }) => {
@@ -109,6 +111,33 @@ export const handleImageModelSubmission = async ({
     handoffSubmitResponse({
       response,
       pollingProvider: "fal-flux-pro-fill",
+      startPollingWithGeneration,
+    });
+    return true;
+  }
+
+  if (finalModel === "fal-ai/flux-kontext-lora/inpaint") {
+    const preparedBaseImage = inpaintOverride?.baseImageInput?.trim();
+    const preparedMaskImage = inpaintOverride?.maskInput?.trim();
+    const preparedReferenceImage = inpaintOverride?.referenceImageInput?.trim();
+    if (!preparedBaseImage || !preparedMaskImage || !preparedReferenceImage) {
+      notifyGenerationFailure(
+        id,
+        "Reference inpaint requires a base image, mask, and one secondary reference image."
+      );
+      return true;
+    }
+    const response = await submitFalFluxKontextInpaint({
+      prompt: cleanedPrompt,
+      image_url: preparedBaseImage,
+      mask_url: preparedMaskImage,
+      reference_image_url: preparedReferenceImage,
+      num_images: 1,
+      output_format: inpaintOverride?.outputFormat ?? "png",
+    });
+    handoffSubmitResponse({
+      response,
+      pollingProvider: "fal-flux-kontext-inpaint",
       startPollingWithGeneration,
     });
     return true;

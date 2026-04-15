@@ -727,6 +727,90 @@ describe("useAiStudioTaskOrchestration", () => {
     }
   });
 
+  it("keeps in-flight generated outputs eligible for projection reconcile even when a preview URL already exists", async () => {
+    vi.useFakeTimers();
+    try {
+      let outputs = [
+        createOutput({
+          id: "out-preview-running",
+          generationId: "gen-preview-running",
+          taskId: "req-preview-running",
+          provider: "fal-flux-kontext-inpaint",
+          modelId: "fal-ai/flux-kontext-lora/inpaint",
+          taskState: "running",
+          timestamp: "Processing...",
+          mediaSource: "generated",
+          previewUrl: "https://cdn.test/stale-preview.png",
+        }),
+      ];
+      const updateOutputById = vi.fn(
+        (id: string, updater: (item: StudioOutput) => StudioOutput) => {
+          outputs = outputs.map((item) => (item.id === id ? updater(item) : item));
+        }
+      );
+      resolveVisibleGenerationReconcileMock.mockResolvedValue({
+        generationId: "gen-preview-running",
+        previewUrl: "https://cdn.test/reconciled-preview.png",
+        previewStoragePath: null,
+        fullStoragePath: null,
+        resultUrls: ["https://cdn.test/reconciled-full.png"],
+      });
+
+      renderHook(() =>
+        useAiStudioTaskOrchestration({
+          taskSubmissionConfig: {
+            aspect: "9:16",
+            mode: "image",
+            model: "model-id",
+            prompt: "Prompt",
+            selectedTool: "edit",
+            imageResolution: "model_default",
+            videoDurationSeconds: 6,
+            videoResolution: "1080p",
+            videoGenerateAudio: false,
+            videoReferenceMode: "standard",
+            videoReferenceImageUrl: null,
+            motionReferenceVideoUrl: null,
+            videoCameraFixed: false,
+            videoAutoFix: false,
+            klingNegativePrompt: "blur",
+            klingCfgScale: 0.5,
+            klingShotType: "customize",
+            klingVoiceIds: ["", ""],
+            klingMultiPrompts: [],
+            klingElements: [],
+            setPanelGenerating: vi.fn(),
+            setUiError: asDispatch<string | null>(vi.fn()),
+            setUiNotice: asDispatch<string | null>(vi.fn()),
+            setOutputs: asDispatch<StudioOutput[]>(vi.fn()),
+            setSaved: asDispatch<boolean>(vi.fn()),
+            getDefaultDurationSeconds: vi.fn(() => 6),
+            notifyGenerationFailure: vi.fn(),
+            updateOutputById,
+            ensureGenerationRecord: vi.fn(async () => null),
+          },
+          outputs,
+          findOutputById: (id: string) => outputs.find((item) => item.id === id) ?? null,
+        })
+      );
+
+      await act(async () => {
+        await Promise.resolve();
+        await Promise.resolve();
+      });
+
+      expect(resolveVisibleGenerationReconcileMock).toHaveBeenCalledWith({
+        generationId: "gen-preview-running",
+        requestId: "req-preview-running",
+      });
+      expect(outputs[0]?.taskState).toBe("success");
+      expect(outputs[0]?.previewUrl).toBe("https://cdn.test/reconciled-preview.png");
+      expect(outputs[0]?.resultUrls).toEqual(["https://cdn.test/reconciled-full.png"]);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("prefers server-authored pollingProvider when queue resume dispatches", async () => {
     let outputs = [
       createOutput({
@@ -814,6 +898,91 @@ describe("useAiStudioTaskOrchestration", () => {
     expect(outputs[0]?.queueState).toBeUndefined();
     expect(outputs[0]?.taskState).toBe("running");
     expect(notifyGenerationFailure).not.toHaveBeenCalled();
+  });
+
+  it("keeps queued outputs resumable when preview payload is already present but lifecycle is still pending", async () => {
+    let outputs = [
+      createOutput({
+        id: "out-queued-preview",
+        modelId: "fal-ai/flux-kontext-lora/inpaint",
+        generationId: "gen-preview-queued",
+        queueState: "queued",
+        taskState: "pending",
+        provider: "fal",
+        previewUrl: "https://cdn.test/queued-preview.png",
+      }),
+    ];
+    const updateOutputById = vi.fn((id: string, updater: (item: StudioOutput) => StudioOutput) => {
+      outputs = outputs.map((item) => (item.id === id ? updater(item) : item));
+    });
+    fetchFalQueueStatusMock.mockResolvedValue({
+      status: "dispatched",
+      generationId: "gen-preview-queued",
+      sourceRef: "source-preview-queued",
+      requestId: "req-preview-queued",
+      provider: "fal",
+    });
+
+    renderHook(() =>
+      useAiStudioTaskOrchestration({
+        taskSubmissionConfig: {
+          aspect: "9:16",
+          mode: "image",
+          model: "model-id",
+          prompt: "Prompt",
+          selectedTool: "edit",
+          imageResolution: "model_default",
+          videoDurationSeconds: 6,
+          videoResolution: "1080p",
+          videoGenerateAudio: false,
+          videoReferenceMode: "standard",
+          videoReferenceImageUrl: null,
+          motionReferenceVideoUrl: null,
+          videoCameraFixed: false,
+          videoAutoFix: false,
+          klingNegativePrompt: "blur",
+          klingCfgScale: 0.5,
+          klingShotType: "customize",
+          klingVoiceIds: ["", ""],
+          klingMultiPrompts: [],
+          klingElements: [],
+          setPanelGenerating: vi.fn(),
+          setUiError: asDispatch<string | null>(vi.fn()),
+          setUiNotice: asDispatch<string | null>(vi.fn()),
+          setOutputs: asDispatch<StudioOutput[]>(vi.fn()),
+          setSaved: asDispatch<boolean>(vi.fn()),
+          getDefaultDurationSeconds: vi.fn(() => 6),
+          notifyGenerationFailure: vi.fn(),
+          updateOutputById,
+          ensureGenerationRecord: vi.fn(async () => null),
+        },
+        outputs,
+        findOutputById: (id: string) => outputs.find((item) => item.id === id) ?? null,
+      })
+    );
+
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(fetchFalQueueStatusMock).toHaveBeenCalledWith({
+      generationId: "gen-preview-queued",
+    });
+    expect(startPollingTask).toHaveBeenCalledWith(
+      "req-preview-queued",
+      "out-queued-preview",
+      0,
+      "fal-flux-kontext-inpaint",
+      expect.any(Number),
+      0,
+      undefined,
+      {
+        initialDelayMs: DISPATCH_HANDOFF_INITIAL_POLL_DELAY_MS,
+      }
+    );
+    expect(outputs[0]?.taskId).toBe("req-preview-queued");
+    expect(outputs[0]?.taskState).toBe("running");
   });
 
   it("falls back to output/model provider reconstruction when queue resume lacks pollingProvider", async () => {

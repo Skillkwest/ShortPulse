@@ -19,6 +19,7 @@ const FLUX2_PRO_FIRST_MP_USD = 0.03;
 const FLUX2_PRO_ADDITIONAL_MP_USD = 0.015;
 const FLUX2_PRO_EDIT_NORMALIZED_INPUT_MP = 1;
 const FLUX_PRO_FILL_COST_PER_MP_USD = 0.05;
+const FLUX_KONTEXT_INPAINT_COST_PER_MP_USD = 0.035;
 const BRIA_BACKGROUND_REMOVE_PER_IMAGE_USD = 0.018;
 const GOOGLE_NANO_BANANA_PER_IMAGE_USD = 0.039;
 const GPT_IMAGE_PER_IMAGE_USD = 0.04;
@@ -185,6 +186,27 @@ const computeFlux2ProPerMpCost: StrategyFn = ({ modelId, aspect, imageWidth, ima
     }
     return FLUX2_PRO_FIRST_MP_USD + Math.max(0, roundedOutputMp - 1) * FLUX2_PRO_ADDITIONAL_MP_USD;
   })();
+  return toCostBreakdown({
+    modelId,
+    usdRaw,
+    megapixels,
+    width: size.width,
+    height: size.height,
+  });
+};
+
+const computeFluxKontextInpaintPerMpCost: StrategyFn = ({
+  modelId,
+  aspect,
+  imageWidth,
+  imageHeight,
+}) => {
+  const size = resolveImageSizeForMp({ modelId, aspect, imageWidth, imageHeight });
+  if (!size) return null;
+
+  const megapixels = (size.width * size.height) / 1_000_000;
+  const roundedOutputMp = Math.max(1, Math.ceil(megapixels));
+  const usdRaw = roundedOutputMp * FLUX_KONTEXT_INPAINT_COST_PER_MP_USD;
   return toCostBreakdown({
     modelId,
     usdRaw,
@@ -438,6 +460,7 @@ export const pricingStrategies: Record<PricingStrategyId, StrategyFn> = {
   "fal-flux2-per-mp": computeFlux2PerMpCost,
   "fal-flux2-klein-per-mp": computeFlux2KleinPerMpCost,
   "fal-flux2-pro-per-mp": computeFlux2ProPerMpCost,
+  "fal-flux-kontext-inpaint-per-mp": computeFluxKontextInpaintPerMpCost,
   "gpt-image-per-image": computeGptImagePerImageCost,
   "google-nano-banana-per-image": computeGoogleNanoBananaPerImageCost,
   "nano-banana-2-per-image": computeNanoBanana2PerImageCost,

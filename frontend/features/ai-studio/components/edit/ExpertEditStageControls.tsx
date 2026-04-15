@@ -47,10 +47,10 @@ type ExpertEditMarkupControlsContentProps = {
   markupColorPickerAnchorRef: React.Ref<HTMLDivElement>;
   markupColorSaturationRef: React.Ref<HTMLDivElement>;
   isMarkupColorPickerOpen: boolean;
+  toggleMarkupColorPicker: (scope: "inline" | "modal") => void;
   setSelectedRailTool: React.Dispatch<React.SetStateAction<RailTool>>;
   setSelectedMarkupMode: React.Dispatch<React.SetStateAction<MarkupMode>>;
   setMarkupStrokeSize: React.Dispatch<React.SetStateAction<number>>;
-  setIsMarkupColorPickerOpen: React.Dispatch<React.SetStateAction<boolean>>;
   clearMarkupStrokesWithHistory: () => void;
   closeMarkupModal: () => void;
   openMarkupModal: (tool?: RailTool) => void;
@@ -72,10 +72,10 @@ export function ExpertEditMarkupControlsContent({
   markupColorPickerAnchorRef,
   markupColorSaturationRef,
   isMarkupColorPickerOpen,
+  toggleMarkupColorPicker,
   setSelectedRailTool,
   setSelectedMarkupMode,
   setMarkupStrokeSize,
-  setIsMarkupColorPickerOpen,
   clearMarkupStrokesWithHistory,
   closeMarkupModal,
   openMarkupModal,
@@ -178,86 +178,23 @@ export function ExpertEditMarkupControlsContent({
       </div>
       <div className="edit-expert-markup-color-row">
         <span className="edit-expert-markup-color-label">Color</span>
-        <div className="edit-expert-markup-color-picker-anchor" ref={markupColorPickerAnchorRef}>
-          <button
-            id={colorPickerId}
-            type="button"
-            className="edit-expert-markup-color-picker"
-            style={{ backgroundColor: markupColor }}
-            aria-label="Markup color"
-            aria-expanded={isMarkupColorPickerOpen}
-            aria-haspopup="dialog"
-            onClick={() => setIsMarkupColorPickerOpen((previous) => !previous)}
-          />
-          {isMarkupColorPickerOpen ? (
-            <div
-              className="edit-expert-markup-color-popover"
-              role="dialog"
-              aria-label="Markup color picker"
-              onClick={(event) => event.stopPropagation()}
-            >
-              <div className="edit-expert-markup-color-popover-header">
-                <p className="edit-expert-markup-color-popover-title">Markup Color</p>
-                <span className="edit-expert-markup-color-popover-value">
-                  {markupColor.toUpperCase()}
-                </span>
-              </div>
-              <div
-                ref={markupColorSaturationRef}
-                className="edit-expert-markup-color-popover-saturation"
-                style={{
-                  background: `linear-gradient(to top, #000000, rgba(0, 0, 0, 0)), linear-gradient(to right, #ffffff, hsl(${Math.round(markupColorHsv.h)}, 100%, 50%))`,
-                }}
-                onPointerDown={handleMarkupSaturationPointerDown}
-                onPointerMove={handleMarkupSaturationPointerMove}
-                onPointerUp={handleMarkupSaturationPointerUp}
-                onPointerCancel={handleMarkupSaturationPointerUp}
-              >
-                <span
-                  className="edit-expert-markup-color-popover-saturation-thumb"
-                  style={{
-                    left: `${markupColorHsv.s * 100}%`,
-                    top: `${(1 - markupColorHsv.v) * 100}%`,
-                  }}
-                  aria-hidden="true"
-                />
-              </div>
-              <div className="edit-expert-markup-color-popover-hue">
-                <label htmlFor={hueSliderId} className="edit-expert-markup-color-popover-hue-label">
-                  Hue
-                </label>
-                <input
-                  id={hueSliderId}
-                  type="range"
-                  min={0}
-                  max={360}
-                  step={1}
-                  value={Math.round(markupColorHsv.h)}
-                  className="edit-expert-markup-color-popover-hue-slider"
-                  aria-label="Markup hue"
-                  onChange={handleMarkupHueChange}
-                />
-              </div>
-              <div
-                className="edit-expert-markup-color-popover-swatches"
-                aria-label="Markup swatches"
-              >
-                {MARKUP_COLOR_SWATCHES.map((swatch) => (
-                  <button
-                    key={swatch}
-                    type="button"
-                    className={`edit-expert-markup-color-popover-swatch ${
-                      markupColor.toLowerCase() === swatch.toLowerCase() ? "is-active" : ""
-                    }`}
-                    style={{ backgroundColor: swatch }}
-                    aria-label={`Select ${swatch} color`}
-                    onClick={() => applyMarkupColorFromHex(swatch)}
-                  />
-                ))}
-              </div>
-            </div>
-          ) : null}
-        </div>
+        {!isMarkupColorPickerOpen ? (
+          <div className="edit-expert-markup-color-picker-anchor" ref={markupColorPickerAnchorRef}>
+            <button
+              id={colorPickerId}
+              type="button"
+              className="edit-expert-markup-color-picker"
+              style={{ backgroundColor: markupColor }}
+              aria-label="Markup color"
+              aria-expanded={isMarkupColorPickerOpen}
+              aria-haspopup="dialog"
+              onClick={(event) => {
+                event.stopPropagation();
+                toggleMarkupColorPicker(scope);
+              }}
+            />
+          </div>
+        ) : null}
         {!isModalScope ? (
           <button
             type="button"
@@ -269,6 +206,72 @@ export function ExpertEditMarkupControlsContent({
           </button>
         ) : null}
       </div>
+      {isMarkupColorPickerOpen ? (
+        <div
+          className="edit-expert-markup-color-popover"
+          role="dialog"
+          aria-label="Markup color picker"
+          onClick={(event) => event.stopPropagation()}
+          onPointerDown={(event) => event.stopPropagation()}
+        >
+          <div className="edit-expert-markup-color-popover-header">
+            <p className="edit-expert-markup-color-popover-title">Markup Color</p>
+            <span className="edit-expert-markup-color-popover-value">
+              {markupColor.toUpperCase()}
+            </span>
+          </div>
+          <div
+            ref={markupColorSaturationRef}
+            className="edit-expert-markup-color-popover-saturation"
+            style={{
+              background: `linear-gradient(to top, #000000, rgba(0, 0, 0, 0)), linear-gradient(to right, #ffffff, hsl(${Math.round(markupColorHsv.h)}, 100%, 50%))`,
+            }}
+            onPointerDown={handleMarkupSaturationPointerDown}
+            onPointerMove={handleMarkupSaturationPointerMove}
+            onPointerUp={handleMarkupSaturationPointerUp}
+            onPointerCancel={handleMarkupSaturationPointerUp}
+          >
+            <span
+              className="edit-expert-markup-color-popover-saturation-thumb"
+              style={{
+                left: `${markupColorHsv.s * 100}%`,
+                top: `${(1 - markupColorHsv.v) * 100}%`,
+              }}
+              aria-hidden="true"
+            />
+          </div>
+          <div className="edit-expert-markup-color-popover-hue">
+            <label htmlFor={hueSliderId} className="edit-expert-markup-color-popover-hue-label">
+              Hue
+            </label>
+            <input
+              id={hueSliderId}
+              type="range"
+              min={0}
+              max={360}
+              step={1}
+              value={Math.round(markupColorHsv.h)}
+              className="edit-expert-markup-color-popover-hue-slider"
+              aria-label="Markup hue"
+              onChange={handleMarkupHueChange}
+            />
+          </div>
+          <div className="edit-expert-markup-color-popover-swatches" aria-label="Markup swatches">
+            {MARKUP_COLOR_SWATCHES.map((swatch) => (
+              <button
+                key={swatch}
+                type="button"
+                className={`edit-expert-markup-color-popover-swatch ${
+                  markupColor.toLowerCase() === swatch.toLowerCase() ? "is-active" : ""
+                }`}
+                style={{ backgroundColor: swatch }}
+                aria-label={`Select ${swatch} color`}
+                onClick={() => applyMarkupColorFromHex(swatch)}
+              />
+            ))}
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -545,19 +548,21 @@ export function ExpertEditInpaintControlsContent({
             Unselect
           </button>
         </div>
-        <button
-          type="button"
-          className={`edit-expert-inpaint-action-btn ${
-            isInlineScope
-              ? "edit-expert-inpaint-invert-btn"
-              : "edit-expert-markup-modal-inpaint-invert-btn"
-          }`}
-          aria-label="Invert in-paint selection"
-          onClick={invertInpaintSelectionWithHistory}
-          disabled={!imageHasInteractiveMask}
-        >
-          <CircleHalf size={18} weight="regular" />
-        </button>
+        {!isRailScope ? (
+          <button
+            type="button"
+            className={`edit-expert-inpaint-action-btn ${
+              isInlineScope
+                ? "edit-expert-inpaint-invert-btn"
+                : "edit-expert-markup-modal-inpaint-invert-btn"
+            }`}
+            aria-label="Invert in-paint selection"
+            onClick={invertInpaintSelectionWithHistory}
+            disabled={!imageHasInteractiveMask}
+          >
+            <CircleHalf size={18} weight="regular" />
+          </button>
+        ) : null}
         {isInlineScope ? (
           <button
             type="button"

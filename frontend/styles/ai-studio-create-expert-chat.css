@@ -98,7 +98,7 @@
   .create-expert-prompt-step
   .create-expert-chat-composer-overlay-zone.is-composer-expanded
   .create-expert-chat-composer-base-layer {
-  filter: blur(6px) brightness(0.56);
+  filter: blur(6px);
 }
 
 .create-expert-panel .create-expert-prompt-step .create-expert-chat-composer-overlay {

@@ -13,6 +13,7 @@ import { secondaries } from "./expertEditPanelViewContract";
 import {
   autoResizeTextareaWithinComputedBounds,
   clampCaretPosition,
+  resolveTextareaVisualRowCount,
   syncTextareaMirrorScroll,
 } from "./expertEditInteractionUtils";
 
@@ -30,6 +31,7 @@ type UseExpertEditPromptTokenControllerArgs = {
   extraImageUrls: [string | null, string | null, string | null];
   populatedLayerCount: number;
   allowSecondaryReferenceTokens?: boolean;
+  maxSecondaryReferenceTokens?: number;
   isPromptComposerExpanded: boolean;
   onPromptTextChange: (value: string) => void;
   showStatusToast: (message: string, tone?: "info" | "warning") => void;
@@ -40,6 +42,7 @@ export function useExpertEditPromptTokenController({
   extraImageUrls,
   populatedLayerCount,
   allowSecondaryReferenceTokens = true,
+  maxSecondaryReferenceTokens,
   isPromptComposerExpanded,
   onPromptTextChange,
   showStatusToast,
@@ -53,6 +56,7 @@ export function useExpertEditPromptTokenController({
     selectionEnd: number;
   } | null>(null);
   const [showPromptTokenInlineError, setShowPromptTokenInlineError] = React.useState(false);
+  const [promptVisualRowCount, setPromptVisualRowCount] = React.useState(1);
   const [promptTokenPickerState, setPromptTokenPickerState] =
     React.useState<PromptTokenPickerState>({
       isOpen: false,
@@ -73,17 +77,35 @@ export function useExpertEditPromptTokenController({
     () =>
       analyzeExpertEditPromptTokens(promptTextValue, extraImageUrls, {
         allowSecondaryTokens: allowSecondaryReferenceTokens,
+        maxSecondaryReferences: maxSecondaryReferenceTokens,
       }),
-    [allowSecondaryReferenceTokens, extraImageUrls, promptTextValue]
+    [allowSecondaryReferenceTokens, extraImageUrls, maxSecondaryReferenceTokens, promptTextValue]
+  );
+  const availableSecondaryPromptTokenSlotIndexes = React.useMemo(
+    () =>
+      allowSecondaryReferenceTokens
+        ? maxSecondaryReferenceTokens === 1 &&
+          promptTokenAnalysis.referencedSlotIndexes.length === 1
+          ? secondaries.filter(
+              (index) =>
+                promptTokenAnalysis.referencedSlotIndexes.includes(index) &&
+                Boolean(extraImageUrls[index])
+            )
+          : secondaries.filter((index) => Boolean(extraImageUrls[index]))
+        : [],
+    [
+      allowSecondaryReferenceTokens,
+      extraImageUrls,
+      maxSecondaryReferenceTokens,
+      promptTokenAnalysis.referencedSlotIndexes,
+    ]
   );
   const promptTokenPickerOptions = React.useMemo<PromptTokenPickerSelection[]>(
     () => [
       ...(populatedLayerCount > 0 ? (["main"] as PromptTokenPickerSelection[]) : []),
-      ...(allowSecondaryReferenceTokens
-        ? secondaries.filter((index) => Boolean(extraImageUrls[index]))
-        : []),
+      ...availableSecondaryPromptTokenSlotIndexes,
     ],
-    [allowSecondaryReferenceTokens, extraImageUrls, populatedLayerCount]
+    [availableSecondaryPromptTokenSlotIndexes, populatedLayerCount]
   );
   const promptHighlightSegments = React.useMemo(
     () => buildExpertEditPromptHighlightSegments(promptTextValue, promptTokenAnalysis.diagnostics),
@@ -93,11 +115,8 @@ export function useExpertEditPromptTokenController({
     ? promptTokenAnalysis.inlineError
     : null;
   const populatedPromptTokenSlotIndexes = React.useMemo(
-    () =>
-      allowSecondaryReferenceTokens
-        ? secondaries.filter((index) => Boolean(extraImageUrls[index]))
-        : [],
-    [allowSecondaryReferenceTokens, extraImageUrls]
+    () => availableSecondaryPromptTokenSlotIndexes,
+    [availableSecondaryPromptTokenSlotIndexes]
   );
 
   const handleInvalidPromptReferenceToken = React.useCallback(
@@ -186,8 +205,10 @@ export function useExpertEditPromptTokenController({
   }, []);
 
   const syncPromptTextareaHeight = React.useCallback(() => {
-    autoResizeTextareaWithinComputedBounds(promptTextareaRef.current);
-  }, []);
+    const textarea = promptTextareaRef.current;
+    setPromptVisualRowCount(resolveTextareaVisualRowCount(textarea));
+    autoResizeTextareaWithinComputedBounds(textarea, 72, !isPromptComposerExpanded);
+  }, [isPromptComposerExpanded]);
 
   const handlePromptScroll = React.useCallback(() => {
     syncPromptHighlightScroll();
@@ -364,15 +385,13 @@ export function useExpertEditPromptTokenController({
   }, [isPromptComposerExpanded, promptTextValue, syncPromptTextareaHeight]);
 
   React.useEffect(() => {
-    const promptInputShell = promptInputShellRef.current;
-    if (!promptInputShell || typeof ResizeObserver === "undefined") return;
-    const resizeObserver = new ResizeObserver(() => {
+    const handleWindowResize = () => {
       syncPromptTextareaHeight();
       syncPromptHighlightScroll();
-    });
-    resizeObserver.observe(promptInputShell);
+    };
+    window.addEventListener("resize", handleWindowResize);
     return () => {
-      resizeObserver.disconnect();
+      window.removeEventListener("resize", handleWindowResize);
     };
   }, [syncPromptHighlightScroll, syncPromptTextareaHeight]);
 
@@ -433,6 +452,7 @@ export function useExpertEditPromptTokenController({
     promptInputShellRef,
     promptHighlightRef,
     promptTextareaRef,
+    promptVisualRowCount,
     promptHighlightSegments,
     promptTokenPickerState,
     promptTokenInlineError,

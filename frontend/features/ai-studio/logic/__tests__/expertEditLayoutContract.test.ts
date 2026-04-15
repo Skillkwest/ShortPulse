@@ -110,17 +110,32 @@ describe("expert edit layout contract", () => {
     const css = fs.readFileSync(expertEditCssPath, "utf8");
     const overlayZone = extractRuleBlock(css, ".edit-expert-post-stage-overlay-zone");
     const baseLayer = extractRuleBlock(css, ".edit-expert-post-stage-base-layer");
+    const expandedOverlayZone = extractRuleBlock(
+      css,
+      ".edit-expert-post-stage-overlay-zone.is-composer-expanded .edit-expert-post-stage-base-layer"
+    );
+    const expandedStageShell = extractRuleBlock(
+      css,
+      ".edit-expert-primary-column-shell.is-composer-expanded .edit-expert-primary-stage-shell"
+    );
     const composerOverlay = extractRuleBlock(css, ".edit-expert-post-stage-composer-overlay");
     const bottomRow = extractRuleBlock(css, ".edit-expert-bottom-row");
     const promptRow = extractRuleBlock(css, ".edit-expert-prompt-row");
+    const promptInput = extractRuleBlock(
+      css,
+      ".edit-expert-prompt-shell .edit-expert-prompt-input"
+    );
 
     expect(overlayZone).toContain("position: relative;");
     expect(overlayZone).toContain("padding-bottom: var(--edit-expert-post-stage-overlay-reserve);");
     expect(baseLayer).toContain("z-index: 1;");
+    expect(expandedOverlayZone).toContain("filter: blur(6px);");
+    expect(expandedStageShell).toContain("filter: blur(6px);");
     expect(composerOverlay).toContain("position: absolute;");
     expect(composerOverlay).toContain("bottom: 0;");
     expect(composerOverlay).toContain("z-index: 9;");
     expect(bottomRow).toContain("min-height: var(--edit-expert-prompt-input-min-height);");
     expect(promptRow).toContain("min-height: var(--edit-expert-prompt-input-min-height);");
+    expect(promptInput).toContain("transition: height 120ms cubic-bezier(0.22, 0.61, 0.36, 1);");
   });
 });

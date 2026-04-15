@@ -40,7 +40,8 @@ export type MarkupDrawPointerSession = {
 export const MARKUP_STROKE_SIZE_RATIO_MIN = 0.002;
 export const MARKUP_STROKE_SIZE_RATIO_MAX = 0.4;
 export const MARKUP_DRAW_MIN_POINT_DISTANCE_PX = 0.8;
-export const MARKUP_LASSO_FILL_OPACITY = 0.28;
+export const MARKUP_OVERLAY_OPACITY = 0.72;
+export const MARKUP_LASSO_FILL_OPACITY = 1;
 export const DEFAULT_MARKUP_STROKE_KIND: MarkupStrokeKind = "pen";
 
 const clampNumber = (value: number, min: number, max: number) =>

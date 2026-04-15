@@ -3,13 +3,12 @@ import { modelLogos } from "../../constants";
 import { stripEditLabel } from "../../utils/modelLabels";
 import { setExpertEditPromptTokenDragData } from "../../logic/expertEditPromptReferences";
 import {
-  INPAINT_FLUX_FILL_MODEL_ID,
-  INPAINT_FLUX_FILL_MODEL_LABEL,
   MARKUP_NANO_BANANA_PRO_EDIT_MODEL_ID,
   MARKUP_NANO_BANANA_PRO_EDIT_MODEL_LABEL,
   isEditGenerationModeToggleEnabled,
   isMarkupCollapsedOpenModalEnabled,
   isMarkupModelLockEnabled,
+  resolveInpaintPromptReferencePolicy,
 } from "../../logic/inpaintSubmission";
 import { useReferencePropertiesConstraintEffects } from "../useReferencePropertiesConstraintEffects";
 import { useReferencePropertiesDerivedState } from "../useReferencePropertiesDerivedState";
@@ -33,19 +32,24 @@ import { useExpertEditStageChrome } from "./useExpertEditStageChrome";
 import { useExpertEditStageHistory } from "./useExpertEditStageHistory";
 import { useExpertEditStageInteractions } from "./useExpertEditStageInteractions";
 import { useExpertEditStageLifecycle } from "./useExpertEditStageLifecycle";
-import { useExpertEditStageControlPanels } from "./useExpertEditStageControlPanels";
 import { useExpertEditStageTransformRuntime } from "./useExpertEditStageTransformRuntime";
 import { useExpertEditStageViewport } from "./useExpertEditStageViewport";
 import { ExpertEditPanelAuxiliary } from "./ExpertEditPanelAuxiliary";
 import { ExpertEditStageSidebar } from "./ExpertEditStageSidebar";
 import { ExpertEditStageWorkspace } from "./ExpertEditStageWorkspace";
 import { useExpertEditMarkupDrawController } from "./useExpertEditMarkupDrawController";
-import { useExpertEditMarkupViewportController } from "./useExpertEditMarkupViewportController";
+import { useExpertEditStageViewportController } from "./useExpertEditStageViewportController";
 import { ExpertEditInlinePostStageTools } from "./ExpertEditInlinePostStageTools";
 import { ExpertEditLayersPanel } from "./ExpertEditLayersPanel";
 import { ExpertEditStageScene } from "./ExpertEditStageScene";
 import { ExpertEditSecondaryReferences } from "./ExpertEditReferenceControls";
 import { ExpertEditPromptSelectorsColumn } from "./ExpertEditPromptSelectorsColumn";
+import {
+  ExpertEditInpaintControlsContent,
+  ExpertEditMarkupModalGeneralPanel,
+  ExpertEditMoveControlsContent,
+  ExpertEditPresetUtilityActionButtons,
+} from "./ExpertEditStageControls";
 import {
   COMPOSITE_REGENERATE_COHESION_PROMPT,
   INPAINT_STROKE_SIZE_DEFAULT,
@@ -299,8 +303,8 @@ export function ExpertEditPanelView({
     handleMarkupModalControlsRef,
     handleMarkupModalStageRef,
     handleMarkupModalLayersRef,
-    markupViewport,
-    setMarkupViewport,
+    stageViewport,
+    setStageViewport,
     setInlineStageViewportSize,
     markupModalStageSize,
     markupModalViewportSize,
@@ -309,9 +313,9 @@ export function ExpertEditPanelView({
     setMoveStageZoomSliderValue,
     primaryCompositionSurfaceAspectRatio,
     primaryCompositionSurfaceAspectRatioValue,
-    inlineMarkupViewportStyle,
+    inlineStageViewportStyle,
     inlineCompositionSurfaceViewportSize,
-    modalMarkupViewportStyle,
+    modalStageViewportStyle,
     primaryCanvasFrameBoundsStyle,
     resolveInlineStageRect,
     resolveInteractionViewportOffsetPixels,
@@ -324,13 +328,13 @@ export function ExpertEditPanelView({
   });
   const modelLogoSrc = modelId ? modelLogos[modelId] : undefined;
   const isInpaintToolSelected = selectedRailTool === "inpaint";
-  const isVideoToolSelected = selectedRailTool === "video";
+  const isMarkupToolSelected = selectedRailTool === "markup";
   const isInpaintSubmitMode = effectiveEditSubmitIntent === "inpaint";
   const isMarkupSubmitMode = effectiveEditSubmitIntent === "markup";
-  const shouldShowSecondaryReferenceAndStylesRow = !isMarkupSubmitMode;
+  const shouldShowSecondaryReferenceAndStylesRow = true;
   const shouldHideSelectedModeRailPanel =
     isGenerationModeToggleEnabled && effectiveEditSubmitIntent === "standard";
-  const isInpaintLikeToolSelected = isInpaintToolSelected || isVideoToolSelected;
+  const isInpaintLikeToolSelected = isInpaintToolSelected || isMarkupToolSelected;
   const isMoveToolSelected = selectedRailTool === "move";
   const activeStageInteractionMode = isMoveToolSelected
     ? "move"
@@ -340,13 +344,22 @@ export function ExpertEditPanelView({
   const shouldLockMarkupModelPicker = isMarkupSubmitMode && isMarkupModelLockEnabled();
   const shouldOpenMarkupModalFromCollapsedTools = isMarkupCollapsedOpenModalEnabled();
   const isModelPickerLocked = isInpaintSubmitMode || shouldLockMarkupModelPicker;
+  const promptTextValue = referenceText ?? "";
+  const inpaintPromptReferencePolicy = React.useMemo(
+    () =>
+      resolveInpaintPromptReferencePolicy({
+        promptText: promptTextValue,
+        extraImageUrls,
+      }),
+    [extraImageUrls, promptTextValue]
+  );
   const effectiveSelectorModelId = isInpaintSubmitMode
-    ? INPAINT_FLUX_FILL_MODEL_ID
+    ? inpaintPromptReferencePolicy.modelId
     : shouldLockMarkupModelPicker
       ? MARKUP_NANO_BANANA_PRO_EDIT_MODEL_ID
       : modelId;
   const effectiveModelPickerLabel = isInpaintSubmitMode
-    ? INPAINT_FLUX_FILL_MODEL_LABEL
+    ? inpaintPromptReferencePolicy.modelLabel
     : shouldLockMarkupModelPicker
       ? MARKUP_NANO_BANANA_PRO_EDIT_MODEL_LABEL
       : stripEditLabel(modelLabel);
@@ -355,10 +368,9 @@ export function ExpertEditPanelView({
     : modelLogoSrc;
   const collapsedToolsThemeClass = isMoveToolSelected
     ? "is-active-move"
-    : isVideoToolSelected
-      ? "is-active-video"
+    : isMarkupToolSelected
+      ? "is-active-markup"
       : "is-active-inpaint";
-  const promptTextValue = referenceText ?? "";
 
   const {
     extraOneInputRef,
@@ -428,6 +440,7 @@ export function ExpertEditPanelView({
     promptInputShellRef,
     promptHighlightRef,
     promptTextareaRef,
+    promptVisualRowCount,
     promptHighlightSegments,
     promptTokenPickerState,
     promptTokenInlineError,
@@ -443,7 +456,12 @@ export function ExpertEditPanelView({
     promptTextValue,
     extraImageUrls,
     populatedLayerCount,
-    allowSecondaryReferenceTokens: !isInpaintSubmitMode,
+    allowSecondaryReferenceTokens: isInpaintSubmitMode
+      ? inpaintPromptReferencePolicy.allowSecondaryReferenceTokens
+      : true,
+    maxSecondaryReferenceTokens: isInpaintSubmitMode
+      ? inpaintPromptReferencePolicy.maxSecondaryReferenceTokens
+      : undefined,
     isPromptComposerExpanded,
     onPromptTextChange,
     showStatusToast,
@@ -452,6 +470,7 @@ export function ExpertEditPanelView({
   const handlePromptFocus = React.useCallback(() => {
     setIsPromptComposerExpanded(true);
   }, []);
+  const shouldBlurPromptUnderlay = isPromptComposerExpanded && promptVisualRowCount >= 8;
 
   const handlePromptBlur = React.useCallback(
     (event: React.FocusEvent<HTMLTextAreaElement>) => {
@@ -501,6 +520,8 @@ export function ExpertEditPanelView({
   const {
     overlayCanvasRef,
     modalOverlayCanvasRef,
+    previewCanvasRef,
+    modalPreviewCanvasRef,
     hasSelectedLayerMask,
     imageHasInteractiveMask,
     captureMaskSnapshot: captureInpaintMaskSnapshot,
@@ -520,10 +541,10 @@ export function ExpertEditPanelView({
     selectedLayerImageUrl,
     layerSources: inpaintLayerSources,
     enabled: isInpaintToolSelected,
-    sceneScale: markupViewport.scale,
+    sceneScale: stageViewport.scale,
     shouldApplyViewportTransform: hasPrimaryCompositePreview,
-    viewportOffsetXRatio: markupViewport.offsetXRatio,
-    viewportOffsetYRatio: markupViewport.offsetYRatio,
+    viewportOffsetXRatio: stageViewport.offsetXRatio,
+    viewportOffsetYRatio: stageViewport.offsetYRatio,
     resolveViewportOffsetPixels: resolveInteractionViewportOffsetPixels,
     resolveClientPointToSurfacePoint: ({ clientX, clientY, currentTarget, clampToBounds }) =>
       currentTarget === markupModalStageRef.current
@@ -550,7 +571,7 @@ export function ExpertEditPanelView({
     selectedInpaintMode === "lasso" &&
     Boolean(selectedLayerImageUrl) &&
     imageHasInteractiveMask;
-  const shouldShowMarkupBrushReticle = isVideoToolSelected && hasPrimaryCompositePreview;
+  const shouldShowMarkupBrushReticle = isMarkupToolSelected && hasPrimaryCompositePreview;
   const morePresetsSurfaceId = React.useId();
 
   const resolveStageFlattenSnapshot = React.useCallback(() => {
@@ -661,7 +682,7 @@ export function ExpertEditPanelView({
     [extraImageUrls]
   );
 
-  const markupViewportCursor = React.useMemo(() => {
+  const stageViewportCursor = React.useMemo(() => {
     if (isMarkupPanDragging) return "grabbing";
     if (isMarkupPanSpacePressed) return "grab";
     return undefined;
@@ -671,20 +692,20 @@ export function ExpertEditPanelView({
 
   const {
     handleMoveZoomSliderChange,
-    resetMarkupViewport,
+    resetStageViewport,
     beginMarkupPanGesture,
     continueMarkupPanGesture,
     endMarkupPanGesture,
     endMarkupPanGestureOnLeave,
-    handleMarkupViewportWheel,
-    handleNativeMarkupViewportWheel,
-  } = useExpertEditMarkupViewportController({
-    markupViewport,
+    handleStageViewportWheel,
+    handleNativeStageViewportWheel,
+  } = useExpertEditStageViewportController({
+    markupViewport: stageViewport,
     shouldApplyMarkupViewport: true,
     isMarkupPanSpacePressed,
     markupPanPointerSessionRef,
     setMoveStageZoomSliderValue,
-    setMarkupViewport,
+    setMarkupViewport: setStageViewport,
     setIsMarkupPanDragging,
     setInlineStageViewportSize,
     setMarkupModalViewportSize,
@@ -719,9 +740,9 @@ export function ExpertEditPanelView({
     hasPrimaryCompositePreview,
     isMoveToolSelected,
     isMorePresetsSurfaceOpen,
-    isVideoToolSelected,
-    markupViewport,
-    markupViewportCursor,
+    isMarkupToolSelected,
+    stageViewport,
+    stageViewportCursor,
     markupModalStageSize,
     primaryCompositionSurfaceAspectRatio,
     shouldShowInpaintBrushReticle,
@@ -736,7 +757,7 @@ export function ExpertEditPanelView({
     showStatusToast,
     transformHistoryState,
     setTransformHistoryState,
-    resetMarkupViewport,
+    resetStageViewport,
   });
 
   const {
@@ -754,7 +775,7 @@ export function ExpertEditPanelView({
     handleRedoGeneralAction,
     handleResetGeneralAction,
     isMoveTransformCentered,
-    isMarkupViewportAtRest,
+    isStageViewportAtRest,
     isGeneralResetDisabled,
     clearHistoryEphemera,
   } = useExpertEditStageHistory({
@@ -768,15 +789,15 @@ export function ExpertEditPanelView({
     setMarkupStrokes,
     hasPrimaryCompositePreview,
     inpaintLayerSources,
-    markupViewport,
-    resetMarkupViewport,
+    stageViewport,
+    resetStageViewport,
     captureInpaintMaskSnapshot,
     restoreInpaintMaskSnapshot,
     clearSelectedLayerMask,
     invertSelectedLayerMask,
     clearAllInpaintMasks,
     isInpaintToolSelected,
-    isVideoToolSelected,
+    isMarkupToolSelected,
     queuePendingHistoryApplyEntry,
     transformHistoryState,
     setTransformHistoryState,
@@ -827,7 +848,7 @@ export function ExpertEditPanelView({
 
   const { markupColor, renderMarkupControlsContent, selectedMarkupMode } =
     useExpertEditMarkupControlsRuntime({
-      isVideoToolSelected,
+      isMarkupToolSelected,
       isMarkupExpandSelected,
       resolvedMarkupStrokeSize,
       clearMarkupStrokesWithHistory,
@@ -844,14 +865,14 @@ export function ExpertEditPanelView({
     endMarkupDrawGestureOnLeave,
     clearMarkupDrawGestureSession,
   } = useExpertEditMarkupDrawController({
-    isVideoToolSelected,
+    isMarkupToolSelected,
     hasPrimaryCompositePreview,
     selectedMarkupMode,
     resolvedMarkupStrokeSize,
     maxMarkupStrokeSize: MARKUP_STROKE_SIZE_MAX,
     renderScale: activeStageRenderScale,
     markupColor,
-    markupViewport,
+    markupViewport: stageViewport,
     shouldApplyMarkupViewport: true,
     resolveClientPointToSurfacePoint: ({ clientX, clientY, currentTarget, clampToBounds }) =>
       currentTarget === markupModalStageRef.current
@@ -949,7 +970,7 @@ export function ExpertEditPanelView({
       continueMarkupPanGesture,
       endMarkupPanGesture,
       endMarkupPanGestureOnLeave,
-      handleMarkupViewportWheel,
+      handleStageViewportWheel,
       handleMovePointerDown,
       handleMovePointerMove,
       handleMovePointerLeave,
@@ -979,14 +1000,14 @@ export function ExpertEditPanelView({
     isMarkupExpandSelected,
     isMorePresetsSurfaceOpen,
     setIsMarkupPanSpacePressed,
-    isVideoToolSelected,
+    isMarkupToolSelected,
     clearMarkupDrawGestureSession,
     canUndoGeneralAction,
     canRedoGeneralAction,
     handleUndoGeneralAction,
     handleRedoGeneralAction,
     inlineStageWrapperRef,
-    handleNativeMarkupViewportWheel,
+    handleNativeStageViewportWheel,
     markupModalStageRef,
     markupModalStageSize,
     shouldShowInpaintBrushReticle,
@@ -1024,43 +1045,111 @@ export function ExpertEditPanelView({
     revokeObjectUrlSafe,
   });
 
-  const {
-    renderMarkupModalGeneralPanel,
-    renderMarkupModalInpaintPanel,
-    renderMoveControlsContent,
-    renderPresetUtilityActionButtons,
-  } = useExpertEditStageControlPanels({
-    isMoveToolSelected,
-    moveStageZoomSliderValue,
-    isMoveTransformCentered,
-    isMarkupViewportAtRest,
-    canUndoGeneralAction,
-    canRedoGeneralAction,
-    setSelectedRailTool,
-    handleRecenterMoveAction,
-    openMarkupModal,
-    handleMoveZoomSliderChange,
-    handleUndoGeneralAction,
-    handleRedoGeneralAction,
-    aspect,
-    aspectOptionsForModel,
-    isGeneralResetDisabled,
-    onAspectChange,
-    handleResetGeneralAction,
-    isGenerateDisabled,
-    selectedLayerImageUrl,
-    handleCompositeRegeneratePromptInsert,
-    selectedInpaintMode,
-    isInpaintToolSelected,
-    inpaintStrokeSize,
-    selectedInpaintSelectionTab,
-    imageHasInteractiveMask,
-    setSelectedInpaintMode,
-    setInpaintStrokeSize,
-    setSelectedInpaintSelectionTab,
-    clearInpaintSelectionWithHistory,
-    invertInpaintSelectionWithHistory,
-  });
+  const renderMoveControlsContent = React.useCallback(
+    (scope: "inline" | "modal") => (
+      <ExpertEditMoveControlsContent
+        scope={scope}
+        isMoveToolSelected={isMoveToolSelected}
+        moveStageZoomSliderValue={moveStageZoomSliderValue}
+        isMoveTransformCentered={isMoveTransformCentered}
+        isStageViewportAtRest={isStageViewportAtRest}
+        canUndoGeneralAction={canUndoGeneralAction}
+        canRedoGeneralAction={canRedoGeneralAction}
+        setSelectedRailTool={setSelectedRailTool}
+        handleRecenterMoveAction={handleRecenterMoveAction}
+        openMarkupModal={openMarkupModal}
+        handleMoveZoomSliderChange={handleMoveZoomSliderChange}
+        handleUndoGeneralAction={handleUndoGeneralAction}
+        handleRedoGeneralAction={handleRedoGeneralAction}
+      />
+    ),
+    [
+      canRedoGeneralAction,
+      canUndoGeneralAction,
+      handleMoveZoomSliderChange,
+      handleRecenterMoveAction,
+      handleRedoGeneralAction,
+      handleUndoGeneralAction,
+      isMoveToolSelected,
+      isMoveTransformCentered,
+      isStageViewportAtRest,
+      moveStageZoomSliderValue,
+      openMarkupModal,
+      setSelectedRailTool,
+    ]
+  );
+
+  const renderMarkupModalGeneralPanel = React.useMemo(
+    () => (
+      <ExpertEditMarkupModalGeneralPanel
+        aspect={aspect}
+        aspectOptionsForModel={aspectOptionsForModel}
+        canUndoGeneralAction={canUndoGeneralAction}
+        canRedoGeneralAction={canRedoGeneralAction}
+        isGeneralResetDisabled={isGeneralResetDisabled}
+        onAspectChange={onAspectChange}
+        handleUndoGeneralAction={handleUndoGeneralAction}
+        handleRedoGeneralAction={handleRedoGeneralAction}
+        handleResetGeneralAction={handleResetGeneralAction}
+      />
+    ),
+    [
+      aspect,
+      aspectOptionsForModel,
+      canRedoGeneralAction,
+      canUndoGeneralAction,
+      handleRedoGeneralAction,
+      handleResetGeneralAction,
+      handleUndoGeneralAction,
+      isGeneralResetDisabled,
+      onAspectChange,
+    ]
+  );
+
+  const renderPresetUtilityActionButtons = React.useMemo(
+    () => (
+      <ExpertEditPresetUtilityActionButtons
+        isGenerateDisabled={isGenerateDisabled}
+        selectedLayerImageUrl={selectedLayerImageUrl}
+        handleCompositeRegeneratePromptInsert={handleCompositeRegeneratePromptInsert}
+      />
+    ),
+    [handleCompositeRegeneratePromptInsert, isGenerateDisabled, selectedLayerImageUrl]
+  );
+
+  const renderInpaintControlsContent = React.useCallback(
+    (scope: "inline" | "modal" | "rail") => (
+      <ExpertEditInpaintControlsContent
+        scope={scope}
+        selectedInpaintMode={selectedInpaintMode}
+        isInpaintToolSelected={isInpaintToolSelected}
+        inpaintStrokeSize={inpaintStrokeSize}
+        selectedInpaintSelectionTab={selectedInpaintSelectionTab}
+        imageHasInteractiveMask={imageHasInteractiveMask}
+        setSelectedRailTool={setSelectedRailTool}
+        setSelectedInpaintMode={setSelectedInpaintMode}
+        setInpaintStrokeSize={setInpaintStrokeSize}
+        setSelectedInpaintSelectionTab={setSelectedInpaintSelectionTab}
+        clearInpaintSelectionWithHistory={clearInpaintSelectionWithHistory}
+        invertInpaintSelectionWithHistory={invertInpaintSelectionWithHistory}
+        openMarkupModal={openMarkupModal}
+      />
+    ),
+    [
+      clearInpaintSelectionWithHistory,
+      imageHasInteractiveMask,
+      inpaintStrokeSize,
+      invertInpaintSelectionWithHistory,
+      isInpaintToolSelected,
+      openMarkupModal,
+      selectedInpaintMode,
+      selectedInpaintSelectionTab,
+      setSelectedRailTool,
+      setSelectedInpaintMode,
+      setInpaintStrokeSize,
+      setSelectedInpaintSelectionTab,
+    ]
+  );
 
   return (
     <div
@@ -1083,7 +1172,7 @@ export function ExpertEditPanelView({
             onGenerationModeChange={handleGenerationModeChange}
             shouldHideSelectedModeRailPanel={shouldHideSelectedModeRailPanel}
             selectedRailTool={selectedRailTool}
-            renderMarkupModalInpaintPanel={renderMarkupModalInpaintPanel}
+            renderInpaintControlsContent={renderInpaintControlsContent}
             renderMarkupControlsContent={renderMarkupControlsContent}
             renderMoveControlsContent={renderMoveControlsContent}
             hasSelectedPresetIds={hasSelectedPresetIds}
@@ -1154,7 +1243,7 @@ export function ExpertEditPanelView({
         onInlineStagePointerMoveCapture={handleInlineStagePointerMoveCapture}
         onInlineStagePointerUpCapture={handleInlineStagePointerUpCapture}
         onInlineStagePointerCancelCapture={handleInlineStagePointerCancelCapture}
-        inlineViewportStyle={inlineMarkupViewportStyle}
+        inlineViewportStyle={inlineStageViewportStyle}
         inlineStageRef={inlineStageWrapperRef}
         frameStackRef={handlePrimaryCanvasFrameStackRef}
         isPrimaryDragActive={primaryDragActive}
@@ -1186,6 +1275,7 @@ export function ExpertEditPanelView({
             layers={layers}
             markupStrokes={markupStrokes}
             overlayCanvasRef={overlayCanvasRef}
+            previewCanvasRef={previewCanvasRef}
             stageSize={inlineCompositionSurfaceViewportSize}
             stageElement={primaryCanvasFrameStackElement}
             inlineFallbackStageSize={inlineCompositionSurfaceViewportSize}
@@ -1215,21 +1305,12 @@ export function ExpertEditPanelView({
             collapsedToolsThemeClass={collapsedToolsThemeClass}
             selectedRailTool={selectedRailTool}
             isInpaintToolSelected={isInpaintToolSelected}
-            isVideoToolSelected={isVideoToolSelected}
+            isMarkupToolSelected={isMarkupToolSelected}
             isMoveToolSelected={isMoveToolSelected}
             isInpaintLikeToolSelected={isInpaintLikeToolSelected}
-            selectedInpaintMode={selectedInpaintMode}
-            inpaintStrokeSize={inpaintStrokeSize}
-            selectedInpaintSelectionTab={selectedInpaintSelectionTab}
-            imageHasInteractiveMask={imageHasInteractiveMask}
             setSelectedRailTool={setSelectedRailTool}
-            setSelectedInpaintMode={setSelectedInpaintMode}
-            setInpaintStrokeSize={setInpaintStrokeSize}
-            setSelectedInpaintSelectionTab={setSelectedInpaintSelectionTab}
             handleInpaintCollapseToggle={handleInpaintCollapseToggle}
-            openMarkupModal={openMarkupModal}
-            clearInpaintSelectionWithHistory={clearInpaintSelectionWithHistory}
-            invertInpaintSelectionWithHistory={invertInpaintSelectionWithHistory}
+            renderInpaintControlsContent={renderInpaintControlsContent}
             renderMarkupControlsContent={renderMarkupControlsContent}
             renderMoveControlsContent={renderMoveControlsContent}
             secondaryContent={
@@ -1239,9 +1320,15 @@ export function ExpertEditPanelView({
                   inputRefs={inputRefs}
                   extraDragActive={extraDragActive}
                   isPromptTokenPickerOpen={promptTokenPickerState.isOpen}
-                  highlightPromptPickerSecondaryTargets={!isInpaintSubmitMode}
+                  highlightPromptPickerSecondaryTargets={
+                    !isInpaintSubmitMode ||
+                    inpaintPromptReferencePolicy.allowSecondaryReferenceTokens
+                  }
                   promptTokenPickerSelectedSlotIndex={promptTokenPickerState.selectedSlotIndex}
-                  allowPromptTokenSecondaryDrag={!isInpaintSubmitMode}
+                  allowPromptTokenSecondaryDrag={
+                    !isInpaintSubmitMode ||
+                    inpaintPromptReferencePolicy.allowSecondaryReferenceTokens
+                  }
                   onSecondaryDragStart={handleSecondaryPromptTokenDragStart}
                   onSecondaryDrop={handleExtraDrop}
                   onSecondaryDragEnter={handleExtraDragEnter}
@@ -1298,6 +1385,7 @@ export function ExpertEditPanelView({
             onImageResolutionChange={onImageResolutionChange}
           />
         }
+        shouldBlurPromptUnderlay={shouldBlurPromptUnderlay}
         statusToast={null}
         modalSurface={{
           isOpen: isMarkupExpandSelected,
@@ -1307,15 +1395,16 @@ export function ExpertEditPanelView({
           stageStyle: markupModalStageStyle,
           generalPanel: renderMarkupModalGeneralPanel,
           movePanel: renderMoveControlsContent("modal"),
-          inpaintPanel: renderMarkupModalInpaintPanel("modal"),
+          inpaintPanel: renderInpaintControlsContent("modal"),
           markupPanel: renderMarkupControlsContent("modal"),
-          viewportStyle: modalMarkupViewportStyle,
+          viewportStyle: modalStageViewportStyle,
           sceneContent: (
             <ExpertEditStageScene
               scope="modal"
               layers={layers}
               markupStrokes={markupStrokes}
               overlayCanvasRef={modalOverlayCanvasRef}
+              previewCanvasRef={modalPreviewCanvasRef}
               stageSize={markupModalViewportSize}
               stageElement={markupModalStageElement}
               inlineFallbackStageSize={inlineCompositionSurfaceViewportSize}

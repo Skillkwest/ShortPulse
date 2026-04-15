@@ -1748,6 +1748,95 @@ describe("useAiStudioTaskSubmission", () => {
     );
   });
 
+  it("prepares only inpaint override media when an inpaint override is present", async () => {
+    let outputs: StudioOutput[] = [];
+    const setOutputs = vi.fn((value: SetStateAction<StudioOutput[]>) => {
+      outputs = typeof value === "function" ? value(outputs) : value;
+    });
+    const setUiError = vi.fn();
+    const setUiNotice = vi.fn();
+    const setSaved = vi.fn();
+    const notifyGenerationFailure = vi.fn();
+    const updateOutputById = createStatefulUpdateOutputById({
+      get: () => outputs,
+      set: (next) => {
+        outputs = next;
+      },
+    });
+    const startPollingTask = vi.fn();
+    const ensureGenerationRecord = vi.fn(async () => null);
+
+    vi.mocked(resolveSubmissionHandlerRoute).mockReturnValueOnce("image");
+
+    const { result } = renderHook(() =>
+      useAiStudioTaskSubmission({
+        aspect: "1:1",
+        mode: "image",
+        model: "fal-ai/flux-kontext-lora/inpaint",
+        prompt: "",
+        selectedTool: "edit",
+        imageResolution: "model_default",
+        videoDurationSeconds: 8,
+        videoResolution: "720p",
+        videoGenerateAudio: false,
+        videoReferenceMode: "standard",
+        videoReferenceImageUrl: null,
+        motionReferenceVideoUrl: null,
+        videoCameraFixed: false,
+        videoAutoFix: false,
+        klingNegativePrompt: "blur, distort, and low quality",
+        klingCfgScale: 0.5,
+        klingShotType: "customize",
+        klingVoiceIds: ["", ""],
+        klingMultiPrompts: [],
+        klingElements: [],
+        setPanelGenerating: vi.fn(),
+        setUiError: asDispatch(setUiError),
+        setUiNotice: asDispatch(setUiNotice),
+        setOutputs: asDispatch(setOutputs),
+        setSaved: asDispatch(setSaved),
+        getDefaultDurationSeconds: () => 8,
+        notifyGenerationFailure,
+        updateOutputById,
+        startPollingTask,
+        ensureGenerationRecord,
+      })
+    );
+
+    await act(async () => {
+      await result.current("Reference inpaint prompt", ["https://cdn.test/unused-ref.png"], {
+        modeOverride: "image",
+        selectedToolOverride: "edit",
+        modelIdOverride: "fal-ai/flux-kontext-lora/inpaint",
+        inpaintOverride: {
+          modelId: "fal-ai/flux-kontext-lora/inpaint",
+          baseImageInput: "https://cdn.test/inpaint-base.png",
+          maskInput: "https://cdn.test/inpaint-mask.png",
+          referenceImageInput: "https://cdn.test/inpaint-reference.png",
+          outputFormat: "png",
+        },
+      });
+    });
+
+    expect(prepareImageUrlForSubmissionMock.mock.calls.map((call) => call[0])).toEqual([
+      "https://cdn.test/inpaint-base.png",
+      "https://cdn.test/inpaint-mask.png",
+      "https://cdn.test/inpaint-reference.png",
+    ]);
+    expect(vi.mocked(handleImageModelSubmission)).toHaveBeenCalledWith(
+      expect.objectContaining({
+        inpaintOverride: expect.objectContaining({
+          modelId: "fal-ai/flux-kontext-lora/inpaint",
+          baseImageInput: "https://cdn.test/inpaint-base.png",
+          maskInput: "https://cdn.test/inpaint-mask.png",
+          referenceImageInput: "https://cdn.test/inpaint-reference.png",
+        }),
+        preparedImageInputs: [],
+      })
+    );
+    expect(outputs[0]?.generationReplay).toBeUndefined();
+  });
+
   it("never leaks hidden submission-only prompt text into output prompt", async () => {
     let outputs: StudioOutput[] = [];
     const setOutputs = vi.fn((value: SetStateAction<StudioOutput[]>) => {

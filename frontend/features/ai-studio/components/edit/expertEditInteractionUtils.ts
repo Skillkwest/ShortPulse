@@ -35,7 +35,7 @@ export type TransformPointerSession = {
 };
 
 export type EditSubmitIntentMode = "standard" | "inpaint" | "markup";
-export type RailToolMode = "move" | "inpaint" | "video";
+export type RailToolMode = "move" | "inpaint" | "markup";
 export type TimeoutRef = { current: number | null };
 export type AnimationFrameRef = { current: number | null };
 export type ObjectUrlRevokeTimers = Map<string, number>;
@@ -103,7 +103,7 @@ export const resolveStageContextMenuPosition = ({
 export const resolveRailToolForGenerationMode = (mode: EditSubmitIntentMode): RailToolMode => {
   if (mode === "standard") return "move";
   if (mode === "inpaint") return "inpaint";
-  return "video";
+  return "markup";
 };
 
 export const resolveInpaintCollapseToggleDecision = ({
@@ -243,17 +243,37 @@ export const syncTextareaMirrorScroll = ({
 
 export const autoResizeTextareaWithinComputedBounds = (
   textarea: HTMLTextAreaElement | null,
-  fallbackMinHeightPx = 72
+  fallbackMinHeightPx = 72,
+  collapseToMinHeight = false
 ) => {
   if (!textarea || typeof window === "undefined") return;
   const computedStyle = window.getComputedStyle(textarea);
   const minHeightPx = Number.parseFloat(computedStyle.minHeight) || fallbackMinHeightPx;
   const maxHeightPx = Number.parseFloat(computedStyle.maxHeight) || minHeightPx;
-  textarea.style.height = "auto";
-  const contentHeightPx = Math.max(minHeightPx, textarea.scrollHeight);
+  const isValueEmpty = textarea.value.length === 0;
+  const contentHeightPx =
+    isValueEmpty || collapseToMinHeight
+      ? minHeightPx
+      : Math.max(minHeightPx, textarea.scrollHeight);
   const clampedHeightPx = Math.min(contentHeightPx, maxHeightPx);
+  const currentHeightPx = textarea.getBoundingClientRect().height;
+  if (currentHeightPx > 0 && Math.abs(currentHeightPx - clampedHeightPx) > 0.5) {
+    textarea.style.height = `${currentHeightPx}px`;
+    void textarea.offsetHeight;
+  }
   textarea.style.height = `${clampedHeightPx}px`;
   textarea.style.overflowY = contentHeightPx > maxHeightPx ? "auto" : "hidden";
+};
+
+export const resolveTextareaVisualRowCount = (textarea: HTMLTextAreaElement | null) => {
+  if (!textarea || typeof window === "undefined") return 1;
+  if (textarea.value.length === 0) return 1;
+  const computedStyle = window.getComputedStyle(textarea);
+  const lineHeightPx = Number.parseFloat(computedStyle.lineHeight) || 0;
+  const paddingTopPx = Number.parseFloat(computedStyle.paddingTop) || 0;
+  const paddingBottomPx = Number.parseFloat(computedStyle.paddingBottom) || 0;
+  const contentHeightPx = Math.max(0, textarea.scrollHeight - paddingTopPx - paddingBottomPx);
+  return lineHeightPx > 0 ? Math.max(1, Math.ceil(contentHeightPx / lineHeightPx)) : 1;
 };
 
 export const clampCaretPosition = ({

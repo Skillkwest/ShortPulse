@@ -49,6 +49,7 @@ export type ModelCatalogEntry = {
 };
 
 const VERIFIED_AT = "2026-03-14";
+const KONTEXT_INPAINT_VERIFIED_AT = "2026-04-14";
 
 const catalog: Record<string, ModelCatalogEntry> = {
   "fal-ai/flux-2/klein/9b": {
@@ -198,6 +199,28 @@ const catalog: Record<string, ModelCatalogEntry> = {
       },
       optionalBooleanFields: ["sync_mode", "enhance_prompt"],
       optionalNumberFields: ["num_images", "seed"],
+    },
+  },
+  "fal-ai/flux-kontext-lora/inpaint": {
+    modelId: "fal-ai/flux-kontext-lora/inpaint",
+    provider: "fal",
+    sourceUrl: "https://fal.ai/models/fal-ai/flux-kontext-lora/inpaint/api",
+    verifiedAt: KONTEXT_INPAINT_VERIFIED_AT,
+    submitAspectField: "none",
+    defaultAspect: "1:1",
+    allowedAspects: ["1:1", "4:3", "3:4", "16:9", "9:16"],
+    defaultResolution: "model_default",
+    allowedResolutions: ["model_default"],
+    falSubmitUrl: "https://queue.fal.run/fal-ai/flux-kontext-lora/inpaint",
+    falStatusBaseUrls: ["https://queue.fal.run/fal-ai/flux-kontext-lora/inpaint/requests"],
+    falTimeoutMs: 60000,
+    payloadValidation: {
+      requiredStringFields: ["prompt", "image_url", "mask_url", "reference_image_url"],
+      enumFields: {
+        output_format: ["png", "jpeg"],
+      },
+      optionalBooleanFields: ["sync_mode"],
+      optionalNumberFields: ["num_images", "seed", "guidance_scale", "num_inference_steps"],
     },
   },
   "fal-ai/bria/background/remove": {

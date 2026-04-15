@@ -16,11 +16,13 @@ export type ExpertEditPromptTokenInvalidReason =
   | "missing_index"
   | "out_of_range"
   | "empty_slot"
-  | "secondary_tokens_disabled";
+  | "secondary_tokens_disabled"
+  | "too_many_secondary_references";
 export type ExpertEditPromptTokenKind = "primary" | "secondary";
 
 export type ExpertEditPromptTokenAnalysisOptions = {
   allowSecondaryTokens?: boolean;
+  maxSecondaryReferences?: number;
 };
 
 export type ExpertEditPromptTokenDiagnostic = {
@@ -65,11 +67,20 @@ const normalizeSlotUrl = (value: string | null | undefined): string => {
 
 const buildInlineError = (
   diagnostic: ExpertEditPromptTokenDiagnostic,
-  { allowSecondaryTokens = true }: ExpertEditPromptTokenAnalysisOptions = {}
+  { allowSecondaryTokens = true, maxSecondaryReferences }: ExpertEditPromptTokenAnalysisOptions = {}
 ): string | null => {
   if (diagnostic.isValid) return null;
   if (!allowSecondaryTokens && diagnostic.invalidReason === "secondary_tokens_disabled") {
     return "Inpaint only supports @main. Secondary references are not sent to the inpaint model.";
+  }
+  if (
+    diagnostic.invalidReason === "too_many_secondary_references" &&
+    maxSecondaryReferences === 1
+  ) {
+    return "Reference inpaint supports only one secondary reference image. Use exactly one of @img1, @img2, or @img3.";
+  }
+  if (diagnostic.invalidReason === "too_many_secondary_references") {
+    return `Use no more than ${maxSecondaryReferences ?? MAX_SECONDARY_REFERENCES} secondary reference images in this prompt.`;
   }
   if (diagnostic.invalidReason === "missing_index") {
     return "Use @main, @img1, @img2, or @img3 to reference an image.";
@@ -98,10 +109,11 @@ export const analyzeExpertEditPromptTokens = (
   secondarySlots: [string | null, string | null, string | null],
   options?: ExpertEditPromptTokenAnalysisOptions
 ): ExpertEditPromptTokenAnalysis => {
-  const { allowSecondaryTokens = true } = options ?? {};
+  const { allowSecondaryTokens = true, maxSecondaryReferences } = options ?? {};
   const diagnostics: ExpertEditPromptTokenDiagnostic[] = [];
   const normalizedPrompt = typeof prompt === "string" ? prompt : "";
   const normalizedSlots = secondarySlots.map((value) => normalizeSlotUrl(value));
+  const referencedSecondarySlotIndexes = new Set<number>();
 
   for (const match of normalizedPrompt.matchAll(EXPERT_EDIT_PROMPT_TOKEN_REGEX)) {
     const token = match[0] ?? "";
@@ -180,6 +192,27 @@ export const analyzeExpertEditPromptTokens = (
       });
       continue;
     }
+
+    const wouldExceedSecondaryReferenceLimit =
+      typeof maxSecondaryReferences === "number" &&
+      maxSecondaryReferences >= 0 &&
+      !referencedSecondarySlotIndexes.has(slotIndex) &&
+      referencedSecondarySlotIndexes.size >= maxSecondaryReferences;
+    if (wouldExceedSecondaryReferenceLimit) {
+      diagnostics.push({
+        token,
+        normalizedToken,
+        start,
+        end,
+        kind: "secondary",
+        slotIndex,
+        isValid: false,
+        invalidReason: "too_many_secondary_references",
+      });
+      continue;
+    }
+
+    referencedSecondarySlotIndexes.add(slotIndex);
 
     diagnostics.push({
       token,

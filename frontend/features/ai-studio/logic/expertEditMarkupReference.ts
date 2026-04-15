@@ -5,6 +5,7 @@
 import {
   isMarkupStrokeClosedShape,
   MARKUP_LASSO_FILL_OPACITY,
+  MARKUP_OVERLAY_OPACITY,
   resolveMarkupStrokePointToSurfacePoint,
   resolveMarkupStrokeWidthPx,
   type MarkupStroke,
@@ -65,6 +66,9 @@ const drawMarkupStrokesToCanvas = ({
   width: number;
   height: number;
 }) => {
+  canvasContext.save();
+  canvasContext.globalAlpha = MARKUP_OVERLAY_OPACITY;
+
   markupStrokes.forEach((stroke) => {
     const firstPoint = stroke.points[0];
     if (!firstPoint) return;
@@ -106,12 +110,14 @@ const drawMarkupStrokesToCanvas = ({
     if (isMarkupStrokeClosedShape(stroke)) {
       canvasContext.closePath();
       canvasContext.save();
-      canvasContext.globalAlpha = MARKUP_LASSO_FILL_OPACITY;
+      canvasContext.globalAlpha *= MARKUP_LASSO_FILL_OPACITY;
       canvasContext.fill();
       canvasContext.restore();
     }
     canvasContext.stroke();
   });
+
+  canvasContext.restore();
 };
 
 /**

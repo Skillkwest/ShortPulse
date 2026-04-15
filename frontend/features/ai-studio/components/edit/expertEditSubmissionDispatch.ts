@@ -35,6 +35,8 @@ export const resolveExpertEditSubmissionDispatch = ({
   hasSelectedLayerMask,
   flattenedUrl,
   inpaintMaskUrl,
+  inpaintModelId,
+  inpaintReferenceImageInput,
   referenceInputs,
   promptOverrideOptions,
 }: {
@@ -43,6 +45,8 @@ export const resolveExpertEditSubmissionDispatch = ({
   hasSelectedLayerMask: boolean;
   flattenedUrl: string | null;
   inpaintMaskUrl: string | null;
+  inpaintModelId?: string | null;
+  inpaintReferenceImageInput?: string | null;
   referenceInputs: string[];
   promptOverrideOptions?: ExpertEditSubmissionPromptOverrideOptions;
 }): ResolveExpertEditSubmissionDispatchResult => {
@@ -73,9 +77,10 @@ export const resolveExpertEditSubmissionDispatch = ({
       referenceInputs,
       options: {
         inpaintOverride: {
-          modelId: INPAINT_FLUX_FILL_MODEL_ID,
+          modelId: inpaintModelId ?? INPAINT_FLUX_FILL_MODEL_ID,
           baseImageInput: flattenedUrl,
           maskInput: inpaintMaskUrl,
+          referenceImageInput: inpaintReferenceImageInput,
           outputFormat: "png",
         },
         referenceInputsMode: "replace",

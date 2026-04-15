@@ -590,7 +590,7 @@ export const executeGenerationRecovery = async ({
   });
   const providerTerminalObservedAtIso = nowIso;
 
-  if (currentObservation.state === "running") {
+  if (currentObservation.state === "running" && recoveredUrls.length === 0) {
     const hardTimeoutReached =
       runningHardTimeoutSeconds > 0 && generationAgeSeconds >= runningHardTimeoutSeconds;
     if (hardTimeoutReached) {

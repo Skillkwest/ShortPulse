@@ -24,6 +24,20 @@ describe("recoveryExecutionRuntime", () => {
   it("allows fail->success only for terminal_success_no_media recovery states", () => {
     expect(
       canTransitionToSuccess({
+        status: "pending",
+        failureReasonCode: null,
+        recoveryState: "queued",
+      })
+    ).toBe(true);
+    expect(
+      canTransitionToSuccess({
+        status: "submitted",
+        failureReasonCode: null,
+        recoveryState: "recovering",
+      })
+    ).toBe(true);
+    expect(
+      canTransitionToSuccess({
         status: "fail",
         failureReasonCode: "terminal_success_no_media",
         recoveryState: "queued",

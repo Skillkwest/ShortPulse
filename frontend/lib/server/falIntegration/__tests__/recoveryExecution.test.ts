@@ -382,6 +382,51 @@ describe("executeGenerationRecovery", () => {
     expect(settleGenerationOutcomeMock).not.toHaveBeenCalled();
   });
 
+  it("recovers media-bearing running observations instead of requeueing provider_running", async () => {
+    const scenario = createAiGenerationsAdmin([
+      {
+        ...baseGenerationRow,
+        status: "running",
+      },
+    ]);
+    getSupabaseAdminMock.mockReturnValue(scenario.admin);
+    persistRecoveryMediaFilesForGenerationMock.mockResolvedValue(["media-1"]);
+
+    const result = await executeGenerationRecovery({
+      actor: "reconciler",
+      generationId: "gen-1",
+      routeLabel: "test/recovery",
+      observation: {
+        state: "running",
+        payload: {
+          data: {
+            images: [{ url: "https://cdn.shortpulse.test/recovered-from-running.png" }],
+          },
+        },
+        mediaUrls: [],
+      },
+    });
+
+    expect(result).toEqual(
+      expect.objectContaining({
+        ok: true,
+        state: "recovered",
+        processed: true,
+        mediaFileIds: ["media-1"],
+      })
+    );
+    expect(persistRecoveryMediaFilesForGenerationMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        mediaUrls: ["https://cdn.shortpulse.test/recovered-from-running.png"],
+      })
+    );
+    expect(settleGenerationOutcomeMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        outcome: "success",
+      })
+    );
+  });
+
   it("marks provider-running generations as exhausted when running hard-timeout is reached", async () => {
     readFalRuntimeFlagsMock.mockReturnValue({
       reconcilerMaxAttempts: 3,
@@ -663,6 +708,48 @@ describe("executeGenerationRecovery", () => {
           recovery_outcome: "recovered_success",
           autosave_decision: "auto_persisted",
         }),
+      })
+    );
+  });
+
+  it("allows pending generations to recover directly to success when media is visible", async () => {
+    const scenario = createAiGenerationsAdmin([
+      {
+        ...baseGenerationRow,
+        status: "pending",
+        recovery_state: "queued",
+      },
+    ]);
+    getSupabaseAdminMock.mockReturnValue(scenario.admin);
+    persistRecoveryMediaFilesForGenerationMock.mockResolvedValue(["media-1"]);
+
+    const result = await executeGenerationRecovery({
+      actor: "webhook",
+      generationId: "gen-1",
+      routeLabel: "test/recovery",
+      observation: {
+        state: "completed",
+        payload: null,
+        mediaUrls: ["https://cdn.shortpulse.test/recovered-from-pending.png"],
+      },
+    });
+
+    expect(result).toEqual(
+      expect.objectContaining({
+        ok: true,
+        state: "recovered",
+        processed: true,
+        mediaFileIds: ["media-1"],
+      })
+    );
+    expect(persistRecoveryMediaFilesForGenerationMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        mediaUrls: ["https://cdn.shortpulse.test/recovered-from-pending.png"],
+      })
+    );
+    expect(settleGenerationOutcomeMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        outcome: "success",
       })
     );
   });

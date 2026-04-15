@@ -6,7 +6,7 @@
 export type GenerationLifecycleState = "submitted" | "running" | "success" | "fail";
 
 const LEGAL_TRANSITIONS: Record<GenerationLifecycleState, ReadonlySet<GenerationLifecycleState>> = {
-  submitted: new Set(["running", "fail"]),
+  submitted: new Set(["running", "success", "fail"]),
   running: new Set(["success", "fail"]),
   success: new Set(),
   fail: new Set(),

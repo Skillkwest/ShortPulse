@@ -47,6 +47,27 @@ describe("referenceGridCardVisualState", () => {
     expect(state.loadingVisual).toBe("hydrating");
   });
 
+  it("does not keep generated rows on spinner once renderable media exists", () => {
+    const state = classifyReferenceGridCardVisualState({
+      item: createOutput({
+        taskState: "running",
+        mediaSource: "generated",
+        previewUrl: "https://cdn.test/generated-preview.png",
+      }),
+      authorityTier: "preview-only",
+      cardPreviewUrl: "https://cdn.test/generated-preview.png",
+      isLoaded: false,
+      decodeBudgetEnabled: false,
+      isImagePreview: true,
+      isPriorityHydration: false,
+      imageSrc: "https://cdn.test/generated-preview.png",
+    });
+
+    expect(state.isGenerationLoading).toBe(false);
+    expect(state.isMediaHydrating).toBe(true);
+    expect(state.loadingVisual).toBe("hydrating");
+  });
+
   it("uses spinner visual for local video references pending durable persistence", () => {
     const state = classifyReferenceGridCardVisualState({
       item: createOutput({

@@ -1521,6 +1521,78 @@ describe("createFalStatusHandler", () => {
     });
   });
 
+  it("settles retryable status upstream failures when the payload already includes media", async () => {
+    persistedGenerationRows = [
+      {
+        id: "gen-1",
+        status: "processing",
+        metadata: {},
+      },
+    ];
+    const fetchMock = vi.fn().mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          status: "IN_PROGRESS",
+          data: {
+            images: [{ url: "https://cdn.shortpulse.test/retryable-status-image.png" }],
+          },
+        }),
+        {
+          status: 503,
+          headers: {
+            "Content-Type": "application/json",
+            "x-fal-retryable": "true",
+          },
+        }
+      )
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const handler = createFalStatusHandler({
+      queueBaseUrl: "https://queue.fal.run/fal-ai/nano-banana-pro/requests",
+      routeLabel: "Fal Nano Banana Pro",
+      timeoutMs: 15000,
+    });
+
+    const req = {
+      method: "POST",
+      body: { requestId: "req-status-retryable-media" },
+      headers: {},
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        status: "completed",
+        state: "completed",
+        request_id: "req-status-retryable-media",
+        generationId: "gen-1",
+        data: {
+          images: [{ url: "https://cdn.shortpulse.test/retryable-status-image.png" }],
+        },
+        shortpulseLifecycle: expect.objectContaining({
+          taskState: "success",
+          isTerminal: true,
+          resultUrls: ["https://cdn.shortpulse.test/retryable-status-image.png"],
+          recoveryPending: true,
+          deliveryState: "transient_provider",
+        }),
+      })
+    );
+    expect(executeGenerationRecoveryMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        observation: expect.objectContaining({
+          state: "completed",
+          mediaUrls: ["https://cdn.shortpulse.test/retryable-status-image.png"],
+        }),
+      })
+    );
+  });
+
   it("adds normalized lifecycle hints to nonterminal provider status payloads", async () => {
     const fetchMock = vi.fn().mockResolvedValueOnce(
       new Response(
@@ -1613,6 +1685,83 @@ describe("createFalStatusHandler", () => {
           recoveryPending: true,
           queueState: "dispatched",
           statusLabel: "Processing...",
+        }),
+      })
+    );
+  });
+
+  it("settles retryable result upstream failures when the result payload already includes media", async () => {
+    persistedGenerationRows = [
+      {
+        id: "gen-1",
+        status: "processing",
+        metadata: {},
+      },
+    ];
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            status: "COMPLETED",
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } }
+        )
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            images: [{ url: "https://cdn.shortpulse.test/retryable-result-image.png" }],
+          }),
+          {
+            status: 503,
+            headers: {
+              "Content-Type": "application/json",
+              "x-fal-retryable": "true",
+            },
+          }
+        )
+      );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const handler = createFalStatusHandler({
+      queueBaseUrl: "https://queue.fal.run/fal-ai/nano-banana-pro/requests",
+      routeLabel: "Fal Nano Banana Pro",
+      timeoutMs: 15000,
+    });
+
+    const req = {
+      method: "POST",
+      body: { requestId: "req-result-retryable-media" },
+      headers: {},
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        status: "completed",
+        state: "completed",
+        request_id: "req-result-retryable-media",
+        generationId: "gen-1",
+        images: [{ url: "https://cdn.shortpulse.test/retryable-result-image.png" }],
+        shortpulseLifecycle: expect.objectContaining({
+          taskState: "success",
+          isTerminal: true,
+          resultUrls: ["https://cdn.shortpulse.test/retryable-result-image.png"],
+          recoveryPending: true,
+          deliveryState: "transient_provider",
+        }),
+      })
+    );
+    expect(executeGenerationRecoveryMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        observation: expect.objectContaining({
+          state: "completed",
+          mediaUrls: ["https://cdn.shortpulse.test/retryable-result-image.png"],
         }),
       })
     );

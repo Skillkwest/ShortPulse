@@ -860,6 +860,15 @@ export const createFalStatusHandler = ({
             payload: statusData.json,
           })
         ) {
+          if (payloadHasMedia(statusData.json)) {
+            return captureAndRespondSuccess({
+              payload: statusData.json,
+              payloadStatus: resolveProviderSuccessfulPayloadStatus({
+                provider: providerKey,
+                candidates: [normalizedStatus],
+              }),
+            });
+          }
           return res.status(alwaysHttp200 ? 200 : statusResp.status).json(
             attachGenerationId(
               attachShortPulseLifecycle({
@@ -1132,6 +1141,15 @@ export const createFalStatusHandler = ({
             payload: resultData.json,
           })
         ) {
+          if (payloadHasMedia(resultData.json)) {
+            return captureAndRespondSuccess({
+              payload: resultData.json,
+              payloadStatus: resolveProviderSuccessfulPayloadStatus({
+                provider: providerKey,
+                candidates: [readPayloadLifecycleStatus(resultData.json), normalizedStatus],
+              }),
+            });
+          }
           return res.status(alwaysHttp200 ? 200 : statusResp.status).json(
             attachGenerationId(
               attachShortPulseLifecycle({

@@ -57,8 +57,10 @@ export const classifyReferenceGridCardVisualState = ({
   imageSrc,
 }: ReferenceGridCardVisualInput): ReferenceGridCardVisualState => {
   const isFailing = isReferenceOutputFailing(item);
+  const hasRenderableGeneratedMedia = item.mediaSource === "generated" && Boolean(cardPreviewUrl);
   const isGenerationLoading =
     !isFailing &&
+    !hasRenderableGeneratedMedia &&
     isReferenceOutputLoadingTaskState({
       taskState: item.taskState,
     });

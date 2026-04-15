@@ -1,6 +1,9 @@
 import React from "react";
 
 import {
+  isMarkupStrokeClosedShape,
+  MARKUP_LASSO_FILL_OPACITY,
+  resolveMarkupStrokeKind,
   resolveMarkupStrokePointRadiusPx,
   resolveMarkupStrokePointToSurfacePoint,
   resolveMarkupStrokeWidthPx,
@@ -23,6 +26,7 @@ type ExpertEditStageSceneProps = {
   layers: ExpertEditLayer[];
   markupStrokes: MarkupStroke[];
   overlayCanvasRef: React.Ref<HTMLCanvasElement>;
+  previewCanvasRef: React.Ref<HTMLCanvasElement>;
   stageSize: StageViewportSize;
   stageElement: HTMLDivElement | null;
   inlineFallbackStageSize: StageViewportSize;
@@ -124,6 +128,7 @@ const renderMarkupStrokeOverlay = ({
           stroke,
           stageHeight,
         });
+        const strokeKind = resolveMarkupStrokeKind(stroke);
         if (stroke.points.length <= 1) {
           const point = stroke.points[0];
           if (!point) return null;
@@ -157,6 +162,21 @@ const renderMarkupStrokeOverlay = ({
           })
           .join(" ");
 
+        if (isMarkupStrokeClosedShape(stroke)) {
+          return (
+            <polygon
+              key={`${scope}-${stroke.id}`}
+              points={pointsValue}
+              fill={stroke.color}
+              fillOpacity={MARKUP_LASSO_FILL_OPACITY}
+              stroke={stroke.color}
+              strokeWidth={strokeWidthPx}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          );
+        }
+
         return (
           <polyline
             key={`${scope}-${stroke.id}`}
@@ -166,6 +186,7 @@ const renderMarkupStrokeOverlay = ({
             strokeWidth={strokeWidthPx}
             strokeLinecap="round"
             strokeLinejoin="round"
+            data-markup-kind={strokeKind}
           />
         );
       })}
@@ -178,6 +199,7 @@ export function ExpertEditStageScene({
   layers,
   markupStrokes,
   overlayCanvasRef,
+  previewCanvasRef,
   stageSize,
   stageElement,
   inlineFallbackStageSize,
@@ -237,6 +259,11 @@ export function ExpertEditStageScene({
       <canvas
         ref={overlayCanvasRef}
         className="edit-expert-inpaint-overlay-canvas"
+        aria-hidden="true"
+      />
+      <canvas
+        ref={previewCanvasRef}
+        className="edit-expert-inpaint-live-preview-canvas"
         aria-hidden="true"
       />
       {renderMarkupStrokeOverlay({

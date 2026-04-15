@@ -14,11 +14,14 @@ export type MarkupStrokePoint = {
   sceneY: number;
 };
 
+export type MarkupStrokeKind = "pen" | "lasso";
+
 export type MarkupStroke = {
   id: string;
   color: string;
   sizeRatio: number;
   points: MarkupStrokePoint[];
+  kind?: MarkupStrokeKind;
 };
 
 export type MarkupViewportState = {
@@ -30,13 +33,15 @@ export type MarkupViewportState = {
 export type MarkupDrawPointerSession = {
   active: boolean;
   pointerId: number | null;
-  mode: "pen" | "eraser" | null;
+  mode: MarkupStrokeKind | "eraser" | null;
   strokeId: string | null;
 };
 
 export const MARKUP_STROKE_SIZE_RATIO_MIN = 0.002;
 export const MARKUP_STROKE_SIZE_RATIO_MAX = 0.4;
 export const MARKUP_DRAW_MIN_POINT_DISTANCE_PX = 0.8;
+export const MARKUP_LASSO_FILL_OPACITY = 0.28;
+export const DEFAULT_MARKUP_STROKE_KIND: MarkupStrokeKind = "pen";
 
 const clampNumber = (value: number, min: number, max: number) =>
   Math.min(max, Math.max(min, value));
@@ -47,6 +52,12 @@ export const createIdleMarkupDrawPointerSession = (): MarkupDrawPointerSession =
   mode: null,
   strokeId: null,
 });
+
+export const resolveMarkupStrokeKind = (stroke: MarkupStroke): MarkupStrokeKind =>
+  stroke.kind ?? DEFAULT_MARKUP_STROKE_KIND;
+
+export const isMarkupStrokeClosedShape = (stroke: MarkupStroke) =>
+  resolveMarkupStrokeKind(stroke) === "lasso" && stroke.points.length >= 3;
 
 /**
  * Normalizes pointer sampling across browsers.
@@ -263,6 +274,36 @@ const resolvePointToSegmentDistancePx = ({
   return Math.hypot(point.x - nearestX, point.y - nearestY);
 };
 
+const isPointInsidePolygon = ({
+  point,
+  polygon,
+}: {
+  point: { x: number; y: number };
+  polygon: Array<{ x: number; y: number }>;
+}) => {
+  if (polygon.length < 3) return false;
+  let isInside = false;
+  for (
+    let index = 0, previousIndex = polygon.length - 1;
+    index < polygon.length;
+    previousIndex = index, index += 1
+  ) {
+    const currentPoint = polygon[index];
+    const previousPoint = polygon[previousIndex];
+    if (!currentPoint || !previousPoint) continue;
+    const intersects =
+      currentPoint.y > point.y !== previousPoint.y > point.y &&
+      point.x <
+        ((previousPoint.x - currentPoint.x) * (point.y - currentPoint.y)) /
+          (previousPoint.y - currentPoint.y || Number.EPSILON) +
+          currentPoint.x;
+    if (intersects) {
+      isInside = !isInside;
+    }
+  }
+  return isInside;
+};
+
 export const resolveMarkupStrokeHit = ({
   stroke,
   point,
@@ -284,6 +325,7 @@ export const resolveMarkupStrokeHit = ({
   });
   const strokeRadius = resolveMarkupStrokePointRadiusPx({ stroke, stageHeight });
   const hitRadius = eraserRadiusPx + strokeRadius;
+  const isClosedShape = isMarkupStrokeClosedShape(stroke);
   const first = stroke.points[0];
   if (!first) return false;
   if (stroke.points.length === 1) {
@@ -294,20 +336,20 @@ export const resolveMarkupStrokeHit = ({
     });
     return Math.hypot(pointPx.x - firstPx.x, pointPx.y - firstPx.y) <= hitRadius;
   }
+  const surfacePoints = stroke.points.map((strokePoint) =>
+    resolveMarkupStrokePointToSurfacePoint({
+      point: strokePoint,
+      stageWidth,
+      stageHeight,
+    })
+  );
+  if (isClosedShape && isPointInsidePolygon({ point: pointPx, polygon: surfacePoints })) {
+    return true;
+  }
   for (let index = 1; index < stroke.points.length; index += 1) {
-    const previousPoint = stroke.points[index - 1];
-    const currentPoint = stroke.points[index];
-    if (!previousPoint || !currentPoint) continue;
-    const previousPointPx = resolveMarkupStrokePointToSurfacePoint({
-      point: previousPoint,
-      stageWidth,
-      stageHeight,
-    });
-    const currentPointPx = resolveMarkupStrokePointToSurfacePoint({
-      point: currentPoint,
-      stageWidth,
-      stageHeight,
-    });
+    const previousPointPx = surfacePoints[index - 1];
+    const currentPointPx = surfacePoints[index];
+    if (!previousPointPx || !currentPointPx) continue;
     const distance = resolvePointToSegmentDistancePx({
       point: pointPx,
       start: previousPointPx,
@@ -315,6 +357,20 @@ export const resolveMarkupStrokeHit = ({
     });
     if (distance <= hitRadius) {
       return true;
+    }
+  }
+  if (isClosedShape) {
+    const lastPointPx = surfacePoints[surfacePoints.length - 1];
+    const firstPointPx = surfacePoints[0];
+    if (lastPointPx && firstPointPx) {
+      const distance = resolvePointToSegmentDistancePx({
+        point: pointPx,
+        start: lastPointPx,
+        end: firstPointPx,
+      });
+      if (distance <= hitRadius) {
+        return true;
+      }
     }
   }
   return false;

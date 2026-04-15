@@ -7,7 +7,6 @@ import {
   ArrowsOutCardinal,
   CircleDashed,
   CircleHalf,
-  Eraser,
   GearSix,
   PaintBrush,
   PencilSimple,
@@ -40,7 +39,7 @@ import type { AspectOption } from "../../types";
 type ExpertEditMarkupControlsContentProps = {
   scope: "inline" | "modal";
   selectedMarkupMode: MarkupMode;
-  isVideoToolSelected: boolean;
+  isMarkupToolSelected: boolean;
   isMarkupExpandSelected: boolean;
   resolvedMarkupStrokeSize: number;
   markupColor: string;
@@ -65,7 +64,7 @@ type ExpertEditMarkupControlsContentProps = {
 export function ExpertEditMarkupControlsContent({
   scope,
   selectedMarkupMode,
-  isVideoToolSelected,
+  isMarkupToolSelected,
   isMarkupExpandSelected,
   resolvedMarkupStrokeSize,
   markupColor,
@@ -87,7 +86,7 @@ export function ExpertEditMarkupControlsContent({
   handleMarkupHueChange,
 }: ExpertEditMarkupControlsContentProps) {
   const isModalScope = scope === "modal";
-  const isMarkupToolActive = isVideoToolSelected;
+  const isMarkupToolActive = isMarkupToolSelected;
   const modeIconSize = isModalScope ? 19 : 16;
   const strokeSizeControlId = `edit-expert-markup-stroke-size-${scope}`;
   const colorPickerId = `edit-expert-markup-color-picker-${scope}`;
@@ -95,7 +94,11 @@ export function ExpertEditMarkupControlsContent({
 
   return (
     <div className="edit-expert-markup-controls-content">
-      <div className="edit-expert-inpaint-mode-row" role="group" aria-label="Markup tool mode">
+      <div
+        className="edit-expert-inpaint-mode-row edit-expert-markup-mode-row"
+        role="group"
+        aria-label="Markup tool mode"
+      >
         <button
           type="button"
           className={`edit-expert-inpaint-mode-btn ${isModalScope ? "edit-expert-markup-icon-only-btn" : ""} ${
@@ -104,7 +107,7 @@ export function ExpertEditMarkupControlsContent({
           aria-pressed={selectedMarkupMode === "pen" && isMarkupToolActive}
           aria-label="Pen"
           onClick={() => {
-            setSelectedRailTool("video");
+            setSelectedRailTool("markup");
             setSelectedMarkupMode("pen");
           }}
         >
@@ -113,18 +116,18 @@ export function ExpertEditMarkupControlsContent({
         </button>
         <button
           type="button"
-          className={`edit-expert-inpaint-mode-btn edit-expert-markup-eraser-btn ${
+          className={`edit-expert-inpaint-mode-btn edit-expert-markup-lasso-btn ${
             isModalScope ? "edit-expert-markup-icon-only-btn" : ""
-          } ${selectedMarkupMode === "eraser" && isMarkupToolActive ? "is-active" : ""}`.trim()}
-          aria-pressed={selectedMarkupMode === "eraser" && isMarkupToolActive}
-          aria-label="Eraser"
+          } ${selectedMarkupMode === "lasso" && isMarkupToolActive ? "is-active" : ""}`.trim()}
+          aria-pressed={selectedMarkupMode === "lasso" && isMarkupToolActive}
+          aria-label="Lasso"
           onClick={() => {
-            setSelectedRailTool("video");
-            setSelectedMarkupMode("eraser");
+            setSelectedRailTool("markup");
+            setSelectedMarkupMode("lasso");
           }}
         >
-          <Eraser size={modeIconSize} weight="regular" />
-          {!isModalScope ? <span>Eraser</span> : null}
+          <CircleDashed size={modeIconSize} weight="regular" />
+          {!isModalScope ? <span>Lasso</span> : null}
         </button>
         {isModalScope ? (
           <button
@@ -147,7 +150,7 @@ export function ExpertEditMarkupControlsContent({
                 closeMarkupModal();
                 return;
               }
-              openMarkupModal("video");
+              openMarkupModal("markup");
             }}
             aria-label="Expand markup tools"
           >
@@ -275,7 +278,7 @@ type ExpertEditMoveControlsContentProps = {
   isMoveToolSelected: boolean;
   moveStageZoomSliderValue: number;
   isMoveTransformCentered: boolean;
-  isMarkupViewportAtRest: boolean;
+  isStageViewportAtRest: boolean;
   canUndoGeneralAction: boolean;
   canRedoGeneralAction: boolean;
   setSelectedRailTool: React.Dispatch<React.SetStateAction<RailTool>>;
@@ -291,7 +294,7 @@ export function ExpertEditMoveControlsContent({
   isMoveToolSelected,
   moveStageZoomSliderValue,
   isMoveTransformCentered,
-  isMarkupViewportAtRest,
+  isStageViewportAtRest,
   canUndoGeneralAction,
   canRedoGeneralAction,
   setSelectedRailTool,
@@ -332,7 +335,7 @@ export function ExpertEditMoveControlsContent({
           className="edit-expert-move-mode-btn edit-expert-move-center-btn"
           aria-label="Center move action"
           onClick={handleRecenterMoveAction}
-          disabled={!isModalScope && isMoveTransformCentered && isMarkupViewportAtRest}
+          disabled={!isModalScope && isMoveTransformCentered && isStageViewportAtRest}
         >
           <ArrowsInCardinal size={recenterIconSize} weight="regular" />
           Center
@@ -342,7 +345,7 @@ export function ExpertEditMoveControlsContent({
             type="button"
             className="edit-expert-move-mode-btn edit-expert-move-expand-btn"
             aria-label="Expand markup tools"
-            onClick={() => openMarkupModal("video")}
+            onClick={() => openMarkupModal("markup")}
           >
             <ArrowsOutSimple size={modeIconSize} weight="regular" />
           </button>
@@ -389,6 +392,184 @@ export function ExpertEditMoveControlsContent({
           </button>
         </div>
       ) : null}
+    </div>
+  );
+}
+
+type ExpertEditInpaintControlsContentProps = {
+  scope: "inline" | "modal" | "rail";
+  selectedInpaintMode: InpaintMode;
+  isInpaintToolSelected: boolean;
+  inpaintStrokeSize: number;
+  selectedInpaintSelectionTab: InpaintSelectionTab;
+  imageHasInteractiveMask: boolean;
+  setSelectedRailTool: React.Dispatch<React.SetStateAction<RailTool>>;
+  setSelectedInpaintMode: React.Dispatch<React.SetStateAction<InpaintMode>>;
+  setInpaintStrokeSize: React.Dispatch<React.SetStateAction<number>>;
+  setSelectedInpaintSelectionTab: React.Dispatch<React.SetStateAction<InpaintSelectionTab>>;
+  clearInpaintSelectionWithHistory: () => void;
+  invertInpaintSelectionWithHistory: () => void;
+  openMarkupModal: (tool?: RailTool) => void;
+};
+
+export function ExpertEditInpaintControlsContent({
+  scope,
+  selectedInpaintMode,
+  isInpaintToolSelected,
+  inpaintStrokeSize,
+  selectedInpaintSelectionTab,
+  imageHasInteractiveMask,
+  setSelectedRailTool,
+  setSelectedInpaintMode,
+  setInpaintStrokeSize,
+  setSelectedInpaintSelectionTab,
+  clearInpaintSelectionWithHistory,
+  invertInpaintSelectionWithHistory,
+  openMarkupModal,
+}: ExpertEditInpaintControlsContentProps) {
+  const isInlineScope = scope === "inline";
+  const isRailScope = scope === "rail";
+  const modeIconSize = isInlineScope ? 16 : 19;
+  const strokeSizeControlId = `edit-expert-inpaint-stroke-size-${scope}`;
+
+  return (
+    <div
+      className={
+        isInlineScope
+          ? "edit-expert-inpaint-controls-content"
+          : `edit-expert-markup-modal-inpaint-content ${
+              isRailScope ? "edit-expert-markup-modal-inpaint-content--rail" : ""
+            }`.trim()
+      }
+    >
+      <div
+        className={`edit-expert-inpaint-mode-row ${
+          isRailScope ? "edit-expert-inpaint-mode-row--rail" : ""
+        }`.trim()}
+        role="group"
+        aria-label="In-paint tool mode"
+      >
+        <button
+          type="button"
+          className={`edit-expert-inpaint-mode-btn ${
+            !isInlineScope ? "edit-expert-markup-icon-only-btn" : ""
+          } ${selectedInpaintMode === "brush" && isInpaintToolSelected ? "is-active" : ""}`.trim()}
+          aria-pressed={selectedInpaintMode === "brush" && isInpaintToolSelected}
+          aria-label="Brush"
+          onClick={() => {
+            setSelectedRailTool("inpaint");
+            setSelectedInpaintMode("brush");
+          }}
+        >
+          <PaintBrush size={modeIconSize} weight="regular" />
+          {isInlineScope ? <span>Brush</span> : null}
+        </button>
+        <button
+          type="button"
+          className={`edit-expert-inpaint-mode-btn ${
+            !isInlineScope ? "edit-expert-markup-icon-only-btn" : ""
+          } ${selectedInpaintMode === "lasso" && isInpaintToolSelected ? "is-active" : ""}`.trim()}
+          aria-pressed={selectedInpaintMode === "lasso" && isInpaintToolSelected}
+          aria-label="Lasso"
+          onClick={() => {
+            setSelectedRailTool("inpaint");
+            setSelectedInpaintMode("lasso");
+          }}
+        >
+          <CircleDashed size={modeIconSize} weight="regular" />
+          {isInlineScope ? <span>Lasso</span> : null}
+        </button>
+        {isInlineScope ? (
+          <button
+            type="button"
+            className="edit-expert-inpaint-mode-btn edit-expert-inpaint-expand-btn"
+            aria-label="Expand markup tools"
+            onClick={() => openMarkupModal("markup")}
+          >
+            <ArrowsOutSimple size={modeIconSize} weight="regular" />
+          </button>
+        ) : (
+          <button
+            type="button"
+            className="edit-expert-inpaint-action-btn edit-expert-markup-modal-inpaint-clear-btn"
+            aria-label="Clear in-paint selection"
+            onClick={clearInpaintSelectionWithHistory}
+            disabled={!imageHasInteractiveMask}
+          >
+            <TrashSimple size={19} weight="regular" />
+          </button>
+        )}
+      </div>
+      <div className="edit-expert-inpaint-stroke-row">
+        <label className="edit-expert-inpaint-stroke-label" htmlFor={strokeSizeControlId}>
+          Stroke Size
+        </label>
+        <input
+          id={strokeSizeControlId}
+          className="edit-expert-inpaint-stroke-slider"
+          type="range"
+          min={1}
+          max={100}
+          value={inpaintStrokeSize}
+          onChange={(event) => setInpaintStrokeSize(Number(event.target.value))}
+          onDoubleClick={() => setInpaintStrokeSize(INPAINT_STROKE_SIZE_DEFAULT)}
+          aria-label="In-paint stroke size"
+        />
+      </div>
+      <div className="edit-expert-inpaint-selection-row">
+        <div
+          className="edit-expert-inpaint-select-tabs"
+          role="tablist"
+          aria-label="In-paint selection mode"
+        >
+          <button
+            type="button"
+            className={`edit-expert-inpaint-select-tab ${
+              selectedInpaintSelectionTab === "select" ? "is-active" : ""
+            }`}
+            role="tab"
+            aria-selected={selectedInpaintSelectionTab === "select"}
+            onClick={() => setSelectedInpaintSelectionTab("select")}
+          >
+            Select
+          </button>
+          <button
+            type="button"
+            className={`edit-expert-inpaint-select-tab ${
+              selectedInpaintSelectionTab === "unselect" ? "is-active" : ""
+            }`}
+            role="tab"
+            aria-selected={selectedInpaintSelectionTab === "unselect"}
+            onClick={() => setSelectedInpaintSelectionTab("unselect")}
+          >
+            Unselect
+          </button>
+        </div>
+        <button
+          type="button"
+          className={`edit-expert-inpaint-action-btn ${
+            isInlineScope
+              ? "edit-expert-inpaint-invert-btn"
+              : "edit-expert-markup-modal-inpaint-invert-btn"
+          }`}
+          aria-label="Invert in-paint selection"
+          onClick={invertInpaintSelectionWithHistory}
+          disabled={!imageHasInteractiveMask}
+        >
+          <CircleHalf size={18} weight="regular" />
+        </button>
+        {isInlineScope ? (
+          <button
+            type="button"
+            className="edit-expert-inpaint-action-btn edit-expert-inpaint-clear-btn"
+            aria-label="Clear selection"
+            onClick={clearInpaintSelectionWithHistory}
+            disabled={!imageHasInteractiveMask}
+          >
+            <TrashSimple size={18} weight="regular" />
+          </button>
+        ) : null}
+      </div>
     </div>
   );
 }
@@ -510,150 +691,6 @@ export function ExpertEditPresetUtilityActionButtons({
       </button>
     );
   });
-}
-
-type ExpertEditMarkupModalInpaintPanelProps = {
-  scope?: "modal" | "rail";
-  selectedInpaintMode: InpaintMode;
-  isInpaintToolSelected: boolean;
-  inpaintStrokeSize: number;
-  selectedInpaintSelectionTab: InpaintSelectionTab;
-  imageHasInteractiveMask: boolean;
-  setSelectedRailTool: React.Dispatch<React.SetStateAction<RailTool>>;
-  setSelectedInpaintMode: React.Dispatch<React.SetStateAction<InpaintMode>>;
-  setInpaintStrokeSize: React.Dispatch<React.SetStateAction<number>>;
-  setSelectedInpaintSelectionTab: React.Dispatch<React.SetStateAction<InpaintSelectionTab>>;
-  clearInpaintSelectionWithHistory: () => void;
-  invertInpaintSelectionWithHistory: () => void;
-};
-
-export function ExpertEditMarkupModalInpaintPanel({
-  scope = "modal",
-  selectedInpaintMode,
-  isInpaintToolSelected,
-  inpaintStrokeSize,
-  selectedInpaintSelectionTab,
-  imageHasInteractiveMask,
-  setSelectedRailTool,
-  setSelectedInpaintMode,
-  setInpaintStrokeSize,
-  setSelectedInpaintSelectionTab,
-  clearInpaintSelectionWithHistory,
-  invertInpaintSelectionWithHistory,
-}: ExpertEditMarkupModalInpaintPanelProps) {
-  const isRailScope = scope === "rail";
-  const modeIconSize = 19;
-  const strokeSizeControlId = `edit-expert-markup-modal-inpaint-stroke-size-${scope}`;
-
-  return (
-    <div
-      className={`edit-expert-markup-modal-inpaint-content ${
-        isRailScope ? "edit-expert-markup-modal-inpaint-content--rail" : ""
-      }`.trim()}
-    >
-      <div
-        className={`edit-expert-inpaint-mode-row ${
-          isRailScope ? "edit-expert-inpaint-mode-row--rail" : ""
-        }`.trim()}
-        role="group"
-        aria-label="In-paint tool mode"
-      >
-        <button
-          type="button"
-          className={`edit-expert-inpaint-mode-btn edit-expert-markup-icon-only-btn ${
-            selectedInpaintMode === "brush" && isInpaintToolSelected ? "is-active" : ""
-          }`}
-          aria-pressed={selectedInpaintMode === "brush" && isInpaintToolSelected}
-          aria-label="Brush"
-          onClick={() => {
-            setSelectedRailTool("inpaint");
-            setSelectedInpaintMode("brush");
-          }}
-        >
-          <PaintBrush size={modeIconSize} weight="regular" />
-        </button>
-        <button
-          type="button"
-          className={`edit-expert-inpaint-mode-btn edit-expert-markup-icon-only-btn ${
-            selectedInpaintMode === "lasso" && isInpaintToolSelected ? "is-active" : ""
-          }`}
-          aria-pressed={selectedInpaintMode === "lasso" && isInpaintToolSelected}
-          aria-label="Lasso"
-          onClick={() => {
-            setSelectedRailTool("inpaint");
-            setSelectedInpaintMode("lasso");
-          }}
-        >
-          <CircleDashed size={modeIconSize} weight="regular" />
-        </button>
-        <button
-          type="button"
-          className="edit-expert-inpaint-action-btn edit-expert-markup-modal-inpaint-clear-btn"
-          aria-label="Clear in-paint selection"
-          onClick={clearInpaintSelectionWithHistory}
-        >
-          <TrashSimple size={19} weight="regular" />
-        </button>
-      </div>
-      <div className="edit-expert-inpaint-stroke-row">
-        <label className="edit-expert-inpaint-stroke-label" htmlFor={strokeSizeControlId}>
-          Stroke Size
-        </label>
-        <input
-          id={strokeSizeControlId}
-          className="edit-expert-inpaint-stroke-slider"
-          type="range"
-          min={1}
-          max={100}
-          value={inpaintStrokeSize}
-          onChange={(event) => setInpaintStrokeSize(Number(event.target.value))}
-          onDoubleClick={() => setInpaintStrokeSize(INPAINT_STROKE_SIZE_DEFAULT)}
-          aria-label="In-paint stroke size"
-        />
-      </div>
-      <div className="edit-expert-inpaint-selection-row">
-        <div
-          className="edit-expert-inpaint-select-tabs"
-          role="tablist"
-          aria-label="In-paint selection mode"
-        >
-          <button
-            type="button"
-            className={`edit-expert-inpaint-select-tab ${
-              selectedInpaintSelectionTab === "select" ? "is-active" : ""
-            }`}
-            role="tab"
-            aria-selected={selectedInpaintSelectionTab === "select"}
-            onClick={() => setSelectedInpaintSelectionTab("select")}
-          >
-            Select
-          </button>
-          <button
-            type="button"
-            className={`edit-expert-inpaint-select-tab ${
-              selectedInpaintSelectionTab === "unselect" ? "is-active" : ""
-            }`}
-            role="tab"
-            aria-selected={selectedInpaintSelectionTab === "unselect"}
-            onClick={() => setSelectedInpaintSelectionTab("unselect")}
-          >
-            Unselect
-          </button>
-        </div>
-        {!isRailScope ? (
-          <button
-            type="button"
-            className="edit-expert-inpaint-action-btn edit-expert-markup-modal-inpaint-invert-btn"
-            aria-label="Invert in-paint selection"
-            onClick={invertInpaintSelectionWithHistory}
-            disabled={!imageHasInteractiveMask}
-          >
-            <CircleHalf size={18} weight="regular" />
-          </button>
-        ) : null}
-      </div>
-    </div>
-  );
 }
 
 type ExpertEditPresetToolbarCardProps = {

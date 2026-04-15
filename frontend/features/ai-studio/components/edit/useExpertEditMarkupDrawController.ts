@@ -1,10 +1,11 @@
 /**
  * Markup draw controller for Expert Edit stage interactions.
- * Owns draw/erase pointer session lifecycle while keeping the panel focused on orchestration.
+ * Owns pen, lasso, and eraser pointer session lifecycle while keeping the panel focused on orchestration.
  */
 import React from "react";
 
 import { buildMarkupBrushReticleCursor } from "./expertEditCursorUtils";
+import type { MarkupMode } from "./expertEditPanelViewContract";
 import {
   elementHasPointerCapture,
   releasePointerCaptureSafely,
@@ -22,10 +23,8 @@ import {
   type MarkupViewportState,
 } from "./markupStrokeController";
 
-type MarkupMode = "pen" | "eraser";
-
 type UseExpertEditMarkupDrawControllerParams = {
-  isVideoToolSelected: boolean;
+  isMarkupToolSelected: boolean;
   hasPrimaryCompositePreview: boolean;
   selectedMarkupMode: MarkupMode;
   resolvedMarkupStrokeSize: number;
@@ -66,10 +65,10 @@ type UseExpertEditMarkupDrawControllerResult = {
 };
 
 /**
- * Returns the pointer handlers for markup draw/erase stage interactions.
+ * Returns the pointer handlers for markup draw/fill/erase stage interactions.
  */
 export const useExpertEditMarkupDrawController = ({
-  isVideoToolSelected,
+  isMarkupToolSelected,
   hasPrimaryCompositePreview,
   selectedMarkupMode,
   resolvedMarkupStrokeSize,
@@ -146,7 +145,7 @@ export const useExpertEditMarkupDrawController = ({
 
   const beginMarkupDrawGesture = React.useCallback(
     (event: React.PointerEvent<HTMLDivElement>) => {
-      if (!isVideoToolSelected) return false;
+      if (!isMarkupToolSelected) return false;
       if (!hasPrimaryCompositePreview) {
         showStatusToast("Add a layer image before drawing markup.");
         return false;
@@ -193,9 +192,10 @@ export const useExpertEditMarkupDrawController = ({
           stageHeight: logicalStageHeight,
         }),
         points: [point],
+        kind: selectedMarkupMode === "lasso" ? "lasso" : "pen",
       };
       setMarkupStrokes((previousStrokes) => [...previousStrokes, stroke]);
-      activateMarkupDrawGestureSession(event.pointerId, "pen", strokeId);
+      activateMarkupDrawGestureSession(event.pointerId, selectedMarkupMode, strokeId);
       return true;
     },
     [
@@ -203,7 +203,7 @@ export const useExpertEditMarkupDrawController = ({
       beginMarkupGestureHistory,
       eraseMarkupStrokesAtPoints,
       hasPrimaryCompositePreview,
-      isVideoToolSelected,
+      isMarkupToolSelected,
       markupColor,
       markupStrokeIdCounterRef,
       markupViewport,

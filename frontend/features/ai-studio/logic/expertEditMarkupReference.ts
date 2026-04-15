@@ -3,6 +3,8 @@
  * Renders the flattened base image and current markup strokes into a single PNG blob.
  */
 import {
+  isMarkupStrokeClosedShape,
+  MARKUP_LASSO_FILL_OPACITY,
   resolveMarkupStrokePointToSurfacePoint,
   resolveMarkupStrokeWidthPx,
   type MarkupStroke,
@@ -101,6 +103,13 @@ const drawMarkupStrokesToCanvas = ({
         canvasContext.lineTo(pointPx.x, pointPx.y);
       }
     });
+    if (isMarkupStrokeClosedShape(stroke)) {
+      canvasContext.closePath();
+      canvasContext.save();
+      canvasContext.globalAlpha = MARKUP_LASSO_FILL_OPACITY;
+      canvasContext.fill();
+      canvasContext.restore();
+    }
     canvasContext.stroke();
   });
 };

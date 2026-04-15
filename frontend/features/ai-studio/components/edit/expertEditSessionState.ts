@@ -3,7 +3,7 @@
  * Centralizes persistence shapes and clone/equality utilities for layer/markup/inpaint state.
  */
 
-import type { MarkupStroke } from "./markupStrokeController";
+import { resolveMarkupStrokeKind, type MarkupStroke } from "./markupStrokeController";
 import { areInpaintMaskSnapshotsEqual, type InpaintMaskSnapshot } from "./useInpaintMaskController";
 
 export const EXPERT_EDIT_SESSION_STATE_VERSION = 2 as const;
@@ -178,6 +178,7 @@ export const areMarkupStrokeSnapshotsEqual = (left: MarkupStroke[], right: Marku
     if (!leftStroke || !rightStroke) return false;
     if (
       leftStroke.id !== rightStroke.id ||
+      resolveMarkupStrokeKind(leftStroke) !== resolveMarkupStrokeKind(rightStroke) ||
       leftStroke.color !== rightStroke.color ||
       leftStroke.sizeRatio !== rightStroke.sizeRatio
     ) {

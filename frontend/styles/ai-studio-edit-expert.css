@@ -167,6 +167,14 @@
   min-width: 0;
 }
 
+.edit-expert-post-stage-overlay-zone.is-composer-expanded .edit-expert-post-stage-base-layer {
+  filter: blur(6px);
+}
+
+.edit-expert-primary-column-shell.is-composer-expanded .edit-expert-primary-stage-shell {
+  filter: blur(6px);
+}
+
 .edit-expert-post-stage-composer-overlay {
   position: absolute;
   left: 0;
@@ -1476,6 +1484,7 @@
   display: grid;
   grid-template-rows: 1fr;
   min-height: 0;
+  overflow: hidden;
   transition: grid-template-rows 240ms cubic-bezier(0.22, 0.61, 0.36, 1);
 }
 
@@ -1483,7 +1492,7 @@
   grid-template-rows: 0fr;
 }
 
-.edit-expert-layers-toolbar-list-shell .edit-expert-layers-toolbar-list {
+.edit-expert-layers-toolbar-list-shell .edit-expert-layers-toolbar-list-content {
   min-height: 0;
   overflow: hidden;
   transition:
@@ -1491,13 +1500,13 @@
     transform 240ms cubic-bezier(0.22, 0.61, 0.36, 1);
 }
 
-.edit-expert-layers-toolbar-list-shell.is-collapsed .edit-expert-layers-toolbar-list {
+.edit-expert-layers-toolbar-list-shell.is-collapsed .edit-expert-layers-toolbar-list-content {
   opacity: 0;
   transform: translateY(-8px);
   pointer-events: none;
 }
 
-.edit-expert-layers-toolbar-list-shell.is-expanded .edit-expert-layers-toolbar-list {
+.edit-expert-layers-toolbar-list-shell.is-expanded .edit-expert-layers-toolbar-list-content {
   opacity: 1;
   transform: translateY(0);
 }
@@ -1645,6 +1654,25 @@
   margin-top: 0;
   padding: 10px 0 6px;
   z-index: 103;
+}
+
+.edit-expert-layers-actions--embedded {
+  padding: 0 0 2px;
+}
+
+.edit-expert-layers-actions--embedded .edit-expert-preset-action-btn {
+  min-height: 42px;
+  padding: 7px 10px;
+  gap: 8px;
+}
+
+.edit-expert-layers-actions--embedded .edit-expert-preset-action-btn svg {
+  width: 18px;
+  height: 18px;
+}
+
+.edit-expert-layers-toolbar-card .edit-expert-preset-divider {
+  margin: 12px 0;
 }
 
 .edit-expert-stage-status-toast {
@@ -2004,12 +2032,21 @@
   pointer-events: none;
 }
 
-.edit-expert-markup-strokes-overlay {
+.edit-expert-inpaint-live-preview-canvas {
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
   z-index: 1000;
+  pointer-events: none;
+}
+
+.edit-expert-markup-strokes-overlay {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 1001;
   pointer-events: none;
 }
 
@@ -2458,7 +2495,7 @@
   --edit-expert-collapse-btn-height: 114px;
 }
 
-.edit-expert-inpaint-row:not(.is-collapsed) .edit-expert-inpaint-collapse-btn.is-active-video {
+.edit-expert-inpaint-row:not(.is-collapsed) .edit-expert-inpaint-collapse-btn.is-active-markup {
   --edit-expert-collapse-btn-height: 114px;
 }
 
@@ -2543,7 +2580,7 @@
   color: rgba(250, 205, 118, 0.99);
 }
 
-.edit-expert-inpaint-row.is-collapsed .edit-expert-inpaint-collapse-btn.is-active-video {
+.edit-expert-inpaint-row.is-collapsed .edit-expert-inpaint-collapse-btn.is-active-markup {
   border-color: rgba(170, 101, 239, 0.94);
   color: rgba(215, 178, 255, 0.99);
 }
@@ -2567,9 +2604,9 @@
   color: rgba(255, 220, 146, 0.99);
 }
 
-.edit-expert-inpaint-row.is-collapsed .edit-expert-inpaint-collapse-btn.is-active-video:hover,
+.edit-expert-inpaint-row.is-collapsed .edit-expert-inpaint-collapse-btn.is-active-markup:hover,
 .edit-expert-inpaint-row.is-collapsed
-  .edit-expert-inpaint-collapse-btn.is-active-video:focus-visible {
+  .edit-expert-inpaint-collapse-btn.is-active-markup:focus-visible {
   border-color: rgba(194, 137, 246, 0.98);
   color: rgba(231, 208, 255, 0.99);
 }
@@ -2711,14 +2748,14 @@
 }
 
 /* VIDEO TOOL - Selected State */
-.edit-expert-inpaint-tool-rail-btn.is-selected-video {
+.edit-expert-inpaint-tool-rail-btn.is-selected-markup {
   border-color: rgba(170, 101, 239, 0.92);
   background: var(--edit-expert-control-surface);
   color: rgba(208, 118, 254, 0.92);
   font-weight: 700;
 }
 
-.edit-expert-inpaint-tool-rail-btn.is-selected-video svg {
+.edit-expert-inpaint-tool-rail-btn.is-selected-markup svg {
   color: rgba(208, 118, 254, 0.92);
 }
 
@@ -2862,19 +2899,19 @@
   background: var(--edit-expert-inpaint-thumb-color);
 }
 
-.edit-expert-inpaint-controls.is-themed-video {
+.edit-expert-inpaint-controls.is-themed-markup {
   border-color: rgba(170, 101, 239, 0.4);
   height: 114px;
   min-height: 114px;
 }
 
-.edit-expert-inpaint-controls.is-themed-video .edit-expert-inpaint-mode-btn {
+.edit-expert-inpaint-controls.is-themed-markup .edit-expert-inpaint-mode-btn {
   border-color: rgba(170, 101, 239, 0.28);
 }
 
-.edit-expert-inpaint-controls.is-themed-video .edit-expert-inpaint-mode-btn.is-active,
-.edit-expert-inpaint-controls.is-themed-video .edit-expert-inpaint-mode-btn.is-active:hover,
-.edit-expert-inpaint-controls.is-themed-video
+.edit-expert-inpaint-controls.is-themed-markup .edit-expert-inpaint-mode-btn.is-active,
+.edit-expert-inpaint-controls.is-themed-markup .edit-expert-inpaint-mode-btn.is-active:hover,
+.edit-expert-inpaint-controls.is-themed-markup
   .edit-expert-inpaint-mode-btn.is-active:focus-visible {
   border-color: rgba(92, 95, 103, 0.95);
   background: rgba(62, 66, 74, 0.94);
@@ -2882,67 +2919,61 @@
   font-weight: 700;
 }
 
-.edit-expert-inpaint-controls.is-themed-video .edit-expert-inpaint-mode-btn.is-active svg {
+.edit-expert-inpaint-controls.is-themed-markup .edit-expert-inpaint-mode-btn.is-active svg {
   color: rgba(246, 241, 255, 0.98);
 }
 
-.edit-expert-inpaint-controls.is-themed-video .edit-expert-markup-eraser-btn.is-active,
-.edit-expert-inpaint-controls.is-themed-video .edit-expert-markup-eraser-btn.is-active:hover,
-.edit-expert-inpaint-controls.is-themed-video
-  .edit-expert-markup-eraser-btn.is-active:focus-visible {
-  font-weight: 500;
-}
-
-.edit-expert-inpaint-controls.is-themed-video .edit-expert-inpaint-select-tabs {
+.edit-expert-inpaint-controls.is-themed-markup .edit-expert-inpaint-select-tabs {
   border: 1px solid rgba(170, 101, 239, 0.3);
 }
 
-.edit-expert-inpaint-controls.is-themed-video .edit-expert-inpaint-action-btn {
+.edit-expert-inpaint-controls.is-themed-markup .edit-expert-inpaint-action-btn {
   border-color: rgba(170, 101, 239, 0.3);
 }
 
-.edit-expert-inpaint-controls.is-themed-video
+.edit-expert-inpaint-controls.is-themed-markup
   .edit-expert-inpaint-action-btn.edit-expert-markup-clear-btn:not(:disabled):hover,
-.edit-expert-inpaint-controls.is-themed-video
+.edit-expert-inpaint-controls.is-themed-markup
   .edit-expert-inpaint-action-btn.edit-expert-markup-clear-btn:not(:disabled):focus-visible {
   border-color: rgba(238, 112, 133, 0.86);
   background: rgba(93, 26, 44, 0.86);
   color: rgba(255, 214, 223, 0.98);
 }
 
-.edit-expert-inpaint-controls.is-themed-video .edit-expert-markup-color-picker {
+.edit-expert-inpaint-controls.is-themed-markup .edit-expert-markup-color-picker {
   border-color: rgba(170, 101, 239, 0.3);
 }
 
-.edit-expert-inpaint-controls.is-themed-video .edit-expert-markup-collapse-btn {
+.edit-expert-inpaint-controls.is-themed-markup .edit-expert-markup-collapse-btn {
   border-color: rgba(170, 101, 239, 0.28);
   background: rgba(37, 41, 47, 0.64);
   color: rgba(246, 241, 255, 0.98);
   font-weight: 600;
 }
 
-.edit-expert-inpaint-controls.is-themed-video .edit-expert-markup-collapse-btn svg {
+.edit-expert-inpaint-controls.is-themed-markup .edit-expert-markup-collapse-btn svg {
   color: rgba(246, 241, 255, 0.98);
 }
 
-.edit-expert-inpaint-controls.is-themed-video .edit-expert-markup-collapse-btn:hover,
-.edit-expert-inpaint-controls.is-themed-video .edit-expert-markup-collapse-btn:focus-visible,
-.edit-expert-inpaint-controls.is-themed-video .edit-expert-markup-collapse-btn.is-active {
+.edit-expert-inpaint-controls.is-themed-markup .edit-expert-markup-collapse-btn:hover,
+.edit-expert-inpaint-controls.is-themed-markup .edit-expert-markup-collapse-btn:focus-visible,
+.edit-expert-inpaint-controls.is-themed-markup .edit-expert-markup-collapse-btn.is-active {
   border-color: rgba(170, 101, 239, 0.92);
   background: linear-gradient(135deg, #b32ba9 0%, #3d2fa8 100%);
   color: rgba(246, 241, 255, 0.98);
 }
 
-.edit-expert-inpaint-controls.is-themed-video .edit-expert-inpaint-divider {
+.edit-expert-inpaint-controls.is-themed-markup .edit-expert-inpaint-divider {
   background: rgba(170, 101, 239, 0.45);
 }
 
-.edit-expert-inpaint-controls.is-themed-video
+.edit-expert-inpaint-controls.is-themed-markup
   .edit-expert-inpaint-stroke-slider::-webkit-slider-thumb {
   background: var(--edit-expert-markup-thumb-color);
 }
 
-.edit-expert-inpaint-controls.is-themed-video .edit-expert-inpaint-stroke-slider::-moz-range-thumb {
+.edit-expert-inpaint-controls.is-themed-markup
+  .edit-expert-inpaint-stroke-slider::-moz-range-thumb {
   background: var(--edit-expert-markup-thumb-color);
 }
 
@@ -3040,7 +3071,7 @@
     box-shadow: 0 16px 30px rgba(0, 0, 0, 0.36);
   }
 
-  .edit-expert-inpaint-controls.is-themed-video:hover {
+  .edit-expert-inpaint-controls.is-themed-markup:hover {
     border-color: rgba(170, 101, 239, 0.48);
     box-shadow: 0 16px 30px rgba(0, 0, 0, 0.36);
   }
@@ -3153,36 +3184,36 @@
     box-shadow: 0 0 0 3px rgba(245, 185, 66, 0.2);
   }
 
-  .edit-expert-inpaint-controls.is-themed-video
+  .edit-expert-inpaint-controls.is-themed-markup
     .edit-expert-inpaint-mode-btn:not(.is-active):not(.edit-expert-markup-collapse-btn):hover {
     border-color: rgba(170, 101, 239, 0.56);
     background: rgba(74, 65, 91, 0.5);
     color: rgba(246, 241, 255, 0.96);
   }
 
-  .edit-expert-inpaint-controls.is-themed-video
+  .edit-expert-inpaint-controls.is-themed-markup
     .edit-expert-inpaint-select-tab:not(.is-active):hover {
     background: rgba(88, 70, 114, 0.36);
     color: rgba(246, 241, 255, 0.94);
   }
 
-  .edit-expert-inpaint-controls.is-themed-video
+  .edit-expert-inpaint-controls.is-themed-markup
     .edit-expert-inpaint-action-btn:not(:disabled):hover {
     border-color: rgba(170, 101, 239, 0.62);
     background: rgba(71, 59, 90, 0.9);
     color: rgba(246, 241, 255, 0.98);
   }
 
-  .edit-expert-inpaint-controls.is-themed-video
+  .edit-expert-inpaint-controls.is-themed-markup
     .edit-expert-inpaint-action-btn.edit-expert-markup-clear-btn:not(:disabled):hover,
-  .edit-expert-inpaint-controls.is-themed-video
+  .edit-expert-inpaint-controls.is-themed-markup
     .edit-expert-inpaint-action-btn.edit-expert-markup-clear-btn:not(:disabled):focus-visible {
     border-color: rgba(238, 112, 133, 0.86);
     background: rgba(93, 26, 44, 0.86);
     color: rgba(255, 214, 223, 0.98);
   }
 
-  .edit-expert-inpaint-controls.is-themed-video
+  .edit-expert-inpaint-controls.is-themed-markup
     .edit-expert-markup-color-picker-anchor:hover
     .edit-expert-markup-color-picker {
     border-color: rgba(170, 101, 239, 0.62);
@@ -3192,22 +3223,22 @@
       0 0 0 1px rgba(170, 101, 239, 0.12);
   }
 
-  .edit-expert-inpaint-controls.is-themed-video
+  .edit-expert-inpaint-controls.is-themed-markup
     .edit-expert-inpaint-stroke-slider:hover::-webkit-slider-runnable-track {
     background: #101215;
   }
 
-  .edit-expert-inpaint-controls.is-themed-video
+  .edit-expert-inpaint-controls.is-themed-markup
     .edit-expert-inpaint-stroke-slider:hover::-moz-range-track {
     background: #101215;
   }
 
-  .edit-expert-inpaint-controls.is-themed-video
+  .edit-expert-inpaint-controls.is-themed-markup
     .edit-expert-inpaint-stroke-slider:hover::-webkit-slider-thumb {
     box-shadow: 0 0 0 3px rgba(170, 101, 239, 0.22);
   }
 
-  .edit-expert-inpaint-controls.is-themed-video
+  .edit-expert-inpaint-controls.is-themed-markup
     .edit-expert-inpaint-stroke-slider:hover::-moz-range-thumb {
     box-shadow: 0 0 0 3px rgba(170, 101, 239, 0.22);
   }
@@ -3371,6 +3402,10 @@
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 4px;
+}
+
+.edit-expert-markup-mode-row {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 .edit-expert-inpaint-mode-btn {
@@ -4717,24 +4752,24 @@
   width: 100%;
 }
 
-.edit-expert-inpaint-controls.is-themed-video .edit-expert-inpaint-controls-content {
+.edit-expert-inpaint-controls.is-themed-markup .edit-expert-inpaint-controls-content {
   justify-content: center;
   align-items: center;
   height: auto;
 }
 
-.edit-expert-inpaint-controls.is-themed-video .edit-expert-inpaint-mode-row,
-.edit-expert-inpaint-controls.is-themed-video .edit-expert-inpaint-stroke-row,
-.edit-expert-inpaint-controls.is-themed-video .edit-expert-inpaint-selection-row {
+.edit-expert-inpaint-controls.is-themed-markup .edit-expert-inpaint-mode-row,
+.edit-expert-inpaint-controls.is-themed-markup .edit-expert-inpaint-stroke-row,
+.edit-expert-inpaint-controls.is-themed-markup .edit-expert-inpaint-selection-row {
   width: 100%;
 }
 
-.edit-expert-inpaint-controls.is-themed-video .edit-expert-markup-controls-content,
-.edit-expert-inpaint-controls.is-themed-video .edit-expert-markup-color-row {
+.edit-expert-inpaint-controls.is-themed-markup .edit-expert-markup-controls-content,
+.edit-expert-inpaint-controls.is-themed-markup .edit-expert-markup-color-row {
   width: 100%;
 }
 
-.edit-expert-inpaint-controls.is-themed-video .edit-expert-markup-color-row {
+.edit-expert-inpaint-controls.is-themed-markup .edit-expert-markup-color-row {
   padding-inline: 6px;
   box-sizing: border-box;
 }
@@ -5238,6 +5273,7 @@
   -ms-overflow-style: none;
   position: relative;
   z-index: 1;
+  transition: height 120ms cubic-bezier(0.22, 0.61, 0.36, 1);
 }
 
 .edit-expert-prompt-shell .edit-expert-prompt-input:focus {

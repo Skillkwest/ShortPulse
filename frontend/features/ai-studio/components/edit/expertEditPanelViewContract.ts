@@ -134,7 +134,7 @@ export const editLayerUtilityActions = [
   },
 ] as const;
 
-export type RailTool = "move" | "inpaint" | "video";
+export type RailTool = "move" | "inpaint" | "markup";
 
 export const editGenerationModeOptions: ReadonlyArray<{
   id: EditSubmitIntent;
@@ -164,16 +164,16 @@ export const inpaintRailTools: ReadonlyArray<{
     icon: PaintBrushBroad,
   },
   {
-    id: "video",
+    id: "markup",
     label: "Markup",
-    selectedClassName: "is-selected-video",
+    selectedClassName: "is-selected-markup",
     icon: PencilSimple,
   },
 ];
 
 export type InpaintMode = "lasso" | "brush" | "auto";
 export type InpaintSelectionTab = "select" | "unselect";
-export type MarkupMode = "pen" | "eraser";
+export type MarkupMode = "pen" | "lasso" | "eraser";
 
 export const MAX_LAYERS = 6;
 export const PRESET_PANEL_LIMIT_TOAST = "Preset panel is full (max 11).";

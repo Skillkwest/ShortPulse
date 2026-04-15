@@ -19,6 +19,7 @@ import {
 import {
   INPAINT_FLUX_FILL_MODEL_ID,
   INPAINT_FLUX_FILL_MODEL_LABEL,
+  INPAINT_REFERENCE_MODEL_ID,
   MARKUP_NANO_BANANA_PRO_EDIT_MODEL_ID,
   MARKUP_NANO_BANANA_PRO_EDIT_MODEL_LABEL,
 } from "../../logic/inpaintSubmission";
@@ -423,16 +424,19 @@ describe("ExpertEditPanelView", () => {
     initialPrompt = "",
     extraImageUrls = [null, null, null] as [string | null, string | null, string | null],
     onPromptTextChangeSpy = vi.fn(),
+    panelProps = {},
   }: {
     initialPrompt?: string;
     extraImageUrls?: [string | null, string | null, string | null];
     onPromptTextChangeSpy?: (value: string) => void;
+    panelProps?: Partial<React.ComponentProps<typeof ExpertEditPanelView>>;
   } = {}) => {
     const ControlledPromptPanel = () => {
       const [promptText, setPromptText] = React.useState(initialPrompt);
       return (
         <ExpertEditPanelView
           {...baseProps}
+          {...panelProps}
           referenceText={promptText}
           extraImageUrls={extraImageUrls}
           onPromptTextChange={(value) => {
@@ -547,7 +551,7 @@ describe("ExpertEditPanelView", () => {
     expect(composerOverlay?.querySelector(".edit-expert-selector-row")).not.toBeNull();
   });
 
-  it("collapses the sidebar layers panel in Inpaint mode and hides the Markup tab", () => {
+  it("collapses the sidebar layers panel and flatten action in Inpaint and Markup modes", () => {
     vi.stubEnv("NEXT_PUBLIC_AI_STUDIO_EDIT_GENERATION_MODE_TOGGLE_ENABLED", "true");
     const { container } = render(<ExpertEditPanelView {...baseProps} />);
     const sidebarLayersPanel = container.querySelector(
@@ -561,6 +565,7 @@ describe("ExpertEditPanelView", () => {
     ) as HTMLDivElement;
     const modeTabs = screen.getByRole("tablist", { name: /generation mode/i });
     const inpaintTab = within(modeTabs).getByRole("tab", { name: /^inpaint$/i });
+    const markupTab = within(modeTabs).getByRole("tab", { name: /^markup$/i });
     const standardTab = within(modeTabs).getByRole("tab", { name: /^standard$/i });
 
     expect(sidebarLayersPanel).not.toBeNull();
@@ -568,18 +573,33 @@ describe("ExpertEditPanelView", () => {
     expect(modePanelShell.classList.contains("is-collapsed")).toBe(true);
     expect(layersListShell.classList.contains("is-expanded")).toBe(true);
     expect(within(sidebarLayersPanel).getByRole("button", { name: "layer 1" })).toBeInTheDocument();
+    expect(
+      within(sidebarLayersPanel).getByRole("button", { name: /flatten layers/i })
+    ).toBeInTheDocument();
 
     fireEvent.click(inpaintTab);
     expect(modePanelShell.classList.contains("is-expanded")).toBe(true);
     expect(layersListShell.classList.contains("is-collapsed")).toBe(true);
     expect(within(sidebarLayersPanel).queryByRole("button", { name: "layer 1" })).toBeNull();
+    expect(
+      within(sidebarLayersPanel).queryByRole("button", { name: /flatten layers/i })
+    ).toBeNull();
 
-    expect(within(modeTabs).queryByRole("tab", { name: /^markup$/i })).toBeNull();
+    fireEvent.click(markupTab);
+    expect(modePanelShell.classList.contains("is-expanded")).toBe(true);
+    expect(layersListShell.classList.contains("is-collapsed")).toBe(true);
+    expect(within(sidebarLayersPanel).queryByRole("button", { name: "layer 1" })).toBeNull();
+    expect(
+      within(sidebarLayersPanel).queryByRole("button", { name: /flatten layers/i })
+    ).toBeNull();
 
     fireEvent.click(standardTab);
     expect(modePanelShell.classList.contains("is-collapsed")).toBe(true);
     expect(layersListShell.classList.contains("is-expanded")).toBe(true);
     expect(within(sidebarLayersPanel).getByRole("button", { name: "layer 1" })).toBeInTheDocument();
+    expect(
+      within(sidebarLayersPanel).getByRole("button", { name: /flatten layers/i })
+    ).toBeInTheDocument();
   });
 
   it("does not render character controls in the edit selector row", () => {
@@ -818,6 +838,8 @@ describe("ExpertEditPanelView", () => {
       .mockReturnValue({
         overlayCanvasRef: { current: null },
         modalOverlayCanvasRef: { current: null },
+        previewCanvasRef: { current: null },
+        modalPreviewCanvasRef: { current: null },
         hasSelectedLayerMask: true,
         imageHasInteractiveMask: true,
         captureMaskSnapshot: vi.fn(() => ({ layers: [] })),
@@ -887,6 +909,8 @@ describe("ExpertEditPanelView", () => {
       .mockReturnValue({
         overlayCanvasRef: { current: null },
         modalOverlayCanvasRef: { current: null },
+        previewCanvasRef: { current: null },
+        modalPreviewCanvasRef: { current: null },
         hasSelectedLayerMask: true,
         imageHasInteractiveMask: true,
         captureMaskSnapshot: vi.fn(() => ({ layers: [] })),
@@ -1074,7 +1098,7 @@ describe("ExpertEditPanelView", () => {
     expect(screen.getByRole("alert")).toHaveTextContent("slot 2");
   });
 
-  it("limits the inpaint prompt token picker to @main only", () => {
+  it("shows populated secondary refs in the inpaint prompt token picker", () => {
     vi.stubEnv("NEXT_PUBLIC_AI_STUDIO_EDIT_GENERATION_MODE_TOGGLE_ENABLED", "true");
     const { container, promptInput } = renderControlledPromptPanel({
       initialPrompt: "Blend scene",
@@ -1089,40 +1113,104 @@ describe("ExpertEditPanelView", () => {
 
     const picker = screen.getByRole("group", { name: /reference image picker/i });
     expect(within(picker).getByLabelText("Primary edit image")).toBeInTheDocument();
-    expect(within(picker).queryByText("Reference 1")).toBeNull();
-    expect(within(picker).queryByText("Reference 2")).toBeNull();
+    expect(within(picker).getByText("Reference 1")).toBeInTheDocument();
+    expect(within(picker).getByText("Reference 2")).toBeInTheDocument();
     expect((screen.getByLabelText("Secondary edit image 1") as HTMLDivElement).draggable).toBe(
-      false
+      true
     );
   });
 
-  it("blocks inpaint generate when the prompt uses secondary reference tokens", async () => {
+  it("routes inpaint generate to the single-reference masked lane when the prompt links one secondary reference", async () => {
     vi.stubEnv("NEXT_PUBLIC_AI_STUDIO_EDIT_GENERATION_MODE_TOGGLE_ENABLED", "true");
     const onRegenerateWithReferenceInputs: NonNullable<
       React.ComponentProps<typeof ExpertEditPanelView>["onRegenerateWithReferenceInputs"]
     > = vi.fn(async () => {});
-    const { container } = render(
-      <ExpertEditPanelView
-        {...baseProps}
-        referenceText="Use @img1 for clothing."
-        extraImageUrls={["https://example.com/slot-1.png", null, null]}
-        onRegenerateWithReferenceInputs={onRegenerateWithReferenceInputs}
-      />
+    const exportSelectedLayerMaskBlobMock = vi.fn(
+      async () => new Blob(["mask"], { type: "image/png" })
     );
+    const useInpaintMaskControllerSpy = vi
+      .spyOn(InpaintMaskControllerModule, "useInpaintMaskController")
+      .mockReturnValue({
+        overlayCanvasRef: { current: null },
+        modalOverlayCanvasRef: { current: null },
+        previewCanvasRef: { current: null },
+        modalPreviewCanvasRef: { current: null },
+        hasSelectedLayerMask: true,
+        imageHasInteractiveMask: true,
+        captureMaskSnapshot: vi.fn(() => ({ layers: [] })),
+        restoreMaskSnapshot: vi.fn(),
+        clearAllMasks: vi.fn(),
+        clearSelectedLayerMask: vi.fn(),
+        invertSelectedLayerMask: vi.fn(),
+        exportSelectedLayerMaskBlob: exportSelectedLayerMaskBlobMock,
+        onPointerDown: vi.fn(),
+        onPointerMove: vi.fn(),
+        onPointerUp: vi.fn(),
+        onPointerCancel: vi.fn(),
+        onPointerLeave: vi.fn(),
+      });
+    const previousImage = globalThis.Image;
+    class MockImage {
+      onload: (() => void) | null = null;
+      onerror: (() => void) | null = null;
+      naturalWidth = 640;
+      naturalHeight = 640;
 
-    uploadPrimaryFile(container, "layer-1.png");
-    fireEvent.click(screen.getByRole("tab", { name: /^inpaint$/i }));
-
-    await act(async () => {
-      fireEvent.click(screen.getByRole("button", { name: /^generate$/i }));
-      await Promise.resolve();
+      set src(_value: string) {
+        this.onload?.();
+      }
+    }
+    Object.defineProperty(globalThis, "Image", {
+      configurable: true,
+      writable: true,
+      value: MockImage,
     });
+    try {
+      const { container } = render(
+        <ExpertEditPanelView
+          {...baseProps}
+          referenceText="Use @img1 for clothing."
+          extraImageUrls={["https://example.com/slot-1.png", null, null]}
+          onRegenerateWithReferenceInputs={onRegenerateWithReferenceInputs}
+        />
+      );
 
-    expect(onRegenerateWithReferenceInputs).not.toHaveBeenCalled();
-    expect(composePrimaryStageLayersToBlobMock).not.toHaveBeenCalled();
-    expect(screen.getByRole("alert")).toHaveTextContent(
-      "Inpaint only supports @main. Secondary references are not sent to the inpaint model."
-    );
+      uploadPrimaryFile(container, "layer-1.png");
+      fireEvent.click(screen.getByRole("tab", { name: /^inpaint$/i }));
+
+      await act(async () => {
+        fireEvent.click(screen.getByRole("button", { name: /^generate$/i }));
+        await Promise.resolve();
+      });
+
+      expect(onRegenerateWithReferenceInputs).toHaveBeenCalledTimes(1);
+      expect(composePrimaryStageLayersToBlobMock).toHaveBeenCalledTimes(1);
+      const inpaintOptions = (
+        onRegenerateWithReferenceInputs as unknown as {
+          mock: {
+            calls: Array<
+              [string[], { inpaintOverride?: unknown; hideOutputFromReferenceGrid?: boolean }?]
+            >;
+          };
+        }
+      ).mock.calls[0]?.[1];
+      expect(inpaintOptions?.inpaintOverride).toEqual({
+        modelId: INPAINT_REFERENCE_MODEL_ID,
+        baseImageInput: expect.stringMatching(/^blob:flatten-/),
+        maskInput: expect.stringMatching(/^blob:flatten-/),
+        referenceImageInput: "https://example.com/slot-1.png",
+        outputFormat: "png",
+      });
+      expect(exportSelectedLayerMaskBlobMock).toHaveBeenCalledTimes(1);
+      expect(screen.queryByRole("alert")).toBeNull();
+    } finally {
+      useInpaintMaskControllerSpy.mockRestore();
+      Object.defineProperty(globalThis, "Image", {
+        configurable: true,
+        writable: true,
+        value: previousImage,
+      });
+    }
   });
 
   it("clamps the inpaint resolution selector to the effective FLUX Fill model", () => {
@@ -1185,14 +1273,172 @@ describe("ExpertEditPanelView", () => {
     fireEvent.focus(promptInput);
     expect(promptRow.className).toContain("is-expanded");
     expect(promptInput.value).toContain("Line six");
+    promptInput.style.height = "520px";
 
     fireEvent.blur(promptInput, { relatedTarget: flattenButton });
     expect(promptRow.className).toContain("is-collapsed");
     expect(promptInput.value).toContain("Line six");
+    expect(promptInput.style.height).toBe("72px");
 
     fireEvent.focus(promptInput);
     expect(promptRow.className).toContain("is-expanded");
     expect(promptInput.value).toContain("Line six");
+  });
+
+  it("keeps the edit underlay unblurred until the prompt reaches eight visual rows", async () => {
+    let scrollHeightPx = 180;
+    const scrollHeightDescriptor = Object.getOwnPropertyDescriptor(
+      HTMLTextAreaElement.prototype,
+      "scrollHeight"
+    );
+    const lineHeightDescriptor = Object.getOwnPropertyDescriptor(
+      CSSStyleDeclaration.prototype,
+      "lineHeight"
+    );
+    const paddingTopDescriptor = Object.getOwnPropertyDescriptor(
+      CSSStyleDeclaration.prototype,
+      "paddingTop"
+    );
+    const paddingBottomDescriptor = Object.getOwnPropertyDescriptor(
+      CSSStyleDeclaration.prototype,
+      "paddingBottom"
+    );
+
+    Object.defineProperty(HTMLTextAreaElement.prototype, "scrollHeight", {
+      configurable: true,
+      get: () => scrollHeightPx,
+    });
+    Object.defineProperty(CSSStyleDeclaration.prototype, "lineHeight", {
+      configurable: true,
+      get() {
+        return "24px";
+      },
+    });
+    Object.defineProperty(CSSStyleDeclaration.prototype, "paddingTop", {
+      configurable: true,
+      get() {
+        return "6px";
+      },
+    });
+    Object.defineProperty(CSSStyleDeclaration.prototype, "paddingBottom", {
+      configurable: true,
+      get() {
+        return "6px";
+      },
+    });
+
+    try {
+      const { rerender, container } = render(
+        <ExpertEditPanelView {...baseProps} referenceText="Seven visual rows" />
+      );
+
+      const promptInput = screen.getByLabelText("Edit prompt");
+      fireEvent.focus(promptInput);
+
+      await waitFor(() => {
+        expect(container.querySelector(".edit-expert-post-stage-overlay-zone")).not.toHaveClass(
+          "is-composer-expanded"
+        );
+      });
+
+      scrollHeightPx = 204;
+      rerender(<ExpertEditPanelView {...baseProps} referenceText="Eight visual rows" />);
+
+      const nextPromptInput = screen.getByLabelText("Edit prompt");
+      fireEvent.focus(nextPromptInput);
+
+      await waitFor(() => {
+        expect(container.querySelector(".edit-expert-post-stage-overlay-zone")).toHaveClass(
+          "is-composer-expanded"
+        );
+        expect(container.querySelector(".edit-expert-primary-column-shell")).toHaveClass(
+          "is-composer-expanded"
+        );
+      });
+    } finally {
+      if (scrollHeightDescriptor) {
+        Object.defineProperty(
+          HTMLTextAreaElement.prototype,
+          "scrollHeight",
+          scrollHeightDescriptor
+        );
+      } else {
+        delete (HTMLTextAreaElement.prototype as Partial<HTMLTextAreaElement>).scrollHeight;
+      }
+      if (lineHeightDescriptor) {
+        Object.defineProperty(CSSStyleDeclaration.prototype, "lineHeight", lineHeightDescriptor);
+      }
+      if (paddingTopDescriptor) {
+        Object.defineProperty(CSSStyleDeclaration.prototype, "paddingTop", paddingTopDescriptor);
+      }
+      if (paddingBottomDescriptor) {
+        Object.defineProperty(
+          CSSStyleDeclaration.prototype,
+          "paddingBottom",
+          paddingBottomDescriptor
+        );
+      }
+    }
+  });
+
+  it("collapses the prompt back to its minimum height when the text is cleared", async () => {
+    const scrollHeightPx = 520;
+    const scrollHeightDescriptor = Object.getOwnPropertyDescriptor(
+      HTMLTextAreaElement.prototype,
+      "scrollHeight"
+    );
+    const minHeightDescriptor = Object.getOwnPropertyDescriptor(
+      CSSStyleDeclaration.prototype,
+      "minHeight"
+    );
+
+    Object.defineProperty(HTMLTextAreaElement.prototype, "scrollHeight", {
+      configurable: true,
+      get: function () {
+        return (this as HTMLTextAreaElement).value.length === 0 ? 72 : scrollHeightPx;
+      },
+    });
+    Object.defineProperty(CSSStyleDeclaration.prototype, "minHeight", {
+      configurable: true,
+      get() {
+        return "72px";
+      },
+    });
+
+    try {
+      const { rerender } = render(
+        <ExpertEditPanelView
+          {...baseProps}
+          referenceText={"Line one\nLine two\nLine three\nLine four\nLine five\nLine six"}
+        />
+      );
+
+      const promptInput = screen.getByLabelText("Edit prompt") as HTMLTextAreaElement;
+      fireEvent.focus(promptInput);
+      promptInput.style.height = "520px";
+
+      rerender(<ExpertEditPanelView {...baseProps} referenceText="" />);
+
+      const emptyPromptInput = screen.getByLabelText("Edit prompt") as HTMLTextAreaElement;
+      fireEvent.focus(emptyPromptInput);
+
+      await waitFor(() => {
+        expect(emptyPromptInput.style.height).toBe("72px");
+      });
+    } finally {
+      if (scrollHeightDescriptor) {
+        Object.defineProperty(
+          HTMLTextAreaElement.prototype,
+          "scrollHeight",
+          scrollHeightDescriptor
+        );
+      } else {
+        delete (HTMLTextAreaElement.prototype as Partial<HTMLTextAreaElement>).scrollHeight;
+      }
+      if (minHeightDescriptor) {
+        Object.defineProperty(CSSStyleDeclaration.prototype, "minHeight", minHeightDescriptor);
+      }
+    }
   });
 
   it("opens the anchored reference picker and selects @main after typing @", () => {
@@ -1938,31 +2184,32 @@ describe("ExpertEditPanelView", () => {
     expect(videoButton).toHaveAttribute("aria-pressed", "true");
     expect(inpaintButton).toHaveAttribute("aria-pressed", "false");
     expect(moveButton).toHaveAttribute("aria-pressed", "false");
-    const videoSettingsPanel = screen.getByRole("group", { name: /markup tools/i });
-    expect(videoSettingsPanel).toHaveClass("is-themed-video");
-    const penButton = within(videoSettingsPanel).getByRole("button", { name: /^pen$/i });
-    const eraserButton = within(videoSettingsPanel).getByRole("button", { name: /^eraser$/i });
-    const expandButton = within(videoSettingsPanel).getByRole("button", {
+    const markupSettingsPanel = screen.getByRole("group", { name: /markup tools/i });
+    expect(markupSettingsPanel).toHaveClass("is-themed-markup");
+    const penButton = within(markupSettingsPanel).getByRole("button", { name: /^pen$/i });
+    const lassoButton = within(markupSettingsPanel).getByRole("button", { name: /^lasso$/i });
+    const expandButton = within(markupSettingsPanel).getByRole("button", {
       name: /expand markup tools/i,
     });
-    const markupColorPicker = within(videoSettingsPanel).getByRole("button", {
+    const markupColorPicker = within(markupSettingsPanel).getByRole("button", {
       name: /markup color/i,
     });
-    const clearMarkupButton = within(videoSettingsPanel).getByRole("button", {
+    const clearMarkupButton = within(markupSettingsPanel).getByRole("button", {
       name: /clear markup strokes/i,
     });
 
     expect(penButton).toHaveAttribute("aria-pressed", "true");
-    expect(eraserButton).toHaveAttribute("aria-pressed", "false");
+    expect(lassoButton).toHaveAttribute("aria-pressed", "false");
+    expect(within(markupSettingsPanel).queryByRole("button", { name: /^eraser$/i })).toBeNull();
     expect(expandButton).toHaveAttribute("aria-pressed", "false");
     expect(expandButton).not.toHaveTextContent(/expand/i);
     expect(markupColorPicker).toHaveAttribute("aria-expanded", "false");
     fireEvent.click(markupColorPicker);
     expect(screen.getByRole("dialog", { name: /markup color picker/i })).toBeInTheDocument();
     expect(clearMarkupButton).toBeInTheDocument();
-    expect(within(videoSettingsPanel).queryByRole("tab", { name: /^select$/i })).toBeNull();
+    expect(within(markupSettingsPanel).queryByRole("tab", { name: /^select$/i })).toBeNull();
     expect(
-      within(videoSettingsPanel).queryByRole("button", { name: /invert selection/i })
+      within(markupSettingsPanel).queryByRole("button", { name: /invert selection/i })
     ).toBeNull();
 
     fireEvent.click(moveButton);
@@ -2011,19 +2258,24 @@ describe("ExpertEditPanelView", () => {
     const editModeTitle = screen.getByText("Select Edit Mode");
     const standardTab = within(tablist).getByRole("tab", { name: /^standard$/i });
     const inpaintTab = within(tablist).getByRole("tab", { name: /^inpaint$/i });
+    const markupTab = within(tablist).getByRole("tab", { name: /^markup$/i });
     expect(sidebarShell).not.toBeNull();
     expect(primaryColumn).not.toBeNull();
     expect(sidebarShell?.contains(editModeTitle)).toBe(true);
     expect(sidebarShell?.contains(tablist)).toBe(true);
     expect(primaryColumn?.contains(tablist)).toBe(false);
     expect(selectorRow?.contains(tablist)).toBe(false);
-    expect(within(tablist).queryByRole("tab", { name: /^markup$/i })).toBeNull();
+    expect(markupTab).toBeInTheDocument();
     expect(standardTab).toHaveAttribute("aria-selected", "true");
     expect(onEditSubmitIntentChange).toHaveBeenCalledWith("standard");
 
     fireEvent.click(inpaintTab);
     expect(onEditSubmitIntentChange).toHaveBeenLastCalledWith("inpaint");
     expect(inpaintTab).toHaveAttribute("aria-selected", "true");
+
+    fireEvent.click(markupTab);
+    expect(onEditSubmitIntentChange).toHaveBeenLastCalledWith("markup");
+    expect(markupTab).toHaveAttribute("aria-selected", "true");
   });
 
   it("renders the center stage column inside a dedicated shell", () => {
@@ -2050,16 +2302,17 @@ describe("ExpertEditPanelView", () => {
     expect(
       screen.queryByRole("button", { name: /clear all in-paint selections and markup strokes/i })
     ).toBeNull();
-    expect(within(modeTabs).queryByRole("tab", { name: /^markup$/i })).toBeNull();
+    expect(within(modeTabs).getByRole("tab", { name: /^markup$/i })).toBeInTheDocument();
   });
 
-  it("shows the reference-images and styles row in Standard and Inpaint while Markup stays hidden", () => {
+  it("shows the reference-images and styles row in Standard and Inpaint while hiding them in Markup", () => {
     vi.stubEnv("NEXT_PUBLIC_AI_STUDIO_EDIT_GENERATION_MODE_TOGGLE_ENABLED", "true");
     render(<ExpertEditPanelView {...baseProps} />);
 
     const modeTabs = screen.getByRole("tablist", { name: /generation mode/i });
     const standardTab = within(modeTabs).getByRole("tab", { name: /^standard$/i });
     const inpaintTab = within(modeTabs).getByRole("tab", { name: /^inpaint$/i });
+    const markupTab = within(modeTabs).getByRole("tab", { name: /^markup$/i });
 
     expect(screen.getByText("Reference Images")).toBeInTheDocument();
     expect(screen.getByLabelText("Secondary edit image 1")).toBeInTheDocument();
@@ -2069,7 +2322,11 @@ describe("ExpertEditPanelView", () => {
     expect(screen.getByText("Reference Images")).toBeInTheDocument();
     expect(screen.getByLabelText("Secondary edit image 1")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Styles" })).toBeInTheDocument();
-    expect(within(modeTabs).queryByRole("tab", { name: /^markup$/i })).toBeNull();
+
+    fireEvent.click(markupTab);
+    expect(screen.queryByText("Reference Images")).toBeNull();
+    expect(screen.queryByLabelText("Secondary edit image 1")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Styles" })).toBeNull();
 
     fireEvent.click(standardTab);
     expect(screen.getByText("Reference Images")).toBeInTheDocument();
@@ -2085,12 +2342,15 @@ describe("ExpertEditPanelView", () => {
     const modeTabs = screen.getByRole("tablist", { name: /generation mode/i });
     const standardTab = within(modeTabs).getByRole("tab", { name: /^standard$/i });
     const inpaintTab = within(modeTabs).getByRole("tab", { name: /^inpaint$/i });
+    const markupTab = within(modeTabs).getByRole("tab", { name: /^markup$/i });
 
     expect(panel).not.toHaveClass("is-generation-mode-tall-stage");
 
     fireEvent.click(inpaintTab);
     expect(panel).not.toHaveClass("is-generation-mode-tall-stage");
-    expect(within(modeTabs).queryByRole("tab", { name: /^markup$/i })).toBeNull();
+
+    fireEvent.click(markupTab);
+    expect(panel).not.toHaveClass("is-generation-mode-tall-stage");
 
     fireEvent.click(standardTab);
     expect(panel).not.toHaveClass("is-generation-mode-tall-stage");
@@ -2104,6 +2364,7 @@ describe("ExpertEditPanelView", () => {
     const modeTabs = screen.getByRole("tablist", { name: /generation mode/i });
     const standardTab = within(modeTabs).getByRole("tab", { name: /^standard$/i });
     const inpaintTab = within(modeTabs).getByRole("tab", { name: /^inpaint$/i });
+    const markupTab = within(modeTabs).getByRole("tab", { name: /^markup$/i });
 
     expect(
       within(presetToolbar).queryByRole("group", { name: /^left rail move panel$/i })
@@ -2113,7 +2374,11 @@ describe("ExpertEditPanelView", () => {
     expect(
       within(presetToolbar).getByRole("group", { name: /^left rail in-paint panel$/i })
     ).toBeInTheDocument();
-    expect(within(modeTabs).queryByRole("tab", { name: /^markup$/i })).toBeNull();
+
+    fireEvent.click(markupTab);
+    expect(
+      within(presetToolbar).getByRole("group", { name: /^left rail markup panel$/i })
+    ).toBeInTheDocument();
 
     fireEvent.click(standardTab);
     expect(
@@ -2143,6 +2408,22 @@ describe("ExpertEditPanelView", () => {
     expect(presetToolbar).not.toBeNull();
     expect(sidebarShell).not.toBeNull();
     expect(presetToolbar?.contains(sidebarShell)).toBe(true);
+  });
+
+  it("renders flatten inside the layers panel and keeps remove background in the utility actions stack", () => {
+    render(<ExpertEditPanelView {...baseProps} />);
+
+    const layersToolbar = screen.getByLabelText("Edit layers toolbar");
+    const utilityActions = screen.getByLabelText("Edit utility actions");
+
+    expect(
+      within(layersToolbar).getByRole("button", { name: /flatten layers/i })
+    ).toBeInTheDocument();
+    expect(within(layersToolbar).getByLabelText("Flatten layer action")).toBeInTheDocument();
+    expect(within(utilityActions).queryByRole("button", { name: /flatten layers/i })).toBeNull();
+    expect(
+      within(utilityActions).getByRole("button", { name: /remove background/i })
+    ).toBeInTheDocument();
   });
 
   it("opens the expanded markup canvas modal from the expand button", async () => {
@@ -2216,12 +2497,15 @@ describe("ExpertEditPanelView", () => {
     const topRow = markupContent?.querySelector(".edit-expert-inpaint-mode-row");
     expect(topRow).toBeTruthy();
     const modalPenButton = within(topRow as HTMLElement).getByRole("button", { name: /^pen$/i });
+    const modalLassoButton = within(topRow as HTMLElement).getByRole("button", {
+      name: /^lasso$/i,
+    });
     expect(modalPenButton).toBeInTheDocument();
-    expect(
-      within(topRow as HTMLElement).getByRole("button", { name: /^eraser$/i })
-    ).toBeInTheDocument();
+    expect(modalLassoButton).toBeInTheDocument();
+    expect(within(topRow as HTMLElement).queryByRole("button", { name: /^eraser$/i })).toBeNull();
     const modalBrushButton = within(inpaintModalToolbar).getByRole("button", { name: /^brush$/i });
     expect(modalPenButton).toHaveAttribute("aria-pressed", "true");
+    expect(modalLassoButton).toHaveAttribute("aria-pressed", "false");
     expect(modalBrushButton).toHaveAttribute("aria-pressed", "false");
 
     fireEvent.click(modalAdjustButton);
@@ -3259,71 +3543,6 @@ describe("ExpertEditPanelView", () => {
     expect(colorButton).toHaveAttribute("aria-expanded", "true");
   });
 
-  it("erases entire markup strokes when dragging with eraser", async () => {
-    render(
-      <ExpertEditPanelView
-        {...baseProps}
-        referenceImageUrl="https://example.com/markup-erase-inline.png"
-        referenceText="prompt text"
-      />
-    );
-    fireEvent.click(screen.getByRole("button", { name: /expand inpaint controls/i }));
-
-    const rail = screen.getByLabelText("Inpaint action tools");
-    fireEvent.click(await within(rail).findByRole("button", { name: /^markup$/i }));
-
-    const markupPanel = screen.getByRole("group", { name: /markup tools/i });
-    const primaryDropzone = screen.getByLabelText("Primary composition surface");
-    mockElementRect(primaryDropzone, createSquareRect(320));
-
-    fireEvent.pointerDown(primaryDropzone, {
-      pointerId: 903,
-      pointerType: "mouse",
-      button: 0,
-      clientX: 52,
-      clientY: 52,
-    });
-    fireEvent.pointerMove(primaryDropzone, {
-      pointerId: 903,
-      pointerType: "mouse",
-      clientX: 232,
-      clientY: 232,
-    });
-    fireEvent.pointerUp(primaryDropzone, {
-      pointerId: 903,
-      pointerType: "mouse",
-      clientX: 232,
-      clientY: 232,
-    });
-
-    expect(
-      primaryDropzone.querySelectorAll(".edit-expert-markup-strokes-overlay polyline")
-    ).toHaveLength(1);
-
-    fireEvent.click(within(markupPanel).getByRole("button", { name: /^eraser$/i }));
-    fireEvent.pointerDown(primaryDropzone, {
-      pointerId: 904,
-      pointerType: "mouse",
-      button: 0,
-      clientX: 146,
-      clientY: 146,
-    });
-    fireEvent.pointerMove(primaryDropzone, {
-      pointerId: 904,
-      pointerType: "mouse",
-      clientX: 156,
-      clientY: 156,
-    });
-    fireEvent.pointerUp(primaryDropzone, {
-      pointerId: 904,
-      pointerType: "mouse",
-      clientX: 156,
-      clientY: 156,
-    });
-
-    expect(primaryDropzone.querySelector(".edit-expert-markup-strokes-overlay")).toBeNull();
-  });
-
   it("clears markup strokes and shares them with expanded markup modal", async () => {
     render(
       <ExpertEditPanelView
@@ -3936,11 +4155,15 @@ describe("ExpertEditPanelView", () => {
     const standardTab = within(modeTabs).getByRole("tab", { name: /^standard$/i });
 
     expect(modelPickerButton).not.toBeDisabled();
-    expect(within(modeTabs).queryByRole("tab", { name: /^markup$/i })).toBeNull();
+    const markupTab = within(modeTabs).getByRole("tab", { name: /^markup$/i });
 
     fireEvent.click(inpaintTab);
     expect(modelPickerButton).toBeDisabled();
     expect(modelPickerButton).toHaveTextContent(INPAINT_FLUX_FILL_MODEL_LABEL);
+
+    fireEvent.click(markupTab);
+    expect(modelPickerButton).toBeDisabled();
+    expect(modelPickerButton).toHaveTextContent(MARKUP_NANO_BANANA_PRO_EDIT_MODEL_LABEL);
 
     fireEvent.click(standardTab);
     expect(modelPickerButton).not.toBeDisabled();
@@ -4121,6 +4344,8 @@ describe("ExpertEditPanelView", () => {
       .mockReturnValue({
         overlayCanvasRef: { current: null },
         modalOverlayCanvasRef: { current: null },
+        previewCanvasRef: { current: null },
+        modalPreviewCanvasRef: { current: null },
         hasSelectedLayerMask: true,
         imageHasInteractiveMask: true,
         captureMaskSnapshot: vi.fn(() => currentSnapshot),
@@ -5118,11 +5343,11 @@ describe("ExpertEditPanelView", () => {
     expect(document.documentElement.style.cursor).toBe("");
   });
 
-  it("locks eraser reticle cursor globally during active markup eraser drawing in expanded modal and restores on pointer up", async () => {
+  it("keeps the markup eraser button hidden in the expanded modal", async () => {
     render(
       <ExpertEditPanelView
         {...baseProps}
-        referenceImageUrl="https://example.com/markup-eraser-cursor-lock.png"
+        referenceImageUrl="https://example.com/markup-hidden-eraser.png"
         referenceText="prompt text"
       />
     );
@@ -5135,51 +5360,7 @@ describe("ExpertEditPanelView", () => {
 
     const expandedModal = await screen.findByRole("dialog", { name: /expanded markup canvas/i });
     const modalMarkupPanel = within(expandedModal).getByRole("group", { name: /markup tools/i });
-    fireEvent.click(within(modalMarkupPanel).getByRole("button", { name: /^eraser$/i }));
-    const modalStage = expandedModal.querySelector(
-      ".edit-expert-markup-modal-stage"
-    ) as HTMLDivElement | null;
-    expect(modalStage).toBeTruthy();
-
-    const rect = {
-      left: 0,
-      top: 0,
-      width: 260,
-      height: 260,
-      right: 260,
-      bottom: 260,
-      x: 0,
-      y: 0,
-      toJSON: () => ({}),
-    } satisfies DOMRect;
-    Object.defineProperty(modalStage as HTMLDivElement, "getBoundingClientRect", {
-      configurable: true,
-      value: () => rect,
-    });
-
-    expect(document.body.style.cursor).toBe("");
-    expect(document.documentElement.style.cursor).toBe("");
-
-    fireEvent.pointerDown(modalStage as HTMLDivElement, {
-      pointerId: 9112,
-      pointerType: "mouse",
-      button: 0,
-      clientX: 92,
-      clientY: 92,
-    });
-
-    expect(document.body.style.cursor).toContain("data:image/svg+xml");
-    expect(document.documentElement.style.cursor).toContain("data:image/svg+xml");
-
-    fireEvent.pointerUp(modalStage as HTMLDivElement, {
-      pointerId: 9112,
-      pointerType: "mouse",
-      clientX: 118,
-      clientY: 118,
-    });
-
-    expect(document.body.style.cursor).toBe("");
-    expect(document.documentElement.style.cursor).toBe("");
+    expect(within(modalMarkupPanel).queryByRole("button", { name: /^eraser$/i })).toBeNull();
   });
 
   it("suppresses inpaint cursor while presets surface is open and restores it on close", () => {
@@ -5301,6 +5482,8 @@ describe("ExpertEditPanelView", () => {
       .mockReturnValue({
         overlayCanvasRef: { current: null },
         modalOverlayCanvasRef: { current: null },
+        previewCanvasRef: { current: null },
+        modalPreviewCanvasRef: { current: null },
         hasSelectedLayerMask: false,
         imageHasInteractiveMask: true,
         captureMaskSnapshot: vi.fn(() => ({ layers: [] })),
@@ -5323,6 +5506,8 @@ describe("ExpertEditPanelView", () => {
           referenceText="prompt text"
         />
       );
+      expect(document.querySelectorAll(".edit-expert-inpaint-overlay-canvas")).toHaveLength(1);
+      expect(document.querySelectorAll(".edit-expert-inpaint-live-preview-canvas")).toHaveLength(1);
       fireEvent.click(screen.getByRole("button", { name: /expand inpaint controls/i }));
       const rail = screen.getByLabelText("Inpaint action tools");
       fireEvent.click(within(rail).getByRole("button", { name: /^inpaint$/i }));
@@ -5381,6 +5566,8 @@ describe("ExpertEditPanelView", () => {
       .mockReturnValue({
         overlayCanvasRef: { current: null },
         modalOverlayCanvasRef: { current: null },
+        previewCanvasRef: { current: null },
+        modalPreviewCanvasRef: { current: null },
         hasSelectedLayerMask: true,
         imageHasInteractiveMask: true,
         captureMaskSnapshot: vi.fn(() => ({ layers: [] })),
@@ -5413,8 +5600,13 @@ describe("ExpertEditPanelView", () => {
       const expandedModal = await screen.findByRole("dialog", { name: /expanded markup canvas/i });
       const modalStage = expandedModal.querySelector(".edit-expert-markup-modal-stage");
       expect(modalStage).toBeTruthy();
+      expect(document.querySelectorAll(".edit-expert-inpaint-overlay-canvas")).toHaveLength(1);
+      expect(document.querySelectorAll(".edit-expert-inpaint-live-preview-canvas")).toHaveLength(1);
       expect(
         expandedModal.querySelector(".edit-expert-inpaint-overlay-canvas")
+      ).toBeInTheDocument();
+      expect(
+        expandedModal.querySelector(".edit-expert-inpaint-live-preview-canvas")
       ).toBeInTheDocument();
       const modalInpaintPanel = within(expandedModal).getByRole("group", {
         name: /in-paint tools/i,
@@ -5627,6 +5819,65 @@ describe("ExpertEditPanelView", () => {
     );
   });
 
+  it("renders closed lasso markup shapes in the expanded markup modal", async () => {
+    render(
+      <ExpertEditPanelView
+        {...baseProps}
+        referenceImageUrl="https://example.com/markup-lasso.png"
+        referenceText="prompt text"
+      />
+    );
+    fireEvent.click(screen.getByRole("button", { name: /expand inpaint controls/i }));
+    const rail = screen.getByLabelText("Inpaint action tools");
+    fireEvent.click(within(rail).getByRole("button", { name: /^markup$/i }));
+    const inlineMarkupPanel = screen.getByRole("group", { name: /markup tools/i });
+    fireEvent.click(within(inlineMarkupPanel).getByRole("button", { name: /^lasso$/i }));
+    fireEvent.click(
+      within(inlineMarkupPanel).getByRole("button", { name: /expand markup tools/i })
+    );
+
+    const expandedModal = await screen.findByRole("dialog", { name: /expanded markup canvas/i });
+    const modalMarkupPanel = within(expandedModal).getByRole("group", { name: /markup tools/i });
+    expect(within(modalMarkupPanel).getByRole("button", { name: /^lasso$/i })).toBeInTheDocument();
+    const modalStage = expandedModal.querySelector(
+      ".edit-expert-markup-modal-stage"
+    ) as HTMLDivElement;
+    expect(modalStage).toBeTruthy();
+    mockElementRect(modalStage, createSquareRect(240));
+
+    fireEvent.pointerDown(modalStage, {
+      pointerId: 92,
+      pointerType: "mouse",
+      button: 0,
+      clientX: 56,
+      clientY: 64,
+    });
+    fireEvent.pointerMove(modalStage, {
+      pointerId: 92,
+      pointerType: "mouse",
+      clientX: 168,
+      clientY: 68,
+    });
+    fireEvent.pointerMove(modalStage, {
+      pointerId: 92,
+      pointerType: "mouse",
+      clientX: 118,
+      clientY: 172,
+    });
+    fireEvent.pointerUp(modalStage, {
+      pointerId: 92,
+      pointerType: "mouse",
+      clientX: 118,
+      clientY: 172,
+    });
+
+    await waitFor(() =>
+      expect(
+        expandedModal.querySelectorAll(".edit-expert-markup-strokes-overlay polygon").length
+      ).toBeGreaterThan(0)
+    );
+  });
+
   it("supports keyboard undo/redo in the expanded markup modal", async () => {
     render(
       <ExpertEditPanelView
@@ -5719,6 +5970,8 @@ describe("ExpertEditPanelView", () => {
       .mockReturnValue({
         overlayCanvasRef: { current: null },
         modalOverlayCanvasRef: { current: null },
+        previewCanvasRef: { current: null },
+        modalPreviewCanvasRef: { current: null },
         hasSelectedLayerMask: true,
         imageHasInteractiveMask: true,
         captureMaskSnapshot: vi.fn(() => currentSnapshot),
@@ -5812,6 +6065,8 @@ describe("ExpertEditPanelView", () => {
       .mockReturnValue({
         overlayCanvasRef: { current: null },
         modalOverlayCanvasRef: { current: null },
+        previewCanvasRef: { current: null },
+        modalPreviewCanvasRef: { current: null },
         hasSelectedLayerMask: false,
         imageHasInteractiveMask: true,
         captureMaskSnapshot: vi.fn(() => ({ layers: [] })),
@@ -7286,6 +7541,8 @@ describe("ExpertEditPanelView", () => {
       .mockReturnValue({
         overlayCanvasRef: { current: null },
         modalOverlayCanvasRef: { current: null },
+        previewCanvasRef: { current: null },
+        modalPreviewCanvasRef: { current: null },
         hasSelectedLayerMask: true,
         imageHasInteractiveMask: true,
         captureMaskSnapshot: vi.fn(() => ({ layers: [] })),
@@ -7352,6 +7609,7 @@ describe("ExpertEditPanelView", () => {
         modelId: INPAINT_FLUX_FILL_MODEL_ID,
         baseImageInput: expect.stringMatching(/^blob:flatten-/),
         maskInput: expect.stringMatching(/^blob:flatten-/),
+        referenceImageInput: null,
         outputFormat: "png",
       });
       expect(inpaintOptions?.hideOutputFromReferenceGrid).toBeUndefined();
@@ -7387,6 +7645,8 @@ describe("ExpertEditPanelView", () => {
       .mockReturnValue({
         overlayCanvasRef: { current: null },
         modalOverlayCanvasRef: { current: null },
+        previewCanvasRef: { current: null },
+        modalPreviewCanvasRef: { current: null },
         hasSelectedLayerMask: true,
         imageHasInteractiveMask: true,
         captureMaskSnapshot: vi.fn(() => ({ layers: [] })),
@@ -7504,6 +7764,8 @@ describe("ExpertEditPanelView", () => {
       .mockReturnValue({
         overlayCanvasRef: { current: null },
         modalOverlayCanvasRef: { current: null },
+        previewCanvasRef: { current: null },
+        modalPreviewCanvasRef: { current: null },
         hasSelectedLayerMask: false,
         imageHasInteractiveMask: true,
         captureMaskSnapshot: vi.fn(() => ({ layers: [] })),

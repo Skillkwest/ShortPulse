@@ -47,6 +47,7 @@ type ExpertEditLayerUtilityActionsProps = {
   isFlattenPending: boolean;
   onFlatten: () => void;
   onRemoveBackground: () => void;
+  actionIds?: readonly string[];
   className?: string | null;
   ariaLabel?: string;
 };
@@ -59,57 +60,61 @@ export function ExpertEditLayerUtilityActions({
   isFlattenPending,
   onFlatten,
   onRemoveBackground,
+  actionIds,
   className = "edit-expert-layers-actions",
   ariaLabel = "Layer utility actions",
 }: ExpertEditLayerUtilityActionsProps) {
-  const actionButtons = editLayerUtilityActions.map((action) => {
-    const Icon = action.icon;
-    const actionCreditCost = action.creditCost;
-    const isFlattenAction = action.id === FLATTEN_IMAGE_ACTION_ID;
-    const isFlattenActionPending = isFlattenAction && isFlattenPending;
-    const isActionDisabled = Boolean(
-      (action.id === REMOVE_BACKGROUND_ACTION_ID &&
-        (isGenerateDisabled || !selectedLayerImageUrl || isRemoveBackgroundPending)) ||
-      (isFlattenAction && (populatedLayerCount <= 0 || isFlattenPending))
-    );
+  const visibleActionIds = actionIds ?? editLayerUtilityActions.map((action) => action.id);
+  const actionButtons = editLayerUtilityActions
+    .filter((action) => visibleActionIds.includes(action.id))
+    .map((action) => {
+      const Icon = action.icon;
+      const actionCreditCost = action.creditCost;
+      const isFlattenAction = action.id === FLATTEN_IMAGE_ACTION_ID;
+      const isFlattenActionPending = isFlattenAction && isFlattenPending;
+      const isActionDisabled = Boolean(
+        (action.id === REMOVE_BACKGROUND_ACTION_ID &&
+          (isGenerateDisabled || !selectedLayerImageUrl || isRemoveBackgroundPending)) ||
+        (isFlattenAction && (populatedLayerCount <= 0 || isFlattenPending))
+      );
 
-    return (
-      <button
-        key={action.id}
-        type="button"
-        className={`edit-expert-preset-action-btn ${action.buttonClassName ?? ""}`.trim()}
-        aria-label={isFlattenActionPending ? "Flattening layers" : action.label}
-        aria-busy={isFlattenActionPending || undefined}
-        disabled={isActionDisabled}
-        onClick={
-          isFlattenAction
-            ? onFlatten
-            : action.id === REMOVE_BACKGROUND_ACTION_ID
-              ? onRemoveBackground
-              : undefined
-        }
-      >
-        <span className="edit-expert-preset-action-btn-icon" aria-hidden="true">
-          {isFlattenActionPending ? (
-            <span className="edit-expert-preset-action-btn-spinner" />
-          ) : (
-            <Icon size={20} weight="regular" />
-          )}
-        </span>
-        <span className="edit-expert-preset-action-btn-copy">
-          <span>{isFlattenActionPending ? "Flattening..." : action.label}</span>
-        </span>
-        {actionCreditCost != null ? (
-          <span className="edit-expert-preset-action-btn-cost-column" aria-hidden="true">
-            <span className="edit-expert-preset-action-btn-cost">
-              <span className="model-chip-icon">✦</span>
-              <span className="model-chip-credits">{actionCreditCost}</span>
-            </span>
+      return (
+        <button
+          key={action.id}
+          type="button"
+          className={`edit-expert-preset-action-btn ${action.buttonClassName ?? ""}`.trim()}
+          aria-label={isFlattenActionPending ? "Flattening layers" : action.label}
+          aria-busy={isFlattenActionPending || undefined}
+          disabled={isActionDisabled}
+          onClick={
+            isFlattenAction
+              ? onFlatten
+              : action.id === REMOVE_BACKGROUND_ACTION_ID
+                ? onRemoveBackground
+                : undefined
+          }
+        >
+          <span className="edit-expert-preset-action-btn-icon" aria-hidden="true">
+            {isFlattenActionPending ? (
+              <span className="edit-expert-preset-action-btn-spinner" />
+            ) : (
+              <Icon size={20} weight="regular" />
+            )}
           </span>
-        ) : null}
-      </button>
-    );
-  });
+          <span className="edit-expert-preset-action-btn-copy">
+            <span>{isFlattenActionPending ? "Flattening..." : action.label}</span>
+          </span>
+          {actionCreditCost != null ? (
+            <span className="edit-expert-preset-action-btn-cost-column" aria-hidden="true">
+              <span className="edit-expert-preset-action-btn-cost">
+                <span className="model-chip-icon">✦</span>
+                <span className="model-chip-credits">{actionCreditCost}</span>
+              </span>
+            </span>
+          ) : null}
+        </button>
+      );
+    });
 
   if (className == null) {
     return <>{actionButtons}</>;
@@ -175,66 +180,85 @@ export function ExpertEditLayersPanel({
           }`.trim()}
           aria-hidden={isCollapsed || undefined}
         >
-          <div className="edit-expert-layers-toolbar-list">
-            {layers.map((layer, index) =>
-              editingLayerIndex === index ? (
-                <input
-                  key={layer.id}
-                  type="text"
-                  className="edit-expert-layer-input"
-                  value={editingLayerValue}
-                  autoFocus
-                  aria-label={`Rename ${layer.name}`}
-                  tabIndex={isCollapsed ? -1 : undefined}
-                  onChange={(event) => setEditingLayerValue(event.target.value)}
-                  onBlur={() => onCommitLayerRename(index)}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter") {
-                      event.preventDefault();
-                      onCommitLayerRename(index);
-                      return;
-                    }
-                    if (event.key === "Escape") {
-                      event.preventDefault();
-                      onClearLayerEditing();
-                    }
-                  }}
+          <div className="edit-expert-layers-toolbar-list-content">
+            <div className="edit-expert-layers-toolbar-list">
+              {layers.map((layer, index) =>
+                editingLayerIndex === index ? (
+                  <input
+                    key={layer.id}
+                    type="text"
+                    className="edit-expert-layer-input"
+                    value={editingLayerValue}
+                    autoFocus
+                    aria-label={`Rename ${layer.name}`}
+                    tabIndex={isCollapsed ? -1 : undefined}
+                    onChange={(event) => setEditingLayerValue(event.target.value)}
+                    onBlur={() => onCommitLayerRename(index)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter") {
+                        event.preventDefault();
+                        onCommitLayerRename(index);
+                        return;
+                      }
+                      if (event.key === "Escape") {
+                        event.preventDefault();
+                        onClearLayerEditing();
+                      }
+                    }}
+                  />
+                ) : (
+                  <div
+                    key={layer.id}
+                    className={`edit-expert-layer-row ${
+                      draggingLayerIndex === index ? "is-dragging" : ""
+                    } ${dragOverLayerIndex === index ? "is-drop-target" : ""}`.trim()}
+                    draggable={!isCollapsed && editingLayerIndex !== index}
+                    onDragStart={(event) => onLayerDragStart(event, index)}
+                    onDragOver={(event) => onLayerDragOver(event, index)}
+                    onDrop={(event) => onLayerDrop(event, index)}
+                    onDragEnd={onLayerDragEnd}
+                  >
+                    <button
+                      type="button"
+                      className={`edit-expert-preset-btn edit-expert-layer-btn ${
+                        resolvedSelectedLayerIndex === index ? "is-selected" : ""
+                      }`}
+                      tabIndex={isCollapsed ? -1 : undefined}
+                      onClick={() => onSelectLayer(index)}
+                      onDoubleClick={() => onBeginLayerRename(index, layer.name)}
+                    >
+                      <span className="edit-expert-layer-label">{layer.name}</span>
+                    </button>
+                    <button
+                      type="button"
+                      className="edit-expert-layer-delete-btn"
+                      aria-label={`Delete ${layer.name}`}
+                      tabIndex={isCollapsed ? -1 : undefined}
+                      onClick={() => onDeleteLayer(index)}
+                    >
+                      <TrashSimple size={12} weight="regular" />
+                    </button>
+                  </div>
+                )
+              )}
+            </div>
+            {!isModalScope ? (
+              <>
+                <div className="edit-expert-preset-divider" aria-hidden="true" />
+                <ExpertEditLayerUtilityActions
+                  isGenerateDisabled={isGenerateDisabled}
+                  selectedLayerImageUrl={selectedLayerImageUrl}
+                  isRemoveBackgroundPending={isRemoveBackgroundPending}
+                  populatedLayerCount={populatedLayerCount}
+                  isFlattenPending={isFlattenPending}
+                  onFlatten={onFlatten}
+                  onRemoveBackground={onRemoveBackground}
+                  actionIds={[FLATTEN_IMAGE_ACTION_ID]}
+                  className="edit-expert-layers-actions edit-expert-layers-actions--embedded"
+                  ariaLabel="Flatten layer action"
                 />
-              ) : (
-                <div
-                  key={layer.id}
-                  className={`edit-expert-layer-row ${
-                    draggingLayerIndex === index ? "is-dragging" : ""
-                  } ${dragOverLayerIndex === index ? "is-drop-target" : ""}`.trim()}
-                  draggable={!isCollapsed && editingLayerIndex !== index}
-                  onDragStart={(event) => onLayerDragStart(event, index)}
-                  onDragOver={(event) => onLayerDragOver(event, index)}
-                  onDrop={(event) => onLayerDrop(event, index)}
-                  onDragEnd={onLayerDragEnd}
-                >
-                  <button
-                    type="button"
-                    className={`edit-expert-preset-btn edit-expert-layer-btn ${
-                      resolvedSelectedLayerIndex === index ? "is-selected" : ""
-                    }`}
-                    tabIndex={isCollapsed ? -1 : undefined}
-                    onClick={() => onSelectLayer(index)}
-                    onDoubleClick={() => onBeginLayerRename(index, layer.name)}
-                  >
-                    <span className="edit-expert-layer-label">{layer.name}</span>
-                  </button>
-                  <button
-                    type="button"
-                    className="edit-expert-layer-delete-btn"
-                    aria-label={`Delete ${layer.name}`}
-                    tabIndex={isCollapsed ? -1 : undefined}
-                    onClick={() => onDeleteLayer(index)}
-                  >
-                    <TrashSimple size={12} weight="regular" />
-                  </button>
-                </div>
-              )
-            )}
+              </>
+            ) : null}
           </div>
         </div>
       </div>

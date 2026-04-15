@@ -589,27 +589,30 @@ export const createFalSubmitHandler = ({
       }
 
       const inlineSubmitTargets = resolveInlineSubmitTargets({ submitTargets, submitUrl });
-      const supportsInlineImageSubmit =
-        providerKey === "fal" && generationMode === "image" && inlineSubmitTargets.length > 0;
+      const supportsInlineDirectSubmit =
+        inlineSubmitTargets.length > 0 &&
+        (providerKey === "kie" || (providerKey === "fal" && generationMode === "image"));
       const localQueueWorkerRequired = isLocalDevGenerationWorkerRequired(runtimeFlags);
       const bypassQueueForInlineImage =
-        supportsInlineImageSubmit &&
+        supportsInlineDirectSubmit &&
+        providerKey === "fal" &&
+        generationMode === "image" &&
         admissionDecision.wouldLimit &&
         runtimeFlags.queueEnabled &&
         !localQueueWorkerRequired &&
         !hasConfiguredControlPlaneWake(runtimeFlags);
-      const canUseInlineImageSubmit =
-        supportsInlineImageSubmit && (!admissionDecision.wouldLimit || bypassQueueForInlineImage);
+      const canUseInlineDirectSubmit =
+        supportsInlineDirectSubmit && (!admissionDecision.wouldLimit || bypassQueueForInlineImage);
       const queuedSubmitSelected =
         runtimeFlags.queueEnabled &&
         !bypassQueueForInlineImage &&
-        (!supportsInlineImageSubmit || admissionDecision.enforced || admissionDecision.wouldLimit);
+        (!supportsInlineDirectSubmit || admissionDecision.enforced || admissionDecision.wouldLimit);
       const workerOwnedSubmitMisconfigured = isWorkerOwnedSubmitMisconfigured({
         queueEnabled: runtimeFlags.queueEnabled,
         workerOwnedSubmitEnabled: runtimeFlags.workerOwnedSubmitEnabled,
       });
 
-      if (canUseInlineImageSubmit) {
+      if (canUseInlineDirectSubmit) {
         const webhookCallbackUrl = resolveWebhookCallbackUrl(runtimeFlags, {
           userId: charge.userId,
           modelId,
@@ -1116,10 +1119,10 @@ export const createFalSubmitHandler = ({
         );
       }
 
-      if (supportsInlineImageSubmit && admissionDecision.wouldLimit) {
+      if (supportsInlineDirectSubmit && admissionDecision.wouldLimit) {
         const retryAfterSeconds = admissionDecision.retryAfterSeconds;
-        await charge.refund("Auto-release: image submit admission limit reached.", {
-          reason: "direct_image_submit_limited",
+        await charge.refund("Auto-release: direct submit admission limit reached.", {
+          reason: "direct_submit_limited",
           queue_enabled: runtimeFlags.queueEnabled,
           worker_owned_submit_enabled: runtimeFlags.workerOwnedSubmitEnabled,
           admission_enforced: admissionDecision.enforced,

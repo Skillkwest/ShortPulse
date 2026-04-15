@@ -72,6 +72,7 @@ describe("createFalSubmitHandler", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     process.env.FAL_KEY = "test-fal-key";
+    process.env.KIE_API_KEY = "test-kie-key";
     process.env.STUDIO_AGENT_SAFETY_INPUT_PRECHECK_GENERATION_SUBMIT_ENABLED = "true";
     delete process.env.STUDIO_AGENT_SAFETY_INPUT_PRECHECK_FIELD_MODES;
     delete process.env.STUDIO_AGENT_SAFETY_INPUT_PRECHECK_FIELD_MODES_GENERATION_SUBMIT;
@@ -248,6 +249,50 @@ describe("createFalSubmitHandler", () => {
     );
   });
 
+  it("submits Kie video routes directly and returns a provider request id", async () => {
+    const handler = createFalSubmitHandler({
+      modelId: "kie-ai/veo-3.1-fast-i2v",
+      provider: "kie",
+      submitUrl: "https://api.kie.ai/api/v1/veo/generate",
+      routeLabel: "Kie Veo 3.1 Fast I2V",
+    });
+
+    const req = {
+      method: "POST",
+      body: { prompt: "cinematic skyline reveal" },
+      headers: {},
+      url: "/api/fal/kie-veo-submit",
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    const charge = await chargeGenerationRequestMock.mock.results[0]?.value;
+    expect(dispatchProviderSubmitMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        provider: "kie",
+        modelId: "kie-ai/veo-3.1-fast-i2v",
+        targets: [{ submitUrl: "https://api.kie.ai/api/v1/veo/generate" }],
+      })
+    );
+    expect(charge.markSubmitted).toHaveBeenCalledWith(
+      "req-direct-1",
+      expect.objectContaining({
+        generation_submit_authority: "direct",
+        provider: "kie",
+      })
+    );
+    expect(applyAcceptedRunningGenerationTransitionMock).toHaveBeenCalled();
+    expect(enqueueGenerationSubmitMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        request_id: "req-direct-1",
+        generationId: expect.any(String),
+      })
+    );
+  });
+
   it("fails closed when queueing is required in local dev and the worker heartbeat is missing", async () => {
     hasFreshLocalGenerationWorkerHeartbeatMock.mockResolvedValue(false);
     isLocalDevGenerationWorkerRequiredMock.mockReturnValue(true);
@@ -329,6 +374,40 @@ describe("createFalSubmitHandler", () => {
 
     expect(enqueueGenerationSubmitMock).not.toHaveBeenCalled();
     expect(dispatchProviderSubmitMock).toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith({
+      request_id: "req-direct-1",
+      generationId: expect.any(String),
+    });
+  });
+
+  it("still submits active Kie video routes directly when the durable queue is disabled", async () => {
+    process.env.SHORTPULSE_FAL_QUEUE_ENABLED = "false";
+
+    const handler = createFalSubmitHandler({
+      modelId: "kie-ai/veo-3.1-fast-i2v",
+      provider: "kie",
+      submitUrl: "https://api.kie.ai/api/v1/veo/generate",
+      routeLabel: "Kie Veo 3.1 Fast I2V",
+    });
+
+    const req = {
+      method: "POST",
+      body: { prompt: "product hero rotation" },
+      headers: {},
+      url: "/api/fal/kie-veo-submit",
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(enqueueGenerationSubmitMock).not.toHaveBeenCalled();
+    expect(dispatchProviderSubmitMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        provider: "kie",
+        modelId: "kie-ai/veo-3.1-fast-i2v",
+      })
+    );
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith({
       request_id: "req-direct-1",
@@ -447,6 +526,68 @@ describe("createFalSubmitHandler", () => {
       })
     );
     expect(res.status).toHaveBeenCalledWith(429);
+  });
+
+  it("returns 429 instead of queue_required when a direct-capable Kie submit is admission-limited and queue is disabled", async () => {
+    process.env.SHORTPULSE_FAL_QUEUE_ENABLED = "false";
+    evaluateScopedGenerationAdmissionMock.mockResolvedValue({
+      decision: {
+        mode: "enforce",
+        allowed: false,
+        enforced: false,
+        wouldLimit: true,
+        reason: "tier_limit",
+        retryAfterSeconds: 15,
+        snapshot: {
+          globalActive: 4,
+          globalMax: 4,
+          tier: "video_standard",
+          tierActive: 4,
+          tierMax: 4,
+        },
+      },
+      capacitySnapshot: {
+        tier: "video_standard",
+        globalActive: 4,
+        tierActive: 4,
+        staleIgnoredGlobal: 0,
+        staleIgnoredTier: 0,
+      },
+    });
+
+    const handler = createFalSubmitHandler({
+      modelId: "kie-ai/veo-3.1-fast-i2v",
+      provider: "kie",
+      submitUrl: "https://api.kie.ai/api/v1/veo/generate",
+      routeLabel: "Kie Veo 3.1 Fast I2V",
+    });
+
+    const req = {
+      method: "POST",
+      body: { prompt: "storm over downtown" },
+      headers: {},
+      url: "/api/fal/kie-veo-submit",
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    const charge = await chargeGenerationRequestMock.mock.results[0]?.value;
+    expect(dispatchProviderSubmitMock).not.toHaveBeenCalled();
+    expect(enqueueGenerationSubmitMock).not.toHaveBeenCalled();
+    expect(charge.refund).toHaveBeenCalledWith(
+      "Auto-release: direct submit admission limit reached.",
+      expect.objectContaining({
+        admission_reason: "tier_limit",
+      })
+    );
+    expect(res.status).toHaveBeenCalledWith(429);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        code: "GENERATION_ADMISSION_LIMIT",
+        retryAfterSeconds: 15,
+      })
+    );
   });
 
   it("fails closed before billing on unknown top-level fields", async () => {

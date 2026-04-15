@@ -24,9 +24,9 @@ describe("studioAgentSafetyPostProcess", () => {
   it("rewrites mild explicit language to safe-for-work wording", async () => {
     const result = await postProcessStudioAgentSafetyText({
       text: "A sexy portrait of a topless model in lingerie.",
-      route: "describe-image",
-      flow: "describe_image",
-      source: "describe_output",
+      route: "studio-agent",
+      flow: "MIXED",
+      source: "model_output",
       mode: "enforce",
     });
 

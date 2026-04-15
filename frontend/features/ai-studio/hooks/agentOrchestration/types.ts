@@ -43,6 +43,7 @@ export type UseAiStudioAgentOrchestrationParams = {
     payloadText?: string;
     previousPrompt?: string | null;
     context?: AgentContext;
+    isolateHistory?: boolean;
     skipUserEcho?: boolean;
     optimisticUserMessageId?: string | null;
   }) => Promise<{ response: unknown; actions: AgentActions | undefined }>;

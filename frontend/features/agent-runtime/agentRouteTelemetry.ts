@@ -1,10 +1,10 @@
 /**
  * Shared route-level machine-outcome telemetry for non-studio-agent OpenAI lanes.
- * Emits deterministic outcome fields so regressions are visible across prompt/describe routes.
+ * Emits deterministic outcome fields so regressions stay visible on retained legacy routes.
  */
 import type { AgentMachineOutcomeFields } from "../../prefabs/agent/outcomeContract";
 
-type AgentRouteTelemetryTag = "generate-prompt" | "describe-image" | "extract-style";
+type AgentRouteTelemetryTag = "extract-style";
 
 const resolveOutputContractTelemetryViolation = ({
   reasonCode,

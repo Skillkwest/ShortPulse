@@ -1,6 +1,6 @@
 /**
  * Shared failure classification and retry helpers for AI Studio agent runtime lanes.
- * Keeps user-lane fallback policy consistent across studio-agent and describe-image routes.
+ * Keeps user-lane fallback policy consistent across retained AI Studio agent routes.
  */
 
 export const STUDIO_AGENT_INFRA_FALLBACK_MESSAGE =

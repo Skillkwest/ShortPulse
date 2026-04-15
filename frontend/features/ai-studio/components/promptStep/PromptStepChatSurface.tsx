@@ -63,9 +63,7 @@ type PromptStepChatSurfaceProps = {
   onAgentInputChange?: (value: string) => void;
   chatModeEnabled: boolean;
   onChatModeEnabledChange?: (value: boolean) => void;
-  agentAssistToggleAvailable?: boolean;
-  agentAssistEnabled?: boolean;
-  onAgentAssistEnabledChange?: (value: boolean) => void;
+  directOpenAiBypassEnabled?: boolean;
   onAgentSend?: () => void;
   onGenerateOutputPrompt?: (request: AgentOutputGenerateInput) => void;
   chatModeInlineGenerate?: PromptStepInlineGenerateConfig;
@@ -139,9 +137,7 @@ export const PromptStepChatSurface: React.FC<PromptStepChatSurfaceProps> = ({
   onAgentInputChange,
   chatModeEnabled,
   onChatModeEnabledChange,
-  agentAssistToggleAvailable = false,
-  agentAssistEnabled = true,
-  onAgentAssistEnabledChange,
+  directOpenAiBypassEnabled = false,
   onAgentSend,
   onGenerateOutputPrompt,
   chatModeInlineGenerate,
@@ -330,9 +326,9 @@ export const PromptStepChatSurface: React.FC<PromptStepChatSurfaceProps> = ({
           onVisualRowCountChange={handleAgentInputVisualRowCountChange}
           placeholder={
             chatModeEnabled
-              ? agentAssistEnabled
-                ? "Message the agent..."
-                : "Ask ShortPulse or write your prompt"
+              ? directOpenAiBypassEnabled
+                ? "Ask ShortPulse or write your prompt"
+                : "Message the agent..."
               : "Write your prompt..."
           }
           onKeyDown={handleAgentInputKeyDown}
@@ -345,7 +341,7 @@ export const PromptStepChatSurface: React.FC<PromptStepChatSurfaceProps> = ({
             onClick={handleAgentSendClick}
             disabled={!chatModeEnabled || agentIsSending}
             loading={agentIsSending}
-            ariaLabel={agentAssistEnabled ? "Send to agent" : "Send to OpenAI"}
+            ariaLabel={directOpenAiBypassEnabled ? "Send to OpenAI" : "Send to agent"}
             icon="arrow-up"
             className="agent-send-prefab--inside-input"
           />
@@ -371,31 +367,12 @@ export const PromptStepChatSurface: React.FC<PromptStepChatSurfaceProps> = ({
                 </span>
               </button>
             </div>
-            {chatModeEnabled && agentAssistToggleAvailable ? (
-              <div className="ai-chat-mode-row-shell agent-chat-mode-row agent-chat-mode-toggle-shell">
-                <div className="agent-chat-mode-toggle-copy">
-                  <span className="agent-chat-mode-label">Agent Assist</span>
-                </div>
-                <button
-                  type="button"
-                  className={`audio-toggle ai-chat-mode-toggle agent-chat-mode-toggle ${agentAssistEnabled ? "is-active" : ""}`}
-                  aria-pressed={agentAssistEnabled}
-                  aria-label={agentAssistEnabled ? "Disable agent assist" : "Enable agent assist"}
-                  disabled={!onAgentAssistEnabledChange}
-                  onClick={() => onAgentAssistEnabledChange?.(!agentAssistEnabled)}
-                >
-                  <span className="audio-toggle-track" aria-hidden="true">
-                    <span className="audio-toggle-dot" />
-                  </span>
-                </button>
-              </div>
-            ) : null}
             {!embedSendButtonInInput && chatModeEnabled ? (
               <AgentSendButton
                 onClick={handleAgentSendClick}
                 disabled={!chatModeEnabled || agentIsSending}
                 loading={agentIsSending}
-                ariaLabel={agentAssistEnabled ? "Send to agent" : "Send to OpenAI"}
+                ariaLabel={directOpenAiBypassEnabled ? "Send to OpenAI" : "Send to agent"}
                 label="Send"
                 className="agent-send-prefab--labeled"
               />
@@ -530,31 +507,12 @@ export const PromptStepChatSurface: React.FC<PromptStepChatSurfaceProps> = ({
                 </span>
               </button>
             </div>
-            {chatModeEnabled && agentAssistToggleAvailable ? (
-              <div className="ai-chat-mode-row-shell agent-chat-mode-row agent-chat-mode-toggle-shell">
-                <div className="agent-chat-mode-toggle-copy">
-                  <span className="agent-chat-mode-label">Agent Assist</span>
-                </div>
-                <button
-                  type="button"
-                  className={`audio-toggle ai-chat-mode-toggle agent-chat-mode-toggle ${agentAssistEnabled ? "is-active" : ""}`}
-                  aria-pressed={agentAssistEnabled}
-                  aria-label={agentAssistEnabled ? "Disable agent assist" : "Enable agent assist"}
-                  disabled={!onAgentAssistEnabledChange}
-                  onClick={() => onAgentAssistEnabledChange?.(!agentAssistEnabled)}
-                >
-                  <span className="audio-toggle-track" aria-hidden="true">
-                    <span className="audio-toggle-dot" />
-                  </span>
-                </button>
-              </div>
-            ) : null}
             {!embedSendButtonInInput && chatModeEnabled ? (
               <AgentSendButton
                 onClick={handleAgentSendClick}
                 disabled={!chatModeEnabled || agentIsSending}
                 loading={agentIsSending}
-                ariaLabel={agentAssistEnabled ? "Send to agent" : "Send to OpenAI"}
+                ariaLabel={directOpenAiBypassEnabled ? "Send to OpenAI" : "Send to agent"}
                 label="Send"
                 className="agent-send-prefab--labeled"
               />

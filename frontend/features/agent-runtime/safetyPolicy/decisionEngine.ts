@@ -21,10 +21,9 @@ export const resolveSafetyModality = ({
   route,
   flow,
 }: {
-  route: "studio-agent" | "describe-image";
+  route: "studio-agent";
   flow?: string;
 }): SafetyModality => {
-  if (route === "describe-image") return "image";
   if (flow === "IMAGE_ONLY" || flow === "MIXED") return "image";
   if (flow?.includes("VIDEO")) return "video";
   return "text";

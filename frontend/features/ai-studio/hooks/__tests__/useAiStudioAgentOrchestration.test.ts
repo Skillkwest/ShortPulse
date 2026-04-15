@@ -2,21 +2,27 @@ import { act, renderHook } from "@testing-library/react";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import type { Dispatch, MutableRefObject, SetStateAction } from "react";
 import { useAiStudioAgentOrchestration } from "../useAiStudioAgentOrchestration";
-import { postGeneratePrompt } from "../../logic/promptGeneration";
 import { prepareImageUrl } from "../../logic/imageDescription";
 import type { StudioOutput } from "../../types";
 import type { AgentAttachment } from "../../../../prefabs/agent";
 
-vi.mock("../../logic/promptGeneration", () => ({
-  postGeneratePrompt: vi.fn(),
-}));
 vi.mock("../../logic/imageDescription", () => ({
-  postDescribeImage: vi.fn(),
   prepareImageUrl: vi.fn(async (url: string) => url),
 }));
 
-const postGeneratePromptMock = vi.mocked(postGeneratePrompt);
 const prepareImageUrlMock = vi.mocked(prepareImageUrl);
+
+const makeOutput = (id: string, overrides: Partial<StudioOutput> = {}): StudioOutput => ({
+  id,
+  prompt: "Prompt",
+  mode: "image",
+  aspect: "1:1",
+  model: "fal-ai/flux/dev",
+  status: "ready",
+  timestamp: "now",
+  taskState: "success",
+  ...overrides,
+});
 
 const asDispatch = <T>(fn: (...args: unknown[]) => unknown): Dispatch<SetStateAction<T>> =>
   fn as unknown as Dispatch<SetStateAction<T>>;
@@ -274,14 +280,19 @@ describe("useAiStudioAgentOrchestration", () => {
   });
 
   it("enhances video reference prompt and routes to video setter", async () => {
-    postGeneratePromptMock.mockResolvedValue({ prompt: "Refined video prompt" } as never);
     const setVideoReferenceText = vi.fn();
     const setEditReferenceText = vi.fn();
     const setPromptOrigin = vi.fn();
+    const sendToAgent = vi.fn(async () => ({
+      response: { message: "Refined video prompt" },
+      actions: { applyPrompt: "Refined video prompt" },
+    }));
 
     const params = createParams({
       selectedTool: "video",
+      latestAgentPrompt: "Previous prompt context",
       videoReferenceText: "Base video prompt",
+      sendToAgent,
       setVideoReferenceText,
       setEditReferenceText,
       setPromptOrigin: asDispatch<"manual" | "agent" | "reference">(setPromptOrigin),
@@ -292,10 +303,75 @@ describe("useAiStudioAgentOrchestration", () => {
       await result.current.handleReferencePromptEnhance();
     });
 
-    expect(postGeneratePromptMock).toHaveBeenCalledWith("Base video prompt");
+    expect(sendToAgent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        text: "Base video prompt",
+        payloadText: "Base video prompt",
+        isolateHistory: true,
+        skipUserEcho: true,
+        previousPrompt: "Previous prompt context",
+      })
+    );
     expect(setVideoReferenceText).toHaveBeenCalledWith("Refined video prompt");
     expect(setEditReferenceText).not.toHaveBeenCalled();
     expect(setPromptOrigin).toHaveBeenCalledWith("manual");
+  });
+
+  it("describes a reference through the canonical agent path without legacy describe route", async () => {
+    const sendToAgent = vi.fn(async () => ({
+      response: { message: "A detailed image prompt" },
+      actions: { applyPrompt: "A detailed image prompt" },
+    }));
+    const setOutputs = vi.fn();
+    const setSharedPrompt = vi.fn();
+    const setLatestAgentPrompt = vi.fn();
+    const setPromptOrigin = vi.fn();
+    const setActiveOutputId = vi.fn();
+    const targetOutput = makeOutput("out-1", {
+      prompt: "Original output prompt",
+      previewUrl: "https://cdn.test/original.png",
+      previewText: "Preview text",
+    });
+
+    const params = createParams({
+      sendToAgent,
+      setOutputs: asDispatch<StudioOutput[]>(setOutputs),
+      setSharedPrompt,
+      setLatestAgentPrompt: asDispatch<string | null>(setLatestAgentPrompt),
+      setPromptOrigin: asDispatch<"manual" | "agent" | "reference">(setPromptOrigin),
+      setActiveOutputId: asDispatch<string | null>(setActiveOutputId),
+      getOutputById: vi.fn((id: string) => (id === "out-1" ? targetOutput : null)),
+      getAgentContext: vi.fn(() => ({})),
+    });
+    const { result } = renderHook(() => useAiStudioAgentOrchestration(params));
+
+    await act(async () => {
+      await result.current.handleDescribeReference("out-1");
+    });
+
+    expect(prepareImageUrlMock).toHaveBeenCalledWith("https://cdn.test/original.png");
+    expect(sendToAgent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        text: "",
+        payloadText: "",
+        isolateHistory: true,
+        skipUserEcho: true,
+        context: expect.objectContaining({
+          focusedSource: "image",
+          selectedReferenceIds: ["out-1"],
+          media: [
+            expect.objectContaining({
+              id: "out-1",
+              kind: "image",
+              url: "https://cdn.test/prepared-image.png",
+            }),
+          ],
+        }),
+      })
+    );
+    expect(setSharedPrompt).toHaveBeenCalledWith("A detailed image prompt");
+    expect(setLatestAgentPrompt).toHaveBeenCalledWith("A detailed image prompt");
+    expect(setPromptOrigin).toHaveBeenCalledWith("agent");
   });
 
   it("reuses prepared image URLs across repeated sends for the same attachment source", async () => {

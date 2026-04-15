@@ -11,14 +11,14 @@ Purpose: document how the Create properties panel is wired to model selection, g
 | Layer | Source of truth | Responsibility |
 | --- | --- | --- |
 | Page orchestration | `frontend/pages/ai-studio.tsx` | Composes state hooks, panel contracts, model modal state, agent bridge, and generation controller handlers. |
-| Create panel contract | `frontend/features/ai-studio/hooks/useAiStudioCreatePanelProps.ts` | Normalizes page-level state/handlers into `CreatePropertiesPanel` props. |
+| Create panel contract | `frontend/features/ai-studio/hooks/useAiStudioPanelProps.ts` | Assembles page-level state/handlers into `CreatePropertiesPanel` props. |
 | Create panel UI | `frontend/features/ai-studio/components/CreatePropertiesPanel.tsx` + `components/create/ExpertCreatePanelView.tsx` | Renders prompt/model/aspect/resolution/character controls and routes CTA events to orchestration handlers. |
 | Model option policy | `frontend/features/ai-studio/logic/modelSelectionPolicy.ts` + `hooks/useAiStudioAllowedModelOptions.ts` | Computes policy-approved options by tool/mode/video-reference mode/character mode. |
 | Model metadata | `frontend/lib/model-runtime/modelCatalog.ts` + `frontend/lib/model-runtime/modelRegistry.ts` | Canonical model capabilities, payload contracts, defaults, labels, and provider routing metadata. |
 | Submit orchestration | `frontend/features/ai-studio/hooks/useAiStudioGenerationController.ts` + `useAiStudioGenerationPromptComposer.ts` + `useAiStudioTaskSubmission.ts` | Applies guardrails/preflight, composes prompt/reference inputs, starts provider submit + polling lifecycle. |
 | Submit handler routing | `frontend/features/ai-studio/hooks/taskSubmission/routing.ts` + `taskSubmission/{defaultHandlers,imageHandlers,videoHandlers}.ts` | Routes model ids to handler families and performs provider-specific payload submit logic. |
 | Agent client bridge | `frontend/features/ai-studio/hooks/useAiStudioAgentBridge.ts` + `useAiStudioAgentOrchestration.ts` + `../../ai-agent/useAiAgent.ts` | Owns chat state, attachment prep, prompt application, and agent-output-to-generate handoff. |
-| Agent runtime + control plane | `frontend/pages/api/ai/studio-agent.ts`, `frontend/pages/api/ai/{generate-prompt,describe-image,extract-style}.ts`, `frontend/lib/server/api/agentSafetyPolicyControlPlane.ts`, `frontend/pages/api/admin/agent-safety-policy/*` | Server-authoritative agent execution, safety precheck/profile resolution, and admin activation/rollback/version controls. |
+| Agent runtime + control plane | `frontend/pages/api/ai/studio-agent.ts`, `frontend/pages/api/ai/extract-style.ts`, `frontend/lib/server/api/agentSafetyPolicyControlPlane.ts`, `frontend/pages/api/admin/agent-safety-policy/*` | Server-authoritative agent execution, safety precheck/profile resolution, style extraction intake, and admin activation/rollback/version controls. |
 
 ## Architecture diagrams
 
@@ -48,7 +48,7 @@ sequenceDiagram
 
 ## Create properties panel wiring
 1. `AiStudioPage` builds `panelProps` with `useAiStudioPanelProps`, then passes `propertiesCreate` into `AiStudioPageContent`.
-2. `useAiStudioCreatePanelProps` maps shared page handlers into create-panel callbacks (`onGenerate`, `onChatOffInlineGenerate`, `onModelPickerOpen`, agent actions, character controls).
+2. `useAiStudioPanelProps` maps shared page handlers into create-panel callbacks (`onGenerate`, `onChatOffInlineGenerate`, `onModelPickerOpen`, agent actions, character controls).
 3. `CreatePropertiesPanel` chooses expert vs beginner render:
 - Expert path: `expertCreateUiEligible && !beginnerMode` -> `ExpertCreatePanelView`.
 - Beginner path: fallback `BeginnerCreatePanelView`.
@@ -145,17 +145,17 @@ sequenceDiagram
 - Resolves runtime safety profile through `resolveRuntimeSafetyProfile` (control-plane sync + cache).
 - Runs server-authoritative input precheck before provider execution.
 - Returns normalized response envelope (`message`, optional `actions`, `canonicalPrompt`, `traceId`).
-3. Legacy helper routes still used by Create UX fallbacks:
-- `/api/ai/generate-prompt` -> `agentRuntimeService.generatePrompt` (`legacyPromptGenerationService`).
-  - This remains the dedicated prompt-refinement helper route; it is not the Create raw-mode submit path.
-- `/api/ai/describe-image` -> `agentRuntimeService.describeImage` (`legacyImageDescribeService`).
-- `/api/ai/extract-style` -> `agentRuntimeService.extractStyle` (`legacyStyleExtractionService`) for Styles Library new-style image intake (returns `stylePrompt` + normalized `styleTitle`).
+3. Retained helper route outside the Create chat lane:
+- `/api/ai/extract-style` -> `executeLegacyStyleExtraction` (`legacyStyleExtractionService`) for Styles Library new-style image intake (returns `stylePrompt` + normalized `styleTitle`).
   - Operational ownership and metadata/telemetry contracts for style-create flows are defined in `docs/sops/sop_ai_studio_style_creator.md`.
 4. Direct OpenAI bypass route:
 - `/api/ai/studio-agent` accepts `directOpenAiBypass=true` in the request envelope.
 - The route only honors that flag when `STUDIO_AGENT_DIRECT_OPENAI_BYPASS_ENABLED=true`.
 - When active, it skips studio-agent orchestration and forwards the raw chat transcript directly to OpenAI using `STUDIO_AGENT_DIRECT_OPENAI_MODEL ?? "gpt-5.4"`.
-4. Admin control plane routes (policy operations):
+5. Create caller behavior:
+- Inline chat send, prompt refine, and manual describe actions now all route through `/api/ai/studio-agent`.
+- Refine/describe actions use isolated-history sends on the same canonical transport so Create no longer depends on separate prompt/describe backends.
+6. Admin control plane routes (policy operations):
 - `GET /api/admin/agent-safety-policy/active`
 - `POST /api/admin/agent-safety-policy/activate`
 - `POST /api/admin/agent-safety-policy/rollback`
@@ -163,7 +163,7 @@ sequenceDiagram
 
 ## Change checklist (safe edits)
 When changing Create panel behavior or generation wiring, update all relevant layers in one pass:
-1. Contract layer: `useAiStudioCreatePanelProps.ts` + panel component props/types.
+1. Contract layer: `useAiStudioPanelProps.ts` + panel component props/types.
 2. Policy layer: `modelSelectionPolicy.ts` and, if model capability changed, `modelCatalog.ts`/`modelRegistry.ts`.
 3. Submit layer: `useAiStudioGenerationController.ts`, `useAiStudioGenerationPromptComposer.ts`, and `useAiStudioTaskSubmission.ts` (+ route handlers if model routing changed).
 4. Agent/control layer: bridge hooks and API routes if prompt ownership or safety paths changed.

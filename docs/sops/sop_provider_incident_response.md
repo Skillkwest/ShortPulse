@@ -195,7 +195,7 @@ Admission-control action map:
 
 ### OpenAI prompt/agent failures
 Primary signals:
-- Errors from `/api/ai/generate-prompt`, `/api/ai/describe-image`, `/api/ai/studio-agent`.
+- Errors from `/api/ai/studio-agent` and retained image-analysis routes such as `/api/ai/extract-style`.
 - Large spike in failed prompt refine/describe interactions.
 
 Checks:
@@ -210,7 +210,7 @@ limit 50;
 Mitigation guidance:
 1. Verify `OPENAI_API_KEY` and model env vars are present and unchanged.
 2. Fallback to manual prompt entry when agent endpoints degrade.
-3. If only one endpoint fails (`describe-image` vs `studio-agent`), keep unaffected AI paths enabled.
+3. If only one retained endpoint fails (`extract-style` vs `studio-agent`), keep unaffected AI paths enabled.
 
 ### Stripe webhook or billing failures
 Primary signals:

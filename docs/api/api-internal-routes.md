@@ -10,10 +10,8 @@ Purpose: document the first-party Next.js API surface in `frontend/pages/api/` (
 ## Route families
 | Route family | Methods | Auth | Purpose | Source of truth |
 | --- | --- | --- | --- | --- |
-| `/api/ai/generate-prompt` | `POST` | Bearer (proxy) | Refine prompts with OpenAI chat completions. Includes server-authoritative pre-provider input safety precheck (`rewrite/refuse`) with canonical refusal payload (`200`) on blocked lanes. | `frontend/pages/api/ai/generate-prompt.ts`, `docs/sops/sop_text_generation.md` |
-| `/api/ai/describe-image` | `POST` | Bearer (proxy) | Describe reference images with OpenAI vision. Includes trusted-host URL preflight and local image safety preflight before provider vision calls; classifier-unavailable handling is controlled by `STUDIO_AGENT_SAFETY_IMAGE_PREFLIGHT_FAIL_MODE`. | `frontend/pages/api/ai/describe-image.ts`, `docs/sops/sop_text_generation.md` |
 | `/api/ai/extract-style` | `POST` | Bearer (proxy) | Extract reusable visual style descriptors plus a normalized creative style title from a reference image for Styles Library create flows. Reuses trusted-host URL preflight and OpenAI vision retry/fallback model handling. | `frontend/pages/api/ai/extract-style.ts`, `docs/sops/sop_text_generation.md` |
-| `/api/ai/studio-agent` | `POST` | Bearer (proxy) | AI Studio chat agent orchestration with flow-aware routing, server vision summaries, and structured actions (`applyPrompt`, `variations`, `describeTargets`, `referenceCard`; no question actions). Includes server-authoritative input safety precheck before provider calls (rewrite/refuse) plus configurable output post-process mode (`enforce|shadow|off`). | `frontend/pages/api/ai/studio-agent.ts`, `docs/sops/sop_ai_studio_agent.md`, `docs/sops/sop_ai_studio_agent_chat_ops.md` |
+| `/api/ai/studio-agent` | `POST` | Bearer (proxy) | AI Studio agent route for direct OpenAI-backed prompt refinement and multimodal prompt-building. Returns canonical `message` plus optional `actions.applyPrompt`, includes server-authoritative input safety precheck before provider calls (rewrite/refuse), and supports configurable output post-process mode (`enforce|shadow|off`). | `frontend/pages/api/ai/studio-agent.ts`, `docs/sops/sop_ai_studio_agent.md`, `docs/sops/sop_ai_studio_agent_chat_ops.md` |
 | `/api/ai/sessions/save` | `POST` | Bearer (proxy + route) | Save one AI Studio session snapshot (`sid` + schema-versioned payload) for the authenticated user. | `frontend/pages/api/ai/sessions/save.ts`, `frontend/lib/server/api/aiStudioSessions.ts` |
 | `/api/ai/sessions/:sid` | `GET` | Bearer (proxy + route) | Return one persisted AI Studio session snapshot by `sid` for the authenticated user. | `frontend/pages/api/ai/sessions/[sid].ts`, `frontend/lib/server/api/aiStudioSessions.ts` |
 | `/api/ai/sessions` | `GET` | Bearer (proxy + route) | List persisted AI Studio sessions with `limit` + `cursor` pagination for the authenticated user. | `frontend/pages/api/ai/sessions/index.ts`, `frontend/lib/server/api/aiStudioSessions.ts` |
@@ -101,13 +99,12 @@ Purpose: document the first-party Next.js API surface in `frontend/pages/api/` (
 ## Required server environment
 - Supabase: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`.
 - Fal/Kie provider keys: `FAL_KEY`, and `KIE_API_KEY` (or `SHORTPULSE_KIE_API_KEY`) for Kie routes.
-- OpenAI: `OPENAI_API_KEY`, optional `OPENAI_MODEL`, `OPENAI_VISION_MODEL`, `OPENAI_VISION_FALLBACK_MODEL`, `OPENAI_API_BASE`, `OPENAI_DESCRIBE_ALLOWED_HOSTS` (describe-image trusted-host allowlist; external hosts fail closed by default).
+- OpenAI: `OPENAI_API_KEY`, optional `OPENAI_MODEL`, `OPENAI_VISION_MODEL`, `OPENAI_VISION_FALLBACK_MODEL`, `OPENAI_API_BASE`, `OPENAI_DESCRIBE_ALLOWED_HOSTS` (trusted-host allowlist for server-side image URL probing on retained image-analysis lanes; external hosts fail closed by default).
 - AI Studio safety control-plane runtime flags:
   - `STUDIO_AGENT_SAFETY_PROFILE_ACTIVE` (`prod_safe_v1` default).
   - `STUDIO_AGENT_SAFETY_INPUT_PRECHECK_ENABLED` (`true` default; server pre-provider safety gate for `/api/ai/studio-agent`).
-  - `STUDIO_AGENT_SAFETY_INPUT_PRECHECK_GENERATE_PROMPT_ENABLED` (`true` default; server pre-provider gate for `/api/ai/generate-prompt`).
   - `STUDIO_AGENT_SAFETY_INPUT_PRECHECK_GENERATION_SUBMIT_ENABLED` (`true` default; server pre-provider prompt gate for Fal submit routes).
-  - `STUDIO_AGENT_SAFETY_IMAGE_PREFLIGHT_ENABLED` (`true` default; local image safety preflight for `/api/ai/describe-image`).
+  - `STUDIO_AGENT_SAFETY_IMAGE_PREFLIGHT_ENABLED` (`true` default; local image safety preflight for retained image-analysis routes such as `/api/ai/extract-style`).
   - `STUDIO_AGENT_SAFETY_IMAGE_PREFLIGHT_FAIL_MODE` (`prod_closed_nonprod_open` default; optional `always_closed` or `always_open`).
   - `STUDIO_AGENT_SAFETY_DEV_ABSOLUTE_ZERO_ENABLED` (`false` default; non-production-only bypass control).
   - `STUDIO_AGENT_SAFETY_POSTPROCESS_MODE` (`enforce` default; optional `shadow` or `off`).

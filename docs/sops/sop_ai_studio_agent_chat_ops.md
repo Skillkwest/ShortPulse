@@ -15,13 +15,13 @@ Purpose: operational playbook for the AI Studio chat agent—where it lives in t
 - Generate card (`ComposeSendCard`): generation uses whichever prompt is active; the agent is only involved if chat applied a prompt.
 - Prompt save: Save buttons persist the current prompt (including agent-applied text) to the reference grid.
 - Reference Grid prompt cards: no per-card Generate CTA; cards are for selection/drag/save/remove while generation runs from primary Generate controls.
-- Describe & Text fallbacks: “Describe” on a reference uses `/api/ai/describe-image` first, then falls back to the agent with `modeHint="describe"`; “Refine prompt” uses `/api/ai/generate-prompt` first, then falls back to the agent with `modeHint="text"`.
+- Describe & Text actions: “Describe” on a reference and “Refine prompt” both use the same `/api/ai/studio-agent` transport as normal chat. Those actions run as isolated-history sends so the UI behavior stays specialized without a separate backend lane.
 
 ## System prerequisites & gates
 - Env: `OPENAI_API_KEY` (required), `OPENAI_MODEL` (studio-agent default `gpt-5-nano`), optional `STUDIO_AGENT_THINKER_MODEL`, optional `STUDIO_AGENT_FORMATTER_MODEL`, optional `STUDIO_AGENT_DIRECT_OPENAI_BYPASS_ENABLED` (server bypass gate), optional `NEXT_PUBLIC_STUDIO_AGENT_DIRECT_OPENAI_BYPASS_ENABLED` (Create-panel toggle visibility), optional `STUDIO_AGENT_DIRECT_OPENAI_MODEL` (direct bypass model; defaults to `gpt-5.4`), optional `OPENAI_API_BASE`.
 - Timeout budgets: `STUDIO_AGENT_TIMEOUT_MS` as shared default; optional `STUDIO_AGENT_VISION_TIMEOUT_MS` and `STUDIO_AGENT_TURN_TIMEOUT_MS` split vision-summary and generation-turn budgets. Unset split values inherit `STUDIO_AGENT_TIMEOUT_MS`.
 - Runtime flags: `STUDIO_AGENT_SINGLE_STAGE_ENABLED` (default on), `STUDIO_AGENT_LEGACY_V2_FALLBACK_ENABLED` (default off), `STUDIO_AGENT_TEXT_FAST_PATH_ENABLED` (legacy path behavior when single-stage is off).
-- Safety precheck flags: `STUDIO_AGENT_SAFETY_INPUT_PRECHECK_ENABLED` (default on, server pre-provider gate), `STUDIO_AGENT_SAFETY_INPUT_PRECHECK_GENERATE_PROMPT_ENABLED` (default on), `STUDIO_AGENT_SAFETY_INPUT_PRECHECK_GENERATION_SUBMIT_ENABLED` (default on), `STUDIO_AGENT_SAFETY_IMAGE_PREFLIGHT_ENABLED` (default on), `STUDIO_AGENT_SAFETY_IMAGE_PREFLIGHT_FAIL_MODE` (default `prod_closed_nonprod_open`), `STUDIO_AGENT_SAFETY_POSTPROCESS_MODE` (default `enforce`; optional `shadow|off`), and `NEXT_PUBLIC_STUDIO_AGENT_SAFETY_INPUT_PRECHECK_ENABLED` (default on, client pre-send gate).
+- Safety precheck flags: `STUDIO_AGENT_SAFETY_INPUT_PRECHECK_ENABLED` (default on, server pre-provider gate), `STUDIO_AGENT_SAFETY_INPUT_PRECHECK_GENERATION_SUBMIT_ENABLED` (default on), `STUDIO_AGENT_SAFETY_IMAGE_PREFLIGHT_ENABLED` (default on for retained image-analysis lanes), `STUDIO_AGENT_SAFETY_IMAGE_PREFLIGHT_FAIL_MODE` (default `prod_closed_nonprod_open`), `STUDIO_AGENT_SAFETY_POSTPROCESS_MODE` (default `enforce`; optional `shadow|off`), and `NEXT_PUBLIC_STUDIO_AGENT_SAFETY_INPUT_PRECHECK_ENABLED` (default on, client pre-send gate).
 - Flags: `NEXT_PUBLIC_ENABLE_STUDIO_AGENT` controls UI and baseline server enablement (`undefined` or `true` = enabled, `false` = disabled); `STUDIO_AGENT_ENABLED=true|false` explicitly overrides server enablement.
 - Payload guardrails: max 3 images, HTTPS-only media URLs, request body cap 512 KB (text) / 1.5 MB (mixed/image), API parser cap `2mb`.
 - Media transport rule: client now prefers signed/public `https://` URLs for agent vision calls. Local blob/data previews are uploaded through `/api/upload-image` before send.
@@ -53,8 +53,8 @@ Prompt ownership rule:
   - Send → agent returns an updated single prompt; prompt state updates; “Generate” uses it.
   - Message click → adds a prompt card to Reference Grid and closes chat.
 - **Refine prompt path (Prompt tab):**
-  - Primary: `/api/ai/generate-prompt`; on success, saves a “Refined prompt” card and sets prompt.
-  - Fallback: agent with `modeHint="text"`; captures `applyPrompt` and saves a card (title defaults when no reference card metadata is returned).
+  - Uses `/api/ai/studio-agent` with isolated history and `modeHint="text"`.
+  - Captures `applyPrompt` and saves a “Refined prompt” card.
 - **Create raw mode (Chat Mode OFF, Create `mode=text`):**
   - Primary and only path: resolve the raw composer/shared prompt and submit it into Create/Image generation.
   - No agent send occurs; this preserves the existing raw-to-file-generation behavior.
@@ -64,10 +64,10 @@ Prompt ownership rule:
   - If the active send includes staged images, the latest user turn is sent as multimodal input (`text + image_url`) so the direct lane can describe the image and turn it into a generation-ready prompt.
   - The response still returns the standard `message` + `actions.applyPrompt` envelope so the UI can reuse its normal apply/save/generate flow.
 - **Describe a reference:**
-  - Primary: `/api/ai/describe-image` on the active output image.
-  - Fallback: agent with `modeHint="describe"` and focused image context; result becomes prompt + prompt card.
+  - Uses `/api/ai/studio-agent` with isolated history, focused image context, and `modeHint="describe"`.
+  - Result becomes prompt + prompt card.
 - **Expanded Agent Chat column:**
-  - Shows the same history, plus the same action strip as inline chat (`Apply latest prompt`; variation/describe chips appear only when explicitly provided by compatibility paths).
+  - Shows the same history, plus the same action strip as inline chat (`Apply latest prompt`).
   - “Add to grid” pushes the latest agent prompt as a card; close returns to Reference Grid.
 
 ## Safeguards & drift control
@@ -89,8 +89,8 @@ Prompt ownership rule:
 ## Operational checklist (per release or after prompt/model updates)
 - ✅ Agent on/off: flip `NEXT_PUBLIC_ENABLE_STUDIO_AGENT` false → chat hides; API still guarded by `STUDIO_AGENT_ENABLED`.
 - ✅ Happy path: send chat → prompt updates → generate succeeds (image + video).
-- ✅ Text fallback: force `/api/ai/generate-prompt` failure (unset key) → chat fallback returns a prompt.
-- ✅ Describe fallback: run Describe on an image with describe API disabled → chat returns a usable description.
+- ✅ Refine action: run Refine prompt and confirm `/api/ai/studio-agent` returns an applied prompt and saved card.
+- ✅ Describe action: run Describe on an image and confirm `/api/ai/studio-agent` returns a usable description and saved card.
 - ✅ Oversize media: drop a >350 KB image → request should omit media and return a text-only refinement.
 - ✅ Drift guard: send canonical prompt “sunset bike” then “make it a car” and ensure preserved details unless explicitly changed.
 - ✅ Refusal path: refusal returns `I cannot describe this.` with empty actions and does not overwrite canonical prompt.
@@ -100,7 +100,7 @@ Prompt ownership rule:
 - No transcript persistence beyond session memory; only `clientSessionKey` persists for canonical continuity.
 - No streaming UI; large responses wait for full completion.
 - Video references are ignored for vision; only prompt text from video cards is used.
-- Server vision runs in `/api/ai/studio-agent` for chat attachment turns; manual describe actions still use `/api/ai/describe-image`.
+- Server vision runs in `/api/ai/studio-agent` for both chat attachment turns and manual describe actions.
 
 ## Adversarial Corpus Lifecycle (Staging Scope)
 Use this lifecycle when maintaining the prompt-compiler adversarial regression corpus for the remediation stream.
@@ -109,11 +109,6 @@ Sources (structured runtime telemetry):
 1. `studio-agent`:
    - `[studio-agent][telemetry]`
    - `[studio-agent][safety-input-precheck]`
-2. `describe-image`:
-   - `[describe-image][safety]`
-   - `[describe-image][fallback]`
-3. `generate-prompt`:
-   - `[generate-prompt][safety-input-precheck]`
 
 Candidate intake rules:
 1. Include events where one of these is true:
@@ -123,8 +118,6 @@ Candidate intake rules:
    - `runtime_scope_key` changed with unexpected behavior delta
 2. Include only canonical remediation routes:
    - `/api/ai/studio-agent`
-   - `/api/ai/generate-prompt`
-   - `/api/ai/describe-image`
 3. Exclude non-remediation routes and non-deterministic UI-only artifacts.
 
 Normalization and dedupe:

@@ -18,7 +18,7 @@ export type StudioAgentTelemetryOutcomeClass =
   | "upstream_error"
   | "route_error";
 export type StudioAgentSafetyTelemetryOutcome = "pass" | "rewritten" | "refusal";
-export type StudioAgentSafetyTelemetrySource = "model_output" | "describe_output";
+export type StudioAgentSafetyTelemetrySource = "model_output";
 export type StudioAgentSafetyDecisionSource = "profile" | "hard_floor" | "absolute_zero";
 export type StudioAgentSafetyStage = "input_precheck" | "output_postprocess";
 

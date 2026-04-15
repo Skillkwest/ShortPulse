@@ -217,7 +217,7 @@ describe("useAiStudioAgentComposer", () => {
     });
   });
 
-  it("inserts dropped prompt text into the composer input instead of creating a prompt attachment", () => {
+  it("stages dropped prompt text as a prompt attachment", () => {
     extractDragDropPayloadMock.mockReturnValue({
       imageUrl: null,
       promptText: "A cinematic portrait at golden hour",
@@ -238,11 +238,20 @@ describe("useAiStudioAgentComposer", () => {
       result.current.handleAgentAttachmentDrop(makeDragEvent());
     });
 
-    expect(result.current.agentInput).toBe("A cinematic portrait at golden hour");
-    expect(result.current.agentAttachments).toEqual([]);
+    expect(result.current.agentInput).toBe("");
+    expect(result.current.agentAttachments).toEqual([
+      expect.objectContaining({
+        kind: "prompt",
+        referenceId: "out-1",
+        text: "A cinematic portrait at golden hour",
+        deliveryStatus: "ready",
+        deliveryError: null,
+      }),
+    ]);
+    expect(result.current.linkedPromptReferenceIds).toEqual(["out-1"]);
   });
 
-  it("replaces existing composer text when a prompt card is dropped", () => {
+  it("preserves existing composer text when a prompt card is dropped", () => {
     extractDragDropPayloadMock.mockReturnValue({
       imageUrl: null,
       promptText: "Dropped prompt should replace existing text",
@@ -264,8 +273,14 @@ describe("useAiStudioAgentComposer", () => {
       result.current.handleAgentAttachmentDrop(makeDragEvent());
     });
 
-    expect(result.current.agentInput).toBe("Dropped prompt should replace existing text");
-    expect(result.current.agentAttachments).toEqual([]);
+    expect(result.current.agentInput).toBe("Existing draft text");
+    expect(result.current.agentAttachments).toEqual([
+      expect.objectContaining({
+        kind: "prompt",
+        referenceId: "out-1",
+        text: "Dropped prompt should replace existing text",
+      }),
+    ]);
   });
 
   it("preserves input text when composer reset requests preserveInput", () => {

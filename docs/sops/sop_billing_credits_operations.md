@@ -125,7 +125,7 @@ Safety checks:
 - Status polling is observational only; it does not capture or release reservations.
 - Direct-debit fallback is an emergency-only kill switch (`SHORTPULSE_FAL_DIRECT_DEBIT_FALLBACK_ENABLED=false` by default).
 - Atomic admit+reserve is feature flagged (`SHORTPULSE_FAL_ADMISSION_ATOMIC_ENABLED=false` by default) and should be enabled only after migration `032` is applied.
-- Prompt-refine and describe-image calls currently return usage but are not yet debited.
+- Studio-agent prompt-refine and describe flows currently return usage but are not yet debited.
 
 ## Reservation cleanup operations
 - Stale reservation cleanup runs via `/api/internal/generation-recovery/run` when `SHORTPULSE_FAL_RESERVATION_CLEANUP_ENABLED=true`.

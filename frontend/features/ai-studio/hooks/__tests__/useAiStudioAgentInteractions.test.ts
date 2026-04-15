@@ -93,16 +93,13 @@ describe("useAiStudioAgentInteractions", () => {
     expect(trackAgentUiEvent).toHaveBeenCalledWith("studio_agent_chat_cleared");
   });
 
-  it("adds latest agent prompt to grid with action title", () => {
+  it("adds latest agent prompt to grid with the default agent title", () => {
     const addAgentPromptReference = vi.fn();
     const setPromptOrigin = vi.fn();
     const setIsAgentChatOpen = vi.fn();
     const trackAgentUiEvent = vi.fn();
     const params = createParams({
       latestAgentPrompt: "Prompt from assistant",
-      agentActions: {
-        referenceCard: { title: "Variation A", prompt: "Prompt from assistant" },
-      } as AgentActions,
       addAgentPromptReference,
       setPromptOrigin: asDispatch<PromptOrigin>(setPromptOrigin),
       setIsAgentChatOpen: asDispatch<boolean>(setIsAgentChatOpen),
@@ -114,7 +111,7 @@ describe("useAiStudioAgentInteractions", () => {
       result.current.handleAgentAddToGrid();
     });
 
-    expect(addAgentPromptReference).toHaveBeenCalledWith("Prompt from assistant", "Variation A");
+    expect(addAgentPromptReference).toHaveBeenCalledWith("Prompt from assistant", "Agent prompt");
     expect(setPromptOrigin).toHaveBeenCalledWith("agent");
     expect(setIsAgentChatOpen).toHaveBeenCalledWith(false);
     expect(trackAgentUiEvent).toHaveBeenCalledWith("studio_agent_add_to_grid");

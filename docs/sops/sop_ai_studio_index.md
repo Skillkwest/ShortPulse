@@ -29,7 +29,7 @@ Purpose: provide a single hub for AI Studio SOPs, shared defaults, and the canon
 - Pricing dispatcher: `frontend/features/ai-studio/logic/pricing.ts` (`computeCostForModel`, `buildDefaultPricingParams`).
 - Pricing strategies: `frontend/lib/model-runtime/pricingStrategies.ts` (per-MP, per-image, per-duration).
 - Create model-selection policy: `frontend/features/ai-studio/logic/modelSelectionPolicy.ts` (shared option filtering + startup default precedence).
-- Create panel contract adapter: `frontend/features/ai-studio/hooks/useAiStudioCreatePanelProps.ts` (maps page orchestration state to `CreatePropertiesPanel` props).
+- Create panel contract assembly now lives directly inside `frontend/features/ai-studio/hooks/useAiStudioPanelProps.ts` (maps page orchestration state to `CreatePropertiesPanel` props).
 - UI orchestration: `frontend/features/ai-studio/hooks/useAiStudioState.ts`, `frontend/pages/ai-studio.tsx`.
 - Model picker + cost badges: `frontend/features/ai-studio/components/ModelModal.tsx` (uses registry defaults).
 - Reference Grid performance controls: `frontend/features/ai-studio/components/ReferenceGrid.tsx` (virtualization + autoplay budget gating).

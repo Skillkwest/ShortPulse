@@ -6,7 +6,6 @@ import { useCallback, useMemo } from "react";
 import { computeCostForModel, getModelConfig } from "../logic/pricing";
 import type { PricingParams } from "../logic/pricingTypes";
 import { estimateDescribeTokens, estimatePromptTokens } from "../logic/tokenEstimates";
-import { TEXT_PROMPT_MODEL_ID } from "../logic/promptGeneration";
 import { normalizeImageResolutionForPricing } from "../logic/imageResolution";
 import {
   KIE_KLING_30_MODEL_ID,
@@ -23,6 +22,7 @@ import { isCreateWorkflow, isEditWorkflow, isVideoWorkflow } from "../logic/work
 import type { StudioMode, StudioOutput, ToolId } from "../types";
 
 const FAL_VEO_FIRST_LAST_MODEL_ID = "fal-ai/veo3.1/first-last-frame-to-video";
+const TEXT_PROMPT_MODEL_ID = "gpt-5-nano";
 
 type ViewModelInput = {
   mode: StudioMode;
@@ -89,8 +89,10 @@ export const useAiStudioViewModel = ({
         selectedTool,
         selectedModelId: model,
         editSubmitIntent,
+        promptText: prompt,
+        extraImageUrls,
       }),
-    [editSubmitIntent, model, selectedTool]
+    [editSubmitIntent, extraImageUrls, model, prompt, selectedTool]
   );
   const isDescribeMode = isCreateWorkflowSelected && mode === "text" && useReferenceImageIndicator;
   const requiresModelSelection =

@@ -65,17 +65,20 @@ export const buildApiMessagesForTurn = ({
     : previousMessages;
 
   const baseHistory = previousMessagesForApi.slice(-MAX_API_HISTORY_MESSAGES);
-  return [...baseHistory, { role: "user", content: userPayloadForApi }].reduce<AgentApiMessage[]>(
-    (acc, message) => {
-      const normalizedContent = message.content.trim();
-      if (!normalizedContent) {
-        return acc;
-      }
-      if (message.role === "user" || message.role === "assistant") {
-        acc.push({ role: message.role, content: normalizedContent });
-      }
+  const normalizedHistory = baseHistory.reduce<AgentApiMessage[]>((acc, message) => {
+    const normalizedContent = message.content.trim();
+    if (!normalizedContent) {
       return acc;
-    },
-    []
-  );
+    }
+    if (message.role === "user" || message.role === "assistant") {
+      acc.push({ role: message.role, content: normalizedContent });
+    }
+    return acc;
+  }, []);
+
+  if (!userPayloadForApi.length) {
+    return normalizedHistory;
+  }
+
+  return [...normalizedHistory, { role: "user", content: userPayloadForApi }];
 };

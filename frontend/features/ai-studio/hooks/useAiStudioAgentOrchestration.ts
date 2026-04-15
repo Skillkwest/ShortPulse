@@ -1,6 +1,5 @@
 import { useCallback, useRef, useState } from "react";
-import { postGeneratePrompt } from "../logic/promptGeneration";
-import { postDescribeImage, prepareImageUrl } from "../logic/imageDescription";
+import { prepareImageUrl } from "../logic/imageDescription";
 import { normalizePromptText } from "../logic/agentPromptOwnership";
 import { shouldApplyAgentPromptToSharedPrompt } from "../logic/promptTargeting";
 import { randomId } from "../logic/ids";
@@ -10,6 +9,8 @@ import type {
   AgentSendOptions,
   UseAiStudioAgentOrchestrationParams,
 } from "./agentOrchestration/types";
+
+const DEFAULT_AGENT_PROMPT_REFERENCE_TITLE = "Agent prompt";
 
 const cloneMessageAttachments = (
   attachments: UseAiStudioAgentOrchestrationParams["agentAttachments"]
@@ -237,8 +238,6 @@ export const useAiStudioAgentOrchestration = ({
         trackAgentUiEvent("studio_agent_response_received", {
           mode_hint: options?.modeHint ?? "chat",
           has_apply_prompt: Boolean(appliedPrompt),
-          variation_count: actions?.variations?.length ?? 0,
-          describe_target_count: actions?.describeTargets?.length ?? 0,
         });
 
         if (appliedPrompt) {
@@ -252,7 +251,7 @@ export const useAiStudioAgentOrchestration = ({
         setAgentActions(actions);
 
         if (options?.captureResult && appliedPrompt) {
-          return { prompt: appliedPrompt, referenceTitle: actions?.referenceCard?.title };
+          return { prompt: appliedPrompt, referenceTitle: DEFAULT_AGENT_PROMPT_REFERENCE_TITLE };
         }
       } finally {
         agentUiBusyRef.current = false;
@@ -290,18 +289,23 @@ export const useAiStudioAgentOrchestration = ({
     if (!prompt.trim()) return;
     setIsPromptRefining(true);
     try {
-      const refined = await postGeneratePrompt(prompt);
-      const normalizedRefinedPrompt = normalizePromptText(refined?.prompt);
-      if (normalizedRefinedPrompt) {
-        setSharedPrompt(normalizedRefinedPrompt);
-        setLatestAgentPrompt(normalizedRefinedPrompt);
-        addAgentPromptReference(normalizedRefinedPrompt, "Refined prompt");
-        setPromptOrigin("agent");
-        return;
-      }
-      const result = await handleAgentSend(prompt, { captureResult: true, modeHint: "text" });
-      if (result && typeof result === "object" && "prompt" in result) {
-        addAgentPromptReference(result.prompt, result.referenceTitle ?? undefined);
+      const context = getAgentContext({
+        lastAssistantMessage,
+        modeHint: "text",
+      });
+      const { response, actions } = await sendToAgent({
+        text: prompt,
+        payloadText: prompt,
+        previousPrompt: latestAgentPrompt ?? null,
+        context,
+        isolateHistory: true,
+        skipUserEcho: true,
+      });
+      const refinedPrompt = normalizePromptText(actions?.applyPrompt ?? response?.message ?? null);
+      if (refinedPrompt) {
+        setSharedPrompt(refinedPrompt);
+        setLatestAgentPrompt(refinedPrompt);
+        addAgentPromptReference(refinedPrompt, "Refined prompt");
         setPromptOrigin("agent");
       }
     } finally {
@@ -309,8 +313,11 @@ export const useAiStudioAgentOrchestration = ({
     }
   }, [
     addAgentPromptReference,
-    handleAgentSend,
+    getAgentContext,
+    lastAssistantMessage,
+    latestAgentPrompt,
     prompt,
+    sendToAgent,
     setLatestAgentPrompt,
     setPromptOrigin,
     setSharedPrompt,
@@ -323,8 +330,19 @@ export const useAiStudioAgentOrchestration = ({
     if (!currentPrompt || isReferencePromptEnhancing) return;
     setIsReferencePromptEnhancing(true);
     try {
-      const refined = await postGeneratePrompt(currentPrompt);
-      const nextPrompt = normalizePromptText(refined?.prompt);
+      const context = getAgentContext({
+        lastAssistantMessage,
+        modeHint: "text",
+      });
+      const { response, actions } = await sendToAgent({
+        text: currentPrompt,
+        payloadText: currentPrompt,
+        previousPrompt: latestAgentPrompt ?? null,
+        context,
+        isolateHistory: true,
+        skipUserEcho: true,
+      });
+      const nextPrompt = normalizePromptText(actions?.applyPrompt ?? response?.message ?? null);
       if (nextPrompt) {
         if (isVideoPromptTool) {
           setVideoReferenceText(nextPrompt);
@@ -338,8 +356,12 @@ export const useAiStudioAgentOrchestration = ({
     }
   }, [
     editReferenceText,
+    getAgentContext,
     isReferencePromptEnhancing,
+    lastAssistantMessage,
+    latestAgentPrompt,
     selectedTool,
+    sendToAgent,
     setEditReferenceText,
     setPromptOrigin,
     setVideoReferenceText,
@@ -421,8 +443,39 @@ export const useAiStudioAgentOrchestration = ({
           );
           return;
         }
-        const described = await postDescribeImage(safeUrl);
-        resolvePlaceholder(described.description, "Image describe");
+        const imageAttachment = {
+          id: `describe-reference-${outputId}`,
+          kind: "image" as const,
+          referenceId: target.id,
+          imageUrl: safeUrl,
+          text: target.prompt?.trim() || target.previewText?.trim() || null,
+          aspect: target.aspect ?? null,
+        };
+        const context = mergeAttachmentContext({
+          baseContext: getAgentContext({
+            lastAssistantMessage,
+            selectedOverride: target,
+            modeHint: "describe",
+          }),
+          attachments: [imageAttachment],
+          preparedImageUrls: new Map([[imageAttachment.id, safeUrl]]),
+        });
+        const { response, actions } = await sendToAgent({
+          text: "",
+          payloadText: "",
+          previousPrompt: latestAgentPrompt ?? null,
+          context,
+          isolateHistory: true,
+          skipUserEcho: true,
+        });
+        const describedPrompt = normalizePromptText(
+          actions?.applyPrompt ?? response?.message ?? null
+        );
+        if (!describedPrompt) {
+          failPlaceholder("Describe response did not include a usable prompt.");
+          return;
+        }
+        resolvePlaceholder(describedPrompt, "Image describe");
       } catch (error: unknown) {
         failPlaceholder(
           error instanceof Error
@@ -437,6 +490,10 @@ export const useAiStudioAgentOrchestration = ({
       aspect,
       getOutputById,
       model,
+      getAgentContext,
+      lastAssistantMessage,
+      latestAgentPrompt,
+      sendToAgent,
       setActiveOutputId,
       setLatestAgentPrompt,
       setOutputs,

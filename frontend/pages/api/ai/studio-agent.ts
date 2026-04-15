@@ -409,10 +409,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         message: directMessage,
         actions: {
           applyPrompt: directMessage,
-          referenceCard: {
-            title: "Direct prompt",
-            prompt: directMessage,
-          },
         },
         ...buildAgentMachineOutcome({
           outcomeClass: "success_prompt",

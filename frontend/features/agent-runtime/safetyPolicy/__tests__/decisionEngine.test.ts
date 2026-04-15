@@ -106,9 +106,6 @@ describe("safetyPolicy decisionEngine", () => {
   });
 
   it("maps runtime route/flow to expected modality", () => {
-    expect(resolveSafetyModality({ route: "describe-image", flow: "describe_image" })).toBe(
-      "image"
-    );
     expect(resolveSafetyModality({ route: "studio-agent", flow: "MIXED" })).toBe("image");
     expect(resolveSafetyModality({ route: "studio-agent", flow: "TEXT_ONLY" })).toBe("text");
   });

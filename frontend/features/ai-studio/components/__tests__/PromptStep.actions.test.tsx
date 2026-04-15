@@ -57,8 +57,8 @@ describe("PromptStep agent actions", () => {
     expect(label).not.toHaveClass("helper-text");
   });
 
-  it("does not render the agent assist toggle when raw OpenAI mode is forced", () => {
-    render(<PromptStep {...baseProps} agentAssistEnabled={false} />);
+  it("uses direct OpenAI copy when the bypass lane is active", () => {
+    render(<PromptStep {...baseProps} directOpenAiBypassEnabled />);
 
     expect(screen.queryByText("Agent Assist")).toBeNull();
     expect(screen.getByPlaceholderText("Ask ShortPulse or write your prompt")).toBeInTheDocument();

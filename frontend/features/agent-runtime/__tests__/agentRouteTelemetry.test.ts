@@ -9,8 +9,8 @@ describe("emitAgentRouteOutcomeTelemetry", () => {
     const infoSpy = vi.spyOn(console, "info").mockImplementation(() => {});
 
     emitAgentRouteOutcomeTelemetry({
-      telemetryTag: "generate-prompt",
-      routeLabel: "ai/generate-prompt",
+      telemetryTag: "extract-style",
+      routeLabel: "ai/extract-style",
       statusCode: 503,
       machineOutcome: {
         decision: "error",
@@ -21,9 +21,9 @@ describe("emitAgentRouteOutcomeTelemetry", () => {
       policyVersion: 1,
       policySchemaVersion: 2,
       promptTemplateVersion: "ptv_abc123",
-      runtimeScopeKey: "route:generate-prompt|prompt:ptv_abc123|schema:2|policy:1",
+      runtimeScopeKey: "route:extract-style|prompt:ptv_abc123|schema:2|policy:1",
       profileId: "prod_safe_v1",
-      modality: "text",
+      modality: "image",
       fallbackReason: "responses_unavailable",
     });
 
@@ -33,7 +33,7 @@ describe("emitAgentRouteOutcomeTelemetry", () => {
     >;
     expect(telemetryPayload).toEqual(
       expect.objectContaining({
-        route: "ai/generate-prompt",
+        route: "ai/extract-style",
         decision: "error",
         outcome_class: "upstream_error",
         reason_code: "UPSTREAM_ERROR",
@@ -49,8 +49,8 @@ describe("emitAgentRouteOutcomeTelemetry", () => {
     const infoSpy = vi.spyOn(console, "info").mockImplementation(() => {});
 
     emitAgentRouteOutcomeTelemetry({
-      telemetryTag: "describe-image",
-      routeLabel: "ai/describe-image",
+      telemetryTag: "extract-style",
+      routeLabel: "ai/extract-style",
       statusCode: 200,
       machineOutcome: {
         decision: "allow",
@@ -61,7 +61,7 @@ describe("emitAgentRouteOutcomeTelemetry", () => {
       policyVersion: 1,
       policySchemaVersion: 2,
       promptTemplateVersion: "ptv_abc123",
-      runtimeScopeKey: "route:describe-image|prompt:ptv_abc123|schema:2|policy:1",
+      runtimeScopeKey: "route:extract-style|prompt:ptv_abc123|schema:2|policy:1",
       profileId: "prod_safe_v1",
       modality: "image",
       fallbackReason: "parse_repair_failed",

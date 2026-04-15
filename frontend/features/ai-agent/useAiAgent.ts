@@ -104,6 +104,7 @@ export const useAiAgent = ({
       payloadText,
       previousPrompt,
       context,
+      isolateHistory = false,
       skipUserEcho = false,
       optimisticUserMessageId = null,
     }: SendParams): Promise<SendResult> => {
@@ -118,7 +119,7 @@ export const useAiAgent = ({
         return { response: null, actions: undefined };
       }
 
-      const previousMessages = messagesRef.current;
+      const previousMessages = isolateHistory ? EMPTY_MESSAGES : messagesRef.current;
       if (!skipUserEcho && !allowContextOnlyTurn) {
         // UI-visible history (keep the user's raw text)
         const uiUserMessage: AgentMessage = {

@@ -3,7 +3,7 @@
 Purpose: operational guide for safety profile tuning, activation, rollback, cooldown handling, and validation for AI Studio agent safety behavior.
 
 ## Scope
-- In scope: safety policy profile selection, pre-provider input gating for `/api/ai/studio-agent`, `/api/ai/generate-prompt`, and Fal submit routes, image preflight gating for `/api/ai/describe-image`, client pre-send gating for studio-agent chat UX, admin control-plane API usage, runtime env tuning knobs, SQL diagnostics, and rollback actions.
+- In scope: safety policy profile selection, pre-provider input gating for `/api/ai/studio-agent` and Fal submit routes, image preflight gating for retained image-analysis routes, client pre-send gating for studio-agent chat UX, admin control-plane API usage, runtime env tuning knobs, SQL diagnostics, and rollback actions.
 - Out of scope: model prompt authoring, provider onboarding, and non-agent route behavior.
 
 ## Control Surface Summary
@@ -51,10 +51,9 @@ The safety control surface has six layers:
 Current runtime-binding note:
 - Runtime profile selection reads `STUDIO_AGENT_SAFETY_PROFILE_ACTIVE` (with optional control-plane sync) in:
   - `frontend/pages/api/ai/studio-agent.ts`
-  - `frontend/features/agent-runtime/legacyImageDescribeService.ts`
+  - `frontend/features/agent-runtime/legacyStyleExtractionService.ts`
 - `/api/ai/studio-agent` now enforces input safety before vision/coordinator provider calls when `STUDIO_AGENT_SAFETY_INPUT_PRECHECK_ENABLED=true` (default).
-- `/api/ai/generate-prompt` enforces pre-provider input safety when `STUDIO_AGENT_SAFETY_INPUT_PRECHECK_GENERATE_PROMPT_ENABLED=true` (default) and returns canonical refusal text (`200`) on refusal lanes.
-- `/api/ai/describe-image` runs trusted-host URL preflight and local image safety preflight before OpenAI vision calls.
+- Retained image-analysis routes run trusted-host URL preflight and local image safety preflight before OpenAI vision calls.
 - Fal submit routes enforce prompt precheck before provider dispatch when `STUDIO_AGENT_SAFETY_INPUT_PRECHECK_GENERATION_SUBMIT_ENABLED=true` (default).
 - Studio-agent client chat path (`useAiAgent`) now runs a pre-send mirror gate when `NEXT_PUBLIC_STUDIO_AGENT_SAFETY_INPUT_PRECHECK_ENABLED=true` (default).
 - Server remains the source of truth for enforcement decisions.
@@ -84,10 +83,9 @@ Primary knobs:
 | --- | --- | --- | --- |
 | `STUDIO_AGENT_SAFETY_PROFILE_ACTIVE` | `prod_safe_v1` | Selects active profile for policy decisions. | Use `prod_safe_v1` in production unless explicitly running controlled canary/incident procedure. |
 | `STUDIO_AGENT_SAFETY_INPUT_PRECHECK_ENABLED` | `true` | Enables server pre-provider safety gate on `/api/ai/studio-agent`. | Keep `true` in production. Disable only as emergency rollback while keeping output post-process enabled. |
-| `STUDIO_AGENT_SAFETY_INPUT_PRECHECK_GENERATE_PROMPT_ENABLED` | `true` | Enables pre-provider safety gate for `/api/ai/generate-prompt`. | Keep enabled in production. |
 | `STUDIO_AGENT_SAFETY_INPUT_PRECHECK_GENERATION_SUBMIT_ENABLED` | `true` | Enables pre-provider prompt gate for Fal submit routes. | Keep enabled in production. |
 | `STUDIO_AGENT_SAFETY_INPUT_PRECHECK_FIELD_MODES` | unset | Shared JSON override for precheck field modes (`latest_user_turn`, `history_user_turn`, `active_prompt`, `last_assistant_message`, `reference_prompt_snippet`, `reference_caption`, `canonical_prompt`) with values `enforce`, `rewrite_only`, `shadow`, `off`. | Keep unset unless running controlled tuning. Prefer route-scoped overrides for narrow changes. |
-| `STUDIO_AGENT_SAFETY_IMAGE_PREFLIGHT_ENABLED` | `true` | Enables local image safety preflight before `/api/ai/describe-image` vision calls. | Keep enabled in production. |
+| `STUDIO_AGENT_SAFETY_IMAGE_PREFLIGHT_ENABLED` | `true` | Enables local image safety preflight before retained image-analysis vision calls. | Keep enabled in production. |
 | `STUDIO_AGENT_SAFETY_IMAGE_PREFLIGHT_FAIL_MODE` | `prod_closed_nonprod_open` | Classifier-unavailable behavior (`prod_closed_nonprod_open`, `always_closed`, `always_open`). | Keep `prod_closed_nonprod_open` in production. |
 | `STUDIO_AGENT_SAFETY_DEV_ABSOLUTE_ZERO_ENABLED` | `false` | In non-production only, forces allow behavior (`absolute_zero` source). | Keep `false` in production always. Use only in dev for debugging classifier/rewrite paths. |
 | `STUDIO_AGENT_SAFETY_PROVIDER_ERROR_MODE` | `production_normalized` | Controls provider error detail normalization (`production_normalized` or `development_verbatim`). | Keep normalized in production; verbatim only in development debugging windows. |
@@ -102,7 +100,6 @@ Supporting knobs:
 | --- | --- | --- |
 | `NEXT_PUBLIC_STUDIO_AGENT_SAFETY_INPUT_PRECHECK_ENABLED` | `true` | Enables client pre-send safety gate in studio-agent chat path (`useAiAgent`). |
 | `STUDIO_AGENT_SAFETY_INPUT_PRECHECK_FIELD_MODES_STUDIO_AGENT` | unset | Route-scoped JSON field-mode override for `/api/ai/studio-agent`; merged over shared field-mode config. |
-| `STUDIO_AGENT_SAFETY_INPUT_PRECHECK_FIELD_MODES_GENERATE_PROMPT` | unset | Route-scoped JSON field-mode override for `/api/ai/generate-prompt`; merged over shared field-mode config. |
 | `STUDIO_AGENT_SAFETY_INPUT_PRECHECK_FIELD_MODES_GENERATION_SUBMIT` | unset | Route-scoped JSON field-mode override for Fal submit routes; merged over shared field-mode config. |
 | `NEXT_PUBLIC_STUDIO_AGENT_SAFETY_INPUT_PRECHECK_FIELD_MODES` | unset | Shared JSON field-mode override for client pre-send mirror checks. |
 | `NEXT_PUBLIC_STUDIO_AGENT_SAFETY_INPUT_PRECHECK_FIELD_MODES_STUDIO_AGENT` | unset | Client route-scoped JSON field-mode override for studio-agent pre-send checks. |
@@ -119,7 +116,6 @@ Use this baseline while tuning rewrite consistency without additional stress tra
 
 2. Rewrite recheck scope:
 - `/api/ai/studio-agent` uses `allow_or_rewrite` for rewrite-lane precheck continuation.
-- `/api/ai/generate-prompt` uses `allow_or_rewrite` for rewrite-lane precheck continuation.
 - Fal submit routes remain on default `allow_only` behavior during this phase.
 
 3. Safety boundary reminder:
@@ -223,7 +219,7 @@ Expected structured fields in runtime telemetry:
 Primary runtime files:
 - `frontend/features/agent-runtime/studioAgentSafetyInputPrecheck.ts`
 - `frontend/features/agent-runtime/studioAgentCoordinator.ts`
-- `frontend/features/agent-runtime/legacyImageDescribeService.ts`
+- `frontend/features/agent-runtime/legacyStyleExtractionService.ts`
 - `frontend/features/agent-runtime/studioAgentRouteOutcomes.ts`
 
 ## Guardrails

@@ -1,21 +1,21 @@
 # SOP: Text Generation Workflows
 
-This SOP keeps ShortPulse’s text-oriented AI features predictable, debuggable, and easy to tune. It covers both prompt enhancement (Create → Text) and image reverse-prompting so that engineers can trace requests from the UI to OpenAI and back again.
+This SOP keeps ShortPulse’s text-oriented AI features predictable, debuggable, and easy to tune. It covers Create-panel prompt enhancement through the canonical studio-agent route, image/style analysis, and the direct OpenAI bypass path so engineers can trace requests from the UI to OpenAI and back again.
 See `docs/sops/sop_ai_studio_index.md` for the shared structure, defaults, and links across AI Studio verticals.
 For Create properties panel, model-selector, and submission wiring details, see `docs/sops/sop_ai_studio_create_properties_generation_wiring.md`.
 
 ## Audit (strengths, gaps, decisions)
 - Strengths: Single canonical prompt source in `frontend/lib/agentPromptsConfig.ts`; strict loader contract (`AgentPromptId`) that the TS compiler can validate; UI state (`useAiStudioState`) auto-wires responses into textareas and Reference Grid without copy/paste; token usage captured for cost visibility.
 - Gaps: Imported images do not yet flow through image-describer drag/drop (logged below as a limitation); UI error surfacing must be explicit (toast/modal/banners) rather than silent HTTP errors.
-- Decisions: Keep prompts in the TS config only (env overrides for emergencies); keep loader as-is but rename keys only in code if needed (outside this SOP); keep `/api/ai/generate-prompt` on the legacy `OPENAI_MODEL` chain while the separate studio-agent direct-bypass lane defaults to `gpt-5.4`; keep SOP + TS config as the only config artifacts to minimize files.
+- Decisions: Keep prompts in the TS config only (env overrides for emergencies); keep loader as-is but rename keys only in code if needed (outside this SOP); keep Create prompt enhancement and describe actions on `/api/ai/studio-agent`; keep the direct-bypass lane defaulting to `gpt-5.4`; keep SOP + TS config as the only config artifacts to minimize files.
 - Actioned cleanup: Archived redundant prompt docs in `docs/archive/ai-studio-prompts.md` so the TS config remains the only source. Update any links/bookmarks to point to `frontend/lib/agentPromptsConfig.ts`.
 - UX change: Added a prominent error banner in AI Studio to surface prompt/describe failures with a dismiss control.
 - Credits: The Generate button shows the estimated credits from `computeCostForModel` (or “—” if unknown); image/video charging is enforced server-side at submit time, while prompt-refine/describe flows currently report usage but are not yet debited.
 
 
 ## Scope
-- Text refinement inside `/api/ai/generate-prompt` (Agent 1)
-- Image description/reverse prompt inside `/api/ai/describe-image` (Agent 2)
+- Text refinement inside `/api/ai/studio-agent`
+- Image description/reverse prompt inside `/api/ai/studio-agent`
 - Style descriptor extraction inside `/api/ai/extract-style` (Styles Library create flow)
   - Full style-creator domain contract (intake/state/persistence/telemetry) is documented in `docs/sops/sop_ai_studio_style_creator.md`.
 - AI Studio chat orchestration inside `/api/ai/studio-agent` (single enhanced prompt output contract)
@@ -28,10 +28,8 @@ For Create properties panel, model-selector, and submission wiring details, see 
 | --- | --- |
 | `frontend/lib/agentPromptsConfig.ts` | Source of truth for system prompts; the main place to edit instructions, so all references and docs should defer to it. |
 | `frontend/lib/agentPromptLoader.ts` | Loads a prompt by ID, preferring the config but falling back to an env var emergency override to avoid app breakage. |
-| `frontend/pages/api/ai/generate-prompt.ts` | HTTP POST handler that sends `prompt` + system message to OpenAI chat completions and returns the refined prompt. |
-| `frontend/pages/api/ai/describe-image.ts` | HTTP POST handler that sends an image + system instructions to OpenAI vision (`gpt-5-nano` by default, optional fallback model) and returns the reverse prompt. |
 | `frontend/pages/api/ai/extract-style.ts` | HTTP POST handler that sends an image + style-extractor system instructions to OpenAI vision and returns reusable style descriptors plus a normalized style title for Styles Library create flows. |
-| `frontend/pages/api/ai/studio-agent.ts` | AI Studio prompt-agent route with flow routing (`TEXT_ONLY`, `IMAGE_ONLY`, `MIXED`), single-stage prompt-only canonical behavior (`actions.applyPrompt` on success), and canonical prompt continuity. |
+| `frontend/pages/api/ai/studio-agent.ts` | AI Studio prompt-agent route with flow routing (`TEXT_ONLY`, `IMAGE_ONLY`, `MIXED`), prompt-only canonical behavior (`actions.applyPrompt` on success), canonical prompt continuity, and direct OpenAI bypass support. |
 
 ## Studio agent hardening alignment
 
@@ -42,8 +40,8 @@ For Create properties panel, model-selector, and submission wiring details, see 
 
 ## Environment prerequisites
 
-1. `OPENAI_API_KEY` must be set at runtime for both endpoints.
-2. `/api/ai/generate-prompt` uses `OPENAI_MODEL` and defaults to `gpt-5-nano`.
+1. `OPENAI_API_KEY` must be set at runtime for the retained text and image-analysis endpoints.
+2. `OPENAI_MODEL` still governs shared non-bypass OpenAI defaults and falls back to `gpt-5-nano` when a retained helper path uses it.
 3. `STUDIO_AGENT_DIRECT_OPENAI_MODEL` is the separate model default for the studio-agent direct-bypass lane and falls back to `gpt-5.4`.
 4. `OPENAI_VISION_MODEL` and `OPENAI_VISION_FALLBACK_MODEL` default to `gpt-5-nano`.
 5. Trusted-host env: `OPENAI_DESCRIBE_ALLOWED_HOSTS` (comma-separated); non-allowlisted external hosts are fail-closed by default.
@@ -51,16 +49,11 @@ For Create properties panel, model-selector, and submission wiring details, see 
 
 ## Text prompt refinement workflow
 
-1. UI sends POST `/api/ai/generate-prompt` with `{ prompt: string }`.
-2. Handler guards against non-POST methods and missing/empty prompt bodies.
-3. System prompt loads via `loadAgentPrompt("OPENAI_PROMPT_SYSTEM")`. If the config entry is empty, the handler still allows env overrides before returning a 500 error.
-4. Request body:
-   - Model: `process.env.OPENAI_MODEL ?? "gpt-5-nano"`
-   - Messages: system prompt + user prompt
-   - `temperature: 0.6`, `max_tokens: 2000`
-5. Upstream response is parsed for `choices[0]?.message?.content`; absence triggers a 502 error.
-6. Successful responses return `{ prompt: string, usage: { inputTokens?, outputTokens? } }`.
-7. The Text tool in AI Studio binds the shared `prompt` state to the textarea (`frontend/features/ai-studio/components/CreatePropertiesPanel.tsx:55-214`); once `postGeneratePrompt` replies, `useAiStudioState` sets `prompt` and prepends a `StudioOutput` record to `outputs` (`frontend/features/ai-studio/hooks/useAiStudioState.ts:292-352`). The user never copies a string: the textarea and the Reference Grid card both update with the refined prompt, and the new card is immediately draggable.
+1. UI sends the request through `useAiAgent` to `/api/ai/studio-agent`.
+2. Refine actions use isolated history so the request behaves like a specialized one-shot refinement, not a full chat continuation.
+3. System prompt loads via `loadAgentPrompt("OPENAI_PROMPT_SYSTEM")`, keeping prompt instructions in one canonical source.
+4. The route returns `message` plus `actions.applyPrompt`; the UI applies that prompt to shared state and saves the corresponding prompt card.
+5. The Text tool in AI Studio binds the shared `prompt` state to the textarea (`frontend/features/ai-studio/components/CreatePropertiesPanel.tsx`), so the textarea and Reference Grid update immediately without copy/paste.
 
 ## Direct OpenAI bypass workflow
 
@@ -73,15 +66,11 @@ For Create properties panel, model-selector, and submission wiring details, see 
 
 ## Image description workflow
 
-1. POST `/api/ai/describe-image` expects `{ imageUrl: string }`.
-2. Handler validates HTTP method and ensures non-empty `imageUrl`.
-3. Loads system prompt via `loadAgentPrompt("OPENAI_PROMPT_IMAGE_DESCRIBE")`.
-4. Preflights the URL server-side (HTTPS required, private-network hosts blocked, DNS private-IP resolution blocked, redirect chain validation, and trusted-host allowlist enforcement).
-5. Calls OpenAI chat completion with the `visionModel` (default `gpt-5-nano`) and one user message combining text plus image payload.
-6. On model-capability 400s, retries once with `OPENAI_VISION_FALLBACK_MODEL` when configured/available.
-7. Parses `"choices[0].message.content"` into `description` and returns `{ description, usage }`.
-8. The same state update strategy runs here (`useAiStudioState.ts:336-380`), so descriptions appear in the Create textarea, Studio Preview prompt drop zone, and Reference Grid without any manual copy/paste: the handler calls `setPrompt(description)` and inserts a prompt card with `previewText`, then focuses the prompt input so the generated text is already selected for editing or regeneration.
-9. When describe mode runs, the describe-image agent (Agent 2) replaces the active prompt with the returned description. Imported images dropped into the Reference Grid or Studio Preview can populate describe context; if an image is missing, the UI error banner prompts the user to add a reference first.
+1. Manual describe actions and attachment-driven describe requests both route through `/api/ai/studio-agent`.
+2. The client prepares a safe HTTPS image URL first, then stages it as an image attachment on the request context.
+3. Describe actions also use isolated history so they remain one-shot transforms and do not contaminate the main chat transcript.
+4. The studio-agent route classifies the turn as `IMAGE_ONLY` or `MIXED`, runs retained image safety preflight, and returns `message` plus `actions.applyPrompt`.
+5. The same state update strategy runs here, so descriptions appear in the Create textarea, Studio Preview prompt drop zone, and Reference Grid without manual copy/paste.
 
 ## Studio UX surfaces (Create → Text, Create → Image/Video, Reference Grid)
 

@@ -311,7 +311,6 @@ describe("useAiStudioAgentBridge", () => {
     expect(useAiAgentMock).toHaveBeenLastCalledWith(
       expect.objectContaining({ directOpenAiBypassEnabled: true })
     );
-    expect(result.current.agentAssistToggleAvailable).toBe(false);
-    expect(result.current.agentAssistEnabled).toBe(false);
+    expect(result.current.directOpenAiBypassEnabled).toBe(true);
   });
 });

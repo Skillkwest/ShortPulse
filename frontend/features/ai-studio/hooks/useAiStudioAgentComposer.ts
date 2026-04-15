@@ -227,7 +227,13 @@ export const useAiStudioAgentComposer = ({
       }
 
       if (normalizedPromptText) {
-        setAgentInput(normalizedPromptText);
+        insertAttachment({
+          id: randomId(),
+          kind: "prompt",
+          referenceId: droppedReferenceId,
+          text: normalizedPromptText,
+          aspect: matchedOutput?.aspect ?? null,
+        });
       }
     },
     [

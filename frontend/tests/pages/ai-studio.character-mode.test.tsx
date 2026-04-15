@@ -310,12 +310,7 @@ vi.mock("../../lib/mediaSignedUrlCache", () => ({
   getSignedMediaUrlsBatch: (...args: unknown[]) => getSignedMediaUrlsBatchMock(...args),
 }));
 
-vi.mock("../../features/ai-studio/logic/promptGeneration", () => ({
-  postGeneratePrompt: vi.fn(async (text: string) => ({ prompt: text })),
-}));
-
 vi.mock("../../features/ai-studio/logic/imageDescription", () => ({
-  postDescribeImage: vi.fn(async () => ({ description: "desc" })),
   prepareImageUrl: vi.fn(async (url: string) => url),
 }));
 

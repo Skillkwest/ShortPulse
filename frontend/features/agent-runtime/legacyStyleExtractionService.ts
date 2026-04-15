@@ -1,6 +1,6 @@
 /**
  * Legacy helper service for extracting reusable style descriptors from images.
- * Mirrors describe-image route hardening patterns (URL probe + retries + model fallback).
+ * Uses the retained image hardening patterns (URL probe + retries + model fallback).
  */
 import type { NextApiRequest } from "next";
 import { sanitizeGenerationPromptText } from "../agent-core/promptText";

@@ -16,7 +16,7 @@ import {
 export type { StudioAgentSafetyDecisionMeta } from "./safetyPolicy/textSafetyEvaluator";
 
 export type StudioAgentSafetyPostProcessOutcome = "pass" | "rewritten" | "refusal";
-export type StudioAgentSafetyPostProcessSource = "model_output" | "describe_output";
+export type StudioAgentSafetyPostProcessSource = "model_output";
 
 export type StudioAgentSafetyPostProcessResult = {
   outcome: StudioAgentSafetyPostProcessOutcome;
@@ -54,13 +54,13 @@ const maybeExternalRewrite = async ({
   timeoutMs,
 }: {
   text: string;
-  route: "studio-agent" | "describe-image";
+  route: "studio-agent";
   flow: string;
   source: StudioAgentSafetyPostProcessSource;
   traceId?: string;
   rewrite?: (args: {
     text: string;
-    route: "studio-agent" | "describe-image";
+    route: "studio-agent";
     flow: string;
     source: StudioAgentSafetyPostProcessSource;
     traceId?: string;
@@ -98,7 +98,7 @@ export const postProcessStudioAgentSafetyText = async ({
   policyDocument,
 }: {
   text: string | null | undefined;
-  route: "studio-agent" | "describe-image";
+  route: "studio-agent";
   flow?: string;
   source: StudioAgentSafetyPostProcessSource;
   mode: SafetyPostprocessMode;
@@ -106,7 +106,7 @@ export const postProcessStudioAgentSafetyText = async ({
   traceId?: string;
   rewrite?: (args: {
     text: string;
-    route: "studio-agent" | "describe-image";
+    route: "studio-agent";
     flow: string;
     source: StudioAgentSafetyPostProcessSource;
     traceId?: string;

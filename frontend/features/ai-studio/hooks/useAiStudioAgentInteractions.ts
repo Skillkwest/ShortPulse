@@ -2,6 +2,8 @@ import { useCallback, type Dispatch, type SetStateAction } from "react";
 import type { AgentActions } from "../../../prefabs/agent";
 import { normalizePromptText, type PromptOrigin } from "../logic/agentPromptOwnership";
 
+const DEFAULT_AGENT_PROMPT_REFERENCE_TITLE = "Agent prompt";
+
 type UseAiStudioAgentInteractionsParams = {
   editPromptToolSelected: boolean;
   setSharedPrompt: (value: string) => void;
@@ -77,14 +79,13 @@ export const useAiStudioAgentInteractions = ({
 
   const handleAgentAddToGrid = useCallback(() => {
     if (latestAgentPrompt) {
-      addAgentPromptReference(latestAgentPrompt, agentActions?.referenceCard?.title);
+      addAgentPromptReference(latestAgentPrompt, DEFAULT_AGENT_PROMPT_REFERENCE_TITLE);
       setPromptOrigin("agent");
       trackAgentUiEvent("studio_agent_add_to_grid");
     }
     setIsAgentChatOpen(false);
   }, [
     addAgentPromptReference,
-    agentActions?.referenceCard?.title,
     latestAgentPrompt,
     setIsAgentChatOpen,
     setPromptOrigin,

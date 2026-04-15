@@ -359,8 +359,6 @@ const createProps = (
     onRemoveAttachment: vi.fn(),
     onClearAttachments: vi.fn(),
     onAgentApplyPrompt: vi.fn(),
-    onAgentSelectVariation: vi.fn(),
-    onAgentDescribeTargets: vi.fn(),
     onGenerateFromOutputPrompt: vi.fn(),
     outputGenerateCostCredits: null,
     disableOutputGenerate: false,

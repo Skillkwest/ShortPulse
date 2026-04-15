@@ -64,8 +64,6 @@ export type UseAiStudioPanelPropsParams = {
   handleRemoveAgentAttachment: (id: string) => void;
   handleClearAgentAttachments: () => void;
   handleAgentApplyPrompt: (promptText: string) => void;
-  handleAgentSelectVariation: (promptText: string) => void;
-  handleAgentDescribeTargets: (targets: string[]) => void;
   handleAssistantMessageEdit?: (request: AgentAssistantMessageEditRequest) => boolean;
   handleGenerateFromAgentOutputPrompt: (request: AgentOutputGenerateInput) => void;
   useReferenceImageIndicator: boolean;
@@ -241,8 +239,6 @@ export const useAiStudioPanelProps = ({
   handleRemoveAgentAttachment,
   handleClearAgentAttachments,
   handleAgentApplyPrompt,
-  handleAgentSelectVariation,
-  handleAgentDescribeTargets,
   handleAssistantMessageEdit,
   handleGenerateFromAgentOutputPrompt,
   useReferenceImageIndicator,
@@ -417,8 +413,6 @@ export const useAiStudioPanelProps = ({
       onRemoveAgentAttachment: handleRemoveAgentAttachment,
       onClearAgentAttachments: handleClearAgentAttachments,
       onAgentApplyPrompt: handleAgentApplyPrompt,
-      onAgentSelectVariation: handleAgentSelectVariation,
-      onAgentDescribeTargets: handleAgentDescribeTargets,
       onAssistantMessageEdit: handleAssistantMessageEdit,
       onGenerateFromAgentOutputPrompt: handleGenerateFromAgentOutputPrompt,
       useReferenceImageIndicator,
@@ -483,11 +477,9 @@ export const useAiStudioPanelProps = ({
       handleAgentAttachmentDragLeave,
       handleAgentAttachmentDragOver,
       handleAgentAttachmentDrop,
-      handleAgentDescribeTargets,
       handleAgentEnhanceSend,
       handleAgentInputChange,
       handleAssistantMessageEdit,
-      handleAgentSelectVariation,
       handleAgentSend,
       handleClearAgentAttachments,
       handleClearAgentChat,

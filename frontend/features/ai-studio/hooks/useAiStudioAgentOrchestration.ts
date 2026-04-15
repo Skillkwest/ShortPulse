@@ -502,22 +502,6 @@ export const useAiStudioAgentOrchestration = ({
     ]
   );
 
-  const handleAgentDescribeTargets = useCallback(
-    (targets: string[]) => {
-      const validTargets = targets.filter((targetId) => Boolean(getOutputById(targetId)));
-      trackAgentUiEvent("studio_agent_describe_targets", {
-        requested_count: targets.length,
-        valid_count: validTargets.length,
-      });
-      if (!validTargets.length) {
-        setUiNotice("No valid reference targets were available to describe.");
-        return;
-      }
-      void Promise.all(validTargets.map((targetId) => handleDescribeReference(targetId)));
-    },
-    [getOutputById, handleDescribeReference, setUiNotice, trackAgentUiEvent]
-  );
-
   return {
     isPromptRefining,
     isReferencePromptEnhancing,
@@ -526,6 +510,5 @@ export const useAiStudioAgentOrchestration = ({
     handleAgentEnhanceSend,
     handleReferencePromptEnhance,
     handleDescribeReference,
-    handleAgentDescribeTargets,
   };
 };

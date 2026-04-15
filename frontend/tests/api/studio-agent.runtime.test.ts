@@ -140,7 +140,6 @@ describe("POST /api/ai/studio-agent runtime hardening", () => {
           message: "Enhanced prompt output",
           actions: {
             applyPrompt: "Enhanced prompt output",
-            referenceCard: { title: "Prompt", prompt: "Enhanced prompt output" },
           },
         },
         nextCanonical: "Enhanced prompt output",
@@ -1789,10 +1788,6 @@ describe("POST /api/ai/studio-agent runtime hardening", () => {
           actions: {
             applyPrompt: "parity prompt output",
             variations: ["unused variation"],
-            referenceCard: {
-              title: "Prompt",
-              prompt: "parity prompt output",
-            },
           },
         },
         nextCanonical: "parity prompt output",

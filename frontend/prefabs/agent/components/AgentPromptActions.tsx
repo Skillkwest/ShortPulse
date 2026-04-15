@@ -10,9 +10,6 @@ type AgentPromptActionsProps = {
   primarySource?: "agent" | "manual" | "reference";
   showPrimaryPromptStatus?: boolean;
   actions?: AgentActions;
-  onApplyPrompt?: (prompt: string) => void;
-  onSelectVariation?: (prompt: string) => void;
-  onDescribeTargets?: (targets: string[]) => void;
 };
 
 /**
@@ -22,18 +19,11 @@ export const AgentPromptActions: React.FC<AgentPromptActionsProps> = ({
   primaryPrompt,
   primarySource = "manual",
   showPrimaryPromptStatus = true,
-  actions,
-  onSelectVariation,
-  onDescribeTargets,
 }) => {
   const resolvedPrimaryPrompt = (primaryPrompt ?? "").trim();
   const hasPrimaryPrompt = resolvedPrimaryPrompt.length > 0;
-  const variations =
-    actions?.variations?.map((variation) => variation.trim()).filter(Boolean) ?? [];
-  const describeTargets = actions?.describeTargets?.filter(Boolean) ?? [];
-  const hasAgentActions = variations.length > 0 || describeTargets.length > 0;
 
-  if (!showPrimaryPromptStatus && !hasAgentActions) {
+  if (!showPrimaryPromptStatus) {
     return null;
   }
 
@@ -63,30 +53,6 @@ export const AgentPromptActions: React.FC<AgentPromptActionsProps> = ({
               ? resolvedPrimaryPrompt
               : "Send a message to build the prompt Generate will use."}
           </p>
-        </div>
-      ) : null}
-      {hasAgentActions ? (
-        <div className="agent-action-strip" aria-label="Agent actions">
-          {describeTargets.length ? (
-            <button
-              type="button"
-              className="ghost-btn mini agent-action-btn"
-              onClick={() => onDescribeTargets?.(describeTargets)}
-            >
-              Describe refs ({describeTargets.length})
-            </button>
-          ) : null}
-          {variations.slice(0, 3).map((variation) => (
-            <button
-              key={variation}
-              type="button"
-              className="ghost-btn mini agent-action-chip"
-              onClick={() => onSelectVariation?.(variation)}
-              title={variation}
-            >
-              {variation}
-            </button>
-          ))}
         </div>
       ) : null}
     </>

@@ -164,48 +164,10 @@ describe("PromptStep agent actions", () => {
     expect(screen.getByRole("button", { name: "Generate with current prompt" })).toBeDisabled();
   });
 
-  it("renders agent action controls when actions are available", () => {
-    render(
-      <PromptStep
-        {...baseProps}
-        agentActions={{
-          variations: ["variation one"],
-          describeTargets: ["ref-1"],
-        }}
-      />
-    );
-
-    expect(screen.getByRole("button", { name: "Describe refs (1)" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "variation one" })).toBeInTheDocument();
-  });
-
   it("keeps inline chat visible in chat-only mode when expanded chat state is true", () => {
     render(<PromptStep {...baseProps} agentChatOpen />);
 
     expect(screen.getByPlaceholderText("Message the agent...")).toBeInTheDocument();
-  });
-
-  it("fires action callbacks with sanitized payloads", () => {
-    const onAgentSelectVariation = vi.fn();
-    const onAgentDescribeTargets = vi.fn();
-
-    render(
-      <PromptStep
-        {...baseProps}
-        agentActions={{
-          variations: ["variation one"],
-          describeTargets: ["ref-1", "ref-2"],
-        }}
-        onAgentSelectVariation={onAgentSelectVariation}
-        onAgentDescribeTargets={onAgentDescribeTargets}
-      />
-    );
-
-    fireEvent.click(screen.getByRole("button", { name: "variation one" }));
-    expect(onAgentSelectVariation).toHaveBeenCalledWith("variation one");
-
-    fireEvent.click(screen.getByRole("button", { name: "Describe refs (2)" }));
-    expect(onAgentDescribeTargets).toHaveBeenCalledWith(["ref-1", "ref-2"]);
   });
 
   it("routes attachment drop handlers to the input shell when configured", () => {

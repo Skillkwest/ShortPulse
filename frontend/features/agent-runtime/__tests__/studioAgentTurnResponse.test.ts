@@ -39,7 +39,6 @@ describe("resolveStudioAgentTurnResponse", () => {
 
     expect(result.refusal).toBe(false);
     expect(result.parsed.actions?.applyPrompt).toBe("cinematic rain-soaked alley portrait");
-    expect(result.parsed.actions?.referenceCard).toBeUndefined();
     expect(result.resolvedCanonical).toBe("cinematic rain-soaked alley portrait");
   });
 });

@@ -335,8 +335,6 @@ type AgentChatProps = {
   onRemoveAttachment: (id: string) => void;
   onClearAttachments: () => void;
   onAgentApplyPrompt?: (prompt: string) => void;
-  onAgentSelectVariation?: (prompt: string) => void;
-  onAgentDescribeTargets?: (targets: string[]) => void;
   onAssistantMessageEdit?: (request: AgentAssistantMessageEditRequest) => boolean;
   onGenerateFromOutputPrompt?: (request: AgentOutputGenerateInput) => void;
   outputGenerateCostCredits?: number | null;

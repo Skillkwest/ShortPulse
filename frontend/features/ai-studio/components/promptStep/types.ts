@@ -53,8 +53,6 @@ export type PromptStepProps = {
   onExpandChat?: () => void;
   onClearAgentChat?: () => void;
   onAgentApplyPrompt?: (prompt: string) => void;
-  onAgentSelectVariation?: (prompt: string) => void;
-  onAgentDescribeTargets?: (targets: string[]) => void;
   onAssistantMessageEdit?: (request: AgentAssistantMessageEditRequest) => boolean;
   onGenerateOutputPrompt?: (request: AgentOutputGenerateInput) => void;
   chatModeInlineGenerate?: PromptStepInlineGenerateConfig;

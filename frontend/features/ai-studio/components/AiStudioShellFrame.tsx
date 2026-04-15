@@ -44,8 +44,6 @@ type AgentChatProps = {
   onRemoveAttachment: (id: string) => void;
   onClearAttachments: () => void;
   onAgentApplyPrompt?: (prompt: string) => void;
-  onAgentSelectVariation?: (prompt: string) => void;
-  onAgentDescribeTargets?: (targets: string[]) => void;
   onAssistantMessageEdit?: (request: AgentAssistantMessageEditRequest) => boolean;
   onGenerateFromOutputPrompt?: (request: AgentOutputGenerateInput) => void;
   outputGenerateCostCredits?: number | null;
@@ -206,8 +204,6 @@ const AiStudioShellRightColumn = React.memo(function AiStudioShellRightColumn({
               onInputChange={agentChat.onInputChange}
               onSend={agentChat.onSend}
               onAgentApplyPrompt={agentChat.onAgentApplyPrompt}
-              onAgentSelectVariation={agentChat.onAgentSelectVariation}
-              onAgentDescribeTargets={agentChat.onAgentDescribeTargets}
               onAssistantMessageEdit={agentChat.onAssistantMessageEdit}
               onGenerateOutputPrompt={agentChat.onGenerateFromOutputPrompt}
               outputGenerateCostCredits={agentChat.outputGenerateCostCredits}

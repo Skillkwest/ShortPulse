@@ -96,8 +96,6 @@ type AgentChatPanelProps = {
   onSend: () => void;
   onMessageClick?: (message: AgentMessage) => void;
   onAgentApplyPrompt?: (prompt: string) => void;
-  onAgentSelectVariation?: (prompt: string) => void;
-  onAgentDescribeTargets?: (targets: string[]) => void;
   onAssistantMessageEdit?: (request: AgentAssistantMessageEditRequest) => boolean;
   onGenerateOutputPrompt?: (request: AgentOutputGenerateRequest) => void;
   onDrop?: (event: React.DragEvent<HTMLDivElement>) => void;
@@ -140,8 +138,6 @@ export const AgentChatPanel: React.FC<AgentChatPanelProps> = ({
   onSend,
   onMessageClick,
   onAgentApplyPrompt,
-  onAgentSelectVariation,
-  onAgentDescribeTargets,
   onAssistantMessageEdit,
   onGenerateOutputPrompt,
   onDrop,
@@ -710,9 +706,6 @@ export const AgentChatPanel: React.FC<AgentChatPanelProps> = ({
           primaryPrompt={primaryPrompt}
           primarySource={primarySource}
           actions={agentActions}
-          onApplyPrompt={onAgentApplyPrompt}
-          onSelectVariation={onAgentSelectVariation}
-          onDescribeTargets={onAgentDescribeTargets}
         />
       ) : null}
       {shouldShowThinkingIndicator && thinkingIndicatorPlacement !== "history" ? (

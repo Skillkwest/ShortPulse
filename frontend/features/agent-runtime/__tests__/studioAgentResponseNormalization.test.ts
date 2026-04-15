@@ -119,7 +119,6 @@ describe("studioAgentResponseNormalization", () => {
           applyPrompt: "A rainy neon city street at night",
           variations: ["unused"],
           describeTargets: ["ref-1"],
-          referenceCard: { title: "Prompt", prompt: "unused card" },
         },
       },
       fallbackPrompt: "fallback",

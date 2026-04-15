@@ -10,13 +10,11 @@ type UseAiStudioAgentInteractionsParams = {
   setLatestAgentPrompt: Dispatch<SetStateAction<string | null>>;
   setPromptOrigin: Dispatch<SetStateAction<PromptOrigin>>;
   trackAgentUiEvent: (message: string, data?: Record<string, unknown>) => void;
-  setAgentInput: Dispatch<SetStateAction<string>>;
   addAgentPromptReference: (promptText: string, title?: string) => void;
   setIsAgentChatOpen: Dispatch<SetStateAction<boolean>>;
   agentSessionEnabled: boolean;
   setAgentSessionEnabled: Dispatch<SetStateAction<boolean>>;
   latestAgentPrompt: string | null;
-  agentActions: AgentActions | undefined;
   resetAgentChat: () => void;
   resetAgentComposer: (options?: {
     preserveInput?: boolean;
@@ -31,13 +29,11 @@ export const useAiStudioAgentInteractions = ({
   setLatestAgentPrompt,
   setPromptOrigin,
   trackAgentUiEvent,
-  setAgentInput,
   addAgentPromptReference,
   setIsAgentChatOpen,
   agentSessionEnabled,
   setAgentSessionEnabled,
   latestAgentPrompt,
-  agentActions,
   resetAgentChat,
   resetAgentComposer,
   setAgentActions,
@@ -59,17 +55,6 @@ export const useAiStudioAgentInteractions = ({
       setSharedPrompt,
       trackAgentUiEvent,
     ]
-  );
-
-  const handleAgentSelectVariation = useCallback(
-    (variation: string) => {
-      const normalized = normalizePromptText(variation);
-      if (!normalized) return;
-      setAgentInput(normalized);
-      handleAgentApplyPrompt(normalized);
-      trackAgentUiEvent("studio_agent_select_variation");
-    },
-    [handleAgentApplyPrompt, setAgentInput, trackAgentUiEvent]
   );
 
   const handleExpandChat = useCallback(() => {
@@ -116,7 +101,6 @@ export const useAiStudioAgentInteractions = ({
 
   return {
     handleAgentApplyPrompt,
-    handleAgentSelectVariation,
     handleExpandChat,
     handleAgentAddToGrid,
     handleClearAgentChat,

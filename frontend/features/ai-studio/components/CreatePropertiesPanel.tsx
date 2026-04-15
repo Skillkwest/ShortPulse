@@ -87,8 +87,6 @@ export type CreatePropertiesPanelProps = {
   onRemoveAgentAttachment?: (id: string) => void;
   onClearAgentAttachments?: () => void;
   onAgentApplyPrompt?: (prompt: string) => void;
-  onAgentSelectVariation?: (prompt: string) => void;
-  onAgentDescribeTargets?: (targets: string[]) => void;
   onAssistantMessageEdit?: (request: AgentAssistantMessageEditRequest) => boolean;
   onGenerateFromAgentOutputPrompt?: (request: AgentOutputGenerateInput) => void;
   onGenerate: () => void;
@@ -351,8 +349,6 @@ export function CreatePropertiesPanel({
   onRemoveAgentAttachment,
   onClearAgentAttachments,
   onAgentApplyPrompt,
-  onAgentSelectVariation,
-  onAgentDescribeTargets,
   onAssistantMessageEdit,
   onGenerateFromAgentOutputPrompt,
   agentChatOpen = false,
@@ -553,8 +549,6 @@ export function CreatePropertiesPanel({
     onExpandChat,
     onClearAgentChat,
     onAgentApplyPrompt,
-    onAgentSelectVariation,
-    onAgentDescribeTargets,
     onAssistantMessageEdit,
     onGenerateOutputPrompt: onGenerateFromAgentOutputPrompt,
     chatModeInlineGenerate: {

@@ -93,12 +93,6 @@ export type AgentApiContext = Omit<AgentContext, "media"> & {
 
 export type AgentActions = {
   applyPrompt?: string | null;
-  variations?: string[];
-  describeTargets?: string[];
-  referenceCard?: {
-    title?: string;
-    prompt: string;
-  };
 };
 
 export type AgentResponse = {

@@ -175,8 +175,7 @@ describe("runThinkerFormatterTurn", () => {
           choices: [
             {
               message: {
-                content:
-                  '{"message":"final prompt","actions":{"applyPrompt":"final prompt","referenceCard":{"title":"Prompt","prompt":"final prompt"}}}',
+                content: '{"message":"final prompt","actions":{"applyPrompt":"final prompt"}}',
               },
             },
           ],

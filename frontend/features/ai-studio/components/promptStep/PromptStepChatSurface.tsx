@@ -102,8 +102,6 @@ type PromptStepChatSurfaceProps = {
   agentPrimarySource: "agent" | "manual" | "reference";
   agentActions?: AgentActions;
   onAgentApplyPrompt?: (prompt: string) => void;
-  onAgentSelectVariation?: (prompt: string) => void;
-  onAgentDescribeTargets?: (targets: string[]) => void;
   onAssistantMessageEdit?: (request: AgentAssistantMessageEditRequest) => boolean;
 };
 
@@ -171,8 +169,6 @@ export const PromptStepChatSurface: React.FC<PromptStepChatSurfaceProps> = ({
   agentPrimarySource,
   agentActions,
   onAgentApplyPrompt,
-  onAgentSelectVariation,
-  onAgentDescribeTargets,
   onAssistantMessageEdit,
 }) => {
   const [isAgentInputExpanded, setIsAgentInputExpanded] = React.useState(false);
@@ -655,9 +651,6 @@ export const PromptStepChatSurface: React.FC<PromptStepChatSurfaceProps> = ({
         primaryPrompt={agentPrimaryPrompt ?? prompt}
         primarySource={agentPrimarySource}
         actions={agentActions}
-        onApplyPrompt={onAgentApplyPrompt}
-        onSelectVariation={onAgentSelectVariation}
-        onDescribeTargets={onAgentDescribeTargets}
       />
     </>
   );

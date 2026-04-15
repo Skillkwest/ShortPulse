@@ -112,7 +112,6 @@ describe("useAiStudioAgentBridge", () => {
       handleAgentSend: vi.fn(),
       handleAgentEnhanceSend: vi.fn(),
       handleReferencePromptEnhance: vi.fn(),
-      handleAgentDescribeTargets: vi.fn(),
     });
     useAiStudioAgentInteractionsMock.mockImplementation((params) => {
       setLatestAgentPromptFromInteractions = params.setLatestAgentPrompt;
@@ -121,7 +120,6 @@ describe("useAiStudioAgentBridge", () => {
       setIsAgentChatOpenFromInteractions = params.setIsAgentChatOpen;
       return {
         handleAgentApplyPrompt: vi.fn(),
-        handleAgentSelectVariation: vi.fn(),
         handleExpandChat: vi.fn(),
         handleAgentAddToGrid: vi.fn(),
         handleClearAgentChat: vi.fn(),
@@ -179,13 +177,13 @@ describe("useAiStudioAgentBridge", () => {
     act(() => {
       setLatestAgentPromptFromInteractions?.("Applied prompt");
       setPromptOriginFromInteractions?.("agent");
-      setAgentActionsFromInteractions?.({ referenceCard: { title: "Agent card" } } as AgentActions);
+      setAgentActionsFromInteractions?.({ applyPrompt: "Applied prompt" } as AgentActions);
       setIsAgentChatOpenFromInteractions?.(true);
     });
 
     expect(result.current.latestAgentPrompt).toBe("Applied prompt");
     expect(result.current.promptOrigin).toBe("agent");
-    expect(result.current.agentActions).toEqual({ referenceCard: { title: "Agent card" } });
+    expect(result.current.agentActions).toEqual({ applyPrompt: "Applied prompt" });
     expect(result.current.isAgentChatOpen).toBe(true);
 
     rerender({
@@ -210,7 +208,7 @@ describe("useAiStudioAgentBridge", () => {
       setLatestAgentPromptFromInteractions?.("Persist across tool switch");
       setPromptOriginFromInteractions?.("agent");
       setAgentActionsFromInteractions?.({
-        referenceCard: { title: "Persisted card" },
+        applyPrompt: "Persist across tool switch",
       } as AgentActions);
       setIsAgentChatOpenFromInteractions?.(true);
     });
@@ -230,7 +228,7 @@ describe("useAiStudioAgentBridge", () => {
     );
     expect(result.current.latestAgentPrompt).toBe("Persist across tool switch");
     expect(result.current.promptOrigin).toBe("agent");
-    expect(result.current.agentActions).toEqual({ referenceCard: { title: "Persisted card" } });
+    expect(result.current.agentActions).toEqual({ applyPrompt: "Persist across tool switch" });
     expect(result.current.isAgentChatOpen).toBe(true);
 
     rerender({
@@ -248,7 +246,7 @@ describe("useAiStudioAgentBridge", () => {
     );
     expect(result.current.latestAgentPrompt).toBe("Persist across tool switch");
     expect(result.current.promptOrigin).toBe("agent");
-    expect(result.current.agentActions).toEqual({ referenceCard: { title: "Persisted card" } });
+    expect(result.current.agentActions).toEqual({ applyPrompt: "Persist across tool switch" });
     expect(result.current.isAgentChatOpen).toBe(true);
 
     resetAgentComposer.mock.calls.forEach((args) => {
@@ -295,11 +293,9 @@ describe("useAiStudioAgentBridge", () => {
       handleAgentSend: vi.fn(),
       handleAgentEnhanceSend: vi.fn(),
       handleReferencePromptEnhance: vi.fn(),
-      handleAgentDescribeTargets: vi.fn(),
     });
     useAiStudioAgentInteractionsMock.mockReturnValue({
       handleAgentApplyPrompt: vi.fn(),
-      handleAgentSelectVariation: vi.fn(),
       handleExpandChat: vi.fn(),
       handleAgentAddToGrid: vi.fn(),
       handleClearAgentChat: vi.fn(),

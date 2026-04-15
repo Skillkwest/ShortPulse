@@ -38,7 +38,7 @@ describe("AgentChatPanel prompt actions", () => {
     expect(screen.queryByText("Should stay hidden")).not.toBeInTheDocument();
   });
 
-  it("renders primary prompt status and action chips when enabled", () => {
+  it("renders primary prompt status when enabled", () => {
     render(
       <AgentChatPanel
         messages={[]}
@@ -46,10 +46,6 @@ describe("AgentChatPanel prompt actions", () => {
         showPromptActions
         primaryPrompt="cinematic neon city alley at night"
         primarySource="agent"
-        agentActions={{
-          variations: ["close-up framing"],
-          describeTargets: ["ref-a"],
-        }}
         onInputChange={vi.fn()}
         onSend={vi.fn()}
       />
@@ -57,37 +53,6 @@ describe("AgentChatPanel prompt actions", () => {
 
     expect(screen.getByText("Primary generation prompt")).toBeInTheDocument();
     expect(screen.getByText("Agent output")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Describe refs (1)" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "close-up framing" })).toBeInTheDocument();
-  });
-
-  it("routes action clicks to callbacks", () => {
-    const onSelectVariation = vi.fn();
-    const onDescribeTargets = vi.fn();
-
-    render(
-      <AgentChatPanel
-        messages={[]}
-        input=""
-        showPromptActions
-        primaryPrompt="cinematic neon city alley at night"
-        primarySource="agent"
-        agentActions={{
-          variations: ["close-up framing"],
-          describeTargets: ["ref-a", "ref-b"],
-        }}
-        onInputChange={vi.fn()}
-        onSend={vi.fn()}
-        onAgentSelectVariation={onSelectVariation}
-        onAgentDescribeTargets={onDescribeTargets}
-      />
-    );
-
-    fireEvent.click(screen.getByRole("button", { name: "close-up framing" }));
-    expect(onSelectVariation).toHaveBeenCalledWith("close-up framing");
-
-    fireEvent.click(screen.getByRole("button", { name: "Describe refs (2)" }));
-    expect(onDescribeTargets).toHaveBeenCalledWith(["ref-a", "ref-b"]);
   });
 
   it("forwards inline generate prompts and does not trigger bubble click", () => {

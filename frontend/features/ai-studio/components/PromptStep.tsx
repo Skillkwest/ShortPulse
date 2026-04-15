@@ -45,8 +45,6 @@ export function PromptStep({
   onExpandChat,
   onClearAgentChat,
   onAgentApplyPrompt,
-  onAgentSelectVariation,
-  onAgentDescribeTargets,
   onAssistantMessageEdit,
   onGenerateOutputPrompt,
   chatModeInlineGenerate,
@@ -334,8 +332,6 @@ export function PromptStep({
                 agentPrimarySource={agentPrimarySource}
                 agentActions={agentActions}
                 onAgentApplyPrompt={onAgentApplyPrompt}
-                onAgentSelectVariation={onAgentSelectVariation}
-                onAgentDescribeTargets={onAgentDescribeTargets}
                 onAssistantMessageEdit={onAssistantMessageEdit}
               />
             ) : (

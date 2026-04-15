@@ -427,6 +427,25 @@ export const createFalStatusHandler = ({
         userId: user.id,
         requestId,
       });
+    const respondWithCanonicalCompletedPayload = async ({
+      providerState,
+    }: {
+      providerState: string;
+    }) => {
+      const canonicalContext = await readCanonicalStatusContext();
+      if (!canonicalContext.resultUrls.length) return null;
+      return res.status(200).json(
+        buildPersistedCompletedPayload({
+          requestId,
+          resultUrls: canonicalContext.resultUrls,
+          generationId: canonicalContext.generationId ?? generationId,
+          deliveryState: canonicalContext.deliveryState ?? "canonical_owned",
+          recoveryPending: canonicalContext.recoveryPending === true,
+          completionState: canonicalContext.completionState ?? null,
+          providerState,
+        })
+      );
+    };
 
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
@@ -557,6 +576,16 @@ export const createFalStatusHandler = ({
           modelId,
           payload,
         });
+        await executeImmediateRecovery({
+          observationType: "completed",
+          payload,
+        });
+        const canonicalSuccessResponse = await respondWithCanonicalCompletedPayload({
+          providerState: payloadStatus,
+        });
+        if (canonicalSuccessResponse) {
+          return canonicalSuccessResponse;
+        }
         void persistPollObservation({
           observationType: "completed",
           payload,

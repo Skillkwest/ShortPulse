@@ -223,7 +223,19 @@ describe("createFalStatusHandler", () => {
       routeLabel: "Fal Seedream",
       reason: "poll_completed_observation",
     });
-    expect(executeGenerationRecoveryMock).not.toHaveBeenCalled();
+    expect(executeGenerationRecoveryMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        actor: "poll",
+        generationId: "gen-1",
+        requestId: "req-1",
+        userId: "user-1",
+        observation: expect.objectContaining({
+          state: "completed",
+          mediaUrls: ["https://cdn.shortpulse.test/seedream-image.png"],
+        }),
+        routeLabel: "Fal Seedream",
+      })
+    );
     expect(logGenerationFailureMock).not.toHaveBeenCalled();
   });
 
@@ -297,7 +309,124 @@ describe("createFalStatusHandler", () => {
       routeLabel: "Fal Seedream",
       reason: "poll_completed_observation",
     });
-    expect(executeGenerationRecoveryMock).not.toHaveBeenCalled();
+    expect(executeGenerationRecoveryMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        actor: "poll",
+        generationId: "gen-1",
+        requestId: "req-1",
+        userId: "user-1",
+        observation: expect.objectContaining({
+          state: "completed",
+          mediaUrls: ["https://cdn.shortpulse.test/seedream-image.png"],
+        }),
+        routeLabel: "Fal Seedream",
+      })
+    );
+  });
+
+  it("returns canonical completed payload immediately when inline recovery persists outputs", async () => {
+    process.env.SHORTPULSE_KIE_INTEGRATION_ENABLED = "true";
+    process.env.SHORTPULSE_KIE_MODEL_ALLOWLIST = "kie-ai/veo-3.1-fast-i2v";
+    process.env.SHORTPULSE_KIE_TRUSTED_HOSTS = "kie.ai";
+    process.env.KIE_API_KEY = "test-kie-key";
+    persistedGenerationRows = [
+      {
+        id: "gen-kie-inline-1",
+        status: "processing",
+        metadata: {},
+      },
+    ];
+    executeGenerationRecoveryMock.mockImplementationOnce(async () => {
+      persistedOutputRows = [
+        {
+          id: "out-kie-inline-1",
+          output_index: 0,
+          result_url: "https://cdn.shortpulse.test/kie-inline-canonical.mp4",
+          media_file_id: "media-kie-inline-1",
+        },
+      ];
+      return {
+        ok: true,
+        state: "recovered",
+        generationId: "gen-kie-inline-1",
+        requestId: "req-kie-inline-success",
+        mediaFileIds: ["media-kie-inline-1"],
+        mediaUrls: ["https://cdn.shortpulse.test/kie-inline-canonical.mp4"],
+        processed: true,
+      };
+    });
+
+    const fetchMock = vi.fn().mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          code: 200,
+          msg: "success",
+          data: {
+            taskId: "req-kie-inline-success",
+            successFlag: 1,
+            response: {
+              resultUrls: ["https://cdn.shortpulse.test/kie-inline-provider.mp4"],
+            },
+          },
+        }),
+        {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }
+      )
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const handler = createFalStatusHandler({
+      provider: "kie",
+      modelId: "kie-ai/veo-3.1-fast-i2v",
+      queueBaseUrl: "https://api.kie.ai/api/v1/veo/record-info?taskId={requestId}",
+      routeLabel: "Kie Veo 3.1 Fast I2V",
+      timeoutMs: 15000,
+    });
+
+    const req = {
+      method: "POST",
+      body: { requestId: "req-kie-inline-success" },
+      headers: {},
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(executeGenerationRecoveryMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        actor: "poll",
+        generationId: "gen-kie-inline-1",
+        requestId: "req-kie-inline-success",
+        observation: expect.objectContaining({
+          state: "completed",
+          mediaUrls: ["https://cdn.shortpulse.test/kie-inline-provider.mp4"],
+        }),
+      })
+    );
+    expect(persistGenerationObservationMock).not.toHaveBeenCalled();
+    expect(requestGenerationControlPlaneWakeMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        request_id: "req-kie-inline-success",
+        generationId: "gen-kie-inline-1",
+        status: "completed",
+        state: "completed",
+        resultUrls: ["https://cdn.shortpulse.test/kie-inline-canonical.mp4"],
+        result_urls: ["https://cdn.shortpulse.test/kie-inline-canonical.mp4"],
+        videos: [{ url: "https://cdn.shortpulse.test/kie-inline-canonical.mp4" }],
+        shortpulseLifecycle: expect.objectContaining({
+          taskState: "success",
+          isTerminal: true,
+          deliveryState: "canonical_owned",
+          providerState: "completed",
+          resultUrls: ["https://cdn.shortpulse.test/kie-inline-canonical.mp4"],
+        }),
+      })
+    );
   });
 
   it("polls the provider when only legacy success metadata exists without canonical outputs", async () => {

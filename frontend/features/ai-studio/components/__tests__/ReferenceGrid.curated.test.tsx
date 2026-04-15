@@ -382,6 +382,80 @@ describe("ReferenceGrid curated split", () => {
     expect(container.querySelector(".reference-spinner")).toBeNull();
   });
 
+  it("keeps renderable generated image rows interactive without a loading overlay", () => {
+    const onOpenDetails = vi.fn();
+    const generatedImage: StudioOutput = {
+      id: "generated-image-running-1",
+      prompt: "Generated image",
+      mode: "image",
+      aspect: "9:16",
+      model: "Model",
+      status: "ready",
+      timestamp: "Now",
+      taskState: "running",
+      mediaSource: "generated",
+      previewUrl: "https://example.com/generated-image.png",
+    };
+
+    const { container } = render(
+      <ReferenceGrid
+        {...createProps({
+          outputs: [generatedImage],
+          activeOutputId: generatedImage.id,
+          onOpenDetails,
+        })}
+      />
+    );
+
+    const card = container.querySelector(".reference-card") as HTMLDivElement | null;
+    expect(card).toBeTruthy();
+    expect(card?.classList.contains("is-loading")).toBe(false);
+    expect(card?.querySelector(".reference-loading")).toBeNull();
+
+    fireEvent.doubleClick(card as HTMLDivElement);
+    expect(onOpenDetails).toHaveBeenCalledWith(generatedImage.id);
+  });
+
+  it("renders posterless generated videos with a visible playable surface", () => {
+    const onOpenDetails = vi.fn();
+    const generatedVideo: StudioOutput = {
+      id: "generated-video-running-1",
+      prompt: "Generated video",
+      mode: "video",
+      aspect: "16:9",
+      model: "Model",
+      status: "ready",
+      timestamp: "Now",
+      taskState: "running",
+      mediaSource: "generated",
+      previewUrl: "https://example.com/generated-video.mp4",
+      resultUrls: ["https://example.com/generated-video.mp4"],
+    };
+
+    const { container } = render(
+      <ReferenceGrid
+        {...createProps({
+          outputs: [generatedVideo],
+          activeOutputId: generatedVideo.id,
+          onOpenDetails,
+        })}
+      />
+    );
+
+    const card = container.querySelector(".reference-card") as HTMLDivElement | null;
+    const videoNode = container.querySelector(".reference-card-video") as HTMLVideoElement | null;
+    expect(card).toBeTruthy();
+    expect(card?.classList.contains("is-loading")).toBe(false);
+    expect(card?.querySelector(".reference-loading")).toBeNull();
+    expect(videoNode).toBeTruthy();
+    expect(videoNode?.getAttribute("src")).toBe("https://example.com/generated-video.mp4");
+    expect(videoNode?.getAttribute("preload")).toBe("metadata");
+    expect(videoNode?.classList.contains("is-visible")).toBe(true);
+
+    fireEvent.doubleClick(card as HTMLDivElement);
+    expect(onOpenDetails).toHaveBeenCalledWith(generatedVideo.id);
+  });
+
   it("keeps dormant video cards off the loading path until selected or autoplayed", () => {
     const activeVideo: StudioOutput = {
       id: "imported-autoplay-video-1",

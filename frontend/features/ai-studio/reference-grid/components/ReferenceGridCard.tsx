@@ -168,6 +168,12 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
   const hasPosterBackedVideoPreview = Boolean(
     item.mode === "video" && resolvedVideoPosterUrl && resolvedHoverVideoUrl
   );
+  const shouldShowGeneratedVideoSurfaceByDefault = Boolean(
+    item.mode === "video" &&
+    item.mediaSource === "generated" &&
+    !hasPosterBackedVideoPreview &&
+    resolvedHoverVideoUrl
+  );
   const shouldRenderVideoElement = Boolean(
     (isVideoPreview && resolvedHoverVideoUrl) || hasPosterBackedVideoPreview
   );
@@ -270,7 +276,7 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
     >
       {shouldRenderVideoElement ? (
         <video
-          className={`reference-card-video ${hasPosterBackedVideoPreview ? "reference-card-video--poster-backed" : ""} ${isHoveringVideo || isHoverVideoVisible ? "is-visible" : ""}`}
+          className={`reference-card-video ${hasPosterBackedVideoPreview ? "reference-card-video--poster-backed" : ""} ${isHoveringVideo || isHoverVideoVisible || shouldShowGeneratedVideoSurfaceByDefault ? "is-visible" : ""}`}
           ref={(node) => {
             videoNodeRef.current = node;
             registerVideoNode(videoNodeKey, item.id, node);

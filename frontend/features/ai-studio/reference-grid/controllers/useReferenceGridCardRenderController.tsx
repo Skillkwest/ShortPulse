@@ -179,6 +179,11 @@ export const useReferenceGridCardRenderController = ({
               : "") ||
             null
           : null;
+      const shouldPrimeGeneratedVideoFrame =
+        currentOutput.mode === "video" &&
+        currentOutput.mediaSource === "generated" &&
+        !videoPosterUrl &&
+        Boolean(hoverVideoUrl);
       const videoNodeKey = `${options.surface}:${currentOutput.id}`;
       return (
         <ReferenceGridCard
@@ -196,7 +201,9 @@ export const useReferenceGridCardRenderController = ({
           isVideoPreview={card.isVideoPreview}
           isImagePreview={card.isImagePreview}
           canAutoplayVideo={canAutoplayVideo}
-          videoPreload={shouldWarmVideoPreview ? "metadata" : "none"}
+          videoPreload={
+            shouldWarmVideoPreview || shouldPrimeGeneratedVideoFrame ? "metadata" : "none"
+          }
           isPromptOnly={isPromptOnly}
           isLinkedPromptReference={isLinkedPromptReference}
           canRetryStatus={canRetryStatus}

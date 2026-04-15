@@ -230,7 +230,6 @@ export const useReferenceGridCardItemsController = ({
       if (!currentOutput) return;
       const visualState = classifyReferenceGridCardVisualState({
         item: currentOutput,
-        authorityTier: card.authorityTier,
         cardPreviewUrl: card.cardPreviewUrl,
         isLoaded: Boolean(loadedMap[card.item.id]),
         decodeBudgetEnabled,

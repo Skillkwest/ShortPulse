@@ -8,6 +8,8 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .create-expert-panel .create-expert-panel-shell,
+  .create-expert-panel .create-expert-left-panel,
   .create-expert-character-mode-control,
   .create-expert-panel .create-expert-character-picker-trigger,
   .create-expert-model-control {

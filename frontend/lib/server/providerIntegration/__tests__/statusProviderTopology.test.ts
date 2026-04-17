@@ -209,25 +209,25 @@ describe("statusProviderTopology", () => {
     ).toThrow("Kie response probe URL resolution requires modelId.");
   });
 
-  it("fails closed for kie status topology when model is not allowlisted", () => {
+  it("keeps Kling status topology available even when other Kie models stay allowlisted", () => {
     process.env.SHORTPULSE_KIE_INTEGRATION_ENABLED = "true";
     process.env.SHORTPULSE_KIE_MODEL_ALLOWLIST = "kie-ai/veo-3.1-fast-i2v";
 
-    expect(() =>
+    expect(
       resolveProviderConfiguredStatusBaseUrls({
         provider: "kie",
         configuredBaseUrls: ["https://queue.kie.ai/v1/requests"],
         modelId: "kie-ai/kling-3.0",
       })
-    ).toThrow("Kie model is not allowlisted");
+    ).toEqual(["https://queue.kie.ai/v1/requests"]);
 
-    expect(() =>
+    expect(
       resolveProviderResponseProbeUrls({
         provider: "kie",
         responseUrls: ["https://queue.kie.ai/v1/requests/1"],
         modelId: "kie-ai/kling-3.0",
       })
-    ).toThrow("Kie model is not allowlisted");
+    ).toEqual(["https://queue.kie.ai/v1/requests/1"]);
   });
 
   it("throws for unsupported providers", () => {

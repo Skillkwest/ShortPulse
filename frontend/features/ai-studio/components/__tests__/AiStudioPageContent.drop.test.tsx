@@ -138,6 +138,7 @@ vi.mock("../AiStudioShellFrame", async () => {
       shellStyle?: CSSProperties;
       propertiesPanelContent?: ReactNode;
       rightColumnRef?: Ref<HTMLDivElement>;
+      rightColumnHidden?: boolean;
       rightColumnDropMode?: string;
       onRightColumnDropCapture?: DragEventHandler<HTMLDivElement>;
       onRightColumnDragOverCapture?: DragEventHandler<HTMLDivElement>;
@@ -160,6 +161,7 @@ vi.mock("../AiStudioShellFrame", async () => {
         <div
           ref={props.rightColumnRef}
           className={`ai-shell-right${props.rightColumnDropMode && props.rightColumnDropMode !== "none" ? " is-drop-overlay-active" : ""}`}
+          data-right-column-hidden={props.rightColumnHidden ? "true" : "false"}
           onDropCapture={props.onRightColumnDropCapture}
           onDragOverCapture={props.onRightColumnDragOverCapture}
           onDragEnterCapture={props.onRightColumnDragEnterCapture}
@@ -402,18 +404,28 @@ describe("AiStudioPageContent right column drop router", () => {
   it("renders header shortcut buttons in the top AI Studio header row", () => {
     render(<AiStudioPageContent {...createProps()} />);
 
+    expect(screen.getByRole("button", { name: "Canvas" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Reference Grid" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Quick Slot Inventory" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Styles" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Canvas" })).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Styles visibility" })).toBeInTheDocument();
+  });
+
+  it.each([
+    ["create", "create"],
+    ["edit", "edit"],
+    ["video", "video"],
+    ["sound", "sound"],
+  ] as const)("shows the canvas toggle for the %s workflow", (_label, selectedTool) => {
+    render(<AiStudioPageContent {...createProps({ selectedTool })} />);
+
+    expect(screen.getByRole("button", { name: "Canvas" })).toBeInTheDocument();
   });
 
   it("keeps header shortcuts limited to quick slot and reference grid in character workflow", () => {
     render(<AiStudioPageContent {...createProps({ selectedTool: "character" })} />);
 
     const shortcutButtons = within(screen.getByLabelText("AI Studio header shortcuts"));
-    expect(shortcutButtons.queryByRole("button", { name: "Canvas" })).not.toBeInTheDocument();
+    expect(shortcutButtons.getByRole("button", { name: "Canvas" })).toBeInTheDocument();
     expect(
       shortcutButtons.getByRole("button", { name: "Quick Slot Inventory" })
     ).toBeInTheDocument();
@@ -458,6 +470,29 @@ describe("AiStudioPageContent right column drop router", () => {
     expect(referenceGridButton).toHaveAttribute("aria-pressed", "false");
   });
 
+  it("toggles canvas visibility from the header icon button", () => {
+    const { container } = render(
+      <AiStudioPageContent {...createProps({ selectedTool: "create" })} />
+    );
+
+    const canvasToggle = screen.getByRole("button", { name: "Canvas" });
+    const shell = container.querySelector(".ai-shell");
+    expect(shell).toBeTruthy();
+
+    expect(canvasToggle).toHaveAttribute("aria-pressed", "true");
+    expect(shell).not.toHaveClass("ai-shell-right-column-collapsed");
+
+    fireEvent.click(canvasToggle);
+
+    expect(canvasToggle).toHaveAttribute("aria-pressed", "false");
+    expect(shell).toHaveClass("ai-shell-right-column-collapsed");
+
+    fireEvent.click(canvasToggle);
+
+    expect(canvasToggle).toHaveAttribute("aria-pressed", "true");
+    expect(shell).not.toHaveClass("ai-shell-right-column-collapsed");
+  });
+
   it("persists panel visibility toggles globally across workflows", () => {
     const baseProps = createProps({
       selectedTool: "create",
@@ -490,7 +525,7 @@ describe("AiStudioPageContent right column drop router", () => {
     );
   });
 
-  it("locks character workflow header toggles to quick slot + reference grid", () => {
+  it("keeps the canvas, quick slot, and reference grid toggles available in character workflow", () => {
     render(
       <AiStudioPageContent
         {...createProps({
@@ -506,10 +541,12 @@ describe("AiStudioPageContent right column drop router", () => {
     );
 
     const shortcutButtons = within(screen.getByLabelText("AI Studio header shortcuts"));
+    const canvasButton = shortcutButtons.getByRole("button", { name: "Canvas" });
     const quickSlotButton = shortcutButtons.getByRole("button", { name: "Quick Slot Inventory" });
     const referenceGridButton = shortcutButtons.getByRole("button", { name: "Reference Grid" });
 
-    expect(shortcutButtons.queryByRole("button", { name: "Canvas" })).not.toBeInTheDocument();
+    expect(canvasButton).toBeInTheDocument();
+    expect(canvasButton).toHaveAttribute("aria-pressed", "true");
     expect(quickSlotButton).not.toBeDisabled();
     expect(referenceGridButton).not.toBeDisabled();
     expect(quickSlotButton).toHaveAttribute("aria-pressed", "true");

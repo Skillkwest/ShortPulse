@@ -146,6 +146,7 @@ export const ReferenceMediaStep: React.FC<ReferenceMediaStepProps> = ({
               ) : (
                 <div className="reference-drop-content image-drop-content">
                   <ImageSquare size={24} weight="regular" />
+                  <p className="reference-drop-title helper-text">Upload a character image</p>
                 </div>
               )}
             </div>
@@ -193,6 +194,7 @@ export const ReferenceMediaStep: React.FC<ReferenceMediaStepProps> = ({
               ) : (
                 <div className="reference-drop-content video-drop-content">
                   <VideoCamera size={24} weight="regular" />
+                  <p className="reference-drop-title helper-text">Upload an MP4 or MOV clip</p>
                 </div>
               )}
             </div>
@@ -456,7 +458,7 @@ export const ReferenceMediaStep: React.FC<ReferenceMediaStepProps> = ({
       <input
         ref={primaryInputRef}
         type="file"
-        accept="image/*"
+        accept={isMotionMode ? "image/jpeg,image/png,.jpg,.jpeg,.png" : "image/*"}
         style={{ display: "none" }}
         onChange={handleFileSelection(onPrimaryImageChange)}
       />
@@ -484,7 +486,7 @@ export const ReferenceMediaStep: React.FC<ReferenceMediaStepProps> = ({
       <input
         ref={motionVideoInputRef}
         type="file"
-        accept="video/*"
+        accept="video/mp4,video/quicktime,.mp4,.mov"
         style={{ display: "none" }}
         onChange={handleMotionVideoSelection}
       />

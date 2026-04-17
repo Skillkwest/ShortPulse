@@ -78,7 +78,7 @@ describe("handleVideoModelSubmission (Kling 3 motion)", () => {
     );
   });
 
-  it("builds and submits a motion payload with normalized prompt/duration/aspect", async () => {
+  it("builds and submits a motion payload with normalized prompt and mode", async () => {
     const args = makeArgs({
       finalModel: KIE_KLING_30_MODEL_ID,
       modelConfig: getModelConfig(KIE_KLING_30_MODEL_ID),
@@ -95,7 +95,6 @@ describe("handleVideoModelSubmission (Kling 3 motion)", () => {
       input_urls: ["https://example.com/character.png"],
       video_url: "https://example.com/motion.mp4",
       video_urls: ["https://example.com/motion.mp4"],
-      aspect_ratio: "16:9",
       resolution: "1080p",
       mode: "1080p",
       generate_audio: false,
@@ -858,7 +857,7 @@ describe("handleVideoModelSubmission (Kie Kling standard)", () => {
     );
   });
 
-  it("passes the selected aspect ratio through Kie Kling motion-control submits", async () => {
+  it("submits Kling motion-control without standard-video aspect fields", async () => {
     const args = makeArgs({
       finalModel: KIE_KLING_30_MODEL_ID,
       modelConfig: getModelConfig(KIE_KLING_30_MODEL_ID),
@@ -875,10 +874,14 @@ describe("handleVideoModelSubmission (Kie Kling standard)", () => {
     expect(handled).toBe(true);
     expect(submitKieKlingImageToVideo).toHaveBeenCalledWith(
       expect.objectContaining({
-        aspect_ratio: "9:16",
         resolution: "720p",
         image_url: "https://example.com/character.png",
         video_url: "https://example.com/motion.mp4",
+      })
+    );
+    expect(submitKieKlingImageToVideo).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        aspect_ratio: expect.any(String),
       })
     );
   });

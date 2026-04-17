@@ -159,11 +159,14 @@ export type UseAiStudioPanelPropsParams = {
     referenceInputsMode?: "merge" | "replace";
     inpaintOverride?: InpaintSubmissionOverride | null;
     modelIdOverride?: string | null;
+    outputIdOverride?: string;
     costOverrideCredits?: number | null;
     hideOutputFromReferenceGrid?: boolean;
     displayPromptOverride?: string | null;
     submissionPromptOverride?: string | null;
   }) => void | Promise<void>;
+  insertOptimisticGenerationPlaceholder?: (prompt: string) => string | null;
+  removeOptimisticGenerationPlaceholder?: (outputId: string) => void;
   onEditSubmitIntentChange?: (intent: EditSubmitIntent) => void;
   addSessionMediaReference?: (payload: { url: string; mimeType?: string | null }) => void;
   referenceImageWarning: string | null;
@@ -249,6 +252,8 @@ export const useAiStudioPanelProps = ({
   handleManualPromptChange,
   toggleReferenceIndicator,
   createIsGenerating,
+  editIsGenerating,
+  videoIsGenerating,
   isPrimaryEditStageGenerating,
   isPromptRefining,
   describeInFlightCount,
@@ -257,6 +262,8 @@ export const useAiStudioPanelProps = ({
   hasSufficientCreditsForPromptReferenceGenerate,
   isGenerateDisabled,
   isCreateGenerateClickLocked,
+  isEditGenerateClickLocked,
+  isVideoGenerateClickLocked,
   generationGuardrail,
   handleExpandChat,
   handleClearAgentChat,
@@ -312,6 +319,8 @@ export const useAiStudioPanelProps = ({
   editExtraImageUrls,
   editReferenceText,
   handleImageRegenerateWithDebit,
+  insertOptimisticGenerationPlaceholder,
+  removeOptimisticGenerationPlaceholder,
   onEditSubmitIntentChange,
   addSessionMediaReference,
   referenceImageWarning,
@@ -539,10 +548,13 @@ export const useAiStudioPanelProps = ({
     setExtraImageUrl: setEditExtraImageUrl,
     handleEditPromptTextChange,
     handleImageRegenerateWithDebit,
+    insertOptimisticGenerationPlaceholder,
+    removeOptimisticGenerationPlaceholder,
     onEditSubmitIntentChange,
     addSessionMediaReference,
     currentCostCredits,
-    isGenerateDisabled,
+    isGenerateDisabled: isGenerateDisabled || isEditGenerateClickLocked,
+    isGenerateBusy: editIsGenerating,
     generationGuardrail,
     isPrimaryStageGenerating: isPrimaryEditStageGenerating,
     referenceImageWarning,

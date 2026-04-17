@@ -89,6 +89,7 @@ export function PromptStep({
   disableOutputGenerate = false,
   outputGenerateCostCredits = null,
   outputGenerateGuardrailReason = null,
+  chatHeaderExtraContent = null,
   hideHeader = false,
   autoResize = false,
   autoResizeLayoutKey,
@@ -262,6 +263,7 @@ export function PromptStep({
           isCollapsed={isCollapsed}
           onToggleCollapse={onToggleCollapse}
           onClearAgentChat={onClearAgentChat}
+          chatHeaderExtraContent={chatHeaderExtraContent}
         />
       ) : null}
       {!isCollapsed || hideHeader ? (

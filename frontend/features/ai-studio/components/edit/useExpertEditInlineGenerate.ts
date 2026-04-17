@@ -23,6 +23,7 @@ type RegenerateWithReferenceInputsHandler = (
   options?: {
     inpaintOverride?: InpaintSubmissionOverride | null;
     modelIdOverride?: string | null;
+    outputIdOverride?: string;
     displayPromptOverride?: string | null;
     submissionPromptOverride?: string | null;
     referenceInputsMode?: "merge" | "replace";
@@ -57,6 +58,9 @@ type UseExpertEditInlineGenerateParams = {
   showStatusToast: (message: string, tone?: "info" | "warning") => void;
   onInvalidPromptReferenceToken?: (message: string) => void;
   resolveStageFlattenSnapshot?: () => StageFlattenSnapshot;
+  insertOptimisticGenerationPlaceholder?: (prompt: string) => string | null;
+  removeOptimisticGenerationPlaceholder?: (outputId: string) => void;
+  isGenerateBusy?: boolean;
 };
 
 const LAYER_IMAGE_LOAD_FAILURE_PREFIX = "Failed to load layer image:";
@@ -92,7 +96,12 @@ export const useExpertEditInlineGenerate = ({
   showStatusToast,
   onInvalidPromptReferenceToken,
   resolveStageFlattenSnapshot,
+  insertOptimisticGenerationPlaceholder,
+  removeOptimisticGenerationPlaceholder,
+  isGenerateBusy = false,
 }: UseExpertEditInlineGenerateParams) => {
+  const inlineGeneratePendingRef = React.useRef(false);
+  const [isInlineGeneratePending, setIsInlineGeneratePending] = React.useState(false);
   const inpaintPromptReferencePolicy = React.useMemo(
     () =>
       editSubmitIntent === "inpaint"
@@ -104,6 +113,7 @@ export const useExpertEditInlineGenerate = ({
     [editSubmitIntent, extraImageUrls, promptText]
   );
   const handleInlineGenerate = React.useCallback(() => {
+    if (inlineGeneratePendingRef.current || isGenerateBusy) return;
     const run = async () => {
       const allowSecondaryReferenceTokens =
         editSubmitIntent === "inpaint"
@@ -128,6 +138,9 @@ export const useExpertEditInlineGenerate = ({
         return;
       }
 
+      inlineGeneratePendingRef.current = true;
+      setIsInlineGeneratePending(true);
+      let optimisticOutputId = insertOptimisticGenerationPlaceholder?.(promptText) ?? null;
       const objectUrls = {
         flattenedUrl: null,
         flattenedMarkupReferenceUrl: null,
@@ -164,6 +177,10 @@ export const useExpertEditInlineGenerate = ({
           maxSecondaryReferenceTokens,
         });
         if (preparedSubmission.status === "invalid_tokens") {
+          if (optimisticOutputId) {
+            removeOptimisticGenerationPlaceholder?.(optimisticOutputId);
+            optimisticOutputId = null;
+          }
           onInvalidPromptReferenceToken?.(preparedSubmission.message);
           return;
         }
@@ -181,24 +198,39 @@ export const useExpertEditInlineGenerate = ({
           promptOverrideOptions,
         });
         if (submitDispatch.status === "error") {
+          if (optimisticOutputId) {
+            removeOptimisticGenerationPlaceholder?.(optimisticOutputId);
+            optimisticOutputId = null;
+          }
           showStatusToast(submitDispatch.message);
           return;
         }
         if (submitDispatch.status === "fallback_regenerate") {
+          if (optimisticOutputId) {
+            removeOptimisticGenerationPlaceholder?.(optimisticOutputId);
+            optimisticOutputId = null;
+          }
           onRegenerate();
           return;
         }
-        await onRegenerateWithReferenceInputs?.(
-          submitDispatch.referenceInputs,
-          submitDispatch.options
-        );
+        await onRegenerateWithReferenceInputs?.(submitDispatch.referenceInputs, {
+          ...submitDispatch.options,
+          ...(optimisticOutputId ? { outputIdOverride: optimisticOutputId } : {}),
+        });
+        optimisticOutputId = null;
       } catch (error) {
+        if (optimisticOutputId) {
+          removeOptimisticGenerationPlaceholder?.(optimisticOutputId);
+          optimisticOutputId = null;
+        }
         revokeExpertEditSubmissionObjectUrls({
           objectUrls,
           revokeObjectUrlSafe,
         });
         showStatusToast(resolveFlattenFailureToastMessage(error));
       } finally {
+        inlineGeneratePendingRef.current = false;
+        setIsInlineGeneratePending(false);
         cleanupExpertEditSubmissionObjectUrls({
           objectUrls,
           hasSubmissionHandler: Boolean(onRegenerateWithReferenceInputs),
@@ -227,9 +259,13 @@ export const useExpertEditInlineGenerate = ({
     showStatusToast,
     onInvalidPromptReferenceToken,
     resolveStageFlattenSnapshot,
+    insertOptimisticGenerationPlaceholder,
+    removeOptimisticGenerationPlaceholder,
+    isGenerateBusy,
   ]);
 
   return {
     handleInlineGenerate,
+    isInlineGeneratePending,
   };
 };

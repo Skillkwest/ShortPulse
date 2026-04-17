@@ -43,15 +43,19 @@ type UseAiStudioEditExpertPanelPropsParams = {
     referenceInputsMode?: "merge" | "replace";
     inpaintOverride?: InpaintSubmissionOverride | null;
     modelIdOverride?: string | null;
+    outputIdOverride?: string;
     costOverrideCredits?: number | null;
     hideOutputFromReferenceGrid?: boolean;
     displayPromptOverride?: string | null;
     submissionPromptOverride?: string | null;
   }) => void | Promise<void>;
+  insertOptimisticGenerationPlaceholder?: (prompt: string) => string | null;
+  removeOptimisticGenerationPlaceholder?: (outputId: string) => void;
   onEditSubmitIntentChange?: (intent: EditSubmitIntent) => void;
   addSessionMediaReference?: (payload: { url: string; mimeType?: string | null }) => void;
   currentCostCredits: number | null;
   isGenerateDisabled: boolean;
+  isGenerateBusy: boolean;
   generationGuardrail: string | null;
   isPrimaryStageGenerating: boolean;
   referenceImageWarning: string | null;
@@ -95,10 +99,13 @@ export const useAiStudioEditExpertPanelProps = ({
   setExtraImageUrl,
   handleEditPromptTextChange,
   handleImageRegenerateWithDebit,
+  insertOptimisticGenerationPlaceholder,
+  removeOptimisticGenerationPlaceholder,
   onEditSubmitIntentChange,
   addSessionMediaReference,
   currentCostCredits,
   isGenerateDisabled,
+  isGenerateBusy,
   generationGuardrail,
   isPrimaryStageGenerating,
   referenceImageWarning,
@@ -139,11 +146,14 @@ export const useAiStudioEditExpertPanelProps = ({
       onPromptTextChange: handleEditPromptTextChange,
       onEditSubmitIntentChange,
       onRegenerate: handleImageRegenerateWithDebit,
+      insertOptimisticGenerationPlaceholder,
+      removeOptimisticGenerationPlaceholder,
       onRegenerateWithReferenceInputs: (
         referenceInputs: string[],
         options?: {
           inpaintOverride?: InpaintSubmissionOverride | null;
           modelIdOverride?: string | null;
+          outputIdOverride?: string;
           costOverrideCredits?: number | null;
           hideOutputFromReferenceGrid?: boolean;
           displayPromptOverride?: string | null;
@@ -155,6 +165,7 @@ export const useAiStudioEditExpertPanelProps = ({
           referenceInputsOverride: referenceInputs,
           inpaintOverride: options?.inpaintOverride,
           modelIdOverride: options?.modelIdOverride,
+          outputIdOverride: options?.outputIdOverride,
           costOverrideCredits: options?.costOverrideCredits,
           hideOutputFromReferenceGrid: options?.hideOutputFromReferenceGrid,
           displayPromptOverride: options?.displayPromptOverride,
@@ -166,7 +177,7 @@ export const useAiStudioEditExpertPanelProps = ({
       onAddSessionMediaReference: addSessionMediaReference,
       costCredits: currentCostCredits,
       isGenerateDisabled,
-      isGenerateBusy: false,
+      isGenerateBusy,
       guardrailReason: generationGuardrail,
       isPrimaryStageGenerating,
       referenceImageWarning,
@@ -202,13 +213,16 @@ export const useAiStudioEditExpertPanelProps = ({
       onEditSubmitIntentChange,
       handleOpenModelModal,
       imageResolution,
+      insertOptimisticGenerationPlaceholder,
       isCharacterModeEnabled,
       isCharacterOptionsLoading,
       isGenerateDisabled,
+      isGenerateBusy,
       isPrimaryStageGenerating,
       isModelModalOpen,
       model,
       modelModalAnchor,
+      removeOptimisticGenerationPlaceholder,
       referenceImageUrl,
       referenceImageWarning,
       resolveOutputPreviewUrl,

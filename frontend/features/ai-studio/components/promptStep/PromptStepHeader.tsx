@@ -41,6 +41,7 @@ type PromptStepHeaderProps = {
   isCollapsed: boolean;
   onToggleCollapse: () => void;
   onClearAgentChat?: () => void;
+  chatHeaderExtraContent?: React.ReactNode;
 };
 
 export const PromptStepHeader: React.FC<PromptStepHeaderProps> = ({
@@ -52,6 +53,7 @@ export const PromptStepHeader: React.FC<PromptStepHeaderProps> = ({
   isCollapsed,
   onToggleCollapse,
   onClearAgentChat,
+  chatHeaderExtraContent,
 }) => {
   return (
     <div
@@ -71,6 +73,9 @@ export const PromptStepHeader: React.FC<PromptStepHeaderProps> = ({
       <div className="step-header-actions">
         {chatOnly ? (
           <div className="prompt-chat-header-actions">
+            {chatHeaderExtraContent ? (
+              <div className="prompt-chat-header-extra">{chatHeaderExtraContent}</div>
+            ) : null}
             {onClearAgentChat ? (
               <button
                 type="button"

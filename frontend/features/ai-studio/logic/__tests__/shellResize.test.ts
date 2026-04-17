@@ -19,6 +19,7 @@ import {
   isAiShellResizeViewport,
   parseStoredAiShellLeftWidth,
   shouldCollapseAiShellOnToolSelect,
+  shouldExpandAiShellOnToolSelect,
 } from "../shellResize";
 
 describe("getAiShellLeftWidthBounds", () => {
@@ -150,5 +151,20 @@ describe("shouldCollapseAiShellOnToolSelect", () => {
     expect(shouldCollapseAiShellOnToolSelect("character", "character")).toBe(false);
     expect(shouldCollapseAiShellOnToolSelect("text", "create")).toBe(false);
     expect(shouldCollapseAiShellOnToolSelect("edit", null)).toBe(false);
+  });
+});
+
+describe("shouldExpandAiShellOnToolSelect", () => {
+  it("expands when switching to create tool", () => {
+    expect(shouldExpandAiShellOnToolSelect(null, "create")).toBe(true);
+    expect(shouldExpandAiShellOnToolSelect("edit", "create")).toBe(true);
+    expect(shouldExpandAiShellOnToolSelect("video", "create")).toBe(true);
+  });
+
+  it("does not expand when re-selecting create or choosing other tools", () => {
+    expect(shouldExpandAiShellOnToolSelect("create", "create")).toBe(false);
+    expect(shouldExpandAiShellOnToolSelect("edit", "edit")).toBe(false);
+    expect(shouldExpandAiShellOnToolSelect("create", "video")).toBe(false);
+    expect(shouldExpandAiShellOnToolSelect("create", null)).toBe(false);
   });
 });

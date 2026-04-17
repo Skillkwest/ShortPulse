@@ -1303,7 +1303,9 @@ export function VideoPropertiesPanel({
                         handleFileSelection={handleFileSelection}
                         handleMotionVideoSelection={handleMotionVideoSelection}
                         topContent={
-                          <div className="video-reference-card-title">Add References</div>
+                          <div className="video-reference-card-title">
+                            {isMotionMode ? "Add Motion Inputs" : "Add References"}
+                          </div>
                         }
                       />
                     </div>
@@ -1710,7 +1712,9 @@ export function VideoPropertiesPanel({
                       </div>
                       <div className="video-generate-summary-item">
                         <span className="video-generate-summary-label">Shot</span>
-                        <span className="video-generate-summary-value">{shotModeSummaryLabel}</span>
+                        <span className="video-generate-summary-value">
+                          {visibleVideoMode === "motion" ? "Single" : shotModeSummaryLabel}
+                        </span>
                       </div>
                     </div>
                   </div>

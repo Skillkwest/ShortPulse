@@ -52,6 +52,7 @@ export type ExpertEditPanelViewProps = {
     options?: {
       inpaintOverride?: InpaintSubmissionOverride | null;
       modelIdOverride?: string | null;
+      outputIdOverride?: string;
       costOverrideCredits?: number | null;
       hideOutputFromReferenceGrid?: boolean;
       displayPromptOverride?: string | null;
@@ -59,6 +60,8 @@ export type ExpertEditPanelViewProps = {
       referenceInputsMode?: "merge" | "replace";
     }
   ) => void | Promise<void>;
+  insertOptimisticGenerationPlaceholder?: (prompt: string) => string | null;
+  removeOptimisticGenerationPlaceholder?: (outputId: string) => void;
   onAddSessionMediaReference?: (payload: { url: string; mimeType?: string | null }) => void;
   resolvePreviewUrlById?: (id: string | null) => string | null;
   costCredits?: number | null;

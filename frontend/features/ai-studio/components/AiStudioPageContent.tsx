@@ -3,7 +3,7 @@
  * Receives a prepared view model from the page and renders toolbar, panels, previews, and system banners.
  */
 import React from "react";
-import { Eye, FlowArrow, Globe, type IconProps, SquaresFour, StackSimple } from "phosphor-react";
+import { FlowArrow, Globe, type IconProps, SquaresFour, StackSimple } from "phosphor-react";
 import type { ForwardRefExoticComponent, RefAttributes } from "react";
 import { AiStudioToolbar } from "./AiStudioToolbar";
 import { AiStudioToolbarRail } from "./AiStudioToolbarRail";
@@ -45,7 +45,7 @@ import type {
 } from "../reference-grid/referenceGridTypes";
 import { resolvePropertiesPanelKind } from "../logic/propertiesPanelRouting";
 import { isCharacterShellTool, isPrimaryCharacterTool } from "../logic/primaryCharacterTool";
-import { isCreateWorkflow, isSoundWorkflow } from "../logic/workflowIdentity";
+import { isSoundWorkflow } from "../logic/workflowIdentity";
 import {
   PERF_FLAG_SHELL_BOUNDARY_SPLIT,
   PERF_FLAG_SHELL_DECOUPLE,
@@ -65,6 +65,7 @@ import {
   AI_SHELL_LEFT_VIDEO_MIN_PX,
   AI_SHELL_RIGHT_CANVAS_MIN_PX,
   shouldCollapseAiShellOnToolSelect,
+  shouldExpandAiShellOnToolSelect,
 } from "../logic/shellResize";
 import { useOutputCounts } from "../hooks/aiStudioOutputStore";
 import {
@@ -602,6 +603,7 @@ export function AiStudioPageContent({
   const showStylesPanelEligible = showExpertEditPanel || showExpertCreatePanel;
   const isPrimaryCharacterPanelOpen = isPrimaryCharacterTool(selectedTool);
   const isCharacterShellPanelOpen = isCharacterShellTool(selectedTool);
+  const [isCanvasVisible, setIsCanvasVisible] = React.useState(true);
   const [panelVisibility, setPanelVisibility] = React.useState<PanelVisibilityState>(
     createInitialPanelVisibility
   );
@@ -818,6 +820,7 @@ export function AiStudioPageContent({
     minRightWidthPx,
     defaultLeftRatio,
   });
+  const effectiveRightColumnHidden = rightColumnHidden || !isCanvasVisible;
   const shellClassName = [
     "ai-shell",
     selectedTool ? "" : "ai-shell-wide",
@@ -827,6 +830,7 @@ export function AiStudioPageContent({
     isCharacterShellPanelOpen ? "ai-shell-character-open" : "",
     isPerformanceDenseSession ? "ai-shell-performance-dense" : "",
     isResizing ? "ai-shell-resizing" : "",
+    !isCanvasVisible ? "ai-shell-right-column-collapsed" : "",
   ]
     .filter(Boolean)
     .join(" ");
@@ -851,9 +855,9 @@ export function AiStudioPageContent({
       previousSelectedToolRef.current = selectedTool;
       return;
     }
-    // Expert Create should always open at its minimum left width when Create is selected.
-    const isCreateToolSelected = isCreateWorkflow(selectedTool);
-    const shouldCollapseForExpertCreateSelection = showExpertCreatePanel && isCreateToolSelected;
+    // Expert Create should always open at its maximum left width when Create is selected.
+    const shouldExpandForExpertCreateSelection =
+      showExpertCreatePanel && shouldExpandAiShellOnToolSelect(previousSelectedTool, selectedTool);
     const isInitialSoundSelection =
       previousSelectedTool !== selectedTool &&
       isSoundToolSelected &&
@@ -869,16 +873,18 @@ export function AiStudioPageContent({
     if (
       shouldCollapseAiShellOnToolSelect(previousSelectedTool, selectedTool) ||
       shouldResetForVideoSelection ||
-      shouldCollapseForExpertCreateSelection
+      shouldExpandForExpertCreateSelection
     ) {
       if (shouldResetForVideoSelection) {
         resetToDefaultWidth();
+      } else if (shouldExpandForExpertCreateSelection) {
+        expandToMax();
       } else {
         collapseToMin();
       }
     }
     previousSelectedToolRef.current = selectedTool;
-  }, [collapseToMin, resetToDefaultWidth, selectedTool, showExpertCreatePanel]);
+  }, [collapseToMin, expandToMax, resetToDefaultWidth, selectedTool, showExpertCreatePanel]);
   const rightColumnRef = React.useRef<HTMLDivElement | null>(null);
   const handleStylesPanelToggle = React.useCallback(() => {
     setPanelVisibility((previous) => {
@@ -889,6 +895,9 @@ export function AiStudioPageContent({
       });
     });
   }, [panelToggleAvailability]);
+  const handleCanvasVisibilityToggle = React.useCallback(() => {
+    setIsCanvasVisible((previous) => !previous);
+  }, []);
   const handleSelectedStyleIdChange = React.useCallback((styleId: string | null) => {
     setSelectedStyleId(styleId);
     setPanelVisibility((previous) => {
@@ -1253,6 +1262,14 @@ export function AiStudioPageContent({
           <div className="hero-right">
             <div className="ai-hero-shortcut-cluster">
               <div className="ai-hero-shortcut-buttons" aria-label="AI Studio header shortcuts">
+                <button
+                  type="button"
+                  className="ai-hero-shortcut-button"
+                  aria-pressed={isCanvasVisible}
+                  onClick={handleCanvasVisibilityToggle}
+                >
+                  Canvas
+                </button>
                 {visibleHeaderShortcutButtons.map((shortcut) => {
                   const buttonState = headerShortcutStates[shortcut.id];
                   return (
@@ -1269,13 +1286,6 @@ export function AiStudioPageContent({
                   );
                 })}
               </div>
-              <button
-                type="button"
-                className="ai-hero-shortcut-icon-button"
-                aria-label="Styles visibility"
-              >
-                <Eye size={16} weight="regular" aria-hidden="true" />
-              </button>
             </div>
           </div>
         </section>
@@ -1302,9 +1312,9 @@ export function AiStudioPageContent({
               shellClassName={shellClassName}
               shellStyle={shellStyle}
               selectedTool={selectedTool}
-              showDivider={showDivider}
+              showDivider={showDivider && isCanvasVisible}
               dividerProps={dividerProps}
-              rightColumnHidden={rightColumnHidden}
+              rightColumnHidden={effectiveRightColumnHidden}
               propertiesPanelContent={propertiesPanelContent}
               rightColumnDropMode={rightColumnDropMode as RightColumnDropMode}
               onRightColumnDropCapture={handleRightColumnDropCapture}

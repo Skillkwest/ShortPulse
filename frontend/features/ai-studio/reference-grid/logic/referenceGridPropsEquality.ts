@@ -41,6 +41,11 @@ const areStylesPanelsEqual = (
   left?.styles === right?.styles &&
   left?.onSelectStyle === right?.onSelectStyle;
 
+const areRailCanvasPropsEqual = (
+  left?: ReferenceGridProps["railCanvasProps"],
+  right?: ReferenceGridProps["railCanvasProps"]
+): boolean => left === right;
+
 export const areReferenceGridPropsEqual = (
   previous: Readonly<ReferenceGridPropsLike>,
   next: Readonly<ReferenceGridPropsLike>
@@ -137,6 +142,9 @@ export const areReferenceGridPropsEqual = (
     return false;
   }
   if (!arePanelVisibilityEqual(previous.panelVisibility, next.panelVisibility)) {
+    return false;
+  }
+  if (!areRailCanvasPropsEqual(previous.railCanvasProps, next.railCanvasProps)) {
     return false;
   }
   if (!areStylesPanelsEqual(previous.stylesPanel, next.stylesPanel)) {

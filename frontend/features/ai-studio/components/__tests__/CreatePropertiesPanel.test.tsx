@@ -84,7 +84,12 @@ describe("CreatePropertiesPanel", () => {
           scrollHeightDescriptor
         );
       } else {
-        delete (HTMLTextAreaElement.prototype as Partial<HTMLTextAreaElement>).scrollHeight;
+        Reflect.deleteProperty(
+          HTMLTextAreaElement.prototype as HTMLTextAreaElement & {
+            scrollHeight?: number;
+          },
+          "scrollHeight"
+        );
       }
       if (minHeightDescriptor) {
         Object.defineProperty(CSSStyleDeclaration.prototype, "minHeight", minHeightDescriptor);
@@ -164,7 +169,12 @@ describe("CreatePropertiesPanel", () => {
           scrollHeightDescriptor
         );
       } else {
-        delete (HTMLTextAreaElement.prototype as Partial<HTMLTextAreaElement>).scrollHeight;
+        Reflect.deleteProperty(
+          HTMLTextAreaElement.prototype as HTMLTextAreaElement & {
+            scrollHeight?: number;
+          },
+          "scrollHeight"
+        );
       }
       if (minHeightDescriptor) {
         Object.defineProperty(CSSStyleDeclaration.prototype, "minHeight", minHeightDescriptor);
@@ -509,7 +519,12 @@ describe("CreatePropertiesPanel", () => {
           scrollHeightDescriptor
         );
       } else {
-        delete (HTMLTextAreaElement.prototype as Partial<HTMLTextAreaElement>).scrollHeight;
+        Reflect.deleteProperty(
+          HTMLTextAreaElement.prototype as HTMLTextAreaElement & {
+            scrollHeight?: number;
+          },
+          "scrollHeight"
+        );
       }
       if (lineHeightDescriptor) {
         Object.defineProperty(CSSStyleDeclaration.prototype, "lineHeight", lineHeightDescriptor);
@@ -666,7 +681,12 @@ describe("CreatePropertiesPanel", () => {
           scrollHeightDescriptor
         );
       } else {
-        delete (HTMLTextAreaElement.prototype as Partial<HTMLTextAreaElement>).scrollHeight;
+        Reflect.deleteProperty(
+          HTMLTextAreaElement.prototype as HTMLTextAreaElement & {
+            scrollHeight?: number;
+          },
+          "scrollHeight"
+        );
       }
       if (lineHeightDescriptor) {
         Object.defineProperty(CSSStyleDeclaration.prototype, "lineHeight", lineHeightDescriptor);
@@ -703,6 +723,75 @@ describe("CreatePropertiesPanel", () => {
     expect(container.querySelector(".create-expert-chat-spacer")).toBeTruthy();
     expect(screen.queryByText("References attach from the message bar.")).not.toBeInTheDocument();
     expect(screen.queryByText("Send your next instruction.")).not.toBeInTheDocument();
+  });
+
+  it("hides the left pulse rail in standard mode", () => {
+    const { container } = renderPanel({
+      beginnerMode: false,
+      expertCreateUiEligible: true,
+      agentEnabled: true,
+      onAgentInputChange: vi.fn(),
+      onAgentSend: vi.fn(),
+      agentMessages: [],
+    });
+
+    const panelShell = container.querySelector(".create-expert-panel-shell");
+    const leftPanel = container.querySelector(".create-expert-left-panel");
+    const rightPanel = container.querySelector(".create-expert-right-panel");
+    const rightPanelInner = container.querySelector(".create-expert-right-panel-inner");
+    const emptyStateShell = container.querySelector(".create-expert-empty-state-shell");
+
+    expect(panelShell).toBeTruthy();
+    expect(leftPanel).toBeFalsy();
+    expect(rightPanel).toBeTruthy();
+    expect(rightPanelInner).toBeTruthy();
+    expect(rightPanel?.contains(rightPanelInner)).toBe(true);
+    expect(rightPanelInner?.contains(emptyStateShell)).toBe(true);
+    expect(screen.queryByText("Prompt Presets")).not.toBeInTheDocument();
+  });
+
+  it("shows the left pulse rail only after toggling to pulse", async () => {
+    const { container } = renderPanel({
+      beginnerMode: false,
+      expertCreateUiEligible: true,
+      agentEnabled: true,
+      onAgentInputChange: vi.fn(),
+      onAgentSend: vi.fn(),
+      onClearAgentChat: vi.fn(),
+      agentMessages: [
+        {
+          id: "assistant-1",
+          role: "assistant",
+          content: "Draft prompt",
+        },
+      ],
+    });
+
+    const rightPanelTopbar = container.querySelector(".create-expert-right-panel-topbar");
+    const tablist = screen.getByRole("tablist", { name: "Create mode" });
+    expect(tablist).toBeInTheDocument();
+    expect(rightPanelTopbar?.contains(tablist)).toBe(true);
+    expect(rightPanelTopbar?.contains(screen.getByRole("button", { name: "Clear chat" }))).toBe(
+      true
+    );
+    expect(container.querySelector(".create-expert-left-panel")).toBeFalsy();
+    const standardTab = screen.getByRole("tab", { name: "Standard" });
+    const pulseTab = screen.getByRole("tab", { name: "Pulse" });
+    expect(standardTab).toHaveAttribute("aria-selected", "true");
+    expect(pulseTab).toHaveAttribute("aria-selected", "false");
+
+    fireEvent.click(pulseTab);
+
+    expect(standardTab).toHaveAttribute("aria-selected", "false");
+    expect(pulseTab).toHaveAttribute("aria-selected", "true");
+    await waitFor(() => {
+      expect(container.querySelector(".create-expert-left-panel")).toBeTruthy();
+      expect(screen.getByText("Prompt Presets")).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Image preset" })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Single-shot preset" })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Multi-shot preset" })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Story Builder preset" })).toBeInTheDocument();
+    });
   });
 
   it("renders the shared styles control in expert create and toggles via callback", () => {

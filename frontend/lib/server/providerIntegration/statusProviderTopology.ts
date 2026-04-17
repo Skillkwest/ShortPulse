@@ -33,9 +33,6 @@ export const resolveProviderConfiguredStatusBaseUrls = ({
   }
   if (isKieProviderKey(provider)) {
     const flags = readKieRuntimeFlags();
-    if (!flags.enabled) {
-      throw new Error("Kie provider is disabled by runtime flag.");
-    }
     const normalizedModelId = modelId?.trim();
     if (!normalizedModelId) {
       throw new Error("Kie status base resolution requires modelId.");
@@ -64,9 +61,6 @@ export const resolveProviderResponseProbeUrls = ({
   }
   if (isKieProviderKey(provider)) {
     const flags = readKieRuntimeFlags();
-    if (!flags.enabled) {
-      throw new Error("Kie provider is disabled by runtime flag.");
-    }
     const normalizedModelId = modelId?.trim();
     if (!normalizedModelId) {
       throw new Error("Kie response probe URL resolution requires modelId.");

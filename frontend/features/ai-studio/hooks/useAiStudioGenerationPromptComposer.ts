@@ -265,6 +265,7 @@ export const useAiStudioGenerationPromptComposer = ({
         displayPromptOverride: displayPromptToUse,
         characterContextOverride: options?.characterContextOverride,
         modelIdOverride: options?.modelIdOverride,
+        outputIdOverride: options?.outputIdOverride,
         inpaintOverride: options?.inpaintOverride,
         hideOutputFromReferenceGrid: options?.hideOutputFromReferenceGrid,
         ...(styleContextOverrideToSubmit

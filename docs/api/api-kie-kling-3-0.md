@@ -1,4 +1,4 @@
-# Kie.ai Kling 3.0 (Runtime-Gated Contract)
+# Kie.ai Kling 3.0 (Always-On Contract)
 
 This document tracks the internal ShortPulse runtime contract for `kie-ai/kling-3.0`.
 
@@ -6,7 +6,7 @@ This document tracks the internal ShortPulse runtime contract for `kie-ai/kling-
 - Provider: `kie`
 - Model id: `kie-ai/kling-3.0`
 - Canonical source reference: `https://api.kie.ai/api/v1/jobs/createTask` (Kling 3.0 market docs)
-- Runtime status: runtime-gated (selectable when Kie integration is enabled and model allowlist gates pass; fail-closed otherwise)
+- Runtime status: always on for `kie-ai/kling-3.0`; no rollout allowlist or enable flag is required for this model lane
 - Primary-source snapshot: captured from Kie docs on `2026-03-01`
 
 ## Current Runtime Contract
@@ -27,9 +27,9 @@ This document tracks the internal ShortPulse runtime contract for `kie-ai/kling-
   - Motion Control:
     - root: `model="kling-3.0/motion-control"`, optional `callBackUrl`
     - payload body under `input` with `input_urls` (one character image URL), `video_urls` (one motion reference video URL), and resolution mode (`mode=720p|1080p`)
-- Allowed aspects: `16:9`, `9:16`, `1:1`
+- Allowed aspects: `16:9`, `9:16`, `1:1` for Standard image-to-video only
 - Allowed resolutions: `720p`, `1080p`
-- Allowed durations: `5`, `10` (seconds)
+- Allowed durations: `5`, `10` (seconds) for Standard image-to-video only
 - Kie media preflight guard (before provider submit):
   - media URLs must be valid `http(s)` URLs
   - image/video file extensions are fail-closed allowlisted
@@ -52,6 +52,10 @@ This document tracks the internal ShortPulse runtime contract for `kie-ai/kling-
   - `cfg_scale`
   - canonical callback URL field `callback_url` (edge aliases `callBackUrl` / `callbackUrl` normalized at ingress)
   - Motion Control canonical fields: `input_urls`, `video_urls`, `character_orientation`, `background_source`, and resolution mode (`mode=720p|1080p`)
+- Motion Control product notes:
+  - Motion UI hides aspect and duration because the motion-control provider payload does not use them.
+  - Motion UI keeps audio enabled as a supported setting for this lane.
+  - Motion cost estimate is intentionally suppressed until provider-backed billing evidence exists for this lane.
 
 ## Product-facing payload rules
 - `Single`
@@ -84,12 +88,11 @@ This document tracks the internal ShortPulse runtime contract for `kie-ai/kling-
   - `pro`, `4s`, sound off: `72` Kie credits -> `$0.36` -> `40` billed credits
 
 ## Guardrails
-1. Kie integration remains disabled by default.
-2. Kie paths fail closed unless model is explicitly allowlisted.
-3. Public `/api/fal/*` routes remain unchanged.
-4. Character-scoped media isolation is fail-closed for video submit payloads (`/characters/` paths and character metadata fields are rejected before provider dispatch).
-5. Kie submit upstream errors include redacted media diagnostics in telemetry metadata (`media_diagnostics`) for faster `422 file format` triage without logging raw signed URLs.
+1. Kling 3.0 is always on; this model no longer depends on a rollout enable flag or model allowlist.
+2. Public `/api/fal/*` routes remain unchanged.
+3. Character-scoped media isolation is fail-closed for video submit payloads (`/characters/` paths and character metadata fields are rejected before provider dispatch).
+4. Kie submit upstream errors include redacted media diagnostics in telemetry metadata (`media_diagnostics`) for faster `422 file format` triage without logging raw signed URLs.
 
-## Follow-up Required Before Enabling
-1. Refresh primary-source capture immediately before production enablement.
-2. Confirm status/result payload shape parity in provider integration tests.
+## Ongoing Maintenance
+1. Refresh primary-source capture when Kie updates the motion-control docs.
+2. Keep status/result payload shape parity covered in provider integration tests.

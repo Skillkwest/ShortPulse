@@ -100,8 +100,8 @@ const modelMeta: Record<string, ModelMeta> = {
   "kie-ai/kling-3.0": {
     provider: "Kie AI",
     description:
-      "Kie Kling 3.0 supports image-to-video and motion-control workflows with native audio.",
-    tags: ["Video", "Image-to-Video", "Motion Transfer", "5-10s", "Audio"],
+      "Kie Kling 3.0 supports standard image-to-video and dedicated motion-control transfers.",
+    tags: ["Video", "Image-to-Video", "Motion Control", "720p/1080p", "Audio"],
   },
   "kie-ai/seedance-1.5-pro": {
     provider: "Kie AI",

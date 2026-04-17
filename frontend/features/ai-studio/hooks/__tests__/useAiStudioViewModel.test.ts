@@ -3,6 +3,7 @@ import { renderHook } from "@testing-library/react";
 import { computeCostForModel } from "../../logic/pricing";
 import type { PricingParams } from "../../logic/pricingTypes";
 import {
+  KIE_KLING_30_MODEL_ID,
   KIE_SEEDANCE_15_PRO_MODEL_ID,
   KIE_SEEDANCE_2_FAST_MODEL_ID,
   KIE_SEEDANCE_2_MODEL_ID,
@@ -213,6 +214,21 @@ describe("useAiStudioViewModel motion guardrails", () => {
     expect(result.current.referenceImageWarning).toBe(
       "Kling 3.0 requires a first frame image in Standard mode."
     );
+  });
+
+  it("suppresses the misleading cost estimate for Kling motion mode", () => {
+    const { result } = renderHook(() =>
+      useAiStudioViewModel({
+        ...baseInput,
+        model: KIE_KLING_30_MODEL_ID,
+        referenceImageUrl: "https://example.com/character.png",
+        motionReferenceVideoUrl: "https://example.com/motion.mp4",
+        costParamsForModel: makeCostParamsForModel(KIE_KLING_30_MODEL_ID),
+      })
+    );
+
+    expect(result.current.currentCostCredits).toBeNull();
+    expect(result.current.modelPickerCostCredits).toBeNull();
   });
 
   it("allows Kling 3.0 standard generation when only the optional last-frame slot is populated", () => {

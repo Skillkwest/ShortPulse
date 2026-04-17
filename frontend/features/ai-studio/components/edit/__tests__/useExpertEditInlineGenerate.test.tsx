@@ -2,40 +2,48 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useExpertEditInlineGenerate } from "../useExpertEditInlineGenerate";
 
-const composePrimaryStageLayersToBlobMock = vi.fn();
-const buildExpertEditSubmissionReferenceInputsMock = vi.fn();
-const analyzeExpertEditPromptTokensMock = vi.fn();
-const compileExpertEditSubmissionPromptMock = vi.fn();
+const exportExpertEditStageArtifactsMock = vi.fn();
+const validateExpertEditSubmissionPromptMock = vi.fn();
+const prepareExpertEditSubmissionMock = vi.fn();
+const resolveExpertEditSubmissionDispatchMock = vi.fn();
+const createExpertEditSubmissionObjectUrlsMock = vi.fn();
+const cleanupExpertEditSubmissionObjectUrlsMock = vi.fn();
+const revokeExpertEditSubmissionObjectUrlsMock = vi.fn();
 
-vi.mock("../../../logic/expertEditStageFlatten", () => ({
-  composePrimaryStageLayersToBlob: (...args: unknown[]) =>
-    composePrimaryStageLayersToBlobMock(...args),
+vi.mock("../expertEditStageExport", () => ({
+  exportExpertEditStageArtifacts: (...args: unknown[]) =>
+    exportExpertEditStageArtifactsMock(...args),
 }));
 
-vi.mock("../../../logic/expertEditPromptReferences", () => ({
-  analyzeExpertEditPromptTokens: (...args: unknown[]) => analyzeExpertEditPromptTokensMock(...args),
-  buildExpertEditSubmissionReferenceInputs: (...args: unknown[]) =>
-    buildExpertEditSubmissionReferenceInputsMock(...args),
-  compileExpertEditSubmissionPrompt: (...args: unknown[]) =>
-    compileExpertEditSubmissionPromptMock(...args),
+vi.mock("../expertEditSubmissionPreparation", () => ({
+  validateExpertEditSubmissionPrompt: (...args: unknown[]) =>
+    validateExpertEditSubmissionPromptMock(...args),
+  prepareExpertEditSubmission: (...args: unknown[]) => prepareExpertEditSubmissionMock(...args),
+}));
+
+vi.mock("../expertEditSubmissionDispatch", () => ({
+  resolveExpertEditSubmissionDispatch: (...args: unknown[]) =>
+    resolveExpertEditSubmissionDispatchMock(...args),
+}));
+
+vi.mock("../expertEditSubmissionObjectUrls", () => ({
+  createExpertEditSubmissionObjectUrls: (...args: unknown[]) =>
+    createExpertEditSubmissionObjectUrlsMock(...args),
+  cleanupExpertEditSubmissionObjectUrls: (...args: unknown[]) =>
+    cleanupExpertEditSubmissionObjectUrlsMock(...args),
+  revokeExpertEditSubmissionObjectUrls: (...args: unknown[]) =>
+    revokeExpertEditSubmissionObjectUrlsMock(...args),
 }));
 
 vi.mock("../../../logic/inpaintSubmission", () => ({
-  INPAINT_FLUX_FILL_MODEL_ID: "flux-fill",
-  MARKUP_NANO_BANANA_PRO_EDIT_MODEL_ID: "nano-banana",
-  isMarkupModelLockEnabled: () => false,
-  isMarkupStrokeSecondaryReferenceEnabled: () => false,
-}));
-
-vi.mock("../../../logic/expertEditMarkupReference", () => ({
-  composeFlattenedMarkupReferenceBlob: vi.fn(),
+  resolveInpaintPromptReferencePolicy: () => null,
 }));
 
 const createArgs = (
   overrides: Partial<Parameters<typeof useExpertEditInlineGenerate>[0]> = {}
 ): Parameters<typeof useExpertEditInlineGenerate>[0] => ({
   layers: [{ id: "layer-1" } as never],
-  promptText: "Refine the scene",
+  promptText: "Refine the outfit",
   extraImageUrls: [null, null, null],
   reusablePrimarySourceUrl: null,
   markupStrokes: [],
@@ -51,47 +59,114 @@ const createArgs = (
   showStatusToast: vi.fn(),
   onInvalidPromptReferenceToken: vi.fn(),
   resolveStageFlattenSnapshot: vi.fn(() => ({ outputAspectRatio: 1 })),
+  insertOptimisticGenerationPlaceholder: vi.fn(() => "out-optimistic"),
+  removeOptimisticGenerationPlaceholder: vi.fn(),
   ...overrides,
 });
 
 describe("useExpertEditInlineGenerate", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    analyzeExpertEditPromptTokensMock.mockReturnValue({
-      hasInvalidTokens: false,
-      inlineError: null,
-      referencedSlotIndexes: new Set<number>(),
+    validateExpertEditSubmissionPromptMock.mockReturnValue({ status: "ready" });
+    prepareExpertEditSubmissionMock.mockReturnValue({
+      status: "ready",
+      referenceInputs: ["https://cdn.test/reusable-primary.png"],
+      linkedSecondaryReferenceInputs: [],
+      promptOverrideOptions: {
+        displayPromptOverride: "Refine the outfit",
+        submissionPromptOverride: "Refine the outfit",
+      },
     });
-    buildExpertEditSubmissionReferenceInputsMock.mockImplementation(
-      ({ flattenedPrimaryUrl }: { flattenedPrimaryUrl: string | null }) => [flattenedPrimaryUrl]
-    );
-    compileExpertEditSubmissionPromptMock.mockReturnValue({
-      hasTokenReferences: false,
-      submissionPrompt: "Refine the scene",
+    resolveExpertEditSubmissionDispatchMock.mockReturnValue({
+      status: "ready",
+      referenceInputs: ["https://cdn.test/reusable-primary.png"],
+      options: {
+        referenceInputsMode: "replace",
+      },
     });
-    composePrimaryStageLayersToBlobMock.mockResolvedValue(
-      new Blob(["flattened"], { type: "image/png" })
-    );
+    createExpertEditSubmissionObjectUrlsMock.mockReturnValue({
+      flattenedUrl: null,
+      flattenedMarkupReferenceUrl: null,
+      inpaintMaskUrl: null,
+    });
+    cleanupExpertEditSubmissionObjectUrlsMock.mockReturnValue(undefined);
+    revokeExpertEditSubmissionObjectUrlsMock.mockReturnValue(undefined);
   });
 
-  it("uses the latest reusable primary source url after rerendering", async () => {
+  it("shows one immediate optimistic placeholder and reuses its id for submit handoff", async () => {
+    let resolveExport:
+      | ((value: {
+          flattenedBlob: Blob | null;
+          flattenedMarkupReferenceBlob: Blob | null;
+          inpaintMaskBlob: Blob | null;
+          reusablePrimarySourceUrl: string | null;
+        }) => void)
+      | null = null;
+    exportExpertEditStageArtifactsMock.mockReturnValue(
+      new Promise((resolve) => {
+        resolveExport = resolve;
+      })
+    );
+    const insertOptimisticGenerationPlaceholder = vi.fn(() => "out-optimistic");
     const onRegenerateWithReferenceInputs = vi.fn(async () => undefined);
-    const { result, rerender } = renderHook(
-      (props: Parameters<typeof useExpertEditInlineGenerate>[0]) =>
-        useExpertEditInlineGenerate(props),
-      {
-        initialProps: createArgs({
-          reusablePrimarySourceUrl: null,
+
+    const { result } = renderHook(() =>
+      useExpertEditInlineGenerate(
+        createArgs({
           onRegenerateWithReferenceInputs,
-        }),
-      }
+          insertOptimisticGenerationPlaceholder,
+        })
+      )
     );
 
-    rerender(
-      createArgs({
-        reusablePrimarySourceUrl: "https://cdn.test/reusable-primary.png",
-        onRegenerateWithReferenceInputs,
-      })
+    act(() => {
+      result.current.handleInlineGenerate();
+      result.current.handleInlineGenerate();
+    });
+
+    expect(insertOptimisticGenerationPlaceholder).toHaveBeenCalledTimes(1);
+    await waitFor(() => {
+      expect(result.current.isInlineGeneratePending).toBe(true);
+    });
+
+    const finishExport = resolveExport;
+    expect(finishExport).not.toBeNull();
+    if (!finishExport) {
+      throw new Error("Expected export resolver");
+    }
+    finishExport({
+      flattenedBlob: null,
+      flattenedMarkupReferenceBlob: null,
+      inpaintMaskBlob: null,
+      reusablePrimarySourceUrl: "https://cdn.test/reusable-primary.png",
+    });
+
+    await waitFor(() => {
+      expect(onRegenerateWithReferenceInputs).toHaveBeenCalledWith(
+        ["https://cdn.test/reusable-primary.png"],
+        expect.objectContaining({
+          outputIdOverride: "out-optimistic",
+          referenceInputsMode: "replace",
+        })
+      );
+    });
+    await waitFor(() => {
+      expect(result.current.isInlineGeneratePending).toBe(false);
+    });
+  });
+
+  it("removes the optimistic placeholder when export fails before submit", async () => {
+    exportExpertEditStageArtifactsMock.mockRejectedValue(new Error("flatten failed"));
+    const removeOptimisticGenerationPlaceholder = vi.fn();
+    const showStatusToast = vi.fn();
+
+    const { result } = renderHook(() =>
+      useExpertEditInlineGenerate(
+        createArgs({
+          removeOptimisticGenerationPlaceholder,
+          showStatusToast,
+        })
+      )
     );
 
     act(() => {
@@ -99,18 +174,35 @@ describe("useExpertEditInlineGenerate", () => {
     });
 
     await waitFor(() => {
-      expect(onRegenerateWithReferenceInputs).toHaveBeenCalledWith(
-        ["https://cdn.test/reusable-primary.png"],
-        expect.objectContaining({
-          referenceInputsMode: "replace",
-        })
-      );
+      expect(removeOptimisticGenerationPlaceholder).toHaveBeenCalledWith("out-optimistic");
     });
-    expect(composePrimaryStageLayersToBlobMock).not.toHaveBeenCalled();
-    expect(buildExpertEditSubmissionReferenceInputsMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        flattenedPrimaryUrl: "https://cdn.test/reusable-primary.png",
-      })
+    await waitFor(() => {
+      expect(result.current.isInlineGeneratePending).toBe(false);
+    });
+    expect(showStatusToast).toHaveBeenCalledWith("Unable to flatten layers.");
+  });
+
+  it("ignores repeat clicks while the shared edit generation state is already busy", () => {
+    const insertOptimisticGenerationPlaceholder = vi.fn(() => "out-optimistic");
+    const onRegenerateWithReferenceInputs = vi.fn(async () => undefined);
+
+    const { result } = renderHook(() =>
+      useExpertEditInlineGenerate(
+        createArgs({
+          isGenerateBusy: true,
+          insertOptimisticGenerationPlaceholder,
+          onRegenerateWithReferenceInputs,
+        })
+      )
     );
+
+    act(() => {
+      result.current.handleInlineGenerate();
+    });
+
+    expect(insertOptimisticGenerationPlaceholder).not.toHaveBeenCalled();
+    expect(exportExpertEditStageArtifactsMock).not.toHaveBeenCalled();
+    expect(onRegenerateWithReferenceInputs).not.toHaveBeenCalled();
+    expect(result.current.isInlineGeneratePending).toBe(false);
   });
 });

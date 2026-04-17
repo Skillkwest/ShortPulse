@@ -106,6 +106,8 @@ const createParams = (
     editExtraImageUrls: [null, null, null],
     editReferenceText: "Edit prompt",
     handleImageRegenerateWithDebit: vi.fn(),
+    insertOptimisticGenerationPlaceholder: vi.fn(() => "out-optimistic"),
+    removeOptimisticGenerationPlaceholder: vi.fn(),
     addSessionMediaReference: vi.fn(),
     referenceImageWarning: null,
     resolveOutputPreviewUrl: vi.fn((id: string | null | undefined) => {
@@ -321,10 +323,31 @@ describe("useAiStudioPanelProps", () => {
     );
 
     expect(result.current.propertiesEditExpert.isGenerateDisabled).toBe(false);
-    expect(result.current.propertiesEditExpert.isGenerateBusy).toBe(false);
+    expect(result.current.propertiesEditExpert.isGenerateBusy).toBe(true);
     expect(result.current.propertiesVideo.isGenerateDisabled).toBe(false);
     expect(result.current.propertiesVideo.agentIsSending).toBe(false);
     expect(result.current.propertiesCreate.isChatOffInlineGenerateDisabled).toBe(false);
+  });
+
+  it("forwards optimistic placeholder helpers into expert edit props", () => {
+    const insertOptimisticGenerationPlaceholder = vi.fn(() => "out-optimistic");
+    const removeOptimisticGenerationPlaceholder = vi.fn();
+    const { result } = renderHook(() =>
+      useAiStudioPanelProps(
+        createParams({
+          insertOptimisticGenerationPlaceholder,
+          removeOptimisticGenerationPlaceholder,
+        })
+      )
+    );
+
+    expect(
+      result.current.propertiesEditExpert.insertOptimisticGenerationPlaceholder?.("Edit prompt")
+    ).toBe("out-optimistic");
+    result.current.propertiesEditExpert.removeOptimisticGenerationPlaceholder?.("out-optimistic");
+
+    expect(insertOptimisticGenerationPlaceholder).toHaveBeenCalledWith("Edit prompt");
+    expect(removeOptimisticGenerationPlaceholder).toHaveBeenCalledWith("out-optimistic");
   });
 
   it("keeps chat-off inline generate disabled for non-cap upstream guardrails", () => {

@@ -49,6 +49,7 @@ type RegenerateWithDebitOptions = {
   referenceInputsMode?: ReferenceInputsMode;
   inpaintOverride?: InpaintSubmissionOverride | null;
   modelIdOverride?: string | null;
+  outputIdOverride?: string;
   costOverrideCredits?: number | null;
   hideOutputFromReferenceGrid?: boolean;
   displayPromptOverride?: string | null;
@@ -594,6 +595,10 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
     ) => {
       const enforceClickLock = shouldEnforceGenerateClickLock(panelKey);
       if (enforceClickLock && !tryAcquireGenerateClickLock(panelKey)) return;
+      const removeExternalOptimisticPlaceholder = () => {
+        if (!options?.outputIdOverride) return;
+        removeOptimisticGenerationPlaceholder?.(options.outputIdOverride);
+      };
       try {
         const effectiveSubmitModelId =
           options?.inpaintOverride?.modelId ??
@@ -621,12 +626,14 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
           const hasFreshCredits = await ensureFreshCreditsForRun(resolvedRunCostCredits);
           checkedFreshCredits = true;
           if (!hasFreshCredits) {
+            removeExternalOptimisticPlaceholder();
             setUiError("You do not have enough credits for this run.");
             return;
           }
         }
 
         if (isGenerateDisabled && !isCreditGuardrail) {
+          removeExternalOptimisticPlaceholder();
           setUiError(resolveGuardrailBlockMessage());
           return;
         }
@@ -635,6 +642,7 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
             ? true
             : await ensureFreshCreditsForRun(requiredCredits);
           if (!hasFreshCredits) {
+            removeExternalOptimisticPlaceholder();
             setUiError(resolveGuardrailBlockMessage());
             return;
           }
@@ -661,6 +669,7 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
           }),
         });
         if (!regenerateStartDecision.allow) {
+          removeExternalOptimisticPlaceholder();
           setUiError(regenerateStartDecision.message);
           return;
         }
@@ -687,6 +696,7 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
             userReferenceInputs
           );
         } catch (error) {
+          removeExternalOptimisticPlaceholder();
           if (error instanceof DeadlineExceededError) {
             trackCharacterModeEvent?.("generation_preflight_timeout", {
               trigger: "regenerate",
@@ -727,6 +737,7 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
           regenerateCharacterModeDecision &&
           !regenerateCharacterModeDecision.allow
         ) {
+          removeExternalOptimisticPlaceholder();
           trackCharacterModeFallback(characterModeOverrides, tool);
           trackCharacterModeEvent?.("character_mode_submit_blocked_no_references", {
             tool,
@@ -763,6 +774,7 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
         regenerateOutput({
           selectedToolOverride: tool,
           modelIdOverride: effectiveModelId,
+          outputIdOverride: options?.outputIdOverride,
           submissionPromptOverride: resolvedSubmissionPromptOverride,
           displayPromptOverride: resolvedDisplayPromptOverride,
           referenceInputsOverride:

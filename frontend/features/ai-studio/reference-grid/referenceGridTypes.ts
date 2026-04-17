@@ -3,6 +3,7 @@
  * Keeps component prop/type declarations out of the main render surface so the file can stay orchestration-focused.
  */
 import type { ExpertEditStyleTile } from "../components/edit/expertEditStyles";
+import type { CanvasPropertiesPanelProps } from "../components/canvas/useAiStudioCanvasWorkspaceState";
 import type { PastedMediaReference } from "./controllers/referenceGridClipboard";
 import type { ReferenceGridPanelVisibility } from "./referenceGridConfig";
 import type { ReferenceIngestionInput } from "../reference-ingestion/types";
@@ -64,6 +65,7 @@ export type ReferenceGridProps = {
   ) => string | null;
   onRestoreArchivedOutput?: (id: string) => void;
   onRestoreAllArchivedOutputs?: () => void;
+  railCanvasProps?: CanvasPropertiesPanelProps;
   panelVisibility?: ReferenceGridPanelVisibility;
   stylesPanel?: {
     isOpen: boolean;

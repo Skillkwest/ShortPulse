@@ -43,7 +43,7 @@ describe("providerRuntimeConfig", () => {
       assertKieRuntimeEnabledForModel({
         modelId: "kie-ai/kling-3.0",
       })
-    ).toThrow("Kie model is not allowlisted");
+    ).not.toThrow();
   });
 
   it("normalizes and filters invalid kie allowlist entries", () => {
@@ -62,6 +62,12 @@ describe("providerRuntimeConfig", () => {
         modelId: "kie-ai/veo-3.1-fast-i2v",
       })
     ).toThrow("Kie model is not allowlisted");
+
+    expect(() =>
+      assertKieRuntimeEnabledForModel({
+        modelId: "kie-ai/kling-3.0",
+      })
+    ).not.toThrow();
   });
 
   it("fails closed when kie allowlist contains only invalid entries", () => {

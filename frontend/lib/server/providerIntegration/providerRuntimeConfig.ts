@@ -9,13 +9,18 @@ import {
   getKieTimeoutMsByModelId,
 } from "../../model-runtime/modelCatalog";
 import { getModelConfig } from "../../model-runtime/pricing";
-import { KIE_SUPPORTED_MODEL_IDS, isKnownKieModelId } from "../../model-runtime/providerModelIds";
+import {
+  KIE_KLING_30_MODEL_ID,
+  KIE_SUPPORTED_MODEL_IDS,
+  isKnownKieModelId,
+} from "../../model-runtime/providerModelIds";
 import type { SubmitTarget } from "../falIntegration/contracts";
 import { isFalProviderKey, isKieProviderKey, normalizeProviderKey } from "./providerKey";
 
 const DEFAULT_KIE_TRUSTED_HOSTS = ["kie.ai"];
 const DEFAULT_KIE_STATUS_TIMEOUT_MS = 60000;
 const REQUEST_ID_TEMPLATE_TOKEN = "{requestId}";
+const ALWAYS_ON_KIE_MODEL_IDS = new Set([KIE_KLING_30_MODEL_ID]);
 
 const parseBoolean = (value: string | undefined, fallback: boolean): boolean => {
   if (!value) return fallback;
@@ -160,8 +165,10 @@ export type KieRuntimeFlags = {
   statusTimeoutMs: number;
 };
 
+const isAlwaysOnKieModel = (modelId: string): boolean => ALWAYS_ON_KIE_MODEL_IDS.has(modelId);
+
 /**
- * Reads Kie runtime controls. All Kie integration is disabled unless explicitly enabled.
+ * Reads Kie runtime controls. Kling 3.0 is always on; other Kie lanes still honor runtime gates.
  */
 export const readKieRuntimeFlags = (): KieRuntimeFlags => ({
   enabled: parseBoolean(process.env.SHORTPULSE_KIE_INTEGRATION_ENABLED, false),
@@ -177,12 +184,13 @@ export const readKieRuntimeFlags = (): KieRuntimeFlags => ({
 });
 
 /**
- * Returns true when the model is allowlisted under Kie runtime flags.
+ * Returns true when the model is always-on or allowlisted under Kie runtime flags.
  */
 export const isKieModelAllowlisted = (
   modelId: string,
   flags: KieRuntimeFlags = readKieRuntimeFlags()
 ): boolean => {
+  if (isAlwaysOnKieModel(modelId)) return true;
   if (!flags.modelAllowlist.size) return false;
   for (const entry of flags.modelAllowlist) {
     if (matchAllowlistEntry(modelId, entry)) return true;
@@ -200,6 +208,7 @@ export const assertKieRuntimeEnabledForModel = ({
   modelId: string;
   flags?: KieRuntimeFlags;
 }): void => {
+  if (isAlwaysOnKieModel(modelId)) return;
   if (!flags.enabled) {
     throw new Error("Kie provider is disabled by runtime flag.");
   }

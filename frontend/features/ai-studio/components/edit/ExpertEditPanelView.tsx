@@ -114,6 +114,8 @@ export function ExpertEditPanelView({
   onEditSubmitIntentChange,
   onRegenerate,
   onRegenerateWithReferenceInputs,
+  insertOptimisticGenerationPlaceholder,
+  removeOptimisticGenerationPlaceholder,
   onAddSessionMediaReference,
   resolvePreviewUrlById,
   costCredits,
@@ -428,7 +430,6 @@ export function ExpertEditPanelView({
   const shouldShowResolutionControl = imageResolutionOptions.length > 0;
   const hasPromptText = promptTextValue.trim().length > 0;
   const [isPromptComposerExpanded, setIsPromptComposerExpanded] = React.useState(false);
-  const inlineGenerateDisabled = isGenerateDisabled || populatedLayerCount <= 0 || !hasPromptText;
   const suppressInlineReferenceGuardrail =
     guardrailReason === "Add a reference image before generating.";
   const inlineGuardrailReason = suppressInlineReferenceGuardrail ? null : guardrailReason;
@@ -603,8 +604,6 @@ export function ExpertEditPanelView({
     resolveStageFlattenSnapshot,
   });
   const isRemoveBackgroundPending = removeBackgroundPendingLayerId != null;
-  const isPrimaryStageBusy =
-    isFlattenPending || isRemoveBackgroundPending || isPrimaryStageGenerating;
 
   const lockGlobalCursor = React.useCallback((cursor: string) => {
     lockDocumentCursor({
@@ -646,7 +645,7 @@ export function ExpertEditPanelView({
     resolveLayerImageAspectRatio,
   ]);
 
-  const { handleInlineGenerate } = useExpertEditInlineGenerate({
+  const { handleInlineGenerate, isInlineGeneratePending } = useExpertEditInlineGenerate({
     layers,
     promptText: promptTextValue,
     extraImageUrls,
@@ -664,7 +663,17 @@ export function ExpertEditPanelView({
     showStatusToast,
     onInvalidPromptReferenceToken: handleInvalidPromptReferenceToken,
     resolveStageFlattenSnapshot,
+    insertOptimisticGenerationPlaceholder,
+    removeOptimisticGenerationPlaceholder,
+    isGenerateBusy,
   });
+  const resolvedInlineGenerateBusy = isGenerateBusy || isInlineGeneratePending;
+  const inlineGenerateDisabled = isGenerateDisabled || populatedLayerCount <= 0 || !hasPromptText;
+  const isPrimaryStageBusy =
+    isFlattenPending ||
+    isRemoveBackgroundPending ||
+    isPrimaryStageGenerating ||
+    isInlineGeneratePending;
 
   const handleSecondaryPromptTokenDragStart = React.useCallback(
     (event: React.DragEvent<HTMLDivElement>, index: number) => {
@@ -1366,7 +1375,7 @@ export function ExpertEditPanelView({
             promptTokenInlineError={promptTokenInlineError}
             onGenerate={handleInlineGenerate}
             inlineGenerateDisabled={inlineGenerateDisabled}
-            isGenerateBusy={isGenerateBusy}
+            isGenerateBusy={resolvedInlineGenerateBusy}
             costCredits={costCredits}
             inlineGuardrailReason={inlineGuardrailReason}
             modelId={effectiveSelectorModelId}

@@ -1,9 +1,11 @@
 import Image from "next/image";
 import React from "react";
+import { Trash } from "phosphor-react";
 import { AgentGenerateButton } from "../../../../prefabs/agent";
 import { AspectDropdown } from "../AspectDropdown";
 import { ResolutionDropdown } from "../ResolutionDropdown";
 import { PromptStep } from "../PromptStep";
+import { CreateExpertPresetPanel } from "./CreateExpertPresetPanel";
 import type { AspectOption } from "../../types";
 
 type ExpertCreatePanelViewProps = {
@@ -71,17 +73,79 @@ export function ExpertCreatePanelView({
   imageResolutionOptions,
   onImageResolutionChange,
 }: ExpertCreatePanelViewProps) {
+  const PULSE_RAIL_TRANSITION_MS = 220;
   const [agentInputVisualRowCount, setAgentInputVisualRowCount] = React.useState(1);
+  const [createMode, setCreateMode] = React.useState<"standard" | "pulse">("standard");
+  const [isPulseRailMounted, setIsPulseRailMounted] = React.useState(false);
+  const [isPulseRailActive, setIsPulseRailActive] = React.useState(false);
   const costValue = costCredits != null ? costCredits : "—";
   const modelLogoWidth = useUnoptimizedModelLogo ? 50 : 74;
   const modelLogoHeight = useUnoptimizedModelLogo ? 12 : 18;
   const inlineGuardrailReason = guardrailReason;
   const hasChatHistory = (promptStepProps.agentMessages?.length ?? 0) > 0;
+  const createModeTabsStyle = React.useMemo(
+    () =>
+      ({
+        ["--create-expert-mode-index" as string]: createMode === "pulse" ? 1 : 0,
+      }) as React.CSSProperties,
+    [createMode]
+  );
+  const createModeToggle = (
+    <div className="create-expert-mode-shell">
+      <div
+        className="create-expert-mode-tabs"
+        role="tablist"
+        aria-label="Create mode"
+        style={createModeTabsStyle}
+      >
+        <span className="create-expert-mode-indicator" aria-hidden="true" />
+        <button
+          type="button"
+          role="tab"
+          aria-selected={createMode === "standard"}
+          className={`create-expert-mode-tab ${createMode === "standard" ? "is-active" : ""}`}
+          onClick={() => setCreateMode("standard")}
+        >
+          Standard
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={createMode === "pulse"}
+          className={`create-expert-mode-tab ${createMode === "pulse" ? "is-active" : ""}`}
+          onClick={() => setCreateMode("pulse")}
+        >
+          Pulse
+        </button>
+      </div>
+    </div>
+  );
+  const handleClearAgentChat = promptStepProps.onClearAgentChat;
+  React.useEffect(() => {
+    if (createMode === "pulse") {
+      setIsPulseRailMounted(true);
+      const enterTimeout = window.setTimeout(() => {
+        setIsPulseRailActive(true);
+      }, 16);
+      return () => {
+        window.clearTimeout(enterTimeout);
+      };
+    }
+
+    setIsPulseRailActive(false);
+    const exitTimeout = window.setTimeout(() => {
+      setIsPulseRailMounted(false);
+    }, PULSE_RAIL_TRANSITION_MS);
+    return () => {
+      window.clearTimeout(exitTimeout);
+    };
+  }, [createMode]);
   const promptStepLayoutProps: React.ComponentProps<typeof PromptStep> = {
     ...promptStepProps,
     hideEmptyAgentChatState: true,
     emptyAgentChatSpacerClassName: hasChatHistory ? "" : "create-expert-chat-spacer",
     onAgentInputVisualRowCountChange: setAgentInputVisualRowCount,
+    onClearAgentChat: undefined,
   };
   const shouldHideReadyTitle = agentInputVisualRowCount >= 8;
   const promptAndControls = (
@@ -219,11 +283,47 @@ export function ExpertCreatePanelView({
       <div className="tool-header">
         <p className="eyebrow">Create</p>
       </div>
-      {!hasChatHistory ? (
-        <div className="create-expert-empty-state-shell">{promptAndControls}</div>
-      ) : (
-        <div className="create-expert-flow-shell">{promptAndControls}</div>
-      )}
+      <div
+        className={`create-expert-panel-shell ${
+          isPulseRailActive ? "is-pulse-rail-active" : "is-pulse-rail-inactive"
+        }`.trim()}
+      >
+        {isPulseRailMounted ? (
+          <div
+            className={`create-expert-left-panel ${
+              isPulseRailActive ? "is-pulse-active" : "is-pulse-inactive"
+            }`.trim()}
+            aria-hidden={!isPulseRailActive}
+          >
+            <div className="create-expert-left-panel-inner">
+              <CreateExpertPresetPanel />
+            </div>
+          </div>
+        ) : null}
+        <div className="create-expert-right-panel">
+          <div className="create-expert-right-panel-inner">
+            <div className="create-expert-right-panel-topbar">
+              <div className="create-expert-right-panel-topbar-center">{createModeToggle}</div>
+              {handleClearAgentChat ? (
+                <button
+                  type="button"
+                  className="create-expert-topbar-clear-btn"
+                  onClick={handleClearAgentChat}
+                  aria-label="Clear chat"
+                >
+                  <Trash size={14} weight="bold" aria-hidden />
+                  <span>Clear</span>
+                </button>
+              ) : null}
+            </div>
+            {!hasChatHistory ? (
+              <div className="create-expert-empty-state-shell">{promptAndControls}</div>
+            ) : (
+              <div className="create-expert-flow-shell">{promptAndControls}</div>
+            )}
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

@@ -1,11 +1,23 @@
 @media (max-width: 900px) {
+  .create-expert-panel .create-expert-panel-shell {
+    gap: 0;
+  }
+
+  .create-expert-panel .create-expert-left-panel {
+    display: none;
+  }
+
   .create-expert-panel--no-history .create-expert-empty-state-shell {
-    padding-block-start: clamp(30px, 7.5vh, 78px);
-    padding-block-end: clamp(18px, 4.5vh, 42px);
+    padding-top: 12px;
+    padding-bottom: 0;
   }
 
   .create-expert-ready-text {
     font-size: clamp(19px, 7vw, 26px);
+  }
+
+  .create-expert-panel--no-history .create-expert-ready-text {
+    margin: 36px 0 10px;
   }
 
   .create-expert-inline-generate .agent-generate-prefab {

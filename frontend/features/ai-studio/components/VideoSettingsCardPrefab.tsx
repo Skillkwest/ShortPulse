@@ -252,6 +252,8 @@ export function VideoSettingsCardPrefab({
   onToggleMultiShot,
 }: VideoSettingsCardPrefabProps) {
   const shouldShowResolutionControl = resolutionOptions.length > 0;
+  const shouldShowAspectControl = !isMotionMode;
+  const shouldShowDurationControl = !isMotionMode;
   const isVeo31Model =
     modelId?.includes("veo3.1") === true || modelId?.includes("veo-3.1") === true;
   const shouldShowSeedanceCameraFixed = showSeedanceCameraFixedControl;
@@ -271,7 +273,9 @@ export function VideoSettingsCardPrefab({
 
   return (
     <div className="video-settings-prefab">
-      <div className="video-settings-prefab__title">Video Settings</div>
+      <div className="video-settings-prefab__title">
+        {isMotionMode ? "Motion Settings" : "Video Settings"}
+      </div>
       {showModelRow ? (
         <div className="video-settings-prefab__row">
           <VideoSettingsPrefabModelButton
@@ -286,72 +290,91 @@ export function VideoSettingsCardPrefab({
         </div>
       ) : null}
 
-      <div className="video-settings-prefab__row">
-        <PrefabDropdown
-          value={aspect}
-          options={aspectOptionsForModel.map((option) => ({
-            value: option.value,
-            label: `${option.ratioLabel} ${option.name}`,
-          }))}
-          onSelect={onAspectChange}
-          ariaLabel="Video aspect ratio"
-          triggerClassName="video-settings-prefab__aspect-trigger"
-          menuClassName="video-settings-prefab__menu video-settings-prefab__menu--aspect"
-          optionClassName="video-settings-prefab__menu-option video-settings-prefab__menu-option--aspect"
-          renderOption={(option) => {
-            const aspectOption =
-              aspectOptionsForModel.find((aspectItem) => aspectItem.value === option.value) ??
-              selectedAspect;
-            const ratioClass = aspectOption?.value ? toRatioClassName(aspectOption.value) : null;
-            return (
+      {shouldShowAspectControl ? (
+        <div className="video-settings-prefab__row">
+          <PrefabDropdown
+            value={aspect}
+            options={aspectOptionsForModel.map((option) => ({
+              value: option.value,
+              label: `${option.ratioLabel} ${option.name}`,
+            }))}
+            onSelect={onAspectChange}
+            ariaLabel="Video aspect ratio"
+            triggerClassName="video-settings-prefab__aspect-trigger"
+            menuClassName="video-settings-prefab__menu video-settings-prefab__menu--aspect"
+            optionClassName="video-settings-prefab__menu-option video-settings-prefab__menu-option--aspect"
+            renderOption={(option) => {
+              const aspectOption =
+                aspectOptionsForModel.find((aspectItem) => aspectItem.value === option.value) ??
+                selectedAspect;
+              const ratioClass = aspectOption?.value ? toRatioClassName(aspectOption.value) : null;
+              return (
+                <>
+                  <span
+                    className={[
+                      "video-settings-prefab__aspect-shape",
+                      `video-settings-prefab__aspect-shape--${aspectOption?.orientation ?? "horizontal"}`,
+                      ratioClass ?? "",
+                    ]
+                      .filter(Boolean)
+                      .join(" ")}
+                    aria-hidden="true"
+                  />
+                  <span className="video-settings-prefab__menu-option-text">
+                    <span className="video-settings-prefab__menu-option-ratio">
+                      {aspectOption?.ratioLabel ?? option.value}
+                    </span>
+                    <span className="video-settings-prefab__menu-option-name">
+                      {aspectOption?.name ?? option.label}
+                    </span>
+                  </span>
+                </>
+              );
+            }}
+            renderTriggerValue={() => (
               <>
                 <span
                   className={[
                     "video-settings-prefab__aspect-shape",
-                    `video-settings-prefab__aspect-shape--${aspectOption?.orientation ?? "horizontal"}`,
-                    ratioClass ?? "",
+                    `video-settings-prefab__aspect-shape--${selectedAspect?.orientation ?? "horizontal"}`,
+                    selectedAspectRatioClass ?? "",
                   ]
                     .filter(Boolean)
                     .join(" ")}
                   aria-hidden="true"
                 />
-                <span className="video-settings-prefab__menu-option-text">
-                  <span className="video-settings-prefab__menu-option-ratio">
-                    {aspectOption?.ratioLabel ?? option.value}
+                <span className="video-settings-prefab__aspect-meta">
+                  <span className="video-settings-prefab__aspect-ratio">
+                    {selectedAspect?.ratioLabel ?? aspect}
                   </span>
-                  <span className="video-settings-prefab__menu-option-name">
-                    {aspectOption?.name ?? option.label}
+                  <span className="video-settings-prefab__aspect-name">
+                    {selectedAspect?.name ?? ""}
                   </span>
                 </span>
               </>
-            );
-          }}
-          renderTriggerValue={() => (
-            <>
-              <span
-                className={[
-                  "video-settings-prefab__aspect-shape",
-                  `video-settings-prefab__aspect-shape--${selectedAspect?.orientation ?? "horizontal"}`,
-                  selectedAspectRatioClass ?? "",
-                ]
-                  .filter(Boolean)
-                  .join(" ")}
-                aria-hidden="true"
-              />
-              <span className="video-settings-prefab__aspect-meta">
-                <span className="video-settings-prefab__aspect-ratio">
-                  {selectedAspect?.ratioLabel ?? aspect}
-                </span>
-                <span className="video-settings-prefab__aspect-name">
-                  {selectedAspect?.name ?? ""}
-                </span>
-              </span>
-            </>
-          )}
-        />
-      </div>
+            )}
+          />
+        </div>
+      ) : null}
 
-      {shouldShowResolutionControl ? (
+      {isMotionMode && shouldShowResolutionControl ? (
+        <div className="video-settings-prefab__row">
+          <PrefabDropdown
+            value={videoResolutionValue}
+            options={resolutionDropdownOptions}
+            onSelect={onVideoResolutionChange}
+            ariaLabel="Motion output mode"
+            triggerClassName="video-settings-prefab__select-trigger"
+            menuClassName="video-settings-prefab__menu"
+            optionClassName="video-settings-prefab__menu-option"
+            renderTriggerValue={(selected) => (
+              <span className="video-settings-prefab__select-value">
+                {selected?.label ?? videoResolutionValue}
+              </span>
+            )}
+          />
+        </div>
+      ) : shouldShowResolutionControl && shouldShowDurationControl ? (
         <div className="video-settings-prefab__dual-row">
           <div className="video-settings-prefab__dual-slot">
             <PrefabDropdown

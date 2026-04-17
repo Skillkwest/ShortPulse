@@ -594,6 +594,34 @@ body:has(.ai-studio-page[data-selected-tool="canvas"]) {
   transition: color 0.16s ease;
 }
 
+.ai-studio-page[data-selected-tool="create"] .ai-hero-shortcut-icon-button[aria-pressed="true"],
+.ai-studio-page[data-selected-tool="text"] .ai-hero-shortcut-icon-button[aria-pressed="true"],
+.ai-studio-page[data-selected-tool="kling"] .ai-hero-shortcut-icon-button[aria-pressed="true"],
+.ai-studio-page:not([data-selected-tool]) .ai-hero-shortcut-icon-button[aria-pressed="true"] {
+  color: rgba(37, 204, 255, 0.96);
+}
+
+.ai-studio-page[data-selected-tool="edit"] .ai-hero-shortcut-icon-button[aria-pressed="true"],
+.ai-studio-page[data-selected-tool="image"] .ai-hero-shortcut-icon-button[aria-pressed="true"] {
+  color: rgb(255, 194, 80);
+}
+
+.ai-studio-page[data-selected-tool="video"] .ai-hero-shortcut-icon-button[aria-pressed="true"] {
+  color: rgba(212, 177, 255, 0.98);
+}
+
+.ai-studio-page[data-selected-tool="sound"] .ai-hero-shortcut-icon-button[aria-pressed="true"],
+.ai-studio-page[data-selected-tool="voices"] .ai-hero-shortcut-icon-button[aria-pressed="true"],
+.ai-studio-page[data-selected-tool="text-to-speech"]
+  .ai-hero-shortcut-icon-button[aria-pressed="true"],
+.ai-studio-page[data-selected-tool="voice-changer"]
+  .ai-hero-shortcut-icon-button[aria-pressed="true"],
+.ai-studio-page[data-selected-tool="sound-effects"]
+  .ai-hero-shortcut-icon-button[aria-pressed="true"],
+.ai-studio-page[data-selected-tool="music"] .ai-hero-shortcut-icon-button[aria-pressed="true"] {
+  color: rgba(245, 221, 174, 0.96);
+}
+
 .ai-hero-shortcut-icon-button:hover {
   color: rgba(230, 236, 245, 0.9);
 }
@@ -949,6 +977,10 @@ body:has(.ai-studio-page[data-selected-tool="canvas"]) {
   grid-template-columns: 1fr;
 }
 
+.ai-shell.ai-shell-right-column-collapsed {
+  grid-template-columns: minmax(0, 1fr) 0 0;
+}
+
 .ai-shell.ai-shell-performance-dense .ai-panel {
   box-shadow: 0 6px 14px rgba(0, 0, 0, 0.26);
 }
@@ -1046,6 +1078,17 @@ body:has(.ai-studio-page[data-selected-tool="canvas"]) {
 }
 
 .ai-shell-divider {
+  --ai-shell-divider-base-color: rgba(156, 165, 178, 0.22);
+  --ai-shell-divider-base-handle-start: rgba(201, 205, 214, 0.68);
+  --ai-shell-divider-base-handle-end: rgba(201, 205, 214, 0.52);
+  --ai-shell-divider-base-handle-ring: rgba(201, 205, 214, 0.08);
+  --ai-shell-divider-base-handle-glow: rgba(0, 0, 0, 0.18);
+  --ai-shell-divider-active-color: rgba(105, 220, 203, 0.72);
+  --ai-shell-divider-active-ring: rgba(105, 220, 203, 0.25);
+  --ai-shell-divider-active-handle-start: rgba(184, 245, 240, 0.98);
+  --ai-shell-divider-active-handle-end: rgba(122, 220, 212, 0.88);
+  --ai-shell-divider-active-handle-ring: rgba(149, 235, 228, 0.2);
+  --ai-shell-divider-active-handle-glow: rgba(105, 220, 203, 0.24);
   width: var(--ai-shell-divider-track-width);
   align-self: stretch;
   justify-self: stretch;
@@ -1066,90 +1109,127 @@ body:has(.ai-studio-page[data-selected-tool="canvas"]) {
   bottom: 10px;
   width: 1px;
   border-radius: 999px;
-  background: rgba(156, 165, 178, 0.22);
+  background: linear-gradient(
+    180deg,
+    rgba(201, 205, 214, 0),
+    rgba(201, 205, 214, 0.14),
+    var(--ai-shell-divider-base-color) 50%,
+    rgba(201, 205, 214, 0.12) 82%,
+    rgba(201, 205, 214, 0)
+  );
   transform: translateX(-50%);
   transition:
-    background-color 0.18s ease,
+    background 0.18s ease,
+    box-shadow 0.18s ease;
+}
+
+.ai-shell-divider::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 3px;
+  height: 72px;
+  border-radius: 999px;
+  background: linear-gradient(
+    180deg,
+    var(--ai-shell-divider-base-handle-start),
+    var(--ai-shell-divider-base-handle-end)
+  );
+  transform: translate(-50%, -50%);
+  box-shadow:
+    0 0 0 1px var(--ai-shell-divider-base-handle-ring),
+    0 0 12px var(--ai-shell-divider-base-handle-glow);
+  transition:
+    background 0.18s ease,
     box-shadow 0.18s ease;
 }
 
 .ai-shell-divider:hover::before,
 .ai-shell-divider:focus-visible::before,
 .ai-shell.ai-shell-resizing .ai-shell-divider::before {
-  background: rgba(105, 220, 203, 0.72);
-  box-shadow: 0 0 0 1px rgba(105, 220, 203, 0.25);
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--ai-shell-divider-active-color) 0%, transparent),
+    color-mix(in srgb, var(--ai-shell-divider-active-color) 44%, transparent),
+    var(--ai-shell-divider-active-color) 52%,
+    color-mix(in srgb, var(--ai-shell-divider-active-color) 30%, transparent) 82%,
+    color-mix(in srgb, var(--ai-shell-divider-active-color) 0%, transparent)
+  );
+  box-shadow: 0 0 0 1px var(--ai-shell-divider-active-ring);
 }
 
-.ai-studio-page[data-selected-tool="create"] .ai-shell-divider:hover::before,
-.ai-studio-page[data-selected-tool="create"] .ai-shell-divider:focus-visible::before,
-.ai-studio-page[data-selected-tool="create"] .ai-shell.ai-shell-resizing .ai-shell-divider::before,
-.ai-studio-page[data-selected-tool="text"] .ai-shell-divider:hover::before,
-.ai-studio-page[data-selected-tool="text"] .ai-shell-divider:focus-visible::before,
-.ai-studio-page[data-selected-tool="text"] .ai-shell.ai-shell-resizing .ai-shell-divider::before {
-  background: rgba(37, 204, 255, 0.88);
-  box-shadow: 0 0 0 1px rgba(37, 204, 255, 0.28);
+.ai-shell-divider:hover::after,
+.ai-shell-divider:focus-visible::after,
+.ai-shell.ai-shell-resizing .ai-shell-divider::after {
+  background: linear-gradient(
+    180deg,
+    var(--ai-shell-divider-active-handle-start),
+    var(--ai-shell-divider-active-handle-end)
+  );
+  box-shadow:
+    0 0 0 1px var(--ai-shell-divider-active-handle-ring),
+    0 0 24px var(--ai-shell-divider-active-handle-glow);
 }
 
-.ai-studio-page[data-selected-tool="sound"] .ai-shell-divider:hover::before,
-.ai-studio-page[data-selected-tool="sound"] .ai-shell-divider:focus-visible::before,
-.ai-studio-page[data-selected-tool="sound"] .ai-shell.ai-shell-resizing .ai-shell-divider::before,
-.ai-studio-page[data-selected-tool="voices"] .ai-shell-divider:hover::before,
-.ai-studio-page[data-selected-tool="voices"] .ai-shell-divider:focus-visible::before,
-.ai-studio-page[data-selected-tool="voices"] .ai-shell.ai-shell-resizing .ai-shell-divider::before,
-.ai-studio-page[data-selected-tool="text-to-speech"] .ai-shell-divider:hover::before,
-.ai-studio-page[data-selected-tool="text-to-speech"] .ai-shell-divider:focus-visible::before,
-.ai-studio-page[data-selected-tool="text-to-speech"]
-  .ai-shell.ai-shell-resizing
-  .ai-shell-divider::before,
-.ai-studio-page[data-selected-tool="voice-changer"] .ai-shell-divider:hover::before,
-.ai-studio-page[data-selected-tool="voice-changer"] .ai-shell-divider:focus-visible::before,
-.ai-studio-page[data-selected-tool="voice-changer"]
-  .ai-shell.ai-shell-resizing
-  .ai-shell-divider::before,
-.ai-studio-page[data-selected-tool="sound-effects"] .ai-shell-divider:hover::before,
-.ai-studio-page[data-selected-tool="sound-effects"] .ai-shell-divider:focus-visible::before,
-.ai-studio-page[data-selected-tool="sound-effects"]
-  .ai-shell.ai-shell-resizing
-  .ai-shell-divider::before,
-.ai-studio-page[data-selected-tool="music"] .ai-shell-divider:hover::before,
-.ai-studio-page[data-selected-tool="music"] .ai-shell-divider:focus-visible::before,
-.ai-studio-page[data-selected-tool="music"] .ai-shell.ai-shell-resizing .ai-shell-divider::before {
-  background: rgba(149, 235, 228, 0.92);
-  box-shadow: 0 0 0 1px rgba(149, 235, 228, 0.3);
+.ai-studio-page[data-selected-tool="create"] .ai-shell-divider,
+.ai-studio-page[data-selected-tool="text"] .ai-shell-divider {
+  --ai-shell-divider-active-color: rgba(37, 204, 255, 0.88);
+  --ai-shell-divider-active-ring: rgba(37, 204, 255, 0.28);
+  --ai-shell-divider-active-handle-start: rgba(138, 231, 255, 0.98);
+  --ai-shell-divider-active-handle-end: rgba(37, 204, 255, 0.84);
+  --ai-shell-divider-active-handle-ring: rgba(37, 204, 255, 0.24);
+  --ai-shell-divider-active-handle-glow: rgba(37, 204, 255, 0.24);
 }
 
-.ai-studio-page[data-selected-tool="canvas"] .ai-shell-divider:hover::before,
-.ai-studio-page[data-selected-tool="canvas"] .ai-shell-divider:focus-visible::before,
-.ai-studio-page[data-selected-tool="canvas"] .ai-shell.ai-shell-resizing .ai-shell-divider::before {
-  background: var(--ai-canvas-cream);
-  box-shadow: 0 0 0 1px var(--ai-canvas-cream-outline);
+.ai-studio-page[data-selected-tool="sound"] .ai-shell-divider,
+.ai-studio-page[data-selected-tool="voices"] .ai-shell-divider,
+.ai-studio-page[data-selected-tool="text-to-speech"] .ai-shell-divider,
+.ai-studio-page[data-selected-tool="voice-changer"] .ai-shell-divider,
+.ai-studio-page[data-selected-tool="sound-effects"] .ai-shell-divider,
+.ai-studio-page[data-selected-tool="music"] .ai-shell-divider {
+  --ai-shell-divider-active-color: rgba(149, 235, 228, 0.92);
+  --ai-shell-divider-active-ring: rgba(149, 235, 228, 0.3);
+  --ai-shell-divider-active-handle-start: rgba(184, 245, 240, 0.98);
+  --ai-shell-divider-active-handle-end: rgba(122, 220, 212, 0.88);
+  --ai-shell-divider-active-handle-ring: rgba(149, 235, 228, 0.2);
+  --ai-shell-divider-active-handle-glow: rgba(105, 220, 203, 0.24);
 }
 
-.ai-studio-page[data-selected-tool="character"] .ai-shell-divider:hover::before,
-.ai-studio-page[data-selected-tool="character"] .ai-shell-divider:focus-visible::before,
-.ai-studio-page[data-selected-tool="character"]
-  .ai-shell.ai-shell-resizing
-  .ai-shell-divider::before {
-  background: rgba(37, 204, 255, 0.88);
-  box-shadow: 0 0 0 1px rgba(37, 204, 255, 0.28);
+.ai-studio-page[data-selected-tool="canvas"] .ai-shell-divider {
+  --ai-shell-divider-active-color: var(--ai-canvas-cream);
+  --ai-shell-divider-active-ring: var(--ai-canvas-cream-outline);
+  --ai-shell-divider-active-handle-start: rgba(255, 248, 233, 0.98);
+  --ai-shell-divider-active-handle-end: rgba(245, 221, 174, 0.88);
+  --ai-shell-divider-active-handle-ring: rgba(245, 221, 174, 0.22);
+  --ai-shell-divider-active-handle-glow: rgba(245, 221, 174, 0.2);
 }
 
-.ai-studio-page[data-selected-tool="elements"] .ai-shell-divider:hover::before,
-.ai-studio-page[data-selected-tool="elements"] .ai-shell-divider:focus-visible::before,
-.ai-studio-page[data-selected-tool="elements"]
-  .ai-shell.ai-shell-resizing
-  .ai-shell-divider::before {
-  background: rgba(255, 77, 151, 0.96);
-  box-shadow: 0 0 0 1px rgba(255, 123, 167, 0.28);
+.ai-studio-page[data-selected-tool="character"] .ai-shell-divider {
+  --ai-shell-divider-active-color: rgba(37, 204, 255, 0.88);
+  --ai-shell-divider-active-ring: rgba(37, 204, 255, 0.28);
+  --ai-shell-divider-active-handle-start: rgba(138, 231, 255, 0.98);
+  --ai-shell-divider-active-handle-end: rgba(37, 204, 255, 0.84);
+  --ai-shell-divider-active-handle-ring: rgba(37, 204, 255, 0.24);
+  --ai-shell-divider-active-handle-glow: rgba(37, 204, 255, 0.24);
 }
 
-.ai-studio-page[data-selected-tool="presets"] .ai-shell-divider:hover::before,
-.ai-studio-page[data-selected-tool="presets"] .ai-shell-divider:focus-visible::before,
-.ai-studio-page[data-selected-tool="presets"]
-  .ai-shell.ai-shell-resizing
-  .ai-shell-divider::before {
-  background: rgba(214, 220, 228, 0.74);
-  box-shadow: 0 0 0 1px rgba(214, 220, 228, 0.24);
+.ai-studio-page[data-selected-tool="elements"] .ai-shell-divider {
+  --ai-shell-divider-active-color: rgba(255, 77, 151, 0.96);
+  --ai-shell-divider-active-ring: rgba(255, 123, 167, 0.28);
+  --ai-shell-divider-active-handle-start: rgba(255, 214, 229, 0.98);
+  --ai-shell-divider-active-handle-end: rgba(255, 108, 167, 0.9);
+  --ai-shell-divider-active-handle-ring: rgba(255, 123, 167, 0.24);
+  --ai-shell-divider-active-handle-glow: rgba(255, 77, 151, 0.24);
+}
+
+.ai-studio-page[data-selected-tool="presets"] .ai-shell-divider {
+  --ai-shell-divider-active-color: rgba(214, 220, 228, 0.74);
+  --ai-shell-divider-active-ring: rgba(214, 220, 228, 0.24);
+  --ai-shell-divider-active-handle-start: rgba(232, 237, 244, 0.98);
+  --ai-shell-divider-active-handle-end: rgba(196, 203, 214, 0.84);
+  --ai-shell-divider-active-handle-ring: rgba(214, 220, 228, 0.18);
+  --ai-shell-divider-active-handle-glow: rgba(214, 220, 228, 0.18);
 }
 
 .ai-shell-divider:focus-visible {

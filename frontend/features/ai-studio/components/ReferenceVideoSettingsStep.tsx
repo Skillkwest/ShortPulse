@@ -92,12 +92,13 @@ export const ReferenceVideoSettingsStep: React.FC<ReferenceVideoSettingsStepProp
   onToggleMultiShot,
 }) => {
   const settingsOrder = isMotionMode ? motionAudioOrder : videoSettingsOrder;
+  const shouldShowModelRow = showModelRow && !isMotionMode;
 
   if (!isVideoVariant) return null;
 
   const settingsContent = (
     <VideoSettingsCardPrefab
-      showModelRow={showModelRow}
+      showModelRow={shouldShowModelRow}
       modelId={modelId}
       modelLabel={modelLabel}
       modelLogoSrc={modelLogoSrc}

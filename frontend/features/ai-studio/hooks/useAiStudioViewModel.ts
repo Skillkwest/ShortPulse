@@ -118,6 +118,8 @@ export const useAiStudioViewModel = ({
   );
   const isSeedance2Model =
     model === KIE_SEEDANCE_2_MODEL_ID || model === KIE_SEEDANCE_2_FAST_MODEL_ID;
+  const isKlingMotionMode =
+    isVideoTool && model === KIE_KLING_30_MODEL_ID && videoReferenceMode === "motion";
   const hasSeedance2MultimodalReferences =
     seedance2ReferenceImageUrls.length > 0 ||
     seedance2ReferenceVideoUrls.length > 0 ||
@@ -164,6 +166,7 @@ export const useAiStudioViewModel = ({
 
     if (isVideoTool) {
       if (!model) return null;
+      if (isKlingMotionMode) return null;
       return computeCostForModel(
         model,
         costParamsForModel({
@@ -187,6 +190,7 @@ export const useAiStudioViewModel = ({
     isCreateWorkflowSelected,
     isEditWorkflowSelected,
     isVideoTool,
+    isKlingMotionMode,
     videoDurationSeconds,
     videoResolution,
     pricingImageResolution,
@@ -197,6 +201,7 @@ export const useAiStudioViewModel = ({
   // Cost shown in the model picker (also used by agent-output generation affordances).
   const modelPickerCostCredits = useMemo(() => {
     if (!effectiveEditSubmitModelId) return null;
+    if (isKlingMotionMode && effectiveEditSubmitModelId === KIE_KLING_30_MODEL_ID) return null;
     const breakdown = computeCostForModel(
       effectiveEditSubmitModelId,
       costParamsForModel(
@@ -217,6 +222,7 @@ export const useAiStudioViewModel = ({
     effectiveEditSubmitModelId,
     isVideoTool,
     isImageTool,
+    isKlingMotionMode,
     pricingImageResolution,
     videoDurationSeconds,
     videoGenerateAudio,

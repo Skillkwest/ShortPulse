@@ -661,7 +661,6 @@ export const handleVideoModelSubmission = async ({
       }
 
       const motionResolution = resolveKlingResolution(requestedResolution);
-      const motionAspectRatio = resolveKieKlingAspect(aspect, modelConfig);
       const finalPrompt = cleanedPrompt || "Transfer motion from reference video to character";
       const response = await submitKieKlingImageToVideo({
         prompt: finalPrompt,
@@ -670,7 +669,6 @@ export const handleVideoModelSubmission = async ({
         input_urls: [characterImageUrl],
         video_url: motionVideoUrlFinal,
         video_urls: [motionVideoUrlFinal],
-        aspect_ratio: motionAspectRatio,
         resolution: motionResolution,
         mode: motionResolution,
         generate_audio: requestedAudio,

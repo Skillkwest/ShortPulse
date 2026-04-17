@@ -121,7 +121,7 @@ For Create properties panel, model-selector, and submission wiring details, see 
   - selected video settings
   - first frame only
   - `kling_elements` when present
-- Motion Control remains separate and continues to use the Kie motion-control route (`model = kling-3.0/motion-control`).
+- Motion Control remains separate and uses the Kie motion-control route (`model = kling-3.0/motion-control`) with one character image, one motion video, `mode=720p|1080p`, and the Motion audio setting. Motion does not submit standard-video `aspect_ratio` or `duration`.
 
 ## Reference-based video workflow (Create → Video, image-to-video models)
 
@@ -220,7 +220,7 @@ For Create properties panel, model-selector, and submission wiring details, see 
 | Provider | Model id | Allowed aspects (examples) | Notes |
 | --- | --- | --- | --- |
 | Kie | `kie-ai/veo-3.1-fast-i2v` | 16:9 default (allowed: 16:9, 9:16) | Unified Kie Veo lane via `/api/fal/kie-veo-submit` + `/api/fal/kie-veo-status`. Prompt-only generates `TEXT_2_VIDEO`; one frame generates `FIRST_AND_LAST_FRAMES_2_VIDEO` with one image; two frames generate `FIRST_AND_LAST_FRAMES_2_VIDEO` with first/last references. Pricing uses current Kie evidence of `80` Kie credits / `$0.40` per Fast generation; default lane bills `45` credits under the shared ShortPulse markup/rounding policy. |
-| Kie | `kie-ai/kling-3.0` | 16:9 default (allowed: 16:9, 9:16, 1:1) | Standard Kling routes through `/api/fal/kie-kling-submit` + `/api/fal/kie-kling-status` and requires image input. `Single` and `Multi` use standard single-shot submit with top-level `prompt`; `Custom` uses Kie multi-shot submit with `multi_prompt[]` and first-frame-only image input. Motion Control also routes through this model and normalizes to Kie motion-control submit shape (`model=kling-3.0/motion-control`, `input_urls` + `video_urls`, one image + one video). Pricing now follows Kie `mode` semantics (`std` / `pro`) with observed no-sound costs of `14` / `18` Kie credits per second; UI resolution remains the fallback that maps into those provider modes for estimate parity. |
+| Kie | `kie-ai/kling-3.0` | 16:9 default (allowed: 16:9, 9:16, 1:1) | Standard Kling routes through `/api/fal/kie-kling-submit` + `/api/fal/kie-kling-status` and requires image input. `Single` and `Multi` use standard single-shot submit with top-level `prompt`; `Custom` uses Kie multi-shot submit with `multi_prompt[]` and first-frame-only image input. Motion Control also routes through this model and normalizes to Kie motion-control submit shape (`model=kling-3.0/motion-control`, `input_urls` + `video_urls`, one image + one video, `mode=720p|1080p`, optional audio). Motion hides aspect/duration controls and currently suppresses cost estimates rather than showing a misleading per-second price. |
 | Kie | `kie-ai/seedance-1.5-pro` | 1:1 default (allowed: 1:1, 21:9, 4:3, 3:4, 16:9, 9:16) | Unified Kie Seedance 1.5 lane via `/api/fal/kie-seedance-submit` + `/api/fal/kie-seedance-status`. Prompt-only generation sends no `input_urls`; one-image generation sends the first frame only; two-image generation sends first and last frames through `input.input_urls`. Video settings expose duration `4/8/12`, resolution `480p/720p/1080p`, optional audio, and a Seedance-only `fixed_lens` toggle. Pricing now uses Kie-log-backed rates for active `720p`/`1080p` lanes instead of the old token estimator. |
 
 ## Maintenance rules

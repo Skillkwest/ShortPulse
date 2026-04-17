@@ -845,6 +845,32 @@ describe("useAiStudioGenerationController", () => {
     );
   });
 
+  it("removes an externally created optimistic placeholder when regenerate is blocked before submit", async () => {
+    const removeOptimisticGenerationPlaceholder = vi.fn();
+    const setUiError = vi.fn();
+    const regenerateOutput = vi.fn();
+    const params = createParams({
+      selectedTool: "edit",
+      model: "fal-ai/nano-banana-pro/edit",
+      isGenerateDisabled: true,
+      generationGuardrail: "Select a model before generating.",
+      removeOptimisticGenerationPlaceholder,
+      setUiError: asDispatch<string | null>(setUiError),
+      regenerateOutput,
+    });
+    const { result } = renderHook(() => useAiStudioGenerationController(params));
+
+    await act(async () => {
+      await result.current.handleImageRegenerateWithDebit({
+        outputIdOverride: "out-optimistic",
+      });
+    });
+
+    expect(removeOptimisticGenerationPlaceholder).toHaveBeenCalledWith("out-optimistic");
+    expect(regenerateOutput).not.toHaveBeenCalled();
+    expect(setUiError).toHaveBeenCalledWith("Select a model before generating.");
+  });
+
   it("prioritizes character-mode submission prompt override while preserving explicit display override", async () => {
     const regenerateOutput = vi.fn();
     const resolveCharacterModeSubmissionOverrides = vi.fn(() => ({

@@ -238,6 +238,11 @@
 .reference-grid-horizontal-divider-wrap {
   --reference-divider-active-color: rgba(52, 200, 255, 0.72);
   --reference-divider-active-ring: rgba(52, 200, 255, 0.25);
+  --reference-divider-base-color: rgba(201, 205, 214, 0.22);
+  --reference-divider-base-handle-start: rgba(201, 205, 214, 0.68);
+  --reference-divider-base-handle-end: rgba(201, 205, 214, 0.52);
+  --reference-divider-base-handle-ring: rgba(201, 205, 214, 0.08);
+  --reference-divider-base-handle-glow: rgba(0, 0, 0, 0.18);
   display: flex;
   align-items: center;
   gap: 8px;
@@ -277,13 +282,59 @@
   top: 50%;
   height: 1px;
   transform: translateY(-50%);
-  background: rgba(201, 205, 214, 0.22);
+  border-radius: 999px;
+  background: linear-gradient(
+    90deg,
+    rgba(201, 205, 214, 0),
+    rgba(201, 205, 214, 0.14),
+    var(--reference-divider-base-color) 52%,
+    rgba(201, 205, 214, 0.12) 82%,
+    rgba(201, 205, 214, 0)
+  );
+}
+
+.reference-grid-horizontal-divider::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 72px;
+  height: 3px;
+  border-radius: 999px;
+  transform: translate(-50%, -50%);
+  background: linear-gradient(
+    90deg,
+    var(--reference-divider-base-handle-start),
+    var(--reference-divider-base-handle-end)
+  );
+  box-shadow:
+    0 0 0 1px var(--reference-divider-base-handle-ring),
+    0 0 12px var(--reference-divider-base-handle-glow);
 }
 
 .reference-grid-horizontal-divider-wrap:hover .reference-grid-horizontal-divider::before,
 .reference-grid-horizontal-divider-wrap:focus-visible .reference-grid-horizontal-divider::before {
-  background: var(--reference-divider-active-color);
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--reference-divider-active-color) 0%, transparent),
+    color-mix(in srgb, var(--reference-divider-active-color) 44%, transparent),
+    var(--reference-divider-active-color) 52%,
+    color-mix(in srgb, var(--reference-divider-active-color) 30%, transparent) 82%,
+    color-mix(in srgb, var(--reference-divider-active-color) 0%, transparent)
+  );
   box-shadow: 0 0 0 1px var(--reference-divider-active-ring);
+}
+
+.reference-grid-horizontal-divider-wrap:hover .reference-grid-horizontal-divider::after,
+.reference-grid-horizontal-divider-wrap:focus-visible .reference-grid-horizontal-divider::after {
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--reference-divider-active-color) 70%, white),
+    color-mix(in srgb, var(--reference-divider-active-color) 90%, transparent)
+  );
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--reference-divider-active-ring) 82%, transparent),
+    0 0 24px color-mix(in srgb, var(--reference-divider-active-color) 24%, transparent);
 }
 
 .reference-grid-horizontal-divider-wrap:hover .reference-grid-horizontal-divider-title,

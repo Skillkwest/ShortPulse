@@ -90,21 +90,21 @@ export const useReferencePropertiesDerivedState = ({
   const isKling3Model = modelId === KIE_KLING_30_MODEL_ID;
 
   const referenceStepTitle = isVideoVariant
-    ? isKling3Mode
-      ? "Add Kling 3.0 References"
-      : isKeyframesMode
-        ? "Add Reference Frames"
-        : isMotionMode
-          ? "Add Motion References"
+    ? isMotionMode
+      ? "Add Motion Inputs"
+      : isKling3Mode
+        ? "Add Kling 3.0 References"
+        : isKeyframesMode
+          ? "Add Reference Frames"
           : "Add Reference Image"
     : "Add Reference Images";
   const referenceStepSubtitle = isVideoVariant
-    ? isKling3Mode
-      ? "Upload start/end frames plus Kling controls."
-      : isKeyframesMode
-        ? "Upload or drag and drop images from the reference grid."
-        : isMotionMode
-          ? "Upload a character image and motion reference video."
+    ? isMotionMode
+      ? "Upload one character image and one motion video."
+      : isKling3Mode
+        ? "Upload start/end frames plus Kling controls."
+        : isKeyframesMode
+          ? "Upload or drag and drop images from the reference grid."
           : "Upload or drag and drop a single image for standard image-to-video."
     : "Upload or drag and drop images from the reference grid.";
 

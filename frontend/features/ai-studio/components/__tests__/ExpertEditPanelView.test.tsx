@@ -421,6 +421,20 @@ describe("ExpertEditPanelView", () => {
     expect(screen.getByText(message)).toBeInTheDocument();
   });
 
+  it("keeps the inline generate button enabled while edit generation is busy", () => {
+    const { container } = renderControlledPromptPanel({
+      initialPrompt: "Put her in a bikini",
+      panelProps: {
+        isGenerateBusy: true,
+      },
+    });
+
+    uploadPrimaryFile(container, "busy-button.png");
+
+    expect(screen.getByRole("button", { name: "Generate" })).toBeEnabled();
+    expect(screen.getByText("Generating…")).toBeInTheDocument();
+  });
+
   const renderControlledPromptPanel = ({
     initialPrompt = "",
     extraImageUrls = [null, null, null] as [string | null, string | null, string | null],
@@ -1364,7 +1378,12 @@ describe("ExpertEditPanelView", () => {
           scrollHeightDescriptor
         );
       } else {
-        delete (HTMLTextAreaElement.prototype as Partial<HTMLTextAreaElement>).scrollHeight;
+        Reflect.deleteProperty(
+          HTMLTextAreaElement.prototype as HTMLTextAreaElement & {
+            scrollHeight?: number;
+          },
+          "scrollHeight"
+        );
       }
       if (lineHeightDescriptor) {
         Object.defineProperty(CSSStyleDeclaration.prototype, "lineHeight", lineHeightDescriptor);
@@ -1434,7 +1453,12 @@ describe("ExpertEditPanelView", () => {
           scrollHeightDescriptor
         );
       } else {
-        delete (HTMLTextAreaElement.prototype as Partial<HTMLTextAreaElement>).scrollHeight;
+        Reflect.deleteProperty(
+          HTMLTextAreaElement.prototype as HTMLTextAreaElement & {
+            scrollHeight?: number;
+          },
+          "scrollHeight"
+        );
       }
       if (minHeightDescriptor) {
         Object.defineProperty(CSSStyleDeclaration.prototype, "minHeight", minHeightDescriptor);

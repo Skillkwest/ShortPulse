@@ -907,6 +907,13 @@ export default function AiStudioPage() {
     editExtraImageUrls: imageExtraImageUrls,
     editReferenceText,
     handleImageRegenerateWithDebit,
+    insertOptimisticGenerationPlaceholder: (promptText: string) =>
+      insertOptimisticGenerationPlaceholder({
+        prompt: promptText,
+        modeOverride: "image",
+        selectedToolOverride: "edit",
+      }),
+    removeOptimisticGenerationPlaceholder,
     onEditSubmitIntentChange: setEditSubmitIntent,
     addSessionMediaReference: addPastedMediaReference,
     referenceImageWarning,

@@ -10,7 +10,7 @@ export const AI_SHELL_LEFT_VIDEO_DEFAULT_RATIO = 0.6;
 export const AI_SHELL_LEFT_CHARACTER_DEFAULT_RATIO = 0.75;
 export const AI_SHELL_LEFT_EXPERT_CREATE_MIN_PX = 840;
 export const AI_SHELL_LEFT_EXPERT_EDIT_MIN_PX = 970;
-export const AI_SHELL_LEFT_EXPERT_CREATE_MAX_PX = 1000;
+export const AI_SHELL_LEFT_EXPERT_CREATE_MAX_PX = 1120;
 export const AI_SHELL_LEFT_CHARACTER_MIN_PX = 920;
 export const AI_SHELL_RIGHT_MIN_PX = 320;
 export const AI_SHELL_RIGHT_CANVAS_MIN_PX = 0;
@@ -132,3 +132,13 @@ export const shouldCollapseAiShellOnToolSelect = (
   previousTool: string | null,
   nextTool: string | null
 ): boolean => nextTool === "video" && nextTool !== previousTool;
+
+/**
+ * Indicates whether selecting the next tool should expand the properties column to its maximum.
+ * Inputs: previous and next tool ids.
+ * Output: true only for a new create-tool selection.
+ */
+export const shouldExpandAiShellOnToolSelect = (
+  previousTool: string | null,
+  nextTool: string | null
+): boolean => nextTool === "create" && nextTool !== previousTool;

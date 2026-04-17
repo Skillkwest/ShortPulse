@@ -820,7 +820,7 @@ export function AiStudioPageContent({
     minRightWidthPx,
     defaultLeftRatio,
   });
-  const effectiveRightColumnHidden = rightColumnHidden || !isCanvasVisible;
+  const effectiveRightColumnHidden = rightColumnHidden;
   const shellClassName = [
     "ai-shell",
     selectedTool ? "" : "ai-shell-wide",
@@ -830,7 +830,6 @@ export function AiStudioPageContent({
     isCharacterShellPanelOpen ? "ai-shell-character-open" : "",
     isPerformanceDenseSession ? "ai-shell-performance-dense" : "",
     isResizing ? "ai-shell-resizing" : "",
-    !isCanvasVisible ? "ai-shell-right-column-collapsed" : "",
   ]
     .filter(Boolean)
     .join(" ");
@@ -943,6 +942,7 @@ export function AiStudioPageContent({
   const resolvedReferenceGridPropsWithStylesPanel = React.useMemo(
     () => ({
       ...resolvedReferenceGridProps,
+      railCanvasProps: isCanvasVisible ? resolvedReferenceGridProps.railCanvasProps : undefined,
       panelVisibility: effectivePanelVisibility,
       stylesPanel: {
         isOpen: isStylesPanelOpen,
@@ -955,6 +955,7 @@ export function AiStudioPageContent({
       effectivePanelVisibility,
       handleSelectedStyleIdChange,
       isStylesPanelOpen,
+      isCanvasVisible,
       resolvedReferenceGridProps,
       selectedStyleId,
       visibleStylesCatalog,
@@ -1312,7 +1313,7 @@ export function AiStudioPageContent({
               shellClassName={shellClassName}
               shellStyle={shellStyle}
               selectedTool={selectedTool}
-              showDivider={showDivider && isCanvasVisible}
+              showDivider={showDivider}
               dividerProps={dividerProps}
               rightColumnHidden={effectiveRightColumnHidden}
               propertiesPanelContent={propertiesPanelContent}

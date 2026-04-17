@@ -66,6 +66,7 @@ vi.mock("../ModelModal", () => ({
 
 vi.mock("../ReferenceGrid", () => ({
   ReferenceGrid: (props: {
+    railCanvasProps?: unknown;
     stylesPanel?: {
       isOpen: boolean;
       selectedStyleId: string | null;
@@ -79,6 +80,7 @@ vi.mock("../ReferenceGrid", () => ({
   }) => (
     <div
       data-testid="reference-grid"
+      data-panel-canvas={props.railCanvasProps ? "visible" : "hidden"}
       data-panel-quick-slot={props.panelVisibility?.quickSlot ? "visible" : "hidden"}
       data-panel-reference-grid={props.panelVisibility?.referenceGrid ? "visible" : "hidden"}
       data-panel-styles={props.panelVisibility?.styles ? "visible" : "hidden"}
@@ -314,6 +316,7 @@ const createProps = (
   referenceGridProps: {
     outputs: [],
     activeOutputId: null,
+    railCanvasProps: {} as ReferenceGridProps["railCanvasProps"],
     onSelectOutput: vi.fn(),
     onOpenDetails: vi.fn(),
     onPasteTextReference: vi.fn(),
@@ -471,26 +474,33 @@ describe("AiStudioPageContent right column drop router", () => {
   });
 
   it("toggles canvas visibility from the header icon button", () => {
-    const { container } = render(
-      <AiStudioPageContent {...createProps({ selectedTool: "create" })} />
+    render(
+      <AiStudioPageContent
+        {...createProps({
+          selectedTool: "create",
+          referenceGridProps: {
+            ...createProps().referenceGridProps,
+            railCanvasProps: {} as never,
+          },
+        })}
+      />
     );
 
     const canvasToggle = screen.getByRole("button", { name: "Canvas" });
-    const shell = container.querySelector(".ai-shell");
-    expect(shell).toBeTruthy();
+    const referenceGrid = screen.getByTestId("reference-grid");
 
     expect(canvasToggle).toHaveAttribute("aria-pressed", "true");
-    expect(shell).not.toHaveClass("ai-shell-right-column-collapsed");
+    expect(referenceGrid).toHaveAttribute("data-panel-canvas", "visible");
 
     fireEvent.click(canvasToggle);
 
     expect(canvasToggle).toHaveAttribute("aria-pressed", "false");
-    expect(shell).toHaveClass("ai-shell-right-column-collapsed");
+    expect(referenceGrid).toHaveAttribute("data-panel-canvas", "hidden");
 
     fireEvent.click(canvasToggle);
 
     expect(canvasToggle).toHaveAttribute("aria-pressed", "true");
-    expect(shell).not.toHaveClass("ai-shell-right-column-collapsed");
+    expect(referenceGrid).toHaveAttribute("data-panel-canvas", "visible");
   });
 
   it("persists panel visibility toggles globally across workflows", () => {

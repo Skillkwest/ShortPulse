@@ -36,7 +36,10 @@ import { useAiStudioPageDerivations } from "../features/ai-studio/hooks/useAiStu
 import { useAiStudioPanelProps } from "../features/ai-studio/hooks/useAiStudioPanelProps";
 import { useAiStudioReferenceGridProps } from "../features/ai-studio/hooks/useAiStudioReferenceGridProps";
 import { useAiStudioPreviewDetailProps } from "../features/ai-studio/hooks/useAiStudioPreviewDetailProps";
-import { useAiStudioInternalDropResolvers } from "../features/ai-studio/hooks/useAiStudioInternalDropResolvers";
+import {
+  resolveSavedMediaIdFromOutput,
+  useAiStudioInternalDropResolvers,
+} from "../features/ai-studio/hooks/useAiStudioInternalDropResolvers";
 import { mapHookContractsToPageContentProps } from "../features/ai-studio/hooks/contracts/pageContentAdapter";
 import { useAiStudioSessionIdentity } from "../features/ai-studio/hooks/useAiStudioSessionIdentity";
 import { useAiStudioPageSessionPersistence } from "../features/ai-studio/hooks/useAiStudioPageSessionPersistence";
@@ -44,6 +47,8 @@ import { useAiStudioPageOutputAdapters } from "../features/ai-studio/hooks/useAi
 import { useAiStudioPageUiNotices } from "../features/ai-studio/hooks/useAiStudioPageUiNotices";
 import { useAiStudioPageCreditDerivations } from "../features/ai-studio/hooks/useAiStudioPageCreditDerivations";
 import { useAiStudioPerfAuditRuntime } from "../features/ai-studio/hooks/useAiStudioPerfAuditRuntime";
+import { useAiStudioDualCanvasWorkspaceState } from "../features/ai-studio/components/canvas/useAiStudioCanvasWorkspaceState";
+import type { ResolveCanvasDropReference } from "../features/ai-studio/components/canvas/canvasTypes";
 import { getAiStudioSessionSnapshotViaApi } from "../features/ai-studio/logic/sessionApiClient";
 import { readAiStudioSessionPersistencePolicy } from "../features/ai-studio/logic/sessionPersistencePolicy";
 import { resolveAiStudioSessionSnapshotTitle } from "../features/ai-studio/logic/sessionSnapshotTitle";
@@ -348,6 +353,41 @@ export default function AiStudioPage() {
     getOutputSnapshot,
     ensureOutputPersisted,
     saveReferenceToLibrary,
+  });
+  const resolveCanvasDropReference = useCallback<ResolveCanvasDropReference>(
+    (payload) => {
+      const outputId = (payload.outputId ?? payload.referenceId ?? "").trim();
+      const imageIndex = Math.max(0, Math.floor(payload.imageIndex ?? 0));
+      const output = outputId ? getOutputById(outputId) : null;
+      if (!output) return null;
+      if (output.mode === "text") {
+        const text = (output.prompt || output.previewText || "").trim();
+        if (!text) return null;
+        return {
+          kind: "text",
+          outputId: outputId || null,
+          text,
+          sourceSurface: payload.sourceSurface ?? null,
+        };
+      }
+      if (output.mode !== "image") return null;
+      const sourceUrl =
+        output.resultUrls?.[imageIndex] ?? output.previewUrl ?? payload.referenceUrl ?? null;
+      if (!sourceUrl) return null;
+      return {
+        kind: "image",
+        outputId: outputId || null,
+        mediaId: resolveSavedMediaIdFromOutput(output, imageIndex),
+        src: sourceUrl,
+        alt: (output.prompt || output.previewText || "Canvas reference").trim(),
+        sourceSurface: payload.sourceSurface ?? null,
+      };
+    },
+    [getOutputById]
+  );
+  const { railCanvasProps } = useAiStudioDualCanvasWorkspaceState({
+    resolveCanvasDropReference,
+    onPinTextReference: addPastedPromptReference,
   });
   useAiStudioMediaAutosaveOrchestrator({
     outputs,
@@ -976,10 +1016,16 @@ export default function AiStudioPage() {
   const referenceGridPageProps = useMemo(
     () => ({
       ...referenceGridHookProps,
+      railCanvasProps,
       onAddLibraryMediaReferenceToQuickSlot: handleQuickSlotLibraryMediaDrop,
       onAddLibraryPromptReferenceToQuickSlot: handleQuickSlotLibraryPromptDrop,
     }),
-    [handleQuickSlotLibraryMediaDrop, handleQuickSlotLibraryPromptDrop, referenceGridHookProps]
+    [
+      handleQuickSlotLibraryMediaDrop,
+      handleQuickSlotLibraryPromptDrop,
+      railCanvasProps,
+      referenceGridHookProps,
+    ]
   );
   const previewDetailProps = useAiStudioPreviewDetailProps({
     activeOutput,

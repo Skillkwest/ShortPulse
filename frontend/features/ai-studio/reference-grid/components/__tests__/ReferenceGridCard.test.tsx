@@ -1,6 +1,10 @@
 import type React from "react";
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  EXPLICIT_CONTENT_FAILURE_DETAIL,
+  EXPLICIT_CONTENT_FAILURE_TITLE,
+} from "../../../../../lib/explicitContentFailure";
 import type { StudioOutput } from "../../../types";
 import { ReferenceGridCard } from "../ReferenceGridCard";
 
@@ -111,6 +115,8 @@ describe("ReferenceGridCard", () => {
     );
 
     expect(screen.getByText("NSFW")).toBeInTheDocument();
+    expect(screen.getByText(EXPLICIT_CONTENT_FAILURE_TITLE)).toBeInTheDocument();
+    expect(screen.getByText(EXPLICIT_CONTENT_FAILURE_DETAIL)).toBeInTheDocument();
   });
 
   it("does not show an NSFW pill for generic provider failures", () => {

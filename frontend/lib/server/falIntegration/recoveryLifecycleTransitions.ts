@@ -94,10 +94,13 @@ export const buildProviderRunningUpdate = ({
   };
 };
 
-export const buildProviderFailedUpdate = (nowIso: string): Record<string, unknown> => ({
+export const buildProviderFailedUpdate = (
+  nowIso: string,
+  failureReasonCode = "provider_error"
+): Record<string, unknown> => ({
   status: "fail",
   completed_at: nowIso,
-  failure_reason_code: "provider_error",
+  failure_reason_code: failureReasonCode,
   recovery_state: "exhausted",
   last_recovery_at: nowIso,
   next_recovery_at: null,

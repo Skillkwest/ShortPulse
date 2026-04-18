@@ -12,6 +12,7 @@ import {
 } from "react";
 import { normalizeErrorText } from "../../../lib/errorText";
 import { reportAppError } from "../../../lib/appErrorReporter";
+import { normalizeExplicitContentFailure } from "../../../lib/explicitContentFailure";
 import { evaluateStaleOutputCleanup, type OutputLifecycleMap } from "../logic/staleOutputCleanup";
 import type { StudioOutput } from "../types";
 
@@ -243,14 +244,21 @@ export const useAiStudioOutputLifecycle = ({
         fallback: safeMessage,
         maxLength: 320,
       });
+      const explicitContentFailure = normalizeExplicitContentFailure({
+        message: safeMessage,
+        detail: safeDetail,
+      });
+      const resolvedMessage = explicitContentFailure?.errorMessage ?? safeMessage;
+      const resolvedShortMessage = explicitContentFailure?.errorMessageShort ?? safeMessage;
+      const resolvedDetail = explicitContentFailure?.errorDetail ?? safeDetail;
       updateOutputById(outputId, (item) => {
         if (
           item.taskState === "fail" &&
           item.status === "ready" &&
           item.timestamp === "Failed" &&
-          item.errorMessage === safeMessage &&
-          item.errorMessageShort === safeMessage &&
-          item.errorDetail === safeDetail
+          item.errorMessage === resolvedMessage &&
+          item.errorMessageShort === resolvedShortMessage &&
+          item.errorDetail === resolvedDetail
         ) {
           return item;
         }
@@ -259,20 +267,20 @@ export const useAiStudioOutputLifecycle = ({
           taskState: "fail",
           status: "ready",
           timestamp: "Failed",
-          errorMessage: safeMessage,
-          errorMessageShort: safeMessage,
-          errorDetail: safeDetail,
+          errorMessage: resolvedMessage,
+          errorMessageShort: resolvedShortMessage,
+          errorDetail: resolvedDetail,
         };
       });
       void reportAppError({
         source: "generation.workflow_failure",
         scope: "generation",
         severity: "high",
-        message: safeMessage,
+        message: resolvedMessage,
         route: currentRoute(),
         metadata: {
           output_id: outputId,
-          detail: safeDetail,
+          detail: resolvedDetail,
           model: outputContext?.model ?? null,
           model_id: outputContext?.modelId ?? null,
           provider: outputContext?.provider ?? null,

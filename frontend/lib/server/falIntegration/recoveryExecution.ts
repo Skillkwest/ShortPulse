@@ -40,8 +40,10 @@ import {
 } from "./recoveryMediaPersistence";
 import { requestGenerationControlPlaneWake } from "../generationControlPlane/controlPlaneWake";
 import { probeGenerationProviderResult } from "../providerIntegration/recoveryProviderDispatcher";
+import { readProviderContentPolicyMessage } from "../providerIntegration/statusProviderPayload";
 import { readProviderApiKey } from "../providerIntegration/providerRuntimeConfig";
 import { canAutoPersistRecoveryMedia } from "../../mediaAutosavePolicy";
+import { normalizeExplicitContentFailure } from "../../explicitContentFailure";
 import { applyRecoveryTransition } from "./recoveryTransitionService";
 
 type JsonObject = Record<string, unknown>;
@@ -749,14 +751,48 @@ export const executeGenerationRecovery = async ({
   }
 
   if (currentObservation.state === "failed") {
+    const observationDetailRecords = Array.isArray(currentObservation.payload?.detail)
+      ? currentObservation.payload.detail.map((item) => asObject(item))
+      : [];
+    const hasStructuredContentPolicyViolation =
+      observationDetailRecords.some(
+        (row) => asOptionalString(row.type)?.toLowerCase() === "content_policy_violation"
+      ) ||
+      JSON.stringify(currentObservation.payload ?? {})
+        .toLowerCase()
+        .includes("content_policy_violation");
+    const providerContentPolicyMessage = currentObservation.payload
+      ? (readProviderContentPolicyMessage({
+          provider: generation.provider,
+          payload: currentObservation.payload,
+        }) ??
+        observationDetailRecords.reduce<string | null>((matched, row) => {
+          if (matched) return matched;
+          if (asOptionalString(row.type)?.toLowerCase() !== "content_policy_violation") {
+            return null;
+          }
+          return asOptionalString(row.msg) ?? asOptionalString(row.message);
+        }, null) ??
+        (hasStructuredContentPolicyViolation ? "Blocked by provider content policy." : null))
+      : null;
+    const explicitContentFailure = normalizeExplicitContentFailure({
+      message: providerContentPolicyMessage,
+      detail: providerContentPolicyMessage,
+      force: hasStructuredContentPolicyViolation || Boolean(providerContentPolicyMessage),
+    });
+    const failureReasonCode = explicitContentFailure ? "content_policy_block" : "provider_error";
+    const failureMessage =
+      explicitContentFailure?.errorDetail ??
+      "Provider reported failed state during recovery execution.";
+    const failureShortMessage = explicitContentFailure?.errorMessageShort ?? "Generation failed";
     await applyRecoveryTransition({
       generation,
       attemptTransition: {
         status: "failed",
         observedAt: nowIso,
         completedAt: nowIso,
-        failureReasonCode: "provider_error",
-        errorMessage: "Provider reported failed state during recovery execution.",
+        failureReasonCode,
+        errorMessage: failureMessage,
         metadata: {
           recovery_actor: actor,
           recovery_outcome: "provider_failed",
@@ -767,7 +803,7 @@ export const executeGenerationRecovery = async ({
       userId: generation.user_id,
       providerRequestId: generation.request_id,
       outcome: "fail",
-      reason: "Provider reported failed state during recovery execution.",
+      reason: failureMessage,
       routeLabel,
       detail: {
         actor,
@@ -776,14 +812,14 @@ export const executeGenerationRecovery = async ({
     });
     await syncFailedGenerationProjection({
       completedAt: nowIso,
-      errorDetail: "Provider reported failed state during recovery execution.",
-      errorMessage: "Generation failed.",
-      errorMessageShort: "Generation failed",
+      errorDetail: failureMessage,
+      errorMessage: explicitContentFailure?.errorMessage ?? "Generation failed.",
+      errorMessageShort: failureShortMessage,
       generation,
     });
     await applyRecoveryTransition({
       generation,
-      generationUpdates: buildProviderFailedUpdate(nowIso),
+      generationUpdates: buildProviderFailedUpdate(nowIso, failureReasonCode),
     });
     void requestGenerationControlPlaneWake({
       routeLabel,

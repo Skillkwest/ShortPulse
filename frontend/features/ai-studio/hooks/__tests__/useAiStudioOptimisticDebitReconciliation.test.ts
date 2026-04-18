@@ -144,7 +144,12 @@ describe("useAiStudioOptimisticDebitReconciliation", () => {
     const setDetailOutputId = vi.fn();
     const { result } = renderHook(() =>
       useAiStudioOptimisticDebitReconciliation({
-        outputs: [makeOutput("out-fail", "fail", { errorMessage: "Failure" })],
+        outputs: [
+          makeOutput("out-fail", "fail", {
+            errorMessage: "Failure",
+            errorMessageShort: "Content not allowed",
+          }),
+        ],
         optimisticDebitEntries: [],
         setOptimisticDebitEntries: asDispatch<OptimisticDebitEntry[]>(vi.fn()),
         refreshBalance: vi.fn(async () => 10),
@@ -153,6 +158,7 @@ describe("useAiStudioOptimisticDebitReconciliation", () => {
     );
 
     expect(result.current.visibleFailures.map((item) => item.id)).toEqual(["out-fail"]);
+    expect(result.current.visibleFailures[0]?.errorMessageShort).toBe("Content not allowed");
 
     act(() => {
       result.current.dismissFailure("out-fail");

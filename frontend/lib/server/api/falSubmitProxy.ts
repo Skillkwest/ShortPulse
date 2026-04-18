@@ -13,6 +13,7 @@ import {
   isLocalDevGenerationWorkerRequired,
 } from "../generationControlPlane/localWorkerHeartbeat";
 import { requestGenerationControlPlaneWake } from "../generationControlPlane/controlPlaneWake";
+import { normalizeExplicitContentFailure } from "../../explicitContentFailure";
 import { evaluateGenerationAdmissionDecision } from "./generationAdmission/generationAdmissionPolicy";
 import { evaluateScopedGenerationAdmission } from "./generationAdmission/generationAdmissionService";
 import { shouldEmitRecoveryBackpressureTelemetry } from "./generationAdmission/recoveryBackpressure";
@@ -32,6 +33,7 @@ import {
 } from "./generationQueue/metadata";
 import { readProviderApiKey } from "../providerIntegration/providerRuntimeConfig";
 import { dispatchProviderSubmit } from "../providerIntegration/submitProviderDispatcher";
+import { readProviderContentPolicyMessage } from "../providerIntegration/statusProviderPayload";
 import { getModelPayloadValidationSpec } from "../../model-runtime/modelCatalog";
 import { evaluateFalPayloadContractForModel } from "./falPayloadValidation";
 import {
@@ -641,6 +643,17 @@ export const createFalSubmitHandler = ({
               (submitResult.providerRequestId
                 ? "Provider submit failed."
                 : "Provider submit response missing request id.");
+            const contentPolicyMessage = readProviderContentPolicyMessage({
+              provider: providerKey,
+              payload: submitResult.data,
+            });
+            const explicitContentFailure = normalizeExplicitContentFailure({
+              message: contentPolicyMessage ?? upstreamMessage,
+              detail: contentPolicyMessage ?? upstreamMessage,
+              force: Boolean(contentPolicyMessage),
+            });
+            const userFacingMessage = explicitContentFailure?.errorMessage ?? upstreamMessage;
+            const userFacingDetail = explicitContentFailure?.errorDetail ?? submitResult.data;
             await charge.refund("Auto-release: inline provider submit failed.", {
               reason: submitResult.providerRequestId
                 ? "direct_submit_failed"
@@ -654,7 +667,7 @@ export const createFalSubmitHandler = ({
               req,
               routeLabel,
               source: "api.fal_submit.direct_submit_failed",
-              message: upstreamMessage,
+              message: userFacingMessage,
               statusCode: submitResult.response.status || 502,
               userId: charge.userId,
               metadata: {
@@ -664,11 +677,13 @@ export const createFalSubmitHandler = ({
                 upstream_target_url: submitResult.targetUrl,
                 upstream_target_index: submitResult.targetIndex,
                 provider_request_id: submitResult.providerRequestId,
+                explicit_content_blocked: explicitContentFailure != null,
+                upstream_message: upstreamMessage,
               },
             });
             return res.status(submitResult.response.status || 502).json({
-              error: upstreamMessage,
-              detail: submitResult.data,
+              error: userFacingMessage,
+              detail: userFacingDetail,
             });
           }
 

@@ -1,6 +1,11 @@
 import { act, renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useMemo, useRef, useState } from "react";
+import {
+  EXPLICIT_CONTENT_FAILURE_DETAIL,
+  EXPLICIT_CONTENT_FAILURE_MESSAGE,
+  EXPLICIT_CONTENT_FAILURE_SHORT_MESSAGE,
+} from "../../../../lib/explicitContentFailure";
 import type { StudioOutput } from "../../types";
 import { useAiStudioOutputLifecycle } from "../useAiStudioOutputLifecycle";
 
@@ -120,6 +125,34 @@ describe("useAiStudioOutputLifecycle", () => {
           provider_state: "error",
           poll_attempt: 3,
           elapsed_ms: 12_000,
+        }),
+      })
+    );
+  });
+
+  it("normalizes explicit-content failures into shared user-facing copy", () => {
+    const { result } = renderHook(() =>
+      useHarness([makeOutput("out-1", { taskState: "running" })], "out-1")
+    );
+
+    act(() => {
+      result.current.notifyGenerationFailure(
+        "out-1",
+        "Content not allowed",
+        "Blocked by moderation."
+      );
+    });
+
+    expect(result.current.outputs[0]?.errorMessage).toBe(EXPLICIT_CONTENT_FAILURE_MESSAGE);
+    expect(result.current.outputs[0]?.errorMessageShort).toBe(
+      EXPLICIT_CONTENT_FAILURE_SHORT_MESSAGE
+    );
+    expect(result.current.outputs[0]?.errorDetail).toBe(EXPLICIT_CONTENT_FAILURE_DETAIL);
+    expect(reportAppErrorMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        message: EXPLICIT_CONTENT_FAILURE_MESSAGE,
+        metadata: expect.objectContaining({
+          detail: EXPLICIT_CONTENT_FAILURE_DETAIL,
         }),
       })
     );

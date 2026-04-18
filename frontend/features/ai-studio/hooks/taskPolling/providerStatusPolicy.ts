@@ -1,6 +1,7 @@
 /**
  * Provider status parsing and classification policy for AI Studio task polling.
  */
+import { isExplicitContentFailureMessage } from "../../../../lib/explicitContentFailure";
 import type { Provider } from "../../logic/stateParsers";
 import type { StudioOutput } from "../../types";
 
@@ -104,6 +105,10 @@ export const createShortErrorMessage = (message: string) => {
   if (!message) return "Generation failed";
   const lower = message.toLowerCase();
 
+  if (isExplicitContentFailureMessage(message)) {
+    return "Content not allowed";
+  }
+
   if (
     lower.includes("content") &&
     (lower.includes("policy") || lower.includes("checker") || lower.includes("flagged"))
@@ -140,6 +145,7 @@ const PROVIDER_SAFETY_BLOCK_PATTERNS = [
  * Returns true when a provider failure message indicates a safety/NSFW block.
  */
 export const isProviderSafetyBlockMessage = (message: string | null | undefined): boolean => {
+  if (isExplicitContentFailureMessage(message)) return true;
   if (typeof message !== "string") return false;
   const normalized = message.trim();
   if (!normalized) return false;

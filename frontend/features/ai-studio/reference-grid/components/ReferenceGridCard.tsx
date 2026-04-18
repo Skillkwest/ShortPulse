@@ -12,6 +12,10 @@ import {
   canSaveReferenceOutput,
 } from "../../logic/referenceActionAvailability";
 import type { ReferenceGridMediaAuthorityTier } from "../../logic/referenceGridMedia";
+import {
+  EXPLICIT_CONTENT_FAILURE_DETAIL,
+  EXPLICIT_CONTENT_FAILURE_TITLE,
+} from "../../../../lib/explicitContentFailure";
 import { isProviderSafetyBlockedOutput } from "../../hooks/taskPolling/providerStatusPolicy";
 import type { ReferenceDragSourceSurface } from "../../utils/dragDrop";
 import type { StudioOutput } from "../../types";
@@ -340,8 +344,12 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
               NSFW
             </span>
           ) : null}
-          <div className="fail-title">Generation failed</div>
-          {item.errorMessageShort ? (
+          <div className="fail-title">
+            {shouldShowNsfwPill ? EXPLICIT_CONTENT_FAILURE_TITLE : "Generation failed"}
+          </div>
+          {shouldShowNsfwPill ? (
+            <div className="fail-subtitle">{EXPLICIT_CONTENT_FAILURE_DETAIL}</div>
+          ) : item.errorMessageShort ? (
             <div className="fail-subtitle">
               {item.errorMessageShort.replace(/fal(\.ai)?/gi, "the provider")}
             </div>

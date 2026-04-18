@@ -5,6 +5,10 @@
 import React from "react";
 import { FlowArrow, Globe, type IconProps, SquaresFour, StackSimple } from "phosphor-react";
 import type { ForwardRefExoticComponent, RefAttributes } from "react";
+import {
+  EXPLICIT_CONTENT_FAILURE_DETAIL,
+  isExplicitContentFailureMessage,
+} from "../../../lib/explicitContentFailure";
 import { AiStudioToolbar } from "./AiStudioToolbar";
 import { AiStudioToolbarRail } from "./AiStudioToolbarRail";
 import { CreatePropertiesPanel, ComposeSendCard } from "./CreatePropertiesPanel";
@@ -95,7 +99,7 @@ import type { ResolveInternalStyleDrop } from "./style-creator/intake";
 
 type FailureCard = Pick<
   StudioOutput,
-  "id" | "model" | "modelId" | "prompt" | "errorMessage" | "errorDetail"
+  "id" | "model" | "modelId" | "prompt" | "errorMessage" | "errorMessageShort" | "errorDetail"
 >;
 
 type ComingSoonToolId = "templates" | "workflows" | "my-generations" | "community";
@@ -441,11 +445,18 @@ const AiStudioAlertsStack = React.memo(function AiStudioAlertsStack({
           <ul className="ai-error-list">
             {visibleFailures.map((item) => {
               const modelLabel = item.model || item.modelId || "Generation";
+              const isExplicitContentFailure =
+                isExplicitContentFailureMessage(item.errorDetail) ||
+                isExplicitContentFailureMessage(item.errorMessage) ||
+                isExplicitContentFailureMessage(item.errorMessageShort);
+              const failureMessage = isExplicitContentFailure
+                ? EXPLICIT_CONTENT_FAILURE_DETAIL
+                : (item.errorMessageShort ?? item.errorDetail ?? item.errorMessage);
               return (
                 <li key={item.id} className="ai-error-row">
                   <div className="ai-error-row-copy">
                     <p className="ai-error-row-title">{modelLabel}</p>
-                    <p className="ai-error-row-message">{item.errorDetail ?? item.errorMessage}</p>
+                    <p className="ai-error-row-message">{failureMessage}</p>
                   </div>
                   <button
                     type="button"

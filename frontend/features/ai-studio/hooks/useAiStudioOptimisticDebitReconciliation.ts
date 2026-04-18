@@ -33,7 +33,7 @@ type UseAiStudioOptimisticDebitReconciliationParams = {
 
 type FailureCard = Pick<
   StudioOutput,
-  "id" | "model" | "modelId" | "prompt" | "errorMessage" | "errorDetail"
+  "id" | "model" | "modelId" | "prompt" | "errorMessage" | "errorMessageShort" | "errorDetail"
 >;
 type ReconciliationOutputLite = Pick<StudioOutput, "id" | "taskId" | "taskState" | "errorMessage">;
 const EMPTY_FAILURES: FailureCard[] = [];
@@ -67,6 +67,7 @@ const areFailureCardListsEqual = (left: FailureCard[], right: FailureCard[]) => 
       item.modelId === rhs?.modelId &&
       item.prompt === rhs?.prompt &&
       item.errorMessage === rhs?.errorMessage &&
+      item.errorMessageShort === rhs?.errorMessageShort &&
       item.errorDetail === rhs?.errorDetail
     );
   });
@@ -106,6 +107,7 @@ export const useAiStudioOptimisticDebitReconciliation = ({
         modelId: item.modelId,
         prompt: item.prompt,
         errorMessage: item.errorMessage ?? null,
+        errorMessageShort: item.errorMessageShort ?? null,
         errorDetail: item.errorDetail ?? null,
       }));
   }, areFailureCardListsEqual);
@@ -129,6 +131,7 @@ export const useAiStudioOptimisticDebitReconciliation = ({
           modelId: item.modelId,
           prompt: item.prompt,
           errorMessage: item.errorMessage ?? null,
+          errorMessageShort: item.errorMessageShort ?? null,
           errorDetail: item.errorDetail ?? null,
         })),
     [outputsOverride]

@@ -1,6 +1,7 @@
 import type { CSSProperties, DragEventHandler, ReactNode, Ref } from "react";
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
+import { EXPLICIT_CONTENT_FAILURE_DETAIL } from "../../../../lib/explicitContentFailure";
 import { AiStudioPageContent, type AiStudioPageContentProps } from "../AiStudioPageContent";
 import { EDIT_PRESET_SURFACE_PRESET_IDS } from "../edit/expertEditPresets";
 import type { ReferenceGridProps } from "../../reference-grid/referenceGridTypes";
@@ -705,6 +706,28 @@ describe("AiStudioPageContent right column drop router", () => {
     expect(container.querySelector(".ai-error-card")).toBeNull();
     expect(screen.queryByText("Prompt:")).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Dismiss" })).toBeInTheDocument();
+  });
+
+  it("renders explicit-content failure rows with the shared moderation copy", () => {
+    render(
+      <AiStudioPageContent
+        {...createProps({
+          visibleFailures: [
+            {
+              id: "failure-explicit",
+              model: "Nano Banana Pro",
+              modelId: "fal-ai/nano-banana-pro",
+              prompt: "hidden prompt",
+              errorMessage: "This request was blocked for explicit or unsafe content.",
+              errorMessageShort: "Content not allowed",
+              errorDetail: "Blocked by moderation.",
+            },
+          ],
+        })}
+      />
+    );
+
+    expect(screen.getByText(EXPLICIT_CONTENT_FAILURE_DETAIL)).toBeInTheDocument();
   });
 
   it("routes live workflows to their canonical panel surfaces", () => {

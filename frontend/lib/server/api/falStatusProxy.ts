@@ -50,6 +50,7 @@ import {
   readProviderMediaUrls,
   readProviderResponseUrl,
 } from "../providerIntegration/statusProviderPayload";
+import { normalizeExplicitContentFailure } from "../../explicitContentFailure";
 
 type FalStatusConfig = {
   provider?: string;
@@ -427,6 +428,32 @@ export const createFalStatusHandler = ({
         userId: user.id,
         requestId,
       });
+    const respondWithCanonicalFailedPayload = async ({
+      providerState,
+      fallbackMessage,
+      fallbackDetail,
+    }: {
+      providerState?: string | null;
+      fallbackMessage: string;
+      fallbackDetail?: unknown;
+    }) => {
+      const canonicalContext = await readCanonicalStatusContext();
+      if (canonicalContext.taskState !== "fail") return null;
+      return res.status(200).json(
+        buildPersistedFailedPayload({
+          requestId,
+          generationId: canonicalContext.generationId ?? generationId,
+          errorMessage:
+            canonicalContext.errorDetail?.trim() ||
+            canonicalContext.errorMessageShort?.trim() ||
+            fallbackMessage,
+          errorDetail:
+            canonicalContext.errorDetail ?? canonicalContext.errorMessageShort ?? fallbackDetail,
+          providerState,
+          queueState: canonicalContext.queueState ?? "failed",
+        })
+      );
+    };
     const respondWithCanonicalCompletedPayload = async ({
       providerState,
     }: {
@@ -764,18 +791,37 @@ export const createFalStatusHandler = ({
       });
       if (contentPolicyMessage) {
         const contentPolicyStatus = readPayloadLifecycleStatus(statusData.json) ?? "failed";
+        const explicitContentFailure = normalizeExplicitContentFailure({
+          message: contentPolicyMessage,
+          detail: contentPolicyMessage,
+          force: true,
+        });
+        await executeImmediateRecovery({
+          observationType: "failed",
+          payload: statusData.json,
+        });
+        const persistedFailure = await respondWithCanonicalFailedPayload({
+          providerState: contentPolicyStatus,
+          fallbackMessage: explicitContentFailure?.errorMessage ?? contentPolicyMessage,
+          fallbackDetail: explicitContentFailure?.errorDetail ?? contentPolicyMessage,
+        });
+        if (persistedFailure) return persistedFailure;
+        await persistPollObservation({
+          observationType: "failed",
+          payload: statusData.json,
+        });
         return respondErrorWithLogging({
           requestId,
-          error: contentPolicyMessage,
+          error: explicitContentFailure?.errorMessage ?? contentPolicyMessage,
           statusCode: 422,
           source: "api.fal_status.content_policy",
           stage: "status",
-          detail: contentPolicyMessage,
+          detail: explicitContentFailure?.errorDetail ?? contentPolicyMessage,
           lifecycle: buildShortPulseLifecycleHint({
             taskState: "fail",
             isTerminal: true,
-            errorMessage: contentPolicyMessage,
-            errorDetail: contentPolicyMessage,
+            errorMessage: explicitContentFailure?.errorMessage ?? contentPolicyMessage,
+            errorDetail: explicitContentFailure?.errorDetail ?? contentPolicyMessage,
             providerState: contentPolicyStatus,
             queueState: "failed",
           }),
@@ -801,27 +847,16 @@ export const createFalStatusHandler = ({
           observationType: "failed",
           payload: statusData.json,
         });
-        const canonicalContext = await readCanonicalStatusContext();
-        if (canonicalContext.taskState === "fail") {
-          return res.status(200).json(
-            buildPersistedFailedPayload({
-              requestId,
-              generationId: canonicalContext.generationId ?? generationId,
-              errorMessage:
-                canonicalContext.errorMessageShort?.trim() ||
-                asProviderString(statusData.json.error) ||
-                asProviderString(statusData.json.message) ||
-                asProviderString(statusData.json.statusMessage) ||
-                "Generation failed",
-              errorDetail:
-                canonicalContext.errorDetail ??
-                canonicalContext.errorMessageShort ??
-                statusData.json,
-              providerState: normalizedStatus,
-              queueState: canonicalContext.queueState ?? "failed",
-            })
-          );
-        }
+        const persistedFailure = await respondWithCanonicalFailedPayload({
+          providerState: normalizedStatus,
+          fallbackMessage:
+            asProviderString(statusData.json.error) ||
+            asProviderString(statusData.json.message) ||
+            asProviderString(statusData.json.statusMessage) ||
+            "Generation failed",
+          fallbackDetail: statusData.json,
+        });
+        if (persistedFailure) return persistedFailure;
         await persistPollObservation({
           observationType: "failed",
           payload: statusData.json,
@@ -1116,18 +1151,37 @@ export const createFalStatusHandler = ({
         payload: resultData.json,
       });
       if (resultPolicyMessage) {
+        const explicitContentFailure = normalizeExplicitContentFailure({
+          message: resultPolicyMessage,
+          detail: resultPolicyMessage,
+          force: true,
+        });
+        await executeImmediateRecovery({
+          observationType: "failed",
+          payload: resultData.json,
+        });
+        const persistedFailure = await respondWithCanonicalFailedPayload({
+          providerState: readPayloadLifecycleStatus(resultData.json) ?? normalizedStatus,
+          fallbackMessage: explicitContentFailure?.errorMessage ?? resultPolicyMessage,
+          fallbackDetail: explicitContentFailure?.errorDetail ?? resultPolicyMessage,
+        });
+        if (persistedFailure) return persistedFailure;
+        await persistPollObservation({
+          observationType: "failed",
+          payload: resultData.json,
+        });
         return respondErrorWithLogging({
           requestId,
-          error: resultPolicyMessage,
+          error: explicitContentFailure?.errorMessage ?? resultPolicyMessage,
           statusCode: 422,
           source: "api.fal_status.content_policy",
           stage: "result",
-          detail: resultPolicyMessage,
+          detail: explicitContentFailure?.errorDetail ?? resultPolicyMessage,
           lifecycle: buildShortPulseLifecycleHint({
             taskState: "fail",
             isTerminal: true,
-            errorMessage: resultPolicyMessage,
-            errorDetail: resultPolicyMessage,
+            errorMessage: explicitContentFailure?.errorMessage ?? resultPolicyMessage,
+            errorDetail: explicitContentFailure?.errorDetail ?? resultPolicyMessage,
             queueState: "failed",
           }),
         });
@@ -1226,25 +1280,12 @@ export const createFalStatusHandler = ({
           observationType: "failed",
           payload: resultData.json,
         });
-        const canonicalContext = await readCanonicalStatusContext();
-        if (canonicalContext.taskState === "fail") {
-          return res.status(200).json(
-            buildPersistedFailedPayload({
-              requestId,
-              generationId: canonicalContext.generationId ?? generationId,
-              errorMessage:
-                canonicalContext.errorMessageShort?.trim() ||
-                resultErrorMessage ||
-                "Generation failed to produce media output",
-              errorDetail:
-                canonicalContext.errorDetail ??
-                canonicalContext.errorMessageShort ??
-                resultData.json,
-              providerState: resultStatus ?? normalizedStatus,
-              queueState: canonicalContext.queueState ?? "failed",
-            })
-          );
-        }
+        const persistedFailure = await respondWithCanonicalFailedPayload({
+          providerState: resultStatus ?? normalizedStatus,
+          fallbackMessage: resultErrorMessage || "Generation failed to produce media output",
+          fallbackDetail: resultData.json,
+        });
+        if (persistedFailure) return persistedFailure;
         await persistPollObservation({
           observationType: "failed",
           payload: resultData.json,

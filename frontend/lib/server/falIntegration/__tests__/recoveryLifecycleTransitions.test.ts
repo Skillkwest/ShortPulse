@@ -156,6 +156,15 @@ describe("recoveryLifecycleTransitions", () => {
       next_recovery_at: null,
     });
 
+    expect(buildProviderFailedUpdate(nowIso, "content_policy_block")).toEqual({
+      status: "fail",
+      completed_at: nowIso,
+      failure_reason_code: "content_policy_block",
+      recovery_state: "exhausted",
+      last_recovery_at: nowIso,
+      next_recovery_at: null,
+    });
+
     expect(
       buildNoMediaUpdate({
         nowIso,

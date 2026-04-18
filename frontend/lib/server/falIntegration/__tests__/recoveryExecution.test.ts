@@ -1190,6 +1190,64 @@ describe("executeGenerationRecovery", () => {
     );
   });
 
+  it("persists explicit-content provider failures with shared copy", async () => {
+    const scenario = createAiGenerationsAdmin([
+      {
+        ...baseGenerationRow,
+        status: "running",
+      },
+    ]);
+    getSupabaseAdminMock.mockReturnValue(scenario.admin);
+
+    const result = await executeGenerationRecovery({
+      actor: "poll",
+      generationId: "gen-1",
+      routeLabel: "test/recovery",
+      observation: {
+        state: "failed",
+        payload: {
+          detail: [
+            {
+              type: "content_policy_violation",
+              msg: "Blocked by policy.",
+            },
+          ],
+        },
+        mediaUrls: [],
+      },
+    });
+
+    expect(result).toEqual(
+      expect.objectContaining({
+        ok: true,
+        state: "provider_failed",
+        processed: true,
+      })
+    );
+    expect(scenario.updatePayloads).toHaveLength(1);
+    expect(scenario.updatePayloads[0]).toEqual(
+      expect.objectContaining({
+        status: "fail",
+        failure_reason_code: "content_policy_block",
+      })
+    );
+    expect(upsertGenerationProjectionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        generationId: "gen-1",
+        errorMessageShort: "Content not allowed",
+        errorDetail:
+          "This request was blocked for explicit or unsafe content. Try revising the prompt or references.",
+      })
+    );
+    expect(updateGenerationAttemptStateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        failureReasonCode: "content_policy_block",
+        errorMessage:
+          "This request was blocked for explicit or unsafe content. Try revising the prompt or references.",
+      })
+    );
+  });
+
   it("records no-media as exhausted when attempts hit max threshold", async () => {
     const scenario = createAiGenerationsAdmin([
       {

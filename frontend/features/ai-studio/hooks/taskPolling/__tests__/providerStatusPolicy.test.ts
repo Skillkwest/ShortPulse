@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  createShortErrorMessage,
   isProviderSafetyBlockedOutput,
   isProviderSafetyBlockMessage,
 } from "../providerStatusPolicy";
@@ -24,6 +25,14 @@ describe("providerStatusPolicy safety classification", () => {
           "Request rejected for explicit adult content by the provider moderation system.",
       })
     ).toBe(true);
+  });
+
+  it("condenses explicit-content failures to the shared short copy", () => {
+    expect(
+      createShortErrorMessage(
+        "This request was blocked for explicit or unsafe content. Try revising the prompt or references."
+      )
+    ).toBe("Content not allowed");
   });
 
   it("does not label generic provider failures as NSFW", () => {

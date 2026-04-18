@@ -2,6 +2,7 @@
  * Fal payload adapter helpers for status/result normalization.
  * Keeps provider payload parsing consistent across route handlers.
  */
+import { isExplicitContentFailureMessage } from "../../explicitContentFailure";
 
 type JsonObject = Record<string, unknown>;
 
@@ -59,13 +60,30 @@ export const normalizeStatus = (value: unknown): string | null => {
 
 export const findContentPolicyMessage = (payload: JsonObject): string | null => {
   const detail = payload.detail;
-  if (!Array.isArray(detail)) return null;
-  const violation = detail.find((item) => {
-    const row = toRecord(item);
-    return row.type === "content_policy_violation";
-  });
-  const message = asString(toRecord(violation).msg);
-  return message ?? null;
+  if (Array.isArray(detail)) {
+    const violation = detail.find((item) => {
+      const row = toRecord(item);
+      const type = asString(row.type)?.toLowerCase() ?? "";
+      const message =
+        asString(row.msg) ?? asString(row.message) ?? asString(row.error) ?? asString(row.detail);
+      return (
+        type === "content_policy_violation" ||
+        type.includes("content_policy") ||
+        type.includes("moderation") ||
+        isExplicitContentFailureMessage(message)
+      );
+    });
+    const message =
+      asString(toRecord(violation).msg) ??
+      asString(toRecord(violation).message) ??
+      asString(toRecord(violation).error) ??
+      asString(toRecord(violation).detail);
+    if (message) return message;
+  }
+
+  const topLevelMessage =
+    asString(payload.error) ?? asString(payload.message) ?? asString(payload.status_message);
+  return isExplicitContentFailureMessage(topLevelMessage) ? topLevelMessage : null;
 };
 
 export const hasMediaPayload = (payload: JsonObject): boolean => {

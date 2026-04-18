@@ -158,6 +158,26 @@ describe("useAiStudioOutputLifecycle", () => {
     );
   });
 
+  it("treats generic safety-policy submit blocks as explicit-content failures", () => {
+    const { result } = renderHook(() =>
+      useHarness([makeOutput("out-1", { taskState: "running" })], "out-1")
+    );
+
+    act(() => {
+      result.current.notifyGenerationFailure(
+        "out-1",
+        "Generation blocked by safety policy.",
+        "Generation blocked by safety policy."
+      );
+    });
+
+    expect(result.current.outputs[0]?.errorMessage).toBe(EXPLICIT_CONTENT_FAILURE_MESSAGE);
+    expect(result.current.outputs[0]?.errorMessageShort).toBe(
+      EXPLICIT_CONTENT_FAILURE_SHORT_MESSAGE
+    );
+    expect(result.current.outputs[0]?.errorDetail).toBe(EXPLICIT_CONTENT_FAILURE_DETAIL);
+  });
+
   it("updates prompts with trimmed text and ignores empty updates", () => {
     const { result } = renderHook(() => useHarness([makeOutput("out-1")], "out-1"));
 

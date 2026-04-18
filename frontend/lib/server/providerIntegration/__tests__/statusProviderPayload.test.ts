@@ -96,6 +96,21 @@ describe("statusProviderPayload", () => {
     );
   });
 
+  it("reads broader fal moderation/content-policy payload shapes", () => {
+    const payload = {
+      detail: [
+        {
+          type: "moderation_violation",
+          message: "Request rejected for explicit content.",
+        },
+      ],
+    };
+
+    expect(readProviderContentPolicyMessage({ provider: "fal", payload })).toBe(
+      "Request rejected for explicit content."
+    );
+  });
+
   it("supports kie payload parsing", () => {
     expect(
       readProviderLifecycleStatus({

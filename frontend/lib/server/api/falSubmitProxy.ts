@@ -9,6 +9,10 @@ import { resolveRuntimeSafetyProfile } from "./agentSafetyPolicyControlPlane";
 import { logGenerationFailure } from "./appErrorLogs";
 import { readFalRuntimeFlags, type FalRuntimeFlags } from "./falRuntimeFlags";
 import {
+  EXPLICIT_CONTENT_FAILURE_DETAIL,
+  EXPLICIT_CONTENT_FAILURE_MESSAGE,
+} from "../../explicitContentFailure";
+import {
   hasFreshLocalGenerationWorkerHeartbeat,
   isLocalDevGenerationWorkerRequired,
 } from "../generationControlPlane/localWorkerHeartbeat";
@@ -321,7 +325,8 @@ export const createFalSubmitHandler = ({
         },
       });
       return res.status(422).json({
-        error: "Generation blocked by safety policy.",
+        error: EXPLICIT_CONTENT_FAILURE_MESSAGE,
+        detail: EXPLICIT_CONTENT_FAILURE_DETAIL,
         code: "GENERATION_SAFETY_BLOCKED",
       });
     }

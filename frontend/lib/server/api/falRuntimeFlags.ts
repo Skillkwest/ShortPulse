@@ -222,11 +222,10 @@ export const readFalRuntimeFlags = (): FalRuntimeFlags => ({
     0
   ),
   admissionAtomicEnabled: parseBoolean(process.env.SHORTPULSE_FAL_ADMISSION_ATOMIC_ENABLED, false),
-  queueEnabled: parseBoolean(process.env.SHORTPULSE_FAL_QUEUE_ENABLED, false),
-  workerOwnedSubmitEnabled: parseBoolean(
-    process.env.SHORTPULSE_FAL_WORKER_OWNED_SUBMIT_ENABLED,
-    false
-  ),
+  // Pre-provider ShortPulse queueing is retired for standard Fal/Kie generation.
+  // Keep the shape for compatibility while making the heavy lane non-operative.
+  queueEnabled: false,
+  workerOwnedSubmitEnabled: false,
   queueMaxPerUser: parseInteger(process.env.SHORTPULSE_FAL_QUEUE_MAX_PER_USER, 20, 1),
   queueDispatchBatchSize: parseInteger(process.env.SHORTPULSE_FAL_QUEUE_DISPATCH_BATCH_SIZE, 25, 1),
   queueLeaseSeconds: parseInteger(process.env.SHORTPULSE_FAL_QUEUE_LEASE_SECONDS, 30, 1),

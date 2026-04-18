@@ -2,7 +2,7 @@
  * Generation submission hook for AI Studio.
  * Orchestrates submission lifecycle while delegating provider-specific calls to handlers.
  */
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback } from "react";
 import type { Dispatch, SetStateAction } from "react";
 import { reportAppError } from "../../../lib/appErrorReporter";
 import { isAuthSessionTimeoutError } from "../../../lib/authenticatedFetch";
@@ -42,7 +42,6 @@ import {
   applyDispatchedSubmissionPatch,
   applySubmissionFailureToOutputs,
 } from "./taskSubmission/outputLifecyclePatches";
-import { startQueuedStatusPolling } from "./taskSubmission/queueStatusPolling";
 import {
   CREATE_TEXT_MODE_SUBMIT_BLOCK_ERROR,
   normalizeSubmissionTool,
@@ -179,28 +178,6 @@ export const useAiStudioTaskSubmission = ({
   startPollingTask,
   ensureGenerationRecord,
 }: UseAiStudioTaskSubmissionParams) => {
-  const queueStatusTimersRef = useRef<Record<string, number>>({});
-  const queueStatusSessionRef = useRef<Record<string, number>>({});
-
-  const clearQueueStatusPolling = useCallback((outputId: string) => {
-    queueStatusSessionRef.current[outputId] = (queueStatusSessionRef.current[outputId] ?? 0) + 1;
-    const timeoutId = queueStatusTimersRef.current[outputId];
-    if (timeoutId) {
-      window.clearTimeout(timeoutId);
-      delete queueStatusTimersRef.current[outputId];
-    }
-  }, []);
-
-  useEffect(() => {
-    return () => {
-      for (const timeoutId of Object.values(queueStatusTimersRef.current)) {
-        window.clearTimeout(timeoutId);
-      }
-      queueStatusTimersRef.current = {};
-      queueStatusSessionRef.current = {};
-    };
-  }, []);
-
   return useCallback(
     async (
       promptArg: string | null | undefined,
@@ -293,7 +270,6 @@ export const useAiStudioTaskSubmission = ({
       setPanelGenerating(submissionOwner, true);
       try {
         const id = optimisticOutputId ?? `out-${randomId()}`;
-        clearQueueStatusPolling(id);
         const submissionTraceId = buildGenerationSubmissionTraceId(id);
         const modelLabel = resolveModelLabel(finalModel);
 
@@ -660,41 +636,6 @@ export const useAiStudioTaskSubmission = ({
             patch: Partial<StudioOutput> = {},
             submitResponse?: FalSubmitResponse
           ) => {
-            const queuedResponse =
-              submitResponse && "status" in submitResponse && submitResponse.status === "queued"
-                ? submitResponse
-                : null;
-            if (queuedResponse) {
-              taskStarted = true;
-              startedTaskId = queuedResponse.generationId;
-              startedProvider = provider;
-              startQueuedStatusPolling({
-                outputId: id,
-                provider,
-                finalModel,
-                effectiveTool,
-                queuedResponse,
-                patch,
-                queueStatusTimersRef,
-                queueStatusSessionRef,
-                clearQueueStatusPolling,
-                updateOutputById,
-                notifyGenerationFailure,
-                onDispatched: (requestId, generationId, dispatchedProvider) => {
-                  startPollingWithGeneration(
-                    requestId,
-                    dispatchedProvider,
-                    {
-                      ...patch,
-                      generationId,
-                    },
-                    undefined
-                  );
-                },
-              });
-              return;
-            }
-
             const submitGenerationId =
               submitResponse &&
               "request_id" in submitResponse &&
@@ -714,7 +655,6 @@ export const useAiStudioTaskSubmission = ({
             taskStarted = true;
             startedTaskId = normalizedTaskId;
             startedProvider = provider;
-            clearQueueStatusPolling(id);
             updateOutputById(id, (item) =>
               applyDispatchedSubmissionPatch({
                 item,
@@ -901,7 +841,6 @@ export const useAiStudioTaskSubmission = ({
     },
     [
       aspect,
-      clearQueueStatusPolling,
       setPanelGenerating,
       setOutputs,
       setSaved,

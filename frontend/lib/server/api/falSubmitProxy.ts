@@ -7,25 +7,18 @@ import { requireApiUser } from "./auth";
 import { chargeGenerationRequest } from "./generationBilling";
 import { resolveRuntimeSafetyProfile } from "./agentSafetyPolicyControlPlane";
 import { logGenerationFailure } from "./appErrorLogs";
-import { readFalRuntimeFlags, type FalRuntimeFlags } from "./falRuntimeFlags";
+import { readFalRuntimeFlags } from "./falRuntimeFlags";
 import {
   EXPLICIT_CONTENT_FAILURE_DETAIL,
   EXPLICIT_CONTENT_FAILURE_MESSAGE,
 } from "../../explicitContentFailure";
-import {
-  hasFreshLocalGenerationWorkerHeartbeat,
-  isLocalDevGenerationWorkerRequired,
-} from "../generationControlPlane/localWorkerHeartbeat";
 import { requestGenerationControlPlaneWake } from "../generationControlPlane/controlPlaneWake";
+import { isLocalDevGenerationWorkerRequired } from "../generationControlPlane/localWorkerHeartbeat";
 import { normalizeExplicitContentFailure } from "../../explicitContentFailure";
 import { evaluateGenerationAdmissionDecision } from "./generationAdmission/generationAdmissionPolicy";
 import { evaluateScopedGenerationAdmission } from "./generationAdmission/generationAdmissionService";
 import { shouldEmitRecoveryBackpressureTelemetry } from "./generationAdmission/recoveryBackpressure";
 import type { SubmitTarget } from "../falIntegration/contracts";
-import {
-  countUserQueuedGenerationSubmits,
-  enqueueGenerationSubmit,
-} from "./generationQueue/service";
 import { upsertGenerationProjection } from "./generationProjection";
 import { resolveWebhookCallbackUrl, withWebhookTargets } from "./falSubmitTargeting";
 import {
@@ -47,11 +40,7 @@ import {
 import { resolveSafetyEnvironment } from "../../../features/agent-runtime/safetyPolicy/decisionEngine";
 import { enforceServerGenerationSafetyPayload } from "../../../features/agent-runtime/safetyPolicy/generationSafetyPolicy";
 import { resolveSafetyPolicyDocument } from "../../../features/agent-runtime/safetyPolicy/policyDocument";
-import {
-  isVideoGenerationModelId,
-  normalizeVideoSubmitIngressPayload,
-  wrapQueueSubmitPayloadEnvelope,
-} from "./videoSubmitContracts";
+import { normalizeVideoSubmitIngressPayload } from "./videoSubmitContracts";
 import { getSupabaseAdmin } from "./supabaseAdmin";
 import { applyAcceptedRunningGenerationTransition } from "./generationAcceptedTransitionService";
 import { buildAcceptedRunningGenerationUpdate } from "./generationRequestTransitions";
@@ -148,51 +137,12 @@ const buildAdmissionUnavailablePayload = (retryAfterSeconds: number) => ({
   retryAfterSeconds,
 });
 
-const buildQueueWorkerUnavailablePayload = (retryAfterSeconds: number) => ({
+const buildDirectSubmitUnavailablePayload = (retryAfterSeconds: number) => ({
   error:
-    "Generation queue worker is not running in local development. Start `npm run dev:generation-worker` and retry.",
-  code: "GENERATION_QUEUE_WORKER_UNAVAILABLE",
+    "Direct provider submit is unavailable for this route in the current runtime. Please retry or use a supported generation route.",
+  code: "GENERATION_DIRECT_SUBMIT_UNAVAILABLE",
   retryAfterSeconds,
 });
-
-const buildWorkerOwnedSubmitMisconfiguredPayload = (retryAfterSeconds: number) => ({
-  error:
-    "Worker-owned generation submit requires the durable submit queue to be enabled. Fix the runtime configuration and retry.",
-  code: "GENERATION_WORKER_OWNED_SUBMIT_MISCONFIGURED",
-  retryAfterSeconds,
-});
-
-const buildQueueRequiredPayload = (retryAfterSeconds: number) => ({
-  error:
-    "Durable queue-backed generation submit is required for this runtime. Enable the queue and retry.",
-  code: "GENERATION_QUEUE_REQUIRED",
-  retryAfterSeconds,
-});
-
-const buildQueuedSubmitPayload = ({
-  sourceRef,
-  generationId,
-}: {
-  sourceRef: string;
-  generationId: string;
-}) => ({
-  status: "queued",
-  code: "GENERATION_QUEUED",
-  sourceRef,
-  generationId,
-  pollAfterMs: 2000,
-});
-
-const isWorkerOwnedSubmitMisconfigured = ({
-  queueEnabled,
-  workerOwnedSubmitEnabled,
-}: {
-  queueEnabled: boolean;
-  workerOwnedSubmitEnabled: boolean;
-}): boolean => workerOwnedSubmitEnabled && !queueEnabled;
-
-const hasConfiguredControlPlaneWake = (runtimeFlags: FalRuntimeFlags): boolean =>
-  Boolean(runtimeFlags.publicApiBaseUrl && runtimeFlags.reconcilerCronSecret);
 
 const applyRewrittenPromptToPayload = ({
   payload,
@@ -599,25 +549,7 @@ export const createFalSubmitHandler = ({
       const supportsInlineDirectSubmit =
         inlineSubmitTargets.length > 0 &&
         (providerKey === "kie" || (providerKey === "fal" && generationMode === "image"));
-      const localQueueWorkerRequired = isLocalDevGenerationWorkerRequired(runtimeFlags);
-      const bypassQueueForInlineImage =
-        supportsInlineDirectSubmit &&
-        providerKey === "fal" &&
-        generationMode === "image" &&
-        admissionDecision.wouldLimit &&
-        runtimeFlags.queueEnabled &&
-        !localQueueWorkerRequired &&
-        !hasConfiguredControlPlaneWake(runtimeFlags);
-      const canUseInlineDirectSubmit =
-        supportsInlineDirectSubmit && (!admissionDecision.wouldLimit || bypassQueueForInlineImage);
-      const queuedSubmitSelected =
-        runtimeFlags.queueEnabled &&
-        !bypassQueueForInlineImage &&
-        (!supportsInlineDirectSubmit || admissionDecision.enforced || admissionDecision.wouldLimit);
-      const workerOwnedSubmitMisconfigured = isWorkerOwnedSubmitMisconfigured({
-        queueEnabled: runtimeFlags.queueEnabled,
-        workerOwnedSubmitEnabled: runtimeFlags.workerOwnedSubmitEnabled,
-      });
+      const canUseInlineDirectSubmit = supportsInlineDirectSubmit && !admissionDecision.wouldLimit;
 
       if (canUseInlineDirectSubmit) {
         const webhookCallbackUrl = resolveWebhookCallbackUrl(runtimeFlags, {
@@ -749,9 +681,6 @@ export const createFalSubmitHandler = ({
             upstream_target_url: submitResult.targetUrl,
             upstream_target_index: submitResult.targetIndex,
             provider_diagnostics: submitResult.providerDiagnostics ?? null,
-            submit_queue_bypass_reason: bypassQueueForInlineImage
-              ? "queue_wake_unconfigured"
-              : null,
           };
           const transitionResult = await applyAcceptedRunningGenerationTransition({
             applyGenerationMutation: async () => {
@@ -917,234 +846,10 @@ export const createFalSubmitHandler = ({
         }
       }
 
-      if (workerOwnedSubmitMisconfigured && queuedSubmitSelected) {
-        const retryAfterSeconds = 20;
-        await charge.refund(
-          "Auto-release: worker-owned submit requires queue-enabled runtime configuration.",
-          {
-            reason: "worker_owned_submit_queue_disabled",
-            queue_enabled: runtimeFlags.queueEnabled,
-            worker_owned_submit_enabled: runtimeFlags.workerOwnedSubmitEnabled,
-          }
-        );
-        await logGenerationFailure({
-          req,
-          routeLabel,
-          source: "api.fal_submit.worker_owned_submit_misconfigured",
-          message: "Worker-owned submit was enabled while the durable submit queue was disabled.",
-          statusCode: 503,
-          userId: charge.userId,
-          metadata: {
-            model_id: modelId,
-            source_ref: charge.sourceRef,
-            queue_enabled: runtimeFlags.queueEnabled,
-            worker_owned_submit_enabled: runtimeFlags.workerOwnedSubmitEnabled,
-          },
-        });
-        res.setHeader("Retry-After", String(retryAfterSeconds));
-        return res.status(503).json(buildWorkerOwnedSubmitMisconfiguredPayload(retryAfterSeconds));
-      }
-
-      if (queuedSubmitSelected) {
-        if (localQueueWorkerRequired && !(await hasFreshLocalGenerationWorkerHeartbeat())) {
-          await charge.refund("Auto-release: local generation queue worker heartbeat missing.", {
-            reason: "local_queue_worker_missing",
-            app_base_url: runtimeFlags.publicApiBaseUrl,
-          });
-          await logGenerationFailure({
-            req,
-            routeLabel,
-            source: "api.fal_submit.queue_worker_unavailable",
-            message: "Local generation queue worker heartbeat missing while queueing was required.",
-            statusCode: 503,
-            userId: charge.userId,
-            metadata: {
-              model_id: modelId,
-              source_ref: charge.sourceRef,
-              app_base_url: runtimeFlags.publicApiBaseUrl,
-            },
-          });
-          res.setHeader("Retry-After", "5");
-          return res.status(503).json(buildQueueWorkerUnavailablePayload(5));
-        }
-
-        const queueDepth = await countUserQueuedGenerationSubmits(charge.userId);
-        if (queueDepth >= runtimeFlags.queueMaxPerUser) {
-          await charge.refund("Auto-release: generation queue depth limit reached.", {
-            reason: "queue_depth_limit",
-            queue_depth: queueDepth,
-            queue_max: runtimeFlags.queueMaxPerUser,
-            global_active: admissionDecision.snapshot.globalActive,
-            global_max: admissionDecision.snapshot.globalMax,
-            tier: admissionDecision.snapshot.tier,
-            tier_active: admissionDecision.snapshot.tierActive,
-            tier_max: admissionDecision.snapshot.tierMax,
-          });
-          res.setHeader("Retry-After", String(admissionDecision.retryAfterSeconds));
-          return res.status(429).json(
-            buildAdmissionLimitPayload({
-              retryAfterSeconds: admissionDecision.retryAfterSeconds,
-              admissionScope,
-              admissionReason: admissionDecision.reason,
-              snapshot: {
-                globalMax: admissionDecision.snapshot.globalMax,
-                globalActive: admissionDecision.snapshot.globalActive,
-                tier: admissionDecision.snapshot.tier,
-                tierMax: admissionDecision.snapshot.tierMax,
-                tierActive: admissionDecision.snapshot.tierActive,
-              },
-            })
-          );
-        }
-
-        const queuedSubmitPayload =
-          runtimeFlags.videoQueueCompatNormalizationEnabled && isVideoGenerationModelId(modelId)
-            ? (wrapQueueSubmitPayloadEnvelope({
-                modelId,
-                payload: payload as JsonValue,
-              }) as JsonValue)
-            : (payload as JsonValue);
-        const webhookCallbackUrl = resolveWebhookCallbackUrl(runtimeFlags, {
-          userId: charge.userId,
-          modelId,
-          requestHeaders: req.headers,
-        });
-        const enqueueResult = await enqueueGenerationSubmit({
-          userId: charge.userId,
-          sourceRef: charge.sourceRef,
-          provider: providerKey,
-          modelId,
-          promptText: resolveGenerationPromptFromPayload(routeLabel, payload),
-          mode: resolveGenerationModeFromPayload(modelId, payload),
-          aspect: resolveGenerationAspectFromPayload(payload),
-          durationSeconds: readGenerationDurationSeconds(payload),
-          resolution: resolveGenerationResolutionFromPayload(payload),
-          submitRoute: req.url ?? routeLabel,
-          submitPayload: queuedSubmitPayload,
-          timeoutMs,
-          metadata: {
-            source_ref: charge.sourceRef,
-            generation_submit_authority: "worker",
-            route: req.url ?? null,
-            route_label: routeLabel,
-            queue_payload_contract:
-              runtimeFlags.videoQueueCompatNormalizationEnabled && isVideoGenerationModelId(modelId)
-                ? "video_submit_payload_v2"
-                : "legacy_raw",
-            queue_reason: admissionDecision.reason ?? "queue_enabled_default",
-            queue_snapshot: {
-              global_active: admissionDecision.snapshot.globalActive,
-              global_max: admissionDecision.snapshot.globalMax,
-              tier: admissionDecision.snapshot.tier,
-              tier_active: admissionDecision.snapshot.tierActive,
-              tier_max: admissionDecision.snapshot.tierMax,
-            },
-            admission_scope: admissionScope,
-            fal_webhook_callback_url: webhookCallbackUrl,
-          },
-        });
-
-        if (!enqueueResult.generationId || enqueueResult.status === "failed") {
-          await charge.refund("Auto-release: generation enqueue failed.", {
-            reason: "queue_enqueue_failed",
-            enqueue_status: enqueueResult.status,
-            enqueue_message: enqueueResult.message,
-          });
-          await logGenerationFailure({
-            req,
-            routeLabel,
-            source: "api.fal_submit.queue_enqueue_failed",
-            message: "Failed to enqueue over-cap generation.",
-            statusCode: 500,
-            userId: charge.userId,
-            metadata: {
-              model_id: modelId,
-              source_ref: charge.sourceRef,
-              enqueue_status: enqueueResult.status,
-              enqueue_message: enqueueResult.message,
-            },
-          });
-          return res.status(500).json({ error: "Failed to queue generation. Please retry." });
-        }
-
-        const queuedSourceRef = enqueueResult.sourceRef || charge.sourceRef;
-        try {
-          await upsertGenerationProjection({
-            generationId: enqueueResult.generationId,
-            userId: charge.userId,
-            sourceRef: queuedSourceRef,
-            provider: providerKey,
-            status: "ready",
-            taskState: "pending",
-            queueState: "queued",
-            displayPrompt: resolveGenerationPromptFromPayload(routeLabel, payload),
-            modelId,
-            saveState: "idle",
-            publicationState: "pending",
-            resultUrls: [],
-            savedMediaIds: [],
-          });
-        } catch (projectionError) {
-          await logGenerationFailure({
-            req,
-            routeLabel,
-            source: "telemetry.api.fal_submit.queue_projection_failed",
-            message: "Queued generation projection sync failed.",
-            statusCode: 202,
-            userId: charge.userId,
-            metadata: {
-              generation_id: enqueueResult.generationId,
-              source_ref: queuedSourceRef,
-              projection_error:
-                projectionError instanceof Error
-                  ? projectionError.message
-                  : String(projectionError),
-            },
-          }).catch(() => undefined);
-        }
-        void requestGenerationControlPlaneWake({
-          routeLabel,
-          reason: "queued_submit",
-        });
-        await logGenerationFailure({
-          req,
-          routeLabel,
-          source: "telemetry.api.fal_submit.queued",
-          message: "Generation accepted into submit queue.",
-          statusCode: 202,
-          userId: charge.userId,
-          metadata: {
-            model_id: modelId,
-            source_ref: queuedSourceRef,
-            generation_id: enqueueResult.generationId,
-            queue_status: enqueueResult.queueStatus,
-            admission_reason: admissionDecision.reason,
-            worker_owned_submit: true,
-            global_active: admissionDecision.snapshot.globalActive,
-            global_max: admissionDecision.snapshot.globalMax,
-            tier: admissionDecision.snapshot.tier,
-            tier_active: admissionDecision.snapshot.tierActive,
-            tier_max: admissionDecision.snapshot.tierMax,
-            queue_depth: queueDepth + (enqueueResult.status === "queued" ? 1 : 0),
-            queue_max: runtimeFlags.queueMaxPerUser,
-            admission_scope: admissionScope,
-          },
-        });
-
-        return res.status(202).json(
-          buildQueuedSubmitPayload({
-            sourceRef: queuedSourceRef,
-            generationId: enqueueResult.generationId,
-          })
-        );
-      }
-
       if (supportsInlineDirectSubmit && admissionDecision.wouldLimit) {
         const retryAfterSeconds = admissionDecision.retryAfterSeconds;
         await charge.refund("Auto-release: direct submit admission limit reached.", {
           reason: "direct_submit_limited",
-          queue_enabled: runtimeFlags.queueEnabled,
-          worker_owned_submit_enabled: runtimeFlags.workerOwnedSubmitEnabled,
           admission_enforced: admissionDecision.enforced,
           admission_reason: admissionDecision.reason,
           global_active: admissionDecision.snapshot.globalActive,
@@ -1171,29 +876,25 @@ export const createFalSubmitHandler = ({
       }
 
       const retryAfterSeconds = 20;
-      await charge.refund("Auto-release: durable queue-backed submit is required.", {
-        reason: "queue_required",
-        queue_enabled: runtimeFlags.queueEnabled,
-        worker_owned_submit_enabled: runtimeFlags.workerOwnedSubmitEnabled,
+      await charge.refund("Auto-release: no direct provider submit path was available.", {
+        reason: "direct_submit_unavailable",
         admission_enforced: admissionDecision.enforced,
       });
       await logGenerationFailure({
         req,
         routeLabel,
-        source: "api.fal_submit.queue_required",
-        message: "Durable queue-backed submit was required before reaching any inline path.",
+        source: "api.fal_submit.direct_submit_unavailable",
+        message: "No direct provider submit path was available before reaching any inline path.",
         statusCode: 503,
         userId: charge.userId,
         metadata: {
           model_id: modelId,
           source_ref: charge.sourceRef,
-          queue_enabled: runtimeFlags.queueEnabled,
-          worker_owned_submit_enabled: runtimeFlags.workerOwnedSubmitEnabled,
           admission_enforced: admissionDecision.enforced,
         },
       });
       res.setHeader("Retry-After", String(retryAfterSeconds));
-      return res.status(503).json(buildQueueRequiredPayload(retryAfterSeconds));
+      return res.status(503).json(buildDirectSubmitUnavailablePayload(retryAfterSeconds));
     } catch (error) {
       await logGenerationFailure({
         req,

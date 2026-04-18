@@ -40,7 +40,6 @@ Purpose: define how runtime incidents are captured, triaged, and resolved.
 5. Record outcome in `docs/change_log.md` and, if unresolved, `docs/known-issues.md`.
 
 ### Fal drain cycle monitoring
-- Local dev queue mode requires `npm -C frontend run dev:generation-worker`; localhost queued submits now fail closed when the worker heartbeat is stale/missing.
 - Use `scripts/run_generation_drain_cycle.mjs` to run controlled all-user drain loops via `/api/internal/generation-recovery/run`.
 - Use `npx tsx scripts/replay_generation_convergence_backlog.ts --dry-run` to inspect `outputs_without_publications` backlog rows that are already `status='success'` and therefore outside normal reconciler claiming.
 - Use `docs/sops/sop_generation_recovery_diagnostics.md` as the canonical drain/remediation sequence.
@@ -52,12 +51,11 @@ Purpose: define how runtime incidents are captured, triaged, and resolved.
   - recovery batch execution: `frontend/lib/server/generationControlPlane/recoveryBatchExecution.ts`
 - Treat these response fields as hard health signals during drain:
   - recovery: `claimed`, `processed`, `recovered`, `requeued`, `exhausted`, `errors`
-  - queue dispatch: `queueClaimed`, `queueSubmitted`, `queueRetried`, `queueExhausted`, `queueDispatchErrors`
   - cleanup: `reservationCleanupScanned`, `reservationCleanupReleased`, `reservationCleanupErrors`
   - stage timings: `stageTimings.queueDispatch.durationMs`, `stageTimings.reservationCleanup.durationMs`, `stageTimings.providerAttachedReservationCleanup.durationMs`, `stageTimings.observationInboxProcessing.durationMs`, `stageTimings.requestIdRepair.durationMs`, `stageTimings.recoveryClaim.durationMs`, `stageTimings.recoveryExecution.durationMs`
 - Convergence target:
-  - no sustained active workload (`claimed`, `requeued`, `queueClaimed` no longer persistently elevated),
-  - `errors = 0` and `queueDispatchErrors = 0` across the configured convergence window.
+  - no sustained active workload (`claimed`, `requeued` no longer persistently elevated),
+  - `errors = 0` across the configured convergence window.
 - Queue-latency validation target:
   - `telemetry.queue.dispatch.submitted` events are present during the validation run,
   - `p95_queue_latency_ms` trends materially below the prior symptom window,

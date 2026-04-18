@@ -4,9 +4,6 @@ import { createFalSubmitHandler } from "../../lib/server/api/falSubmitProxy";
 const chargeGenerationRequestMock = vi.fn();
 const logGenerationFailureMock = vi.fn();
 const evaluateScopedGenerationAdmissionMock = vi.fn();
-const hasFreshLocalGenerationWorkerHeartbeatMock = vi.fn();
-const isLocalDevGenerationWorkerRequiredMock = vi.fn();
-const countUserQueuedGenerationSubmitsMock = vi.fn();
 const enqueueGenerationSubmitMock = vi.fn();
 const upsertGenerationProjectionMock = vi.fn();
 const requestGenerationControlPlaneWakeMock = vi.fn();
@@ -31,16 +28,7 @@ vi.mock("../../lib/server/api/generationAdmission/generationAdmissionService", (
     evaluateScopedGenerationAdmissionMock(...args),
 }));
 
-vi.mock("../../lib/server/generationControlPlane/localWorkerHeartbeat", () => ({
-  hasFreshLocalGenerationWorkerHeartbeat: (...args: unknown[]) =>
-    hasFreshLocalGenerationWorkerHeartbeatMock(...args),
-  isLocalDevGenerationWorkerRequired: (...args: unknown[]) =>
-    isLocalDevGenerationWorkerRequiredMock(...args),
-}));
-
 vi.mock("../../lib/server/api/generationQueue/service", () => ({
-  countUserQueuedGenerationSubmits: (...args: unknown[]) =>
-    countUserQueuedGenerationSubmitsMock(...args),
   enqueueGenerationSubmit: (...args: unknown[]) => enqueueGenerationSubmitMock(...args),
 }));
 
@@ -94,7 +82,6 @@ describe("createFalSubmitHandler", () => {
       }),
       refund: vi.fn().mockResolvedValue(undefined),
     });
-    countUserQueuedGenerationSubmitsMock.mockResolvedValue(0);
     enqueueGenerationSubmitMock.mockResolvedValue({
       status: "queued",
       generationId: "gen-queued-1",
@@ -140,8 +127,6 @@ describe("createFalSubmitHandler", () => {
         staleIgnoredTier: 0,
       },
     });
-    hasFreshLocalGenerationWorkerHeartbeatMock.mockResolvedValue(true);
-    isLocalDevGenerationWorkerRequiredMock.mockReturnValue(false);
     requireApiUserMock.mockResolvedValue({
       id: "user-1",
       email: "user-1@example.com",
@@ -293,38 +278,7 @@ describe("createFalSubmitHandler", () => {
     );
   });
 
-  it("fails closed when queueing is required in local dev and the worker heartbeat is missing", async () => {
-    hasFreshLocalGenerationWorkerHeartbeatMock.mockResolvedValue(false);
-    isLocalDevGenerationWorkerRequiredMock.mockReturnValue(true);
-
-    const handler = createFalSubmitHandler({
-      modelId: "fal-ai/nano-banana",
-      routeLabel: "Fal Nano Banana",
-    });
-
-    const req = {
-      method: "POST",
-      body: { prompt: "portrait" },
-      headers: {},
-      url: "/api/fal/nano-banana-submit",
-    };
-    const res = createMockResponse();
-
-    await handler(req as never, res as never);
-
-    const charge = await chargeGenerationRequestMock.mock.results[0]?.value;
-    expect(enqueueGenerationSubmitMock).not.toHaveBeenCalled();
-    expect(charge.refund).toHaveBeenCalled();
-    expect(res.status).toHaveBeenCalledWith(503);
-    expect(res.json).toHaveBeenCalledWith({
-      error:
-        "Generation queue worker is not running in local development. Start `npm run dev:generation-worker` and retry.",
-      code: "GENERATION_QUEUE_WORKER_UNAVAILABLE",
-      retryAfterSeconds: 5,
-    });
-  });
-
-  it("fails closed for worker-owned non-inline submits when the durable queue is disabled", async () => {
+  it("fails closed when no direct submit path is available for a non-inline route", async () => {
     process.env.SHORTPULSE_FAL_QUEUE_ENABLED = "false";
     process.env.SHORTPULSE_FAL_WORKER_OWNED_SUBMIT_ENABLED = "true";
 
@@ -347,8 +301,8 @@ describe("createFalSubmitHandler", () => {
     expect(res.status).toHaveBeenCalledWith(503);
     expect(res.json).toHaveBeenCalledWith({
       error:
-        "Durable queue-backed generation submit is required for this runtime. Enable the queue and retry.",
-      code: "GENERATION_QUEUE_REQUIRED",
+        "Direct provider submit is unavailable for this route in the current runtime. Please retry or use a supported generation route.",
+      code: "GENERATION_DIRECT_SUBMIT_UNAVAILABLE",
       retryAfterSeconds: 20,
     });
   });
@@ -415,7 +369,7 @@ describe("createFalSubmitHandler", () => {
     });
   });
 
-  it("bypasses queue admission for inline Fal image submits when queue wake is unconfigured", async () => {
+  it("returns 429 for inline Fal image submits when admission is saturated", async () => {
     evaluateScopedGenerationAdmissionMock.mockResolvedValue({
       decision: {
         mode: "enforce",
@@ -440,10 +394,6 @@ describe("createFalSubmitHandler", () => {
         staleIgnoredTier: 0,
       },
     });
-    delete process.env.SHORTPULSE_PUBLIC_API_BASE_URL;
-    delete process.env.APP_BASE_URL;
-    delete process.env.SHORTPULSE_FAL_RECONCILER_CRON_SECRET;
-
     const handler = createFalSubmitHandler({
       modelId: "fal-ai/nano-banana",
       submitUrl: "https://queue.fal.run/fal-ai/nano-banana",
@@ -460,22 +410,19 @@ describe("createFalSubmitHandler", () => {
 
     await handler(req as never, res as never);
 
-    expect(dispatchProviderSubmitMock).toHaveBeenCalled();
+    const charge = await chargeGenerationRequestMock.mock.results[0]?.value;
+    expect(dispatchProviderSubmitMock).not.toHaveBeenCalled();
     expect(enqueueGenerationSubmitMock).not.toHaveBeenCalled();
-    expect(upsertGenerationProjectionMock).toHaveBeenCalledWith(
+    expect(charge.refund).toHaveBeenCalledWith(
+      "Auto-release: direct submit admission limit reached.",
       expect.objectContaining({
-        taskState: "running",
-        queueState: "dispatched",
+        reason: "direct_submit_limited",
       })
     );
-    expect(res.status).toHaveBeenCalledWith(200);
-    expect(res.json).toHaveBeenCalledWith({
-      request_id: "req-direct-1",
-      generationId: expect.any(String),
-    });
+    expect(res.status).toHaveBeenCalledWith(429);
   });
 
-  it("returns 429 and releases reservation when the per-user queue depth limit is hit", async () => {
+  it("returns 429 and releases reservation when direct submit admission is saturated", async () => {
     evaluateScopedGenerationAdmissionMock.mockResolvedValue({
       decision: {
         mode: "enforce",
@@ -500,10 +447,10 @@ describe("createFalSubmitHandler", () => {
         staleIgnoredTier: 0,
       },
     });
-    countUserQueuedGenerationSubmitsMock.mockResolvedValue(20);
 
     const handler = createFalSubmitHandler({
       modelId: "fal-ai/nano-banana",
+      submitUrl: "https://queue.fal.run/fal-ai/nano-banana",
       routeLabel: "Fal Nano Banana",
     });
 
@@ -520,9 +467,9 @@ describe("createFalSubmitHandler", () => {
     const charge = await chargeGenerationRequestMock.mock.results[0]?.value;
     expect(enqueueGenerationSubmitMock).not.toHaveBeenCalled();
     expect(charge.refund).toHaveBeenCalledWith(
-      "Auto-release: generation queue depth limit reached.",
+      "Auto-release: direct submit admission limit reached.",
       expect.objectContaining({
-        reason: "queue_depth_limit",
+        reason: "direct_submit_limited",
       })
     );
     expect(res.status).toHaveBeenCalledWith(429);

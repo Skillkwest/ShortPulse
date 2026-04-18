@@ -1,13 +1,13 @@
 # SOP: Generation Recovery Diagnostics
 
-Purpose: canonical operator runbook for queue dispatch, recovery execution, and settlement integrity when generation clients disconnect (browser close/crash), provider/webhook paths degrade, or stale blockers accumulate.
+Purpose: canonical operator runbook for accepted-job recovery, settlement integrity, and historical queued-row compatibility when generation clients disconnect (browser close/crash), provider/webhook paths degrade, or stale blockers accumulate.
 
 ## Scope
-- Fal/Kie queued-submit + recovery execution behavior.
+- Accepted Fal/Kie submit recovery execution behavior.
+- Historical queued-row compatibility diagnostics where legacy queue rows still exist.
 - Reservation/ledger settlement integrity across success/fail/recovery convergence.
 - Read-only diagnostics first; guarded remediation only after explicit stale confirmation.
 - Current staged control-plane ownership:
-  - worker heartbeat/cadence: `frontend/lib/server/generationControlPlane/workerLoop.ts`
   - background stage orchestration: `frontend/lib/server/generationControlPlane/runCycle.ts`
   - recovery batch acquisition: `frontend/lib/server/generationControlPlane/recoveryBatchAcquisition.ts`
   - recovery batch execution: `frontend/lib/server/generationControlPlane/recoveryBatchExecution.ts`
@@ -45,7 +45,7 @@ Purpose: canonical operator runbook for queue dispatch, recovery execution, and 
 ## What Happens If Browser Closes Or Crashes
 | Client-visible state at disconnect | Server-side durable state | What continues without client | Expected final outcome |
 | --- | --- | --- | --- |
-| `queued` accepted (`202 GENERATION_QUEUED`) | `ai_generation_submit_queue` row exists; `ai_generations` pending row exists; reservation remains held | Scheduler/reconciler dispatch continues; queue claim/lease + submit retries continue | `dispatched` then provider terminal settlement, or queue timeout/exhausted fail with reservation release |
+| legacy `queued` accepted (`202 GENERATION_QUEUED`) | `ai_generation_submit_queue` row exists; `ai_generations` pending row exists; reservation remains held | Compatibility queue-status + reconciler paths can still converge historical rows | `dispatched` then provider terminal settlement, or queue timeout/exhausted fail with reservation release |
 | `dispatched` (`request_id` attached) | reservation linked to provider request id; generation row running/recoverable | Webhook or reconciler probes provider result and executes settlement + transition | `success` (capture) or `fail` (release), independent of client polling |
 | provider terminal success while client offline | provider payload reachable; generation may still be `running/recovering` briefly | recovery execution persists media (if allowed), updates generation status, captures reservation | generation converges to `success`; ledger contains one `generation_charge` for source ref |
 | provider terminal fail while client offline | provider failure visible during probe/webhook | recovery execution marks fail + settlement release | generation converges to `fail`; reservation released (or already released) |
@@ -58,9 +58,8 @@ Purpose: canonical operator runbook for queue dispatch, recovery execution, and 
 3. Recovery execution is server-authoritative and can be driven by:
    - scheduler/reconciler (`/api/internal/generation-recovery/run`)
    - webhook ingestion (`/api/fal/webhook`) when enabled, now via the explicit ingress boundary in `frontend/lib/server/falIntegration/falWebhookIngress.ts`.
-   - best-effort wake hints from queued submit and terminal recovery transitions, which can prompt the same control-plane route when capacity frees up.
-   - hosted/default POSTs to `/api/internal/generation-recovery/run` execute the primary queue-dispatch + recovery path; bounded recovery-only runs require explicit `{"runMode":"rescue"}`.
-4. Queue dispatch and recovery claim flows use lease-based claim semantics to prevent duplicate concurrent processing.
+   - hosted/default POSTs to `/api/internal/generation-recovery/run` execute the primary accepted-job recovery path; bounded recovery-only runs require explicit `{"runMode":"rescue"}`.
+4. Recovery claim flows use lease-based claim semantics to prevent duplicate concurrent processing.
 
 ## Credit Settlement Invariants
 1. Reserve before submit:
@@ -83,10 +82,10 @@ Purpose: canonical operator runbook for queue dispatch, recovery execution, and 
 | Reservation cleanup min age | `SHORTPULSE_FAL_RESERVATION_CLEANUP_MIN_AGE_SECONDS` | `900s` |
 | Provider-attached cleanup min age | `SHORTPULSE_FAL_PROVIDER_ATTACHED_RESERVATION_CLEANUP_MIN_AGE_SECONDS` | `7200s` |
 | Provider-attached orphan min age | `SHORTPULSE_FAL_PROVIDER_ATTACHED_RESERVATION_ORPHAN_MIN_AGE_SECONDS` | `86400s` |
-| Queue max wait before exhaust | `SHORTPULSE_FAL_QUEUE_MAX_WAIT_SECONDS` | `1200s` |
+| Queue max wait before exhaust (historical queued rows only) | `SHORTPULSE_FAL_QUEUE_MAX_WAIT_SECONDS` | `1200s` |
 | Running recovery min age for attempt-budget exhaustion | `SHORTPULSE_FAL_RUNNING_EXHAUST_MIN_AGE_SECONDS` | `7200s` |
 | Running hard-timeout failover | `SHORTPULSE_FAL_RUNNING_HARD_TIMEOUT_SECONDS` | `0s` (disabled) |
-| Client queue polling max wait | `QUEUE_STATUS_MAX_WAIT_MS` | `1800000ms` (30m) |
+| Client queue polling max wait (historical queued rows only) | `QUEUE_STATUS_MAX_WAIT_MS` | `1800000ms` (30m) |
 | Guarded manual stale threshold | `sql/check_generation_queue_blockers.sql` | `>= 2h` |
 
 ## Operator Playbooks
@@ -100,7 +99,7 @@ Purpose: canonical operator runbook for queue dispatch, recovery execution, and 
 5. Run `sql/check_generation_convergence_defect_classes.sql`.
 6. Capture:
    - admission-limited events by scope (`per_user` vs `shared_provider`) from `sql/check_generation_admission_metrics.sql`
-   - queue dispatch latency (`avg`, `p50`, `p95`, `max`) and worst-case rows from `sql/check_generation_queue_dispatch_latency.sql`
+   - queue dispatch latency (`avg`, `p50`, `p95`, `max`) and worst-case rows from `sql/check_generation_queue_dispatch_latency.sql` only when historical queued rows are still present
    - provider-terminal-to-media-visible latency (`avg`, `p50`, `p95`, `max`) and worst-case rows from `sql/check_generation_recovery_media_visible_latency.sql`
    - convergence defect-class counts and worst-case rows from `sql/check_generation_convergence_defect_classes.sql`
    - provider-attached reserved holds by age bucket
@@ -134,11 +133,10 @@ Use this path when local `SUPABASE_DB_URL` is unavailable.
 
 ### 2) Scheduler/recovery drain loop
 1. Trigger `/api/internal/generation-recovery/run` repeatedly on normal cadence (recommended 1m).
-   - Default/hosted invocation is primary mode and includes queue dispatch when `SHORTPULSE_FAL_QUEUE_ENABLED=true`.
+   - Default/hosted invocation is primary mode for accepted-job recovery.
    - Use explicit `{"runMode":"rescue"}` only for bounded/manual recovery-only passes.
 2. Monitor response metrics per pass:
    - recovery: `claimed`, `processed`, `recovered`, `requeued`, `exhausted`, `errors`
-   - queue dispatch: `queueClaimed`, `queueSubmitted`, `queueRetried`, `queueExhausted`, `queueDispatchErrors`
    - cleanup (aggregated pre-submit + provider-attached): `reservationCleanupScanned`, `reservationCleanupReleased`, `reservationCleanupErrors`.
    - stage timings: `stageTimings.queueDispatch.durationMs`, `stageTimings.reservationCleanup.durationMs`, `stageTimings.providerAttachedReservationCleanup.durationMs`, `stageTimings.observationInboxProcessing.durationMs`, `stageTimings.requestIdRepair.durationMs`, `stageTimings.recoveryClaim.durationMs`, `stageTimings.recoveryExecution.durationMs`.
 3. Treat the control-plane stage ownership as:
@@ -150,10 +148,10 @@ Use this path when local `SUPABASE_DB_URL` is unavailable.
 5. Treat control-plane enforce diagnostics as the contract check for hosted scheduler drift:
    - `check_control_plane_enforce_gate.sql` now fails when the live scheduler functions are missing either the Vault read for `shortpulse_vercel_protection_bypass_token` or the `x-vercel-protection-bypass` header send.
    - This specifically catches stale hosted `invoke_generation_recovery_scheduler()` bodies that can leave `pg_cron` green while `pg_net` still returns Vercel `401 Authentication Required`.
-6. During latency validation, treat `telemetry.queue.dispatch.submitted` as the queue advancement authority:
+6. During latency validation, treat `telemetry.queue.dispatch.submitted` as a historical queued-row advancement signal:
    - expect events to appear for the validation run,
-   - inspect `p95_queue_latency_ms` before making any more queue-lane code changes,
-   - use the worst-case rows to distinguish real provider/admission pressure from idle queue starvation.
+   - inspect `p95_queue_latency_ms` only if historical queued rows are still being drained,
+   - use the worst-case rows to distinguish real provider/admission pressure from stale compatibility backlog.
 7. Treat `telemetry.generation.recovery.media_visible` as the recovery-visibility authority:
    - expect events to appear for recovered-success validation runs,
    - inspect `p95_provider_terminal_to_media_visible_ms` before changing queue internals again,
@@ -209,9 +207,9 @@ Use this path when `sql/check_generation_convergence_defect_classes.sql` shows `
 ## Failure Mode Map
 | Signal / state | Primary interpretation | Required action |
 | --- | --- | --- |
-| queue status `exhausted` growth | queue dispatch retries/waits are hitting terminal limits | inspect queue error codes, verify provider health, confirm reservation release on exhausted rows |
-| queue-status reports `dispatching` for long periods | queue claim/lease succeeded but provider handoff is not converging | inspect queue lease age, dispatch retries, and provider submit telemetry before widening capacity or replaying jobs |
-| `telemetry.queue.dispatch.submitted` p95 stays high while drain metrics are healthy | queued rows are still waiting too long before dispatch despite no obvious recovery/blocker churn | inspect wake-hint effectiveness, queue depth hotspots, and provider/admission saturation before changing recovery policy |
+| queue status `exhausted` growth on historical rows | legacy queue retries/waits are hitting terminal limits | inspect queue error codes, verify provider health, confirm reservation release on exhausted rows |
+| queue-status reports `dispatching` for long periods on historical rows | legacy queue claim/lease succeeded but provider handoff is not converging | inspect queue lease age, dispatch retries, and provider submit telemetry before replaying jobs |
+| `telemetry.queue.dispatch.submitted` p95 stays high while drain metrics are healthy | historical queued rows are still waiting too long before dispatch despite no obvious recovery/blocker churn | inspect compatibility backlog hotspots and provider/admission saturation before changing recovery policy |
 | `telemetry.generation.recovery.media_visible` p95 stays high while queue dispatch looks healthy | provider-terminal recovery/media persistence is still slow after upstream completion | inspect bucketed latency rows for model/provider/actor concentration before touching queue or admission controls |
 | queue-status remains `queued` with no `request_id` while queue row is exhausted | stale client perception caused by nondeterministic queue-status resolution | verify queue-status path returns `failed` for exhausted rows and inspect `last_error` / `last_error_code` |
 | `terminal_success_no_media` or `no_media` retry loops | provider terminal payload missing media URLs | continue bounded recovery retries; replay residual outliers; verify provider payload adapters |

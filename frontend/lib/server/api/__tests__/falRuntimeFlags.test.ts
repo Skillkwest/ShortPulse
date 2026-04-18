@@ -127,8 +127,8 @@ describe("readFalRuntimeFlags admission config", () => {
     expect(flags.providerAttachedReservationCleanupMinAgeSeconds).toBe(5400);
     expect(flags.providerAttachedReservationOrphanMinAgeSeconds).toBe(90000);
     expect(flags.admissionAtomicEnabled).toBe(true);
-    expect(flags.queueEnabled).toBe(true);
-    expect(flags.workerOwnedSubmitEnabled).toBe(true);
+    expect(flags.queueEnabled).toBe(false);
+    expect(flags.workerOwnedSubmitEnabled).toBe(false);
     expect(flags.queueMaxPerUser).toBe(40);
     expect(flags.queueDispatchBatchSize).toBe(11);
     expect(flags.queueLeaseSeconds).toBe(45);

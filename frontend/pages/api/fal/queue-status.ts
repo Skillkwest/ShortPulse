@@ -1,7 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { requireApiUser } from "../../../lib/server/api/auth";
 import { logApiRouteException } from "../../../lib/server/api/appErrorLogs";
-import { readFalRuntimeFlags } from "../../../lib/server/api/falRuntimeFlags";
 import { readGenerationQueueStatus } from "../../../lib/server/api/generationQueue/service";
 
 const asQueryString = (value: string | string[] | undefined): string | null => {
@@ -26,11 +25,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   const user = await requireApiUser(req, res);
   if (!user) return;
-
-  const flags = readFalRuntimeFlags();
-  if (!flags.queueEnabled) {
-    return res.status(404).json({ error: "Not found" });
-  }
 
   const sourceRef = asQueryString(req.query.sourceRef);
   const generationId = asQueryString(req.query.generationId);

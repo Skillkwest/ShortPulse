@@ -2,16 +2,11 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import handler from "../../pages/api/fal/queue-status";
 
 const requireApiUserMock = vi.fn();
-const readFalRuntimeFlagsMock = vi.fn();
 const readGenerationQueueStatusMock = vi.fn();
 const logApiRouteExceptionMock = vi.fn();
 
 vi.mock("../../lib/server/api/auth", () => ({
   requireApiUser: (...args: unknown[]) => requireApiUserMock(...args),
-}));
-
-vi.mock("../../lib/server/api/falRuntimeFlags", () => ({
-  readFalRuntimeFlags: (...args: unknown[]) => readFalRuntimeFlagsMock(...args),
 }));
 
 vi.mock("../../lib/server/api/generationQueue/service", () => ({
@@ -34,10 +29,6 @@ describe("GET /api/fal/queue-status", () => {
     requireApiUserMock.mockResolvedValue({
       id: "user-1",
       email: "user@example.com",
-    });
-    readFalRuntimeFlagsMock.mockReturnValue({
-      queueEnabled: true,
-      reconcilerMaxAttempts: 5,
     });
     readGenerationQueueStatusMock.mockResolvedValue({
       status: "queued",

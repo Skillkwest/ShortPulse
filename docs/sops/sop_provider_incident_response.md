@@ -16,7 +16,7 @@ Purpose: operational runbook for diagnosing and mitigating provider failures tha
 - Supabase SQL access for read diagnostics.
 - Access to deployment logs for API routes.
 - Current env verification: `FAL_KEY`, `OPENAI_API_KEY`, `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `SUPABASE_SERVICE_ROLE_KEY`, `SHORTPULSE_OPENAI_RESPONSES_ENABLED`, `SHORTPULSE_OPENAI_CHAT_FALLBACK_ENABLED`.
-- If Fal reliability rollout is enabled, also verify: `SHORTPULSE_FAL_INTEGRATION_MODE`, `SHORTPULSE_FAL_WEBHOOK_ENABLED`, `SHORTPULSE_FAL_WEBHOOK_VERIFY_MODE`, `SHORTPULSE_FAL_WEBHOOK_JWKS_URL`, `SHORTPULSE_FAL_WEBHOOK_SECRET` (dual-mode fallback only), `SHORTPULSE_FAL_RECONCILER_ENABLED`, `SHORTPULSE_FAL_RECONCILER_CRON_SECRET`, optional `CRON_SECRET` (manual/fallback), `SHORTPULSE_FAL_RECONCILER_LEASE_SECONDS`, `SHORTPULSE_FAL_QUEUE_ENABLED`, `SHORTPULSE_FAL_QUEUE_DISPATCH_BATCH_SIZE`, `SHORTPULSE_FAL_QUEUE_MAX_ATTEMPTS`, `SHORTPULSE_FAL_QUEUE_MAX_WAIT_SECONDS`, `SHORTPULSE_FAL_TRUSTED_HOSTS`, `SHORTPULSE_FAL_STATUS_TRANSIENT_FAILURES_ENABLED`, `SHORTPULSE_FAL_NO_MEDIA_EXHAUST_MIN_AGE_SECONDS`, `SHORTPULSE_FAL_RUNNING_EXHAUST_MIN_AGE_SECONDS`, `SHORTPULSE_FAL_RUNNING_HARD_TIMEOUT_SECONDS`, `SHORTPULSE_FAL_PROVIDER_ATTACHED_RESERVATION_CLEANUP_ENABLED`, `SHORTPULSE_FAL_PROVIDER_ATTACHED_RESERVATION_CLEANUP_MIN_AGE_SECONDS`, `SHORTPULSE_FAL_PROVIDER_ATTACHED_RESERVATION_ORPHAN_MIN_AGE_SECONDS`, `SHORTPULSE_FAL_ADMISSION_SHARED_PROVIDER_ENABLED`, `SHORTPULSE_FAL_ADMISSION_SHARED_PROVIDER_GLOBAL_MAX`.
+- If Fal reliability rollout is enabled, also verify: `SHORTPULSE_FAL_INTEGRATION_MODE`, `SHORTPULSE_FAL_WEBHOOK_ENABLED`, `SHORTPULSE_FAL_WEBHOOK_VERIFY_MODE`, `SHORTPULSE_FAL_WEBHOOK_JWKS_URL`, `SHORTPULSE_FAL_WEBHOOK_SECRET` (dual-mode fallback only), `SHORTPULSE_FAL_RECONCILER_ENABLED`, `SHORTPULSE_FAL_RECONCILER_CRON_SECRET`, optional `CRON_SECRET` (manual/fallback), `SHORTPULSE_FAL_RECONCILER_LEASE_SECONDS`, `SHORTPULSE_FAL_TRUSTED_HOSTS`, `SHORTPULSE_FAL_STATUS_TRANSIENT_FAILURES_ENABLED`, `SHORTPULSE_FAL_NO_MEDIA_EXHAUST_MIN_AGE_SECONDS`, `SHORTPULSE_FAL_RUNNING_EXHAUST_MIN_AGE_SECONDS`, `SHORTPULSE_FAL_RUNNING_HARD_TIMEOUT_SECONDS`, `SHORTPULSE_FAL_PROVIDER_ATTACHED_RESERVATION_CLEANUP_ENABLED`, `SHORTPULSE_FAL_PROVIDER_ATTACHED_RESERVATION_CLEANUP_MIN_AGE_SECONDS`, `SHORTPULSE_FAL_PROVIDER_ATTACHED_RESERVATION_ORPHAN_MIN_AGE_SECONDS`, `SHORTPULSE_FAL_ADMISSION_SHARED_PROVIDER_ENABLED`, `SHORTPULSE_FAL_ADMISSION_SHARED_PROVIDER_GLOBAL_MAX`.
 
 ## Triage workflow (first 15 minutes)
 1. Confirm incident scope in `/admin`:
@@ -69,14 +69,13 @@ Mitigation guidance:
 1. Confirm submit path rejects are auto-refunded by checking reservation state transitions (`reserved` -> `released`).
 2. Confirm completed runs capture (`reserved` -> `captured`) and create a ledger debit.
 3. If one model endpoint is degraded, temporarily remove that model from UI selection until provider recovers.
-4. When queue mode is enabled:
-   - Rely on reconciler dispatch metrics and queue depth trends.
+4. For historical queued rows still visible through compatibility paths:
    - Confirm exhausted queue rows resolve as `failed` in `/api/fal/queue-status` (not persistent `queued`) and inspect queue `last_error` if present.
 5. If users receive `GENERATION_ADMISSION_UNAVAILABLE`, treat it as reservation-mode degradation during enforce admission and verify:
    - reservation RPC health (`reserve_generation_credits` / `admit_and_reserve_generation_credits`),
    - `SHORTPULSE_FAL_DIRECT_DEBIT_FALLBACK_ENABLED`,
    - `SHORTPULSE_FAL_ADMISSION_MODE` (`enforce` fail-closes without reservation mode by design).
-6. If queue depth is pinned near `SHORTPULSE_FAL_QUEUE_MAX_PER_USER`, run controlled backlog drain:
+6. If historical queue depth is pinned near `SHORTPULSE_FAL_QUEUE_MAX_PER_USER`, run controlled compatibility backlog drain:
    - ensure reconciler route scheduler is active,
    - trigger `/api/internal/generation-recovery/run` repeatedly (1-minute cadence) until old provider-attached reservations clear,
    - verify queue depth drops before resuming stress submits.
@@ -105,9 +104,9 @@ order by start_time desc
 limit 20;
 ```
 
-Correlate scheduler health with queue/recovery pressure:
-- `queueDispatchErrors` from `/api/internal/generation-recovery/run` responses should stay low.
-- `ai_generation_submit_queue` depth should trend downward after incident recovery.
+Correlate scheduler health with recovery pressure:
+- `queueDispatchErrors` from `/api/internal/generation-recovery/run` responses should stay low and typically remain `0` in the lean standard path.
+- `ai_generation_submit_queue` depth should trend downward only when historical queued rows are still present.
 - stale `reserved` holds with `provider_request_id` should decline after repeated passes.
 
 Fal reliability rollout controls (when enabled):
@@ -128,8 +127,8 @@ Fal reliability rollout controls (when enabled):
    - confirm webhook registration is enabled on the active Fal submit targets,
    - keep allowlists empty for full cohort only after canary windows are green.
 
-### Queue backlog triage and guarded cleanup
-When queue dispatch is healthy but users still hit repeated `429` due stale provider-attached holds, follow `docs/sops/sop_generation_recovery_diagnostics.md` as the canonical workflow.
+### Historical queue backlog triage and guarded cleanup
+When accepted-job recovery is healthy but users still hit repeated `429` due stale provider-attached holds or historical queued-row residue, follow `docs/sops/sop_generation_recovery_diagnostics.md` as the canonical workflow.
 1. Run `sql/check_generation_queue_blockers.sql` diagnostics.
 2. Run repeated scheduler/recovery drain passes (`/api/internal/generation-recovery/run`) and re-check counts.
 3. Only after stable stale confirmation, run guarded manual remediation using strict age/state filters.

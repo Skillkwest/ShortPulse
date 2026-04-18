@@ -47,7 +47,7 @@ Rules:
 - Use Vercel envs for deployed `development`, `preview`, and `production` behavior.
 - Use `vercel env pull frontend/.env.local --environment development` to materialize local runtime values after the repo is linked.
 - Do not treat `frontend/.env.local`, `.env.agent.local`, `/tmp` exports, or ad-hoc text snapshots as authoritative for deployed values.
-- Current active posture is the lean Fal direct-submit path. Keep `SHORTPULSE_FAL_QUEUE_ENABLED`, `SHORTPULSE_FAL_RECONCILER_ENABLED`, and Fal admission overrides unset/off in active Vercel environments unless a deliberate durability exercise is approved.
+- Current active posture is the lean Fal direct-submit path. Do not add deprecated pre-provider queue env overrides such as `SHORTPULSE_FAL_QUEUE_ENABLED` back into active Vercel environments. Reconciler and admission settings should only govern accepted-job recovery and overload control.
 - Keep tooling-only keys out of Vercel project envs. This includes staging probe helpers and Vercel operator tokens such as `SHORTPULSE_STAGING_BASE_URL`, `SHORTPULSE_STAGING_BEARER_TOKEN`, `SHORTPULSE_VERCEL_API_TOKEN`, `SHORTPULSE_VERCEL_PROTECTION_BYPASS_TOKEN`, `VERCEL_API_TOKEN`, and `VERCEL_AUTOMATION_BYPASS_TOKEN`.
 - Environment-specific deploy keys such as `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `APP_BASE_URL`, and `SHORTPULSE_PUBLIC_API_BASE_URL` must not be stored as one shared Vercel record spanning `development`, `preview`, and `production`.
 
@@ -131,13 +131,6 @@ Set these in Vercel project settings (`Production` + `Preview` as applicable):
   - `SHORTPULSE_FAL_RECONCILER_MIN_AGE_SECONDS`
   - `SHORTPULSE_FAL_RECONCILER_LEASE_SECONDS`
   - `SHORTPULSE_FAL_STATUS_TRANSIENT_FAILURES_ENABLED`
-  - `SHORTPULSE_FAL_QUEUE_ENABLED`
-  - `SHORTPULSE_FAL_QUEUE_MAX_PER_USER`
-  - `SHORTPULSE_FAL_QUEUE_DISPATCH_BATCH_SIZE`
-  - `SHORTPULSE_FAL_QUEUE_LEASE_SECONDS`
-  - `SHORTPULSE_FAL_QUEUE_MAX_ATTEMPTS`
-  - `SHORTPULSE_FAL_QUEUE_BASE_BACKOFF_SECONDS`
-  - `SHORTPULSE_FAL_QUEUE_MAX_WAIT_SECONDS`
   - `SHORTPULSE_FAL_NO_MEDIA_EXHAUST_MIN_AGE_SECONDS`
   - `SHORTPULSE_FAL_RUNNING_EXHAUST_MIN_AGE_SECONDS`
   - `SHORTPULSE_FAL_RUNNING_HARD_TIMEOUT_SECONDS` (`0` disables hard-timeout failover)
@@ -275,7 +268,7 @@ To reduce preview deployment churn and avoid quota/rate pressure during document
 
 ## Recovery scheduler (Supabase Cron)
 
-Use Supabase Cron as the primary scheduler for generation queue dispatch + recovery.
+Use Supabase Cron as the primary scheduler for accepted-job generation recovery.
 
 Route-parity gate is mandatory before setting or updating `shortpulse_recovery_run_url` for any environment.
 

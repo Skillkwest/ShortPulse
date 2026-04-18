@@ -137,14 +137,7 @@ describe("runGenerationControlPlaneCycle", () => {
       },
     });
 
-    expect(dispatchGenerationSubmitQueueBatchMock).toHaveBeenCalledWith({
-      req: undefined,
-      routeLabel: "worker/generation-control-plane",
-      limit: 25,
-    });
-    expect(dispatchGenerationSubmitQueueBatchMock.mock.invocationCallOrder[0]).toBeLessThan(
-      supabase.rpc.mock.invocationCallOrder[0]
-    );
+    expect(dispatchGenerationSubmitQueueBatchMock).not.toHaveBeenCalled();
     expect(repairGenerationRequestIdsFromReservationsMock).not.toHaveBeenCalled();
     expect(processPendingGenerationObservationsMock).toHaveBeenCalledWith({
       limit: 10,
@@ -179,8 +172,8 @@ describe("runGenerationControlPlaneCycle", () => {
         observationFailed: 0,
         observationErrors: 0,
         claimed: 0,
-        queueClaimed: 1,
-        queueSubmitted: 1,
+        queueClaimed: 0,
+        queueSubmitted: 0,
         reservationCleanupScanned: 2,
         reservationCleanupReleased: 1,
         stageTimings: expect.objectContaining({
@@ -248,7 +241,7 @@ describe("runGenerationControlPlaneCycle", () => {
       },
     });
 
-    expect(dispatchGenerationSubmitQueueBatchMock).toHaveBeenCalled();
+    expect(dispatchGenerationSubmitQueueBatchMock).not.toHaveBeenCalled();
     expect(repairGenerationRequestIdsFromReservationsMock).not.toHaveBeenCalled();
     expect(processPendingGenerationObservationsMock).toHaveBeenCalledWith({
       limit: 10,
@@ -282,7 +275,7 @@ describe("runGenerationControlPlaneCycle", () => {
       mode: "primary",
     });
 
-    expect(dispatchGenerationSubmitQueueBatchMock).toHaveBeenCalled();
+    expect(dispatchGenerationSubmitQueueBatchMock).not.toHaveBeenCalled();
     expect(repairGenerationRequestIdsFromReservationsMock).not.toHaveBeenCalled();
   });
 });

@@ -77,7 +77,7 @@ Treat local configuration as three separate scopes and do not mix them:
 Local cleanup policy:
 
 - Do not keep a flag in `frontend/.env.local` when the code already defaults to the intended local posture and the flag is not being actively used as a local rollout control.
-- Current default posture is the lean Fal direct-submit path. Leave `SHORTPULSE_FAL_QUEUE_ENABLED`, `SHORTPULSE_FAL_RECONCILER_ENABLED`, and Fal admission overrides unset/off in `frontend/.env.local` unless you are deliberately exercising the durable queue lane.
+- Current default posture is the lean Fal direct-submit path. Do not add deprecated pre-provider queue env overrides such as `SHORTPULSE_FAL_QUEUE_ENABLED` back into `frontend/.env.local`. Keep reconciler and admission settings scoped to accepted-job recovery and overload control only.
 - Do not leave client/server mirror flags intentionally divergent unless a doc explicitly calls out that split.
 - Do not leave half-enabled rollout lanes in local env. For example, avoid enabling a client path while the matching API route or worker remains disabled.
 - Legacy AI Studio session persistence is not a default local requirement. Only opt it in intentionally for controlled testing.
@@ -93,14 +93,7 @@ npm install
 npm run dev
 ```
 
-If you intentionally enable Fal queue mode locally (`SHORTPULSE_FAL_QUEUE_ENABLED=true` with `APP_BASE_URL` pointing at localhost), run the generation worker in a second terminal:
-
-```bash
-cd frontend
-npm run dev:generation-worker
-```
-
-The worker polls `/api/internal/generation-recovery/run`, writes a heartbeat under `frontend/.tmp/generation-control-plane-worker-heartbeat.json`, and local queued submits now fail closed when that heartbeat is stale or missing.
+Do not run a local generation queue worker for standard AI Studio generation. Standard Fal/Kie submits now go directly to the provider; local recovery concerns are limited to accepted-job polling/webhook/reconciler behavior.
 
 ## Supabase tooling policy
 

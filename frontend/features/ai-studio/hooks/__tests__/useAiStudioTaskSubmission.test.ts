@@ -7,7 +7,6 @@ import { useAiStudioTaskSubmission } from "../useAiStudioTaskSubmission";
 import { DISPATCH_HANDOFF_INITIAL_POLL_DELAY_MS } from "../useAiStudioTasks";
 import { prepareImageUrlForSubmission } from "../../utils/imageUpload";
 import { AUTH_SESSION_TIMEOUT_CODE } from "../../../../lib/authenticatedFetch";
-import * as falClient from "../../../../lib/falClient";
 import {
   KIE_KLING_30_MODEL_ID,
   KIE_VEO_31_FAST_I2V_MODEL_ID,
@@ -2739,339 +2738,82 @@ describe("useAiStudioTaskSubmission", () => {
     );
   });
 
-  it("keeps queued submissions pending, then dispatches into normal task polling", async () => {
-    vi.useFakeTimers();
-    try {
-      let outputs: StudioOutput[] = [];
-      const setOutputs = vi.fn((value: SetStateAction<StudioOutput[]>) => {
-        outputs = typeof value === "function" ? value(outputs) : value;
-      });
-      const setUiError = vi.fn();
-      const setUiNotice = vi.fn();
-      const setSaved = vi.fn();
-      const notifyGenerationFailure = vi.fn();
-      const updateOutputById = vi.fn(
-        (id: string, updater: (item: StudioOutput) => StudioOutput) => {
-          outputs = outputs.map((item) => (item.id === id ? updater(item) : item));
-        }
-      );
-      const startPollingTask = vi.fn();
-      const ensureGenerationRecord = vi.fn(async () => null);
+  it("fails fast when a legacy queued submit response is returned", async () => {
+    let outputs: StudioOutput[] = [];
+    const setOutputs = vi.fn((value: SetStateAction<StudioOutput[]>) => {
+      outputs = typeof value === "function" ? value(outputs) : value;
+    });
+    const setUiError = vi.fn();
+    const setUiNotice = vi.fn();
+    const setSaved = vi.fn();
+    const notifyGenerationFailure = vi.fn();
+    const updateOutputById = vi.fn((id: string, updater: (item: StudioOutput) => StudioOutput) => {
+      outputs = outputs.map((item) => (item.id === id ? updater(item) : item));
+    });
+    const startPollingTask = vi.fn();
+    const ensureGenerationRecord = vi.fn(async () => null);
 
-      vi.mocked(resolveSubmissionHandlerRoute).mockReturnValueOnce("image");
-      vi.mocked(handleImageModelSubmission).mockImplementationOnce(
-        async ({ startPollingWithGeneration }) => {
-          startPollingWithGeneration(undefined, "fal-seedream", undefined, {
-            status: "queued",
-            code: "GENERATION_QUEUED",
-            sourceRef: "src-queued-1",
-            generationId: "gen-queued-1",
-            pollAfterMs: 500,
-          });
-          return true;
-        }
-      );
-
-      const fetchQueueStatusSpy = vi
-        .spyOn(falClient, "fetchFalQueueStatus")
-        .mockResolvedValueOnce({
+    vi.mocked(resolveSubmissionHandlerRoute).mockReturnValueOnce("image");
+    vi.mocked(handleImageModelSubmission).mockImplementationOnce(
+      async ({ startPollingWithGeneration }) => {
+        startPollingWithGeneration(undefined, "fal-seedream", undefined, {
           status: "queued",
-          generationId: "gen-queued-1",
-          sourceRef: "src-queued-1",
-          retryAfterMs: 500,
-        })
-        .mockResolvedValueOnce({
-          status: "dispatched",
-          generationId: "gen-queued-1",
-          sourceRef: "src-queued-1",
-          requestId: "req-queued-1",
-          provider: "fal",
+          code: "GENERATION_QUEUED",
+          sourceRef: "src-queued-legacy-1",
+          generationId: "gen-queued-legacy-1",
+          pollAfterMs: 500,
         });
+        return true;
+      }
+    );
 
-      const { result } = renderHook(() =>
-        useAiStudioTaskSubmission({
-          aspect: "9:16",
-          mode: "image",
-          model: "fal-ai/bytedance/seedream/v4.5/edit",
-          prompt: "",
-          selectedTool: "edit",
-          imageResolution: "model_default",
-          videoDurationSeconds: 8,
-          videoResolution: "720p",
-          videoGenerateAudio: false,
-          videoReferenceMode: "standard",
-          videoReferenceImageUrl: null,
-          motionReferenceVideoUrl: null,
-          videoCameraFixed: false,
-          videoAutoFix: false,
-          klingNegativePrompt: "blur, distort, and low quality",
-          klingCfgScale: 0.5,
-          klingShotType: "customize",
-          klingVoiceIds: ["", ""],
-          klingMultiPrompts: [],
-          klingElements: [],
-          setPanelGenerating: vi.fn(),
-          setUiError: asDispatch(setUiError),
-          setUiNotice: asDispatch(setUiNotice),
-          setOutputs: asDispatch(setOutputs),
-          setSaved: asDispatch(setSaved),
-          getDefaultDurationSeconds: () => 8,
-          notifyGenerationFailure,
-          updateOutputById,
-          startPollingTask,
-          ensureGenerationRecord,
-        })
-      );
+    const { result } = renderHook(() =>
+      useAiStudioTaskSubmission({
+        aspect: "9:16",
+        mode: "image",
+        model: "fal-ai/bytedance/seedream/v4.5/edit",
+        prompt: "",
+        selectedTool: "edit",
+        imageResolution: "model_default",
+        videoDurationSeconds: 8,
+        videoResolution: "720p",
+        videoGenerateAudio: false,
+        videoReferenceMode: "standard",
+        videoReferenceImageUrl: null,
+        motionReferenceVideoUrl: null,
+        videoCameraFixed: false,
+        videoAutoFix: false,
+        klingNegativePrompt: "blur, distort, and low quality",
+        klingCfgScale: 0.5,
+        klingShotType: "customize",
+        klingVoiceIds: ["", ""],
+        klingMultiPrompts: [],
+        klingElements: [],
+        setPanelGenerating: vi.fn(),
+        setUiError: asDispatch(setUiError),
+        setUiNotice: asDispatch(setUiNotice),
+        setOutputs: asDispatch(setOutputs),
+        setSaved: asDispatch(setSaved),
+        getDefaultDurationSeconds: () => 8,
+        notifyGenerationFailure,
+        updateOutputById,
+        startPollingTask,
+        ensureGenerationRecord,
+      })
+    );
 
-      await act(async () => {
-        await result.current("Queued prompt", ["https://cdn.test/ref.png"], {
-          modeOverride: "image",
-          selectedToolOverride: "edit",
-        });
+    await act(async () => {
+      await result.current("Queued prompt", ["https://cdn.test/ref.png"], {
+        modeOverride: "image",
+        selectedToolOverride: "edit",
       });
+    });
 
-      expect(outputs[0]?.queueState).toBe("queued");
-      expect(outputs[0]?.taskState).toBe("pending");
-      expect(outputs[0]?.generationId).toBe("gen-queued-1");
-      expect(startPollingTask).not.toHaveBeenCalled();
-
-      await act(async () => {
-        await vi.advanceTimersByTimeAsync(1_100);
-      });
-
-      expect(fetchQueueStatusSpy).toHaveBeenCalled();
-      expect(startPollingTask).toHaveBeenCalledWith(
-        "req-queued-1",
-        outputs[0]?.id,
-        0,
-        "fal-seedream",
-        expect.any(Number),
-        0,
-        undefined,
-        {
-          initialDelayMs: DISPATCH_HANDOFF_INITIAL_POLL_DELAY_MS,
-        }
-      );
-      expect(outputs[0]?.taskId).toBe("req-queued-1");
-      expect(outputs[0]?.taskState).toBe("running");
-      expect(outputs[0]?.queueState).toBeUndefined();
-    } finally {
-      vi.useRealTimers();
-    }
-  });
-
-  it("fails queued submissions when queue-status reports failure", async () => {
-    vi.useFakeTimers();
-    try {
-      let outputs: StudioOutput[] = [];
-      const setOutputs = vi.fn((value: SetStateAction<StudioOutput[]>) => {
-        outputs = typeof value === "function" ? value(outputs) : value;
-      });
-      const setUiError = vi.fn();
-      const setUiNotice = vi.fn();
-      const setSaved = vi.fn();
-      const notifyGenerationFailure = vi.fn();
-      const updateOutputById = vi.fn(
-        (id: string, updater: (item: StudioOutput) => StudioOutput) => {
-          outputs = outputs.map((item) => (item.id === id ? updater(item) : item));
-        }
-      );
-      const startPollingTask = vi.fn();
-      const ensureGenerationRecord = vi.fn(async () => null);
-
-      vi.mocked(resolveSubmissionHandlerRoute).mockReturnValueOnce("image");
-      vi.mocked(handleImageModelSubmission).mockImplementationOnce(
-        async ({ startPollingWithGeneration }) => {
-          startPollingWithGeneration(undefined, "fal-seedream", undefined, {
-            status: "queued",
-            code: "GENERATION_QUEUED",
-            sourceRef: "src-queued-fail-1",
-            generationId: "gen-queued-fail-1",
-            pollAfterMs: 500,
-          });
-          return true;
-        }
-      );
-
-      vi.spyOn(falClient, "fetchFalQueueStatus").mockResolvedValueOnce({
-        status: "failed",
-        generationId: "gen-queued-fail-1",
-        sourceRef: "src-queued-fail-1",
-        message: "Generation failed while queued.",
-      });
-
-      const { result } = renderHook(() =>
-        useAiStudioTaskSubmission({
-          aspect: "9:16",
-          mode: "image",
-          model: "fal-ai/bytedance/seedream/v4.5/edit",
-          prompt: "",
-          selectedTool: "edit",
-          imageResolution: "model_default",
-          videoDurationSeconds: 8,
-          videoResolution: "720p",
-          videoGenerateAudio: false,
-          videoReferenceMode: "standard",
-          videoReferenceImageUrl: null,
-          motionReferenceVideoUrl: null,
-          videoCameraFixed: false,
-          videoAutoFix: false,
-          klingNegativePrompt: "blur, distort, and low quality",
-          klingCfgScale: 0.5,
-          klingShotType: "customize",
-          klingVoiceIds: ["", ""],
-          klingMultiPrompts: [],
-          klingElements: [],
-          setPanelGenerating: vi.fn(),
-          setUiError: asDispatch(setUiError),
-          setUiNotice: asDispatch(setUiNotice),
-          setOutputs: asDispatch(setOutputs),
-          setSaved: asDispatch(setSaved),
-          getDefaultDurationSeconds: () => 8,
-          notifyGenerationFailure,
-          updateOutputById,
-          startPollingTask,
-          ensureGenerationRecord,
-        })
-      );
-
-      await act(async () => {
-        await result.current("Queued prompt", ["https://cdn.test/ref.png"], {
-          modeOverride: "image",
-          selectedToolOverride: "edit",
-        });
-      });
-
-      await act(async () => {
-        await vi.advanceTimersByTimeAsync(550);
-      });
-
-      expect(startPollingTask).not.toHaveBeenCalled();
-      expect(notifyGenerationFailure).toHaveBeenCalledWith(
-        outputs[0]?.id,
-        "Generation failed while queued.",
-        "Generation failed while queued."
-      );
-    } finally {
-      vi.useRealTimers();
-    }
-  });
-
-  it("does not fail queued submissions at legacy poll-attempt cap when still within queue wait budget", async () => {
-    vi.useFakeTimers();
-    try {
-      let outputs: StudioOutput[] = [];
-      const setOutputs = vi.fn((value: SetStateAction<StudioOutput[]>) => {
-        outputs = typeof value === "function" ? value(outputs) : value;
-      });
-      const setUiError = vi.fn();
-      const setUiNotice = vi.fn();
-      const setSaved = vi.fn();
-      const notifyGenerationFailure = vi.fn();
-      const updateOutputById = vi.fn(
-        (id: string, updater: (item: StudioOutput) => StudioOutput) => {
-          outputs = outputs.map((item) => (item.id === id ? updater(item) : item));
-        }
-      );
-      const startPollingTask = vi.fn();
-      const ensureGenerationRecord = vi.fn(async () => null);
-
-      vi.mocked(resolveSubmissionHandlerRoute).mockReturnValueOnce("image");
-      vi.mocked(handleImageModelSubmission).mockImplementationOnce(
-        async ({ startPollingWithGeneration }) => {
-          startPollingWithGeneration(undefined, "fal-seedream", undefined, {
-            status: "queued",
-            code: "GENERATION_QUEUED",
-            sourceRef: "src-queued-long-1",
-            generationId: "gen-queued-long-1",
-            pollAfterMs: 500,
-          });
-          return true;
-        }
-      );
-
-      let queueStatusCalls = 0;
-      vi.spyOn(falClient, "fetchFalQueueStatus").mockImplementation(async () => {
-        queueStatusCalls += 1;
-        if (queueStatusCalls <= 181) {
-          return {
-            status: "queued",
-            generationId: "gen-queued-long-1",
-            sourceRef: "src-queued-long-1",
-            retryAfterMs: 500,
-          };
-        }
-        return {
-          status: "dispatched",
-          generationId: "gen-queued-long-1",
-          sourceRef: "src-queued-long-1",
-          requestId: "req-queued-long-1",
-          provider: "fal",
-        };
-      });
-
-      const { result } = renderHook(() =>
-        useAiStudioTaskSubmission({
-          aspect: "9:16",
-          mode: "image",
-          model: "fal-ai/bytedance/seedream/v4.5/edit",
-          prompt: "",
-          selectedTool: "edit",
-          imageResolution: "model_default",
-          videoDurationSeconds: 8,
-          videoResolution: "720p",
-          videoGenerateAudio: false,
-          videoReferenceMode: "standard",
-          videoReferenceImageUrl: null,
-          motionReferenceVideoUrl: null,
-          videoCameraFixed: false,
-          videoAutoFix: false,
-          klingNegativePrompt: "blur, distort, and low quality",
-          klingCfgScale: 0.5,
-          klingShotType: "customize",
-          klingVoiceIds: ["", ""],
-          klingMultiPrompts: [],
-          klingElements: [],
-          setPanelGenerating: vi.fn(),
-          setUiError: asDispatch(setUiError),
-          setUiNotice: asDispatch(setUiNotice),
-          setOutputs: asDispatch(setOutputs),
-          setSaved: asDispatch(setSaved),
-          getDefaultDurationSeconds: () => 8,
-          notifyGenerationFailure,
-          updateOutputById,
-          startPollingTask,
-          ensureGenerationRecord,
-        })
-      );
-
-      await act(async () => {
-        await result.current("Queued prompt", ["https://cdn.test/ref.png"], {
-          modeOverride: "image",
-          selectedToolOverride: "edit",
-        });
-      });
-
-      await act(async () => {
-        await vi.advanceTimersByTimeAsync(95_000);
-      });
-
-      expect(notifyGenerationFailure).not.toHaveBeenCalled();
-      expect(startPollingTask).toHaveBeenCalledWith(
-        "req-queued-long-1",
-        outputs[0]?.id,
-        0,
-        "fal-seedream",
-        expect.any(Number),
-        0,
-        undefined,
-        {
-          initialDelayMs: DISPATCH_HANDOFF_INITIAL_POLL_DELAY_MS,
-        }
-      );
-      expect(queueStatusCalls).toBeGreaterThan(180);
-    } finally {
-      vi.useRealTimers();
-    }
+    expect(startPollingTask).not.toHaveBeenCalled();
+    expect(notifyGenerationFailure).toHaveBeenCalledWith(
+      outputs[0]?.id,
+      "Provider returned an empty request id.",
+      "Provider returned an empty request id."
+    );
   });
 });

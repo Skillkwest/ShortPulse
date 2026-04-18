@@ -79,6 +79,12 @@ The near-term goal is overload protection with minimal regression risk while pre
    - enable in shadow-compatible operational environments first by pairing it with existing admission telemetry review,
    - only then enforce production values that reflect real upstream Fal account capacity.
 
+## Follow-Up Lean Submit Cutover (2026-04-18)
+1. Retired the ShortPulse pre-provider submit queue for standard Fal/Kie generation as an active runtime option.
+2. Standard Fal image/edit and Kie submits now structurally prefer direct provider submit; deprecated queue env overrides no longer reactivate the heavy lane.
+3. `/api/fal/queue-status` remains compatibility read support for already-persisted queue rows, but it is no longer part of the normal submit architecture.
+4. `/api/internal/generation-recovery/run` remains part of accepted-job recovery and reconciliation after provider acceptance; it is no longer positioned as the primary queue-dispatch path for standard generation.
+
 ## Alternatives considered
 - Server FIFO queue first:
   - Rejected for phase 1 due higher migration risk (queue persistence, workers, cancellation semantics, billing semantics for queued jobs).

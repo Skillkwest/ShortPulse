@@ -48,16 +48,13 @@ The API currently supports both shapes during rollout by falling back to `ref_id
 4. Run `sql/migrations/031_release_stale_generation_reservations.sql` in Supabase SQL editor.
 5. Run `sql/migrations/032_admit_and_reserve_generation_credits.sql` in Supabase SQL editor before enabling `SHORTPULSE_FAL_ADMISSION_ATOMIC_ENABLED`.
 6. Run `sql/migrations/033_fix_atomic_admission_rpc_ambiguity.sql` in Supabase SQL editor if atomic RPC calls fail with `42702` ambiguity.
-7. Run `sql/migrations/034_add_generation_submit_queue.sql` before enabling `SHORTPULSE_FAL_QUEUE_ENABLED`.
-8. Run `sql/migrations/035_exclude_queued_reservations_from_stale_cleanup.sql` so stale cleanup does not release active queued holds.
-9. Run `sql/migrations/036_fix_queue_claim_locking.sql` to ensure queue claim RPC compatibility with PostgreSQL lock semantics.
-10. Run `sql/migrations/052_extend_queue_recovery_provider_scope_to_kie.sql` to persist queue submit provider context and include Kie rows in recovery claims.
-11. Reload Supabase dashboard metadata and verify `ai_credit_ledger` columns.
-12. Confirm relation type for `ai_credit_balance`:
+7. Queue-era migrations `034`, `035`, `036`, and `052` remain historical only; do not re-enable pre-provider queue mode for standard Fal/Kie generation based on them.
+8. Reload Supabase dashboard metadata and verify `ai_credit_ledger` columns.
+9. Confirm relation type for `ai_credit_balance`:
    - Table (`relkind = 'r'`/`'p'`): trigger-based balance sync remains enabled.
    - View (`relkind = 'v'`): migration skips incompatible RLS/trigger steps by design.
-13. Verify admin credit adjustment in `/admin` succeeds.
-14. Run `sql/audit_billing_credit_rls.sql` and confirm no `MISSING` policy rows.
+10. Verify admin credit adjustment in `/admin` succeeds.
+11. Run `sql/audit_billing_credit_rls.sql` and confirm no `MISSING` policy rows.
 15. Verify Fal reservation submit path no longer returns ambiguous SQL errors:
    - `cd frontend && PLAYWRIGHT_AUDIT_EMAIL=<existing-test-user-email> PLAYWRIGHT_AUDIT_PASSWORD=<password> npm run test:e2e:character` (with local app server running)
    - Audit safety guardrail: `test:e2e:character` refuses to run without `PLAYWRIGHT_AUDIT_EMAIL` and rejects `@example.com` emails.
@@ -103,7 +100,7 @@ Safety checks:
 - Fal generation submit endpoints reserve credits server-side before provider submission.
 - Bria remove-background submit (`/api/fal/bria-background-remove-submit`) uses the same reservation/debit flow as other Fal submit routes (no billing bypass).
 - Admission enforcement is authoritative only in reservation billing mode.
-- Queue mode (`SHORTPULSE_FAL_QUEUE_ENABLED=true`) accepts over-cap submits as `202 GENERATION_QUEUED` and holds reservations until queue dispatch succeeds or exhausts.
+- Standard Fal/Kie generation no longer uses ShortPulse pre-provider queue mode; over-cap submit behavior is governed by direct admission outcomes and accepted-job recovery after provider submit.
 - Submit rejection/transport failure auto-releases reservation (no debit posted).
 - Admission evaluation failures after reservation now fail closed with:
   - `503`

@@ -763,6 +763,9 @@ describe("AiStudioPageContent right column drop router", () => {
     rerender(<AiStudioPageContent {...createProps({ selectedTool: "text-to-speech" })} />);
     expect(screen.getByRole("heading", { name: "Voices" })).toBeInTheDocument();
 
+    rerender(<AiStudioPageContent {...createProps({ selectedTool: "sound-effects" })} />);
+    expect(screen.getByRole("heading", { name: "Sound Effects" })).toBeInTheDocument();
+
     rerender(<AiStudioPageContent {...createProps({ selectedTool: "music" })} />);
     expect(screen.getByRole("heading", { name: "Sound Properties" })).toBeInTheDocument();
 

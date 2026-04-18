@@ -28,7 +28,7 @@ describe("resolvePropertiesPanelKind", () => {
     expect(resolvePropertiesPanelKind("voices")).toBe("voices");
     expect(resolvePropertiesPanelKind("text-to-speech")).toBe("voices");
     expect(resolvePropertiesPanelKind("voice-changer")).toBe("voices");
-    expect(resolvePropertiesPanelKind("sound-effects")).toBe("sound");
+    expect(resolvePropertiesPanelKind("sound-effects")).toBe("sound-effects");
     expect(resolvePropertiesPanelKind("music")).toBe("sound");
   });
 

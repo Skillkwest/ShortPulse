@@ -201,8 +201,8 @@ export const editToolList: ToolConfig[] = [
 
 export const soundChildTools: ToolConfig[] = [
   { id: "voices", label: "Voice", desc: "Create and manage voices" },
-  { id: "sound-effects", label: "Sound Effects", desc: "Generate effects and accents" },
   { id: "music", label: "Music", desc: "Generate music beds and songs" },
+  { id: "sound-effects", label: "SFX", desc: "Generate effects and accents" },
 ];
 
 export const librariesToolList: ToolConfig[] = [

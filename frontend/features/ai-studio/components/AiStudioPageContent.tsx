@@ -24,9 +24,11 @@ import { StylesLibraryPanel } from "./StylesLibraryPanel";
 import { PresetsLibraryPanel } from "./PresetsLibraryPanel";
 import { VideoPropertiesPanel } from "./VideoPropertiesPanel";
 import { SoundPropertiesPanel } from "./SoundPropertiesPanel";
+import { SoundEffectsPropertiesPanel } from "./SoundEffectsPropertiesPanel";
 import { VoicesPropertiesPanel } from "./VoicesPropertiesPanel";
 import { MediaLibraryPanel } from "./MediaLibraryPanel";
 import { ElementsPanel } from "./ElementsPanel";
+import type { VoicesPropertiesPanelProps } from "./VoicesPropertiesPanel";
 import { useAiStudioShellResize } from "../hooks/useAiStudioShellResize";
 import { useAiStudioShellDndController } from "../hooks/useAiStudioShellDndController";
 import { useStylesLibraryDeletedStyleIdsPreference } from "../hooks/useStylesLibraryDeletedStyleIdsPreference";
@@ -503,6 +505,7 @@ export type AiStudioPageContentProps = {
   propertiesCreate: CreateSectionProps;
   propertiesEditExpert: EditExpertSectionProps;
   propertiesVideo: VideoSectionProps;
+  propertiesVoices?: VoicesPropertiesPanelProps;
   refreshCharacterOptions?: () => Promise<
     Array<{ id: string; name: string; profileImageUrl: string | null }>
   >;
@@ -570,6 +573,7 @@ export function AiStudioPageContent({
   propertiesCreate,
   propertiesEditExpert,
   propertiesVideo,
+  propertiesVoices,
   refreshCharacterOptions,
   resolveCharacterAvatarUrlById,
   isTemplateView,
@@ -1196,8 +1200,10 @@ export function AiStudioPageContent({
           return videoPropertiesPanelContent;
         case "sound":
           return <SoundPropertiesPanel />;
+        case "sound-effects":
+          return <SoundEffectsPropertiesPanel />;
         case "voices":
-          return <VoicesPropertiesPanel />;
+          return <VoicesPropertiesPanel selectedTool={selectedTool} {...propertiesVoices} />;
         case "character":
           return characterPropertiesPanelContent;
         case "presets":
@@ -1219,7 +1225,9 @@ export function AiStudioPageContent({
       elementsPropertiesPanelContent,
       editPropertiesPanelContent,
       mediaLibraryPropertiesPanelContent,
+      propertiesVoices,
       presetsPropertiesPanelContent,
+      selectedTool,
       stylesPropertiesPanelContent,
       videoPropertiesPanelContent,
     ]

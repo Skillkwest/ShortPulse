@@ -11,6 +11,7 @@ export type PropertiesPanelKind =
   | "elements"
   | "media-library"
   | "sound"
+  | "sound-effects"
   | "voices";
 
 /**
@@ -23,6 +24,7 @@ export const resolvePropertiesPanelKind = (selectedTool: ToolId | null): Propert
   if (selectedTool === "presets") return "presets";
   if (selectedTool === "voices") return "voices";
   if (selectedTool === "voice-changer" || selectedTool === "text-to-speech") return "voices";
+  if (selectedTool === "sound-effects") return "sound-effects";
   if (isSoundWorkflow(selectedTool)) return "sound";
   return resolveWorkflowId(selectedTool);
 };

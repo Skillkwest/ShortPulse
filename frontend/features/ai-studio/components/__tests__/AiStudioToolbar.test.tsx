@@ -125,8 +125,8 @@ describe("AiStudioToolbar", () => {
     const soundChildren = within(soundChildrenContainer).getAllByRole("button");
     expect(soundChildren.map((button) => button.textContent?.trim())).toEqual([
       "Voice",
-      "Sound Effects",
       "Music",
+      "SFX",
     ]);
     expect(within(soundChildrenContainer).getByRole("button", { name: "Music" })).toHaveClass(
       "is-active"
@@ -201,7 +201,7 @@ describe("AiStudioToolbar", () => {
 
   it.each([
     { button: "Voice", expected: "voices" as const },
-    { button: "Sound Effects", expected: "sound-effects" as const },
+    { button: "SFX", expected: "sound-effects" as const },
     { button: "Music", expected: "music" as const },
   ])("routes Sound child $button clicks to $expected", ({ button, expected }) => {
     const onSelectTool = vi.fn();

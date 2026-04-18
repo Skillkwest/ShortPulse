@@ -163,6 +163,15 @@
   height: auto;
 }
 
+.create-expert-controls .create-expert-character-picker-control {
+  min-height: 0;
+  height: auto;
+  padding: 0;
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+}
+
 .create-expert-model-control .create-expert-control-label,
 .create-expert-aspect-control .create-expert-control-label,
 .create-expert-resolution-control .create-expert-control-label {
@@ -175,19 +184,16 @@
 }
 
 .create-expert-character-mode-control {
-  gap: var(--create-expert-character-toggle-gap);
-  min-width: 304px;
+  gap: 0;
+  min-width: 0;
   min-height: 0;
   height: auto;
   padding: 0;
-  overflow: hidden;
+  overflow: visible;
   border-color: transparent;
   background: transparent;
   box-shadow: none;
-  transition:
-    min-width 220ms cubic-bezier(0.22, 0.61, 0.36, 1),
-    gap 180ms cubic-bezier(0.22, 0.61, 0.36, 1),
-    padding 180ms cubic-bezier(0.22, 0.61, 0.36, 1);
+  transition: none;
 }
 
 .create-expert-character-mode-control.is-character-mode-on {
@@ -195,21 +201,20 @@
 }
 
 .create-expert-character-mode-control.is-character-mode-off {
-  min-width: 122px;
   gap: 0;
-  padding: 0 8px 0 0;
+  padding: 0;
 }
 
 .create-expert-character-mode-meta {
   display: inline-flex;
   align-items: center;
-  gap: 14px;
-  padding: 2px 0;
+  gap: 10px;
+  padding: 0;
   flex: 0 0 auto;
 }
 
 .create-expert-character-mode-control.is-character-mode-on .create-expert-character-mode-meta {
-  margin-right: 6px;
+  margin-right: 0;
 }
 
 .create-expert-character-mode-title {

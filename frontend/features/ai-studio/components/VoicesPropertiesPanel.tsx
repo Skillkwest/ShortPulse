@@ -688,8 +688,14 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel()
               ) : null}
             </section>
 
-            <div className="voices-properties-horizontal-divider-wrap" {...dividerProps}>
-              <div className="voices-properties-horizontal-divider" aria-hidden="true" />
+            <div
+              className="voices-properties-horizontal-divider-wrap reference-grid-horizontal-divider-wrap"
+              {...dividerProps}
+            >
+              <div
+                className="voices-properties-horizontal-divider reference-grid-horizontal-divider"
+                aria-hidden="true"
+              />
             </div>
 
             <div className="voices-properties-compose-area" style={bottomSectionStyle}>

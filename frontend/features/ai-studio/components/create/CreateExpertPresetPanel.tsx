@@ -13,7 +13,7 @@ export function CreateExpertPresetPanel() {
     <section className="create-expert-presets-panel" aria-label="Create prompt presets">
       <div className="create-expert-presets-card">
         <div className="create-expert-presets-title-card">
-          <p className="create-expert-presets-title">Prompt Presets</p>
+          <p className="create-expert-presets-title">Pulse Presets</p>
           <span className="create-expert-presets-title-icon" aria-hidden="true">
             <Sliders size={14} weight="regular" />
           </span>

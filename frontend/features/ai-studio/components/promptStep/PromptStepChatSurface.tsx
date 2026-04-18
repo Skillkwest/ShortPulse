@@ -72,6 +72,7 @@ type PromptStepChatSurfaceProps = {
   disableOutputGenerate: boolean;
   outputGenerateCostCredits: number | null;
   outputGenerateGuardrailReason?: string | null;
+  composerMiddleContent: React.ReactNode;
   composerLeadingContent: React.ReactNode;
   chatComposerOverlayEnabled: boolean;
   stackTrailingComposerControls: boolean;
@@ -144,6 +145,7 @@ export const PromptStepChatSurface: React.FC<PromptStepChatSurfaceProps> = ({
   disableOutputGenerate,
   outputGenerateCostCredits,
   outputGenerateGuardrailReason,
+  composerMiddleContent,
   composerLeadingContent,
   chatComposerOverlayEnabled,
   stackTrailingComposerControls,
@@ -168,7 +170,6 @@ export const PromptStepChatSurface: React.FC<PromptStepChatSurfaceProps> = ({
   prompt,
   agentPrimarySource,
   agentActions,
-  onAgentApplyPrompt,
   onAssistantMessageEdit,
 }) => {
   const [isAgentInputExpanded, setIsAgentInputExpanded] = React.useState(false);
@@ -183,6 +184,7 @@ export const PromptStepChatSurface: React.FC<PromptStepChatSurfaceProps> = ({
       allowSharedPromptFallback: true,
     })
   );
+  const hasInsideInputSendButton = embedSendButtonInInput && chatModeEnabled;
   const hasInlineGenerateAction = !chatModeEnabled && Boolean(chatModeInlineGenerate?.onGenerate);
   const inlineGenerateDisabled =
     Boolean(chatModeInlineGenerate?.disabled) ||
@@ -190,10 +192,10 @@ export const PromptStepChatSurface: React.FC<PromptStepChatSurfaceProps> = ({
     !hasResolvedInlineGeneratePrompt;
   const inlineGenerateGuardrailReason =
     hasInlineGenerateAction && inlineGenerateDisabled ? outputGenerateGuardrailReason : null;
-  const shouldUsePostInputInlineGenerate =
-    hasInlineGenerateAction && Boolean(composerLeadingContent);
+  const hasAuxComposerControls = Boolean(composerMiddleContent) || Boolean(composerLeadingContent);
+  const shouldUsePostInputInlineGenerate = hasInlineGenerateAction && hasAuxComposerControls;
   const shouldStackTrailingComposerControls =
-    stackTrailingComposerControls && Boolean(composerLeadingContent);
+    stackTrailingComposerControls && hasAuxComposerControls;
   const hasAgentChatContent =
     !hideAgentIntroMessage ||
     agentMessages.length > 0 ||
@@ -257,272 +259,225 @@ export const PromptStepChatSurface: React.FC<PromptStepChatSurfaceProps> = ({
     />
   ) : null;
 
+  const inputShellContent = (
+    <div
+      className={`agent-composer-input-shell ${
+        hasInsideInputSendButton ? "has-inside-send-button" : "has-full-width-text"
+      } ${dropToInputComposer && agentDropActive ? "is-drop-active" : ""}`.trim()}
+      {...inputDropHandlers}
+    >
+      {showComposerAttachments ? (
+        <div
+          className="agent-composer-attachment-strip"
+          aria-label="Attached references for next message"
+        >
+          <div className="agent-attachment-card-list agent-attachment-card-list--composer">
+            {stagedAttachments.map((attachment) => {
+              const isLinkedPromptRef =
+                attachment.kind === "prompt" && Boolean(attachment.referenceId);
+              const attachmentStatusClass =
+                attachment.kind === "image" ? `is-${attachment.deliveryStatus ?? "pending"}` : "";
+              return (
+                <div
+                  key={attachment.id}
+                  className={`agent-attachment-card agent-attachment-card--composer agent-attachment-card--${attachment.kind} ${isLinkedPromptRef ? "is-linked-prompt-ref" : ""} ${attachmentStatusClass}`}
+                >
+                  {attachment.kind === "image" && attachment.imageUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={attachment.imageUrl} alt="" className="agent-attachment-card-media" />
+                  ) : (
+                    <div className="agent-attachment-card-prompt" aria-hidden="true">
+                      <span className="agent-attachment-card-prompt-marker">T</span>
+                    </div>
+                  )}
+                  {isLinkedPromptRef ? (
+                    <span className="agent-attachment-link-dot" aria-hidden="true" />
+                  ) : null}
+                  {onRemoveAgentAttachment ? (
+                    <button
+                      type="button"
+                      className="agent-attachment-remove agent-attachment-remove--card"
+                      aria-label="Remove attachment"
+                      onClick={() => onRemoveAgentAttachment(attachment.id)}
+                    >
+                      ×
+                    </button>
+                  ) : null}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      ) : null}
+      <AgentInputBar
+        ref={agentInputRef}
+        value={agentInput}
+        onChange={(value) => onAgentInputChange?.(value)}
+        onFocusChange={setIsAgentInputExpanded}
+        onVisualRowCountChange={handleAgentInputVisualRowCountChange}
+        placeholder={
+          chatModeEnabled
+            ? directOpenAiBypassEnabled
+              ? "Ask ShortPulse or write your prompt"
+              : "Message the agent..."
+            : "Write your prompt..."
+        }
+        onKeyDown={handleAgentInputKeyDown}
+        className={`agent-input-prefab-inline ${showComposerAttachments ? "has-leading-attachments" : ""}`}
+        maxHeightPx={agentInputMaxHeightPx}
+        collapseToMinHeightWhenBlurred={agentInputCollapseOnBlur}
+      />
+      {hasInsideInputSendButton ? (
+        <AgentSendButton
+          onClick={handleAgentSendClick}
+          disabled={!chatModeEnabled || agentIsSending}
+          loading={agentIsSending}
+          ariaLabel={directOpenAiBypassEnabled ? "Send to OpenAI" : "Send to agent"}
+          icon="arrow-up"
+          className="agent-send-prefab--inside-input"
+        />
+      ) : null}
+    </div>
+  );
+
+  const chatModeToggleContent = (
+    <div className="ai-chat-mode-row-shell agent-chat-mode-row agent-chat-mode-toggle-shell">
+      <div className="agent-chat-mode-toggle-copy">
+        <span className="agent-chat-mode-label">Chat Mode</span>
+      </div>
+      <button
+        type="button"
+        className={`audio-toggle ai-chat-mode-toggle agent-chat-mode-toggle ${chatModeEnabled ? "is-active" : ""}`}
+        aria-pressed={chatModeEnabled}
+        aria-label={chatModeEnabled ? "Disable chat mode" : "Enable chat mode"}
+        disabled={!onChatModeEnabledChange}
+        onClick={() => onChatModeEnabledChange?.(!chatModeEnabled)}
+      >
+        <span className="audio-toggle-track" aria-hidden="true">
+          <span className="audio-toggle-dot" />
+        </span>
+      </button>
+    </div>
+  );
+
+  const chatSendButtonContent =
+    !embedSendButtonInInput && chatModeEnabled ? (
+      <AgentSendButton
+        onClick={handleAgentSendClick}
+        disabled={!chatModeEnabled || agentIsSending}
+        loading={agentIsSending}
+        ariaLabel={directOpenAiBypassEnabled ? "Send to OpenAI" : "Send to agent"}
+        label="Send"
+        className="agent-send-prefab--labeled"
+      />
+    ) : null;
+
+  const chatModeActionsContent = (
+    <div className="agent-inline-actions">
+      {hasInlineGenerateAction && !shouldUsePostInputInlineGenerate ? (
+        useAgentResponseInlineGeneratePrefab ? (
+          <AgentResponseInlineGenerateButton
+            className="agent-chat-inline-generate-btn"
+            onClick={chatModeInlineGenerate?.onGenerate ?? (() => {})}
+            costCredits={outputGenerateCostCredits}
+            disabled={inlineGenerateDisabled}
+            ariaLabel={chatModeInlineGenerate?.ariaLabel ?? "Generate with current prompt"}
+          />
+        ) : (
+          <button
+            type="button"
+            className="reference-generate-pill agent-generate-prefab reference-prompt-generate-pill agent-output-generate-pill agent-chat-inline-generate-btn"
+            onClick={chatModeInlineGenerate?.onGenerate ?? (() => {})}
+            disabled={inlineGenerateDisabled}
+            aria-label={chatModeInlineGenerate?.ariaLabel ?? "Generate with current prompt"}
+          >
+            <span className="agent-generate-label">Generate</span>
+            <span className="model-chip-pill generate-pill">
+              <span aria-hidden="true" className="model-chip-icon">
+                ✦
+              </span>
+              <span className="model-chip-credits">{inlineGenerateCostLabel}</span>
+            </span>
+          </button>
+        )
+      ) : null}
+      {chatModeToggleContent}
+      {!showBeginnerChatPinTip && onSavePrompt ? (
+        <AgentSaveButton
+          onClick={() => onSavePrompt(agentInput)}
+          disabled={shouldDisableChatPin}
+          ariaLabel="Pin prompt"
+          className={chatPromptSaveButtonClassName}
+          unstyled={chatPromptSaveButtonUnstyled}
+        />
+      ) : null}
+    </div>
+  );
+
+  const postInputInlineGenerateContent = shouldUsePostInputInlineGenerate ? (
+    <div className="agent-composer-post-input-actions">
+      {useAgentResponseInlineGeneratePrefab ? (
+        <AgentResponseInlineGenerateButton
+          className="agent-chat-inline-generate-btn"
+          onClick={chatModeInlineGenerate?.onGenerate ?? (() => {})}
+          costCredits={outputGenerateCostCredits}
+          disabled={inlineGenerateDisabled}
+          ariaLabel={chatModeInlineGenerate?.ariaLabel ?? "Generate with current prompt"}
+        />
+      ) : (
+        <button
+          type="button"
+          className="reference-generate-pill agent-generate-prefab reference-prompt-generate-pill agent-output-generate-pill agent-chat-inline-generate-btn"
+          onClick={chatModeInlineGenerate?.onGenerate ?? (() => {})}
+          disabled={inlineGenerateDisabled}
+          aria-label={chatModeInlineGenerate?.ariaLabel ?? "Generate with current prompt"}
+        >
+          <span className="agent-generate-label">Generate</span>
+          <span className="model-chip-pill generate-pill">
+            <span aria-hidden="true" className="model-chip-icon">
+              ✦
+            </span>
+            <span className="model-chip-credits">{inlineGenerateCostLabel}</span>
+          </span>
+        </button>
+      )}
+    </div>
+  ) : null;
+
+  const composerMiddleControlContent = composerMiddleContent ? (
+    <div className="agent-composer-middle">{composerMiddleContent}</div>
+  ) : null;
+  const composerLeadingControlContent = composerLeadingContent ? (
+    <div className="agent-composer-leading">{composerLeadingContent}</div>
+  ) : null;
+  const stackedControlsRowContent = composerMiddleControlContent ? (
+    <div className="agent-composer-controls-row">{composerMiddleControlContent}</div>
+  ) : null;
+
   const composerRowContent = (
     <div
       className={`step2-input-row prompt-actions-compact agent-composer-row ${
         shouldUsePostInputInlineGenerate ? "has-post-input-inline-generate" : ""
-      }`.trim()}
+      } ${shouldStackTrailingComposerControls ? "is-stacked" : ""}`.trim()}
     >
-      <div
-        className={`agent-composer-input-shell ${dropToInputComposer && agentDropActive ? "is-drop-active" : ""}`.trim()}
-        {...inputDropHandlers}
-      >
-        {showComposerAttachments ? (
-          <div
-            className="agent-composer-attachment-strip"
-            aria-label="Attached references for next message"
-          >
-            <div className="agent-attachment-card-list agent-attachment-card-list--composer">
-              {stagedAttachments.map((attachment) => {
-                const isLinkedPromptRef =
-                  attachment.kind === "prompt" && Boolean(attachment.referenceId);
-                const attachmentStatusClass =
-                  attachment.kind === "image" ? `is-${attachment.deliveryStatus ?? "pending"}` : "";
-                return (
-                  <div
-                    key={attachment.id}
-                    className={`agent-attachment-card agent-attachment-card--composer agent-attachment-card--${attachment.kind} ${isLinkedPromptRef ? "is-linked-prompt-ref" : ""} ${attachmentStatusClass}`}
-                  >
-                    {attachment.kind === "image" && attachment.imageUrl ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={attachment.imageUrl}
-                        alt=""
-                        className="agent-attachment-card-media"
-                      />
-                    ) : (
-                      <div className="agent-attachment-card-prompt" aria-hidden="true">
-                        <span className="agent-attachment-card-prompt-marker">T</span>
-                      </div>
-                    )}
-                    {isLinkedPromptRef ? (
-                      <span className="agent-attachment-link-dot" aria-hidden="true" />
-                    ) : null}
-                    {onRemoveAgentAttachment ? (
-                      <button
-                        type="button"
-                        className="agent-attachment-remove agent-attachment-remove--card"
-                        aria-label="Remove attachment"
-                        onClick={() => onRemoveAgentAttachment(attachment.id)}
-                      >
-                        ×
-                      </button>
-                    ) : null}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        ) : null}
-        <AgentInputBar
-          ref={agentInputRef}
-          value={agentInput}
-          onChange={(value) => onAgentInputChange?.(value)}
-          onFocusChange={setIsAgentInputExpanded}
-          onVisualRowCountChange={handleAgentInputVisualRowCountChange}
-          placeholder={
-            chatModeEnabled
-              ? directOpenAiBypassEnabled
-                ? "Ask ShortPulse or write your prompt"
-                : "Message the agent..."
-              : "Write your prompt..."
-          }
-          onKeyDown={handleAgentInputKeyDown}
-          className={`agent-input-prefab-inline ${showComposerAttachments ? "has-leading-attachments" : ""}`}
-          maxHeightPx={agentInputMaxHeightPx}
-          collapseToMinHeightWhenBlurred={agentInputCollapseOnBlur}
-        />
-        {embedSendButtonInInput && chatModeEnabled ? (
-          <AgentSendButton
-            onClick={handleAgentSendClick}
-            disabled={!chatModeEnabled || agentIsSending}
-            loading={agentIsSending}
-            ariaLabel={directOpenAiBypassEnabled ? "Send to OpenAI" : "Send to agent"}
-            icon="arrow-up"
-            className="agent-send-prefab--inside-input"
-          />
-        ) : null}
-      </div>
       {shouldStackTrailingComposerControls ? (
         <>
-          <div className="agent-inline-actions">
-            <div className="ai-chat-mode-row-shell agent-chat-mode-row agent-chat-mode-toggle-shell">
-              <div className="agent-chat-mode-toggle-copy">
-                <span className="agent-chat-mode-label">Chat Mode</span>
-              </div>
-              <button
-                type="button"
-                className={`audio-toggle ai-chat-mode-toggle agent-chat-mode-toggle ${chatModeEnabled ? "is-active" : ""}`}
-                aria-pressed={chatModeEnabled}
-                aria-label={chatModeEnabled ? "Disable chat mode" : "Enable chat mode"}
-                disabled={!onChatModeEnabledChange}
-                onClick={() => onChatModeEnabledChange?.(!chatModeEnabled)}
-              >
-                <span className="audio-toggle-track" aria-hidden="true">
-                  <span className="audio-toggle-dot" />
-                </span>
-              </button>
-            </div>
-            {!embedSendButtonInInput && chatModeEnabled ? (
-              <AgentSendButton
-                onClick={handleAgentSendClick}
-                disabled={!chatModeEnabled || agentIsSending}
-                loading={agentIsSending}
-                ariaLabel={directOpenAiBypassEnabled ? "Send to OpenAI" : "Send to agent"}
-                label="Send"
-                className="agent-send-prefab--labeled"
-              />
-            ) : null}
-            {!showBeginnerChatPinTip && onSavePrompt ? (
-              <AgentSaveButton
-                onClick={() => onSavePrompt(agentInput)}
-                disabled={shouldDisableChatPin}
-                ariaLabel="Pin prompt"
-                className={chatPromptSaveButtonClassName}
-                unstyled={chatPromptSaveButtonUnstyled}
-              />
-            ) : null}
+          <div className="agent-composer-primary-row">
+            {chatModeToggleContent}
+            {inputShellContent}
+            {composerLeadingControlContent}
+            {chatModeEnabled ? null : postInputInlineGenerateContent}
           </div>
-          <div className="agent-composer-trailing-column">
-            <div className="agent-composer-trailing-stack">
-              {composerLeadingContent ? (
-                <div className="agent-composer-leading">{composerLeadingContent}</div>
-              ) : null}
-              {shouldUsePostInputInlineGenerate ? (
-                <div className="agent-composer-post-input-actions">
-                  {useAgentResponseInlineGeneratePrefab ? (
-                    <AgentResponseInlineGenerateButton
-                      className="agent-chat-inline-generate-btn"
-                      onClick={chatModeInlineGenerate?.onGenerate ?? (() => {})}
-                      costCredits={outputGenerateCostCredits}
-                      disabled={inlineGenerateDisabled}
-                      ariaLabel={
-                        chatModeInlineGenerate?.ariaLabel ?? "Generate with current prompt"
-                      }
-                    />
-                  ) : (
-                    <button
-                      type="button"
-                      className="reference-generate-pill agent-generate-prefab reference-prompt-generate-pill agent-output-generate-pill agent-chat-inline-generate-btn"
-                      onClick={chatModeInlineGenerate?.onGenerate ?? (() => {})}
-                      disabled={inlineGenerateDisabled}
-                      aria-label={
-                        chatModeInlineGenerate?.ariaLabel ?? "Generate with current prompt"
-                      }
-                    >
-                      <span className="agent-generate-label">Generate</span>
-                      <span className="model-chip-pill generate-pill">
-                        <span aria-hidden="true" className="model-chip-icon">
-                          ✦
-                        </span>
-                        <span className="model-chip-credits">{inlineGenerateCostLabel}</span>
-                      </span>
-                    </button>
-                  )}
-                </div>
-              ) : null}
-            </div>
-          </div>
+          {stackedControlsRowContent}
         </>
       ) : (
         <>
-          {composerLeadingContent ? (
-            <div className="agent-composer-leading">{composerLeadingContent}</div>
-          ) : null}
-          {shouldUsePostInputInlineGenerate ? (
-            <div className="agent-composer-post-input-actions">
-              {useAgentResponseInlineGeneratePrefab ? (
-                <AgentResponseInlineGenerateButton
-                  className="agent-chat-inline-generate-btn"
-                  onClick={chatModeInlineGenerate?.onGenerate ?? (() => {})}
-                  costCredits={outputGenerateCostCredits}
-                  disabled={inlineGenerateDisabled}
-                  ariaLabel={chatModeInlineGenerate?.ariaLabel ?? "Generate with current prompt"}
-                />
-              ) : (
-                <button
-                  type="button"
-                  className="reference-generate-pill agent-generate-prefab reference-prompt-generate-pill agent-output-generate-pill agent-chat-inline-generate-btn"
-                  onClick={chatModeInlineGenerate?.onGenerate ?? (() => {})}
-                  disabled={inlineGenerateDisabled}
-                  aria-label={chatModeInlineGenerate?.ariaLabel ?? "Generate with current prompt"}
-                >
-                  <span className="agent-generate-label">Generate</span>
-                  <span className="model-chip-pill generate-pill">
-                    <span aria-hidden="true" className="model-chip-icon">
-                      ✦
-                    </span>
-                    <span className="model-chip-credits">{inlineGenerateCostLabel}</span>
-                  </span>
-                </button>
-              )}
-            </div>
-          ) : null}
-          <div className="agent-inline-actions">
-            {hasInlineGenerateAction && !shouldUsePostInputInlineGenerate ? (
-              useAgentResponseInlineGeneratePrefab ? (
-                <AgentResponseInlineGenerateButton
-                  className="agent-chat-inline-generate-btn"
-                  onClick={chatModeInlineGenerate?.onGenerate ?? (() => {})}
-                  costCredits={outputGenerateCostCredits}
-                  disabled={inlineGenerateDisabled}
-                  ariaLabel={chatModeInlineGenerate?.ariaLabel ?? "Generate with current prompt"}
-                />
-              ) : (
-                <button
-                  type="button"
-                  className="reference-generate-pill agent-generate-prefab reference-prompt-generate-pill agent-output-generate-pill agent-chat-inline-generate-btn"
-                  onClick={chatModeInlineGenerate?.onGenerate ?? (() => {})}
-                  disabled={inlineGenerateDisabled}
-                  aria-label={chatModeInlineGenerate?.ariaLabel ?? "Generate with current prompt"}
-                >
-                  <span className="agent-generate-label">Generate</span>
-                  <span className="model-chip-pill generate-pill">
-                    <span aria-hidden="true" className="model-chip-icon">
-                      ✦
-                    </span>
-                    <span className="model-chip-credits">{inlineGenerateCostLabel}</span>
-                  </span>
-                </button>
-              )
-            ) : null}
-            <div className="ai-chat-mode-row-shell agent-chat-mode-row agent-chat-mode-toggle-shell">
-              <div className="agent-chat-mode-toggle-copy">
-                <span className="agent-chat-mode-label">Chat Mode</span>
-              </div>
-              <button
-                type="button"
-                className={`audio-toggle ai-chat-mode-toggle agent-chat-mode-toggle ${chatModeEnabled ? "is-active" : ""}`}
-                aria-pressed={chatModeEnabled}
-                aria-label={chatModeEnabled ? "Disable chat mode" : "Enable chat mode"}
-                disabled={!onChatModeEnabledChange}
-                onClick={() => onChatModeEnabledChange?.(!chatModeEnabled)}
-              >
-                <span className="audio-toggle-track" aria-hidden="true">
-                  <span className="audio-toggle-dot" />
-                </span>
-              </button>
-            </div>
-            {!embedSendButtonInInput && chatModeEnabled ? (
-              <AgentSendButton
-                onClick={handleAgentSendClick}
-                disabled={!chatModeEnabled || agentIsSending}
-                loading={agentIsSending}
-                ariaLabel={directOpenAiBypassEnabled ? "Send to OpenAI" : "Send to agent"}
-                label="Send"
-                className="agent-send-prefab--labeled"
-              />
-            ) : null}
-            {!showBeginnerChatPinTip && onSavePrompt ? (
-              <AgentSaveButton
-                onClick={() => onSavePrompt(agentInput)}
-                disabled={shouldDisableChatPin}
-                ariaLabel="Pin prompt"
-                className={chatPromptSaveButtonClassName}
-                unstyled={chatPromptSaveButtonUnstyled}
-              />
-            ) : null}
-          </div>
+          {inputShellContent}
+          {composerMiddleControlContent}
+          {composerLeadingControlContent}
+          {postInputInlineGenerateContent}
+          {chatModeActionsContent}
+          {chatSendButtonContent}
         </>
       )}
     </div>

@@ -64,6 +64,13 @@ const createArgs = (
   ...overrides,
 });
 
+type MockExportResult = {
+  flattenedBlob: Blob | null;
+  flattenedMarkupReferenceBlob: Blob | null;
+  inpaintMaskBlob: Blob | null;
+  reusablePrimarySourceUrl: string | null;
+};
+
 describe("useExpertEditInlineGenerate", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -94,16 +101,11 @@ describe("useExpertEditInlineGenerate", () => {
   });
 
   it("shows one immediate optimistic placeholder and reuses its id for submit handoff", async () => {
-    let resolveExport:
-      | ((value: {
-          flattenedBlob: Blob | null;
-          flattenedMarkupReferenceBlob: Blob | null;
-          inpaintMaskBlob: Blob | null;
-          reusablePrimarySourceUrl: string | null;
-        }) => void)
-      | null = null;
+    let resolveExport: (value: MockExportResult) => void = () => {
+      throw new Error("Expected export resolver");
+    };
     exportExpertEditStageArtifactsMock.mockReturnValue(
-      new Promise((resolve) => {
+      new Promise<MockExportResult>((resolve) => {
         resolveExport = resolve;
       })
     );
@@ -129,12 +131,7 @@ describe("useExpertEditInlineGenerate", () => {
       expect(result.current.isInlineGeneratePending).toBe(true);
     });
 
-    const finishExport = resolveExport;
-    expect(finishExport).not.toBeNull();
-    if (!finishExport) {
-      throw new Error("Expected export resolver");
-    }
-    finishExport({
+    resolveExport({
       flattenedBlob: null,
       flattenedMarkupReferenceBlob: null,
       inpaintMaskBlob: null,

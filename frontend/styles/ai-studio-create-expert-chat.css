@@ -278,7 +278,10 @@
 
 .create-expert-panel .create-expert-prompt-step .create-expert-chat-composer-overlay-zone {
   position: relative;
-  padding-bottom: var(--create-expert-chat-composer-overlay-reserve);
+  padding-bottom: calc(
+    var(--create-expert-chat-composer-overlay-reserve) +
+      var(--create-expert-chat-composer-overlay-bottom-offset)
+  );
   min-height: 0;
 }
 
@@ -299,7 +302,7 @@
   position: absolute;
   left: 0;
   right: 0;
-  bottom: 0;
+  bottom: var(--create-expert-chat-composer-overlay-bottom-offset);
   z-index: 9;
   pointer-events: none;
 }
@@ -315,7 +318,8 @@
 }
 
 .create-expert-panel .create-expert-prompt-step .agent-messages {
-  max-height: min(62vh, 760px);
+  min-height: 220px;
+  max-height: min(46vh, 460px);
   padding: 0 8px 8px 0;
 }
 

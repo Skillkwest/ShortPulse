@@ -64,13 +64,9 @@ describe("create expert composer layout contract", () => {
       css,
       ".create-expert-panel .create-expert-prompt-step .agent-composer-leading .edit-expert-styles-control"
     );
-    const stylesWrapper = extractRuleBlock(
+    const stylesButton = extractRuleBlock(
       css,
-      ".create-expert-panel .create-expert-prompt-step .agent-composer-leading .edit-expert-styles-wrapper"
-    );
-    const openStylesWrapper = extractRuleBlock(
-      css,
-      ".create-expert-panel .create-expert-prompt-step .agent-composer-leading .edit-expert-styles-wrapper.is-open"
+      ".create-expert-panel .create-expert-prompt-step .agent-composer-leading .edit-expert-styles-btn"
     );
     const trailingColumn = extractRuleBlock(
       css,
@@ -95,9 +91,8 @@ describe("create expert composer layout contract", () => {
     expect(inlineActions).toContain("align-items: flex-end;");
     expect(inlineActions).toContain("align-self: flex-end;");
     expect(stylesControl).toContain("transform: none;");
-    expect(stylesWrapper).toContain("background: rgba(201, 205, 214, 0.02);");
-    expect(openStylesWrapper).toContain("background: rgba(245, 185, 66, 0.08);");
-    expect(openStylesWrapper).toContain("0 12px 28px rgba(0, 0, 0, 0.32)");
+    expect(stylesControl).toContain("width: 62px;");
+    expect(stylesButton).toContain("height: 62px;");
     expect(trailingColumn).toContain("flex-direction: column;");
     expect(trailingColumn).toContain("gap: 8px;");
     expect(trailingStack).toContain("flex-direction: column;");
@@ -130,15 +125,15 @@ describe("create expert composer layout contract", () => {
     );
 
     expect(overlayZone).toContain("position: relative;");
-    expect(overlayZone).toContain(
-      "padding-bottom: var(--create-expert-chat-composer-overlay-reserve);"
-    );
+    expect(overlayZone).toContain("padding-bottom: calc(");
+    expect(overlayZone).toContain("var(--create-expert-chat-composer-overlay-reserve)");
+    expect(overlayZone).toContain("var(--create-expert-chat-composer-overlay-bottom-offset)");
     expect(baseLayer).toContain("z-index: 1;");
     expect(baseLayer).not.toContain("transition:");
     expect(overlay).toContain("position: absolute;");
-    expect(overlay).toContain("bottom: 0;");
+    expect(overlay).toContain("bottom: var(--create-expert-chat-composer-overlay-bottom-offset);");
     expect(overlay).toContain("z-index: 9;");
-    expect(chatSpacer).toContain("min-height: 92px;");
+    expect(chatSpacer).toContain("min-height: 18px;");
     expect(expandedOverlayZone).toContain("filter: blur(6px);");
   });
 
@@ -165,12 +160,14 @@ describe("create expert composer layout contract", () => {
     const controlsRow = extractRuleBlock(controlsCss, ".create-expert-controls-row");
 
     expect(tokensCss).toContain("--create-expert-agent-input-min-height: 64px;");
+    expect(tokensCss).toContain("--create-expert-agent-input-max-height: 520px;");
     expect(tokensCss).toContain("--create-expert-chat-composer-overlay-reserve: 126px;");
+    expect(tokensCss).toContain("--create-expert-chat-composer-overlay-bottom-offset: 22px;");
     expect(tokensCss).toContain("--create-expert-agent-input-bg: #25292f;");
     expect(inputShell).toContain("min-height: var(--create-expert-agent-input-min-height);");
     expect(inputShell).toContain("overflow: hidden;");
     expect(inputSurface).toContain("background: var(--create-expert-agent-input-bg);");
-    expect(inputField).toContain("transition: height 120ms cubic-bezier(0.22, 0.61, 0.36, 1);");
+    expect(inputField).toContain("transition: height 60ms cubic-bezier(0.22, 0.61, 0.36, 1);");
     expect(chatToggleShell).toContain("min-height: 64px;");
     expect(controlsRow).toContain("margin-top: 6px;");
   });

@@ -188,12 +188,13 @@ export const useReferenceGridHorizontalSplit = ({
       if (!Number.isFinite(nextHeight) || nextHeight <= 0) return;
       const previousHeight =
         containerHeightRef.current > 0 ? containerHeightRef.current : nextHeight;
-      const preservedTopHeightPx = topRatioRef.current * Math.max(1, previousHeight);
       containerHeightRef.current = nextHeight;
-      const clampedRatio = clampTopRatio(
-        preservedTopHeightPx / Math.max(1, nextHeight),
-        nextHeight
-      );
+      const shouldPreserveTopPixels = nextHeight >= previousHeight;
+      const preservedTopHeightPx = topRatioRef.current * Math.max(1, previousHeight);
+      const nextRatio = shouldPreserveTopPixels
+        ? preservedTopHeightPx / Math.max(1, nextHeight)
+        : topRatioRef.current;
+      const clampedRatio = clampTopRatio(nextRatio, nextHeight);
       if (Math.abs(topRatioRef.current - clampedRatio) < 0.001) return;
       commitTopRatio(clampedRatio);
     },

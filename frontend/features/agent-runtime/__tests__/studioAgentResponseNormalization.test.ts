@@ -117,8 +117,6 @@ describe("studioAgentResponseNormalization", () => {
         message: "A rainy neon city street at night",
         actions: {
           applyPrompt: "A rainy neon city street at night",
-          variations: ["unused"],
-          describeTargets: ["ref-1"],
         },
       },
       fallbackPrompt: "fallback",

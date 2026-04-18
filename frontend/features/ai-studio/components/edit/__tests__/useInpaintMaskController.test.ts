@@ -928,7 +928,11 @@ describe("useInpaintMaskController hook", () => {
       );
 
       const previewCanvas = createOverlayCanvas();
-      result.current.previewCanvasRef.current = previewCanvas;
+      (
+        result.current.previewCanvasRef as {
+          current: HTMLCanvasElement | null;
+        }
+      ).current = previewCanvas;
 
       await waitFor(() => {
         expect(result.current.imageHasInteractiveMask).toBe(true);
@@ -1002,7 +1006,11 @@ describe("useInpaintMaskController hook", () => {
       );
 
       const previewCanvas = createOverlayCanvas();
-      result.current.previewCanvasRef.current = previewCanvas;
+      (
+        result.current.previewCanvasRef as {
+          current: HTMLCanvasElement | null;
+        }
+      ).current = previewCanvas;
 
       await waitFor(() => {
         expect(result.current.imageHasInteractiveMask).toBe(true);

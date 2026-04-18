@@ -64,8 +64,9 @@ import {
   AI_SHELL_LEFT_VIDEO_DEFAULT_RATIO,
   AI_SHELL_LEFT_VIDEO_MIN_PX,
   AI_SHELL_RIGHT_CANVAS_MIN_PX,
+  resolveExpertCreateShellResizeAction,
+  shouldCollapseExpertCreateOnSessionChange,
   shouldCollapseAiShellOnToolSelect,
-  shouldExpandAiShellOnToolSelect,
 } from "../logic/shellResize";
 import { useOutputCounts } from "../hooks/aiStudioOutputStore";
 import {
@@ -464,6 +465,7 @@ const AiStudioAlertsStack = React.memo(function AiStudioAlertsStack({
 });
 
 export type AiStudioPageContentProps = {
+  sessionId?: string | null;
   referenceGridFileInputRef: React.RefObject<HTMLInputElement>;
   onFileBrowserSelection: (event: React.ChangeEvent<HTMLInputElement>) => void;
   uiError: string | null;
@@ -532,6 +534,7 @@ export type AiStudioPageContentProps = {
 };
 
 export function AiStudioPageContent({
+  sessionId = null,
   referenceGridFileInputRef,
   onFileBrowserSelection,
   uiError,
@@ -603,12 +606,13 @@ export function AiStudioPageContent({
   const showStylesPanelEligible = showExpertEditPanel || showExpertCreatePanel;
   const isPrimaryCharacterPanelOpen = isPrimaryCharacterTool(selectedTool);
   const isCharacterShellPanelOpen = isCharacterShellTool(selectedTool);
-  const [isCanvasVisible, setIsCanvasVisible] = React.useState(true);
+  const [isCanvasVisible, setIsCanvasVisible] = React.useState(false);
   const [panelVisibility, setPanelVisibility] = React.useState<PanelVisibilityState>(
     createInitialPanelVisibility
   );
   const [selectedStyleId, setSelectedStyleId] = React.useState<string | null>(null);
   const [selectedPresetId, setSelectedPresetId] = React.useState<ExpertEditPresetId | null>(null);
+  const [expertCreateMode, setExpertCreateMode] = React.useState<"standard" | "pulse">("standard");
   const {
     styleDetailsById,
     error: styleDetailsSaveError,
@@ -833,9 +837,13 @@ export function AiStudioPageContent({
   ]
     .filter(Boolean)
     .join(" ");
-  const previousSelectedToolRef = React.useRef<ToolId | null>(selectedTool);
+  const previousSelectedToolRef = React.useRef<ToolId | null>(null);
+  const previousExpertCreateModeRef = React.useRef<"standard" | "pulse">(expertCreateMode);
+  const previousSessionIdRef = React.useRef<string | null>(sessionId);
   React.useEffect(() => {
     const previousSelectedTool = previousSelectedToolRef.current;
+    const previousExpertCreateMode = previousExpertCreateModeRef.current;
+    const previousSessionId = previousSessionIdRef.current;
     const isEditToolSelected = selectedTool === "edit";
     const isCharacterShellToolSelected =
       selectedTool === "character" || selectedTool === "elements";
@@ -845,6 +853,8 @@ export function AiStudioPageContent({
     if (shouldResetForCharacterShellSelection) {
       collapseToMin();
       previousSelectedToolRef.current = selectedTool;
+      previousExpertCreateModeRef.current = expertCreateMode;
+      previousSessionIdRef.current = sessionId;
       return;
     }
     const shouldCollapseForEditSelection =
@@ -852,11 +862,31 @@ export function AiStudioPageContent({
     if (shouldCollapseForEditSelection) {
       collapseToMin();
       previousSelectedToolRef.current = selectedTool;
+      previousExpertCreateModeRef.current = expertCreateMode;
+      previousSessionIdRef.current = sessionId;
       return;
     }
-    // Expert Create should always open at its maximum left width when Create is selected.
-    const shouldExpandForExpertCreateSelection =
-      showExpertCreatePanel && shouldExpandAiShellOnToolSelect(previousSelectedTool, selectedTool);
+    const shouldCollapseForStandardCreateSession = shouldCollapseExpertCreateOnSessionChange({
+      previousSessionId,
+      nextSessionId: sessionId,
+      nextTool: selectedTool,
+      nextMode: expertCreateMode,
+      expertCreateEnabled: showExpertCreatePanel,
+    });
+    if (shouldCollapseForStandardCreateSession) {
+      collapseToMin();
+      previousSelectedToolRef.current = selectedTool;
+      previousExpertCreateModeRef.current = expertCreateMode;
+      previousSessionIdRef.current = sessionId;
+      return;
+    }
+    const expertCreateShellResizeAction = resolveExpertCreateShellResizeAction({
+      previousTool: previousSelectedTool,
+      nextTool: selectedTool,
+      previousMode: previousExpertCreateMode,
+      nextMode: expertCreateMode,
+      expertCreateEnabled: showExpertCreatePanel,
+    });
     const isInitialSoundSelection =
       previousSelectedTool !== selectedTool &&
       isSoundToolSelected &&
@@ -864,6 +894,8 @@ export function AiStudioPageContent({
     if (isInitialSoundSelection) {
       resetToDefaultWidth();
       previousSelectedToolRef.current = selectedTool;
+      previousExpertCreateModeRef.current = expertCreateMode;
+      previousSessionIdRef.current = sessionId;
       return;
     }
     const shouldResetForVideoSelection =
@@ -872,18 +904,25 @@ export function AiStudioPageContent({
     if (
       shouldCollapseAiShellOnToolSelect(previousSelectedTool, selectedTool) ||
       shouldResetForVideoSelection ||
-      shouldExpandForExpertCreateSelection
+      expertCreateShellResizeAction != null
     ) {
       if (shouldResetForVideoSelection) {
         resetToDefaultWidth();
-      } else if (shouldExpandForExpertCreateSelection) {
-        expandToMax();
       } else {
         collapseToMin();
       }
     }
     previousSelectedToolRef.current = selectedTool;
-  }, [collapseToMin, expandToMax, resetToDefaultWidth, selectedTool, showExpertCreatePanel]);
+    previousExpertCreateModeRef.current = expertCreateMode;
+    previousSessionIdRef.current = sessionId;
+  }, [
+    collapseToMin,
+    expertCreateMode,
+    resetToDefaultWidth,
+    sessionId,
+    selectedTool,
+    showExpertCreatePanel,
+  ]);
   const rightColumnRef = React.useRef<HTMLDivElement | null>(null);
   const handleStylesPanelToggle = React.useCallback(() => {
     setPanelVisibility((previous) => {
@@ -930,12 +969,16 @@ export function AiStudioPageContent({
       onStylesPanelToggle: handleStylesPanelToggle,
       selectedStyleId,
       stylesCatalog: visibleStylesCatalog,
+      expertCreateMode,
+      onExpertCreateModeChange: setExpertCreateMode,
     }),
     [
+      expertCreateMode,
       handleStylesPanelToggle,
       isStylesPanelOpen,
       resolvedCreateProperties,
       selectedStyleId,
+      setExpertCreateMode,
       visibleStylesCatalog,
     ]
   );

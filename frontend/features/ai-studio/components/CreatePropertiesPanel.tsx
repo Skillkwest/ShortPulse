@@ -32,6 +32,8 @@ import type { ExpertEditStyleTile } from "./edit/expertEditStyles";
 import { useAvatarResilience } from "../hooks/useAvatarResilience";
 import { AiStudioModalLayer, useAiStudioModalActivity } from "./modal-layer/AiStudioModalLayer";
 
+export type ExpertCreateMode = "standard" | "pulse";
+
 export type CreatePropertiesPanelProps = {
   mode: StudioMode;
   aspect: string;
@@ -112,6 +114,8 @@ export type CreatePropertiesPanelProps = {
   onStylesPanelToggle?: () => void;
   selectedStyleId?: string | null;
   stylesCatalog?: readonly ExpertEditStyleTile[];
+  expertCreateMode?: ExpertCreateMode;
+  onExpertCreateModeChange?: (value: ExpertCreateMode) => void;
 };
 
 /**
@@ -144,7 +148,7 @@ type CharacterPickerModalProps = {
   resolveCharacterAvatarUrlById?: (characterId: string | null | undefined) => string | null;
 };
 
-const EXPERT_CREATE_AGENT_INPUT_MAX_HEIGHT_PX = 680;
+const EXPERT_CREATE_AGENT_INPUT_MAX_HEIGHT_PX = 520;
 
 const CharacterPickerModal = ({
   isOpen,
@@ -376,6 +380,8 @@ export function CreatePropertiesPanel({
   onStylesPanelToggle,
   selectedStyleId = null,
   stylesCatalog,
+  expertCreateMode,
+  onExpertCreateModeChange,
   onGenerate,
   onChatOffInlineGenerate,
   guardrailReason,
@@ -655,6 +661,8 @@ export function CreatePropertiesPanel({
             onImageResolutionChange?.(value);
             onStepActionClick?.("imageSettings");
           }}
+          expertCreateMode={expertCreateMode}
+          onExpertCreateModeChange={onExpertCreateModeChange}
         />
       ) : (
         <BeginnerCreatePanelView

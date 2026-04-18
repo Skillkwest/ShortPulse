@@ -80,6 +80,7 @@ export function PromptStep({
   hideEmptyAgentChatState = false,
   emptyAgentChatSpacerClassName = "",
   highlightLatestAssistantOnly = false,
+  composerMiddleContent = null,
   composerLeadingContent = null,
   chatComposerOverlayEnabled = false,
   stackTrailingComposerControls = false,
@@ -309,6 +310,7 @@ export function PromptStep({
                 disableOutputGenerate={disableOutputGenerate}
                 outputGenerateCostCredits={outputGenerateCostCredits}
                 outputGenerateGuardrailReason={outputGenerateGuardrailReason}
+                composerMiddleContent={composerMiddleContent}
                 composerLeadingContent={composerLeadingContent}
                 chatComposerOverlayEnabled={chatComposerOverlayEnabled}
                 stackTrailingComposerControls={stackTrailingComposerControls}

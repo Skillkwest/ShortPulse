@@ -57,8 +57,8 @@ Purpose: provide a single hub for AI Studio SOPs, shared defaults, and the canon
 - Expert Edit prompt token behavior (`@img1..@img3`, deferred invalid warning on Generate, and submission compile mapping) is documented in `docs/sops/sop_ai_studio_expert_edit_prompt_references.md`.
 
 ## Canvas interaction guardrails
-- Canvas workspace internals remain dual-canvas-capable, but the canonical AI Studio shell no longer exposes the right-rail Canvas panel or a top-level Canvas workflow entry.
-- The top-right AI Studio header keeps a visible `Canvas` toggle plus `Quick Slot Inventory` and `Reference Grid` switches available across the four primary workflows (`Create`, `Edit`, `Video`, `Sound`).
+- Canvas workspace internals remain dual-canvas-capable. The canonical AI Studio shell does not expose Canvas as a top-level workflow entry, but it does expose the shared right-rail Canvas panel through the top-right header toggle across the four primary workflows (`Create`, `Edit`, `Video`, `Sound`).
+- The top-right AI Studio header keeps visible `Canvas`, `Quick Slot Inventory`, and `Reference Grid` switches available across those four primary workflows, and `Canvas` controls the live right-rail canvas section rather than collapsing the entire rail. The right-rail Canvas section defaults off on first load.
 - Draft-text and text-edit ownership are instance-scoped so double-click draft creation cannot be auto-cleared by the mirrored canvas instance.
 - Empty-space text draft creation must remain single-create per gesture (native `dblclick` plus pointer/click fallbacks are deduped).
 

@@ -83,7 +83,7 @@ const buildArgs = ({
     layers: [initialLayer],
     selectedLayer: initialLayer,
     setLayers: vi.fn(),
-    markupStrokes: [],
+    markupStrokes: [] as MarkupStroke[],
     setMarkupStrokes: vi.fn(),
     hasPrimaryCompositePreview: true,
     inpaintLayerSources: [{ id: "layer-1", imageUrl: initialLayer.imageUrl }],

@@ -47,16 +47,20 @@ export const AgentInputBar = React.forwardRef<HTMLTextAreaElement, AgentInputBar
       const lineHeightPx = Number.parseFloat(computedStyle.lineHeight) || 0;
       const paddingTopPx = Number.parseFloat(computedStyle.paddingTop) || 0;
       const paddingBottomPx = Number.parseFloat(computedStyle.paddingBottom) || 0;
-      const contentHeightPx = Math.max(0, textarea.scrollHeight - paddingTopPx - paddingBottomPx);
+      const renderedHeightPx = textarea.getBoundingClientRect().height;
+
+      // Reset the explicit height before measuring so wider layouts can shrink the textarea.
+      textarea.style.height = "0px";
+      const measuredScrollHeightPx = textarea.scrollHeight;
+      const contentHeightPx = Math.max(0, measuredScrollHeightPx - paddingTopPx - paddingBottomPx);
       const visualRowCount =
         lineHeightPx > 0 ? Math.max(1, Math.ceil(contentHeightPx / lineHeightPx)) : 1;
 
       onVisualRowCountChange?.(visualRowCount);
 
       const applyHeight = (nextHeightPx: number) => {
-        const currentHeightPx = textarea.getBoundingClientRect().height;
-        if (currentHeightPx > 0 && Math.abs(currentHeightPx - nextHeightPx) > 0.5) {
-          textarea.style.height = `${currentHeightPx}px`;
+        if (renderedHeightPx > 0 && Math.abs(renderedHeightPx - nextHeightPx) > 0.5) {
+          textarea.style.height = `${renderedHeightPx}px`;
           void textarea.offsetHeight;
         }
         textarea.style.height = `${nextHeightPx}px`;
@@ -73,9 +77,9 @@ export const AgentInputBar = React.forwardRef<HTMLTextAreaElement, AgentInputBar
         return;
       }
 
-      const nextHeightPx = Math.min(textarea.scrollHeight, maxHeightPx);
+      const nextHeightPx = Math.min(measuredScrollHeightPx, maxHeightPx);
       applyHeight(nextHeightPx);
-      textarea.style.overflowY = textarea.scrollHeight > maxHeightPx ? "auto" : "hidden";
+      textarea.style.overflowY = measuredScrollHeightPx > maxHeightPx ? "auto" : "hidden";
     }, [collapseToMinHeightWhenBlurred, isFocused, maxHeightPx, onVisualRowCountChange, value]);
 
     const scheduleResizeToFit = useCallback(() => {
@@ -101,7 +105,17 @@ export const AgentInputBar = React.forwardRef<HTMLTextAreaElement, AgentInputBar
         const resizeObserver = new ResizeObserver(() => {
           scheduleResizeToFit();
         });
-        resizeObserver.observe(textarea);
+
+        // Width changes often land on the composer wrappers first during shell resize.
+        const observedNodes = new Set<HTMLElement>();
+        let node: HTMLElement | null = textarea;
+        for (let depth = 0; node && depth < 4; depth += 1) {
+          observedNodes.add(node);
+          node = node.parentElement;
+        }
+        observedNodes.forEach((observedNode) => {
+          resizeObserver.observe(observedNode);
+        });
         return () => {
           resizeObserver.disconnect();
           if (resizeRafRef.current != null) {

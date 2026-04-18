@@ -31,7 +31,7 @@
   --create-expert-selector-gap: 6px;
   --create-expert-controls-gap: 6px;
   --create-expert-panel-gap: 8px;
-  --create-expert-left-rail-width: 164px;
+  --create-expert-left-rail-width: 198px;
   --create-expert-inline-gutter: clamp(9px, 2.05vw, 25px);
   --create-expert-character-toggle-gap: 6px;
   --create-expert-selector-height: 40px;
@@ -39,8 +39,9 @@
   --create-expert-selector-hover-border: rgba(201, 205, 214, 0.3);
   --create-expert-output-generate-max-height: 140px;
   --create-expert-agent-input-min-height: 64px;
-  --create-expert-agent-input-max-height: 680px;
+  --create-expert-agent-input-max-height: 520px;
   --create-expert-chat-composer-overlay-reserve: 126px;
+  --create-expert-chat-composer-overlay-bottom-offset: 22px;
   --create-expert-bottom-block-offset: 4px;
   --create-expert-agent-input-bg: #25292f;
   /*
@@ -214,11 +215,11 @@
   display: flex;
   flex: 1 1 auto;
   flex-direction: column;
-  justify-content: flex-start;
+  justify-content: center;
   width: 100%;
   min-height: 0;
-  padding-top: 18px;
-  padding-bottom: 0;
+  padding-top: clamp(56px, 10vh, 108px);
+  padding-bottom: clamp(18px, 4vh, 42px);
 }
 
 .create-expert-ready-text {
@@ -233,8 +234,8 @@
 }
 
 .create-expert-panel--no-history .create-expert-ready-text {
-  transform: none;
-  margin: 56px 0 12px;
+  transform: translateY(-48px);
+  margin: 0 0 16px;
 }
 
 .create-expert-panel--no-history .create-expert-right-panel-inner {

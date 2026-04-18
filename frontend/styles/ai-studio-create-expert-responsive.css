@@ -8,8 +8,9 @@
   }
 
   .create-expert-panel--no-history .create-expert-empty-state-shell {
-    padding-top: 12px;
-    padding-bottom: 0;
+    justify-content: center;
+    padding-top: 24px;
+    padding-bottom: 12px;
   }
 
   .create-expert-ready-text {
@@ -17,7 +18,7 @@
   }
 
   .create-expert-panel--no-history .create-expert-ready-text {
-    margin: 36px 0 10px;
+    margin: 0 0 12px;
   }
 
   .create-expert-inline-generate .agent-generate-prefab {

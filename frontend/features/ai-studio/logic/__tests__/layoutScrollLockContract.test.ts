@@ -8,8 +8,8 @@ import { describe, expect, it } from "vitest";
 
 const layoutCssPath = path.resolve(process.cwd(), "styles/ai-studio-layout.css");
 
-describe("ai-studio layout scroll lock contract", () => {
-  it("keeps desktop properties workflows locked to the shell instead of the main window", () => {
+describe("ai-studio layout scroll behavior contract", () => {
+  it("lets desktop properties workflows grow without clipping the main window", () => {
     const css = fs.readFileSync(layoutCssPath, "utf8");
 
     expect(css).toContain("@media (min-width: 1101px)");
@@ -19,8 +19,9 @@ describe("ai-studio layout scroll lock contract", () => {
     expect(css).toContain('.ai-studio-page[data-selected-tool="create"]');
     expect(css).toContain('.ai-studio-page[data-selected-tool="video"]');
     expect(css).toContain('.ai-studio-page[data-selected-tool="character"]');
-    expect(css).toContain("height: var(--app-fixed-height);");
-    expect(css).toContain("overflow: hidden;");
+    expect(css).toContain("overflow-y: auto;");
+    expect(css).toContain("height: auto;");
+    expect(css).toContain("overflow: visible;");
   });
 
   it("gives expert edit a stable resizable shell fallback without entry transition", () => {

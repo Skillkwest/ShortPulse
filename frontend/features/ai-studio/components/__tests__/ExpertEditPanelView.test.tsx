@@ -709,7 +709,7 @@ describe("ExpertEditPanelView", () => {
     const openStylesButton = screen.getByRole("button", { name: "Styles" });
     expect(openStylesButton).toHaveAttribute("aria-expanded", "true");
     expect(openStylesButton).toHaveClass("is-open");
-    expect(openStylesButton.closest(".edit-expert-styles-wrapper")).toHaveClass("is-open");
+    expect(openStylesButton.closest(".edit-expert-styles-control")).toHaveClass("is-open");
   });
 
   it("shows selected style preview filling the styles button", () => {
@@ -719,8 +719,13 @@ describe("ExpertEditPanelView", () => {
     const preview = stylesButton.querySelector(
       ".edit-expert-styles-btn-preview"
     ) as HTMLSpanElement | null;
+    const label = stylesButton.querySelector(
+      ".edit-expert-styles-btn-label"
+    ) as HTMLSpanElement | null;
     expect(preview).toBeTruthy();
     expect(stylesButton).toHaveClass("has-selected-style");
+    expect(label).toBeTruthy();
+    expect(stylesButton).toHaveAttribute("aria-label", "Styles");
     expect(preview?.style.backgroundImage).toContain("/Styles/Cinematic.png");
   });
 

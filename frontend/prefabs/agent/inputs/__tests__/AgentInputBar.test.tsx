@@ -5,11 +5,31 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { AgentInputBar } from "../AgentInputBar";
 
 class MockResizeObserver {
+  private callback: ResizeObserverCallback;
+
+  private static callbacks = new Set<ResizeObserverCallback>();
+
+  constructor(callback: ResizeObserverCallback) {
+    this.callback = callback;
+    MockResizeObserver.callbacks.add(callback);
+  }
+
   observe() {
     return undefined;
   }
   disconnect() {
+    MockResizeObserver.callbacks.delete(this.callback);
     return undefined;
+  }
+
+  static trigger() {
+    for (const callback of MockResizeObserver.callbacks) {
+      callback([], {} as ResizeObserver);
+    }
+  }
+
+  static reset() {
+    MockResizeObserver.callbacks.clear();
   }
 }
 
@@ -17,6 +37,7 @@ describe("AgentInputBar", () => {
   afterEach(() => {
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
+    MockResizeObserver.reset();
   });
 
   it("uses ResizeObserver without attaching a window resize listener when available", () => {
@@ -65,7 +86,7 @@ describe("AgentInputBar", () => {
           scrollHeightDescriptor
         );
       } else {
-        delete (HTMLTextAreaElement.prototype as Partial<HTMLTextAreaElement>).scrollHeight;
+        Reflect.deleteProperty(HTMLTextAreaElement.prototype, "scrollHeight");
       }
     }
   });
@@ -123,7 +144,7 @@ describe("AgentInputBar", () => {
           scrollHeightDescriptor
         );
       } else {
-        delete (HTMLTextAreaElement.prototype as Partial<HTMLTextAreaElement>).scrollHeight;
+        Reflect.deleteProperty(HTMLTextAreaElement.prototype, "scrollHeight");
       }
       if (minHeightDescriptor) {
         Object.defineProperty(CSSStyleDeclaration.prototype, "minHeight", minHeightDescriptor);
@@ -191,7 +212,7 @@ describe("AgentInputBar", () => {
           scrollHeightDescriptor
         );
       } else {
-        delete (HTMLTextAreaElement.prototype as Partial<HTMLTextAreaElement>).scrollHeight;
+        Reflect.deleteProperty(HTMLTextAreaElement.prototype, "scrollHeight");
       }
       if (minHeightDescriptor) {
         Object.defineProperty(CSSStyleDeclaration.prototype, "minHeight", minHeightDescriptor);
@@ -261,7 +282,7 @@ describe("AgentInputBar", () => {
           scrollHeightDescriptor
         );
       } else {
-        delete (HTMLTextAreaElement.prototype as Partial<HTMLTextAreaElement>).scrollHeight;
+        Reflect.deleteProperty(HTMLTextAreaElement.prototype, "scrollHeight");
       }
       if (lineHeightDescriptor) {
         Object.defineProperty(CSSStyleDeclaration.prototype, "lineHeight", lineHeightDescriptor);
@@ -275,6 +296,53 @@ describe("AgentInputBar", () => {
           "paddingBottom",
           paddingBottomDescriptor
         );
+      }
+    }
+  });
+
+  it("shrinks the textarea when a wider layout reduces wrapping", async () => {
+    vi.stubGlobal("ResizeObserver", MockResizeObserver);
+    let isWideLayout = false;
+    const scrollHeightDescriptor = Object.getOwnPropertyDescriptor(
+      HTMLTextAreaElement.prototype,
+      "scrollHeight"
+    );
+    Object.defineProperty(HTMLTextAreaElement.prototype, "scrollHeight", {
+      configurable: true,
+      get() {
+        const currentHeight = (this as HTMLTextAreaElement).style.height;
+        if (isWideLayout) {
+          return currentHeight === "0px" ? 140 : 220;
+        }
+        return 220;
+      },
+    });
+
+    try {
+      render(
+        <AgentInputBar value="Long composer draft" onChange={() => undefined} maxHeightPx={520} />
+      );
+
+      const textbox = screen.getByRole("textbox");
+      await waitFor(() => {
+        expect(textbox).toHaveStyle({ height: "220px", overflowY: "hidden" });
+      });
+
+      isWideLayout = true;
+      MockResizeObserver.trigger();
+
+      await waitFor(() => {
+        expect(textbox).toHaveStyle({ height: "140px", overflowY: "hidden" });
+      });
+    } finally {
+      if (scrollHeightDescriptor) {
+        Object.defineProperty(
+          HTMLTextAreaElement.prototype,
+          "scrollHeight",
+          scrollHeightDescriptor
+        );
+      } else {
+        Reflect.deleteProperty(HTMLTextAreaElement.prototype, "scrollHeight");
       }
     }
   });

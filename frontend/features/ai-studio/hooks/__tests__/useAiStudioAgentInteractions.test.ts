@@ -16,13 +16,11 @@ const createParams = (
   setLatestAgentPrompt: asDispatch<string | null>(vi.fn()),
   setPromptOrigin: asDispatch<PromptOrigin>(vi.fn()),
   trackAgentUiEvent: vi.fn(),
-  setAgentInput: asDispatch<string>(vi.fn()),
   addAgentPromptReference: vi.fn(),
   setIsAgentChatOpen: asDispatch<boolean>(vi.fn()),
   agentSessionEnabled: true,
   setAgentSessionEnabled: asDispatch<boolean>(vi.fn()),
   latestAgentPrompt: null,
-  agentActions: undefined,
   resetAgentChat: vi.fn(),
   resetAgentComposer: vi.fn(),
   setAgentActions: asDispatch<AgentActions | undefined>(vi.fn()),
@@ -83,7 +81,6 @@ describe("useAiStudioAgentInteractions", () => {
     expect(resetAgentChat).toHaveBeenCalledTimes(1);
     expect(resetAgentComposer).toHaveBeenCalledTimes(1);
     expect(resetAgentComposer).toHaveBeenCalledWith({
-      preserveInput: true,
       preserveAttachments: true,
     });
     expect(setLatestAgentPrompt).toHaveBeenCalledWith(null);

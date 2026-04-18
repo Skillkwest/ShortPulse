@@ -91,6 +91,7 @@ export type PromptStepProps = {
   hideEmptyAgentChatState?: boolean;
   emptyAgentChatSpacerClassName?: string;
   highlightLatestAssistantOnly?: boolean;
+  composerMiddleContent?: React.ReactNode;
   composerLeadingContent?: React.ReactNode;
   chatComposerOverlayEnabled?: boolean;
   stackTrailingComposerControls?: boolean;

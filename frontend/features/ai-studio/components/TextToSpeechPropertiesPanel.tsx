@@ -328,8 +328,14 @@ export const TextToSpeechPropertiesPanel = React.memo(function TextToSpeechPrope
             </ul>
           </section>
 
-          <div className="tts-properties-horizontal-divider-wrap" {...dividerProps}>
-            <div className="tts-properties-horizontal-divider" aria-hidden="true" />
+          <div
+            className="tts-properties-horizontal-divider-wrap reference-grid-horizontal-divider-wrap"
+            {...dividerProps}
+          >
+            <div
+              className="tts-properties-horizontal-divider reference-grid-horizontal-divider"
+              aria-hidden="true"
+            />
           </div>
 
           <div className="tts-properties-compose-area" style={bottomSectionStyle}>

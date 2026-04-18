@@ -1,6 +1,6 @@
 /**
  * Shared Styles control used by Expert Edit and Expert Create composer surfaces.
- * Renders the wrapper/title/button chrome and mirrors selected-style preview state.
+ * Renders a single labeled button and mirrors selected-style preview state.
  */
 import React from "react";
 import { Palette } from "phosphor-react";
@@ -35,21 +35,20 @@ export function StylesControl({
   );
 
   return (
-    <div className={`edit-expert-styles-control ${className}`.trim()}>
-      <div className={`edit-expert-styles-wrapper ${isOpen ? "is-open" : ""}`.trim()}>
-        <p className="edit-expert-styles-title">Styles</p>
-        <div className="edit-expert-styles-btn-shell">
-          <button
-            type="button"
-            className={`edit-expert-styles-btn ${selectedStyleTile ? "has-selected-style" : ""} ${
-              isOpen ? "is-open" : ""
-            }`.trim()}
-            aria-label="Styles"
-            aria-haspopup="true"
-            aria-expanded={isOpen}
-            aria-controls={controlsId}
-            onClick={onToggle}
-          >
+    <div className={`edit-expert-styles-control ${isOpen ? "is-open" : ""} ${className}`.trim()}>
+      <div className="edit-expert-styles-btn-shell">
+        <button
+          type="button"
+          className={`edit-expert-styles-btn ${selectedStyleTile ? "has-selected-style" : ""} ${
+            isOpen ? "is-open" : ""
+          }`.trim()}
+          aria-label="Styles"
+          aria-haspopup="true"
+          aria-expanded={isOpen}
+          aria-controls={controlsId}
+          onClick={onToggle}
+        >
+          <span className="edit-expert-styles-btn-visual" aria-hidden="true">
             {selectedStyleTile?.previewUrl ? (
               <span
                 className="edit-expert-styles-btn-preview"
@@ -61,8 +60,9 @@ export function StylesControl({
             ) : (
               <Palette size={22} weight="regular" />
             )}
-          </button>
-        </div>
+          </span>
+          <span className="edit-expert-styles-btn-label">Styles</span>
+        </button>
       </div>
     </div>
   );

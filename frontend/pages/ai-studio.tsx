@@ -500,11 +500,9 @@ export default function AiStudioPage() {
     agentError,
     agentBusy,
     agentInput,
+    directOpenAiBypassEnabled,
     chatModeEnabled,
     setChatModeEnabled,
-    agentAssistToggleAvailable,
-    agentAssistEnabled,
-    setAgentAssistEnabled,
     agentAttachmentError,
     agentAttachments,
     linkedPromptReferenceIds,
@@ -521,7 +519,6 @@ export default function AiStudioPage() {
     handleAgentInputChange,
     handleAgentSend,
     handleAgentEnhanceSend,
-    handleAgentDescribeTargets,
     handleAgentAttachmentDragOver,
     handleAgentAttachmentDragEnter,
     handleAgentAttachmentDragLeave,
@@ -529,7 +526,6 @@ export default function AiStudioPage() {
     handleRemoveAgentAttachment,
     handleClearAgentAttachments,
     handleAgentApplyPrompt,
-    handleAgentSelectVariation,
     handleAssistantMessageEdit,
     handleExpandChat,
     handleAgentAddToGrid,
@@ -846,8 +842,7 @@ export default function AiStudioPage() {
     agentActions,
     agentInput,
     chatModeEnabled,
-    agentAssistToggleAvailable,
-    agentAssistEnabled,
+    directOpenAiBypassEnabled,
     agentBusy,
     agentAttachmentError,
     agentError,
@@ -857,7 +852,6 @@ export default function AiStudioPage() {
     isAgentDropActive,
     handleAgentInputChange,
     setChatModeEnabled,
-    setAgentAssistEnabled,
     handleAgentSend,
     handleAgentEnhanceSend,
     handleAgentAttachmentDrop,
@@ -867,8 +861,6 @@ export default function AiStudioPage() {
     handleRemoveAgentAttachment,
     handleClearAgentAttachments,
     handleAgentApplyPrompt,
-    handleAgentSelectVariation,
-    handleAgentDescribeTargets,
     handleAssistantMessageEdit: handleAssistantBubbleMessageEdit,
     handleGenerateFromAgentOutputPrompt,
     assistantBubbleMedia,
@@ -1083,6 +1075,7 @@ export default function AiStudioPage() {
         ) : null}
       </Head>
       <AiStudioPageContent
+        sessionId={sessionId}
         referenceGridFileInputRef={referenceGridFileInputRef}
         onFileBrowserSelection={handleFileBrowserSelection}
         uiError={uiError}
@@ -1157,8 +1150,6 @@ export default function AiStudioPage() {
           onRemoveAttachment: handleRemoveAgentAttachment,
           onClearAttachments: handleClearAgentAttachments,
           onAgentApplyPrompt: handleAgentApplyPrompt,
-          onAgentSelectVariation: handleAgentSelectVariation,
-          onAgentDescribeTargets: handleAgentDescribeTargets,
           onAssistantMessageEdit: handleAssistantBubbleMessageEdit,
           onGenerateFromOutputPrompt: handleGenerateFromAgentOutputPrompt,
           assistantBubbleMedia,

@@ -153,7 +153,7 @@ describe("useReferenceGridHorizontalSplit", () => {
     expect(result.current.topRatio).toBeCloseTo(beforeRatio, 3);
   });
 
-  it("preserves top section pixel height when the split container is resized", () => {
+  it("preserves top section pixel height when the split container grows", () => {
     vi.stubGlobal("ResizeObserver", MockResizeObserver);
     let containerHeight = 400;
     const containerRef = {
@@ -192,6 +192,48 @@ describe("useReferenceGridHorizontalSplit", () => {
     });
 
     expect(result.current.topSectionHeightPx).toBeCloseTo(topHeightBefore, 3);
+  });
+
+  it("preserves the current top ratio when the split container shrinks", () => {
+    vi.stubGlobal("ResizeObserver", MockResizeObserver);
+    let containerHeight = 400;
+    const containerRef = {
+      current: createContainer(containerHeight),
+    };
+    Object.defineProperty(containerRef.current, "getBoundingClientRect", {
+      configurable: true,
+      value: () => ({
+        x: 0,
+        y: 0,
+        top: 0,
+        left: 0,
+        width: 600,
+        height: containerHeight,
+        right: 600,
+        bottom: containerHeight,
+        toJSON: () => ({}),
+      }),
+    });
+    const { result } = renderHook(() =>
+      useReferenceGridHorizontalSplit({
+        enabled: true,
+        containerRef,
+        defaultTopRatio: 0.5,
+        minTopSectionHeightPx: 100,
+        minBottomSectionHeightPx: 100,
+      })
+    );
+
+    const ratioBefore = result.current.topRatio;
+    expect(ratioBefore).toBeCloseTo(0.5, 3);
+
+    containerHeight = 320;
+    act(() => {
+      MockResizeObserver.trigger();
+    });
+
+    expect(result.current.topRatio).toBeCloseTo(ratioBefore, 3);
+    expect(result.current.topSectionHeightPx).toBeCloseTo(160, 3);
   });
 
   it("snaps the top section to its maximum height when expanded", () => {

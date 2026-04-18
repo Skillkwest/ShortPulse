@@ -18,6 +18,8 @@ import {
   getDefaultAiShellLeftWidth,
   isAiShellResizeViewport,
   parseStoredAiShellLeftWidth,
+  resolveExpertCreateShellResizeAction,
+  shouldCollapseExpertCreateOnSessionChange,
   shouldCollapseAiShellOnToolSelect,
   shouldExpandAiShellOnToolSelect,
 } from "../shellResize";
@@ -166,5 +168,131 @@ describe("shouldExpandAiShellOnToolSelect", () => {
     expect(shouldExpandAiShellOnToolSelect("edit", "edit")).toBe(false);
     expect(shouldExpandAiShellOnToolSelect("create", "video")).toBe(false);
     expect(shouldExpandAiShellOnToolSelect("create", null)).toBe(false);
+  });
+});
+
+describe("resolveExpertCreateShellResizeAction", () => {
+  it("collapses when entering expert create in standard mode", () => {
+    expect(
+      resolveExpertCreateShellResizeAction({
+        previousTool: "edit",
+        nextTool: "create",
+        previousMode: "standard",
+        nextMode: "standard",
+        expertCreateEnabled: true,
+      })
+    ).toBe("collapse");
+  });
+
+  it("collapses when entering expert create in pulse mode", () => {
+    expect(
+      resolveExpertCreateShellResizeAction({
+        previousTool: "edit",
+        nextTool: "create",
+        previousMode: "standard",
+        nextMode: "pulse",
+        expertCreateEnabled: true,
+      })
+    ).toBe("collapse");
+  });
+
+  it("does not resize on pulse switch and collapses on standard switch while already in create", () => {
+    expect(
+      resolveExpertCreateShellResizeAction({
+        previousTool: "create",
+        nextTool: "create",
+        previousMode: "standard",
+        nextMode: "pulse",
+        expertCreateEnabled: true,
+      })
+    ).toBeNull();
+
+    expect(
+      resolveExpertCreateShellResizeAction({
+        previousTool: "create",
+        nextTool: "create",
+        previousMode: "pulse",
+        nextMode: "standard",
+        expertCreateEnabled: true,
+      })
+    ).toBe("collapse");
+  });
+
+  it("does nothing when expert create is inactive or nothing changed", () => {
+    expect(
+      resolveExpertCreateShellResizeAction({
+        previousTool: "create",
+        nextTool: "create",
+        previousMode: "standard",
+        nextMode: "standard",
+        expertCreateEnabled: true,
+      })
+    ).toBeNull();
+
+    expect(
+      resolveExpertCreateShellResizeAction({
+        previousTool: "edit",
+        nextTool: "create",
+        previousMode: "standard",
+        nextMode: "pulse",
+        expertCreateEnabled: false,
+      })
+    ).toBeNull();
+  });
+});
+
+describe("shouldCollapseExpertCreateOnSessionChange", () => {
+  it("collapses when a new expert-create session starts", () => {
+    expect(
+      shouldCollapseExpertCreateOnSessionChange({
+        previousSessionId: "session-1",
+        nextSessionId: "session-2",
+        nextTool: "create",
+        nextMode: "standard",
+        expertCreateEnabled: true,
+      })
+    ).toBe(true);
+
+    expect(
+      shouldCollapseExpertCreateOnSessionChange({
+        previousSessionId: "session-1",
+        nextSessionId: "session-2",
+        nextTool: "create",
+        nextMode: "pulse",
+        expertCreateEnabled: true,
+      })
+    ).toBe(true);
+  });
+
+  it("does not collapse when the session is unchanged or create is inactive", () => {
+    expect(
+      shouldCollapseExpertCreateOnSessionChange({
+        previousSessionId: "session-1",
+        nextSessionId: "session-1",
+        nextTool: "create",
+        nextMode: "standard",
+        expertCreateEnabled: true,
+      })
+    ).toBe(false);
+
+    expect(
+      shouldCollapseExpertCreateOnSessionChange({
+        previousSessionId: "session-1",
+        nextSessionId: "session-2",
+        nextTool: "edit",
+        nextMode: "standard",
+        expertCreateEnabled: true,
+      })
+    ).toBe(false);
+
+    expect(
+      shouldCollapseExpertCreateOnSessionChange({
+        previousSessionId: "session-1",
+        nextSessionId: "session-2",
+        nextTool: "create",
+        nextMode: "standard",
+        expertCreateEnabled: false,
+      })
+    ).toBe(false);
   });
 });

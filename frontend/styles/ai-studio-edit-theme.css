@@ -58,23 +58,6 @@
   opacity: 0.92;
 }
 
-.ai-studio-page[data-selected-tool="edit"] .ai-shell-divider:hover::before,
-.ai-studio-page[data-selected-tool="edit"] .ai-shell-divider:focus-visible::before,
-.ai-studio-page[data-selected-tool="edit"] .ai-shell.ai-shell-resizing .ai-shell-divider::before {
-  background: var(--edit-accent-surface-strong);
-  box-shadow: 0 0 0 1px var(--edit-accent-shadow-ring);
-}
-
-.ai-studio-page[data-selected-tool="edit"]
-  .reference-grid-horizontal-divider-wrap:hover
-  .reference-grid-horizontal-divider::before,
-.ai-studio-page[data-selected-tool="edit"]
-  .reference-grid-horizontal-divider-wrap:focus-visible
-  .reference-grid-horizontal-divider::before {
-  background: var(--edit-accent-surface-strong);
-  box-shadow: 0 0 0 1px var(--edit-accent-shadow-ring);
-}
-
 .ai-studio-page[data-selected-tool="edit"]
   .reference-grid-horizontal-divider-wrap:hover
   .reference-grid-horizontal-divider-pill,

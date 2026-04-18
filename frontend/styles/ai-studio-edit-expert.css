@@ -2126,17 +2126,19 @@
   width: var(--edit-expert-secondary-width);
   min-width: var(--edit-expert-secondary-width);
   height: var(--edit-expert-secondary-width);
-  padding: 0;
+  padding: 6px 6px 7px;
   border-radius: 10px;
   border: 1px solid var(--edit-expert-control-border);
   background: var(--edit-expert-control-surface);
   color: var(--edit-expert-control-text);
-  display: inline-flex;
+  display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
+  gap: 4px;
   overflow: hidden;
-  font-size: 13px;
-  font-weight: 500;
+  font-size: 11px;
+  font-weight: 600;
   letter-spacing: 0.02em;
   cursor: pointer;
   transform: translateY(var(--edit-expert-styles-shell-translate-y, 0px));
@@ -2154,6 +2156,26 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
+}
+
+.edit-expert-styles-btn-visual {
+  flex: 1 1 auto;
+  width: 100%;
+  min-height: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.edit-expert-styles-btn-visual > svg {
+  flex: 0 0 auto;
+  color: currentColor;
+}
+
+.edit-expert-styles-btn-label {
+  flex: 0 0 auto;
+  line-height: 1;
+  white-space: nowrap;
 }
 
 .edit-expert-styles-btn-shell:hover,
@@ -2195,8 +2217,23 @@
 }
 
 .edit-expert-styles-btn.has-selected-style {
-  border-color: rgba(201, 205, 214, 0.34);
-  background: rgba(23, 27, 34, 0.96);
+  padding: 0;
+  gap: 0;
+  border-color: rgba(224, 229, 238, 0.42);
+  background: transparent;
+  box-shadow: none;
+}
+
+.edit-expert-styles-btn.has-selected-style .edit-expert-styles-btn-visual {
+  position: absolute;
+  inset: 1px;
+  width: auto;
+  height: auto;
+  min-height: 0;
+}
+
+.edit-expert-styles-btn.has-selected-style .edit-expert-styles-btn-label {
+  display: none;
 }
 
 .edit-expert-styles-btn.is-open.has-selected-style {
@@ -2206,12 +2243,22 @@
     0 10px 24px rgba(0, 0, 0, 0.34);
 }
 
+.edit-expert-styles-btn.has-selected-style:hover {
+  border-color: rgba(236, 240, 247, 0.56);
+  background: transparent;
+}
+
+.edit-expert-styles-btn.has-selected-style:focus-visible {
+  border-color: rgba(236, 240, 247, 0.56);
+  background: transparent;
+}
+
 .edit-expert-styles-btn-preview {
-  width: 100%;
-  height: 100%;
-  max-width: 512px;
-  max-height: 512px;
-  border-radius: inherit;
+  width: calc(100% - 4px);
+  max-width: 100%;
+  aspect-ratio: 1 / 1;
+  max-height: 100%;
+  border-radius: 8px;
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
@@ -2220,58 +2267,24 @@
     inset 0 0 0 1px rgba(255, 255, 255, 0.08);
 }
 
+.edit-expert-styles-btn.has-selected-style .edit-expert-styles-btn-preview {
+  display: block;
+  width: 100%;
+  height: 100%;
+  max-height: none;
+  aspect-ratio: auto;
+  border-radius: 8px;
+  box-shadow: none;
+}
+
 .edit-expert-styles-control {
   position: relative;
   align-self: center;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: var(--edit-expert-secondary-shell-width);
+  width: var(--edit-expert-secondary-width);
   will-change: transform, opacity;
-}
-
-.edit-expert-styles-title {
-  margin: 0;
-  color: rgba(225, 232, 242, 0.9);
-  font-size: 12px;
-  font-weight: 600;
-  line-height: 1;
-  letter-spacing: 0.02em;
-  white-space: nowrap;
-  transition: color 0.16s ease;
-}
-
-.edit-expert-styles-wrapper {
-  width: var(--edit-expert-secondary-shell-width);
-  min-width: var(--edit-expert-secondary-shell-width);
-  min-height: var(--edit-expert-secondary-shell-height);
-  height: auto;
-  padding: var(--edit-expert-secondary-shell-padding);
-  border-radius: 10px;
-  border: 1px solid transparent;
-  background: var(--edit-expert-neutral-surface-soft);
-  box-shadow: 0 12px 28px var(--edit-expert-neutral-shadow);
-  display: inline-flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: var(--edit-expert-tools-title-to-control-gap);
-  transition:
-    border-color 0.16s ease,
-    background 0.16s ease,
-    box-shadow 0.16s ease;
-}
-
-.edit-expert-styles-wrapper.is-open {
-  border-color: var(--ai-styles-selection-ring, rgba(245, 185, 66, 0.34));
-  background: var(--ai-styles-selection-fill, rgba(245, 185, 66, 0.08));
-  box-shadow:
-    0 12px 28px rgba(0, 0, 0, 0.32),
-    inset 0 0 0 1px var(--ai-styles-selection-ring, rgba(245, 185, 66, 0.18));
-}
-
-.edit-expert-styles-wrapper.is-open .edit-expert-styles-title {
-  color: var(--ai-styles-selection-copy, rgba(245, 185, 66, 0.95));
 }
 
 .edit-expert-inpaint-btn {

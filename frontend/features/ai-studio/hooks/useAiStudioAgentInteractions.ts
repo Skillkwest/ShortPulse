@@ -79,7 +79,7 @@ export const useAiStudioAgentInteractions = ({
 
   const handleClearAgentChat = useCallback(() => {
     resetAgentChat();
-    resetAgentComposer({ preserveInput: true, preserveAttachments: true });
+    resetAgentComposer({ preserveAttachments: true });
     setLatestAgentPrompt(null);
     setPromptOrigin("manual");
     setAgentActions(undefined);

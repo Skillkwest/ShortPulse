@@ -41,7 +41,7 @@ describe("CreatePropertiesPanel", () => {
     overrides: Partial<React.ComponentProps<typeof CreatePropertiesPanel>> = {}
   ) => render(<CreatePropertiesPanel {...baseProps} {...overrides} />);
 
-  it("lets the expert create composer grow to the taller shared cap", () => {
+  it("caps the expert create composer before it can push the control lane too low", () => {
     const scrollHeightDescriptor = Object.getOwnPropertyDescriptor(
       HTMLTextAreaElement.prototype,
       "scrollHeight"
@@ -75,7 +75,7 @@ describe("CreatePropertiesPanel", () => {
       const composerInput = screen.getByRole("textbox");
       fireEvent.focus(composerInput);
 
-      expect(composerInput).toHaveStyle({ height: "680px", overflowY: "auto" });
+      expect(composerInput).toHaveStyle({ height: "520px", overflowY: "auto" });
     } finally {
       if (scrollHeightDescriptor) {
         Object.defineProperty(
@@ -786,12 +786,31 @@ describe("CreatePropertiesPanel", () => {
     expect(pulseTab).toHaveAttribute("aria-selected", "true");
     await waitFor(() => {
       expect(container.querySelector(".create-expert-left-panel")).toBeTruthy();
-      expect(screen.getByText("Prompt Presets")).toBeInTheDocument();
+      expect(screen.getByText("Pulse Presets")).toBeInTheDocument();
       expect(screen.getByRole("button", { name: "Image preset" })).toBeInTheDocument();
       expect(screen.getByRole("button", { name: "Single-shot preset" })).toBeInTheDocument();
       expect(screen.getByRole("button", { name: "Multi-shot preset" })).toBeInTheDocument();
       expect(screen.getByRole("button", { name: "Story Builder preset" })).toBeInTheDocument();
     });
+  });
+
+  it("notifies page-level expert create mode changes when the toggle is used", () => {
+    const onExpertCreateModeChange = vi.fn();
+
+    renderPanel({
+      beginnerMode: false,
+      expertCreateUiEligible: true,
+      agentEnabled: true,
+      onAgentInputChange: vi.fn(),
+      onAgentSend: vi.fn(),
+      onExpertCreateModeChange,
+    });
+
+    fireEvent.click(screen.getByRole("tab", { name: "Pulse" }));
+    fireEvent.click(screen.getByRole("tab", { name: "Standard" }));
+
+    expect(onExpertCreateModeChange).toHaveBeenNthCalledWith(1, "pulse");
+    expect(onExpertCreateModeChange).toHaveBeenNthCalledWith(2, "standard");
   });
 
   it("renders the shared styles control in expert create and toggles via callback", () => {
@@ -828,7 +847,7 @@ describe("CreatePropertiesPanel", () => {
     const openStylesButton = screen.getByRole("button", { name: "Styles" });
     expect(openStylesButton).toHaveAttribute("aria-expanded", "true");
     expect(openStylesButton).toHaveClass("is-open");
-    expect(openStylesButton.closest(".edit-expert-styles-wrapper")).toHaveClass("is-open");
+    expect(openStylesButton.closest(".edit-expert-styles-control")).toHaveClass("is-open");
   });
 
   it("shows selected style preview in the expert create styles button", () => {
@@ -846,7 +865,12 @@ describe("CreatePropertiesPanel", () => {
     const preview = stylesButton.querySelector(
       ".edit-expert-styles-btn-preview"
     ) as HTMLSpanElement | null;
+    const label = stylesButton.querySelector(
+      ".edit-expert-styles-btn-label"
+    ) as HTMLSpanElement | null;
     expect(preview).toBeTruthy();
+    expect(label).toBeTruthy();
+    expect(stylesButton).toHaveAttribute("aria-label", "Styles");
     expect(preview?.style.backgroundImage).toContain("/Styles/Cinematic.png");
   });
 
@@ -876,7 +900,12 @@ describe("CreatePropertiesPanel", () => {
     const preview = stylesButton.querySelector(
       ".edit-expert-styles-btn-preview"
     ) as HTMLSpanElement | null;
+    const label = stylesButton.querySelector(
+      ".edit-expert-styles-btn-label"
+    ) as HTMLSpanElement | null;
     expect(preview).toBeTruthy();
+    expect(label).toBeTruthy();
+    expect(stylesButton).toHaveAttribute("aria-label", "Styles");
     expect(preview?.style.backgroundImage).toContain("https://demo.supabase.co/storage");
   });
 
@@ -1019,7 +1048,7 @@ describe("CreatePropertiesPanel", () => {
 
   it("shows chat-off inline generate in expert mode and keeps it wired to onChatOffInlineGenerate", () => {
     const onChatOffInlineGenerate = vi.fn();
-    renderPanel({
+    const { container } = renderPanel({
       beginnerMode: false,
       expertCreateUiEligible: true,
       agentEnabled: true,
@@ -1031,8 +1060,74 @@ describe("CreatePropertiesPanel", () => {
 
     const button = screen.getByRole("button", { name: "Generate with current prompt" });
     expect(button).toHaveClass("agent-response-inline-generate-prefab");
+    const composerRow = container.querySelector(".agent-composer-row.is-stacked");
+    const primaryRow = container.querySelector(".agent-composer-primary-row");
+    const inputShell = container.querySelector(".agent-composer-input-shell");
+    const selectorRow = container.querySelector(".create-expert-controls");
+    expect(composerRow).toBeTruthy();
+    expect(primaryRow).toBeTruthy();
+    expect(selectorRow).toBeTruthy();
+    expect(inputShell).toHaveClass("has-full-width-text");
+    expect(inputShell).not.toHaveClass("has-inside-send-button");
+    const composerChildren = Array.from(composerRow?.children ?? []);
+    expect(composerChildren[0]).toBe(primaryRow);
+    expect(composerChildren).toHaveLength(1);
+    const primaryChildren = Array.from(primaryRow?.children ?? []);
+    expect(primaryChildren[0]?.textContent).toContain("Chat Mode");
+    expect(primaryChildren[1]).toBe(inputShell);
+    expect(primaryChildren[2]).toContainElement(screen.getByRole("button", { name: "Styles" }));
+    expect(
+      primaryChildren[3]?.querySelector('[aria-label="Generate with current prompt"]')
+    ).toBeTruthy();
+    const selectorChildren = Array.from(selectorRow?.children ?? []);
+    expect(selectorChildren[0]?.textContent).toContain("Character");
+    expect(selectorChildren[0]).toContainElement(
+      screen.getByRole("button", { name: "Enable character mode" })
+    );
     fireEvent.click(button);
     expect(onChatOffInlineGenerate).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps the stacked expert composer layout when chat mode is enabled", () => {
+    const { container } = renderPanel({
+      beginnerMode: false,
+      expertCreateUiEligible: true,
+      agentEnabled: true,
+      chatModeEnabled: true,
+      agentInput: "Send this as a chat instruction.",
+      onAgentInputChange: vi.fn(),
+      onAgentSend: vi.fn(),
+      characterModeEnabled: true,
+    });
+
+    const composerRow = container.querySelector(".agent-composer-row.is-stacked");
+    const primaryRow = container.querySelector(".agent-composer-primary-row");
+    const inputShell = container.querySelector(".agent-composer-input-shell");
+    const selectorRow = container.querySelector(".create-expert-controls");
+
+    expect(composerRow).toBeTruthy();
+    expect(primaryRow).toBeTruthy();
+    expect(selectorRow).toBeTruthy();
+    expect(inputShell).toHaveClass("has-inside-send-button");
+    expect(inputShell).not.toHaveClass("has-full-width-text");
+
+    const composerChildren = Array.from(composerRow?.children ?? []);
+    expect(composerChildren[0]).toBe(primaryRow);
+    expect(composerChildren).toHaveLength(1);
+
+    const primaryChildren = Array.from(primaryRow?.children ?? []);
+    expect(primaryChildren[0]).toContainElement(
+      screen.getByRole("button", { name: "Disable chat mode" })
+    );
+    expect(primaryChildren[1]).toBe(inputShell);
+    expect(primaryChildren[2]).toContainElement(screen.getByRole("button", { name: "Styles" }));
+
+    const selectorChildren = Array.from(selectorRow?.children ?? []);
+    expect(selectorChildren[0]?.textContent).toContain("Character");
+    expect(selectorChildren[0]).toContainElement(
+      screen.getByRole("button", { name: "Disable character mode" })
+    );
+    expect(inputShell).toContainElement(screen.getByRole("button", { name: "Send to agent" }));
   });
 
   it("keeps beginner chat-off inline generate on legacy markup", () => {
@@ -1178,6 +1273,7 @@ describe("CreatePropertiesPanel", () => {
     renderPanel({
       beginnerMode: false,
       expertCreateUiEligible: true,
+      agentEnabled: true,
       characterModeEnabled: true,
       onCharacterModeEnabledChange,
       onModelPickerOpen,

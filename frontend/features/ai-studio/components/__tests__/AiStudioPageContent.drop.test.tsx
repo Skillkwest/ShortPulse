@@ -489,11 +489,6 @@ describe("AiStudioPageContent right column drop router", () => {
     const canvasToggle = screen.getByRole("button", { name: "Canvas" });
     const referenceGrid = screen.getByTestId("reference-grid");
 
-    expect(canvasToggle).toHaveAttribute("aria-pressed", "true");
-    expect(referenceGrid).toHaveAttribute("data-panel-canvas", "visible");
-
-    fireEvent.click(canvasToggle);
-
     expect(canvasToggle).toHaveAttribute("aria-pressed", "false");
     expect(referenceGrid).toHaveAttribute("data-panel-canvas", "hidden");
 
@@ -501,6 +496,11 @@ describe("AiStudioPageContent right column drop router", () => {
 
     expect(canvasToggle).toHaveAttribute("aria-pressed", "true");
     expect(referenceGrid).toHaveAttribute("data-panel-canvas", "visible");
+
+    fireEvent.click(canvasToggle);
+
+    expect(canvasToggle).toHaveAttribute("aria-pressed", "false");
+    expect(referenceGrid).toHaveAttribute("data-panel-canvas", "hidden");
   });
 
   it("persists panel visibility toggles globally across workflows", () => {
@@ -556,7 +556,7 @@ describe("AiStudioPageContent right column drop router", () => {
     const referenceGridButton = shortcutButtons.getByRole("button", { name: "Reference Grid" });
 
     expect(canvasButton).toBeInTheDocument();
-    expect(canvasButton).toHaveAttribute("aria-pressed", "true");
+    expect(canvasButton).toHaveAttribute("aria-pressed", "false");
     expect(quickSlotButton).not.toBeDisabled();
     expect(referenceGridButton).not.toBeDisabled();
     expect(quickSlotButton).toHaveAttribute("aria-pressed", "true");

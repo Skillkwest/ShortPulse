@@ -8,7 +8,7 @@ export const AI_SHELL_LEFT_SOUND_MIN_PX = 760;
 export const AI_SHELL_LEFT_VIDEO_MIN_PX = 820;
 export const AI_SHELL_LEFT_VIDEO_DEFAULT_RATIO = 0.6;
 export const AI_SHELL_LEFT_CHARACTER_DEFAULT_RATIO = 0.75;
-export const AI_SHELL_LEFT_EXPERT_CREATE_MIN_PX = 840;
+export const AI_SHELL_LEFT_EXPERT_CREATE_MIN_PX = 864;
 export const AI_SHELL_LEFT_EXPERT_EDIT_MIN_PX = 970;
 export const AI_SHELL_LEFT_EXPERT_CREATE_MAX_PX = 1120;
 export const AI_SHELL_LEFT_CHARACTER_MIN_PX = 920;
@@ -142,3 +142,43 @@ export const shouldExpandAiShellOnToolSelect = (
   previousTool: string | null,
   nextTool: string | null
 ): boolean => nextTool === "create" && nextTool !== previousTool;
+
+/**
+ * Resolves the shell resize action for expert create based on tool navigation and mode changes.
+ */
+export const resolveExpertCreateShellResizeAction = ({
+  previousTool,
+  nextTool,
+  previousMode,
+  nextMode,
+  expertCreateEnabled,
+}: {
+  previousTool: string | null;
+  nextTool: string | null;
+  previousMode: "standard" | "pulse";
+  nextMode: "standard" | "pulse";
+  expertCreateEnabled: boolean;
+}): "collapse" | null => {
+  if (!expertCreateEnabled || nextTool !== "create") return null;
+  const isEnteringCreate = shouldExpandAiShellOnToolSelect(previousTool, nextTool);
+  const isModeChangeWhileInCreate = previousTool === "create" && previousMode !== nextMode;
+  if (!isEnteringCreate && !isModeChangeWhileInCreate) return null;
+  if (isEnteringCreate) return "collapse";
+  return nextMode === "standard" ? "collapse" : null;
+};
+
+/**
+ * Indicates whether a new expert-create session should re-collapse the shell.
+ */
+export const shouldCollapseExpertCreateOnSessionChange = ({
+  previousSessionId,
+  nextSessionId,
+  nextTool,
+  expertCreateEnabled,
+}: {
+  previousSessionId: string | null;
+  nextSessionId: string | null;
+  nextTool: string | null;
+  nextMode: "standard" | "pulse";
+  expertCreateEnabled: boolean;
+}): boolean => previousSessionId !== nextSessionId && nextTool === "create" && expertCreateEnabled;

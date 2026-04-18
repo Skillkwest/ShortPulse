@@ -16,6 +16,12 @@ const cloneMessageAttachments = (
   attachments: UseAiStudioAgentOrchestrationParams["agentAttachments"]
 ) => attachments.map((attachment) => ({ ...attachment }));
 
+const extractAgentResponseMessage = (response: unknown): string | null => {
+  if (!response || typeof response !== "object") return null;
+  const message = (response as { message?: unknown }).message;
+  return typeof message === "string" ? message : null;
+};
+
 export const useAiStudioAgentOrchestration = ({
   agentIsSending,
   agentUiBusyRef,
@@ -50,7 +56,6 @@ export const useAiStudioAgentOrchestration = ({
   setOutputs,
   setActiveOutputId,
   lastAssistantMessage,
-  setUiNotice,
 }: UseAiStudioAgentOrchestrationParams) => {
   const [isPromptRefining, setIsPromptRefining] = useState(false);
   const [isReferencePromptEnhancing, setIsReferencePromptEnhancing] = useState(false);
@@ -301,7 +306,9 @@ export const useAiStudioAgentOrchestration = ({
         isolateHistory: true,
         skipUserEcho: true,
       });
-      const refinedPrompt = normalizePromptText(actions?.applyPrompt ?? response?.message ?? null);
+      const refinedPrompt = normalizePromptText(
+        actions?.applyPrompt ?? extractAgentResponseMessage(response)
+      );
       if (refinedPrompt) {
         setSharedPrompt(refinedPrompt);
         setLatestAgentPrompt(refinedPrompt);
@@ -342,7 +349,9 @@ export const useAiStudioAgentOrchestration = ({
         isolateHistory: true,
         skipUserEcho: true,
       });
-      const nextPrompt = normalizePromptText(actions?.applyPrompt ?? response?.message ?? null);
+      const nextPrompt = normalizePromptText(
+        actions?.applyPrompt ?? extractAgentResponseMessage(response)
+      );
       if (nextPrompt) {
         if (isVideoPromptTool) {
           setVideoReferenceText(nextPrompt);
@@ -469,7 +478,7 @@ export const useAiStudioAgentOrchestration = ({
           skipUserEcho: true,
         });
         const describedPrompt = normalizePromptText(
-          actions?.applyPrompt ?? response?.message ?? null
+          actions?.applyPrompt ?? extractAgentResponseMessage(response)
         );
         if (!describedPrompt) {
           failPlaceholder("Describe response did not include a usable prompt.");

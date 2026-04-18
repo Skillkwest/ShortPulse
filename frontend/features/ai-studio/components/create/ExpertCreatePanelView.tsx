@@ -6,6 +6,7 @@ import { AspectDropdown } from "../AspectDropdown";
 import { ResolutionDropdown } from "../ResolutionDropdown";
 import { PromptStep } from "../PromptStep";
 import { CreateExpertPresetPanel } from "./CreateExpertPresetPanel";
+import type { ExpertCreateMode } from "../CreatePropertiesPanel";
 import type { AspectOption } from "../../types";
 
 type ExpertCreatePanelViewProps = {
@@ -39,6 +40,8 @@ type ExpertCreatePanelViewProps = {
   imageResolutionValue: string;
   imageResolutionOptions: Array<{ value: string; label: string }>;
   onImageResolutionChange?: (value: string) => void;
+  expertCreateMode?: ExpertCreateMode;
+  onExpertCreateModeChange?: (value: ExpertCreateMode) => void;
 };
 
 export function ExpertCreatePanelView({
@@ -72,12 +75,16 @@ export function ExpertCreatePanelView({
   imageResolutionValue,
   imageResolutionOptions,
   onImageResolutionChange,
+  expertCreateMode,
+  onExpertCreateModeChange,
 }: ExpertCreatePanelViewProps) {
   const PULSE_RAIL_TRANSITION_MS = 220;
   const [agentInputVisualRowCount, setAgentInputVisualRowCount] = React.useState(1);
-  const [createMode, setCreateMode] = React.useState<"standard" | "pulse">("standard");
+  const [uncontrolledCreateMode, setUncontrolledCreateMode] =
+    React.useState<ExpertCreateMode>("standard");
   const [isPulseRailMounted, setIsPulseRailMounted] = React.useState(false);
   const [isPulseRailActive, setIsPulseRailActive] = React.useState(false);
+  const createMode = expertCreateMode ?? uncontrolledCreateMode;
   const costValue = costCredits != null ? costCredits : "—";
   const modelLogoWidth = useUnoptimizedModelLogo ? 50 : 74;
   const modelLogoHeight = useUnoptimizedModelLogo ? 12 : 18;
@@ -104,7 +111,10 @@ export function ExpertCreatePanelView({
           role="tab"
           aria-selected={createMode === "standard"}
           className={`create-expert-mode-tab ${createMode === "standard" ? "is-active" : ""}`}
-          onClick={() => setCreateMode("standard")}
+          onClick={() => {
+            setUncontrolledCreateMode("standard");
+            onExpertCreateModeChange?.("standard");
+          }}
         >
           Standard
         </button>
@@ -113,7 +123,10 @@ export function ExpertCreatePanelView({
           role="tab"
           aria-selected={createMode === "pulse"}
           className={`create-expert-mode-tab ${createMode === "pulse" ? "is-active" : ""}`}
-          onClick={() => setCreateMode("pulse")}
+          onClick={() => {
+            setUncontrolledCreateMode("pulse");
+            onExpertCreateModeChange?.("pulse");
+          }}
         >
           Pulse
         </button>
@@ -124,11 +137,17 @@ export function ExpertCreatePanelView({
   React.useEffect(() => {
     if (createMode === "pulse") {
       setIsPulseRailMounted(true);
-      const enterTimeout = window.setTimeout(() => {
-        setIsPulseRailActive(true);
-      }, 16);
+      let frameTwo: number | null = null;
+      const frameOne = window.requestAnimationFrame(() => {
+        frameTwo = window.requestAnimationFrame(() => {
+          setIsPulseRailActive(true);
+        });
+      });
       return () => {
-        window.clearTimeout(enterTimeout);
+        window.cancelAnimationFrame(frameOne);
+        if (frameTwo != null) {
+          window.cancelAnimationFrame(frameTwo);
+        }
       };
     }
 
@@ -146,6 +165,7 @@ export function ExpertCreatePanelView({
     emptyAgentChatSpacerClassName: hasChatHistory ? "" : "create-expert-chat-spacer",
     onAgentInputVisualRowCountChange: setAgentInputVisualRowCount,
     onClearAgentChat: undefined,
+    composerLeadingContent: promptStepProps.composerLeadingContent,
   };
   const shouldHideReadyTitle = agentInputVisualRowCount >= 8;
   const promptAndControls = (
@@ -165,10 +185,12 @@ export function ExpertCreatePanelView({
               }`}
             >
               <div className="create-expert-character-mode-meta">
-                <p className="create-expert-character-mode-title">Character</p>
+                <span className="create-expert-character-mode-title">Character</span>
                 <button
                   type="button"
-                  className={`audio-toggle ai-character-mode-toggle create-expert-toggle-control ${characterModeEnabled ? "is-active" : ""}`}
+                  className={`audio-toggle ai-character-mode-toggle create-expert-toggle-control ${
+                    characterModeEnabled ? "is-active" : ""
+                  }`}
                   aria-pressed={characterModeEnabled}
                   aria-label={
                     characterModeEnabled ? "Disable character mode" : "Enable character mode"
@@ -180,7 +202,9 @@ export function ExpertCreatePanelView({
                   </span>
                 </button>
               </div>
-              {characterModeEnabled ? (
+            </div>
+            {characterModeEnabled ? (
+              <div className="create-expert-control create-expert-character-picker-control">
                 <button
                   type="button"
                   className={`model-picker-btn create-expert-picker-control create-expert-character-picker-trigger ${
@@ -210,8 +234,8 @@ export function ExpertCreatePanelView({
                   ) : null}
                   <span className="model-picker-name">{selectedCharacterName}</span>
                 </button>
-              ) : null}
-            </div>
+              </div>
+            ) : null}
             <div className="create-expert-control create-expert-model-control">
               <span className="create-expert-control-label">Model</span>
               <button

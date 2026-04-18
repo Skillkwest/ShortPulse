@@ -122,7 +122,7 @@ body:has(.ai-studio-page[data-selected-tool="canvas"]) {
   body:has(.ai-studio-page[data-selected-tool="character"]),
   html:has(.ai-studio-page[data-selected-tool="elements"]),
   body:has(.ai-studio-page[data-selected-tool="elements"]) {
-    overflow-y: hidden;
+    overflow-y: auto;
   }
 }
 
@@ -376,8 +376,8 @@ body:has(.ai-studio-page[data-selected-tool="canvas"]) {
   .ai-studio-page[data-selected-tool="sound-effects"],
   .ai-studio-page[data-selected-tool="music"],
   .ai-studio-page[data-selected-tool="character"] {
-    height: var(--app-fixed-height);
-    overflow: hidden;
+    height: auto;
+    overflow: visible;
   }
 }
 
@@ -977,10 +977,6 @@ body:has(.ai-studio-page[data-selected-tool="canvas"]) {
   grid-template-columns: 1fr;
 }
 
-.ai-shell.ai-shell-right-column-collapsed {
-  grid-template-columns: minmax(0, 1fr) 0 0;
-}
-
 .ai-shell.ai-shell-performance-dense .ai-panel {
   box-shadow: 0 6px 14px rgba(0, 0, 0, 0.26);
 }
@@ -1054,7 +1050,7 @@ body:has(.ai-studio-page[data-selected-tool="canvas"]) {
   position: relative;
   min-width: 0;
   width: 100%;
-  min-height: var(--ai-shell-column-max-height);
+  min-height: 0;
   height: 100%;
   align-self: stretch;
   display: flex;
@@ -1142,7 +1138,9 @@ body:has(.ai-studio-page[data-selected-tool="canvas"]) {
     0 0 12px var(--ai-shell-divider-base-handle-glow);
   transition:
     background 0.18s ease,
-    box-shadow 0.18s ease;
+    box-shadow 0.18s ease,
+    width 0.18s ease,
+    height 0.18s ease;
 }
 
 .ai-shell-divider:hover::before,
@@ -1156,7 +1154,6 @@ body:has(.ai-studio-page[data-selected-tool="canvas"]) {
     color-mix(in srgb, var(--ai-shell-divider-active-color) 30%, transparent) 82%,
     color-mix(in srgb, var(--ai-shell-divider-active-color) 0%, transparent)
   );
-  box-shadow: 0 0 0 1px var(--ai-shell-divider-active-ring);
 }
 
 .ai-shell-divider:hover::after,
@@ -1164,11 +1161,14 @@ body:has(.ai-studio-page[data-selected-tool="canvas"]) {
 .ai-shell.ai-shell-resizing .ai-shell-divider::after {
   background: linear-gradient(
     180deg,
-    var(--ai-shell-divider-active-handle-start),
-    var(--ai-shell-divider-active-handle-end)
+    color-mix(in srgb, var(--ai-shell-divider-active-handle-start) 70%, white),
+    var(--ai-shell-divider-active-handle-end) 52%,
+    color-mix(in srgb, var(--ai-shell-divider-active-handle-end) 72%, white)
   );
+  width: 4px;
+  height: 80px;
   box-shadow:
-    0 0 0 1px var(--ai-shell-divider-active-handle-ring),
+    0 0 0 1px color-mix(in srgb, var(--ai-shell-divider-active-handle-ring) 36%, transparent),
     0 0 24px var(--ai-shell-divider-active-handle-glow);
 }
 
@@ -1180,6 +1180,26 @@ body:has(.ai-studio-page[data-selected-tool="canvas"]) {
   --ai-shell-divider-active-handle-end: rgba(37, 204, 255, 0.84);
   --ai-shell-divider-active-handle-ring: rgba(37, 204, 255, 0.24);
   --ai-shell-divider-active-handle-glow: rgba(37, 204, 255, 0.24);
+}
+
+.ai-studio-page[data-selected-tool="edit"] .ai-shell-divider,
+.ai-studio-page[data-selected-tool="image"] .ai-shell-divider {
+  --ai-shell-divider-active-color: rgba(245, 185, 66, 0.9);
+  --ai-shell-divider-active-ring: rgba(245, 185, 66, 0.28);
+  --ai-shell-divider-active-handle-start: rgba(255, 225, 156, 0.98);
+  --ai-shell-divider-active-handle-end: rgba(245, 185, 66, 0.9);
+  --ai-shell-divider-active-handle-ring: rgba(245, 185, 66, 0.24);
+  --ai-shell-divider-active-handle-glow: rgba(245, 185, 66, 0.24);
+}
+
+.ai-studio-page[data-selected-tool="video"] .ai-shell-divider,
+.ai-studio-page[data-selected-tool="kling"] .ai-shell-divider {
+  --ai-shell-divider-active-color: rgba(170, 101, 239, 0.82);
+  --ai-shell-divider-active-ring: rgba(170, 101, 239, 0.3);
+  --ai-shell-divider-active-handle-start: rgba(219, 192, 255, 0.98);
+  --ai-shell-divider-active-handle-end: rgba(170, 101, 239, 0.9);
+  --ai-shell-divider-active-handle-ring: rgba(170, 101, 239, 0.24);
+  --ai-shell-divider-active-handle-glow: rgba(170, 101, 239, 0.26);
 }
 
 .ai-studio-page[data-selected-tool="sound"] .ai-shell-divider,
@@ -1232,6 +1252,24 @@ body:has(.ai-studio-page[data-selected-tool="canvas"]) {
   --ai-shell-divider-active-handle-glow: rgba(214, 220, 228, 0.18);
 }
 
+.ai-studio-page[data-selected-tool="styles"] .ai-shell-divider {
+  --ai-shell-divider-active-color: rgba(214, 220, 228, 0.74);
+  --ai-shell-divider-active-ring: rgba(214, 220, 228, 0.24);
+  --ai-shell-divider-active-handle-start: rgba(232, 237, 244, 0.98);
+  --ai-shell-divider-active-handle-end: rgba(196, 203, 214, 0.84);
+  --ai-shell-divider-active-handle-ring: rgba(214, 220, 228, 0.18);
+  --ai-shell-divider-active-handle-glow: rgba(214, 220, 228, 0.18);
+}
+
+.ai-studio-page[data-selected-tool="media-library"] .ai-shell-divider {
+  --ai-shell-divider-active-color: rgba(255, 186, 114, 0.92);
+  --ai-shell-divider-active-ring: rgba(255, 186, 114, 0.28);
+  --ai-shell-divider-active-handle-start: rgba(255, 227, 188, 0.98);
+  --ai-shell-divider-active-handle-end: rgba(255, 186, 114, 0.9);
+  --ai-shell-divider-active-handle-ring: rgba(255, 186, 114, 0.22);
+  --ai-shell-divider-active-handle-glow: rgba(255, 186, 114, 0.22);
+}
+
 .ai-shell-divider:focus-visible {
   outline: 2px solid rgba(105, 220, 203, 0.85);
   outline-offset: -2px;
@@ -1240,6 +1278,16 @@ body:has(.ai-studio-page[data-selected-tool="canvas"]) {
 .ai-studio-page[data-selected-tool="create"] .ai-shell-divider:focus-visible,
 .ai-studio-page[data-selected-tool="text"] .ai-shell-divider:focus-visible {
   outline-color: rgba(37, 204, 255, 0.82);
+}
+
+.ai-studio-page[data-selected-tool="edit"] .ai-shell-divider:focus-visible,
+.ai-studio-page[data-selected-tool="image"] .ai-shell-divider:focus-visible {
+  outline-color: rgba(245, 185, 66, 0.9);
+}
+
+.ai-studio-page[data-selected-tool="video"] .ai-shell-divider:focus-visible,
+.ai-studio-page[data-selected-tool="kling"] .ai-shell-divider:focus-visible {
+  outline-color: rgba(170, 101, 239, 0.9);
 }
 
 .ai-studio-page[data-selected-tool="canvas"] .ai-shell-divider:focus-visible,
@@ -1257,6 +1305,14 @@ body:has(.ai-studio-page[data-selected-tool="canvas"]) {
 
 .ai-studio-page[data-selected-tool="presets"] .ai-shell-divider:focus-visible {
   outline-color: rgba(214, 220, 228, 0.82);
+}
+
+.ai-studio-page[data-selected-tool="styles"] .ai-shell-divider:focus-visible {
+  outline-color: rgba(214, 220, 228, 0.82);
+}
+
+.ai-studio-page[data-selected-tool="media-library"] .ai-shell-divider:focus-visible {
+  outline-color: rgba(255, 186, 114, 0.9);
 }
 
 body.ai-shell-resizing,
@@ -1342,8 +1398,8 @@ body.ai-shell-resizing * {
 .ai-studio-page[data-beginner-mode="off"][data-selected-tool="video"] .panel.ai-panel.ai-properties,
 .ai-studio-page[data-beginner-mode="off"][data-selected-tool="kling"]
   .panel.ai-panel.ai-properties {
-  min-height: calc(var(--ai-shell-column-max-height) + 12px);
-  max-height: calc(var(--ai-shell-column-max-height) + 12px);
+  min-height: var(--ai-shell-column-max-height);
+  max-height: var(--ai-shell-column-max-height);
 }
 
 /* Hide helper/tip copy in AI Studio properties panels (Create/Edit/Video) without removing markup. */
@@ -1390,7 +1446,7 @@ body.ai-shell-resizing * {
   position: relative;
   align-self: stretch;
   width: 100%;
-  min-height: var(--ai-shell-column-max-height);
+  min-height: 0;
   height: 100%;
   max-height: none;
   overflow: visible;
@@ -1405,9 +1461,9 @@ body.ai-shell-resizing * {
   flex-direction: column;
   gap: 14px;
   width: 100%;
-  height: var(--ai-shell-column-max-height);
+  height: calc(var(--ai-shell-column-max-height) - var(--ai-shell-sticky-top));
   min-height: 0;
-  max-height: var(--ai-shell-column-max-height);
+  max-height: calc(var(--ai-shell-column-max-height) - var(--ai-shell-sticky-top));
   overflow: hidden;
 }
 

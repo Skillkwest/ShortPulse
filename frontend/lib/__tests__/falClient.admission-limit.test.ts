@@ -134,4 +134,21 @@ describe("falClient generation admission error handling", () => {
       "Input video URL is not publicly reachable."
     );
   });
+
+  it("maps generic validation envelopes with unsafe-content detail to explicit-content copy", async () => {
+    fetchWithAuthMock.mockResolvedValueOnce(
+      createJsonResponse(
+        {
+          error: "Error validating the input",
+          detail:
+            "The model did not generate the expected output for this prompt. This may occur for several reasons, including unsafe content.",
+        },
+        422
+      )
+    );
+
+    await expect(submitFalNanoBanana({ prompt: "portrait" })).rejects.toThrow(
+      "This request was blocked for explicit or unsafe content. Try revising the prompt or references."
+    );
+  });
 });

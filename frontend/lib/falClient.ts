@@ -3,6 +3,7 @@
  * Proxies through Next API routes to keep provider keys server-side.
  */
 import { fetchWithAuth } from "./authenticatedFetch";
+import { normalizeExplicitContentFailure } from "./explicitContentFailure";
 
 export type FalSubmitRequest = {
   prompt: string;
@@ -356,6 +357,21 @@ const fetchWithTimeout = async (
 const readApiErrorMessage = (payload: unknown): string => {
   if (!payload || typeof payload !== "object" || Array.isArray(payload)) return "Unexpected error";
   const data = payload as Record<string, unknown>;
+  const explicitContentFailure = normalizeExplicitContentFailure({
+    message:
+      extractErrorTextCandidate(data.detail) ??
+      extractErrorTextCandidate(data.error) ??
+      extractErrorTextCandidate(data.message) ??
+      extractErrorTextCandidate(data.msg),
+    detail:
+      extractErrorTextCandidate(data.detail) ??
+      extractErrorTextCandidate(data.error) ??
+      extractErrorTextCandidate(data.message) ??
+      extractErrorTextCandidate(data.msg),
+  });
+  if (explicitContentFailure) {
+    return explicitContentFailure.errorDetail;
+  }
   if (typeof data.message === "string" && data.message.length > 0) return data.message;
   if (typeof data.error === "string" && data.error.length > 0) return data.error;
   if (typeof data.msg === "string" && data.msg.length > 0) return data.msg;
@@ -461,6 +477,29 @@ const asNonEmptyString = (value: unknown): string | null => {
   if (typeof value !== "string") return null;
   const trimmed = value.trim();
   return trimmed.length ? trimmed : null;
+};
+
+const extractErrorTextCandidate = (value: unknown, depth = 0): string | null => {
+  if (depth > 3 || value == null) return null;
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    return trimmed.length ? trimmed : null;
+  }
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      const nested = extractErrorTextCandidate(item, depth + 1);
+      if (nested) return nested;
+    }
+    return null;
+  }
+  if (typeof value !== "object") return null;
+  const record = value as Record<string, unknown>;
+  return (
+    extractErrorTextCandidate(record.msg, depth + 1) ??
+    extractErrorTextCandidate(record.message, depth + 1) ??
+    extractErrorTextCandidate(record.error, depth + 1) ??
+    extractErrorTextCandidate(record.detail, depth + 1)
+  );
 };
 
 const readQueuedSubmitResponse = (payload: unknown): FalQueuedSubmitResponse | null => {

@@ -47,6 +47,7 @@ Rules:
 - Use Vercel envs for deployed `development`, `preview`, and `production` behavior.
 - Use `vercel env pull frontend/.env.local --environment development` to materialize local runtime values after the repo is linked.
 - Do not treat `frontend/.env.local`, `.env.agent.local`, `/tmp` exports, or ad-hoc text snapshots as authoritative for deployed values.
+- Current active posture is the lean Fal direct-submit path. Keep `SHORTPULSE_FAL_QUEUE_ENABLED`, `SHORTPULSE_FAL_RECONCILER_ENABLED`, and Fal admission overrides unset/off in active Vercel environments unless a deliberate durability exercise is approved.
 - Keep tooling-only keys out of Vercel project envs. This includes staging probe helpers and Vercel operator tokens such as `SHORTPULSE_STAGING_BASE_URL`, `SHORTPULSE_STAGING_BEARER_TOKEN`, `SHORTPULSE_VERCEL_API_TOKEN`, `SHORTPULSE_VERCEL_PROTECTION_BYPASS_TOKEN`, `VERCEL_API_TOKEN`, and `VERCEL_AUTOMATION_BYPASS_TOKEN`.
 - Environment-specific deploy keys such as `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `APP_BASE_URL`, and `SHORTPULSE_PUBLIC_API_BASE_URL` must not be stored as one shared Vercel record spanning `development`, `preview`, and `production`.
 

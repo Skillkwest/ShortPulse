@@ -2847,6 +2847,12 @@ Add new work under `## Unreleased` at the top of this file. When promoting relea
 - Added a dedicated stylesheet for the primary panel (`frontend/styles/ai-studio-presets-library.css`) and wired it through `frontend/styles/globals.css`; updated docs (`README.md`, `docs/routes.md`, `docs/styles-structure.md`, `docs/sops/sop_ai_studio_index.md`, `docs/sops/sop_image_generation.md`).
 - Added session-restore parity for `selectedTool="presets"` in snapshot hydration allowlist (`sessionSnapshotHydrator`) and expanded focused AI Studio regression tests.
 
+## 2026-04-19 (AI Studio Pulse Presets library panel)
+- Added `Libraries -> Pulse Presets` as a new primary left-panel surface in AI Studio and placed it directly above `Prompt Presets` in the Libraries rail.
+- Implemented a raw `PulsePresetsLibraryPanel` that intentionally mirrors the Prompt Presets panel visually while keeping its catalog and edit/delete/create state local-only and uncoupled from Prompt Presets persistence.
+- Added a dedicated stylesheet for the panel (`frontend/styles/ai-studio-pulse-presets-library.css`) and wired it through `frontend/styles/globals.css`; updated docs (`README.md`, `docs/routes.md`, `docs/styles-structure.md`, `docs/sops/sop_ai_studio_index.md`, `docs/sops/sop_image_generation.md`).
+- Added tool routing, session hydration allowlist support, and focused AI Studio regression coverage for `pulse-presets`.
+
 ## 2026-03-08
 - Added AI Studio primary Styles Library delete UX: hovering a real style tile now reveals a destructive `X` action, and clicking it opens a compact yes/no confirmation modal.
 - Wired per-user style deletion persistence through `user_preferences.ai_studio_deleted_style_ids` with local fallback, shared selection synchronization, and catalog filtering across both primary Styles Library and right-rail styles surfaces.
@@ -3002,3 +3008,33 @@ Add new work under `## Unreleased` at the top of this file. When promoting relea
   - added Lane A evidence packets for size-budget gate recovery (`A1-02`), validate relock (`A1-03`), policy-surface alignment (`A2-01`), and docs governance cleanup (`A3-01`),
   - reconciled Lane A execution-plan status rows and global tracker evidence references.
 - Validation: `npm -C frontend run docs:check` and `npm -C frontend run validate` both passed (`412` files / `2615` tests; lint warnings unchanged at baseline `7`).
+
+## 2026-04-20 (AI Studio Pulse runtime planning doc set)
+- Added the full Pulse runtime planning set under `docs/planning/`:
+  - `ai-studio-pulse-runtime-master-plan-2026-04-20.md`
+  - `ai-studio-pulse-runtime-tracker-2026-04-20.md`
+  - `ai-studio-pulse-runtime-decision-log-2026-04-20.md`
+  - `ai-studio-pulse-runtime-phase-0-v1-contract-and-stop-rules-plan-2026-04-20.md`
+  - `ai-studio-pulse-runtime-phase-1-domain-model-and-storage-plan-2026-04-20.md`
+  - `ai-studio-pulse-runtime-phase-2-client-runtime-state-plan-2026-04-20.md`
+  - `ai-studio-pulse-runtime-phase-3-session-persistence-plan-2026-04-20.md`
+  - `ai-studio-pulse-runtime-phase-4-agent-contract-and-transport-plan-2026-04-20.md`
+  - `ai-studio-pulse-runtime-phase-5-server-runtime-activation-plan-2026-04-20.md`
+  - `ai-studio-pulse-runtime-phase-6-surface-unification-and-activation-ux-plan-2026-04-20.md`
+  - `ai-studio-pulse-runtime-phase-7-validation-docs-and-rollout-plan-2026-04-20.md`
+- Locked the repo-audited V1 Pulse direction:
+  - one saved `PulseDefinition` authority,
+  - one active Pulse runtime per Create session,
+  - Pulse activation as hidden runtime behavior instead of composer mutation,
+  - V1 implemented as a profile-aware layer on top of the current AI Studio prompt-compiler runtime.
+- Updated `docs/README.md` and `docs/planning/README.md` so the full plan set is discoverable.
+- Added an explicit program done state and completion stop rule so the Pulse runtime program must stop once complete, and accidental follow-up requests to continue the same program are treated as mistakes unless a new separate scope is opened.
+- Rewrote the Pulse plan set to make Pulse authoring/build/manage UX first-class scope alongside runtime activation, so the program cannot be marked done if activation works but users still lack the intended custom-GPT-style creation workflow.
+- Extended the Pulse plan set again after a repo + external-research comparison to explicitly cover:
+  - direct OpenAI bypass compatibility,
+  - Pulse-mode chat/style shell semantics,
+  - Create-rail topology versus full library behavior,
+  - alignment with broader AI Studio session-persistence gates,
+  - multimodal/context visibility rules,
+  - and telemetry/eval posture for Pulse rollout.
+- Added explicit recommended V1 defaults to the Pulse Phase 0 plan and master plan so implementation can start from one coherent posture instead of reopening every contract branch.

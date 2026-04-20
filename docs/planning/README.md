@@ -29,6 +29,17 @@ Purpose: active planning artifacts and current execution backlogs.
 - `generation-pipeline-continuation-reference-grid-read-model-simplification-2026-04-05.md`: bucket subplan for Reference Grid read-model simplification.
 - `ai-studio-live-session-check-media-panel-handoff-2026-04-05.md`: execution-oriented handoff for the staging AI Studio Media Library panel lag investigation, including trusted evidence, decision gates, and the ordered remediation plan for follow-on agents.
 - `ai-studio-expert-edit-properties-panel-fresh-start-lean-up-plan-2026-04-10.md`: fresh-start, live-repo-audit-backed roadmap for making the Expert Edit properties panel leaner without changing behavior, layout, or current interaction semantics.
+- `ai-studio-pulse-runtime-master-plan-2026-04-20.md`: canonical master plan for upgrading Pulse from local prompt-append presets into a saved Create agent-profile runtime.
+- `ai-studio-pulse-runtime-tracker-2026-04-20.md`: authoritative tracker for Pulse runtime phase sequencing, phase gates, and planning-task completeness.
+- `ai-studio-pulse-runtime-decision-log-2026-04-20.md`: locked V1 Pulse architecture and rollout decisions for the runtime program.
+- `ai-studio-pulse-runtime-phase-0-v1-contract-and-stop-rules-plan-2026-04-20.md`: Phase 0 plan for locking the V1 Pulse contract, naming, stop rules, and upfront product decisions.
+- `ai-studio-pulse-runtime-phase-1-domain-model-and-storage-plan-2026-04-20.md`: Phase 1 plan for choosing the authoritative `PulseDefinition` schema, saved-definition storage authority, and Pulse authoring contract.
+- `ai-studio-pulse-runtime-phase-2-client-runtime-state-plan-2026-04-20.md`: Phase 2 plan for moving active Pulse state into page-level and panel-composition runtime ownership.
+- `ai-studio-pulse-runtime-phase-3-session-persistence-plan-2026-04-20.md`: Phase 3 plan for adding schema-safe Pulse runtime persistence to AI Studio session snapshots.
+- `ai-studio-pulse-runtime-phase-4-agent-contract-and-transport-plan-2026-04-20.md`: Phase 4 plan for threading Pulse metadata, multimodal context rules, and hidden runtime state boundaries through `AgentContext`, transport, and route envelope seams.
+- `ai-studio-pulse-runtime-phase-5-server-runtime-activation-plan-2026-04-20.md`: Phase 5 plan for making the AI Studio server runtime Pulse-aware, resolving direct-bypass compatibility, and adding Pulse telemetry.
+- `ai-studio-pulse-runtime-phase-6-surface-unification-and-activation-ux-plan-2026-04-20.md`: Phase 6 plan for unifying the Pulse library/Create rail, shipping Pulse authoring/manage UX, and landing the final rail/shell semantics alongside real runtime activation.
+- `ai-studio-pulse-runtime-phase-7-validation-docs-and-rollout-plan-2026-04-20.md`: Phase 7 plan for tests, docs, telemetry/eval posture, rollout gating, and final Pulse runtime closeout.
 - `ai-studio-inpaint-reference-contract-master-plan-2026-04-14.md`: canonical master plan for resolving the inpaint token/payload/mask/UI contract mismatch in Expert Edit.
 - `ai-studio-inpaint-reference-contract-tracker-2026-04-14.md`: operational tracker for the inpaint-reference contract program with phase gates, rollback notes, and planning-task done state.
 - `ai-studio-inpaint-reference-contract-phase-1-target-contract-plan-2026-04-14.md`: Phase 1 plan for locking the supported inpaint token set, mask contract, and provider-lane direction.

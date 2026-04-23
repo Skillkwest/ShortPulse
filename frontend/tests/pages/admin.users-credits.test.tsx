@@ -190,6 +190,7 @@ describe("Admin users and credits overview", () => {
                   stripeSubscriptionId: "sub_test",
                   recurringPriceCents: 3000,
                   monthlyCreditsCents: 10000,
+                  storageLimitBytes: 536870912000,
                   status: "inactive",
                   currentPeriodEnd: "2026-05-01T00:00:00.000Z",
                 }
@@ -204,6 +205,7 @@ describe("Admin users and credits overview", () => {
                     stripeSubscriptionId: "sub_test",
                     recurringPriceCents: 1000,
                     monthlyCreditsCents: 4000,
+                    storageLimitBytes: 107374182400,
                     status: "active",
                     currentPeriodEnd: "2026-05-01T00:00:00.000Z",
                   },
@@ -216,6 +218,7 @@ describe("Admin users and credits overview", () => {
                   stripePriceId: "price_current_business",
                   recurringPriceCents: 3000,
                   monthlyCreditsCents: 10000,
+                  storageLimitBytes: 536870912000,
                   acquisitionEnabled: true,
                   isActive: true,
                 }
@@ -226,6 +229,7 @@ describe("Admin users and credits overview", () => {
                   stripePriceId: "price_legacy_studio",
                   recurringPriceCents: 1000,
                   monthlyCreditsCents: 4000,
+                  storageLimitBytes: 107374182400,
                   acquisitionEnabled: false,
                   isActive: true,
                 },
@@ -238,6 +242,7 @@ describe("Admin users and credits overview", () => {
                   stripePriceId: "price_current_business",
                   recurringPriceCents: 3000,
                   monthlyCreditsCents: 10000,
+                  storageLimitBytes: 536870912000,
                   acquisitionEnabled: true,
                   isActive: true,
                 }
@@ -248,8 +253,43 @@ describe("Admin users and credits overview", () => {
                   stripePriceId: "price_current_studio",
                   recurringPriceCents: 3000,
                   monthlyCreditsCents: 6000,
+                  storageLimitBytes: 107374182400,
                   acquisitionEnabled: true,
                   isActive: true,
+                },
+          activeStorageAddons:
+            userId === USER_2_ID
+              ? []
+              : [
+                  {
+                    id: "addon-25gb",
+                    storageAddonId: "storage_25gb",
+                    offerId: "storage_25gb__current",
+                    stripeSubscriptionItemId: "si_storage_25",
+                    stripePriceId: "price_storage_25",
+                    storageLimitBytes: 26843545600,
+                    quantity: 1,
+                    recurringPriceCents: 500,
+                    status: "active",
+                  },
+                ],
+          storageSummary:
+            userId === USER_2_ID || userId === ADMIN_ID
+              ? {
+                  usedBytes: 2147483648,
+                  baseLimitBytes: 0,
+                  addonLimitBytes: 0,
+                  totalLimitBytes: 0,
+                  remainingBytes: 0,
+                  isOverLimit: false,
+                }
+              : {
+                  usedBytes: 5368709120,
+                  baseLimitBytes: 107374182400,
+                  addonLimitBytes: 26843545600,
+                  totalLimitBytes: 134217728000,
+                  remainingBytes: 128849018880,
+                  isOverLimit: false,
                 },
           stripeSubscription:
             userId === USER_2_ID
@@ -378,10 +418,12 @@ describe("Admin users and credits overview", () => {
     expect(
       screen.getByText("This account is pinned to the top of the loaded user list.")
     ).toBeInTheDocument();
-    await waitFor(() => expect(screen.getByTestId("snapshot-card-plan")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByTestId("snapshot-card-storage")).toBeInTheDocument());
     expect(screen.getByTestId("snapshot-card-plan")).toHaveTextContent("Business");
     expect(screen.getByTestId("snapshot-card-price")).toHaveTextContent("10,000 credits / month");
-    expect(screen.getByTestId("snapshot-card-status")).toHaveTextContent("active");
+    expect(screen.getByTestId("snapshot-status-badge")).toHaveTextContent("Active");
+    expect(screen.getByTestId("snapshot-card-storage")).toHaveTextContent("500.0 GB");
+    expect(screen.getByTestId("snapshot-card-storage")).toHaveTextContent("2.0 GB used");
     expect(screen.getByRole("button", { name: "+100" })).toBeEnabled();
     expect(screen.getByRole("button", { name: "+500" })).toBeEnabled();
     expect(fetchWithAuthMock).not.toHaveBeenCalledWith(
@@ -398,7 +440,7 @@ describe("Admin users and credits overview", () => {
     );
 
     fireEvent.click(screen.getByRole("button", { name: "Select beta@example.com" }));
-    fireEvent.click(screen.getByRole("button", { name: "Show log" }));
+    fireEvent.click(screen.getByRole("button", { name: "Show credit log" }));
 
     await waitFor(() =>
       expect(fetchWithAuthMock).toHaveBeenCalledWith(
@@ -410,9 +452,12 @@ describe("Admin users and credits overview", () => {
     expect(screen.getByTestId("snapshot-card-plan")).toHaveTextContent("Business");
     expect(screen.getByTestId("snapshot-card-price")).toHaveTextContent("$30.00/mo");
     expect(screen.getByTestId("snapshot-card-price")).toHaveTextContent("10,000 credits / month");
-    expect(screen.getByTestId("snapshot-card-status")).toHaveTextContent("inactive");
-    expect(screen.getByTestId("snapshot-metric-spendable")).toHaveTextContent("0");
-    expect(screen.getByTestId("snapshot-metric-spendable")).toHaveTextContent("spendable");
+    expect(screen.getByTestId("snapshot-status-badge")).toHaveTextContent("Inactive");
+    expect(screen.queryByTestId("snapshot-payment-exempt-badge")).not.toBeInTheDocument();
+    expect(screen.getByTestId("snapshot-card-storage")).toHaveTextContent("500.0 GB");
+    expect(screen.getByTestId("snapshot-card-credits")).toHaveTextContent("0");
+    expect(screen.getByTestId("snapshot-card-credits")).toHaveTextContent("Spendable");
+    expect(screen.getByTestId("snapshot-card-credits")).toHaveTextContent("available 0");
   });
 
   it("shows billing diagnostics findings for a grandfathered subscriber", async () => {
@@ -437,9 +482,16 @@ describe("Admin users and credits overview", () => {
     expect(screen.getByTestId("snapshot-card-plan")).toHaveTextContent("Studio");
     expect(screen.getByTestId("snapshot-card-price")).toHaveTextContent("$10.00/mo");
     expect(screen.getByTestId("snapshot-card-price")).toHaveTextContent("4,000 credits / month");
-    expect(screen.getByTestId("snapshot-card-status")).toHaveTextContent("active");
-    expect(screen.getByTestId("snapshot-metric-spendable")).toHaveTextContent("120");
-    expect(screen.getByTestId("snapshot-metric-spendable")).toHaveTextContent("spendable");
+    expect(screen.getByTestId("snapshot-status-badge")).toHaveTextContent("Active");
+    expect(screen.queryByTestId("snapshot-payment-exempt-badge")).not.toBeInTheDocument();
+    expect(screen.getByTestId("snapshot-card-storage")).toHaveTextContent("125.0 GB");
+    expect(screen.getByTestId("snapshot-card-storage")).toHaveTextContent(
+      "5.0 GB used · 25.0 GB add-ons"
+    );
+    expect(screen.getByTestId("snapshot-card-credits")).toHaveTextContent("120");
+    expect(screen.getByTestId("snapshot-card-credits")).toHaveTextContent("Spendable");
+    expect(screen.getByTestId("snapshot-card-credits")).toHaveTextContent("available 150");
+    expect(screen.getByTestId("snapshot-card-credits")).toHaveTextContent("held 30");
   });
 
   it("applies a manual credit adjustment for the selected user", async () => {
@@ -450,10 +502,10 @@ describe("Admin users and credits overview", () => {
     );
 
     fireEvent.click(screen.getByRole("button", { name: "Select beta@example.com" }));
-    fireEvent.change(screen.getByPlaceholderText("+500 or -100"), {
+    fireEvent.change(screen.getByPlaceholderText("+500 credits or -100 credits"), {
       target: { value: "+500" },
     });
-    fireEvent.click(screen.getByRole("button", { name: "Apply" }));
+    fireEvent.click(screen.getByRole("button", { name: "Save credit change" }));
 
     await waitFor(() => expect(screen.getByText("Credit adjustment applied.")).toBeInTheDocument());
 
@@ -473,7 +525,7 @@ describe("Admin users and credits overview", () => {
     );
   });
 
-  it("applies internal comp access for the selected user", async () => {
+  it("saves payment-exempt access for the selected user", async () => {
     render(<AdminDashboardPage />);
 
     await waitFor(() =>
@@ -484,14 +536,18 @@ describe("Admin users and credits overview", () => {
     fireEvent.change(screen.getByDisplayValue("Business"), {
       target: { value: "business" },
     });
-    fireEvent.change(screen.getByPlaceholderText("Internal test, founder access, support comp"), {
-      target: { value: "Internal QA" },
-    });
-    fireEvent.click(screen.getByRole("button", { name: "Apply internal comp" }));
+    fireEvent.click(screen.getByLabelText("Payment exempt"));
+    fireEvent.change(
+      screen.getByPlaceholderText("Why are you overriding billing for this account?"),
+      {
+        target: { value: "Internal QA" },
+      }
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Save access" }));
 
     await waitFor(() =>
       expect(
-        screen.getByText("Internal comp access applied and 12,000 credits were seeded.")
+        screen.getByText("Payment-exempt access saved and 12,000 credits were seeded.")
       ).toBeInTheDocument()
     );
 

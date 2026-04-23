@@ -1,7 +1,5 @@
-import Head from "next/head";
-import Link from "next/link";
 import { FormEvent, useMemo, useState } from "react";
-import { ShieldCheck } from "phosphor-react";
+import { AdminRouteShell } from "../../features/admin/components/AdminRouteShell";
 import { useAdminAccess } from "../../features/admin/logic/useAdminAccess";
 import { useProtectedRoute } from "../../lib/authGuard";
 import { fetchWithAuth } from "../../lib/authenticatedFetch";
@@ -185,169 +183,98 @@ export default function AdminGenerationTracePage() {
     }
   };
 
-  if (loading || isAdminAccessLoading) {
-    return (
-      <main className={`page page-wide ${styles.adminPage}`}>
-        <section className={styles.adminSection}>
-          <p className="eyebrow">Admin</p>
-          <h1 className={styles.adminTitle}>Verifying access…</h1>
-        </section>
-      </main>
-    );
-  }
-
-  if (!hasAdminAccess) {
-    if (adminAccessStatus === "error") {
-      return (
-        <main className={`page page-wide ${styles.adminPage}`}>
-          <section className={styles.adminSection}>
-            <p className="eyebrow">Admin</p>
-            <h1 className={styles.adminTitle}>Unable to verify access</h1>
-            <p className="tiny subdued">
-              {adminAccessError ?? "We could not verify admin access right now. Retry in a moment."}
-            </p>
-            <div className={styles.searchRow}>
-              <button
-                type="button"
-                className="ghost-btn mini"
-                onClick={refreshAdminAccess}
-                disabled={isAdminAccessLoading}
-              >
-                {isAdminAccessLoading ? "Retrying…" : "Retry access check"}
-              </button>
-              <Link href="/dashboard" className="ghost-btn mini">
-                Back to dashboard
-              </Link>
-            </div>
-          </section>
-        </main>
-      );
-    }
-
-    return (
-      <main className={`page page-wide ${styles.adminPage}`}>
-        <section className={styles.adminSection}>
-          <p className="eyebrow">Admin</p>
-          <h1 className={styles.adminTitle}>Access restricted</h1>
-          <p className="tiny subdued">This page is available to operator accounts only.</p>
-          <Link href="/dashboard" className="ghost-btn mini">
-            Back to dashboard
-          </Link>
-        </section>
-      </main>
-    );
-  }
-
   return (
-    <>
-      <Head>
-        <title>ShortPulse · Admin Trace</title>
-        <meta name="description" content="Operator trace view for generation request timelines." />
-      </Head>
-      <main className={`page page-wide ${styles.adminPage}`}>
-        <header className={styles.adminHeader}>
-          <div>
-            <p className="eyebrow">Admin Dashboard</p>
-            <h1 className={styles.adminTitle}>Generation trace</h1>
-            <p className="tiny subdued">
-              Query generation lifecycle data by generation id, request id, or trace id.
-            </p>
-          </div>
-          <div className={styles.adminUserPill}>
-            <ShieldCheck size={18} weight="fill" />
-            <span>{user?.email ?? "Admin"}</span>
-          </div>
-        </header>
-
-        <section className={styles.adminSection}>
-          <div className={styles.adminSectionHead}>
-            <h2 className={styles.adminSectionTitle}>Query</h2>
-            <div className={styles.tabRow}>
-              <Link href="/admin/user-health-fleet" className="ghost-btn mini">
-                Fleet health
-              </Link>
-              <Link href="/admin/user-health" className="ghost-btn mini">
-                User health
-              </Link>
-              <Link href="/admin" className="ghost-btn mini">
-                Back to operations
-              </Link>
-            </div>
-          </div>
-          <form onSubmit={loadTrace} style={{ display: "grid", gap: 12 }}>
-            <input
-              value={generationId}
-              onChange={(event) => setGenerationId(event.target.value)}
-              placeholder="generationId (uuid)"
-              className={styles.searchInput}
-              autoComplete="off"
-            />
-            <input
-              value={requestId}
-              onChange={(event) => setRequestId(event.target.value)}
-              placeholder="requestId (provider request_id)"
-              className={styles.searchInput}
-              autoComplete="off"
-            />
-            <input
-              value={traceId}
-              onChange={(event) => setTraceId(event.target.value)}
-              placeholder="traceId (submission/generation trace)"
-              className={styles.searchInput}
-              autoComplete="off"
-            />
-            <button type="submit" className="primary-btn" disabled={loadingTrace || !hasQuery}>
-              {loadingTrace ? "Loading..." : "Load trace"}
-            </button>
-          </form>
-          {error ? (
-            <p className="tiny" style={{ color: "#ff7f7f", marginTop: 10 }}>
-              {error}
-            </p>
-          ) : null}
-        </section>
-
-        {result ? (
-          <section className={styles.adminSection}>
-            <h2 className={styles.adminSectionTitle}>Summary</h2>
-            <pre className={styles.adminPreBlock}>{pretty(result.summary)}</pre>
-            <div style={{ display: "flex", gap: 10, alignItems: "center", marginBottom: 12 }}>
-              <button
-                type="button"
-                className="ghost-btn mini"
-                disabled={replayLoading}
-                onClick={runReplayRecovery}
-              >
-                {replayLoading ? "Replaying..." : "Replay recovery"}
-              </button>
-            </div>
-            {replayResult ? (
-              <>
-                <h2 className={styles.adminSectionTitle}>Replay result</h2>
-                <pre className={styles.adminPreBlock}>{pretty(replayResult)}</pre>
-              </>
-            ) : null}
-            <h2 className={styles.adminSectionTitle}>Generations</h2>
-            <pre className={styles.adminPreBlock}>{pretty(result.generations)}</pre>
-            <h2 className={styles.adminSectionTitle}>Generation Attempts</h2>
-            <pre className={styles.adminPreBlock}>{pretty(result.generationAttempts)}</pre>
-            <h2 className={styles.adminSectionTitle}>Generation Outputs</h2>
-            <pre className={styles.adminPreBlock}>{pretty(result.generationOutputs)}</pre>
-            <h2 className={styles.adminSectionTitle}>Reservations</h2>
-            <pre className={styles.adminPreBlock}>{pretty(result.reservations)}</pre>
-            <h2 className={styles.adminSectionTitle}>Ledger</h2>
-            <pre className={styles.adminPreBlock}>{pretty(result.ledgerEntries)}</pre>
-            <h2 className={styles.adminSectionTitle}>Media Events</h2>
-            <pre className={styles.adminPreBlock}>{pretty(result.mediaEvents)}</pre>
-            <h2 className={styles.adminSectionTitle}>Media Files</h2>
-            <pre className={styles.adminPreBlock}>{pretty(result.mediaFiles)}</pre>
-            <h2 className={styles.adminSectionTitle}>Error Events</h2>
-            <pre className={styles.adminPreBlock}>{pretty(result.errorEvents)}</pre>
-            <h2 className={styles.adminSectionTitle}>Warnings</h2>
-            <pre className={styles.adminPreBlock}>{pretty(result.warnings)}</pre>
-          </section>
+    <AdminRouteShell
+      loading={loading}
+      isAdminEnabled={hasAdminAccess}
+      isAdminAccessLoading={isAdminAccessLoading}
+      adminAccessStatus={adminAccessStatus}
+      adminAccessError={adminAccessError}
+      onRetryAccessCheck={refreshAdminAccess}
+      documentTitle="ShortPulse · Admin Trace"
+      metaDescription="Operator trace view for generation request timelines."
+      pageTitle="Generation trace"
+      pageDescription="Query generation lifecycle data by generation id, request id, or trace id."
+      userEmail={user?.email}
+      currentPath="/admin/generation-trace"
+    >
+      <section className={styles.adminSection}>
+        <div className={styles.adminSectionHead}>
+          <h2 className={styles.adminSectionTitle}>Query</h2>
+        </div>
+        <form onSubmit={loadTrace} style={{ display: "grid", gap: 12 }}>
+          <input
+            value={generationId}
+            onChange={(event) => setGenerationId(event.target.value)}
+            placeholder="generationId (uuid)"
+            className={styles.searchInput}
+            autoComplete="off"
+          />
+          <input
+            value={requestId}
+            onChange={(event) => setRequestId(event.target.value)}
+            placeholder="requestId (provider request_id)"
+            className={styles.searchInput}
+            autoComplete="off"
+          />
+          <input
+            value={traceId}
+            onChange={(event) => setTraceId(event.target.value)}
+            placeholder="traceId (submission/generation trace)"
+            className={styles.searchInput}
+            autoComplete="off"
+          />
+          <button type="submit" className="primary-btn" disabled={loadingTrace || !hasQuery}>
+            {loadingTrace ? "Loading..." : "Load trace"}
+          </button>
+        </form>
+        {error ? (
+          <p className="tiny" style={{ color: "#ff7f7f", marginTop: 10 }}>
+            {error}
+          </p>
         ) : null}
-      </main>
-    </>
+      </section>
+
+      {result ? (
+        <section className={styles.adminSection}>
+          <h2 className={styles.adminSectionTitle}>Summary</h2>
+          <pre className={styles.adminPreBlock}>{pretty(result.summary)}</pre>
+          <div style={{ display: "flex", gap: 10, alignItems: "center", marginBottom: 12 }}>
+            <button
+              type="button"
+              className="ghost-btn mini"
+              disabled={replayLoading}
+              onClick={runReplayRecovery}
+            >
+              {replayLoading ? "Replaying..." : "Replay recovery"}
+            </button>
+          </div>
+          {replayResult ? (
+            <>
+              <h2 className={styles.adminSectionTitle}>Replay result</h2>
+              <pre className={styles.adminPreBlock}>{pretty(replayResult)}</pre>
+            </>
+          ) : null}
+          <h2 className={styles.adminSectionTitle}>Generations</h2>
+          <pre className={styles.adminPreBlock}>{pretty(result.generations)}</pre>
+          <h2 className={styles.adminSectionTitle}>Generation Attempts</h2>
+          <pre className={styles.adminPreBlock}>{pretty(result.generationAttempts)}</pre>
+          <h2 className={styles.adminSectionTitle}>Generation Outputs</h2>
+          <pre className={styles.adminPreBlock}>{pretty(result.generationOutputs)}</pre>
+          <h2 className={styles.adminSectionTitle}>Reservations</h2>
+          <pre className={styles.adminPreBlock}>{pretty(result.reservations)}</pre>
+          <h2 className={styles.adminSectionTitle}>Ledger</h2>
+          <pre className={styles.adminPreBlock}>{pretty(result.ledgerEntries)}</pre>
+          <h2 className={styles.adminSectionTitle}>Media Events</h2>
+          <pre className={styles.adminPreBlock}>{pretty(result.mediaEvents)}</pre>
+          <h2 className={styles.adminSectionTitle}>Media Files</h2>
+          <pre className={styles.adminPreBlock}>{pretty(result.mediaFiles)}</pre>
+          <h2 className={styles.adminSectionTitle}>Error Events</h2>
+          <pre className={styles.adminPreBlock}>{pretty(result.errorEvents)}</pre>
+          <h2 className={styles.adminSectionTitle}>Warnings</h2>
+          <pre className={styles.adminPreBlock}>{pretty(result.warnings)}</pre>
+        </section>
+      ) : null}
+    </AdminRouteShell>
   );
 }

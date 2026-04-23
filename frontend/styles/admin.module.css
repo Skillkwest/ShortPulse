@@ -18,10 +18,21 @@
   --admin-border-soft: rgba(201, 205, 214, 0.1);
   --admin-border-strong: rgba(201, 205, 214, 0.22);
 
-  --admin-accent: rgba(245, 185, 66, 0.95);
-  --admin-accent-soft: rgba(245, 185, 66, 0.18);
-  --admin-accent-soft-2: rgba(245, 185, 66, 0.28);
-  --admin-focus: rgba(245, 185, 66, 0.7);
+  --admin-accent: rgba(37, 169, 191, 0.94);
+  --admin-accent-soft: rgba(37, 169, 191, 0.14);
+  --admin-accent-soft-2: rgba(37, 169, 191, 0.24);
+  --admin-accent-border: rgba(37, 169, 191, 0.38);
+  --admin-accent-border-strong: rgba(37, 169, 191, 0.56);
+  --admin-accent-border-max: rgba(115, 231, 247, 0.82);
+  --admin-accent-text: #d5fbff;
+  --admin-focus: rgba(88, 220, 239, 0.72);
+
+  --admin-warning-soft: rgba(216, 168, 74, 0.14);
+  --admin-warning-soft-2: rgba(216, 168, 74, 0.24);
+  --admin-warning-border: rgba(216, 168, 74, 0.38);
+  --admin-warning-border-strong: rgba(216, 168, 74, 0.56);
+  --admin-warning-border-max: rgba(255, 212, 122, 0.8);
+  --admin-warning-text: #fff1cf;
 
   max-width: 1400px;
   padding: 18px 24px 32px;
@@ -47,7 +58,7 @@
 
 .adminPage :global(.ghost-btn),
 .adminPage :global(.ghost-btn.mini) {
-  background: rgba(245, 231, 213, 0.04);
+  background: rgba(37, 169, 191, 0.05);
   border-color: var(--admin-border-strong);
   color: var(--admin-text-strong);
 }
@@ -63,6 +74,39 @@
   justify-content: space-between;
   gap: 12px;
   margin-bottom: 18px;
+}
+
+.adminNavRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 18px;
+}
+
+.adminNavLink {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--admin-border);
+  background: var(--admin-surface-1);
+  color: var(--admin-text);
+  text-decoration: none;
+  transition:
+    border-color 0.12s ease,
+    transform 0.12s ease;
+}
+
+.adminNavLink:hover {
+  border-color: var(--admin-focus);
+  transform: translateY(-1px);
+}
+
+.adminNavLinkActive {
+  border-color: var(--admin-accent-border-strong);
+  background: linear-gradient(135deg, var(--admin-accent-soft), var(--admin-accent-soft-2));
+  color: var(--admin-text-strong);
 }
 
 .adminTitle {
@@ -105,10 +149,10 @@
 }
 
 .warning {
-  border-color: rgba(245, 185, 66, 0.6);
+  border-color: var(--admin-warning-border-strong);
   background:
-    radial-gradient(80% 120% at 15% 0%, rgba(245, 185, 66, 0.12), transparent 62%),
-    linear-gradient(135deg, rgba(38, 27, 10, 0.9), rgba(26, 19, 10, 0.9));
+    radial-gradient(80% 120% at 15% 0%, rgba(216, 168, 74, 0.13), transparent 62%),
+    linear-gradient(135deg, rgba(41, 30, 12, 0.9), rgba(24, 19, 10, 0.9));
 }
 
 .adminCardTop {
@@ -181,6 +225,16 @@
   letter-spacing: 0.03em;
 }
 
+.adminCompactTableHead,
+.adminCompactTableRow {
+  grid-template-columns: 1.4fr 1fr 1.2fr 1.4fr;
+}
+
+.adminSupportQueueHead,
+.adminSupportQueueRow {
+  grid-template-columns: minmax(0, 1.6fr) minmax(0, 0.8fr) minmax(0, 1.1fr) minmax(0, 1fr) auto;
+}
+
 .adminTableRow {
   padding: 10px 8px;
   border-radius: 10px;
@@ -188,16 +242,20 @@
   border: 1px solid var(--admin-border-soft);
 }
 
+.adminSupportQueueRow {
+  gap: 10px;
+}
+
 .severityHigh {
   border-color: rgba(241, 84, 84, 0.55);
 }
 
 .severityMedium {
-  border-color: rgba(245, 185, 66, 0.5);
+  border-color: var(--admin-warning-border);
 }
 
 .severityLow {
-  border-color: rgba(245, 231, 213, 0.26);
+  border-color: var(--admin-border);
 }
 
 .adminTableRow span {
@@ -212,6 +270,92 @@
 .adminCreditMeta {
   font-size: 11px;
   color: var(--admin-text-faint);
+}
+
+.adminSupportQueueRowButton {
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) minmax(0, 0.8fr) minmax(0, 1.1fr) minmax(0, 1fr);
+  grid-column: 1 / 5;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  appearance: none;
+  cursor: pointer;
+}
+
+.adminSupportQueueRowButton:hover {
+  transform: translateY(-1px);
+}
+
+.adminSupportQueueCell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.adminSupportQueueActions {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+}
+
+.adminDangerButton {
+  border-color: rgba(241, 84, 84, 0.4);
+  color: #ffd7d7;
+}
+
+.adminDangerButton:hover:not(:disabled) {
+  border-color: rgba(248, 78, 78, 0.72);
+  color: #fff4f4;
+}
+
+.adminDangerConfirmButton {
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(248, 78, 78, 0.72);
+  background: linear-gradient(135deg, rgba(138, 28, 28, 0.92), rgba(97, 12, 12, 0.96));
+  color: #fff5f5;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+  transition:
+    transform 0.12s ease,
+    border-color 0.12s ease,
+    opacity 0.12s ease;
+}
+
+.adminDangerConfirmButton:hover:not(:disabled) {
+  transform: translateY(-1px);
+  border-color: rgba(255, 122, 122, 0.9);
+}
+
+.adminDangerConfirmButton:disabled,
+.adminDangerButton:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.adminDeleteWarning {
+  display: grid;
+  gap: 4px;
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(241, 84, 84, 0.34);
+  background: linear-gradient(135deg, rgba(72, 14, 14, 0.88), rgba(33, 10, 10, 0.9));
+}
+
+.adminDeleteWarningTitle {
+  margin: 0;
+  color: #fff2f2;
+  font-weight: 700;
 }
 
 .adminLedgerHead,
@@ -287,14 +431,14 @@
 
 .pillOk {
   background: var(--admin-accent-soft);
-  color: #ffe7be;
-  border: 1px solid rgba(245, 185, 66, 0.42);
+  color: var(--admin-accent-text);
+  border: 1px solid var(--admin-accent-border);
 }
 
 .pillWarn {
-  background: rgba(241, 84, 84, 0.2);
-  color: #ffecec;
-  border: 1px solid rgba(241, 84, 84, 0.45);
+  background: var(--admin-warning-soft);
+  color: var(--admin-warning-text);
+  border: 1px solid var(--admin-warning-border-strong);
 }
 
 .pillCritical {
@@ -310,9 +454,9 @@
 }
 
 .pillConfidenceMedium {
-  background: rgba(245, 185, 66, 0.2);
-  color: #ffe7be;
-  border: 1px solid rgba(245, 185, 66, 0.45);
+  background: var(--admin-accent-soft);
+  color: var(--admin-accent-text);
+  border: 1px solid var(--admin-accent-border);
 }
 
 .pillConfidenceLow {
@@ -345,7 +489,7 @@
 }
 
 .tabActive {
-  border-color: rgba(245, 185, 66, 0.78);
+  border-color: var(--admin-accent-border-strong);
   background: linear-gradient(135deg, var(--admin-accent-soft), var(--admin-accent-soft-2));
   color: var(--admin-text-strong);
 }
@@ -355,35 +499,376 @@
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  margin: 8px 0;
-}
-
-.manualAdjustGrid {
-  display: grid;
-  grid-template-columns: minmax(220px, 1.2fr) minmax(220px, 1fr) auto;
-  gap: 10px;
-  align-items: end;
-  margin: 8px 0;
+  margin: 10px 0;
 }
 
 .manualAdjustField {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
   min-width: 0;
 }
 
 .manualAdjustPresets {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: 8px;
+}
+
+.manualAdjustPresetButton,
+.manualAdjustPrimaryAction,
+.manualAdjustSecondaryAction {
+  min-height: 42px;
+  padding-inline: 14px;
+}
+
+.manualAdjustPrimaryAction {
+  border-color: var(--admin-accent-border) !important;
+  background: linear-gradient(
+    135deg,
+    rgba(37, 169, 191, 0.18),
+    rgba(37, 169, 191, 0.08)
+  ) !important;
+}
+
+.manualAdjustSecondaryAction {
+  background: rgba(255, 255, 255, 0.02);
 }
 
 .manualAdjustActions {
   display: flex;
-  align-items: flex-end;
+  align-items: center;
   flex-wrap: wrap;
+  gap: 10px;
+}
+
+.adminSupportStack {
+  display: grid;
+  gap: 16px;
+}
+
+.adminSplitGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.45fr) minmax(320px, 0.95fr);
+  gap: 16px;
+  margin-top: 14px;
+}
+
+.adminSplitGridSingle {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.adminSubpanel {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  border-radius: 14px;
+  border: 1px solid var(--admin-border-soft);
+  background: var(--admin-surface-3);
+}
+
+.adminPrimaryPanel {
+  border-color: var(--admin-border-strong);
+  background:
+    radial-gradient(120% 140% at 0% 0%, rgba(37, 169, 191, 0.12), transparent 58%),
+    linear-gradient(135deg, rgba(32, 35, 42, 0.96), rgba(24, 27, 33, 0.94));
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.28);
+}
+
+.accountSnapshot {
+  display: grid;
+  gap: 14px;
+  padding: 2px 0 4px;
+}
+
+.accountSnapshotHead {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.accountSnapshotIdentity {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.accountSnapshotTitleRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.accountSnapshotTitle {
+  color: var(--admin-text-strong);
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 1.05;
+  word-break: break-word;
+}
+
+.accountSnapshotHeaderBadges {
+  display: inline-flex;
+  align-items: center;
   gap: 8px;
+  flex-wrap: wrap;
+}
+
+.accountSnapshotHeaderBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 30px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(18, 20, 24, 0.7);
+  color: var(--admin-text);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+.accountSnapshotHeaderBadgeAccent {
+  border-color: rgba(37, 169, 191, 0.28);
+  background: rgba(37, 169, 191, 0.12);
+  color: var(--admin-accent-text);
+}
+
+.accountSnapshotNote {
+  display: inline-flex;
+  align-items: center;
+  max-width: min(100%, 360px);
+  padding: 9px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(37, 169, 191, 0.18);
+  background: rgba(37, 169, 191, 0.08);
+  color: var(--admin-text);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.accountSnapshotCards {
+  display: grid;
+  grid-template-columns: repeat(var(--snapshot-card-columns, 5), minmax(0, 1fr));
+  gap: 12px;
+}
+
+.accountSnapshotCard {
+  display: grid;
+  gap: 6px;
+  min-height: 92px;
+  padding: 16px 18px;
+  border-radius: 14px;
+  border: 1px solid var(--admin-border-strong);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent), rgba(18, 20, 24, 0.62);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.accountSnapshotCardLabel {
+  color: var(--admin-text-muted);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.accountSnapshotCardValue {
+  color: var(--admin-text-strong);
+  font-size: 26px;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: -0.02em;
+}
+
+.accountSnapshotCardHelper {
+  color: var(--admin-text-faint);
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.manualAdjustPanel {
+  display: grid;
+  gap: 14px;
+  padding: 14px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.02), transparent), rgba(14, 16, 20, 0.42);
+}
+
+.controlPanelGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.7fr) minmax(260px, 0.95fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.controlPanelBlock {
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+}
+
+.controlPanelActions {
+  align-self: stretch;
+  justify-content: flex-end;
+  align-content: start;
+}
+
+.controlFieldCompact {
+  max-width: 460px;
+}
+
+.controlFieldPrimary {
+  min-width: 0;
+}
+
+.compactFormRow {
+  display: grid;
+  grid-template-columns: minmax(220px, 360px) minmax(180px, 220px);
+  gap: 12px;
+  align-items: end;
+}
+
+.controlToggleCard {
+  display: grid;
+  gap: 8px;
+  min-height: 78px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--admin-border-soft);
+  background: rgba(18, 20, 24, 0.55);
+}
+
+.controlToggleTitle {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--admin-text-faint);
+}
+
+.controlToggleInput {
+  color: var(--admin-text-strong);
+  line-height: 1.45;
+}
+
+.controlDetails {
+  display: grid;
+  gap: 10px;
+}
+
+.manualAdjustFooter {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.adminEmailPanel {
+  display: grid;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--admin-border-soft);
+  background: rgba(18, 20, 24, 0.52);
+}
+
+.adminEmailPanelHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.adminEmailBadge,
+.adminInlineBadge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(37, 169, 191, 0.28);
+  background: rgba(37, 169, 191, 0.12);
+  color: var(--admin-text-strong);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.adminEmailList {
+  display: grid;
+  gap: 8px;
+}
+
+.adminEmailCard {
+  display: grid;
+  gap: 6px;
+}
+
+.adminEmailValue {
+  color: var(--admin-text-strong);
+  font-weight: 700;
+  word-break: break-word;
+}
+
+.selectionSummary {
+  display: grid;
+  gap: 6px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--admin-border-soft);
+  background: rgba(18, 20, 24, 0.55);
+}
+
+.selectionSummaryLabel {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--admin-text-faint);
+}
+
+.selectionSummaryValue {
+  color: var(--admin-text-strong);
+  font-weight: 700;
+  word-break: break-word;
+}
+
+.adminDiagnosticsGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.adminDiagnosticsCard {
+  display: grid;
+  gap: 6px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--admin-border-soft);
+  background: rgba(18, 20, 24, 0.55);
+}
+
+.adminBillingFindingList {
+  display: grid;
+  gap: 10px;
+}
+
+.adminBillingFindingCard {
+  display: grid;
+  gap: 8px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--admin-border-soft);
+  background: rgba(18, 20, 24, 0.6);
 }
 
 .healthFormGrid {
@@ -545,7 +1030,7 @@
 
 .searchInput {
   flex: 1;
-  padding: 8px 10px;
+  padding: 10px 12px;
   border-radius: 10px;
   border: 1px solid var(--admin-border);
   background: var(--admin-surface-1);
@@ -675,9 +1160,43 @@
   word-break: break-word;
 }
 
+.adminTableRowButton {
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  appearance: none;
+  cursor: pointer;
+  transition:
+    border-color 0.12s ease,
+    transform 0.12s ease,
+    box-shadow 0.12s ease;
+}
+
+.adminTableRowButton:hover {
+  border-color: var(--admin-focus);
+  transform: translateY(-1px);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.18);
+}
+
+.adminTableRowActive {
+  border-color: var(--admin-accent-border-strong);
+  background:
+    radial-gradient(120% 140% at 0% 0%, rgba(37, 169, 191, 0.12), transparent 58%),
+    var(--admin-surface-3);
+}
+
 @media (max-width: 980px) {
-  .manualAdjustGrid {
+  .adminNavLink {
+    width: 100%;
+  }
+
+  .adminSplitGrid {
     grid-template-columns: 1fr;
+  }
+
+  .adminTableHead {
+    display: none;
   }
 
   .healthFormGrid {
@@ -686,6 +1205,37 @@
 
   .manualAdjustActions {
     justify-content: flex-start;
+  }
+
+  .controlPanelGrid,
+  .compactFormRow {
+    grid-template-columns: 1fr;
+  }
+
+  .controlFieldCompact {
+    max-width: none;
+  }
+
+  .accountSnapshotHead,
+  .manualAdjustFooter {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .accountSnapshotTitleRow {
+    align-items: flex-start;
+  }
+
+  .accountSnapshotNote {
+    max-width: none;
+  }
+
+  .accountSnapshotCards {
+    grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
+  }
+
+  .adminDiagnosticsGrid {
+    grid-template-columns: 1fr;
   }
 
   .fleetHead {
@@ -707,6 +1257,35 @@
 
   .adminLedgerHead {
     display: none;
+  }
+
+  .adminTableRow {
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
+
+  .adminSupportQueueRow {
+    grid-template-columns: 1fr;
+  }
+
+  .adminSupportQueueRowButton {
+    grid-template-columns: 1fr;
+    grid-column: auto;
+    gap: 6px;
+  }
+
+  .adminSupportQueueCell::before {
+    content: attr(data-label);
+    display: block;
+    margin-bottom: 2px;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: var(--admin-text-faint);
+  }
+
+  .adminSupportQueueActions {
+    justify-content: flex-start;
   }
 
   .adminErrorsRow {

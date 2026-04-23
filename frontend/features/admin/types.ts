@@ -47,6 +47,7 @@ export type AdminBillingContractSnapshot = {
   contractSource: "stripe" | "internal_comp" | null;
   recurringPriceCents: number | null;
   monthlyCreditsCents: number | null;
+  storageLimitBytes: number | null;
   status: string | null;
   currentPeriodEnd: string | null;
 };
@@ -58,8 +59,30 @@ export type AdminBillingOfferSnapshot = {
   stripePriceId: string | null;
   recurringPriceCents: number | null;
   monthlyCreditsCents: number | null;
+  storageLimitBytes: number | null;
   acquisitionEnabled: boolean;
   isActive: boolean;
+};
+
+export type AdminBillingStorageAddonSnapshot = {
+  id: string;
+  storageAddonId: string | null;
+  offerId: string | null;
+  stripeSubscriptionItemId: string | null;
+  stripePriceId: string | null;
+  storageLimitBytes: number | null;
+  quantity: number;
+  recurringPriceCents: number | null;
+  status: string | null;
+};
+
+export type AdminBillingStorageSummarySnapshot = {
+  usedBytes: number;
+  baseLimitBytes: number;
+  addonLimitBytes: number;
+  totalLimitBytes: number;
+  remainingBytes: number;
+  isOverLimit: boolean;
 };
 
 export type AdminStripeSubscriptionSnapshot = {
@@ -82,6 +105,8 @@ export type AdminBillingDiagnosticsResponse = {
   currentContract: AdminBillingContractSnapshot | null;
   linkedOffer: AdminBillingOfferSnapshot | null;
   currentPublicOffer: AdminBillingOfferSnapshot | null;
+  activeStorageAddons: AdminBillingStorageAddonSnapshot[];
+  storageSummary: AdminBillingStorageSummarySnapshot | null;
   stripeSubscription: AdminStripeSubscriptionSnapshot;
   findings: AdminHealthFinding[];
 };

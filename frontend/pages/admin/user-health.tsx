@@ -2,11 +2,9 @@
  * Admin user health diagnostics page.
  * Lets operators run per-user generation and credit-drain health reports.
  */
-import Head from "next/head";
-import Link from "next/link";
 import { useRouter } from "next/router";
 import { FormEvent, useEffect, useMemo, useState } from "react";
-import { ShieldCheck } from "phosphor-react";
+import { AdminRouteShell } from "../../features/admin/components/AdminRouteShell";
 import { useAdminAccess } from "../../features/admin/logic/useAdminAccess";
 import type { AdminHealthFinding, AdminUserHealthResponse } from "../../features/admin/types";
 import { useProtectedRoute } from "../../lib/authGuard";
@@ -140,291 +138,217 @@ export default function AdminUserHealthPage() {
     };
   }, [result]);
 
-  if (loading || isAdminAccessLoading) {
-    return (
-      <main className={`page page-wide ${styles.adminPage}`}>
-        <section className={styles.adminSection}>
-          <p className="eyebrow">Admin</p>
-          <h1 className={styles.adminTitle}>Verifying access…</h1>
-        </section>
-      </main>
-    );
-  }
+  return (
+    <AdminRouteShell
+      loading={loading}
+      isAdminEnabled={hasAdminAccess}
+      isAdminAccessLoading={isAdminAccessLoading}
+      adminAccessStatus={adminAccessStatus}
+      adminAccessError={adminAccessError}
+      onRetryAccessCheck={refreshAdminAccess}
+      documentTitle="ShortPulse · Admin User Health"
+      metaDescription="Operator diagnostics for user-level generation and credit health."
+      pageTitle="User health diagnostics"
+      pageDescription="Search by user id or email and run a generation plus drainage health check."
+      userEmail={user?.email}
+      currentPath="/admin/user-health"
+    >
+      <section className={styles.adminSection}>
+        <div className={styles.adminSectionHead}>
+          <h2 className={styles.adminSectionTitle}>Run report</h2>
+        </div>
 
-  if (!hasAdminAccess) {
-    if (adminAccessStatus === "error") {
-      return (
-        <main className={`page page-wide ${styles.adminPage}`}>
-          <section className={styles.adminSection}>
-            <p className="eyebrow">Admin</p>
-            <h1 className={styles.adminTitle}>Unable to verify access</h1>
-            <p className="tiny subdued">
-              {adminAccessError ?? "We could not verify admin access right now. Retry in a moment."}
-            </p>
-            <div className={styles.searchRow}>
-              <button
-                type="button"
-                className="ghost-btn mini"
-                onClick={refreshAdminAccess}
-                disabled={isAdminAccessLoading}
-              >
-                {isAdminAccessLoading ? "Retrying…" : "Retry access check"}
-              </button>
-              <Link href="/dashboard" className="ghost-btn mini">
-                Back to dashboard
-              </Link>
+        <form onSubmit={runHealthCheck} className={styles.healthFormGrid}>
+          <label className={styles.manualAdjustField}>
+            <span className="tiny subdued">Lookup</span>
+            <input
+              className={styles.searchInput}
+              value={lookup}
+              onChange={(event) => setLookup(event.target.value)}
+              placeholder="user@email.com or user uuid"
+              autoComplete="off"
+            />
+          </label>
+          <label className={styles.manualAdjustField}>
+            <span className="tiny subdued">Lookup mode</span>
+            <select
+              className={styles.searchInput}
+              value={lookupMode}
+              onChange={(event) =>
+                setLookupMode(event.target.value as "auto" | "email" | "user_id")
+              }
+            >
+              <option value="auto">Auto</option>
+              <option value="email">Email</option>
+              <option value="user_id">User ID</option>
+            </select>
+          </label>
+          <label className={styles.manualAdjustField}>
+            <span className="tiny subdued">Lookback window</span>
+            <select
+              className={styles.searchInput}
+              value={lookbackDays}
+              onChange={(event) => setLookbackDays(Number(event.target.value))}
+            >
+              {LOOKBACK_OPTIONS.map((days) => (
+                <option key={days} value={days}>
+                  Last {days} days
+                </option>
+              ))}
+            </select>
+          </label>
+          <div className={styles.manualAdjustActions}>
+            <button type="submit" className="primary-btn" disabled={isRunning}>
+              {isRunning ? "Running..." : "Run health check"}
+            </button>
+          </div>
+        </form>
+
+        {error ? <p className={styles.announcementError}>{error}</p> : null}
+      </section>
+
+      {result ? (
+        <>
+          <section className={styles.adminGrid}>
+            <div className={styles.adminCard}>
+              <div className={styles.adminCardTop}>
+                <span className={styles.adminLabel}>Spendable credits</span>
+              </div>
+              <p className={styles.adminMetric}>{formatNumber(headline?.spendable ?? 0)}</p>
+              <p className={styles.adminSubtext}>as of {formatDateTime(result.generatedAt)}</p>
+            </div>
+            <div className={`${styles.adminCard} ${styles.warning}`}>
+              <div className={styles.adminCardTop}>
+                <span className={styles.adminLabel}>24h fail rate</span>
+              </div>
+              <p className={styles.adminMetric}>{headline?.failRate24h.toFixed(2)}%</p>
+              <p className={styles.adminSubtext}>
+                {result.generations.last24h.fail} / {result.generations.last24h.total} runs failed
+              </p>
+            </div>
+            <div className={`${styles.adminCard} ${styles.alert}`}>
+              <div className={styles.adminCardTop}>
+                <span className={styles.adminLabel}>Stuck generations</span>
+              </div>
+              <p className={styles.adminMetric}>{formatNumber(headline?.stuckCount ?? 0)}</p>
+              <p className={styles.adminSubtext}>older than 1h in queued/recovering</p>
+            </div>
+            <div className={styles.adminCard}>
+              <div className={styles.adminCardTop}>
+                <span className={styles.adminLabel}>Cost without success</span>
+              </div>
+              <p className={styles.adminMetric}>
+                {formatNumber(headline?.costWithoutSuccess ?? 0)}
+              </p>
+              <p className={styles.adminSubtext}>lookback debits without linked success rows</p>
+              <p className={styles.adminSubtext}>
+                linked non-success{" "}
+                {formatNumber(
+                  result.drainage.costWithoutSuccessfulGeneration.linkedNonSuccessGeneration
+                    .debitCents
+                )}{" "}
+                · missing linkage{" "}
+                {formatNumber(
+                  result.drainage.costWithoutSuccessfulGeneration.missingLinkageData.debitCents
+                )}
+              </p>
             </div>
           </section>
-        </main>
-      );
-    }
 
-    return (
-      <main className={`page page-wide ${styles.adminPage}`}>
-        <section className={styles.adminSection}>
-          <p className="eyebrow">Admin</p>
-          <h1 className={styles.adminTitle}>Access restricted</h1>
-          <p className="tiny subdued">This page is available to operator accounts only.</p>
-          <Link href="/dashboard" className="ghost-btn mini">
-            Back to dashboard
-          </Link>
-        </section>
-      </main>
-    );
-  }
-
-  return (
-    <>
-      <Head>
-        <title>ShortPulse · Admin User Health</title>
-        <meta
-          name="description"
-          content="Operator diagnostics for user-level generation and credit health."
-        />
-      </Head>
-      <main className={`page page-wide ${styles.adminPage}`}>
-        <header className={styles.adminHeader}>
-          <div>
-            <p className="eyebrow">Admin Dashboard</p>
-            <h1 className={styles.adminTitle}>User health diagnostics</h1>
-            <p className="tiny subdued">
-              Search by user id or email and run a generation + drainage health check.
-            </p>
-          </div>
-          <div className={styles.adminUserPill}>
-            <ShieldCheck size={18} weight="fill" />
-            <span>{user?.email ?? "Admin"}</span>
-          </div>
-        </header>
-
-        <section className={styles.adminSection}>
-          <div className={styles.adminSectionHead}>
-            <h2 className={styles.adminSectionTitle}>Run report</h2>
-            <div className={styles.tabRow}>
-              <Link href="/admin" className="ghost-btn mini">
-                Back to operations
-              </Link>
-              <Link href="/admin/user-health-fleet" className="ghost-btn mini">
-                Fleet health
-              </Link>
-              <Link href="/admin/generation-trace" className="ghost-btn mini">
-                Generation trace
-              </Link>
+          <section className={styles.adminSection}>
+            <div className={styles.adminSectionHead}>
+              <div>
+                <p className="eyebrow">Target</p>
+                <p className="tiny subdued">
+                  {result.target.email ?? "No email"} · {result.target.userId}
+                </p>
+              </div>
+              <span className="tiny subdued">
+                User created {formatDateTime(result.target.createdAt)} · Last sign-in{" "}
+                {formatDateTime(result.target.lastSignInAt)}
+              </span>
             </div>
-          </div>
 
-          <form onSubmit={runHealthCheck} className={styles.healthFormGrid}>
-            <label className={styles.manualAdjustField}>
-              <span className="tiny subdued">Lookup</span>
-              <input
-                className={styles.searchInput}
-                value={lookup}
-                onChange={(event) => setLookup(event.target.value)}
-                placeholder="user@email.com or user uuid"
-                autoComplete="off"
-              />
-            </label>
-            <label className={styles.manualAdjustField}>
-              <span className="tiny subdued">Lookup mode</span>
-              <select
-                className={styles.searchInput}
-                value={lookupMode}
-                onChange={(event) =>
-                  setLookupMode(event.target.value as "auto" | "email" | "user_id")
-                }
-              >
-                <option value="auto">Auto</option>
-                <option value="email">Email</option>
-                <option value="user_id">User ID</option>
-              </select>
-            </label>
-            <label className={styles.manualAdjustField}>
-              <span className="tiny subdued">Lookback window</span>
-              <select
-                className={styles.searchInput}
-                value={lookbackDays}
-                onChange={(event) => setLookbackDays(Number(event.target.value))}
-              >
-                {LOOKBACK_OPTIONS.map((days) => (
-                  <option key={days} value={days}>
-                    Last {days} days
-                  </option>
-                ))}
-              </select>
-            </label>
-            <div className={styles.manualAdjustActions}>
-              <button type="submit" className="primary-btn" disabled={isRunning}>
-                {isRunning ? "Running..." : "Run health check"}
-              </button>
-            </div>
-          </form>
-
-          {error ? <p className={styles.announcementError}>{error}</p> : null}
-        </section>
-
-        {result ? (
-          <>
-            <section className={styles.adminGrid}>
-              <div className={styles.adminCard}>
-                <div className={styles.adminCardTop}>
-                  <span className={styles.adminLabel}>Spendable credits</span>
-                </div>
-                <p className={styles.adminMetric}>{formatNumber(headline?.spendable ?? 0)}</p>
-                <p className={styles.adminSubtext}>as of {formatDateTime(result.generatedAt)}</p>
+            <div className={styles.adminTable}>
+              <div className={styles.adminTableHead}>
+                <span>Category</span>
+                <span>Value</span>
+                <span>Category</span>
+                <span>Value</span>
+                <span>Category</span>
               </div>
-              <div className={`${styles.adminCard} ${styles.warning}`}>
-                <div className={styles.adminCardTop}>
-                  <span className={styles.adminLabel}>24h fail rate</span>
-                </div>
-                <p className={styles.adminMetric}>{headline?.failRate24h.toFixed(2)}%</p>
-                <p className={styles.adminSubtext}>
-                  {result.generations.last24h.fail} / {result.generations.last24h.total} runs failed
-                </p>
-              </div>
-              <div className={`${styles.adminCard} ${styles.alert}`}>
-                <div className={styles.adminCardTop}>
-                  <span className={styles.adminLabel}>Stuck generations</span>
-                </div>
-                <p className={styles.adminMetric}>{formatNumber(headline?.stuckCount ?? 0)}</p>
-                <p className={styles.adminSubtext}>older than 1h in queued/recovering</p>
-              </div>
-              <div className={styles.adminCard}>
-                <div className={styles.adminCardTop}>
-                  <span className={styles.adminLabel}>Cost without success</span>
-                </div>
-                <p className={styles.adminMetric}>
-                  {formatNumber(headline?.costWithoutSuccess ?? 0)}
-                </p>
-                <p className={styles.adminSubtext}>lookback debits without linked success rows</p>
-                <p className={styles.adminSubtext}>
-                  linked non-success{" "}
-                  {formatNumber(
-                    result.drainage.costWithoutSuccessfulGeneration.linkedNonSuccessGeneration
-                      .debitCents
-                  )}{" "}
-                  · missing linkage{" "}
-                  {formatNumber(
-                    result.drainage.costWithoutSuccessfulGeneration.missingLinkageData.debitCents
-                  )}
-                </p>
-              </div>
-            </section>
-
-            <section className={styles.adminSection}>
-              <div className={styles.adminSectionHead}>
-                <div>
-                  <p className="eyebrow">Target</p>
-                  <p className="tiny subdued">
-                    {result.target.email ?? "No email"} · {result.target.userId}
-                  </p>
-                </div>
-                <span className="tiny subdued">
-                  User created {formatDateTime(result.target.createdAt)} · Last sign-in{" "}
-                  {formatDateTime(result.target.lastSignInAt)}
+              <div className={styles.adminTableRow}>
+                <span>Credits</span>
+                <span>
+                  spendable {formatNumber(result.credits.spendableCents)} · available{" "}
+                  {formatNumber(result.credits.availableCents)} · reserved{" "}
+                  {formatNumber(result.credits.reservedCents)}
+                </span>
+                <span>Generation status mix</span>
+                <span>{topStatusEntries(result.generations.byStatus)}</span>
+                <span>
+                  Queue states: {topStatusEntries(result.queue.byStatus)} · Exhausted{" "}
+                  {result.queue.exhaustedCount}
                 </span>
               </div>
+            </div>
+          </section>
 
-              <div className={styles.adminTable}>
-                <div className={styles.adminTableHead}>
-                  <span>Category</span>
-                  <span>Value</span>
-                  <span>Category</span>
-                  <span>Value</span>
-                  <span>Category</span>
-                </div>
-                <div className={styles.adminTableRow}>
-                  <span>Credits</span>
-                  <span>
-                    spendable {formatNumber(result.credits.spendableCents)} · available{" "}
-                    {formatNumber(result.credits.availableCents)} · reserved{" "}
-                    {formatNumber(result.credits.reservedCents)}
-                  </span>
-                  <span>Generation status mix</span>
-                  <span>{topStatusEntries(result.generations.byStatus)}</span>
-                  <span>
-                    Queue states: {topStatusEntries(result.queue.byStatus)} · Exhausted{" "}
-                    {result.queue.exhaustedCount}
-                  </span>
-                </div>
-              </div>
-            </section>
+          <section className={styles.adminSection}>
+            <div className={styles.adminSectionHead}>
+              <h2 className={styles.adminSectionTitle}>Findings</h2>
+              <span className="tiny subdued">Lookback: {result.lookbackDays}d</span>
+            </div>
+            <div className={styles.healthFindingList}>
+              {result.findings.map((finding) => (
+                <article key={finding.code} className={styles.healthFindingCard}>
+                  <div className={styles.healthFindingMetaRow}>
+                    <span className={`${styles.pill} ${severityClassName(finding)}`}>
+                      {finding.severity}
+                    </span>
+                    <span className={`${styles.pill} ${confidenceClassName(finding)}`}>
+                      confidence {finding.confidence}
+                    </span>
+                    <span className="mono tiny subdued">{finding.code}</span>
+                  </div>
+                  <p className={styles.healthFindingSummary}>{finding.summary}</p>
+                  <p className="tiny subdued">{finding.details}</p>
+                  {finding.recommendedActions.length ? (
+                    <ul className={styles.healthActionList}>
+                      {finding.recommendedActions.map((action) => (
+                        <li key={`${finding.code}-${action}`}>{action}</li>
+                      ))}
+                    </ul>
+                  ) : null}
+                </article>
+              ))}
+            </div>
+          </section>
 
-            <section className={styles.adminSection}>
-              <div className={styles.adminSectionHead}>
-                <h2 className={styles.adminSectionTitle}>Findings</h2>
-                <span className="tiny subdued">Lookback: {result.lookbackDays}d</span>
-              </div>
-              <div className={styles.healthFindingList}>
-                {result.findings.map((finding) => (
-                  <article key={finding.code} className={styles.healthFindingCard}>
-                    <div className={styles.healthFindingMetaRow}>
-                      <span className={`${styles.pill} ${severityClassName(finding)}`}>
-                        {finding.severity}
-                      </span>
-                      <span className={`${styles.pill} ${confidenceClassName(finding)}`}>
-                        confidence {finding.confidence}
-                      </span>
-                      <span className="mono tiny subdued">{finding.code}</span>
-                    </div>
-                    <p className={styles.healthFindingSummary}>{finding.summary}</p>
-                    <p className="tiny subdued">{finding.details}</p>
-                    {finding.recommendedActions.length ? (
-                      <ul className={styles.healthActionList}>
-                        {finding.recommendedActions.map((action) => (
-                          <li key={`${finding.code}-${action}`}>{action}</li>
-                        ))}
-                      </ul>
-                    ) : null}
-                  </article>
-                ))}
-              </div>
-            </section>
-
-            <section className={styles.adminSection}>
-              <h2 className={styles.adminSectionTitle}>Cost and runtime details</h2>
-              <pre className={styles.adminPreBlock}>
-                {JSON.stringify(result.drainage.windows, null, 2)}
-              </pre>
-              <pre className={styles.adminPreBlock}>
-                {JSON.stringify(
-                  {
-                    topDebitSources: result.drainage.topDebitSources,
-                    topDebitSourcesLookbackDays: result.lookbackDays,
-                    costWithoutSuccessBreakdown: result.drainage.costWithoutSuccessfulGeneration,
-                    topFailReasonsLookback: result.generations.topFailReasonsLookback,
-                    topCapturedModels: result.reservations.topCapturedModels,
-                    recentExhaustedQueue: result.queue.recentExhaustedSample,
-                    compatibilityWarnings: result.compatibility.warnings,
-                    nextSteps: result.nextSteps,
-                  },
-                  null,
-                  2
-                )}
-              </pre>
-            </section>
-          </>
-        ) : null}
-      </main>
-    </>
+          <section className={styles.adminSection}>
+            <h2 className={styles.adminSectionTitle}>Cost and runtime details</h2>
+            <pre className={styles.adminPreBlock}>
+              {JSON.stringify(result.drainage.windows, null, 2)}
+            </pre>
+            <pre className={styles.adminPreBlock}>
+              {JSON.stringify(
+                {
+                  topDebitSources: result.drainage.topDebitSources,
+                  topDebitSourcesLookbackDays: result.lookbackDays,
+                  costWithoutSuccessBreakdown: result.drainage.costWithoutSuccessfulGeneration,
+                  topFailReasonsLookback: result.generations.topFailReasonsLookback,
+                  topCapturedModels: result.reservations.topCapturedModels,
+                  recentExhaustedQueue: result.queue.recentExhaustedSample,
+                  compatibilityWarnings: result.compatibility.warnings,
+                  nextSteps: result.nextSteps,
+                },
+                null,
+                2
+              )}
+            </pre>
+          </section>
+        </>
+      ) : null}
+    </AdminRouteShell>
   );
 }

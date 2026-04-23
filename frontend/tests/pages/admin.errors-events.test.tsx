@@ -5,7 +5,7 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import AdminDashboardPage from "../../pages/admin";
+import AdminErrorsPage from "../../pages/admin/errors";
 
 const useProtectedRouteMock = vi.hoisted(() => vi.fn());
 const useAdminAccessMock = vi.hoisted(() => vi.fn());
@@ -183,9 +183,7 @@ describe("Admin errors and events overview", () => {
   });
 
   it("loads incident summary and telemetry when the errors tab is opened", async () => {
-    render(<AdminDashboardPage />);
-
-    fireEvent.click(screen.getByRole("button", { name: "Errors" }));
+    render(<AdminErrorsPage />);
 
     await waitFor(() => {
       expect(screen.getByText("Open incidents")).toBeInTheDocument();
@@ -204,9 +202,7 @@ describe("Admin errors and events overview", () => {
   });
 
   it("resolves an incident and refreshes errors plus telemetry", async () => {
-    render(<AdminDashboardPage />);
-
-    fireEvent.click(screen.getByRole("button", { name: "Errors" }));
+    render(<AdminErrorsPage />);
 
     await waitFor(() => {
       expect(screen.getByText("Generation timeout")).toBeInTheDocument();

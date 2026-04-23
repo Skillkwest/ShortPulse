@@ -2,12 +2,13 @@
  * Admin support queue section.
  * Handles user lookup, row selection, credit adjustment, and recent ledger inspection.
  */
-import { useState } from "react";
+import { type CSSProperties, useState } from "react";
 import Link from "next/link";
 import {
   ADMIN_DASHBOARD_ADJUSTMENT_PRESETS,
   ADMIN_DASHBOARD_CREDIT_LEDGER_LIMIT,
 } from "../logic/useAdminUsersCreditsController";
+import { formatStorageBytes } from "../../billing/storage";
 import type {
   AdminBillingDiagnosticsResponse,
   AdminCreditLedgerRow,
@@ -67,6 +68,15 @@ type AdminSupportQueueSectionProps = {
   formatCreditDelta: (changeCents: number) => string;
   formatUsd: (value: number | null) => string;
 };
+
+function formatStatusLabel(value: string | null | undefined): string {
+  if (!value) return "Inactive";
+  return value
+    .split(/[_-\s]+/)
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+}
 
 /**
  * Renders the main admin support workflow without carrying unrelated incident/broadcast tooling.
@@ -133,6 +143,10 @@ export function AdminSupportQueueSection({
   const [ledgerUserId, setLedgerUserId] = useState<string | null>(null);
   const [pendingDeleteUser, setPendingDeleteUser] = useState<AdminUserRow | null>(null);
   const [deleteConfirmationValue, setDeleteConfirmationValue] = useState("");
+  const [paymentExemptDraft, setPaymentExemptDraft] = useState<{
+    userId: string;
+    value: boolean;
+  } | null>(null);
   const prioritizedUsers = [
     ...users.filter((row) => row.id === currentAdminUserId),
     ...users.filter((row) => row.id !== currentAdminUserId),
@@ -163,11 +177,38 @@ export function AdminSupportQueueSection({
     billingDiagnostics?.currentPublicOffer?.monthlyCreditsCents ??
     selectedUser?.monthlyCreditsCents ??
     null;
+  const snapshotStorageSummary = billingDiagnostics?.storageSummary ?? null;
+  const snapshotStorageTotalBytes =
+    snapshotStorageSummary && snapshotStorageSummary.totalLimitBytes > 0
+      ? snapshotStorageSummary.totalLimitBytes
+      : (billingDiagnostics?.currentContract?.storageLimitBytes ??
+        billingDiagnostics?.linkedOffer?.storageLimitBytes ??
+        billingDiagnostics?.currentPublicOffer?.storageLimitBytes ??
+        null);
+  const snapshotStorageLabel =
+    snapshotStorageTotalBytes != null ? formatStorageBytes(snapshotStorageTotalBytes) : null;
+  const snapshotStorageHelper = snapshotStorageSummary
+    ? snapshotStorageSummary.addonLimitBytes > 0
+      ? `${formatStorageBytes(snapshotStorageSummary.usedBytes)} used · ${formatStorageBytes(snapshotStorageSummary.addonLimitBytes)} add-ons`
+      : `${formatStorageBytes(snapshotStorageSummary.usedBytes)} used`
+    : undefined;
   const snapshotPriceLabel =
     billingDiagnostics?.stripeSubscription?.subscriptionId &&
     billingDiagnostics.stripeSubscription.recurringPriceCents != null
       ? `${formatUsd(billingDiagnostics.stripeSubscription.recurringPriceCents / 100)}/mo`
       : selectedUserPriceLabel;
+  const snapshotStatusLabel = formatStatusLabel(snapshotStatus);
+  const snapshotCreditsHelper = [
+    `available ${selectedUser?.availableCredits.toLocaleString() ?? "0"}`,
+    selectedUser && selectedUser.reservedCredits > 0
+      ? `held ${selectedUser.reservedCredits.toLocaleString()}`
+      : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+  const visibleBillingFindings = billingFindings.filter(
+    (finding) => finding.code !== "internal_comp_contract"
+  );
   const snapshotCards: SnapshotCard[] = selectedUser
     ? [
         {
@@ -186,47 +227,58 @@ export function AdminSupportQueueSection({
               : undefined,
           testId: "snapshot-card-price",
         },
+        snapshotStorageLabel
+          ? {
+              key: "storage",
+              label: "Storage",
+              value: snapshotStorageLabel,
+              helper: snapshotStorageHelper,
+              testId: "snapshot-card-storage",
+            }
+          : null,
         {
-          key: "status",
-          label: "Status",
-          value: snapshotStatus ?? "inactive",
-          testId: "snapshot-card-status",
-        },
-        {
-          key: "spendable",
+          key: "credits",
           value: selectedUser.spendableCredits.toLocaleString(),
-          label: "spendable",
-          testId: "snapshot-metric-spendable",
+          label: "Spendable",
+          helper: snapshotCreditsHelper,
+          testId: "snapshot-card-credits",
         },
-        selectedUser.availableCredits !== selectedUser.spendableCredits
-          ? {
-              key: "available",
-              value: selectedUser.availableCredits.toLocaleString(),
-              label: "available",
-              testId: "snapshot-metric-available",
-            }
-          : null,
-        selectedUser.reservedCredits > 0
-          ? {
-              key: "held",
-              value: selectedUser.reservedCredits.toLocaleString(),
-              label: "held",
-              testId: "snapshot-metric-held",
-            }
-          : null,
       ].filter((card): card is SnapshotCard => Boolean(card))
     : [];
   const snapshotNote = !selectedUserId
-    ? "Pick a user from the list below."
+    ? "Select an account from the list below."
     : billingDiagnosticsError
       ? billingDiagnosticsError
       : billingDiagnosticsLoading && !billingDiagnosticsLoaded
         ? "Loading latest account snapshot…"
-        : billingFindings.length > 0
-          ? `${billingFindings[0]?.summary}${
-              billingFindings.length > 1 ? ` + ${billingFindings.length - 1} more` : ""
+        : visibleBillingFindings.length > 0
+          ? `${visibleBillingFindings[0]?.summary}${
+              visibleBillingFindings.length > 1
+                ? ` + ${visibleBillingFindings.length - 1} more`
+                : ""
             }`
           : null;
+  const hasLinkedStripeSubscription = Boolean(
+    billingDiagnostics?.stripeSubscription?.subscriptionId ||
+    billingDiagnostics?.billingProfile?.stripeSubscriptionId
+  );
+  const selectedAccessPlan =
+    internalCompPlan === "media" ||
+    internalCompPlan === "studio" ||
+    internalCompPlan === "business" ||
+    internalCompPlan === "free"
+      ? internalCompPlan
+      : "business";
+  const paymentExemptEnabled =
+    paymentExemptDraft?.userId === selectedUserId
+      ? paymentExemptDraft.value
+      : snapshotContractSource === "internal_comp";
+  const paymentExemptPlanLabel = selectedAccessPlan === "free" ? "business" : selectedAccessPlan;
+  const canSaveAccess =
+    (paymentExemptEnabled && selectedAccessPlan !== "free") ||
+    (!paymentExemptEnabled &&
+      selectedAccessPlan === "free" &&
+      snapshotContractSource === "internal_comp");
 
   const handleShowLedger = async () => {
     if (!selectedUserId) return;
@@ -265,11 +317,11 @@ export function AdminSupportQueueSection({
       <section className={styles.adminSection}>
         <div className={styles.adminSectionHead}>
           <div>
-            <p className="eyebrow">Support console</p>
-            <h2 className={styles.adminSectionTitle}>Support queue</h2>
+            <p className="eyebrow">Account controls</p>
+            <h2 className={styles.adminSectionTitle}>Selected account</h2>
             <p className="tiny subdued">
-              Review the selected account, inspect billing drift, and make support-side credit
-              changes from one primary workspace before drilling into the user list below.
+              Pick an account below, then change plan access, adjust credits, and open billing tools
+              from this panel.
             </p>
           </div>
         </div>
@@ -283,16 +335,47 @@ export function AdminSupportQueueSection({
               <div className={styles.accountSnapshot}>
                 <div className={styles.accountSnapshotHead}>
                   <div className={styles.accountSnapshotIdentity}>
-                    <span className={styles.accountSnapshotTitle}>
-                      {selectedUser?.email ?? selectedUser?.id ?? "Pick a user from the list below"}
-                    </span>
+                    <span className="tiny subdued">Selected account</span>
+                    <div className={styles.accountSnapshotTitleRow}>
+                      <span className={styles.accountSnapshotTitle}>
+                        {selectedUser?.email ??
+                          selectedUser?.id ??
+                          "Select an account from the list below"}
+                      </span>
+                      {selectedUserId ? (
+                        <div className={styles.accountSnapshotHeaderBadges}>
+                          <span
+                            className={styles.accountSnapshotHeaderBadge}
+                            data-testid="snapshot-status-badge"
+                          >
+                            {snapshotStatusLabel}
+                          </span>
+                          {snapshotContractSource === "internal_comp" ? (
+                            <span
+                              className={`${styles.accountSnapshotHeaderBadge} ${styles.accountSnapshotHeaderBadgeAccent}`}
+                              data-testid="snapshot-payment-exempt-badge"
+                            >
+                              ✓ Payment exempt
+                            </span>
+                          ) : null}
+                        </div>
+                      ) : null}
+                    </div>
                   </div>
                   {snapshotNote ? (
                     <span className={styles.accountSnapshotNote}>{snapshotNote}</span>
                   ) : null}
                 </div>
                 {snapshotCards.length > 0 ? (
-                  <div className={styles.accountSnapshotCards} data-testid="snapshot-plan-card">
+                  <div
+                    className={styles.accountSnapshotCards}
+                    data-testid="snapshot-plan-card"
+                    style={
+                      {
+                        "--snapshot-card-columns": snapshotCards.length,
+                      } as CSSProperties
+                    }
+                  >
                     {snapshotCards.map((card) => (
                       <article
                         key={card.key}
@@ -311,43 +394,52 @@ export function AdminSupportQueueSection({
               </div>
 
               <div className={styles.manualAdjustPanel}>
-                <label className={styles.manualAdjustField}>
-                  <input
-                    className={styles.searchInput}
-                    type="text"
-                    value={adjustment}
-                    pattern="[+-]?[0-9]*"
-                    inputMode="numeric"
-                    autoComplete="off"
-                    onChange={(event) => handleAdjustmentChange(event.target.value)}
-                    placeholder="+500 or -100"
-                    disabled={!selectedUserId}
-                  />
-                </label>
+                <div className={styles.adminSectionHead}>
+                  <div>
+                    <p className="eyebrow">Credits</p>
+                    <p className="tiny subdued">Add or remove credits from the selected account.</p>
+                  </div>
+                </div>
+                <div className={styles.controlPanelGrid}>
+                  <div className={styles.controlPanelBlock}>
+                    <label className={`${styles.manualAdjustField} ${styles.controlFieldCompact}`}>
+                      <span className="tiny subdued">Credit change</span>
+                      <input
+                        className={styles.searchInput}
+                        type="text"
+                        value={adjustment}
+                        pattern="[+-]?[0-9]*"
+                        inputMode="numeric"
+                        autoComplete="off"
+                        onChange={(event) => handleAdjustmentChange(event.target.value)}
+                        placeholder="+500 credits or -100 credits"
+                        disabled={!selectedUserId}
+                      />
+                    </label>
 
-                <div className={styles.manualAdjustFooter}>
-                  <div className={styles.manualAdjustPresets}>
-                    {ADMIN_DASHBOARD_ADJUSTMENT_PRESETS.map((preset) => (
-                      <button
-                        key={preset}
-                        type="button"
-                        className={`ghost-btn mini ${styles.manualAdjustPresetButton}`}
-                        onClick={() => applyAdjustmentPreset(preset)}
-                        disabled={adjustSubmitting || !selectedUserId}
-                      >
-                        {preset > 0 ? `+${preset}` : String(preset)}
-                      </button>
-                    ))}
+                    <div className={styles.manualAdjustPresets}>
+                      {ADMIN_DASHBOARD_ADJUSTMENT_PRESETS.map((preset) => (
+                        <button
+                          key={preset}
+                          type="button"
+                          className={`ghost-btn mini ${styles.manualAdjustPresetButton}`}
+                          onClick={() => applyAdjustmentPreset(preset)}
+                          disabled={adjustSubmitting || !selectedUserId}
+                        >
+                          {preset > 0 ? `+${preset}` : String(preset)}
+                        </button>
+                      ))}
+                    </div>
                   </div>
 
-                  <div className={styles.manualAdjustActions}>
+                  <div className={`${styles.manualAdjustActions} ${styles.controlPanelActions}`}>
                     <button
                       type="button"
                       className={`ghost-btn mini ${styles.manualAdjustPrimaryAction}`}
                       onClick={() => void handleCreditAdjust()}
                       disabled={adjustSubmitting || !selectedUserId}
                     >
-                      {adjustSubmitting ? "Applying…" : "Apply"}
+                      {adjustSubmitting ? "Saving…" : "Save credit change"}
                     </button>
                     {selectedUserId ? (
                       <Link
@@ -356,7 +448,7 @@ export function AdminSupportQueueSection({
                         )}&lookupMode=user_id`}
                         className={`ghost-btn mini ${styles.manualAdjustSecondaryAction}`}
                       >
-                        Open health check
+                        Open account health
                       </Link>
                     ) : (
                       <button
@@ -364,7 +456,7 @@ export function AdminSupportQueueSection({
                         className={`ghost-btn mini ${styles.manualAdjustSecondaryAction}`}
                         disabled
                       >
-                        Open health check
+                        Open account health
                       </button>
                     )}
                     <button
@@ -375,7 +467,7 @@ export function AdminSupportQueueSection({
                       }}
                       disabled={!selectedUserId || creditLedgerLoading || ledgerVisible}
                     >
-                      {creditLedgerLoading ? "Loading log…" : "Show log"}
+                      {creditLedgerLoading ? "Loading log…" : "Show credit log"}
                     </button>
                   </div>
                 </div>
@@ -386,76 +478,142 @@ export function AdminSupportQueueSection({
               <div className={styles.manualAdjustPanel}>
                 <div className={styles.adminSectionHead}>
                   <div>
-                    <p className="eyebrow">Internal access</p>
+                    <p className="eyebrow">Plan access</p>
                     <p className="tiny subdued">
-                      Grant non-public Media, Studio, or Business access without a Stripe
-                      subscription. This is intended for internal/admin comp scenarios.
+                      Choose the plan for this account and decide whether it should be payment
+                      exempt.
                     </p>
                   </div>
                 </div>
+                <div className={styles.controlPanelGrid}>
+                  <div className={styles.controlPanelBlock}>
+                    <div className={styles.compactFormRow}>
+                      <label
+                        className={`${styles.manualAdjustField} ${styles.controlFieldCompact} ${styles.controlFieldPrimary}`}
+                      >
+                        <span className="tiny subdued">Plan</span>
+                        <select
+                          className={styles.searchInput}
+                          value={selectedAccessPlan}
+                          onChange={(event) => handleInternalCompPlanChange(event.target.value)}
+                          disabled={!selectedUserId || billingOverrideSubmitting}
+                        >
+                          <option value="free">Free</option>
+                          <option value="media">Media</option>
+                          <option value="studio">Studio</option>
+                          <option value="business">Business</option>
+                        </select>
+                      </label>
 
-                <label className={styles.manualAdjustField}>
-                  <span className="tiny subdued">Internal comp tier</span>
-                  <select
-                    className={styles.searchInput}
-                    value={internalCompPlan}
-                    onChange={(event) => handleInternalCompPlanChange(event.target.value)}
-                    disabled={!selectedUserId || billingOverrideSubmitting}
-                  >
-                    <option value="media">Media</option>
-                    <option value="studio">Studio</option>
-                    <option value="business">Business</option>
-                  </select>
-                </label>
+                      <label className={`${styles.controlToggleCard} tiny subdued`}>
+                        <span className={styles.controlToggleTitle}>Payment exempt</span>
+                        <span className={styles.controlToggleInput}>
+                          <input
+                            type="checkbox"
+                            aria-label="Payment exempt"
+                            checked={paymentExemptEnabled}
+                            onChange={(event) => {
+                              const nextChecked = event.target.checked;
+                              if (!selectedUserId) return;
+                              setPaymentExemptDraft({
+                                userId: selectedUserId,
+                                value: nextChecked,
+                              });
+                              if (nextChecked && selectedAccessPlan === "free") {
+                                handleInternalCompPlanChange(paymentExemptPlanLabel);
+                              }
+                            }}
+                            disabled={!selectedUserId || billingOverrideSubmitting}
+                          />{" "}
+                          {paymentExemptEnabled ? "Enabled" : "Disabled"}
+                        </span>
+                      </label>
+                    </div>
 
-                <label className={styles.manualAdjustField}>
-                  <span className="tiny subdued">Reason</span>
-                  <input
-                    className={styles.searchInput}
-                    type="text"
-                    value={internalCompReason}
-                    onChange={(event) => handleInternalCompReasonChange(event.target.value)}
-                    placeholder="Internal test, founder access, support comp"
-                    disabled={!selectedUserId || billingOverrideSubmitting}
-                  />
-                </label>
+                    <p className="tiny subdued">
+                      {paymentExemptEnabled
+                        ? `This will give the account ${planLabel(selectedAccessPlan)} access without billing through Stripe.`
+                        : selectedAccessPlan === "free"
+                          ? "This will remove payment-exempt access and set the account to the Free plan."
+                          : "This account is currently Stripe billed. Use Stripe billing tools for normal paid-plan changes."}
+                    </p>
+                    {!paymentExemptEnabled &&
+                    selectedAccessPlan !== "free" &&
+                    snapshotContractSource !== "internal_comp" ? (
+                      <p className="tiny subdued">
+                        To switch a paid Stripe-billed account to a different paid tier, use Stripe
+                        billing tools first. This control is for payment-exempt access or returning
+                        an exempt account to Free.
+                      </p>
+                    ) : null}
 
-                <label className="tiny subdued">
-                  <input
-                    type="checkbox"
-                    checked={allowStripeTakeover}
-                    onChange={(event) => handleAllowStripeTakeoverChange(event.target.checked)}
-                    disabled={!selectedUserId || billingOverrideSubmitting}
-                  />{" "}
-                  I already handled any live Stripe subscription outside ShortPulse and want this
-                  action to clear the local Stripe linkage.
-                </label>
+                    {paymentExemptEnabled ? (
+                      <label
+                        className={`${styles.manualAdjustField} ${styles.controlFieldCompact}`}
+                      >
+                        <span className="tiny subdued">Reason</span>
+                        <input
+                          className={styles.searchInput}
+                          type="text"
+                          value={internalCompReason}
+                          onChange={(event) => handleInternalCompReasonChange(event.target.value)}
+                          placeholder="Why are you overriding billing for this account?"
+                          disabled={!selectedUserId || billingOverrideSubmitting}
+                        />
+                      </label>
+                    ) : null}
 
-                <div className={styles.manualAdjustActions}>
-                  <button
-                    type="button"
-                    className={`ghost-btn mini ${styles.manualAdjustPrimaryAction}`}
-                    onClick={() => {
-                      void handleGrantInternalComp();
-                    }}
-                    disabled={!selectedUserId || billingOverrideSubmitting}
-                  >
-                    {billingOverrideSubmitting ? "Applying…" : "Apply internal comp"}
-                  </button>
-                  <button
-                    type="button"
-                    className={`ghost-btn mini ${styles.manualAdjustSecondaryAction}`}
-                    onClick={() => {
-                      void handleRevokeInternalComp();
-                    }}
-                    disabled={
-                      !selectedUserId ||
-                      billingOverrideSubmitting ||
-                      snapshotContractSource !== "internal_comp"
-                    }
-                  >
-                    Return to Free
-                  </button>
+                    {hasLinkedStripeSubscription ? (
+                      <details className={styles.controlDetails}>
+                        <summary className="tiny subdued">Advanced billing actions</summary>
+                        <label className={`${styles.controlToggleCard} tiny subdued`}>
+                          <span className={styles.controlToggleTitle}>Stripe takeover</span>
+                          <span className={styles.controlToggleInput}>
+                            <input
+                              type="checkbox"
+                              checked={allowStripeTakeover}
+                              onChange={(event) =>
+                                handleAllowStripeTakeoverChange(event.target.checked)
+                              }
+                              disabled={!selectedUserId || billingOverrideSubmitting}
+                            />{" "}
+                            Clear the saved Stripe subscription link after I already handled Stripe
+                            outside ShortPulse.
+                          </span>
+                        </label>
+                      </details>
+                    ) : null}
+                  </div>
+
+                  <div className={`${styles.manualAdjustActions} ${styles.controlPanelActions}`}>
+                    <button
+                      type="button"
+                      className={`ghost-btn mini ${styles.manualAdjustPrimaryAction}`}
+                      onClick={() => {
+                        void (paymentExemptEnabled
+                          ? handleGrantInternalComp()
+                          : handleRevokeInternalComp());
+                      }}
+                      disabled={!selectedUserId || billingOverrideSubmitting || !canSaveAccess}
+                    >
+                      {billingOverrideSubmitting ? "Saving…" : "Save access"}
+                    </button>
+                    <button
+                      type="button"
+                      className={`ghost-btn mini ${styles.manualAdjustSecondaryAction}`}
+                      onClick={() => {
+                        handleInternalCompPlanChange("free");
+                        void handleRevokeInternalComp();
+                      }}
+                      disabled={
+                        !selectedUserId ||
+                        billingOverrideSubmitting ||
+                        snapshotContractSource !== "internal_comp"
+                      }
+                    >
+                      Set Free plan
+                    </button>
+                  </div>
                 </div>
               </div>
 
@@ -470,7 +628,7 @@ export function AdminSupportQueueSection({
                   <div>
                     <p className="eyebrow">Credit transaction log</p>
                     <p className="tiny subdued">
-                      Latest {ADMIN_DASHBOARD_CREDIT_LEDGER_LIMIT} rows for the selected user.
+                      Latest {ADMIN_DASHBOARD_CREDIT_LEDGER_LIMIT} rows for the selected account.
                     </p>
                   </div>
                   <div className={styles.tabRow}>
@@ -688,8 +846,7 @@ export function AdminSupportQueueSection({
                         >
                           <span className="mono">{row.spendableCredits.toLocaleString()}</span>
                           <span className={styles.adminCreditMeta}>
-                            avail {row.availableCredits.toLocaleString()} · holds{" "}
-                            {row.reservedCredits.toLocaleString()}
+                            holds {row.reservedCredits.toLocaleString()}
                           </span>
                         </span>
                         <span
@@ -700,11 +857,6 @@ export function AdminSupportQueueSection({
                           {row.recurringPriceCents != null ? (
                             <span className={styles.adminCreditMeta}>
                               {formatUsd(row.recurringPriceCents / 100)}/mo
-                            </span>
-                          ) : null}
-                          {row.contractSource ? (
-                            <span className={styles.adminCreditMeta}>
-                              {row.contractSource === "internal_comp" ? "internal comp" : "stripe"}
                             </span>
                           ) : null}
                         </span>

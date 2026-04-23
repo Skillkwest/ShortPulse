@@ -4,7 +4,7 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import AdminDashboardPage from "../../pages/admin";
+import AdminAnnouncementsPage from "../../pages/admin/announcements";
 
 const useProtectedRouteMock = vi.hoisted(() => vi.fn());
 const useAdminAccessMock = vi.hoisted(() => vi.fn());
@@ -165,16 +165,14 @@ describe("Admin announcements tab", () => {
   });
 
   it("loads and pre-fills current announcement on tab open", async () => {
-    render(<AdminDashboardPage />);
-    fireEvent.click(screen.getByRole("button", { name: "Announcements" }));
+    render(<AdminAnnouncementsPage />);
 
     await waitFor(() => expect(screen.getByDisplayValue("Studio maintenance")).toBeInTheDocument());
     expect(screen.getByDisplayValue("We are deploying updates at 2AM UTC.")).toBeInTheDocument();
   });
 
   it("publishes and clears announcement with deterministic feedback", async () => {
-    render(<AdminDashboardPage />);
-    fireEvent.click(screen.getByRole("button", { name: "Announcements" }));
+    render(<AdminAnnouncementsPage />);
 
     await waitFor(() =>
       expect(fetchWithAuthMock).toHaveBeenCalledWith(

@@ -381,7 +381,7 @@ export const useAdminUsersCreditsController = ({
 
   const handleGrantInternalComp = React.useCallback(async () => {
     if (!selectedUserId) {
-      setBillingOverrideResult("Pick a user before applying internal comp access.");
+      setBillingOverrideResult("Select an account before saving payment-exempt access.");
       return;
     }
     if (
@@ -389,7 +389,7 @@ export const useAdminUsersCreditsController = ({
       internalCompPlan !== "studio" &&
       internalCompPlan !== "business"
     ) {
-      setBillingOverrideResult("Choose Media, Studio, or Business for internal comp access.");
+      setBillingOverrideResult("Choose Media, Studio, or Business before saving access.");
       return;
     }
 
@@ -412,18 +412,18 @@ export const useAdminUsersCreditsController = ({
         creditsGrantedCents?: number;
       };
       if (!response.ok) {
-        throw new Error(data.error || "Internal comp update failed.");
+        throw new Error(data.error || "Payment-exempt access update failed.");
       }
       const grantedCredits = Number(data.creditsGrantedCents ?? 0);
       setBillingOverrideResult(
         grantedCredits > 0
-          ? `Internal comp access applied and ${grantedCredits.toLocaleString()} credits were seeded.`
-          : "Internal comp access applied."
+          ? `Payment-exempt access saved and ${grantedCredits.toLocaleString()} credits were seeded.`
+          : "Payment-exempt access saved."
       );
       await Promise.all([loadUsers(), loadBillingDiagnostics(), loadCreditLedger()]);
     } catch (error) {
       setBillingOverrideResult(
-        error instanceof Error ? error.message : "Internal comp update failed."
+        error instanceof Error ? error.message : "Payment-exempt access update failed."
       );
     } finally {
       setBillingOverrideSubmitting(false);
@@ -440,7 +440,7 @@ export const useAdminUsersCreditsController = ({
 
   const handleRevokeInternalComp = React.useCallback(async () => {
     if (!selectedUserId) {
-      setBillingOverrideResult("Pick a user before revoking internal comp access.");
+      setBillingOverrideResult("Select an account before removing payment-exempt access.");
       return;
     }
 
@@ -457,15 +457,13 @@ export const useAdminUsersCreditsController = ({
       });
       const data = (await response.json().catch(() => ({}))) as { error?: string };
       if (!response.ok) {
-        throw new Error(data.error || "Internal comp revoke failed.");
+        throw new Error(data.error || "Payment-exempt access removal failed.");
       }
-      setBillingOverrideResult(
-        "Internal comp access removed and the account was returned to Free."
-      );
+      setBillingOverrideResult("Payment-exempt access removed and the account was set to Free.");
       await Promise.all([loadUsers(), loadBillingDiagnostics(), loadCreditLedger()]);
     } catch (error) {
       setBillingOverrideResult(
-        error instanceof Error ? error.message : "Internal comp revoke failed."
+        error instanceof Error ? error.message : "Payment-exempt access removal failed."
       );
     } finally {
       setBillingOverrideSubmitting(false);

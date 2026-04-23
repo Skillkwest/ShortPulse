@@ -390,7 +390,13 @@ export function ErrorEventsStreamSection({
                   </span>
                 </div>
                 <span
-                  className={`${styles.pill} ${row.severity === "high" ? styles.pillWarn : styles.pillOk}`}
+                  className={`${styles.pill} ${
+                    row.severity === "high"
+                      ? styles.pillCritical
+                      : row.severity === "medium"
+                        ? styles.pillWarn
+                        : styles.pillOk
+                  }`}
                 >
                   {row.severity}
                 </span>

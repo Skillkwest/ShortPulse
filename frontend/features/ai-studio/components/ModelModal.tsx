@@ -51,38 +51,6 @@ const modelMeta: Record<string, ModelMeta> = {
     tags: ["Image", "Text-to-Image", "9B", "Fast"],
     verified: true,
   },
-  "fal/flux-2": {
-    provider: "Black Forest Labs",
-    description:
-      "FLUX.2 base model for balanced text-to-image quality, lighting, and prompt adherence.",
-    logo: "Flux",
-    tags: ["Image", "Text-to-Image", "Balanced"],
-    verified: true,
-  },
-  "fal/flux-2/edit": {
-    provider: "Black Forest Labs",
-    description:
-      "FLUX.2 Edit for image-to-image transformations that preserve structure while restyling.",
-    logo: "Flux",
-    tags: ["Image", "Image-to-Image", "Edit"],
-    verified: true,
-  },
-  "fal/flux-2-pro": {
-    provider: "Black Forest Labs",
-    description:
-      "FLUX.2 Pro improves fine texture detail and contrast control for higher-fidelity image generation.",
-    logo: "Flux",
-    tags: ["Image", "Text-to-Image", "High Fidelity"],
-    verified: true,
-  },
-  "fal/flux-2-pro/edit": {
-    provider: "Black Forest Labs",
-    description:
-      "FLUX.2 Pro Edit applies high-fidelity image-to-image edits with stronger detail retention.",
-    logo: "Flux",
-    tags: ["Image", "Image-to-Image", "High Fidelity"],
-    verified: true,
-  },
   "kie-ai/veo-3.1-fast-i2v": {
     provider: "Kie AI",
     description:
@@ -322,8 +290,6 @@ const modelPriorityByContext: Partial<Record<ModelModalContext, string[]>> = {
     "fal-ai/nano-banana/edit",
     "fal-ai/nano-banana-2/edit",
     "fal-ai/nano-banana-pro/edit",
-    "fal/flux-2/edit",
-    "fal/flux-2-pro/edit",
   ],
   "reference-video": ["kie-ai/veo-3.1-fast-i2v", "kie-ai/kling-3.0"],
   "reference-keyframes": ["kie-ai/veo-3.1-fast-i2v"],
@@ -331,7 +297,7 @@ const modelPriorityByContext: Partial<Record<ModelModalContext, string[]>> = {
 };
 
 const hiddenModelIdsByContext: Partial<Record<ModelModalContext, string[]>> = {
-  "text-image": ["fal/flux-2", "fal-ai/nano-banana"],
+  "text-image": ["fal-ai/nano-banana"],
 };
 
 const videoModalContexts = new Set<ModelModalContext>([

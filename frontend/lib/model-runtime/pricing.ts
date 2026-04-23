@@ -41,10 +41,3 @@ export const computeCostForModel = (
 
   return strategy({ ...params, modelId });
 };
-
-// Backward-compatible helper for existing call sites.
-export const computeFalFluxCost = (aspect: string): CostBreakdown => {
-  const result = computeCostForModel("fal/flux-2", { aspect });
-  if (result) return result;
-  return { credits: 0, usd: 0, rawCredits: 0, usdRaw: 0, megapixels: 0, width: 0, height: 0 };
-};

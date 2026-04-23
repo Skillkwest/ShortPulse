@@ -326,9 +326,9 @@ describe("generationBilling reservation RPC handling", () => {
 
     const cases = [
       {
-        modelId: "fal/flux-2/edit",
-        route: "/api/fal/flux2-edit-submit",
-        requestId: "req-flux2-edit",
+        modelId: "fal-ai/bytedance/seedream/v4.5/edit",
+        route: "/api/fal/seedream-edit-submit",
+        requestId: "req-seedream-edit",
         payload: {
           prompt: "cinematic portrait",
           image_urls: ["https://example.com/ref.png"],
@@ -336,12 +336,13 @@ describe("generationBilling reservation RPC handling", () => {
         },
       },
       {
-        modelId: "fal/flux-2-pro/edit",
-        route: "/api/fal/flux2pro-edit-submit",
-        requestId: "req-flux2-pro-edit",
+        modelId: "fal-ai/flux-pro/v1/fill",
+        route: "/api/fal/flux-pro-fill-submit",
+        requestId: "req-flux-fill",
         payload: {
           prompt: "cinematic portrait",
-          image_urls: ["https://example.com/ref.png"],
+          image_url: "https://example.com/base.png",
+          mask_url: "https://example.com/mask.png",
           image_size: { width: 1024, height: 1024 },
         },
       },

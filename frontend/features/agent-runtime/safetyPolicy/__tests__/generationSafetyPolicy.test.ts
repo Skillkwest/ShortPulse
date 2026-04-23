@@ -12,16 +12,15 @@ describe("generationSafetyPolicy", () => {
     const payload: Record<string, unknown> = { prompt: "portrait" };
     const result = enforceServerGenerationSafetyPayload({
       payload,
-      modelId: "fal/flux-2-pro",
+      modelId: "fal-ai/bytedance/seedream/v4.5/text-to-image",
       modality: "image",
-      spec: getModelPayloadValidationSpec("fal/flux-2-pro"),
+      spec: getModelPayloadValidationSpec("fal-ai/bytedance/seedream/v4.5/text-to-image"),
       policyDocument: policy,
     });
 
     expect(result.enforced).toBe(true);
     expect(result.enforcedLevel).toBe("off");
     expect(payload.enable_safety_checker).toBe(false);
-    expect(payload.safety_tolerance).toBe("5");
   });
 
   it("keeps minimum defaults even when policy includes stricter per-model overrides", () => {
@@ -65,15 +64,14 @@ describe("generationSafetyPolicy", () => {
     const payload: Record<string, unknown> = { prompt: "portrait" };
     const result = enforceServerGenerationSafetyPayload({
       payload,
-      modelId: "fal/flux-2-pro",
+      modelId: "fal-ai/bytedance/seedream/v4.5/text-to-image",
       modality: "image",
-      spec: getModelPayloadValidationSpec("fal/flux-2-pro"),
+      spec: getModelPayloadValidationSpec("fal-ai/bytedance/seedream/v4.5/text-to-image"),
       policyDocument: policy,
     });
 
     expect(result.enforced).toBe(true);
     expect(result.enforcedLevel).toBe("off");
     expect(payload.enable_safety_checker).toBe(false);
-    expect(payload.safety_tolerance).toBe("5");
   });
 });

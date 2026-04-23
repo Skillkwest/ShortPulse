@@ -10,11 +10,7 @@ import { KIE_KLING_30_MODEL_ID } from "../../../lib/model-runtime/providerModelI
 
 export type Provider =
   | "fal"
-  | "fal-flux2"
   | "fal-flux2-klein"
-  | "fal-flux2-edit"
-  | "fal-flux2-pro"
-  | "fal-flux2-pro-edit"
   | "fal-flux-pro-fill"
   | "fal-flux-kontext-inpaint"
   | "fal-bria-background-remove"
@@ -93,12 +89,7 @@ export const normalizeProviderForPolling = (
     ) {
       return "fal-bria-background-remove";
     }
-    if (normalized.includes("flux-2-pro") && normalized.includes("edit"))
-      return "fal-flux2-pro-edit";
-    if (normalized.includes("flux-2-pro")) return "fal-flux2-pro";
     if (normalized.includes("flux-2") && normalized.includes("klein")) return "fal-flux2-klein";
-    if (normalized.includes("flux-2") && normalized.includes("edit")) return "fal-flux2-edit";
-    if (normalized.includes("flux-2")) return "fal-flux2";
     return "fal";
   }
   if (normalized.startsWith("kie")) {
@@ -142,10 +133,13 @@ export const computeModalPosition = (target: HTMLElement): { top: number; left: 
 };
 
 const VIDEO_EXTENSION_PATTERN = /\.(m4v|mov|mp4|ogg|ogv|webm)(?:$|[?#])/i;
+const AUDIO_EXTENSION_PATTERN = /\.(aac|flac|m4a|mp3|oga|ogg|wav)(?:$|[?#])/i;
 const IMAGE_EXTENSION_PATTERN = /\.(avif|bmp|gif|heic|heif|jpe?g|png|svg|webp)(?:$|[?#])/i;
 const VIDEO_SEGMENT_PATTERN = /\/(?:videos|video)(?:\/|$)/i;
+const AUDIO_SEGMENT_PATTERN = /\/(?:audio|audios)(?:\/|$)/i;
 const IMAGE_SEGMENT_PATTERN = /\/(?:images|image)(?:\/|$)/i;
 const VIDEO_MARKER_PATTERN = /(?:[?#&]|^)video=1(?:$|[&#])/i;
+const AUDIO_MARKER_PATTERN = /(?:[?#&]|^)audio=1(?:$|[&#])/i;
 const NEXT_IMAGE_PATH_PATTERN = /\/_next\/image$/i;
 const SUPABASE_RENDER_IMAGE_PATH_PATTERN = /\/storage\/v1\/render\/image\//i;
 
@@ -200,6 +194,62 @@ export const isVideoUrl = (url: string | null | undefined) => {
   const hasVideoSegment = VIDEO_SEGMENT_PATTERN.test(decodedPathname);
   const hasImageSegment = IMAGE_SEGMENT_PATTERN.test(decodedPathname);
   return hasVideoSegment && !hasImageSegment;
+};
+
+export const isAudioUrl = (url: string | null | undefined) => {
+  if (!url) return false;
+  const trimmed = url.trim();
+  if (!trimmed) return false;
+  if (/^data:audio\//i.test(trimmed)) return true;
+  if (/^data:(image|video)\//i.test(trimmed)) return false;
+  if (/^blob:/i.test(trimmed)) return AUDIO_MARKER_PATTERN.test(trimmed);
+  if (AUDIO_EXTENSION_PATTERN.test(trimmed)) return true;
+  if (VIDEO_EXTENSION_PATTERN.test(trimmed) || IMAGE_EXTENSION_PATTERN.test(trimmed)) return false;
+
+  const parsed = parseMediaCandidateUrl(trimmed);
+  if (!parsed) {
+    const hasAudioSegment = AUDIO_SEGMENT_PATTERN.test(trimmed);
+    const hasVideoSegment = VIDEO_SEGMENT_PATTERN.test(trimmed);
+    const hasImageSegment = IMAGE_SEGMENT_PATTERN.test(trimmed);
+    return hasAudioSegment && !hasVideoSegment && !hasImageSegment;
+  }
+
+  const decodedPathname = (() => {
+    try {
+      return decodeURIComponent(parsed.pathname);
+    } catch {
+      return parsed.pathname;
+    }
+  })();
+  if (NEXT_IMAGE_PATH_PATTERN.test(decodedPathname)) return false;
+  if (SUPABASE_RENDER_IMAGE_PATH_PATTERN.test(decodedPathname)) return false;
+  if (AUDIO_EXTENSION_PATTERN.test(decodedPathname)) return true;
+  if (
+    VIDEO_EXTENSION_PATTERN.test(decodedPathname) ||
+    IMAGE_EXTENSION_PATTERN.test(decodedPathname)
+  )
+    return false;
+
+  const queryMimeType =
+    parsed.searchParams.get("mimeType") ??
+    parsed.searchParams.get("mime") ??
+    parsed.searchParams.get("contentType") ??
+    parsed.searchParams.get("type") ??
+    "";
+  const normalizedQueryMimeType = queryMimeType.toLowerCase();
+  if (normalizedQueryMimeType.startsWith("audio/")) return true;
+  if (
+    normalizedQueryMimeType.startsWith("video/") ||
+    normalizedQueryMimeType.startsWith("image/")
+  ) {
+    return false;
+  }
+  if (parsed.searchParams.get("audio") === "1") return true;
+
+  const hasAudioSegment = AUDIO_SEGMENT_PATTERN.test(decodedPathname);
+  const hasVideoSegment = VIDEO_SEGMENT_PATTERN.test(decodedPathname);
+  const hasImageSegment = IMAGE_SEGMENT_PATTERN.test(decodedPathname);
+  return hasAudioSegment && !hasVideoSegment && !hasImageSegment;
 };
 
 type OutputLike = {
@@ -346,7 +396,12 @@ export const mapUploadsFromFiles = async (
   source: "filePicker" | "drop" = "filePicker"
 ): Promise<StudioOutput[]> => {
   const mediaFiles = Array.from(files)
-    .filter((file) => file.type.startsWith("image/") || file.type.startsWith("video/"))
+    .filter(
+      (file) =>
+        file.type.startsWith("image/") ||
+        file.type.startsWith("video/") ||
+        file.type.startsWith("audio/")
+    )
     .filter((file, index, all) => {
       const signature = `${file.name}:${file.type}:${file.size}:${file.lastModified}`;
       return (
@@ -363,6 +418,7 @@ export const mapUploadsFromFiles = async (
   const outputs = await Promise.all(
     mediaFiles.map(async (file) => {
       const isVideo = file.type.startsWith("video/");
+      const isAudio = file.type.startsWith("audio/");
       const objectUrl = supportsObjectUrl ? URL.createObjectURL(file) : null;
       const fallbackDataUrl = await (async () => {
         if (objectUrl) return null;
@@ -376,13 +432,17 @@ export const mapUploadsFromFiles = async (
       // Keep url-shape compatibility for existing heuristics while retaining the raw object URL
       // for deterministic cleanup via URL.revokeObjectURL.
       const previewBase = objectUrl ?? fallbackDataUrl ?? "";
-      const previewUrl = isVideo ? `${previewBase}#video=1` : previewBase;
+      const previewUrl = isVideo
+        ? `${previewBase}#video=1`
+        : isAudio && objectUrl
+          ? `${previewBase}#audio=1`
+          : previewBase;
       const previewPosterUrl =
         isVideo && previewBase ? await extractVideoPosterDataUrl(previewBase) : null;
       return {
         id: `upload-${randomIdFn()}`,
         prompt: file.name,
-        mode: isVideo ? ("video" as const) : ("image" as const),
+        mode: isVideo ? ("video" as const) : isAudio ? ("audio" as const) : ("image" as const),
         aspect,
         model: resolveModelLabelFn(model ?? undefined),
         modelId: model ?? undefined,
@@ -391,6 +451,7 @@ export const mapUploadsFromFiles = async (
         previewUrl,
         previewPosterUrl,
         previewTier: "full" as const,
+        mimeType: file.type || null,
         mediaSource: "upload" as const,
         localObjectUrl: objectUrl,
         saveState: "idle" as const,
@@ -431,9 +492,6 @@ export const filterModelOptions = (
         return true;
       return false;
     });
-  }
-  if ((selectedTool === "create" || selectedTool === "text") && mode === "image") {
-    filtered = filtered.filter((opt) => opt.value !== "fal/flux-2-pro");
   }
   if (selectedTool === "image" || selectedTool === "edit") {
     filtered = filtered.filter((opt) => {

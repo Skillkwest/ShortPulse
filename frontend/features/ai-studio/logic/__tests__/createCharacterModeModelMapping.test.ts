@@ -48,7 +48,7 @@ describe("createCharacterModeModelMapping", () => {
     ).toBe("fal-ai/nano-banana-pro/edit");
     expect(
       mapCreateModelOnCharacterModeToggle({
-        currentModelId: "fal/flux-2",
+        currentModelId: "legacy/removed-model",
         isCharacterModeEnabled: true,
       })
     ).toBe("fal-ai/bytedance/seedream/v4.5/edit");
@@ -81,7 +81,7 @@ describe("createCharacterModeModelMapping", () => {
     ).toBe("fal-ai/nano-banana-pro");
     expect(
       mapCreateModelOnCharacterModeToggle({
-        currentModelId: "fal/flux-2/edit",
+        currentModelId: "legacy/removed-model/edit",
         isCharacterModeEnabled: false,
       })
     ).toBe(CREATE_DEFAULT_MODEL_ID);
@@ -114,7 +114,7 @@ describe("createCharacterModeModelMapping", () => {
     ).toBe("fal-ai/bytedance/seedream/v5/lite/edit");
     expect(
       resolveCreateCharacterModeSubmitModel({
-        currentModelId: "fal/flux-2",
+        currentModelId: "legacy/removed-model",
         isCharacterModeEnabled: true,
       })
     ).toBe("fal-ai/bytedance/seedream/v4.5/edit");

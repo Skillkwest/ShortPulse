@@ -5,8 +5,8 @@
 import { describe, expect, it } from "vitest";
 import { computeCostForModel, falImageSizeMap } from "../pricing";
 
-describe("computeCostForModel (FLUX.2)", () => {
-  const modelId = "fal/flux-2";
+describe("computeCostForModel (economy image lane)", () => {
+  const modelId = "fal-ai/flux-2/klein/9b";
 
   it("uses explicit aspect when available", () => {
     const cost = computeCostForModel(modelId, { aspect: "16:9" });
@@ -27,9 +27,9 @@ describe("computeCostForModel (FLUX.2)", () => {
     const cost = computeCostForModel(modelId, { aspect: "1:1" });
     expect(cost).not.toBeNull();
     expect(cost?.megapixels).toBeCloseTo(1.048576, 6);
-    expect(cost?.usdRaw).toBeCloseTo(0.012582912, 9);
-    expect(cost?.rawCredits).toBe(2);
-    expect(cost?.credits).toBe(5);
+    expect(cost?.usdRaw).toBeCloseTo(0.006291456, 9);
+    expect(cost?.rawCredits).toBe(1);
+    expect(cost?.credits).toBe(1);
   });
 
   it("uses explicit image dimensions when provided", () => {
@@ -37,8 +37,8 @@ describe("computeCostForModel (FLUX.2)", () => {
     expect(cost).not.toBeNull();
     expect(cost?.width).toBe(4096);
     expect(cost?.height).toBe(4096);
-    expect(cost?.rawCredits).toBe(21);
-    expect(cost?.credits).toBe(25);
+    expect(cost?.rawCredits).toBe(11);
+    expect(cost?.credits).toBe(11);
   });
 });
 
@@ -74,31 +74,12 @@ describe("computeCostForModel (FLUX.2 Lite + Bria exceptions)", () => {
 });
 
 describe("computeCostForModel (FLUX edit/fill lanes)", () => {
-  it("includes normalized 1MP input cost for fal/flux-2/edit", () => {
-    const cost = computeCostForModel("fal/flux-2/edit", { aspect: "4:3" });
-    expect(cost).not.toBeNull();
-    expect(cost?.usdRaw).toBeCloseTo(0.02496, 6);
-    expect(cost?.rawCredits).toBe(3);
-    expect(cost?.credits).toBe(5);
-  });
-
   it("uses ceil(MP) * $0.05 for fal-ai/flux-pro/v1/fill", () => {
     const cost = computeCostForModel("fal-ai/flux-pro/v1/fill", { aspect: "1:1" });
     expect(cost).not.toBeNull();
     expect(cost?.usdRaw).toBeCloseTo(0.1, 6);
     expect(cost?.rawCredits).toBe(11);
     expect(cost?.credits).toBe(15);
-  });
-
-  it("prices fal/flux-2-pro/edit with normalized input MP and markup", () => {
-    const cost = computeCostForModel("fal/flux-2-pro/edit", {
-      imageWidth: 1024,
-      imageHeight: 1024,
-    });
-    expect(cost).not.toBeNull();
-    expect(cost?.usdRaw).toBeCloseTo(0.06, 6);
-    expect(cost?.rawCredits).toBe(7);
-    expect(cost?.credits).toBe(10);
   });
 });
 

@@ -7,7 +7,7 @@ import { useAiStudioGenerationPromptComposer } from "../useAiStudioGenerationPro
 const createParams = (
   overrides: Partial<Parameters<typeof useAiStudioGenerationPromptComposer>[0]> = {}
 ): Parameters<typeof useAiStudioGenerationPromptComposer>[0] => ({
-  model: "fal/flux-2",
+  model: "fal-ai/bytedance/seedream/v4.5/text-to-image",
   prompt: "base prompt",
   editReferenceText: "edit prompt",
   videoReferenceText: "video prompt",
@@ -412,7 +412,7 @@ describe("useAiStudioGenerationPromptComposer", () => {
     });
 
     expect(submitTask).toHaveBeenCalledWith(
-      "Visible user prompt\n\nVisual style reference: cinematic editorial photography style, moody lighting",
+      "Visible user prompt\n\nVisual style reference: cinematic editorial photography style, moody lighting. Emphasize cohesive palette, lighting mood, and surface texture.",
       [
         "https://example.com/ref.png",
         "https://example.com/extra-1.png",

@@ -40,7 +40,6 @@ const createImageOptions: ModelOption[] = [
     label: "Seedream 4.5 Edit",
     mediaType: "image",
   },
-  { value: "fal/flux-2-pro", label: "FLUX.2 Pro", mediaType: "image" },
   {
     value: KIE_VEO_31_FAST_I2V_MODEL_ID,
     label: "Veo 3.1 Fast I2V (Kie)",
@@ -117,8 +116,7 @@ const getModelConfig = (id: string) => {
     id === "fal-ai/nano-banana-2" ||
     id === "fal-ai/nano-banana-pro" ||
     id === "fal-ai/bytedance/seedream/v5/lite/text-to-image" ||
-    id === CREATE_DEFAULT_MODEL_ID ||
-    id === "fal/flux-2-pro"
+    id === CREATE_DEFAULT_MODEL_ID
   ) {
     return {
       provider: "fal",
@@ -173,7 +171,7 @@ describe("modelSelectionPolicy", () => {
     );
 
     expect(values.has("fal-ai/flux-2/klein/9b")).toBe(true);
-    expect(values.has("fal/flux-2-pro")).toBe(false);
+    expect(values.has("fal-ai/bytedance/seedream/v4.5/text-to-image")).toBe(true);
   });
 
   it("uses create/image filtering in create/text mode instead of returning the full catalog", () => {
@@ -221,7 +219,25 @@ describe("modelSelectionPolicy", () => {
     expect(model).toBe(CREATE_DEFAULT_MODEL_ID);
   });
 
-  it("quarantines Seedance 2.x from standard video lane model selection by default", () => {
+  it("includes Seedance 2.x in standard video lane model selection by default", () => {
+    const values = new Set(
+      resolveAiStudioAllowedModelOptions({
+        selectedTool: "video",
+        mode: "video",
+        videoReferenceMode: "standard",
+        resolvedVideoLane: "text",
+        options: videoReferenceOptions,
+        getModelConfig,
+      }).map((option) => option.value)
+    );
+
+    expect(values.has(KIE_SEEDANCE_15_PRO_MODEL_ID)).toBe(true);
+    expect(values.has(KIE_SEEDANCE_2_MODEL_ID)).toBe(true);
+    expect(values.has(KIE_SEEDANCE_2_FAST_MODEL_ID)).toBe(true);
+  });
+
+  it("hides Seedance 2.x from standard video lane model selection when the UI flag is disabled", () => {
+    vi.stubEnv("NEXT_PUBLIC_AI_STUDIO_SEEDANCE_2_ENABLED", "false");
     const values = new Set(
       resolveAiStudioAllowedModelOptions({
         selectedTool: "video",
@@ -301,6 +317,8 @@ describe("modelSelectionPolicy", () => {
       KIE_VEO_31_FAST_I2V_MODEL_ID,
       KIE_KLING_30_MODEL_ID,
       KIE_SEEDANCE_15_PRO_MODEL_ID,
+      KIE_SEEDANCE_2_MODEL_ID,
+      KIE_SEEDANCE_2_FAST_MODEL_ID,
     ]);
   });
 
@@ -318,6 +336,8 @@ describe("modelSelectionPolicy", () => {
       KIE_VEO_31_FAST_I2V_MODEL_ID,
       KIE_KLING_30_MODEL_ID,
       KIE_SEEDANCE_15_PRO_MODEL_ID,
+      KIE_SEEDANCE_2_MODEL_ID,
+      KIE_SEEDANCE_2_FAST_MODEL_ID,
     ]);
   });
 
@@ -335,6 +355,8 @@ describe("modelSelectionPolicy", () => {
       KIE_VEO_31_FAST_I2V_MODEL_ID,
       KIE_KLING_30_MODEL_ID,
       KIE_SEEDANCE_15_PRO_MODEL_ID,
+      KIE_SEEDANCE_2_MODEL_ID,
+      KIE_SEEDANCE_2_FAST_MODEL_ID,
     ]);
   });
 
@@ -352,6 +374,8 @@ describe("modelSelectionPolicy", () => {
       KIE_VEO_31_FAST_I2V_MODEL_ID,
       KIE_KLING_30_MODEL_ID,
       KIE_SEEDANCE_15_PRO_MODEL_ID,
+      KIE_SEEDANCE_2_MODEL_ID,
+      KIE_SEEDANCE_2_FAST_MODEL_ID,
     ]);
   });
 

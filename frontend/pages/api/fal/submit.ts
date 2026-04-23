@@ -1,11 +1,14 @@
 import { createFalSubmitHandler } from "../../../lib/server/api/falSubmitProxy";
-import { validateFalPayloadForModel } from "../../../lib/server/api/falPayloadValidation";
-
-const FAL_SUBMIT_URL = "https://queue.fal.run/fal-ai/flux/dev";
+import {
+  getFalSubmitUrlRequired,
+  getFalTimeoutMsOrDefault,
+} from "../../../lib/server/api/falRouteConfig";
+import { validateSeedreamImageSizePayload } from "../../../lib/server/api/seedreamPayloadValidation";
 
 export default createFalSubmitHandler({
-  modelId: "fal/flux-2",
-  submitUrl: FAL_SUBMIT_URL,
-  routeLabel: "Fal submit",
-  validatePayload: validateFalPayloadForModel("fal/flux-2"),
+  modelId: "fal-ai/bytedance/seedream/v4.5/text-to-image",
+  submitUrl: getFalSubmitUrlRequired("fal-ai/bytedance/seedream/v4.5/text-to-image"),
+  routeLabel: "Fal submit legacy",
+  timeoutMs: getFalTimeoutMsOrDefault("fal-ai/bytedance/seedream/v4.5/text-to-image", 60000),
+  validatePayload: validateSeedreamImageSizePayload,
 });

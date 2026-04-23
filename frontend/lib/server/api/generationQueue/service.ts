@@ -318,13 +318,7 @@ const normalizeProviderToken = (value: string | null | undefined): string | null
     ) {
       return "fal-bria-background-remove";
     }
-    if (normalized.includes("flux-2-pro") && normalized.includes("edit")) {
-      return "fal-flux2-pro-edit";
-    }
-    if (normalized.includes("flux-2-pro")) return "fal-flux2-pro";
     if (normalized.includes("flux-2") && normalized.includes("klein")) return "fal-flux2-klein";
-    if (normalized.includes("flux-2") && normalized.includes("edit")) return "fal-flux2-edit";
-    if (normalized.includes("flux-2")) return "fal-flux2";
     return "fal";
   }
   if (normalized.startsWith("kie")) {

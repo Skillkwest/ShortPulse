@@ -48,8 +48,6 @@ const createStatefulUpdateOutputById = (accessor: {
 
 describe("useAiStudioTaskSubmission", () => {
   const STRICT_EDIT_MODELS = [
-    "fal/flux-2/edit",
-    "fal/flux-2-pro/edit",
     "fal-ai/nano-banana/edit",
     "fal-ai/nano-banana-2/edit",
     "fal-ai/nano-banana-pro/edit",
@@ -1371,7 +1369,7 @@ describe("useAiStudioTaskSubmission", () => {
       useAiStudioTaskSubmission({
         aspect: "9:16",
         mode: "image",
-        model: "fal/flux-2/edit",
+        model: "fal-ai/bytedance/seedream/v4.5/edit",
         prompt: "",
         selectedTool: "edit",
         imageResolution: "model_default",
@@ -1409,7 +1407,7 @@ describe("useAiStudioTaskSubmission", () => {
       });
     });
 
-    expect(outputs[0]?.modelId).toBe("fal/flux-2/edit");
+    expect(outputs[0]?.modelId).toBe("fal-ai/bytedance/seedream/v4.5/edit");
     expect(outputs[0]?.taskState).toBe("fail");
     expect(outputs[0]?.errorMessageShort).toBe("Reference image required.");
     expect(handleImageModelSubmission).not.toHaveBeenCalled();

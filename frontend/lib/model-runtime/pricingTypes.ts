@@ -3,9 +3,8 @@
  */
 export type PricingStrategyId =
   | "fal-per-mp"
-  | "fal-flux2-per-mp"
-  | "fal-flux2-klein-per-mp"
-  | "fal-flux2-pro-per-mp"
+  | "fal-economy-image-per-mp"
+  | "fal-fill-per-mp"
   | "fal-flux-kontext-inpaint-per-mp"
   | "gpt-image-per-image"
   | "google-nano-banana-per-image"

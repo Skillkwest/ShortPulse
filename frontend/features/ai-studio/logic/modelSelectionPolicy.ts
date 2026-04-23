@@ -170,7 +170,6 @@ export const resolveAiStudioAllowedModelOptions = ({
     }
     return selectableOptions.filter((option) => {
       if (!isImageMediaOption(option)) return false;
-      if (option.value === "fal/flux-2-pro") return false;
       const config = getModelConfig(option.value);
       return Boolean(config?.supportsTextToImage);
     });

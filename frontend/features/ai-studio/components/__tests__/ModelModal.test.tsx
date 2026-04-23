@@ -20,7 +20,7 @@ vi.mock("next/image", () => ({
 }));
 
 const baseOptions: ModelOption[] = [
-  { value: "fal/flux-2", label: "FLUX.2", mediaType: "image" },
+  { value: "fal-ai/flux-2/klein/9b", label: "FLUX.2 Lite", mediaType: "image" },
   { value: "fal-ai/nano-banana", label: "Nano Banana", mediaType: "image" },
   {
     value: "fal-ai/bytedance/seedream/v4.5/text-to-image",
@@ -35,7 +35,7 @@ const readChipTitles = (container: HTMLElement): string[] =>
     .filter(Boolean);
 
 describe("ModelModal", () => {
-  it("hides FLUX.2 and Nano Banana chips in text-image context", () => {
+  it("hides Nano Banana chips in text-image context while keeping supported alternatives", () => {
     render(
       <ModelModal
         isOpen
@@ -46,7 +46,7 @@ describe("ModelModal", () => {
       />
     );
 
-    expect(screen.queryByRole("button", { name: /FLUX\.2/i })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /FLUX\.2 Lite/i })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Nano Banana/i })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Seedream 4\.5/i })).toBeInTheDocument();
   });
@@ -159,7 +159,7 @@ describe("ModelModal", () => {
     ]);
   });
 
-  it("filters quarantined Seedance 2.x chips even when passed explicitly", () => {
+  it("includes Seedance 2.x chips when passed explicitly", () => {
     const options: ModelOption[] = [
       {
         value: KIE_VEO_31_FAST_I2V_MODEL_ID,
@@ -188,8 +188,12 @@ describe("ModelModal", () => {
       />
     );
 
-    expect(readChipTitles(container)).toEqual(["Veo 3.1 Fast I2V (Kie)", "Seedance 1.5 Pro (Kie)"]);
-    expect(screen.queryByRole("button", { name: /Seedance 2\.0/i })).not.toBeInTheDocument();
+    expect(readChipTitles(container)).toEqual([
+      "Veo 3.1 Fast I2V (Kie)",
+      "Seedance 1.5 Pro (Kie)",
+      "Seedance 2.0 (Kie)",
+    ]);
+    expect(screen.getByRole("button", { name: /Seedance 2\.0/i })).toBeInTheDocument();
   });
 
   it("orders text-image chips by provider-grouped workflow priority", () => {
@@ -230,14 +234,12 @@ describe("ModelModal", () => {
   it("orders reference-image chips by provider-grouped workflow priority", () => {
     const options: ModelOption[] = [
       { value: "fal-ai/nano-banana-pro/edit", label: "Nano Banana Pro", mediaType: "image" },
-      { value: "fal/flux-2-pro/edit", label: "FLUX.2 Pro", mediaType: "image" },
       { value: "fal-ai/nano-banana-2/edit", label: "Nano Banana 2", mediaType: "image" },
       {
         value: "fal-ai/bytedance/seedream/v5/lite/edit",
         label: "Seedream 5 Lite",
         mediaType: "image",
       },
-      { value: "fal/flux-2/edit", label: "FLUX.2", mediaType: "image" },
       { value: "fal-ai/nano-banana/edit", label: "Nano Banana", mediaType: "image" },
       {
         value: "fal-ai/bytedance/seedream/v4.5/edit",
@@ -261,8 +263,6 @@ describe("ModelModal", () => {
       "Nano Banana",
       "Nano Banana 2",
       "Nano Banana Pro",
-      "FLUX.2",
-      "FLUX.2 Pro",
     ]);
   });
 

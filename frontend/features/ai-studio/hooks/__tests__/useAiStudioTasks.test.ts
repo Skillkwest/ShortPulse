@@ -20,11 +20,7 @@ vi.mock("../../../../lib/clientBreadcrumbs", () => ({
 vi.mock("../../../../lib/falClient", () => ({
   fetchFalStatus: vi.fn(),
   fetchFalBriaBackgroundRemoveStatus: vi.fn(),
-  fetchFalFlux2Status: vi.fn(),
   fetchFalFlux2KleinStatus: vi.fn(),
-  fetchFalFlux2EditStatus: vi.fn(),
-  fetchFalFlux2ProStatus: vi.fn(),
-  fetchFalFlux2ProEditStatus: vi.fn(),
   fetchFalKlingStatus: vi.fn(),
   fetchFalKlingV3ImageToVideoStatus: vi.fn(),
   fetchFalNanoBananaStatus: vi.fn(),

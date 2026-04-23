@@ -11,12 +11,8 @@ import {
   fetchKieVeoImageToVideoStatus,
   fetchFalBriaBackgroundRemoveStatus,
   fetchFalFluxKontextInpaintStatus,
-  fetchFalFlux2ProStatus,
   fetchFalFluxProFillStatus,
-  fetchFalFlux2Status,
   fetchFalFlux2KleinStatus,
-  fetchFalFlux2EditStatus,
-  fetchFalFlux2ProEditStatus,
   fetchFalKlingStatus,
   fetchFalKlingV3ImageToVideoStatus,
   fetchFalNanoBananaStatus,
@@ -201,8 +197,6 @@ const fetchStatusByProvider = async (provider: Provider, taskId: string) => {
   switch (provider) {
     case "fal":
       return fetchFalStatus(taskId);
-    case "fal-flux2":
-      return fetchFalFlux2Status(taskId);
     case "fal-flux2-klein":
       return fetchFalFlux2KleinStatus(taskId);
     case "fal-flux-pro-fill":
@@ -211,12 +205,6 @@ const fetchStatusByProvider = async (provider: Provider, taskId: string) => {
       return fetchFalFluxKontextInpaintStatus(taskId);
     case "fal-bria-background-remove":
       return fetchFalBriaBackgroundRemoveStatus(taskId);
-    case "fal-flux2-edit":
-      return fetchFalFlux2EditStatus(taskId);
-    case "fal-flux2-pro":
-      return fetchFalFlux2ProStatus(taskId);
-    case "fal-flux2-pro-edit":
-      return fetchFalFlux2ProEditStatus(taskId);
     case "fal-kling":
       return fetchFalKlingStatus(taskId);
     case "fal-kling-3":

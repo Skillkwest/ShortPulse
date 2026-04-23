@@ -20,7 +20,7 @@ describe("stylePromptAdapter", () => {
   });
 
   it("falls back to generic family for unknown models", () => {
-    expect(resolveStylePromptModelFamily("fal/flux-2")).toBe("generic");
+    expect(resolveStylePromptModelFamily("legacy/removed-model")).toBe("generic");
     expect(resolveStylePromptModelFamily("unknown/model")).toBe("generic");
     expect(resolveStylePromptModelFamily(null)).toBe("generic");
   });

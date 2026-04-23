@@ -30,7 +30,7 @@ describe("submitInvariants", () => {
         requiresPrompt: true,
         isEditWorkflow: false,
         hasReferenceImages: true,
-        finalModel: "fal/flux-2",
+        finalModel: "fal-ai/bytedance/seedream/v4.5/text-to-image",
         requiresImageToImageReferences: false,
       })
     ).toBe("Add a prompt to start a generation.");
@@ -63,7 +63,7 @@ describe("submitInvariants", () => {
         requiresPrompt: true,
         isEditWorkflow: false,
         hasReferenceImages: false,
-        finalModel: "fal/flux-2/edit",
+        finalModel: "fal-ai/bytedance/seedream/v4.5/edit",
         requiresImageToImageReferences: true,
       })
     ).toBe("Add a reference image before generating.");
@@ -74,7 +74,7 @@ describe("submitInvariants", () => {
         requiresPrompt: true,
         isEditWorkflow: false,
         hasReferenceImages: true,
-        finalModel: "fal/flux-2",
+        finalModel: "fal-ai/bytedance/seedream/v4.5/text-to-image",
         requiresImageToImageReferences: false,
       })
     ).toBeNull();

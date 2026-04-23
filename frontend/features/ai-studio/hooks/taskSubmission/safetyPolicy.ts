@@ -1,6 +1,6 @@
 /**
  * Centralizes generation safety payload defaults so image/video model routes stay aligned.
- * Policy target: minimal restriction defaults for models that expose safety controls.
+ * Policy target: use provider defaults unless a model family needs stricter handling.
  */
 import { getModelPayloadValidationSpec } from "../../../../lib/model-runtime/modelCatalog";
 
@@ -30,6 +30,8 @@ const toSafetyToleranceNumber = (value: unknown): 1 | 2 | 3 | 4 | 5 | null => {
 const toSafetyToleranceString = (value: 1 | 2 | 3 | 4 | 5): "1" | "2" | "3" | "4" | "5" =>
   String(value) as "1" | "2" | "3" | "4" | "5";
 
+const prefersEnabledSafetyChecker = (modelId: string): boolean => modelId.includes("seedream");
+
 const resolveMaximumTolerance = (modelId: string): SafetyToleranceValue | undefined => {
   const spec = getModelPayloadValidationSpec(modelId);
   const enumValues = spec?.enumFields?.safety_tolerance;
@@ -58,7 +60,7 @@ const buildSafetyPayload = (modelId: string): SubmissionSafetyPayload => {
   }
 
   return {
-    ...(supportsChecker ? { enable_safety_checker: false } : {}),
+    ...(supportsChecker ? { enable_safety_checker: prefersEnabledSafetyChecker(modelId) } : {}),
     ...(safetyTolerance !== undefined ? { safety_tolerance: safetyTolerance } : {}),
   };
 };

@@ -25,10 +25,6 @@ export const SEEDREAM_LOGO_SRC = "/seedream-logo.png";
 // Map model ids to their logo assets used in selectors and chips.
 export const modelLogos: Record<string, string> = {
   "fal-ai/flux-2/klein/9b": FLUX_LOGO_SRC,
-  "fal/flux-2": FLUX_LOGO_SRC,
-  "fal/flux-2/edit": FLUX_LOGO_SRC,
-  "fal/flux-2-pro": FLUX_LOGO_SRC,
-  "fal/flux-2-pro/edit": FLUX_LOGO_SRC,
   "fal-ai/nano-banana": GOOGLE_LOGO_SRC,
   "fal-ai/nano-banana/edit": GOOGLE_LOGO_SRC,
   "fal-ai/nano-banana-2": GOOGLE_LOGO_SRC,
@@ -86,10 +82,6 @@ export const modelOptions: ModelOption[] = [
         },
       ] satisfies ModelOption[])
     : []),
-  { value: "fal/flux-2-pro/edit", label: "FLUX.2 Pro", mediaType: "image" },
-  { value: "fal/flux-2/edit", label: "FLUX.2", mediaType: "image" },
-  { value: "fal/flux-2-pro", label: "FLUX.2 Pro", mediaType: "image" },
-  { value: "fal/flux-2", label: "FLUX.2", mediaType: "image" },
   { value: "fal-ai/flux-2/klein/9b", label: "FLUX.2 Lite", mediaType: "image" },
   { value: "fal-ai/nano-banana", label: "Nano Banana", mediaType: "image" },
   { value: "fal-ai/nano-banana/edit", label: "Nano Banana", mediaType: "image" },

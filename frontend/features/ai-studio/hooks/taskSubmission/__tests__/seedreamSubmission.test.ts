@@ -12,11 +12,7 @@ import {
   submitFalNanoBananaPro,
   submitFalNanoBananaEdit,
   submitFalNanoBananaProEdit,
-  submitFalFlux2,
   submitFalFlux2Klein,
-  submitFalFlux2Edit,
-  submitFalFlux2Pro,
-  submitFalFlux2ProEdit,
 } from "../../../../../lib/falClient";
 
 vi.mock("../../../../../lib/falClient", () => ({
@@ -28,11 +24,7 @@ vi.mock("../../../../../lib/falClient", () => ({
   submitFalNanoBananaPro: vi.fn(),
   submitFalNanoBananaEdit: vi.fn(),
   submitFalNanoBananaProEdit: vi.fn(),
-  submitFalFlux2: vi.fn(),
   submitFalFlux2Klein: vi.fn(),
-  submitFalFlux2Edit: vi.fn(),
-  submitFalFlux2Pro: vi.fn(),
-  submitFalFlux2ProEdit: vi.fn(),
 }));
 
 const makeArgs = (overrides: Partial<ImageSubmissionArgs> = {}): ImageSubmissionArgs => ({
@@ -88,11 +80,7 @@ describe("Seedream submission payloads", () => {
     vi.mocked(submitFalNanoBananaPro).mockResolvedValue({ request_id: "nano-pro-req" });
     vi.mocked(submitFalNanoBananaEdit).mockResolvedValue({ request_id: "nano-edit-req" });
     vi.mocked(submitFalNanoBananaProEdit).mockResolvedValue({ request_id: "nano-pro-edit-req" });
-    vi.mocked(submitFalFlux2).mockResolvedValue({ request_id: "flux2-req" });
     vi.mocked(submitFalFlux2Klein).mockResolvedValue({ request_id: "flux2-klein-req" });
-    vi.mocked(submitFalFlux2Edit).mockResolvedValue({ request_id: "flux2-edit-req" });
-    vi.mocked(submitFalFlux2Pro).mockResolvedValue({ request_id: "flux2-pro-req" });
-    vi.mocked(submitFalFlux2ProEdit).mockResolvedValue({ request_id: "flux2-pro-edit-req" });
   });
 
   it("sends exact custom Seedream image_size for 5:4 text-to-image", async () => {
@@ -106,6 +94,7 @@ describe("Seedream submission payloads", () => {
     expect(submitFalSeedream).toHaveBeenCalledWith(
       expect.objectContaining({
         image_size: { width: 2400, height: 1920 },
+        enable_safety_checker: true,
       })
     );
     expect(args.startPollingWithGeneration).toHaveBeenCalledWith(
@@ -131,6 +120,7 @@ describe("Seedream submission payloads", () => {
     const payload = vi.mocked(submitFalSeedream).mock.calls[0]?.[0];
     expect(payload).toBeDefined();
     expectAspectLockedAutoSize(payload?.image_size, "16:9");
+    expect(payload?.enable_safety_checker).toBe(true);
   });
 
   it("sends aspect-locked auto_3K dimensions in Seedream 5 Lite text payload", async () => {
@@ -146,6 +136,7 @@ describe("Seedream submission payloads", () => {
     const payload = vi.mocked(submitFalSeedreamV5Lite).mock.calls[0]?.[0];
     expect(payload).toBeDefined();
     expectAspectLockedAutoSize(payload?.image_size, "16:9");
+    expect(payload?.enable_safety_checker).toBe(true);
     expect(payload).not.toHaveProperty("output_format");
     expect(args.startPollingWithGeneration).toHaveBeenCalledWith(
       "seedream-v5-lite-req",
@@ -170,6 +161,7 @@ describe("Seedream submission payloads", () => {
     expect(submitFalSeedreamEdit).toHaveBeenCalledWith(
       expect.objectContaining({
         image_size: { width: 2400, height: 1920 },
+        enable_safety_checker: true,
       })
     );
     expect(args.startPollingWithGeneration).toHaveBeenCalledWith(
@@ -196,6 +188,7 @@ describe("Seedream submission payloads", () => {
     const payload = vi.mocked(submitFalSeedreamEdit).mock.calls[0]?.[0];
     expect(payload).toBeDefined();
     expectAspectLockedAutoSize(payload?.image_size, "9:16");
+    expect(payload?.enable_safety_checker).toBe(true);
   });
 
   it("sends aspect-locked auto_3K dimensions in Seedream 5 Lite edit payload", async () => {
@@ -212,6 +205,7 @@ describe("Seedream submission payloads", () => {
     const payload = vi.mocked(submitFalSeedreamV5LiteEdit).mock.calls[0]?.[0];
     expect(payload).toBeDefined();
     expectAspectLockedAutoSize(payload?.image_size, "9:16");
+    expect(payload?.enable_safety_checker).toBe(true);
     expect(args.startPollingWithGeneration).toHaveBeenCalledWith(
       "seedream-v5-lite-edit-req",
       "fal-seedream-v5-lite-edit",

@@ -4,13 +4,20 @@
 import type { CharacterEngine, CharacterModelId, CharacterPose } from "./types";
 
 export const characterModelOptions: { value: CharacterModelId; label: string }[] = [
-  { value: "fal/flux-2-pro", label: "FLUX 2 Pro (text→image)" },
-  { value: "fal/flux-2-pro/edit", label: "FLUX 2 Pro Edit (image+prompt)" },
+  {
+    value: "fal-ai/bytedance/seedream/v4.5/text-to-image",
+    label: "Seedream 4.5 (text→image)",
+  },
+  {
+    value: "fal-ai/bytedance/seedream/v4.5/edit",
+    label: "Seedream 4.5 Edit (image+prompt)",
+  },
 ];
 
 export const characterAspectOptions = ["1:1", "4:5", "3:4", "9:16", "16:9"] as const;
 
-export const defaultCharacterModel: CharacterModelId = "fal/flux-2-pro";
+export const defaultCharacterModel: CharacterModelId =
+  "fal-ai/bytedance/seedream/v4.5/text-to-image";
 export const defaultCharacterEngine: CharacterEngine = "fal-edge";
 export const defaultCharacterAspect = "4:5";
 

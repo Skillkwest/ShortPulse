@@ -32,7 +32,9 @@ export type CharacterPose = {
 
 export type CharacterEngine = "fal-edge" | "local-webgpu";
 
-export type CharacterModelId = "fal/flux-2-pro" | "fal/flux-2-pro/edit";
+export type CharacterModelId =
+  | "fal-ai/bytedance/seedream/v4.5/text-to-image"
+  | "fal-ai/bytedance/seedream/v4.5/edit";
 
 export type CharacterGenerationMode = "portrait" | "full-body";
 

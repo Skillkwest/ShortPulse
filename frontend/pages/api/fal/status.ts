@@ -1,16 +1,16 @@
 /**
- * Proxies Fal Flux status + result fetch.
+ * Proxies legacy Fal status fetch through the current default image model.
  * Accepts { requestId }, returns normalized status payloads.
  */
 import { createFalStatusHandler } from "../../../lib/server/api/falStatusProxy";
-
-const QUEUE_BASE_URLS = [
-  "https://queue.fal.run/fal-ai/flux/requests",
-  "https://queue.fal.run/fal-ai/flux/dev/requests",
-];
+import {
+  getFalStatusBaseUrlsRequired,
+  getFalTimeoutMsOrDefault,
+} from "../../../lib/server/api/falRouteConfig";
 
 export default createFalStatusHandler({
-  queueBaseUrl: QUEUE_BASE_URLS,
-  routeLabel: "Fal Flux",
-  timeoutMs: 20000,
+  modelId: "fal-ai/bytedance/seedream/v4.5/text-to-image",
+  queueBaseUrl: getFalStatusBaseUrlsRequired("fal-ai/bytedance/seedream/v4.5/text-to-image"),
+  routeLabel: "Fal status legacy",
+  timeoutMs: getFalTimeoutMsOrDefault("fal-ai/bytedance/seedream/v4.5/text-to-image", 60000),
 });

@@ -25,9 +25,8 @@ Short version: models declare metadata in runtime catalog/registry, pricing stra
 - `usdRaw` is provider USD before markup/quantization; `usd` is billed USD (`credits * 0.01`).
 
 ## Current strategies
-- `fal-flux2-per-mp`: `$0.012/MP`; `fal/flux-2/edit` includes normalized `1 MP` input + output MP.
-- `fal-flux2-klein-per-mp`: `fal-ai/flux-2/klein/9b` uses `$0.006/MP` with ceil-only exception rounding; `fal-ai/bria/background/remove` uses fixed `$0.018` per generation with ceil-only exception rounding.
-- `fal-flux2-pro-per-mp`: `fal/flux-2-pro` uses `$0.03` first MP + `$0.015` each additional MP (MP rounded up); `fal/flux-2-pro/edit` uses same schedule plus normalized `1 MP` input allowance for deterministic edit-lane parity; `fal-ai/flux-pro/v1/fill` uses `$0.05/MP` with provider MP-ceil behavior.
+- `fal-economy-image-per-mp`: `fal-ai/flux-2/klein/9b` uses `$0.006/MP` with ceil-only exception rounding; `fal-ai/bria/background/remove` uses fixed `$0.018` per generation with ceil-only exception rounding.
+- `fal-fill-per-mp`: `fal-ai/flux-pro/v1/fill` uses `$0.05/MP` with provider MP-ceil behavior.
 - `google-nano-banana-per-image`: `$0.039` flat per image.
 - `nano-banana-2-per-image`: base `$0.08` with resolution multipliers (`0.5K x0.75`, `2K x1.5`, `4K x2`) plus optional web-search surcharge `+$0.015`.
 - `nano-banana-per-image`: base `$0.15`, `4K` doubles, optional web-search surcharge `+$0.015`.

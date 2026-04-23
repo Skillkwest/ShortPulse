@@ -17,7 +17,9 @@ describe("fal image route registry", () => {
   });
 
   it("resolves active Fal image models through the shared registry", () => {
-    expect(resolveFalImageSubmitHandler("fal/flux-2")).toEqual(expect.any(Function));
+    expect(resolveFalImageSubmitHandler("fal-ai/bytedance/seedream/v4.5/text-to-image")).toEqual(
+      expect.any(Function)
+    );
     expect(resolveFalImageStatusHandler("fal-ai/nano-banana-pro/edit")).toEqual(
       expect.any(Function)
     );

@@ -10,8 +10,6 @@ export type GenerationAdmissionTier = "video_long" | "image_heavy" | "image_stan
 export const DEFAULT_GENERATION_ADMISSION_TIER: GenerationAdmissionTier = "image_standard";
 
 const IMAGE_HEAVY_MODEL_IDS = new Set<string>([
-  "fal/flux-2-pro",
-  "fal/flux-2-pro/edit",
   "fal-ai/nano-banana-pro",
   "fal-ai/nano-banana-pro/edit",
   "fal-ai/bytedance/seedream/v4.5/text-to-image",

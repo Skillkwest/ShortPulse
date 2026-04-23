@@ -81,9 +81,6 @@ export const handleDefaultModelSubmission = async ({
       num_images: 1,
       ...resolveImageSubmissionSafetyPayload(finalModel),
       ...(finalModel === "fal-ai/bytedance/seedream/v5/lite/text-to-image"
-        ? { enable_safety_checker: false }
-        : {}),
-      ...(finalModel === "fal-ai/bytedance/seedream/v5/lite/text-to-image"
         ? {}
         : { output_format: "png" }),
     });

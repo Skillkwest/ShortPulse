@@ -61,7 +61,7 @@ describe("useAiStudioPageDerivations", () => {
     expect(params.durationSeconds).toBe(8);
   });
 
-  it("uses shared create/image model policy and excludes flux-2-pro", () => {
+  it("uses shared create/image model policy and keeps only image-capable create models", () => {
     const { result } = renderHook(() =>
       useAiStudioPageDerivations(
         createParams({
@@ -73,8 +73,8 @@ describe("useAiStudioPageDerivations", () => {
     );
 
     const values = new Set(result.current.filteredModelOptions.map((option) => option.value));
-    expect(values.has("fal/flux-2-pro")).toBe(false);
     expect(values.has("fal-ai/bytedance/seedream/v4.5/text-to-image")).toBe(true);
+    expect(values.has("fal-ai/veo3.1/image-to-video")).toBe(false);
   });
 
   it("keeps create/text mode filtered to create-compatible image models", () => {
@@ -172,7 +172,13 @@ describe("useAiStudioPageDerivations", () => {
 
     const values = new Set(result.current.filteredModelOptions.map((option) => option.value));
     expect(values).toEqual(
-      new Set(["kie-ai/veo-3.1-fast-i2v", "kie-ai/kling-3.0", "kie-ai/seedance-1.5-pro"])
+      new Set([
+        "kie-ai/veo-3.1-fast-i2v",
+        "kie-ai/kling-3.0",
+        "kie-ai/seedance-1.5-pro",
+        "kie-ai/seedance-2",
+        "kie-ai/seedance-2-fast",
+      ])
     );
   });
 

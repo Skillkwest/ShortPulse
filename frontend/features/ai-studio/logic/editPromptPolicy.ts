@@ -8,10 +8,6 @@ export type EditPromptRequirement = "required" | "optional" | "unknown";
 export const BRIA_BACKGROUND_REMOVE_MODEL_ID = "fal-ai/bria/background/remove";
 
 const REQUIRED_EDIT_PROMPT_MODEL_IDS = new Set([
-  "fal/flux-2/edit",
-  "fal-ai/flux-2/edit",
-  "fal/flux-2-pro/edit",
-  "fal-ai/flux-2-pro/edit",
   "fal-ai/nano-banana/edit",
   "fal-ai/nano-banana-2/edit",
   "fal-ai/nano-banana-pro/edit",

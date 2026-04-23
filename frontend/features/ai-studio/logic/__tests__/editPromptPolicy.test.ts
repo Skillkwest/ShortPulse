@@ -8,7 +8,7 @@ import {
 describe("editPromptPolicy", () => {
   it("marks known edit models as prompt-required", () => {
     expect(resolveEditPromptRequirement("fal-ai/nano-banana/edit")).toBe("required");
-    expect(resolveEditPromptRequirement("fal/flux-2/edit")).toBe("required");
+    expect(resolveEditPromptRequirement("fal-ai/bytedance/seedream/v4.5/edit")).toBe("required");
     expect(resolveEditPromptRequirement("fal-ai/bytedance/seedream/v5/lite/edit")).toBe("required");
   });
 

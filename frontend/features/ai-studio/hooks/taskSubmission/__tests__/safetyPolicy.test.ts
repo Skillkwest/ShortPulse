@@ -5,41 +5,33 @@ import {
 } from "../safetyPolicy";
 
 describe("resolveImageSubmissionSafetyPayload", () => {
-  it("uses minimum restriction defaults for image models that expose enable_safety_checker", () => {
-    expect(resolveImageSubmissionSafetyPayload("fal/flux-2")).toEqual({
-      enable_safety_checker: false,
-    });
+  it("keeps non-Seedream image safety-checker defaults disabled", () => {
     expect(resolveImageSubmissionSafetyPayload("fal-ai/flux-2/klein/9b")).toEqual({
-      enable_safety_checker: false,
-    });
-    expect(resolveImageSubmissionSafetyPayload("fal/flux-2/edit")).toEqual({
-      enable_safety_checker: false,
-    });
-    expect(
-      resolveImageSubmissionSafetyPayload("fal-ai/bytedance/seedream/v4.5/text-to-image")
-    ).toEqual({
-      enable_safety_checker: false,
-    });
-    expect(resolveImageSubmissionSafetyPayload("fal-ai/bytedance/seedream/v4.5/edit")).toEqual({
-      enable_safety_checker: false,
-    });
-    expect(
-      resolveImageSubmissionSafetyPayload("fal-ai/bytedance/seedream/v5/lite/text-to-image")
-    ).toEqual({
-      enable_safety_checker: false,
-    });
-    expect(resolveImageSubmissionSafetyPayload("fal-ai/bytedance/seedream/v5/lite/edit")).toEqual({
       enable_safety_checker: false,
     });
   });
 
-  it("uses maximum tolerance where supported by FLUX.2 Pro variants", () => {
-    expect(resolveImageSubmissionSafetyPayload("fal/flux-2-pro")).toEqual({
-      enable_safety_checker: false,
-      safety_tolerance: "5",
+  it("enables the provider safety checker for Seedream image models", () => {
+    expect(
+      resolveImageSubmissionSafetyPayload("fal-ai/bytedance/seedream/v4.5/text-to-image")
+    ).toEqual({
+      enable_safety_checker: true,
     });
-    expect(resolveImageSubmissionSafetyPayload("fal/flux-2-pro/edit")).toEqual({
-      enable_safety_checker: false,
+    expect(resolveImageSubmissionSafetyPayload("fal-ai/bytedance/seedream/v4.5/edit")).toEqual({
+      enable_safety_checker: true,
+    });
+    expect(
+      resolveImageSubmissionSafetyPayload("fal-ai/bytedance/seedream/v5/lite/text-to-image")
+    ).toEqual({
+      enable_safety_checker: true,
+    });
+    expect(resolveImageSubmissionSafetyPayload("fal-ai/bytedance/seedream/v5/lite/edit")).toEqual({
+      enable_safety_checker: true,
+    });
+  });
+
+  it("uses maximum tolerance where supported by fill lanes", () => {
+    expect(resolveImageSubmissionSafetyPayload("fal-ai/flux-pro/v1/fill")).toEqual({
       safety_tolerance: "5",
     });
   });

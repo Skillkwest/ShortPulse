@@ -18,6 +18,6 @@ describe("generationAdmissionTiers", () => {
 
   it("falls back to image_standard for standard image models", () => {
     expect(resolveGenerationAdmissionTier("fal-ai/nano-banana")).toBe("image_standard");
-    expect(resolveGenerationAdmissionTier("fal/flux-2")).toBe("image_standard");
+    expect(resolveGenerationAdmissionTier("fal-ai/flux-2/klein/9b")).toBe("image_standard");
   });
 });

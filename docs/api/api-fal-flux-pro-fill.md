@@ -61,7 +61,7 @@ Example payload:
 - Polling provider token: `fal-flux-pro-fill`.
 
 ## Pricing (ShortPulse)
-- Uses pricing strategy `fal-flux2-pro-per-mp`.
+- Uses pricing strategy `fal-fill-per-mp`.
 
 ## Security notes
 - Never expose `FAL_KEY` in browser code.

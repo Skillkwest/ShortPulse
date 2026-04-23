@@ -5,11 +5,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   fetchFalQueueStatus,
-  fetchFalFlux2ProEditStatus,
-  fetchFalFlux2ProStatus,
-  submitFalFlux2Pro,
-  submitFalFlux2ProEdit,
-  type FalSubmitRequest,
+  fetchFalSeedreamEditStatus,
+  fetchFalSeedreamStatus,
+  submitFalSeedream,
+  submitFalSeedreamEdit,
+  type FalSeedreamEditSubmitRequest,
+  type FalSeedreamSubmitRequest,
 } from "../../../lib/falClient";
 import { falSizeForAspect } from "../../ai-studio/logic/pricing";
 import { prepareImageUrl } from "../../ai-studio/logic/imageDescription";
@@ -225,23 +226,29 @@ export const useCharacterWorkflow = (): UseCharacterWorkflowResult => {
         : [];
 
       try {
-        const payload: FalSubmitRequest & { identity_token?: string | null } = {
+        const basePayload = {
           prompt: activePrompt,
           image_size: falSizeForAspect(activeAspect),
-          enable_safety_checker: false,
-          safety_tolerance: 5,
+          num_images: 1,
+          enable_safety_checker: true,
           // Future: backend can accept identity_token and pose payloads
           identity_token: identity.identityToken,
         };
 
-        const shouldUseEdit = preparedImages.length > 0 && activeModel !== "fal/flux-2-pro";
-        if (shouldUseEdit) {
-          payload.image_urls = preparedImages.slice(0, 4);
-        }
-
-        const submit = shouldUseEdit ? submitFalFlux2ProEdit : submitFalFlux2Pro;
-        const poll = shouldUseEdit ? fetchFalFlux2ProEditStatus : fetchFalFlux2ProStatus;
-        const submitResponse = await submit(payload);
+        const shouldUseEdit =
+          preparedImages.length > 0 &&
+          activeModel !== "fal-ai/bytedance/seedream/v4.5/text-to-image";
+        const poll = shouldUseEdit ? fetchFalSeedreamEditStatus : fetchFalSeedreamStatus;
+        const submitResponse = shouldUseEdit
+          ? await submitFalSeedreamEdit({
+              ...basePayload,
+              image_urls: preparedImages.slice(0, 4),
+            } satisfies FalSeedreamEditSubmitRequest & { identity_token?: string | null })
+          : await submitFalSeedream(
+              basePayload satisfies FalSeedreamSubmitRequest & {
+                identity_token?: string | null;
+              }
+            );
 
         const waitForDispatchedRequestId = async (): Promise<string> => {
           if (!("status" in submitResponse) || submitResponse.status !== "queued") {

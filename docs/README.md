@@ -29,6 +29,7 @@ Start here for all repository documentation.
 - `docs/character-profile-voice-quarantine.md`
 - `docs/adr/README.md`
 - `docs/adr/0059-billing-internal-comp-contracts-and-admin-exempt-renewals.md`
+- `docs/adr/0060-billing-storage-entitlements-and-recurring-storage-addons.md`
 - `docs/prefabs.md`
 - `docs/routes.md`
 - `docs/local-development.md`
@@ -67,15 +68,10 @@ Start here for all repository documentation.
 - `docs/api/api-kie-seedance-1-5-pro.md`
 - `docs/api/api-kie-seedance-2.md`
 - `docs/api/api-kie-seedance-2-fast.md`
-- `docs/api/api-fal-flux-2.md`
 - `docs/api/api-fal-flux-2-klein-9b.md`
-- `docs/api/api-fal-flux-2-edit.md`
-- `docs/api/api-fal-flux-2-pro.md`
-- `docs/api/api-fal-flux-2-pro-edit.md`
 - `docs/api/api-fal-flux-pro-fill.md`
 - `docs/api/api-fal-flux-kontext-inpaint.md`
 - `docs/api/api-fal-bria-background-remove.md`
-- `docs/api/api-fal-flux-dev.md`
 - `docs/api/api-fal-nano-banana.md`
 - `docs/api/api-fal-nano-banana-edit.md`
 - `docs/api/api-fal-nano-banana-2.md`

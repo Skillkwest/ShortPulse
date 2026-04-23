@@ -44,10 +44,6 @@ const PROVIDER_SOURCE_HOST_ALLOWLIST = {
 
 const MODEL_DOC_MAP = {
   "fal-ai/flux-2/klein/9b": "api-fal-flux-2-klein-9b.md",
-  "fal/flux-2": "api-fal-flux-2.md",
-  "fal/flux-2/edit": "api-fal-flux-2-edit.md",
-  "fal/flux-2-pro": "api-fal-flux-2-pro.md",
-  "fal/flux-2-pro/edit": "api-fal-flux-2-pro-edit.md",
   "fal-ai/flux-pro/v1/fill": "api-fal-flux-pro-fill.md",
   "fal-ai/flux-kontext-lora/inpaint": "api-fal-flux-kontext-inpaint.md",
   "fal-ai/bria/background/remove": "api-fal-bria-background-remove.md",

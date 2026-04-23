@@ -12,12 +12,7 @@ import {
 } from "./providerModelIds";
 
 const FAL_COST_PER_MP_USD = 0.025;
-const FLUX2_COST_PER_MP_USD = 0.012;
-const FLUX2_KLEIN_COST_PER_MP_USD = 0.006;
-const FLUX2_EDIT_INPUT_MP = 1;
-const FLUX2_PRO_FIRST_MP_USD = 0.03;
-const FLUX2_PRO_ADDITIONAL_MP_USD = 0.015;
-const FLUX2_PRO_EDIT_NORMALIZED_INPUT_MP = 1;
+const ECONOMY_IMAGE_COST_PER_MP_USD = 0.006;
 const FLUX_PRO_FILL_COST_PER_MP_USD = 0.05;
 const FLUX_KONTEXT_INPAINT_COST_PER_MP_USD = 0.035;
 const BRIA_BACKGROUND_REMOVE_PER_IMAGE_USD = 0.018;
@@ -132,25 +127,7 @@ const computeFalPerMpCost: StrategyFn = ({ modelId, aspect, imageWidth, imageHei
   });
 };
 
-const computeFlux2PerMpCost: StrategyFn = ({ modelId, aspect, imageWidth, imageHeight }) => {
-  const size = resolveImageSizeForMp({ modelId, aspect, imageWidth, imageHeight });
-  if (!size) return null;
-
-  const megapixels = (size.width * size.height) / 1_000_000;
-  const usdRaw =
-    modelId === "fal/flux-2/edit"
-      ? (FLUX2_EDIT_INPUT_MP + megapixels) * FLUX2_COST_PER_MP_USD
-      : megapixels * FLUX2_COST_PER_MP_USD;
-  return toCostBreakdown({
-    modelId,
-    usdRaw,
-    megapixels,
-    width: size.width,
-    height: size.height,
-  });
-};
-
-const computeFlux2KleinPerMpCost: StrategyFn = ({ modelId, aspect, imageWidth, imageHeight }) => {
+const computeEconomyFalImageCost: StrategyFn = ({ modelId, aspect, imageWidth, imageHeight }) => {
   const size = resolveImageSizeForMp({ modelId, aspect, imageWidth, imageHeight });
   if (!size) return null;
 
@@ -158,7 +135,7 @@ const computeFlux2KleinPerMpCost: StrategyFn = ({ modelId, aspect, imageWidth, i
   const usdRaw =
     modelId === "fal-ai/bria/background/remove"
       ? BRIA_BACKGROUND_REMOVE_PER_IMAGE_USD
-      : megapixels * FLUX2_KLEIN_COST_PER_MP_USD;
+      : megapixels * ECONOMY_IMAGE_COST_PER_MP_USD;
   return toCostBreakdown({
     modelId,
     usdRaw,
@@ -168,24 +145,13 @@ const computeFlux2KleinPerMpCost: StrategyFn = ({ modelId, aspect, imageWidth, i
   });
 };
 
-const computeFlux2ProPerMpCost: StrategyFn = ({ modelId, aspect, imageWidth, imageHeight }) => {
+const computeFalFillPerMpCost: StrategyFn = ({ modelId, aspect, imageWidth, imageHeight }) => {
   const size = resolveImageSizeForMp({ modelId, aspect, imageWidth, imageHeight });
   if (!size) return null;
 
   const megapixels = (size.width * size.height) / 1_000_000;
   const roundedOutputMp = Math.max(1, Math.ceil(megapixels));
-  const usdRaw = (() => {
-    if (modelId === "fal-ai/flux-pro/v1/fill") {
-      return roundedOutputMp * FLUX_PRO_FILL_COST_PER_MP_USD;
-    }
-    if (modelId === "fal/flux-2-pro/edit") {
-      // Provider pricing includes output first MP plus additional rounded output+input MP.
-      // Runtime normalizes edit input to 1 MP for deterministic debit parity.
-      const additionalUnits = Math.max(0, roundedOutputMp - 1) + FLUX2_PRO_EDIT_NORMALIZED_INPUT_MP;
-      return FLUX2_PRO_FIRST_MP_USD + additionalUnits * FLUX2_PRO_ADDITIONAL_MP_USD;
-    }
-    return FLUX2_PRO_FIRST_MP_USD + Math.max(0, roundedOutputMp - 1) * FLUX2_PRO_ADDITIONAL_MP_USD;
-  })();
+  const usdRaw = roundedOutputMp * FLUX_PRO_FILL_COST_PER_MP_USD;
   return toCostBreakdown({
     modelId,
     usdRaw,
@@ -457,9 +423,8 @@ const computeSeedancePerSecondCost: StrategyFn = (params) => {
 
 export const pricingStrategies: Record<PricingStrategyId, StrategyFn> = {
   "fal-per-mp": computeFalPerMpCost,
-  "fal-flux2-per-mp": computeFlux2PerMpCost,
-  "fal-flux2-klein-per-mp": computeFlux2KleinPerMpCost,
-  "fal-flux2-pro-per-mp": computeFlux2ProPerMpCost,
+  "fal-economy-image-per-mp": computeEconomyFalImageCost,
+  "fal-fill-per-mp": computeFalFillPerMpCost,
   "fal-flux-kontext-inpaint-per-mp": computeFluxKontextInpaintPerMpCost,
   "gpt-image-per-image": computeGptImagePerImageCost,
   "google-nano-banana-per-image": computeGoogleNanoBananaPerImageCost,

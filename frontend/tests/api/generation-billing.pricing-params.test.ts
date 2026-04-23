@@ -3,7 +3,7 @@ import { buildPricingParams } from "../../lib/server/api/generationBilling/prici
 
 describe("generationBilling pricing params normalization", () => {
   it("preserves explicit image dimensions for per-MP pricing models", () => {
-    const params = buildPricingParams("fal/flux-2/edit", {
+    const params = buildPricingParams("fal-ai/bytedance/seedream/v4.5/edit", {
       image_size: { width: 4096, height: 4096 },
     });
 

@@ -4,13 +4,9 @@
 import {
   type FalSubmitResponse,
   submitFalBriaBackgroundRemove,
-  submitFalFlux2,
-  submitFalFlux2Edit,
   submitFalFluxKontextInpaint,
   submitFalFlux2Klein,
   submitFalFluxProFill,
-  submitFalFlux2Pro,
-  submitFalFlux2ProEdit,
   submitFalNanoBananaEdit,
   submitFalNanoBanana2Edit,
   submitFalNanoBananaProEdit,
@@ -41,11 +37,7 @@ const handoffSubmitResponse = ({
     | "fal-nano-banana-edit"
     | "fal-nano-banana-2-edit"
     | "fal-nano-banana-pro-edit"
-    | "fal-flux2"
     | "fal-flux2-klein"
-    | "fal-flux2-edit"
-    | "fal-flux2-pro"
-    | "fal-flux2-pro-edit"
     | "fal-flux-pro-fill"
     | "fal-flux-kontext-inpaint"
     | "fal-bria-background-remove";
@@ -74,7 +66,6 @@ export const handleImageModelSubmission = async ({
   preparedImageInputs,
   notifyGenerationFailure,
   startPollingWithGeneration,
-  falReferencePayload,
   inpaintOverride,
 }: ImageSubmissionArgs): Promise<boolean> => {
   if (finalModel === "fal-ai/bria/background/remove") {
@@ -237,32 +228,11 @@ export const handleImageModelSubmission = async ({
       image_size,
       num_images: 1,
       ...resolveImageSubmissionSafetyPayload(finalModel),
-      enable_safety_checker: false,
       image_urls: preparedImageInputs.slice(0, 10),
     });
     handoffSubmitResponse({
       response,
       pollingProvider: "fal-seedream-v5-lite-edit",
-      startPollingWithGeneration,
-    });
-    return true;
-  }
-
-  if (finalModel === "fal/flux-2") {
-    const size = falSizeForAspect(aspect);
-    const falResp = await submitFalFlux2({
-      prompt: cleanedPrompt,
-      image_size: { width: size.width, height: size.height },
-      num_images: 1,
-      output_format: "png",
-      guidance_scale: 15,
-      num_inference_steps: 41,
-      ...resolveImageSubmissionSafetyPayload(finalModel),
-      ...falReferencePayload,
-    });
-    handoffSubmitResponse({
-      response: falResp,
-      pollingProvider: "fal-flux2",
       startPollingWithGeneration,
     });
     return true;
@@ -281,72 +251,6 @@ export const handleImageModelSubmission = async ({
     handoffSubmitResponse({
       response: falResp,
       pollingProvider: "fal-flux2-klein",
-      startPollingWithGeneration,
-    });
-    return true;
-  }
-
-  if (finalModel === "fal/flux-2/edit") {
-    if (!preparedImageInputs.length) {
-      notifyGenerationFailure(id, "FLUX.2 Edit requires at least one reference image.");
-      return true;
-    }
-    const size = falSizeForAspect(aspect);
-    const falResp = await submitFalFlux2Edit({
-      prompt: cleanedPrompt,
-      image_size: { width: size.width, height: size.height },
-      num_images: 1,
-      output_format: "png",
-      guidance_scale: 2.5,
-      num_inference_steps: 28,
-      ...resolveImageSubmissionSafetyPayload(finalModel),
-      image_urls: preparedImageInputs.slice(0, 4),
-    });
-    handoffSubmitResponse({
-      response: falResp,
-      pollingProvider: "fal-flux2-edit",
-      startPollingWithGeneration,
-    });
-    return true;
-  }
-
-  if (finalModel === "fal/flux-2-pro/edit") {
-    if (!preparedImageInputs.length) {
-      notifyGenerationFailure(id, "FLUX.2 Pro Edit requires at least one reference image.");
-      return true;
-    }
-    const size = falSizeForAspect(aspect);
-    const falResp = await submitFalFlux2ProEdit({
-      prompt: cleanedPrompt,
-      image_size: { width: size.width, height: size.height },
-      num_images: 1,
-      output_format: "png",
-      guidance_scale: 2.5,
-      num_inference_steps: 28,
-      ...resolveImageSubmissionSafetyPayload(finalModel),
-      image_urls: preparedImageInputs.slice(0, 4),
-    });
-    handoffSubmitResponse({
-      response: falResp,
-      pollingProvider: "fal-flux2-pro-edit",
-      startPollingWithGeneration,
-    });
-    return true;
-  }
-
-  if (finalModel === "fal/flux-2-pro") {
-    const size = falSizeForAspect(aspect);
-    const falResp = await submitFalFlux2Pro({
-      prompt: cleanedPrompt,
-      image_size: { width: size.width, height: size.height },
-      num_images: 1,
-      output_format: "png",
-      ...resolveImageSubmissionSafetyPayload(finalModel),
-      ...falReferencePayload,
-    });
-    handoffSubmitResponse({
-      response: falResp,
-      pollingProvider: "fal-flux2-pro",
       startPollingWithGeneration,
     });
     return true;

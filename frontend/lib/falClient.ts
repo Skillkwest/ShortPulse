@@ -556,22 +556,6 @@ const submitEndpointRegistry = {
     route: `${FAL_API_BASE}/submit`,
     missingRequestIdMessage: "Fal did not return a request_id",
   },
-  flux2: {
-    route: `${FAL_API_BASE}/flux2-submit`,
-    missingRequestIdMessage: "Fal FLUX 2 did not return a request_id",
-  },
-  flux2Edit: {
-    route: `${FAL_API_BASE}/flux2-edit-submit`,
-    missingRequestIdMessage: "Fal FLUX 2 Edit did not return a request_id",
-  },
-  flux2Pro: {
-    route: `${FAL_API_BASE}/flux2pro-submit`,
-    missingRequestIdMessage: "Fal FLUX 2 PRO did not return a request_id",
-  },
-  flux2ProEdit: {
-    route: `${FAL_API_BASE}/flux2pro-edit-submit`,
-    missingRequestIdMessage: "Fal FLUX 2 PRO Edit did not return a request_id",
-  },
   flux2Klein: {
     route: `${FAL_API_BASE}/flux2klein-submit`,
     missingRequestIdMessage: "Fal FLUX 2 Klein did not return a request_id",
@@ -685,19 +669,6 @@ const STATUS_TIMEOUT_VEO_MS = 105_000;
 
 const statusEndpointRegistry = {
   flux: { route: `${FAL_API_BASE}/status`, statusTimeoutMs: STATUS_TIMEOUT_STANDARD_MS },
-  flux2: { route: `${FAL_API_BASE}/flux2-status`, statusTimeoutMs: STATUS_TIMEOUT_STANDARD_MS },
-  flux2Edit: {
-    route: `${FAL_API_BASE}/flux2-edit-status`,
-    statusTimeoutMs: STATUS_TIMEOUT_STANDARD_MS,
-  },
-  flux2Pro: {
-    route: `${FAL_API_BASE}/flux2pro-status`,
-    statusTimeoutMs: STATUS_TIMEOUT_STANDARD_MS,
-  },
-  flux2ProEdit: {
-    route: `${FAL_API_BASE}/flux2pro-edit-status`,
-    statusTimeoutMs: STATUS_TIMEOUT_STANDARD_MS,
-  },
   flux2Klein: {
     route: `${FAL_API_BASE}/flux2klein-status`,
     statusTimeoutMs: STATUS_TIMEOUT_STANDARD_MS,
@@ -950,30 +921,6 @@ const fetchFalImageStatusViaGenericRoute = async <TStatus>(
 export const submitFalFlux = (payload: FalSubmitRequest) => submitFalEndpoint("flux", payload);
 export const fetchFalStatus = (requestId: string) =>
   fetchFalStatusEndpoint<FalStatusResponse>("flux", requestId);
-
-export const submitFalFlux2 = (payload: FalSubmitRequest) =>
-  submitFalImageViaGenericRoute("fal/flux-2", payload);
-export const fetchFalFlux2Status = (requestId: string) =>
-  fetchFalImageStatusViaGenericRoute<FalStatusResponse>("fal/flux-2", requestId, "flux2");
-
-export const submitFalFlux2Edit = (payload: FalSubmitRequest) =>
-  submitFalImageViaGenericRoute("fal/flux-2/edit", payload);
-export const fetchFalFlux2EditStatus = (requestId: string) =>
-  fetchFalImageStatusViaGenericRoute<FalStatusResponse>("fal/flux-2/edit", requestId, "flux2Edit");
-
-export const submitFalFlux2Pro = (payload: FalSubmitRequest) =>
-  submitFalImageViaGenericRoute("fal/flux-2-pro", payload);
-export const fetchFalFlux2ProStatus = (requestId: string) =>
-  fetchFalImageStatusViaGenericRoute<FalStatusResponse>("fal/flux-2-pro", requestId, "flux2Pro");
-
-export const submitFalFlux2ProEdit = (payload: FalSubmitRequest) =>
-  submitFalImageViaGenericRoute("fal/flux-2-pro/edit", payload);
-export const fetchFalFlux2ProEditStatus = (requestId: string) =>
-  fetchFalImageStatusViaGenericRoute<FalStatusResponse>(
-    "fal/flux-2-pro/edit",
-    requestId,
-    "flux2ProEdit"
-  );
 
 export const submitFalFlux2Klein = (payload: FalSubmitRequest) =>
   submitFalImageViaGenericRoute("fal-ai/flux-2/klein/9b", payload);

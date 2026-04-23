@@ -17,12 +17,11 @@ describe("model API contracts", () => {
     expect(missing).toEqual([]);
   });
 
-  it("is version-stamped with the current audit date", () => {
+  it("uses the expected catalog audit stamps", () => {
     const contracts = listModelApiContracts();
     expect(contracts.length).toBeGreaterThan(0);
-    contracts.forEach((contract) => {
-      expect(contract.verifiedAt).toBe("2026-03-14");
-    });
+    const verifiedAtValues = new Set(contracts.map((contract) => contract.verifiedAt));
+    expect([...verifiedAtValues].sort()).toEqual(["2026-03-14", "2026-04-14"]);
   });
 
   it("clamps unsupported aspects to model defaults", () => {

@@ -4,6 +4,7 @@ import type { AspectOption } from "../../types";
 import { useReferencePropertiesDerivedState } from "../useReferencePropertiesDerivedState";
 import {
   KIE_KLING_30_MODEL_ID,
+  KIE_SEEDANCE_2_MODEL_ID,
   KIE_VEO_31_FAST_I2V_MODEL_ID,
 } from "../../../../lib/model-runtime/providerModelIds";
 
@@ -103,5 +104,28 @@ describe("useReferencePropertiesDerivedState", () => {
     expect(result.current.isKling3Mode).toBe(false);
     expect(result.current.klingAdvancedOrder).toBeUndefined();
     expect(result.current.klingAssetsSummary).toBe("No elements · No voices");
+  });
+
+  it("treats Seedance 2 as a Kling-pattern video workspace with Seedance-specific copy", () => {
+    const { result } = renderHook(() =>
+      useReferencePropertiesDerivedState({
+        ...baseArgs,
+        modelId: KIE_SEEDANCE_2_MODEL_ID,
+        klingElements: [
+          {
+            id: "element-01",
+            frontalImageUrl: "",
+            referenceImageUrls: "",
+            videoUrl: "",
+          },
+        ],
+      })
+    );
+
+    expect(result.current.isKlingPatternMode).toBe(true);
+    expect(result.current.isSeedance2FamilyModel).toBe(true);
+    expect(result.current.referenceStepTitle).toBe("Add Seedance 2.0 Frames");
+    expect(result.current.klingAssetsSummary).toBe("1 element · Prompt tokens ready");
+    expect(result.current.klingGuidanceSummary).toBe("Storyboard + linked refs");
   });
 });

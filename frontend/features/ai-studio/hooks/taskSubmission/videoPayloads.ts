@@ -169,10 +169,10 @@ export const resolveSeedanceI2VDuration = (requestedDurationSeconds: number): st
   requestedDurationSeconds <= 4 ? "4" : requestedDurationSeconds <= 8 ? "8" : "12";
 
 /**
- * Maps Seedance 2.x duration to the documented 5s/10s contract.
+ * Maps Seedance 2.x duration to the documented 5s/10s/15s contract.
  */
 export const resolveSeedance2Duration = (requestedDurationSeconds: number): string =>
-  requestedDurationSeconds <= 5 ? "5" : "10";
+  requestedDurationSeconds <= 5 ? "5" : requestedDurationSeconds <= 10 ? "10" : "15";
 
 /**
  * Normalizes Seedance 2.x resolution to documented values.

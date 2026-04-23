@@ -13,6 +13,13 @@ type KlingElement = AiStudioKlingElement;
 type ReferenceKlingAdvancedStepsProps = {
   isKling3Mode: boolean;
   isKieKlingModel: boolean;
+  workflowLabel?: string;
+  assetReferenceNoun?: string;
+  supportsVoiceControls?: boolean;
+  supportsNegativePrompt?: boolean;
+  supportsCfgScale?: boolean;
+  assetsHelperText?: string;
+  guidanceHelperText?: string;
   beginnerMode: boolean;
   klingAdvancedOrder?: number;
   klingAdvancedBadge: string;
@@ -64,6 +71,13 @@ const VIDEO_DURATION_OPTIONS = [3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15];
 export const ReferenceKlingAdvancedSteps: React.FC<ReferenceKlingAdvancedStepsProps> = ({
   isKling3Mode,
   isKieKlingModel,
+  workflowLabel = "Kling 3.0",
+  assetReferenceNoun = "element",
+  supportsVoiceControls = !isKieKlingModel,
+  supportsNegativePrompt = !isKieKlingModel,
+  supportsCfgScale = true,
+  assetsHelperText,
+  guidanceHelperText,
   beginnerMode,
   klingAdvancedOrder,
   klingAdvancedBadge,
@@ -125,7 +139,7 @@ export const ReferenceKlingAdvancedSteps: React.FC<ReferenceKlingAdvancedStepsPr
           {!beginnerMode ? (
             <div className="step-header-actions">
               <ReferenceStepHeaderActionButton
-                label="Toggle Kling 3.0 shots"
+                label={`Toggle ${workflowLabel} shots`}
                 isCollapsed={collapsedKlingAdvanced}
                 onClick={onToggleKlingAdvanced}
               />
@@ -226,7 +240,7 @@ export const ReferenceKlingAdvancedSteps: React.FC<ReferenceKlingAdvancedStepsPr
           {!beginnerMode ? (
             <div className="step-header-actions">
               <ReferenceStepHeaderActionButton
-                label="Toggle Kling 3.0 assets"
+                label={`Toggle ${workflowLabel} assets`}
                 isCollapsed={collapsedKlingAssets}
                 onClick={onToggleKlingAssets}
               />
@@ -240,7 +254,8 @@ export const ReferenceKlingAdvancedSteps: React.FC<ReferenceKlingAdvancedStepsPr
               <div className="kling-elements-list">
                 {klingElements.length === 0 ? (
                   <p className="tiny helper-text">
-                    Attach saved Characters or Elements from the Kling 3.0 settings slots above.
+                    Attach saved Characters or Elements from the {workflowLabel} settings slots
+                    above.
                   </p>
                 ) : null}
                 {klingElements.map((element, index) => {
@@ -323,7 +338,7 @@ export const ReferenceKlingAdvancedSteps: React.FC<ReferenceKlingAdvancedStepsPr
                 )}
               </div>
             </div>
-            {!isKieKlingModel ? (
+            {supportsVoiceControls ? (
               <div className="control-row compact full-span kling-voice-row">
                 <label className="input-label">Voice IDs (optional)</label>
                 <div className="kling-voice-inputs">
@@ -345,7 +360,8 @@ export const ReferenceKlingAdvancedSteps: React.FC<ReferenceKlingAdvancedStepsPr
             ) : (
               <div className="control-row compact full-span">
                 <span className="tiny helper-text">
-                  Use each saved element alias as its prompt token, for example `@redlantern`.
+                  {assetsHelperText ??
+                    `Use each saved ${assetReferenceNoun} alias as its prompt token, for example \`@redlantern\`.`}
                 </span>
               </div>
             )}
@@ -367,7 +383,7 @@ export const ReferenceKlingAdvancedSteps: React.FC<ReferenceKlingAdvancedStepsPr
           {!beginnerMode ? (
             <div className="step-header-actions">
               <ReferenceStepHeaderActionButton
-                label="Toggle Kling guidance"
+                label={`Toggle ${workflowLabel} guidance`}
                 isCollapsed={collapsedKlingGuidance}
                 onClick={onToggleKlingGuidance}
               />
@@ -376,24 +392,26 @@ export const ReferenceKlingAdvancedSteps: React.FC<ReferenceKlingAdvancedStepsPr
         </div>
         {!collapsedKlingGuidance ? (
           <div className="create-controls kling-advanced-grid">
-            <div className="control-row compact">
-              <label className="input-label">CFG scale</label>
-              <div className="kling-slider-row">
-                <input
-                  type="range"
-                  min={0}
-                  max={1.5}
-                  step={0.05}
-                  value={klingCfgScale}
-                  onChange={(event) => onKlingCfgScaleChange?.(Number(event.target.value))}
-                />
-                <span className="slider-value">{klingCfgScale.toFixed(2)}</span>
+            {supportsCfgScale ? (
+              <div className="control-row compact">
+                <label className="input-label">CFG scale</label>
+                <div className="kling-slider-row">
+                  <input
+                    type="range"
+                    min={0}
+                    max={1.5}
+                    step={0.05}
+                    value={klingCfgScale}
+                    onChange={(event) => onKlingCfgScaleChange?.(Number(event.target.value))}
+                  />
+                  <span className="slider-value">{klingCfgScale.toFixed(2)}</span>
+                </div>
+                <span className="tiny helper-text">
+                  Lower = freer motion/visuals, higher = tighter adherence.
+                </span>
               </div>
-              <span className="tiny helper-text">
-                Lower = freer motion/visuals, higher = tighter adherence.
-              </span>
-            </div>
-            {!isKieKlingModel ? (
+            ) : null}
+            {supportsNegativePrompt ? (
               <div className="control-row compact full-span">
                 <label className="input-label">Negative prompt</label>
                 <textarea
@@ -407,8 +425,8 @@ export const ReferenceKlingAdvancedSteps: React.FC<ReferenceKlingAdvancedStepsPr
             ) : (
               <div className="control-row compact full-span">
                 <span className="tiny helper-text">
-                  KIE Kling guidance here is CFG-based. Quality mode, sound, and multi-shot setup
-                  live in the main video panel.
+                  {guidanceHelperText ??
+                    "KIE Kling guidance here is CFG-based. Quality mode, sound, and multi-shot setup live in the main video panel."}
                 </span>
               </div>
             )}

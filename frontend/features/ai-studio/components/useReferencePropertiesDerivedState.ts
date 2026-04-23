@@ -8,6 +8,8 @@ import { clampImageResolutionForModel, getImageResolutionOptions } from "../logi
 import {
   KIE_KLING_30_MODEL_ID,
   KIE_SEEDANCE_15_PRO_MODEL_ID,
+  KIE_SEEDANCE_2_FAST_MODEL_ID,
+  KIE_SEEDANCE_2_MODEL_ID,
   KIE_VEO_31_FAST_I2V_MODEL_ID,
 } from "../../../lib/model-runtime/providerModelIds";
 
@@ -83,34 +85,43 @@ export const useReferencePropertiesDerivedState = ({
   const isVeoImageToVideoStandard = isStandardMode && isVeoImageToVideoModel;
   const isVeoFirstLastModel = isKeyframesMode && modelId === KIE_VEO_31_FAST_I2V_MODEL_ID;
   const isSeedanceModel = modelId === KIE_SEEDANCE_15_PRO_MODEL_ID;
+  const isSeedance2FamilyModel =
+    modelId === KIE_SEEDANCE_2_MODEL_ID || modelId === KIE_SEEDANCE_2_FAST_MODEL_ID;
   const isVeoModel =
     modelId?.includes("veo3.1") === true ||
     modelId?.includes("veo-3.1") === true ||
     modelId === KIE_VEO_31_FAST_I2V_MODEL_ID;
   const isKling3Model = modelId === KIE_KLING_30_MODEL_ID;
+  const isKlingPatternMode =
+    isVideoVariant &&
+    !isMotionMode &&
+    ((activeVideoMode === "kling3" && modelId === KIE_KLING_30_MODEL_ID) || isSeedance2FamilyModel);
 
   const referenceStepTitle = isVideoVariant
     ? isMotionMode
       ? "Add Motion Inputs"
-      : isKling3Mode
-        ? "Add Kling 3.0 References"
-        : isKeyframesMode
-          ? "Add Reference Frames"
-          : "Add Reference Image"
+      : isSeedance2FamilyModel
+        ? "Add Seedance 2.0 Frames"
+        : isKlingPatternMode
+          ? "Add Kling 3.0 References"
+          : isKeyframesMode
+            ? "Add Reference Frames"
+            : "Add Reference Image"
     : "Add Reference Images";
   const referenceStepSubtitle = isVideoVariant
     ? isMotionMode
       ? "Upload one character image and one motion video."
-      : isKling3Mode
-        ? "Upload start/end frames plus Kling controls."
-        : isKeyframesMode
-          ? "Upload or drag and drop images from the reference grid."
-          : "Upload or drag and drop a single image for standard image-to-video."
+      : isSeedance2FamilyModel
+        ? "Upload optional start/end frames, then use linked assets or multimodal references for Seedance 2.0."
+        : isKlingPatternMode
+          ? "Upload start/end frames plus Kling controls."
+          : isKeyframesMode
+            ? "Upload or drag and drop images from the reference grid."
+            : "Upload or drag and drop a single image for standard image-to-video."
     : "Upload or drag and drop images from the reference grid.";
 
   const promptOrder = 3;
-  const multiShotOrder =
-    isVideoVariant && modelId === KIE_KLING_30_MODEL_ID && !isMotionMode ? 3 : undefined;
+  const multiShotOrder = isVideoVariant && isKlingPatternMode ? 3 : undefined;
   const modelOrder = 3;
   const imageSettingsOrder = isVideoVariant ? 0 : 4;
   const referenceOrder = 2;
@@ -122,17 +133,17 @@ export const useReferencePropertiesDerivedState = ({
   const videoSettingsBadge = "1";
   const motionAudioOrder = isVideoVariant && isMotionMode ? 1 : 0;
   const motionAudioBadge = "1";
-  const klingAdvancedOrder = isKling3Mode ? 5 : undefined;
+  const klingAdvancedOrder = isKlingPatternMode ? 5 : undefined;
   const klingAdvancedBadge = "5";
-  const klingAssetsOrder = isKling3Mode ? 6 : undefined;
+  const klingAssetsOrder = isKlingPatternMode ? 6 : undefined;
   const klingAssetsBadge = "6";
-  const klingGuidanceOrder = isKling3Mode ? 7 : undefined;
+  const klingGuidanceOrder = isKlingPatternMode ? 7 : undefined;
   const klingGuidanceBadge = "7";
   const effectivePromptOrder = multiShotOrder != null ? 4 : promptOrder;
   const generateOrder = isVideoVariant
     ? isMotionMode
       ? 4
-      : isKling3Mode
+      : isKlingPatternMode
         ? 8
         : multiShotOrder != null
           ? 5
@@ -141,7 +152,7 @@ export const useReferencePropertiesDerivedState = ({
   const generateBadge = isVideoVariant
     ? isMotionMode
       ? "4"
-      : isKling3Mode
+      : isKlingPatternMode
         ? "8"
         : multiShotOrder != null
           ? "5"
@@ -158,14 +169,16 @@ export const useReferencePropertiesDerivedState = ({
     parts.push(
       elementCount ? `${elementCount} element${elementCount > 1 ? "s" : ""}` : "No elements"
     );
-    if (modelId === KIE_KLING_30_MODEL_ID) {
+    if (modelId === KIE_KLING_30_MODEL_ID || isSeedance2FamilyModel) {
       parts.push("Prompt tokens ready");
     } else {
       parts.push(voices ? `${voices} voice${voices > 1 ? "s" : ""}` : "No voices");
     }
     return parts.join(" · ");
-  }, [klingElements, klingVoiceIds, modelId]);
-  const klingGuidanceSummary = `CFG ${klingCfgScale.toFixed(2)} · ${klingNegativePrompt ? "Neg prompt set" : "Neg prompt empty"}`;
+  }, [isSeedance2FamilyModel, klingElements, klingVoiceIds, modelId]);
+  const klingGuidanceSummary = isSeedance2FamilyModel
+    ? "Storyboard + linked refs"
+    : `CFG ${klingCfgScale.toFixed(2)} · ${klingNegativePrompt ? "Neg prompt set" : "Neg prompt empty"}`;
 
   const videoDurationValue = videoDurationSeconds ?? 6;
   const videoResolutionValue = videoResolution ?? "1080p";
@@ -211,10 +224,12 @@ export const useReferencePropertiesDerivedState = ({
     isVideoVariant,
     activeVideoMode,
     isKling3Mode,
+    isKlingPatternMode,
     isKeyframesMode,
     isMotionMode,
     isStandardMode,
     isSeedanceModel,
+    isSeedance2FamilyModel,
     isVeoImageToVideoStandard,
     isVeoFirstLastModel,
     isVeoModel,

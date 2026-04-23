@@ -4,6 +4,7 @@ import { getModelConfig } from "../../../logic/pricing";
 import { handleVideoModelSubmission } from "../videoHandlers";
 import {
   submitKieKlingImageToVideo,
+  submitKieSeedance2FastVideo,
   submitKieSeedance2Video,
   submitKieSeedanceVideo,
   submitKieVeoImageToVideo,
@@ -19,6 +20,7 @@ import {
 
 vi.mock("../../../../../lib/falClient", () => ({
   submitKieKlingImageToVideo: vi.fn(),
+  submitKieSeedance2FastVideo: vi.fn(),
   submitKieSeedance2Video: vi.fn(),
   submitKieSeedanceVideo: vi.fn(),
   submitKieVeoImageToVideo: vi.fn(),
@@ -574,6 +576,17 @@ describe("handleVideoModelSubmission (Kie Seedance 2)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.spyOn(console, "error").mockImplementation(() => undefined);
+    vi.mocked(fetchWithAuth).mockImplementation(async (_url, init) => {
+      const payload =
+        typeof init?.body === "string" ? (JSON.parse(init.body) as { fileUrl?: string }) : {};
+      return {
+        ok: true,
+        json: async () => ({
+          url: payload.fileUrl ?? "",
+        }),
+      } as Response;
+    });
+    vi.mocked(submitKieSeedance2FastVideo).mockResolvedValue({ request_id: "kie-seedance-2-fast" });
     vi.mocked(submitKieSeedance2Video).mockResolvedValue({ request_id: "kie-seedance-2" });
   });
 
@@ -623,6 +636,90 @@ describe("handleVideoModelSubmission (Kie Seedance 2)", () => {
           "https://tempfile.aiquickdraw.com/shortpulse/kie-video/images/last-frame.png",
       })
     );
+  });
+
+  it("compiles Seedance custom multi-shot prompts and linked assets into a multimodal Kie payload", async () => {
+    const args = makeArgs({
+      finalModel: KIE_SEEDANCE_2_MODEL_ID,
+      modelConfig: getModelConfig(KIE_SEEDANCE_2_MODEL_ID),
+      cleanedPrompt: "Direct @redlantern through the square",
+      preparedImageInputs: [],
+      requestedDurationSeconds: 15,
+      requestedResolution: "1080p",
+      requestedAudio: true,
+      videoReferenceMode: "standard",
+      klingWorkflowMode: "custom",
+      klingMultiPrompts: [
+        { id: "shot-1", prompt: "Follow @redlantern past the crowd", duration: 5 },
+        { id: "shot-2", prompt: "Reveal the skyline behind @redlantern", duration: 10 },
+      ],
+      klingElements: [
+        {
+          id: "element-1",
+          slotIndex: 0,
+          name: "Red Lantern",
+          alias: "redlantern",
+          description: "Warm lacquered lantern",
+          frontalImageUrl: "https://example.com/red-lantern-front.png",
+          referenceImageUrls: "https://example.com/red-lantern-side.png",
+          videoUrl: "https://example.com/red-lantern-motion.mp4",
+        },
+      ],
+    });
+
+    const handled = await handleVideoModelSubmission(args);
+
+    expect(handled).toBe(true);
+    expect(submitKieSeedance2Video).toHaveBeenCalledWith({
+      prompt: expect.stringContaining("Direct Red Lantern through the square"),
+      reference_image_urls: [
+        "https://example.com/red-lantern-front.png",
+        "https://example.com/red-lantern-side.png",
+      ],
+      reference_video_urls: ["https://example.com/red-lantern-motion.mp4"],
+      aspect_ratio: "16:9",
+      duration: "15",
+      resolution: "1080p",
+      generate_audio: true,
+      return_last_frame: false,
+      web_search: false,
+    });
+    expect(vi.mocked(submitKieSeedance2Video).mock.calls[0]?.[0]?.prompt).toContain(
+      "Shot 1 (5s): Follow Red Lantern past the crowd"
+    );
+    expect(vi.mocked(submitKieSeedance2Video).mock.calls[0]?.[0]?.prompt).toContain(
+      "Linked reference subjects: Red Lantern: Warm lacquered lantern."
+    );
+  });
+
+  it("fails closed when Seedance linked assets are mixed with first/last frame mode", async () => {
+    const args = makeArgs({
+      finalModel: KIE_SEEDANCE_2_MODEL_ID,
+      modelConfig: getModelConfig(KIE_SEEDANCE_2_MODEL_ID),
+      preparedImageInputs: ["https://example.com/first-frame.png"],
+      videoReferenceMode: "standard",
+      seedance2InputMode: "first-frame",
+      klingElements: [
+        {
+          id: "element-1",
+          slotIndex: 0,
+          name: "Steam Train",
+          alias: "steamtrain",
+          frontalImageUrl: "",
+          referenceImageUrls: "",
+          videoUrl: "https://example.com/steamtrain-motion.mp4",
+        },
+      ],
+    });
+
+    const handled = await handleVideoModelSubmission(args);
+
+    expect(handled).toBe(true);
+    expect(args.notifyGenerationFailure).toHaveBeenCalledWith(
+      "out-1",
+      "Seedance 2.0 linked assets cannot be combined with first/last frame mode."
+    );
+    expect(submitKieSeedance2Video).not.toHaveBeenCalled();
   });
 });
 

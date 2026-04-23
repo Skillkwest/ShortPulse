@@ -17,7 +17,11 @@ import { normalizeSeedance2UiModelId } from "../logic/seedance2Availability";
 import type { StudioMode, ToolId } from "../types";
 import { resolveWorkflowId } from "../logic/workflowIdentity";
 import { getModelConfig } from "../logic/pricing";
-import { KIE_KLING_30_MODEL_ID } from "../../../lib/model-runtime/providerModelIds";
+import {
+  KIE_KLING_30_MODEL_ID,
+  KIE_SEEDANCE_2_FAST_MODEL_ID,
+  KIE_SEEDANCE_2_MODEL_ID,
+} from "../../../lib/model-runtime/providerModelIds";
 import {
   resolveCreateWorkflowStartupModel,
   resolveEditWorkflowStartupModel,
@@ -606,7 +610,13 @@ export const useAiStudioWorkflowSettings = ({
   useEffect(() => {
     if (!workflowSettingsHydrated) return;
     if (activeWorkflowSettingsKey !== "video") return;
-    if (model === KIE_KLING_30_MODEL_ID) return;
+    if (
+      model === KIE_KLING_30_MODEL_ID ||
+      model === KIE_SEEDANCE_2_MODEL_ID ||
+      model === KIE_SEEDANCE_2_FAST_MODEL_ID
+    ) {
+      return;
+    }
     if (klingWorkflowMode === "single" && klingMultiPrompts.length === 0) return;
 
     setKlingWorkflowMode("single");

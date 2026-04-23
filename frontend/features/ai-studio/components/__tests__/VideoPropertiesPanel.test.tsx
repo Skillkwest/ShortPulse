@@ -180,7 +180,9 @@ vi.mock("../ReferenceVideoSettingsStep", () => ({
 }));
 
 vi.mock("../ReferenceKlingAdvancedSteps", () => ({
-  ReferenceKlingAdvancedSteps: () => <div data-testid="reference-kling-advanced-steps" />,
+  ReferenceKlingAdvancedSteps: ({ workflowLabel }: { workflowLabel?: string }) => (
+    <div data-testid="reference-kling-advanced-steps">{workflowLabel ?? "Kling 3.0"}</div>
+  ),
 }));
 
 vi.mock("../ReferenceSeedanceAdvancedSteps", () => ({
@@ -233,10 +235,12 @@ vi.mock("../useReferencePropertiesDerivedState", () => ({
   useReferencePropertiesDerivedState: () => ({
     activeVideoMode: "standard",
     isKling3Mode: true,
+    isKlingPatternMode: true,
     isKeyframesMode: false,
     isMotionMode: false,
     isStandardMode: true,
     isSeedanceModel: false,
+    isSeedance2FamilyModel: false,
     isVeoModel: false,
     referenceStepTitle: "Add References",
     referenceStepSubtitle: "Add references",
@@ -570,7 +574,7 @@ describe("VideoPropertiesPanel", () => {
     );
   });
 
-  it("quarantines the Seedance 2.x advanced settings card by default", () => {
+  it("renders the Seedance 2.x advanced settings card", () => {
     render(
       <VideoPropertiesPanel
         {...baseProps}
@@ -579,7 +583,9 @@ describe("VideoPropertiesPanel", () => {
       />
     );
 
-    expect(screen.queryByTestId("reference-seedance-advanced-steps")).toBeNull();
+    expect(screen.getByTestId("reference-seedance-advanced-steps")).toHaveTextContent(
+      "Seedance 2.0 Fast Settings"
+    );
   });
 
   it("opens the elements picker and attaches a saved element to a Kling slot", async () => {

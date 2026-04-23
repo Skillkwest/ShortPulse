@@ -187,6 +187,7 @@ export function VideoPropertiesPanel({
   resolvePreviewUrlById,
   costCredits,
   isGenerateDisabled = false,
+  referenceImageWarning = null,
   beginnerMode = false,
   onCreateCharacter,
   onCreateElement,
@@ -489,10 +490,12 @@ export function VideoPropertiesPanel({
   const {
     activeVideoMode,
     isKling3Mode,
+    isKlingPatternMode,
     isKeyframesMode,
     isMotionMode,
     isStandardMode,
     isSeedanceModel,
+    isSeedance2FamilyModel,
     isVeoModel,
     referenceStepTitle,
     referenceStepSubtitle,
@@ -553,6 +556,7 @@ export function VideoPropertiesPanel({
   const isSeedance2FamilyModelSelected =
     isSeedance2UiEnabled() && (isSeedance2ModelSelected || isSeedance2FastModelSelected);
   const isAnySeedanceModelSelected = isSeedance15ModelSelected || isSeedance2FamilyModelSelected;
+  const isKlingPatternModelSelected = isKieKlingModelSelected || isSeedance2FamilyModelSelected;
   const isVeo31ModelSelected =
     modelId?.includes("veo3.1") === true || modelId?.includes("veo-3.1") === true;
 
@@ -587,8 +591,8 @@ export function VideoPropertiesPanel({
     [videoModeIndex]
   );
   const klingMode = klingWorkflowMode;
-  const isMultiShotEnabled = isKieKlingModelSelected && klingMode === "custom";
-  const isCustomKlingWorkflow = isKieKlingModelSelected && klingMode === "custom";
+  const isMultiShotEnabled = isKlingPatternModelSelected && klingMode === "custom";
+  const isCustomKlingWorkflow = isKlingPatternModelSelected && klingMode === "custom";
   const customKlingPrompts = React.useMemo(
     () => (isCustomKlingWorkflow ? klingMultiPrompts : []),
     [isCustomKlingWorkflow, klingMultiPrompts]
@@ -597,7 +601,7 @@ export function VideoPropertiesPanel({
     ? customKlingPrompts.some((shot) => shot.prompt.trim().length > 0)
     : Boolean(referenceText?.trim());
   const videoModeSummaryLabel = visibleVideoMode === "motion" ? "Motion Control" : "Standard";
-  const shotModeSummaryLabel = !isKieKlingModelSelected
+  const shotModeSummaryLabel = !isKlingPatternModelSelected
     ? "Single"
     : klingMode === "multi"
       ? "Multi"
@@ -618,7 +622,7 @@ export function VideoPropertiesPanel({
     ];
   }, [referenceText, videoDurationValue]);
   const showShotModeSelector = activeVideoMode === "standard";
-  const shouldShowShotModeSelector = showShotModeSelector && isKieKlingModelSelected;
+  const shouldShowShotModeSelector = showShotModeSelector && isKlingPatternModelSelected;
   const shouldShowSeedanceAdvancedPanel =
     isAnySeedanceModelSelected && activeVideoMode === "standard" && !isMotionMode;
   const displayedSeedance2InputMode =
@@ -1271,7 +1275,7 @@ export function VideoPropertiesPanel({
                         referenceStepTitle={referenceStepTitle}
                         referenceStepSubtitle={referenceStepSubtitle}
                         isMotionMode={isMotionMode}
-                        isKling3Mode={isKling3Mode}
+                        isKling3Mode={isKlingPatternMode}
                         isStandardMode={isStandardMode}
                         isKeyframesMode={isKeyframesMode}
                         primaryImageRequired={standardVideoRequiresReferenceImage}
@@ -1352,11 +1356,13 @@ export function VideoPropertiesPanel({
                         }
                       />
                     </div>
-                    {isKieKlingModelSelected && !isMotionMode ? (
+                    {isKlingPatternModelSelected && !isMotionMode ? (
                       <div className="video-setup-elements-slot">
                         <div className="step-card video-elements-card">
                           <div className="video-elements-card-title video-elements-card-title--large">
-                            Kling 3.0 Settings
+                            {isSeedance2FamilyModelSelected
+                              ? "Seedance 2.0 Settings"
+                              : "Kling 3.0 Settings"}
                           </div>
                           {shouldShowShotModeSelector ? (
                             <div className="video-shot-mode-section video-elements-shot-mode-section">
@@ -1723,6 +1729,11 @@ export function VideoPropertiesPanel({
                       Reference image required for generation
                     </div>
                   ) : null}
+                  {!shouldShowKlingReferenceImageWarning && referenceImageWarning ? (
+                    <div className="video-inline-warning-bubble" role="status" aria-live="polite">
+                      {referenceImageWarning}
+                    </div>
+                  ) : null}
                   <div className="video-right-generate-button">
                     <AgentGenerateButton
                       onClick={onRegenerate}
@@ -1740,8 +1751,23 @@ export function VideoPropertiesPanel({
             </div>
           </div>
           <ReferenceKlingAdvancedSteps
-            isKling3Mode={isKling3Mode}
+            isKling3Mode={isKlingPatternMode}
             isKieKlingModel={isKieKlingWorkspace}
+            workflowLabel={isSeedance2FamilyModel ? "Seedance 2.0" : "Kling 3.0"}
+            assetReferenceNoun={isSeedance2FamilyModel ? "linked entity" : "element"}
+            supportsVoiceControls={!isSeedance2FamilyModel && !isKieKlingWorkspace}
+            supportsNegativePrompt={!isSeedance2FamilyModel && !isKieKlingWorkspace}
+            supportsCfgScale={!isSeedance2FamilyModel}
+            assetsHelperText={
+              isSeedance2FamilyModel
+                ? "Linked Characters and Elements are sent as Seedance 2.0 multimodal reference assets when frame-only modes are not active."
+                : undefined
+            }
+            guidanceHelperText={
+              isSeedance2FamilyModel
+                ? "Seedance 2.0 guidance here is prompt-driven. Storyboard prompts, linked assets, and multimodal reference settings work together in the main video panel."
+                : undefined
+            }
             beginnerMode={beginnerMode}
             klingAdvancedOrder={klingAdvancedOrder}
             klingAdvancedBadge={klingAdvancedBadge}

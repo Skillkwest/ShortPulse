@@ -1,5 +1,5 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { useState } from "react";
 import {
   KIE_KLING_30_MODEL_ID,
@@ -135,6 +135,10 @@ const useHarness = (initialTool: ToolId | null, sessionId = "session-1") => {
 };
 
 describe("useAiStudioWorkflowSettings", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
   it("defaults create workflow model to Seedream text-to-image when no saved model exists", async () => {
     window.sessionStorage.clear();
 
@@ -252,7 +256,47 @@ describe("useAiStudioWorkflowSettings", () => {
     expect(result.current.model).toBe("fal-ai/bytedance/seedream/v4.5/edit");
   });
 
-  it("remaps quarantined Seedance 2 workflow settings to Seedance 1.5 for video tools", async () => {
+  it("keeps Seedance 2 workflow settings active for video tools by default", async () => {
+    window.sessionStorage.clear();
+    window.sessionStorage.setItem(
+      WORKFLOW_SETTINGS_SESSION_KEY,
+      JSON.stringify({
+        video: {
+          mode: "video",
+          model: KIE_SEEDANCE_2_MODEL_ID,
+          aspect: "9:16",
+          imageResolution: "model_default",
+          videoReferenceMode: "standard",
+          videoDurationSeconds: 5,
+          videoResolution: "1080p",
+          videoGenerateAudio: true,
+          videoCameraFixed: false,
+          videoAutoFix: false,
+          klingNegativePrompt: "blur",
+          klingCfgScale: 0.5,
+          klingWorkflowMode: "single",
+          seedance2InputMode: "text",
+          seedance2ReferenceImageUrls: [],
+          seedance2ReferenceVideoUrls: [],
+          seedance2ReferenceAudioUrls: [],
+          seedance2ReturnLastFrame: false,
+          seedance2WebSearch: false,
+          klingShotType: "customize",
+          klingVoiceIds: ["", ""],
+          klingMultiPrompts: [],
+          klingElements: [],
+        },
+      })
+    );
+
+    const { result } = renderHook(() => useHarness("video"));
+
+    await waitFor(() => expect(result.current.selectedTool).toBe("video"));
+    expect(result.current.model).toBe(KIE_SEEDANCE_2_MODEL_ID);
+  });
+
+  it("remaps Seedance 2 workflow settings to Seedance 1.5 when the UI flag is explicitly disabled", async () => {
+    vi.stubEnv("NEXT_PUBLIC_AI_STUDIO_SEEDANCE_2_ENABLED", "false");
     window.sessionStorage.clear();
     window.sessionStorage.setItem(
       WORKFLOW_SETTINGS_SESSION_KEY,

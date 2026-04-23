@@ -285,6 +285,96 @@ const rewritePromptWithKieElementTokens = (
   return rewrittenPrompt ? `${rewrittenPrompt} ${suffix}` : suffix;
 };
 
+const rewritePromptWithSeedanceEntityContext = (
+  prompt: string,
+  klingElements: AiStudioKlingElement[]
+): string => {
+  const trimmedPrompt = prompt.trim();
+  const entityContexts = klingElements.reduce<
+    Array<{ label: string; description: string; tokenAliases: string[] }>
+  >((accumulator, element, index) => {
+    if (!hasKlingElementMedia(element)) return accumulator;
+    const label =
+      element.name?.trim() || element.alias?.trim() || `Linked subject ${String(index + 1)}`;
+    const description = element.description?.trim() ?? "";
+    const tokenAliases = Array.from(
+      new Set(
+        [
+          resolveKieKlingElementToken(element, index, klingElements).trim(),
+          resolveAiStudioKlingElementToken(element, index, klingElements).trim(),
+          resolveLegacyKieKlingElementToken(element, index, klingElements).trim(),
+        ].filter(Boolean)
+      )
+    );
+    accumulator.push({ label, description, tokenAliases });
+    return accumulator;
+  }, []);
+
+  if (!entityContexts.length) return trimmedPrompt;
+
+  let rewrittenPrompt = trimmedPrompt;
+  entityContexts.forEach(({ label, tokenAliases }) => {
+    tokenAliases.forEach((tokenAlias) => {
+      const tokenPattern = new RegExp(`(^|\\s)@${escapeRegExp(tokenAlias)}(?=$|[\\s,.;:!?])`, "g");
+      rewrittenPrompt = rewrittenPrompt.replace(tokenPattern, `$1${label}`);
+    });
+  });
+
+  const entityContextLine = entityContexts
+    .map(({ label, description }) => (description ? `${label}: ${description}` : label))
+    .join("; ");
+
+  if (!entityContextLine) return rewrittenPrompt;
+  if (!rewrittenPrompt) return `Linked reference subjects: ${entityContextLine}.`;
+  return `${rewrittenPrompt}\n\nLinked reference subjects: ${entityContextLine}.`;
+};
+
+const buildSeedancePromptPayload = ({
+  cleanedPrompt,
+  klingWorkflowMode,
+  klingMultiPrompts,
+  preparedKlingElements,
+}: {
+  cleanedPrompt: string;
+  klingWorkflowMode: VideoSubmissionArgs["klingWorkflowMode"];
+  klingMultiPrompts: VideoSubmissionArgs["klingMultiPrompts"];
+  preparedKlingElements: AiStudioKlingElement[];
+}): { prompt: string } | { error: string } => {
+  const normalizedMode = klingWorkflowMode === "custom" ? "custom" : "single";
+  const basePrompt = rewritePromptWithSeedanceEntityContext(cleanedPrompt, preparedKlingElements);
+
+  if (normalizedMode !== "custom") {
+    return { prompt: basePrompt };
+  }
+
+  const activeShots = klingMultiPrompts
+    .map((shot, index) => {
+      const prompt = rewritePromptWithSeedanceEntityContext(shot.prompt, preparedKlingElements);
+      if (!prompt.trim()) return null;
+      return `Shot ${index + 1} (${Math.max(1, Math.round(shot.duration))}s): ${prompt}`;
+    })
+    .filter((shot): shot is string => Boolean(shot));
+
+  if (!activeShots.length) {
+    return { error: "Custom Seedance shot mode requires at least one shot prompt." };
+  }
+
+  return {
+    prompt: [basePrompt, "Storyboard:", activeShots.join("\n")].filter(Boolean).join("\n\n"),
+  };
+};
+
+const collectSeedanceLinkedEntityReferences = (klingElements: AiStudioKlingElement[]) =>
+  klingElements.reduce<{ imageUrls: string[]; videoUrls: string[] }>(
+    (accumulator, element) => {
+      accumulator.imageUrls.push(...getAiStudioKlingElementReferenceUrls(element));
+      const videoUrl = element.videoUrl.trim();
+      if (videoUrl) accumulator.videoUrls.push(videoUrl);
+      return accumulator;
+    },
+    { imageUrls: [], videoUrls: [] }
+  );
+
 type ResolvedKieKlingShotModePayload = {
   prompt: string;
   imageUrls: string[];
@@ -517,19 +607,68 @@ export const handleVideoModelSubmission = async ({
   if (finalModel === KIE_SEEDANCE_2_MODEL_ID || finalModel === KIE_SEEDANCE_2_FAST_MODEL_ID) {
     const hasPreparedFirstFrame = preparedImageInputs.length >= 1;
     const hasPreparedLastFrame = preparedImageInputs.length >= 2;
+    let preparedSeedanceLinkedElements: AiStudioKlingElement[] = [];
+    try {
+      const seedanceElementsWithMedia = klingElements.filter((element) =>
+        hasKlingElementMedia(element)
+      );
+      if (seedanceElementsWithMedia.length) {
+        const seedanceUploadCache = new Map<string, Promise<string>>();
+        preparedSeedanceLinkedElements = await Promise.all(
+          seedanceElementsWithMedia.map(
+            async (element) =>
+              await prepareKieHostedKlingElementForSubmission({
+                element,
+                cache: seedanceUploadCache,
+              })
+          )
+        );
+      }
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Seedance linked asset preparation failed";
+      notifyGenerationFailure(id, `Seedance linked asset preparation failed: ${message}`);
+      return true;
+    }
+    const linkedEntityReferences = collectSeedanceLinkedEntityReferences(
+      preparedSeedanceLinkedElements
+    );
+    const hasLinkedEntityReferences = Boolean(
+      linkedEntityReferences.imageUrls.length || linkedEntityReferences.videoUrls.length
+    );
     const hasMultimodalReferences = Boolean(
       seedance2ReferenceImageUrls.length ||
       seedance2ReferenceVideoUrls.length ||
-      seedance2ReferenceAudioUrls.length
+      seedance2ReferenceAudioUrls.length ||
+      linkedEntityReferences.imageUrls.length ||
+      linkedEntityReferences.videoUrls.length
     );
+    const hasFrameMode = Boolean(hasPreparedFirstFrame || hasPreparedLastFrame);
+    if (hasLinkedEntityReferences && hasFrameMode) {
+      notifyGenerationFailure(
+        id,
+        "Seedance 2.0 linked assets cannot be combined with first/last frame mode."
+      );
+      return true;
+    }
     const effectiveInputMode =
-      seedance2InputMode === "multimodal" && hasMultimodalReferences
+      (seedance2InputMode === "multimodal" || hasLinkedEntityReferences) && hasMultimodalReferences
         ? "multimodal"
         : hasPreparedLastFrame
           ? "first-last"
           : hasPreparedFirstFrame
             ? "first-frame"
             : "text";
+    const promptPayload = buildSeedancePromptPayload({
+      cleanedPrompt,
+      klingWorkflowMode,
+      klingMultiPrompts,
+      preparedKlingElements: preparedSeedanceLinkedElements,
+    });
+    if ("error" in promptPayload) {
+      notifyGenerationFailure(id, promptPayload.error);
+      return true;
+    }
     const submitSeedance2 =
       finalModel === KIE_SEEDANCE_2_FAST_MODEL_ID
         ? submitKieSeedance2FastVideo
@@ -560,14 +699,18 @@ export const handleVideoModelSubmission = async ({
         : Promise.resolve(""),
       effectiveInputMode === "multimodal"
         ? uploadUrlsToKieTemporaryFiles({
-            urls: seedance2ReferenceImageUrls,
+            urls: Array.from(
+              new Set([...seedance2ReferenceImageUrls, ...linkedEntityReferences.imageUrls])
+            ),
             mediaKind: "image",
             cache: kieUploadCache,
           })
         : Promise.resolve([]),
       effectiveInputMode === "multimodal"
         ? uploadUrlsToKieTemporaryFiles({
-            urls: seedance2ReferenceVideoUrls,
+            urls: Array.from(
+              new Set([...seedance2ReferenceVideoUrls, ...linkedEntityReferences.videoUrls])
+            ),
             mediaKind: "video",
             cache: kieUploadCache,
           })
@@ -582,7 +725,7 @@ export const handleVideoModelSubmission = async ({
     ]);
 
     const response = await submitSeedance2({
-      prompt: cleanedPrompt,
+      prompt: promptPayload.prompt,
       ...(effectiveInputMode === "first-frame" || effectiveInputMode === "first-last"
         ? { first_frame_url: firstFrameUrl }
         : {}),

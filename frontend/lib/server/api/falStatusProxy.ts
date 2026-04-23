@@ -1,15 +1,16 @@
 /**
  * Shared provider status proxy.
- * Polls provider status/result endpoints and queues lightweight observations for background recovery.
+ * Polls provider status/result endpoints and settles terminal outcomes canonically.
  */
 import type { NextApiRequest, NextApiResponse } from "next";
 import { requireApiUser } from "./auth";
 import { logGenerationFailure } from "./appErrorLogs";
 import { readFalRuntimeFlags } from "./falRuntimeFlags";
-import { persistGenerationObservation } from "./generationObservationInbox";
+import {
+  settleDirectGenerationFailure,
+  settleDirectGenerationSuccess,
+} from "./directGenerationSettlement";
 import { resolveProviderRequestOwnership } from "./generationBilling";
-import { executeGenerationRecovery } from "../falIntegration/recoveryExecution";
-import { requestGenerationControlPlaneWake } from "../generationControlPlane/controlPlaneWake";
 import {
   buildPersistedFailedPayload,
   buildPersistedCompletedPayload,
@@ -334,100 +335,134 @@ export const createFalStatusHandler = ({
       });
     };
 
-    const persistPollObservation = async ({
-      observationType,
-      payload,
-      wakeReason,
-    }: {
-      observationType: "completed" | "failed";
-      payload: JsonObject;
-      wakeReason?: string;
-    }) => {
-      try {
-        await persistGenerationObservation({
-          generationId,
-          userId: user.id,
-          provider: providerKey,
-          providerRequestId: requestId,
-          observationSource: "poll",
-          observationType,
-          idempotencyKey: `poll:${providerKey}:${requestId}:${observationType}`,
-          payload,
-        });
-        if (wakeReason) {
-          void requestGenerationControlPlaneWake({
-            routeLabel,
-            reason: wakeReason,
-          });
-        }
-      } catch (error) {
-        await logGenerationFailure({
-          req,
-          routeLabel,
-          source: "telemetry.api.fal_status.poll_observation_persist_failed",
-          message: "Failed to persist poll-derived generation observation.",
-          statusCode: 200,
-          userId: user.id,
-          userEmail: user.email ?? null,
-          metadata: {
-            provider_request_id: requestId,
-            observation_type: observationType,
-            detail: error instanceof Error ? error.message : String(error),
-          },
-        });
-      }
-    };
-
-    const executeImmediateRecovery = async ({
-      observationType,
-      payload,
-    }: {
-      observationType: "completed" | "failed";
-      payload: JsonObject;
-    }) => {
-      try {
-        await executeGenerationRecovery({
-          actor: "poll",
-          generationId,
-          requestId,
-          userId: user.id,
-          observation: {
-            state: observationType === "completed" ? "completed" : "failed",
-            payload,
-            mediaUrls:
-              observationType === "completed"
-                ? readProviderMediaUrls({
-                    provider: providerKey,
-                    modelId,
-                    payload,
-                  })
-                : [],
-          },
-          routeLabel,
-        });
-      } catch (error) {
-        await logGenerationFailure({
-          req,
-          routeLabel,
-          source: "telemetry.api.fal_status.immediate_recovery_failed",
-          message: "Failed to execute immediate generation recovery from polling.",
-          statusCode: 200,
-          userId: user.id,
-          userEmail: user.email ?? null,
-          metadata: {
-            provider_request_id: requestId,
-            observation_type: observationType,
-            detail: error instanceof Error ? error.message : String(error),
-          },
-        });
-      }
-    };
-
     const readCanonicalStatusContext = async () =>
       readPersistedGenerationStatusContext({
         userId: user.id,
         requestId,
       });
+    const settleCanonicalCompletedPayload = async ({
+      payload,
+      providerState,
+    }: {
+      payload: JsonObject;
+      providerState: string;
+    }) => {
+      const settlement = await settleDirectGenerationSuccess({
+        generationId,
+        requestId,
+        userId: user.id,
+        routeLabel,
+        providerState,
+        resultUrls: readProviderMediaUrls({
+          provider: providerKey,
+          modelId,
+          payload,
+        }),
+      });
+      if (!settlement.ok) {
+        await logGenerationFailure({
+          req,
+          routeLabel,
+          source: "telemetry.api.fal_status.direct_settlement_failed",
+          message: "Failed to persist canonical completed generation state.",
+          statusCode: 200,
+          userId: user.id,
+          userEmail: user.email ?? null,
+          metadata: {
+            provider_request_id: requestId,
+            provider_state: providerState,
+            detail: settlement.error,
+          },
+        });
+        return respondError({
+          res,
+          requestId,
+          error: "Failed to finalize generation result. Please retry.",
+          detail: settlement.error,
+          alwaysHttp200,
+          statusCode: 500,
+          generationId,
+        });
+      }
+      const canonicalPayload = await respondWithCanonicalCompletedPayload({
+        providerState,
+      });
+      if (canonicalPayload) return canonicalPayload;
+      return respondError({
+        res,
+        requestId,
+        error: "Generation completed but canonical media was unavailable.",
+        detail: {
+          provider_state: providerState,
+          provider_request_id: requestId,
+        },
+        alwaysHttp200,
+        statusCode: 500,
+        generationId: settlement.generationId,
+      });
+    };
+    const settleCanonicalFailedPayload = async ({
+      providerState,
+      fallbackMessage,
+      fallbackDetail,
+      failureReasonCode = "provider_error",
+    }: {
+      providerState: string | null;
+      fallbackMessage: string;
+      fallbackDetail?: unknown;
+      failureReasonCode?: string;
+    }) => {
+      const settlement = await settleDirectGenerationFailure({
+        generationId,
+        requestId,
+        userId: user.id,
+        routeLabel,
+        providerState,
+        errorMessage: fallbackMessage,
+        errorDetail: fallbackDetail,
+        failureReasonCode,
+      });
+      if (!settlement.ok) {
+        await logGenerationFailure({
+          req,
+          routeLabel,
+          source: "telemetry.api.fal_status.direct_failure_settlement_failed",
+          message: "Failed to persist canonical failed generation state.",
+          statusCode: 200,
+          userId: user.id,
+          userEmail: user.email ?? null,
+          metadata: {
+            provider_request_id: requestId,
+            provider_state: providerState,
+            detail: settlement.error,
+          },
+        });
+        return respondError({
+          res,
+          requestId,
+          error: fallbackMessage,
+          detail: fallbackDetail,
+          alwaysHttp200,
+          statusCode: 500,
+          generationId,
+        });
+      }
+      const persistedFailure = await respondWithCanonicalFailedPayload({
+        providerState,
+        fallbackMessage,
+        fallbackDetail,
+      });
+      if (persistedFailure) return persistedFailure;
+      return respondError({
+        res,
+        requestId,
+        error: fallbackMessage,
+        detail: fallbackDetail,
+        alwaysHttp200,
+        statusCode: 500,
+        generationId: settlement.generationId,
+      });
+    };
     const respondWithCanonicalFailedPayload = async ({
       providerState,
       fallbackMessage,
@@ -444,8 +479,8 @@ export const createFalStatusHandler = ({
           requestId,
           generationId: canonicalContext.generationId ?? generationId,
           errorMessage:
-            canonicalContext.errorDetail?.trim() ||
             canonicalContext.errorMessageShort?.trim() ||
+            canonicalContext.errorDetail?.trim() ||
             fallbackMessage,
           errorDetail:
             canonicalContext.errorDetail ?? canonicalContext.errorMessageShort ?? fallbackDetail,
@@ -597,46 +632,7 @@ export const createFalStatusHandler = ({
       }: {
         payload: JsonObject;
         payloadStatus: string;
-      }) => {
-        const resultUrls = readProviderMediaUrls({
-          provider: providerKey,
-          modelId,
-          payload,
-        });
-        await executeImmediateRecovery({
-          observationType: "completed",
-          payload,
-        });
-        const canonicalSuccessResponse = await respondWithCanonicalCompletedPayload({
-          providerState: payloadStatus,
-        });
-        if (canonicalSuccessResponse) {
-          return canonicalSuccessResponse;
-        }
-        void persistPollObservation({
-          observationType: "completed",
-          payload,
-          wakeReason: "poll_completed_observation",
-        });
-        return res.status(200).json({
-          ...attachGenerationId(payload),
-          status: payloadStatus,
-          state: payloadStatus,
-          request_id: requestId,
-          shortpulseLifecycle: buildShortPulseLifecycleHint({
-            taskState: "success",
-            isTerminal: true,
-            resultUrls,
-            providerState: payloadStatus,
-            deliveryState: "transient_provider",
-            recoveryPending: true,
-            queueState: ACTIVE_POLLING_QUEUE_STATE,
-            statusLabel: resolveLifecycleStatusLabel({
-              taskState: "success",
-            }),
-          }),
-        });
-      };
+      }) => settleCanonicalCompletedPayload({ payload, providerState: payloadStatus });
 
       const statusProbeResults = await Promise.all(
         queueBaseUrls.map(async (baseUrl, index) => {
@@ -796,35 +792,11 @@ export const createFalStatusHandler = ({
           detail: contentPolicyMessage,
           force: true,
         });
-        await executeImmediateRecovery({
-          observationType: "failed",
-          payload: statusData.json,
-        });
-        const persistedFailure = await respondWithCanonicalFailedPayload({
+        return await settleCanonicalFailedPayload({
           providerState: contentPolicyStatus,
           fallbackMessage: explicitContentFailure?.errorMessage ?? contentPolicyMessage,
           fallbackDetail: explicitContentFailure?.errorDetail ?? contentPolicyMessage,
-        });
-        if (persistedFailure) return persistedFailure;
-        await persistPollObservation({
-          observationType: "failed",
-          payload: statusData.json,
-        });
-        return respondErrorWithLogging({
-          requestId,
-          error: explicitContentFailure?.errorMessage ?? contentPolicyMessage,
-          statusCode: 422,
-          source: "api.fal_status.content_policy",
-          stage: "status",
-          detail: explicitContentFailure?.errorDetail ?? contentPolicyMessage,
-          lifecycle: buildShortPulseLifecycleHint({
-            taskState: "fail",
-            isTerminal: true,
-            errorMessage: explicitContentFailure?.errorMessage ?? contentPolicyMessage,
-            errorDetail: explicitContentFailure?.errorDetail ?? contentPolicyMessage,
-            providerState: contentPolicyStatus,
-            queueState: "failed",
-          }),
+          failureReasonCode: "content_policy_block",
         });
       }
 
@@ -843,11 +815,7 @@ export const createFalStatusHandler = ({
           status: normalizedStatus,
         })
       ) {
-        await executeImmediateRecovery({
-          observationType: "failed",
-          payload: statusData.json,
-        });
-        const persistedFailure = await respondWithCanonicalFailedPayload({
+        return await settleCanonicalFailedPayload({
           providerState: normalizedStatus,
           fallbackMessage:
             asProviderString(statusData.json.error) ||
@@ -855,35 +823,7 @@ export const createFalStatusHandler = ({
             asProviderString(statusData.json.statusMessage) ||
             "Generation failed",
           fallbackDetail: statusData.json,
-        });
-        if (persistedFailure) return persistedFailure;
-        await persistPollObservation({
-          observationType: "failed",
-          payload: statusData.json,
-        });
-        return respondErrorWithLogging({
-          requestId,
-          error:
-            asProviderString(statusData.json.error) ||
-            asProviderString(statusData.json.message) ||
-            asProviderString(statusData.json.statusMessage) ||
-            "Generation failed",
-          statusCode: 422,
-          source: "api.fal_status.status_failed",
-          stage: "status",
-          detail: statusData.json,
-          lifecycle: buildShortPulseLifecycleHint({
-            taskState: "fail",
-            isTerminal: true,
-            errorMessage:
-              asProviderString(statusData.json.error) ||
-              asProviderString(statusData.json.message) ||
-              asProviderString(statusData.json.statusMessage) ||
-              "Generation failed",
-            errorDetail: statusData.json,
-            providerState: normalizedStatus,
-            queueState: "failed",
-          }),
+          failureReasonCode: "provider_error",
         });
       }
 
@@ -1156,34 +1096,11 @@ export const createFalStatusHandler = ({
           detail: resultPolicyMessage,
           force: true,
         });
-        await executeImmediateRecovery({
-          observationType: "failed",
-          payload: resultData.json,
-        });
-        const persistedFailure = await respondWithCanonicalFailedPayload({
+        return await settleCanonicalFailedPayload({
           providerState: readPayloadLifecycleStatus(resultData.json) ?? normalizedStatus,
           fallbackMessage: explicitContentFailure?.errorMessage ?? resultPolicyMessage,
           fallbackDetail: explicitContentFailure?.errorDetail ?? resultPolicyMessage,
-        });
-        if (persistedFailure) return persistedFailure;
-        await persistPollObservation({
-          observationType: "failed",
-          payload: resultData.json,
-        });
-        return respondErrorWithLogging({
-          requestId,
-          error: explicitContentFailure?.errorMessage ?? resultPolicyMessage,
-          statusCode: 422,
-          source: "api.fal_status.content_policy",
-          stage: "result",
-          detail: explicitContentFailure?.errorDetail ?? resultPolicyMessage,
-          lifecycle: buildShortPulseLifecycleHint({
-            taskState: "fail",
-            isTerminal: true,
-            errorMessage: explicitContentFailure?.errorMessage ?? resultPolicyMessage,
-            errorDetail: explicitContentFailure?.errorDetail ?? resultPolicyMessage,
-            queueState: "failed",
-          }),
+          failureReasonCode: "content_policy_block",
         });
       }
 
@@ -1216,56 +1133,14 @@ export const createFalStatusHandler = ({
             )
           );
         }
-        await executeImmediateRecovery({
-          observationType: "failed",
-          payload: resultData.json,
-        });
-        const canonicalContext = await readCanonicalStatusContext();
-        if (canonicalContext.taskState === "fail") {
-          return res.status(200).json(
-            buildPersistedFailedPayload({
-              requestId,
-              generationId: canonicalContext.generationId ?? generationId,
-              errorMessage:
-                canonicalContext.errorMessageShort?.trim() ||
-                asProviderString(resultData.json.error) ||
-                asProviderString(resultData.json.message) ||
-                "Generation failed",
-              errorDetail:
-                canonicalContext.errorDetail ??
-                canonicalContext.errorMessageShort ??
-                resultData.json,
-              providerState: readPayloadLifecycleStatus(resultData.json) ?? normalizedStatus,
-              queueState: canonicalContext.queueState ?? "failed",
-            })
-          );
-        }
-        await persistPollObservation({
-          observationType: "failed",
-          payload: resultData.json,
-        });
-        const resultLifecycleStatus = readPayloadLifecycleStatus(resultData.json);
-        return respondErrorWithLogging({
-          requestId,
-          error:
+        return await settleCanonicalFailedPayload({
+          providerState: readPayloadLifecycleStatus(resultData.json) ?? normalizedStatus,
+          fallbackMessage:
             asProviderString(resultData.json.error) ||
             asProviderString(resultData.json.message) ||
             "Generation failed",
-          statusCode: resultResp.status,
-          source: "api.fal_status.result_upstream_non_ok",
-          stage: "result",
-          detail: resultData.json,
-          lifecycle: buildShortPulseLifecycleHint({
-            taskState: "fail",
-            isTerminal: true,
-            errorMessage:
-              asProviderString(resultData.json.error) ||
-              asProviderString(resultData.json.message) ||
-              "Generation failed",
-            errorDetail: resultData.json,
-            providerState: resultLifecycleStatus ?? normalizedStatus,
-            queueState: "failed",
-          }),
+          fallbackDetail: resultData.json,
+          failureReasonCode: "provider_error",
         });
       }
 
@@ -1276,66 +1151,21 @@ export const createFalStatusHandler = ({
       const resultHasMedia = payloadHasMedia(resultData.json);
 
       if (explicitResultFailure) {
-        await executeImmediateRecovery({
-          observationType: "failed",
-          payload: resultData.json,
-        });
-        const persistedFailure = await respondWithCanonicalFailedPayload({
+        return await settleCanonicalFailedPayload({
           providerState: resultStatus ?? normalizedStatus,
           fallbackMessage: resultErrorMessage || "Generation failed to produce media output",
           fallbackDetail: resultData.json,
-        });
-        if (persistedFailure) return persistedFailure;
-        await persistPollObservation({
-          observationType: "failed",
-          payload: resultData.json,
-        });
-        return respondErrorWithLogging({
-          requestId,
-          error: resultErrorMessage || "Generation failed to produce media output",
-          statusCode: 502,
-          source: "api.fal_status.result_missing_media",
-          stage: "result",
-          detail: resultData.json,
-          lifecycle: buildShortPulseLifecycleHint({
-            taskState: "fail",
-            isTerminal: true,
-            errorMessage: resultErrorMessage || "Generation failed to produce media output",
-            errorDetail: resultData.json,
-            providerState: resultStatus ?? normalizedStatus,
-            queueState: "failed",
-          }),
+          failureReasonCode: "provider_error",
         });
       }
 
       if (!resultHasMedia) {
-        await persistPollObservation({
-          observationType: "completed",
-          payload: resultData.json,
-          wakeReason: "poll_completed_no_media_observation",
+        return await settleCanonicalFailedPayload({
+          providerState: resultStatus ?? normalizedStatus ?? "completed",
+          fallbackMessage: "Generation failed to produce media output",
+          fallbackDetail: resultData.json,
+          failureReasonCode: "terminal_success_no_media",
         });
-        return res.status(200).json(
-          buildFalStatusTransientPayload({
-            requestId,
-            detail: {
-              stage: "result",
-              result_status: resultStatus,
-            },
-            generationId,
-            lifecycle: buildShortPulseLifecycleHint({
-              taskState: "running",
-              isTerminal: false,
-              providerState: resultStatus ?? normalizedStatus ?? "completed",
-              recoveryPending: true,
-              completionState: "completed_awaiting_media",
-              queueState: ACTIVE_POLLING_QUEUE_STATE,
-              statusLabel: resolveLifecycleStatusLabel({
-                taskState: "running",
-                recoveryPending: true,
-              }),
-            }),
-          })
-        );
       }
 
       return captureAndRespondSuccess({

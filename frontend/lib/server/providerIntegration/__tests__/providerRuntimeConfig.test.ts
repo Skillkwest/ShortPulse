@@ -44,6 +44,22 @@ describe("providerRuntimeConfig", () => {
         modelId: "kie-ai/kling-3.0",
       })
     ).not.toThrow();
+
+    expect(() =>
+      assertKieRuntimeEnabledForModel({
+        modelId: "kie-ai/seedance-1.5-pro",
+      })
+    ).not.toThrow();
+    expect(() =>
+      assertKieRuntimeEnabledForModel({
+        modelId: "kie-ai/seedance-2",
+      })
+    ).not.toThrow();
+    expect(() =>
+      assertKieRuntimeEnabledForModel({
+        modelId: "kie-ai/seedance-2-fast",
+      })
+    ).not.toThrow();
   });
 
   it("normalizes and filters invalid kie allowlist entries", () => {
@@ -66,6 +82,22 @@ describe("providerRuntimeConfig", () => {
     expect(() =>
       assertKieRuntimeEnabledForModel({
         modelId: "kie-ai/kling-3.0",
+      })
+    ).not.toThrow();
+
+    expect(() =>
+      assertKieRuntimeEnabledForModel({
+        modelId: "kie-ai/seedance-1.5-pro",
+      })
+    ).not.toThrow();
+    expect(() =>
+      assertKieRuntimeEnabledForModel({
+        modelId: "kie-ai/seedance-2",
+      })
+    ).not.toThrow();
+    expect(() =>
+      assertKieRuntimeEnabledForModel({
+        modelId: "kie-ai/seedance-2-fast",
       })
     ).not.toThrow();
   });

@@ -62,28 +62,36 @@ export const buildPersistedCompletedPayload = ({
   recoveryPending?: boolean;
   completionState?: "completed_awaiting_media" | null;
   providerState?: string | null;
-}) => ({
-  request_id: requestId,
-  ...(typeof generationId === "string" && generationId.trim().length > 0
-    ? { generationId: generationId.trim() }
-    : {}),
-  status: "completed",
-  state: "completed",
-  resultUrls,
-  result_urls: resultUrls,
-  videos: resultUrls.map((url) => ({ url })),
-  shortpulseLifecycle: buildShortPulseLifecycleHint({
-    taskState: "success",
-    isTerminal: true,
+}) => {
+  const media = resultUrls.map((url) => ({ url }));
+  return {
+    request_id: requestId,
+    ...(typeof generationId === "string" && generationId.trim().length > 0
+      ? { generationId: generationId.trim() }
+      : {}),
+    status: "completed",
+    state: "completed",
     resultUrls,
-    providerState,
-    recoveryPending,
-    ...(completionState ? { completionState } : {}),
-    deliveryState,
-    queueState: "dispatched",
-    statusLabel: "Just now",
-  }),
-});
+    result_urls: resultUrls,
+    images: media,
+    videos: media,
+    data: {
+      images: media,
+      videos: media,
+    },
+    shortpulseLifecycle: buildShortPulseLifecycleHint({
+      taskState: "success",
+      isTerminal: true,
+      resultUrls,
+      providerState,
+      recoveryPending,
+      ...(completionState ? { completionState } : {}),
+      deliveryState,
+      queueState: "dispatched",
+      statusLabel: "Just now",
+    }),
+  };
+};
 
 const areAllOutputsOwned = (rows: Array<{ mediaFileId: string | null }>): boolean =>
   rows.length > 0 && rows.every((row) => typeof row.mediaFileId === "string" && row.mediaFileId);

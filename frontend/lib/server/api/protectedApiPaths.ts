@@ -5,6 +5,7 @@
 export const PROTECTED_API_PREFIXES = [
   "/api/announcements/",
   "/api/fal/",
+  "/api/elevenlabs/",
   "/api/ai/",
   "/api/media/",
   "/api/upload-video",
@@ -12,6 +13,7 @@ export const PROTECTED_API_PREFIXES = [
   "/api/log/",
   "/api/admin/",
   "/api/credits/",
+  "/api/billing/catalog",
   "/api/billing/credit-packages",
   "/api/billing/stripe/checkout",
   "/api/billing/stripe/portal",

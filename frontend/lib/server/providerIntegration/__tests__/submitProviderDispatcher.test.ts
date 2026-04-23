@@ -179,6 +179,42 @@ describe("submitProviderDispatcher", () => {
     );
   });
 
+  it("dispatches Seedance 1.5 submits without requiring an allowlist entry", async () => {
+    process.env.SHORTPULSE_KIE_INTEGRATION_ENABLED = "true";
+    process.env.SHORTPULSE_KIE_MODEL_ALLOWLIST = "kie-ai/veo-3.1-fast-i2v";
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ code: 200, data: { taskId: "seedance-task-1" } }), {
+        status: 200,
+      })
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await dispatchProviderSubmit({
+      provider: "kie",
+      modelId: "kie-ai/seedance-1.5-pro",
+      targets: [{ submitUrl: "https://api.kie.ai/api/v1/jobs/createTask" }],
+      payload: {
+        prompt: "a woman",
+        aspect_ratio: "9:16",
+        resolution: "720p",
+        duration: 4,
+      },
+      apiKey: "key",
+      signal: new AbortController().signal,
+    });
+
+    expect(result.providerRequestId).toBe("seedance-task-1");
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://api.kie.ai/api/v1/jobs/createTask",
+      expect.objectContaining({
+        method: "POST",
+        headers: expect.objectContaining({
+          Authorization: "Bearer key",
+        }),
+      })
+    );
+  });
+
   it("attaches Kling media diagnostics to Kie submit results", async () => {
     process.env.SHORTPULSE_KIE_INTEGRATION_ENABLED = "true";
     process.env.SHORTPULSE_KIE_MODEL_ALLOWLIST = "kie-ai/kling-3.0";

@@ -12,7 +12,6 @@ import {
   EXPLICIT_CONTENT_FAILURE_DETAIL,
   EXPLICIT_CONTENT_FAILURE_MESSAGE,
 } from "../../explicitContentFailure";
-import { requestGenerationControlPlaneWake } from "../generationControlPlane/controlPlaneWake";
 import { isLocalDevGenerationWorkerRequired } from "../generationControlPlane/localWorkerHeartbeat";
 import { normalizeExplicitContentFailure } from "../../explicitContentFailure";
 import { evaluateGenerationAdmissionDecision } from "./generationAdmission/generationAdmissionPolicy";
@@ -20,7 +19,6 @@ import { evaluateScopedGenerationAdmission } from "./generationAdmission/generat
 import { shouldEmitRecoveryBackpressureTelemetry } from "./generationAdmission/recoveryBackpressure";
 import type { SubmitTarget } from "../falIntegration/contracts";
 import { upsertGenerationProjection } from "./generationProjection";
-import { resolveWebhookCallbackUrl, withWebhookTargets } from "./falSubmitTargeting";
 import {
   resolveGenerationAspectFromPayload,
   resolveGenerationModeFromPayload,
@@ -552,20 +550,14 @@ export const createFalSubmitHandler = ({
       const canUseInlineDirectSubmit = supportsInlineDirectSubmit && !admissionDecision.wouldLimit;
 
       if (canUseInlineDirectSubmit) {
-        const webhookCallbackUrl = resolveWebhookCallbackUrl(runtimeFlags, {
-          userId: charge.userId,
-          modelId,
-          requestHeaders: req.headers,
-        });
         const controller = new AbortController();
         const timeoutHandle = setTimeout(() => controller.abort(), timeoutMs);
         try {
           const dispatchAtIso = new Date().toISOString();
-          const preparedTargets = withWebhookTargets(inlineSubmitTargets, webhookCallbackUrl);
           const submitResult = await dispatchProviderSubmit({
             provider: providerKey,
             modelId,
-            targets: preparedTargets,
+            targets: inlineSubmitTargets,
             payload: payload as JsonValue,
             apiKey: readProviderApiKey(providerKey),
             signal: controller.signal,
@@ -633,7 +625,6 @@ export const createFalSubmitHandler = ({
             model_id: modelId,
             upstream_target_url: submitResult.targetUrl,
             upstream_target_index: submitResult.targetIndex,
-            fal_webhook_callback_url: webhookCallbackUrl,
           });
 
           if (!markSubmittedResult.ok) {
@@ -677,7 +668,6 @@ export const createFalSubmitHandler = ({
             generation_submit_authority: "direct",
             route: req.url ?? null,
             route_label: routeLabel,
-            fal_webhook_callback_url: webhookCallbackUrl,
             upstream_target_url: submitResult.targetUrl,
             upstream_target_index: submitResult.targetIndex,
             provider_diagnostics: submitResult.providerDiagnostics ?? null,
@@ -792,10 +782,6 @@ export const createFalSubmitHandler = ({
             }).catch(() => undefined);
           }
 
-          void requestGenerationControlPlaneWake({
-            routeLabel,
-            reason: "direct_submit_accepted",
-          });
           await logGenerationFailure({
             req,
             routeLabel,

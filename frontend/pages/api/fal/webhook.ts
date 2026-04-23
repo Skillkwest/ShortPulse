@@ -68,7 +68,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const verification = await verifyFalWebhookSignature({
       rawBody,
       headers: webhookHeaders,
-      flags,
     });
     if (!verification.ok) {
       await logWebhookReject({
@@ -77,7 +76,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         message: verification.reason ?? "Invalid webhook signature",
         metadata: {
           verification_reason: verification.reason ?? null,
-          verification_mode: flags.webhookVerifyMode,
+          verification_mode: "fal_first_fixed",
           fal_request_id: webhookHeaders.requestId,
           fal_event_id: webhookHeaders.eventId,
           fal_user_id_present: Boolean(webhookHeaders.userId),

@@ -6,7 +6,6 @@ const logGenerationFailureMock = vi.fn();
 const evaluateScopedGenerationAdmissionMock = vi.fn();
 const enqueueGenerationSubmitMock = vi.fn();
 const upsertGenerationProjectionMock = vi.fn();
-const requestGenerationControlPlaneWakeMock = vi.fn();
 const requireApiUserMock = vi.fn();
 const dispatchProviderSubmitMock = vi.fn();
 const applyAcceptedRunningGenerationTransitionMock = vi.fn();
@@ -43,11 +42,6 @@ vi.mock("../../lib/server/providerIntegration/submitProviderDispatcher", () => (
 vi.mock("../../lib/server/api/generationAcceptedTransitionService", () => ({
   applyAcceptedRunningGenerationTransition: (...args: unknown[]) =>
     applyAcceptedRunningGenerationTransitionMock(...args),
-}));
-
-vi.mock("../../lib/server/generationControlPlane/controlPlaneWake", () => ({
-  requestGenerationControlPlaneWake: (...args: unknown[]) =>
-    requestGenerationControlPlaneWakeMock(...args),
 }));
 
 const createMockResponse = () => ({
@@ -89,7 +83,6 @@ describe("createFalSubmitHandler", () => {
       queueStatus: "queued",
       message: null,
     });
-    requestGenerationControlPlaneWakeMock.mockResolvedValue(undefined);
     upsertGenerationProjectionMock.mockResolvedValue(undefined);
     dispatchProviderSubmitMock.mockResolvedValue({
       response: new Response(JSON.stringify({ request_id: "req-direct-1" }), {
@@ -166,8 +159,7 @@ describe("createFalSubmitHandler", () => {
         modelId: "fal-ai/nano-banana",
         targets: [
           {
-            submitUrl:
-              "https://queue.fal.run/fal-ai/nano-banana?webhook_url=https%3A%2F%2Fshortpulse-git-working-development-kirk-artmans-projects.vercel.app%2Fapi%2Ffal%2Fwebhook&fal_webhook=https%3A%2F%2Fshortpulse-git-working-development-kirk-artmans-projects.vercel.app%2Fapi%2Ffal%2Fwebhook",
+            submitUrl: "https://queue.fal.run/fal-ai/nano-banana",
           },
         ],
       })

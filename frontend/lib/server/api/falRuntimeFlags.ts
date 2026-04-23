@@ -11,7 +11,6 @@ import {
 import type { GenerationAdmissionConfig } from "./generationAdmission/types";
 
 export type FalIntegrationMode = "legacy" | "shadow" | "on";
-export type FalWebhookVerifyMode = "dual" | "fal_only" | "hmac_only";
 
 export type FalRuntimeFlags = {
   integrationMode: FalIntegrationMode;
@@ -27,11 +26,7 @@ export type FalRuntimeFlags = {
   reconcilerLeaseSeconds: number;
   circuitBreakerEnabled: boolean;
   circuitBreakerThreshold15m: number;
-  webhookVerifyMode: FalWebhookVerifyMode;
-  webhookJwksUrl: string | null;
-  webhookToleranceSeconds: number;
   publicApiBaseUrl: string | null;
-  webhookCallbackBaseUrl: string | null;
   directDebitFallbackEnabled: boolean;
   admission: GenerationAdmissionConfig;
   reservationCleanupEnabled: boolean;
@@ -84,14 +79,6 @@ const parseVideoSubmitCanonicalMode = (value: string | undefined): "off" | "shad
     return normalized;
   }
   return "on";
-};
-
-const parseWebhookVerifyMode = (value: string | undefined): FalWebhookVerifyMode => {
-  const normalized = value?.trim().toLowerCase();
-  if (normalized === "dual" || normalized === "fal_only" || normalized === "hmac_only") {
-    return normalized;
-  }
-  return "dual";
 };
 
 const normalizeBaseUrl = (value: string | undefined): string | null => {
@@ -154,22 +141,8 @@ export const readFalRuntimeFlags = (): FalRuntimeFlags => ({
     20,
     1
   ),
-  webhookVerifyMode: parseWebhookVerifyMode(process.env.SHORTPULSE_FAL_WEBHOOK_VERIFY_MODE),
-  webhookJwksUrl:
-    process.env.SHORTPULSE_FAL_WEBHOOK_JWKS_URL?.trim() ||
-    "https://rest.alpha.fal.ai/.well-known/jwks.json",
-  webhookToleranceSeconds: parseInteger(
-    process.env.SHORTPULSE_FAL_WEBHOOK_TOLERANCE_SECONDS,
-    300,
-    1
-  ),
   publicApiBaseUrl: normalizeBaseUrl(
     process.env.SHORTPULSE_PUBLIC_API_BASE_URL ?? process.env.APP_BASE_URL
-  ),
-  webhookCallbackBaseUrl: normalizeBaseUrl(
-    process.env.SHORTPULSE_FAL_WEBHOOK_CALLBACK_BASE_URL ??
-      process.env.SHORTPULSE_PUBLIC_API_BASE_URL ??
-      process.env.APP_BASE_URL
   ),
   directDebitFallbackEnabled: parseBoolean(
     process.env.SHORTPULSE_FAL_DIRECT_DEBIT_FALLBACK_ENABLED,

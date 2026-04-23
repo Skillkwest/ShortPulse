@@ -11,6 +11,9 @@ import {
 import { getModelConfig } from "../../model-runtime/pricing";
 import {
   KIE_KLING_30_MODEL_ID,
+  KIE_SEEDANCE_15_PRO_MODEL_ID,
+  KIE_SEEDANCE_2_FAST_MODEL_ID,
+  KIE_SEEDANCE_2_MODEL_ID,
   KIE_SUPPORTED_MODEL_IDS,
   isKnownKieModelId,
 } from "../../model-runtime/providerModelIds";
@@ -20,7 +23,12 @@ import { isFalProviderKey, isKieProviderKey, normalizeProviderKey } from "./prov
 const DEFAULT_KIE_TRUSTED_HOSTS = ["kie.ai"];
 const DEFAULT_KIE_STATUS_TIMEOUT_MS = 60000;
 const REQUEST_ID_TEMPLATE_TOKEN = "{requestId}";
-const ALWAYS_ON_KIE_MODEL_IDS = new Set([KIE_KLING_30_MODEL_ID]);
+const ALWAYS_ON_KIE_MODEL_IDS = new Set([
+  KIE_KLING_30_MODEL_ID,
+  KIE_SEEDANCE_15_PRO_MODEL_ID,
+  KIE_SEEDANCE_2_MODEL_ID,
+  KIE_SEEDANCE_2_FAST_MODEL_ID,
+]);
 
 const parseBoolean = (value: string | undefined, fallback: boolean): boolean => {
   if (!value) return fallback;
@@ -168,7 +176,8 @@ export type KieRuntimeFlags = {
 const isAlwaysOnKieModel = (modelId: string): boolean => ALWAYS_ON_KIE_MODEL_IDS.has(modelId);
 
 /**
- * Reads Kie runtime controls. Kling 3.0 is always on; other Kie lanes still honor runtime gates.
+ * Reads Kie runtime controls. Kling 3.0 and Seedance video lanes are always on;
+ * other Kie lanes still honor runtime gates.
  */
 export const readKieRuntimeFlags = (): KieRuntimeFlags => ({
   enabled: parseBoolean(process.env.SHORTPULSE_KIE_INTEGRATION_ENABLED, false),

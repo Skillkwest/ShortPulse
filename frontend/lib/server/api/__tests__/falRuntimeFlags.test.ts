@@ -155,13 +155,11 @@ describe("readFalRuntimeFlags admission config", () => {
     expect(flags.providerAttachedReservationCleanupEnabled).toBe(true);
   });
 
-  it("prefers a dedicated webhook callback base URL over the app base URL", () => {
+  it("uses the public API base URL when configured", () => {
     process.env.APP_BASE_URL = "http://localhost:3000";
-    process.env.SHORTPULSE_PUBLIC_API_BASE_URL = "http://localhost:3000";
-    process.env.SHORTPULSE_FAL_WEBHOOK_CALLBACK_BASE_URL = "https://shortpulse-preview.test";
+    process.env.SHORTPULSE_PUBLIC_API_BASE_URL = "https://shortpulse-preview.test";
 
     const flags = readFalRuntimeFlags();
-    expect(flags.publicApiBaseUrl).toBe("http://localhost:3000");
-    expect(flags.webhookCallbackBaseUrl).toBe("https://shortpulse-preview.test");
+    expect(flags.publicApiBaseUrl).toBe("https://shortpulse-preview.test");
   });
 });

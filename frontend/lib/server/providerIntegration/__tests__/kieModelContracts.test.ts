@@ -310,18 +310,20 @@ describe("kieModelContracts", () => {
           prompt: "Animate the storyboard frames",
           first_frame_url: "https://example.com/first.png",
           last_frame_url: "https://example.com/last.png",
-          duration: 10,
+          duration: 15,
+          callbackUrl: "https://example.com/callback/seedance-fast",
         },
       })
     ).toEqual({
       model: "bytedance/seedance-2-fast",
+      callBackUrl: "https://example.com/callback/seedance-fast",
       input: {
         prompt: "Animate the storyboard frames",
         first_frame_url: "https://example.com/first.png",
         last_frame_url: "https://example.com/last.png",
         aspect_ratio: "16:9",
         resolution: "1080p",
-        duration: "10",
+        duration: "15",
       },
     });
 

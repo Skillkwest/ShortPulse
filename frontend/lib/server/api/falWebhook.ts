@@ -1,6 +1,5 @@
 import crypto from "crypto";
 import type { NextApiRequest } from "next";
-import { readFalRuntimeFlags, type FalRuntimeFlags } from "./falRuntimeFlags";
 import { readRawRequestBody } from "./requestBody";
 
 type JsonObject = Record<string, unknown>;
@@ -34,6 +33,8 @@ type JwkKey = JsonObject & {
 };
 
 const JWKS_CACHE_TTL_MS = 5 * 60 * 1000;
+const FAL_WEBHOOK_JWKS_URL = "https://rest.alpha.fal.ai/.well-known/jwks.json";
+const FAL_WEBHOOK_TOLERANCE_SECONDS = 300;
 
 let jwksCache: {
   url: string;
@@ -186,11 +187,13 @@ export const buildFalWebhookSignedMessage = ({
 const verifyWithFalJwks = async ({
   rawBody,
   headers,
-  flags,
+  jwksUrl = FAL_WEBHOOK_JWKS_URL,
+  toleranceSeconds = FAL_WEBHOOK_TOLERANCE_SECONDS,
 }: {
   rawBody: string;
   headers: FalWebhookHeaders;
-  flags: FalRuntimeFlags;
+  jwksUrl?: string;
+  toleranceSeconds?: number;
 }): Promise<FalWebhookVerifyResult> => {
   if (!headers.requestId || !headers.userId || !headers.timestamp || !headers.signature) {
     return { ok: false, method: null, reason: "missing_required_fal_headers" };
@@ -199,7 +202,7 @@ const verifyWithFalJwks = async ({
   if (timestampSeconds === null) {
     return { ok: false, method: null, reason: "invalid_timestamp" };
   }
-  if (!isTimestampFresh(timestampSeconds, flags.webhookToleranceSeconds)) {
+  if (!isTimestampFresh(timestampSeconds, toleranceSeconds)) {
     return { ok: false, method: null, reason: "timestamp_out_of_window" };
   }
 
@@ -214,11 +217,6 @@ const verifyWithFalJwks = async ({
   const signatureCandidates = parseFalSignatureCandidates(headers.signature);
   if (!signatureCandidates.length) {
     return { ok: false, method: null, reason: "invalid_signature_format", payloadHash };
-  }
-
-  const jwksUrl = flags.webhookJwksUrl?.trim();
-  if (!jwksUrl) {
-    return { ok: false, method: null, reason: "missing_jwks_url", payloadHash };
   }
 
   const attemptVerify = async (forceRefresh: boolean): Promise<boolean> => {
@@ -326,27 +324,28 @@ export const getFalWebhookSecret = (): string | null =>
 export const verifyFalWebhookSignature = async ({
   rawBody,
   headers,
-  flags = readFalRuntimeFlags(),
+  config,
 }: {
   rawBody: string;
   headers: FalWebhookHeaders;
-  flags?: FalRuntimeFlags;
+  config?: {
+    jwksUrl?: string;
+    toleranceSeconds?: number;
+    allowLegacyHmacFallback?: boolean;
+  };
 }): Promise<FalWebhookVerifyResult> => {
-  if (flags.webhookVerifyMode === "hmac_only") {
-    return verifyWithLegacyHmac({
-      rawBody,
-      signatureHeader: headers.signature,
-      timestampHeader: headers.timestamp,
-      toleranceSeconds: flags.webhookToleranceSeconds,
-    });
-  }
-
-  if (flags.webhookVerifyMode === "fal_only") {
-    return verifyWithFalJwks({ rawBody, headers, flags });
-  }
-
-  const falResult = await verifyWithFalJwks({ rawBody, headers, flags });
+  const toleranceSeconds = config?.toleranceSeconds ?? FAL_WEBHOOK_TOLERANCE_SECONDS;
+  const falResult = await verifyWithFalJwks({
+    rawBody,
+    headers,
+    jwksUrl: config?.jwksUrl ?? FAL_WEBHOOK_JWKS_URL,
+    toleranceSeconds,
+  });
   if (falResult.ok) {
+    return falResult;
+  }
+
+  if (config?.allowLegacyHmacFallback === false) {
     return falResult;
   }
 
@@ -354,7 +353,7 @@ export const verifyFalWebhookSignature = async ({
     rawBody,
     signatureHeader: headers.signature,
     timestampHeader: headers.timestamp,
-    toleranceSeconds: flags.webhookToleranceSeconds,
+    toleranceSeconds,
   });
   if (legacyResult.ok) return legacyResult;
 

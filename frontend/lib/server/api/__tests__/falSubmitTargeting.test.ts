@@ -17,11 +17,7 @@ const createFlags = (overrides: Partial<FalRuntimeFlags> = {}): FalRuntimeFlags 
   reconcilerLeaseSeconds: 120,
   circuitBreakerEnabled: false,
   circuitBreakerThreshold15m: 20,
-  webhookVerifyMode: "fal_only",
-  webhookJwksUrl: "https://example.test/jwks",
-  webhookToleranceSeconds: 300,
   publicApiBaseUrl: "https://shortpulse.test",
-  webhookCallbackBaseUrl: "https://shortpulse.test",
   directDebitFallbackEnabled: false,
   admission: {
     mode: "off",
@@ -78,11 +74,10 @@ describe("falSubmitTargeting webhook callback", () => {
     expect(callback).toBeNull();
   });
 
-  it("prefers the dedicated webhook callback base URL", () => {
+  it("uses the public API base URL when request host is unavailable", () => {
     const callback = resolveWebhookCallbackUrl(
       createFlags({
-        publicApiBaseUrl: "http://localhost:3000",
-        webhookCallbackBaseUrl: "https://shortpulse-preview.test",
+        publicApiBaseUrl: "https://shortpulse-preview.test",
       })
     );
     expect(callback).toBe("https://shortpulse-preview.test/api/fal/webhook");
@@ -104,8 +99,7 @@ describe("falSubmitTargeting webhook callback", () => {
   it("falls back to the configured callback base for localhost requests", () => {
     const callback = resolveWebhookCallbackUrl(
       createFlags({
-        publicApiBaseUrl: "http://localhost:3000",
-        webhookCallbackBaseUrl: "https://shortpulse-preview.test",
+        publicApiBaseUrl: "https://shortpulse-preview.test",
       }),
       {
         requestHeaders: {

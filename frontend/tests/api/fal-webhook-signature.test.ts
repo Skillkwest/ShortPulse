@@ -1,67 +1,9 @@
 import crypto from "crypto";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { type FalRuntimeFlags } from "../../lib/server/api/falRuntimeFlags";
 import {
   buildFalWebhookSignedMessage,
   verifyFalWebhookSignature,
 } from "../../lib/server/api/falWebhook";
-
-const createFlags = (overrides: Partial<FalRuntimeFlags> = {}): FalRuntimeFlags => ({
-  integrationMode: "on",
-  modelAllowlist: new Set(["*"]),
-  reconcilerEnabled: true,
-  reconcilerCronSecret: "secret",
-  reconcilerBatchSize: 10,
-  reconcilerMaxAttempts: 5,
-  reconcilerMinAgeSeconds: 0,
-  reconcilerLeaseSeconds: 120,
-  circuitBreakerEnabled: false,
-  circuitBreakerThreshold15m: 20,
-  webhookVerifyMode: "fal_only",
-  webhookJwksUrl: "https://example.test/jwks",
-  webhookToleranceSeconds: 300,
-  publicApiBaseUrl: "https://shortpulse.test",
-  webhookCallbackBaseUrl: "https://shortpulse.test",
-  directDebitFallbackEnabled: false,
-  admission: {
-    mode: "off",
-    globalMax: 4,
-    tierLimits: {
-      video_long: 2,
-      image_heavy: 3,
-      image_standard: 4,
-    },
-    retryAfterSeconds: 20,
-    sharedProviderEnabled: false,
-    sharedProviderGlobalMax: 4,
-  },
-  reservationCleanupEnabled: true,
-  reservationCleanupMinAgeSeconds: 900,
-  reservationCleanupBatchSize: 200,
-  admissionAtomicEnabled: false,
-  queueEnabled: false,
-  queueMaxPerUser: 20,
-  queueDispatchBatchSize: 25,
-  queueLeaseSeconds: 30,
-  queueMaxAttempts: 5,
-  queueBaseBackoffSeconds: 5,
-  workerOwnedSubmitEnabled: overrides.workerOwnedSubmitEnabled ?? false,
-  ...overrides,
-  videoSubmitCanonicalMode: overrides.videoSubmitCanonicalMode ?? "on",
-  videoQueueCompatNormalizationEnabled: overrides.videoQueueCompatNormalizationEnabled ?? true,
-  statusTransientFailuresEnabled: overrides.statusTransientFailuresEnabled ?? false,
-  providerAttachedReservationCleanupEnabled:
-    overrides.providerAttachedReservationCleanupEnabled ?? true,
-  providerAttachedReservationCleanupMinAgeSeconds:
-    overrides.providerAttachedReservationCleanupMinAgeSeconds ?? 7200,
-  providerAttachedReservationOrphanMinAgeSeconds:
-    overrides.providerAttachedReservationOrphanMinAgeSeconds ?? 86400,
-  queueMaxWaitSeconds: overrides.queueMaxWaitSeconds ?? 1200,
-  recoveryProbeTimeoutMs: overrides.recoveryProbeTimeoutMs ?? 15000,
-  noMediaExhaustMinAgeSeconds: overrides.noMediaExhaustMinAgeSeconds ?? 7200,
-  runningExhaustMinAgeSeconds: overrides.runningExhaustMinAgeSeconds ?? 7200,
-  runningHardTimeoutSeconds: overrides.runningHardTimeoutSeconds ?? 0,
-});
 
 describe("verifyFalWebhookSignature", () => {
   afterEach(() => {
@@ -115,7 +57,10 @@ describe("verifyFalWebhookSignature", () => {
         timestamp,
         signature,
       },
-      flags: createFlags({ webhookVerifyMode: "fal_only" }),
+      config: {
+        jwksUrl: "https://example.test/jwks",
+        allowLegacyHmacFallback: false,
+      },
     });
 
     expect(result.ok).toBe(true);
@@ -148,7 +93,10 @@ describe("verifyFalWebhookSignature", () => {
         timestamp,
         signature: "bad-signature",
       },
-      flags: createFlags({ webhookVerifyMode: "fal_only" }),
+      config: {
+        jwksUrl: "https://example.test/jwks",
+        allowLegacyHmacFallback: false,
+      },
     });
 
     expect(result.ok).toBe(false);
@@ -182,7 +130,6 @@ describe("verifyFalWebhookSignature", () => {
         timestamp,
         signature: `t=${timestamp},v1=${expected}`,
       },
-      flags: createFlags({ webhookVerifyMode: "dual" }),
     });
 
     expect(result.ok).toBe(true);
@@ -226,7 +173,11 @@ describe("verifyFalWebhookSignature", () => {
         timestamp,
         signature,
       },
-      flags: createFlags({ webhookVerifyMode: "fal_only", webhookToleranceSeconds: 60 }),
+      config: {
+        jwksUrl: "https://example.test/jwks",
+        toleranceSeconds: 60,
+        allowLegacyHmacFallback: false,
+      },
     });
 
     expect(result.ok).toBe(false);

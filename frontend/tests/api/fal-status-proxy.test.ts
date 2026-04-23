@@ -5,9 +5,8 @@ const requireApiUserMock = vi.fn();
 const logGenerationFailureMock = vi.fn();
 const settleGenerationOutcomeMock = vi.fn();
 const resolveProviderRequestOwnershipMock = vi.fn();
-const executeGenerationRecoveryMock = vi.fn();
-const persistGenerationObservationMock = vi.fn();
-const requestGenerationControlPlaneWakeMock = vi.fn();
+const settleDirectGenerationSuccessMock = vi.fn();
+const settleDirectGenerationFailureMock = vi.fn();
 const getSupabaseAdminMock = vi.fn();
 let persistedProjectionRows: Array<Record<string, unknown>> = [];
 let persistedGenerationRows: Array<Record<string, unknown>> = [];
@@ -27,17 +26,9 @@ vi.mock("../../lib/server/api/generationBilling", () => ({
   settleGenerationOutcome: (...args: unknown[]) => settleGenerationOutcomeMock(...args),
 }));
 
-vi.mock("../../lib/server/falIntegration/recoveryExecution", () => ({
-  executeGenerationRecovery: (...args: unknown[]) => executeGenerationRecoveryMock(...args),
-}));
-
-vi.mock("../../lib/server/api/generationObservationInbox", () => ({
-  persistGenerationObservation: (...args: unknown[]) => persistGenerationObservationMock(...args),
-}));
-
-vi.mock("../../lib/server/generationControlPlane/controlPlaneWake", () => ({
-  requestGenerationControlPlaneWake: (...args: unknown[]) =>
-    requestGenerationControlPlaneWakeMock(...args),
+vi.mock("../../lib/server/api/directGenerationSettlement", () => ({
+  settleDirectGenerationSuccess: (...args: unknown[]) => settleDirectGenerationSuccessMock(...args),
+  settleDirectGenerationFailure: (...args: unknown[]) => settleDirectGenerationFailureMock(...args),
 }));
 
 vi.mock("../../lib/server/api/supabaseAdmin", () => ({
@@ -65,22 +56,111 @@ describe("createFalStatusHandler", () => {
       settled: true,
       note: "captured",
     });
-    executeGenerationRecoveryMock.mockResolvedValue({
-      ok: true,
-      state: "recovered",
-      generationId: "gen-1",
-      requestId: "req-1",
-      mediaFileIds: [],
-      mediaUrls: [],
-      processed: true,
-    });
     persistedProjectionRows = [];
     persistedGenerationRows = [];
     persistedOutputRows = [];
-    persistGenerationObservationMock.mockReset();
-    persistGenerationObservationMock.mockResolvedValue(undefined);
-    requestGenerationControlPlaneWakeMock.mockReset();
-    requestGenerationControlPlaneWakeMock.mockResolvedValue(undefined);
+    settleDirectGenerationSuccessMock.mockReset();
+    settleDirectGenerationFailureMock.mockReset();
+    settleDirectGenerationSuccessMock.mockImplementation(
+      async ({
+        generationId,
+        requestId,
+        resultUrls,
+      }: {
+        generationId?: string | null;
+        requestId: string;
+        resultUrls: string[];
+      }) => {
+        const resolvedGenerationId =
+          generationId ??
+          (persistedProjectionRows.find((row) => row.request_id === requestId)?.generation_id as
+            | string
+            | undefined) ??
+          (persistedGenerationRows.find((row) => row.request_id === requestId)?.id as
+            | string
+            | undefined) ??
+          persistedProjectionRows[0]?.generation_id?.toString() ??
+          persistedGenerationRows[0]?.id?.toString() ??
+          "gen-1";
+        persistedProjectionRows = [
+          {
+            generation_id: resolvedGenerationId,
+            request_id: requestId,
+            result_urls: resultUrls,
+            publication_state: "published",
+            status: "ready",
+            task_state: "success",
+            queue_state: "dispatched",
+          },
+        ];
+        persistedGenerationRows = [
+          {
+            id: resolvedGenerationId,
+            request_id: requestId,
+            status: "success",
+            error_message: null,
+            created_at: "2026-04-18T00:00:00.000Z",
+          },
+        ];
+        persistedOutputRows = resultUrls.map((resultUrl, index) => ({
+          id: `out-${index + 1}`,
+          generation_id: resolvedGenerationId,
+          result_url: resultUrl,
+          media_file_id: `media-${index + 1}`,
+        }));
+        return { ok: true, generationId: resolvedGenerationId, requestId };
+      }
+    );
+    settleDirectGenerationFailureMock.mockImplementation(
+      async ({
+        generationId,
+        requestId,
+        errorMessage,
+        errorDetail,
+      }: {
+        generationId?: string | null;
+        requestId: string;
+        errorMessage: string;
+        errorDetail?: unknown;
+      }) => {
+        const resolvedGenerationId =
+          generationId ??
+          (persistedProjectionRows.find((row) => row.request_id === requestId)?.generation_id as
+            | string
+            | undefined) ??
+          (persistedGenerationRows.find((row) => row.request_id === requestId)?.id as
+            | string
+            | undefined) ??
+          persistedProjectionRows[0]?.generation_id?.toString() ??
+          persistedGenerationRows[0]?.id?.toString() ??
+          "gen-1";
+        persistedProjectionRows = [
+          {
+            generation_id: resolvedGenerationId,
+            request_id: requestId,
+            result_urls: [],
+            publication_state: "suppressed",
+            status: "ready",
+            task_state: "fail",
+            queue_state: "failed",
+            error_message_short: errorMessage,
+            error_detail:
+              typeof errorDetail === "string" ? errorDetail : JSON.stringify(errorDetail ?? null),
+          },
+        ];
+        persistedGenerationRows = [
+          {
+            id: resolvedGenerationId,
+            request_id: requestId,
+            status: "fail",
+            error_message: errorMessage,
+            created_at: "2026-04-18T00:00:00.000Z",
+          },
+        ];
+        persistedOutputRows = [];
+        return { ok: true, generationId: resolvedGenerationId, requestId };
+      }
+    );
     getSupabaseAdminMock.mockImplementation(() => {
       const generationQueryChain = {
         eq: vi.fn(),
@@ -204,36 +284,17 @@ describe("createFalStatusHandler", () => {
         taskState: "success",
         isTerminal: true,
         resultUrls: ["https://cdn.shortpulse.test/seedream-image.png"],
-        recoveryPending: true,
-        deliveryState: "transient_provider",
+        deliveryState: "canonical_owned",
       })
     );
-    expect(persistGenerationObservationMock).toHaveBeenCalledWith(
+    expect(settleDirectGenerationSuccessMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        generationId: "gen-1",
-        userId: "user-1",
-        provider: "fal",
-        providerRequestId: "req-1",
-        observationSource: "poll",
-        observationType: "completed",
-        idempotencyKey: "poll:fal:req-1:completed",
-      })
-    );
-    expect(requestGenerationControlPlaneWakeMock).toHaveBeenCalledWith({
-      routeLabel: "Fal Seedream",
-      reason: "poll_completed_observation",
-    });
-    expect(executeGenerationRecoveryMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        actor: "poll",
         generationId: "gen-1",
         requestId: "req-1",
         userId: "user-1",
-        observation: expect.objectContaining({
-          state: "completed",
-          mediaUrls: ["https://cdn.shortpulse.test/seedream-image.png"],
-        }),
         routeLabel: "Fal Seedream",
+        providerState: "completed",
+        resultUrls: ["https://cdn.shortpulse.test/seedream-image.png"],
       })
     );
     expect(logGenerationFailureMock).not.toHaveBeenCalled();
@@ -294,37 +355,23 @@ describe("createFalStatusHandler", () => {
         status: "completed",
         shortpulseLifecycle: expect.objectContaining({
           resultUrls: ["https://cdn.shortpulse.test/seedream-image.png"],
-          deliveryState: "transient_provider",
-          recoveryPending: true,
+          deliveryState: "canonical_owned",
         }),
       })
     );
-    expect(persistGenerationObservationMock).toHaveBeenCalledWith(
+    expect(settleDirectGenerationSuccessMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        providerRequestId: "req-1",
-        observationType: "completed",
-      })
-    );
-    expect(requestGenerationControlPlaneWakeMock).toHaveBeenCalledWith({
-      routeLabel: "Fal Seedream",
-      reason: "poll_completed_observation",
-    });
-    expect(executeGenerationRecoveryMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        actor: "poll",
         generationId: "gen-1",
         requestId: "req-1",
         userId: "user-1",
-        observation: expect.objectContaining({
-          state: "completed",
-          mediaUrls: ["https://cdn.shortpulse.test/seedream-image.png"],
-        }),
         routeLabel: "Fal Seedream",
+        providerState: "completed",
+        resultUrls: ["https://cdn.shortpulse.test/seedream-image.png"],
       })
     );
   });
 
-  it("returns canonical completed payload immediately when inline recovery persists outputs", async () => {
+  it("returns canonical completed payload immediately when direct settlement persists outputs", async () => {
     process.env.SHORTPULSE_KIE_INTEGRATION_ENABLED = "true";
     process.env.SHORTPULSE_KIE_MODEL_ALLOWLIST = "kie-ai/veo-3.1-fast-i2v";
     process.env.SHORTPULSE_KIE_TRUSTED_HOSTS = "kie.ai";
@@ -332,27 +379,27 @@ describe("createFalStatusHandler", () => {
     persistedGenerationRows = [
       {
         id: "gen-kie-inline-1",
+        request_id: "req-kie-inline-success",
         status: "processing",
         metadata: {},
       },
     ];
-    executeGenerationRecoveryMock.mockImplementationOnce(async () => {
-      persistedOutputRows = [
+    settleDirectGenerationSuccessMock.mockImplementationOnce(async () => {
+      persistedProjectionRows = [
         {
-          id: "out-kie-inline-1",
-          output_index: 0,
-          result_url: "https://cdn.shortpulse.test/kie-inline-canonical.mp4",
-          media_file_id: "media-kie-inline-1",
+          generation_id: "gen-kie-inline-1",
+          request_id: "req-kie-inline-success",
+          result_urls: ["https://cdn.shortpulse.test/kie-inline-canonical.mp4"],
+          publication_state: "published",
+          status: "ready",
+          task_state: "success",
+          queue_state: "dispatched",
         },
       ];
       return {
         ok: true,
-        state: "recovered",
         generationId: "gen-kie-inline-1",
         requestId: "req-kie-inline-success",
-        mediaFileIds: ["media-kie-inline-1"],
-        mediaUrls: ["https://cdn.shortpulse.test/kie-inline-canonical.mp4"],
-        processed: true,
       };
     });
 
@@ -395,19 +442,14 @@ describe("createFalStatusHandler", () => {
     await handler(req as never, res as never);
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
-    expect(executeGenerationRecoveryMock).toHaveBeenCalledWith(
+    expect(settleDirectGenerationSuccessMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        actor: "poll",
         generationId: "gen-kie-inline-1",
         requestId: "req-kie-inline-success",
-        observation: expect.objectContaining({
-          state: "completed",
-          mediaUrls: ["https://cdn.shortpulse.test/kie-inline-provider.mp4"],
-        }),
+        providerState: "completed",
+        resultUrls: ["https://cdn.shortpulse.test/kie-inline-provider.mp4"],
       })
     );
-    expect(persistGenerationObservationMock).not.toHaveBeenCalled();
-    expect(requestGenerationControlPlaneWakeMock).not.toHaveBeenCalled();
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -764,7 +806,7 @@ describe("createFalStatusHandler", () => {
           taskState: "success",
           isTerminal: true,
           resultUrls: ["https://cdn.shortpulse.test/recovered-from-provider.png"],
-          deliveryState: "transient_provider",
+          deliveryState: "canonical_owned",
         }),
       })
     );
@@ -1128,12 +1170,13 @@ describe("createFalStatusHandler", () => {
       expect.objectContaining({
         status: "error",
         state: "error",
-        error: policyMessage,
+        error: "This request was blocked for explicit or unsafe content.",
         shortpulseLifecycle: expect.objectContaining({
           taskState: "fail",
           isTerminal: true,
-          errorMessage: policyMessage,
-          errorDetail: policyMessage,
+          errorMessage: "This request was blocked for explicit or unsafe content.",
+          errorDetail:
+            "This request was blocked for explicit or unsafe content. Try revising the prompt or references.",
           providerState: "failed",
           queueState: "failed",
         }),
@@ -1571,24 +1614,21 @@ describe("createFalStatusHandler", () => {
         state: "completed",
         request_id: "req-status-retryable-media",
         generationId: "gen-1",
-        data: {
+        data: expect.objectContaining({
           images: [{ url: "https://cdn.shortpulse.test/retryable-status-image.png" }],
-        },
+        }),
         shortpulseLifecycle: expect.objectContaining({
           taskState: "success",
           isTerminal: true,
           resultUrls: ["https://cdn.shortpulse.test/retryable-status-image.png"],
-          recoveryPending: true,
-          deliveryState: "transient_provider",
+          deliveryState: "canonical_owned",
         }),
       })
     );
-    expect(executeGenerationRecoveryMock).toHaveBeenCalledWith(
+    expect(settleDirectGenerationSuccessMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        observation: expect.objectContaining({
-          state: "completed",
-          mediaUrls: ["https://cdn.shortpulse.test/retryable-status-image.png"],
-        }),
+        requestId: "req-status-retryable-media",
+        resultUrls: ["https://cdn.shortpulse.test/retryable-status-image.png"],
       })
     );
   });
@@ -1752,17 +1792,14 @@ describe("createFalStatusHandler", () => {
           taskState: "success",
           isTerminal: true,
           resultUrls: ["https://cdn.shortpulse.test/retryable-result-image.png"],
-          recoveryPending: true,
-          deliveryState: "transient_provider",
+          deliveryState: "canonical_owned",
         }),
       })
     );
-    expect(executeGenerationRecoveryMock).toHaveBeenCalledWith(
+    expect(settleDirectGenerationSuccessMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        observation: expect.objectContaining({
-          state: "completed",
-          mediaUrls: ["https://cdn.shortpulse.test/retryable-result-image.png"],
-        }),
+        requestId: "req-result-retryable-media",
+        resultUrls: ["https://cdn.shortpulse.test/retryable-result-image.png"],
       })
     );
   });
@@ -1881,16 +1918,14 @@ describe("createFalStatusHandler", () => {
     expect(payload.state).toBe("error");
     expect(payload.error).toBe("Generation failed");
     expect(payload.request_id).toBe("req-result-terminal-failure");
-    expect(payload.detail?.detail?.[0]?.type).toBe("downstream_service_error");
-    expect(payload.detail?.detail?.[0]?.msg).toBe("Downstream service error");
-    expect(persistGenerationObservationMock).toHaveBeenCalledWith(
+    expect(typeof payload.detail).toBe("string");
+    expect(payload.detail).toContain("downstream_service_error");
+    expect(payload.detail).toContain("Downstream service error");
+    expect(settleDirectGenerationFailureMock).toHaveBeenCalledWith(
       expect.objectContaining({
         userId: "user-1",
-        provider: "fal",
-        providerRequestId: "req-result-terminal-failure",
-        observationSource: "poll",
-        observationType: "failed",
-        idempotencyKey: "poll:fal:req-result-terminal-failure:failed",
+        requestId: "req-result-terminal-failure",
+        routeLabel: "Fal Nano Banana Pro",
       })
     );
   });
@@ -2020,7 +2055,7 @@ describe("createFalStatusHandler", () => {
     );
   });
 
-  it("treats completed-without-media as recovery-pending and persists a completed observation", async () => {
+  it("treats completed-without-media as a terminal canonical failure", async () => {
     process.env.SHORTPULSE_FAL_STATUS_TRANSIENT_FAILURES_ENABLED = "true";
     const fetchMock = vi
       .fn()
@@ -2061,31 +2096,28 @@ describe("createFalStatusHandler", () => {
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith(
       expect.objectContaining({
-        status: "IN_PROGRESS",
-        state: "running",
+        status: "error",
+        state: "error",
         request_id: "req-transient-no-media",
+        error: "Generation failed to produce media output",
         shortpulseLifecycle: expect.objectContaining({
-          taskState: "running",
-          isTerminal: false,
-          completionState: "completed_awaiting_media",
-          recoveryPending: true,
+          taskState: "fail",
+          isTerminal: true,
+          errorMessage: "Generation failed to produce media output",
+          providerState: "completed",
+          queueState: "failed",
         }),
       })
     );
-    expect(persistGenerationObservationMock).toHaveBeenCalledWith(
+    expect(settleDirectGenerationFailureMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        providerRequestId: "req-transient-no-media",
-        observationType: "completed",
+        requestId: "req-transient-no-media",
+        failureReasonCode: "terminal_success_no_media",
       })
     );
-    expect(requestGenerationControlPlaneWakeMock).toHaveBeenCalledWith({
-      routeLabel: "Fal Nano Banana Pro",
-      reason: "poll_completed_no_media_observation",
-    });
-    expect(executeGenerationRecoveryMock).not.toHaveBeenCalled();
   });
 
-  it("keeps missing-media in recovery-pending state when status transient failures are disabled", async () => {
+  it("treats missing-media as a terminal canonical failure when transient failures are disabled", async () => {
     const fetchMock = vi
       .fn()
       .mockResolvedValueOnce(
@@ -2125,21 +2157,24 @@ describe("createFalStatusHandler", () => {
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith(
       expect.objectContaining({
-        status: "IN_PROGRESS",
-        state: "running",
+        status: "error",
+        state: "error",
         request_id: "req-terminal-no-media",
+        error: "Generation failed to produce media output",
         shortpulseLifecycle: expect.objectContaining({
-          taskState: "running",
-          isTerminal: false,
-          completionState: "completed_awaiting_media",
-          recoveryPending: true,
+          taskState: "fail",
+          isTerminal: true,
+          errorMessage: "Generation failed to produce media output",
+          providerState: "completed",
+          queueState: "failed",
         }),
       })
     );
-    expect(requestGenerationControlPlaneWakeMock).toHaveBeenCalledWith({
-      routeLabel: "Fal Nano Banana Pro",
-      reason: "poll_completed_no_media_observation",
-    });
-    expect(executeGenerationRecoveryMock).not.toHaveBeenCalled();
+    expect(settleDirectGenerationFailureMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        requestId: "req-terminal-no-media",
+        failureReasonCode: "terminal_success_no_media",
+      })
+    );
   });
 });

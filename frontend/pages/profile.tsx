@@ -304,10 +304,7 @@ export default function ProfilePage() {
 
   const displayName = displayNameInput || user?.email || "User";
   const activePlan = buildPlanView({
-    planId:
-      (billingContract?.plan_id as string | undefined) ??
-      (billingProfile?.plan_id as string | undefined) ??
-      (user?.user_metadata?.plan as string | undefined),
+    planId: (billingContract?.plan_id as string | undefined) ?? "free",
     plans: billingPlans,
   });
   const { quotaSummary } = useMediaStorageQuotaSummary({

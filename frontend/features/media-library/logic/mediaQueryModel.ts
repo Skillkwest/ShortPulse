@@ -50,6 +50,7 @@ export const withMediaTabFilter = <
   T extends {
     eq: (column: string, value: string) => T;
     ilike: (column: string, pattern: string) => T;
+    not: (column: string, operator: string, value: string) => T;
   },
 >(
   query: T,
@@ -58,7 +59,9 @@ export const withMediaTabFilter = <
 ): T => {
   const privateMediaSource = options?.privateMediaSource ?? DEFAULT_PRIVATE_MEDIA_SOURCE;
   if (tab === "private") return query.eq("source", privateMediaSource);
-  if (tab === "ai_generations") return query.eq("source", "ai_studio");
+  if (tab === "ai_generations") {
+    return query.eq("source", "ai_studio").not("file_type", "ilike", "audio%");
+  }
   if (tab === "uploaded_videos") return query.eq("source", "upload").ilike("file_type", "video%");
   return query.eq("source", "upload").ilike("file_type", "image%");
 };

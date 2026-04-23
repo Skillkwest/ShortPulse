@@ -4,6 +4,7 @@
  */
 import { DownloadSimple } from "phosphor-react";
 import type { ChangeEventHandler, DragEventHandler, MutableRefObject } from "react";
+import { formatStorageBytes } from "../../billing/storage";
 import { useVisibleErrorTelemetry } from "../../../lib/useVisibleErrorTelemetry";
 
 type MediaUploadTab =
@@ -18,7 +19,7 @@ export type MediaUploadStageProps = {
   error: string | null;
   fileInputRef: MutableRefObject<HTMLInputElement | null>;
   isDragging: boolean;
-  planLimitMb: number;
+  planLimitBytes: number;
   selectedFiles: File[];
   totalBytes: number;
   uploadCount: number;
@@ -28,6 +29,7 @@ export type MediaUploadStageProps = {
   onDrop: DragEventHandler<HTMLDivElement>;
   onFileChange: ChangeEventHandler<HTMLInputElement>;
   onTriggerFilePicker: () => void;
+  onOpenBilling: () => void;
 };
 
 /**
@@ -41,7 +43,7 @@ export function MediaUploadStage({
   error,
   fileInputRef,
   isDragging,
-  planLimitMb,
+  planLimitBytes,
   selectedFiles,
   totalBytes,
   uploadCount,
@@ -51,6 +53,7 @@ export function MediaUploadStage({
   onDrop,
   onFileChange,
   onTriggerFilePicker,
+  onOpenBilling,
 }: MediaUploadStageProps) {
   const accept = activeTab === "private" ? "image/*" : "image/*,video/*";
 
@@ -121,10 +124,10 @@ export function MediaUploadStage({
         <div className="upload-storage">
           <div>
             <p className="tiny subdued">Storage used</p>
-            <strong>{(totalBytes / (1024 * 1024)).toFixed(1)} MB</strong>
-            <span className="tiny subdued">of {(planLimitMb / 1024).toFixed(1)} GB</span>
+            <strong>{formatStorageBytes(totalBytes)}</strong>
+            <span className="tiny subdued">of {formatStorageBytes(planLimitBytes)}</span>
           </div>
-          <button type="button" className="btn-secondary upgrade-btn">
+          <button type="button" className="btn-secondary upgrade-btn" onClick={onOpenBilling}>
             Need more storage?
           </button>
         </div>

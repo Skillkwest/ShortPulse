@@ -139,6 +139,7 @@ export const withMediaTabFilter = <
   T extends {
     eq: (column: string, value: string) => T;
     ilike: (column: string, pattern: string) => T;
+    not: (column: string, operator: string, value: string) => T;
   },
 >(
   query: T,

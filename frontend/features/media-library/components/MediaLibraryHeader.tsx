@@ -8,6 +8,7 @@ export type MediaLibraryHeaderProps = {
   planLabel: string;
   planName: string;
   storageUsageValue: string;
+  storageCapacityValue: string;
 };
 
 /**
@@ -20,6 +21,7 @@ export function MediaLibraryHeader({
   planLabel,
   planName,
   storageUsageValue,
+  storageCapacityValue,
 }: MediaLibraryHeaderProps) {
   return (
     <section className="panel saved-header-bar saved-hero hero-image-card">
@@ -39,6 +41,7 @@ export function MediaLibraryHeader({
           <div className="header-card-body">
             <p className="metric-label tiny">Media storage</p>
             <p className="status-value small">{storageUsageValue}</p>
+            <p className="tiny subdued">Capacity {storageCapacityValue}</p>
           </div>
         </div>
         <div className="header-stat-card" aria-label="Plan status">

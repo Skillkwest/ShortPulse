@@ -45,15 +45,22 @@ describe("mediaQueryModel", () => {
         calls.push({ fn: "ilike", column, value });
         return query;
       },
+      not(column: string, operator: string, value: string) {
+        calls.push({ fn: "not", column: `${column}:${operator}`, value });
+        return query;
+      },
     };
 
     withMediaTabFilter(query, "private", { privateMediaSource: "private_upload" });
     withMediaTabFilter(query, "uploaded_videos");
+    withMediaTabFilter(query, "ai_generations");
 
     expect(calls).toEqual([
       { fn: "eq", column: "source", value: "private_upload" },
       { fn: "eq", column: "source", value: "upload" },
       { fn: "ilike", column: "file_type", value: "video%" },
+      { fn: "eq", column: "source", value: "ai_studio" },
+      { fn: "not", column: "file_type:ilike", value: "audio%" },
     ]);
   });
 

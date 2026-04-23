@@ -10,6 +10,7 @@ describe("MediaUploadStage", () => {
     const onDrop = vi.fn();
     const onFileChange = vi.fn();
     const onTriggerFilePicker = vi.fn();
+    const onOpenBilling = vi.fn();
 
     render(
       <MediaUploadStage
@@ -17,7 +18,7 @@ describe("MediaUploadStage", () => {
         error="Upload failed"
         fileInputRef={createRef<HTMLInputElement | null>()}
         isDragging
-        planLimitMb={1024}
+        planLimitBytes={1024 * 1024 * 1024}
         selectedFiles={[
           new File(["1"], "first.png", { type: "image/png" }),
           new File(["2"], "second.png", { type: "image/png" }),
@@ -32,6 +33,7 @@ describe("MediaUploadStage", () => {
         onDrop={onDrop}
         onFileChange={onFileChange}
         onTriggerFilePicker={onTriggerFilePicker}
+        onOpenBilling={onOpenBilling}
       />
     );
 
@@ -58,6 +60,9 @@ describe("MediaUploadStage", () => {
     expect(screen.getByText(/first\.png, second\.png, third\.png…/i)).toBeInTheDocument();
     expect(screen.getByText("500.0 MB")).toBeInTheDocument();
     expect(screen.getByText("of 1.0 GB")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Need more storage?" }));
+    expect(onOpenBilling).toHaveBeenCalledTimes(1);
   });
 
   it("uses private-tab picker accept list", () => {
@@ -67,7 +72,7 @@ describe("MediaUploadStage", () => {
         error={null}
         fileInputRef={createRef<HTMLInputElement | null>()}
         isDragging={false}
-        planLimitMb={1024}
+        planLimitBytes={1024 * 1024 * 1024}
         selectedFiles={[]}
         totalBytes={0}
         uploadCount={0}
@@ -77,6 +82,7 @@ describe("MediaUploadStage", () => {
         onDrop={vi.fn()}
         onFileChange={vi.fn()}
         onTriggerFilePicker={vi.fn()}
+        onOpenBilling={vi.fn()}
       />
     );
 

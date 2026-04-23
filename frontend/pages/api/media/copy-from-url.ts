@@ -10,6 +10,10 @@ import { asCanonicalStoragePath } from "../../../lib/adaptive-media";
 import { withCanonicalImageDimensions } from "../../../lib/mediaDimensionMetadata";
 import { resolvePreviewStoragePath } from "../../../lib/mediaPreviewPath";
 import { resolveMediaPreviewTrustedHosts } from "../../../lib/mediaPreviewTrustPolicy";
+import {
+  MEDIA_STORAGE_LIMIT_EXCEEDED_MESSAGE,
+  isMediaStorageQuotaExceededError,
+} from "../../../lib/mediaStorageQuota";
 import { assertUserScopedMediaStoragePath } from "../../../lib/mediaStoragePath";
 import { logApiRouteException } from "../../../lib/server/api/appErrorLogs";
 import { requireApiUser } from "../../../lib/server/api/auth";
@@ -882,6 +886,18 @@ export default async function handler(
       .single();
 
     if (insertError) {
+      if (isMediaStorageQuotaExceededError(insertError)) {
+        try {
+          await getSupabaseAdmin().storage.from(MEDIA_BUCKET).remove([storagePath]);
+        } catch {
+          // best-effort cleanup
+        }
+        return res.status(409).json({
+          error: MEDIA_STORAGE_LIMIT_EXCEEDED_MESSAGE,
+          details:
+            "Delete media, upgrade your plan, or add recurring storage before saving more files.",
+        });
+      }
       const duplicateInsert =
         insertError.code === "23505" ||
         String(insertError.message ?? "")

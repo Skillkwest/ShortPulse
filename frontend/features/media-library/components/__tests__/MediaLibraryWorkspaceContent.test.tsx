@@ -63,16 +63,17 @@ describe("MediaLibraryWorkspaceContent", () => {
           selectableIdsCount: 0,
         }}
         headerProps={{
-          planLabel: "Plan",
-          planName: "Creative Suite",
+          planLabel: "Current plan",
+          planName: "Free",
           storageUsageValue: "50.0 MB / 1.0 GB",
+          storageCapacityValue: "1.0 GB",
         }}
         uploadStageProps={{
           activeTab: "uploaded_images",
           error: null,
           fileInputRef: createRef<HTMLInputElement | null>(),
           isDragging: false,
-          planLimitMb: 1024,
+          planLimitBytes: 1024 * 1024 * 1024,
           selectedFiles: [],
           totalBytes: 50 * 1024 * 1024,
           uploadCount: 0,
@@ -82,6 +83,7 @@ describe("MediaLibraryWorkspaceContent", () => {
           onDrop: vi.fn(),
           onFileChange: vi.fn(),
           onTriggerFilePicker: vi.fn(),
+          onOpenBilling: vi.fn(),
         }}
       />
     );

@@ -74,6 +74,12 @@ vi.mock("next/head", () => ({
   default: ({ children }: { children: ReactNode }) => <>{children}</>,
 }));
 
+vi.mock("next/router", () => ({
+  useRouter: () => ({
+    push: vi.fn(),
+  }),
+}));
+
 vi.mock("../../lib/adaptive-media", () => ({
   isAdaptiveSurfaceEnabled: () => false,
 }));
@@ -97,7 +103,22 @@ vi.mock("../../lib/supabaseClient", () => ({
 vi.mock("../../features/billing/useResolvedAccountPlan", () => ({
   useResolvedAccountPlan: () => ({
     user: { id: "user-1", email: "kirk@example.com", user_metadata: { plan: "free" } },
-    resolvedPlan: { label: "Free", className: "plan-free" },
+    resolvedPlan: { id: "free", label: "Free", className: "plan-free" },
+  }),
+}));
+
+vi.mock("../../features/billing/useMediaStorageQuotaSummary", () => ({
+  useMediaStorageQuotaSummary: () => ({
+    quotaSummary: {
+      usedBytes: 50 * 1024 * 1024,
+      baseLimitBytes: 1024 * 1024 * 1024,
+      addonLimitBytes: 0,
+      totalLimitBytes: 1024 * 1024 * 1024,
+      remainingBytes: 974 * 1024 * 1024,
+      isOverLimit: false,
+    },
+    loading: false,
+    refreshQuotaSummary: vi.fn(),
   }),
 }));
 

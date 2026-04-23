@@ -4,6 +4,10 @@
  */
 import { ensureSupabaseQueryClient, readSupabaseUserId } from "../../../lib/supabaseClient";
 import { fetchWithAuth } from "../../../lib/authenticatedFetch";
+import {
+  MEDIA_STORAGE_LIMIT_EXCEEDED_MESSAGE,
+  isMediaStorageQuotaExceededError,
+} from "../../../lib/mediaStorageQuota";
 import { assertUserScopedMediaStoragePath } from "../../../lib/mediaStoragePath";
 import {
   resolveImageDimensionsFromMetadata,
@@ -767,6 +771,18 @@ export const saveMediaUrlToLibrary = async (input: SaveMediaUrlInput) => {
     .single();
 
   if (error) {
+    if (isMediaStorageQuotaExceededError(error)) {
+      try {
+        if (storagePath) {
+          await supabase.storage.from(BUCKET).remove([storagePath]);
+        }
+      } catch {
+        // best-effort cleanup only
+      }
+      throw new Error(
+        `${MEDIA_STORAGE_LIMIT_EXCEEDED_MESSAGE}. Delete media, upgrade your plan, or add recurring storage before saving more files.`
+      );
+    }
     if (input.source === "ai_studio" && input.generationId && isDuplicateInsertError(error)) {
       const existingRow = await readExistingAiStudioMediaRowByOutputIndexWithRetry({
         supabase,

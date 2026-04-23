@@ -24,6 +24,8 @@ import {
   normalizePlanId,
   type BillingPlanRecord,
 } from "../features/billing/catalog";
+import { formatStorageUsageValue } from "../features/billing/storage";
+import { useMediaStorageQuotaSummary } from "../features/billing/useMediaStorageQuotaSummary";
 import {
   ensureSupabaseClient,
   ensureSupabaseQueryClient,
@@ -32,17 +34,17 @@ import {
 } from "../lib/supabaseClient";
 import { fetchWithAuth } from "../lib/authenticatedFetch";
 
-const DEFAULT_PLAN_TIER = "business";
+const DEFAULT_PLAN_TIER = "free";
 const DASHBOARD_HIDE_LEGACY_SECTIONS =
   process.env.NEXT_PUBLIC_DASHBOARD_HIDE_LEGACY_SECTIONS !== "false";
 const DASHBOARD_FALLBACK_HELPER_COPY =
   "Your dashboard is the launch surface for analytics, creator ops, and storage - built for fast decisions and secure tooling.";
 
-const PLAN_MAP: Record<string, { label: string; className: string }> = {
-  free: { label: "Free", className: "plan-free" },
-  media: { label: "Media", className: "plan-media" },
-  studio: { label: "Studio", className: "plan-studio" },
-  business: { label: "Business", className: "plan-business" },
+const PLAN_MAP: Record<string, { id: string; label: string; className: string }> = {
+  free: { id: "free", label: "Free", className: "plan-free" },
+  media: { id: "media", label: "Media", className: "plan-media" },
+  studio: { id: "studio", label: "Studio", className: "plan-studio" },
+  business: { id: "business", label: "Business", className: "plan-business" },
 };
 
 type DashboardAnnouncement = {
@@ -54,6 +56,10 @@ type DashboardAnnouncement = {
 };
 
 type CurrentSubscriptionContractRow = {
+  plan_id: string | null;
+};
+
+type BillingProfilePlanRow = {
   plan_id: string | null;
 };
 
@@ -93,10 +99,11 @@ export default function DashboardPage() {
   const { user } = useSupabaseSessionState();
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
-  const [resolvedPlan, setResolvedPlan] = useState<{ label: string; className: string } | null>(
-    null
-  );
-  const [mediaBytesUsed, setMediaBytesUsed] = useState(0);
+  const [resolvedPlan, setResolvedPlan] = useState<{
+    id: string;
+    label: string;
+    className: string;
+  } | null>(null);
   const [usageLoading, setUsageLoading] = useState(true);
   const [dashboardAnnouncement, setDashboardAnnouncement] = useState<DashboardAnnouncement | null>(
     null
@@ -119,11 +126,12 @@ export default function DashboardPage() {
     user?.email ??
     "Guest";
   const firstName = (displayName || "creator").split(" ")[0];
-  const fallbackPlanTier = normalizePlanId(
-    (user?.user_metadata?.plan as string | undefined) ?? DEFAULT_PLAN_TIER
-  );
+  const fallbackPlanTier = DEFAULT_PLAN_TIER;
   const fallbackPlanMeta = PLAN_MAP[fallbackPlanTier] ?? PLAN_MAP.business;
   const planMeta = resolvedPlan ?? fallbackPlanMeta;
+  const { quotaSummary, loading: quotaLoading } = useMediaStorageQuotaSummary({
+    fallbackPlanId: planMeta.id,
+  });
   const initials =
     displayName
       .split(" ")
@@ -140,7 +148,6 @@ export default function DashboardPage() {
       if (!user) {
         if (!active) return;
         setResolvedPlan(null);
-        setMediaBytesUsed(0);
         setUsageLoading(false);
         return;
       }
@@ -148,25 +155,26 @@ export default function DashboardPage() {
       setUsageLoading(true);
       try {
         const supabase = ensureSupabaseQueryClient();
-        const [
-          billingContractResponse,
-          billingProfileResponse,
-          billingPlansResponse,
-          mediaFilesResponse,
-        ] = await Promise.all([
-          supabase
-            .from("billing_subscription_contracts")
-            .select("plan_id")
-            .eq("user_id", user.id)
-            .is("ended_at", null)
-            .maybeSingle(),
-          supabase.from("billing_profiles").select("plan_id").eq("user_id", user.id).maybeSingle(),
-          supabase
-            .from("billing_plans")
-            .select("id, display_name, monthly_price_cents, monthly_credits_cents, is_active")
-            .eq("is_active", true),
-          supabase.from("media_files").select("file_size").eq("user_id", user.id),
-        ]);
+        const [billingContractResponse, billingProfileResponse, billingPlansResponse] =
+          await Promise.all([
+            supabase
+              .from("billing_subscription_contracts")
+              .select("plan_id")
+              .eq("user_id", user.id)
+              .is("ended_at", null)
+              .maybeSingle(),
+            supabase
+              .from("billing_profiles")
+              .select("plan_id")
+              .eq("user_id", user.id)
+              .maybeSingle(),
+            supabase
+              .from("billing_plans")
+              .select(
+                "id, display_name, monthly_price_cents, monthly_credits_cents, storage_limit_bytes, is_active"
+              )
+              .eq("is_active", true),
+          ]);
 
         if (
           billingContractResponse.error &&
@@ -181,12 +189,12 @@ export default function DashboardPage() {
             : null;
         const billingPlanId =
           !billingProfileResponse.error && billingProfileResponse.data
-            ? ((billingProfileResponse.data as { plan_id: string | null }).plan_id ?? null)
+            ? ((billingProfileResponse.data as BillingProfilePlanRow).plan_id ?? null)
             : null;
+        const normalizedBillingProfilePlanId = normalizePlanId(billingPlanId);
         const effectivePlanId =
           contractPlanId ??
-          billingPlanId ??
-          (user.user_metadata?.plan as string | undefined) ??
+          (normalizedBillingProfilePlanId === "free" ? "free" : null) ??
           DEFAULT_PLAN_TIER;
         const normalizedPlanId = normalizePlanId(effectivePlanId);
         const plans =
@@ -200,25 +208,15 @@ export default function DashboardPage() {
         const planFallback = PLAN_MAP[normalizedPlanId] ?? PLAN_MAP.business;
         const nextPlanLabel = plans.length > 0 ? planView.displayName : planFallback.label;
 
-        const mediaRows =
-          !mediaFilesResponse.error && Array.isArray(mediaFilesResponse.data)
-            ? (mediaFilesResponse.data as Array<{ file_size: number | null }>)
-            : [];
-        const nextMediaBytesUsed = mediaRows.reduce(
-          (sum, file) => sum + Number(file.file_size ?? 0),
-          0
-        );
-
         if (!active) return;
         setResolvedPlan({
+          id: normalizedPlanId,
           label: nextPlanLabel,
           className: planView.className,
         });
-        setMediaBytesUsed(Number.isFinite(nextMediaBytesUsed) ? nextMediaBytesUsed : 0);
       } catch {
         if (!active) return;
         setResolvedPlan(null);
-        setMediaBytesUsed(0);
       } finally {
         if (active) {
           setUsageLoading(false);
@@ -268,11 +266,12 @@ export default function DashboardPage() {
   }, [user]);
 
   const storageUsageValue = useMemo(() => {
-    if (usageLoading) return "…";
-    const usedMb = mediaBytesUsed / (1024 * 1024);
-    const limitGb = 1;
-    return `${usedMb.toFixed(1)} MB / ${limitGb.toFixed(1)} GB`;
-  }, [mediaBytesUsed, usageLoading]);
+    if (usageLoading || quotaLoading) return "…";
+    return formatStorageUsageValue(
+      quotaSummary?.usedBytes ?? 0,
+      quotaSummary?.totalLimitBytes ?? 0
+    );
+  }, [quotaLoading, quotaSummary, usageLoading]);
 
   const aiCreditsValue =
     balanceLoading && balanceCents == null

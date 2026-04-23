@@ -3,8 +3,15 @@
  * Handles filtering, signed URL fetches, tab-aware caching, and modal actions while delegating storage and auth to shared helpers.
  */
 import Head from "next/head";
+import { useRouter } from "next/router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useResolvedAccountPlan } from "../features/billing/useResolvedAccountPlan";
+import {
+  formatStorageBytes,
+  formatStorageUsageValue,
+  getDefaultPlanStorageLimitBytes,
+} from "../features/billing/storage";
+import { useMediaStorageQuotaSummary } from "../features/billing/useMediaStorageQuotaSummary";
 import { isAdaptiveSurfaceEnabled } from "../lib/adaptive-media";
 import { createMediaPerfTimer, logMediaPerf } from "../lib/mediaPerfTelemetry";
 import { ensureSupabaseQueryClient } from "../lib/supabaseClient";
@@ -41,7 +48,6 @@ import {
   getErrorMessage,
   getMediaDataTabForRow,
   isMediaDataTab,
-  isMissingRoutineError,
   isVideoFile,
   normalizeMediaSearchTerm,
   sortByCreatedAtDesc,
@@ -82,6 +88,7 @@ const MEDIA_LIBRARY_CACHE_TTL_MS = 30_000;
 const ROUTE_SURFACE_CONFIG = getMediaLibrarySurfaceConfig("route");
 
 export default function MediaLibrary() {
+  const router = useRouter();
   const { resolvedPlan } = useResolvedAccountPlan();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -96,7 +103,6 @@ export default function MediaLibrary() {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const loadMoreSentinelRef = useRef<HTMLDivElement | null>(null);
   const [focusedFile, setFocusedFile] = useState<MediaRow | null>(null);
-  const [storageUsageBytes, setStorageUsageBytes] = useState<number | null>(null);
   const activeMediaTab = isMediaDataTab(activeTab) ? activeTab : null;
   const {
     activeMediaCache,
@@ -134,14 +140,17 @@ export default function MediaLibrary() {
   const firstCardShellLoggedRef = useRef(false);
   const openToFirstMediaTimerRef = useRef<ReturnType<typeof createMediaPerfTimer> | null>(null);
   const openToFirstMediaLoggedRef = useRef(false);
-  const totalBytes = storageUsageBytes ?? cachedMediaBytes;
-  const planLimitMb = 1024;
+  const { quotaSummary, refreshQuotaSummary } = useMediaStorageQuotaSummary({
+    fallbackPlanId: resolvedPlan?.id,
+  });
+  const refreshStorageUsageBytes = refreshQuotaSummary;
+  const totalBytes = quotaSummary?.usedBytes ?? cachedMediaBytes;
+  const planLimitBytes =
+    quotaSummary?.totalLimitBytes ?? getDefaultPlanStorageLimitBytes(resolvedPlan?.id);
   const planUsage = { label: "Current plan", name: resolvedPlan?.label ?? "Free" };
   const storageUsageValue = useMemo(() => {
-    const usedMb = totalBytes / (1024 * 1024);
-    const limitGb = planLimitMb / 1024;
-    return `${usedMb.toFixed(1)} MB / ${limitGb.toFixed(1)} GB`;
-  }, [planLimitMb, totalBytes]);
+    return formatStorageUsageValue(totalBytes, planLimitBytes);
+  }, [planLimitBytes, totalBytes]);
   const adaptivePreviewQualityEnabled = isAdaptiveSurfaceEnabled("media-library-grid");
   const mediaAdaptivePressure = useMediaAdaptivePressure({
     surface: "media-library-route",
@@ -205,23 +214,6 @@ export default function MediaLibrary() {
     };
   }, [focusedFile, focusedPrompt]);
 
-  const refreshStorageUsageBytes = useCallback(async () => {
-    try {
-      const supabase = ensureSupabaseQueryClient();
-      const { data, error } = await supabase.rpc("get_media_library_usage_bytes");
-      if (error) {
-        if (isMissingRoutineError(error)) return;
-        throw error;
-      }
-      const parsed = typeof data === "number" ? data : Number.parseInt(String(data ?? "0"), 10);
-      if (Number.isFinite(parsed)) {
-        setStorageUsageBytes(Math.max(0, parsed));
-      }
-    } catch {
-      // Fall back to cached-row estimate when RPC is unavailable.
-    }
-  }, []);
-
   useEffect(() => {
     document.body.classList.add("media-library-body");
     document.documentElement.classList.add("media-library-body");
@@ -230,17 +222,16 @@ export default function MediaLibrary() {
       document.documentElement.classList.remove("media-library-body");
     };
   }, []);
-
-  useEffect(() => {
-    void refreshStorageUsageBytes();
-  }, [refreshStorageUsageBytes]);
-
   useEffect(() => {
     setSelectedIds([]);
     setBulkMoveError(null);
     setBulkMoveNotice(null);
     setBulkMoveMenuOpen(false);
   }, [activeTab]);
+
+  useEffect(() => {
+    void refreshQuotaSummary();
+  }, [cachedMediaBytes, refreshQuotaSummary]);
 
   useEffect(() => {
     if (!isMediaDataTab(activeTab)) {
@@ -747,13 +738,14 @@ export default function MediaLibrary() {
             planLabel: planUsage.label,
             planName: planUsage.name,
             storageUsageValue,
+            storageCapacityValue: formatStorageBytes(planLimitBytes),
           }}
           uploadStageProps={{
             activeTab,
             error,
             fileInputRef,
             isDragging,
-            planLimitMb,
+            planLimitBytes,
             selectedFiles,
             totalBytes,
             uploadCount,
@@ -763,6 +755,9 @@ export default function MediaLibrary() {
             onDrop: handleDrop,
             onFileChange: handleFileChange,
             onTriggerFilePicker: triggerFilePicker,
+            onOpenBilling: () => {
+              void router.push("/profile?section=billing");
+            },
           }}
         />
       </main>

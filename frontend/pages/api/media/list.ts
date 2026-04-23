@@ -174,6 +174,7 @@ const toIncludeLibraryTotalCount = (value: unknown): boolean => value === true;
 const withMediaKindFilter = <
   T extends {
     ilike: (column: string, pattern: string) => T;
+    not: (column: string, operator: string, value: string) => T;
   },
 >(
   query: T,
@@ -181,7 +182,7 @@ const withMediaKindFilter = <
 ): T => {
   if (mediaKind === "images") return query.ilike("file_type", "image%");
   if (mediaKind === "videos") return query.ilike("file_type", "video%");
-  return query;
+  return query.not("file_type", "ilike", "audio%");
 };
 
 const clampLimit = (surface: MediaListSurface, value: unknown): number => {

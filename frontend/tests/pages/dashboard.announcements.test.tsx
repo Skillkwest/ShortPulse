@@ -8,6 +8,7 @@ import DashboardPage from "../../pages/dashboard";
 
 const useRouterMock = vi.hoisted(() => vi.fn());
 const useCreditsMock = vi.hoisted(() => vi.fn());
+const useMediaStorageQuotaSummaryMock = vi.hoisted(() => vi.fn());
 const ensureSupabaseClientMock = vi.hoisted(() => vi.fn());
 const ensureSupabaseQueryClientMock = vi.hoisted(() => vi.fn());
 const useSupabaseSessionStateMock = vi.hoisted(() => vi.fn());
@@ -44,6 +45,10 @@ vi.mock("next/router", () => ({
 
 vi.mock("../../features/ai-studio/hooks/useCredits", () => ({
   useCredits: (...args: unknown[]) => useCreditsMock(...args),
+}));
+
+vi.mock("../../features/billing/useMediaStorageQuotaSummary", () => ({
+  useMediaStorageQuotaSummary: (...args: unknown[]) => useMediaStorageQuotaSummaryMock(...args),
 }));
 
 vi.mock("../../lib/supabaseClient", () => ({
@@ -121,6 +126,18 @@ describe("Dashboard announcement rendering", () => {
     useCreditsMock.mockReturnValue({
       balanceCents: 86,
       balanceLoading: false,
+    });
+    useMediaStorageQuotaSummaryMock.mockReturnValue({
+      quotaSummary: {
+        usedBytes: 1024,
+        baseLimitBytes: 500 * 1024 * 1024 * 1024,
+        addonLimitBytes: 0,
+        totalLimitBytes: 500 * 1024 * 1024 * 1024,
+        remainingBytes: 500 * 1024 * 1024 * 1024 - 1024,
+        isOverLimit: false,
+      },
+      loading: false,
+      refreshQuotaSummary: vi.fn(),
     });
     useSupabaseSessionStateMock.mockReturnValue({
       initialized: true,

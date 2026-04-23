@@ -91,6 +91,7 @@ const createSupabaseClientMock = (options?: {
   const mediaQueryBuilder = {
     eq: vi.fn().mockReturnThis(),
     ilike: vi.fn().mockReturnThis(),
+    not: vi.fn().mockReturnThis(),
     or: vi.fn().mockReturnThis(),
     order: vi.fn().mockReturnThis(),
     limit: vi

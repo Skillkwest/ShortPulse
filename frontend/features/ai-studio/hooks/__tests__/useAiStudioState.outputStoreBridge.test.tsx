@@ -266,6 +266,32 @@ describe("useAiStudioState output store bridge", () => {
     });
   });
 
+  it("preserves explicit placeholder model metadata for sound workflows", async () => {
+    const { result } = renderHook(() => useAiStudioState(), { wrapper: strictWrapper });
+
+    let placeholderId: string | null = null;
+    act(() => {
+      placeholderId = result.current.insertOptimisticGenerationPlaceholder({
+        prompt: "Convert this voice",
+        modeOverride: "audio",
+        selectedToolOverride: "text-to-speech",
+        modelLabelOverride: "ElevenLabs Voiceover",
+        modelIdOverride: null,
+        providerOverride: "elevenlabs",
+      });
+    });
+
+    expect(placeholderId).toBeTruthy();
+    await waitFor(() => {
+      const snapshot = getAiStudioOutputSnapshot();
+      const item = snapshot.outputById[placeholderId as string];
+      expect(item?.mode).toBe("audio");
+      expect(item?.model).toBe("ElevenLabs Voiceover");
+      expect(item?.modelId).toBeUndefined();
+      expect(item?.provider).toBe("elevenlabs");
+    });
+  });
+
   it("filters ready reference-grid ids when outputs leave active and archived collections", async () => {
     const { result } = renderHook(() => useAiStudioState(), { wrapper: strictWrapper });
 

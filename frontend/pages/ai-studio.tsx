@@ -1359,6 +1359,9 @@ export default function AiStudioPage() {
         prompt: promptText,
         modeOverride: "audio",
         selectedToolOverride: request.mode === "voiceover" ? "text-to-speech" : "voice-changer",
+        modelLabelOverride: buildVoicesOutputModelLabel(request),
+        modelIdOverride: request.mode === "voiceover" ? request.config.model_id : request.modelId,
+        providerOverride: "elevenlabs",
       });
 
       if (!optimisticOutputId) {
@@ -1515,6 +1518,9 @@ export default function AiStudioPage() {
         prompt: promptText,
         modeOverride: "audio",
         selectedToolOverride: "music",
+        modelLabelOverride: buildMusicOutputModelLabel(),
+        modelIdOverride: request.modelId,
+        providerOverride: "elevenlabs",
       });
 
       if (!optimisticOutputId) {
@@ -1599,6 +1605,9 @@ export default function AiStudioPage() {
         prompt: promptText,
         modeOverride: "audio",
         selectedToolOverride: "sound-effects",
+        modelLabelOverride: buildSoundEffectsOutputModelLabel(),
+        modelIdOverride: request.modelId,
+        providerOverride: "elevenlabs",
       });
 
       if (!optimisticOutputId) {

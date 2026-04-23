@@ -17,6 +17,9 @@ type UseAiStudioOptimisticPlaceholderActionsResult = {
     prompt: string;
     modeOverride?: StudioMode;
     selectedToolOverride?: ToolId | null;
+    modelLabelOverride?: string | null;
+    modelIdOverride?: string | null;
+    providerOverride?: string | null;
   }) => string | null;
   removeOptimisticGenerationPlaceholder: (outputId: string) => void;
 };
@@ -34,10 +37,16 @@ export const useAiStudioOptimisticPlaceholderActions = ({
       prompt: promptText,
       modeOverride,
       selectedToolOverride,
+      modelLabelOverride,
+      modelIdOverride,
+      providerOverride,
     }: {
       prompt: string;
       modeOverride?: StudioMode;
       selectedToolOverride?: ToolId | null;
+      modelLabelOverride?: string | null;
+      modelIdOverride?: string | null;
+      providerOverride?: string | null;
     }) => {
       const cleanedPrompt = promptText.trim();
       if (!cleanedPrompt) return null;
@@ -50,13 +59,22 @@ export const useAiStudioOptimisticPlaceholderActions = ({
             ? "image"
             : effectiveMode;
       const id = `out-${randomId()}`;
+      const resolvedModelLabel =
+        typeof modelLabelOverride === "string" && modelLabelOverride.trim().length > 0
+          ? modelLabelOverride.trim()
+          : resolveModelLabel(model ?? undefined);
+      const resolvedProvider =
+        typeof providerOverride === "string" && providerOverride.trim().length > 0
+          ? providerOverride.trim()
+          : undefined;
       const nextOutput: StudioOutput = {
         id,
         prompt: cleanedPrompt,
         mode: outputMode,
         aspect,
-        model: resolveModelLabel(model ?? undefined),
-        modelId: model ?? undefined,
+        model: resolvedModelLabel,
+        modelId: modelIdOverride === null ? undefined : (modelIdOverride ?? model ?? undefined),
+        provider: resolvedProvider,
         status: "ready",
         taskState: "pending",
         timestamp: "Submitting...",

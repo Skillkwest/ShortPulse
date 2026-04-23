@@ -83,6 +83,44 @@ describe("Create generate guardrail messaging", () => {
     expect(screen.getByText(message)).toBeInTheDocument();
   });
 
+  it("does not show the removed active Pulse status UI in Pulse mode", () => {
+    render(
+      <ExpertCreatePanelView
+        promptStepProps={{} as PromptStepProps}
+        onGenerate={vi.fn()}
+        costCredits={15}
+        isPromptGenerating={false}
+        isGenerateDisabled={false}
+        characterModeEnabled={false}
+        onCharacterModeEnabledToggle={vi.fn()}
+        onCharacterPickerOpen={vi.fn()}
+        characterSelectDisabled={false}
+        isCharacterSelectionEmpty
+        selectedCharacterName="No characters available"
+        selectedCharacterProfileImageUrl={null}
+        selectedCharacterInitials={null}
+        isCharacterPickerOpen={false}
+        isCreateModelPickerOpen={false}
+        isModelSelectionEmpty={false}
+        onCreateModelOpen={vi.fn()}
+        useUnoptimizedModelLogo={false}
+        effectiveModelLabel="Seedream 4.5 Edit"
+        aspect="9:16"
+        aspectOptionsForModel={[]}
+        onAspectChange={vi.fn()}
+        shouldShowImageResolutionCard={false}
+        imageResolutionValue="default"
+        imageResolutionOptions={[]}
+        expertCreateMode="pulse"
+        activePulsePresetId="story_builder"
+      />
+    );
+
+    expect(screen.queryByLabelText("Active Pulse")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Pulse activation hint")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Deactivate" })).not.toBeInTheDocument();
+  });
+
   it("shows the guardrail reason in reference-based generate steps", () => {
     render(
       <ReferenceGenerateStep

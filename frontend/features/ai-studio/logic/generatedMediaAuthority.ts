@@ -1,5 +1,7 @@
 import { asCanonicalStoragePath } from "../../../lib/adaptive-media";
 import { ensureSupabaseQueryClient, readSupabaseUserId } from "../../../lib/supabaseClient";
+import type { StudioOutput } from "../types";
+import { isAudioUrl, isVideoUrl, resolveModelLabel } from "./stateParsers";
 
 type SupabaseClient = ReturnType<typeof ensureSupabaseQueryClient>;
 
@@ -27,13 +29,26 @@ type GenerationPublicationRow = {
 };
 
 type GenerationProjectionDeliveryRow = {
+  generation_id?: unknown;
+  request_id?: unknown;
+  source_ref?: unknown;
+  provider?: unknown;
+  model_id?: unknown;
+  display_prompt?: unknown;
   preview_url?: unknown;
   result_urls?: unknown;
   preview_storage_path?: unknown;
   full_storage_path?: unknown;
   task_state?: unknown;
+  queue_state?: unknown;
+  error_message_short?: unknown;
+  error_detail?: unknown;
   hidden_in_reference_grid?: unknown;
   reference_grid_visible?: unknown;
+  generation_replay?: unknown;
+  character_context?: unknown;
+  style_context?: unknown;
+  updated_at?: unknown;
 };
 
 export type GeneratedMediaFileRecord = {
@@ -63,6 +78,10 @@ export type VisibleGenerationReconcile = {
   fullStoragePath: string | null;
   resultUrls: string[];
 };
+
+const VIDEO_MODEL_MARKER_PATTERN =
+  /(?:veo|kling|seedance|image-to-video|text-to-video|video|i2v|t2v)/i;
+const AUDIO_MODEL_MARKER_PATTERN = /(?:audio|speech|music|tts|voice)/i;
 
 const asTrimmedString = (value: unknown): string | null => {
   if (typeof value !== "string") return null;
@@ -112,6 +131,132 @@ const toProjectionDelivery = (
     fullUrl,
     previewStoragePath,
     fullStoragePath,
+  };
+};
+
+const asObject = (value: unknown): Record<string, unknown> | null =>
+  value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : null;
+
+const normalizeProjectionTaskState = (value: unknown): StudioOutput["taskState"] | undefined => {
+  const normalized = asTrimmedString(value)?.toLowerCase();
+  switch (normalized) {
+    case "pending":
+      return "pending";
+    case "running":
+      return "running";
+    case "success":
+    case "completed":
+    case "complete":
+    case "ready":
+      return "success";
+    case "fail":
+    case "failed":
+    case "error":
+      return "fail";
+    default:
+      return undefined;
+  }
+};
+
+const normalizeProjectionQueueState = (value: unknown): StudioOutput["queueState"] | undefined => {
+  const normalized = asTrimmedString(value)?.toLowerCase();
+  switch (normalized) {
+    case "queued":
+      return "queued";
+    case "dispatching":
+      return "dispatching";
+    case "dispatched":
+      return "dispatched";
+    default:
+      return undefined;
+  }
+};
+
+const inferGeneratedOutputMode = ({
+  modelId,
+  previewUrl,
+  resultUrls,
+}: {
+  modelId: string | null;
+  previewUrl: string | null;
+  resultUrls: string[];
+}): StudioOutput["mode"] => {
+  const firstMediaUrl = previewUrl ?? resultUrls[0] ?? null;
+  if (isAudioUrl(firstMediaUrl)) return "audio";
+  if (isVideoUrl(firstMediaUrl)) return "video";
+  if (AUDIO_MODEL_MARKER_PATTERN.test(modelId ?? "")) return "audio";
+  if (VIDEO_MODEL_MARKER_PATTERN.test(modelId ?? "")) return "video";
+  return "image";
+};
+
+const resolveHydratedTimestamp = (taskState: StudioOutput["taskState"] | undefined): string => {
+  if (taskState === "success") return "Just now";
+  if (taskState === "fail") return "Failed";
+  return "Processing...";
+};
+
+const toHydratedGeneratedOutput = (
+  row: GenerationProjectionDeliveryRow | null | undefined
+): StudioOutput | null => {
+  if (!row) return null;
+  if (row.hidden_in_reference_grid === true || row.reference_grid_visible === false) return null;
+
+  const generationId = asTrimmedString(row.generation_id);
+  if (!generationId) return null;
+
+  const resultUrls = asTrimmedStringArray(row.result_urls);
+  const previewUrl = asTrimmedString(row.preview_url) ?? resultUrls[0] ?? undefined;
+  const taskState = normalizeProjectionTaskState(row.task_state);
+  const queueState = normalizeProjectionQueueState(row.queue_state);
+  const modelId = asTrimmedString(row.model_id);
+  const mode = inferGeneratedOutputMode({
+    modelId,
+    previewUrl: previewUrl ?? null,
+    resultUrls,
+  });
+  const generationReplay = (asObject(row.generation_replay) ?? undefined) as
+    | StudioOutput["generationReplay"]
+    | undefined;
+  const replayAspect = asTrimmedString(generationReplay?.aspect);
+  const characterContext = (asObject(row.character_context) ?? undefined) as
+    | StudioOutput["characterContext"]
+    | undefined;
+  const styleContext = (asObject(row.style_context) ?? undefined) as
+    | StudioOutput["styleContext"]
+    | undefined;
+  const errorMessageShort = asTrimmedString(row.error_message_short) ?? undefined;
+  const errorDetail = asTrimmedString(row.error_detail) ?? undefined;
+
+  return {
+    id: `generated:${generationId}`,
+    prompt: asTrimmedString(row.display_prompt) ?? "",
+    mode,
+    aspect: replayAspect ?? "1:1",
+    model: resolveModelLabel(modelId ?? undefined),
+    modelId: modelId ?? undefined,
+    provider: asTrimmedString(row.provider) ?? undefined,
+    sourceRef: asTrimmedString(row.source_ref) ?? undefined,
+    generationId,
+    status: "ready",
+    timestamp: resolveHydratedTimestamp(taskState),
+    taskId: asTrimmedString(row.request_id) ?? undefined,
+    queueState,
+    taskState,
+    errorMessage: errorMessageShort ?? null,
+    errorMessageShort: errorMessageShort ?? null,
+    errorDetail: errorDetail ?? null,
+    resultUrls,
+    previewUrl,
+    previewStoragePath: asCanonicalStoragePath(asTrimmedString(row.preview_storage_path)),
+    fullStoragePath: asCanonicalStoragePath(asTrimmedString(row.full_storage_path)),
+    mediaSource: "generated",
+    hiddenInReferenceGrid: false,
+    previewTier: mode === "video" ? "preview_loop" : "full",
+    characterContext,
+    styleContext,
+    generationReplay,
   };
 };
 
@@ -568,6 +713,55 @@ export const resolveVisibleGenerationReconcile = async ({
     fullStoragePath: delivery.fullStoragePath,
     resultUrls,
   };
+};
+
+export const listVisibleGeneratedOutputs = async ({
+  limit = 48,
+}: {
+  limit?: number;
+} = {}): Promise<StudioOutput[]> => {
+  try {
+    const supabase = ensureSupabaseQueryClient();
+    const userId = await readSupabaseUserId();
+    if (!userId) return [];
+
+    const { data, error } = await supabase
+      .from("generation_projection")
+      .select(
+        [
+          "generation_id",
+          "request_id",
+          "source_ref",
+          "provider",
+          "model_id",
+          "display_prompt",
+          "preview_url",
+          "result_urls",
+          "preview_storage_path",
+          "full_storage_path",
+          "task_state",
+          "queue_state",
+          "error_message_short",
+          "error_detail",
+          "hidden_in_reference_grid",
+          "reference_grid_visible",
+          "generation_replay",
+          "character_context",
+          "style_context",
+          "updated_at",
+        ].join(", ")
+      )
+      .eq("user_id", userId)
+      .order("updated_at", { ascending: false })
+      .limit(Math.max(1, Math.min(limit, 100)));
+    if (error || !Array.isArray(data)) return [];
+
+    return data
+      .map((row) => toHydratedGeneratedOutput(row as GenerationProjectionDeliveryRow))
+      .filter((row): row is StudioOutput => Boolean(row));
+  } catch {
+    return [];
+  }
 };
 
 export const resolveLatestPublishedGenerationDeliveryByGenerationId =

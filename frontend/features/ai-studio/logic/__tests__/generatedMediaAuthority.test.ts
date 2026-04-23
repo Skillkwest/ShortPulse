@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  listVisibleGeneratedOutputs,
   resolveVisibleGenerationDelivery,
   resolveVisibleGenerationReconcile,
 } from "../generatedMediaAuthority";
@@ -190,5 +191,67 @@ describe("generatedMediaAuthority", () => {
       fullStoragePath: null,
       resultUrls: ["https://fal.test/request-full.png"],
     });
+  });
+
+  it("lists visible generated outputs from canonical projection rows", async () => {
+    const projectionBuilder = createAwaitableSelectBuilder({
+      data: [
+        {
+          generation_id: "gen-visible-1",
+          request_id: "req-visible-1",
+          source_ref: "source-visible-1",
+          provider: "fal",
+          model_id: "fal-ai/veo3.1",
+          display_prompt: "Orbiting camera around a sneaker",
+          preview_url: "https://fal.test/visible-preview.mp4",
+          result_urls: ["https://fal.test/visible-full.mp4"],
+          preview_storage_path: null,
+          full_storage_path: null,
+          task_state: "success",
+          queue_state: "dispatched",
+          error_message_short: null,
+          error_detail: null,
+          hidden_in_reference_grid: false,
+          reference_grid_visible: true,
+          generation_replay: {
+            aspect: "9:16",
+          },
+          character_context: {},
+          style_context: {},
+          updated_at: "2026-04-18T16:10:00.000Z",
+        },
+      ],
+      error: null,
+    });
+
+    ensureSupabaseQueryClientMock.mockReturnValue({
+      from: vi.fn((table: string) => {
+        if (table === "generation_projection") {
+          return {
+            select: vi.fn(() => projectionBuilder),
+          };
+        }
+        throw new Error(`Unexpected table: ${table}`);
+      }),
+    });
+
+    await expect(listVisibleGeneratedOutputs()).resolves.toEqual([
+      expect.objectContaining({
+        id: "generated:gen-visible-1",
+        generationId: "gen-visible-1",
+        taskId: "req-visible-1",
+        sourceRef: "source-visible-1",
+        mode: "video",
+        mediaSource: "generated",
+        prompt: "Orbiting camera around a sneaker",
+        modelId: "fal-ai/veo3.1",
+        resultUrls: ["https://fal.test/visible-full.mp4"],
+        previewUrl: "https://fal.test/visible-preview.mp4",
+        taskState: "success",
+        queueState: "dispatched",
+        timestamp: "Just now",
+        aspect: "9:16",
+      }),
+    ]);
   });
 });

@@ -450,6 +450,11 @@
   --reference-divider-active-ring: rgba(214, 220, 228, 0.24);
 }
 
+.ai-studio-page[data-selected-tool="pulse-presets"] .reference-grid-horizontal-divider-wrap {
+  --reference-divider-active-color: rgba(214, 220, 228, 0.74);
+  --reference-divider-active-ring: rgba(214, 220, 228, 0.24);
+}
+
 .ai-studio-page[data-selected-tool="styles"] .reference-grid-horizontal-divider-wrap {
   --reference-divider-active-color: rgba(214, 220, 228, 0.74);
   --reference-divider-active-ring: rgba(214, 220, 228, 0.24);

@@ -266,6 +266,9 @@ export function ReferenceGridSections({
                 className="reference-grid-horizontal-divider-wrap reference-grid-horizontal-divider-wrap--canvas-inventory"
                 {...railCanvasSplit.dividerProps}
               >
+                <span className="reference-grid-horizontal-divider-title" aria-hidden="true">
+                  Quick Slot Inventory
+                </span>
                 <button
                   type="button"
                   className="reference-grid-horizontal-divider-pill"

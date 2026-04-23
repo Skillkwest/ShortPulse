@@ -5,7 +5,7 @@
  */
 import type { StudioOutput } from "../types";
 import { asCanonicalStoragePath } from "../../../lib/adaptive-media";
-import { isVideoUrl, mapUploadsFromFiles } from "../logic/stateParsers";
+import { isAudioUrl, isVideoUrl, mapUploadsFromFiles } from "../logic/stateParsers";
 import type {
   ReferenceIngestionContext,
   ReferenceIngestionInput,
@@ -62,7 +62,8 @@ const buildPastedMediaOutput = ({
   mimeType?: string | null;
   context: ReferenceIngestionContext;
 }): StudioOutput => {
-  const isVideo = mimeType?.startsWith("video/") || (!mimeType && isVideoUrl(url));
+  const isAudio = mimeType?.startsWith("audio/") || (!mimeType && isAudioUrl(url));
+  const isVideo = !isAudio && (mimeType?.startsWith("video/") || (!mimeType && isVideoUrl(url)));
   const placeholderModelLabel = context.model
     ? context.resolveModelLabel(context.model)
     : "Model pending selection";
@@ -79,8 +80,9 @@ const buildPastedMediaOutput = ({
 
   return {
     id,
-    prompt: parsedFilename ?? (isVideo ? "Pasted video" : "Pasted image"),
-    mode: isVideo ? "video" : "image",
+    prompt:
+      parsedFilename ?? (isAudio ? "Pasted audio" : isVideo ? "Pasted video" : "Pasted image"),
+    mode: isAudio ? "audio" : isVideo ? "video" : "image",
     aspect: context.aspect,
     model: placeholderModelLabel,
     modelId: context.model ?? undefined,
@@ -95,6 +97,7 @@ const buildPastedMediaOutput = ({
     archiveReason: null,
     saveState: "idle",
     saveError: null,
+    mimeType: mimeType ?? null,
   };
 };
 

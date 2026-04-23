@@ -1,5 +1,5 @@
 import type { StudioOutput } from "../../types";
-import { isVideoUrl } from "../../logic/stateParsers";
+import { isAudioUrl, isVideoUrl } from "../../logic/stateParsers";
 import { isRenderableAdaptiveUrl } from "../../../../lib/adaptive-media";
 
 export const hasAdaptiveQueryParams = (url: string): boolean =>
@@ -51,6 +51,15 @@ export const isOutputVideoPreview = (
   url: string | null | undefined
 ): boolean => {
   if (!url) return false;
-  if (output?.mode === "image") return false;
+  if (output?.mode === "image" || output?.mode === "audio") return false;
   return isVideoUrl(url);
+};
+
+export const isOutputAudioPreview = (
+  output: Pick<StudioOutput, "mode"> | null | undefined,
+  url: string | null | undefined
+): boolean => {
+  if (!url) return false;
+  if (output?.mode === "image" || output?.mode === "video") return false;
+  return isAudioUrl(url);
 };

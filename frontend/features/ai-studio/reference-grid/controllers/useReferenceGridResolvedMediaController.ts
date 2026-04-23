@@ -12,6 +12,7 @@ import {
 import { isGeneratedOutput } from "../../logic/referenceOutputAuthority";
 import type { ReferenceGridMediaOutput } from "../logic/referenceGridMediaOutput";
 import {
+  isOutputAudioPreview,
   isOutputVideoPreview,
   normalizeComparableUrl,
   resolveFirstRenderableUrl,
@@ -27,6 +28,7 @@ export type ReferenceGridResolvedCardMedia = {
   targetLongEdgePx: number;
   isVideoPreview: boolean;
   isImagePreview: boolean;
+  isAudioPreview?: boolean;
   normalizedPreviewUrl: string | null;
   normalizedFallbackUrl: string | null;
   previewOptimizerSourceUrl: string | null;
@@ -117,6 +119,7 @@ export const useReferenceGridResolvedMediaController = ({
               resolvedCardUrls.previewUrl ?? null
             ) ?? null);
       const isVideoPreview = isOutputVideoPreview(item, previewUrl);
+      const isAudioPreview = isOutputAudioPreview(item, previewUrl);
 
       const resolvedMedia: ReferenceGridResolvedCardMedia = {
         previewUrl,
@@ -126,7 +129,8 @@ export const useReferenceGridResolvedMediaController = ({
         previewQualityBand: resolvedCardUrls.previewQualityBand ?? "high",
         targetLongEdgePx: resolvedCardUrls.targetLongEdgePx ?? 960,
         isVideoPreview,
-        isImagePreview: previewUrl ? !isVideoPreview : false,
+        isAudioPreview,
+        isImagePreview: previewUrl ? !isVideoPreview && !isAudioPreview : false,
         normalizedPreviewUrl: normalizeComparableUrl(previewUrl),
         normalizedFallbackUrl: normalizeComparableUrl(fallbackUrl),
         previewOptimizerSourceUrl: resolveOptimizerSourceUrl(previewUrl),

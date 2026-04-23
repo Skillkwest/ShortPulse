@@ -43,7 +43,8 @@ describe("mapUploadsFromFiles", () => {
     const createObjectUrlMock = vi
       .fn()
       .mockReturnValueOnce("blob:https://local/image-1")
-      .mockReturnValueOnce("blob:https://local/video-1");
+      .mockReturnValueOnce("blob:https://local/video-1")
+      .mockReturnValueOnce("blob:https://local/audio-1");
     Object.defineProperty(URL, "createObjectURL", {
       configurable: true,
       value: createObjectUrlMock,
@@ -85,6 +86,7 @@ describe("mapUploadsFromFiles", () => {
     const files = toFileList([
       new File(["image"], "image.png", { type: "image/png" }),
       new File(["video"], "clip.mp4", { type: "video/mp4" }),
+      new File(["audio"], "voice.mp3", { type: "audio/mpeg" }),
     ]);
 
     const outputs = await mapUploadsFromFiles(
@@ -97,8 +99,8 @@ describe("mapUploadsFromFiles", () => {
       "drop"
     );
 
-    expect(createObjectUrlMock).toHaveBeenCalledTimes(2);
-    expect(outputs).toHaveLength(2);
+    expect(createObjectUrlMock).toHaveBeenCalledTimes(3);
+    expect(outputs).toHaveLength(3);
     expect(outputs[0]?.mediaSource).toBe("upload");
     expect(outputs[0]?.previewTier).toBe("full");
     expect(outputs[0]?.localObjectUrl).toBe("blob:https://local/image-1");
@@ -108,6 +110,11 @@ describe("mapUploadsFromFiles", () => {
     expect(outputs[1]?.previewUrl).toBe("blob:https://local/video-1#video=1");
     expect(outputs[1]?.localObjectUrl).toBe("blob:https://local/video-1");
     expect(outputs[1]?.previewPosterUrl).toBe("data:image/jpeg;base64,video-poster");
+    expect(outputs[2]?.mode).toBe("audio");
+    expect(outputs[2]?.previewUrl).toBe("blob:https://local/audio-1#audio=1");
+    expect(outputs[2]?.localObjectUrl).toBe("blob:https://local/audio-1");
+    expect(outputs[2]?.previewPosterUrl).toBeNull();
+    expect(outputs[2]?.mimeType).toBe("audio/mpeg");
   });
 
   it("falls back to data URLs when object URLs are unavailable", async () => {

@@ -13,6 +13,7 @@ const mapUploadsFromFilesMock = vi.fn();
 
 vi.mock("../../logic/stateParsers", () => ({
   mapUploadsFromFiles: (...args: unknown[]) => mapUploadsFromFilesMock(...args),
+  isAudioUrl: (value: string | null | undefined) => Boolean(value?.includes(".mp3")),
   isVideoUrl: (value: string | null | undefined) => Boolean(value?.includes(".mp4")),
 }));
 
@@ -182,6 +183,27 @@ describe("buildStudioOutputsFromReferenceInput", () => {
     expect(output?.mode).toBe("video");
     expect(output?.previewTier).toBe("preview_loop");
     expect(output?.mediaSource).toBe("clipboard");
+  });
+
+  it("builds pasted media output with audio semantics", async () => {
+    const context = createContext();
+    const result = await buildStudioOutputsFromReferenceInput(
+      {
+        kind: "mediaUrl",
+        source: "paste",
+        url: "https://cdn.example.com/demo.mp3",
+        mimeType: "audio/mpeg",
+      },
+      context
+    );
+
+    expect(result.outputs).toHaveLength(1);
+    const [output] = result.outputs;
+    expect(output?.id).toBe("media-paste-id-1");
+    expect(output?.mode).toBe("audio");
+    expect(output?.previewTier).toBe("full");
+    expect(output?.mediaSource).toBe("clipboard");
+    expect(output?.mimeType).toBe("audio/mpeg");
   });
 
   it("builds library media output with generation source semantics", async () => {

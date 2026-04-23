@@ -34,6 +34,7 @@ export type ReferenceGridVisibleCardItem = {
   targetLongEdgePx: number;
   isVideoPreview: boolean;
   isImagePreview: boolean;
+  isAudioPreview?: boolean;
   isPriorityHydration: boolean;
   imageSrc?: string;
   isPlaceholderOnly?: boolean;
@@ -130,6 +131,7 @@ export const useReferenceGridCardItemsController = ({
             targetLongEdgePx: options.cardLongEdgePx,
             isVideoPreview: false,
             isImagePreview: false,
+            isAudioPreview: false,
             isPriorityHydration: false,
             imageSrc: undefined,
             isPlaceholderOnly: true,
@@ -182,6 +184,7 @@ export const useReferenceGridCardItemsController = ({
           targetLongEdgePx: resolvedMedia.targetLongEdgePx,
           isVideoPreview: resolvedMedia.isVideoPreview,
           isImagePreview: resolvedMedia.isImagePreview,
+          isAudioPreview: resolvedMedia.isAudioPreview,
           isPriorityHydration,
           imageSrc,
           isPlaceholderOnly: false,

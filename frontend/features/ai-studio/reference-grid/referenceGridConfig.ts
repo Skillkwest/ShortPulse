@@ -31,7 +31,7 @@ export const STYLES_MIN_BOTTOM_HEADER_BUFFER_PX_QUICK_SLOT = 52;
 export const HORIZONTAL_DIVIDER_TRACK_MIN_HEIGHT_PX = 14;
 export const CURATED_MIN_BOTTOM_STACK_HEIGHT_PX = 12;
 
-export type ReferenceSelectionTheme = "create" | "edit" | "video";
+export type ReferenceSelectionTheme = "create" | "edit" | "video" | "sound";
 
 export type ReferenceGridPanelVisibility = {
   quickSlot: boolean;
@@ -55,6 +55,16 @@ export const resolveReferenceSelectionTheme = (
 ): ReferenceSelectionTheme => {
   if (selectedTool === "image" || selectedTool === "edit") return "edit";
   if (selectedTool === "video" || selectedTool === "kling") return "video";
+  if (
+    selectedTool === "sound" ||
+    selectedTool === "voices" ||
+    selectedTool === "text-to-speech" ||
+    selectedTool === "voice-changer" ||
+    selectedTool === "sound-effects" ||
+    selectedTool === "music"
+  ) {
+    return "sound";
+  }
   return "create";
 };
 

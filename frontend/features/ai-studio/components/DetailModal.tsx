@@ -1,11 +1,11 @@
 /**
- * Detail modal for reference items (prompt/image/video).
+ * Detail modal for reference items (prompt/image/video/audio).
  * Supports prompt-only view and media preview with metadata.
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { TrashSimple } from "phosphor-react";
 import { StudioOutput } from "../types";
-import { isVideoUrl, resolveModelLabel } from "../logic/stateParsers";
+import { isAudioUrl, isVideoUrl, resolveModelLabel } from "../logic/stateParsers";
 import {
   canDownloadReferenceOutput,
   canSaveReferenceOutput,
@@ -170,7 +170,7 @@ function DetailModalContent({
     if (!output || !preferredDetailMediaUrl) return;
     logAdaptiveDetailFullQualityUsed({
       surface: "detail-modal",
-      mediaKind: output.mode === "video" ? "video" : "image",
+      mediaKind: output.mode === "video" ? "video" : output.mode === "audio" ? "audio" : "image",
     });
   }, [output, preferredDetailMediaUrl]);
   const previewCandidates = useMemo(() => {
@@ -199,11 +199,20 @@ function DetailModalContent({
       : 0;
   const displayPreviewUrl =
     previewCandidates.length > 0 ? (previewCandidates[activePreviewCandidateIndex] ?? null) : null;
-  const isVideoOutput = Boolean(
-    output?.mode !== "image" && displayPreviewUrl && isVideoUrl(displayPreviewUrl)
+  const isAudioOutput = Boolean(
+    output?.mode === "audio" || (displayPreviewUrl && isAudioUrl(displayPreviewUrl))
   );
-  const isImageOutput = Boolean(displayPreviewUrl) && !isVideoOutput;
-  const mediaType = displayPreviewUrl ? (isVideoOutput ? "Video" : "Image") : "Prompt";
+  const isVideoOutput = Boolean(
+    !isAudioOutput && output?.mode !== "image" && displayPreviewUrl && isVideoUrl(displayPreviewUrl)
+  );
+  const isImageOutput = Boolean(displayPreviewUrl) && !isVideoOutput && !isAudioOutput;
+  const mediaType = displayPreviewUrl
+    ? isAudioOutput
+      ? "Audio"
+      : isVideoOutput
+        ? "Video"
+        : "Image"
+    : "Prompt";
   const isPromptOnly = output?.mode === "text" && !displayPreviewUrl;
   const characterContext = output?.characterContext;
   const hasCharacterContext = Boolean(characterContext?.applied);
@@ -559,7 +568,8 @@ function DetailModalContent({
     isUploadedReference &&
     Boolean(normalizedFilename) &&
     normalizedDraftPrompt === normalizedFilename;
-  const uploadedPromptLabel = isUploadedReference && !isVideoOutput ? "(Uploaded Image)" : null;
+  const uploadedPromptLabel =
+    isUploadedReference && !isVideoOutput && !isAudioOutput ? "(Uploaded Image)" : null;
   const promptBladeValue = uploadedPromptLabel ?? (isUploadedFilenamePrompt ? "" : draftPrompt);
   const displayModelLabel = useMemo(() => {
     if (isUploadedReference) return null;
@@ -988,6 +998,13 @@ function DetailModalContent({
                             event.currentTarget.videoHeight
                           );
                         }}
+                      />
+                    ) : isAudioOutput ? (
+                      <audio
+                        className="art-hero-audio"
+                        src={displayPreviewUrl}
+                        controls
+                        preload="metadata"
                       />
                     ) : (
                       <>

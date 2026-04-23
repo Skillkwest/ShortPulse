@@ -25,6 +25,8 @@ const PRIVATE_MEDIA_SOURCE = "private_upload";
 const MAX_IMAGE_UPLOAD_BYTES = 25 * 1024 * 1024;
 const MAX_VIDEO_UPLOAD_BYTES = 100 * 1024 * 1024;
 const MAX_UPLOAD_BYTES = MAX_VIDEO_UPLOAD_BYTES;
+const MAX_VOICE_CHANGER_VIDEO_STAGE_BYTES = 40 * 1024 * 1024;
+const MAX_VOICE_CHANGER_AUDIO_STAGE_BYTES = 100 * 1024 * 1024;
 
 const VIDEO_DESTINATIONS = new Set<MediaUploadDestinationTab>(["uploaded_videos"]);
 
@@ -45,6 +47,17 @@ const ALLOWED_VIDEO_MIME_TYPES = new Set([
   "video/x-m4v",
 ]);
 
+const ALLOWED_VOICE_CHANGER_AUDIO_MIME_TYPES = new Set([
+  "audio/aac",
+  "audio/flac",
+  "audio/mp4",
+  "audio/mpeg",
+  "audio/ogg",
+  "audio/wav",
+  "audio/webm",
+  "audio/x-wav",
+]);
+
 const EXTENSION_BY_MIME: Record<string, string> = {
   "image/jpeg": "jpg",
   "image/png": "png",
@@ -58,6 +71,37 @@ const EXTENSION_BY_MIME: Record<string, string> = {
   "video/quicktime": "mov",
   "video/x-m4v": "m4v",
 };
+
+const VOICE_CHANGER_AUDIO_EXTENSION_BY_MIME: Record<string, string> = {
+  "audio/aac": "aac",
+  "audio/flac": "flac",
+  "audio/mp4": "m4a",
+  "audio/mpeg": "mp3",
+  "audio/ogg": "ogg",
+  "audio/wav": "wav",
+  "audio/webm": "webm",
+  "audio/x-wav": "wav",
+};
+
+const VOICE_CHANGER_AUDIO_MIME_BY_EXTENSION: Record<string, string> = {
+  aac: "audio/aac",
+  flac: "audio/flac",
+  m4a: "audio/mp4",
+  mp3: "audio/mpeg",
+  oga: "audio/ogg",
+  ogg: "audio/ogg",
+  wav: "audio/wav",
+  webm: "audio/webm",
+};
+
+const VIDEO_MIME_BY_EXTENSION: Record<string, string> = {
+  m4v: "video/x-m4v",
+  mov: "video/quicktime",
+  mp4: "video/mp4",
+  webm: "video/webm",
+};
+
+type VoiceChangerSourceKind = "audio" | "video";
 
 export type MediaUploadDestinationTab = "uploaded_images" | "uploaded_videos" | "private";
 
@@ -193,11 +237,20 @@ const parseMultipart = async (
   };
 };
 
-const readRawBody = async (req: NextApiRequest): Promise<Buffer> =>
+const readRawBody = async (
+  req: NextApiRequest,
+  options?: {
+    maxBytes?: number;
+    tooLargeError?: MediaUploadServiceError;
+  }
+): Promise<Buffer> =>
   await new Promise<Buffer>((resolve, reject) => {
     const chunks: Buffer[] = [];
     let totalBytes = 0;
     let settled = false;
+    const maxBytes = options?.maxBytes ?? MAX_UPLOAD_BYTES;
+    const tooLargeError =
+      options?.tooLargeError ?? new MediaUploadServiceError(413, "Upload failed: file too large");
 
     const settle = (callback: () => void) => {
       if (settled) return;
@@ -212,8 +265,8 @@ const readRawBody = async (req: NextApiRequest): Promise<Buffer> =>
     const onData = (chunk: Buffer | string) => {
       const chunkBuffer = typeof chunk === "string" ? Buffer.from(chunk) : chunk;
       totalBytes += chunkBuffer.length;
-      if (totalBytes > MAX_UPLOAD_BYTES) {
-        settle(() => reject(new MediaUploadServiceError(413, "Upload failed: file too large")));
+      if (totalBytes > maxBytes) {
+        settle(() => reject(tooLargeError));
         req.destroy();
         return;
       }
@@ -426,30 +479,39 @@ type StorageUploadOptions = {
   storageFolderOverride?: string;
 };
 
-const uploadStorageAssetForUser = async ({
-  req,
-  userId,
-  defaultDestinationTab,
-  storageFolderOverride,
-}: StorageUploadOptions): Promise<UploadedStorageAsset> => {
-  const parsedUpload = await parseUpload(req, { defaultDestinationTab });
-  const detectedMimeType = resolveDetectedMimeType(
-    parsedUpload.destinationTab,
-    parsedUpload.buffer
-  );
-  const mimeType = validateUpload({
-    destinationTab: parsedUpload.destinationTab,
-    declaredMimeType: parsedUpload.declaredMimeType,
-    detectedMimeType,
-    fileSize: parsedUpload.size,
-  });
+type SignedStorageAssetResult = {
+  storagePath: string;
+  signedUrl: string;
+  size: number;
+};
 
+const resolveExtensionFromFilename = (filename: string): string | null => {
+  const dotIndex = filename.lastIndexOf(".");
+  if (dotIndex < 0) return null;
+  const extension = filename
+    .slice(dotIndex + 1)
+    .trim()
+    .toLowerCase();
+  return extension || null;
+};
+
+const uploadScopedStorageBuffer = async ({
+  userId,
+  storageFolder,
+  filename,
+  mimeType,
+  buffer,
+}: {
+  userId: string;
+  storageFolder: string;
+  filename: string;
+  mimeType: string;
+  buffer: Buffer;
+}): Promise<SignedStorageAssetResult> => {
   const extension =
-    EXTENSION_BY_MIME[mimeType] ??
-    (destinationExpectsVideo(parsedUpload.destinationTab) ? "mp4" : "jpg");
-  const fileBaseName = resolveBaseFileName(parsedUpload.filename);
+    EXTENSION_BY_MIME[mimeType] ?? VOICE_CHANGER_AUDIO_EXTENSION_BY_MIME[mimeType] ?? "bin";
+  const fileBaseName = resolveBaseFileName(filename);
   const storedFileName = `${Date.now()}-${Math.random().toString(36).slice(2)}-${fileBaseName}.${extension}`;
-  const storageFolder = storageFolderOverride ?? resolveUploadFolder(parsedUpload.destinationTab);
   const storagePath = assertUserScopedMediaStoragePath({
     path: `${userId}/${storageFolder}/${storedFileName}`,
     userId,
@@ -459,7 +521,7 @@ const uploadStorageAssetForUser = async ({
   const supabaseAdmin = getSupabaseAdmin();
   const { error: uploadError } = await supabaseAdmin.storage
     .from(MEDIA_BUCKET)
-    .upload(storagePath, parsedUpload.buffer, {
+    .upload(storagePath, buffer, {
       contentType: mimeType,
       upsert: false,
     });
@@ -483,8 +545,155 @@ const uploadStorageAssetForUser = async ({
   return {
     storagePath,
     signedUrl: signedAsset.signedUrl,
+    size: buffer.length,
+  };
+};
+
+const resolveVoiceChangerSourceMimeType = ({
+  kind,
+  declaredMimeType,
+  filename,
+  buffer,
+}: {
+  kind: VoiceChangerSourceKind;
+  declaredMimeType: string;
+  filename: string;
+  buffer: Buffer;
+}): string => {
+  const filenameExtension = resolveExtensionFromFilename(filename);
+  if (kind === "video") {
+    const detectedMimeType = detectVideoMimeType(buffer);
+    const candidateMimeType =
+      detectedMimeType && ALLOWED_VIDEO_MIME_TYPES.has(detectedMimeType)
+        ? detectedMimeType
+        : declaredMimeType && ALLOWED_VIDEO_MIME_TYPES.has(declaredMimeType)
+          ? declaredMimeType
+          : filenameExtension && VIDEO_MIME_BY_EXTENSION[filenameExtension]
+            ? VIDEO_MIME_BY_EXTENSION[filenameExtension]
+            : null;
+    if (!candidateMimeType || !ALLOWED_VIDEO_MIME_TYPES.has(candidateMimeType)) {
+      throw new MediaUploadServiceError(
+        400,
+        "Invalid file type",
+        "Voice changer source file is not a supported video format."
+      );
+    }
+    return candidateMimeType;
+  }
+
+  const candidateMimeType =
+    declaredMimeType && ALLOWED_VOICE_CHANGER_AUDIO_MIME_TYPES.has(declaredMimeType)
+      ? declaredMimeType
+      : filenameExtension && VOICE_CHANGER_AUDIO_MIME_BY_EXTENSION[filenameExtension]
+        ? VOICE_CHANGER_AUDIO_MIME_BY_EXTENSION[filenameExtension]
+        : null;
+  if (!candidateMimeType || !ALLOWED_VOICE_CHANGER_AUDIO_MIME_TYPES.has(candidateMimeType)) {
+    throw new MediaUploadServiceError(
+      400,
+      "Invalid file type",
+      "Voice changer source file is not a supported audio format."
+    );
+  }
+  return candidateMimeType;
+};
+
+const uploadStorageAssetForUser = async ({
+  req,
+  userId,
+  defaultDestinationTab,
+  storageFolderOverride,
+}: StorageUploadOptions): Promise<UploadedStorageAsset> => {
+  const parsedUpload = await parseUpload(req, { defaultDestinationTab });
+  const detectedMimeType = resolveDetectedMimeType(
+    parsedUpload.destinationTab,
+    parsedUpload.buffer
+  );
+  const mimeType = validateUpload({
+    destinationTab: parsedUpload.destinationTab,
+    declaredMimeType: parsedUpload.declaredMimeType,
+    detectedMimeType,
+    fileSize: parsedUpload.size,
+  });
+
+  const storageFolder = storageFolderOverride ?? resolveUploadFolder(parsedUpload.destinationTab);
+  const uploaded = await uploadScopedStorageBuffer({
+    userId,
+    storageFolder,
+    filename: parsedUpload.filename,
+    mimeType,
+    buffer: parsedUpload.buffer,
+  });
+
+  return {
+    storagePath: uploaded.storagePath,
+    signedUrl: uploaded.signedUrl,
     size: parsedUpload.size,
     parsedUpload,
+  };
+};
+
+export const uploadVoiceChangerSourceForUser = async ({
+  req,
+  userId,
+  kind,
+}: {
+  req: NextApiRequest;
+  userId: string;
+  kind: VoiceChangerSourceKind;
+}): Promise<{
+  url: string;
+  path: string;
+  size: number;
+  mimeType: string;
+  name: string;
+}> => {
+  const maxBytes =
+    kind === "video" ? MAX_VOICE_CHANGER_VIDEO_STAGE_BYTES : MAX_VOICE_CHANGER_AUDIO_STAGE_BYTES;
+  const tooLargeError =
+    kind === "video"
+      ? new MediaUploadServiceError(
+          413,
+          "Invalid request",
+          "Voice changer source videos must be 40 MB or smaller. Trim the clip and try again."
+        )
+      : new MediaUploadServiceError(
+          413,
+          "Invalid request",
+          "Voice changer source audio must be 100 MB or smaller."
+        );
+  const filename =
+    readHeaderString(req.headers["x-shortpulse-upload-filename"]) ||
+    `voice-changer-source.${kind === "video" ? "mp4" : "wav"}`;
+  const buffer = await readRawBody(req, { maxBytes, tooLargeError });
+  if (!buffer.length) {
+    throw new MediaUploadServiceError(
+      400,
+      "Invalid request",
+      "Voice changer source upload is empty."
+    );
+  }
+
+  const declaredMimeType = normalizeContentType(req.headers["content-type"]);
+  const mimeType = resolveVoiceChangerSourceMimeType({
+    kind,
+    declaredMimeType,
+    filename,
+    buffer,
+  });
+  const uploaded = await uploadScopedStorageBuffer({
+    userId,
+    storageFolder: kind === "video" ? "voice-changer/source-video" : "voice-changer/source-audio",
+    filename,
+    mimeType,
+    buffer,
+  });
+
+  return {
+    url: uploaded.signedUrl,
+    path: uploaded.storagePath,
+    size: uploaded.size,
+    mimeType,
+    name: filename,
   };
 };
 

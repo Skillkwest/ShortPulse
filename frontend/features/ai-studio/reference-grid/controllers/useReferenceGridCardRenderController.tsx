@@ -22,6 +22,7 @@ export type ReferenceGridVisibleCard = {
   cardPreviewUrl: string | null;
   isVideoPreview: boolean;
   isImagePreview: boolean;
+  isAudioPreview?: boolean;
   isPriorityHydration: boolean;
   imageSrc?: string;
 };
@@ -200,6 +201,7 @@ export const useReferenceGridCardRenderController = ({
           hoverVideoUrl={hoverVideoUrl}
           isVideoPreview={card.isVideoPreview}
           isImagePreview={card.isImagePreview}
+          isAudioPreview={card.isAudioPreview}
           canAutoplayVideo={canAutoplayVideo}
           videoPreload={
             shouldWarmVideoPreview || shouldPrimeGeneratedVideoFrame ? "metadata" : "none"

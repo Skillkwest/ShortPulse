@@ -1551,7 +1551,7 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
                 <button
                   type="button"
                   className="voices-properties-generate-btn"
-                  disabled={!isGenerateEnabled || isGenerating}
+                  disabled={!isGenerateEnabled}
                   aria-label="Generate"
                   onClick={handleGenerate}
                 >

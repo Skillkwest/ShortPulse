@@ -9,7 +9,7 @@ import type {
 import { canUseNextImageOptimizerForUrl } from "../mediaPreviewTrustPolicy";
 
 const HTTP_LIKE_PATTERN = /^https?:\/\//i;
-const DATA_LIKE_PATTERN = /^data:(image|video)\//i;
+const DATA_LIKE_PATTERN = /^data:(image|video|audio)\//i;
 const BLOB_LIKE_PATTERN = /^blob:/i;
 const WORKSPACE_STORAGE_KEY_ROOT_PATH_PATTERN =
   /^\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\//i;
@@ -17,6 +17,7 @@ const STORAGE_PATH_LIKE_PATTERN = /\//;
 const STORAGE_PATH_INVALID_PATTERN = /^(?:https?:\/\/|blob:|data:)/i;
 const SUPABASE_HOST_SUFFIX = ".supabase.co";
 const IMAGE_EXTENSION_PATTERN = /\.(avif|bmp|gif|heic|heif|jpe?g|png|webp|svg)(?:$|[?#])/i;
+const AUDIO_EXTENSION_PATTERN = /\.(aac|flac|m4a|mp3|oga|ogg|wav)(?:$|[?#])/i;
 const VIDEO_EXTENSION_PATTERN = /\.(m4v|mov|mp4|ogg|ogv|webm)(?:$|[?#])/i;
 const HTTP_PROTOCOL_PATTERN = /^https?:\/\//i;
 const ROOT_RELATIVE_PATTERN = /^\//;
@@ -113,7 +114,8 @@ const isSupabaseStorageUrl = (parsedUrl: URL): boolean => {
 };
 
 const inferMediaKind = (url: string, hint: AdaptiveMediaKind): AdaptiveMediaKind => {
-  if (hint === "image" || hint === "video") return hint;
+  if (hint === "image" || hint === "video" || hint === "audio") return hint;
+  if (AUDIO_EXTENSION_PATTERN.test(url)) return "audio";
   if (VIDEO_EXTENSION_PATTERN.test(url)) return "video";
   if (IMAGE_EXTENSION_PATTERN.test(url)) return "image";
   return "unknown";
@@ -139,7 +141,7 @@ const applyAdaptivePreviewTransform = ({
   }
 
   const inferredKind = inferMediaKind(url, mediaKindHint);
-  if (inferredKind === "video" || isLikelyVideoPath(parsed.pathname)) {
+  if (inferredKind === "video" || inferredKind === "audio" || isLikelyVideoPath(parsed.pathname)) {
     return { url, usedOptimizerTransform: false };
   }
 

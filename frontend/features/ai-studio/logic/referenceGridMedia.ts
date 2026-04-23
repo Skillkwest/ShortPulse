@@ -25,7 +25,7 @@ import type { StudioOutput } from "../types";
 type ReferenceMediaCandidate = string | null | undefined;
 export type ReferenceGridPreviewQualityBand = "high" | "balanced" | "compact";
 export type ReferenceGridMediaAuthorityTier = ReferenceOutputAuthorityTier;
-type ReferenceGridMediaKindHint = "image" | "video" | null;
+type ReferenceGridMediaKindHint = "image" | "video" | "audio" | null;
 
 const SUPABASE_HOST_SUFFIX = ".supabase.co";
 const IMAGE_EXTENSION_PATTERN = /\.(avif|bmp|gif|heic|heif|jpe?g|png|webp)(?:$|[?#])/i;
@@ -237,7 +237,13 @@ const resolveReferenceCardUrlsLegacy = (
     adaptivePreviewQuality && !hasDistinctDurablePreviewAsset(output);
   const pressureLevel = options?.pressureLevel ?? 0;
   const mediaKindHint: ReferenceGridMediaKindHint =
-    output.mode === "video" ? "video" : output.mode === "image" ? "image" : null;
+    output.mode === "video"
+      ? "video"
+      : output.mode === "image"
+        ? "image"
+        : output.mode === "audio"
+          ? "audio"
+          : null;
   const { qualityBand, targetLongEdgePx } = resolvePreviewQualityTarget({
     pressureLevel,
     surface: options?.surface ?? "reference-grid",
@@ -336,7 +342,13 @@ export const resolveReferenceCardUrls = (
   }
 
   const mediaKind =
-    output.mode === "video" ? "video" : output.mode === "image" ? "image" : "unknown";
+    output.mode === "video"
+      ? "video"
+      : output.mode === "image"
+        ? "image"
+        : output.mode === "audio"
+          ? "audio"
+          : "unknown";
   const source = resolveAdaptiveSourceKind(output.previewUrl ?? output.resultUrls?.[0] ?? null);
 
   const v2Resolved = resolveAdaptiveMedia({

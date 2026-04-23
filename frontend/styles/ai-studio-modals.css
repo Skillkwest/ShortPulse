@@ -518,6 +518,11 @@
   box-shadow: none;
 }
 
+.art-hero-audio {
+  width: min(680px, calc(100vw - 96px));
+  max-width: 100%;
+}
+
 .art-image-vessel.is-zoomable .art-hero-image {
   will-change: transform;
   user-select: none;

@@ -46,19 +46,24 @@ describe("referenceGridClipboard", () => {
 
   it("collects deduped clipboard media files with normalized mime type", () => {
     const duplicatedFile = new File(["abc"], "reference.png", { type: "" });
+    const duplicatedAudioFile = new File(["voice"], "voice.mp3", { type: "" });
     const transfer = {
-      files: [duplicatedFile, duplicatedFile],
+      files: [duplicatedFile, duplicatedFile, duplicatedAudioFile, duplicatedAudioFile],
       items: [
         { kind: "file", type: "image/png", getAsFile: () => duplicatedFile },
         { kind: "file", type: "image/png", getAsFile: () => duplicatedFile },
+        { kind: "file", type: "audio/mpeg", getAsFile: () => duplicatedAudioFile },
+        { kind: "file", type: "audio/mpeg", getAsFile: () => duplicatedAudioFile },
       ],
       getData: () => "",
     } as unknown as DataTransfer;
 
     const files = collectClipboardMediaFiles(transfer);
-    expect(files).toHaveLength(1);
+    expect(files).toHaveLength(2);
     expect(files[0]?.type).toBe("image/png");
     expect(files[0]?.name).toBe("reference.png");
+    expect(files[1]?.type).toBe("audio/mpeg");
+    expect(files[1]?.name).toBe("voice.mp3");
   });
 
   it("resolves media URL references from uri-list and html payloads", () => {
@@ -103,7 +108,9 @@ describe("referenceGridClipboard", () => {
   it("keeps media-url + mime inference behavior stable", () => {
     expect(normalizeClipboardText("  hi  ")).toBe("hi");
     expect(isMediaUrl("https://cdn.example.com/image.webp")).toBe(true);
+    expect(isMediaUrl("https://cdn.example.com/voice.mp3")).toBe(true);
     expect(inferClipboardMimeTypeFromUrl("https://cdn.example.com/movie.webm")).toBe("video/*");
+    expect(inferClipboardMimeTypeFromUrl("https://cdn.example.com/voice.mp3")).toBe("audio/*");
     expect(inferClipboardMimeTypeFromUrl("https://cdn.example.com/readme.txt")).toBeNull();
   });
 });

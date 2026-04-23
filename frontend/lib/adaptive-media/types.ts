@@ -9,7 +9,7 @@ export type AdaptiveSurface =
 
 export type AdaptivePressureLevel = 0 | 1 | 2;
 
-export type AdaptiveMediaKind = "image" | "video" | "unknown";
+export type AdaptiveMediaKind = "image" | "video" | "audio" | "unknown";
 
 export type AdaptiveSourceKind = "remote" | "local-blob" | "data-url";
 

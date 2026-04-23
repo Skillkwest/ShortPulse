@@ -13,7 +13,8 @@ export type ClipboardMediaUrlReference = {
 };
 
 const IMAGE_URL_PATTERN = /\.(avif|bmp|gif|heic|heif|jpe?g|png|svg|webp)(?:[?#].*)?$/i;
-const VIDEO_URL_PATTERN = /\.(m4v|mov|mp4|ogg|ogv|webm)(?:[?#].*)?$/i;
+const AUDIO_URL_PATTERN = /\.(aac|flac|m4a|mp3|oga|ogg|wav)(?:[?#].*)?$/i;
+const VIDEO_URL_PATTERN = /\.(m4v|mov|mp4|ogv|webm)(?:[?#].*)?$/i;
 const IMAGE_EXTENSION_TO_MIME: Record<string, string> = {
   avif: "image/avif",
   bmp: "image/bmp",
@@ -26,11 +27,19 @@ const IMAGE_EXTENSION_TO_MIME: Record<string, string> = {
   svg: "image/svg+xml",
   webp: "image/webp",
 };
+const AUDIO_EXTENSION_TO_MIME: Record<string, string> = {
+  aac: "audio/aac",
+  flac: "audio/flac",
+  m4a: "audio/mp4",
+  mp3: "audio/mpeg",
+  oga: "audio/ogg",
+  ogg: "audio/ogg",
+  wav: "audio/wav",
+};
 const VIDEO_EXTENSION_TO_MIME: Record<string, string> = {
   m4v: "video/mp4",
   mov: "video/quicktime",
   mp4: "video/mp4",
-  ogg: "video/ogg",
   ogv: "video/ogg",
   webm: "video/webm",
 };
@@ -47,7 +56,7 @@ export const parseUrlCandidate = (value: string): string | null => {
   const candidate = normalizeClipboardText(value);
   if (!candidate || (typeof window !== "undefined" && candidate === window.location.href))
     return null;
-  if (/^data:(image|video)\//i.test(candidate)) return candidate;
+  if (/^data:(image|video|audio)\//i.test(candidate)) return candidate;
   if (/^blob:/i.test(candidate)) return candidate;
   try {
     const url = new URL(candidate);
@@ -62,7 +71,10 @@ export const parseUrlCandidate = (value: string): string | null => {
  * Returns true when a URL points to image/video media.
  */
 export const isMediaUrl = (url: string): boolean =>
-  /^data:(image|video)\//i.test(url) || IMAGE_URL_PATTERN.test(url) || VIDEO_URL_PATTERN.test(url);
+  /^data:(image|video|audio)\//i.test(url) ||
+  IMAGE_URL_PATTERN.test(url) ||
+  AUDIO_URL_PATTERN.test(url) ||
+  VIDEO_URL_PATTERN.test(url);
 
 /**
  * Extracts dropped prompt text while ignoring dropped media URLs.
@@ -84,21 +96,30 @@ export const inferMimeTypeFromFilename = (filename: string): string | null => {
   const normalized = filename.trim().toLowerCase();
   const extension = normalized.includes(".") ? (normalized.split(".").pop() ?? "") : "";
   if (!extension) return null;
-  return IMAGE_EXTENSION_TO_MIME[extension] ?? VIDEO_EXTENSION_TO_MIME[extension] ?? null;
+  return (
+    IMAGE_EXTENSION_TO_MIME[extension] ??
+    AUDIO_EXTENSION_TO_MIME[extension] ??
+    VIDEO_EXTENSION_TO_MIME[extension] ??
+    null
+  );
 };
 
 /**
- * Normalizes media MIME type to image/video values only.
+ * Normalizes media MIME type to image/video/audio values only.
  */
 export const normalizeMediaMimeType = (mimeType: string | null | undefined): string | null => {
   if (!mimeType) return null;
   const normalized = mimeType.trim().toLowerCase();
   if (!normalized) return null;
-  return normalized.startsWith("image/") || normalized.startsWith("video/") ? normalized : null;
+  return normalized.startsWith("image/") ||
+    normalized.startsWith("video/") ||
+    normalized.startsWith("audio/")
+    ? normalized
+    : null;
 };
 
 /**
- * Normalizes clipboard files to image/video Files with explicit MIME.
+ * Normalizes clipboard files to image/video/audio Files with explicit MIME.
  */
 export const normalizeMediaFile = (
   file: File | null,
@@ -115,9 +136,16 @@ export const normalizeMediaFile = (
     return file;
   }
   const extension =
-    Object.entries({ ...IMAGE_EXTENSION_TO_MIME, ...VIDEO_EXTENSION_TO_MIME }).find(
-      ([, mimeType]) => mimeType === resolvedMimeType
-    )?.[0] ?? (resolvedMimeType.startsWith("image/") ? "png" : "mp4");
+    Object.entries({
+      ...IMAGE_EXTENSION_TO_MIME,
+      ...AUDIO_EXTENSION_TO_MIME,
+      ...VIDEO_EXTENSION_TO_MIME,
+    }).find(([, mimeType]) => mimeType === resolvedMimeType)?.[0] ??
+    (resolvedMimeType.startsWith("image/")
+      ? "png"
+      : resolvedMimeType.startsWith("audio/")
+        ? "mp3"
+        : "mp4");
   const normalizedName = file.name?.trim() || `pasted-media-${index + 1}.${extension}`;
   return new File([file], normalizedName, {
     type: resolvedMimeType,
@@ -225,10 +253,15 @@ export const inferClipboardMimeTypeFromUrl = (url: string): string | null => {
     const mime = url.slice(5, url.indexOf(";"));
     return mime || "image/*";
   }
+  if (/^data:audio\//i.test(url)) {
+    const mime = url.slice(5, url.indexOf(";"));
+    return mime || "audio/*";
+  }
   if (/^data:video\//i.test(url)) {
     const mime = url.slice(5, url.indexOf(";"));
     return mime || "video/*";
   }
+  if (AUDIO_URL_PATTERN.test(url)) return "audio/*";
   if (VIDEO_URL_PATTERN.test(url)) return "video/*";
   if (IMAGE_URL_PATTERN.test(url)) return "image/*";
   return null;

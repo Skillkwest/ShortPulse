@@ -119,18 +119,21 @@ export const uploadVoiceChangerSourceFile = async ({
   size: number;
 }> => {
   const mimeType = file.type.trim() || (kind === "audio" ? "audio/wav" : "video/mp4");
-  const response = await fetchWithAuth("/api/media/stage-voice-changer-source", {
-    method: "POST",
-    headers: {
-      "Content-Type": mimeType,
-      "x-shortpulse-upload-filename":
-        file.name.trim() || `voice-changer-source.${inferExtensionFromMimeType(mimeType, kind)}`,
-      "x-shortpulse-voice-changer-kind": kind,
-    },
-    body: file,
-    shortpulseLogScope: "generation",
-    shortpulseAuthTimeoutMs: VOICE_CHANGER_SOURCE_AUTH_TIMEOUT_MS,
-  });
+  const response = await fetchWithAuth(
+    kind === "video" ? "/api/upload-video" : "/api/media/stage-voice-changer-source",
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": mimeType,
+        "x-shortpulse-upload-filename":
+          file.name.trim() || `voice-changer-source.${inferExtensionFromMimeType(mimeType, kind)}`,
+        ...(kind === "audio" ? { "x-shortpulse-voice-changer-kind": kind } : {}),
+      },
+      body: file,
+      shortpulseLogScope: "generation",
+      shortpulseAuthTimeoutMs: VOICE_CHANGER_SOURCE_AUTH_TIMEOUT_MS,
+    }
+  );
   const payload = (await response.json().catch(() => null)) as {
     source?: {
       storagePath?: unknown;
@@ -139,17 +142,49 @@ export const uploadVoiceChangerSourceFile = async ({
       name?: unknown;
       size?: unknown;
     };
+    url?: unknown;
+    path?: unknown;
+    size?: unknown;
     error?: unknown;
     details?: unknown;
   } | null;
+
   const storagePath =
-    typeof payload?.source?.storagePath === "string" ? payload.source.storagePath.trim() : "";
+    kind === "video"
+      ? typeof payload?.path === "string"
+        ? payload.path.trim()
+        : ""
+      : typeof payload?.source?.storagePath === "string"
+        ? payload.source.storagePath.trim()
+        : "";
   const previewUrl =
-    typeof payload?.source?.previewUrl === "string" ? payload.source.previewUrl.trim() : "";
+    kind === "video"
+      ? typeof payload?.url === "string"
+        ? payload.url.trim()
+        : ""
+      : typeof payload?.source?.previewUrl === "string"
+        ? payload.source.previewUrl.trim()
+        : "";
   const resolvedMimeType =
-    typeof payload?.source?.mimeType === "string" ? payload.source.mimeType.trim() : "";
-  const name = typeof payload?.source?.name === "string" ? payload.source.name.trim() : "";
-  const size = typeof payload?.source?.size === "number" ? payload.source.size : NaN;
+    kind === "video"
+      ? mimeType
+      : typeof payload?.source?.mimeType === "string"
+        ? payload.source.mimeType.trim()
+        : "";
+  const name =
+    kind === "video"
+      ? file.name.trim()
+      : typeof payload?.source?.name === "string"
+        ? payload.source.name.trim()
+        : "";
+  const size =
+    kind === "video"
+      ? typeof payload?.size === "number"
+        ? payload.size
+        : NaN
+      : typeof payload?.source?.size === "number"
+        ? payload.source.size
+        : NaN;
   if (!response.ok || !storagePath || !previewUrl || !resolvedMimeType || !name) {
     const error =
       typeof payload?.details === "string" && payload.details.trim()

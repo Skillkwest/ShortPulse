@@ -52,9 +52,11 @@ const createMockResponse = () => ({
 const setupSupabaseUpload = (options?: {
   insertedRow?: Record<string, unknown>;
   uploadError?: { message: string } | null;
+  insertError?: { message: string; code?: string } | null;
   signedUrl?: string;
 }) => {
   const uploadMock = vi.fn(async () => ({ error: options?.uploadError ?? null }));
+  const removeMock = vi.fn(async () => ({ data: null, error: null }));
   const createSignedUrlMock = vi.fn(async () => ({
     data: {
       signedUrl: options?.signedUrl ?? "https://signed.example/media-upload",
@@ -63,22 +65,24 @@ const setupSupabaseUpload = (options?: {
   }));
 
   const singleMock = vi.fn(async () => ({
-    data: {
-      id: "media-upload-1",
-      user_id: "user-1",
-      filename: "asset.png",
-      storage_path: "user-1/private/images/media-upload-1-asset.png",
-      file_type: "image",
-      file_size: 16,
-      source: "private_upload",
-      created_at: "2026-02-27T00:00:00.000Z",
-      metadata: {},
-      thumb_variant_path: null,
-      poster_variant_path: null,
-      preview_variant_path: null,
-      ...(options?.insertedRow ?? {}),
-    },
-    error: null,
+    data: options?.insertError
+      ? null
+      : {
+          id: "media-upload-1",
+          user_id: "user-1",
+          filename: "asset.png",
+          storage_path: "user-1/private/images/media-upload-1-asset.png",
+          file_type: "image",
+          file_size: 16,
+          source: "private_upload",
+          created_at: "2026-02-27T00:00:00.000Z",
+          metadata: {},
+          thumb_variant_path: null,
+          poster_variant_path: null,
+          preview_variant_path: null,
+          ...(options?.insertedRow ?? {}),
+        },
+    error: options?.insertError ?? null,
   }));
 
   const selectMock = vi.fn(() => ({ single: singleMock }));
@@ -96,6 +100,7 @@ const setupSupabaseUpload = (options?: {
     storage: {
       from: vi.fn(() => ({
         upload: uploadMock,
+        remove: removeMock,
         createSignedUrl: createSignedUrlMock,
       })),
     },
@@ -104,6 +109,7 @@ const setupSupabaseUpload = (options?: {
 
   return {
     uploadMock,
+    removeMock,
     createSignedUrlMock,
     insertMock,
   };
@@ -208,6 +214,37 @@ describe("POST /api/media/upload", () => {
     expect(res.json).toHaveBeenCalledWith({
       error: "Media upload API is disabled",
       details: "Enable SHORTPULSE_MEDIA_UPLOAD_API_ENABLED to use this route.",
+    });
+  });
+
+  it("returns 409 and cleans up uploaded storage when account storage is full", async () => {
+    vi.spyOn(fs, "readFileSync").mockReturnValue(
+      Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])
+    );
+    const { removeMock } = setupSupabaseUpload({
+      insertError: {
+        code: "P0001",
+        message:
+          "Media storage limit exceeded (used_bytes=1073741824 incoming_bytes=16 limit_bytes=1073741824)",
+      },
+    });
+
+    const req = {
+      method: "POST",
+      headers: {
+        "content-type": "multipart/form-data; boundary=x",
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(removeMock).toHaveBeenCalledTimes(1);
+    expect(res.status).toHaveBeenCalledWith(409);
+    expect(res.json).toHaveBeenCalledWith({
+      error: "Media storage limit exceeded",
+      details:
+        "Delete media, upgrade your plan, or add recurring storage before uploading more files.",
     });
   });
 

@@ -535,7 +535,14 @@ describe("VoicesPropertiesPanel", () => {
       target: { files: [file] },
     });
 
-    await screen.findByText("Uploading video source");
+    await screen.findByText("Preparing voice sample from video");
+    expect(
+      container.querySelector(".voices-properties-voice-changer-dropzone-spinner")
+    ).not.toBeNull();
+    expect(
+      container.querySelector(".voices-properties-voice-changer-dropzone-loading-preview")
+    ).not.toBeNull();
+    expect(container.querySelector(".voices-properties-voice-changer-dropzone-video")).toBeNull();
     expect(revokeObjectUrlMock).not.toHaveBeenCalled();
 
     uploadDeferred.resolve({
@@ -546,7 +553,14 @@ describe("VoicesPropertiesPanel", () => {
       size: 5,
     });
 
-    await screen.findByText("Extracting voice audio");
+    await screen.findByText("Extracting voice sample");
+    expect(
+      container.querySelector(".voices-properties-voice-changer-dropzone-spinner")
+    ).not.toBeNull();
+    expect(
+      container.querySelector(".voices-properties-voice-changer-dropzone-loading-preview")
+    ).not.toBeNull();
+    expect(container.querySelector(".voices-properties-voice-changer-dropzone-video")).toBeNull();
     expect(revokeObjectUrlMock).not.toHaveBeenCalled();
 
     extractDeferred.resolve({
@@ -558,6 +572,10 @@ describe("VoicesPropertiesPanel", () => {
     });
 
     await screen.findByText("Ready for conversion");
+    expect(container.querySelector(".voices-properties-voice-changer-dropzone-spinner")).toBeNull();
+    expect(
+      container.querySelector(".voices-properties-voice-changer-dropzone-loading-preview")
+    ).toBeNull();
     await waitFor(() => {
       expect(revokeObjectUrlMock).toHaveBeenCalledTimes(1);
     });
@@ -1364,6 +1382,48 @@ describe("VoicesPropertiesPanel", () => {
         }),
       })
     );
+  });
+
+  it("keeps generate enabled and allows repeated submissions while generation is in flight", async () => {
+    fetchWithAuthMock.mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        source: "api",
+        voices: [
+          {
+            voiceId: "voice_live_repeat_123",
+            name: "Repeat Voice",
+            previewUrl: "https://cdn.elevenlabs.test/repeat.mp3",
+            isFallback: false,
+          },
+        ],
+      }),
+    });
+    const onGenerate = vi.fn();
+
+    render(<VoicesPropertiesPanel onGenerate={onGenerate} isGenerating />);
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /repeat voice voice/i })).toHaveAttribute(
+        "aria-pressed",
+        "true"
+      );
+    });
+
+    fireEvent.change(screen.getByRole("textbox", { name: "Voice script" }), {
+      target: { value: "Allow multiple voiceover submissions while prior runs are pending." },
+    });
+
+    const generateButton = screen.getByRole("button", { name: "Generate" });
+    expect(generateButton).toBeEnabled();
+    expect(screen.getByText("Generating…")).toBeInTheDocument();
+
+    fireEvent.click(generateButton);
+    fireEvent.click(generateButton);
+
+    await waitFor(() => {
+      expect(onGenerate).toHaveBeenCalledTimes(2);
+    });
   });
 
   it("plays and stops a live voice sample from the chip play button", async () => {

@@ -80,6 +80,19 @@
   --reference-generate-text: #efe8ff;
 }
 
+.reference-canvas-panel[data-selection-theme="sound"] {
+  --reference-selection-active-bg: rgba(122, 220, 212, 0.28);
+  --reference-selection-active-shadow: rgba(122, 220, 212, 0.28);
+  --reference-selection-active-outline: rgba(149, 235, 228, 0.94);
+  --reference-selection-active-glow: rgba(122, 220, 212, 0.22);
+  --reference-generate-border: rgba(122, 220, 212, 0.58);
+  --reference-generate-start: rgba(149, 235, 228, 0.98);
+  --reference-generate-end: rgba(132, 226, 218, 0.96);
+  --reference-generate-shadow: rgba(122, 220, 212, 0.34);
+  --reference-generate-hover-shadow: rgba(122, 220, 212, 0.22);
+  --reference-generate-text: #0b1820;
+}
+
 .reference-canvas-panel.is-high-density .reference-card {
   transition: transform 0.12s ease;
 }
@@ -522,6 +535,10 @@
   background: var(--ai-create-prompt-input-bg);
 }
 
+.reference-card.has-audio {
+  background: var(--ai-create-prompt-input-bg);
+}
+
 .reference-card-video {
   position: absolute;
   inset: 0;
@@ -597,6 +614,161 @@
   .reference-card.is-loading
   .reference-card-image {
   background-color: var(--ai-create-prompt-input-bg);
+}
+
+.reference-card-audio-shell {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  padding: 30px 14px 8px;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at top, rgba(108, 205, 255, 0.18), transparent 58%),
+    linear-gradient(180deg, rgba(18, 24, 31, 0.96), rgba(12, 17, 24, 0.98));
+}
+
+.reference-card-audio-player {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.reference-card-audio-player-row {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  align-items: center;
+}
+
+.reference-card-audio-play {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 50px;
+  height: 50px;
+  min-width: 50px;
+  min-height: 50px;
+  padding: 0;
+  aspect-ratio: 1 / 1;
+  border-radius: 50%;
+  border: 1px solid rgba(134, 209, 255, 0.28);
+  background: rgba(17, 22, 29, 0.88);
+  color: rgba(231, 246, 255, 0.96);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.04),
+    0 10px 20px rgba(0, 0, 0, 0.2);
+  transition:
+    border-color 0.16s ease,
+    background 0.16s ease,
+    color 0.16s ease,
+    transform 0.16s ease,
+    box-shadow 0.16s ease;
+  pointer-events: auto;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  box-sizing: border-box;
+}
+
+.reference-card-audio-play:hover,
+.reference-card-audio-play:focus-visible,
+.reference-card-audio-play.is-playing {
+  border-color: rgba(146, 216, 255, 0.54);
+  background: rgba(24, 30, 38, 0.96);
+  color: #f7fbff;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    0 12px 24px rgba(0, 0, 0, 0.22);
+}
+
+.reference-card-audio-play:hover {
+  transform: translateY(-1px);
+}
+
+.reference-card-audio-play:focus-visible {
+  outline: 2px solid rgba(52, 200, 255, 0.88);
+  outline-offset: 2px;
+}
+
+.reference-card-audio-waveform-shell {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  flex-direction: column;
+  gap: 7px;
+  align-items: center;
+}
+
+.reference-card-audio-waveform {
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+  gap: 1px;
+  width: 100%;
+  max-width: 78px;
+  height: 40px;
+  min-width: 0;
+  pointer-events: none;
+}
+
+.reference-card-audio-wavebar {
+  position: relative;
+  flex: 1 1 0;
+  min-width: 0;
+  height: 100%;
+}
+
+.reference-card-audio-wavebar-track,
+.reference-card-audio-wavebar-fill {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: calc(var(--audio-waveform-height, 0.12) * 100%);
+  border-radius: 999px;
+  transform: translateY(-50%);
+}
+
+.reference-card-audio-wavebar-track {
+  background: linear-gradient(180deg, rgba(132, 149, 164, 0.82), rgba(92, 108, 122, 0.76));
+  opacity: 0.92;
+}
+
+.reference-card-audio-wavebar-fill {
+  background: linear-gradient(180deg, rgba(216, 241, 255, 0.99), rgba(105, 198, 255, 0.94));
+  opacity: var(--audio-waveform-progress, 0);
+  transition: opacity 0.12s linear;
+}
+
+.reference-card-audio-time-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  max-width: 78px;
+  color: rgba(200, 215, 227, 0.78);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.reference-card-audio-time-current,
+.reference-card-audio-time-total {
+  min-width: 0;
+}
+
+.reference-card-audio {
+  position: absolute;
+  width: 0;
+  height: 0;
+  opacity: 0;
+  pointer-events: none;
 }
 
 .reference-card-text {

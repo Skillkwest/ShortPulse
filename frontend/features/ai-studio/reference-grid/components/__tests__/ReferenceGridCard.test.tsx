@@ -27,6 +27,8 @@ afterAll(() => {
 
 beforeEach(() => {
   vi.useFakeTimers();
+  playMock.mockClear();
+  pauseMock.mockClear();
 });
 
 afterEach(() => {
@@ -218,5 +220,135 @@ describe("ReferenceGridCard", () => {
     fireEvent.pointerLeave(card);
     expect(pauseMock).toHaveBeenCalled();
     expect(posterImage?.classList.contains("is-hidden")).toBe(false);
+  });
+
+  it("renders a compact audio preview with timing and waveform", async () => {
+    render(
+      <ReferenceGridCard
+        {...createProps({
+          item: createOutput({ mode: "audio", taskState: "success", durationMs: 2000 }),
+          isAudioPreview: true,
+          cardPreviewUrl: "https://example.com/audio.mp3",
+        })}
+      />
+    );
+
+    const playButton = screen.getByRole("button", { name: "Play audio preview" });
+    const audioNode = document.querySelector(".reference-card-audio") as HTMLAudioElement | null;
+    const waveformBars = document.querySelectorAll(".reference-card-audio-wavebar");
+
+    expect(audioNode).not.toBeNull();
+    expect(document.querySelector(".reference-card-audio-time-row")).not.toBeNull();
+    expect(screen.getByText("0:00")).toBeInTheDocument();
+    expect(screen.getByText("0:02")).toBeInTheDocument();
+    expect(waveformBars.length).toBeGreaterThan(10);
+    expect(waveformBars.length).toBeLessThan(40);
+
+    fireEvent.click(playButton);
+    expect(playMock).toHaveBeenCalledTimes(1);
+
+    fireEvent.play(audioNode as HTMLAudioElement);
+    expect(screen.getByRole("button", { name: "Pause audio preview" })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Pause audio preview" }));
+    expect(pauseMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("fills waveform bars as audio playback progresses", () => {
+    render(
+      <ReferenceGridCard
+        {...createProps({
+          item: createOutput({ mode: "audio", taskState: "success", durationMs: 4000 }),
+          isAudioPreview: true,
+          cardPreviewUrl: "https://example.com/audio-progress.mp3",
+        })}
+      />
+    );
+
+    const audioNode = document.querySelector(".reference-card-audio") as HTMLAudioElement | null;
+    expect(audioNode).not.toBeNull();
+
+    Object.defineProperty(audioNode, "duration", {
+      configurable: true,
+      value: 4,
+    });
+    Object.defineProperty(audioNode, "currentTime", {
+      configurable: true,
+      writable: true,
+      value: 2.1,
+    });
+
+    fireEvent.timeUpdate(audioNode as HTMLAudioElement);
+
+    const playedBars = document.querySelectorAll(
+      '.reference-card-audio-wavebar[data-progress-state="played"]'
+    );
+    const playingBar = document.querySelector(
+      '.reference-card-audio-wavebar[data-progress-state="playing"]'
+    );
+
+    expect(playedBars.length).toBeGreaterThan(0);
+    expect(playingBar).not.toBeNull();
+  });
+
+  it("keeps fallback waveform density fixed across audio durations", () => {
+    const { rerender } = render(
+      <ReferenceGridCard
+        {...createProps({
+          item: createOutput({ mode: "audio", taskState: "success", durationMs: 2000 }),
+          isAudioPreview: true,
+          cardPreviewUrl: "https://example.com/audio-short.mp3",
+        })}
+      />
+    );
+
+    expect(document.querySelectorAll(".reference-card-audio-wavebar").length).toBeGreaterThan(10);
+    expect(document.querySelectorAll(".reference-card-audio-wavebar").length).toBeLessThan(40);
+
+    rerender(
+      <ReferenceGridCard
+        {...createProps({
+          item: createOutput({
+            id: "out-2",
+            mode: "audio",
+            taskState: "success",
+            durationMs: 12000,
+          }),
+          isAudioPreview: true,
+          cardPreviewUrl: "https://example.com/audio-long.mp3",
+        })}
+      />
+    );
+
+    expect(document.querySelectorAll(".reference-card-audio-wavebar").length).toBeGreaterThan(10);
+    expect(document.querySelectorAll(".reference-card-audio-wavebar").length).toBeLessThan(40);
+  });
+
+  it("prefers stored waveform peaks when they exist on the audio output", () => {
+    render(
+      <ReferenceGridCard
+        {...createProps({
+          item: createOutput({
+            mode: "audio",
+            taskState: "success",
+            durationMs: 4000,
+            waveformPeaks: [10, 20, 30, 40, 50],
+          }),
+          isAudioPreview: true,
+          cardPreviewUrl: "https://example.com/audio-with-peaks.mp3",
+        })}
+      />
+    );
+
+    const waveformBars = Array.from(
+      document.querySelectorAll(".reference-card-audio-wavebar")
+    ) as HTMLSpanElement[];
+    expect(waveformBars.length).toBeGreaterThan(10);
+    expect(waveformBars.length).toBeLessThan(40);
+    expect(
+      waveformBars.some(
+        (bar) => Number.parseFloat(bar.style.getPropertyValue("--audio-waveform-height")) > 0.25
+      )
+    ).toBe(true);
   });
 });

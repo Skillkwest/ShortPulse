@@ -7,6 +7,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ReferenceGrid, type ReferenceGridProps } from "../ReferenceGrid";
 import type { StudioOutput } from "../../types";
 import { EXPERT_EDIT_STYLE_CATALOG } from "../edit/expertEditStyles";
+import { resolveReferenceSelectionTheme } from "../../reference-grid/referenceGridConfig";
 
 class MockResizeObserver {
   observe() {
@@ -2137,5 +2138,14 @@ describe("ReferenceGrid curated split", () => {
     );
     expect(getByRole("button", { name: /style tile: none$/i })).not.toHaveClass("is-selected");
     expect(getByRole("button", { name: /style tile: cinematic$/i })).toHaveClass("is-selected");
+  });
+
+  it("uses the teal sound selection theme for all sound-family tools", () => {
+    expect(resolveReferenceSelectionTheme("sound")).toBe("sound");
+    expect(resolveReferenceSelectionTheme("voices")).toBe("sound");
+    expect(resolveReferenceSelectionTheme("text-to-speech")).toBe("sound");
+    expect(resolveReferenceSelectionTheme("voice-changer")).toBe("sound");
+    expect(resolveReferenceSelectionTheme("sound-effects")).toBe("sound");
+    expect(resolveReferenceSelectionTheme("music")).toBe("sound");
   });
 });

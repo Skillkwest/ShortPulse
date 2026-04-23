@@ -3,7 +3,7 @@
  * Provides the UI-only intake surface for one audio/video source clip in the Voices workflow.
  */
 import React from "react";
-import { UploadSimple, X } from "phosphor-react";
+import { CircleNotch, UploadSimple, X } from "phosphor-react";
 import {
   extractInternalReferenceDragPayload,
   normalizeReferenceTransferUrlCandidate,
@@ -294,9 +294,9 @@ export const releaseVoiceChangerSource = (source: VoiceChangerSource | null): vo
 
 const resolveSourceStatusTitle = (source: VoiceChangerSource): string => {
   if (source.status === "uploading") {
-    return source.kind === "video" ? "Uploading video source" : "Uploading audio source";
+    return source.kind === "video" ? "Preparing voice sample from video" : "Preparing voice sample";
   }
-  if (source.status === "extracting") return "Extracting voice audio";
+  if (source.status === "extracting") return "Extracting voice sample";
   if (source.status === "failed") return "Source processing failed";
   return "Ready for conversion";
 };
@@ -304,11 +304,11 @@ const resolveSourceStatusTitle = (source: VoiceChangerSource): string => {
 const resolveSourceStatusDetail = (source: VoiceChangerSource): string | null => {
   if (source.status === "uploading") {
     return source.kind === "video"
-      ? "Saving the dropped video to private storage before extraction."
-      : "Saving the source audio to private storage.";
+      ? "Staging the video so we can extract a voice sample."
+      : "Staging the source audio so it is ready for voice conversion.";
   }
   if (source.status === "extracting") {
-    return "Converting the stored video into a staged vocal sample.";
+    return "Pulling the voice audio out of the staged video.";
   }
   if (source.status === "failed") {
     return source.errorMessage ?? "Unable to prepare the selected source.";
@@ -318,6 +318,12 @@ const resolveSourceStatusDetail = (source: VoiceChangerSource): string | null =>
   }
   return null;
 };
+
+const shouldShowSourceStatusSpinner = (source: VoiceChangerSource): boolean =>
+  source.status === "uploading" || source.status === "extracting";
+
+const shouldShowSourceLoadingPreview = (source: VoiceChangerSource): boolean =>
+  source.status === "uploading" || source.status === "extracting";
 
 /**
  * Renders the voice changer source intake surface for one audio/video file.
@@ -533,7 +539,21 @@ export function VoiceChangerSourceDropzone({
           onDrop={handleDrop}
         >
           <div className="voices-properties-voice-changer-dropzone-preview">
-            {source.kind === "video" && source.previewUrl ? (
+            {shouldShowSourceLoadingPreview(source) ? (
+              <div
+                className="voices-properties-voice-changer-dropzone-loading-preview"
+                role="status"
+                aria-live="polite"
+                aria-label={resolveSourceStatusTitle(source)}
+              >
+                <span
+                  className="voices-properties-voice-changer-dropzone-loading-spinner"
+                  aria-hidden="true"
+                >
+                  <CircleNotch size={34} weight="bold" />
+                </span>
+              </div>
+            ) : source.kind === "video" && source.previewUrl ? (
               <video
                 className="voices-properties-voice-changer-dropzone-video"
                 src={source.previewUrl}
@@ -552,9 +572,19 @@ export function VoiceChangerSourceDropzone({
 
           <div className="voices-properties-voice-changer-dropzone-meta">
             <div className="voices-properties-voice-changer-dropzone-copy">
-              <p className="voices-properties-voice-changer-dropzone-title">
-                {resolveSourceStatusTitle(source)}
-              </p>
+              <div className="voices-properties-voice-changer-dropzone-title-row">
+                {shouldShowSourceStatusSpinner(source) ? (
+                  <span
+                    className="voices-properties-voice-changer-dropzone-spinner"
+                    aria-hidden="true"
+                  >
+                    <CircleNotch size={16} weight="bold" />
+                  </span>
+                ) : null}
+                <p className="voices-properties-voice-changer-dropzone-title">
+                  {resolveSourceStatusTitle(source)}
+                </p>
+              </div>
               {resolveSourceStatusDetail(source) ? (
                 <p
                   className={`voices-properties-voice-changer-dropzone-helper${

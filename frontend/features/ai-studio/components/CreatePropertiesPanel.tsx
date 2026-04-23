@@ -16,6 +16,7 @@ import type {
   AgentMessage,
   AgentOutputBubbleMediaState,
   AgentOutputGenerateInput,
+  AgentPulseWorkflowSession,
 } from "../../../prefabs/agent";
 import { PromptStep } from "./PromptStep";
 import { StylesControl } from "./StylesControl";
@@ -23,6 +24,12 @@ import { deriveCreateSelectorViewState } from "../logic/createSelectorState";
 import { getModelConfig } from "../logic/modelRegistry";
 import { BeginnerCreatePanelView } from "./create/BeginnerCreatePanelView";
 import { ExpertCreatePanelView } from "./create/ExpertCreatePanelView";
+import type {
+  CreatePulsePresetId,
+  CreatePulseResolvedPreset,
+  CreatePulseSavedPreset,
+} from "./create/createPulsePresets";
+import { resolveCreatePulsePresetById } from "./create/createPulsePresets";
 import {
   getCreateCharacterInitials,
   type CreateCharacterOption,
@@ -116,6 +123,14 @@ export type CreatePropertiesPanelProps = {
   stylesCatalog?: readonly ExpertEditStyleTile[];
   expertCreateMode?: ExpertCreateMode;
   onExpertCreateModeChange?: (value: ExpertCreateMode) => void;
+  activePulsePresetId?: CreatePulsePresetId | null;
+  pulseWorkflowSession?: AgentPulseWorkflowSession | null;
+  onActivePulsePresetIdChange?: (presetId: CreatePulsePresetId | null) => void;
+  onPulsePresetStart?: (preset: CreatePulseResolvedPreset) => Promise<void> | void;
+  selectedPulsePresetIds?: readonly CreatePulsePresetId[];
+  onSelectedPulsePresetIdsChange?: (presetIds: CreatePulsePresetId[]) => void;
+  savedPulsePresets?: readonly CreatePulseSavedPreset[];
+  onSavedPulsePresetsChange?: (presets: CreatePulseSavedPreset[]) => void;
 };
 
 /**
@@ -382,11 +397,21 @@ export function CreatePropertiesPanel({
   stylesCatalog,
   expertCreateMode,
   onExpertCreateModeChange,
+  activePulsePresetId,
+  pulseWorkflowSession = null,
+  onActivePulsePresetIdChange,
+  onPulsePresetStart,
+  selectedPulsePresetIds,
+  onSelectedPulsePresetIdsChange,
+  savedPulsePresets,
+  onSavedPulsePresetsChange,
   onGenerate,
   onChatOffInlineGenerate,
   guardrailReason,
 }: CreatePropertiesPanelProps) {
   const showExpertView = Boolean(expertCreateUiEligible && !beginnerMode);
+  const isPulseCreateMode = showExpertView && expertCreateMode === "pulse";
+  const effectiveChatModeEnabled = isPulseCreateMode ? true : chatModeEnabled;
   const promptStepNumber = beginnerMode ? "2" : "1";
   const modelLogoSrc = modelId ? modelLogos[modelId] : undefined;
   const effectiveModelLabel = modelLabel;
@@ -515,6 +540,150 @@ export function CreatePropertiesPanel({
     isCreateModelPickerOpen,
     disableOutputGenerate,
   } = selectorViewState;
+  const activeWorkflowPulsePreset = useMemo(() => {
+    if (expertCreateMode !== "pulse" || !activePulsePresetId) return null;
+    const resolvedPreset = resolveCreatePulsePresetById(activePulsePresetId, savedPulsePresets);
+    if (!resolvedPreset || resolvedPreset.runtimeMode !== "workflow_gpt") return null;
+    return resolvedPreset;
+  }, [activePulsePresetId, expertCreateMode, savedPulsePresets]);
+  const activeWorkflowPulseSession = useMemo(() => {
+    if (!activeWorkflowPulsePreset || !pulseWorkflowSession) return null;
+    return pulseWorkflowSession.presetId === activeWorkflowPulsePreset.presetId
+      ? pulseWorkflowSession
+      : null;
+  }, [activeWorkflowPulsePreset, pulseWorkflowSession]);
+  const activeWorkflowPulseStatus = useMemo(() => {
+    if (!activeWorkflowPulsePreset) return null;
+    if (!activeWorkflowPulseSession) return "Ready to guide";
+    switch (activeWorkflowPulseSession.status) {
+      case "running":
+        return "Running next step";
+      case "awaiting_input":
+        return "Awaiting your reply";
+      case "completed":
+        return "Completed";
+      default:
+        return "Ready to guide";
+    }
+  }, [activeWorkflowPulsePreset, activeWorkflowPulseSession]);
+  const activeWorkflowPulseStep = useMemo(() => {
+    if (!activeWorkflowPulsePreset) return null;
+    if (activeWorkflowPulseSession?.currentStepLabel?.trim()) {
+      return activeWorkflowPulseSession.currentStepLabel.trim();
+    }
+    if (
+      typeof activeWorkflowPulseSession?.currentStepIndex === "number" &&
+      Number.isFinite(activeWorkflowPulseSession.currentStepIndex) &&
+      activeWorkflowPulseSession.currentStepIndex > 0
+    ) {
+      return `Step ${Math.trunc(activeWorkflowPulseSession.currentStepIndex)}`;
+    }
+    return null;
+  }, [activeWorkflowPulsePreset, activeWorkflowPulseSession]);
+  const activeWorkflowPulsePreview = useMemo(() => {
+    if (!activeWorkflowPulsePreset) return null;
+    const sessionArtifact = activeWorkflowPulseSession?.lastArtifact?.trim() ?? "";
+    if (activeWorkflowPulseSession?.status === "completed" && sessionArtifact.length > 0) {
+      return {
+        label: "Final artifact",
+        content: sessionArtifact,
+      };
+    }
+    const sessionPrompt = activeWorkflowPulseSession?.currentStepPrompt?.trim() ?? "";
+    if (sessionPrompt.length > 0) {
+      return {
+        label: activeWorkflowPulseSession?.status === "idle" ? "First step" : "Current step",
+        content: sessionPrompt,
+      };
+    }
+    const starterMessage = activeWorkflowPulsePreset.starterAssistantMessage?.trim() ?? "";
+    if (starterMessage.length > 0) {
+      return {
+        label: "First step",
+        content: starterMessage,
+      };
+    }
+    return null;
+  }, [activeWorkflowPulsePreset, activeWorkflowPulseSession]);
+  const handleApplyWorkflowArtifact = React.useCallback(() => {
+    const artifact = activeWorkflowPulseSession?.lastArtifact?.trim() ?? "";
+    if (!artifact) return;
+    onAgentApplyPrompt?.(artifact);
+  }, [activeWorkflowPulseSession, onAgentApplyPrompt]);
+  const handleRestartWorkflowPulse = React.useCallback(async () => {
+    if (!activeWorkflowPulsePreset || !onPulsePresetStart || !onClearAgentChat) return;
+    onClearAgentChat?.();
+    await onPulsePresetStart(activeWorkflowPulsePreset);
+  }, [activeWorkflowPulsePreset, onClearAgentChat, onPulsePresetStart]);
+  const activeWorkflowPulseBanner = activeWorkflowPulsePreset ? (
+    <div
+      className="create-expert-workflow-session-banner"
+      role="status"
+      aria-live="polite"
+      aria-label="Active workflow pulse session"
+    >
+      <div className="create-expert-workflow-session-banner-header">
+        <div className="create-expert-workflow-session-banner-copy">
+          <p className="create-expert-workflow-session-banner-eyebrow">Workflow Session</p>
+          <h3 className="create-expert-workflow-session-banner-title">
+            {activeWorkflowPulsePreset.label}
+          </h3>
+        </div>
+      </div>
+      <div className="create-expert-workflow-session-banner-badges">
+        <span className="create-expert-workflow-session-banner-badge">Workflow GPT</span>
+        {activeWorkflowPulseStep ? (
+          <span className="create-expert-workflow-session-banner-badge">
+            {activeWorkflowPulseStep}
+          </span>
+        ) : null}
+        {activeWorkflowPulseStatus ? (
+          <span className="create-expert-workflow-session-banner-badge">
+            {activeWorkflowPulseStatus}
+          </span>
+        ) : null}
+      </div>
+      <p className="create-expert-workflow-session-banner-summary">
+        {activeWorkflowPulsePreset.description?.trim() ||
+          "This Pulse stays in guided workflow mode and drives the chat one step at a time."}
+      </p>
+      {activeWorkflowPulsePreview ? (
+        <p className="create-expert-workflow-session-banner-preview">
+          <span className="create-expert-workflow-session-banner-preview-label">
+            {activeWorkflowPulsePreview.label}
+          </span>
+          <span>{activeWorkflowPulsePreview.content}</span>
+        </p>
+      ) : null}
+      {activeWorkflowPulseSession?.status === "completed" &&
+      (((activeWorkflowPulseSession.lastArtifact?.trim().length ?? 0) > 0 && onAgentApplyPrompt) ||
+        (onPulsePresetStart && onClearAgentChat)) ? (
+        <div className="create-expert-workflow-session-banner-actions">
+          {(activeWorkflowPulseSession.lastArtifact?.trim().length ?? 0) > 0 &&
+          onAgentApplyPrompt ? (
+            <button
+              type="button"
+              className="create-expert-workflow-session-banner-action"
+              onClick={handleApplyWorkflowArtifact}
+            >
+              Use artifact
+            </button>
+          ) : null}
+          {onPulsePresetStart && onClearAgentChat ? (
+            <button
+              type="button"
+              className="create-expert-workflow-session-banner-action"
+              onClick={() => {
+                void handleRestartWorkflowPulse();
+              }}
+            >
+              Restart workflow
+            </button>
+          ) : null}
+        </div>
+      ) : null}
+    </div>
+  ) : null;
 
   // Auto-clamp invalid image resolution values when switching image models.
   useEffect(() => {
@@ -541,8 +710,8 @@ export function CreatePropertiesPanel({
     agentDropActive,
     agentChatOpen,
     onAgentInputChange,
-    chatModeEnabled,
-    onChatModeEnabledChange,
+    chatModeEnabled: effectiveChatModeEnabled,
+    onChatModeEnabledChange: isPulseCreateMode ? undefined : onChatModeEnabledChange,
     directOpenAiBypassEnabled,
     onAgentSend,
     onAgentEnhanceSend,
@@ -569,6 +738,8 @@ export function CreatePropertiesPanel({
     disableOutputGenerate,
     outputGenerateCostCredits,
     outputGenerateGuardrailReason: disableOutputGenerate ? guardrailReason : null,
+    hideOutputGenerateControls: isPulseCreateMode,
+    chatSessionBanner: activeWorkflowPulseBanner,
     chatOnly: true,
     chatPromptSaveButtonClassName: "create-chat-pin-btn",
     chatPromptSaveButtonUnstyled: true,
@@ -614,7 +785,8 @@ export function CreatePropertiesPanel({
     stackTrailingComposerControls: true,
     agentInputMaxHeightPx: EXPERT_CREATE_AGENT_INPUT_MAX_HEIGHT_PX,
     agentInputCollapseOnBlur: true,
-    composerLeadingContent: (
+    hideChatModeToggle: isPulseCreateMode,
+    composerLeadingContent: isPulseCreateMode ? null : (
       <StylesControl
         isOpen={isStylesPanelOpen}
         selectedStyleId={selectedStyleId}
@@ -663,6 +835,13 @@ export function CreatePropertiesPanel({
           }}
           expertCreateMode={expertCreateMode}
           onExpertCreateModeChange={onExpertCreateModeChange}
+          activePulsePresetId={activePulsePresetId}
+          onActivePulsePresetIdChange={onActivePulsePresetIdChange}
+          onPulsePresetStart={onPulsePresetStart}
+          selectedPulsePresetIds={selectedPulsePresetIds}
+          onSelectedPulsePresetIdsChange={onSelectedPulsePresetIdsChange}
+          savedPulsePresets={savedPulsePresets}
+          onSavedPulsePresetsChange={onSavedPulsePresetsChange}
         />
       ) : (
         <BeginnerCreatePanelView

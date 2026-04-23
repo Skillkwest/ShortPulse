@@ -73,6 +73,7 @@ type PromptStepChatSurfaceProps = {
   disableOutputGenerate: boolean;
   outputGenerateCostCredits: number | null;
   outputGenerateGuardrailReason?: string | null;
+  hideOutputGenerateControls?: boolean;
   chatSessionBanner?: React.ReactNode;
   composerMiddleContent: React.ReactNode;
   composerLeadingContent: React.ReactNode;
@@ -148,6 +149,7 @@ export const PromptStepChatSurface: React.FC<PromptStepChatSurfaceProps> = ({
   disableOutputGenerate,
   outputGenerateCostCredits,
   outputGenerateGuardrailReason,
+  hideOutputGenerateControls = false,
   chatSessionBanner,
   composerMiddleContent,
   composerLeadingContent,
@@ -253,6 +255,7 @@ export const PromptStepChatSurface: React.FC<PromptStepChatSurfaceProps> = ({
         disableOutputGenerate={disableOutputGenerate}
         outputGenerateCostCredits={outputGenerateCostCredits}
         outputGenerateGuardrailReason={outputGenerateGuardrailReason}
+        hideOutputGenerateControls={hideOutputGenerateControls}
       />
     </div>
   ) : null;

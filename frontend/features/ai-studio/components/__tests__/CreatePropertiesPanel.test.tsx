@@ -3,7 +3,7 @@
  * Verifies Create workflow controls that should stay visible in Character Mode.
  */
 import React from "react";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { ComposeSendCard, CreatePropertiesPanel } from "../CreatePropertiesPanel";
 
@@ -787,9 +787,11 @@ describe("CreatePropertiesPanel", () => {
     await waitFor(() => {
       expect(container.querySelector(".create-expert-left-panel")).toBeTruthy();
       expect(screen.getByText("Pulse Presets")).toBeInTheDocument();
-      expect(screen.getByRole("button", { name: "Image preset" })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Video Prompt Magic preset" })).toBeInTheDocument();
       expect(screen.getByRole("button", { name: "Single-shot preset" })).toBeInTheDocument();
-      expect(screen.getByRole("button", { name: "Multi-shot preset" })).toBeInTheDocument();
+      expect(
+        screen.getByRole("button", { name: "Multi Sequence Video Prompt preset" })
+      ).toBeInTheDocument();
       expect(screen.getByRole("button", { name: "Story Builder preset" })).toBeInTheDocument();
     });
   });
@@ -872,6 +874,248 @@ describe("CreatePropertiesPanel", () => {
     expect(label).toBeTruthy();
     expect(stylesButton).toHaveAttribute("aria-label", "Styles");
     expect(preview?.style.backgroundImage).toContain("/Styles/Cinematic.png");
+  });
+
+  it("forces chat mode on and hides chat-mode/styles controls in pulse mode", () => {
+    renderPanel({
+      beginnerMode: false,
+      expertCreateUiEligible: true,
+      agentEnabled: true,
+      chatModeEnabled: false,
+      expertCreateMode: "pulse",
+      onAgentInputChange: vi.fn(),
+      onAgentSend: vi.fn(),
+      onStylesPanelToggle: vi.fn(),
+    });
+
+    expect(screen.queryByText("Chat Mode")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Enable chat mode" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Styles" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Generate with current prompt" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Send to agent" })).toBeInTheDocument();
+  });
+
+  it("shows a workflow session banner for an active workflow pulse in pulse mode", () => {
+    renderPanel({
+      beginnerMode: false,
+      expertCreateUiEligible: true,
+      agentEnabled: true,
+      expertCreateMode: "pulse",
+      activePulsePresetId: "image",
+      pulseWorkflowSession: {
+        presetId: "image",
+        status: "idle",
+        currentStepIndex: 1,
+        currentStepLabel: "Image Gate",
+        currentStepPrompt: "Upload your image to get the process started :)",
+        collectedInputs: [],
+        lastArtifact: null,
+      },
+      onAgentInputChange: vi.fn(),
+      onAgentSend: vi.fn(),
+    });
+
+    const workflowBanner = screen.getByLabelText("Active workflow pulse session");
+    expect(workflowBanner).toBeInTheDocument();
+    expect(within(workflowBanner).getByText("Workflow Session")).toBeInTheDocument();
+    expect(within(workflowBanner).getByText("Video Prompt Magic")).toBeInTheDocument();
+    expect(within(workflowBanner).getByText("Ready to guide")).toBeInTheDocument();
+    expect(within(workflowBanner).getByText("Image Gate")).toBeInTheDocument();
+    expect(within(workflowBanner).getByText("First step")).toBeInTheDocument();
+    expect(
+      within(workflowBanner).getByText("Upload your image to get the process started :)")
+    ).toBeInTheDocument();
+  });
+
+  it("hides chat-history inline generate controls in pulse mode", () => {
+    renderPanel({
+      beginnerMode: false,
+      expertCreateUiEligible: true,
+      agentEnabled: true,
+      expertCreateMode: "pulse",
+      agentMessages: [{ id: "a-1", role: "assistant", content: "Assistant output one." }],
+      onAgentInputChange: vi.fn(),
+      onAgentSend: vi.fn(),
+    });
+
+    expect(screen.queryByRole("button", { name: "Generate from this agent output" })).toBeNull();
+    expect(screen.getByText("Assistant output one.")).toBeInTheDocument();
+  });
+
+  it("updates workflow session status when a workflow pulse is waiting on the user", () => {
+    renderPanel({
+      beginnerMode: false,
+      expertCreateUiEligible: true,
+      agentEnabled: true,
+      expertCreateMode: "pulse",
+      activePulsePresetId: "image",
+      pulseWorkflowSession: {
+        presetId: "image",
+        status: "awaiting_input",
+        currentStepIndex: 2,
+        currentStepLabel: "Camera Motion",
+        currentStepPrompt:
+          "Step 2 - Which camera motion should I use? Pick one from the list below OR type any camera motion you want.",
+        collectedInputs: [],
+        lastArtifact: null,
+      },
+      onAgentInputChange: vi.fn(),
+      onAgentSend: vi.fn(),
+    });
+
+    const workflowBanner = screen.getByLabelText("Active workflow pulse session");
+    expect(within(workflowBanner).getByText("Camera Motion")).toBeInTheDocument();
+    expect(within(workflowBanner).getByText("Awaiting your reply")).toBeInTheDocument();
+    expect(within(workflowBanner).getByText("Current step")).toBeInTheDocument();
+    expect(within(workflowBanner).queryByText("First step")).not.toBeInTheDocument();
+  });
+
+  it("falls back to persisted workflow stage labels when replies omit explicit step numbers", () => {
+    renderPanel({
+      beginnerMode: false,
+      expertCreateUiEligible: true,
+      agentEnabled: true,
+      expertCreateMode: "pulse",
+      activePulsePresetId: "pulse_guided_video",
+      savedPulsePresets: [
+        {
+          presetId: "pulse_guided_video",
+          label: "Guided Video Pulse",
+          description: "Workflow pulse with persisted stage labels.",
+          systemInstructions: "Guide the user through a short video workflow.",
+          runtimeMode: "workflow_gpt",
+          activationMode: "activate_and_start",
+          starterAssistantMessage: "Upload your image to get the process started :)",
+          workflowStageHints: ["Image Gate", "Camera Motion", "Action", "Final Prompt"],
+          outputMode: "chat_reply",
+          memoryPolicy: "session",
+          createdAt: null,
+        },
+      ],
+      pulseWorkflowSession: {
+        presetId: "pulse_guided_video",
+        status: "awaiting_input",
+        currentStepIndex: 2,
+        currentStepLabel: "Camera Motion",
+        currentStepPrompt:
+          "Which camera motion should I use? Pick one from the list below or type your own.",
+        collectedInputs: ["uploaded image"],
+        lastArtifact: null,
+      },
+      onAgentInputChange: vi.fn(),
+      onAgentSend: vi.fn(),
+    });
+
+    const workflowBanner = screen.getByLabelText("Active workflow pulse session");
+    expect(within(workflowBanner).getByText("Camera Motion")).toBeInTheDocument();
+    expect(within(workflowBanner).getByText("Awaiting your reply")).toBeInTheDocument();
+    expect(
+      within(workflowBanner).getByText(
+        "Which camera motion should I use? Pick one from the list below or type your own."
+      )
+    ).toBeInTheDocument();
+  });
+
+  it("shows the persisted final artifact for completed workflow pulse sessions", () => {
+    renderPanel({
+      beginnerMode: false,
+      expertCreateUiEligible: true,
+      agentEnabled: true,
+      expertCreateMode: "pulse",
+      activePulsePresetId: "story_builder",
+      pulseWorkflowSession: {
+        presetId: "story_builder",
+        status: "completed",
+        currentStepIndex: 6,
+        currentStepLabel: "Image Prompts",
+        currentStepPrompt: null,
+        collectedInputs: ["grimdark tone", "10 min runtime"],
+        lastArtifact:
+          "Scene 1: cinematic wide shot of the knight entering the ruined hall under torchlight.",
+      },
+      onAgentInputChange: vi.fn(),
+      onAgentSend: vi.fn(),
+    });
+
+    const workflowBanner = screen.getByLabelText("Active workflow pulse session");
+    expect(within(workflowBanner).getByText("Story Builder")).toBeInTheDocument();
+    expect(within(workflowBanner).getByText("Completed")).toBeInTheDocument();
+    expect(within(workflowBanner).getByText("Image Prompts")).toBeInTheDocument();
+    expect(within(workflowBanner).getByText("Final artifact")).toBeInTheDocument();
+    expect(
+      within(workflowBanner).getByText(
+        "Scene 1: cinematic wide shot of the knight entering the ruined hall under torchlight."
+      )
+    ).toBeInTheDocument();
+  });
+
+  it("applies the persisted workflow artifact from the completed workflow session banner", () => {
+    const onAgentApplyPrompt = vi.fn();
+    renderPanel({
+      beginnerMode: false,
+      expertCreateUiEligible: true,
+      agentEnabled: true,
+      expertCreateMode: "pulse",
+      activePulsePresetId: "story_builder",
+      pulseWorkflowSession: {
+        presetId: "story_builder",
+        status: "completed",
+        currentStepIndex: 6,
+        currentStepLabel: "Image Prompts",
+        currentStepPrompt: null,
+        collectedInputs: ["grimdark tone", "10 min runtime"],
+        lastArtifact:
+          "Scene 1: cinematic wide shot of the knight entering the ruined hall under torchlight.",
+      },
+      onAgentInputChange: vi.fn(),
+      onAgentSend: vi.fn(),
+      onAgentApplyPrompt,
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Use artifact" }));
+
+    expect(onAgentApplyPrompt).toHaveBeenCalledWith(
+      "Scene 1: cinematic wide shot of the knight entering the ruined hall under torchlight."
+    );
+  });
+
+  it("restarts the completed workflow pulse from the banner using the canonical pulse start path", async () => {
+    const onClearAgentChat = vi.fn();
+    const onPulsePresetStart = vi.fn();
+    renderPanel({
+      beginnerMode: false,
+      expertCreateUiEligible: true,
+      agentEnabled: true,
+      expertCreateMode: "pulse",
+      activePulsePresetId: "story_builder",
+      pulseWorkflowSession: {
+        presetId: "story_builder",
+        status: "completed",
+        currentStepIndex: 6,
+        currentStepLabel: "Image Prompts",
+        currentStepPrompt: null,
+        collectedInputs: ["grimdark tone", "10 min runtime"],
+        lastArtifact:
+          "Scene 1: cinematic wide shot of the knight entering the ruined hall under torchlight.",
+      },
+      onAgentInputChange: vi.fn(),
+      onAgentSend: vi.fn(),
+      onClearAgentChat,
+      onPulsePresetStart,
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Restart workflow" }));
+
+    await waitFor(() => {
+      expect(onClearAgentChat).toHaveBeenCalledTimes(1);
+      expect(onPulsePresetStart).toHaveBeenCalledWith(
+        expect.objectContaining({
+          presetId: "story_builder",
+          runtimeMode: "workflow_gpt",
+          activationMode: "activate_and_start",
+        })
+      );
+    });
   });
 
   it("shows selected custom style preview from the live styles catalog", () => {

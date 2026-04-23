@@ -109,6 +109,7 @@ type AgentChatPanelProps = {
   disableOutputGenerate?: boolean;
   outputGenerateCostCredits?: number | null;
   outputGenerateGuardrailReason?: string | null;
+  hideOutputGenerateControls?: boolean;
 };
 
 export const AgentChatPanel: React.FC<AgentChatPanelProps> = ({
@@ -150,6 +151,7 @@ export const AgentChatPanel: React.FC<AgentChatPanelProps> = ({
   disableOutputGenerate = false,
   outputGenerateCostCredits = null,
   outputGenerateGuardrailReason = null,
+  hideOutputGenerateControls = false,
 }) => {
   const messagesRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -176,7 +178,9 @@ export const AgentChatPanel: React.FC<AgentChatPanelProps> = ({
   const shouldShowThinkingIndicator = showThinkingIndicator && isSending;
   const shouldRenderThinkingInHistory =
     shouldShowThinkingIndicator && thinkingIndicatorPlacement === "history";
-  const inlineOutputGenerateGuardrailReason = outputGenerateGuardrailReason;
+  const inlineOutputGenerateGuardrailReason = hideOutputGenerateControls
+    ? null
+    : outputGenerateGuardrailReason;
 
   useEffect(() => {
     const messagesEl = messagesRef.current;
@@ -529,22 +533,26 @@ export const AgentChatPanel: React.FC<AgentChatPanelProps> = ({
                         onDragEnd={handlePromptDragEnd}
                       >
                         <p className="tiny">{stagedPrompt}</p>
-                        <div className="agent-output-bubble-controls">
-                          {renderOutputBubbleMedia(stagedBubbleMedia)}
-                          <AgentResponseInlineGenerateButton
-                            onClick={() =>
-                              handleOutputGenerateClick({
-                                messageId: STAGED_AGENT_OUTPUT_MESSAGE_ID,
-                                prompt: stagedPrompt,
-                                source: "staged",
-                              })
-                            }
-                            costCredits={outputGenerateCostCredits}
-                            ariaLabel="Generate from this agent output"
-                            disabled={disableOutputGenerate}
-                            stopPropagation
-                          />
-                        </div>
+                        {stagedBubbleMedia || !hideOutputGenerateControls ? (
+                          <div className="agent-output-bubble-controls">
+                            {renderOutputBubbleMedia(stagedBubbleMedia)}
+                            {hideOutputGenerateControls ? null : (
+                              <AgentResponseInlineGenerateButton
+                                onClick={() =>
+                                  handleOutputGenerateClick({
+                                    messageId: STAGED_AGENT_OUTPUT_MESSAGE_ID,
+                                    prompt: stagedPrompt,
+                                    source: "staged",
+                                  })
+                                }
+                                costCredits={outputGenerateCostCredits}
+                                ariaLabel="Generate from this agent output"
+                                disabled={disableOutputGenerate}
+                                stopPropagation
+                              />
+                            )}
+                          </div>
+                        ) : null}
                       </div>
                     );
                   })()
@@ -558,7 +566,11 @@ export const AgentChatPanel: React.FC<AgentChatPanelProps> = ({
                   (message.role === "assistant" || message.role === "user") &&
                   Boolean(message.content.trim()) &&
                   !isEditingMessage;
-                const showOutputGenerateButton = message.role === "assistant";
+                const bubbleMedia = resolveBubbleMediaState(resolvedMessageId);
+                const showOutputGenerateButton =
+                  message.role === "assistant" && !hideOutputGenerateControls;
+                const showOutputBubbleControls =
+                  Boolean(bubbleMedia && bubbleMedia.state !== "idle") || showOutputGenerateButton;
                 const isLatestAssistantMessage =
                   highlightLatestAssistantOnly &&
                   message.role === "assistant" &&
@@ -567,10 +579,7 @@ export const AgentChatPanel: React.FC<AgentChatPanelProps> = ({
                   highlightLatestAssistantOnly &&
                   message.role === "assistant" &&
                   index !== latestAssistantMessageIndex;
-                const bubbleMedia = resolveBubbleMediaState(resolvedMessageId);
-                const hasOutputThumbnail = Boolean(
-                  bubbleMedia && bubbleMedia.state !== "idle" && showOutputGenerateButton
-                );
+                const hasOutputThumbnail = Boolean(bubbleMedia && bubbleMedia.state !== "idle");
                 const messageAttachments = message.attachments ?? [];
                 const hasMessageAttachments = messageAttachments.length > 0;
                 const hasMessageContent = Boolean(message.content.trim());
@@ -658,22 +667,24 @@ export const AgentChatPanel: React.FC<AgentChatPanelProps> = ({
                         ) : null}
                       </div>
                     )}
-                    {showOutputGenerateButton && !isEditingMessage ? (
+                    {showOutputBubbleControls && !isEditingMessage ? (
                       <div className="agent-output-bubble-controls">
                         {renderOutputBubbleMedia(bubbleMedia)}
-                        <AgentResponseInlineGenerateButton
-                          onClick={() =>
-                            handleOutputGenerateClick({
-                              messageId: resolvedMessageId,
-                              prompt: message.content,
-                              source: "history",
-                            })
-                          }
-                          costCredits={outputGenerateCostCredits}
-                          ariaLabel="Generate from this agent output"
-                          disabled={disableOutputGenerate}
-                          stopPropagation
-                        />
+                        {showOutputGenerateButton ? (
+                          <AgentResponseInlineGenerateButton
+                            onClick={() =>
+                              handleOutputGenerateClick({
+                                messageId: resolvedMessageId,
+                                prompt: message.content,
+                                source: "history",
+                              })
+                            }
+                            costCredits={outputGenerateCostCredits}
+                            ariaLabel="Generate from this agent output"
+                            disabled={disableOutputGenerate}
+                            stopPropagation
+                          />
+                        ) : null}
                       </div>
                     ) : null}
                   </div>

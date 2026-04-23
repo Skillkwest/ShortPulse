@@ -136,6 +136,45 @@ describe("AgentChatPanel prompt actions", () => {
     expect(screen.getByText(message)).toBeInTheDocument();
   });
 
+  it("hides inline history generate controls when the chat panel is configured to suppress them", () => {
+    render(
+      <AgentChatPanel
+        messages={[{ id: "a-1", role: "assistant", content: "Assistant output one." }]}
+        input=""
+        stagedPrompt="Assistant staged prompt."
+        hideOutputGenerateControls
+        onInputChange={vi.fn()}
+        onSend={vi.fn()}
+      />
+    );
+
+    expect(screen.queryByRole("button", { name: "Generate from this agent output" })).toBeNull();
+    expect(screen.queryByText("Assistant staged prompt.")).toBeInTheDocument();
+    expect(screen.queryByText("Assistant output one.")).toBeInTheDocument();
+  });
+
+  it("keeps assistant bubble media visible when inline history generate controls are suppressed", () => {
+    render(
+      <AgentChatPanel
+        messages={[{ id: "a-ready", role: "assistant", content: "Ready output." }]}
+        input=""
+        hideOutputGenerateControls
+        assistantBubbleMedia={{
+          "a-ready": {
+            outputId: "out-ready",
+            thumbnailUrl: "https://example.com/ready.png",
+            state: "ready",
+          },
+        }}
+        onInputChange={vi.fn()}
+        onSend={vi.fn()}
+      />
+    );
+
+    expect(screen.queryByRole("button", { name: "Generate from this agent output" })).toBeNull();
+    expect(screen.getByAltText("Generated output preview")).toBeInTheDocument();
+  });
+
   it("renders linked bubble thumbnails and status states without breaking generate controls", () => {
     render(
       <AgentChatPanel

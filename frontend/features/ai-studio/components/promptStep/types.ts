@@ -102,6 +102,7 @@ export type PromptStepProps = {
   disableOutputGenerate?: boolean;
   outputGenerateCostCredits?: number | null;
   outputGenerateGuardrailReason?: string | null;
+  hideOutputGenerateControls?: boolean;
   chatSessionBanner?: React.ReactNode;
   chatHeaderExtraContent?: React.ReactNode;
   hideHeader?: boolean;

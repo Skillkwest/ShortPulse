@@ -91,6 +91,7 @@ export function PromptStep({
   disableOutputGenerate = false,
   outputGenerateCostCredits = null,
   outputGenerateGuardrailReason = null,
+  hideOutputGenerateControls = false,
   chatSessionBanner = null,
   chatHeaderExtraContent = null,
   hideHeader = false,
@@ -313,6 +314,7 @@ export function PromptStep({
                 disableOutputGenerate={disableOutputGenerate}
                 outputGenerateCostCredits={outputGenerateCostCredits}
                 outputGenerateGuardrailReason={outputGenerateGuardrailReason}
+                hideOutputGenerateControls={hideOutputGenerateControls}
                 chatSessionBanner={chatSessionBanner}
                 composerMiddleContent={composerMiddleContent}
                 composerLeadingContent={composerLeadingContent}

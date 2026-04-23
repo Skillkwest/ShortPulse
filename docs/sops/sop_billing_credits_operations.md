@@ -14,6 +14,7 @@ This SOP is the operational runbook for credit ledger migrations, admin balance 
 - Versioned offer + subscriber contract migration: `sql/migrations/085_add_billing_plan_offers_and_subscription_contracts.sql`.
 - Internal comp contract-source migration: `sql/migrations/086_add_internal_comp_billing_contract_support.sql`.
 - Storage entitlement + recurring storage add-on migration: `sql/migrations/087_add_storage_entitlements_and_recurring_storage_addons.sql`.
+- Paid-entitlement fallback + offer-catalog correction migration: `sql/migrations/088_fix_paid_entitlement_fallbacks_and_offer_catalog.sql`.
 - Legacy-to-v2 alignment migration: `sql/migrate_ai_credit_ledger_legacy_to_v2.sql`.
 - Billing/RLS audit helper: `sql/audit_billing_credit_rls.sql`.
 - Reservation/capture migration: `sql/migrations/002_add_generation_credit_reservations.sql`.
@@ -99,6 +100,7 @@ Primary path:
 - `/admin` UI -> `/api/admin/credits/adjust`.
 - `/admin` transaction audit -> `/api/admin/credits/ledger?userId=<uuid>&limit=<n>&source=<source>`.
 - `/admin` billing diagnostics -> `/api/admin/billing-diagnostics?userId=<uuid>` for current profile/contract/offer drift checks, live Stripe subscription reconciliation, and grandfathered-price support context.
+- `/admin` Stripe billing handoff -> `/api/admin/billing/portal` so operators can open the selected account directly in Stripe for billed subscription changes, payment-method updates, and invoice review.
 - `/admin` user list -> the signed-in admin email is called out in a dedicated summary and its matching user row is pinned to the top of the loaded page results when present.
 - `npm -C frontend run billing:contracts:verify -- --limit 25` for batch contract-vs-Stripe reconciliation using service-role Supabase access plus live Stripe subscription reads.
 - `/admin/user-health` diagnostics -> `/api/admin/user-health` for user-level generation/queue/reservation/ledger health checks, cost-without-success signals, and guided next actions.
@@ -174,11 +176,13 @@ Safety checks:
 - Stripe event IDs are persisted in `stripe_event_log` to prevent duplicate grants.
 - Grant idempotency should use stable business object references where available (`checkout_session.id`, `invoice.id`) rather than relying only on Stripe event ids.
 - Current acquisition pricing may change over time, but existing subscribers should remain attached to their stored `billing_subscription_contracts` commercial snapshot unless a trusted migration/operator path intentionally moves them.
+- `billing_profiles` is a runtime projection only. If a paid profile is missing an open `billing_subscription_contracts` row, treat that as drift and repair it instead of trusting the profile as paid truth.
 - Storage entitlements follow the same contract model:
-  - current public plan storage lives in `billing_plans` / `billing_plan_offers`
-  - current public recurring storage add-ons live in `billing_storage_addons` / `billing_storage_addon_offers`
+  - current public plan storage lives in `billing_plan_offers` with `billing_plans` supplying shared metadata
+  - current public recurring storage add-ons live in `billing_storage_addon_offers` with `billing_storage_addons` supplying shared metadata
   - active subscriber storage comes from `billing_subscription_contracts.storage_limit_bytes` plus active `billing_subscription_storage_addons`
 - Stripe subscription item sync must treat storage add-ons as recurring subscription items, not consumable credit packs.
+- Immediate Stripe subscription deletion must drop local paid entitlements back to free runtime state. Only `cancel_at_period_end = true` should preserve access through the paid period.
 
 ## Media storage quota contract
 - Customer-facing storage quota counts canonical saved media only:

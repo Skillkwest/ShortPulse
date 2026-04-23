@@ -23,6 +23,7 @@
     "cleanup:test-auth-users": "cd .. && node scripts/cleanup_test_auth_users.mjs",
     "cleanup:test-auth-users:dry": "cd .. && node scripts/cleanup_test_auth_users.mjs --dry-run",
     "account-health:snapshot": "cd .. && npx tsx scripts/account_health_snapshot.ts",
+    "billing:contracts:verify": "cd .. && npx tsx scripts/verify_billing_contracts_against_stripe.ts",
     "phase12:execution-gate": "cd .. && node scripts/phase12_execution_gate.mjs",
     "test:ui": "vitest --ui",
     "test:coverage": "vitest run --coverage",

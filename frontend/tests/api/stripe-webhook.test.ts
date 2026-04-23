@@ -64,6 +64,7 @@ const createSupabaseAdminForWebhook = (params?: {
   billingStorageAddon?: Record<string, unknown> | null;
   billingStorageAddonOffer?: Record<string, unknown> | null;
   billingStorageAddonContracts?: Record<string, unknown>[];
+  onBillingProfileUpdate?: (payload: unknown) => void;
   onContractInsert?: (payload: unknown) => void;
   onContractUpdate?: (payload: unknown) => void;
   onStorageAddonInsert?: (payload: unknown) => void;
@@ -86,8 +87,11 @@ const createSupabaseAdminForWebhook = (params?: {
             }),
           }),
         }),
-        update: () => ({
-          eq: async () => ({ data: null, error: null }),
+        update: (payload: unknown) => ({
+          eq: async () => {
+            params?.onBillingProfileUpdate?.(payload);
+            return { data: null, error: null };
+          },
         }),
       };
     }
@@ -493,6 +497,37 @@ describe("POST /api/billing/stripe/webhook", () => {
     expect(insertCreditLedgerEntryMock).not.toHaveBeenCalled();
   });
 
+  it("fails closed on monthly credit grants when a paid profile has no current contract", async () => {
+    verifyStripeWebhookSignatureMock.mockReturnValue(true);
+    getSupabaseAdminMock.mockReturnValue(
+      createSupabaseAdminForWebhook({
+        billingProfile: {
+          user_id: "user_123",
+          plan_id: "studio",
+        },
+        billingContract: null,
+      })
+    );
+
+    const { res, promise } = createWebhookRequest(
+      JSON.stringify({
+        id: "evt_invoice_cycle_missing_contract",
+        type: "invoice.payment_succeeded",
+        data: {
+          object: {
+            id: "in_cycle_missing_contract",
+            customer: "cus_123",
+            billing_reason: "subscription_cycle",
+          },
+        },
+      })
+    );
+    await promise;
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(insertCreditLedgerEntryMock).not.toHaveBeenCalled();
+  });
+
   it("syncs a subscription contract snapshot when Stripe subscription state changes", async () => {
     verifyStripeWebhookSignatureMock.mockReturnValue(true);
     const contractInsertSpy = vi.fn();
@@ -558,6 +593,86 @@ describe("POST /api/billing/stripe/webhook", () => {
         monthly_credits_cents: 3000,
         storage_limit_bytes: 107374182400,
         status: "active",
+      })
+    );
+  });
+
+  it("drops the billing profile back to free on immediate subscription cancellation", async () => {
+    verifyStripeWebhookSignatureMock.mockReturnValue(true);
+    const billingProfileUpdateSpy = vi.fn();
+    const contractUpdateSpy = vi.fn();
+    getSupabaseAdminMock.mockReturnValue(
+      createSupabaseAdminForWebhook({
+        billingProfile: {
+          user_id: "user_123",
+          plan_id: "business",
+        },
+        billingOffer: {
+          id: "business__current",
+          plan_id: "business",
+          stripe_price_id: "price_business",
+          recurring_price_cents: 12900,
+          monthly_credits_cents: 12000,
+          storage_limit_bytes: 536870912000,
+        },
+        billingContract: {
+          id: "contract_business_1",
+          plan_id: "business",
+          offer_id: "business__current",
+          stripe_subscription_id: "sub_123",
+          stripe_price_id: "price_business",
+          recurring_price_cents: 12900,
+          monthly_credits_cents: 12000,
+          storage_limit_bytes: 536870912000,
+        },
+        onBillingProfileUpdate: billingProfileUpdateSpy,
+        onContractUpdate: contractUpdateSpy,
+      })
+    );
+
+    const { res, promise } = createWebhookRequest(
+      JSON.stringify({
+        id: "evt_sub_deleted_1",
+        type: "customer.subscription.deleted",
+        data: {
+          object: {
+            id: "sub_123",
+            customer: "cus_123",
+            status: "canceled",
+            current_period_start: 1704067200,
+            current_period_end: 1706745600,
+            cancel_at_period_end: false,
+            items: {
+              data: [
+                {
+                  price: {
+                    id: "price_business",
+                    unit_amount: 12900,
+                    metadata: {
+                      monthly_credits_cents: "12000",
+                    },
+                  },
+                },
+              ],
+            },
+          },
+        },
+      })
+    );
+    await promise;
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(billingProfileUpdateSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        plan_id: "free",
+        subscription_status: "canceled",
+        stripe_subscription_id: null,
+        current_period_end: null,
+      })
+    );
+    expect(contractUpdateSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        status: "canceled",
       })
     );
   });

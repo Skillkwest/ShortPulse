@@ -536,17 +536,6 @@ begin
         return greatest(v_limit, 0);
     end if;
 
-    select plan.storage_limit_bytes
-    into v_limit
-    from billing_profiles profile
-    join billing_plans plan on plan.id = profile.plan_id
-    where profile.user_id = p_user_id
-    limit 1;
-
-    if v_limit is not null then
-        return greatest(v_limit, 0);
-    end if;
-
     select storage_limit_bytes
     into v_limit
     from billing_plans

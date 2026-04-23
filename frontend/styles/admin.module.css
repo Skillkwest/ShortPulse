@@ -1,31 +1,29 @@
 /**
  * Admin dashboard styles.
- * Light, card-based layout with emphasis on failures and credit visibility.
+ * Flat, engineer-facing admin layout with emphasis on failures and credit visibility.
  */
 .adminPage {
-  /* Admin-local palette (warmer than the core app) */
-  --admin-text: #f1e8dc;
-  --admin-text-strong: #fff7ed;
-  --admin-text-muted: rgba(241, 232, 220, 0.74);
-  --admin-text-faint: rgba(241, 232, 220, 0.56);
+  --admin-text: #d7dee6;
+  --admin-text-strong: #f5f7fa;
+  --admin-text-muted: rgba(215, 222, 230, 0.74);
+  --admin-text-faint: rgba(215, 222, 230, 0.52);
 
-  /* Desaturated gray surfaces for containers/rows. */
-  --admin-surface-1: rgba(18, 20, 24, 0.9);
-  --admin-surface-2: rgba(24, 26, 31, 0.92);
-  --admin-surface-3: rgba(30, 33, 39, 0.9);
+  --admin-surface-1: #111417;
+  --admin-surface-2: #171b20;
+  --admin-surface-3: #1d2329;
 
-  --admin-border: rgba(201, 205, 214, 0.16);
-  --admin-border-soft: rgba(201, 205, 214, 0.1);
-  --admin-border-strong: rgba(201, 205, 214, 0.22);
+  --admin-border: rgba(120, 132, 146, 0.28);
+  --admin-border-soft: rgba(120, 132, 146, 0.18);
+  --admin-border-strong: rgba(120, 132, 146, 0.38);
 
-  --admin-accent: rgba(37, 169, 191, 0.94);
-  --admin-accent-soft: rgba(37, 169, 191, 0.14);
-  --admin-accent-soft-2: rgba(37, 169, 191, 0.24);
-  --admin-accent-border: rgba(37, 169, 191, 0.38);
-  --admin-accent-border-strong: rgba(37, 169, 191, 0.56);
-  --admin-accent-border-max: rgba(115, 231, 247, 0.82);
+  --admin-accent: #25a9bf;
+  --admin-accent-soft: rgba(37, 169, 191, 0.08);
+  --admin-accent-soft-2: rgba(37, 169, 191, 0.14);
+  --admin-accent-border: rgba(37, 169, 191, 0.52);
+  --admin-accent-border-strong: rgba(37, 169, 191, 0.78);
+  --admin-accent-border-max: #25a9bf;
   --admin-accent-text: #d5fbff;
-  --admin-focus: rgba(88, 220, 239, 0.72);
+  --admin-focus: rgba(37, 169, 191, 0.8);
 
   --admin-warning-soft: rgba(216, 168, 74, 0.14);
   --admin-warning-soft-2: rgba(216, 168, 74, 0.24);
@@ -58,8 +56,8 @@
 
 .adminPage :global(.ghost-btn),
 .adminPage :global(.ghost-btn.mini) {
-  background: rgba(37, 169, 191, 0.05);
-  border-color: var(--admin-border-strong);
+  background: var(--admin-surface-2);
+  border-color: var(--admin-border);
   color: var(--admin-text-strong);
 }
 
@@ -105,7 +103,7 @@
 
 .adminNavLinkActive {
   border-color: var(--admin-accent-border-strong);
-  background: linear-gradient(135deg, var(--admin-accent-soft), var(--admin-accent-soft-2));
+  background: var(--admin-accent-soft);
   color: var(--admin-text-strong);
 }
 
@@ -134,25 +132,21 @@
 }
 
 .adminCard {
-  background: linear-gradient(135deg, var(--admin-surface-2), var(--admin-surface-1));
+  background: var(--admin-surface-2);
   border: 1px solid var(--admin-border-soft);
   border-radius: 14px;
   padding: 14px;
-  box-shadow: 0 14px 32px rgba(0, 0, 0, 0.35);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.22);
 }
 
 .alert {
   border-color: rgba(241, 84, 84, 0.55);
-  background:
-    radial-gradient(80% 120% at 15% 0%, rgba(241, 84, 84, 0.09), transparent 62%),
-    linear-gradient(135deg, rgba(42, 16, 16, 0.9), rgba(26, 14, 16, 0.9));
+  background: rgba(54, 19, 19, 0.92);
 }
 
 .warning {
   border-color: var(--admin-warning-border-strong);
-  background:
-    radial-gradient(80% 120% at 15% 0%, rgba(216, 168, 74, 0.13), transparent 62%),
-    linear-gradient(135deg, rgba(41, 30, 12, 0.9), rgba(24, 19, 10, 0.9));
+  background: rgba(48, 38, 17, 0.9);
 }
 
 .adminCardTop {
@@ -188,7 +182,7 @@
   border-radius: 14px;
   border: 1px solid var(--admin-border-soft);
   background: var(--admin-surface-1);
-  box-shadow: 0 14px 32px rgba(0, 0, 0, 0.32);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
 }
 
 .adminSectionHead {
@@ -203,6 +197,12 @@
   margin: 0;
   font-size: 18px;
   color: var(--admin-text-strong);
+}
+
+.accountControlsHeader {
+  display: grid;
+  gap: 4px;
+  margin-bottom: 2px;
 }
 
 .adminTable {
@@ -321,7 +321,7 @@
   padding: 8px 12px;
   border-radius: 10px;
   border: 1px solid rgba(248, 78, 78, 0.72);
-  background: linear-gradient(135deg, rgba(138, 28, 28, 0.92), rgba(97, 12, 12, 0.96));
+  background: rgba(117, 24, 24, 0.96);
   color: #fff5f5;
   font: inherit;
   font-weight: 700;
@@ -349,7 +349,7 @@
   padding: 12px;
   border-radius: 12px;
   border: 1px solid rgba(241, 84, 84, 0.34);
-  background: linear-gradient(135deg, rgba(72, 14, 14, 0.88), rgba(33, 10, 10, 0.9));
+  background: rgba(49, 16, 16, 0.9);
 }
 
 .adminDeleteWarningTitle {
@@ -490,7 +490,7 @@
 
 .tabActive {
   border-color: var(--admin-accent-border-strong);
-  background: linear-gradient(135deg, var(--admin-accent-soft), var(--admin-accent-soft-2));
+  background: var(--admin-accent-soft);
   color: var(--admin-text-strong);
 }
 
@@ -524,11 +524,7 @@
 
 .manualAdjustPrimaryAction {
   border-color: var(--admin-accent-border) !important;
-  background: linear-gradient(
-    135deg,
-    rgba(37, 169, 191, 0.18),
-    rgba(37, 169, 191, 0.08)
-  ) !important;
+  background: rgba(37, 169, 191, 0.12) !important;
 }
 
 .manualAdjustSecondaryAction {
@@ -568,11 +564,9 @@
 }
 
 .adminPrimaryPanel {
-  border-color: var(--admin-border-strong);
-  background:
-    radial-gradient(120% 140% at 0% 0%, rgba(37, 169, 191, 0.12), transparent 58%),
-    linear-gradient(135deg, rgba(32, 35, 42, 0.96), rgba(24, 27, 33, 0.94));
-  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.28);
+  border-color: var(--admin-accent-border);
+  background: #212830;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.24);
 }
 
 .accountSnapshot {
@@ -666,9 +660,8 @@
   padding: 16px 18px;
   border-radius: 14px;
   border: 1px solid var(--admin-border-strong);
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent), rgba(18, 20, 24, 0.62);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  background: var(--admin-surface-2);
+  box-shadow: none;
 }
 
 .accountSnapshotCardLabel {
@@ -695,12 +688,34 @@
 
 .manualAdjustPanel {
   display: grid;
-  gap: 14px;
+  gap: 12px;
   padding: 14px;
   border-radius: 16px;
   border: 1px solid rgba(255, 255, 255, 0.06);
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.02), transparent), rgba(14, 16, 20, 0.42);
+  background: rgba(17, 20, 23, 0.88);
+}
+
+.panelHeaderRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.panelTitle {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--admin-text-faint);
+}
+
+.inlineResult {
+  color: var(--admin-text-muted);
+  font-size: 12px;
+  line-height: 1.4;
 }
 
 .controlPanelGrid {
@@ -730,6 +745,14 @@
   min-width: 0;
 }
 
+.controlLabel {
+  color: var(--admin-text-faint);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
 .compactFormRow {
   display: grid;
   grid-template-columns: minmax(220px, 360px) minmax(180px, 220px);
@@ -744,7 +767,7 @@
   padding: 12px 14px;
   border-radius: 12px;
   border: 1px solid var(--admin-border-soft);
-  background: rgba(18, 20, 24, 0.55);
+  background: var(--admin-surface-2);
 }
 
 .controlToggleTitle {
@@ -760,9 +783,15 @@
   line-height: 1.45;
 }
 
-.controlDetails {
-  display: grid;
-  gap: 10px;
+.controlToggleCompact {
+  min-height: 0;
+}
+
+.controlNote {
+  margin: 0;
+  color: var(--admin-text-muted);
+  font-size: 12px;
+  line-height: 1.45;
 }
 
 .manualAdjustFooter {
@@ -779,7 +808,7 @@
   padding: 12px 14px;
   border-radius: 12px;
   border: 1px solid var(--admin-border-soft);
-  background: rgba(18, 20, 24, 0.52);
+  background: var(--admin-surface-2);
 }
 
 .adminEmailPanelHeader {
@@ -826,7 +855,7 @@
   padding: 12px 14px;
   border-radius: 12px;
   border: 1px solid var(--admin-border-soft);
-  background: rgba(18, 20, 24, 0.55);
+  background: var(--admin-surface-2);
 }
 
 .selectionSummaryLabel {
@@ -854,7 +883,7 @@
   padding: 12px 14px;
   border-radius: 12px;
   border: 1px solid var(--admin-border-soft);
-  background: rgba(18, 20, 24, 0.55);
+  background: var(--admin-surface-2);
 }
 
 .adminBillingFindingList {
@@ -868,7 +897,7 @@
   padding: 12px 14px;
   border-radius: 12px;
   border: 1px solid var(--admin-border-soft);
-  background: rgba(18, 20, 24, 0.6);
+  background: var(--admin-surface-2);
 }
 
 .healthFormGrid {
@@ -1176,14 +1205,12 @@
 .adminTableRowButton:hover {
   border-color: var(--admin-focus);
   transform: translateY(-1px);
-  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.18);
+  box-shadow: none;
 }
 
 .adminTableRowActive {
   border-color: var(--admin-accent-border-strong);
-  background:
-    radial-gradient(120% 140% at 0% 0%, rgba(37, 169, 191, 0.12), transparent 58%),
-    var(--admin-surface-3);
+  background: rgba(37, 169, 191, 0.06);
 }
 
 @media (max-width: 980px) {
@@ -1223,6 +1250,10 @@
   }
 
   .accountSnapshotTitleRow {
+    align-items: flex-start;
+  }
+
+  .panelHeaderRow {
     align-items: flex-start;
   }
 

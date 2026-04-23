@@ -45,26 +45,60 @@ describe("GET /api/billing/catalog", () => {
           return {
             select: () => ({
               eq: () => ({
-                order: async () => ({
-                  data: [
-                    {
-                      id: "free",
-                      display_name: "Free",
-                      monthly_price_cents: 0,
-                      monthly_credits_cents: 100,
-                      storage_limit_bytes: 1073741824,
-                      is_active: true,
-                    },
-                    {
-                      id: "studio",
-                      display_name: "Studio",
-                      monthly_price_cents: 3900,
-                      monthly_credits_cents: 3000,
-                      storage_limit_bytes: 107374182400,
-                      is_active: true,
-                    },
-                  ],
-                  error: null,
+                data: [
+                  {
+                    id: "free",
+                    display_name: "Free",
+                    is_active: true,
+                  },
+                  {
+                    id: "studio",
+                    display_name: "Studio",
+                    is_active: true,
+                  },
+                ],
+                error: null,
+              }),
+            }),
+          };
+        }
+
+        if (table === "billing_plan_offers") {
+          return {
+            select: () => ({
+              eq: () => ({
+                eq: () => ({
+                  is: () => ({
+                    order: () => ({
+                      order: async () => ({
+                        data: [
+                          {
+                            id: "free__current",
+                            plan_id: "free",
+                            recurring_price_cents: 0,
+                            monthly_credits_cents: 100,
+                            storage_limit_bytes: 1073741824,
+                            acquisition_enabled: true,
+                            is_active: true,
+                            effective_start_at: "2026-04-01T00:00:00.000Z",
+                            created_at: "2026-04-01T00:00:00.000Z",
+                          },
+                          {
+                            id: "studio__spring_promo",
+                            plan_id: "studio",
+                            recurring_price_cents: 3900,
+                            monthly_credits_cents: 3000,
+                            storage_limit_bytes: 107374182400,
+                            acquisition_enabled: true,
+                            is_active: true,
+                            effective_start_at: "2026-04-15T00:00:00.000Z",
+                            created_at: "2026-04-15T00:00:00.000Z",
+                          },
+                        ],
+                        error: null,
+                      }),
+                    }),
+                  }),
                 }),
               }),
             }),
@@ -96,17 +130,44 @@ describe("GET /api/billing/catalog", () => {
           return {
             select: () => ({
               eq: () => ({
-                order: async () => ({
-                  data: [
-                    {
-                      id: "storage_25gb",
-                      display_name: "Extra 25 GB",
-                      storage_limit_bytes: 26843545600,
-                      monthly_price_cents: 500,
-                      sort_order: 10,
-                    },
-                  ],
-                  error: null,
+                data: [
+                  {
+                    id: "storage_25gb",
+                    display_name: "Extra 25 GB",
+                    sort_order: 10,
+                    is_active: true,
+                  },
+                ],
+                error: null,
+              }),
+            }),
+          };
+        }
+
+        if (table === "billing_storage_addon_offers") {
+          return {
+            select: () => ({
+              eq: () => ({
+                eq: () => ({
+                  is: () => ({
+                    order: () => ({
+                      order: async () => ({
+                        data: [
+                          {
+                            id: "storage_25gb__spring",
+                            storage_addon_id: "storage_25gb",
+                            storage_limit_bytes: 26843545600,
+                            recurring_price_cents: 500,
+                            acquisition_enabled: true,
+                            is_active: true,
+                            effective_start_at: "2026-04-15T00:00:00.000Z",
+                            created_at: "2026-04-15T00:00:00.000Z",
+                          },
+                        ],
+                        error: null,
+                      }),
+                    }),
+                  }),
                 }),
               }),
             }),

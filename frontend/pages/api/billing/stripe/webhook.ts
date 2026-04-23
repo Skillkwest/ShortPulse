@@ -270,6 +270,9 @@ const normalizeString = (value: unknown): string | null =>
 const normalizeBoolean = (value: unknown): boolean =>
   value === true || value === "true" || value === 1 || value === "1";
 
+const isPaidPlanId = (value: string | null | undefined): boolean =>
+  typeof value === "string" && value.trim().length > 0 && value !== "free";
+
 const buildCheckoutGrantSourceRef = (session: JsonObject, fallbackEventId: string): string => {
   const sessionId = normalizeString(session.id);
   return sessionId ? `checkout_session:${sessionId}` : `checkout_event:${fallbackEventId}`;
@@ -357,24 +360,11 @@ const resolveCurrentBillingContextByCustomer = async (stripeCustomerId: string) 
       monthlyCreditsCents: Number(contract.monthly_credits_cents ?? 0),
     };
   }
-
-  const supabaseAdmin = getSupabaseAdmin();
-  const { data: plan, error: planError } = await supabaseAdmin
-    .from("billing_plans")
-    .select("monthly_credits_cents")
-    .eq("id", profile.plan_id)
-    .maybeSingle();
-  if (planError && !isIgnorableSchemaDriftError(planError)) {
-    throw new Error(planError.message || "Failed to load billing plan.");
+  if (isPaidPlanId(profile.plan_id)) {
+    return null;
   }
 
-  return {
-    userId: profile.user_id,
-    planId: profile.plan_id,
-    offerId: profile.plan_id ? `${profile.plan_id}__current` : null,
-    stripePriceId: null,
-    monthlyCreditsCents: Number(plan?.monthly_credits_cents ?? 0),
-  };
+  return null;
 };
 
 const syncSubscriptionContract = async (params: {
@@ -732,17 +722,25 @@ const processSubscriptionUpdate = async (subscription: JsonObject) => {
   }
 
   resolvedPlanId = resolvedPlanId ?? profile?.plan_id ?? null;
+  const subscriptionStatus =
+    typeof subscription.status === "string" ? subscription.status : "inactive";
+  const cancelAtPeriodEnd = normalizeBoolean(subscription.cancel_at_period_end);
+  const isImmediateCancellation = subscriptionStatus === "canceled" && !cancelAtPeriodEnd;
+  const runtimePlanId = isImmediateCancellation ? "free" : resolvedPlanId;
+  const runtimeCurrentPeriodEnd = isImmediateCancellation
+    ? null
+    : asIsoDate(
+        typeof subscription.current_period_end === "number" ? subscription.current_period_end : null
+      );
 
   const updatePayload: JsonObject = {
-    stripe_subscription_id: subscription.id ?? null,
-    subscription_status: typeof subscription.status === "string" ? subscription.status : "inactive",
+    stripe_subscription_id: isImmediateCancellation ? null : (subscription.id ?? null),
+    subscription_status: subscriptionStatus,
     stripe_customer_id: stripeCustomerId,
-    current_period_end: asIsoDate(
-      typeof subscription.current_period_end === "number" ? subscription.current_period_end : null
-    ),
+    current_period_end: runtimeCurrentPeriodEnd,
   };
-  if (resolvedPlanId) {
-    updatePayload.plan_id = resolvedPlanId;
+  if (runtimePlanId) {
+    updatePayload.plan_id = runtimePlanId;
   }
 
   const supabaseAdmin = getSupabaseAdmin();
@@ -758,7 +756,7 @@ const processSubscriptionUpdate = async (subscription: JsonObject) => {
     planId: resolvedPlanId,
     stripeCustomerId,
     stripeSubscriptionId: normalizeString(subscription.id),
-    status: typeof subscription.status === "string" ? subscription.status : "inactive",
+    status: subscriptionStatus,
     currentPeriodStart: asIsoDate(
       typeof subscription.current_period_start === "number"
         ? subscription.current_period_start
@@ -769,7 +767,7 @@ const processSubscriptionUpdate = async (subscription: JsonObject) => {
     currentPeriodEnd: asIsoDate(
       typeof subscription.current_period_end === "number" ? subscription.current_period_end : null
     ),
-    cancelAtPeriodEnd: normalizeBoolean(subscription.cancel_at_period_end),
+    cancelAtPeriodEnd,
     resolvedOffer,
   });
 
@@ -777,7 +775,7 @@ const processSubscriptionUpdate = async (subscription: JsonObject) => {
     userId: profile.user_id,
     stripeCustomerId,
     stripeSubscriptionId: normalizeString(subscription.id),
-    status: typeof subscription.status === "string" ? subscription.status : "inactive",
+    status: subscriptionStatus,
     currentPeriodStart: asIsoDate(
       typeof subscription.current_period_start === "number"
         ? subscription.current_period_start
@@ -788,7 +786,7 @@ const processSubscriptionUpdate = async (subscription: JsonObject) => {
     currentPeriodEnd: asIsoDate(
       typeof subscription.current_period_end === "number" ? subscription.current_period_end : null
     ),
-    cancelAtPeriodEnd: normalizeBoolean(subscription.cancel_at_period_end),
+    cancelAtPeriodEnd,
     resolvedAddons,
   });
 };

@@ -36,6 +36,8 @@ type AdminSupportQueueSectionProps = {
   allowStripeTakeover: boolean;
   billingOverrideSubmitting: boolean;
   billingOverrideResult: string | null;
+  billingPortalSubmitting: boolean;
+  billingPortalResult: string | null;
   deleteSubmitting: boolean;
   deleteResult: string | null;
   creditLedgerRows: AdminCreditLedgerRow[];
@@ -62,6 +64,7 @@ type AdminSupportQueueSectionProps = {
   handleCreditAdjust: () => Promise<void>;
   handleGrantInternalComp: () => Promise<void>;
   handleRevokeInternalComp: () => Promise<void>;
+  handleOpenSelectedUserBilling: () => Promise<void>;
   handleDeleteUser: (params: { userId: string; confirmationText: string }) => Promise<boolean>;
   clearDeleteResult: () => void;
   planLabel: (planId: string | null) => string;
@@ -76,6 +79,15 @@ function formatStatusLabel(value: string | null | undefined): string {
     .filter(Boolean)
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(" ");
+}
+
+function pickPositiveNumber(...values: Array<number | null | undefined>): number | null {
+  for (const value of values) {
+    if (value != null && Number.isFinite(value) && value > 0) {
+      return value;
+    }
+  }
+  return null;
 }
 
 /**
@@ -100,6 +112,8 @@ export function AdminSupportQueueSection({
   allowStripeTakeover,
   billingOverrideSubmitting,
   billingOverrideResult,
+  billingPortalSubmitting,
+  billingPortalResult,
   deleteSubmitting,
   deleteResult,
   creditLedgerRows,
@@ -126,6 +140,7 @@ export function AdminSupportQueueSection({
   handleCreditAdjust,
   handleGrantInternalComp,
   handleRevokeInternalComp,
+  handleOpenSelectedUserBilling,
   handleDeleteUser,
   clearDeleteResult,
   planLabel,
@@ -178,13 +193,12 @@ export function AdminSupportQueueSection({
     selectedUser?.monthlyCreditsCents ??
     null;
   const snapshotStorageSummary = billingDiagnostics?.storageSummary ?? null;
-  const snapshotStorageTotalBytes =
-    snapshotStorageSummary && snapshotStorageSummary.totalLimitBytes > 0
-      ? snapshotStorageSummary.totalLimitBytes
-      : (billingDiagnostics?.currentContract?.storageLimitBytes ??
-        billingDiagnostics?.linkedOffer?.storageLimitBytes ??
-        billingDiagnostics?.currentPublicOffer?.storageLimitBytes ??
-        null);
+  const snapshotStorageTotalBytes = pickPositiveNumber(
+    snapshotStorageSummary?.totalLimitBytes,
+    billingDiagnostics?.currentContract?.storageLimitBytes,
+    billingDiagnostics?.linkedOffer?.storageLimitBytes,
+    billingDiagnostics?.currentPublicOffer?.storageLimitBytes
+  );
   const snapshotStorageLabel =
     snapshotStorageTotalBytes != null ? formatStorageBytes(snapshotStorageTotalBytes) : null;
   const snapshotStorageHelper = snapshotStorageSummary
@@ -279,6 +293,11 @@ export function AdminSupportQueueSection({
     (!paymentExemptEnabled &&
       selectedAccessPlan === "free" &&
       snapshotContractSource === "internal_comp");
+  const planAccessNote = paymentExemptEnabled
+    ? `Manual ${planLabel(selectedAccessPlan)} access without Stripe billing.`
+    : selectedAccessPlan === "free"
+      ? "Saves this account back to the Free plan."
+      : "Paid Stripe plans should be changed in Stripe.";
 
   const handleShowLedger = async () => {
     if (!selectedUserId) return;
@@ -315,15 +334,9 @@ export function AdminSupportQueueSection({
   return (
     <>
       <section className={styles.adminSection}>
-        <div className={styles.adminSectionHead}>
-          <div>
-            <p className="eyebrow">Account controls</p>
-            <h2 className={styles.adminSectionTitle}>Selected account</h2>
-            <p className="tiny subdued">
-              Pick an account below, then change plan access, adjust credits, and open billing tools
-              from this panel.
-            </p>
-          </div>
+        <div className={styles.accountControlsHeader}>
+          <p className="eyebrow">Account controls</p>
+          <h2 className={styles.adminSectionTitle}>Selected account</h2>
         </div>
         <div className={styles.adminSupportStack}>
           <div
@@ -335,7 +348,6 @@ export function AdminSupportQueueSection({
               <div className={styles.accountSnapshot}>
                 <div className={styles.accountSnapshotHead}>
                   <div className={styles.accountSnapshotIdentity}>
-                    <span className="tiny subdued">Selected account</span>
                     <div className={styles.accountSnapshotTitleRow}>
                       <span className={styles.accountSnapshotTitle}>
                         {selectedUser?.email ??
@@ -394,19 +406,19 @@ export function AdminSupportQueueSection({
               </div>
 
               <div className={styles.manualAdjustPanel}>
-                <div className={styles.adminSectionHead}>
-                  <div>
-                    <p className="eyebrow">Credits</p>
-                    <p className="tiny subdued">Add or remove credits from the selected account.</p>
-                  </div>
+                <div className={styles.panelHeaderRow}>
+                  <h3 className={styles.panelTitle}>Credits</h3>
+                  {adjustResult ? (
+                    <span className={styles.inlineResult}>{adjustResult}</span>
+                  ) : null}
                 </div>
                 <div className={styles.controlPanelGrid}>
                   <div className={styles.controlPanelBlock}>
                     <label className={`${styles.manualAdjustField} ${styles.controlFieldCompact}`}>
-                      <span className="tiny subdued">Credit change</span>
                       <input
                         className={styles.searchInput}
                         type="text"
+                        aria-label="Credit change"
                         value={adjustment}
                         pattern="[+-]?[0-9]*"
                         inputMode="numeric"
@@ -473,17 +485,12 @@ export function AdminSupportQueueSection({
                 </div>
               </div>
 
-              {adjustResult ? <p className="tiny subdued">{adjustResult}</p> : null}
-
               <div className={styles.manualAdjustPanel}>
-                <div className={styles.adminSectionHead}>
-                  <div>
-                    <p className="eyebrow">Plan access</p>
-                    <p className="tiny subdued">
-                      Choose the plan for this account and decide whether it should be payment
-                      exempt.
-                    </p>
-                  </div>
+                <div className={styles.panelHeaderRow}>
+                  <h3 className={styles.panelTitle}>Plan access</h3>
+                  {billingOverrideResult ? (
+                    <span className={styles.inlineResult}>{billingOverrideResult}</span>
+                  ) : null}
                 </div>
                 <div className={styles.controlPanelGrid}>
                   <div className={styles.controlPanelBlock}>
@@ -491,7 +498,7 @@ export function AdminSupportQueueSection({
                       <label
                         className={`${styles.manualAdjustField} ${styles.controlFieldCompact} ${styles.controlFieldPrimary}`}
                       >
-                        <span className="tiny subdued">Plan</span>
+                        <span className={styles.controlLabel}>Plan</span>
                         <select
                           className={styles.searchInput}
                           value={selectedAccessPlan}
@@ -530,20 +537,13 @@ export function AdminSupportQueueSection({
                       </label>
                     </div>
 
-                    <p className="tiny subdued">
-                      {paymentExemptEnabled
-                        ? `This will give the account ${planLabel(selectedAccessPlan)} access without billing through Stripe.`
-                        : selectedAccessPlan === "free"
-                          ? "This will remove payment-exempt access and set the account to the Free plan."
-                          : "This account is currently Stripe billed. Use Stripe billing tools for normal paid-plan changes."}
-                    </p>
+                    <p className={styles.controlNote}>{planAccessNote}</p>
                     {!paymentExemptEnabled &&
                     selectedAccessPlan !== "free" &&
                     snapshotContractSource !== "internal_comp" ? (
-                      <p className="tiny subdued">
-                        To switch a paid Stripe-billed account to a different paid tier, use Stripe
-                        billing tools first. This control is for payment-exempt access or returning
-                        an exempt account to Free.
+                      <p className={styles.controlNote}>
+                        Payment-exempt controls are only for internal overrides or returning an
+                        exempt account to Free.
                       </p>
                     ) : null}
 
@@ -564,24 +564,22 @@ export function AdminSupportQueueSection({
                     ) : null}
 
                     {hasLinkedStripeSubscription ? (
-                      <details className={styles.controlDetails}>
-                        <summary className="tiny subdued">Advanced billing actions</summary>
-                        <label className={`${styles.controlToggleCard} tiny subdued`}>
-                          <span className={styles.controlToggleTitle}>Stripe takeover</span>
-                          <span className={styles.controlToggleInput}>
-                            <input
-                              type="checkbox"
-                              checked={allowStripeTakeover}
-                              onChange={(event) =>
-                                handleAllowStripeTakeoverChange(event.target.checked)
-                              }
-                              disabled={!selectedUserId || billingOverrideSubmitting}
-                            />{" "}
-                            Clear the saved Stripe subscription link after I already handled Stripe
-                            outside ShortPulse.
-                          </span>
-                        </label>
-                      </details>
+                      <label
+                        className={`${styles.controlToggleCard} ${styles.controlToggleCompact}`}
+                      >
+                        <span className={styles.controlToggleTitle}>Stripe takeover</span>
+                        <span className={styles.controlToggleInput}>
+                          <input
+                            type="checkbox"
+                            checked={allowStripeTakeover}
+                            onChange={(event) =>
+                              handleAllowStripeTakeoverChange(event.target.checked)
+                            }
+                            disabled={!selectedUserId || billingOverrideSubmitting}
+                          />{" "}
+                          Clear the saved Stripe link after external Stripe handling.
+                        </span>
+                      </label>
                     ) : null}
                   </div>
 
@@ -617,8 +615,29 @@ export function AdminSupportQueueSection({
                 </div>
               </div>
 
-              {billingOverrideResult ? (
-                <p className="tiny subdued">{billingOverrideResult}</p>
+              <div className={styles.manualAdjustPanel}>
+                <div className={styles.panelHeaderRow}>
+                  <h3 className={styles.panelTitle}>Stripe billing</h3>
+                  <button
+                    type="button"
+                    className={`ghost-btn mini ${styles.manualAdjustPrimaryAction}`}
+                    onClick={() => {
+                      void handleOpenSelectedUserBilling();
+                    }}
+                    disabled={!selectedUserId || billingPortalSubmitting}
+                  >
+                    {billingPortalSubmitting ? "Opening Stripe…" : "Open Stripe billing"}
+                  </button>
+                </div>
+                {hasLinkedStripeSubscription ? (
+                  <p className={styles.controlNote}>
+                    Use this for billed subscriptions and invoices.
+                  </p>
+                ) : null}
+              </div>
+
+              {billingPortalResult ? (
+                <p className={styles.inlineResult}>{billingPortalResult}</p>
               ) : null}
             </section>
 

@@ -101,10 +101,31 @@ describe("useResolvedAccountPlan", () => {
     });
   });
 
-  it("falls back to normalized user metadata when billing queries fail", async () => {
+  it("falls back to the explicit default tier when billing queries fail", async () => {
     contractMaybeSingleMock.mockRejectedValue(new Error("network down"));
 
     const { result } = renderHook(() => useResolvedAccountPlan({ defaultPlanTier: "business" }));
+
+    await waitFor(() => {
+      expect(result.current.resolvedPlan).toEqual({
+        id: "business",
+        label: "Business",
+        className: "plan-business",
+      });
+    });
+  });
+
+  it("does not trust a paid billing profile when the current contract is missing", async () => {
+    contractMaybeSingleMock.mockResolvedValue({
+      data: null,
+      error: null,
+    });
+    profileMaybeSingleMock.mockResolvedValue({
+      data: { plan_id: "business" },
+      error: null,
+    });
+
+    const { result } = renderHook(() => useResolvedAccountPlan());
 
     await waitFor(() => {
       expect(result.current.resolvedPlan).toEqual({

@@ -6,6 +6,10 @@ type CurrentSubscriptionContractRow = {
   plan_id: string | null;
 };
 
+type BillingProfilePlanRow = {
+  plan_id: string | null;
+};
+
 type ResolvedPlanMeta = {
   id: string;
   label: string;
@@ -82,12 +86,12 @@ export const useResolvedAccountPlan = ({
             : null;
         const billingPlanId =
           !billingProfileResponse.error && billingProfileResponse.data
-            ? ((billingProfileResponse.data as { plan_id: string | null }).plan_id ?? null)
+            ? ((billingProfileResponse.data as BillingProfilePlanRow).plan_id ?? null)
             : null;
+        const normalizedBillingProfilePlanId = normalizePlanId(billingPlanId);
         const effectivePlanId =
           contractPlanId ??
-          billingPlanId ??
-          (user.user_metadata?.plan as string | undefined) ??
+          (normalizedBillingProfilePlanId === "free" ? "free" : null) ??
           defaultPlanTier;
         const normalizedPlanId = normalizePlanId(effectivePlanId);
         const plans =
@@ -108,9 +112,7 @@ export const useResolvedAccountPlan = ({
         });
       } catch {
         if (!active) return;
-        const fallbackPlanId = normalizePlanId(
-          (user.user_metadata?.plan as string | undefined) ?? defaultPlanTier
-        );
+        const fallbackPlanId = normalizePlanId(defaultPlanTier);
         const fallbackPlanView = buildPlanView({
           planId: fallbackPlanId,
           plans: [],

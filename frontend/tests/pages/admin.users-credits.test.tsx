@@ -10,6 +10,7 @@ import AdminDashboardPage from "../../pages/admin";
 const useProtectedRouteMock = vi.hoisted(() => vi.fn());
 const useAdminAccessMock = vi.hoisted(() => vi.fn());
 const fetchWithAuthMock = vi.hoisted(() => vi.fn());
+const windowOpenMock = vi.hoisted(() => vi.fn());
 
 vi.mock("next/head", () => ({
   default: ({ children }: { children: ReactNode }) => <>{children}</>,
@@ -45,6 +46,11 @@ vi.mock("../../lib/authenticatedFetch", () => ({
 const ADMIN_ID = "11111111-1111-4111-8111-111111111111";
 const USER_1_ID = "22222222-2222-4222-8222-222222222222";
 const USER_2_ID = "33333333-3333-4333-8333-333333333333";
+let openedPortalWindow: {
+  closed: boolean;
+  close: ReturnType<typeof vi.fn>;
+  location: { href: string };
+};
 
 const jsonResponse = (body: unknown, ok = true) => ({
   ok,
@@ -54,6 +60,14 @@ const jsonResponse = (body: unknown, ok = true) => ({
 describe("Admin users and credits overview", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    openedPortalWindow = {
+      closed: false,
+      close: vi.fn(),
+      location: { href: "" },
+    };
+    windowOpenMock.mockReset();
+    windowOpenMock.mockReturnValue(openedPortalWindow);
+    vi.stubGlobal("open", windowOpenMock);
 
     useProtectedRouteMock.mockReturnValue({
       loading: false,
@@ -337,6 +351,10 @@ describe("Admin users and credits overview", () => {
         expect(options?.method).toBe("POST");
         return jsonResponse({ ok: true, creditsGrantedCents: 12000 });
       }
+      if (path === "/api/admin/billing/portal") {
+        expect(options?.method).toBe("POST");
+        return jsonResponse({ portalUrl: "https://stripe.test/admin-portal-session" });
+      }
       if (path === `/api/admin/users/${encodeURIComponent(USER_2_ID)}`) {
         expect(options?.method).toBe("DELETE");
         return jsonResponse({ ok: true, userId: USER_2_ID, email: "beta@example.com" });
@@ -564,6 +582,31 @@ describe("Admin users and credits overview", () => {
         }),
       })
     );
+  });
+
+  it("opens Stripe billing for the selected user", async () => {
+    render(<AdminDashboardPage />);
+
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Select beta@example.com" })).toBeInTheDocument()
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Select beta@example.com" }));
+    fireEvent.click(screen.getByRole("button", { name: "Open Stripe billing" }));
+
+    await waitFor(() =>
+      expect(fetchWithAuthMock).toHaveBeenCalledWith(
+        "/api/admin/billing/portal",
+        expect.objectContaining({
+          method: "POST",
+          body: JSON.stringify({ userId: USER_2_ID }),
+        })
+      )
+    );
+
+    expect(windowOpenMock).toHaveBeenCalledWith("", "_blank", "noopener,noreferrer");
+    expect(openedPortalWindow.location.href).toBe("https://stripe.test/admin-portal-session");
+    expect(screen.getByText("Opened Stripe billing in a new tab.")).toBeInTheDocument();
   });
 
   it("requires typed confirmation before deleting a user", async () => {

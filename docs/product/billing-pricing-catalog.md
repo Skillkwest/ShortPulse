@@ -8,12 +8,12 @@ Purpose: keep subscription and credit-pack pricing easy to change without touchi
 - This catalog only controls subscription and top-up pricing.
 
 ## Source of truth
-- Public acquisition pricing shown in UI is loaded from Supabase tables:
-  - `billing_plans`
-  - `billing_plan_offers`
+- Public acquisition pricing shown in UI is loaded from current acquisition offer rows plus shared metadata:
+  - `billing_plan_offers` for current recurring plan prices, credits, and storage
+  - `billing_plans` for shared plan metadata such as stable ids and display names
   - `billing_credit_packages`
-  - `billing_storage_addons`
-  - `billing_storage_addon_offers`
+  - `billing_storage_addon_offers` for current recurring storage add-on prices and capacity
+  - `billing_storage_addons` for shared storage add-on metadata
 - The primary billing UI reads those values through the authenticated catalog route:
   - `frontend/pages/api/billing/catalog.ts`
 - UI presentation and package math helpers live in:
@@ -22,6 +22,7 @@ Purpose: keep subscription and credit-pack pricing easy to change without touchi
   - `billing_subscription_contracts`
 - Subscriber-specific recurring storage add-ons are stored separately in:
   - `billing_subscription_storage_addons`
+- `billing_profiles` is a runtime projection only. It must not be treated as the authoritative source for paid recurring entitlements when an open contract row is missing.
 - Admin/internal non-public access is modeled as hidden offers plus contract source, not as a public tier:
   - hidden `billing_plan_offers` rows such as `business__internal_comp`
   - `billing_subscription_contracts.contract_source = 'internal_comp'`
@@ -60,11 +61,11 @@ Purpose: keep subscription and credit-pack pricing easy to change without touchi
    - `billing_plan_offers`
    - `billing_storage_addon_offers` for recurring storage add-ons
 3. Update the acquisition catalog for new buyers:
-   - `billing_plans` for shared tier metadata
    - `billing_plan_offers` for the current public recurring offer
+   - `billing_plans` for shared tier metadata only
    - `billing_credit_packages` for top-up packages
-   - `billing_storage_addons` for shared recurring storage add-on metadata
    - `billing_storage_addon_offers` for the current public recurring storage add-on offer
+   - `billing_storage_addons` for shared recurring storage add-on metadata only
 4. Keep bootstrap seeds aligned for new environments:
    - `sql/create_billing_credit_tables.sql`
    - `docs/supabase_full_schema.sql`

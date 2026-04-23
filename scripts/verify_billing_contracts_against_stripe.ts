@@ -31,12 +31,27 @@ type BillingContractRow = {
   current_period_end: string | null;
 };
 
+type BillingStorageAddonContractRow = {
+  user_id: string;
+  storage_addon_id: string | null;
+  offer_id: string | null;
+  stripe_subscription_id: string | null;
+  stripe_subscription_item_id: string | null;
+  stripe_price_id: string | null;
+  storage_limit_bytes: number | string | null;
+  quantity: number | string | null;
+  recurring_price_cents: number | string | null;
+  status: string | null;
+};
+
 type StripeSubscriptionResponse = {
   id: string;
   status?: string | null;
   current_period_end?: number | null;
   items?: {
     data?: Array<{
+      id?: string | null;
+      quantity?: number | null;
       price?: {
         id?: string | null;
         unit_amount?: number | null;
@@ -62,6 +77,7 @@ type VerificationRow = {
   userId: string;
   billingProfile: BillingProfileRow | null;
   currentContract: BillingContractRow | null;
+  activeStorageAddons: BillingStorageAddonContractRow[];
   liveStripeSubscription: {
     customerId: string | null;
     subscriptionId: string | null;
@@ -71,6 +87,11 @@ type VerificationRow = {
     currentPeriodEnd: string | null;
   };
   findings: VerificationFinding[];
+};
+
+const asQuantity = (value: number | string | null | undefined): number => {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed > 0 ? Math.trunc(parsed) : 0;
 };
 
 const DEFAULT_LIMIT = 25;
@@ -249,6 +270,7 @@ const main = async () => {
   const userIds = [...new Set(profiles.map((profile) => profile.user_id))];
 
   let contracts: BillingContractRow[] = [];
+  let storageAddons: BillingStorageAddonContractRow[] = [];
   if (userIds.length > 0) {
     contracts = await supabaseSelect<BillingContractRow>(
       supabaseUrl,
@@ -261,15 +283,33 @@ const main = async () => {
         ended_at: "is.null",
       }
     );
+    storageAddons = await supabaseSelect<BillingStorageAddonContractRow>(
+      supabaseUrl,
+      supabaseServiceRoleKey,
+      "billing_subscription_storage_addons",
+      {
+        select:
+          "user_id,storage_addon_id,offer_id,stripe_subscription_id,stripe_subscription_item_id,stripe_price_id,storage_limit_bytes,quantity,recurring_price_cents,status",
+        user_id: `in.(${userIds.join(",")})`,
+        ended_at: "is.null",
+      }
+    );
   }
 
   const contractByUser = new Map<string, BillingContractRow>(
     contracts.map((contract) => [contract.user_id, contract])
   );
+  const storageAddonsByUser = new Map<string, BillingStorageAddonContractRow[]>();
+  for (const row of storageAddons) {
+    const existing = storageAddonsByUser.get(row.user_id) ?? [];
+    existing.push(row);
+    storageAddonsByUser.set(row.user_id, existing);
+  }
 
   const rows: VerificationRow[] = [];
   for (const profile of profiles) {
     const currentContract = contractByUser.get(profile.user_id) ?? null;
+    const currentStorageAddons = storageAddonsByUser.get(profile.user_id) ?? [];
     const findings: VerificationFinding[] = [];
     const subscriptionId =
       currentContract?.stripe_subscription_id ?? profile.stripe_subscription_id ?? null;
@@ -293,6 +333,9 @@ const main = async () => {
     }
 
     const livePrice = liveSubscription?.items?.data?.[0]?.price ?? null;
+    const liveItems = Array.isArray(liveSubscription?.items?.data)
+      ? liveSubscription.items?.data ?? []
+      : [];
     const liveSnapshot = {
       customerId,
       subscriptionId: liveSubscription?.id ?? null,
@@ -390,10 +433,83 @@ const main = async () => {
       });
     }
 
+    const matchedLiveAddonItemIds = new Set<string>();
+    for (const addon of currentStorageAddons) {
+      const matchedLiveItem = liveItems.find((item) => {
+        const liveItemId = typeof item?.id === "string" ? item.id : null;
+        const livePriceId = item?.price?.id ?? null;
+        if (addon.stripe_subscription_item_id && liveItemId === addon.stripe_subscription_item_id) {
+          return true;
+        }
+        return addon.stripe_price_id != null && livePriceId === addon.stripe_price_id;
+      });
+
+      if (!matchedLiveItem) {
+        findings.push({
+          code: "storage_addon_missing_in_stripe",
+          severity: "critical",
+          message: `local storage add-on ${addon.storage_addon_id ?? addon.offer_id ?? addon.stripe_price_id ?? "unknown"} is missing from live Stripe subscription items.`,
+        });
+        continue;
+      }
+
+      const liveItemId = typeof matchedLiveItem.id === "string" ? matchedLiveItem.id : null;
+      if (liveItemId) {
+        matchedLiveAddonItemIds.add(liveItemId);
+      }
+
+      const localQuantity = asQuantity(addon.quantity);
+      const liveQuantity = asQuantity(matchedLiveItem.quantity ?? 1);
+      if (localQuantity !== liveQuantity) {
+        findings.push({
+          code: "storage_addon_quantity_mismatch",
+          severity: "critical",
+          message: `local storage add-on quantity ${localQuantity} differs from live Stripe quantity ${liveQuantity} for ${addon.storage_addon_id ?? addon.offer_id ?? addon.stripe_price_id ?? "unknown"}.`,
+        });
+      }
+
+      const localRecurringPrice = asCents(addon.recurring_price_cents);
+      const liveRecurringPrice =
+        typeof matchedLiveItem.price?.unit_amount === "number" &&
+        Number.isFinite(matchedLiveItem.price.unit_amount)
+          ? matchedLiveItem.price.unit_amount * Math.max(liveQuantity, 1)
+          : null;
+      if (
+        localRecurringPrice != null &&
+        liveRecurringPrice != null &&
+        localRecurringPrice !== liveRecurringPrice
+      ) {
+        findings.push({
+          code: "storage_addon_amount_mismatch",
+          severity: "critical",
+          message: `local storage add-on recurring amount ${localRecurringPrice} differs from live Stripe amount ${liveRecurringPrice} for ${addon.storage_addon_id ?? addon.offer_id ?? addon.stripe_price_id ?? "unknown"}.`,
+        });
+      }
+    }
+
+    for (const liveItem of liveItems) {
+      const liveItemId = typeof liveItem?.id === "string" ? liveItem.id : null;
+      const livePriceId = liveItem?.price?.id ?? null;
+      if (!livePriceId) continue;
+      if (currentContract?.stripe_price_id && livePriceId === currentContract.stripe_price_id) {
+        continue;
+      }
+      if (liveItemId && matchedLiveAddonItemIds.has(liveItemId)) {
+        continue;
+      }
+
+      findings.push({
+        code: "unmapped_live_subscription_item",
+        severity: "critical",
+        message: `live Stripe subscription contains unmapped recurring item ${livePriceId}.`,
+      });
+    }
+
     rows.push({
       userId: profile.user_id,
       billingProfile: profile,
       currentContract,
+      activeStorageAddons: currentStorageAddons,
       liveStripeSubscription: liveSnapshot,
       findings,
     });

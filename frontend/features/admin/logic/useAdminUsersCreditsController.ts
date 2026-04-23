@@ -56,6 +56,8 @@ type UseAdminUsersCreditsControllerResult = {
   allowStripeTakeover: boolean;
   billingOverrideSubmitting: boolean;
   billingOverrideResult: string | null;
+  billingPortalSubmitting: boolean;
+  billingPortalResult: string | null;
   deleteSubmitting: boolean;
   deleteResult: string | null;
   creditLedgerRows: AdminCreditLedgerRow[];
@@ -83,6 +85,7 @@ type UseAdminUsersCreditsControllerResult = {
   handleCreditAdjust: () => Promise<void>;
   handleGrantInternalComp: () => Promise<void>;
   handleRevokeInternalComp: () => Promise<void>;
+  handleOpenSelectedUserBilling: () => Promise<void>;
   handleDeleteUser: (params: { userId: string; confirmationText: string }) => Promise<boolean>;
   clearDeleteResult: () => void;
 };
@@ -118,6 +121,8 @@ export const useAdminUsersCreditsController = ({
   const [allowStripeTakeover, setAllowStripeTakeover] = React.useState(false);
   const [billingOverrideSubmitting, setBillingOverrideSubmitting] = React.useState(false);
   const [billingOverrideResult, setBillingOverrideResult] = React.useState<string | null>(null);
+  const [billingPortalSubmitting, setBillingPortalSubmitting] = React.useState(false);
+  const [billingPortalResult, setBillingPortalResult] = React.useState<string | null>(null);
   const [deleteSubmitting, setDeleteSubmitting] = React.useState(false);
   const [deleteResult, setDeleteResult] = React.useState<string | null>(null);
   const [creditLedgerRows, setCreditLedgerRows] = React.useState<AdminCreditLedgerRow[]>([]);
@@ -321,6 +326,7 @@ export const useAdminUsersCreditsController = ({
     setBillingDiagnosticsError(null);
     setBillingDiagnosticsLoaded(false);
     setBillingOverrideResult(null);
+    setBillingPortalResult(null);
     setAllowStripeTakeover(false);
   }, [selectedUserId]);
 
@@ -470,6 +476,52 @@ export const useAdminUsersCreditsController = ({
     }
   }, [loadBillingDiagnostics, loadCreditLedger, loadUsers, selectedUserId]);
 
+  const handleOpenSelectedUserBilling = React.useCallback(async () => {
+    if (!selectedUserId) {
+      setBillingPortalResult("Select an account before opening Stripe billing.");
+      return;
+    }
+
+    const portalWindow =
+      typeof window !== "undefined" ? window.open("", "_blank", "noopener,noreferrer") : null;
+
+    setBillingPortalSubmitting(true);
+    setBillingPortalResult(null);
+    try {
+      const response = await fetchWithAuth("/api/admin/billing/portal", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: selectedUserId }),
+      });
+      const data = (await response.json().catch(() => ({}))) as {
+        error?: string;
+        portalUrl?: string;
+      };
+      if (!response.ok) {
+        throw new Error(data.error || "Unable to open Stripe billing.");
+      }
+      if (!data.portalUrl) {
+        throw new Error("Stripe billing link is missing from the server response.");
+      }
+
+      if (portalWindow && !portalWindow.closed) {
+        portalWindow.location.href = data.portalUrl;
+      } else {
+        window.location.assign(data.portalUrl);
+      }
+      setBillingPortalResult("Opened Stripe billing in a new tab.");
+    } catch (error) {
+      if (portalWindow && !portalWindow.closed) {
+        portalWindow.close();
+      }
+      setBillingPortalResult(
+        error instanceof Error ? error.message : "Unable to open Stripe billing."
+      );
+    } finally {
+      setBillingPortalSubmitting(false);
+    }
+  }, [selectedUserId]);
+
   const handleDeleteUser = React.useCallback(
     async ({
       userId,
@@ -588,6 +640,8 @@ export const useAdminUsersCreditsController = ({
     allowStripeTakeover,
     billingOverrideSubmitting,
     billingOverrideResult,
+    billingPortalSubmitting,
+    billingPortalResult,
     deleteSubmitting,
     deleteResult,
     creditLedgerRows,
@@ -615,6 +669,7 @@ export const useAdminUsersCreditsController = ({
     handleCreditAdjust,
     handleGrantInternalComp,
     handleRevokeInternalComp,
+    handleOpenSelectedUserBilling,
     handleDeleteUser,
     clearDeleteResult,
   };

@@ -71,6 +71,8 @@ type StripeSubscriptionResponse = {
   current_period_end?: number | null;
   items?: {
     data?: Array<{
+      id?: string | null;
+      quantity?: number | null;
       price?: {
         id?: string | null;
         unit_amount?: number | null;
@@ -107,6 +109,20 @@ const asCents = (value: number | string | null | undefined): number | null => {
   if (value == null) return null;
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : null;
+};
+
+const asQuantity = (value: number | string | null | undefined): number => {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed > 0 ? Math.trunc(parsed) : 0;
+};
+
+const pickPositiveNumber = (...values: Array<number | null | undefined>): number => {
+  for (const value of values) {
+    if (value != null && Number.isFinite(value) && value > 0) {
+      return value;
+    }
+  }
+  return 0;
 };
 
 const pushFinding = (
@@ -344,11 +360,11 @@ export default async function handler(
       (sum, row) => sum + Math.max(0, Number(row.file_size ?? 0) || 0),
       0
     );
-    const baseLimitBytes =
-      responseContract?.storageLimitBytes ??
-      linkedOffer?.storageLimitBytes ??
-      currentPublicOffer?.storageLimitBytes ??
-      0;
+    const baseLimitBytes = pickPositiveNumber(
+      responseContract?.storageLimitBytes,
+      linkedOffer?.storageLimitBytes,
+      currentPublicOffer?.storageLimitBytes
+    );
     const addonLimitBytes = activeStorageAddons.reduce((sum, addon) => {
       const status = String(addon.status ?? "").toLowerCase();
       if (status === "canceled" || status === "inactive") {
@@ -370,6 +386,9 @@ export default async function handler(
       customerId: billingProfile?.stripe_customer_id ?? null,
       subscription: liveStripeSubscription,
     });
+    const liveStripeItems = Array.isArray(liveStripeSubscription?.items?.data)
+      ? (liveStripeSubscription.items?.data ?? [])
+      : [];
 
     const findings: AdminHealthFinding[] = [];
     const activePaidProfile =
@@ -664,6 +683,80 @@ export default async function handler(
         recommendedActions: [
           "Inspect the live Stripe price and invoice history before changing local contract values.",
           "Repair the contract snapshot or migrate the subscription intentionally once the intended amount is confirmed.",
+        ],
+      });
+    }
+
+    const matchedLiveAddonItemIds = new Set<string>();
+    for (const addon of activeStorageAddons) {
+      const matchedLiveItem = liveStripeItems.find((item) => {
+        const liveItemId = typeof item?.id === "string" ? item.id : null;
+        const livePriceId = item?.price?.id ?? null;
+        if (addon.stripeSubscriptionItemId && liveItemId === addon.stripeSubscriptionItemId) {
+          return true;
+        }
+        return addon.stripePriceId != null && livePriceId === addon.stripePriceId;
+      });
+
+      if (!matchedLiveItem) {
+        pushFinding(findings, {
+          code: "storage_addon_missing_in_stripe",
+          severity: "critical",
+          confidence: "high",
+          summary: "Local recurring storage add-on is missing from live Stripe items.",
+          details:
+            "A current billing_subscription_storage_addons row does not match any live Stripe subscription item. Storage entitlement can drift if the local add-on contract is no longer backed by the Stripe subscription.",
+          recommendedActions: [
+            "Inspect the live Stripe subscription items for this customer.",
+            "Repair or close the local add-on contract only after confirming the intended Stripe state.",
+          ],
+        });
+        continue;
+      }
+
+      if (typeof matchedLiveItem.id === "string") {
+        matchedLiveAddonItemIds.add(matchedLiveItem.id);
+      }
+
+      const localQuantity = Math.max(0, addon.quantity);
+      const liveQuantity = asQuantity(matchedLiveItem.quantity ?? 1);
+      if (localQuantity !== liveQuantity) {
+        pushFinding(findings, {
+          code: "storage_addon_quantity_mismatch",
+          severity: "critical",
+          confidence: "high",
+          summary: "Local storage add-on quantity differs from live Stripe quantity.",
+          details:
+            "The local recurring storage add-on contract quantity does not match the corresponding live Stripe subscription item. That can distort the effective storage entitlement shown in-app.",
+          recommendedActions: [
+            "Replay the latest Stripe subscription update event for this customer.",
+            "If Stripe is correct, repair the local add-on contract quantity from the live item.",
+          ],
+        });
+      }
+    }
+
+    for (const liveItem of liveStripeItems) {
+      const liveItemId = typeof liveItem?.id === "string" ? liveItem.id : null;
+      const livePriceId = liveItem?.price?.id ?? null;
+      if (!livePriceId) continue;
+      if (currentContract?.stripe_price_id && livePriceId === currentContract.stripe_price_id) {
+        continue;
+      }
+      if (liveItemId && matchedLiveAddonItemIds.has(liveItemId)) {
+        continue;
+      }
+
+      pushFinding(findings, {
+        code: "unmapped_live_subscription_item",
+        severity: "critical",
+        confidence: "high",
+        summary: "Live Stripe subscription contains an unmapped recurring item.",
+        details:
+          "Stripe is currently billing a recurring subscription item that does not resolve to the current base contract or any local recurring storage add-on contract. This usually points to a missing mapping or a partial webhook sync.",
+        recommendedActions: [
+          "Check whether the live Stripe price id is part of the supported ShortPulse catalog.",
+          "Repair local contract/add-on state before changing the subscription again.",
         ],
       });
     }

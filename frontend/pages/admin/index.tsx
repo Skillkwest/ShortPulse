@@ -50,6 +50,8 @@ export default function AdminDashboardPage() {
     allowStripeTakeover,
     billingOverrideSubmitting,
     billingOverrideResult,
+    billingPortalSubmitting,
+    billingPortalResult,
     deleteSubmitting,
     deleteResult,
     creditLedgerRows,
@@ -76,6 +78,7 @@ export default function AdminDashboardPage() {
     handleCreditAdjust,
     handleGrantInternalComp,
     handleRevokeInternalComp,
+    handleOpenSelectedUserBilling,
     handleDeleteUser,
     clearDeleteResult,
   } = useAdminUsersCreditsController({
@@ -122,6 +125,8 @@ export default function AdminDashboardPage() {
         allowStripeTakeover={allowStripeTakeover}
         billingOverrideSubmitting={billingOverrideSubmitting}
         billingOverrideResult={billingOverrideResult}
+        billingPortalSubmitting={billingPortalSubmitting}
+        billingPortalResult={billingPortalResult}
         deleteSubmitting={deleteSubmitting}
         deleteResult={deleteResult}
         creditLedgerRows={creditLedgerRows}
@@ -148,6 +153,7 @@ export default function AdminDashboardPage() {
         handleCreditAdjust={handleCreditAdjust}
         handleGrantInternalComp={handleGrantInternalComp}
         handleRevokeInternalComp={handleRevokeInternalComp}
+        handleOpenSelectedUserBilling={handleOpenSelectedUserBilling}
         handleDeleteUser={handleDeleteUser}
         clearDeleteResult={clearDeleteResult}
         planLabel={planLabel}

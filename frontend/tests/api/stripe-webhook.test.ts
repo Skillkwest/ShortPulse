@@ -61,8 +61,13 @@ const createSupabaseAdminForWebhook = (params?: {
   billingPlan?: Record<string, unknown> | null;
   billingOffer?: Record<string, unknown> | null;
   billingContract?: Record<string, unknown> | null;
+  billingStorageAddon?: Record<string, unknown> | null;
+  billingStorageAddonOffer?: Record<string, unknown> | null;
+  billingStorageAddonContracts?: Record<string, unknown>[];
   onContractInsert?: (payload: unknown) => void;
   onContractUpdate?: (payload: unknown) => void;
+  onStorageAddonInsert?: (payload: unknown) => void;
+  onStorageAddonUpdate?: (payload: unknown) => void;
 }) => ({
   from: (table: string) => {
     if (table === "stripe_event_log") {
@@ -113,6 +118,32 @@ const createSupabaseAdminForWebhook = (params?: {
       };
     }
 
+    if (table === "billing_storage_addons") {
+      return {
+        select: () => ({
+          eq: () => ({
+            maybeSingle: async () => ({
+              data: params?.billingStorageAddon ?? null,
+              error: null,
+            }),
+          }),
+        }),
+      };
+    }
+
+    if (table === "billing_storage_addon_offers") {
+      return {
+        select: () => ({
+          eq: () => ({
+            maybeSingle: async () => ({
+              data: params?.billingStorageAddonOffer ?? null,
+              error: null,
+            }),
+          }),
+        }),
+      };
+    }
+
     if (table === "billing_subscription_contracts") {
       return {
         select: () => ({
@@ -136,6 +167,35 @@ const createSupabaseAdminForWebhook = (params?: {
         update: (payload: unknown) => ({
           eq: async () => {
             params?.onContractUpdate?.(payload);
+            return { data: null, error: null };
+          },
+        }),
+      };
+    }
+
+    if (table === "billing_subscription_storage_addons") {
+      const storageAddonSelectChain = {} as {
+        eq: ReturnType<typeof vi.fn>;
+        is: ReturnType<typeof vi.fn>;
+      };
+      storageAddonSelectChain.eq = vi.fn(() => storageAddonSelectChain);
+      storageAddonSelectChain.is = vi.fn(() => ({
+        order: async () => ({
+          data: params?.billingStorageAddonContracts ?? [],
+          error: null,
+        }),
+      }));
+      return {
+        select: () => ({
+          eq: vi.fn(() => storageAddonSelectChain),
+        }),
+        insert: async (payload: unknown) => {
+          params?.onStorageAddonInsert?.(payload);
+          return { data: null, error: null };
+        },
+        update: (payload: unknown) => ({
+          eq: async () => {
+            params?.onStorageAddonUpdate?.(payload);
             return { data: null, error: null };
           },
         }),
@@ -448,6 +508,7 @@ describe("POST /api/billing/stripe/webhook", () => {
           stripe_price_id: "price_studio",
           recurring_price_cents: 3900,
           monthly_credits_cents: 3000,
+          storage_limit_bytes: 107374182400,
         },
         billingContract: null,
         onContractInsert: contractInsertSpy,
@@ -495,6 +556,95 @@ describe("POST /api/billing/stripe/webhook", () => {
         stripe_price_id: "price_studio",
         recurring_price_cents: 3900,
         monthly_credits_cents: 3000,
+        storage_limit_bytes: 107374182400,
+        status: "active",
+      })
+    );
+  });
+
+  it("syncs recurring storage add-on contracts from subscription items", async () => {
+    verifyStripeWebhookSignatureMock.mockReturnValue(true);
+    const storageAddonInsertSpy = vi.fn();
+    getSupabaseAdminMock.mockReturnValue(
+      createSupabaseAdminForWebhook({
+        billingProfile: {
+          user_id: "user_123",
+          plan_id: "studio",
+        },
+        billingOffer: {
+          id: "studio__current",
+          plan_id: "studio",
+          stripe_price_id: "price_studio",
+          recurring_price_cents: 3900,
+          monthly_credits_cents: 3000,
+          storage_limit_bytes: 107374182400,
+        },
+        billingStorageAddonOffer: {
+          id: "storage_100gb__current",
+          storage_addon_id: "storage_100gb",
+          stripe_price_id: "price_storage_100gb",
+          storage_limit_bytes: 107374182400,
+          recurring_price_cents: 1500,
+        },
+        billingContract: null,
+        billingStorageAddonContracts: [],
+        onContractInsert: vi.fn(),
+        onStorageAddonInsert: storageAddonInsertSpy,
+      })
+    );
+
+    const { res, promise } = createWebhookRequest(
+      JSON.stringify({
+        id: "evt_sub_addon_1",
+        type: "customer.subscription.updated",
+        data: {
+          object: {
+            id: "sub_123",
+            customer: "cus_123",
+            status: "active",
+            current_period_start: 1704067200,
+            current_period_end: 1706745600,
+            cancel_at_period_end: false,
+            items: {
+              data: [
+                {
+                  id: "si_plan_1",
+                  quantity: 1,
+                  price: {
+                    id: "price_studio",
+                    unit_amount: 3900,
+                    metadata: {
+                      monthly_credits_cents: "3000",
+                    },
+                  },
+                },
+                {
+                  id: "si_storage_1",
+                  quantity: 2,
+                  price: {
+                    id: "price_storage_100gb",
+                    unit_amount: 1500,
+                  },
+                },
+              ],
+            },
+          },
+        },
+      })
+    );
+    await promise;
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(storageAddonInsertSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        user_id: "user_123",
+        storage_addon_id: "storage_100gb",
+        offer_id: "storage_100gb__current",
+        stripe_subscription_item_id: "si_storage_1",
+        stripe_price_id: "price_storage_100gb",
+        storage_limit_bytes: 107374182400,
+        quantity: 2,
+        recurring_price_cents: 3000,
         status: "active",
       })
     );

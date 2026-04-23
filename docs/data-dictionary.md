@@ -510,6 +510,7 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
 - `display_name` (text): UI-facing plan label.
 - `monthly_price_cents` (int): Current public baseline price in cents for the tier.
 - `monthly_credits_cents` (int): Current public baseline monthly credits for the tier.
+- `storage_limit_bytes` (bigint): Current public baseline media storage entitlement for the tier.
 - `stripe_price_id` (text, nullable): Legacy/current recurring Stripe price ID for the tier baseline. Subscriber-specific recurring prices should prefer `billing_plan_offers` / `billing_subscription_contracts`.
 - `is_active` (boolean): Plan availability toggle.
 - `created_at` (timestamptz, default now)
@@ -521,6 +522,7 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
 - `offer_name` (text): Operator-facing offer label.
 - `recurring_price_cents` (int): Recurring price snapshot for this offer.
 - `monthly_credits_cents` (int): Included monthly credits snapshot for this offer.
+- `storage_limit_bytes` (bigint): Included base media storage entitlement snapshot for this offer.
 - `stripe_price_id` (text, nullable): Stripe recurring price id for this offer.
 - `currency` (text, default `usd`): Offer currency.
 - `billing_interval` (text, default `month`): Current recurring interval.
@@ -541,6 +543,31 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
 - `sort_order` (int): UI ordering.
 - `created_at` (timestamptz, default now)
 - RLS: select allowed for all users; writes are server/admin only.
+
+### billing_storage_addons
+- `id` (text, pk): Stable recurring storage add-on id used for catalog and Stripe mapping.
+- `display_name` (text): UI-facing add-on label.
+- `storage_limit_bytes` (bigint): Included recurring storage capacity for one add-on unit.
+- `monthly_price_cents` (int): Current public baseline monthly price for the add-on.
+- `sort_order` (int): UI ordering.
+- `is_active` (boolean): Add-on availability toggle.
+- `created_at` (timestamptz, default now)
+- RLS: select allowed for all users; writes are server-only/service-role-only.
+
+### billing_storage_addon_offers
+- `id` (text, pk): Stable versioned recurring storage add-on offer id.
+- `storage_addon_id` (text, fk -> `billing_storage_addons.id`): Shared add-on this offer belongs to.
+- `offer_name` (text): Operator-facing add-on offer label.
+- `storage_limit_bytes` (bigint): Locked storage amount for this add-on offer version.
+- `recurring_price_cents` (int): Locked recurring price snapshot for this add-on offer version.
+- `stripe_price_id` (text, nullable): Stripe recurring price id for this add-on offer.
+- `currency` (text, default `usd`): Offer currency.
+- `billing_interval` (text, default `month`): Current recurring interval.
+- `acquisition_enabled` (boolean): Whether this add-on offer is currently available for new purchases.
+- `is_active` (boolean): Soft-active flag for the offer record.
+- `effective_start_at` / `effective_end_at` (timestamptz, nullable): Offer lifecycle window.
+- `created_at` / `updated_at` (timestamptz)
+- RLS: select allowed for all users; writes are server-only/service-role-only.
 
 ### billing_profiles
 - `user_id` (uuid, pk, references `auth.users(id)`): Owner.
@@ -563,6 +590,7 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
 - `stripe_price_id` (text, nullable): Stripe recurring price id actually used for the contract.
 - `recurring_price_cents` (int): Locked recurring price snapshot for the subscriber.
 - `monthly_credits_cents` (int): Locked included monthly credits snapshot for the subscriber.
+- `storage_limit_bytes` (bigint): Locked base media storage entitlement snapshot for the subscriber.
 - `currency` (text, default `usd`): Contract currency.
 - `billing_interval` (text, default `month`): Current recurring interval.
 - `status` (text): Contract/subscription status projection (`active`, `trialing`, `past_due`, `canceled`, `inactive`, etc.).
@@ -576,6 +604,26 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
 - `ended_at` (timestamptz, nullable): Contract end timestamp; `null` means current/open contract row.
 - `created_at` / `updated_at` (timestamptz)
 - RLS: users can read only their own rows; writes are server-only/service-role-only. At most one open contract row per user and per Stripe subscription.
+
+### billing_subscription_storage_addons
+- `id` (uuid, pk): Historical/current subscriber recurring storage add-on row.
+- `user_id` (uuid, fk -> `auth.users(id)`): Add-on owner.
+- `storage_addon_id` (text, fk -> `billing_storage_addons.id`): Shared add-on catalog id.
+- `offer_id` (text, nullable fk -> `billing_storage_addon_offers.id`): Versioned add-on offer purchased for this row.
+- `stripe_subscription_id` (text, nullable): Stripe subscription reference tied to this add-on.
+- `stripe_subscription_item_id` (text, nullable): Stripe subscription item reference for this add-on line.
+- `stripe_price_id` (text, nullable): Stripe recurring price id actually used for this add-on.
+- `quantity` (int): Number of identical add-on units attached to the subscription item.
+- `storage_limit_bytes` (bigint): Locked storage amount per add-on unit for this subscriber row.
+- `recurring_price_cents` (int): Locked recurring amount per add-on unit for this subscriber row.
+- `currency` (text, default `usd`): Add-on currency.
+- `billing_interval` (text, default `month`): Current recurring interval.
+- `status` (text): Add-on status projection (`active`, `trialing`, `past_due`, `canceled`, etc.).
+- `current_period_start` / `current_period_end` (timestamptz, nullable): Known recurring period boundaries.
+- `started_at` (timestamptz): Add-on start timestamp.
+- `ended_at` (timestamptz, nullable): Add-on end timestamp; `null` means current/open row.
+- `created_at` / `updated_at` (timestamptz)
+- RLS: users can read only their own rows; writes are server-only/service-role-only. At most one open row per Stripe subscription item.
 
 ### ai_credit_balance
 - `user_id` (uuid, pk, references `auth.users(id)`): Balance owner.

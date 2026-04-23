@@ -4,6 +4,7 @@ import type {
   AdminBillingDiagnosticsResponse,
   AdminBillingOfferSnapshot,
   AdminBillingProfileSnapshot,
+  AdminBillingStorageAddonSnapshot,
   AdminHealthFinding,
   AdminStripeSubscriptionSnapshot,
 } from "../../../features/admin/types";
@@ -31,6 +32,7 @@ type BillingContractRow = {
   contract_source: "stripe" | "internal_comp" | null;
   recurring_price_cents: number | string | null;
   monthly_credits_cents: number | string | null;
+  storage_limit_bytes: number | string | null;
   status: string | null;
   current_period_end: string | null;
 };
@@ -42,8 +44,25 @@ type BillingOfferRow = {
   stripe_price_id: string | null;
   recurring_price_cents: number | string | null;
   monthly_credits_cents: number | string | null;
+  storage_limit_bytes: number | string | null;
   acquisition_enabled: boolean | null;
   is_active: boolean | null;
+};
+
+type BillingStorageAddonRow = {
+  id: string;
+  storage_addon_id: string | null;
+  offer_id: string | null;
+  stripe_subscription_item_id: string | null;
+  stripe_price_id: string | null;
+  storage_limit_bytes: number | string | null;
+  quantity: number | string | null;
+  recurring_price_cents: number | string | null;
+  status: string | null;
+};
+
+type MediaUsageRow = {
+  file_size: number | string | null;
 };
 
 type StripeSubscriptionResponse = {
@@ -161,7 +180,7 @@ export default async function handler(
       supabaseAdmin
         .from("billing_subscription_contracts")
         .select(
-          "id, plan_id, offer_id, stripe_price_id, stripe_subscription_id, contract_source, recurring_price_cents, monthly_credits_cents, status, current_period_end"
+          "id, plan_id, offer_id, stripe_price_id, stripe_subscription_id, contract_source, recurring_price_cents, monthly_credits_cents, storage_limit_bytes, status, current_period_end"
         )
         .eq("user_id", userId)
         .is("ended_at", null)
@@ -194,7 +213,7 @@ export default async function handler(
           ? supabaseAdmin
               .from("billing_plan_offers")
               .select(
-                "id, plan_id, offer_name, stripe_price_id, recurring_price_cents, monthly_credits_cents, acquisition_enabled, is_active"
+                "id, plan_id, offer_name, stripe_price_id, recurring_price_cents, monthly_credits_cents, storage_limit_bytes, acquisition_enabled, is_active"
               )
               .eq("id", currentContract.offer_id)
               .maybeSingle()
@@ -202,7 +221,7 @@ export default async function handler(
         supabaseAdmin
           .from("billing_plan_offers")
           .select(
-            "id, plan_id, offer_name, stripe_price_id, recurring_price_cents, monthly_credits_cents, acquisition_enabled, is_active"
+            "id, plan_id, offer_name, stripe_price_id, recurring_price_cents, monthly_credits_cents, storage_limit_bytes, acquisition_enabled, is_active"
           )
           .eq("plan_id", effectivePlanId)
           .eq("acquisition_enabled", true)
@@ -228,6 +247,7 @@ export default async function handler(
               stripePriceId: row.stripe_price_id ?? null,
               recurringPriceCents: asCents(row.recurring_price_cents),
               monthlyCreditsCents: asCents(row.monthly_credits_cents),
+              storageLimitBytes: asCents(row.storage_limit_bytes),
               acquisitionEnabled: Boolean(row.acquisition_enabled),
               isActive: Boolean(row.is_active),
             }
@@ -235,6 +255,25 @@ export default async function handler(
 
       linkedOffer = mapOffer((linkedOfferResult.data as BillingOfferRow | null) ?? null);
       currentPublicOffer = mapOffer((currentOfferResult.data as BillingOfferRow | null) ?? null);
+    }
+
+    const [storageAddonsResult, mediaUsageResult] = await Promise.all([
+      supabaseAdmin
+        .from("billing_subscription_storage_addons")
+        .select(
+          "id, storage_addon_id, offer_id, stripe_subscription_item_id, stripe_price_id, storage_limit_bytes, quantity, recurring_price_cents, status"
+        )
+        .eq("user_id", userId)
+        .is("ended_at", null)
+        .order("created_at", { ascending: false }),
+      supabaseAdmin.from("media_files").select("file_size").eq("user_id", userId),
+    ]);
+
+    if (storageAddonsResult.error || mediaUsageResult.error) {
+      const detail = [storageAddonsResult.error?.message, mediaUsageResult.error?.message]
+        .filter(Boolean)
+        .join(" | ");
+      return res.status(500).json({ error: detail || "Failed to load storage diagnostics." });
     }
 
     let liveStripeSubscription: StripeSubscriptionResponse | null = null;
@@ -283,10 +322,49 @@ export default async function handler(
           contractSource: currentContract.contract_source ?? null,
           recurringPriceCents: asCents(currentContract.recurring_price_cents),
           monthlyCreditsCents: asCents(currentContract.monthly_credits_cents),
+          storageLimitBytes: asCents(currentContract.storage_limit_bytes),
           status: currentContract.status ?? null,
           currentPeriodEnd: currentContract.current_period_end ?? null,
         }
       : null;
+    const activeStorageAddons: AdminBillingStorageAddonSnapshot[] = (
+      (storageAddonsResult.data as BillingStorageAddonRow[] | null) ?? []
+    ).map((row) => ({
+      id: row.id,
+      storageAddonId: row.storage_addon_id ?? null,
+      offerId: row.offer_id ?? null,
+      stripeSubscriptionItemId: row.stripe_subscription_item_id ?? null,
+      stripePriceId: row.stripe_price_id ?? null,
+      storageLimitBytes: asCents(row.storage_limit_bytes),
+      quantity: Math.max(0, Number(row.quantity ?? 0) || 0),
+      recurringPriceCents: asCents(row.recurring_price_cents),
+      status: row.status ?? null,
+    }));
+    const usedBytes = ((mediaUsageResult.data as MediaUsageRow[] | null) ?? []).reduce<number>(
+      (sum, row) => sum + Math.max(0, Number(row.file_size ?? 0) || 0),
+      0
+    );
+    const baseLimitBytes =
+      responseContract?.storageLimitBytes ??
+      linkedOffer?.storageLimitBytes ??
+      currentPublicOffer?.storageLimitBytes ??
+      0;
+    const addonLimitBytes = activeStorageAddons.reduce((sum, addon) => {
+      const status = String(addon.status ?? "").toLowerCase();
+      if (status === "canceled" || status === "inactive") {
+        return sum;
+      }
+      return sum + (addon.storageLimitBytes ?? 0) * Math.max(0, addon.quantity);
+    }, 0);
+    const totalLimitBytes = baseLimitBytes + addonLimitBytes;
+    const storageSummary = {
+      usedBytes,
+      baseLimitBytes,
+      addonLimitBytes,
+      totalLimitBytes,
+      remainingBytes: Math.max(totalLimitBytes - usedBytes, 0),
+      isOverLimit: usedBytes > totalLimitBytes,
+    };
     const stripeSubscription = mapStripeSubscriptionSnapshot({
       configured: stripeConfigured,
       customerId: billingProfile?.stripe_customer_id ?? null,
@@ -430,13 +508,27 @@ export default async function handler(
         code: "internal_comp_contract",
         severity: "info",
         confidence: "high",
-        summary:
-          "This account is on an internal comp contract rather than a Stripe-paid subscription.",
+        summary: "This account is payment exempt rather than Stripe billed.",
         details:
           "Recurring access and monthly renewals for this user are expected to come from the internal comp renewal runner, not from Stripe invoice webhooks.",
         recommendedActions: [
-          "Use the admin internal comp controls for changes to this account.",
+          "Use the admin payment-exempt controls for changes to this account.",
           "Only treat missing Stripe linkage as a problem if this user is supposed to be on a paid Stripe contract instead.",
+        ],
+      });
+    }
+
+    if (storageSummary.isOverLimit) {
+      pushFinding(findings, {
+        code: "storage_over_limit",
+        severity: "warning",
+        confidence: "high",
+        summary: "User is over their current media storage entitlement.",
+        details:
+          "This account is currently using more canonical media storage than the active base plan plus recurring storage add-ons allow. New uploads and autosaves should already be blocked until the user deletes media or adds more capacity.",
+        recommendedActions: [
+          "Confirm whether the user wants to add recurring storage capacity or upgrade the base plan.",
+          "If the user wants to stay on the current tier, have them delete media until usage falls back under the limit.",
         ],
       });
     }
@@ -585,6 +677,8 @@ export default async function handler(
       currentContract: responseContract,
       linkedOffer,
       currentPublicOffer,
+      activeStorageAddons,
+      storageSummary,
       stripeSubscription,
       findings,
     });

@@ -13,6 +13,7 @@ This SOP is the operational runbook for credit ledger migrations, admin balance 
 - Pricing catalog updates: `sql/update_billing_pricing_catalog_20260210.sql`.
 - Versioned offer + subscriber contract migration: `sql/migrations/085_add_billing_plan_offers_and_subscription_contracts.sql`.
 - Internal comp contract-source migration: `sql/migrations/086_add_internal_comp_billing_contract_support.sql`.
+- Storage entitlement + recurring storage add-on migration: `sql/migrations/087_add_storage_entitlements_and_recurring_storage_addons.sql`.
 - Legacy-to-v2 alignment migration: `sql/migrate_ai_credit_ledger_legacy_to_v2.sql`.
 - Billing/RLS audit helper: `sql/audit_billing_credit_rls.sql`.
 - Reservation/capture migration: `sql/migrations/002_add_generation_credit_reservations.sql`.
@@ -40,6 +41,9 @@ This SOP is the operational runbook for credit ledger migrations, admin balance 
 - `billing_plans` defines the shared plan tier (`free`, `media`, `studio`, `business`).
 - `billing_plan_offers` defines versioned recurring offers and current acquisition pricing.
 - `billing_subscription_contracts` defines the subscriber-specific recurring commercial terms and historical lineage.
+- `billing_plans.storage_limit_bytes`, `billing_plan_offers.storage_limit_bytes`, and `billing_subscription_contracts.storage_limit_bytes` define base storage entitlements for each tier and subscriber contract snapshot.
+- `billing_storage_addons` and `billing_storage_addon_offers` define recurring public storage add-on catalog entries.
+- `billing_subscription_storage_addons` defines subscriber-specific recurring storage add-on contracts synchronized from Stripe subscription items.
 - `billing_profiles` remains a runtime projection for current plan/customer/subscription linkage, but it is not the long-term authoritative source for grandfathered recurring price.
 - `billing_subscription_contracts.contract_source` distinguishes Stripe-paid recurring contracts from non-public internal comp contracts.
 
@@ -170,6 +174,21 @@ Safety checks:
 - Stripe event IDs are persisted in `stripe_event_log` to prevent duplicate grants.
 - Grant idempotency should use stable business object references where available (`checkout_session.id`, `invoice.id`) rather than relying only on Stripe event ids.
 - Current acquisition pricing may change over time, but existing subscribers should remain attached to their stored `billing_subscription_contracts` commercial snapshot unless a trusted migration/operator path intentionally moves them.
+- Storage entitlements follow the same contract model:
+  - current public plan storage lives in `billing_plans` / `billing_plan_offers`
+  - current public recurring storage add-ons live in `billing_storage_addons` / `billing_storage_addon_offers`
+  - active subscriber storage comes from `billing_subscription_contracts.storage_limit_bytes` plus active `billing_subscription_storage_addons`
+- Stripe subscription item sync must treat storage add-ons as recurring subscription items, not consumable credit packs.
+
+## Media storage quota contract
+- Customer-facing storage quota counts canonical saved media only:
+  - `media_files.file_size`
+- Derived poster/thumb/preview assets do not count against customer quota.
+- Effective storage entitlement is:
+  - base contract storage
+  - plus active recurring storage add-ons
+- Quota enforcement is database-authoritative on `media_files` inserts/updates through `enforce_media_storage_quota()`.
+- App/server persistence lanes must still best-effort remove uploaded storage objects if the `media_files` insert fails because the DB quota guard rejects the write.
 
 ## Internal comp recurring behavior
 - Admin/non-public comp access is granted through `/api/admin/billing/contracts/update`.

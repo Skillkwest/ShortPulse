@@ -71,3 +71,4 @@ ADRs capture **important, durable decisions** so the repo stays coherent as it g
 - `docs/adr/0057-voice-changer-canonical-staged-audio-intake.md`
 - `docs/adr/0058-billing-grandfathered-offers-and-subscriber-contracts.md`
 - `docs/adr/0059-billing-internal-comp-contracts-and-admin-exempt-renewals.md`
+- `docs/adr/0060-billing-storage-entitlements-and-recurring-storage-addons.md`

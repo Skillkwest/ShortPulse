@@ -41,6 +41,7 @@ type BillingContractRow = {
   stripe_subscription_id: string | null;
   recurring_price_cents: number | string | null;
   monthly_credits_cents: number | string | null;
+  storage_limit_bytes: number | string | null;
   status: string | null;
   current_period_start: string | null;
   current_period_end: string | null;
@@ -52,6 +53,7 @@ type BillingOfferRow = {
   plan_id: string;
   recurring_price_cents: number | string;
   monthly_credits_cents: number | string;
+  storage_limit_bytes: number | string;
 };
 
 const DEFAULT_GRANT_REASON = "Admin internal comp override";
@@ -125,7 +127,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       supabaseAdmin
         .from("billing_subscription_contracts")
         .select(
-          "id, plan_id, offer_id, stripe_customer_id, stripe_subscription_id, recurring_price_cents, monthly_credits_cents, status, current_period_start, current_period_end, contract_source"
+          "id, plan_id, offer_id, stripe_customer_id, stripe_subscription_id, recurring_price_cents, monthly_credits_cents, storage_limit_bytes, status, current_period_start, current_period_end, contract_source"
         )
         .eq("user_id", normalizedUserId)
         .is("ended_at", null)
@@ -150,7 +152,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (hasStripeLink && !allowStripeTakeover) {
       return res.status(409).json({
         error:
-          "This account is still linked to a Stripe subscription. Handle the Stripe subscription first, then retry with takeover confirmation if you intentionally want ShortPulse to clear the local Stripe linkage.",
+          "This account is still linked to a Stripe subscription. Handle Stripe first, then retry with the advanced Stripe cleanup option if you intentionally want ShortPulse to clear the saved Stripe link.",
         code: "stripe_takeover_required",
       });
     }
@@ -160,7 +162,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     if (action === "revoke_internal_comp") {
       if (currentContract?.contract_source !== BILLING_CONTRACT_SOURCE_INTERNAL_COMP) {
-        return res.status(400).json({ error: "Current contract is not internal comp." });
+        return res.status(400).json({ error: "This account is not currently payment exempt." });
       }
 
       const nowIso = new Date().toISOString();
@@ -173,7 +175,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         })
         .eq("id", currentContract.id);
       if (endContractError) {
-        throw new Error(endContractError.message || "Failed to close internal comp contract.");
+        throw new Error(endContractError.message || "Failed to remove payment-exempt access.");
       }
 
       const { error: profileUpsertError } = await supabaseAdmin.from("billing_profiles").upsert(
@@ -190,7 +192,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         }
       );
       if (profileUpsertError) {
-        throw new Error(profileUpsertError.message || "Failed to revert billing profile to free.");
+        throw new Error(profileUpsertError.message || "Failed to set the account back to Free.");
       }
 
       return res.status(200).json({
@@ -206,24 +208,28 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const internalOfferId = buildInternalCompOfferId(effectivePlanId);
     const offerResult = await supabaseAdmin
       .from("billing_plan_offers")
-      .select("id, plan_id, recurring_price_cents, monthly_credits_cents")
+      .select("id, plan_id, recurring_price_cents, monthly_credits_cents, storage_limit_bytes")
       .eq("id", internalOfferId)
       .maybeSingle();
     if (offerResult.error) {
-      throw new Error(offerResult.error.message || "Failed to load internal comp offer.");
+      throw new Error(offerResult.error.message || "Failed to load the payment-exempt plan.");
     }
 
     const offer = (offerResult.data as BillingOfferRow | null) ?? null;
     if (!offer) {
       return res.status(500).json({
-        error: `Missing internal comp offer for plan ${effectivePlanId}.`,
+        error: `Missing payment-exempt offer for plan ${effectivePlanId}.`,
       });
     }
+    const nextMonthlyCredits = asCents(offer.monthly_credits_cents);
+    const nextStorageLimitBytes = asCents(offer.storage_limit_bytes);
 
     if (
       currentContract?.contract_source === BILLING_CONTRACT_SOURCE_INTERNAL_COMP &&
       currentContract.plan_id === effectivePlanId &&
-      currentContract.status === "active"
+      currentContract.status === "active" &&
+      asCents(currentContract.monthly_credits_cents) === nextMonthlyCredits &&
+      asCents(currentContract.storage_limit_bytes) === nextStorageLimitBytes
     ) {
       return res.status(200).json({
         ok: true,
@@ -254,7 +260,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const previousInternalMonthlyCredits = carryForwardPeriod
       ? asCents(currentContract?.monthly_credits_cents)
       : 0;
-    const nextMonthlyCredits = asCents(offer.monthly_credits_cents);
     const creditsGrantedCents = Math.max(0, nextMonthlyCredits - previousInternalMonthlyCredits);
     const grantKind = previousInternalMonthlyCredits > 0 ? "change" : "initial";
     const grantSource =
@@ -293,6 +298,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         stripe_price_id: null,
         recurring_price_cents: asCents(offer.recurring_price_cents),
         monthly_credits_cents: nextMonthlyCredits,
+        storage_limit_bytes: nextStorageLimitBytes,
         status: "active",
         current_period_start: currentPeriodStart.toISOString(),
         current_period_end: currentPeriodEnd.toISOString(),
@@ -304,7 +310,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         updated_by_user_id: adminUser.id,
       });
     if (insertContractError) {
-      throw new Error(insertContractError.message || "Failed to insert internal comp contract.");
+      throw new Error(insertContractError.message || "Failed to save payment-exempt access.");
     }
 
     const { error: profileUpsertError } = await supabaseAdmin.from("billing_profiles").upsert(
@@ -330,8 +336,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         changeCents: creditsGrantedCents,
         reason:
           grantKind === "change"
-            ? `Internal comp plan changed to ${effectivePlanId}`
-            : `Internal comp access granted for ${effectivePlanId}`,
+            ? `Payment-exempt plan changed to ${effectivePlanId}`
+            : `Payment-exempt access granted for ${effectivePlanId}`,
         source: grantSource,
         sourceRef: grantSourceRef,
         metadata: {
@@ -347,7 +353,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       });
 
       if (ledgerResult.error && !isUniqueViolationError(ledgerResult.error)) {
-        throw new Error(ledgerResult.error.message || "Failed to seed internal comp credits.");
+        throw new Error(
+          ledgerResult.error.message || "Failed to seed credits for the payment-exempt plan."
+        );
       }
     }
 

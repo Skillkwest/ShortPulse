@@ -12,6 +12,7 @@ type BillingPlanResponse = {
   display_name: string;
   monthly_price_cents: number;
   monthly_credits_cents: number;
+  storage_limit_bytes: number;
   is_active: boolean;
 };
 
@@ -20,6 +21,14 @@ type CreditPackageResponse = {
   display_name: string;
   credit_amount_cents: number;
   price_cents: number;
+  sort_order: number;
+};
+
+type StorageAddonResponse = {
+  id: string;
+  display_name: string;
+  storage_limit_bytes: number;
+  monthly_price_cents: number;
   sort_order: number;
 };
 
@@ -35,10 +44,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   try {
     const supabaseAdmin = getSupabaseAdmin();
-    const [plansResult, packagesResult] = await Promise.all([
+    const [plansResult, packagesResult, storageAddonsResult] = await Promise.all([
       supabaseAdmin
         .from("billing_plans")
-        .select("id, display_name, monthly_price_cents, monthly_credits_cents, is_active")
+        .select(
+          "id, display_name, monthly_price_cents, monthly_credits_cents, storage_limit_bytes, is_active"
+        )
         .eq("is_active", true)
         .order("monthly_price_cents", { ascending: true }),
       supabaseAdmin
@@ -46,10 +57,19 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         .select("id, display_name, credit_amount_cents, price_cents, sort_order")
         .eq("is_active", true)
         .order("sort_order", { ascending: true }),
+      supabaseAdmin
+        .from("billing_storage_addons")
+        .select("id, display_name, storage_limit_bytes, monthly_price_cents, sort_order")
+        .eq("is_active", true)
+        .order("sort_order", { ascending: true }),
     ]);
 
-    if (plansResult.error || packagesResult.error) {
-      const detail = [plansResult.error?.message, packagesResult.error?.message]
+    if (plansResult.error || packagesResult.error || storageAddonsResult.error) {
+      const detail = [
+        plansResult.error?.message,
+        packagesResult.error?.message,
+        storageAddonsResult.error?.message,
+      ]
         .filter(Boolean)
         .join(" | ");
       return res.status(500).json({ error: detail || "Unable to load billing catalog." });
@@ -58,6 +78,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(200).json({
       plans: (plansResult.data ?? []) as BillingPlanResponse[],
       packages: (packagesResult.data ?? []) as CreditPackageResponse[],
+      storageAddons: (storageAddonsResult.data ?? []) as StorageAddonResponse[],
     });
   } catch (error) {
     await logApiRouteException({

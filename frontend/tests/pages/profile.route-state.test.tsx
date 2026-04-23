@@ -9,6 +9,7 @@ import ProfilePage from "../../pages/profile";
 const useProtectedRouteMock = vi.hoisted(() => vi.fn());
 const useCreditsMock = vi.hoisted(() => vi.fn());
 const useMediaAutosavePreferenceMock = vi.hoisted(() => vi.fn());
+const useMediaStorageQuotaSummaryMock = vi.hoisted(() => vi.fn());
 const routerReplaceMock = vi.hoisted(() => vi.fn());
 
 const routerState = vi.hoisted(() => ({
@@ -57,6 +58,10 @@ vi.mock("../../features/ai-studio/hooks/useMediaAutosavePreference", () => ({
   useMediaAutosavePreference: useMediaAutosavePreferenceMock,
 }));
 
+vi.mock("../../features/billing/useMediaStorageQuotaSummary", () => ({
+  useMediaStorageQuotaSummary: (...args: unknown[]) => useMediaStorageQuotaSummaryMock(...args),
+}));
+
 describe("Profile route state", () => {
   beforeEach(() => {
     routerState.query = {};
@@ -86,6 +91,11 @@ describe("Profile route state", () => {
       syncState: "ready",
       error: null,
       setMediaAutosaveEnabled: vi.fn(),
+    });
+    useMediaStorageQuotaSummaryMock.mockReturnValue({
+      quotaSummary: null,
+      loading: false,
+      refreshQuotaSummary: vi.fn(),
     });
   });
 

@@ -67,7 +67,9 @@ export const useCharacterManagerAccountState = ({
               .maybeSingle(),
             supabase
               .from("billing_plans")
-              .select("id, display_name, monthly_price_cents, monthly_credits_cents, is_active")
+              .select(
+                "id, display_name, monthly_price_cents, monthly_credits_cents, storage_limit_bytes, is_active"
+              )
               .eq("is_active", true),
           ]);
 

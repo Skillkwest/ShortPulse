@@ -24,7 +24,10 @@ import {
   getPlanTierRank,
   type BillingPlanRecord,
   type CreditPackageRecord,
+  type BillingStorageAddonRecord,
 } from "../features/billing/catalog";
+import { formatStorageBytes } from "../features/billing/storage";
+import { useMediaStorageQuotaSummary } from "../features/billing/useMediaStorageQuotaSummary";
 import { ProfilePreferenceToggleCard } from "../features/profile/components/ProfilePreferenceToggleCard";
 import { useCredits } from "../features/ai-studio/hooks/useCredits";
 import { useMediaAutosavePreference } from "../features/ai-studio/hooks/useMediaAutosavePreference";
@@ -48,6 +51,7 @@ type BillingSubscriptionContract = {
   stripe_price_id: string | null;
   recurring_price_cents: number;
   monthly_credits_cents: number;
+  storage_limit_bytes: number;
   status: string | null;
   current_period_start: string | null;
   current_period_end: string | null;
@@ -59,6 +63,7 @@ type BillingSubscriptionContract = {
 type BillingCatalogResponse = {
   plans?: BillingPlanRecord[];
   packages?: CreditPackageRecord[];
+  storageAddons?: BillingStorageAddonRecord[];
   error?: string;
 };
 
@@ -145,6 +150,7 @@ export default function ProfilePage() {
   const [billingContractLoading, setBillingContractLoading] = useState(false);
   const [billingPlans, setBillingPlans] = useState<BillingPlanRecord[]>([]);
   const [billingPlansLoading, setBillingPlansLoading] = useState(false);
+  const [storageAddons, setStorageAddons] = useState<BillingStorageAddonRecord[]>([]);
 
   const [creditPackages, setCreditPackages] = useState<CreditPackageRecord[]>([]);
   const [packagesLoading, setPackagesLoading] = useState(false);
@@ -199,7 +205,7 @@ export default function ProfilePage() {
       const { data, error } = await supabase
         .from("billing_subscription_contracts")
         .select(
-          "id, plan_id, offer_id, stripe_price_id, recurring_price_cents, monthly_credits_cents, status, current_period_start, current_period_end, cancel_at_period_end, started_at, ended_at"
+          "id, plan_id, offer_id, stripe_price_id, recurring_price_cents, monthly_credits_cents, storage_limit_bytes, status, current_period_start, current_period_end, cancel_at_period_end, started_at, ended_at"
         )
         .eq("user_id", currentUser.id)
         .is("ended_at", null)
@@ -227,9 +233,11 @@ export default function ProfilePage() {
 
       setBillingPlans(Array.isArray(data.plans) ? data.plans : []);
       setCreditPackages(Array.isArray(data.packages) ? data.packages : []);
+      setStorageAddons(Array.isArray(data.storageAddons) ? data.storageAddons : []);
     } catch (error) {
       setBillingPlans([]);
       setCreditPackages([]);
+      setStorageAddons([]);
       setNotice({
         tone: "error",
         message: error instanceof Error ? error.message : "Unable to load billing catalog.",
@@ -302,6 +310,9 @@ export default function ProfilePage() {
       (user?.user_metadata?.plan as string | undefined),
     plans: billingPlans,
   });
+  const { quotaSummary } = useMediaStorageQuotaSummary({
+    fallbackPlanId: activePlan.id,
+  });
 
   const planLabel = activePlan.displayName;
   const planClass = activePlan.className;
@@ -312,6 +323,8 @@ export default function ProfilePage() {
     billingContract?.recurring_price_cents ?? activePlan.monthlyPriceCents;
   const currentSubscriptionCreditsCents =
     billingContract?.monthly_credits_cents ?? activePlan.monthlyCreditsCents;
+  const currentSubscriptionStorageLimitBytes =
+    billingContract?.storage_limit_bytes ?? activePlan.storageLimitBytes;
   const currentSubscriptionOfferId = billingContract?.offer_id ?? null;
   const isLegacyContract =
     billingContract !== null &&
@@ -340,6 +353,10 @@ export default function ProfilePage() {
       : "Not scheduled";
 
   const packageCards = useMemo(() => annotateCreditPackages(creditPackages), [creditPackages]);
+  const activeAddonStorageBytes = quotaSummary?.addonLimitBytes ?? 0;
+  const totalStorageLimitBytes =
+    quotaSummary?.totalLimitBytes ?? currentSubscriptionStorageLimitBytes;
+  const usedStorageBytes = quotaSummary?.usedBytes ?? 0;
   const mediaAutosaveSaving = mediaAutosaveSyncState === "saving";
   const mediaAutosaveDisabled = mediaAutosaveLoading || mediaAutosaveSaving;
 
@@ -701,6 +718,18 @@ export default function ProfilePage() {
                     </p>
                     <p className="tiny subdued">Renews automatically each billing cycle</p>
                   </article>
+
+                  <article className="profile-summary-card">
+                    <p className="tiny subdued">Storage included</p>
+                    <p className="summary-value small">
+                      {formatStorageBytes(currentSubscriptionStorageLimitBytes)}
+                    </p>
+                    <p className="tiny subdued">
+                      {activeAddonStorageBytes > 0
+                        ? `${formatStorageBytes(activeAddonStorageBytes)} extra from active add-ons`
+                        : "Base plan capacity before any recurring add-ons"}
+                    </p>
+                  </article>
                 </div>
 
                 <div className="profile-card">
@@ -777,7 +806,8 @@ export default function ProfilePage() {
                                 credits/month
                               </p>
                               <p className="tiny subdued">
-                                <strong>{planView.seatsLabel}</strong>
+                                <strong>{formatStorageBytes(planView.storageLimitBytes)}</strong>{" "}
+                                storage included
                               </p>
                             </div>
 
@@ -861,6 +891,8 @@ export default function ProfilePage() {
                       <span>
                         {currentSubscriptionCreditsCents.toLocaleString()} credits / month
                       </span>
+                      <span>•</span>
+                      <span>{formatStorageBytes(totalStorageLimitBytes)} storage</span>
                     </div>
                   </article>
 
@@ -871,6 +903,19 @@ export default function ProfilePage() {
                     </p>
                     <p className="tiny subdued">
                       Last synced: {formatDateTimeLabel(balanceUpdatedAt)}
+                    </p>
+                  </article>
+
+                  <article className="profile-summary-card">
+                    <p className="tiny subdued">Media storage</p>
+                    <p className="summary-value small">
+                      {formatStorageBytes(usedStorageBytes)} /{" "}
+                      {formatStorageBytes(totalStorageLimitBytes)}
+                    </p>
+                    <p className="tiny subdued">
+                      {activeAddonStorageBytes > 0
+                        ? `${formatStorageBytes(activeAddonStorageBytes)} from active recurring add-ons`
+                        : "No active storage add-ons"}
                     </p>
                   </article>
 
@@ -910,6 +955,10 @@ export default function ProfilePage() {
                         <p className="meta-value">
                           {currentSubscriptionCreditsCents.toLocaleString()}
                         </p>
+                      </div>
+                      <div>
+                        <p className="tiny subdued">Storage</p>
+                        <p className="meta-value">{formatStorageBytes(totalStorageLimitBytes)}</p>
                       </div>
                       <div>
                         <p className="tiny subdued">Next billing</p>
@@ -970,6 +1019,66 @@ export default function ProfilePage() {
                           })}
                         </ul>
                       ) : null}
+                    </div>
+                  </div>
+
+                  <div className="profile-card">
+                    <div className="profile-card-header">
+                      <div>
+                        <p className="eyebrow">Storage add-ons</p>
+                        <h3>Expand media capacity</h3>
+                        <p className="subdued tiny">
+                          Recurring storage add-ons increase your monthly media capacity and are
+                          managed alongside your subscription in Stripe.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="profile-plan-grid">
+                      {billingPlansLoading ? (
+                        <div className="profile-plan-card">
+                          <p className="tiny subdued">Loading storage add-ons…</p>
+                        </div>
+                      ) : storageAddons.length === 0 ? (
+                        <div className="profile-plan-card">
+                          <p className="tiny subdued">
+                            No recurring storage add-ons configured yet.
+                          </p>
+                        </div>
+                      ) : (
+                        storageAddons.map((addon) => (
+                          <div key={addon.id} className="profile-plan-card">
+                            <div className="profile-plan-top">
+                              <div>
+                                <p className="tiny subdued">Recurring add-on</p>
+                                <h4>{addon.display_name}</h4>
+                              </div>
+                              <span className="profile-plan-badge">Storage</span>
+                            </div>
+
+                            <p className="meta-value">
+                              {formatCurrencyFromCents(addon.monthly_price_cents)}
+                              <span className="tiny subdued"> / month</span>
+                            </p>
+
+                            <p className="tiny subdued">
+                              Adds {formatStorageBytes(addon.storage_limit_bytes)} of recurring
+                              media capacity to your subscription.
+                            </p>
+
+                            <div className="profile-actions">
+                              <button
+                                type="button"
+                                className="profile-button ghost-btn"
+                                onClick={handleOpenBillingPortal}
+                                disabled={portalLoading}
+                              >
+                                {portalLoading ? "Opening portal…" : "Manage in billing portal"}
+                              </button>
+                            </div>
+                          </div>
+                        ))
+                      )}
                     </div>
                   </div>
 

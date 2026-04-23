@@ -32,6 +32,15 @@ type ResolvedOffer = {
   stripePriceId: string | null;
   recurringPriceCents: number;
   monthlyCreditsCents: number;
+  storageLimitBytes: number;
+};
+
+type ResolvedStorageAddonOffer = {
+  storageAddonId: string | null;
+  offerId: string | null;
+  stripePriceId: string | null;
+  storageLimitBytes: number;
+  recurringPriceCents: number;
 };
 
 type BillingProfileProjection = {
@@ -47,6 +56,19 @@ type BillingContractProjection = {
   stripe_subscription_id: string | null;
   recurring_price_cents: number | null;
   monthly_credits_cents: number | null;
+  storage_limit_bytes: number | null;
+  status: string | null;
+};
+
+type BillingStorageAddonContractProjection = {
+  id: string;
+  storage_addon_id: string | null;
+  offer_id: string | null;
+  stripe_subscription_item_id: string | null;
+  stripe_price_id: string | null;
+  storage_limit_bytes: number | null;
+  quantity: number | null;
+  recurring_price_cents: number | null;
   status: string | null;
 };
 
@@ -132,7 +154,9 @@ const resolveOfferFromPriceId = async (
   const supabaseAdmin = getSupabaseAdmin();
   const { data: offer, error: offerError } = await supabaseAdmin
     .from("billing_plan_offers")
-    .select("id, plan_id, stripe_price_id, recurring_price_cents, monthly_credits_cents")
+    .select(
+      "id, plan_id, stripe_price_id, recurring_price_cents, monthly_credits_cents, storage_limit_bytes"
+    )
     .eq("stripe_price_id", stripePriceId)
     .maybeSingle();
 
@@ -144,6 +168,7 @@ const resolveOfferFromPriceId = async (
         typeof offer.stripe_price_id === "string" ? offer.stripe_price_id : stripePriceId,
       recurringPriceCents: Number(offer.recurring_price_cents ?? 0),
       monthlyCreditsCents: Number(offer.monthly_credits_cents ?? 0),
+      storageLimitBytes: Number(offer.storage_limit_bytes ?? 0),
     };
   }
 
@@ -153,7 +178,7 @@ const resolveOfferFromPriceId = async (
 
   const { data: plan, error: planError } = await supabaseAdmin
     .from("billing_plans")
-    .select("id, stripe_price_id, monthly_price_cents, monthly_credits_cents")
+    .select("id, stripe_price_id, monthly_price_cents, monthly_credits_cents, storage_limit_bytes")
     .eq("stripe_price_id", stripePriceId)
     .maybeSingle();
   if (planError && !isIgnorableSchemaDriftError(planError)) {
@@ -168,6 +193,7 @@ const resolveOfferFromPriceId = async (
       stripePriceId,
       recurringPriceCents: Number.isFinite(recurringPriceCents) ? recurringPriceCents : 0,
       monthlyCreditsCents: Number.isFinite(monthlyCreditsCents) ? monthlyCreditsCents : 0,
+      storageLimitBytes: 0,
     };
   }
 
@@ -177,6 +203,64 @@ const resolveOfferFromPriceId = async (
     stripePriceId: typeof plan.stripe_price_id === "string" ? plan.stripe_price_id : stripePriceId,
     recurringPriceCents: Number(plan.monthly_price_cents ?? 0),
     monthlyCreditsCents: Number(plan.monthly_credits_cents ?? 0),
+    storageLimitBytes: Number(plan.storage_limit_bytes ?? 0),
+  };
+};
+
+const resolveStorageAddonOfferFromPriceId = async (
+  stripePriceId: string | undefined,
+  fallback?: { recurringPriceCents?: number }
+): Promise<ResolvedStorageAddonOffer | null> => {
+  if (!stripePriceId) return null;
+
+  const supabaseAdmin = getSupabaseAdmin();
+  const { data: offer, error: offerError } = await supabaseAdmin
+    .from("billing_storage_addon_offers")
+    .select("id, storage_addon_id, stripe_price_id, storage_limit_bytes, recurring_price_cents")
+    .eq("stripe_price_id", stripePriceId)
+    .maybeSingle();
+
+  if (offer) {
+    return {
+      storageAddonId: typeof offer.storage_addon_id === "string" ? offer.storage_addon_id : null,
+      offerId: typeof offer.id === "string" ? offer.id : null,
+      stripePriceId:
+        typeof offer.stripe_price_id === "string" ? offer.stripe_price_id : stripePriceId,
+      storageLimitBytes: Number(offer.storage_limit_bytes ?? 0),
+      recurringPriceCents: Number(offer.recurring_price_cents ?? 0),
+    };
+  }
+
+  if (offerError && !isIgnorableSchemaDriftError(offerError)) {
+    throw new Error(offerError.message || "Failed to load billing storage add-on offer.");
+  }
+
+  const { data: addon, error: addonError } = await supabaseAdmin
+    .from("billing_storage_addons")
+    .select("id, stripe_price_id, storage_limit_bytes, monthly_price_cents")
+    .eq("stripe_price_id", stripePriceId)
+    .maybeSingle();
+  if (addonError && !isIgnorableSchemaDriftError(addonError)) {
+    throw new Error(addonError.message || "Failed to load billing storage add-on.");
+  }
+  if (!addon) {
+    const recurringPriceCents = Number(fallback?.recurringPriceCents ?? 0);
+    return {
+      storageAddonId: null,
+      offerId: null,
+      stripePriceId,
+      storageLimitBytes: 0,
+      recurringPriceCents: Number.isFinite(recurringPriceCents) ? recurringPriceCents : 0,
+    };
+  }
+
+  return {
+    storageAddonId: typeof addon.id === "string" ? addon.id : null,
+    offerId: typeof addon.id === "string" ? `${addon.id}__current` : null,
+    stripePriceId:
+      typeof addon.stripe_price_id === "string" ? addon.stripe_price_id : stripePriceId,
+    storageLimitBytes: Number(addon.storage_limit_bytes ?? 0),
+    recurringPriceCents: Number(addon.monthly_price_cents ?? 0),
   };
 };
 
@@ -218,7 +302,7 @@ const resolveCurrentContractForUser = async (
   const { data, error } = await supabaseAdmin
     .from("billing_subscription_contracts")
     .select(
-      "id, plan_id, offer_id, stripe_price_id, stripe_subscription_id, recurring_price_cents, monthly_credits_cents, status"
+      "id, plan_id, offer_id, stripe_price_id, stripe_subscription_id, recurring_price_cents, monthly_credits_cents, storage_limit_bytes, status"
     )
     .eq("user_id", userId)
     .is("ended_at", null)
@@ -231,6 +315,32 @@ const resolveCurrentContractForUser = async (
     throw new Error(error.message || "Failed to load billing subscription contract.");
   }
   return (data as BillingContractProjection | null) ?? null;
+};
+
+const resolveCurrentStorageAddonContractsForUser = async (
+  userId: string,
+  stripeSubscriptionId: string | null
+): Promise<BillingStorageAddonContractProjection[]> => {
+  const supabaseAdmin = getSupabaseAdmin();
+  let query = supabaseAdmin
+    .from("billing_subscription_storage_addons")
+    .select(
+      "id, storage_addon_id, offer_id, stripe_subscription_item_id, stripe_price_id, storage_limit_bytes, quantity, recurring_price_cents, status"
+    )
+    .eq("user_id", userId);
+
+  if (stripeSubscriptionId) {
+    query = query.eq("stripe_subscription_id", stripeSubscriptionId);
+  }
+
+  query = query.is("ended_at", null);
+
+  const { data, error } = await query.order("created_at", { ascending: false });
+  if (error) {
+    if (isIgnorableSchemaDriftError(error)) return [];
+    throw new Error(error.message || "Failed to load billing storage add-on contracts.");
+  }
+  return Array.isArray(data) ? (data as BillingStorageAddonContractProjection[]) : [];
 };
 
 const resolveCurrentBillingContextByCustomer = async (stripeCustomerId: string) => {
@@ -282,6 +392,7 @@ const syncSubscriptionContract = async (params: {
 
   const recurringPriceCents = Number(params.resolvedOffer?.recurringPriceCents ?? 0);
   const monthlyCreditsCents = Number(params.resolvedOffer?.monthlyCreditsCents ?? 0);
+  const storageLimitBytes = Number(params.resolvedOffer?.storageLimitBytes ?? 0);
   const stripePriceId = params.resolvedOffer?.stripePriceId ?? null;
   const offerId = params.resolvedOffer?.offerId ?? null;
 
@@ -301,6 +412,7 @@ const syncSubscriptionContract = async (params: {
     stripe_price_id: stripePriceId,
     recurring_price_cents: Number.isFinite(recurringPriceCents) ? recurringPriceCents : 0,
     monthly_credits_cents: Number.isFinite(monthlyCreditsCents) ? monthlyCreditsCents : 0,
+    storage_limit_bytes: Number.isFinite(storageLimitBytes) ? storageLimitBytes : 0,
     status: params.status,
     current_period_start: params.currentPeriodStart,
     current_period_end: params.currentPeriodEnd,
@@ -323,7 +435,8 @@ const syncSubscriptionContract = async (params: {
     current.stripe_subscription_id === params.stripeSubscriptionId &&
     current.stripe_price_id === stripePriceId &&
     Number(current.recurring_price_cents ?? 0) === payload.recurring_price_cents &&
-    Number(current.monthly_credits_cents ?? 0) === payload.monthly_credits_cents;
+    Number(current.monthly_credits_cents ?? 0) === payload.monthly_credits_cents &&
+    Number(current.storage_limit_bytes ?? 0) === payload.storage_limit_bytes;
 
   if (sameCommercialTerms) {
     const { error } = await supabaseAdmin
@@ -358,6 +471,141 @@ const syncSubscriptionContract = async (params: {
     .insert({ ...payload, started_at: contractTransitionTime });
   if (insertError && !isIgnorableSchemaDriftError(insertError)) {
     throw new Error(insertError.message || "Failed to insert billing subscription contract.");
+  }
+};
+
+const syncSubscriptionStorageAddons = async (params: {
+  userId: string;
+  stripeCustomerId: string;
+  stripeSubscriptionId: string | null;
+  status: string;
+  currentPeriodStart: string | null;
+  currentPeriodEnd: string | null;
+  cancelAtPeriodEnd: boolean;
+  resolvedAddons: Array<{
+    storageAddonId: string | null;
+    offerId: string | null;
+    stripePriceId: string | null;
+    stripeSubscriptionItemId: string | null;
+    storageLimitBytes: number;
+    quantity: number;
+    recurringPriceCents: number;
+  }>;
+}) => {
+  const supabaseAdmin = getSupabaseAdmin();
+  const currentRows = await resolveCurrentStorageAddonContractsForUser(
+    params.userId,
+    params.stripeSubscriptionId
+  );
+  const currentByItemId = new Map(
+    currentRows
+      .filter((row) => row.stripe_subscription_item_id)
+      .map((row) => [row.stripe_subscription_item_id as string, row])
+  );
+  const nextItemIds = new Set(
+    params.resolvedAddons
+      .map((addon) => addon.stripeSubscriptionItemId)
+      .filter((value): value is string => typeof value === "string" && value.length > 0)
+  );
+  const transitionTime = params.currentPeriodStart ?? new Date().toISOString();
+
+  for (const current of currentRows) {
+    const currentItemId = current.stripe_subscription_item_id;
+    if (!currentItemId || nextItemIds.has(currentItemId)) {
+      continue;
+    }
+
+    const { error } = await supabaseAdmin
+      .from("billing_subscription_storage_addons")
+      .update({
+        status: "canceled",
+        ended_at: transitionTime,
+        current_period_end: params.currentPeriodEnd,
+        cancel_at_period_end: false,
+      })
+      .eq("id", current.id);
+    if (error && !isIgnorableSchemaDriftError(error)) {
+      throw new Error(error.message || "Failed to close removed billing storage add-on contract.");
+    }
+  }
+
+  for (const addon of params.resolvedAddons) {
+    if (!addon.stripeSubscriptionItemId) continue;
+
+    const payload = {
+      user_id: params.userId,
+      storage_addon_id: addon.storageAddonId,
+      offer_id: addon.offerId,
+      stripe_customer_id: params.stripeCustomerId,
+      stripe_subscription_id: params.stripeSubscriptionId,
+      stripe_subscription_item_id: addon.stripeSubscriptionItemId,
+      stripe_price_id: addon.stripePriceId,
+      storage_limit_bytes: addon.storageLimitBytes,
+      quantity: addon.quantity,
+      recurring_price_cents: addon.recurringPriceCents,
+      status: params.status,
+      current_period_start: params.currentPeriodStart,
+      current_period_end: params.currentPeriodEnd,
+      cancel_at_period_end: params.cancelAtPeriodEnd,
+      started_at: transitionTime,
+      ended_at:
+        params.status === "canceled" && !params.cancelAtPeriodEnd
+          ? (params.currentPeriodEnd ?? transitionTime)
+          : null,
+    };
+    const current = currentByItemId.get(addon.stripeSubscriptionItemId);
+
+    if (!current) {
+      const { error } = await supabaseAdmin
+        .from("billing_subscription_storage_addons")
+        .insert(payload);
+      if (error && !isIgnorableSchemaDriftError(error)) {
+        throw new Error(error.message || "Failed to insert billing storage add-on contract.");
+      }
+      continue;
+    }
+
+    const sameCommercialTerms =
+      current.storage_addon_id === addon.storageAddonId &&
+      current.offer_id === addon.offerId &&
+      current.stripe_price_id === addon.stripePriceId &&
+      Number(current.storage_limit_bytes ?? 0) === payload.storage_limit_bytes &&
+      Number(current.quantity ?? 0) === payload.quantity &&
+      Number(current.recurring_price_cents ?? 0) === payload.recurring_price_cents;
+
+    if (sameCommercialTerms) {
+      const { error } = await supabaseAdmin
+        .from("billing_subscription_storage_addons")
+        .update({
+          status: payload.status,
+          current_period_start: payload.current_period_start,
+          current_period_end: payload.current_period_end,
+          cancel_at_period_end: payload.cancel_at_period_end,
+          ended_at: payload.ended_at,
+        })
+        .eq("id", current.id);
+      if (error && !isIgnorableSchemaDriftError(error)) {
+        throw new Error(error.message || "Failed to update billing storage add-on contract.");
+      }
+      continue;
+    }
+
+    const { error: closeError } = await supabaseAdmin
+      .from("billing_subscription_storage_addons")
+      .update({
+        ended_at: transitionTime,
+      })
+      .eq("id", current.id);
+    if (closeError && !isIgnorableSchemaDriftError(closeError)) {
+      throw new Error(closeError.message || "Failed to close billing storage add-on contract.");
+    }
+
+    const { error: insertError } = await supabaseAdmin
+      .from("billing_subscription_storage_addons")
+      .insert(payload);
+    if (insertError && !isIgnorableSchemaDriftError(insertError)) {
+      throw new Error(insertError.message || "Failed to insert billing storage add-on contract.");
+    }
   }
 };
 
@@ -424,26 +672,66 @@ const processSubscriptionUpdate = async (subscription: JsonObject) => {
 
   const items = toRecord(subscription.items);
   const itemData = Array.isArray(items.data) ? items.data : [];
-  const firstItem = toRecord(itemData[0]);
-  const price = toRecord(firstItem.price);
-  const priceIdCandidate = price.id;
-  const priceId = typeof priceIdCandidate === "string" ? priceIdCandidate : undefined;
-  const fallbackRecurringPriceCents = Number(price.unit_amount ?? 0);
-  const priceMetadata = toRecord(price.metadata);
-  const fallbackMonthlyCreditsCents = Number(priceMetadata.monthly_credits_cents ?? 0);
-  const resolvedOffer = await resolveOfferFromPriceId(priceId, {
-    recurringPriceCents: Number.isFinite(fallbackRecurringPriceCents)
-      ? fallbackRecurringPriceCents
-      : 0,
-    monthlyCreditsCents: Number.isFinite(fallbackMonthlyCreditsCents)
-      ? fallbackMonthlyCreditsCents
-      : 0,
-  });
-  const resolvedPlanId =
-    resolvedOffer?.planId ??
-    (await resolvePlanIdFromSubscription(priceId)) ??
-    profile?.plan_id ??
-    null;
+  let resolvedOffer: ResolvedOffer | null = null;
+  let resolvedPlanId: string | null = null;
+  const resolvedAddons: Array<{
+    storageAddonId: string | null;
+    offerId: string | null;
+    stripePriceId: string | null;
+    stripeSubscriptionItemId: string | null;
+    storageLimitBytes: number;
+    quantity: number;
+    recurringPriceCents: number;
+  }> = [];
+
+  for (const itemValue of itemData) {
+    const item = toRecord(itemValue);
+    const price = toRecord(item.price);
+    const priceIdCandidate = price.id;
+    const priceId = typeof priceIdCandidate === "string" ? priceIdCandidate : undefined;
+    const quantity = Math.max(1, Number(item.quantity ?? 1) || 1);
+    const fallbackRecurringPriceCents = Number(price.unit_amount ?? 0);
+    const priceMetadata = toRecord(price.metadata);
+    const fallbackMonthlyCreditsCents = Number(priceMetadata.monthly_credits_cents ?? 0);
+
+    const candidatePlanOffer = await resolveOfferFromPriceId(priceId, {
+      recurringPriceCents: Number.isFinite(fallbackRecurringPriceCents)
+        ? fallbackRecurringPriceCents
+        : 0,
+      monthlyCreditsCents: Number.isFinite(fallbackMonthlyCreditsCents)
+        ? fallbackMonthlyCreditsCents
+        : 0,
+    });
+    const candidatePlanId =
+      candidatePlanOffer?.planId ?? (await resolvePlanIdFromSubscription(priceId));
+
+    if (!resolvedOffer && candidatePlanId) {
+      resolvedOffer = candidatePlanOffer;
+      resolvedPlanId = candidatePlanId;
+      continue;
+    }
+
+    const resolvedAddon = await resolveStorageAddonOfferFromPriceId(priceId, {
+      recurringPriceCents: Number.isFinite(fallbackRecurringPriceCents)
+        ? fallbackRecurringPriceCents
+        : 0,
+    });
+    if (!resolvedAddon || (!resolvedAddon.storageAddonId && !resolvedAddon.offerId)) {
+      continue;
+    }
+
+    resolvedAddons.push({
+      storageAddonId: resolvedAddon.storageAddonId,
+      offerId: resolvedAddon.offerId,
+      stripePriceId: resolvedAddon.stripePriceId,
+      stripeSubscriptionItemId: normalizeString(item.id),
+      storageLimitBytes: Number(resolvedAddon.storageLimitBytes ?? 0),
+      quantity,
+      recurringPriceCents: Number(resolvedAddon.recurringPriceCents ?? 0) * quantity,
+    });
+  }
+
+  resolvedPlanId = resolvedPlanId ?? profile?.plan_id ?? null;
 
   const updatePayload: JsonObject = {
     stripe_subscription_id: subscription.id ?? null,
@@ -483,6 +771,25 @@ const processSubscriptionUpdate = async (subscription: JsonObject) => {
     ),
     cancelAtPeriodEnd: normalizeBoolean(subscription.cancel_at_period_end),
     resolvedOffer,
+  });
+
+  await syncSubscriptionStorageAddons({
+    userId: profile.user_id,
+    stripeCustomerId,
+    stripeSubscriptionId: normalizeString(subscription.id),
+    status: typeof subscription.status === "string" ? subscription.status : "inactive",
+    currentPeriodStart: asIsoDate(
+      typeof subscription.current_period_start === "number"
+        ? subscription.current_period_start
+        : typeof subscription.start_date === "number"
+          ? subscription.start_date
+          : null
+    ),
+    currentPeriodEnd: asIsoDate(
+      typeof subscription.current_period_end === "number" ? subscription.current_period_end : null
+    ),
+    cancelAtPeriodEnd: normalizeBoolean(subscription.cancel_at_period_end),
+    resolvedAddons,
   });
 };
 

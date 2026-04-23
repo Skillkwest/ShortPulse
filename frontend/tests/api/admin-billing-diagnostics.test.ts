@@ -71,6 +71,7 @@ describe("GET /api/admin/billing-diagnostics", () => {
                   contract_source: "stripe",
                   recurring_price_cents: 1000,
                   monthly_credits_cents: 4000,
+                  storage_limit_bytes: 107374182400,
                   status: "active",
                   current_period_end: "2026-05-01T00:00:00.000Z",
                 },
@@ -91,6 +92,7 @@ describe("GET /api/admin/billing-diagnostics", () => {
             stripe_price_id: "price_legacy_studio",
             recurring_price_cents: 1000,
             monthly_credits_cents: 4000,
+            storage_limit_bytes: 107374182400,
             acquisition_enabled: false,
             is_active: true,
           },
@@ -112,6 +114,7 @@ describe("GET /api/admin/billing-diagnostics", () => {
                     stripe_price_id: "price_current_studio",
                     recurring_price_cents: 3000,
                     monthly_credits_cents: 6000,
+                    storage_limit_bytes: 107374182400,
                     acquisition_enabled: true,
                     is_active: true,
                   },
@@ -127,6 +130,34 @@ describe("GET /api/admin/billing-diagnostics", () => {
       .fn()
       .mockReturnValueOnce(linkedOfferQuery)
       .mockReturnValueOnce(publicOfferQuery);
+    const storageAddonsQuery = {
+      eq: vi.fn().mockReturnValue({
+        is: vi.fn().mockReturnValue({
+          order: vi.fn().mockResolvedValue({
+            data: [
+              {
+                id: "addon-contract-1",
+                storage_addon_id: "storage_25gb",
+                offer_id: "storage_25gb__current",
+                stripe_subscription_item_id: "si_123",
+                stripe_price_id: "price_storage_25",
+                storage_limit_bytes: 26843545600,
+                quantity: 1,
+                recurring_price_cents: 500,
+                status: "active",
+              },
+            ],
+            error: null,
+          }),
+        }),
+      }),
+    };
+    const mediaFilesQuery = {
+      eq: vi.fn().mockResolvedValue({
+        data: [{ file_size: 5368709120 }],
+        error: null,
+      }),
+    };
 
     getSupabaseAdminMock.mockReturnValue({
       auth: {
@@ -147,6 +178,16 @@ describe("GET /api/admin/billing-diagnostics", () => {
         if (table === "billing_plan_offers") {
           return {
             select: billingOfferSelectMock,
+          };
+        }
+        if (table === "billing_subscription_storage_addons") {
+          return {
+            select: vi.fn().mockReturnValue(storageAddonsQuery),
+          };
+        }
+        if (table === "media_files") {
+          return {
+            select: vi.fn().mockReturnValue(mediaFilesQuery),
           };
         }
         throw new Error(`Unexpected table: ${table}`);
@@ -187,10 +228,26 @@ describe("GET /api/admin/billing-diagnostics", () => {
           offerId: "studio__legacy_10",
           contractSource: "stripe",
           recurringPriceCents: 1000,
+          storageLimitBytes: 107374182400,
         }),
         currentPublicOffer: expect.objectContaining({
           id: "studio__current",
           recurringPriceCents: 3000,
+          storageLimitBytes: 107374182400,
+        }),
+        activeStorageAddons: expect.arrayContaining([
+          expect.objectContaining({
+            storageAddonId: "storage_25gb",
+            storageLimitBytes: 26843545600,
+            quantity: 1,
+          }),
+        ]),
+        storageSummary: expect.objectContaining({
+          usedBytes: 5368709120,
+          baseLimitBytes: 107374182400,
+          addonLimitBytes: 26843545600,
+          totalLimitBytes: 134217728000,
+          isOverLimit: false,
         }),
         stripeSubscription: expect.objectContaining({
           configured: true,
@@ -238,6 +295,7 @@ describe("GET /api/admin/billing-diagnostics", () => {
                   contract_source: "internal_comp",
                   recurring_price_cents: 0,
                   monthly_credits_cents: 12000,
+                  storage_limit_bytes: 536870912000,
                   status: "active",
                   current_period_end: "2026-05-01T00:00:00.000Z",
                 },
@@ -258,6 +316,7 @@ describe("GET /api/admin/billing-diagnostics", () => {
             stripe_price_id: null,
             recurring_price_cents: 0,
             monthly_credits_cents: 12000,
+            storage_limit_bytes: 536870912000,
             acquisition_enabled: false,
             is_active: true,
           },
@@ -279,6 +338,7 @@ describe("GET /api/admin/billing-diagnostics", () => {
                     stripe_price_id: "price_business",
                     recurring_price_cents: 12900,
                     monthly_credits_cents: 12000,
+                    storage_limit_bytes: 536870912000,
                     acquisition_enabled: true,
                     is_active: true,
                   },
@@ -294,6 +354,22 @@ describe("GET /api/admin/billing-diagnostics", () => {
       .fn()
       .mockReturnValueOnce(linkedOfferQuery)
       .mockReturnValueOnce(publicOfferQuery);
+    const storageAddonsQuery = {
+      eq: vi.fn().mockReturnValue({
+        is: vi.fn().mockReturnValue({
+          order: vi.fn().mockResolvedValue({
+            data: [],
+            error: null,
+          }),
+        }),
+      }),
+    };
+    const mediaFilesQuery = {
+      eq: vi.fn().mockResolvedValue({
+        data: [{ file_size: 2147483648 }],
+        error: null,
+      }),
+    };
 
     getSupabaseAdminMock.mockReturnValue({
       auth: {
@@ -316,6 +392,16 @@ describe("GET /api/admin/billing-diagnostics", () => {
             select: billingOfferSelectMock,
           };
         }
+        if (table === "billing_subscription_storage_addons") {
+          return {
+            select: vi.fn().mockReturnValue(storageAddonsQuery),
+          };
+        }
+        if (table === "media_files") {
+          return {
+            select: vi.fn().mockReturnValue(mediaFilesQuery),
+          };
+        }
         throw new Error(`Unexpected table: ${table}`);
       }),
     });
@@ -334,6 +420,12 @@ describe("GET /api/admin/billing-diagnostics", () => {
         currentContract: expect.objectContaining({
           contractSource: "internal_comp",
           recurringPriceCents: 0,
+          storageLimitBytes: 536870912000,
+        }),
+        storageSummary: expect.objectContaining({
+          usedBytes: 2147483648,
+          totalLimitBytes: 536870912000,
+          isOverLimit: false,
         }),
         findings: expect.arrayContaining([
           expect.objectContaining({

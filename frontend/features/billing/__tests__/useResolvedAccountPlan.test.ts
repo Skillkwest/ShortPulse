@@ -81,6 +81,7 @@ describe("useResolvedAccountPlan", () => {
           display_name: "Free",
           monthly_price_cents: 0,
           monthly_credits_cents: 500,
+          storage_limit_bytes: 1073741824,
           is_active: true,
         },
       ],
@@ -93,6 +94,7 @@ describe("useResolvedAccountPlan", () => {
 
     await waitFor(() => {
       expect(result.current.resolvedPlan).toEqual({
+        id: "free",
         label: "Free",
         className: "plan-free",
       });
@@ -106,6 +108,7 @@ describe("useResolvedAccountPlan", () => {
 
     await waitFor(() => {
       expect(result.current.resolvedPlan).toEqual({
+        id: "free",
         label: "Free",
         className: "plan-free",
       });

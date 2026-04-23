@@ -82,6 +82,7 @@ describe("useCharacterManagerAccountState", () => {
           display_name: "Business",
           monthly_price_cents: 4900,
           monthly_credits_cents: 100000,
+          storage_limit_bytes: 536870912000,
           is_active: true,
         },
       ],

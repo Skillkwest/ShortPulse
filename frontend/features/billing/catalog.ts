@@ -8,6 +8,7 @@ export type BillingPlanRecord = {
   display_name: string;
   monthly_price_cents: number;
   monthly_credits_cents: number;
+  storage_limit_bytes: number;
   is_active?: boolean;
 };
 
@@ -19,7 +20,23 @@ export type CreditPackageRecord = {
   sort_order: number;
 };
 
+export type BillingStorageAddonRecord = {
+  id: string;
+  display_name: string;
+  storage_limit_bytes: number;
+  monthly_price_cents: number;
+  sort_order: number;
+};
+
 const PLAN_TIER_ORDER = ["free", "media", "studio", "business"] as const;
+const GIB = 1024 * 1024 * 1024;
+
+const DEFAULT_PLAN_STORAGE_LIMITS: Record<string, number> = {
+  free: 1 * GIB,
+  media: 25 * GIB,
+  studio: 100 * GIB,
+  business: 500 * GIB,
+};
 
 type PlanPresentation = {
   className: string;
@@ -101,6 +118,8 @@ export const buildPlanView = (params: {
     seatsLabel: presentation.seatsLabel,
     monthlyPriceCents: resolvedCatalog?.monthly_price_cents ?? 0,
     monthlyCreditsCents: resolvedCatalog?.monthly_credits_cents ?? 0,
+    storageLimitBytes:
+      resolvedCatalog?.storage_limit_bytes ?? DEFAULT_PLAN_STORAGE_LIMITS[normalizedId] ?? 0,
   };
 };
 

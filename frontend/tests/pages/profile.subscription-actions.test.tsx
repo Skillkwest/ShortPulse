@@ -9,6 +9,7 @@ import ProfilePage from "../../pages/profile";
 const useProtectedRouteMock = vi.hoisted(() => vi.fn());
 const useCreditsMock = vi.hoisted(() => vi.fn());
 const useMediaAutosavePreferenceMock = vi.hoisted(() => vi.fn());
+const useMediaStorageQuotaSummaryMock = vi.hoisted(() => vi.fn());
 const fetchWithAuthMock = vi.hoisted(() => vi.fn());
 
 const routerState = vi.hoisted(() => ({
@@ -23,6 +24,7 @@ const billingPlansFixture = [
     display_name: "Free",
     monthly_price_cents: 0,
     monthly_credits_cents: 0,
+    storage_limit_bytes: 1073741824,
     is_active: true,
   },
   {
@@ -30,6 +32,7 @@ const billingPlansFixture = [
     display_name: "Media",
     monthly_price_cents: 1900,
     monthly_credits_cents: 20000,
+    storage_limit_bytes: 26843545600,
     is_active: true,
   },
   {
@@ -37,6 +40,7 @@ const billingPlansFixture = [
     display_name: "Business",
     monthly_price_cents: 4900,
     monthly_credits_cents: 60000,
+    storage_limit_bytes: 536870912000,
     is_active: true,
   },
 ];
@@ -81,6 +85,10 @@ vi.mock("../../features/ai-studio/hooks/useMediaAutosavePreference", () => ({
   useMediaAutosavePreference: useMediaAutosavePreferenceMock,
 }));
 
+vi.mock("../../features/billing/useMediaStorageQuotaSummary", () => ({
+  useMediaStorageQuotaSummary: (...args: unknown[]) => useMediaStorageQuotaSummaryMock(...args),
+}));
+
 vi.mock("../../lib/authenticatedFetch", () => ({
   fetchWithAuth: (...args: unknown[]) => fetchWithAuthMock(...args),
 }));
@@ -120,6 +128,7 @@ vi.mock("../../lib/supabaseClient", () => ({
                         stripe_price_id: "price_media_legacy",
                         recurring_price_cents: 1000,
                         monthly_credits_cents: 20000,
+                        storage_limit_bytes: 26843545600,
                         status: "active",
                         current_period_start: "2026-03-01T00:00:00.000Z",
                         current_period_end: "2026-04-01T00:00:00.000Z",
@@ -165,7 +174,7 @@ describe("Profile subscription actions", () => {
       if (url === "/api/billing/catalog") {
         return {
           ok: true,
-          json: async () => ({ plans: billingPlansFixture, packages: [] }),
+          json: async () => ({ plans: billingPlansFixture, packages: [], storageAddons: [] }),
         };
       }
       return {
@@ -194,6 +203,18 @@ describe("Profile subscription actions", () => {
       syncState: "ready",
       error: null,
       setMediaAutosaveEnabled: vi.fn(),
+    });
+    useMediaStorageQuotaSummaryMock.mockReturnValue({
+      quotaSummary: {
+        usedBytes: 2 * 1024 * 1024 * 1024,
+        baseLimitBytes: 25 * 1024 * 1024 * 1024,
+        addonLimitBytes: 0,
+        totalLimitBytes: 25 * 1024 * 1024 * 1024,
+        remainingBytes: 23 * 1024 * 1024 * 1024,
+        isOverLimit: false,
+      },
+      loading: false,
+      refreshQuotaSummary: vi.fn(),
     });
   });
 

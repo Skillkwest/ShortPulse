@@ -52,6 +52,7 @@ describe("GET /api/billing/catalog", () => {
                       display_name: "Free",
                       monthly_price_cents: 0,
                       monthly_credits_cents: 100,
+                      storage_limit_bytes: 1073741824,
                       is_active: true,
                     },
                     {
@@ -59,6 +60,7 @@ describe("GET /api/billing/catalog", () => {
                       display_name: "Studio",
                       monthly_price_cents: 3900,
                       monthly_credits_cents: 3000,
+                      storage_limit_bytes: 107374182400,
                       is_active: true,
                     },
                   ],
@@ -90,6 +92,27 @@ describe("GET /api/billing/catalog", () => {
           };
         }
 
+        if (table === "billing_storage_addons") {
+          return {
+            select: () => ({
+              eq: () => ({
+                order: async () => ({
+                  data: [
+                    {
+                      id: "storage_25gb",
+                      display_name: "Extra 25 GB",
+                      storage_limit_bytes: 26843545600,
+                      monthly_price_cents: 500,
+                      sort_order: 10,
+                    },
+                  ],
+                  error: null,
+                }),
+              }),
+            }),
+          };
+        }
+
         throw new Error(`Unexpected table ${table}`);
       },
     });
@@ -107,6 +130,7 @@ describe("GET /api/billing/catalog", () => {
           display_name: "Free",
           monthly_price_cents: 0,
           monthly_credits_cents: 100,
+          storage_limit_bytes: 1073741824,
           is_active: true,
         },
         {
@@ -114,6 +138,7 @@ describe("GET /api/billing/catalog", () => {
           display_name: "Studio",
           monthly_price_cents: 3900,
           monthly_credits_cents: 3000,
+          storage_limit_bytes: 107374182400,
           is_active: true,
         },
       ],
@@ -124,6 +149,15 @@ describe("GET /api/billing/catalog", () => {
           credit_amount_cents: 2000,
           price_cents: 2600,
           sort_order: 20,
+        },
+      ],
+      storageAddons: [
+        {
+          id: "storage_25gb",
+          display_name: "Extra 25 GB",
+          storage_limit_bytes: 26843545600,
+          monthly_price_cents: 500,
+          sort_order: 10,
         },
       ],
     });

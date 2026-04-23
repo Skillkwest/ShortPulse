@@ -53,6 +53,21 @@ type DashboardAnnouncement = {
   updatedAt: string | null;
 };
 
+type CurrentSubscriptionContractRow = {
+  plan_id: string | null;
+};
+
+const isSchemaCompatibilityError = (message: string) => {
+  const text = message.toLowerCase();
+  return (
+    text.includes("does not exist") ||
+    text.includes("could not find the table") ||
+    text.includes("schema cache") ||
+    text.includes("failed to parse select parameter") ||
+    text.includes("column")
+  );
+};
+
 const asDashboardAnnouncement = (value: unknown): DashboardAnnouncement | null => {
   if (!value || typeof value !== "object") return null;
   const row = value as Record<string, unknown>;
@@ -133,26 +148,46 @@ export default function DashboardPage() {
       setUsageLoading(true);
       try {
         const supabase = ensureSupabaseQueryClient();
-        const [billingProfileResponse, billingPlansResponse, mediaFilesResponse] =
-          await Promise.all([
-            supabase
-              .from("billing_profiles")
-              .select("plan_id")
-              .eq("user_id", user.id)
-              .maybeSingle(),
-            supabase
-              .from("billing_plans")
-              .select("id, display_name, monthly_price_cents, monthly_credits_cents, is_active")
-              .eq("is_active", true),
-            supabase.from("media_files").select("file_size").eq("user_id", user.id),
-          ]);
+        const [
+          billingContractResponse,
+          billingProfileResponse,
+          billingPlansResponse,
+          mediaFilesResponse,
+        ] = await Promise.all([
+          supabase
+            .from("billing_subscription_contracts")
+            .select("plan_id")
+            .eq("user_id", user.id)
+            .is("ended_at", null)
+            .maybeSingle(),
+          supabase.from("billing_profiles").select("plan_id").eq("user_id", user.id).maybeSingle(),
+          supabase
+            .from("billing_plans")
+            .select("id, display_name, monthly_price_cents, monthly_credits_cents, is_active")
+            .eq("is_active", true),
+          supabase.from("media_files").select("file_size").eq("user_id", user.id),
+        ]);
 
+        if (
+          billingContractResponse.error &&
+          !isSchemaCompatibilityError(billingContractResponse.error.message)
+        ) {
+          throw billingContractResponse.error;
+        }
+
+        const contractPlanId =
+          !billingContractResponse.error && billingContractResponse.data
+            ? ((billingContractResponse.data as CurrentSubscriptionContractRow).plan_id ?? null)
+            : null;
         const billingPlanId =
           !billingProfileResponse.error && billingProfileResponse.data
             ? ((billingProfileResponse.data as { plan_id: string | null }).plan_id ?? null)
             : null;
         const effectivePlanId =
-          billingPlanId ?? (user.user_metadata?.plan as string | undefined) ?? DEFAULT_PLAN_TIER;
+          contractPlanId ??
+          billingPlanId ??
+          (user.user_metadata?.plan as string | undefined) ??
+          DEFAULT_PLAN_TIER;
         const normalizedPlanId = normalizePlanId(effectivePlanId);
         const plans =
           !billingPlansResponse.error && Array.isArray(billingPlansResponse.data)

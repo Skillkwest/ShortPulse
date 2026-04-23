@@ -484,8 +484,11 @@ create table if not exists user_preferences (
     expert_edit_preset_panel_labels text[] not null default array['Selfie', 'Side Profile', 'Enhance Realism']::text[],
     expert_edit_preset_panel_ids text[] not null default array['selfie', 'side_profile', 'enhance_realism']::text[],
     expert_edit_custom_presets jsonb not null default '{}'::jsonb,
+    ai_studio_create_pulse_panel_ids text[] not null default array['image', 'single_shot', 'multi_shot', 'story_builder']::text[],
+    ai_studio_saved_pulses jsonb not null default '[]'::jsonb,
     ai_studio_deleted_style_ids text[] not null default array[]::text[],
     ai_studio_style_details_overrides jsonb not null default '{}'::jsonb,
+    ai_studio_saved_voices jsonb not null default '[]'::jsonb,
     ai_studio_character_quickswap_tip_hidden boolean not null default false,
     created_at timestamptz not null default now(),
     updated_at timestamptz not null default now()
@@ -504,10 +507,19 @@ alter table if exists user_preferences
     add column if not exists expert_edit_custom_presets jsonb default '{}'::jsonb;
 
 alter table if exists user_preferences
+    add column if not exists ai_studio_create_pulse_panel_ids text[] default array['image', 'single_shot', 'multi_shot', 'story_builder']::text[];
+
+alter table if exists user_preferences
+    add column if not exists ai_studio_saved_pulses jsonb default '[]'::jsonb;
+
+alter table if exists user_preferences
     add column if not exists ai_studio_deleted_style_ids text[] default array[]::text[];
 
 alter table if exists user_preferences
     add column if not exists ai_studio_style_details_overrides jsonb default '{}'::jsonb;
+
+alter table if exists user_preferences
+    add column if not exists ai_studio_saved_voices jsonb default '[]'::jsonb;
 
 alter table if exists user_preferences
     add column if not exists ai_studio_character_quickswap_tip_hidden boolean default false;
@@ -529,12 +541,24 @@ update user_preferences
  where expert_edit_custom_presets is null;
 
 update user_preferences
+   set ai_studio_create_pulse_panel_ids = array['image', 'single_shot', 'multi_shot', 'story_builder']::text[]
+ where ai_studio_create_pulse_panel_ids is null;
+
+update user_preferences
+   set ai_studio_saved_pulses = '[]'::jsonb
+ where ai_studio_saved_pulses is null;
+
+update user_preferences
    set ai_studio_deleted_style_ids = array[]::text[]
  where ai_studio_deleted_style_ids is null;
 
 update user_preferences
    set ai_studio_style_details_overrides = '{}'::jsonb
  where ai_studio_style_details_overrides is null;
+
+update user_preferences
+   set ai_studio_saved_voices = '[]'::jsonb
+ where ai_studio_saved_voices is null;
 
 update user_preferences
    set ai_studio_character_quickswap_tip_hidden = false
@@ -553,10 +577,19 @@ alter table if exists user_preferences
     alter column expert_edit_custom_presets set default '{}'::jsonb;
 
 alter table if exists user_preferences
+    alter column ai_studio_create_pulse_panel_ids set default array['image', 'single_shot', 'multi_shot', 'story_builder']::text[];
+
+alter table if exists user_preferences
+    alter column ai_studio_saved_pulses set default '[]'::jsonb;
+
+alter table if exists user_preferences
     alter column ai_studio_deleted_style_ids set default array[]::text[];
 
 alter table if exists user_preferences
     alter column ai_studio_style_details_overrides set default '{}'::jsonb;
+
+alter table if exists user_preferences
+    alter column ai_studio_saved_voices set default '[]'::jsonb;
 
 alter table if exists user_preferences
     alter column ai_studio_character_quickswap_tip_hidden set default false;
@@ -574,10 +607,19 @@ alter table if exists user_preferences
     alter column expert_edit_custom_presets set not null;
 
 alter table if exists user_preferences
+    alter column ai_studio_create_pulse_panel_ids set not null;
+
+alter table if exists user_preferences
+    alter column ai_studio_saved_pulses set not null;
+
+alter table if exists user_preferences
     alter column ai_studio_deleted_style_ids set not null;
 
 alter table if exists user_preferences
     alter column ai_studio_style_details_overrides set not null;
+
+alter table if exists user_preferences
+    alter column ai_studio_saved_voices set not null;
 
 alter table if exists user_preferences
     alter column ai_studio_character_quickswap_tip_hidden set not null;
@@ -640,6 +682,106 @@ drop policy if exists select_billing_plans_public on billing_plans;
 create policy select_billing_plans_public on billing_plans
     for select using (true);
 
+create table if not exists billing_plan_offers (
+    id text primary key,
+    plan_id text not null references billing_plans(id) on delete cascade,
+    offer_name text not null,
+    recurring_price_cents integer not null check (recurring_price_cents >= 0),
+    monthly_credits_cents integer not null check (monthly_credits_cents >= 0),
+    stripe_price_id text unique,
+    currency text not null default 'usd' check (currency = lower(currency)),
+    billing_interval text not null default 'month' check (billing_interval in ('month')),
+    acquisition_enabled boolean not null default false,
+    is_active boolean not null default true,
+    effective_start_at timestamptz,
+    effective_end_at timestamptz,
+    created_at timestamptz not null default now(),
+    updated_at timestamptz not null default now()
+);
+
+create index if not exists ix_billing_plan_offers_plan on billing_plan_offers (plan_id);
+create unique index if not exists ux_billing_plan_offers_current_acquisition
+    on billing_plan_offers (plan_id)
+    where acquisition_enabled = true and is_active = true and effective_end_at is null;
+
+insert into billing_plan_offers (
+    id,
+    plan_id,
+    offer_name,
+    recurring_price_cents,
+    monthly_credits_cents,
+    stripe_price_id,
+    acquisition_enabled,
+    is_active,
+    effective_start_at
+)
+select
+    p.id || '__current',
+    p.id,
+    p.display_name || ' Current Offer',
+    p.monthly_price_cents,
+    p.monthly_credits_cents,
+    p.stripe_price_id,
+    p.is_active,
+    p.is_active,
+    now()
+from billing_plans p
+on conflict (id) do update
+set offer_name = excluded.offer_name,
+    recurring_price_cents = excluded.recurring_price_cents,
+    monthly_credits_cents = excluded.monthly_credits_cents,
+    stripe_price_id = excluded.stripe_price_id,
+    acquisition_enabled = excluded.acquisition_enabled,
+    is_active = excluded.is_active;
+
+insert into billing_plan_offers (
+    id,
+    plan_id,
+    offer_name,
+    recurring_price_cents,
+    monthly_credits_cents,
+    stripe_price_id,
+    acquisition_enabled,
+    is_active,
+    effective_start_at
+)
+values
+    ('media__internal_comp', 'media', 'Media Internal Comp', 0, 600, null, false, true, now()),
+    ('studio__internal_comp', 'studio', 'Studio Internal Comp', 0, 3000, null, false, true, now()),
+    ('business__internal_comp', 'business', 'Business Internal Comp', 0, 12000, null, false, true, now())
+on conflict (id) do update
+set offer_name = excluded.offer_name,
+    recurring_price_cents = excluded.recurring_price_cents,
+    monthly_credits_cents = excluded.monthly_credits_cents,
+    stripe_price_id = excluded.stripe_price_id,
+    acquisition_enabled = excluded.acquisition_enabled,
+    is_active = excluded.is_active;
+
+alter table billing_plan_offers enable row level security;
+drop policy if exists select_billing_plan_offers_public on billing_plan_offers;
+create policy select_billing_plan_offers_public on billing_plan_offers
+    for select using (true);
+drop policy if exists service_role_manage_billing_plan_offers on billing_plan_offers;
+create policy service_role_manage_billing_plan_offers on billing_plan_offers
+    for all to service_role
+    using (true)
+    with check (true);
+
+create or replace function set_billing_plan_offer_updated_at()
+returns trigger
+language plpgsql
+as $$
+begin
+    new.updated_at := now();
+    return new;
+end;
+$$;
+
+drop trigger if exists trg_billing_plan_offers_updated_at on billing_plan_offers;
+create trigger trg_billing_plan_offers_updated_at
+before update on billing_plan_offers
+for each row execute function set_billing_plan_offer_updated_at();
+
 -- Credit package catalog (one-time top-ups via Stripe Checkout)
 create table if not exists billing_credit_packages (
     id text primary key,
@@ -690,11 +832,12 @@ drop policy if exists select_billing_profiles_isolation on billing_profiles;
 create policy select_billing_profiles_isolation on billing_profiles
     for select using (user_id = auth.uid());
 drop policy if exists modify_billing_profiles_isolation on billing_profiles;
-create policy modify_billing_profiles_isolation on billing_profiles
-    for update using (user_id = auth.uid()) with check (user_id = auth.uid());
 drop policy if exists insert_billing_profiles_isolation on billing_profiles;
-create policy insert_billing_profiles_isolation on billing_profiles
-    for insert with check (user_id = auth.uid());
+drop policy if exists service_role_manage_billing_profiles on billing_profiles;
+create policy service_role_manage_billing_profiles on billing_profiles
+    for all to service_role
+    using (true)
+    with check (true);
 
 create or replace function set_billing_profile_updated_at()
 returns trigger
@@ -711,6 +854,113 @@ create trigger trg_billing_profiles_updated_at
 before update on billing_profiles
 for each row execute function set_billing_profile_updated_at();
 
+create table if not exists billing_subscription_contracts (
+    id uuid primary key default gen_random_uuid(),
+    user_id uuid not null references auth.users(id) on delete cascade,
+    plan_id text not null references billing_plans(id),
+    offer_id text references billing_plan_offers(id),
+    stripe_customer_id text,
+    stripe_subscription_id text,
+    stripe_price_id text,
+    recurring_price_cents integer not null check (recurring_price_cents >= 0),
+    monthly_credits_cents integer not null check (monthly_credits_cents >= 0),
+    currency text not null default 'usd' check (currency = lower(currency)),
+    billing_interval text not null default 'month' check (billing_interval in ('month')),
+    status text not null default 'inactive',
+    contract_source text not null default 'stripe' check (contract_source in ('stripe', 'internal_comp')),
+    current_period_start timestamptz,
+    current_period_end timestamptz,
+    cancel_at_period_end boolean not null default false,
+    granted_by_user_id uuid references auth.users(id) on delete set null,
+    grant_reason text,
+    updated_by_user_id uuid references auth.users(id) on delete set null,
+    started_at timestamptz not null default now(),
+    ended_at timestamptz,
+    created_at timestamptz not null default now(),
+    updated_at timestamptz not null default now()
+);
+
+create index if not exists ix_billing_subscription_contracts_user on billing_subscription_contracts (user_id, created_at desc);
+create index if not exists ix_billing_subscription_contracts_plan on billing_subscription_contracts (plan_id);
+create index if not exists ix_billing_subscription_contracts_status on billing_subscription_contracts (status);
+create index if not exists ix_billing_subscription_contracts_contract_source on billing_subscription_contracts (contract_source, status);
+create unique index if not exists ux_billing_subscription_contracts_current_user
+    on billing_subscription_contracts (user_id)
+    where ended_at is null;
+create unique index if not exists ux_billing_subscription_contracts_current_subscription
+    on billing_subscription_contracts (stripe_subscription_id)
+    where stripe_subscription_id is not null and ended_at is null;
+
+alter table billing_subscription_contracts enable row level security;
+drop policy if exists select_billing_subscription_contracts_isolation on billing_subscription_contracts;
+create policy select_billing_subscription_contracts_isolation on billing_subscription_contracts
+    for select using (user_id = auth.uid());
+drop policy if exists service_role_manage_billing_subscription_contracts on billing_subscription_contracts;
+create policy service_role_manage_billing_subscription_contracts on billing_subscription_contracts
+    for all to service_role
+    using (true)
+    with check (true);
+
+create or replace function set_billing_subscription_contract_updated_at()
+returns trigger
+language plpgsql
+as $$
+begin
+    new.updated_at := now();
+    return new;
+end;
+$$;
+
+drop trigger if exists trg_billing_subscription_contracts_updated_at on billing_subscription_contracts;
+create trigger trg_billing_subscription_contracts_updated_at
+before update on billing_subscription_contracts
+for each row execute function set_billing_subscription_contract_updated_at();
+
+insert into billing_subscription_contracts (
+    user_id,
+    plan_id,
+    offer_id,
+    stripe_customer_id,
+    stripe_subscription_id,
+    stripe_price_id,
+    recurring_price_cents,
+    monthly_credits_cents,
+    status,
+    current_period_end,
+    started_at,
+    ended_at
+)
+select
+    bp.user_id,
+    bp.plan_id,
+    p.id || '__current',
+    bp.stripe_customer_id,
+    bp.stripe_subscription_id,
+    p.stripe_price_id,
+    p.monthly_price_cents,
+    p.monthly_credits_cents,
+    bp.subscription_status,
+    bp.current_period_end,
+    coalesce(bp.created_at, now()),
+    case
+        when bp.subscription_status in ('canceled', 'inactive') then coalesce(bp.current_period_end, bp.updated_at, now())
+        else null
+    end
+from billing_profiles bp
+join billing_plans p on p.id = bp.plan_id
+where (
+        bp.plan_id <> 'free'
+        or bp.stripe_customer_id is not null
+        or bp.stripe_subscription_id is not null
+        or bp.subscription_status <> 'inactive'
+    )
+    and not exists (
+        select 1
+        from billing_subscription_contracts existing
+        where existing.user_id = bp.user_id
+          and existing.ended_at is null
+    );
+
 -- Event log for Stripe webhooks (idempotency)
 create table if not exists stripe_event_log (
     id text primary key,
@@ -720,6 +970,11 @@ create table if not exists stripe_event_log (
 );
 
 alter table stripe_event_log enable row level security;
+drop policy if exists service_role_manage_stripe_event_log on stripe_event_log;
+create policy service_role_manage_stripe_event_log on stripe_event_log
+    for all to service_role
+    using (true)
+    with check (true);
 
 -- Fal webhook ingestion inbox (idempotency + processing audit)
 create table if not exists fal_webhook_events (

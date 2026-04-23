@@ -21,6 +21,7 @@ import {
 import {
   annotateCreditPackages,
   buildPlanView,
+  getPlanTierRank,
   type BillingPlanRecord,
   type CreditPackageRecord,
 } from "../features/billing/catalog";
@@ -38,6 +39,27 @@ type BillingProfile = {
   subscription_status: string | null;
   current_period_end: string | null;
   stripe_customer_id: string | null;
+};
+
+type BillingSubscriptionContract = {
+  id: string;
+  plan_id: string | null;
+  offer_id: string | null;
+  stripe_price_id: string | null;
+  recurring_price_cents: number;
+  monthly_credits_cents: number;
+  status: string | null;
+  current_period_start: string | null;
+  current_period_end: string | null;
+  cancel_at_period_end: boolean;
+  started_at: string | null;
+  ended_at: string | null;
+};
+
+type BillingCatalogResponse = {
+  plans?: BillingPlanRecord[];
+  packages?: CreditPackageRecord[];
+  error?: string;
 };
 
 type BillingLedgerEvent = {
@@ -119,6 +141,8 @@ export default function ProfilePage() {
 
   const [billingProfile, setBillingProfile] = useState<BillingProfile | null>(null);
   const [billingProfileLoading, setBillingProfileLoading] = useState(false);
+  const [billingContract, setBillingContract] = useState<BillingSubscriptionContract | null>(null);
+  const [billingContractLoading, setBillingContractLoading] = useState(false);
   const [billingPlans, setBillingPlans] = useState<BillingPlanRecord[]>([]);
   const [billingPlansLoading, setBillingPlansLoading] = useState(false);
 
@@ -168,42 +192,50 @@ export default function ProfilePage() {
     }
   };
 
-  const loadBillingPlans = async () => {
-    setBillingPlansLoading(true);
+  const loadBillingContract = async (currentUser: User) => {
+    setBillingContractLoading(true);
     try {
       const supabase = ensureSupabaseClient();
       const { data, error } = await supabase
-        .from("billing_plans")
-        .select("id, display_name, monthly_price_cents, monthly_credits_cents, is_active")
-        .eq("is_active", true)
-        .order("monthly_price_cents", { ascending: true });
+        .from("billing_subscription_contracts")
+        .select(
+          "id, plan_id, offer_id, stripe_price_id, recurring_price_cents, monthly_credits_cents, status, current_period_start, current_period_end, cancel_at_period_end, started_at, ended_at"
+        )
+        .eq("user_id", currentUser.id)
+        .is("ended_at", null)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
       if (error) throw error;
-      setBillingPlans(Array.isArray(data) ? (data as BillingPlanRecord[]) : []);
+      setBillingContract((data as BillingSubscriptionContract | null) ?? null);
     } catch {
-      setBillingPlans([]);
+      setBillingContract(null);
     } finally {
-      setBillingPlansLoading(false);
+      setBillingContractLoading(false);
     }
   };
 
-  const loadCreditPackages = async () => {
+  const loadBillingCatalog = async () => {
+    setBillingPlansLoading(true);
     setPackagesLoading(true);
     try {
-      const response = await fetchWithAuth("/api/billing/credit-packages", { method: "GET" });
-      const data = await response.json().catch(() => ({}));
+      const response = await fetchWithAuth("/api/billing/catalog", { method: "GET" });
+      const data = (await response.json().catch(() => ({}))) as BillingCatalogResponse;
       if (!response.ok) {
-        throw new Error(data?.error || "Unable to load credit packages.");
+        throw new Error(data?.error || "Unable to load billing catalog.");
       }
-      setCreditPackages(
-        Array.isArray(data?.packages) ? (data.packages as CreditPackageRecord[]) : []
-      );
+
+      setBillingPlans(Array.isArray(data.plans) ? data.plans : []);
+      setCreditPackages(Array.isArray(data.packages) ? data.packages : []);
     } catch (error) {
+      setBillingPlans([]);
+      setCreditPackages([]);
       setNotice({
         tone: "error",
-        message: error instanceof Error ? error.message : "Unable to load credit packages.",
+        message: error instanceof Error ? error.message : "Unable to load billing catalog.",
       });
-      setCreditPackages([]);
     } finally {
+      setBillingPlansLoading(false);
       setPackagesLoading(false);
     }
   };
@@ -232,8 +264,8 @@ export default function ProfilePage() {
   useEffect(() => {
     if (!user) return;
     void loadBillingProfile(user);
-    void loadBillingPlans();
-    void loadCreditPackages();
+    void loadBillingContract(user);
+    void loadBillingCatalog();
     void loadBillingActivity(user);
   }, [user]);
 
@@ -265,6 +297,7 @@ export default function ProfilePage() {
   const displayName = displayNameInput || user?.email || "User";
   const activePlan = buildPlanView({
     planId:
+      (billingContract?.plan_id as string | undefined) ??
       (billingProfile?.plan_id as string | undefined) ??
       (user?.user_metadata?.plan as string | undefined),
     plans: billingPlans,
@@ -272,15 +305,39 @@ export default function ProfilePage() {
 
   const planLabel = activePlan.displayName;
   const planClass = activePlan.className;
-  const subscriptionStatus = billingProfile?.subscription_status ?? "inactive";
+  const subscriptionStatus =
+    billingContract?.status ?? billingProfile?.subscription_status ?? "inactive";
   const subscriptionStatusLabel = formatStatusLabel(subscriptionStatus);
+  const currentSubscriptionPriceCents =
+    billingContract?.recurring_price_cents ?? activePlan.monthlyPriceCents;
+  const currentSubscriptionCreditsCents =
+    billingContract?.monthly_credits_cents ?? activePlan.monthlyCreditsCents;
+  const currentSubscriptionOfferId = billingContract?.offer_id ?? null;
+  const isLegacyContract =
+    billingContract !== null &&
+    (currentSubscriptionPriceCents !== activePlan.monthlyPriceCents ||
+      currentSubscriptionCreditsCents !== activePlan.monthlyCreditsCents);
+  const activePlanRank = getPlanTierRank(activePlan.id);
+  const contractDescriptor = isLegacyContract
+    ? "Legacy contract locked for your active subscription"
+    : currentSubscriptionOfferId
+      ? "Current contract synced from Stripe subscription state"
+      : "Using the current public offer for this tier";
 
   const nextBillingText =
-    activePlan.monthlyPriceCents <= 0
+    currentSubscriptionPriceCents <= 0
       ? "None (Free plan)"
-      : billingProfile?.current_period_end
-        ? formatDateLabel(billingProfile.current_period_end)
-        : "Not scheduled";
+      : billingContract?.current_period_end
+        ? formatDateLabel(billingContract.current_period_end)
+        : billingProfile?.current_period_end
+          ? formatDateLabel(billingProfile.current_period_end)
+          : "Not scheduled";
+
+  const subscriptionRenewalText = billingContract?.current_period_end
+    ? `Renews ${formatDateLabel(billingContract.current_period_end)}`
+    : billingProfile?.current_period_end
+      ? `Renews ${formatDateLabel(billingProfile.current_period_end)}`
+      : "Not scheduled";
 
   const packageCards = useMemo(() => annotateCreditPackages(creditPackages), [creditPackages]);
   const mediaAutosaveSaving = mediaAutosaveSyncState === "saving";
@@ -624,19 +681,23 @@ export default function ProfilePage() {
                   </article>
 
                   <article className="profile-summary-card">
+                    <p className="tiny subdued">Current recurring price</p>
+                    <p className="summary-value small">
+                      {formatCurrencyFromCents(currentSubscriptionPriceCents)} / month
+                    </p>
+                    <p className="tiny subdued">{contractDescriptor}</p>
+                  </article>
+
+                  <article className="profile-summary-card">
                     <p className="tiny subdued">Status</p>
                     <p className="summary-value small">{subscriptionStatusLabel}</p>
-                    <p className="tiny subdued">
-                      {billingProfile?.current_period_end
-                        ? `Renews ${formatDateLabel(billingProfile.current_period_end)}`
-                        : "No active subscription"}
-                    </p>
+                    <p className="tiny subdued">{subscriptionRenewalText}</p>
                   </article>
 
                   <article className="profile-summary-card">
                     <p className="tiny subdued">Monthly credits</p>
                     <p className="summary-value">
-                      {activePlan.monthlyCreditsCents.toLocaleString()}
+                      {currentSubscriptionCreditsCents.toLocaleString()}
                     </p>
                     <p className="tiny subdued">Renews automatically each billing cycle</p>
                   </article>
@@ -648,7 +709,8 @@ export default function ProfilePage() {
                       <p className="eyebrow">All plans</p>
                       <h3>Choose your subscription</h3>
                       <p className="subdued tiny">
-                        Plans are billed monthly. Cancel or change anytime via Stripe portal.
+                        Your current contract stays above. These cards show the public offers
+                        available if you change plans now.
                       </p>
                     </div>
                   </div>
@@ -666,9 +728,9 @@ export default function ProfilePage() {
                       billingPlans.map((plan) => {
                         const planView = buildPlanView({ planId: plan.id, plans: billingPlans });
                         const isCurrentPlan = activePlan.id === plan.id;
-                        const isHigherTier =
-                          plan.monthly_price_cents > activePlan.monthlyPriceCents;
-                        const isLowerTier = plan.monthly_price_cents < activePlan.monthlyPriceCents;
+                        const candidatePlanRank = getPlanTierRank(plan.id);
+                        const isHigherTier = candidatePlanRank > activePlanRank;
+                        const isLowerTier = candidatePlanRank < activePlanRank;
                         const isFree = plan.monthly_price_cents === 0;
 
                         // Badge logic
@@ -769,8 +831,9 @@ export default function ProfilePage() {
                 <div className="profile-callout">
                   <WarningCircle size={18} />
                   <p className="tiny">
-                    Plan changes are managed through Stripe&apos;s secure billing portal. Changes
-                    sync automatically to your account.
+                    Plan changes are managed through Stripe&apos;s secure billing portal. If you are
+                    on a legacy contract, changing plans may move you onto the current public offer
+                    for the selected tier.
                   </p>
                 </div>
               </>
@@ -793,9 +856,11 @@ export default function ProfilePage() {
                     <p className="summary-value">{planLabel}</p>
                     <p className="tiny subdued">{activePlan.description}</p>
                     <div className="profile-summary-meta">
-                      <span>{formatCurrencyFromCents(activePlan.monthlyPriceCents)} / month</span>
+                      <span>{formatCurrencyFromCents(currentSubscriptionPriceCents)} / month</span>
                       <span>•</span>
-                      <span>{activePlan.monthlyCreditsCents.toLocaleString()} credits / month</span>
+                      <span>
+                        {currentSubscriptionCreditsCents.toLocaleString()} credits / month
+                      </span>
                     </div>
                   </article>
 
@@ -837,13 +902,13 @@ export default function ProfilePage() {
                       <div>
                         <p className="tiny subdued">Recurring price</p>
                         <p className="meta-value">
-                          {formatCurrencyFromCents(activePlan.monthlyPriceCents)} / month
+                          {formatCurrencyFromCents(currentSubscriptionPriceCents)} / month
                         </p>
                       </div>
                       <div>
                         <p className="tiny subdued">Monthly credits</p>
                         <p className="meta-value">
-                          {activePlan.monthlyCreditsCents.toLocaleString()}
+                          {currentSubscriptionCreditsCents.toLocaleString()}
                         </p>
                       </div>
                       <div>
@@ -865,13 +930,15 @@ export default function ProfilePage() {
                         onClick={handleOpenBillingPortal}
                         disabled={portalLoading}
                       >
-                        {portalLoading ? "Opening secure portal…" : "Open billing portal"}
+                        {portalLoading
+                          ? "Opening secure portal…"
+                          : "Manage card, invoices, and subscription"}
                       </button>
                     </div>
 
                     <div className="profile-receipts">
                       <div className="profile-receipts-header">
-                        <h4>Recent billing activity</h4>
+                        <h4>Recent credit activity</h4>
                         <Receipt size={16} />
                       </div>
 
@@ -982,6 +1049,9 @@ export default function ProfilePage() {
 
                   {billingPlansLoading ? (
                     <p className="tiny subdued">Loading catalog details…</p>
+                  ) : null}
+                  {billingContractLoading ? (
+                    <p className="tiny subdued">Syncing subscription contract…</p>
                   ) : null}
                 </div>
               </>

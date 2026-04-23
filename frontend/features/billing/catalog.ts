@@ -19,6 +19,8 @@ export type CreditPackageRecord = {
   sort_order: number;
 };
 
+const PLAN_TIER_ORDER = ["free", "media", "studio", "business"] as const;
+
 type PlanPresentation = {
   className: string;
   seatsLabel: string;
@@ -65,6 +67,15 @@ export const normalizePlanId = (value: string | undefined | null): string => {
   if (normalized === "media") return "media";
   if (normalized === "free") return "free";
   return DEFAULT_PLAN_ID;
+};
+
+/**
+ * Returns a stable ordinal for tier comparisons so price changes do not affect upgrade logic.
+ */
+export const getPlanTierRank = (value: string | undefined | null): number => {
+  const normalized = normalizePlanId(value) as (typeof PLAN_TIER_ORDER)[number];
+  const rank = PLAN_TIER_ORDER.indexOf(normalized);
+  return rank >= 0 ? rank : 0;
 };
 
 /**

@@ -105,13 +105,32 @@ vi.mock("../../lib/supabaseClient", () => ({
           }),
         };
       }
-      if (table === "billing_plans") {
+      if (table === "billing_subscription_contracts") {
         return {
           select: () => ({
             eq: () => ({
-              order: async () => ({
-                data: billingPlansFixture,
-                error: null,
+              is: () => ({
+                order: () => ({
+                  limit: () => ({
+                    maybeSingle: async () => ({
+                      data: {
+                        id: "contract_1",
+                        plan_id: "media",
+                        offer_id: "media__legacy_10",
+                        stripe_price_id: "price_media_legacy",
+                        recurring_price_cents: 1000,
+                        monthly_credits_cents: 20000,
+                        status: "active",
+                        current_period_start: "2026-03-01T00:00:00.000Z",
+                        current_period_end: "2026-04-01T00:00:00.000Z",
+                        cancel_at_period_end: false,
+                        started_at: "2026-03-01T00:00:00.000Z",
+                        ended_at: null,
+                      },
+                      error: null,
+                    }),
+                  }),
+                }),
               }),
             }),
           }),
@@ -143,10 +162,10 @@ describe("Profile subscription actions", () => {
     routerState.query = { section: "subscription" };
     fetchWithAuthMock.mockReset();
     fetchWithAuthMock.mockImplementation(async (url: unknown) => {
-      if (url === "/api/billing/credit-packages") {
+      if (url === "/api/billing/catalog") {
         return {
           ok: true,
-          json: async () => ({ packages: [] }),
+          json: async () => ({ plans: billingPlansFixture, packages: [] }),
         };
       }
       return {
@@ -185,6 +204,10 @@ describe("Profile subscription actions", () => {
     expect(screen.getByRole("button", { name: "Current Plan" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Upgrade to Business" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Cancel subscription" })).toBeInTheDocument();
+    expect(screen.getByText("$10.00 / month")).toBeInTheDocument();
+    expect(
+      screen.getByText("Legacy contract locked for your active subscription")
+    ).toBeInTheDocument();
   });
 
   it("opens and closes the cancel subscription modal", async () => {

@@ -6,12 +6,84 @@ export type AdminUserRow = {
   id: string;
   email: string | null;
   planId: string | null;
+  offerId: string | null;
+  stripePriceId: string | null;
+  contractSource: "stripe" | "internal_comp" | null;
+  recurringPriceCents: number | null;
+  monthlyCreditsCents: number | null;
+  billingSource: "billing_profile" | "subscription_contract";
   subscriptionStatus: string | null;
   credits: number;
   availableCredits: number;
   reservedCredits: number;
   spendableCredits: number;
   createdAt: string | null;
+};
+
+export type AdminDeleteUserRequest = {
+  confirmationText: string;
+};
+
+export type AdminDeleteUserResponse = {
+  ok: true;
+  userId: string;
+  email: string | null;
+};
+
+export type AdminBillingProfileSnapshot = {
+  planId: string | null;
+  subscriptionStatus: string | null;
+  stripeCustomerId: string | null;
+  stripeSubscriptionId: string | null;
+  currentPeriodEnd: string | null;
+};
+
+export type AdminBillingContractSnapshot = {
+  id: string;
+  planId: string | null;
+  offerId: string | null;
+  stripePriceId: string | null;
+  stripeSubscriptionId: string | null;
+  contractSource: "stripe" | "internal_comp" | null;
+  recurringPriceCents: number | null;
+  monthlyCreditsCents: number | null;
+  status: string | null;
+  currentPeriodEnd: string | null;
+};
+
+export type AdminBillingOfferSnapshot = {
+  id: string;
+  planId: string | null;
+  offerName: string | null;
+  stripePriceId: string | null;
+  recurringPriceCents: number | null;
+  monthlyCreditsCents: number | null;
+  acquisitionEnabled: boolean;
+  isActive: boolean;
+};
+
+export type AdminStripeSubscriptionSnapshot = {
+  configured: boolean;
+  customerId: string | null;
+  subscriptionId: string | null;
+  status: string | null;
+  priceId: string | null;
+  recurringPriceCents: number | null;
+  currency: string | null;
+  currentPeriodEnd: string | null;
+};
+
+export type AdminBillingDiagnosticsResponse = {
+  target: {
+    userId: string;
+    email: string | null;
+  };
+  billingProfile: AdminBillingProfileSnapshot | null;
+  currentContract: AdminBillingContractSnapshot | null;
+  linkedOffer: AdminBillingOfferSnapshot | null;
+  currentPublicOffer: AdminBillingOfferSnapshot | null;
+  stripeSubscription: AdminStripeSubscriptionSnapshot;
+  findings: AdminHealthFinding[];
 };
 
 export type AdminErrorStatus = "open" | "ignored" | "resolved";

@@ -1,0 +1,11 @@
+drop trigger if exists trg_billing_subscription_contracts_updated_at on billing_subscription_contracts;
+drop function if exists set_billing_subscription_contract_updated_at();
+drop policy if exists service_role_manage_billing_subscription_contracts on billing_subscription_contracts;
+drop policy if exists select_billing_subscription_contracts_isolation on billing_subscription_contracts;
+drop table if exists billing_subscription_contracts;
+
+drop trigger if exists trg_billing_plan_offers_updated_at on billing_plan_offers;
+drop function if exists set_billing_plan_offer_updated_at();
+drop policy if exists service_role_manage_billing_plan_offers on billing_plan_offers;
+drop policy if exists select_billing_plan_offers_public on billing_plan_offers;
+drop table if exists billing_plan_offers;

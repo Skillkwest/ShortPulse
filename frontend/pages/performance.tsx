@@ -8,6 +8,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowClockwise, CaretDown, MagnifyingGlass } from "phosphor-react";
 
+import { useResolvedAccountPlan } from "../features/billing/useResolvedAccountPlan";
 import { CompactVideoCard } from "../features/performance/components/CompactVideoCard";
 import { CohortAnalyticsSection } from "../features/performance/components/CohortAnalyticsSection";
 import {
@@ -117,6 +118,7 @@ const rebuildDemoVideos = (seed: number, timestamp: number): TrendingVideo[] => 
  * Public-facing performance analytics view for demo data.
  */
 export default function PerformanceAnalyticsPage() {
+  const { resolvedPlan } = useResolvedAccountPlan();
   const [platform, setPlatform] = useState<PlatformFilter>("all");
   const [dateRange, setDateRange] = useState<DateRange>("7d");
   const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>("All");
@@ -135,7 +137,7 @@ export default function PerformanceAnalyticsPage() {
   const sortRef = useRef<HTMLDivElement>(null);
   const planSearchLimit = 100;
   const searchesRemaining = 72;
-  const planName = "Creative Suite";
+  const planName = resolvedPlan?.label ?? "Free";
   const [dataVersion, setDataVersion] = useState(0);
   const [lastRefreshAt, setLastRefreshAt] = useState<string | null>(() =>
     new Date(seedTimestamp).toISOString()

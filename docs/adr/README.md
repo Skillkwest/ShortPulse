@@ -68,3 +68,6 @@ ADRs capture **important, durable decisions** so the repo stays coherent as it g
 - `docs/adr/0054-ai-studio-canonical-master-stage-and-stage-system-sunset.md`
 - `docs/adr/0055-ai-studio-masked-inpaint-reference-contract-boundary.md`
 - `docs/adr/0056-ai-studio-single-reference-masked-inpaint-lane.md`
+- `docs/adr/0057-voice-changer-canonical-staged-audio-intake.md`
+- `docs/adr/0058-billing-grandfathered-offers-and-subscriber-contracts.md`
+- `docs/adr/0059-billing-internal-comp-contracts-and-admin-exempt-renewals.md`

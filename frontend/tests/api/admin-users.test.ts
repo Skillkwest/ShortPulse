@@ -82,6 +82,26 @@ describe("GET /api/admin/users", () => {
       in: vi.fn().mockResolvedValue({ data: rows, error: null }),
     });
 
+    const contractsQuery = {
+      in: vi.fn().mockReturnValue({
+        is: vi.fn().mockResolvedValue({
+          data: [
+            {
+              user_id: "user-1",
+              plan_id: "studio",
+              offer_id: "studio__legacy_10",
+              stripe_price_id: "price_legacy_studio",
+              contract_source: "stripe",
+              recurring_price_cents: 1000,
+              monthly_credits_cents: 4000,
+              status: "active",
+            },
+          ],
+          error: null,
+        }),
+      }),
+    };
+
     const reservationsQuery = {
       in: vi.fn().mockReturnValue({
         eq: vi.fn().mockResolvedValue({
@@ -103,6 +123,11 @@ describe("GET /api/admin/users", () => {
             select: vi
               .fn()
               .mockReturnValue(createInQuery([{ user_id: "user-1", balance_cents: 106 }])),
+          };
+        }
+        if (table === "billing_subscription_contracts") {
+          return {
+            select: vi.fn().mockReturnValue(contractsQuery),
           };
         }
         if (table === "billing_profiles") {
@@ -135,6 +160,14 @@ describe("GET /api/admin/users", () => {
         users: [
           expect.objectContaining({
             id: "user-1",
+            planId: "studio",
+            offerId: "studio__legacy_10",
+            stripePriceId: "price_legacy_studio",
+            contractSource: "stripe",
+            recurringPriceCents: 1000,
+            monthlyCreditsCents: 4000,
+            billingSource: "subscription_contract",
+            subscriptionStatus: "active",
             credits: 6,
             spendableCredits: 6,
             availableCredits: 106,

@@ -1,8 +1,8 @@
 /**
- * Admin page tests for users and credits workflows.
- * Locks search, ledger loading, and manual adjustment feedback before B4-01 users/credits extraction.
+ * Admin support page tests for users and credits workflows.
+ * Locks explicit selection, lazy ledger loading, manual adjustments, and destructive user deletion.
  */
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import AdminDashboardPage from "../../pages/admin";
@@ -42,6 +42,10 @@ vi.mock("../../lib/authenticatedFetch", () => ({
   fetchWithAuth: (...args: unknown[]) => fetchWithAuthMock(...args),
 }));
 
+const ADMIN_ID = "11111111-1111-4111-8111-111111111111";
+const USER_1_ID = "22222222-2222-4222-8222-222222222222";
+const USER_2_ID = "33333333-3333-4333-8333-333333333333";
+
 const jsonResponse = (body: unknown, ok = true) => ({
   ok,
   json: vi.fn(async () => body),
@@ -53,7 +57,7 @@ describe("Admin users and credits overview", () => {
 
     useProtectedRouteMock.mockReturnValue({
       loading: false,
-      user: { id: "admin-1", email: "admin@example.com" },
+      user: { id: ADMIN_ID, email: "admin@example.com" },
     });
     useAdminAccessMock.mockReturnValue({
       status: "ready",
@@ -65,13 +69,19 @@ describe("Admin users and credits overview", () => {
 
     fetchWithAuthMock.mockImplementation(async (url: unknown, options?: RequestInit) => {
       const path = String(url);
-      if (path.startsWith("/api/admin/users")) {
+      if (path.startsWith("/api/admin/users?")) {
         return jsonResponse({
           users: [
             {
-              id: "user-1",
+              id: USER_1_ID,
               email: "alpha@example.com",
               planId: "studio",
+              offerId: "studio__legacy_10",
+              stripePriceId: "price_legacy_studio",
+              contractSource: "stripe",
+              recurringPriceCents: 1000,
+              monthlyCreditsCents: 4000,
+              billingSource: "subscription_contract",
               spendableCredits: 120,
               availableCredits: 150,
               reservedCredits: 30,
@@ -79,20 +89,42 @@ describe("Admin users and credits overview", () => {
               createdAt: "2026-03-01T00:00:00.000Z",
             },
             {
-              id: "user-2",
+              id: USER_2_ID,
               email: "beta@example.com",
               planId: "business",
+              offerId: "business__current",
+              stripePriceId: "price_current_business",
+              contractSource: "stripe",
+              recurringPriceCents: 3000,
+              monthlyCreditsCents: 10000,
+              billingSource: "subscription_contract",
               spendableCredits: 0,
               availableCredits: 0,
               reservedCredits: 0,
               subscriptionStatus: "inactive",
               createdAt: "2026-03-02T00:00:00.000Z",
             },
+            {
+              id: ADMIN_ID,
+              email: "admin@example.com",
+              planId: "business",
+              offerId: "business__current",
+              stripePriceId: "price_current_business",
+              contractSource: "stripe",
+              recurringPriceCents: 3000,
+              monthlyCreditsCents: 10000,
+              billingSource: "subscription_contract",
+              spendableCredits: 5000,
+              availableCredits: 5000,
+              reservedCredits: 0,
+              subscriptionStatus: "active",
+              createdAt: "2026-03-03T00:00:00.000Z",
+            },
           ],
           pagination: {
             page: 1,
             perPage: 50,
-            totalCount: 2,
+            totalCount: 3,
             totalPages: 1,
             hasNextPage: false,
             hasPrevPage: false,
@@ -105,11 +137,11 @@ describe("Admin users and credits overview", () => {
         const userId = search.get("userId");
         return jsonResponse({
           transactions:
-            userId === "user-2"
+            userId === USER_2_ID
               ? [
                   {
                     id: "txn-2",
-                    userId: "user-2",
+                    userId: USER_2_ID,
                     changeCents: 500,
                     reason: "Manual adjustment",
                     source: "admin",
@@ -121,7 +153,7 @@ describe("Admin users and credits overview", () => {
               : [
                   {
                     id: "txn-1",
-                    userId: "user-1",
+                    userId: USER_1_ID,
                     changeCents: -20,
                     reason: "Generation charge",
                     source: "generation",
@@ -131,6 +163,143 @@ describe("Admin users and credits overview", () => {
                   },
                 ],
         });
+      }
+      if (path.startsWith("/api/admin/billing-diagnostics?")) {
+        const search = new URL(path, "http://localhost").searchParams;
+        const userId = search.get("userId");
+        return jsonResponse({
+          target: {
+            userId,
+            email: userId === USER_2_ID ? "beta@example.com" : "alpha@example.com",
+          },
+          billingProfile: {
+            planId: userId === USER_2_ID || userId === ADMIN_ID ? "business" : "studio",
+            subscriptionStatus: userId === USER_2_ID ? "inactive" : "active",
+            stripeCustomerId: "cus_test",
+            stripeSubscriptionId: "sub_test",
+            currentPeriodEnd: "2026-05-01T00:00:00.000Z",
+          },
+          currentContract:
+            userId === USER_2_ID
+              ? {
+                  id: "contract-business",
+                  planId: "business",
+                  offerId: "business__current",
+                  stripePriceId: "price_current_business",
+                  contractSource: "stripe",
+                  stripeSubscriptionId: "sub_test",
+                  recurringPriceCents: 3000,
+                  monthlyCreditsCents: 10000,
+                  status: "inactive",
+                  currentPeriodEnd: "2026-05-01T00:00:00.000Z",
+                }
+              : userId === ADMIN_ID
+                ? null
+                : {
+                    id: "contract-studio-legacy",
+                    planId: "studio",
+                    offerId: "studio__legacy_10",
+                    stripePriceId: "price_legacy_studio",
+                    contractSource: "stripe",
+                    stripeSubscriptionId: "sub_test",
+                    recurringPriceCents: 1000,
+                    monthlyCreditsCents: 4000,
+                    status: "active",
+                    currentPeriodEnd: "2026-05-01T00:00:00.000Z",
+                  },
+          linkedOffer:
+            userId === USER_2_ID || userId === ADMIN_ID
+              ? {
+                  id: "business__current",
+                  planId: "business",
+                  offerName: "Business",
+                  stripePriceId: "price_current_business",
+                  recurringPriceCents: 3000,
+                  monthlyCreditsCents: 10000,
+                  acquisitionEnabled: true,
+                  isActive: true,
+                }
+              : {
+                  id: "studio__legacy_10",
+                  planId: "studio",
+                  offerName: "Studio Legacy $10",
+                  stripePriceId: "price_legacy_studio",
+                  recurringPriceCents: 1000,
+                  monthlyCreditsCents: 4000,
+                  acquisitionEnabled: false,
+                  isActive: true,
+                },
+          currentPublicOffer:
+            userId === USER_2_ID || userId === ADMIN_ID
+              ? {
+                  id: "business__current",
+                  planId: "business",
+                  offerName: "Business",
+                  stripePriceId: "price_current_business",
+                  recurringPriceCents: 3000,
+                  monthlyCreditsCents: 10000,
+                  acquisitionEnabled: true,
+                  isActive: true,
+                }
+              : {
+                  id: "studio__current",
+                  planId: "studio",
+                  offerName: "Studio",
+                  stripePriceId: "price_current_studio",
+                  recurringPriceCents: 3000,
+                  monthlyCreditsCents: 6000,
+                  acquisitionEnabled: true,
+                  isActive: true,
+                },
+          stripeSubscription:
+            userId === USER_2_ID
+              ? {
+                  configured: true,
+                  customerId: "cus_test",
+                  subscriptionId: "sub_test",
+                  status: "inactive",
+                  priceId: "price_current_business",
+                  recurringPriceCents: 3000,
+                  currency: "usd",
+                  currentPeriodEnd: "2026-05-01T00:00:00.000Z",
+                }
+              : {
+                  configured: true,
+                  customerId: "cus_test",
+                  subscriptionId: "sub_test",
+                  status: "active",
+                  priceId: "price_legacy_studio",
+                  recurringPriceCents: 1000,
+                  currency: "usd",
+                  currentPeriodEnd: "2026-05-01T00:00:00.000Z",
+                },
+          findings:
+            userId === USER_2_ID
+              ? []
+              : [
+                  {
+                    code: "grandfathered_price_gap",
+                    severity: "info",
+                    confidence: "high",
+                    summary:
+                      "Current contract is on a different recurring price than the public offer.",
+                    details: "Legacy subscriber remains on the older recurring price.",
+                    recommendedActions: [],
+                  },
+                ],
+        });
+      }
+      if (path === "/api/admin/credits/adjust") {
+        expect(options?.method).toBe("POST");
+        return jsonResponse({ ok: true });
+      }
+      if (path === "/api/admin/billing/contracts/update") {
+        expect(options?.method).toBe("POST");
+        return jsonResponse({ ok: true, creditsGrantedCents: 12000 });
+      }
+      if (path === `/api/admin/users/${encodeURIComponent(USER_2_ID)}`) {
+        expect(options?.method).toBe("DELETE");
+        return jsonResponse({ ok: true, userId: USER_2_ID, email: "beta@example.com" });
       }
       if (path.startsWith("/api/admin/errors?")) {
         return jsonResponse({
@@ -189,10 +358,6 @@ describe("Admin users and credits overview", () => {
           },
         });
       }
-      if (path === "/api/admin/credits/adjust") {
-        expect(options?.method).toBe("POST");
-        return jsonResponse({ ok: true });
-      }
       if (path === "/api/admin/announcements/current") {
         return jsonResponse({ announcement: null });
       }
@@ -200,40 +365,91 @@ describe("Admin users and credits overview", () => {
     });
   });
 
-  it("loads users, auto-selects the first user, and loads that user's ledger", async () => {
+  it("auto-selects the current admin account without preloading the ledger", async () => {
     render(<AdminDashboardPage />);
 
-    await waitFor(() => {
-      expect(screen.getByDisplayValue("alpha@example.com")).toBeInTheDocument();
-      expect(screen.getAllByText("beta@example.com").length).toBeGreaterThan(0);
-    });
     await waitFor(() =>
-      expect(fetchWithAuthMock).toHaveBeenCalledWith(
-        "/api/admin/credits/ledger?userId=user-1&limit=20",
-        expect.objectContaining({ method: "GET" })
-      )
+      expect(screen.getByRole("button", { name: "Select alpha@example.com" })).toBeInTheDocument()
     );
-    expect(screen.getByText("Generation charge")).toBeInTheDocument();
+
+    const selectButtons = screen.getAllByRole("button", { name: /Select / });
+    expect(selectButtons[0]).toHaveAttribute("aria-label", "Select admin@example.com");
+    expect(screen.getByText("Admin emails")).toBeInTheDocument();
+    expect(
+      screen.getByText("This account is pinned to the top of the loaded user list.")
+    ).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByTestId("snapshot-card-plan")).toBeInTheDocument());
+    expect(screen.getByTestId("snapshot-card-plan")).toHaveTextContent("Business");
+    expect(screen.getByTestId("snapshot-card-price")).toHaveTextContent("10,000 credits / month");
+    expect(screen.getByTestId("snapshot-card-status")).toHaveTextContent("active");
+    expect(screen.getByRole("button", { name: "+100" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "+500" })).toBeEnabled();
+    expect(fetchWithAuthMock).not.toHaveBeenCalledWith(
+      `/api/admin/credits/ledger?userId=${ADMIN_ID}&limit=20`,
+      expect.anything()
+    );
   });
 
-  it("applies a manual credit adjustment and refreshes users plus ledger", async () => {
+  it("loads the selected user's ledger only when requested", async () => {
     render(<AdminDashboardPage />);
 
-    await waitFor(() => {
-      expect(screen.getByDisplayValue("alpha@example.com")).toBeInTheDocument();
-    });
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Select beta@example.com" })).toBeInTheDocument()
+    );
 
-    fireEvent.change(screen.getByDisplayValue("alpha@example.com"), {
-      target: { value: "user-2" },
-    });
+    fireEvent.click(screen.getByRole("button", { name: "Select beta@example.com" }));
+    fireEvent.click(screen.getByRole("button", { name: "Show log" }));
 
     await waitFor(() =>
       expect(fetchWithAuthMock).toHaveBeenCalledWith(
-        "/api/admin/credits/ledger?userId=user-2&limit=20",
+        `/api/admin/credits/ledger?userId=${USER_2_ID}&limit=20`,
+        expect.objectContaining({ method: "GET" })
+      )
+    );
+    expect(screen.getByText("ref: ticket-2")).toBeInTheDocument();
+    expect(screen.getByTestId("snapshot-card-plan")).toHaveTextContent("Business");
+    expect(screen.getByTestId("snapshot-card-price")).toHaveTextContent("$30.00/mo");
+    expect(screen.getByTestId("snapshot-card-price")).toHaveTextContent("10,000 credits / month");
+    expect(screen.getByTestId("snapshot-card-status")).toHaveTextContent("inactive");
+    expect(screen.getByTestId("snapshot-metric-spendable")).toHaveTextContent("0");
+    expect(screen.getByTestId("snapshot-metric-spendable")).toHaveTextContent("spendable");
+  });
+
+  it("shows billing diagnostics findings for a grandfathered subscriber", async () => {
+    render(<AdminDashboardPage />);
+
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Select alpha@example.com" })).toBeInTheDocument()
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Select alpha@example.com" }));
+
+    await waitFor(() =>
+      expect(fetchWithAuthMock).toHaveBeenCalledWith(
+        `/api/admin/billing-diagnostics?userId=${USER_1_ID}`,
         expect.objectContaining({ method: "GET" })
       )
     );
 
+    expect(
+      screen.getByText("Current contract is on a different recurring price than the public offer.")
+    ).toBeInTheDocument();
+    expect(screen.getByTestId("snapshot-card-plan")).toHaveTextContent("Studio");
+    expect(screen.getByTestId("snapshot-card-price")).toHaveTextContent("$10.00/mo");
+    expect(screen.getByTestId("snapshot-card-price")).toHaveTextContent("4,000 credits / month");
+    expect(screen.getByTestId("snapshot-card-status")).toHaveTextContent("active");
+    expect(screen.getByTestId("snapshot-metric-spendable")).toHaveTextContent("120");
+    expect(screen.getByTestId("snapshot-metric-spendable")).toHaveTextContent("spendable");
+  });
+
+  it("applies a manual credit adjustment for the selected user", async () => {
+    render(<AdminDashboardPage />);
+
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Select beta@example.com" })).toBeInTheDocument()
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Select beta@example.com" }));
     fireEvent.change(screen.getByPlaceholderText("+500 or -100"), {
       target: { value: "+500" },
     });
@@ -246,14 +462,92 @@ describe("Admin users and credits overview", () => {
       expect.objectContaining({
         method: "POST",
         body: JSON.stringify({
-          userId: "user-2",
+          userId: USER_2_ID,
           changeCents: 500,
         }),
       })
     );
     expect(fetchWithAuthMock).toHaveBeenCalledWith(
-      "/api/admin/credits/ledger?userId=user-2&limit=20",
+      `/api/admin/credits/ledger?userId=${USER_2_ID}&limit=20`,
       expect.objectContaining({ method: "GET" })
+    );
+  });
+
+  it("applies internal comp access for the selected user", async () => {
+    render(<AdminDashboardPage />);
+
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Select beta@example.com" })).toBeInTheDocument()
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Select beta@example.com" }));
+    fireEvent.change(screen.getByDisplayValue("Business"), {
+      target: { value: "business" },
+    });
+    fireEvent.change(screen.getByPlaceholderText("Internal test, founder access, support comp"), {
+      target: { value: "Internal QA" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Apply internal comp" }));
+
+    await waitFor(() =>
+      expect(
+        screen.getByText("Internal comp access applied and 12,000 credits were seeded.")
+      ).toBeInTheDocument()
+    );
+
+    expect(fetchWithAuthMock).toHaveBeenCalledWith(
+      "/api/admin/billing/contracts/update",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({
+          userId: USER_2_ID,
+          action: "grant_internal_comp",
+          planId: "business",
+          grantReason: "Internal QA",
+          allowStripeTakeover: false,
+        }),
+      })
+    );
+  });
+
+  it("requires typed confirmation before deleting a user", async () => {
+    render(<AdminDashboardPage />);
+
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Delete beta@example.com" })).toBeInTheDocument()
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Delete beta@example.com" }));
+
+    const dialog = screen.getByRole("dialog");
+    expect(
+      within(dialog).getByText("Permanently delete this ShortPulse account?")
+    ).toBeInTheDocument();
+
+    const confirmButton = within(dialog).getByRole("button", { name: "Delete user permanently" });
+    expect(confirmButton).toBeDisabled();
+
+    fireEvent.change(within(dialog).getByPlaceholderText("beta@example.com"), {
+      target: { value: "wrong@example.com" },
+    });
+    expect(confirmButton).toBeDisabled();
+
+    fireEvent.change(within(dialog).getByPlaceholderText("beta@example.com"), {
+      target: { value: "beta@example.com" },
+    });
+    expect(confirmButton).not.toBeDisabled();
+
+    fireEvent.click(confirmButton);
+
+    await waitFor(() => expect(screen.getByText("User deleted permanently.")).toBeInTheDocument());
+    expect(fetchWithAuthMock).toHaveBeenCalledWith(
+      `/api/admin/users/${encodeURIComponent(USER_2_ID)}`,
+      expect.objectContaining({
+        method: "DELETE",
+        body: JSON.stringify({
+          confirmationText: "beta@example.com",
+        }),
+      })
     );
   });
 });

@@ -11,6 +11,8 @@ This SOP is the operational runbook for credit ledger migrations, admin balance 
 ## Source of truth
 - Billing bootstrap schema: `sql/create_billing_credit_tables.sql`.
 - Pricing catalog updates: `sql/update_billing_pricing_catalog_20260210.sql`.
+- Versioned offer + subscriber contract migration: `sql/migrations/085_add_billing_plan_offers_and_subscription_contracts.sql`.
+- Internal comp contract-source migration: `sql/migrations/086_add_internal_comp_billing_contract_support.sql`.
 - Legacy-to-v2 alignment migration: `sql/migrate_ai_credit_ledger_legacy_to_v2.sql`.
 - Billing/RLS audit helper: `sql/audit_billing_credit_rls.sql`.
 - Reservation/capture migration: `sql/migrations/002_add_generation_credit_reservations.sql`.
@@ -30,7 +32,16 @@ This SOP is the operational runbook for credit ledger migrations, admin balance 
 - Ledger compatibility insert helper: `frontend/lib/server/api/creditLedger.ts`.
 - Admin adjust API: `frontend/pages/api/admin/credits/adjust.ts`.
 - Admin ledger API: `frontend/pages/api/admin/credits/ledger.ts`.
+- Admin billing diagnostics API: `frontend/pages/api/admin/billing-diagnostics.ts`.
 - User credit snapshot API: `frontend/pages/api/credits/snapshot.ts`.
+- Contract reconciliation script: `scripts/verify_billing_contracts_against_stripe.ts`.
+
+## Billing model contract
+- `billing_plans` defines the shared plan tier (`free`, `media`, `studio`, `business`).
+- `billing_plan_offers` defines versioned recurring offers and current acquisition pricing.
+- `billing_subscription_contracts` defines the subscriber-specific recurring commercial terms and historical lineage.
+- `billing_profiles` remains a runtime projection for current plan/customer/subscription linkage, but it is not the long-term authoritative source for grandfathered recurring price.
+- `billing_subscription_contracts.contract_source` distinguishes Stripe-paid recurring contracts from non-public internal comp contracts.
 
 ## Ledger schema contract
 Expected v2 columns on `ai_credit_ledger`:
@@ -83,6 +94,9 @@ If role metadata is updated directly in Supabase, sign out/sign in to refresh JW
 Primary path:
 - `/admin` UI -> `/api/admin/credits/adjust`.
 - `/admin` transaction audit -> `/api/admin/credits/ledger?userId=<uuid>&limit=<n>&source=<source>`.
+- `/admin` billing diagnostics -> `/api/admin/billing-diagnostics?userId=<uuid>` for current profile/contract/offer drift checks, live Stripe subscription reconciliation, and grandfathered-price support context.
+- `/admin` user list -> the signed-in admin email is called out in a dedicated summary and its matching user row is pinned to the top of the loaded page results when present.
+- `npm -C frontend run billing:contracts:verify -- --limit 25` for batch contract-vs-Stripe reconciliation using service-role Supabase access plus live Stripe subscription reads.
 - `/admin/user-health` diagnostics -> `/api/admin/user-health` for user-level generation/queue/reservation/ledger health checks, cost-without-success signals, and guided next actions.
 - `/admin/user-health-fleet` diagnostics -> `/api/admin/user-health-fleet` for hourly active-user triage and risk-ranked escalation into per-user billing/runtime analysis.
 - `/api/admin/users` reports spendable credits (`available - reserved`) and also returns `availableCredits` / `reservedCredits` for hold visibility.
@@ -149,8 +163,48 @@ Safety checks:
 4. Reservation + ledger uniqueness keep settlement idempotent across retries/polling races.
 
 ## Stripe grants behavior
-- Checkout and renewal credits are ledger grants (`change_cents > 0`) via server routes.
+- Checkout top-up credits are ledger grants (`change_cents > 0`) via server routes only after Stripe reports the Checkout Session as paid.
+- Delayed-payment Checkout methods must settle on `checkout.session.async_payment_succeeded`; do not grant credits from `checkout.session.completed` when `payment_status != 'paid'`.
+- Subscription monthly credits are granted only for invoice payment events that represent a new billing allocation window (`billing_reason in ('subscription_create', 'subscription_cycle')`).
+- Subscription change/proration invoices (`subscription_update` and other non-allocation invoice reasons) must not mint an extra monthly credit grant.
 - Stripe event IDs are persisted in `stripe_event_log` to prevent duplicate grants.
+- Grant idempotency should use stable business object references where available (`checkout_session.id`, `invoice.id`) rather than relying only on Stripe event ids.
+- Current acquisition pricing may change over time, but existing subscribers should remain attached to their stored `billing_subscription_contracts` commercial snapshot unless a trusted migration/operator path intentionally moves them.
+
+## Internal comp recurring behavior
+- Admin/non-public comp access is granted through `/api/admin/billing/contracts/update`.
+- Internal comp contracts use hidden `billing_plan_offers` rows such as `business__internal_comp` and store `contract_source = 'internal_comp'`.
+- Granting internal comp access seeds the current period allocation immediately.
+- Monthly renewals for internal comp contracts are owned by `/api/internal/billing-contract-renewals/run`, not by the Stripe webhook.
+- Renewal idempotency uses deterministic period references per contract; duplicate runs must be safe.
+- Revoking internal comp access returns the account to `free` runtime state unless a different trusted operator path is intentionally used.
+
+## Internal comp renewal scheduler setup
+1. Set runtime env on the target deployment:
+   - `SHORTPULSE_INTERNAL_BILLING_RENEWALS_ENABLED=true`
+   - `SHORTPULSE_INTERNAL_BILLING_RENEWALS_CRON_SECRET=<strong-secret>`
+2. Apply `sql/configure_internal_billing_renewal_scheduler_supabase.sql` in the target Supabase project.
+3. Confirm Vault secrets exist:
+   - `shortpulse_internal_billing_renewals_run_url`
+   - `shortpulse_internal_billing_renewals_cron_secret`
+4. Confirm the Supabase Cron job exists and is active:
+```sql
+select jobid, jobname, schedule, active
+from cron.job
+where jobname = 'shortpulse_internal_billing_renewals_hourly';
+```
+5. Confirm recent executions:
+```sql
+select jobid, status, start_time, end_time, return_message
+from cron.job_run_details
+where jobid = (
+  select jobid from cron.job where jobname = 'shortpulse_internal_billing_renewals_hourly'
+)
+order by start_time desc
+limit 20;
+```
+6. Manual replay path for investigation or catch-up:
+   - `curl -X POST "$APP_BASE_URL/api/internal/billing-contract-renewals/run" -H "Authorization: Bearer $SHORTPULSE_INTERNAL_BILLING_RENEWALS_CRON_SECRET" -H "Content-Type: application/json" -d '{}'`
 
 ## Stripe webhook replay runbook (failed-first recovery)
 Use this when a Stripe webhook was accepted into `stripe_event_log` but side effects (credit grant or subscription state update) may not have completed.
@@ -173,6 +227,12 @@ order by created_at desc;
 select user_id, stripe_customer_id, stripe_subscription_id, subscription_status, current_period_end, updated_at
 from billing_profiles
 where stripe_customer_id = '<stripe_customer_id>';
+
+-- Subscriber contract state (preferred recurring pricing truth)
+select user_id, plan_id, offer_id, stripe_subscription_id, stripe_price_id, recurring_price_cents, monthly_credits_cents, status, started_at, ended_at
+from billing_subscription_contracts
+where stripe_customer_id = '<stripe_customer_id>'
+order by created_at desc;
 ```
 3. Replay the event from Stripe:
    - Stripe Dashboard: open the event and click `Resend`.

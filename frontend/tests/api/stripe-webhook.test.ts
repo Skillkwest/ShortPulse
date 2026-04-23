@@ -55,6 +55,97 @@ const createSupabaseAdminForEventClaim = (insertResult: { error: unknown }) => (
   },
 });
 
+const createSupabaseAdminForWebhook = (params?: {
+  eventClaimError?: unknown;
+  billingProfile?: Record<string, unknown> | null;
+  billingPlan?: Record<string, unknown> | null;
+  billingOffer?: Record<string, unknown> | null;
+  billingContract?: Record<string, unknown> | null;
+  onContractInsert?: (payload: unknown) => void;
+  onContractUpdate?: (payload: unknown) => void;
+}) => ({
+  from: (table: string) => {
+    if (table === "stripe_event_log") {
+      return {
+        insert: async () => ({ error: params?.eventClaimError ?? null }),
+      };
+    }
+
+    if (table === "billing_profiles") {
+      return {
+        select: () => ({
+          eq: () => ({
+            maybeSingle: async () => ({
+              data: params?.billingProfile ?? null,
+              error: null,
+            }),
+          }),
+        }),
+        update: () => ({
+          eq: async () => ({ data: null, error: null }),
+        }),
+      };
+    }
+
+    if (table === "billing_plans") {
+      return {
+        select: () => ({
+          eq: () => ({
+            maybeSingle: async () => ({
+              data: params?.billingPlan ?? null,
+              error: null,
+            }),
+          }),
+        }),
+      };
+    }
+
+    if (table === "billing_plan_offers") {
+      return {
+        select: () => ({
+          eq: () => ({
+            maybeSingle: async () => ({
+              data: params?.billingOffer ?? null,
+              error: null,
+            }),
+          }),
+        }),
+      };
+    }
+
+    if (table === "billing_subscription_contracts") {
+      return {
+        select: () => ({
+          eq: () => ({
+            is: () => ({
+              order: () => ({
+                limit: () => ({
+                  maybeSingle: async () => ({
+                    data: params?.billingContract ?? null,
+                    error: null,
+                  }),
+                }),
+              }),
+            }),
+          }),
+        }),
+        insert: async (payload: unknown) => {
+          params?.onContractInsert?.(payload);
+          return { data: null, error: null };
+        },
+        update: (payload: unknown) => ({
+          eq: async () => {
+            params?.onContractUpdate?.(payload);
+            return { data: null, error: null };
+          },
+        }),
+      };
+    }
+
+    throw new Error(`Unexpected table access: ${table}`);
+  },
+});
+
 describe("POST /api/billing/stripe/webhook", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -96,6 +187,8 @@ describe("POST /api/billing/stripe/webhook", () => {
         type: "checkout.session.completed",
         data: {
           object: {
+            id: "cs_duplicate_evt_1",
+            payment_status: "paid",
             metadata: {
               user_id: "user_123",
               credit_amount_cents: "1500",
@@ -132,7 +225,7 @@ describe("POST /api/billing/stripe/webhook", () => {
 
   it("applies checkout side effects once after successful event claim", async () => {
     verifyStripeWebhookSignatureMock.mockReturnValue(true);
-    getSupabaseAdminMock.mockReturnValue(createSupabaseAdminForEventClaim({ error: null }));
+    getSupabaseAdminMock.mockReturnValue(createSupabaseAdminForWebhook());
 
     const { res, promise } = createWebhookRequest(
       JSON.stringify({
@@ -142,6 +235,7 @@ describe("POST /api/billing/stripe/webhook", () => {
           object: {
             id: "cs_test_1",
             customer: "cus_123",
+            payment_status: "paid",
             metadata: {
               user_id: "user_123",
               credit_amount_cents: "1500",
@@ -161,14 +255,72 @@ describe("POST /api/billing/stripe/webhook", () => {
         userId: "user_123",
         changeCents: 1500,
         source: "stripe_checkout",
-        sourceRef: "evt_checkout_1",
+        sourceRef: "checkout_session:cs_test_1",
+      })
+    );
+  });
+
+  it("does not grant top-up credits on checkout completion when payment is still unpaid", async () => {
+    verifyStripeWebhookSignatureMock.mockReturnValue(true);
+    getSupabaseAdminMock.mockReturnValue(createSupabaseAdminForWebhook());
+
+    const { res, promise } = createWebhookRequest(
+      JSON.stringify({
+        id: "evt_checkout_unpaid",
+        type: "checkout.session.completed",
+        data: {
+          object: {
+            id: "cs_unpaid_1",
+            payment_status: "unpaid",
+            metadata: {
+              user_id: "user_123",
+              credit_amount_cents: "1500",
+            },
+          },
+        },
+      })
+    );
+    await promise;
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(insertCreditLedgerEntryMock).not.toHaveBeenCalled();
+  });
+
+  it("grants top-up credits when delayed checkout payment later succeeds", async () => {
+    verifyStripeWebhookSignatureMock.mockReturnValue(true);
+    getSupabaseAdminMock.mockReturnValue(createSupabaseAdminForWebhook());
+
+    const { res, promise } = createWebhookRequest(
+      JSON.stringify({
+        id: "evt_checkout_async_paid",
+        type: "checkout.session.async_payment_succeeded",
+        data: {
+          object: {
+            id: "cs_async_1",
+            payment_status: "paid",
+            metadata: {
+              user_id: "user_123",
+              credit_amount_cents: "1500",
+            },
+          },
+        },
+      })
+    );
+    await promise;
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(insertCreditLedgerEntryMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: "user_123",
+        source: "stripe_checkout",
+        sourceRef: "checkout_session:cs_async_1",
       })
     );
   });
 
   it("treats duplicate ledger source_ref writes as idempotent success", async () => {
     verifyStripeWebhookSignatureMock.mockReturnValue(true);
-    getSupabaseAdminMock.mockReturnValue(createSupabaseAdminForEventClaim({ error: null }));
+    getSupabaseAdminMock.mockReturnValue(createSupabaseAdminForWebhook());
     insertCreditLedgerEntryMock.mockResolvedValueOnce({
       error: {
         code: "23505",
@@ -182,6 +334,8 @@ describe("POST /api/billing/stripe/webhook", () => {
         type: "checkout.session.completed",
         data: {
           object: {
+            id: "cs_test_duplicate",
+            payment_status: "paid",
             metadata: {
               user_id: "user_123",
               credit_amount_cents: "1500",
@@ -194,5 +348,155 @@ describe("POST /api/billing/stripe/webhook", () => {
 
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith({ received: true });
+  });
+
+  it("grants monthly subscription credits only for subscription-cycle invoices", async () => {
+    verifyStripeWebhookSignatureMock.mockReturnValue(true);
+    getSupabaseAdminMock.mockReturnValue(
+      createSupabaseAdminForWebhook({
+        billingProfile: {
+          user_id: "user_123",
+          plan_id: "studio",
+        },
+        billingContract: {
+          id: "contract_123",
+          plan_id: "studio",
+          offer_id: "studio__current",
+          stripe_price_id: "price_studio",
+          monthly_credits_cents: 3000,
+        },
+      })
+    );
+
+    const { res, promise } = createWebhookRequest(
+      JSON.stringify({
+        id: "evt_invoice_cycle_1",
+        type: "invoice.payment_succeeded",
+        data: {
+          object: {
+            id: "in_cycle_1",
+            customer: "cus_123",
+            billing_reason: "subscription_cycle",
+          },
+        },
+      })
+    );
+    await promise;
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(insertCreditLedgerEntryMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: "user_123",
+        changeCents: 3000,
+        source: "subscription_renewal",
+        sourceRef: "invoice:in_cycle_1:monthly_allocation",
+        metadata: expect.objectContaining({
+          billing_reason: "subscription_cycle",
+          plan_id: "studio",
+          offer_id: "studio__current",
+          stripe_price_id: "price_studio",
+        }),
+      })
+    );
+  });
+
+  it("does not grant monthly credits for non-allocation subscription invoices", async () => {
+    verifyStripeWebhookSignatureMock.mockReturnValue(true);
+    getSupabaseAdminMock.mockReturnValue(
+      createSupabaseAdminForWebhook({
+        billingProfile: {
+          user_id: "user_123",
+          plan_id: "studio",
+        },
+        billingPlan: {
+          monthly_credits_cents: 3000,
+        },
+      })
+    );
+
+    const { res, promise } = createWebhookRequest(
+      JSON.stringify({
+        id: "evt_invoice_update_1",
+        type: "invoice.payment_succeeded",
+        data: {
+          object: {
+            id: "in_update_1",
+            customer: "cus_123",
+            billing_reason: "subscription_update",
+          },
+        },
+      })
+    );
+    await promise;
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(insertCreditLedgerEntryMock).not.toHaveBeenCalled();
+  });
+
+  it("syncs a subscription contract snapshot when Stripe subscription state changes", async () => {
+    verifyStripeWebhookSignatureMock.mockReturnValue(true);
+    const contractInsertSpy = vi.fn();
+    getSupabaseAdminMock.mockReturnValue(
+      createSupabaseAdminForWebhook({
+        billingProfile: {
+          user_id: "user_123",
+          plan_id: "studio",
+        },
+        billingOffer: {
+          id: "studio__current",
+          plan_id: "studio",
+          stripe_price_id: "price_studio",
+          recurring_price_cents: 3900,
+          monthly_credits_cents: 3000,
+        },
+        billingContract: null,
+        onContractInsert: contractInsertSpy,
+      })
+    );
+
+    const { res, promise } = createWebhookRequest(
+      JSON.stringify({
+        id: "evt_sub_updated_1",
+        type: "customer.subscription.updated",
+        data: {
+          object: {
+            id: "sub_123",
+            customer: "cus_123",
+            status: "active",
+            current_period_start: 1704067200,
+            current_period_end: 1706745600,
+            cancel_at_period_end: false,
+            items: {
+              data: [
+                {
+                  price: {
+                    id: "price_studio",
+                    unit_amount: 3900,
+                    metadata: {
+                      monthly_credits_cents: "3000",
+                    },
+                  },
+                },
+              ],
+            },
+          },
+        },
+      })
+    );
+    await promise;
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(contractInsertSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        user_id: "user_123",
+        plan_id: "studio",
+        offer_id: "studio__current",
+        stripe_subscription_id: "sub_123",
+        stripe_price_id: "price_studio",
+        recurring_price_cents: 3900,
+        monthly_credits_cents: 3000,
+        status: "active",
+      })
+    );
   });
 });

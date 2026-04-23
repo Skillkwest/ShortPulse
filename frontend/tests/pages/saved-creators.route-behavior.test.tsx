@@ -44,6 +44,13 @@ vi.mock("../../features/saved-creators/logic/supabase", () => ({
   deleteCreator: (...args: unknown[]) => deleteCreatorMock(...args),
 }));
 
+vi.mock("../../features/billing/useResolvedAccountPlan", () => ({
+  useResolvedAccountPlan: () => ({
+    user: { id: "user-1", email: "kirk@example.com", user_metadata: { plan: "free" } },
+    resolvedPlan: { label: "Free", className: "plan-free" },
+  }),
+}));
+
 const initialCreators = [
   {
     id: "creator-1",
@@ -90,6 +97,8 @@ describe("Saved creators route behavior", () => {
     const { unmount } = render(<SavedCreatorsPage />);
 
     await screen.findByText("@alphaeditor");
+    expect(screen.getByText("Current plan")).toBeInTheDocument();
+    expect(screen.getByText("Free")).toBeInTheDocument();
 
     expect(document.body.classList.contains("saved-creators-body")).toBe(true);
     expect(document.documentElement.classList.contains("saved-creators-body")).toBe(true);

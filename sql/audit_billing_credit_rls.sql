@@ -7,7 +7,9 @@
 with target_tables as (
   select *
   from (values
+    ('billing_plan_offers'::text),
     ('billing_profiles'::text),
+    ('billing_subscription_contracts'::text),
     ('ai_credit_balance'::text),
     ('ai_credit_ledger'::text),
     ('ai_credit_reservations'::text),
@@ -36,7 +38,9 @@ select
 from pg_policies
 where schemaname = 'public'
   and tablename in (
+    'billing_plan_offers',
     'billing_profiles',
+    'billing_subscription_contracts',
     'ai_credit_balance',
     'ai_credit_ledger',
     'ai_credit_reservations',
@@ -48,9 +52,12 @@ order by tablename, policyname;
 with expected as (
   select *
   from (values
+    ('billing_plan_offers'::text, 'select_billing_plan_offers_public'::text),
+    ('billing_plan_offers'::text, 'service_role_manage_billing_plan_offers'::text),
     ('billing_profiles'::text, 'select_billing_profiles_isolation'::text),
-    ('billing_profiles'::text, 'modify_billing_profiles_isolation'::text),
-    ('billing_profiles'::text, 'insert_billing_profiles_isolation'::text),
+    ('billing_profiles'::text, 'service_role_manage_billing_profiles'::text),
+    ('billing_subscription_contracts'::text, 'select_billing_subscription_contracts_isolation'::text),
+    ('billing_subscription_contracts'::text, 'service_role_manage_billing_subscription_contracts'::text),
     ('ai_credit_balance'::text, 'select_ai_credit_balance_isolation'::text),
     ('ai_credit_ledger'::text, 'select_ai_credit_ledger_isolation'::text),
     ('ai_credit_ledger'::text, 'insert_ai_credit_ledger_user_debits'::text),

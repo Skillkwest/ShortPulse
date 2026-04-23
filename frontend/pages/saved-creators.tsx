@@ -6,6 +6,7 @@ import Head from "next/head";
 import { useRouter } from "next/router";
 import { useEffect, useMemo, useState } from "react";
 import type { FormEvent } from "react";
+import { useResolvedAccountPlan } from "../features/billing/useResolvedAccountPlan";
 import { CreatorIntakeForm } from "../features/saved-creators/components/CreatorIntakeForm";
 import { SavedCreatorTable } from "../features/saved-creators/components/SavedCreatorTable";
 import { SavedCreatorsHeader } from "../features/saved-creators/components/SavedCreatorsHeader";
@@ -21,8 +22,9 @@ const getErrorMessage = (error: unknown, fallback: string): string =>
   error instanceof Error ? error.message : fallback;
 
 export default function SavedCreatorsPage() {
+  const { resolvedPlan } = useResolvedAccountPlan();
   const searchUsage = { used: 0, limit: 100 };
-  const planUsage = { label: "Plan", name: "Creative Suite" };
+  const planUsage = { label: "Current plan", name: resolvedPlan?.label ?? "Free" };
   const router = useRouter();
   const [creators, setCreators] = useState<Creator[]>([]);
   const [handle, setHandle] = useState("");

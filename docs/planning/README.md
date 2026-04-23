@@ -40,6 +40,7 @@ Purpose: active planning artifacts and current execution backlogs.
 - `ai-studio-pulse-runtime-phase-5-server-runtime-activation-plan-2026-04-20.md`: Phase 5 plan for making the AI Studio server runtime Pulse-aware, resolving direct-bypass compatibility, and adding Pulse telemetry.
 - `ai-studio-pulse-runtime-phase-6-surface-unification-and-activation-ux-plan-2026-04-20.md`: Phase 6 plan for unifying the Pulse library/Create rail, shipping Pulse authoring/manage UX, and landing the final rail/shell semantics alongside real runtime activation.
 - `ai-studio-pulse-runtime-phase-7-validation-docs-and-rollout-plan-2026-04-20.md`: Phase 7 plan for tests, docs, telemetry/eval posture, rollout gating, and final Pulse runtime closeout.
+- `billing-internal-comp-contracts-and-admin-exempt-renewals-plan-2026-04-23.md`: repo-backed execution plan for non-public internal comp billing contracts, admin grant/revoke controls, renewal ownership, and stop rules.
 - `ai-studio-inpaint-reference-contract-master-plan-2026-04-14.md`: canonical master plan for resolving the inpaint token/payload/mask/UI contract mismatch in Expert Edit.
 - `ai-studio-inpaint-reference-contract-tracker-2026-04-14.md`: operational tracker for the inpaint-reference contract program with phase gates, rollback notes, and planning-task done state.
 - `ai-studio-inpaint-reference-contract-phase-1-target-contract-plan-2026-04-14.md`: Phase 1 plan for locking the supported inpaint token set, mask contract, and provider-lane direction.

@@ -193,7 +193,12 @@ If enabling AI Studio Fal reliability rollout (modular submit/retrieval + reconc
 79. `sql/migrations/079_add_queued_dispatch_success_commit_rpc.sql`
 80. `sql/migrations/080_add_elements_library_foundation.sql`
 81. `sql/migrations/081_add_generation_observation_inbox_claim_rpc.sql`
-82. Rollback files:
+82. `sql/migrations/082_add_user_preferences_ai_studio_saved_voices.sql`
+83. `sql/migrations/083_add_user_preferences_ai_studio_saved_pulses.sql`
+84. `sql/migrations/084_harden_billing_profile_and_stripe_event_rls.sql`
+85. `sql/migrations/085_add_billing_plan_offers_and_subscription_contracts.sql`
+86. `sql/migrations/086_add_internal_comp_billing_contract_support.sql`
+85. Rollback files:
     - `sql/migrations/rollback/019_add_generation_recovery_fields_rollback.sql`
     - `sql/migrations/rollback/020_generation_runtime_convergence_rollback.sql`
     - `sql/migrations/rollback/021_generation_state_machine_constraints_rollback.sql`
@@ -218,6 +223,9 @@ If enabling AI Studio Fal reliability rollout (modular submit/retrieval + reconc
     - `sql/migrations/rollback/057_add_user_preferences_ai_studio_deleted_style_ids_rollback.sql`
     - `sql/migrations/rollback/058_add_user_preferences_ai_studio_style_details_overrides_rollback.sql`
     - `sql/migrations/rollback/059_add_user_preferences_ai_studio_character_quickswap_tip_hidden_rollback.sql`
+    - `sql/migrations/rollback/082_add_user_preferences_ai_studio_saved_voices_rollback.sql`
+    - `sql/migrations/rollback/085_add_billing_plan_offers_and_subscription_contracts_rollback.sql`
+    - `sql/migrations/rollback/086_add_internal_comp_billing_contract_support_rollback.sql`
     - `sql/migrations/rollback/060_add_media_folders_and_membership_rollback.sql`
     - `sql/migrations/rollback/061_backfill_media_image_dimensions_metadata_rollback.sql`
     - `sql/migrations/rollback/064_backfill_media_files_from_storage_objects_rollback.sql`
@@ -235,6 +243,8 @@ If enabling AI Studio Fal reliability rollout (modular submit/retrieval + reconc
     - `sql/migrations/rollback/078_add_generation_fields_to_queue_claim_rollback.sql`
     - `sql/migrations/rollback/079_add_queued_dispatch_success_commit_rpc_rollback.sql`
     - `sql/migrations/rollback/081_add_generation_observation_inbox_claim_rpc_rollback.sql`
+    - `sql/migrations/rollback/083_add_user_preferences_ai_studio_saved_pulses_rollback.sql`
+    - `sql/migrations/rollback/084_harden_billing_profile_and_stripe_event_rls_rollback.sql`
 
 Billing safety note:
 - Migration `013_fix_generation_reservation_rpc_ambiguity.sql` is required to avoid
@@ -283,6 +293,7 @@ Billing safety note:
 - Migration `057_add_user_preferences_ai_studio_deleted_style_ids.sql` adds durable per-user Styles Library deletion persistence (`user_preferences.ai_studio_deleted_style_ids`) so deleted styles stay hidden across sessions/devices.
 - Migration `058_add_user_preferences_ai_studio_style_details_overrides.sql` adds durable per-user Styles Library metadata override persistence (`user_preferences.ai_studio_style_details_overrides`) for editing `style`, `title`, `referenceImageName`, and `stylePrompt` values.
 - Migration `059_add_user_preferences_ai_studio_character_quickswap_tip_hidden.sql` adds durable per-user Character panel QuickSwap guidance visibility persistence (`user_preferences.ai_studio_character_quickswap_tip_hidden`) so high-density deck users do not repeatedly see the same embedded tip bubble.
+- Migration `082_add_user_preferences_ai_studio_saved_voices.sql` adds durable per-user AI Studio saved-voice persistence (`user_preferences.ai_studio_saved_voices`) so created ElevenLabs voices survive refreshes and provider outages.
 - Migration `060_add_media_folders_and_membership.sql` adds user-owned Media Library folders (`media_folders`) and scoped media/prompt membership junctions (`media_folder_media_items`, `media_folder_prompt_items`) for AI Studio folder-based organization.
 - Migration `061_backfill_media_image_dimensions_metadata.sql` canonicalizes legacy image-dimension metadata keys to `metadata.width`, `metadata.height`, and `metadata.aspect_ratio` so masonry surfaces can render true image ratios consistently.
 - Migration `062_add_dashboard_announcements.sql` adds global dashboard announcement persistence with one-active-row enforcement, authenticated active-only reads, and service-role-only publish RPC semantics for admin-managed broadcasts.

@@ -87,7 +87,9 @@ describe("Profile billing actions", () => {
 
     expect(screen.getByRole("heading", { name: "Billing & credits" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Refresh credits" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Open billing portal" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Manage card, invoices, and subscription" })
+    ).toBeInTheDocument();
   });
 
   it("shows an info notice when credit refresh returns the same balance", async () => {
@@ -149,7 +151,9 @@ describe("Profile billing actions", () => {
     });
 
     render(<ProfilePage />);
-    fireEvent.click(screen.getByRole("button", { name: "Open billing portal" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "Manage card, invoices, and subscription" })
+    );
 
     await waitFor(() => {
       expect(fetchWithAuthMock).toHaveBeenCalledWith("/api/billing/stripe/portal", {

@@ -62,6 +62,28 @@ export const stripePostForm = async <T>(path: string, payload: StripeFormPayload
   return data as T;
 };
 
+/**
+ * Calls Stripe REST API with GET semantics and simple query parameters.
+ */
+export const stripeGet = async <T>(path: string, query?: StripeFormPayload): Promise<T> => {
+  const secretKey = getStripeSecretKey();
+  const queryString = query ? toFormBody(query).toString() : "";
+  const url = `${STRIPE_API_BASE}${path}${queryString ? `?${queryString}` : ""}`;
+  const response = await fetch(url, {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${secretKey}`,
+    },
+  });
+
+  const data = (await response.json().catch(() => ({}))) as T & { error?: { message?: string } };
+  if (!response.ok) {
+    const message = data?.error?.message || `Stripe call failed (${response.status})`;
+    throw new Error(message);
+  }
+  return data as T;
+};
+
 const parseStripeSignature = (
   header: string
 ): { timestamp: string; signatures: string[] } | null => {

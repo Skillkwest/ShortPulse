@@ -495,8 +495,11 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
 - `expert_edit_preset_panel_labels` (text[], default `{'Selfie','Side Profile','Enhance Realism'}`): Persistent per-user Expert Edit preset panel chip allocation (max 11 labels enforced by client normalization).
 - `expert_edit_preset_panel_ids` (text[], default `{'selfie','side_profile','enhance_realism'}`): Canonical per-user Expert Edit preset panel allocation stored by preset ID (max 11 IDs enforced by client normalization).
 - `expert_edit_custom_presets` (jsonb, default `{}`): Per-user preset override map keyed by canonical preset id (`selfie`, `side_profile`, `custom_1..custom_18`, etc.) storing `{ label, prompt }` values.
+- `ai_studio_create_pulse_panel_ids` (text[], default `{'image','single_shot','multi_shot','story_builder'}`): Canonical per-user Create Pulse rail allocation storing the curated left-rail Pulse IDs shown in Expert Create `Pulse` mode.
+- `ai_studio_saved_pulses` (jsonb, default `[]`): Per-user Pulse library records stored as ordered `{ presetId, label, description, systemInstructions, runtimeMode, activationMode, starterAssistantMessage, outputMode, memoryPolicy, createdAt }` objects. Built-in starter Pulses use stable seeded ids and save personal overrides into the same structure, while custom user-authored Pulses persist as fully user-owned records. The shared catalog is consumed by both the Pulse Presets Library and the Expert Create Pulse rail.
 - `ai_studio_deleted_style_ids` (text[], default `{}`): Per-user style ID denylist used by the primary Styles Library panel to persist deletions across sessions/devices.
 - `ai_studio_style_details_overrides` (jsonb, default `{}`): Per-user style-details overrides keyed by style id storing editable `style`, `title`, `referenceImageName`, and `stylePrompt` values plus optional metadata (`styleProfile`, `extractionMeta`) used by Styles Library creator quality/trace contracts.
+- `ai_studio_saved_voices` (jsonb, default `[]`): Per-user AI Studio saved-voice cache storing created ElevenLabs voices as `{ voiceId, name, previewUrl, description, provider, isFallback, createdAt }` records so custom voices survive refreshes and provider outages.
 - `ai_studio_character_quickswap_tip_hidden` (boolean, default `false`): Per-user flag that hides the embedded Character QuickSwap guidance bubble after high-density deck usage.
 - `created_at` (timestamptz, default now)
 - `updated_at` (timestamptz, default now, maintained by trigger)
@@ -505,12 +508,28 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
 ### billing_plans
 - `id` (text, pk): free | media | studio | business.
 - `display_name` (text): UI-facing plan label.
-- `monthly_price_cents` (int): Plan price in cents.
-- `monthly_credits_cents` (int): Recurring monthly credits allocated to the plan.
-- `stripe_price_id` (text, nullable): Stripe recurring price ID when subscriptions are wired.
+- `monthly_price_cents` (int): Current public baseline price in cents for the tier.
+- `monthly_credits_cents` (int): Current public baseline monthly credits for the tier.
+- `stripe_price_id` (text, nullable): Legacy/current recurring Stripe price ID for the tier baseline. Subscriber-specific recurring prices should prefer `billing_plan_offers` / `billing_subscription_contracts`.
 - `is_active` (boolean): Plan availability toggle.
 - `created_at` (timestamptz, default now)
 - RLS: select allowed for all users; writes are server/admin only.
+
+### billing_plan_offers
+- `id` (text, pk): Stable versioned offer id (for example `studio__current`, future dated legacy/current variants).
+- `plan_id` (text, fk -> `billing_plans.id`): Tier this offer belongs to.
+- `offer_name` (text): Operator-facing offer label.
+- `recurring_price_cents` (int): Recurring price snapshot for this offer.
+- `monthly_credits_cents` (int): Included monthly credits snapshot for this offer.
+- `stripe_price_id` (text, nullable): Stripe recurring price id for this offer.
+- `currency` (text, default `usd`): Offer currency.
+- `billing_interval` (text, default `month`): Current recurring interval.
+- `acquisition_enabled` (boolean): Whether new customers can currently buy this offer.
+- `is_active` (boolean): Soft-active flag for the offer record.
+- Internal comp note: hidden internal/admin offers such as `business__internal_comp` keep `acquisition_enabled = false`, `stripe_price_id = null`, and `recurring_price_cents = 0`.
+- `effective_start_at` / `effective_end_at` (timestamptz, nullable): Offer lifecycle window.
+- `created_at` / `updated_at` (timestamptz)
+- RLS: select allowed for all users; writes are server-only/service-role-only.
 
 ### billing_credit_packages
 - `id` (text, pk): Stable package ID used by checkout API.
@@ -525,13 +544,38 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
 
 ### billing_profiles
 - `user_id` (uuid, pk, references `auth.users(id)`): Owner.
-- `plan_id` (text, fk -> `billing_plans.id`): Active plan.
+- `plan_id` (text, fk -> `billing_plans.id`): Active plan projection used by existing runtime/UI paths.
 - `stripe_customer_id` (text, nullable): Stripe customer reference.
 - `stripe_subscription_id` (text, nullable): Stripe subscription reference.
 - `subscription_status` (text): active | trialing | canceled | past_due | inactive (runtime values from Stripe sync).
 - `current_period_end` (timestamptz, nullable): Subscription period end timestamp.
 - `created_at` / `updated_at` (timestamptz)
-- RLS: users can read/update their own row; privileged writes happen via server routes/webhooks.
+- RLS: users can read only their own row; plan/customer/subscription writes are server-only through trusted routes, triggers, and webhooks.
+- Contract note: `billing_profiles` is not the long-term commercial source of truth for grandfathered recurring pricing; use `billing_subscription_contracts` for subscriber-specific recurring terms.
+
+### billing_subscription_contracts
+- `id` (uuid, pk): Historical/current subscriber contract row.
+- `user_id` (uuid, fk -> `auth.users(id)`): Contract owner.
+- `plan_id` (text, fk -> `billing_plans.id`): Tier associated with the contract.
+- `offer_id` (text, nullable fk -> `billing_plan_offers.id`): Offer/version purchased for this contract.
+- `stripe_customer_id` (text, nullable): Stripe customer reference copied onto the contract row.
+- `stripe_subscription_id` (text, nullable): Stripe subscription reference for this contract lineage.
+- `stripe_price_id` (text, nullable): Stripe recurring price id actually used for the contract.
+- `recurring_price_cents` (int): Locked recurring price snapshot for the subscriber.
+- `monthly_credits_cents` (int): Locked included monthly credits snapshot for the subscriber.
+- `currency` (text, default `usd`): Contract currency.
+- `billing_interval` (text, default `month`): Current recurring interval.
+- `status` (text): Contract/subscription status projection (`active`, `trialing`, `past_due`, `canceled`, `inactive`, etc.).
+- `contract_source` (text, default `stripe`): Renewal owner for the contract (`stripe` or `internal_comp`).
+- `current_period_start` / `current_period_end` (timestamptz, nullable): Stripe period boundaries when known.
+- `cancel_at_period_end` (boolean, default `false`): Scheduled cancellation flag.
+- `granted_by_user_id` (uuid, nullable fk -> `auth.users.id`): Admin/operator who created the internal comp contract where applicable.
+- `grant_reason` (text, nullable): Operator-supplied reason for the internal comp override.
+- `updated_by_user_id` (uuid, nullable fk -> `auth.users.id`): Last trusted operator who manually updated the contract where applicable.
+- `started_at` (timestamptz): Contract start timestamp.
+- `ended_at` (timestamptz, nullable): Contract end timestamp; `null` means current/open contract row.
+- `created_at` / `updated_at` (timestamptz)
+- RLS: users can read only their own rows; writes are server-only/service-role-only. At most one open contract row per user and per Stripe subscription.
 
 ### ai_credit_balance
 - `user_id` (uuid, pk, references `auth.users(id)`): Balance owner.
@@ -612,6 +656,7 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
 - `received_at` (timestamptz, default now)
 - `payload` (jsonb): Event payload snapshot.
 - Purpose: webhook idempotency and audit trail.
+- RLS: service-role-only write surface; customer sessions never mutate this table directly.
 
 ### app_error_logs
 - `id` (uuid, pk): Incident record ID.

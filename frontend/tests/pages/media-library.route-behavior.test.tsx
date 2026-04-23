@@ -4,6 +4,7 @@
 import { fireEvent, render } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { screen } from "@testing-library/react";
 import MediaLibraryPage from "../../pages/media-library";
 
 const promptCrudState = vi.hoisted(() => ({
@@ -93,6 +94,13 @@ vi.mock("../../lib/supabaseClient", () => ({
   }),
 }));
 
+vi.mock("../../features/billing/useResolvedAccountPlan", () => ({
+  useResolvedAccountPlan: () => ({
+    user: { id: "user-1", email: "kirk@example.com", user_metadata: { plan: "free" } },
+    resolvedPlan: { label: "Free", className: "plan-free" },
+  }),
+}));
+
 vi.mock("../../features/media-library/hooks/useMediaBulkMoveController", () => ({
   useMediaBulkMoveController: () => ({
     bulkMoveTabOptions: [],
@@ -112,13 +120,20 @@ vi.mock("../../features/media-library/components/MediaLibraryModalStack", () => 
 
 vi.mock("../../features/media-library/components/MediaLibraryWorkspaceContent", () => ({
   MediaLibraryWorkspaceContent: ({
+    headerProps,
     gallerySectionProps,
   }: {
+    headerProps: {
+      planLabel: string;
+      planName: string;
+    };
     gallerySectionProps: {
       onOpenFileModal: (file: { id: string; storage_path: string; file_type: string }) => void;
     };
   }) => (
     <div data-testid="media-library-workspace">
+      <span>{headerProps.planLabel}</span>
+      <span>{headerProps.planName}</span>
       <button
         type="button"
         onClick={() =>
@@ -237,6 +252,8 @@ describe("Media Library route behavior", () => {
   it("adds and removes the media-library body classes", () => {
     const { unmount } = render(<MediaLibraryPage />);
 
+    expect(screen.getByText("Current plan")).toBeInTheDocument();
+    expect(screen.getByText("Free")).toBeInTheDocument();
     expect(document.body.classList.contains("media-library-body")).toBe(true);
     expect(document.documentElement.classList.contains("media-library-body")).toBe(true);
 

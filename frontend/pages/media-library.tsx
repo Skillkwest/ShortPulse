@@ -4,6 +4,7 @@
  */
 import Head from "next/head";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useResolvedAccountPlan } from "../features/billing/useResolvedAccountPlan";
 import { isAdaptiveSurfaceEnabled } from "../lib/adaptive-media";
 import { createMediaPerfTimer, logMediaPerf } from "../lib/mediaPerfTelemetry";
 import { ensureSupabaseQueryClient } from "../lib/supabaseClient";
@@ -81,6 +82,7 @@ const MEDIA_LIBRARY_CACHE_TTL_MS = 30_000;
 const ROUTE_SURFACE_CONFIG = getMediaLibrarySurfaceConfig("route");
 
 export default function MediaLibrary() {
+  const { resolvedPlan } = useResolvedAccountPlan();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<MediaTab>("uploaded_images");
@@ -134,7 +136,7 @@ export default function MediaLibrary() {
   const openToFirstMediaLoggedRef = useRef(false);
   const totalBytes = storageUsageBytes ?? cachedMediaBytes;
   const planLimitMb = 1024;
-  const planUsage = { label: "Plan", name: "Creative Suite" };
+  const planUsage = { label: "Current plan", name: resolvedPlan?.label ?? "Free" };
   const storageUsageValue = useMemo(() => {
     const usedMb = totalBytes / (1024 * 1024);
     const limitGb = planLimitMb / 1024;

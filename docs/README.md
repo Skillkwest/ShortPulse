@@ -28,6 +28,7 @@ Start here for all repository documentation.
 - `docs/styles-structure.md`
 - `docs/character-profile-voice-quarantine.md`
 - `docs/adr/README.md`
+- `docs/adr/0059-billing-internal-comp-contracts-and-admin-exempt-renewals.md`
 - `docs/prefabs.md`
 - `docs/routes.md`
 - `docs/local-development.md`
@@ -201,6 +202,7 @@ Start here for all repository documentation.
 - `docs/planning/final-validation-summary.md`
 - `docs/planning/policies/README.md`
 - `docs/planning/backlog.md`
+- `docs/planning/billing-internal-comp-contracts-and-admin-exempt-renewals-plan-2026-04-23.md`
 - `docs/planning/foundation-lanes-master-roadmap-2026-03-16.md`
 - `docs/planning/foundation-lanes-execution-tracker-2026-03-16.md`
 - `docs/planning/foundation-rebuild-playbook-2026-03-16.md`
@@ -534,7 +536,6 @@ Start here for all repository documentation.
 - `skills/skill-pricing-audit/SKILL.md`
 - `skills/skill-doc-index/SKILL.md`
 - `skills/skill-media-storage-deploy-gate/SKILL.md`
-- `skills/skill-ui-ux-critic/SKILL.md`
 - `skills/palette-normalizer/SKILL.md`
 - `skills/skill-mvp-security-audit/SKILL.md`
 - `skills/skill-mvp-modularization-pass/SKILL.md`

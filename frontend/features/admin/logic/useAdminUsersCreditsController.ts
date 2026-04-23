@@ -1,14 +1,20 @@
 /**
  * Admin users and credits controller.
- * Owns overview-tab user search, selection, credit ledger loading, and manual adjustment flows.
+ * Owns the admin landing-page user search, selection, credit ledger loading, and manual adjustment flows.
  */
 import React from "react";
 import { fetchWithAuth } from "../../../lib/authenticatedFetch";
-import type { AdminCreditLedgerRow, AdminPagination, AdminUserRow } from "../types";
+import type {
+  AdminBillingDiagnosticsResponse,
+  AdminCreditLedgerRow,
+  AdminDeleteUserResponse,
+  AdminPagination,
+  AdminUserRow,
+} from "../types";
 
 export const ADMIN_DASHBOARD_USERS_PER_PAGE = 50;
 export const ADMIN_DASHBOARD_CREDIT_LEDGER_LIMIT = 20;
-export const ADMIN_DASHBOARD_ADJUSTMENT_PRESETS = [100, 500, -100, -500] as const;
+export const ADMIN_DASHBOARD_ADJUSTMENT_PRESETS = [100, 500, 1000, -100, -500, -1000] as const;
 const SEARCH_DEBOUNCE_MS = 250;
 
 const sanitizeSignedIntegerInput = (rawValue: string): string => {
@@ -31,6 +37,7 @@ const parseAdjustmentInput = (rawValue: string): number | null => {
 
 type UseAdminUsersCreditsControllerParams = {
   enabled: boolean;
+  currentAdminUserId: string;
 };
 
 type UseAdminUsersCreditsControllerResult = {
@@ -44,29 +51,48 @@ type UseAdminUsersCreditsControllerResult = {
   adjustment: string;
   adjustSubmitting: boolean;
   adjustResult: string | null;
+  internalCompPlan: string;
+  internalCompReason: string;
+  allowStripeTakeover: boolean;
+  billingOverrideSubmitting: boolean;
+  billingOverrideResult: string | null;
+  deleteSubmitting: boolean;
+  deleteResult: string | null;
   creditLedgerRows: AdminCreditLedgerRow[];
   creditLedgerLoading: boolean;
   creditLedgerError: string | null;
-  activeUsersCount: number;
-  pendingCreditsCount: number;
+  creditLedgerLoaded: boolean;
+  billingDiagnostics: AdminBillingDiagnosticsResponse | null;
+  billingDiagnosticsLoading: boolean;
+  billingDiagnosticsError: string | null;
+  billingDiagnosticsLoaded: boolean;
   usersResultStart: number;
   usersResultEnd: number;
   setSelectedUserId: React.Dispatch<React.SetStateAction<string>>;
   loadUsers: () => Promise<void>;
   loadCreditLedger: () => Promise<void>;
+  loadBillingDiagnostics: () => Promise<void>;
   handleUserSearchChange: (value: string) => void;
   handlePreviousUsersPage: () => void;
   handleNextUsersPage: () => void;
   handleAdjustmentChange: (value: string) => void;
+  handleInternalCompPlanChange: (value: string) => void;
+  handleInternalCompReasonChange: (value: string) => void;
+  handleAllowStripeTakeoverChange: (value: boolean) => void;
   applyAdjustmentPreset: (delta: number) => void;
   handleCreditAdjust: () => Promise<void>;
+  handleGrantInternalComp: () => Promise<void>;
+  handleRevokeInternalComp: () => Promise<void>;
+  handleDeleteUser: (params: { userId: string; confirmationText: string }) => Promise<boolean>;
+  clearDeleteResult: () => void;
 };
 
 /**
- * Compose the admin users/credits overview surface behind a route-local controller boundary.
+ * Compose the admin users/credits support workflow behind a route-local controller boundary.
  */
 export const useAdminUsersCreditsController = ({
   enabled,
+  currentAdminUserId,
 }: UseAdminUsersCreditsControllerParams): UseAdminUsersCreditsControllerResult => {
   const [userSearch, setUserSearch] = React.useState("");
   const [debouncedUserSearch, setDebouncedUserSearch] = React.useState("");
@@ -87,9 +113,22 @@ export const useAdminUsersCreditsController = ({
   const [adjustment, setAdjustment] = React.useState<string>("");
   const [adjustSubmitting, setAdjustSubmitting] = React.useState(false);
   const [adjustResult, setAdjustResult] = React.useState<string | null>(null);
+  const [internalCompPlan, setInternalCompPlan] = React.useState<string>("business");
+  const [internalCompReason, setInternalCompReason] = React.useState<string>("");
+  const [allowStripeTakeover, setAllowStripeTakeover] = React.useState(false);
+  const [billingOverrideSubmitting, setBillingOverrideSubmitting] = React.useState(false);
+  const [billingOverrideResult, setBillingOverrideResult] = React.useState<string | null>(null);
+  const [deleteSubmitting, setDeleteSubmitting] = React.useState(false);
+  const [deleteResult, setDeleteResult] = React.useState<string | null>(null);
   const [creditLedgerRows, setCreditLedgerRows] = React.useState<AdminCreditLedgerRow[]>([]);
   const [creditLedgerLoading, setCreditLedgerLoading] = React.useState(false);
   const [creditLedgerError, setCreditLedgerError] = React.useState<string | null>(null);
+  const [creditLedgerLoaded, setCreditLedgerLoaded] = React.useState(false);
+  const [billingDiagnostics, setBillingDiagnostics] =
+    React.useState<AdminBillingDiagnosticsResponse | null>(null);
+  const [billingDiagnosticsLoading, setBillingDiagnosticsLoading] = React.useState(false);
+  const [billingDiagnosticsError, setBillingDiagnosticsError] = React.useState<string | null>(null);
+  const [billingDiagnosticsLoaded, setBillingDiagnosticsLoaded] = React.useState(false);
 
   const loadUsers = React.useCallback(async () => {
     setUsersLoading(true);
@@ -139,6 +178,7 @@ export const useAdminUsersCreditsController = ({
     if (!selectedUserId) {
       setCreditLedgerRows([]);
       setCreditLedgerError(null);
+      setCreditLedgerLoaded(false);
       return;
     }
 
@@ -195,13 +235,55 @@ export const useAdminUsersCreditsController = ({
           })
         : [];
       setCreditLedgerRows(rows);
+      setCreditLedgerLoaded(true);
     } catch (error) {
       setCreditLedgerError(
         error instanceof Error ? error.message : "Failed to load credit transactions."
       );
       setCreditLedgerRows([]);
+      setCreditLedgerLoaded(false);
     } finally {
       setCreditLedgerLoading(false);
+    }
+  }, [selectedUserId]);
+
+  const loadBillingDiagnostics = React.useCallback(async () => {
+    if (!selectedUserId) {
+      setBillingDiagnostics(null);
+      setBillingDiagnosticsError(null);
+      setBillingDiagnosticsLoaded(false);
+      return;
+    }
+
+    setBillingDiagnosticsLoading(true);
+    setBillingDiagnosticsError(null);
+    try {
+      const params = new URLSearchParams();
+      params.set("userId", selectedUserId);
+      const response = await fetchWithAuth(`/api/admin/billing-diagnostics?${params.toString()}`, {
+        method: "GET",
+      });
+      const payload = (await response.json().catch(() => ({}))) as
+        | AdminBillingDiagnosticsResponse
+        | { error?: string };
+      if (!response.ok) {
+        throw new Error(
+          typeof (payload as { error?: unknown }).error === "string"
+            ? (payload as { error: string }).error
+            : "Failed to load billing diagnostics."
+        );
+      }
+
+      setBillingDiagnostics(payload as AdminBillingDiagnosticsResponse);
+      setBillingDiagnosticsLoaded(true);
+    } catch (error) {
+      setBillingDiagnostics(null);
+      setBillingDiagnosticsLoaded(false);
+      setBillingDiagnosticsError(
+        error instanceof Error ? error.message : "Failed to load billing diagnostics."
+      );
+    } finally {
+      setBillingDiagnosticsLoading(false);
     }
   }, [selectedUserId]);
 
@@ -216,20 +298,53 @@ export const useAdminUsersCreditsController = ({
   }, [enabled, loadUsers]);
 
   React.useEffect(() => {
-    if (!users.length) {
-      if (selectedUserId) setSelectedUserId("");
-      return;
-    }
+    if (!selectedUserId) return;
     const selectedStillExists = users.some((row) => row.id === selectedUserId);
-    if (!selectedUserId || !selectedStillExists) {
-      setSelectedUserId(users[0].id);
+    if (!selectedStillExists) {
+      setSelectedUserId("");
     }
   }, [selectedUserId, users]);
 
   React.useEffect(() => {
-    if (!enabled) return;
-    void loadCreditLedger();
-  }, [enabled, loadCreditLedger]);
+    if (selectedUserId || !currentAdminUserId) return;
+    const currentAdminRow = users.find((row) => row.id === currentAdminUserId);
+    if (currentAdminRow) {
+      setSelectedUserId(currentAdminRow.id);
+    }
+  }, [currentAdminUserId, selectedUserId, users]);
+
+  React.useEffect(() => {
+    setCreditLedgerRows([]);
+    setCreditLedgerError(null);
+    setCreditLedgerLoaded(false);
+    setBillingDiagnostics(null);
+    setBillingDiagnosticsError(null);
+    setBillingDiagnosticsLoaded(false);
+    setBillingOverrideResult(null);
+    setAllowStripeTakeover(false);
+  }, [selectedUserId]);
+
+  React.useEffect(() => {
+    if (!selectedUserId) {
+      setInternalCompPlan("business");
+      setInternalCompReason("");
+      return;
+    }
+    const selectedUser = users.find((row) => row.id === selectedUserId) ?? null;
+    const nextPlanId =
+      selectedUser?.planId === "media" ||
+      selectedUser?.planId === "studio" ||
+      selectedUser?.planId === "business"
+        ? selectedUser.planId
+        : "business";
+    setInternalCompPlan(nextPlanId);
+    setInternalCompReason("");
+  }, [selectedUserId, users]);
+
+  React.useEffect(() => {
+    if (!selectedUserId) return;
+    void loadBillingDiagnostics();
+  }, [loadBillingDiagnostics, selectedUserId]);
 
   const handleCreditAdjust = React.useCallback(async () => {
     const normalized = parseAdjustmentInput(adjustment);
@@ -264,6 +379,157 @@ export const useAdminUsersCreditsController = ({
     }
   }, [adjustment, loadCreditLedger, loadUsers, selectedUserId]);
 
+  const handleGrantInternalComp = React.useCallback(async () => {
+    if (!selectedUserId) {
+      setBillingOverrideResult("Pick a user before applying internal comp access.");
+      return;
+    }
+    if (
+      internalCompPlan !== "media" &&
+      internalCompPlan !== "studio" &&
+      internalCompPlan !== "business"
+    ) {
+      setBillingOverrideResult("Choose Media, Studio, or Business for internal comp access.");
+      return;
+    }
+
+    setBillingOverrideSubmitting(true);
+    setBillingOverrideResult(null);
+    try {
+      const response = await fetchWithAuth("/api/admin/billing/contracts/update", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: selectedUserId,
+          action: "grant_internal_comp",
+          planId: internalCompPlan,
+          grantReason: internalCompReason,
+          allowStripeTakeover,
+        }),
+      });
+      const data = (await response.json().catch(() => ({}))) as {
+        error?: string;
+        creditsGrantedCents?: number;
+      };
+      if (!response.ok) {
+        throw new Error(data.error || "Internal comp update failed.");
+      }
+      const grantedCredits = Number(data.creditsGrantedCents ?? 0);
+      setBillingOverrideResult(
+        grantedCredits > 0
+          ? `Internal comp access applied and ${grantedCredits.toLocaleString()} credits were seeded.`
+          : "Internal comp access applied."
+      );
+      await Promise.all([loadUsers(), loadBillingDiagnostics(), loadCreditLedger()]);
+    } catch (error) {
+      setBillingOverrideResult(
+        error instanceof Error ? error.message : "Internal comp update failed."
+      );
+    } finally {
+      setBillingOverrideSubmitting(false);
+    }
+  }, [
+    allowStripeTakeover,
+    internalCompPlan,
+    internalCompReason,
+    loadBillingDiagnostics,
+    loadCreditLedger,
+    loadUsers,
+    selectedUserId,
+  ]);
+
+  const handleRevokeInternalComp = React.useCallback(async () => {
+    if (!selectedUserId) {
+      setBillingOverrideResult("Pick a user before revoking internal comp access.");
+      return;
+    }
+
+    setBillingOverrideSubmitting(true);
+    setBillingOverrideResult(null);
+    try {
+      const response = await fetchWithAuth("/api/admin/billing/contracts/update", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: selectedUserId,
+          action: "revoke_internal_comp",
+        }),
+      });
+      const data = (await response.json().catch(() => ({}))) as { error?: string };
+      if (!response.ok) {
+        throw new Error(data.error || "Internal comp revoke failed.");
+      }
+      setBillingOverrideResult(
+        "Internal comp access removed and the account was returned to Free."
+      );
+      await Promise.all([loadUsers(), loadBillingDiagnostics(), loadCreditLedger()]);
+    } catch (error) {
+      setBillingOverrideResult(
+        error instanceof Error ? error.message : "Internal comp revoke failed."
+      );
+    } finally {
+      setBillingOverrideSubmitting(false);
+    }
+  }, [loadBillingDiagnostics, loadCreditLedger, loadUsers, selectedUserId]);
+
+  const handleDeleteUser = React.useCallback(
+    async ({
+      userId,
+      confirmationText,
+    }: {
+      userId: string;
+      confirmationText: string;
+    }): Promise<boolean> => {
+      if (!userId.trim()) {
+        setDeleteResult("Pick a user before deleting.");
+        return false;
+      }
+
+      setDeleteSubmitting(true);
+      setDeleteResult(null);
+      try {
+        const response = await fetchWithAuth(`/api/admin/users/${encodeURIComponent(userId)}`, {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ confirmationText }),
+        });
+        const data = (await response.json().catch(() => ({}))) as
+          | Partial<AdminDeleteUserResponse>
+          | Record<string, unknown>;
+        if (!response.ok) {
+          const errorMessage =
+            typeof (data as { error?: unknown }).error === "string"
+              ? (data as { error: string }).error
+              : "User deletion failed.";
+          throw new Error(errorMessage);
+        }
+
+        if (selectedUserId === userId) {
+          setSelectedUserId("");
+          setAdjustment("");
+          setAdjustResult(null);
+          setCreditLedgerRows([]);
+          setCreditLedgerError(null);
+          setCreditLedgerLoaded(false);
+        }
+
+        setDeleteResult("User deleted permanently.");
+        await loadUsers();
+        return true;
+      } catch (error) {
+        setDeleteResult(error instanceof Error ? error.message : "User deletion failed.");
+        return false;
+      } finally {
+        setDeleteSubmitting(false);
+      }
+    },
+    [loadUsers, selectedUserId]
+  );
+
+  const clearDeleteResult = React.useCallback(() => {
+    setDeleteResult(null);
+  }, []);
+
   const applyAdjustmentPreset = React.useCallback((delta: number) => {
     setAdjustment((current) => {
       const parsed = parseAdjustmentInput(current);
@@ -289,11 +555,18 @@ export const useAdminUsersCreditsController = ({
     setAdjustment(sanitizeSignedIntegerInput(value));
   }, []);
 
-  const activeUsersCount = usersPagination.totalCount;
-  const pendingCreditsCount = React.useMemo(
-    () => users.filter((row) => row.spendableCredits <= 0).length,
-    [users]
-  );
+  const handleInternalCompPlanChange = React.useCallback((value: string) => {
+    setInternalCompPlan(value);
+  }, []);
+
+  const handleInternalCompReasonChange = React.useCallback((value: string) => {
+    setInternalCompReason(value);
+  }, []);
+
+  const handleAllowStripeTakeoverChange = React.useCallback((value: boolean) => {
+    setAllowStripeTakeover(value);
+  }, []);
+
   const usersResultStart =
     usersPagination.totalCount === 0 ? 0 : (usersPagination.page - 1) * usersPagination.perPage + 1;
   const usersResultEnd = Math.min(
@@ -312,21 +585,39 @@ export const useAdminUsersCreditsController = ({
     adjustment,
     adjustSubmitting,
     adjustResult,
+    internalCompPlan,
+    internalCompReason,
+    allowStripeTakeover,
+    billingOverrideSubmitting,
+    billingOverrideResult,
+    deleteSubmitting,
+    deleteResult,
     creditLedgerRows,
     creditLedgerLoading,
     creditLedgerError,
-    activeUsersCount,
-    pendingCreditsCount,
+    creditLedgerLoaded,
+    billingDiagnostics,
+    billingDiagnosticsLoading,
+    billingDiagnosticsError,
+    billingDiagnosticsLoaded,
     usersResultStart,
     usersResultEnd,
     setSelectedUserId,
     loadUsers,
     loadCreditLedger,
+    loadBillingDiagnostics,
     handleUserSearchChange,
     handlePreviousUsersPage,
     handleNextUsersPage,
     handleAdjustmentChange,
+    handleInternalCompPlanChange,
+    handleInternalCompReasonChange,
+    handleAllowStripeTakeoverChange,
     applyAdjustmentPreset,
     handleCreditAdjust,
+    handleGrantInternalComp,
+    handleRevokeInternalComp,
+    handleDeleteUser,
+    clearDeleteResult,
   };
 };

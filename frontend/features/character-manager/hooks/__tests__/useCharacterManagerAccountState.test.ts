@@ -5,6 +5,7 @@ import { ensureSupabaseQueryClient, useSupabaseSessionState } from "../../../../
 import { useCharacterManagerAccountState } from "../useCharacterManagerAccountState";
 
 const maybeSingleMock = vi.fn();
+const contractMaybeSingleMock = vi.fn();
 const billingPlansEqMock = vi.fn();
 
 vi.mock("../../../../lib/supabaseClient", async () => {
@@ -21,6 +22,7 @@ describe("useCharacterManagerAccountState", () => {
 
   beforeEach(() => {
     maybeSingleMock.mockReset();
+    contractMaybeSingleMock.mockReset();
     billingPlansEqMock.mockReset();
     sessionState = {
       initialized: true,
@@ -34,6 +36,17 @@ describe("useCharacterManagerAccountState", () => {
     useSupabaseSessionStateMock.mockImplementation(() => sessionState);
     ensureSupabaseQueryClientMock.mockReturnValue({
       from: (table: string) => {
+        if (table === "billing_subscription_contracts") {
+          return {
+            select: () => ({
+              eq: () => ({
+                is: () => ({
+                  maybeSingle: contractMaybeSingleMock,
+                }),
+              }),
+            }),
+          };
+        }
         if (table === "billing_profiles") {
           return {
             select: () => ({
@@ -54,6 +67,10 @@ describe("useCharacterManagerAccountState", () => {
       },
     } as unknown as ReturnType<typeof ensureSupabaseQueryClient>);
 
+    contractMaybeSingleMock.mockResolvedValue({
+      data: { plan_id: "business" },
+      error: null,
+    });
     maybeSingleMock.mockResolvedValue({
       data: { plan_id: "business" },
       error: null,
@@ -154,6 +171,10 @@ describe("useCharacterManagerAccountState", () => {
   });
 
   it("falls back to normalized plan metadata when the plan catalog is unavailable", async () => {
+    contractMaybeSingleMock.mockResolvedValue({
+      data: { plan_id: null },
+      error: null,
+    });
     maybeSingleMock.mockResolvedValue({
       data: { plan_id: null },
       error: null,

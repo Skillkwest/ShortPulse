@@ -74,6 +74,17 @@ const buildSupabaseClient = () => ({
     signOut: signOutMock,
   },
   from: vi.fn((table: string) => {
+    if (table === "billing_subscription_contracts") {
+      return {
+        select: vi.fn(() => ({
+          eq: vi.fn(() => ({
+            is: vi.fn(() => ({
+              maybeSingle: vi.fn(async () => ({ data: { plan_id: "business" }, error: null })),
+            })),
+          })),
+        })),
+      };
+    }
     if (table === "billing_profiles") {
       return {
         select: vi.fn(() => ({

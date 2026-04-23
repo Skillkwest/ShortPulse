@@ -15,6 +15,12 @@ type AdminUserRow = {
   id: string;
   email: string | null;
   planId: string | null;
+  offerId: string | null;
+  stripePriceId: string | null;
+  contractSource: "stripe" | "internal_comp" | null;
+  recurringPriceCents: number | null;
+  monthlyCreditsCents: number | null;
+  billingSource: "billing_profile" | "subscription_contract";
   subscriptionStatus: string | null;
   credits: number;
   availableCredits: number;
@@ -27,6 +33,17 @@ type BillingProfileRow = {
   user_id: string;
   plan_id: string | null;
   subscription_status: string | null;
+};
+
+type BillingSubscriptionContractRow = {
+  user_id: string;
+  plan_id: string | null;
+  offer_id: string | null;
+  stripe_price_id: string | null;
+  contract_source: "stripe" | "internal_comp" | null;
+  recurring_price_cents: number | string | null;
+  monthly_credits_cents: number | string | null;
+  status: string | null;
 };
 
 type CreditBalanceRow = {
@@ -182,29 +199,51 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       });
     }
 
-    const [balancesResult, profilesResult, reservationsResult] = await Promise.all([
-      supabaseAdmin
-        .from("ai_credit_balance")
-        .select("user_id, balance_cents")
-        .in("user_id", userIds),
-      supabaseAdmin
-        .from("billing_profiles")
-        .select("user_id, plan_id, subscription_status")
-        .in("user_id", userIds),
-      supabaseAdmin
-        .from("ai_credit_reservations")
-        .select("user_id, amount_cents")
-        .in("user_id", userIds)
-        .eq("status", "reserved"),
-    ]);
-    if (balancesResult.error || profilesResult.error) {
-      const detail = [balancesResult.error?.message, profilesResult.error?.message]
+    const [balancesResult, contractsResult, profilesResult, reservationsResult] = await Promise.all(
+      [
+        supabaseAdmin
+          .from("ai_credit_balance")
+          .select("user_id, balance_cents")
+          .in("user_id", userIds),
+        supabaseAdmin
+          .from("billing_subscription_contracts")
+          .select(
+            "user_id, plan_id, offer_id, stripe_price_id, contract_source, recurring_price_cents, monthly_credits_cents, status"
+          )
+          .in("user_id", userIds)
+          .is("ended_at", null),
+        supabaseAdmin
+          .from("billing_profiles")
+          .select("user_id, plan_id, subscription_status")
+          .in("user_id", userIds),
+        supabaseAdmin
+          .from("ai_credit_reservations")
+          .select("user_id, amount_cents")
+          .in("user_id", userIds)
+          .eq("status", "reserved"),
+      ]
+    );
+    const contractsCompatibilityError =
+      contractsResult.error?.message && isSchemaCompatibilityError(contractsResult.error.message);
+    if (
+      balancesResult.error ||
+      profilesResult.error ||
+      (contractsResult.error && !contractsCompatibilityError)
+    ) {
+      const detail = [
+        balancesResult.error?.message,
+        contractsResult.error?.message,
+        profilesResult.error?.message,
+      ]
         .filter(Boolean)
         .join(" | ");
       return res.status(500).json({ error: detail || "Failed to load admin user billing data." });
     }
 
     const balances = (balancesResult.data ?? []) as CreditBalanceRow[];
+    const contracts = contractsCompatibilityError
+      ? []
+      : ((contractsResult.data ?? []) as BillingSubscriptionContractRow[]);
     const profiles = (profilesResult.data ?? []) as BillingProfileRow[];
     const reservationError = reservationsResult.error?.message ?? null;
     const reservationsSupported = !reservationError;
@@ -218,6 +257,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const balanceByUser = new Map<string, number>(
       balances.map((row) => [row.user_id, Number(row.balance_cents ?? 0)])
     );
+    const contractByUser = new Map<string, BillingSubscriptionContractRow>(
+      contracts.map((row) => [row.user_id, row])
+    );
     const profileByUser = new Map<string, BillingProfileRow>(
       profiles.map((row) => [row.user_id, row])
     );
@@ -228,6 +270,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     const rows: AdminUserRow[] = pagedUsers.map((user) => {
+      const contract = contractByUser.get(user.id);
       const profile = profileByUser.get(user.id);
       const availableCredits = balanceByUser.get(user.id) ?? 0;
       const reservedCredits = reservedByUser.get(user.id) ?? 0;
@@ -235,8 +278,22 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return {
         id: user.id,
         email: user.email ?? null,
-        planId: (profile?.plan_id as string | undefined) ?? null,
-        subscriptionStatus: (profile?.subscription_status as string | undefined) ?? null,
+        planId:
+          (contract?.plan_id as string | undefined) ??
+          (profile?.plan_id as string | undefined) ??
+          null,
+        offerId: (contract?.offer_id as string | undefined) ?? null,
+        stripePriceId: (contract?.stripe_price_id as string | undefined) ?? null,
+        contractSource: contract?.contract_source ?? null,
+        recurringPriceCents:
+          contract?.recurring_price_cents == null ? null : Number(contract.recurring_price_cents),
+        monthlyCreditsCents:
+          contract?.monthly_credits_cents == null ? null : Number(contract.monthly_credits_cents),
+        billingSource: contract ? "subscription_contract" : "billing_profile",
+        subscriptionStatus:
+          (contract?.status as string | undefined) ??
+          (profile?.subscription_status as string | undefined) ??
+          null,
         credits: spendableCredits,
         availableCredits,
         reservedCredits,

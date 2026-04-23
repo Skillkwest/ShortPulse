@@ -59,9 +59,14 @@ import type { ResolveCanvasDropReference } from "../features/ai-studio/component
 import { getAiStudioSessionSnapshotViaApi } from "../features/ai-studio/logic/sessionApiClient";
 import { readAiStudioSessionPersistencePolicy } from "../features/ai-studio/logic/sessionPersistencePolicy";
 import { resolveAiStudioSessionSnapshotTitle } from "../features/ai-studio/logic/sessionSnapshotTitle";
+import {
+  arePulseWorkflowSessionsEqual,
+  derivePulseWorkflowSession,
+  reconcilePulseWorkflowSession,
+} from "../features/ai-studio/logic/pulseWorkflowSession";
 import { AiStudioModalActivityProvider } from "../features/ai-studio/components/modal-layer/AiStudioModalLayer";
 import { isEditWorkflow } from "../features/ai-studio/logic/workflowIdentity";
-import type { AgentContext } from "../prefabs/agent";
+import type { AgentContext, AgentPulseWorkflowSession } from "../prefabs/agent";
 import type { MusicGenerateRequest } from "../features/ai-studio/components/MusicPropertiesPanel";
 import type { SoundEffectsGenerateRequest } from "../features/ai-studio/components/SoundEffectsPropertiesPanel";
 import type { VoicesGenerateRequest } from "../features/ai-studio/components/VoicesPropertiesPanel";
@@ -103,6 +108,19 @@ type VoicesGenerateSuccessResponse = {
     modelId: string;
     voiceId: string;
     voiceName: string;
+  };
+  remuxedVideo?: {
+    provider: "elevenlabs";
+    mode: "video";
+    generationId: string;
+    mediaFileId: string | null;
+    requestId: string;
+    previewUrl: string;
+    resultUrls: string[];
+    previewStoragePath: string;
+    fullStoragePath: string;
+    mimeType: "video/mp4" | "video/webm";
+    modelId: string;
   };
 };
 
@@ -155,7 +173,9 @@ const normalizeAiStudioProjectName = (value: string | null | undefined): string 
 };
 
 const buildVoicesOutputPrompt = (request: VoicesGenerateRequest): string =>
-  request.mode === "voiceover" ? request.script : `${request.source.name} -> ${request.voice.name}`;
+  request.mode === "voiceover"
+    ? request.script
+    : `${request.source.extractedFrom?.name ?? request.source.name} -> ${request.voice.name}`;
 
 const buildVoicesOutputModelLabel = (request: VoicesGenerateRequest): string =>
   request.mode === "voiceover" ? "ElevenLabs Voiceover" : "ElevenLabs Voice Changer";
@@ -168,6 +188,45 @@ const resolveAudioGenerateErrorMessage = (payload: AudioGenerateErrorResponse | 
 
 const toSavedMediaIds = (mediaFileId: string | null | undefined): string[] =>
   typeof mediaFileId === "string" && mediaFileId.trim().length > 0 ? [mediaFileId] : [];
+
+const buildVoiceChangerRemuxedVideoOutput = ({
+  request,
+  payload,
+}: {
+  request: Extract<VoicesGenerateRequest, { mode: "voice-changer" }>;
+  payload: NonNullable<VoicesGenerateSuccessResponse["remuxedVideo"]>;
+}): StudioOutput => {
+  const savedMediaIds = toSavedMediaIds(payload.mediaFileId);
+  const sourceLabel = request.source.extractedFrom?.name ?? request.source.name;
+  return {
+    id: `generated:${payload.generationId}`,
+    prompt: `${sourceLabel} -> ${request.voice.name} video`,
+    mode: "video",
+    aspect: request.source.extractedFrom?.aspect ?? "1:1",
+    model: buildVoicesOutputModelLabel(request),
+    modelId: payload.modelId,
+    provider: payload.provider,
+    generationId: payload.generationId,
+    savedMediaIds,
+    sourceRef: payload.requestId,
+    status: "ready",
+    timestamp: "Just now",
+    taskState: "success",
+    resultUrls: payload.resultUrls,
+    previewUrl: payload.previewUrl,
+    previewStoragePath: payload.previewStoragePath,
+    fullStoragePath: payload.fullStoragePath,
+    previewTier: "preview_loop",
+    mimeType: payload.mimeType,
+    mediaSource: "generated",
+    localObjectUrl: null,
+    saveState: savedMediaIds.length > 0 ? "saved" : "idle",
+    saveError: null,
+    errorMessage: null,
+    errorMessageShort: null,
+    errorDetail: null,
+  };
+};
 
 export default function AiStudioPage() {
   const { sessionId } = useAiStudioSessionIdentity();
@@ -201,6 +260,8 @@ export default function AiStudioPage() {
   const [expertCreateMode, setExpertCreateMode] = useState<"standard" | "pulse">("standard");
   const [activeCreatePulsePresetId, setActiveCreatePulsePresetId] =
     useState<CreatePulsePresetId | null>(null);
+  const [pulseWorkflowSession, setPulseWorkflowSession] =
+    useState<AgentPulseWorkflowSession | null>(null);
   const [isCreateCharacterBundleLoading, setIsCreateCharacterBundleLoading] = useState(false);
   const [isEditCharacterBundleLoading, setIsEditCharacterBundleLoading] = useState(false);
   const [isCreateCharacterModeEnabled, setIsCreateCharacterModeEnabled] = useState(false);
@@ -382,6 +443,7 @@ export default function AiStudioPage() {
     selectedStyleContext,
     expertCreateMode,
     activePulsePresetId: activeCreatePulsePresetId,
+    pulseWorkflowSession,
     setExpertCreateMode,
     setActivePulsePresetId: setActiveCreatePulsePresetId,
   });
@@ -417,6 +479,7 @@ export default function AiStudioPage() {
           source: isCreatePulseBuiltInPresetId(activeCreatePulsePresetId)
             ? ("builtin" as const)
             : ("custom" as const),
+          workflowSession: pulseWorkflowSession,
         },
       };
     },
@@ -424,6 +487,7 @@ export default function AiStudioPage() {
       activeCreatePulsePresetId,
       expertCreateMode,
       getAgentContext,
+      pulseWorkflowSession,
       savedCreatePulsePresets,
       selectedTool,
     ]
@@ -712,8 +776,56 @@ export default function AiStudioPage() {
     setOutputs,
     setActiveOutputId,
     setUiNotice,
+    setPulseWorkflowSession,
     trackAgentUiEvent: trackUiEvent,
   });
+
+  const activeWorkflowPulsePreset = useMemo(() => {
+    if (selectedTool !== "create" || expertCreateMode !== "pulse" || !activeCreatePulsePresetId) {
+      return null;
+    }
+    const resolvedPreset = resolveCreatePulsePresetById(
+      activeCreatePulsePresetId,
+      savedCreatePulsePresets
+    );
+    if (!resolvedPreset || resolvedPreset.runtimeMode !== "workflow_gpt") return null;
+    return resolvedPreset;
+  }, [activeCreatePulsePresetId, expertCreateMode, savedCreatePulsePresets, selectedTool]);
+
+  const derivedPulseWorkflowSession = useMemo(
+    () =>
+      derivePulseWorkflowSession({
+        preset: activeWorkflowPulsePreset
+          ? {
+              presetId: activeWorkflowPulsePreset.presetId,
+              runtimeMode: activeWorkflowPulsePreset.runtimeMode,
+              starterAssistantMessage: activeWorkflowPulsePreset.starterAssistantMessage,
+              workflowStageHints: activeWorkflowPulsePreset.workflowStageHints,
+            }
+          : null,
+        agentMessages,
+        isSending: agentBusy,
+      }),
+    [activeWorkflowPulsePreset, agentBusy, agentMessages]
+  );
+
+  const reconciledPulseWorkflowSession = useMemo(
+    () =>
+      reconcilePulseWorkflowSession({
+        authoritative: pulseWorkflowSession,
+        derived: derivedPulseWorkflowSession,
+        isSending: agentBusy,
+      }),
+    [agentBusy, derivedPulseWorkflowSession, pulseWorkflowSession]
+  );
+
+  useEffect(() => {
+    setPulseWorkflowSession((current) =>
+      arePulseWorkflowSessionsEqual(current, reconciledPulseWorkflowSession)
+        ? current
+        : reconciledPulseWorkflowSession
+    );
+  }, [reconciledPulseWorkflowSession]);
 
   const { sessionSnapshot } = useAiStudioPageSessionPersistence({
     sessionId,
@@ -724,6 +836,7 @@ export default function AiStudioPage() {
     latestAgentPrompt,
     promptOrigin,
     chatModeEnabled,
+    pulseWorkflowSession,
     expertEditSessionState,
     hydrateFromSessionSnapshot,
     hydrateFromSessionAgentSnapshot,
@@ -847,6 +960,7 @@ export default function AiStudioPage() {
     videoGenerateAudio,
     klingWorkflowMode,
     klingMultiPrompts,
+    klingElements,
     seedance2InputMode,
     seedance2ReferenceImageUrls,
     seedance2ReferenceVideoUrls,
@@ -1001,6 +1115,7 @@ export default function AiStudioPage() {
     agentEnabled,
     agentMessages,
     agentActions,
+    pulseWorkflowSession,
     agentInput,
     chatModeEnabled,
     directOpenAiBypassEnabled,
@@ -1280,7 +1395,10 @@ export default function AiStudioPage() {
                   request.removeBackgroundNoise ? "true" : "false"
                 );
                 formData.append("voiceSettings", JSON.stringify(request.voiceSettings));
-                formData.append("sourceName", request.source.name);
+                formData.append(
+                  "sourceName",
+                  request.source.extractedFrom?.name ?? request.source.name
+                );
                 formData.append("sourceOrigin", request.source.origin);
                 if (request.source.storagePath) {
                   formData.append("sourceStoragePath", request.source.storagePath);
@@ -1288,6 +1406,23 @@ export default function AiStudioPage() {
                   formData.append("file", request.source.file, request.source.file.name);
                 } else if (request.source.sourceUrl) {
                   formData.append("sourceUrl", request.source.sourceUrl);
+                }
+                if (request.source.extractedFrom?.storagePath) {
+                  formData.append(
+                    "originalVideoStoragePath",
+                    request.source.extractedFrom.storagePath
+                  );
+                } else if (request.source.extractedFrom?.sourceUrl) {
+                  formData.append("originalVideoSourceUrl", request.source.extractedFrom.sourceUrl);
+                }
+                if (request.source.extractedFrom?.name) {
+                  formData.append("originalVideoName", request.source.extractedFrom.name);
+                }
+                if (request.source.extractedFrom?.mimeType) {
+                  formData.append("originalVideoMimeType", request.source.extractedFrom.mimeType);
+                }
+                if (request.source.extractedFrom?.aspect) {
+                  formData.append("originalVideoAspect", request.source.extractedFrom.aspect);
                 }
                 return await fetchWithAuth("/api/elevenlabs/speech-to-speech", {
                   method: "POST",
@@ -1340,6 +1475,17 @@ export default function AiStudioPage() {
           errorMessageShort: null,
           errorDetail: null,
         }));
+
+        if (request.mode === "voice-changer" && payload.remuxedVideo) {
+          const remuxedVideoOutput = buildVoiceChangerRemuxedVideoOutput({
+            request,
+            payload: payload.remuxedVideo,
+          });
+          setOutputs((prev) => [
+            remuxedVideoOutput,
+            ...prev.filter((item) => item.id !== remuxedVideoOutput.id),
+          ]);
+        }
       } catch (error) {
         const message = error instanceof Error ? error.message : "Voice generation failed.";
         notifyGenerationFailure(optimisticOutputId, message, message);
@@ -1348,7 +1494,13 @@ export default function AiStudioPage() {
         setVoicesIsGenerating(false);
       }
     },
-    [insertOptimisticGenerationPlaceholder, notifyGenerationFailure, setUiError, updateOutputById]
+    [
+      insertOptimisticGenerationPlaceholder,
+      notifyGenerationFailure,
+      setOutputs,
+      setUiError,
+      updateOutputById,
+    ]
   );
 
   const handleMusicGenerate = useCallback(

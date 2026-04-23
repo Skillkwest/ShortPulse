@@ -17,8 +17,8 @@ describe("TextToSpeechPropertiesPanel", () => {
 
     expect(screen.getByRole("heading", { name: "Text to Speech" })).toBeInTheDocument();
     expect(screen.getByLabelText("Available voices")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /harbor voice/i })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /play harbor sample/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /darian voice/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /play darian sample/i })).toBeInTheDocument();
     expect(
       screen.getByRole("separator", { name: "Resize text input and prompt sections" })
     ).toBeInTheDocument();
@@ -30,7 +30,7 @@ describe("TextToSpeechPropertiesPanel", () => {
     expect(screen.getByRole("button", { name: "Generate" })).toHaveTextContent("Generate");
     expect(screen.getByRole("button", { name: "Generate" })).toHaveTextContent("15");
     expect(screen.getByRole("button", { name: "Voice" })).toBeInTheDocument();
-    expect(screen.getByText("Darian")).toBeInTheDocument();
+    expect(screen.getAllByText("Darian").length).toBeGreaterThan(0);
     expect(screen.getByText("Warm Grounded Storyteller")).toBeInTheDocument();
     expect(screen.getByText("Language")).toBeInTheDocument();
     expect(screen.getByText("Format")).toBeInTheDocument();
@@ -59,15 +59,15 @@ describe("TextToSpeechPropertiesPanel", () => {
   it("uses the shared voices grid state from the voices workflow", () => {
     render(<TextToSpeechPropertiesPanel />);
 
-    const harborVoiceButton = screen.getByRole("button", { name: /harbor voice/i });
-    const solsticeVoiceButton = screen.getByRole("button", { name: /solstice voice/i });
+    const darianVoiceButton = screen.getByRole("button", { name: /darian voice/i });
+    const taliaVoiceButton = screen.getByRole("button", { name: /talia voice/i });
 
-    expect(harborVoiceButton).toHaveAttribute("aria-pressed", "true");
-    expect(solsticeVoiceButton).toHaveAttribute("aria-pressed", "false");
+    expect(darianVoiceButton).toHaveAttribute("aria-pressed", "true");
+    expect(taliaVoiceButton).toHaveAttribute("aria-pressed", "false");
 
-    fireEvent.click(solsticeVoiceButton);
+    fireEvent.click(taliaVoiceButton);
 
-    expect(solsticeVoiceButton).toHaveAttribute("aria-pressed", "true");
-    expect(harborVoiceButton).toHaveAttribute("aria-pressed", "false");
+    expect(taliaVoiceButton).toHaveAttribute("aria-pressed", "true");
+    expect(darianVoiceButton).toHaveAttribute("aria-pressed", "false");
   });
 });

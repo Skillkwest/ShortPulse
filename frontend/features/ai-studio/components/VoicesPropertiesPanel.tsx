@@ -17,6 +17,7 @@ import {
 } from "./VoiceChangerSourceDropzone";
 import {
   extractVoiceChangerVideoSource,
+  resolveVoiceChangerVideoAspect,
   resolveVoiceChangerSourceStoragePath,
   signVoiceChangerStoragePath,
   uploadVoiceChangerSourceFile,
@@ -161,6 +162,17 @@ const voiceChangerOutputFormatOptions = [
 const hardcodedVoiceChangerModel = "eleven_multilingual_sts_v2";
 const hardcodedVoiceChangerSpeakerBoostEnabled = true;
 const hardcodedVoiceChangerInputFormat = "other";
+const hardcodedVideoDerivedVoiceChangerSettings = {
+  stability: 1,
+  similarity_boost: 1,
+  speed: 1,
+  use_speaker_boost: true,
+} as const;
+const hardcodedVideoDerivedVoiceChangerSliderValues = {
+  speed: 67,
+  stability: 100,
+  similarityBoost: 100,
+} as const;
 const sliderThemeTokens: Record<
   VoicesSliderTheme,
   {
@@ -213,6 +225,37 @@ const isPromptTextDrag = (transfer: DataTransfer): boolean => {
 
 const buildSliderState = (sliders: readonly VoicesSliderDefinition[]): Record<string, number> =>
   Object.fromEntries(sliders.map((slider) => [slider.id, slider.defaultValue]));
+
+const buildVoiceChangerRequestSettings = ({
+  source,
+  sliderValues,
+}: {
+  source: VoiceChangerSource;
+  sliderValues: Record<string, number>;
+}): {
+  stability: number;
+  similarity_boost: number;
+  speed: number;
+  use_speaker_boost: boolean;
+} => {
+  if (source.extractedFrom) {
+    return { ...hardcodedVideoDerivedVoiceChangerSettings };
+  }
+  return {
+    stability: normalizeSliderValue(
+      sliderValues.stability,
+      voiceChangerShapingSliders[1]?.defaultValue ?? 62
+    ),
+    similarity_boost: normalizeSliderValue(
+      sliderValues.similarityBoost,
+      voiceChangerShapingSliders[2]?.defaultValue ?? 82
+    ),
+    speed: Number(
+      ((sliderValues.speed ?? voiceChangerShapingSliders[0]?.defaultValue ?? 64) * 0.015).toFixed(2)
+    ),
+    use_speaker_boost: hardcodedVoiceChangerSpeakerBoostEnabled,
+  };
+};
 
 const buildVoiceDesignPreviewAudioSrc = (
   audioBase64: string,
@@ -459,6 +502,12 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
     surfaceMode === "create" ? voiceoverShapingSliders : voiceChangerShapingSliders;
   const activeSliderValues =
     surfaceMode === "create" ? voiceoverSliderValues : voiceChangerSliderValues;
+  const isVideoDerivedVoiceChangerSource =
+    surfaceMode === "edit" &&
+    Boolean(
+      voiceChangerSource &&
+      (voiceChangerSource.kind === "video" || voiceChangerSource.extractedFrom)
+    );
   const canDeleteSelectedVoice =
     selectedLibraryVoice?.provider === "elevenlabs" && !selectedLibraryVoice?.isFallback;
   const selectedGenerateVoiceName = selectedLibraryVoice
@@ -616,6 +665,9 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
           : nextSource.file
             ? "uploading"
             : "ready";
+      if (nextSource.kind === "video") {
+        setVoiceChangerSliderValues({ ...hardcodedVideoDerivedVoiceChangerSliderValues });
+      }
 
       const initialSource: VoiceChangerSource = {
         ...nextSource,
@@ -633,6 +685,7 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
         let stagedSourceUrl = initialSource.sourceUrl;
         let stagedMimeType = initialSource.mimeType;
         let stagedName = initialSource.name;
+        const stagedAspect = initialSource.aspect;
 
         try {
           if (initialSource.file) {
@@ -641,7 +694,7 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
               kind: initialSource.kind,
             });
             stagedStoragePath = uploaded.storagePath;
-            stagedSourceUrl = uploaded.signedUrl;
+            stagedSourceUrl = uploaded.signedUrl ?? stagedSourceUrl;
             stagedMimeType = uploaded.mimeType;
             stagedName = uploaded.name;
           } else if (stagedStoragePath) {
@@ -659,12 +712,13 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
               ...initialSource,
               kind: "audio",
               status: "ready",
+              aspect: null,
               name: stagedName,
               mimeType: stagedMimeType,
               file: null,
               previewUrl: null,
               sourceUrl: stagedSourceUrl,
-              objectUrl: null,
+              objectUrl: initialSource.objectUrl,
               storagePath: stagedStoragePath,
               errorMessage: null,
               extractedFrom: null,
@@ -677,6 +731,7 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
             return {
               ...current,
               status: "extracting",
+              aspect: stagedAspect,
               name: stagedName,
               mimeType: stagedMimeType,
               file: null,
@@ -685,6 +740,12 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
               errorMessage: null,
             };
           });
+
+          const aspectResolutionPromise = (
+            stagedAspect
+              ? Promise.resolve(stagedAspect)
+              : resolveVoiceChangerVideoAspect(initialSource.previewUrl ?? stagedSourceUrl)
+          ).catch(() => null);
 
           const extracted = await extractVoiceChangerVideoSource({
             sourceName: stagedName,
@@ -700,6 +761,7 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
             ...initialSource,
             kind: "audio",
             status: "ready",
+            aspect: null,
             name: extracted.name,
             mimeType: extracted.mimeType,
             file: null,
@@ -715,13 +777,39 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
               previewUrl: initialSource.previewUrl ?? stagedSourceUrl,
               sourceUrl: stagedSourceUrl,
               storagePath: stagedStoragePath,
+              aspect: stagedAspect,
             },
+          });
+
+          void aspectResolutionPromise.then((resolvedAspect) => {
+            if (!resolvedAspect || voiceChangerSourceRequestIdRef.current !== requestId) return;
+            setVoiceChangerSource((current) => {
+              if (
+                !current ||
+                current.id !== initialSource.id ||
+                current.status !== "ready" ||
+                !current.extractedFrom
+              ) {
+                return current;
+              }
+              if (current.extractedFrom.aspect === resolvedAspect) {
+                return current;
+              }
+              return {
+                ...current,
+                extractedFrom: {
+                  ...current.extractedFrom,
+                  aspect: resolvedAspect,
+                },
+              };
+            });
           });
         } catch (error) {
           if (voiceChangerSourceRequestIdRef.current !== requestId) return;
           setVoiceChangerSource({
             ...initialSource,
             status: "failed",
+            aspect: stagedAspect,
             file: null,
             sourceUrl: stagedSourceUrl,
             storagePath: stagedStoragePath,
@@ -1260,23 +1348,10 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
       removeBackgroundNoise: voiceChangerBackgroundCleanupEnabled,
       modelId: hardcodedVoiceChangerModel,
       inputFormat: hardcodedVoiceChangerInputFormat,
-      voiceSettings: {
-        stability: normalizeSliderValue(
-          voiceChangerSliderValues.stability,
-          voiceChangerShapingSliders[1]?.defaultValue ?? 62
-        ),
-        similarity_boost: normalizeSliderValue(
-          voiceChangerSliderValues.similarityBoost,
-          voiceChangerShapingSliders[2]?.defaultValue ?? 82
-        ),
-        speed: Number(
-          (
-            (voiceChangerSliderValues.speed ?? voiceChangerShapingSliders[0]?.defaultValue ?? 64) *
-            0.015
-          ).toFixed(2)
-        ),
-        use_speaker_boost: hardcodedVoiceChangerSpeakerBoostEnabled,
-      },
+      voiceSettings: buildVoiceChangerRequestSettings({
+        source: voiceChangerSource,
+        sliderValues: voiceChangerSliderValues,
+      }),
     });
   }, [
     onGenerate,
@@ -1532,33 +1607,35 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
                 </div>
               </div>
 
-              <section
-                className={`voices-properties-shaping-card ${
-                  activeSliderTheme === "voiceover" ? "is-voiceover" : "is-voice-changer"
-                }`}
-                aria-label={surfaceMode === "create" ? "Voice shaping" : "Voice changer shaping"}
-              >
-                <div className="voices-properties-shaping-card-heading-row">
-                  <p className="voices-properties-shaping-card-kicker">Voice shaping</p>
-                </div>
+              {isVideoDerivedVoiceChangerSource ? null : (
+                <section
+                  className={`voices-properties-shaping-card ${
+                    activeSliderTheme === "voiceover" ? "is-voiceover" : "is-voice-changer"
+                  }`}
+                  aria-label={surfaceMode === "create" ? "Voice shaping" : "Voice changer shaping"}
+                >
+                  <div className="voices-properties-shaping-card-heading-row">
+                    <p className="voices-properties-shaping-card-kicker">Voice shaping</p>
+                  </div>
 
-                <div className="voices-properties-mode-slider-stack">
-                  {activeSliderDefinitions.map((slider, index) => (
-                    <VoicesSlider
-                      key={`voices-shaping-slider-${index}`}
-                      label={slider.label}
-                      helper={slider.helper}
-                      value={activeSliderValues[slider.id] ?? slider.defaultValue}
-                      displayValue={slider.formatValue(
-                        activeSliderValues[slider.id] ?? slider.defaultValue
-                      )}
-                      onChange={(nextValue) => handleShapingSliderChange(slider.id, nextValue)}
-                      theme={activeSliderTheme}
-                      isModeTransitioning={isModeSwitchAnimating}
-                    />
-                  ))}
-                </div>
-              </section>
+                  <div className="voices-properties-mode-slider-stack">
+                    {activeSliderDefinitions.map((slider, index) => (
+                      <VoicesSlider
+                        key={`voices-shaping-slider-${index}`}
+                        label={slider.label}
+                        helper={slider.helper}
+                        value={activeSliderValues[slider.id] ?? slider.defaultValue}
+                        displayValue={slider.formatValue(
+                          activeSliderValues[slider.id] ?? slider.defaultValue
+                        )}
+                        onChange={(nextValue) => handleShapingSliderChange(slider.id, nextValue)}
+                        theme={activeSliderTheme}
+                        isModeTransitioning={isModeSwitchAnimating}
+                      />
+                    ))}
+                  </div>
+                </section>
+              )}
 
               {surfaceMode === "create" ? (
                 <>

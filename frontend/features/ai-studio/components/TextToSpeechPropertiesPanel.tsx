@@ -292,30 +292,30 @@ export const TextToSpeechPropertiesPanel = React.memo(function TextToSpeechPrope
           >
             <ul className="tts-properties-voice-grid" aria-label="Available voices list">
               {sharedVoices.map((voice) => {
-                const isSelected = voice === selectedSharedVoice;
+                const isSelected = voice.id === selectedSharedVoice?.id;
                 return (
-                  <li key={voice} className="tts-properties-voice-item">
+                  <li key={voice.id} className="tts-properties-voice-item">
                     <div className={`tts-properties-voice-chip ${isSelected ? "is-selected" : ""}`}>
                       <button
                         type="button"
                         className="tts-properties-voice-chip-select"
                         aria-pressed={isSelected}
-                        aria-label={`${voice} voice`}
-                        onClick={() => setSelectedSharedVoice(voice)}
+                        aria-label={`${voice.name} voice`}
+                        onClick={() => setSelectedSharedVoice(voice.id)}
                       >
                         <span className="tts-properties-voice-chip-avatar" aria-hidden="true">
-                          {getVoiceInitials(voice)}
+                          {getVoiceInitials(voice.name)}
                         </span>
                         <span className="tts-properties-voice-chip-copy">
                           <span className="tts-properties-voice-chip-label">Voice</span>
-                          <span className="tts-properties-voice-chip-name">{voice}</span>
+                          <span className="tts-properties-voice-chip-name">{voice.name}</span>
                         </span>
                       </button>
 
                       <button
                         type="button"
                         className="tts-properties-voice-chip-play"
-                        aria-label={`Play ${voice} sample`}
+                        aria-label={`Play ${voice.name} sample`}
                       >
                         <span className="tts-properties-voice-chip-play-icon" aria-hidden="true">
                           ▶

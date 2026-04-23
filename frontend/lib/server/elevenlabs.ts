@@ -12,6 +12,7 @@ import {
   extractAudioTrack,
   isVideoSource,
   makeTempFileHandle,
+  remuxVideoWithAudioTrack,
   type TempFileHandle,
 } from "./mediaAudioExtraction";
 const MEDIA_BUCKET = "media_library";
@@ -27,6 +28,10 @@ const AUDIO_EXTENSION_BY_CONTENT_TYPE: Record<string, string> = {
   "audio/ogg": "ogg",
   "audio/webm": "webm",
   "application/octet-stream": "bin",
+};
+const VIDEO_EXTENSION_BY_CONTENT_TYPE: Record<string, string> = {
+  "video/mp4": "mp4",
+  "video/webm": "webm",
 };
 const OUTPUT_CONTENT_TYPE_BY_FORMAT_PREFIX: Record<string, string> = {
   mp3: "audio/mpeg",
@@ -70,6 +75,18 @@ type PersistGeneratedAudioInput = {
   extraMetadata?: Record<string, unknown>;
 };
 
+type PersistGeneratedVideoInput = {
+  userId: string;
+  promptText: string;
+  provider: "elevenlabs";
+  modelId: string;
+  sourceMode: "voice-changer";
+  outputBuffer: Buffer;
+  outputContentType: "video/mp4" | "video/webm";
+  generationReplay?: Record<string, unknown>;
+  extraMetadata?: Record<string, unknown>;
+};
+
 export type PersistGeneratedAudioResult = {
   generationId: string;
   mediaFileId: string | null;
@@ -77,6 +94,13 @@ export type PersistGeneratedAudioResult = {
   storagePath: string;
   signedUrl: string;
   outputRowId: string | null;
+};
+
+export type PersistGeneratedVideoResult = PersistGeneratedAudioResult;
+
+export type RemuxedVoiceChangerVideoResult = {
+  buffer: Buffer;
+  contentType: "video/mp4" | "video/webm";
 };
 
 const normalizeOptionalString = (value: unknown): string | null => {
@@ -193,6 +217,11 @@ const resolveFileExtension = (contentType: string, outputFormat: string): string
   }
   const formatPrefix = outputFormat.split("_")[0]?.trim().toLowerCase() ?? "";
   return formatPrefix || "bin";
+};
+
+const resolveVideoFileExtension = (contentType: string): string => {
+  const normalizedContentType = contentType.trim().toLowerCase();
+  return VIDEO_EXTENSION_BY_CONTENT_TYPE[normalizedContentType] ?? "mp4";
 };
 
 const downloadRemoteFile = async (
@@ -593,6 +622,28 @@ export const generateElevenLabsVoiceChanger = async ({
   }
 };
 
+export const createRemuxedVoiceChangerVideo = async ({
+  sourceVideoBuffer,
+  sourceVideoFilename,
+  sourceVideoMimeType,
+  convertedAudioBuffer,
+  convertedAudioContentType,
+}: {
+  sourceVideoBuffer: Buffer;
+  sourceVideoFilename: string;
+  sourceVideoMimeType: string | null;
+  convertedAudioBuffer: Buffer;
+  convertedAudioContentType: string;
+}): Promise<RemuxedVoiceChangerVideoResult> => {
+  return await remuxVideoWithAudioTrack({
+    videoBuffer: sourceVideoBuffer,
+    videoFilename: sourceVideoFilename,
+    videoMimeType: sourceVideoMimeType,
+    audioBuffer: convertedAudioBuffer,
+    audioMimeType: convertedAudioContentType,
+  });
+};
+
 export const persistGeneratedAudioAsset = async ({
   userId,
   promptText,
@@ -757,6 +808,179 @@ export const persistGeneratedAudioAsset = async ({
     publicationState: "published",
     resultUrls: [signedResult.data.signedUrl],
     savedMediaIds: mediaFileId ? [mediaFileId] : [],
+    startedAt: createdAtIso,
+    completedAt: createdAtIso,
+  });
+
+  return {
+    generationId,
+    mediaFileId,
+    requestId,
+    storagePath,
+    signedUrl: signedResult.data.signedUrl,
+    outputRowId,
+  };
+};
+
+export const persistGeneratedVideoAsset = async ({
+  userId,
+  promptText,
+  provider,
+  modelId,
+  sourceMode,
+  outputBuffer,
+  outputContentType,
+  generationReplay = {},
+  extraMetadata = {},
+}: PersistGeneratedVideoInput): Promise<PersistGeneratedVideoResult> => {
+  const supabaseAdmin = getSupabaseAdmin();
+  const generationId = randomUUID();
+  const requestId = randomUUID();
+  const createdAtIso = new Date().toISOString();
+  const mediaAutosaveEnabled = await readMediaAutosaveEnabledForUser({ supabaseAdmin, userId });
+  const autosavePolicyDecision = canAutoPersistRecoveryMedia({
+    intent: "auto",
+    mediaAutosaveEnabled,
+  });
+  const extension = resolveVideoFileExtension(outputContentType);
+  const filename = `${sanitizeStem(promptText)}.${extension}`;
+  const storagePath = assertUserScopedMediaStoragePath({
+    userId,
+    path: `${userId}/generations/video/${generationId}/${filename}`,
+    label: "Generated video storage path",
+  });
+
+  const uploadResult = await supabaseAdmin.storage
+    .from(MEDIA_BUCKET)
+    .upload(storagePath, outputBuffer, {
+      contentType: outputContentType,
+      upsert: false,
+    });
+  if (uploadResult.error) {
+    throw new Error(uploadResult.error.message || "Unable to persist generated video.");
+  }
+
+  const signedResult = await supabaseAdmin.storage
+    .from(MEDIA_BUCKET)
+    .createSignedUrl(storagePath, 60 * 60);
+  if (signedResult.error || !signedResult.data?.signedUrl) {
+    throw new Error(signedResult.error?.message || "Unable to sign generated video.");
+  }
+
+  const generationInsert = await supabaseAdmin
+    .from("ai_generations")
+    .insert({
+      id: generationId,
+      user_id: userId,
+      mode: "video",
+      provider,
+      model_id: modelId,
+      prompt_text: promptText,
+      request_id: requestId,
+      status: "success",
+      completed_at: createdAtIso,
+      metadata: {
+        source_mode: sourceMode,
+        autosave_enabled: mediaAutosaveEnabled,
+        autosave_decision: autosavePolicyDecision.allowed ? "auto_persisted" : "autosave_skipped",
+        autosave_decision_reason: autosavePolicyDecision.reason,
+        mime_type: outputContentType,
+        ...extraMetadata,
+      },
+    })
+    .select("id")
+    .single();
+  if (generationInsert.error) {
+    throw new Error(generationInsert.error.message || "Unable to record video generation.");
+  }
+
+  let mediaFileId: string | null = null;
+  if (autosavePolicyDecision.allowed) {
+    const mediaInsert = await supabaseAdmin
+      .from("media_files")
+      .insert({
+        filename,
+        storage_path: storagePath,
+        file_type: "video",
+        file_size: outputBuffer.length,
+        source: "ai_studio",
+        source_ref: generationId,
+        metadata: {
+          provider,
+          model_id: modelId,
+          source_mode: sourceMode,
+          mime_type: outputContentType,
+          autosave_enabled: mediaAutosaveEnabled,
+          autosave_decision: "auto_persisted",
+          autosave_decision_reason: autosavePolicyDecision.reason,
+          ...extraMetadata,
+        },
+        user_id: userId,
+      })
+      .select("id")
+      .single();
+    if (mediaInsert.error || !mediaInsert.data?.id) {
+      throw new Error(mediaInsert.error?.message || "Unable to record generated video media.");
+    }
+    mediaFileId = mediaInsert.data.id as string;
+  }
+
+  const outputRows = await persistGenerationOutputRecords({
+    generationId,
+    userId,
+    resultUrls: [signedResult.data.signedUrl],
+    mediaFileIds: mediaFileId ? [mediaFileId] : [],
+    metadata: {
+      media_kind: "video",
+      autosave_enabled: mediaAutosaveEnabled,
+      autosave_decision: autosavePolicyDecision.allowed ? "auto_persisted" : "autosave_skipped",
+      autosave_decision_reason: autosavePolicyDecision.reason,
+      ...extraMetadata,
+    },
+  });
+  const outputRowId = outputRows[0]?.id ?? null;
+
+  if (outputRowId) {
+    await upsertGenerationPublication({
+      generationId,
+      generationOutputId: outputRowId,
+      userId,
+      publicationState: "published",
+      ownedMediaFileId: mediaFileId,
+      previewUrl: signedResult.data.signedUrl,
+      fullUrl: signedResult.data.signedUrl,
+      previewStoragePath: storagePath,
+      fullStoragePath: storagePath,
+      publishedAt: createdAtIso,
+      metadata: {
+        media_kind: "video",
+        autosave_enabled: mediaAutosaveEnabled,
+        autosave_decision: autosavePolicyDecision.allowed ? "auto_persisted" : "autosave_skipped",
+        autosave_decision_reason: autosavePolicyDecision.reason,
+        ...extraMetadata,
+      },
+    });
+  }
+
+  await upsertGenerationProjection({
+    generationId,
+    userId,
+    requestId,
+    provider,
+    status: "success",
+    taskState: "success",
+    displayPrompt: promptText,
+    modelId,
+    previewUrl: signedResult.data.signedUrl,
+    previewStoragePath: storagePath,
+    fullStoragePath: storagePath,
+    saveState: mediaFileId ? "saved" : "idle",
+    hiddenInReferenceGrid: false,
+    referenceGridVisible: true,
+    publicationState: "published",
+    resultUrls: [signedResult.data.signedUrl],
+    savedMediaIds: mediaFileId ? [mediaFileId] : [],
+    generationReplay,
     startedAt: createdAtIso,
     completedAt: createdAtIso,
   });

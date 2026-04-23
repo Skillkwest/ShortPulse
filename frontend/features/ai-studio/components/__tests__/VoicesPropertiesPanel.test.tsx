@@ -15,6 +15,7 @@ const fetchWithAuthMock = vi.hoisted(() => vi.fn());
 const extractAudioWaveformPeaksFromUrlMock = vi.hoisted(() => vi.fn());
 const uploadVoiceChangerSourceFileMock = vi.hoisted(() => vi.fn());
 const extractVoiceChangerVideoSourceMock = vi.hoisted(() => vi.fn());
+const resolveVoiceChangerVideoAspectMock = vi.hoisted(() => vi.fn());
 const resolveVoiceChangerSourceStoragePathMock = vi.hoisted(() => vi.fn());
 const signVoiceChangerStoragePathMock = vi.hoisted(() => vi.fn());
 const createObjectUrlMock = vi.hoisted(() => vi.fn());
@@ -28,6 +29,8 @@ vi.mock("../../utils/voiceChangerSourceAsset", () => ({
   uploadVoiceChangerSourceFile: (...args: unknown[]) => uploadVoiceChangerSourceFileMock(...args),
   extractVoiceChangerVideoSource: (...args: unknown[]) =>
     extractVoiceChangerVideoSourceMock(...args),
+  resolveVoiceChangerVideoAspect: (...args: unknown[]) =>
+    resolveVoiceChangerVideoAspectMock(...args),
   resolveVoiceChangerSourceStoragePath: (...args: unknown[]) =>
     resolveVoiceChangerSourceStoragePathMock(...args),
   signVoiceChangerStoragePath: (...args: unknown[]) => signVoiceChangerStoragePathMock(...args),
@@ -51,6 +54,7 @@ describe("VoicesPropertiesPanel", () => {
     extractAudioWaveformPeaksFromUrlMock.mockReset();
     uploadVoiceChangerSourceFileMock.mockReset();
     extractVoiceChangerVideoSourceMock.mockReset();
+    resolveVoiceChangerVideoAspectMock.mockReset();
     resolveVoiceChangerSourceStoragePathMock.mockReset();
     signVoiceChangerStoragePathMock.mockReset();
     createObjectUrlMock.mockReset();
@@ -71,6 +75,7 @@ describe("VoicesPropertiesPanel", () => {
       name: "source.wav",
       size: 128,
     });
+    resolveVoiceChangerVideoAspectMock.mockResolvedValue("9:16");
     resolveVoiceChangerSourceStoragePathMock.mockReturnValue(null);
     signVoiceChangerStoragePathMock.mockImplementation(async (storagePath: string) => {
       const filename = storagePath.split("/").filter(Boolean).pop() ?? "source";
@@ -355,8 +360,136 @@ describe("VoicesPropertiesPanel", () => {
     expect(screen.queryByText("Video source")).not.toBeInTheDocument();
     expect(screen.queryByText("From your computer")).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Generate" })).toBeEnabled();
+    expect(screen.queryByLabelText("Voice changer shaping")).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Replace" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Remove" })).toBeInTheDocument();
+  });
+
+  it("continues local video staging when upload returns only a storage path", async () => {
+    uploadVoiceChangerSourceFileMock.mockResolvedValueOnce({
+      storagePath: "user-1/voice-changer/source-video/local-only.mp4",
+      signedUrl: null,
+      mimeType: "video/mp4",
+      name: "local-only.mp4",
+      size: 5,
+    });
+
+    const { container } = render(<VoicesPropertiesPanel />);
+
+    fireEvent.click(screen.getByRole("tab", { name: "Voice Changer" }));
+
+    const fileInput = container.querySelector(
+      ".voices-properties-voice-changer-file-input"
+    ) as HTMLInputElement | null;
+    expect(fileInput).not.toBeNull();
+
+    const file = new File(["video"], "local-only.mp4", { type: "video/mp4" });
+    fireEvent.change(fileInput as HTMLInputElement, {
+      target: { files: [file] },
+    });
+
+    await waitFor(() => {
+      expect(extractVoiceChangerVideoSourceMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          sourceStoragePath: "user-1/voice-changer/source-video/local-only.mp4",
+        })
+      );
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText("Ready for conversion")).toBeInTheDocument();
+    });
+
+    expect(screen.getByRole("button", { name: "Generate" })).toBeEnabled();
+  });
+
+  it("does not block readiness on delayed video aspect detection", async () => {
+    resolveVoiceChangerVideoAspectMock.mockImplementationOnce(
+      () => new Promise<string | null>(() => undefined)
+    );
+
+    const { container } = render(<VoicesPropertiesPanel />);
+
+    fireEvent.click(screen.getByRole("tab", { name: "Voice Changer" }));
+
+    const fileInput = container.querySelector(
+      ".voices-properties-voice-changer-file-input"
+    ) as HTMLInputElement | null;
+    expect(fileInput).not.toBeNull();
+
+    const file = new File(["video"], "slow-aspect.mp4", { type: "video/mp4" });
+    fireEvent.change(fileInput as HTMLInputElement, {
+      target: { files: [file] },
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText("Ready for conversion")).toBeInTheDocument();
+    });
+
+    expect(screen.getByRole("button", { name: "Generate" })).toBeEnabled();
+  });
+
+  it("preserves the original video aspect when submitting a remuxable voice changer source", async () => {
+    fetchWithAuthMock.mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        source: "api",
+        voices: [
+          {
+            voiceId: "voice_live_darian_123",
+            name: "Darian",
+            previewUrl: "https://cdn.elevenlabs.test/darian.mp3",
+            description: "Warm, grounded storyteller",
+            isFallback: false,
+          },
+        ],
+      }),
+    });
+    const onGenerate = vi.fn();
+    const { container } = render(<VoicesPropertiesPanel onGenerate={onGenerate} />);
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /darian voice/i })).toHaveAttribute(
+        "aria-pressed",
+        "true"
+      );
+    });
+
+    fireEvent.click(screen.getByRole("tab", { name: "Voice Changer" }));
+
+    const fileInput = container.querySelector(
+      ".voices-properties-voice-changer-file-input"
+    ) as HTMLInputElement | null;
+    const file = new File(["video"], "portrait-clip.mp4", { type: "video/mp4" });
+    fireEvent.change(fileInput as HTMLInputElement, {
+      target: { files: [file] },
+    });
+
+    await screen.findByText("Ready for conversion");
+
+    fireEvent.click(screen.getByRole("button", { name: "Generate" }));
+
+    await waitFor(() => {
+      expect(onGenerate).toHaveBeenCalledTimes(1);
+    });
+
+    expect(onGenerate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        mode: "voice-changer",
+        source: expect.objectContaining({
+          extractedFrom: expect.objectContaining({
+            aspect: "9:16",
+            name: "portrait-clip.mp4",
+          }),
+        }),
+        voiceSettings: {
+          stability: 1,
+          similarity_boost: 1,
+          speed: 1,
+          use_speaker_boost: true,
+        },
+      })
+    );
   });
 
   it("keeps the local video preview alive until extraction finishes", async () => {

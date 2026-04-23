@@ -28,6 +28,9 @@ Adopt one canonical Voice Changer intake path:
    becomes available.
 4. Final conversion submits the staged audio reference (`sourceStoragePath`) to
    `/api/elevenlabs/speech-to-speech`.
+5. When the staged audio was extracted from video, final conversion also remuxes the converted
+   voice back onto the original video and publishes that remuxed clip as a sibling generated video
+   output in AI Studio.
 
 Compatibility local multipart uploads remain accepted on `/api/elevenlabs/speech-to-speech` only as
 fallback coverage for legacy callers, not as the primary product path.
@@ -37,5 +40,7 @@ fallback coverage for legacy callers, not as the primary product path.
 - Local and deployed Voice Changer intake now share the same storage-backed architecture.
 - Vercel body-size limits no longer define the primary Voice Changer source path.
 - Video-drop UX now matches the actual provider contract by staging audio rather than raw video.
+- Video-derived Voice Changer runs now emit two durable AI Studio outputs: converted audio plus a
+  remuxed sibling video that preserves the original clip visuals.
 - The extraction runtime becomes an explicit application dependency; the repo now vendors
   `ffmpeg-static` instead of relying on a host-provided `ffmpeg` binary.

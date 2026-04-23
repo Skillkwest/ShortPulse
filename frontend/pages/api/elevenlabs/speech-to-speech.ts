@@ -9,11 +9,18 @@ import {
 } from "../../../lib/server/api/trustedRemoteMediaUrl";
 import { assertUserScopedMediaStoragePath } from "../../../lib/mediaStoragePath";
 import {
+  createRemuxedVoiceChangerVideo,
   generateElevenLabsVoiceChanger,
   persistGeneratedAudioAsset,
+  persistGeneratedVideoAsset,
   readRemoteSourceBuffer,
 } from "../../../lib/server/elevenlabs";
-import { readStoredMediaBuffer } from "../../../lib/server/mediaAudioExtraction";
+import {
+  MAX_VOICE_CHANGER_SOURCE_BYTES,
+  MediaAudioExtractionInputError,
+  readRemoteMediaBuffer,
+  readStoredMediaBuffer,
+} from "../../../lib/server/mediaAudioExtraction";
 
 type GenerateAudioSuccessResponse = {
   output: {
@@ -32,6 +39,19 @@ type GenerateAudioSuccessResponse = {
     modelId: string;
     voiceId: string;
     voiceName: string;
+  };
+  remuxedVideo?: {
+    provider: "elevenlabs";
+    mode: "video";
+    generationId: string;
+    mediaFileId: string | null;
+    requestId: string;
+    previewUrl: string;
+    resultUrls: string[];
+    previewStoragePath: string;
+    fullStoragePath: string;
+    mimeType: "video/mp4" | "video/webm";
+    modelId: string;
   };
 };
 
@@ -115,6 +135,11 @@ export default async function handler(
     const sourceStoragePath = readFieldString(fields.sourceStoragePath);
     const sourceOrigin = parseSourceOrigin(fields.sourceOrigin);
     const sourceName = readFieldString(fields.sourceName) ?? "Voice changer source";
+    const originalVideoSourceUrl = readFieldString(fields.originalVideoSourceUrl);
+    const originalVideoStoragePath = readFieldString(fields.originalVideoStoragePath);
+    const originalVideoName = readFieldString(fields.originalVideoName);
+    const originalVideoMimeType = readFieldString(fields.originalVideoMimeType);
+    const originalVideoAspect = readFieldString(fields.originalVideoAspect);
     const removeBackgroundNoise = parseBooleanField(fields.removeBackgroundNoise);
     const voiceSettingsField = readFieldString(fields.voiceSettings);
     const voiceSettings = voiceSettingsField ? JSON.parse(voiceSettingsField) : null;
@@ -133,6 +158,9 @@ export default async function handler(
     let sourceBuffer: Buffer | null = null;
     let sourceMimeType: string | null = null;
     let sourceFilename: string | null = null;
+    let remuxVideoBuffer: Buffer | null = null;
+    let remuxVideoMimeType: string | null = null;
+    let remuxVideoFilename: string | null = null;
 
     if (sourceFile?.filepath) {
       sourceBuffer = await fs.readFile(sourceFile.filepath);
@@ -172,6 +200,40 @@ export default async function handler(
       });
     }
 
+    if (originalVideoStoragePath) {
+      const trustedStoragePath = assertUserScopedMediaStoragePath({
+        path: originalVideoStoragePath,
+        userId: user.id,
+        label: "Voice changer source video storage path",
+      });
+      const storedVideo = await readStoredMediaBuffer({
+        storagePath: trustedStoragePath,
+        maxBytes: MAX_VOICE_CHANGER_SOURCE_BYTES,
+      });
+      remuxVideoBuffer = storedVideo.buffer;
+      remuxVideoMimeType = originalVideoMimeType ?? storedVideo.contentType;
+      remuxVideoFilename =
+        originalVideoName ?? trustedStoragePath.split("/").filter(Boolean).pop() ?? "source-video";
+    } else if (originalVideoSourceUrl) {
+      const trustedSourceUrl = await assertTrustedRemoteMediaUrl({
+        rawUrl: originalVideoSourceUrl,
+        req,
+        userId: user.id,
+        requireUserScope: sourceOrigin === "reference-grid",
+        label: "Voice changer source video URL",
+      });
+      const remoteVideo = await readRemoteMediaBuffer({
+        sourceUrl: trustedSourceUrl.toString(),
+        maxBytes: MAX_VOICE_CHANGER_SOURCE_BYTES,
+      });
+      remuxVideoBuffer = remoteVideo.buffer;
+      remuxVideoMimeType = originalVideoMimeType ?? remoteVideo.contentType;
+      remuxVideoFilename =
+        originalVideoName ??
+        trustedSourceUrl.pathname.split("/").filter(Boolean).pop() ??
+        "source-video";
+    }
+
     const generated = await generateElevenLabsVoiceChanger({
       voiceId,
       sourceBuffer,
@@ -197,6 +259,47 @@ export default async function handler(
       outputFormat,
     });
 
+    let remuxedVideo: Awaited<ReturnType<typeof createRemuxedVoiceChangerVideo>> | null = null;
+    let persistedRemuxedVideo: Awaited<ReturnType<typeof persistGeneratedVideoAsset>> | null = null;
+
+    if (remuxVideoBuffer && remuxVideoFilename) {
+      try {
+        remuxedVideo = await createRemuxedVoiceChangerVideo({
+          sourceVideoBuffer: remuxVideoBuffer,
+          sourceVideoFilename: remuxVideoFilename,
+          sourceVideoMimeType: remuxVideoMimeType,
+          convertedAudioBuffer: generated.buffer,
+          convertedAudioContentType: generated.contentType,
+        });
+
+        persistedRemuxedVideo = await persistGeneratedVideoAsset({
+          userId: user.id,
+          promptText: `${originalVideoName ?? sourceName} -> ${voiceName} video`,
+          provider: "elevenlabs",
+          modelId,
+          sourceMode: "voice-changer",
+          outputBuffer: remuxedVideo.buffer,
+          outputContentType: remuxedVideo.contentType,
+          generationReplay: originalVideoAspect ? { aspect: originalVideoAspect } : undefined,
+          extraMetadata: {
+            derivative_kind: "voice_changer_remuxed_video",
+            source_audio_generation_id: persisted.generationId,
+            source_video_storage_path: originalVideoStoragePath,
+          },
+        });
+      } catch (remuxError) {
+        await logApiRouteException({
+          req,
+          error: remuxError,
+          routeLabel: "elevenlabs-speech-to-speech-remux",
+          scope: "generation",
+          user,
+        });
+        remuxedVideo = null;
+        persistedRemuxedVideo = null;
+      }
+    }
+
     return res.status(200).json({
       output: {
         provider: "elevenlabs",
@@ -215,9 +318,29 @@ export default async function handler(
         voiceId,
         voiceName,
       },
+      ...(persistedRemuxedVideo && remuxedVideo
+        ? {
+            remuxedVideo: {
+              provider: "elevenlabs" as const,
+              mode: "video" as const,
+              generationId: persistedRemuxedVideo.generationId,
+              mediaFileId: persistedRemuxedVideo.mediaFileId,
+              requestId: persistedRemuxedVideo.requestId,
+              previewUrl: persistedRemuxedVideo.signedUrl,
+              resultUrls: [persistedRemuxedVideo.signedUrl],
+              previewStoragePath: persistedRemuxedVideo.storagePath,
+              fullStoragePath: persistedRemuxedVideo.storagePath,
+              mimeType: remuxedVideo.contentType,
+              modelId,
+            },
+          }
+        : {}),
     });
   } catch (error) {
-    if (error instanceof TrustedRemoteMediaUrlError) {
+    if (
+      error instanceof TrustedRemoteMediaUrlError ||
+      error instanceof MediaAudioExtractionInputError
+    ) {
       return res.status(error.statusCode).json({
         error: "Invalid request",
         details: error.message,

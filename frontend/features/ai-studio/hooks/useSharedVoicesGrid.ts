@@ -1,23 +1,31 @@
 import React from "react";
+import { ELEVENLABS_DEFAULT_VOICES } from "../constants/elevenLabsDefaultVoices";
 
-const initialSharedVoices = [
-  "Harbor",
-  "Solstice",
-  "Atlas",
-  "Nova",
-  "Ember",
-  "Grit",
-  "Marlow",
-  "Cinder",
-] as const;
+export type SharedVoiceOption = {
+  id: string;
+  name: string;
+  previewUrl?: string | null;
+  description?: string | null;
+  isFallback?: boolean;
+  provider: "elevenlabs" | "local";
+};
+
+const initialSharedVoices: SharedVoiceOption[] = ELEVENLABS_DEFAULT_VOICES.map((voice) => ({
+  id: voice.fallbackVoiceId,
+  name: voice.name,
+  previewUrl: null,
+  description: voice.description,
+  isFallback: true,
+  provider: "elevenlabs",
+}));
 
 type SharedVoicesGridSnapshot = {
-  selectedVoice: string;
-  voices: string[];
+  selectedVoiceId: string | null;
+  voices: SharedVoiceOption[];
 };
 
 let sharedVoicesGridSnapshot: SharedVoicesGridSnapshot = {
-  selectedVoice: "Harbor",
+  selectedVoiceId: initialSharedVoices[0]?.id ?? null,
   voices: [...initialSharedVoices],
 };
 
@@ -39,9 +47,11 @@ const updateSnapshot = (nextSnapshot: SharedVoicesGridSnapshot) => {
   emitChange();
 };
 
+const normalizeVoiceName = (value: string): string => value.trim().replace(/\s+/g, " ");
+
 export const resetSharedVoicesGridStore = () => {
   updateSnapshot({
-    selectedVoice: "Harbor",
+    selectedVoiceId: initialSharedVoices[0]?.id ?? null,
     voices: [...initialSharedVoices],
   });
 };
@@ -49,33 +59,57 @@ export const resetSharedVoicesGridStore = () => {
 export const useSharedVoicesGrid = () => {
   const snapshot = React.useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
 
-  const setSelectedVoice = React.useCallback((voice: string) => {
+  const setSelectedVoice = React.useCallback((voiceId: string) => {
     updateSnapshot({
       ...sharedVoicesGridSnapshot,
-      selectedVoice: voice,
+      selectedVoiceId: voiceId,
     });
   }, []);
 
-  const saveVoice = React.useCallback((voice: string) => {
-    const nextVoiceName = voice.trim();
-    if (!nextVoiceName) {
+  const replaceVoices = React.useCallback((voices: SharedVoiceOption[]) => {
+    const nextVoices = voices.length > 0 ? voices : [...initialSharedVoices];
+    const hasCurrentSelection = nextVoices.some(
+      (voice) => voice.id === sharedVoicesGridSnapshot.selectedVoiceId
+    );
+    updateSnapshot({
+      selectedVoiceId: hasCurrentSelection
+        ? sharedVoicesGridSnapshot.selectedVoiceId
+        : (nextVoices[0]?.id ?? null),
+      voices: nextVoices,
+    });
+  }, []);
+
+  const upsertVoice = React.useCallback((voice: SharedVoiceOption) => {
+    const nextVoiceName = normalizeVoiceName(voice.name);
+    const nextVoiceId = voice.id.trim();
+    if (!nextVoiceName || !nextVoiceId) {
       return;
     }
 
+    const nextVoice: SharedVoiceOption = {
+      ...voice,
+      id: nextVoiceId,
+      name: nextVoiceName,
+    };
     const dedupedVoices = sharedVoicesGridSnapshot.voices.filter(
-      (currentVoice) => currentVoice !== nextVoiceName
+      (currentVoice) => currentVoice.id !== nextVoice.id
     );
 
     updateSnapshot({
-      selectedVoice: nextVoiceName,
-      voices: [nextVoiceName, ...dedupedVoices],
+      selectedVoiceId: nextVoice.id,
+      voices: [nextVoice, ...dedupedVoices],
     });
   }, []);
 
+  const selectedVoice =
+    snapshot.voices.find((voice) => voice.id === snapshot.selectedVoiceId) ?? null;
+
   return {
-    selectedVoice: snapshot.selectedVoice,
+    selectedVoice,
+    selectedVoiceId: snapshot.selectedVoiceId,
     setSelectedVoice,
     voices: snapshot.voices,
-    saveVoice,
+    replaceVoices,
+    upsertVoice,
   };
 };

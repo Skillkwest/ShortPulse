@@ -5,6 +5,10 @@
 import type { NextApiRequest } from "next";
 import formidable from "formidable";
 import fs from "fs";
+import {
+  MEDIA_STORAGE_LIMIT_EXCEEDED_MESSAGE,
+  isMediaStorageQuotaExceededError,
+} from "../mediaStorageQuota";
 import { assertUserScopedMediaStoragePath } from "../mediaStoragePath";
 import { resolveMediaSigningStoragePaths } from "../mediaPreviewPath";
 import { withCanonicalImageDimensions } from "../mediaDimensionMetadata";
@@ -535,6 +539,7 @@ export const uploadMediaForUser = async ({
   userId: string;
 }): Promise<MediaUploadResponseFile> => {
   let parsedUpload: ParsedUpload | null = null;
+  let storagePathForCleanup: string | null = null;
 
   try {
     const uploaded = await uploadStorageAssetForUser({
@@ -543,6 +548,7 @@ export const uploadMediaForUser = async ({
     });
     parsedUpload = uploaded.parsedUpload;
     const storagePath = uploaded.storagePath;
+    storagePathForCleanup = storagePath;
     const imageDimensions = destinationExpectsVideo(parsedUpload.destinationTab)
       ? null
       : extractImageDimensionsFromBuffer(parsedUpload.buffer);
@@ -567,6 +573,20 @@ export const uploadMediaForUser = async ({
       .single();
 
     if (insertError || !insertedRow) {
+      if (storagePathForCleanup) {
+        try {
+          await supabaseAdmin.storage.from(MEDIA_BUCKET).remove([storagePathForCleanup]);
+        } catch {
+          // best-effort orphan cleanup
+        }
+      }
+      if (isMediaStorageQuotaExceededError(insertError)) {
+        throw new MediaUploadServiceError(
+          409,
+          MEDIA_STORAGE_LIMIT_EXCEEDED_MESSAGE,
+          "Delete media, upgrade your plan, or add recurring storage before uploading more files."
+        );
+      }
       throw new MediaUploadServiceError(
         500,
         "Failed to persist media record",
@@ -606,6 +626,15 @@ export const uploadMediaForUser = async ({
       created_at: normalizedRow.created_at,
       signedUrl,
     };
+  } catch (error) {
+    if (storagePathForCleanup && isMediaStorageQuotaExceededError(error)) {
+      throw new MediaUploadServiceError(
+        409,
+        MEDIA_STORAGE_LIMIT_EXCEEDED_MESSAGE,
+        "Delete media, upgrade your plan, or add recurring storage before uploading more files."
+      );
+    }
+    throw error;
   } finally {
     if (parsedUpload?.tempFilePath) {
       try {

@@ -13,10 +13,12 @@ describe("SoundEffectsPropertiesPanel", () => {
 
     expect(screen.getByRole("heading", { name: "Sound Effects" })).toBeInTheDocument();
     expect(screen.getByLabelText("Available sound effects")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "+ Create New Sound Effect" })).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: /cathedral boom sound effect/i })
-    ).toBeInTheDocument();
+      screen.queryByRole("button", { name: "+ Create New Sound Effect" })
+    ).not.toBeInTheDocument();
+    expect(screen.getByText("No sound effects yet")).toBeInTheDocument();
+    expect(screen.getByText("Generated sound effects will appear here.")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /sound effect/i })).not.toBeInTheDocument();
     expect(
       screen.getByRole("separator", {
         name: "Resize available sound effects and prompt sections",
@@ -27,85 +29,63 @@ describe("SoundEffectsPropertiesPanel", () => {
       "Describe the sound effect you want to generate with detail, texture, space, and motion."
     );
     expect(screen.getByText("Generation settings")).toBeInTheDocument();
-    expect(screen.getByRole("spinbutton", { name: "Duration in seconds" })).toHaveValue(null);
+    expect(
+      screen.queryByRole("spinbutton", { name: "Duration in seconds" })
+    ).not.toBeInTheDocument();
     expect(screen.getByRole("switch", { name: "Loop sound effect" })).toHaveAttribute(
       "aria-checked",
       "false"
     );
-    expect(screen.getByRole("slider", { name: "Prompt influence" })).toHaveValue("30");
+    expect(screen.queryByRole("slider", { name: "Prompt influence" })).not.toBeInTheDocument();
     expect(screen.getByRole("combobox", { name: "Sound effect output format" })).toHaveValue(
       "mp3_44100_128"
     );
+    expect(
+      screen.queryByText("Leave blank for auto duration. Manual duration supports 0.5s to 30s.")
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByText("Generates a repeatable effect bed when enabled.")
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByText("Higher values push the result closer to the written prompt.")
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByText("WAV export stays available for non-looping effects only.")
+    ).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Generate" })).toBeDisabled();
     expect(screen.getByText("0 / 450")).toBeInTheDocument();
     expect(screen.getByText("100")).toBeInTheDocument();
   });
 
-  it("loads a library card into the prompt composer and settings rail", () => {
-    render(<SoundEffectsPropertiesPanel />);
-
-    fireEvent.click(screen.getByRole("button", { name: /neon alarm loop sound effect/i }));
-
-    expect(screen.getByRole("textbox", { name: "Sound effect prompt" })).toHaveValue(
-      "Seamless futuristic alarm pulse with a neon synth bite, short metallic tick, and a steady loop-friendly rhythm."
-    );
-    expect(screen.getByRole("spinbutton", { name: "Duration in seconds" })).toHaveValue(2.5);
-    expect(screen.getByRole("switch", { name: "Loop sound effect" })).toHaveAttribute(
-      "aria-checked",
-      "true"
-    );
-    expect(screen.getByRole("slider", { name: "Prompt influence" })).toHaveValue("54");
-    expect(screen.getByRole("combobox", { name: "Sound effect output format" })).toHaveValue(
-      "mp3_44100_128"
-    );
-    expect(screen.getByRole("button", { name: "Generate" })).toBeEnabled();
-    expect(screen.getByText("50")).toBeInTheDocument();
-  });
-
-  it("clears the prompt and resets settings when creating a new sound effect", () => {
-    render(<SoundEffectsPropertiesPanel />);
-
-    fireEvent.click(screen.getByRole("button", { name: /cathedral boom sound effect/i }));
-    fireEvent.click(screen.getByRole("button", { name: "+ Create New Sound Effect" }));
+  it("keeps the composer empty by default", () => {
+    render(<SoundEffectsPropertiesPanel onGenerate={vi.fn()} />);
 
     expect(screen.getByRole("textbox", { name: "Sound effect prompt" })).toHaveValue("");
-    expect(screen.getByRole("spinbutton", { name: "Duration in seconds" })).toHaveValue(null);
     expect(screen.getByRole("switch", { name: "Loop sound effect" })).toHaveAttribute(
       "aria-checked",
       "false"
     );
-    expect(screen.getByRole("slider", { name: "Prompt influence" })).toHaveValue("30");
     expect(screen.getByRole("combobox", { name: "Sound effect output format" })).toHaveValue(
       "mp3_44100_128"
     );
     expect(screen.getByRole("button", { name: "Generate" })).toBeDisabled();
+    expect(screen.getByText("100")).toBeInTheDocument();
   });
 
-  it("forces looping exports back to mp3 when wav is selected", () => {
-    render(<SoundEffectsPropertiesPanel />);
+  it("submits manual prompt settings without placeholder cards", () => {
+    render(<SoundEffectsPropertiesPanel onGenerate={vi.fn()} />);
 
+    const promptField = screen.getByRole("textbox", { name: "Sound effect prompt" });
     const outputFormat = screen.getByRole("combobox", { name: "Sound effect output format" });
-    fireEvent.change(outputFormat, { target: { value: "wav_48000" } });
-    expect(outputFormat).toHaveValue("wav_48000");
 
-    fireEvent.click(screen.getByRole("switch", { name: "Loop sound effect" }));
+    fireEvent.change(promptField, {
+      target: { value: "Short vinyl crackle burst with a dusty hi-fi tail." },
+    });
+    fireEvent.change(outputFormat, { target: { value: "pcm_48000" } });
 
-    expect(screen.getByRole("switch", { name: "Loop sound effect" })).toHaveAttribute(
-      "aria-checked",
-      "true"
-    );
-    expect(outputFormat).toHaveValue("mp3_44100_128");
-    expect(screen.getByRole("option", { name: "WAV (48kHz)" })).toBeDisabled();
-  });
-
-  it("updates the prompt influence readout locally", () => {
-    render(<SoundEffectsPropertiesPanel />);
-
-    const promptInfluenceSlider = screen.getByRole("slider", { name: "Prompt influence" });
-    fireEvent.change(promptInfluenceSlider, { target: { value: "62" } });
-
-    expect(promptInfluenceSlider).toHaveValue("62");
-    expect(screen.getByText("0.62")).toBeInTheDocument();
+    expect(promptField).toHaveValue("Short vinyl crackle burst with a dusty hi-fi tail.");
+    expect(outputFormat).toHaveValue("pcm_48000");
+    expect(screen.getByRole("button", { name: "Generate" })).toBeEnabled();
   });
 
   it("starts with the prompt section at its minimum default height", () => {
@@ -130,7 +110,7 @@ describe("SoundEffectsPropertiesPanel", () => {
       screen.getByRole("separator", {
         name: "Resize available sound effects and prompt sections",
       })
-    ).toHaveAttribute("aria-valuenow", "73");
+    ).toHaveAttribute("aria-valuenow", "71");
 
     rectSpy.mockRestore();
   });
@@ -200,11 +180,34 @@ describe("SoundEffectsPropertiesPanel", () => {
 
     fireEvent.keyDown(divider, { key: "Home" });
 
-    expect(
-      screen.queryByRole("button", { name: "+ Create New Sound Effect" })
-    ).not.toBeInTheDocument();
-    expect(
-      screen.queryByRole("button", { name: /cathedral boom sound effect/i })
-    ).not.toBeInTheDocument();
+    expect(screen.queryByText("No sound effects yet")).not.toBeInTheDocument();
+  });
+
+  it("submits the mapped request payload when generate is clicked", () => {
+    const onGenerate = vi.fn();
+    render(<SoundEffectsPropertiesPanel onGenerate={onGenerate} />);
+
+    fireEvent.change(screen.getByRole("textbox", { name: "Sound effect prompt" }), {
+      target: { value: "Huge cinematic boom inside a vaulted cathedral, with a deep sub hit." },
+    });
+    fireEvent.change(screen.getByRole("combobox", { name: "Sound effect output format" }), {
+      target: { value: "pcm_48000" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Generate" }));
+
+    expect(onGenerate).toHaveBeenCalledWith({
+      text: "Huge cinematic boom inside a vaulted cathedral, with a deep sub hit.",
+      durationSeconds: null,
+      loop: false,
+      outputFormat: "pcm_48000",
+      modelId: "eleven_text_to_sound_v2",
+    });
+  });
+
+  it("shows the loading label while generation is running", () => {
+    render(<SoundEffectsPropertiesPanel isGenerating onGenerate={vi.fn()} />);
+
+    expect(screen.getByRole("button", { name: "Generate" })).toBeDisabled();
+    expect(screen.getByText("Generating…")).toBeInTheDocument();
   });
 });

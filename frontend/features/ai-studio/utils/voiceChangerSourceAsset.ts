@@ -1,8 +1,12 @@
+/**
+ * Voice changer source staging helpers.
+ * Moves local intake onto authenticated server staging, signs stored paths, and extracts audio from trusted video sources.
+ */
 import { fetchWithAuth } from "../../../lib/authenticatedFetch";
 import { getSignedMediaUrl } from "../../../lib/mediaSignedUrlCache";
-import { assertUserScopedMediaStoragePath } from "../../../lib/mediaStoragePath";
-import { ensureSupabaseQueryClient, readSupabaseUserId } from "../../../lib/supabaseClient";
 import { BUCKET } from "../../media-library/logic/mediaLibraryPageHelpers";
+
+const VOICE_CHANGER_SOURCE_AUTH_TIMEOUT_MS = 8000;
 
 const decodeBase64Url = (value: string): string => {
   const normalized = value.replace(/-/g, "+").replace(/_/g, "/");
@@ -27,16 +31,6 @@ const decodeJwtPayload = (token: string): Record<string, unknown> | null => {
   } catch {
     return null;
   }
-};
-
-const sanitizeFileStem = (value: string): string => {
-  return (
-    value
-      .trim()
-      .replace(/\.[^.]+$/, "")
-      .replace(/[^\w.-]+/g, "_")
-      .replace(/^_+|_+$/g, "") || "voice_changer_source"
-  );
 };
 
 const inferExtensionFromMimeType = (mimeType: string, fallback: "audio" | "video"): string => {
@@ -119,42 +113,59 @@ export const uploadVoiceChangerSourceFile = async ({
   kind: "audio" | "video";
 }): Promise<{
   storagePath: string;
-  signedUrl: string;
+  signedUrl: string | null;
   mimeType: string;
   name: string;
   size: number;
 }> => {
-  const userId = await readSupabaseUserId();
-  if (!userId) {
-    throw new Error("You must be signed in to stage a voice changer source.");
-  }
-
   const mimeType = file.type.trim() || (kind === "audio" ? "audio/wav" : "video/mp4");
-  const extension = file.name.includes(".")
-    ? file.name.split(".").pop()?.trim().toLowerCase() || inferExtensionFromMimeType(mimeType, kind)
-    : inferExtensionFromMimeType(mimeType, kind);
-  const storedName = `${crypto.randomUUID()}-${sanitizeFileStem(file.name)}.${extension}`;
-  const storagePath = assertUserScopedMediaStoragePath({
-    path: `${userId}/voice-changer/source-${kind}/${storedName}`,
-    userId,
-    label: "Voice changer source storage path",
+  const response = await fetchWithAuth("/api/media/stage-voice-changer-source", {
+    method: "POST",
+    headers: {
+      "Content-Type": mimeType,
+      "x-shortpulse-upload-filename":
+        file.name.trim() || `voice-changer-source.${inferExtensionFromMimeType(mimeType, kind)}`,
+      "x-shortpulse-voice-changer-kind": kind,
+    },
+    body: file,
+    shortpulseLogScope: "generation",
+    shortpulseAuthTimeoutMs: VOICE_CHANGER_SOURCE_AUTH_TIMEOUT_MS,
   });
-
-  const supabase = ensureSupabaseQueryClient();
-  const { error } = await supabase.storage.from(BUCKET).upload(storagePath, file, {
-    upsert: false,
-    contentType: mimeType,
-  });
-  if (error) {
-    throw new Error(error.message || "Unable to store the voice changer source.");
+  const payload = (await response.json().catch(() => null)) as {
+    source?: {
+      storagePath?: unknown;
+      previewUrl?: unknown;
+      mimeType?: unknown;
+      name?: unknown;
+      size?: unknown;
+    };
+    error?: unknown;
+    details?: unknown;
+  } | null;
+  const storagePath =
+    typeof payload?.source?.storagePath === "string" ? payload.source.storagePath.trim() : "";
+  const previewUrl =
+    typeof payload?.source?.previewUrl === "string" ? payload.source.previewUrl.trim() : "";
+  const resolvedMimeType =
+    typeof payload?.source?.mimeType === "string" ? payload.source.mimeType.trim() : "";
+  const name = typeof payload?.source?.name === "string" ? payload.source.name.trim() : "";
+  const size = typeof payload?.source?.size === "number" ? payload.source.size : NaN;
+  if (!response.ok || !storagePath || !previewUrl || !resolvedMimeType || !name) {
+    const error =
+      typeof payload?.details === "string" && payload.details.trim()
+        ? payload.details.trim()
+        : typeof payload?.error === "string" && payload.error.trim()
+          ? payload.error.trim()
+          : "Unable to stage the voice changer source.";
+    throw new Error(error);
   }
 
   return {
     storagePath,
-    signedUrl: await signVoiceChangerStoragePath(storagePath),
-    mimeType,
-    name: file.name.trim() || storedName,
-    size: file.size,
+    signedUrl: previewUrl,
+    mimeType: resolvedMimeType,
+    name,
+    size: Number.isFinite(size) ? size : file.size,
   };
 };
 
@@ -229,4 +240,57 @@ export const extractVoiceChangerVideoSource = async ({
     name,
     size: Number.isFinite(size) ? size : 0,
   };
+};
+
+const gcd = (left: number, right: number): number => {
+  let a = Math.abs(Math.round(left));
+  let b = Math.abs(Math.round(right));
+  while (b > 0) {
+    const remainder = a % b;
+    a = b;
+    b = remainder;
+  }
+  return a || 1;
+};
+
+const toAspectToken = (width: number, height: number): string | null => {
+  if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) {
+    return null;
+  }
+  const divisor = gcd(width, height);
+  return `${Math.round(width) / divisor}:${Math.round(height) / divisor}`;
+};
+
+export const resolveVoiceChangerVideoAspect = async (
+  sourceUrl: string | null | undefined
+): Promise<string | null> => {
+  const normalized = typeof sourceUrl === "string" ? sourceUrl.trim() : "";
+  if (!normalized || typeof document === "undefined") return null;
+
+  const video = document.createElement("video");
+  video.preload = "metadata";
+  video.muted = true;
+  video.playsInline = true;
+  video.crossOrigin = "anonymous";
+
+  return await new Promise<string | null>((resolve) => {
+    let settled = false;
+    const finalize = (value: string | null) => {
+      if (settled) return;
+      settled = true;
+      video.removeEventListener("loadedmetadata", handleLoadedMetadata);
+      video.removeEventListener("error", handleFailure);
+      video.removeAttribute("src");
+      video.load();
+      resolve(value);
+    };
+
+    const handleFailure = () => finalize(null);
+    const handleLoadedMetadata = () =>
+      finalize(toAspectToken(video.videoWidth || 0, video.videoHeight || 0));
+
+    video.addEventListener("loadedmetadata", handleLoadedMetadata, { once: true });
+    video.addEventListener("error", handleFailure, { once: true });
+    video.src = normalized;
+  });
 };

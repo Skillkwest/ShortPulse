@@ -14,6 +14,13 @@ import { MediaLibraryModal } from "../features/ai-studio/components/MediaLibrary
 import { useEffectiveBeginnerModePreference } from "../features/ai-studio/hooks/useEffectiveBeginnerModePreference";
 import { useMediaAutosavePreference } from "../features/ai-studio/hooks/useMediaAutosavePreference";
 import { useExpertEditPresetPanelPreference } from "../features/ai-studio/hooks/useExpertEditPresetPanelPreference";
+import { useCreatePulsePresetPanelPreference } from "../features/ai-studio/hooks/useCreatePulsePresetPanelPreference";
+import {
+  isCreatePulseBuiltInPresetId,
+  isCreatePulsePresetId,
+  resolveCreatePulsePresetById,
+  type CreatePulsePresetId,
+} from "../features/ai-studio/components/create/createPulsePresets";
 import { useAiStudioMediaAutosaveOrchestrator } from "../features/ai-studio/hooks/useAiStudioMediaAutosaveOrchestrator";
 import {
   CHARACTER_LOADING_GENERATION_GUARDRAIL,
@@ -54,7 +61,12 @@ import { readAiStudioSessionPersistencePolicy } from "../features/ai-studio/logi
 import { resolveAiStudioSessionSnapshotTitle } from "../features/ai-studio/logic/sessionSnapshotTitle";
 import { AiStudioModalActivityProvider } from "../features/ai-studio/components/modal-layer/AiStudioModalLayer";
 import { isEditWorkflow } from "../features/ai-studio/logic/workflowIdentity";
+import type { AgentContext } from "../prefabs/agent";
+import type { MusicGenerateRequest } from "../features/ai-studio/components/MusicPropertiesPanel";
+import type { SoundEffectsGenerateRequest } from "../features/ai-studio/components/SoundEffectsPropertiesPanel";
+import type { VoicesGenerateRequest } from "../features/ai-studio/components/VoicesPropertiesPanel";
 import type { StudioOutput, ToolId } from "../features/ai-studio/types";
+import { fetchWithAuth } from "../lib/authenticatedFetch";
 import {
   PERF_FLAG_AUDIT_RUNTIME,
   PERF_FLAG_OUTPUT_SELECTOR_STORE,
@@ -74,11 +86,88 @@ const { restoreRemoteEnabled: AI_STUDIO_REMOTE_SESSION_FETCH_ENABLED } =
 
 type OptimisticDebitEntry = { credits: number; outputId: string | null; createdAtMs?: number };
 
+type VoicesGenerateSuccessResponse = {
+  output: {
+    provider: "elevenlabs";
+    mode: "audio";
+    generationId: string;
+    mediaFileId: string | null;
+    requestId: string;
+    previewUrl: string;
+    resultUrls: string[];
+    previewStoragePath: string;
+    fullStoragePath: string;
+    mimeType: string;
+    durationMs: number | null;
+    waveformPeaks: number[] | null;
+    modelId: string;
+    voiceId: string;
+    voiceName: string;
+  };
+};
+
+type SoundEffectsGenerateSuccessResponse = {
+  output: {
+    provider: "elevenlabs";
+    mode: "audio";
+    generationId: string;
+    mediaFileId: string | null;
+    requestId: string;
+    previewUrl: string;
+    resultUrls: string[];
+    previewStoragePath: string;
+    fullStoragePath: string;
+    mimeType: string;
+    durationMs: number | null;
+    waveformPeaks: number[] | null;
+    modelId: string;
+    characterCost: number | null;
+  };
+};
+
+type MusicGenerateSuccessResponse = {
+  output: {
+    provider: "elevenlabs";
+    mode: "audio";
+    generationId: string;
+    mediaFileId: string | null;
+    requestId: string;
+    previewUrl: string;
+    resultUrls: string[];
+    previewStoragePath: string;
+    fullStoragePath: string;
+    mimeType: string;
+    durationMs: number | null;
+    waveformPeaks: number[] | null;
+    modelId: string;
+  };
+};
+
+type AudioGenerateErrorResponse = {
+  error?: string;
+  details?: string;
+};
+
 const normalizeAiStudioProjectName = (value: string | null | undefined): string | null => {
   if (typeof value !== "string") return null;
   const normalized = value.replace(/\s+/g, " ").trim();
   return normalized ? normalized.slice(0, 120) : null;
 };
+
+const buildVoicesOutputPrompt = (request: VoicesGenerateRequest): string =>
+  request.mode === "voiceover" ? request.script : `${request.source.name} -> ${request.voice.name}`;
+
+const buildVoicesOutputModelLabel = (request: VoicesGenerateRequest): string =>
+  request.mode === "voiceover" ? "ElevenLabs Voiceover" : "ElevenLabs Voice Changer";
+
+const buildMusicOutputModelLabel = (): string => "ElevenLabs Music";
+const buildSoundEffectsOutputModelLabel = (): string => "ElevenLabs Sound Effects";
+
+const resolveAudioGenerateErrorMessage = (payload: AudioGenerateErrorResponse | null): string =>
+  payload?.error?.trim() || payload?.details?.trim() || "Audio generation failed.";
+
+const toSavedMediaIds = (mediaFileId: string | null | undefined): string[] =>
+  typeof mediaFileId === "string" && mediaFileId.trim().length > 0 ? [mediaFileId] : [];
 
 export default function AiStudioPage() {
   const { sessionId } = useAiStudioSessionIdentity();
@@ -94,12 +183,24 @@ export default function AiStudioPage() {
     setPresetPanelIds: setSelectedExpertEditPresetIds,
     setCustomPresetOverrides: setExpertEditCustomPresetOverrides,
   } = useExpertEditPresetPanelPreference();
+  const {
+    presetPanelIds: selectedCreatePulsePresetIds,
+    savedPresets: savedCreatePulsePresets,
+    setPresetPanelIds: setSelectedCreatePulsePresetIds,
+    setSavedPresets: setSavedCreatePulsePresets,
+  } = useCreatePulsePresetPanelPreference();
   const { balanceCents, balanceReservedCents, balanceLoading, refreshBalance } = useCredits();
   const balanceCredits = useMemo(() => {
     if (balanceCents == null) return null;
     return Math.max(0, Math.floor(balanceCents)); // cents == credits
   }, [balanceCents]);
   const [optimisticDebitEntries, setOptimisticDebitEntries] = useState<OptimisticDebitEntry[]>([]);
+  const [musicIsGenerating, setMusicIsGenerating] = useState(false);
+  const [voicesIsGenerating, setVoicesIsGenerating] = useState(false);
+  const [soundEffectsIsGenerating, setSoundEffectsIsGenerating] = useState(false);
+  const [expertCreateMode, setExpertCreateMode] = useState<"standard" | "pulse">("standard");
+  const [activeCreatePulsePresetId, setActiveCreatePulsePresetId] =
+    useState<CreatePulsePresetId | null>(null);
   const [isCreateCharacterBundleLoading, setIsCreateCharacterBundleLoading] = useState(false);
   const [isEditCharacterBundleLoading, setIsEditCharacterBundleLoading] = useState(false);
   const [isCreateCharacterModeEnabled, setIsCreateCharacterModeEnabled] = useState(false);
@@ -121,6 +222,16 @@ export default function AiStudioPage() {
     useState<CharacterModeInjectionBundle | null>(null);
   const sessionTitleOverride =
     sessionTitleOverrideState?.sessionId === sessionId ? sessionTitleOverrideState.title : null;
+
+  useEffect(() => {
+    if (!activeCreatePulsePresetId) return;
+    const isActivePulseStillAvailable =
+      selectedCreatePulsePresetIds.includes(activeCreatePulsePresetId) &&
+      isCreatePulsePresetId(activeCreatePulsePresetId, savedCreatePulsePresets);
+    if (!isActivePulseStillAvailable) {
+      setActiveCreatePulsePresetId(null);
+    }
+  }, [activeCreatePulsePresetId, savedCreatePulsePresets, selectedCreatePulsePresetIds]);
 
   // Character workflow state (shared with Character tool workflows and error surfaces)
   const {
@@ -230,6 +341,8 @@ export default function AiStudioPage() {
     rerollOutputFromReplay,
     insertOptimisticGenerationPlaceholder,
     removeOptimisticGenerationPlaceholder,
+    updateOutputById,
+    notifyGenerationFailure,
     ensureOutputPersisted,
     saveReferenceToLibrary,
     savePromptReference,
@@ -267,7 +380,54 @@ export default function AiStudioPage() {
     isCharacterModeEnabled: isCreateCharacterModeEnabled,
     selectedStylePrompt,
     selectedStyleContext,
+    expertCreateMode,
+    activePulsePresetId: activeCreatePulsePresetId,
+    setExpertCreateMode,
+    setActivePulsePresetId: setActiveCreatePulsePresetId,
   });
+
+  const getPulseAwareAgentContext = useCallback(
+    (params: {
+      lastAssistantMessage: string | null;
+      selectedOverride?: StudioOutput | null;
+      modeHint?: "chat" | "text" | "describe" | "reference";
+    }): AgentContext => {
+      const baseContext = getAgentContext(params);
+      if (selectedTool !== "create" || expertCreateMode !== "pulse" || !activeCreatePulsePresetId) {
+        return baseContext;
+      }
+      const resolvedPulsePreset = resolveCreatePulsePresetById(
+        activeCreatePulsePresetId,
+        savedCreatePulsePresets
+      );
+      const instructions = resolvedPulsePreset?.systemInstructions?.trim() ?? "";
+      if (!resolvedPulsePreset || !instructions) return baseContext;
+      return {
+        ...baseContext,
+        pulse: {
+          presetId: activeCreatePulsePresetId,
+          label: resolvedPulsePreset.label,
+          description: resolvedPulsePreset.description,
+          instructions,
+          runtimeMode: resolvedPulsePreset.runtimeMode,
+          activationMode: resolvedPulsePreset.activationMode,
+          starterAssistantMessage: resolvedPulsePreset.starterAssistantMessage,
+          outputMode: resolvedPulsePreset.outputMode,
+          memoryPolicy: resolvedPulsePreset.memoryPolicy,
+          source: isCreatePulseBuiltInPresetId(activeCreatePulsePresetId)
+            ? ("builtin" as const)
+            : ("custom" as const),
+        },
+      };
+    },
+    [
+      activeCreatePulsePresetId,
+      expertCreateMode,
+      getAgentContext,
+      savedCreatePulsePresets,
+      selectedTool,
+    ]
+  );
 
   const handleQuickSlotLibraryMediaDrop = useCallback(
     async (
@@ -518,6 +678,7 @@ export default function AiStudioPage() {
     describeInFlightCount,
     handleAgentInputChange,
     handleAgentSend,
+    handlePulsePresetStart,
     handleAgentEnhanceSend,
     handleAgentAttachmentDragOver,
     handleAgentAttachmentDragEnter,
@@ -538,7 +699,7 @@ export default function AiStudioPage() {
     selectedTool,
     prompt,
     setSharedPrompt,
-    getAgentContext,
+    getAgentContext: getPulseAwareAgentContext,
     addAgentPromptReference,
     editReferenceText,
     setEditReferenceText,
@@ -853,6 +1014,7 @@ export default function AiStudioPage() {
     handleAgentInputChange,
     setChatModeEnabled,
     handleAgentSend,
+    onCreatePulsePresetStart: handlePulsePresetStart,
     handleAgentEnhanceSend,
     handleAgentAttachmentDrop,
     handleAgentAttachmentDragOver,
@@ -907,6 +1069,14 @@ export default function AiStudioPage() {
     onSelectedExpertEditPresetIdsChange: setSelectedExpertEditPresetIds,
     expertEditCustomPresetOverrides,
     onExpertEditCustomPresetOverridesChange: setExpertEditCustomPresetOverrides,
+    selectedCreatePulsePresetIds,
+    onSelectedCreatePulsePresetIdsChange: setSelectedCreatePulsePresetIds,
+    savedCreatePulsePresets,
+    onSavedCreatePulsePresetsChange: setSavedCreatePulsePresets,
+    expertCreateMode,
+    onExpertCreateModeChange: setExpertCreateMode,
+    activeCreatePulsePresetId,
+    onActiveCreatePulsePresetIdChange: setActiveCreatePulsePresetId,
     expertEditSessionState,
     onExpertEditSessionStateChange: setExpertEditSessionState,
     videoDurationSeconds,
@@ -1062,6 +1232,293 @@ export default function AiStudioPage() {
     setSelectedToolWithEditIntentReset("media-library");
   }, [handleCloseMediaLibrary, setSelectedToolWithEditIntentReset, setShowCreateTools]);
 
+  const handleVoicesGenerate = useCallback(
+    async (request: VoicesGenerateRequest) => {
+      const promptText = buildVoicesOutputPrompt(request).trim();
+      if (!promptText) return;
+
+      setUiError(null);
+      setVoicesIsGenerating(true);
+
+      const optimisticOutputId = insertOptimisticGenerationPlaceholder({
+        prompt: promptText,
+        modeOverride: "audio",
+        selectedToolOverride: request.mode === "voiceover" ? "text-to-speech" : "voice-changer",
+      });
+
+      if (!optimisticOutputId) {
+        setVoicesIsGenerating(false);
+        return;
+      }
+
+      try {
+        const response =
+          request.mode === "voiceover"
+            ? await fetchWithAuth("/api/elevenlabs/text-to-speech", {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                  voiceId: request.voice.id,
+                  voiceName: request.voice.name,
+                  text: request.script,
+                  outputFormat: request.outputFormat,
+                  config: request.config,
+                }),
+                shortpulseLogScope: "generation",
+              })
+            : await (async () => {
+                const formData = new FormData();
+                formData.append("voiceId", request.voice.id);
+                formData.append("voiceName", request.voice.name);
+                formData.append("outputFormat", request.outputFormat);
+                formData.append("modelId", request.modelId);
+                formData.append("inputFormat", request.inputFormat);
+                formData.append(
+                  "removeBackgroundNoise",
+                  request.removeBackgroundNoise ? "true" : "false"
+                );
+                formData.append("voiceSettings", JSON.stringify(request.voiceSettings));
+                formData.append("sourceName", request.source.name);
+                formData.append("sourceOrigin", request.source.origin);
+                if (request.source.storagePath) {
+                  formData.append("sourceStoragePath", request.source.storagePath);
+                } else if (request.source.file) {
+                  formData.append("file", request.source.file, request.source.file.name);
+                } else if (request.source.sourceUrl) {
+                  formData.append("sourceUrl", request.source.sourceUrl);
+                }
+                return await fetchWithAuth("/api/elevenlabs/speech-to-speech", {
+                  method: "POST",
+                  body: formData,
+                  shortpulseLogScope: "generation",
+                });
+              })();
+
+        const payload = (await response.json().catch(() => null)) as
+          | VoicesGenerateSuccessResponse
+          | AudioGenerateErrorResponse
+          | null;
+
+        if (!response.ok || !payload || !("output" in payload)) {
+          const errorPayload = payload as AudioGenerateErrorResponse | null;
+          const message = resolveAudioGenerateErrorMessage(errorPayload);
+          notifyGenerationFailure(optimisticOutputId, message, errorPayload?.details ?? message);
+          setUiError(message);
+          return;
+        }
+
+        const savedMediaIds = toSavedMediaIds(payload.output.mediaFileId);
+
+        updateOutputById(optimisticOutputId, (item) => ({
+          ...item,
+          mode: "audio",
+          prompt: promptText,
+          model: buildVoicesOutputModelLabel(request),
+          modelId: payload.output.modelId,
+          provider: payload.output.provider,
+          generationId: payload.output.generationId,
+          savedMediaIds,
+          sourceRef: payload.output.requestId,
+          status: "ready",
+          timestamp: "Just now",
+          taskState: "success",
+          resultUrls: payload.output.resultUrls,
+          previewUrl: payload.output.previewUrl,
+          previewStoragePath: payload.output.previewStoragePath,
+          fullStoragePath: payload.output.fullStoragePath,
+          previewTier: "full",
+          mimeType: payload.output.mimeType,
+          durationMs: payload.output.durationMs,
+          waveformPeaks: payload.output.waveformPeaks,
+          mediaSource: "generated",
+          localObjectUrl: null,
+          saveState: savedMediaIds.length > 0 ? "saved" : "idle",
+          saveError: null,
+          errorMessage: null,
+          errorMessageShort: null,
+          errorDetail: null,
+        }));
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "Voice generation failed.";
+        notifyGenerationFailure(optimisticOutputId, message, message);
+        setUiError(message);
+      } finally {
+        setVoicesIsGenerating(false);
+      }
+    },
+    [insertOptimisticGenerationPlaceholder, notifyGenerationFailure, setUiError, updateOutputById]
+  );
+
+  const handleMusicGenerate = useCallback(
+    async (request: MusicGenerateRequest) => {
+      const promptText = request.text.trim();
+      if (!promptText) return;
+
+      setUiError(null);
+      setMusicIsGenerating(true);
+
+      const optimisticOutputId = insertOptimisticGenerationPlaceholder({
+        prompt: promptText,
+        modeOverride: "audio",
+        selectedToolOverride: "music",
+      });
+
+      if (!optimisticOutputId) {
+        setMusicIsGenerating(false);
+        return;
+      }
+
+      try {
+        const response = await fetchWithAuth("/api/elevenlabs/music", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(request),
+          shortpulseLogScope: "generation",
+        });
+
+        const payload = (await response.json().catch(() => null)) as
+          | MusicGenerateSuccessResponse
+          | AudioGenerateErrorResponse
+          | null;
+
+        if (!response.ok || !payload || !("output" in payload)) {
+          const errorPayload = payload as AudioGenerateErrorResponse | null;
+          const message = resolveAudioGenerateErrorMessage(errorPayload);
+          notifyGenerationFailure(optimisticOutputId, message, errorPayload?.details ?? message);
+          setUiError(message);
+          return;
+        }
+
+        const savedMediaIds = toSavedMediaIds(payload.output.mediaFileId);
+
+        updateOutputById(optimisticOutputId, (item) => ({
+          ...item,
+          mode: "audio",
+          prompt: promptText,
+          model: buildMusicOutputModelLabel(),
+          modelId: payload.output.modelId,
+          provider: payload.output.provider,
+          generationId: payload.output.generationId,
+          savedMediaIds,
+          sourceRef: payload.output.requestId,
+          status: "ready",
+          timestamp: "Just now",
+          taskState: "success",
+          resultUrls: payload.output.resultUrls,
+          previewUrl: payload.output.previewUrl,
+          previewStoragePath: payload.output.previewStoragePath,
+          fullStoragePath: payload.output.fullStoragePath,
+          previewTier: "full",
+          mimeType: payload.output.mimeType,
+          durationMs: payload.output.durationMs,
+          waveformPeaks: payload.output.waveformPeaks,
+          mediaSource: "generated",
+          localObjectUrl: null,
+          saveState: savedMediaIds.length > 0 ? "saved" : "idle",
+          saveError: null,
+          errorMessage: null,
+          errorMessageShort: null,
+          errorDetail: null,
+        }));
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "Music generation failed.";
+        notifyGenerationFailure(optimisticOutputId, message, message);
+        setUiError(message);
+      } finally {
+        setMusicIsGenerating(false);
+      }
+    },
+    [insertOptimisticGenerationPlaceholder, notifyGenerationFailure, setUiError, updateOutputById]
+  );
+
+  const handleSoundEffectsGenerate = useCallback(
+    async (request: SoundEffectsGenerateRequest) => {
+      const promptText = request.text.trim();
+      if (!promptText) return;
+
+      setUiError(null);
+      setSoundEffectsIsGenerating(true);
+
+      const optimisticOutputId = insertOptimisticGenerationPlaceholder({
+        prompt: promptText,
+        modeOverride: "audio",
+        selectedToolOverride: "sound-effects",
+      });
+
+      if (!optimisticOutputId) {
+        setSoundEffectsIsGenerating(false);
+        return;
+      }
+
+      try {
+        const response = await fetchWithAuth("/api/elevenlabs/sound-effects", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(request),
+          shortpulseLogScope: "generation",
+        });
+
+        const payload = (await response.json().catch(() => null)) as
+          | SoundEffectsGenerateSuccessResponse
+          | AudioGenerateErrorResponse
+          | null;
+
+        if (!response.ok || !payload || !("output" in payload)) {
+          const errorPayload = payload as AudioGenerateErrorResponse | null;
+          const message = resolveAudioGenerateErrorMessage(errorPayload);
+          notifyGenerationFailure(optimisticOutputId, message, errorPayload?.details ?? message);
+          setUiError(message);
+          return;
+        }
+
+        const savedMediaIds = toSavedMediaIds(payload.output.mediaFileId);
+
+        updateOutputById(optimisticOutputId, (item) => ({
+          ...item,
+          mode: "audio",
+          prompt: promptText,
+          model: buildSoundEffectsOutputModelLabel(),
+          modelId: payload.output.modelId,
+          provider: payload.output.provider,
+          generationId: payload.output.generationId,
+          savedMediaIds,
+          sourceRef: payload.output.requestId,
+          status: "ready",
+          timestamp: "Just now",
+          taskState: "success",
+          resultUrls: payload.output.resultUrls,
+          previewUrl: payload.output.previewUrl,
+          previewStoragePath: payload.output.previewStoragePath,
+          fullStoragePath: payload.output.fullStoragePath,
+          previewTier: "full",
+          mimeType: payload.output.mimeType,
+          durationMs: payload.output.durationMs,
+          waveformPeaks: payload.output.waveformPeaks,
+          mediaSource: "generated",
+          localObjectUrl: null,
+          saveState: savedMediaIds.length > 0 ? "saved" : "idle",
+          saveError: null,
+          errorMessage: null,
+          errorMessageShort: null,
+          errorDetail: null,
+        }));
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "Sound effect generation failed.";
+        notifyGenerationFailure(optimisticOutputId, message, message);
+        setUiError(message);
+      } finally {
+        setSoundEffectsIsGenerating(false);
+      }
+    },
+    [insertOptimisticGenerationPlaceholder, notifyGenerationFailure, setUiError, updateOutputById]
+  );
+
   return (
     <AiStudioModalActivityProvider>
       <Head>
@@ -1102,6 +1559,18 @@ export default function AiStudioPage() {
         propertiesCreate={propertiesCreate}
         propertiesEditExpert={propertiesEditExpert}
         propertiesVideo={propertiesVideo}
+        propertiesMusic={{
+          isGenerating: musicIsGenerating,
+          onGenerate: handleMusicGenerate,
+        }}
+        propertiesSoundEffects={{
+          isGenerating: soundEffectsIsGenerating,
+          onGenerate: handleSoundEffectsGenerate,
+        }}
+        propertiesVoices={{
+          isGenerating: voicesIsGenerating,
+          onGenerate: handleVoicesGenerate,
+        }}
         refreshCharacterOptions={refreshCharacterOptions}
         resolveCharacterAvatarUrlById={resolveCharacterAvatarUrlById}
         isTemplateView={isTemplateView}

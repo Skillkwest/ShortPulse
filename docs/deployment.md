@@ -6,6 +6,14 @@ Purpose: provide a repeatable production deployment process for the Next.js + Su
 
 - Vercel (native support for Next.js pages router and API routes).
 
+## Bundled media runtime contract
+
+- Voice Changer video-to-audio extraction uses the vendored `ffmpeg-static` dependency inside
+  `frontend/`.
+- Do not rely on a host-provided `ffmpeg` binary or environment toggle for this lane.
+- Local development and Vercel deployments are expected to use the same packaged extraction
+  runtime after `frontend/npm install`.
+
 ## Canonical environment policy
 
 Use these names as the only canonical GitHub Environment identifiers in active release/CI governance docs:

@@ -3,14 +3,24 @@
  * Keeps the Voices workflow visually aligned with the TTS layout while remaining fully isolated.
  */
 import React from "react";
-import { Microphone } from "phosphor-react";
+import { Microphone, Trash } from "phosphor-react";
+import { fetchWithAuth } from "../../../lib/authenticatedFetch";
 import { useReferenceGridHorizontalSplit } from "../hooks/useReferenceGridHorizontalSplit";
-import { useSharedVoicesGrid } from "../hooks/useSharedVoicesGrid";
+import { useSharedVoicesGrid, type SharedVoiceOption } from "../hooks/useSharedVoicesGrid";
+import type { ToolId } from "../types";
+import { AiStudioModalLayer, useAiStudioModalActivity } from "./modal-layer/AiStudioModalLayer";
+import { CreateVoiceModal, type CreateVoiceModalPreview } from "./CreateVoiceModal";
 import {
   releaseVoiceChangerSource,
   VoiceChangerSourceDropzone,
   type VoiceChangerSource,
 } from "./VoiceChangerSourceDropzone";
+import {
+  extractVoiceChangerVideoSource,
+  resolveVoiceChangerSourceStoragePath,
+  signVoiceChangerStoragePath,
+  uploadVoiceChangerSourceFile,
+} from "../utils/voiceChangerSourceAsset";
 
 type VoicesSurfaceMode = "create" | "edit";
 type VoicesSliderTheme = "voiceover" | "voice-changer";
@@ -40,7 +50,7 @@ type VoiceoverSliderValues = {
 };
 
 type ElevenVoiceoverRequestConfig = {
-  model_id: "eleven_v3";
+  model_id: "eleven_multilingual_v2";
   language_code: null;
   voice_settings: {
     stability: number;
@@ -53,19 +63,22 @@ type ElevenVoiceoverRequestConfig = {
 const voiceDescriptionPlaceholder =
   "Describe the voice you want to create: tone, age, and delivery.";
 const voiceScriptPlaceholder = "Paste or write the script that will be spoken with this voice.";
+const createVoiceDefaultName = "";
 
 const maxVoicePromptCharacters = 1000;
+const minVoicePromptCharacters = 20;
 const maxVoiceScriptCharacters = 5000;
+const voiceLoadingSkeletonCount = 12;
 const voiceGenerateCost = 15;
 const splitModeTransitionDurationMs = 240;
 const minTopVoicesPaneHeightPx = 0;
 const minBottomComposePaneHeightPx = 480;
 const maxVoicePromptHeightPx = 264;
 const minVisibleVoicesPaneHeightPx = 76;
-const minBottomVoiceChangerPaneHeightPx = 560;
+const minBottomVoiceChangerPaneHeightPx = 520;
 const droppedImageUrlPattern = /^https?:\/\/\S+\.(?:png|jpe?g|gif|webp|svg)(?:\?.*)?$/i;
 const droppedVideoUrlPattern = /^https?:\/\/\S+\.(?:mp4|mov|webm|m4v)(?:\?.*)?$/i;
-export const hardcodedVoiceoverModelId = "eleven_v3";
+export const hardcodedVoiceoverModelId = "eleven_multilingual_v2";
 export const hardcodedVoiceoverLanguageCode = null;
 export const hardcodedVoiceoverStyleValue = 0 as const;
 
@@ -201,6 +214,94 @@ const isPromptTextDrag = (transfer: DataTransfer): boolean => {
 const buildSliderState = (sliders: readonly VoicesSliderDefinition[]): Record<string, number> =>
   Object.fromEntries(sliders.map((slider) => [slider.id, slider.defaultValue]));
 
+const buildVoiceDesignPreviewAudioSrc = (
+  audioBase64: string,
+  mediaType: string | null | undefined
+): string => `data:${mediaType?.trim() || "audio/mpeg"};base64,${audioBase64}`;
+
+const getVoiceChipDisplayName = (voiceName: string): string => {
+  const trimmedName = voiceName.trim();
+  if (!trimmedName) return "";
+  return trimmedName.split(/\s*(?::|[—–-])\s*/u, 1)[0] ?? trimmedName;
+};
+
+type VoicesListResponse = {
+  voices?: Array<{
+    voiceId?: string;
+    name?: string;
+    previewUrl?: string | null;
+    description?: string | null;
+    isFallback?: boolean;
+  }>;
+  source?: "api" | "fallback";
+  warning?: string;
+};
+
+type VoiceDesignPreview = {
+  generatedVoiceId: string;
+  audioBase64: string;
+  mediaType: string | null;
+  durationSecs: number | null;
+  language: string | null;
+};
+
+type VoiceDesignResponse = {
+  previews?: VoiceDesignPreview[];
+  previewText?: string | null;
+  modelId?: string;
+  error?: string;
+  details?: string;
+};
+
+type CreatedVoiceResponse = {
+  voice?: {
+    voiceId?: string;
+    name?: string;
+    previewUrl?: string | null;
+    description?: string | null;
+    isFallback?: boolean;
+  };
+  error?: string;
+  details?: string;
+};
+
+type DeleteVoiceResponse = {
+  status?: "ok";
+  voiceId?: string;
+  error?: string;
+  details?: string;
+};
+
+export type VoicesGenerateRequest =
+  | {
+      mode: "voiceover";
+      voice: SharedVoiceOption;
+      script: string;
+      outputFormat: string;
+      config: ElevenVoiceoverRequestConfig;
+    }
+  | {
+      mode: "voice-changer";
+      voice: SharedVoiceOption;
+      source: VoiceChangerSource;
+      outputFormat: string;
+      removeBackgroundNoise: boolean;
+      modelId: string;
+      voiceSettings: {
+        stability: number;
+        similarity_boost: number;
+        speed: number;
+        use_speaker_boost: boolean;
+      };
+      inputFormat: string;
+    };
+
+export type VoicesPropertiesPanelProps = {
+  selectedTool?: ToolId | null;
+  isGenerating?: boolean;
+  onGenerate?: (request: VoicesGenerateRequest) => Promise<void> | void;
+};
+
 function VoicesSlider({
   label,
   helper,
@@ -262,17 +363,43 @@ function VoicesSlider({
 /**
  * Renders the dedicated Voices workflow panel.
  */
-export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel() {
+export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
+  selectedTool = null,
+  isGenerating = false,
+  onGenerate,
+}: VoicesPropertiesPanelProps) {
   const {
     voices: libraryVoices,
     selectedVoice: selectedLibraryVoice,
     setSelectedVoice: setSelectedLibraryVoice,
-    saveVoice: saveSharedVoice,
+    replaceVoices,
+    upsertVoice: upsertSharedVoice,
   } = useSharedVoicesGrid();
-  const [surfaceMode, setSurfaceMode] = React.useState<VoicesSurfaceMode>("create");
+  const [surfaceMode, setSurfaceMode] = React.useState<VoicesSurfaceMode>(
+    selectedTool === "voice-changer" ? "edit" : "create"
+  );
   const [isCreatePanelOpen, setIsCreatePanelOpen] = React.useState(false);
-  const [voiceName, setVoiceName] = React.useState("Harbor Blueprint");
+  const [isVoicesLoading, setIsVoicesLoading] = React.useState(false);
+  const [voicesLoadError, setVoicesLoadError] = React.useState<string | null>(null);
+  const [voicesLoadNotice, setVoicesLoadNotice] = React.useState<string | null>(null);
+  const [voiceName, setVoiceName] = React.useState(createVoiceDefaultName);
   const [voicePrompt, setVoicePrompt] = React.useState("");
+  const [voiceDesignPreviews, setVoiceDesignPreviews] = React.useState<CreateVoiceModalPreview[]>(
+    []
+  );
+  const [selectedVoiceDesignPreviewId, setSelectedVoiceDesignPreviewId] = React.useState<
+    string | null
+  >(null);
+  const [playedVoiceDesignPreviewIds, setPlayedVoiceDesignPreviewIds] = React.useState<string[]>(
+    []
+  );
+  const [voiceDesignPreviewText, setVoiceDesignPreviewText] = React.useState<string | null>(null);
+  const [voiceDesignError, setVoiceDesignError] = React.useState<string | null>(null);
+  const [saveVoiceError, setSaveVoiceError] = React.useState<string | null>(null);
+  const [isDesigningVoice, setIsDesigningVoice] = React.useState(false);
+  const [isSavingDesignedVoice, setIsSavingDesignedVoice] = React.useState(false);
+  const [isDeletingSelectedVoice, setIsDeletingSelectedVoice] = React.useState(false);
+  const [activeDesignedPreviewId, setActiveDesignedPreviewId] = React.useState<string | null>(null);
   const [voiceScript, setVoiceScript] = React.useState("");
   const [voiceoverSliderValues, setVoiceoverSliderValues] = React.useState<Record<string, number>>(
     () => buildSliderState(voiceoverShapingSliders)
@@ -285,6 +412,7 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel()
     React.useState("mp3_44100_128");
   const [voiceChangerBackgroundCleanupEnabled, setVoiceChangerBackgroundCleanupEnabled] =
     React.useState(false);
+  const [activePreviewVoiceId, setActivePreviewVoiceId] = React.useState<string | null>(null);
   const [voiceChangerSource, setVoiceChangerSource] = React.useState<VoiceChangerSource | null>(
     null
   );
@@ -295,19 +423,47 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel()
   const voiceNameInputRef = React.useRef<HTMLInputElement | null>(null);
   const voicePromptRef = React.useRef<HTMLTextAreaElement | null>(null);
   const voiceScriptRef = React.useRef<HTMLTextAreaElement | null>(null);
+  const previewAudioRef = React.useRef<HTMLAudioElement | null>(null);
+  const previewAudioVoiceIdRef = React.useRef<string | null>(null);
+  const designedPreviewAudioRef = React.useRef<HTMLAudioElement | null>(null);
+  const designedPreviewAudioIdRef = React.useRef<string | null>(null);
   const previousVoiceScriptRef = React.useRef(voiceScript);
   const previousSurfaceModeRef = React.useRef(surfaceMode);
+  const previousVoiceChangerSourceRef = React.useRef<VoiceChangerSource | null>(null);
   const modeSwitchTimeoutRef = React.useRef<number | null>(null);
   const shouldFocusCreateControlsRef = React.useRef(false);
+  const voiceChangerSourceRequestIdRef = React.useRef(0);
+  const requiresProviderVoice = Boolean(onGenerate);
+  const isCreateVoiceModalOpen = isCreatePanelOpen && surfaceMode === "create";
+  const isSelectedVoiceProviderReady =
+    selectedLibraryVoice?.provider === "elevenlabs" && !selectedLibraryVoice?.isFallback;
+  const normalizedVoicePromptLength = voicePrompt.trim().length;
   const isGenerateEnabled =
-    selectedLibraryVoice.trim().length > 0 &&
-    (surfaceMode === "create" ? voiceScript.trim().length > 0 : voiceChangerSource !== null);
-  const isCreateVoiceEnabled = voiceName.trim().length > 0 && voicePrompt.trim().length > 0;
-  const isSaveVoiceEnabled = voiceName.trim().length > 0 && voicePrompt.trim().length > 0;
+    Boolean(selectedLibraryVoice?.id) &&
+    (!requiresProviderVoice || isSelectedVoiceProviderReady) &&
+    (surfaceMode === "create"
+      ? voiceScript.trim().length > 0
+      : voiceChangerSource?.status === "ready");
+  const isCreateVoiceEnabled =
+    voiceName.trim().length > 0 &&
+    normalizedVoicePromptLength >= minVoicePromptCharacters &&
+    !isDesigningVoice &&
+    !isSavingDesignedVoice;
+  const isSaveVoiceEnabled =
+    voiceName.trim().length > 0 &&
+    normalizedVoicePromptLength >= minVoicePromptCharacters &&
+    selectedVoiceDesignPreviewId !== null &&
+    !isDesigningVoice &&
+    !isSavingDesignedVoice;
   const activeSliderDefinitions =
     surfaceMode === "create" ? voiceoverShapingSliders : voiceChangerShapingSliders;
   const activeSliderValues =
     surfaceMode === "create" ? voiceoverSliderValues : voiceChangerSliderValues;
+  const canDeleteSelectedVoice =
+    selectedLibraryVoice?.provider === "elevenlabs" && !selectedLibraryVoice?.isFallback;
+  const selectedGenerateVoiceName = selectedLibraryVoice
+    ? getVoiceChipDisplayName(selectedLibraryVoice.name)
+    : "Select a voice";
   const activeSliderTheme: VoicesSliderTheme =
     surfaceMode === "create" ? "voiceover" : "voice-changer";
   const voiceoverSplit = useReferenceGridHorizontalSplit({
@@ -396,27 +552,289 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel()
   ]);
 
   React.useEffect(() => {
-    if (surfaceMode !== "create" || !isCreatePanelOpen || !shouldFocusCreateControlsRef.current) {
+    if (!isCreateVoiceModalOpen || !shouldFocusCreateControlsRef.current) {
       return;
     }
 
     voiceNameInputRef.current?.focus();
     shouldFocusCreateControlsRef.current = false;
-  }, [isCreatePanelOpen, surfaceMode]);
+  }, [isCreateVoiceModalOpen]);
+
+  const stopActiveDesignedPreview = React.useCallback(() => {
+    const activeAudio = designedPreviewAudioRef.current;
+    if (!activeAudio) {
+      designedPreviewAudioIdRef.current = null;
+      setActiveDesignedPreviewId(null);
+      return;
+    }
+    activeAudio.onplay = null;
+    activeAudio.onpause = null;
+    activeAudio.onended = null;
+    activeAudio.onerror = null;
+    activeAudio.pause();
+    activeAudio.currentTime = 0;
+    activeAudio.src = "";
+    designedPreviewAudioRef.current = null;
+    designedPreviewAudioIdRef.current = null;
+    setActiveDesignedPreviewId(null);
+  }, []);
+
+  const resetCreateVoiceModalState = React.useCallback(() => {
+    stopActiveDesignedPreview();
+    setVoiceName(createVoiceDefaultName);
+    setVoicePrompt("");
+    setVoiceDesignPreviews([]);
+    setSelectedVoiceDesignPreviewId(null);
+    setPlayedVoiceDesignPreviewIds([]);
+    setVoiceDesignPreviewText(null);
+    setVoiceDesignError(null);
+    setSaveVoiceError(null);
+    setIsDesigningVoice(false);
+    setIsSavingDesignedVoice(false);
+  }, [stopActiveDesignedPreview]);
+
+  const handleVoiceChangerSourceChange = React.useCallback(
+    (nextSource: VoiceChangerSource | null) => {
+      const requestId = voiceChangerSourceRequestIdRef.current + 1;
+      voiceChangerSourceRequestIdRef.current = requestId;
+
+      if (!nextSource) {
+        setVoiceChangerSource(null);
+        return;
+      }
+
+      const resolveErrorMessage = (error: unknown, fallback: string): string => {
+        if (error instanceof Error && error.message.trim()) return error.message.trim();
+        return fallback;
+      };
+
+      const initialStatus =
+        nextSource.kind === "video"
+          ? nextSource.file
+            ? "uploading"
+            : "extracting"
+          : nextSource.file
+            ? "uploading"
+            : "ready";
+
+      const initialSource: VoiceChangerSource = {
+        ...nextSource,
+        status: initialStatus,
+        storagePath:
+          nextSource.storagePath ?? resolveVoiceChangerSourceStoragePath(nextSource.sourceUrl),
+        errorMessage: null,
+        extractedFrom: null,
+      };
+
+      setVoiceChangerSource(initialSource);
+
+      void (async () => {
+        let stagedStoragePath = initialSource.storagePath;
+        let stagedSourceUrl = initialSource.sourceUrl;
+        let stagedMimeType = initialSource.mimeType;
+        let stagedName = initialSource.name;
+
+        try {
+          if (initialSource.file) {
+            const uploaded = await uploadVoiceChangerSourceFile({
+              file: initialSource.file,
+              kind: initialSource.kind,
+            });
+            stagedStoragePath = uploaded.storagePath;
+            stagedSourceUrl = uploaded.signedUrl;
+            stagedMimeType = uploaded.mimeType;
+            stagedName = uploaded.name;
+          } else if (stagedStoragePath) {
+            stagedSourceUrl = await signVoiceChangerStoragePath(stagedStoragePath);
+          }
+
+          if (voiceChangerSourceRequestIdRef.current !== requestId) return;
+
+          if (initialSource.kind === "audio") {
+            if (!stagedSourceUrl) {
+              throw new Error("Unable to resolve the staged audio source URL.");
+            }
+
+            setVoiceChangerSource({
+              ...initialSource,
+              kind: "audio",
+              status: "ready",
+              name: stagedName,
+              mimeType: stagedMimeType,
+              file: null,
+              previewUrl: null,
+              sourceUrl: stagedSourceUrl,
+              objectUrl: null,
+              storagePath: stagedStoragePath,
+              errorMessage: null,
+              extractedFrom: null,
+            });
+            return;
+          }
+
+          setVoiceChangerSource((current) => {
+            if (!current || voiceChangerSourceRequestIdRef.current !== requestId) return current;
+            return {
+              ...current,
+              status: "extracting",
+              name: stagedName,
+              mimeType: stagedMimeType,
+              file: null,
+              sourceUrl: stagedSourceUrl,
+              storagePath: stagedStoragePath,
+              errorMessage: null,
+            };
+          });
+
+          const extracted = await extractVoiceChangerVideoSource({
+            sourceName: stagedName,
+            sourceOrigin: initialSource.origin,
+            sourceMimeType: stagedMimeType,
+            sourceStoragePath: stagedStoragePath,
+            sourceUrl: stagedSourceUrl,
+          });
+
+          if (voiceChangerSourceRequestIdRef.current !== requestId) return;
+
+          setVoiceChangerSource({
+            ...initialSource,
+            kind: "audio",
+            status: "ready",
+            name: extracted.name,
+            mimeType: extracted.mimeType,
+            file: null,
+            previewUrl: null,
+            sourceUrl: extracted.signedUrl,
+            objectUrl: null,
+            storagePath: extracted.storagePath,
+            errorMessage: null,
+            extractedFrom: {
+              kind: "video",
+              name: stagedName,
+              mimeType: stagedMimeType,
+              previewUrl: initialSource.previewUrl ?? stagedSourceUrl,
+              sourceUrl: stagedSourceUrl,
+              storagePath: stagedStoragePath,
+            },
+          });
+        } catch (error) {
+          if (voiceChangerSourceRequestIdRef.current !== requestId) return;
+          setVoiceChangerSource({
+            ...initialSource,
+            status: "failed",
+            file: null,
+            sourceUrl: stagedSourceUrl,
+            storagePath: stagedStoragePath,
+            errorMessage: resolveErrorMessage(
+              error,
+              initialSource.kind === "video"
+                ? "Unable to prepare the selected video."
+                : "Unable to prepare the selected audio."
+            ),
+          });
+        }
+      })();
+    },
+    []
+  );
 
   React.useEffect(() => {
-    return () => {
-      releaseVoiceChangerSource(voiceChangerSource);
-    };
+    const previousSource = previousVoiceChangerSourceRef.current;
+    if (previousSource?.objectUrl && previousSource.objectUrl !== voiceChangerSource?.objectUrl) {
+      releaseVoiceChangerSource(previousSource);
+    }
+    previousVoiceChangerSourceRef.current = voiceChangerSource;
   }, [voiceChangerSource]);
 
   React.useEffect(() => {
     return () => {
+      releaseVoiceChangerSource(previousVoiceChangerSourceRef.current);
+      const previewAudio = previewAudioRef.current;
+      if (previewAudio) {
+        previewAudio.pause();
+        previewAudio.src = "";
+      }
+      const designedPreviewAudio = designedPreviewAudioRef.current;
+      if (designedPreviewAudio) {
+        designedPreviewAudio.pause();
+        designedPreviewAudio.src = "";
+      }
+      previewAudioRef.current = null;
+      previewAudioVoiceIdRef.current = null;
+      designedPreviewAudioRef.current = null;
+      designedPreviewAudioIdRef.current = null;
+      voiceChangerSourceRequestIdRef.current += 1;
       if (modeSwitchTimeoutRef.current !== null) {
         window.clearTimeout(modeSwitchTimeoutRef.current);
       }
     };
   }, []);
+
+  React.useEffect(() => {
+    if (selectedTool === "voice-changer") {
+      setSurfaceMode("edit");
+      setIsCreatePanelOpen(false);
+      return;
+    }
+    if (selectedTool === "text-to-speech" || selectedTool === "voices") {
+      setSurfaceMode("create");
+    }
+  }, [selectedTool]);
+
+  React.useEffect(() => {
+    if (!onGenerate) {
+      return;
+    }
+    let cancelled = false;
+    const loadVoices = async () => {
+      setIsVoicesLoading(true);
+      setVoicesLoadError(null);
+      setVoicesLoadNotice(null);
+      try {
+        const response = await fetchWithAuth("/api/elevenlabs/voices", {
+          shortpulseLogScope: "generation",
+        });
+        const payload = (await response.json().catch(() => null)) as VoicesListResponse | null;
+        if (!response.ok) {
+          throw new Error("Unable to load voices.");
+        }
+        const nextVoices: SharedVoiceOption[] = (payload?.voices ?? []).flatMap((voice) => {
+          const voiceId = voice.voiceId?.trim() ?? "";
+          const name = voice.name?.trim() ?? "";
+          if (!voiceId || !name) return [];
+          return [
+            {
+              id: voiceId,
+              name,
+              previewUrl: voice.previewUrl?.trim() || null,
+              description: voice.description?.trim() || null,
+              isFallback: Boolean(voice.isFallback),
+              provider: "elevenlabs" as const,
+            },
+          ];
+        });
+        if (!cancelled) {
+          if (nextVoices.length > 0) {
+            replaceVoices(nextVoices);
+          }
+          setVoicesLoadNotice(payload?.warning?.trim() || null);
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setVoicesLoadError(error instanceof Error ? error.message : "Unable to load voices.");
+        }
+      } finally {
+        if (!cancelled) {
+          setIsVoicesLoading(false);
+        }
+      }
+    };
+
+    void loadVoices();
+    return () => {
+      cancelled = true;
+    };
+  }, [onGenerate, replaceVoices]);
 
   const handleSurfaceModeChange = React.useCallback(
     (nextMode: VoicesSurfaceMode) => {
@@ -432,6 +850,9 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel()
       }
 
       setSurfaceMode(nextMode);
+      if (nextMode !== "create") {
+        setIsCreatePanelOpen(false);
+      }
     },
     [surfaceMode]
   );
@@ -454,14 +875,61 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel()
     [surfaceMode]
   );
 
-  const handleSaveVoice = () => {
+  const handleCreateVoicePreviewGeneration = React.useCallback(async () => {
     const nextVoiceName = voiceName.trim();
-    if (!nextVoiceName || voicePrompt.trim().length === 0) {
+    const nextVoiceDescription = voicePrompt.trim();
+    if (!nextVoiceName || nextVoiceDescription.length < minVoicePromptCharacters) {
       return;
     }
 
-    saveSharedVoice(nextVoiceName);
-  };
+    stopActiveDesignedPreview();
+    setVoiceDesignError(null);
+    setSaveVoiceError(null);
+    setIsDesigningVoice(true);
+    setVoiceDesignPreviews([]);
+    setVoiceDesignPreviewText(null);
+    setSelectedVoiceDesignPreviewId(null);
+    setPlayedVoiceDesignPreviewIds([]);
+    try {
+      const response = await fetchWithAuth("/api/elevenlabs/text-to-voice/design", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          voiceName: nextVoiceName,
+          voiceDescription: nextVoiceDescription,
+        }),
+        shortpulseLogScope: "generation",
+      });
+      const payload = (await response.json().catch(() => null)) as VoiceDesignResponse | null;
+      if (!response.ok) {
+        throw new Error(payload?.details || payload?.error || "Unable to generate voice previews.");
+      }
+
+      const nextPreviews = (payload?.previews ?? []).map((preview) => ({
+        ...preview,
+        audioSrc: buildVoiceDesignPreviewAudioSrc(preview.audioBase64, preview.mediaType),
+      }));
+
+      if (nextPreviews.length === 0) {
+        throw new Error("ElevenLabs did not return any voice previews.");
+      }
+
+      setVoiceDesignPreviews(nextPreviews);
+      setVoiceDesignPreviewText(payload?.previewText?.trim() || null);
+      setSelectedVoiceDesignPreviewId(nextPreviews[0]?.generatedVoiceId ?? null);
+    } catch (error) {
+      setVoiceDesignPreviews([]);
+      setVoiceDesignPreviewText(null);
+      setSelectedVoiceDesignPreviewId(null);
+      setVoiceDesignError(
+        error instanceof Error ? error.message : "Unable to generate voice previews."
+      );
+    } finally {
+      setIsDesigningVoice(false);
+    }
+  }, [stopActiveDesignedPreview, voiceName, voicePrompt]);
 
   const handleVoicePromptDrop = (event: React.DragEvent<HTMLTextAreaElement>) => {
     const droppedPromptText = extractDroppedPromptText(event.dataTransfer);
@@ -494,16 +962,334 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel()
     event.dataTransfer.dropEffect = "copy";
   };
 
-  const handleCreateVoiceEntry = () => {
+  const handleCreateVoiceEntry = React.useCallback(() => {
     shouldFocusCreateControlsRef.current = true;
     handleSurfaceModeChange("create");
+    resetCreateVoiceModalState();
     setIsCreatePanelOpen(true);
-  };
+  }, [handleSurfaceModeChange, resetCreateVoiceModalState]);
 
-  const handleCloseCreatePanel = () => {
-    handleSaveVoice();
+  const handleCloseCreatePanel = React.useCallback(() => {
+    resetCreateVoiceModalState();
     setIsCreatePanelOpen(false);
-  };
+  }, [resetCreateVoiceModalState]);
+
+  useAiStudioModalActivity("voices-create-modal", isCreateVoiceModalOpen);
+
+  React.useEffect(() => {
+    if (!isCreateVoiceModalOpen) {
+      return;
+    }
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") {
+        return;
+      }
+      event.preventDefault();
+      handleCloseCreatePanel();
+    };
+    window.addEventListener("keydown", handleEscape);
+    return () => {
+      window.removeEventListener("keydown", handleEscape);
+    };
+  }, [handleCloseCreatePanel, isCreateVoiceModalOpen]);
+
+  const stopActiveVoicePreview = React.useCallback(() => {
+    const activeAudio = previewAudioRef.current;
+    if (!activeAudio) {
+      setActivePreviewVoiceId(null);
+      previewAudioVoiceIdRef.current = null;
+      return;
+    }
+    activeAudio.onplay = null;
+    activeAudio.onpause = null;
+    activeAudio.onended = null;
+    activeAudio.onerror = null;
+    activeAudio.pause();
+    activeAudio.currentTime = 0;
+    activeAudio.src = "";
+    previewAudioRef.current = null;
+    previewAudioVoiceIdRef.current = null;
+    setActivePreviewVoiceId(null);
+  }, []);
+
+  const handleVoicePreviewPlay = React.useCallback(
+    (voiceId: string, previewUrl: string | null | undefined) => {
+      const nextUrl = previewUrl?.trim() ?? "";
+      if (!nextUrl || typeof Audio === "undefined") return;
+      const activeAudio = previewAudioRef.current;
+      const isSameVoice = previewAudioVoiceIdRef.current === voiceId;
+      if (activeAudio && isSameVoice) {
+        stopActiveVoicePreview();
+        return;
+      }
+
+      if (activeAudio) {
+        stopActiveVoicePreview();
+      }
+
+      const nextAudio = new Audio(nextUrl);
+      nextAudio.preload = "none";
+      nextAudio.onplay = () => {
+        if (previewAudioRef.current !== nextAudio) return;
+        setActivePreviewVoiceId(voiceId);
+      };
+      nextAudio.onpause = () => {
+        if (previewAudioRef.current !== nextAudio) return;
+        if (nextAudio.ended || nextAudio.currentTime <= 0) {
+          stopActiveVoicePreview();
+        }
+      };
+      nextAudio.onended = () => {
+        if (previewAudioRef.current !== nextAudio) return;
+        stopActiveVoicePreview();
+      };
+      nextAudio.onerror = () => {
+        if (previewAudioRef.current !== nextAudio) return;
+        stopActiveVoicePreview();
+      };
+      previewAudioRef.current = nextAudio;
+      previewAudioVoiceIdRef.current = voiceId;
+      const playResult = nextAudio.play();
+      if (playResult && typeof playResult.catch === "function") {
+        void playResult.catch(() => {
+          if (previewAudioRef.current === nextAudio) {
+            stopActiveVoicePreview();
+          }
+        });
+      }
+    },
+    [stopActiveVoicePreview]
+  );
+
+  const handleDesignedPreviewPlay = React.useCallback(
+    (previewId: string, previewUrl: string) => {
+      if (!previewUrl || typeof Audio === "undefined") return;
+      setPlayedVoiceDesignPreviewIds((currentIds) =>
+        currentIds.includes(previewId) ? currentIds : [...currentIds, previewId]
+      );
+      const activeAudio = designedPreviewAudioRef.current;
+      const isSamePreview = designedPreviewAudioIdRef.current === previewId;
+      if (activeAudio && isSamePreview) {
+        stopActiveDesignedPreview();
+        return;
+      }
+
+      stopActiveVoicePreview();
+      if (activeAudio) {
+        stopActiveDesignedPreview();
+      }
+
+      const nextAudio = new Audio(previewUrl);
+      nextAudio.preload = "none";
+      nextAudio.onplay = () => {
+        if (designedPreviewAudioRef.current !== nextAudio) return;
+        setActiveDesignedPreviewId(previewId);
+      };
+      nextAudio.onpause = () => {
+        if (designedPreviewAudioRef.current !== nextAudio) return;
+        if (nextAudio.ended || nextAudio.currentTime <= 0) {
+          stopActiveDesignedPreview();
+        }
+      };
+      nextAudio.onended = () => {
+        if (designedPreviewAudioRef.current !== nextAudio) return;
+        stopActiveDesignedPreview();
+      };
+      nextAudio.onerror = () => {
+        if (designedPreviewAudioRef.current !== nextAudio) return;
+        stopActiveDesignedPreview();
+      };
+      designedPreviewAudioRef.current = nextAudio;
+      designedPreviewAudioIdRef.current = previewId;
+      const playResult = nextAudio.play();
+      if (playResult && typeof playResult.catch === "function") {
+        void playResult.catch(() => {
+          if (designedPreviewAudioRef.current === nextAudio) {
+            stopActiveDesignedPreview();
+          }
+        });
+      }
+    },
+    [stopActiveDesignedPreview, stopActiveVoicePreview]
+  );
+
+  const handleSaveDesignedVoice = React.useCallback(async () => {
+    const nextVoiceName = voiceName.trim();
+    const nextVoiceDescription = voicePrompt.trim();
+    if (
+      !nextVoiceName ||
+      nextVoiceDescription.length < minVoicePromptCharacters ||
+      !selectedVoiceDesignPreviewId
+    ) {
+      return;
+    }
+
+    setSaveVoiceError(null);
+    setIsSavingDesignedVoice(true);
+    try {
+      const response = await fetchWithAuth("/api/elevenlabs/text-to-voice/create", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          voiceName: nextVoiceName,
+          voiceDescription: nextVoiceDescription,
+          generatedVoiceId: selectedVoiceDesignPreviewId,
+          playedNotSelectedVoiceIds: playedVoiceDesignPreviewIds.filter(
+            (previewId) => previewId !== selectedVoiceDesignPreviewId
+          ),
+        }),
+        shortpulseLogScope: "generation",
+      });
+      const payload = (await response.json().catch(() => null)) as CreatedVoiceResponse | null;
+      if (!response.ok) {
+        throw new Error(payload?.details || payload?.error || "Unable to create voice.");
+      }
+
+      const createdVoiceId = payload?.voice?.voiceId?.trim() ?? "";
+      const createdVoiceName = payload?.voice?.name?.trim() ?? "";
+      if (!createdVoiceId || !createdVoiceName) {
+        throw new Error("ElevenLabs returned an invalid created voice.");
+      }
+
+      upsertSharedVoice({
+        id: createdVoiceId,
+        name: createdVoiceName,
+        previewUrl: payload?.voice?.previewUrl?.trim() || null,
+        description: payload?.voice?.description?.trim() || nextVoiceDescription,
+        isFallback: false,
+        provider: "elevenlabs",
+      });
+      resetCreateVoiceModalState();
+      setIsCreatePanelOpen(false);
+    } catch (error) {
+      setSaveVoiceError(error instanceof Error ? error.message : "Unable to create voice.");
+    } finally {
+      setIsSavingDesignedVoice(false);
+    }
+  }, [
+    resetCreateVoiceModalState,
+    playedVoiceDesignPreviewIds,
+    selectedVoiceDesignPreviewId,
+    upsertSharedVoice,
+    voiceName,
+    voicePrompt,
+  ]);
+
+  const handleDeleteSelectedVoice = React.useCallback(async () => {
+    if (!selectedLibraryVoice) {
+      return;
+    }
+
+    const voiceDisplayName =
+      getVoiceChipDisplayName(selectedLibraryVoice.name) || selectedLibraryVoice.name.trim();
+    if (
+      typeof window !== "undefined" &&
+      !window.confirm(`Delete "${voiceDisplayName}"? This cannot be undone.`)
+    ) {
+      return;
+    }
+
+    if (!canDeleteSelectedVoice) {
+      setVoicesLoadError("This voice cannot be deleted.");
+      return;
+    }
+
+    setVoicesLoadError(null);
+    setVoicesLoadNotice(null);
+    setIsDeletingSelectedVoice(true);
+    try {
+      const response = await fetchWithAuth(
+        `/api/elevenlabs/voices/${encodeURIComponent(selectedLibraryVoice.id)}`,
+        {
+          method: "DELETE",
+          shortpulseLogScope: "generation",
+        }
+      );
+      const payload = (await response.json().catch(() => null)) as DeleteVoiceResponse | null;
+      if (!response.ok) {
+        throw new Error(payload?.details || payload?.error || "Unable to delete voice.");
+      }
+
+      if (activePreviewVoiceId === selectedLibraryVoice.id) {
+        stopActiveVoicePreview();
+      }
+
+      replaceVoices(libraryVoices.filter((voice) => voice.id !== selectedLibraryVoice.id));
+    } catch (error) {
+      setVoicesLoadError(error instanceof Error ? error.message : "Unable to delete voice.");
+    } finally {
+      setIsDeletingSelectedVoice(false);
+    }
+  }, [
+    activePreviewVoiceId,
+    canDeleteSelectedVoice,
+    libraryVoices,
+    replaceVoices,
+    selectedLibraryVoice,
+    stopActiveVoicePreview,
+  ]);
+
+  const handleGenerate = React.useCallback(() => {
+    if (
+      !selectedLibraryVoice ||
+      selectedLibraryVoice.provider !== "elevenlabs" ||
+      selectedLibraryVoice.isFallback ||
+      !onGenerate
+    ) {
+      return;
+    }
+    if (surfaceMode === "create") {
+      if (!voiceScript.trim()) return;
+      void onGenerate({
+        mode: "voiceover",
+        voice: selectedLibraryVoice,
+        script: voiceScript.trim(),
+        outputFormat: selectedVoiceoverFormat,
+        config: buildVoiceoverElevenV3RequestConfig(voiceoverSliderValues),
+      });
+      return;
+    }
+    if (!voiceChangerSource) return;
+    void onGenerate({
+      mode: "voice-changer",
+      voice: selectedLibraryVoice,
+      source: voiceChangerSource,
+      outputFormat: selectedVoiceChangerOutputFormat,
+      removeBackgroundNoise: voiceChangerBackgroundCleanupEnabled,
+      modelId: hardcodedVoiceChangerModel,
+      inputFormat: hardcodedVoiceChangerInputFormat,
+      voiceSettings: {
+        stability: normalizeSliderValue(
+          voiceChangerSliderValues.stability,
+          voiceChangerShapingSliders[1]?.defaultValue ?? 62
+        ),
+        similarity_boost: normalizeSliderValue(
+          voiceChangerSliderValues.similarityBoost,
+          voiceChangerShapingSliders[2]?.defaultValue ?? 82
+        ),
+        speed: Number(
+          (
+            (voiceChangerSliderValues.speed ?? voiceChangerShapingSliders[0]?.defaultValue ?? 64) *
+            0.015
+          ).toFixed(2)
+        ),
+        use_speaker_boost: hardcodedVoiceChangerSpeakerBoostEnabled,
+      },
+    });
+  }, [
+    onGenerate,
+    selectedLibraryVoice,
+    selectedVoiceChangerOutputFormat,
+    selectedVoiceoverFormat,
+    surfaceMode,
+    voiceChangerBackgroundCleanupEnabled,
+    voiceChangerSliderValues,
+    voiceChangerSource,
+    voiceScript,
+    voiceoverSliderValues,
+  ]);
 
   return (
     <section className="voices-properties-panel tool-properties" aria-label="Voices properties">
@@ -521,109 +1307,27 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel()
               style={topSectionStyle}
             >
               {isVoiceLibraryVisible ? (
-                isCreatePanelOpen && surfaceMode === "create" ? (
-                  <section className="voices-properties-create-panel" aria-label="Create new voice">
-                    <div className="voices-properties-create-panel-header">
-                      <button
-                        type="button"
-                        className="voices-properties-create-panel-close"
-                        aria-label="Close and save voice"
-                        onClick={handleCloseCreatePanel}
-                      >
-                        <span aria-hidden="true">×</span>
-                      </button>
-                    </div>
-
-                    <div className="voices-properties-create-panel-body">
-                      <label className="voices-properties-field">
-                        <span className="voices-properties-field-label">Voice name</span>
-                        <input
-                          ref={voiceNameInputRef}
-                          className="voices-properties-input"
-                          value={voiceName}
-                          onChange={(event) => setVoiceName(event.target.value)}
-                          placeholder="Name your designed voice"
-                        />
-                      </label>
-
-                      <label className="voices-properties-field">
-                        <span className="voices-properties-field-label">Prompt</span>
-                        <textarea
-                          ref={voicePromptRef}
-                          className="voices-properties-rail-textarea"
-                          value={voicePrompt}
-                          onChange={(event) => setVoicePrompt(event.target.value)}
-                          onDrop={handleVoicePromptDrop}
-                          onDragOver={handleVoicePromptDragOver}
-                          maxLength={maxVoicePromptCharacters}
-                          placeholder={voiceDescriptionPlaceholder}
-                          aria-label="Voice generation prompt"
-                        />
-                        <span className="voices-properties-field-count" aria-live="polite">
-                          {voicePrompt.length.toLocaleString()} /{" "}
-                          {maxVoicePromptCharacters.toLocaleString()}
-                        </span>
-                      </label>
-
-                      <button
-                        type="button"
-                        className="voices-properties-create-voice-btn"
-                        disabled={!isCreateVoiceEnabled}
-                        aria-label="Create Voice from prompt"
-                      >
-                        Create Voice
-                      </button>
-
-                      <section
-                        className="voices-properties-generated-preview"
-                        aria-label="Generated voice preview"
-                      >
+                <>
+                  <div className="voices-properties-voice-library-header">
+                    <h2 className="panel-title voices-properties-library-title">Voices</h2>
+                    <div className="voices-properties-library-actions">
+                      {selectedLibraryVoice ? (
                         <button
                           type="button"
-                          className="voices-properties-generated-preview-play"
-                          aria-label="Play generated voice preview"
+                          className="voices-properties-library-delete-btn"
+                          onClick={handleDeleteSelectedVoice}
+                          aria-label="Delete Voice"
+                          disabled={!canDeleteSelectedVoice || isDeletingSelectedVoice}
+                          title={
+                            canDeleteSelectedVoice ? undefined : "Default voices cannot be deleted."
+                          }
                         >
-                          <span
-                            className="voices-properties-generated-preview-play-icon"
-                            aria-hidden="true"
-                          >
-                            ▶
+                          <Trash size={14} weight="bold" aria-hidden="true" />
+                          <span>
+                            {isDeletingSelectedVoice ? "Deleting Voice…" : "Delete Voice"}
                           </span>
                         </button>
-                        <div
-                          className="voices-properties-generated-preview-waveform"
-                          aria-hidden="true"
-                        >
-                          {[
-                            12, 18, 28, 21, 34, 25, 16, 30, 42, 26, 19, 33, 24, 38, 17, 29, 22, 14,
-                          ].map((height, index) => (
-                            <span
-                              key={`voices-generated-preview-bar-${index}`}
-                              className="voices-properties-generated-preview-bar"
-                              style={
-                                {
-                                  "--voices-preview-bar-height": `${height}px`,
-                                } as React.CSSProperties
-                              }
-                            />
-                          ))}
-                        </div>
-                      </section>
-
-                      <button
-                        type="button"
-                        className="voices-properties-save-btn"
-                        onClick={handleSaveVoice}
-                        disabled={!isSaveVoiceEnabled}
-                      >
-                        Save voice
-                      </button>
-                    </div>
-                  </section>
-                ) : (
-                  <>
-                    <div className="voices-properties-voice-library-header">
-                      <h2 className="panel-title voices-properties-library-title">Voices</h2>
+                      ) : null}
                       <button
                         type="button"
                         className="voices-properties-library-create-btn"
@@ -639,11 +1343,41 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel()
                         <span>Create New Voice</span>
                       </button>
                     </div>
-                    <ul className="voices-properties-voice-grid" aria-label="Available voices list">
-                      {libraryVoices.map((voice) => {
-                        const isSelected = voice === selectedLibraryVoice;
+                  </div>
+                  {voicesLoadError ? <p className="tiny subdued">{voicesLoadError}</p> : null}
+                  {voicesLoadNotice ? <p className="tiny subdued">{voicesLoadNotice}</p> : null}
+                  <ul className="voices-properties-voice-grid" aria-label="Available voices list">
+                    {isVoicesLoading ? (
+                      <>
+                        <li className="sr-only" role="status" aria-live="polite">
+                          Loading voices…
+                        </li>
+                        {Array.from({ length: voiceLoadingSkeletonCount }, (_, index) => (
+                          <li
+                            key={`voice-loading-skeleton-${index + 1}`}
+                            className="voices-properties-voice-item"
+                            aria-hidden="true"
+                          >
+                            <div className="voices-properties-voice-chip voices-properties-voice-chip--skeleton">
+                              <span className="voices-properties-voice-chip-avatar voices-properties-voice-chip-skeleton-block" />
+                              <span className="voices-properties-voice-chip-copy">
+                                <span className="voices-properties-voice-chip-label voices-properties-voice-chip-skeleton-line voices-properties-voice-chip-skeleton-line--label" />
+                                <span className="voices-properties-voice-chip-name voices-properties-voice-chip-skeleton-line voices-properties-voice-chip-skeleton-line--name" />
+                              </span>
+                              <span className="voices-properties-voice-chip-play voices-properties-voice-chip-play--skeleton">
+                                <span className="voices-properties-voice-chip-skeleton-block voices-properties-voice-chip-skeleton-block--play" />
+                              </span>
+                            </div>
+                          </li>
+                        ))}
+                      </>
+                    ) : (
+                      libraryVoices.map((voice) => {
+                        const isSelected = voice.id === selectedLibraryVoice?.id;
+                        const isPreviewPlaying = voice.id === activePreviewVoiceId;
+                        const voiceChipDisplayName = getVoiceChipDisplayName(voice.name);
                         return (
-                          <li key={voice} className="voices-properties-voice-item">
+                          <li key={voice.id} className="voices-properties-voice-item">
                             <div
                               className={`voices-properties-voice-chip ${isSelected ? "is-selected" : ""}`}
                             >
@@ -651,8 +1385,8 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel()
                                 type="button"
                                 className="voices-properties-voice-chip-select"
                                 aria-pressed={isSelected}
-                                aria-label={`${voice} voice`}
-                                onClick={() => setSelectedLibraryVoice(voice)}
+                                aria-label={`${voice.name} voice`}
+                                onClick={() => setSelectedLibraryVoice(voice.id)}
                               >
                                 <span
                                   className="voices-properties-voice-chip-avatar"
@@ -662,29 +1396,34 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel()
                                 </span>
                                 <span className="voices-properties-voice-chip-copy">
                                   <span className="voices-properties-voice-chip-label">Voice</span>
-                                  <span className="voices-properties-voice-chip-name">{voice}</span>
+                                  <span className="voices-properties-voice-chip-name">
+                                    {voiceChipDisplayName}
+                                  </span>
                                 </span>
                               </button>
 
                               <button
                                 type="button"
                                 className="voices-properties-voice-chip-play"
-                                aria-label={`Play ${voice} sample`}
+                                aria-label={`${isPreviewPlaying ? "Stop" : "Play"} ${voice.name} sample`}
+                                aria-pressed={isPreviewPlaying}
+                                disabled={!voice.previewUrl}
+                                onClick={() => handleVoicePreviewPlay(voice.id, voice.previewUrl)}
                               >
                                 <span
                                   className="voices-properties-voice-chip-play-icon"
                                   aria-hidden="true"
                                 >
-                                  ▶
+                                  {isPreviewPlaying ? "❚❚" : "▶"}
                                 </span>
                               </button>
                             </div>
                           </li>
                         );
-                      })}
-                    </ul>
-                  </>
-                )
+                      })
+                    )}
+                  </ul>
+                </>
               ) : null}
             </section>
 
@@ -716,7 +1455,7 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel()
               ) : (
                 <VoiceChangerSourceDropzone
                   source={voiceChangerSource}
-                  onSourceChange={setVoiceChangerSource}
+                  onSourceChange={handleVoiceChangerSourceChange}
                 />
               )}
 
@@ -727,16 +1466,23 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel()
                   <p className="voices-properties-script-count" aria-live="polite">
                     {`${voiceScript.length.toLocaleString()} / ${maxVoiceScriptCharacters.toLocaleString()}`}
                   </p>
-                ) : (
-                  <span aria-hidden="true" />
-                )}
+                ) : null}
+                <div className="voices-properties-generate-context is-align-end" aria-live="polite">
+                  <span className="voices-properties-generate-context-label">Selected voice</span>
+                  <span className="voices-properties-generate-context-value">
+                    {selectedGenerateVoiceName}
+                  </span>
+                </div>
                 <button
                   type="button"
                   className="voices-properties-generate-btn"
-                  disabled={!isGenerateEnabled}
+                  disabled={!isGenerateEnabled || isGenerating}
                   aria-label="Generate"
+                  onClick={handleGenerate}
                 >
-                  <span className="voices-properties-generate-label">Generate</span>
+                  <span className="voices-properties-generate-label">
+                    {isGenerating ? "Generating…" : "Generate"}
+                  </span>
                   <span className="voices-properties-generate-pill" aria-hidden="true">
                     <span className="voices-properties-generate-cost-icon">✦</span>
                     <span className="voices-properties-generate-cost-value">
@@ -927,6 +1673,43 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel()
           </aside>
         </div>
       </div>
+      {isCreateVoiceModalOpen ? (
+        <AiStudioModalLayer>
+          <CreateVoiceModal
+            voiceName={voiceName}
+            voicePrompt={voicePrompt}
+            voiceNameInputRef={voiceNameInputRef}
+            voicePromptRef={voicePromptRef}
+            normalizedVoicePromptLength={normalizedVoicePromptLength}
+            minVoicePromptCharacters={minVoicePromptCharacters}
+            maxVoicePromptCharacters={maxVoicePromptCharacters}
+            voiceDescriptionPlaceholder={voiceDescriptionPlaceholder}
+            isCreateVoiceEnabled={isCreateVoiceEnabled}
+            isSaveVoiceEnabled={isSaveVoiceEnabled}
+            isDesigningVoice={isDesigningVoice}
+            isSavingDesignedVoice={isSavingDesignedVoice}
+            voiceDesignPreviewText={voiceDesignPreviewText}
+            voiceDesignPreviews={voiceDesignPreviews}
+            selectedVoiceDesignPreviewId={selectedVoiceDesignPreviewId}
+            activeDesignedPreviewId={activeDesignedPreviewId}
+            voiceDesignError={voiceDesignError}
+            saveVoiceError={saveVoiceError}
+            onClose={handleCloseCreatePanel}
+            onVoiceNameChange={setVoiceName}
+            onVoicePromptChange={setVoicePrompt}
+            onVoicePromptDrop={handleVoicePromptDrop}
+            onVoicePromptDragOver={handleVoicePromptDragOver}
+            onGenerateVoicePreviews={() => {
+              void handleCreateVoicePreviewGeneration();
+            }}
+            onSaveVoice={() => {
+              void handleSaveDesignedVoice();
+            }}
+            onSelectPreview={setSelectedVoiceDesignPreviewId}
+            onPlayPreview={handleDesignedPreviewPlay}
+          />
+        </AiStudioModalLayer>
+      ) : null}
     </section>
   );
 });

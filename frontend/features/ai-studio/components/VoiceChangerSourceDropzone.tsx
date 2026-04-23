@@ -3,30 +3,45 @@
  * Provides the UI-only intake surface for one audio/video source clip in the Voices workflow.
  */
 import React from "react";
-import { FileAudio, FilmSlate, UploadSimple, X } from "phosphor-react";
+import { UploadSimple, X } from "phosphor-react";
 import {
   extractInternalReferenceDragPayload,
   normalizeReferenceTransferUrlCandidate,
 } from "../utils/dragDrop";
+import { isAudioUrl, isVideoUrl } from "../logic/stateParsers";
+import { VoiceChangerAudioSourcePreview } from "./VoiceChangerAudioSourcePreview";
 
 const AUDIO_EXTENSION_PATTERN = /\.(?:mp3|wav|m4a|aac|flac|ogg|oga)(?:$|[?#])/i;
 const VIDEO_EXTENSION_PATTERN = /\.(?:mp4|mov|m4v|webm)(?:$|[?#])/i;
 const FILE_PICKER_ACCEPT =
   "audio/*,video/*,.mp3,.wav,.m4a,.aac,.flac,.ogg,.oga,.mp4,.mov,.m4v,.webm";
+const REMOTE_FETCHABLE_URL_PROTOCOL_PATTERN = /^https?:$/i;
 
 export type VoiceChangerSourceKind = "audio" | "video";
 export type VoiceChangerSourceOrigin = "local" | "reference-grid" | "url";
+export type VoiceChangerSourceStatus = "uploading" | "extracting" | "ready" | "failed";
 
 export type VoiceChangerSource = {
   id: string;
   kind: VoiceChangerSourceKind;
   origin: VoiceChangerSourceOrigin;
+  status: VoiceChangerSourceStatus;
   name: string;
   mimeType: string | null;
+  file: File | null;
   previewUrl: string | null;
   sourceUrl: string | null;
   objectUrl: string | null;
-  sizeLabel: string | null;
+  storagePath: string | null;
+  errorMessage: string | null;
+  extractedFrom: {
+    kind: "video";
+    name: string;
+    mimeType: string | null;
+    previewUrl: string | null;
+    sourceUrl: string | null;
+    storagePath: string | null;
+  } | null;
 };
 
 type VoiceChangerSourceDropzoneProps = {
@@ -34,16 +49,10 @@ type VoiceChangerSourceDropzoneProps = {
   onSourceChange: (nextSource: VoiceChangerSource | null) => void;
 };
 
+type BrowserMediaRecorder = typeof MediaRecorder;
+
 const buildSourceId = (prefix: string): string =>
   `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-
-const formatBytes = (value: number): string => {
-  if (!Number.isFinite(value) || value <= 0) return "0 B";
-  if (value >= 1024 ** 3) return `${(value / 1024 ** 3).toFixed(2)} GB`;
-  if (value >= 1024 ** 2) return `${(value / 1024 ** 2).toFixed(1)} MB`;
-  if (value >= 1024) return `${Math.round(value / 1024)} KB`;
-  return `${Math.round(value)} B`;
-};
 
 const getUrlFilename = (value: string | null | undefined): string | null => {
   if (!value) return null;
@@ -65,8 +74,8 @@ const inferSourceKindFromUrl = (
 ): VoiceChangerSourceKind | null => {
   const normalized = normalizeReferenceTransferUrlCandidate(value, { unwrapNextImage: false });
   if (!normalized) return null;
-  if (VIDEO_EXTENSION_PATTERN.test(normalized)) return "video";
-  if (AUDIO_EXTENSION_PATTERN.test(normalized)) return "audio";
+  if (isVideoUrl(normalized)) return "video";
+  if (isAudioUrl(normalized)) return "audio";
   return null;
 };
 
@@ -98,23 +107,84 @@ const inferSourceKindFromFile = (file: File): VoiceChangerSourceKind | null => {
 const createSourceFromFile = (file: File): VoiceChangerSource | null => {
   const kind = inferSourceKindFromFile(file);
   if (!kind) return null;
-  const previewUrl = kind === "video" ? URL.createObjectURL(file) : null;
+  const objectUrl = URL.createObjectURL(file);
   return {
     id: buildSourceId("voice-changer-file"),
     kind,
     origin: "local",
+    status: "ready",
     name: file.name.trim() || `uploaded-${kind}`,
     mimeType: file.type.trim() || null,
-    previewUrl,
-    sourceUrl: previewUrl,
-    objectUrl: previewUrl,
-    sizeLabel: formatBytes(file.size),
+    file,
+    previewUrl: kind === "video" ? objectUrl : null,
+    sourceUrl: objectUrl,
+    objectUrl,
+    storagePath: null,
+    errorMessage: null,
+    extractedFrom: null,
   };
+};
+
+const resolveRecordingMimeType = (MediaRecorderCtor: BrowserMediaRecorder): string => {
+  const preferredTypes = [
+    "audio/webm;codecs=opus",
+    "audio/webm",
+    "audio/mp4",
+    "audio/ogg;codecs=opus",
+  ];
+  for (const type of preferredTypes) {
+    if (
+      typeof MediaRecorderCtor.isTypeSupported === "function" &&
+      MediaRecorderCtor.isTypeSupported(type)
+    ) {
+      return type;
+    }
+  }
+  return "";
+};
+
+const resolveRecordingExtension = (mimeType: string): string => {
+  const normalized = mimeType.trim().toLowerCase();
+  if (normalized.includes("webm")) return "webm";
+  if (normalized.includes("mp4")) return "m4a";
+  if (normalized.includes("ogg")) return "ogg";
+  if (normalized.includes("wav")) return "wav";
+  return "webm";
+};
+
+const formatRecordingDuration = (valueMs: number): string => {
+  const totalSeconds = Math.max(0, Math.floor(valueMs / 1000));
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${minutes}:${seconds.toString().padStart(2, "0")}`;
 };
 
 const findFirstSupportedFile = (files: FileList | File[] | null | undefined): File | null => {
   if (!files) return null;
   return Array.from(files).find((file) => inferSourceKindFromFile(file) !== null) ?? null;
+};
+
+const isLikelyNativeFileTransfer = (transfer: DataTransfer): boolean => {
+  if (findFirstSupportedFile(transfer.files)) return true;
+
+  const transferItems = Array.from(transfer.items ?? []);
+  if (
+    transferItems.some((item) => {
+      if (item.kind !== "file") return false;
+      const normalizedType = item.type.trim().toLowerCase();
+      return (
+        !normalizedType ||
+        normalizedType.startsWith("audio/") ||
+        normalizedType.startsWith("video/")
+      );
+    })
+  ) {
+    return true;
+  }
+
+  return Array.from(transfer.types ?? []).some(
+    (type) => type === "Files" || type === "application/x-moz-file"
+  );
 };
 
 const createSourceFromUrl = ({
@@ -127,19 +197,35 @@ const createSourceFromUrl = ({
   fallbackName: string;
 }): VoiceChangerSource | null => {
   const normalizedUrl = normalizeReferenceTransferUrlCandidate(url, { unwrapNextImage: false });
+  if (!normalizedUrl || /^(?:blob:|data:)/i.test(normalizedUrl)) return null;
+  try {
+    const parsed = new URL(
+      normalizedUrl,
+      typeof window === "undefined" ? "https://shortpulse.local" : window.location.href
+    );
+    if (!REMOTE_FETCHABLE_URL_PROTOCOL_PATTERN.test(parsed.protocol)) {
+      return null;
+    }
+  } catch {
+    return null;
+  }
   const kind = inferSourceKindFromUrl(normalizedUrl);
-  if (!normalizedUrl || !kind) return null;
+  if (!kind) return null;
   const filename = getUrlFilename(normalizedUrl);
   return {
     id: buildSourceId("voice-changer-url"),
     kind,
     origin,
+    status: "ready",
     name: filename ?? fallbackName,
     mimeType: inferMimeTypeFromUrl(normalizedUrl),
+    file: null,
     previewUrl: kind === "video" ? normalizedUrl : null,
     sourceUrl: normalizedUrl,
     objectUrl: null,
-    sizeLabel: null,
+    storagePath: null,
+    errorMessage: null,
+    extractedFrom: null,
   };
 };
 
@@ -151,19 +237,17 @@ const createSourceFromTransfer = (transfer: DataTransfer): VoiceChangerSource | 
 
   const internalPayload = extractInternalReferenceDragPayload(transfer);
   if (internalPayload) {
-    const internalUrl =
-      normalizeReferenceTransferUrlCandidate(internalPayload.referenceRenderUrl, {
-        unwrapNextImage: false,
-      }) ??
-      normalizeReferenceTransferUrlCandidate(internalPayload.referenceUrl, {
-        unwrapNextImage: false,
-      });
-    if (internalUrl) {
-      return createSourceFromUrl({
-        url: internalUrl,
+    const internalCandidates = [
+      internalPayload.referenceRenderUrl,
+      internalPayload.referenceUrl,
+    ].filter((candidate): candidate is string => typeof candidate === "string");
+    for (const candidate of internalCandidates) {
+      const source = createSourceFromUrl({
+        url: candidate,
         origin: "reference-grid",
         fallbackName: "Reference Grid source",
       });
+      if (source) return source;
     }
     return null;
   }
@@ -192,14 +276,8 @@ const createSourceFromTransfer = (transfer: DataTransfer): VoiceChangerSource | 
 
 const canAcceptTransfer = (transfer: DataTransfer | null | undefined): boolean => {
   if (!transfer) return false;
-  if (findFirstSupportedFile(transfer.files)) return true;
+  if (isLikelyNativeFileTransfer(transfer)) return true;
   return Boolean(createSourceFromTransfer(transfer));
-};
-
-const resolveSourceOriginLabel = (origin: VoiceChangerSourceOrigin): string => {
-  if (origin === "reference-grid") return "Reference Grid";
-  if (origin === "local") return "From your computer";
-  return "Linked media";
 };
 
 /**
@@ -208,6 +286,33 @@ const resolveSourceOriginLabel = (origin: VoiceChangerSourceOrigin): string => {
 export const releaseVoiceChangerSource = (source: VoiceChangerSource | null): void => {
   if (!source?.objectUrl) return;
   URL.revokeObjectURL(source.objectUrl);
+};
+
+const resolveSourceStatusTitle = (source: VoiceChangerSource): string => {
+  if (source.status === "uploading") {
+    return source.kind === "video" ? "Uploading video source" : "Uploading audio source";
+  }
+  if (source.status === "extracting") return "Extracting voice audio";
+  if (source.status === "failed") return "Source processing failed";
+  return "Ready for conversion";
+};
+
+const resolveSourceStatusDetail = (source: VoiceChangerSource): string | null => {
+  if (source.status === "uploading") {
+    return source.kind === "video"
+      ? "Saving the dropped video to private storage before extraction."
+      : "Saving the source audio to private storage.";
+  }
+  if (source.status === "extracting") {
+    return "Converting the stored video into a staged vocal sample.";
+  }
+  if (source.status === "failed") {
+    return source.errorMessage ?? "Unable to prepare the selected source.";
+  }
+  if (source.extractedFrom) {
+    return `Using extracted audio from ${source.extractedFrom.name}.`;
+  }
+  return null;
 };
 
 /**
@@ -219,7 +324,14 @@ export function VoiceChangerSourceDropzone({
 }: VoiceChangerSourceDropzoneProps) {
   const fileInputRef = React.useRef<HTMLInputElement | null>(null);
   const dragDepthRef = React.useRef(0);
+  const recorderRef = React.useRef<MediaRecorder | null>(null);
+  const recorderStreamRef = React.useRef<MediaStream | null>(null);
+  const recordingChunksRef = React.useRef<BlobPart[]>([]);
+  const recordingStartedAtRef = React.useRef<number | null>(null);
   const [isDragActive, setIsDragActive] = React.useState(false);
+  const [isRecording, setIsRecording] = React.useState(false);
+  const [recordingElapsedMs, setRecordingElapsedMs] = React.useState(0);
+  const [recordingError, setRecordingError] = React.useState<string | null>(null);
 
   const openFilePicker = React.useCallback(() => {
     fileInputRef.current?.click();
@@ -228,10 +340,16 @@ export function VoiceChangerSourceDropzone({
   const handleSourceSelection = React.useCallback(
     (nextSource: VoiceChangerSource | null) => {
       if (!nextSource) return;
+      setRecordingError(null);
       onSourceChange(nextSource);
     },
     [onSourceChange]
   );
+
+  const stopRecorderStream = React.useCallback(() => {
+    recorderStreamRef.current?.getTracks().forEach((track) => track.stop());
+    recorderStreamRef.current = null;
+  }, []);
 
   const handleInputChange = React.useCallback(
     (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -286,6 +404,105 @@ export function VoiceChangerSourceDropzone({
     [openFilePicker, source]
   );
 
+  React.useEffect(() => {
+    if (!isRecording) {
+      setRecordingElapsedMs(0);
+      return;
+    }
+    const timer = window.setInterval(() => {
+      if (recordingStartedAtRef.current == null) return;
+      setRecordingElapsedMs(Date.now() - recordingStartedAtRef.current);
+    }, 250);
+    return () => {
+      window.clearInterval(timer);
+    };
+  }, [isRecording]);
+
+  React.useEffect(() => {
+    return () => {
+      recorderRef.current?.stop?.();
+      recorderRef.current = null;
+      stopRecorderStream();
+    };
+  }, [stopRecorderStream]);
+
+  const handleRecordSampleClick = React.useCallback(async () => {
+    if (isRecording) {
+      recorderRef.current?.stop();
+      return;
+    }
+    if (
+      typeof window === "undefined" ||
+      typeof navigator === "undefined" ||
+      !navigator.mediaDevices?.getUserMedia ||
+      typeof MediaRecorder === "undefined"
+    ) {
+      setRecordingError("Recording is not supported in this browser.");
+      return;
+    }
+
+    setRecordingError(null);
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      recorderStreamRef.current = stream;
+      const mimeType = resolveRecordingMimeType(MediaRecorder);
+      const recorder = mimeType
+        ? new MediaRecorder(stream, { mimeType })
+        : new MediaRecorder(stream);
+      recordingChunksRef.current = [];
+      recorderRef.current = recorder;
+
+      recorder.ondataavailable = (event) => {
+        if (event.data && event.data.size > 0) {
+          recordingChunksRef.current.push(event.data);
+        }
+      };
+
+      recorder.onerror = () => {
+        setRecordingError("Unable to record audio right now.");
+        setIsRecording(false);
+        recorderRef.current = null;
+        recordingChunksRef.current = [];
+        stopRecorderStream();
+      };
+
+      recorder.onstop = () => {
+        const recordedMimeType = recorder.mimeType || mimeType || "audio/webm";
+        const recordedBlob = new Blob(recordingChunksRef.current, { type: recordedMimeType });
+        recordingChunksRef.current = [];
+        recorderRef.current = null;
+        setIsRecording(false);
+        stopRecorderStream();
+
+        if (!recordedBlob.size) {
+          setRecordingError("No audio was captured.");
+          return;
+        }
+
+        const extension = resolveRecordingExtension(recordedMimeType);
+        const file = new File([recordedBlob], `voice-sample-${Date.now()}.${extension}`, {
+          type: recordedMimeType,
+        });
+        handleSourceSelection(createSourceFromFile(file));
+      };
+
+      recordingStartedAtRef.current = Date.now();
+      setRecordingElapsedMs(0);
+      setIsRecording(true);
+      recorder.start();
+    } catch (error) {
+      stopRecorderStream();
+      setIsRecording(false);
+      setRecordingElapsedMs(0);
+      setRecordingError(
+        error instanceof Error && /permission|denied|notallowed/i.test(error.message)
+          ? "Microphone access was denied."
+          : "Unable to start recording."
+      );
+    }
+  }, [handleSourceSelection, isRecording, stopRecorderStream]);
+
   return (
     <div className="voices-properties-voice-changer-dropzone-shell">
       <input
@@ -298,123 +515,157 @@ export function VoiceChangerSourceDropzone({
         tabIndex={-1}
       />
 
-      <div
-        className={`voices-properties-voice-changer-dropzone ${
-          source ? "has-source" : "is-empty"
-        } ${isDragActive ? "is-drag-active" : ""}`.trim()}
-        role={source ? "group" : "button"}
-        aria-label="Voice changer source drop zone"
-        aria-describedby="voice-changer-dropzone-caption"
-        tabIndex={source ? -1 : 0}
-        onClick={() => {
-          if (!source) openFilePicker();
-        }}
-        onKeyDown={handleEmptyZoneKeyDown}
-        onDragEnter={handleDragEnter}
-        onDragOver={handleDragOver}
-        onDragLeave={handleDragLeave}
-        onDrop={handleDrop}
-      >
-        {source ? (
-          <>
-            <div className="voices-properties-voice-changer-dropzone-preview">
-              {source.kind === "video" && source.previewUrl ? (
-                <>
-                  <video
-                    className="voices-properties-voice-changer-dropzone-video"
-                    src={source.previewUrl}
-                    playsInline
-                    muted
-                    preload="metadata"
-                  />
-                  <span className="voices-properties-voice-changer-dropzone-preview-badge">
-                    Video source
-                  </span>
-                </>
-              ) : (
-                <div
-                  className="voices-properties-voice-changer-dropzone-audio-preview"
-                  aria-hidden="true"
-                >
-                  <div className="voices-properties-voice-changer-dropzone-audio-icon">
-                    <FileAudio size={28} weight="duotone" />
-                  </div>
-                  <div className="voices-properties-voice-changer-dropzone-audio-bars">
-                    {[20, 34, 26, 40, 18, 32, 24, 44, 28, 36, 22, 38].map((height, index) => (
-                      <span
-                        key={`voice-changer-audio-bar-${index}`}
-                        style={
-                          {
-                            "--voice-changer-audio-bar-height": `${height}px`,
-                          } as React.CSSProperties
-                        }
-                      />
-                    ))}
-                  </div>
-                  <span className="voices-properties-voice-changer-dropzone-preview-badge">
-                    Audio source
-                  </span>
-                </div>
-              )}
-            </div>
-
-            <div className="voices-properties-voice-changer-dropzone-meta">
-              <div className="voices-properties-voice-changer-dropzone-copy">
-                <div className="voices-properties-voice-changer-dropzone-chip-row">
-                  <span className="voices-properties-voice-changer-dropzone-chip">
-                    {source.kind === "video" ? (
-                      <FilmSlate size={14} weight="fill" />
-                    ) : (
-                      <FileAudio size={14} weight="fill" />
-                    )}
-                    <span>{source.kind === "video" ? "Video" : "Audio"}</span>
-                  </span>
-                  <span className="voices-properties-voice-changer-dropzone-subtle-chip">
-                    {resolveSourceOriginLabel(source.origin)}
-                  </span>
-                </div>
-                <p className="voices-properties-voice-changer-dropzone-title">{source.name}</p>
-                <p className="voices-properties-voice-changer-dropzone-helper">
-                  {source.sizeLabel
-                    ? `${source.sizeLabel} ready for conversion.`
-                    : "Ready for conversion preview. Drop a new source to replace it."}
-                </p>
+      {source ? (
+        <div
+          className={`voices-properties-voice-changer-dropzone has-source ${
+            isDragActive ? "is-drag-active" : ""
+          }`.trim()}
+          role="group"
+          aria-label="Voice changer source drop zone"
+          aria-describedby="voice-changer-dropzone-caption"
+          onDragEnter={handleDragEnter}
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
+        >
+          <div className="voices-properties-voice-changer-dropzone-preview">
+            {source.kind === "video" && source.previewUrl ? (
+              <video
+                className="voices-properties-voice-changer-dropzone-video"
+                src={source.previewUrl}
+                playsInline
+                muted
+                preload="metadata"
+              />
+            ) : source.kind === "audio" && source.sourceUrl ? (
+              <div className="voices-properties-voice-changer-dropzone-audio-preview">
+                <VoiceChangerAudioSourcePreview key={source.id} audioUrl={source.sourceUrl} />
               </div>
+            ) : (
+              <div className="voices-properties-voice-changer-dropzone-audio-preview" />
+            )}
+          </div>
 
-              <div className="voices-properties-voice-changer-dropzone-actions">
-                <button
-                  type="button"
-                  className="voices-properties-voice-changer-dropzone-action"
-                  onClick={openFilePicker}
-                >
-                  Replace
-                </button>
-                <button
-                  type="button"
-                  className="voices-properties-voice-changer-dropzone-action is-secondary"
-                  onClick={() => onSourceChange(null)}
-                >
-                  <X size={14} weight="bold" />
-                  <span>Remove</span>
-                </button>
-              </div>
-            </div>
-          </>
-        ) : (
-          <div className="voices-properties-voice-changer-dropzone-empty-state">
-            <div className="voices-properties-voice-changer-dropzone-empty-icon">
-              <UploadSimple size={30} weight="bold" />
-            </div>
-            <div className="voices-properties-voice-changer-dropzone-empty-copy">
-              <p className="voices-properties-voice-changer-dropzone-title">Drop a source clip</p>
-              <p className="voices-properties-voice-changer-dropzone-helper">
-                Drag one audio or video file from your computer or the Reference Grid. Click to
-                browse.
+          <div className="voices-properties-voice-changer-dropzone-meta">
+            <div className="voices-properties-voice-changer-dropzone-copy">
+              <p className="voices-properties-voice-changer-dropzone-title">
+                {resolveSourceStatusTitle(source)}
               </p>
+              {resolveSourceStatusDetail(source) ? (
+                <p
+                  className={`voices-properties-voice-changer-dropzone-helper${
+                    source.status === "failed" ? " is-error" : ""
+                  }`}
+                >
+                  {resolveSourceStatusDetail(source)}
+                </p>
+              ) : null}
+            </div>
+
+            <div className="voices-properties-voice-changer-dropzone-actions">
+              <button
+                type="button"
+                className="voices-properties-voice-changer-dropzone-action"
+                onClick={openFilePicker}
+                disabled={source.status === "uploading" || source.status === "extracting"}
+              >
+                Replace
+              </button>
+              <button
+                type="button"
+                className="voices-properties-voice-changer-dropzone-action is-secondary"
+                onClick={() => onSourceChange(null)}
+              >
+                <X size={14} weight="bold" />
+                <span>Remove</span>
+              </button>
             </div>
           </div>
-        )}
-      </div>
+        </div>
+      ) : (
+        <div className="voices-properties-voice-changer-intake-grid">
+          <div className="voices-properties-voice-changer-record-panel" aria-label="Record sample">
+            <div className="voices-properties-voice-changer-record-panel-copy">
+              <p className="voices-properties-voice-changer-record-title">Record</p>
+              <p className="voices-properties-voice-changer-record-helper">
+                Record your voice to use as the source for the voice changer.
+              </p>
+            </div>
+            <div className="voices-properties-voice-changer-record-controls">
+              <div className="voices-properties-voice-changer-record-button-wrap">
+                <button
+                  type="button"
+                  className={`voices-properties-voice-changer-record-btn${
+                    isRecording ? " is-recording" : ""
+                  }`}
+                  aria-label={
+                    isRecording ? "Stop recording your voice sample" : "Record your voice sample"
+                  }
+                  aria-pressed={isRecording}
+                  onClick={handleRecordSampleClick}
+                >
+                  <span
+                    className="voices-properties-voice-changer-record-btn-core"
+                    aria-hidden="true"
+                  />
+                </button>
+              </div>
+
+              <div className="voices-properties-voice-changer-record-footer">
+                {recordingError || isRecording ? (
+                  <p
+                    className={`voices-properties-voice-changer-record-status-line${
+                      recordingError ? " is-error" : ""
+                    }`}
+                    aria-live="polite"
+                  >
+                    {recordingError
+                      ? "Recorder unavailable"
+                      : `Recording ${formatRecordingDuration(recordingElapsedMs)}`}
+                  </p>
+                ) : (
+                  <span className="voices-properties-voice-changer-record-idle-cue">
+                    Click to record
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div className="voices-properties-voice-changer-intake-divider" aria-hidden="true">
+            OR
+          </div>
+
+          <div
+            className={`voices-properties-voice-changer-dropzone is-empty ${
+              isDragActive ? "is-drag-active" : ""
+            }`.trim()}
+            role="button"
+            aria-label="Voice changer source drop zone"
+            aria-describedby="voice-changer-dropzone-caption"
+            tabIndex={0}
+            onClick={openFilePicker}
+            onKeyDown={handleEmptyZoneKeyDown}
+            onDragEnter={handleDragEnter}
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
+          >
+            <div className="voices-properties-voice-changer-dropzone-empty-state">
+              <div className="voices-properties-voice-changer-dropzone-empty-icon">
+                <UploadSimple size={30} weight="bold" />
+              </div>
+              <div className="voices-properties-voice-changer-dropzone-empty-copy">
+                <p className="voices-properties-voice-changer-dropzone-title">Drop a source clip</p>
+                <p className="voices-properties-voice-changer-dropzone-helper">
+                  Drag one audio or video file from your computer or the Reference Grid. Click to
+                  browse.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       <p
         id="voice-changer-dropzone-caption"

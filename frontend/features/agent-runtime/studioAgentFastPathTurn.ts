@@ -10,6 +10,7 @@ import {
   parseStudioAgentSemanticOutput,
   parseStudioAgentJsonWithStatus,
 } from "./studioAgentResponseNormalization";
+import { isStudioAgentWorkflowPulse } from "./studioAgentPulseRuntime";
 import { resolveStudioAgentTurnResponse } from "./studioAgentTurnResponse";
 
 type StageMarker = (stage: string, startedAt: number) => void;
@@ -26,6 +27,7 @@ type StudioAgentFastPathSuccess = {
     parsed: AgentResponse;
     refusal: boolean;
     resolvedCanonical: string | null;
+    semanticStatus: string | null;
     repairUsed: boolean;
     usage: {
       inputTokens?: number;
@@ -196,7 +198,9 @@ export const executeStudioAgentFastPathTurn = async ({
     };
   }
   const contentText = extractStudioAgentCompletionText(extractFirstChoiceMessageContent(data));
-  const semanticParsed = parseStudioAgentSemanticOutput(contentText);
+  const semanticParsed = isStudioAgentWorkflowPulse(context.pulse)
+    ? null
+    : parseStudioAgentSemanticOutput(contentText);
   let parsedWithStatus = semanticParsed
     ? (() => {
         const semanticResponse = buildStudioAgentSemanticResponse({
@@ -258,7 +262,9 @@ export const executeStudioAgentFastPathTurn = async ({
     const repairedText = extractStudioAgentCompletionText(
       extractFirstChoiceMessageContent(repairData)
     );
-    const repairedSemantic = parseStudioAgentSemanticOutput(repairedText);
+    const repairedSemantic = isStudioAgentWorkflowPulse(context.pulse)
+      ? null
+      : parseStudioAgentSemanticOutput(repairedText);
     parsedWithStatus = repairedSemantic
       ? (() => {
           const semanticResponse = buildStudioAgentSemanticResponse({
@@ -320,6 +326,7 @@ export const executeStudioAgentFastPathTurn = async ({
       parsed,
       refusal,
       resolvedCanonical,
+      semanticStatus: parsedWithStatus?.status ?? null,
       repairUsed,
       usage: extractUsageTokens(data),
     },

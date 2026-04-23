@@ -8,6 +8,7 @@ import type {
   AgentAttachment,
   AgentContext,
   AgentMessage,
+  AgentPulseWorkflowSession,
 } from "../../../../prefabs/agent";
 import type { PromptOrigin } from "../../logic/agentPromptOwnership";
 import type { StudioOutput, ToolId } from "../../types";
@@ -35,6 +36,7 @@ export type UseAiStudioAgentOrchestrationParams = {
   latestAgentPrompt: string | null;
   setLatestAgentPrompt: Dispatch<SetStateAction<string | null>>;
   setAgentActions: Dispatch<SetStateAction<AgentActions | undefined>>;
+  setPulseWorkflowSession: Dispatch<SetStateAction<AgentPulseWorkflowSession | null>>;
   selectedTool: ToolId | null;
   setSharedPrompt: (value: string) => void;
   setPromptOrigin: Dispatch<SetStateAction<PromptOrigin>>;
@@ -46,7 +48,11 @@ export type UseAiStudioAgentOrchestrationParams = {
     isolateHistory?: boolean;
     skipUserEcho?: boolean;
     optimisticUserMessageId?: string | null;
-  }) => Promise<{ response: unknown; actions: AgentActions | undefined }>;
+  }) => Promise<{
+    response: unknown;
+    actions: AgentActions | undefined;
+    workflowSession?: AgentPulseWorkflowSession | null;
+  }>;
   appendUserMessage: (text: string, attachments?: AgentAttachment[]) => string | null;
   updateMessageById: (
     messageId: string,

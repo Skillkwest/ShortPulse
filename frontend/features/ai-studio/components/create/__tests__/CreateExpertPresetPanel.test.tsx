@@ -1,0 +1,256 @@
+/**
+ * Create Pulse preset panel tests.
+ * Verifies Pulse activation, saved custom pulse editing, and drag/drop pinning behavior.
+ */
+import React from "react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
+import { CreateExpertPresetPanel } from "../CreateExpertPresetPanel";
+
+class MockDataTransfer implements DataTransfer {
+  dropEffect: "none" | "copy" | "link" | "move" = "none";
+  effectAllowed: DataTransfer["effectAllowed"] = "all";
+  files = [] as unknown as FileList;
+  items = [] as unknown as DataTransferItemList;
+  types: string[] = [];
+  private readonly store = new Map<string, string>();
+
+  clearData(format?: string): void {
+    if (format) {
+      this.store.delete(format);
+      this.types = this.types.filter((entry) => entry !== format);
+      return;
+    }
+    this.store.clear();
+    this.types = [];
+  }
+
+  getData(format: string): string {
+    return this.store.get(format) ?? "";
+  }
+
+  setData(format: string, data: string): void {
+    this.store.set(format, data);
+    if (!this.types.includes(format)) {
+      this.types.push(format);
+    }
+  }
+
+  setDragImage(): void {}
+
+  addElement(): void {}
+}
+
+describe("CreateExpertPresetPanel", () => {
+  it("activates the selected pulse preset without mutating the visible composer", () => {
+    const onActivePresetIdChange = vi.fn();
+    render(<CreateExpertPresetPanel onActivePresetIdChange={onActivePresetIdChange} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Single-shot preset" }));
+
+    expect(onActivePresetIdChange).toHaveBeenCalledWith("single_shot");
+  });
+
+  it("starts workflow pulses immediately when activation mode is activate and start", async () => {
+    const onActivePresetIdChange = vi.fn();
+    const onPresetStart = vi.fn().mockResolvedValue(undefined);
+
+    render(
+      <CreateExpertPresetPanel
+        savedPresets={[
+          {
+            presetId: "image",
+            label: "Video Prompt Magic",
+            description: "Guided single-shot workflow pulse.",
+            systemInstructions: "Ask for camera motion, then action, then dialogue.",
+            runtimeMode: "workflow_gpt",
+            activationMode: "activate_and_start",
+            starterAssistantMessage: "Upload your image to get the process started :)",
+            outputMode: "chat_reply",
+            memoryPolicy: "session",
+            createdAt: null,
+          },
+        ]}
+        onSavedPresetsChange={vi.fn()}
+        onActivePresetIdChange={onActivePresetIdChange}
+        onPresetStart={onPresetStart}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Video Prompt Magic preset" }));
+
+    await waitFor(() => {
+      expect(onActivePresetIdChange).toHaveBeenCalledWith("image");
+      expect(onPresetStart).toHaveBeenCalledWith(
+        expect.objectContaining({
+          presetId: "image",
+          runtimeMode: "workflow_gpt",
+          activationMode: "activate_and_start",
+        })
+      );
+    });
+  });
+
+  it("starts the built-in story builder workflow immediately on click", async () => {
+    const onActivePresetIdChange = vi.fn();
+    const onPresetStart = vi.fn().mockResolvedValue(undefined);
+
+    render(
+      <CreateExpertPresetPanel
+        onActivePresetIdChange={onActivePresetIdChange}
+        onPresetStart={onPresetStart}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Story Builder preset" }));
+
+    await waitFor(() => {
+      expect(onActivePresetIdChange).toHaveBeenCalledWith("story_builder");
+      expect(onPresetStart).toHaveBeenCalledWith(
+        expect.objectContaining({
+          presetId: "story_builder",
+          runtimeMode: "workflow_gpt",
+          activationMode: "activate_and_start",
+        })
+      );
+    });
+  });
+
+  it("opens the More Presets surface and saves a custom preset override", async () => {
+    const onSavedPresetsChange = vi.fn();
+
+    render(
+      <CreateExpertPresetPanel
+        savedPresets={[
+          {
+            presetId: "pulse_storyboard",
+            label: "Storyboard",
+            description: null,
+            systemInstructions:
+              "Map the concept as a visual storyboard with scene intent for each beat.",
+            runtimeMode: "prompt_editor",
+            activationMode: "activate_only",
+            starterAssistantMessage: null,
+            outputMode: "apply_prompt",
+            memoryPolicy: "session",
+            createdAt: null,
+          },
+        ]}
+        onSavedPresetsChange={onSavedPresetsChange}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "More presets" }));
+    fireEvent.click(screen.getByRole("button", { name: "Edit Storyboard preset" }));
+    fireEvent.change(screen.getByLabelText("Preset name"), {
+      target: { value: "Hook Builder" },
+    });
+    fireEvent.change(screen.getByLabelText("System instructions"), {
+      target: { value: "Start with a fast visual hook and one unmistakable product payoff." },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() => {
+      expect(onSavedPresetsChange).toHaveBeenCalledWith([
+        {
+          presetId: "pulse_storyboard",
+          label: "Hook Builder",
+          description: null,
+          systemInstructions: "Start with a fast visual hook and one unmistakable product payoff.",
+          runtimeMode: "prompt_editor",
+          activationMode: "activate_only",
+          starterAssistantMessage: null,
+          workflowStageHints: null,
+          outputMode: "apply_prompt",
+          memoryPolicy: "session",
+          createdAt: null,
+        },
+      ]);
+    });
+  });
+
+  it("edits a built-in preset from the More Presets surface as a saved override", async () => {
+    const onSavedPresetsChange = vi.fn();
+
+    render(
+      <CreateExpertPresetPanel savedPresets={[]} onSavedPresetsChange={onSavedPresetsChange} />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "More presets" }));
+    fireEvent.click(screen.getByRole("button", { name: "Edit Ad Hook preset" }));
+    fireEvent.change(screen.getByLabelText("Preset name"), {
+      target: { value: "Ad Director" },
+    });
+    fireEvent.change(screen.getByLabelText("System instructions"), {
+      target: { value: "Open with a fast paid-social visual hook and a clean benefit reveal." },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() => {
+      expect(onSavedPresetsChange).toHaveBeenCalledWith([
+        {
+          presetId: "ad_hook",
+          label: "Ad Director",
+          description: "Hook-first ad creative prompt shaper.",
+          systemInstructions:
+            "Open with a fast paid-social visual hook and a clean benefit reveal.",
+          runtimeMode: "prompt_editor",
+          activationMode: "activate_only",
+          starterAssistantMessage: null,
+          workflowStageHints: null,
+          outputMode: "apply_prompt",
+          memoryPolicy: "session",
+          createdAt: expect.any(String),
+        },
+      ]);
+    });
+  });
+
+  it("composes workflow instructions from structured fields in the More Presets editor", () => {
+    render(<CreateExpertPresetPanel savedPresets={[]} onSavedPresetsChange={vi.fn()} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "More presets" }));
+    fireEvent.click(screen.getByRole("button", { name: "Edit Ad Hook preset" }));
+    fireEvent.change(screen.getByLabelText("Runtime mode"), {
+      target: { value: "workflow_gpt" },
+    });
+    fireEvent.change(screen.getByLabelText("Role & Goal"), {
+      target: { value: "Guide one image into a short ad-video prompt workflow." },
+    });
+    fireEvent.change(screen.getByLabelText("Step Flow"), {
+      target: { value: "1. Ask for the image.\n2. Ask for movement.\n3. Ask for dialogue." },
+    });
+    fireEvent.change(screen.getByLabelText("Final Output Shape"), {
+      target: { value: "Return one final copy-paste prompt block." },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Compose Workflow Instructions" }));
+
+    const instructionsField = screen.getByLabelText("Workflow instructions") as HTMLTextAreaElement;
+    expect(instructionsField.value).toContain("STEP FLOW");
+    expect(instructionsField.value).toContain("ADDITIONAL RULES");
+  });
+
+  it("pins a preset from the More Presets surface into the panel via drag and drop", async () => {
+    const onSelectedPresetIdsChange = vi.fn();
+    const transfer = new MockDataTransfer();
+
+    render(
+      <CreateExpertPresetPanel
+        selectedPresetIds={[]}
+        onSelectedPresetIdsChange={onSelectedPresetIdsChange}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "More presets" }));
+    const surfaceChip = screen.getByRole("button", { name: "Ad Hook" });
+    const panelDropzone = screen.getByLabelText("Pulse preset panel list");
+
+    fireEvent.dragStart(surfaceChip, { dataTransfer: transfer });
+    fireEvent.dragOver(panelDropzone, { dataTransfer: transfer });
+    fireEvent.drop(panelDropzone, { dataTransfer: transfer });
+
+    await waitFor(() => {
+      expect(onSelectedPresetIdsChange).toHaveBeenCalledWith(["ad_hook"]);
+    });
+  });
+});

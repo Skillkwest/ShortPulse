@@ -1,8 +1,9 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   KIE_SEEDANCE_15_PRO_MODEL_ID,
   KIE_SEEDANCE_2_MODEL_ID,
 } from "../../../../lib/model-runtime/providerModelIds";
+import { buildAiStudioSessionSnapshot } from "../sessionSnapshot";
 import { buildAiStudioSessionHydrationPayload } from "../sessionSnapshotHydrator";
 import type { AiStudioSessionSnapshot, AiStudioSessionSnapshotV1 } from "../sessionSnapshot";
 
@@ -18,6 +19,8 @@ const createSnapshot = (
     prompt: "prompt",
     model: "fal:foo",
     aspect: "1:1",
+    expertCreateMode: "standard",
+    activePulsePresetId: null,
     referenceImageUrl: "https://example.com/ref.png",
     extraImageUrls: ["https://example.com/1.png", null, null],
     editReferenceText: "edit",
@@ -71,11 +74,16 @@ const createSnapshot = (
     latestAgentPrompt: null,
     promptOrigin: "manual",
     chatModeEnabled: true,
+    pulseWorkflowSession: null,
   },
   ...overrides,
 });
 
 describe("sessionSnapshotHydrator", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
   it("builds normalized payload for valid snapshot", () => {
     const payload = buildAiStudioSessionHydrationPayload(createSnapshot());
 
@@ -86,12 +94,160 @@ describe("sessionSnapshotHydrator", () => {
     expect(payload.outputs.removedFromAllRefsIds).toEqual(["out-2"]);
     expect(payload.agent.promptOrigin).toBe("manual");
     expect(payload.agent.chatModeEnabled).toBe(true);
+    expect(payload.agent.pulseWorkflowSession).toBeNull();
     expect(payload.workspace.klingWorkflowMode).toBe("single");
+    expect(payload.workspace.expertCreateMode).toBe("standard");
+    expect(payload.workspace.activePulsePresetId).toBeNull();
     expect(payload.canvas).toBeNull();
     expect(payload.expertEdit).toBeNull();
   });
 
-  it("resets persisted custom Kling prompt workspace during hydration", () => {
+  it("hydrates pulse runtime workspace fields", () => {
+    const payload = buildAiStudioSessionHydrationPayload(
+      createSnapshot({
+        workspace: {
+          ...createSnapshot().workspace,
+          expertCreateMode: "pulse",
+          activePulsePresetId: "single_shot",
+        },
+      })
+    );
+
+    expect(payload.workspace.expertCreateMode).toBe("pulse");
+    expect(payload.workspace.activePulsePresetId).toBe("single_shot");
+  });
+
+  it("hydrates pulse workflow session state", () => {
+    const payload = buildAiStudioSessionHydrationPayload(
+      createSnapshot({
+        agent: {
+          ...createSnapshot().agent,
+          pulseWorkflowSession: {
+            presetId: "story_builder",
+            status: "awaiting_input",
+            currentStepIndex: 4,
+            currentStepLabel: "Scene Review",
+            currentStepPrompt: "Step 4 — Review scenes. What would you like to change?",
+            collectedInputs: ["grimdark", "A knight enters a cursed forest", "5 min"],
+            lastArtifact: null,
+          },
+        },
+      })
+    );
+
+    expect(payload.agent.pulseWorkflowSession).toEqual({
+      presetId: "story_builder",
+      status: "awaiting_input",
+      currentStepIndex: 4,
+      currentStepLabel: "Scene Review",
+      currentStepPrompt: "Step 4 — Review scenes. What would you like to change?",
+      collectedInputs: ["grimdark", "A knight enters a cursed forest", "5 min"],
+      lastArtifact: null,
+      finalArtifactSource: null,
+    });
+  });
+
+  it("hydrates completed pulse workflow artifacts with their completion source", () => {
+    const payload = buildAiStudioSessionHydrationPayload(
+      createSnapshot({
+        agent: {
+          ...createSnapshot().agent,
+          pulseWorkflowSession: {
+            presetId: "story_builder",
+            status: "completed",
+            currentStepIndex: 6,
+            currentStepLabel: "Dialogue Story",
+            currentStepPrompt: null,
+            collectedInputs: ["grimdark", "A knight enters a cursed forest", "5 min"],
+            lastArtifact:
+              "Scene 1: A grimdark knight stands at the cursed forest edge beneath cold moonlight.",
+            finalArtifactSource: "chat_reply",
+          },
+        },
+      })
+    );
+
+    expect(payload.agent.pulseWorkflowSession).toEqual({
+      presetId: "story_builder",
+      status: "completed",
+      currentStepIndex: 6,
+      currentStepLabel: "Dialogue Story",
+      currentStepPrompt: null,
+      collectedInputs: ["grimdark", "A knight enters a cursed forest", "5 min"],
+      lastArtifact:
+        "Scene 1: A grimdark knight stands at the cursed forest edge beneath cold moonlight.",
+      finalArtifactSource: "chat_reply",
+    });
+  });
+
+  it("round-trips a completed pulse workflow session artifact through snapshot build and hydrate", () => {
+    const snapshot = buildAiStudioSessionSnapshot({
+      sessionId: "story-builder-session",
+      updatedAt: "2026-04-23T12:00:00.000Z",
+      mode: "image",
+      selectedTool: "create",
+      prompt: "Build a fantasy story sequence",
+      model: "fal-ai/bytedance/seedream/v4.5/text-to-image",
+      aspect: "9:16",
+      expertCreateMode: "pulse",
+      activePulsePresetId: "story_builder",
+      referenceImageUrl: null,
+      extraImageUrls: [null, null, null],
+      editReferenceText: "",
+      videoReferenceText: "",
+      videoReferenceMode: "standard",
+      videoDurationSeconds: 6,
+      videoResolution: "1080p",
+      imageResolution: "model_default",
+      videoGenerateAudio: false,
+      videoCameraFixed: false,
+      videoAutoFix: false,
+      klingNegativePrompt: "",
+      klingCfgScale: 0.5,
+      klingWorkflowMode: "single",
+      klingShotType: "customize",
+      klingVoiceIds: ["", ""],
+      klingMultiPrompts: [],
+      klingElements: [],
+      motionReferenceVideoUrl: null,
+      outputs: [],
+      archivedOutputs: [],
+      activeOutputId: null,
+      curatedReferenceIds: [],
+      removedFromAllRefsIds: [],
+      agentMessages: [],
+      agentInput: "",
+      latestAgentPrompt: null,
+      promptOrigin: "manual",
+      chatModeEnabled: true,
+      pulseWorkflowSession: {
+        presetId: "story_builder",
+        status: "completed",
+        currentStepIndex: 6,
+        currentStepLabel: "Image Prompts",
+        currentStepPrompt: null,
+        collectedInputs: ["grimdark tone", "A knight enters a cursed forest", "10 min"],
+        lastArtifact:
+          "Scene 1: cinematic wide shot of the knight entering the ruined hall under torchlight.",
+      },
+    });
+
+    const payload = buildAiStudioSessionHydrationPayload(snapshot);
+
+    expect(payload.agent.pulseWorkflowSession).toEqual({
+      presetId: "story_builder",
+      status: "completed",
+      currentStepIndex: 6,
+      currentStepLabel: "Image Prompts",
+      currentStepPrompt: null,
+      collectedInputs: ["grimdark tone", "A knight enters a cursed forest", "10 min"],
+      lastArtifact:
+        "Scene 1: cinematic wide shot of the knight entering the ruined hall under torchlight.",
+      finalArtifactSource: null,
+    });
+  });
+
+  it("preserves persisted custom Kling prompt workspace during hydration", () => {
     const snapshot = createSnapshot({
       workspace: {
         ...createSnapshot().workspace,
@@ -101,11 +257,29 @@ describe("sessionSnapshotHydrator", () => {
     });
 
     const payload = buildAiStudioSessionHydrationPayload(snapshot);
-    expect(payload.workspace.klingWorkflowMode).toBe("single");
-    expect(payload.workspace.klingMultiPrompts).toEqual([]);
+    expect(payload.workspace.klingWorkflowMode).toBe("custom");
+    expect(payload.workspace.klingMultiPrompts).toEqual([
+      { id: "shot-1", prompt: "Beat one", duration: 5 },
+    ]);
   });
 
-  it("remaps quarantined Seedance 2 models to Seedance 1.5 during hydration", () => {
+  it("keeps Seedance 2 models active during hydration by default", () => {
+    const payload = buildAiStudioSessionHydrationPayload(
+      createSnapshot({
+        workspace: {
+          ...createSnapshot().workspace,
+          mode: "video",
+          selectedTool: "video",
+          model: KIE_SEEDANCE_2_MODEL_ID,
+        },
+      })
+    );
+
+    expect(payload.workspace.model).toBe(KIE_SEEDANCE_2_MODEL_ID);
+  });
+
+  it("remaps Seedance 2 models to Seedance 1.5 during hydration when the UI flag is disabled", () => {
+    vi.stubEnv("NEXT_PUBLIC_AI_STUDIO_SEEDANCE_2_ENABLED", "false");
     const payload = buildAiStudioSessionHydrationPayload(
       createSnapshot({
         workspace: {
@@ -281,6 +455,19 @@ describe("sessionSnapshotHydrator", () => {
     );
 
     expect(payload.workspace.selectedTool).toBe("presets");
+  });
+
+  it("keeps pulse-presets as a valid restored selected tool", () => {
+    const payload = buildAiStudioSessionHydrationPayload(
+      createSnapshot({
+        workspace: {
+          ...createSnapshot().workspace,
+          selectedTool: "pulse-presets",
+        },
+      })
+    );
+
+    expect(payload.workspace.selectedTool).toBe("pulse-presets");
   });
 
   it("keeps media-library as a valid restored selected tool", () => {

@@ -4,7 +4,8 @@ import type { Dispatch, MutableRefObject, SetStateAction } from "react";
 import { useAiStudioAgentOrchestration } from "../useAiStudioAgentOrchestration";
 import { prepareImageUrl } from "../../logic/imageDescription";
 import type { StudioOutput } from "../../types";
-import type { AgentAttachment } from "../../../../prefabs/agent";
+import type { AgentAttachment, AgentPulseWorkflowSession } from "../../../../prefabs/agent";
+import type { CreatePulseResolvedPreset } from "../../components/create/createPulsePresets";
 
 vi.mock("../../logic/imageDescription", () => ({
   prepareImageUrl: vi.fn(async (url: string) => url),
@@ -44,6 +45,7 @@ const createParams = (
   latestAgentPrompt: null,
   setLatestAgentPrompt: asDispatch<string | null>(vi.fn()),
   setAgentActions: asDispatch<unknown>(vi.fn()),
+  setPulseWorkflowSession: asDispatch(vi.fn()),
   selectedTool: "create",
   setSharedPrompt: vi.fn(),
   setPromptOrigin: asDispatch<"manual" | "agent" | "reference">(vi.fn()),
@@ -398,5 +400,124 @@ describe("useAiStudioAgentOrchestration", () => {
     });
 
     expect(prepareImageUrlMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("primes authoritative workflow session state immediately when a workflow pulse starts", async () => {
+    const setPulseWorkflowSession = vi.fn();
+    const workflowSession: AgentPulseWorkflowSession = {
+      presetId: "story_builder",
+      status: "awaiting_input",
+      currentStepIndex: 1,
+      currentStepLabel: "Upload Characters",
+      currentStepPrompt: "Step 1 - Upload your characters.",
+      collectedInputs: [],
+      lastArtifact: null,
+    };
+    const sendToAgent = vi.fn(async () => ({
+      response: { message: "Step 1 - Upload your characters." },
+      actions: undefined,
+      workflowSession,
+    }));
+    const params = createParams({
+      sendToAgent,
+      setPulseWorkflowSession: asDispatch(setPulseWorkflowSession),
+      getAgentContext: vi.fn(() => ({})),
+    });
+    const { result } = renderHook(() => useAiStudioAgentOrchestration(params));
+
+    const preset: CreatePulseResolvedPreset = {
+      presetId: "story_builder",
+      label: "Story Builder",
+      description: "Story workflow",
+      systemInstructions: "workflow instructions",
+      runtimeMode: "workflow_gpt",
+      activationMode: "activate_and_start",
+      starterAssistantMessage:
+        "Step 1 - Upload your characters. Please upload 1-3+ character images.",
+      workflowStageHints: ["Upload Characters", "Plot Seed", "Runtime"],
+      outputMode: "chat_reply",
+      memoryPolicy: "session",
+      isCustom: false,
+      isBuiltIn: true,
+      isEditable: true,
+      hasUserOverride: false,
+    };
+
+    await act(async () => {
+      await result.current.handlePulsePresetStart(preset);
+    });
+
+    expect(setPulseWorkflowSession).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        presetId: "story_builder",
+        status: "running",
+        currentStepIndex: 1,
+        currentStepLabel: "Upload Characters",
+        collectedInputs: [],
+      })
+    );
+    expect(setPulseWorkflowSession).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        presetId: "story_builder",
+        status: "awaiting_input",
+        currentStepLabel: "Upload Characters",
+      })
+    );
+  });
+
+  it("primes workflow session state on user reply before the next workflow response returns", async () => {
+    const setPulseWorkflowSession = vi.fn();
+    const sendToAgent = vi.fn(async () => ({
+      response: { message: "Step 3 - How long should it be?" },
+      actions: undefined,
+      workflowSession: null,
+    }));
+    const params = createParams({
+      agentInput: "A knight enters a cursed forest",
+      sendToAgent,
+      setPulseWorkflowSession: asDispatch(setPulseWorkflowSession),
+      getAgentContext: vi.fn(() => ({
+        pulse: {
+          presetId: "story_builder",
+          label: "Story Builder",
+          instructions: "workflow instructions",
+          runtimeMode: "workflow_gpt" as const,
+          activationMode: "activate_and_start" as const,
+          starterAssistantMessage:
+            "Step 1 - Upload your characters. Please upload 1-3+ character images.",
+          workflowStageHints: ["Upload Characters", "Plot Seed", "Runtime"],
+          outputMode: "chat_reply" as const,
+          memoryPolicy: "session" as const,
+          source: "builtin" as const,
+          workflowSession: {
+            presetId: "story_builder",
+            status: "awaiting_input" as const,
+            currentStepIndex: 2,
+            currentStepLabel: "Plot Seed",
+            currentStepPrompt: "Step 2 - Basic plot. Share a 1-2 sentence plot idea.",
+            collectedInputs: ["grimdark"],
+            lastArtifact: null,
+          },
+        },
+      })),
+    });
+    const { result } = renderHook(() => useAiStudioAgentOrchestration(params));
+
+    await act(async () => {
+      await result.current.handleAgentSend();
+    });
+
+    expect(setPulseWorkflowSession).toHaveBeenCalledWith({
+      presetId: "story_builder",
+      status: "running",
+      currentStepIndex: 2,
+      currentStepLabel: "Plot Seed",
+      currentStepPrompt: "Step 2 - Basic plot. Share a 1-2 sentence plot idea.",
+      collectedInputs: ["grimdark", "A knight enters a cursed forest"],
+      lastArtifact: null,
+      finalArtifactSource: null,
+    });
   });
 });

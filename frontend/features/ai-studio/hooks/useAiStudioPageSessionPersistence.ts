@@ -4,6 +4,7 @@
  */
 import { useCallback } from "react";
 import type { AgentMessage } from "../../ai-agent/types";
+import type { AgentPulseWorkflowSession } from "../../../prefabs/agent";
 import type { PromptOrigin } from "../logic/agentPromptOwnership";
 import type { AiStudioSessionSnapshot } from "../logic/sessionSnapshot";
 import type { AiStudioSessionHydrationPayload } from "../logic/sessionSnapshotHydrator";
@@ -17,6 +18,7 @@ type BuildPageSessionSnapshotArgs = {
   latestAgentPrompt: string | null;
   promptOrigin: PromptOrigin;
   chatModeEnabled: boolean;
+  pulseWorkflowSession?: AgentPulseWorkflowSession | null;
   expertEditSessionState?: ExpertEditSessionState | null;
 };
 
@@ -29,6 +31,7 @@ type UseAiStudioPageSessionPersistenceParams = {
   latestAgentPrompt: string | null;
   promptOrigin: PromptOrigin;
   chatModeEnabled: boolean;
+  pulseWorkflowSession?: AgentPulseWorkflowSession | null;
   expertEditSessionState?: ExpertEditSessionState | null;
   hydrateFromSessionSnapshot: (
     snapshot: AiStudioSessionSnapshot
@@ -52,6 +55,7 @@ export const useAiStudioPageSessionPersistence = ({
   latestAgentPrompt,
   promptOrigin,
   chatModeEnabled,
+  pulseWorkflowSession,
   expertEditSessionState,
   hydrateFromSessionSnapshot,
   hydrateFromSessionAgentSnapshot,
@@ -67,6 +71,7 @@ export const useAiStudioPageSessionPersistence = ({
         latestAgentPrompt,
         promptOrigin,
         chatModeEnabled,
+        pulseWorkflowSession,
         expertEditSessionState,
       }),
     [
@@ -76,6 +81,7 @@ export const useAiStudioPageSessionPersistence = ({
       chatModeEnabled,
       expertEditSessionState,
       latestAgentPrompt,
+      pulseWorkflowSession,
       promptOrigin,
     ]
   );

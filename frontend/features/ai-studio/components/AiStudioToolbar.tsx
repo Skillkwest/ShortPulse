@@ -55,10 +55,37 @@ type AiStudioToolbarProps = {
 
 type IconComponent = ForwardRefExoticComponent<IconProps & RefAttributes<SVGSVGElement>>;
 
+const SoundEffectsWaveformIcon = React.forwardRef<SVGSVGElement, IconProps>(
+  function SoundEffectsWaveformIcon(
+    { color = "currentColor", size = "1em", mirrored = false, weight: _weight, ...restProps },
+    ref
+  ) {
+    return (
+      <svg
+        ref={ref}
+        xmlns="http://www.w3.org/2000/svg"
+        viewBox="0 0 256 256"
+        width={size}
+        height={size}
+        fill="none"
+        style={{ transform: mirrored ? "scale(-1, 1)" : undefined }}
+        {...restProps}
+      >
+        <rect x="44" y="92" width="20" height="72" rx="10" fill={color} />
+        <rect x="82" y="52" width="20" height="152" rx="10" fill={color} />
+        <rect x="120" y="36" width="20" height="184" rx="10" fill={color} />
+        <rect x="158" y="64" width="20" height="128" rx="10" fill={color} />
+        <rect x="196" y="84" width="20" height="88" rx="10" fill={color} />
+      </svg>
+    );
+  }
+);
+
 const toolIcons: Record<ToolId, IconComponent> = {
   create: Sparkle,
   "media-library": ImageSquare,
   elements: At,
+  "pulse-presets": Sliders,
   workflows: FlowArrow,
   presets: Sliders,
   styles: Palette,
@@ -72,7 +99,7 @@ const toolIcons: Record<ToolId, IconComponent> = {
   voices: Microphone,
   "text-to-speech": TextT,
   "voice-changer": Sliders,
-  "sound-effects": Sparkle,
+  "sound-effects": SoundEffectsWaveformIcon,
   music: MusicNotes,
   character: Person,
   kling: VideoCamera,

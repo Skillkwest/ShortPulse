@@ -9,6 +9,7 @@ type StageMarker = (stage: string, startedAt: number) => void;
 type ErrorMessageFormatter = (error: unknown) => string;
 type CanonicalWriteOutcomeClass =
   | "success_prompt"
+  | "success_message"
   | "refusal_model"
   | "refusal_safety"
   | "fallback_infra"

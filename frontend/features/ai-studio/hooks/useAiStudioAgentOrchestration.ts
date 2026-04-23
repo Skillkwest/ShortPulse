@@ -3,12 +3,18 @@ import { prepareImageUrl } from "../logic/imageDescription";
 import { normalizePromptText } from "../logic/agentPromptOwnership";
 import { shouldApplyAgentPromptToSharedPrompt } from "../logic/promptTargeting";
 import { randomId } from "../logic/ids";
+import type { CreatePulseResolvedPreset } from "../components/create/createPulsePresets";
 import { mergeAttachmentContext } from "./agentOrchestration/attachmentContext";
 import { prepareAgentImageAttachments } from "./agentOrchestration/attachmentPreparation";
 import type {
   AgentSendOptions,
   UseAiStudioAgentOrchestrationParams,
 } from "./agentOrchestration/types";
+import { buildStudioAgentPulseActivationSeed } from "../../agent-runtime/studioAgentPulseRuntime";
+import {
+  buildPendingPulseWorkflowSessionForStart,
+  buildPendingPulseWorkflowSessionForUserInput,
+} from "../logic/pulseWorkflowSession";
 
 const DEFAULT_AGENT_PROMPT_REFERENCE_TITLE = "Agent prompt";
 
@@ -37,6 +43,7 @@ export const useAiStudioAgentOrchestration = ({
   latestAgentPrompt,
   setLatestAgentPrompt,
   setAgentActions,
+  setPulseWorkflowSession,
   selectedTool,
   setSharedPrompt,
   setPromptOrigin,
@@ -221,8 +228,16 @@ export const useAiStudioAgentOrchestration = ({
           attachments: outboundAttachments,
           preparedImageUrls,
         });
+        const pendingWorkflowSession = buildPendingPulseWorkflowSessionForUserInput({
+          preset: mediaPatchedContext.pulse,
+          existingSession: mediaPatchedContext.pulse?.workflowSession ?? null,
+          userInput: userMessageText,
+        });
+        if (pendingWorkflowSession) {
+          setPulseWorkflowSession(pendingWorkflowSession);
+        }
 
-        const { response, actions } = await sendToAgent({
+        const { response, actions, workflowSession } = await sendToAgent({
           text: outboundText,
           payloadText: outboundText,
           previousPrompt: latestAgentPrompt ?? null,
@@ -254,6 +269,9 @@ export const useAiStudioAgentOrchestration = ({
         }
 
         setAgentActions(actions);
+        if (workflowSession) {
+          setPulseWorkflowSession(workflowSession);
+        }
 
         if (options?.captureResult && appliedPrompt) {
           return { prompt: appliedPrompt, referenceTitle: DEFAULT_AGENT_PROMPT_REFERENCE_TITLE };
@@ -286,6 +304,7 @@ export const useAiStudioAgentOrchestration = ({
       setSharedPrompt,
       setAgentAttachments,
       setAgentActions,
+      setPulseWorkflowSession,
       trackAgentUiEvent,
     ]
   );
@@ -298,7 +317,7 @@ export const useAiStudioAgentOrchestration = ({
         lastAssistantMessage,
         modeHint: "text",
       });
-      const { response, actions } = await sendToAgent({
+      const { response, actions, workflowSession } = await sendToAgent({
         text: prompt,
         payloadText: prompt,
         previousPrompt: latestAgentPrompt ?? null,
@@ -315,6 +334,9 @@ export const useAiStudioAgentOrchestration = ({
         addAgentPromptReference(refinedPrompt, "Refined prompt");
         setPromptOrigin("agent");
       }
+      if (workflowSession) {
+        setPulseWorkflowSession(workflowSession);
+      }
     } finally {
       setIsPromptRefining(false);
     }
@@ -326,9 +348,102 @@ export const useAiStudioAgentOrchestration = ({
     prompt,
     sendToAgent,
     setLatestAgentPrompt,
+    setPulseWorkflowSession,
     setPromptOrigin,
     setSharedPrompt,
   ]);
+
+  const handlePulsePresetStart = useCallback(
+    async (preset: CreatePulseResolvedPreset) => {
+      if (agentIsSending || agentUiBusyRef.current) return;
+      const pulseContext = {
+        ...getAgentContext({
+          lastAssistantMessage,
+          modeHint: "chat",
+        }),
+        pulse: {
+          presetId: preset.presetId,
+          label: preset.label,
+          description: preset.description,
+          instructions: preset.systemInstructions,
+          runtimeMode: preset.runtimeMode,
+          activationMode: preset.activationMode,
+          starterAssistantMessage: preset.starterAssistantMessage,
+          workflowStageHints: preset.workflowStageHints,
+          outputMode: preset.outputMode,
+          memoryPolicy: preset.memoryPolicy,
+          source: preset.isBuiltIn ? ("builtin" as const) : ("custom" as const),
+        },
+      };
+      const activationSeed = buildStudioAgentPulseActivationSeed(pulseContext.pulse);
+      if (!activationSeed) return;
+
+      trackAgentUiEvent("studio_agent_pulse_start_requested", {
+        preset_id: preset.presetId,
+        runtime_mode: preset.runtimeMode,
+        activation_mode: preset.activationMode,
+      });
+
+      if (!agentSessionEnabled) setAgentSessionEnabled(true);
+      setAgentAttachmentError(null);
+      agentUiBusyRef.current = true;
+      setAgentUiBusy(true);
+      const pendingWorkflowSession = buildPendingPulseWorkflowSessionForStart({
+        preset: pulseContext.pulse,
+      });
+      if (pendingWorkflowSession) {
+        setPulseWorkflowSession(pendingWorkflowSession);
+      }
+
+      try {
+        const { response, actions, workflowSession } = await sendToAgent({
+          text: "",
+          payloadText: activationSeed,
+          previousPrompt: latestAgentPrompt ?? null,
+          context: pulseContext,
+          skipUserEcho: true,
+        });
+
+        if (!response) return;
+
+        const appliedPrompt = normalizePromptText(actions?.applyPrompt);
+        if (appliedPrompt) {
+          setLatestAgentPrompt(appliedPrompt);
+          if (shouldApplyAgentPromptToSharedPrompt(selectedTool)) {
+            setSharedPrompt(appliedPrompt);
+            setPromptOrigin("agent");
+          }
+        }
+
+        setAgentActions(actions);
+        if (workflowSession) {
+          setPulseWorkflowSession(workflowSession);
+        }
+      } finally {
+        agentUiBusyRef.current = false;
+        setAgentUiBusy(false);
+      }
+    },
+    [
+      agentIsSending,
+      agentSessionEnabled,
+      agentUiBusyRef,
+      getAgentContext,
+      lastAssistantMessage,
+      latestAgentPrompt,
+      selectedTool,
+      sendToAgent,
+      setAgentActions,
+      setAgentAttachmentError,
+      setAgentSessionEnabled,
+      setAgentUiBusy,
+      setLatestAgentPrompt,
+      setPulseWorkflowSession,
+      setPromptOrigin,
+      setSharedPrompt,
+      trackAgentUiEvent,
+    ]
+  );
 
   const handleReferencePromptEnhance = useCallback(async () => {
     const isVideoPromptTool = selectedTool === "video" || selectedTool === "kling";
@@ -341,7 +456,7 @@ export const useAiStudioAgentOrchestration = ({
         lastAssistantMessage,
         modeHint: "text",
       });
-      const { response, actions } = await sendToAgent({
+      const { response, actions, workflowSession } = await sendToAgent({
         text: currentPrompt,
         payloadText: currentPrompt,
         previousPrompt: latestAgentPrompt ?? null,
@@ -360,6 +475,9 @@ export const useAiStudioAgentOrchestration = ({
         }
         setPromptOrigin("manual");
       }
+      if (workflowSession) {
+        setPulseWorkflowSession(workflowSession);
+      }
     } finally {
       setIsReferencePromptEnhancing(false);
     }
@@ -372,6 +490,7 @@ export const useAiStudioAgentOrchestration = ({
     selectedTool,
     sendToAgent,
     setEditReferenceText,
+    setPulseWorkflowSession,
     setPromptOrigin,
     setVideoReferenceText,
     videoReferenceText,
@@ -516,6 +635,7 @@ export const useAiStudioAgentOrchestration = ({
     isReferencePromptEnhancing,
     describeInFlightCount,
     handleAgentSend,
+    handlePulsePresetStart,
     handleAgentEnhanceSend,
     handleReferencePromptEnhance,
     handleDescribeReference,

@@ -59,4 +59,60 @@ describe("studioAgentRouteEnvelope", () => {
     if (!result.ok) return;
     expect(result.value.directOpenAiBypass).toBe(true);
   });
+
+  it("sanitizes pulse runtime metadata from the request context", () => {
+    const result = parseStudioAgentRequestEnvelope({
+      req: {
+        body: {
+          clientSessionKey: "session-pulse",
+          messages: [{ role: "user", content: "hello" }],
+          context: {
+            pulse: {
+              presetId: " pulse_story ",
+              label: " Story Builder ",
+              instructions: " Keep the structure easy to follow. ",
+              source: "custom",
+              workflowSession: {
+                presetId: " pulse_story ",
+                status: "awaiting_input",
+                currentStepIndex: 2,
+                currentStepLabel: "Action",
+                currentStepPrompt: "Step 2 — Action",
+                collectedInputs: ["Upload your image"],
+                lastArtifact: null,
+              },
+            },
+          },
+        },
+      } as never,
+      userId: "user-pulse",
+      traceId: "trace-pulse",
+    });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.context.pulse).toEqual({
+      presetId: "pulse_story",
+      label: "Story Builder",
+      description: null,
+      instructions: "Keep the structure easy to follow.",
+      runtimeMode: "prompt_editor",
+      activationMode: "activate_only",
+      starterAssistantMessage: null,
+      outputMode: "apply_prompt",
+      memoryPolicy: "session",
+      workflowStageHints: null,
+      source: "custom",
+      workflowSession: {
+        presetId: "pulse_story",
+        status: "awaiting_input",
+        currentStepIndex: 2,
+        currentStepLabel: "Action",
+        currentStepPrompt: "Step 2 — Action",
+        collectedInputs: ["Upload your image"],
+        lastArtifact: null,
+        finalArtifactSource: null,
+      },
+    });
+  });
 });

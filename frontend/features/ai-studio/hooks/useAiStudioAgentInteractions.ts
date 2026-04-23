@@ -1,5 +1,5 @@
 import { useCallback, type Dispatch, type SetStateAction } from "react";
-import type { AgentActions } from "../../../prefabs/agent";
+import type { AgentActions, AgentPulseWorkflowSession } from "../../../prefabs/agent";
 import { normalizePromptText, type PromptOrigin } from "../logic/agentPromptOwnership";
 
 const DEFAULT_AGENT_PROMPT_REFERENCE_TITLE = "Agent prompt";
@@ -21,6 +21,7 @@ type UseAiStudioAgentInteractionsParams = {
     preserveAttachments?: boolean;
   }) => void;
   setAgentActions: Dispatch<SetStateAction<AgentActions | undefined>>;
+  setPulseWorkflowSession: Dispatch<SetStateAction<AgentPulseWorkflowSession | null>>;
 };
 
 export const useAiStudioAgentInteractions = ({
@@ -37,6 +38,7 @@ export const useAiStudioAgentInteractions = ({
   resetAgentChat,
   resetAgentComposer,
   setAgentActions,
+  setPulseWorkflowSession,
 }: UseAiStudioAgentInteractionsParams) => {
   const handleAgentApplyPrompt = useCallback(
     (nextPrompt: string) => {
@@ -83,6 +85,7 @@ export const useAiStudioAgentInteractions = ({
     setLatestAgentPrompt(null);
     setPromptOrigin("manual");
     setAgentActions(undefined);
+    setPulseWorkflowSession(null);
     setIsAgentChatOpen(false);
     trackAgentUiEvent("studio_agent_chat_cleared");
   }, [
@@ -91,6 +94,7 @@ export const useAiStudioAgentInteractions = ({
     setLatestAgentPrompt,
     setPromptOrigin,
     setAgentActions,
+    setPulseWorkflowSession,
     setIsAgentChatOpen,
     trackAgentUiEvent,
   ]);

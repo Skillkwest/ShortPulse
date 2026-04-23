@@ -43,6 +43,7 @@ const validateReasonCodeForOutcomeClass = ({
   reasonCode: AgentReasonCode;
 }): boolean => {
   if (outcomeClass === "success_prompt") return reasonCode === "SUCCESS_PROMPT";
+  if (outcomeClass === "success_message") return reasonCode === "SUCCESS_MESSAGE";
   if (outcomeClass === "refusal_safety") {
     return (
       reasonCode === "SAFETY_INPUT_REFUSAL" ||
@@ -72,6 +73,7 @@ const validateReasonCodeForOutcomeClass = ({
 
 const resolveDefaultReasonCode = (outcomeClass: AgentOutcomeClass): AgentReasonCode => {
   if (outcomeClass === "success_prompt") return "SUCCESS_PROMPT";
+  if (outcomeClass === "success_message") return "SUCCESS_MESSAGE";
   if (outcomeClass === "refusal_safety") return "SAFETY_OUTPUT_REFUSAL";
   if (outcomeClass === "refusal_model") return "PROVIDER_SAFETY_REFUSAL";
   if (outcomeClass === "fallback_infra") return "INFRA_FALLBACK_TRANSIENT";
@@ -82,7 +84,13 @@ const resolveDefaultReasonCode = (outcomeClass: AgentOutcomeClass): AgentReasonC
 const resolveDecisionForOutcomeClass = (
   outcomeClass: AgentOutcomeClass
 ): AgentMachineOutcomeFields["decision"] => {
-  if (outcomeClass === "success_prompt" || outcomeClass === "fallback_infra") return "allow";
+  if (
+    outcomeClass === "success_prompt" ||
+    outcomeClass === "success_message" ||
+    outcomeClass === "fallback_infra"
+  ) {
+    return "allow";
+  }
   if (outcomeClass === "refusal_model" || outcomeClass === "refusal_safety") return "refuse";
   return "error";
 };

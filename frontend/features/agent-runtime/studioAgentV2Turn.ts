@@ -17,6 +17,7 @@ import {
   isStudioAgentRefusalResponse,
   parseStudioAgentJson,
 } from "./studioAgentResponseNormalization";
+import { buildStudioAgentPulseSystemMessage } from "./studioAgentPulseRuntime";
 import { labelUntrustedImageObservation } from "./studioAgentUntrustedContent";
 
 type StageMarker = (stage: string, startedAt: number) => void;
@@ -43,8 +44,13 @@ type StudioAgentV2TurnSuccess = {
 
 export type StudioAgentV2TurnResult = StudioAgentV2TurnFailure | StudioAgentV2TurnSuccess;
 
-const buildThinkerMessages = (payload: unknown, prompt: string) => [
+const buildThinkerMessages = (
+  payload: unknown,
+  prompt: string,
+  pulseSystemMessage?: string | null
+) => [
   { role: "system", content: prompt },
+  ...(pulseSystemMessage ? [{ role: "system" as const, content: pulseSystemMessage }] : []),
   { role: "user", content: JSON.stringify(payload) },
 ];
 
@@ -114,6 +120,7 @@ export const executeStudioAgentV2Turn = async ({
       };
     })
     .filter((entry) => typeof entry.summary === "string" && entry.summary.trim().length > 0);
+  const pulseSystemMessage = buildStudioAgentPulseSystemMessage(context.pulse);
 
   const thinkerPayload = {
     input_flow: orchestration.flow,
@@ -146,6 +153,7 @@ export const executeStudioAgentV2Turn = async ({
     focused_source: context.focusedSource ?? null,
     focused_reference_id: context.focusedReferenceId ?? null,
     mode_hint: context.modeHint ?? null,
+    active_pulse: context.pulse ?? null,
   };
 
   const v2StartedAt = Date.now();
@@ -154,7 +162,7 @@ export const executeStudioAgentV2Turn = async ({
     openAiUrl,
     thinkerModel,
     formatterModel,
-    thinkerMessages: buildThinkerMessages(thinkerPayload, thinkerPrompt),
+    thinkerMessages: buildThinkerMessages(thinkerPayload, thinkerPrompt, pulseSystemMessage),
     buildFormatterMessages: (semantic) => buildFormatterMessages(semantic, formatterPrompt),
     parseAgentJson: parseStudioAgentJson,
     timeoutMs,
@@ -194,7 +202,8 @@ export const executeStudioAgentV2Turn = async ({
           retry_instruction:
             "Your previous draft did not apply the explicit user edit. Re-apply the user change to the canonical prompt now and return the full updated prompt.",
         },
-        thinkerPrompt
+        thinkerPrompt,
+        pulseSystemMessage
       ),
       buildFormatterMessages: (semantic) => buildFormatterMessages(semantic, formatterPrompt),
       parseAgentJson: parseStudioAgentJson,

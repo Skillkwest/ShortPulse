@@ -1,0 +1,81 @@
+import { describe, expect, it } from "vitest";
+import type { StudioOutput } from "../../types";
+import { mergeCanonicalGeneratedOutputs } from "../generatedOutputHydration";
+
+const createOutput = (overrides: Partial<StudioOutput> = {}): StudioOutput => ({
+  id: "out-1",
+  prompt: "Prompt",
+  mode: "image",
+  aspect: "1:1",
+  model: "Seedream 4.5",
+  status: "ready",
+  timestamp: "Now",
+  ...overrides,
+});
+
+describe("generatedOutputHydration", () => {
+  it("merges canonical generated outputs into matching in-memory outputs", () => {
+    const existing = [
+      createOutput({
+        id: "local-1",
+        generationId: "gen-1",
+        taskId: "req-1",
+        taskState: "running",
+        queueState: "dispatched",
+        mediaSource: "generated",
+      }),
+    ];
+
+    const hydrated = [
+      createOutput({
+        id: "generated:gen-1",
+        generationId: "gen-1",
+        taskId: "req-1",
+        taskState: "success",
+        queueState: "dispatched",
+        mediaSource: "generated",
+        previewUrl: "https://cdn.test/generated-preview.png",
+        resultUrls: ["https://cdn.test/generated-full.png"],
+        timestamp: "Just now",
+      }),
+    ];
+
+    expect(mergeCanonicalGeneratedOutputs(existing, hydrated)).toEqual([
+      expect.objectContaining({
+        id: "local-1",
+        generationId: "gen-1",
+        taskId: "req-1",
+        taskState: "success",
+        previewUrl: "https://cdn.test/generated-preview.png",
+        resultUrls: ["https://cdn.test/generated-full.png"],
+        mediaSource: "generated",
+        timestamp: "Just now",
+      }),
+    ]);
+  });
+
+  it("prepends unseen canonical generated outputs", () => {
+    const existing = [createOutput({ id: "local-existing" })];
+    const hydrated = [
+      createOutput({
+        id: "generated:gen-2",
+        generationId: "gen-2",
+        taskId: "req-2",
+        taskState: "success",
+        mediaSource: "generated",
+        previewUrl: "https://cdn.test/generated-2.png",
+        resultUrls: ["https://cdn.test/generated-2.png"],
+        timestamp: "Just now",
+      }),
+    ];
+
+    expect(mergeCanonicalGeneratedOutputs(existing, hydrated)[0]).toEqual(
+      expect.objectContaining({
+        id: "generated:gen-2",
+        generationId: "gen-2",
+        taskId: "req-2",
+        mediaSource: "generated",
+      })
+    );
+  });
+});

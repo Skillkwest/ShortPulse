@@ -8,6 +8,7 @@ import type {
   AgentApiRequest,
   AgentAttachment,
   AgentMessage,
+  AgentPulseWorkflowSession,
 } from "../../prefabs/agent";
 import { removeAspectRatioLanguage, sanitizeGenerationPromptText } from "../agent-core/promptText";
 import {
@@ -179,6 +180,7 @@ export const useAiAgent = ({
           return {
             response: { message: SAFETY_REFUSAL_MESSAGE, actions: undefined },
             actions: undefined,
+            workflowSession: null,
           };
         }
         const precheckedApiMessages = inputPrecheckResult.messages.map((message) => {
@@ -230,6 +232,7 @@ export const useAiAgent = ({
                 fallback_reason: transportResult.parsedError?.fallback_reason,
               },
               actions: undefined,
+              workflowSession: null,
             };
           }
           if (machineDecision === "allow" && machineOutcomeClass === "fallback_infra") {
@@ -259,6 +262,7 @@ export const useAiAgent = ({
                 fallback_reason: transportResult.parsedError?.fallback_reason,
               },
               actions: undefined,
+              workflowSession: null,
             };
           }
           const refusalText = resolveSafetyRefusalText(
@@ -274,6 +278,7 @@ export const useAiAgent = ({
             return {
               response: { message: refusalText, actions: undefined },
               actions: undefined,
+              workflowSession: null,
             };
           }
 
@@ -292,6 +297,43 @@ export const useAiAgent = ({
 
         const data = transportResult.data;
         const actions = normalizeActions(data?.actions);
+        const workflowSession =
+          data?.workflowSession && typeof data.workflowSession.presetId === "string"
+            ? ({
+                presetId: data.workflowSession.presetId.trim(),
+                status:
+                  data.workflowSession.status === "running" ||
+                  data.workflowSession.status === "awaiting_input" ||
+                  data.workflowSession.status === "completed"
+                    ? data.workflowSession.status
+                    : "idle",
+                currentStepIndex:
+                  typeof data.workflowSession.currentStepIndex === "number" &&
+                  Number.isFinite(data.workflowSession.currentStepIndex)
+                    ? Math.max(1, Math.trunc(data.workflowSession.currentStepIndex))
+                    : null,
+                currentStepLabel:
+                  typeof data.workflowSession.currentStepLabel === "string" &&
+                  data.workflowSession.currentStepLabel.trim().length > 0
+                    ? data.workflowSession.currentStepLabel.trim()
+                    : null,
+                currentStepPrompt:
+                  typeof data.workflowSession.currentStepPrompt === "string" &&
+                  data.workflowSession.currentStepPrompt.trim().length > 0
+                    ? data.workflowSession.currentStepPrompt.trim()
+                    : null,
+                collectedInputs: Array.isArray(data.workflowSession.collectedInputs)
+                  ? data.workflowSession.collectedInputs
+                      .map((entry) => (typeof entry === "string" ? entry.trim() : ""))
+                      .filter((entry) => entry.length > 0)
+                  : [],
+                lastArtifact:
+                  typeof data.workflowSession.lastArtifact === "string" &&
+                  data.workflowSession.lastArtifact.trim().length > 0
+                    ? data.workflowSession.lastArtifact.trim()
+                    : null,
+              } satisfies AgentPulseWorkflowSession)
+            : null;
 
         if (data?.canonicalPrompt) {
           canonicalPromptRef.current = sanitizeGenerationPromptText(data.canonicalPrompt);
@@ -312,7 +354,7 @@ export const useAiAgent = ({
           setMessages(nextAssistantMessages);
           messagesRef.current = nextAssistantMessages;
         }
-        return { response: data ?? null, actions };
+        return { response: data ?? null, actions, workflowSession };
       } catch (err) {
         setError(
           normalizeErrorText(err instanceof Error ? err.message : err, {
@@ -320,7 +362,7 @@ export const useAiAgent = ({
             maxLength: 320,
           })
         );
-        return { response: null, actions: undefined };
+        return { response: null, actions: undefined, workflowSession: null };
       } finally {
         setIsSending(false);
       }

@@ -4,7 +4,7 @@
  */
 import { useCallback, type Dispatch, type SetStateAction, type MutableRefObject } from "react";
 import { addBreadcrumb } from "../../../lib/clientBreadcrumbs";
-import type { AgentMessage } from "../../../prefabs/agent/types";
+import type { AgentMessage, AgentPulseWorkflowSession } from "../../../prefabs/agent/types";
 import {
   buildAiStudioSessionSnapshot,
   type AiStudioSessionSnapshot,
@@ -30,6 +30,9 @@ type UseAiStudioSessionSnapshotControllerParams = {
   prompt: string;
   model: string | null;
   aspect: string;
+  expertCreateMode: "standard" | "pulse";
+  activePulsePresetId: string | null;
+  pulseWorkflowSession: AgentPulseWorkflowSession | null;
   referenceImageUrl: string | null;
   extraImageUrls: [string | null, string | null, string | null];
   editReferenceText: string;
@@ -66,6 +69,8 @@ type UseAiStudioSessionSnapshotControllerParams = {
   setSharedPrompt: (value: string) => void;
   setModel: (value: string | null) => void;
   setAspect: Dispatch<SetStateAction<string>>;
+  setExpertCreateMode: Dispatch<SetStateAction<"standard" | "pulse">>;
+  setActivePulsePresetId: Dispatch<SetStateAction<string | null>>;
   setReferenceImageUrl: (value: string | null) => void;
   setExtraImageUrl: (index: number, value: string | null) => void;
   setEditReferenceText: (value: string) => void;
@@ -113,6 +118,9 @@ export const useAiStudioSessionSnapshotController = ({
   prompt,
   model,
   aspect,
+  expertCreateMode,
+  activePulsePresetId,
+  pulseWorkflowSession,
   referenceImageUrl,
   extraImageUrls,
   editReferenceText,
@@ -149,6 +157,8 @@ export const useAiStudioSessionSnapshotController = ({
   setSharedPrompt,
   setModel,
   setAspect,
+  setExpertCreateMode,
+  setActivePulsePresetId,
   setReferenceImageUrl,
   setExtraImageUrl,
   setEditReferenceText,
@@ -191,6 +201,8 @@ export const useAiStudioSessionSnapshotController = ({
       setSharedPrompt(workspace.prompt);
       setModel(workspace.model);
       setAspect(workspace.aspect);
+      setExpertCreateMode(workspace.expertCreateMode);
+      setActivePulsePresetId(workspace.activePulsePresetId);
       setReferenceImageUrl(workspace.referenceImageUrl);
       workspace.extraImageUrls.forEach((url, index) => {
         setExtraImageUrl(index, url);
@@ -267,9 +279,11 @@ export const useAiStudioSessionSnapshotController = ({
     [
       sessionHydrationSigningRevisionRef,
       setActiveOutputId,
+      setActivePulsePresetId,
       setArchivedOutputs,
       setAspect,
       setEditReferenceText,
+      setExpertCreateMode,
       setExtraImageUrl,
       setImageResolution,
       setKlingCfgScale,
@@ -313,6 +327,7 @@ export const useAiStudioSessionSnapshotController = ({
       latestAgentPrompt,
       promptOrigin,
       chatModeEnabled,
+      pulseWorkflowSession: pulseWorkflowSessionOverride,
       expertEditSessionState,
     }: {
       sessionId: string;
@@ -322,6 +337,7 @@ export const useAiStudioSessionSnapshotController = ({
       latestAgentPrompt: string | null;
       promptOrigin: "manual" | "agent" | "reference";
       chatModeEnabled: boolean;
+      pulseWorkflowSession?: AgentPulseWorkflowSession | null;
       expertEditSessionState?: ExpertEditSessionState | null;
     }): AiStudioSessionSnapshotV2 =>
       buildAiStudioSessionSnapshot({
@@ -332,6 +348,8 @@ export const useAiStudioSessionSnapshotController = ({
         prompt,
         model,
         aspect,
+        expertCreateMode,
+        activePulsePresetId,
         referenceImageUrl,
         extraImageUrls,
         editReferenceText,
@@ -367,14 +385,17 @@ export const useAiStudioSessionSnapshotController = ({
         latestAgentPrompt,
         promptOrigin,
         chatModeEnabled,
+        pulseWorkflowSession: pulseWorkflowSessionOverride ?? pulseWorkflowSession,
         expertEditSessionState,
       }),
     [
       activeOutputId,
       archivedOutputs,
       aspect,
+      activePulsePresetId,
       curatedReferenceIds,
       editReferenceText,
+      expertCreateMode,
       extraImageUrls,
       imageResolution,
       klingCfgScale,
@@ -394,6 +415,7 @@ export const useAiStudioSessionSnapshotController = ({
       model,
       motionReferenceVideoUrl,
       outputs,
+      pulseWorkflowSession,
       prompt,
       referenceImageUrl,
       removedFromAllRefsIds,

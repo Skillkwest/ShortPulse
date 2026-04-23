@@ -73,6 +73,34 @@ export type AgentApiMediaPreview = {
   thumbnailAlt?: string | null;
 };
 
+export type AgentPulseWorkflowStatus = "idle" | "running" | "awaiting_input" | "completed";
+
+export type AgentPulseWorkflowSession = {
+  presetId: string;
+  status: AgentPulseWorkflowStatus;
+  currentStepIndex?: number | null;
+  currentStepLabel?: string | null;
+  currentStepPrompt?: string | null;
+  collectedInputs: string[];
+  lastArtifact?: string | null;
+  finalArtifactSource?: "apply_prompt" | "chat_reply" | null;
+};
+
+export type AgentPulseRuntimeContext = {
+  presetId: string;
+  label: string;
+  instructions: string;
+  description?: string | null;
+  runtimeMode?: "prompt_editor" | "workflow_gpt";
+  activationMode?: "activate_only" | "activate_and_start";
+  starterAssistantMessage?: string | null;
+  workflowStageHints?: string[] | null;
+  outputMode?: "apply_prompt" | "chat_reply";
+  memoryPolicy?: "session";
+  source?: "builtin" | "custom";
+  workflowSession?: AgentPulseWorkflowSession | null;
+};
+
 export type AgentContext = {
   activePrompt?: string | null;
   modelId?: string | null;
@@ -85,6 +113,7 @@ export type AgentContext = {
   focusedReferenceId?: string | null;
   lastAssistantMessage?: string | null;
   modeHint?: "chat" | "text" | "describe" | "reference";
+  pulse?: AgentPulseRuntimeContext | null;
 };
 
 export type AgentApiContext = Omit<AgentContext, "media"> & {
@@ -98,6 +127,7 @@ export type AgentActions = {
 export type AgentResponse = {
   message: string;
   actions?: AgentActions;
+  workflowSession?: AgentPulseWorkflowSession | null;
   usage?: {
     inputTokens?: number;
     outputTokens?: number;

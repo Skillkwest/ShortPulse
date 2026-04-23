@@ -67,6 +67,7 @@ describe("AiStudioToolbar", () => {
     { button: "Sound", expected: "voices" as const },
     { button: "Characters", expected: "character" as const },
     { button: "Elements", expected: "elements" as const },
+    { button: "Pulse Presets", expected: "pulse-presets" as const },
     { button: "Prompt Presets", expected: "presets" as const },
     { button: "Styles", expected: "styles" as const },
   ])("routes $button clicks to $expected", ({ button, expected }) => {
@@ -152,6 +153,7 @@ describe("AiStudioToolbar", () => {
       "Media",
       "Characters",
       "Elements",
+      "Pulse Presets",
       "Prompt Presets",
       "Styles",
     ]);

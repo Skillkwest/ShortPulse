@@ -16,6 +16,7 @@ import type {
   AgentActions,
   AgentAssistantMessageEditRequest,
   AgentContext,
+  AgentPulseWorkflowSession,
 } from "../../../prefabs/agent";
 import {
   getStagedAgentPrompt,
@@ -55,6 +56,7 @@ type UseAiStudioAgentBridgeParams = {
   setOutputs: Dispatch<SetStateAction<StudioOutput[]>>;
   setActiveOutputId: Dispatch<SetStateAction<string | null>>;
   setUiNotice: Dispatch<SetStateAction<string | null>>;
+  setPulseWorkflowSession: Dispatch<SetStateAction<AgentPulseWorkflowSession | null>>;
   trackAgentUiEvent: (message: string, data?: Record<string, unknown>) => void;
 };
 
@@ -99,6 +101,7 @@ export const useAiStudioAgentBridge = ({
   setOutputs,
   setActiveOutputId,
   setUiNotice,
+  setPulseWorkflowSession,
   trackAgentUiEvent,
 }: UseAiStudioAgentBridgeParams) => {
   const agentFlag =
@@ -242,6 +245,7 @@ export const useAiStudioAgentBridge = ({
     isReferencePromptEnhancing,
     describeInFlightCount,
     handleAgentSend,
+    handlePulsePresetStart,
     handleAgentEnhanceSend,
     handleReferencePromptEnhance,
   } = useAiStudioAgentOrchestration({
@@ -259,6 +263,7 @@ export const useAiStudioAgentBridge = ({
     latestAgentPrompt,
     setLatestAgentPrompt,
     setAgentActions,
+    setPulseWorkflowSession,
     selectedTool,
     setSharedPrompt,
     setPromptOrigin,
@@ -301,6 +306,7 @@ export const useAiStudioAgentBridge = ({
     resetAgentChat,
     resetAgentComposer,
     setAgentActions,
+    setPulseWorkflowSession,
   });
 
   useEffect(() => {
@@ -341,6 +347,7 @@ export const useAiStudioAgentBridge = ({
       setLatestAgentPrompt(agentSnapshot.latestAgentPrompt);
       setPromptOrigin(agentSnapshot.promptOrigin);
       setChatModeEnabled(agentSnapshot.chatModeEnabled);
+      setPulseWorkflowSession(agentSnapshot.pulseWorkflowSession);
       setAgentActions(undefined);
       setAgentAttachmentError(null);
       setAgentAttachments([]);
@@ -351,6 +358,7 @@ export const useAiStudioAgentBridge = ({
       setLatestAgentPrompt,
       setPromptOrigin,
       setChatModeEnabled,
+      setPulseWorkflowSession,
       setAgentActions,
       setAgentAttachmentError,
       setAgentAttachments,
@@ -382,6 +390,7 @@ export const useAiStudioAgentBridge = ({
     describeInFlightCount,
     handleAgentInputChange,
     handleAgentSend,
+    handlePulsePresetStart,
     handleAgentEnhanceSend,
     handleReferencePromptEnhance,
     hydrateFromSessionAgentSnapshot,

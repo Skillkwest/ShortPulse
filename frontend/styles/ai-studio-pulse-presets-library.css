@@ -1,0 +1,396 @@
+/**
+ * AI Studio primary Pulse Presets library panel styles.
+ * Keeps the raw Pulse panel visually identical to Prompt Presets while selector-isolated.
+ */
+.pulse-presets-library-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  gap: 12px;
+}
+
+.pulse-presets-library-header {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.pulse-presets-library-header .eyebrow {
+  margin: 0;
+}
+
+.pulse-presets-library-header .helper-text {
+  margin: 0;
+}
+
+.pulse-presets-library-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding-right: 4px;
+}
+
+.pulse-presets-library-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+
+.pulse-presets-library-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.pulse-presets-library-scroll::-webkit-scrollbar-thumb {
+  background: rgba(201, 205, 214, 0.2);
+  border-radius: 999px;
+}
+
+.pulse-presets-library-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(201, 205, 214, 0.32);
+}
+
+.pulse-presets-library-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(196px, 1fr));
+  gap: 12px;
+  padding-top: 10px;
+}
+
+.pulse-presets-library-tile {
+  position: relative;
+  border: 1px solid rgba(201, 205, 214, 0.18);
+  border-radius: 12px;
+  background: rgba(201, 205, 214, 0.04);
+  min-height: 126px;
+  padding: 12px;
+  cursor: default;
+  transition:
+    border-color 0.16s ease,
+    transform 0.16s ease,
+    box-shadow 0.16s ease,
+    background 0.16s ease;
+}
+
+.pulse-presets-library-tile-select {
+  width: 100%;
+  min-height: 100%;
+  border: none;
+  background: transparent;
+  color: inherit;
+  padding: 0;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.pulse-presets-library-tile:hover {
+  border-color: rgba(205, 210, 220, 0.36);
+  background: rgba(201, 205, 214, 0.08);
+  transform: translateY(-1px);
+}
+
+.pulse-presets-library-tile.is-selected {
+  border-color: rgba(105, 198, 255, 0.72);
+  box-shadow: 0 0 0 1px rgba(105, 198, 255, 0.2);
+  background: rgba(68, 138, 181, 0.1);
+}
+
+.pulse-presets-library-create-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  text-align: center;
+  cursor: pointer;
+  border-style: solid;
+  border-color: rgba(37, 204, 255, 0.58);
+  background: rgba(28, 32, 37, 0.94);
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.18);
+}
+
+.pulse-presets-library-create-tile .pulse-presets-library-tile-head {
+  justify-content: center;
+}
+
+.pulse-presets-library-create-tile .pulse-presets-library-tile-prompt {
+  text-align: center;
+}
+
+.pulse-presets-library-create-tile:hover {
+  border-color: rgba(37, 204, 255, 0.58);
+  background: rgba(28, 32, 37, 0.98);
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.18);
+}
+
+.pulse-presets-library-create-plus {
+  font-size: 28px;
+  line-height: 1;
+  color: rgba(110, 214, 233, 0.96);
+}
+
+.pulse-presets-library-create-tile .pulse-presets-library-tile-title {
+  color: rgba(110, 214, 233, 0.96);
+  font-weight: 800;
+  letter-spacing: 0.01em;
+}
+
+.pulse-presets-library-create-tile .pulse-presets-library-tile-prompt {
+  color: rgba(168, 189, 208, 0.86);
+}
+
+.pulse-presets-library-tile-head {
+  width: 100%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.pulse-presets-library-tile-title {
+  color: rgba(238, 242, 248, 0.94);
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  line-height: 1.25;
+}
+
+.pulse-presets-library-custom-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 3px 7px;
+  border-radius: 999px;
+  border: 1px solid rgba(201, 205, 214, 0.22);
+  background: rgba(201, 205, 214, 0.08);
+  color: rgba(215, 222, 235, 0.86);
+  font-size: 12px;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.pulse-presets-library-tile-delete {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 99, 99, 0.65);
+  background: rgba(46, 12, 16, 0.78);
+  color: rgba(255, 132, 132, 0.95);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  opacity: 0;
+  pointer-events: none;
+  transform: scale(0.94);
+  transition:
+    opacity 0.14s ease,
+    transform 0.14s ease,
+    background 0.14s ease,
+    border-color 0.14s ease;
+}
+
+.pulse-presets-library-tile:hover .pulse-presets-library-tile-delete,
+.pulse-presets-library-tile:focus-within .pulse-presets-library-tile-delete {
+  opacity: 1;
+  pointer-events: auto;
+  transform: scale(1);
+}
+
+.pulse-presets-library-tile-delete:hover {
+  background: rgba(70, 14, 20, 0.88);
+  border-color: rgba(255, 115, 115, 0.88);
+}
+
+.pulse-presets-library-tile-delete:focus-visible {
+  outline: 2px solid rgba(255, 130, 130, 0.85);
+  outline-offset: 1px;
+}
+
+.pulse-presets-library-tile-prompt {
+  color: rgba(201, 205, 214, 0.9);
+  font-size: 13px;
+  line-height: 1.46;
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.pulse-presets-library-edit-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: var(--ai-studio-z-modal-backdrop);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(4, 7, 12, 0.58);
+}
+
+.pulse-presets-library-edit-modal {
+  width: min(720px, calc(100vw - 24px));
+  border-radius: 12px;
+  border: 1px solid rgba(201, 205, 214, 0.24);
+  background: #131518;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.45);
+  padding: 22px;
+  display: flex;
+  flex-direction: column;
+  z-index: var(--ai-studio-z-modal-content);
+  gap: 14px;
+  font-family: inherit;
+}
+
+.pulse-presets-library-edit-title {
+  margin: 0;
+  color: rgba(235, 241, 248, 0.96);
+  font-size: 21px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.pulse-presets-library-edit-copy {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+.pulse-presets-library-edit-label {
+  color: rgba(229, 234, 242, 0.9);
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.pulse-presets-library-edit-input,
+.pulse-presets-library-edit-textarea {
+  width: 100%;
+  border-radius: 9px;
+  border: 1px solid rgba(201, 205, 214, 0.24);
+  background: #101215;
+  color: rgba(238, 242, 248, 0.95);
+  font-size: 15px;
+  line-height: 1.6;
+  padding: 13px 14px;
+  font-family: inherit;
+}
+
+.pulse-presets-library-edit-input:focus-visible,
+.pulse-presets-library-edit-textarea:focus-visible {
+  outline: 2px solid rgba(105, 198, 255, 0.7);
+  outline-offset: 1px;
+}
+
+.pulse-presets-library-edit-textarea {
+  min-height: 220px;
+  resize: vertical;
+}
+
+.pulse-presets-library-workflow-checklist {
+  border: 1px solid rgba(109, 190, 255, 0.2);
+  background: rgba(19, 33, 49, 0.78);
+  border-radius: 10px;
+  padding: 10px 12px;
+}
+
+.pulse-presets-library-workflow-builder {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid rgba(201, 205, 214, 0.16);
+  border-radius: 10px;
+  background: rgba(16, 18, 21, 0.72);
+}
+
+.pulse-presets-library-edit-textarea--compact {
+  min-height: 112px;
+}
+
+.pulse-presets-library-edit-error {
+  margin: 0;
+  font-size: 14px;
+  color: rgba(255, 142, 142, 0.94);
+}
+
+.pulse-presets-library-edit-actions {
+  display: inline-flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.pulse-presets-library-edit-action-btn {
+  min-width: 120px;
+  border-radius: 8px;
+  font-size: 15px;
+  font-family: inherit;
+}
+
+.pulse-presets-library-delete-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: var(--ai-studio-z-modal-backdrop);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(4, 7, 12, 0.58);
+}
+
+.pulse-presets-library-delete-modal {
+  width: min(360px, calc(100vw - 24px));
+  border-radius: 10px;
+  border: 1px solid rgba(255, 95, 95, 0.45);
+  background: rgba(16, 18, 24, 0.98);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.45);
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  z-index: var(--ai-studio-z-modal-content);
+  gap: 10px;
+}
+
+.pulse-presets-library-delete-title {
+  margin: 0;
+  color: rgba(255, 219, 219, 0.96);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.pulse-presets-library-delete-copy {
+  margin: 0;
+}
+
+.pulse-presets-library-delete-error {
+  margin: 0;
+  color: rgba(255, 132, 132, 0.95);
+}
+
+.pulse-presets-library-delete-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.pulse-presets-library-delete-confirm {
+  border-color: rgba(255, 99, 99, 0.62);
+  color: rgba(255, 142, 142, 0.96);
+  background: rgba(42, 16, 18, 0.78);
+}
+
+.pulse-presets-library-delete-confirm:hover:not(:disabled) {
+  border-color: rgba(255, 122, 122, 0.86);
+  background: rgba(58, 19, 22, 0.86);
+}
+
+@media (hover: none) {
+  .pulse-presets-library-tile-delete {
+    opacity: 1;
+    pointer-events: auto;
+    transform: none;
+  }
+}

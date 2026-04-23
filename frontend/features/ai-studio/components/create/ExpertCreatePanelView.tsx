@@ -8,6 +8,11 @@ import { PromptStep } from "../PromptStep";
 import { CreateExpertPresetPanel } from "./CreateExpertPresetPanel";
 import type { ExpertCreateMode } from "../CreatePropertiesPanel";
 import type { AspectOption } from "../../types";
+import type {
+  CreatePulsePresetId,
+  CreatePulseResolvedPreset,
+  CreatePulseSavedPreset,
+} from "./createPulsePresets";
 
 type ExpertCreatePanelViewProps = {
   promptStepProps: React.ComponentProps<typeof PromptStep>;
@@ -42,6 +47,13 @@ type ExpertCreatePanelViewProps = {
   onImageResolutionChange?: (value: string) => void;
   expertCreateMode?: ExpertCreateMode;
   onExpertCreateModeChange?: (value: ExpertCreateMode) => void;
+  activePulsePresetId?: CreatePulsePresetId | null;
+  onActivePulsePresetIdChange?: (presetId: CreatePulsePresetId | null) => void;
+  onPulsePresetStart?: (preset: CreatePulseResolvedPreset) => Promise<void> | void;
+  selectedPulsePresetIds?: readonly CreatePulsePresetId[];
+  onSelectedPulsePresetIdsChange?: (presetIds: CreatePulsePresetId[]) => void;
+  savedPulsePresets?: readonly CreatePulseSavedPreset[];
+  onSavedPulsePresetsChange?: (presets: CreatePulseSavedPreset[]) => void;
 };
 
 export function ExpertCreatePanelView({
@@ -77,6 +89,13 @@ export function ExpertCreatePanelView({
   onImageResolutionChange,
   expertCreateMode,
   onExpertCreateModeChange,
+  activePulsePresetId,
+  onActivePulsePresetIdChange,
+  onPulsePresetStart,
+  selectedPulsePresetIds,
+  onSelectedPulsePresetIdsChange,
+  savedPulsePresets,
+  onSavedPulsePresetsChange,
 }: ExpertCreatePanelViewProps) {
   const PULSE_RAIL_TRANSITION_MS = 220;
   const [agentInputVisualRowCount, setAgentInputVisualRowCount] = React.useState(1);
@@ -320,7 +339,15 @@ export function ExpertCreatePanelView({
             aria-hidden={!isPulseRailActive}
           >
             <div className="create-expert-left-panel-inner">
-              <CreateExpertPresetPanel />
+              <CreateExpertPresetPanel
+                selectedPresetIds={selectedPulsePresetIds}
+                onSelectedPresetIdsChange={onSelectedPulsePresetIdsChange}
+                activePresetId={activePulsePresetId}
+                onActivePresetIdChange={onActivePulsePresetIdChange}
+                onPresetStart={onPulsePresetStart}
+                savedPresets={savedPulsePresets}
+                onSavedPresetsChange={onSavedPulsePresetsChange}
+              />
             </div>
           </div>
         ) : null}

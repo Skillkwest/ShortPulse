@@ -42,6 +42,7 @@ export type PromptStepProps = {
   agentChatOpen?: boolean;
   onAgentInputChange?: (value: string) => void;
   onChatModeEnabledChange?: (value: boolean) => void;
+  hideChatModeToggle?: boolean;
   onAgentSend?: () => void;
   onAgentEnhanceSend?: () => void;
   onAgentAttachmentDrop?: (event: React.DragEvent<HTMLDivElement>) => void;
@@ -101,6 +102,7 @@ export type PromptStepProps = {
   disableOutputGenerate?: boolean;
   outputGenerateCostCredits?: number | null;
   outputGenerateGuardrailReason?: string | null;
+  chatSessionBanner?: React.ReactNode;
   chatHeaderExtraContent?: React.ReactNode;
   hideHeader?: boolean;
   autoResize?: boolean;

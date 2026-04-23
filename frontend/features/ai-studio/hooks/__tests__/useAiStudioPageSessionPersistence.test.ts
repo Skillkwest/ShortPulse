@@ -67,6 +67,7 @@ describe("useAiStudioPageSessionPersistence", () => {
           latestAgentPrompt: null,
           promptOrigin: "manual",
           chatModeEnabled: false,
+          pulseWorkflowSession: null,
         },
         canvas: null,
         expertEdit: null,
@@ -85,6 +86,7 @@ describe("useAiStudioPageSessionPersistence", () => {
         latestAgentPrompt: "latest",
         promptOrigin: "manual",
         chatModeEnabled: true,
+        pulseWorkflowSession: null,
         expertEditSessionState,
         hydrateFromSessionSnapshot,
         hydrateFromSessionAgentSnapshot,
@@ -105,6 +107,7 @@ describe("useAiStudioPageSessionPersistence", () => {
       latestAgentPrompt: "latest",
       promptOrigin: "manual",
       chatModeEnabled: true,
+      pulseWorkflowSession: null,
       expertEditSessionState,
     });
 

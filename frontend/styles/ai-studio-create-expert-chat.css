@@ -276,6 +276,125 @@
   min-height: 0;
 }
 
+.create-expert-panel .create-expert-prompt-step .create-expert-workflow-session-banner {
+  margin: 0 0 10px;
+  padding: 12px 14px;
+  border: 1px solid rgba(100, 209, 230, 0.18);
+  border-radius: 12px;
+  background:
+    linear-gradient(135deg, rgba(100, 209, 230, 0.12), rgba(17, 24, 34, 0.82)),
+    rgba(14, 18, 24, 0.94);
+}
+
+.create-expert-panel .create-expert-prompt-step .create-expert-workflow-session-banner-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.create-expert-panel .create-expert-prompt-step .create-expert-workflow-session-banner-copy {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.create-expert-panel .create-expert-prompt-step .create-expert-workflow-session-banner-eyebrow {
+  margin: 0;
+  color: rgba(201, 205, 214, 0.72);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.create-expert-panel .create-expert-prompt-step .create-expert-workflow-session-banner-title {
+  margin: 0;
+  color: #f5f9ff;
+  font-size: 17px;
+  font-weight: 700;
+  line-height: 1.12;
+  letter-spacing: -0.02em;
+}
+
+.create-expert-panel .create-expert-prompt-step .create-expert-workflow-session-banner-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 10px 0 8px;
+}
+
+.create-expert-panel .create-expert-prompt-step .create-expert-workflow-session-banner-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 22px;
+  padding: 0 8px;
+  border-radius: 999px;
+  background: rgba(9, 13, 18, 0.44);
+  color: rgba(214, 227, 239, 0.88);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+}
+
+.create-expert-panel .create-expert-prompt-step .create-expert-workflow-session-banner-summary {
+  margin: 0;
+  color: rgba(214, 227, 239, 0.82);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.create-expert-panel .create-expert-prompt-step .create-expert-workflow-session-banner-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 10px 0 0;
+  color: rgba(227, 236, 246, 0.88);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.create-expert-panel
+  .create-expert-prompt-step
+  .create-expert-workflow-session-banner-preview-label {
+  color: rgba(156, 210, 225, 0.9);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.create-expert-panel .create-expert-prompt-step .create-expert-workflow-session-banner-actions {
+  display: flex;
+  justify-content: flex-start;
+  margin-top: 10px;
+}
+
+.create-expert-panel .create-expert-prompt-step .create-expert-workflow-session-banner-action {
+  min-height: 28px;
+  padding: 0 12px;
+  border: 1px solid rgba(201, 205, 214, 0.24);
+  border-radius: 999px;
+  background: #141b24;
+  color: rgba(225, 233, 242, 0.9);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  transition:
+    border-color 0.12s ease,
+    background 0.12s ease,
+    color 0.12s ease;
+}
+
+.create-expert-panel
+  .create-expert-prompt-step
+  .create-expert-workflow-session-banner-action:hover:not(:disabled) {
+  border-color: rgba(255, 136, 136, 0.4);
+  background: #1b242f;
+  color: #ffd2d2;
+}
+
 .create-expert-panel .create-expert-prompt-step .create-expert-chat-composer-overlay-zone {
   position: relative;
   padding-bottom: calc(

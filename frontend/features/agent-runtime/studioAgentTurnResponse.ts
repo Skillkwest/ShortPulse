@@ -5,6 +5,7 @@ import {
   ensureStudioAgentApplyPromptContract,
   isStudioAgentRefusalResponse,
 } from "./studioAgentResponseNormalization";
+import { isStudioAgentWorkflowPulse } from "./studioAgentPulseRuntime";
 import { STUDIO_AGENT_SAFETY_REFUSAL_MESSAGE } from "./studioAgentRouteOutcomes";
 
 export const resolveStudioAgentTurnResponse = ({
@@ -36,6 +37,11 @@ export const resolveStudioAgentTurnResponse = ({
       message: STUDIO_AGENT_SAFETY_REFUSAL_MESSAGE,
       actions: undefined,
     };
+  } else if (isStudioAgentWorkflowPulse(context.pulse)) {
+    parsed.message =
+      sanitizeGenerationPromptText(parsed.message ?? null) ??
+      sanitizeGenerationPromptText(nextCanonical ?? effectiveCanonical ?? null) ??
+      "";
   } else {
     const fallbackPrompt =
       sanitizeGenerationPromptText(
@@ -50,7 +56,9 @@ export const resolveStudioAgentTurnResponse = ({
 
   const resolvedCanonical = refusal
     ? effectiveCanonical
-    : resolveCanonicalPrompt(parsed.actions?.applyPrompt, nextCanonical, effectiveCanonical);
+    : isStudioAgentWorkflowPulse(context.pulse)
+      ? resolveCanonicalPrompt(parsed.actions?.applyPrompt ?? null, null, effectiveCanonical)
+      : resolveCanonicalPrompt(parsed.actions?.applyPrompt, nextCanonical, effectiveCanonical);
 
   return { parsed, refusal, resolvedCanonical };
 };

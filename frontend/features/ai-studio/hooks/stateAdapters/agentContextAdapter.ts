@@ -41,7 +41,10 @@ export const buildAiStudioAgentContext = ({
     focusedReferenceId = selected.id;
     const hasImage = Boolean(
       selected.previewUrl &&
-      (selected.mode === "image" || (selected.mode !== "video" && !isVideoUrl(selected.previewUrl)))
+      (selected.mode === "image" ||
+        (selected.mode !== "video" &&
+          selected.mode !== "audio" &&
+          !isVideoUrl(selected.previewUrl)))
     );
     if (hasImage) {
       // Vision-first: supply the selected image for description; keep prompt metadata secondary.
@@ -88,7 +91,7 @@ export const buildAiStudioAgentContext = ({
   return {
     activePrompt: activePromptValue,
     modelId: model,
-    mode,
+    mode: mode === "audio" ? "text" : mode,
     references,
     media,
     selectedReferenceIds,

@@ -580,6 +580,10 @@ body:has(.ai-studio-page[data-selected-tool="canvas"]) {
   color: rgba(214, 220, 228, 0.94);
 }
 
+.ai-studio-page[data-selected-tool="pulse-presets"] .ai-hero-shortcut-button[aria-pressed="true"] {
+  color: rgba(214, 220, 228, 0.94);
+}
+
 .ai-hero-shortcut-icon-button {
   appearance: none;
   border: 0;
@@ -1252,6 +1256,15 @@ body:has(.ai-studio-page[data-selected-tool="canvas"]) {
   --ai-shell-divider-active-handle-glow: rgba(214, 220, 228, 0.18);
 }
 
+.ai-studio-page[data-selected-tool="pulse-presets"] .ai-shell-divider {
+  --ai-shell-divider-active-color: rgba(214, 220, 228, 0.74);
+  --ai-shell-divider-active-ring: rgba(214, 220, 228, 0.24);
+  --ai-shell-divider-active-handle-start: rgba(232, 237, 244, 0.98);
+  --ai-shell-divider-active-handle-end: rgba(196, 203, 214, 0.84);
+  --ai-shell-divider-active-handle-ring: rgba(214, 220, 228, 0.18);
+  --ai-shell-divider-active-handle-glow: rgba(214, 220, 228, 0.18);
+}
+
 .ai-studio-page[data-selected-tool="styles"] .ai-shell-divider {
   --ai-shell-divider-active-color: rgba(214, 220, 228, 0.74);
   --ai-shell-divider-active-ring: rgba(214, 220, 228, 0.24);
@@ -1304,6 +1317,10 @@ body:has(.ai-studio-page[data-selected-tool="canvas"]) {
 }
 
 .ai-studio-page[data-selected-tool="presets"] .ai-shell-divider:focus-visible {
+  outline-color: rgba(214, 220, 228, 0.82);
+}
+
+.ai-studio-page[data-selected-tool="pulse-presets"] .ai-shell-divider:focus-visible {
   outline-color: rgba(214, 220, 228, 0.82);
 }
 

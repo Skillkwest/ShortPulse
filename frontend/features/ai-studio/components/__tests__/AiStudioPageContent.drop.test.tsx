@@ -1,4 +1,4 @@
-import type { CSSProperties, DragEventHandler, ReactNode, Ref } from "react";
+import React, { type CSSProperties, type DragEventHandler, type ReactNode, type Ref } from "react";
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { EXPLICIT_CONTENT_FAILURE_DETAIL } from "../../../../lib/explicitContentFailure";
@@ -42,6 +42,9 @@ vi.mock("../CreatePropertiesPanel", () => ({
     isStylesPanelOpen?: boolean;
     selectedStyleId?: string | null;
     onStylesPanelToggle?: () => void;
+    chatModeEnabled?: boolean;
+    expertCreateMode?: "standard" | "pulse";
+    onExpertCreateModeChange?: (value: "standard" | "pulse") => void;
   }) => {
     createPropertiesPanelRenderSpy();
     return (
@@ -49,8 +52,16 @@ vi.mock("../CreatePropertiesPanel", () => ({
         <button type="button" aria-label="Styles" onClick={() => props.onStylesPanelToggle?.()}>
           Styles
         </button>
+        <button type="button" onClick={() => props.onExpertCreateModeChange?.("standard")}>
+          Standard
+        </button>
+        <button type="button" onClick={() => props.onExpertCreateModeChange?.("pulse")}>
+          Pulse
+        </button>
         <div data-testid="create-styles-open">{props.isStylesPanelOpen ? "open" : "closed"}</div>
         <div data-testid="create-selected-style">{props.selectedStyleId ?? ""}</div>
+        <div data-testid="create-chat-mode">{props.chatModeEnabled ? "on" : "off"}</div>
+        <div data-testid="create-expert-mode">{props.expertCreateMode ?? "standard"}</div>
       </div>
     );
   },
@@ -229,6 +240,10 @@ vi.mock("../PresetsLibraryPanel", () => ({
       ))}
     </div>
   ),
+}));
+
+vi.mock("../PulsePresetsLibraryPanel", () => ({
+  PulsePresetsLibraryPanel: () => <div data-testid="pulse-presets-library-panel" />,
 }));
 
 vi.mock("../MediaLibraryPanel", () => ({
@@ -573,6 +588,53 @@ describe("AiStudioPageContent right column drop router", () => {
     expect(screen.getByTestId("reference-grid")).toHaveAttribute("data-panel-styles", "hidden");
   });
 
+  it("forces chat mode on in pulse create mode and restores standard mode behavior", () => {
+    const referenceGridProps = {
+      ...createProps().referenceGridProps,
+      onAddCuratedReference: vi.fn(),
+      onRemoveCuratedReference: vi.fn(),
+      onReorderCuratedReference: vi.fn(),
+    };
+
+    const PulseCreateHarness = () => {
+      const [chatModeEnabled, setChatModeEnabled] = React.useState(false);
+
+      return (
+        <AiStudioPageContent
+          {...createProps({
+            selectedTool: "create",
+            referenceGridProps,
+            propertiesCreate: {
+              expertCreateUiEligible: true,
+              beginnerMode: false,
+              chatModeEnabled,
+              onChatModeEnabledChange: setChatModeEnabled,
+            } as AiStudioPageContentProps["propertiesCreate"],
+          })}
+        />
+      );
+    };
+
+    render(<PulseCreateHarness />);
+
+    expect(screen.getByTestId("create-chat-mode")).toHaveTextContent("off");
+    expect(screen.getByTestId("create-expert-mode")).toHaveTextContent("standard");
+    expect(screen.getByTestId("reference-grid")).toHaveAttribute("data-panel-styles", "hidden");
+
+    fireEvent.click(screen.getByRole("button", { name: "Styles" }));
+    expect(screen.getByTestId("reference-grid")).toHaveAttribute("data-panel-styles", "visible");
+
+    fireEvent.click(screen.getByRole("button", { name: "Pulse" }));
+    expect(screen.getByTestId("create-chat-mode")).toHaveTextContent("on");
+    expect(screen.getByTestId("create-expert-mode")).toHaveTextContent("pulse");
+    expect(screen.getByTestId("reference-grid")).toHaveAttribute("data-panel-styles", "hidden");
+
+    fireEvent.click(screen.getByRole("button", { name: "Standard" }));
+    expect(screen.getByTestId("create-chat-mode")).toHaveTextContent("off");
+    expect(screen.getByTestId("create-expert-mode")).toHaveTextContent("standard");
+    expect(screen.getByTestId("reference-grid")).toHaveAttribute("data-panel-styles", "visible");
+  });
+
   it("treats token-only internal drags as internal so the shell does not intercept them", () => {
     const onPasteMediaReference = vi.fn();
     const onPasteTextReference = vi.fn();
@@ -767,13 +829,16 @@ describe("AiStudioPageContent right column drop router", () => {
     expect(screen.getByRole("heading", { name: "Sound Effects" })).toBeInTheDocument();
 
     rerender(<AiStudioPageContent {...createProps({ selectedTool: "music" })} />);
-    expect(screen.getByRole("heading", { name: "Sound Properties" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Music" })).toBeInTheDocument();
 
     rerender(<AiStudioPageContent {...createProps({ selectedTool: "character" })} />);
     expect(screen.getByTestId("character-panel")).toBeInTheDocument();
 
     rerender(<AiStudioPageContent {...createProps({ selectedTool: "styles" })} />);
     expect(screen.getByTestId("styles-library-panel")).toBeInTheDocument();
+
+    rerender(<AiStudioPageContent {...createProps({ selectedTool: "pulse-presets" })} />);
+    expect(screen.getByTestId("pulse-presets-library-panel")).toBeInTheDocument();
 
     rerender(<AiStudioPageContent {...createProps({ selectedTool: "presets" })} />);
     expect(screen.getByTestId("presets-library-panel")).toBeInTheDocument();
@@ -805,6 +870,15 @@ describe("AiStudioPageContent right column drop router", () => {
     expect(screen.getByTestId("presets-library-count")).toHaveTextContent(
       String(EDIT_PRESET_SURFACE_PRESET_IDS.length)
     );
+    expect(screen.queryByText("Coming soon")).not.toBeInTheDocument();
+    expect(screen.getByTestId("reference-grid")).toBeInTheDocument();
+    expect(screen.getByTestId("studio-preview")).toBeInTheDocument();
+  });
+
+  it("renders the primary pulse presets panel without coming-soon card and keeps right rail visible", () => {
+    render(<AiStudioPageContent {...createProps({ selectedTool: "pulse-presets" })} />);
+
+    expect(screen.getByTestId("pulse-presets-library-panel")).toBeInTheDocument();
     expect(screen.queryByText("Coming soon")).not.toBeInTheDocument();
     expect(screen.getByTestId("reference-grid")).toBeInTheDocument();
     expect(screen.getByTestId("studio-preview")).toBeInTheDocument();

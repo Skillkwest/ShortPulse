@@ -35,4 +35,47 @@ describe("buildAgentContext media filtering", () => {
     expect(context.media).toHaveLength(3);
     expect(context.media?.map((item) => item.id)).toEqual(["1", "2", "3"]);
   });
+
+  it("passes through valid pulse runtime metadata", () => {
+    const context = buildAgentContext({
+      mode: "text",
+      pulse: {
+        presetId: " pulse_story_builder ",
+        label: " Story Builder ",
+        instructions: " Keep the output focused on a simple hook, escalation, and payoff. ",
+        source: "custom",
+        workflowSession: {
+          presetId: " pulse_story_builder ",
+          status: "awaiting_input",
+          currentStepIndex: 3,
+          currentStepLabel: "Runtime",
+          currentStepPrompt: "Step 3 — How long should it be?",
+          collectedInputs: ["grimdark", "A knight enters a cursed forest"],
+          lastArtifact: null,
+        },
+      },
+    });
+
+    expect(context.pulse).toEqual({
+      presetId: "pulse_story_builder",
+      label: "Story Builder",
+      description: null,
+      instructions: "Keep the output focused on a simple hook, escalation, and payoff.",
+      runtimeMode: "prompt_editor",
+      activationMode: "activate_only",
+      starterAssistantMessage: null,
+      outputMode: "apply_prompt",
+      memoryPolicy: "session",
+      source: "custom",
+      workflowSession: {
+        presetId: "pulse_story_builder",
+        status: "awaiting_input",
+        currentStepIndex: 3,
+        currentStepLabel: "Runtime",
+        currentStepPrompt: "Step 3 — How long should it be?",
+        collectedInputs: ["grimdark", "A knight enters a cursed forest"],
+        lastArtifact: null,
+      },
+    });
+  });
 });

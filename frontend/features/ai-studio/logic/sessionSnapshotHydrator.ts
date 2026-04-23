@@ -8,7 +8,12 @@ import type {
   AiStudioSessionSnapshotV1,
 } from "./sessionSnapshot";
 import type { StudioMode, StudioOutput, ToolId } from "../types";
-import type { AgentAttachment, AgentMessage, AgentMessageRole } from "../../../prefabs/agent/types";
+import type {
+  AgentAttachment,
+  AgentMessage,
+  AgentMessageRole,
+  AgentPulseWorkflowSession,
+} from "../../../prefabs/agent/types";
 import { normalizeSeedance2UiModelId } from "./seedance2Availability";
 import {
   parseAiStudioSessionCanvasState,
@@ -19,6 +24,7 @@ import type { ExpertEditSessionState } from "../components/edit/expertEditSessio
 
 const FALLBACK_MODE: StudioMode = "text";
 const FALLBACK_ASPECT = "9:16";
+const FALLBACK_EXPERT_CREATE_MODE = "standard" as const;
 const FALLBACK_VIDEO_REFERENCE_MODE = "standard" as const;
 const FALLBACK_VIDEO_DURATION_SECONDS = 6;
 const FALLBACK_VIDEO_RESOLUTION = "1080p";
@@ -32,6 +38,8 @@ const FALLBACK_PROMPT_ORIGIN = "manual" as const;
 const TOOL_IDS = new Set<ToolId>([
   "create",
   "media-library",
+  "elements",
+  "pulse-presets",
   "workflows",
   "presets",
   "styles",
@@ -75,7 +83,9 @@ const asStringArray = (value: unknown): string[] => {
 };
 
 const asMode = (value: unknown): StudioMode => {
-  return value === "text" || value === "image" || value === "video" ? value : FALLBACK_MODE;
+  return value === "text" || value === "image" || value === "video" || value === "audio"
+    ? value
+    : FALLBACK_MODE;
 };
 
 const asToolId = (value: unknown): ToolId | null => {
@@ -94,6 +104,10 @@ const asVideoReferenceMode = (
     value === "motion"
     ? value
     : FALLBACK_VIDEO_REFERENCE_MODE;
+};
+
+const asExpertCreateMode = (value: unknown): "standard" | "pulse" => {
+  return value === "standard" || value === "pulse" ? value : FALLBACK_EXPERT_CREATE_MODE;
 };
 
 const asFiniteNumber = (value: unknown, fallback: number): number => {
@@ -119,6 +133,15 @@ const asAgentRole = (value: unknown): AgentMessageRole | null => {
 
 const asAgentAttachmentKind = (value: unknown): AgentAttachment["kind"] | null => {
   return value === "image" || value === "prompt" ? value : null;
+};
+
+const asPulseWorkflowStatus = (value: unknown): AgentPulseWorkflowSession["status"] => {
+  return value === "idle" ||
+    value === "running" ||
+    value === "awaiting_input" ||
+    value === "completed"
+    ? value
+    : "idle";
 };
 
 const asKlingShotType = (value: unknown): "customize" | "intelligent" => {
@@ -434,6 +457,8 @@ export type AiStudioSessionHydrationPayload = {
     prompt: string;
     model: string | null;
     aspect: string;
+    expertCreateMode: "standard" | "pulse";
+    activePulsePresetId: string | null;
     referenceImageUrl: string | null;
     extraImageUrls: [string | null, string | null, string | null];
     editReferenceText: string;
@@ -478,9 +503,41 @@ export type AiStudioSessionHydrationPayload = {
     latestAgentPrompt: string | null;
     promptOrigin: "manual" | "agent" | "reference";
     chatModeEnabled: boolean;
+    pulseWorkflowSession: AgentPulseWorkflowSession | null;
   };
   canvas: AiStudioSessionCanvasState | null;
   expertEdit: ExpertEditSessionState | null;
+};
+
+const asPulseWorkflowSession = (value: unknown): AgentPulseWorkflowSession | null => {
+  if (!value || typeof value !== "object") return null;
+  const row = value as Record<string, unknown>;
+  const presetId = asNullableString(row.presetId)?.trim() ?? "";
+  if (!presetId) return null;
+  const currentStepIndexRaw =
+    typeof row.currentStepIndex === "number" && Number.isFinite(row.currentStepIndex)
+      ? Math.max(1, Math.trunc(row.currentStepIndex))
+      : null;
+  const currentStepLabel = asNullableString(row.currentStepLabel)?.trim() ?? null;
+  const currentStepPrompt = asNullableString(row.currentStepPrompt)?.trim() ?? null;
+  const lastArtifact = asNullableString(row.lastArtifact)?.trim() ?? null;
+  const finalArtifactSource =
+    row.finalArtifactSource === "apply_prompt" || row.finalArtifactSource === "chat_reply"
+      ? row.finalArtifactSource
+      : null;
+  const collectedInputs = asStringArray(row.collectedInputs)
+    .map((entry) => entry.trim())
+    .filter((entry) => entry.length > 0);
+  return {
+    presetId,
+    status: asPulseWorkflowStatus(row.status),
+    currentStepIndex: currentStepIndexRaw,
+    currentStepLabel: currentStepLabel && currentStepLabel.length > 0 ? currentStepLabel : null,
+    currentStepPrompt: currentStepPrompt && currentStepPrompt.length > 0 ? currentStepPrompt : null,
+    collectedInputs,
+    lastArtifact: lastArtifact && lastArtifact.length > 0 ? lastArtifact : null,
+    finalArtifactSource,
+  };
 };
 
 /**
@@ -520,14 +577,8 @@ export const buildAiStudioSessionHydrationPayload = (
     workspace.klingWorkflowMode,
     persistedKlingMultiPrompts
   );
-  const shouldResetPersistedCustomKlingWorkspace =
-    persistedKlingWorkflowMode === "custom" || persistedKlingMultiPrompts.length > 0;
-  const klingWorkflowMode = shouldResetPersistedCustomKlingWorkspace
-    ? FALLBACK_KLING_WORKFLOW_MODE
-    : persistedKlingWorkflowMode;
-  const klingMultiPrompts = shouldResetPersistedCustomKlingWorkspace
-    ? []
-    : persistedKlingMultiPrompts;
+  const klingWorkflowMode = persistedKlingWorkflowMode;
+  const klingMultiPrompts = persistedKlingMultiPrompts;
 
   return {
     workspace: {
@@ -536,6 +587,13 @@ export const buildAiStudioSessionHydrationPayload = (
       prompt: asString(workspace.prompt, ""),
       model: normalizeSeedance2UiModelId(asNullableString(workspace.model)) ?? null,
       aspect: asString(workspace.aspect, FALLBACK_ASPECT),
+      expertCreateMode: asExpertCreateMode(
+        (workspace as { expertCreateMode?: unknown }).expertCreateMode
+      ),
+      activePulsePresetId:
+        asNullableString(
+          (workspace as { activePulsePresetId?: unknown }).activePulsePresetId
+        )?.trim() || null,
       referenceImageUrl: sanitizeHydratedMediaUrl(asNullableString(workspace.referenceImageUrl)),
       extraImageUrls: asExtraImageUrls(workspace.extraImageUrls),
       editReferenceText: asString(workspace.editReferenceText, ""),
@@ -590,6 +648,7 @@ export const buildAiStudioSessionHydrationPayload = (
       latestAgentPrompt: asNullableString(agent.latestAgentPrompt),
       promptOrigin: asPromptOrigin(agent.promptOrigin),
       chatModeEnabled: asBoolean(agent.chatModeEnabled, true),
+      pulseWorkflowSession: asPulseWorkflowSession(agent.pulseWorkflowSession),
     },
     canvas,
     expertEdit,

@@ -2,7 +2,7 @@
  * Types for the AI Studio feature surface.
  * Keeps mode, aspect, prompt, and output structures shared between components.
  */
-export type StudioMode = "text" | "image" | "video";
+export type StudioMode = "text" | "image" | "video" | "audio";
 
 export type WorkflowId = "create" | "edit" | "video" | "character" | "none";
 
@@ -89,6 +89,9 @@ export type StudioOutput = {
   previewStoragePath?: string | null;
   fullStoragePath?: string | null;
   previewTier?: StudioOutputPreviewTier;
+  mimeType?: string | null;
+  durationMs?: number | null;
+  waveformPeaks?: number[] | null;
   mediaSource?: StudioOutputMediaSource;
   localObjectUrl?: string | null;
   previewText?: string;
@@ -105,6 +108,7 @@ export type ToolId =
   | "create"
   | "media-library"
   | "elements"
+  | "pulse-presets"
   | "workflows"
   | "presets"
   | "styles"

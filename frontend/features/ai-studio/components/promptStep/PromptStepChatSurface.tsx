@@ -63,6 +63,7 @@ type PromptStepChatSurfaceProps = {
   onAgentInputChange?: (value: string) => void;
   chatModeEnabled: boolean;
   onChatModeEnabledChange?: (value: boolean) => void;
+  hideChatModeToggle?: boolean;
   directOpenAiBypassEnabled?: boolean;
   onAgentSend?: () => void;
   onGenerateOutputPrompt?: (request: AgentOutputGenerateInput) => void;
@@ -72,6 +73,7 @@ type PromptStepChatSurfaceProps = {
   disableOutputGenerate: boolean;
   outputGenerateCostCredits: number | null;
   outputGenerateGuardrailReason?: string | null;
+  chatSessionBanner?: React.ReactNode;
   composerMiddleContent: React.ReactNode;
   composerLeadingContent: React.ReactNode;
   chatComposerOverlayEnabled: boolean;
@@ -136,6 +138,7 @@ export const PromptStepChatSurface: React.FC<PromptStepChatSurfaceProps> = ({
   onAgentInputChange,
   chatModeEnabled,
   onChatModeEnabledChange,
+  hideChatModeToggle = false,
   directOpenAiBypassEnabled = false,
   onAgentSend,
   onGenerateOutputPrompt,
@@ -145,6 +148,7 @@ export const PromptStepChatSurface: React.FC<PromptStepChatSurfaceProps> = ({
   disableOutputGenerate,
   outputGenerateCostCredits,
   outputGenerateGuardrailReason,
+  chatSessionBanner,
   composerMiddleContent,
   composerLeadingContent,
   chatComposerOverlayEnabled,
@@ -216,6 +220,7 @@ export const PromptStepChatSurface: React.FC<PromptStepChatSurfaceProps> = ({
 
   const chatHistoryContent = shouldRenderAgentChatPanel ? (
     <div className="agent-chat-wrapper agent-chat-wrapper--inline">
+      {chatSessionBanner}
       <AgentChatPanel
         messages={agentMessages}
         introMessage={hideAgentIntroMessage ? null : introMessage}
@@ -253,10 +258,13 @@ export const PromptStepChatSurface: React.FC<PromptStepChatSurfaceProps> = ({
   ) : null;
 
   const chatSpacerContent = shouldRenderAgentChatSpacer ? (
-    <div
-      className={`agent-chat-inline-spacer ${emptyAgentChatSpacerClassName}`.trim()}
-      aria-hidden="true"
-    />
+    <>
+      {chatSessionBanner}
+      <div
+        className={`agent-chat-inline-spacer ${emptyAgentChatSpacerClassName}`.trim()}
+        aria-hidden="true"
+      />
+    </>
   ) : null;
 
   const inputShellContent = (
@@ -340,7 +348,7 @@ export const PromptStepChatSurface: React.FC<PromptStepChatSurfaceProps> = ({
     </div>
   );
 
-  const chatModeToggleContent = (
+  const chatModeToggleContent = hideChatModeToggle ? null : (
     <div className="ai-chat-mode-row-shell agent-chat-mode-row agent-chat-mode-toggle-shell">
       <div className="agent-chat-mode-toggle-copy">
         <span className="agent-chat-mode-label">Chat Mode</span>

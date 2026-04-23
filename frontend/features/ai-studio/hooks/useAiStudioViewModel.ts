@@ -13,6 +13,10 @@ import {
   KIE_SEEDANCE_2_MODEL_ID,
   KIE_VEO_31_FAST_I2V_MODEL_ID,
 } from "../../../lib/model-runtime/providerModelIds";
+import {
+  getAiStudioKlingElementReferenceUrls,
+  type AiStudioKlingElement,
+} from "../logic/klingElements";
 import { resolveVideoGenerationLaneFromFrameInputs } from "../logic/referenceInputs";
 import {
   resolveEffectiveEditSubmitModelId,
@@ -43,6 +47,7 @@ type ViewModelInput = {
   videoGenerateAudio: boolean;
   klingWorkflowMode?: "single" | "multi" | "custom";
   klingMultiPrompts?: { id: string; prompt: string; duration: number }[];
+  klingElements?: AiStudioKlingElement[];
   seedance2InputMode?: "text" | "first-frame" | "first-last" | "multimodal";
   seedance2ReferenceImageUrls?: string[];
   seedance2ReferenceVideoUrls?: string[];
@@ -71,6 +76,7 @@ export const useAiStudioViewModel = ({
   videoGenerateAudio,
   klingWorkflowMode = "single",
   klingMultiPrompts = [],
+  klingElements = [],
   seedance2InputMode = "text",
   seedance2ReferenceImageUrls = [],
   seedance2ReferenceVideoUrls = [],
@@ -124,6 +130,9 @@ export const useAiStudioViewModel = ({
     seedance2ReferenceImageUrls.length > 0 ||
     seedance2ReferenceVideoUrls.length > 0 ||
     seedance2ReferenceAudioUrls.length > 0;
+  const hasSeedance2LinkedAssetReferences = klingElements.some(
+    (element) => element.videoUrl.trim() || getAiStudioKlingElementReferenceUrls(element).length > 0
+  );
 
   const estimatedTextTokens = useMemo(() => estimatePromptTokens(prompt), [prompt]);
   const estimatedDescribeTokens = useMemo(
@@ -360,9 +369,26 @@ export const useAiStudioViewModel = ({
     ) {
       return "Add at least one custom Kling shot prompt before generating.";
     }
+    if (
+      isVideoTool &&
+      isSeedance2Model &&
+      klingWorkflowMode === "custom" &&
+      !klingMultiPrompts.some((shot) => shot.prompt.trim().length > 0)
+    ) {
+      return "Add at least one custom Seedance shot prompt before generating.";
+    }
     if (isVideoTool && isSeedance2Model) {
+      if (
+        hasSeedance2LinkedAssetReferences &&
+        (referenceImageUrl ||
+          extraImageUrls[0] ||
+          seedance2InputMode === "first-frame" ||
+          seedance2InputMode === "first-last")
+      ) {
+        return "Remove first/last frame images before generating with Seedance 2.0 linked assets.";
+      }
       if (seedance2InputMode === "multimodal") {
-        if (!hasSeedance2MultimodalReferences) {
+        if (!hasSeedance2MultimodalReferences && !hasSeedance2LinkedAssetReferences) {
           return "Add at least one image, video, or audio reference before generating with Seedance 2.0.";
         }
         if (referenceImageUrl || extraImageUrls[0]) {
@@ -381,6 +407,7 @@ export const useAiStudioViewModel = ({
   }, [
     extraImageUrls,
     hasDescribeImage,
+    hasSeedance2LinkedAssetReferences,
     hasSeedance2MultimodalReferences,
     isVideoTool,
     isCreditGuardrail,
@@ -443,8 +470,17 @@ export const useAiStudioViewModel = ({
         return "Kling 3.0 requires a first frame image in Standard mode.";
       }
       if (isSeedance2Model) {
+        if (
+          hasSeedance2LinkedAssetReferences &&
+          (hasReference ||
+            extraImageUrls[0] ||
+            seedance2InputMode === "first-frame" ||
+            seedance2InputMode === "first-last")
+        ) {
+          return "Seedance 2.0 linked assets cannot be combined with first/last frame images.";
+        }
         if (seedance2InputMode === "multimodal") {
-          if (!hasSeedance2MultimodalReferences) {
+          if (!hasSeedance2MultimodalReferences && !hasSeedance2LinkedAssetReferences) {
             return "Seedance 2.0 multimodal mode requires at least one image, video, or audio reference.";
           }
           if (hasReference || extraImageUrls[0]) {
@@ -464,6 +500,7 @@ export const useAiStudioViewModel = ({
   }, [
     model,
     modelConfig,
+    hasSeedance2LinkedAssetReferences,
     hasSeedance2MultimodalReferences,
     isEditWorkflowSelected,
     isSeedance2Model,

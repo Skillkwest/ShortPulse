@@ -99,6 +99,8 @@ describe("sessionSnapshot", () => {
       prompt: "A cinematic portrait",
       model: "fal-ai/bytedance/seedream/v4.5/text-to-image",
       aspect: "9:16",
+      expertCreateMode: "pulse",
+      activePulsePresetId: "single_shot",
       referenceImageUrl: null,
       extraImageUrls: [null, null, null],
       editReferenceText: "",
@@ -128,6 +130,15 @@ describe("sessionSnapshot", () => {
       latestAgentPrompt: "Here is your prompt.",
       promptOrigin: "agent",
       chatModeEnabled: true,
+      pulseWorkflowSession: {
+        presetId: "single_shot",
+        status: "awaiting_input",
+        currentStepIndex: 2,
+        currentStepLabel: "Action",
+        currentStepPrompt: "Step 2 — Action: What should happen next?",
+        collectedInputs: ["Upload your image"],
+        lastArtifact: null,
+      },
       canvasState: createCanvasState(),
       expertEditSessionState: createExpertEditSessionState(),
     });
@@ -136,8 +147,20 @@ describe("sessionSnapshot", () => {
     expect(snapshot.sessionId).toBe("f7f45245-f204-4ece-8f9e-c9a66a9d8d2a");
     expect(snapshot.workspace.prompt).toBe("A cinematic portrait");
     expect(snapshot.workspace.klingWorkflowMode).toBe("multi");
+    expect(snapshot.workspace.expertCreateMode).toBe("pulse");
+    expect(snapshot.workspace.activePulsePresetId).toBe("single_shot");
     expect(snapshot.outputs.active[0]?.id).toBe("out-1");
     expect(snapshot.agent.messages[0]?.role).toBe("assistant");
+    expect(snapshot.agent.pulseWorkflowSession).toEqual({
+      presetId: "single_shot",
+      status: "awaiting_input",
+      currentStepIndex: 2,
+      currentStepLabel: "Action",
+      currentStepPrompt: "Step 2 — Action: What should happen next?",
+      collectedInputs: ["Upload your image"],
+      lastArtifact: null,
+      finalArtifactSource: null,
+    });
     expect(snapshot.canvas?.viewports.main.zoom).toBe(1);
     expect(snapshot.expertEdit?.state.markup.strokes).toHaveLength(1);
     expect(snapshot.expertEdit?.state.layers.layers[1]?.imageUrl).toBeNull();

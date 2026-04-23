@@ -6,6 +6,7 @@ export type AgentDecision = "allow" | "refuse" | "error";
 
 export type AgentOutcomeClass =
   | "success_prompt"
+  | "success_message"
   | "refusal_safety"
   | "refusal_model"
   | "fallback_infra"
@@ -14,6 +15,7 @@ export type AgentOutcomeClass =
 
 export type AgentReasonCode =
   | "SUCCESS_PROMPT"
+  | "SUCCESS_MESSAGE"
   | "SAFETY_INPUT_REFUSAL"
   | "SAFETY_OUTPUT_REFUSAL"
   | "PROVIDER_SAFETY_REFUSAL"

@@ -41,4 +41,33 @@ describe("resolveStudioAgentTurnResponse", () => {
     expect(result.parsed.actions?.applyPrompt).toBe("cinematic rain-soaked alley portrait");
     expect(result.resolvedCanonical).toBe("cinematic rain-soaked alley portrait");
   });
+
+  it("keeps workflow pulse step turns message-only without synthesizing applyPrompt", () => {
+    const result = resolveStudioAgentTurnResponse({
+      parsed: {
+        message: "Step 1 — Upload your image to get the process started :)",
+        actions: undefined,
+      },
+      semanticStatus: null,
+      nextCanonical: null,
+      effectiveCanonical: "existing canonical",
+      context: {
+        pulse: {
+          presetId: "image",
+          label: "Video Prompt Magic",
+          instructions: "Run the guided single-shot workflow.",
+          runtimeMode: "workflow_gpt",
+          activationMode: "activate_and_start",
+          outputMode: "chat_reply",
+          memoryPolicy: "session",
+          source: "builtin",
+        },
+      },
+      messages: [{ role: "user", content: "" }],
+    });
+
+    expect(result.refusal).toBe(false);
+    expect(result.parsed.actions).toBeUndefined();
+    expect(result.resolvedCanonical).toBe("existing canonical");
+  });
 });

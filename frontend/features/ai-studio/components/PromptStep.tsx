@@ -34,6 +34,7 @@ export function PromptStep({
   agentChatOpen = false,
   onAgentInputChange,
   onChatModeEnabledChange,
+  hideChatModeToggle = false,
   onAgentSend,
   onAgentEnhanceSend,
   onAgentAttachmentDrop,
@@ -90,6 +91,7 @@ export function PromptStep({
   disableOutputGenerate = false,
   outputGenerateCostCredits = null,
   outputGenerateGuardrailReason = null,
+  chatSessionBanner = null,
   chatHeaderExtraContent = null,
   hideHeader = false,
   autoResize = false,
@@ -301,6 +303,7 @@ export function PromptStep({
                 onAgentInputChange={onAgentInputChange}
                 chatModeEnabled={chatModeEnabled}
                 onChatModeEnabledChange={onChatModeEnabledChange}
+                hideChatModeToggle={hideChatModeToggle}
                 directOpenAiBypassEnabled={directOpenAiBypassEnabled}
                 onAgentSend={onAgentSend}
                 onGenerateOutputPrompt={onGenerateOutputPrompt}
@@ -310,6 +313,7 @@ export function PromptStep({
                 disableOutputGenerate={disableOutputGenerate}
                 outputGenerateCostCredits={outputGenerateCostCredits}
                 outputGenerateGuardrailReason={outputGenerateGuardrailReason}
+                chatSessionBanner={chatSessionBanner}
                 composerMiddleContent={composerMiddleContent}
                 composerLeadingContent={composerLeadingContent}
                 chatComposerOverlayEnabled={chatComposerOverlayEnabled}

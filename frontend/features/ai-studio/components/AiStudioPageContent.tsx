@@ -22,9 +22,14 @@ import type { ModelOption } from "../constants";
 import { CharacterPanel } from "./CharacterPanel";
 import { StylesLibraryPanel } from "./StylesLibraryPanel";
 import { PresetsLibraryPanel } from "./PresetsLibraryPanel";
+import { PulsePresetsLibraryPanel } from "./PulsePresetsLibraryPanel";
 import { VideoPropertiesPanel } from "./VideoPropertiesPanel";
+import { MusicPropertiesPanel, type MusicPropertiesPanelProps } from "./MusicPropertiesPanel";
 import { SoundPropertiesPanel } from "./SoundPropertiesPanel";
-import { SoundEffectsPropertiesPanel } from "./SoundEffectsPropertiesPanel";
+import {
+  SoundEffectsPropertiesPanel,
+  type SoundEffectsPropertiesPanelProps,
+} from "./SoundEffectsPropertiesPanel";
 import { VoicesPropertiesPanel } from "./VoicesPropertiesPanel";
 import { MediaLibraryPanel } from "./MediaLibraryPanel";
 import { ElementsPanel } from "./ElementsPanel";
@@ -157,13 +162,14 @@ type RightColumnDropPayload =
   | { kind: "text"; text: string };
 
 const DROPPED_IMAGE_URL_PATTERN = /\.(avif|bmp|gif|heic|heif|jpe?g|png|svg|webp)(?:[?#].*)?$/i;
-const DROPPED_VIDEO_URL_PATTERN = /\.(m4v|mov|mp4|ogg|ogv|webm)(?:[?#].*)?$/i;
+const DROPPED_AUDIO_URL_PATTERN = /\.(aac|flac|m4a|mp3|oga|ogg|wav)(?:[?#].*)?$/i;
+const DROPPED_VIDEO_URL_PATTERN = /\.(m4v|mov|mp4|ogv|webm)(?:[?#].*)?$/i;
 
 const parseDropUrlCandidate = (value: string): string | null => {
   const candidate = value.trim();
   if (!candidate || (typeof window !== "undefined" && candidate === window.location.href))
     return null;
-  if (/^data:(image|video)\//i.test(candidate)) return candidate;
+  if (/^data:(image|video|audio)\//i.test(candidate)) return candidate;
   if (/^blob:/i.test(candidate)) return candidate;
   try {
     const parsed = new URL(candidate);
@@ -176,6 +182,7 @@ const parseDropUrlCandidate = (value: string): string | null => {
 
 const inferDropMediaMimeType = (url: string): string | null => {
   if (/^data:image\//i.test(url) || DROPPED_IMAGE_URL_PATTERN.test(url)) return "image/*";
+  if (/^data:audio\//i.test(url) || DROPPED_AUDIO_URL_PATTERN.test(url)) return "audio/*";
   if (/^data:video\//i.test(url) || DROPPED_VIDEO_URL_PATTERN.test(url)) return "video/*";
   return null;
 };
@@ -237,8 +244,12 @@ const normalizeDroppedPromptText = (transfer: DataTransfer): string | null => {
     transfer.getData("text")
   ).trim();
   if (!promptText) return null;
-  if (/^data:(image|video)\//i.test(promptText)) return null;
-  if (DROPPED_IMAGE_URL_PATTERN.test(promptText) || DROPPED_VIDEO_URL_PATTERN.test(promptText)) {
+  if (/^data:(image|video|audio)\//i.test(promptText)) return null;
+  if (
+    DROPPED_IMAGE_URL_PATTERN.test(promptText) ||
+    DROPPED_AUDIO_URL_PATTERN.test(promptText) ||
+    DROPPED_VIDEO_URL_PATTERN.test(promptText)
+  ) {
     return null;
   }
   return promptText;
@@ -505,6 +516,8 @@ export type AiStudioPageContentProps = {
   propertiesCreate: CreateSectionProps;
   propertiesEditExpert: EditExpertSectionProps;
   propertiesVideo: VideoSectionProps;
+  propertiesMusic?: MusicPropertiesPanelProps;
+  propertiesSoundEffects?: SoundEffectsPropertiesPanelProps;
   propertiesVoices?: VoicesPropertiesPanelProps;
   refreshCharacterOptions?: () => Promise<
     Array<{ id: string; name: string; profileImageUrl: string | null }>
@@ -573,6 +586,8 @@ export function AiStudioPageContent({
   propertiesCreate,
   propertiesEditExpert,
   propertiesVideo,
+  propertiesMusic,
+  propertiesSoundEffects,
   propertiesVoices,
   refreshCharacterOptions,
   resolveCharacterAvatarUrlById,
@@ -610,7 +625,7 @@ export function AiStudioPageContent({
   const ComingSoonIcon = comingSoon ? comingSoon.icon : null;
   const referenceGridFileAccept = isPrimaryCharacterTool(selectedTool)
     ? "image/*"
-    : "image/*,video/*";
+    : "image/*,video/*,audio/*,.mp3,.wav,.m4a,.aac,.flac,.ogg,.oga";
   const propertiesPanelKind = resolvePropertiesPanelKind(selectedTool);
   const showExpertCreatePanel = Boolean(
     propertiesPanelKind === "create" &&
@@ -627,7 +642,15 @@ export function AiStudioPageContent({
   );
   const [selectedStyleId, setSelectedStyleId] = React.useState<string | null>(null);
   const [selectedPresetId, setSelectedPresetId] = React.useState<ExpertEditPresetId | null>(null);
-  const [expertCreateMode, setExpertCreateMode] = React.useState<"standard" | "pulse">("standard");
+  const [uncontrolledExpertCreateMode, setUncontrolledExpertCreateMode] = React.useState<
+    "standard" | "pulse"
+  >("standard");
+  const pulseCreateChatModeRestoreRef = React.useRef<boolean | null>(null);
+  const isExpertCreateModeControlled =
+    resolvedCreateProperties.expertCreateMode != null &&
+    resolvedCreateProperties.onExpertCreateModeChange != null;
+  const expertCreateMode =
+    resolvedCreateProperties.expertCreateMode ?? uncontrolledExpertCreateMode;
   const {
     styleDetailsById,
     error: styleDetailsSaveError,
@@ -735,12 +758,14 @@ export function AiStudioPageContent({
   React.useEffect(() => {
     onSelectedStyleContextChange?.(selectedStyleContext);
   }, [onSelectedStyleContextChange, selectedStyleContext]);
+  const isPulseCreateMode = showExpertCreatePanel && expertCreateMode === "pulse";
   const isQuickSlotToggleAvailable = Boolean(
     resolvedReferenceGridProps.onAddCuratedReference &&
     resolvedReferenceGridProps.onRemoveCuratedReference &&
     resolvedReferenceGridProps.onReorderCuratedReference
   );
-  const isStylesToggleAvailable = !isPrimaryCharacterPanelOpen && showStylesPanelEligible;
+  const isStylesToggleAvailable =
+    !isPrimaryCharacterPanelOpen && showStylesPanelEligible && !isPulseCreateMode;
   const panelToggleAvailability = React.useMemo(
     () => ({
       quickSlot: isQuickSlotToggleAvailable,
@@ -854,6 +879,7 @@ export function AiStudioPageContent({
     .join(" ");
   const previousSelectedToolRef = React.useRef<ToolId | null>(null);
   const previousExpertCreateModeRef = React.useRef<"standard" | "pulse">(expertCreateMode);
+  const previousExpertCreateModeForChatRef = React.useRef<"standard" | "pulse">(expertCreateMode);
   const previousSessionIdRef = React.useRef<string | null>(sessionId);
   React.useEffect(() => {
     const previousSelectedTool = previousSelectedToolRef.current;
@@ -948,6 +974,40 @@ export function AiStudioPageContent({
       });
     });
   }, [panelToggleAvailability]);
+  React.useEffect(() => {
+    const previousMode = previousExpertCreateModeForChatRef.current;
+    if (previousMode === expertCreateMode) return;
+
+    const setCreateChatModeEnabled = resolvedCreateProperties.onChatModeEnabledChange;
+    const createChatModeEnabled = resolvedCreateProperties.chatModeEnabled ?? true;
+
+    if (expertCreateMode === "pulse") {
+      pulseCreateChatModeRestoreRef.current = createChatModeEnabled ? null : false;
+      if (!createChatModeEnabled) {
+        setCreateChatModeEnabled?.(true);
+      }
+    } else if (previousMode === "pulse" && pulseCreateChatModeRestoreRef.current != null) {
+      setCreateChatModeEnabled?.(pulseCreateChatModeRestoreRef.current);
+      pulseCreateChatModeRestoreRef.current = null;
+    }
+
+    previousExpertCreateModeForChatRef.current = expertCreateMode;
+  }, [
+    expertCreateMode,
+    resolvedCreateProperties.chatModeEnabled,
+    resolvedCreateProperties.onChatModeEnabledChange,
+  ]);
+  const handleExpertCreateModeChange = React.useCallback(
+    (nextMode: "standard" | "pulse") => {
+      if (expertCreateMode === nextMode) return;
+      if (isExpertCreateModeControlled) {
+        resolvedCreateProperties.onExpertCreateModeChange?.(nextMode);
+        return;
+      }
+      setUncontrolledExpertCreateMode(nextMode);
+    },
+    [expertCreateMode, isExpertCreateModeControlled, resolvedCreateProperties]
+  );
   const handleCanvasVisibilityToggle = React.useCallback(() => {
     setIsCanvasVisible((previous) => !previous);
   }, []);
@@ -985,15 +1045,15 @@ export function AiStudioPageContent({
       selectedStyleId,
       stylesCatalog: visibleStylesCatalog,
       expertCreateMode,
-      onExpertCreateModeChange: setExpertCreateMode,
+      onExpertCreateModeChange: handleExpertCreateModeChange,
     }),
     [
       expertCreateMode,
+      handleExpertCreateModeChange,
       handleStylesPanelToggle,
       isStylesPanelOpen,
       resolvedCreateProperties,
       selectedStyleId,
-      setExpertCreateMode,
       visibleStylesCatalog,
     ]
   );
@@ -1135,6 +1195,15 @@ export function AiStudioPageContent({
       selectedPresetId,
     ]
   );
+  const pulsePresetsPropertiesPanelContent = React.useMemo(
+    () => (
+      <PulsePresetsLibraryPanel
+        savedPresets={propertiesCreate.savedPulsePresets ?? []}
+        onSavedPresetsChange={propertiesCreate.onSavedPulsePresetsChange}
+      />
+    ),
+    [propertiesCreate.onSavedPulsePresetsChange, propertiesCreate.savedPulsePresets]
+  );
   const elementsPropertiesPanelContent = React.useMemo(
     () => (
       <ElementsPanel
@@ -1198,16 +1267,20 @@ export function AiStudioPageContent({
           return editPropertiesPanelContent;
         case "video":
           return videoPropertiesPanelContent;
+        case "music":
+          return <MusicPropertiesPanel {...propertiesMusic} />;
         case "sound":
           return <SoundPropertiesPanel />;
         case "sound-effects":
-          return <SoundEffectsPropertiesPanel />;
+          return <SoundEffectsPropertiesPanel {...propertiesSoundEffects} />;
         case "voices":
           return <VoicesPropertiesPanel selectedTool={selectedTool} {...propertiesVoices} />;
         case "character":
           return characterPropertiesPanelContent;
         case "presets":
           return presetsPropertiesPanelContent;
+        case "pulse-presets":
+          return pulsePresetsPropertiesPanelContent;
         case "elements":
           return elementsPropertiesPanelContent;
         case "styles":
@@ -1225,6 +1298,9 @@ export function AiStudioPageContent({
       elementsPropertiesPanelContent,
       editPropertiesPanelContent,
       mediaLibraryPropertiesPanelContent,
+      pulsePresetsPropertiesPanelContent,
+      propertiesMusic,
+      propertiesSoundEffects,
       propertiesVoices,
       presetsPropertiesPanelContent,
       selectedTool,

@@ -2,7 +2,12 @@
  * AI Studio session snapshot schema + serializer.
  * Builds durable write-shadow payloads while excluding transient/local-only fields.
  */
-import type { AgentAttachment, AgentMessage, AgentMessageRole } from "../../../prefabs/agent/types";
+import type {
+  AgentAttachment,
+  AgentMessage,
+  AgentMessageRole,
+  AgentPulseWorkflowSession,
+} from "../../../prefabs/agent/types";
 import type {
   GenerationReplayConfig,
   StudioMode,
@@ -28,6 +33,7 @@ import type { ExpertEditSessionState } from "../components/edit/expertEditSessio
 export const LATEST_AI_STUDIO_SESSION_SCHEMA_VERSION = 2;
 
 export type AiStudioSessionSnapshotSchemaVersion = 1 | 2;
+export type AiStudioSessionExpertCreateMode = "standard" | "pulse";
 
 export type AiStudioSessionOutputV1 = {
   id: string;
@@ -90,6 +96,8 @@ export type AiStudioSessionWorkspaceV1 = {
   prompt: string;
   model: string | null;
   aspect: string;
+  expertCreateMode?: AiStudioSessionExpertCreateMode;
+  activePulsePresetId?: string | null;
   referenceImageUrl: string | null;
   extraImageUrls: [string | null, string | null, string | null];
   editReferenceText: string;
@@ -131,6 +139,7 @@ export type AiStudioSessionAgentV1 = {
   latestAgentPrompt: string | null;
   promptOrigin: "manual" | "agent" | "reference";
   chatModeEnabled: boolean;
+  pulseWorkflowSession?: AgentPulseWorkflowSession | null;
 };
 
 export type AiStudioSessionSnapshotV1 = {
@@ -170,6 +179,8 @@ export type BuildAiStudioSessionSnapshotInput = {
   prompt: string;
   model: string | null;
   aspect: string;
+  expertCreateMode?: AiStudioSessionExpertCreateMode;
+  activePulsePresetId?: string | null;
   referenceImageUrl: string | null;
   extraImageUrls: [string | null, string | null, string | null];
   editReferenceText: string;
@@ -205,6 +216,7 @@ export type BuildAiStudioSessionSnapshotInput = {
   latestAgentPrompt: string | null;
   promptOrigin: "manual" | "agent" | "reference";
   chatModeEnabled: boolean;
+  pulseWorkflowSession?: AgentPulseWorkflowSession | null;
   // Legacy compatibility input for optional canvas session serialization. Canonical /ai-studio writes omit this.
   canvasState?: AiStudioSessionCanvasState;
   expertEditSessionState?: ExpertEditSessionState | null;
@@ -355,6 +367,60 @@ const sanitizeAgentMessage = (message: AgentMessage): AiStudioSessionAgentMessag
   attachments: sanitizeAgentAttachments(message.attachments),
 });
 
+const sanitizePulseWorkflowStatus = (
+  value: AgentPulseWorkflowSession["status"] | null | undefined
+): AgentPulseWorkflowSession["status"] => {
+  return value === "idle" ||
+    value === "running" ||
+    value === "awaiting_input" ||
+    value === "completed"
+    ? value
+    : "idle";
+};
+
+const sanitizePulseWorkflowSession = (
+  session: AgentPulseWorkflowSession | null | undefined
+): AgentPulseWorkflowSession | null => {
+  if (!session) return null;
+  const presetId = typeof session.presetId === "string" ? session.presetId.trim() : "";
+  if (!presetId) return null;
+  const currentStepIndex =
+    typeof session.currentStepIndex === "number" && Number.isFinite(session.currentStepIndex)
+      ? Math.max(1, Math.trunc(session.currentStepIndex))
+      : null;
+  const currentStepLabel =
+    typeof session.currentStepLabel === "string" && session.currentStepLabel.trim().length > 0
+      ? session.currentStepLabel.trim()
+      : null;
+  const currentStepPrompt =
+    typeof session.currentStepPrompt === "string" && session.currentStepPrompt.trim().length > 0
+      ? session.currentStepPrompt.trim()
+      : null;
+  const collectedInputs = Array.isArray(session.collectedInputs)
+    ? session.collectedInputs
+        .map((entry) => (typeof entry === "string" ? entry.trim() : ""))
+        .filter((entry) => entry.length > 0)
+    : [];
+  const lastArtifact =
+    typeof session.lastArtifact === "string" && session.lastArtifact.trim().length > 0
+      ? session.lastArtifact.trim()
+      : null;
+  const finalArtifactSource =
+    session.finalArtifactSource === "apply_prompt" || session.finalArtifactSource === "chat_reply"
+      ? session.finalArtifactSource
+      : null;
+  return {
+    presetId,
+    status: sanitizePulseWorkflowStatus(session.status),
+    currentStepIndex,
+    currentStepLabel,
+    currentStepPrompt,
+    collectedInputs,
+    lastArtifact,
+    finalArtifactSource,
+  };
+};
+
 const computeChecksum = (value: unknown): string => {
   const serialized = JSON.stringify(value);
   let hash = 2166136261;
@@ -390,6 +456,8 @@ export const buildAiStudioSessionSnapshot = (
       prompt: input.prompt,
       model: input.model,
       aspect: input.aspect,
+      expertCreateMode: input.expertCreateMode ?? "standard",
+      activePulsePresetId: input.activePulsePresetId?.trim() || null,
       referenceImageUrl: sanitizeWorkspaceMediaUrl(input.referenceImageUrl),
       extraImageUrls: sanitizeWorkspaceExtraImageUrls(input.extraImageUrls),
       editReferenceText: input.editReferenceText,
@@ -430,6 +498,7 @@ export const buildAiStudioSessionSnapshot = (
       latestAgentPrompt: input.latestAgentPrompt,
       promptOrigin: input.promptOrigin,
       chatModeEnabled: input.chatModeEnabled,
+      pulseWorkflowSession: sanitizePulseWorkflowSession(input.pulseWorkflowSession),
     },
     ...(canvas ? { canvas } : {}),
     ...(expertEdit ? { expertEdit } : {}),

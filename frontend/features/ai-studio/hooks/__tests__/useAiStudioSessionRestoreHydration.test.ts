@@ -61,6 +61,7 @@ const createSnapshot = (updatedAt: string): AiStudioSessionSnapshotV1 => ({
     latestAgentPrompt: null,
     promptOrigin: "manual",
     chatModeEnabled: true,
+    pulseWorkflowSession: null,
   },
 });
 
@@ -79,6 +80,8 @@ const createHydrationPayload = (): AiStudioSessionHydrationPayload => ({
     prompt: "",
     model: null,
     aspect: "9:16",
+    expertCreateMode: "standard",
+    activePulsePresetId: null,
     referenceImageUrl: null,
     extraImageUrls: [null, null, null],
     editReferenceText: "",
@@ -118,6 +121,7 @@ const createHydrationPayload = (): AiStudioSessionHydrationPayload => ({
     latestAgentPrompt: "prompt",
     promptOrigin: "agent",
     chatModeEnabled: true,
+    pulseWorkflowSession: null,
   },
   canvas: null,
   expertEdit: {

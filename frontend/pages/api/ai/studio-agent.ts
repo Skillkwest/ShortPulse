@@ -52,6 +52,11 @@ import {
   buildPromptCompilerCacheScopeKey,
   resolvePromptTemplateVersion,
 } from "../../../features/agent-runtime/promptCompilerCacheScopeKey";
+import {
+  buildStudioAgentWorkflowSessionUpdate,
+  buildStudioAgentPulseSystemMessage,
+  isStudioAgentWorkflowPulse,
+} from "../../../features/agent-runtime/studioAgentPulseRuntime";
 import { logApiRouteException } from "../../../lib/server/api/appErrorLogs";
 import { requireApiUser } from "../../../lib/server/api/auth";
 import { clampCanonicalPrompt } from "../../../lib/server/api/agentConversationState";
@@ -59,6 +64,10 @@ import { resolveRuntimeSafetyProfile } from "../../../lib/server/api/agentSafety
 import { emitStudioAgentTurnTelemetry } from "../../../features/agent-runtime/studioAgentRouteOutcomes";
 import type { AgentContext, AgentMessage } from "../../../prefabs/agent";
 import type { OpenAiChatMessage } from "../../../lib/server/api/openAiCompat";
+import {
+  extractStudioAgentCompletionText,
+  parseStudioAgentJsonWithStatus,
+} from "../../../features/agent-runtime/studioAgentResponseNormalization";
 
 const DEFAULT_DIRECT_OPENAI_MODEL = "gpt-5.4";
 const DIRECT_OPENAI_SYSTEM_PROMPT = `You are a professional prompt writer for image generation.
@@ -74,6 +83,12 @@ If the user asks you to describe an image or convert it into a prompt, base your
 If the user's message appears to be an image-generation prompt or a request to create one, rewrite it into a strong production-ready prompt with clear subject, composition, lighting, style, and quality details.
 When rewriting a prompt, return only the final prompt unless the user explicitly asks for explanation.
 Do not add markdown, labels, or extra commentary unless the user asks for it.`;
+const DIRECT_OPENAI_WORKFLOW_SYSTEM_PROMPT = `You are the ShortPulse workflow pulse runtime.
+Behave like a guided custom GPT workflow.
+Follow the ACTIVE PULSE PROFILE system message exactly.
+You may ask the next required question or return a final artifact when the workflow is complete.
+Do not force every answer into a rewritten prompt.
+Return plain assistant text unless the active Pulse explicitly requires a stricter output shape.`;
 const DIRECT_OPENAI_IMAGE_FALLBACK_TEXT =
   "Describe this image as a detailed production-ready prompt for image generation.";
 
@@ -90,6 +105,8 @@ const buildDirectOpenAiMessages = ({
   messages: AgentMessage[];
   context: AgentContext;
 }): OpenAiChatMessage[] => {
+  const pulseSystemMessage = buildStudioAgentPulseSystemMessage(context.pulse);
+  const workflowPulseActive = isStudioAgentWorkflowPulse(context.pulse);
   const imageParts =
     context.media
       ?.filter((item) => item.kind === "image" && typeof item.url === "string" && item.url.length)
@@ -108,8 +125,11 @@ const buildDirectOpenAiMessages = ({
   return [
     {
       role: "system",
-      content: DIRECT_OPENAI_SYSTEM_PROMPT,
+      content: workflowPulseActive
+        ? DIRECT_OPENAI_WORKFLOW_SYSTEM_PROMPT
+        : DIRECT_OPENAI_SYSTEM_PROMPT,
     },
+    ...(pulseSystemMessage ? [{ role: "system" as const, content: pulseSystemMessage }] : []),
     ...messages.map((message, index): OpenAiChatMessage => {
       const role = message.role === "assistant" ? "assistant" : "user";
       if (index !== latestUserIndex || !imageParts.length || role !== "user") {
@@ -127,12 +147,43 @@ const buildDirectOpenAiMessages = ({
   ];
 };
 
-const extractDirectOpenAiMessage = (payload: unknown): string | null => {
+const extractDirectOpenAiResponse = ({
+  payload,
+  pulse,
+}: {
+  payload: unknown;
+  pulse?: AgentContext["pulse"] | null;
+}): {
+  message: string;
+  actions?: { applyPrompt?: string | null };
+  semanticStatus?: string | null;
+} | null => {
   if (!payload || typeof payload !== "object") return null;
   const choices = (payload as { choices?: Array<{ message?: { content?: unknown } }> }).choices;
   const raw = choices?.[0]?.message?.content;
-  if (typeof raw !== "string" || !raw.trim().length) return null;
-  return sanitizeGenerationPromptText(raw) ?? raw.trim();
+  if (isStudioAgentWorkflowPulse(pulse)) {
+    const parsed = parseStudioAgentJsonWithStatus(raw);
+    if (parsed?.response.message?.trim()) {
+      return {
+        message: parsed.response.message.trim(),
+        actions: parsed.response.actions,
+        semanticStatus: parsed.status ?? null,
+      };
+    }
+    const plainText = extractStudioAgentCompletionText(raw).trim();
+    if (!plainText.length) return null;
+    return { message: plainText, semanticStatus: null };
+  }
+  const directMessage = sanitizeGenerationPromptText(
+    typeof raw === "string" ? raw : extractStudioAgentCompletionText(raw)
+  );
+  if (!directMessage?.trim().length) return null;
+  return {
+    message: directMessage.trim(),
+    actions: {
+      applyPrompt: directMessage.trim(),
+    },
+  };
 };
 
 const resolveDirectOpenAiBypassFlow = (
@@ -353,8 +404,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
 
       const directPayload = await directResponse.json();
-      const directMessage = extractDirectOpenAiMessage(directPayload);
-      if (!directMessage) {
+      const directResult = extractDirectOpenAiResponse({
+        payload: directPayload,
+        pulse: context.pulse,
+      });
+      if (!directResult) {
         emitStudioAgentTurnTelemetry({
           flow: directBypassFlow,
           path: "direct_openai_bypass",
@@ -385,15 +439,23 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         );
       }
 
-      const nextCanonical = clampCanonicalPrompt(directMessage);
+      const nextCanonical = clampCanonicalPrompt(
+        directResult.actions?.applyPrompt ?? effectiveCanonical
+      );
+      const directOutcomeClass = directResult.actions?.applyPrompt
+        ? "success_prompt"
+        : "success_message";
+      const directReasonCode = directResult.actions?.applyPrompt
+        ? "SUCCESS_PROMPT"
+        : "SUCCESS_MESSAGE";
       emitStudioAgentTurnTelemetry({
         flow: directBypassFlow,
         path: "direct_openai_bypass",
         status: "success",
         model: directOpenAiModel,
-        outcomeClass: "success_prompt",
+        outcomeClass: directOutcomeClass,
         retryUsed: false,
-        reasonCode: "SUCCESS_PROMPT",
+        reasonCode: directReasonCode,
         totalLatencyMs: Date.now() - requestStartedAt,
         stageLatencyMs,
         safetyTelemetry: {
@@ -406,13 +468,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         },
       });
       return res.status(200).json({
-        message: directMessage,
-        actions: {
-          applyPrompt: directMessage,
-        },
+        message: directResult.message,
+        actions: directResult.actions,
+        workflowSession: buildStudioAgentWorkflowSessionUpdate({
+          pulse: context.pulse,
+          response: directResult,
+          semanticStatus: directResult.semanticStatus ?? null,
+        }),
         ...buildAgentMachineOutcome({
-          outcomeClass: "success_prompt",
-          reasonCode: "SUCCESS_PROMPT",
+          outcomeClass: directOutcomeClass,
+          reasonCode: directReasonCode,
         }),
         canonicalPrompt: nextCanonical,
         traceId,
@@ -486,7 +551,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     process.env.STUDIO_AGENT_SAFETY_PROVIDER_ERROR_MODE
   );
   const safetyAutoRollbackEnabled = process.env.STUDIO_AGENT_SAFETY_AUTOROLLBACK_ENABLED === "true";
-  const systemPrompt = loadAgentPrompt("STUDIO_AGENT_SYSTEM", process.env.STUDIO_AGENT_SYSTEM);
+  const promptEditorSystemPrompt = loadAgentPrompt(
+    "STUDIO_AGENT_SYSTEM",
+    process.env.STUDIO_AGENT_SYSTEM
+  );
+  const workflowSystemPrompt = loadAgentPrompt(
+    "STUDIO_AGENT_WORKFLOW_SYSTEM",
+    process.env.STUDIO_AGENT_WORKFLOW_SYSTEM
+  );
   const thinkerPrompt = loadAgentPrompt("STUDIO_AGENT_THINKER", process.env.STUDIO_AGENT_THINKER);
   const formatterPrompt = loadAgentPrompt(
     "STUDIO_AGENT_FORMATTER",
@@ -496,6 +568,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     "OPENAI_PROMPT_IMAGE_DESCRIBE",
     process.env.OPENAI_PROMPT_IMAGE_DESCRIBE
   );
+  const systemPrompt = isStudioAgentWorkflowPulse(context.pulse)
+    ? (workflowSystemPrompt ?? promptEditorSystemPrompt)
+    : promptEditorSystemPrompt;
   if (!systemPrompt) {
     return res.status(500).json({
       ...buildStudioAgentRouteFailurePayload({

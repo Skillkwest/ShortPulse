@@ -2,8 +2,18 @@
  * Shared state + actions for AI Studio.
  * Encapsulates creation/regeneration flows, output book-keeping, and modal state so the page can stay declarative.
  */
-import { useCallback, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type Dispatch,
+  type SetStateAction,
+} from "react";
+import type { AgentPulseWorkflowSession } from "../../../prefabs/agent";
 import { StudioOutput } from "../types";
+import { listVisibleGeneratedOutputs } from "../logic/generatedMediaAuthority";
+import { mergeCanonicalGeneratedOutputs } from "../logic/generatedOutputHydration";
 import { resolvePreviewUrlById } from "../logic/stateParsers";
 import { useAiStudioCreationState } from "./useAiStudioCreationState";
 import { useAiStudioPersistenceActions } from "./useAiStudioPersistenceActions";
@@ -49,11 +59,21 @@ export const useAiStudioState = ({
   isCharacterModeEnabled = false,
   selectedStylePrompt = null,
   selectedStyleContext = null,
+  expertCreateMode = "standard",
+  activePulsePresetId = null,
+  pulseWorkflowSession = null,
+  setExpertCreateMode,
+  setActivePulsePresetId,
 }: {
   sessionId?: string | null;
   isCharacterModeEnabled?: boolean;
   selectedStylePrompt?: string | null;
   selectedStyleContext?: StudioOutput["styleContext"] | null;
+  expertCreateMode?: "standard" | "pulse";
+  activePulsePresetId?: string | null;
+  pulseWorkflowSession?: AgentPulseWorkflowSession | null;
+  setExpertCreateMode?: Dispatch<SetStateAction<"standard" | "pulse">>;
+  setActivePulsePresetId?: Dispatch<SetStateAction<string | null>>;
 } = {}) => {
   const {
     promptRef,
@@ -149,6 +169,7 @@ export const useAiStudioState = ({
   const pendingAutoSavesRef = useRef<Record<string, unknown>>({});
   const pendingFinalizeRemovalIdsRef = useRef<Set<string>>(new Set());
   const sessionHydrationSigningRevisionRef = useRef(0);
+  const canonicalGeneratedHydrationStartedRef = useRef(false);
   const {
     activeOutput,
     activeOutputPreviewUrl,
@@ -340,6 +361,24 @@ export const useAiStudioState = ({
     setOutputs,
   });
 
+  useEffect(() => {
+    if (canonicalGeneratedHydrationStartedRef.current) return;
+    canonicalGeneratedHydrationStartedRef.current = true;
+    let cancelled = false;
+
+    void (async () => {
+      const hydratedOutputs = await listVisibleGeneratedOutputs();
+      if (cancelled || hydratedOutputs.length === 0) return;
+      setOutputsState((currentOutputs) =>
+        mergeCanonicalGeneratedOutputs(currentOutputs, hydratedOutputs)
+      );
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [setOutputsState]);
+
   const {
     updateOutputById,
     findOutputById,
@@ -473,6 +512,9 @@ export const useAiStudioState = ({
       prompt,
       model,
       aspect,
+      expertCreateMode,
+      activePulsePresetId,
+      pulseWorkflowSession,
       referenceImageUrl,
       extraImageUrls,
       editReferenceText,
@@ -509,6 +551,8 @@ export const useAiStudioState = ({
       setSharedPrompt,
       setModel: setModelState,
       setAspect,
+      setExpertCreateMode: setExpertCreateMode ?? (() => undefined),
+      setActivePulsePresetId: setActivePulsePresetId ?? (() => undefined),
       setReferenceImageUrl,
       setExtraImageUrl,
       setEditReferenceText,
@@ -692,6 +736,8 @@ export const useAiStudioState = ({
     rerollOutputFromReplay,
     insertOptimisticGenerationPlaceholder,
     removeOptimisticGenerationPlaceholder,
+    updateOutputById,
+    notifyGenerationFailure,
     saveActiveOutput,
     ensureOutputPersisted,
     saveReferenceToLibrary,

@@ -465,6 +465,63 @@ describe("useAiStudioViewModel motion guardrails", () => {
       "Seedance 2.0 requires both first and last frame images in first/last-frame mode."
     );
   });
+
+  it("treats linked Seedance assets as valid multimodal references", () => {
+    const { result } = renderHook(() =>
+      useAiStudioViewModel({
+        ...baseInput,
+        model: KIE_SEEDANCE_2_MODEL_ID,
+        videoReferenceMode: "standard",
+        referenceImageUrl: null,
+        motionReferenceVideoUrl: null,
+        seedance2InputMode: "multimodal",
+        klingElements: [
+          {
+            id: "element-1",
+            name: "Red Lantern",
+            alias: "redlantern",
+            frontalImageUrl: "https://example.com/red-lantern.png",
+            referenceImageUrls: "",
+            videoUrl: "",
+          },
+        ],
+      })
+    );
+
+    expect(result.current.generationGuardrail).toBeNull();
+    expect(result.current.referenceImageWarning).toBeNull();
+    expect(result.current.isGenerateDisabled).toBe(false);
+  });
+
+  it("blocks Seedance linked assets when frame images are also present", () => {
+    const { result } = renderHook(() =>
+      useAiStudioViewModel({
+        ...baseInput,
+        model: KIE_SEEDANCE_2_FAST_MODEL_ID,
+        videoReferenceMode: "standard",
+        referenceImageUrl: "https://example.com/first.png",
+        motionReferenceVideoUrl: null,
+        seedance2InputMode: "multimodal",
+        klingElements: [
+          {
+            id: "element-1",
+            name: "Steam Train",
+            alias: "steamtrain",
+            frontalImageUrl: "",
+            referenceImageUrls: "",
+            videoUrl: "https://example.com/steamtrain.mp4",
+          },
+        ],
+      })
+    );
+
+    expect(result.current.generationGuardrail).toBe(
+      "Remove first/last frame images before generating with Seedance 2.0 linked assets."
+    );
+    expect(result.current.referenceImageWarning).toBe(
+      "Seedance 2.0 linked assets cannot be combined with first/last frame images."
+    );
+  });
 });
 
 describe("useAiStudioViewModel edit guardrails", () => {

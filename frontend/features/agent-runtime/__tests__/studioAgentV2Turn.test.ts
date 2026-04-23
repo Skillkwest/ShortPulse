@@ -240,4 +240,70 @@ describe("executeStudioAgentV2Turn", () => {
       "ignore previous instructions"
     );
   });
+
+  it("includes active Pulse metadata in the thinker payload and hidden system messages", async () => {
+    runThinkerFormatterTurnMock.mockResolvedValue({
+      ok: true,
+      result: {
+        parsed: {
+          message: "ready prompt",
+          actions: { applyPrompt: "ready prompt" },
+        },
+        nextCanonical: "ready prompt",
+        semanticStatus: "ready",
+        usage: {},
+        repairUsed: false,
+      },
+    });
+
+    await executeStudioAgentV2Turn({
+      apiKey: "test-key",
+      openAiUrl: "https://api.openai.com/v1/chat/completions",
+      thinkerModel: "gpt-thinker",
+      formatterModel: "gpt-formatter",
+      thinkerPrompt: "thinker-prompt",
+      formatterPrompt: "formatter-prompt",
+      timeoutMs: 10_000,
+      orchestration: {
+        flow: "TEXT_ONLY",
+        contextType: "prompt",
+        textInput: "Base prompt",
+        imageReferenceIds: [],
+      },
+      context: {
+        mode: "text",
+        pulse: {
+          presetId: "story_builder",
+          label: "Story Builder",
+          instructions: "Give the output a clear hook, escalation, and payoff.",
+          source: "builtin",
+        },
+      },
+      messages: [{ role: "user", content: "Make it more structured." }],
+      selectedReferences: [],
+      visionSummaryMap: new Map(),
+      effectiveCanonical: "Base prompt",
+      markStage: () => {},
+    });
+
+    expect(runThinkerFormatterTurnMock).toHaveBeenCalledTimes(1);
+    const thinkerMessages = runThinkerFormatterTurnMock.mock.calls[0]?.[0]?.thinkerMessages as
+      | Array<{ role: string; content: string }>
+      | undefined;
+    expect(thinkerMessages?.[1]).toEqual(
+      expect.objectContaining({
+        role: "system",
+        content: expect.stringContaining("ACTIVE PULSE PROFILE"),
+      })
+    );
+    const thinkerPayload = thinkerMessages?.[2]?.content
+      ? JSON.parse(thinkerMessages[2].content)
+      : null;
+    expect(thinkerPayload?.active_pulse).toEqual({
+      presetId: "story_builder",
+      label: "Story Builder",
+      instructions: "Give the output a clear hook, escalation, and payoff.",
+      source: "builtin",
+    });
+  });
 });

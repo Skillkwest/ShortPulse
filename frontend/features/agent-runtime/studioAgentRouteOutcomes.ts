@@ -12,6 +12,7 @@ import type {
 export type StudioAgentTelemetryStatus = "success" | "refuse" | "error";
 export type StudioAgentTelemetryOutcomeClass =
   | "success_prompt"
+  | "success_message"
   | "refusal_model"
   | "refusal_safety"
   | "fallback_infra"

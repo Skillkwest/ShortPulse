@@ -1,7 +1,13 @@
 /**
  * Shared hook-local types/constants for useAiAgent.
  */
-import type { AgentActions, AgentContext, AgentMessage, AgentResponse } from "../../prefabs/agent";
+import type {
+  AgentActions,
+  AgentContext,
+  AgentMessage,
+  AgentPulseWorkflowSession,
+  AgentResponse,
+} from "../../prefabs/agent";
 
 export type UseAiAgentOptions = {
   initialMessages?: AgentMessage[];
@@ -24,6 +30,7 @@ export type SendParams = {
 export type SendResult = {
   response: AgentResponse | null;
   actions: AgentActions | undefined;
+  workflowSession?: AgentPulseWorkflowSession | null;
 };
 
 // Stable default to prevent Fast Refresh issues.

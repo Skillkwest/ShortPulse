@@ -45,6 +45,11 @@ import { buildAgentMachineOutcome, resolveInfraFallbackReasonCode } from "./agen
 import { resolveStudioAgentFallbackReasonLabel } from "./studioAgentFallbackReason";
 import { resolveStudioAgentTurnResponse } from "./studioAgentTurnResponse";
 import { executeStudioAgentV2Turn } from "./studioAgentV2Turn";
+import {
+  buildStudioAgentWorkflowSessionUpdate,
+  buildStudioAgentPulseSystemMessage,
+  isStudioAgentWorkflowPulse,
+} from "./studioAgentPulseRuntime";
 
 type OpenAIChatMessage =
   | { role: "system" | "assistant" | "user"; content: string }
@@ -72,8 +77,10 @@ export const buildStudioAgentOpenAiMessages = ({
   systemPrompt: string;
   orchestration: StudioAgentOrchestration;
 }): OpenAIChatMessage[] => {
+  const pulseSystemMessage = buildStudioAgentPulseSystemMessage(context.pulse);
   const chat: OpenAIChatMessage[] = [
     { role: "system", content: systemPrompt },
+    ...(pulseSystemMessage ? [{ role: "system" as const, content: pulseSystemMessage }] : []),
     { role: "system", content: `CONTEXT:\n${JSON.stringify(context)}` },
     { role: "system", content: `ORCHESTRATION:\n${JSON.stringify(orchestration)}` },
   ];
@@ -203,8 +210,11 @@ export const executeStudioAgentCoordinator = async ({
   });
 
   const canUseV2Path = Boolean(thinkerPrompt && formatterPrompt);
+  const workflowPulseActive = isStudioAgentWorkflowPulse(context.pulse);
   const legacyUseV2Path =
-    canUseV2Path && !(orchestration.flow === "TEXT_ONLY" && textFastPathEnabled);
+    !workflowPulseActive &&
+    canUseV2Path &&
+    !(orchestration.flow === "TEXT_ONLY" && textFastPathEnabled);
   let runtimePath = singleStageEnabled
     ? "single_stage"
     : legacyUseV2Path
@@ -451,6 +461,7 @@ export const executeStudioAgentCoordinator = async ({
     parsed,
     refusal,
     resolvedCanonical,
+    semanticStatus,
     usage,
     model,
     retryUsed,
@@ -463,6 +474,7 @@ export const executeStudioAgentCoordinator = async ({
     parsed: Record<string, unknown>;
     refusal: boolean;
     resolvedCanonical: string | null;
+    semanticStatus: string | null;
     usage: Record<string, unknown> | undefined;
     model: string;
     retryUsed: boolean;
@@ -576,7 +588,7 @@ export const executeStudioAgentCoordinator = async ({
       }
 
       const finalApplyPrompt = finalParsed.actions?.applyPrompt;
-      if (!finalRefusal && finalApplyPrompt) {
+      if (!finalRefusal && finalApplyPrompt && !workflowPulseActive) {
         finalParsed = {
           ...finalParsed,
           message: finalApplyPrompt,
@@ -623,12 +635,16 @@ export const executeStudioAgentCoordinator = async ({
       ? safetyForcedRefusal
         ? "refusal_safety"
         : "refusal_model"
-      : "success_prompt";
+      : finalParsed.actions?.applyPrompt
+        ? "success_prompt"
+        : "success_message";
     const finalReasonCode = finalRefusal
       ? safetyForcedRefusal
         ? "SAFETY_OUTPUT_REFUSAL"
         : "PROVIDER_SAFETY_REFUSAL"
-      : "SUCCESS_PROMPT";
+      : finalParsed.actions?.applyPrompt
+        ? "SUCCESS_PROMPT"
+        : "SUCCESS_MESSAGE";
 
     if (
       shouldCommitStudioAgentCanonicalPrompt({
@@ -685,6 +701,11 @@ export const executeStudioAgentCoordinator = async ({
       status: 200,
       payload: {
         ...finalParsed,
+        workflowSession: buildStudioAgentWorkflowSessionUpdate({
+          pulse: context.pulse,
+          response: finalParsed,
+          semanticStatus,
+        }),
         ...(usage ? { usage } : {}),
         ...buildAgentMachineOutcome({
           outcomeClass: finalOutcomeClass,
@@ -780,6 +801,7 @@ export const executeStudioAgentCoordinator = async ({
       parsed: parsed as Record<string, unknown>,
       refusal: resolvedTurn.refusal,
       resolvedCanonical: resolvedTurn.resolvedCanonical,
+      semanticStatus,
       usage: (v2Turn.result.usage ?? undefined) as Record<string, unknown> | undefined,
       model: openAiThinkerModel,
       retryUsed: v2Turn.result.retryUsed || retryCount > 0,
@@ -898,6 +920,7 @@ export const executeStudioAgentCoordinator = async ({
         parsed: singleStageResult.turn.result.parsed as Record<string, unknown>,
         refusal: singleStageResult.turn.result.refusal,
         resolvedCanonical: singleStageResult.turn.result.resolvedCanonical,
+        semanticStatus: singleStageResult.turn.result.semanticStatus,
         usage: singleStageResult.turn.result.usage as Record<string, unknown>,
         model: openAiModel,
         retryUsed: singleStageResult.retryCount > 0,
@@ -928,6 +951,7 @@ export const executeStudioAgentCoordinator = async ({
       parsed: fastPathResult.turn.result.parsed as Record<string, unknown>,
       refusal: fastPathResult.turn.result.refusal,
       resolvedCanonical: fastPathResult.turn.result.resolvedCanonical,
+      semanticStatus: fastPathResult.turn.result.semanticStatus,
       usage: fastPathResult.turn.result.usage as Record<string, unknown>,
       model: openAiModel,
       retryUsed: fastPathResult.retryCount > 0,

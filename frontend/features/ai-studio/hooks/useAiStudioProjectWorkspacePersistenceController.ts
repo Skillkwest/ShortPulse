@@ -2,10 +2,11 @@
  * AI Studio project-workspace persistence controller.
  * Orchestrates project-owned restore/apply and debounced write shadow against project workspace authority.
  */
-import { useCallback, useMemo } from "react";
+import { useCallback, useMemo, useState } from "react";
 import type { AiStudioSessionSnapshot } from "../logic/sessionSnapshot";
 import type { AiStudioSessionHydrationPayload } from "../logic/sessionSnapshotHydrator";
 import { saveAiStudioProjectWorkspaceSnapshotViaApi } from "../logic/projectWorkspaceApiClient";
+import type { AiStudioSessionPersistenceController } from "./useAiStudioSessionPersistenceController";
 import { useAiStudioSessionWriteShadow } from "./useAiStudioSessionWriteShadow";
 import { useAiStudioProjectWorkspaceRestoreCandidate } from "./useAiStudioProjectWorkspaceRestoreCandidate";
 import { useAiStudioProjectWorkspaceRestoreHydration } from "./useAiStudioProjectWorkspaceRestoreHydration";
@@ -23,6 +24,7 @@ type UseAiStudioProjectWorkspacePersistenceControllerParams = {
   hydrateFromSessionExpertEditSnapshot?: (
     expertEdit: AiStudioSessionHydrationPayload["expertEdit"]
   ) => void;
+  applyEmptyProjectState?: () => void;
   onPersistenceWarning?: (message: string) => void;
 };
 
@@ -64,17 +66,22 @@ export const useAiStudioProjectWorkspacePersistenceController = ({
   hydrateFromSessionSnapshot,
   hydrateFromSessionAgentSnapshot,
   hydrateFromSessionExpertEditSnapshot,
+  applyEmptyProjectState,
   onPersistenceWarning,
-}: UseAiStudioProjectWorkspacePersistenceControllerParams) => {
-  const sessionSnapshot = useMemo(
-    () => (projectId && sessionId ? buildSessionSnapshot(sessionId) : null),
-    [buildSessionSnapshot, projectId, sessionId]
-  );
-
+}: UseAiStudioProjectWorkspacePersistenceControllerParams): AiStudioSessionPersistenceController => {
+  const [bootstrappedProjectId, setBootstrappedProjectId] = useState<string | null>(null);
   const sessionRestoreCandidate = useAiStudioProjectWorkspaceRestoreCandidate({
     projectId,
     enabled: Boolean(projectId),
   });
+  const projectBootstrapReady =
+    Boolean(projectId) &&
+    sessionRestoreCandidate.status === "ready" &&
+    bootstrappedProjectId === projectId;
+  const sessionSnapshot = useMemo(
+    () => (sessionId && projectBootstrapReady ? buildSessionSnapshot(sessionId) : null),
+    [buildSessionSnapshot, projectBootstrapReady, sessionId]
+  );
 
   useAiStudioProjectWorkspaceRestoreHydration({
     projectId,
@@ -82,6 +89,8 @@ export const useAiStudioProjectWorkspacePersistenceController = ({
     hydrateFromSessionSnapshot,
     hydrateFromSessionAgentSnapshot,
     hydrateFromSessionExpertEditSnapshot,
+    applyEmptyProjectState,
+    onProjectBootstrapSettled: setBootstrappedProjectId,
   });
 
   const persistProjectWorkspaceSnapshot = useCallback(
@@ -102,7 +111,7 @@ export const useAiStudioProjectWorkspacePersistenceController = ({
   useAiStudioSessionWriteShadow({
     sessionId: projectId,
     snapshot: sessionSnapshot,
-    enabled: Boolean(projectId),
+    enabled: projectBootstrapReady,
     persistSnapshot: (activeProjectId, snapshot, options) =>
       persistProjectWorkspaceSnapshot(activeProjectId, snapshot, {
         keepalive: options?.keepalive,
@@ -125,5 +134,9 @@ export const useAiStudioProjectWorkspacePersistenceController = ({
     sessionSnapshot,
     sessionRestoreCandidate,
     setSkipRestoreApplyForSessionId: () => undefined,
+    projectBootstrapApplied: projectBootstrapReady,
+    projectBootstrapError:
+      sessionRestoreCandidate.status === "error" ? sessionRestoreCandidate.error : null,
+    retryProjectBootstrap: sessionRestoreCandidate.retry,
   };
 };

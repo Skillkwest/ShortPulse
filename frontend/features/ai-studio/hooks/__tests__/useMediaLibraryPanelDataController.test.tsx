@@ -68,6 +68,14 @@ vi.mock("../../../media-library/runtime", async () => {
 });
 
 describe("useMediaLibraryPanelDataController", () => {
+  const createDeferred = <T,>() => {
+    let resolve!: (value: T) => void;
+    const promise = new Promise<T>((nextResolve) => {
+      resolve = nextResolve;
+    });
+    return { promise, resolve };
+  };
+
   beforeEach(() => {
     vi.clearAllMocks();
     fetchMediaListPageMock.mockResolvedValue({
@@ -115,5 +123,95 @@ describe("useMediaLibraryPanelDataController", () => {
         projectId: "project-1",
       })
     );
+  });
+
+  it("treats project switches as a new unresolved media/prompt scope", async () => {
+    const projectOneMedia = createDeferred<{
+      rows: never[];
+      nextCursor: null;
+      hasMore: false;
+      signedById: Map<string, string>;
+      libraryTotalCount: number;
+    }>();
+    const projectOnePrompts = createDeferred<{
+      rows: never[];
+      nextCursor: null;
+      hasMore: false;
+    }>();
+
+    fetchMediaListPageMock.mockReturnValueOnce(projectOneMedia.promise).mockResolvedValueOnce({
+      rows: [],
+      nextCursor: null,
+      hasMore: false,
+      signedById: new Map(),
+      libraryTotalCount: 0,
+    });
+    fetchMediaPromptListPageMock
+      .mockReturnValueOnce(projectOnePrompts.promise)
+      .mockResolvedValueOnce({
+        rows: [],
+        nextCursor: null,
+        hasMore: false,
+      });
+
+    const { result, rerender } = renderHook(
+      ({ projectId }) =>
+        useMediaLibraryPanelDataController({
+          projectId,
+          activeFolderId: "all_items",
+          itemType: "all",
+          normalizedSearch: "",
+          shouldShowMedia: true,
+          shouldShowPrompts: true,
+          showFolderCanvas: false,
+          panelBodyRef: { current: null },
+        }),
+      {
+        initialProps: {
+          projectId: "project-1",
+        },
+      }
+    );
+
+    await waitFor(() => {
+      expect(fetchMediaListPageMock).toHaveBeenCalledWith(
+        expect.objectContaining({ projectId: "project-1" })
+      );
+      expect(fetchMediaPromptListPageMock).toHaveBeenCalledWith(
+        expect.objectContaining({ projectId: "project-1" })
+      );
+    });
+
+    rerender({ projectId: "project-2" });
+
+    expect(result.current.mediaScopeResolved).toBe(false);
+    expect(result.current.promptScopeResolved).toBe(false);
+
+    await waitFor(() => {
+      expect(fetchMediaListPageMock).toHaveBeenCalledWith(
+        expect.objectContaining({ projectId: "project-2" })
+      );
+      expect(fetchMediaPromptListPageMock).toHaveBeenCalledWith(
+        expect.objectContaining({ projectId: "project-2" })
+      );
+    });
+
+    projectOneMedia.resolve({
+      rows: [],
+      nextCursor: null,
+      hasMore: false,
+      signedById: new Map(),
+      libraryTotalCount: 0,
+    });
+    projectOnePrompts.resolve({
+      rows: [],
+      nextCursor: null,
+      hasMore: false,
+    });
+
+    await waitFor(() => {
+      expect(result.current.mediaScopeResolved).toBe(true);
+      expect(result.current.promptScopeResolved).toBe(true);
+    });
   });
 });

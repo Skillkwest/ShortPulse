@@ -3,7 +3,7 @@
  * Receives a prepared view model from the page and renders toolbar, panels, previews, and system banners.
  */
 import React from "react";
-import { FlowArrow, Globe, type IconProps, SquaresFour, StackSimple } from "phosphor-react";
+import { Eye, FlowArrow, Globe, type IconProps, SquaresFour, StackSimple } from "phosphor-react";
 import type { ForwardRefExoticComponent, RefAttributes } from "react";
 import {
   EXPLICIT_CONTENT_FAILURE_DETAIL,
@@ -21,8 +21,7 @@ import { StudioPreview } from "./StudioPreview";
 import type { ModelOption } from "../constants";
 import { CharacterPanel } from "./CharacterPanel";
 import { StylesLibraryPanel } from "./StylesLibraryPanel";
-import { PresetsLibraryPanel } from "./PresetsLibraryPanel";
-import { PulsePresetsLibraryPanel } from "./PulsePresetsLibraryPanel";
+import { UnifiedPresetsLibraryPanel } from "./UnifiedPresetsLibraryPanel";
 import { VideoPropertiesPanel } from "./VideoPropertiesPanel";
 import { MusicPropertiesPanel, type MusicPropertiesPanelProps } from "./MusicPropertiesPanel";
 import { SoundPropertiesPanel } from "./SoundPropertiesPanel";
@@ -90,9 +89,11 @@ import {
 import { useOutputCounts } from "../hooks/aiStudioOutputStore";
 import {
   createInitialPanelVisibility,
+  resolveExpandedRightRailVisibility,
   resolveEffectivePanelVisibility,
   resolveHeaderShortcutStateMap,
   togglePanelVisibilityByShortcut,
+  type ExpandableRightRailHeaderButtonId,
   type HeaderShortcutId,
   type PanelVisibilityState,
 } from "../logic/panelVisibility";
@@ -160,6 +161,11 @@ const AI_STUDIO_HEADER_SHORTCUT_BUTTONS = [
 
 type RightColumnDropMode = "none" | "text" | "media";
 type PastedMediaReference = { url: string; mimeType?: string | null };
+type RightRailExpandedSnapshot = {
+  selectedTool: ToolId | null;
+  isCanvasVisible: boolean;
+  panelVisibility: PanelVisibilityState;
+};
 type RightColumnDropPayload =
   | { kind: "none" }
   | { kind: "internal" }
@@ -519,6 +525,7 @@ export type AiStudioPageContentProps = {
   characterCreateRequestKey?: number;
   elementCreateRequestKey?: number;
   showCreateTools: boolean;
+  onOpenProjects?: () => void;
   onSelectTool: (tool: ToolId | null) => void;
   onToggleCreateTools: (value: boolean) => void;
   propertiesCreate: CreateSectionProps;
@@ -590,6 +597,7 @@ export function AiStudioPageContent({
   characterCreateRequestKey = 0,
   elementCreateRequestKey = 0,
   showCreateTools,
+  onOpenProjects,
   onSelectTool,
   onToggleCreateTools,
   propertiesCreate,
@@ -650,6 +658,8 @@ export function AiStudioPageContent({
   const [panelVisibility, setPanelVisibility] = React.useState<PanelVisibilityState>(
     createInitialPanelVisibility
   );
+  const [expandedRightRailTarget, setExpandedRightRailTarget] =
+    React.useState<ExpandableRightRailHeaderButtonId | null>(null);
   const [selectedStyleId, setSelectedStyleId] = React.useState<string | null>(null);
   const [activeVoiceChangerSourceVideo, setActiveVoiceChangerSourceVideo] =
     React.useState<ActiveVoiceChangerSourceVideo | null>(null);
@@ -657,7 +667,6 @@ export function AiStudioPageContent({
   const [uncontrolledExpertCreateMode, setUncontrolledExpertCreateMode] = React.useState<
     "standard" | "pulse"
   >("standard");
-  const pulseCreateChatModeRestoreRef = React.useRef<boolean | null>(null);
   const isExpertCreateModeControlled =
     resolvedCreateProperties.expertCreateMode != null &&
     resolvedCreateProperties.onExpertCreateModeChange != null;
@@ -708,8 +717,6 @@ export function AiStudioPageContent({
         title: resolvedStyleName,
         referenceImageName: styleDetails.referenceImageName.trim() || resolvedStyleName,
         stylePrompt: styleDetails.stylePrompt.trim(),
-        styleProfile: styleDetails.styleProfile,
-        extractionMeta: styleDetails.extractionMeta,
         previewUrl: resolvedPreviewUrl,
       };
     });
@@ -724,8 +731,6 @@ export function AiStudioPageContent({
           title: resolvedStyleName,
           referenceImageName: styleDetails.referenceImageName.trim() || resolvedStyleName,
           stylePrompt: styleDetails.stylePrompt.trim(),
-          styleProfile: styleDetails.styleProfile,
-          extractionMeta: styleDetails.extractionMeta,
           previewUrl: styleDetails.previewImageUrl.trim() || null,
           placeholder: false,
         };
@@ -821,13 +826,6 @@ export function AiStudioPageContent({
     [isQuickSlotToggleAvailable, isStylesToggleAvailable]
   );
   const effectivePanelVisibility = React.useMemo(() => {
-    if (isPrimaryCharacterPanelOpen) {
-      return {
-        quickSlot: isQuickSlotToggleAvailable,
-        referenceGrid: true,
-        styles: false,
-      };
-    }
     const baseVisibility = resolveEffectivePanelVisibility({
       panelVisibility,
       availability: panelToggleAvailability,
@@ -840,13 +838,7 @@ export function AiStudioPageContent({
       };
     }
     return baseVisibility;
-  }, [
-    isPrimaryCharacterPanelOpen,
-    isQuickSlotToggleAvailable,
-    panelToggleAvailability,
-    panelVisibility,
-    selectedTool,
-  ]);
+  }, [panelToggleAvailability, panelVisibility, selectedTool]);
   const isStylesPanelOpen = effectivePanelVisibility.styles;
   const headerShortcutStates = React.useMemo(
     () =>
@@ -857,8 +849,26 @@ export function AiStudioPageContent({
     [effectivePanelVisibility, panelToggleAvailability]
   );
   const visibleHeaderShortcutButtons = React.useMemo(() => AI_STUDIO_HEADER_SHORTCUT_BUTTONS, []);
+  const expandedRightRailSnapshotRef = React.useRef<RightRailExpandedSnapshot | null>(null);
+  const clearExpandedRightRailSession = React.useCallback(() => {
+    expandedRightRailSnapshotRef.current = null;
+    setExpandedRightRailTarget(null);
+  }, []);
+  const restoreExpandedRightRailLayout = React.useCallback(() => {
+    const expandedSnapshot = expandedRightRailSnapshotRef.current;
+    if (!expandedSnapshot) return;
+    setIsCanvasVisible(expandedSnapshot.isCanvasVisible);
+    setPanelVisibility(expandedSnapshot.panelVisibility);
+    clearExpandedRightRailSession();
+    onSelectTool(expandedSnapshot.selectedTool);
+  }, [clearExpandedRightRailSession, onSelectTool]);
   const handleHeaderShortcutToggle = React.useCallback(
     (shortcutId: HeaderShortcutId) => {
+      if (expandedRightRailTarget === shortcutId) {
+        restoreExpandedRightRailLayout();
+        return;
+      }
+      clearExpandedRightRailSession();
       setPanelVisibility((previous) => {
         return togglePanelVisibilityByShortcut({
           panelVisibility: previous,
@@ -867,7 +877,12 @@ export function AiStudioPageContent({
         });
       });
     },
-    [panelToggleAvailability]
+    [
+      clearExpandedRightRailSession,
+      expandedRightRailTarget,
+      panelToggleAvailability,
+      restoreExpandedRightRailLayout,
+    ]
   );
   const { activeCount } = useOutputCounts();
   React.useEffect(() => {
@@ -900,11 +915,13 @@ export function AiStudioPageContent({
   const {
     shellRef,
     leftColumnRef,
+    leftWidthPx,
     showDivider,
     isResizing,
     shellStyle,
     collapseToMin,
     resetToDefaultWidth,
+    restoreWidth,
     expandToMax,
     dividerProps,
     rightColumnHidden,
@@ -915,6 +932,38 @@ export function AiStudioPageContent({
     minRightWidthPx,
     defaultLeftRatio,
   });
+  const mediaLibraryExpandedWidthRef = React.useRef<number | null>(null);
+  const [isMediaLibraryPanelExpanded, setIsMediaLibraryPanelExpanded] = React.useState(false);
+  const handleExpandMediaLibraryPanel = React.useCallback(() => {
+    if (isMediaLibraryPanelExpanded) return;
+    mediaLibraryExpandedWidthRef.current =
+      typeof leftWidthPx === "number" && Number.isFinite(leftWidthPx) ? leftWidthPx : null;
+    expandToMax();
+    setIsMediaLibraryPanelExpanded(true);
+  }, [expandToMax, isMediaLibraryPanelExpanded, leftWidthPx]);
+  const handleCollapseMediaLibraryPanel = React.useCallback(() => {
+    restoreWidth(mediaLibraryExpandedWidthRef.current);
+    mediaLibraryExpandedWidthRef.current = null;
+    setIsMediaLibraryPanelExpanded(false);
+  }, [restoreWidth]);
+  React.useEffect(() => {
+    if (selectedTool === "media-library") return;
+    mediaLibraryExpandedWidthRef.current = null;
+    setIsMediaLibraryPanelExpanded(false);
+  }, [selectedTool]);
+  const previousSelectedToolForExpandedSessionRef = React.useRef<ToolId | null>(selectedTool);
+  React.useEffect(() => {
+    const previousSelectedToolForExpandedSession =
+      previousSelectedToolForExpandedSessionRef.current;
+    if (
+      expandedRightRailTarget != null &&
+      previousSelectedToolForExpandedSession !== selectedTool &&
+      selectedTool !== null
+    ) {
+      clearExpandedRightRailSession();
+    }
+    previousSelectedToolForExpandedSessionRef.current = selectedTool;
+  }, [clearExpandedRightRailSession, expandedRightRailTarget, selectedTool]);
   const effectiveRightColumnHidden = rightColumnHidden;
   const shellClassName = [
     "ai-shell",
@@ -930,7 +979,6 @@ export function AiStudioPageContent({
     .join(" ");
   const previousSelectedToolRef = React.useRef<ToolId | null>(null);
   const previousExpertCreateModeRef = React.useRef<"standard" | "pulse">(expertCreateMode);
-  const previousExpertCreateModeForChatRef = React.useRef<"standard" | "pulse">(expertCreateMode);
   const previousSessionIdRef = React.useRef<string | null>(sessionId);
   React.useEffect(() => {
     const previousSelectedTool = previousSelectedToolRef.current;
@@ -1017,6 +1065,7 @@ export function AiStudioPageContent({
   ]);
   const rightColumnRef = React.useRef<HTMLDivElement | null>(null);
   const handleStylesPanelToggle = React.useCallback(() => {
+    clearExpandedRightRailSession();
     setPanelVisibility((previous) => {
       return togglePanelVisibilityByShortcut({
         panelVisibility: previous,
@@ -1024,30 +1073,7 @@ export function AiStudioPageContent({
         availability: panelToggleAvailability,
       });
     });
-  }, [panelToggleAvailability]);
-  React.useEffect(() => {
-    const previousMode = previousExpertCreateModeForChatRef.current;
-    if (previousMode === expertCreateMode) return;
-
-    const setCreateChatModeEnabled = resolvedCreateProperties.onChatModeEnabledChange;
-    const createChatModeEnabled = resolvedCreateProperties.chatModeEnabled ?? true;
-
-    if (expertCreateMode === "pulse") {
-      pulseCreateChatModeRestoreRef.current = createChatModeEnabled ? null : false;
-      if (!createChatModeEnabled) {
-        setCreateChatModeEnabled?.(true);
-      }
-    } else if (previousMode === "pulse" && pulseCreateChatModeRestoreRef.current != null) {
-      setCreateChatModeEnabled?.(pulseCreateChatModeRestoreRef.current);
-      pulseCreateChatModeRestoreRef.current = null;
-    }
-
-    previousExpertCreateModeForChatRef.current = expertCreateMode;
-  }, [
-    expertCreateMode,
-    resolvedCreateProperties.chatModeEnabled,
-    resolvedCreateProperties.onChatModeEnabledChange,
-  ]);
+  }, [clearExpandedRightRailSession, panelToggleAvailability]);
   const handleExpertCreateModeChange = React.useCallback(
     (nextMode: "standard" | "pulse") => {
       if (expertCreateMode === nextMode) return;
@@ -1060,8 +1086,46 @@ export function AiStudioPageContent({
     [expertCreateMode, isExpertCreateModeControlled, resolvedCreateProperties]
   );
   const handleCanvasVisibilityToggle = React.useCallback(() => {
+    if (expandedRightRailTarget === "canvas") {
+      restoreExpandedRightRailLayout();
+      return;
+    }
+    clearExpandedRightRailSession();
     setIsCanvasVisible((previous) => !previous);
-  }, []);
+  }, [clearExpandedRightRailSession, expandedRightRailTarget, restoreExpandedRightRailLayout]);
+  const handleExpandedRightRailToggle = React.useCallback(
+    (target: ExpandableRightRailHeaderButtonId) => {
+      const expandedSnapshot = expandedRightRailSnapshotRef.current;
+      if (expandedRightRailTarget === target && expandedSnapshot) {
+        restoreExpandedRightRailLayout();
+        return;
+      }
+      if (!expandedSnapshot) {
+        expandedRightRailSnapshotRef.current = {
+          selectedTool,
+          isCanvasVisible,
+          panelVisibility,
+        };
+      }
+      const nextExpandedVisibility = resolveExpandedRightRailVisibility({
+        target,
+        availability: panelToggleAvailability,
+      });
+      setIsCanvasVisible(nextExpandedVisibility.isCanvasVisible);
+      setPanelVisibility(nextExpandedVisibility.panelVisibility);
+      onSelectTool(null);
+      setExpandedRightRailTarget(target);
+    },
+    [
+      expandedRightRailTarget,
+      isCanvasVisible,
+      onSelectTool,
+      panelToggleAvailability,
+      panelVisibility,
+      restoreExpandedRightRailLayout,
+      selectedTool,
+    ]
+  );
   const handleSelectedStyleIdChange = React.useCallback((styleId: string | null) => {
     setSelectedStyleId(styleId);
     setPanelVisibility((previous) => {
@@ -1072,15 +1136,24 @@ export function AiStudioPageContent({
       };
     });
   }, []);
+  const handleToolSelection = React.useCallback(
+    (tool: ToolId | null) => {
+      clearExpandedRightRailSession();
+      onSelectTool(tool);
+    },
+    [clearExpandedRightRailSession, onSelectTool]
+  );
   const resolvedExpertEditProperties = React.useMemo(
     () => ({
       ...propertiesEditExpert,
       isStylesPanelOpen,
       onStylesPanelToggle: handleStylesPanelToggle,
+      onOpenPresetsLibrary: () => handleToolSelection("presets"),
       selectedStyleId,
       stylesCatalog: visibleStylesCatalog,
     }),
     [
+      handleToolSelection,
       handleStylesPanelToggle,
       isStylesPanelOpen,
       propertiesEditExpert,
@@ -1093,6 +1166,7 @@ export function AiStudioPageContent({
       ...resolvedCreateProperties,
       isStylesPanelOpen,
       onStylesPanelToggle: handleStylesPanelToggle,
+      onOpenPresetsLibrary: () => handleToolSelection("presets"),
       selectedStyleId,
       stylesCatalog: visibleStylesCatalog,
       expertCreateMode,
@@ -1101,6 +1175,7 @@ export function AiStudioPageContent({
     [
       expertCreateMode,
       handleExpertCreateModeChange,
+      handleToolSelection,
       handleStylesPanelToggle,
       isStylesPanelOpen,
       resolvedCreateProperties,
@@ -1232,28 +1307,26 @@ export function AiStudioPageContent({
   );
   const presetsPropertiesPanelContent = React.useMemo(
     () => (
-      <PresetsLibraryPanel
-        presets={presetsLibraryCatalog}
-        selectedPresetId={selectedPresetId}
-        onSelectPreset={handleSelectedPresetIdChange}
-        onSavePresetOverride={handlePresetOverrideSave}
+      <UnifiedPresetsLibraryPanel
+        promptPresets={presetsLibraryCatalog}
+        selectedPromptPresetId={selectedPresetId}
+        onOpenCreateWorkflow={() => handleToolSelection("create")}
+        onOpenEditWorkflow={() => handleToolSelection("edit")}
+        onSelectPromptPreset={handleSelectedPresetIdChange}
+        onSavePromptPresetOverride={handlePresetOverrideSave}
+        savedPulsePresets={propertiesCreate.savedPulsePresets ?? []}
+        onSavedPulsePresetsChange={propertiesCreate.onSavedPulsePresetsChange}
       />
     ),
     [
+      handleToolSelection,
       handlePresetOverrideSave,
       handleSelectedPresetIdChange,
+      propertiesCreate.onSavedPulsePresetsChange,
+      propertiesCreate.savedPulsePresets,
       presetsLibraryCatalog,
       selectedPresetId,
     ]
-  );
-  const pulsePresetsPropertiesPanelContent = React.useMemo(
-    () => (
-      <PulsePresetsLibraryPanel
-        savedPresets={propertiesCreate.savedPulsePresets ?? []}
-        onSavedPresetsChange={propertiesCreate.onSavedPulsePresetsChange}
-      />
-    ),
-    [propertiesCreate.onSavedPulsePresetsChange, propertiesCreate.savedPulsePresets]
   );
   const elementsPropertiesPanelContent = React.useMemo(
     () => (
@@ -1292,12 +1365,15 @@ export function AiStudioPageContent({
     () =>
       onAddLibraryMediaReference && onAddLibraryPromptReference ? (
         <MediaLibraryPanel
+          key={projectId ?? "no-project"}
           onSelectMedia={onAddLibraryMediaReference}
           onSelectPrompt={onAddLibraryPromptReference}
           projectId={projectId}
           projectName={projectName ?? null}
           onProjectNameCommit={onProjectNameCommit}
-          onExpandMediaLibraryPanel={expandToMax}
+          isMediaLibraryPanelExpanded={isMediaLibraryPanelExpanded}
+          onExpandMediaLibraryPanel={handleExpandMediaLibraryPanel}
+          onCollapseMediaLibraryPanel={handleCollapseMediaLibraryPanel}
           resolveInternalDropItem={resolveMediaLibraryInternalDropItem}
         />
       ) : (
@@ -1307,8 +1383,10 @@ export function AiStudioPageContent({
       onAddLibraryMediaReference,
       onAddLibraryPromptReference,
       projectId,
+      handleCollapseMediaLibraryPanel,
+      handleExpandMediaLibraryPanel,
+      isMediaLibraryPanelExpanded,
       onProjectNameCommit,
-      expandToMax,
       projectName,
       resolveMediaLibraryInternalDropItem,
     ]
@@ -1343,8 +1421,6 @@ export function AiStudioPageContent({
           return characterPropertiesPanelContent;
         case "presets":
           return presetsPropertiesPanelContent;
-        case "pulse-presets":
-          return pulsePresetsPropertiesPanelContent;
         case "elements":
           return elementsPropertiesPanelContent;
         case "styles":
@@ -1362,7 +1438,6 @@ export function AiStudioPageContent({
       elementsPropertiesPanelContent,
       editPropertiesPanelContent,
       mediaLibraryPropertiesPanelContent,
-      pulsePresetsPropertiesPanelContent,
       propertiesMusic,
       propertiesSoundEffects,
       propertiesVoices,
@@ -1385,7 +1460,8 @@ export function AiStudioPageContent({
       showCreateTools={showCreateTools}
       beginnerMode={beginnerMode}
       showBeginnerModeToggle={showBeginnerModeToggle}
-      onSelectTool={onSelectTool}
+      onOpenProjects={onOpenProjects}
+      onSelectTool={handleToolSelection}
       onToggleCreateTools={onToggleCreateTools}
       onBeginnerModeChange={onBeginnerModeChange}
     />
@@ -1395,7 +1471,8 @@ export function AiStudioPageContent({
       showCreateTools={showCreateTools}
       beginnerMode={beginnerMode}
       showBeginnerModeToggle={showBeginnerModeToggle}
-      onSelectTool={onSelectTool}
+      onOpenProjects={onOpenProjects}
+      onSelectTool={handleToolSelection}
       onToggleCreateTools={onToggleCreateTools}
       onToggleBeginnerMode={onBeginnerModeChange}
     />
@@ -1478,15 +1555,23 @@ export function AiStudioPageContent({
           <div className="hero-right">
             <div className="ai-hero-shortcut-cluster">
               <div className="ai-hero-shortcut-buttons" aria-label="AI Studio header shortcuts">
-                <button
-                  type="button"
-                  className="ai-hero-shortcut-button"
-                  aria-pressed={isCanvasVisible}
-                  onClick={handleCanvasVisibilityToggle}
-                >
-                  Canvas
-                </button>
+                {expandedRightRailTarget == null || expandedRightRailTarget === "canvas" ? (
+                  <button
+                    type="button"
+                    className="ai-hero-shortcut-button"
+                    aria-pressed={isCanvasVisible}
+                    onClick={handleCanvasVisibilityToggle}
+                    onDoubleClick={() => {
+                      handleExpandedRightRailToggle("canvas");
+                    }}
+                  >
+                    Canvas
+                  </button>
+                ) : null}
                 {visibleHeaderShortcutButtons.map((shortcut) => {
+                  if (expandedRightRailTarget != null && expandedRightRailTarget !== shortcut.id) {
+                    return null;
+                  }
                   const buttonState = headerShortcutStates[shortcut.id];
                   return (
                     <button
@@ -1496,12 +1581,27 @@ export function AiStudioPageContent({
                       aria-pressed={buttonState.pressed}
                       disabled={buttonState.disabled}
                       onClick={() => handleHeaderShortcutToggle(shortcut.id)}
+                      onDoubleClick={() => {
+                        handleExpandedRightRailToggle(shortcut.id);
+                      }}
                     >
                       {shortcut.label}
                     </button>
                   );
                 })}
               </div>
+              {expandedRightRailTarget != null ? (
+                <button
+                  type="button"
+                  className="ai-hero-shortcut-icon-button"
+                  aria-label="Restore previous panel layout"
+                  aria-pressed="true"
+                  title="Restore previous panel layout"
+                  onClick={restoreExpandedRightRailLayout}
+                >
+                  <Eye size={16} weight="regular" aria-hidden="true" />
+                </button>
+              ) : null}
             </div>
           </div>
         </section>
@@ -1546,6 +1646,7 @@ export function AiStudioPageContent({
               triggerFilePicker={triggerFilePicker}
               onOpenMediaLibrary={onOpenMediaLibrary}
               beginnerMode={beginnerMode}
+              showPreviewRail={expandedRightRailTarget == null}
             />
             {comingSoon ? (
               <section className="ai-coming-soon" aria-live="polite">

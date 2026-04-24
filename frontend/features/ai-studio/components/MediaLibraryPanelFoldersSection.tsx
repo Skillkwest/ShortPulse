@@ -1,9 +1,10 @@
 import React, { useEffect, useRef, useState } from "react";
-import { CaretLeft, CaretRight, Folders, Plus } from "phosphor-react";
+import { CaretLeft, CaretRight, FolderSimple, Plus } from "phosphor-react";
 import { AiStudioModalLayer } from "./modal-layer/AiStudioModalLayer";
 
 const FOLDER_TILE_IMAGE_SRC = "/Folder 1.png";
 const ROOT_FOLDER_LABEL = "All Media";
+const PENDING_FOLDER_ID_PREFIX = "__pending_new_folder__";
 
 type FolderRow = {
   id: string;
@@ -108,7 +109,11 @@ export function MediaLibraryPanelFoldersSection({
     };
   }, []);
 
+  const isPendingFolderId = (folderId: string): boolean =>
+    folderId.startsWith(PENDING_FOLDER_ID_PREFIX);
+
   const handleOpenFolder = (folderId: string) => {
+    if (isPendingFolderId(folderId)) return;
     if (openingFolderId !== null) return;
     const sourceElement = folderImageRefs.current.get(folderId);
     if (!sourceElement) {
@@ -149,18 +154,28 @@ export function MediaLibraryPanelFoldersSection({
     startFolderRename(folderId, folderName, { clearInput: true });
   };
 
+  const renderBreadcrumbLabel = (label: string) => (
+    <span className="media-library-panel-folders-breadcrumb-label">
+      <FolderSimple
+        className="media-library-panel-folders-breadcrumb-folder-icon"
+        size={12}
+        aria-hidden
+      />
+      <span className="media-library-panel-folders-root-label">{label}</span>
+    </span>
+  );
+
   return (
     <>
       <div className="media-library-panel-folders">
         <div className="media-library-panel-folders-head">
           <span className="tiny subdued">
-            <Folders size={14} weight="bold" aria-hidden />
             <button
               type="button"
-              className="media-library-panel-folders-breadcrumb-button media-library-panel-folders-root-label"
+              className="media-library-panel-folders-breadcrumb-button"
               onClick={onNavigateToRoot}
             >
-              {ROOT_FOLDER_LABEL}
+              {renderBreadcrumbLabel(ROOT_FOLDER_LABEL)}
             </button>
             {ancestorFolders.map((folder, index) => (
               <React.Fragment key={folder.id}>
@@ -172,18 +187,18 @@ export function MediaLibraryPanelFoldersSection({
                 />
                 {index === ancestorFolders.length - 1 ? (
                   <span
-                    className="media-library-panel-folders-breadcrumb-current media-library-panel-folders-root-label"
+                    className="media-library-panel-folders-breadcrumb-current"
                     aria-current="location"
                   >
-                    {folder.name}
+                    {renderBreadcrumbLabel(folder.name)}
                   </span>
                 ) : (
                   <button
                     type="button"
-                    className="media-library-panel-folders-breadcrumb-button media-library-panel-folders-root-label"
+                    className="media-library-panel-folders-breadcrumb-button"
                     onClick={() => onNavigateToFolder(folder.id)}
                   >
-                    {folder.name}
+                    {renderBreadcrumbLabel(folder.name)}
                   </button>
                 )}
               </React.Fragment>
@@ -208,6 +223,7 @@ export function MediaLibraryPanelFoldersSection({
           ) : null}
           {folders.map((folder) => {
             const isEditing = editingFolderId === folder.id;
+            const isPending = isPendingFolderId(folder.id);
             return (
               <div
                 key={folder.id}
@@ -236,6 +252,7 @@ export function MediaLibraryPanelFoldersSection({
                       className="media-library-panel-folder-chip media-library-panel-folder-chip--image is-active is-editing"
                       onClick={() => handleOpenFolder(folder.id)}
                       aria-label={`${folder.name} folder`}
+                      aria-disabled={isPending}
                     >
                       {/* Decorative folder tile image; raw img preserves current chip sizing and load behavior. */}
                       {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -287,8 +304,9 @@ export function MediaLibraryPanelFoldersSection({
                       }}
                       type="button"
                       className="media-library-panel-folder-chip media-library-panel-folder-chip--image"
-                      onClick={() => handleOpenFolder(folder.id)}
+                      onDoubleClick={() => handleOpenFolder(folder.id)}
                       aria-label={`${folder.name} folder`}
+                      aria-disabled={isPending}
                     >
                       {/* Decorative folder tile image; raw img preserves current chip sizing and load behavior. */}
                       {/* eslint-disable-next-line @next/next/no-img-element */}

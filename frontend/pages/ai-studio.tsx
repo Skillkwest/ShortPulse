@@ -3,6 +3,7 @@
  * Orchestrates toolbar, properties panels, reference grid, and preview surfaces using the feature module.
  */
 import Head from "next/head";
+import { useRouter } from "next/router";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AiStudioPageContent } from "../features/ai-studio/components/AiStudioPageContent";
 import { useAiStudioState } from "../features/ai-studio/hooks/useAiStudioState";
@@ -12,6 +13,7 @@ import { useAiStudioViewModel } from "../features/ai-studio/hooks/useAiStudioVie
 import { useActiveModelPricingPolicy } from "../features/ai-studio/hooks/useActiveModelPricingPolicy";
 import { useAiStudioEditSubmitIntent } from "../features/ai-studio/hooks/useAiStudioEditSubmitIntent";
 import { MediaLibraryModal } from "../features/ai-studio/components/MediaLibraryModal";
+import { ProjectsModal } from "../features/ai-studio/components/ProjectsModal";
 import { useEffectiveBeginnerModePreference } from "../features/ai-studio/hooks/useEffectiveBeginnerModePreference";
 import { useMediaAutosavePreference } from "../features/ai-studio/hooks/useMediaAutosavePreference";
 import { useExpertEditPresetPanelPreference } from "../features/ai-studio/hooks/useExpertEditPresetPanelPreference";
@@ -56,10 +58,17 @@ import { useAiStudioPageCreditDerivations } from "../features/ai-studio/hooks/us
 import { useAiStudioPerfAuditRuntime } from "../features/ai-studio/hooks/useAiStudioPerfAuditRuntime";
 import { useAiStudioDualCanvasWorkspaceState } from "../features/ai-studio/components/canvas/useAiStudioCanvasWorkspaceState";
 import { useAiStudioCreateModeRuntime } from "../features/ai-studio/hooks/useAiStudioCreateModeRuntime";
-import type { ResolveCanvasDropReference } from "../features/ai-studio/components/canvas/canvasTypes";
+import type {
+  CanvasDropResolution,
+  PrepareCanvasMediaLibraryDrop,
+  ResolveCanvasDropReference,
+} from "../features/ai-studio/components/canvas/canvasTypes";
 import { getAiStudioSessionSnapshotViaApi } from "../features/ai-studio/logic/sessionApiClient";
 import { readAiStudioSessionPersistencePolicy } from "../features/ai-studio/logic/sessionPersistencePolicy";
-import { patchAiStudioSessionSnapshotWorkspace } from "../features/ai-studio/logic/sessionSnapshot";
+import {
+  createEmptyAiStudioSessionSnapshot,
+  patchAiStudioSessionSnapshotWorkspace,
+} from "../features/ai-studio/logic/sessionSnapshot";
 import { resolveAiStudioSessionSnapshotTitle } from "../features/ai-studio/logic/sessionSnapshotTitle";
 import {
   arePulseWorkflowSessionsEqual,
@@ -262,6 +271,7 @@ const buildVoiceChangerRemuxedVideoOutput = ({
 };
 
 export default function AiStudioPage() {
+  const router = useRouter();
   const { sessionId } = useAiStudioSessionIdentity();
 
   const {
@@ -308,6 +318,7 @@ export default function AiStudioPage() {
     sessionId: string;
     title: string | null;
   } | null>(null);
+  const [isProjectsModalOpen, setIsProjectsModalOpen] = useState(false);
   const [createCharacterModeInjectionBundle, setCreateCharacterModeInjectionBundle] =
     useState<CharacterModeInjectionBundle | null>(null);
   const [editCharacterModeInjectionBundle, setEditCharacterModeInjectionBundle] =
@@ -316,6 +327,7 @@ export default function AiStudioPage() {
     sessionTitleOverrideState?.sessionId === sessionId ? sessionTitleOverrideState.title : null;
   const {
     projectId,
+    projectRouteRequested,
     project,
     status: projectStatus,
     error: projectError,
@@ -486,6 +498,7 @@ export default function AiStudioPage() {
     getOutputSnapshot,
   } = useAiStudioState({
     projectId,
+    projectRouteRequested,
     sessionId,
     isCharacterModeEnabled: isCreateCharacterModeEnabled,
     selectedStylePrompt,
@@ -657,10 +670,57 @@ export default function AiStudioPage() {
     },
     [getOutputById]
   );
-  const { railCanvasProps } = useAiStudioDualCanvasWorkspaceState({
-    resolveCanvasDropReference,
-    onPinTextReference: addPastedPromptReference,
-  });
+  const prepareCanvasMediaLibraryDrop = useCallback<PrepareCanvasMediaLibraryDrop>(
+    async (payload): Promise<CanvasDropResolution | null> => {
+      if (payload.kind === "libraryMedia") {
+        const outputId = await addLibraryMediaReferenceToQuickSlot(payload.payload);
+        if (!outputId) return null;
+        const previewSrc =
+          (payload.payload.fullUrl ?? "").trim() ||
+          (payload.payload.previewUrl ?? "").trim() ||
+          (payload.payload.url ?? "").trim();
+        if (!previewSrc) return null;
+        const width =
+          typeof payload.payload.width === "number" &&
+          Number.isFinite(payload.payload.width) &&
+          payload.payload.width > 0
+            ? payload.payload.width
+            : undefined;
+        const height =
+          typeof payload.payload.height === "number" &&
+          Number.isFinite(payload.payload.height) &&
+          payload.payload.height > 0
+            ? payload.payload.height
+            : undefined;
+        return {
+          kind: "image",
+          outputId,
+          mediaId: payload.payload.id,
+          src: previewSrc,
+          alt: (payload.payload.filename || payload.payload.promptText || "Canvas media").trim(),
+          width,
+          height,
+        };
+      }
+
+      const promptText = payload.payload.promptText.trim();
+      if (!promptText) return null;
+      const outputId = addLibraryPromptReferenceToQuickSlot(payload.payload);
+      if (!outputId) return null;
+      return {
+        kind: "text",
+        outputId,
+        text: promptText,
+      };
+    },
+    [addLibraryMediaReferenceToQuickSlot, addLibraryPromptReferenceToQuickSlot]
+  );
+  const { railCanvasProps, hydrateSessionState: hydrateCanvasSessionState } =
+    useAiStudioDualCanvasWorkspaceState({
+      resolveCanvasDropReference,
+      prepareCanvasMediaLibraryDrop,
+      onPinTextReference: addPastedPromptReference,
+    });
   useAiStudioMediaAutosaveOrchestrator({
     outputs,
     mediaAutosaveEnabled,
@@ -727,6 +787,7 @@ export default function AiStudioPage() {
     resolveCharacterOptionById,
   } = useAiStudioCharacterModeLifecycle({
     projectId,
+    projectRouteRequested,
     selectedTool,
     setUiError,
     setCharacterModeInjectionBundle: setCreateCharacterModeInjectionBundle,
@@ -739,6 +800,18 @@ export default function AiStudioPage() {
       return false;
     },
     [isCreateCharacterModeEnabled, isEditCharacterModeEnabled]
+  );
+  const resolveSelectedCharacterIdForTool = useCallback(
+    (tool: ToolId | null): string | null => {
+      if (tool === "create" || tool === "text") {
+        return createSelectedCharacterId?.trim() || null;
+      }
+      if (tool === "edit" || tool === "image") {
+        return editSelectedCharacterId?.trim() || null;
+      }
+      return null;
+    },
+    [createSelectedCharacterId, editSelectedCharacterId]
   );
   const resolveCharacterAvatarUrlById = useCallback(
     (characterId: string | null | undefined): string | null => {
@@ -809,6 +882,7 @@ export default function AiStudioPage() {
     hydrateFromSessionAgentSnapshot,
   } = useAiStudioAgentBridge({
     projectId,
+    projectRouteRequested,
     sessionId,
     mode,
     selectedTool,
@@ -898,31 +972,46 @@ export default function AiStudioPage() {
     [hydrateFromSessionSnapshot, setCreateSelectedCharacterId]
   );
 
-  const { sessionSnapshot } = useAiStudioPageSessionPersistence({
-    projectId,
-    sessionId: activeSessionPersistenceSessionId,
-    sessionTitleOverride: sessionPersistenceTitleOverride,
-    buildSessionSnapshot: buildProjectAwareSessionSnapshot,
-    agentMessages,
-    agentInput,
-    latestAgentPrompt,
-    promptOrigin,
-    chatModeEnabled,
-    pulseWorkflowSession,
-    agentRuntimes: {
-      ...persistedAgentRuntimes,
-      pulsePresetId: activeCreatePulsePresetId,
-      pulse: {
-        ...persistedAgentRuntimes.pulse,
-        pulseWorkflowSession: pulseWorkflowSession ?? null,
-      },
-    },
-    expertEditSessionState,
-    hydrateFromSessionSnapshot: hydrateProjectAwareSessionSnapshot,
+  const applyEmptyProjectState = useCallback(() => {
+    const payload = hydrateProjectAwareSessionSnapshot(createEmptyAiStudioSessionSnapshot());
+    hydrateFromSessionAgentSnapshot(payload);
+    setExpertEditSessionState(payload.expertEdit);
+    hydrateCanvasSessionState(payload.canvas);
+  }, [
+    hydrateCanvasSessionState,
     hydrateFromSessionAgentSnapshot,
-    hydrateFromSessionExpertEditSnapshot: setExpertEditSessionState,
-    setUiNotice,
-  });
+    hydrateProjectAwareSessionSnapshot,
+    setExpertEditSessionState,
+  ]);
+
+  const { sessionSnapshot, projectBootstrapApplied, projectBootstrapError, retryProjectBootstrap } =
+    useAiStudioPageSessionPersistence({
+      projectId,
+      projectRouteRequested,
+      sessionId: activeSessionPersistenceSessionId,
+      sessionTitleOverride: sessionPersistenceTitleOverride,
+      buildSessionSnapshot: buildProjectAwareSessionSnapshot,
+      agentMessages,
+      agentInput,
+      latestAgentPrompt,
+      promptOrigin,
+      chatModeEnabled,
+      pulseWorkflowSession,
+      agentRuntimes: {
+        ...persistedAgentRuntimes,
+        pulsePresetId: activeCreatePulsePresetId,
+        pulse: {
+          ...persistedAgentRuntimes.pulse,
+          pulseWorkflowSession: pulseWorkflowSession ?? null,
+        },
+      },
+      expertEditSessionState,
+      hydrateFromSessionSnapshot: hydrateProjectAwareSessionSnapshot,
+      hydrateFromSessionAgentSnapshot,
+      hydrateFromSessionExpertEditSnapshot: setExpertEditSessionState,
+      applyEmptyProjectState,
+      setUiNotice,
+    });
 
   useEffect(() => {
     let cancelled = false;
@@ -984,6 +1073,25 @@ export default function AiStudioPage() {
       });
     },
     [projectId, sessionId, setUiError, updateProjectTitle]
+  );
+  const handleOpenProjectsModal = useCallback(() => {
+    setIsProjectsModalOpen(true);
+  }, []);
+  const handleCloseProjectsModal = useCallback(() => {
+    setIsProjectsModalOpen(false);
+  }, []);
+  const handleSelectProjectFromModal = useCallback(
+    async (nextProjectId: string) => {
+      if (nextProjectId === projectId) return;
+      const didNavigate = await router.push({
+        pathname: "/ai-studio",
+        query: { projectId: nextProjectId },
+      });
+      if (!didNavigate) {
+        throw new Error("Failed to open project.");
+      }
+    },
+    [projectId, router]
   );
 
   const triggerFilePicker = useCallback(() => {
@@ -1142,9 +1250,12 @@ export default function AiStudioPage() {
     selectedTool,
     model,
     setModel,
+    projectId,
     isCharacterModeEnabled: resolveIsCharacterModeEnabledForTool(selectedTool),
     resolveIsCharacterModeEnabledForTool,
+    resolveSelectedCharacterIdForTool,
     prompt,
+    selectedStyleContext,
     agentInput,
     chatModeEnabled,
     currentCostCredits,
@@ -1779,19 +1890,29 @@ export default function AiStudioPage() {
     [insertOptimisticGenerationPlaceholder, notifyGenerationFailure, setUiError, updateOutputById]
   );
 
-  if (Boolean(projectId) && projectStatus !== "ready") {
+  const shouldGateProjectBootstrap =
+    projectRouteRequested &&
+    (projectStatus !== "ready" || (Boolean(projectId) && !projectBootstrapApplied));
+
+  if (shouldGateProjectBootstrap) {
     return (
       <AiStudioModalActivityProvider>
         <Head>
           <title>ShortPulse · AI Studio</title>
           <meta name="description" content="AI Studio — prompt, generate, preview, save." />
         </Head>
-        {projectStatus === "error" ? (
+        {projectStatus === "error" || projectBootstrapError ? (
           <AiStudioProjectEntryState
-            title="Project unavailable"
-            message={projectError ?? "Failed to load project."}
-            actionLabel="Retry project load"
-            onAction={refreshProject}
+            title={
+              projectStatus === "error" ? "Project unavailable" : "Project workspace unavailable"
+            }
+            message={
+              projectStatus === "error"
+                ? (projectError ?? "Failed to load project.")
+                : (projectBootstrapError ?? "Failed to load project workspace.")
+            }
+            actionLabel={projectStatus === "error" ? "Retry project load" : "Retry workspace load"}
+            onAction={projectStatus === "error" ? refreshProject : retryProjectBootstrap}
             secondaryActionLabel="Back to dashboard"
             onSecondaryAction={() => {
               window.location.assign("/dashboard");
@@ -1842,6 +1963,7 @@ export default function AiStudioPage() {
         characterCreateRequestKey={characterCreateRequestKey}
         elementCreateRequestKey={elementCreateRequestKey}
         showCreateTools={showCreateTools}
+        onOpenProjects={handleOpenProjectsModal}
         onSelectTool={handleToolSelect}
         onToggleCreateTools={setShowCreateTools}
         propertiesCreate={propertiesCreate}
@@ -1930,6 +2052,12 @@ export default function AiStudioPage() {
           onSelectPrompt={(payload) => addLibraryPromptReference(payload)}
         />
       ) : null}
+      <ProjectsModal
+        isOpen={isProjectsModalOpen}
+        currentProjectId={projectId}
+        onClose={handleCloseProjectsModal}
+        onSelectProject={handleSelectProjectFromModal}
+      />
     </AiStudioModalActivityProvider>
   );
 }

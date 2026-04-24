@@ -571,6 +571,87 @@ export const buildAiStudioSessionSnapshot = (
 };
 
 /**
+ * Builds the canonical empty AI Studio snapshot used for explicit project/workspace resets.
+ * Keeping this on the serializer path avoids drift between empty-state apply and persisted shape.
+ */
+export const createEmptyAiStudioSessionSnapshot = ({
+  sessionId = "00000000-0000-0000-0000-000000000000",
+  updatedAt,
+}: {
+  sessionId?: string;
+  updatedAt?: string;
+} = {}): AiStudioSessionSnapshotV2 =>
+  buildAiStudioSessionSnapshot({
+    sessionId,
+    updatedAt,
+    mode: "text",
+    selectedTool: "create",
+    prompt: "",
+    model: null,
+    aspect: "9:16",
+    selectedCharacterId: null,
+    expertCreateMode: "standard",
+    activePulsePresetId: null,
+    referenceImageUrl: null,
+    extraImageUrls: [null, null, null],
+    editReferenceText: "",
+    videoReferenceText: "",
+    videoReferenceMode: "standard",
+    videoDurationSeconds: 6,
+    videoResolution: "1080p",
+    imageResolution: "model_default",
+    videoGenerateAudio: false,
+    videoCameraFixed: false,
+    videoAutoFix: false,
+    klingNegativePrompt: "",
+    klingCfgScale: 0.5,
+    klingWorkflowMode: "single",
+    seedance2InputMode: "text",
+    seedance2ReferenceImageUrls: [],
+    seedance2ReferenceVideoUrls: [],
+    seedance2ReferenceAudioUrls: [],
+    seedance2ReturnLastFrame: false,
+    seedance2WebSearch: false,
+    klingShotType: "customize",
+    klingVoiceIds: ["", ""],
+    klingMultiPrompts: [],
+    klingElements: [],
+    motionReferenceVideoUrl: null,
+    outputs: [],
+    archivedOutputs: [],
+    activeOutputId: null,
+    curatedReferenceIds: [],
+    removedFromAllRefsIds: [],
+    agentMessages: [],
+    agentInput: "",
+    latestAgentPrompt: null,
+    promptOrigin: "manual",
+    chatModeEnabled: true,
+    pulseWorkflowSession: null,
+    agentRuntimes: {
+      standard: {
+        messages: [],
+        input: "",
+        latestAgentPrompt: null,
+        promptOrigin: "manual",
+        chatModeEnabled: true,
+        pulseWorkflowSession: null,
+      },
+      pulsePresetId: null,
+      pulse: {
+        messages: [],
+        input: "",
+        latestAgentPrompt: null,
+        promptOrigin: "manual",
+        chatModeEnabled: true,
+        pulseWorkflowSession: null,
+      },
+    },
+    canvasState: null,
+    expertEditSessionState: null,
+  });
+
+/**
  * Applies workspace-field patches to a v2 snapshot and recomputes metadata checksum.
  */
 export const patchAiStudioSessionSnapshotWorkspace = (

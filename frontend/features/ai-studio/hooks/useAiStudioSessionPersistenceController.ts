@@ -39,6 +39,9 @@ export type AiStudioSessionPersistenceController = {
   sessionSnapshot: AiStudioSessionSnapshot | null;
   sessionRestoreCandidate: AiStudioSessionRestoreCandidateState;
   setSkipRestoreApplyForSessionId: (sessionId: string | null) => void;
+  projectBootstrapApplied: boolean;
+  projectBootstrapError: string | null;
+  retryProjectBootstrap: () => void;
 };
 
 const formatOversizeMessage = ({
@@ -149,5 +152,8 @@ export const useAiStudioSessionPersistenceController = ({
     sessionSnapshot,
     sessionRestoreCandidate,
     setSkipRestoreApplyForSessionId,
+    projectBootstrapApplied: true,
+    projectBootstrapError: null,
+    retryProjectBootstrap: () => undefined,
   };
 };

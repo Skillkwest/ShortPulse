@@ -108,7 +108,8 @@ export const useMediaLibraryPanelDataController = ({
     () => normalizeRequestFolderId(activeFolderId),
     [activeFolderId]
   );
-  const activeRowsScopeKey = `${requestFolderId}|${itemType}|${normalizedSearch}`;
+  const activeProjectScopeId = projectId?.trim() || "no_project";
+  const activeRowsScopeKey = `${activeProjectScopeId}|${requestFolderId}|${itemType}|${normalizedSearch}`;
   const libraryTotalCount = mediaScopeCache.libraryTotalCount;
   const mediaHasMore = mediaScopeCache.hasMore;
   const promptHasMore = promptScopeCache.hasMore;

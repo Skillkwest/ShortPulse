@@ -13,11 +13,16 @@ vi.mock("../useAiStudioProjectWorkspacePersistenceController", () => ({
     sessionSnapshot: null,
     sessionRestoreCandidate: {
       status: "idle",
+      result: "idle",
       snapshot: null,
-      source: null,
+      source: "none",
       error: null,
+      retry: vi.fn(),
     },
     setSkipRestoreApplyForSessionId: vi.fn(),
+    projectBootstrapApplied: false,
+    projectBootstrapError: null,
+    retryProjectBootstrap: vi.fn(),
   })),
 }));
 
@@ -27,11 +32,16 @@ vi.mock("../useAiStudioSessionPersistenceController", () => ({
     sessionSnapshot: null,
     sessionRestoreCandidate: {
       status: "idle",
+      result: "idle",
       snapshot: null,
-      source: null,
+      source: "none",
       error: null,
+      retry: vi.fn(),
     },
     setSkipRestoreApplyForSessionId: vi.fn(),
+    projectBootstrapApplied: true,
+    projectBootstrapError: null,
+    retryProjectBootstrap: vi.fn(),
   })),
 }));
 
@@ -265,6 +275,87 @@ describe("useAiStudioPageSessionPersistence", () => {
     expect(mockedUseAiStudioProjectWorkspacePersistenceController.mock.calls[0]?.[0]).toEqual(
       expect.objectContaining({
         projectId: "project-1",
+        sessionId: "session-1",
+      })
+    );
+    expect(mockedUseAiStudioSessionPersistenceController.mock.calls[0]?.[0]).toEqual(
+      expect.objectContaining({
+        sessionId: null,
+      })
+    );
+  });
+
+  it("disables the legacy session lane while a project route is still pending bootstrap", () => {
+    const buildSessionSnapshot = vi.fn(
+      (args): AiStudioSessionSnapshot =>
+        ({
+          schemaVersion: 2,
+          sessionId: args.sessionId,
+          updatedAt: "2026-03-23T00:00:00.000Z",
+          workspace: {} as AiStudioSessionSnapshot["workspace"],
+          outputs: {} as AiStudioSessionSnapshot["outputs"],
+          agent: {} as AiStudioSessionSnapshot["agent"],
+        }) as AiStudioSessionSnapshot
+    );
+    const hydrateFromSessionSnapshot = vi.fn(
+      (): AiStudioSessionHydrationPayload => ({
+        workspace: {} as never,
+        outputs: {} as never,
+        agent: {
+          messages: [],
+          input: "",
+          latestAgentPrompt: null,
+          promptOrigin: "manual",
+          chatModeEnabled: false,
+          pulseWorkflowSession: null,
+        },
+        agentRuntimes: {
+          standard: {
+            messages: [],
+            input: "",
+            latestAgentPrompt: null,
+            promptOrigin: "manual",
+            chatModeEnabled: false,
+            pulseWorkflowSession: null,
+          },
+          pulsePresetId: null,
+          pulse: {
+            messages: [],
+            input: "",
+            latestAgentPrompt: null,
+            promptOrigin: "manual",
+            chatModeEnabled: true,
+            pulseWorkflowSession: null,
+          },
+        },
+        canvas: null,
+        expertEdit: null,
+      })
+    );
+    const hydrateFromSessionAgentSnapshot = vi.fn();
+    const setUiNotice = vi.fn();
+
+    renderHook(() =>
+      useAiStudioPageSessionPersistence({
+        projectRouteRequested: true,
+        sessionId: "session-1",
+        buildSessionSnapshot,
+        agentMessages: [],
+        agentInput: "",
+        latestAgentPrompt: null,
+        promptOrigin: "manual",
+        chatModeEnabled: true,
+        pulseWorkflowSession: null,
+        hydrateFromSessionSnapshot,
+        hydrateFromSessionAgentSnapshot,
+        setUiNotice,
+      })
+    );
+
+    expect(mockedUseAiStudioProjectWorkspacePersistenceController).toHaveBeenCalledTimes(1);
+    expect(mockedUseAiStudioProjectWorkspacePersistenceController.mock.calls[0]?.[0]).toEqual(
+      expect.objectContaining({
+        projectId: null,
         sessionId: "session-1",
       })
     );

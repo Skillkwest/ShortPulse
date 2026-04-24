@@ -221,12 +221,28 @@ vi.mock("../media-library-modal/MediaLibraryAllItemsGrid", () => ({
       filename: string;
       signedUrl?: string | null;
     }) => void;
+    showRemoveAction?: boolean;
+    onRemoveMediaFromFolder?: (row: {
+      id: string;
+      filename: string;
+      signedUrl?: string | null;
+    }) => void;
+    onRemovePromptFromFolder?: (row: {
+      id: string;
+      title: string | null;
+      prompt_text: string;
+    }) => void;
     showDeleteAction?: boolean;
     onDeleteMediaFromLibrary?: (row: {
       id: string;
       filename: string;
       signedUrl?: string | null;
       storage_path?: string;
+    }) => void;
+    onDeletePromptFromLibrary?: (row: {
+      id: string;
+      title: string | null;
+      prompt_text: string;
     }) => void;
     onMediaContextMenu?: (
       event: React.MouseEvent<HTMLButtonElement>,
@@ -259,6 +275,11 @@ vi.mock("../media-library-modal/MediaLibraryAllItemsGrid", () => ({
                 Download media {row.filename}
               </button>
             ) : null}
+            {props.showRemoveAction && props.onRemoveMediaFromFolder ? (
+              <button type="button" onClick={() => props.onRemoveMediaFromFolder?.(row)}>
+                Remove media {row.filename}
+              </button>
+            ) : null}
             {props.showDeleteAction && props.onDeleteMediaFromLibrary ? (
               <button type="button" onClick={() => props.onDeleteMediaFromLibrary?.(row)}>
                 Delete media {row.filename}
@@ -267,9 +288,21 @@ vi.mock("../media-library-modal/MediaLibraryAllItemsGrid", () => ({
           </React.Fragment>
         ))}
         {props.promptRows.map((row) => (
-          <button key={row.id} type="button" onClick={() => props.onSelectPromptCard(row)}>
-            Select prompt {row.title || row.id}
-          </button>
+          <React.Fragment key={row.id}>
+            <button type="button" onClick={() => props.onSelectPromptCard(row)}>
+              Select prompt {row.title || row.id}
+            </button>
+            {props.showRemoveAction && props.onRemovePromptFromFolder ? (
+              <button type="button" onClick={() => props.onRemovePromptFromFolder?.(row)}>
+                Remove prompt {row.title || row.id}
+              </button>
+            ) : null}
+            {props.showDeleteAction && props.onDeletePromptFromLibrary ? (
+              <button type="button" onClick={() => props.onDeletePromptFromLibrary?.(row)}>
+                Delete prompt {row.title || row.id}
+              </button>
+            ) : null}
+          </React.Fragment>
         ))}
       </div>
     );
@@ -531,6 +564,28 @@ describe("MediaLibraryPanel", () => {
     expect(latestProps?.promptRows).toHaveLength(1);
   });
 
+  it("shows folder prompts and media in the same grid without split section headings", async () => {
+    render(<MediaLibraryPanel onSelectMedia={vi.fn()} onSelectPrompt={vi.fn()} />);
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Campaign folder" })).toBeInTheDocument();
+    });
+
+    fireEvent.doubleClick(screen.getByRole("button", { name: "Campaign folder" }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("media-library-panel-active-folder-dropzone")).toBeInTheDocument();
+      expect(screen.getByTestId("mock-all-items-grid")).toBeInTheDocument();
+    });
+
+    expect(screen.queryByText(/^Prompts \(/)).toBeNull();
+    expect(screen.queryByText(/^Media \(/)).toBeNull();
+
+    const latestProps = allItemsGridPropsSpy.mock.calls.at(-1)?.[0];
+    expect(latestProps?.mediaRows).toHaveLength(2);
+    expect(latestProps?.promptRows).toHaveLength(1);
+  });
+
   it("renders and commits the project name field", async () => {
     const onProjectNameCommit = vi.fn();
     render(
@@ -574,6 +629,79 @@ describe("MediaLibraryPanel", () => {
     fireEvent.click(screen.getByRole("button", { name: "Expand media library panel" }));
 
     expect(onExpandMediaLibraryPanel).toHaveBeenCalledTimes(1);
+  });
+
+  it("restores the pre-expand folders split when collapsing the expanded media library layout", async () => {
+    const ExpandCollapseHarness = () => {
+      const [expanded, setExpanded] = React.useState(false);
+      return (
+        <MediaLibraryPanel
+          onSelectMedia={vi.fn()}
+          onSelectPrompt={vi.fn()}
+          isMediaLibraryPanelExpanded={expanded}
+          onExpandMediaLibraryPanel={() => setExpanded(true)}
+          onCollapseMediaLibraryPanel={() => setExpanded(false)}
+        />
+      );
+    };
+
+    const { container } = render(<ExpandCollapseHarness />);
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Campaign folder" })).toBeInTheDocument();
+    });
+
+    const divider = screen.getByRole("separator", {
+      name: "Resize folders and references sections",
+    });
+    const splitContainer = container.querySelector(".media-library-panel-split") as HTMLElement;
+    expect(splitContainer).toBeTruthy();
+    Object.defineProperty(splitContainer, "getBoundingClientRect", {
+      configurable: true,
+      value: () => ({
+        x: 0,
+        y: 0,
+        top: 0,
+        left: 0,
+        width: 700,
+        height: 900,
+        right: 700,
+        bottom: 900,
+        toJSON: () => ({}),
+      }),
+    });
+
+    fireEvent.pointerDown(divider, {
+      pointerId: 202,
+      button: 0,
+      clientY: 300,
+      pointerType: "mouse",
+    });
+    fireEvent.pointerMove(window, { pointerId: 202, clientY: 420 });
+    fireEvent.pointerUp(window, { pointerId: 202, clientY: 420 });
+
+    const resizedRatio = Number(divider.getAttribute("aria-valuenow"));
+    expect(resizedRatio).toBeGreaterThan(40);
+
+    fireEvent.click(screen.getByRole("button", { name: "Expand media library panel" }));
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole("button", { name: "Collapse media library panel" })
+      ).toBeInTheDocument();
+    });
+    const expandedRatio = Number(divider.getAttribute("aria-valuenow"));
+    expect(expandedRatio).toBeLessThan(resizedRatio);
+
+    fireEvent.click(screen.getByRole("button", { name: "Collapse media library panel" }));
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole("button", { name: "Expand media library panel" })
+      ).toBeInTheDocument();
+    });
+    const restoredRatio = Number(divider.getAttribute("aria-valuenow"));
+    expect(restoredRatio).toBeCloseTo(resizedRatio, 1);
   });
 
   it("hides root tab count labels for Images, Videos, and Prompts views", async () => {
@@ -1065,7 +1193,7 @@ describe("MediaLibraryPanel", () => {
 
     expect(screen.queryByRole("button", { name: "Remove prompt Prompt One" })).toBeNull();
 
-    fireEvent.click(screen.getByRole("button", { name: "Campaign folder" }));
+    fireEvent.doubleClick(screen.getByRole("button", { name: "Campaign folder" }));
 
     await waitFor(() => {
       expect(screen.getByRole("button", { name: "Remove prompt Prompt One" })).toBeInTheDocument();
@@ -1076,12 +1204,15 @@ describe("MediaLibraryPanel", () => {
     fireEvent.click(screen.getByRole("button", { name: "Remove prompt Prompt One" }));
 
     await waitFor(() => {
-      expect(applyMediaFolderMembershipBatchMock).toHaveBeenCalledWith({
-        folderId: "folder-1",
-        action: "unassign",
-        mediaIds: [],
-        promptIds: ["prompt-1"],
-      });
+      expect(applyMediaFolderMembershipBatchMock).toHaveBeenCalledWith(
+        {
+          folderId: "folder-1",
+          action: "unassign",
+          mediaIds: [],
+          promptIds: ["prompt-1"],
+        },
+        null
+      );
     });
     expect(fetchMediaListPageMock).toHaveBeenCalledTimes(2);
     expect(fetchMediaPromptListPageMock).toHaveBeenCalledTimes(2);
@@ -1094,7 +1225,7 @@ describe("MediaLibraryPanel", () => {
       expect(screen.getByText("Campaign")).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByRole("button", { name: "Campaign folder" }));
+    fireEvent.doubleClick(screen.getByRole("button", { name: "Campaign folder" }));
 
     await waitFor(() => {
       expect(screen.getByRole("button", { name: "Select media ref-1.png" })).toBeInTheDocument();
@@ -1104,6 +1235,25 @@ describe("MediaLibraryPanel", () => {
     });
     expect(screen.queryByText("Loading folder canvas...")).not.toBeInTheDocument();
     expect(screen.queryByRole("tablist", { name: "All Media type tabs" })).not.toBeInTheDocument();
+  });
+
+  it("does not open a folder on single click", async () => {
+    render(<MediaLibraryPanel onSelectMedia={vi.fn()} onSelectPrompt={vi.fn()} />);
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Campaign folder" })).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Campaign folder" }));
+
+    expect(screen.queryByRole("button", { name: "Go to parent folder" })).not.toBeInTheDocument();
+    expect(
+      document.querySelector(".media-library-panel-folders-breadcrumb-current")
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Remove prompt Prompt One" })
+    ).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Campaign folder" })).toBeInTheDocument();
   });
 
   it("removes custom-folder prompt membership without forcing a list refresh", async () => {
@@ -1134,19 +1284,22 @@ describe("MediaLibraryPanel", () => {
       expect(screen.getByRole("button", { name: "Campaign folder" })).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByRole("button", { name: "Campaign folder" }));
+    fireEvent.doubleClick(screen.getByRole("button", { name: "Campaign folder" }));
 
     await waitFor(() => {
       expect(screen.getByRole("button", { name: "Remove prompt Prompt One" })).toBeInTheDocument();
     });
     fireEvent.click(screen.getByRole("button", { name: "Remove prompt Prompt One" }));
     await waitFor(() => {
-      expect(applyMediaFolderMembershipBatchMock).toHaveBeenCalledWith({
-        folderId: "folder-1",
-        action: "unassign",
-        mediaIds: [],
-        promptIds: ["prompt-1"],
-      });
+      expect(applyMediaFolderMembershipBatchMock).toHaveBeenCalledWith(
+        {
+          folderId: "folder-1",
+          action: "unassign",
+          mediaIds: [],
+          promptIds: ["prompt-1"],
+        },
+        null
+      );
     });
     await waitFor(() => {
       expect(
@@ -1192,12 +1345,15 @@ describe("MediaLibraryPanel", () => {
       });
     });
     await waitFor(() => {
-      expect(applyMediaFolderMembershipBatchMock).toHaveBeenCalledWith({
-        action: "assign",
-        folderId: "folder-1",
-        mediaIds: ["uploaded-1"],
-        promptIds: [],
-      });
+      expect(applyMediaFolderMembershipBatchMock).toHaveBeenCalledWith(
+        {
+          action: "assign",
+          folderId: "folder-1",
+          mediaIds: ["uploaded-1"],
+          promptIds: [],
+        },
+        null
+      );
     });
   });
 
@@ -1313,12 +1469,15 @@ describe("MediaLibraryPanel", () => {
     fireEvent.drop(folderTile, { dataTransfer: transfer });
 
     await waitFor(() => {
-      expect(applyMediaFolderMembershipBatchMock).toHaveBeenCalledWith({
-        action: "assign",
-        folderId: "folder-1",
-        mediaIds: ["media-1"],
-        promptIds: [],
-      });
+      expect(applyMediaFolderMembershipBatchMock).toHaveBeenCalledWith(
+        {
+          action: "assign",
+          folderId: "folder-1",
+          mediaIds: ["media-1"],
+          promptIds: [],
+        },
+        null
+      );
     });
     expect(fetchMediaListPageMock).toHaveBeenCalledTimes(1);
     expect(uploadMediaFileMock).not.toHaveBeenCalled();
@@ -1382,11 +1541,10 @@ describe("MediaLibraryPanel", () => {
       expect(screen.getByRole("button", { name: "Select media root-ref.png" })).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByRole("button", { name: "Campaign folder" }));
+    fireEvent.doubleClick(screen.getByRole("button", { name: "Campaign folder" }));
 
     await waitFor(() => {
-      expect(screen.getByText("Loading media…")).toBeInTheDocument();
-      expect(screen.getByText("Loading prompts…")).toBeInTheDocument();
+      expect(screen.getByText("Loading folder items…")).toBeInTheDocument();
     });
 
     await act(async () => {
@@ -1559,7 +1717,7 @@ describe("MediaLibraryPanel", () => {
     fireEvent.click(screen.getByRole("button", { name: "Create new folder" }));
 
     await waitFor(() => {
-      expect(createMediaFolderMock).toHaveBeenCalledWith("New Folder", null);
+      expect(createMediaFolderMock).toHaveBeenCalledWith("New Folder", null, null);
     });
     expect(screen.getByRole("button", { name: "New Folder folder" })).toBeInTheDocument();
     expect(screen.getByDisplayValue("New Folder")).toBeInTheDocument();
@@ -1606,7 +1764,7 @@ describe("MediaLibraryPanel", () => {
     expect(screen.queryByRole("button", { name: "Child A1 folder" })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "All Media" })).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "Root A folder" }));
+    fireEvent.doubleClick(screen.getByRole("button", { name: "Root A folder" }));
 
     await waitFor(() => {
       expect(screen.getByRole("button", { name: "Child A1 folder" })).toBeInTheDocument();
@@ -1615,10 +1773,8 @@ describe("MediaLibraryPanel", () => {
     expect(screen.queryByRole("button", { name: "Root A folder" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Root B folder" })).not.toBeInTheDocument();
     expect(
-      screen.getByText("Root A", {
-        selector: ".media-library-panel-folders-breadcrumb-current",
-      })
-    ).toBeInTheDocument();
+      document.querySelector(".media-library-panel-folders-breadcrumb-current")
+    ).toHaveTextContent("Root A");
 
     fireEvent.click(screen.getAllByRole("button", { name: "All Media" })[0]);
 
@@ -1652,15 +1808,13 @@ describe("MediaLibraryPanel", () => {
       expect(screen.getByRole("button", { name: "Parent folder" })).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByRole("button", { name: "Parent folder" }));
+    fireEvent.doubleClick(screen.getByRole("button", { name: "Parent folder" }));
 
     await waitFor(() => {
       expect(screen.getByRole("button", { name: "Child A1 folder" })).toBeInTheDocument();
       expect(
-        screen.getByText("Parent", {
-          selector: ".media-library-panel-folders-breadcrumb-current",
-        })
-      ).toBeInTheDocument();
+        document.querySelector(".media-library-panel-folders-breadcrumb-current")
+      ).toHaveTextContent("Parent");
     });
 
     const folderButton = screen.getByRole("button", { name: "Child A1 folder" });
@@ -1670,10 +1824,8 @@ describe("MediaLibraryPanel", () => {
     fireEvent.contextMenu(folderTile);
 
     expect(
-      screen.getByText("Parent", {
-        selector: ".media-library-panel-folders-breadcrumb-current",
-      })
-    ).toBeInTheDocument();
+      document.querySelector(".media-library-panel-folders-breadcrumb-current")
+    ).toHaveTextContent("Parent");
     fireEvent.click(screen.getByRole("menuitem", { name: "Move to..." }));
     const moveDialog = screen.getByRole("dialog", { name: "Move Child A1" });
     expect(within(moveDialog).getByText("Current parent")).toBeInTheDocument();
@@ -1686,14 +1838,13 @@ describe("MediaLibraryPanel", () => {
       expect(moveMediaFolderMock).toHaveBeenCalledWith({
         folderId: "folder-child",
         parentFolderId: null,
+        projectId: null,
       });
     });
     expect(screen.queryByRole("button", { name: "Child A1 folder" })).not.toBeInTheDocument();
     expect(
-      screen.getByText("Parent", {
-        selector: ".media-library-panel-folders-breadcrumb-current",
-      })
-    ).toBeInTheDocument();
+      document.querySelector(".media-library-panel-folders-breadcrumb-current")
+    ).toHaveTextContent("Parent");
   });
 
   it("shows sorted deep move destinations and excludes the current parent and descendants", async () => {
@@ -1734,7 +1885,7 @@ describe("MediaLibraryPanel", () => {
       expect(screen.getByRole("button", { name: "A folder" })).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByRole("button", { name: "A folder" }));
+    fireEvent.doubleClick(screen.getByRole("button", { name: "A folder" }));
 
     await waitFor(() => {
       expect(screen.getByRole("button", { name: "B folder" })).toBeInTheDocument();
@@ -1777,7 +1928,7 @@ describe("MediaLibraryPanel", () => {
       expect(screen.getByRole("button", { name: "Parent folder" })).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByRole("button", { name: "Parent folder" }));
+    fireEvent.doubleClick(screen.getByRole("button", { name: "Parent folder" }));
     await waitFor(() => {
       expect(screen.getByRole("button", { name: "Go to parent folder" })).toBeInTheDocument();
     });
@@ -1785,14 +1936,12 @@ describe("MediaLibraryPanel", () => {
     fireEvent.click(screen.getByRole("button", { name: "Create new folder" }));
 
     await waitFor(() => {
-      expect(createMediaFolderMock).toHaveBeenCalledWith("New Folder", "folder-parent");
+      expect(createMediaFolderMock).toHaveBeenCalledWith("New Folder", "folder-parent", null);
     });
     expect(screen.getByDisplayValue("New Folder")).toBeInTheDocument();
     expect(
-      screen.getByText("Parent", {
-        selector: ".media-library-panel-folders-breadcrumb-current",
-      })
-    ).toBeInTheDocument();
+      document.querySelector(".media-library-panel-folders-breadcrumb-current")
+    ).toHaveTextContent("Parent");
     expect(screen.queryByRole("button", { name: "New Folder" })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Go to parent folder" })).toBeInTheDocument();
   });
@@ -1814,7 +1963,7 @@ describe("MediaLibraryPanel", () => {
     });
 
     await waitFor(() => {
-      expect(createMediaFolderMock).toHaveBeenCalledWith("New Folder", "folder-1");
+      expect(createMediaFolderMock).toHaveBeenCalledWith("New Folder", "folder-1", null);
     });
     expect(screen.getByDisplayValue("New Folder")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Go to parent folder" })).toBeInTheDocument();
@@ -1846,7 +1995,7 @@ describe("MediaLibraryPanel", () => {
       expect(screen.getByRole("button", { name: "Parent folder" })).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByRole("button", { name: "Parent folder" }));
+    fireEvent.doubleClick(screen.getByRole("button", { name: "Parent folder" }));
 
     await waitFor(() => {
       expect(screen.getByRole("button", { name: "Child folder" })).toBeInTheDocument();
@@ -1858,7 +2007,9 @@ describe("MediaLibraryPanel", () => {
       expect(screen.getByPlaceholderText("Child")).toBeInTheDocument();
     });
     expect(screen.queryByRole("button", { name: "Parent folder" })).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Parent" })).toBeInTheDocument();
+    expect(
+      document.querySelector(".media-library-panel-folders-breadcrumb-current")
+    ).toHaveTextContent("Parent");
   });
 
   it("renders the current breadcrumb segment as a non-clickable location indicator", async () => {
@@ -1885,13 +2036,11 @@ describe("MediaLibraryPanel", () => {
       expect(screen.getByRole("button", { name: "Parent folder" })).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByRole("button", { name: "Parent folder" }));
+    fireEvent.doubleClick(screen.getByRole("button", { name: "Parent folder" }));
     await waitFor(() => {
       expect(
-        screen.getByText("Parent", {
-          selector: ".media-library-panel-folders-breadcrumb-current",
-        })
-      ).toBeInTheDocument();
+        document.querySelector(".media-library-panel-folders-breadcrumb-current")
+      ).toHaveTextContent("Parent");
     });
 
     expect(screen.getByRole("button", { name: "All Media" })).toBeInTheDocument();
@@ -1921,7 +2070,7 @@ describe("MediaLibraryPanel", () => {
       expect(screen.getByRole("button", { name: "Campaign folder" })).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByRole("button", { name: "Campaign folder" }));
+    fireEvent.doubleClick(screen.getByRole("button", { name: "Campaign folder" }));
 
     await waitFor(() => {
       expect(screen.getByText('No media to display in "Campaign."')).toBeInTheDocument();
@@ -1952,8 +2101,8 @@ describe("MediaLibraryPanel", () => {
     fireEvent.click(screen.getByRole("button", { name: "Create new folder" }));
 
     await waitFor(() => {
-      expect(createMediaFolderMock).toHaveBeenNthCalledWith(1, "New Folder", null);
-      expect(createMediaFolderMock).toHaveBeenNthCalledWith(2, "New Folder 2", null);
+      expect(createMediaFolderMock).toHaveBeenNthCalledWith(1, "New Folder", null, null);
+      expect(createMediaFolderMock).toHaveBeenNthCalledWith(2, "New Folder 2", null, null);
     });
     expect(screen.getByRole("button", { name: "New Folder 2 folder" })).toBeInTheDocument();
     expect(screen.getByDisplayValue("New Folder 2")).toBeInTheDocument();
@@ -2015,9 +2164,10 @@ describe("MediaLibraryPanel", () => {
       expect(renameMediaFolderMock).toHaveBeenCalledWith({
         folderId: "folder-1",
         name: "Campaign Assets",
+        projectId: null,
       });
     });
-    expect(screen.getAllByText("Campaign Assets")).toHaveLength(2);
+    expect(screen.getAllByText("Campaign Assets")).toHaveLength(1);
     expect(screen.queryByRole("button", { name: "Rename active folder" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Delete active folder" })).not.toBeInTheDocument();
   });
@@ -2071,7 +2221,7 @@ describe("MediaLibraryPanel", () => {
     });
 
     await waitFor(() => {
-      expect(deleteMediaFolderMock).toHaveBeenCalledWith("folder-1");
+      expect(deleteMediaFolderMock).toHaveBeenCalledWith("folder-1", null);
     });
     expect(screen.queryByRole("button", { name: "Campaign folder" })).not.toBeInTheDocument();
     const footer = container.querySelector(".media-library-panel-footer");
@@ -2207,12 +2357,15 @@ describe("MediaLibraryPanel", () => {
     fireEvent.drop(folderTile, { dataTransfer: transfer });
 
     await waitFor(() => {
-      expect(applyMediaFolderMembershipBatchMock).toHaveBeenCalledWith({
-        action: "assign",
-        folderId: "folder-1",
-        mediaIds: [],
-        promptIds: ["prompt-1"],
-      });
+      expect(applyMediaFolderMembershipBatchMock).toHaveBeenCalledWith(
+        {
+          action: "assign",
+          folderId: "folder-1",
+          mediaIds: [],
+          promptIds: ["prompt-1"],
+        },
+        null
+      );
     });
   });
 
@@ -2268,12 +2421,15 @@ describe("MediaLibraryPanel", () => {
           sourceSurface: "all-refs",
         })
       );
-      expect(applyMediaFolderMembershipBatchMock).toHaveBeenCalledWith({
-        action: "assign",
-        folderId: "folder-1",
-        mediaIds: ["media-77"],
-        promptIds: [],
-      });
+      expect(applyMediaFolderMembershipBatchMock).toHaveBeenCalledWith(
+        {
+          action: "assign",
+          folderId: "folder-1",
+          mediaIds: ["media-77"],
+          promptIds: [],
+        },
+        null
+      );
     });
   });
 
@@ -2329,12 +2485,15 @@ describe("MediaLibraryPanel", () => {
           sourceSurface: "all-refs",
         })
       );
-      expect(applyMediaFolderMembershipBatchMock).toHaveBeenCalledWith({
-        action: "assign",
-        folderId: "folder-1",
-        mediaIds: [],
-        promptIds: ["prompt-77"],
-      });
+      expect(applyMediaFolderMembershipBatchMock).toHaveBeenCalledWith(
+        {
+          action: "assign",
+          folderId: "folder-1",
+          mediaIds: [],
+          promptIds: ["prompt-77"],
+        },
+        null
+      );
     });
   });
 
@@ -2411,7 +2570,7 @@ describe("MediaLibraryPanel", () => {
       expect(screen.getByRole("button", { name: "Campaign folder" })).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByRole("button", { name: "Campaign folder" }));
+    fireEvent.doubleClick(screen.getByRole("button", { name: "Campaign folder" }));
 
     await waitFor(() => {
       expect(screen.getByTestId("media-library-panel-active-folder-dropzone")).toBeInTheDocument();
@@ -2447,12 +2606,15 @@ describe("MediaLibraryPanel", () => {
           sourceSurface: "all-refs",
         })
       );
-      expect(applyMediaFolderMembershipBatchMock).toHaveBeenCalledWith({
-        action: "assign",
-        folderId: "folder-1",
-        mediaIds: ["media-99"],
-        promptIds: [],
-      });
+      expect(applyMediaFolderMembershipBatchMock).toHaveBeenCalledWith(
+        {
+          action: "assign",
+          folderId: "folder-1",
+          mediaIds: ["media-99"],
+          promptIds: [],
+        },
+        null
+      );
       expect(fetchMediaListPageMock.mock.calls.length).toBeGreaterThan(callsBeforeDrop);
     });
   });

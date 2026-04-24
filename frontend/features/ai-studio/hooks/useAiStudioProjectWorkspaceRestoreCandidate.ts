@@ -11,9 +11,12 @@ import {
 import type { AiStudioSessionSnapshot } from "../logic/sessionSnapshot";
 
 export type AiStudioProjectWorkspaceRestoreCandidateState = {
-  status: "idle" | "loading" | "ready";
+  status: "idle" | "loading" | "ready" | "error";
+  result: "idle" | "loading" | "found_snapshot" | "no_snapshot" | "load_failed";
   snapshot: AiStudioSessionSnapshot | null;
   source: AiStudioSessionRestoreSource;
+  error: string | null;
+  retry: () => void;
 };
 
 /**
@@ -28,8 +31,11 @@ export const useAiStudioProjectWorkspaceRestoreCandidate = ({
 }): AiStudioProjectWorkspaceRestoreCandidateState => {
   const [loadedCandidate, setLoadedCandidate] = useState<{
     projectId: string;
+    status: "ready" | "error";
     snapshot: AiStudioSessionSnapshot | null;
+    error: string | null;
   } | null>(null);
+  const [requestNonce, setRequestNonce] = useState(0);
 
   useEffect(() => {
     if (!enabled || !projectId) return;
@@ -41,41 +47,69 @@ export const useAiStudioProjectWorkspaceRestoreCandidate = ({
         if (cancelled) return;
         setLoadedCandidate({
           projectId,
+          status: "ready",
           snapshot: parseAiStudioSessionSnapshotForRestore(workspace?.snapshot ?? null, null),
+          error: null,
         });
       })
-      .catch(() => {
+      .catch((error) => {
         if (cancelled) return;
         setLoadedCandidate({
           projectId,
+          status: "error",
           snapshot: null,
+          error: error instanceof Error ? error.message : "Failed to load project workspace.",
         });
       });
 
     return () => {
       cancelled = true;
     };
-  }, [enabled, projectId]);
+  }, [enabled, projectId, requestNonce]);
+
+  const retry = () => {
+    setRequestNonce((value) => value + 1);
+  };
 
   if (!enabled || !projectId) {
     return {
       status: "idle",
+      result: "idle",
       snapshot: null,
       source: "none",
+      error: null,
+      retry,
     };
   }
 
   if (!loadedCandidate || loadedCandidate.projectId !== projectId) {
     return {
       status: "loading",
+      result: "loading",
       snapshot: null,
       source: "none",
+      error: null,
+      retry,
+    };
+  }
+
+  if (loadedCandidate.status === "error") {
+    return {
+      status: "error",
+      result: "load_failed",
+      snapshot: null,
+      source: "none",
+      error: loadedCandidate.error,
+      retry,
     };
   }
 
   return {
     status: "ready",
+    result: loadedCandidate.snapshot ? "found_snapshot" : "no_snapshot",
     snapshot: loadedCandidate.snapshot,
     source: loadedCandidate.snapshot ? "project" : "none",
+    error: null,
+    retry,
   };
 };

@@ -17,9 +17,7 @@ import { useExpertEditPresetPanelPreference } from "../features/ai-studio/hooks/
 import { useCreatePulsePresetPanelPreference } from "../features/ai-studio/hooks/useCreatePulsePresetPanelPreference";
 import {
   isCreatePulseBuiltInPresetId,
-  isCreatePulsePresetId,
   resolveCreatePulsePresetById,
-  type CreatePulsePresetId,
 } from "../features/ai-studio/components/create/createPulsePresets";
 import { useAiStudioMediaAutosaveOrchestrator } from "../features/ai-studio/hooks/useAiStudioMediaAutosaveOrchestrator";
 import {
@@ -55,6 +53,7 @@ import { useAiStudioPageUiNotices } from "../features/ai-studio/hooks/useAiStudi
 import { useAiStudioPageCreditDerivations } from "../features/ai-studio/hooks/useAiStudioPageCreditDerivations";
 import { useAiStudioPerfAuditRuntime } from "../features/ai-studio/hooks/useAiStudioPerfAuditRuntime";
 import { useAiStudioDualCanvasWorkspaceState } from "../features/ai-studio/components/canvas/useAiStudioCanvasWorkspaceState";
+import { useAiStudioCreateModeRuntime } from "../features/ai-studio/hooks/useAiStudioCreateModeRuntime";
 import type { ResolveCanvasDropReference } from "../features/ai-studio/components/canvas/canvasTypes";
 import { getAiStudioSessionSnapshotViaApi } from "../features/ai-studio/logic/sessionApiClient";
 import { readAiStudioSessionPersistencePolicy } from "../features/ai-studio/logic/sessionPersistencePolicy";
@@ -66,7 +65,7 @@ import {
 } from "../features/ai-studio/logic/pulseWorkflowSession";
 import { AiStudioModalActivityProvider } from "../features/ai-studio/components/modal-layer/AiStudioModalLayer";
 import { isEditWorkflow } from "../features/ai-studio/logic/workflowIdentity";
-import type { AgentContext, AgentPulseWorkflowSession } from "../prefabs/agent";
+import type { AgentContext } from "../prefabs/agent";
 import type { MusicGenerateRequest } from "../features/ai-studio/components/MusicPropertiesPanel";
 import type { SoundEffectsGenerateRequest } from "../features/ai-studio/components/SoundEffectsPropertiesPanel";
 import type { VoicesGenerateRequest } from "../features/ai-studio/components/VoicesPropertiesPanel";
@@ -257,11 +256,6 @@ export default function AiStudioPage() {
   const [musicIsGenerating, setMusicIsGenerating] = useState(false);
   const [voicesIsGenerating, setVoicesIsGenerating] = useState(false);
   const [soundEffectsIsGenerating, setSoundEffectsIsGenerating] = useState(false);
-  const [expertCreateMode, setExpertCreateMode] = useState<"standard" | "pulse">("standard");
-  const [activeCreatePulsePresetId, setActiveCreatePulsePresetId] =
-    useState<CreatePulsePresetId | null>(null);
-  const [pulseWorkflowSession, setPulseWorkflowSession] =
-    useState<AgentPulseWorkflowSession | null>(null);
   const [isCreateCharacterBundleLoading, setIsCreateCharacterBundleLoading] = useState(false);
   const [isEditCharacterBundleLoading, setIsEditCharacterBundleLoading] = useState(false);
   const [isCreateCharacterModeEnabled, setIsCreateCharacterModeEnabled] = useState(false);
@@ -284,15 +278,19 @@ export default function AiStudioPage() {
   const sessionTitleOverride =
     sessionTitleOverrideState?.sessionId === sessionId ? sessionTitleOverrideState.title : null;
 
-  useEffect(() => {
-    if (!activeCreatePulsePresetId) return;
-    const isActivePulseStillAvailable =
-      selectedCreatePulsePresetIds.includes(activeCreatePulsePresetId) &&
-      isCreatePulsePresetId(activeCreatePulsePresetId, savedCreatePulsePresets);
-    if (!isActivePulseStillAvailable) {
-      setActiveCreatePulsePresetId(null);
-    }
-  }, [activeCreatePulsePresetId, savedCreatePulsePresets, selectedCreatePulsePresetIds]);
+  const {
+    expertCreateMode,
+    activeCreatePulsePresetId,
+    pulseWorkflowSession,
+    setExpertCreateMode,
+    setActiveCreatePulsePresetId,
+    setPulseWorkflowSession,
+    handleExpertCreateModeChange,
+    handleActiveCreatePulsePresetIdChange,
+  } = useAiStudioCreateModeRuntime({
+    selectedCreatePulsePresetIds,
+    savedCreatePulsePresets,
+  });
 
   // Character workflow state (shared with Character tool workflows and error surfaces)
   const {
@@ -825,7 +823,7 @@ export default function AiStudioPage() {
         ? current
         : reconciledPulseWorkflowSession
     );
-  }, [reconciledPulseWorkflowSession]);
+  }, [reconciledPulseWorkflowSession, setPulseWorkflowSession]);
 
   const { sessionSnapshot } = useAiStudioPageSessionPersistence({
     sessionId,
@@ -1189,9 +1187,9 @@ export default function AiStudioPage() {
     savedCreatePulsePresets,
     onSavedCreatePulsePresetsChange: setSavedCreatePulsePresets,
     expertCreateMode,
-    onExpertCreateModeChange: setExpertCreateMode,
+    onExpertCreateModeChange: handleExpertCreateModeChange,
     activeCreatePulsePresetId,
-    onActiveCreatePulsePresetIdChange: setActiveCreatePulsePresetId,
+    onActiveCreatePulsePresetIdChange: handleActiveCreatePulsePresetIdChange,
     expertEditSessionState,
     onExpertEditSessionStateChange: setExpertEditSessionState,
     videoDurationSeconds,

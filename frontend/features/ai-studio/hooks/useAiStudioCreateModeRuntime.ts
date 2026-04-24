@@ -14,6 +14,7 @@ import {
 export type AiStudioExpertCreateMode = "standard" | "pulse";
 
 type UseAiStudioCreateModeRuntimeParams = {
+  projectId?: string | null;
   selectedCreatePulsePresetIds: readonly CreatePulsePresetId[];
   savedCreatePulsePresets: readonly CreatePulseSavedPreset[];
   initialExpertCreateMode?: AiStudioExpertCreateMode;
@@ -30,6 +31,7 @@ const resolveStateActionValue = <T>(value: SetStateAction<T>, current: T): T =>
  * exact state, while UI-triggered handlers apply the runtime cleanup contract.
  */
 export const useAiStudioCreateModeRuntime = ({
+  projectId = null,
   selectedCreatePulsePresetIds,
   savedCreatePulsePresets,
   initialExpertCreateMode = "standard",
@@ -88,9 +90,14 @@ export const useAiStudioCreateModeRuntime = ({
 
   useEffect(() => {
     if (!activeCreatePulsePresetIdState) return;
-    const isActivePulseStillAvailable =
-      selectedCreatePulsePresetIds.includes(activeCreatePulsePresetIdState) &&
-      isCreatePulsePresetId(activeCreatePulsePresetIdState, savedCreatePulsePresets);
+    const isActivePulseDefined = isCreatePulsePresetId(
+      activeCreatePulsePresetIdState,
+      savedCreatePulsePresets
+    );
+    const isVisibleInPanel = selectedCreatePulsePresetIds.includes(activeCreatePulsePresetIdState);
+    const isActivePulseStillAvailable = projectId
+      ? isActivePulseDefined
+      : isActivePulseDefined && isVisibleInPanel;
     if (!isActivePulseStillAvailable) {
       // Reconciles external preset-library changes back into the local runtime owner.
       // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -99,6 +106,7 @@ export const useAiStudioCreateModeRuntime = ({
   }, [
     activeCreatePulsePresetIdState,
     clearPulseRuntime,
+    projectId,
     savedCreatePulsePresets,
     selectedCreatePulsePresetIds,
   ]);

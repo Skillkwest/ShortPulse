@@ -333,6 +333,7 @@ export default function AiStudioPage() {
     handleExpertCreateModeChange,
     handleActiveCreatePulsePresetIdChange,
   } = useAiStudioCreateModeRuntime({
+    projectId,
     selectedCreatePulsePresetIds,
     savedCreatePulsePresets,
   });

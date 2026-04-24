@@ -121,4 +121,81 @@ describe("useAiStudioCreateModeRuntime", () => {
     expect(result.current.activeCreatePulsePresetId).toBeNull();
     expect(result.current.pulseWorkflowSession).toBeNull();
   });
+
+  it("preserves a restored active Pulse on project routes even when it is not in the user rail set", () => {
+    const workflowSession = buildWorkflowSession("pulse-a");
+    const { result, rerender } = renderHook(
+      ({
+        projectId,
+        selectedCreatePulsePresetIds,
+        savedCreatePulsePresets,
+      }: {
+        projectId: string | null;
+        selectedCreatePulsePresetIds: string[];
+        savedCreatePulsePresets: CreatePulseSavedPreset[];
+      }) =>
+        useAiStudioCreateModeRuntime({
+          projectId,
+          selectedCreatePulsePresetIds,
+          savedCreatePulsePresets,
+          initialExpertCreateMode: "pulse",
+          initialActiveCreatePulsePresetId: "pulse-a",
+          initialPulseWorkflowSession: workflowSession,
+        }),
+      {
+        initialProps: {
+          projectId: "project-1",
+          selectedCreatePulsePresetIds: ["pulse-a"],
+          savedCreatePulsePresets: [buildSavedPreset("pulse-a")],
+        },
+      }
+    );
+
+    rerender({
+      projectId: "project-1",
+      selectedCreatePulsePresetIds: [],
+      savedCreatePulsePresets: [buildSavedPreset("pulse-a")],
+    });
+
+    expect(result.current.activeCreatePulsePresetId).toBe("pulse-a");
+    expect(result.current.pulseWorkflowSession).toEqual(workflowSession);
+  });
+
+  it("still clears a restored project Pulse when the preset definition no longer exists", () => {
+    const { result, rerender } = renderHook(
+      ({
+        projectId,
+        selectedCreatePulsePresetIds,
+        savedCreatePulsePresets,
+      }: {
+        projectId: string | null;
+        selectedCreatePulsePresetIds: string[];
+        savedCreatePulsePresets: CreatePulseSavedPreset[];
+      }) =>
+        useAiStudioCreateModeRuntime({
+          projectId,
+          selectedCreatePulsePresetIds,
+          savedCreatePulsePresets,
+          initialExpertCreateMode: "pulse",
+          initialActiveCreatePulsePresetId: "pulse-a",
+          initialPulseWorkflowSession: buildWorkflowSession("pulse-a"),
+        }),
+      {
+        initialProps: {
+          projectId: "project-1",
+          selectedCreatePulsePresetIds: [],
+          savedCreatePulsePresets: [buildSavedPreset("pulse-a")],
+        },
+      }
+    );
+
+    rerender({
+      projectId: "project-1",
+      selectedCreatePulsePresetIds: [],
+      savedCreatePulsePresets: [],
+    });
+
+    expect(result.current.activeCreatePulsePresetId).toBeNull();
+    expect(result.current.pulseWorkflowSession).toBeNull();
+  });
 });

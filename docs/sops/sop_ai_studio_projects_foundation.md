@@ -15,7 +15,8 @@ Purpose: define the currently shipped Projects contract so dashboard handoff, AP
 6. Project routes now load and save the shared AI Studio snapshot envelope through a project-owned workspace record instead of the legacy remote `sid` snapshot route.
 7. Browser-global workflow-settings, chat-mode, and selected-character persistence are disabled on project routes so the project workspace snapshot becomes the current restore authority for those fields.
 8. Media and prompt saves that happen from a project route now attach those saved assets to the active project through project association tables.
-9. Project-scoped Media Library folders and full generated-output authority cutover are not shipped yet.
+9. Project workspace saves also backfill project asset associations from restore-relevant `savedMediaIds` and `promptId` values already present in the snapshot.
+10. Project-scoped Media Library folders and full generated-output authority cutover are not shipped yet.
 
 ## Primary repo surfaces
 | Surface | Role |
@@ -131,7 +132,8 @@ Behavior:
 2. Project routes now attach saved media to `project_media_items` and saved prompts to `project_prompt_items`.
 3. Manual save, autosave, and prompt-save flows on project routes use those association tables as the current durable project-ownership seam.
 4. Re-saving an already-saved output on a project route should attach the existing media/prompt ids to that project without forcing a duplicate upload or duplicate prompt row.
-5. This association layer is additive; it does not change the visibility of `All Media` or other user-global library surfaces yet.
+5. Project workspace writes backstop those associations by extracting restore-relevant ids from the saved snapshot and associating only ids that the caller already owns.
+6. This association layer is additive; it does not change the visibility of `All Media` or other user-global library surfaces yet.
 
 ## Explicit non-goals for the current shipped foundation
 1. No project-scoped Media Library folder authority yet.
@@ -161,4 +163,4 @@ Behavior:
 ## Follow-up lanes
 1. Cut generated-output authority over to project-owned seams.
 2. Replace the visible user-global Media Library folder authority with project-scoped folders in a later migration phase.
-3. Decide whether project workspace writes should also batch-associate restore-relevant saved media/prompt ids as a belt-and-suspenders backstop.
+3. Decide whether restore-time verification needs to enforce association completeness beyond the current workspace-save backstop.

@@ -21,8 +21,9 @@ The product contract for Projects does not require turning the whole Media Libra
    - target project
    - target media/prompt asset
 4. On project routes, save/autosave flows that create or reuse saved media/prompt ids must attach those ids to the active project.
-5. Reusing an already-saved media/prompt id on a project route must associate the existing asset with that project instead of forcing duplicate uploads or duplicate prompt rows.
-6. This phase does not change the current global visibility of `All Media` or other user-global library surfaces.
+5. Project workspace saves must also backfill associations from restore-relevant `savedMediaIds` and `promptId` values already present in the snapshot, filtering to caller-owned assets before association.
+6. Reusing an already-saved media/prompt id on a project route must associate the existing asset with that project instead of forcing duplicate uploads or duplicate prompt rows.
+7. This phase does not change the current global visibility of `All Media` or other user-global library surfaces.
 
 ## Consequences
 - Positive:
@@ -36,4 +37,4 @@ The product contract for Projects does not require turning the whole Media Libra
 ## Follow-ups
 1. Move generated-output authority onto project-owned seams.
 2. Add project-scoped folder ownership over the associated asset set.
-3. Consider backstopping project asset association during workspace writes for restore-relevant ids.
+3. Decide whether restore-time verification needs to enforce association completeness beyond the current workspace-save backstop.

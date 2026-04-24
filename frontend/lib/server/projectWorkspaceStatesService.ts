@@ -26,6 +26,141 @@ export type ProjectWorkspaceStateRecord = {
   updatedAt: string;
 };
 
+const asRecord = (value: unknown): Record<string, unknown> =>
+  value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
+
+const collectSnapshotAssociationIds = (snapshot: Record<string, unknown>) => {
+  const outputsRecord = asRecord(snapshot.outputs);
+  const rows = [
+    ...(Array.isArray(outputsRecord.active) ? outputsRecord.active : []),
+    ...(Array.isArray(outputsRecord.archived) ? outputsRecord.archived : []),
+  ];
+  const mediaFileIds = new Set<string>();
+  const promptIds = new Set<string>();
+
+  rows.forEach((row) => {
+    const normalizedRow = asRecord(row);
+    const promptId =
+      typeof normalizedRow.promptId === "string" ? normalizedRow.promptId.trim() : "";
+    if (promptId) {
+      promptIds.add(promptId);
+    }
+    const savedMediaIds = Array.isArray(normalizedRow.savedMediaIds)
+      ? normalizedRow.savedMediaIds
+      : [];
+    savedMediaIds.forEach((value) => {
+      const mediaFileId = typeof value === "string" ? value.trim() : "";
+      if (mediaFileId) {
+        mediaFileIds.add(mediaFileId);
+      }
+    });
+  });
+
+  return {
+    mediaFileIds: [...mediaFileIds],
+    promptIds: [...promptIds],
+  };
+};
+
+const resolveOwnedIds = async ({
+  table,
+  idColumn,
+  userId,
+  ids,
+}: {
+  table: "media_files" | "media_prompts";
+  idColumn: "id";
+  userId: string;
+  ids: string[];
+}): Promise<string[]> => {
+  if (ids.length === 0) return [];
+  const supabaseAdmin = getSupabaseAdmin();
+  const { data, error } = await supabaseAdmin
+    .from(table)
+    .select(idColumn)
+    .eq("user_id", userId)
+    .in(idColumn, ids);
+
+  if (error) {
+    throw new Error(error.message || `Failed to resolve owned ${table} ids`);
+  }
+
+  return Array.isArray(data)
+    ? data
+        .map((row) => {
+          const record = asRecord(row);
+          const idValue = record[idColumn];
+          return typeof idValue === "string" ? idValue.trim() : "";
+        })
+        .filter((value) => value.length > 0)
+    : [];
+};
+
+const backfillProjectAssetAssociationsForSnapshot = async ({
+  userId,
+  projectId,
+  snapshot,
+}: {
+  userId: string;
+  projectId: string;
+  snapshot: Record<string, unknown>;
+}): Promise<void> => {
+  const { mediaFileIds, promptIds } = collectSnapshotAssociationIds(snapshot);
+  const [ownedMediaFileIds, ownedPromptIds] = await Promise.all([
+    resolveOwnedIds({
+      table: "media_files",
+      idColumn: "id",
+      userId,
+      ids: mediaFileIds,
+    }),
+    resolveOwnedIds({
+      table: "media_prompts",
+      idColumn: "id",
+      userId,
+      ids: promptIds,
+    }),
+  ]);
+
+  const supabaseAdmin = getSupabaseAdmin();
+  const nowIso = new Date().toISOString();
+
+  if (ownedMediaFileIds.length > 0) {
+    const { error } = await supabaseAdmin.from("project_media_items").upsert(
+      ownedMediaFileIds.map((mediaFileId) => ({
+        project_id: projectId,
+        media_file_id: mediaFileId,
+        user_id: userId,
+        updated_at: nowIso,
+      })),
+      {
+        onConflict: "project_id,media_file_id",
+      }
+    );
+    if (error) {
+      throw new Error(error.message || "Failed to associate project media items");
+    }
+  }
+
+  if (ownedPromptIds.length > 0) {
+    const { error } = await supabaseAdmin.from("project_prompt_items").upsert(
+      ownedPromptIds.map((promptId) => ({
+        project_id: projectId,
+        prompt_id: promptId,
+        user_id: userId,
+        updated_at: nowIso,
+      })),
+      {
+        onConflict: "project_id,prompt_id",
+      }
+    );
+    if (error) {
+      throw new Error(error.message || "Failed to associate project prompt items");
+    }
+  }
+};
+
 const toProjectWorkspaceStateRecord = (
   row: ProjectWorkspaceStateRow
 ): ProjectWorkspaceStateRecord => ({
@@ -79,6 +214,12 @@ export const upsertProjectWorkspaceStateForUser = async ({
     typeof schemaVersion === "number" && Number.isFinite(schemaVersion)
       ? Math.max(1, Math.min(100, Math.trunc(schemaVersion)))
       : 2;
+
+  await backfillProjectAssetAssociationsForSnapshot({
+    userId,
+    projectId,
+    snapshot: parsedSnapshot,
+  });
 
   const supabaseAdmin = getSupabaseAdmin();
   const { data, error } = await supabaseAdmin

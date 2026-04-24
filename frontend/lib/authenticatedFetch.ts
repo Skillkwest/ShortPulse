@@ -61,9 +61,15 @@ const withTimeout = async <T>(promise: Promise<T>, timeoutMs: number): Promise<T
       });
   });
 
-const readAccessToken = async (timeoutMs?: number): Promise<string | null> => {
+const readAccessToken = async (options?: {
+  timeoutMs?: number;
+  forceRefresh?: boolean;
+}): Promise<string | null> => {
   try {
-    const accessTokenPromise = readSupabaseAccessToken();
+    const timeoutMs = options?.timeoutMs;
+    const accessTokenPromise = readSupabaseAccessToken({
+      forceRefresh: options?.forceRefresh === true,
+    });
     return typeof timeoutMs === "number" && Number.isFinite(timeoutMs) && timeoutMs > 0
       ? await withTimeout(accessTokenPromise, timeoutMs)
       : await accessTokenPromise;
@@ -116,7 +122,11 @@ export const fetchWithAuth = async (
   input: RequestInfo | URL,
   init?: ShortPulseFetchInit
 ): Promise<Response> => {
-  const token = await readAccessToken(init?.shortpulseAuthTimeoutMs);
+  const timeoutMs = init?.shortpulseAuthTimeoutMs;
+  let token = await readAccessToken({ timeoutMs });
+  if (!token) {
+    token = await readAccessToken({ timeoutMs, forceRefresh: true });
+  }
   if (!token) {
     throw new Error("You must be signed in to call this endpoint.");
   }
@@ -126,7 +136,8 @@ export const fetchWithAuth = async (
   const skipErrorLogging = Boolean(init?.shortpulseSkipErrorLogging);
 
   const headers = asHeaders(init?.headers);
-  if (!headers.has("Authorization")) {
+  const callerProvidedAuthorization = headers.has("Authorization");
+  if (!callerProvidedAuthorization) {
     headers.set("Authorization", `Bearer ${token}`);
   }
   if (!headers.has("x-shortpulse-request-id")) {
@@ -143,10 +154,20 @@ export const fetchWithAuth = async (
   const breadcrumbEndpoint = redactUrlForTelemetry(endpoint);
 
   try {
-    const response = await fetch(input, {
-      ...requestInit,
-      headers,
-    });
+    const executeRequest = async (): Promise<Response> =>
+      await fetch(input, {
+        ...requestInit,
+        headers,
+      });
+
+    let response = await executeRequest();
+    if (response.status === 401 && !callerProvidedAuthorization) {
+      const refreshedToken = await readAccessToken({ timeoutMs, forceRefresh: true });
+      if (refreshedToken) {
+        headers.set("Authorization", `Bearer ${refreshedToken}`);
+        response = await executeRequest();
+      }
+    }
 
     addBreadcrumb({
       type: "network",

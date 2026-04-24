@@ -60,6 +60,9 @@ const resolveProjectLoadErrorMessage = (
   status: number,
   payload: AiStudioProjectRoutePayload | null
 ): string => {
+  if (status === 401) {
+    return "Session expired. Retry project load.";
+  }
   if (status === 400 || status === 403 || status === 404) {
     return "Project not found.";
   }
@@ -70,6 +73,9 @@ const resolveProjectUpdateErrorMessage = (
   status: number,
   payload: AiStudioProjectRoutePayload | null
 ): string => {
+  if (status === 401) {
+    return "Session expired. Retry project load.";
+  }
   if (status === 400 || status === 403 || status === 404) {
     return "Project not found.";
   }

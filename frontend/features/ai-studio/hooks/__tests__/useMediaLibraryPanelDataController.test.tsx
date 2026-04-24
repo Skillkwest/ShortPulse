@@ -1,0 +1,119 @@
+import { renderHook, waitFor } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { useMediaLibraryPanelDataController } from "../useMediaLibraryPanelDataController";
+
+const fetchMediaListPageMock = vi.hoisted(() => vi.fn());
+const fetchMediaPromptListPageMock = vi.hoisted(() => vi.fn());
+
+vi.mock("../../../media-library/logic/mediaListApi", () => ({
+  fetchMediaListPage: (...args: unknown[]) => fetchMediaListPageMock(...args),
+}));
+
+vi.mock("../../logic/mediaLibraryPanelApi", () => ({
+  fetchMediaPromptListPage: (...args: unknown[]) => fetchMediaPromptListPageMock(...args),
+}));
+
+vi.mock("../../../media-library/logic/mediaLoadMoreGating", () => ({
+  shouldAutoLoadNearBottom: () => false,
+}));
+
+vi.mock("../../../media-library/logic/mediaLibraryPageHelpers", () => ({
+  mergePageRows: (_existing: unknown[], next: unknown[]) => next,
+}));
+
+vi.mock("../../../media-library/runtime", async () => {
+  const ReactModule = await vi.importActual<typeof import("react")>("react");
+
+  return {
+    useMediaLibraryPanelRuntime: () => {
+      const [error, setError] = ReactModule.useState<string | null>(null);
+      const [mediaRows, setMediaRows] = ReactModule.useState<unknown[]>([]);
+      const [promptRows, setPromptRows] = ReactModule.useState<unknown[]>([]);
+      const [mediaScopeCache, setMediaScopeCache] = ReactModule.useState({
+        nextCursor: null,
+        hasMore: false,
+        loading: false,
+        loaded: false,
+        error: null,
+        loadedAtMs: null,
+        resolvedScopeKey: null,
+        libraryTotalCount: null,
+      });
+      const [promptScopeCache, setPromptScopeCache] = ReactModule.useState({
+        nextCursor: null,
+        hasMore: false,
+        loading: false,
+        loaded: false,
+        error: null,
+        loadedAtMs: null,
+        resolvedScopeKey: null,
+      });
+      const setSignedUrls = ReactModule.useRef(vi.fn()).current;
+
+      return {
+        error,
+        mediaRows,
+        mediaScopeCache,
+        promptRows,
+        promptScopeCache,
+        setError,
+        setMediaRows,
+        setMediaScopeCache,
+        setPromptRows,
+        setPromptScopeCache,
+        setSignedUrls,
+      };
+    },
+  };
+});
+
+describe("useMediaLibraryPanelDataController", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    fetchMediaListPageMock.mockResolvedValue({
+      rows: [],
+      nextCursor: null,
+      hasMore: false,
+      signedById: new Map(),
+      libraryTotalCount: 0,
+    });
+    fetchMediaPromptListPageMock.mockResolvedValue({
+      rows: [],
+      nextCursor: null,
+      hasMore: false,
+    });
+  });
+
+  it("normalizes transient pending folder ids back to the root folder for data loads", async () => {
+    renderHook(() =>
+      useMediaLibraryPanelDataController({
+        projectId: "project-1",
+        activeFolderId: "__pending_new_folder__123",
+        itemType: "all",
+        normalizedSearch: "",
+        shouldShowMedia: true,
+        shouldShowPrompts: true,
+        showFolderCanvas: false,
+        panelBodyRef: { current: null },
+      })
+    );
+
+    await waitFor(() => {
+      expect(fetchMediaListPageMock).toHaveBeenCalled();
+      expect(fetchMediaPromptListPageMock).toHaveBeenCalled();
+    });
+
+    expect(fetchMediaListPageMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        folderId: "all_items",
+        projectId: "project-1",
+      })
+    );
+    expect(fetchMediaPromptListPageMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        folderId: "all_items",
+        projectId: "project-1",
+      })
+    );
+  });
+});

@@ -100,6 +100,28 @@ describe("useAiStudioProjectIdentity", () => {
     expect(result.current.project).toBeNull();
   });
 
+  it("surfaces a retry-oriented message for unauthorized project reads", async () => {
+    mockedUseRouter.mockReturnValue(
+      createRouter({
+        query: { projectId: "project-1" },
+      }) as never
+    );
+    mockedFetchWithAuth.mockResolvedValueOnce({
+      ok: false,
+      status: 401,
+      json: async () => ({ error: "Unauthorized" }),
+    } as Response);
+
+    const { result } = renderHook(() => useAiStudioProjectIdentity());
+
+    await waitFor(() => {
+      expect(result.current.status).toBe("error");
+    });
+
+    expect(result.current.error).toBe("Session expired. Retry project load.");
+    expect(result.current.project).toBeNull();
+  });
+
   it("patches the title through the project route and refreshes local project state", async () => {
     mockedUseRouter.mockReturnValue(
       createRouter({

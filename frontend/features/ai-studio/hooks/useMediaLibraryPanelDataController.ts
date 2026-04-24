@@ -45,6 +45,16 @@ type UseMediaLibraryPanelDataControllerResult = {
 const MEDIA_PAGE_SIZE = 36;
 const PROMPT_PAGE_SIZE = 36;
 const INFINITE_LOAD_BOTTOM_THRESHOLD_PX = 220;
+const MEDIA_FOLDER_UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+const normalizeRequestFolderId = (folderId: string): string => {
+  const normalizedFolderId = folderId.trim();
+  if (!normalizedFolderId || normalizedFolderId === "all_items") {
+    return "all_items";
+  }
+  return MEDIA_FOLDER_UUID_PATTERN.test(normalizedFolderId) ? normalizedFolderId : "all_items";
+};
 
 const resolveMediaKind = (itemType: MediaLibraryPanelItemType): MediaListMediaKind => {
   if (itemType === "images") return "images";
@@ -94,7 +104,11 @@ export const useMediaLibraryPanelDataController = ({
   const mediaCursorRef = React.useRef<MediaListCursor | null>(null);
   const promptCursorRef = React.useRef<PromptListCursor | null>(null);
 
-  const activeRowsScopeKey = `${activeFolderId}|${itemType}|${normalizedSearch}`;
+  const requestFolderId = React.useMemo(
+    () => normalizeRequestFolderId(activeFolderId),
+    [activeFolderId]
+  );
+  const activeRowsScopeKey = `${requestFolderId}|${itemType}|${normalizedSearch}`;
   const libraryTotalCount = mediaScopeCache.libraryTotalCount;
   const mediaHasMore = mediaScopeCache.hasMore;
   const promptHasMore = promptScopeCache.hasMore;
@@ -146,7 +160,7 @@ export const useMediaLibraryPanelDataController = ({
           limit: MEDIA_PAGE_SIZE,
           surface: "media-library-panel",
           profile: "expanded",
-          folderId: activeFolderId,
+          folderId: requestFolderId,
           projectId,
           includeLibraryTotalCount: true,
         });
@@ -185,11 +199,11 @@ export const useMediaLibraryPanelDataController = ({
       }
     },
     [
-      activeFolderId,
       activeRowsScopeKey,
       itemType,
       normalizedSearch,
       projectId,
+      requestFolderId,
       setError,
       setMediaRows,
       setMediaScopeCache,
@@ -215,7 +229,7 @@ export const useMediaLibraryPanelDataController = ({
       }
       try {
         const result = await fetchMediaPromptListPage({
-          folderId: activeFolderId,
+          folderId: requestFolderId,
           projectId,
           query: normalizedSearch,
           cursor: reset ? null : promptCursorRef.current,
@@ -255,10 +269,10 @@ export const useMediaLibraryPanelDataController = ({
       }
     },
     [
-      activeFolderId,
       activeRowsScopeKey,
       normalizedSearch,
       projectId,
+      requestFolderId,
       setError,
       setPromptRows,
       setPromptScopeCache,

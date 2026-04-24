@@ -33,7 +33,10 @@ import {
 import { VoicesPropertiesPanel } from "./VoicesPropertiesPanel";
 import { MediaLibraryPanel } from "./MediaLibraryPanel";
 import { ElementsPanel } from "./ElementsPanel";
-import type { VoicesPropertiesPanelProps } from "./VoicesPropertiesPanel";
+import type {
+  ActiveVoiceChangerSourceVideo,
+  VoicesPropertiesPanelProps,
+} from "./VoicesPropertiesPanel";
 import { useAiStudioShellResize } from "../hooks/useAiStudioShellResize";
 import { useAiStudioShellDndController } from "../hooks/useAiStudioShellDndController";
 import { useStylesLibraryDeletedStyleIdsPreference } from "../hooks/useStylesLibraryDeletedStyleIdsPreference";
@@ -648,6 +651,8 @@ export function AiStudioPageContent({
     createInitialPanelVisibility
   );
   const [selectedStyleId, setSelectedStyleId] = React.useState<string | null>(null);
+  const [activeVoiceChangerSourceVideo, setActiveVoiceChangerSourceVideo] =
+    React.useState<ActiveVoiceChangerSourceVideo | null>(null);
   const [selectedPresetId, setSelectedPresetId] = React.useState<ExpertEditPresetId | null>(null);
   const [uncontrolledExpertCreateMode, setUncontrolledExpertCreateMode] = React.useState<
     "standard" | "pulse"
@@ -865,6 +870,10 @@ export function AiStudioPageContent({
     [panelToggleAvailability]
   );
   const { activeCount } = useOutputCounts();
+  React.useEffect(() => {
+    if (selectedTool === "voice-changer") return;
+    setActiveVoiceChangerSourceVideo(null);
+  }, [selectedTool]);
   const isPerformanceDenseSession =
     FLAG_HIGH_DENSITY_SHELL_MODE && activeCount >= PERFORMANCE_DENSE_REFERENCE_COUNT;
   const minLeftWidthPx = isCharacterShellPanelOpen
@@ -1320,7 +1329,16 @@ export function AiStudioPageContent({
         case "sound-effects":
           return <SoundEffectsPropertiesPanel {...propertiesSoundEffects} />;
         case "voices":
-          return <VoicesPropertiesPanel selectedTool={selectedTool} {...propertiesVoices} />;
+          return (
+            <VoicesPropertiesPanel
+              selectedTool={selectedTool}
+              {...propertiesVoices}
+              onActiveVoiceChangerSourceVideoChange={(source) => {
+                setActiveVoiceChangerSourceVideo(source);
+                propertiesVoices?.onActiveVoiceChangerSourceVideoChange?.(source);
+              }}
+            />
+          );
         case "character":
           return characterPropertiesPanelContent;
         case "presets":
@@ -1413,6 +1431,19 @@ export function AiStudioPageContent({
       return false;
     },
   });
+  const detailModalContext =
+    selectedTool === "voice-changer" &&
+    detailModalOutput?.mode === "video" &&
+    activeVoiceChangerSourceVideo &&
+    (activeVoiceChangerSourceVideo.referenceOutputId === detailModalOutput.id ||
+      (activeVoiceChangerSourceVideo.referenceMediaId != null &&
+        detailModalOutput.savedMediaIds?.includes(activeVoiceChangerSourceVideo.referenceMediaId)))
+      ? {
+          activeVoiceChangerSourceVideo: {
+            aspect: activeVoiceChangerSourceVideo.aspect,
+          },
+        }
+      : null;
   return (
     <>
       <main
@@ -1552,6 +1583,7 @@ export function AiStudioPageContent({
       />
       <DetailModal
         output={detailModalOutput}
+        context={detailModalContext}
         onClose={onDetailClose}
         onUpdatePrompt={onUpdateOutputPrompt}
         onDeleteOutput={onDeleteOutput}

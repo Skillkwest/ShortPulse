@@ -34,6 +34,8 @@ export type VoiceChangerSource = {
   sourceUrl: string | null;
   objectUrl: string | null;
   storagePath: string | null;
+  referenceOutputId: string | null;
+  referenceMediaId: string | null;
   errorMessage: string | null;
   extractedFrom: {
     kind: "video";
@@ -43,6 +45,8 @@ export type VoiceChangerSource = {
     sourceUrl: string | null;
     storagePath: string | null;
     aspect: string | null;
+    referenceOutputId: string | null;
+    referenceMediaId: string | null;
   } | null;
 };
 
@@ -123,6 +127,8 @@ const createSourceFromFile = (file: File): VoiceChangerSource | null => {
     sourceUrl: objectUrl,
     objectUrl,
     storagePath: null,
+    referenceOutputId: null,
+    referenceMediaId: null,
     errorMessage: null,
     extractedFrom: null,
   };
@@ -194,10 +200,14 @@ const createSourceFromUrl = ({
   url,
   origin,
   fallbackName,
+  referenceOutputId = null,
+  referenceMediaId = null,
 }: {
   url: string;
   origin: VoiceChangerSourceOrigin;
   fallbackName: string;
+  referenceOutputId?: string | null;
+  referenceMediaId?: string | null;
 }): VoiceChangerSource | null => {
   const normalizedUrl = normalizeReferenceTransferUrlCandidate(url, { unwrapNextImage: false });
   if (!normalizedUrl || /^(?:blob:|data:)/i.test(normalizedUrl)) return null;
@@ -228,6 +238,8 @@ const createSourceFromUrl = ({
     sourceUrl: normalizedUrl,
     objectUrl: null,
     storagePath: null,
+    referenceOutputId,
+    referenceMediaId,
     errorMessage: null,
     extractedFrom: null,
   };
@@ -250,6 +262,8 @@ const createSourceFromTransfer = (transfer: DataTransfer): VoiceChangerSource | 
         url: candidate,
         origin: "reference-grid",
         fallbackName: "Reference Grid source",
+        referenceOutputId: internalPayload.outputId,
+        referenceMediaId: internalPayload.mediaId,
       });
       if (source) return source;
     }

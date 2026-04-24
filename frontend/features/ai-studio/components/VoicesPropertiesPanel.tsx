@@ -343,6 +343,36 @@ export type VoicesPropertiesPanelProps = {
   selectedTool?: ToolId | null;
   isGenerating?: boolean;
   onGenerate?: (request: VoicesGenerateRequest) => Promise<void> | void;
+  onActiveVoiceChangerSourceVideoChange?: (source: ActiveVoiceChangerSourceVideo | null) => void;
+};
+
+export type ActiveVoiceChangerSourceVideo = {
+  referenceOutputId: string | null;
+  referenceMediaId: string | null;
+  aspect: string | null;
+};
+
+const resolveActiveVoiceChangerSourceVideo = ({
+  source,
+  surfaceMode,
+}: {
+  source: VoiceChangerSource | null;
+  surfaceMode: VoicesSurfaceMode;
+}): ActiveVoiceChangerSourceVideo | null => {
+  if (surfaceMode !== "edit" || !source) return null;
+
+  const videoSource = source.extractedFrom
+    ? source.extractedFrom
+    : source.kind === "video"
+      ? source
+      : null;
+  if (!videoSource) return null;
+
+  return {
+    referenceOutputId: videoSource.referenceOutputId ?? null,
+    referenceMediaId: videoSource.referenceMediaId ?? null,
+    aspect: videoSource.aspect ?? null,
+  };
 };
 
 function VoicesSlider({
@@ -410,6 +440,7 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
   selectedTool = null,
   isGenerating = false,
   onGenerate,
+  onActiveVoiceChangerSourceVideoChange,
 }: VoicesPropertiesPanelProps) {
   const {
     voices: libraryVoices,
@@ -778,6 +809,8 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
               sourceUrl: stagedSourceUrl,
               storagePath: stagedStoragePath,
               aspect: stagedAspect,
+              referenceOutputId: initialSource.referenceOutputId,
+              referenceMediaId: initialSource.referenceMediaId,
             },
           });
 
@@ -833,6 +866,15 @@ export const VoicesPropertiesPanel = React.memo(function VoicesPropertiesPanel({
     }
     previousVoiceChangerSourceRef.current = voiceChangerSource;
   }, [voiceChangerSource]);
+
+  React.useEffect(() => {
+    onActiveVoiceChangerSourceVideoChange?.(
+      resolveActiveVoiceChangerSourceVideo({
+        source: voiceChangerSource,
+        surfaceMode,
+      })
+    );
+  }, [onActiveVoiceChangerSourceVideoChange, surfaceMode, voiceChangerSource]);
 
   React.useEffect(() => {
     return () => {

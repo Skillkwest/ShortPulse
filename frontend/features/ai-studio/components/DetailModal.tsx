@@ -19,6 +19,7 @@ import { AiStudioModalLayer, useAiStudioModalActivity } from "./modal-layer/AiSt
 
 type DetailModalProps = {
   output: StudioOutput | null;
+  context?: DetailModalContext | null;
   onClose: () => void;
   onUpdatePrompt: (id: string, prompt: string) => void;
   onDeleteOutput: (id: string) => void;
@@ -31,11 +32,18 @@ type DetailModalProps = {
   resolveCharacterAvatarUrlById?: (characterId: string | null | undefined) => string | null;
 };
 
+export type DetailModalContext = {
+  activeVoiceChangerSourceVideo?: {
+    aspect: string | null;
+  } | null;
+};
+
 /**
  * Renders the detail modal for a selected reference.
  */
 export function DetailModal({
   output,
+  context = null,
   onClose,
   onUpdatePrompt,
   onDeleteOutput,
@@ -50,6 +58,7 @@ export function DetailModal({
   return (
     <DetailModalContent
       output={output}
+      context={context}
       onClose={onClose}
       onUpdatePrompt={onUpdatePrompt}
       onDeleteOutput={onDeleteOutput}
@@ -68,6 +77,7 @@ type DetailModalContentProps = Omit<DetailModalProps, "output"> & {
 
 function DetailModalContent({
   output,
+  context = null,
   onClose,
   onUpdatePrompt,
   onDeleteOutput,
@@ -321,9 +331,13 @@ function DetailModalContent({
     !isNonGeneratedLoadedMedia &&
     normalizedAudioWorkflowLabel === "voice changer"
   );
+  const isActiveVoiceChangerSourceVideo = Boolean(
+    isVideoOutput && context?.activeVoiceChangerSourceVideo
+  );
+  const displayAspect = context?.activeVoiceChangerSourceVideo?.aspect ?? output?.aspect ?? null;
   const aspectStyle =
-    output?.aspect && output.aspect.includes(":")
-      ? { aspectRatio: output.aspect.replace(":", " / ") }
+    displayAspect && displayAspect.includes(":")
+      ? { aspectRatio: displayAspect.replace(":", " / ") }
       : undefined;
   const imageNaturalSize =
     loadedImageNaturalSize && outputId && loadedImageNaturalSize.outputId === outputId
@@ -341,7 +355,7 @@ function DetailModalContent({
     imagePanningByOutput && outputId && imagePanningByOutput.outputId === outputId
       ? imagePanningByOutput.value
       : false;
-  const outputAspectRatio = parseAspectRatio(output?.aspect);
+  const outputAspectRatio = parseAspectRatio(displayAspect);
   const previewAspectRatio =
     loadedPreviewAspect && outputId && loadedPreviewAspect.outputId === outputId
       ? loadedPreviewAspect.ratio
@@ -609,18 +623,21 @@ function DetailModalContent({
     return output?.model ?? modelLabelFromId ?? output?.modelId ?? null;
   }, [hasCharacterContext, isUploadedReference, output?.model, output?.modelId]);
   const metaPillItems = useMemo(() => {
+    if (isActiveVoiceChangerSourceVideo) {
+      return displayAspect ? ["voice changer", displayAspect] : ["voice changer"];
+    }
     if (isGeneratedPureAudioOutput && normalizedAudioWorkflowLabel) {
       return [normalizedAudioWorkflowLabel];
     }
     if (isGeneratedVoiceChangerVideoOutput && normalizedAudioWorkflowLabel) {
-      return output?.aspect
-        ? [normalizedAudioWorkflowLabel, output.aspect]
+      return displayAspect
+        ? [normalizedAudioWorkflowLabel, displayAspect]
         : [normalizedAudioWorkflowLabel];
     }
 
     const items: string[] = [mediaType];
-    if (!isNonGeneratedLoadedMedia && output?.aspect) {
-      items.push(output.aspect);
+    if (!isNonGeneratedLoadedMedia && displayAspect) {
+      items.push(displayAspect);
     }
     if (!isNonGeneratedLoadedMedia && uploadedHeaderFilename) {
       items.push(uploadedHeaderFilename);
@@ -631,13 +648,14 @@ function DetailModalContent({
     return items;
   }, [
     displayModelLabel,
+    displayAspect,
+    isActiveVoiceChangerSourceVideo,
     isGeneratedPureAudioOutput,
     isGeneratedVoiceChangerVideoOutput,
     isNonGeneratedLoadedMedia,
     isUploadedReference,
     mediaType,
     normalizedAudioWorkflowLabel,
-    output?.aspect,
     uploadedHeaderFilename,
   ]);
 

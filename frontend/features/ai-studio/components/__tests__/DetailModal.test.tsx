@@ -484,6 +484,34 @@ describe("DetailModal", () => {
     expect(headerPill?.textContent?.replace(/\s+/g, " ").trim()).toBe("voice changer/16:9");
   });
 
+  it("shows voice changer and the preserved aspect for an active staged source video", () => {
+    const { container } = render(
+      <DetailModal
+        output={{
+          ...baseOutput,
+          id: "source-video-1",
+          mode: "video",
+          aspect: "9:16",
+          mediaSource: "library",
+          prompt: "source-video.mp4",
+          previewUrl: "https://cdn.test/source-video.mp4",
+          mimeType: "video/mp4",
+        }}
+        context={{
+          activeVoiceChangerSourceVideo: {
+            aspect: "4:3",
+          },
+        }}
+        onClose={vi.fn()}
+        onUpdatePrompt={vi.fn()}
+        onDeleteOutput={vi.fn()}
+      />
+    );
+
+    const headerPill = container.querySelector(".art-modal-meta-pill");
+    expect(headerPill?.textContent?.replace(/\s+/g, " ").trim()).toBe("voice changer/4:3");
+  });
+
   it("keeps image mode previews as images when URL paths contain video-like segments", () => {
     const { container } = render(
       <DetailModal

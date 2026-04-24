@@ -803,6 +803,51 @@ describe("VoicesPropertiesPanel", () => {
     expect(screen.getByRole("button", { name: "Generate" })).toBeEnabled();
   });
 
+  it("preserves reference-grid source identity for the active voice changer source video", async () => {
+    const onActiveVoiceChangerSourceVideoChange = vi.fn();
+    render(
+      <VoicesPropertiesPanel
+        onActiveVoiceChangerSourceVideoChange={onActiveVoiceChangerSourceVideoChange}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("tab", { name: "Voice Changer" }));
+
+    const dropZone = screen.getByLabelText("Voice changer source drop zone");
+    const dataTransfer = {
+      types: [
+        "text/reference-origin",
+        "text/reference-output-id",
+        "text/reference-media-id",
+        "text/reference-url",
+        "text/reference-render-url",
+      ],
+      files: [],
+      getData: (type: string) =>
+        (
+          ({
+            "text/reference-origin": "ai-studio-reference-grid",
+            "text/reference-output-id": "output-123",
+            "text/reference-media-id": "media-456",
+            "text/reference-url": "https://cdn.shortpulse.test/renders/shot-01.mp4",
+            "text/reference-render-url": "https://cdn.shortpulse.test/renders/shot-01.mp4",
+          }) as Record<string, string>
+        )[type] ?? "",
+      dropEffect: "none",
+    };
+
+    fireEvent.dragOver(dropZone, { dataTransfer });
+    fireEvent.drop(dropZone, { dataTransfer });
+
+    await waitFor(() => {
+      expect(onActiveVoiceChangerSourceVideoChange).toHaveBeenLastCalledWith({
+        referenceOutputId: "output-123",
+        referenceMediaId: "media-456",
+        aspect: "9:16",
+      });
+    });
+  });
+
   it("accepts an internal reference-grid audio drop in voice changer mode", async () => {
     render(<VoicesPropertiesPanel />);
 

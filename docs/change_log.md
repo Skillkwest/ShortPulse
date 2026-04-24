@@ -3,6 +3,10 @@
 Add new work under `## Unreleased` at the top of this file. When promoting released work into dated sections, keep active dated headings in descending UTC order (newest first). Legacy imported entries below the legacy marker are preserved as historical notes and are not part of the enforced active chronology contract.
 
 ## Unreleased
+- Normalized legacy Pulse metadata to the guided runtime contract:
+  - active runtime boundaries now upgrade legacy `prompt_editor`, `activate_only`, and `apply_prompt` Pulse metadata to `workflow_gpt`, `activate_and_start`, and `chat_reply`,
+  - malformed or partial saved Pulse records now fall back to guided GPT-style defaults instead of prompt-editor defaults,
+  - authoritative Pulse docs now describe legacy metadata as compatibility input only rather than an active product mode.
 - `workflow_gpt` Pulse sessions now get explicit runtime-owned transition updates during active use:
   - starting a workflow Pulse seeds an immediate pending session snapshot before the first assistant reply returns,
   - sending a user reply through an active workflow Pulse now marks the session as `running` and appends the collected input before the next server step arrives,
@@ -36,11 +40,11 @@ Add new work under `## Unreleased` at the top of this file. When promoting relea
 - Pulse presets now support first-class runtime behavior instead of a prompt string only:
   - saved Pulse definitions persist `systemInstructions`, `runtimeMode`, `activationMode`, optional `starterAssistantMessage`, `outputMode`, and `memoryPolicy`,
   - the Pulse Presets Library and Create `More Presets` editor both author those fields,
-  - built-in starter Pulses and custom Pulses can now be configured as either `prompt_editor` or `workflow_gpt` behaviors.
+  - built-in starter Pulses and custom Pulses now resolve to the guided GPT-style Pulse contract at runtime.
 - Expert Create Pulse activation now supports custom-GPT-style workflow starts:
   - clicking a pinned `workflow_gpt` Pulse with `activate_and_start` immediately sends a hidden activation seed through `/api/ai/studio-agent`,
   - workflow Pulse turns are now allowed to return message-only assistant steps before a final prompt artifact,
-  - prompt-editor Pulses keep the existing `applyPrompt` contract.
+  - legacy `applyPrompt`-style Pulse metadata is treated as compatibility input rather than the active Pulse contract.
 - Pulse Presets Library built-in starter tiles are now editable directly by click instead of being treated as read-only.
 - Built-in Pulse edits persist as per-user overrides on the seeded preset ids and flow through the shared Create Pulse catalog, so renamed/reworded defaults show up immediately in the library, `More Presets`, and the pinned Create Pulse rail.
 - Persisted AI Studio Create Pulse runtime shell state in session snapshots:

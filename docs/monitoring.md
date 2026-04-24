@@ -38,7 +38,7 @@ Purpose: define how runtime incidents are captured, triaged, and resolved.
   - safety: `safety_outcome`, `safety_source`, `safety_fallback`, `policy_version`, `policy_schema_version`, `prompt_template_version`, `runtime_scope_key`, `profile_id`, `modality`, `category`, `decision_action`, `decision_source`, `provider_blocked`, `hard_floor_violation`, `rollback_triggered`
 - Pulse-specific interpretation:
   - `outcome_class=success_message` is the expected success class for guided `workflow_gpt` turns that ask the next question or return a final chat artifact.
-  - `outcome_class=success_prompt` is the expected success class for `prompt_editor` turns and any Pulse turn that intentionally resolves through `applyPrompt`.
+  - `outcome_class=success_prompt` should be treated as a backward-compatibility artifact path, not the normal Pulse runtime contract.
   - `outcome_class=fallback_infra`, `upstream_error`, `route_error`, `refusal_model`, and `refusal_safety` are the primary failure/fallback classes to monitor for Pulse regressions.
 - Activation, progression, and completion are tracked through authoritative `pulseWorkflowSession` state, not inferred from UI-only transcript parsing. The session object persists:
   - `presetId`

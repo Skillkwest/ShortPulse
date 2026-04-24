@@ -65,8 +65,9 @@ Prompt ownership rule:
   - Always uses the chat lane, even if Standard mode was previously set to chat-off raw mode.
   - Hides the inline chat-mode toggle while Pulse is active, then restores the prior Standard-mode chat preference when the user switches back.
   - Clicking a pinned Pulse activates hidden Pulse runtime metadata on `/api/ai/studio-agent` without mutating the visible Create composer.
-  - `prompt_editor` Pulses keep the prompt-refinement contract.
-  - `workflow_gpt` Pulses can auto-start on click when `activationMode="activate_and_start"` and may ask structured follow-up questions before emitting a final prompt artifact.
+  - Active Pulse behavior is normalized to the guided contract: `workflow_gpt`, `activate_and_start`, and `chat_reply`.
+  - Legacy `prompt_editor` / `activate_only` / `apply_prompt` metadata may still be accepted from older saved state, but it is compatibility input only and is normalized before runtime execution.
+  - Guided Pulses auto-start on click and may ask structured follow-up questions before emitting a final artifact.
 - **Direct OpenAI chat mode (Chat Mode ON + bypass flag enabled):**
   - Client still posts `/api/ai/studio-agent`, but always sets `directOpenAiBypass=true` for the Create/Text chat lane.
   - When the server gate is enabled, the route skips studio-agent orchestration and sends the raw message list directly to OpenAI with model `STUDIO_AGENT_DIRECT_OPENAI_MODEL ?? "gpt-5.4"`.

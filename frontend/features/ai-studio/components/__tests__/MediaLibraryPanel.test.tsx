@@ -724,13 +724,22 @@ describe("MediaLibraryPanel", () => {
       expect(screen.getByText("Campaign")).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByRole("tab", { name: "Images" }));
+    await act(async () => {
+      fireEvent.click(screen.getByRole("tab", { name: "Images" }));
+      await Promise.resolve();
+    });
     expect(screen.queryByText(/^Images \(/)).toBeNull();
 
-    fireEvent.click(screen.getByRole("tab", { name: "Videos" }));
+    await act(async () => {
+      fireEvent.click(screen.getByRole("tab", { name: "Videos" }));
+      await Promise.resolve();
+    });
     expect(screen.queryByText(/^Videos \(/)).toBeNull();
 
-    fireEvent.click(screen.getByRole("tab", { name: "Prompts" }));
+    await act(async () => {
+      fireEvent.click(screen.getByRole("tab", { name: "Prompts" }));
+      await Promise.resolve();
+    });
     expect(screen.queryByText(/^Prompts \(/)).toBeNull();
   });
 

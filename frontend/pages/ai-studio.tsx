@@ -1867,6 +1867,7 @@ export default function AiStudioPage() {
         onDetailSavePrompt={onDetailSavePrompt}
         onAddLibraryMediaReference={addLibraryMediaReference}
         onAddLibraryPromptReference={addLibraryPromptReference}
+        projectId={projectId}
         projectName={effectiveProjectName}
         onProjectNameCommit={handleProjectNameCommit}
         resolveMediaLibraryInternalDropItem={resolveMediaLibraryInternalDropItem}

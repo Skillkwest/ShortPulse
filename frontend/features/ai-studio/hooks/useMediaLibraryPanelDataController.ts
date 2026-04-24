@@ -14,6 +14,7 @@ import type { MediaFileRow, PromptRow } from "../logic/mediaLibraryModalModel";
 type MediaLibraryPanelItemType = "all" | "images" | "videos" | "audio" | "prompts";
 
 type UseMediaLibraryPanelDataControllerParams = {
+  projectId?: string | null;
   activeFolderId: string;
   itemType: MediaLibraryPanelItemType;
   normalizedSearch: string;
@@ -59,6 +60,7 @@ const waitForAnimationFrame = async (): Promise<void> => {
 };
 
 export const useMediaLibraryPanelDataController = ({
+  projectId = null,
   activeFolderId,
   itemType,
   normalizedSearch,
@@ -145,6 +147,7 @@ export const useMediaLibraryPanelDataController = ({
           surface: "media-library-panel",
           profile: "expanded",
           folderId: activeFolderId,
+          projectId,
           includeLibraryTotalCount: true,
         });
         if (!result) {
@@ -186,6 +189,7 @@ export const useMediaLibraryPanelDataController = ({
       activeRowsScopeKey,
       itemType,
       normalizedSearch,
+      projectId,
       setError,
       setMediaRows,
       setMediaScopeCache,
@@ -212,6 +216,7 @@ export const useMediaLibraryPanelDataController = ({
       try {
         const result = await fetchMediaPromptListPage({
           folderId: activeFolderId,
+          projectId,
           query: normalizedSearch,
           cursor: reset ? null : promptCursorRef.current,
           limit: PROMPT_PAGE_SIZE,
@@ -253,6 +258,7 @@ export const useMediaLibraryPanelDataController = ({
       activeFolderId,
       activeRowsScopeKey,
       normalizedSearch,
+      projectId,
       setError,
       setPromptRows,
       setPromptScopeCache,

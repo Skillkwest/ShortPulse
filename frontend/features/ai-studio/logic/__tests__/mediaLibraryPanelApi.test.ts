@@ -121,4 +121,93 @@ describe("mediaLibraryPanelApi transient retry hardening", () => {
     expect(fetchWithAuthMock).toHaveBeenCalledTimes(2);
     expect(folders.map((folder) => folder.id)).toEqual(["folder-1"]);
   });
+
+  it("uses project folder routes when a projectId is provided", async () => {
+    fetchWithAuthMock.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        folders: [
+          {
+            id: "folder-1",
+            name: "Campaign",
+            createdAt: "2026-03-01T00:00:00.000Z",
+            updatedAt: "2026-03-01T00:00:00.000Z",
+          },
+        ],
+      }),
+    });
+
+    await listMediaFolders("project-1");
+
+    expect(fetchWithAuthMock).toHaveBeenCalledWith(
+      "/api/projects/project-1/media/folders/list",
+      expect.objectContaining({
+        method: "GET",
+      })
+    );
+  });
+
+  it("uses project membership routes when a projectId is provided", async () => {
+    fetchWithAuthMock.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        action: "assign",
+        folderId: "folder-1",
+        sourceFolderId: null,
+        targetFolderId: "folder-1",
+        mediaAssigned: 1,
+        mediaUnassigned: 0,
+        promptsAssigned: 0,
+        promptsUnassigned: 0,
+        mediaDuplicates: 0,
+        promptDuplicates: 0,
+        mediaSkipped: 0,
+        promptSkipped: 0,
+      }),
+    });
+
+    await applyMediaFolderMembershipBatch(
+      {
+        action: "assign",
+        folderId: "folder-1",
+        mediaIds: ["media-1"],
+        promptIds: [],
+      },
+      "project-1"
+    );
+
+    expect(fetchWithAuthMock).toHaveBeenCalledWith(
+      "/api/projects/project-1/media/folders/membership-batch",
+      expect.objectContaining({
+        method: "POST",
+      })
+    );
+  });
+
+  it("includes projectId in prompt-list requests when provided", async () => {
+    fetchWithAuthMock.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        rows: [],
+        nextCursor: null,
+        hasMore: false,
+      }),
+    });
+
+    await fetchMediaPromptListPage({
+      folderId: "folder-1",
+      projectId: "project-1",
+      query: "",
+      cursor: null,
+      limit: 20,
+    });
+
+    expect(fetchWithAuthMock).toHaveBeenCalledWith(
+      "/api/media/prompts/list",
+      expect.objectContaining({
+        method: "POST",
+        body: expect.stringContaining('"projectId":"project-1"'),
+      })
+    );
+  });
 });

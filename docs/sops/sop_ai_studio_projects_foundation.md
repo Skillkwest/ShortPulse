@@ -1,10 +1,10 @@
 # SOP: AI Studio Projects Foundation
 
-Purpose: define the currently shipped Projects contract so dashboard handoff, API behavior, AI Studio route identity, and the current project-owned workspace snapshot boundary are documented in one authoritative operational reference instead of being spread across planning docs.
+Purpose: define the currently shipped Projects contract so dashboard handoff, API behavior, AI Studio route identity, project-scoped Media Library folder behavior, and the current project-owned workspace snapshot boundary are documented in one authoritative operational reference instead of being spread across planning docs.
 
 ## Scope
-- In scope: `projects` table foundation, authenticated project create/list/read/update-title/workspace routes, dashboard `New Project` handoff, dashboard saved-project cards, project-aware AI Studio entry, AI Studio project-title edits backed by `projects.title`, project-owned workspace snapshot read/write for project routes, project-owned media/prompt/generated-output association for save and reopen flows, and current `projectId` + `sid` coexistence behavior.
-- Out of scope: project-scoped Media Library folders, full live generated-output authority cutover outside the project workspace reopen path, and full legacy session cleanup.
+- In scope: `projects` table foundation, authenticated project create/list/read/update-title/workspace routes, authenticated project Media Library folder routes, dashboard `New Project` handoff, dashboard saved-project cards, project-aware AI Studio entry, AI Studio project-title edits backed by `projects.title`, project-owned workspace snapshot read/write for project routes, project-owned media/prompt/generated-output association for save and reopen flows, project-scoped Media Library custom folders and folder membership for saved media/prompts, and current `projectId` + `sid` coexistence behavior.
+- Out of scope: project-scoped `All Media`, project folder canvas cutover, full live generated-output authority cutover outside the shipped project route seams, and full legacy session cleanup.
 
 ## Current shipped contract
 1. The dashboard `New Project` action creates a real user-owned `projects` row before routing into AI Studio.
@@ -18,7 +18,9 @@ Purpose: define the currently shipped Projects contract so dashboard handoff, AP
 9. Project workspace saves also backfill project asset associations from restore-relevant `savedMediaIds` and `promptId` values already present in the snapshot.
 10. Project workspace saves now also backfill project-owned generation associations from restore-relevant `generationId` values already present in the snapshot.
 11. Project workspace reads now refresh generated-output delivery only from generation rows explicitly associated to that project.
-12. Project-scoped Media Library folders and broader live generated-output authority cleanup are not shipped yet.
+12. On project routes, the Media Library custom-folder area is scoped to the active project and does not bleed across projects.
+13. `All Media` remains the user-global inventory even on project routes.
+14. Project folder membership currently supports saved media and saved prompts; folder canvas authority and broader live generated-output authority cleanup are still follow-up work.
 
 ## Primary repo surfaces
 | Surface | Role |
@@ -29,10 +31,14 @@ Purpose: define the currently shipped Projects contract so dashboard handoff, AP
 | `frontend/pages/api/projects/create.ts` | Authenticated create route used by the dashboard handoff. |
 | `frontend/pages/api/projects/[projectId].ts` | Authenticated single-project item route for ownership checks and title updates. |
 | `frontend/pages/api/projects/[projectId]/workspace.ts` | Authenticated workspace route used by project-aware AI Studio restore/write. |
+| `frontend/pages/api/projects/[projectId]/media/folders/*.ts` | Authenticated project Media Library folder CRUD and membership routes. |
 | `frontend/pages/dashboard.tsx` | `New Project` UI entry plus recent-project cards that route into AI Studio with `projectId`. |
 | `frontend/pages/ai-studio.tsx` | Current AI Studio page entry where `projectId` coexists with legacy `sid`, gates restore on project resolution, routes visible title edits through project authority, and switches project routes onto project-owned workspace persistence. |
 | `frontend/features/ai-studio/hooks/useAiStudioProjectIdentity.ts` | Canonical client hook for `projectId` query resolution, owned-project fetch, and AI Studio title updates. |
 | `frontend/features/ai-studio/hooks/useAiStudioProjectWorkspacePersistenceController.ts` | Canonical client controller for project-owned workspace restore/apply and debounced save shadow. |
+| `frontend/lib/server/projectMediaFoldersService.ts` | Canonical server helper for project-owned Media Library custom folders and saved media/prompt membership operations. |
+| `frontend/pages/api/media/list.ts` | Shared Media Library media list route that now accepts optional `projectId` for project-folder membership resolution while keeping `All Media` global. |
+| `frontend/pages/api/media/prompts/list.ts` | Shared Media Library prompt list route that now accepts optional `projectId` for project-folder membership resolution while keeping `All Media` global. |
 | `frontend/features/ai-studio/logic/mediaLibraryPersistence.ts` | Canonical media/prompt save helper that now attaches saved assets to the active project while keeping the global library inventory user-scoped. |
 | `frontend/features/ai-studio/hooks/useAiStudioPersistenceActions.ts` | Canonical AI Studio save/autosave hook that associates already-saved outputs/prompts with the active project without reuploading them. |
 | `frontend/lib/server/projectWorkspaceStatesService.ts` | Canonical server helper for project-owned workspace read/write access and snapshot validation. |
@@ -41,6 +47,7 @@ Purpose: define the currently shipped Projects contract so dashboard handoff, AP
 | `docs/adr/0063-project-workspace-authority.md` | Durable architectural decision establishing project-owned workspace snapshot authority for project routes. |
 | `docs/adr/0064-project-asset-association-foundation.md` | Durable architectural decision establishing project-owned association tables over global media/prompt inventory. |
 | `docs/adr/0065-project-generated-output-association-and-restore-refresh.md` | Durable architectural decision establishing project-owned generated-output association for reopen-time delivery refresh. |
+| `docs/adr/0066-project-media-library-folder-authority.md` | Durable architectural decision establishing project-scoped Media Library custom folders while keeping `All Media` global. |
 
 ## Data model contract
 Current project row shape:
@@ -105,6 +112,21 @@ Behavior:
    - `404` for missing or non-owned project
    - `500` for unexpected server failure
 
+### `/api/projects/:projectId/media/folders/*`
+Behavior:
+1. Requires authenticated API user.
+2. Validates `projectId` format before project-folder access proceeds.
+3. Resolves the owned project before folder CRUD or membership proceeds.
+4. `GET /list` returns caller-owned custom folders for that project only.
+5. `POST /create|rename|move|delete` mutate only caller-owned folders for that project.
+6. `POST /membership-batch` assigns, unassigns, or moves saved media/prompt memberships between caller-owned folders for that project.
+7. These routes do not change `All Media`; they only own the custom-folder organization layer above it.
+8. Returns:
+   - `400` for invalid project id, invalid folder ids, or invalid membership actions
+   - `404` for missing or non-owned project/folder
+   - `409` for folder-name collisions, invalid hierarchy, or isolated character-scoped media assignment
+   - `500` for unexpected server failure
+
 ## Dashboard handoff workflow
 1. `/dashboard` loads recent caller-owned projects through `GET /api/projects?limit=3`.
 2. User clicks `New Project` or an existing project card on `/dashboard`.
@@ -134,6 +156,15 @@ Behavior:
 6. Project workspace reads refresh generated-output delivery only from `project_generation_items` + project-owned generation projection rows rather than scanning all user-global generated outputs.
 7. This does not yet make Media Library folder authority or every live generation read path fully project-scoped.
 
+## AI Studio Media Library folder authority
+1. `All Media` remains the canonical user-global Media Library inventory on project routes.
+2. The visible custom-folder area above `All Media` is now project-scoped on project routes.
+3. Folder CRUD on project routes uses `/api/projects/:projectId/media/folders/*`, not the legacy user-global folder routes.
+4. Folder-scoped media and prompt listing on project routes now passes `projectId` into `/api/media/list` and `/api/media/prompts/list` so folder contents resolve through project membership tables.
+5. Saved media and saved prompts can be assigned to project folders without duplicating the underlying `media_files` or `media_prompts` rows.
+6. Switching to a different project must not carry custom folders or folder membership across.
+7. Legacy user-global folder routes still exist for non-project surfaces while migration is in progress.
+
 ## Project asset association
 1. Global `media_files` and `media_prompts` remain the canonical user-owned inventory.
 2. Project routes now attach saved media to `project_media_items`, saved prompts to `project_prompt_items`, and restore-relevant generated outputs to `project_generation_items`.
@@ -144,14 +175,14 @@ Behavior:
 7. This association layer is additive; it does not change the visibility of `All Media` or other user-global library surfaces yet.
 
 ## Explicit non-goals for the current shipped foundation
-1. No project-scoped Media Library folder authority yet.
-2. No full live generated-output authority cutover yet outside the project workspace reopen path.
-3. No project-scoped library filtering/cutover for `All Media` yet.
+1. No project-scoped library filtering/cutover for `All Media` yet.
+2. No project folder canvas cutover yet.
+3. No full live generated-output authority cutover yet outside the shipped project workspace/project-route seams.
 4. No `sid` retirement yet.
 
 ## Source-of-truth guidance
 1. Use this SOP for the shipped Projects foundation contract.
-2. Use ADR 0062 for the durable identity decision, ADR 0063 for project workspace authority, ADR 0064 for project media/prompt asset association, and ADR 0065 for project generated-output association.
+2. Use ADR 0062 for the durable identity decision, ADR 0063 for project workspace authority, ADR 0064 for project media/prompt asset association, ADR 0065 for project generated-output association, and ADR 0066 for project Media Library folder authority.
 3. Use the `docs/planning/ai-studio-project-persistence-*.md` files only for future migration phases, not as the source of truth for already shipped behavior.
 
 ## Validation
@@ -163,6 +194,10 @@ Behavior:
 - `npm -C frontend run test -- features/ai-studio/hooks/__tests__/useAiStudioSessionRestoreHydration.test.ts`
 - `npm -C frontend run test -- features/ai-studio/hooks/__tests__/useAiStudioWorkflowSettings.test.ts`
 - `npm -C frontend run test -- features/ai-studio/logic/__tests__/mediaLibraryPersistence.test.ts`
+- `npm -C frontend run test -- tests/api/media-list.test.ts`
+- `npm -C frontend run test -- tests/api/media-prompts-list.test.ts`
+- `npm -C frontend run test -- features/ai-studio/logic/__tests__/mediaLibraryPanelApi.test.ts`
+- `npm -C frontend run test -- features/ai-studio/hooks/__tests__/useMediaLibraryFoldersState.test.tsx`
 - `npm -C frontend run test -- lib/server/__tests__/projectWorkspaceStatesService.test.ts`
 - `npm -C frontend run test -- features/ai-studio/logic/__tests__/sessionSnapshot.test.ts`
 - `npm -C frontend run test -- features/ai-studio/logic/__tests__/sessionSnapshotHydrator.test.ts`
@@ -171,5 +206,5 @@ Behavior:
 
 ## Follow-up lanes
 1. Cut generated-output authority over to project-owned seams.
-2. Replace the visible user-global Media Library folder authority with project-scoped folders in a later migration phase.
+2. Cut project folder canvas authority over from legacy user-scoped folders.
 3. Decide whether restore-time verification needs to enforce association completeness beyond the current workspace-save backstop.

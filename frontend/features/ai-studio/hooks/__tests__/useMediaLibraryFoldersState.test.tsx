@@ -117,4 +117,27 @@ describe("useMediaLibraryFoldersState", () => {
       expect(result.current.editingFolderId).toBe("folder-real");
     });
   });
+
+  it("passes projectId through folder load and create calls", async () => {
+    listMediaFoldersMock.mockResolvedValueOnce([]);
+    createMediaFolderMock.mockResolvedValueOnce({
+      id: "folder-project-real",
+      name: "New Folder",
+      parentFolderId: null,
+      createdAt: "2026-03-31T00:00:00.000Z",
+      updatedAt: "2026-03-31T00:00:00.000Z",
+    });
+
+    const { result } = renderHook(() => useMediaLibraryFoldersState("project-1"));
+
+    await waitFor(() => {
+      expect(listMediaFoldersMock).toHaveBeenCalledWith("project-1");
+    });
+
+    await act(async () => {
+      await result.current.createFolder();
+    });
+
+    expect(createMediaFolderMock).toHaveBeenCalledWith("New Folder", null, "project-1");
+  });
 });

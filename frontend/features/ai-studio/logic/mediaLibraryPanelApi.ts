@@ -186,13 +186,24 @@ const withTransientNetworkRetry = async <T>(
   throw lastError instanceof Error ? lastError : new Error("Unexpected Media Library retry error.");
 };
 
+const resolveProjectFolderApiPath = (
+  projectId: string | null | undefined,
+  suffix: string
+): string => {
+  const normalizedProjectId = typeof projectId === "string" ? projectId.trim() : "";
+  if (!normalizedProjectId) {
+    return `/api/media/folders/${suffix}`;
+  }
+  return `/api/projects/${encodeURIComponent(normalizedProjectId)}/media/folders/${suffix}`;
+};
+
 /**
  * Loads user-owned custom folders.
  */
-export const listMediaFolders = async (): Promise<MediaFolder[]> => {
+export const listMediaFolders = async (projectId?: string | null): Promise<MediaFolder[]> => {
   const response = await withTransientNetworkRetry(
     async () =>
-      await fetchWithAuth("/api/media/folders/list", {
+      await fetchWithAuth(resolveProjectFolderApiPath(projectId, "list"), {
         method: "GET",
         shortpulseLogScope: "app",
       })
@@ -228,9 +239,10 @@ export const listMediaFolders = async (): Promise<MediaFolder[]> => {
  */
 export const createMediaFolder = async (
   name: string,
-  parentFolderId: string | null = null
+  parentFolderId: string | null = null,
+  projectId?: string | null
 ): Promise<MediaFolder> => {
-  const response = await fetchWithAuth("/api/media/folders/create", {
+  const response = await fetchWithAuth(resolveProjectFolderApiPath(projectId, "create"), {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -264,11 +276,13 @@ export const createMediaFolder = async (
 export const renameMediaFolder = async ({
   folderId,
   name,
+  projectId,
 }: {
   folderId: string;
   name: string;
+  projectId?: string | null;
 }): Promise<MediaFolder> => {
-  const response = await fetchWithAuth("/api/media/folders/rename", {
+  const response = await fetchWithAuth(resolveProjectFolderApiPath(projectId, "rename"), {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -302,11 +316,13 @@ export const renameMediaFolder = async ({
 export const moveMediaFolder = async ({
   folderId,
   parentFolderId,
+  projectId,
 }: {
   folderId: string;
   parentFolderId: string | null;
+  projectId?: string | null;
 }): Promise<MediaFolder> => {
-  const response = await fetchWithAuth("/api/media/folders/move", {
+  const response = await fetchWithAuth(resolveProjectFolderApiPath(projectId, "move"), {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -337,8 +353,11 @@ export const moveMediaFolder = async ({
 /**
  * Deletes a folder.
  */
-export const deleteMediaFolder = async (folderId: string): Promise<void> => {
-  const response = await fetchWithAuth("/api/media/folders/delete", {
+export const deleteMediaFolder = async (
+  folderId: string,
+  projectId?: string | null
+): Promise<void> => {
+  const response = await fetchWithAuth(resolveProjectFolderApiPath(projectId, "delete"), {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -356,11 +375,12 @@ export const deleteMediaFolder = async (folderId: string): Promise<void> => {
  * Applies assign/unassign membership operations for media/prompt ids.
  */
 export const applyMediaFolderMembershipBatch = async (
-  input: MediaFolderMembershipBatch
+  input: MediaFolderMembershipBatch,
+  projectId?: string | null
 ): Promise<MediaFolderMembershipBatchResult> => {
   const response = await withTransientNetworkRetry(
     async () =>
-      await fetchWithAuth("/api/media/folders/membership-batch", {
+      await fetchWithAuth(resolveProjectFolderApiPath(projectId, "membership-batch"), {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -415,11 +435,13 @@ export const applyMediaFolderMembershipBatch = async (
  */
 export const fetchMediaPromptListPage = async ({
   folderId,
+  projectId,
   query,
   cursor,
   limit,
 }: {
   folderId: MediaFolderId;
+  projectId?: string | null;
   query: string;
   cursor: PromptListCursor | null;
   limit: number;
@@ -433,6 +455,8 @@ export const fetchMediaPromptListPage = async ({
         },
         body: JSON.stringify({
           folderId,
+          projectId:
+            typeof projectId === "string" && projectId.trim() ? projectId.trim() : undefined,
           query,
           cursor,
           limit,

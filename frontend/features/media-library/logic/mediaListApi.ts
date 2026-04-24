@@ -31,6 +31,7 @@ type FetchMediaListPageArgs = {
   surface: MediaListSurface;
   profile?: MediaListProfile;
   folderId?: string | null;
+  projectId?: string | null;
   mediaKind?: MediaListMediaKind | null;
   includeLibraryTotalCount?: boolean;
   fetcher?: typeof fetchWithAuth;
@@ -81,6 +82,7 @@ export const fetchMediaListPage = async <TRow>({
   surface,
   profile,
   folderId,
+  projectId,
   mediaKind,
   includeLibraryTotalCount,
   fetcher = fetchWithAuth,
@@ -99,6 +101,7 @@ export const fetchMediaListPage = async <TRow>({
         surface,
         profile,
         folderId: typeof folderId === "string" && folderId.trim() ? folderId.trim() : undefined,
+        projectId: typeof projectId === "string" && projectId.trim() ? projectId.trim() : undefined,
         mediaKind: mediaKind ?? undefined,
         includeLibraryTotalCount: includeLibraryTotalCount === true,
       }),

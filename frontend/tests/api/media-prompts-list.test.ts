@@ -4,6 +4,8 @@ import handler from "../../pages/api/media/prompts/list";
 const requireApiUserMock = vi.fn();
 const getSupabaseAdminMock = vi.fn();
 const logApiRouteExceptionMock = vi.fn();
+const getProjectForUserMock = vi.fn();
+const assertProjectMediaFolderAccessForUserMock = vi.fn();
 
 vi.mock("../../lib/server/api/auth", () => ({
   requireApiUser: (...args: unknown[]) => requireApiUserMock(...args),
@@ -15,6 +17,19 @@ vi.mock("../../lib/server/api/supabaseAdmin", () => ({
 
 vi.mock("../../lib/server/api/appErrorLogs", () => ({
   logApiRouteException: (...args: unknown[]) => logApiRouteExceptionMock(...args),
+}));
+
+vi.mock("../../lib/server/projectsService", async () => {
+  const actual = await vi.importActual("../../lib/server/projectsService");
+  return {
+    ...actual,
+    getProjectForUser: (...args: unknown[]) => getProjectForUserMock(...args),
+  };
+});
+
+vi.mock("../../lib/server/projectMediaFoldersService", () => ({
+  assertProjectMediaFolderAccessForUser: (...args: unknown[]) =>
+    assertProjectMediaFolderAccessForUserMock(...args),
 }));
 
 const createMockResponse = () => ({
@@ -34,6 +49,7 @@ type PromptRow = {
   folder_membership?: Array<{
     folder_id: string;
     user_id: string;
+    project_id?: string;
   }>;
 };
 
@@ -182,6 +198,8 @@ describe("POST /api/media/prompts/list", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     requireApiUserMock.mockResolvedValue({ id: "user-1" });
+    getProjectForUserMock.mockResolvedValue({ id: "11111111-1111-4111-8111-111111111111" });
+    assertProjectMediaFolderAccessForUserMock.mockResolvedValue(undefined);
   });
 
   it("returns 400 for invalid custom folder ids", async () => {
@@ -241,6 +259,31 @@ describe("POST /api/media/prompts/list", () => {
     expect(res.json).toHaveBeenCalledWith(
       expect.objectContaining({
         error: "Folder not found",
+      })
+    );
+  });
+
+  it("returns 400 for malformed project ids", async () => {
+    createSupabaseAdminMock([]);
+
+    const req = {
+      method: "POST",
+      body: {
+        folderId: "all_items",
+        projectId: "not-a-project-id",
+        query: "",
+        cursor: null,
+        limit: 10,
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        error: "Invalid project id",
       })
     );
   });
@@ -347,6 +390,72 @@ describe("POST /api/media/prompts/list", () => {
 
     await handler(req as never, res as never);
 
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        rows: [expect.objectContaining({ id: "prompt-2" })],
+        hasMore: false,
+        nextCursor: null,
+      })
+    );
+  });
+
+  it("filters project folders through project folder membership join semantics", async () => {
+    const projectId = "11111111-1111-4111-8111-111111111111";
+    const folderId = "2d6fc803-2289-47a9-9a07-063ebf2eec4f";
+    const rows: PromptRow[] = [
+      {
+        id: "prompt-2",
+        user_id: "user-1",
+        title: "Prompt Two",
+        prompt_text: "Prompt body two",
+        mode: "text",
+        source: "manual",
+        created_at: "2026-03-02T00:00:00.000Z",
+        updated_at: "2026-03-02T00:00:00.000Z",
+        folder_membership: [
+          {
+            folder_id: folderId,
+            user_id: "user-1",
+            project_id: projectId,
+          },
+        ],
+      },
+      {
+        id: "prompt-1",
+        user_id: "user-1",
+        title: "Prompt One",
+        prompt_text: "Prompt body one",
+        mode: "image",
+        source: "manual",
+        created_at: "2026-03-01T00:00:00.000Z",
+        updated_at: "2026-03-01T00:00:00.000Z",
+        folder_membership: [],
+      },
+    ];
+
+    createSupabaseAdminMock(rows);
+
+    const req = {
+      method: "POST",
+      body: {
+        folderId,
+        projectId,
+        query: "",
+        cursor: null,
+        limit: 10,
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(getProjectForUserMock).toHaveBeenCalledWith({ userId: "user-1", projectId });
+    expect(assertProjectMediaFolderAccessForUserMock).toHaveBeenCalledWith({
+      userId: "user-1",
+      projectId,
+      folderId,
+    });
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith(
       expect.objectContaining({

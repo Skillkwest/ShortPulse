@@ -5,6 +5,8 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { requireApiUser } from "../../../../lib/server/api/auth";
 import { logApiRouteException } from "../../../../lib/server/api/appErrorLogs";
+import { assertProjectMediaFolderAccessForUser } from "../../../../lib/server/projectMediaFoldersService";
+import { getProjectForUser, parseProjectId } from "../../../../lib/server/projectsService";
 import {
   isCustomMediaFolderId,
   MEDIA_LIBRARY_ROOT_FOLDER_ID,
@@ -78,6 +80,14 @@ const asFolderId = (value: unknown): string => {
   return folderId;
 };
 
+const asProjectId = (value: unknown): string | null => {
+  if (typeof value !== "string") return null;
+  return parseProjectId(value);
+};
+
+const hasProjectIdInput = (value: unknown): boolean =>
+  typeof value === "string" && value.trim().length > 0;
+
 const asCursor = (value: unknown): PromptListCursor | null => {
   if (!value || typeof value !== "object") return null;
   const raw = value as { createdAt?: unknown; id?: unknown };
@@ -143,11 +153,25 @@ const stripFolderMembershipRows = (
 const assertFolderAccess = async ({
   userId,
   folderId,
+  projectId,
 }: {
   userId: string;
   folderId: string;
+  projectId: string | null;
 }): Promise<void> => {
   if (folderId === MEDIA_LIBRARY_ROOT_FOLDER_ID) return;
+  if (projectId) {
+    const project = await getProjectForUser({ userId, projectId });
+    if (!project) {
+      throw new Error("Project not found");
+    }
+    await assertProjectMediaFolderAccessForUser({
+      userId,
+      projectId,
+      folderId,
+    });
+    return;
+  }
   if (!isCustomMediaFolderId(folderId)) {
     throw new Error("Invalid folder id");
   }
@@ -184,11 +208,15 @@ export default async function handler(
   try {
     const body = toRequestBody(req.body);
     const folderId = asFolderId(body.folderId);
+    const projectId = asProjectId(body.projectId);
+    if (hasProjectIdInput(body.projectId) && !projectId) {
+      return res.status(400).json({ error: "Invalid project id" });
+    }
     const query = normalizeSearchTerm(asString(body.query));
     const cursor = asCursor(body.cursor);
     const limit = clampLimit(body.limit);
 
-    await assertFolderAccess({ userId: user.id, folderId });
+    await assertFolderAccess({ userId: user.id, folderId, projectId });
 
     const supabaseAdmin = getSupabaseAdmin();
     const selectColumns = "id, title, prompt_text, mode, source, created_at, updated_at";
@@ -198,7 +226,9 @@ export default async function handler(
         .from("media_prompts")
         .select(
           folderScoped
-            ? `${selectColumns}, folder_membership:media_folder_prompt_items!media_folder_prompt_items_prompt_fk!inner(folder_id,user_id)`
+            ? projectId
+              ? `${selectColumns}, folder_membership:project_media_folder_prompt_items!project_media_folder_prompt_items_prompt_fk!inner(folder_id,user_id,project_id)`
+              : `${selectColumns}, folder_membership:media_folder_prompt_items!media_folder_prompt_items_prompt_fk!inner(folder_id,user_id)`
             : selectColumns
         )
         .eq("user_id", user.id);
@@ -206,6 +236,9 @@ export default async function handler(
         queryBuilder = queryBuilder
           .eq("folder_membership.folder_id", folderId)
           .eq("folder_membership.user_id", user.id);
+        if (projectId) {
+          queryBuilder = queryBuilder.eq("folder_membership.project_id", projectId);
+        }
       }
       if (query) {
         const wildcard = `*${query}*`;
@@ -284,6 +317,9 @@ export default async function handler(
       }
       if (error.message === "Folder not found") {
         return res.status(404).json({ error: "Folder not found" });
+      }
+      if (error.message === "Project not found") {
+        return res.status(404).json({ error: "Project not found" });
       }
     }
 

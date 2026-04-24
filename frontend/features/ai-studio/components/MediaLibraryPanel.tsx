@@ -3,7 +3,13 @@
  * Provides folder-aware browsing for media + prompts with adaptive preview/signing parity.
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ArrowsOutSimple, CheckCircle, FolderSimple, UploadSimple } from "phosphor-react";
+import {
+  ArrowsInCardinal,
+  ArrowsOutSimple,
+  CheckCircle,
+  FolderSimple,
+  UploadSimple,
+} from "phosphor-react";
 import { isAdaptiveSurfaceEnabled } from "../../../lib/adaptive-media";
 import { MEDIA_PREVIEW_SIGN_BATCH_MAX_ATTEMPTS_PER_ITEM } from "../../../lib/mediaPreviewRuntimePolicy";
 import { ensureSupabaseQueryClient, readSupabaseUserId } from "../../../lib/supabaseClient";
@@ -81,9 +87,12 @@ type MediaLibraryPanelProps = {
     fullUrl?: string | null;
   }) => void;
   onSelectPrompt: (payload: { id: string; promptText: string; title?: string | null }) => void;
+  projectId?: string | null;
   projectName?: string | null;
   onProjectNameCommit?: (value: string) => void;
+  isMediaLibraryPanelExpanded?: boolean;
   onExpandMediaLibraryPanel?: () => void;
+  onCollapseMediaLibraryPanel?: () => void;
   resolveInternalDropItem?: (payload: InternalReferenceDragPayload) => Promise<{
     kind: "media" | "prompt";
     id: string;
@@ -94,6 +103,7 @@ const FOLDER_CONTEXT_MENU_WIDTH_PX = 156;
 const FOLDER_CONTEXT_MENU_HEIGHT_PX = 84;
 const FOLDER_CONTEXT_MENU_VIEWPORT_PADDING_PX = 10;
 const MEMBERSHIP_MESSAGE_TIMEOUT_MS = 1800;
+const MEDIA_LIBRARY_FOLDERS_DEFAULT_TOP_RATIO = 0.3;
 const MEDIA_LIBRARY_FOLDERS_EXPANDED_GRID_TOP_HEIGHT_PX = 0;
 const MEDIA_LIBRARY_FOLDERS_COLLAPSE_TOP_HEIGHT_PX = 86;
 
@@ -113,9 +123,12 @@ const resolveSigningTab = (itemType: MediaLibraryPanelItemType): MediaDataTab =>
 export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
   onSelectMedia,
   onSelectPrompt,
+  projectId = null,
   projectName = null,
   onProjectNameCommit,
+  isMediaLibraryPanelExpanded = false,
   onExpandMediaLibraryPanel,
+  onCollapseMediaLibraryPanel,
   resolveInternalDropItem,
 }: MediaLibraryPanelProps) {
   const panelSurfaceConfig = getMediaLibrarySurfaceConfig("panel");
@@ -140,7 +153,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
     commitFolderRename,
     moveFolder,
     deleteFolder,
-  } = useMediaLibraryFoldersState();
+  } = useMediaLibraryFoldersState(projectId);
 
   const isRootFolderSelected = activeFolderId === MEDIA_LIBRARY_ROOT_FOLDER_ID;
   const [rootTab, setRootTab] = useState<RootMediaLibraryTab>("all");
@@ -156,6 +169,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
 
   const mediaDownloadInFlightRef = useRef<Record<string, boolean>>({});
   const rootUploadInputRef = useRef<HTMLInputElement | null>(null);
+  const expandedTopHeightPxRef = useRef<number | null>(null);
 
   const panelBodyRef = useRef<HTMLDivElement | null>(null);
   const splitContainerRef = useRef<HTMLDivElement | null>(null);
@@ -194,6 +208,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
     loadPromptPage,
     refreshActiveRows,
   } = useMediaLibraryPanelDataController({
+    projectId,
     activeFolderId,
     itemType,
     normalizedSearch,
@@ -212,6 +227,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
     handleRemoveItemFromActiveFolder,
     uploadDroppedFilesToFolder,
   } = useMediaLibraryPanelMutationController({
+    projectId,
     activeFolderId,
     folders,
     refreshActiveRows,
@@ -303,7 +319,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
   const foldersSplit = useReferenceGridHorizontalSplit({
     enabled: true,
     containerRef: splitContainerRef as React.MutableRefObject<HTMLElement | null>,
-    defaultTopRatio: 0.3,
+    defaultTopRatio: MEDIA_LIBRARY_FOLDERS_DEFAULT_TOP_RATIO,
     minTopSectionHeightPx: 0,
     minTopRatioFloor: 0,
     minBottomSectionHeightPx: 240,
@@ -1016,9 +1032,24 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
   }, [onProjectNameCommit, projectNameDraft]);
 
   const handleExpandMediaLibraryPanel = useCallback(() => {
+    if (isMediaLibraryPanelExpanded) return;
+    expandedTopHeightPxRef.current = foldersSplit.topSectionHeightPx;
     onExpandMediaLibraryPanel?.();
     foldersSplit.snapToAllRefsExpanded(MEDIA_LIBRARY_FOLDERS_EXPANDED_GRID_TOP_HEIGHT_PX);
-  }, [foldersSplit, onExpandMediaLibraryPanel]);
+  }, [foldersSplit, isMediaLibraryPanelExpanded, onExpandMediaLibraryPanel]);
+
+  const handleCollapseMediaLibraryPanel = useCallback(() => {
+    if (
+      typeof expandedTopHeightPxRef.current === "number" &&
+      Number.isFinite(expandedTopHeightPxRef.current)
+    ) {
+      foldersSplit.restoreTopSectionHeightPx(expandedTopHeightPxRef.current);
+    } else {
+      foldersSplit.restoreTopRatio(MEDIA_LIBRARY_FOLDERS_DEFAULT_TOP_RATIO);
+    }
+    expandedTopHeightPxRef.current = null;
+    onCollapseMediaLibraryPanel?.();
+  }, [foldersSplit, onCollapseMediaLibraryPanel]);
 
   const handleOpenRootUploadPicker = useCallback(() => {
     rootUploadInputRef.current?.click();
@@ -1266,14 +1297,25 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
                       <span className="media-library-panel-root-count-label">saved</span>
                     </div>
                   ) : null}
-                  <button
-                    type="button"
-                    className="media-library-panel-root-expand-button"
-                    aria-label="Expand media library panel"
-                    onClick={handleExpandMediaLibraryPanel}
-                  >
-                    <ArrowsOutSimple size={14} weight="bold" aria-hidden />
-                  </button>
+                  {isMediaLibraryPanelExpanded ? (
+                    <button
+                      type="button"
+                      className="media-library-panel-root-expand-button"
+                      aria-label="Collapse media library panel"
+                      onClick={handleCollapseMediaLibraryPanel}
+                    >
+                      <ArrowsInCardinal size={14} weight="bold" aria-hidden />
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      className="media-library-panel-root-expand-button"
+                      aria-label="Expand media library panel"
+                      onClick={handleExpandMediaLibraryPanel}
+                    >
+                      <ArrowsOutSimple size={14} weight="bold" aria-hidden />
+                    </button>
+                  )}
                 </div>
               </div>
             ) : null}

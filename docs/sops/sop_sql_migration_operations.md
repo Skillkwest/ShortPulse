@@ -140,6 +140,7 @@ Current set:
 - `091_add_project_workspace_states.sql`
 - `092_add_project_asset_associations.sql`
 - `093_add_project_generation_associations.sql`
+- `094_add_project_media_folders.sql`
 
 ### 3) Rollbacks (`sql/migrations/rollback/`)
 Use only when explicitly reverting a migration in a controlled window. Prefer targeted corrective forward SQL when possible.

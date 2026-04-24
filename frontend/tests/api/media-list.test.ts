@@ -5,6 +5,8 @@ const requireApiUserMock = vi.fn();
 const getSupabaseAdminMock = vi.fn();
 const logApiRouteExceptionMock = vi.fn();
 const resolveMediaSigningStoragePathsMock = vi.fn();
+const getProjectForUserMock = vi.fn();
+const assertProjectMediaFolderAccessForUserMock = vi.fn();
 
 vi.mock("../../lib/server/api/auth", () => ({
   requireApiUser: (...args: unknown[]) => requireApiUserMock(...args),
@@ -16,6 +18,19 @@ vi.mock("../../lib/server/api/supabaseAdmin", () => ({
 
 vi.mock("../../lib/server/api/appErrorLogs", () => ({
   logApiRouteException: (...args: unknown[]) => logApiRouteExceptionMock(...args),
+}));
+
+vi.mock("../../lib/server/projectsService", async () => {
+  const actual = await vi.importActual("../../lib/server/projectsService");
+  return {
+    ...actual,
+    getProjectForUser: (...args: unknown[]) => getProjectForUserMock(...args),
+  };
+});
+
+vi.mock("../../lib/server/projectMediaFoldersService", () => ({
+  assertProjectMediaFolderAccessForUser: (...args: unknown[]) =>
+    assertProjectMediaFolderAccessForUserMock(...args),
 }));
 
 vi.mock("../../lib/mediaPreviewPath", () => ({
@@ -44,6 +59,7 @@ type MediaRow = {
   folder_membership?: Array<{
     folder_id: string;
     user_id: string;
+    project_id?: string;
   }>;
 };
 
@@ -287,6 +303,8 @@ describe("POST /api/media/list", () => {
     resolveMediaSigningStoragePathsMock.mockImplementation((row: { storage_path: string }) => [
       row.storage_path,
     ]);
+    getProjectForUserMock.mockResolvedValue({ id: "11111111-1111-4111-8111-111111111111" });
+    assertProjectMediaFolderAccessForUserMock.mockResolvedValue(undefined);
   });
 
   afterEach(() => {
@@ -909,6 +927,32 @@ describe("POST /api/media/list", () => {
     );
   });
 
+  it("returns 400 for malformed project ids", async () => {
+    createSupabaseAdminMock([]);
+
+    const req = {
+      method: "POST",
+      body: {
+        mediaKind: "all",
+        query: "",
+        cursor: null,
+        limit: 36,
+        surface: "media-library-modal",
+        projectId: "not-a-project-id",
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        error: "Invalid project id",
+      })
+    );
+  });
+
   it("returns 404 when a custom folder is not found", async () => {
     getSupabaseAdminMock.mockReturnValue({
       from: vi.fn((table: string) => {
@@ -1021,6 +1065,87 @@ describe("POST /api/media/list", () => {
 
     await handler(req as never, res as never);
 
+    expect(res.status).toHaveBeenCalledWith(200);
+    const payload = res.json.mock.calls[0]?.[0];
+    expect(payload.rows.map((row: { id: string }) => row.id)).toEqual(["media-image-1"]);
+  });
+
+  it("filters project folders through project folder membership join semantics", async () => {
+    const projectId = "11111111-1111-4111-8111-111111111111";
+    const folderId = "2d6fc803-2289-47a9-9a07-063ebf2eec4f";
+    const rows: MediaRow[] = [
+      {
+        id: "media-image-1",
+        user_id: "user-1",
+        filename: "forest.png",
+        storage_path: "user-1/uploads/forest.png",
+        file_type: "image/png",
+        width: 1024,
+        height: 768,
+        file_size: 1234,
+        source: "upload",
+        source_ref: null,
+        prompt_id: null,
+        metadata: { alt: "Forest" },
+        thumb_variant_path: "user-1/variants/forest-thumb.webp",
+        poster_variant_path: null,
+        preview_variant_path: null,
+        created_at: "2026-02-20T10:00:00.000Z",
+        updated_at: null,
+        folder_membership: [
+          {
+            folder_id: folderId,
+            user_id: "user-1",
+            project_id: projectId,
+          },
+        ],
+      },
+      {
+        id: "media-image-2",
+        user_id: "user-1",
+        filename: "desert.png",
+        storage_path: "user-1/uploads/desert.png",
+        file_type: "image/png",
+        width: 1024,
+        height: 768,
+        file_size: 2234,
+        source: "upload",
+        source_ref: null,
+        prompt_id: null,
+        metadata: { alt: "Desert" },
+        thumb_variant_path: "user-1/variants/desert-thumb.webp",
+        poster_variant_path: null,
+        preview_variant_path: null,
+        created_at: "2026-02-19T10:00:00.000Z",
+        updated_at: null,
+        folder_membership: [],
+      },
+    ];
+
+    createSupabaseAdminMock(rows);
+
+    const req = {
+      method: "POST",
+      body: {
+        mediaKind: "images",
+        query: "",
+        cursor: null,
+        limit: 36,
+        surface: "media-library-modal",
+        folderId,
+        projectId,
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(getProjectForUserMock).toHaveBeenCalledWith({ userId: "user-1", projectId });
+    expect(assertProjectMediaFolderAccessForUserMock).toHaveBeenCalledWith({
+      userId: "user-1",
+      projectId,
+      folderId,
+    });
     expect(res.status).toHaveBeenCalledWith(200);
     const payload = res.json.mock.calls[0]?.[0];
     expect(payload.rows.map((row: { id: string }) => row.id)).toEqual(["media-image-1"]);

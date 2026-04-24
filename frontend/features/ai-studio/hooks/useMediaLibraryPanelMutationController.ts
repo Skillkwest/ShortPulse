@@ -39,6 +39,7 @@ export type PendingLibraryDeleteState =
     };
 
 type UseMediaLibraryPanelMutationControllerParams = {
+  projectId?: string | null;
   activeFolderId: string;
   folders: Array<{ id: string; name: string }>;
   refreshActiveRows: () => Promise<void>;
@@ -70,6 +71,7 @@ type UseMediaLibraryPanelMutationControllerResult = {
 };
 
 export const useMediaLibraryPanelMutationController = ({
+  projectId = null,
   activeFolderId,
   folders,
   refreshActiveRows,
@@ -88,12 +90,15 @@ export const useMediaLibraryPanelMutationController = ({
       setMembershipMessage(null);
       setFolderError(null);
       try {
-        await applyMediaFolderMembershipBatch({
-          folderId: activeFolderId,
-          action: "unassign",
-          mediaIds: item.kind === "media" ? [item.id] : [],
-          promptIds: item.kind === "prompt" ? [item.id] : [],
-        });
+        await applyMediaFolderMembershipBatch(
+          {
+            folderId: activeFolderId,
+            action: "unassign",
+            mediaIds: item.kind === "media" ? [item.id] : [],
+            promptIds: item.kind === "prompt" ? [item.id] : [],
+          },
+          projectId
+        );
         setMembershipMessage("Removed from this folder.");
         if (item.kind === "media") {
           setMediaRows((previous) => previous.filter((row) => row.id !== item.id));
@@ -106,7 +111,7 @@ export const useMediaLibraryPanelMutationController = ({
         );
       }
     },
-    [activeFolderId, setFolderError, setMediaRows, setMembershipMessage, setPromptRows]
+    [activeFolderId, projectId, setFolderError, setMediaRows, setMembershipMessage, setPromptRows]
   );
 
   const handleAssignItemToActiveFolder = React.useCallback(
@@ -115,12 +120,15 @@ export const useMediaLibraryPanelMutationController = ({
       setMembershipMessage(null);
       setFolderError(null);
       try {
-        await applyMediaFolderMembershipBatch({
-          folderId: activeFolderId,
-          action: "assign",
-          mediaIds: item.kind === "media" ? [item.id] : [],
-          promptIds: item.kind === "prompt" ? [item.id] : [],
-        });
+        await applyMediaFolderMembershipBatch(
+          {
+            folderId: activeFolderId,
+            action: "assign",
+            mediaIds: item.kind === "media" ? [item.id] : [],
+            promptIds: item.kind === "prompt" ? [item.id] : [],
+          },
+          projectId
+        );
         setMembershipMessage("Added to this folder.");
         await refreshActiveRows();
         return true;
@@ -131,7 +139,7 @@ export const useMediaLibraryPanelMutationController = ({
         return false;
       }
     },
-    [activeFolderId, refreshActiveRows, setFolderError, setMembershipMessage]
+    [activeFolderId, projectId, refreshActiveRows, setFolderError, setMembershipMessage]
   );
 
   const uploadDroppedFilesToFolder = React.useCallback(
@@ -181,12 +189,15 @@ export const useMediaLibraryPanelMutationController = ({
       }
 
       if (targetFolderId !== MEDIA_LIBRARY_ROOT_FOLDER_ID && uploadedRows.length > 0) {
-        await applyMediaFolderMembershipBatch({
-          action: "assign",
-          folderId: targetFolderId,
-          mediaIds: uploadedRows.map((row) => row.id),
-          promptIds: [],
-        });
+        await applyMediaFolderMembershipBatch(
+          {
+            action: "assign",
+            folderId: targetFolderId,
+            mediaIds: uploadedRows.map((row) => row.id),
+            promptIds: [],
+          },
+          projectId
+        );
       }
 
       const targetFolderName =
@@ -229,7 +240,15 @@ export const useMediaLibraryPanelMutationController = ({
       }
       return uploadedRows;
     },
-    [activeFolderId, folders, refreshActiveRows, setFolderError, setMediaRows, setMembershipMessage]
+    [
+      activeFolderId,
+      folders,
+      projectId,
+      refreshActiveRows,
+      setFolderError,
+      setMediaRows,
+      setMembershipMessage,
+    ]
   );
 
   const handleDeleteMediaFromLibrary = React.useCallback(

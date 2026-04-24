@@ -56,13 +56,23 @@ type UseMediaLibraryPanelMutationControllerResult = {
   resetDeleteConfirmState: () => void;
   closeDeleteConfirm: () => void;
   confirmDeleteFromLibrary: () => Promise<void>;
+  deleteMediaRowsFromLibrary: (rows: MediaFileRow[]) => Promise<boolean>;
   handleRemoveItemFromActiveFolder: (item: {
     kind: "media" | "prompt";
     id: string;
   }) => Promise<void>;
+  handleRemoveItemsFromActiveFolder: (items: {
+    mediaIds?: string[];
+    promptIds?: string[];
+  }) => Promise<boolean>;
   handleAssignItemToActiveFolder: (item: {
     kind: "media" | "prompt";
     id: string;
+  }) => Promise<boolean>;
+  handleMoveItemsToFolder: (items: {
+    mediaIds?: string[];
+    promptIds?: string[];
+    targetFolderId: string;
   }) => Promise<boolean>;
   uploadDroppedFilesToFolder: (params: {
     targetFolderId: string;
@@ -83,6 +93,77 @@ export const useMediaLibraryPanelMutationController = ({
   const [pendingLibraryDelete, setPendingLibraryDelete] =
     React.useState<PendingLibraryDeleteState | null>(null);
   const [deleteConfirmSubmitting, setDeleteConfirmSubmitting] = React.useState(false);
+
+  const runFolderMembershipBatch = React.useCallback(
+    async ({
+      action,
+      mediaIds = [],
+      promptIds = [],
+      targetFolderId,
+      successMessage,
+      sourceFolderId,
+    }: {
+      action: "assign" | "unassign" | "move";
+      mediaIds?: string[];
+      promptIds?: string[];
+      targetFolderId?: string;
+      successMessage: string;
+      sourceFolderId?: string;
+    }): Promise<boolean> => {
+      const normalizedMediaIds = Array.from(
+        new Set(mediaIds.map((id) => id.trim()).filter(Boolean))
+      );
+      const normalizedPromptIds = Array.from(
+        new Set(promptIds.map((id) => id.trim()).filter(Boolean))
+      );
+      if (!normalizedMediaIds.length && !normalizedPromptIds.length) return false;
+      setMembershipMessage(null);
+      setFolderError(null);
+      try {
+        if (action === "move") {
+          const normalizedTargetFolderId = targetFolderId?.trim() ?? "";
+          if (!normalizedTargetFolderId || normalizedTargetFolderId === activeFolderId) {
+            return false;
+          }
+          await applyMediaFolderMembershipBatch(
+            {
+              action,
+              sourceFolderId: sourceFolderId ?? activeFolderId,
+              targetFolderId: normalizedTargetFolderId,
+              mediaIds: normalizedMediaIds,
+              promptIds: normalizedPromptIds,
+            },
+            projectId
+          );
+        } else {
+          const normalizedFolderId =
+            (targetFolderId ?? activeFolderId ?? MEDIA_LIBRARY_ROOT_FOLDER_ID).trim() ||
+            MEDIA_LIBRARY_ROOT_FOLDER_ID;
+          if (normalizedFolderId === MEDIA_LIBRARY_ROOT_FOLDER_ID) {
+            return false;
+          }
+          await applyMediaFolderMembershipBatch(
+            {
+              action,
+              folderId: normalizedFolderId,
+              mediaIds: normalizedMediaIds,
+              promptIds: normalizedPromptIds,
+            },
+            projectId
+          );
+        }
+        setMembershipMessage(successMessage);
+        await refreshActiveRows();
+        return true;
+      } catch (membershipError) {
+        setFolderError(
+          toMediaLibraryErrorText(membershipError, "Unable to update folder membership.")
+        );
+        return false;
+      }
+    },
+    [activeFolderId, projectId, refreshActiveRows, setFolderError, setMembershipMessage]
+  );
 
   const handleRemoveItemFromActiveFolder = React.useCallback(
     async (item: { kind: "media" | "prompt"; id: string }) => {
@@ -114,6 +195,25 @@ export const useMediaLibraryPanelMutationController = ({
     [activeFolderId, projectId, setFolderError, setMediaRows, setMembershipMessage, setPromptRows]
   );
 
+  const handleRemoveItemsFromActiveFolder = React.useCallback(
+    async ({
+      mediaIds = [],
+      promptIds = [],
+    }: {
+      mediaIds?: string[];
+      promptIds?: string[];
+    }): Promise<boolean> => {
+      if (activeFolderId === MEDIA_LIBRARY_ROOT_FOLDER_ID) return false;
+      return await runFolderMembershipBatch({
+        action: "unassign",
+        mediaIds,
+        promptIds,
+        successMessage: "Removed from this folder.",
+      });
+    },
+    [activeFolderId, runFolderMembershipBatch]
+  );
+
   const handleAssignItemToActiveFolder = React.useCallback(
     async (item: { kind: "media" | "prompt"; id: string }): Promise<boolean> => {
       if (activeFolderId === MEDIA_LIBRARY_ROOT_FOLDER_ID) return false;
@@ -140,6 +240,41 @@ export const useMediaLibraryPanelMutationController = ({
       }
     },
     [activeFolderId, projectId, refreshActiveRows, setFolderError, setMembershipMessage]
+  );
+
+  const handleMoveItemsToFolder = React.useCallback(
+    async ({
+      mediaIds = [],
+      promptIds = [],
+      targetFolderId,
+    }: {
+      mediaIds?: string[];
+      promptIds?: string[];
+      targetFolderId: string;
+    }): Promise<boolean> => {
+      const normalizedTargetFolderId = targetFolderId.trim();
+      if (!normalizedTargetFolderId) return false;
+      const targetFolderName =
+        folders.find((folder) => folder.id === normalizedTargetFolderId)?.name ?? "folder";
+      if (activeFolderId === MEDIA_LIBRARY_ROOT_FOLDER_ID) {
+        return await runFolderMembershipBatch({
+          action: "assign",
+          mediaIds,
+          promptIds,
+          targetFolderId: normalizedTargetFolderId,
+          successMessage: `Added to ${targetFolderName}.`,
+        });
+      }
+      return await runFolderMembershipBatch({
+        action: "move",
+        mediaIds,
+        promptIds,
+        sourceFolderId: activeFolderId,
+        targetFolderId: normalizedTargetFolderId,
+        successMessage: `Moved to ${targetFolderName}.`,
+      });
+    },
+    [activeFolderId, folders, runFolderMembershipBatch]
   );
 
   const uploadDroppedFilesToFolder = React.useCallback(
@@ -271,6 +406,68 @@ export const useMediaLibraryPanelMutationController = ({
     [activeFolderId, setFolderError, setMediaRows, setMembershipMessage]
   );
 
+  const deleteMediaRowsFromLibrary = React.useCallback(
+    async (rows: MediaFileRow[]): Promise<boolean> => {
+      if (activeFolderId !== MEDIA_LIBRARY_ROOT_FOLDER_ID) return false;
+      const uniqueRows = Array.from(new Map(rows.map((row) => [row.id, row])).values());
+      if (!uniqueRows.length) return false;
+      setMembershipMessage(null);
+      setFolderError(null);
+      setDeleteConfirmSubmitting(true);
+      const deletedIds: string[] = [];
+      let firstError: unknown = null;
+
+      for (const row of uniqueRows) {
+        try {
+          await deleteMediaFileWithStorage(row);
+          deletedIds.push(row.id);
+          void logMediaEvent("delete", "media_file", row.id, {
+            storage_path: row.storage_path,
+            surface: "ai-studio-media-library-panel",
+          });
+        } catch (deleteError) {
+          if (firstError == null) {
+            firstError = deleteError;
+          }
+        }
+      }
+
+      if (deletedIds.length) {
+        const deletedIdSet = new Set(deletedIds);
+        setMediaRows((previous) => previous.filter((row) => !deletedIdSet.has(row.id)));
+      }
+
+      if (deletedIds.length === uniqueRows.length) {
+        setMembershipMessage(
+          deletedIds.length === 1
+            ? "Deleted 1 item from All Media."
+            : `Deleted ${deletedIds.length} items from All Media.`
+        );
+        setDeleteConfirmSubmitting(false);
+        return true;
+      }
+
+      if (deletedIds.length > 0) {
+        setMembershipMessage(
+          deletedIds.length === 1
+            ? "Deleted 1 item from All Media."
+            : `Deleted ${deletedIds.length} items from All Media.`
+        );
+      }
+      setFolderError(
+        toMediaLibraryErrorText(
+          firstError,
+          deletedIds.length
+            ? "Some selected media could not be deleted."
+            : "Unable to delete selected media."
+        )
+      );
+      setDeleteConfirmSubmitting(false);
+      return false;
+    },
+    [activeFolderId, setFolderError, setMediaRows, setMembershipMessage]
+  );
+
   const handleDeletePromptFromLibrary = React.useCallback(
     async (prompt: PromptRow) => {
       if (activeFolderId !== MEDIA_LIBRARY_ROOT_FOLDER_ID) return;
@@ -328,8 +525,11 @@ export const useMediaLibraryPanelMutationController = ({
     resetDeleteConfirmState,
     closeDeleteConfirm,
     confirmDeleteFromLibrary,
+    deleteMediaRowsFromLibrary,
     handleRemoveItemFromActiveFolder,
+    handleRemoveItemsFromActiveFolder,
     handleAssignItemToActiveFolder,
+    handleMoveItemsToFolder,
     uploadDroppedFilesToFolder,
   };
 };

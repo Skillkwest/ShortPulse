@@ -119,9 +119,13 @@ export const removeStoragePaths = async (paths: string[]): Promise<void> => {
 export const deleteMediaFileWithStorage = async (target: MediaDeleteTarget): Promise<void> => {
   const supabase = ensureSupabaseQueryClient();
   const deletePaths = await collectMediaStoragePathsForDelete([target]);
-  await removeStoragePaths(deletePaths);
   const { error: deleteError } = await supabase.from("media_files").delete().eq("id", target.id);
   if (deleteError) throw deleteError;
+  try {
+    await removeStoragePaths(deletePaths);
+  } catch (storageError) {
+    console.warn("Media storage cleanup failed after DB delete", storageError);
+  }
 };
 
 /**

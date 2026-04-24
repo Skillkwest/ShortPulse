@@ -1,5 +1,5 @@
 import React, { type MutableRefObject } from "react";
-import { DownloadSimple, X } from "phosphor-react";
+import { CheckCircle, DownloadSimple, X } from "phosphor-react";
 import { useMediaGridVideoBudgetController } from "../../../media-library/hooks/useMediaGridVideoBudgetController";
 import { useMediaMasonryVirtualization } from "../../../media-library/hooks/useMediaMasonryVirtualization";
 import { resolveMediaLibraryAdaptiveCardPreviewUrl } from "../../../media-library/logic/mediaLibraryAdaptivePreview";
@@ -37,6 +37,7 @@ type MediaLibraryMediaGridProps = {
   onMediaDoubleClick?: (file: MediaFileRow) => void;
   onMediaDragStart?: (event: React.DragEvent<HTMLButtonElement>, file: MediaFileRow) => void;
   onMediaDragEnd?: (event: React.DragEvent<HTMLButtonElement>, file: MediaFileRow) => void;
+  onToggleMediaSelection?: (file: MediaFileRow) => void;
   showRemoveAction?: boolean;
   onRemoveMediaFromFolder?: (file: MediaFileRow) => void;
   showDeleteAction?: boolean;
@@ -61,6 +62,7 @@ export function MediaLibraryMediaGrid({
   onMediaDoubleClick,
   onMediaDragStart,
   onMediaDragEnd,
+  onToggleMediaSelection,
   showRemoveAction = false,
   onRemoveMediaFromFolder,
   showDeleteAction = false,
@@ -141,8 +143,6 @@ export function MediaLibraryMediaGrid({
       detachDelayMs: 850,
       visibilityThreshold: 0.5,
     });
-  void selectedIds;
-
   return (
     <div
       ref={virtualContainerRef}
@@ -201,9 +201,34 @@ export function MediaLibraryMediaGrid({
           return (
             <div
               key={file.id}
-              className="media-library-modal-card media-library-panel-media-card-shell"
+              className={`media-library-modal-card media-library-panel-media-card-shell${
+                selectedIds.has(file.id) ? " is-active" : ""
+              }`}
               style={renderItem.style}
             >
+              {onToggleMediaSelection ? (
+                <button
+                  type="button"
+                  className={`media-library-panel-selection-toggle${
+                    selectedIds.has(file.id) ? " is-selected" : ""
+                  }`}
+                  aria-label={
+                    selectedIds.has(file.id)
+                      ? `Deselect ${file.filename || "media"}`
+                      : `Select ${file.filename || "media"}`
+                  }
+                  aria-pressed={selectedIds.has(file.id)}
+                  onClick={(event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    onToggleMediaSelection(file);
+                  }}
+                >
+                  {selectedIds.has(file.id) ? (
+                    <CheckCircle size={16} weight="fill" aria-hidden />
+                  ) : null}
+                </button>
+              ) : null}
               <button
                 type="button"
                 className="media-card media-library-panel-media-card-button"

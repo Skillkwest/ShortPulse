@@ -37,7 +37,8 @@ Keep the Media Library page visually aligned with Saved Creators and dashboard c
 ## Gallery Bulk Actions
 - Gallery action row supports selection controls plus bulk operations for media tabs.
 - `Move selected` appears for media tabs (not Saved Prompts) and opens a destination dropdown using the same move eligibility rules as modal move.
-- Bulk move requests are issued through `POST /api/media/move-batch` (single request, per-file results).
+- Bulk selection is visible-scope only. Search, tab, and view changes must prune any no-longer-visible selections before destructive actions can run.
+- Bulk move requests are issued through `POST /api/media/move-batch` in chunked batches, with per-file results reconciled into one UI outcome.
 - Bulk move is all-or-nothing per destination option:
   - Destination is enabled only when every selected media item is eligible for that tab.
   - Invalid options stay visible but disabled, with an inline reason.
@@ -45,6 +46,7 @@ Keep the Media Library page visually aligned with Saved Creators and dashboard c
   - Successfully moved files are removed from the source tab selection/grid.
   - Destination tab receives moved rows and becomes active on full-success moves when different from the source tab.
   - Partial failures surface an error while preserving unsuccessful selections for retry.
+- Bulk delete applies only to the current visible selected rows and must delete metadata first, then perform best-effort storage cleanup so library rows cannot survive with missing backing files.
 
 ## Upgrade Button (Need More Storage?)
 - Base color: brand amber `#F5B942` text, amber border/gradient, soft outer shadow.

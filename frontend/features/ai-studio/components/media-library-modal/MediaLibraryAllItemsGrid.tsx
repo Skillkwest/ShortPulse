@@ -1,5 +1,5 @@
 import React, { type MutableRefObject } from "react";
-import { DownloadSimple, X } from "phosphor-react";
+import { CheckCircle, DownloadSimple, X } from "phosphor-react";
 import { getSignedMediaUrlsBatch } from "../../../../lib/mediaSignedUrlCache";
 import { resolveVideoPosterSigningStoragePaths } from "../../../../lib/mediaPreviewPath";
 import { useMediaMasonryVirtualization } from "../../../media-library/hooks/useMediaMasonryVirtualization";
@@ -44,6 +44,7 @@ type MediaLibraryAllItemsGridProps = {
   onPromptDragStart?: (event: React.DragEvent<HTMLButtonElement>, prompt: PromptRow) => void;
   onMediaDragEnd?: (event: React.DragEvent<HTMLButtonElement>, file: MediaFileRow) => void;
   onPromptDragEnd?: (event: React.DragEvent<HTMLButtonElement>, prompt: PromptRow) => void;
+  onToggleMediaSelection?: (file: MediaFileRow) => void;
   showRemoveAction?: boolean;
   onRemoveMediaFromFolder?: (file: MediaFileRow) => void;
   onRemovePromptFromFolder?: (prompt: PromptRow) => void;
@@ -98,6 +99,7 @@ type MediaCardShellProps = {
   onMediaDoubleClick?: (file: MediaFileRow) => void;
   onMediaDragStart?: (event: React.DragEvent<HTMLButtonElement>, file: MediaFileRow) => void;
   onMediaDragEnd?: (event: React.DragEvent<HTMLButtonElement>, file: MediaFileRow) => void;
+  onToggleMediaSelection?: (file: MediaFileRow) => void;
   onMediaContextMenu?: (event: React.MouseEvent<HTMLButtonElement>, file: MediaFileRow) => void;
   onMediaPreviewError: (file: MediaFileRow, failedUrl?: string | null) => void;
   onMediaPaint: (assetKind: "image" | "video") => void;
@@ -125,6 +127,7 @@ function MediaLibraryAllItemsMediaCard({
   onMediaDoubleClick,
   onMediaDragStart,
   onMediaDragEnd,
+  onToggleMediaSelection,
   onMediaContextMenu,
   onMediaPreviewError,
   onMediaPaint,
@@ -175,6 +178,25 @@ function MediaLibraryAllItemsMediaCard({
         isSelected ? " is-active" : ""
       }`}
     >
+      {onToggleMediaSelection ? (
+        <button
+          type="button"
+          className={`media-library-panel-selection-toggle${isSelected ? " is-selected" : ""}`}
+          aria-label={
+            isSelected
+              ? `Deselect ${file.filename || "media"}`
+              : `Select ${file.filename || "media"}`
+          }
+          aria-pressed={isSelected}
+          onClick={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            onToggleMediaSelection(file);
+          }}
+        >
+          {isSelected ? <CheckCircle size={16} weight="fill" aria-hidden /> : null}
+        </button>
+      ) : null}
       <button
         type="button"
         className="media-card media-library-panel-media-card-button"
@@ -397,6 +419,7 @@ export function MediaLibraryAllItemsGrid({
   onPromptDragStart,
   onMediaDragEnd,
   onPromptDragEnd,
+  onToggleMediaSelection,
   showRemoveAction = false,
   onRemoveMediaFromFolder,
   onRemovePromptFromFolder,
@@ -733,6 +756,7 @@ export function MediaLibraryAllItemsGrid({
               onMediaDoubleClick={onMediaDoubleClick}
               onMediaDragStart={onMediaDragStart}
               onMediaDragEnd={onMediaDragEnd}
+              onToggleMediaSelection={onToggleMediaSelection}
               onMediaContextMenu={onMediaContextMenu}
               onMediaPreviewError={onMediaPreviewError}
               onMediaPaint={onMediaPaint}

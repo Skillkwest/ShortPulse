@@ -53,6 +53,16 @@ type MoveMediaBatchResponse<TRow extends BulkMoveMediaRowBase> = {
   }>;
 };
 
+const MOVE_BATCH_REQUEST_SIZE = 100;
+
+const chunkIds = (ids: string[], size: number): string[][] => {
+  const chunks: string[][] = [];
+  for (let start = 0; start < ids.length; start += size) {
+    chunks.push(ids.slice(start, start + size));
+  }
+  return chunks;
+};
+
 type UseMediaBulkMoveControllerArgs<TRow extends BulkMoveMediaRowBase> = {
   activeMediaTab: MediaDataTab | null;
   activeTabRef: MutableRefObject<MediaTab>;
@@ -141,29 +151,38 @@ export const useMediaBulkMoveController = <TRow extends BulkMoveMediaRowBase>({
       setError(null);
       try {
         const selectedById = new Map(selectedMediaRows.map((row) => [row.id, row]));
-        const response = await fetchWithAuth("/api/media/move-batch", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            fileIds: selectedMediaRows.map((row) => row.id),
-            destinationTab,
-          }),
-          shortpulseLogScope: "app",
-        });
-        if (!response.ok) {
-          const payload = (await response.json().catch(() => null)) as {
-            error?: string;
-            details?: string;
-          } | null;
-          throw new Error(
-            payload?.details ??
-              payload?.error ??
-              `Unable to move selected files (${response.status})`
-          );
+        const requestedFileIds = selectedMediaRows.map((row) => row.id);
+        const payloads: MoveMediaBatchResponse<TRow>[] = [];
+        for (const fileIdChunk of chunkIds(requestedFileIds, MOVE_BATCH_REQUEST_SIZE)) {
+          const response = await fetchWithAuth("/api/media/move-batch", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              fileIds: fileIdChunk,
+              destinationTab,
+            }),
+            shortpulseLogScope: "app",
+          });
+          if (!response.ok) {
+            const payload = (await response.json().catch(() => null)) as {
+              error?: string;
+              details?: string;
+            } | null;
+            throw new Error(
+              payload?.details ??
+                payload?.error ??
+                `Unable to move selected files (${response.status})`
+            );
+          }
+          payloads.push((await response.json()) as MoveMediaBatchResponse<TRow>);
         }
-        const payload = (await response.json()) as MoveMediaBatchResponse<TRow>;
+        const payload = {
+          destinationTab,
+          moved: payloads.flatMap((item) => item.moved),
+          failed: payloads.flatMap((item) => item.failed),
+        } satisfies Pick<MoveMediaBatchResponse<TRow>, "destinationTab" | "moved" | "failed">;
 
         for (const movedItem of payload.moved) {
           const previousRow = selectedById.get(movedItem.fileId);

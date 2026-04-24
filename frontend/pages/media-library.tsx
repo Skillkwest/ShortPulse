@@ -380,6 +380,15 @@ export default function MediaLibrary() {
       ? "file"
       : "files";
 
+  useEffect(() => {
+    if (!selectedIds.length) return;
+    const selectableIdSet = new Set(selectableIds);
+    setSelectedIds((prev) => {
+      const next = prev.filter((id) => selectableIdSet.has(id));
+      return next.length === prev.length ? prev : next;
+    });
+  }, [selectableIds, selectedIds.length]);
+
   const triggerFilePicker = () => {
     fileInputRef.current?.click();
   };

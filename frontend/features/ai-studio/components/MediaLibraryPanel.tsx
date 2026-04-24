@@ -1165,8 +1165,14 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
     !mediaLoading &&
     visiblePromptRows.length === 0 &&
     mediaRows.length === 0;
-  const activeFolderGridMediaRows = shouldShowMedia ? mediaRows : [];
-  const activeFolderGridPromptRows = shouldShowPrompts ? visiblePromptRows : [];
+  const activeFolderGridMediaRows = useMemo(
+    () => (shouldShowMedia ? mediaRows : []),
+    [mediaRows, shouldShowMedia]
+  );
+  const activeFolderGridPromptRows = useMemo(
+    () => (shouldShowPrompts ? visiblePromptRows : []),
+    [shouldShowPrompts, visiblePromptRows]
+  );
   const showActiveFolderUnifiedGrid =
     !showCustomFolderEmptyState &&
     (activeFolderGridMediaRows.length > 0 || activeFolderGridPromptRows.length > 0);

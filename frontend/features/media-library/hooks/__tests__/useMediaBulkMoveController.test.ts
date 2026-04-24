@@ -233,6 +233,131 @@ describe("useMediaBulkMoveController", () => {
     expect(logMediaPerfMock).not.toHaveBeenCalled();
   });
 
+  it("chunks large bulk moves across multiple requests", async () => {
+    const firstBatchMoved = Array.from({ length: 100 }, (_, index) => ({
+      fileId: `file-${index + 1}`,
+      file: makeRow({
+        id: `file-${index + 1}`,
+        filename: `file-${index + 1}.png`,
+        source: "private_upload",
+        storage_path: `user/private/images/file-${index + 1}.png`,
+      }),
+      fromTab: "uploaded_images" as const,
+      toTab: "private" as const,
+      previousStoragePath: `user/images/file-${index + 1}.png`,
+      nextStoragePath: `user/private/images/file-${index + 1}.png`,
+    }));
+    fetchWithAuthMock
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          destinationTab: "private",
+          moved: firstBatchMoved,
+          failed: [],
+        }),
+      } as never)
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          destinationTab: "private",
+          moved: [
+            {
+              fileId: "file-101",
+              file: makeRow({
+                id: "file-101",
+                filename: "file-101.png",
+                source: "private_upload",
+                storage_path: "user/private/images/file-101.png",
+              }),
+              fromTab: "uploaded_images",
+              toTab: "private",
+              previousStoragePath: "user/images/file-101.png",
+              nextStoragePath: "user/private/images/file-101.png",
+            },
+          ],
+          failed: [],
+        }),
+      } as never);
+    getSignedMediaUrlsBatchMock.mockResolvedValue(new Map());
+
+    const { result } = renderHook(() => {
+      const [activeTab, setActiveTab] = useState<
+        "uploaded_images" | "uploaded_videos" | "private" | "saved_prompts" | "ai_generations"
+      >("uploaded_images");
+      const activeTabRef = useRef(activeTab);
+      useEffect(() => {
+        activeTabRef.current = activeTab;
+      }, [activeTab]);
+      const [bulkMoveError, setBulkMoveError] = useState<string | null>(null);
+      const [, setBulkMoveNotice] = useState<string | null>(null);
+      const [, setBulkMoveMenuOpen] = useState(true);
+      const [bulkMoving, setBulkMoving] = useState(false);
+      const [, setError] = useState<string | null>(null);
+      const [files, setFiles] = useState<Row[]>(
+        Array.from({ length: 101 }, (_, index) =>
+          makeRow({
+            id: `file-${index + 1}`,
+            filename: `file-${index + 1}.png`,
+            storage_path: `user/images/file-${index + 1}.png`,
+          })
+        )
+      );
+      const [, setFocusedFile] = useState<Row | null>(makeRow());
+      const [selectedIds, setSelectedIds] = useState(
+        Array.from({ length: 101 }, (_, index) => `file-${index + 1}`)
+      );
+
+      const bulk = useMediaBulkMoveController({
+        activeMediaTab: "uploaded_images",
+        activeTabRef,
+        applyMovedFilesToCaches: vi.fn(),
+        bulkDeleting: false,
+        bulkMoving,
+        currentUserIdRef: { current: "user-1" },
+        files,
+        getErrorMessage,
+        selectedIds,
+        setActiveTab,
+        setBulkMoveError,
+        setBulkMoveMenuOpen,
+        setBulkMoveNotice,
+        setBulkMoving,
+        setError,
+        setFiles,
+        setFocusedFile,
+        setSelectedIds,
+      });
+
+      return {
+        bulk,
+        bulkMoveError,
+      };
+    });
+
+    await act(async () => {
+      await result.current.bulk.moveSelectedFiles("private");
+    });
+
+    expect(fetchWithAuthMock).toHaveBeenCalledTimes(2);
+    expect(fetchWithAuthMock.mock.calls[0]?.[1]).toEqual(
+      expect.objectContaining({
+        body: JSON.stringify({
+          fileIds: Array.from({ length: 100 }, (_, index) => `file-${index + 1}`),
+          destinationTab: "private",
+        }),
+      })
+    );
+    expect(fetchWithAuthMock.mock.calls[1]?.[1]).toEqual(
+      expect.objectContaining({
+        body: JSON.stringify({
+          fileIds: ["file-101"],
+          destinationTab: "private",
+        }),
+      })
+    );
+    expect(result.current.bulkMoveError).toBeNull();
+  });
+
   it("surfaces request failures as bulk move errors", async () => {
     fetchWithAuthMock.mockResolvedValue({
       ok: false,

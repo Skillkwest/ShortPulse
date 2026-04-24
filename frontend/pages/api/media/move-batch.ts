@@ -43,7 +43,7 @@ type MoveBatchErrorResponse = {
   details?: string;
 };
 
-const MAX_MOVE_BATCH_SIZE = 40;
+const MAX_MOVE_BATCH_SIZE = 100;
 
 const toRequestBody = (body: unknown): Record<string, unknown> => {
   if (typeof body === "string") {

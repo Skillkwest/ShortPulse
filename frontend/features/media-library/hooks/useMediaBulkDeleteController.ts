@@ -179,7 +179,6 @@ export const useMediaBulkDeleteController = <
           }
 
           const paths = await collectMediaStoragePathsForDelete(targets);
-          await removeStoragePaths(paths);
           const { error: deleteError } = await supabase
             .from("media_files")
             .delete()
@@ -195,6 +194,11 @@ export const useMediaBulkDeleteController = <
           });
           markInactiveMediaCachesStale(activeMediaTab);
           void refreshStorageUsageBytes();
+          try {
+            await removeStoragePaths(paths);
+          } catch (storageError) {
+            console.warn("Bulk media storage cleanup failed after DB delete", storageError);
+          }
         }
 
         return true;

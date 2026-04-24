@@ -122,7 +122,9 @@ vi.mock("../../logic/mediaLibraryPanelApi", async () => {
 vi.mock("../media-library-modal/MediaLibraryMediaGrid", () => ({
   MediaLibraryMediaGrid: (props: {
     activeMedia: Array<{ id: string; filename: string }>;
+    selectedIds: Set<string>;
     onSelectMediaFile: (row: { id: string; filename: string }) => void;
+    onToggleMediaSelection?: (row: { id: string; filename: string }) => void;
     onMediaDoubleClick?: (row: { id: string; filename: string }) => void;
     resolveCardPreviewUrl?: (args: {
       signedUrl: string | null | undefined;
@@ -164,6 +166,11 @@ vi.mock("../media-library-modal/MediaLibraryMediaGrid", () => ({
             <button type="button" onClick={() => props.onSelectMediaFile(row)}>
               Select media {row.filename}
             </button>
+            {props.onToggleMediaSelection ? (
+              <button type="button" onClick={() => props.onToggleMediaSelection?.(row)}>
+                Toggle media selection {row.filename}
+              </button>
+            ) : null}
             {props.onMediaDoubleClick ? (
               <button type="button" onDoubleClick={() => props.onMediaDoubleClick?.(row)}>
                 Open preview media {row.filename}
@@ -205,6 +212,7 @@ vi.mock("../media-library-modal/MediaLibraryAllItemsGrid", () => ({
     promptRows: Array<{ id: string; title: string | null; prompt_text: string }>;
     selectedIds: Set<string>;
     onSelectMediaFile: (row: { id: string; filename: string }) => void;
+    onToggleMediaSelection?: (row: { id: string; filename: string }) => void;
     onSelectPromptCard: (row: { id: string; title: string | null; prompt_text: string }) => void;
     onMediaDoubleClick?: (row: { id: string; filename: string }) => void;
     resolveCardPreviewUrl?: (args: {
@@ -257,6 +265,11 @@ vi.mock("../media-library-modal/MediaLibraryAllItemsGrid", () => ({
             <button type="button" onClick={() => props.onSelectMediaFile(row)}>
               Select media {row.filename}
             </button>
+            {props.onToggleMediaSelection ? (
+              <button type="button" onClick={() => props.onToggleMediaSelection?.(row)}>
+                Toggle media selection {row.filename}
+              </button>
+            ) : null}
             {props.onMediaDoubleClick ? (
               <button type="button" onDoubleClick={() => props.onMediaDoubleClick?.(row)}>
                 Open preview media {row.filename}
@@ -516,7 +529,7 @@ describe("MediaLibraryPanel", () => {
     );
   });
 
-  it("loads folders + media data and keeps media click as selection-only", async () => {
+  it("loads folders + media data and keeps media click free of ingest side effects", async () => {
     const onSelectMedia = vi.fn();
     const onSelectPrompt = vi.fn();
     render(<MediaLibraryPanel onSelectMedia={onSelectMedia} onSelectPrompt={onSelectPrompt} />);
@@ -875,7 +888,7 @@ describe("MediaLibraryPanel", () => {
       expect(screen.getByRole("button", { name: "Select media ref-1.png" })).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByRole("button", { name: "Select media ref-1.png" }));
+    fireEvent.click(screen.getByRole("button", { name: "Toggle media selection ref-1.png" }));
 
     await waitFor(() => {
       const latestProps = allItemsGridPropsSpy.mock.calls.at(-1)?.[0];
@@ -891,7 +904,7 @@ describe("MediaLibraryPanel", () => {
       expect(screen.getByRole("button", { name: "Select media ref-1.png" })).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByRole("button", { name: "Select media ref-1.png" }));
+    fireEvent.click(screen.getByRole("button", { name: "Toggle media selection ref-1.png" }));
 
     await waitFor(() => {
       const latestProps = allItemsGridPropsSpy.mock.calls.at(-1)?.[0];
@@ -910,6 +923,80 @@ describe("MediaLibraryPanel", () => {
       const latestProps = mediaGridPropsSpy.mock.calls.at(-1)?.[0];
       expect(latestProps?.selectedIds).toBeInstanceOf(Set);
       expect(latestProps?.selectedIds.size).toBe(0);
+    });
+  });
+
+  it("bulk moves selected media into a project folder from All Media", async () => {
+    render(<MediaLibraryPanel onSelectMedia={vi.fn()} onSelectPrompt={vi.fn()} />);
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole("button", { name: "Toggle media selection ref-1.png" })
+      ).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Toggle media selection ref-1.png" }));
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole("region", { name: "Bulk media actions for 1 selected item" })
+      ).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Move to folder" }));
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole("dialog", { name: "Move 1 selected media items" })
+      ).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "All Media > Campaign" }));
+
+    await waitFor(() => {
+      expect(applyMediaFolderMembershipBatchMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          action: "assign",
+          folderId: "folder-1",
+          mediaIds: ["media-1"],
+          promptIds: [],
+        }),
+        null
+      );
+    });
+  });
+
+  it("bulk deletes selected media from All Media after confirmation", async () => {
+    render(<MediaLibraryPanel onSelectMedia={vi.fn()} onSelectPrompt={vi.fn()} />);
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole("button", { name: "Toggle media selection ref-1.png" })
+      ).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Toggle media selection ref-1.png" }));
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole("region", { name: "Bulk media actions for 1 selected item" })
+      ).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Delete from library" }));
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole("dialog", { name: "Confirm bulk delete from All Media" })
+      ).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Yes, delete" }));
+
+    await waitFor(() => {
+      expect(deleteMediaFileWithStorageMock).toHaveBeenCalledWith(
+        expect.objectContaining({ id: "media-1" })
+      );
     });
   });
 

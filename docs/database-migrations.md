@@ -206,7 +206,8 @@ If enabling AI Studio Fal reliability rollout (modular submit/retrieval + reconc
 92. `sql/migrations/092_add_project_asset_associations.sql`
 93. `sql/migrations/093_add_project_generation_associations.sql`
 94. `sql/migrations/094_add_project_media_folders.sql`
-95. Rollback files:
+95. `sql/migrations/095_add_project_media_folder_canvas_states.sql`
+96. Rollback files:
     - `sql/migrations/rollback/019_add_generation_recovery_fields_rollback.sql`
     - `sql/migrations/rollback/020_generation_runtime_convergence_rollback.sql`
     - `sql/migrations/rollback/021_generation_state_machine_constraints_rollback.sql`
@@ -259,6 +260,7 @@ If enabling AI Studio Fal reliability rollout (modular submit/retrieval + reconc
     - `sql/migrations/rollback/092_add_project_asset_associations_rollback.sql`
     - `sql/migrations/rollback/093_add_project_generation_associations_rollback.sql`
     - `sql/migrations/rollback/094_add_project_media_folders_rollback.sql`
+    - `sql/migrations/rollback/095_add_project_media_folder_canvas_states_rollback.sql`
 
 Billing safety note:
 - Migration `013_fix_generation_reservation_rpc_ambiguity.sql` is required to avoid
@@ -319,6 +321,7 @@ Billing safety note:
 - Migration `067_add_admin_user_health_fleet_automation.sql` adds scheduled admin fleet-risk snapshot persistence and service-role maintenance RPC posture for the admin-user-health control plane.
 - Migration `068_add_character_media_assets_isolation.sql` adds `character_media_assets`, dual-reference compatibility columns (`character_media_id`) on Character Manager linkage tables, containment-safe integrity checks, and backfill for slot/quickswap/profile/preset character assets.
 - Migration `069_harden_provider_attached_stale_cleanup_execute_grants.sql` hardens `release_stale_provider_attached_generation_reservations` execute posture to service-role-only.
+- Migration `095_add_project_media_folder_canvas_states.sql` adds `project_media_folder_canvas_states` so Media Library custom-folder canvas snapshots can persist by `user_id + project_id + folder_id` on project routes while the legacy user-scoped folder canvas table remains in place for non-project surfaces.
 - Read-only performance diagnostics script `sql/check_media_preview_variant_coverage_and_size.sql` reports source-class counts, variant-hint coverage, and p50/p90 size distributions for Media Library preview-risk triage.
 - Read-only derivative backlog diagnostics script `sql/check_media_derivative_processing_backlog.sql` reports image-row processing status/attempt distributions and top retry/exhausted candidates.
 - Read-only Character Media V2 diagnostics script `sql/check_character_media_isolation_backfill.sql` reports `character_media_assets` coverage, unmapped legacy linkage rows, and profile/preset metadata completeness.

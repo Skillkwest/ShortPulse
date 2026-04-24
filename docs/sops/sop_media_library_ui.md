@@ -94,7 +94,7 @@ For operational runbooks and tuning procedures, see `docs/sops/sop_media_perform
   - Double-clicking media in `All Media` opens a preview-only detail modal (no ingest side effects).
 - Folder canvas contract (custom folders, always enabled):
   - Custom folder body can mount a dedicated folder-scoped canvas surface with independent camera + scene persistence.
-  - Folder canvas snapshots persist by `user_id + folder_id` through `/api/ai/media-folder-canvas/[folderId]` and `/api/ai/media-folder-canvas/save`.
+  - Folder canvas snapshots follow the active folder authority boundary: non-project surfaces persist by `user_id + folder_id` through `/api/ai/media-folder-canvas/[folderId]` and `/api/ai/media-folder-canvas/save`, while project routes persist by `user_id + project_id + folder_id` through `GET|PUT /api/projects/:projectId/media/folders/:folderId/canvas`.
   - Right-click on folder-canvas items copies media/text references into Reference Grid.
   - Holding `Shift` while dragging folder-canvas items exports media-library drag payloads for external drop targets.
 - API surfaces:

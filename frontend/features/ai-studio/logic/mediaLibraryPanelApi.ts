@@ -197,6 +197,19 @@ const resolveProjectFolderApiPath = (
   return `/api/projects/${encodeURIComponent(normalizedProjectId)}/media/folders/${suffix}`;
 };
 
+const resolveProjectFolderCanvasApiPath = (
+  projectId: string | null | undefined,
+  folderId: string
+): string => {
+  const normalizedProjectId = typeof projectId === "string" ? projectId.trim() : "";
+  if (!normalizedProjectId) {
+    return `/api/ai/media-folder-canvas/${encodeURIComponent(folderId)}`;
+  }
+  return `/api/projects/${encodeURIComponent(
+    normalizedProjectId
+  )}/media/folders/${encodeURIComponent(folderId)}/canvas`;
+};
+
 /**
  * Loads user-owned custom folders.
  */
@@ -483,11 +496,12 @@ export const fetchMediaPromptListPage = async ({
  * Loads one custom-folder canvas state for the panel.
  */
 export const getMediaFolderCanvasState = async (
-  folderId: string
+  folderId: string,
+  projectId?: string | null
 ): Promise<MediaFolderCanvasState | null> => {
   const response = await withTransientNetworkRetry(
     async () =>
-      await fetchWithAuth(`/api/ai/media-folder-canvas/${encodeURIComponent(folderId)}`, {
+      await fetchWithAuth(resolveProjectFolderCanvasApiPath(projectId, folderId), {
         method: "GET",
         shortpulseLogScope: "app",
       })
@@ -520,25 +534,33 @@ export const saveMediaFolderCanvasState = async ({
   folderId,
   schemaVersion,
   snapshot,
+  projectId,
 }: {
   folderId: string;
   schemaVersion: number;
   snapshot: Record<string, unknown>;
+  projectId?: string | null;
 }): Promise<{ schemaVersion: number; saveSeq: number; updatedAt: string }> => {
+  const normalizedProjectId = typeof projectId === "string" ? projectId.trim() : "";
   const response = await withTransientNetworkRetry(
     async () =>
-      await fetchWithAuth("/api/ai/media-folder-canvas/save", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          folderId,
-          schemaVersion,
-          snapshot,
-        }),
-        shortpulseLogScope: "app",
-      })
+      await fetchWithAuth(
+        normalizedProjectId
+          ? resolveProjectFolderCanvasApiPath(normalizedProjectId, folderId)
+          : "/api/ai/media-folder-canvas/save",
+        {
+          method: normalizedProjectId ? "PUT" : "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            folderId,
+            schemaVersion,
+            snapshot,
+          }),
+          shortpulseLogScope: "app",
+        }
+      )
   );
   if (!response.ok) {
     const payload = asRecord(await response.json().catch(() => ({})));

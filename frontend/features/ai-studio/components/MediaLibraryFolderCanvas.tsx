@@ -47,6 +47,7 @@ type ResolvedInternalDropItem = {
 } | null;
 
 type MediaLibraryFolderCanvasProps = {
+  projectId?: string | null;
   folderId: string;
   mediaRows: MediaFileRow[];
   promptRows: PromptRow[];
@@ -75,6 +76,7 @@ type MediaLibraryFolderCanvasProps = {
 const SAVE_DEBOUNCE_MS = 450;
 
 export function MediaLibraryFolderCanvas({
+  projectId = null,
   folderId,
   mediaRows,
   promptRows,
@@ -402,7 +404,7 @@ export function MediaLibraryFolderCanvas({
       lastSavedPayloadRef.current = "";
 
       try {
-        const state = await getMediaFolderCanvasState(folderId);
+        const state = await getMediaFolderCanvasState(folderId, projectId);
         if (cancelled) return;
         loadedFolderIdRef.current = folderId;
         const parsed = parseMediaFolderCanvasSnapshot(state?.snapshot ?? null);
@@ -439,7 +441,7 @@ export function MediaLibraryFolderCanvas({
     return () => {
       cancelled = true;
     };
-  }, [folderId, hydrateFolderCanvasState]);
+  }, [folderId, hydrateFolderCanvasState, projectId]);
 
   useEffect(() => {
     const remainingMediaItemIds = new Set(mediaRows.map((row) => `media:${row.id}`));
@@ -572,6 +574,7 @@ export function MediaLibraryFolderCanvas({
         folderId,
         schemaVersion: MEDIA_FOLDER_CANVAS_SCHEMA_VERSION,
         snapshot,
+        projectId,
       })
         .then(() => {
           lastSavedPayloadRef.current = payload;
@@ -587,7 +590,13 @@ export function MediaLibraryFolderCanvas({
     return () => {
       window.clearTimeout(timeoutId);
     };
-  }, [folderId, loadingState, workspace.sessionState.items, workspace.sessionState.mainCamera]);
+  }, [
+    folderId,
+    loadingState,
+    projectId,
+    workspace.sessionState.items,
+    workspace.sessionState.mainCamera,
+  ]);
 
   const handleItemContextMenu = useCallback(
     (itemId: string, event: React.MouseEvent<HTMLElement>) => {

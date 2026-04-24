@@ -2,7 +2,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   applyMediaFolderMembershipBatch,
   fetchMediaPromptListPage,
+  getMediaFolderCanvasState,
   listMediaFolders,
+  saveMediaFolderCanvasState,
 } from "../mediaLibraryPanelApi";
 
 const fetchWithAuthMock = vi.fn();
@@ -207,6 +209,58 @@ describe("mediaLibraryPanelApi transient retry hardening", () => {
       expect.objectContaining({
         method: "POST",
         body: expect.stringContaining('"projectId":"project-1"'),
+      })
+    );
+  });
+
+  it("uses project folder canvas read routes when a projectId is provided", async () => {
+    fetchWithAuthMock.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        state: {
+          folderId: "folder-1",
+          schemaVersion: 1,
+          snapshot: { items: [] },
+          saveSeq: 2,
+          createdAt: "2026-04-24T00:00:00.000Z",
+          updatedAt: "2026-04-24T00:00:00.000Z",
+        },
+      }),
+    });
+
+    await getMediaFolderCanvasState("folder-1", "project-1");
+
+    expect(fetchWithAuthMock).toHaveBeenCalledWith(
+      "/api/projects/project-1/media/folders/folder-1/canvas",
+      expect.objectContaining({
+        method: "GET",
+      })
+    );
+  });
+
+  it("uses project folder canvas save routes when a projectId is provided", async () => {
+    fetchWithAuthMock.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        folderId: "folder-1",
+        schemaVersion: 1,
+        saveSeq: 3,
+        updatedAt: "2026-04-24T00:00:00.000Z",
+      }),
+    });
+
+    await saveMediaFolderCanvasState({
+      folderId: "folder-1",
+      projectId: "project-1",
+      schemaVersion: 1,
+      snapshot: { items: [] },
+    });
+
+    expect(fetchWithAuthMock).toHaveBeenCalledWith(
+      "/api/projects/project-1/media/folders/folder-1/canvas",
+      expect.objectContaining({
+        method: "PUT",
+        body: expect.stringContaining('"folderId":"folder-1"'),
       })
     );
   });

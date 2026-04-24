@@ -1,0 +1,10 @@
+drop policy if exists delete_project_media_folder_canvas_states_isolation
+  on public.project_media_folder_canvas_states;
+drop policy if exists update_project_media_folder_canvas_states_isolation
+  on public.project_media_folder_canvas_states;
+drop policy if exists insert_project_media_folder_canvas_states_isolation
+  on public.project_media_folder_canvas_states;
+drop policy if exists select_project_media_folder_canvas_states_isolation
+  on public.project_media_folder_canvas_states;
+
+drop table if exists public.project_media_folder_canvas_states;

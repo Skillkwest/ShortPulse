@@ -43,8 +43,10 @@ Define the authoritative AI Studio Media Library panel UX contract (`toolId: med
   - `frontend/pages/api/media/prompts/list.ts`
   - `frontend/pages/api/ai/media-folder-canvas/[folderId].ts`
   - `frontend/pages/api/ai/media-folder-canvas/save.ts`
+  - `frontend/pages/api/projects/[projectId]/media/folders/[folderId]/canvas.ts`
 - Membership service: `frontend/lib/server/mediaFoldersService.ts`
 - Folder canvas persistence service: `frontend/lib/server/mediaFolderCanvasService.ts`
+- Project folder canvas persistence service: `frontend/lib/server/projectMediaFolderCanvasService.ts`
 - Schema migration: `sql/migrations/060_add_media_folders_and_membership.sql`
   - `sql/migrations/063_add_media_folder_canvas_states.sql`
   - `sql/migrations/064_backfill_media_files_from_storage_objects.sql`
@@ -107,9 +109,11 @@ Define the authoritative AI Studio Media Library panel UX contract (`toolId: med
 
 ### 8) Folder-canvas spaces
 1. Folder-canvas is a secondary domain and must not define the core folder-navigation mental model.
-2. If retained, each user-created folder owns a unique canvas space.
+2. If retained, each custom folder owns a unique canvas space within its active folder authority boundary.
 3. Each folder canvas has independent scene and camera state.
-4. Folder-canvas state persists durably by `user + folder` across sessions.
+4. Folder-canvas state persists durably through the active folder authority boundary:
+   - non-project surfaces use `user + folder`
+   - project routes use `user + project + folder`
 5. Folder canvases follow main-canvas interaction constraints (marquee-select/zoom/place media/double-click text, with pan on `Space` + drag or middle-mouse drag).
 6. Because drag and pan overlap in canvas contexts, holding `Shift` while clicking/dragging enables drag-export.
 
@@ -198,14 +202,17 @@ Define the authoritative AI Studio Media Library panel UX contract (`toolId: med
    - Current: `POST /api/media/list` excludes character-scoped rows by default (`SHORTPULSE_MEDIA_LIBRARY_EXCLUDE_CHARACTER_SCOPE=true`) and folder membership/move routes reject character-scoped media ids with deterministic `409` responses.
 18. Media Library panel expand affordance:
    - Status: Aligned.
-   - Current: The root saved-media count row includes a small expand control that expands the left panel to its maximum practical shell width and snaps the folder/reference split to its maximum top height for a larger media browsing viewport.
-19. Mixed-feed video preview behavior:
+   - Current: The root saved-media count row includes a small expand control that expands the left panel to its maximum practical shell width and snaps the folder/reference split to its maximum top height for a larger media browsing viewport. While expanded, that control flips to a collapse affordance that restores the prior shell width and the prior folder/reference split ratio.
+19. First-project default folder bootstrap:
+   - Status: Aligned.
+   - Current: Media Library folders are user-scoped, so project creation now seeds one empty root-level custom folder named `New Folder` only when the user has no existing custom folders yet. This gives first-run AI Studio projects an immediate folder-management affordance without duplicating folders on every later project.
+20. Mixed-feed video preview behavior:
    - Status: Aligned.
    - Current: `All Media` renders video cards as poster-backed mixed-feed items and only mounts hover video playback on pointer hover, while the mixed masonry feed reuses the shared virtualization path to keep browse performance bounded.
-20. Legacy saved-video poster backfill:
+21. Legacy saved-video poster backfill:
    - Status: Operator-supported.
    - Current: forward saves persist durable `poster_720` variants when a poster hint exists, and legacy video rows missing `poster_variant_path` can be backfilled in controlled batches with `cd frontend && npm run media:backfill-video-posters -- --dry-run|--apply`.
-21. Saved-audio containment before dedicated browse support:
+22. Saved-audio containment before dedicated browse support:
    - Status: Aligned.
    - Current: ElevenLabs audio generations honor the per-user media autosave preference. When autosave is OFF, audio outputs remain playable in-session but skip background `media_files` inserts. When autosave is ON, audio rows may be persisted durably for future dedicated audio support, but current Media Library browse queries exclude `audio/*` rows so unsupported audio does not render as broken image cards in `All Media` or `AI Studio Generations`.
 

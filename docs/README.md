@@ -36,6 +36,7 @@ Start here for all repository documentation.
 - `docs/adr/0064-project-asset-association-foundation.md`
 - `docs/adr/0065-project-generated-output-association-and-restore-refresh.md`
 - `docs/adr/0066-project-media-library-folder-authority.md`
+- `docs/adr/0067-project-media-library-folder-canvas-authority.md`
 - `docs/prefabs.md`
 - `docs/routes.md`
 - `docs/local-development.md`

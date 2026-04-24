@@ -99,7 +99,7 @@ describe("POST /api/ai/extract-style", () => {
     const [, fetchInit] = fetchMock.mock.calls[0] as [string, RequestInit];
     const requestBody = JSON.parse(String(fetchInit.body));
     expect(requestBody).toMatchObject({
-      model: expect.any(String),
+      model: "gpt-5.4-mini",
       store: false,
       text: {
         format: {

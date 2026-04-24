@@ -43,7 +43,7 @@ For Create properties panel, model-selector, and submission wiring details, see 
 1. `OPENAI_API_KEY` must be set at runtime for the retained text and image-analysis endpoints.
 2. `OPENAI_MODEL` still governs shared non-bypass OpenAI defaults and falls back to `gpt-5-nano` when a retained helper path uses it.
 3. `STUDIO_AGENT_DIRECT_OPENAI_MODEL` is the separate model default for the studio-agent direct-bypass lane and falls back to `gpt-5.4`.
-4. `OPENAI_VISION_MODEL` and `OPENAI_VISION_FALLBACK_MODEL` default to `gpt-5-nano`.
+4. `OPENAI_VISION_MODEL` defaults to `gpt-5.4-mini`, and `OPENAI_VISION_FALLBACK_MODEL` defaults to `gpt-5.4` for retained style-extraction vision calls.
 5. Trusted-host env: `OPENAI_DESCRIBE_ALLOWED_HOSTS` (comma-separated); non-allowlisted external hosts are fail-closed by default.
 6. Emergency overrides: `OPENAI_PROMPT_SYSTEM` and `OPENAI_PROMPT_IMAGE_DESCRIBE` can be defined in env vars when immediate changes are required without touching source code.
 

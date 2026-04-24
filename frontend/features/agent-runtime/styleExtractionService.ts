@@ -26,8 +26,8 @@ import { resolveStudioAgentFallbackReasonLabel } from "./studioAgentFallbackReas
 import type { AgentMachineOutcomeFields } from "../../prefabs/agent/outcomeContract";
 
 const STYLE_EXTRACTOR_ID: AgentPromptId = "OPENAI_PROMPT_STYLE_EXTRACT";
-const DEFAULT_VISION_MODEL = "gpt-5-nano";
-const DEFAULT_FALLBACK_VISION_MODEL = "gpt-5-nano";
+const DEFAULT_VISION_MODEL = "gpt-5.4-mini";
+const DEFAULT_FALLBACK_VISION_MODEL = "gpt-5.4";
 const MAX_STYLE_PROMPT_LENGTH = 4000;
 const MAX_STYLE_TITLE_LENGTH = 80;
 const DEFAULT_STYLE_TITLE_FALLBACK = "Extracted Style";

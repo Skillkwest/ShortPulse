@@ -30,6 +30,7 @@ Start here for all repository documentation.
 - `docs/adr/README.md`
 - `docs/adr/0059-billing-internal-comp-contracts-and-admin-exempt-renewals.md`
 - `docs/adr/0060-billing-storage-entitlements-and-recurring-storage-addons.md`
+- `docs/adr/0061-ai-studio-standard-vs-pulse-runtime-isolation-contract.md`
 - `docs/prefabs.md`
 - `docs/routes.md`
 - `docs/local-development.md`
@@ -138,6 +139,7 @@ Start here for all repository documentation.
 - `docs/planning/ai-studio-pulse-runtime-phase-5-server-runtime-activation-plan-2026-04-20.md`
 - `docs/planning/ai-studio-pulse-runtime-phase-6-surface-unification-and-activation-ux-plan-2026-04-20.md`
 - `docs/planning/ai-studio-pulse-runtime-phase-7-validation-docs-and-rollout-plan-2026-04-20.md`
+- `docs/planning/ai-studio-standard-vs-pulse-runtime-isolation-execution-plan-2026-04-23.md`
 - `docs/planning/generation-pipeline-continuation-master-plan-2026-04-05.md`
 - `docs/planning/generation-pipeline-continuation-tracker-2026-04-05.md`
 - `docs/planning/generation-pipeline-continuation-server-authority-cutover-2026-04-05.md`

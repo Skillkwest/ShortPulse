@@ -8,7 +8,7 @@ Purpose: operational playbook for the AI Studio chat agent—where it lives in t
 
 ## UI entry points
 - Inline prompt step (`CreatePropertiesPanel`): chat-first prompt builder. The prompt card always shows a “Primary generation prompt” state so users can see exactly what Generate will run.
-- Chat Mode toggle (inline composer, right side): rendered in a labeled toggle wrapper, default ON. ON keeps the chat send/respond path active. OFF disables send affordances and routes Create `mode=text` raw composer/shared text into the normal file-generation path.
+- Chat Mode toggle (inline composer, right side): rendered in a labeled toggle wrapper, default ON. ON keeps the chat send/respond path active. OFF disables send affordances and routes Create `mode=text` raw composer/shared text into the normal file-generation path. In Expert Create `Pulse` mode, the toggle is hidden and chat mode is forced ON until the user returns to `Standard`.
 - Direct OpenAI bypass (backend-gated): when `NEXT_PUBLIC_STUDIO_AGENT_DIRECT_OPENAI_BYPASS_ENABLED=true`, the Create chat lane defaults to raw user/assistant turns through `/api/ai/studio-agent` with `directOpenAiBypass=true`. There is no separate inline toggle; the flag itself is the control. The bypass lane can also attach staged image media as multimodal input so users can ask for image descriptions or prompt rewrites directly from dropped images.
 - Expand to column (`AiStudioPageContent`): `ArrowsOut` opens the Agent Chat column, replacing the reference grid. Clicking a chat bubble adds that text to the Reference Grid as a prompt card (`addAgentPromptReference`).
 - Assistant output bubble drag behavior: dragging from bubble text remains enabled for prompt-card creation, but dragging from inline output preview media/status tiles is blocked.
@@ -41,7 +41,10 @@ Purpose: operational playbook for the AI Studio chat agent—where it lives in t
 8) Route runs server-authoritative pre-provider safety precheck before any vision/coordinator/provider call. Refusal returns `200` with canonical refusal and empty actions; rewrite mutates in-memory payload before orchestration.
 9) Mixed/image turns use the vision timeout budget for summary calls and preserve the full turn timeout budget for generation.
 10) Responses include `traceId` and `Agent-Contract-Version: 1` for correlation and contract governance.
-11) Canonical runtime response is normalized into `message` plus `actions.applyPrompt` on successful turns; refusal turns return message-only.
+11) Canonical runtime response is normalized by active Pulse/runtime mode:
+- prompt-editor turns still resolve to `message` plus `actions.applyPrompt`,
+- workflow Pulse turns may return message-only step prompts until they intentionally emit a final prompt artifact,
+- refusal turns return message-only.
 12) UI applies `actions.applyPrompt` to state (`setPrompt`, `setLatestAgentPrompt`), clears input, and exposes actions in the panel. Clicking a message or “Add to grid” writes a prompt reference card.
 
 Prompt ownership rule:
@@ -58,6 +61,12 @@ Prompt ownership rule:
 - **Create raw mode (Chat Mode OFF, Create `mode=text`):**
   - Primary and only path: resolve the raw composer/shared prompt and submit it into Create/Image generation.
   - No agent send occurs; this preserves the existing raw-to-file-generation behavior.
+- **Expert Create Pulse mode:**
+  - Always uses the chat lane, even if Standard mode was previously set to chat-off raw mode.
+  - Hides the inline chat-mode toggle while Pulse is active, then restores the prior Standard-mode chat preference when the user switches back.
+  - Clicking a pinned Pulse activates hidden Pulse runtime metadata on `/api/ai/studio-agent` without mutating the visible Create composer.
+  - `prompt_editor` Pulses keep the prompt-refinement contract.
+  - `workflow_gpt` Pulses can auto-start on click when `activationMode="activate_and_start"` and may ask structured follow-up questions before emitting a final prompt artifact.
 - **Direct OpenAI chat mode (Chat Mode ON + bypass flag enabled):**
   - Client still posts `/api/ai/studio-agent`, but always sets `directOpenAiBypass=true` for the Create/Text chat lane.
   - When the server gate is enabled, the route skips studio-agent orchestration and sends the raw message list directly to OpenAI with model `STUDIO_AGENT_DIRECT_OPENAI_MODEL ?? "gpt-5.4"`.

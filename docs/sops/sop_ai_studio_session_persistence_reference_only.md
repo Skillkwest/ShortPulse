@@ -3,8 +3,10 @@
 ## Scope
 Operational runbook for AI Studio session persistence with full durability across:
 1. workspace settings,
+   including Expert Create Pulse mode plus active pinned Pulse preset id,
 2. outputs/reference projections,
 3. agent transcript/input state,
+   including derived Pulse workflow session state for active `workflow_gpt` Pulses (`status`, current step label/prompt, collected user inputs, last artifact when present),
 4. canvas scene + main/rail viewport cameras + transient text edit state.
 
 This SOP governs the legacy AI Studio session persistence system. That system is now hard-disabled by default pending the future Projects redesign; use this SOP only when explicitly opting the legacy system back on for controlled testing.
@@ -49,6 +51,7 @@ Policy note:
 ### Write Path
 1. Ensure `sid` is present (`/ai-studio?sid=<uuid>`).
 2. Build V2 snapshot from workspace + outputs + agent + canvas state.
+   - agent state now also carries a derived Pulse workflow session snapshot when a `workflow_gpt` Pulse is active in Expert Create `Pulse` mode.
 3. Persist local IndexedDB shadow immediately (debounced write controller).
 4. Mirror to `/api/ai/sessions/save` for durable remote persistence.
 5. On `visibilitychange/pagehide`, perform best-effort flush (keepalive is fallback, not primary path).
@@ -58,7 +61,7 @@ Policy note:
 2. Select freshest candidate by `updatedAt` (remote wins ties).
 3. Apply hydration once per `sid` lifecycle:
    - workspace/output state,
-   - agent transcript/input (unless agent gate disabled),
+   - agent transcript/input plus any persisted Pulse workflow session state (unless agent gate disabled),
    - canvas scene first, then viewport states, then transient draft/edit state.
 
 ## Validation Matrix

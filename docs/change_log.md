@@ -3,6 +3,54 @@
 Add new work under `## Unreleased` at the top of this file. When promoting released work into dated sections, keep active dated headings in descending UTC order (newest first). Legacy imported entries below the legacy marker are preserved as historical notes and are not part of the enforced active chronology contract.
 
 ## Unreleased
+- `workflow_gpt` Pulse sessions now get explicit runtime-owned transition updates during active use:
+  - starting a workflow Pulse seeds an immediate pending session snapshot before the first assistant reply returns,
+  - sending a user reply through an active workflow Pulse now marks the session as `running` and appends the collected input before the next server step arrives,
+  - runtime/session updates now prefer named workflow stage labels such as `Plot Seed` and `Runtime` whenever the Pulse definition provides stage hints,
+  - reducing reliance on transcript-only inference for in-flight workflow progression.
+- Completed workflow Pulse sessions now expose durable banner actions:
+  - finished workflow banners can apply the persisted `lastArtifact` back into the Create prompt flow,
+  - and they can restart the active workflow Pulse through the canonical clear-chat + pulse-start path instead of a separate reset implementation.
+- Clearing AI Studio agent chat now also clears the authoritative `pulseWorkflowSession` state so workflow banners, session persistence, and restart behavior stay aligned.
+- Promoted the built-in `story_builder` Pulse from a prompt-editor stub to a real `workflow_gpt` starter:
+  - it now runs as `activate_and_start`,
+  - it uses the guided Story Circle scene-prompt workflow contract,
+  - and it carries built-in stage labels for `Upload Characters`, `Plot Seed`, `Runtime`, `Scene Review`, `Image Prompts`, and `Dialogue Story`.
+- Added optional persisted workflow stage labels to Pulse definitions:
+  - `workflow_gpt` Pulses can now save `Workflow Stage Labels` from both Pulse editors,
+  - the Create workflow session banner falls back to those labels when assistant replies do not use explicit `Step N` formatting.
+- Added a second built-in Create Pulse workflow starter:
+  - the stable `multi_shot` Pulse id now resolves to the built-in `Multi Sequence Video Prompt` preset,
+  - it runs as `workflow_gpt` with `activate_and_start`,
+  - clicking it in Expert Create `Pulse` mode immediately kicks off the guided multi-shot storyboard workflow.
+- Added workflow starter templates to Pulse authoring:
+  - both the Pulse Presets Library and Create `More Presets` editor now expose `Blank Workflow GPT`, `Single-shot Video Workflow`, and `Multi Sequence Video Workflow` template actions,
+  - applying a template preloads runtime mode, activation mode, system instructions, starter assistant message, and starter description guidance for user-created workflow Pulses.
+- Tightened workflow Pulse authoring UX:
+  - `workflow_gpt` Pulses now switch the editor labels to `Workflow Instructions` and `Exact First Assistant Message`,
+  - workflow editor surfaces now show a visible checklist reminding authors to define first message, one-step-at-a-time flow, and final output shape explicitly.
+- Seeded the first built-in Create Pulse as a real workflow starter:
+  - the stable `image` Pulse id now resolves to the built-in `Video Prompt Magic` preset,
+  - it runs as `workflow_gpt` with `activate_and_start`,
+  - clicking it in Expert Create `Pulse` mode immediately kicks off the guided single-shot video workflow.
+- Pulse presets now support first-class runtime behavior instead of a prompt string only:
+  - saved Pulse definitions persist `systemInstructions`, `runtimeMode`, `activationMode`, optional `starterAssistantMessage`, `outputMode`, and `memoryPolicy`,
+  - the Pulse Presets Library and Create `More Presets` editor both author those fields,
+  - built-in starter Pulses and custom Pulses can now be configured as either `prompt_editor` or `workflow_gpt` behaviors.
+- Expert Create Pulse activation now supports custom-GPT-style workflow starts:
+  - clicking a pinned `workflow_gpt` Pulse with `activate_and_start` immediately sends a hidden activation seed through `/api/ai/studio-agent`,
+  - workflow Pulse turns are now allowed to return message-only assistant steps before a final prompt artifact,
+  - prompt-editor Pulses keep the existing `applyPrompt` contract.
+- Pulse Presets Library built-in starter tiles are now editable directly by click instead of being treated as read-only.
+- Built-in Pulse edits persist as per-user overrides on the seeded preset ids and flow through the shared Create Pulse catalog, so renamed/reworded defaults show up immediately in the library, `More Presets`, and the pinned Create Pulse rail.
+- Persisted AI Studio Create Pulse runtime shell state in session snapshots:
+  - page-owned Expert Create mode and active pinned Pulse preset id now flow through session snapshot build/hydrate,
+  - restoring a saved AI Studio session returns Create to the prior `Standard` or `Pulse` shell mode and reapplies the active pinned Pulse id,
+  - clicking a pinned Pulse preset now marks that preset as the active Pulse runtime selection and routes hidden Pulse instructions into `/api/ai/studio-agent` without mutating the visible Create composer.
+- Unified AI Studio Pulse preset persistence on `user_preferences`:
+  - added `ai_studio_create_pulse_panel_ids` and `ai_studio_saved_pulses` schema/docs contracts,
+  - replaced the local-only Pulse library with a shared custom Pulse editor backed by the same saved catalog used in Create `Pulse` mode,
+  - migrated Create Pulse local custom-slot fallback into saved Pulse records and added focused hook/component coverage for the new shared contract.
 - Published a dedicated AI Studio inpaint-reference contract planning set:
   - master plan, tracker, and five phase plans for locking the inpaint token/payload contract,
   - explicit phase coverage for provider-lane decisions, prompt-link vs payload alignment, mask invariants, effective-model UI authority, and validation/doc closeout,
@@ -2983,6 +3031,19 @@ Add new work under `## Unreleased` at the top of this file. When promoting relea
   - `docs/planning/ai-studio-model-pricing-audit-checklist-2026-03-14.md`
 - Re-ran full targeted pricing/debit parity suite (`115` tests) and docs integrity checks; all gates passed.
 
+## 2026-04-23 (Pulse workflow session banner)
+## 2026-04-23 (Pulse workflow session persistence + build validation recovery)
+- Added minimal persisted workflow session state for active `workflow_gpt` Pulses in AI Studio session snapshots.
+- Session persistence now stores and restores a derived Pulse workflow session payload alongside the agent snapshot, including workflow status, current step metadata, collected user inputs, and prompt preview when available.
+- Threaded the restored Pulse workflow session back into the hidden Pulse runtime context so guided Pulses can resume with explicit step state instead of relying only on transcript inference.
+- Added regression coverage for snapshot serialization/hydration, page session persistence wiring, agent bridge hydration, agent context serialization, and route-envelope sanitation of Pulse workflow session metadata.
+- Fixed the pre-existing TypeScript build blocker in `frontend/pages/api/admin/billing-diagnostics.ts` by narrowing filtered error messages to real strings before schema-compatibility checks.
+
+- Added a lightweight in-chat workflow session banner for active `workflow_gpt` Pulses in Expert Create `Pulse` mode.
+- The chat surface now shows the active Pulse name, current guided-session status, and the exact first step before the workflow conversation begins.
+- The banner now also infers and displays `Step N` plus the current step prompt when workflow messages follow explicit `Step N - ...` formatting.
+- Documented the structured workflow builder (`Role & Goal`, `Step Flow`, `Final Output Shape`, `Additional Rules`) and the new in-chat workflow banner in the README and Create wiring SOP.
+
 ## 2026-03-14 (AI Studio preflight timeout docs alignment)
 - Updated image-generation SOP timeout semantics to match runtime behavior: reference prep now uses dynamic budgeting (`base + per-work-unit + local-upload bonus`, capped) and abortable stage execution.
 - Updated Create properties generation wiring SOP to reflect dynamic reference preflight and stage breadcrumb diagnostics (`generation_preflight_prepare_stage`).
@@ -3038,3 +3099,15 @@ Add new work under `## Unreleased` at the top of this file. When promoting relea
   - multimodal/context visibility rules,
   - and telemetry/eval posture for Pulse rollout.
 - Added explicit recommended V1 defaults to the Pulse Phase 0 plan and master plan so implementation can start from one coherent posture instead of reopening every contract branch.
+
+## 2026-04-23 (Pulse workflow completion semantics)
+- Carried `workflow_gpt` semantic completion status through the shared runtime success paths so message-only `chat_reply` workflows can finish as durable completed sessions instead of being treated as generic awaiting-input turns.
+- Updated `/api/ai/studio-agent` and coordinator success handling so completed workflow replies persist `lastArtifact` plus `finalArtifactSource` when the model returns a final chat artifact with semantic `ready`.
+- Added regressions for:
+  - API-route completion of a built-in `Story Builder` `chat_reply` workflow artifact,
+  - hydration of completed Pulse workflow artifacts with persisted completion source,
+  - and full frontend build/runtime validation on the updated completion contract.
+- Corrected the Pulse docs and planning language so they no longer describe workflow-session state as transcript-derived/UI-only and no longer imply a Pulse-specific rollout gate that the product does not use.
+- Updated the Pulse master plan, tracker, and Phase 7 closeout doc to reflect actual implementation posture: Phases 0-6 complete, Phase 7 in progress, and the remaining closeout work narrowed to explicit telemetry/eval documentation plus a decision on the separate pre-existing `docs/routes.md` semantic-drift blocker.
+- Documented the explicit Pulse telemetry/eval posture in `docs/monitoring.md`, including the split between studio-agent route telemetry and authoritative `pulseWorkflowSession` state.
+- Classified the lingering `docs/routes.md` semantic-drift failure as a separate repo-wide docs-governance issue outside Pulse scope, then closed the Pulse master plan, tracker, and Phase 7 plan as complete.

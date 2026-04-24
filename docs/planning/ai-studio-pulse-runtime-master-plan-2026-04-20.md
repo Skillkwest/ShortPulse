@@ -1,7 +1,7 @@
 # AI Studio Pulse Runtime Master Plan (2026-04-20)
 
-Last updated: 2026-04-20  
-Status: Planned  
+Last updated: 2026-04-23
+Status: Complete
 Owner: Engineering
 
 ## Summary
@@ -96,14 +96,14 @@ The recommended default posture for implementation start is:
 ## Phase Sequence
 | Phase | Title | Status | Priority |
 | --- | --- | --- | --- |
-| 0 | V1 Contract and Stop Rules | Planned | P0 |
-| 1 | Domain Model, Storage, and Authoring Contract | Planned | P0 |
-| 2 | Client Runtime State Wiring | Planned | P0 |
-| 3 | Session Persistence Contract | Planned | P0 |
-| 4 | Agent Contract and Transport | Planned | P0 |
-| 5 | Server Runtime Activation | Planned | P0 |
-| 6 | Surface Unification, Authoring UX, and Activation UX | Planned | P0 |
-| 7 | Validation, Docs, and Rollout | Planned | P1 |
+| 0 | V1 Contract and Stop Rules | Complete | P0 |
+| 1 | Domain Model, Storage, and Authoring Contract | Complete | P0 |
+| 2 | Client Runtime State Wiring | Complete | P0 |
+| 3 | Session Persistence Contract | Complete | P0 |
+| 4 | Agent Contract and Transport | Complete | P0 |
+| 5 | Server Runtime Activation | Complete | P0 |
+| 6 | Surface Unification, Authoring UX, and Activation UX | Complete | P0 |
+| 7 | Validation, Docs, and Support Posture | Complete | P1 |
 
 ## Phase Links
 1. `docs/planning/ai-studio-pulse-runtime-phase-0-v1-contract-and-stop-rules-plan-2026-04-20.md`
@@ -128,6 +128,28 @@ The program is done when:
 9. tests, telemetry, and docs cover both the authoring workflow and the runtime contract, and remove stale local-only/append-only claims,
 10. the rollout posture is explicit and any remaining fallback gates are either intentionally retained and documented or removed,
 11. the final implementation matches the locked V1 scope without unresolved pressure to continue by adjacency.
+
+## Done-State Audit (2026-04-23)
+Current program posture against the done state:
+1. `Met` — users can create, edit, save, and manage Pulses through the Pulse library and Create surfaces.
+2. `Met` — saved Pulse definitions are the shared source of truth across the library and Create rail.
+3. `Met` — Pulse activation now changes hidden runtime behavior and no longer appends prompt text into the visible composer.
+4. `Met` — active Pulse runtime state, including workflow-session state, persists across AI Studio session save/restore.
+5. `Met` — the AI Studio agent request path and server runtime are Pulse-aware.
+6. `Met` — the active Create submission paths exercised by Pulse users are Pulse-aware, including the direct OpenAI bypass branch.
+7. `Met` — switching/deactivating Pulse is predictable in Create and covered by targeted regression tests.
+8. `Met` — Pulse restore remains aligned with the broader AI Studio session-persistence policy and feature-flag posture.
+9. `Met` — tests, telemetry/eval notes, and docs now cover the authoring workflow and runtime contract, and stale local-only/append-only claims have been removed.
+10. `Met` — the support posture is explicit and the lingering `docs/routes.md` failure is documented as a separate repo-wide docs-governance issue outside Pulse scope.
+11. `Met` — the final implementation now matches the locked V1 scope with no justified remaining implementation work inside this program.
+
+## Final Closeout Decision
+The Pulse runtime program is complete.
+
+Closeout notes:
+1. Pulse telemetry/eval posture is now documented explicitly in `docs/monitoring.md` and the Phase 7 plan.
+2. The pre-existing `docs/routes.md` semantic-drift failure remains a repo-wide docs-governance issue, but it is not a Pulse-runtime blocker and does not prevent this program from reaching its done state.
+3. Further work in this area now requires a new, explicitly separate scope instead of continuing this program by momentum.
 
 ## Completion Stop Rule
 When all done-state criteria above are true:

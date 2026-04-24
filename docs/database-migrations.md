@@ -198,7 +198,9 @@ If enabling AI Studio Fal reliability rollout (modular submit/retrieval + reconc
 84. `sql/migrations/084_harden_billing_profile_and_stripe_event_rls.sql`
 85. `sql/migrations/085_add_billing_plan_offers_and_subscription_contracts.sql`
 86. `sql/migrations/086_add_internal_comp_billing_contract_support.sql`
-85. Rollback files:
+87. `sql/migrations/087_add_storage_entitlements_and_recurring_storage_addons.sql`
+88. `sql/migrations/088_fix_paid_entitlement_fallbacks_and_offer_catalog.sql`
+89. Rollback files:
     - `sql/migrations/rollback/019_add_generation_recovery_fields_rollback.sql`
     - `sql/migrations/rollback/020_generation_runtime_convergence_rollback.sql`
     - `sql/migrations/rollback/021_generation_state_machine_constraints_rollback.sql`
@@ -226,6 +228,7 @@ If enabling AI Studio Fal reliability rollout (modular submit/retrieval + reconc
     - `sql/migrations/rollback/082_add_user_preferences_ai_studio_saved_voices_rollback.sql`
     - `sql/migrations/rollback/085_add_billing_plan_offers_and_subscription_contracts_rollback.sql`
     - `sql/migrations/rollback/086_add_internal_comp_billing_contract_support_rollback.sql`
+    - `sql/migrations/rollback/087_add_storage_entitlements_and_recurring_storage_addons_rollback.sql`
     - `sql/migrations/rollback/060_add_media_folders_and_membership_rollback.sql`
     - `sql/migrations/rollback/061_backfill_media_image_dimensions_metadata_rollback.sql`
     - `sql/migrations/rollback/064_backfill_media_files_from_storage_objects_rollback.sql`

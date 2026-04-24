@@ -1,4 +1,4 @@
-# Kie.ai Seedance 1.5 Pro (Runtime-Gated Contract)
+# Kie.ai Seedance 1.5 Pro (Active Contract)
 
 This document tracks the internal ShortPulse runtime contract for `kie-ai/seedance-1.5-pro`.
 
@@ -6,7 +6,7 @@ This document tracks the internal ShortPulse runtime contract for `kie-ai/seedan
 - Provider: `kie`
 - Model id: `kie-ai/seedance-1.5-pro`
 - Canonical source reference: [Kie Seedance 1.5 Pro](https://docs.kie.ai/market/bytedance/seedance-1-5-pro)
-- Runtime status: runtime-gated (selectable when Kie integration is enabled and model allowlist gates pass; fail-closed otherwise)
+- Runtime status: active always-on Kie video lane
 - Primary-source snapshot: captured from Kie docs on `2026-04-06`
 
 ## Current Runtime Contract
@@ -64,10 +64,9 @@ This document tracks the internal ShortPulse runtime contract for `kie-ai/seedan
 - `480p` remains a conservative interim baseline until direct Kie evidence is captured.
 
 ## Guardrails
-1. Kie integration remains disabled by default.
-2. Kie paths fail closed unless model is explicitly allowlisted.
-3. Public `/api/fal/*` route contracts remain stable even though the provider path is Kie-backed.
-4. Seedance 1.5 accepts at most two input URLs.
+1. Public `/api/fal/*` route contracts remain stable even though the provider path is Kie-backed.
+2. Seedance 1.5 accepts at most two input URLs.
+3. Character-scoped media URLs remain blocked for video submits.
 
 ## Related Routes
 - Submit proxy: `/api/fal/kie-seedance-submit`

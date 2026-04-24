@@ -8,7 +8,15 @@ const ROUTES_DOC = path.join(REPO_ROOT, "docs", "routes.md");
 const README_DOC = path.join(REPO_ROOT, "README.md");
 const SECURITY_DOC = path.join(REPO_ROOT, "docs", "security-checklist.md");
 const API_DOC = path.join(REPO_ROOT, "docs", "api", "api-internal-routes.md");
-const AUTH_GUARD_PATH = path.join(REPO_ROOT, "frontend", "lib", "authGuard.ts");
+const PAGE_AUTH_GUARD_PATH = path.join(REPO_ROOT, "frontend", "lib", "authGuard.ts");
+const API_AUTH_GUARD_PATH = path.join(
+  REPO_ROOT,
+  "frontend",
+  "lib",
+  "server",
+  "api",
+  "protectedApiPaths.ts"
+);
 const PAGES_DIR = path.join(REPO_ROOT, "frontend", "pages");
 const SKILLS_DIR = path.join(REPO_ROOT, "skills");
 const CHANGELOG_PATH = path.join(REPO_ROOT, "docs", "change_log.md");
@@ -96,9 +104,11 @@ function parseRoutesDoc() {
   return entries;
 }
 
-function parseProtectedPrefixes() {
-  const text = readText(AUTH_GUARD_PATH);
-  const arrayMatch = text.match(/export const PROTECTED_ROUTES\s*=\s*\[([\s\S]*?)\];/m);
+function parseStringArrayExport(filePath, exportName) {
+  const text = readText(filePath);
+  const arrayMatch = text.match(
+    new RegExp(`export const ${exportName}\\s*=\\s*\\[([\\s\\S]*?)\\];`, "m")
+  );
   if (!arrayMatch) return [];
   const values = [];
   const pattern = /"([^"]+)"/g;
@@ -108,6 +118,14 @@ function parseProtectedPrefixes() {
     match = pattern.exec(arrayMatch[1]);
   }
   return values;
+}
+
+function parsePageProtectedPrefixes() {
+  return parseStringArrayExport(PAGE_AUTH_GUARD_PATH, "PROTECTED_ROUTES");
+}
+
+function parseApiProtectedPrefixes() {
+  return parseStringArrayExport(API_AUTH_GUARD_PATH, "PROTECTED_API_PREFIXES");
 }
 
 function isProtectedByPrefix(route, prefixes) {
@@ -243,26 +261,41 @@ function run() {
   const errors = [];
 
   const pageRoutes = listPageRoutes();
+  const apiRoutes = listApiRoutes();
   const routeDocEntries = parseRoutesDoc();
-  const routeDocSet = new Set(routeDocEntries.map((entry) => entry.route));
-  const protectedDocRoutes = routeDocEntries
+  const pageDocEntries = routeDocEntries.filter((entry) => !entry.route.startsWith("/api/"));
+  const apiDocEntries = routeDocEntries.filter((entry) => entry.route.startsWith("/api/"));
+  const pageDocSet = new Set(pageDocEntries.map((entry) => entry.route));
+  const protectedPageDocRoutes = pageDocEntries
+    .filter((entry) => entry.authRequired)
+    .map((entry) => entry.route);
+  const protectedApiDocRoutes = apiDocEntries
     .filter((entry) => entry.authRequired)
     .map((entry) => entry.route);
 
   for (const route of pageRoutes) {
-    if (!routeDocSet.has(route)) {
+    if (!pageDocSet.has(route)) {
       errors.push(`Route missing from docs/routes.md: ${route}`);
     }
   }
-  for (const route of routeDocSet) {
+  for (const route of pageDocSet) {
     if (!pageRoutes.has(route)) {
       errors.push(`Route listed in docs/routes.md but missing in frontend/pages: ${route}`);
     }
   }
 
-  const protectedPrefixes = parseProtectedPrefixes();
-  for (const route of protectedDocRoutes) {
-    if (!isProtectedByPrefix(route, protectedPrefixes)) {
+  const pageProtectedPrefixes = parsePageProtectedPrefixes();
+  for (const route of protectedPageDocRoutes) {
+    if (!isProtectedByPrefix(route, pageProtectedPrefixes)) {
+      errors.push(
+        `Route marked auth-required in docs/routes.md but not protected by runtime prefixes: ${route}`
+      );
+    }
+  }
+
+  const apiProtectedPrefixes = parseApiProtectedPrefixes();
+  for (const route of protectedApiDocRoutes) {
+    if (!isProtectedByPrefix(route, apiProtectedPrefixes)) {
       errors.push(
         `Route marked auth-required in docs/routes.md but not protected by runtime prefixes: ${route}`
       );
@@ -271,7 +304,7 @@ function run() {
 
   const readmeRoutes = parseReadmeRouteProtectionList();
   const securityRoutes = parseSecurityRouteProtectionList();
-  for (const prefix of protectedPrefixes) {
+  for (const prefix of pageProtectedPrefixes) {
     const docHasExact =
       readmeRoutes.has(prefix.toLowerCase()) || readmeRoutes.has(`${prefix.toLowerCase()}*`);
     const docHasDerived = [...pageRoutes].some(
@@ -291,8 +324,6 @@ function run() {
       errors.push(`docs/security-checklist.md missing protected prefix coverage: ${prefix}`);
     }
   }
-
-  const apiRoutes = listApiRoutes();
   const apiDocPatterns = parseApiDocPatterns();
   for (const route of apiRoutes) {
     const covered = apiDocPatterns.some((pattern) => routeMatchesPattern(route, pattern));

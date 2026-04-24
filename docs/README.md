@@ -68,6 +68,7 @@ Start here for all repository documentation.
 - `docs/api/api-kie-seedance-1-5-pro.md`
 - `docs/api/api-kie-seedance-2.md`
 - `docs/api/api-kie-seedance-2-fast.md`
+- `docs/api/api-fal-flux-dev.md`
 - `docs/api/api-fal-flux-2-klein-9b.md`
 - `docs/api/api-fal-flux-pro-fill.md`
 - `docs/api/api-fal-flux-kontext-inpaint.md`

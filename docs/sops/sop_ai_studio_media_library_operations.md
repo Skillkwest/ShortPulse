@@ -17,7 +17,7 @@ Define the authoritative AI Studio Media Library panel UX contract (`toolId: med
   - Folder-canvas interaction contract and persistence boundary.
 - Out of scope:
   - Standalone `/media-library` route page styling details.
-  - Billing/storage quota policy.
+  - Billing product pricing decisions beyond the storage-quota contract referenced below.
 
 ## Canonical implementation map
 - Panel composition: `frontend/features/ai-studio/components/MediaLibraryPanel.tsx`
@@ -78,7 +78,7 @@ Define the authoritative AI Studio Media Library panel UX contract (`toolId: med
    - `Images` tab: masonry grid preserving each image’s true aspect ratio.
    - `Videos` tab: masonry grid preserving each video’s true aspect ratio.
    - `Prompts` tab: prompt cards use text reference-card presentation.
-   - `Audio` may remain visible as a reserved tab before saved-audio browsing is implemented.
+   - `Audio` may remain visible as a reserved tab before saved-audio browsing is implemented; unsupported saved-audio rows must not fall through and render as broken image cards in the other browse tabs.
 2. Search and pagination apply consistently to the active tab through shared list APIs.
 3. `All Media` media tabs auto-load the next page when scrolling near the bottom, with one global footer control retained as manual fallback.
 4. Panel card previews may use balanced-fast image compaction for browse speed when adaptive media + panel compression flags are enabled; detail modal stays full-quality.
@@ -137,6 +137,10 @@ Define the authoritative AI Studio Media Library panel UX contract (`toolId: med
 - Folder membership/move APIs must reject character-scoped media ids (`409`) to prevent cross-surface coupling drift.
 - Folder delete removes junction memberships, not `media_files`/`media_prompts` rows.
 - Folder list and membership reads are user-scoped only.
+- Media saves that persist canonical `media_files` rows are now subject to billing-backed storage quota enforcement:
+  - effective customer quota is resolved from base subscription contract storage plus active recurring storage add-ons
+  - customer quota counts canonical `media_files.file_size` only, not derivative poster/thumb/preview assets
+  - over-limit accounts keep read/delete access but new canonical saves fail closed until usage drops or capacity increases
 
 ## Current Runtime Delta (as of 2026-03-24)
 1. `All Media` inline-tab layout:
@@ -201,6 +205,9 @@ Define the authoritative AI Studio Media Library panel UX contract (`toolId: med
 20. Legacy saved-video poster backfill:
    - Status: Operator-supported.
    - Current: forward saves persist durable `poster_720` variants when a poster hint exists, and legacy video rows missing `poster_variant_path` can be backfilled in controlled batches with `cd frontend && npm run media:backfill-video-posters -- --dry-run|--apply`.
+21. Saved-audio containment before dedicated browse support:
+   - Status: Aligned.
+   - Current: ElevenLabs audio generations honor the per-user media autosave preference. When autosave is OFF, audio outputs remain playable in-session but skip background `media_files` inserts. When autosave is ON, audio rows may be persisted durably for future dedicated audio support, but current Media Library browse queries exclude `audio/*` rows so unsupported audio does not render as broken image cards in `All Media` or `AI Studio Generations`.
 
 ## Error and feedback behavior
 - Unresolved drop item: `Unable to resolve dropped reference.`

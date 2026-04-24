@@ -27,6 +27,49 @@ Purpose: define how runtime incidents are captured, triaged, and resolved.
    - `/api/admin/error-events` = raw stream + enrichment + alert summaries
    - `/api/admin/errors` = grouped incidents for triage lifecycle
 
+## AI Studio Pulse runtime monitoring
+- Pulse does not emit a separate `telemetry.pulse.*` event family. Pulse runtime quality is monitored through the existing studio-agent route telemetry plus authoritative `pulseWorkflowSession` state.
+- Route-level studio-agent telemetry is emitted by `frontend/features/agent-runtime/studioAgentRouteOutcomes.ts` as `[studio-agent][telemetry]` and is the primary signal for Pulse request outcomes.
+- Treat these telemetry fields as the Pulse runtime outcome contract:
+  - routing: `flow`, `path`, `model`
+  - outcome: `status`, `decision`, `outcome_class`, `reason_code`, `retryable`
+  - resilience: `retry_used`, `retry_count`, `repair_used`, `repair_count`, `fallback_reason`
+  - latency: `latency_ms_total`, `latency_ms_stage`
+  - safety: `safety_outcome`, `safety_source`, `safety_fallback`, `policy_version`, `policy_schema_version`, `prompt_template_version`, `runtime_scope_key`, `profile_id`, `modality`, `category`, `decision_action`, `decision_source`, `provider_blocked`, `hard_floor_violation`, `rollback_triggered`
+- Pulse-specific interpretation:
+  - `outcome_class=success_message` is the expected success class for guided `workflow_gpt` turns that ask the next question or return a final chat artifact.
+  - `outcome_class=success_prompt` is the expected success class for `prompt_editor` turns and any Pulse turn that intentionally resolves through `applyPrompt`.
+  - `outcome_class=fallback_infra`, `upstream_error`, `route_error`, `refusal_model`, and `refusal_safety` are the primary failure/fallback classes to monitor for Pulse regressions.
+- Activation, progression, and completion are tracked through authoritative `pulseWorkflowSession` state, not inferred from UI-only transcript parsing. The session object persists:
+  - `presetId`
+  - `status`
+  - `currentStepIndex`
+  - `currentStepLabel`
+  - `currentStepPrompt`
+  - `collectedInputs`
+  - `lastArtifact`
+  - `finalArtifactSource`
+- Operationally, use Pulse runtime telemetry and workflow-session state together:
+  - route telemetry tells you whether a Pulse turn succeeded, fell back, refused, or failed,
+  - workflow session state tells you whether a workflow Pulse is active, awaiting input, still running, or completed with a reusable artifact.
+
+## AI Studio Pulse eval posture
+- Pulse closeout eval coverage is regression-based and lives in the runtime and persistence suites:
+  - `frontend/tests/api/studio-agent.runtime.test.ts`
+  - `frontend/features/agent-runtime/__tests__/studioAgentCoordinator.test.ts`
+  - `frontend/features/agent-runtime/__tests__/studioAgentTurnResponse.test.ts`
+  - `frontend/features/ai-studio/logic/__tests__/sessionSnapshotHydrator.test.ts`
+  - `frontend/features/ai-studio/logic/__tests__/pulseWorkflowSession.test.ts`
+  - `frontend/features/ai-studio/components/__tests__/CreatePropertiesPanel.test.tsx`
+- Those suites cover the Pulse-specific closeout expectations:
+  - activation reaches a Pulse-aware runtime,
+  - direct-bypass and orchestrated paths are both Pulse-aware,
+  - `workflow_gpt` turns can succeed as `success_message`,
+  - completed workflow sessions persist and hydrate with `lastArtifact` and `finalArtifactSource`,
+  - Create surfaces render authoritative workflow session state rather than local transcript heuristics.
+- Manual closeout expectation:
+  - verify that a built-in `workflow_gpt` Pulse can activate, step forward, persist, restore, complete, and reuse its final artifact without falling back to prompt-append semantics.
+
 ## Severity model
 - `low`: recoverable UI issues with clear user fallback.
 - `medium`: workflow failures that block a feature but have workaround paths.

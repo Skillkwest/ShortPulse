@@ -55,7 +55,10 @@ sequenceDiagram
 4. Model picker open path is anchored with `anchorId="create-model"` and `context="text-image"` so modal ordering/filtering stays deterministic for Create.
 5. Prompt step always routes through the same `PromptStep` contract; chat-off inline generate uses raw input fallback rules via `handleChatOffInlineGenerate`.
 6. Character mode and character picker are controlled by `useCreateCharacterModeController`; selection state remains in page-level orchestration.
-7. In Expert Create, the composer leading slot mounts the shared `StylesControl`; it toggles the right-rail Styles section and uses `AiStudioPageContent` shared state (`isStylesPanelOpen`, `selectedStyleId`) so Create/Edit surfaces stay in sync.
+7. In Expert Create `Standard` mode, the composer leading slot mounts the shared `StylesControl`; it toggles the right-rail Styles section and uses `AiStudioPageContent` shared state (`isStylesPanelOpen`, `selectedStyleId`) so Create/Edit surfaces stay in sync.
+8. In Expert Create `Pulse` mode, `ExpertCreatePanelView` mounts `CreateExpertPresetPanel` in the left rail. That panel uses the shared per-user Pulse catalog and curated rail allocation from `user_preferences`, supports drag/drop from `CreatePulsePresetsSurface`, allows built-in Pulse presets to be edited as per-user overrides on their seeded ids, and activates a pinned preset by setting the current Pulse runtime selection instead of mutating the visible `agentInput` composer. Pulse definitions now carry explicit runtime metadata (`systemInstructions`, `runtimeMode`, `activationMode`, optional `starterAssistantMessage`, optional `workflowStageHints`, `outputMode`, `memoryPolicy`). The built-in workflow starter set currently includes `Video Prompt Magic`, `Multi Sequence Video Prompt`, and `Story Builder`, all of which activate as `workflow_gpt` sessions instead of prompt-editor nudges. The Pulse editors also expose workflow starter templates plus a structured workflow builder (`Role & Goal`, `Step Flow`, `Final Output Shape`, `Additional Rules`) that composes stronger workflow instructions into the saved Pulse definition, plus optional `Workflow Stage Labels` that can be authored one per line for guided banner fallback. `prompt_editor` Pulses bias the prompt-refinement runtime, while `workflow_gpt` Pulses can auto-start guided chat flows on click and return intermediate assistant turns before producing a final prompt artifact. Pulse mode also hard-forces Create chat mode ON, hides the inline chat-mode toggle, and suppresses the shared `StylesControl` plus right-rail Styles toggle until the user switches back to `Standard`.
+9. Pulse runtime state is page/session-owned and now threads into `/api/ai/studio-agent` as hidden runtime metadata. The current workspace snapshot persists both Expert Create mode (`standard` vs `pulse`) and the currently active pinned Pulse preset id so reload/restore can return the Create shell to the same Pulse context and server-side Pulse behavior.
+10. When the active Pulse resolves to `runtimeMode="workflow_gpt"`, the chat surface renders an in-chat workflow session banner showing the active Pulse name, current workflow status (`Ready to guide`, `Generating next step`, `Awaiting your reply`, `Running next step`, or completed artifact state), and the exact starter/current step copy. When the workflow text follows explicit `Step N - ...` formatting, the banner also surfaces the inferred `Step N` badge without introducing a second workflow-state source. If the workflow reply does not expose `Step N`, the banner can fall back to persisted `workflowStageHints` labels authored on the Pulse definition so guided sessions still show stage progress. The banner now reads the authoritative `pulseWorkflowSession` persisted by the runtime/session layer rather than re-deriving workflow completion solely from the visible transcript, and completed sessions can surface the durable artifact plus its completion source.
 
 ## Model selector and startup default pipeline
 1. Allowed options are computed in `useAiStudioAllowedModelOptions` via `resolveAiStudioAllowedModelOptions`.
@@ -81,6 +84,7 @@ sequenceDiagram
 2. Create text-mode branch:
 - Chat mode ON: send to the chat lane. When `NEXT_PUBLIC_STUDIO_AGENT_DIRECT_OPENAI_BYPASS_ENABLED=true`, the Create/Text chat surface defaults to `directOpenAiBypass=true` so `/api/ai/studio-agent` talks directly to OpenAI without a separate UI toggle.
 - Chat mode OFF: resolve raw prompt via `resolveChatOffCreatePrompt`, then submit generate as Create/Image.
+- Expert Create `Pulse` mode override: treat Create as chat mode ON regardless of the persisted standard-mode preference; switching back to `Standard` restores the prior Create chat-mode preference.
 - Chat mode OFF cost contract: button estimate and submit/debit guardrail use the image-run cost path (`promptReferenceGenerateCostCredits`, model/aspect/image-resolution aware), not text-token cost.
 3. `handleGenerate` preflight:
 - Revalidate credit coverage (`refreshBalance` path when needed).
@@ -155,6 +159,8 @@ sequenceDiagram
 5. Create caller behavior:
 - Inline chat send, prompt refine, and manual describe actions now all route through `/api/ai/studio-agent`.
 - Refine/describe actions use isolated-history sends on the same canonical transport so Create no longer depends on separate prompt/describe backends.
+- Pulse preset click/apply in Expert Create now activates hidden Pulse runtime behavior on `/api/ai/studio-agent` instead of writing preset text into the visible Create composer. The Pulse Presets Library and Create Pulse rail share the same persisted Pulse catalog, including per-user overrides for built-in starter Pulses, and the active Pulse flows through the agent request contract for both direct-bypass and orchestrated server paths.
+- `workflow_gpt` Pulses with `activate_and_start` send a hidden activation seed immediately after click so the assistant can begin the prescribed workflow without a visible synthetic user turn.
 6. Admin control plane routes (policy operations):
 - `GET /api/admin/agent-safety-policy/active`
 - `POST /api/admin/agent-safety-policy/activate`
@@ -180,5 +186,7 @@ When changing Create panel behavior or generation wiring, update all relevant la
   3. In Create `mode=text` with chat OFF, Generate and inline raw-mode actions route into file generation and retain image-run cost behavior.
   4. In Create chat mode with the bypass flag enabled, agent sends bypass orchestration and hits the direct OpenAI branch inside `/api/ai/studio-agent`.
   5. Model modal ordering is context-correct for Create.
-  6. Generate submission reaches queued/dispatching/dispatched states and polling converges.
-  7. Agent prompt apply + generate-from-output path works and surfaces failures deterministically.
+  6. Pulse mode left rail opens, `More Presets` drag/drop works, Pulse Presets Library create/edit/delete changes plus built-in Pulse overrides appear in the Create Pulse rail, clicking a pinned Pulse preset leaves the visible Create composer unchanged, and the clicked preset becomes the persisted active Pulse id used by `/api/ai/studio-agent`.
+  7. A pinned `workflow_gpt` Pulse configured with `activate_and_start` begins its first assistant step immediately after click and is allowed to return message-only workflow turns until it intentionally emits a final prompt artifact.
+  8. Generate submission reaches queued/dispatching/dispatched states and polling converges.
+  9. Agent prompt apply + generate-from-output path works and surfaces failures deterministically.

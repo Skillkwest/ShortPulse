@@ -1,4 +1,4 @@
-# Kie.ai Seedance 2.0 Fast (Runtime-Gated Contract)
+# Kie.ai Seedance 2.0 Fast (Active Contract)
 
 This document tracks the internal ShortPulse runtime contract for `kie-ai/seedance-2-fast`.
 
@@ -6,7 +6,7 @@ This document tracks the internal ShortPulse runtime contract for `kie-ai/seedan
 - Provider: `kie`
 - Model id: `kie-ai/seedance-2-fast`
 - Canonical source reference: [Kie Seedance 2.0 Fast](https://docs.kie.ai/market/bytedance/seedance-2-fast)
-- Runtime status: runtime-gated
+- Runtime status: active always-on Kie video lane
 - Primary-source snapshot: captured from Kie docs on `2026-04-06`
 
 ## Current Runtime Contract
@@ -18,7 +18,7 @@ This document tracks the internal ShortPulse runtime contract for `kie-ai/seedan
   - payload body under `input`
 - Allowed aspects: `1:1`, `21:9`, `4:3`, `3:4`, `16:9`, `9:16`
 - Allowed resolutions: `720p`, `1080p`
-- Allowed durations: `5`, `10` (seconds)
+- Allowed durations: `5`, `10`, `15` (seconds)
 - Required fields:
   - `prompt`
 - Optional validated fields:
@@ -33,18 +33,15 @@ This document tracks the internal ShortPulse runtime contract for `kie-ai/seedan
   - `generate_audio`
   - `return_last_frame`
   - `web_search`
+  - canonical callback URL field `callback_url` (edge aliases `callBackUrl` / `callbackUrl` normalized at ingress)
 
 ## Product-facing payload rules
-- Visible phase-1 product support:
+- Active product support:
   - prompt-only text-to-video
   - first-frame image-to-video
   - first/last-frame image-to-video
-- Phase-2 backend/state pipeline is also wired for:
-  - `reference_image_urls`
-  - `reference_video_urls`
-  - `reference_audio_urls`
-  - `return_last_frame`
-  - `web_search`
+  - multimodal reference generation
+  - Kling-pattern custom shot prompting and linked Character/Element references compiled into Seedance-native prompt + `reference_*_urls` payload fields
 - Frame mode and multimodal reference mode are mutually exclusive.
 
 ## Related Routes

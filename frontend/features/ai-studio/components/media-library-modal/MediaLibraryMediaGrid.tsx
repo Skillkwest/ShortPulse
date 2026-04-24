@@ -206,7 +206,7 @@ export function MediaLibraryMediaGrid({
               }`}
               style={renderItem.style}
             >
-              {onToggleMediaSelection ? (
+              {onToggleMediaSelection && selectedIds.has(file.id) ? (
                 <button
                   type="button"
                   className={`media-library-panel-selection-toggle${
@@ -233,8 +233,11 @@ export function MediaLibraryMediaGrid({
                 type="button"
                 className="media-card media-library-panel-media-card-button"
                 ref={getMediaCardRef(file.id)}
+                aria-pressed={onToggleMediaSelection ? selectedIds.has(file.id) : undefined}
                 draggable={Boolean(onMediaDragStart)}
-                onClick={() => onSelectMediaFile(file)}
+                onClick={() =>
+                  onToggleMediaSelection ? onToggleMediaSelection(file) : onSelectMediaFile(file)
+                }
                 onDoubleClick={() => onMediaDoubleClick?.(file)}
                 onDragStart={(event) => onMediaDragStart?.(event, file)}
                 onDragEnd={(event) => onMediaDragEnd?.(event, file)}

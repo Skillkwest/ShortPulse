@@ -442,7 +442,6 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
     previewModalLoading,
     previewModalError,
     handleSelectPromptCard,
-    handleSelectMediaFile,
     handleMediaCardDoubleClick,
     handleMediaCardContextMenu,
     closePreviewModal,
@@ -460,15 +459,6 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
       handleSelectPromptCard(prompt);
     },
     [handleSelectPromptCard]
-  );
-
-  const handleSelectMediaFileForPanel = useCallback(
-    async (file: MediaFileRow) => {
-      setPendingBulkDeleteIds(null);
-      setBulkMoveDialogOpen(false);
-      await handleSelectMediaFile(file);
-    },
-    [handleSelectMediaFile]
   );
 
   const toggleSelectedMediaFile = useCallback((file: MediaFileRow) => {
@@ -524,13 +514,6 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
     });
     setPendingBulkDeleteIds(null);
   }, [deleteMediaRowsFromLibrary, mediaRows, pendingBulkDeleteIds]);
-
-  const handleSelectMediaFileWithSelection = useCallback(
-    async (file: MediaFileRow) => {
-      await handleSelectMediaFileForPanel(file);
-    },
-    [handleSelectMediaFileForPanel]
-  );
 
   useMediaSurfacePreviewSigning<MediaFileRow, MediaTab>({
     runtime: previewRuntime,
@@ -903,9 +886,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
         resolveCardPreviewUrl={resolvePanelCardPreviewUrl}
         scrollContainerRef={panelBodyRef as React.MutableRefObject<HTMLElement | null>}
         getMediaCardRef={getMediaCardRef}
-        onSelectMediaFile={(file) => {
-          void handleSelectMediaFileWithSelection(file);
-        }}
+        onSelectMediaFile={handleToggleSelectedMedia}
         onToggleMediaSelection={handleToggleSelectedMedia}
         onMediaDoubleClick={handleMediaCardDoubleClick}
         onMediaDragStart={handleMediaCardDragStart}
@@ -941,7 +922,6 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
       handleDownloadMediaFile,
       handleMediaPreviewError,
       handleRemoveItemFromActiveFolder,
-      handleSelectMediaFileWithSelection,
       handleToggleSelectedMedia,
       mediaAdaptivePressure.previewPressureLevel,
       optimizerFallbackMediaIds,
@@ -971,9 +951,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
         resolveCardPreviewUrl={resolvePanelCardPreviewUrl}
         scrollContainerRef={panelBodyRef as React.MutableRefObject<HTMLElement | null>}
         getMediaCardRef={getMediaCardRef}
-        onSelectMediaFile={(file) => {
-          void handleSelectMediaFileWithSelection(file);
-        }}
+        onSelectMediaFile={handleToggleSelectedMedia}
         onToggleMediaSelection={handleToggleSelectedMedia}
         onSelectPromptCard={handleSelectPromptCardWithSelection}
         onMediaDoubleClick={handleMediaCardDoubleClick}
@@ -1024,7 +1002,6 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
       handleMediaPreviewError,
       handlePromptCardDragStart,
       handleRemoveItemFromActiveFolder,
-      handleSelectMediaFileWithSelection,
       handleSelectPromptCardWithSelection,
       handleToggleSelectedMedia,
       mediaAdaptivePressure.previewPressureLevel,

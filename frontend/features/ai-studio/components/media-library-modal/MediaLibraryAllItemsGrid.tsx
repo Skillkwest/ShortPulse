@@ -178,7 +178,7 @@ function MediaLibraryAllItemsMediaCard({
         isSelected ? " is-active" : ""
       }`}
     >
-      {onToggleMediaSelection ? (
+      {onToggleMediaSelection && isSelected ? (
         <button
           type="button"
           className={`media-library-panel-selection-toggle${isSelected ? " is-selected" : ""}`}
@@ -203,7 +203,9 @@ function MediaLibraryAllItemsMediaCard({
         ref={getMediaCardRef(file.id)}
         aria-pressed={isSelected}
         draggable={Boolean(onMediaDragStart)}
-        onClick={() => onSelectMediaFile(file)}
+        onClick={() =>
+          onToggleMediaSelection ? onToggleMediaSelection(file) : onSelectMediaFile(file)
+        }
         onDoubleClick={() => onMediaDoubleClick?.(file)}
         onDragStart={(event) => onMediaDragStart?.(event, file)}
         onDragEnd={(event) => onMediaDragEnd?.(event, file)}

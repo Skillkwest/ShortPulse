@@ -163,14 +163,16 @@ vi.mock("../media-library-modal/MediaLibraryMediaGrid", () => ({
       <div data-testid="mock-media-grid">
         {props.activeMedia.map((row) => (
           <React.Fragment key={row.id}>
-            <button type="button" onClick={() => props.onSelectMediaFile(row)}>
+            <button
+              type="button"
+              onClick={() =>
+                props.onToggleMediaSelection
+                  ? props.onToggleMediaSelection(row)
+                  : props.onSelectMediaFile(row)
+              }
+            >
               Select media {row.filename}
             </button>
-            {props.onToggleMediaSelection ? (
-              <button type="button" onClick={() => props.onToggleMediaSelection?.(row)}>
-                Toggle media selection {row.filename}
-              </button>
-            ) : null}
             {props.onMediaDoubleClick ? (
               <button type="button" onDoubleClick={() => props.onMediaDoubleClick?.(row)}>
                 Open preview media {row.filename}
@@ -262,14 +264,16 @@ vi.mock("../media-library-modal/MediaLibraryAllItemsGrid", () => ({
       <div data-testid="mock-all-items-grid">
         {props.mediaRows.map((row) => (
           <React.Fragment key={row.id}>
-            <button type="button" onClick={() => props.onSelectMediaFile(row)}>
+            <button
+              type="button"
+              onClick={() =>
+                props.onToggleMediaSelection
+                  ? props.onToggleMediaSelection(row)
+                  : props.onSelectMediaFile(row)
+              }
+            >
               Select media {row.filename}
             </button>
-            {props.onToggleMediaSelection ? (
-              <button type="button" onClick={() => props.onToggleMediaSelection?.(row)}>
-                Toggle media selection {row.filename}
-              </button>
-            ) : null}
             {props.onMediaDoubleClick ? (
               <button type="button" onDoubleClick={() => props.onMediaDoubleClick?.(row)}>
                 Open preview media {row.filename}
@@ -897,7 +901,7 @@ describe("MediaLibraryPanel", () => {
       expect(screen.getByRole("button", { name: "Select media ref-1.png" })).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByRole("button", { name: "Toggle media selection ref-1.png" }));
+    fireEvent.click(screen.getByRole("button", { name: "Select media ref-1.png" }));
 
     await waitFor(() => {
       const latestProps = allItemsGridPropsSpy.mock.calls.at(-1)?.[0];
@@ -913,7 +917,7 @@ describe("MediaLibraryPanel", () => {
       expect(screen.getByRole("button", { name: "Select media ref-1.png" })).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByRole("button", { name: "Toggle media selection ref-1.png" }));
+    fireEvent.click(screen.getByRole("button", { name: "Select media ref-1.png" }));
 
     await waitFor(() => {
       const latestProps = allItemsGridPropsSpy.mock.calls.at(-1)?.[0];
@@ -939,12 +943,10 @@ describe("MediaLibraryPanel", () => {
     render(<MediaLibraryPanel onSelectMedia={vi.fn()} onSelectPrompt={vi.fn()} />);
 
     await waitFor(() => {
-      expect(
-        screen.getByRole("button", { name: "Toggle media selection ref-1.png" })
-      ).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Select media ref-1.png" })).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByRole("button", { name: "Toggle media selection ref-1.png" }));
+    fireEvent.click(screen.getByRole("button", { name: "Select media ref-1.png" }));
 
     await waitFor(() => {
       expect(
@@ -979,12 +981,10 @@ describe("MediaLibraryPanel", () => {
     render(<MediaLibraryPanel onSelectMedia={vi.fn()} onSelectPrompt={vi.fn()} />);
 
     await waitFor(() => {
-      expect(
-        screen.getByRole("button", { name: "Toggle media selection ref-1.png" })
-      ).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Select media ref-1.png" })).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByRole("button", { name: "Toggle media selection ref-1.png" }));
+    fireEvent.click(screen.getByRole("button", { name: "Select media ref-1.png" }));
 
     await waitFor(() => {
       expect(

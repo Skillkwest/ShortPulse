@@ -102,6 +102,7 @@ Start here for all repository documentation.
 - `docs/sops/sop_ai_studio_agent_safety_control_plane.md`
 - `docs/sops/sop_ai_studio_agent_rollout_operations.md`
 - `docs/sops/sop_ai_studio_create_properties_generation_wiring.md`
+- `docs/sops/sop_ai_studio_projects_foundation.md`
 - `docs/sops/sop_ai_studio_style_creator.md`
 - `docs/sops/sop_ai_studio_expert_edit_prompt_references.md`
 - `docs/sops/sop_ai_studio_session_persistence_reference_only.md`
@@ -140,6 +141,16 @@ Start here for all repository documentation.
 - `docs/planning/ai-studio-pulse-runtime-phase-6-surface-unification-and-activation-ux-plan-2026-04-20.md`
 - `docs/planning/ai-studio-pulse-runtime-phase-7-validation-docs-and-rollout-plan-2026-04-20.md`
 - `docs/planning/ai-studio-standard-vs-pulse-runtime-isolation-execution-plan-2026-04-23.md`
+- `docs/planning/ai-studio-project-persistence-master-plan-2026-04-23.md`
+- `docs/planning/ai-studio-project-persistence-phase-0-contract-and-persistence-inventory-plan-2026-04-23.md`
+- `docs/planning/ai-studio-project-persistence-phase-0-persistence-inventory-2026-04-23.md`
+- `docs/planning/ai-studio-project-persistence-phase-1-projects-foundation-hardening-plan-2026-04-23.md`
+- `docs/planning/ai-studio-project-persistence-phase-2-project-runtime-entry-and-title-authority-plan-2026-04-23.md`
+- `docs/planning/ai-studio-project-persistence-phase-3-project-workspace-authority-plan-2026-04-23.md`
+- `docs/planning/ai-studio-project-persistence-phase-4-project-asset-association-plan-2026-04-23.md`
+- `docs/planning/ai-studio-project-persistence-phase-5-project-folder-cutover-plan-2026-04-23.md`
+- `docs/planning/ai-studio-project-persistence-phase-6-dashboard-saved-project-surfaces-plan-2026-04-23.md`
+- `docs/planning/ai-studio-project-persistence-phase-7-legacy-session-demotion-and-cleanup-plan-2026-04-23.md`
 - `docs/planning/generation-pipeline-continuation-master-plan-2026-04-05.md`
 - `docs/planning/generation-pipeline-continuation-tracker-2026-04-05.md`
 - `docs/planning/generation-pipeline-continuation-server-authority-cutover-2026-04-05.md`

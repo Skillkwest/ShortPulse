@@ -1,10 +1,14 @@
 /**
- * Styles-library intake compatibility layer.
- * Keeps stable exports for the controller/tests while delegating source prep to focused modules.
+ * Styles-library intake and create-source preparation helpers.
+ * Exposes the stable style-creator utilities used by the controller and tests.
  */
 import type { StylesLibraryStyleDetails } from "../../types";
 import { CUSTOM_STYLE_NAME_PREFIX, STYLE_PROMPT_MAX_CHARACTERS } from "./constants";
-import type { PendingStyleEditState, ResolvedDroppedStylePreview } from "./types";
+import type {
+  PendingStyleEditState,
+  ResolvedDroppedStylePreview,
+  StyleExtractionRuntimeResult,
+} from "./types";
 import type { ExpertEditStyleTile } from "../edit/expertEditStyles";
 import {
   buildStyleDropSnapshotTransfer,
@@ -49,6 +53,20 @@ export {
   readFileAsDataUrl,
   resizeImageDataUrlForExtraction,
   resolveStyleSource,
+};
+
+export type ProcessedResolvedStyleSource = Awaited<ReturnType<typeof resolveStyleSource>> & {
+  previewImageUrl: string;
+  extractionSourceImageUrl: string;
+};
+
+export type PreparedStyleCreationSource = {
+  previewImageUrl: string;
+  stylePrompt: string;
+  styleTitle: string | null;
+  extractionOutcome: StyleExtractionRuntimeResult["outcome"];
+  sourceUrlKind: StyleExtractionRuntimeResult["sourceUrlKind"];
+  extractionErrorMessage: string | null;
 };
 
 /**
@@ -119,6 +137,86 @@ export const normalizeStyleDetailsDraft = (
   stylePrompt: clampStylePromptCharacters(value.stylePrompt.trim()),
   previewImageUrl: value.previewImageUrl.trim(),
 });
+
+/**
+ * Resolves and preprocesses one dropped or uploaded style source for downstream extraction/save.
+ */
+export const resolveProcessedStyleSource = async ({
+  file,
+  dropSnapshot,
+  resolveInternalStyleDrop,
+}: {
+  file?: File | null;
+  dropSnapshot?: StyleDropSnapshot | null;
+  resolveInternalStyleDrop?: ResolveInternalStyleDrop;
+}): Promise<ProcessedResolvedStyleSource> => {
+  const resolvedSource = await resolveStyleSource({
+    file,
+    dropSnapshot,
+    resolveInternalStyleDrop,
+  });
+  const processed = await preprocessStyleImageDataUrl(resolvedSource.sourceImageDataUrl);
+  return {
+    ...resolvedSource,
+    previewImageUrl: processed.previewImageUrl,
+    extractionSourceImageUrl: processed.extractionSourceImageUrl,
+  };
+};
+
+/**
+ * Normalizes one processed style source plus extraction result for create flows.
+ */
+export const prepareStyleCreationSource = ({
+  resolvedSource,
+  extractionResult,
+}: {
+  resolvedSource: Pick<ProcessedResolvedStyleSource, "promptText" | "previewImageUrl">;
+  extractionResult: StyleExtractionRuntimeResult;
+}): PreparedStyleCreationSource => {
+  const fallbackStylePrompt = normalizeStylePromptFallbackText(resolvedSource.promptText);
+  if (
+    extractionResult.outcome === "success" &&
+    extractionResult.stylePrompt &&
+    extractionResult.styleTitle
+  ) {
+    return {
+      previewImageUrl: resolvedSource.previewImageUrl,
+      stylePrompt: clampStylePromptCharacters(extractionResult.stylePrompt),
+      styleTitle: extractionResult.styleTitle,
+      extractionOutcome: extractionResult.outcome,
+      sourceUrlKind: extractionResult.sourceUrlKind,
+      extractionErrorMessage: null,
+    };
+  }
+
+  return {
+    previewImageUrl: resolvedSource.previewImageUrl,
+    stylePrompt: fallbackStylePrompt,
+    styleTitle: null,
+    extractionOutcome: extractionResult.outcome,
+    sourceUrlKind: extractionResult.sourceUrlKind,
+    extractionErrorMessage: extractionResult.errorMessage?.trim() || null,
+  };
+};
+
+/**
+ * Builds the persisted style payload for a newly created style.
+ */
+export const buildCreatedStyleDetails = ({
+  styleName,
+  preparedSource,
+}: {
+  styleName: string;
+  preparedSource: PreparedStyleCreationSource;
+}): StylesLibraryStyleDetails => {
+  return {
+    style: styleName,
+    title: styleName,
+    referenceImageName: styleName,
+    stylePrompt: preparedSource.stylePrompt,
+    previewImageUrl: preparedSource.previewImageUrl,
+  };
+};
 
 /**
  * Resolves a drop payload into preview + extraction source URLs.

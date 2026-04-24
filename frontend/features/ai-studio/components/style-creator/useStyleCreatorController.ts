@@ -37,14 +37,13 @@ import {
   type ResolveInternalStyleDrop,
   reorderById,
 } from "./intake";
-import { runDeleteStyleCommand, runSaveStyleDetailsCommand } from "./persistence";
 import { trackStyleExtractionOutcome, trackStyleSourceResolutionDiagnostic } from "./telemetry";
 import {
   buildCreatedStyleDetails,
   prepareStyleCreationSource,
   resolveProcessedStyleSource,
   type ProcessedResolvedStyleSource,
-} from "./workflow";
+} from "./intake";
 import type {
   PendingStyleEditState,
   StyleExtractionFailureClass,
@@ -89,6 +88,41 @@ const normalizeResultErrorMessage = (errorMessage: string | undefined): string =
     return "Style extraction failed. You can still enter the style prompt manually.";
   }
   return errorMessage;
+};
+
+const runDeleteStyleCommand = async ({
+  styleId,
+  onDeleteStyle,
+}: {
+  styleId: string;
+  onDeleteStyle?: (styleId: string) => Promise<boolean> | boolean;
+}): Promise<boolean> => {
+  if (!onDeleteStyle || !styleId.trim()) return false;
+  try {
+    return Boolean(await onDeleteStyle(styleId));
+  } catch {
+    return false;
+  }
+};
+
+const runSaveStyleDetailsCommand = async ({
+  styleId,
+  details,
+  onSaveStyleDetails,
+}: {
+  styleId: string;
+  details: StylesLibraryStyleDetails;
+  onSaveStyleDetails?: (
+    styleId: string,
+    details: StylesLibraryStyleDetails
+  ) => Promise<boolean> | boolean;
+}): Promise<boolean> => {
+  if (!onSaveStyleDetails || !styleId.trim()) return false;
+  try {
+    return Boolean(await onSaveStyleDetails(styleId, details));
+  } catch {
+    return false;
+  }
 };
 
 const resolveTelemetryFailureClass = (

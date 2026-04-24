@@ -5,13 +5,11 @@
 import { useCallback, useMemo, useState } from "react";
 import type { AiStudioSessionSnapshot } from "../logic/sessionSnapshot";
 import type { AiStudioSessionHydrationPayload } from "../logic/sessionSnapshotHydrator";
+import type { AiStudioSessionRestoreSource } from "../logic/sessionRestoreCandidate";
 import { persistAiStudioSessionShadow } from "../logic/sessionShadowPersistence";
 import { readAiStudioSessionPersistencePolicy } from "../logic/sessionPersistencePolicy";
 import { resolveAiStudioSessionSnapshotTitle } from "../logic/sessionSnapshotTitle";
-import {
-  useAiStudioSessionRestoreCandidate,
-  type AiStudioSessionRestoreCandidateState,
-} from "./useAiStudioSessionRestoreCandidate";
+import { useAiStudioSessionRestoreCandidate } from "./useAiStudioSessionRestoreCandidate";
 import { useAiStudioSessionRestoreHydration } from "./useAiStudioSessionRestoreHydration";
 import {
   useAiStudioSessionWriteShadow,
@@ -34,10 +32,19 @@ type UseAiStudioSessionPersistenceControllerParams = {
   onPersistenceWarning?: (message: string) => void;
 };
 
+export type AiStudioSessionPersistenceRestoreCandidateState = {
+  status: "idle" | "loading" | "ready" | "error";
+  snapshot: AiStudioSessionSnapshot | null;
+  source: AiStudioSessionRestoreSource;
+  result?: "idle" | "loading" | "found_snapshot" | "no_snapshot" | "load_failed";
+  error?: string | null;
+  retry?: () => void;
+};
+
 export type AiStudioSessionPersistenceController = {
   sessionId: string | null;
   sessionSnapshot: AiStudioSessionSnapshot | null;
-  sessionRestoreCandidate: AiStudioSessionRestoreCandidateState;
+  sessionRestoreCandidate: AiStudioSessionPersistenceRestoreCandidateState;
   setSkipRestoreApplyForSessionId: (sessionId: string | null) => void;
   projectBootstrapApplied: boolean;
   projectBootstrapError: string | null;

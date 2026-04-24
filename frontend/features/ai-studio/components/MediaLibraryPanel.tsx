@@ -52,6 +52,7 @@ import { useMediaLibraryPanelMutationController } from "../hooks/useMediaLibrary
 import { useMediaLibraryPanelSelectionController } from "../hooks/useMediaLibraryPanelSelectionController";
 import type { InternalReferenceDragPayload } from "../utils/dragDrop";
 import { MediaLibraryPanelFoldersSection } from "./MediaLibraryPanelFoldersSection";
+import { MediaLibraryPanelBulkActions } from "./MediaLibraryPanelBulkActions";
 import { MediaLibraryAllItemsGrid } from "./media-library-modal/MediaLibraryAllItemsGrid";
 import { MediaLibraryMediaGrid } from "./media-library-modal/MediaLibraryMediaGrid";
 import { MediaLibraryPanelPreviewModal } from "./media-library-modal/MediaLibraryPanelPreviewModal";
@@ -106,6 +107,7 @@ const MEMBERSHIP_MESSAGE_TIMEOUT_MS = 1800;
 const MEDIA_LIBRARY_FOLDERS_DEFAULT_TOP_RATIO = 0.3;
 const MEDIA_LIBRARY_FOLDERS_EXPANDED_GRID_TOP_HEIGHT_PX = 0;
 const MEDIA_LIBRARY_FOLDERS_COLLAPSE_TOP_HEIGHT_PX = 86;
+const PROJECT_NAME_PLACEHOLDER = "Untitled project";
 
 const setTransferDataSafe = (transfer: DataTransfer, type: string, value: string): void => {
   try {
@@ -163,6 +165,8 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
   const [membershipMessage, setMembershipMessage] = useState<string | null>(null);
   const [membershipPendingMessage, setMembershipPendingMessage] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
+  const [pendingBulkDeleteIds, setPendingBulkDeleteIds] = useState<string[] | null>(null);
+  const [bulkMoveDialogOpen, setBulkMoveDialogOpen] = useState(false);
   const [folderContextMenu, setFolderContextMenu] = useState<FolderContextMenuState | null>(null);
   const [moveFolderPicker, setMoveFolderPicker] = useState<MoveFolderPickerState | null>(null);
   const [projectNameDraft, setProjectNameDraft] = useState(projectName ?? "");
@@ -181,6 +185,15 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
   useEffect(() => {
     setProjectNameDraft(projectName ?? "");
   }, [projectName]);
+
+  const projectNameInputWidthCh = useMemo(() => {
+    const normalizedProjectName =
+      projectNameDraft.trim() || projectName?.trim() || PROJECT_NAME_PLACEHOLDER;
+    return Math.min(
+      Math.max(normalizedProjectName.length + 1, PROJECT_NAME_PLACEHOLDER.length),
+      28
+    );
+  }, [projectName, projectNameDraft]);
 
   const adaptivePreviewQualityEnabled = isAdaptiveSurfaceEnabled("media-library-panel-grid");
   const mediaAdaptivePressure = useMediaAdaptivePressure({
@@ -224,7 +237,10 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
     resetDeleteConfirmState,
     closeDeleteConfirm,
     confirmDeleteFromLibrary,
+    deleteMediaRowsFromLibrary,
     handleRemoveItemFromActiveFolder,
+    handleRemoveItemsFromActiveFolder,
+    handleMoveItemsToFolder,
     uploadDroppedFilesToFolder,
   } = useMediaLibraryPanelMutationController({
     projectId,
@@ -236,8 +252,12 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
     setMediaRows,
     setPromptRows,
   });
-  useAiStudioModalActivity("media-library-panel-delete-confirm", Boolean(pendingLibraryDelete));
+  useAiStudioModalActivity(
+    "media-library-panel-delete-confirm",
+    Boolean(pendingLibraryDelete || pendingBulkDeleteIds)
+  );
   useAiStudioModalActivity("media-library-panel-move-folder", Boolean(moveFolderPicker));
+  useAiStudioModalActivity("media-library-panel-bulk-move", bulkMoveDialogOpen);
   const visiblePromptRows = useMemo(() => sortByCreatedAtDesc(promptRows), [promptRows]);
   const foldersById = useMemo(
     () => new Map(folders.map((folder) => [folder.id, folder])),
@@ -358,6 +378,8 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
 
   useEffect(() => {
     setSelectedIds(new Set());
+    setPendingBulkDeleteIds(null);
+    setBulkMoveDialogOpen(false);
   }, [activeFolderId, itemType]);
 
   useEffect(() => {
@@ -435,28 +457,79 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
 
   const handleSelectPromptCardWithSelection = useCallback(
     (prompt: PromptRow) => {
-      setSelectedIds((prev) => {
-        if (prev.has(prompt.id)) return prev;
-        const next = new Set(prev);
-        next.add(prompt.id);
-        return next;
-      });
       handleSelectPromptCard(prompt);
     },
     [handleSelectPromptCard]
   );
 
-  const handleSelectMediaFileWithSelection = useCallback(
+  const handleSelectMediaFileForPanel = useCallback(
     async (file: MediaFileRow) => {
-      setSelectedIds((prev) => {
-        if (prev.has(file.id)) return prev;
-        const next = new Set(prev);
-        next.add(file.id);
-        return next;
-      });
+      setPendingBulkDeleteIds(null);
+      setBulkMoveDialogOpen(false);
       await handleSelectMediaFile(file);
     },
     [handleSelectMediaFile]
+  );
+
+  const toggleSelectedMediaFile = useCallback((file: MediaFileRow) => {
+    setPendingBulkDeleteIds(null);
+    setBulkMoveDialogOpen(false);
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(file.id)) {
+        next.delete(file.id);
+      } else {
+        next.add(file.id);
+      }
+      return next;
+    });
+  }, []);
+
+  const clearSelectedMediaIds = useCallback(() => {
+    setPendingBulkDeleteIds(null);
+    setBulkMoveDialogOpen(false);
+    setSelectedIds(new Set());
+  }, []);
+
+  const handleToggleSelectedMedia = useCallback(
+    (file: MediaFileRow) => {
+      toggleSelectedMediaFile(file);
+    },
+    [toggleSelectedMediaFile]
+  );
+
+  const handleCloseBulkDeleteConfirm = useCallback(() => {
+    if (deleteConfirmSubmitting) return;
+    setPendingBulkDeleteIds(null);
+  }, [deleteConfirmSubmitting]);
+
+  const handleConfirmBulkDelete = useCallback(async () => {
+    if (!pendingBulkDeleteIds?.length) return;
+    const selectedIdSet = new Set(pendingBulkDeleteIds);
+    const selectedRows = mediaRows.filter((row) => selectedIdSet.has(row.id));
+    const deleted = await deleteMediaRowsFromLibrary(selectedRows);
+    if (deleted) {
+      setPendingBulkDeleteIds(null);
+      setSelectedIds(new Set());
+      return;
+    }
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      for (const id of pendingBulkDeleteIds) {
+        if (!mediaRows.some((row) => row.id === id)) {
+          next.delete(id);
+        }
+      }
+      return next;
+    });
+    setPendingBulkDeleteIds(null);
+  }, [deleteMediaRowsFromLibrary, mediaRows, pendingBulkDeleteIds]);
+
+  const handleSelectMediaFileWithSelection = useCallback(
+    async (file: MediaFileRow) => {
+      await handleSelectMediaFileForPanel(file);
+    },
+    [handleSelectMediaFileForPanel]
   );
 
   useMediaSurfacePreviewSigning<MediaFileRow, MediaTab>({
@@ -480,6 +553,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
   }, [activeFolderId, closePreviewModal, resetDeleteConfirmState]);
 
   const foldersDropController = useMediaLibraryFolderDropController({
+    projectId,
     folders,
     setFolderError,
     setMembershipMessage,
@@ -832,6 +906,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
         onSelectMediaFile={(file) => {
           void handleSelectMediaFileWithSelection(file);
         }}
+        onToggleMediaSelection={handleToggleSelectedMedia}
         onMediaDoubleClick={handleMediaCardDoubleClick}
         onMediaDragStart={handleMediaCardDragStart}
         onMediaDragEnd={handleCardDragEnd}
@@ -867,6 +942,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
       handleMediaPreviewError,
       handleRemoveItemFromActiveFolder,
       handleSelectMediaFileWithSelection,
+      handleToggleSelectedMedia,
       mediaAdaptivePressure.previewPressureLevel,
       optimizerFallbackMediaIds,
       resolvePanelCardPreviewUrl,
@@ -878,10 +954,16 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
   );
 
   const renderAllItemsGrid = useCallback(
-    () => (
+    ({
+      gridMediaRows = mediaRows,
+      gridPromptRows = visiblePromptRows,
+    }: {
+      gridMediaRows?: MediaFileRow[];
+      gridPromptRows?: PromptRow[];
+    } = {}) => (
       <MediaLibraryAllItemsGrid
-        mediaRows={mediaRows}
-        promptRows={visiblePromptRows}
+        mediaRows={gridMediaRows}
+        promptRows={gridPromptRows}
         selectedIds={selectedIds}
         optimizerFallbackMediaIds={optimizerFallbackMediaIds}
         adaptivePressureLevel={mediaAdaptivePressure.previewPressureLevel}
@@ -892,6 +974,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
         onSelectMediaFile={(file) => {
           void handleSelectMediaFileWithSelection(file);
         }}
+        onToggleMediaSelection={handleToggleSelectedMedia}
         onSelectPromptCard={handleSelectPromptCardWithSelection}
         onMediaDoubleClick={handleMediaCardDoubleClick}
         onMediaDragStart={handleMediaCardDragStart}
@@ -931,6 +1014,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
       activeFolderId,
       adaptivePreviewQualityEnabled,
       canShowFolderItemRemoveAction,
+      mediaRows,
       getMediaCardRef,
       handleCardDragEnd,
       handleDownloadMediaFile,
@@ -942,8 +1026,8 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
       handleRemoveItemFromActiveFolder,
       handleSelectMediaFileWithSelection,
       handleSelectPromptCardWithSelection,
+      handleToggleSelectedMedia,
       mediaAdaptivePressure.previewPressureLevel,
-      mediaRows,
       optimizerFallbackMediaIds,
       panelBodyRef,
       resolvePanelCardPreviewUrl,
@@ -1081,6 +1165,78 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
     !mediaLoading &&
     visiblePromptRows.length === 0 &&
     mediaRows.length === 0;
+  const activeFolderGridMediaRows = shouldShowMedia ? mediaRows : [];
+  const activeFolderGridPromptRows = shouldShowPrompts ? visiblePromptRows : [];
+  const showActiveFolderUnifiedGrid =
+    !showCustomFolderEmptyState &&
+    (activeFolderGridMediaRows.length > 0 || activeFolderGridPromptRows.length > 0);
+  const bulkVisibleMediaRows = useMemo(() => {
+    if (!shouldShowMedia) return [] as MediaFileRow[];
+    if (!isRootFolderSelected) {
+      return activeFolderGridMediaRows;
+    }
+    if (itemType === "images") return visibleImageRows;
+    if (itemType === "videos") return visibleVideoRows;
+    if (itemType === "all") return mediaRows;
+    return [];
+  }, [
+    activeFolderGridMediaRows,
+    isRootFolderSelected,
+    itemType,
+    mediaRows,
+    shouldShowMedia,
+    visibleImageRows,
+    visibleVideoRows,
+  ]);
+  const selectedVisibleMediaRows = useMemo(() => {
+    if (!selectedIds.size) return [] as MediaFileRow[];
+    return bulkVisibleMediaRows.filter((row) => selectedIds.has(row.id));
+  }, [bulkVisibleMediaRows, selectedIds]);
+  const handleOpenBulkDeleteConfirm = useCallback(() => {
+    if (!selectedVisibleMediaRows.length || !isRootFolderSelected) return;
+    setBulkMoveDialogOpen(false);
+    setPendingBulkDeleteIds(selectedVisibleMediaRows.map((row) => row.id));
+  }, [isRootFolderSelected, selectedVisibleMediaRows]);
+  const bulkMoveDestinationOptions = useMemo(
+    () =>
+      folders
+        .filter((folder) => folder.id !== activeFolderId)
+        .map((folder) => ({
+          id: folder.id,
+          label: buildFolderPathLabel(folder.id),
+        })),
+    [activeFolderId, buildFolderPathLabel, folders]
+  );
+  const canMoveSelectedMediaToFolder = bulkMoveDestinationOptions.length > 0;
+  const handleOpenBulkMoveDialog = useCallback(() => {
+    if (!selectedVisibleMediaRows.length || !canMoveSelectedMediaToFolder) return;
+    setPendingBulkDeleteIds(null);
+    setBulkMoveDialogOpen(true);
+  }, [canMoveSelectedMediaToFolder, selectedVisibleMediaRows.length]);
+  const handleCloseBulkMoveDialog = useCallback(() => {
+    setBulkMoveDialogOpen(false);
+  }, []);
+  const handleMoveSelectedMediaToFolder = useCallback(
+    async (targetFolderId: string) => {
+      if (!selectedVisibleMediaRows.length) return;
+      const moved = await handleMoveItemsToFolder({
+        mediaIds: selectedVisibleMediaRows.map((row) => row.id),
+        targetFolderId,
+      });
+      if (!moved) return;
+      setBulkMoveDialogOpen(false);
+      setSelectedIds(new Set());
+    },
+    [handleMoveItemsToFolder, selectedVisibleMediaRows]
+  );
+  const handleRemoveSelectedMediaFromFolder = useCallback(async () => {
+    if (!selectedVisibleMediaRows.length || isRootFolderSelected) return;
+    const removed = await handleRemoveItemsFromActiveFolder({
+      mediaIds: selectedVisibleMediaRows.map((row) => row.id),
+    });
+    if (!removed) return;
+    setSelectedIds(new Set());
+  }, [handleRemoveItemsFromActiveFolder, isRootFolderSelected, selectedVisibleMediaRows]);
   const isActiveFolderDropHover =
     !isRootFolderSelected && foldersDropController.hoveredContentFolderId === activeFolderId;
   const isRootFolderDropHover =
@@ -1110,6 +1266,29 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
       }
     : null;
 
+  useEffect(() => {
+    if (!selectedIds.size) return;
+    const visibleIdSet = new Set(bulkVisibleMediaRows.map((row) => row.id));
+    setSelectedIds((prev) => {
+      let changed = false;
+      const next = new Set<string>();
+      for (const id of prev) {
+        if (!visibleIdSet.has(id)) {
+          changed = true;
+          continue;
+        }
+        next.add(id);
+      }
+      return changed ? next : prev;
+    });
+  }, [bulkVisibleMediaRows, selectedIds.size]);
+
+  useEffect(() => {
+    if (selectedVisibleMediaRows.length > 0) return;
+    setPendingBulkDeleteIds(null);
+    setBulkMoveDialogOpen(false);
+  }, [selectedVisibleMediaRows.length]);
+
   return (
     <section className="media-library-panel" aria-label="Media library panel">
       <header className="media-library-panel-header">
@@ -1117,6 +1296,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
           <p className="eyebrow">Media</p>
         </div>
         <label className="media-library-panel-project-name-field">
+          <span className="media-library-panel-project-name-label eyebrow">PROJECT:</span>
           <span className="sr-only">Project name</span>
           <input
             type="text"
@@ -1134,9 +1314,10 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
               }
             }}
             className="media-library-panel-project-name-input"
-            placeholder="Untitled project"
+            placeholder={PROJECT_NAME_PLACEHOLDER}
             aria-label="Project name"
             maxLength={120}
+            style={{ width: `${projectNameInputWidthCh}ch` }}
           />
         </label>
       </header>
@@ -1218,6 +1399,19 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
                 <span>{membershipMessage}</span>
               </div>
             ) : null}
+            <MediaLibraryPanelBulkActions
+              canDeleteFromLibrary={isRootFolderSelected}
+              canMoveToFolder={canMoveSelectedMediaToFolder}
+              canRemoveFromFolder={!isRootFolderSelected}
+              disabled={deleteConfirmSubmitting}
+              onClearSelection={clearSelectedMediaIds}
+              onMoveToFolder={handleOpenBulkMoveDialog}
+              onDeleteFromLibrary={handleOpenBulkDeleteConfirm}
+              onRemoveFromFolder={() => {
+                void handleRemoveSelectedMediaFromFolder();
+              }}
+              selectedCount={selectedVisibleMediaRows.length}
+            />
 
             {!showFolderCanvas && isRootFolderSelected ? (
               <div className="media-library-panel-root-tabs-row">
@@ -1426,26 +1620,49 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
                   </section>
                 ) : null}
 
-                {shouldShowPrompts && !showCustomFolderEmptyState ? renderPromptsSection() : null}
-
-                {!showCustomFolderEmptyState && shouldShowMedia ? (
+                {!showCustomFolderEmptyState && !showActiveFolderUnifiedGrid ? (
                   <section className="media-library-panel-section">
-                    <div className="media-library-panel-section-head">
-                      <p className="tiny subdued">
-                        Media ({mediaRows.length})
-                        {mediaLoading && mediaRows.length > 0 ? " · Refreshing" : ""}
-                      </p>
+                    {promptLoading || mediaLoading ? (
+                      <p className="tiny subdued">Loading folder items…</p>
+                    ) : null}
+                    {!promptLoading && !mediaLoading ? (
+                      <p className="tiny subdued">No items found for this folder.</p>
+                    ) : null}
+                  </section>
+                ) : null}
+
+                {showActiveFolderUnifiedGrid ? (
+                  <section className="media-library-panel-section">
+                    <div id="media-library-panel-folder-items-section">
+                      {renderAllItemsGrid({
+                        gridMediaRows: activeFolderGridMediaRows,
+                        gridPromptRows: activeFolderGridPromptRows,
+                      })}
                     </div>
-                    {mediaLoading && mediaRows.length === 0 ? (
-                      <p className="tiny subdued">Loading media…</p>
-                    ) : null}
-                    {!mediaLoading && mediaRows.length === 0 ? (
-                      <p className="tiny subdued">No media found for this folder.</p>
-                    ) : null}
-                    <div id="media-library-panel-media-section">
-                      {mediaRows.length > 0 ? renderMediaGrid(mediaRows) : null}
-                      {mediaHasMore ? (
-                        <div className="media-load-more">
+                    {promptHasMore || mediaHasMore ? (
+                      <div className="media-load-more media-load-more-inline">
+                        <p className="tiny subdued">
+                          Loaded{" "}
+                          {activeFolderGridPromptRows.length + activeFolderGridMediaRows.length}{" "}
+                          {activeFolderGridPromptRows.length + activeFolderGridMediaRows.length ===
+                          1
+                            ? "item"
+                            : "items"}
+                          {promptHasMore || mediaHasMore ? "." : " (all loaded)."}
+                        </p>
+                        {promptHasMore ? (
+                          <button
+                            type="button"
+                            className="btn-secondary"
+                            onClick={() => {
+                              void loadPromptPage({ reset: false });
+                            }}
+                            disabled={promptLoading}
+                          >
+                            {promptLoading ? "Loading prompts..." : "Load more prompts"}
+                          </button>
+                        ) : null}
+                        {mediaHasMore ? (
                           <button
                             type="button"
                             className="btn-secondary"
@@ -1454,11 +1671,39 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
                             }}
                             disabled={mediaLoading}
                           >
-                            {mediaLoading ? "Loading more..." : "Load more media"}
+                            {mediaLoading ? "Loading media..." : "Load more media"}
                           </button>
-                        </div>
-                      ) : null}
-                    </div>
+                        ) : null}
+                      </div>
+                    ) : null}
+                  </section>
+                ) : null}
+
+                {!showCustomFolderEmptyState &&
+                !showActiveFolderUnifiedGrid &&
+                shouldShowPrompts &&
+                !shouldShowMedia ? (
+                  <section className="media-library-panel-section">
+                    {promptLoading && visiblePromptRows.length === 0 ? (
+                      <p className="tiny subdued">Loading prompts…</p>
+                    ) : null}
+                    {!promptLoading && visiblePromptRows.length === 0 ? (
+                      <p className="tiny subdued">No prompts found for this folder.</p>
+                    ) : null}
+                  </section>
+                ) : null}
+
+                {!showCustomFolderEmptyState &&
+                !showActiveFolderUnifiedGrid &&
+                shouldShowMedia &&
+                !shouldShowPrompts ? (
+                  <section className="media-library-panel-section">
+                    {mediaLoading && mediaRows.length === 0 ? (
+                      <p className="tiny subdued">Loading media…</p>
+                    ) : null}
+                    {!mediaLoading && mediaRows.length === 0 ? (
+                      <p className="tiny subdued">No media found for this folder.</p>
+                    ) : null}
                   </section>
                 ) : null}
               </div>
@@ -1511,6 +1756,88 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
         error={previewModalError}
         onClose={closePreviewModal}
       />
+      {pendingBulkDeleteIds ? (
+        <AiStudioModalLayer>
+          <div className="art-confirm-backdrop" onClick={handleCloseBulkDeleteConfirm}>
+            <div
+              className="art-confirm-card"
+              role="dialog"
+              aria-modal="true"
+              aria-label="Confirm bulk delete from All Media"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <p className="art-confirm-title">Delete selected media from All Media?</p>
+              <p className="art-confirm-copy">
+                This permanently deletes {pendingBulkDeleteIds.length} selected{" "}
+                {pendingBulkDeleteIds.length === 1 ? "item" : "items"} from your library.
+              </p>
+              <div className="art-confirm-actions">
+                <button
+                  type="button"
+                  className="art-action-btn"
+                  onClick={handleCloseBulkDeleteConfirm}
+                  disabled={deleteConfirmSubmitting}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className="art-action-btn art-action-btn-danger"
+                  onClick={() => {
+                    void handleConfirmBulkDelete();
+                  }}
+                  disabled={deleteConfirmSubmitting}
+                >
+                  {deleteConfirmSubmitting ? "Deleting..." : "Yes, delete"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </AiStudioModalLayer>
+      ) : null}
+      {bulkMoveDialogOpen ? (
+        <AiStudioModalLayer>
+          <div className="art-confirm-backdrop" onClick={handleCloseBulkMoveDialog}>
+            <div
+              className="media-library-panel-move-dialog"
+              role="dialog"
+              aria-modal="true"
+              aria-label={`Move ${selectedVisibleMediaRows.length} selected media items`}
+              onClick={(event) => event.stopPropagation()}
+            >
+              <p className="media-library-panel-move-dialog-title">Move Selected Media</p>
+              <p className="media-library-panel-move-dialog-copy">
+                Choose the destination folder for {selectedVisibleMediaRows.length} selected{" "}
+                {selectedVisibleMediaRows.length === 1 ? "item" : "items"}.
+              </p>
+              <p className="media-library-panel-move-dialog-label">Available destinations</p>
+              <div className="media-library-panel-move-dialog-list" role="list">
+                {bulkMoveDestinationOptions.map((option) => (
+                  <button
+                    key={option.id}
+                    type="button"
+                    className="media-library-panel-move-dialog-option"
+                    onClick={() => {
+                      void handleMoveSelectedMediaToFolder(option.id);
+                    }}
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
+              <div className="art-confirm-actions">
+                <button
+                  type="button"
+                  className="art-action-btn"
+                  onClick={handleCloseBulkMoveDialog}
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        </AiStudioModalLayer>
+      ) : null}
       {pendingLibraryDelete ? (
         <AiStudioModalLayer>
           <div className="art-confirm-backdrop" onClick={closeDeleteConfirm}>

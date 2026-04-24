@@ -647,7 +647,7 @@ export const createEmptyAiStudioSessionSnapshot = ({
         pulseWorkflowSession: null,
       },
     },
-    canvasState: null,
+    canvasState: undefined,
     expertEditSessionState: null,
   });
 

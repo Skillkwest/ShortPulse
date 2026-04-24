@@ -42,7 +42,7 @@ describe("MediaLibraryAllItemsGrid", () => {
     });
   });
 
-  const baseProps = () => ({
+  const baseProps = (): React.ComponentProps<typeof MediaLibraryAllItemsGrid> => ({
     mediaRows: [
       {
         id: "video-1",

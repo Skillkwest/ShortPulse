@@ -6,6 +6,8 @@ This SOP is the operational runbook for credit ledger migrations, admin balance 
 - Credit schema alignment (`ai_credit_ledger`, `ai_credit_balance`).
 - Server-authoritative generation charging and refund behavior.
 - Admin/operator credit adjustments in `/admin`.
+- Admin/operator public pricing updates in `/admin/pricing`.
+- Shared model-pricing policy operations and rollback.
 - Stripe credit grants and subscription renewals.
 
 ## Source of truth
@@ -35,6 +37,11 @@ This SOP is the operational runbook for credit ledger migrations, admin balance 
 - Admin adjust API: `frontend/pages/api/admin/credits/adjust.ts`.
 - Admin ledger API: `frontend/pages/api/admin/credits/ledger.ts`.
 - Admin billing diagnostics API: `frontend/pages/api/admin/billing-diagnostics.ts`.
+- Admin pricing state API: `frontend/pages/api/admin/pricing/state.ts`.
+- Admin pricing catalog APIs: `frontend/pages/api/admin/pricing/credit-packages/update.ts`, `frontend/pages/api/admin/pricing/plan-offers/create.ts`, `frontend/pages/api/admin/pricing/storage-offers/create.ts`.
+- Model-pricing control plane: `frontend/lib/server/api/modelPricingControlPlane.ts`.
+- Model-pricing policy APIs: `frontend/pages/api/pricing/model-policy.ts`, `frontend/pages/api/admin/pricing/model-policy/apply.ts`, `frontend/pages/api/admin/pricing/model-policy/rollback.ts`.
+- Model-pricing control-plane migration: `sql/migrations/096_add_model_pricing_control_plane.sql`.
 - User credit snapshot API: `frontend/pages/api/credits/snapshot.ts`.
 - Contract reconciliation script: `scripts/verify_billing_contracts_against_stripe.ts`.
 
@@ -116,6 +123,31 @@ Safety checks:
 - Per-request cap: absolute value <= `1_000_000`.
 - DB trigger blocks underflow (`Insufficient credits`).
 
+## Admin pricing command center
+Primary path:
+- `/admin/pricing` UI -> `/api/admin/pricing/state`.
+- Credit-package updates -> `/api/admin/pricing/credit-packages/update`.
+- Plan offer versioning -> `/api/admin/pricing/plan-offers/create`.
+- Storage add-on offer versioning -> `/api/admin/pricing/storage-offers/create`.
+- Runtime model-pricing policy read -> `/api/pricing/model-policy`.
+- Runtime model-pricing policy apply -> `/api/admin/pricing/model-policy/apply`.
+- Runtime model-pricing policy rollback -> `/api/admin/pricing/model-policy/rollback`.
+
+Operational rules:
+- Treat catalog pricing and runtime model pricing as separate domains even though they share `/admin/pricing`.
+- Plan and storage changes create new public offers for future acquisitions; they do not mutate historical subscriber contracts.
+- Credit-package updates change the active package row used for future top-up checkout.
+- Model-pricing policy changes affect future AI Studio estimates and server debits immediately after activation.
+- Model-pricing rollback returns the runtime to the last-known-safe versioned policy; use rollback instead of hand-editing pricing tables or invoking RPCs manually.
+- Stripe-linked public catalog rows must keep valid `stripe_price_id` values before activation for any paid acquisition offer or active paid top-up package.
+
+Recommended operator sequence:
+1. Open `/admin/pricing` and inspect state warnings first.
+2. For plan/storage/top-up changes, create or attach the correct Stripe Price before activating the catalog update.
+3. For model-pricing changes, review the effective conversion, markup, and rounding diff before activation and verify the active policy snapshot through `/api/pricing/model-policy`.
+4. After any pricing change, verify the customer-facing catalog on `/profile?section=billing`.
+5. After any model-pricing policy change, verify AI Studio estimate chips and one server-side debit path still agree on billed credits.
+
 ## Charging model behavior
 - Fal generation submit endpoints reserve credits server-side before provider submission.
 - Bria remove-background submit (`/api/fal/bria-background-remove-submit`) uses the same reservation/debit flow as other Fal submit routes (no billing bypass).
@@ -181,6 +213,10 @@ Safety checks:
   - current public plan storage lives in `billing_plan_offers` with `billing_plans` supplying shared metadata
   - current public recurring storage add-ons live in `billing_storage_addon_offers` with `billing_storage_addons` supplying shared metadata
   - active subscriber storage comes from `billing_subscription_contracts.storage_limit_bytes` plus active `billing_subscription_storage_addons`
+- Runtime AI model debit policy is separate from the billing catalog:
+  - granted credits from plans/top-ups are stored as nominal credit quantities in billing tables
+  - the active model-pricing policy controls how generation USD cost is converted into billed credits at runtime
+  - changing the runtime conversion rate does not rewrite historical grants or subscription contract rows
 - Stripe subscription item sync must treat storage add-ons as recurring subscription items, not consumable credit packs.
 - Immediate Stripe subscription deletion must drop local paid entitlements back to free runtime state. Only `cancel_at_period_end = true` should preserve access through the paid period.
 

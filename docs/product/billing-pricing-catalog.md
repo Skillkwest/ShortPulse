@@ -1,11 +1,12 @@
 # Billing Pricing Catalog
 
-Purpose: keep subscription and credit-pack pricing easy to change without touching generation model pricing.
+Purpose: keep subscription, storage add-on, and credit-pack pricing easy to change without mutating the separate AI model debit policy.
 
-## Credit unit policy
-- `1 credit = $0.01` is fixed.
-- AI model debit logic remains in `frontend/lib/model-runtime/pricingStrategies.ts`.
-- This catalog only controls subscription and top-up pricing.
+## Credit accounting policy
+- Catalog tables define how many credits a plan or top-up grants to a user account.
+- The current default AI model debit scale is `1 credit = $0.01`, but that runtime conversion is no longer fixed in code; it lives in the shared model-pricing control plane documented in `docs/product/ai-studio-pricing.md`.
+- Changes to model markup, rounding, or credit conversion affect future generation debits only.
+- Changes to this billing catalog affect product/package pricing and granted-credit quantities only.
 
 ## Source of truth
 - Public acquisition pricing shown in UI is loaded from current acquisition offer rows plus shared metadata:
@@ -18,6 +19,7 @@ Purpose: keep subscription and credit-pack pricing easy to change without touchi
   - `frontend/pages/api/billing/catalog.ts`
 - Operators can now inspect and update public catalog pricing from:
   - `/admin/pricing`
+- Operators can inspect the active runtime model-pricing policy from the same admin surface, but that policy is a separate control plane from the billing catalog tables in this doc.
 - UI presentation and package math helpers live in:
   - `frontend/features/billing/catalog.ts`
 - Subscriber-specific recurring terms are stored separately in:
@@ -58,26 +60,29 @@ Purpose: keep subscription and credit-pack pricing easy to change without touchi
 - `studio_10000`: `$100`, `10,000` credits
 
 ## How to change pricing
-1. Create a new Stripe Price for the changed recurring plan or one-time package.
-2. Create a new internal offer row for recurring subscriptions instead of overwriting the existing historical offer:
+1. Decide which pricing domain is changing:
+   - billing catalog (`plans`, `storage add-ons`, `credit top-ups`) via `/admin/pricing`
+   - runtime AI model debit policy (`credit conversion`, `markup`, `rounding`, `per-model overrides`) via the same admin page's model-pricing section and `docs/product/ai-studio-pricing.md`
+2. Create a new Stripe Price for the changed recurring plan or one-time package.
+3. Create a new internal offer row for recurring subscriptions instead of overwriting the existing historical offer:
    - `billing_plan_offers`
    - `billing_storage_addon_offers` for recurring storage add-ons
-3. Update the acquisition catalog for new buyers:
+4. Update the acquisition catalog for new buyers:
    - `billing_plan_offers` for the current public recurring offer
    - `billing_plans` for shared tier metadata only
    - `billing_credit_packages` for top-up packages
    - `billing_storage_addon_offers` for the current public recurring storage add-on offer
    - `billing_storage_addons` for shared recurring storage add-on metadata only
-4. Keep bootstrap seeds aligned for new environments:
+5. Keep bootstrap seeds aligned for new environments:
    - `sql/create_billing_credit_tables.sql`
    - `docs/supabase_full_schema.sql`
-5. Keep Stripe aligned with database values:
+6. Keep Stripe aligned with database values:
    - Update `billing_plan_offers.stripe_price_id` for recurring subscriptions.
    - Update `billing_credit_packages.stripe_price_id` for top-up purchases.
    - Update `billing_storage_addon_offers.stripe_price_id` for recurring storage add-ons.
    - Do not mutate historical offers already tied to active subscriber contracts.
    - Do not attach Stripe price ids to hidden internal comp offers.
-6. Verify in app:
+7. Verify in app:
    - `/profile?section=billing` reflects updated plan and package prices from `/api/billing/catalog`.
    - `/profile?section=billing` reflects recurring storage add-on catalog entries from `/api/billing/catalog`.
    - `/dashboard` and `/media-library` reflect the correct storage entitlement from the active contract plus add-ons.
@@ -85,6 +90,7 @@ Purpose: keep subscription and credit-pack pricing easy to change without touchi
    - Webhook grants expected credits after successful payment.
    - Webhook sync captures recurring storage add-on subscription items into `billing_subscription_storage_addons`.
    - Existing subscribers still see their locked recurring price from `billing_subscription_contracts`.
+   - If the model-pricing policy changed, AI Studio estimate chips and server debits should both reflect the new active runtime policy from `/api/pricing/model-policy`.
 
 ## Quick verification SQL
 ```sql

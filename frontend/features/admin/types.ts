@@ -280,6 +280,85 @@ export type AdminDashboardAnnouncement = {
   updatedAt: string | null;
 };
 
+export type AdminPricingPolicySnapshot = {
+  version: string;
+  creditUsdScale: number;
+  creditValueUsd: number;
+  markupNumerator: number;
+  markupDenominator: number;
+  markupPercent: number;
+  defaultRoundingMode: "nearest-5" | "ceil";
+  defaultRoundingIncrement: number;
+  exceptionRoundingModelIds: string[];
+};
+
+export type AdminPricingModelRow = {
+  id: string;
+  label: string;
+  provider: "fal" | "kie" | "openai" | "other";
+  mediaType: "image" | "video" | "image-to-video" | "multi" | "text";
+  pricingStrategy: string;
+  defaultAspect: string;
+  defaultResolution: string | null;
+  defaultDurationSeconds: number | null;
+  roundingMode: "nearest-5" | "ceil";
+  pricingPreview: AdminCreditPricingBreakdown | null;
+};
+
+export type AdminPricingPlanRow = {
+  planId: string;
+  displayName: string;
+  offerId: string;
+  recurringPriceCents: number;
+  monthlyCreditsCents: number;
+  storageLimitBytes: number;
+  stripePriceId: string | null;
+  acquisitionEnabled: boolean;
+  isActive: boolean;
+  effectiveStartAt: string | null;
+};
+
+export type AdminPricingCreditPackageRow = {
+  id: string;
+  displayName: string;
+  creditAmountCents: number;
+  priceCents: number;
+  stripePriceId: string | null;
+  sortOrder: number;
+  isActive: boolean;
+};
+
+export type AdminPricingStorageAddonRow = {
+  storageAddonId: string;
+  displayName: string;
+  offerId: string;
+  storageLimitBytes: number;
+  recurringPriceCents: number;
+  stripePriceId: string | null;
+  acquisitionEnabled: boolean;
+  isActive: boolean;
+  effectiveStartAt: string | null;
+  sortOrder: number;
+};
+
+export type AdminPricingHealthSummary = {
+  planOffersMissingStripePriceIds: number;
+  storageOffersMissingStripePriceIds: number;
+  creditPackagesMissingStripePriceIds: number;
+  totalWarnings: number;
+  warnings: string[];
+};
+
+export type AdminPricingStateResponse = {
+  generatedAt: string;
+  modelPolicy: AdminPricingPolicySnapshot;
+  models: AdminPricingModelRow[];
+  plans: AdminPricingPlanRow[];
+  creditPackages: AdminPricingCreditPackageRow[];
+  storageAddons: AdminPricingStorageAddonRow[];
+  health: AdminPricingHealthSummary;
+};
+
 export type AdminHealthFindingSeverity = "info" | "warning" | "critical";
 export type AdminHealthFindingConfidence = "high" | "medium" | "low";
 

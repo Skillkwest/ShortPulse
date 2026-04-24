@@ -16,6 +16,8 @@ Purpose: keep subscription and credit-pack pricing easy to change without touchi
   - `billing_storage_addons` for shared storage add-on metadata
 - The primary billing UI reads those values through the authenticated catalog route:
   - `frontend/pages/api/billing/catalog.ts`
+- Operators can now inspect and update public catalog pricing from:
+  - `/admin/pricing`
 - UI presentation and package math helpers live in:
   - `frontend/features/billing/catalog.ts`
 - Subscriber-specific recurring terms are stored separately in:

@@ -522,6 +522,111 @@
   padding-inline: 14px;
 }
 
+.pricingOverviewGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 12px;
+}
+
+.pricingMetaList {
+  display: grid;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--admin-text);
+}
+
+.pricingWarningList {
+  margin: 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 6px;
+  color: var(--admin-warning-text);
+  font-size: 13px;
+}
+
+.pricingModelsHead,
+.pricingModelsRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1.7fr) 0.8fr 0.9fr minmax(0, 1.3fr) 0.8fr minmax(0, 1.1fr);
+  gap: 10px;
+  align-items: center;
+}
+
+.pricingCatalogHead,
+.pricingCatalogRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1.3fr) 0.9fr 0.9fr 0.9fr minmax(0, 1.2fr) 0.9fr auto;
+  gap: 10px;
+  align-items: center;
+}
+
+.pricingModelsRow,
+.pricingCatalogRow {
+  padding: 10px 8px;
+  border-radius: 10px;
+  background: var(--admin-surface-3);
+  border: 1px solid var(--admin-border-soft);
+}
+
+.pricingModelsRow span,
+.pricingCatalogRow span {
+  min-width: 0;
+  font-size: 13px;
+}
+
+.pricingPrimaryCell {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.pricingPrimaryCell strong,
+.pricingPrimaryCell small {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.pricingPrimaryCell small {
+  color: var(--admin-text-faint);
+}
+
+.pricingMonoCell {
+  font-family:
+    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New",
+    monospace;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+.pricingEditorCard {
+  margin-top: 12px;
+  padding: 14px;
+  border-radius: 12px;
+  border: 1px solid var(--admin-border);
+  background: var(--admin-surface-2);
+  display: grid;
+  gap: 12px;
+}
+
+.pricingFormGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.pricingEditorActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.pricingCheckboxField {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+}
+
 .manualAdjustPrimaryAction {
   border-color: var(--admin-accent-border) !important;
   background: rgba(37, 169, 191, 0.12) !important;

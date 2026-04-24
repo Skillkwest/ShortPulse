@@ -79,4 +79,57 @@ describe("pricingCredits", () => {
     expect(resolveModelCreditRoundingMode("fal-ai/bria/background/remove")).toBe("ceil");
     expect(resolveModelCreditRoundingMode("fal-ai/nano-banana")).toBe("nearest-5");
   });
+
+  it("applies a shared policy override for markup and conversion scale", () => {
+    const result = convertUsdToCredits({
+      modelId: "fal-ai/nano-banana",
+      usdRaw: 0.039,
+      policy: {
+        schemaVersion: 1,
+        global: {
+          creditUsdScale: 200,
+          markupBps: 0,
+          defaultRoundingMode: "nearest-5",
+          defaultRoundingIncrement: 5,
+          exceptionRoundingModelIds: [],
+        },
+        perModel: {},
+      },
+    });
+
+    expect(result).toEqual({
+      rawCredits: 8,
+      credits: 10,
+      billedUsd: 0.05,
+    });
+  });
+
+  it("applies per-model overrides for multiplier and rounding", () => {
+    const result = convertUsdToCredits({
+      modelId: "fal-ai/nano-banana",
+      usdRaw: 0.039,
+      policy: {
+        schemaVersion: 1,
+        global: {
+          creditUsdScale: 100,
+          markupBps: 0,
+          defaultRoundingMode: "nearest-5",
+          defaultRoundingIncrement: 5,
+          exceptionRoundingModelIds: [],
+        },
+        perModel: {
+          "fal-ai/nano-banana": {
+            multiplierBps: 20_000,
+            roundingMode: "ceil",
+          },
+        },
+      },
+    });
+
+    expect(result).toEqual({
+      rawCredits: 8,
+      credits: 8,
+      billedUsd: 0.08,
+    });
+  });
 });

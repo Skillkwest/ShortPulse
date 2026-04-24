@@ -9,6 +9,7 @@ import { useAiStudioState } from "../features/ai-studio/hooks/useAiStudioState";
 import { useCharacterWorkflow } from "../features/character/hooks/useCharacterWorkflow";
 import { useCredits } from "../features/ai-studio/hooks/useCredits";
 import { useAiStudioViewModel } from "../features/ai-studio/hooks/useAiStudioViewModel";
+import { useActiveModelPricingPolicy } from "../features/ai-studio/hooks/useActiveModelPricingPolicy";
 import { useAiStudioEditSubmitIntent } from "../features/ai-studio/hooks/useAiStudioEditSubmitIntent";
 import { MediaLibraryModal } from "../features/ai-studio/components/MediaLibraryModal";
 import { useEffectiveBeginnerModePreference } from "../features/ai-studio/hooks/useEffectiveBeginnerModePreference";
@@ -281,6 +282,9 @@ export default function AiStudioPage() {
     setSavedPresets: setSavedCreatePulsePresets,
   } = useCreatePulsePresetPanelPreference();
   const { balanceCents, balanceReservedCents, balanceLoading, refreshBalance } = useCredits();
+  const { modelPricingPolicy } = useActiveModelPricingPolicy({
+    enabled: true,
+  });
   const balanceCredits = useMemo(() => {
     if (balanceCents == null) return null;
     return Math.max(0, Math.floor(balanceCents)); // cents == credits
@@ -1062,6 +1066,7 @@ export default function AiStudioPage() {
     balanceCredits: effectiveBalanceCredits,
     editSubmitIntent,
     costParamsForModel,
+    pricingPolicy: modelPricingPolicy,
   });
   const isCharacterLoadingGenerateDisabled = useMemo(() => {
     const hasUsableCreateCharacterBundle = hasUsableCharacterModeInjectionBundle({

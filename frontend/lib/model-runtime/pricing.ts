@@ -31,7 +31,8 @@ export const falSizeForAspect = (aspect: string) =>
 
 export const computeCostForModel = (
   modelId: string,
-  params: Omit<PricingParams, "modelId"> = {}
+  params: Omit<PricingParams, "modelId"> = {},
+  pricingPolicy: PricingParams["pricingPolicy"] = null
 ): CostBreakdown | null => {
   const config = getModelConfig(modelId);
   if (!config) return null;
@@ -39,5 +40,5 @@ export const computeCostForModel = (
   const strategy = pricingStrategies[config.pricingStrategy];
   if (!strategy) return null;
 
-  return strategy({ ...params, modelId });
+  return strategy({ ...params, modelId, pricingPolicy });
 };

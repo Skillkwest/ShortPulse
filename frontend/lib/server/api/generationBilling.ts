@@ -9,6 +9,7 @@ import { computeCostForModel, getModelConfig } from "../../model-runtime/pricing
 import { requireApiUser } from "./auth";
 import { insertCreditLedgerEntry } from "./creditLedger";
 import { readFalRuntimeFlags } from "./falRuntimeFlags";
+import { resolveRuntimeModelPricingPolicy } from "./modelPricingControlPlane";
 import {
   isDuplicateError,
   isInsufficientCreditError,
@@ -84,7 +85,8 @@ export const chargeGenerationRequest = async ({
   }
 
   const pricingParams = buildPricingParams(modelId, payload);
-  const breakdown = computeCostForModel(modelId, pricingParams);
+  const runtimePricingPolicy = await resolveRuntimeModelPricingPolicy();
+  const breakdown = computeCostForModel(modelId, pricingParams, runtimePricingPolicy.policy);
   if (!breakdown?.credits || breakdown.credits <= 0) {
     await logGenerationFailure({
       req,
@@ -97,6 +99,8 @@ export const chargeGenerationRequest = async ({
       metadata: {
         model_id: modelId,
         source_ref: sourceRef,
+        pricing_policy_version: runtimePricingPolicy.activePolicyVersion,
+        pricing_policy_source: runtimePricingPolicy.source,
       },
     });
     res.status(500).json({ error: `No pricing strategy is configured for '${modelId}'.` });
@@ -113,6 +117,8 @@ export const chargeGenerationRequest = async ({
       raw_credits: breakdown.rawCredits,
       billed_credits: breakdown.credits,
       billed_usd: breakdown.usd,
+      pricing_policy_version: runtimePricingPolicy.activePolicyVersion,
+      pricing_policy_source: runtimePricingPolicy.source,
     },
     debited_credits: breakdown.credits,
   };

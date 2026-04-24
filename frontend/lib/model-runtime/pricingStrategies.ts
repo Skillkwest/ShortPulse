@@ -52,6 +52,7 @@ const toCostBreakdown = ({
   width,
   height,
   applyMarkup,
+  policy,
 }: {
   modelId: string;
   usdRaw: number;
@@ -59,11 +60,13 @@ const toCostBreakdown = ({
   width: number;
   height: number;
   applyMarkup?: boolean;
+  policy?: PricingParams["pricingPolicy"];
 }): CostBreakdown => {
   const quantized = convertUsdToCredits({
     usdRaw,
     modelId,
     applyMarkup: applyMarkup ?? true,
+    policy,
   });
   return {
     credits: quantized.credits,
@@ -111,8 +114,14 @@ const resolveImageSizeForMp = (params: PricingParams) => {
   return resolveAspectSize(params.aspect, config.sizeMap, config.defaultAspect);
 };
 
-const computeFalPerMpCost: StrategyFn = ({ modelId, aspect, imageWidth, imageHeight }) => {
-  const size = resolveImageSizeForMp({ modelId, aspect, imageWidth, imageHeight });
+const computeFalPerMpCost: StrategyFn = ({
+  modelId,
+  aspect,
+  imageWidth,
+  imageHeight,
+  pricingPolicy,
+}) => {
+  const size = resolveImageSizeForMp({ modelId, aspect, imageWidth, imageHeight, pricingPolicy });
   if (!size) return null;
 
   const megapixels = (size.width * size.height) / 1_000_000;
@@ -124,11 +133,18 @@ const computeFalPerMpCost: StrategyFn = ({ modelId, aspect, imageWidth, imageHei
     megapixels,
     width: size.width,
     height: size.height,
+    policy: pricingPolicy,
   });
 };
 
-const computeEconomyFalImageCost: StrategyFn = ({ modelId, aspect, imageWidth, imageHeight }) => {
-  const size = resolveImageSizeForMp({ modelId, aspect, imageWidth, imageHeight });
+const computeEconomyFalImageCost: StrategyFn = ({
+  modelId,
+  aspect,
+  imageWidth,
+  imageHeight,
+  pricingPolicy,
+}) => {
+  const size = resolveImageSizeForMp({ modelId, aspect, imageWidth, imageHeight, pricingPolicy });
   if (!size) return null;
 
   const megapixels = (size.width * size.height) / 1_000_000;
@@ -142,11 +158,18 @@ const computeEconomyFalImageCost: StrategyFn = ({ modelId, aspect, imageWidth, i
     megapixels,
     width: size.width,
     height: size.height,
+    policy: pricingPolicy,
   });
 };
 
-const computeFalFillPerMpCost: StrategyFn = ({ modelId, aspect, imageWidth, imageHeight }) => {
-  const size = resolveImageSizeForMp({ modelId, aspect, imageWidth, imageHeight });
+const computeFalFillPerMpCost: StrategyFn = ({
+  modelId,
+  aspect,
+  imageWidth,
+  imageHeight,
+  pricingPolicy,
+}) => {
+  const size = resolveImageSizeForMp({ modelId, aspect, imageWidth, imageHeight, pricingPolicy });
   if (!size) return null;
 
   const megapixels = (size.width * size.height) / 1_000_000;
@@ -158,6 +181,7 @@ const computeFalFillPerMpCost: StrategyFn = ({ modelId, aspect, imageWidth, imag
     megapixels,
     width: size.width,
     height: size.height,
+    policy: pricingPolicy,
   });
 };
 
@@ -166,8 +190,9 @@ const computeFluxKontextInpaintPerMpCost: StrategyFn = ({
   aspect,
   imageWidth,
   imageHeight,
+  pricingPolicy,
 }) => {
-  const size = resolveImageSizeForMp({ modelId, aspect, imageWidth, imageHeight });
+  const size = resolveImageSizeForMp({ modelId, aspect, imageWidth, imageHeight, pricingPolicy });
   if (!size) return null;
 
   const megapixels = (size.width * size.height) / 1_000_000;
@@ -179,26 +204,29 @@ const computeFluxKontextInpaintPerMpCost: StrategyFn = ({
     megapixels,
     width: size.width,
     height: size.height,
+    policy: pricingPolicy,
   });
 };
 
-const computeGoogleNanoBananaPerImageCost: StrategyFn = ({ modelId }) => {
+const computeGoogleNanoBananaPerImageCost: StrategyFn = ({ modelId, pricingPolicy }) => {
   return toCostBreakdown({
     modelId,
     usdRaw: GOOGLE_NANO_BANANA_PER_IMAGE_USD,
     megapixels: 0,
     width: 0,
     height: 0,
+    policy: pricingPolicy,
   });
 };
 
-const computeGptImagePerImageCost: StrategyFn = ({ modelId }) => {
+const computeGptImagePerImageCost: StrategyFn = ({ modelId, pricingPolicy }) => {
   return toCostBreakdown({
     modelId,
     usdRaw: GPT_IMAGE_PER_IMAGE_USD,
     megapixels: 0,
     width: 0,
     height: 0,
+    policy: pricingPolicy,
   });
 };
 
@@ -206,6 +234,7 @@ const computeGpt41NanoPerTokenCost: StrategyFn = ({
   modelId,
   inputTokens = 0,
   outputTokens = 0,
+  pricingPolicy,
 }) => {
   // Rates are per 1M tokens: input $0.10, output $0.025.
   const INPUT_USD_PER_M = 0.1;
@@ -219,10 +248,11 @@ const computeGpt41NanoPerTokenCost: StrategyFn = ({
     megapixels: 0,
     width: 0,
     height: 0,
+    policy: pricingPolicy,
   });
 };
 
-const computeSeedreamPerImageCost: StrategyFn = ({ modelId, resolution }) => {
+const computeSeedreamPerImageCost: StrategyFn = ({ modelId, resolution, pricingPolicy }) => {
   const baseUsd = 0.04;
   const resolutionMultiplier = resolution === "4K" ? 2 : 1;
   return toCostBreakdown({
@@ -231,20 +261,27 @@ const computeSeedreamPerImageCost: StrategyFn = ({ modelId, resolution }) => {
     megapixels: 0,
     width: 0,
     height: 0,
+    policy: pricingPolicy,
   });
 };
 
-const computeSeedream5LitePerImageCost: StrategyFn = ({ modelId }) => {
+const computeSeedream5LitePerImageCost: StrategyFn = ({ modelId, pricingPolicy }) => {
   return toCostBreakdown({
     modelId,
     usdRaw: 0.035,
     megapixels: 0,
     width: 0,
     height: 0,
+    policy: pricingPolicy,
   });
 };
 
-const computeNanoBanana2PerImageCost: StrategyFn = ({ modelId, resolution, webSearch }) => {
+const computeNanoBanana2PerImageCost: StrategyFn = ({
+  modelId,
+  resolution,
+  webSearch,
+  pricingPolicy,
+}) => {
   const baseUsd = 0.08;
   const normalizedResolution = (resolution ?? "1K").trim().toUpperCase();
   const resolutionMultiplier =
@@ -262,10 +299,16 @@ const computeNanoBanana2PerImageCost: StrategyFn = ({ modelId, resolution, webSe
     megapixels: 0,
     width: 0,
     height: 0,
+    policy: pricingPolicy,
   });
 };
 
-const computeNanoBananaPerImageCost: StrategyFn = ({ modelId, resolution, webSearch }) => {
+const computeNanoBananaPerImageCost: StrategyFn = ({
+  modelId,
+  resolution,
+  webSearch,
+  pricingPolicy,
+}) => {
   const baseUsd = 0.15;
   const resolutionMultiplier = resolution === "4K" ? 2 : 1;
   const webSearchUsd = webSearch ? 0.015 : 0;
@@ -275,6 +318,7 @@ const computeNanoBananaPerImageCost: StrategyFn = ({ modelId, resolution, webSea
     megapixels: 0,
     width: 0,
     height: 0,
+    policy: pricingPolicy,
   });
 };
 
@@ -325,6 +369,7 @@ const computeKling3PerSecondCost: StrategyFn = (params) => {
     megapixels: 0,
     width: 0,
     height: 0,
+    policy: params.pricingPolicy,
   });
 };
 
@@ -336,6 +381,7 @@ const computeVeoPerSecondCost: StrategyFn = (params) => {
       megapixels: 0,
       width: 0,
       height: 0,
+      policy: params.pricingPolicy,
     });
   }
 
@@ -357,6 +403,7 @@ const computeVeoPerSecondCost: StrategyFn = (params) => {
     megapixels: 0,
     width: 0,
     height: 0,
+    policy: params.pricingPolicy,
   });
 };
 
@@ -393,6 +440,7 @@ const computeSeedancePerSecondCost: StrategyFn = (params) => {
       megapixels: 0,
       width: resolution.width,
       height: resolution.height,
+      policy: params.pricingPolicy,
     });
   }
 
@@ -418,6 +466,7 @@ const computeSeedancePerSecondCost: StrategyFn = (params) => {
     megapixels: 0,
     width: resolution.width,
     height: resolution.height,
+    policy: params.pricingPolicy,
   });
 };
 

@@ -1,6 +1,7 @@
 /**
  * Shared types for admin dashboard data contracts.
  */
+import type { ModelPricingPolicySnapshot } from "../../lib/model-runtime/pricingPolicy";
 
 export type AdminUserRow = {
   id: string;
@@ -280,17 +281,7 @@ export type AdminDashboardAnnouncement = {
   updatedAt: string | null;
 };
 
-export type AdminPricingPolicySnapshot = {
-  version: string;
-  creditUsdScale: number;
-  creditValueUsd: number;
-  markupNumerator: number;
-  markupDenominator: number;
-  markupPercent: number;
-  defaultRoundingMode: "nearest-5" | "ceil";
-  defaultRoundingIncrement: number;
-  exceptionRoundingModelIds: string[];
-};
+export type AdminPricingPolicySnapshot = ModelPricingPolicySnapshot;
 
 export type AdminPricingModelRow = {
   id: string;

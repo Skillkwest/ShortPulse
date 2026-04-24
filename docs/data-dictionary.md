@@ -541,6 +541,44 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
   - Reverts to last-known-safe policy version and applies bounded cooldown (`1..168` hours).
   - Records rollback audit events for operator traceability.
 
+### model_pricing_policy_versions
+- `id` (bigint identity, pk): Immutable model-pricing policy version row id.
+- `version` (integer): Global version number (`>=1`).
+- `policy` (jsonb object): Normalized model-pricing policy document (`global` conversion/markup/rounding + `perModel` overrides).
+- `note` (text, nullable): Optional operator note for the version.
+- `created_by_user_id` / `created_by_email` (nullable): Operator attribution metadata.
+- `created_at` (timestamptz, default now).
+- RLS: enabled; service-role RPC paths are authoritative for writes/reads.
+
+### model_pricing_policy_runtime
+- `singleton` (boolean, pk, always `true`): Singleton runtime state row key.
+- `active_policy_version_id` (bigint fk -> `model_pricing_policy_versions.id`): Currently active model-pricing policy version.
+- `last_known_safe_policy_version_id` (bigint fk -> `model_pricing_policy_versions.id`, nullable): Rollback target version.
+- `updated_by_user_id` / `updated_by_email` (nullable): Last operator/system update attribution.
+- `updated_at` (timestamptz): Last runtime-state mutation timestamp.
+- RLS: enabled; service-role RPC paths are authoritative for writes/reads.
+
+### model_pricing_policy_events
+- `id` (bigint identity, pk): Event row id.
+- `event_type` (text): `apply | rollback`.
+- `from_policy_version_id` / `to_policy_version_id` (nullable fk -> `model_pricing_policy_versions.id`): Policy transition pointers.
+- `actor_user_id` / `actor_email` (nullable): Operator attribution metadata.
+- `reason` / `note` (text, nullable): Operator reason and optional version note.
+- `source` (text, nullable): Mutation source label (`admin_api`, etc.).
+- `metadata` (jsonb object): Event context (`version`, rollback restore metadata).
+- `created_at` (timestamptz, default now).
+- RLS: enabled; service-role RPC paths are authoritative for writes/reads.
+
+### Model pricing control-plane RPC contract
+- `get_active_model_pricing_policy()`
+  - Service-role-only read helper for active runtime version/document + last-known-safe metadata.
+- `apply_model_pricing_policy(p_policy, p_note, p_reason, p_actor_user_id, p_actor_email, p_source)`
+  - Service-role-only activation helper.
+  - Creates the next immutable policy version row, updates the runtime singleton, and records an `apply` audit event.
+- `rollback_model_pricing_policy(p_reason, p_actor_user_id, p_actor_email, p_source)`
+  - Service-role-only rollback helper.
+  - Swaps the runtime singleton back to the last-known-safe version and records a `rollback` audit event.
+
 ### user_preferences
 - `user_id` (uuid, pk, references `auth.users(id)`): Profile owner.
 - `beginner_mode` (boolean, default `false`): AI Studio/Character Manager beginner mode preference (expert-first default while runtime lockdown is active).

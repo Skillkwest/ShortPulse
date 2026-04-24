@@ -1,6 +1,6 @@
 /**
  * Admin pricing state API.
- * Aggregates current runtime model pricing defaults and active public billing catalog rows.
+ * Aggregates the active shared model-pricing policy and active public billing catalog rows.
  */
 import type { NextApiRequest, NextApiResponse } from "next";
 import type {
@@ -21,6 +21,7 @@ import { getModelPricingPolicySnapshot } from "../../../../lib/model-runtime/pri
 import { resolveModelCreditRoundingMode } from "../../../../lib/model-runtime/pricingCredits";
 import { logApiRouteException } from "../../../../lib/server/api/appErrorLogs";
 import { requireAdminUser } from "../../../../lib/server/api/auth";
+import { resolveRuntimeModelPricingPolicy } from "../../../../lib/server/api/modelPricingControlPlane";
 import { getSupabaseAdmin } from "../../../../lib/server/api/supabaseAdmin";
 
 type BillingPlanMetadataRow = {
@@ -80,8 +81,11 @@ const compareOfferRecency = <T extends { effective_start_at: string | null; crea
   return bDate - aDate;
 };
 
-const mapPricingPreview = (modelId: string): AdminCreditPricingBreakdown | null => {
-  const breakdown = computeCostForModel(modelId, buildDefaultPricingParams(modelId));
+const mapPricingPreview = (
+  modelId: string,
+  pricingPolicy: Parameters<typeof computeCostForModel>[2]
+): AdminCreditPricingBreakdown | null => {
+  const breakdown = computeCostForModel(modelId, buildDefaultPricingParams(modelId), pricingPolicy);
   if (!breakdown) return null;
   return {
     usdRaw: breakdown.usdRaw,
@@ -148,6 +152,7 @@ export default async function handler(
 
   try {
     const supabaseAdmin = getSupabaseAdmin();
+    const runtimePricingPolicy = await resolveRuntimeModelPricingPolicy();
     const [
       planMetadataResult,
       planOffersResult,
@@ -302,13 +307,18 @@ export default async function handler(
         defaultAspect: model.defaultAspect,
         defaultResolution: model.defaultResolution ?? null,
         defaultDurationSeconds: model.defaultDurationSeconds ?? null,
-        roundingMode: resolveModelCreditRoundingMode(model.id),
-        pricingPreview: mapPricingPreview(model.id),
+        roundingMode: resolveModelCreditRoundingMode(model.id, runtimePricingPolicy.policy),
+        pricingPreview: mapPricingPreview(model.id, runtimePricingPolicy.policy),
       }));
 
     const payload: AdminPricingStateResponse = {
       generatedAt: new Date().toISOString(),
-      modelPolicy: getModelPricingPolicySnapshot(),
+      modelPolicy: getModelPricingPolicySnapshot(runtimePricingPolicy.policy, {
+        activePolicyVersion: runtimePricingPolicy.activePolicyVersion,
+        policySource: runtimePricingPolicy.source,
+        updatedAt: runtimePricingPolicy.updatedAt,
+        updatedByEmail: runtimePricingPolicy.updatedByEmail,
+      }),
       models,
       plans,
       creditPackages,

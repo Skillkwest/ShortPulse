@@ -5,22 +5,19 @@
 
 import {
   CREDIT_USD_SCALE,
+  DEFAULT_MARKUP_BPS,
+  DEFAULT_MODEL_MULTIPLIER_BPS,
   DEFAULT_CREDIT_ROUNDING_INCREMENT,
-  DEFAULT_CREDIT_ROUNDING_MODE,
-  EXCEPTION_ROUNDING_MODEL_IDS,
-  MARKUP_DENOMINATOR,
-  MARKUP_NUMERATOR,
   USD_MICRO_SCALE,
+  resolveModelPricingForModel,
+  type ModelPricingPolicyDocument,
   type CreditRoundingMode,
 } from "./pricingPolicy";
 
 const BIGINT_ZERO = BigInt(0);
 const BIGINT_ONE = BigInt(1);
-const CREDIT_USD_SCALE_BIGINT = BigInt(CREDIT_USD_SCALE);
 const USD_MICRO_SCALE_BIGINT = BigInt(USD_MICRO_SCALE);
-const MARKUP_NUMERATOR_BIGINT = BigInt(MARKUP_NUMERATOR);
-const MARKUP_DENOMINATOR_BIGINT = BigInt(MARKUP_DENOMINATOR);
-const EXCEPTION_ROUNDING_MODEL_ID_SET = new Set<string>(EXCEPTION_ROUNDING_MODEL_IDS);
+const BPS_DENOMINATOR = BigInt(10_000);
 
 const ceilDiv = (numerator: bigint, denominator: bigint): bigint => {
   if (denominator <= BIGINT_ZERO) throw new Error("denominator must be positive");
@@ -54,8 +51,10 @@ const toMicroUsd = (usdRaw: number): bigint => {
   return parseScaledDecimal(usdRaw.toFixed(12), USD_MICRO_SCALE_BIGINT);
 };
 
-export const resolveModelCreditRoundingMode = (modelId: string): CreditRoundingMode =>
-  EXCEPTION_ROUNDING_MODEL_ID_SET.has(modelId) ? "ceil" : DEFAULT_CREDIT_ROUNDING_MODE;
+export const resolveModelCreditRoundingMode = (
+  modelId: string,
+  policy?: ModelPricingPolicyDocument | null
+): CreditRoundingMode => resolveModelPricingForModel(policy, modelId).roundingMode;
 
 /**
  * Converts provider USD to credits with decimal-safe math.
@@ -65,12 +64,16 @@ export const convertUsdToCredits = ({
   usdRaw,
   modelId,
   applyMarkup = true,
+  policy = null,
 }: {
   usdRaw: number;
   modelId: string;
   applyMarkup?: boolean;
+  policy?: ModelPricingPolicyDocument | null;
 }) => {
   const usdMicro = toMicroUsd(usdRaw);
+  const resolvedPolicy = resolveModelPricingForModel(policy, modelId);
+  const creditUsdScaleBigInt = BigInt(resolvedPolicy.creditUsdScale || CREDIT_USD_SCALE);
   if (usdMicro <= BIGINT_ZERO) {
     return {
       rawCredits: 0,
@@ -79,24 +82,31 @@ export const convertUsdToCredits = ({
     };
   }
 
-  let numerator = usdMicro * CREDIT_USD_SCALE_BIGINT;
+  let numerator = usdMicro * creditUsdScaleBigInt;
   let denominator = USD_MICRO_SCALE_BIGINT;
   if (applyMarkup) {
-    numerator *= MARKUP_NUMERATOR_BIGINT;
-    denominator *= MARKUP_DENOMINATOR_BIGINT;
+    numerator *= BigInt(10_000 + (resolvedPolicy.markupBps ?? DEFAULT_MARKUP_BPS));
+    denominator *= BPS_DENOMINATOR;
+  }
+  if (
+    (resolvedPolicy.multiplierBps ?? DEFAULT_MODEL_MULTIPLIER_BPS) !== DEFAULT_MODEL_MULTIPLIER_BPS
+  ) {
+    numerator *= BigInt(resolvedPolicy.multiplierBps);
+    denominator *= BPS_DENOMINATOR;
   }
 
   const rawCredits = Number(ceilDiv(numerator, denominator));
-  const roundingMode = resolveModelCreditRoundingMode(modelId);
+  const roundingMode = resolveModelCreditRoundingMode(modelId, policy);
   const credits =
     roundingMode === "ceil"
       ? rawCredits
-      : Math.ceil(rawCredits / DEFAULT_CREDIT_ROUNDING_INCREMENT) *
-        DEFAULT_CREDIT_ROUNDING_INCREMENT;
+      : Math.ceil(
+          rawCredits / (resolvedPolicy.roundingIncrement || DEFAULT_CREDIT_ROUNDING_INCREMENT)
+        ) * (resolvedPolicy.roundingIncrement || DEFAULT_CREDIT_ROUNDING_INCREMENT);
 
   return {
     rawCredits,
     credits,
-    billedUsd: credits / 100,
+    billedUsd: credits / resolvedPolicy.creditUsdScale,
   };
 };

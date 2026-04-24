@@ -1,6 +1,6 @@
 /**
  * Admin pricing page controller.
- * Loads read-only pricing state for the admin pricing command center.
+ * Loads pricing state for the admin pricing command center.
  */
 import React from "react";
 import { fetchWithAuth } from "../../../lib/authenticatedFetch";

@@ -37,6 +37,7 @@ Start here for all repository documentation.
 - `docs/adr/0065-project-generated-output-association-and-restore-refresh.md`
 - `docs/adr/0066-project-media-library-folder-authority.md`
 - `docs/adr/0067-project-media-library-folder-canvas-authority.md`
+- `docs/adr/0068-model-pricing-control-plane.md`
 - `docs/prefabs.md`
 - `docs/routes.md`
 - `docs/local-development.md`
@@ -148,6 +149,7 @@ Start here for all repository documentation.
 - `docs/planning/ai-studio-pulse-runtime-phase-7-validation-docs-and-rollout-plan-2026-04-20.md`
 - `docs/planning/ai-studio-standard-vs-pulse-runtime-isolation-execution-plan-2026-04-23.md`
 - `docs/planning/ai-studio-project-persistence-master-plan-2026-04-23.md`
+- `docs/planning/ai-studio-project-persistence-stabilization-trim-and-fix-plan-2026-04-24.md`
 - `docs/planning/ai-studio-project-persistence-phase-0-contract-and-persistence-inventory-plan-2026-04-23.md`
 - `docs/planning/ai-studio-project-persistence-phase-0-persistence-inventory-2026-04-23.md`
 - `docs/planning/ai-studio-project-persistence-phase-1-projects-foundation-hardening-plan-2026-04-23.md`

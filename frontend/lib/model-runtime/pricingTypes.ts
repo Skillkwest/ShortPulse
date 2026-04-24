@@ -1,6 +1,8 @@
 /**
  * Pricing strategy identifiers and shared pricing types.
  */
+import type { ModelPricingPolicyDocument } from "./pricingPolicy";
+
 export type PricingStrategyId =
   | "fal-per-mp"
   | "fal-economy-image-per-mp"
@@ -32,6 +34,7 @@ export type PricingParams = {
   webSearch?: boolean;
   audio?: boolean;
   voiceControl?: boolean;
+  pricingPolicy?: ModelPricingPolicyDocument | null;
 };
 
 export type CostBreakdown = {

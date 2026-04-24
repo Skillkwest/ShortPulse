@@ -55,6 +55,7 @@ type ViewModelInput = {
   balanceCredits: number | null;
   editSubmitIntent?: EditSubmitIntent;
   costParamsForModel: (overrides?: Omit<PricingParams, "modelId">) => PricingParams;
+  pricingPolicy?: PricingParams["pricingPolicy"];
 };
 
 export const useAiStudioViewModel = ({
@@ -84,6 +85,7 @@ export const useAiStudioViewModel = ({
   balanceCredits,
   editSubmitIntent,
   costParamsForModel,
+  pricingPolicy = null,
 }: ViewModelInput) => {
   const isCreateWorkflowSelected = isCreateWorkflow(selectedTool);
   const isEditWorkflowSelected = isEditWorkflow(selectedTool);
@@ -146,21 +148,23 @@ export const useAiStudioViewModel = ({
         if (!model) return null;
         return computeCostForModel(
           model,
-          costParamsForModel(pricingImageResolution ? { resolution: pricingImageResolution } : {})
+          costParamsForModel(pricingImageResolution ? { resolution: pricingImageResolution } : {}),
+          pricingPolicy
         );
       }
       if (mode === "video") {
         if (!model) return null;
         return computeCostForModel(
           model,
-          costParamsForModel({ durationSeconds: getDefaultDurationSeconds(model) })
+          costParamsForModel({ durationSeconds: getDefaultDurationSeconds(model) }),
+          pricingPolicy
         );
       }
       if (mode === "text") {
         if (isDescribeMode) {
-          return computeCostForModel(TEXT_PROMPT_MODEL_ID, estimatedDescribeTokens);
+          return computeCostForModel(TEXT_PROMPT_MODEL_ID, estimatedDescribeTokens, pricingPolicy);
         }
-        return computeCostForModel(TEXT_PROMPT_MODEL_ID, estimatedTextTokens);
+        return computeCostForModel(TEXT_PROMPT_MODEL_ID, estimatedTextTokens, pricingPolicy);
       }
       return null;
     }
@@ -169,7 +173,8 @@ export const useAiStudioViewModel = ({
       if (!effectiveEditSubmitModelId) return null;
       return computeCostForModel(
         effectiveEditSubmitModelId,
-        costParamsForModel(pricingImageResolution ? { resolution: pricingImageResolution } : {})
+        costParamsForModel(pricingImageResolution ? { resolution: pricingImageResolution } : {}),
+        pricingPolicy
       );
     }
 
@@ -182,7 +187,8 @@ export const useAiStudioViewModel = ({
           durationSeconds: videoDurationSeconds,
           resolution: videoResolution,
           audio: videoGenerateAudio,
-        })
+        }),
+        pricingPolicy
       );
     }
 
@@ -200,6 +206,7 @@ export const useAiStudioViewModel = ({
     isEditWorkflowSelected,
     isVideoTool,
     isKlingMotionMode,
+    pricingPolicy,
     videoDurationSeconds,
     videoResolution,
     pricingImageResolution,
@@ -223,7 +230,8 @@ export const useAiStudioViewModel = ({
           : isImageTool && pricingImageResolution
             ? { resolution: pricingImageResolution }
             : {}
-      )
+      ),
+      pricingPolicy
     );
     return breakdown?.credits ?? null;
   }, [
@@ -232,6 +240,7 @@ export const useAiStudioViewModel = ({
     isVideoTool,
     isImageTool,
     isKlingMotionMode,
+    pricingPolicy,
     pricingImageResolution,
     videoDurationSeconds,
     videoGenerateAudio,
@@ -253,7 +262,8 @@ export const useAiStudioViewModel = ({
             : isImageTool && pricingImageResolution
               ? { resolution: pricingImageResolution }
               : {}
-        )
+        ),
+        pricingPolicy
       );
       return breakdown?.credits ?? null;
     },
@@ -261,6 +271,7 @@ export const useAiStudioViewModel = ({
       costParamsForModel,
       isImageTool,
       isVideoTool,
+      pricingPolicy,
       pricingImageResolution,
       videoDurationSeconds,
       videoGenerateAudio,
@@ -275,10 +286,18 @@ export const useAiStudioViewModel = ({
       costParamsForModel({
         aspect,
         ...(pricingImageResolution ? { resolution: pricingImageResolution } : {}),
-      })
+      }),
+      pricingPolicy
     );
     return breakdown?.credits ?? null;
-  }, [aspect, costParamsForModel, effectiveEditSubmitModelId, isImageTool, pricingImageResolution]);
+  }, [
+    aspect,
+    costParamsForModel,
+    effectiveEditSubmitModelId,
+    isImageTool,
+    pricingImageResolution,
+    pricingPolicy,
+  ]);
   const createTextImageGenerateCostCredits = useMemo(() => {
     if (!isCreateWorkflowSelected || mode !== "text" || !effectiveEditSubmitModelId) return null;
     const breakdown = computeCostForModel(
@@ -286,7 +305,8 @@ export const useAiStudioViewModel = ({
       costParamsForModel({
         aspect,
         ...(pricingImageResolution ? { resolution: pricingImageResolution } : {}),
-      })
+      }),
+      pricingPolicy
     );
     return breakdown?.credits ?? null;
   }, [
@@ -296,6 +316,7 @@ export const useAiStudioViewModel = ({
     isCreateWorkflowSelected,
     mode,
     pricingImageResolution,
+    pricingPolicy,
   ]);
   const promptReferenceGenerateCostCredits =
     (isImageTool ? promptGenerateCostCredits : null) ??

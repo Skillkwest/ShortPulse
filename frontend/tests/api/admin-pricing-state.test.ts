@@ -9,6 +9,7 @@ const buildDefaultPricingParamsMock = vi.fn();
 const computeCostForModelMock = vi.fn();
 const getModelPricingPolicySnapshotMock = vi.fn();
 const resolveModelCreditRoundingModeMock = vi.fn();
+const resolveRuntimeModelPricingPolicyMock = vi.fn();
 
 vi.mock("../../lib/server/api/auth", () => ({
   requireAdminUser: (...args: unknown[]) => requireAdminUserMock(...args),
@@ -20,6 +21,11 @@ vi.mock("../../lib/server/api/appErrorLogs", () => ({
 
 vi.mock("../../lib/server/api/supabaseAdmin", () => ({
   getSupabaseAdmin: (...args: unknown[]) => getSupabaseAdminMock(...args),
+}));
+
+vi.mock("../../lib/server/api/modelPricingControlPlane", () => ({
+  resolveRuntimeModelPricingPolicy: (...args: unknown[]) =>
+    resolveRuntimeModelPricingPolicyMock(...args),
 }));
 
 vi.mock("../../lib/model-runtime/pricing", () => ({
@@ -69,16 +75,49 @@ describe("GET /api/admin/pricing/state", () => {
       width: 1024,
       height: 768,
     });
+    resolveRuntimeModelPricingPolicyMock.mockResolvedValue({
+      policy: {
+        schemaVersion: 1,
+        global: {
+          creditUsdScale: 100,
+          markupBps: 300,
+          defaultRoundingMode: "nearest-5",
+          defaultRoundingIncrement: 5,
+          exceptionRoundingModelIds: ["fal-ai/flux-2/klein/9b"],
+        },
+        perModel: {},
+      },
+      activePolicyVersion: 3,
+      activePolicyVersionId: 33,
+      source: "control_plane",
+      updatedAt: "2026-04-24T12:00:00.000Z",
+      updatedByEmail: "admin@example.com",
+    });
     getModelPricingPolicySnapshotMock.mockReturnValue({
-      version: "runtime-default-v1",
+      version: "policy-v3",
+      activePolicyVersion: 3,
+      policySource: "control_plane",
+      updatedAt: "2026-04-24T12:00:00.000Z",
+      updatedByEmail: "admin@example.com",
       creditUsdScale: 100,
       creditValueUsd: 0.01,
-      markupNumerator: 103,
-      markupDenominator: 100,
+      markupBps: 300,
       markupPercent: 3,
       defaultRoundingMode: "nearest-5",
       defaultRoundingIncrement: 5,
       exceptionRoundingModelIds: ["fal-ai/flux-2/klein/9b"],
+      overrideCount: 0,
+      document: {
+        schemaVersion: 1,
+        global: {
+          creditUsdScale: 100,
+          markupBps: 300,
+          defaultRoundingMode: "nearest-5",
+          defaultRoundingIncrement: 5,
+          exceptionRoundingModelIds: ["fal-ai/flux-2/klein/9b"],
+        },
+        perModel: {},
+      },
     });
     resolveModelCreditRoundingModeMock.mockReturnValue("ceil");
   });
@@ -222,11 +261,13 @@ describe("GET /api/admin/pricing/state", () => {
     await handler(req as never, res as never);
 
     expect(res.status).toHaveBeenCalledWith(200);
+    expect(resolveRuntimeModelPricingPolicyMock).toHaveBeenCalled();
     expect(res.json).toHaveBeenCalledWith(
       expect.objectContaining({
         modelPolicy: expect.objectContaining({
           markupPercent: 3,
           creditUsdScale: 100,
+          policySource: "control_plane",
         }),
         models: [
           expect.objectContaining({

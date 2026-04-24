@@ -1,6 +1,6 @@
 # AI Studio Pricing & Model Catalog
 
-Short version: models declare metadata in runtime catalog/registry, pricing strategies compute provider USD, and one shared converter applies markup + rounding so UI estimates and server debits stay in parity.
+Short version: models declare metadata in runtime catalog/registry, pricing strategies compute provider USD, and one shared versioned model-pricing policy applies credit conversion, markup, rounding, and per-model overrides so UI estimates and server debits stay in parity.
 
 ## Where things live
 - `frontend/lib/model-runtime/modelCatalog.ts` — canonical provider/model API contracts (submit/status aliases, defaults, validated fields, docs source + verification date).
@@ -8,14 +8,26 @@ Short version: models declare metadata in runtime catalog/registry, pricing stra
 - `frontend/lib/model-runtime/modelSizes.ts` — reusable aspect → size maps.
 - `frontend/lib/model-runtime/pricingStrategies.ts` — per-strategy USD calculators.
 - `frontend/lib/model-runtime/pricingCredits.ts` — shared USD→credits conversion (markup + rounding policy).
+- `frontend/lib/server/api/modelPricingControlPlane.ts` — versioned runtime control-plane resolver for the active pricing policy document.
 - `frontend/lib/model-runtime/pricing.ts` — dispatcher (`computeCostForModel`) and helpers.
 - `frontend/features/ai-studio/logic/*` re-export runtime pricing modules for compatibility.
+- `frontend/pages/api/pricing/model-policy.ts` — authenticated client read route for the active policy snapshot.
+- `frontend/pages/api/admin/pricing/model-policy/apply.ts` / `rollback.ts` — admin mutation routes for versioned policy activation and rollback.
+- `sql/migrations/096_add_model_pricing_control_plane.sql` — persistent policy versions/runtime pointers/audit events + service-role RPCs.
 
 ## Contract
 - Model config includes `pricingStrategy` and optional `sizeMap` for dimension-aware strategies.
-- `computeCostForModel(modelId, params)` returns `{ credits, usd, rawCredits, usdRaw, megapixels, width, height } | null`.
+- `computeCostForModel(modelId, params, pricingPolicy?)` returns `{ credits, usd, rawCredits, usdRaw, megapixels, width, height } | null`.
 - Defaults for duration/resolution/audio come from catalog/registry and drive both UI estimate chips and server charge inputs.
-- Credit policy:
+- Active model-pricing policy document fields:
+  - `global.creditUsdScale`
+  - `global.markupBps`
+  - `global.defaultRoundingMode`
+  - `global.defaultRoundingIncrement`
+  - `global.exceptionRoundingModelIds`
+  - `perModel[modelId].multiplierBps`
+  - `perModel[modelId].roundingMode`
+- Default policy:
   - Base conversion: `1 credit = $0.01`
   - Markup: `+3%` before quantization
   - Default quantization: `rawCredits = ceil(markedCredits)`, `credits = ceil(rawCredits / 5) * 5`
@@ -23,6 +35,7 @@ Short version: models declare metadata in runtime catalog/registry, pricing stra
 - Blocked-pricing models remain legacy/no-markup until provider evidence is supplied.
 - Current blocked set: none.
 - `usdRaw` is provider USD before markup/quantization; `usd` is billed USD (`credits * 0.01`).
+- Runtime authority: admin edits create a new versioned policy document and update the control-plane singleton; AI Studio clients and server billing both resolve that same active document with a short cache TTL.
 
 ## Current strategies
 - `fal-economy-image-per-mp`: `fal-ai/flux-2/klein/9b` uses `$0.006/MP` with ceil-only exception rounding; `fal-ai/bria/background/remove` uses fixed `$0.018` per generation with ceil-only exception rounding.

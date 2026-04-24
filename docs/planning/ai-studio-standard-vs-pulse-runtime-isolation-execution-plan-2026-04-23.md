@@ -191,6 +191,25 @@ This scope is done when all of the following are true:
 10. Backward compatibility posture is resolved for saved Pulses and snapshots.
 11. Tests, telemetry, and docs cover the final contract.
 
+## Current Gap Review (2026-04-23)
+Done-state status after the current implementation slices:
+
+Completed or substantially complete:
+1. Standard and Pulse runtime/session isolation is implemented and covered by targeted tests.
+2. Clicking any Pulse starts it immediately, including blank-session activation-seed kickoff.
+3. Switching Pulses clears the active Pulse workflow session and starts the newly selected Pulse.
+4. Leaving Pulse mode deactivates Pulse runtime, and Pulse mode now has an explicit `Deactivate Pulse` affordance.
+5. One controller owns Create mode, active Pulse id, and Pulse workflow session state.
+7. Custom Pulse authoring now follows the custom-GPT mental model (`Name + System Instructions`, advanced settings secondary).
+8. Active submission/runtime boundaries now normalize onto the same guided Pulse contract, including legacy metadata compatibility input.
+9. Built-in workflow Pulses have deterministic activation/progression/completion handling with persistence coverage.
+10. Backward compatibility posture is resolved at the runtime boundary for saved Pulses and snapshots.
+
+Still open before closeout:
+1. Transitional duplicate ownership paths are not fully removed yet. `frontend/features/ai-studio/components/AiStudioPageContent.tsx` still owns mode-switch-adjacent shell/chat restoration logic on top of the Create mode runtime controller, so authority is cleaner but not fully consolidated.
+2. Final contract docs are not fully closed out in public-facing dirty files. `README.md` and `docs/routes.md` still need Pulse contract sync once their unrelated in-flight edits are disentangled.
+3. A final explicit done-state audit still needs to be run after the public-doc sync lands so the closeout decision is based on the exact shipped repo state, not intermediate implementation slices.
+
 ## Stop Rule
 When every done-state item above is true:
 1. this scope is complete,

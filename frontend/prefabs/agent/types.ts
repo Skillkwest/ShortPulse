@@ -91,6 +91,8 @@ export type AgentPulseRuntimeContext = {
   label: string;
   instructions: string;
   description?: string | null;
+  // Legacy persisted values may still arrive from older snapshots or saved presets.
+  // Runtime boundaries normalize active Pulses to workflow_gpt / activate_and_start / chat_reply.
   runtimeMode?: "prompt_editor" | "workflow_gpt";
   activationMode?: "activate_only" | "activate_and_start";
   starterAssistantMessage?: string | null;

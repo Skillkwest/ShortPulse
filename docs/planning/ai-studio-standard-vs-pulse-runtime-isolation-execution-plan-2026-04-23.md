@@ -87,6 +87,7 @@ This scope is not complete until each item below has one explicit owner:
 1. Existing saved Pulses using legacy activation semantics must migrate or be interpreted safely under the new click-to-start contract.
 2. Older snapshots must either hydrate safely into the new mode/runtime controller or fail closed with an explicit fallback posture.
 3. Transitional duplicate semantics must be deleted once the new controller is authoritative.
+4. Legacy persisted Pulse metadata (`prompt_editor`, `activate_only`, `apply_prompt`) is compatibility input only; every active runtime boundary must normalize those values to `workflow_gpt`, `activate_and_start`, and `chat_reply`.
 
 ## Failure Policy Requirements
 1. Pulse kickoff failure must produce a deterministic UI/runtime fallback instead of silently leaving a half-active Pulse.

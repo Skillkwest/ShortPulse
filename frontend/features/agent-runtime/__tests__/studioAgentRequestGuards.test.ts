@@ -90,6 +90,36 @@ describe("studioAgentRequestGuards", () => {
     expect(context.media?.every((item) => item.kind === "image")).toBe(true);
   });
 
+  it("normalizes legacy pulse runtime metadata to the guided Pulse contract", () => {
+    const context = sanitizeStudioAgentContext({
+      mode: "text",
+      pulse: {
+        presetId: " pulse_story ",
+        label: " Story Builder ",
+        instructions: " Keep the structure easy to follow. ",
+        runtimeMode: "prompt_editor",
+        activationMode: "activate_only",
+        outputMode: "apply_prompt",
+        source: "custom",
+      },
+    });
+
+    expect(context.pulse).toEqual({
+      presetId: "pulse_story",
+      label: "Story Builder",
+      description: null,
+      instructions: "Keep the structure easy to follow.",
+      runtimeMode: "workflow_gpt",
+      activationMode: "activate_and_start",
+      starterAssistantMessage: null,
+      workflowStageHints: null,
+      outputMode: "chat_reply",
+      memoryPolicy: "session",
+      source: "custom",
+      workflowSession: null,
+    });
+  });
+
   it("resolves request byte limits by payload shape", () => {
     expect(resolveStudioAgentMaxRequestBytes({ context: { media: [] } })).toBe(
       STUDIO_AGENT_MAX_TEXT_REQUEST_BYTES

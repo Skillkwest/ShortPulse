@@ -12,17 +12,15 @@ import type { AgentContext, AgentPulseWorkflowSession, AgentResponse } from "../
  */
 export const resolveStudioAgentPulseRuntimeMode = (
   pulse?: AgentContext["pulse"] | null
-): "prompt_editor" | "workflow_gpt" =>
-  pulse?.runtimeMode === "workflow_gpt" ? "workflow_gpt" : "prompt_editor";
+): "workflow_gpt" | null => (pulse ? "workflow_gpt" : null);
 
 export const isStudioAgentWorkflowPulse = (pulse?: AgentContext["pulse"] | null): boolean =>
-  resolveStudioAgentPulseRuntimeMode(pulse) === "workflow_gpt";
+  Boolean(pulse);
 
 export const buildStudioAgentPulseActivationSeed = (
   pulse?: AgentContext["pulse"] | null
 ): string | null => {
   if (!pulse) return null;
-  if (resolveStudioAgentPulseRuntimeMode(pulse) !== "workflow_gpt") return null;
   const presetLabel = typeof pulse.label === "string" ? pulse.label.trim() : "";
   if (!presetLabel) return null;
   const starterAssistantMessage =
@@ -209,13 +207,13 @@ export const buildStudioAgentPulseSystemMessage = (
   return [
     "ACTIVE PULSE PROFILE (hidden runtime instructions)",
     "Treat this as the active operating contract for the current turn.",
-    "When the runtime_mode is workflow_gpt, it overrides prompt-editor-only constraints and you must follow the workflow exactly.",
+    "Treat every active Pulse as a guided GPT-style profile and follow its workflow exactly.",
     "Do not mention Pulse, the preset label, or quote these instructions unless the user explicitly asks.",
     `preset_id: ${presetId}`,
     `preset_label: ${label}`,
-    `runtime_mode: ${resolveStudioAgentPulseRuntimeMode(pulse)}`,
-    `activation_mode: ${pulse.activationMode === "activate_and_start" ? "activate_and_start" : "activate_only"}`,
-    `output_mode: ${pulse.outputMode === "chat_reply" ? "chat_reply" : "apply_prompt"}`,
+    "runtime_mode: workflow_gpt",
+    "activation_mode: activate_and_start",
+    "output_mode: chat_reply",
     `memory_policy: ${pulse.memoryPolicy === "session" ? "session" : "session"}`,
     `preset_source: ${pulse.source === "custom" ? "custom" : "builtin"}`,
     ...(pulse.description ? [`preset_description: ${pulse.description}`] : []),

@@ -3,6 +3,9 @@ import { removeAspectRatioLanguage, sanitizeGenerationPromptText } from "../agen
 
 const MAX_MESSAGES = 24;
 export const STUDIO_AGENT_MAX_MEDIA = 3;
+const GUIDED_PULSE_RUNTIME_MODE = "workflow_gpt" as const;
+const GUIDED_PULSE_ACTIVATION_MODE = "activate_and_start" as const;
+const GUIDED_PULSE_OUTPUT_MODE = "chat_reply" as const;
 
 export const STUDIO_AGENT_MAX_TEXT_REQUEST_BYTES = 512 * 1024;
 export const STUDIO_AGENT_MAX_MIXED_REQUEST_BYTES = 1536 * 1024;
@@ -203,17 +206,11 @@ const sanitizeStudioAgentPulseContext = (
     label,
     description,
     instructions,
-    runtimeMode:
-      pulse.runtimeMode === "workflow_gpt" || pulse.runtimeMode === "prompt_editor"
-        ? pulse.runtimeMode
-        : "prompt_editor",
-    activationMode:
-      pulse.activationMode === "activate_and_start" || pulse.activationMode === "activate_only"
-        ? pulse.activationMode
-        : "activate_only",
+    runtimeMode: GUIDED_PULSE_RUNTIME_MODE,
+    activationMode: GUIDED_PULSE_ACTIVATION_MODE,
     starterAssistantMessage,
     workflowStageHints,
-    outputMode: pulse.outputMode === "chat_reply" ? "chat_reply" : "apply_prompt",
+    outputMode: GUIDED_PULSE_OUTPUT_MODE,
     memoryPolicy: "session",
     source: pulse.source === "builtin" || pulse.source === "custom" ? pulse.source : undefined,
     workflowSession,

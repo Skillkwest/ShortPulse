@@ -25,10 +25,10 @@ export type CreatePulseWorkflowBuilderDraft = {
 
 export type CreatePulseWorkflowStageHints = string[];
 
-const CREATE_PULSE_DEFAULT_RUNTIME_MODE = "prompt_editor" as const satisfies CreatePulseRuntimeMode;
+const CREATE_PULSE_DEFAULT_RUNTIME_MODE = "workflow_gpt" as const satisfies CreatePulseRuntimeMode;
 const CREATE_PULSE_DEFAULT_ACTIVATION_MODE =
-  "activate_only" as const satisfies CreatePulseActivationMode;
-const CREATE_PULSE_DEFAULT_OUTPUT_MODE = "apply_prompt" as const satisfies CreatePulseOutputMode;
+  "activate_and_start" as const satisfies CreatePulseActivationMode;
+const CREATE_PULSE_DEFAULT_OUTPUT_MODE = "chat_reply" as const satisfies CreatePulseOutputMode;
 const CREATE_PULSE_DEFAULT_MEMORY_POLICY = "session" as const satisfies CreatePulseMemoryPolicy;
 export const CREATE_PULSE_CUSTOM_AUTHORING_RUNTIME_MODE =
   "workflow_gpt" as const satisfies CreatePulseRuntimeMode;

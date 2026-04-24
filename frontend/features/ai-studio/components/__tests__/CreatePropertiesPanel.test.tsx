@@ -895,6 +895,29 @@ describe("CreatePropertiesPanel", () => {
     expect(screen.getByRole("button", { name: "Send to agent" })).toBeInTheDocument();
   });
 
+  it("surfaces an explicit deactivate control for active pulses", () => {
+    const onClearAgentChat = vi.fn();
+
+    renderPanel({
+      beginnerMode: false,
+      expertCreateUiEligible: true,
+      agentEnabled: true,
+      expertCreateMode: "pulse",
+      activePulsePresetId: "story_builder",
+      onClearAgentChat,
+      onAgentInputChange: vi.fn(),
+      onAgentSend: vi.fn(),
+    });
+
+    expect(screen.queryByRole("button", { name: "Clear chat" })).not.toBeInTheDocument();
+
+    const deactivateButton = screen.getByRole("button", { name: "Deactivate pulse" });
+    expect(deactivateButton).toBeInTheDocument();
+
+    fireEvent.click(deactivateButton);
+    expect(onClearAgentChat).toHaveBeenCalledTimes(1);
+  });
+
   it("shows a workflow session banner for an active workflow pulse in pulse mode", () => {
     renderPanel({
       beginnerMode: false,

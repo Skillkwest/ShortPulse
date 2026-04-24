@@ -1,6 +1,6 @@
 import Image from "next/image";
 import React from "react";
-import { Trash } from "phosphor-react";
+import { Power, Trash } from "phosphor-react";
 import { AgentGenerateButton } from "../../../../prefabs/agent";
 import { AspectDropdown } from "../AspectDropdown";
 import { ResolutionDropdown } from "../ResolutionDropdown";
@@ -104,6 +104,7 @@ export function ExpertCreatePanelView({
   const [isPulseRailMounted, setIsPulseRailMounted] = React.useState(false);
   const [isPulseRailActive, setIsPulseRailActive] = React.useState(false);
   const createMode = expertCreateMode ?? uncontrolledCreateMode;
+  const isActivePulseSession = createMode === "pulse" && Boolean(activePulsePresetId);
   const costValue = costCredits != null ? costCredits : "—";
   const modelLogoWidth = useUnoptimizedModelLogo ? 50 : 74;
   const modelLogoHeight = useUnoptimizedModelLogo ? 12 : 18;
@@ -360,10 +361,14 @@ export function ExpertCreatePanelView({
                   type="button"
                   className="create-expert-topbar-clear-btn"
                   onClick={handleClearAgentChat}
-                  aria-label="Clear chat"
+                  aria-label={isActivePulseSession ? "Deactivate pulse" : "Clear chat"}
                 >
-                  <Trash size={14} weight="bold" aria-hidden />
-                  <span>Clear</span>
+                  {isActivePulseSession ? (
+                    <Power size={14} weight="bold" aria-hidden />
+                  ) : (
+                    <Trash size={14} weight="bold" aria-hidden />
+                  )}
+                  <span>{isActivePulseSession ? "Deactivate Pulse" : "Clear"}</span>
                 </button>
               ) : null}
             </div>

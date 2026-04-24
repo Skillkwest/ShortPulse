@@ -1,24 +1,18 @@
 /**
  * Tests for style extraction client helpers.
- * Verifies managed URL normalization and extractor response parsing behavior.
+ * Verifies the direct-image extraction client contract.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { fetchWithAuth } from "../../../../lib/authenticatedFetch";
-import { prepareImageUrlForSubmission } from "../../utils/imageUpload";
-import { isStyleExtractionError, postExtractStyle, prepareStyleImageUrl } from "../styleExtraction";
+import { isStyleExtractionError, postExtractStyle } from "../styleExtraction";
 
 vi.mock("../../../../lib/authenticatedFetch", () => ({
   fetchWithAuth: vi.fn(),
 }));
 
-vi.mock("../../utils/imageUpload", () => ({
-  prepareImageUrlForSubmission: vi.fn(),
-}));
-
 describe("styleExtraction helpers", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    process.env.NEXT_PUBLIC_SUPABASE_URL = "https://demo.supabase.co";
   });
 
   afterEach(() => {
@@ -26,67 +20,12 @@ describe("styleExtraction helpers", () => {
     vi.unstubAllGlobals();
   });
 
-  it("keeps trusted managed style URLs without external re-upload", async () => {
-    vi.mocked(prepareImageUrlForSubmission).mockResolvedValue(
-      "https://demo.supabase.co/storage/v1/object/sign/media-library/user/image.jpg?token=abc"
-    );
-
-    const resolved = await prepareStyleImageUrl("https://demo.supabase.co/media/image.jpg");
-
-    expect(resolved).toBe(
-      "https://demo.supabase.co/storage/v1/object/sign/media-library/user/image.jpg?token=abc"
-    );
-  });
-
-  it("normalizes non-trusted style URLs to managed storage when fetch succeeds", async () => {
-    const originalCreateObjectURL = URL.createObjectURL;
-    const originalRevokeObjectURL = URL.revokeObjectURL;
-    const fetchMock = vi.fn().mockResolvedValue({
-      ok: true,
-      status: 200,
-      blob: async () => new Blob(["image-bytes"], { type: "image/jpeg" }),
-    });
-    vi.stubGlobal("fetch", fetchMock);
-    URL.createObjectURL = vi.fn(() => "blob:normalized-style") as typeof URL.createObjectURL;
-    URL.revokeObjectURL = vi.fn() as typeof URL.revokeObjectURL;
-    vi.mocked(prepareImageUrlForSubmission)
-      .mockResolvedValueOnce("https://external.example.com/style.jpg")
-      .mockResolvedValueOnce("https://demo.supabase.co/storage/v1/object/sign/media/style.jpg");
-
-    try {
-      const resolved = await prepareStyleImageUrl("https://external.example.com/style.jpg");
-
-      expect(fetchMock).toHaveBeenCalledWith("https://external.example.com/style.jpg", {
-        method: "GET",
-        mode: "cors",
-        credentials: "omit",
-      });
-      expect(prepareImageUrlForSubmission).toHaveBeenNthCalledWith(2, "blob:normalized-style");
-      expect(resolved).toBe("https://demo.supabase.co/storage/v1/object/sign/media/style.jpg");
-      expect(URL.revokeObjectURL).toHaveBeenCalledWith("blob:normalized-style");
-    } finally {
-      URL.createObjectURL = originalCreateObjectURL;
-      URL.revokeObjectURL = originalRevokeObjectURL;
-    }
-  });
-
-  it("returns deterministic recovery guidance when external fetch is blocked", async () => {
-    vi.mocked(prepareImageUrlForSubmission).mockResolvedValue("https://external.example.com/a.jpg");
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockRejectedValue(new TypeError("Failed to fetch external style image"))
-    );
-
-    await expect(prepareStyleImageUrl("https://external.example.com/a.jpg")).rejects.toThrow(
-      "This image source blocks browser access. Download the image and drop the file directly to analyze style."
-    );
-  });
-
-  it("postExtractStyle falls back to deterministic title when API omits styleTitle", async () => {
+  it("postExtractStyle sends image data directly and requires canonical title output", async () => {
     vi.mocked(fetchWithAuth).mockResolvedValue(
       new Response(
         JSON.stringify({
           stylePrompt: "cinematic editorial photography style, dramatic moody lighting",
+          styleTitle: "Noir Bloom",
           usage: { inputTokens: 4, outputTokens: 5 },
         }),
         {
@@ -94,7 +33,6 @@ describe("styleExtraction helpers", () => {
           headers: {
             "Content-Type": "application/json",
             "x-shortpulse-style-attempt-count": "2",
-            "x-shortpulse-style-probe-ms": "71",
             "x-shortpulse-style-openai-ms": "513",
             "x-shortpulse-style-model-used": "gpt-5-nano",
           },
@@ -102,15 +40,21 @@ describe("styleExtraction helpers", () => {
       )
     );
 
-    const result = await postExtractStyle("https://demo.supabase.co/storage/v1/object/sign/a.jpg");
+    const result = await postExtractStyle("data:image/jpeg;base64,abc123");
 
     expect(result.stylePrompt).toBe(
       "cinematic editorial photography style, dramatic moody lighting"
     );
-    expect(result.styleTitle).toBe("Cinematic Editorial Photography Dramatic Moody");
+    expect(result.styleTitle).toBe("Noir Bloom");
     expect(result.usage).toEqual({ inputTokens: 4, outputTokens: 5 });
     expect(result.attemptCount).toBe(2);
-    expect(result.probeMs).toBe(71);
+    expect(vi.mocked(fetchWithAuth)).toHaveBeenCalledWith(
+      "/api/ai/extract-style",
+      expect.objectContaining({
+        body: JSON.stringify({ imageDataUrl: "data:image/jpeg;base64,abc123" }),
+      })
+    );
+    expect(result.probeMs).toBeNull();
     expect(result.openAiMs).toBe(513);
     expect(result.modelUsed).toBe("gpt-5-nano");
   });
@@ -133,7 +77,7 @@ describe("styleExtraction helpers", () => {
       });
     });
 
-    const resultPromise = postExtractStyle("https://demo.supabase.co/storage/v1/object/sign/a.jpg");
+    const resultPromise = postExtractStyle("data:image/jpeg;base64,abc123");
     await vi.advanceTimersByTimeAsync(46000);
     const result = await resultPromise;
 
@@ -170,7 +114,7 @@ describe("styleExtraction helpers", () => {
       );
     });
 
-    const resultPromise = postExtractStyle("https://demo.supabase.co/storage/v1/object/sign/a.jpg");
+    const resultPromise = postExtractStyle("data:image/jpeg;base64,abc123");
     await vi.advanceTimersByTimeAsync(59000);
     const result = await resultPromise;
 
@@ -191,7 +135,7 @@ describe("styleExtraction helpers", () => {
       });
     });
 
-    const resultPromise = postExtractStyle("https://demo.supabase.co/storage/v1/object/sign/a.jpg");
+    const resultPromise = postExtractStyle("data:image/jpeg;base64,abc123");
     const rejection = expect(resultPromise).rejects.toThrow(
       "Style extraction timed out. Please retry."
     );
@@ -204,7 +148,7 @@ describe("styleExtraction helpers", () => {
     vi.mocked(fetchWithAuth).mockRejectedValue(new DOMException("Aborted", "AbortError"));
 
     try {
-      await postExtractStyle("https://demo.supabase.co/storage/v1/object/sign/a.jpg");
+      await postExtractStyle("data:image/jpeg;base64,abc123");
       throw new Error("Expected postExtractStyle to reject.");
     } catch (error) {
       expect(isStyleExtractionError(error)).toBe(true);
@@ -230,7 +174,7 @@ describe("styleExtraction helpers", () => {
         )
       );
 
-    const result = await postExtractStyle("https://demo.supabase.co/storage/v1/object/sign/a.jpg");
+    const result = await postExtractStyle("data:image/jpeg;base64,abc123");
 
     expect(fetchWithAuth).toHaveBeenCalledTimes(2);
     expect(result.styleTitle).toBe("Muted Painterly");
@@ -244,9 +188,9 @@ describe("styleExtraction helpers", () => {
       })
     );
 
-    await expect(
-      postExtractStyle("https://demo.supabase.co/storage/v1/object/sign/a.jpg")
-    ).rejects.toThrow("Image URL host is not in the trusted allowlist.");
+    await expect(postExtractStyle("data:image/jpeg;base64,abc123")).rejects.toThrow(
+      "Image URL host is not in the trusted allowlist."
+    );
     expect(fetchWithAuth).toHaveBeenCalledTimes(1);
   });
 });

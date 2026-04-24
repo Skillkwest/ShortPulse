@@ -8,15 +8,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { StylesLibraryPanel } from "../StylesLibraryPanel";
 import type { ExpertEditStyleTile } from "../edit/expertEditStyles";
 import type { ResolvedInternalStyleSource } from "../style-creator/intake";
-import {
-  postExtractStyle,
-  prepareStyleImageUrl,
-  type StyleExtractionResult,
-} from "../../logic/styleExtraction";
+import { postExtractStyle, type StyleExtractionResult } from "../../logic/styleExtraction";
 import { reportAppError } from "../../../../lib/appErrorReporter";
 
 vi.mock("../../logic/styleExtraction", () => ({
-  prepareStyleImageUrl: vi.fn(),
   postExtractStyle: vi.fn(),
   isStyleExtractionError: vi.fn(() => false),
 }));
@@ -66,7 +61,6 @@ const createStyleExtractionResult = (
 describe("StylesLibraryPanel", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(prepareStyleImageUrl).mockImplementation(async (url: string) => url);
     vi.mocked(postExtractStyle).mockResolvedValue(createStyleExtractionResult());
   });
 
@@ -244,8 +238,8 @@ describe("StylesLibraryPanel", () => {
         "cinematic lighting, shallow depth of field, balanced dynamic range"
       );
       expect(savedDetails.previewImageUrl).toBe("data:image/jpeg;base64,512x512");
-      expect(prepareStyleImageUrl).toHaveBeenCalledWith("data:image/jpeg;base64,1024x768");
-      expect(prepareStyleImageUrl).not.toHaveBeenCalledWith("data:image/jpeg;base64,512x512");
+      expect(postExtractStyle).toHaveBeenCalledWith("data:image/jpeg;base64,1024x768");
+      expect(postExtractStyle).not.toHaveBeenCalledWith("data:image/jpeg;base64,512x512");
       await waitFor(() => {
         expect(reportAppError).toHaveBeenCalledWith(
           expect.objectContaining({
@@ -1129,8 +1123,8 @@ describe("StylesLibraryPanel", () => {
         );
       });
       expect(screen.getByLabelText("Style")).toHaveValue("Noir Bloom");
-      expect(prepareStyleImageUrl).toHaveBeenCalledWith("data:image/jpeg;base64,1024x768");
-      expect(prepareStyleImageUrl).not.toHaveBeenCalledWith("data:image/jpeg;base64,512x512");
+      expect(postExtractStyle).toHaveBeenCalledWith("data:image/jpeg;base64,1024x768");
+      expect(postExtractStyle).not.toHaveBeenCalledWith("data:image/jpeg;base64,512x512");
     } finally {
       Object.defineProperty(globalThis, "Image", {
         configurable: true,

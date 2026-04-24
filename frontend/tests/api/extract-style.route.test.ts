@@ -1,6 +1,6 @@
 /**
  * Route tests for POST /api/ai/extract-style.
- * Validates extraction success normalization and refusal/error behavior.
+ * Validates the direct-image structured lane and the temporary imageUrl compatibility lane.
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import extractStyleHandler from "../../pages/api/ai/extract-style";
@@ -43,7 +43,7 @@ describe("POST /api/ai/extract-style", () => {
     vi.stubGlobal("fetch", vi.fn());
   });
 
-  it("returns 400 when imageUrl is missing", async () => {
+  it("returns 400 when both imageDataUrl and imageUrl are missing", async () => {
     const req = {
       method: "POST",
       body: {},
@@ -59,42 +59,73 @@ describe("POST /api/ai/extract-style", () => {
         outcome_class: "route_error",
         reason_code: "REQUEST_INVALID",
         retryable: false,
-        error: "imageUrl is required",
+        error: "imageDataUrl or imageUrl is required",
       })
     );
   });
 
-  it("extracts and normalizes style prompt text", async () => {
-    const fetchMock = fetch as ReturnType<typeof vi.fn>;
-    fetchMock
-      .mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        headers: new Headers({ "content-type": "image/png" }),
-      })
-      .mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        json: async () => ({
-          choices: [
-            {
-              message: {
-                content:
-                  "STYLE ADD-ON\n\n- cinematic editorial photography style\n- dramatic moody lighting\n- shallow depth of field",
-              },
-            },
-          ],
-          usage: { prompt_tokens: 11, completion_tokens: 14 },
-        }),
-      });
-
+  it("returns 400 when imageDataUrl is not a base64 image data URL", async () => {
     const req = {
       method: "POST",
-      body: { imageUrl: "https://example.com/image.png" },
+      body: { imageDataUrl: "https://example.com/not-data.png" },
     };
     const res = createMockResponse();
 
     await extractStyleHandler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        error: "imageDataUrl must be a base64 image data URL",
+      })
+    );
+  });
+
+  it("extracts style from direct image data using structured output", async () => {
+    const fetchMock = fetch as ReturnType<typeof vi.fn>;
+    fetchMock.mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          output_text:
+            '{"styleTitle":"Noir Bloom","stylePrompt":"cinematic editorial photography style, dramatic moody lighting, shallow depth of field"}',
+          usage: { input_tokens: 11, output_tokens: 14 },
+        }),
+        {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }
+      )
+    );
+
+    const req = {
+      method: "POST",
+      body: { imageDataUrl: "data:image/jpeg;base64,abc123" },
+    };
+    const res = createMockResponse();
+
+    await extractStyleHandler(req as never, res as never);
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const [, fetchInit] = fetchMock.mock.calls[0] as [string, RequestInit];
+    const requestBody = JSON.parse(String(fetchInit.body));
+    expect(requestBody).toMatchObject({
+      model: expect.any(String),
+      store: false,
+      text: {
+        format: {
+          type: "json_schema",
+          name: "style_extraction",
+          strict: true,
+        },
+      },
+    });
+    expect(requestBody.input[1].content[1]).toEqual(
+      expect.objectContaining({
+        type: "input_image",
+        image_url: "data:image/jpeg;base64,abc123",
+        detail: "high",
+      })
+    );
 
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith(
@@ -103,9 +134,9 @@ describe("POST /api/ai/extract-style", () => {
         outcome_class: "success_prompt",
         reason_code: "SUCCESS_PROMPT",
         retryable: false,
+        styleTitle: "Noir Bloom",
         stylePrompt:
           "Photographic, cinematic editorial photography style, dramatic moody lighting, shallow depth of field",
-        styleTitle: "Photographic Cinematic Editorial Photography",
         usage: {
           inputTokens: 11,
           outputTokens: 14,
@@ -114,7 +145,7 @@ describe("POST /api/ai/extract-style", () => {
     );
   });
 
-  it("parses style title when model returns STYLE TITLE and STYLE ADD-ON sections", async () => {
+  it("keeps the imageUrl compatibility lane working during migration", async () => {
     const fetchMock = fetch as ReturnType<typeof vi.fn>;
     fetchMock
       .mockResolvedValueOnce({
@@ -146,13 +177,10 @@ describe("POST /api/ai/extract-style", () => {
 
     await extractStyleHandler(req as never, res as never);
 
+    expect(fetchMock).toHaveBeenCalledTimes(2);
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith(
       expect.objectContaining({
-        decision: "allow",
-        outcome_class: "success_prompt",
-        reason_code: "SUCCESS_PROMPT",
-        retryable: false,
         styleTitle: "Noir Bloom",
         stylePrompt:
           "Photographic, cinematic editorial photography style, dramatic moody lighting, shallow depth of field",
@@ -160,71 +188,21 @@ describe("POST /api/ai/extract-style", () => {
     );
   });
 
-  it("treats refusal text as extraction failure", async () => {
+  it("classifies structured upstream failures with normalized fallback reasons", async () => {
     const fetchMock = fetch as ReturnType<typeof vi.fn>;
     fetchMock
-      .mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        headers: new Headers({ "content-type": "image/png" }),
-      })
-      .mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        json: async () => ({
-          choices: [{ message: { content: "I cannot describe this." } }],
-          usage: { prompt_tokens: 5, completion_tokens: 2 },
-        }),
-      });
+      .mockResolvedValueOnce(new Response("Service unavailable", { status: 503 }))
+      .mockResolvedValueOnce(new Response("Service unavailable", { status: 503 }));
 
     const req = {
       method: "POST",
-      body: { imageUrl: "https://example.com/image.png" },
+      body: { imageDataUrl: "data:image/jpeg;base64,abc123" },
     };
     const res = createMockResponse();
 
     await extractStyleHandler(req as never, res as never);
 
-    expect(res.status).toHaveBeenCalledWith(502);
-    expect(res.json).toHaveBeenCalledWith(
-      expect.objectContaining({
-        decision: "error",
-        outcome_class: "upstream_error",
-        reason_code: "UPSTREAM_OUTPUT_CONTRACT",
-        retryable: false,
-        error: "No style prompt returned",
-        fallback_reason: "stage_style_prompt_missing",
-      })
-    );
-  });
-
-  it("classifies upstream failures with normalized fallback_reason labels", async () => {
-    const fetchMock = fetch as ReturnType<typeof vi.fn>;
-    fetchMock
-      .mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        headers: new Headers({ "content-type": "image/png" }),
-      })
-      .mockResolvedValueOnce({
-        ok: false,
-        status: 503,
-        text: async () => "Service unavailable",
-      })
-      .mockResolvedValueOnce({
-        ok: false,
-        status: 503,
-        text: async () => "Service unavailable",
-      });
-
-    const req = {
-      method: "POST",
-      body: { imageUrl: "https://example.com/image.png" },
-    };
-    const res = createMockResponse();
-
-    await extractStyleHandler(req as never, res as never);
-
+    expect(fetchMock).toHaveBeenCalledTimes(2);
     expect(res.status).toHaveBeenCalledWith(503);
     expect(res.json).toHaveBeenCalledWith(
       expect.objectContaining({

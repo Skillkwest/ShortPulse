@@ -17,6 +17,7 @@ import { enforceLeadingHardStyleClass } from "./styleExtractionPromptPolicy";
 import {
   extractImageDescriptionText,
   requestOpenAiImageDescribeWithRetry,
+  requestOpenAiStructuredStyleExtractionWithRetry,
   resolveImageDescribeUpstreamFailureSource,
   shouldRetryWithFallbackVisionModel,
 } from "../../lib/server/api/imageDescribeOpenAi";
@@ -243,15 +244,57 @@ export type StyleExtractionDiagnostics = {
 
 const normalizeDuration = (value: number): number => Math.max(0, Math.trunc(value));
 
+const normalizeUsage = (
+  usage:
+    | {
+        inputTokens?: number;
+        outputTokens?: number;
+      }
+    | null
+    | undefined
+): {
+  inputTokens?: number;
+  outputTokens?: number;
+} => {
+  return {
+    inputTokens: typeof usage?.inputTokens === "number" ? usage.inputTokens : undefined,
+    outputTokens: typeof usage?.outputTokens === "number" ? usage.outputTokens : undefined,
+  };
+};
+
+const normalizeLegacyChatUsage = (
+  data: Record<string, unknown>
+): {
+  inputTokens?: number;
+  outputTokens?: number;
+} => {
+  const usage =
+    data.usage && typeof data.usage === "object" && !Array.isArray(data.usage)
+      ? (data.usage as Record<string, unknown>)
+      : null;
+  return normalizeUsage({
+    inputTokens: typeof usage?.prompt_tokens === "number" ? usage.prompt_tokens : undefined,
+    outputTokens:
+      typeof usage?.completion_tokens === "number" ? usage.completion_tokens : undefined,
+  });
+};
+
+const isImageDataUrl = (value: string): boolean => {
+  const normalized = value.trim();
+  return /^data:image\/[a-z0-9.+-]+;base64,/i.test(normalized);
+};
+
 export const executeLegacyStyleExtraction = async ({
   req,
   user,
   imageUrl,
+  imageDataUrl,
   routeLabel = "ai/extract-style",
 }: {
   req: NextApiRequest;
   user: AuthenticatedApiUser;
   imageUrl: unknown;
+  imageDataUrl?: unknown;
   routeLabel?: string;
 }): Promise<LegacyStyleExtractionResult> => {
   const apiKey = process.env.OPENAI_API_KEY;
@@ -356,12 +399,17 @@ export const executeLegacyStyleExtraction = async ({
     };
   }
 
-  if (typeof imageUrl !== "string" || !imageUrl.trim()) {
+  const normalizedImageDataUrl =
+    typeof imageDataUrl === "string" && imageDataUrl.trim() ? imageDataUrl.trim() : null;
+  const normalizedImageUrl =
+    typeof imageUrl === "string" && imageUrl.trim() ? imageUrl.trim() : null;
+
+  if (!normalizedImageDataUrl && !normalizedImageUrl) {
     await logGenerationFailure({
       req,
       routeLabel,
       source: "api.style_extraction.validation_failed",
-      message: "imageUrl is required",
+      message: "imageDataUrl or imageUrl is required",
       statusCode: 400,
       userId: user.id,
       userEmail: user.email ?? null,
@@ -379,7 +427,35 @@ export const executeLegacyStyleExtraction = async ({
       status: 400,
       payload: {
         ...machineOutcome,
-        error: "imageUrl is required",
+        error: "imageDataUrl or imageUrl is required",
+      },
+    };
+  }
+
+  if (normalizedImageDataUrl && !isImageDataUrl(normalizedImageDataUrl)) {
+    await logGenerationFailure({
+      req,
+      routeLabel,
+      source: "api.style_extraction.validation_failed",
+      message: "imageDataUrl must be a base64 image data URL",
+      statusCode: 400,
+      userId: user.id,
+      userEmail: user.email ?? null,
+    });
+    const machineOutcome = buildAgentMachineOutcome({
+      outcomeClass: "route_error",
+      reasonCode: "REQUEST_INVALID",
+    });
+    emitStyleRouteTelemetry({
+      statusCode: 400,
+      machineOutcome,
+    });
+    return {
+      ok: false,
+      status: 400,
+      payload: {
+        ...machineOutcome,
+        error: "imageDataUrl must be a base64 image data URL",
       },
     };
   }
@@ -392,72 +468,82 @@ export const executeLegacyStyleExtraction = async ({
     let attemptCount = 0;
     let modelUsed: string | null = null;
 
-    const normalizedImageUrl = imageUrl.trim();
-    const probeStartedAt = Date.now();
-    const imageProbe = await probeImageUrlForDescribe(normalizedImageUrl);
-    probeMs = normalizeDuration(Date.now() - probeStartedAt);
-    if (!imageProbe.ok) {
-      await logGenerationFailure({
-        req,
-        routeLabel,
-        source: "api.style_extraction.validation_failed",
-        message: imageProbe.message,
-        statusCode: imageProbe.statusCode,
-        userId: user.id,
-        userEmail: user.email ?? null,
-        metadata: {
-          detail: imageProbe.detail,
-          probe_ms: probeMs,
-          total_ms: normalizeDuration(Date.now() - extractionStartedAt),
-        },
-      });
-      const machineOutcome = buildAgentMachineOutcome({
-        outcomeClass: "route_error",
-        reasonCode: "REQUEST_INVALID",
-      });
-      const fallbackReason = resolveStudioAgentFallbackReasonLabel({
-        status: imageProbe.statusCode,
-        detail: imageProbe.detail ?? imageProbe.message,
-      });
-      emitStyleRouteTelemetry({
-        statusCode: imageProbe.statusCode,
-        machineOutcome,
-        fallbackReason,
-      });
-      return {
-        ok: false,
-        status: imageProbe.statusCode,
-        payload: {
-          ...machineOutcome,
-          error: imageProbe.message,
-          detail: imageProbe.detail,
-          fallback_reason: fallbackReason,
-        },
-        diagnostics: {
-          attemptCount: null,
-          probeMs,
-          openAiMs: null,
-          parseMs: null,
-          totalMs: normalizeDuration(Date.now() - extractionStartedAt),
-          modelUsed: null,
-        },
-      };
-    }
-
     const primaryVisionModel = (process.env.OPENAI_VISION_MODEL || DEFAULT_VISION_MODEL).trim();
     const fallbackVisionModel = (
       process.env.OPENAI_VISION_FALLBACK_MODEL || DEFAULT_FALLBACK_VISION_MODEL
     ).trim();
 
     const attemptedModels: string[] = [primaryVisionModel];
-    let extractionAttempt = await requestOpenAiImageDescribeWithRetry({
-      apiKey,
-      model: primaryVisionModel,
-      systemPrompt,
-      imageUrl: normalizedImageUrl,
-      userText:
-        "Extract reusable visual style descriptors and return a creative style title with the style add-on block.",
-    });
+    const usesDirectImageData = Boolean(normalizedImageDataUrl);
+
+    if (!usesDirectImageData && normalizedImageUrl) {
+      const probeStartedAt = Date.now();
+      const imageProbe = await probeImageUrlForDescribe(normalizedImageUrl);
+      probeMs = normalizeDuration(Date.now() - probeStartedAt);
+      if (!imageProbe.ok) {
+        await logGenerationFailure({
+          req,
+          routeLabel,
+          source: "api.style_extraction.validation_failed",
+          message: imageProbe.message,
+          statusCode: imageProbe.statusCode,
+          userId: user.id,
+          userEmail: user.email ?? null,
+          metadata: {
+            detail: imageProbe.detail,
+            probe_ms: probeMs,
+            total_ms: normalizeDuration(Date.now() - extractionStartedAt),
+          },
+        });
+        const machineOutcome = buildAgentMachineOutcome({
+          outcomeClass: "route_error",
+          reasonCode: "REQUEST_INVALID",
+        });
+        const fallbackReason = resolveStudioAgentFallbackReasonLabel({
+          status: imageProbe.statusCode,
+          detail: imageProbe.detail ?? imageProbe.message,
+        });
+        emitStyleRouteTelemetry({
+          statusCode: imageProbe.statusCode,
+          machineOutcome,
+          fallbackReason,
+        });
+        return {
+          ok: false,
+          status: imageProbe.statusCode,
+          payload: {
+            ...machineOutcome,
+            error: imageProbe.message,
+            detail: imageProbe.detail,
+            fallback_reason: fallbackReason,
+          },
+          diagnostics: {
+            attemptCount: null,
+            probeMs,
+            openAiMs: null,
+            parseMs: null,
+            totalMs: normalizeDuration(Date.now() - extractionStartedAt),
+            modelUsed: null,
+          },
+        };
+      }
+    }
+
+    let extractionAttempt = usesDirectImageData
+      ? await requestOpenAiStructuredStyleExtractionWithRetry({
+          apiKey,
+          model: primaryVisionModel,
+          systemPrompt,
+          imageDataUrl: normalizedImageDataUrl!,
+        })
+      : await requestOpenAiImageDescribeWithRetry({
+          apiKey,
+          model: primaryVisionModel,
+          systemPrompt,
+          imageUrl: normalizedImageUrl!,
+          userText:
+            "Extract reusable visual style descriptors and return a creative style title with the style add-on block.",
+        });
     openAiMs += extractionAttempt.elapsedMs;
     attemptCount += extractionAttempt.attemptCount;
     modelUsed = extractionAttempt.model;
@@ -472,14 +558,21 @@ export const executeLegacyStyleExtraction = async ({
       })
     ) {
       attemptedModels.push(fallbackVisionModel);
-      extractionAttempt = await requestOpenAiImageDescribeWithRetry({
-        apiKey,
-        model: fallbackVisionModel,
-        systemPrompt,
-        imageUrl: normalizedImageUrl,
-        userText:
-          "Extract reusable visual style descriptors and return a creative style title with the style add-on block.",
-      });
+      extractionAttempt = usesDirectImageData
+        ? await requestOpenAiStructuredStyleExtractionWithRetry({
+            apiKey,
+            model: fallbackVisionModel,
+            systemPrompt,
+            imageDataUrl: normalizedImageDataUrl!,
+          })
+        : await requestOpenAiImageDescribeWithRetry({
+            apiKey,
+            model: fallbackVisionModel,
+            systemPrompt,
+            imageUrl: normalizedImageUrl!,
+            userText:
+              "Extract reusable visual style descriptors and return a creative style title with the style add-on block.",
+          });
       openAiMs += extractionAttempt.elapsedMs;
       attemptCount += extractionAttempt.attemptCount;
       modelUsed = extractionAttempt.model;
@@ -545,10 +638,24 @@ export const executeLegacyStyleExtraction = async ({
 
     const parseStartedAt = Date.now();
     const data = extractionAttempt.data;
-    const extractedText = extractImageDescriptionText(data);
-    const parsedExtraction = extractedText
-      ? parseStyleExtractionText(extractedText)
-      : { stylePrompt: null, styleTitle: DEFAULT_STYLE_TITLE_FALLBACK };
+    const structuredData = usesDirectImageData
+      ? (extractionAttempt.data as { stylePrompt: string; styleTitle: string })
+      : null;
+    const parsedExtraction = usesDirectImageData
+      ? {
+          stylePrompt: normalizeExtractedStylePrompt(structuredData?.stylePrompt ?? ""),
+          styleTitle:
+            normalizeExtractedStyleTitle(structuredData?.styleTitle ?? "") ??
+            buildFallbackStyleTitle(
+              normalizeExtractedStylePrompt(structuredData?.stylePrompt ?? "")
+            ),
+        }
+      : (() => {
+          const extractedText = extractImageDescriptionText(data);
+          return extractedText
+            ? parseStyleExtractionText(extractedText)
+            : { stylePrompt: null, styleTitle: DEFAULT_STYLE_TITLE_FALLBACK };
+        })();
     parseMs = normalizeDuration(Date.now() - parseStartedAt);
     const stylePrompt = parsedExtraction.stylePrompt;
     const styleTitle = parsedExtraction.styleTitle;
@@ -579,7 +686,7 @@ export const executeLegacyStyleExtraction = async ({
       const fallbackReason = resolveStudioAgentFallbackReasonLabel({
         stage: "style_prompt_missing",
         status: 502,
-        detail: extractedText ?? "No style prompt returned",
+        detail: parsedExtraction.stylePrompt ?? "No style prompt returned",
       });
       emitStyleRouteTelemetry({
         statusCode: 502,
@@ -605,13 +712,6 @@ export const executeLegacyStyleExtraction = async ({
         },
       };
     }
-
-    const usage =
-      data.usage && typeof data.usage === "object" && !Array.isArray(data.usage)
-        ? (data.usage as Record<string, unknown>)
-        : {};
-    const promptTokens = usage.prompt_tokens;
-    const completionTokens = usage.completion_tokens;
     const successOutcome = buildAgentMachineOutcome({
       outcomeClass: "success_prompt",
       reasonCode: "SUCCESS_PROMPT",
@@ -627,10 +727,18 @@ export const executeLegacyStyleExtraction = async ({
         ...successOutcome,
         stylePrompt,
         styleTitle,
-        usage: {
-          inputTokens: typeof promptTokens === "number" ? promptTokens : undefined,
-          outputTokens: typeof completionTokens === "number" ? completionTokens : undefined,
-        },
+        usage: usesDirectImageData
+          ? normalizeUsage(
+              (
+                extractionAttempt as {
+                  usage?: {
+                    inputTokens?: number;
+                    outputTokens?: number;
+                  };
+                }
+              ).usage
+            )
+          : normalizeLegacyChatUsage(data as Record<string, unknown>),
       },
       diagnostics: {
         attemptCount,

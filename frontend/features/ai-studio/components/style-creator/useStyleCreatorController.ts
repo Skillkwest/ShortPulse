@@ -3,7 +3,7 @@
  * Keeps side effects and domain logic out of presentational panel markup.
  */
 import React from "react";
-import { postExtractStyle, prepareStyleImageUrl } from "../../logic/styleExtraction";
+import { postExtractStyle } from "../../logic/styleExtraction";
 import type { StylesLibraryStyleDetails } from "../../types";
 import { buildStyleExtractionMeta, buildStyleProfileFromPrompt } from "../../logic/styleProfile";
 import {
@@ -348,16 +348,10 @@ export const useStyleCreatorController = ({
   const runStyleExtraction = React.useCallback(
     async ({ sourceImageUrl }: StyleExtractionPayload): Promise<StyleExtractionRuntimeResult> => {
       try {
-        const safeImageUrl = await prepareStyleImageUrl(sourceImageUrl);
-        if (!safeImageUrl) {
-          throw new Error(
-            "Unable to prepare image for style extraction. You can still enter the style prompt manually."
-          );
-        }
-        const extracted = await postExtractStyle(safeImageUrl);
+        const extracted = await postExtractStyle(sourceImageUrl);
         return {
           outcome: "success" as const,
-          sourceUrlKind: resolveSourceUrlKind(safeImageUrl),
+          sourceUrlKind: resolveSourceUrlKind(sourceImageUrl),
           stylePrompt: extracted.stylePrompt,
           styleTitle: extracted.styleTitle,
           attemptCount: extracted.attemptCount,

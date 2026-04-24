@@ -22,6 +22,14 @@ type OpenAiCompatRequest = {
   env?: NodeJS.ProcessEnv;
 };
 
+type OpenAiResponsesRequest = {
+  apiKey: string;
+  body: Record<string, unknown>;
+  timeoutMs: number;
+  openAiUrl?: string;
+  openAiApiBase?: string;
+};
+
 type ResponsesInputMessage = {
   role: "system" | "assistant" | "user";
   content: Record<string, unknown>[];
@@ -260,6 +268,32 @@ export const fetchOpenAiCompatibleChatCompletion = async ({
     }
 
     return await postChatCompletions();
+  } finally {
+    clearTimeout(timeoutId);
+  }
+};
+
+export const fetchOpenAiResponse = async ({
+  apiKey,
+  body,
+  timeoutMs,
+  openAiUrl,
+  openAiApiBase,
+}: OpenAiResponsesRequest): Promise<Response> => {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+  const apiBase = resolveOpenAiApiBase({ openAiApiBase, openAiUrl });
+
+  try {
+    return await fetch(`${apiBase}/responses`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify(body),
+      signal: controller.signal,
+    });
   } finally {
     clearTimeout(timeoutId);
   }

@@ -3,8 +3,23 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 import type { AiStudioSessionSnapshot } from "../../logic/sessionSnapshot";
 import type { AiStudioSessionHydrationPayload } from "../../logic/sessionSnapshotHydrator";
 import { useAiStudioPageSessionPersistence } from "../useAiStudioPageSessionPersistence";
+import { useAiStudioProjectWorkspacePersistenceController } from "../useAiStudioProjectWorkspacePersistenceController";
 import { useAiStudioSessionPersistenceController } from "../useAiStudioSessionPersistenceController";
 import type { ExpertEditSessionState } from "../../components/edit/expertEditSessionState";
+
+vi.mock("../useAiStudioProjectWorkspacePersistenceController", () => ({
+  useAiStudioProjectWorkspacePersistenceController: vi.fn(() => ({
+    sessionId: "session-1",
+    sessionSnapshot: null,
+    sessionRestoreCandidate: {
+      status: "idle",
+      snapshot: null,
+      source: null,
+      error: null,
+    },
+    setSkipRestoreApplyForSessionId: vi.fn(),
+  })),
+}));
 
 vi.mock("../useAiStudioSessionPersistenceController", () => ({
   useAiStudioSessionPersistenceController: vi.fn(() => ({
@@ -22,6 +37,9 @@ vi.mock("../useAiStudioSessionPersistenceController", () => ({
 
 const mockedUseAiStudioSessionPersistenceController = vi.mocked(
   useAiStudioSessionPersistenceController
+);
+const mockedUseAiStudioProjectWorkspacePersistenceController = vi.mocked(
+  useAiStudioProjectWorkspacePersistenceController
 );
 
 describe("useAiStudioPageSessionPersistence", () => {
@@ -43,6 +61,7 @@ describe("useAiStudioPageSessionPersistence", () => {
 
   beforeEach(() => {
     mockedUseAiStudioSessionPersistenceController.mockClear();
+    mockedUseAiStudioProjectWorkspacePersistenceController.mockClear();
   });
 
   it("passes the page-owned snapshot bridge into the shared persistence controller", () => {
@@ -173,5 +192,86 @@ describe("useAiStudioPageSessionPersistence", () => {
     expect(params?.hydrateFromSessionSnapshot).toBe(hydrateFromSessionSnapshot);
     expect(params?.hydrateFromSessionAgentSnapshot).toBe(hydrateFromSessionAgentSnapshot);
     expect(params?.hydrateFromSessionExpertEditSnapshot).toBe(hydrateFromSessionExpertEditSnapshot);
+  });
+
+  it("routes project-backed sessions through the project workspace controller", () => {
+    const buildSessionSnapshot = vi.fn(
+      (args): AiStudioSessionSnapshot =>
+        ({
+          schemaVersion: 2,
+          sessionId: args.sessionId,
+          updatedAt: "2026-03-23T00:00:00.000Z",
+          workspace: {} as AiStudioSessionSnapshot["workspace"],
+          outputs: {} as AiStudioSessionSnapshot["outputs"],
+          agent: {} as AiStudioSessionSnapshot["agent"],
+        }) as AiStudioSessionSnapshot
+    );
+    const hydrateFromSessionSnapshot = vi.fn(
+      (): AiStudioSessionHydrationPayload => ({
+        workspace: {} as never,
+        outputs: {} as never,
+        agent: {
+          messages: [],
+          input: "",
+          latestAgentPrompt: null,
+          promptOrigin: "manual",
+          chatModeEnabled: false,
+          pulseWorkflowSession: null,
+        },
+        agentRuntimes: {
+          standard: {
+            messages: [],
+            input: "",
+            latestAgentPrompt: null,
+            promptOrigin: "manual",
+            chatModeEnabled: false,
+            pulseWorkflowSession: null,
+          },
+          pulsePresetId: null,
+          pulse: {
+            messages: [],
+            input: "",
+            latestAgentPrompt: null,
+            promptOrigin: "manual",
+            chatModeEnabled: true,
+            pulseWorkflowSession: null,
+          },
+        },
+        canvas: null,
+        expertEdit: null,
+      })
+    );
+    const hydrateFromSessionAgentSnapshot = vi.fn();
+    const setUiNotice = vi.fn();
+
+    renderHook(() =>
+      useAiStudioPageSessionPersistence({
+        projectId: "project-1",
+        sessionId: "session-1",
+        buildSessionSnapshot,
+        agentMessages: [],
+        agentInput: "",
+        latestAgentPrompt: null,
+        promptOrigin: "manual",
+        chatModeEnabled: true,
+        pulseWorkflowSession: null,
+        hydrateFromSessionSnapshot,
+        hydrateFromSessionAgentSnapshot,
+        setUiNotice,
+      })
+    );
+
+    expect(mockedUseAiStudioProjectWorkspacePersistenceController).toHaveBeenCalledTimes(1);
+    expect(mockedUseAiStudioProjectWorkspacePersistenceController.mock.calls[0]?.[0]).toEqual(
+      expect.objectContaining({
+        projectId: "project-1",
+        sessionId: "session-1",
+      })
+    );
+    expect(mockedUseAiStudioSessionPersistenceController.mock.calls[0]?.[0]).toEqual(
+      expect.objectContaining({
+        sessionId: null,
+      })
+    );
   });
 });

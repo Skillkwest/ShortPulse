@@ -457,6 +457,7 @@ export type AiStudioSessionHydrationPayload = {
     prompt: string;
     model: string | null;
     aspect: string;
+    selectedCharacterId: string | null;
     expertCreateMode: "standard" | "pulse";
     activePulsePresetId: string | null;
     referenceImageUrl: string | null;
@@ -655,6 +656,7 @@ export const buildAiStudioSessionHydrationPayload = (
       prompt: asString(workspace.prompt, ""),
       model: normalizeSeedance2UiModelId(asNullableString(workspace.model)) ?? null,
       aspect: asString(workspace.aspect, FALLBACK_ASPECT),
+      selectedCharacterId: asNullableString(workspace.selectedCharacterId)?.trim() || null,
       expertCreateMode: workspaceExpertCreateMode,
       activePulsePresetId: workspaceActivePulsePresetId,
       referenceImageUrl: sanitizeHydratedMediaUrl(asNullableString(workspace.referenceImageUrl)),

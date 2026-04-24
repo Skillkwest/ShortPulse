@@ -89,6 +89,7 @@ describe("sessionSnapshotHydrator", () => {
 
     expect(payload.workspace.mode).toBe("image");
     expect(payload.workspace.selectedTool).toBe("create");
+    expect(payload.workspace.selectedCharacterId).toBeNull();
     expect(payload.outputs.activeOutputId).toBe("out-1");
     expect(payload.outputs.curatedReferenceIds).toEqual(["out-1"]);
     expect(payload.outputs.removedFromAllRefsIds).toEqual(["out-2"]);
@@ -118,6 +119,19 @@ describe("sessionSnapshotHydrator", () => {
 
     expect(payload.workspace.expertCreateMode).toBe("pulse");
     expect(payload.workspace.activePulsePresetId).toBe("single_shot");
+  });
+
+  it("hydrates selected character workspace state when present", () => {
+    const payload = buildAiStudioSessionHydrationPayload(
+      createSnapshot({
+        workspace: {
+          ...createSnapshot().workspace,
+          selectedCharacterId: "char-1",
+        },
+      })
+    );
+
+    expect(payload.workspace.selectedCharacterId).toBe("char-1");
   });
 
   it("hydrates pulse workflow session state", () => {

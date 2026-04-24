@@ -55,6 +55,7 @@ import {
  * Provides AI Studio state and handlers for create/regenerate flows.
  */
 export const useAiStudioState = ({
+  projectId = null,
   sessionId = null,
   isCharacterModeEnabled = false,
   selectedStylePrompt = null,
@@ -65,6 +66,7 @@ export const useAiStudioState = ({
   setExpertCreateMode,
   setActivePulsePresetId,
 }: {
+  projectId?: string | null;
   sessionId?: string | null;
   isCharacterModeEnabled?: boolean;
   selectedStylePrompt?: string | null;
@@ -221,6 +223,7 @@ export const useAiStudioState = ({
   const { detailOutput, currentModelLabel, isPrimaryEditStageGenerating } =
     useAiStudioOutputDerivations({ outputs, activeOutputById, detailOutputId, model });
   const { hasPendingWorkflowRestore } = useAiStudioWorkflowSettings({
+    projectId,
     sessionId,
     selectedTool,
     mode,

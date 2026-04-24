@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { buildAiStudioSessionSnapshot } from "../sessionSnapshot";
+import {
+  buildAiStudioSessionSnapshot,
+  patchAiStudioSessionSnapshotWorkspace,
+} from "../sessionSnapshot";
 import type { StudioOutput } from "../../types";
 import type { AiStudioSessionCanvasState } from "../sessionSnapshotCanvas";
 import type { ExpertEditSessionState } from "../../components/edit/expertEditSessionState";
@@ -194,6 +197,53 @@ describe("sessionSnapshot", () => {
     expect(snapshot.expertEdit?.state.layers.layers[1]?.imageUrl).toBeNull();
     expect(snapshot.expertEdit?.state.layers.layers[1]?.ownsImageUrl).toBe(false);
     expect(snapshot.meta.checksum.startsWith("fnv1a32:")).toBe(true);
+  });
+
+  it("patches workspace-selected character state and recomputes snapshot metadata", () => {
+    const snapshot = buildAiStudioSessionSnapshot({
+      sessionId: "f7f45245-f204-4ece-8f9e-c9a66a9d8d2a",
+      mode: "image",
+      selectedTool: "create",
+      prompt: "A cinematic portrait",
+      model: "fal-ai/bytedance/seedream/v4.5/text-to-image",
+      aspect: "9:16",
+      referenceImageUrl: null,
+      extraImageUrls: [null, null, null],
+      editReferenceText: "",
+      videoReferenceText: "",
+      videoReferenceMode: "standard",
+      videoDurationSeconds: 6,
+      videoResolution: "1080p",
+      imageResolution: "model_default",
+      videoGenerateAudio: false,
+      videoCameraFixed: false,
+      videoAutoFix: false,
+      klingNegativePrompt: "",
+      klingCfgScale: 0.5,
+      klingWorkflowMode: "single",
+      klingShotType: "customize",
+      klingVoiceIds: ["", ""],
+      klingMultiPrompts: [],
+      klingElements: [],
+      motionReferenceVideoUrl: null,
+      outputs: [],
+      archivedOutputs: [],
+      activeOutputId: null,
+      curatedReferenceIds: [],
+      removedFromAllRefsIds: [],
+      agentMessages: [],
+      agentInput: "",
+      latestAgentPrompt: null,
+      promptOrigin: "manual",
+      chatModeEnabled: true,
+    });
+
+    const patched = patchAiStudioSessionSnapshotWorkspace(snapshot, {
+      selectedCharacterId: "char-1",
+    });
+
+    expect(patched.workspace.selectedCharacterId).toBe("char-1");
+    expect(patched.meta.checksum).not.toBe(snapshot.meta.checksum);
   });
 
   it("omits canvas payload when the canonical page does not own canvas session state", () => {

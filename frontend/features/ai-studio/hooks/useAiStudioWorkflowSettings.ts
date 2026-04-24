@@ -220,6 +220,7 @@ const cloneWorkflowSettingsSnapshot = (
 });
 
 type UseAiStudioWorkflowSettingsParams = {
+  projectId?: string | null;
   sessionId?: string | null;
   selectedTool: ToolId | null;
   mode: StudioMode;
@@ -274,6 +275,7 @@ type UseAiStudioWorkflowSettingsParams = {
  * Restores and persists per-tool workflow settings and returns restoration guard state.
  */
 export const useAiStudioWorkflowSettings = ({
+  projectId = null,
   sessionId = null,
   selectedTool,
   mode,
@@ -323,8 +325,9 @@ export const useAiStudioWorkflowSettings = ({
   setKlingMultiPrompts,
   setKlingElements,
 }: UseAiStudioWorkflowSettingsParams) => {
+  const workflowSettingsPersistenceEnabled = WORKFLOW_SETTINGS_PERSIST_ENABLED && !projectId;
   const [workflowSettingsHydrated, setWorkflowSettingsHydrated] = useState(
-    !WORKFLOW_SETTINGS_PERSIST_ENABLED
+    !workflowSettingsPersistenceEnabled
   );
   const workflowSettingsRef = useRef<
     Partial<Record<WorkflowSettingsKey, WorkflowSettingsSnapshot>>
@@ -391,10 +394,16 @@ export const useAiStudioWorkflowSettings = ({
     ]
   );
   const hasPendingWorkflowRestore =
-    WORKFLOW_SETTINGS_PERSIST_ENABLED &&
+    workflowSettingsPersistenceEnabled &&
     workflowSettingsHydrated &&
     Boolean(activeWorkflowSettingsKey) &&
     previousWorkflowSettingsKeyRef.current !== activeWorkflowSettingsKey;
+
+  useEffect(() => {
+    if (!workflowSettingsPersistenceEnabled) {
+      setWorkflowSettingsHydrated(true);
+    }
+  }, [workflowSettingsPersistenceEnabled]);
 
   const saveOutgoingWorkflowSnapshot = useCallback(
     (key: WorkflowSettingsKey, preserveExistingMode: boolean) => {
@@ -415,7 +424,7 @@ export const useAiStudioWorkflowSettings = ({
   );
 
   useEffect(() => {
-    if (!WORKFLOW_SETTINGS_PERSIST_ENABLED) return;
+    if (!workflowSettingsPersistenceEnabled) return;
     if (typeof window === "undefined") return;
     try {
       const raw = window.sessionStorage.getItem(WORKFLOW_SETTINGS_SESSION_KEY);
@@ -454,10 +463,10 @@ export const useAiStudioWorkflowSettings = ({
     } finally {
       setWorkflowSettingsHydrated(true);
     }
-  }, [sessionId]);
+  }, [sessionId, workflowSettingsPersistenceEnabled]);
 
   useEffect(() => {
-    if (!WORKFLOW_SETTINGS_PERSIST_ENABLED) return;
+    if (!workflowSettingsPersistenceEnabled) return;
     if (!workflowSettingsHydrated) return;
     if (!activeWorkflowSettingsKey) {
       const previous = previousWorkflowSettingsKeyRef.current;
@@ -571,11 +580,12 @@ export const useAiStudioWorkflowSettings = ({
     setVideoGenerateAudio,
     setVideoReferenceMode,
     setVideoResolution,
+    workflowSettingsPersistenceEnabled,
     workflowSettingsHydrated,
   ]);
 
   useEffect(() => {
-    if (!WORKFLOW_SETTINGS_PERSIST_ENABLED) return;
+    if (!workflowSettingsPersistenceEnabled) return;
     if (!workflowSettingsHydrated) return;
     if (!activeWorkflowSettingsKey) return;
     if (hasPendingWorkflowRestore) return;
@@ -604,6 +614,7 @@ export const useAiStudioWorkflowSettings = ({
     currentWorkflowSnapshot,
     hasPendingWorkflowRestore,
     sessionId,
+    workflowSettingsPersistenceEnabled,
     workflowSettingsHydrated,
   ]);
 

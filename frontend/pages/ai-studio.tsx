@@ -58,6 +58,7 @@ import { useAiStudioCreateModeRuntime } from "../features/ai-studio/hooks/useAiS
 import type { ResolveCanvasDropReference } from "../features/ai-studio/components/canvas/canvasTypes";
 import { getAiStudioSessionSnapshotViaApi } from "../features/ai-studio/logic/sessionApiClient";
 import { readAiStudioSessionPersistencePolicy } from "../features/ai-studio/logic/sessionPersistencePolicy";
+import { patchAiStudioSessionSnapshotWorkspace } from "../features/ai-studio/logic/sessionSnapshot";
 import { resolveAiStudioSessionSnapshotTitle } from "../features/ai-studio/logic/sessionSnapshotTitle";
 import {
   arePulseWorkflowSessionsEqual,
@@ -479,6 +480,7 @@ export default function AiStudioPage() {
     getOutputById,
     getOutputSnapshot,
   } = useAiStudioState({
+    projectId,
     sessionId,
     isCharacterModeEnabled: isCreateCharacterModeEnabled,
     selectedStylePrompt,
@@ -720,6 +722,7 @@ export default function AiStudioPage() {
     refreshCharacterOptions,
     resolveCharacterOptionById,
   } = useAiStudioCharacterModeLifecycle({
+    projectId,
     selectedTool,
     setUiError,
     setCharacterModeInjectionBundle: setCreateCharacterModeInjectionBundle,
@@ -801,6 +804,7 @@ export default function AiStudioPage() {
     handleCloseAgentChat,
     hydrateFromSessionAgentSnapshot,
   } = useAiStudioAgentBridge({
+    projectId,
     sessionId,
     mode,
     selectedTool,
@@ -873,10 +877,28 @@ export default function AiStudioPage() {
     );
   }, [reconciledPulseWorkflowSession, setPulseWorkflowSession]);
 
+  const buildProjectAwareSessionSnapshot = useCallback(
+    (args: Parameters<typeof buildSessionSnapshot>[0]) =>
+      patchAiStudioSessionSnapshotWorkspace(buildSessionSnapshot(args), {
+        selectedCharacterId: createSelectedCharacterId || null,
+      }),
+    [buildSessionSnapshot, createSelectedCharacterId]
+  );
+
+  const hydrateProjectAwareSessionSnapshot = useCallback(
+    (snapshot: Parameters<typeof hydrateFromSessionSnapshot>[0]) => {
+      const payload = hydrateFromSessionSnapshot(snapshot);
+      setCreateSelectedCharacterId(payload.workspace.selectedCharacterId ?? "");
+      return payload;
+    },
+    [hydrateFromSessionSnapshot, setCreateSelectedCharacterId]
+  );
+
   const { sessionSnapshot } = useAiStudioPageSessionPersistence({
+    projectId,
     sessionId: activeSessionPersistenceSessionId,
     sessionTitleOverride: sessionPersistenceTitleOverride,
-    buildSessionSnapshot,
+    buildSessionSnapshot: buildProjectAwareSessionSnapshot,
     agentMessages,
     agentInput,
     latestAgentPrompt,
@@ -892,7 +914,7 @@ export default function AiStudioPage() {
       },
     },
     expertEditSessionState,
-    hydrateFromSessionSnapshot,
+    hydrateFromSessionSnapshot: hydrateProjectAwareSessionSnapshot,
     hydrateFromSessionAgentSnapshot,
     hydrateFromSessionExpertEditSnapshot: setExpertEditSessionState,
     setUiNotice,

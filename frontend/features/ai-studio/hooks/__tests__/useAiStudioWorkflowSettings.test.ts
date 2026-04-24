@@ -24,7 +24,11 @@ const createTestKlingElement = (
   ...overrides,
 });
 
-const useHarness = (initialTool: ToolId | null, sessionId = "session-1") => {
+const useHarness = (
+  initialTool: ToolId | null,
+  sessionId = "session-1",
+  projectId: string | null = null
+) => {
   const [selectedTool, setSelectedTool] = useState<ToolId | null>(initialTool);
   const [mode, setMode] = useState<StudioMode>("text");
   const [model, setModelState] = useState<string | null>(null);
@@ -61,6 +65,7 @@ const useHarness = (initialTool: ToolId | null, sessionId = "session-1") => {
   ]);
 
   const workflow = useAiStudioWorkflowSettings({
+    projectId,
     sessionId,
     selectedTool,
     mode,
@@ -254,6 +259,40 @@ describe("useAiStudioWorkflowSettings", () => {
 
     await waitFor(() => expect(result.current.selectedTool).toBe("edit"));
     expect(result.current.model).toBe("fal-ai/bytedance/seedream/v4.5/edit");
+  });
+
+  it("ignores browser workflow storage when a project workspace is active", async () => {
+    window.sessionStorage.clear();
+    window.sessionStorage.setItem(
+      WORKFLOW_SETTINGS_SESSION_KEY,
+      JSON.stringify({
+        create: {
+          mode: "video",
+          model: KIE_VEO_31_FAST_I2V_MODEL_ID,
+          aspect: "16:9",
+          imageResolution: "2048x2048",
+          videoReferenceMode: "standard",
+          videoDurationSeconds: 8,
+          videoResolution: "4k",
+          videoGenerateAudio: true,
+          videoCameraFixed: true,
+          videoAutoFix: true,
+          klingNegativePrompt: "noise",
+          klingCfgScale: 0.8,
+          klingWorkflowMode: "custom",
+          klingShotType: "intelligent",
+          klingVoiceIds: ["a", "b"],
+          klingMultiPrompts: [{ id: "shot-1", prompt: "A", duration: 6 }],
+          klingElements: [],
+        },
+      })
+    );
+
+    const { result } = renderHook(() => useHarness("create", "session-1", "project-1"));
+
+    await waitFor(() => expect(result.current.mode).toBe("text"));
+    expect(result.current.model).toBeNull();
+    expect(window.sessionStorage.getItem(WORKFLOW_SETTINGS_SESSION_KEY)).toContain('"video"');
   });
 
   it("keeps Seedance 2 workflow settings active for video tools by default", async () => {

@@ -12,6 +12,7 @@ import type {
 } from "../logic/sessionSnapshot";
 import type { AiStudioSessionHydrationPayload } from "../logic/sessionSnapshotHydrator";
 import { useAiStudioSessionPersistenceController } from "./useAiStudioSessionPersistenceController";
+import { useAiStudioProjectWorkspacePersistenceController } from "./useAiStudioProjectWorkspacePersistenceController";
 import type { ExpertEditSessionState } from "../components/edit/expertEditSessionState";
 
 type BuildPageSessionSnapshotArgs = {
@@ -27,6 +28,7 @@ type BuildPageSessionSnapshotArgs = {
 };
 
 type UseAiStudioPageSessionPersistenceParams = {
+  projectId?: string | null;
   sessionId: string | null;
   sessionTitleOverride?: string | null;
   buildSessionSnapshot: (args: BuildPageSessionSnapshotArgs) => AiStudioSessionSnapshot;
@@ -54,6 +56,7 @@ type UseAiStudioPageSessionPersistenceParams = {
  * Wires AI Studio page state into the shared session-persistence controller.
  */
 export const useAiStudioPageSessionPersistence = ({
+  projectId = null,
   sessionId,
   sessionTitleOverride,
   buildSessionSnapshot,
@@ -103,8 +106,18 @@ export const useAiStudioPageSessionPersistence = ({
     [setUiNotice]
   );
 
-  return useAiStudioSessionPersistenceController({
+  const projectWorkspacePersistence = useAiStudioProjectWorkspacePersistenceController({
+    projectId,
     sessionId,
+    buildSessionSnapshot: buildSessionSnapshotForSessionId,
+    hydrateFromSessionSnapshot,
+    hydrateFromSessionAgentSnapshot,
+    hydrateFromSessionExpertEditSnapshot,
+    onPersistenceWarning: handleSessionPersistenceWarning,
+  });
+
+  const sessionPersistence = useAiStudioSessionPersistenceController({
+    sessionId: projectId ? null : sessionId,
     buildSessionSnapshot: buildSessionSnapshotForSessionId,
     sessionTitleOverride,
     hydrateFromSessionSnapshot,
@@ -112,4 +125,6 @@ export const useAiStudioPageSessionPersistence = ({
     hydrateFromSessionExpertEditSnapshot,
     onPersistenceWarning: handleSessionPersistenceWarning,
   });
+
+  return projectId ? projectWorkspacePersistence : sessionPersistence;
 };

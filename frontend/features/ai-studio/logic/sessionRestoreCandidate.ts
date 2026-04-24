@@ -6,7 +6,7 @@ import type { AiStudioSessionSnapshot } from "./sessionSnapshot";
 import { getAiStudioSessionSnapshotViaApi } from "./sessionApiClient";
 import { loadAiStudioSessionShadow } from "./sessionSnapshotStorage";
 
-export type AiStudioSessionRestoreSource = "none" | "local" | "remote";
+export type AiStudioSessionRestoreSource = "none" | "local" | "remote" | "project";
 
 export type AiStudioSessionRestoreCandidate = {
   snapshot: AiStudioSessionSnapshot | null;
@@ -30,13 +30,13 @@ const asTimestamp = (value: unknown): number => {
  */
 export const parseAiStudioSessionSnapshotForRestore = (
   value: unknown,
-  expectedSessionId: string
+  expectedSessionId: string | null
 ): AiStudioSessionSnapshot | null => {
   const record = asRecord(value);
   if (!record) return null;
   const schemaVersion = record.schemaVersion;
   if (schemaVersion !== 1 && schemaVersion !== 2) return null;
-  if (record.sessionId !== expectedSessionId) return null;
+  if (expectedSessionId && record.sessionId !== expectedSessionId) return null;
   if (typeof record.updatedAt !== "string") return null;
   if (!asRecord(record.workspace)) return null;
   if (!asRecord(record.outputs)) return null;

@@ -31,6 +31,8 @@ Start here for all repository documentation.
 - `docs/adr/0059-billing-internal-comp-contracts-and-admin-exempt-renewals.md`
 - `docs/adr/0060-billing-storage-entitlements-and-recurring-storage-addons.md`
 - `docs/adr/0061-ai-studio-standard-vs-pulse-runtime-isolation-contract.md`
+- `docs/adr/0062-project-identity-foundation.md`
+- `docs/adr/0063-project-workspace-authority.md`
 - `docs/prefabs.md`
 - `docs/routes.md`
 - `docs/local-development.md`

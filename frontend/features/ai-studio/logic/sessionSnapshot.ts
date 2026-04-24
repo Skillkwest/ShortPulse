@@ -96,6 +96,7 @@ export type AiStudioSessionWorkspaceV1 = {
   prompt: string;
   model: string | null;
   aspect: string;
+  selectedCharacterId?: string | null;
   expertCreateMode?: AiStudioSessionExpertCreateMode;
   activePulsePresetId?: string | null;
   referenceImageUrl: string | null;
@@ -186,6 +187,7 @@ export type BuildAiStudioSessionSnapshotInput = {
   prompt: string;
   model: string | null;
   aspect: string;
+  selectedCharacterId?: string | null;
   expertCreateMode?: AiStudioSessionExpertCreateMode;
   activePulsePresetId?: string | null;
   referenceImageUrl: string | null;
@@ -240,6 +242,12 @@ const sanitizeMediaUrl = (value: string | null | undefined): string | undefined 
 
 const sanitizeWorkspaceMediaUrl = (value: string | null | undefined): string | null =>
   sanitizeMediaUrl(value) ?? null;
+
+const sanitizeSelectedCharacterId = (value: string | null | undefined): string | null => {
+  if (typeof value !== "string") return null;
+  const normalized = value.trim();
+  return normalized.length > 0 ? normalized : null;
+};
 
 const sanitizeWorkspaceExtraImageUrls = (
   values: [string | null, string | null, string | null]
@@ -367,13 +375,6 @@ const sanitizeOutput = (output: StudioOutput): AiStudioSessionOutputV1 => {
     generationReplay: output.generationReplay,
   };
 };
-
-const sanitizeAgentMessage = (message: AgentMessage): AiStudioSessionAgentMessageV1 => ({
-  id: message.id ?? null,
-  role: message.role,
-  content: message.content,
-  attachments: sanitizeAgentAttachments(message.attachments),
-});
 
 const sanitizePulseWorkflowStatus = (
   value: AgentPulseWorkflowSession["status"] | null | undefined
@@ -517,6 +518,7 @@ export const buildAiStudioSessionSnapshot = (
       prompt: input.prompt,
       model: input.model,
       aspect: input.aspect,
+      selectedCharacterId: sanitizeSelectedCharacterId(input.selectedCharacterId),
       expertCreateMode: input.expertCreateMode ?? "standard",
       activePulsePresetId: input.activePulsePresetId?.trim() || null,
       referenceImageUrl: sanitizeWorkspaceMediaUrl(input.referenceImageUrl),
@@ -564,6 +566,32 @@ export const buildAiStudioSessionSnapshot = (
     meta: {
       generatedAt: updatedAt,
       checksum: computeChecksum(basePayload),
+    },
+  };
+};
+
+/**
+ * Applies workspace-field patches to a v2 snapshot and recomputes metadata checksum.
+ */
+export const patchAiStudioSessionSnapshotWorkspace = (
+  snapshot: AiStudioSessionSnapshotV2,
+  workspacePatch: Partial<AiStudioSessionWorkspaceV1>
+): AiStudioSessionSnapshotV2 => {
+  const { meta, ...baseSnapshot } = snapshot;
+  void meta;
+  const patchedSnapshot = {
+    ...baseSnapshot,
+    workspace: {
+      ...baseSnapshot.workspace,
+      ...workspacePatch,
+    },
+  };
+
+  return {
+    ...patchedSnapshot,
+    meta: {
+      generatedAt: snapshot.updatedAt,
+      checksum: computeChecksum(patchedSnapshot),
     },
   };
 };

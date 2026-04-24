@@ -40,6 +40,7 @@ import { readChatModeFromStorage, writeChatModeToStorage } from "../logic/chatMo
 import type { AiStudioSessionHydrationPayload } from "../logic/sessionSnapshotHydrator";
 
 type UseAiStudioAgentBridgeParams = {
+  projectId?: string | null;
   sessionId: string | null;
   mode: StudioMode;
   selectedTool: ToolId | null;
@@ -142,6 +143,7 @@ const resolveStateActionValue = <T>(value: SetStateAction<T>, current: T): T =>
  * Returns agent state and handlers used by the AI Studio page.
  */
 export const useAiStudioAgentBridge = ({
+  projectId = null,
   sessionId,
   mode,
   selectedTool,
@@ -176,16 +178,20 @@ export const useAiStudioAgentBridge = ({
   const directOpenAiBypassEnabled = directOpenAiBypassEnabledByConfig;
   const [chatModeEnabled, setChatModeEnabledState] = useState(() => {
     if (typeof window === "undefined") return true;
+    if (projectId) return true;
     return readChatModeFromStorage(window.localStorage);
   });
   const [defaultChatModeEnabled] = useState(chatModeEnabled);
 
-  const setChatModeEnabled = useCallback((value: boolean) => {
-    setChatModeEnabledState(value);
-    if (typeof window !== "undefined") {
-      writeChatModeToStorage(value, window.localStorage);
-    }
-  }, []);
+  const setChatModeEnabled = useCallback(
+    (value: boolean) => {
+      setChatModeEnabledState(value);
+      if (typeof window !== "undefined" && !projectId) {
+        writeChatModeToStorage(value, window.localStorage);
+      }
+    },
+    [projectId]
+  );
 
   const agentRuntimeScopeKey =
     expertCreateMode === "pulse" ? `pulse:${activePulsePresetId ?? "none"}` : "standard";

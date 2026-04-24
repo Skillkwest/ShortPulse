@@ -80,6 +80,7 @@ const createHydrationPayload = (): AiStudioSessionHydrationPayload => ({
     prompt: "",
     model: null,
     aspect: "9:16",
+    selectedCharacterId: null,
     expertCreateMode: "standard",
     activePulsePresetId: null,
     referenceImageUrl: null,

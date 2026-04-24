@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import createHandler from "../../pages/api/projects/create";
 import collectionHandler from "../../pages/api/projects";
 import itemHandler from "../../pages/api/projects/[projectId]";
+import workspaceHandler from "../../pages/api/projects/[projectId]/workspace";
 
 const requireApiUserMock = vi.fn();
 const logApiRouteExceptionMock = vi.fn();
@@ -9,6 +10,8 @@ const createProjectForUserMock = vi.fn();
 const listProjectsForUserMock = vi.fn();
 const getProjectForUserMock = vi.fn();
 const updateProjectTitleForUserMock = vi.fn();
+const getProjectWorkspaceStateForUserMock = vi.fn();
+const upsertProjectWorkspaceStateForUserMock = vi.fn();
 const parseProjectIdMock = vi.fn();
 const parseProjectListLimitMock = vi.fn();
 
@@ -27,6 +30,13 @@ vi.mock("../../lib/server/projectsService", () => ({
   updateProjectTitleForUser: (...args: unknown[]) => updateProjectTitleForUserMock(...args),
   parseProjectId: (...args: unknown[]) => parseProjectIdMock(...args),
   parseProjectListLimit: (...args: unknown[]) => parseProjectListLimitMock(...args),
+}));
+
+vi.mock("../../lib/server/projectWorkspaceStatesService", () => ({
+  getProjectWorkspaceStateForUser: (...args: unknown[]) =>
+    getProjectWorkspaceStateForUserMock(...args),
+  upsertProjectWorkspaceStateForUser: (...args: unknown[]) =>
+    upsertProjectWorkspaceStateForUserMock(...args),
 }));
 
 const createMockResponse = () => ({
@@ -59,6 +69,17 @@ describe("projects routes", () => {
     updateProjectTitleForUserMock.mockResolvedValue({
       id: "project-1",
       title: "Renamed project",
+      createdAt: "2026-04-23T00:00:00.000Z",
+      updatedAt: "2026-04-23T01:00:00.000Z",
+    });
+    getProjectWorkspaceStateForUserMock.mockResolvedValue(null);
+    upsertProjectWorkspaceStateForUserMock.mockResolvedValue({
+      projectId: "project-1",
+      schemaVersion: 2,
+      snapshot: {
+        schemaVersion: 2,
+        sessionId: "session-1",
+      },
       createdAt: "2026-04-23T00:00:00.000Z",
       updatedAt: "2026-04-23T01:00:00.000Z",
     });
@@ -168,5 +189,68 @@ describe("projects routes", () => {
 
     expect(res.status).toHaveBeenCalledWith(400);
     expect(res.json).toHaveBeenCalledWith({ error: "Invalid project id" });
+  });
+
+  it("reads one caller-owned project workspace snapshot", async () => {
+    getProjectWorkspaceStateForUserMock.mockResolvedValueOnce({
+      projectId: "project-1",
+      schemaVersion: 2,
+      snapshot: {
+        schemaVersion: 2,
+        sessionId: "session-1",
+      },
+      createdAt: "2026-04-23T00:00:00.000Z",
+      updatedAt: "2026-04-23T01:00:00.000Z",
+    });
+    const req = { method: "GET", query: { projectId: "project-1" } };
+    const res = createMockResponse();
+
+    await workspaceHandler(req as never, res as never);
+
+    expect(getProjectWorkspaceStateForUserMock).toHaveBeenCalledWith({
+      userId: "user-1",
+      projectId: "project-1",
+    });
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith({
+      workspace: {
+        projectId: "project-1",
+        schemaVersion: 2,
+        snapshot: {
+          schemaVersion: 2,
+          sessionId: "session-1",
+        },
+        createdAt: "2026-04-23T00:00:00.000Z",
+        updatedAt: "2026-04-23T01:00:00.000Z",
+      },
+    });
+  });
+
+  it("saves one caller-owned project workspace snapshot", async () => {
+    const req = {
+      method: "PUT",
+      query: { projectId: "project-1" },
+      body: {
+        schemaVersion: 2,
+        snapshot: {
+          schemaVersion: 2,
+          sessionId: "session-2",
+        },
+      },
+    };
+    const res = createMockResponse();
+
+    await workspaceHandler(req as never, res as never);
+
+    expect(upsertProjectWorkspaceStateForUserMock).toHaveBeenCalledWith({
+      userId: "user-1",
+      projectId: "project-1",
+      schemaVersion: 2,
+      snapshot: {
+        schemaVersion: 2,
+        sessionId: "session-2",
+      },
+    });
+    expect(res.status).toHaveBeenCalledWith(200);
   });
 });

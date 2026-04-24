@@ -40,6 +40,7 @@ export type CharacterSelectOption = {
 const CHARACTER_OPTIONS_REFRESH_INTERVAL_MS = 20 * 60 * 1000;
 
 type UseAiStudioCharacterModeLifecycleParams = {
+  projectId?: string | null;
   selectedTool: ToolId | null;
   setUiError: Dispatch<SetStateAction<string | null>>;
   setCharacterModeInjectionBundle: Dispatch<SetStateAction<CharacterModeInjectionBundle | null>>;
@@ -50,6 +51,7 @@ type UseAiStudioCharacterModeLifecycleParams = {
  * Returns Character Mode list selection state and keeps bundle side effects in sync.
  */
 export const useAiStudioCharacterModeLifecycle = ({
+  projectId = null,
   selectedTool,
   setUiError,
   setCharacterModeInjectionBundle,
@@ -142,7 +144,7 @@ export const useAiStudioCharacterModeLifecycle = ({
       if (!active) return;
       const resolvedScope = userId?.trim() ?? null;
       setSelectedCharacterStorageScope(resolvedScope);
-      if (!resolvedScope) return;
+      if (projectId || !resolvedScope) return;
       const persistedId = readPersistedSelectedCharacterId({ userId: resolvedScope });
       if (!persistedId) return;
       setSelectedCharacterId((current) => (current.trim().length > 0 ? current : persistedId));
@@ -150,7 +152,7 @@ export const useAiStudioCharacterModeLifecycle = ({
     return () => {
       active = false;
     };
-  }, []);
+  }, [projectId]);
 
   useEffect(() => {
     let active = true;
@@ -239,13 +241,17 @@ export const useAiStudioCharacterModeLifecycle = ({
   }, [refreshCharacterOptions, selectedTool]);
 
   useEffect(() => {
+    if (projectId) return;
     if (selectedCharacterStorageScope === undefined) return;
     persistSelectedCharacterId(selectedCharacterId || null, {
       userId: selectedCharacterStorageScope,
     });
-  }, [selectedCharacterId, selectedCharacterStorageScope]);
+  }, [projectId, selectedCharacterId, selectedCharacterStorageScope]);
 
   useEffect(() => {
+    if (projectId) {
+      return () => {};
+    }
     if (selectedCharacterStorageScope === undefined) {
       return () => {};
     }
@@ -261,7 +267,7 @@ export const useAiStudioCharacterModeLifecycle = ({
       }
     );
     return unsubscribe;
-  }, [selectedCharacterStorageScope]);
+  }, [projectId, selectedCharacterStorageScope]);
 
   useEffect(() => {
     let active = true;

@@ -14,8 +14,10 @@ import {
 import { useAiAgent } from "../../ai-agent/useAiAgent";
 import type {
   AgentActions,
+  AgentAttachment,
   AgentAssistantMessageEditRequest,
   AgentContext,
+  AgentMessage,
   AgentPulseWorkflowSession,
 } from "../../../prefabs/agent";
 import {
@@ -37,6 +39,8 @@ type UseAiStudioAgentBridgeParams = {
   sessionId: string | null;
   mode: StudioMode;
   selectedTool: ToolId | null;
+  expertCreateMode?: "standard" | "pulse";
+  activePulsePresetId?: string | null;
   prompt: string;
   setSharedPrompt: (value: string) => void;
   getAgentContext: (params: {
@@ -60,18 +64,26 @@ type UseAiStudioAgentBridgeParams = {
   trackAgentUiEvent: (message: string, data?: Record<string, unknown>) => void;
 };
 
-type AgentBridgeSessionUiState = {
-  sessionKey: string;
+type AgentBridgeRuntimeState = {
+  messages: AgentMessage[];
+  input: string;
+  attachments: AgentAttachment[];
   latestAgentPrompt: string | null;
   promptOrigin: PromptOrigin;
+  chatModeEnabled: boolean;
   agentActions: AgentActions | undefined;
   isAgentChatOpen: boolean;
 };
 
-const createDefaultAgentBridgeSessionUiState = (sessionKey: string): AgentBridgeSessionUiState => ({
-  sessionKey,
+const createDefaultAgentBridgeRuntimeState = (
+  defaultChatModeEnabled: boolean
+): AgentBridgeRuntimeState => ({
+  messages: [],
+  input: "",
+  attachments: [],
   latestAgentPrompt: null,
   promptOrigin: "manual",
+  chatModeEnabled: defaultChatModeEnabled,
   agentActions: undefined,
   isAgentChatOpen: false,
 });
@@ -86,6 +98,8 @@ export const useAiStudioAgentBridge = ({
   sessionId,
   mode,
   selectedTool,
+  expertCreateMode = "standard",
+  activePulsePresetId = null,
   prompt,
   setSharedPrompt,
   getAgentContext,
@@ -116,6 +130,7 @@ export const useAiStudioAgentBridge = ({
     if (typeof window === "undefined") return true;
     return readChatModeFromStorage(window.localStorage);
   });
+  const [defaultChatModeEnabled] = useState(chatModeEnabled);
 
   const setChatModeEnabled = useCallback((value: boolean) => {
     setChatModeEnabledState(value);
@@ -123,6 +138,10 @@ export const useAiStudioAgentBridge = ({
       writeChatModeToStorage(value, window.localStorage);
     }
   }, []);
+
+  const agentRuntimeScopeKey =
+    expertCreateMode === "pulse" ? `pulse:${activePulsePresetId ?? "none"}` : "standard";
+  const agentBridgeSessionKey = `${sessionId ?? "none"}::${agentRuntimeScopeKey}`;
 
   const {
     messages: agentMessages,
@@ -135,7 +154,7 @@ export const useAiStudioAgentBridge = ({
     reset: resetAgentChat,
   } = useAiAgent({
     enabled: agentEnabled,
-    sessionNamespace: `ai-studio:${sessionId ?? "none"}`,
+    sessionNamespace: `ai-studio:${agentBridgeSessionKey}`,
     directOpenAiBypassEnabled:
       chatModeEnabled &&
       directOpenAiBypassEnabledByConfig &&
@@ -145,34 +164,35 @@ export const useAiStudioAgentBridge = ({
   const [agentUiBusy, setAgentUiBusy] = useState(false);
   const agentUiBusyRef = useRef(false);
   const agentBusy = agentIsSending || agentUiBusy;
-  const agentBridgeSessionKey = `${sessionId ?? "none"}`;
-  const [agentBridgeSessionUiState, setAgentBridgeSessionUiState] =
-    useState<AgentBridgeSessionUiState>(() =>
-      createDefaultAgentBridgeSessionUiState(agentBridgeSessionKey)
-    );
-  const resolveActiveAgentBridgeSessionUiState = useCallback(
-    (state: AgentBridgeSessionUiState): AgentBridgeSessionUiState =>
-      state.sessionKey === agentBridgeSessionKey
-        ? state
-        : createDefaultAgentBridgeSessionUiState(agentBridgeSessionKey),
-    [agentBridgeSessionKey]
+  const [agentBridgeRuntimeStateBySessionKey, setAgentBridgeRuntimeStateBySessionKey] = useState<
+    Record<string, AgentBridgeRuntimeState>
+  >({});
+  const createDefaultRuntimeState = useCallback(
+    () => createDefaultAgentBridgeRuntimeState(defaultChatModeEnabled),
+    [defaultChatModeEnabled]
   );
   const activeAgentBridgeSessionUiState = useMemo(
-    () => resolveActiveAgentBridgeSessionUiState(agentBridgeSessionUiState),
-    [agentBridgeSessionUiState, resolveActiveAgentBridgeSessionUiState]
+    () => agentBridgeRuntimeStateBySessionKey[agentBridgeSessionKey] ?? createDefaultRuntimeState(),
+    [agentBridgeRuntimeStateBySessionKey, agentBridgeSessionKey, createDefaultRuntimeState]
   );
   const updateAgentBridgeSessionUiState = useCallback(
-    (updater: (current: AgentBridgeSessionUiState) => AgentBridgeSessionUiState) => {
-      setAgentBridgeSessionUiState((current) =>
-        updater(resolveActiveAgentBridgeSessionUiState(current))
-      );
+    (updater: (current: AgentBridgeRuntimeState) => AgentBridgeRuntimeState) => {
+      setAgentBridgeRuntimeStateBySessionKey((current) => {
+        const activeState = current[agentBridgeSessionKey] ?? createDefaultRuntimeState();
+        const nextState = updater(activeState);
+        if (nextState === activeState) return current;
+        return {
+          ...current,
+          [agentBridgeSessionKey]: nextState,
+        };
+      });
     },
-    [resolveActiveAgentBridgeSessionUiState]
+    [agentBridgeSessionKey, createDefaultRuntimeState]
   );
   const updateAgentBridgeSessionUiStateField = useCallback(
-    <Key extends keyof Omit<AgentBridgeSessionUiState, "sessionKey">>(
+    <Key extends keyof Omit<AgentBridgeRuntimeState, "messages" | "input" | "attachments">>(
       field: Key,
-      value: SetStateAction<AgentBridgeSessionUiState[Key]>
+      value: SetStateAction<AgentBridgeRuntimeState[Key]>
     ) => {
       updateAgentBridgeSessionUiState((current) => {
         const nextValue = resolveStateActionValue(value, current[field]);
@@ -203,6 +223,7 @@ export const useAiStudioAgentBridge = ({
   );
   const { agentActions, isAgentChatOpen, latestAgentPrompt, promptOrigin } =
     activeAgentBridgeSessionUiState;
+  const pendingRuntimeHydrationKeyRef = useRef<string | null>(null);
 
   const ensureAgentSession = useCallback(() => {
     if (agentFlag) setAgentSessionEnabled(true);
@@ -231,6 +252,100 @@ export const useAiStudioAgentBridge = ({
     findOutputById,
     resolveOutputPreviewUrlById: resolvePanelOutputPreviewUrl,
   });
+
+  useEffect(() => {
+    const pulseSessionKeyPrefix = `${sessionId ?? "none"}::pulse:`;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- Active Pulse changes must drop stale Pulse-only runtime snapshots immediately.
+    setAgentBridgeRuntimeStateBySessionKey((current) => {
+      let changed = false;
+      const nextEntries = Object.entries(current).filter(([key]) => {
+        const isPulseEntry = key.startsWith(pulseSessionKeyPrefix);
+        if (!isPulseEntry) return true;
+        const shouldKeep =
+          expertCreateMode === "pulse" &&
+          key === agentBridgeSessionKey &&
+          activePulsePresetId !== null;
+        if (!shouldKeep) {
+          changed = true;
+        }
+        return shouldKeep;
+      });
+      if (!changed) return current;
+      return Object.fromEntries(nextEntries);
+    });
+  }, [activePulsePresetId, agentBridgeSessionKey, expertCreateMode, sessionId]);
+
+  useEffect(() => {
+    const activeRuntimeState =
+      agentBridgeRuntimeStateBySessionKey[agentBridgeSessionKey] ?? createDefaultRuntimeState();
+    pendingRuntimeHydrationKeyRef.current = agentBridgeSessionKey;
+    replaceMessages(activeRuntimeState.messages);
+    setAgentInput(activeRuntimeState.input);
+    setAgentAttachmentError(null);
+    setAgentAttachments(activeRuntimeState.attachments);
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- Runtime scope changes intentionally hydrate bridge-owned UI state into the active hook instances.
+    setLatestAgentPrompt(activeRuntimeState.latestAgentPrompt);
+    setPromptOrigin(activeRuntimeState.promptOrigin);
+    setChatModeEnabled(activeRuntimeState.chatModeEnabled);
+    setAgentActions(activeRuntimeState.agentActions);
+    setIsAgentChatOpen(activeRuntimeState.isAgentChatOpen);
+  }, [
+    agentBridgeRuntimeStateBySessionKey,
+    agentBridgeSessionKey,
+    createDefaultRuntimeState,
+    replaceMessages,
+    setAgentActions,
+    setAgentAttachmentError,
+    setAgentAttachments,
+    setAgentInput,
+    setChatModeEnabled,
+    setIsAgentChatOpen,
+    setLatestAgentPrompt,
+    setPromptOrigin,
+  ]);
+
+  useEffect(() => {
+    if (pendingRuntimeHydrationKeyRef.current === agentBridgeSessionKey) {
+      pendingRuntimeHydrationKeyRef.current = null;
+      return;
+    }
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- The active runtime snapshot must track live bridge state as the user edits within the current scope.
+    updateAgentBridgeSessionUiState((current) => {
+      if (
+        current.messages === agentMessages &&
+        current.input === agentInput &&
+        current.attachments === agentAttachments &&
+        current.latestAgentPrompt === latestAgentPrompt &&
+        current.promptOrigin === promptOrigin &&
+        current.chatModeEnabled === chatModeEnabled &&
+        current.agentActions === agentActions &&
+        current.isAgentChatOpen === isAgentChatOpen
+      ) {
+        return current;
+      }
+      return {
+        messages: agentMessages,
+        input: agentInput,
+        attachments: agentAttachments,
+        latestAgentPrompt,
+        promptOrigin,
+        chatModeEnabled,
+        agentActions,
+        isAgentChatOpen,
+      };
+    });
+  }, [
+    agentActions,
+    agentAttachments,
+    agentBridgeSessionKey,
+    agentInput,
+    agentMessages,
+    chatModeEnabled,
+    isAgentChatOpen,
+    latestAgentPrompt,
+    promptOrigin,
+    updateAgentBridgeSessionUiState,
+  ]);
 
   const latestAssistantMessage = useMemo(
     () => [...agentMessages].reverse().find((msg) => msg.role === "assistant")?.content ?? null,

@@ -40,6 +40,8 @@ const createBridgeParams = (
   sessionId: "f7f45245-f204-4ece-8f9e-c9a66a9d8d2a",
   mode: "text",
   selectedTool: "create",
+  expertCreateMode: "standard",
+  activePulsePresetId: null,
   prompt: "",
   setSharedPrompt: vi.fn(),
   getAgentContext: vi.fn(() => ({})),
@@ -159,7 +161,7 @@ describe("useAiStudioAgentBridge", () => {
     });
     expect(useAiAgentMock).toHaveBeenLastCalledWith(
       expect.objectContaining({
-        sessionNamespace: "ai-studio:f7f45245-f204-4ece-8f9e-c9a66a9d8d2a",
+        sessionNamespace: "ai-studio:f7f45245-f204-4ece-8f9e-c9a66a9d8d2a::standard",
       })
     );
 
@@ -197,7 +199,7 @@ describe("useAiStudioAgentBridge", () => {
     });
     expect(useAiAgentMock).toHaveBeenLastCalledWith(
       expect.objectContaining({
-        sessionNamespace: "ai-studio:a7f45245-f204-4ece-8f9e-c9a66a9d8d2a",
+        sessionNamespace: "ai-studio:a7f45245-f204-4ece-8f9e-c9a66a9d8d2a::standard",
       })
     );
     expect(result.current.latestAgentPrompt).toBeNull();
@@ -224,7 +226,7 @@ describe("useAiStudioAgentBridge", () => {
     });
     expect(useAiAgentMock).toHaveBeenLastCalledWith(
       expect.objectContaining({
-        sessionNamespace: "ai-studio:a7f45245-f204-4ece-8f9e-c9a66a9d8d2a",
+        sessionNamespace: "ai-studio:a7f45245-f204-4ece-8f9e-c9a66a9d8d2a::standard",
       })
     );
     expect(result.current.latestAgentPrompt).toBe("Persist across tool switch");
@@ -242,7 +244,7 @@ describe("useAiStudioAgentBridge", () => {
     });
     expect(useAiAgentMock).toHaveBeenLastCalledWith(
       expect.objectContaining({
-        sessionNamespace: "ai-studio:a7f45245-f204-4ece-8f9e-c9a66a9d8d2a",
+        sessionNamespace: "ai-studio:a7f45245-f204-4ece-8f9e-c9a66a9d8d2a::standard",
       })
     );
     expect(result.current.latestAgentPrompt).toBe("Persist across tool switch");
@@ -309,6 +311,234 @@ describe("useAiStudioAgentBridge", () => {
       expect.objectContaining({ directOpenAiBypassEnabled: true })
     );
     expect(result.current.directOpenAiBypassEnabled).toBe(true);
+  });
+
+  it("restores Standard-owned bridge state after returning from Pulse mode", async () => {
+    let setLatestAgentPromptFromInteractions: Dispatch<SetStateAction<string | null>> | undefined;
+    let setPromptOriginFromInteractions:
+      | Dispatch<SetStateAction<"manual" | "agent" | "reference">>
+      | undefined;
+    let setAgentActionsFromInteractions:
+      | Dispatch<SetStateAction<AgentActions | undefined>>
+      | undefined;
+    let setIsAgentChatOpenFromInteractions: Dispatch<SetStateAction<boolean>> | undefined;
+
+    useAiAgentMock.mockReturnValue({
+      messages: [],
+      isSending: false,
+      error: null,
+      send: vi.fn(),
+      appendUserMessage: vi.fn(),
+      updateMessageById: vi.fn(() => false),
+      replaceMessages: vi.fn(),
+      reset: vi.fn(),
+    });
+    useAiStudioAgentComposerMock.mockReturnValue({
+      agentInput: "",
+      setAgentInput: vi.fn(),
+      handleAgentInputChange: vi.fn(),
+      agentAttachmentError: null,
+      setAgentAttachmentError: vi.fn(),
+      agentAttachments: [],
+      setAgentAttachments: vi.fn(),
+      linkedPromptReferenceIds: [],
+      isAgentDropActive: false,
+      markAttachmentDelivery: vi.fn(),
+      handleAgentAttachmentDragOver: vi.fn(),
+      handleAgentAttachmentDragEnter: vi.fn(),
+      handleAgentAttachmentDragLeave: vi.fn(),
+      handleAgentAttachmentDrop: vi.fn(),
+      handleRemoveAgentAttachment: vi.fn(),
+      handleClearAgentAttachments: vi.fn(),
+      resetAgentComposer: vi.fn(),
+    });
+    useAiStudioAgentOrchestrationMock.mockReturnValue({
+      isPromptRefining: false,
+      isReferencePromptEnhancing: false,
+      describeInFlightCount: 0,
+      handleAgentSend: vi.fn(),
+      handlePulsePresetStart: vi.fn(),
+      handleAgentEnhanceSend: vi.fn(),
+      handleReferencePromptEnhance: vi.fn(),
+    });
+    useAiStudioAgentInteractionsMock.mockImplementation((params) => {
+      setLatestAgentPromptFromInteractions = params.setLatestAgentPrompt;
+      setPromptOriginFromInteractions = params.setPromptOrigin;
+      setAgentActionsFromInteractions = params.setAgentActions;
+      setIsAgentChatOpenFromInteractions = params.setIsAgentChatOpen;
+      return {
+        handleAgentApplyPrompt: vi.fn(),
+        handleExpandChat: vi.fn(),
+        handleAgentAddToGrid: vi.fn(),
+        handleClearAgentChat: vi.fn(),
+        handleCloseAgentChat: vi.fn(),
+      };
+    });
+
+    const base = createBridgeParams();
+    const { result, rerender } = renderHook(
+      ({
+        expertCreateMode,
+        activePulsePresetId,
+      }: {
+        expertCreateMode: "standard" | "pulse";
+        activePulsePresetId: string | null;
+      }) =>
+        useAiStudioAgentBridge({
+          ...base,
+          expertCreateMode,
+          activePulsePresetId,
+        }),
+      {
+        initialProps: {
+          expertCreateMode: "standard" as const,
+          activePulsePresetId: null,
+        },
+      }
+    );
+
+    await waitFor(() => {
+      expect(setLatestAgentPromptFromInteractions).toBeDefined();
+      expect(setPromptOriginFromInteractions).toBeDefined();
+      expect(setAgentActionsFromInteractions).toBeDefined();
+      expect(setIsAgentChatOpenFromInteractions).toBeDefined();
+    });
+
+    act(() => {
+      setLatestAgentPromptFromInteractions?.("Standard prompt");
+      setPromptOriginFromInteractions?.("agent");
+      setAgentActionsFromInteractions?.({ applyPrompt: "Standard prompt" } as AgentActions);
+      setIsAgentChatOpenFromInteractions?.(true);
+    });
+
+    expect(result.current.latestAgentPrompt).toBe("Standard prompt");
+    expect(result.current.promptOrigin).toBe("agent");
+    expect(result.current.agentActions).toEqual({ applyPrompt: "Standard prompt" });
+    expect(result.current.isAgentChatOpen).toBe(true);
+
+    rerender({
+      expertCreateMode: "pulse" as const,
+      activePulsePresetId: "story_builder",
+    });
+
+    expect(useAiAgentMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        sessionNamespace: "ai-studio:f7f45245-f204-4ece-8f9e-c9a66a9d8d2a::pulse:story_builder",
+      })
+    );
+    expect(result.current.latestAgentPrompt).toBeNull();
+    expect(result.current.promptOrigin).toBe("manual");
+    expect(result.current.agentActions).toBeUndefined();
+    expect(result.current.isAgentChatOpen).toBe(false);
+
+    act(() => {
+      setLatestAgentPromptFromInteractions?.("Pulse prompt");
+      setPromptOriginFromInteractions?.("agent");
+      setAgentActionsFromInteractions?.({ applyPrompt: "Pulse prompt" } as AgentActions);
+      setIsAgentChatOpenFromInteractions?.(true);
+    });
+
+    expect(result.current.latestAgentPrompt).toBe("Pulse prompt");
+
+    rerender({
+      expertCreateMode: "standard" as const,
+      activePulsePresetId: null,
+    });
+
+    expect(useAiAgentMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        sessionNamespace: "ai-studio:f7f45245-f204-4ece-8f9e-c9a66a9d8d2a::standard",
+      })
+    );
+    expect(result.current.latestAgentPrompt).toBe("Standard prompt");
+    expect(result.current.promptOrigin).toBe("agent");
+    expect(result.current.agentActions).toEqual({ applyPrompt: "Standard prompt" });
+    expect(result.current.isAgentChatOpen).toBe(true);
+  });
+
+  it("drops stale Pulse bridge state when the active Pulse changes", async () => {
+    let setLatestAgentPromptFromInteractions: Dispatch<SetStateAction<string | null>> | undefined;
+
+    useAiAgentMock.mockReturnValue({
+      messages: [],
+      isSending: false,
+      error: null,
+      send: vi.fn(),
+      appendUserMessage: vi.fn(),
+      updateMessageById: vi.fn(() => false),
+      replaceMessages: vi.fn(),
+      reset: vi.fn(),
+    });
+    useAiStudioAgentComposerMock.mockReturnValue({
+      agentInput: "",
+      setAgentInput: vi.fn(),
+      handleAgentInputChange: vi.fn(),
+      agentAttachmentError: null,
+      setAgentAttachmentError: vi.fn(),
+      agentAttachments: [],
+      setAgentAttachments: vi.fn(),
+      linkedPromptReferenceIds: [],
+      isAgentDropActive: false,
+      markAttachmentDelivery: vi.fn(),
+      handleAgentAttachmentDragOver: vi.fn(),
+      handleAgentAttachmentDragEnter: vi.fn(),
+      handleAgentAttachmentDragLeave: vi.fn(),
+      handleAgentAttachmentDrop: vi.fn(),
+      handleRemoveAgentAttachment: vi.fn(),
+      handleClearAgentAttachments: vi.fn(),
+      resetAgentComposer: vi.fn(),
+    });
+    useAiStudioAgentOrchestrationMock.mockReturnValue({
+      isPromptRefining: false,
+      isReferencePromptEnhancing: false,
+      describeInFlightCount: 0,
+      handleAgentSend: vi.fn(),
+      handlePulsePresetStart: vi.fn(),
+      handleAgentEnhanceSend: vi.fn(),
+      handleReferencePromptEnhance: vi.fn(),
+    });
+    useAiStudioAgentInteractionsMock.mockImplementation((params) => {
+      setLatestAgentPromptFromInteractions = params.setLatestAgentPrompt;
+      return {
+        handleAgentApplyPrompt: vi.fn(),
+        handleExpandChat: vi.fn(),
+        handleAgentAddToGrid: vi.fn(),
+        handleClearAgentChat: vi.fn(),
+        handleCloseAgentChat: vi.fn(),
+      };
+    });
+
+    const base = createBridgeParams({
+      expertCreateMode: "pulse",
+      activePulsePresetId: "story_builder",
+    });
+    const { result, rerender } = renderHook(
+      ({ activePulsePresetId }: { activePulsePresetId: string | null }) =>
+        useAiStudioAgentBridge({
+          ...base,
+          activePulsePresetId,
+        }),
+      {
+        initialProps: {
+          activePulsePresetId: "story_builder",
+        },
+      }
+    );
+
+    await waitFor(() => {
+      expect(setLatestAgentPromptFromInteractions).toBeDefined();
+    });
+
+    act(() => {
+      setLatestAgentPromptFromInteractions?.("Pulse A prompt");
+    });
+    expect(result.current.latestAgentPrompt).toBe("Pulse A prompt");
+
+    rerender({ activePulsePresetId: "shot_designer" });
+    expect(result.current.latestAgentPrompt).toBeNull();
+
+    rerender({ activePulsePresetId: "story_builder" });
+    expect(result.current.latestAgentPrompt).toBeNull();
   });
 
   it("rehydrates a completed pulse workflow session from persisted agent snapshot state", async () => {

@@ -759,6 +759,8 @@ export default function AiStudioPage() {
     sessionId,
     mode,
     selectedTool,
+    expertCreateMode,
+    activePulsePresetId: activeCreatePulsePresetId,
     prompt,
     setSharedPrompt,
     getAgentContext: getPulseAwareAgentContext,

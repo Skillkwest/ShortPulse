@@ -552,6 +552,13 @@
   gap: 10px;
 }
 
+.media-library-panel-root-sticky-chrome .media-library-panel-bulk-actions {
+  padding: 0 28px 0 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
 .media-library-panel-root-tabs-row {
   display: flex;
   align-items: center;

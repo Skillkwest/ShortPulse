@@ -9,6 +9,8 @@ import { getSignedMediaUrl } from "../../../lib/mediaSignedUrlCache";
 import { ensureSupabaseQueryClient } from "../../../lib/supabaseClient";
 import {
   GENERATED_MEDIA_REQUIRES_GENERATION_ID_ERROR,
+  associateMediaFilesWithProject,
+  associatePromptWithProject,
   logMediaEvent,
   resolveGenerationIdForRequestId,
   saveMediaUrlToLibrary,
@@ -17,6 +19,7 @@ import {
 import { resolvePublishedGenerationOutputStoragePathByIndex } from "../logic/generatedMediaAuthority";
 
 type UseAiStudioPersistenceActionsArgs = {
+  projectId?: string | null;
   findOutputById: (id: string) => StudioOutput | null;
   updateOutputById: (id: string, updater: (item: StudioOutput) => StudioOutput) => void;
   setUiError: Dispatch<SetStateAction<string | null>>;
@@ -168,6 +171,7 @@ export const mergeOutputWithPersistedDelivery = (
  * Builds output persistence callbacks used across generation and manual saves.
  */
 export const useAiStudioPersistenceActions = ({
+  projectId = null,
   findOutputById,
   updateOutputById,
   setUiError,
@@ -259,6 +263,7 @@ export const useAiStudioPersistenceActions = ({
           mode: "text",
           modelId: modelId ?? null,
           source: source ?? "manual",
+          projectId,
         });
         if (promptId) {
           try {
@@ -278,7 +283,7 @@ export const useAiStudioPersistenceActions = ({
         return null;
       }
     },
-    [setUiError]
+    [projectId, setUiError]
   );
 
   const persistMediaUrls = useCallback(
@@ -335,6 +340,7 @@ export const useAiStudioPersistenceActions = ({
               generation_trace_id: output.generationTraceId ?? output.taskId ?? null,
               submission_trace_id: output.submissionTraceId ?? null,
             },
+            projectId,
           });
           if (!delivery) {
             delivery = result.delivery;
@@ -381,7 +387,7 @@ export const useAiStudioPersistenceActions = ({
 
       return { mediaFileIds, errors, delivery };
     },
-    [findOutputById]
+    [findOutputById, projectId]
   );
 
   const persistOutputSave = useCallback(
@@ -407,6 +413,12 @@ export const useAiStudioPersistenceActions = ({
         }));
         try {
           if (output.savedMediaIds?.length) {
+            if (projectId) {
+              await associateMediaFilesWithProject({
+                projectId,
+                mediaFileIds: output.savedMediaIds,
+              });
+            }
             await new Promise((resolve) => window.setTimeout(resolve, 260));
             markOutputSaved(outputId, output.savedMediaIds);
             return {
@@ -426,6 +438,12 @@ export const useAiStudioPersistenceActions = ({
           const promptOnly = Boolean(previewText) && !output.previewUrl;
           if (promptOnly && previewText) {
             if (output.promptId) {
+              if (projectId) {
+                await associatePromptWithProject({
+                  projectId,
+                  promptId: output.promptId,
+                });
+              }
               await new Promise((resolve) => window.setTimeout(resolve, 220));
               markOutputSaved(outputId, undefined, { timestamp: "Saved prompt" });
               return {
@@ -533,6 +551,7 @@ export const useAiStudioPersistenceActions = ({
       markOutputSaved,
       persistMediaUrls,
       persistPromptSave,
+      projectId,
       setUiError,
       updateOutputById,
     ]

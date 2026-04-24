@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   GENERATED_MEDIA_REQUIRES_GENERATION_ID_ERROR,
   resolveGenerationIdForRequestId,
+  savePromptRecord,
   saveMediaUrlToLibrary,
 } from "../mediaLibraryPersistence";
 
@@ -1198,6 +1199,145 @@ describe("saveMediaUrlToLibrary", () => {
         body: expect.stringContaining(
           '"posterUrlHint":"https://cdn.shortpulse.test/generated-video-poster.jpg"'
         ),
+      })
+    );
+  });
+
+  it("associates newly saved media with the active project", async () => {
+    const maybeSingle = vi.fn().mockResolvedValue({ data: null, error: null });
+    const selectBuilder = createMediaFileSelectBuilder(maybeSingle);
+    const generationOutputMaybeSingle = vi.fn().mockResolvedValue({ data: null, error: null });
+    const generationOutputSelectBuilder = createGenerationOutputSelectBuilder(
+      generationOutputMaybeSingle
+    );
+    const projectMediaUpsert = vi.fn().mockResolvedValue({ error: null });
+    const mediaInsertSelectSingle = vi.fn().mockResolvedValue({
+      data: { id: "media-project-1" },
+      error: null,
+    });
+    const mediaInsertSelect = vi.fn(() => ({
+      single: mediaInsertSelectSingle,
+    }));
+    const mediaInsert = vi.fn(() => ({
+      select: mediaInsertSelect,
+    }));
+    const upload = vi.fn().mockResolvedValue({ error: null });
+
+    ensureSupabaseQueryClientMock.mockReturnValue({
+      from: vi.fn((table: string) => {
+        if (table === "media_files") {
+          return {
+            select: vi.fn(() => selectBuilder),
+            insert: mediaInsert,
+          };
+        }
+        if (table === "ai_generation_outputs") {
+          return {
+            select: vi.fn(() => generationOutputSelectBuilder),
+            update: vi.fn(),
+            insert: vi.fn(),
+          };
+        }
+        if (table === "project_media_items") {
+          return {
+            upsert: projectMediaUpsert,
+          };
+        }
+        throw new Error(`Unexpected table: ${table}`);
+      }),
+      storage: {
+        from: vi.fn(() => ({
+          upload,
+          remove: vi.fn(),
+        })),
+      },
+    });
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        blob: async () => new Blob(["video"], { type: "video/mp4" }),
+        headers: new Headers({ "content-type": "video/mp4" }),
+      })
+    );
+
+    const result = await saveMediaUrlToLibrary({
+      url: "https://cdn.shortpulse.test/project-video.mp4",
+      mode: "video",
+      source: "upload",
+      index: 0,
+      projectId: "project-1",
+    });
+
+    expect(result.mediaFileId).toBe("media-project-1");
+    expect(projectMediaUpsert).toHaveBeenCalledWith(
+      [
+        expect.objectContaining({
+          project_id: "project-1",
+          media_file_id: "media-project-1",
+          user_id: "user-1",
+        }),
+      ],
+      expect.objectContaining({
+        onConflict: "project_id,media_file_id",
+      })
+    );
+  });
+});
+
+describe("savePromptRecord", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    readSupabaseUserIdMock.mockResolvedValue("user-1");
+  });
+
+  it("associates saved prompts with the active project", async () => {
+    const promptInsertSingle = vi.fn().mockResolvedValue({
+      data: { id: "prompt-1" },
+      error: null,
+    });
+    const promptInsertSelect = vi.fn(() => ({
+      single: promptInsertSingle,
+    }));
+    const promptInsert = vi.fn(() => ({
+      select: promptInsertSelect,
+    }));
+    const projectPromptUpsert = vi.fn().mockResolvedValue({ error: null });
+
+    ensureSupabaseQueryClientMock.mockReturnValue({
+      from: vi.fn((table: string) => {
+        if (table === "media_prompts") {
+          return {
+            insert: promptInsert,
+          };
+        }
+        if (table === "project_prompt_items") {
+          return {
+            upsert: projectPromptUpsert,
+          };
+        }
+        throw new Error(`Unexpected table: ${table}`);
+      }),
+    });
+
+    await expect(
+      savePromptRecord({
+        promptText: "Project prompt",
+        mode: "text",
+        source: "ai_studio",
+        projectId: "project-1",
+      })
+    ).resolves.toBe("prompt-1");
+
+    expect(projectPromptUpsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        project_id: "project-1",
+        prompt_id: "prompt-1",
+        user_id: "user-1",
+      }),
+      expect.objectContaining({
+        onConflict: "project_id,prompt_id",
       })
     );
   });

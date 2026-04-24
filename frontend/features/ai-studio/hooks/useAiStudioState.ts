@@ -413,6 +413,7 @@ export const useAiStudioState = ({
     savePromptReference,
     savePromptToLibrary,
   } = useAiStudioPersistenceActions({
+    projectId,
     findOutputById,
     updateOutputById,
     setUiError,

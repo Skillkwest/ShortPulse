@@ -207,6 +207,7 @@ export type PromptRecordInput = {
   modelId?: string | null;
   title?: string | null;
   source?: "manual" | "ai_studio" | "agent";
+  projectId?: string | null;
 };
 
 export type MediaEventInput = {
@@ -233,6 +234,7 @@ export type SaveMediaUrlInput = {
   fullUrlHint?: string | null;
   posterUrlHint?: string | null;
   metadata?: Record<string, unknown>;
+  projectId?: string | null;
 };
 
 export type SaveMediaUrlResult = {
@@ -257,6 +259,73 @@ export const resolveGenerationIdForRequestId = async (
     requestId,
     userId,
   });
+};
+
+const normalizeProjectId = (value: string | null | undefined): string | null => {
+  if (typeof value !== "string") return null;
+  const normalized = value.trim();
+  return normalized.length > 0 ? normalized : null;
+};
+
+export const associateMediaFilesWithProject = async ({
+  projectId,
+  mediaFileIds,
+}: {
+  projectId: string;
+  mediaFileIds: string[];
+}): Promise<void> => {
+  const normalizedProjectId = normalizeProjectId(projectId);
+  const normalizedMediaFileIds = Array.from(
+    new Set(
+      mediaFileIds
+        .map((value) => (typeof value === "string" ? value.trim() : ""))
+        .filter((value) => value.length > 0)
+    )
+  );
+  if (!normalizedProjectId || normalizedMediaFileIds.length === 0) return;
+  const { supabase, userId } = await resolveSupabaseContext();
+  const nowIso = new Date().toISOString();
+  const { error } = await supabase.from("project_media_items").upsert(
+    normalizedMediaFileIds.map((mediaFileId) => ({
+      project_id: normalizedProjectId,
+      media_file_id: mediaFileId,
+      user_id: userId,
+      updated_at: nowIso,
+    })),
+    {
+      onConflict: "project_id,media_file_id",
+    }
+  );
+  if (error) {
+    throw error;
+  }
+};
+
+export const associatePromptWithProject = async ({
+  projectId,
+  promptId,
+}: {
+  projectId: string;
+  promptId: string;
+}): Promise<void> => {
+  const normalizedProjectId = normalizeProjectId(projectId);
+  const normalizedPromptId = typeof promptId === "string" ? promptId.trim() : "";
+  if (!normalizedProjectId || !normalizedPromptId) return;
+  const { supabase, userId } = await resolveSupabaseContext();
+  const { error } = await supabase.from("project_prompt_items").upsert(
+    {
+      project_id: normalizedProjectId,
+      prompt_id: normalizedPromptId,
+      user_id: userId,
+      updated_at: new Date().toISOString(),
+    },
+    {
+      onConflict: "project_id,prompt_id",
+    }
+  );
+  if (error) {
+    throw error;
+  }
 };
 
 const parseServerCopyResult = (value: unknown): SaveMediaUrlResult | null => {
@@ -633,7 +702,15 @@ export const savePromptRecord = async (input: PromptRecordInput) => {
   if (error) {
     throw error;
   }
-  return data?.id ?? null;
+  const promptId = data?.id ?? null;
+  const projectId = normalizeProjectId(input.projectId);
+  if (promptId && projectId) {
+    await associatePromptWithProject({
+      projectId,
+      promptId,
+    });
+  }
+  return promptId;
 };
 
 /**
@@ -669,6 +746,13 @@ export const saveMediaUrlToLibrary = async (input: SaveMediaUrlInput) => {
       index: input.index,
     });
     if (existingRow) {
+      const projectId = normalizeProjectId(input.projectId);
+      if (projectId) {
+        await associateMediaFilesWithProject({
+          projectId,
+          mediaFileIds: [existingRow.id],
+        });
+      }
       try {
         await attachMediaFileToAiStudioGenerationOutput({
           supabase,
@@ -791,6 +875,13 @@ export const saveMediaUrlToLibrary = async (input: SaveMediaUrlInput) => {
         index: input.index,
       });
       if (existingRow) {
+        const projectId = normalizeProjectId(input.projectId);
+        if (projectId) {
+          await associateMediaFilesWithProject({
+            projectId,
+            mediaFileIds: [existingRow.id],
+          });
+        }
         try {
           if (storagePath) {
             await supabase.storage.from(BUCKET).remove([storagePath]);
@@ -836,6 +927,13 @@ export const saveMediaUrlToLibrary = async (input: SaveMediaUrlInput) => {
   };
 
   const mediaFileId = data?.id ?? null;
+  const projectId = normalizeProjectId(input.projectId);
+  if (mediaFileId && projectId) {
+    await associateMediaFilesWithProject({
+      projectId,
+      mediaFileIds: [mediaFileId],
+    });
+  }
   const posterSourceUrl = normalizePosterSourceUrl(fileType, input.posterUrlHint);
   if (mediaFileId && posterSourceUrl) {
     try {

@@ -1459,6 +1459,37 @@ describe("StylesLibraryPanel", () => {
     expect(titles[2]).toContain("Cinematic");
   });
 
+  it("delegates reorder to the shared page callback when provided", () => {
+    const onReorderStyle = vi.fn();
+    render(
+      <StylesLibraryPanel
+        styles={createStyles()}
+        selectedStyleId={null}
+        onReorderStyle={onReorderStyle}
+      />
+    );
+
+    const sourceTile = screen
+      .getByRole("button", { name: "Style tile: Cinematic" })
+      .closest("article");
+    const targetTile = screen.getByRole("button", { name: "Style tile: Anime" }).closest("article");
+    expect(sourceTile).toBeTruthy();
+    expect(targetTile).toBeTruthy();
+
+    const transfer = {
+      setData: vi.fn(),
+      getData: vi.fn(() => "cinematic"),
+      effectAllowed: "move",
+      dropEffect: "move",
+    } as unknown as DataTransfer;
+
+    fireEvent.dragStart(sourceTile as HTMLElement, { dataTransfer: transfer });
+    fireEvent.dragOver(targetTile as HTMLElement, { dataTransfer: transfer });
+    fireEvent.drop(targetTile as HTMLElement, { dataTransfer: transfer });
+
+    expect(onReorderStyle).toHaveBeenCalledWith("cinematic", "anime");
+  });
+
   it("opens and closes the delete confirmation modal", () => {
     render(<StylesLibraryPanel styles={createStyles()} selectedStyleId={null} />);
 

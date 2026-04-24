@@ -4,6 +4,7 @@
  */
 import React from "react";
 import {
+  CREATE_PULSE_CUSTOM_AUTHORING_ACTIVATION_MODE,
   CREATE_PULSE_PANEL_MAX,
   resolveCreatePulsePresetById,
   resolveCreatePulsePresetLabelById,
@@ -113,7 +114,6 @@ export const useCreatePulsePresetRuntime = ({
         description: string;
         systemInstructions: string;
         runtimeMode: "prompt_editor" | "workflow_gpt";
-        activationMode: "activate_only" | "activate_and_start";
         starterAssistantMessage: string;
         workflowStageHintsText: string;
       }
@@ -130,7 +130,7 @@ export const useCreatePulsePresetRuntime = ({
           description: draft.description || null,
           systemInstructions: draft.systemInstructions,
           runtimeMode: draft.runtimeMode,
-          activationMode: draft.activationMode,
+          activationMode: CREATE_PULSE_CUSTOM_AUTHORING_ACTIVATION_MODE,
           starterAssistantMessage: draft.starterAssistantMessage || null,
           workflowStageHints: workflowStageHints.length > 0 ? workflowStageHints : null,
           outputMode: draft.runtimeMode === "workflow_gpt" ? "chat_reply" : "apply_prompt",

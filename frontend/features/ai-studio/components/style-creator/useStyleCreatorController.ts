@@ -52,6 +52,7 @@ import type {
 
 type UseStyleCreatorControllerParams = {
   styles: readonly ExpertEditStyleTile[];
+  onReorderStyle?: (sourceStyleId: string, targetStyleId: string) => Promise<void> | void;
   onDeleteStyle?: (styleId: string) => Promise<boolean> | boolean;
   onSaveStyleDetails?: (
     styleId: string,
@@ -277,6 +278,7 @@ const trackStyleSourceDiagnosticFromSnapshot = ({
  */
 export const useStyleCreatorController = ({
   styles,
+  onReorderStyle,
   onDeleteStyle,
   onSaveStyleDetails,
   resolveInternalStyleDrop,
@@ -862,10 +864,14 @@ export const useStyleCreatorController = ({
         setDropTargetStyleId(null);
         return;
       }
-      setOrderedStyleIds((previous) => reorderById(previous, sourceStyleId, targetStyleId));
+      if (onReorderStyle) {
+        void onReorderStyle(sourceStyleId, targetStyleId);
+      } else {
+        setOrderedStyleIds((previous) => reorderById(previous, sourceStyleId, targetStyleId));
+      }
       setDropTargetStyleId(null);
     },
-    [draggedStyleId]
+    [draggedStyleId, onReorderStyle]
   );
 
   const handleStyleDragEnd = React.useCallback(() => {

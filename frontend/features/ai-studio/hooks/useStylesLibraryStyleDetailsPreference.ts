@@ -22,6 +22,7 @@ type UseStylesLibraryStyleDetailsPreferenceResult = {
   error: string | null;
   syncState: StylesLibraryStyleDetailsSyncState;
   upsertStyleDetails: (styleId: string, details: StylesLibraryStyleDetails) => Promise<boolean>;
+  deleteStyleDetails: (styleId: string) => Promise<boolean>;
 };
 
 const readLocalStyleDetails = (): StylesLibraryStyleDetailsMap => {
@@ -204,11 +205,65 @@ export const useStylesLibraryStyleDetailsPreference =
       [updateLocalValue, userId]
     );
 
+    const deleteStyleDetails = useCallback(
+      async (styleId: string): Promise<boolean> => {
+        const normalizedStyleId = styleId.trim();
+        if (!normalizedStyleId) return false;
+        const requestVersion = writeVersionRef.current + 1;
+        writeVersionRef.current = requestVersion;
+        hasLocalOverrideRef.current = true;
+
+        const previousValue = latestValueRef.current;
+        if (!(normalizedStyleId in previousValue)) return true;
+        const nextValue = { ...previousValue };
+        delete nextValue[normalizedStyleId];
+
+        updateLocalValue(nextValue);
+        setSyncState("saving");
+        setError(null);
+
+        if (!userId || !remoteSyncEnabledRef.current || !supabaseQueryClient) {
+          if (requestVersion === writeVersionRef.current) {
+            setSyncState("ready");
+          }
+          return true;
+        }
+
+        try {
+          const { error: upsertError } = await supabaseQueryClient
+            .from("user_preferences")
+            .upsert(
+              { user_id: userId, ai_studio_style_details_overrides: nextValue },
+              { onConflict: "user_id" }
+            );
+          if (upsertError) throw upsertError;
+          if (requestVersion !== writeVersionRef.current) return true;
+          setError(null);
+          setSyncState("ready");
+          return true;
+        } catch (err) {
+          if (requestVersion !== writeVersionRef.current) return true;
+          if (isMissingStyleDetailsStorageError(err)) {
+            remoteSyncEnabledRef.current = false;
+            setError(null);
+            setSyncState("ready");
+            return true;
+          }
+          updateLocalValue(previousValue);
+          setError(err instanceof Error ? err.message : "Unable to delete style details.");
+          setSyncState("error");
+          return false;
+        }
+      },
+      [updateLocalValue, userId]
+    );
+
     return {
       styleDetailsById,
       loading,
       error,
       syncState,
       upsertStyleDetails,
+      deleteStyleDetails,
     };
   };

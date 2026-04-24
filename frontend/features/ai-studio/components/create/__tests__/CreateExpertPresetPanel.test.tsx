@@ -197,7 +197,7 @@ describe("CreateExpertPresetPanel", () => {
           description: null,
           systemInstructions: "Start with a fast visual hook and one unmistakable product payoff.",
           runtimeMode: "prompt_editor",
-          activationMode: "activate_only",
+          activationMode: "activate_and_start",
           starterAssistantMessage: null,
           workflowStageHints: null,
           outputMode: "apply_prompt",
@@ -234,7 +234,7 @@ describe("CreateExpertPresetPanel", () => {
           systemInstructions:
             "Open with a fast paid-social visual hook and a clean benefit reveal.",
           runtimeMode: "prompt_editor",
-          activationMode: "activate_only",
+          activationMode: "activate_and_start",
           starterAssistantMessage: null,
           workflowStageHints: null,
           outputMode: "apply_prompt",
@@ -250,6 +250,7 @@ describe("CreateExpertPresetPanel", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "More presets" }));
     fireEvent.click(screen.getByRole("button", { name: "Edit Ad Hook preset" }));
+    fireEvent.click(screen.getByRole("button", { name: "Show advanced settings" }));
     fireEvent.change(screen.getByLabelText("Runtime mode"), {
       target: { value: "workflow_gpt" },
     });
@@ -264,7 +265,7 @@ describe("CreateExpertPresetPanel", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: "Compose Workflow Instructions" }));
 
-    const instructionsField = screen.getByLabelText("Workflow instructions") as HTMLTextAreaElement;
+    const instructionsField = screen.getByLabelText("System instructions") as HTMLTextAreaElement;
     expect(instructionsField.value).toContain("STEP FLOW");
     expect(instructionsField.value).toContain("ADDITIONAL RULES");
   });

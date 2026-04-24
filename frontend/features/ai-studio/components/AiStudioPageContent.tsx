@@ -37,6 +37,7 @@ import type { VoicesPropertiesPanelProps } from "./VoicesPropertiesPanel";
 import { useAiStudioShellResize } from "../hooks/useAiStudioShellResize";
 import { useAiStudioShellDndController } from "../hooks/useAiStudioShellDndController";
 import { useStylesLibraryDeletedStyleIdsPreference } from "../hooks/useStylesLibraryDeletedStyleIdsPreference";
+import { useStylesLibraryPanelIdsPreference } from "../hooks/useStylesLibraryPanelIdsPreference";
 import { useStylesLibraryStyleDetailsPreference } from "../hooks/useStylesLibraryStyleDetailsPreference";
 import type { ResolveCharacterDropReference } from "../../character-manager/hooks/useCharacterManagerDroppedReferenceController";
 import type { ResolveInternalReferenceDrop } from "../logic/referenceSource/internalReferenceSource";
@@ -56,6 +57,10 @@ import type {
 } from "../reference-grid/referenceGridTypes";
 import { resolvePropertiesPanelKind } from "../logic/propertiesPanelRouting";
 import { isCharacterShellTool, isPrimaryCharacterTool } from "../logic/primaryCharacterTool";
+import {
+  reorderStylesLibraryOrderedIds,
+  resolveOrderedStylesCatalog,
+} from "../logic/stylesLibraryCatalog";
 import { isSoundWorkflow } from "../logic/workflowIdentity";
 import {
   PERF_FLAG_SHELL_BOUNDARY_SPLIT,
@@ -655,12 +660,19 @@ export function AiStudioPageContent({
     styleDetailsById,
     error: styleDetailsSaveError,
     upsertStyleDetails,
+    deleteStyleDetails,
   } = useStylesLibraryStyleDetailsPreference();
   const {
     deletedStyleIds,
     error: stylesDeleteError,
     deleteStyleId,
   } = useStylesLibraryDeletedStyleIdsPreference();
+  const { setStylePanelIds, removeStylePanelId, stylePanelIds } =
+    useStylesLibraryPanelIdsPreference();
+  const seededStyleIds = React.useMemo(
+    () => new Set(EXPERT_EDIT_STYLE_CATALOG.map((style) => style.id)),
+    []
+  );
   const stylesCatalogWithOverrides = React.useMemo(() => {
     const resolveStyleName = (style: {
       style?: string;
@@ -715,10 +727,38 @@ export function AiStudioPageContent({
     return [...overriddenBaseStyles, ...customStyleTiles];
   }, [styleDetailsById]);
   const visibleStylesCatalog = React.useMemo(() => {
-    if (deletedStyleIds.length === 0) return stylesCatalogWithOverrides;
-    const deletedIdSet = new Set(deletedStyleIds);
-    return stylesCatalogWithOverrides.filter((style) => !deletedIdSet.has(style.id));
-  }, [deletedStyleIds, stylesCatalogWithOverrides]);
+    const deletedIdSet = deletedStyleIds.length > 0 ? new Set(deletedStyleIds) : null;
+    const filteredStyles =
+      deletedIdSet == null
+        ? stylesCatalogWithOverrides
+        : stylesCatalogWithOverrides.filter((style) => !deletedIdSet.has(style.id));
+    return resolveOrderedStylesCatalog(filteredStyles, stylePanelIds);
+  }, [deletedStyleIds, stylePanelIds, stylesCatalogWithOverrides]);
+  const handleDeleteStyle = React.useCallback(
+    async (styleId: string): Promise<boolean> => {
+      const normalizedStyleId = styleId.trim();
+      if (!normalizedStyleId) return false;
+      if (seededStyleIds.has(normalizedStyleId)) {
+        return deleteStyleId(normalizedStyleId);
+      }
+      const deleted = await deleteStyleDetails(normalizedStyleId);
+      if (!deleted) return false;
+      void removeStylePanelId(normalizedStyleId);
+      return true;
+    },
+    [deleteStyleDetails, deleteStyleId, removeStylePanelId, seededStyleIds]
+  );
+  const handleReorderStyle = React.useCallback(
+    (sourceStyleId: string, targetStyleId: string) => {
+      const nextOrder = reorderStylesLibraryOrderedIds(
+        visibleStylesCatalog.map((style) => style.id),
+        sourceStyleId,
+        targetStyleId
+      );
+      void setStylePanelIds(nextOrder);
+    },
+    [setStylePanelIds, visibleStylesCatalog]
+  );
   React.useEffect(() => {
     if (!selectedStyleId) return;
     const styleStillVisible = visibleStylesCatalog.some((style) => style.id === selectedStyleId);
@@ -1218,15 +1258,17 @@ export function AiStudioPageContent({
       <StylesLibraryPanel
         styles={visibleStylesCatalog}
         selectedStyleId={selectedStyleId}
+        onReorderStyle={handleReorderStyle}
         onSaveStyleDetails={upsertStyleDetails}
         saveError={styleDetailsSaveError}
-        onDeleteStyle={deleteStyleId}
+        onDeleteStyle={handleDeleteStyle}
         deleteError={stylesDeleteError}
         resolveInternalStyleDrop={resolveStyleLibraryInternalDrop}
       />
     ),
     [
-      deleteStyleId,
+      handleDeleteStyle,
+      handleReorderStyle,
       resolveStyleLibraryInternalDrop,
       selectedStyleId,
       styleDetailsSaveError,

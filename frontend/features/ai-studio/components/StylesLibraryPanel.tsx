@@ -29,6 +29,7 @@ const NONE_STYLE_TILE: ExpertEditStyleTile = {
 export type StylesLibraryPanelProps = {
   styles: readonly ExpertEditStyleTile[];
   selectedStyleId: string | null;
+  onReorderStyle?: (sourceStyleId: string, targetStyleId: string) => Promise<void> | void;
   onDeleteStyle?: (styleId: string) => Promise<boolean> | boolean;
   deleteError?: string | null;
   onSaveStyleDetails?: (
@@ -41,6 +42,7 @@ export type StylesLibraryPanelProps = {
 
 export function StylesLibraryPanel({
   styles,
+  onReorderStyle,
   onDeleteStyle,
   deleteError = null,
   onSaveStyleDetails,
@@ -89,6 +91,7 @@ export function StylesLibraryPanel({
     applyStylePreviewFile,
   } = useStyleCreatorController({
     styles,
+    onReorderStyle,
     onDeleteStyle,
     onSaveStyleDetails,
     resolveInternalStyleDrop,

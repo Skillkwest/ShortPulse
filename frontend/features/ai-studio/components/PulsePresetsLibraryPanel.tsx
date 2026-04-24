@@ -6,13 +6,15 @@ import React from "react";
 import { TrashSimple } from "phosphor-react";
 import {
   CREATE_PULSE_AUTHORING_TEMPLATE_DEFINITIONS,
+  CREATE_PULSE_CUSTOM_AUTHORING_ACTIVATION_MODE,
+  CREATE_PULSE_CUSTOM_AUTHORING_OUTPUT_MODE,
+  CREATE_PULSE_CUSTOM_AUTHORING_RUNTIME_MODE,
   composeCreatePulseWorkflowInstructions,
   createCreatePulseWorkflowBuilderDraft,
   createCreatePulseCustomPresetId,
   isCreatePulseBuiltInPresetId,
   resolveCreatePulsePresetCatalog,
   upsertCreatePulseSavedPreset,
-  type CreatePulseActivationMode,
   type CreatePulsePresetId,
   type CreatePulseRuntimeMode,
   type CreatePulseSavedPreset,
@@ -32,10 +34,10 @@ type PendingPulsePresetEditState = {
   description: string;
   systemInstructions: string;
   runtimeMode: CreatePulseRuntimeMode;
-  activationMode: CreatePulseActivationMode;
   starterAssistantMessage: string;
   workflowStageHintsText: string;
   workflowBuilderDraft: CreatePulseWorkflowBuilderDraft;
+  showAdvancedSettings: boolean;
   mode: "create" | "edit";
 };
 
@@ -77,7 +79,6 @@ export function PulsePresetsLibraryPanel({
         ? {
             ...previous,
             runtimeMode: template.runtimeMode,
-            activationMode: template.activationMode,
             systemInstructions: template.systemInstructions,
             starterAssistantMessage: template.starterAssistantMessage,
             workflowStageHintsText:
@@ -90,6 +91,7 @@ export function PulsePresetsLibraryPanel({
               previous.workflowBuilderDraft.roleGoal.trim().length > 0
                 ? previous.workflowBuilderDraft
                 : createCreatePulseWorkflowBuilderDraft(template.description),
+            showAdvancedSettings: true,
           }
         : previous
     );
@@ -134,11 +136,13 @@ export function PulsePresetsLibraryPanel({
             description: pendingPresetEdit.description.trim() || null,
             systemInstructions: nextSystemInstructions,
             runtimeMode: pendingPresetEdit.runtimeMode,
-            activationMode: pendingPresetEdit.activationMode,
+            activationMode: CREATE_PULSE_CUSTOM_AUTHORING_ACTIVATION_MODE,
             starterAssistantMessage: pendingPresetEdit.starterAssistantMessage.trim() || null,
             workflowStageHints: nextWorkflowStageHints.length > 0 ? nextWorkflowStageHints : null,
             outputMode:
-              pendingPresetEdit.runtimeMode === "workflow_gpt" ? "chat_reply" : "apply_prompt",
+              pendingPresetEdit.runtimeMode === "workflow_gpt"
+                ? CREATE_PULSE_CUSTOM_AUTHORING_OUTPUT_MODE
+                : "apply_prompt",
             memoryPolicy: "session",
             createdAt: new Date().toISOString(),
           },
@@ -154,11 +158,13 @@ export function PulsePresetsLibraryPanel({
             description: pendingPresetEdit.description.trim() || null,
             systemInstructions: nextSystemInstructions,
             runtimeMode: pendingPresetEdit.runtimeMode,
-            activationMode: pendingPresetEdit.activationMode,
+            activationMode: CREATE_PULSE_CUSTOM_AUTHORING_ACTIVATION_MODE,
             starterAssistantMessage: pendingPresetEdit.starterAssistantMessage.trim() || null,
             workflowStageHints: nextWorkflowStageHints.length > 0 ? nextWorkflowStageHints : null,
             outputMode:
-              pendingPresetEdit.runtimeMode === "workflow_gpt" ? "chat_reply" : "apply_prompt",
+              pendingPresetEdit.runtimeMode === "workflow_gpt"
+                ? CREATE_PULSE_CUSTOM_AUTHORING_OUTPUT_MODE
+                : "apply_prompt",
             memoryPolicy: "session",
             createdAt: existingPreset ? existingPreset.createdAt : new Date().toISOString(),
           })
@@ -216,8 +222,8 @@ export function PulsePresetsLibraryPanel({
       <header className="pulse-presets-library-header">
         <p className="eyebrow">Pulse Presets Library</p>
         <p className="tiny subdued helper-text">
-          Click any Pulse to edit it. Pulses can run as prompt editors or guided workflow GPTs, and
-          changes to built-in starter Pulses save as your personal defaults immediately.
+          Click any Pulse to edit it. The core contract is simple: name the Pulse and write its
+          hidden system instructions. Advanced runtime settings stay optional.
         </p>
       </header>
       <div className="pulse-presets-library-scroll">
@@ -249,12 +255,12 @@ export function PulsePresetsLibraryPanel({
                       description: preset.description ?? "",
                       systemInstructions: preset.systemInstructions,
                       runtimeMode: preset.runtimeMode,
-                      activationMode: preset.activationMode,
                       starterAssistantMessage: preset.starterAssistantMessage ?? "",
                       workflowStageHintsText: (preset.workflowStageHints ?? []).join("\n"),
                       workflowBuilderDraft: createCreatePulseWorkflowBuilderDraft(
                         preset.description ?? preset.label
                       ),
+                      showAdvancedSettings: false,
                       mode: "edit",
                     });
                   }}
@@ -300,13 +306,13 @@ export function PulsePresetsLibraryPanel({
                 label: defaultLabel,
                 description: "",
                 systemInstructions: "",
-                runtimeMode: "prompt_editor",
-                activationMode: "activate_only",
+                runtimeMode: CREATE_PULSE_CUSTOM_AUTHORING_RUNTIME_MODE,
                 starterAssistantMessage: "",
                 workflowStageHintsText: "",
                 workflowBuilderDraft: createCreatePulseWorkflowBuilderDraft(
                   `Workflow Pulse ${nextPresetNumber}`
                 ),
+                showAdvancedSettings: false,
                 mode: "create",
               });
             }}
@@ -340,8 +346,8 @@ export function PulsePresetsLibraryPanel({
               </h3>
               <p className="tiny subdued pulse-presets-library-edit-copy">
                 {pendingPresetEdit.mode === "create"
-                  ? "Set the Pulse identity, runtime mode, and hidden system instructions."
-                  : "Update the Pulse identity, runtime mode, and hidden system instructions."}
+                  ? "Name the Pulse and write the hidden system instructions that should drive its behavior."
+                  : "Update the Pulse name and hidden system instructions. Advanced runtime settings are optional."}
               </p>
               <label
                 className="pulse-presets-library-edit-label"
@@ -369,275 +375,16 @@ export function PulsePresetsLibraryPanel({
               />
               <label
                 className="pulse-presets-library-edit-label"
-                htmlFor="pulse-preset-library-description-input"
-              >
-                Description
-              </label>
-              <input
-                id="pulse-preset-library-description-input"
-                className="pulse-presets-library-edit-input"
-                type="text"
-                value={pendingPresetEdit.description}
-                maxLength={140}
-                onChange={(event) => {
-                  setPendingPresetEdit((previous) =>
-                    previous
-                      ? {
-                          ...previous,
-                          description: event.target.value,
-                        }
-                      : previous
-                  );
-                  if (localSaveError) setLocalSaveError(null);
-                }}
-              />
-              <label
-                className="pulse-presets-library-edit-label"
-                htmlFor="pulse-preset-library-runtime-mode-input"
-              >
-                Runtime Mode
-              </label>
-              <select
-                id="pulse-preset-library-runtime-mode-input"
-                className="pulse-presets-library-edit-input"
-                value={pendingPresetEdit.runtimeMode}
-                onChange={(event) => {
-                  const nextRuntimeMode =
-                    event.target.value === "workflow_gpt" ? "workflow_gpt" : "prompt_editor";
-                  setPendingPresetEdit((previous) =>
-                    previous
-                      ? {
-                          ...previous,
-                          runtimeMode: nextRuntimeMode,
-                          activationMode:
-                            nextRuntimeMode === "workflow_gpt"
-                              ? previous.activationMode
-                              : "activate_only",
-                        }
-                      : previous
-                  );
-                  if (localSaveError) setLocalSaveError(null);
-                }}
-              >
-                <option value="prompt_editor">Prompt editor</option>
-                <option value="workflow_gpt">Workflow GPT</option>
-              </select>
-              <p className="tiny subdued helper-text pulse-presets-library-edit-copy">
-                Prompt editor rewrites toward one final prompt. Workflow GPT runs a guided,
-                step-by-step chat workflow and can wait for user input before the final artifact.
-              </p>
-              <div
-                className="pulse-presets-library-template-actions"
-                aria-label="Workflow templates"
-              >
-                {CREATE_PULSE_AUTHORING_TEMPLATE_DEFINITIONS.map((template) => (
-                  <button
-                    key={template.templateId}
-                    type="button"
-                    className="ghost-btn pulse-presets-library-edit-action-btn"
-                    onClick={() => applyWorkflowTemplate(template.templateId)}
-                  >
-                    {template.label}
-                  </button>
-                ))}
-              </div>
-              <p className="tiny subdued helper-text pulse-presets-library-edit-copy">
-                Workflow templates give you a usable starting contract. Apply one, then refine the
-                instructions for your exact Pulse behavior.
-              </p>
-              {isWorkflowPreset ? (
-                <div
-                  className="pulse-presets-library-workflow-checklist"
-                  aria-label="Workflow authoring checklist"
-                >
-                  <p className="tiny subdued pulse-presets-library-edit-copy">
-                    Workflow checklist: define the exact first assistant message, ask one step at a
-                    time, and describe the final output shape explicitly inside the instructions.
-                  </p>
-                </div>
-              ) : null}
-              {isWorkflowPreset && pendingPresetEdit ? (
-                <div className="pulse-presets-library-workflow-builder">
-                  <label
-                    className="pulse-presets-library-edit-label"
-                    htmlFor="pulse-preset-library-workflow-role-goal-input"
-                  >
-                    Role & Goal
-                  </label>
-                  <textarea
-                    id="pulse-preset-library-workflow-role-goal-input"
-                    className="pulse-presets-library-edit-textarea pulse-presets-library-edit-textarea--compact"
-                    value={pendingPresetEdit.workflowBuilderDraft.roleGoal}
-                    rows={3}
-                    placeholder="What is this workflow Pulse responsible for producing?"
-                    onChange={(event) => {
-                      setPendingPresetEdit((previous) =>
-                        previous
-                          ? {
-                              ...previous,
-                              workflowBuilderDraft: {
-                                ...previous.workflowBuilderDraft,
-                                roleGoal: event.target.value,
-                              },
-                            }
-                          : previous
-                      );
-                      if (localSaveError) setLocalSaveError(null);
-                    }}
-                  />
-                  <label
-                    className="pulse-presets-library-edit-label"
-                    htmlFor="pulse-preset-library-workflow-step-flow-input"
-                  >
-                    Step Flow
-                  </label>
-                  <textarea
-                    id="pulse-preset-library-workflow-step-flow-input"
-                    className="pulse-presets-library-edit-textarea pulse-presets-library-edit-textarea--compact"
-                    value={pendingPresetEdit.workflowBuilderDraft.stepFlow}
-                    rows={4}
-                    placeholder="List the exact step-by-step questions or phases the workflow should follow."
-                    onChange={(event) => {
-                      setPendingPresetEdit((previous) =>
-                        previous
-                          ? {
-                              ...previous,
-                              workflowBuilderDraft: {
-                                ...previous.workflowBuilderDraft,
-                                stepFlow: event.target.value,
-                              },
-                            }
-                          : previous
-                      );
-                      if (localSaveError) setLocalSaveError(null);
-                    }}
-                  />
-                  <label
-                    className="pulse-presets-library-edit-label"
-                    htmlFor="pulse-preset-library-workflow-output-shape-input"
-                  >
-                    Final Output Shape
-                  </label>
-                  <textarea
-                    id="pulse-preset-library-workflow-output-shape-input"
-                    className="pulse-presets-library-edit-textarea pulse-presets-library-edit-textarea--compact"
-                    value={pendingPresetEdit.workflowBuilderDraft.outputShape}
-                    rows={3}
-                    placeholder="Describe the exact final artifact format the Pulse should return."
-                    onChange={(event) => {
-                      setPendingPresetEdit((previous) =>
-                        previous
-                          ? {
-                              ...previous,
-                              workflowBuilderDraft: {
-                                ...previous.workflowBuilderDraft,
-                                outputShape: event.target.value,
-                              },
-                            }
-                          : previous
-                      );
-                      if (localSaveError) setLocalSaveError(null);
-                    }}
-                  />
-                  <label
-                    className="pulse-presets-library-edit-label"
-                    htmlFor="pulse-preset-library-workflow-guardrails-input"
-                  >
-                    Additional Rules
-                  </label>
-                  <textarea
-                    id="pulse-preset-library-workflow-guardrails-input"
-                    className="pulse-presets-library-edit-textarea pulse-presets-library-edit-textarea--compact"
-                    value={pendingPresetEdit.workflowBuilderDraft.guardrails}
-                    rows={4}
-                    placeholder="Add any continuity, safety, or formatting rules that should always apply."
-                    onChange={(event) => {
-                      setPendingPresetEdit((previous) =>
-                        previous
-                          ? {
-                              ...previous,
-                              workflowBuilderDraft: {
-                                ...previous.workflowBuilderDraft,
-                                guardrails: event.target.value,
-                              },
-                            }
-                          : previous
-                      );
-                      if (localSaveError) setLocalSaveError(null);
-                    }}
-                  />
-                  <div className="pulse-presets-library-edit-actions">
-                    <button
-                      type="button"
-                      className="ghost-btn pulse-presets-library-edit-action-btn"
-                      onClick={() => {
-                        setPendingPresetEdit((previous) =>
-                          previous
-                            ? {
-                                ...previous,
-                                systemInstructions: composeCreatePulseWorkflowInstructions(
-                                  previous.workflowBuilderDraft
-                                ),
-                              }
-                            : previous
-                        );
-                        if (localSaveError) setLocalSaveError(null);
-                      }}
-                    >
-                      Compose Workflow Instructions
-                    </button>
-                  </div>
-                </div>
-              ) : null}
-              <label
-                className="pulse-presets-library-edit-label"
-                htmlFor="pulse-preset-library-activation-mode-input"
-              >
-                Activation Mode
-              </label>
-              <select
-                id="pulse-preset-library-activation-mode-input"
-                className="pulse-presets-library-edit-input"
-                value={pendingPresetEdit.activationMode}
-                onChange={(event) => {
-                  const nextActivationMode =
-                    event.target.value === "activate_and_start"
-                      ? "activate_and_start"
-                      : "activate_only";
-                  setPendingPresetEdit((previous) =>
-                    previous
-                      ? {
-                          ...previous,
-                          activationMode: nextActivationMode,
-                        }
-                      : previous
-                  );
-                  if (localSaveError) setLocalSaveError(null);
-                }}
-              >
-                <option value="activate_only">Activate only</option>
-                <option value="activate_and_start">Activate and start</option>
-              </select>
-              <p className="tiny subdued helper-text pulse-presets-library-edit-copy">
-                Activate only waits for the next user turn. Activate and start immediately sends the
-                hidden kickoff turn when the Pulse is clicked in Create.
-              </p>
-              <label
-                className="pulse-presets-library-edit-label"
                 htmlFor="pulse-preset-library-prompt-input"
               >
-                {isWorkflowPreset ? "Workflow Instructions" : "System Instructions"}
+                System Instructions
               </label>
               <textarea
                 id="pulse-preset-library-prompt-input"
                 className="pulse-presets-library-edit-textarea"
                 value={pendingPresetEdit.systemInstructions}
                 rows={10}
-                placeholder={
-                  isWorkflowPreset
-                    ? "Define the role, exact step flow, final output shape, and any continuity or safety rules."
-                    : "Describe how this Pulse should rewrite or refine the user's prompt."
-                }
+                placeholder="Describe how this Pulse should behave, what it should ask for, and what kind of output it should produce."
                 onChange={(event) => {
                   setPendingPresetEdit((previous) =>
                     previous
@@ -650,61 +397,263 @@ export function PulsePresetsLibraryPanel({
                   if (localSaveError) setLocalSaveError(null);
                 }}
               />
-              <label
-                className="pulse-presets-library-edit-label"
-                htmlFor="pulse-preset-library-starter-message-input"
-              >
-                {isWorkflowPreset ? "Exact First Assistant Message" : "Starter Assistant Message"}
-              </label>
-              <textarea
-                id="pulse-preset-library-starter-message-input"
-                className="pulse-presets-library-edit-textarea"
-                value={pendingPresetEdit.starterAssistantMessage}
-                rows={3}
-                placeholder={
-                  isWorkflowPreset
-                    ? "Optional. Use this when the first workflow reply must be exact after activation."
-                    : "Optional. Used when activation mode is activate and start."
-                }
-                onChange={(event) => {
+              <button
+                type="button"
+                className="ghost-btn pulse-presets-library-edit-action-btn"
+                aria-expanded={pendingPresetEdit.showAdvancedSettings}
+                onClick={() => {
                   setPendingPresetEdit((previous) =>
                     previous
                       ? {
                           ...previous,
-                          starterAssistantMessage: event.target.value,
+                          showAdvancedSettings: !previous.showAdvancedSettings,
                         }
                       : previous
                   );
-                  if (localSaveError) setLocalSaveError(null);
                 }}
-              />
-              <p className="tiny subdued helper-text pulse-presets-library-edit-copy">
-                {isWorkflowPreset
-                  ? "Optional. Use this when the first assistant reply must be exact after activation."
-                  : "Optional. Leave this blank unless the Pulse should send a specific hidden kickoff message."}
-              </p>
-              {isWorkflowPreset ? (
-                <>
+              >
+                {pendingPresetEdit.showAdvancedSettings
+                  ? "Hide advanced settings"
+                  : "Show advanced settings"}
+              </button>
+              {pendingPresetEdit.showAdvancedSettings ? (
+                <div className="pulse-presets-library-workflow-builder">
                   <label
                     className="pulse-presets-library-edit-label"
-                    htmlFor="pulse-preset-library-stage-hints-input"
+                    htmlFor="pulse-preset-library-description-input"
                   >
-                    Workflow Stage Labels
+                    Description
                   </label>
-                  <textarea
-                    id="pulse-preset-library-stage-hints-input"
-                    className="pulse-presets-library-edit-textarea pulse-presets-library-edit-textarea--compact"
-                    value={pendingPresetEdit.workflowStageHintsText}
-                    rows={4}
-                    placeholder={
-                      "Image Gate\nCamera Motion\nAction Selection\nDialogue\nFinal Output"
-                    }
+                  <input
+                    id="pulse-preset-library-description-input"
+                    className="pulse-presets-library-edit-input"
+                    type="text"
+                    value={pendingPresetEdit.description}
+                    maxLength={140}
                     onChange={(event) => {
                       setPendingPresetEdit((previous) =>
                         previous
                           ? {
                               ...previous,
-                              workflowStageHintsText: event.target.value,
+                              description: event.target.value,
+                            }
+                          : previous
+                      );
+                      if (localSaveError) setLocalSaveError(null);
+                    }}
+                  />
+                  <label
+                    className="pulse-presets-library-edit-label"
+                    htmlFor="pulse-preset-library-runtime-mode-input"
+                  >
+                    Runtime Mode
+                  </label>
+                  <select
+                    id="pulse-preset-library-runtime-mode-input"
+                    className="pulse-presets-library-edit-input"
+                    value={pendingPresetEdit.runtimeMode}
+                    onChange={(event) => {
+                      const nextRuntimeMode =
+                        event.target.value === "workflow_gpt" ? "workflow_gpt" : "prompt_editor";
+                      setPendingPresetEdit((previous) =>
+                        previous
+                          ? {
+                              ...previous,
+                              runtimeMode: nextRuntimeMode,
+                            }
+                          : previous
+                      );
+                      if (localSaveError) setLocalSaveError(null);
+                    }}
+                  >
+                    <option value="workflow_gpt">Workflow GPT</option>
+                    <option value="prompt_editor">Prompt editor</option>
+                  </select>
+                  <p className="tiny subdued helper-text pulse-presets-library-edit-copy">
+                    Workflow GPT acts like an agent profile in chat. Prompt editor rewrites toward
+                    one final prompt.
+                  </p>
+                  <div
+                    className="pulse-presets-library-template-actions"
+                    aria-label="Workflow templates"
+                  >
+                    {CREATE_PULSE_AUTHORING_TEMPLATE_DEFINITIONS.map((template) => (
+                      <button
+                        key={template.templateId}
+                        type="button"
+                        className="ghost-btn pulse-presets-library-edit-action-btn"
+                        onClick={() => applyWorkflowTemplate(template.templateId)}
+                      >
+                        {template.label}
+                      </button>
+                    ))}
+                  </div>
+                  <p className="tiny subdued helper-text pulse-presets-library-edit-copy">
+                    Templates preload a starter contract. Every Pulse still starts immediately when
+                    clicked in Create.
+                  </p>
+                  {isWorkflowPreset ? (
+                    <div
+                      className="pulse-presets-library-workflow-checklist"
+                      aria-label="Workflow authoring checklist"
+                    >
+                      <p className="tiny subdued pulse-presets-library-edit-copy">
+                        Workflow checklist: define the exact first assistant message, ask one step
+                        at a time, and describe the final output shape explicitly.
+                      </p>
+                    </div>
+                  ) : null}
+                  {isWorkflowPreset && pendingPresetEdit ? (
+                    <>
+                      <label
+                        className="pulse-presets-library-edit-label"
+                        htmlFor="pulse-preset-library-workflow-role-goal-input"
+                      >
+                        Role & Goal
+                      </label>
+                      <textarea
+                        id="pulse-preset-library-workflow-role-goal-input"
+                        className="pulse-presets-library-edit-textarea pulse-presets-library-edit-textarea--compact"
+                        value={pendingPresetEdit.workflowBuilderDraft.roleGoal}
+                        rows={3}
+                        placeholder="What is this workflow Pulse responsible for producing?"
+                        onChange={(event) => {
+                          setPendingPresetEdit((previous) =>
+                            previous
+                              ? {
+                                  ...previous,
+                                  workflowBuilderDraft: {
+                                    ...previous.workflowBuilderDraft,
+                                    roleGoal: event.target.value,
+                                  },
+                                }
+                              : previous
+                          );
+                          if (localSaveError) setLocalSaveError(null);
+                        }}
+                      />
+                      <label
+                        className="pulse-presets-library-edit-label"
+                        htmlFor="pulse-preset-library-workflow-step-flow-input"
+                      >
+                        Step Flow
+                      </label>
+                      <textarea
+                        id="pulse-preset-library-workflow-step-flow-input"
+                        className="pulse-presets-library-edit-textarea pulse-presets-library-edit-textarea--compact"
+                        value={pendingPresetEdit.workflowBuilderDraft.stepFlow}
+                        rows={4}
+                        placeholder="List the exact step-by-step questions or phases the workflow should follow."
+                        onChange={(event) => {
+                          setPendingPresetEdit((previous) =>
+                            previous
+                              ? {
+                                  ...previous,
+                                  workflowBuilderDraft: {
+                                    ...previous.workflowBuilderDraft,
+                                    stepFlow: event.target.value,
+                                  },
+                                }
+                              : previous
+                          );
+                          if (localSaveError) setLocalSaveError(null);
+                        }}
+                      />
+                      <label
+                        className="pulse-presets-library-edit-label"
+                        htmlFor="pulse-preset-library-workflow-output-shape-input"
+                      >
+                        Final Output Shape
+                      </label>
+                      <textarea
+                        id="pulse-preset-library-workflow-output-shape-input"
+                        className="pulse-presets-library-edit-textarea pulse-presets-library-edit-textarea--compact"
+                        value={pendingPresetEdit.workflowBuilderDraft.outputShape}
+                        rows={3}
+                        placeholder="Describe the exact final artifact format the Pulse should return."
+                        onChange={(event) => {
+                          setPendingPresetEdit((previous) =>
+                            previous
+                              ? {
+                                  ...previous,
+                                  workflowBuilderDraft: {
+                                    ...previous.workflowBuilderDraft,
+                                    outputShape: event.target.value,
+                                  },
+                                }
+                              : previous
+                          );
+                          if (localSaveError) setLocalSaveError(null);
+                        }}
+                      />
+                      <label
+                        className="pulse-presets-library-edit-label"
+                        htmlFor="pulse-preset-library-workflow-guardrails-input"
+                      >
+                        Additional Rules
+                      </label>
+                      <textarea
+                        id="pulse-preset-library-workflow-guardrails-input"
+                        className="pulse-presets-library-edit-textarea pulse-presets-library-edit-textarea--compact"
+                        value={pendingPresetEdit.workflowBuilderDraft.guardrails}
+                        rows={4}
+                        placeholder="Add any continuity, safety, or formatting rules that should always apply."
+                        onChange={(event) => {
+                          setPendingPresetEdit((previous) =>
+                            previous
+                              ? {
+                                  ...previous,
+                                  workflowBuilderDraft: {
+                                    ...previous.workflowBuilderDraft,
+                                    guardrails: event.target.value,
+                                  },
+                                }
+                              : previous
+                          );
+                          if (localSaveError) setLocalSaveError(null);
+                        }}
+                      />
+                      <div className="pulse-presets-library-edit-actions">
+                        <button
+                          type="button"
+                          className="ghost-btn pulse-presets-library-edit-action-btn"
+                          onClick={() => {
+                            setPendingPresetEdit((previous) =>
+                              previous
+                                ? {
+                                    ...previous,
+                                    systemInstructions: composeCreatePulseWorkflowInstructions(
+                                      previous.workflowBuilderDraft
+                                    ),
+                                  }
+                                : previous
+                            );
+                            if (localSaveError) setLocalSaveError(null);
+                          }}
+                        >
+                          Compose Workflow Instructions
+                        </button>
+                      </div>
+                    </>
+                  ) : null}
+                  <label
+                    className="pulse-presets-library-edit-label"
+                    htmlFor="pulse-preset-library-starter-message-input"
+                  >
+                    Starter Assistant Message
+                  </label>
+                  <textarea
+                    id="pulse-preset-library-starter-message-input"
+                    className="pulse-presets-library-edit-textarea"
+                    value={pendingPresetEdit.starterAssistantMessage}
+                    rows={3}
+                    placeholder="Optional. Use this when the first assistant reply should start with a specific message."
+                    onChange={(event) => {
+                      setPendingPresetEdit((previous) =>
+                        previous
+                          ? {
+                              ...previous,
+                              starterAssistantMessage: event.target.value,
                             }
                           : previous
                       );
@@ -712,10 +661,44 @@ export function PulsePresetsLibraryPanel({
                     }}
                   />
                   <p className="tiny subdued helper-text pulse-presets-library-edit-copy">
-                    Optional. One stage label per line. Used by the Create chat banner when workflow
-                    replies do not include explicit Step N formatting.
+                    Optional. Pulse clicks always start immediately. Use this only when the first
+                    assistant reply should begin with a specific message.
                   </p>
-                </>
+                  {isWorkflowPreset ? (
+                    <>
+                      <label
+                        className="pulse-presets-library-edit-label"
+                        htmlFor="pulse-preset-library-stage-hints-input"
+                      >
+                        Workflow Stage Labels
+                      </label>
+                      <textarea
+                        id="pulse-preset-library-stage-hints-input"
+                        className="pulse-presets-library-edit-textarea pulse-presets-library-edit-textarea--compact"
+                        value={pendingPresetEdit.workflowStageHintsText}
+                        rows={4}
+                        placeholder={
+                          "Image Gate\nCamera Motion\nAction Selection\nDialogue\nFinal Output"
+                        }
+                        onChange={(event) => {
+                          setPendingPresetEdit((previous) =>
+                            previous
+                              ? {
+                                  ...previous,
+                                  workflowStageHintsText: event.target.value,
+                                }
+                              : previous
+                          );
+                          if (localSaveError) setLocalSaveError(null);
+                        }}
+                      />
+                      <p className="tiny subdued helper-text pulse-presets-library-edit-copy">
+                        Optional. One stage label per line. Used by the Create chat banner when
+                        workflow replies do not include explicit Step N formatting.
+                      </p>
+                    </>
+                  ) : null}
+                </div>
               ) : null}
               {localSaveError ? (
                 <p className="tiny pulse-presets-library-edit-error">{localSaveError}</p>

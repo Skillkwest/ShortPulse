@@ -35,8 +35,9 @@ describe("PulsePresetsLibraryPanel", () => {
       expect.objectContaining({
         label: "Storyboard",
         systemInstructions: "Build a storyboard-ready pulse sequence.",
-        runtimeMode: "prompt_editor",
-        activationMode: "activate_only",
+        runtimeMode: "workflow_gpt",
+        activationMode: "activate_and_start",
+        outputMode: "chat_reply",
       }),
     ]);
   });
@@ -49,6 +50,7 @@ describe("PulsePresetsLibraryPanel", () => {
     );
 
     fireEvent.click(screen.getByRole("button", { name: "Create new pulse preset" }));
+    fireEvent.click(screen.getByRole("button", { name: "Show advanced settings" }));
     fireEvent.click(screen.getByRole("button", { name: "Multi Sequence Video Workflow" }));
     fireEvent.change(screen.getByLabelText("Preset Name"), {
       target: { value: "My Multi Sequence Pulse" },
@@ -83,13 +85,14 @@ describe("PulsePresetsLibraryPanel", () => {
     );
 
     fireEvent.click(screen.getByRole("button", { name: "Create new pulse preset" }));
+    fireEvent.click(screen.getByRole("button", { name: "Show advanced settings" }));
     fireEvent.change(screen.getByLabelText("Runtime Mode"), {
       target: { value: "workflow_gpt" },
     });
     fireEvent.change(screen.getByLabelText("Preset Name"), {
       target: { value: "Guided Video Pulse" },
     });
-    fireEvent.change(screen.getByLabelText("Workflow Instructions"), {
+    fireEvent.change(screen.getByLabelText("System Instructions"), {
       target: { value: "Guide the user through a short video workflow." },
     });
     fireEvent.change(screen.getByLabelText("Workflow Stage Labels"), {
@@ -105,16 +108,16 @@ describe("PulsePresetsLibraryPanel", () => {
     ]);
   });
 
-  it("switches workflow labels when runtime mode is workflow gpt", () => {
+  it("keeps advanced workflow controls hidden until requested", () => {
     render(<PulsePresetsLibraryPanel savedPresets={[]} onSavedPresetsChange={vi.fn()} />);
 
     fireEvent.click(screen.getByRole("button", { name: "Create new pulse preset" }));
-    fireEvent.change(screen.getByLabelText("Runtime Mode"), {
-      target: { value: "workflow_gpt" },
-    });
+    expect(screen.queryByLabelText("Runtime Mode")).not.toBeInTheDocument();
 
-    expect(screen.getByLabelText("Workflow Instructions")).toBeInTheDocument();
-    expect(screen.getByLabelText("Exact First Assistant Message")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Show advanced settings" }));
+
+    expect(screen.getByLabelText("System Instructions")).toBeInTheDocument();
+    expect(screen.getByLabelText("Starter Assistant Message")).toBeInTheDocument();
     expect(screen.getByLabelText("Workflow authoring checklist")).toBeInTheDocument();
   });
 
@@ -122,6 +125,7 @@ describe("PulsePresetsLibraryPanel", () => {
     render(<PulsePresetsLibraryPanel savedPresets={[]} onSavedPresetsChange={vi.fn()} />);
 
     fireEvent.click(screen.getByRole("button", { name: "Create new pulse preset" }));
+    fireEvent.click(screen.getByRole("button", { name: "Show advanced settings" }));
     fireEvent.change(screen.getByLabelText("Runtime Mode"), {
       target: { value: "workflow_gpt" },
     });
@@ -136,7 +140,7 @@ describe("PulsePresetsLibraryPanel", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: "Compose Workflow Instructions" }));
 
-    const instructionsField = screen.getByLabelText("Workflow Instructions") as HTMLTextAreaElement;
+    const instructionsField = screen.getByLabelText("System Instructions") as HTMLTextAreaElement;
     expect(instructionsField.value).toContain("ROLE & GOAL");
     expect(instructionsField.value).toContain("FINAL OUTPUT SHAPE");
   });
@@ -154,7 +158,7 @@ describe("PulsePresetsLibraryPanel", () => {
     fireEvent.change(screen.getByLabelText("Preset Name"), {
       target: { value: "Image Director" },
     });
-    fireEvent.change(screen.getByLabelText("Workflow Instructions"), {
+    fireEvent.change(screen.getByLabelText("System Instructions"), {
       target: { value: "Lead with a single polished hero image and one unmistakable visual hook." },
     });
     fireEvent.click(screen.getByRole("button", { name: "Save" }));

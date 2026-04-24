@@ -30,6 +30,12 @@ const CREATE_PULSE_DEFAULT_ACTIVATION_MODE =
   "activate_only" as const satisfies CreatePulseActivationMode;
 const CREATE_PULSE_DEFAULT_OUTPUT_MODE = "apply_prompt" as const satisfies CreatePulseOutputMode;
 const CREATE_PULSE_DEFAULT_MEMORY_POLICY = "session" as const satisfies CreatePulseMemoryPolicy;
+export const CREATE_PULSE_CUSTOM_AUTHORING_RUNTIME_MODE =
+  "workflow_gpt" as const satisfies CreatePulseRuntimeMode;
+export const CREATE_PULSE_CUSTOM_AUTHORING_ACTIVATION_MODE =
+  "activate_and_start" as const satisfies CreatePulseActivationMode;
+export const CREATE_PULSE_CUSTOM_AUTHORING_OUTPUT_MODE =
+  "chat_reply" as const satisfies CreatePulseOutputMode;
 const CREATE_PULSE_DEFAULT_WORKFLOW_GUARDRAILS = `- Ask one clear step question at a time.
 - Do not skip ahead.
 - Only produce the final artifact after the required inputs are collected.

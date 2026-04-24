@@ -4,7 +4,7 @@ Purpose: document the first-party Next.js API surface in `frontend/pages/api/` (
 
 ## Auth boundary model
 
-- Global API auth gate: `frontend/proxy.ts` protects `/api/announcements/*`, `/api/fal/*`, `/api/elevenlabs/*`, `/api/ai/*`, `/api/media/*`, `/api/log/*`, uploads, admin APIs, and billing checkout/portal routes by requiring a Supabase bearer token.
+- Global API auth gate: `frontend/proxy.ts` protects `/api/announcements/*`, `/api/fal/*`, `/api/elevenlabs/*`, `/api/ai/*`, `/api/media/*`, `/api/log/*`, `/api/pricing/*`, uploads, admin APIs, and billing checkout/portal routes by requiring a Supabase bearer token.
 - Route-level auth: handlers call `requireApiUser`/`requireAdminUser` in `frontend/lib/server/api/auth.ts`; route-level auth is token-first and fail-closed (proxy headers are metadata only after verification).
 - Webhook exceptions: `/api/billing/stripe/webhook` and `/api/fal/webhook` are intentionally unauthenticated and protected by provider signature verification.
 

@@ -33,7 +33,6 @@ import {
   getStyleDropPreviewResolutionStage,
   getStyleDropPreviewServerCopyAttempted,
   normalizeStyleDropPreviewError,
-  normalizeStylePromptFallbackText,
   normalizeStyleDetailsDraft,
   type StyleDropSnapshot,
   type ResolveInternalStyleDrop,
@@ -41,7 +40,12 @@ import {
 } from "./intake";
 import { runDeleteStyleCommand, runSaveStyleDetailsCommand } from "./persistence";
 import { trackStyleExtractionOutcome, trackStyleSourceResolutionDiagnostic } from "./telemetry";
-import { buildCreatedStyleDetails, resolveProcessedStyleSource } from "./workflow";
+import {
+  buildCreatedStyleDetails,
+  prepareStyleCreationSource,
+  resolveProcessedStyleSource,
+  type ProcessedResolvedStyleSource,
+} from "./workflow";
 import type {
   PendingStyleEditState,
   StyleExtractionFailureClass,
@@ -57,10 +61,6 @@ type UseStyleCreatorControllerParams = {
     details: StylesLibraryStyleDetails
   ) => Promise<boolean> | boolean;
   resolveInternalStyleDrop?: ResolveInternalStyleDrop;
-};
-
-type StyleExtractionPayload = {
-  sourceImageUrl: string;
 };
 
 type TrackedStyleExtractionParams = {
@@ -351,7 +351,7 @@ export const useStyleCreatorController = ({
   );
 
   const runStyleExtraction = React.useCallback(
-    async ({ sourceImageUrl }: StyleExtractionPayload): Promise<StyleExtractionRuntimeResult> => {
+    async (sourceImageUrl: string): Promise<StyleExtractionRuntimeResult> => {
       try {
         const extracted = await postExtractStyle(sourceImageUrl);
         return {
@@ -377,7 +377,7 @@ export const useStyleCreatorController = ({
       flow,
       sourceImageUrl,
     }: TrackedStyleExtractionParams): Promise<StyleExtractionRuntimeResult> => {
-      const result = await runStyleExtraction({ sourceImageUrl });
+      const result = await runStyleExtraction(sourceImageUrl);
       if (result.outcome === "success" && result.stylePrompt && result.styleTitle) {
         trackStyleExtractionOutcome("success", flow, {
           stage: "extract",
@@ -407,51 +407,58 @@ export const useStyleCreatorController = ({
     [runStyleExtraction]
   );
 
-  const extractStyleForCreateDraft = React.useCallback(
-    async (sourceImageUrl: string) => {
+  const processResolvedStyleSource = React.useCallback(
+    async ({
+      flow,
+      resolvedSource,
+    }: {
+      flow: "create_modal" | "library_drop";
+      resolvedSource: ProcessedResolvedStyleSource;
+    }) =>
+      prepareStyleCreationSource({
+        resolvedSource,
+        extractionResult: await runTrackedStyleExtraction({
+          flow,
+          sourceImageUrl: resolvedSource.extractionSourceImageUrl,
+        }),
+      }),
+    [runTrackedStyleExtraction]
+  );
+
+  const applyResolvedSourceToCreateDraft = React.useCallback(
+    async (resolvedSource: ProcessedResolvedStyleSource) => {
       const requestId = ++stylePromptExtractionRequestIdRef.current;
+      setPendingStyleEdit((previous) =>
+        applyStylePreviewToPendingEdit(previous, resolvedSource.previewImageUrl)
+      );
       setStylePromptExtractionSubmitting(true);
       setStylePromptExtractionError(null);
 
-      const result = await runTrackedStyleExtraction({
+      const preparedSource = await processResolvedStyleSource({
         flow: "create_modal",
-        sourceImageUrl,
+        resolvedSource,
       });
       if (stylePromptExtractionRequestIdRef.current !== requestId) return;
 
-      if (result.outcome === "success" && result.stylePrompt && result.styleTitle) {
+      if (preparedSource.styleTitle) {
         applyExtractedStyleToCreateDraft({
-          stylePrompt: result.stylePrompt,
-          styleTitle: result.styleTitle,
-          outcome: "success",
+          stylePrompt: preparedSource.stylePrompt,
+          styleTitle: preparedSource.styleTitle,
+          outcome: preparedSource.extractionOutcome,
           flow: "create_modal",
-          sourceUrlKind: result.sourceUrlKind,
+          sourceUrlKind: preparedSource.sourceUrlKind,
         });
       } else {
-        setStylePromptExtractionError(normalizeResultErrorMessage(result.errorMessage));
+        setStylePromptExtractionError(
+          normalizeResultErrorMessage(preparedSource.extractionErrorMessage ?? undefined)
+        );
       }
 
       if (stylePromptExtractionRequestIdRef.current === requestId) {
         setStylePromptExtractionSubmitting(false);
       }
     },
-    [applyExtractedStyleToCreateDraft, runTrackedStyleExtraction]
-  );
-
-  const applyPreviewToCreateDraft = React.useCallback(
-    ({
-      previewImageUrl,
-      extractionSourceImageUrl,
-    }: {
-      previewImageUrl: string;
-      extractionSourceImageUrl: string;
-    }) => {
-      setPendingStyleEdit((previous) => applyStylePreviewToPendingEdit(previous, previewImageUrl));
-      if (pendingStyleEdit?.mode === "create") {
-        void extractStyleForCreateDraft(extractionSourceImageUrl);
-      }
-    },
-    [extractStyleForCreateDraft, pendingStyleEdit?.mode]
+    [applyExtractedStyleToCreateDraft, processResolvedStyleSource]
   );
 
   const applyStylePreviewFromTransfer = React.useCallback(
@@ -473,10 +480,7 @@ export const useStyleCreatorController = ({
           candidateCount: resolvedSource.candidateCount,
           serverCopyAttempted: resolvedSource.serverCopyAttempted,
         });
-        applyPreviewToCreateDraft({
-          previewImageUrl: resolvedSource.previewImageUrl,
-          extractionSourceImageUrl: resolvedSource.extractionSourceImageUrl,
-        });
+        void applyResolvedSourceToCreateDraft(resolvedSource);
       } catch (error) {
         const normalizedError = normalizeStyleDropPreviewError(error);
         if (normalizedError.code === "missing-dropped-style-image") {
@@ -540,7 +544,7 @@ export const useStyleCreatorController = ({
         setLocalSaveError(BLOCKED_STYLE_IMAGE_SOURCE_MESSAGE);
       }
     },
-    [applyPreviewToCreateDraft, resolveInternalStyleDrop]
+    [applyResolvedSourceToCreateDraft, resolveInternalStyleDrop]
   );
 
   const applyStylePreviewFile = React.useCallback(
@@ -548,10 +552,7 @@ export const useStyleCreatorController = ({
       setLocalSaveError(null);
       try {
         const processed = await resolveProcessedStyleSource({ file });
-        applyPreviewToCreateDraft({
-          previewImageUrl: processed.previewImageUrl,
-          extractionSourceImageUrl: processed.extractionSourceImageUrl,
-        });
+        void applyResolvedSourceToCreateDraft(processed);
       } catch (error) {
         const normalizedError = normalizeStyleDropPreviewError(error);
         if (normalizedError.code === "missing-dropped-style-image" && !isImageFileCandidate(file)) {
@@ -561,7 +562,7 @@ export const useStyleCreatorController = ({
         setLocalSaveError("Unable to process that image.");
       }
     },
-    [applyPreviewToCreateDraft]
+    [applyResolvedSourceToCreateDraft]
   );
 
   const createStyleFromDrop = React.useCallback(
@@ -585,30 +586,13 @@ export const useStyleCreatorController = ({
           candidateCount: resolvedSource.candidateCount,
           serverCopyAttempted: resolvedSource.serverCopyAttempted,
         });
-        let extractedStylePrompt = normalizeStylePromptFallbackText(resolvedSource.promptText);
-        let extractedStyleTitle: string | null = null;
-        let extractionOutcome: StyleExtractionOutcome = "fallback";
-        let extractionSourceUrlKind: "data" | "url" | "unknown" = "unknown";
-
-        const extractionResult = await runTrackedStyleExtraction({
+        const preparedSource = await processResolvedStyleSource({
           flow: "library_drop",
-          sourceImageUrl: resolvedSource.extractionSourceImageUrl,
+          resolvedSource,
         });
 
-        extractionOutcome = extractionResult.outcome;
-        extractionSourceUrlKind = extractionResult.sourceUrlKind;
-
-        if (
-          extractionResult.outcome === "success" &&
-          extractionResult.stylePrompt &&
-          extractionResult.styleTitle
-        ) {
-          extractedStylePrompt = clampStylePromptCharacters(extractionResult.stylePrompt);
-          extractedStyleTitle = extractionResult.styleTitle;
-        } else {
-          const detail =
-            extractionResult.errorMessage?.trim() ||
-            "Style extraction could not run from that source.";
+        if (preparedSource.extractionErrorMessage) {
+          const detail = preparedSource.extractionErrorMessage || "Style extraction could not run.";
           setStylesLibraryDropError(`${detail} Style created anyway; you can edit the prompt.`);
         }
 
@@ -617,7 +601,8 @@ export const useStyleCreatorController = ({
           return;
         }
 
-        const customStyleName = extractedStyleTitle?.trim() || buildNextCustomStyleName(styles);
+        const customStyleName =
+          preparedSource.styleTitle?.trim() || buildNextCustomStyleName(styles);
         customStyleIdCounterRef.current += 1;
         const customStyleId = `style-library-custom-${Date.now()}-${customStyleIdCounterRef.current}`;
         const saved = await runSaveStyleDetailsCommand({
@@ -626,10 +611,7 @@ export const useStyleCreatorController = ({
           details: toPersistableStyleDetails(
             buildCreatedStyleDetails({
               styleName: customStyleName,
-              extractedStylePrompt,
-              previewImageUrl: resolvedSource.previewImageUrl,
-              extractionOutcome,
-              sourceUrlKind: extractionSourceUrlKind,
+              preparedSource,
             })
           ),
         });
@@ -707,8 +689,8 @@ export const useStyleCreatorController = ({
     [
       createStyleFromDropSubmitting,
       onSaveStyleDetails,
+      processResolvedStyleSource,
       resolveInternalStyleDrop,
-      runTrackedStyleExtraction,
       styles,
     ]
   );

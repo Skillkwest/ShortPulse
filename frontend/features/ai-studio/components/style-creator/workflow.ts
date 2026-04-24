@@ -1,5 +1,5 @@
 /**
- * Shared workflow helpers for style-source resolution and create-from-drop payload assembly.
+ * Shared workflow helpers for style-source resolution and create-style payload assembly.
  */
 import { buildStyleExtractionMeta, buildStyleProfileFromPrompt } from "../../logic/styleProfile";
 import type { StylesLibraryStyleDetails } from "../../types";
@@ -11,11 +11,20 @@ import {
   type ResolveInternalStyleDrop,
   type StyleDropSnapshot,
 } from "./intake";
-import type { StyleExtractionOutcome } from "./types";
+import type { StyleExtractionRuntimeResult } from "./types";
 
 export type ProcessedResolvedStyleSource = Awaited<ReturnType<typeof resolveStyleSource>> & {
   previewImageUrl: string;
   extractionSourceImageUrl: string;
+};
+
+export type PreparedStyleCreationSource = {
+  previewImageUrl: string;
+  stylePrompt: string;
+  styleTitle: string | null;
+  extractionOutcome: StyleExtractionRuntimeResult["outcome"];
+  sourceUrlKind: StyleExtractionRuntimeResult["sourceUrlKind"];
+  extractionErrorMessage: string | null;
 };
 
 /**
@@ -44,35 +53,62 @@ export const resolveProcessedStyleSource = async ({
 };
 
 /**
+ * Normalizes one processed style source plus extraction result for create flows.
+ */
+export const prepareStyleCreationSource = ({
+  resolvedSource,
+  extractionResult,
+}: {
+  resolvedSource: Pick<ProcessedResolvedStyleSource, "promptText" | "previewImageUrl">;
+  extractionResult: StyleExtractionRuntimeResult;
+}): PreparedStyleCreationSource => {
+  const fallbackStylePrompt = normalizeStylePromptFallbackText(resolvedSource.promptText);
+  if (
+    extractionResult.outcome === "success" &&
+    extractionResult.stylePrompt &&
+    extractionResult.styleTitle
+  ) {
+    return {
+      previewImageUrl: resolvedSource.previewImageUrl,
+      stylePrompt: clampStylePromptCharacters(extractionResult.stylePrompt),
+      styleTitle: extractionResult.styleTitle,
+      extractionOutcome: extractionResult.outcome,
+      sourceUrlKind: extractionResult.sourceUrlKind,
+      extractionErrorMessage: null,
+    };
+  }
+
+  return {
+    previewImageUrl: resolvedSource.previewImageUrl,
+    stylePrompt: fallbackStylePrompt,
+    styleTitle: null,
+    extractionOutcome: extractionResult.outcome,
+    sourceUrlKind: extractionResult.sourceUrlKind,
+    extractionErrorMessage: extractionResult.errorMessage?.trim() || null,
+  };
+};
+
+/**
  * Builds the persisted style payload for a newly created style.
  */
 export const buildCreatedStyleDetails = ({
   styleName,
-  extractedStylePrompt,
-  previewImageUrl,
-  extractionOutcome,
-  sourceUrlKind,
+  preparedSource,
 }: {
   styleName: string;
-  extractedStylePrompt: string;
-  previewImageUrl: string;
-  extractionOutcome: StyleExtractionOutcome;
-  sourceUrlKind: "data" | "url" | "unknown";
+  preparedSource: PreparedStyleCreationSource;
 }): StylesLibraryStyleDetails => {
-  const normalizedStylePrompt = clampStylePromptCharacters(
-    normalizeStylePromptFallbackText(extractedStylePrompt)
-  );
   return {
     style: styleName,
     title: styleName,
     referenceImageName: styleName,
-    stylePrompt: normalizedStylePrompt,
-    previewImageUrl,
-    styleProfile: buildStyleProfileFromPrompt(normalizedStylePrompt),
+    stylePrompt: preparedSource.stylePrompt,
+    previewImageUrl: preparedSource.previewImageUrl,
+    styleProfile: buildStyleProfileFromPrompt(preparedSource.stylePrompt),
     extractionMeta: buildStyleExtractionMeta({
-      outcome: extractionOutcome,
+      outcome: preparedSource.extractionOutcome,
       flow: "library_drop",
-      sourceUrlKind,
+      sourceUrlKind: preparedSource.sourceUrlKind,
     }),
   };
 };

@@ -8,6 +8,7 @@ import {
   GENERATION_GUARDRAIL_FALLBACK_ERROR,
   resolveGenerationStartDecision,
 } from "../logic/generationStartPolicy";
+import { trackAiStudioGenerateClicked } from "../logic/generationUsageTelemetry";
 import { shouldCheckPromptAtGenerationStart } from "../logic/editPromptPolicy";
 import { resolveChatOffCreatePrompt } from "../logic/promptAdjacency";
 import { buildImageReferenceInputs } from "../logic/referenceInputs";
@@ -69,9 +70,12 @@ type UseAiStudioGenerationControllerParams<TBundle, TFallbackCode extends string
   selectedTool: ToolId | null;
   model: string | null;
   setModel: (value: string | null) => void;
+  projectId?: string | null;
   isCharacterModeEnabled: boolean;
   resolveIsCharacterModeEnabledForTool?: (tool: ToolId | null) => boolean;
+  resolveSelectedCharacterIdForTool?: (tool: ToolId | null) => string | null;
   prompt: string;
+  selectedStyleContext?: StudioOutput["styleContext"] | null;
   agentInput: string;
   chatModeEnabled: boolean;
   currentCostCredits: number | null;
@@ -174,9 +178,12 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
   selectedTool,
   model,
   setModel,
+  projectId = null,
   isCharacterModeEnabled,
   resolveIsCharacterModeEnabledForTool,
+  resolveSelectedCharacterIdForTool,
   prompt,
+  selectedStyleContext = null,
   agentInput,
   chatModeEnabled,
   currentCostCredits,
@@ -337,6 +344,19 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
             to_model_id: effectiveModelId,
           });
         }
+        trackAiStudioGenerateClicked({
+          trigger: "generate",
+          tool: effectiveTool,
+          mode: effectiveMode,
+          modelId: effectiveModelId,
+          selectedModelId: model,
+          projectIdPresent: Boolean(projectId),
+          isCharacterMode: isCharacterModeEnabledForTool,
+          selectedCharacterId: resolveSelectedCharacterIdForTool?.(effectiveTool) ?? null,
+          hasStyle: Boolean(selectedStyleContext?.applied),
+          styleId: selectedStyleContext?.styleId ?? null,
+          referenceCount: resolveUserReferenceInputsForTool(effectiveTool).length,
+        });
 
         const requiredCredits = options?.costOverrideCredits ?? currentCostCredits;
         let checkedFreshCredits = false;
@@ -504,6 +524,7 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
       insertOptimisticGenerationPlaceholder,
       mode,
       model,
+      projectId,
       removeOptimisticGenerationPlaceholder,
       refreshCharacterModeInjectionBundleForSubmission,
       releaseGenerateClickLock,
@@ -512,9 +533,11 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
       resolveCharacterModeSubmissionOverrides,
       resolveDefaultPromptForTool,
       resolvePanelKeyForTool,
+      resolveSelectedCharacterIdForTool,
       resolveUserReferenceInputsForTool,
       resolveIsCharacterModeEnabledForTool,
       selectedTool,
+      selectedStyleContext,
       setModel,
       setUiError,
       setUiNotice,
@@ -616,6 +639,24 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
             : null;
         const resolvedRunCostCredits = options?.costOverrideCredits ?? resolvedModelOverrideCredits;
         const requiredCredits = resolvedRunCostCredits ?? currentCostCredits;
+        trackAiStudioGenerateClicked({
+          trigger: "regenerate",
+          tool,
+          mode,
+          modelId: effectiveSubmitModelId,
+          selectedModelId: model,
+          outputId: options?.outputIdOverride ?? activeOutputId ?? null,
+          projectIdPresent: Boolean(projectId),
+          isCharacterMode: isCharacterModeEnabledForTool,
+          selectedCharacterId: resolveSelectedCharacterIdForTool?.(tool) ?? null,
+          hasStyle: Boolean(
+            options?.styleContextOverride?.applied ?? selectedStyleContext?.applied
+          ),
+          styleId: options?.styleContextOverride?.styleId ?? selectedStyleContext?.styleId ?? null,
+          referenceCount: (
+            options?.referenceInputsOverride ?? resolveUserReferenceInputsForTool(tool)
+          ).length,
+        });
         let checkedFreshCredits = false;
 
         if (
@@ -811,6 +852,7 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
       mode,
       model,
       isCharacterModeEnabled,
+      projectId,
       resolveIsCharacterModeEnabledForTool,
       refreshCharacterModeInjectionBundleForSubmission,
       regenerateOutput,
@@ -820,7 +862,10 @@ export const useAiStudioGenerationController = <TBundle, TFallbackCode extends s
       resolveCharacterModeSubmissionOverrides,
       resolveDefaultPromptForTool,
       resolveCostCreditsForModel,
+      resolveSelectedCharacterIdForTool,
       resolveUserReferenceInputsForTool,
+      removeOptimisticGenerationPlaceholder,
+      selectedStyleContext,
       setModel,
       setUiError,
       setUiNotice,

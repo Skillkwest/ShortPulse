@@ -56,6 +56,10 @@ export const handleDefaultModelSubmission = async ({
   aspect,
   requestedResolution,
   falReferencePayload,
+  generationReplay,
+  characterContext,
+  styleContext,
+  shortpulseContext,
   startPollingWithGeneration,
 }: ImageSubmissionArgs): Promise<void> => {
   let response: FalSubmitResponse;
@@ -65,6 +69,12 @@ export const handleDefaultModelSubmission = async ({
     | "fal-nano-banana"
     | "fal-nano-banana-2"
     | "fal-nano-banana-pro";
+  const shortpulseSubmitPayload = {
+    ...(generationReplay ? { generation_replay: generationReplay } : {}),
+    ...(characterContext ? { character_context: characterContext } : {}),
+    ...(styleContext ? { style_context: styleContext } : {}),
+    ...(shortpulseContext ? { shortpulse_context: shortpulseContext } : {}),
+  };
 
   if (
     finalModel === "fal-ai/bytedance/seedream/v4.5/text-to-image" ||
@@ -83,6 +93,7 @@ export const handleDefaultModelSubmission = async ({
       ...(finalModel === "fal-ai/bytedance/seedream/v5/lite/text-to-image"
         ? {}
         : { output_format: "png" }),
+      ...shortpulseSubmitPayload,
     });
     pollingProvider =
       finalModel === "fal-ai/bytedance/seedream/v5/lite/text-to-image"
@@ -95,6 +106,7 @@ export const handleDefaultModelSubmission = async ({
       aspect_ratio: normalizeAspectForFalNanoBanana(aspect),
       output_format: "png",
       ...falReferencePayload,
+      ...shortpulseSubmitPayload,
     });
     pollingProvider = "fal-nano-banana";
   } else if (finalModel === "fal-ai/nano-banana-pro") {
@@ -105,6 +117,7 @@ export const handleDefaultModelSubmission = async ({
       output_format: "png",
       resolution: normalizeNanoBananaProResolution(requestedResolution, "1K"),
       ...falReferencePayload,
+      ...shortpulseSubmitPayload,
     });
     pollingProvider = "fal-nano-banana-pro";
   } else if (finalModel === "fal-ai/nano-banana-2") {
@@ -114,6 +127,7 @@ export const handleDefaultModelSubmission = async ({
       aspect_ratio: normalizeAspectForFalNanoBanana2(aspect),
       output_format: "png",
       resolution: normalizeNanoBanana2Resolution(requestedResolution, "1K"),
+      ...shortpulseSubmitPayload,
     });
     pollingProvider = "fal-nano-banana-2";
   } else {

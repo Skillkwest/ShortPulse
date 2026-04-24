@@ -19,6 +19,10 @@ export type FalSubmitRequest = {
   safety_tolerance?: string | number;
   output_format?: "jpeg" | "png";
   acceleration?: "none" | "regular" | "high";
+  generation_replay?: Record<string, unknown>;
+  character_context?: Record<string, unknown>;
+  style_context?: Record<string, unknown>;
+  shortpulse_context?: Record<string, unknown>;
 };
 
 export type KieSubmitRequest = {
@@ -39,6 +43,10 @@ export type KieSubmitRequest = {
   generate_audio?: boolean;
   cfg_scale?: number;
   negative_prompt?: string;
+  generation_replay?: Record<string, unknown>;
+  character_context?: Record<string, unknown>;
+  style_context?: Record<string, unknown>;
+  shortpulse_context?: Record<string, unknown>;
   [key: string]: unknown;
 };
 

@@ -24,6 +24,10 @@ export type BaseSubmissionArgs = {
   modelConfig: SubmissionModelConfig;
   notifyGenerationFailure: (outputId: string, message: string, detail?: string) => void;
   updateOutputById: (id: string, updater: (item: StudioOutput) => StudioOutput) => void;
+  generationReplay?: Record<string, unknown> | null;
+  characterContext?: StudioOutput["characterContext"];
+  styleContext?: StudioOutput["styleContext"];
+  shortpulseContext?: Record<string, unknown>;
   startPollingWithGeneration: (
     taskId: string | undefined,
     provider: Provider,

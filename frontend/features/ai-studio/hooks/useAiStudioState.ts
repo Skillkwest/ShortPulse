@@ -56,6 +56,7 @@ import {
  */
 export const useAiStudioState = ({
   projectId = null,
+  projectRouteRequested = false,
   sessionId = null,
   isCharacterModeEnabled = false,
   selectedStylePrompt = null,
@@ -67,6 +68,7 @@ export const useAiStudioState = ({
   setActivePulsePresetId,
 }: {
   projectId?: string | null;
+  projectRouteRequested?: boolean;
   sessionId?: string | null;
   isCharacterModeEnabled?: boolean;
   selectedStylePrompt?: string | null;
@@ -147,7 +149,9 @@ export const useAiStudioState = ({
     lastNonKling3VideoModelRef,
     lastNonKeyframesVideoModelRef,
     lastNonMotionVideoModelRef,
-  } = useAiStudioCreationState();
+  } = useAiStudioCreationState({
+    projectRouteRequested,
+  });
 
   const {
     activeOutputState,
@@ -224,6 +228,7 @@ export const useAiStudioState = ({
     useAiStudioOutputDerivations({ outputs, activeOutputById, detailOutputId, model });
   const { hasPendingWorkflowRestore } = useAiStudioWorkflowSettings({
     projectId,
+    projectRouteRequested,
     sessionId,
     selectedTool,
     mode,
@@ -365,7 +370,7 @@ export const useAiStudioState = ({
   });
 
   useEffect(() => {
-    if (projectId || canonicalGeneratedHydrationStartedRef.current) return;
+    if (projectRouteRequested || projectId || canonicalGeneratedHydrationStartedRef.current) return;
     canonicalGeneratedHydrationStartedRef.current = true;
     let cancelled = false;
 
@@ -380,7 +385,7 @@ export const useAiStudioState = ({
     return () => {
       cancelled = true;
     };
-  }, [projectId, setOutputsState]);
+  }, [projectId, projectRouteRequested, setOutputsState]);
 
   const {
     updateOutputById,
@@ -430,6 +435,7 @@ export const useAiStudioState = ({
       taskSubmissionConfig: {
         aspect,
         mode,
+        projectId,
         model,
         prompt,
         selectedTool,

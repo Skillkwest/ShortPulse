@@ -8,6 +8,7 @@ Purpose: define how runtime incidents are captured, triaged, and resolved.
 - API/server-side incidents can be written through `frontend/lib/server/api/appErrorLogs.ts`.
 - Operator review surface: `/admin` incident panels backed by `app_error_logs` (grouped) plus raw event stream from `app_error_events` (per occurrence) via `/api/admin/error-events`.
 - Fal transient status fallback telemetry is emitted as `telemetry.fal.status.transient.*` when status transient mode is enabled.
+- AI Studio generate-click telemetry is emitted as `telemetry.ai_studio.generate_clicked` whenever a signed-in user explicitly starts a generate/regenerate action in AI Studio.
 - Legacy media upload adapter usage is emitted as:
   - `telemetry.media.upload_adapter.upload_image_used`
   - `telemetry.media.upload_adapter.upload_video_used`
@@ -26,6 +27,32 @@ Purpose: define how runtime incidents are captured, triaged, and resolved.
 4. Operator retrieval:
    - `/api/admin/error-events` = raw stream + enrichment + alert summaries
    - `/api/admin/errors` = grouped incidents for triage lifecycle
+   - `/api/admin/stats/global` = admin stats workspace payload for overview/models/workflows/assets/projects
+
+## AI Studio usage analytics
+- Primary generate-click source: `telemetry.ai_studio.generate_clicked`
+- Primary accepted-run source: `ai_generations`
+- Primary workflow-context source: `generation_projection` (style/character/reference lineage)
+- Primary asset-behavior source: `media_events`
+- Primary project-attachment sources: `project_generation_items`, `project_media_items`, `project_prompt_items`
+- Operator read surface:
+  - `/admin/stats`
+  - `/api/admin/stats/global`
+- Current v1 usage contract:
+  - `overview` covers explicit generate clicks, accepted runs, success/fail mix, saved generations, and project-attached generations.
+  - `models` merges generate-click telemetry, accepted generation rows, and saved-generation counts on `model_id`.
+  - `workflows` uses generate-click telemetry for tool/mode intent and `generation_projection` for style-applied, character-mode, and reference-assisted generation context.
+  - `assets` uses `media_events` for save/upload/rename/move/delete/prompt-save behavior and `ai_generations.metadata.autosave_decision` for autosave rollups.
+  - `projects` uses `projects`, `project_generation_items`, `project_media_items`, and `project_prompt_items` for serious-work attachment metrics.
+- `telemetry.ai_studio.generate_clicked` metadata contract now includes:
+  - `selected_tool`
+  - `mode`
+  - `project_id_present`
+  - `is_character_mode`
+  - `selected_character_id`
+  - `has_style`
+  - `style_id`
+  - `reference_count`
 
 ## AI Studio Pulse runtime monitoring
 - Pulse does not emit a separate `telemetry.pulse.*` event family. Pulse runtime quality is monitored through the existing studio-agent route telemetry plus authoritative `pulseWorkflowSession` state.

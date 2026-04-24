@@ -12,7 +12,6 @@ import {
   EXPLICIT_CONTENT_FAILURE_DETAIL,
   EXPLICIT_CONTENT_FAILURE_MESSAGE,
 } from "../../explicitContentFailure";
-import { isLocalDevGenerationWorkerRequired } from "../generationControlPlane/localWorkerHeartbeat";
 import { normalizeExplicitContentFailure } from "../../explicitContentFailure";
 import { evaluateGenerationAdmissionDecision } from "./generationAdmission/generationAdmissionPolicy";
 import { evaluateScopedGenerationAdmission } from "./generationAdmission/generationAdmissionService";
@@ -166,6 +165,11 @@ const asProviderString = (value: unknown): string | null => {
   return trimmed.length ? trimmed : null;
 };
 
+const asJsonObject = (value: unknown): Record<string, unknown> =>
+  value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
+
 const resolveInlineSubmitTargets = ({
   submitTargets,
   submitUrl,
@@ -225,7 +229,18 @@ export const createFalSubmitHandler = ({
 
     const rawPayload =
       typeof req.body === "object" && req.body ? (req.body as Record<string, unknown>) : {};
-    let payload = rawPayload;
+    const {
+      generation_replay: rawGenerationReplay,
+      character_context: rawCharacterContext,
+      style_context: rawStyleContext,
+      shortpulse_context: rawShortpulseContext,
+      ...rawPayloadWithoutContext
+    } = rawPayload;
+    const generationReplayContext = asJsonObject(rawGenerationReplay);
+    const characterContext = asJsonObject(rawCharacterContext);
+    const styleContext = asJsonObject(rawStyleContext);
+    const shortpulseContext = asJsonObject(rawShortpulseContext);
+    let payload = rawPayloadWithoutContext;
     const runtimeFlags = readFalRuntimeFlags();
     const generationPrecheckEnabled =
       process.env.STUDIO_AGENT_SAFETY_INPUT_PRECHECK_GENERATION_SUBMIT_ENABLED === "true";
@@ -671,6 +686,16 @@ export const createFalSubmitHandler = ({
             upstream_target_url: submitResult.targetUrl,
             upstream_target_index: submitResult.targetIndex,
             provider_diagnostics: submitResult.providerDiagnostics ?? null,
+            ...(Object.keys(generationReplayContext).length > 0
+              ? { generation_replay: generationReplayContext }
+              : {}),
+            ...(Object.keys(characterContext).length > 0
+              ? { character_context: characterContext }
+              : {}),
+            ...(Object.keys(styleContext).length > 0 ? { style_context: styleContext } : {}),
+            ...(Object.keys(shortpulseContext).length > 0
+              ? { shortpulse_context: shortpulseContext }
+              : {}),
           };
           const transitionResult = await applyAcceptedRunningGenerationTransition({
             applyGenerationMutation: async () => {
@@ -718,6 +743,9 @@ export const createFalSubmitHandler = ({
                 submit_target_url: submitResult.targetUrl,
                 submit_target_index: submitResult.targetIndex,
                 provider_diagnostics: submitResult.providerDiagnostics ?? null,
+                ...(Object.keys(shortpulseContext).length > 0
+                  ? { shortpulse_context: shortpulseContext }
+                  : {}),
               },
               observedAt: dispatchAtIso,
             },
@@ -760,6 +788,9 @@ export const createFalSubmitHandler = ({
               publicationState: "pending",
               resultUrls: [],
               savedMediaIds: [],
+              generationReplay: generationReplayContext,
+              characterContext,
+              styleContext,
               startedAt: dispatchAtIso,
             });
           } catch (projectionError) {

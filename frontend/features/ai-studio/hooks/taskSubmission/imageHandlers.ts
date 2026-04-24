@@ -65,9 +65,20 @@ export const handleImageModelSubmission = async ({
   requestedResolution,
   preparedImageInputs,
   notifyGenerationFailure,
+  generationReplay,
+  characterContext,
+  styleContext,
+  shortpulseContext,
   startPollingWithGeneration,
   inpaintOverride,
 }: ImageSubmissionArgs): Promise<boolean> => {
+  const shortpulseSubmitPayload = {
+    ...(generationReplay ? { generation_replay: generationReplay } : {}),
+    ...(characterContext ? { character_context: characterContext } : {}),
+    ...(styleContext ? { style_context: styleContext } : {}),
+    ...(shortpulseContext ? { shortpulse_context: shortpulseContext } : {}),
+  };
+
   if (finalModel === "fal-ai/bria/background/remove") {
     const sourceImageUrl = preparedImageInputs[0]?.trim();
     if (!sourceImageUrl) {
@@ -76,6 +87,7 @@ export const handleImageModelSubmission = async ({
     }
     const response = await submitFalBriaBackgroundRemove({
       image_url: sourceImageUrl,
+      ...shortpulseSubmitPayload,
     });
     handoffSubmitResponse({
       response,
@@ -98,6 +110,7 @@ export const handleImageModelSubmission = async ({
       mask_url: preparedMaskImage,
       num_images: 1,
       output_format: inpaintOverride?.outputFormat ?? "png",
+      ...shortpulseSubmitPayload,
     });
     handoffSubmitResponse({
       response,
@@ -125,6 +138,7 @@ export const handleImageModelSubmission = async ({
       reference_image_url: preparedReferenceImage,
       num_images: 1,
       output_format: inpaintOverride?.outputFormat ?? "png",
+      ...shortpulseSubmitPayload,
     });
     handoffSubmitResponse({
       response,
@@ -145,6 +159,7 @@ export const handleImageModelSubmission = async ({
       aspect_ratio: falNanoBananaAllowedAspects.has(aspect) ? aspect : "auto",
       output_format: "png",
       image_urls: preparedImageInputs.slice(0, 8),
+      ...shortpulseSubmitPayload,
     });
     handoffSubmitResponse({
       response,
@@ -166,6 +181,7 @@ export const handleImageModelSubmission = async ({
       output_format: "png",
       resolution: normalizeNanoBananaProResolution(requestedResolution, "1K"),
       image_urls: preparedImageInputs.slice(0, 8),
+      ...shortpulseSubmitPayload,
     });
     handoffSubmitResponse({
       response,
@@ -187,6 +203,7 @@ export const handleImageModelSubmission = async ({
       output_format: "png",
       resolution: normalizeNanoBanana2Resolution(requestedResolution, "1K"),
       image_urls: preparedImageInputs.slice(0, 8),
+      ...shortpulseSubmitPayload,
     });
     handoffSubmitResponse({
       response,
@@ -208,6 +225,7 @@ export const handleImageModelSubmission = async ({
       num_images: 1,
       ...resolveImageSubmissionSafetyPayload(finalModel),
       image_urls: preparedImageInputs.slice(0, 10),
+      ...shortpulseSubmitPayload,
     });
     handoffSubmitResponse({
       response,
@@ -229,6 +247,7 @@ export const handleImageModelSubmission = async ({
       num_images: 1,
       ...resolveImageSubmissionSafetyPayload(finalModel),
       image_urls: preparedImageInputs.slice(0, 10),
+      ...shortpulseSubmitPayload,
     });
     handoffSubmitResponse({
       response,
@@ -247,6 +266,7 @@ export const handleImageModelSubmission = async ({
       output_format: "jpeg",
       num_inference_steps: 4,
       ...resolveImageSubmissionSafetyPayload(finalModel),
+      ...shortpulseSubmitPayload,
     });
     handoffSubmitResponse({
       response: falResp,

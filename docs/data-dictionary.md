@@ -279,6 +279,15 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
 - `completed_at` (timestamptz, nullable)
 - `metadata` (jsonb, default `{}`): Provider payload summary plus compact retrieval/recovery probe trace snapshots.
   - Historical rows may still contain compatibility fields such as `result_urls` and `media_file_ids` from the pre-canonical-output transition window.
+  - Admin stats v1 submit-context keys:
+    - `shortpulse_context.selected_tool`
+    - `shortpulse_context.mode`
+    - `shortpulse_context.project_id_present`
+    - `shortpulse_context.is_character_mode`
+    - `shortpulse_context.selected_character_id`
+    - `shortpulse_context.has_style`
+    - `shortpulse_context.style_id`
+    - `shortpulse_context.reference_count`
 - RLS: select/insert/update/delete allowed only when `user_id = auth.uid()`.
 - Constraints and indexes:
   - `ai_generations_recovery_state_check` enforces `recovery_state` enum values.
@@ -379,6 +388,20 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
   - Unique `(generation_id, output_index)` prevents duplicate canonical output rows for the same generation slot.
   - `(user_id, provider_request_id)` index supports request-level output lookups when needed.
 
+### generation_projection
+- `generation_id` (uuid, pk/fk): Parent `ai_generations` row with same-user parity.
+- `user_id` (uuid): Owner for RLS scoping.
+- `source_ref` (text, nullable): Submit/request correlation seam.
+- `character_context` (jsonb, default `{}`): Persisted character-mode lineage and applied-state context.
+- `style_context` (jsonb, default `{}`): Persisted style lineage and applied-state context.
+- `generation_replay` (jsonb, default `{}`): Replay/reference snapshot used for recovery and workflow-context analytics.
+- `publication_status` / `publication_id` / `published_at` (nullable): Publication tracking fields.
+- `created_at` / `updated_at` (timestamptz)
+- RLS: select/insert/update/delete allowed only when `user_id = auth.uid()`.
+- Notes:
+  - Admin stats v1 treats this as the primary workflow-context authority for style-applied, character-mode, and reference-assisted generation analytics.
+  - Accepted submit paths now pass additive `generation_replay`, `character_context`, and `style_context` snapshots through the provider submit proxy so direct accepted runs preserve workflow analytics context.
+
 ### media_events
 - `id` (uuid, pk, default `gen_random_uuid()`)
 - `user_id` (uuid, default `auth.uid()`): Owner for RLS scoping.
@@ -388,6 +411,9 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
 - `metadata` (jsonb, default `{}`): Event payload details.
 - `created_at` (timestamptz, default now)
 - RLS: select + insert allowed only when `user_id = auth.uid()`.
+- Notes:
+  - Admin stats v1 uses `media_events` as the asset-behavior authority for save/upload/rename/move/delete/prompt-save metrics.
+  - Some event families are emitted from client interaction hooks, so they are suitable for product/marketing insight but not strict audit-grade accounting.
 
 ### generation persistence idempotency
 - `media_files_generation_output_idx_unique`:
@@ -598,12 +624,14 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
 - RLS: select/insert/update/delete allowed only when `user_id = auth.uid()`.
 
 ### billing_plans
-- `id` (text, pk): free | media | studio | business.
+- `id` (text, pk): Stable plan identifier used across billing profiles, subscriber contracts, and the public catalog. Historically seeded with `free | media | studio | business`, but admin-created plans may add more ids.
 - `display_name` (text): UI-facing plan label.
 - `monthly_price_cents` (int): Current public baseline price in cents for the tier.
 - `monthly_credits_cents` (int): Current public baseline monthly credits for the tier.
 - `storage_limit_bytes` (bigint): Current public baseline media storage entitlement for the tier.
 - `stripe_price_id` (text, nullable): Legacy/current recurring Stripe price ID for the tier baseline. Subscriber-specific recurring prices should prefer `billing_plan_offers` / `billing_subscription_contracts`.
+- `stripe_product_id` (text, nullable): Stripe product id for the plan identity created from `/api/admin/pricing/plans/create`.
+- `sort_order` (int): UI ordering for billing catalog and admin pricing plan rendering.
 - `is_active` (boolean): Plan availability toggle.
 - `created_at` (timestamptz, default now)
 - RLS: select allowed for all users; writes are server/admin only.
@@ -836,6 +864,19 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
 - `metadata` (jsonb): sanitized structured context captured at event time.
 - `occurred_at` / `created_at` (timestamptz)
 - RLS: enabled with no client policies by default (service-role/server-only writes and reads).
+- Telemetry contract notes:
+  - `telemetry.ai_studio.generate_clicked` is the intent authority for admin stats v1.
+  - Current generate-click metadata keys used by `/admin/stats`:
+    - `selected_tool`
+    - `mode`
+    - `model_id`
+    - `selected_model_id`
+    - `project_id_present`
+    - `is_character_mode`
+    - `selected_character_id`
+    - `has_style`
+    - `style_id`
+    - `reference_count`
 
 ### storage.objects (Supabase bucket)
 - Bucket: `media_library` (private).

@@ -91,6 +91,7 @@ type EnsureGenerationRecordInput = {
 type UseAiStudioTaskSubmissionParams = {
   aspect: string;
   mode: StudioMode;
+  projectId?: string | null;
   model: string | null;
   prompt: string;
   selectedTool: ToolId | null;
@@ -143,6 +144,7 @@ type UseAiStudioTaskSubmissionParams = {
 export const useAiStudioTaskSubmission = ({
   aspect,
   mode,
+  projectId = null,
   model,
   prompt,
   selectedTool,
@@ -555,6 +557,16 @@ export const useAiStudioTaskSubmission = ({
             generationReplay,
           }));
         }
+        const shortpulseContext = {
+          selected_tool: effectiveTool,
+          mode: outputMode,
+          project_id_present: Boolean(projectId),
+          is_character_mode: Boolean(options?.characterContextOverride?.applied),
+          selected_character_id: options?.characterContextOverride?.characterId ?? null,
+          has_style: Boolean(options?.styleContextOverride?.applied),
+          style_id: options?.styleContextOverride?.styleId ?? null,
+          reference_count: preparedImageInputs.length,
+        };
         const pulseReferenceImageUrl =
           preparedImageInputs.length > 0 ? preparedImageInputs[0] : undefined;
         const falReferencePayload = pulseReferenceImageUrl
@@ -726,6 +738,10 @@ export const useAiStudioTaskSubmission = ({
               modelConfig,
               notifyGenerationFailure: notifyGenerationFailureForSubmit,
               updateOutputById,
+              generationReplay,
+              characterContext: options?.characterContextOverride,
+              styleContext: options?.styleContextOverride,
+              shortpulseContext,
               startPollingWithGeneration,
               videoReferenceMode,
               videoReferenceImageUrl,
@@ -758,6 +774,10 @@ export const useAiStudioTaskSubmission = ({
               modelConfig,
               notifyGenerationFailure: notifyGenerationFailureForSubmit,
               updateOutputById,
+              generationReplay,
+              characterContext: options?.characterContextOverride,
+              styleContext: options?.styleContextOverride,
+              shortpulseContext,
               startPollingWithGeneration,
               falReferencePayload,
               inpaintOverride: preparedInpaintOverride,
@@ -780,6 +800,10 @@ export const useAiStudioTaskSubmission = ({
               modelConfig,
               notifyGenerationFailure: notifyGenerationFailureForSubmit,
               updateOutputById,
+              generationReplay,
+              characterContext: options?.characterContextOverride,
+              styleContext: options?.styleContextOverride,
+              shortpulseContext,
               startPollingWithGeneration,
               falReferencePayload,
             });
@@ -849,6 +873,7 @@ export const useAiStudioTaskSubmission = ({
       getDefaultDurationSeconds,
       model,
       mode,
+      projectId,
       notifyGenerationFailure,
       prompt,
       seedance2InputMode,

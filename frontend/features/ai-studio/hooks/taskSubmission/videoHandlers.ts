@@ -488,6 +488,10 @@ export const handleVideoModelSubmission = async ({
   modelConfig,
   notifyGenerationFailure,
   updateOutputById,
+  generationReplay,
+  characterContext,
+  styleContext,
+  shortpulseContext,
   startPollingWithGeneration,
   videoReferenceMode,
   videoReferenceImageUrl,
@@ -504,6 +508,12 @@ export const handleVideoModelSubmission = async ({
   klingMultiPrompts,
   klingElements,
 }: VideoSubmissionArgs): Promise<boolean> => {
+  const shortpulseSubmitPayload = {
+    ...(generationReplay ? { generation_replay: generationReplay } : {}),
+    ...(characterContext ? { character_context: characterContext } : {}),
+    ...(styleContext ? { style_context: styleContext } : {}),
+    ...(shortpulseContext ? { shortpulse_context: shortpulseContext } : {}),
+  };
   const candidateMediaUrls = [
     ...preparedImageInputs,
     videoReferenceImageUrl ?? "",
@@ -548,6 +558,7 @@ export const handleVideoModelSubmission = async ({
       duration,
       resolution,
       generate_audio: requestedAudio,
+      ...shortpulseSubmitPayload,
     });
     handoffSubmitResponse({
       response,
@@ -595,6 +606,7 @@ export const handleVideoModelSubmission = async ({
       resolution: resolveSeedanceI2VResolution(requestedResolution),
       fixed_lens: videoCameraFixed,
       generate_audio: requestedAudio,
+      ...shortpulseSubmitPayload,
     });
     handoffSubmitResponse({
       response,
@@ -745,6 +757,7 @@ export const handleVideoModelSubmission = async ({
       generate_audio: requestedAudio,
       return_last_frame: seedance2ReturnLastFrame,
       web_search: seedance2WebSearch,
+      ...shortpulseSubmitPayload,
     });
     handoffSubmitResponse({
       response,
@@ -817,6 +830,7 @@ export const handleVideoModelSubmission = async ({
         generate_audio: requestedAudio,
         character_orientation: "image",
         background_source: "input_video",
+        ...shortpulseSubmitPayload,
       });
       handoffSubmitResponse({
         response,
@@ -881,6 +895,7 @@ export const handleVideoModelSubmission = async ({
       multi_shots: resolvedShotModePayload.multiShots,
       multi_prompt: resolvedShotModePayload.multiPrompt,
       kling_elements: elementsPayload,
+      ...shortpulseSubmitPayload,
     });
     handoffSubmitResponse({
       response,

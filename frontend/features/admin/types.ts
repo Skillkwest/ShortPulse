@@ -2,6 +2,7 @@
  * Shared types for admin dashboard data contracts.
  */
 import type { ModelPricingPolicySnapshot } from "../../lib/model-runtime/pricingPolicy";
+import type { AdminModelWorkflowType } from "../../lib/model-runtime/modelWorkflowType";
 
 export type AdminUserRow = {
   id: string;
@@ -257,6 +258,144 @@ export type AdminCreditLedgerRow = {
 
 export type AdminAccessVia = "role" | "allowlist" | "none";
 
+export type AdminStatsCountWindow = {
+  total: number;
+  last24h: number;
+  last7d: number;
+};
+
+export type AdminGlobalStatsOverview = {
+  generateClicks: AdminStatsCountWindow;
+  acceptedGenerations: AdminStatsCountWindow;
+  successfulGenerations: AdminStatsCountWindow;
+  failedGenerations: AdminStatsCountWindow;
+  savedGenerations: AdminStatsCountWindow;
+  projectAttachedGenerations: AdminStatsCountWindow;
+  pendingGenerations: number;
+  runningGenerations: number;
+  uniqueModels: number;
+  uniqueGenerationUsers: number;
+  uniqueClickUsers: number;
+  uniqueSavingUsers: number;
+  lastGenerateClickAt: string | null;
+  lastGenerationAt: string | null;
+  lastSavedGenerationAt: string | null;
+};
+
+export type AdminGlobalModelUsageRow = {
+  modelId: string;
+  generateClicks: AdminStatsCountWindow;
+  acceptedGenerations: AdminStatsCountWindow;
+  successfulGenerations: AdminStatsCountWindow;
+  failedGenerations: AdminStatsCountWindow;
+  savedGenerations: AdminStatsCountWindow;
+  pendingGenerations: number;
+  runningGenerations: number;
+  uniqueGenerationUsers: number;
+  uniqueClickUsers: number;
+  uniqueSavingUsers: number;
+  lastGenerateClickAt: string | null;
+  lastGenerationAt: string | null;
+  lastSavedGenerationAt: string | null;
+};
+
+export type AdminWorkflowToolUsageRow = {
+  toolKey: string;
+  generateClicks: AdminStatsCountWindow;
+  styleClicks: AdminStatsCountWindow;
+  characterModeClicks: AdminStatsCountWindow;
+  referenceAssistedClicks: AdminStatsCountWindow;
+  uniqueClickUsers: number;
+  lastGenerateClickAt: string | null;
+};
+
+export type AdminWorkflowModeUsageRow = {
+  modeKey: string;
+  generateClicks: AdminStatsCountWindow;
+  acceptedGenerations: AdminStatsCountWindow;
+  successfulGenerations: AdminStatsCountWindow;
+  failedGenerations: AdminStatsCountWindow;
+  styleAppliedGenerations: AdminStatsCountWindow;
+  characterModeGenerations: AdminStatsCountWindow;
+  referenceAssistedGenerations: AdminStatsCountWindow;
+  lastGenerationAt: string | null;
+};
+
+export type AdminWorkflowHighlights = {
+  styleAppliedGenerations: AdminStatsCountWindow;
+  characterModeGenerations: AdminStatsCountWindow;
+  referenceAssistedGenerations: AdminStatsCountWindow;
+  styleClicks: AdminStatsCountWindow;
+  characterModeClicks: AdminStatsCountWindow;
+  referenceAssistedClicks: AdminStatsCountWindow;
+};
+
+export type AdminGlobalStatsWorkflows = {
+  byTool: AdminWorkflowToolUsageRow[];
+  byMode: AdminWorkflowModeUsageRow[];
+  highlights: AdminWorkflowHighlights;
+};
+
+export type AdminAssetEventUsageRow = {
+  eventType: string;
+  count: AdminStatsCountWindow;
+  uniqueUsers: number;
+  lastEventAt: string | null;
+};
+
+export type AdminAssetAutosaveSummary = {
+  autoPersisted: AdminStatsCountWindow;
+  autosaveSkipped: AdminStatsCountWindow;
+};
+
+export type AdminGlobalStatsAssets = {
+  events: AdminAssetEventUsageRow[];
+  autosave: AdminAssetAutosaveSummary;
+};
+
+export type AdminProjectUsageSummary = {
+  projectsCreated: AdminStatsCountWindow;
+  activeProjectsWithGenerations: AdminStatsCountWindow;
+  attachedGenerations: AdminStatsCountWindow;
+  attachedMedia: AdminStatsCountWindow;
+  attachedPrompts: AdminStatsCountWindow;
+};
+
+export type AdminProjectLeaderboardRow = {
+  projectId: string;
+  title: string;
+  generationCount: AdminStatsCountWindow;
+  mediaCount: AdminStatsCountWindow;
+  promptCount: AdminStatsCountWindow;
+  updatedAt: string | null;
+  lastActivityAt: string | null;
+};
+
+export type AdminGlobalStatsProjects = {
+  summary: AdminProjectUsageSummary;
+  leaderboard: AdminProjectLeaderboardRow[];
+};
+
+export type AdminGlobalStatsHealth = {
+  degraded: boolean;
+  reason: string | null;
+  overviewSource: "rpc" | "legacy_fallback";
+  modelsSource: "rpc" | "legacy_fallback" | "unavailable";
+  workflowsSource: "rpc" | "unavailable";
+  assetsSource: "rpc" | "unavailable";
+  projectsSource: "rpc" | "unavailable";
+};
+
+export type AdminGlobalStatsResponse = {
+  overview: AdminGlobalStatsOverview;
+  models: AdminGlobalModelUsageRow[];
+  workflows: AdminGlobalStatsWorkflows;
+  assets: AdminGlobalStatsAssets;
+  projects: AdminGlobalStatsProjects;
+  health: AdminGlobalStatsHealth;
+  generatedAt: string | null;
+};
+
 export type AdminAccessResponse =
   | {
       ok: true;
@@ -287,12 +426,13 @@ export type AdminPricingModelRow = {
   id: string;
   label: string;
   provider: "fal" | "kie" | "openai" | "other";
-  mediaType: "image" | "video" | "image-to-video" | "multi" | "text";
+  workflowType: AdminModelWorkflowType;
   pricingStrategy: string;
+  pricingStrategyLabel: string;
   defaultAspect: string;
   defaultResolution: string | null;
   defaultDurationSeconds: number | null;
-  roundingMode: "nearest-5" | "ceil";
+  roundingIncrement: number;
   pricingPreview: AdminCreditPricingBreakdown | null;
 };
 
@@ -300,9 +440,12 @@ export type AdminPricingPlanRow = {
   planId: string;
   displayName: string;
   offerId: string;
+  sortOrder: number;
+  accountCount: number;
   recurringPriceCents: number;
   monthlyCreditsCents: number;
   storageLimitBytes: number;
+  stripeProductId: string | null;
   stripePriceId: string | null;
   acquisitionEnabled: boolean;
   isActive: boolean;

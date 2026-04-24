@@ -1,13 +1,12 @@
 /**
  * Route tests for POST /api/ai/extract-style.
- * Validates the direct-image structured lane and the temporary imageUrl compatibility lane.
+ * Validates the direct-image structured lane and its failure behavior.
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import extractStyleHandler from "../../pages/api/ai/extract-style";
 
 const requireApiUserMock = vi.fn();
 const logGenerationFailureMock = vi.fn();
-const dnsLookupMock = vi.fn();
 
 vi.mock("../../lib/server/api/auth", () => ({
   requireApiUser: (...args: unknown[]) => requireApiUserMock(...args),
@@ -15,13 +14,6 @@ vi.mock("../../lib/server/api/auth", () => ({
 
 vi.mock("../../lib/server/api/appErrorLogs", () => ({
   logGenerationFailure: (...args: unknown[]) => logGenerationFailureMock(...args),
-}));
-
-vi.mock("node:dns/promises", () => ({
-  lookup: (...args: unknown[]) => dnsLookupMock(...args),
-  default: {
-    lookup: (...args: unknown[]) => dnsLookupMock(...args),
-  },
 }));
 
 const createMockResponse = () => ({
@@ -35,15 +27,13 @@ describe("POST /api/ai/extract-style", () => {
     vi.clearAllMocks();
     process.env.OPENAI_API_KEY = "test-key";
     process.env.NEXT_PUBLIC_SUPABASE_URL = "https://demo.supabase.co";
-    process.env.OPENAI_DESCRIBE_ALLOWED_HOSTS = "example.com";
     delete process.env.OPENAI_VISION_MODEL;
     delete process.env.OPENAI_VISION_FALLBACK_MODEL;
     requireApiUserMock.mockResolvedValue({ id: "user-1", email: "user@example.com" });
-    dnsLookupMock.mockResolvedValue([{ address: "93.184.216.34", family: 4 }]);
     vi.stubGlobal("fetch", vi.fn());
   });
 
-  it("returns 400 when both imageDataUrl and imageUrl are missing", async () => {
+  it("returns 400 when imageDataUrl is missing", async () => {
     const req = {
       method: "POST",
       body: {},
@@ -59,7 +49,7 @@ describe("POST /api/ai/extract-style", () => {
         outcome_class: "route_error",
         reason_code: "REQUEST_INVALID",
         retryable: false,
-        error: "imageDataUrl or imageUrl is required",
+        error: "imageDataUrl is required",
       })
     );
   });
@@ -145,45 +135,30 @@ describe("POST /api/ai/extract-style", () => {
     );
   });
 
-  it("keeps the imageUrl compatibility lane working during migration", async () => {
+  it("classifies malformed structured output as a deterministic contract failure", async () => {
     const fetchMock = fetch as ReturnType<typeof vi.fn>;
-    fetchMock
-      .mockResolvedValueOnce({
-        ok: true,
+    fetchMock.mockResolvedValueOnce(
+      new Response(JSON.stringify({ output_text: "{}" }), {
         status: 200,
-        headers: new Headers({ "content-type": "image/png" }),
+        headers: { "Content-Type": "application/json" },
       })
-      .mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        json: async () => ({
-          choices: [
-            {
-              message: {
-                content:
-                  "STYLE TITLE\nNoir Bloom\n\nSTYLE ADD-ON\ncinematic editorial photography style, dramatic moody lighting, shallow depth of field",
-              },
-            },
-          ],
-          usage: { prompt_tokens: 7, completion_tokens: 9 },
-        }),
-      });
+    );
 
     const req = {
       method: "POST",
-      body: { imageUrl: "https://example.com/image.png" },
+      body: { imageDataUrl: "data:image/jpeg;base64,abc123" },
     };
     const res = createMockResponse();
 
     await extractStyleHandler(req as never, res as never);
 
-    expect(fetchMock).toHaveBeenCalledTimes(2);
-    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.status).toHaveBeenCalledWith(502);
     expect(res.json).toHaveBeenCalledWith(
       expect.objectContaining({
-        styleTitle: "Noir Bloom",
-        stylePrompt:
-          "Photographic, cinematic editorial photography style, dramatic moody lighting, shallow depth of field",
+        decision: "error",
+        outcome_class: "upstream_error",
+        reason_code: "UPSTREAM_OUTPUT_CONTRACT",
+        retryable: false,
       })
     );
   });

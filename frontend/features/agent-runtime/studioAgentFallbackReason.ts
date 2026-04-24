@@ -19,6 +19,7 @@ export const resolveStudioAgentFallbackReasonLabel = ({
   const normalizedDetail = typeof detail === "string" ? detail.trim().toLowerCase() : "";
   if (normalizedDetail.includes("responses unavailable")) return "responses_unavailable";
   if (normalizedDetail.includes("parse/repair failed")) return "parse_repair_failed";
+  if (normalizedDetail.includes("contract violation")) return "output_contract";
   if (
     (normalizedDetail.includes("parse") && normalizedDetail.includes("json")) ||
     normalizedDetail.includes("json at position") ||

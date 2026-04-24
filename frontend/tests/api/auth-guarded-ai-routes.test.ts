@@ -38,7 +38,7 @@ describe("API auth guards: AI routes", () => {
   it("rejects unauthenticated extract-style requests", async () => {
     const req = {
       method: "POST",
-      body: { imageUrl: "https://example.com/image.png" },
+      body: { imageDataUrl: "data:image/jpeg;base64,abc123" },
     };
     const res = createMockResponse();
 

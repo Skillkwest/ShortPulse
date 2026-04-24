@@ -63,6 +63,11 @@ type StyleExtractionPayload = {
   sourceImageUrl: string;
 };
 
+type TrackedStyleExtractionParams = {
+  flow: "create_modal" | "library_drop";
+  sourceImageUrl: string;
+};
+
 const toPersistableStyleDetails = (
   details: StylesLibraryStyleDetails
 ): StylesLibraryStyleDetails => ({
@@ -367,17 +372,14 @@ export const useStyleCreatorController = ({
     []
   );
 
-  const extractStyleForCreateDraft = React.useCallback(
-    async (sourceImageUrl: string) => {
-      const requestId = ++stylePromptExtractionRequestIdRef.current;
-      setStylePromptExtractionSubmitting(true);
-      setStylePromptExtractionError(null);
-
+  const runTrackedStyleExtraction = React.useCallback(
+    async ({
+      flow,
+      sourceImageUrl,
+    }: TrackedStyleExtractionParams): Promise<StyleExtractionRuntimeResult> => {
       const result = await runStyleExtraction({ sourceImageUrl });
-      if (stylePromptExtractionRequestIdRef.current !== requestId) return;
-
       if (result.outcome === "success" && result.stylePrompt && result.styleTitle) {
-        trackStyleExtractionOutcome("success", "create_modal", {
+        trackStyleExtractionOutcome("success", flow, {
           stage: "extract",
           sourceUrlKind: result.sourceUrlKind,
           attemptCount: result.attemptCount ?? null,
@@ -386,6 +388,38 @@ export const useStyleCreatorController = ({
           totalMs: result.totalMs ?? null,
           modelUsed: result.modelUsed ?? null,
         });
+        return result;
+      }
+
+      trackStyleExtractionOutcome(result.outcome, flow, {
+        stage: "extract",
+        sourceUrlKind: result.sourceUrlKind,
+        failureClass: resolveTelemetryFailureClass(result),
+        errorMessage: result.errorMessage,
+        attemptCount: result.attemptCount ?? null,
+        probeMs: result.probeMs ?? null,
+        openAiMs: result.openAiMs ?? null,
+        totalMs: result.totalMs ?? null,
+        modelUsed: result.modelUsed ?? null,
+      });
+      return result;
+    },
+    [runStyleExtraction]
+  );
+
+  const extractStyleForCreateDraft = React.useCallback(
+    async (sourceImageUrl: string) => {
+      const requestId = ++stylePromptExtractionRequestIdRef.current;
+      setStylePromptExtractionSubmitting(true);
+      setStylePromptExtractionError(null);
+
+      const result = await runTrackedStyleExtraction({
+        flow: "create_modal",
+        sourceImageUrl,
+      });
+      if (stylePromptExtractionRequestIdRef.current !== requestId) return;
+
+      if (result.outcome === "success" && result.stylePrompt && result.styleTitle) {
         applyExtractedStyleToCreateDraft({
           stylePrompt: result.stylePrompt,
           styleTitle: result.styleTitle,
@@ -394,17 +428,6 @@ export const useStyleCreatorController = ({
           sourceUrlKind: result.sourceUrlKind,
         });
       } else {
-        trackStyleExtractionOutcome(result.outcome, "create_modal", {
-          stage: "extract",
-          sourceUrlKind: result.sourceUrlKind,
-          failureClass: resolveTelemetryFailureClass(result),
-          errorMessage: result.errorMessage,
-          attemptCount: result.attemptCount ?? null,
-          probeMs: result.probeMs ?? null,
-          openAiMs: result.openAiMs ?? null,
-          totalMs: result.totalMs ?? null,
-          modelUsed: result.modelUsed ?? null,
-        });
         setStylePromptExtractionError(normalizeResultErrorMessage(result.errorMessage));
       }
 
@@ -412,7 +435,7 @@ export const useStyleCreatorController = ({
         setStylePromptExtractionSubmitting(false);
       }
     },
-    [applyExtractedStyleToCreateDraft, runStyleExtraction]
+    [applyExtractedStyleToCreateDraft, runTrackedStyleExtraction]
   );
 
   const applyStylePreviewFromTransfer = React.useCallback(
@@ -555,7 +578,8 @@ export const useStyleCreatorController = ({
         let extractionOutcome: StyleExtractionOutcome = "fallback";
         let extractionSourceUrlKind: "data" | "url" | "unknown" = "unknown";
 
-        const extractionResult = await runStyleExtraction({
+        const extractionResult = await runTrackedStyleExtraction({
+          flow: "library_drop",
           sourceImageUrl: resolvedSource.extractionSourceImageUrl,
         });
 
@@ -569,27 +593,7 @@ export const useStyleCreatorController = ({
         ) {
           extractedStylePrompt = clampStylePromptCharacters(extractionResult.stylePrompt);
           extractedStyleTitle = extractionResult.styleTitle;
-          trackStyleExtractionOutcome("success", "library_drop", {
-            stage: "extract",
-            sourceUrlKind: extractionSourceUrlKind,
-            attemptCount: extractionResult.attemptCount ?? null,
-            probeMs: extractionResult.probeMs ?? null,
-            openAiMs: extractionResult.openAiMs ?? null,
-            totalMs: extractionResult.totalMs ?? null,
-            modelUsed: extractionResult.modelUsed ?? null,
-          });
         } else {
-          trackStyleExtractionOutcome(extractionResult.outcome, "library_drop", {
-            stage: "extract",
-            sourceUrlKind: extractionSourceUrlKind,
-            failureClass: resolveTelemetryFailureClass(extractionResult),
-            errorMessage: extractionResult.errorMessage,
-            attemptCount: extractionResult.attemptCount ?? null,
-            probeMs: extractionResult.probeMs ?? null,
-            openAiMs: extractionResult.openAiMs ?? null,
-            totalMs: extractionResult.totalMs ?? null,
-            modelUsed: extractionResult.modelUsed ?? null,
-          });
           const detail =
             extractionResult.errorMessage?.trim() ||
             "Style extraction could not run from that source.";
@@ -692,7 +696,7 @@ export const useStyleCreatorController = ({
       createStyleFromDropSubmitting,
       onSaveStyleDetails,
       resolveInternalStyleDrop,
-      runStyleExtraction,
+      runTrackedStyleExtraction,
       styles,
     ]
   );

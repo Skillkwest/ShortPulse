@@ -15,13 +15,10 @@ import {
 import { emitAgentRouteOutcomeTelemetry } from "./agentRouteTelemetry";
 import { enforceLeadingHardStyleClass } from "./styleExtractionPromptPolicy";
 import {
-  extractImageDescriptionText,
-  requestOpenAiImageDescribeWithRetry,
   requestOpenAiStructuredStyleExtractionWithRetry,
   resolveImageDescribeUpstreamFailureSource,
   shouldRetryWithFallbackVisionModel,
 } from "../../lib/server/api/imageDescribeOpenAi";
-import { probeImageUrlForDescribe } from "../../lib/server/api/imageDescribeUrlGuard";
 import { STUDIO_AGENT_INFRA_FALLBACK_MESSAGE } from "./studioAgentFailurePolicy";
 import { STUDIO_AGENT_SAFETY_REFUSAL_MESSAGE } from "./studioAgentRouteOutcomes";
 import { buildAgentMachineOutcome, resolveUpstreamReasonCode } from "./agentMachineOutcome";
@@ -144,57 +141,6 @@ const buildFallbackStyleTitle = (stylePrompt: string | null): string => {
   return titled ?? DEFAULT_STYLE_TITLE_FALLBACK;
 };
 
-const parseStyleExtractionText = (
-  extractedText: string
-): { stylePrompt: string | null; styleTitle: string } => {
-  const lines = extractedText
-    .replace(/\r\n?/g, "\n")
-    .split("\n")
-    .map((line) => line.trim())
-    .filter((line) => line.length > 0);
-
-  let mode: "title" | "prompt" | null = null;
-  const titleLines: string[] = [];
-  const promptLines: string[] = [];
-
-  lines.forEach((line) => {
-    const normalized = line.trim();
-    const styleTitleMatch = normalized.match(/^STYLE\s*TITLE\s*:?\s*(.*)$/i);
-    if (styleTitleMatch) {
-      mode = "title";
-      const inline = styleTitleMatch[1]?.trim();
-      if (inline) titleLines.push(inline);
-      return;
-    }
-    const stylePromptMatch = normalized.match(/^STYLE\s*ADD-ON\s*:?\s*(.*)$/i);
-    if (stylePromptMatch) {
-      mode = "prompt";
-      const inline = stylePromptMatch[1]?.trim();
-      if (inline) promptLines.push(inline);
-      return;
-    }
-    if (mode === "title") {
-      titleLines.push(normalized);
-      return;
-    }
-    if (mode === "prompt") {
-      promptLines.push(normalized);
-      return;
-    }
-    promptLines.push(normalized);
-  });
-
-  const promptSourceText =
-    promptLines.length > 0 ? promptLines.join(", ") : extractedText.replace(/\r\n?/g, "\n");
-  const stylePrompt = normalizeExtractedStylePrompt(promptSourceText);
-  const extractedTitleCandidate =
-    normalizeExtractedStyleTitle(titleLines.join(" ")) ??
-    normalizeExtractedStyleTitle(extractedText);
-  const styleTitle = extractedTitleCandidate ?? buildFallbackStyleTitle(stylePrompt);
-
-  return { stylePrompt, styleTitle };
-};
-
 const isRefusalOrFallbackText = (value: string): boolean => {
   const normalized = value.trim();
   return (
@@ -262,23 +208,6 @@ const normalizeUsage = (
   };
 };
 
-const normalizeLegacyChatUsage = (
-  data: Record<string, unknown>
-): {
-  inputTokens?: number;
-  outputTokens?: number;
-} => {
-  const usage =
-    data.usage && typeof data.usage === "object" && !Array.isArray(data.usage)
-      ? (data.usage as Record<string, unknown>)
-      : null;
-  return normalizeUsage({
-    inputTokens: typeof usage?.prompt_tokens === "number" ? usage.prompt_tokens : undefined,
-    outputTokens:
-      typeof usage?.completion_tokens === "number" ? usage.completion_tokens : undefined,
-  });
-};
-
 const isImageDataUrl = (value: string): boolean => {
   const normalized = value.trim();
   return /^data:image\/[a-z0-9.+-]+;base64,/i.test(normalized);
@@ -287,14 +216,12 @@ const isImageDataUrl = (value: string): boolean => {
 export const executeLegacyStyleExtraction = async ({
   req,
   user,
-  imageUrl,
   imageDataUrl,
   routeLabel = "ai/extract-style",
 }: {
   req: NextApiRequest;
   user: AuthenticatedApiUser;
-  imageUrl: unknown;
-  imageDataUrl?: unknown;
+  imageDataUrl: unknown;
   routeLabel?: string;
 }): Promise<LegacyStyleExtractionResult> => {
   const apiKey = process.env.OPENAI_API_KEY;
@@ -401,15 +328,13 @@ export const executeLegacyStyleExtraction = async ({
 
   const normalizedImageDataUrl =
     typeof imageDataUrl === "string" && imageDataUrl.trim() ? imageDataUrl.trim() : null;
-  const normalizedImageUrl =
-    typeof imageUrl === "string" && imageUrl.trim() ? imageUrl.trim() : null;
 
-  if (!normalizedImageDataUrl && !normalizedImageUrl) {
+  if (!normalizedImageDataUrl) {
     await logGenerationFailure({
       req,
       routeLabel,
       source: "api.style_extraction.validation_failed",
-      message: "imageDataUrl or imageUrl is required",
+      message: "imageDataUrl is required",
       statusCode: 400,
       userId: user.id,
       userEmail: user.email ?? null,
@@ -427,7 +352,7 @@ export const executeLegacyStyleExtraction = async ({
       status: 400,
       payload: {
         ...machineOutcome,
-        error: "imageDataUrl or imageUrl is required",
+        error: "imageDataUrl is required",
       },
     };
   }
@@ -462,7 +387,6 @@ export const executeLegacyStyleExtraction = async ({
 
   try {
     const extractionStartedAt = Date.now();
-    let probeMs: number | null = null;
     let openAiMs = 0;
     let parseMs: number | null = null;
     let attemptCount = 0;
@@ -474,76 +398,13 @@ export const executeLegacyStyleExtraction = async ({
     ).trim();
 
     const attemptedModels: string[] = [primaryVisionModel];
-    const usesDirectImageData = Boolean(normalizedImageDataUrl);
 
-    if (!usesDirectImageData && normalizedImageUrl) {
-      const probeStartedAt = Date.now();
-      const imageProbe = await probeImageUrlForDescribe(normalizedImageUrl);
-      probeMs = normalizeDuration(Date.now() - probeStartedAt);
-      if (!imageProbe.ok) {
-        await logGenerationFailure({
-          req,
-          routeLabel,
-          source: "api.style_extraction.validation_failed",
-          message: imageProbe.message,
-          statusCode: imageProbe.statusCode,
-          userId: user.id,
-          userEmail: user.email ?? null,
-          metadata: {
-            detail: imageProbe.detail,
-            probe_ms: probeMs,
-            total_ms: normalizeDuration(Date.now() - extractionStartedAt),
-          },
-        });
-        const machineOutcome = buildAgentMachineOutcome({
-          outcomeClass: "route_error",
-          reasonCode: "REQUEST_INVALID",
-        });
-        const fallbackReason = resolveStudioAgentFallbackReasonLabel({
-          status: imageProbe.statusCode,
-          detail: imageProbe.detail ?? imageProbe.message,
-        });
-        emitStyleRouteTelemetry({
-          statusCode: imageProbe.statusCode,
-          machineOutcome,
-          fallbackReason,
-        });
-        return {
-          ok: false,
-          status: imageProbe.statusCode,
-          payload: {
-            ...machineOutcome,
-            error: imageProbe.message,
-            detail: imageProbe.detail,
-            fallback_reason: fallbackReason,
-          },
-          diagnostics: {
-            attemptCount: null,
-            probeMs,
-            openAiMs: null,
-            parseMs: null,
-            totalMs: normalizeDuration(Date.now() - extractionStartedAt),
-            modelUsed: null,
-          },
-        };
-      }
-    }
-
-    let extractionAttempt = usesDirectImageData
-      ? await requestOpenAiStructuredStyleExtractionWithRetry({
-          apiKey,
-          model: primaryVisionModel,
-          systemPrompt,
-          imageDataUrl: normalizedImageDataUrl!,
-        })
-      : await requestOpenAiImageDescribeWithRetry({
-          apiKey,
-          model: primaryVisionModel,
-          systemPrompt,
-          imageUrl: normalizedImageUrl!,
-          userText:
-            "Extract reusable visual style descriptors and return a creative style title with the style add-on block.",
-        });
+    let extractionAttempt = await requestOpenAiStructuredStyleExtractionWithRetry({
+      apiKey,
+      model: primaryVisionModel,
+      systemPrompt,
+      imageDataUrl: normalizedImageDataUrl,
+    });
     openAiMs += extractionAttempt.elapsedMs;
     attemptCount += extractionAttempt.attemptCount;
     modelUsed = extractionAttempt.model;
@@ -558,21 +419,12 @@ export const executeLegacyStyleExtraction = async ({
       })
     ) {
       attemptedModels.push(fallbackVisionModel);
-      extractionAttempt = usesDirectImageData
-        ? await requestOpenAiStructuredStyleExtractionWithRetry({
-            apiKey,
-            model: fallbackVisionModel,
-            systemPrompt,
-            imageDataUrl: normalizedImageDataUrl!,
-          })
-        : await requestOpenAiImageDescribeWithRetry({
-            apiKey,
-            model: fallbackVisionModel,
-            systemPrompt,
-            imageUrl: normalizedImageUrl!,
-            userText:
-              "Extract reusable visual style descriptors and return a creative style title with the style add-on block.",
-          });
+      extractionAttempt = await requestOpenAiStructuredStyleExtractionWithRetry({
+        apiKey,
+        model: fallbackVisionModel,
+        systemPrompt,
+        imageDataUrl: normalizedImageDataUrl,
+      });
       openAiMs += extractionAttempt.elapsedMs;
       attemptCount += extractionAttempt.attemptCount;
       modelUsed = extractionAttempt.model;
@@ -599,7 +451,6 @@ export const executeLegacyStyleExtraction = async ({
           attempted_models: attemptedModels,
           failure_class: "upstream_http",
           attempt_count: attemptCount,
-          probe_ms: probeMs,
           openai_ms: normalizeDuration(openAiMs),
           total_ms: normalizeDuration(Date.now() - extractionStartedAt),
         },
@@ -627,7 +478,7 @@ export const executeLegacyStyleExtraction = async ({
         },
         diagnostics: {
           attemptCount,
-          probeMs,
+          probeMs: null,
           openAiMs: normalizeDuration(openAiMs),
           parseMs: null,
           totalMs: normalizeDuration(Date.now() - extractionStartedAt),
@@ -637,25 +488,13 @@ export const executeLegacyStyleExtraction = async ({
     }
 
     const parseStartedAt = Date.now();
-    const data = extractionAttempt.data;
-    const structuredData = usesDirectImageData
-      ? (extractionAttempt.data as { stylePrompt: string; styleTitle: string })
-      : null;
-    const parsedExtraction = usesDirectImageData
-      ? {
-          stylePrompt: normalizeExtractedStylePrompt(structuredData?.stylePrompt ?? ""),
-          styleTitle:
-            normalizeExtractedStyleTitle(structuredData?.styleTitle ?? "") ??
-            buildFallbackStyleTitle(
-              normalizeExtractedStylePrompt(structuredData?.stylePrompt ?? "")
-            ),
-        }
-      : (() => {
-          const extractedText = extractImageDescriptionText(data);
-          return extractedText
-            ? parseStyleExtractionText(extractedText)
-            : { stylePrompt: null, styleTitle: DEFAULT_STYLE_TITLE_FALLBACK };
-        })();
+    const structuredData = extractionAttempt.data as { stylePrompt: string; styleTitle: string };
+    const parsedExtraction = {
+      stylePrompt: normalizeExtractedStylePrompt(structuredData.stylePrompt),
+      styleTitle:
+        normalizeExtractedStyleTitle(structuredData.styleTitle) ??
+        buildFallbackStyleTitle(normalizeExtractedStylePrompt(structuredData.stylePrompt)),
+    };
     parseMs = normalizeDuration(Date.now() - parseStartedAt);
     const stylePrompt = parsedExtraction.stylePrompt;
     const styleTitle = parsedExtraction.styleTitle;
@@ -672,7 +511,6 @@ export const executeLegacyStyleExtraction = async ({
         metadata: {
           failure_class: "empty_response",
           attempt_count: attemptCount,
-          probe_ms: probeMs,
           openai_ms: normalizeDuration(openAiMs),
           parse_ms: parseMs,
           total_ms: normalizeDuration(Date.now() - extractionStartedAt),
@@ -704,7 +542,7 @@ export const executeLegacyStyleExtraction = async ({
         },
         diagnostics: {
           attemptCount,
-          probeMs,
+          probeMs: null,
           openAiMs: normalizeDuration(openAiMs),
           parseMs,
           totalMs: normalizeDuration(Date.now() - extractionStartedAt),
@@ -727,22 +565,20 @@ export const executeLegacyStyleExtraction = async ({
         ...successOutcome,
         stylePrompt,
         styleTitle,
-        usage: usesDirectImageData
-          ? normalizeUsage(
-              (
-                extractionAttempt as {
-                  usage?: {
-                    inputTokens?: number;
-                    outputTokens?: number;
-                  };
-                }
-              ).usage
-            )
-          : normalizeLegacyChatUsage(data as Record<string, unknown>),
+        usage: normalizeUsage(
+          (
+            extractionAttempt as {
+              usage?: {
+                inputTokens?: number;
+                outputTokens?: number;
+              };
+            }
+          ).usage
+        ),
       },
       diagnostics: {
         attemptCount,
-        probeMs,
+        probeMs: null,
         openAiMs: normalizeDuration(openAiMs),
         parseMs,
         totalMs: normalizeDuration(Date.now() - extractionStartedAt),

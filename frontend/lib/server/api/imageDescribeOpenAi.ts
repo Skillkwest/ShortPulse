@@ -1,8 +1,8 @@
 /**
  * OpenAI request helpers for describe-image.
- * Encapsulates retries, fallback decisions, and response text extraction.
+ * Encapsulates retries, fallback decisions, and structured style extraction.
  */
-import { fetchOpenAiCompatibleChatCompletion, fetchOpenAiResponse } from "./openAiCompat";
+import { fetchOpenAiResponse } from "./openAiCompat";
 
 const OPENAI_TIMEOUT_MS = 25000;
 const OPENAI_UPSTREAM_MAX_ATTEMPTS = 2;
@@ -13,23 +13,6 @@ const NON_RETRYABLE_OPENAI_DETAIL_PATTERNS: RegExp[] = [
   /\bparse\/repair\s+failed\b/i,
   /\bcontract\s+violation\b/i,
 ];
-
-export type OpenAiDescribeAttemptResult =
-  | {
-      ok: true;
-      data: Record<string, unknown>;
-      model: string;
-      attemptCount: number;
-      elapsedMs: number;
-    }
-  | {
-      ok: false;
-      status: number;
-      detail: string;
-      model: string;
-      attemptCount: number;
-      elapsedMs: number;
-    };
 
 export type OpenAiStructuredStyleAttemptResult =
   | {
@@ -234,74 +217,7 @@ const extractStructuredStyleData = (
   };
 };
 
-const requestOpenAiImageDescribe = async ({
-  apiKey,
-  model,
-  systemPrompt,
-  imageUrl,
-  userText = "Describe the image exactly as you see it.",
-}: {
-  apiKey: string;
-  model: string;
-  systemPrompt: string;
-  imageUrl: string;
-  userText?: string;
-}): Promise<OpenAiDescribeAttemptResult> => {
-  const startedAt = Date.now();
-  try {
-    const response = await fetchOpenAiCompatibleChatCompletion({
-      apiKey,
-      model,
-      openAiApiBase: process.env.OPENAI_API_BASE,
-      timeoutMs: OPENAI_TIMEOUT_MS,
-      messages: [
-        { role: "system", content: systemPrompt },
-        {
-          role: "user",
-          content: [
-            { type: "text", text: userText },
-            { type: "image_url", image_url: { url: imageUrl, detail: "high" } },
-          ],
-        },
-      ],
-    });
-
-    if (!response.ok) {
-      const detail = extractUpstreamDetail(await response.text());
-      return {
-        ok: false,
-        status: response.status,
-        detail,
-        model,
-        attemptCount: 1,
-        elapsedMs: Date.now() - startedAt,
-      };
-    }
-
-    const parsed = toRecord(await response.json());
-    return {
-      ok: true,
-      data: parsed,
-      model,
-      attemptCount: 1,
-      elapsedMs: Date.now() - startedAt,
-    };
-  } catch (error) {
-    const detail = error instanceof Error ? `${error.name}: ${error.message}` : String(error);
-    return {
-      ok: false,
-      status: 500,
-      detail: trimDetail(detail),
-      model,
-      attemptCount: 1,
-      elapsedMs: Date.now() - startedAt,
-    };
-  }
-};
-
-const isTransientOpenAiFailure = (
-  attempt: OpenAiDescribeAttemptResult | OpenAiStructuredStyleAttemptResult
-): boolean => {
+const isTransientOpenAiFailure = (attempt: OpenAiStructuredStyleAttemptResult): boolean => {
   if (attempt.ok) return false;
   if (NON_RETRYABLE_OPENAI_DETAIL_PATTERNS.some((pattern) => pattern.test(attempt.detail))) {
     return false;
@@ -323,39 +239,6 @@ const sleep = async (ms: number): Promise<void> =>
   await new Promise((resolve) => {
     setTimeout(resolve, ms);
   });
-
-export const requestOpenAiImageDescribeWithRetry = async (params: {
-  apiKey: string;
-  model: string;
-  systemPrompt: string;
-  imageUrl: string;
-  userText?: string;
-}): Promise<OpenAiDescribeAttemptResult> => {
-  const startedAt = Date.now();
-  let attempt = await requestOpenAiImageDescribe(params);
-  let attemptCount = 1;
-  for (
-    let retry = 1;
-    retry < OPENAI_UPSTREAM_MAX_ATTEMPTS && isTransientOpenAiFailure(attempt);
-    retry += 1
-  ) {
-    await sleep(OPENAI_UPSTREAM_RETRY_DELAY_MS * retry);
-    attempt = await requestOpenAiImageDescribe(params);
-    attemptCount += 1;
-  }
-  if (attempt.ok) {
-    return {
-      ...attempt,
-      attemptCount,
-      elapsedMs: Date.now() - startedAt,
-    };
-  }
-  return {
-    ...attempt,
-    attemptCount,
-    elapsedMs: Date.now() - startedAt,
-  };
-};
 
 const requestOpenAiStructuredStyleExtraction = async ({
   apiKey,
@@ -423,7 +306,7 @@ const requestOpenAiStructuredStyleExtraction = async ({
       return {
         ok: false,
         status: 502,
-        detail: "Structured style extraction returned invalid JSON.",
+        detail: "contract violation: structured style extraction returned invalid JSON.",
         model,
         attemptCount: 1,
         elapsedMs: Date.now() - startedAt,
@@ -436,7 +319,7 @@ const requestOpenAiStructuredStyleExtraction = async ({
       return {
         ok: false,
         status: 502,
-        detail: extracted.detail,
+        detail: `contract violation: ${extracted.detail}`,
         usage,
         model,
         attemptCount: 1,
@@ -524,23 +407,4 @@ export const resolveImageDescribeUpstreamFailureSource = (status: number): strin
   if (status === 429) return "api.image_describe.rate_limited";
   if (status >= 500) return "api.image_describe.upstream_unavailable";
   return "api.image_describe.upstream_error";
-};
-
-export const extractImageDescriptionText = (payload: Record<string, unknown>): string | null => {
-  const choices = Array.isArray(payload.choices) ? payload.choices : [];
-  const firstChoice = toRecord(choices[0]);
-  const message = toRecord(firstChoice.message);
-  const content = message.content;
-  if (typeof content === "string") {
-    const trimmed = content.trim();
-    return trimmed.length ? trimmed : null;
-  }
-  if (!Array.isArray(content)) return null;
-  const joined = content
-    .map((entry) => toRecord(entry))
-    .map((entry) => (typeof entry.text === "string" ? entry.text.trim() : ""))
-    .filter((entry) => entry.length > 0)
-    .join(" ")
-    .trim();
-  return joined.length ? joined : null;
 };

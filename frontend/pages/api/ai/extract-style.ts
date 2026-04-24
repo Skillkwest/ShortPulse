@@ -57,7 +57,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const result = await executeLegacyStyleExtraction({
     req,
     user,
-    imageUrl: (req.body as { imageUrl?: unknown })?.imageUrl,
     imageDataUrl: (req.body as { imageDataUrl?: unknown })?.imageDataUrl,
     routeLabel,
   });

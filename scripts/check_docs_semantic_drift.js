@@ -120,6 +120,22 @@ function parseStringArrayExport(filePath, exportName) {
   return values;
 }
 
+function parseStringSetExport(filePath, exportName) {
+  const text = readText(filePath);
+  const setMatch = text.match(
+    new RegExp(`export const ${exportName}\\s*=\\s*new Set\\(\\[([\\s\\S]*?)\\]\\);`, "m")
+  );
+  if (!setMatch) return [];
+  const values = [];
+  const pattern = /"([^"]+)"/g;
+  let match = pattern.exec(setMatch[1]);
+  while (match) {
+    values.push(match[1]);
+    match = pattern.exec(setMatch[1]);
+  }
+  return values;
+}
+
 function parsePageProtectedPrefixes() {
   return parseStringArrayExport(PAGE_AUTH_GUARD_PATH, "PROTECTED_ROUTES");
 }
@@ -128,8 +144,12 @@ function parseApiProtectedPrefixes() {
   return parseStringArrayExport(API_AUTH_GUARD_PATH, "PROTECTED_API_PREFIXES");
 }
 
-function isProtectedByPrefix(route, prefixes) {
-  return prefixes.some((prefix) => route === prefix || route.startsWith(prefix));
+function parseApiProtectedExactPaths() {
+  return parseStringSetExport(API_AUTH_GUARD_PATH, "PROTECTED_API_EXACT_PATHS");
+}
+
+function isProtectedByRuntime(route, prefixes, exactPaths = []) {
+  return exactPaths.includes(route) || prefixes.some((prefix) => route === prefix || route.startsWith(prefix));
 }
 
 function parseReadmeRouteProtectionList() {
@@ -286,7 +306,7 @@ function run() {
 
   const pageProtectedPrefixes = parsePageProtectedPrefixes();
   for (const route of protectedPageDocRoutes) {
-    if (!isProtectedByPrefix(route, pageProtectedPrefixes)) {
+    if (!isProtectedByRuntime(route, pageProtectedPrefixes)) {
       errors.push(
         `Route marked auth-required in docs/routes.md but not protected by runtime prefixes: ${route}`
       );
@@ -294,10 +314,11 @@ function run() {
   }
 
   const apiProtectedPrefixes = parseApiProtectedPrefixes();
+  const apiProtectedExactPaths = parseApiProtectedExactPaths();
   for (const route of protectedApiDocRoutes) {
-    if (!isProtectedByPrefix(route, apiProtectedPrefixes)) {
+    if (!isProtectedByRuntime(route, apiProtectedPrefixes, apiProtectedExactPaths)) {
       errors.push(
-        `Route marked auth-required in docs/routes.md but not protected by runtime prefixes: ${route}`
+        `Route marked auth-required in docs/routes.md but not protected by runtime auth guards: ${route}`
       );
     }
   }

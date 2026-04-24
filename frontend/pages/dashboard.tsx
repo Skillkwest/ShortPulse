@@ -55,6 +55,13 @@ type DashboardAnnouncement = {
   updatedAt: string | null;
 };
 
+type DashboardProject = {
+  id: string;
+  title: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
 type CurrentSubscriptionContractRow = {
   plan_id: string | null;
 };
@@ -104,6 +111,11 @@ export default function DashboardPage() {
     label: string;
     className: string;
   } | null>(null);
+  const [isCreatingProject, setIsCreatingProject] = useState(false);
+  const [projectCreateError, setProjectCreateError] = useState<string | null>(null);
+  const [recentProjects, setRecentProjects] = useState<DashboardProject[]>([]);
+  const [projectsLoading, setProjectsLoading] = useState(true);
+  const [projectsError, setProjectsError] = useState<string | null>(null);
   const [usageLoading, setUsageLoading] = useState(true);
   const [dashboardAnnouncement, setDashboardAnnouncement] = useState<DashboardAnnouncement | null>(
     null
@@ -140,6 +152,25 @@ export default function DashboardPage() {
       .join("")
       .slice(0, 2)
       .toUpperCase() || "SP";
+
+  const openProject = async (projectId: string) => {
+    await router.push({
+      pathname: "/ai-studio",
+      query: {
+        projectId,
+      },
+    });
+  };
+
+  const formatProjectTimestamp = (value: string | null): string => {
+    if (!value) return "Updated recently";
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) return "Updated recently";
+    return `Updated ${new Intl.DateTimeFormat("en-US", {
+      month: "short",
+      day: "numeric",
+    }).format(parsed)}`;
+  };
 
   useEffect(() => {
     let active = true;
@@ -225,6 +256,51 @@ export default function DashboardPage() {
     };
 
     void loadUsage();
+    return () => {
+      active = false;
+    };
+  }, [user]);
+
+  useEffect(() => {
+    let active = true;
+
+    const loadProjects = async () => {
+      if (!user) {
+        if (!active) return;
+        setRecentProjects([]);
+        setProjectsError(null);
+        setProjectsLoading(false);
+        return;
+      }
+
+      setProjectsLoading(true);
+      try {
+        const response = await fetchWithAuth("/api/projects?limit=3", {
+          method: "GET",
+        });
+        const payload = (await response.json().catch(() => ({}))) as {
+          error?: string;
+          details?: string;
+          projects?: DashboardProject[];
+        };
+        if (!response.ok || !Array.isArray(payload.projects)) {
+          throw new Error(payload.error || payload.details || "Failed to load projects.");
+        }
+        if (!active) return;
+        setRecentProjects(payload.projects);
+        setProjectsError(null);
+      } catch (error) {
+        if (!active) return;
+        setRecentProjects([]);
+        setProjectsError(error instanceof Error ? error.message : "Failed to load projects.");
+      } finally {
+        if (active) {
+          setProjectsLoading(false);
+        }
+      }
+    };
+
+    void loadProjects();
     return () => {
       active = false;
     };
@@ -386,6 +462,36 @@ export default function DashboardPage() {
     };
   }, []);
 
+  const handleCreateProject = async () => {
+    if (isCreatingProject) return;
+    setIsCreatingProject(true);
+    setProjectCreateError(null);
+    try {
+      const response = await fetchWithAuth("/api/projects/create", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          title: "Untitled project",
+        }),
+      });
+      const payload = (await response.json().catch(() => ({}))) as {
+        error?: string;
+        details?: string;
+        project?: { id?: string };
+      };
+      if (!response.ok || !payload.project?.id) {
+        throw new Error(payload.error || payload.details || "Failed to create project.");
+      }
+      await openProject(payload.project.id);
+    } catch (error) {
+      setProjectCreateError(error instanceof Error ? error.message : "Failed to create project.");
+    } finally {
+      setIsCreatingProject(false);
+    }
+  };
+
   return (
     <>
       <Head>
@@ -482,10 +588,15 @@ export default function DashboardPage() {
             <div className="hero-quick-row">
               {DASHBOARD_HIDE_LEGACY_SECTIONS ? (
                 <>
-                  <Link
-                    href="/ai-studio"
+                  <button
+                    type="button"
                     className="hero-onboarding hero-new-project-card"
                     aria-label="New Project: Start a new project in AI Studio"
+                    onClick={() => {
+                      void handleCreateProject();
+                    }}
+                    disabled={isCreatingProject}
+                    aria-busy={isCreatingProject}
                   >
                     <span className="hero-new-project-content">
                       <span className="hero-new-project-icon-column" aria-hidden="true">
@@ -493,18 +604,53 @@ export default function DashboardPage() {
                       </span>
                       <span className="hero-new-project-text-column">
                         <span className="hero-new-project-label">New Project</span>
-                        <p className="hero-new-project-helper">Open the AI Studio.</p>
+                        <p className="hero-new-project-helper">
+                          {isCreatingProject
+                            ? "Creating your project..."
+                            : projectCreateError
+                              ? projectCreateError
+                              : "Create a real project in AI Studio."}
+                        </p>
                       </span>
                     </span>
-                  </Link>
-                  <section className="hero-sessions-group" aria-label="Sessions placeholders">
-                    <p className="hero-sessions-title">Sessions</p>
-                    <div className="hero-sessions-wrapper" aria-hidden="true">
-                      <div className="hero-session-square" />
-                      <div className="hero-session-square" />
-                      <div className="hero-session-square" />
+                  </button>
+                  <section className="hero-sessions-group" aria-label="Saved projects">
+                    <p className="hero-sessions-title">Projects</p>
+                    <div className="hero-sessions-wrapper">
+                      {recentProjects.length > 0 ? (
+                        recentProjects.map((project) => (
+                          <button
+                            key={project.id}
+                            type="button"
+                            className="hero-session-card"
+                            onClick={() => {
+                              void openProject(project.id);
+                            }}
+                            aria-label={`Open project ${project.title}`}
+                          >
+                            <span className="hero-session-card-title">{project.title}</span>
+                            <span className="hero-session-card-meta">
+                              {formatProjectTimestamp(project.updatedAt)}
+                            </span>
+                          </button>
+                        ))
+                      ) : (
+                        <>
+                          <div className="hero-session-square" aria-hidden="true" />
+                          <div className="hero-session-square" aria-hidden="true" />
+                          <div className="hero-session-square" aria-hidden="true" />
+                        </>
+                      )}
                     </div>
-                    <p className="hero-sessions-note">Session persistence coming soon.</p>
+                    <p className="hero-sessions-note">
+                      {projectsLoading
+                        ? "Loading projects..."
+                        : projectsError
+                          ? projectsError
+                          : recentProjects.length > 0
+                            ? "Open a saved project to continue where you left off."
+                            : "No saved projects yet."}
+                    </p>
                   </section>
                 </>
               ) : (

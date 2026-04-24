@@ -15,6 +15,7 @@ const useSupabaseSessionStateMock = vi.hoisted(() => vi.fn());
 const primeSupabaseSessionMock = vi.hoisted(() => vi.fn());
 const fetchWithAuthMock = vi.hoisted(() => vi.fn());
 const routerReplaceMock = vi.hoisted(() => vi.fn());
+const routerPushMock = vi.hoisted(() => vi.fn());
 const signOutMock = vi.hoisted(() => vi.fn());
 
 vi.mock("next/head", () => ({
@@ -127,10 +128,11 @@ describe("Dashboard actions", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     routerReplaceMock.mockReset();
+    routerPushMock.mockReset();
     signOutMock.mockReset();
     signOutMock.mockResolvedValue({ error: null });
 
-    useRouterMock.mockReturnValue({ replace: routerReplaceMock });
+    useRouterMock.mockReturnValue({ replace: routerReplaceMock, push: routerPushMock });
     useCreditsMock.mockReturnValue({
       balanceCents: 86,
       balanceLoading: false,
@@ -154,9 +156,39 @@ describe("Dashboard actions", () => {
     });
     ensureSupabaseClientMock.mockReturnValue(buildSupabaseClient());
     ensureSupabaseQueryClientMock.mockReturnValue(buildSupabaseClient());
-    fetchWithAuthMock.mockResolvedValue({
-      ok: true,
-      json: async () => ({ announcement: null }),
+    fetchWithAuthMock.mockImplementation(async (input: unknown) => {
+      if (input === "/api/announcements/active") {
+        return {
+          ok: true,
+          json: async () => ({ announcement: null }),
+        };
+      }
+      if (input === "/api/projects?limit=3") {
+        return {
+          ok: true,
+          json: async () => ({
+            projects: [
+              {
+                id: "project-1",
+                title: "Project One",
+                createdAt: "2026-04-23T00:00:00.000Z",
+                updatedAt: "2026-04-23T01:00:00.000Z",
+              },
+            ],
+          }),
+        };
+      }
+      if (input === "/api/projects/create") {
+        return {
+          ok: true,
+          json: async () => ({
+            project: {
+              id: "project-created",
+            },
+          }),
+        };
+      }
+      throw new Error(`Unexpected fetch ${String(input)}`);
     });
   });
 
@@ -223,6 +255,43 @@ describe("Dashboard actions", () => {
       expect(signOutMock).toHaveBeenCalledTimes(1);
       expect(primeSupabaseSessionMock).toHaveBeenCalledWith(null);
       expect(routerReplaceMock).toHaveBeenCalledWith("/");
+    });
+  });
+
+  it("creates a project and routes into AI Studio with project identity", async () => {
+    render(<DashboardPage />);
+
+    fireEvent.click(await screen.findByRole("button", { name: /New Project:/i }));
+
+    await waitFor(() => {
+      expect(fetchWithAuthMock).toHaveBeenCalledWith(
+        "/api/projects/create",
+        expect.objectContaining({ method: "POST" })
+      );
+      expect(routerPushMock).toHaveBeenCalledWith({
+        pathname: "/ai-studio",
+        query: {
+          projectId: "project-created",
+        },
+      });
+    });
+  });
+
+  it("renders recent projects and opens one from the dashboard", async () => {
+    render(<DashboardPage />);
+
+    const projectButton = await screen.findByRole("button", { name: "Open project Project One" });
+    expect(projectButton).toBeInTheDocument();
+
+    fireEvent.click(projectButton);
+
+    await waitFor(() => {
+      expect(routerPushMock).toHaveBeenCalledWith({
+        pathname: "/ai-studio",
+        query: {
+          projectId: "project-1",
+        },
+      });
     });
   });
 });

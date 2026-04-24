@@ -21,6 +21,12 @@ describe("API proxy protections", () => {
     expect(response.status).toBe(401);
   });
 
+  it("enforces auth on the exact /api/projects collection route", async () => {
+    const request = new NextRequest("http://localhost:3000/api/projects");
+    const response = await proxy(request);
+    expect(response.status).toBe(401);
+  });
+
   it("allows webhook exceptions without bearer auth", async () => {
     const request = new NextRequest("http://localhost:3000/api/fal/webhook");
     const response = await proxy(request);

@@ -2,21 +2,26 @@
  * Shared API path guards for proxy/middleware and route auth helpers.
  * Keeps protected-prefix routing rules centralized to avoid drift between layers.
  */
+export const PROTECTED_API_EXACT_PATHS = new Set([
+  "/api/projects",
+  "/api/upload-video",
+  "/api/upload-image",
+  "/api/billing/catalog",
+  "/api/billing/credit-packages",
+  "/api/billing/stripe/checkout",
+  "/api/billing/stripe/portal",
+]);
+
 export const PROTECTED_API_PREFIXES = [
+  "/api/projects/",
   "/api/announcements/",
   "/api/fal/",
   "/api/elevenlabs/",
   "/api/ai/",
   "/api/media/",
-  "/api/upload-video",
-  "/api/upload-image",
   "/api/log/",
   "/api/admin/",
   "/api/credits/",
-  "/api/billing/catalog",
-  "/api/billing/credit-packages",
-  "/api/billing/stripe/checkout",
-  "/api/billing/stripe/portal",
 ];
 
 export const WEBHOOK_PATHS = new Set(["/api/billing/stripe/webhook", "/api/fal/webhook"]);
@@ -32,7 +37,8 @@ export const isInternalApiPath = (pathname: string): boolean =>
  * Returns true when middleware/route auth must enforce an authenticated user.
  */
 export const isProtectedApiPath = (pathname: string): boolean =>
-  PROTECTED_API_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(prefix));
+  PROTECTED_API_EXACT_PATHS.has(pathname) ||
+  PROTECTED_API_PREFIXES.some((prefix) => pathname.startsWith(prefix));
 
 /**
  * Returns true when a route intentionally bypasses bearer-auth enforcement.

@@ -1,9 +1,9 @@
 # SOP: AI Studio Styles Library Style Creator
 
-Purpose: define the modular Style Creator workflow used by AI Studio Styles Library so creation/edit/delete behavior stays stable while extraction quality and metadata contracts evolve safely.
+Purpose: define the modular Style Creator workflow used by AI Studio Styles Library so creation/edit/delete behavior stays stable while extraction quality contracts evolve safely.
 
 ## Scope
-- In scope: style-card intake (upload/drop), extraction orchestration, metadata normalization, save/delete persistence, and extraction telemetry.
+- In scope: style-card intake (upload/drop), extraction orchestration, save/delete persistence, and extraction telemetry.
 - Out of scope: generation model pricing/policy, new style-control UI knobs (strength/axis/blend), and dedicated style tables.
 
 ## Key components
@@ -14,7 +14,6 @@ Purpose: define the modular Style Creator workflow used by AI Studio Styles Libr
 | `frontend/features/ai-studio/components/style-creator/intake.ts` | Style intake helpers (drop/file normalization, preview crop, reorder utilities). |
 | `frontend/features/ai-studio/components/style-creator/extraction.ts` | Deterministic extraction outcome classification (`success`, `fallback`, `blocked_source`). |
 | `frontend/features/ai-studio/components/style-creator/telemetry.ts` | Normalized extraction telemetry emitter (`telemetry.ai_studio.style_extraction`). |
-| `frontend/features/ai-studio/logic/styleProfile.ts` | Optional structured `styleProfile`/`extractionMeta` builders. |
 | `frontend/features/ai-studio/logic/styleDetailsNormalization.ts` | Backward-compatible style-details normalization/equality helpers used by persistence hooks. |
 | `frontend/features/ai-studio/hooks/useStylesLibraryStyleDetailsPreference.ts` | Per-user style-details persistence (`user_preferences.ai_studio_style_details_overrides`) with local fallback. |
 | `frontend/pages/api/ai/extract-style.ts` | Authenticated style extraction endpoint (`imageDataUrl` -> `stylePrompt`, `styleTitle`, optional `usage`). |
@@ -27,15 +26,10 @@ Purpose: define the modular Style Creator workflow used by AI Studio Styles Libr
 - `stylePrompt`
 - `previewImageUrl`
 
-Optional metadata extension fields:
-- `styleProfile?`
-- `extractionMeta?`
-
 Rules:
-1. Reads must normalize legacy rows that do not include metadata.
-2. Writes must preserve backward compatibility and never require metadata fields.
-3. New style-create writes do not populate `styleProfile` or `extractionMeta`; those fields are tolerated for legacy rows and edit-roundtrips only.
-4. JSONB storage remains in `user_preferences.ai_studio_style_details_overrides` for MVP.
+1. Reads must normalize legacy rows down to the core fields only.
+2. Writes persist only the core style fields listed above.
+3. JSONB storage remains in `user_preferences.ai_studio_style_details_overrides` for MVP.
 
 ## Workflow
 1. User creates style via Add Style modal or library drop.
@@ -47,7 +41,7 @@ Rules:
    - Extraction normalization enforces a deterministic leading hard style class descriptor as the first `stylePrompt` token.
    - Current hard style class set: `Photographic`, `Vintage`, `Hyper-realistic`, `Anime Style`, `Cartoon Style`, `Photorealistic`, `Candid Cell Phone Snapshot`, `Digital Illustration`, `3D Render`, `Concept Art`, `Hand-Drawn`, `Painting`.
 4. Outcome is classified as `success`, `fallback`, or `blocked_source`.
-5. Create/save path persists normalized details; legacy metadata is preserved when editing existing rows, but new style creation does not attach fresh metadata.
+5. Create/save path persists normalized details using only the core fields.
 6. Edit/delete path uses guarded persistence commands with deterministic local error messaging.
 7. The first tile in Styles Library is a fixed `None` slot (system tile); it is never persisted, edited, deleted, or reordered.
 8. Styles Library tile clicks are edit-only (open/create/update/delete workflows) and do not mutate active Create/Edit style selection.

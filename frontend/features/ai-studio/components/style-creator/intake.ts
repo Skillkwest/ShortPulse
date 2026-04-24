@@ -100,8 +100,6 @@ export const buildInitialStyleDetails = (style: ExpertEditStyleTile): StylesLibr
     referenceImageName: resolvedReferenceImageName,
     stylePrompt: style.stylePrompt?.trim() ?? "",
     previewImageUrl: style.previewUrl?.trim() ?? "",
-    styleProfile: style.styleProfile,
-    extractionMeta: style.extractionMeta,
   };
 };
 

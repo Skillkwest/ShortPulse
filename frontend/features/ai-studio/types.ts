@@ -108,7 +108,6 @@ export type ToolId =
   | "create"
   | "media-library"
   | "elements"
-  | "pulse-presets"
   | "workflows"
   | "presets"
   | "styles"

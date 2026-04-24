@@ -1,14 +1,10 @@
 /**
  * Local types for styles-library creator orchestration.
  */
-import type {
-  StylesLibraryStyleDetails,
-  StylesLibraryStyleExtractionFlow,
-  StylesLibraryStyleExtractionOutcome,
-} from "../../types";
+import type { StylesLibraryStyleDetails } from "../../types";
 
-export type StyleExtractionOutcome = StylesLibraryStyleExtractionOutcome;
-export type StyleExtractionFlow = StylesLibraryStyleExtractionFlow;
+export type StyleExtractionOutcome = "success" | "fallback" | "blocked_source";
+export type StyleExtractionFlow = "create_modal" | "library_drop";
 
 export type PendingStyleEditState = {
   mode: "edit" | "create";

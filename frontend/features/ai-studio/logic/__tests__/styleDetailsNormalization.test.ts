@@ -25,43 +25,30 @@ describe("styleDetailsNormalization", () => {
       referenceImageName: "Noir",
       stylePrompt: "cinematic lighting",
       previewImageUrl: "/Styles/Cinematic.png",
-      styleProfile: undefined,
-      extractionMeta: undefined,
     });
   });
 
-  it("preserves valid metadata extension fields", () => {
+  it("drops metadata extension fields and keeps core values", () => {
     const normalized = normalizeStyleDetails({
       style: "Noir",
       title: "Noir",
       referenceImageName: "Noir",
       stylePrompt: "cinematic lighting, muted tonal palette",
       previewImageUrl: "/Styles/Cinematic.png",
-      styleProfile: {
-        version: 1,
-        medium: "photography",
-        lightingDescriptors: ["cinematic lighting"],
-        lensDepthDescriptors: [],
-        colorDescriptors: ["muted tonal palette"],
-        renderingDescriptors: ["editorial photography style"],
-        textureDescriptors: [],
-        generalDescriptors: [],
-      },
-      extractionMeta: {
-        version: 1,
-        outcome: "success",
-        flow: "library_drop",
-        extractedAtIso: "2026-03-09T00:00:00.000Z",
-        sourceUrlKind: "data",
-        extractor: "openai_prompt_style_extract",
-      },
+      styleProfile: { version: 1 },
+      extractionMeta: { version: 1, outcome: "success" },
     });
 
-    expect(normalized.styleProfile?.version).toBe(1);
-    expect(normalized.extractionMeta?.outcome).toBe("success");
+    expect(normalized).toEqual({
+      style: "Noir",
+      title: "Noir",
+      referenceImageName: "Noir",
+      stylePrompt: "cinematic lighting, muted tonal palette",
+      previewImageUrl: "/Styles/Cinematic.png",
+    });
   });
 
-  it("drops invalid metadata but keeps core fields", () => {
+  it("ignores invalid metadata while keeping core fields", () => {
     const normalized = normalizeStyleDetails({
       style: "Noir",
       title: "Noir",
@@ -72,9 +59,13 @@ describe("styleDetailsNormalization", () => {
       extractionMeta: { version: 1, outcome: "invalid" },
     });
 
-    expect(normalized.styleProfile).toBeUndefined();
-    expect(normalized.extractionMeta).toBeUndefined();
-    expect(normalized.style).toBe("Noir");
+    expect(normalized).toEqual({
+      style: "Noir",
+      title: "Noir",
+      referenceImageName: "Noir",
+      stylePrompt: "cinematic lighting",
+      previewImageUrl: "/Styles/Cinematic.png",
+    });
   });
 
   it("clamps style prompts to persistence max length", () => {
@@ -89,7 +80,7 @@ describe("styleDetailsNormalization", () => {
     expect(normalized.stylePrompt.length).toBe(1000);
   });
 
-  it("normalizes style details maps and compares equality with metadata", () => {
+  it("normalizes style details maps and compares equality by core fields", () => {
     const mapA = normalizeStyleDetailsMap({
       cinematic: {
         style: "Cinematic",
@@ -97,14 +88,6 @@ describe("styleDetailsNormalization", () => {
         referenceImageName: "Cinematic",
         stylePrompt: "cinematic lighting",
         previewImageUrl: "/Styles/Cinematic.png",
-        extractionMeta: {
-          version: 1,
-          outcome: "success",
-          flow: "create_modal",
-          extractedAtIso: "2026-03-09T00:00:00.000Z",
-          sourceUrlKind: "url",
-          extractor: "openai_prompt_style_extract",
-        },
       },
     });
 
@@ -115,14 +98,6 @@ describe("styleDetailsNormalization", () => {
         referenceImageName: "Cinematic",
         stylePrompt: "cinematic lighting",
         previewImageUrl: "/Styles/Cinematic.png",
-        extractionMeta: {
-          version: 1,
-          outcome: "success",
-          flow: "create_modal",
-          extractedAtIso: "2026-03-09T00:00:00.000Z",
-          sourceUrlKind: "url",
-          extractor: "openai_prompt_style_extract",
-        },
       },
     });
 

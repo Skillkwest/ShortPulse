@@ -1,21 +1,13 @@
 /**
  * Normalization helpers for styles-library persisted detail payloads.
- * Keeps backward compatibility between legacy and extended metadata shapes.
+ * Keeps backward compatibility while reducing stored details to the core style fields.
  */
-import type {
-  StylesLibraryStyleDetails,
-  StylesLibraryStyleDetailsMap,
-  StylesLibraryStyleExtractionMeta,
-  StylesLibraryStyleExtractionOutcome,
-  StylesLibraryStyleProfile,
-} from "../types";
+import type { StylesLibraryStyleDetails, StylesLibraryStyleDetailsMap } from "../types";
 import { STYLE_PROMPT_MAX_CHARACTERS } from "../components/style-creator/constants";
 
 const MAX_STYLE_FIELD_LENGTH = 120;
 const MAX_STYLE_PROMPT_LENGTH = STYLE_PROMPT_MAX_CHARACTERS;
 const MAX_STYLE_PREVIEW_URL_LENGTH = 2_000_000;
-const MAX_DESCRIPTOR_COUNT = 32;
-const MAX_DESCRIPTOR_LENGTH = 120;
 
 const clampString = (value: unknown, limit: number): string => {
   if (typeof value !== "string") return "";
@@ -24,71 +16,11 @@ const clampString = (value: unknown, limit: number): string => {
   return normalized.slice(0, limit).trim();
 };
 
-const normalizeDescriptorArray = (value: unknown): string[] => {
-  if (!Array.isArray(value)) return [];
-  const seen = new Set<string>();
-  const normalized: string[] = [];
-  value.forEach((entry) => {
-    const descriptor = clampString(entry, MAX_DESCRIPTOR_LENGTH);
-    if (!descriptor || seen.has(descriptor)) return;
-    seen.add(descriptor);
-    normalized.push(descriptor);
-  });
-  return normalized.slice(0, MAX_DESCRIPTOR_COUNT);
-};
-
 const normalizePreviewImageUrl = (value: unknown): string => {
   if (typeof value !== "string") return "";
   const normalized = value.trim();
   if (!normalized) return "";
   return normalized.length <= MAX_STYLE_PREVIEW_URL_LENGTH ? normalized : "";
-};
-
-const normalizeVersion1StyleProfile = (value: unknown): StylesLibraryStyleProfile | undefined => {
-  if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
-  const profile = value as Partial<StylesLibraryStyleProfile>;
-  if (profile.version !== 1) return undefined;
-  return {
-    version: 1,
-    medium: clampString(profile.medium, MAX_STYLE_FIELD_LENGTH) || null,
-    lightingDescriptors: normalizeDescriptorArray(profile.lightingDescriptors),
-    lensDepthDescriptors: normalizeDescriptorArray(profile.lensDepthDescriptors),
-    colorDescriptors: normalizeDescriptorArray(profile.colorDescriptors),
-    renderingDescriptors: normalizeDescriptorArray(profile.renderingDescriptors),
-    textureDescriptors: normalizeDescriptorArray(profile.textureDescriptors),
-    generalDescriptors: normalizeDescriptorArray(profile.generalDescriptors),
-  };
-};
-
-const normalizeExtractionOutcome = (value: unknown): StylesLibraryStyleExtractionOutcome | null => {
-  if (value === "success" || value === "fallback" || value === "blocked_source") return value;
-  return null;
-};
-
-const normalizeExtractionMeta = (value: unknown): StylesLibraryStyleExtractionMeta | undefined => {
-  if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
-  const meta = value as Partial<StylesLibraryStyleExtractionMeta>;
-  if (meta.version !== 1) return undefined;
-  const outcome = normalizeExtractionOutcome(meta.outcome);
-  if (!outcome) return undefined;
-  const flow = meta.flow === "create_modal" || meta.flow === "library_drop" ? meta.flow : null;
-  if (!flow) return undefined;
-  const sourceUrlKind =
-    meta.sourceUrlKind === "data" ||
-    meta.sourceUrlKind === "url" ||
-    meta.sourceUrlKind === "unknown"
-      ? meta.sourceUrlKind
-      : "unknown";
-  const extractedAtIso = clampString(meta.extractedAtIso, 64);
-  if (!extractedAtIso) return undefined;
-  return {
-    version: 1,
-    outcome,
-    flow,
-    extractedAtIso,
-    sourceUrlKind,
-    extractor: "openai_prompt_style_extract",
-  };
 };
 
 /**
@@ -102,8 +34,6 @@ export const normalizeStyleDetails = (value: unknown): StylesLibraryStyleDetails
     referenceImageName: clampString(details?.referenceImageName, MAX_STYLE_FIELD_LENGTH),
     stylePrompt: clampString(details?.stylePrompt, MAX_STYLE_PROMPT_LENGTH),
     previewImageUrl: normalizePreviewImageUrl(details?.previewImageUrl),
-    styleProfile: normalizeVersion1StyleProfile(details?.styleProfile),
-    extractionMeta: normalizeExtractionMeta(details?.extractionMeta),
   };
 };
 
@@ -143,11 +73,7 @@ export const areStyleDetailMapsEqual = (
       leftValue.title !== rightValue.title ||
       leftValue.referenceImageName !== rightValue.referenceImageName ||
       leftValue.stylePrompt !== rightValue.stylePrompt ||
-      leftValue.previewImageUrl !== rightValue.previewImageUrl ||
-      JSON.stringify(leftValue.styleProfile ?? null) !==
-        JSON.stringify(rightValue.styleProfile ?? null) ||
-      JSON.stringify(leftValue.extractionMeta ?? null) !==
-        JSON.stringify(rightValue.extractionMeta ?? null)
+      leftValue.previewImageUrl !== rightValue.previewImageUrl
     ) {
       return false;
     }

@@ -73,8 +73,6 @@ const toPersistableStyleDetails = (
   referenceImageName: details.referenceImageName,
   stylePrompt: details.stylePrompt,
   previewImageUrl: details.previewImageUrl,
-  ...(details.styleProfile ? { styleProfile: details.styleProfile } : {}),
-  ...(details.extractionMeta ? { extractionMeta: details.extractionMeta } : {}),
 });
 
 const resolveSourceUrlKind = (url: string): "data" | "url" | "unknown" => {

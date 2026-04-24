@@ -128,7 +128,7 @@ export function CreateExpertPresetPanel({
   const isPulseActivationEnabled = Boolean(onActivePresetIdChange);
 
   return (
-    <section className="create-expert-presets-panel" aria-label="Create prompt presets">
+    <section className="create-expert-presets-panel" aria-label="Create pulse presets">
       <div className="create-expert-presets-card">
         <div className="create-expert-presets-title-card">
           <p className="create-expert-presets-title">Pulse Presets</p>
@@ -136,7 +136,7 @@ export function CreateExpertPresetPanel({
             <Sliders size={14} weight="regular" />
           </span>
         </div>
-        <div className="create-expert-presets-list" aria-label="Selected prompt presets">
+        <div className="create-expert-presets-list" aria-label="Selected pulse presets">
           <div
             className={`create-expert-presets-dropzone ${
               hasSelectedPresetIds ? "is-populated" : "is-empty"
@@ -172,7 +172,7 @@ export function CreateExpertPresetPanel({
                 aria-label="Empty pulse preset drop target"
                 onClick={() => setIsMorePresetsSurfaceOpen(true)}
               >
-                Drag presets here
+                Add pulses here
               </button>
             )}
           </div>

@@ -620,18 +620,18 @@ export function CreatePropertiesPanel({
       className="create-expert-workflow-session-banner"
       role="status"
       aria-live="polite"
-      aria-label="Active workflow pulse session"
+      aria-label="Active pulse session"
     >
       <div className="create-expert-workflow-session-banner-header">
         <div className="create-expert-workflow-session-banner-copy">
-          <p className="create-expert-workflow-session-banner-eyebrow">Workflow Session</p>
+          <p className="create-expert-workflow-session-banner-eyebrow">Active Pulse</p>
           <h3 className="create-expert-workflow-session-banner-title">
             {activeWorkflowPulsePreset.label}
           </h3>
         </div>
       </div>
       <div className="create-expert-workflow-session-banner-badges">
-        <span className="create-expert-workflow-session-banner-badge">Workflow GPT</span>
+        <span className="create-expert-workflow-session-banner-badge">Guided Pulse</span>
         {activeWorkflowPulseStep ? (
           <span className="create-expert-workflow-session-banner-badge">
             {activeWorkflowPulseStep}
@@ -645,7 +645,7 @@ export function CreatePropertiesPanel({
       </div>
       <p className="create-expert-workflow-session-banner-summary">
         {activeWorkflowPulsePreset.description?.trim() ||
-          "This Pulse stays in guided workflow mode and drives the chat one step at a time."}
+          "This Pulse stays in guided mode and drives the chat one step at a time."}
       </p>
       {activeWorkflowPulsePreview ? (
         <p className="create-expert-workflow-session-banner-preview">

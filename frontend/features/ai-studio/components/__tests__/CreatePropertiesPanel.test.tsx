@@ -938,9 +938,10 @@ describe("CreatePropertiesPanel", () => {
       onAgentSend: vi.fn(),
     });
 
-    const workflowBanner = screen.getByLabelText("Active workflow pulse session");
+    const workflowBanner = screen.getByLabelText("Active pulse session");
     expect(workflowBanner).toBeInTheDocument();
-    expect(within(workflowBanner).getByText("Workflow Session")).toBeInTheDocument();
+    expect(within(workflowBanner).getByText("Active Pulse")).toBeInTheDocument();
+    expect(within(workflowBanner).getByText("Guided Pulse")).toBeInTheDocument();
     expect(within(workflowBanner).getByText("Video Prompt Magic")).toBeInTheDocument();
     expect(within(workflowBanner).getByText("Ready to guide")).toBeInTheDocument();
     expect(within(workflowBanner).getByText("Image Gate")).toBeInTheDocument();
@@ -986,7 +987,7 @@ describe("CreatePropertiesPanel", () => {
       onAgentSend: vi.fn(),
     });
 
-    const workflowBanner = screen.getByLabelText("Active workflow pulse session");
+    const workflowBanner = screen.getByLabelText("Active pulse session");
     expect(within(workflowBanner).getByText("Camera Motion")).toBeInTheDocument();
     expect(within(workflowBanner).getByText("Awaiting your reply")).toBeInTheDocument();
     expect(within(workflowBanner).getByText("Current step")).toBeInTheDocument();
@@ -1029,7 +1030,7 @@ describe("CreatePropertiesPanel", () => {
       onAgentSend: vi.fn(),
     });
 
-    const workflowBanner = screen.getByLabelText("Active workflow pulse session");
+    const workflowBanner = screen.getByLabelText("Active pulse session");
     expect(within(workflowBanner).getByText("Camera Motion")).toBeInTheDocument();
     expect(within(workflowBanner).getByText("Awaiting your reply")).toBeInTheDocument();
     expect(
@@ -1060,7 +1061,7 @@ describe("CreatePropertiesPanel", () => {
       onAgentSend: vi.fn(),
     });
 
-    const workflowBanner = screen.getByLabelText("Active workflow pulse session");
+    const workflowBanner = screen.getByLabelText("Active pulse session");
     expect(within(workflowBanner).getByText("Story Builder")).toBeInTheDocument();
     expect(within(workflowBanner).getByText("Completed")).toBeInTheDocument();
     expect(within(workflowBanner).getByText("Image Prompts")).toBeInTheDocument();

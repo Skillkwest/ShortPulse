@@ -244,7 +244,7 @@ export const CreatePulsePresetsSurface = ({
         <div className="create-expert-presets-surface-title-group">
           <h3 className="create-expert-presets-surface-title">More Presets</h3>
           <p className="create-expert-presets-surface-subtitle">
-            {"\u2190 Drag & drop presets into the preset panel to customize your workflow."}
+            {"\u2190 Drag & drop pulses into the left rail for quick access in Pulse mode."}
           </p>
         </div>
         <button

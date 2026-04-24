@@ -17,7 +17,7 @@ Purpose: define the modular Style Creator workflow used by AI Studio Styles Libr
 | `frontend/features/ai-studio/logic/styleProfile.ts` | Optional structured `styleProfile`/`extractionMeta` builders. |
 | `frontend/features/ai-studio/logic/styleDetailsNormalization.ts` | Backward-compatible style-details normalization/equality helpers used by persistence hooks. |
 | `frontend/features/ai-studio/hooks/useStylesLibraryStyleDetailsPreference.ts` | Per-user style-details persistence (`user_preferences.ai_studio_style_details_overrides`) with local fallback. |
-| `frontend/pages/api/ai/extract-style.ts` | Authenticated style extraction endpoint (`imageUrl` -> `stylePrompt`, `styleTitle`, optional `usage`). |
+| `frontend/pages/api/ai/extract-style.ts` | Authenticated style extraction endpoint (`imageDataUrl` -> `stylePrompt`, `styleTitle`, optional `usage`). |
 
 ## Persistence contract
 `StylesLibraryStyleDetails` required fields remain unchanged:
@@ -42,7 +42,7 @@ Rules:
    - Preview image: center-cropped square `512x512` JPEG for style-card rendering.
    - Extraction source: aspect-preserving bounded JPEG (`max(width,height)=1024`, no upscaling) used for `/api/ai/extract-style`.
    - Style Prompt editor enforces a `1000` character max (live counter + input clamp, near-limit warning at `900`) to keep style add-ons within the runtime prompt budget used by extraction and submit-path append behavior.
-3. Extraction calls `/api/ai/extract-style` through client helper with bounded per-attempt timeout, overall deadline cap, and transient-only retries.
+3. Extraction calls `/api/ai/extract-style` through client helper with the derived extraction image as `imageDataUrl`, a bounded per-attempt timeout, an overall deadline cap, and transient-only retries.
    - Extraction normalization enforces a deterministic leading hard style class descriptor as the first `stylePrompt` token.
    - Current hard style class set: `Photographic`, `Vintage`, `Hyper-realistic`, `Anime Style`, `Cartoon Style`, `Photorealistic`, `Candid Cell Phone Snapshot`, `Digital Illustration`, `3D Render`, `Concept Art`, `Hand-Drawn`, `Painting`.
 4. Outcome is classified as `success`, `fallback`, or `blocked_source`.

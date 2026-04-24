@@ -7,9 +7,9 @@ import { requireApiUser } from "../../../lib/server/api/auth";
 import { applyAgentLegacyDeprecationHeaders } from "../../../features/agent-runtime/legacyDeprecation";
 import { buildAgentMachineOutcome } from "../../../features/agent-runtime/agentMachineOutcome";
 import {
-  executeLegacyStyleExtraction,
+  executeStyleExtraction,
   type StyleExtractionDiagnostics,
-} from "../../../features/agent-runtime/legacyStyleExtractionService";
+} from "../../../features/agent-runtime/styleExtractionService";
 
 const applyDiagnosticsHeaders = (
   res: NextApiResponse,
@@ -54,7 +54,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   const user = await requireApiUser(req, res);
   if (!user) return;
-  const result = await executeLegacyStyleExtraction({
+  const result = await executeStyleExtraction({
     req,
     user,
     imageDataUrl: (req.body as { imageDataUrl?: unknown })?.imageDataUrl,

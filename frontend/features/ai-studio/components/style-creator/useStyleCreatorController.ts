@@ -438,6 +438,22 @@ export const useStyleCreatorController = ({
     [applyExtractedStyleToCreateDraft, runTrackedStyleExtraction]
   );
 
+  const applyPreviewToCreateDraft = React.useCallback(
+    ({
+      previewImageUrl,
+      extractionSourceImageUrl,
+    }: {
+      previewImageUrl: string;
+      extractionSourceImageUrl: string;
+    }) => {
+      setPendingStyleEdit((previous) => applyStylePreviewToPendingEdit(previous, previewImageUrl));
+      if (pendingStyleEdit?.mode === "create") {
+        void extractStyleForCreateDraft(extractionSourceImageUrl);
+      }
+    },
+    [extractStyleForCreateDraft, pendingStyleEdit?.mode]
+  );
+
   const applyStylePreviewFromTransfer = React.useCallback(
     async (dropSnapshot: StyleDropSnapshot) => {
       setLocalSaveError(null);
@@ -457,12 +473,10 @@ export const useStyleCreatorController = ({
           candidateCount: resolvedSource.candidateCount,
           serverCopyAttempted: resolvedSource.serverCopyAttempted,
         });
-        setPendingStyleEdit((previous) =>
-          applyStylePreviewToPendingEdit(previous, resolvedSource.previewImageUrl)
-        );
-        if (pendingStyleEdit?.mode === "create") {
-          void extractStyleForCreateDraft(resolvedSource.extractionSourceImageUrl);
-        }
+        applyPreviewToCreateDraft({
+          previewImageUrl: resolvedSource.previewImageUrl,
+          extractionSourceImageUrl: resolvedSource.extractionSourceImageUrl,
+        });
       } catch (error) {
         const normalizedError = normalizeStyleDropPreviewError(error);
         if (normalizedError.code === "missing-dropped-style-image") {
@@ -526,7 +540,7 @@ export const useStyleCreatorController = ({
         setLocalSaveError(BLOCKED_STYLE_IMAGE_SOURCE_MESSAGE);
       }
     },
-    [extractStyleForCreateDraft, pendingStyleEdit?.mode, resolveInternalStyleDrop]
+    [applyPreviewToCreateDraft, resolveInternalStyleDrop]
   );
 
   const applyStylePreviewFile = React.useCallback(
@@ -534,12 +548,10 @@ export const useStyleCreatorController = ({
       setLocalSaveError(null);
       try {
         const processed = await resolveProcessedStyleSource({ file });
-        setPendingStyleEdit((previous) =>
-          applyStylePreviewToPendingEdit(previous, processed.previewImageUrl)
-        );
-        if (pendingStyleEdit?.mode === "create") {
-          void extractStyleForCreateDraft(processed.extractionSourceImageUrl);
-        }
+        applyPreviewToCreateDraft({
+          previewImageUrl: processed.previewImageUrl,
+          extractionSourceImageUrl: processed.extractionSourceImageUrl,
+        });
       } catch (error) {
         const normalizedError = normalizeStyleDropPreviewError(error);
         if (normalizedError.code === "missing-dropped-style-image" && !isImageFileCandidate(file)) {
@@ -549,7 +561,7 @@ export const useStyleCreatorController = ({
         setLocalSaveError("Unable to process that image.");
       }
     },
-    [extractStyleForCreateDraft, pendingStyleEdit?.mode]
+    [applyPreviewToCreateDraft]
   );
 
   const createStyleFromDrop = React.useCallback(

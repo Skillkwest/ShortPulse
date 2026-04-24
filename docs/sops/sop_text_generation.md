@@ -28,7 +28,7 @@ For Create properties panel, model-selector, and submission wiring details, see 
 | --- | --- |
 | `frontend/lib/agentPromptsConfig.ts` | Source of truth for system prompts; the main place to edit instructions, so all references and docs should defer to it. |
 | `frontend/lib/agentPromptLoader.ts` | Loads a prompt by ID, preferring the config but falling back to an env var emergency override to avoid app breakage. |
-| `frontend/pages/api/ai/extract-style.ts` | HTTP POST handler that sends an image + style-extractor system instructions to OpenAI vision and returns reusable style descriptors plus a normalized style title for Styles Library create flows. |
+| `frontend/pages/api/ai/extract-style.ts` | HTTP POST handler that accepts a base64 image data URL, sends it through the style-extractor system instructions to the structured OpenAI vision lane, and returns reusable style descriptors plus a normalized style title for Styles Library create flows. |
 | `frontend/pages/api/ai/studio-agent.ts` | AI Studio prompt-agent route with flow routing (`TEXT_ONLY`, `IMAGE_ONLY`, `MIXED`), prompt-only canonical behavior (`actions.applyPrompt` on success), canonical prompt continuity, and direct OpenAI bypass support. |
 
 ## Studio agent hardening alignment

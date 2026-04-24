@@ -51,9 +51,9 @@ The safety control surface has six layers:
 Current runtime-binding note:
 - Runtime profile selection reads `STUDIO_AGENT_SAFETY_PROFILE_ACTIVE` (with optional control-plane sync) in:
   - `frontend/pages/api/ai/studio-agent.ts`
-  - `frontend/features/agent-runtime/legacyStyleExtractionService.ts`
+  - `frontend/features/agent-runtime/styleExtractionService.ts`
 - `/api/ai/studio-agent` now enforces input safety before vision/coordinator provider calls when `STUDIO_AGENT_SAFETY_INPUT_PRECHECK_ENABLED=true` (default).
-- Retained image-analysis routes run trusted-host URL preflight and local image safety preflight before OpenAI vision calls.
+- Retained image-analysis routes run local image safety preflight before OpenAI vision calls.
 - Fal submit routes enforce prompt precheck before provider dispatch when `STUDIO_AGENT_SAFETY_INPUT_PRECHECK_GENERATION_SUBMIT_ENABLED=true` (default).
 - Studio-agent client chat path (`useAiAgent`) now runs a pre-send mirror gate when `NEXT_PUBLIC_STUDIO_AGENT_SAFETY_INPUT_PRECHECK_ENABLED=true` (default).
 - Server remains the source of truth for enforcement decisions.
@@ -219,7 +219,7 @@ Expected structured fields in runtime telemetry:
 Primary runtime files:
 - `frontend/features/agent-runtime/studioAgentSafetyInputPrecheck.ts`
 - `frontend/features/agent-runtime/studioAgentCoordinator.ts`
-- `frontend/features/agent-runtime/legacyStyleExtractionService.ts`
+- `frontend/features/agent-runtime/styleExtractionService.ts`
 - `frontend/features/agent-runtime/studioAgentRouteOutcomes.ts`
 
 ## Guardrails

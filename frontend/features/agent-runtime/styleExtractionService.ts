@@ -1,6 +1,6 @@
 /**
- * Legacy helper service for extracting reusable style descriptors from images.
- * Uses the retained image hardening patterns (URL probe + retries + model fallback).
+ * Service for extracting reusable style descriptors from images.
+ * Owns the server-side normalization and structured-output contract.
  */
 import type { NextApiRequest } from "next";
 import { sanitizeGenerationPromptText } from "../agent-core/promptText";
@@ -149,7 +149,7 @@ const isRefusalOrFallbackText = (value: string): boolean => {
   );
 };
 
-type LegacyStyleExtractionSuccess = {
+type StyleExtractionSuccess = {
   ok: true;
   payload: AgentMachineOutcomeFields & {
     stylePrompt: string;
@@ -163,7 +163,7 @@ type LegacyStyleExtractionSuccess = {
   diagnostics?: StyleExtractionDiagnostics;
 };
 
-type LegacyStyleExtractionFailure = {
+type StyleExtractionFailure = {
   ok: false;
   status: number;
   payload: AgentMachineOutcomeFields & {
@@ -175,9 +175,7 @@ type LegacyStyleExtractionFailure = {
   diagnostics?: StyleExtractionDiagnostics;
 };
 
-export type LegacyStyleExtractionResult =
-  | LegacyStyleExtractionSuccess
-  | LegacyStyleExtractionFailure;
+export type StyleExtractionResult = StyleExtractionSuccess | StyleExtractionFailure;
 
 export type StyleExtractionDiagnostics = {
   attemptCount: number | null;
@@ -213,7 +211,7 @@ const isImageDataUrl = (value: string): boolean => {
   return /^data:image\/[a-z0-9.+-]+;base64,/i.test(normalized);
 };
 
-export const executeLegacyStyleExtraction = async ({
+export const executeStyleExtraction = async ({
   req,
   user,
   imageDataUrl,
@@ -223,7 +221,7 @@ export const executeLegacyStyleExtraction = async ({
   user: AuthenticatedApiUser;
   imageDataUrl: unknown;
   routeLabel?: string;
-}): Promise<LegacyStyleExtractionResult> => {
+}): Promise<StyleExtractionResult> => {
   const apiKey = process.env.OPENAI_API_KEY;
   const systemPrompt = loadAgentPrompt(STYLE_EXTRACTOR_ID, process.env[STYLE_EXTRACTOR_ID]);
   const promptTemplateVersion = systemPrompt

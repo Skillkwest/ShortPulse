@@ -150,7 +150,7 @@ sequenceDiagram
 - Runs server-authoritative input precheck before provider execution.
 - Returns normalized response envelope (`message`, optional `actions`, `canonicalPrompt`, `traceId`).
 3. Retained helper route outside the Create chat lane:
-- `/api/ai/extract-style` -> `executeLegacyStyleExtraction` (`legacyStyleExtractionService`) for Styles Library new-style image intake (returns `stylePrompt` + normalized `styleTitle`).
+- `/api/ai/extract-style` -> `executeStyleExtraction` (`styleExtractionService`) for Styles Library new-style image intake from derived image data URLs (returns `stylePrompt` + normalized `styleTitle`).
   - Operational ownership and metadata/telemetry contracts for style-create flows are defined in `docs/sops/sop_ai_studio_style_creator.md`.
 4. Direct OpenAI bypass route:
 - `/api/ai/studio-agent` accepts `directOpenAiBypass=true` in the request envelope.

@@ -284,8 +284,61 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
   - `ai_generations_recovery_state_check` enforces `recovery_state` enum values.
   - `ai_generations_recovery_attempts_non_negative_check` enforces non-negative attempts.
   - Unique partial index on `(user_id, request_id)` where `request_id is not null`.
+  - Composite unique index on `(id, user_id)` supports project-scoped generation association foreign keys.
   - Reconciler scan index on `(recovery_state, next_recovery_at, created_at)`.
   - Trigger `trg_ai_generations_enforce_status_transition` blocks illegal status transitions, with guarded recovery override for `fail -> success` when `failure_reason_code='terminal_success_no_media'` and recovery state is converging to `recovered`.
+
+### projects
+- `id` (uuid, pk, default `gen_random_uuid()`)
+- `user_id` (uuid): Owner for RLS scoping.
+- `title` (text): Server-normalized project display title.
+- `created_at` / `updated_at` (timestamptz)
+- RLS: select/insert/update/delete allowed only when `user_id = auth.uid()`.
+- Constraints and indexes:
+  - Composite unique index on `(id, user_id)` supports same-user project membership foreign keys.
+  - Dashboard lists are ordered by `updated_at desc`.
+
+### project_workspace_states
+- `project_id` (uuid, pk segment): References the parent `projects` row.
+- `user_id` (uuid): Owner for RLS scoping and same-user FK parity with `projects`.
+- `schema_version` (int): Current persisted AI Studio workspace envelope version.
+- `snapshot` (jsonb object): Project-owned workspace snapshot payload.
+- `created_at` / `updated_at` (timestamptz)
+- RLS: select/insert/update/delete allowed only when `user_id = auth.uid()`.
+- Notes:
+  - Current payload still reuses the AI Studio session snapshot envelope as the migration boundary.
+  - Workspace reads now refresh generated-output delivery from project-associated generation rows before returning the snapshot.
+
+### project_media_items
+- `project_id` (uuid, pk segment): Parent project.
+- `media_file_id` (uuid, pk segment): Associated saved media row.
+- `user_id` (uuid): Owner for RLS scoping and same-user FK parity.
+- `created_at` / `updated_at` (timestamptz)
+- RLS: select/insert/update/delete allowed only when `user_id = auth.uid()`.
+- Integrity:
+  - Composite scoped FKs enforce same-user ownership across the project row and target `media_files` row.
+  - Used for project-owned saved-media association without changing global Media Library ownership.
+
+### project_prompt_items
+- `project_id` (uuid, pk segment): Parent project.
+- `prompt_id` (uuid, pk segment): Associated saved prompt row.
+- `user_id` (uuid): Owner for RLS scoping and same-user FK parity.
+- `created_at` / `updated_at` (timestamptz)
+- RLS: select/insert/update/delete allowed only when `user_id = auth.uid()`.
+- Integrity:
+  - Composite scoped FKs enforce same-user ownership across the project row and target `media_prompts` row.
+  - Used for project-owned saved-prompt association without changing global prompt library ownership.
+
+### project_generation_items
+- `project_id` (uuid, pk segment): Parent project.
+- `generation_id` (uuid, pk segment): Associated generated output lineage row in `ai_generations`.
+- `user_id` (uuid): Owner for RLS scoping and same-user FK parity.
+- `created_at` / `updated_at` (timestamptz)
+- RLS: select/insert/update/delete allowed only when `user_id = auth.uid()`.
+- Integrity:
+  - Composite scoped FKs enforce same-user ownership across the project row and target `ai_generations` row.
+  - Workspace saves backfill this table from restore-relevant `generationId` values already in the snapshot.
+  - Workspace reads use this table to refresh generated-output delivery only for generations explicitly associated to the active project.
 
 ### generation_attempts
 - `id` (uuid, pk, default `gen_random_uuid()`)
@@ -492,13 +545,14 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
 - `user_id` (uuid, pk, references `auth.users(id)`): Profile owner.
 - `beginner_mode` (boolean, default `false`): AI Studio/Character Manager beginner mode preference (expert-first default while runtime lockdown is active).
 - `media_autosave_enabled` (boolean, default `true`): AI Studio autosave policy toggle used by client autosave orchestration and server recovery enforcement.
-- `expert_edit_preset_panel_labels` (text[], default `{'Selfie','Side Profile','Enhance Realism'}`): Persistent per-user Expert Edit preset panel chip allocation (max 11 labels enforced by client normalization).
-- `expert_edit_preset_panel_ids` (text[], default `{'selfie','side_profile','enhance_realism'}`): Canonical per-user Expert Edit preset panel allocation stored by preset ID (max 11 IDs enforced by client normalization).
+- `expert_edit_preset_panel_labels` (text[], default `{'Selfie','Side Profile','Enhance Realism'}`): Persistent per-user Expert Edit preset panel chip allocation (legacy labels; current client normalization caps the active panel at 10).
+- `expert_edit_preset_panel_ids` (text[], default `{'selfie','side_profile','enhance_realism'}`): Canonical per-user Expert Edit preset panel allocation stored by preset ID (current client normalization caps the active panel at 10).
 - `expert_edit_custom_presets` (jsonb, default `{}`): Per-user preset override map keyed by canonical preset id (`selfie`, `side_profile`, `custom_1..custom_18`, etc.) storing `{ label, prompt }` values.
 - `ai_studio_create_pulse_panel_ids` (text[], default `{'image','single_shot','multi_shot','story_builder'}`): Canonical per-user Create Pulse rail allocation storing the curated left-rail Pulse IDs shown in Expert Create `Pulse` mode.
-- `ai_studio_saved_pulses` (jsonb, default `[]`): Per-user Pulse library records stored as ordered `{ presetId, label, description, systemInstructions, runtimeMode, activationMode, starterAssistantMessage, outputMode, memoryPolicy, createdAt }` objects. Built-in starter Pulses use stable seeded ids and save personal overrides into the same structure, while custom user-authored Pulses persist as fully user-owned records. The shared catalog is consumed by both the Pulse Presets Library and the Expert Create Pulse rail.
+- `ai_studio_saved_pulses` (jsonb, default `[]`): Per-user Pulse library records stored as ordered `{ presetId, label, description, systemInstructions, runtimeMode, activationMode, starterAssistantMessage, workflowStageHints, outputMode, memoryPolicy, createdAt }` objects. Built-in starter Pulses use stable seeded ids and save personal overrides into the same structure, while custom user-authored Pulses persist as fully user-owned records. The shared catalog is consumed by the unified Presets Library (`Pulses` section) and the Expert Create Pulse rail.
+- `ai_studio_style_panel_ids` (text[], default `{}`): Canonical per-user Styles Library order storing the shared tile sequence consumed by the primary Styles Library panel and the right-rail Styles chooser.
 - `ai_studio_deleted_style_ids` (text[], default `{}`): Per-user style ID denylist used by the primary Styles Library panel to persist deletions across sessions/devices.
-- `ai_studio_style_details_overrides` (jsonb, default `{}`): Per-user style-details overrides keyed by style id storing editable `style`, `title`, `referenceImageName`, and `stylePrompt` values plus optional metadata (`styleProfile`, `extractionMeta`) used by Styles Library creator quality/trace contracts.
+- `ai_studio_style_details_overrides` (jsonb, default `{}`): Per-user style-details overrides keyed by style id storing the editable core style fields `{ style, title, referenceImageName, stylePrompt, previewImageUrl }`.
 - `ai_studio_saved_voices` (jsonb, default `[]`): Per-user AI Studio saved-voice cache storing created ElevenLabs voices as `{ voiceId, name, previewUrl, description, provider, isFallback, createdAt }` records so custom voices survive refreshes and provider outages.
 - `ai_studio_character_quickswap_tip_hidden` (boolean, default `false`): Per-user flag that hides the embedded Character QuickSwap guidance bubble after high-density deck usage.
 - `created_at` (timestamptz, default now)

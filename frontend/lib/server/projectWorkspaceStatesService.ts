@@ -4,6 +4,10 @@
  */
 import { parseAiStudioSessionSnapshot } from "./api/aiStudioSessions";
 import { getSupabaseAdmin } from "./api/supabaseAdmin";
+import {
+  backfillProjectGenerationAssociationsForSnapshot,
+  hydrateProjectSnapshotGeneratedOutputs,
+} from "./projectGenerationAssociationsService";
 
 const PROJECT_WORKSPACE_SELECT_COLUMNS =
   "project_id, user_id, schema_version, snapshot, created_at, updated_at" as const;
@@ -159,6 +163,12 @@ const backfillProjectAssetAssociationsForSnapshot = async ({
       throw new Error(error.message || "Failed to associate project prompt items");
     }
   }
+
+  await backfillProjectGenerationAssociationsForSnapshot({
+    userId,
+    projectId,
+    snapshot,
+  });
 };
 
 const toProjectWorkspaceStateRecord = (
@@ -191,7 +201,15 @@ export const getProjectWorkspaceStateForUser = async ({
     throw new Error(error.message || "Failed to load project workspace state");
   }
   if (!data) return null;
-  return toProjectWorkspaceStateRecord(data as ProjectWorkspaceStateRow);
+  const record = toProjectWorkspaceStateRecord(data as ProjectWorkspaceStateRow);
+  return {
+    ...record,
+    snapshot: await hydrateProjectSnapshotGeneratedOutputs({
+      userId,
+      projectId,
+      snapshot: record.snapshot,
+    }),
+  };
 };
 
 export const upsertProjectWorkspaceStateForUser = async ({

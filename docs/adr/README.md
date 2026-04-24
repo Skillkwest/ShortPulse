@@ -76,3 +76,4 @@ ADRs capture **important, durable decisions** so the repo stays coherent as it g
 - `docs/adr/0062-project-identity-foundation.md`
 - `docs/adr/0063-project-workspace-authority.md`
 - `docs/adr/0064-project-asset-association-foundation.md`
+- `docs/adr/0065-project-generated-output-association-and-restore-refresh.md`

@@ -1825,3 +1825,271 @@ left join ai_credit_ledger l
  and l.source_ref = bp.user_id::text
 where l.id is null
   and p.monthly_credits_cents > 0;
+
+-- Projects foundation
+create table if not exists public.projects (
+    id uuid primary key default gen_random_uuid(),
+    user_id uuid not null references auth.users(id) on delete cascade,
+    title text not null default 'Untitled project',
+    created_at timestamptz not null default timezone('utc', now()),
+    updated_at timestamptz not null default timezone('utc', now()),
+    constraint projects_title_length_check
+      check (char_length(btrim(title)) between 1 and 120)
+);
+
+create unique index if not exists ux_projects_id_user
+  on public.projects (id, user_id);
+
+create index if not exists ix_projects_user_updated
+  on public.projects (user_id, updated_at desc);
+
+alter table public.projects enable row level security;
+
+drop policy if exists select_projects_isolation on public.projects;
+create policy select_projects_isolation
+  on public.projects
+  for select
+  using (auth.uid() = user_id);
+
+drop policy if exists insert_projects_isolation on public.projects;
+create policy insert_projects_isolation
+  on public.projects
+  for insert
+  with check (auth.uid() = user_id);
+
+drop policy if exists update_projects_isolation on public.projects;
+create policy update_projects_isolation
+  on public.projects
+  for update
+  using (auth.uid() = user_id)
+  with check (auth.uid() = user_id);
+
+drop policy if exists delete_projects_isolation on public.projects;
+create policy delete_projects_isolation
+  on public.projects
+  for delete
+  using (auth.uid() = user_id);
+
+create table if not exists public.project_workspace_states (
+    project_id uuid primary key references public.projects(id) on delete cascade,
+    user_id uuid not null references auth.users(id) on delete cascade,
+    schema_version integer not null default 2,
+    snapshot jsonb not null default '{}'::jsonb,
+    created_at timestamptz not null default timezone('utc', now()),
+    updated_at timestamptz not null default timezone('utc', now()),
+    constraint project_workspace_states_schema_version_check
+      check (schema_version between 1 and 100),
+    constraint project_workspace_states_snapshot_object_check
+      check (jsonb_typeof(snapshot) = 'object'),
+    constraint project_workspace_states_project_scope_fk
+      foreign key (project_id, user_id)
+      references public.projects(id, user_id)
+      on delete cascade
+);
+
+create index if not exists ix_project_workspace_states_user_updated
+  on public.project_workspace_states (user_id, updated_at desc);
+
+alter table public.project_workspace_states enable row level security;
+
+drop policy if exists select_project_workspace_states_isolation on public.project_workspace_states;
+create policy select_project_workspace_states_isolation
+  on public.project_workspace_states
+  for select
+  using (auth.uid() = user_id);
+
+drop policy if exists insert_project_workspace_states_isolation on public.project_workspace_states;
+create policy insert_project_workspace_states_isolation
+  on public.project_workspace_states
+  for insert
+  with check (auth.uid() = user_id);
+
+drop policy if exists update_project_workspace_states_isolation on public.project_workspace_states;
+create policy update_project_workspace_states_isolation
+  on public.project_workspace_states
+  for update
+  using (auth.uid() = user_id)
+  with check (auth.uid() = user_id);
+
+drop policy if exists delete_project_workspace_states_isolation on public.project_workspace_states;
+create policy delete_project_workspace_states_isolation
+  on public.project_workspace_states
+  for delete
+  using (auth.uid() = user_id);
+
+create table if not exists public.project_media_items (
+    project_id uuid not null,
+    media_file_id uuid not null,
+    user_id uuid not null references auth.users(id) on delete cascade,
+    created_at timestamptz not null default timezone('utc', now()),
+    updated_at timestamptz not null default timezone('utc', now()),
+    constraint project_media_items_pk primary key (project_id, media_file_id),
+    constraint project_media_items_project_fk
+      foreign key (project_id)
+      references public.projects(id)
+      on delete cascade,
+    constraint project_media_items_media_file_fk
+      foreign key (media_file_id)
+      references public.media_files(id)
+      on delete cascade,
+    constraint project_media_items_project_scope_fk
+      foreign key (project_id, user_id)
+      references public.projects(id, user_id)
+      on delete cascade,
+    constraint project_media_items_media_scope_fk
+      foreign key (media_file_id, user_id)
+      references public.media_files(id, user_id)
+      on delete cascade
+);
+
+create index if not exists ix_project_media_items_user_project
+  on public.project_media_items (user_id, project_id, updated_at desc);
+
+create index if not exists ix_project_media_items_user_media
+  on public.project_media_items (user_id, media_file_id);
+
+alter table public.project_media_items enable row level security;
+
+drop policy if exists select_project_media_items_isolation on public.project_media_items;
+create policy select_project_media_items_isolation
+  on public.project_media_items
+  for select
+  using (auth.uid() = user_id);
+
+drop policy if exists insert_project_media_items_isolation on public.project_media_items;
+create policy insert_project_media_items_isolation
+  on public.project_media_items
+  for insert
+  with check (auth.uid() = user_id);
+
+drop policy if exists update_project_media_items_isolation on public.project_media_items;
+create policy update_project_media_items_isolation
+  on public.project_media_items
+  for update
+  using (auth.uid() = user_id)
+  with check (auth.uid() = user_id);
+
+drop policy if exists delete_project_media_items_isolation on public.project_media_items;
+create policy delete_project_media_items_isolation
+  on public.project_media_items
+  for delete
+  using (auth.uid() = user_id);
+
+create table if not exists public.project_prompt_items (
+    project_id uuid not null,
+    prompt_id uuid not null,
+    user_id uuid not null references auth.users(id) on delete cascade,
+    created_at timestamptz not null default timezone('utc', now()),
+    updated_at timestamptz not null default timezone('utc', now()),
+    constraint project_prompt_items_pk primary key (project_id, prompt_id),
+    constraint project_prompt_items_project_fk
+      foreign key (project_id)
+      references public.projects(id)
+      on delete cascade,
+    constraint project_prompt_items_prompt_fk
+      foreign key (prompt_id)
+      references public.media_prompts(id)
+      on delete cascade,
+    constraint project_prompt_items_project_scope_fk
+      foreign key (project_id, user_id)
+      references public.projects(id, user_id)
+      on delete cascade,
+    constraint project_prompt_items_prompt_scope_fk
+      foreign key (prompt_id, user_id)
+      references public.media_prompts(id, user_id)
+      on delete cascade
+);
+
+create index if not exists ix_project_prompt_items_user_project
+  on public.project_prompt_items (user_id, project_id, updated_at desc);
+
+create index if not exists ix_project_prompt_items_user_prompt
+  on public.project_prompt_items (user_id, prompt_id);
+
+alter table public.project_prompt_items enable row level security;
+
+drop policy if exists select_project_prompt_items_isolation on public.project_prompt_items;
+create policy select_project_prompt_items_isolation
+  on public.project_prompt_items
+  for select
+  using (auth.uid() = user_id);
+
+drop policy if exists insert_project_prompt_items_isolation on public.project_prompt_items;
+create policy insert_project_prompt_items_isolation
+  on public.project_prompt_items
+  for insert
+  with check (auth.uid() = user_id);
+
+drop policy if exists update_project_prompt_items_isolation on public.project_prompt_items;
+create policy update_project_prompt_items_isolation
+  on public.project_prompt_items
+  for update
+  using (auth.uid() = user_id)
+  with check (auth.uid() = user_id);
+
+drop policy if exists delete_project_prompt_items_isolation on public.project_prompt_items;
+create policy delete_project_prompt_items_isolation
+  on public.project_prompt_items
+  for delete
+  using (auth.uid() = user_id);
+
+create unique index if not exists ux_ai_generations_id_user
+  on public.ai_generations (id, user_id);
+
+create table if not exists public.project_generation_items (
+    project_id uuid not null,
+    generation_id uuid not null,
+    user_id uuid not null references auth.users(id) on delete cascade,
+    created_at timestamptz not null default timezone('utc', now()),
+    updated_at timestamptz not null default timezone('utc', now()),
+    constraint project_generation_items_pk primary key (project_id, generation_id),
+    constraint project_generation_items_project_fk
+      foreign key (project_id)
+      references public.projects(id)
+      on delete cascade,
+    constraint project_generation_items_generation_fk
+      foreign key (generation_id)
+      references public.ai_generations(id)
+      on delete cascade,
+    constraint project_generation_items_project_scope_fk
+      foreign key (project_id, user_id)
+      references public.projects(id, user_id)
+      on delete cascade,
+    constraint project_generation_items_generation_scope_fk
+      foreign key (generation_id, user_id)
+      references public.ai_generations(id, user_id)
+      on delete cascade
+);
+
+create index if not exists ix_project_generation_items_user_project
+  on public.project_generation_items (user_id, project_id, updated_at desc);
+
+create index if not exists ix_project_generation_items_user_generation
+  on public.project_generation_items (user_id, generation_id);
+
+alter table public.project_generation_items enable row level security;
+
+drop policy if exists select_project_generation_items_isolation on public.project_generation_items;
+create policy select_project_generation_items_isolation
+  on public.project_generation_items
+  for select
+  using (auth.uid() = user_id);
+
+drop policy if exists insert_project_generation_items_isolation on public.project_generation_items;
+create policy insert_project_generation_items_isolation
+  on public.project_generation_items
+  for insert
+  with check (auth.uid() = user_id);
+
+drop policy if exists update_project_generation_items_isolation on public.project_generation_items;
+create policy update_project_generation_items_isolation
+  on public.project_generation_items
+  for update
+  using (auth.uid() = user_id)
+  with check (auth.uid() = user_id);
+
+drop policy if exists delete_project_generation_items_isolation on public.project_generation_items;
+create policy delete_project_generation_items_isolation
+  on public.project_generation_items
+  for delete
+  using (auth.uid() = user_id);

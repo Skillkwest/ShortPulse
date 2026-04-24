@@ -204,7 +204,8 @@ If enabling AI Studio Fal reliability rollout (modular submit/retrieval + reconc
 90. `sql/migrations/090_add_user_preferences_ai_studio_style_panel_ids.sql`
 91. `sql/migrations/091_add_project_workspace_states.sql`
 92. `sql/migrations/092_add_project_asset_associations.sql`
-93. Rollback files:
+93. `sql/migrations/093_add_project_generation_associations.sql`
+94. Rollback files:
     - `sql/migrations/rollback/019_add_generation_recovery_fields_rollback.sql`
     - `sql/migrations/rollback/020_generation_runtime_convergence_rollback.sql`
     - `sql/migrations/rollback/021_generation_state_machine_constraints_rollback.sql`
@@ -255,6 +256,7 @@ If enabling AI Studio Fal reliability rollout (modular submit/retrieval + reconc
     - `sql/migrations/rollback/090_add_user_preferences_ai_studio_style_panel_ids_rollback.sql`
     - `sql/migrations/rollback/091_add_project_workspace_states_rollback.sql`
     - `sql/migrations/rollback/092_add_project_asset_associations_rollback.sql`
+    - `sql/migrations/rollback/093_add_project_generation_associations_rollback.sql`
 
 Billing safety note:
 - Migration `013_fix_generation_reservation_rpc_ambiguity.sql` is required to avoid

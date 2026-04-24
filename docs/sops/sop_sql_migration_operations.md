@@ -105,6 +105,7 @@ Current set:
 - `057_add_user_preferences_ai_studio_deleted_style_ids.sql`
 - `058_add_user_preferences_ai_studio_style_details_overrides.sql`
 - `059_add_user_preferences_ai_studio_character_quickswap_tip_hidden.sql`
+- `090_add_user_preferences_ai_studio_style_panel_ids.sql`
 - `060_add_media_folders_and_membership.sql`
 - `061_backfill_media_image_dimensions_metadata.sql`
 - `062_add_dashboard_announcements.sql`
@@ -127,6 +128,18 @@ Current set:
 - `079_add_queued_dispatch_success_commit_rpc.sql`
 - `080_add_elements_library_foundation.sql`
 - `081_add_generation_observation_inbox_claim_rpc.sql`
+- `082_add_user_preferences_ai_studio_saved_voices.sql`
+- `083_add_user_preferences_ai_studio_saved_pulses.sql`
+- `084_harden_billing_profile_and_stripe_event_rls.sql`
+- `085_add_billing_plan_offers_and_subscription_contracts.sql`
+- `086_add_internal_comp_billing_contract_support.sql`
+- `087_add_storage_entitlements_and_recurring_storage_addons.sql`
+- `088_fix_paid_entitlement_fallbacks_and_offer_catalog.sql`
+- `089_add_projects_foundation.sql`
+- `090_add_user_preferences_ai_studio_style_panel_ids.sql`
+- `091_add_project_workspace_states.sql`
+- `092_add_project_asset_associations.sql`
+- `093_add_project_generation_associations.sql`
 
 ### 3) Rollbacks (`sql/migrations/rollback/`)
 Use only when explicitly reverting a migration in a controlled window. Prefer targeted corrective forward SQL when possible.

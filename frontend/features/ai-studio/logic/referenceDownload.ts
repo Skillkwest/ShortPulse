@@ -250,6 +250,7 @@ const resolveLatestMediaFileByCanonicalGenerationOutputs = async (
 export const resolveReferenceDownloadTarget = async ({
   output,
   supabase,
+  projectId,
 }: {
   output: Pick<
     StudioOutput,
@@ -263,6 +264,7 @@ export const resolveReferenceDownloadTarget = async ({
     | "resultUrls"
   >;
   supabase: SupabaseClient;
+  projectId?: string | null;
 }): Promise<ResolvedReferenceDownloadTarget> => {
   const directUrl = resolveDirectDownloadUrl(output);
   const generationId =
@@ -270,6 +272,7 @@ export const resolveReferenceDownloadTarget = async ({
     (await resolveGenerationIdForRequestId({
       supabase,
       requestId: asTrimmedString(output.taskId),
+      projectId,
     }));
   const shouldPreferCanonicalGeneratedOutputs =
     output.mediaSource === "generated" && Boolean(generationId);

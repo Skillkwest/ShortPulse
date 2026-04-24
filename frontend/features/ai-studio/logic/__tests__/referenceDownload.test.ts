@@ -1,5 +1,11 @@
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { resolveReferenceDownloadTarget } from "../referenceDownload";
+
+const readSupabaseUserIdMock = vi.hoisted(() => vi.fn());
+
+vi.mock("../../../../lib/supabaseClient", () => ({
+  readSupabaseUserId: readSupabaseUserIdMock,
+}));
 
 type QueryResult = {
   data: unknown;
@@ -10,12 +16,70 @@ const createSupabaseMock = ({
   publicationRows = [],
   mediaFileRows = [],
   canonicalOutputRows = [],
+  projectionRows = [],
+  generationRows = [],
+  projectGenerationRows = [],
 }: {
   publicationRows?: unknown[];
   mediaFileRows?: unknown[];
   canonicalOutputRows?: unknown[];
+  projectionRows?: unknown[];
+  generationRows?: unknown[];
+  projectGenerationRows?: unknown[];
 }) => ({
   from: (table: string) => {
+    if (table === "generation_projection") {
+      return {
+        select: () => ({
+          eq: () => ({
+            eq: () => ({
+              limit: () => ({
+                maybeSingle: async (): Promise<QueryResult> => ({
+                  data: Array.isArray(projectionRows) ? (projectionRows[0] ?? null) : null,
+                  error: null,
+                }),
+              }),
+            }),
+          }),
+        }),
+      };
+    }
+    if (table === "ai_generations") {
+      return {
+        select: () => ({
+          eq: () => ({
+            eq: () => ({
+              limit: () => ({
+                maybeSingle: async (): Promise<QueryResult> => ({
+                  data: Array.isArray(generationRows) ? (generationRows[0] ?? null) : null,
+                  error: null,
+                }),
+              }),
+            }),
+          }),
+        }),
+      };
+    }
+    if (table === "project_generation_items") {
+      return {
+        select: () => ({
+          eq: () => ({
+            eq: () => ({
+              eq: () => ({
+                limit: () => ({
+                  maybeSingle: async (): Promise<QueryResult> => ({
+                    data: Array.isArray(projectGenerationRows)
+                      ? (projectGenerationRows[0] ?? null)
+                      : null,
+                    error: null,
+                  }),
+                }),
+              }),
+            }),
+          }),
+        }),
+      };
+    }
     if (table === "generation_publications") {
       return {
         select: () => ({
@@ -79,6 +143,11 @@ const createSupabaseMock = ({
 });
 
 describe("resolveReferenceDownloadTarget", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    readSupabaseUserIdMock.mockResolvedValue("user-1");
+  });
+
   it("prefers publication-owned media linkage before canonical generation outputs", async () => {
     const target = await resolveReferenceDownloadTarget({
       output: {
@@ -182,6 +251,36 @@ describe("resolveReferenceDownloadTarget", () => {
       },
       generationId: null,
       directUrl: "https://cdn.example.com/preview.png",
+    });
+  });
+
+  it("does not resolve request-backed generations for downloads when the active project does not own them", async () => {
+    const target = await resolveReferenceDownloadTarget({
+      output: {
+        savedMediaIds: [],
+        generationId: undefined,
+        mediaSource: "generated",
+        taskId: "req-project-missing",
+        previewStoragePath: null,
+        fullStoragePath: null,
+        previewUrl: "https://cdn.example.com/project-preview.png",
+        resultUrls: [],
+      },
+      projectId: "project-1",
+      supabase: createSupabaseMock({
+        projectionRows: [
+          {
+            generation_id: "gen-not-owned",
+          },
+        ],
+        projectGenerationRows: [],
+      }) as never,
+    });
+
+    expect(target).toEqual({
+      fileRecord: null,
+      generationId: null,
+      directUrl: "https://cdn.example.com/project-preview.png",
     });
   });
 });

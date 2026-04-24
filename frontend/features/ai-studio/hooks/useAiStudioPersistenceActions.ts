@@ -246,7 +246,10 @@ export const useAiStudioPersistenceActions = ({
       if (taskId && taskId !== output.taskId) {
         updateOutputById(outputId, (item) => ({ ...item, taskId }));
       }
-      const resolvedGenerationId = await resolveGenerationIdForRequestId(taskId ?? output.taskId);
+      const resolvedGenerationId = await resolveGenerationIdForRequestId(
+        taskId ?? output.taskId,
+        projectId
+      );
       if (resolvedGenerationId) {
         if (projectId) {
           try {

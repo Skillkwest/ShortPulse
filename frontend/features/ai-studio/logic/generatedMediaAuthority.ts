@@ -368,14 +368,44 @@ export const resolveGeneratedMediaLibraryRowById = async ({
   return toGeneratedMediaLibraryRow(mediaRow);
 };
 
+const resolveProjectAssociatedGenerationId = async ({
+  supabase,
+  userId,
+  projectId,
+  generationId,
+}: {
+  supabase: SupabaseClient;
+  userId: string;
+  projectId: string | null;
+  generationId: string | null;
+}): Promise<string | null> => {
+  const normalizedProjectId = resolveProjectId(projectId);
+  const normalizedGenerationId = asTrimmedString(generationId);
+  if (!normalizedGenerationId) return null;
+  if (!normalizedProjectId) return normalizedGenerationId;
+
+  const { data, error } = await supabase
+    .from("project_generation_items")
+    .select("generation_id")
+    .eq("user_id", userId)
+    .eq("project_id", normalizedProjectId)
+    .eq("generation_id", normalizedGenerationId)
+    .limit(1)
+    .maybeSingle();
+  if (error) return null;
+  return asTrimmedString((data as Record<string, unknown> | null)?.generation_id);
+};
+
 export const resolveGenerationIdForRequestId = async ({
   supabase,
   requestId,
   userId,
+  projectId,
 }: {
   supabase: SupabaseClient;
   requestId: string | null | undefined;
   userId?: string | null;
+  projectId?: string | null;
 }): Promise<string | null> => {
   const normalizedRequestId = asTrimmedString(requestId);
   if (!normalizedRequestId) return null;
@@ -393,7 +423,15 @@ export const resolveGenerationIdForRequestId = async ({
     const generationId = asTrimmedString(
       (projectionData as Record<string, unknown> | null)?.generation_id
     );
-    if (generationId) return generationId;
+    if (generationId) {
+      const resolvedGenerationId = await resolveProjectAssociatedGenerationId({
+        supabase,
+        userId: resolvedUserId,
+        projectId: projectId ?? null,
+        generationId,
+      });
+      if (resolvedGenerationId) return resolvedGenerationId;
+    }
   }
 
   const { data: generationData, error: generationError } = await supabase
@@ -405,7 +443,12 @@ export const resolveGenerationIdForRequestId = async ({
     .maybeSingle();
   if (generationError) return null;
 
-  return asTrimmedString((generationData as Record<string, unknown> | null)?.id);
+  return await resolveProjectAssociatedGenerationId({
+    supabase,
+    userId: resolvedUserId,
+    projectId: projectId ?? null,
+    generationId: asTrimmedString((generationData as Record<string, unknown> | null)?.id),
+  });
 };
 
 export const resolvePublishedGenerationOutputStoragePathByIndex = async ({
@@ -689,6 +732,7 @@ export const resolveVisibleGenerationReconcile = async ({
       supabase,
       requestId: normalizedRequestId,
       userId,
+      projectId: normalizedProjectId,
     }));
   if (!candidateGenerationId) return null;
 

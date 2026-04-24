@@ -1407,4 +1407,42 @@ describe("resolveGenerationIdForRequestId", () => {
 
     await expect(resolveGenerationIdForRequestId("req-1")).resolves.toBe("gen-from-generations");
   });
+
+  it("returns null on project routes when the request-backed generation is not associated to that project", async () => {
+    const projectionSelectBuilder = createMaybeSingleEqBuilder(
+      vi.fn().mockResolvedValue({
+        data: { generation_id: "gen-from-projection" },
+        error: null,
+      })
+    );
+    const generationSelectBuilder = createMaybeSingleEqBuilder(
+      vi.fn().mockResolvedValue({
+        data: { id: "gen-from-generations" },
+        error: null,
+      })
+    );
+    const projectGenerationSelectBuilder = createMaybeSingleEqBuilder(
+      vi.fn().mockResolvedValue({
+        data: null,
+        error: null,
+      })
+    );
+
+    ensureSupabaseQueryClientMock.mockReturnValue({
+      from: vi.fn((table: string) => {
+        if (table === "generation_projection") {
+          return { select: vi.fn(() => projectionSelectBuilder) };
+        }
+        if (table === "ai_generations") {
+          return { select: vi.fn(() => generationSelectBuilder) };
+        }
+        if (table === "project_generation_items") {
+          return { select: vi.fn(() => projectGenerationSelectBuilder) };
+        }
+        throw new Error(`Unexpected table: ${table}`);
+      }),
+    });
+
+    await expect(resolveGenerationIdForRequestId("req-1", "project-1")).resolves.toBeNull();
+  });
 });

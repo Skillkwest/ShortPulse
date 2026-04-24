@@ -72,7 +72,7 @@ describe("useAiStudioPersistenceActions ensureGenerationRecord", () => {
     });
 
     expect(resolvedGenerationId).toBe("gen-from-projection");
-    expect(resolveGenerationIdForRequestIdMock).toHaveBeenCalledWith("req-1");
+    expect(resolveGenerationIdForRequestIdMock).toHaveBeenCalledWith("req-1", null);
     expect(outputs.get("out-1")?.generationId).toBe("gen-from-projection");
     expect(updateOutputById).toHaveBeenCalled();
   });
@@ -109,6 +109,7 @@ describe("useAiStudioPersistenceActions ensureGenerationRecord", () => {
       });
     });
 
+    expect(resolveGenerationIdForRequestIdMock).toHaveBeenCalledWith("req-1", "project-1");
     expect(associateGenerationWithProjectMock).toHaveBeenCalledWith({
       projectId: "project-1",
       generationId: "gen-from-project-route",

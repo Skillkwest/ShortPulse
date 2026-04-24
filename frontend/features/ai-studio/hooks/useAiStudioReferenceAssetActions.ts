@@ -16,6 +16,7 @@ import {
 import type { StudioOutput } from "../types";
 
 type UseAiStudioReferenceAssetActionsParams = {
+  projectId?: string | null;
   findOutputById: (id: string) => StudioOutput | null;
   saveReferenceToLibrary: (outputId: string) => void;
   setUiError: Dispatch<SetStateAction<string | null>>;
@@ -25,6 +26,7 @@ type UseAiStudioReferenceAssetActionsParams = {
  * Returns reference asset handlers for card/detail interactions.
  */
 export const useAiStudioReferenceAssetActions = ({
+  projectId = null,
   findOutputById,
   saveReferenceToLibrary,
   setUiError,
@@ -38,6 +40,7 @@ export const useAiStudioReferenceAssetActions = ({
         const resolvedTarget = await resolveReferenceDownloadTarget({
           output: target,
           supabase,
+          projectId,
         });
         const downloadFilename = resolveReferenceDownloadFilename({
           preferredFilename: resolvedTarget.fileRecord?.filename ?? null,
@@ -91,7 +94,7 @@ export const useAiStudioReferenceAssetActions = ({
         setUiError(message);
       }
     },
-    [findOutputById, setUiError]
+    [findOutputById, projectId, setUiError]
   );
 
   const handleSaveReference = useCallback(

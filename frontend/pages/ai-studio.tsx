@@ -1193,6 +1193,7 @@ export default function AiStudioPage() {
     });
   const handleAssistantBubbleMessageEdit = handleAssistantMessageEdit;
   const { handleDownloadReference, handleSaveReference } = useAiStudioReferenceAssetActions({
+    projectId,
     findOutputById,
     saveReferenceToLibrary,
     setUiError,

@@ -251,13 +251,15 @@ export type SaveMediaUrlResult = {
 };
 
 export const resolveGenerationIdForRequestId = async (
-  requestId: string | null | undefined
+  requestId: string | null | undefined,
+  projectId?: string | null
 ): Promise<string | null> => {
   const { supabase, userId } = await resolveSupabaseContext();
   return await resolveGenerationIdForRequestIdFromAuthority({
     supabase,
     requestId,
     userId,
+    projectId,
   });
 };
 

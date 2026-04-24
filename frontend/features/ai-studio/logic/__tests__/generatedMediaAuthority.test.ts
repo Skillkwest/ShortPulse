@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   listVisibleGeneratedOutputs,
+  resolveGenerationIdForRequestId,
   resolveVisibleGenerationDelivery,
   resolveVisibleGenerationReconcile,
 } from "../generatedMediaAuthority";
@@ -191,6 +192,93 @@ describe("generatedMediaAuthority", () => {
       fullStoragePath: null,
       resultUrls: ["https://fal.test/request-full.png"],
     });
+  });
+
+  it("requires project association before resolving request-backed generation ids on project routes", async () => {
+    const projectionIdentityBuilder = createAwaitableSelectBuilder({
+      data: {
+        generation_id: "gen-request-project-1",
+      },
+      error: null,
+    });
+    const projectGenerationBuilder = createAwaitableSelectBuilder({
+      data: {
+        generation_id: "gen-request-project-1",
+      },
+      error: null,
+    });
+
+    const supabase = {
+      from: vi.fn((table: string) => {
+        if (table === "generation_projection") {
+          return {
+            select: vi.fn(() => projectionIdentityBuilder),
+          };
+        }
+        if (table === "project_generation_items") {
+          return {
+            select: vi.fn(() => projectGenerationBuilder),
+          };
+        }
+        throw new Error(`Unexpected table: ${table}`);
+      }),
+    };
+
+    await expect(
+      resolveGenerationIdForRequestId({
+        supabase: supabase as never,
+        requestId: "req-project-1",
+        userId: "user-1",
+        projectId: "project-1",
+      })
+    ).resolves.toBe("gen-request-project-1");
+  });
+
+  it("returns null when a request-backed generation is not associated to the active project", async () => {
+    const projectionIdentityBuilder = createAwaitableSelectBuilder({
+      data: {
+        generation_id: "gen-request-missing",
+      },
+      error: null,
+    });
+    const generationBuilder = createAwaitableSelectBuilder({
+      data: null,
+      error: null,
+    });
+    const projectGenerationBuilder = createAwaitableSelectBuilder({
+      data: null,
+      error: null,
+    });
+
+    const supabase = {
+      from: vi.fn((table: string) => {
+        if (table === "generation_projection") {
+          return {
+            select: vi.fn(() => projectionIdentityBuilder),
+          };
+        }
+        if (table === "ai_generations") {
+          return {
+            select: vi.fn(() => generationBuilder),
+          };
+        }
+        if (table === "project_generation_items") {
+          return {
+            select: vi.fn(() => projectGenerationBuilder),
+          };
+        }
+        throw new Error(`Unexpected table: ${table}`);
+      }),
+    };
+
+    await expect(
+      resolveGenerationIdForRequestId({
+        supabase: supabase as never,
+        requestId: "req-project-missing",
+        userId: "user-1",
+        projectId: "project-1",
+      })
+    ).resolves.toBeNull();
   });
 
   it("lists visible generated outputs from canonical projection rows", async () => {

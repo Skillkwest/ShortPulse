@@ -1220,6 +1220,21 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
     if (!removed) return;
     setSelectedIds(new Set());
   }, [handleRemoveItemsFromActiveFolder, isRootFolderSelected, selectedVisibleMediaRows]);
+  const bulkActions = (
+    <MediaLibraryPanelBulkActions
+      canDeleteFromLibrary={isRootFolderSelected}
+      canMoveToFolder={canMoveSelectedMediaToFolder}
+      canRemoveFromFolder={!isRootFolderSelected}
+      disabled={deleteConfirmSubmitting}
+      onClearSelection={clearSelectedMediaIds}
+      onMoveToFolder={handleOpenBulkMoveDialog}
+      onDeleteFromLibrary={handleOpenBulkDeleteConfirm}
+      onRemoveFromFolder={() => {
+        void handleRemoveSelectedMediaFromFolder();
+      }}
+      selectedCount={selectedVisibleMediaRows.length}
+    />
+  );
   const isActiveFolderDropHover =
     !isRootFolderSelected && foldersDropController.hoveredContentFolderId === activeFolderId;
   const isRootFolderDropHover =
@@ -1382,119 +1397,116 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
                 <span>{membershipMessage}</span>
               </div>
             ) : null}
-            <MediaLibraryPanelBulkActions
-              canDeleteFromLibrary={isRootFolderSelected}
-              canMoveToFolder={canMoveSelectedMediaToFolder}
-              canRemoveFromFolder={!isRootFolderSelected}
-              disabled={deleteConfirmSubmitting}
-              onClearSelection={clearSelectedMediaIds}
-              onMoveToFolder={handleOpenBulkMoveDialog}
-              onDeleteFromLibrary={handleOpenBulkDeleteConfirm}
-              onRemoveFromFolder={() => {
-                void handleRemoveSelectedMediaFromFolder();
-              }}
-              selectedCount={selectedVisibleMediaRows.length}
-            />
-
-            {!showFolderCanvas && isRootFolderSelected ? (
-              <div className="media-library-panel-root-tabs-row">
+            {!showFolderCanvas ? (
+              isRootFolderSelected ? (
                 <div
-                  className="media-library-panel-root-tabs"
-                  role="tablist"
-                  aria-label="All Media type tabs"
+                  className={`media-library-panel-root-sticky-chrome${
+                    selectedVisibleMediaRows.length > 0 ? " has-bulk-actions" : ""
+                  }`}
                 >
-                  <button
-                    type="button"
-                    role="tab"
-                    className={`media-library-panel-root-tab${rootTab === "all" ? " is-active" : ""}`}
-                    aria-selected={rootTab === "all"}
-                    aria-controls="media-library-panel-all-media-section"
-                    onClick={() => setRootTab("all")}
-                  >
-                    All Media
-                  </button>
-                  <button
-                    type="button"
-                    role="tab"
-                    className={`media-library-panel-root-tab${rootTab === "images" ? " is-active" : ""}`}
-                    aria-selected={rootTab === "images"}
-                    aria-controls="media-library-panel-images-section"
-                    onClick={() => setRootTab("images")}
-                  >
-                    Images
-                  </button>
-                  <button
-                    type="button"
-                    role="tab"
-                    className={`media-library-panel-root-tab${rootTab === "videos" ? " is-active" : ""}`}
-                    aria-selected={rootTab === "videos"}
-                    aria-controls="media-library-panel-videos-section"
-                    onClick={() => setRootTab("videos")}
-                  >
-                    Videos
-                  </button>
-                  <button
-                    type="button"
-                    role="tab"
-                    className={`media-library-panel-root-tab${rootTab === "audio" ? " is-active" : ""}`}
-                    aria-selected={rootTab === "audio"}
-                    aria-controls="media-library-panel-audio-section"
-                    onClick={() => setRootTab("audio")}
-                  >
-                    Audio
-                  </button>
-                  <button
-                    type="button"
-                    role="tab"
-                    className={`media-library-panel-root-tab${rootTab === "prompts" ? " is-active" : ""}`}
-                    aria-selected={rootTab === "prompts"}
-                    aria-controls="media-library-panel-prompts-section"
-                    onClick={() => setRootTab("prompts")}
-                  >
-                    Prompts
-                  </button>
-                </div>
-                <div className="media-library-panel-root-count-group">
-                  <button
-                    type="button"
-                    className="media-library-panel-root-upload-button"
-                    onClick={handleOpenRootUploadPicker}
-                  >
-                    <UploadSimple size={14} weight="bold" aria-hidden />
-                    <span>Add files</span>
-                  </button>
-                  {libraryTotalCount !== null ? (
+                  <div className="media-library-panel-root-tabs-row">
                     <div
-                      className="media-library-panel-root-count"
-                      aria-label={`${libraryTotalCount} saved media items`}
+                      className="media-library-panel-root-tabs"
+                      role="tablist"
+                      aria-label="All Media type tabs"
                     >
-                      <span className="media-library-panel-root-count-value">
-                        {libraryTotalCount}
-                      </span>
-                      <span className="media-library-panel-root-count-label">saved</span>
+                      <button
+                        type="button"
+                        role="tab"
+                        className={`media-library-panel-root-tab${rootTab === "all" ? " is-active" : ""}`}
+                        aria-selected={rootTab === "all"}
+                        aria-controls="media-library-panel-all-media-section"
+                        onClick={() => setRootTab("all")}
+                      >
+                        All Media
+                      </button>
+                      <button
+                        type="button"
+                        role="tab"
+                        className={`media-library-panel-root-tab${rootTab === "images" ? " is-active" : ""}`}
+                        aria-selected={rootTab === "images"}
+                        aria-controls="media-library-panel-images-section"
+                        onClick={() => setRootTab("images")}
+                      >
+                        Images
+                      </button>
+                      <button
+                        type="button"
+                        role="tab"
+                        className={`media-library-panel-root-tab${rootTab === "videos" ? " is-active" : ""}`}
+                        aria-selected={rootTab === "videos"}
+                        aria-controls="media-library-panel-videos-section"
+                        onClick={() => setRootTab("videos")}
+                      >
+                        Videos
+                      </button>
+                      <button
+                        type="button"
+                        role="tab"
+                        className={`media-library-panel-root-tab${rootTab === "audio" ? " is-active" : ""}`}
+                        aria-selected={rootTab === "audio"}
+                        aria-controls="media-library-panel-audio-section"
+                        onClick={() => setRootTab("audio")}
+                      >
+                        Audio
+                      </button>
+                      <button
+                        type="button"
+                        role="tab"
+                        className={`media-library-panel-root-tab${rootTab === "prompts" ? " is-active" : ""}`}
+                        aria-selected={rootTab === "prompts"}
+                        aria-controls="media-library-panel-prompts-section"
+                        onClick={() => setRootTab("prompts")}
+                      >
+                        Prompts
+                      </button>
                     </div>
-                  ) : null}
-                  {isMediaLibraryPanelExpanded ? (
-                    <button
-                      type="button"
-                      className="media-library-panel-root-expand-button"
-                      aria-label="Collapse media library panel"
-                      onClick={handleCollapseMediaLibraryPanel}
-                    >
-                      <ArrowsInCardinal size={14} weight="bold" aria-hidden />
-                    </button>
-                  ) : (
-                    <button
-                      type="button"
-                      className="media-library-panel-root-expand-button"
-                      aria-label="Expand media library panel"
-                      onClick={handleExpandMediaLibraryPanel}
-                    >
-                      <ArrowsOutSimple size={14} weight="bold" aria-hidden />
-                    </button>
-                  )}
+                    <div className="media-library-panel-root-count-group">
+                      <button
+                        type="button"
+                        className="media-library-panel-root-upload-button"
+                        onClick={handleOpenRootUploadPicker}
+                      >
+                        <UploadSimple size={14} weight="bold" aria-hidden />
+                        <span>Add files</span>
+                      </button>
+                      {libraryTotalCount !== null ? (
+                        <div
+                          className="media-library-panel-root-count"
+                          aria-label={`${libraryTotalCount} saved media items`}
+                        >
+                          <span className="media-library-panel-root-count-value">
+                            {libraryTotalCount}
+                          </span>
+                          <span className="media-library-panel-root-count-label">saved</span>
+                        </div>
+                      ) : null}
+                      {isMediaLibraryPanelExpanded ? (
+                        <button
+                          type="button"
+                          className="media-library-panel-root-expand-button"
+                          aria-label="Collapse media library panel"
+                          onClick={handleCollapseMediaLibraryPanel}
+                        >
+                          <ArrowsInCardinal size={14} weight="bold" aria-hidden />
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          className="media-library-panel-root-expand-button"
+                          aria-label="Expand media library panel"
+                          onClick={handleExpandMediaLibraryPanel}
+                        >
+                          <ArrowsOutSimple size={14} weight="bold" aria-hidden />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                  {bulkActions}
                 </div>
-              </div>
+              ) : (
+                bulkActions
+              )
             ) : null}
 
             {!showFolderCanvas && shouldShowMedia && isRootFolderSelected && itemType === "all" ? (

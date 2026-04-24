@@ -5,7 +5,6 @@
 import React from "react";
 import { postExtractStyle } from "../../logic/styleExtraction";
 import type { StylesLibraryStyleDetails } from "../../types";
-import { buildStyleExtractionMeta, buildStyleProfileFromPrompt } from "../../logic/styleProfile";
 import {
   INTERNAL_REFERENCE_DRAG_SESSION_TEXT_TYPE,
   INTERNAL_REFERENCE_DRAG_SESSION_TYPE,
@@ -49,7 +48,6 @@ import {
 import type {
   PendingStyleEditState,
   StyleExtractionFailureClass,
-  StyleExtractionOutcome,
   StyleExtractionRuntimeResult,
 } from "./types";
 
@@ -307,19 +305,7 @@ export const useStyleCreatorController = ({
   }, [editSubmitting]);
 
   const applyExtractedStyleToCreateDraft = React.useCallback(
-    ({
-      stylePrompt,
-      styleTitle,
-      outcome,
-      flow,
-      sourceUrlKind,
-    }: {
-      stylePrompt: string;
-      styleTitle: string;
-      outcome: StyleExtractionOutcome;
-      flow: "create_modal" | "library_drop";
-      sourceUrlKind: "data" | "url" | "unknown";
-    }) => {
+    ({ stylePrompt, styleTitle }: { stylePrompt: string; styleTitle: string }) => {
       setPendingStyleEdit((previous) => {
         if (!previous || previous.mode !== "create") return previous;
         const clampedStylePrompt = clampStylePromptCharacters(stylePrompt);
@@ -337,12 +323,6 @@ export const useStyleCreatorController = ({
             referenceImageName: shouldReplaceStyleName
               ? styleTitle
               : previous.details.referenceImageName,
-            styleProfile: buildStyleProfileFromPrompt(clampedStylePrompt),
-            extractionMeta: buildStyleExtractionMeta({
-              outcome,
-              flow,
-              sourceUrlKind,
-            }),
           },
         };
       });
@@ -444,9 +424,6 @@ export const useStyleCreatorController = ({
         applyExtractedStyleToCreateDraft({
           stylePrompt: preparedSource.stylePrompt,
           styleTitle: preparedSource.styleTitle,
-          outcome: preparedSource.extractionOutcome,
-          flow: "create_modal",
-          sourceUrlKind: preparedSource.sourceUrlKind,
         });
       } else {
         setStylePromptExtractionError(

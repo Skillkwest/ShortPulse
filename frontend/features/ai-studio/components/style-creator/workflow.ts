@@ -1,7 +1,6 @@
 /**
  * Shared workflow helpers for style-source resolution and create-style payload assembly.
  */
-import { buildStyleExtractionMeta, buildStyleProfileFromPrompt } from "../../logic/styleProfile";
 import type { StylesLibraryStyleDetails } from "../../types";
 import {
   clampStylePromptCharacters,
@@ -104,11 +103,5 @@ export const buildCreatedStyleDetails = ({
     referenceImageName: styleName,
     stylePrompt: preparedSource.stylePrompt,
     previewImageUrl: preparedSource.previewImageUrl,
-    styleProfile: buildStyleProfileFromPrompt(preparedSource.stylePrompt),
-    extractionMeta: buildStyleExtractionMeta({
-      outcome: preparedSource.extractionOutcome,
-      flow: "library_drop",
-      sourceUrlKind: preparedSource.sourceUrlKind,
-    }),
   };
 };

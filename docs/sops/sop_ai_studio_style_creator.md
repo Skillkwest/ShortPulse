@@ -34,7 +34,8 @@ Optional metadata extension fields:
 Rules:
 1. Reads must normalize legacy rows that do not include metadata.
 2. Writes must preserve backward compatibility and never require metadata fields.
-3. JSONB storage remains in `user_preferences.ai_studio_style_details_overrides` for MVP.
+3. New style-create writes do not populate `styleProfile` or `extractionMeta`; those fields are tolerated for legacy rows and edit-roundtrips only.
+4. JSONB storage remains in `user_preferences.ai_studio_style_details_overrides` for MVP.
 
 ## Workflow
 1. User creates style via Add Style modal or library drop.
@@ -46,7 +47,7 @@ Rules:
    - Extraction normalization enforces a deterministic leading hard style class descriptor as the first `stylePrompt` token.
    - Current hard style class set: `Photographic`, `Vintage`, `Hyper-realistic`, `Anime Style`, `Cartoon Style`, `Photorealistic`, `Candid Cell Phone Snapshot`, `Digital Illustration`, `3D Render`, `Concept Art`, `Hand-Drawn`, `Painting`.
 4. Outcome is classified as `success`, `fallback`, or `blocked_source`.
-5. Create/save path persists normalized details; optional metadata is attached when available.
+5. Create/save path persists normalized details; legacy metadata is preserved when editing existing rows, but new style creation does not attach fresh metadata.
 6. Edit/delete path uses guarded persistence commands with deterministic local error messaging.
 7. The first tile in Styles Library is a fixed `None` slot (system tile); it is never persisted, edited, deleted, or reordered.
 8. Styles Library tile clicks are edit-only (open/create/update/delete workflows) and do not mutate active Create/Edit style selection.

@@ -292,6 +292,35 @@ function DetailModalContent({
     if (output.timestamp === "Clipboard") return true;
     return false;
   }, [displayPreviewUrl, output]);
+  const normalizedAudioWorkflowLabel = useMemo(() => {
+    const modelLabel = output?.model?.trim().toLowerCase() ?? "";
+    const modelId = output?.modelId?.trim().toLowerCase() ?? "";
+    if (modelLabel.includes("voice changer") || modelId.includes("sts")) {
+      return "voice changer";
+    }
+    if (modelLabel.includes("voiceover") || modelLabel.includes("text to speech")) {
+      return "voiceover";
+    }
+    if (modelLabel.includes("sound effects")) {
+      return "SFX";
+    }
+    if (modelLabel.includes("music")) {
+      return "music";
+    }
+    return null;
+  }, [output?.model, output?.modelId]);
+  const isGeneratedPureAudioOutput = Boolean(
+    isAudioOutput &&
+    output?.mediaSource === "generated" &&
+    !isNonGeneratedLoadedMedia &&
+    normalizedAudioWorkflowLabel
+  );
+  const isGeneratedVoiceChangerVideoOutput = Boolean(
+    isVideoOutput &&
+    output?.mediaSource === "generated" &&
+    !isNonGeneratedLoadedMedia &&
+    normalizedAudioWorkflowLabel === "voice changer"
+  );
   const aspectStyle =
     output?.aspect && output.aspect.includes(":")
       ? { aspectRatio: output.aspect.replace(":", " / ") }
@@ -579,6 +608,38 @@ function DetailModalContent({
     }
     return output?.model ?? modelLabelFromId ?? output?.modelId ?? null;
   }, [hasCharacterContext, isUploadedReference, output?.model, output?.modelId]);
+  const metaPillItems = useMemo(() => {
+    if (isGeneratedPureAudioOutput && normalizedAudioWorkflowLabel) {
+      return [normalizedAudioWorkflowLabel];
+    }
+    if (isGeneratedVoiceChangerVideoOutput && normalizedAudioWorkflowLabel) {
+      return output?.aspect
+        ? [normalizedAudioWorkflowLabel, output.aspect]
+        : [normalizedAudioWorkflowLabel];
+    }
+
+    const items: string[] = [mediaType];
+    if (!isNonGeneratedLoadedMedia && output?.aspect) {
+      items.push(output.aspect);
+    }
+    if (!isNonGeneratedLoadedMedia && uploadedHeaderFilename) {
+      items.push(uploadedHeaderFilename);
+    }
+    if (!isNonGeneratedLoadedMedia && !isUploadedReference && displayModelLabel) {
+      items.push(displayModelLabel);
+    }
+    return items;
+  }, [
+    displayModelLabel,
+    isGeneratedPureAudioOutput,
+    isGeneratedVoiceChangerVideoOutput,
+    isNonGeneratedLoadedMedia,
+    isUploadedReference,
+    mediaType,
+    normalizedAudioWorkflowLabel,
+    output?.aspect,
+    uploadedHeaderFilename,
+  ]);
 
   const handleSavePrompt = () => {
     if (!trimmedPrompt) return;
@@ -841,7 +902,7 @@ function DetailModalContent({
         )}
 
         <div
-          className={`reference-modal-new ${isPromptOnly ? "is-prompt-only" : ""} ${isUploadedReference ? "is-uploaded" : ""}`}
+          className={`reference-modal-new ${isPromptOnly ? "is-prompt-only" : ""} ${isUploadedReference ? "is-uploaded" : ""} ${isAudioOutput ? "is-audio-modal" : ""}`}
           role="dialog"
           aria-modal="true"
           aria-label="Reference details"
@@ -852,27 +913,27 @@ function DetailModalContent({
           {!isPromptOnly && (
             <div className="art-modal-top-controls">
               <div className="art-modal-meta-pill">
-                <span className="art-meta-item">{mediaType}</span>
-                {!isNonGeneratedLoadedMedia && output.aspect && (
-                  <span className="art-meta-divider">/</span>
-                )}
-                {!isNonGeneratedLoadedMedia && output.aspect && (
-                  <span className="art-meta-item">{output.aspect}</span>
-                )}
-                {!isNonGeneratedLoadedMedia && uploadedHeaderFilename && (
-                  <span className="art-meta-divider">/</span>
-                )}
-                {!isNonGeneratedLoadedMedia && uploadedHeaderFilename && (
-                  <span className="art-meta-item art-meta-filename" title={uploadedHeaderFilename}>
-                    {uploadedHeaderFilename}
-                  </span>
-                )}
-                {!isNonGeneratedLoadedMedia && !isUploadedReference && displayModelLabel && (
-                  <span className="art-meta-divider">/</span>
-                )}
-                {!isNonGeneratedLoadedMedia && !isUploadedReference && (
-                  <span className="art-meta-item truncate-model">{displayModelLabel}</span>
-                )}
+                {metaPillItems.map((item, index) => (
+                  <React.Fragment key={`${item}-${index}`}>
+                    {index > 0 ? <span className="art-meta-divider">/</span> : null}
+                    <span
+                      className={`art-meta-item ${
+                        !isGeneratedPureAudioOutput &&
+                        !isGeneratedVoiceChangerVideoOutput &&
+                        item === uploadedHeaderFilename
+                          ? "art-meta-filename"
+                          : !isGeneratedPureAudioOutput &&
+                              !isGeneratedVoiceChangerVideoOutput &&
+                              item === displayModelLabel
+                            ? "truncate-model"
+                            : ""
+                      }`.trim()}
+                      title={item === uploadedHeaderFilename ? uploadedHeaderFilename : undefined}
+                    >
+                      {item}
+                    </span>
+                  </React.Fragment>
+                ))}
               </div>
 
               <div className="art-modal-action-row">

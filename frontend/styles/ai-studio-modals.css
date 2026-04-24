@@ -67,6 +67,13 @@
   );
 }
 
+.reference-modal-new.is-audio-modal:not(.is-prompt-only) {
+  width: min(
+    calc(var(--detail-modal-prompt-width) + min(760px, calc(var(--app-fixed-width) * 0.42))),
+    min(1280px, calc(var(--app-fixed-width) * 0.9))
+  );
+}
+
 @keyframes modal-art-in {
   from {
     opacity: 0;

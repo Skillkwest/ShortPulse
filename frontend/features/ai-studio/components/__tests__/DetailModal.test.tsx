@@ -19,6 +19,20 @@ const baseOutput: StudioOutput = {
   previewUrl: "https://cdn.test/image.png",
 };
 
+const buildGeneratedAudioOutput = (overrides: Partial<StudioOutput> = {}): StudioOutput => ({
+  ...baseOutput,
+  id: "audio-out-1",
+  mode: "audio",
+  aspect: "9:16",
+  model: "ElevenLabs Voiceover",
+  modelId: "eleven_multilingual_v2",
+  mediaSource: "generated",
+  generationId: "gen-audio-1",
+  previewUrl: "https://cdn.test/audio.mp3",
+  mimeType: "audio/mpeg",
+  ...overrides,
+});
+
 describe("DetailModal", () => {
   it("shows character and style attribution with the actual model used", () => {
     render(
@@ -349,6 +363,125 @@ describe("DetailModal", () => {
 
     const headerPill = container.querySelector(".art-modal-meta-pill");
     expect(headerPill?.textContent?.replace(/\s+/g, " ").trim()).toBe("Image");
+  });
+
+  it("renders generated voiceover audio with the normalized header label only", () => {
+    const { container } = render(
+      <DetailModal
+        output={buildGeneratedAudioOutput()}
+        onClose={vi.fn()}
+        onUpdatePrompt={vi.fn()}
+        onDeleteOutput={vi.fn()}
+      />
+    );
+
+    const headerPill = container.querySelector(".art-modal-meta-pill");
+    expect(headerPill?.textContent?.replace(/\s+/g, " ").trim()).toBe("voiceover");
+  });
+
+  it("renders generated voice changer audio with the normalized header label only", () => {
+    const { container } = render(
+      <DetailModal
+        output={buildGeneratedAudioOutput({
+          model: "ElevenLabs Voice Changer",
+          modelId: "eleven_multilingual_sts_v2",
+        })}
+        onClose={vi.fn()}
+        onUpdatePrompt={vi.fn()}
+        onDeleteOutput={vi.fn()}
+      />
+    );
+
+    const headerPill = container.querySelector(".art-modal-meta-pill");
+    expect(headerPill?.textContent?.replace(/\s+/g, " ").trim()).toBe("voice changer");
+  });
+
+  it("renders generated music audio with the normalized header label only", () => {
+    const { container } = render(
+      <DetailModal
+        output={buildGeneratedAudioOutput({
+          model: "ElevenLabs Music",
+          modelId: "eleven_music_v1",
+        })}
+        onClose={vi.fn()}
+        onUpdatePrompt={vi.fn()}
+        onDeleteOutput={vi.fn()}
+      />
+    );
+
+    const headerPill = container.querySelector(".art-modal-meta-pill");
+    expect(headerPill?.textContent?.replace(/\s+/g, " ").trim()).toBe("music");
+  });
+
+  it("renders generated sound effects audio with the normalized header label only", () => {
+    const { container } = render(
+      <DetailModal
+        output={buildGeneratedAudioOutput({
+          model: "ElevenLabs Sound Effects",
+          modelId: "eleven_sound_effects_v1",
+        })}
+        onClose={vi.fn()}
+        onUpdatePrompt={vi.fn()}
+        onDeleteOutput={vi.fn()}
+      />
+    );
+
+    const headerPill = container.querySelector(".art-modal-meta-pill");
+    expect(headerPill?.textContent?.replace(/\s+/g, " ").trim()).toBe("SFX");
+  });
+
+  it("uses the audio modal sizing hook for pure audio outputs", () => {
+    const { container } = render(
+      <DetailModal
+        output={buildGeneratedAudioOutput()}
+        onClose={vi.fn()}
+        onUpdatePrompt={vi.fn()}
+        onDeleteOutput={vi.fn()}
+      />
+    );
+
+    expect(
+      container.querySelector(".reference-modal-new")?.classList.contains("is-audio-modal")
+    ).toBe(true);
+  });
+
+  it("keeps the aspect hidden for generated pure audio outputs", () => {
+    const { container } = render(
+      <DetailModal
+        output={buildGeneratedAudioOutput({ aspect: "9:16" })}
+        onClose={vi.fn()}
+        onUpdatePrompt={vi.fn()}
+        onDeleteOutput={vi.fn()}
+      />
+    );
+
+    const headerPill = container.querySelector(".art-modal-meta-pill");
+    expect(headerPill?.textContent).not.toContain("9:16");
+  });
+
+  it("shows voice changer and aspect for generated remuxed voice changer video", () => {
+    const { container } = render(
+      <DetailModal
+        output={{
+          ...baseOutput,
+          id: "voice-changer-video-1",
+          mode: "video",
+          aspect: "16:9",
+          model: "ElevenLabs Voice Changer",
+          modelId: "eleven_multilingual_sts_v2",
+          mediaSource: "generated",
+          generationId: "gen-video-1",
+          previewUrl: "https://cdn.test/remuxed-video.mp4",
+          mimeType: "video/mp4",
+        }}
+        onClose={vi.fn()}
+        onUpdatePrompt={vi.fn()}
+        onDeleteOutput={vi.fn()}
+      />
+    );
+
+    const headerPill = container.querySelector(".art-modal-meta-pill");
+    expect(headerPill?.textContent?.replace(/\s+/g, " ").trim()).toBe("voice changer/16:9");
   });
 
   it("keeps image mode previews as images when URL paths contain video-like segments", () => {

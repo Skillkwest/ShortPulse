@@ -365,7 +365,7 @@ export const useAiStudioState = ({
   });
 
   useEffect(() => {
-    if (canonicalGeneratedHydrationStartedRef.current) return;
+    if (projectId || canonicalGeneratedHydrationStartedRef.current) return;
     canonicalGeneratedHydrationStartedRef.current = true;
     let cancelled = false;
 
@@ -380,7 +380,7 @@ export const useAiStudioState = ({
     return () => {
       cancelled = true;
     };
-  }, [setOutputsState]);
+  }, [projectId, setOutputsState]);
 
   const {
     updateOutputById,

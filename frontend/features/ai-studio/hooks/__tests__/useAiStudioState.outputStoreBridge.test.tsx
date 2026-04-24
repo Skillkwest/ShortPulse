@@ -15,6 +15,7 @@ const mockFindOutputById = vi.fn(() => null);
 const mockDeleteOutputFromLifecycle = vi.fn();
 const mockNotifyGenerationFailure = vi.fn();
 const mockUpdateOutputPrompt = vi.fn();
+const listVisibleGeneratedOutputsMock = vi.fn(async () => []);
 const generationPromptComposerArgsMock = vi.fn();
 const EDIT_REFERENCE_INPUTS = {
   referenceImageUrl: "https://example.com/edit-primary.png",
@@ -89,6 +90,10 @@ vi.mock("../useAiStudioWorkflowSettings", () => ({
   }),
 }));
 
+vi.mock("../../logic/generatedMediaAuthority", () => ({
+  listVisibleGeneratedOutputs: () => listVisibleGeneratedOutputsMock(),
+}));
+
 vi.mock("../useAiStudioStateEffects", () => ({
   useAiStudioStateEffects: () => undefined,
 }));
@@ -153,6 +158,7 @@ const makeOutput = (id: string, overrides: Partial<StudioOutput> = {}): StudioOu
 describe("useAiStudioState output store bridge", () => {
   beforeEach(() => {
     resetAiStudioOutputStore();
+    listVisibleGeneratedOutputsMock.mockClear();
     mockUpdateOutputById.mockClear();
     mockUpdateOutputById.mockImplementation(
       (id: string, updater: (item: StudioOutput) => StudioOutput) => {
@@ -193,6 +199,22 @@ describe("useAiStudioState output store bridge", () => {
       const snapshot = getAiStudioOutputSnapshot();
       expect(snapshot.outputOrder).toEqual(["out-1"]);
       expect(snapshot.indexes.inFlightIds.has("out-1")).toBe(true);
+    });
+  });
+
+  it("skips user-global generated-output hydration when a project id is active", async () => {
+    renderHook(() => useAiStudioState({ projectId: "project-1" }), { wrapper: strictWrapper });
+
+    await act(async () => {});
+
+    expect(listVisibleGeneratedOutputsMock).not.toHaveBeenCalled();
+  });
+
+  it("keeps legacy generated-output hydration for plain session routes", async () => {
+    renderHook(() => useAiStudioState(), { wrapper: strictWrapper });
+
+    await waitFor(() => {
+      expect(listVisibleGeneratedOutputsMock).toHaveBeenCalledTimes(1);
     });
   });
 

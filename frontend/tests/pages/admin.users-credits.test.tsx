@@ -57,6 +57,16 @@ const jsonResponse = (body: unknown, ok = true) => ({
   json: vi.fn(async () => body),
 });
 
+const deferred = <T,>() => {
+  let resolve!: (value: T) => void;
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((res, rej) => {
+    resolve = res;
+    reject = rej;
+  });
+  return { promise, resolve, reject };
+};
+
 describe("Admin users and credits overview", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -421,6 +431,113 @@ describe("Admin users and credits overview", () => {
       }
       throw new Error(`Unexpected URL: ${path}`);
     });
+  });
+
+  it("renders a structured loading shell while auth is unresolved", () => {
+    useProtectedRouteMock.mockReturnValue({
+      loading: true,
+      user: null,
+    });
+
+    render(<AdminDashboardPage />);
+
+    expect(screen.getByRole("heading", { name: "Support console" })).toBeInTheDocument();
+    expect(screen.getByText("Checking your session")).toBeInTheDocument();
+    expect(
+      screen.getByText("We need your authenticated session before loading this admin workspace.")
+    ).toBeInTheDocument();
+  });
+
+  it("shows guided loading states before the first selected account resolves", async () => {
+    const usersResponse = deferred<ReturnType<typeof jsonResponse>>();
+    const defaultFetchImplementation = fetchWithAuthMock.getMockImplementation();
+    if (!defaultFetchImplementation) {
+      throw new Error("Expected default fetch mock implementation.");
+    }
+
+    fetchWithAuthMock.mockImplementation((url: unknown, options?: RequestInit) => {
+      const path = String(url);
+      if (path.startsWith("/api/admin/users?")) {
+        return usersResponse.promise;
+      }
+      return defaultFetchImplementation(url, options);
+    });
+
+    render(<AdminDashboardPage />);
+
+    await waitFor(() =>
+      expect(screen.getByText("Preparing the selected account workspace")).toBeInTheDocument()
+    );
+    expect(screen.getByText("Loading users…")).toBeInTheDocument();
+    expect(screen.getByText("Loading user index…")).toBeInTheDocument();
+
+    usersResponse.resolve(
+      jsonResponse({
+        users: [
+          {
+            id: USER_1_ID,
+            email: "alpha@example.com",
+            planId: "studio",
+            offerId: "studio__legacy_10",
+            stripePriceId: "price_legacy_studio",
+            contractSource: "stripe",
+            recurringPriceCents: 1000,
+            monthlyCreditsCents: 4000,
+            billingSource: "subscription_contract",
+            spendableCredits: 120,
+            availableCredits: 150,
+            reservedCredits: 30,
+            subscriptionStatus: "active",
+            createdAt: "2026-03-01T00:00:00.000Z",
+          },
+          {
+            id: USER_2_ID,
+            email: "beta@example.com",
+            planId: "business",
+            offerId: "business__current",
+            stripePriceId: "price_current_business",
+            contractSource: "stripe",
+            recurringPriceCents: 3000,
+            monthlyCreditsCents: 10000,
+            billingSource: "subscription_contract",
+            spendableCredits: 0,
+            availableCredits: 0,
+            reservedCredits: 0,
+            subscriptionStatus: "inactive",
+            createdAt: "2026-03-02T00:00:00.000Z",
+          },
+          {
+            id: ADMIN_ID,
+            email: "admin@example.com",
+            planId: "business",
+            offerId: "business__current",
+            stripePriceId: "price_current_business",
+            contractSource: "stripe",
+            recurringPriceCents: 3000,
+            monthlyCreditsCents: 10000,
+            billingSource: "subscription_contract",
+            spendableCredits: 5000,
+            availableCredits: 5000,
+            reservedCredits: 0,
+            subscriptionStatus: "active",
+            createdAt: "2026-03-03T00:00:00.000Z",
+          },
+        ],
+        pagination: {
+          page: 1,
+          perPage: 50,
+          totalCount: 3,
+          totalPages: 1,
+          hasNextPage: false,
+          hasPrevPage: false,
+        },
+        search: { limited: false },
+      })
+    );
+
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Select alpha@example.com" })).toBeInTheDocument()
+    );
   });
 
   it("auto-selects the current admin account without preloading the ledger", async () => {

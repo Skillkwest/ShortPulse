@@ -161,6 +161,49 @@ describe("MediaLibraryAllItemsGrid", () => {
     expect(grid).toHaveStyle({ height: "640px" });
   });
 
+  it("applies virtualized layout styles to prompt cards in the mixed feed", () => {
+    useMediaMasonryVirtualizationMock.mockImplementationOnce(({ items }: { items: unknown[] }) => ({
+      containerRef: { current: null },
+      isVirtualized: true,
+      totalHeight: 640,
+      columnCount: 2,
+      renderItems: items.map((item, index) => ({
+        id: `item-${index}`,
+        item,
+        index,
+        style: {
+          position: "absolute",
+          top: `${index * 100}px`,
+          left: `${index * 10}px`,
+          width: "188px",
+        },
+      })),
+    }));
+
+    const props = baseProps();
+    props.promptRows = [
+      {
+        id: "prompt-1",
+        title: "Prompt One",
+        prompt_text: "Cinematic portrait prompt",
+        created_at: "2026-04-09T18:00:00.000Z",
+      },
+    ];
+
+    render(<MediaLibraryAllItemsGrid {...props} />);
+
+    const promptText = screen.getByText("Cinematic portrait prompt");
+    const promptShell = promptText.closest(".media-library-panel-prompt-reference-shell");
+
+    expect(promptShell).not.toBeNull();
+    expect(promptShell).toHaveStyle({
+      position: "absolute",
+      top: "0px",
+      left: "0px",
+      width: "188px",
+    });
+  });
+
   it("reports poster image loads as signed-url and paint completion for video cards", () => {
     const props = baseProps();
     render(<MediaLibraryAllItemsGrid {...props} />);

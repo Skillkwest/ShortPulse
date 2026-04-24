@@ -259,6 +259,52 @@ export function AdminSupportQueueSection({
         },
       ].filter((card): card is SnapshotCard => Boolean(card))
     : [];
+  const hasLoadedUsers = prioritizedUsers.length > 0;
+  const selectedAccountState = !selectedUserId
+    ? usersError
+      ? {
+          eyebrow: "User index unavailable",
+          title: "We could not load the support queue",
+          description: usersError,
+          helper:
+            "Retry the user list below after access or network issues clear. The selected-account workspace will re-open once a row is available again.",
+        }
+      : usersLoading && !hasLoadedUsers
+        ? {
+            eyebrow: "Loading accounts",
+            title: "Preparing the selected account workspace",
+            description:
+              "We’re loading the current support queue and will auto-select the active operator account when it appears.",
+            helper:
+              "You can start scanning the queue as soon as rows load. Credits, access controls, and Stripe actions stay hidden until a real account is selected.",
+          }
+        : userSearch.trim() && !hasLoadedUsers
+          ? {
+              eyebrow: "No matches",
+              title: "No accounts matched this search",
+              description: `No users matched “${userSearch.trim()}”.`,
+              helper:
+                "Try a broader email fragment or clear the search to return to the full support queue.",
+            }
+          : !hasLoadedUsers
+            ? {
+                eyebrow: "No accounts loaded",
+                title: "No accounts are available in this result set",
+                description:
+                  "The support queue is empty for the current page and filters, so there is no account to inspect yet.",
+                helper:
+                  "Refresh the queue or move to a different page once accounts are available again.",
+              }
+            : {
+                eyebrow: "Choose an account",
+                title: "Pick an account from the queue below",
+                description:
+                  "Select a user to open credits, billing access, Stripe controls, and recent support context.",
+                helper: adminUserPresent
+                  ? "The current admin account stays pinned to the top of the loaded user list for quick access."
+                  : "The current admin account will pin to the top when it appears in the loaded user list.",
+              }
+    : null;
   const snapshotNote = !selectedUserId
     ? "Select an account from the list below."
     : billingDiagnosticsError
@@ -345,300 +391,323 @@ export function AdminSupportQueueSection({
             }`}
           >
             <section className={`${styles.adminSubpanel} ${styles.adminPrimaryPanel}`}>
-              <div className={styles.accountSnapshot}>
-                <div className={styles.accountSnapshotHead}>
-                  <div className={styles.accountSnapshotIdentity}>
-                    <div className={styles.accountSnapshotTitleRow}>
-                      <span className={styles.accountSnapshotTitle}>
-                        {selectedUser?.email ??
-                          selectedUser?.id ??
-                          "Select an account from the list below"}
-                      </span>
-                      {selectedUserId ? (
-                        <div className={styles.accountSnapshotHeaderBadges}>
-                          <span
-                            className={styles.accountSnapshotHeaderBadge}
-                            data-testid="snapshot-status-badge"
-                          >
-                            {snapshotStatusLabel}
+              {selectedAccountState ? (
+                <div className={styles.adminStatePanel}>
+                  <p className={styles.adminStateEyebrow}>{selectedAccountState.eyebrow}</p>
+                  <h3 className={styles.adminStateTitle}>{selectedAccountState.title}</h3>
+                  <p className={styles.adminStateDescription}>{selectedAccountState.description}</p>
+                  {selectedAccountState.helper ? (
+                    <p className={styles.adminStateDescriptionMuted}>
+                      {selectedAccountState.helper}
+                    </p>
+                  ) : null}
+                </div>
+              ) : (
+                <>
+                  <div className={styles.accountSnapshot}>
+                    <div className={styles.accountSnapshotHead}>
+                      <div className={styles.accountSnapshotIdentity}>
+                        <div className={styles.accountSnapshotTitleRow}>
+                          <span className={styles.accountSnapshotTitle}>
+                            {selectedUser?.email ??
+                              selectedUser?.id ??
+                              "Select an account from the list below"}
                           </span>
-                          {snapshotContractSource === "internal_comp" ? (
-                            <span
-                              className={`${styles.accountSnapshotHeaderBadge} ${styles.accountSnapshotHeaderBadgeAccent}`}
-                              data-testid="snapshot-payment-exempt-badge"
-                            >
-                              ✓ Payment exempt
-                            </span>
+                          {selectedUserId ? (
+                            <div className={styles.accountSnapshotHeaderBadges}>
+                              <span
+                                className={styles.accountSnapshotHeaderBadge}
+                                data-testid="snapshot-status-badge"
+                              >
+                                {snapshotStatusLabel}
+                              </span>
+                              {snapshotContractSource === "internal_comp" ? (
+                                <span
+                                  className={`${styles.accountSnapshotHeaderBadge} ${styles.accountSnapshotHeaderBadgeAccent}`}
+                                  data-testid="snapshot-payment-exempt-badge"
+                                >
+                                  ✓ Payment exempt
+                                </span>
+                              ) : null}
+                            </div>
                           ) : null}
                         </div>
+                      </div>
+                      {snapshotNote ? (
+                        <span className={styles.accountSnapshotNote}>{snapshotNote}</span>
                       ) : null}
                     </div>
                   </div>
-                  {snapshotNote ? (
-                    <span className={styles.accountSnapshotNote}>{snapshotNote}</span>
-                  ) : null}
-                </div>
-                {snapshotCards.length > 0 ? (
-                  <div
-                    className={styles.accountSnapshotCards}
-                    data-testid="snapshot-plan-card"
-                    style={
-                      {
-                        "--snapshot-card-columns": snapshotCards.length,
-                      } as CSSProperties
-                    }
-                  >
-                    {snapshotCards.map((card) => (
-                      <article
-                        key={card.key}
-                        className={styles.accountSnapshotCard}
-                        data-testid={card.testId}
-                      >
-                        <span className={styles.accountSnapshotCardLabel}>{card.label}</span>
-                        <span className={styles.accountSnapshotCardValue}>{card.value}</span>
-                        {card.helper ? (
-                          <span className={styles.accountSnapshotCardHelper}>{card.helper}</span>
-                        ) : null}
-                      </article>
-                    ))}
-                  </div>
-                ) : null}
-              </div>
-
-              <div className={styles.manualAdjustPanel}>
-                <div className={styles.panelHeaderRow}>
-                  <h3 className={styles.panelTitle}>Credits</h3>
-                  {adjustResult ? (
-                    <span className={styles.inlineResult}>{adjustResult}</span>
-                  ) : null}
-                </div>
-                <div className={styles.controlPanelGrid}>
-                  <div className={styles.controlPanelBlock}>
-                    <label className={`${styles.manualAdjustField} ${styles.controlFieldCompact}`}>
-                      <input
-                        className={styles.searchInput}
-                        type="text"
-                        aria-label="Credit change"
-                        value={adjustment}
-                        pattern="[+-]?[0-9]*"
-                        inputMode="numeric"
-                        autoComplete="off"
-                        onChange={(event) => handleAdjustmentChange(event.target.value)}
-                        placeholder="+500 credits or -100 credits"
-                        disabled={!selectedUserId}
-                      />
-                    </label>
-
-                    <div className={styles.manualAdjustPresets}>
-                      {ADMIN_DASHBOARD_ADJUSTMENT_PRESETS.map((preset) => (
-                        <button
-                          key={preset}
-                          type="button"
-                          className={`ghost-btn mini ${styles.manualAdjustPresetButton}`}
-                          onClick={() => applyAdjustmentPreset(preset)}
-                          disabled={adjustSubmitting || !selectedUserId}
-                        >
-                          {preset > 0 ? `+${preset}` : String(preset)}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className={`${styles.manualAdjustActions} ${styles.controlPanelActions}`}>
-                    <button
-                      type="button"
-                      className={`ghost-btn mini ${styles.manualAdjustPrimaryAction}`}
-                      onClick={() => void handleCreditAdjust()}
-                      disabled={adjustSubmitting || !selectedUserId}
-                    >
-                      {adjustSubmitting ? "Saving…" : "Save credit change"}
-                    </button>
-                    {selectedUserId ? (
-                      <Link
-                        href={`/admin/user-health?lookup=${encodeURIComponent(
-                          selectedUserId
-                        )}&lookupMode=user_id`}
-                        className={`ghost-btn mini ${styles.manualAdjustSecondaryAction}`}
-                      >
-                        Open account health
-                      </Link>
-                    ) : (
-                      <button
-                        type="button"
-                        className={`ghost-btn mini ${styles.manualAdjustSecondaryAction}`}
-                        disabled
-                      >
-                        Open account health
-                      </button>
-                    )}
-                    <button
-                      type="button"
-                      className={`ghost-btn mini ${styles.manualAdjustSecondaryAction}`}
-                      onClick={() => {
-                        void handleShowLedger();
-                      }}
-                      disabled={!selectedUserId || creditLedgerLoading || ledgerVisible}
-                    >
-                      {creditLedgerLoading ? "Loading log…" : "Show credit log"}
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              <div className={styles.manualAdjustPanel}>
-                <div className={styles.panelHeaderRow}>
-                  <h3 className={styles.panelTitle}>Plan access</h3>
-                  {billingOverrideResult ? (
-                    <span className={styles.inlineResult}>{billingOverrideResult}</span>
-                  ) : null}
-                </div>
-                <div className={styles.controlPanelGrid}>
-                  <div className={styles.controlPanelBlock}>
-                    <div className={styles.compactFormRow}>
-                      <label
-                        className={`${styles.manualAdjustField} ${styles.controlFieldCompact} ${styles.controlFieldPrimary}`}
-                      >
-                        <span className={styles.controlLabel}>Plan</span>
-                        <select
-                          className={styles.searchInput}
-                          value={selectedAccessPlan}
-                          onChange={(event) => handleInternalCompPlanChange(event.target.value)}
-                          disabled={!selectedUserId || billingOverrideSubmitting}
-                        >
-                          <option value="free">Free</option>
-                          <option value="media">Media</option>
-                          <option value="studio">Studio</option>
-                          <option value="business">Business</option>
-                        </select>
-                      </label>
-
-                      <label className={`${styles.controlToggleCard} tiny subdued`}>
-                        <span className={styles.controlToggleTitle}>Payment exempt</span>
-                        <span className={styles.controlToggleInput}>
-                          <input
-                            type="checkbox"
-                            aria-label="Payment exempt"
-                            checked={paymentExemptEnabled}
-                            onChange={(event) => {
-                              const nextChecked = event.target.checked;
-                              if (!selectedUserId) return;
-                              setPaymentExemptDraft({
-                                userId: selectedUserId,
-                                value: nextChecked,
-                              });
-                              if (nextChecked && selectedAccessPlan === "free") {
-                                handleInternalCompPlanChange(paymentExemptPlanLabel);
-                              }
-                            }}
-                            disabled={!selectedUserId || billingOverrideSubmitting}
-                          />{" "}
-                          {paymentExemptEnabled ? "Enabled" : "Disabled"}
-                        </span>
-                      </label>
-                    </div>
-
-                    <p className={styles.controlNote}>{planAccessNote}</p>
-                    {!paymentExemptEnabled &&
-                    selectedAccessPlan !== "free" &&
-                    snapshotContractSource !== "internal_comp" ? (
-                      <p className={styles.controlNote}>
-                        Payment-exempt controls are only for internal overrides or returning an
-                        exempt account to Free.
-                      </p>
-                    ) : null}
-
-                    {paymentExemptEnabled ? (
-                      <label
-                        className={`${styles.manualAdjustField} ${styles.controlFieldCompact}`}
-                      >
-                        <span className="tiny subdued">Reason</span>
-                        <input
-                          className={styles.searchInput}
-                          type="text"
-                          value={internalCompReason}
-                          onChange={(event) => handleInternalCompReasonChange(event.target.value)}
-                          placeholder="Why are you overriding billing for this account?"
-                          disabled={!selectedUserId || billingOverrideSubmitting}
-                        />
-                      </label>
-                    ) : null}
-
-                    {hasLinkedStripeSubscription ? (
-                      <label
-                        className={`${styles.controlToggleCard} ${styles.controlToggleCompact}`}
-                      >
-                        <span className={styles.controlToggleTitle}>Stripe takeover</span>
-                        <span className={styles.controlToggleInput}>
-                          <input
-                            type="checkbox"
-                            checked={allowStripeTakeover}
-                            onChange={(event) =>
-                              handleAllowStripeTakeoverChange(event.target.checked)
-                            }
-                            disabled={!selectedUserId || billingOverrideSubmitting}
-                          />{" "}
-                          Clear the saved Stripe link after external Stripe handling.
-                        </span>
-                      </label>
-                    ) : null}
-                  </div>
-
-                  <div className={`${styles.manualAdjustActions} ${styles.controlPanelActions}`}>
-                    <button
-                      type="button"
-                      className={`ghost-btn mini ${styles.manualAdjustPrimaryAction}`}
-                      onClick={() => {
-                        void (paymentExemptEnabled
-                          ? handleGrantInternalComp()
-                          : handleRevokeInternalComp());
-                      }}
-                      disabled={!selectedUserId || billingOverrideSubmitting || !canSaveAccess}
-                    >
-                      {billingOverrideSubmitting ? "Saving…" : "Save access"}
-                    </button>
-                    <button
-                      type="button"
-                      className={`ghost-btn mini ${styles.manualAdjustSecondaryAction}`}
-                      onClick={() => {
-                        handleInternalCompPlanChange("free");
-                        void handleRevokeInternalComp();
-                      }}
-                      disabled={
-                        !selectedUserId ||
-                        billingOverrideSubmitting ||
-                        snapshotContractSource !== "internal_comp"
+                  {snapshotCards.length > 0 ? (
+                    <div
+                      className={styles.accountSnapshotCards}
+                      data-testid="snapshot-plan-card"
+                      style={
+                        {
+                          "--snapshot-card-columns": snapshotCards.length,
+                        } as CSSProperties
                       }
                     >
-                      Set Free plan
-                    </button>
+                      {snapshotCards.map((card) => (
+                        <article
+                          key={card.key}
+                          className={styles.accountSnapshotCard}
+                          data-testid={card.testId}
+                        >
+                          <span className={styles.accountSnapshotCardLabel}>{card.label}</span>
+                          <span className={styles.accountSnapshotCardValue}>{card.value}</span>
+                          {card.helper ? (
+                            <span className={styles.accountSnapshotCardHelper}>{card.helper}</span>
+                          ) : null}
+                        </article>
+                      ))}
+                    </div>
+                  ) : null}
+
+                  <div className={styles.manualAdjustPanel}>
+                    <div className={styles.panelHeaderRow}>
+                      <h3 className={styles.panelTitle}>Credits</h3>
+                      {adjustResult ? (
+                        <span className={styles.inlineResult}>{adjustResult}</span>
+                      ) : null}
+                    </div>
+                    <div className={styles.controlPanelGrid}>
+                      <div className={styles.controlPanelBlock}>
+                        <label
+                          className={`${styles.manualAdjustField} ${styles.controlFieldCompact}`}
+                        >
+                          <input
+                            className={styles.searchInput}
+                            type="text"
+                            aria-label="Credit change"
+                            value={adjustment}
+                            pattern="[+-]?[0-9]*"
+                            inputMode="numeric"
+                            autoComplete="off"
+                            onChange={(event) => handleAdjustmentChange(event.target.value)}
+                            placeholder="+500 credits or -100 credits"
+                            disabled={!selectedUserId}
+                          />
+                        </label>
+
+                        <div className={styles.manualAdjustPresets}>
+                          {ADMIN_DASHBOARD_ADJUSTMENT_PRESETS.map((preset) => (
+                            <button
+                              key={preset}
+                              type="button"
+                              className={`ghost-btn mini ${styles.manualAdjustPresetButton}`}
+                              onClick={() => applyAdjustmentPreset(preset)}
+                              disabled={adjustSubmitting || !selectedUserId}
+                            >
+                              {preset > 0 ? `+${preset}` : String(preset)}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div
+                        className={`${styles.manualAdjustActions} ${styles.controlPanelActions}`}
+                      >
+                        <button
+                          type="button"
+                          className={`ghost-btn mini ${styles.manualAdjustPrimaryAction}`}
+                          onClick={() => void handleCreditAdjust()}
+                          disabled={adjustSubmitting || !selectedUserId}
+                        >
+                          {adjustSubmitting ? "Saving…" : "Save credit change"}
+                        </button>
+                        {selectedUserId ? (
+                          <Link
+                            href={`/admin/user-health?lookup=${encodeURIComponent(
+                              selectedUserId
+                            )}&lookupMode=user_id`}
+                            className={`ghost-btn mini ${styles.manualAdjustSecondaryAction}`}
+                          >
+                            Open account health
+                          </Link>
+                        ) : (
+                          <button
+                            type="button"
+                            className={`ghost-btn mini ${styles.manualAdjustSecondaryAction}`}
+                            disabled
+                          >
+                            Open account health
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          className={`ghost-btn mini ${styles.manualAdjustSecondaryAction}`}
+                          onClick={() => {
+                            void handleShowLedger();
+                          }}
+                          disabled={!selectedUserId || creditLedgerLoading || ledgerVisible}
+                        >
+                          {creditLedgerLoading ? "Loading log…" : "Show credit log"}
+                        </button>
+                      </div>
+                    </div>
                   </div>
-                </div>
-              </div>
 
-              <div className={styles.manualAdjustPanel}>
-                <div className={styles.panelHeaderRow}>
-                  <h3 className={styles.panelTitle}>Stripe billing</h3>
-                  <button
-                    type="button"
-                    className={`ghost-btn mini ${styles.manualAdjustPrimaryAction}`}
-                    onClick={() => {
-                      void handleOpenSelectedUserBilling();
-                    }}
-                    disabled={!selectedUserId || billingPortalSubmitting}
-                  >
-                    {billingPortalSubmitting ? "Opening Stripe…" : "Open Stripe billing"}
-                  </button>
-                </div>
-                {hasLinkedStripeSubscription ? (
-                  <p className={styles.controlNote}>
-                    Use this for billed subscriptions and invoices.
-                  </p>
-                ) : null}
-              </div>
+                  <div className={styles.manualAdjustPanel}>
+                    <div className={styles.panelHeaderRow}>
+                      <h3 className={styles.panelTitle}>Plan access</h3>
+                      {billingOverrideResult ? (
+                        <span className={styles.inlineResult}>{billingOverrideResult}</span>
+                      ) : null}
+                    </div>
+                    <div className={styles.controlPanelGrid}>
+                      <div className={styles.controlPanelBlock}>
+                        <div className={styles.compactFormRow}>
+                          <label
+                            className={`${styles.manualAdjustField} ${styles.controlFieldCompact} ${styles.controlFieldPrimary}`}
+                          >
+                            <span className={styles.controlLabel}>Plan</span>
+                            <select
+                              className={styles.searchInput}
+                              value={selectedAccessPlan}
+                              onChange={(event) => handleInternalCompPlanChange(event.target.value)}
+                              disabled={!selectedUserId || billingOverrideSubmitting}
+                            >
+                              <option value="free">Free</option>
+                              <option value="media">Media</option>
+                              <option value="studio">Studio</option>
+                              <option value="business">Business</option>
+                            </select>
+                          </label>
 
-              {billingPortalResult ? (
-                <p className={styles.inlineResult}>{billingPortalResult}</p>
-              ) : null}
+                          <label className={`${styles.controlToggleCard} tiny subdued`}>
+                            <span className={styles.controlToggleTitle}>Payment exempt</span>
+                            <span className={styles.controlToggleInput}>
+                              <input
+                                type="checkbox"
+                                aria-label="Payment exempt"
+                                checked={paymentExemptEnabled}
+                                onChange={(event) => {
+                                  const nextChecked = event.target.checked;
+                                  if (!selectedUserId) return;
+                                  setPaymentExemptDraft({
+                                    userId: selectedUserId,
+                                    value: nextChecked,
+                                  });
+                                  if (nextChecked && selectedAccessPlan === "free") {
+                                    handleInternalCompPlanChange(paymentExemptPlanLabel);
+                                  }
+                                }}
+                                disabled={!selectedUserId || billingOverrideSubmitting}
+                              />{" "}
+                              {paymentExemptEnabled ? "Enabled" : "Disabled"}
+                            </span>
+                          </label>
+                        </div>
+
+                        <p className={styles.controlNote}>{planAccessNote}</p>
+                        {!paymentExemptEnabled &&
+                        selectedAccessPlan !== "free" &&
+                        snapshotContractSource !== "internal_comp" ? (
+                          <p className={styles.controlNote}>
+                            Payment-exempt controls are only for internal overrides or returning an
+                            exempt account to Free.
+                          </p>
+                        ) : null}
+
+                        {paymentExemptEnabled ? (
+                          <label
+                            className={`${styles.manualAdjustField} ${styles.controlFieldCompact}`}
+                          >
+                            <span className="tiny subdued">Reason</span>
+                            <input
+                              className={styles.searchInput}
+                              type="text"
+                              value={internalCompReason}
+                              onChange={(event) =>
+                                handleInternalCompReasonChange(event.target.value)
+                              }
+                              placeholder="Why are you overriding billing for this account?"
+                              disabled={!selectedUserId || billingOverrideSubmitting}
+                            />
+                          </label>
+                        ) : null}
+
+                        {hasLinkedStripeSubscription ? (
+                          <label
+                            className={`${styles.controlToggleCard} ${styles.controlToggleCompact}`}
+                          >
+                            <span className={styles.controlToggleTitle}>Stripe takeover</span>
+                            <span className={styles.controlToggleInput}>
+                              <input
+                                type="checkbox"
+                                checked={allowStripeTakeover}
+                                onChange={(event) =>
+                                  handleAllowStripeTakeoverChange(event.target.checked)
+                                }
+                                disabled={!selectedUserId || billingOverrideSubmitting}
+                              />{" "}
+                              Clear the saved Stripe link after external Stripe handling.
+                            </span>
+                          </label>
+                        ) : null}
+                      </div>
+
+                      <div
+                        className={`${styles.manualAdjustActions} ${styles.controlPanelActions}`}
+                      >
+                        <button
+                          type="button"
+                          className={`ghost-btn mini ${styles.manualAdjustPrimaryAction}`}
+                          onClick={() => {
+                            void (paymentExemptEnabled
+                              ? handleGrantInternalComp()
+                              : handleRevokeInternalComp());
+                          }}
+                          disabled={!selectedUserId || billingOverrideSubmitting || !canSaveAccess}
+                        >
+                          {billingOverrideSubmitting ? "Saving…" : "Save access"}
+                        </button>
+                        <button
+                          type="button"
+                          className={`ghost-btn mini ${styles.manualAdjustSecondaryAction}`}
+                          onClick={() => {
+                            handleInternalCompPlanChange("free");
+                            void handleRevokeInternalComp();
+                          }}
+                          disabled={
+                            !selectedUserId ||
+                            billingOverrideSubmitting ||
+                            snapshotContractSource !== "internal_comp"
+                          }
+                        >
+                          Set Free plan
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className={styles.manualAdjustPanel}>
+                    <div className={styles.panelHeaderRow}>
+                      <h3 className={styles.panelTitle}>Stripe billing</h3>
+                      <button
+                        type="button"
+                        className={`ghost-btn mini ${styles.manualAdjustPrimaryAction}`}
+                        onClick={() => {
+                          void handleOpenSelectedUserBilling();
+                        }}
+                        disabled={!selectedUserId || billingPortalSubmitting}
+                      >
+                        {billingPortalSubmitting ? "Opening Stripe…" : "Open Stripe billing"}
+                      </button>
+                    </div>
+                    {hasLinkedStripeSubscription ? (
+                      <p className={styles.controlNote}>
+                        Use this for billed subscriptions and invoices.
+                      </p>
+                    ) : null}
+                  </div>
+
+                  {billingPortalResult ? (
+                    <p className={styles.inlineResult}>{billingPortalResult}</p>
+                  ) : null}
+                </>
+              )}
             </section>
 
             {ledgerVisible ? (
@@ -823,9 +892,19 @@ export function AdminSupportQueueSection({
                   <span className="subdued">—</span>
                   <span className="subdued">—</span>
                 </div>
+              ) : usersLoading && users.length === 0 ? (
+                <div className={`${styles.adminTableRow} ${styles.adminSupportQueueRow}`}>
+                  <span className="subdued">Loading users…</span>
+                  <span className="subdued">—</span>
+                  <span className="subdued">—</span>
+                  <span className="subdued">—</span>
+                  <span className="subdued">—</span>
+                </div>
               ) : users.length === 0 ? (
                 <div className={`${styles.adminTableRow} ${styles.adminSupportQueueRow}`}>
-                  <span className="subdued">No users match.</span>
+                  <span className="subdued">
+                    {userSearch.trim() ? "No users match." : "No users loaded yet."}
+                  </span>
                   <span className="subdued">—</span>
                   <span className="subdued">—</span>
                   <span className="subdued">—</span>
@@ -899,8 +978,11 @@ export function AdminSupportQueueSection({
 
             <div className={styles.searchRow}>
               <p className="tiny subdued">
-                Showing {usersResultStart}-{usersResultEnd} of {usersPagination.totalCount}
-                {userSearchLimited ? " (search limited to the first 10,000 users scanned)" : ""}
+                {usersLoading && users.length === 0
+                  ? "Loading user index…"
+                  : `Showing ${usersResultStart}-${usersResultEnd} of ${usersPagination.totalCount}${
+                      userSearchLimited ? " (search limited to the first 10,000 users scanned)" : ""
+                    }`}
               </p>
               <div className={styles.tabRow}>
                 <button

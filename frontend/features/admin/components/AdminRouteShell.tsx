@@ -21,6 +21,45 @@ type AdminRouteShellProps = {
   children: ReactNode;
 };
 
+type AdminShellStateProps = {
+  documentTitle: string;
+  pageTitle: string;
+  pageDescription: string;
+  stateTitle: string;
+  stateDescription: string;
+  actions?: ReactNode;
+};
+
+function AdminShellState({
+  documentTitle,
+  pageTitle,
+  pageDescription,
+  stateTitle,
+  stateDescription,
+  actions,
+}: AdminShellStateProps) {
+  return (
+    <>
+      <Head>
+        <title>{documentTitle}</title>
+      </Head>
+      <main className={`page page-wide ${styles.adminPage}`}>
+        <section className={styles.adminSection}>
+          <p className="eyebrow">Admin</p>
+          <h1 className={styles.adminTitle}>{pageTitle}</h1>
+          <p className="tiny subdued">{pageDescription}</p>
+          <div className={styles.adminStatePanel}>
+            <p className={styles.adminStateEyebrow}>Workspace status</p>
+            <h2 className={styles.adminStateTitle}>{stateTitle}</h2>
+            <p className={styles.adminStateDescription}>{stateDescription}</p>
+            {actions ? <div className={styles.adminStateActions}>{actions}</div> : null}
+          </div>
+        </section>
+      </main>
+    </>
+  );
+}
+
 /**
  * Standardized admin route shell so every operator page shares one access gate, title system, and nav chrome.
  */
@@ -41,70 +80,71 @@ export function AdminRouteShell({
 }: AdminRouteShellProps) {
   if (loading) {
     return (
-      <main className={`page page-wide ${styles.adminPage}`}>
-        <p className="subdued">Checking your session…</p>
-      </main>
+      <AdminShellState
+        documentTitle={documentTitle}
+        pageTitle={pageTitle}
+        pageDescription={pageDescription}
+        stateTitle="Checking your session"
+        stateDescription="We need your authenticated session before loading this admin workspace."
+      />
     );
   }
 
   if (!isAdminEnabled) {
     if (isAdminAccessLoading) {
       return (
-        <main className={`page page-wide ${styles.adminPage}`}>
-          <p className="subdued">Verifying admin access…</p>
-        </main>
+        <AdminShellState
+          documentTitle={documentTitle}
+          pageTitle={pageTitle}
+          pageDescription={pageDescription}
+          stateTitle="Verifying admin access"
+          stateDescription="Checking operator access before we expose admin data and controls."
+        />
       );
     }
 
     if (adminAccessStatus === "error") {
       return (
-        <>
-          <Head>
-            <title>{documentTitle}</title>
-          </Head>
-          <main className={`page page-wide ${styles.adminPage}`}>
-            <section className={styles.adminSection}>
-              <p className="eyebrow">Admin</p>
-              <h1 className={styles.adminTitle}>Unable to verify access</h1>
-              <p className="tiny subdued">
-                {adminAccessError ??
-                  "We could not verify admin access right now. Retry in a moment."}
-              </p>
-              <div className={styles.searchRow}>
-                <button
-                  type="button"
-                  className="ghost-btn mini"
-                  onClick={onRetryAccessCheck}
-                  disabled={isAdminAccessLoading}
-                >
-                  {isAdminAccessLoading ? "Retrying…" : "Retry access check"}
-                </button>
-                <Link href="/dashboard" className="ghost-btn mini">
-                  Back to dashboard
-                </Link>
-              </div>
-            </section>
-          </main>
-        </>
+        <AdminShellState
+          documentTitle={documentTitle}
+          pageTitle={pageTitle}
+          pageDescription={pageDescription}
+          stateTitle="Unable to verify access"
+          stateDescription={
+            adminAccessError ?? "We could not verify admin access right now. Retry in a moment."
+          }
+          actions={
+            <>
+              <button
+                type="button"
+                className="ghost-btn mini"
+                onClick={onRetryAccessCheck}
+                disabled={isAdminAccessLoading}
+              >
+                {isAdminAccessLoading ? "Retrying…" : "Retry access check"}
+              </button>
+              <Link href="/dashboard" className="ghost-btn mini">
+                Back to dashboard
+              </Link>
+            </>
+          }
+        />
       );
     }
 
     return (
-      <>
-        <Head>
-          <title>{documentTitle}</title>
-        </Head>
-        <main className={`page page-wide ${styles.adminPage}`}>
-          <section className={styles.adminSection}>
-            <p className="eyebrow">Admin</p>
-            <h1 className={styles.adminTitle}>Access restricted</h1>
-            <p className="tiny subdued">This page is available to operator accounts only.</p>
-            <Link href="/dashboard" className="ghost-btn mini">
-              Back to dashboard
-            </Link>
-          </section>
-        </main>
-      </>
+      <AdminShellState
+        documentTitle={documentTitle}
+        pageTitle={pageTitle}
+        pageDescription={pageDescription}
+        stateTitle="Access restricted"
+        stateDescription="This page is available to operator accounts only."
+        actions={
+          <Link href="/dashboard" className="ghost-btn mini">
+            Back to dashboard
+          </Link>
+        }
+      />
     );
   }
 

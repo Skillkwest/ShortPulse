@@ -41,6 +41,18 @@ The prior Pulse runtime program is already closed. This scope is not a continuat
    - `System Instructions`
 8. Built-in Pulses may use richer workflow behavior internally, but that must remain secondary to the custom-GPT product mental model.
 
+## Transition Table
+| Transition | Required Behavior | State Effects |
+| --- | --- | --- |
+| `enterPulse` | Switch Create into Pulse mode and reveal the Pulse rail. Do not implicitly activate a Pulse. | Preserve Standard state in Standard-owned storage only. Initialize Pulse-mode shell state with no active Pulse runtime. |
+| `activatePulse(preset)` | Activate the selected Pulse and start it immediately. | Set `activePulseId`, create a fresh Pulse session, clear prior Pulse transcript/attachments/workflow state, send the kickoff turn, and keep Standard state untouched. |
+| `switchPulse(nextPreset)` | End the current Pulse session and start the new Pulse immediately. | Replace `activePulseId`, discard prior Pulse runtime state, create a fresh Pulse session for the new preset, and keep Standard state untouched. |
+| `clear` in Standard | Clear only Standard-mode transcript/runtime state. | Remove Standard transcript/attachments/runtime state. Leave Pulse state untouched and inactive. |
+| `clear` in Pulse | Clear the current Pulse session and deactivate the active Pulse. | Remove Pulse transcript/attachments/workflow state, clear `activePulseId`, and leave Pulse mode active with the rail visible but no active Pulse runtime. |
+| `restartPulse` | Restart the currently active Pulse immediately. | Keep Pulse mode active, preserve the selected Pulse id, clear current Pulse session state, and start a fresh session for that same Pulse. |
+| `deactivatePulse` | Explicitly stop the active Pulse without leaving Pulse mode. | Clear `activePulseId`, clear Pulse transcript/attachments/workflow state, and leave Pulse mode active with no active Pulse runtime. |
+| `exitPulse` | Leave Pulse mode and return to Standard mode. | Deactivate any active Pulse, clear Pulse runtime state, hide the Pulse rail, and restore only Standard-owned state. No Pulse transcript or hidden runtime context carries back into Standard. |
+
 ## Non-Goals
 1. No broad AI Studio redesign outside the Standard/Pulse contract.
 2. No general-purpose multi-agent platform.

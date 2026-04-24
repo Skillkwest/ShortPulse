@@ -11,14 +11,8 @@ import {
   useAiStudioInternalDropResolvers,
 } from "../useAiStudioInternalDropResolvers";
 
-const { resolveMediaLibraryInternalDropResolverMock, resolveInternalReferenceSourceMock } =
-  vi.hoisted(() => ({
-    resolveMediaLibraryInternalDropResolverMock: vi.fn(),
-    resolveInternalReferenceSourceMock: vi.fn(),
-  }));
-
-vi.mock("../../logic/mediaLibraryInternalDropResolver", () => ({
-  resolveMediaLibraryInternalDropResolver: resolveMediaLibraryInternalDropResolverMock,
+const { resolveInternalReferenceSourceMock } = vi.hoisted(() => ({
+  resolveInternalReferenceSourceMock: vi.fn(),
 }));
 
 vi.mock("../../logic/referenceSource/internalReferenceSource", () => ({
@@ -56,7 +50,6 @@ const makeOutput = (overrides: Partial<StudioOutput> = {}): StudioOutput =>
 
 describe("useAiStudioInternalDropResolvers", () => {
   beforeEach(() => {
-    resolveMediaLibraryInternalDropResolverMock.mockReset();
     resolveInternalReferenceSourceMock.mockReset();
   });
 
@@ -155,7 +148,6 @@ describe("useAiStudioInternalDropResolvers", () => {
           delivery: null,
           error: null,
         })),
-        saveReferenceToLibrary: vi.fn(),
       })
     );
 
@@ -198,9 +190,8 @@ describe("useAiStudioInternalDropResolvers", () => {
     );
   });
 
-  it("delegates media-library and style internal-drop resolution with shared timeout policy", async () => {
+  it("uses the shared awaited internal-drop resolution for media-library image drops", async () => {
     const output = makeOutput();
-    resolveMediaLibraryInternalDropResolverMock.mockResolvedValue({ kind: "media", id: "media-1" });
     resolveInternalReferenceSourceMock.mockResolvedValue({
       kind: "internal",
       sourceKind: "generated_output",
@@ -229,7 +220,6 @@ describe("useAiStudioInternalDropResolvers", () => {
       delivery: null,
       error: null,
     }));
-    const saveReferenceToLibrary = vi.fn();
 
     const { result } = renderHook(() =>
       useAiStudioInternalDropResolvers({
@@ -241,7 +231,6 @@ describe("useAiStudioInternalDropResolvers", () => {
           archivedOutputById: {},
         }),
         ensureOutputPersisted,
-        saveReferenceToLibrary,
       })
     );
 
@@ -249,7 +238,7 @@ describe("useAiStudioInternalDropResolvers", () => {
       result.current.resolveMediaLibraryInternalDropItem(makePayload())
     ).resolves.toEqual({
       kind: "media",
-      id: "media-1",
+      id: "media-0",
     });
     await expect(result.current.resolveStyleLibraryInternalDrop(makePayload())).resolves.toEqual(
       expect.objectContaining({
@@ -260,27 +249,71 @@ describe("useAiStudioInternalDropResolvers", () => {
       })
     );
 
-    expect(resolveMediaLibraryInternalDropResolverMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        getOutputById: expect.any(Function),
-        getOutputSnapshot: expect.any(Function),
-        saveReferenceToLibrary,
-        persistTimeoutMs: 3500,
-        pollIntervalMs: 120,
-      })
-    );
     expect(resolveInternalReferenceSourceMock).toHaveBeenCalledWith(
       expect.objectContaining({
+        payload: makePayload(),
         getOutputById: expect.any(Function),
         getOutputSnapshot: expect.any(Function),
         ensureOutputPersisted,
       })
     );
 
-    const mediaArgs = resolveMediaLibraryInternalDropResolverMock.mock.calls[0]?.[0];
-    const styleArgs = resolveInternalReferenceSourceMock.mock.calls[0]?.[0];
+    const mediaArgs = resolveInternalReferenceSourceMock.mock.calls[0]?.[0];
+    const styleArgs = resolveInternalReferenceSourceMock.mock.calls[1]?.[0];
     expect(mediaArgs.resolveSavedMediaIdFromOutput(output, 1)).toBe("media-1");
     expect(styleArgs.resolveSavedMediaIdFromOutput(output, 1)).toBe("media-1");
+  });
+
+  it("awaits prompt persistence for media-library text drops before returning prompt ids", async () => {
+    const outputsById = new Map<string, StudioOutput>([
+      [
+        "out-1",
+        {
+          ...makeOutput({
+            mode: "text",
+            previewUrl: undefined,
+            resultUrls: [],
+            savedMediaIds: [],
+            previewText: "Prompt only",
+            promptId: undefined,
+          }),
+        },
+      ],
+    ]);
+    const ensureOutputPersisted = vi.fn(async () => {
+      outputsById.set("out-1", {
+        ...outputsById.get("out-1")!,
+        promptId: "prompt-1",
+      } as StudioOutput);
+      return {
+        ok: true,
+        mediaFileIds: [],
+        delivery: null,
+        error: null,
+      };
+    });
+
+    const { result } = renderHook(() =>
+      useAiStudioInternalDropResolvers({
+        getOutputById: (outputId) => outputsById.get(outputId) ?? null,
+        getOutputSnapshot: () => ({
+          outputOrder: ["out-1"],
+          archivedOutputOrder: [],
+          outputById: { "out-1": outputsById.get("out-1") },
+          archivedOutputById: {},
+        }),
+        ensureOutputPersisted,
+      })
+    );
+
+    await expect(
+      result.current.resolveMediaLibraryInternalDropItem(makePayload())
+    ).resolves.toEqual({
+      kind: "prompt",
+      id: "prompt-1",
+    });
+    expect(ensureOutputPersisted).toHaveBeenCalledWith("out-1");
+    expect(resolveInternalReferenceSourceMock).not.toHaveBeenCalled();
   });
 
   it("falls back to page output preview authority for element profile drops when shared resolution fails closed", async () => {
@@ -315,7 +348,6 @@ describe("useAiStudioInternalDropResolvers", () => {
           delivery: null,
           error: "missing",
         })),
-        saveReferenceToLibrary: vi.fn(),
       })
     );
 
@@ -350,7 +382,6 @@ describe("useAiStudioInternalDropResolvers", () => {
           delivery: null,
           error: null,
         })),
-        saveReferenceToLibrary: vi.fn(),
       })
     );
 
@@ -412,7 +443,6 @@ describe("useAiStudioInternalDropResolvers", () => {
           delivery: null,
           error: null,
         })),
-        saveReferenceToLibrary: vi.fn(),
       })
     );
 

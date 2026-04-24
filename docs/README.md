@@ -150,6 +150,7 @@ Start here for all repository documentation.
 - `docs/planning/ai-studio-standard-vs-pulse-runtime-isolation-execution-plan-2026-04-23.md`
 - `docs/planning/ai-studio-project-persistence-master-plan-2026-04-23.md`
 - `docs/planning/ai-studio-project-persistence-stabilization-trim-and-fix-plan-2026-04-24.md`
+- `docs/planning/ai-studio-project-folder-stabilization-trim-and-fix-plan-2026-04-24.md`
 - `docs/planning/ai-studio-project-persistence-phase-0-contract-and-persistence-inventory-plan-2026-04-23.md`
 - `docs/planning/ai-studio-project-persistence-phase-0-persistence-inventory-2026-04-23.md`
 - `docs/planning/ai-studio-project-persistence-phase-1-projects-foundation-hardening-plan-2026-04-23.md`

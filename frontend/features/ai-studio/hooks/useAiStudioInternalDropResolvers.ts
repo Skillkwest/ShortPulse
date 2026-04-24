@@ -4,7 +4,6 @@
  */
 import { useCallback } from "react";
 import type { PersistOutputSaveResult } from "./useAiStudioPersistenceActions";
-import { resolveMediaLibraryInternalDropResolver } from "../logic/mediaLibraryInternalDropResolver";
 import {
   resolveInternalReferenceSource,
   type ResolveInternalReferenceDrop,
@@ -13,9 +12,6 @@ import {
 import type { StudioOutput } from "../types";
 import type { InternalReferenceDragPayload, ReferenceDragSourceSurface } from "../utils/dragDrop";
 import type { ResolveCharacterDropReference } from "../../character-manager/hooks/useCharacterManagerDroppedReferenceController";
-
-const MEDIA_LIBRARY_INTERNAL_DROP_PERSIST_TIMEOUT_MS = 3500;
-const MEDIA_LIBRARY_INTERNAL_DROP_POLL_INTERVAL_MS = 120;
 
 type OutputSnapshot = {
   outputOrder: string[];
@@ -28,7 +24,6 @@ type UseAiStudioInternalDropResolversParams = {
   getOutputById: (outputId: string) => StudioOutput | null;
   getOutputSnapshot: () => OutputSnapshot;
   ensureOutputPersisted: (outputId: string) => Promise<PersistOutputSaveResult>;
-  saveReferenceToLibrary: (outputId: string) => unknown;
 };
 
 /**
@@ -69,7 +64,6 @@ export const useAiStudioInternalDropResolvers = ({
   getOutputById,
   getOutputSnapshot,
   ensureOutputPersisted,
-  saveReferenceToLibrary,
 }: UseAiStudioInternalDropResolversParams): {
   resolveCharacterDropReference: ResolveCharacterDropReference;
   resolveMediaLibraryInternalDropItem: (
@@ -115,17 +109,45 @@ export const useAiStudioInternalDropResolvers = ({
   );
 
   const resolveMediaLibraryInternalDropItem = useCallback(
-    async (payload: InternalReferenceDragPayload) =>
-      await resolveMediaLibraryInternalDropResolver({
+    async (payload: InternalReferenceDragPayload) => {
+      const payloadMediaId = payload.mediaId?.trim() ?? "";
+      if (payloadMediaId) {
+        return { kind: "media" as const, id: payloadMediaId };
+      }
+
+      const resolvedOutputId = (payload.outputId ?? payload.referenceId ?? "").trim();
+      const initialOutput = resolvedOutputId ? getOutputById(resolvedOutputId) : null;
+
+      if (initialOutput?.mode === "text") {
+        const initialPromptId = initialOutput.promptId?.trim() ?? "";
+        if (initialPromptId) {
+          return { kind: "prompt" as const, id: initialPromptId };
+        }
+        if (!resolvedOutputId) return null;
+        try {
+          await ensureOutputPersisted(resolvedOutputId);
+        } catch {
+          return null;
+        }
+        const persistedOutput = getOutputById(resolvedOutputId);
+        const persistedPromptId =
+          persistedOutput?.mode === "text" ? (persistedOutput.promptId?.trim() ?? "") : "";
+        if (!persistedPromptId) return null;
+        return { kind: "prompt" as const, id: persistedPromptId };
+      }
+
+      const resolvedSource = await resolveInternalReferenceSource({
         payload,
         getOutputById,
         getOutputSnapshot,
+        ensureOutputPersisted,
         resolveSavedMediaIdFromOutput,
-        saveReferenceToLibrary,
-        persistTimeoutMs: MEDIA_LIBRARY_INTERNAL_DROP_PERSIST_TIMEOUT_MS,
-        pollIntervalMs: MEDIA_LIBRARY_INTERNAL_DROP_POLL_INTERVAL_MS,
-      }),
-    [getOutputById, getOutputSnapshot, saveReferenceToLibrary]
+      });
+      const resolvedMediaId = resolvedSource?.mediaId?.trim() ?? "";
+      if (!resolvedMediaId) return null;
+      return { kind: "media" as const, id: resolvedMediaId };
+    },
+    [ensureOutputPersisted, getOutputById, getOutputSnapshot]
   );
 
   const resolveStyleLibraryInternalDrop = useCallback(

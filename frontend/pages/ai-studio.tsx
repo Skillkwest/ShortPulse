@@ -625,7 +625,6 @@ export default function AiStudioPage() {
     getOutputById,
     getOutputSnapshot,
     ensureOutputPersisted,
-    saveReferenceToLibrary,
   });
   const resolveCanvasDropReference = useCallback<ResolveCanvasDropReference>(
     (payload) => {

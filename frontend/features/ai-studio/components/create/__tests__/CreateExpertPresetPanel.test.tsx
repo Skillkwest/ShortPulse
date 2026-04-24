@@ -91,6 +91,45 @@ describe("CreateExpertPresetPanel", () => {
     });
   });
 
+  it("starts custom pulses immediately even when the saved activation mode is activate only", async () => {
+    const onActivePresetIdChange = vi.fn();
+    const onPresetStart = vi.fn().mockResolvedValue(undefined);
+
+    render(
+      <CreateExpertPresetPanel
+        savedPresets={[
+          {
+            presetId: "single_shot",
+            label: "Single-shot",
+            description: "Single-shot pulse override.",
+            systemInstructions: "Guide the user through story beats and camera planning.",
+            runtimeMode: "prompt_editor",
+            activationMode: "activate_only",
+            starterAssistantMessage: null,
+            outputMode: "apply_prompt",
+            memoryPolicy: "session",
+            createdAt: null,
+          },
+        ]}
+        onSavedPresetsChange={vi.fn()}
+        onActivePresetIdChange={onActivePresetIdChange}
+        onPresetStart={onPresetStart}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Single-shot preset" }));
+
+    await waitFor(() => {
+      expect(onActivePresetIdChange).toHaveBeenCalledWith("single_shot");
+      expect(onPresetStart).toHaveBeenCalledWith(
+        expect.objectContaining({
+          presetId: "single_shot",
+          activationMode: "activate_only",
+        })
+      );
+    });
+  });
+
   it("starts the built-in story builder workflow immediately on click", async () => {
     const onActivePresetIdChange = vi.fn();
     const onPresetStart = vi.fn().mockResolvedValue(undefined);

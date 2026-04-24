@@ -6,7 +6,10 @@ import { useCallback } from "react";
 import type { AgentMessage } from "../../ai-agent/types";
 import type { AgentPulseWorkflowSession } from "../../../prefabs/agent";
 import type { PromptOrigin } from "../logic/agentPromptOwnership";
-import type { AiStudioSessionSnapshot } from "../logic/sessionSnapshot";
+import type {
+  AiStudioSessionAgentRuntimesV2,
+  AiStudioSessionSnapshot,
+} from "../logic/sessionSnapshot";
 import type { AiStudioSessionHydrationPayload } from "../logic/sessionSnapshotHydrator";
 import { useAiStudioSessionPersistenceController } from "./useAiStudioSessionPersistenceController";
 import type { ExpertEditSessionState } from "../components/edit/expertEditSessionState";
@@ -19,6 +22,7 @@ type BuildPageSessionSnapshotArgs = {
   promptOrigin: PromptOrigin;
   chatModeEnabled: boolean;
   pulseWorkflowSession?: AgentPulseWorkflowSession | null;
+  agentRuntimes?: AiStudioSessionAgentRuntimesV2;
   expertEditSessionState?: ExpertEditSessionState | null;
 };
 
@@ -32,11 +36,14 @@ type UseAiStudioPageSessionPersistenceParams = {
   promptOrigin: PromptOrigin;
   chatModeEnabled: boolean;
   pulseWorkflowSession?: AgentPulseWorkflowSession | null;
+  agentRuntimes?: AiStudioSessionAgentRuntimesV2;
   expertEditSessionState?: ExpertEditSessionState | null;
   hydrateFromSessionSnapshot: (
     snapshot: AiStudioSessionSnapshot
   ) => AiStudioSessionHydrationPayload;
-  hydrateFromSessionAgentSnapshot: (agent: AiStudioSessionHydrationPayload["agent"]) => void;
+  hydrateFromSessionAgentSnapshot: (
+    payload: Pick<AiStudioSessionHydrationPayload, "workspace" | "agent" | "agentRuntimes">
+  ) => void;
   hydrateFromSessionExpertEditSnapshot?: (
     expertEdit: AiStudioSessionHydrationPayload["expertEdit"]
   ) => void;
@@ -56,6 +63,7 @@ export const useAiStudioPageSessionPersistence = ({
   promptOrigin,
   chatModeEnabled,
   pulseWorkflowSession,
+  agentRuntimes,
   expertEditSessionState,
   hydrateFromSessionSnapshot,
   hydrateFromSessionAgentSnapshot,
@@ -72,6 +80,7 @@ export const useAiStudioPageSessionPersistence = ({
         promptOrigin,
         chatModeEnabled,
         pulseWorkflowSession,
+        agentRuntimes,
         expertEditSessionState,
       }),
     [
@@ -80,6 +89,7 @@ export const useAiStudioPageSessionPersistence = ({
       buildSessionSnapshot,
       chatModeEnabled,
       expertEditSessionState,
+      agentRuntimes,
       latestAgentPrompt,
       pulseWorkflowSession,
       promptOrigin,

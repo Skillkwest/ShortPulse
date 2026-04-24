@@ -97,8 +97,8 @@ export const useCreatePulsePresetRuntime = ({
       setActivePresetId(presetId);
       const resolvedPreset = resolveCreatePulsePresetById(presetId, savedPresets);
       const presetLabel = resolveCreatePulsePresetLabelById(presetId, savedPresets);
-      showStatusToast(`Activated ${presetLabel}.`);
-      if (resolvedPreset?.activationMode === "activate_and_start") {
+      showStatusToast(`Started ${presetLabel}.`);
+      if (resolvedPreset) {
         await onPresetStart?.(resolvedPreset);
       }
     },

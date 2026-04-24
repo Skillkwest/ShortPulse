@@ -15,7 +15,9 @@ type UseAiStudioSessionRestoreHydrationParams = {
   hydrateFromSessionSnapshot: (
     snapshot: AiStudioSessionSnapshot
   ) => AiStudioSessionHydrationPayload;
-  hydrateFromSessionAgentSnapshot: (agent: AiStudioSessionHydrationPayload["agent"]) => void;
+  hydrateFromSessionAgentSnapshot: (
+    payload: Pick<AiStudioSessionHydrationPayload, "workspace" | "agent" | "agentRuntimes">
+  ) => void;
   hydrateFromSessionExpertEditSnapshot?: (
     expertEdit: AiStudioSessionHydrationPayload["expertEdit"]
   ) => void;
@@ -88,7 +90,7 @@ export const useAiStudioSessionRestoreHydration = ({
     const snapshot = sessionRestoreCandidate.snapshot;
     const payload = hydrateFromSessionSnapshot(snapshot);
     if (agentApplyEnabled) {
-      hydrateFromSessionAgentSnapshot(payload.agent);
+      hydrateFromSessionAgentSnapshot(payload);
     }
     hydrateFromSessionExpertEditSnapshot?.(payload.expertEdit);
     sessionHydrationAppliedRef.current = sessionId;

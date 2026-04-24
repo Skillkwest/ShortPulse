@@ -69,6 +69,25 @@ describe("useAiStudioPageSessionPersistence", () => {
           chatModeEnabled: false,
           pulseWorkflowSession: null,
         },
+        agentRuntimes: {
+          standard: {
+            messages: [],
+            input: "",
+            latestAgentPrompt: null,
+            promptOrigin: "manual",
+            chatModeEnabled: false,
+            pulseWorkflowSession: null,
+          },
+          pulsePresetId: null,
+          pulse: {
+            messages: [],
+            input: "",
+            latestAgentPrompt: null,
+            promptOrigin: "manual",
+            chatModeEnabled: true,
+            pulseWorkflowSession: null,
+          },
+        },
         canvas: null,
         expertEdit: null,
       })
@@ -87,6 +106,25 @@ describe("useAiStudioPageSessionPersistence", () => {
         promptOrigin: "manual",
         chatModeEnabled: true,
         pulseWorkflowSession: null,
+        agentRuntimes: {
+          standard: {
+            messages: [],
+            input: "plan next shot",
+            latestAgentPrompt: "latest",
+            promptOrigin: "manual",
+            chatModeEnabled: true,
+            pulseWorkflowSession: null,
+          },
+          pulsePresetId: null,
+          pulse: {
+            messages: [],
+            input: "",
+            latestAgentPrompt: null,
+            promptOrigin: "manual",
+            chatModeEnabled: true,
+            pulseWorkflowSession: null,
+          },
+        },
         expertEditSessionState,
         hydrateFromSessionSnapshot,
         hydrateFromSessionAgentSnapshot,
@@ -108,6 +146,25 @@ describe("useAiStudioPageSessionPersistence", () => {
       promptOrigin: "manual",
       chatModeEnabled: true,
       pulseWorkflowSession: null,
+      agentRuntimes: {
+        standard: {
+          messages: [],
+          input: "plan next shot",
+          latestAgentPrompt: "latest",
+          promptOrigin: "manual",
+          chatModeEnabled: true,
+          pulseWorkflowSession: null,
+        },
+        pulsePresetId: null,
+        pulse: {
+          messages: [],
+          input: "",
+          latestAgentPrompt: null,
+          promptOrigin: "manual",
+          chatModeEnabled: true,
+          pulseWorkflowSession: null,
+        },
+      },
       expertEditSessionState,
     });
 

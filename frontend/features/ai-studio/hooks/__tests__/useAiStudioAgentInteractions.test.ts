@@ -11,6 +11,7 @@ const asDispatch = <T>(fn: (...args: unknown[]) => unknown): Dispatch<SetStateAc
 const createParams = (
   overrides: Partial<Parameters<typeof useAiStudioAgentInteractions>[0]> = {}
 ): Parameters<typeof useAiStudioAgentInteractions>[0] => ({
+  expertCreateMode: "standard",
   editPromptToolSelected: false,
   setSharedPrompt: vi.fn(),
   setLatestAgentPrompt: asDispatch<string | null>(vi.fn()),
@@ -23,6 +24,7 @@ const createParams = (
   latestAgentPrompt: null,
   resetAgentChat: vi.fn(),
   resetAgentComposer: vi.fn(),
+  clearPulseRuntime: vi.fn(),
   setAgentActions: asDispatch<AgentActions | undefined>(vi.fn()),
   setPulseWorkflowSession: asDispatch<AgentPulseWorkflowSession | null>(vi.fn()),
   ...overrides,
@@ -86,7 +88,7 @@ describe("useAiStudioAgentInteractions", () => {
     expect(resetAgentChat).toHaveBeenCalledTimes(1);
     expect(resetAgentComposer).toHaveBeenCalledTimes(1);
     expect(resetAgentComposer).toHaveBeenCalledWith({
-      preserveAttachments: true,
+      preserveAttachments: false,
     });
     expect(setLatestAgentPrompt).toHaveBeenCalledWith(null);
     expect(setPromptOrigin).toHaveBeenCalledWith("manual");
@@ -94,6 +96,26 @@ describe("useAiStudioAgentInteractions", () => {
     expect(setPulseWorkflowSession).toHaveBeenCalledWith(null);
     expect(setIsAgentChatOpen).toHaveBeenCalledWith(false);
     expect(trackAgentUiEvent).toHaveBeenCalledWith("studio_agent_chat_cleared");
+  });
+
+  it("deactivates the active pulse when clearing chat in pulse mode", () => {
+    const clearPulseRuntime = vi.fn();
+    const setPulseWorkflowSession = vi.fn();
+    const params = createParams({
+      expertCreateMode: "pulse",
+      clearPulseRuntime,
+      setPulseWorkflowSession: asDispatch<AgentPulseWorkflowSession | null>(
+        setPulseWorkflowSession
+      ),
+    });
+    const { result } = renderHook(() => useAiStudioAgentInteractions(params));
+
+    act(() => {
+      result.current.handleClearAgentChat();
+    });
+
+    expect(clearPulseRuntime).toHaveBeenCalledTimes(1);
+    expect(setPulseWorkflowSession).not.toHaveBeenCalled();
   });
 
   it("adds latest agent prompt to grid with the default agent title", () => {

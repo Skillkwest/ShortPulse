@@ -151,6 +151,34 @@ describe("sessionSnapshot", () => {
     expect(snapshot.workspace.activePulsePresetId).toBe("single_shot");
     expect(snapshot.outputs.active[0]?.id).toBe("out-1");
     expect(snapshot.agent.messages[0]?.role).toBe("assistant");
+    expect(snapshot.agentRuntimes).toEqual({
+      standard: {
+        messages: [],
+        input: "",
+        latestAgentPrompt: null,
+        promptOrigin: "manual",
+        chatModeEnabled: true,
+        pulseWorkflowSession: null,
+      },
+      pulsePresetId: "single_shot",
+      pulse: {
+        messages: [{ id: "a-1", role: "assistant", content: "Here is your prompt." }],
+        input: "",
+        latestAgentPrompt: "Here is your prompt.",
+        promptOrigin: "agent",
+        chatModeEnabled: true,
+        pulseWorkflowSession: {
+          presetId: "single_shot",
+          status: "awaiting_input",
+          currentStepIndex: 2,
+          currentStepLabel: "Action",
+          currentStepPrompt: "Step 2 — Action: What should happen next?",
+          collectedInputs: ["Upload your image"],
+          lastArtifact: null,
+          finalArtifactSource: null,
+        },
+      },
+    });
     expect(snapshot.agent.pulseWorkflowSession).toEqual({
       presetId: "single_shot",
       status: "awaiting_input",

@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Dispatch, SetStateAction } from "react";
 import { useAiStudioAgentBridge } from "../useAiStudioAgentBridge";
 import type { AgentActions } from "../../../../prefabs/agent";
+import type { AiStudioSessionHydrationPayload } from "../../logic/sessionSnapshotHydrator";
 import type { StudioMode, ToolId, StudioOutput } from "../../types";
 
 const useAiAgentMock = vi.fn();
@@ -376,6 +377,14 @@ describe("useAiStudioAgentBridge", () => {
     });
 
     const base = createBridgeParams();
+    const bridgeModeProps: {
+      expertCreateMode: "standard" | "pulse";
+      activePulsePresetId: string | null;
+    } = {
+      expertCreateMode: "standard",
+      activePulsePresetId: null,
+    };
+
     const { result, rerender } = renderHook(
       ({
         expertCreateMode,
@@ -390,10 +399,7 @@ describe("useAiStudioAgentBridge", () => {
           activePulsePresetId,
         }),
       {
-        initialProps: {
-          expertCreateMode: "standard" as const,
-          activePulsePresetId: null,
-        },
+        initialProps: bridgeModeProps,
       }
     );
 
@@ -599,25 +605,65 @@ describe("useAiStudioAgentBridge", () => {
 
     act(() => {
       result.current.hydrateFromSessionAgentSnapshot({
-        messages: [
-          {
-            id: "agent-assistant-restored-0",
-            role: "assistant",
-            content: "Scene 1: cinematic wide shot of the knight entering the ruined hall.",
+        workspace: {
+          expertCreateMode: "standard",
+          activePulsePresetId: "story_builder",
+        } as AiStudioSessionHydrationPayload["workspace"],
+        agent: {
+          messages: [
+            {
+              id: "agent-assistant-restored-0",
+              role: "assistant",
+              content: "Scene 1: cinematic wide shot of the knight entering the ruined hall.",
+            },
+          ],
+          input: "",
+          latestAgentPrompt: "Scene 1: cinematic wide shot of the knight entering the ruined hall.",
+          promptOrigin: "agent",
+          chatModeEnabled: true,
+          pulseWorkflowSession: {
+            presetId: "story_builder",
+            status: "completed",
+            currentStepIndex: 6,
+            currentStepLabel: "Image Prompts",
+            currentStepPrompt: null,
+            collectedInputs: ["grimdark tone", "10 min runtime"],
+            lastArtifact: "Scene 1: cinematic wide shot of the knight entering the ruined hall.",
           },
-        ],
-        input: "",
-        latestAgentPrompt: "Scene 1: cinematic wide shot of the knight entering the ruined hall.",
-        promptOrigin: "agent",
-        chatModeEnabled: true,
-        pulseWorkflowSession: {
-          presetId: "story_builder",
-          status: "completed",
-          currentStepIndex: 6,
-          currentStepLabel: "Image Prompts",
-          currentStepPrompt: null,
-          collectedInputs: ["grimdark tone", "10 min runtime"],
-          lastArtifact: "Scene 1: cinematic wide shot of the knight entering the ruined hall.",
+        },
+        agentRuntimes: {
+          standard: {
+            messages: [],
+            input: "",
+            latestAgentPrompt: null,
+            promptOrigin: "manual",
+            chatModeEnabled: true,
+            pulseWorkflowSession: null,
+          },
+          pulsePresetId: "story_builder",
+          pulse: {
+            messages: [
+              {
+                id: "agent-assistant-restored-0",
+                role: "assistant",
+                content: "Scene 1: cinematic wide shot of the knight entering the ruined hall.",
+              },
+            ],
+            input: "",
+            latestAgentPrompt:
+              "Scene 1: cinematic wide shot of the knight entering the ruined hall.",
+            promptOrigin: "agent",
+            chatModeEnabled: true,
+            pulseWorkflowSession: {
+              presetId: "story_builder",
+              status: "completed",
+              currentStepIndex: 6,
+              currentStepLabel: "Image Prompts",
+              currentStepPrompt: null,
+              collectedInputs: ["grimdark tone", "10 min runtime"],
+              lastArtifact: "Scene 1: cinematic wide shot of the knight entering the ruined hall.",
+            },
+          },
         },
       });
     });

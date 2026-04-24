@@ -285,6 +285,7 @@ export default function AiStudioPage() {
     setExpertCreateMode,
     setActiveCreatePulsePresetId,
     setPulseWorkflowSession,
+    clearPulseRuntime,
     handleExpertCreateModeChange,
     handleActiveCreatePulsePresetIdChange,
   } = useAiStudioCreateModeRuntime({
@@ -733,6 +734,7 @@ export default function AiStudioPage() {
     isAgentChatOpen,
     latestAgentPrompt,
     promptOrigin,
+    persistedAgentRuntimes,
     setPromptOrigin,
     agentPrimarySource,
     stagedAgentPrompt,
@@ -777,6 +779,7 @@ export default function AiStudioPage() {
     setActiveOutputId,
     setUiNotice,
     setPulseWorkflowSession,
+    clearPulseRuntime,
     trackAgentUiEvent: trackUiEvent,
   });
 
@@ -837,6 +840,14 @@ export default function AiStudioPage() {
     promptOrigin,
     chatModeEnabled,
     pulseWorkflowSession,
+    agentRuntimes: {
+      ...persistedAgentRuntimes,
+      pulsePresetId: activeCreatePulsePresetId,
+      pulse: {
+        ...persistedAgentRuntimes.pulse,
+        pulseWorkflowSession: pulseWorkflowSession ?? null,
+      },
+    },
     expertEditSessionState,
     hydrateFromSessionSnapshot,
     hydrateFromSessionAgentSnapshot,

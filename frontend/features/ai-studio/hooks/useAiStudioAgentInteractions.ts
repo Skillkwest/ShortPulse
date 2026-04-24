@@ -5,6 +5,7 @@ import { normalizePromptText, type PromptOrigin } from "../logic/agentPromptOwne
 const DEFAULT_AGENT_PROMPT_REFERENCE_TITLE = "Agent prompt";
 
 type UseAiStudioAgentInteractionsParams = {
+  expertCreateMode: "standard" | "pulse";
   editPromptToolSelected: boolean;
   setSharedPrompt: (value: string) => void;
   setLatestAgentPrompt: Dispatch<SetStateAction<string | null>>;
@@ -20,11 +21,13 @@ type UseAiStudioAgentInteractionsParams = {
     preserveInput?: boolean;
     preserveAttachments?: boolean;
   }) => void;
+  clearPulseRuntime?: () => void;
   setAgentActions: Dispatch<SetStateAction<AgentActions | undefined>>;
   setPulseWorkflowSession: Dispatch<SetStateAction<AgentPulseWorkflowSession | null>>;
 };
 
 export const useAiStudioAgentInteractions = ({
+  expertCreateMode,
   editPromptToolSelected,
   setSharedPrompt,
   setLatestAgentPrompt,
@@ -37,6 +40,7 @@ export const useAiStudioAgentInteractions = ({
   latestAgentPrompt,
   resetAgentChat,
   resetAgentComposer,
+  clearPulseRuntime,
   setAgentActions,
   setPulseWorkflowSession,
 }: UseAiStudioAgentInteractionsParams) => {
@@ -81,14 +85,20 @@ export const useAiStudioAgentInteractions = ({
 
   const handleClearAgentChat = useCallback(() => {
     resetAgentChat();
-    resetAgentComposer({ preserveAttachments: true });
+    resetAgentComposer({ preserveAttachments: false });
     setLatestAgentPrompt(null);
     setPromptOrigin("manual");
     setAgentActions(undefined);
-    setPulseWorkflowSession(null);
+    if (expertCreateMode === "pulse") {
+      clearPulseRuntime?.();
+    } else {
+      setPulseWorkflowSession(null);
+    }
     setIsAgentChatOpen(false);
     trackAgentUiEvent("studio_agent_chat_cleared");
   }, [
+    clearPulseRuntime,
+    expertCreateMode,
     resetAgentChat,
     resetAgentComposer,
     setLatestAgentPrompt,

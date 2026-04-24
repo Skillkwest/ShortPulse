@@ -39,7 +39,6 @@ const TOOL_IDS = new Set<ToolId>([
   "create",
   "media-library",
   "elements",
-  "pulse-presets",
   "workflows",
   "presets",
   "styles",
@@ -91,6 +90,7 @@ const asMode = (value: unknown): StudioMode => {
 const asToolId = (value: unknown): ToolId | null => {
   if (typeof value !== "string") return null;
   if (value === "canvas") return "create";
+  if (value === "pulse-presets") return "presets";
   return TOOL_IDS.has(value as ToolId) ? (value as ToolId) : null;
 };
 
@@ -505,6 +505,25 @@ export type AiStudioSessionHydrationPayload = {
     chatModeEnabled: boolean;
     pulseWorkflowSession: AgentPulseWorkflowSession | null;
   };
+  agentRuntimes: {
+    standard: {
+      messages: AgentMessage[];
+      input: string;
+      latestAgentPrompt: string | null;
+      promptOrigin: "manual" | "agent" | "reference";
+      chatModeEnabled: boolean;
+      pulseWorkflowSession: AgentPulseWorkflowSession | null;
+    };
+    pulsePresetId: string | null;
+    pulse: {
+      messages: AgentMessage[];
+      input: string;
+      latestAgentPrompt: string | null;
+      promptOrigin: "manual" | "agent" | "reference";
+      chatModeEnabled: boolean;
+      pulseWorkflowSession: AgentPulseWorkflowSession | null;
+    };
+  };
   canvas: AiStudioSessionCanvasState | null;
   expertEdit: ExpertEditSessionState | null;
 };
@@ -540,6 +559,18 @@ const asPulseWorkflowSession = (value: unknown): AgentPulseWorkflowSession | nul
   };
 };
 
+const buildHydratedAgentRuntime = (value: unknown) => {
+  const runtime = value && typeof value === "object" ? (value as Record<string, unknown>) : {};
+  return {
+    messages: normalizeAgentMessages(runtime.messages),
+    input: asString(runtime.input, ""),
+    latestAgentPrompt: asNullableString(runtime.latestAgentPrompt),
+    promptOrigin: asPromptOrigin(runtime.promptOrigin),
+    chatModeEnabled: asBoolean(runtime.chatModeEnabled, true),
+    pulseWorkflowSession: asPulseWorkflowSession(runtime.pulseWorkflowSession),
+  };
+};
+
 /**
  * Builds normalized state payload used by snapshot hydration apply paths.
  */
@@ -549,6 +580,11 @@ export const buildAiStudioSessionHydrationPayload = (
   const workspace = snapshot.workspace ?? ({} as AiStudioSessionSnapshotV1["workspace"]);
   const outputs = snapshot.outputs ?? ({} as AiStudioSessionSnapshotV1["outputs"]);
   const agent = snapshot.agent ?? ({} as AiStudioSessionSnapshotV1["agent"]);
+  const agentRuntimes =
+    snapshot.schemaVersion >= 2
+      ? (((snapshot as Record<string, unknown>).agentRuntimes as Record<string, unknown> | null) ??
+        null)
+      : null;
   const canvas =
     snapshot.schemaVersion >= 2
       ? parseAiStudioSessionCanvasState((snapshot as Record<string, unknown>).canvas ?? null)
@@ -579,6 +615,38 @@ export const buildAiStudioSessionHydrationPayload = (
   );
   const klingWorkflowMode = persistedKlingWorkflowMode;
   const klingMultiPrompts = persistedKlingMultiPrompts;
+  const workspaceExpertCreateMode = asExpertCreateMode(
+    (workspace as { expertCreateMode?: unknown }).expertCreateMode
+  );
+  const workspaceActivePulsePresetId =
+    asNullableString(
+      (workspace as { activePulsePresetId?: unknown }).activePulsePresetId
+    )?.trim() || null;
+  const defaultAgentRuntime = buildHydratedAgentRuntime(null);
+  const legacyAgentRuntime = buildHydratedAgentRuntime(agent);
+  const hydratedAgentRuntimes = {
+    standard: agentRuntimes?.standard
+      ? buildHydratedAgentRuntime(agentRuntimes.standard)
+      : workspaceExpertCreateMode === "pulse"
+        ? defaultAgentRuntime
+        : legacyAgentRuntime,
+    pulsePresetId:
+      asNullableString(agentRuntimes?.pulsePresetId)?.trim() ||
+      workspaceActivePulsePresetId ||
+      legacyAgentRuntime.pulseWorkflowSession?.presetId ||
+      null,
+    pulse: agentRuntimes?.pulse
+      ? buildHydratedAgentRuntime(agentRuntimes.pulse)
+      : workspaceExpertCreateMode === "pulse" ||
+          workspaceActivePulsePresetId !== null ||
+          legacyAgentRuntime.pulseWorkflowSession !== null
+        ? legacyAgentRuntime
+        : defaultAgentRuntime,
+  };
+  const activeAgentRuntime =
+    workspaceExpertCreateMode === "pulse"
+      ? hydratedAgentRuntimes.pulse
+      : hydratedAgentRuntimes.standard;
 
   return {
     workspace: {
@@ -587,13 +655,8 @@ export const buildAiStudioSessionHydrationPayload = (
       prompt: asString(workspace.prompt, ""),
       model: normalizeSeedance2UiModelId(asNullableString(workspace.model)) ?? null,
       aspect: asString(workspace.aspect, FALLBACK_ASPECT),
-      expertCreateMode: asExpertCreateMode(
-        (workspace as { expertCreateMode?: unknown }).expertCreateMode
-      ),
-      activePulsePresetId:
-        asNullableString(
-          (workspace as { activePulsePresetId?: unknown }).activePulsePresetId
-        )?.trim() || null,
+      expertCreateMode: workspaceExpertCreateMode,
+      activePulsePresetId: workspaceActivePulsePresetId,
       referenceImageUrl: sanitizeHydratedMediaUrl(asNullableString(workspace.referenceImageUrl)),
       extraImageUrls: asExtraImageUrls(workspace.extraImageUrls),
       editReferenceText: asString(workspace.editReferenceText, ""),
@@ -642,14 +705,8 @@ export const buildAiStudioSessionHydrationPayload = (
         allOutputIds.has(id)
       ),
     },
-    agent: {
-      messages: normalizeAgentMessages(agent.messages),
-      input: asString(agent.input, ""),
-      latestAgentPrompt: asNullableString(agent.latestAgentPrompt),
-      promptOrigin: asPromptOrigin(agent.promptOrigin),
-      chatModeEnabled: asBoolean(agent.chatModeEnabled, true),
-      pulseWorkflowSession: asPulseWorkflowSession(agent.pulseWorkflowSession),
-    },
+    agent: activeAgentRuntime,
+    agentRuntimes: hydratedAgentRuntimes,
     canvas,
     expertEdit,
   };

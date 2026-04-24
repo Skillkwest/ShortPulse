@@ -142,6 +142,12 @@ export type AiStudioSessionAgentV1 = {
   pulseWorkflowSession?: AgentPulseWorkflowSession | null;
 };
 
+export type AiStudioSessionAgentRuntimesV2 = {
+  standard: AiStudioSessionAgentV1;
+  pulsePresetId: string | null;
+  pulse: AiStudioSessionAgentV1;
+};
+
 export type AiStudioSessionSnapshotV1 = {
   schemaVersion: 1;
   sessionId: string;
@@ -164,6 +170,7 @@ export type AiStudioSessionSnapshotV2 = {
   workspace: AiStudioSessionWorkspaceV1;
   outputs: AiStudioSessionOutputsV1;
   agent: AiStudioSessionAgentV1;
+  agentRuntimes?: AiStudioSessionAgentRuntimesV2;
   // Legacy compatibility extension for older canvas sessions. Canonical /ai-studio writes omit this.
   canvas?: AiStudioSessionCanvasSnapshotV1;
   expertEdit?: AiStudioSessionExpertEditSnapshotV1;
@@ -217,6 +224,7 @@ export type BuildAiStudioSessionSnapshotInput = {
   promptOrigin: "manual" | "agent" | "reference";
   chatModeEnabled: boolean;
   pulseWorkflowSession?: AgentPulseWorkflowSession | null;
+  agentRuntimes?: AiStudioSessionAgentRuntimesV2;
   // Legacy compatibility input for optional canvas session serialization. Canonical /ai-studio writes omit this.
   canvasState?: AiStudioSessionCanvasState;
   expertEditSessionState?: ExpertEditSessionState | null;
@@ -421,6 +429,31 @@ const sanitizePulseWorkflowSession = (
   };
 };
 
+const sanitizeAgentRuntimeMessage = (
+  message: AgentMessage | AiStudioSessionAgentMessageV1
+): AiStudioSessionAgentMessageV1 => ({
+  id: typeof message.id === "string" ? message.id : null,
+  role: message.role,
+  content: message.content,
+  attachments: sanitizeAgentAttachments(message.attachments as AgentMessage["attachments"]),
+});
+
+const sanitizeAgentRuntime = (runtime: {
+  messages: Array<AgentMessage | AiStudioSessionAgentMessageV1>;
+  input: string;
+  latestAgentPrompt: string | null;
+  promptOrigin: "manual" | "agent" | "reference";
+  chatModeEnabled: boolean;
+  pulseWorkflowSession?: AgentPulseWorkflowSession | null;
+}): AiStudioSessionAgentV1 => ({
+  messages: runtime.messages.map(sanitizeAgentRuntimeMessage),
+  input: runtime.input,
+  latestAgentPrompt: runtime.latestAgentPrompt,
+  promptOrigin: runtime.promptOrigin,
+  chatModeEnabled: runtime.chatModeEnabled,
+  pulseWorkflowSession: sanitizePulseWorkflowSession(runtime.pulseWorkflowSession),
+});
+
 const computeChecksum = (value: unknown): string => {
   const serialized = JSON.stringify(value);
   let hash = 2166136261;
@@ -445,6 +478,34 @@ export const buildAiStudioSessionSnapshot = (
   const expertEdit = input.expertEditSessionState
     ? serializeAiStudioSessionExpertEditState(input.expertEditSessionState)
     : undefined;
+  const activeAgentRuntime = sanitizeAgentRuntime({
+    messages: input.agentMessages,
+    input: input.agentInput,
+    latestAgentPrompt: input.latestAgentPrompt,
+    promptOrigin: input.promptOrigin,
+    chatModeEnabled: input.chatModeEnabled,
+    pulseWorkflowSession: input.pulseWorkflowSession,
+  });
+  const emptyAgentRuntime = sanitizeAgentRuntime({
+    messages: [],
+    input: "",
+    latestAgentPrompt: null,
+    promptOrigin: "manual",
+    chatModeEnabled: true,
+    pulseWorkflowSession: null,
+  });
+  const agentRuntimes = input.agentRuntimes
+    ? {
+        standard: sanitizeAgentRuntime(input.agentRuntimes.standard),
+        pulsePresetId: input.agentRuntimes.pulsePresetId?.trim() || null,
+        pulse: sanitizeAgentRuntime(input.agentRuntimes.pulse),
+      }
+    : {
+        standard: input.expertCreateMode === "pulse" ? emptyAgentRuntime : activeAgentRuntime,
+        pulsePresetId:
+          input.expertCreateMode === "pulse" ? input.activePulsePresetId?.trim() || null : null,
+        pulse: input.expertCreateMode === "pulse" ? activeAgentRuntime : emptyAgentRuntime,
+      };
 
   const basePayload = {
     schemaVersion: LATEST_AI_STUDIO_SESSION_SCHEMA_VERSION,
@@ -492,14 +553,8 @@ export const buildAiStudioSessionSnapshot = (
       curatedReferenceIds: input.curatedReferenceIds,
       removedFromAllRefsIds: input.removedFromAllRefsIds,
     },
-    agent: {
-      messages: input.agentMessages.map(sanitizeAgentMessage),
-      input: input.agentInput,
-      latestAgentPrompt: input.latestAgentPrompt,
-      promptOrigin: input.promptOrigin,
-      chatModeEnabled: input.chatModeEnabled,
-      pulseWorkflowSession: sanitizePulseWorkflowSession(input.pulseWorkflowSession),
-    },
+    agent: activeAgentRuntime,
+    agentRuntimes,
     ...(canvas ? { canvas } : {}),
     ...(expertEdit ? { expertEdit } : {}),
   } as const;

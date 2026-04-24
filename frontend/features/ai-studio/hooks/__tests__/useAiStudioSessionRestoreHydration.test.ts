@@ -123,6 +123,25 @@ const createHydrationPayload = (): AiStudioSessionHydrationPayload => ({
     chatModeEnabled: true,
     pulseWorkflowSession: null,
   },
+  agentRuntimes: {
+    standard: {
+      messages: [{ id: "agent-assistant-restored-0", role: "assistant", content: "hi" }],
+      input: "draft",
+      latestAgentPrompt: "prompt",
+      promptOrigin: "agent",
+      chatModeEnabled: true,
+      pulseWorkflowSession: null,
+    },
+    pulsePresetId: null,
+    pulse: {
+      messages: [],
+      input: "",
+      latestAgentPrompt: null,
+      promptOrigin: "manual",
+      chatModeEnabled: true,
+      pulseWorkflowSession: null,
+    },
+  },
   canvas: null,
   expertEdit: {
     version: 2,

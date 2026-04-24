@@ -7,6 +7,7 @@ import { addBreadcrumb } from "../../../lib/clientBreadcrumbs";
 import type { AgentMessage, AgentPulseWorkflowSession } from "../../../prefabs/agent/types";
 import {
   buildAiStudioSessionSnapshot,
+  type AiStudioSessionAgentRuntimesV2,
   type AiStudioSessionSnapshot,
   type AiStudioSessionSnapshotV2,
 } from "../logic/sessionSnapshot";
@@ -328,6 +329,7 @@ export const useAiStudioSessionSnapshotController = ({
       promptOrigin,
       chatModeEnabled,
       pulseWorkflowSession: pulseWorkflowSessionOverride,
+      agentRuntimes,
       expertEditSessionState,
     }: {
       sessionId: string;
@@ -338,6 +340,7 @@ export const useAiStudioSessionSnapshotController = ({
       promptOrigin: "manual" | "agent" | "reference";
       chatModeEnabled: boolean;
       pulseWorkflowSession?: AgentPulseWorkflowSession | null;
+      agentRuntimes?: AiStudioSessionAgentRuntimesV2;
       expertEditSessionState?: ExpertEditSessionState | null;
     }): AiStudioSessionSnapshotV2 =>
       buildAiStudioSessionSnapshot({
@@ -386,6 +389,7 @@ export const useAiStudioSessionSnapshotController = ({
         promptOrigin,
         chatModeEnabled,
         pulseWorkflowSession: pulseWorkflowSessionOverride ?? pulseWorkflowSession,
+        agentRuntimes,
         expertEditSessionState,
       }),
     [

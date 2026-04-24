@@ -95,6 +95,9 @@ describe("sessionSnapshotHydrator", () => {
     expect(payload.agent.promptOrigin).toBe("manual");
     expect(payload.agent.chatModeEnabled).toBe(true);
     expect(payload.agent.pulseWorkflowSession).toBeNull();
+    expect(payload.agentRuntimes.standard.promptOrigin).toBe("manual");
+    expect(payload.agentRuntimes.pulsePresetId).toBeNull();
+    expect(payload.agentRuntimes.pulse.messages).toEqual([]);
     expect(payload.workspace.klingWorkflowMode).toBe("single");
     expect(payload.workspace.expertCreateMode).toBe("standard");
     expect(payload.workspace.activePulsePresetId).toBeNull();
@@ -136,6 +139,16 @@ describe("sessionSnapshotHydrator", () => {
     );
 
     expect(payload.agent.pulseWorkflowSession).toEqual({
+      presetId: "story_builder",
+      status: "awaiting_input",
+      currentStepIndex: 4,
+      currentStepLabel: "Scene Review",
+      currentStepPrompt: "Step 4 — Review scenes. What would you like to change?",
+      collectedInputs: ["grimdark", "A knight enters a cursed forest", "5 min"],
+      lastArtifact: null,
+      finalArtifactSource: null,
+    });
+    expect(payload.agentRuntimes.pulse.pulseWorkflowSession).toEqual({
       presetId: "story_builder",
       status: "awaiting_input",
       currentStepIndex: 4,
@@ -245,6 +258,8 @@ describe("sessionSnapshotHydrator", () => {
         "Scene 1: cinematic wide shot of the knight entering the ruined hall under torchlight.",
       finalArtifactSource: null,
     });
+    expect(payload.agentRuntimes.pulsePresetId).toBe("story_builder");
+    expect(payload.agentRuntimes.standard.messages).toEqual([]);
   });
 
   it("preserves persisted custom Kling prompt workspace during hydration", () => {
@@ -457,17 +472,19 @@ describe("sessionSnapshotHydrator", () => {
     expect(payload.workspace.selectedTool).toBe("presets");
   });
 
-  it("keeps pulse-presets as a valid restored selected tool", () => {
+  it("normalizes legacy pulse-presets snapshots into presets", () => {
     const payload = buildAiStudioSessionHydrationPayload(
       createSnapshot({
         workspace: {
           ...createSnapshot().workspace,
-          selectedTool: "pulse-presets",
+          // Legacy snapshots can still contain the removed tool id.
+          selectedTool:
+            "pulse-presets" as unknown as AiStudioSessionSnapshotV1["workspace"]["selectedTool"],
         },
       })
     );
 
-    expect(payload.workspace.selectedTool).toBe("pulse-presets");
+    expect(payload.workspace.selectedTool).toBe("presets");
   });
 
   it("keeps media-library as a valid restored selected tool", () => {

@@ -25,7 +25,9 @@ type UseAiStudioSessionPersistenceControllerParams = {
   hydrateFromSessionSnapshot: (
     snapshot: AiStudioSessionSnapshot
   ) => AiStudioSessionHydrationPayload;
-  hydrateFromSessionAgentSnapshot: (agent: AiStudioSessionHydrationPayload["agent"]) => void;
+  hydrateFromSessionAgentSnapshot: (
+    payload: Pick<AiStudioSessionHydrationPayload, "workspace" | "agent" | "agentRuntimes">
+  ) => void;
   hydrateFromSessionExpertEditSnapshot?: (
     expertEdit: AiStudioSessionHydrationPayload["expertEdit"]
   ) => void;

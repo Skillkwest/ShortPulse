@@ -65,6 +65,47 @@ describe("useAiAgent", () => {
     expect(fetchWithAuthMock).not.toHaveBeenCalled();
   });
 
+  it("allows hidden payload-only turns for pulse activation seeds", async () => {
+    fetchWithAuthMock.mockResolvedValue({
+      ok: true,
+      json: async () => ({ message: "Pulse activated." }),
+    } as Response);
+    const { result } = renderHook(() => useAiAgent({ enabled: true }));
+
+    await act(async () => {
+      await result.current.send({
+        text: "",
+        payloadText: "pulse_activation_seed:story_builder",
+        skipUserEcho: true,
+        context: {
+          pulse: {
+            presetId: "story_builder",
+            label: "Story Builder",
+            instructions: "Guide the user through story setup.",
+            runtimeMode: "workflow_gpt",
+            activationMode: "activate_and_start",
+            starterAssistantMessage: "Upload your characters first.",
+            workflowStageHints: ["Upload Characters"],
+            outputMode: "chat_reply",
+            memoryPolicy: "session",
+            source: "builtin",
+          },
+        },
+      });
+    });
+
+    expect(fetchWithAuthMock).toHaveBeenCalledTimes(1);
+    const requestInit = fetchWithAuthMock.mock.calls[0]?.[1];
+    const body = JSON.parse(String(requestInit?.body ?? "{}")) as {
+      messages?: Array<{ role: string; content: string }>;
+    };
+    expect(body.messages?.[body.messages.length - 1]).toEqual({
+      role: "user",
+      content: "pulse_activation_seed:story_builder",
+    });
+    expect(result.current.messages.some((message) => message.role === "user")).toBe(false);
+  });
+
   it("refuses explicit input in client precheck without transport call", async () => {
     const { result } = renderHook(() => useAiAgent({ enabled: true }));
 

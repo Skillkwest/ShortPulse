@@ -114,8 +114,9 @@ export const useAiAgent = ({
         return { response: null, actions: undefined };
       }
       const trimmed = text.trim();
+      const payloadTrimmed = payloadText?.trim() ?? "";
       const hasMediaContext = (context?.media?.length ?? 0) > 0;
-      const allowContextOnlyTurn = !trimmed && hasMediaContext;
+      const allowContextOnlyTurn = !trimmed && (hasMediaContext || payloadTrimmed.length > 0);
       if (!trimmed && !allowContextOnlyTurn) {
         return { response: null, actions: undefined };
       }
@@ -136,7 +137,7 @@ export const useAiAgent = ({
       setError(null);
 
       try {
-        const payloadCandidate = payloadText?.trim() || trimmed;
+        const payloadCandidate = payloadTrimmed || trimmed;
         const cleanedUserPayload = payloadCandidate
           ? (removeAspectRatioLanguage(payloadCandidate) ?? payloadCandidate)
           : "";

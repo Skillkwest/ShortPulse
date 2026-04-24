@@ -72,6 +72,26 @@ describe("useAiStudioSessionIdentity", () => {
     });
   });
 
+  it("preserves projectId when injecting sid into the URL", async () => {
+    const router = createRouter({
+      query: { projectId: "project-1" },
+    });
+    mockedUseRouter.mockReturnValue(router as never);
+
+    renderHook(() => useAiStudioSessionIdentity());
+
+    await waitFor(() => {
+      expect(router.replace).toHaveBeenCalledTimes(1);
+    });
+
+    const [urlArg] = router.replace.mock.calls[0] ?? [];
+    expect((urlArg as { query?: Record<string, unknown> }).query).toEqual(
+      expect.objectContaining({
+        projectId: "project-1",
+      })
+    );
+  });
+
   it("replaces invalid sid query values with a new valid session id", async () => {
     const router = createRouter({
       query: { sid: "invalid-session-id" },

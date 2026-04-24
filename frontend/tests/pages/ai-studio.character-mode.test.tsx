@@ -298,6 +298,7 @@ vi.mock("../../features/ai-agent/useAiAgent", () => ({
     error: null,
     send: vi.fn(async () => ({ response: null, actions: undefined })),
     appendUserMessage: vi.fn(() => "msg-1"),
+    replaceMessages: vi.fn(),
     reset: vi.fn(),
   }),
 }));
@@ -332,6 +333,17 @@ vi.mock("../../features/ai-studio/hooks/useAiStudioState", () => ({
 
 vi.mock("../../features/ai-studio/hooks/useAiStudioSessionIdentity", () => ({
   useAiStudioSessionIdentity: () => ({ sessionId: "test-session-id" }),
+}));
+
+vi.mock("../../features/ai-studio/hooks/useAiStudioProjectIdentity", () => ({
+  useAiStudioProjectIdentity: () => ({
+    projectId: null,
+    project: null,
+    status: "idle",
+    error: null,
+    refreshProject: vi.fn(),
+    updateProjectTitle: vi.fn(async () => null),
+  }),
 }));
 
 vi.mock("../../features/ai-studio/hooks/useAiStudioSessionPersistenceController", () => ({

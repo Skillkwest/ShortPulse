@@ -46,6 +46,7 @@ import {
   useAiStudioInternalDropResolvers,
 } from "../features/ai-studio/hooks/useAiStudioInternalDropResolvers";
 import { mapHookContractsToPageContentProps } from "../features/ai-studio/hooks/contracts/pageContentAdapter";
+import { useAiStudioProjectIdentity } from "../features/ai-studio/hooks/useAiStudioProjectIdentity";
 import { useAiStudioSessionIdentity } from "../features/ai-studio/hooks/useAiStudioSessionIdentity";
 import { useAiStudioPageSessionPersistence } from "../features/ai-studio/hooks/useAiStudioPageSessionPersistence";
 import { useAiStudioPageOutputAdapters } from "../features/ai-studio/hooks/useAiStudioPageOutputAdapters";
@@ -171,6 +172,37 @@ const normalizeAiStudioProjectName = (value: string | null | undefined): string 
   return normalized ? normalized.slice(0, 120) : null;
 };
 
+const AiStudioProjectEntryState = ({
+  title,
+  message,
+  actionLabel,
+  onAction,
+  secondaryActionLabel,
+  onSecondaryAction,
+}: {
+  title: string;
+  message: string;
+  actionLabel?: string;
+  onAction?: () => void;
+  secondaryActionLabel?: string;
+  onSecondaryAction?: () => void;
+}) => (
+  <main>
+    <h1>{title}</h1>
+    <p>{message}</p>
+    {actionLabel && onAction ? (
+      <button type="button" onClick={onAction}>
+        {actionLabel}
+      </button>
+    ) : null}
+    {secondaryActionLabel && onSecondaryAction ? (
+      <button type="button" onClick={onSecondaryAction}>
+        {secondaryActionLabel}
+      </button>
+    ) : null}
+  </main>
+);
+
 const buildVoicesOutputPrompt = (request: VoicesGenerateRequest): string =>
   request.mode === "voiceover"
     ? request.script
@@ -275,8 +307,19 @@ export default function AiStudioPage() {
     useState<CharacterModeInjectionBundle | null>(null);
   const [editCharacterModeInjectionBundle, setEditCharacterModeInjectionBundle] =
     useState<CharacterModeInjectionBundle | null>(null);
-  const sessionTitleOverride =
+  const localSessionTitleOverride =
     sessionTitleOverrideState?.sessionId === sessionId ? sessionTitleOverrideState.title : null;
+  const {
+    projectId,
+    project,
+    status: projectStatus,
+    error: projectError,
+    refreshProject,
+    updateProjectTitle,
+  } = useAiStudioProjectIdentity();
+  const shouldGateSessionPersistence = Boolean(projectId) && projectStatus !== "ready";
+  const activeSessionPersistenceSessionId = shouldGateSessionPersistence ? null : sessionId;
+  const sessionPersistenceTitleOverride = project?.title ?? localSessionTitleOverride;
 
   const {
     expertCreateMode,
@@ -831,8 +874,8 @@ export default function AiStudioPage() {
   }, [reconciledPulseWorkflowSession, setPulseWorkflowSession]);
 
   const { sessionSnapshot } = useAiStudioPageSessionPersistence({
-    sessionId,
-    sessionTitleOverride,
+    sessionId: activeSessionPersistenceSessionId,
+    sessionTitleOverride: sessionPersistenceTitleOverride,
     buildSessionSnapshot,
     agentMessages,
     agentInput,
@@ -857,15 +900,23 @@ export default function AiStudioPage() {
 
   useEffect(() => {
     let cancelled = false;
-    if (!sessionId || !AI_STUDIO_REMOTE_SESSION_FETCH_ENABLED) return () => void 0;
+    if (
+      !activeSessionPersistenceSessionId ||
+      projectId ||
+      !AI_STUDIO_REMOTE_SESSION_FETCH_ENABLED
+    ) {
+      return () => void 0;
+    }
 
-    void getAiStudioSessionSnapshotViaApi({ sessionId })
+    void getAiStudioSessionSnapshotViaApi({ sessionId: activeSessionPersistenceSessionId })
       .then((payload) => {
         if (cancelled) return;
         setSessionTitleOverrideState((current) => {
-          if (current?.sessionId === sessionId && current.title !== null) return current;
+          if (current?.sessionId === activeSessionPersistenceSessionId && current.title !== null) {
+            return current;
+          }
           return {
-            sessionId,
+            sessionId: activeSessionPersistenceSessionId,
             title: normalizeAiStudioProjectName(payload?.title ?? null),
           };
         });
@@ -873,7 +924,7 @@ export default function AiStudioPage() {
       .catch(() => {
         if (cancelled) return;
         setSessionTitleOverrideState({
-          sessionId,
+          sessionId: activeSessionPersistenceSessionId,
           title: null,
         });
       });
@@ -881,23 +932,32 @@ export default function AiStudioPage() {
     return () => {
       cancelled = true;
     };
-  }, [sessionId]);
+  }, [activeSessionPersistenceSessionId, projectId]);
 
   const effectiveProjectName = useMemo(
     () =>
-      sessionTitleOverride ??
+      project?.title ??
+      localSessionTitleOverride ??
       (sessionSnapshot ? resolveAiStudioSessionSnapshotTitle(sessionSnapshot) : null),
-    [sessionSnapshot, sessionTitleOverride]
+    [localSessionTitleOverride, project?.title, sessionSnapshot]
   );
   const handleProjectNameCommit = useCallback(
-    (value: string) => {
+    async (value: string) => {
+      if (projectId) {
+        try {
+          await updateProjectTitle(value);
+        } catch (error) {
+          setUiError(error instanceof Error ? error.message : "Failed to update project title.");
+        }
+        return;
+      }
       if (!sessionId) return;
       setSessionTitleOverrideState({
         sessionId,
         title: normalizeAiStudioProjectName(value),
       });
     },
-    [sessionId]
+    [projectId, sessionId, setUiError, updateProjectTitle]
   );
 
   const triggerFilePicker = useCallback(() => {
@@ -1690,6 +1750,34 @@ export default function AiStudioPage() {
     },
     [insertOptimisticGenerationPlaceholder, notifyGenerationFailure, setUiError, updateOutputById]
   );
+
+  if (Boolean(projectId) && projectStatus !== "ready") {
+    return (
+      <AiStudioModalActivityProvider>
+        <Head>
+          <title>ShortPulse · AI Studio</title>
+          <meta name="description" content="AI Studio — prompt, generate, preview, save." />
+        </Head>
+        {projectStatus === "error" ? (
+          <AiStudioProjectEntryState
+            title="Project unavailable"
+            message={projectError ?? "Failed to load project."}
+            actionLabel="Retry project load"
+            onAction={refreshProject}
+            secondaryActionLabel="Back to dashboard"
+            onSecondaryAction={() => {
+              window.location.assign("/dashboard");
+            }}
+          />
+        ) : (
+          <AiStudioProjectEntryState
+            title="Loading project..."
+            message="Resolving your saved project before AI Studio restore continues."
+          />
+        )}
+      </AiStudioModalActivityProvider>
+    );
+  }
 
   return (
     <AiStudioModalActivityProvider>

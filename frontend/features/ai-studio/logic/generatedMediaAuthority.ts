@@ -89,6 +89,9 @@ const asTrimmedString = (value: unknown): string | null => {
   return trimmed.length ? trimmed : null;
 };
 
+const resolveProjectId = (value: string | null | undefined): string | null =>
+  asTrimmedString(value);
+
 const asTrimmedStringArray = (value: unknown): string[] => {
   if (!Array.isArray(value)) return [];
   return value
@@ -665,9 +668,11 @@ export const resolveVisibleGenerationDelivery = async ({
 export const resolveVisibleGenerationReconcile = async ({
   generationId,
   requestId,
+  projectId,
 }: {
   generationId?: string | null;
   requestId?: string | null;
+  projectId?: string | null;
 }): Promise<VisibleGenerationReconcile | null> => {
   const normalizedGenerationId = asTrimmedString(generationId);
   const normalizedRequestId = asTrimmedString(requestId);
@@ -676,14 +681,32 @@ export const resolveVisibleGenerationReconcile = async ({
   const supabase = ensureSupabaseQueryClient();
   const userId = await readSupabaseUserId();
   if (!userId) return null;
+  const normalizedProjectId = resolveProjectId(projectId);
 
-  const resolvedGenerationId =
+  const candidateGenerationId =
     normalizedGenerationId ??
     (await resolveGenerationIdForRequestId({
       supabase,
       requestId: normalizedRequestId,
       userId,
     }));
+  if (!candidateGenerationId) return null;
+
+  let resolvedGenerationId: string | null = candidateGenerationId;
+  if (normalizedProjectId) {
+    const { data: projectGenerationData, error: projectGenerationError } = await supabase
+      .from("project_generation_items")
+      .select("generation_id")
+      .eq("user_id", userId)
+      .eq("project_id", normalizedProjectId)
+      .eq("generation_id", candidateGenerationId)
+      .limit(1)
+      .maybeSingle();
+    if (projectGenerationError) return null;
+    resolvedGenerationId = asTrimmedString(
+      (projectGenerationData as Record<string, unknown> | null)?.generation_id
+    );
+  }
   if (!resolvedGenerationId) return null;
 
   const delivery = await resolveVisibleGenerationDeliveryByGenerationId({

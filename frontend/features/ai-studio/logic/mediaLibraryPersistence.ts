@@ -328,6 +328,33 @@ export const associatePromptWithProject = async ({
   }
 };
 
+export const associateGenerationWithProject = async ({
+  projectId,
+  generationId,
+}: {
+  projectId: string;
+  generationId: string;
+}): Promise<void> => {
+  const normalizedProjectId = normalizeProjectId(projectId);
+  const normalizedGenerationId = typeof generationId === "string" ? generationId.trim() : "";
+  if (!normalizedProjectId || !normalizedGenerationId) return;
+  const { supabase, userId } = await resolveSupabaseContext();
+  const { error } = await supabase.from("project_generation_items").upsert(
+    {
+      project_id: normalizedProjectId,
+      generation_id: normalizedGenerationId,
+      user_id: userId,
+      updated_at: new Date().toISOString(),
+    },
+    {
+      onConflict: "project_id,generation_id",
+    }
+  );
+  if (error) {
+    throw error;
+  }
+};
+
 const parseServerCopyResult = (value: unknown): SaveMediaUrlResult | null => {
   const row = asRecord(value);
   const deliveryRecord = asRecord(row.delivery);

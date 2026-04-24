@@ -674,6 +674,7 @@ describe("useAiStudioTaskOrchestration", () => {
 
       renderHook(() =>
         useAiStudioTaskOrchestration({
+          projectId: "project-1",
           taskSubmissionConfig: {
             aspect: "9:16",
             mode: "image",
@@ -718,6 +719,7 @@ describe("useAiStudioTaskOrchestration", () => {
       expect(resolveVisibleGenerationReconcileMock).toHaveBeenCalledWith({
         generationId: "gen-projection-ready",
         requestId: undefined,
+        projectId: "project-1",
       });
       expect(outputs[0]?.taskState).toBe("success");
       expect(outputs[0]?.previewUrl).toBe("https://cdn.test/projection-ready-preview.png");
@@ -758,6 +760,7 @@ describe("useAiStudioTaskOrchestration", () => {
 
       renderHook(() =>
         useAiStudioTaskOrchestration({
+          projectId: "project-1",
           taskSubmissionConfig: {
             aspect: "9:16",
             mode: "image",
@@ -802,6 +805,7 @@ describe("useAiStudioTaskOrchestration", () => {
       expect(resolveVisibleGenerationReconcileMock).toHaveBeenCalledWith({
         generationId: "gen-preview-running",
         requestId: "req-preview-running",
+        projectId: "project-1",
       });
       expect(outputs[0]?.taskState).toBe("success");
       expect(outputs[0]?.previewUrl).toBe("https://cdn.test/reconciled-preview.png");

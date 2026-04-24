@@ -259,7 +259,8 @@ export function useAiStudioTasks({
   onGenerationSuccess,
   onGenerationFailure,
   onPollingOutputLookupHardStop,
-}: TaskCallbacks) {
+  projectId = null,
+}: TaskCallbacks & { projectId?: string | null }) {
   const pollTimersRef = useRef<Record<string, number>>({});
   const pollSessionsRef = useRef<Record<string, number>>({});
   const statusRequestsInFlightRef = useRef(0);
@@ -390,6 +391,7 @@ export function useAiStudioTasks({
       const visibleGeneration = await resolveVisibleGenerationReconcile({
         generationId: asTrimmedString(existingOutput?.generationId),
         requestId: taskId,
+        ...(projectId ? { projectId } : {}),
       }).catch(() => null);
       if (!visibleGeneration) return false;
       queueOutputUpdate(outputId, (item) => {
@@ -445,7 +447,7 @@ export function useAiStudioTasks({
       clearPollTimer(outputId);
       return true;
     },
-    [clearPollTimer, findOutputById, onGenerationSuccess, queueOutputUpdate]
+    [clearPollTimer, findOutputById, onGenerationSuccess, projectId, queueOutputUpdate]
   );
 
   const {

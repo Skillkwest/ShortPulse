@@ -254,4 +254,79 @@ describe("generatedMediaAuthority", () => {
       }),
     ]);
   });
+
+  it("requires project generation association before reconciling project-route outputs", async () => {
+    const projectGenerationBuilder = createAwaitableSelectBuilder({
+      data: {
+        generation_id: "gen-project-1",
+      },
+      error: null,
+    });
+    const projectionDeliveryBuilder = createAwaitableSelectBuilder({
+      data: {
+        preview_url: "https://fal.test/project-preview.png",
+        result_urls: ["https://fal.test/project-full.png"],
+        preview_storage_path: null,
+        full_storage_path: null,
+        task_state: "success",
+        hidden_in_reference_grid: false,
+        reference_grid_visible: true,
+      },
+      error: null,
+    });
+
+    ensureSupabaseQueryClientMock.mockReturnValue({
+      from: vi.fn((table: string) => {
+        if (table === "project_generation_items") {
+          return {
+            select: vi.fn(() => projectGenerationBuilder),
+          };
+        }
+        if (table === "generation_projection") {
+          return {
+            select: vi.fn(() => projectionDeliveryBuilder),
+          };
+        }
+        throw new Error(`Unexpected table: ${table}`);
+      }),
+    });
+
+    await expect(
+      resolveVisibleGenerationReconcile({
+        generationId: "gen-project-1",
+        projectId: "project-1",
+      })
+    ).resolves.toEqual({
+      generationId: "gen-project-1",
+      previewUrl: "https://fal.test/project-preview.png",
+      previewStoragePath: null,
+      fullStoragePath: null,
+      resultUrls: ["https://fal.test/project-full.png"],
+    });
+  });
+
+  it("returns null for project-route reconcile when the generation is not associated to the project", async () => {
+    const projectGenerationBuilder = createAwaitableSelectBuilder({
+      data: null,
+      error: null,
+    });
+
+    ensureSupabaseQueryClientMock.mockReturnValue({
+      from: vi.fn((table: string) => {
+        if (table === "project_generation_items") {
+          return {
+            select: vi.fn(() => projectGenerationBuilder),
+          };
+        }
+        throw new Error(`Unexpected table: ${table}`);
+      }),
+    });
+
+    await expect(
+      resolveVisibleGenerationReconcile({
+        generationId: "gen-project-missing",
+        projectId: "project-1",
+      })
+    ).resolves.toBeNull();
+  });
 });

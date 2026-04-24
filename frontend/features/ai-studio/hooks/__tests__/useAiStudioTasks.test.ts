@@ -446,6 +446,49 @@ describe("useAiStudioTasks", () => {
     expect(output.resultUrls).toEqual(["https://cdn.test/projection-full.png"]);
   });
 
+  it("passes projectId to reconcile only on project routes", async () => {
+    fetchFalSeedreamStatusMock.mockResolvedValue({
+      status: "processing",
+    });
+    resolveVisibleGenerationReconcileMock.mockResolvedValue({
+      generationId: "gen-project-projection-1",
+      previewUrl: "https://cdn.test/project-projection-preview.png",
+      previewStoragePath: null,
+      fullStoragePath: null,
+      resultUrls: ["https://cdn.test/project-projection-full.png"],
+    });
+
+    let output = makeOutput();
+    const updateOutputById = vi.fn((id: string, updater: (item: StudioOutput) => StudioOutput) => {
+      if (id === output.id) {
+        output = updater(output);
+      }
+    });
+
+    const { result } = renderHook(() =>
+      useAiStudioTasks({
+        projectId: "project-1",
+        updateOutputById,
+        notifyGenerationFailure: vi.fn(),
+        onGenerationSuccess: vi.fn(),
+      })
+    );
+
+    act(() => {
+      result.current.startPollingTask("seedream-task-project", "out-1", 1, "fal-seedream");
+    });
+
+    await vi.advanceTimersByTimeAsync(1_500);
+    await flushQueuedOutputUpdates();
+
+    expect(resolveVisibleGenerationReconcileMock).toHaveBeenCalledWith({
+      generationId: null,
+      requestId: "seedream-task-project",
+      projectId: "project-1",
+    });
+    expect(output.generationId).toBe("gen-project-projection-1");
+  });
+
   it("prefers server lifecycle failure hints over raw provider failure parsing", async () => {
     fetchFalStatusMock.mockResolvedValueOnce(
       asFalStatusResponse({

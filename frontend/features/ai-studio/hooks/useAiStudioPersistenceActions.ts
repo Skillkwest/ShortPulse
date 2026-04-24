@@ -9,6 +9,7 @@ import { getSignedMediaUrl } from "../../../lib/mediaSignedUrlCache";
 import { ensureSupabaseQueryClient } from "../../../lib/supabaseClient";
 import {
   GENERATED_MEDIA_REQUIRES_GENERATION_ID_ERROR,
+  associateGenerationWithProject,
   associateMediaFilesWithProject,
   associatePromptWithProject,
   logMediaEvent,
@@ -229,12 +230,34 @@ export const useAiStudioPersistenceActions = ({
     }) => {
       const output = findOutputById(outputId);
       if (!output) return null;
-      if (output.generationId) return output.generationId;
+      if (output.generationId) {
+        if (projectId) {
+          try {
+            await associateGenerationWithProject({
+              projectId,
+              generationId: output.generationId,
+            });
+          } catch {
+            // Project association is best-effort here; direct polling remains authoritative.
+          }
+        }
+        return output.generationId;
+      }
       if (taskId && taskId !== output.taskId) {
         updateOutputById(outputId, (item) => ({ ...item, taskId }));
       }
       const resolvedGenerationId = await resolveGenerationIdForRequestId(taskId ?? output.taskId);
       if (resolvedGenerationId) {
+        if (projectId) {
+          try {
+            await associateGenerationWithProject({
+              projectId,
+              generationId: resolvedGenerationId,
+            });
+          } catch {
+            // Project association is best-effort here; direct polling remains authoritative.
+          }
+        }
         updateOutputById(outputId, (item) => ({
           ...item,
           taskId: taskId ?? item.taskId,
@@ -244,7 +267,7 @@ export const useAiStudioPersistenceActions = ({
       }
       return null;
     },
-    [findOutputById, updateOutputById]
+    [findOutputById, projectId, updateOutputById]
   );
 
   const persistPromptSave = useCallback(

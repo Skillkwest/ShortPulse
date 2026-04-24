@@ -468,6 +468,7 @@ export const useAiStudioState = ({
       outputs,
       findOutputById,
       setPrimaryEditReferenceImageUrl: setImageReferenceImageUrl,
+      projectId,
     });
 
   const handleReferenceOutputMediaLoaded = useCallback(

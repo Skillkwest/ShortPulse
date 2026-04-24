@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { StudioOutput } from "../../types";
 
 const resolveGenerationIdForRequestIdMock = vi.hoisted(() => vi.fn());
+const associateGenerationWithProjectMock = vi.hoisted(() => vi.fn());
 const associateMediaFilesWithProjectMock = vi.hoisted(() => vi.fn());
 const associatePromptWithProjectMock = vi.hoisted(() => vi.fn());
 
@@ -10,6 +11,7 @@ vi.mock("../../logic/mediaLibraryPersistence", async () => {
   const actual = await vi.importActual("../../logic/mediaLibraryPersistence");
   return {
     ...actual,
+    associateGenerationWithProject: associateGenerationWithProjectMock,
     associateMediaFilesWithProject: associateMediaFilesWithProjectMock,
     associatePromptWithProject: associatePromptWithProjectMock,
     resolveGenerationIdForRequestId: resolveGenerationIdForRequestIdMock,
@@ -73,6 +75,86 @@ describe("useAiStudioPersistenceActions ensureGenerationRecord", () => {
     expect(resolveGenerationIdForRequestIdMock).toHaveBeenCalledWith("req-1");
     expect(outputs.get("out-1")?.generationId).toBe("gen-from-projection");
     expect(updateOutputById).toHaveBeenCalled();
+  });
+
+  it("associates resolved generation ids to the active project", async () => {
+    const outputs = new Map<string, StudioOutput>([["out-1", makeOutput()]]);
+    const updateOutputById = vi.fn((id: string, updater: (item: StudioOutput) => StudioOutput) => {
+      const current = outputs.get(id);
+      if (!current) return;
+      outputs.set(id, updater(current));
+    });
+    resolveGenerationIdForRequestIdMock.mockResolvedValue("gen-from-project-route");
+
+    const { result } = renderHook(() =>
+      useAiStudioPersistenceActions({
+        projectId: "project-1",
+        findOutputById: (id) => outputs.get(id) ?? null,
+        updateOutputById,
+        setUiError: vi.fn(),
+        setOutputs: vi.fn(),
+        setSaved: vi.fn(),
+        activeOutputId: "out-1",
+        model: "model-id",
+        aspect: "1:1",
+        prompt: "prompt",
+      })
+    );
+
+    await act(async () => {
+      await result.current.ensureGenerationRecord({
+        outputId: "out-1",
+        provider: "fal",
+        taskId: "req-1",
+      });
+    });
+
+    expect(associateGenerationWithProjectMock).toHaveBeenCalledWith({
+      projectId: "project-1",
+      generationId: "gen-from-project-route",
+    });
+  });
+
+  it("associates submit-provided generation ids to the active project without lookup", async () => {
+    const outputs = new Map<string, StudioOutput>([
+      ["out-1", makeOutput({ generationId: "gen-existing-project" })],
+    ]);
+    const updateOutputById = vi.fn((id: string, updater: (item: StudioOutput) => StudioOutput) => {
+      const current = outputs.get(id);
+      if (!current) return;
+      outputs.set(id, updater(current));
+    });
+
+    const { result } = renderHook(() =>
+      useAiStudioPersistenceActions({
+        projectId: "project-1",
+        findOutputById: (id) => outputs.get(id) ?? null,
+        updateOutputById,
+        setUiError: vi.fn(),
+        setOutputs: vi.fn(),
+        setSaved: vi.fn(),
+        activeOutputId: "out-1",
+        model: "model-id",
+        aspect: "1:1",
+        prompt: "prompt",
+      })
+    );
+
+    let resolvedGenerationId: string | null = null;
+    await act(async () => {
+      resolvedGenerationId = await result.current.ensureGenerationRecord({
+        outputId: "out-1",
+        provider: "fal",
+        taskId: "req-1",
+      });
+    });
+
+    expect(resolvedGenerationId).toBe("gen-existing-project");
+    expect(resolveGenerationIdForRequestIdMock).not.toHaveBeenCalled();
+    expect(associateGenerationWithProjectMock).toHaveBeenCalledWith({
+      projectId: "project-1",
+      generationId: "gen-existing-project",
+    });
   });
 
   it("associates already-saved media with the active project without reuploading", async () => {

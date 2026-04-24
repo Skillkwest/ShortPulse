@@ -28,6 +28,7 @@ type UseAiStudioTaskOrchestrationParams = {
   outputs?: StudioOutput[];
   findOutputById: (id: string) => StudioOutput | null;
   setPrimaryEditReferenceImageUrl?: (url: string | null) => void;
+  projectId?: string | null;
 };
 
 const QUEUE_RESUME_SCAN_INTERVAL_MS = 20_000;
@@ -106,6 +107,7 @@ export const useAiStudioTaskOrchestration = ({
   outputs = [],
   findOutputById,
   setPrimaryEditReferenceImageUrl,
+  projectId = null,
 }: UseAiStudioTaskOrchestrationParams) => {
   const { updateOutputById, notifyGenerationFailure, setUiNotice, setOutputs } =
     taskSubmissionConfig;
@@ -211,6 +213,7 @@ export const useAiStudioTaskOrchestration = ({
           const visibleGeneration = await resolveVisibleGenerationReconcile({
             generationId: generationId || undefined,
             requestId: requestId || undefined,
+            ...(projectId ? { projectId } : {}),
           });
           if (!visibleGeneration) return;
           if (!findOutputById(output.id)) return;
@@ -271,7 +274,7 @@ export const useAiStudioTaskOrchestration = ({
         delete visibleGenerationLastCheckedAtRef.current[outputId];
       }
     });
-  }, [findOutputById, handleGenerationSuccess, updateOutputById]);
+  }, [findOutputById, handleGenerationSuccess, projectId, updateOutputById]);
 
   const { startPollingTask, clearPollTimer } = useAiStudioTasks({
     updateOutputById,
@@ -280,6 +283,7 @@ export const useAiStudioTaskOrchestration = ({
     onGenerationSuccess: handleGenerationSuccess,
     onGenerationFailure: handleGenerationFailure,
     onPollingOutputLookupHardStop: handlePollingOutputLookupHardStop,
+    projectId,
   });
 
   const submitTask = useAiStudioTaskSubmission({

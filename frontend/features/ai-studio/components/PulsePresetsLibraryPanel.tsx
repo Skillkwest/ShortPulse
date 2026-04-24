@@ -135,14 +135,11 @@ export function PulsePresetsLibraryPanel({
             label: nextLabel,
             description: pendingPresetEdit.description.trim() || null,
             systemInstructions: nextSystemInstructions,
-            runtimeMode: pendingPresetEdit.runtimeMode,
+            runtimeMode: CREATE_PULSE_CUSTOM_AUTHORING_RUNTIME_MODE,
             activationMode: CREATE_PULSE_CUSTOM_AUTHORING_ACTIVATION_MODE,
             starterAssistantMessage: pendingPresetEdit.starterAssistantMessage.trim() || null,
             workflowStageHints: nextWorkflowStageHints.length > 0 ? nextWorkflowStageHints : null,
-            outputMode:
-              pendingPresetEdit.runtimeMode === "workflow_gpt"
-                ? CREATE_PULSE_CUSTOM_AUTHORING_OUTPUT_MODE
-                : "apply_prompt",
+            outputMode: CREATE_PULSE_CUSTOM_AUTHORING_OUTPUT_MODE,
             memoryPolicy: "session",
             createdAt: new Date().toISOString(),
           },
@@ -157,14 +154,11 @@ export function PulsePresetsLibraryPanel({
             label: nextLabel,
             description: pendingPresetEdit.description.trim() || null,
             systemInstructions: nextSystemInstructions,
-            runtimeMode: pendingPresetEdit.runtimeMode,
+            runtimeMode: CREATE_PULSE_CUSTOM_AUTHORING_RUNTIME_MODE,
             activationMode: CREATE_PULSE_CUSTOM_AUTHORING_ACTIVATION_MODE,
             starterAssistantMessage: pendingPresetEdit.starterAssistantMessage.trim() || null,
             workflowStageHints: nextWorkflowStageHints.length > 0 ? nextWorkflowStageHints : null,
-            outputMode:
-              pendingPresetEdit.runtimeMode === "workflow_gpt"
-                ? CREATE_PULSE_CUSTOM_AUTHORING_OUTPUT_MODE
-                : "apply_prompt",
+            outputMode: CREATE_PULSE_CUSTOM_AUTHORING_OUTPUT_MODE,
             memoryPolicy: "session",
             createdAt: existingPreset ? existingPreset.createdAt : new Date().toISOString(),
           })
@@ -442,36 +436,9 @@ export function PulsePresetsLibraryPanel({
                       if (localSaveError) setLocalSaveError(null);
                     }}
                   />
-                  <label
-                    className="pulse-presets-library-edit-label"
-                    htmlFor="pulse-preset-library-runtime-mode-input"
-                  >
-                    Runtime Mode
-                  </label>
-                  <select
-                    id="pulse-preset-library-runtime-mode-input"
-                    className="pulse-presets-library-edit-input"
-                    value={pendingPresetEdit.runtimeMode}
-                    onChange={(event) => {
-                      const nextRuntimeMode =
-                        event.target.value === "workflow_gpt" ? "workflow_gpt" : "prompt_editor";
-                      setPendingPresetEdit((previous) =>
-                        previous
-                          ? {
-                              ...previous,
-                              runtimeMode: nextRuntimeMode,
-                            }
-                          : previous
-                      );
-                      if (localSaveError) setLocalSaveError(null);
-                    }}
-                  >
-                    <option value="workflow_gpt">Workflow GPT</option>
-                    <option value="prompt_editor">Prompt editor</option>
-                  </select>
                   <p className="tiny subdued helper-text pulse-presets-library-edit-copy">
-                    Workflow GPT acts like an agent profile in chat. Prompt editor rewrites toward
-                    one final prompt.
+                    Pulses run as guided GPT-style chat profiles. Use the fields below to shape the
+                    first reply, step flow, and final artifact.
                   </p>
                   <div
                     className="pulse-presets-library-template-actions"

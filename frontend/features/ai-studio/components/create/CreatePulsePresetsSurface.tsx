@@ -388,34 +388,9 @@ export const CreatePulsePresetsSurface = ({
                       }
                     }}
                   />
-                  <label
-                    className="create-expert-presets-custom-editor-label"
-                    htmlFor="create-pulse-preset-runtime-mode-input"
-                  >
-                    Runtime mode
-                  </label>
-                  <select
-                    id="create-pulse-preset-runtime-mode-input"
-                    className="create-expert-presets-custom-editor-input"
-                    value={editorDraft.runtimeMode}
-                    onChange={(event) => {
-                      const nextRuntimeMode =
-                        event.target.value === "workflow_gpt" ? "workflow_gpt" : "prompt_editor";
-                      setEditorDraft((previous) => ({
-                        ...previous,
-                        runtimeMode: nextRuntimeMode,
-                      }));
-                      if (editorError) {
-                        setEditorError(null);
-                      }
-                    }}
-                  >
-                    <option value="workflow_gpt">Workflow GPT</option>
-                    <option value="prompt_editor">Prompt editor</option>
-                  </select>
                   <p className="tiny subdued helper-text">
-                    Workflow GPT acts like an agent profile in chat. Prompt editor rewrites toward
-                    one final prompt.
+                    Pulses run as guided GPT-style chat profiles. Use the fields below to shape the
+                    first reply, step flow, and final artifact.
                   </p>
                   <div className="create-expert-presets-custom-editor-actions">
                     {CREATE_PULSE_AUTHORING_TEMPLATE_DEFINITIONS.map((template) => (

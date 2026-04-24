@@ -5,6 +5,8 @@
 import React from "react";
 import {
   CREATE_PULSE_CUSTOM_AUTHORING_ACTIVATION_MODE,
+  CREATE_PULSE_CUSTOM_AUTHORING_OUTPUT_MODE,
+  CREATE_PULSE_CUSTOM_AUTHORING_RUNTIME_MODE,
   CREATE_PULSE_PANEL_MAX,
   resolveCreatePulsePresetById,
   resolveCreatePulsePresetLabelById,
@@ -129,11 +131,11 @@ export const useCreatePulsePresetRuntime = ({
           label: draft.label,
           description: draft.description || null,
           systemInstructions: draft.systemInstructions,
-          runtimeMode: draft.runtimeMode,
+          runtimeMode: CREATE_PULSE_CUSTOM_AUTHORING_RUNTIME_MODE,
           activationMode: CREATE_PULSE_CUSTOM_AUTHORING_ACTIVATION_MODE,
           starterAssistantMessage: draft.starterAssistantMessage || null,
           workflowStageHints: workflowStageHints.length > 0 ? workflowStageHints : null,
-          outputMode: draft.runtimeMode === "workflow_gpt" ? "chat_reply" : "apply_prompt",
+          outputMode: CREATE_PULSE_CUSTOM_AUTHORING_OUTPUT_MODE,
           memoryPolicy: "session",
           createdAt: existingPreset ? existingPreset.createdAt : new Date().toISOString(),
         });

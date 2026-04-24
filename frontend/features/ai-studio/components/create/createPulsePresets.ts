@@ -36,6 +36,15 @@ export const CREATE_PULSE_CUSTOM_AUTHORING_ACTIVATION_MODE =
   "activate_and_start" as const satisfies CreatePulseActivationMode;
 export const CREATE_PULSE_CUSTOM_AUTHORING_OUTPUT_MODE =
   "chat_reply" as const satisfies CreatePulseOutputMode;
+const CREATE_PULSE_BUILT_IN_RUNTIME_MODE = "workflow_gpt" as const satisfies CreatePulseRuntimeMode;
+const CREATE_PULSE_BUILT_IN_ACTIVATION_MODE =
+  "activate_and_start" as const satisfies CreatePulseActivationMode;
+const CREATE_PULSE_BUILT_IN_OUTPUT_MODE = "chat_reply" as const satisfies CreatePulseOutputMode;
+const CREATE_PULSE_GUIDED_BEHAVIOR = {
+  runtimeMode: CREATE_PULSE_CUSTOM_AUTHORING_RUNTIME_MODE,
+  activationMode: CREATE_PULSE_CUSTOM_AUTHORING_ACTIVATION_MODE,
+  outputMode: CREATE_PULSE_CUSTOM_AUTHORING_OUTPUT_MODE,
+} as const;
 const CREATE_PULSE_DEFAULT_WORKFLOW_GUARDRAILS = `- Ask one clear step question at a time.
 - Do not skip ahead.
 - Only produce the final artifact after the required inputs are collected.
@@ -349,9 +358,9 @@ const createBuiltInPulseDefinition = ({
   label,
   description,
   systemInstructions,
-  runtimeMode = CREATE_PULSE_DEFAULT_RUNTIME_MODE,
-  activationMode = CREATE_PULSE_DEFAULT_ACTIVATION_MODE,
-  outputMode = CREATE_PULSE_DEFAULT_OUTPUT_MODE,
+  runtimeMode = CREATE_PULSE_BUILT_IN_RUNTIME_MODE,
+  activationMode = CREATE_PULSE_BUILT_IN_ACTIVATION_MODE,
+  outputMode = CREATE_PULSE_BUILT_IN_OUTPUT_MODE,
   starterAssistantMessage = null,
   workflowStageHints = null,
 }: {
@@ -772,11 +781,11 @@ export const createPulseSavedPresetsFromLegacyOverrides = (
         label: override.label,
         description: null,
         systemInstructions: override.prompt,
-        runtimeMode: CREATE_PULSE_DEFAULT_RUNTIME_MODE,
-        activationMode: CREATE_PULSE_DEFAULT_ACTIVATION_MODE,
+        runtimeMode: CREATE_PULSE_CUSTOM_AUTHORING_RUNTIME_MODE,
+        activationMode: CREATE_PULSE_CUSTOM_AUTHORING_ACTIVATION_MODE,
         starterAssistantMessage: null,
         workflowStageHints: null,
-        outputMode: CREATE_PULSE_DEFAULT_OUTPUT_MODE,
+        outputMode: CREATE_PULSE_CUSTOM_AUTHORING_OUTPUT_MODE,
         memoryPolicy: CREATE_PULSE_DEFAULT_MEMORY_POLICY,
         createdAt: null,
       },
@@ -857,12 +866,12 @@ export const resolveCreatePulsePresetCatalog = (
         label: override?.label ?? definition.label,
         description: override?.description ?? definition.description,
         systemInstructions: override?.systemInstructions ?? definition.systemInstructions,
-        runtimeMode: override?.runtimeMode ?? definition.runtimeMode,
-        activationMode: override?.activationMode ?? definition.activationMode,
+        runtimeMode: CREATE_PULSE_GUIDED_BEHAVIOR.runtimeMode,
+        activationMode: CREATE_PULSE_GUIDED_BEHAVIOR.activationMode,
         starterAssistantMessage:
           override?.starterAssistantMessage ?? definition.starterAssistantMessage,
         workflowStageHints: override?.workflowStageHints ?? definition.workflowStageHints,
-        outputMode: override?.outputMode ?? definition.outputMode,
+        outputMode: CREATE_PULSE_GUIDED_BEHAVIOR.outputMode,
         memoryPolicy: override?.memoryPolicy ?? definition.memoryPolicy,
         isCustom: false,
         isBuiltIn: true,
@@ -877,11 +886,11 @@ export const resolveCreatePulsePresetCatalog = (
         label: preset.label,
         description: preset.description ?? null,
         systemInstructions: preset.systemInstructions,
-        runtimeMode: preset.runtimeMode,
-        activationMode: preset.activationMode,
+        runtimeMode: CREATE_PULSE_GUIDED_BEHAVIOR.runtimeMode,
+        activationMode: CREATE_PULSE_GUIDED_BEHAVIOR.activationMode,
         starterAssistantMessage: preset.starterAssistantMessage ?? null,
         workflowStageHints: preset.workflowStageHints ?? null,
-        outputMode: preset.outputMode,
+        outputMode: CREATE_PULSE_GUIDED_BEHAVIOR.outputMode,
         memoryPolicy: preset.memoryPolicy,
         isCustom: true,
         isBuiltIn: false,

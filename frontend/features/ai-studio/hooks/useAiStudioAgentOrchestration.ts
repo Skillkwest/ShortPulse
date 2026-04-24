@@ -260,9 +260,10 @@ export const useAiStudioAgentOrchestration = ({
           has_apply_prompt: Boolean(appliedPrompt),
         });
 
+        const hasActivePulse = Boolean(mediaPatchedContext.pulse);
         if (appliedPrompt) {
           setLatestAgentPrompt(appliedPrompt);
-          if (shouldApplyAgentPromptToSharedPrompt(selectedTool)) {
+          if (shouldApplyAgentPromptToSharedPrompt(selectedTool, { hasActivePulse })) {
             setSharedPrompt(appliedPrompt);
             setPromptOrigin("agent");
           }
@@ -409,7 +410,7 @@ export const useAiStudioAgentOrchestration = ({
         const appliedPrompt = normalizePromptText(actions?.applyPrompt);
         if (appliedPrompt) {
           setLatestAgentPrompt(appliedPrompt);
-          if (shouldApplyAgentPromptToSharedPrompt(selectedTool)) {
+          if (shouldApplyAgentPromptToSharedPrompt(selectedTool, { hasActivePulse: true })) {
             setSharedPrompt(appliedPrompt);
             setPromptOrigin("agent");
           }

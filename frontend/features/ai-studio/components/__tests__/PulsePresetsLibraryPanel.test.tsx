@@ -86,9 +86,6 @@ describe("PulsePresetsLibraryPanel", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Create new pulse preset" }));
     fireEvent.click(screen.getByRole("button", { name: "Show advanced settings" }));
-    fireEvent.change(screen.getByLabelText("Runtime Mode"), {
-      target: { value: "workflow_gpt" },
-    });
     fireEvent.change(screen.getByLabelText("Preset Name"), {
       target: { value: "Guided Video Pulse" },
     });
@@ -112,13 +109,16 @@ describe("PulsePresetsLibraryPanel", () => {
     render(<PulsePresetsLibraryPanel savedPresets={[]} onSavedPresetsChange={vi.fn()} />);
 
     fireEvent.click(screen.getByRole("button", { name: "Create new pulse preset" }));
-    expect(screen.queryByLabelText("Runtime Mode")).not.toBeInTheDocument();
+    expect(
+      screen.queryByText("Pulses run as guided GPT-style chat profiles.")
+    ).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Show advanced settings" }));
 
     expect(screen.getByLabelText("System Instructions")).toBeInTheDocument();
     expect(screen.getByLabelText("Starter Assistant Message")).toBeInTheDocument();
     expect(screen.getByLabelText("Workflow authoring checklist")).toBeInTheDocument();
+    expect(screen.getByText(/Pulses run as guided GPT-style chat profiles\./)).toBeInTheDocument();
   });
 
   it("composes workflow instructions from structured workflow builder fields", () => {
@@ -126,9 +126,6 @@ describe("PulsePresetsLibraryPanel", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Create new pulse preset" }));
     fireEvent.click(screen.getByRole("button", { name: "Show advanced settings" }));
-    fireEvent.change(screen.getByLabelText("Runtime Mode"), {
-      target: { value: "workflow_gpt" },
-    });
     fireEvent.change(screen.getByLabelText("Role & Goal"), {
       target: { value: "Turn one uploaded image into a guided ad-video workflow." },
     });
@@ -184,10 +181,10 @@ describe("PulsePresetsLibraryPanel", () => {
             label: "Storyboard",
             description: null,
             systemInstructions: "Build a storyboard-ready pulse sequence.",
-            runtimeMode: "prompt_editor",
-            activationMode: "activate_only",
+            runtimeMode: "workflow_gpt",
+            activationMode: "activate_and_start",
             starterAssistantMessage: null,
-            outputMode: "apply_prompt",
+            outputMode: "chat_reply",
             memoryPolicy: "session",
             createdAt: null,
           },

@@ -31,4 +31,9 @@ describe("promptTargeting", () => {
     expect(shouldApplyAgentPromptToSharedPrompt("video")).toBe(true);
     expect(shouldApplyAgentPromptToSharedPrompt(null)).toBe(true);
   });
+
+  it("blocks shared prompt updates while a Pulse session is active", () => {
+    expect(shouldApplyAgentPromptToSharedPrompt("create", { hasActivePulse: true })).toBe(false);
+    expect(shouldApplyAgentPromptToSharedPrompt("text", { hasActivePulse: true })).toBe(false);
+  });
 });

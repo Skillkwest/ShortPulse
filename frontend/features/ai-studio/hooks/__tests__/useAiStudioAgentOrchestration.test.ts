@@ -376,6 +376,46 @@ describe("useAiStudioAgentOrchestration", () => {
     expect(setPromptOrigin).toHaveBeenCalledWith("agent");
   });
 
+  it("keeps Pulse chat applyPrompt output out of the shared Create prompt", async () => {
+    const sendToAgent = vi.fn(async () => ({
+      response: { message: "Refined pulse guidance" },
+      actions: { applyPrompt: "Refined pulse guidance" },
+    }));
+    const setSharedPrompt = vi.fn();
+    const setLatestAgentPrompt = vi.fn();
+    const setPromptOrigin = vi.fn();
+    const params = createParams({
+      agentInput: "Help me shape this concept.",
+      sendToAgent,
+      setSharedPrompt,
+      setLatestAgentPrompt: asDispatch<string | null>(setLatestAgentPrompt),
+      setPromptOrigin: asDispatch<"manual" | "agent" | "reference">(setPromptOrigin),
+      getAgentContext: vi.fn(() => ({
+        pulse: {
+          presetId: "ad_hook",
+          label: "Ad Hook",
+          instructions: "Lead with a crisp paid-social hook.",
+          runtimeMode: "workflow_gpt" as const,
+          activationMode: "activate_and_start" as const,
+          starterAssistantMessage: null,
+          workflowStageHints: null,
+          outputMode: "chat_reply" as const,
+          memoryPolicy: "session" as const,
+          source: "builtin" as const,
+        },
+      })),
+    });
+    const { result } = renderHook(() => useAiStudioAgentOrchestration(params));
+
+    await act(async () => {
+      await result.current.handleAgentSend();
+    });
+
+    expect(setLatestAgentPrompt).toHaveBeenCalledWith("Refined pulse guidance");
+    expect(setSharedPrompt).not.toHaveBeenCalled();
+    expect(setPromptOrigin).not.toHaveBeenCalled();
+  });
+
   it("reuses prepared image URLs across repeated sends for the same attachment source", async () => {
     const sendToAgent = vi.fn(async () => ({ response: { message: "ok" }, actions: {} }));
     const params = createParams({

@@ -21,5 +21,10 @@ export const isEditPromptTool = (selectedTool: ToolId | null) =>
 /**
  * Determines whether an applied agent response should mutate the shared Create prompt.
  */
-export const shouldApplyAgentPromptToSharedPrompt = (selectedTool: ToolId | null) =>
-  !isEditPromptTool(selectedTool);
+export const shouldApplyAgentPromptToSharedPrompt = (
+  selectedTool: ToolId | null,
+  options?: { hasActivePulse?: boolean }
+) => {
+  if (options?.hasActivePulse) return false;
+  return !isEditPromptTool(selectedTool);
+};

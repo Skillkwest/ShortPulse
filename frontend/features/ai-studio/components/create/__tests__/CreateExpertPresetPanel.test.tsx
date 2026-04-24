@@ -103,10 +103,10 @@ describe("CreateExpertPresetPanel", () => {
             label: "Single-shot",
             description: "Single-shot pulse override.",
             systemInstructions: "Guide the user through story beats and camera planning.",
-            runtimeMode: "prompt_editor",
-            activationMode: "activate_only",
+            runtimeMode: "workflow_gpt",
+            activationMode: "activate_and_start",
             starterAssistantMessage: null,
-            outputMode: "apply_prompt",
+            outputMode: "chat_reply",
             memoryPolicy: "session",
             createdAt: null,
           },
@@ -124,7 +124,7 @@ describe("CreateExpertPresetPanel", () => {
       expect(onPresetStart).toHaveBeenCalledWith(
         expect.objectContaining({
           presetId: "single_shot",
-          activationMode: "activate_only",
+          activationMode: "activate_and_start",
         })
       );
     });
@@ -167,10 +167,10 @@ describe("CreateExpertPresetPanel", () => {
             description: null,
             systemInstructions:
               "Map the concept as a visual storyboard with scene intent for each beat.",
-            runtimeMode: "prompt_editor",
-            activationMode: "activate_only",
+            runtimeMode: "workflow_gpt",
+            activationMode: "activate_and_start",
             starterAssistantMessage: null,
-            outputMode: "apply_prompt",
+            outputMode: "chat_reply",
             memoryPolicy: "session",
             createdAt: null,
           },
@@ -196,11 +196,11 @@ describe("CreateExpertPresetPanel", () => {
           label: "Hook Builder",
           description: null,
           systemInstructions: "Start with a fast visual hook and one unmistakable product payoff.",
-          runtimeMode: "prompt_editor",
+          runtimeMode: "workflow_gpt",
           activationMode: "activate_and_start",
           starterAssistantMessage: null,
           workflowStageHints: null,
-          outputMode: "apply_prompt",
+          outputMode: "chat_reply",
           memoryPolicy: "session",
           createdAt: null,
         },
@@ -233,11 +233,11 @@ describe("CreateExpertPresetPanel", () => {
           description: "Hook-first ad creative prompt shaper.",
           systemInstructions:
             "Open with a fast paid-social visual hook and a clean benefit reveal.",
-          runtimeMode: "prompt_editor",
+          runtimeMode: "workflow_gpt",
           activationMode: "activate_and_start",
           starterAssistantMessage: null,
           workflowStageHints: null,
-          outputMode: "apply_prompt",
+          outputMode: "chat_reply",
           memoryPolicy: "session",
           createdAt: expect.any(String),
         },
@@ -251,9 +251,6 @@ describe("CreateExpertPresetPanel", () => {
     fireEvent.click(screen.getByRole("button", { name: "More presets" }));
     fireEvent.click(screen.getByRole("button", { name: "Edit Ad Hook preset" }));
     fireEvent.click(screen.getByRole("button", { name: "Show advanced settings" }));
-    fireEvent.change(screen.getByLabelText("Runtime mode"), {
-      target: { value: "workflow_gpt" },
-    });
     fireEvent.change(screen.getByLabelText("Role & Goal"), {
       target: { value: "Guide one image into a short ad-video prompt workflow." },
     });

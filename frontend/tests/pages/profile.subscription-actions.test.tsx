@@ -62,6 +62,14 @@ const billingPlansFixture = [
     is_active: true,
   },
   {
+    id: "studio",
+    display_name: "Studio",
+    monthly_price_cents: 3900,
+    monthly_credits_cents: 3000,
+    storage_limit_bytes: 107374182400,
+    is_active: true,
+  },
+  {
     id: "business",
     display_name: "Business",
     monthly_price_cents: 4900,
@@ -251,7 +259,7 @@ describe("Profile subscription actions", () => {
     expect(await screen.findByRole("heading", { name: "Subscription plans" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Current Plan" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Upgrade to Business" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Cancel subscription" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Downgrade to Free" })).toBeInTheDocument();
     expect(screen.getByText("$10.00 / month")).toBeInTheDocument();
     expect(
       screen.getByText("Legacy contract locked for your active subscription")
@@ -274,7 +282,7 @@ describe("Profile subscription actions", () => {
   it("opens and closes the cancel subscription modal", async () => {
     render(<ProfilePage />);
 
-    fireEvent.click(await screen.findByRole("button", { name: "Cancel subscription" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Downgrade to Free" }));
     expect(screen.getByRole("heading", { name: "Cancel subscription?" })).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Keep subscription" }));
@@ -289,12 +297,14 @@ describe("Profile subscription actions", () => {
   it("routes cancel confirmation through the billing portal handler", async () => {
     render(<ProfilePage />);
 
-    fireEvent.click(await screen.findByRole("button", { name: "Cancel subscription" }));
-    fireEvent.click(screen.getByRole("button", { name: "Continue to billing portal" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Downgrade to Free" }));
+    fireEvent.click(screen.getByRole("button", { name: "Continue to Stripe" }));
 
     await waitFor(() => {
-      expect(fetchWithAuthMock).toHaveBeenCalledWith("/api/billing/stripe/portal", {
+      expect(fetchWithAuthMock).toHaveBeenCalledWith("/api/billing/subscription/change", {
         method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ targetPlanId: "free" }),
       });
     });
     expect(await screen.findByRole("status")).toHaveTextContent("Portal unavailable");
@@ -306,14 +316,16 @@ describe("Profile subscription actions", () => {
     fireEvent.click(await screen.findByRole("button", { name: "Upgrade to Business" }));
 
     await waitFor(() => {
-      expect(fetchWithAuthMock).toHaveBeenCalledWith("/api/billing/stripe/portal", {
+      expect(fetchWithAuthMock).toHaveBeenCalledWith("/api/billing/subscription/change", {
         method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ targetPlanId: "business" }),
       });
     });
     expect(await screen.findByRole("status")).toHaveTextContent("Portal unavailable");
   });
 
-  it("disables Stripe plan actions for internal comp contracts", async () => {
+  it("shows self-serve plan actions for internal comp contracts", async () => {
     billingProfileState.plan_id = "business";
     billingProfileState.subscription_status = "active";
     billingProfileState.current_period_end = "2026-05-01T00:00:00.000Z";
@@ -339,7 +351,14 @@ describe("Profile subscription actions", () => {
 
     expect(await screen.findByRole("heading", { name: "Subscription plans" })).toBeInTheDocument();
     expect(screen.getByText("Internal comp contract managed outside Stripe")).toBeInTheDocument();
-    expect(screen.getByText("Managed internally")).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Cancel subscription" })).not.toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "This account is currently managed internally. Choose a public plan to move billing into Stripe, or switch to Free to end the internal plan immediately."
+      )
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Switch to Free" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Choose Media" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Choose Studio" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Switch to Business billing" })).toBeInTheDocument();
   });
 });

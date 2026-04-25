@@ -63,7 +63,7 @@ export default function ProfilePage() {
   } = useMediaAutosavePreference();
 
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
-  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+  const [pendingCancelPlanId, setPendingCancelPlanId] = useState<string | null>(null);
   const [displayNameInput, setDisplayNameInput] = useState("User");
   const [workspaceEmail, setWorkspaceEmail] = useState("");
   const [notice, setNotice] = useState<NoticeState | null>(null);
@@ -84,6 +84,7 @@ export default function ProfilePage() {
   const [billingActivityLoading, setBillingActivityLoading] = useState(false);
 
   const [portalLoading, setPortalLoading] = useState(false);
+  const [planChangeLoadingPlanId, setPlanChangeLoadingPlanId] = useState<string | null>(null);
   const [refreshingCredits, setRefreshingCredits] = useState(false);
 
   const section = useMemo<ProfileSection>(() => {
@@ -105,6 +106,11 @@ export default function ProfilePage() {
     const queryValue = router.query.checkout;
     return typeof queryValue === "string" ? queryValue.toLowerCase() : null;
   }, [router.query.checkout]);
+
+  const planChangeStatus = useMemo(() => {
+    const queryValue = router.query.plan_change;
+    return typeof queryValue === "string" ? queryValue.toLowerCase() : null;
+  }, [router.query.plan_change]);
 
   useEffect(() => {
     const defaultName = user?.user_metadata?.full_name || user?.email || "User";
@@ -234,6 +240,43 @@ export default function ProfilePage() {
       shallow: true,
     });
   }, [checkoutStatus, refreshBalance, router, user]);
+
+  useEffect(() => {
+    if (!router.isReady || !planChangeStatus) return;
+
+    if (planChangeStatus === "checkout_success") {
+      setNotice({
+        tone: "success",
+        message: "Subscription checkout completed. Your plan is syncing now.",
+      });
+    } else if (planChangeStatus === "checkout_cancel") {
+      setNotice({
+        tone: "info",
+        message: "Plan change canceled. No charge was made.",
+      });
+    } else if (planChangeStatus === "updated") {
+      setNotice({
+        tone: "success",
+        message: "Plan change submitted. Your subscription is syncing now.",
+      });
+    } else if (planChangeStatus === "canceled") {
+      setNotice({
+        tone: "success",
+        message: "Downgrade requested. Stripe will update your subscription shortly.",
+      });
+    } else if (planChangeStatus === "switched_free") {
+      setNotice({
+        tone: "success",
+        message: "Your workspace is now on the Free plan.",
+      });
+    }
+
+    const nextQuery = { ...router.query };
+    delete nextQuery.plan_change;
+    void router.replace({ pathname: router.pathname, query: nextQuery }, undefined, {
+      shallow: true,
+    });
+  }, [planChangeStatus, router]);
 
   useEffect(() => {
     if (!user || section !== "credits") return;
@@ -451,6 +494,43 @@ export default function ProfilePage() {
     }
   };
 
+  const handleSubscriptionPlanChange = async (targetPlanId: string) => {
+    setPlanChangeLoadingPlanId(targetPlanId);
+    trackBillingUpgradeClicked({
+      upgrade_surface: "profile_billing",
+      upgrade_target: "subscription_plan",
+      current_plan_id: activePlan.id,
+      plan_id: targetPlanId,
+    });
+    try {
+      const response = await fetchWithAuth("/api/billing/subscription/change", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ targetPlanId }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(data?.error || "Unable to start the subscription change.");
+      }
+      if (typeof data?.redirectUrl === "string" && data.redirectUrl.length > 0) {
+        window.location.href = data.redirectUrl;
+        return;
+      }
+      setNotice({
+        tone: "error",
+        message: "Subscription change started, but no redirect URL was returned.",
+      });
+    } catch (error) {
+      setNotice({
+        tone: "error",
+        message:
+          error instanceof Error ? error.message : "Unable to start the subscription change.",
+      });
+    } finally {
+      setPlanChangeLoadingPlanId(null);
+    }
+  };
+
   const handleRefreshCredits = async () => {
     setRefreshingCredits(true);
     const previous = balanceCents ?? 0;
@@ -532,17 +612,15 @@ export default function ProfilePage() {
               currentSubscriptionCreditsCents={currentSubscriptionCreditsCents}
               currentSubscriptionPriceCents={currentSubscriptionPriceCents}
               currentSubscriptionStorageLimitBytes={currentSubscriptionStorageLimitBytes}
-              planLabel={planLabel}
               subscriptionStatusLabel={subscriptionStatusLabel}
               subscriptionRenewalText={subscriptionRenewalText}
               contractDescriptor={contractDescriptor}
               billingPlans={billingPlans}
               billingPlansLoading={billingPlansLoading}
-              portalActionLabel={portalActionLabel}
-              portalLoading={portalLoading}
-              portalManagementAvailable={portalManagementAvailable}
-              onOpenBillingPortal={handleOpenBillingPortal}
-              onRequestCancel={() => setShowCancelConfirm(true)}
+              isInternalCompContract={isInternalCompContract}
+              planChangeLoadingPlanId={planChangeLoadingPlanId}
+              onRequestPlanChange={handleSubscriptionPlanChange}
+              onRequestCancel={setPendingCancelPlanId}
             />
           ) : null}
 
@@ -598,21 +676,28 @@ export default function ProfilePage() {
           </ProfileConfirmModal>
         ) : null}
 
-        {showCancelConfirm ? (
+        {pendingCancelPlanId ? (
           <ProfileConfirmModal
             title="Cancel subscription?"
             cancelLabel="Keep subscription"
-            confirmLabel="Continue to billing portal"
-            onCancel={() => setShowCancelConfirm(false)}
+            confirmLabel={isInternalCompContract ? "Switch to Free now" : "Continue to Stripe"}
+            onCancel={() => setPendingCancelPlanId(null)}
             onConfirm={() => {
-              setShowCancelConfirm(false);
-              handleOpenBillingPortal();
+              const nextPlanId = pendingCancelPlanId;
+              setPendingCancelPlanId(null);
+              if (nextPlanId) {
+                handleSubscriptionPlanChange(nextPlanId);
+              }
             }}
           >
             <p className="subdued tiny">
-              You&apos;ll be downgraded to the Free plan at the end of your current billing period (
-              {formatDateLabel(billingProfile?.current_period_end ?? null)}). You&apos;ll lose
-              access to:
+              {isInternalCompContract
+                ? "Switching to Free ends the internally managed plan immediately. You'll lose access to:"
+                : `You'll be downgraded to the Free plan at the end of your current billing period (${formatDateLabel(
+                    billingContract?.current_period_end ??
+                      billingProfile?.current_period_end ??
+                      null
+                  )}). You'll lose access to:`}
             </p>
             <ul className="subdued tiny profile-modal-list">
               <li>{activePlan.monthlyCreditsCents.toLocaleString()} monthly credits</li>

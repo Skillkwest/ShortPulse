@@ -39,6 +39,7 @@ This SOP is the operational runbook for credit ledger migrations, admin balance 
 - Admin adjust API: `frontend/pages/api/admin/credits/adjust.ts`.
 - Admin ledger API: `frontend/pages/api/admin/credits/ledger.ts`.
 - Admin billing diagnostics API: `frontend/pages/api/admin/billing-diagnostics.ts`.
+- Customer subscription change API: `frontend/pages/api/billing/subscription/change.ts`.
 - Admin pricing state API: `frontend/pages/api/admin/pricing/state.ts`.
 - Admin pricing catalog APIs: `frontend/pages/api/admin/pricing/credit-packages/update.ts`, `frontend/pages/api/admin/pricing/plan-offers/create.ts`, `frontend/pages/api/admin/pricing/storage-offers/create.ts`.
 - Model-pricing control plane: `frontend/lib/server/api/modelPricingControlPlane.ts`.
@@ -173,7 +174,11 @@ Recommended operator sequence:
 3. For existing plan/storage/top-up changes, create or attach the correct Stripe Price before activating the catalog update.
 4. For model-pricing changes, review the effective conversion, markup, and rounding diff before activation and verify the active policy snapshot through `/api/pricing/model-policy`.
 5. After any pricing change, verify the customer-facing catalog on `/profile?section=credits` and `/profile?section=storage`.
-6. After any model-pricing policy change, verify AI Studio estimate chips and one server-side debit path still agree on billed credits.
+6. Verify `/profile?section=subscription` still routes each plan card to the intended self-serve flow:
+   - free/internal-comp to paid should open Stripe Checkout for the selected target plan
+   - Stripe-managed paid upgrades/downgrades should open a Stripe Billing Portal plan-change flow
+   - internal-comp to Free should complete in-app and return the user to the subscription section
+7. After any model-pricing policy change, verify AI Studio estimate chips and one server-side debit path still agree on billed credits.
 
 ## Charging model behavior
 

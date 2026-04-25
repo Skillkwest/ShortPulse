@@ -16,16 +16,14 @@ type ProfileSubscriptionSectionProps = {
   currentSubscriptionCreditsCents: number;
   currentSubscriptionPriceCents: number;
   currentSubscriptionStorageLimitBytes: number;
-  planLabel: string;
   subscriptionStatusLabel: string;
   subscriptionRenewalText: string;
   contractDescriptor: string;
   billingPlans: BillingPlanRecord[];
   billingPlansLoading: boolean;
-  portalActionLabel: string;
-  portalLoading: boolean;
-  portalManagementAvailable: boolean;
-  onOpenBillingPortal: () => void;
+  isInternalCompContract: boolean;
+  planChangeLoadingPlanId: string | null;
+  onRequestPlanChange: (planId: string) => void;
   onRequestCancel: (planId: string) => void;
 };
 
@@ -39,16 +37,14 @@ export function ProfileSubscriptionSection({
   currentSubscriptionCreditsCents,
   currentSubscriptionPriceCents,
   currentSubscriptionStorageLimitBytes,
-  planLabel,
   subscriptionStatusLabel,
   subscriptionRenewalText,
   contractDescriptor,
   billingPlans,
   billingPlansLoading,
-  portalActionLabel,
-  portalLoading,
-  portalManagementAvailable,
-  onOpenBillingPortal,
+  isInternalCompContract,
+  planChangeLoadingPlanId,
+  onRequestPlanChange,
   onRequestCancel,
 }: ProfileSubscriptionSectionProps) {
   return (
@@ -65,7 +61,7 @@ export function ProfileSubscriptionSection({
       <div className="profile-summary-grid">
         <article className="panel profile-summary-card">
           <p className="tiny subdued">Current plan</p>
-          <p className="summary-value">{planLabel}</p>
+          <p className="summary-value">{activePlan.displayName}</p>
           <p className="tiny subdued">{activePlan.description}</p>
         </article>
 
@@ -102,14 +98,24 @@ export function ProfileSubscriptionSection({
         </article>
       </div>
 
+      {isInternalCompContract ? (
+        <aside className="profile-callout">
+          <WarningCircle size={18} />
+          <p className="tiny">
+            This account is currently managed internally. Choose a public plan to move billing into
+            Stripe, or switch to Free to end the internal plan immediately.
+          </p>
+        </aside>
+      ) : null}
+
       <section className="panel profile-panel profile-panel-stack">
         <div className="panel-header profile-panel-header">
           <div>
             <p className="eyebrow">All plans</p>
-            <h2 className="profile-panel-title">Choose your subscription</h2>
+            <h2 className="profile-panel-title">Available plans</h2>
             <p className="subdued tiny">
-              Your current contract stays above. These tiles show the public offers available if you
-              change plans now.
+              Compare the public offers available if you change plans now, including your current
+              plan.
             </p>
           </div>
         </div>
@@ -131,6 +137,63 @@ export function ProfileSubscriptionSection({
               const isHigherTier = candidatePlanRank > activePlanRank;
               const isLowerTier = candidatePlanRank < activePlanRank;
               const isFree = plan.monthly_price_cents === 0;
+              const isCurrentInternalCompPlan = isInternalCompContract && isCurrentPlan && !isFree;
+              const isActionLoading = planChangeLoadingPlanId === plan.id;
+              const paidPlanLabel = activePlan.id === "free" || isInternalCompContract;
+              const actionButton = isCurrentInternalCompPlan ? (
+                <button
+                  type="button"
+                  className="profile-button primary-btn"
+                  onClick={() => onRequestPlanChange(plan.id)}
+                  disabled={isActionLoading}
+                >
+                  {isActionLoading
+                    ? "Starting checkout…"
+                    : `Switch to ${planView.displayName} billing`}
+                </button>
+              ) : isCurrentPlan ? (
+                <button type="button" className="profile-button ghost-btn" disabled>
+                  Current Plan
+                </button>
+              ) : isHigherTier ? (
+                <button
+                  type="button"
+                  className="profile-button primary-btn"
+                  onClick={() => onRequestPlanChange(plan.id)}
+                  disabled={isActionLoading}
+                >
+                  {isActionLoading
+                    ? paidPlanLabel
+                      ? "Starting billing flow…"
+                      : "Opening Stripe…"
+                    : paidPlanLabel
+                      ? `Choose ${planView.displayName}`
+                      : `Upgrade to ${planView.displayName}`}
+                </button>
+              ) : isLowerTier && !isFree ? (
+                <button
+                  type="button"
+                  className="profile-button ghost-btn"
+                  onClick={() => onRequestPlanChange(plan.id)}
+                  disabled={isActionLoading}
+                >
+                  {isActionLoading
+                    ? paidPlanLabel
+                      ? "Starting billing flow…"
+                      : "Opening Stripe…"
+                    : paidPlanLabel
+                      ? `Choose ${planView.displayName}`
+                      : `Downgrade to ${planView.displayName}`}
+                </button>
+              ) : isFree ? (
+                <button
+                  type="button"
+                  className="profile-button ghost-btn"
+                  onClick={() => onRequestCancel(plan.id)}
+                >
+                  {isInternalCompContract ? "Switch to Free" : "Downgrade to Free"}
+                </button>
+              ) : null;
 
               return (
                 <div
@@ -170,43 +233,7 @@ export function ProfileSubscriptionSection({
                     </p>
                   </div>
 
-                  <div className="profile-actions">
-                    {isCurrentPlan ? (
-                      <button type="button" className="profile-button ghost-btn" disabled>
-                        Current Plan
-                      </button>
-                    ) : !portalManagementAvailable ? (
-                      <button type="button" className="profile-button ghost-btn" disabled>
-                        Billing portal unavailable
-                      </button>
-                    ) : isHigherTier ? (
-                      <button
-                        type="button"
-                        className="profile-button primary-btn"
-                        onClick={onOpenBillingPortal}
-                        disabled={portalLoading}
-                      >
-                        {portalLoading ? "Opening portal…" : `Upgrade to ${planView.displayName}`}
-                      </button>
-                    ) : isLowerTier && !isFree ? (
-                      <button
-                        type="button"
-                        className="profile-button ghost-btn"
-                        onClick={onOpenBillingPortal}
-                        disabled={portalLoading}
-                      >
-                        {portalLoading ? "Opening portal…" : `Downgrade to ${planView.displayName}`}
-                      </button>
-                    ) : isFree && !isCurrentPlan ? (
-                      <button
-                        type="button"
-                        className="profile-button ghost-btn"
-                        onClick={() => onRequestCancel(plan.id)}
-                      >
-                        Cancel subscription
-                      </button>
-                    ) : null}
-                  </div>
+                  {actionButton ? <div className="profile-actions">{actionButton}</div> : null}
                 </div>
               );
             })
@@ -214,14 +241,16 @@ export function ProfileSubscriptionSection({
         </div>
       </section>
 
-      <aside className="profile-callout">
-        <WarningCircle size={18} />
-        <p className="tiny">
-          {portalManagementAvailable
-            ? `Plan changes are managed through Stripe's secure billing portal. If you are on a legacy contract, changing plans may move you onto the current public offer for the selected tier.`
-            : `${portalActionLabel}. Contact support if you need plan changes for this account.`}
-        </p>
-      </aside>
+      {!isInternalCompContract ? (
+        <aside className="profile-callout">
+          <WarningCircle size={18} />
+          <p className="tiny">
+            Plan changes run through Stripe&apos;s secure billing flow. If you are on a legacy
+            contract, changing plans may move you onto the current public offer for the selected
+            tier.
+          </p>
+        </aside>
+      ) : null}
     </>
   );
 }

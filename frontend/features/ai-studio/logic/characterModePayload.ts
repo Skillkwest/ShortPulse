@@ -1,6 +1,6 @@
 /**
  * Character Mode payload helpers for AI Studio Create submissions.
- * Resolves ordered Character Sheet references and hidden prompt composition.
+ * Resolves ordered active-look references, Character Sheet fallback references, and hidden prompt composition.
  */
 import type {
   CharacterSheetAssignments,
@@ -57,9 +57,9 @@ export const resolveCharacterSheetReferenceStoragePaths = (
 };
 
 /**
- * Resolves active character-sheet preset image URLs in canonical zone order.
+ * Resolves active character-look image URLs in canonical zone order.
  */
-export const resolveCharacterSheetPresetReferenceUrls = (
+export const resolveCharacterSheetLookReferenceUrls = (
   assignments: CharacterSheetPresetAssignments
 ): string[] => {
   const orderedUrls: string[] = [];
@@ -73,9 +73,9 @@ export const resolveCharacterSheetPresetReferenceUrls = (
 };
 
 /**
- * Resolves active character-sheet preset storage paths in canonical zone order.
+ * Resolves active character-look storage paths in canonical zone order.
  */
-export const resolveCharacterSheetPresetReferenceStoragePaths = (
+export const resolveCharacterSheetLookReferenceStoragePaths = (
   assignments: CharacterSheetPresetAssignments
 ): string[] => {
   const orderedStoragePaths: string[] = [];
@@ -86,6 +86,24 @@ export const resolveCharacterSheetPresetReferenceStoragePaths = (
   }
   return Array.from(new Set(orderedStoragePaths));
 };
+
+/**
+ * Backward-compatible alias for active character-look image URLs.
+ * Preserved so older Character Mode consumers continue to build while the
+ * runtime terminology settles on "look" instead of "preset".
+ */
+export const resolveCharacterSheetPresetReferenceUrls = (
+  assignments: CharacterSheetPresetAssignments
+): string[] => resolveCharacterSheetLookReferenceUrls(assignments);
+
+/**
+ * Backward-compatible alias for active character-look storage paths.
+ * Preserved so older Character Mode consumers continue to build while the
+ * runtime terminology settles on "look" instead of "preset".
+ */
+export const resolveCharacterSheetPresetReferenceStoragePaths = (
+  assignments: CharacterSheetPresetAssignments
+): string[] => resolveCharacterSheetLookReferenceStoragePaths(assignments);
 
 /**
  * Builds the provider-facing prompt with hidden character context first.
@@ -105,7 +123,7 @@ export const composeCharacterModePrompt = ({
 };
 
 /**
- * Merges user-selected references first, then Character Sheet references.
+ * Merges user-selected references first, then character look references.
  */
 export const mergeCharacterAndUserReferences = (
   userReferenceUrls: string[],

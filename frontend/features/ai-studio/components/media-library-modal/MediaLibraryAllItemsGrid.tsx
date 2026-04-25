@@ -1,5 +1,5 @@
 import React, { type MutableRefObject } from "react";
-import { CheckCircle, DownloadSimple, X } from "phosphor-react";
+import { Check, DownloadSimple, X } from "phosphor-react";
 import { getSignedMediaUrlsBatch } from "../../../../lib/mediaSignedUrlCache";
 import { resolveVideoPosterSigningStoragePaths } from "../../../../lib/mediaPreviewPath";
 import { useMediaMasonryVirtualization } from "../../../media-library/hooks/useMediaMasonryVirtualization";
@@ -295,7 +295,7 @@ function MediaLibraryAllItemsMediaCard({
             onToggleMediaSelection(file);
           }}
         >
-          {isSelected ? <CheckCircle size={16} weight="fill" aria-hidden /> : null}
+          {isSelected ? <Check size={13} weight="bold" aria-hidden /> : null}
         </button>
       ) : null}
       <button
@@ -523,7 +523,7 @@ function MediaLibraryAllItemsAudioCard({
             onToggleMediaSelection(file);
           }}
         >
-          {isSelected ? <CheckCircle size={16} weight="fill" aria-hidden /> : null}
+          {isSelected ? <Check size={13} weight="bold" aria-hidden /> : null}
         </button>
       ) : null}
       <div

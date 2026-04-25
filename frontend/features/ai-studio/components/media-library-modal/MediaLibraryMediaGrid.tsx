@@ -1,5 +1,5 @@
 import React, { type MutableRefObject } from "react";
-import { CheckCircle, DownloadSimple, X } from "phosphor-react";
+import { Check, DownloadSimple, X } from "phosphor-react";
 import { useMediaGridVideoBudgetController } from "../../../media-library/hooks/useMediaGridVideoBudgetController";
 import { useMediaMasonryVirtualization } from "../../../media-library/hooks/useMediaMasonryVirtualization";
 import { resolveMediaLibraryAdaptiveCardPreviewUrl } from "../../../media-library/logic/mediaLibraryAdaptivePreview";
@@ -224,9 +224,7 @@ export function MediaLibraryMediaGrid({
                     onToggleMediaSelection(file);
                   }}
                 >
-                  {selectedIds.has(file.id) ? (
-                    <CheckCircle size={16} weight="fill" aria-hidden />
-                  ) : null}
+                  {selectedIds.has(file.id) ? <Check size={13} weight="bold" aria-hidden /> : null}
                 </button>
               ) : null}
               <button

@@ -1,5 +1,5 @@
 import React from "react";
-import { CheckCircle, X } from "phosphor-react";
+import { Check, X } from "phosphor-react";
 import { formatDate, type PromptRow } from "../../logic/mediaLibraryModalModel";
 import { MediaLibraryPromptReferenceCard } from "./MediaLibraryPromptReferenceCard";
 
@@ -81,7 +81,7 @@ export function MediaLibraryPromptGrid({
               >
                 {isSelected ? (
                   <span className="media-library-select-indicator" aria-hidden>
-                    <CheckCircle size={16} weight="fill" />
+                    <Check size={13} weight="bold" />
                   </span>
                 ) : null}
                 <div className="prompt-card-header">

@@ -852,12 +852,15 @@
   width: 100%;
 }
 
-.media-library-panel-media-card-shell.is-active .media-library-panel-media-frame {
-  box-shadow: inset 0 0 0 2px rgba(171, 233, 194, 0.88);
-}
-
-.media-library-panel-prompt-reference-shell.is-active .media-library-prompt-card {
-  box-shadow: inset 0 0 0 2px rgba(171, 233, 194, 0.88);
+.media-library-panel-media-card-shell.is-active::after,
+.media-library-panel-prompt-reference-shell.is-active::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border: 2px solid rgba(171, 233, 194, 0.92);
+  box-shadow: inset 0 0 0 1px rgba(12, 15, 19, 0.42);
+  z-index: 3;
 }
 
 .media-library-panel-prompt-reference-frame {

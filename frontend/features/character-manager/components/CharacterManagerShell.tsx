@@ -1068,10 +1068,6 @@ export function CharacterManagerShell({
                     <div className="character-sheet-references-title-row character-profile-fields character-profile-fields--label-serif">
                       <p className="input-label">Character References:</p>
                     </div>
-                    <p className="character-sheet-references-helper tiny subdued">
-                      Drag or upload references into each slot. These images are used to train your
-                      character generations.
-                    </p>
                     <div className="character-reference-empty-grid">
                       {CHARACTER_SHEET_DROP_ZONES.map((dropZone) => {
                         const assignedReference =
@@ -1171,6 +1167,10 @@ export function CharacterManagerShell({
                         );
                       })}
                     </div>
+                    <p className="character-sheet-references-helper tiny subdued">
+                      Drag or upload references into each slot. These images are used to train your
+                      character generations.
+                    </p>
                   </div>
                 </section>
               }

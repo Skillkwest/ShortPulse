@@ -1,4 +1,5 @@
 import React from "react";
+import { CHARACTER_LIBRARY_SMOOTH_TARGET } from "../logic/characterLibraryWindow";
 import type {
   CharacterQuickSwapItem,
   CharacterSheetPresetId,
@@ -64,7 +65,6 @@ type UseCharacterManagerShellViewStateResult = {
   navigateReferencePreview: (step: -1 | 1) => void;
 };
 
-const CHARACTER_LIBRARY_SMOOTH_TARGET = 24;
 const QUICK_SWAP_GUIDANCE_HIDE_ROW_THRESHOLD = 4;
 const DEFAULT_REFERENCE_PREVIEW_ASPECT_RATIO = 4 / 5;
 

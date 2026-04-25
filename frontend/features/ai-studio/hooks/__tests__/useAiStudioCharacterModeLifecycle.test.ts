@@ -349,6 +349,42 @@ describe("useAiStudioCharacterModeLifecycle", () => {
     });
   });
 
+  it("clears selected character when persisted selection is removed from another surface", async () => {
+    listCharacterManagerCharactersMock.mockResolvedValue([
+      {
+        characterId: "char-1",
+        characterName: "Hero",
+        profileImageUrl: null,
+      },
+      {
+        characterId: "char-2",
+        characterName: "Ayla",
+        profileImageUrl: null,
+      },
+    ] as Awaited<ReturnType<typeof listCharacterManagerCharacters>>);
+    const { result } = renderHook(() => useAiStudioCharacterModeLifecycle(createParams()));
+
+    await waitFor(() => {
+      expect(result.current.isCharacterOptionsLoading).toBe(false);
+    });
+
+    act(() => {
+      persistSelectedCharacterId("char-2", { userId: "user-1" });
+    });
+
+    await waitFor(() => {
+      expect(result.current.selectedCharacterId).toBe("char-2");
+    });
+
+    act(() => {
+      persistSelectedCharacterId(null, { userId: "user-1" });
+    });
+
+    await waitFor(() => {
+      expect(result.current.selectedCharacterId).toBe("");
+    });
+  });
+
   it("falls back to legacy description when active preset description is empty", async () => {
     const setCharacterModeInjectionBundle = vi.fn();
     listCharacterManagerCharactersMock.mockResolvedValue([
@@ -382,6 +418,35 @@ describe("useAiStudioCharacterModeLifecycle", () => {
     });
   });
 
+  it("does not refresh character options on window focus while character tools are idle", async () => {
+    listCharacterManagerCharactersMock.mockResolvedValue([
+      {
+        characterId: "char-1",
+        characterName: "Hero",
+        profileImageUrl: null,
+      },
+    ] as Awaited<ReturnType<typeof listCharacterManagerCharacters>>);
+    const addWindowListenerSpy = vi.spyOn(window, "addEventListener");
+    const addDocumentListenerSpy = vi.spyOn(document, "addEventListener");
+    try {
+      const { result } = renderHook(() => useAiStudioCharacterModeLifecycle(createParams()));
+
+      await waitFor(() => {
+        expect(result.current.isCharacterOptionsLoading).toBe(false);
+      });
+
+      expect(addWindowListenerSpy.mock.calls.some(([eventName]) => eventName === "focus")).toBe(
+        false
+      );
+      expect(
+        addDocumentListenerSpy.mock.calls.some(([eventName]) => eventName === "visibilitychange")
+      ).toBe(false);
+    } finally {
+      addWindowListenerSpy.mockRestore();
+      addDocumentListenerSpy.mockRestore();
+    }
+  });
+
   it("refreshes character options on window focus to keep avatar URLs current", async () => {
     let avatarUrl: string | null = null;
     listCharacterManagerCharactersMock.mockImplementation(
@@ -395,7 +460,13 @@ describe("useAiStudioCharacterModeLifecycle", () => {
         ] as Awaited<ReturnType<typeof listCharacterManagerCharacters>>
     );
 
-    const { result } = renderHook(() => useAiStudioCharacterModeLifecycle(createParams()));
+    const { result } = renderHook(() =>
+      useAiStudioCharacterModeLifecycle(
+        createParams({
+          selectedTool: "create" as ToolId,
+        })
+      )
+    );
 
     await waitFor(() => {
       expect(result.current.isCharacterOptionsLoading).toBe(false);

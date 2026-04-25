@@ -16,6 +16,7 @@ import { useCharacterManagerDraft } from "../useCharacterManagerDraft";
 import { readSupabaseUserId } from "../../../../lib/supabaseClient";
 import {
   clearCharacterManagerProfileImage,
+  deleteCharacterManagerDraft,
   deleteCharacterManagerCharacterSheetPreset,
   loadCharacterManagerDraftByCharacterId,
   loadLatestCharacterManagerDraft,
@@ -98,6 +99,7 @@ const saveCharacterManagerCharacterSheetPresetAssignmentsMock = vi.mocked(
 );
 const saveCharacterManagerProfileImageMock = vi.mocked(saveCharacterManagerProfileImage);
 const clearCharacterManagerProfileImageMock = vi.mocked(clearCharacterManagerProfileImage);
+const deleteCharacterManagerDraftMock = vi.mocked(deleteCharacterManagerDraft);
 const saveCharacterManagerSlotMock = vi.mocked(saveCharacterManagerSlot);
 const deleteCharacterManagerCharacterSheetPresetMock = vi.mocked(
   deleteCharacterManagerCharacterSheetPreset
@@ -296,6 +298,30 @@ describe("useCharacterManagerDraft", () => {
       expect(result.current.hasUnsavedCharacterDraft).toBe(false);
       expect(result.current.characters[0]?.characterId).toBe("char-saved");
     });
+  });
+
+  it("clears persisted selection when staging a new local draft", async () => {
+    const snapshot = createDraftSnapshot();
+    configureBootstrap(snapshot);
+
+    const { result } = renderHook(() => useCharacterManagerDraft());
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+      expect(result.current.selectedCharacterId).toBe("char-1");
+    });
+
+    await act(async () => {
+      await result.current.createCharacter();
+    });
+
+    await waitFor(() => {
+      expect(result.current.selectedCharacterId).toBeNull();
+      expect(result.current.hasUnsavedCharacterDraft).toBe(true);
+      expect(result.current.characterName).toBe("New Character");
+    });
+
+    expect(persistSelectedCharacterIdMock).toHaveBeenLastCalledWith(null, { userId: "user-1" });
   });
 
   it("stages local draft assets before save and flushes them during the first save", async () => {
@@ -524,6 +550,96 @@ describe("useCharacterManagerDraft", () => {
       "https://signed.example/preset-2.png"
     );
     expect(persistSelectedCharacterIdMock).toHaveBeenCalledWith("char-1", { userId: "user-1" });
+  });
+
+  it("switches characters without reloading the full library", async () => {
+    const snapshot = createDraftSnapshot();
+    configureBootstrap(snapshot);
+    loadCharacterManagerDraftByCharacterIdMock.mockResolvedValue({
+      ...snapshot,
+      characterId: "char-2",
+      characterSheetId: "sheet-2",
+      characterName: "Ayla",
+      characterDescription: "Second description",
+    } as never);
+
+    const { result } = renderHook(() => useCharacterManagerDraft());
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+      expect(result.current.selectedCharacterId).toBe("char-1");
+    });
+
+    await act(async () => {
+      await result.current.selectCharacter("char-2");
+    });
+
+    await waitFor(() => {
+      expect(result.current.selectedCharacterId).toBe("char-2");
+      expect(result.current.characterName).toBe("Ayla");
+    });
+
+    expect(loadCharacterManagerDraftByCharacterIdMock).toHaveBeenCalledWith("char-2");
+    expect(listCharacterManagerCharactersMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("reselects the next character after delete without an extra list refresh", async () => {
+    const snapshot = createDraftSnapshot();
+    readSupabaseUserIdMock.mockResolvedValue(snapshot.userId);
+    readPersistedSelectedCharacterIdMock.mockReturnValue(null);
+    loadLatestCharacterManagerDraftMock.mockResolvedValue(snapshot);
+    listCharacterManagerCharactersMock
+      .mockResolvedValueOnce([
+        {
+          characterId: "char-1",
+          characterName: "Hero",
+          profileImageUrl: null,
+          updatedAt: "2026-03-17T00:00:00.000Z",
+        },
+        {
+          characterId: "char-2",
+          characterName: "Ayla",
+          profileImageUrl: null,
+          updatedAt: "2026-03-17T00:00:01.000Z",
+        },
+      ] as never)
+      .mockResolvedValueOnce([
+        {
+          characterId: "char-2",
+          characterName: "Ayla",
+          profileImageUrl: null,
+          updatedAt: "2026-03-17T00:00:01.000Z",
+        },
+      ] as never);
+    loadCharacterManagerDraftByCharacterIdMock.mockResolvedValue({
+      ...snapshot,
+      characterId: "char-2",
+      characterSheetId: "sheet-2",
+      characterName: "Ayla",
+      characterDescription: "Second description",
+    } as never);
+
+    const { result } = renderHook(() => useCharacterManagerDraft());
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+      expect(result.current.selectedCharacterId).toBe("char-1");
+    });
+
+    await act(async () => {
+      const ok = await result.current.deleteCharacter("char-1");
+      expect(ok).toBe(true);
+    });
+
+    await waitFor(() => {
+      expect(result.current.selectedCharacterId).toBe("char-2");
+      expect(result.current.characters).toHaveLength(1);
+      expect(result.current.characters[0]?.characterId).toBe("char-2");
+    });
+
+    expect(deleteCharacterManagerDraftMock).toHaveBeenCalledWith({ characterId: "char-1" });
+    expect(loadCharacterManagerDraftByCharacterIdMock).toHaveBeenCalledWith("char-2");
+    expect(listCharacterManagerCharactersMock).toHaveBeenCalledTimes(2);
   });
 
   it("uploads a profile image and refreshes the character rail", async () => {

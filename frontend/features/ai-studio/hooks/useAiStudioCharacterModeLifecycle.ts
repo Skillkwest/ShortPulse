@@ -39,6 +39,12 @@ export type CharacterSelectOption = {
 
 const CHARACTER_OPTIONS_REFRESH_INTERVAL_MS = 20 * 60 * 1000;
 
+const isCharacterSelectionTool = (selectedTool: ToolId | null): boolean =>
+  selectedTool === "create" ||
+  selectedTool === "text" ||
+  selectedTool === "edit" ||
+  selectedTool === "image";
+
 type UseAiStudioCharacterModeLifecycleParams = {
   projectId?: string | null;
   projectRouteRequested?: boolean;
@@ -183,6 +189,9 @@ export const useAiStudioCharacterModeLifecycle = ({
   }, [refreshCharacterOptions, setUiError]);
 
   useEffect(() => {
+    if (!isCharacterSelectionTool(selectedTool)) {
+      return () => {};
+    }
     const refreshCharacterOptionsSilently = () => {
       void refreshCharacterOptions().catch(() => {
         // Silent refresh is best-effort to keep signed avatar URLs fresh in long-running sessions.
@@ -207,7 +216,7 @@ export const useAiStudioCharacterModeLifecycle = ({
       window.removeEventListener("focus", handleWindowFocus);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
-  }, [refreshCharacterOptions]);
+  }, [refreshCharacterOptions, selectedTool]);
 
   useEffect(() => {
     if (selectedCharacterStorageScope === undefined) {
@@ -229,12 +238,7 @@ export const useAiStudioCharacterModeLifecycle = ({
   useEffect(() => {
     const previousTool = previousSelectedToolRef.current;
     previousSelectedToolRef.current = selectedTool;
-    const isCharacterSelectionTool =
-      selectedTool === "create" ||
-      selectedTool === "text" ||
-      selectedTool === "edit" ||
-      selectedTool === "image";
-    if (!isCharacterSelectionTool || previousTool === selectedTool) {
+    if (!isCharacterSelectionTool(selectedTool) || previousTool === selectedTool) {
       return;
     }
     void refreshCharacterOptions().catch(() => {

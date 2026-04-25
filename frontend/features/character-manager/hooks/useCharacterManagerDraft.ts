@@ -271,6 +271,39 @@ export const useCharacterManagerDraft = (): UseCharacterManagerDraftResult => {
       toErrorMessage,
     });
 
+  const applyLoadedCharacterSnapshot = useCallback(
+    (snapshot: Awaited<ReturnType<typeof loadCharacterManagerDraftByCharacterId>>) => {
+      applySnapshot({
+        nextCharacterId: snapshot.characterId,
+        nextCharacterSheetId: snapshot.characterSheetId,
+        nextCharacterName: snapshot.characterName,
+        nextCharacterDescription: snapshot.characterDescription,
+        nextCharacterSheetAssignments: snapshot.characterSheetAssignments,
+        nextActiveCharacterSheetPresetId: snapshot.activeCharacterSheetPresetId,
+        nextCharacterSheetPresets: snapshot.characterSheetPresets,
+        nextVisibleCharacterSheetPresetIds: snapshot.visibleCharacterSheetPresetIds,
+        nextCharacterSheetPresetLabels: snapshot.characterSheetPresetLabels,
+        nextCharacterSheetPresetDescriptions: snapshot.characterSheetPresetDescriptions,
+        nextCharacterSheetPresetAssignments: snapshot.characterSheetPresetAssignments,
+        nextProfileImageUrl: snapshot.profileImageUrl,
+        nextProfileImageTransform: snapshot.profileImageTransform,
+        nextSlots: snapshot.slots,
+        nextUserId: snapshot.userId,
+      });
+      setCharacterVoiceState("");
+    },
+    [applySnapshot]
+  );
+
+  const loadAndApplyCharacterSnapshot = useCallback(
+    async (nextCharacterId: string) => {
+      const snapshot = await loadCharacterManagerDraftByCharacterId(nextCharacterId);
+      applyLoadedCharacterSnapshot(snapshot);
+      return snapshot;
+    },
+    [applyLoadedCharacterSnapshot]
+  );
+
   const markSlotBusy = useCallback((slotKey: CharacterReferenceSlotKey, busy: boolean) => {
     setSlotBusyKeys((prev) => {
       const next = new Set(prev);
@@ -436,7 +469,6 @@ export const useCharacterManagerDraft = (): UseCharacterManagerDraftResult => {
     try {
       applyLocalDraft({
         nextUserId: selectedCharacterStorageScopeRef.current,
-        preservePersistedSelection: true,
       });
       setCharacterVoiceState("");
     } finally {
@@ -463,25 +495,7 @@ export const useCharacterManagerDraft = (): UseCharacterManagerDraftResult => {
         characterId: initialSnapshot.characterId,
         characterSheetId: initialSnapshot.characterSheetId,
       });
-      const snapshot = await loadCharacterManagerDraftByCharacterId(initialSnapshot.characterId);
-      applySnapshot({
-        nextCharacterId: snapshot.characterId,
-        nextCharacterSheetId: snapshot.characterSheetId,
-        nextCharacterName: snapshot.characterName,
-        nextCharacterDescription: snapshot.characterDescription,
-        nextCharacterSheetAssignments: snapshot.characterSheetAssignments,
-        nextActiveCharacterSheetPresetId: snapshot.activeCharacterSheetPresetId,
-        nextCharacterSheetPresets: snapshot.characterSheetPresets,
-        nextVisibleCharacterSheetPresetIds: snapshot.visibleCharacterSheetPresetIds,
-        nextCharacterSheetPresetLabels: snapshot.characterSheetPresetLabels,
-        nextCharacterSheetPresetDescriptions: snapshot.characterSheetPresetDescriptions,
-        nextCharacterSheetPresetAssignments: snapshot.characterSheetPresetAssignments,
-        nextProfileImageUrl: snapshot.profileImageUrl,
-        nextProfileImageTransform: snapshot.profileImageTransform,
-        nextSlots: snapshot.slots,
-        nextUserId: snapshot.userId,
-      });
-      setCharacterVoiceState("");
+      const snapshot = await loadAndApplyCharacterSnapshot(initialSnapshot.characterId);
       await refreshCharacterListSilently(snapshot.characterId, {
         publishSyncEvent: true,
         reason: "create",
@@ -494,10 +508,10 @@ export const useCharacterManagerDraft = (): UseCharacterManagerDraftResult => {
       setIsSavingCharacter(false);
     }
   }, [
-    applySnapshot,
     characterId,
     characterName,
     clearMessages,
+    loadAndApplyCharacterSnapshot,
     persistUnsavedDraftAssets,
     refreshCharacterListSilently,
   ]);
@@ -525,26 +539,7 @@ export const useCharacterManagerDraft = (): UseCharacterManagerDraftResult => {
           reason: "delete",
         });
         if (nextCharacterId) {
-          const snapshot = await loadCharacterManagerDraftByCharacterId(nextCharacterId);
-          applySnapshot({
-            nextCharacterId: snapshot.characterId,
-            nextCharacterSheetId: snapshot.characterSheetId,
-            nextCharacterName: snapshot.characterName,
-            nextCharacterDescription: snapshot.characterDescription,
-            nextCharacterSheetAssignments: snapshot.characterSheetAssignments,
-            nextActiveCharacterSheetPresetId: snapshot.activeCharacterSheetPresetId,
-            nextCharacterSheetPresets: snapshot.characterSheetPresets,
-            nextVisibleCharacterSheetPresetIds: snapshot.visibleCharacterSheetPresetIds,
-            nextCharacterSheetPresetLabels: snapshot.characterSheetPresetLabels,
-            nextCharacterSheetPresetDescriptions: snapshot.characterSheetPresetDescriptions,
-            nextCharacterSheetPresetAssignments: snapshot.characterSheetPresetAssignments,
-            nextProfileImageUrl: snapshot.profileImageUrl,
-            nextProfileImageTransform: snapshot.profileImageTransform,
-            nextSlots: snapshot.slots,
-            nextUserId: snapshot.userId,
-          });
-          setCharacterVoiceState("");
-          await refreshCharacterListSilently(snapshot.characterId);
+          await loadAndApplyCharacterSnapshot(nextCharacterId);
         } else {
           applyLocalDraft({
             nextUserId: selectedCharacterStorageScopeRef.current,
@@ -562,9 +557,9 @@ export const useCharacterManagerDraft = (): UseCharacterManagerDraftResult => {
     },
     [
       applyLocalDraft,
-      applySnapshot,
       characterId,
       clearMessages,
+      loadAndApplyCharacterSnapshot,
       refreshCharacterList,
       refreshCharacterListSilently,
     ]
@@ -576,33 +571,14 @@ export const useCharacterManagerDraft = (): UseCharacterManagerDraftResult => {
       clearMessages();
       setIsSwitchingCharacter(true);
       try {
-        const snapshot = await loadCharacterManagerDraftByCharacterId(nextCharacterId);
-        applySnapshot({
-          nextCharacterId: snapshot.characterId,
-          nextCharacterSheetId: snapshot.characterSheetId,
-          nextCharacterName: snapshot.characterName,
-          nextCharacterDescription: snapshot.characterDescription,
-          nextCharacterSheetAssignments: snapshot.characterSheetAssignments,
-          nextActiveCharacterSheetPresetId: snapshot.activeCharacterSheetPresetId,
-          nextCharacterSheetPresets: snapshot.characterSheetPresets,
-          nextVisibleCharacterSheetPresetIds: snapshot.visibleCharacterSheetPresetIds,
-          nextCharacterSheetPresetLabels: snapshot.characterSheetPresetLabels,
-          nextCharacterSheetPresetDescriptions: snapshot.characterSheetPresetDescriptions,
-          nextCharacterSheetPresetAssignments: snapshot.characterSheetPresetAssignments,
-          nextProfileImageUrl: snapshot.profileImageUrl,
-          nextProfileImageTransform: snapshot.profileImageTransform,
-          nextSlots: snapshot.slots,
-          nextUserId: snapshot.userId,
-        });
-        setCharacterVoiceState("");
-        await refreshCharacterListSilently(snapshot.characterId);
+        await loadAndApplyCharacterSnapshot(nextCharacterId);
       } catch (nextError) {
         setError(toErrorMessage(nextError, "Failed to switch character."));
       } finally {
         setIsSwitchingCharacter(false);
       }
     },
-    [applySnapshot, characterId, clearMessages, refreshCharacterListSilently]
+    [characterId, clearMessages, loadAndApplyCharacterSnapshot]
   );
 
   const isSlotBusy = useCallback(

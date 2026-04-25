@@ -295,7 +295,7 @@ function MediaLibraryAllItemsMediaCard({
             onToggleMediaSelection(file);
           }}
         >
-          {isSelected ? <Check size={15} weight="bold" aria-hidden /> : null}
+          {isSelected ? <Check size={17} weight="fill" aria-hidden /> : null}
         </button>
       ) : null}
       <button
@@ -523,7 +523,7 @@ function MediaLibraryAllItemsAudioCard({
             onToggleMediaSelection(file);
           }}
         >
-          {isSelected ? <Check size={15} weight="bold" aria-hidden /> : null}
+          {isSelected ? <Check size={17} weight="fill" aria-hidden /> : null}
         </button>
       ) : null}
       <div

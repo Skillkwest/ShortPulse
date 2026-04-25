@@ -81,7 +81,7 @@ export function MediaLibraryPromptGrid({
               >
                 {isSelected ? (
                   <span className="media-library-select-indicator" aria-hidden>
-                    <Check size={15} weight="bold" />
+                    <Check size={17} weight="fill" />
                   </span>
                 ) : null}
                 <div className="prompt-card-header">

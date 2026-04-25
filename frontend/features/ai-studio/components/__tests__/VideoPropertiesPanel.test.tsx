@@ -771,7 +771,7 @@ describe("VideoPropertiesPanel", () => {
     expect(within(redLanternCard).getByText("Selected")).toBeInTheDocument();
   });
 
-  it("marks picker alias tokens by source kind for popup styling", async () => {
+  it("marks picker prompt tokens by source kind for popup styling", async () => {
     render(<VideoPropertiesPanel {...baseProps} />);
 
     fireEvent.click(screen.getByRole("button", { name: "Add element to slot 1" }));

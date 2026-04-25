@@ -14,7 +14,6 @@ export type ElementProfileImageTransform = {
 export type ElementLibraryItem = {
   id: string;
   name: string;
-  alias: string;
   description: string;
   assetType: ElementAssetType;
   profileImageUrl: string | null;
@@ -30,7 +29,6 @@ export type ElementsWorkflowTab = "manage" | "profile";
 
 export type ElementDraft = {
   name: string;
-  alias: string;
   description: string;
   assetType: ElementAssetType;
   profileImageUrl: string | null;

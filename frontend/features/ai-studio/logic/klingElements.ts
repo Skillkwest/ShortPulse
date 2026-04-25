@@ -4,6 +4,7 @@
  */
 import { randomId } from "./ids";
 import type { CharacterProfileImageTransform } from "../../character-manager/types";
+import { deriveElementAliasFromName } from "../../elements-manager/logic/elementAlias";
 import type { ElementProfileImageTransform } from "../../elements-manager/types";
 
 export type AiStudioKlingEntitySourceKind = "element" | "character";
@@ -65,6 +66,14 @@ const deriveAiStudioKlingElementBaseToken = (
   element: Pick<AiStudioKlingElement, "alias" | "name" | "sourceKind">,
   index: number
 ): string => {
+  if (element.sourceKind === "element") {
+    const derivedNameToken = deriveElementAliasFromName(element.name ?? "");
+    if (derivedNameToken) return derivedNameToken;
+    const legacyAlias = element.alias?.trim();
+    if (legacyAlias) return legacyAlias;
+    return `Element${String(index + 1).padStart(2, "0")}`;
+  }
+
   const alias = element.alias?.trim();
   if (alias) return alias;
   if (element.sourceKind === "character") {

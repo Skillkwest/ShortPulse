@@ -242,7 +242,6 @@ const buildElementItemFromDraft = (
   return {
     id: options.id,
     name: draft.name.trim(),
-    alias: draft.alias.trim(),
     description: draft.description.trim(),
     assetType: draft.assetType,
     profileImageUrl: draft.profileImageUrl,
@@ -262,7 +261,6 @@ const buildElementItemFromSnapshot = (
   buildElementItemFromDraft(
     {
       name: snapshot.name,
-      alias: snapshot.alias,
       description: snapshot.description,
       assetType: snapshot.assetType,
       profileImageUrl: snapshot.profileImageUrl,
@@ -283,7 +281,6 @@ const buildLibraryItemFromListRow = (
   return {
     id: row.elementId,
     name: row.elementName,
-    alias: row.elementAlias,
     description: "",
     assetType: row.elementAssetType,
     profileImageUrl: row.profileImageUrl,
@@ -298,7 +295,6 @@ const buildLibraryItemFromListRow = (
 
 const buildDraftFromItem = (item: ElementLibraryItem): ElementDraft => ({
   name: item.name,
-  alias: item.alias,
   description: item.description,
   assetType: item.assetType,
   profileImageUrl: item.profileImageUrl,
@@ -310,7 +306,6 @@ const buildDraftFromItem = (item: ElementLibraryItem): ElementDraft => ({
 const serializeDraftState = (draft: ElementDraft): string =>
   JSON.stringify({
     name: draft.name,
-    alias: draft.alias,
     assetType: draft.assetType,
     profileImageUrl: draft.profileImageUrl,
     profileImageTransform: draft.profileImageTransform,
@@ -456,7 +451,6 @@ export const useElementsManagerViewState = ({
     try {
       const snapshot = await saveElementManagerDraft({
         name: draft.name,
-        alias: draft.alias,
         profileImageTransform: draft.profileImageTransform,
         description: draft.description,
         assetType: draft.assetType,
@@ -823,7 +817,6 @@ export const useElementsManagerViewState = ({
       void saveElementManagerDraftSnapshot({
         elementId: targetId,
         name: draft.name,
-        alias: draft.alias,
         profileImageTransform: draft.profileImageTransform,
         description: draft.description,
         assetType: draft.assetType,

@@ -622,20 +622,6 @@ export function ElementsManagerShell({
                         placeholder="Enter element name"
                       />
                     </label>
-                    <label
-                      className="control-row elements-profile-field"
-                      htmlFor="element-manager-alias"
-                    >
-                      <span className="input-label">Alias:</span>
-                      <input
-                        id="element-manager-alias"
-                        className="elements-name-input"
-                        type="text"
-                        value={draft.alias}
-                        onChange={(event) => updateDraftField("alias", event.target.value)}
-                        placeholder="Enter element alias"
-                      />
-                    </label>
                   </div>
                 </div>
 

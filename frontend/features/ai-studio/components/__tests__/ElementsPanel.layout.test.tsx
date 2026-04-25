@@ -10,6 +10,7 @@ import type {
   ResolveInternalReferenceDrop,
   ResolvedInternalReferenceSource,
 } from "../../logic/referenceSource/internalReferenceSource";
+import { deriveElementAliasFromName } from "../../../elements-manager/logic/elementAlias";
 import { saveElementManagerDraft } from "../../../elements-manager/logic/elementsManagerPersistence";
 import { uploadImageToStorage } from "../../utils/imageUpload";
 
@@ -79,7 +80,6 @@ vi.mock("../../../elements-manager/logic/elementsManagerPersistence", () => ({
   saveElementManagerDraft: vi.fn(
     async ({
       name,
-      alias,
       description,
       assetType,
       imageReferenceUrls,
@@ -89,7 +89,7 @@ vi.mock("../../../elements-manager/logic/elementsManagerPersistence", () => ({
       const snapshot = {
         elementId: "element-new-element",
         name,
-        alias,
+        alias: deriveElementAliasFromName(name),
         status: "ready" as const,
         profileImageUrl: null as string | null,
         profileImageTransform,
@@ -117,15 +117,7 @@ vi.mock("../../../elements-manager/logic/elementsManagerPersistence", () => ({
     }
   ),
   saveElementManagerDraftSnapshot: vi.fn(
-    async ({
-      elementId,
-      name,
-      alias,
-      description,
-      assetType,
-      imageReferenceUrls,
-      videoReferenceUrl,
-    }) => {
+    async ({ elementId, name, description, assetType, imageReferenceUrls, videoReferenceUrl }) => {
       const snapshot = elementsManagerPersistenceMockState.snapshots.get(elementId);
       if (!snapshot) {
         throw new Error(`Missing element snapshot: ${elementId}`);
@@ -133,7 +125,7 @@ vi.mock("../../../elements-manager/logic/elementsManagerPersistence", () => ({
       const nextSnapshot = {
         ...snapshot,
         name,
-        alias,
+        alias: deriveElementAliasFromName(name),
         description,
         assetType,
         imageReferenceUrls,
@@ -147,7 +139,7 @@ vi.mock("../../../elements-manager/logic/elementsManagerPersistence", () => ({
             ? {
                 ...item,
                 elementName: name,
-                elementAlias: alias,
+                elementAlias: deriveElementAliasFromName(name),
                 elementAssetType: assetType ?? item.elementAssetType,
                 updatedAt: nextSnapshot.updatedAt,
               }
@@ -292,18 +284,15 @@ describe("ElementsPanel layout", () => {
     });
     expect(screen.getByRole("button", { name: "Save Element" })).toBeEnabled();
     expect(screen.getByLabelText("Name:")).toHaveValue("");
-    expect(screen.getByLabelText("Alias:")).toHaveValue("");
     expect(saveElementManagerDraft).not.toHaveBeenCalled();
     expect(elementsManagerPersistenceMockState.list).toHaveLength(1);
 
     fireEvent.change(screen.getByLabelText("Name:"), { target: { value: "Taylor" } });
-    fireEvent.change(screen.getByLabelText("Alias:"), { target: { value: "taylor_element" } });
     fireEvent.click(screen.getByRole("button", { name: "Save Element" }));
 
     await waitFor(() => {
       expect(saveElementManagerDraft).toHaveBeenCalledWith({
         name: "Taylor",
-        alias: "taylor_element",
         profileImageTransform: { zoom: 1, offsetX: 0, offsetY: 0 },
         description: "",
         assetType: "image",
@@ -364,7 +353,6 @@ describe("ElementsPanel layout", () => {
     expect(screen.queryByRole("heading", { name: "Reference Assets" })).not.toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Identity and Notes" })).not.toBeInTheDocument();
     expect(screen.getByDisplayValue("Red Lantern")).toBeInTheDocument();
-    expect(screen.getByDisplayValue("redlantern")).toBeInTheDocument();
     expect(screen.queryByRole("tab", { name: "Double click me" })).not.toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: "Add character sheet preset tab" })

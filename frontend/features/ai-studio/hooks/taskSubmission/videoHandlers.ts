@@ -251,6 +251,7 @@ const rewritePromptWithKieElementTokens = (
         [
           resolveAiStudioKlingElementToken(element, index, klingElements).trim(),
           resolveLegacyKieKlingElementToken(element, index, klingElements).trim(),
+          element.alias?.trim() ?? "",
         ].filter(Boolean)
       )
     ).filter((token) => token.toLowerCase() !== canonicalToken.toLowerCase());
@@ -303,6 +304,7 @@ const rewritePromptWithSeedanceEntityContext = (
           resolveKieKlingElementToken(element, index, klingElements).trim(),
           resolveAiStudioKlingElementToken(element, index, klingElements).trim(),
           resolveLegacyKieKlingElementToken(element, index, klingElements).trim(),
+          element.alias?.trim() ?? "",
         ].filter(Boolean)
       )
     );

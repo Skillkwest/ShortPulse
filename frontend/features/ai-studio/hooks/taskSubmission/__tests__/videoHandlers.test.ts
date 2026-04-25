@@ -872,7 +872,7 @@ describe("handleVideoModelSubmission (Kie Kling standard)", () => {
     );
   });
 
-  it("auto-appends attached saved element aliases to single-shot Kling prompts", async () => {
+  it("auto-appends attached saved element name tokens to single-shot Kling prompts", async () => {
     const args = makeArgs({
       finalModel: KIE_KLING_30_MODEL_ID,
       modelConfig: getModelConfig(KIE_KLING_30_MODEL_ID),
@@ -905,6 +905,47 @@ describe("handleVideoModelSubmission (Kie Kling standard)", () => {
             element_input_urls: [
               "https://example.com/taylor-front.png",
               "https://example.com/taylor-side.png",
+            ],
+          },
+        ],
+      })
+    );
+  });
+
+  it("rewrites legacy element aliases to canonical slot tokens for Kling prompts", async () => {
+    const args = makeArgs({
+      finalModel: KIE_KLING_30_MODEL_ID,
+      modelConfig: getModelConfig(KIE_KLING_30_MODEL_ID),
+      videoReferenceMode: "standard",
+      cleanedPrompt: "the woman walks into the scene with @legacylamp",
+      preparedImageInputs: ["https://example.com/start.png"],
+      klingElements: [
+        {
+          id: "element-1",
+          slotIndex: 0,
+          sourceKind: "element",
+          name: "Red Lantern",
+          alias: "legacylamp",
+          frontalImageUrl: "https://example.com/red-lantern-front.png",
+          referenceImageUrls: "https://example.com/red-lantern-side.png",
+          videoUrl: "",
+        },
+      ],
+    });
+
+    const handled = await handleVideoModelSubmission(args);
+
+    expect(handled).toBe(true);
+    expect(submitKieKlingImageToVideo).toHaveBeenCalledWith(
+      expect.objectContaining({
+        prompt: "the woman walks into the scene with @element1",
+        kling_elements: [
+          {
+            name: "element1",
+            description: "Reference images for Red Lantern",
+            element_input_urls: [
+              "https://example.com/red-lantern-front.png",
+              "https://example.com/red-lantern-side.png",
             ],
           },
         ],

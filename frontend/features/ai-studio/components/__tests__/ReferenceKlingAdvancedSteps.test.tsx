@@ -67,7 +67,7 @@ describe("ReferenceKlingAdvancedSteps", () => {
     expect(screen.queryByText("Assets & Voices")).toBeNull();
     expect(screen.queryByText("Voice IDs (optional)")).toBeNull();
     expect(screen.queryByText("Negative prompt")).toBeNull();
-    expect(screen.getByText(/Use each saved element alias as its prompt token/i)).toBeTruthy();
+    expect(screen.getByText(/Use each saved element name token as its prompt token/i)).toBeTruthy();
     expect(
       screen.getByText(
         /KIE Kling guidance here is CFG-based\. Quality mode, sound, and multi-shot setup/i
@@ -81,10 +81,10 @@ describe("ReferenceKlingAdvancedSteps", () => {
     expect(screen.getByText("Assets & Voices")).toBeTruthy();
     expect(screen.getByText("Voice IDs (optional)")).toBeTruthy();
     expect(screen.getByText("Negative prompt")).toBeTruthy();
-    expect(screen.queryByText(/saved element alias as its prompt token/i)).toBeNull();
+    expect(screen.queryByText(/saved element name token as its prompt token/i)).toBeNull();
   });
 
-  it("offers alias-token insertion for attached KIE elements", () => {
+  it("offers name-derived token insertion for attached KIE elements", () => {
     render(
       <ReferenceKlingAdvancedSteps
         {...baseProps}

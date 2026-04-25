@@ -361,7 +361,7 @@ export const ReferenceKlingAdvancedSteps: React.FC<ReferenceKlingAdvancedStepsPr
               <div className="control-row compact full-span">
                 <span className="tiny helper-text">
                   {assetsHelperText ??
-                    `Use each saved ${assetReferenceNoun} alias as its prompt token, for example \`@redlantern\`.`}
+                    `Use each saved ${assetReferenceNoun} name token as its prompt token, for example \`@redlantern\`.`}
                 </span>
               </div>
             )}

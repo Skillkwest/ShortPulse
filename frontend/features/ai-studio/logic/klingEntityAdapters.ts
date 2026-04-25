@@ -5,6 +5,7 @@ import {
 import { type AiStudioKlingElement, type AiStudioKlingEntitySourceKind } from "./klingElements";
 import { loadCharacterManagerDraftByCharacterId } from "../../character-manager/logic/characterManagerPersistence";
 import type { CharacterManagerListItem } from "../../character-manager/logic/characterManagerPersistence";
+import { resolveElementWorkflowAlias } from "../../elements-manager/logic/elementAlias";
 import { loadElementManagerDraftByElementId } from "../../elements-manager/logic/elementsManagerPersistence";
 import type { ElementsManagerListItem } from "../../elements-manager/logic/elementsManagerPersistence";
 
@@ -38,7 +39,10 @@ export const toKlingPickerElementOption = (
   sourceKind: "element",
   sourceId: element.elementId,
   name: element.elementName,
-  alias: element.elementAlias,
+  alias: resolveElementWorkflowAlias({
+    name: element.elementName,
+    legacyAlias: element.elementAlias,
+  }),
   profileImageUrl: element.profileImageUrl,
   profileImageTransform: element.profileImageTransform ?? null,
   status: element.elementStatus,
@@ -91,7 +95,7 @@ export const loadSavedKlingEntityBySource = async ({
     sourceElementId: snapshot.elementId,
     sourceCharacterId: null,
     name: snapshot.name,
-    alias: snapshot.alias,
+    alias: snapshot.alias.trim() || resolveElementWorkflowAlias({ name: snapshot.name }),
     description: snapshot.description,
     profileImageUrl: snapshot.profileImageUrl,
     profileImageTransform: snapshot.profileImageTransform,

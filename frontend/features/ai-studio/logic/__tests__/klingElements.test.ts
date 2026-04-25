@@ -28,6 +28,13 @@ describe("klingElements token resolution", () => {
     expect(resolveAiStudioKlingElementTokens(elements)).toEqual(["taylor", "lantern"]);
   });
 
+  it("uses the element name as the canonical workflow token even when a legacy alias differs", () => {
+    const elements = [{ sourceKind: "element" as const, name: "Red Lantern", alias: "legacylamp" }];
+
+    expect(resolveAiStudioKlingElementTokens(elements)).toEqual(["redlantern"]);
+    expect(resolveAiStudioKlingElementToken(elements[0], 0, elements)).toBe("redlantern");
+  });
+
   it("resolves canonical provider tokens from stable slot positions", () => {
     const elements = [
       { slotIndex: 0, sourceKind: "character" as const, name: "Taylor", alias: "taylor" },

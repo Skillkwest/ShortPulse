@@ -12,7 +12,6 @@ export const DEFAULT_ELEMENT_PROFILE_IMAGE_TRANSFORM: ElementProfileImageTransfo
 export const createEmptyElementDraft = (): ElementDraft => {
   return {
     name: "",
-    alias: "",
     description: "",
     assetType: "image",
     profileImageUrl: null,

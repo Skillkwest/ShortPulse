@@ -194,7 +194,6 @@ describe("elementsManagerPersistenceCore", () => {
     const result = await saveElementManagerDraftSnapshot({
       elementId: "element-1",
       name: "Taylor",
-      alias: "taylor",
       profileImageTransform: { zoom: 1.2, offsetX: 4, offsetY: -2 },
       description: "front",
       assetType: "image",
@@ -246,7 +245,7 @@ describe("elementsManagerPersistenceCore", () => {
                       data: {
                         id: savedElementId,
                         name: "Taylor",
-                        alias: "taylor_element",
+                        alias: "taylor",
                         status: "ready",
                         metadata: {
                           active_reference_set_id: "1",
@@ -333,7 +332,6 @@ describe("elementsManagerPersistenceCore", () => {
 
     const snapshot = await saveElementManagerDraft({
       name: "Taylor",
-      alias: "taylor_element",
       profileImageTransform: { zoom: 1, offsetX: 0, offsetY: 0 },
       description: "new element",
       assetType: "image",
@@ -343,7 +341,7 @@ describe("elementsManagerPersistenceCore", () => {
 
     expect(snapshot.elementId).toBe(savedElementId);
     expect(snapshot.name).toBe("Taylor");
-    expect(snapshot.alias).toBe("taylor_element");
+    expect(snapshot.alias).toBe("taylor");
     expect(snapshot.status).toBe("ready");
     expect(snapshot.description).toBe("new element");
     expect(snapshot.imageReferenceUrls).toEqual(["https://example.com/taylor-front.png"]);

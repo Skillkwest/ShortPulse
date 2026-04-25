@@ -733,6 +733,7 @@ export function VideoPropertiesPanel({
         legacyAliases: [
           klingElementDisplayTokens[slotIndex] ?? "",
           klingElementLegacyProviderTokens[slotIndex] ?? "",
+          selectedKlingElements[slotIndex]?.alias ?? "",
         ].filter(Boolean),
         sourceKind: selectedKlingElements[slotIndex]?.sourceKind ?? null,
       })),

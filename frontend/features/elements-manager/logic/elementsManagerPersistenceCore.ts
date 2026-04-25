@@ -8,6 +8,7 @@ import { ensureSupabaseQueryClient, readSupabaseUserId } from "../../../lib/supa
 import { refreshSupabaseSignedUrlIfNeeded } from "../../ai-studio/utils/imageUpload";
 import { DEFAULT_ELEMENT_PROFILE_IMAGE_TRANSFORM } from "../constants";
 import type { ElementAssetType, ElementProfileImageTransform, ElementStatus } from "../types";
+import { deriveElementAliasFromName, resolveElementWorkflowAlias } from "./elementAlias";
 
 const MEDIA_BUCKET = "media_library";
 export const DEFAULT_ELEMENT_NAME = "New Element";
@@ -96,7 +97,6 @@ export type ElementManagerDraftSnapshot = {
 
 export type SaveElementManagerDraftInput = {
   name: string;
-  alias: string;
   profileImageTransform: ElementProfileImageTransform;
   description: string;
   assetType: ElementAssetType;
@@ -478,7 +478,7 @@ export const fetchElementsManagerList = async (): Promise<ElementsManagerListIte
     rows.map(async (row) => ({
       elementId: row.id,
       elementName: row.name,
-      elementAlias: row.alias,
+      elementAlias: resolveElementWorkflowAlias({ name: row.name, legacyAlias: row.alias }),
       elementAssetType: getElementActiveReferenceSetAssetType(row.metadata),
       elementStatus: row.status,
       profileImageUrl: await toSignedProfileImageUrl(row.metadata),
@@ -501,7 +501,7 @@ const createElementDraftRow = async ({
     .insert({
       user_id: userId,
       name,
-      alias: "",
+      alias: deriveElementAliasFromName(name),
       status: "draft",
       metadata: {
         [ELEMENT_ACTIVE_REFERENCE_SET_ID_KEY]: defaultState.activeSetId,
@@ -539,7 +539,6 @@ const createElementDraftRow = async ({
 
 export const saveElementManagerDraft = async ({
   name,
-  alias,
   profileImageTransform,
   description,
   assetType,
@@ -567,7 +566,6 @@ export const saveElementManagerDraft = async ({
     await saveElementManagerDraftSnapshot({
       elementId: created.elementId,
       name: trimmedName,
-      alias,
       profileImageTransform,
       description,
       assetType,
@@ -631,7 +629,6 @@ export const loadElementManagerDraftByElementId = async (
 export const saveElementManagerDraftSnapshot = async ({
   elementId,
   name,
-  alias,
   profileImageTransform,
   description,
   assetType,
@@ -640,7 +637,6 @@ export const saveElementManagerDraftSnapshot = async ({
 }: {
   elementId: string;
   name: string;
-  alias: string;
   profileImageTransform: ElementProfileImageTransform;
   description: string;
   assetType: ElementAssetType;
@@ -677,12 +673,14 @@ export const saveElementManagerDraftSnapshot = async ({
   nextMetadata[ELEMENT_PROFILE_IMAGE_OFFSET_X_KEY] = nextTransform.offsetX;
   nextMetadata[ELEMENT_PROFILE_IMAGE_OFFSET_Y_KEY] = nextTransform.offsetY;
 
+  const resolvedName = name.trim() || DEFAULT_ELEMENT_NAME;
+  const resolvedAlias = deriveElementAliasFromName(resolvedName);
   const nextStatus: ElementStatus = name.trim().length >= 2 ? "ready" : "draft";
   const { data: updatedRow, error: updateError } = await supabase
     .from("elements")
     .update({
-      name: name.trim() || DEFAULT_ELEMENT_NAME,
-      alias: alias.trim(),
+      name: resolvedName,
+      alias: resolvedAlias,
       status: nextStatus,
       metadata: nextMetadata,
     })

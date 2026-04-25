@@ -106,7 +106,7 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
 - `id` (uuid, pk)
 - `user_id` (uuid, default `auth.uid()`): Owner for RLS scoping.
 - `name` (text): Element display name.
-- `alias` (text): Prompt alias / shorthand token.
+- `alias` (text): Persisted workflow token derived from `name`; retained for compatibility with legacy prompt/session data.
 - `status` (text): draft | ready | archived.
 - `metadata` (jsonb, default `{}`)
   - Element profile image linkage keys:

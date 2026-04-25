@@ -719,8 +719,8 @@ describe("CreatePropertiesPanel", () => {
     });
 
     expect(container.querySelector(".create-expert-empty-state-shell")).toBeTruthy();
-    expect(container.querySelectorAll(".create-expert-empty-preview-frame")).toHaveLength(2);
-    expect(container.querySelector(".create-expert-empty-preview-frame--lower")).toBeTruthy();
+    expect(container.querySelectorAll(".create-expert-empty-preview-frame")).toHaveLength(1);
+    expect(container.querySelector(".create-expert-lower-preview-frame")).toBeTruthy();
     expect(container.querySelector(".create-expert-empty-top-spacer")).toBeFalsy();
     expect(container.querySelector(".create-expert-chat-spacer")).toBeTruthy();
     expect(screen.queryByText("References attach from the message bar.")).not.toBeInTheDocument();

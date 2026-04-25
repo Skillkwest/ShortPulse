@@ -343,9 +343,10 @@
   border-radius: 28px;
 }
 
-.create-expert-panel--no-history .create-expert-empty-preview-frame--lower {
+.create-expert-panel--no-history .create-expert-lower-preview-frame {
   height: 128px;
-  margin: 0 0 18px;
+  border: 1px solid rgba(201, 205, 214, 0.12);
+  border-radius: 28px;
 }
 
 .create-expert-ready-text {

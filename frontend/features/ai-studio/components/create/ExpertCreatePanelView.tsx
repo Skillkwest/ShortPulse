@@ -205,10 +205,7 @@ export function ExpertCreatePanelView({
           >
             What do you want to make?
           </p>
-          <div
-            className="create-expert-empty-preview-frame create-expert-empty-preview-frame--lower"
-            aria-hidden="true"
-          />
+          <div className="create-expert-lower-preview-frame" aria-hidden="true" />
         </>
       ) : null}
       <div className="create-expert-bottom-block">

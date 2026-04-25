@@ -11,7 +11,37 @@ describe("PulsePresetsLibraryPanel", () => {
     render(<PulsePresetsLibraryPanel savedPresets={[]} onSavedPresetsChange={() => undefined} />);
 
     expect(screen.getByText("Pulses")).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        /Manage the shared Pulse catalog here\. Activate Pulses from the Create Pulse rail or More Pulses\./
+      )
+    ).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Create new pulse preset" })).toBeInTheDocument();
+  });
+
+  it("shows built-in and custom pulse ownership in the library tiles", () => {
+    render(
+      <PulsePresetsLibraryPanel
+        savedPresets={[
+          {
+            presetId: "custom_storyboard",
+            label: "Storyboard",
+            description: null,
+            systemInstructions: "Build a storyboard-ready pulse sequence.",
+            runtimeMode: "workflow_gpt",
+            activationMode: "activate_and_start",
+            starterAssistantMessage: null,
+            outputMode: "chat_reply",
+            memoryPolicy: "session",
+            createdAt: null,
+          },
+        ]}
+        onSavedPresetsChange={vi.fn()}
+      />
+    );
+
+    expect(screen.getAllByText("Built-in").length).toBeGreaterThan(0);
+    expect(screen.getByText("Custom")).toBeInTheDocument();
   });
 
   it("creates a new shared custom pulse preset", () => {

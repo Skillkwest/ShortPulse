@@ -216,8 +216,8 @@ export function PulsePresetsLibraryPanel({
       <header className="pulse-presets-library-header">
         <p className="eyebrow">Pulses</p>
         <p className="tiny subdued helper-text">
-          Click any Pulse to edit it. The core contract is simple: name the Pulse and write its
-          hidden system instructions. Advanced runtime settings stay optional.
+          Manage the shared Pulse catalog here. Activate Pulses from the Create Pulse rail or More
+          Pulses. Switching or deactivating a Pulse starts a fresh guided session.
         </p>
       </header>
       <div className="pulse-presets-library-scroll">
@@ -261,6 +261,13 @@ export function PulsePresetsLibraryPanel({
                 >
                   <span className="pulse-presets-library-tile-head">
                     <span className="pulse-presets-library-tile-title">{preset.label}</span>
+                    <span
+                      className={`pulse-presets-library-custom-pill ${
+                        preset.isBuiltIn ? "is-built-in" : "is-custom"
+                      }`.trim()}
+                    >
+                      {preset.isBuiltIn ? "Built-in" : "Custom"}
+                    </span>
                   </span>
                   <span className="pulse-presets-library-tile-prompt">
                     {preset.description?.trim() || preset.systemInstructions}
@@ -318,7 +325,7 @@ export function PulsePresetsLibraryPanel({
               <span className="pulse-presets-library-tile-title">Create New Preset</span>
             </span>
             <span className="pulse-presets-library-tile-prompt">
-              Add a custom Pulse that is available in Create Pulse mode.
+              Add a custom Pulse that will be available from the Create Pulse rail and More Pulses.
             </span>
           </button>
         </div>
@@ -340,8 +347,8 @@ export function PulsePresetsLibraryPanel({
               </h3>
               <p className="tiny subdued pulse-presets-library-edit-copy">
                 {pendingPresetEdit.mode === "create"
-                  ? "Name the Pulse and write the hidden system instructions that should drive its behavior."
-                  : "Update the Pulse name and hidden system instructions. Advanced runtime settings are optional."}
+                  ? "Name the Pulse and write the hidden system instructions that should drive it. Activate it later from the Create Pulse rail or More Pulses."
+                  : "Update the Pulse catalog entry here. Activation still happens from the Create Pulse rail or More Pulses, and switching starts a fresh guided session."}
               </p>
               <label
                 className="pulse-presets-library-edit-label"

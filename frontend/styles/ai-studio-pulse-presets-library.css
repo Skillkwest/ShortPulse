@@ -171,6 +171,18 @@
   text-transform: uppercase;
 }
 
+.pulse-presets-library-custom-pill.is-built-in {
+  border-color: rgba(105, 198, 255, 0.28);
+  background: rgba(68, 138, 181, 0.14);
+  color: rgba(182, 225, 248, 0.92);
+}
+
+.pulse-presets-library-custom-pill.is-custom {
+  border-color: rgba(201, 205, 214, 0.22);
+  background: rgba(201, 205, 214, 0.08);
+  color: rgba(215, 222, 235, 0.86);
+}
+
 .pulse-presets-library-tile-delete {
   position: absolute;
   top: 8px;

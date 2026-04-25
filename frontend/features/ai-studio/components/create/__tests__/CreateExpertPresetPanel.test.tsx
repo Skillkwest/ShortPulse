@@ -253,10 +253,9 @@ describe("CreateExpertPresetPanel", () => {
     fireEvent.click(screen.getByRole("button", { name: "More Pulses" }));
     fireEvent.click(screen.getByRole("button", { name: /pulse library/i }));
 
-    expect(onOpenPresetsLibrary).not.toHaveBeenCalled();
+    expect(onOpenPresetsLibrary).toHaveBeenCalledTimes(1);
     expect(screen.queryByRole("region", { name: "Pulses" })).not.toBeInTheDocument();
-    expect(screen.getByRole("dialog", { name: "Pulses" })).toBeInTheDocument();
-    expect(screen.getAllByText("Pulses").length).toBeGreaterThan(0);
+    expect(screen.queryByRole("dialog", { name: "Pulses" })).not.toBeInTheDocument();
   });
 
   it("shows built-in and custom ownership badges in the More Pulses activation surface", () => {

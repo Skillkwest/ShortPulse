@@ -41,6 +41,7 @@ export function CreateExpertPresetPanel({
   onSelectedPresetIdsChange,
   savedPresets,
   onSavedPresetsChange,
+  onOpenPresetsLibrary,
 }: CreateExpertPresetPanelProps) {
   const morePresetsSurfaceId = React.useId();
   const toastVisibleTimerRef = React.useRef<number | null>(null);
@@ -162,8 +163,12 @@ export function CreateExpertPresetPanel({
 
   const openPulseLibrary = React.useCallback(() => {
     setIsMorePresetsSurfaceOpen(false);
+    if (onOpenPresetsLibrary) {
+      onOpenPresetsLibrary();
+      return;
+    }
     setIsPulseLibraryOpen(true);
-  }, [setIsMorePresetsSurfaceOpen]);
+  }, [onOpenPresetsLibrary, setIsMorePresetsSurfaceOpen]);
 
   const closePulseLibrary = React.useCallback(() => {
     setIsPulseLibraryOpen(false);

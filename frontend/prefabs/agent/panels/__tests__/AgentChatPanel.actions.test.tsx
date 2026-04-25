@@ -153,6 +153,38 @@ describe("AgentChatPanel prompt actions", () => {
     expect(screen.queryByText("Assistant output one.")).toBeInTheDocument();
   });
 
+  it("renders pulse-guided assistant replies as labeled sections and list items", () => {
+    render(
+      <AgentChatPanel
+        messages={[
+          {
+            id: "a-1",
+            role: "assistant",
+            content:
+              "CURRENT STEP\n\nWhich camera motion should I use? Pick one from the list below.\n\n1) Static - Locked-off camera\n2) Pan - Rotates horizontally\n3) Dolly In - Moves camera closer",
+          },
+        ]}
+        input=""
+        showInput={false}
+        assistantMessagePresentation="pulse_guided"
+        onInputChange={vi.fn()}
+        onSend={vi.fn()}
+      />
+    );
+
+    expect(screen.getByText("CURRENT STEP")).toBeInTheDocument();
+    expect(
+      screen.getByText("Which camera motion should I use? Pick one from the list below.")
+    ).toBeInTheDocument();
+    const items = screen.getAllByRole("listitem");
+    expect(items).toHaveLength(3);
+    expect(items.map((item) => item.textContent)).toEqual([
+      "Static - Locked-off camera",
+      "Pan - Rotates horizontally",
+      "Dolly In - Moves camera closer",
+    ]);
+  });
+
   it("keeps assistant bubble media visible when inline history generate controls are suppressed", () => {
     render(
       <AgentChatPanel

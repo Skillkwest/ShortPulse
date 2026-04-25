@@ -70,6 +70,7 @@ type PromptStepChatSurfaceProps = {
   chatModeInlineGenerate?: PromptStepInlineGenerateConfig;
   useAgentResponseInlineGeneratePrefab?: boolean;
   highlightLatestAssistantOnly: boolean;
+  assistantMessagePresentation?: "default" | "pulse_guided";
   disableOutputGenerate: boolean;
   outputGenerateCostCredits: number | null;
   outputGenerateGuardrailReason?: string | null;
@@ -146,6 +147,7 @@ export const PromptStepChatSurface: React.FC<PromptStepChatSurfaceProps> = ({
   chatModeInlineGenerate,
   useAgentResponseInlineGeneratePrefab = false,
   highlightLatestAssistantOnly,
+  assistantMessagePresentation = "default",
   disableOutputGenerate,
   outputGenerateCostCredits,
   outputGenerateGuardrailReason,
@@ -252,6 +254,7 @@ export const PromptStepChatSurface: React.FC<PromptStepChatSurfaceProps> = ({
         onGenerateOutputPrompt={onGenerateOutputPrompt}
         onAssistantMessageEdit={onAssistantMessageEdit}
         highlightLatestAssistantOnly={highlightLatestAssistantOnly}
+        assistantMessagePresentation={assistantMessagePresentation}
         disableOutputGenerate={disableOutputGenerate}
         outputGenerateCostCredits={outputGenerateCostCredits}
         outputGenerateGuardrailReason={outputGenerateGuardrailReason}

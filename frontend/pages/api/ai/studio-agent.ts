@@ -92,7 +92,10 @@ Do not force every answer into a rewritten prompt.
 Return only JSON with this exact shape and no markdown:
 {"status":"needs_input"|"ready","message":"string","actions":{"applyPrompt":"string|null"}}
 Use status="needs_input" when you are asking the next question or collecting workflow input.
-Use status="ready" only when the workflow is complete and you are returning the final artifact.`;
+Use status="ready" only when the workflow is complete and you are returning the final artifact.
+Keep message content as plain text, but use paragraph breaks for readability.
+When presenting choices, put each choice on its own numbered line.
+Ask one question at a time and make the next user response obvious.`;
 const DIRECT_OPENAI_IMAGE_FALLBACK_TEXT =
   "Describe this image as a detailed production-ready prompt for image generation.";
 

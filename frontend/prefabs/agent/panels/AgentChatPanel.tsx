@@ -12,6 +12,7 @@ import {
   resolveAssistantInlineEditStyle,
   type AssistantInlineEditPresentation,
 } from "./assistantInlineEditPresentation";
+import { PulseGuidedMessageBody } from "./PulseGuidedMessageBody";
 import type {
   AgentActions,
   AgentAssistantMessageEditRequest,
@@ -89,6 +90,7 @@ type AgentChatPanelProps = {
   assistantBubbleMedia?: Record<string, AgentOutputBubbleMediaState>;
   isDropActive?: boolean;
   showClearAttachmentsButton?: boolean;
+  assistantMessagePresentation?: "default" | "pulse_guided";
   agentActions?: AgentActions;
   primaryPrompt?: string | null;
   primarySource?: "agent" | "manual" | "reference";
@@ -132,13 +134,13 @@ export const AgentChatPanel: React.FC<AgentChatPanelProps> = ({
   assistantBubbleMedia,
   isDropActive = false,
   showClearAttachmentsButton = false,
+  assistantMessagePresentation = "default",
   agentActions,
   primaryPrompt = null,
   primarySource = "manual",
   onInputChange,
   onSend,
   onMessageClick,
-  onAgentApplyPrompt,
   onAssistantMessageEdit,
   onGenerateOutputPrompt,
   onDrop,
@@ -156,7 +158,7 @@ export const AgentChatPanel: React.FC<AgentChatPanelProps> = ({
   const messagesRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const editInputRef = useRef<HTMLTextAreaElement>(null);
-  const assistantMessageTextNodesRef = useRef<Map<string, HTMLParagraphElement>>(new Map());
+  const assistantMessageTextNodesRef = useRef<Map<string, HTMLElement>>(new Map());
   const skipBlurCommitRef = useRef(false);
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const [editingValue, setEditingValue] = useState("");
@@ -296,18 +298,15 @@ export const AgentChatPanel: React.FC<AgentChatPanelProps> = ({
     [disableOutputGenerate, onGenerateOutputPrompt]
   );
 
-  const setAssistantMessageTextRef = useCallback(
-    (messageId: string, node: HTMLParagraphElement | null) => {
-      const normalizedMessageId = messageId.trim();
-      if (!normalizedMessageId) return;
-      if (node) {
-        assistantMessageTextNodesRef.current.set(normalizedMessageId, node);
-        return;
-      }
-      assistantMessageTextNodesRef.current.delete(normalizedMessageId);
-    },
-    []
-  );
+  const setAssistantMessageTextRef = useCallback((messageId: string, node: HTMLElement | null) => {
+    const normalizedMessageId = messageId.trim();
+    if (!normalizedMessageId) return;
+    if (node) {
+      assistantMessageTextNodesRef.current.set(normalizedMessageId, node);
+      return;
+    }
+    assistantMessageTextNodesRef.current.delete(normalizedMessageId);
+  }, []);
 
   const startAssistantMessageEdit = useCallback(
     (message: AgentMessage) => {
@@ -583,12 +582,14 @@ export const AgentChatPanel: React.FC<AgentChatPanelProps> = ({
                 const messageAttachments = message.attachments ?? [];
                 const hasMessageAttachments = messageAttachments.length > 0;
                 const hasMessageContent = Boolean(message.content.trim());
+                const usePulseGuidedPresentation =
+                  assistantMessagePresentation === "pulse_guided" && message.role === "assistant";
                 const key =
                   message.id || `${message.role}-${index}-${message.content.slice(0, 12)}`;
                 return (
                   <div
                     key={key}
-                    className={`agent-message agent-${message.role}${isClickable ? " is-clickable" : ""}${isDraggable ? " is-draggable" : ""}${isLatestAssistantMessage ? " is-latest-assistant" : ""}${isStaleAssistantMessage ? " is-stale-assistant" : ""}${showOutputGenerateButton ? " agent-message--with-output-generate" : ""}${hasOutputThumbnail ? " agent-message--with-output-thumbnail" : ""}${hasMessageAttachments ? " agent-message--with-attachments" : ""}${isEditingMessage ? " is-editing-assistant-message" : ""}`}
+                    className={`agent-message agent-${message.role}${isClickable ? " is-clickable" : ""}${isDraggable ? " is-draggable" : ""}${isLatestAssistantMessage ? " is-latest-assistant" : ""}${isStaleAssistantMessage ? " is-stale-assistant" : ""}${showOutputGenerateButton ? " agent-message--with-output-generate" : ""}${hasOutputThumbnail ? " agent-message--with-output-thumbnail" : ""}${hasMessageAttachments ? " agent-message--with-attachments" : ""}${isEditingMessage ? " is-editing-assistant-message" : ""}${usePulseGuidedPresentation ? " agent-message--pulse-guided" : ""}`}
                     onClick={
                       isClickable && !isEditingMessage
                         ? () => handleMessageClick(message)
@@ -654,16 +655,23 @@ export const AgentChatPanel: React.FC<AgentChatPanelProps> = ({
                           </div>
                         ) : null}
                         {hasMessageContent ? (
-                          <p
-                            className="tiny"
-                            ref={
-                              message.role === "assistant"
-                                ? (node) => setAssistantMessageTextRef(resolvedMessageId, node)
-                                : undefined
-                            }
-                          >
-                            {message.content}
-                          </p>
+                          usePulseGuidedPresentation ? (
+                            <PulseGuidedMessageBody
+                              ref={(node) => setAssistantMessageTextRef(resolvedMessageId, node)}
+                              content={message.content}
+                            />
+                          ) : (
+                            <p
+                              className="tiny"
+                              ref={
+                                message.role === "assistant"
+                                  ? (node) => setAssistantMessageTextRef(resolvedMessageId, node)
+                                  : undefined
+                              }
+                            >
+                              {message.content}
+                            </p>
+                          )
                         ) : null}
                       </div>
                     )}

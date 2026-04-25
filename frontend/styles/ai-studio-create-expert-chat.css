@@ -574,3 +574,50 @@
   .tiny {
   color: #25a9bf !important;
 }
+
+.create-expert-panel
+  .create-expert-prompt-step
+  .agent-chat-panel--latest-assistant-only
+  .agent-message.agent-assistant.agent-message--pulse-guided {
+  max-width: min(760px, 88%);
+  padding: 16px 18px 18px;
+  border-color: rgba(37, 169, 191, 0.22);
+  background:
+    linear-gradient(180deg, rgba(16, 25, 36, 0.94), rgba(12, 19, 28, 0.96)), rgba(14, 20, 29, 0.92);
+  box-shadow:
+    0 14px 32px rgba(0, 0, 0, 0.22),
+    inset 0 1px 0 rgba(255, 255, 255, 0.03);
+}
+
+.create-expert-panel
+  .create-expert-prompt-step
+  .agent-chat-panel--latest-assistant-only
+  .agent-message.agent-assistant.agent-message--pulse-guided.agent-message--with-output-thumbnail {
+  padding-bottom: 126px;
+}
+
+.create-expert-panel
+  .create-expert-prompt-step
+  .agent-message.agent-assistant.agent-message--pulse-guided
+  .agent-message-rich-body {
+  gap: 14px;
+}
+
+.create-expert-panel
+  .create-expert-prompt-step
+  .agent-message.agent-assistant.agent-message--pulse-guided
+  .agent-message-rich-label {
+  color: rgba(173, 227, 239, 0.72) !important;
+}
+
+.create-expert-panel
+  .create-expert-prompt-step
+  .agent-message.agent-assistant.agent-message--pulse-guided
+  .agent-message-rich-paragraph,
+.create-expert-panel
+  .create-expert-prompt-step
+  .agent-message.agent-assistant.agent-message--pulse-guided
+  .agent-message-rich-list {
+  color: #8cdcee !important;
+  line-height: 1.72;
+}

@@ -794,6 +794,7 @@ export function CreatePropertiesPanel({
     hideInputDropHint: true,
     useAgentResponseInlineGeneratePrefab: true,
     highlightLatestAssistantOnly: true,
+    assistantMessagePresentation: isPulseCreateMode ? "pulse_guided" : "default",
     chatComposerOverlayEnabled: true,
     stackTrailingComposerControls: true,
     agentInputMaxHeightPx: EXPERT_CREATE_AGENT_INPUT_MAX_HEIGHT_PX,

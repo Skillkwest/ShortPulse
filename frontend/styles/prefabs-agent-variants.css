@@ -239,6 +239,56 @@
   min-width: 0;
 }
 
+.agent-message-rich-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+.agent-message-rich-label,
+.agent-message-rich-paragraph,
+.agent-message-rich-list {
+  margin: 0;
+}
+
+.agent-message-rich-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  line-height: 1.35;
+  text-transform: uppercase;
+}
+
+.agent-message-rich-paragraph {
+  white-space: pre-wrap;
+}
+
+.agent-message-rich-list-block {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.agent-message-rich-list {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  padding-left: 1.35rem;
+}
+
+.agent-message-rich-list--unordered {
+  padding-left: 1.2rem;
+}
+
+.agent-message-rich-list li {
+  padding-left: 0.15rem;
+}
+
+.agent-message-rich-list li::marker {
+  font-weight: 700;
+}
+
 .agent-message-attachments {
   display: flex;
   justify-content: flex-start;
@@ -373,7 +423,15 @@
   padding-bottom: 44px;
 }
 
+.agent-message.agent-assistant.agent-message--pulse-guided {
+  padding-bottom: 16px;
+}
+
 .agent-message.agent-assistant.agent-message--with-output-thumbnail {
+  padding-bottom: 126px;
+}
+
+.agent-message.agent-assistant.agent-message--pulse-guided.agent-message--with-output-thumbnail {
   padding-bottom: 126px;
 }
 

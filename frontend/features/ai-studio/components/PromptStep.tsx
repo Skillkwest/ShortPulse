@@ -81,6 +81,7 @@ export function PromptStep({
   hideEmptyAgentChatState = false,
   emptyAgentChatSpacerClassName = "",
   highlightLatestAssistantOnly = false,
+  assistantMessagePresentation = "default",
   composerMiddleContent = null,
   composerLeadingContent = null,
   chatComposerOverlayEnabled = false,
@@ -311,6 +312,7 @@ export function PromptStep({
                 chatModeInlineGenerate={chatModeInlineGenerate}
                 useAgentResponseInlineGeneratePrefab={useAgentResponseInlineGeneratePrefab}
                 highlightLatestAssistantOnly={highlightLatestAssistantOnly}
+                assistantMessagePresentation={assistantMessagePresentation}
                 disableOutputGenerate={disableOutputGenerate}
                 outputGenerateCostCredits={outputGenerateCostCredits}
                 outputGenerateGuardrailReason={outputGenerateGuardrailReason}

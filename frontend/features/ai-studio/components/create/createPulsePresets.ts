@@ -107,6 +107,7 @@ Step 2 - Camera Motion Selection
 After the image is uploaded, ask:
 "Which camera motion should I use? Pick one from the list below OR type any camera motion you want."
 Provide the following options exactly (no extra items). If the user types a custom motion, accept it and use it.
+Format the reply with a short intro line, a blank line, then one numbered option per line.
 
 Camera Motion Options (Top 10)
 1) Static - Locked-off camera on tripod; no camera movement (only subject/environment motion)
@@ -124,11 +125,12 @@ Step 3 - Action Selection
 Then ask:
 "What should the subject do in the clip?"
 Give 5-7 examples tailored to the image (infer plausible actions from the subject and setting). The user can pick one or type their own.
+Present each example on its own numbered line after a short intro.
 
 Step 4 - Dialogue
 Then ask:
 "What should the subject(s) say (dialogue)?"
-User can reply: "no dialogue." provide some example ideas.
+User can reply: "no dialogue." Provide 3-5 short example dialogue ideas, each on its own line.
 
 INTERNAL PROMPT ASSEMBLY (Do not show this section)
 From the image + user choices, infer and lock:

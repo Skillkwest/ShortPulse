@@ -971,6 +971,32 @@ describe("CreatePropertiesPanel", () => {
     expect(screen.getByText("Assistant output one.")).toBeInTheDocument();
   });
 
+  it("renders pulse-mode assistant replies with guided list formatting", () => {
+    renderPanel({
+      beginnerMode: false,
+      expertCreateUiEligible: true,
+      agentEnabled: true,
+      expertCreateMode: "pulse",
+      agentMessages: [
+        {
+          id: "a-1",
+          role: "assistant",
+          content:
+            "CURRENT STEP\n\nWhich camera motion should I use? Pick one from the list below.\n\n1) Static - Locked-off camera\n2) Pan - Rotates horizontally\n3) Dolly In - Moves camera closer",
+        },
+      ],
+      onAgentInputChange: vi.fn(),
+      onAgentSend: vi.fn(),
+    });
+
+    expect(screen.getByText("CURRENT STEP")).toBeInTheDocument();
+    const items = screen.getAllByRole("listitem");
+    expect(items).toHaveLength(3);
+    expect(items[0]).toHaveTextContent("Static - Locked-off camera");
+    expect(items[1]).toHaveTextContent("Pan - Rotates horizontally");
+    expect(items[2]).toHaveTextContent("Dolly In - Moves camera closer");
+  });
+
   it("updates workflow session status when a workflow pulse is waiting on the user", () => {
     renderPanel({
       beginnerMode: false,

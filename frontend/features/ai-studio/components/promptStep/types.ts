@@ -92,6 +92,7 @@ export type PromptStepProps = {
   hideEmptyAgentChatState?: boolean;
   emptyAgentChatSpacerClassName?: string;
   highlightLatestAssistantOnly?: boolean;
+  assistantMessagePresentation?: "default" | "pulse_guided";
   composerMiddleContent?: React.ReactNode;
   composerLeadingContent?: React.ReactNode;
   chatComposerOverlayEnabled?: boolean;

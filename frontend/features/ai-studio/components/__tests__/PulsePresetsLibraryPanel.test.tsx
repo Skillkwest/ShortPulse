@@ -19,7 +19,7 @@ describe("PulsePresetsLibraryPanel", () => {
     expect(screen.getByRole("button", { name: "Create new pulse preset" })).toBeInTheDocument();
   });
 
-  it("shows built-in and custom pulse ownership in the library tiles", () => {
+  it("shows custom ownership without built-in pills in the library tiles", () => {
     render(
       <PulsePresetsLibraryPanel
         savedPresets={[
@@ -40,8 +40,8 @@ describe("PulsePresetsLibraryPanel", () => {
       />
     );
 
-    expect(screen.getAllByText("Built-in").length).toBeGreaterThan(0);
     expect(screen.getByText("Custom")).toBeInTheDocument();
+    expect(screen.queryByText("Built-in")).not.toBeInTheDocument();
   });
 
   it("creates a new shared custom pulse preset", () => {

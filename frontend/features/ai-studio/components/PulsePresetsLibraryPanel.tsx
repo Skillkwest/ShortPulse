@@ -261,13 +261,9 @@ export function PulsePresetsLibraryPanel({
                 >
                   <span className="pulse-presets-library-tile-head">
                     <span className="pulse-presets-library-tile-title">{preset.label}</span>
-                    <span
-                      className={`pulse-presets-library-custom-pill ${
-                        preset.isBuiltIn ? "is-built-in" : "is-custom"
-                      }`.trim()}
-                    >
-                      {preset.isBuiltIn ? "Built-in" : "Custom"}
-                    </span>
+                    {preset.isCustom ? (
+                      <span className="pulse-presets-library-custom-pill is-custom">Custom</span>
+                    ) : null}
                   </span>
                   <span className="pulse-presets-library-tile-prompt">
                     {preset.description?.trim() || preset.systemInstructions}

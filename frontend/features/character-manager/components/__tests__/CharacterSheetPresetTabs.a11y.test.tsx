@@ -1,5 +1,5 @@
 /**
- * Character Sheet preset tabs accessibility tests.
+ * Character Sheet look tabs accessibility tests.
  * Verifies ARIA semantics, roving tabindex, add-tab flow, rename behavior, and tab deletion affordances.
  */
 import React from "react";
@@ -108,9 +108,7 @@ describe("CharacterSheetPresetTabs accessibility", () => {
     expect(tabOne).toHaveAttribute("tabindex", "0");
     expect(tabOne).toHaveAttribute("aria-controls", panel.id);
     expect(panel).toHaveAttribute("aria-labelledby", tabOne.id);
-    expect(
-      screen.getByRole("button", { name: "Add character look" })
-    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Add character look" })).toBeInTheDocument();
   });
 
   it("supports ArrowLeft/ArrowRight wrap plus Home/End selection", () => {
@@ -193,9 +191,7 @@ describe("CharacterSheetPresetTabs accessibility", () => {
       />
     );
 
-    expect(
-      screen.queryByRole("button", { name: "Add character look" })
-    ).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Add character look" })).not.toBeInTheDocument();
   });
 
   it("shows delete controls for tabs after the first and supports deleting a tab", () => {

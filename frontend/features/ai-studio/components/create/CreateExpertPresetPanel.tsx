@@ -206,7 +206,12 @@ export function CreateExpertPresetPanel({
                   onDragStart={(event) => handlePanelPresetDragStart(event, preset.presetId)}
                   onDragEnd={handlePresetDragEnd}
                 >
-                  {preset.label}
+                  <span className="create-expert-presets-btn-label">{preset.label}</span>
+                  {activePresetId === preset.presetId ? (
+                    <span className="create-expert-presets-btn-meta" aria-hidden="true">
+                      <span className="create-expert-presets-btn-badge is-active">Active</span>
+                    </span>
+                  ) : null}
                 </button>
               ))
             ) : (

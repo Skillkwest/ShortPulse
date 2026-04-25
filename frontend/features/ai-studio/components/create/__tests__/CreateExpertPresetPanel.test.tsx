@@ -3,7 +3,7 @@
  * Verifies Pulse activation, saved custom pulse editing, and drag/drop pinning behavior.
  */
 import React from "react";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { CreateExpertPresetPanel } from "../CreateExpertPresetPanel";
 
@@ -49,6 +49,26 @@ describe("CreateExpertPresetPanel", () => {
     fireEvent.click(screen.getByRole("button", { name: "Single-shot preset" }));
 
     expect(onActivePresetIdChange).toHaveBeenCalledWith("single_shot");
+  });
+
+  it("shows an explicit active badge in the pinned Pulse rail", () => {
+    render(
+      <CreateExpertPresetPanel
+        selectedPresetIds={["ad_hook", "story_builder"]}
+        activePresetId="ad_hook"
+        onSelectedPresetIdsChange={vi.fn()}
+        onActivePresetIdChange={vi.fn()}
+      />
+    );
+
+    const activePresetButton = screen.getByRole("button", { name: "Ad Hook preset" });
+    expect(activePresetButton).toBeInTheDocument();
+    expect(activePresetButton).toHaveAttribute("aria-pressed", "true");
+    expect(within(activePresetButton).getByText("Active")).toBeInTheDocument();
+
+    const inactivePresetButton = screen.getByRole("button", { name: "Story Builder preset" });
+    expect(inactivePresetButton).toBeInTheDocument();
+    expect(within(inactivePresetButton).queryByText("Active")).toBeNull();
   });
 
   it("starts workflow pulses immediately when activation mode is activate and start", async () => {

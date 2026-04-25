@@ -144,6 +144,9 @@ export const derivePulseWorkflowSession = ({
     .filter((message) => message.role === "user")
     .map((message) => message.content.trim())
     .filter((content) => content.length > 0);
+  if (assistantMessages.length === 0 && userInputs.length === 0) {
+    return null;
+  }
   const latestAssistantMessage = assistantMessages.at(-1)?.content.trim() ?? null;
   const fallbackPrompt = latestAssistantMessage ?? preset.starterAssistantMessage?.trim() ?? null;
   const currentStepDescriptor =

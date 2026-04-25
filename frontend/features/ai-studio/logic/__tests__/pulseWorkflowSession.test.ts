@@ -96,6 +96,22 @@ describe("pulseWorkflowSession", () => {
     });
   });
 
+  it("does not synthesize an idle workflow session from an active Pulse with no transcript", () => {
+    const session = derivePulseWorkflowSession({
+      preset: {
+        presetId: "story_builder",
+        runtimeMode: "workflow_gpt",
+        starterAssistantMessage:
+          "Step 1 - Upload your characters. Please upload 1-3+ character images.",
+        workflowStageHints: ["Upload Characters", "Plot Seed", "Runtime", "Scene Review"],
+      },
+      agentMessages: [],
+      isSending: false,
+    });
+
+    expect(session).toBeNull();
+  });
+
   it("preserves completed authoritative workflow artifacts while still refreshing collected inputs", () => {
     const reconciled = reconcilePulseWorkflowSession({
       authoritative: {

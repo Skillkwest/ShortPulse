@@ -121,6 +121,57 @@ describe("sessionSnapshotHydrator", () => {
     expect(payload.workspace.activePulsePresetId).toBe("single_shot");
   });
 
+  it("restores the active Pulse id from persisted Pulse runtime ownership when the workspace field is missing", () => {
+    const payload = buildAiStudioSessionHydrationPayload({
+      ...createSnapshot(),
+      schemaVersion: 2,
+      workspace: {
+        ...createSnapshot().workspace,
+        expertCreateMode: "pulse",
+        activePulsePresetId: null,
+      },
+      agentRuntimes: {
+        standard: {
+          messages: [],
+          input: "",
+          latestAgentPrompt: null,
+          promptOrigin: "manual",
+          chatModeEnabled: true,
+          pulseWorkflowSession: null,
+        },
+        pulsePresetId: "story_builder",
+        pulse: {
+          messages: [
+            {
+              id: "assistant-1",
+              role: "assistant",
+              content: "Step 2 - Basic plot. Share a 1-2 sentence plot idea.",
+              attachments: [],
+            },
+          ],
+          input: "",
+          latestAgentPrompt: null,
+          promptOrigin: "manual",
+          chatModeEnabled: true,
+          pulseWorkflowSession: {
+            presetId: "story_builder",
+            status: "awaiting_input",
+            currentStepIndex: 2,
+            currentStepLabel: "Plot Seed",
+            currentStepPrompt: "Step 2 - Basic plot. Share a 1-2 sentence plot idea.",
+            collectedInputs: ["grimdark tone"],
+            lastArtifact: null,
+            finalArtifactSource: null,
+          },
+        },
+      },
+    } as AiStudioSessionSnapshot);
+
+    expect(payload.workspace.expertCreateMode).toBe("pulse");
+    expect(payload.workspace.activePulsePresetId).toBe("story_builder");
+    expect(payload.agentRuntimes.pulsePresetId).toBe("story_builder");
+  });
+
   it("hydrates selected character workspace state when present", () => {
     const payload = buildAiStudioSessionHydrationPayload(
       createSnapshot({

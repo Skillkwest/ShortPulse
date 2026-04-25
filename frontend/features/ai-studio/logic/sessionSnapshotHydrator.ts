@@ -644,6 +644,9 @@ export const buildAiStudioSessionHydrationPayload = (
         ? legacyAgentRuntime
         : defaultAgentRuntime,
   };
+  const resolvedWorkspaceActivePulsePresetId =
+    workspaceActivePulsePresetId ||
+    (workspaceExpertCreateMode === "pulse" ? hydratedAgentRuntimes.pulsePresetId : null);
   const activeAgentRuntime =
     workspaceExpertCreateMode === "pulse"
       ? hydratedAgentRuntimes.pulse
@@ -658,7 +661,7 @@ export const buildAiStudioSessionHydrationPayload = (
       aspect: asString(workspace.aspect, FALLBACK_ASPECT),
       selectedCharacterId: asNullableString(workspace.selectedCharacterId)?.trim() || null,
       expertCreateMode: workspaceExpertCreateMode,
-      activePulsePresetId: workspaceActivePulsePresetId,
+      activePulsePresetId: resolvedWorkspaceActivePulsePresetId,
       referenceImageUrl: sanitizeHydratedMediaUrl(asNullableString(workspace.referenceImageUrl)),
       extraImageUrls: asExtraImageUrls(workspace.extraImageUrls),
       editReferenceText: asString(workspace.editReferenceText, ""),

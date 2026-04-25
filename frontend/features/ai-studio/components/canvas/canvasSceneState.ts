@@ -13,6 +13,8 @@ import {
 import { randomId } from "../../logic/ids";
 import { AI_STUDIO_CANVAS_ITEM_HARD_CAP } from "../../logic/sessionSnapshotCanvas";
 import {
+  CANVAS_AUDIO_ITEM_HEIGHT,
+  CANVAS_AUDIO_ITEM_WIDTH,
   CANVAS_IMAGE_ITEM_HEIGHT,
   CANVAS_IMAGE_ITEM_WIDTH,
   CANVAS_TEXT_ITEM_MIN_HEIGHT,
@@ -22,8 +24,6 @@ import {
 import type { CanvasDropResolution, CanvasSceneItem } from "./canvasTypes";
 
 const CANVAS_PENDING_BASE_Z_INDEX = 1_000_000;
-const CANVAS_AUDIO_ITEM_WIDTH = CANVAS_IMAGE_ITEM_WIDTH;
-const CANVAS_AUDIO_ITEM_HEIGHT = CANVAS_IMAGE_ITEM_HEIGHT;
 
 export type CanvasPendingSceneItem = {
   id: string;

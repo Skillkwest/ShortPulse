@@ -186,6 +186,17 @@
   border-radius: inherit;
 }
 
+.canvas-scene-item__audio-frame .canvas-reference-card {
+  width: 100%;
+  height: 100%;
+  cursor: inherit;
+}
+
+.canvas-scene-item__audio-frame .canvas-reference-card:hover,
+.canvas-scene-item__audio-frame .canvas-reference-card:focus-visible {
+  transform: none;
+}
+
 .canvas-scene-item--text {
   min-height: 120px;
   padding: 16px 16px 0;

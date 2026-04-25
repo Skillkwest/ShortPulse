@@ -31,15 +31,17 @@ export function CanvasAudioCard({ item }: { item: CanvasAudioItem }) {
         }
       }}
     >
-      <ReferenceAudioPlayer
-        audioId={item.id}
-        audioUrl={item.audioUrl}
-        durationMs={item.durationMs ?? null}
-        waveformPeaks={item.waveformPeaks ?? null}
-        playLabel={`Play ${title}`}
-        pauseLabel={`Pause ${title}`}
-        eagerWaveformDecode={false}
-      />
+      <div className="reference-card has-audio canvas-reference-card">
+        <ReferenceAudioPlayer
+          audioId={item.id}
+          audioUrl={item.audioUrl}
+          durationMs={item.durationMs ?? null}
+          waveformPeaks={item.waveformPeaks ?? null}
+          playLabel={`Play ${title}`}
+          pauseLabel={`Pause ${title}`}
+          eagerWaveformDecode={false}
+        />
+      </div>
     </div>
   );
 }

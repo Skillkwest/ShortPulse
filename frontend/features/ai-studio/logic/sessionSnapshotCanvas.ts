@@ -3,6 +3,10 @@
  * Encodes dual-canvas scene + viewport + transient edit state for durable session persistence.
  */
 import type { CanvasCamera, CanvasSceneItem } from "../components/canvas/canvasTypes";
+import {
+  CANVAS_AUDIO_ITEM_HEIGHT,
+  CANVAS_AUDIO_ITEM_WIDTH,
+} from "../components/canvas/canvasGeometry";
 import type {
   CanvasDraftTextEntry,
   CanvasTextEditSession,
@@ -226,8 +230,14 @@ const sanitizeCanvasSceneItem = (
         skippedNonDurableImage: true,
       };
     }
-    const width = Math.max(1, Math.round(asFiniteNumber(value.width, 220) * 100) / 100);
-    const height = Math.max(1, Math.round(asFiniteNumber(value.height, 275) * 100) / 100);
+    const width = Math.max(
+      1,
+      Math.round(asFiniteNumber(value.width, CANVAS_AUDIO_ITEM_WIDTH) * 100) / 100
+    );
+    const height = Math.max(
+      1,
+      Math.round(asFiniteNumber(value.height, CANVAS_AUDIO_ITEM_HEIGHT) * 100) / 100
+    );
     return {
       item: {
         id: value.id,
@@ -440,8 +450,14 @@ const parseCanvasSceneItems = (value: unknown): CanvasSceneItem[] => {
         title: asNullableString(record.title),
         durationMs: durationMs === null ? null : Math.max(0, Math.round(durationMs)),
         waveformPeaks: sanitizeWaveformPeaks(record.waveformPeaks),
-        width: Math.max(1, Math.round(asFiniteNumber(record.width, 220) * 100) / 100),
-        height: Math.max(1, Math.round(asFiniteNumber(record.height, 275) * 100) / 100),
+        width: Math.max(
+          1,
+          Math.round(asFiniteNumber(record.width, CANVAS_AUDIO_ITEM_WIDTH) * 100) / 100
+        ),
+        height: Math.max(
+          1,
+          Math.round(asFiniteNumber(record.height, CANVAS_AUDIO_ITEM_HEIGHT) * 100) / 100
+        ),
       });
       return;
     }

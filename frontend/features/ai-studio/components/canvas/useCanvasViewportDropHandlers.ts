@@ -15,6 +15,8 @@ import {
   resolveCanvasDropClientPoint,
 } from "./canvasDropController";
 import {
+  CANVAS_AUDIO_ITEM_HEIGHT,
+  CANVAS_AUDIO_ITEM_WIDTH,
   CANVAS_IMAGE_ITEM_HEIGHT,
   CANVAS_IMAGE_ITEM_WIDTH,
   viewportPointToCanvasWorld,
@@ -244,8 +246,8 @@ export const useCanvasViewportDropHandlers = ({
                     mediaLibraryPayload.payload.promptText ||
                     "Canvas audio"
                   ).trim() || null,
-                width: CANVAS_IMAGE_ITEM_WIDTH,
-                height: CANVAS_IMAGE_ITEM_HEIGHT,
+                width: CANVAS_AUDIO_ITEM_WIDTH,
+                height: CANVAS_AUDIO_ITEM_HEIGHT,
               },
               point.x,
               point.y,

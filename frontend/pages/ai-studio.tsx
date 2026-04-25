@@ -64,8 +64,8 @@ import type {
   ResolveCanvasDropReference,
 } from "../features/ai-studio/components/canvas/canvasTypes";
 import {
-  CANVAS_IMAGE_ITEM_HEIGHT,
-  CANVAS_IMAGE_ITEM_WIDTH,
+  CANVAS_AUDIO_ITEM_HEIGHT,
+  CANVAS_AUDIO_ITEM_WIDTH,
 } from "../features/ai-studio/components/canvas/canvasGeometry";
 import { getAiStudioSessionSnapshotViaApi } from "../features/ai-studio/logic/sessionApiClient";
 import { readAiStudioSessionPersistencePolicy } from "../features/ai-studio/logic/sessionPersistencePolicy";
@@ -671,8 +671,8 @@ export default function AiStudioPage() {
           title: (output.prompt || output.previewText || "Canvas audio").trim() || null,
           durationMs: output.durationMs ?? null,
           waveformPeaks: output.waveformPeaks ?? null,
-          width: CANVAS_IMAGE_ITEM_WIDTH,
-          height: CANVAS_IMAGE_ITEM_HEIGHT,
+          width: CANVAS_AUDIO_ITEM_WIDTH,
+          height: CANVAS_AUDIO_ITEM_HEIGHT,
           sourceSurface: payload.sourceSurface ?? null,
         };
       }
@@ -710,8 +710,8 @@ export default function AiStudioPage() {
             title:
               (payload.payload.filename || payload.payload.promptText || "Canvas audio").trim() ||
               null,
-            width: CANVAS_IMAGE_ITEM_WIDTH,
-            height: CANVAS_IMAGE_ITEM_HEIGHT,
+            width: CANVAS_AUDIO_ITEM_WIDTH,
+            height: CANVAS_AUDIO_ITEM_HEIGHT,
           };
         }
         const width =

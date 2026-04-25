@@ -45,8 +45,8 @@ export const defaultResolveCanvasDropReference: ResolveCanvasDropReference = (pa
       title: "Reference audio",
       durationMs: 4_500,
       waveformPeaks: [20, 40, 60, 45, 30],
-      width: 220,
-      height: 275,
+      width: 160,
+      height: 200,
       sourceSurface: payload.sourceSurface ?? null,
     };
   }

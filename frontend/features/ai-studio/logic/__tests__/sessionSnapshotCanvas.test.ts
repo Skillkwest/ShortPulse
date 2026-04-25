@@ -146,8 +146,8 @@ describe("sessionSnapshotCanvas", () => {
         title: "Canvas audio",
         durationMs: null,
         waveformPeaks: [10, 45, 80, 45, 10],
-        width: 220,
-        height: 275,
+        width: 160,
+        height: 200,
       },
     ];
 
@@ -170,8 +170,8 @@ describe("sessionSnapshotCanvas", () => {
         title: "Canvas audio",
         durationMs: null,
         waveformPeaks: [10, 45, 80, 45, 10],
-        width: 220,
-        height: 275,
+        width: 160,
+        height: 200,
       }),
     ]);
   });
@@ -193,8 +193,8 @@ describe("sessionSnapshotCanvas", () => {
         title: "Transient audio",
         durationMs: 1500,
         waveformPeaks: [20, 50, 20],
-        width: 220,
-        height: 275,
+        width: 160,
+        height: 200,
       },
     ];
 

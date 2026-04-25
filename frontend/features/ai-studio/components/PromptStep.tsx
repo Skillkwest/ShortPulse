@@ -200,11 +200,16 @@ export function PromptStep({
     event.preventDefault();
   };
   const handleComposerAttachmentDrop = (event: React.DragEvent<HTMLDivElement>) => {
-    const droppedPromptText = event.dataTransfer
-      ? extractDragDropPayload(event.dataTransfer).promptText?.trim()
-      : null;
+    const payload = event.dataTransfer ? extractDragDropPayload(event.dataTransfer) : null;
+    const droppedPromptText = payload?.promptText?.trim() ?? null;
+    const droppedImageUrl = payload?.imageUrl?.trim() ?? null;
+    if (droppedPromptText && !droppedImageUrl) {
+      event.preventDefault();
+      onAgentInputChange?.(droppedPromptText);
+      requestAnimationFrame(() => agentInputRef.current?.focus());
+      return;
+    }
     onAgentAttachmentDrop?.(event);
-    if (!droppedPromptText) return;
     requestAnimationFrame(() => agentInputRef.current?.focus());
   };
   const historyDropHandlers = dropToInputComposer

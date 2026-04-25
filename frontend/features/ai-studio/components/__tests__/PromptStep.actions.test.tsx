@@ -212,6 +212,7 @@ describe("PromptStep agent actions", () => {
 
   it("focuses the composer after a prompt-text drop into the input shell", () => {
     const onAgentAttachmentDrop = vi.fn();
+    const onAgentInputChange = vi.fn();
     const requestAnimationFrameSpy = vi
       .spyOn(window, "requestAnimationFrame")
       .mockImplementation((callback: FrameRequestCallback) => {
@@ -225,6 +226,7 @@ describe("PromptStep agent actions", () => {
           {...baseProps}
           agentAttachmentDropTarget="input"
           onAgentAttachmentDrop={onAgentAttachmentDrop}
+          onAgentInputChange={onAgentInputChange}
         />
       );
 
@@ -239,11 +241,43 @@ describe("PromptStep agent actions", () => {
         },
       });
 
-      expect(onAgentAttachmentDrop).toHaveBeenCalledTimes(1);
+      expect(onAgentAttachmentDrop).not.toHaveBeenCalled();
+      expect(onAgentInputChange).toHaveBeenCalledWith("Dropped prompt text");
       expect(composerInput).toHaveFocus();
     } finally {
       requestAnimationFrameSpy.mockRestore();
     }
+  });
+
+  it("keeps image drops routed through the attachment pipeline in input-drop mode", () => {
+    const onAgentAttachmentDrop = vi.fn();
+    const onAgentInputChange = vi.fn();
+
+    const { container } = render(
+      <PromptStep
+        {...baseProps}
+        agentAttachmentDropTarget="input"
+        onAgentAttachmentDrop={onAgentAttachmentDrop}
+        onAgentInputChange={onAgentInputChange}
+      />
+    );
+
+    const inputShell = container.querySelector(".agent-composer-input-shell");
+    expect(inputShell).toBeTruthy();
+
+    fireEvent.drop(inputShell as Element, {
+      dataTransfer: {
+        types: ["text/reference-url", "text/plain"],
+        getData: (key: string) => {
+          if (key === "text/reference-url") return "https://example.com/reference.png";
+          if (key === "text/plain") return "Image note";
+          return "";
+        },
+      },
+    });
+
+    expect(onAgentAttachmentDrop).toHaveBeenCalledTimes(1);
+    expect(onAgentInputChange).not.toHaveBeenCalled();
   });
 
   it("renders thinking as a history row below the latest chat bubble", () => {

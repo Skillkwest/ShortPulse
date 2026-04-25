@@ -193,22 +193,28 @@ describe("GET /api/admin/billing-diagnostics", () => {
         throw new Error(`Unexpected table: ${table}`);
       }),
     });
-    stripeGetMock.mockResolvedValue({
-      id: "sub_123",
-      status: "active",
-      current_period_end: 1777593600,
-      items: {
-        data: [
-          {
-            price: {
-              id: "price_legacy_studio",
-              unit_amount: 1000,
-              currency: "usd",
+    stripeGetMock
+      .mockResolvedValueOnce({
+        id: "cus_123",
+        email: "user@example.com",
+        name: "User Example",
+      })
+      .mockResolvedValueOnce({
+        id: "sub_123",
+        status: "active",
+        current_period_end: 1777593600,
+        items: {
+          data: [
+            {
+              price: {
+                id: "price_legacy_studio",
+                unit_amount: 1000,
+                currency: "usd",
+              },
             },
-          },
-        ],
-      },
-    });
+          ],
+        },
+      });
 
     const req = {
       method: "GET",
@@ -224,11 +230,21 @@ describe("GET /api/admin/billing-diagnostics", () => {
           userId: "11111111-1111-4111-8111-111111111111",
           email: "user@example.com",
         },
+        authIdentity: expect.objectContaining({
+          userId: "11111111-1111-4111-8111-111111111111",
+          email: "user@example.com",
+        }),
         currentContract: expect.objectContaining({
           offerId: "studio__legacy_10",
           contractSource: "stripe",
           recurringPriceCents: 1000,
           storageLimitBytes: 107374182400,
+        }),
+        stripeCustomer: expect.objectContaining({
+          configured: true,
+          customerId: "cus_123",
+          email: "user@example.com",
+          name: "User Example",
         }),
         currentPublicOffer: expect.objectContaining({
           id: "studio__current",

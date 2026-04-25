@@ -13,6 +13,7 @@ export const PROTECTED_API_EXACT_PATHS = new Set([
 ]);
 
 export const PROTECTED_API_PREFIXES = [
+  "/api/account/",
   "/api/projects/",
   "/api/pricing/",
   "/api/announcements/",

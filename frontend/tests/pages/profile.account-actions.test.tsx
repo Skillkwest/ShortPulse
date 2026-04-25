@@ -12,9 +12,10 @@ const useCreditsMock = vi.hoisted(() => vi.fn());
 const useMediaAutosavePreferenceMock = vi.hoisted(() => vi.fn());
 const useMediaStorageQuotaSummaryMock = vi.hoisted(() => vi.fn());
 const routerReplaceMock = vi.hoisted(() => vi.fn());
-const updateUserMock = vi.hoisted(() => vi.fn());
+const refreshSessionMock = vi.hoisted(() => vi.fn());
 const resetPasswordForEmailMock = vi.hoisted(() => vi.fn());
 const signOutMock = vi.hoisted(() => vi.fn());
+const fetchWithAuthMock = vi.hoisted(() => vi.fn());
 
 vi.mock("next/head", () => ({
   default: ({ children }: { children: ReactNode }) => <>{children}</>,
@@ -60,6 +61,10 @@ vi.mock("../../features/billing/useMediaStorageQuotaSummary", () => ({
   useMediaStorageQuotaSummary: (...args: unknown[]) => useMediaStorageQuotaSummaryMock(...args),
 }));
 
+vi.mock("../../lib/authenticatedFetch", () => ({
+  fetchWithAuth: (...args: unknown[]) => fetchWithAuthMock(...args),
+}));
+
 vi.mock("../../lib/supabaseClient", async () => {
   const { createSupabaseClientModuleMock } = await import("../support/supabaseClientMock");
   return createSupabaseClientModuleMock();
@@ -71,16 +76,29 @@ const primeSupabaseSessionMock = vi.mocked(primeSupabaseSession);
 describe("Profile account actions", () => {
   beforeEach(() => {
     routerReplaceMock.mockReset();
-    updateUserMock.mockReset();
+    refreshSessionMock.mockReset();
     resetPasswordForEmailMock.mockReset();
     signOutMock.mockReset();
+    fetchWithAuthMock.mockReset();
 
-    updateUserMock.mockResolvedValue({ error: null });
+    refreshSessionMock.mockResolvedValue({
+      data: {
+        session: {
+          user: { id: "user-1" },
+          access_token: "token",
+        },
+      },
+      error: null,
+    });
     resetPasswordForEmailMock.mockResolvedValue({ error: null });
     signOutMock.mockResolvedValue(undefined);
+    fetchWithAuthMock.mockResolvedValue({
+      ok: true,
+      json: async () => ({}),
+    });
     ensureSupabaseClientMock.mockReturnValue({
       auth: {
-        updateUser: updateUserMock,
+        refreshSession: refreshSessionMock,
         resetPasswordForEmail: resetPasswordForEmailMock,
         signOut: signOutMock,
       },
@@ -116,11 +134,14 @@ describe("Profile account actions", () => {
     fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
 
     await waitFor(() => {
-      expect(updateUserMock).toHaveBeenCalledWith({
-        data: { full_name: "Alice Example", display_name: "Alice Example" },
+      expect(fetchWithAuthMock).toHaveBeenCalledWith("/api/account/profile/update", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ displayName: "Alice Example" }),
       });
     });
     expect(await screen.findByRole("status")).toHaveTextContent("Profile updated.");
+    expect(refreshSessionMock).toHaveBeenCalledTimes(1);
   });
 
   it("updates the email through Supabase auth", async () => {
@@ -132,7 +153,11 @@ describe("Profile account actions", () => {
     fireEvent.click(screen.getByRole("button", { name: "Update email" }));
 
     await waitFor(() => {
-      expect(updateUserMock).toHaveBeenCalledWith({ email: "alice@example.com" });
+      expect(fetchWithAuthMock).toHaveBeenCalledWith("/api/account/email/update", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: "alice@example.com" }),
+      });
     });
     expect(await screen.findByRole("status")).toHaveTextContent(
       "Email update requested. Check your inbox to confirm."

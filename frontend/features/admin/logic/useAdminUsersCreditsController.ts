@@ -56,6 +56,8 @@ type UseAdminUsersCreditsControllerResult = {
   billingOverrideResult: string | null;
   billingPortalSubmitting: boolean;
   billingPortalResult: string | null;
+  billingCustomerSyncSubmitting: boolean;
+  billingCustomerSyncResult: string | null;
   deleteSubmitting: boolean;
   deleteResult: string | null;
   creditLedgerRows: AdminCreditLedgerRow[];
@@ -82,6 +84,7 @@ type UseAdminUsersCreditsControllerResult = {
   handleGrantInternalComp: () => Promise<boolean>;
   handleRevokeInternalComp: () => Promise<boolean>;
   handleOpenSelectedUserBilling: () => Promise<void>;
+  handleSyncSelectedUserBillingCustomer: () => Promise<void>;
   handleDeleteUser: (params: { userId: string; confirmationText: string }) => Promise<boolean>;
   clearDeleteResult: () => void;
 };
@@ -118,6 +121,10 @@ export const useAdminUsersCreditsController = ({
   const [billingOverrideResult, setBillingOverrideResult] = React.useState<string | null>(null);
   const [billingPortalSubmitting, setBillingPortalSubmitting] = React.useState(false);
   const [billingPortalResult, setBillingPortalResult] = React.useState<string | null>(null);
+  const [billingCustomerSyncSubmitting, setBillingCustomerSyncSubmitting] = React.useState(false);
+  const [billingCustomerSyncResult, setBillingCustomerSyncResult] = React.useState<string | null>(
+    null
+  );
   const [deleteSubmitting, setDeleteSubmitting] = React.useState(false);
   const [deleteResult, setDeleteResult] = React.useState<string | null>(null);
   const [creditLedgerRows, setCreditLedgerRows] = React.useState<AdminCreditLedgerRow[]>([]);
@@ -322,6 +329,7 @@ export const useAdminUsersCreditsController = ({
     setBillingDiagnosticsLoaded(false);
     setBillingOverrideResult(null);
     setBillingPortalResult(null);
+    setBillingCustomerSyncResult(null);
     setAllowStripeTakeover(false);
   }, [selectedUserId]);
 
@@ -517,6 +525,46 @@ export const useAdminUsersCreditsController = ({
     }
   }, [selectedUserId]);
 
+  const handleSyncSelectedUserBillingCustomer = React.useCallback(async () => {
+    if (!selectedUserId) {
+      setBillingCustomerSyncResult("Select an account before syncing Stripe customer identity.");
+      return;
+    }
+
+    setBillingCustomerSyncSubmitting(true);
+    setBillingCustomerSyncResult(null);
+    try {
+      const response = await fetchWithAuth("/api/admin/billing/customer-sync", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: selectedUserId }),
+      });
+      const data = (await response.json().catch(() => ({}))) as {
+        error?: string;
+        created?: boolean;
+        updated?: boolean;
+      };
+      if (!response.ok) {
+        throw new Error(data.error || "Unable to sync Stripe customer.");
+      }
+
+      setBillingCustomerSyncResult(
+        data.created
+          ? "Created and synced Stripe customer."
+          : data.updated
+            ? "Stripe customer identity synced."
+            : "Stripe customer identity was already up to date."
+      );
+      await Promise.all([loadUsers(), loadBillingDiagnostics()]);
+    } catch (error) {
+      setBillingCustomerSyncResult(
+        error instanceof Error ? error.message : "Unable to sync Stripe customer."
+      );
+    } finally {
+      setBillingCustomerSyncSubmitting(false);
+    }
+  }, [loadBillingDiagnostics, loadUsers, selectedUserId]);
+
   const handleDeleteUser = React.useCallback(
     async ({
       userId,
@@ -627,6 +675,8 @@ export const useAdminUsersCreditsController = ({
     billingOverrideResult,
     billingPortalSubmitting,
     billingPortalResult,
+    billingCustomerSyncSubmitting,
+    billingCustomerSyncResult,
     deleteSubmitting,
     deleteResult,
     creditLedgerRows,
@@ -653,6 +703,7 @@ export const useAdminUsersCreditsController = ({
     handleGrantInternalComp,
     handleRevokeInternalComp,
     handleOpenSelectedUserBilling,
+    handleSyncSelectedUserBillingCustomer,
     handleDeleteUser,
     clearDeleteResult,
   };

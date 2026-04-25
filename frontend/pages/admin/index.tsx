@@ -50,6 +50,8 @@ export default function AdminDashboardPage() {
     billingOverrideResult,
     billingPortalSubmitting,
     billingPortalResult,
+    billingCustomerSyncSubmitting,
+    billingCustomerSyncResult,
     deleteSubmitting,
     deleteResult,
     creditLedgerRows,
@@ -75,6 +77,7 @@ export default function AdminDashboardPage() {
     handleGrantInternalComp,
     handleRevokeInternalComp,
     handleOpenSelectedUserBilling,
+    handleSyncSelectedUserBillingCustomer,
     handleDeleteUser,
     clearDeleteResult,
   } = useAdminUsersCreditsController({
@@ -121,6 +124,8 @@ export default function AdminDashboardPage() {
         billingOverrideResult={billingOverrideResult}
         billingPortalSubmitting={billingPortalSubmitting}
         billingPortalResult={billingPortalResult}
+        billingCustomerSyncSubmitting={billingCustomerSyncSubmitting}
+        billingCustomerSyncResult={billingCustomerSyncResult}
         deleteSubmitting={deleteSubmitting}
         deleteResult={deleteResult}
         creditLedgerRows={creditLedgerRows}
@@ -146,6 +151,7 @@ export default function AdminDashboardPage() {
         handleGrantInternalComp={handleGrantInternalComp}
         handleRevokeInternalComp={handleRevokeInternalComp}
         handleOpenSelectedUserBilling={handleOpenSelectedUserBilling}
+        handleSyncSelectedUserBillingCustomer={handleSyncSelectedUserBillingCustomer}
         handleDeleteUser={handleDeleteUser}
         clearDeleteResult={clearDeleteResult}
         planLabel={planLabel}

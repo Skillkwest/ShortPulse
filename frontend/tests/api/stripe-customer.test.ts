@@ -1,8 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { ensureStripeCustomerForUser } from "../../lib/server/api/stripeCustomer";
+import { syncStripeCustomerForUser } from "../../lib/server/api/stripeCustomer";
 
 const getSupabaseAdminMock = vi.fn();
 const stripePostFormMock = vi.fn();
+const stripeGetMock = vi.fn();
 
 vi.mock("../../lib/server/api/supabaseAdmin", () => ({
   getSupabaseAdmin: (...args: unknown[]) => getSupabaseAdminMock(...args),
@@ -10,14 +11,15 @@ vi.mock("../../lib/server/api/supabaseAdmin", () => ({
 
 vi.mock("../../lib/server/api/stripe", () => ({
   stripePostForm: (...args: unknown[]) => stripePostFormMock(...args),
+  stripeGet: (...args: unknown[]) => stripeGetMock(...args),
 }));
 
-describe("ensureStripeCustomerForUser", () => {
+describe("syncStripeCustomerForUser", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it("returns existing stripe customer id without creating a new customer", async () => {
+  it("returns existing stripe customer id without updating when identity already matches", async () => {
     getSupabaseAdminMock.mockReturnValue({
       from: () => ({
         select: () => ({
@@ -34,14 +36,69 @@ describe("ensureStripeCustomerForUser", () => {
         }),
       }),
     });
-
-    const customerId = await ensureStripeCustomerForUser({
-      userId: "user_1",
+    stripeGetMock.mockResolvedValue({
+      id: "cus_existing",
       email: "user@example.com",
+      name: "User Example",
+      metadata: { user_id: "user_1" },
     });
 
-    expect(customerId).toBe("cus_existing");
+    const result = await syncStripeCustomerForUser({
+      userId: "user_1",
+      email: "user@example.com",
+      displayName: "User Example",
+    });
+
+    expect(result).toEqual({
+      stripeCustomerId: "cus_existing",
+      email: "user@example.com",
+      name: "User Example",
+      created: false,
+      updated: false,
+    });
+    expect(stripeGetMock).toHaveBeenCalledWith("/customers/cus_existing");
     expect(stripePostFormMock).not.toHaveBeenCalled();
+  });
+
+  it("updates an existing Stripe customer when display name drifts", async () => {
+    getSupabaseAdminMock.mockReturnValue({
+      from: () => ({
+        select: () => ({
+          eq: () => ({
+            maybeSingle: async () => ({
+              data: {
+                stripe_customer_id: "cus_existing",
+                plan_id: "free",
+                subscription_status: "inactive",
+              },
+              error: null,
+            }),
+          }),
+        }),
+      }),
+    });
+    stripeGetMock.mockResolvedValue({
+      id: "cus_existing",
+      email: "user@example.com",
+      name: null,
+      metadata: { user_id: "user_1" },
+    });
+    stripePostFormMock.mockResolvedValue({
+      id: "cus_existing",
+      email: "user@example.com",
+      name: "Updated Name",
+    });
+
+    const result = await syncStripeCustomerForUser({
+      userId: "user_1",
+      email: "user@example.com",
+      displayName: "Updated Name",
+    });
+
+    expect(stripePostFormMock).toHaveBeenCalledWith("/customers/cus_existing", {
+      name: "Updated Name",
+    });
+    expect(result.updated).toBe(true);
   });
 
   it("creates stripe customer and persists mapping when billing profile is missing", async () => {
@@ -63,14 +120,16 @@ describe("ensureStripeCustomerForUser", () => {
     });
     stripePostFormMock.mockResolvedValue({ id: "cus_new" });
 
-    const customerId = await ensureStripeCustomerForUser({
+    const result = await syncStripeCustomerForUser({
       userId: "user_1",
       email: "user@example.com",
+      displayName: "User Example",
     });
 
-    expect(customerId).toBe("cus_new");
+    expect(result.stripeCustomerId).toBe("cus_new");
     expect(stripePostFormMock).toHaveBeenCalledWith("/customers", {
       email: "user@example.com",
+      name: "User Example",
       "metadata[user_id]": "user_1",
     });
     expect(upsertMock).toHaveBeenCalledWith(
@@ -98,9 +157,10 @@ describe("ensureStripeCustomerForUser", () => {
     stripePostFormMock.mockResolvedValue({ id: "cus_new" });
 
     await expect(
-      ensureStripeCustomerForUser({
+      syncStripeCustomerForUser({
         userId: "user_1",
         email: "user@example.com",
+        displayName: "User Example",
       })
     ).rejects.toThrow("upsert failed");
   });

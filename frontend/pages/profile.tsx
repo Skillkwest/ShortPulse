@@ -315,11 +315,23 @@ export default function ProfilePage() {
   const handleProfileSave = async () => {
     const nextName = displayNameInput.trim() || user?.email || "User";
     try {
-      const supabase = ensureSupabaseClient();
-      const { error } = await supabase.auth.updateUser({
-        data: { full_name: nextName, display_name: nextName },
+      const response = await fetchWithAuth("/api/account/profile/update", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ displayName: nextName }),
       });
-      if (error) throw error;
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(data?.error || "Profile update failed.");
+      }
+
+      const supabase = ensureSupabaseClient();
+      void supabase.auth
+        .refreshSession()
+        .then((refreshResult) => {
+          primeSupabaseSession(refreshResult.data.session ?? null);
+        })
+        .catch(() => {});
       setDisplayNameInput(nextName);
       setNotice({ tone: "success", message: "Profile updated." });
     } catch (error) {
@@ -338,9 +350,15 @@ export default function ProfilePage() {
     }
 
     try {
-      const supabase = ensureSupabaseClient();
-      const { error } = await supabase.auth.updateUser({ email: nextEmail });
-      if (error) throw error;
+      const response = await fetchWithAuth("/api/account/email/update", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: nextEmail }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(data?.error || "Email update failed.");
+      }
       setNotice({
         tone: "success",
         message: "Email update requested. Check your inbox to confirm.",

@@ -2,6 +2,7 @@
  * Creates a Stripe billing portal session for the authenticated user.
  */
 import type { NextApiRequest, NextApiResponse } from "next";
+import { resolveAuthDisplayName } from "../../../../lib/server/api/accountIdentity";
 import { requireApiUser } from "../../../../lib/server/api/auth";
 import { logApiRouteException } from "../../../../lib/server/api/appErrorLogs";
 import { getCanonicalAppBaseUrl, stripePostForm } from "../../../../lib/server/api/stripe";
@@ -26,6 +27,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const stripeCustomerId = await ensureStripeCustomerForUser({
       userId: user.id,
       email: user.email ?? null,
+      displayName: resolveAuthDisplayName(user),
     });
 
     const session = await stripePostForm<StripePortalSession>("/billing_portal/sessions", {

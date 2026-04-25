@@ -36,6 +36,8 @@ type AdminSupportQueueSectionProps = {
   billingOverrideResult: string | null;
   billingPortalSubmitting: boolean;
   billingPortalResult: string | null;
+  billingCustomerSyncSubmitting: boolean;
+  billingCustomerSyncResult: string | null;
   deleteSubmitting: boolean;
   deleteResult: string | null;
   creditLedgerRows: AdminCreditLedgerRow[];
@@ -61,6 +63,7 @@ type AdminSupportQueueSectionProps = {
   handleGrantInternalComp: () => Promise<boolean>;
   handleRevokeInternalComp: () => Promise<boolean>;
   handleOpenSelectedUserBilling: () => Promise<void>;
+  handleSyncSelectedUserBillingCustomer: () => Promise<void>;
   handleDeleteUser: (params: { userId: string; confirmationText: string }) => Promise<boolean>;
   clearDeleteResult: () => void;
   planLabel: (planId: string | null) => string;
@@ -95,6 +98,23 @@ function formatCompactDate(value: string | null | undefined): string {
   });
 }
 
+function resolveBillingIdentityStateLabel(params: {
+  contractSource: "stripe" | "internal_comp" | null;
+  stripeCustomerId: string | null;
+  stripeSubscriptionId: string | null;
+}): string {
+  if (params.contractSource === "internal_comp") {
+    return params.stripeCustomerId ? "Internal comp + Stripe customer" : "Internal comp only";
+  }
+  if (params.stripeSubscriptionId) {
+    return "Stripe subscription";
+  }
+  if (params.stripeCustomerId) {
+    return "Stripe customer only";
+  }
+  return "No Stripe billing";
+}
+
 function findingToneClassName(
   severity: AdminBillingDiagnosticsResponse["findings"][number]["severity"]
 ): string {
@@ -125,6 +145,8 @@ export function AdminSupportQueueSection({
   billingOverrideResult,
   billingPortalSubmitting,
   billingPortalResult,
+  billingCustomerSyncSubmitting,
+  billingCustomerSyncResult,
   deleteSubmitting,
   deleteResult,
   creditLedgerRows,
@@ -150,6 +172,7 @@ export function AdminSupportQueueSection({
   handleGrantInternalComp,
   handleRevokeInternalComp,
   handleOpenSelectedUserBilling,
+  handleSyncSelectedUserBillingCustomer,
   handleDeleteUser,
   clearDeleteResult,
   planLabel,
@@ -241,6 +264,19 @@ export function AdminSupportQueueSection({
     billingDiagnostics?.stripeSubscription?.subscriptionId ||
     billingDiagnostics?.billingProfile?.stripeSubscriptionId
   );
+  const snapshotStripeCustomerId = billingDiagnostics?.billingProfile?.stripeCustomerId ?? null;
+  const snapshotStripeSubscriptionId =
+    billingDiagnostics?.stripeSubscription?.subscriptionId ??
+    billingDiagnostics?.billingProfile?.stripeSubscriptionId ??
+    null;
+  const billingIdentityStateLabel = resolveBillingIdentityStateLabel({
+    contractSource: snapshotContractSource,
+    stripeCustomerId: snapshotStripeCustomerId,
+    stripeSubscriptionId: snapshotStripeSubscriptionId,
+  });
+  const authIdentityDisplayName = billingDiagnostics?.authIdentity?.displayName ?? null;
+  const stripeCustomerName = billingDiagnostics?.stripeCustomer?.name ?? null;
+  const stripeCustomerEmail = billingDiagnostics?.stripeCustomer?.email ?? null;
   const snapshotRenewalAt =
     billingDiagnostics?.stripeSubscription?.currentPeriodEnd ??
     billingDiagnostics?.currentContract?.currentPeriodEnd ??
@@ -707,26 +743,72 @@ export function AdminSupportQueueSection({
                   <div className={styles.manualAdjustPanel}>
                     <div className={styles.panelHeaderRow}>
                       <h3 className={styles.panelTitle}>Stripe billing</h3>
-                      <button
-                        type="button"
-                        className={`ghost-btn mini ${styles.manualAdjustPrimaryAction}`}
-                        onClick={() => {
-                          void handleOpenSelectedUserBilling();
-                        }}
-                        disabled={!selectedUserId || billingPortalSubmitting}
-                      >
-                        {billingPortalSubmitting ? "Opening Stripe…" : "Open Stripe billing"}
-                      </button>
+                      <div className={styles.tabRow}>
+                        <button
+                          type="button"
+                          className={`ghost-btn mini ${styles.manualAdjustSecondaryAction}`}
+                          onClick={() => {
+                            void handleSyncSelectedUserBillingCustomer();
+                          }}
+                          disabled={!selectedUserId || billingCustomerSyncSubmitting}
+                        >
+                          {billingCustomerSyncSubmitting
+                            ? "Syncing customer…"
+                            : "Resync Stripe customer"}
+                        </button>
+                        <button
+                          type="button"
+                          className={`ghost-btn mini ${styles.manualAdjustPrimaryAction}`}
+                          onClick={() => {
+                            void handleOpenSelectedUserBilling();
+                          }}
+                          disabled={!selectedUserId || billingPortalSubmitting}
+                        >
+                          {billingPortalSubmitting ? "Opening Stripe…" : "Open Stripe billing"}
+                        </button>
+                      </div>
                     </div>
-                    {hasLinkedStripeSubscription ? (
-                      <p className={styles.controlNote}>
-                        Use this for billed subscriptions and invoices.
-                      </p>
+                    <p className={styles.controlNote}>
+                      {hasLinkedStripeSubscription
+                        ? "Use this for billed subscriptions and invoices."
+                        : "Use this to inspect Stripe-linked accounts, customer identity, and saved payment methods."}
+                    </p>
+                    {selectedUserId ? (
+                      <div className={styles.adminBillingFindingList}>
+                        <article className={styles.adminBillingFindingCard}>
+                          <p className={styles.healthFindingSummary}>Billing identity state</p>
+                          <p className={styles.controlNote}>{billingIdentityStateLabel}</p>
+                          <p className={styles.controlNote}>
+                            Auth name: {authIdentityDisplayName ?? "—"} · Stripe name:{" "}
+                            {stripeCustomerName ?? "—"}
+                          </p>
+                          <p className={styles.controlNote}>
+                            Auth email: {billingDiagnostics?.authIdentity?.email ?? "—"} · Stripe
+                            email: {stripeCustomerEmail ?? "—"}
+                          </p>
+                          <p className={styles.controlNote}>
+                            Stripe customer id: {snapshotStripeCustomerId ?? "—"}
+                          </p>
+                          <p className={styles.controlNote}>
+                            Stripe subscription id: {snapshotStripeSubscriptionId ?? "—"}
+                          </p>
+                          <p className={styles.controlNote}>
+                            Contract offer id: {billingDiagnostics?.currentContract?.offerId ?? "—"}
+                          </p>
+                          <p className={styles.controlNote}>
+                            Contract price id:{" "}
+                            {billingDiagnostics?.currentContract?.stripePriceId ?? "—"}
+                          </p>
+                        </article>
+                      </div>
                     ) : null}
                   </div>
 
                   {billingPortalResult ? (
                     <p className={styles.inlineResult}>{billingPortalResult}</p>
+                  ) : null}
+                  {billingCustomerSyncResult ? (
+                    <p className={styles.inlineResult}>{billingCustomerSyncResult}</p>
                   ) : null}
                 </>
               )}

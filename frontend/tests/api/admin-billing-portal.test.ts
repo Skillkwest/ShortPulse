@@ -72,6 +72,7 @@ describe("POST /api/admin/billing/portal", () => {
     expect(ensureStripeCustomerForUserMock).toHaveBeenCalledWith({
       userId: "user-1",
       email: "user@example.com",
+      displayName: null,
     });
     expect(stripePostFormMock).toHaveBeenCalledWith(
       "/billing_portal/sessions",

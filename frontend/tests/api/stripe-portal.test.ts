@@ -55,6 +55,7 @@ describe("POST /api/billing/stripe/portal", () => {
     expect(ensureStripeCustomerForUserMock).toHaveBeenCalledWith({
       userId: "user-1",
       email: "user@example.com",
+      displayName: null,
     });
     expect(res.status).toHaveBeenCalledWith(200);
   });

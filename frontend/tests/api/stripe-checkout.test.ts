@@ -104,6 +104,7 @@ describe("POST /api/billing/stripe/checkout", () => {
     expect(ensureStripeCustomerForUserMock).toHaveBeenCalledWith({
       userId: "user-1",
       email: "user@example.com",
+      displayName: null,
     });
     expect(writeAppErrorLogMock).toHaveBeenCalledWith(
       expect.objectContaining({

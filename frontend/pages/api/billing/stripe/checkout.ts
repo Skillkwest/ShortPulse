@@ -2,6 +2,7 @@
  * Creates a Stripe Checkout session for one-time credit package purchases.
  */
 import type { NextApiRequest, NextApiResponse } from "next";
+import { resolveAuthDisplayName } from "../../../../lib/server/api/accountIdentity";
 import { requireApiUser } from "../../../../lib/server/api/auth";
 import { logApiRouteException, writeAppErrorLog } from "../../../../lib/server/api/appErrorLogs";
 import { getSupabaseAdmin } from "../../../../lib/server/api/supabaseAdmin";
@@ -53,6 +54,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const stripeCustomerId = await ensureStripeCustomerForUser({
       userId: user.id,
       email: user.email ?? null,
+      displayName: resolveAuthDisplayName(user),
     });
 
     const baseUrl = getCanonicalAppBaseUrl();

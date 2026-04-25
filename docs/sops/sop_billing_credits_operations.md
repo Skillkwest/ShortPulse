@@ -121,13 +121,15 @@ Primary path:
 
 - `/admin` UI -> `/api/admin/credits/adjust`.
 - `/admin` transaction audit -> `/api/admin/credits/ledger?userId=<uuid>&limit=<n>&source=<source>`.
-- `/admin` billing diagnostics -> `/api/admin/billing-diagnostics?userId=<uuid>` for current profile/contract/offer drift checks, live Stripe subscription reconciliation, and grandfathered-price support context.
-- `/admin` Stripe billing handoff -> `/api/admin/billing/portal` so operators can open the selected account directly in Stripe for billed subscription changes, payment-method updates, and invoice review.
+- `/admin` billing diagnostics -> `/api/admin/billing-diagnostics?userId=<uuid>` for auth-vs-Stripe identity checks, current profile/contract/offer drift checks, live Stripe customer + subscription reconciliation, and grandfathered-price support context.
+- `/admin` Stripe customer repair -> `/api/admin/billing/customer-sync` so operators can repair selected-account Stripe customer email/name drift without impersonating the user.
+- `/admin` Stripe billing handoff -> `/api/admin/billing/portal` so operators can open the selected account directly in Stripe for billed subscription changes, payment-method updates, and invoice review after customer identity has been synced.
 - `/admin` user list -> the signed-in admin email is called out in a dedicated summary and its matching user row is pinned to the top of the loaded page results when present.
 - `npm -C frontend run billing:contracts:verify -- --limit 25` for batch contract-vs-Stripe reconciliation using service-role Supabase access plus live Stripe subscription reads.
 - `/admin/user-health` diagnostics -> `/api/admin/user-health` for user-level generation/queue/reservation/ledger health checks, cost-without-success signals, and guided next actions.
 - `/admin/user-health-fleet` diagnostics -> `/api/admin/user-health-fleet` for hourly active-user triage and risk-ranked escalation into per-user billing/runtime analysis.
 - `/api/admin/users` reports spendable credits (`available - reserved`) and also returns `availableCredits` / `reservedCredits` for hold visibility.
+- `/profile?section=account` now updates display name and email through server-owned `/api/account/profile/update` and `/api/account/email/update` routes so Stripe customer identity can stay aligned with Supabase auth.
 
 Request contract:
 

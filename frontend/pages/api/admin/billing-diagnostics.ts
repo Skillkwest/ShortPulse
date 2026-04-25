@@ -1,15 +1,18 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import type {
+  AdminAuthIdentitySnapshot,
   AdminBillingContractSnapshot,
   AdminBillingDiagnosticsResponse,
   AdminBillingOfferSnapshot,
   AdminBillingProfileSnapshot,
   AdminBillingStorageAddonSnapshot,
   AdminHealthFinding,
+  AdminStripeCustomerSnapshot,
   AdminStripeSubscriptionSnapshot,
 } from "../../../features/admin/types";
 import { logApiRouteException } from "../../../lib/server/api/appErrorLogs";
 import { requireAdminUser } from "../../../lib/server/api/auth";
+import { resolveAuthDisplayName } from "../../../lib/server/api/accountIdentity";
 import { stripeGet } from "../../../lib/server/api/stripe";
 import { getSupabaseAdmin } from "../../../lib/server/api/supabaseAdmin";
 
@@ -86,6 +89,13 @@ type StripeSubscriptionListResponse = {
   data?: StripeSubscriptionResponse[];
 };
 
+type StripeCustomerResponse = {
+  id: string;
+  email?: string | null;
+  name?: string | null;
+  deleted?: boolean;
+};
+
 const asSingleString = (value: unknown): string => {
   if (typeof value === "string") return value;
   if (Array.isArray(value) && typeof value[0] === "string") return value[0];
@@ -114,6 +124,11 @@ const asCents = (value: number | string | null | undefined): number | null => {
 const asQuantity = (value: number | string | null | undefined): number => {
   const parsed = Number(value);
   return Number.isFinite(parsed) && parsed > 0 ? Math.trunc(parsed) : 0;
+};
+
+const normalizeText = (value: string | null | undefined): string | null => {
+  const normalized = value?.trim() ?? "";
+  return normalized.length > 0 ? normalized : null;
 };
 
 const pickPositiveNumber = (...values: Array<number | null | undefined>): number => {
@@ -159,6 +174,18 @@ const mapStripeSubscriptionSnapshot = (params: {
   };
 };
 
+const mapStripeCustomerSnapshot = (params: {
+  configured: boolean;
+  customerId: string | null;
+  customer: StripeCustomerResponse | null;
+}): AdminStripeCustomerSnapshot => ({
+  configured: params.configured,
+  customerId: params.customerId,
+  deleted: Boolean(params.customer?.deleted),
+  email: normalizeText(params.customer?.email),
+  name: normalizeText(params.customer?.name),
+});
+
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse<{ error: string } | AdminBillingDiagnosticsResponse>
@@ -184,6 +211,11 @@ export default async function handler(
     if (!userResult.data.user) {
       return res.status(404).json({ error: "User not found." });
     }
+    const authIdentity: AdminAuthIdentitySnapshot = {
+      userId,
+      email: userResult.data.user.email ?? null,
+      displayName: resolveAuthDisplayName(userResult.data.user),
+    };
 
     const [profileResult, contractResult] = await Promise.all([
       supabaseAdmin
@@ -292,8 +324,14 @@ export default async function handler(
       return res.status(500).json({ error: detail || "Failed to load storage diagnostics." });
     }
 
+    let liveStripeCustomer: StripeCustomerResponse | null = null;
     let liveStripeSubscription: StripeSubscriptionResponse | null = null;
     if (stripeConfigured) {
+      if (billingProfile?.stripe_customer_id) {
+        liveStripeCustomer = await stripeGet<StripeCustomerResponse>(
+          `/customers/${billingProfile.stripe_customer_id}`
+        );
+      }
       if (currentContract?.stripe_subscription_id || billingProfile?.stripe_subscription_id) {
         const subscriptionId =
           currentContract?.stripe_subscription_id ?? billingProfile?.stripe_subscription_id ?? null;
@@ -385,6 +423,11 @@ export default async function handler(
       configured: stripeConfigured,
       customerId: billingProfile?.stripe_customer_id ?? null,
       subscription: liveStripeSubscription,
+    });
+    const stripeCustomer = mapStripeCustomerSnapshot({
+      configured: stripeConfigured,
+      customerId: billingProfile?.stripe_customer_id ?? null,
+      customer: liveStripeCustomer,
     });
     const liveStripeItems = Array.isArray(liveStripeSubscription?.items?.data)
       ? (liveStripeSubscription.items?.data ?? [])
@@ -534,6 +577,63 @@ export default async function handler(
           "Use the admin payment-exempt controls for changes to this account.",
           "Only treat missing Stripe linkage as a problem if this user is supposed to be on a paid Stripe contract instead.",
         ],
+      });
+    }
+
+    if (stripeCustomer.customerId && stripeCustomer.deleted) {
+      pushFinding(findings, {
+        code: "deleted_stripe_customer",
+        severity: "warning",
+        confidence: "high",
+        summary: "Stripe customer mapping points at a deleted customer.",
+        details:
+          "The local billing profile still stores a Stripe customer id, but the live Stripe customer has been deleted.",
+        recommendedActions: ["Run Stripe customer resync before opening billing actions."],
+      });
+    }
+
+    if (
+      stripeCustomer.customerId &&
+      normalizeText(authIdentity.email) !== normalizeText(stripeCustomer.email)
+    ) {
+      pushFinding(findings, {
+        code: "stripe_customer_email_mismatch",
+        severity: "warning",
+        confidence: "high",
+        summary: "Stripe customer email does not match auth email.",
+        details:
+          "Supabase auth and the linked Stripe customer are carrying different email values for this account.",
+        recommendedActions: ["Run Stripe customer resync to align Stripe with auth identity."],
+      });
+    }
+
+    if (
+      stripeCustomer.customerId &&
+      normalizeText(authIdentity.displayName) !== normalizeText(stripeCustomer.name)
+    ) {
+      pushFinding(findings, {
+        code: "stripe_customer_name_mismatch",
+        severity: "info",
+        confidence: "high",
+        summary: "Stripe customer name does not match auth display name.",
+        details:
+          "The linked Stripe customer name is out of sync with the current Supabase auth display name.",
+        recommendedActions: ["Run Stripe customer resync to align Stripe with auth identity."],
+      });
+    }
+
+    if (
+      currentContract?.contract_source === "internal_comp" &&
+      stripeCustomer.customerId &&
+      !stripeSubscription.subscriptionId
+    ) {
+      pushFinding(findings, {
+        code: "internal_comp_with_stripe_customer",
+        severity: "info",
+        confidence: "high",
+        summary: "Internal-comp account still has historical Stripe customer linkage.",
+        details:
+          "This account is managed internally, but a Stripe customer mapping still exists without a live Stripe subscription.",
       });
     }
 
@@ -766,12 +866,14 @@ export default async function handler(
         userId,
         email: userResult.data.user.email ?? null,
       },
+      authIdentity,
       billingProfile: responseProfile,
       currentContract: responseContract,
       linkedOffer,
       currentPublicOffer,
       activeStorageAddons,
       storageSummary,
+      stripeCustomer,
       stripeSubscription,
       findings,
     });

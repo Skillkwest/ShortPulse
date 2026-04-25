@@ -87,6 +87,20 @@ export type AdminBillingStorageSummarySnapshot = {
   isOverLimit: boolean;
 };
 
+export type AdminAuthIdentitySnapshot = {
+  userId: string;
+  email: string | null;
+  displayName: string | null;
+};
+
+export type AdminStripeCustomerSnapshot = {
+  configured: boolean;
+  customerId: string | null;
+  deleted: boolean;
+  email: string | null;
+  name: string | null;
+};
+
 export type AdminStripeSubscriptionSnapshot = {
   configured: boolean;
   customerId: string | null;
@@ -103,12 +117,14 @@ export type AdminBillingDiagnosticsResponse = {
     userId: string;
     email: string | null;
   };
+  authIdentity: AdminAuthIdentitySnapshot;
   billingProfile: AdminBillingProfileSnapshot | null;
   currentContract: AdminBillingContractSnapshot | null;
   linkedOffer: AdminBillingOfferSnapshot | null;
   currentPublicOffer: AdminBillingOfferSnapshot | null;
   activeStorageAddons: AdminBillingStorageAddonSnapshot[];
   storageSummary: AdminBillingStorageSummarySnapshot | null;
+  stripeCustomer: AdminStripeCustomerSnapshot;
   stripeSubscription: AdminStripeSubscriptionSnapshot;
   findings: AdminHealthFinding[];
 };

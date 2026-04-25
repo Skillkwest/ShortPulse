@@ -161,7 +161,7 @@ describe("AgentChatPanel prompt actions", () => {
             id: "a-1",
             role: "assistant",
             content:
-              "CURRENT STEP\n\nWhich camera motion should I use? Pick one from the list below.\n\n1) Static - Locked-off camera\n2) Pan - Rotates horizontally\n3) Dolly In - Moves camera closer",
+              "CURRENT STEP\n\nWhich camera motion should I use? Pick one from the list below.\n\n1) Static - Locked-off camera\n2) Pan - Rotates horizontally\n3) Dolly In - Moves camera closer\n\nReply with one option or type your own.",
           },
         ]}
         input=""
@@ -176,6 +176,7 @@ describe("AgentChatPanel prompt actions", () => {
     expect(
       screen.getByText("Which camera motion should I use? Pick one from the list below.")
     ).toBeInTheDocument();
+    expect(screen.getByText("Reply with one option or type your own.")).toBeInTheDocument();
     const items = screen.getAllByRole("listitem");
     expect(items).toHaveLength(3);
     expect(items.map((item) => item.textContent)).toEqual([

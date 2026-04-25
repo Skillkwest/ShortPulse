@@ -247,7 +247,9 @@
 }
 
 .agent-message-rich-label,
+.agent-message-rich-lead,
 .agent-message-rich-paragraph,
+.agent-message-rich-hint,
 .agent-message-rich-list {
   margin: 0;
 }
@@ -261,6 +263,22 @@
 }
 
 .agent-message-rich-paragraph {
+  white-space: pre-wrap;
+}
+
+.agent-message-rich-lead {
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.45;
+  letter-spacing: -0.01em;
+  white-space: pre-wrap;
+}
+
+.agent-message-rich-hint {
+  padding: 9px 11px;
+  border: 1px solid rgba(201, 205, 214, 0.14);
+  border-radius: 10px;
+  background: rgba(201, 205, 214, 0.05);
   white-space: pre-wrap;
 }
 

@@ -968,7 +968,7 @@ describe("CreatePropertiesPanel", () => {
           id: "a-1",
           role: "assistant",
           content:
-            "CURRENT STEP\n\nWhich camera motion should I use? Pick one from the list below.\n\n1) Static - Locked-off camera\n2) Pan - Rotates horizontally\n3) Dolly In - Moves camera closer",
+            "CURRENT STEP\n\nWhich camera motion should I use? Pick one from the list below.\n\n1) Static - Locked-off camera\n2) Pan - Rotates horizontally\n3) Dolly In - Moves camera closer\n\nReply with one option or type your own.",
         },
       ],
       onAgentInputChange: vi.fn(),
@@ -976,6 +976,7 @@ describe("CreatePropertiesPanel", () => {
     });
 
     expect(screen.getByText("CURRENT STEP")).toBeInTheDocument();
+    expect(screen.getByText("Reply with one option or type your own.")).toBeInTheDocument();
     const items = screen.getAllByRole("listitem");
     expect(items).toHaveLength(3);
     expect(items[0]).toHaveTextContent("Static - Locked-off camera");

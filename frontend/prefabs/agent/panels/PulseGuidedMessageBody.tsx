@@ -11,7 +11,15 @@ type PulseGuidedMessageBlock =
       text: string;
     }
   | {
+      kind: "lead";
+      text: string;
+    }
+  | {
       kind: "paragraph";
+      text: string;
+    }
+  | {
+      kind: "hint";
       text: string;
     }
   | {
@@ -25,6 +33,8 @@ const LABEL_LINE_PATTERN =
   /^(?:[A-Z][A-Z\s/&-]{2,}|Step\s+\d+(?:\s*[-:]\s*.+)?|Current\s+step|Next\s+step|Tip|Options?)$/i;
 const ORDERED_ITEM_PATTERN = /^\s*\d+[.)]\s+/;
 const BULLET_ITEM_PATTERN = /^\s*[-*•]\s+/;
+const HINT_LINE_PATTERN =
+  /^(?:Reply with|Type your own|Type one|Choose one|Pick one|You can also|If none fit|If you want)/i;
 
 const normalizeText = (value: string): string =>
   value
@@ -64,6 +74,18 @@ const isLabelLine = (value: string): boolean => {
   if (!normalized.length) return false;
   if (normalized.length > 52) return false;
   return LABEL_LINE_PATTERN.test(normalized);
+};
+
+const isLeadParagraph = (value: string): boolean => {
+  const normalized = normalizeText(value);
+  if (!normalized.length || normalized.length > 220) return false;
+  return normalized.endsWith("?");
+};
+
+const isHintParagraph = (value: string): boolean => {
+  const normalized = normalizeText(value);
+  if (!normalized.length || normalized.length > 180) return false;
+  return HINT_LINE_PATTERN.test(normalized);
 };
 
 const parseSingleBlock = (value: string): PulseGuidedMessageBlock[] => {
@@ -114,6 +136,14 @@ const parseSingleBlock = (value: string): PulseGuidedMessageBlock[] => {
     ];
   }
 
+  if (isHintParagraph(normalized)) {
+    return [{ kind: "hint", text: normalized }];
+  }
+
+  if (isLeadParagraph(normalized)) {
+    return [{ kind: "lead", text: normalized }];
+  }
+
   return [{ kind: "paragraph", text: normalized }];
 };
 
@@ -141,6 +171,14 @@ export const PulseGuidedMessageBody = React.forwardRef<HTMLDivElement, { content
             );
           }
 
+          if (block.kind === "lead") {
+            return (
+              <p key={key} className="agent-message-rich-lead tiny">
+                {block.text}
+              </p>
+            );
+          }
+
           if (block.kind === "list") {
             const ListTag = block.ordered ? "ol" : "ul";
             return (
@@ -162,6 +200,14 @@ export const PulseGuidedMessageBody = React.forwardRef<HTMLDivElement, { content
                   ))}
                 </ListTag>
               </div>
+            );
+          }
+
+          if (block.kind === "hint") {
+            return (
+              <p key={key} className="agent-message-rich-hint tiny">
+                {block.text}
+              </p>
             );
           }
 

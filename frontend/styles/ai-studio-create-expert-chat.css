@@ -605,6 +605,22 @@
 .create-expert-panel
   .create-expert-prompt-step
   .agent-message.agent-assistant.agent-message--pulse-guided
+  .agent-message-rich-lead {
+  color: #d8f7ff !important;
+}
+
+.create-expert-panel
+  .create-expert-prompt-step
+  .agent-message.agent-assistant.agent-message--pulse-guided
+  .agent-message-rich-hint {
+  color: rgba(196, 240, 248, 0.9) !important;
+  border-color: rgba(80, 179, 200, 0.18);
+  background: rgba(33, 74, 84, 0.2);
+}
+
+.create-expert-panel
+  .create-expert-prompt-step
+  .agent-message.agent-assistant.agent-message--pulse-guided
   .agent-message-rich-paragraph,
 .create-expert-panel
   .create-expert-prompt-step

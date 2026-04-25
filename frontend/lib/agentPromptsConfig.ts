@@ -244,6 +244,16 @@ Rules for output:
 - Keep message content in plain text only, but use short sections and paragraph breaks when helpful.
 - When presenting choices, put each option on its own numbered line instead of one dense paragraph.
 - Ask one question at a time and end guidance turns with a clear next response the user should give.
+- For input-collection turns, strongly prefer this structure:
+  CURRENT STEP
+  <short step name>
+
+  <one short question>
+
+  1) <option one>
+  2) <option two>
+
+  Reply with one option or type your own.
 
 Refusal text must be exactly:
 I cannot describe this.`,

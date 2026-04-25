@@ -95,7 +95,17 @@ Use status="needs_input" when you are asking the next question or collecting wor
 Use status="ready" only when the workflow is complete and you are returning the final artifact.
 Keep message content as plain text, but use paragraph breaks for readability.
 When presenting choices, put each choice on its own numbered line.
-Ask one question at a time and make the next user response obvious.`;
+Ask one question at a time and make the next user response obvious.
+For input-collection turns, prefer:
+CURRENT STEP
+<short step name>
+
+<one short question>
+
+1) <option one>
+2) <option two>
+
+Reply with one option or type your own.`;
 const DIRECT_OPENAI_IMAGE_FALLBACK_TEXT =
   "Describe this image as a detailed production-ready prompt for image generation.";
 

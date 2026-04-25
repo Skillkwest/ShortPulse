@@ -224,7 +224,7 @@ export function MediaLibraryMediaGrid({
                     onToggleMediaSelection(file);
                   }}
                 >
-                  {selectedIds.has(file.id) ? <Check size={13} weight="bold" aria-hidden /> : null}
+                  {selectedIds.has(file.id) ? <Check size={15} weight="bold" aria-hidden /> : null}
                 </button>
               ) : null}
               <button

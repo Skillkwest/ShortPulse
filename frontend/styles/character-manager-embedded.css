@@ -169,15 +169,19 @@
 }
 
 .character-manager-page--embedded .character-create-workspace-layout {
-  align-items: start;
-  height: auto;
+  align-items: stretch;
+  flex: 1 1 auto;
+  height: 100%;
   min-height: 0;
 }
 
 .character-manager-page--embedded .character-simple-panel {
-  align-self: start;
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  align-self: stretch;
   min-height: 0;
-  height: auto;
+  height: 100%;
 }
 
 .character-manager-page--embedded[data-active-tab="manage"] .character-manage-panel {
@@ -256,13 +260,13 @@
 }
 
 .character-manager-page--embedded .character-profile-photo-btn {
-  width: 150px;
-  height: 150px;
+  width: 120px;
+  height: 120px;
 }
 
 .character-manager-page--embedded .character-profile-placeholder-icon svg {
-  width: 44px;
-  height: 44px;
+  width: 40px;
+  height: 40px;
 }
 
 .character-manager-page--embedded .character-profile-fields {
@@ -347,10 +351,11 @@
 
   .character-manager-page--embedded .character-layout-region--sheet {
     min-width: 0;
-    align-self: start;
+    align-self: stretch;
     width: 100%;
     max-width: var(--character-embedded-sheet-max-width);
-    height: auto;
+    min-height: 0;
+    height: 100%;
   }
 
   .character-manager-page--embedded .character-layout-region--quickswap {
@@ -358,6 +363,8 @@
     width: 100%;
     max-width: none;
     justify-self: stretch;
+    align-self: stretch;
+    min-height: 0;
     overflow-x: hidden;
   }
 }

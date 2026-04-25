@@ -193,9 +193,14 @@ export function ExpertCreatePanelView({
   const promptAndControls = (
     <>
       {!hasChatHistory ? (
-        <p className={`create-expert-ready-text ${shouldHideReadyTitle ? "is-hidden" : ""}`.trim()}>
-          What do you want to make?
-        </p>
+        <>
+          <div className="create-expert-empty-preview-frame" aria-hidden="true" />
+          <p
+            className={`create-expert-ready-text ${shouldHideReadyTitle ? "is-hidden" : ""}`.trim()}
+          >
+            What do you want to make?
+          </p>
+        </>
       ) : null}
       <div className="create-expert-bottom-block">
         <PromptStep {...promptStepLayoutProps} />

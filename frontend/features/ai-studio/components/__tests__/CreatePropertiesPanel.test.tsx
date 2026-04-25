@@ -719,6 +719,7 @@ describe("CreatePropertiesPanel", () => {
     });
 
     expect(container.querySelector(".create-expert-empty-state-shell")).toBeTruthy();
+    expect(container.querySelector(".create-expert-empty-preview-frame")).toBeTruthy();
     expect(container.querySelector(".create-expert-empty-top-spacer")).toBeFalsy();
     expect(container.querySelector(".create-expert-chat-spacer")).toBeTruthy();
     expect(screen.queryByText("References attach from the message bar.")).not.toBeInTheDocument();

@@ -283,7 +283,7 @@ const buildLegacyReferenceSetStateFromFlatDraft = ({
     },
   });
 
-export const resolveSupabaseContext = async (): Promise<ElementsContext> => {
+const resolveSupabaseContext = async (): Promise<ElementsContext> => {
   const userId = await readSupabaseUserId();
   if (!userId) {
     throw new Error("You must be signed in to manage elements.");
@@ -294,7 +294,7 @@ export const resolveSupabaseContext = async (): Promise<ElementsContext> => {
   };
 };
 
-export const createElementProfileStoragePath = ({
+const createElementProfileStoragePath = ({
   userId,
   elementId,
   filename,
@@ -316,7 +316,7 @@ export const createElementProfileStoragePath = ({
   return storagePath;
 };
 
-export const createElementMediaAsset = async ({
+const createElementMediaAsset = async ({
   userId,
   elementId,
   storagePath,
@@ -357,7 +357,7 @@ export const createElementMediaAsset = async ({
   };
 };
 
-export const getElementProfileImageMetadata = (
+const getElementProfileImageMetadata = (
   metadata: unknown
 ): { storagePath: string | null; mediaAssetId: string | null } => {
   const record = toObjectRecord(metadata);
@@ -367,9 +367,7 @@ export const getElementProfileImageMetadata = (
   };
 };
 
-export const getElementProfileImageTransform = (
-  metadata: unknown
-): ElementProfileImageTransform => {
+const getElementProfileImageTransform = (metadata: unknown): ElementProfileImageTransform => {
   const record = toObjectRecord(metadata);
   return normalizeProfileImageTransform({
     zoom:
@@ -491,7 +489,7 @@ export const fetchElementsManagerList = async (): Promise<ElementsManagerListIte
   return items;
 };
 
-export const createElementDraftRow = async ({
+const createElementDraftRow = async ({
   name = DEFAULT_ELEMENT_NAME,
 }: {
   name?: string;

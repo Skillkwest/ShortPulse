@@ -4,7 +4,6 @@
  */
 export {
   clearElementProfileImage,
-  createElementDraftRow,
   DEFAULT_ELEMENT_NAME,
   deleteElementManagerDraft,
   fetchElementsManagerList,

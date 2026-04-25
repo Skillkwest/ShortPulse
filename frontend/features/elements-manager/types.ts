@@ -28,8 +28,6 @@ export type ElementLibraryItem = {
 
 export type ElementsWorkflowTab = "manage" | "profile";
 
-export type ElementsProfileMode = "create" | "edit";
-
 export type ElementDraft = {
   name: string;
   alias: string;

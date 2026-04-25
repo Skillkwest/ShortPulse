@@ -3,7 +3,7 @@
  * Verifies Create workflow controls that should stay visible in Character Mode.
  */
 import React from "react";
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { ComposeSendCard, CreatePropertiesPanel } from "../CreatePropertiesPanel";
 
@@ -1061,7 +1061,7 @@ describe("CreatePropertiesPanel", () => {
     expect(screen.queryByLabelText("Active pulse session")).not.toBeInTheDocument();
   });
 
-  it("shows the persisted final artifact for completed workflow pulse sessions", () => {
+  it("does not render a separate completed banner for finished workflow pulses", () => {
     renderPanel({
       beginnerMode: false,
       expertCreateUiEligible: true,
@@ -1078,95 +1078,24 @@ describe("CreatePropertiesPanel", () => {
         lastArtifact:
           "Scene 1: cinematic wide shot of the knight entering the ruined hall under torchlight.",
       },
+      agentMessages: [
+        {
+          id: "assistant-final",
+          role: "assistant",
+          content:
+            "FINAL PROMPT\n\nScene 1: cinematic wide shot of the knight entering the ruined hall under torchlight.",
+        },
+      ],
       onAgentInputChange: vi.fn(),
       onAgentSend: vi.fn(),
     });
 
-    const workflowBanner = screen.getByLabelText("Completed pulse session");
-    expect(within(workflowBanner).getByText("Story Builder")).toBeInTheDocument();
-    expect(within(workflowBanner).getByText("Completed Pulse")).toBeInTheDocument();
-    expect(within(workflowBanner).getByText("Completed")).toBeInTheDocument();
-    expect(within(workflowBanner).getByText("Image Prompts")).toBeInTheDocument();
-    expect(within(workflowBanner).getByText("Final artifact")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Completed pulse session")).not.toBeInTheDocument();
     expect(
-      within(workflowBanner).getByText(
-        "This guided Pulse has finished. Review the final artifact below or restart the session."
-      )
-    ).toBeInTheDocument();
-    expect(
-      within(workflowBanner).getByText(
+      screen.getByText(
         "Scene 1: cinematic wide shot of the knight entering the ruined hall under torchlight."
       )
     ).toBeInTheDocument();
-  });
-
-  it("applies the persisted workflow artifact from the completed workflow session banner", () => {
-    const onAgentApplyPrompt = vi.fn();
-    renderPanel({
-      beginnerMode: false,
-      expertCreateUiEligible: true,
-      agentEnabled: true,
-      expertCreateMode: "pulse",
-      activePulsePresetId: "story_builder",
-      pulseWorkflowSession: {
-        presetId: "story_builder",
-        status: "completed",
-        currentStepIndex: 6,
-        currentStepLabel: "Image Prompts",
-        currentStepPrompt: null,
-        collectedInputs: ["grimdark tone", "10 min runtime"],
-        lastArtifact:
-          "Scene 1: cinematic wide shot of the knight entering the ruined hall under torchlight.",
-      },
-      onAgentInputChange: vi.fn(),
-      onAgentSend: vi.fn(),
-      onAgentApplyPrompt,
-    });
-
-    fireEvent.click(screen.getByRole("button", { name: "Use artifact" }));
-
-    expect(onAgentApplyPrompt).toHaveBeenCalledWith(
-      "Scene 1: cinematic wide shot of the knight entering the ruined hall under torchlight."
-    );
-  });
-
-  it("restarts the completed workflow pulse from the banner using the canonical pulse start path", async () => {
-    const onClearAgentChat = vi.fn();
-    const onPulsePresetRestart = vi.fn();
-    renderPanel({
-      beginnerMode: false,
-      expertCreateUiEligible: true,
-      agentEnabled: true,
-      expertCreateMode: "pulse",
-      activePulsePresetId: "story_builder",
-      pulseWorkflowSession: {
-        presetId: "story_builder",
-        status: "completed",
-        currentStepIndex: 6,
-        currentStepLabel: "Image Prompts",
-        currentStepPrompt: null,
-        collectedInputs: ["grimdark tone", "10 min runtime"],
-        lastArtifact:
-          "Scene 1: cinematic wide shot of the knight entering the ruined hall under torchlight.",
-      },
-      onAgentInputChange: vi.fn(),
-      onAgentSend: vi.fn(),
-      onClearAgentChat,
-      onPulsePresetRestart,
-    });
-
-    fireEvent.click(screen.getByRole("button", { name: "Restart workflow" }));
-
-    await waitFor(() => {
-      expect(onClearAgentChat).not.toHaveBeenCalled();
-      expect(onPulsePresetRestart).toHaveBeenCalledWith(
-        expect.objectContaining({
-          presetId: "story_builder",
-          runtimeMode: "workflow_gpt",
-          activationMode: "activate_and_start",
-        })
-      );
-    });
   });
 
   it("shows selected custom style preview from the live styles catalog", () => {

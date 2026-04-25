@@ -29,7 +29,6 @@ import type {
   CreatePulseResolvedPreset,
   CreatePulseSavedPreset,
 } from "./create/createPulsePresets";
-import { resolveCreatePulsePresetById } from "./create/createPulsePresets";
 import {
   getCreateCharacterInitials,
   type CreateCharacterOption,
@@ -369,7 +368,6 @@ export function CreatePropertiesPanel({
   onAgentAttachmentDragLeave,
   onRemoveAgentAttachment,
   onClearAgentAttachments,
-  onAgentApplyPrompt,
   onAssistantMessageEdit,
   onGenerateFromAgentOutputPrompt,
   agentChatOpen = false,
@@ -400,10 +398,8 @@ export function CreatePropertiesPanel({
   expertCreateMode,
   onExpertCreateModeChange,
   activePulsePresetId,
-  pulseWorkflowSession = null,
   onActivePulsePresetIdChange,
   onPulsePresetStart,
-  onPulsePresetRestart,
   selectedPulsePresetIds,
   onSelectedPulsePresetIdsChange,
   savedPulsePresets,
@@ -544,134 +540,6 @@ export function CreatePropertiesPanel({
     isCreateModelPickerOpen,
     disableOutputGenerate,
   } = selectorViewState;
-  const activeWorkflowPulsePreset = useMemo(() => {
-    if (expertCreateMode !== "pulse" || !activePulsePresetId) return null;
-    const resolvedPreset = resolveCreatePulsePresetById(activePulsePresetId, savedPulsePresets);
-    if (!resolvedPreset || resolvedPreset.runtimeMode !== "workflow_gpt") return null;
-    return resolvedPreset;
-  }, [activePulsePresetId, expertCreateMode, savedPulsePresets]);
-  const activeWorkflowPulseSession = useMemo(() => {
-    if (!activeWorkflowPulsePreset || !pulseWorkflowSession) return null;
-    return pulseWorkflowSession.presetId === activeWorkflowPulsePreset.presetId
-      ? pulseWorkflowSession
-      : null;
-  }, [activeWorkflowPulsePreset, pulseWorkflowSession]);
-  const activeWorkflowPulseStatus = useMemo(() => {
-    if (!activeWorkflowPulsePreset) return null;
-    if (!activeWorkflowPulseSession) return "Ready to guide";
-    switch (activeWorkflowPulseSession.status) {
-      case "running":
-        return "Running next step";
-      case "awaiting_input":
-        return "Awaiting your reply";
-      case "completed":
-        return "Completed";
-      default:
-        return "Ready to guide";
-    }
-  }, [activeWorkflowPulsePreset, activeWorkflowPulseSession]);
-  const activeWorkflowPulseStep = useMemo(() => {
-    if (!activeWorkflowPulsePreset) return null;
-    if (activeWorkflowPulseSession?.currentStepLabel?.trim()) {
-      return activeWorkflowPulseSession.currentStepLabel.trim();
-    }
-    if (
-      typeof activeWorkflowPulseSession?.currentStepIndex === "number" &&
-      Number.isFinite(activeWorkflowPulseSession.currentStepIndex) &&
-      activeWorkflowPulseSession.currentStepIndex > 0
-    ) {
-      return `Step ${Math.trunc(activeWorkflowPulseSession.currentStepIndex)}`;
-    }
-    return null;
-  }, [activeWorkflowPulsePreset, activeWorkflowPulseSession]);
-  const completedWorkflowPulseArtifact = useMemo(() => {
-    if (activeWorkflowPulseSession?.status !== "completed") return null;
-    const artifact = activeWorkflowPulseSession.lastArtifact?.trim() ?? "";
-    return artifact.length > 0 ? artifact : null;
-  }, [activeWorkflowPulseSession]);
-  const handleApplyWorkflowArtifact = React.useCallback(() => {
-    const artifact = activeWorkflowPulseSession?.lastArtifact?.trim() ?? "";
-    if (!artifact) return;
-    onAgentApplyPrompt?.(artifact);
-  }, [activeWorkflowPulseSession, onAgentApplyPrompt]);
-  const handleRestartWorkflowPulse = React.useCallback(async () => {
-    if (!activeWorkflowPulsePreset) return;
-    if (onPulsePresetRestart) {
-      await onPulsePresetRestart(activeWorkflowPulsePreset);
-      return;
-    }
-    if (!onPulsePresetStart || !onClearAgentChat) return;
-    onClearAgentChat?.();
-    await onPulsePresetStart(activeWorkflowPulsePreset);
-  }, [activeWorkflowPulsePreset, onClearAgentChat, onPulsePresetRestart, onPulsePresetStart]);
-  const activeWorkflowPulseBanner =
-    activeWorkflowPulsePreset && activeWorkflowPulseSession?.status === "completed" ? (
-      <div
-        className="create-expert-workflow-session-banner"
-        role="status"
-        aria-live="polite"
-        aria-label="Completed pulse session"
-      >
-        <div className="create-expert-workflow-session-banner-header">
-          <div className="create-expert-workflow-session-banner-copy">
-            <p className="create-expert-workflow-session-banner-eyebrow">Completed Pulse</p>
-            <h3 className="create-expert-workflow-session-banner-title">
-              {activeWorkflowPulsePreset.label}
-            </h3>
-          </div>
-        </div>
-        <div className="create-expert-workflow-session-banner-badges">
-          {activeWorkflowPulseStep ? (
-            <span className="create-expert-workflow-session-banner-badge">
-              {activeWorkflowPulseStep}
-            </span>
-          ) : null}
-          {activeWorkflowPulseStatus ? (
-            <span className="create-expert-workflow-session-banner-badge">
-              {activeWorkflowPulseStatus}
-            </span>
-          ) : null}
-        </div>
-        <p className="create-expert-workflow-session-banner-summary">
-          This guided Pulse has finished. Review the final artifact below or restart the session.
-        </p>
-        {completedWorkflowPulseArtifact ? (
-          <p className="create-expert-workflow-session-banner-preview">
-            <span className="create-expert-workflow-session-banner-preview-label">
-              Final artifact
-            </span>
-            <span>{completedWorkflowPulseArtifact}</span>
-          </p>
-        ) : null}
-        {(completedWorkflowPulseArtifact && onAgentApplyPrompt) ||
-        onPulsePresetRestart ||
-        (onPulsePresetStart && onClearAgentChat) ? (
-          <div className="create-expert-workflow-session-banner-actions">
-            {completedWorkflowPulseArtifact && onAgentApplyPrompt ? (
-              <button
-                type="button"
-                className="create-expert-workflow-session-banner-action"
-                onClick={handleApplyWorkflowArtifact}
-              >
-                Use artifact
-              </button>
-            ) : null}
-            {onPulsePresetRestart || (onPulsePresetStart && onClearAgentChat) ? (
-              <button
-                type="button"
-                className="create-expert-workflow-session-banner-action"
-                onClick={() => {
-                  void handleRestartWorkflowPulse();
-                }}
-              >
-                Restart workflow
-              </button>
-            ) : null}
-          </div>
-        ) : null}
-      </div>
-    ) : null;
-
   // Auto-clamp invalid image resolution values when switching image models.
   useEffect(() => {
     if (!onImageResolutionChange) return;
@@ -710,7 +578,6 @@ export function CreatePropertiesPanel({
     onClearAgentAttachments,
     onExpandChat,
     onClearAgentChat,
-    onAgentApplyPrompt,
     onAssistantMessageEdit,
     onGenerateOutputPrompt: onGenerateFromAgentOutputPrompt,
     chatModeInlineGenerate: {
@@ -726,7 +593,6 @@ export function CreatePropertiesPanel({
     outputGenerateCostCredits,
     outputGenerateGuardrailReason: disableOutputGenerate ? guardrailReason : null,
     hideOutputGenerateControls: isPulseCreateMode,
-    chatSessionBanner: activeWorkflowPulseBanner,
     chatOnly: true,
     chatPromptSaveButtonClassName: "create-chat-pin-btn",
     chatPromptSaveButtonUnstyled: true,

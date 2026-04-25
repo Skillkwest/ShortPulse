@@ -10,6 +10,7 @@ import {
 import {
   clearCharacterManagerProfileImage,
   clearCharacterManagerSlot,
+  type CharacterManagerListItem,
   saveCharacterManagerCharacterSheetPresetAsset,
   saveCharacterManagerCharacterSheetPresetAssignments,
   saveCharacterManagerCharacterSheetAssignments,
@@ -34,11 +35,6 @@ import type {
   CharacterSlotValidationNotes,
 } from "../types";
 
-type RefreshCharacterListOptions = {
-  publishSyncEvent?: boolean;
-  reason?: CharacterListChangeReason;
-};
-
 type UseCharacterManagerAssetControllerParams = {
   characterId: string | null;
   characterSheetId: string | null;
@@ -50,10 +46,6 @@ type UseCharacterManagerAssetControllerParams = {
   setProfileImageTransform: React.Dispatch<React.SetStateAction<CharacterProfileImageTransform>>;
   profileImageTransform: CharacterProfileImageTransform;
   defaultProfileImageTransform: CharacterProfileImageTransform;
-  refreshCharacterListSilently: (
-    preferredCharacterId?: string | null,
-    options?: RefreshCharacterListOptions
-  ) => Promise<void>;
   selectedCharacterStorageScopeRef: React.MutableRefObject<string | null>;
   toErrorMessage: (error: unknown, fallback: string) => string;
   setCharacterSheetAssignments: React.Dispatch<React.SetStateAction<CharacterSheetAssignments>>;
@@ -68,6 +60,10 @@ type UseCharacterManagerAssetControllerParams = {
   markSlotBusy: (slotKey: CharacterReferenceSlotKey, busy: boolean) => void;
   slotsRef: React.MutableRefObject<CharacterSlotFileMap>;
   setSlots: React.Dispatch<React.SetStateAction<CharacterSlotFileMap>>;
+  patchCharacterListItem: (
+    targetCharacterId: string,
+    updateItem: (item: CharacterManagerListItem) => CharacterManagerListItem
+  ) => void;
 };
 
 type UseCharacterManagerAssetControllerResult = {
@@ -114,7 +110,6 @@ export const useCharacterManagerAssetController = ({
   setProfileImageTransform,
   profileImageTransform,
   defaultProfileImageTransform,
-  refreshCharacterListSilently,
   selectedCharacterStorageScopeRef,
   toErrorMessage,
   setCharacterSheetAssignments,
@@ -127,6 +122,7 @@ export const useCharacterManagerAssetController = ({
   markSlotBusy,
   slotsRef,
   setSlots,
+  patchCharacterListItem,
 }: UseCharacterManagerAssetControllerParams): UseCharacterManagerAssetControllerResult => {
   const stagedProfileImageFileRef = React.useRef<File | null>(null);
   const stagedProfileImagePreviewUrlRef = React.useRef<string | null>(null);
@@ -172,8 +168,14 @@ export const useCharacterManagerAssetController = ({
         });
         setProfileImageUrl(signedUrl);
         setProfileImageTransform(defaultProfileImageTransform);
-        await refreshCharacterListSilently(characterId, {
-          publishSyncEvent: true,
+        patchCharacterListItem(characterId, (item) => ({
+          ...item,
+          profileImageUrl: signedUrl,
+          profileImageTransform: defaultProfileImageTransform,
+          updatedAt: new Date().toISOString(),
+        }));
+        publishCharacterListChanged({
+          userId: selectedCharacterStorageScopeRef.current,
           reason: "profile_image",
         });
       } catch (nextError) {
@@ -186,7 +188,7 @@ export const useCharacterManagerAssetController = ({
       characterId,
       clearMessages,
       defaultProfileImageTransform,
-      refreshCharacterListSilently,
+      patchCharacterListItem,
       revokeObjectUrl,
       setError,
       setIsSavingProfileImage,
@@ -221,6 +223,10 @@ export const useCharacterManagerAssetController = ({
           offsetY: transform.offsetY,
         });
         setProfileImageTransform(persistedTransform);
+        patchCharacterListItem(characterId, (item) => ({
+          ...item,
+          profileImageTransform: persistedTransform,
+        }));
         publishCharacterListChanged({
           userId: selectedCharacterStorageScopeRef.current,
           reason: "profile_image",
@@ -237,6 +243,7 @@ export const useCharacterManagerAssetController = ({
       characterId,
       clearMessages,
       profileImageUrl,
+      patchCharacterListItem,
       selectedCharacterStorageScopeRef,
       setError,
       setIsSavingProfileImage,
@@ -263,8 +270,14 @@ export const useCharacterManagerAssetController = ({
       });
       setProfileImageUrl(null);
       setProfileImageTransform(defaultProfileImageTransform);
-      await refreshCharacterListSilently(characterId, {
-        publishSyncEvent: true,
+      patchCharacterListItem(characterId, (item) => ({
+        ...item,
+        profileImageUrl: null,
+        profileImageTransform: null,
+        updatedAt: new Date().toISOString(),
+      }));
+      publishCharacterListChanged({
+        userId: selectedCharacterStorageScopeRef.current,
         reason: "profile_image",
       });
     } catch (nextError) {
@@ -276,7 +289,7 @@ export const useCharacterManagerAssetController = ({
     characterId,
     clearMessages,
     defaultProfileImageTransform,
-    refreshCharacterListSilently,
+    patchCharacterListItem,
     revokeObjectUrl,
     setError,
     setIsSavingProfileImage,
@@ -471,7 +484,10 @@ export const useCharacterManagerAssetController = ({
           slotsRef.current = next;
           return next;
         });
-        await refreshCharacterListSilently(characterId);
+        patchCharacterListItem(characterId, (item) => ({
+          ...item,
+          updatedAt: new Date().toISOString(),
+        }));
         return true;
       } catch (nextError) {
         setError(toErrorMessage(nextError, "Failed to save this shot."));
@@ -485,7 +501,7 @@ export const useCharacterManagerAssetController = ({
       characterSheetId,
       clearMessages,
       markSlotBusy,
-      refreshCharacterListSilently,
+      patchCharacterListItem,
       revokeObjectUrl,
       setError,
       setSlots,
@@ -525,7 +541,12 @@ export const useCharacterManagerAssetController = ({
           slotsRef.current = next;
           return next;
         });
-        await refreshCharacterListSilently(characterId);
+        if (characterId) {
+          patchCharacterListItem(characterId, (item) => ({
+            ...item,
+            updatedAt: new Date().toISOString(),
+          }));
+        }
       } catch (nextError) {
         setError(toErrorMessage(nextError, "Failed to remove this shot."));
       } finally {
@@ -537,7 +558,7 @@ export const useCharacterManagerAssetController = ({
       characterSheetId,
       clearMessages,
       markSlotBusy,
-      refreshCharacterListSilently,
+      patchCharacterListItem,
       revokeObjectUrl,
       setError,
       setSlots,

@@ -134,7 +134,6 @@
       "tests/e2e/character-pipeline.audit.js",
       "tests/e2e/media-library-runtime.audit.js",
       "vitest.setup.ts",
-      "features/character-manager/components/CharacterVoiceSelectorModal.tsx",
       "scripts/backfill_video_posters.mjs"
     ]
   }

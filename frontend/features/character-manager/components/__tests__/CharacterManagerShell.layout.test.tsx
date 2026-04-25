@@ -45,7 +45,6 @@ vi.mock("../../hooks/useCharacterManagerDraft", () => ({
     characters: [],
     selectedCharacterId: "character-1",
     characterName: "Taylor",
-    characterVoice: "",
     characterDescription: "",
     characterSheetAssignments: createEmptyCharacterSheetAssignments(),
     activeCharacterSheetPresetId: "1",
@@ -76,7 +75,6 @@ vi.mock("../../hooks/useCharacterManagerDraft", () => ({
     isSavingCharacterSheetPreset: false,
     hasUnsavedCharacterDraft: false,
     setCharacterName: () => undefined,
-    setCharacterVoice: () => undefined,
     setCharacterDescription: () => undefined,
     setProfileImageFile: async () => undefined,
     saveProfileImageTransform: async () => true,
@@ -148,6 +146,19 @@ describe("CharacterManagerShell layout", () => {
     expect(nameInput).toBeInTheDocument();
     expect(descriptionInput?.closest("[data-layout-region]")).toBe(sheetRegion);
     expect(nameInput?.closest("[data-layout-region]")).toBe(sheetRegion);
+  });
+
+  it("links workflow tabs to matching tab panels", () => {
+    render(<CharacterManagerShell />);
+
+    const manageTab = screen.getByRole("tab", { name: "Manage Characters" });
+    const createTab = screen.getByRole("tab", { name: "Character Profile" });
+    const createPanel = screen.getByRole("tabpanel", { name: "Character Profile" });
+
+    expect(manageTab).toHaveAttribute("aria-controls");
+    expect(createTab).toHaveAttribute("aria-controls", createPanel.getAttribute("id"));
+    expect(createTab).toHaveAttribute("tabindex", "0");
+    expect(manageTab).toHaveAttribute("tabindex", "-1");
   });
 
   it("hides the quarantined voice controls in profile mode", () => {

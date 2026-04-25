@@ -639,7 +639,11 @@ describe("useCharacterManagerDraft", () => {
 
     expect(deleteCharacterManagerDraftMock).toHaveBeenCalledWith({ characterId: "char-1" });
     expect(loadCharacterManagerDraftByCharacterIdMock).toHaveBeenCalledWith("char-2");
-    expect(listCharacterManagerCharactersMock).toHaveBeenCalledTimes(2);
+    expect(listCharacterManagerCharactersMock).toHaveBeenCalledTimes(1);
+    expect(publishCharacterListChangedMock).toHaveBeenCalledWith({
+      userId: "user-1",
+      reason: "delete",
+    });
   });
 
   it("uploads a profile image and refreshes the character rail", async () => {

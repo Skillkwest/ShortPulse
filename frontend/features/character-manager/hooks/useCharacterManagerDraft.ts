@@ -37,7 +37,6 @@ type UseCharacterManagerDraftResult = {
   characters: CharacterManagerListItem[];
   selectedCharacterId: string | null;
   characterName: string;
-  characterVoice: string;
   characterDescription: string;
   characterSheetAssignments: CharacterSheetAssignments;
   activeCharacterSheetPresetId: CharacterSheetPresetId;
@@ -59,7 +58,6 @@ type UseCharacterManagerDraftResult = {
   isSavingCharacterSheetPreset: boolean;
   hasUnsavedCharacterDraft: boolean;
   setCharacterName: (value: string) => void;
-  setCharacterVoice: (value: string) => void;
   setCharacterDescription: (value: string) => void;
   setProfileImageFile: (file: File) => Promise<void>;
   saveProfileImageTransform: (transform: CharacterProfileImageTransform) => Promise<boolean>;
@@ -103,6 +101,13 @@ const createPresetRequestCounterMap = (): Record<CharacterSheetPresetId, number>
     {} as Record<CharacterSheetPresetId, number>
   );
 
+const sortCharacterListItems = (items: CharacterManagerListItem[]): CharacterManagerListItem[] =>
+  [...items].sort((left, right) => {
+    const updatedDiff = right.updatedAt.localeCompare(left.updatedAt);
+    if (updatedDiff !== 0) return updatedDiff;
+    return right.characterId.localeCompare(left.characterId);
+  });
+
 /**
  * Manages persisted character draft state and reference uploads.
  */
@@ -111,7 +116,6 @@ export const useCharacterManagerDraft = (): UseCharacterManagerDraftResult => {
   const [characterId, setCharacterId] = useState<string | null>(null);
   const [characterSheetId, setCharacterSheetId] = useState<string | null>(null);
   const [characterName, setCharacterNameState] = useState("New Character");
-  const [characterVoice, setCharacterVoiceState] = useState("");
   const [characterDescription, setCharacterDescriptionState] = useState("");
   const [characterSheetAssignments, setCharacterSheetAssignments] =
     useState<CharacterSheetAssignments>(() => createEmptyCharacterSheetAssignments());
@@ -173,6 +177,7 @@ export const useCharacterManagerDraft = (): UseCharacterManagerDraftResult => {
     createPresetRequestCounterMap()
   );
   const slotsRef = useRef<CharacterSlotFileMap>(createEmptyCharacterSlotMap());
+  const charactersRef = useRef<CharacterManagerListItem[]>([]);
   const characterSheetAssignmentsRef = useRef<CharacterSheetAssignments>(
     createEmptyCharacterSheetAssignments()
   );
@@ -209,6 +214,10 @@ export const useCharacterManagerDraft = (): UseCharacterManagerDraftResult => {
   }, [slots]);
 
   useEffect(() => {
+    charactersRef.current = characters;
+  }, [characters]);
+
+  useEffect(() => {
     characterSheetAssignmentsRef.current = characterSheetAssignments;
   }, [characterSheetAssignments]);
 
@@ -232,44 +241,98 @@ export const useCharacterManagerDraft = (): UseCharacterManagerDraftResult => {
     characterSheetPresetDescriptionsRef.current = characterSheetPresetDescriptions;
   }, [characterSheetPresetDescriptions]);
 
-  const { applySnapshot, applyLocalDraft, refreshCharacterList, refreshCharacterListSilently } =
-    useCharacterManagerBootstrapController({
-      setCharacters,
-      setCharacterId,
-      setCharacterSheetId,
-      setCharacterNameState,
-      setCharacterDescriptionState,
-      setCharacterSheetAssignments,
-      setActiveCharacterSheetPresetIdState,
-      setCharacterSheetPresets,
-      setVisibleCharacterSheetPresetIds,
-      setCharacterSheetPresetLabels,
-      setCharacterSheetPresetDescriptions,
-      setCharacterSheetPresetAssignments,
-      setProfileImageUrl,
-      setProfileImageTransform,
-      setSlots,
-      setError,
-      setLoading,
-      setSlotBusyKeys,
-      suppressNextNamePersistRef,
-      selectedCharacterStorageScopeRef,
-      characterSheetAssignmentsRef,
-      characterSheetAssignmentsRequestRef,
-      activeCharacterSheetPresetIdRef,
-      characterSheetPresetsRef,
-      visibleCharacterSheetPresetIdsRef,
-      characterSheetPresetLabelsRef,
-      characterSheetPresetDescriptionsRef,
-      characterSheetPresetAssignmentsRequestRef,
-      lastPersistedNameRef,
-      lastPersistedDescriptionMapRef,
-      descriptionPersistRequestRef,
-      descriptionPersistTimerRefs,
-      createPresetRequestCounterMap,
-      slotsRef,
-      toErrorMessage,
+  const { applySnapshot, applyLocalDraft } = useCharacterManagerBootstrapController({
+    setCharacters,
+    setCharacterId,
+    setCharacterSheetId,
+    setCharacterNameState,
+    setCharacterDescriptionState,
+    setCharacterSheetAssignments,
+    setActiveCharacterSheetPresetIdState,
+    setCharacterSheetPresets,
+    setVisibleCharacterSheetPresetIds,
+    setCharacterSheetPresetLabels,
+    setCharacterSheetPresetDescriptions,
+    setCharacterSheetPresetAssignments,
+    setProfileImageUrl,
+    setProfileImageTransform,
+    setSlots,
+    setError,
+    setLoading,
+    setSlotBusyKeys,
+    suppressNextNamePersistRef,
+    selectedCharacterStorageScopeRef,
+    characterSheetAssignmentsRef,
+    characterSheetAssignmentsRequestRef,
+    activeCharacterSheetPresetIdRef,
+    characterSheetPresetsRef,
+    visibleCharacterSheetPresetIdsRef,
+    characterSheetPresetLabelsRef,
+    characterSheetPresetDescriptionsRef,
+    characterSheetPresetAssignmentsRequestRef,
+    lastPersistedNameRef,
+    lastPersistedDescriptionMapRef,
+    descriptionPersistRequestRef,
+    descriptionPersistTimerRefs,
+    createPresetRequestCounterMap,
+    slotsRef,
+    toErrorMessage,
+  });
+
+  const upsertCharacterListItem = useCallback((item: CharacterManagerListItem) => {
+    setCharacters((previous) => {
+      const next = sortCharacterListItems([
+        ...previous.filter((entry) => entry.characterId !== item.characterId),
+        item,
+      ]);
+      charactersRef.current = next;
+      return next;
     });
+  }, []);
+
+  const patchCharacterListItem = useCallback(
+    (
+      targetCharacterId: string,
+      updateItem: (item: CharacterManagerListItem) => CharacterManagerListItem
+    ) => {
+      setCharacters((previous) => {
+        let found = false;
+        const next = previous.map((item) => {
+          if (item.characterId !== targetCharacterId) {
+            return item;
+          }
+          found = true;
+          return updateItem(item);
+        });
+        if (!found && characterSheetId) {
+          next.push(
+            updateItem({
+              characterId: targetCharacterId,
+              characterName,
+              characterStatus: "draft",
+              characterSheetId,
+              profileImageUrl,
+              profileImageTransform: profileImageUrl ? profileImageTransform : null,
+              characterSheetStatus: "ready",
+              updatedAt: new Date().toISOString(),
+            })
+          );
+        }
+        const sortedNext = sortCharacterListItems(next);
+        charactersRef.current = sortedNext;
+        return sortedNext;
+      });
+    },
+    [characterName, characterSheetId, profileImageTransform, profileImageUrl]
+  );
+
+  const removeCharacterListItem = useCallback((targetCharacterId: string) => {
+    setCharacters((previous) => {
+      const next = previous.filter((item) => item.characterId !== targetCharacterId);
+      charactersRef.current = next;
+      return next;
+    });
+  }, []);
 
   const applyLoadedCharacterSnapshot = useCallback(
     (snapshot: Awaited<ReturnType<typeof loadCharacterManagerDraftByCharacterId>>) => {
@@ -290,7 +353,6 @@ export const useCharacterManagerDraft = (): UseCharacterManagerDraftResult => {
         nextSlots: snapshot.slots,
         nextUserId: snapshot.userId,
       });
-      setCharacterVoiceState("");
     },
     [applySnapshot]
   );
@@ -390,10 +452,6 @@ export const useCharacterManagerDraft = (): UseCharacterManagerDraftResult => {
     setCharacterNameState(value.slice(0, 80));
   }, []);
 
-  const setCharacterVoice = useCallback((value: string) => {
-    setCharacterVoiceState(value.slice(0, 80));
-  }, []);
-
   const {
     setCharacterDescription,
     setActiveCharacterSheetPreset,
@@ -448,7 +506,6 @@ export const useCharacterManagerDraft = (): UseCharacterManagerDraftResult => {
     setProfileImageTransform,
     profileImageTransform,
     defaultProfileImageTransform: DEFAULT_PROFILE_IMAGE_TRANSFORM,
-    refreshCharacterListSilently,
     selectedCharacterStorageScopeRef,
     toErrorMessage,
     setCharacterSheetAssignments,
@@ -461,6 +518,7 @@ export const useCharacterManagerDraft = (): UseCharacterManagerDraftResult => {
     markSlotBusy,
     slotsRef,
     setSlots,
+    patchCharacterListItem,
   });
 
   const createCharacter = useCallback(async () => {
@@ -470,7 +528,6 @@ export const useCharacterManagerDraft = (): UseCharacterManagerDraftResult => {
       applyLocalDraft({
         nextUserId: selectedCharacterStorageScopeRef.current,
       });
-      setCharacterVoiceState("");
     } finally {
       setIsCreatingCharacter(false);
     }
@@ -496,8 +553,18 @@ export const useCharacterManagerDraft = (): UseCharacterManagerDraftResult => {
         characterSheetId: initialSnapshot.characterSheetId,
       });
       const snapshot = await loadAndApplyCharacterSnapshot(initialSnapshot.characterId);
-      await refreshCharacterListSilently(snapshot.characterId, {
-        publishSyncEvent: true,
+      upsertCharacterListItem({
+        characterId: snapshot.characterId,
+        characterName: snapshot.characterName,
+        characterStatus: "draft",
+        characterSheetId: snapshot.characterSheetId,
+        profileImageUrl: snapshot.profileImageUrl,
+        profileImageTransform: snapshot.profileImageUrl ? snapshot.profileImageTransform : null,
+        characterSheetStatus: "ready",
+        updatedAt: new Date().toISOString(),
+      });
+      publishCharacterListChanged({
+        userId: selectedCharacterStorageScopeRef.current,
         reason: "create",
       });
       return true;
@@ -513,7 +580,7 @@ export const useCharacterManagerDraft = (): UseCharacterManagerDraftResult => {
     clearMessages,
     loadAndApplyCharacterSnapshot,
     persistUnsavedDraftAssets,
-    refreshCharacterListSilently,
+    upsertCharacterListItem,
   ]);
 
   const deleteCharacter = useCallback(
@@ -527,24 +594,29 @@ export const useCharacterManagerDraft = (): UseCharacterManagerDraftResult => {
         await deleteCharacterManagerDraft({ characterId: trimmedId });
 
         if (characterId && characterId !== trimmedId) {
-          await refreshCharacterListSilently(characterId, {
-            publishSyncEvent: true,
+          removeCharacterListItem(trimmedId);
+          publishCharacterListChanged({
+            userId: selectedCharacterStorageScopeRef.current,
             reason: "delete",
           });
           return true;
         }
 
-        const nextCharacterId = await refreshCharacterList(null, {
-          publishSyncEvent: true,
+        const remainingCharacters = charactersRef.current.filter(
+          (item) => item.characterId !== trimmedId
+        );
+        removeCharacterListItem(trimmedId);
+        publishCharacterListChanged({
+          userId: selectedCharacterStorageScopeRef.current,
           reason: "delete",
         });
+        const nextCharacterId = remainingCharacters[0]?.characterId ?? null;
         if (nextCharacterId) {
           await loadAndApplyCharacterSnapshot(nextCharacterId);
         } else {
           applyLocalDraft({
             nextUserId: selectedCharacterStorageScopeRef.current,
           });
-          setCharacterVoiceState("");
         }
 
         return true;
@@ -559,9 +631,10 @@ export const useCharacterManagerDraft = (): UseCharacterManagerDraftResult => {
       applyLocalDraft,
       characterId,
       clearMessages,
+      charactersRef,
       loadAndApplyCharacterSnapshot,
-      refreshCharacterList,
-      refreshCharacterListSilently,
+      removeCharacterListItem,
+      selectedCharacterStorageScopeRef,
     ]
   );
 
@@ -595,7 +668,6 @@ export const useCharacterManagerDraft = (): UseCharacterManagerDraftResult => {
     characters,
     selectedCharacterId: characterId,
     characterName,
-    characterVoice,
     characterDescription,
     characterSheetAssignments,
     activeCharacterSheetPresetId,
@@ -617,7 +689,6 @@ export const useCharacterManagerDraft = (): UseCharacterManagerDraftResult => {
     isSavingCharacterSheetPreset,
     hasUnsavedCharacterDraft: !characterId,
     setCharacterName,
-    setCharacterVoice,
     setCharacterDescription,
     setProfileImageFile,
     saveProfileImageTransform,

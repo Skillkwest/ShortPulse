@@ -16,6 +16,8 @@ describe("resolveCharacterLibraryWindow", () => {
           requestedVisibleCount: CHARACTER_LIBRARY_SMOOTH_TARGET,
         })
       ).toEqual({
+        startIndex: 0,
+        endIndexExclusive: total,
         visibleCount: total,
         hiddenCount: 0,
       });
@@ -30,6 +32,8 @@ describe("resolveCharacterLibraryWindow", () => {
         requestedVisibleCount: CHARACTER_LIBRARY_SMOOTH_TARGET,
       })
     ).toEqual({
+      startIndex: 0,
+      endIndexExclusive: 50,
       visibleCount: 50,
       hiddenCount: 50,
     });
@@ -44,12 +48,14 @@ describe("resolveCharacterLibraryWindow", () => {
         requestedVisibleCount: nextVisible,
       })
     ).toEqual({
+      startIndex: 0,
+      endIndexExclusive: 75,
       visibleCount: 75,
       hiddenCount: 25,
     });
   });
 
-  it("keeps the selected character visible even beyond the current window", () => {
+  it("keeps the selected character visible without widening the visible count", () => {
     expect(
       resolveCharacterLibraryWindow({
         totalCharacterCount: 100,
@@ -57,8 +63,10 @@ describe("resolveCharacterLibraryWindow", () => {
         requestedVisibleCount: CHARACTER_LIBRARY_SMOOTH_TARGET,
       })
     ).toEqual({
-      visibleCount: 91,
-      hiddenCount: 9,
+      startIndex: 41,
+      endIndexExclusive: 91,
+      visibleCount: 50,
+      hiddenCount: 50,
     });
   });
 });

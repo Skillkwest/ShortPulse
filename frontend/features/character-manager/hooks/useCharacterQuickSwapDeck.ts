@@ -44,6 +44,13 @@ type UseCharacterQuickSwapDeckResult = {
 const toErrorMessage = (error: unknown, fallback: string): string =>
   error instanceof Error && error.message.trim().length ? error.message : fallback;
 
+const sortItemsByCreatedDesc = (items: CharacterQuickSwapItem[]): CharacterQuickSwapItem[] =>
+  [...items].sort((left, right) => {
+    const createdDiff = right.createdAt.localeCompare(left.createdAt);
+    if (createdDiff !== 0) return createdDiff;
+    return right.id.localeCompare(left.id);
+  });
+
 /**
  * Provides reactive quick-swap state for Character Manager shells.
  */
@@ -60,6 +67,21 @@ export const useCharacterQuickSwapDeck = ({
   const [error, setError] = useState<string | null>(null);
   const archivedCursorRef = useRef<QuickSwapArchivedCursor | null>(null);
   const requestVersionRef = useRef(0);
+  const activeItemsRef = useRef<CharacterQuickSwapItem[]>([]);
+  const archivedItemsRef = useRef<CharacterQuickSwapItem[]>([]);
+  const archivedCountRef = useRef(0);
+
+  useEffect(() => {
+    activeItemsRef.current = activeItems;
+  }, [activeItems]);
+
+  useEffect(() => {
+    archivedItemsRef.current = archivedItems;
+  }, [archivedItems]);
+
+  useEffect(() => {
+    archivedCountRef.current = archivedCount;
+  }, [archivedCount]);
 
   const refresh = useCallback(async () => {
     const trimmedCharacterId = characterId?.trim() ?? "";
@@ -69,6 +91,9 @@ export const useCharacterQuickSwapDeck = ({
       setArchivedCount(0);
       setLoading(false);
       archivedCursorRef.current = null;
+      activeItemsRef.current = [];
+      archivedItemsRef.current = [];
+      archivedCountRef.current = 0;
       return;
     }
 
@@ -85,6 +110,9 @@ export const useCharacterQuickSwapDeck = ({
       setArchivedItems([]);
       setArchivedCount(nextArchivedCount);
       archivedCursorRef.current = null;
+      activeItemsRef.current = nextActive;
+      archivedItemsRef.current = [];
+      archivedCountRef.current = nextArchivedCount;
       setError(null);
     } catch (nextError) {
       if (requestVersionRef.current !== requestVersion) return;
@@ -95,6 +123,54 @@ export const useCharacterQuickSwapDeck = ({
       }
     }
   }, [characterId, disabled]);
+
+  const syncAfterActiveMutation = useCallback(
+    async (options?: { removedItemId?: string | null }) => {
+      const trimmedCharacterId = characterId?.trim() ?? "";
+      if (disabled || !trimmedCharacterId) return;
+
+      const [nextActive, nextArchivedCount] = await Promise.all([
+        listQuickSwapActive(trimmedCharacterId),
+        countQuickSwapArchived(trimmedCharacterId),
+      ]);
+      const nextActiveIds = new Set(nextActive.map((item) => item.id));
+      const nextActiveMediaIds = new Set(nextActive.map((item) => item.mediaFileId));
+      const removedItemId = options?.removedItemId?.trim() ?? "";
+      const overflowArchivedItems = activeItemsRef.current
+        .filter(
+          (item) =>
+            item.id !== removedItemId &&
+            !item.id.startsWith("legacy:") &&
+            !nextActiveIds.has(item.id)
+        )
+        .map((item) => ({
+          ...item,
+          status: "archived" as const,
+          archivedAt: item.archivedAt ?? new Date().toISOString(),
+        }));
+
+      const mergedArchivedItems = sortItemsByCreatedDesc([
+        ...overflowArchivedItems,
+        ...archivedItemsRef.current.filter(
+          (item) =>
+            item.id !== removedItemId &&
+            !nextActiveIds.has(item.id) &&
+            !nextActiveMediaIds.has(item.mediaFileId)
+        ),
+      ]).filter(
+        (item, index, collection) => collection.findIndex((entry) => entry.id === item.id) === index
+      );
+
+      setActiveItems(nextActive);
+      setArchivedItems(mergedArchivedItems);
+      setArchivedCount(nextArchivedCount);
+      activeItemsRef.current = nextActive;
+      archivedItemsRef.current = mergedArchivedItems;
+      archivedCountRef.current = nextArchivedCount;
+      setError(null);
+    },
+    [characterId, disabled]
+  );
 
   useEffect(() => {
     void refresh();
@@ -114,7 +190,7 @@ export const useCharacterQuickSwapDeck = ({
           characterId: trimmedCharacterId,
           files,
         });
-        await refresh();
+        await syncAfterActiveMutation();
         return true;
       } catch (nextError) {
         setError(toErrorMessage(nextError, "Failed to add files to QuickSwap deck."));
@@ -123,7 +199,7 @@ export const useCharacterQuickSwapDeck = ({
         setMutating(false);
       }
     },
-    [characterId, disabled, refresh]
+    [characterId, disabled, syncAfterActiveMutation]
   );
 
   const appendExistingMediaReference = useCallback(
@@ -143,7 +219,7 @@ export const useCharacterQuickSwapDeck = ({
           characterId: trimmedCharacterId,
           mediaFileId: trimmedMediaFileId,
         });
-        await refresh();
+        await syncAfterActiveMutation();
         return true;
       } catch (nextError) {
         if (!options?.suppressError) {
@@ -154,7 +230,7 @@ export const useCharacterQuickSwapDeck = ({
         setMutating(false);
       }
     },
-    [characterId, disabled, refresh]
+    [characterId, disabled, syncAfterActiveMutation]
   );
 
   const removeItem = useCallback(
@@ -167,7 +243,23 @@ export const useCharacterQuickSwapDeck = ({
           characterId: trimmedCharacterId,
           itemId,
         });
-        await refresh();
+        const trimmedItemId = itemId.trim();
+        const nextActiveItems = activeItemsRef.current.filter((item) => item.id !== trimmedItemId);
+        const nextArchivedItems = archivedItemsRef.current.filter(
+          (item) => item.id !== trimmedItemId
+        );
+        const nextArchivedCount = Math.max(
+          0,
+          archivedCountRef.current -
+            (archivedItemsRef.current.some((item) => item.id === trimmedItemId) ? 1 : 0)
+        );
+        setActiveItems(nextActiveItems);
+        setArchivedItems(nextArchivedItems);
+        setArchivedCount(nextArchivedCount);
+        activeItemsRef.current = nextActiveItems;
+        archivedItemsRef.current = nextArchivedItems;
+        archivedCountRef.current = nextArchivedCount;
+        setError(null);
         return true;
       } catch (nextError) {
         setError(toErrorMessage(nextError, "Failed to remove this QuickSwap reference."));
@@ -176,7 +268,7 @@ export const useCharacterQuickSwapDeck = ({
         setMutating(false);
       }
     },
-    [characterId, disabled, refresh]
+    [characterId, disabled]
   );
 
   const restoreItem = useCallback(
@@ -189,7 +281,7 @@ export const useCharacterQuickSwapDeck = ({
           characterId: trimmedCharacterId,
           itemId,
         });
-        await refresh();
+        await syncAfterActiveMutation();
         return true;
       } catch (nextError) {
         setError(toErrorMessage(nextError, "Failed to restore this QuickSwap reference."));
@@ -198,7 +290,7 @@ export const useCharacterQuickSwapDeck = ({
         setMutating(false);
       }
     },
-    [characterId, disabled, refresh]
+    [characterId, disabled, syncAfterActiveMutation]
   );
 
   const loadMoreArchived = useCallback(async () => {

@@ -291,6 +291,11 @@ export function CharacterManagerShell({
   );
   const fallbackPlanMeta = PLAN_MAP[fallbackPlanTier] ?? PLAN_MAP.business;
   const planMeta = resolvedPlan ?? fallbackPlanMeta;
+  const workflowTabsIdBase = useId();
+  const manageWorkflowTabId = `${workflowTabsIdBase}-manage-tab`;
+  const createWorkflowTabId = `${workflowTabsIdBase}-create-tab`;
+  const manageWorkflowPanelId = `${workflowTabsIdBase}-manage-panel`;
+  const createWorkflowPanelId = `${workflowTabsIdBase}-create-panel`;
   const deferredCharacters = useDeferredValue(characters);
   const characterLibraryRequestedVisibleCount = useMemo(() => {
     if (characters.length <= CHARACTER_LIBRARY_SMOOTH_TARGET) {
@@ -313,8 +318,16 @@ export function CharacterManagerShell({
     [characterLibraryRequestedVisibleCount, deferredCharacters.length, selectedCharacterListIndex]
   );
   const visibleManageCharacters = useMemo(
-    () => deferredCharacters.slice(0, characterLibraryWindow.visibleCount),
-    [characterLibraryWindow.visibleCount, deferredCharacters]
+    () =>
+      deferredCharacters.slice(
+        characterLibraryWindow.startIndex,
+        characterLibraryWindow.endIndexExclusive
+      ),
+    [
+      characterLibraryWindow.endIndexExclusive,
+      characterLibraryWindow.startIndex,
+      deferredCharacters,
+    ]
   );
   const isCreateProfileLoading =
     (loading && deferredCharacters.length === 0) ||
@@ -684,6 +697,10 @@ export function CharacterManagerShell({
           isEmbeddedSurface={isEmbeddedSurface}
           activeTab={activeTab}
           setActiveTab={setActiveTab}
+          manageTabId={manageWorkflowTabId}
+          createTabId={createWorkflowTabId}
+          managePanelId={manageWorkflowPanelId}
+          createPanelId={createWorkflowPanelId}
           showBeginnerModeToggle={!isEmbeddedSurface && showBeginnerModeToggle}
           effectiveBeginnerMode={effectiveBeginnerMode}
           setBeginnerMode={setBeginnerMode}
@@ -712,7 +729,12 @@ export function CharacterManagerShell({
       </p>
 
       {activeTab === "create" ? (
-        <section className="character-simple-panel">
+        <section
+          className="character-simple-panel"
+          role="tabpanel"
+          id={createWorkflowPanelId}
+          aria-labelledby={createWorkflowTabId}
+        >
           {isCreateProfileLoading ? (
             <CharacterProfileLoadingSkeleton surface={surface} />
           ) : (
@@ -1158,7 +1180,12 @@ export function CharacterManagerShell({
           )}
         </section>
       ) : (
-        <section className="panel media-panel character-manage-panel">
+        <section
+          className="panel media-panel character-manage-panel"
+          role="tabpanel"
+          id={manageWorkflowPanelId}
+          aria-labelledby={manageWorkflowTabId}
+        >
           <div className="character-manage-header-row">
             <div className="character-manage-title-stack">
               <h2>Characters</h2>
@@ -1213,6 +1240,13 @@ export function CharacterManagerShell({
                   </div>
                 ))}
               </div>
+            </div>
+          ) : characters.length === 0 ? (
+            <div className="character-manage-empty-state" role="status" aria-live="polite">
+              <p className="character-manage-empty-title">No saved characters yet.</p>
+              <p className="tiny subdued character-manage-empty-copy">
+                Create a new character to start building your library.
+              </p>
             </div>
           ) : (
             <>

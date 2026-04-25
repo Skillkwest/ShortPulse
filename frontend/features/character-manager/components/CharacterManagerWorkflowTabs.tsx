@@ -11,6 +11,10 @@ type CharacterManagerWorkflowTabsProps = {
   isEmbeddedSurface: boolean;
   activeTab: CharacterWorkflowTab;
   setActiveTab: React.Dispatch<React.SetStateAction<CharacterWorkflowTab>>;
+  manageTabId: string;
+  createTabId: string;
+  managePanelId: string;
+  createPanelId: string;
   showBeginnerModeToggle: boolean;
   effectiveBeginnerMode: boolean;
   setBeginnerMode: React.Dispatch<React.SetStateAction<boolean>>;
@@ -29,6 +33,10 @@ export function CharacterManagerWorkflowTabs({
   isEmbeddedSurface,
   activeTab,
   setActiveTab,
+  manageTabId,
+  createTabId,
+  managePanelId,
+  createPanelId,
   showBeginnerModeToggle,
   effectiveBeginnerMode,
   setBeginnerMode,
@@ -41,6 +49,18 @@ export function CharacterManagerWorkflowTabs({
 }: CharacterManagerWorkflowTabsProps) {
   const shouldShowProfileTab = !isEmbeddedSurface || activeTab === "create";
   const shouldRenderEmbeddedHeader = !isEmbeddedSurface || activeTab === "create";
+  const selectTab = (nextTab: CharacterWorkflowTab) => {
+    setActiveTab(nextTab);
+  };
+  const handleTabKeyDown = (
+    event: React.KeyboardEvent<HTMLButtonElement>,
+    currentTab: CharacterWorkflowTab
+  ) => {
+    if (!shouldShowProfileTab) return;
+    if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+    event.preventDefault();
+    selectTab(currentTab === "manage" ? "create" : "manage");
+  };
   const tabRow = (
     <div
       className={
@@ -53,24 +73,32 @@ export function CharacterManagerWorkflowTabs({
     >
       <button
         type="button"
+        id={manageTabId}
         role="tab"
         aria-selected={activeTab === "manage"}
+        aria-controls={managePanelId}
+        tabIndex={activeTab === "manage" ? 0 : -1}
         className={`character-mode-tab character-mode-tab--manage ${
           activeTab === "manage" ? "is-active" : ""
         }`}
-        onClick={() => setActiveTab("manage")}
+        onClick={() => selectTab("manage")}
+        onKeyDown={(event) => handleTabKeyDown(event, "manage")}
       >
         Manage Characters
       </button>
       {shouldShowProfileTab ? (
         <button
           type="button"
+          id={createTabId}
           role="tab"
           aria-selected={activeTab === "create"}
+          aria-controls={createPanelId}
+          tabIndex={activeTab === "create" ? 0 : -1}
           className={`character-mode-tab character-mode-tab--profile ${
             activeTab === "create" ? "is-active" : ""
           }`}
-          onClick={() => setActiveTab("create")}
+          onClick={() => selectTab("create")}
+          onKeyDown={(event) => handleTabKeyDown(event, "create")}
         >
           Character Profile
         </button>

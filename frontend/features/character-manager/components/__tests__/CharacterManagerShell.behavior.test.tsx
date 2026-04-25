@@ -411,7 +411,6 @@ vi.mock("../../hooks/useCharacterManagerDraft", async () => {
         characters: characterManagerMockState.characters,
         selectedCharacterId: characterManagerMockState.selectedCharacterId,
         characterName: "Taylor",
-        characterVoice: "",
         characterDescription: "",
         characterSheetAssignments,
         activeCharacterSheetPresetId,
@@ -437,7 +436,6 @@ vi.mock("../../hooks/useCharacterManagerDraft", async () => {
         isSavingCharacterSheetPreset: false,
         hasUnsavedCharacterDraft: !characterManagerMockState.selectedCharacterId,
         setCharacterName: () => undefined,
-        setCharacterVoice: () => undefined,
         setCharacterDescription: () => undefined,
         setProfileImageFile: async () => undefined,
         saveProfileImageTransform: async () => true,
@@ -889,8 +887,10 @@ describe("CharacterManagerShell behavior", () => {
     await waitFor(() => {
       expect(screen.queryByRole("tab", { name: "2" })).not.toBeInTheDocument();
     });
-    const tabPanelAfterActiveDelete = screen.getByRole("tabpanel");
     const tabOne = screen.getByRole("tab", { name: TAB_ONE_DEFAULT_LABEL });
+    const tabPanelAfterActiveDelete = screen.getByRole("tabpanel", {
+      name: TAB_ONE_DEFAULT_LABEL,
+    });
     expect(tabOne).toHaveAttribute("aria-selected", "true");
     expect(tabPanelAfterActiveDelete).toHaveAttribute("aria-labelledby", tabOne.id);
 
@@ -905,7 +905,7 @@ describe("CharacterManagerShell behavior", () => {
       expect(screen.queryByRole("tab", { name: "2" })).not.toBeInTheDocument();
     });
     const tabThreeAfterNonActiveDelete = screen.getByRole("tab", { name: "3" });
-    const tabPanelAfterNonActiveDelete = screen.getByRole("tabpanel");
+    const tabPanelAfterNonActiveDelete = screen.getByRole("tabpanel", { name: "3" });
     expect(tabThreeAfterNonActiveDelete).toHaveAttribute("aria-selected", "true");
     expect(tabPanelAfterNonActiveDelete).toHaveAttribute(
       "aria-labelledby",
@@ -928,7 +928,7 @@ describe("CharacterManagerShell behavior", () => {
 
     const tabOne = screen.getByRole("tab", { name: TAB_ONE_DEFAULT_LABEL });
     const tabThree = screen.getByRole("tab", { name: "3" });
-    const panel = screen.getByRole("tabpanel");
+    const panel = screen.getByRole("tabpanel", { name: "3" });
 
     // Add-tab activates the newly created tab.
     expect(tabThree).toHaveAttribute("aria-selected", "true");
@@ -940,10 +940,11 @@ describe("CharacterManagerShell behavior", () => {
     fireEvent.click(tabOne);
 
     await waitFor(() => {
+      const updatedPanel = screen.getByRole("tabpanel", { name: TAB_ONE_DEFAULT_LABEL });
       expect(tabOne).toHaveAttribute("aria-selected", "true");
       expect(tabOne).toHaveAttribute("tabindex", "0");
       expect(tabThree).toHaveAttribute("tabindex", "-1");
-      expect(panel).toHaveAttribute("aria-labelledby", tabOne.id);
+      expect(updatedPanel).toHaveAttribute("aria-labelledby", tabOne.id);
     });
   });
 
@@ -1923,6 +1924,19 @@ describe("CharacterManagerShell behavior", () => {
     expect(screen.queryByRole("list", { name: /Character list/i })).not.toBeInTheDocument();
   });
 
+  it("shows an explicit empty state in Manage mode when no saved characters exist", async () => {
+    characterManagerMockState.characters = [];
+    characterManagerMockState.selectedCharacterId = "";
+
+    await renderShell({ initialWorkflowTab: "manage" });
+
+    expect(screen.getByText("No saved characters yet.")).toBeInTheDocument();
+    expect(
+      screen.getByText("Create a new character to start building your library.")
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("list", { name: /Character list/i })).not.toBeInTheDocument();
+  });
+
   it("shows create-panel loading skeletons while the character profile is loading", async () => {
     characterManagerMockState.loading = true;
     characterManagerMockState.characters = [];
@@ -2013,6 +2027,29 @@ describe("CharacterManagerShell behavior", () => {
     await waitFor(() => {
       expect(within(characterList).getAllByRole("listitem")).toHaveLength(100);
     });
+  });
+
+  it("keeps deep selected characters visible without widening the manage window", async () => {
+    characterManagerMockState.characters = Array.from({ length: 100 }, (_, index) => ({
+      characterId: `character-${index + 1}`,
+      characterName: `Character ${index + 1}`,
+      profileImageUrl: null,
+      profileImageTransform: null,
+    }));
+    characterManagerMockState.selectedCharacterId = "character-91";
+
+    render(<CharacterManagerShell />);
+
+    fireEvent.click(screen.getByRole("tab", { name: /Manage Characters/i }));
+
+    const characterList = screen.getByRole("list", { name: /Character list/i });
+    await waitFor(() => {
+      expect(within(characterList).getAllByRole("listitem")).toHaveLength(50);
+    });
+
+    expect(screen.getByText("Character 91")).toBeInTheDocument();
+    expect(screen.queryByText("Character 1")).not.toBeInTheDocument();
+    expect(screen.getByText("Showing 50 of 100 characters.")).toBeInTheDocument();
   });
 
   it("keeps helper text visible in expert mode while hiding numbered badges", async () => {

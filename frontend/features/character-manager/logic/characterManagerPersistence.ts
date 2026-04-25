@@ -929,7 +929,7 @@ export const saveCharacterManagerActiveCharacterSheetPreset = async ({
     characterId,
     characterRow,
     nextState,
-    saveErrorMessage: "Failed to save active character preset tab.",
+    saveErrorMessage: "Failed to save the active character look.",
     supabase,
     userId,
   });
@@ -969,7 +969,7 @@ export const saveCharacterManagerCharacterSheetPresetAssignments = async ({
     characterId,
     characterRow,
     nextState,
-    saveErrorMessage: "Failed to save character sheet preset.",
+    saveErrorMessage: "Failed to save the character look.",
     supabase,
     userId,
   });
@@ -1025,7 +1025,7 @@ export const saveCharacterManagerCharacterSheetPresetTabOrder = async ({
     characterId,
     characterRow,
     nextState,
-    saveErrorMessage: "Failed to save character preset tabs.",
+    saveErrorMessage: "Failed to save character looks.",
     supabase,
     userId,
   });
@@ -1073,7 +1073,7 @@ export const saveCharacterManagerCharacterSheetPresetTabLabel = async ({
     characterId,
     characterRow,
     nextState,
-    saveErrorMessage: "Failed to save character preset label.",
+    saveErrorMessage: "Failed to save the look name.",
     supabase,
     userId,
   });
@@ -1118,7 +1118,7 @@ export const saveCharacterManagerCharacterSheetPresetTabDescription = async ({
     characterId,
     characterRow,
     nextState,
-    saveErrorMessage: "Failed to save character preset description.",
+    saveErrorMessage: "Failed to save the look description.",
     supabase,
     userId,
   });
@@ -1177,7 +1177,7 @@ export const deleteCharacterManagerCharacterSheetPreset = async ({
   nextActivePresetId: CharacterSheetPresetId;
 }): Promise<CharacterSheetPresetState> => {
   if (presetId === "1") {
-    throw new Error("Preset tab 1 cannot be deleted.");
+    throw new Error("Look 1 cannot be deleted.");
   }
 
   const { characterRow, existingState, supabase, userId } = await loadCharacterPresetState(
@@ -1197,7 +1197,7 @@ export const deleteCharacterManagerCharacterSheetPreset = async ({
     ? requestedFilteredTabOrder
     : previousState.tabOrder.filter((visiblePresetId) => visiblePresetId !== presetId);
   if (!filteredTabOrder.length) {
-    throw new Error("At least one preset tab must remain visible.");
+    throw new Error("At least one look must remain visible.");
   }
   const resolvedActivePresetId = resolveActivePresetAfterDelete({
     originalTabOrder: previousState.tabOrder,
@@ -1206,7 +1206,7 @@ export const deleteCharacterManagerCharacterSheetPreset = async ({
     requestedActivePresetId: nextActivePresetId,
   });
   if (!resolvedActivePresetId) {
-    throw new Error("At least one preset tab must remain visible.");
+    throw new Error("At least one look must remain visible.");
   }
   const normalizedTabOrder = normalizeCharacterSheetPresetTabOrder({
     tabOrder: filteredTabOrder,
@@ -1229,7 +1229,7 @@ export const deleteCharacterManagerCharacterSheetPreset = async ({
     characterId,
     characterRow,
     nextState,
-    saveErrorMessage: "Failed to delete character preset tab.",
+    saveErrorMessage: "Failed to delete the character look.",
     supabase,
     userId,
   });
@@ -1262,7 +1262,7 @@ export const saveCharacterManagerCharacterSheetPresetAsset = async (
       contentType: mimeType,
     });
   if (uploadError) {
-    throw new Error(asErrorMessage(uploadError, "Failed to upload character preset image."));
+    throw new Error(asErrorMessage(uploadError, "Failed to upload the character look image."));
   }
 
   const characterMediaWritesEnabled = isCharacterMediaV2WritesEnabled();
@@ -1284,7 +1284,7 @@ export const saveCharacterManagerCharacterSheetPresetAsset = async (
       mediaReferenceId = createdAsset.id;
     } catch (nextError) {
       await supabase.storage.from(MEDIA_BUCKET).remove([storagePath]);
-      throw new Error(asErrorMessage(nextError, "Failed to save character preset metadata."));
+      throw new Error(asErrorMessage(nextError, "Failed to save character look metadata."));
     }
   } else {
     const { data: mediaRow, error: mediaInsertError } = await supabase
@@ -1306,7 +1306,7 @@ export const saveCharacterManagerCharacterSheetPresetAsset = async (
     if (mediaInsertError || !mediaRow?.id) {
       await supabase.storage.from(MEDIA_BUCKET).remove([storagePath]);
       throw new Error(
-        asErrorMessage(mediaInsertError, "Failed to save character preset metadata.")
+        asErrorMessage(mediaInsertError, "Failed to save character look metadata.")
       );
     }
     mediaReferenceId = mediaRow.id;

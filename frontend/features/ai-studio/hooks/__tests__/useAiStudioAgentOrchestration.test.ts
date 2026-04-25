@@ -559,5 +559,21 @@ describe("useAiStudioAgentOrchestration", () => {
       lastArtifact: null,
       finalArtifactSource: null,
     });
+    expect(sendToAgent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        context: expect.objectContaining({
+          pulse: expect.objectContaining({
+            workflowSession: expect.objectContaining({
+              presetId: "story_builder",
+              status: "running",
+              currentStepIndex: 2,
+              currentStepLabel: "Plot Seed",
+              collectedInputs: ["grimdark", "A knight enters a cursed forest"],
+              finalArtifactSource: null,
+            }),
+          }),
+        }),
+      })
+    );
   });
 });

@@ -829,7 +829,7 @@ describe("CharacterManagerShell behavior", () => {
     expect(screen.getByRole("tab", { name: TAB_ONE_DEFAULT_LABEL })).toBeInTheDocument();
     expect(screen.queryByRole("tab", { name: "2" })).not.toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: "Add character sheet preset tab" })
+      screen.getByRole("button", { name: "Add character look" })
     ).toBeInTheDocument();
   });
 
@@ -838,7 +838,7 @@ describe("CharacterManagerShell behavior", () => {
 
     const tabOne = screen.getByRole("tab", { name: TAB_ONE_DEFAULT_LABEL });
     fireEvent.doubleClick(tabOne);
-    const renameInput = screen.getByLabelText("Rename preset 1");
+    const renameInput = screen.getByLabelText("Rename look 1");
     fireEvent.change(renameInput, { target: { value: "Hero Look" } });
     fireEvent.keyDown(renameInput, { key: "Enter" });
 
@@ -847,12 +847,12 @@ describe("CharacterManagerShell behavior", () => {
 
   it("shows delete confirmation with target look label and respects No cancel", async () => {
     render(<CharacterManagerShell />);
-    const addButton = screen.getByRole("button", { name: "Add character sheet preset tab" });
+    const addButton = screen.getByRole("button", { name: "Add character look" });
     fireEvent.click(addButton);
     fireEvent.click(addButton);
 
-    expect(screen.queryByRole("button", { name: "Delete preset 1" })).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Delete preset 2" }));
+    expect(screen.queryByRole("button", { name: "Delete look 1" })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Delete look 2" }));
 
     const deleteDialog = screen.getByRole("dialog", { name: "Delete look “2”?" });
     expect(screen.getByText("Delete look “2”?")).toBeInTheDocument();
@@ -876,12 +876,12 @@ describe("CharacterManagerShell behavior", () => {
 
   it("deletes active tab with nearest-left fallback and preserves active tab on non-active delete", async () => {
     render(<CharacterManagerShell />);
-    const addButton = screen.getByRole("button", { name: "Add character sheet preset tab" });
+    const addButton = screen.getByRole("button", { name: "Add character look" });
     fireEvent.click(addButton);
     fireEvent.click(addButton);
 
     fireEvent.click(screen.getByRole("tab", { name: "2" }));
-    fireEvent.click(screen.getByRole("button", { name: "Delete preset 2" }));
+    fireEvent.click(screen.getByRole("button", { name: "Delete look 2" }));
     fireEvent.click(screen.getByRole("button", { name: "Delete" }));
 
     await waitFor(() => {
@@ -894,11 +894,11 @@ describe("CharacterManagerShell behavior", () => {
     expect(tabOne).toHaveAttribute("aria-selected", "true");
     expect(tabPanelAfterActiveDelete).toHaveAttribute("aria-labelledby", tabOne.id);
 
-    fireEvent.click(screen.getByRole("button", { name: "Add character sheet preset tab" }));
+    fireEvent.click(screen.getByRole("button", { name: "Add character look" }));
     fireEvent.click(screen.getByRole("tab", { name: "3" }));
     expect(screen.getByRole("tab", { name: "3" })).toHaveAttribute("aria-selected", "true");
 
-    fireEvent.click(screen.getByRole("button", { name: "Delete preset 2" }));
+    fireEvent.click(screen.getByRole("button", { name: "Delete look 2" }));
     fireEvent.click(screen.getByRole("button", { name: "Delete" }));
 
     await waitFor(() => {
@@ -918,7 +918,7 @@ describe("CharacterManagerShell behavior", () => {
 
   it("applies roving tabindex semantics and tabpanel linkage for preset tabs", async () => {
     render(<CharacterManagerShell />);
-    const addButton = screen.getByRole("button", { name: "Add character sheet preset tab" });
+    const addButton = screen.getByRole("button", { name: "Add character look" });
     fireEvent.click(addButton);
     fireEvent.click(addButton);
 
@@ -950,7 +950,7 @@ describe("CharacterManagerShell behavior", () => {
 
   it("supports keyboard navigation for preset tabs including wrap, Home/End, Enter, and Space", async () => {
     render(<CharacterManagerShell />);
-    const addButton = screen.getByRole("button", { name: "Add character sheet preset tab" });
+    const addButton = screen.getByRole("button", { name: "Add character look" });
     fireEvent.click(addButton);
     fireEvent.click(addButton);
     fireEvent.click(addButton);
@@ -1003,7 +1003,7 @@ describe("CharacterManagerShell behavior", () => {
 
   it("isolates character sheet assignments per active preset tab", async () => {
     render(<CharacterManagerShell />);
-    fireEvent.click(screen.getByRole("button", { name: "Add character sheet preset tab" }));
+    fireEvent.click(screen.getByRole("button", { name: "Add character look" }));
     fireEvent.click(screen.getByRole("tab", { name: TAB_ONE_DEFAULT_LABEL }));
 
     const portraitZone = getCharacterSheetZone("Portrait");

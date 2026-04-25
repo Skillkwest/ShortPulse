@@ -404,7 +404,7 @@ export const useCharacterManagerAssetController = ({
         };
         return await saveCharacterSheetPresetAssignments(nextAssignments);
       } catch (nextError) {
-        setError(toErrorMessage(nextError, "Failed to upload character preset image."));
+        setError(toErrorMessage(nextError, "Failed to upload character look image."));
         return false;
       } finally {
         setIsSavingCharacterSheetPreset(false);

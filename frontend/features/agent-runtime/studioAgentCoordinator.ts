@@ -49,6 +49,7 @@ import {
   buildStudioAgentWorkflowSessionUpdate,
   buildStudioAgentPulseSystemMessage,
   isStudioAgentWorkflowPulse,
+  resolveLatestStudioAgentUserInput,
 } from "./studioAgentPulseRuntime";
 
 type OpenAIChatMessage =
@@ -705,6 +706,7 @@ export const executeStudioAgentCoordinator = async ({
           pulse: context.pulse,
           response: finalParsed,
           semanticStatus,
+          latestUserInput: resolveLatestStudioAgentUserInput(messages),
         }),
         ...(usage ? { usage } : {}),
         ...buildAgentMachineOutcome({

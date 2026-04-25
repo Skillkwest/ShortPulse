@@ -56,6 +56,7 @@ import {
   buildStudioAgentWorkflowSessionUpdate,
   buildStudioAgentPulseSystemMessage,
   isStudioAgentWorkflowPulse,
+  resolveLatestStudioAgentUserInput,
 } from "../../../features/agent-runtime/studioAgentPulseRuntime";
 import { logApiRouteException } from "../../../lib/server/api/appErrorLogs";
 import { requireApiUser } from "../../../lib/server/api/auth";
@@ -90,12 +91,14 @@ Follow the ACTIVE PULSE PROFILE system message exactly.
 You may ask the next required question or return a final artifact when the workflow is complete.
 Do not force every answer into a rewritten prompt.
 Return only JSON with this exact shape and no markdown:
-{"status":"needs_input"|"ready","message":"string","actions":{"applyPrompt":"string|null"}}
+{"status":"needs_input"|"ready"|"refuse","message":"string","actions":{"applyPrompt":"string|null"}}
 Use status="needs_input" when you are asking the next question or collecting workflow input.
 Use status="ready" only when the workflow is complete and you are returning the final artifact.
+Use status="refuse" only when the request is disallowed or unsafe.
 Keep message content as plain text, but use paragraph breaks for readability.
 When presenting choices, put each choice on its own numbered line.
 Ask one question at a time and make the next user response obvious.
+If the user already gave a valid non-empty answer to the current step, do not repeat the same step verbatim. Continue, or ask one narrow clarification only if the answer is unusable.
 For input-collection turns, prefer:
 CURRENT STEP
 <short step name>
@@ -492,6 +495,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           pulse: context.pulse,
           response: directResult,
           semanticStatus: directResult.semanticStatus ?? null,
+          latestUserInput: resolveLatestStudioAgentUserInput(messages),
         }),
         ...buildAgentMachineOutcome({
           outcomeClass: directOutcomeClass,

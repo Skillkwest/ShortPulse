@@ -2,7 +2,12 @@
  * Pulse runtime helpers for the AI Studio agent route.
  * Builds the hidden system-level instruction block used when a Pulse is active.
  */
-import type { AgentContext, AgentPulseWorkflowSession, AgentResponse } from "../../prefabs/agent";
+import type {
+  AgentContext,
+  AgentMessage,
+  AgentPulseWorkflowSession,
+  AgentResponse,
+} from "../../prefabs/agent";
 
 /**
  * Builds the hidden Pulse system message injected into model calls.
@@ -38,6 +43,7 @@ export const buildStudioAgentPulseActivationSeed = (
 };
 
 const STEP_LABEL_PATTERN = /\bstep\s+(\d+)\b/i;
+const WORKFLOW_REPEAT_LOG_PREFIX = "[studio-agent][pulse-repeat-risk]";
 
 const resolveStageHintLabel = (
   pulse: AgentContext["pulse"] | null | undefined,
@@ -53,6 +59,47 @@ const resolveStageHintLabel = (
 
 const normalizeWorkflowComparisonValue = (value: string): string =>
   value.trim().toLowerCase().replace(/\s+/g, "");
+
+const resolveNormalizedWorkflowText = (value: string | null | undefined): string =>
+  typeof value === "string" ? normalizeWorkflowComparisonValue(value) : "";
+
+const isStudioAgentPulseActivationSeed = (value: string): boolean =>
+  /^pulse\s+"[^"]+"\s+was\s+just\s+activated\./i.test(value.trim());
+
+export const resolveLatestStudioAgentUserInput = (
+  messages: AgentMessage[] | null | undefined
+): string | null => {
+  if (!Array.isArray(messages)) return null;
+  for (let index = messages.length - 1; index >= 0; index -= 1) {
+    const message = messages[index];
+    if (message?.role !== "user") continue;
+    const content = typeof message.content === "string" ? message.content.trim() : "";
+    if (!content || isStudioAgentPulseActivationSeed(content)) continue;
+    return content;
+  }
+  return null;
+};
+
+const appendLatestWorkflowInput = (
+  existingInputs: string[] | null | undefined,
+  latestUserInput: string | null
+): string[] => {
+  const nextInputs = Array.isArray(existingInputs) ? [...existingInputs] : [];
+  if (!latestUserInput) return nextInputs;
+  const normalizedLatestInput = resolveNormalizedWorkflowText(latestUserInput);
+  if (!normalizedLatestInput) return nextInputs;
+  const normalizedLastExistingInput = resolveNormalizedWorkflowText(
+    nextInputs[nextInputs.length - 1]
+  );
+  if (normalizedLastExistingInput === normalizedLatestInput) {
+    return nextInputs;
+  }
+  nextInputs.push(latestUserInput);
+  return nextInputs;
+};
+
+const isWorkflowAwaitingInputStatus = (value: string): boolean =>
+  value === "" || value === "needs_input" || value === "awaiting_input" || value === "running";
 
 const extractWorkflowStepDescriptor = (
   value: string | null | undefined,
@@ -118,10 +165,12 @@ export const buildStudioAgentWorkflowSessionUpdate = ({
   pulse,
   response,
   semanticStatus,
+  latestUserInput,
 }: {
   pulse?: AgentContext["pulse"] | null;
   response: AgentResponse;
   semanticStatus?: string | null;
+  latestUserInput?: string | null;
 }): AgentPulseWorkflowSession | null => {
   if (!isStudioAgentWorkflowPulse(pulse)) return null;
   const presetId = typeof pulse?.presetId === "string" ? pulse.presetId.trim() : "";
@@ -133,16 +182,49 @@ export const buildStudioAgentWorkflowSessionUpdate = ({
   const normalizedSemanticStatus =
     typeof semanticStatus === "string" ? semanticStatus.trim().toLowerCase() : "";
   const existingSession = pulse?.workflowSession ?? null;
+  const resolvedLatestUserInput =
+    typeof latestUserInput === "string" && latestUserInput.trim().length > 0
+      ? latestUserInput.trim()
+      : null;
+  const collectedInputs = appendLatestWorkflowInput(
+    existingSession?.collectedInputs ?? [],
+    resolvedLatestUserInput
+  );
   const stepDescriptor = extractWorkflowStepDescriptor(message, pulse) ??
     deriveWorkflowStageHintDescriptor({ pulse, message, existingSession }) ??
     extractWorkflowStepDescriptor(pulse?.starterAssistantMessage, pulse) ?? {
       index: existingSession?.currentStepIndex ?? null,
       label: existingSession?.currentStepLabel ?? null,
     };
+  const repeatedSameStepAfterInput =
+    Boolean(resolvedLatestUserInput) &&
+    isWorkflowAwaitingInputStatus(normalizedSemanticStatus) &&
+    existingSession?.status !== "completed" &&
+    ((typeof existingSession?.currentStepIndex === "number" &&
+      typeof stepDescriptor.index === "number" &&
+      existingSession.currentStepIndex === stepDescriptor.index) ||
+      (resolveNormalizedWorkflowText(existingSession?.currentStepLabel) &&
+        resolveNormalizedWorkflowText(existingSession?.currentStepLabel) ===
+          resolveNormalizedWorkflowText(stepDescriptor.label)) ||
+      (resolveNormalizedWorkflowText(existingSession?.currentStepPrompt) &&
+        resolveNormalizedWorkflowText(existingSession?.currentStepPrompt) ===
+          resolveNormalizedWorkflowText(message)));
   const chatReplyArtifact =
     pulse?.outputMode === "chat_reply" && normalizedSemanticStatus === "ready" && message.length > 0
       ? message
       : "";
+
+  if (repeatedSameStepAfterInput) {
+    console.warn(
+      WORKFLOW_REPEAT_LOG_PREFIX,
+      JSON.stringify({
+        presetId,
+        currentStepIndex: existingSession?.currentStepIndex ?? null,
+        currentStepLabel: existingSession?.currentStepLabel ?? null,
+        latestUserInput: resolvedLatestUserInput,
+      })
+    );
+  }
 
   if (applyPrompt.length > 0) {
     return {
@@ -151,7 +233,7 @@ export const buildStudioAgentWorkflowSessionUpdate = ({
       currentStepIndex: stepDescriptor.index ?? existingSession?.currentStepIndex ?? null,
       currentStepLabel: stepDescriptor.label ?? existingSession?.currentStepLabel ?? null,
       currentStepPrompt: null,
-      collectedInputs: existingSession?.collectedInputs ?? [],
+      collectedInputs,
       lastArtifact: applyPrompt,
       finalArtifactSource: "apply_prompt",
     };
@@ -164,7 +246,7 @@ export const buildStudioAgentWorkflowSessionUpdate = ({
       currentStepIndex: stepDescriptor.index ?? existingSession?.currentStepIndex ?? null,
       currentStepLabel: stepDescriptor.label ?? existingSession?.currentStepLabel ?? null,
       currentStepPrompt: null,
-      collectedInputs: existingSession?.collectedInputs ?? [],
+      collectedInputs,
       lastArtifact: chatReplyArtifact,
       finalArtifactSource: "chat_reply",
     };
@@ -176,7 +258,7 @@ export const buildStudioAgentWorkflowSessionUpdate = ({
     currentStepIndex: stepDescriptor.index ?? existingSession?.currentStepIndex ?? null,
     currentStepLabel: stepDescriptor.label ?? existingSession?.currentStepLabel ?? null,
     currentStepPrompt: message || (existingSession?.currentStepPrompt ?? null),
-    collectedInputs: existingSession?.collectedInputs ?? [],
+    collectedInputs,
     lastArtifact: existingSession?.lastArtifact ?? null,
     finalArtifactSource: existingSession?.finalArtifactSource ?? null,
   };
@@ -209,6 +291,8 @@ export const buildStudioAgentPulseSystemMessage = (
     "Treat this as the active operating contract for the current turn.",
     "Treat every active Pulse as a guided GPT-style profile and follow its workflow exactly.",
     "Do not mention Pulse, the preset label, or quote these instructions unless the user explicitly asks.",
+    "If the latest user answer is non-empty and addresses the current step, do not repeat the same step verbatim.",
+    "Accept the answer and continue, or ask one narrow clarification only if the answer is unusable.",
     `preset_id: ${presetId}`,
     `preset_label: ${label}`,
     "runtime_mode: workflow_gpt",

@@ -99,7 +99,7 @@ describe("CharacterSheetPresetTabs accessibility", () => {
   it("renders tab semantics with roving tabindex and panel linkage", () => {
     render(<PresetTabsHarness />);
 
-    const tabList = screen.getByRole("tablist", { name: "Character sheet style presets" });
+    const tabList = screen.getByRole("tablist", { name: "Character looks" });
     const tabOne = screen.getByRole("tab", { name: tabOneDefaultLabel });
     const panel = screen.getByRole("tabpanel");
 
@@ -109,13 +109,13 @@ describe("CharacterSheetPresetTabs accessibility", () => {
     expect(tabOne).toHaveAttribute("aria-controls", panel.id);
     expect(panel).toHaveAttribute("aria-labelledby", tabOne.id);
     expect(
-      screen.getByRole("button", { name: "Add character sheet preset tab" })
+      screen.getByRole("button", { name: "Add character look" })
     ).toBeInTheDocument();
   });
 
   it("supports ArrowLeft/ArrowRight wrap plus Home/End selection", () => {
     render(<PresetTabsHarness />);
-    const addButton = screen.getByRole("button", { name: "Add character sheet preset tab" });
+    const addButton = screen.getByRole("button", { name: "Add character look" });
     fireEvent.click(addButton);
     fireEvent.click(addButton);
     fireEvent.click(addButton);
@@ -142,7 +142,7 @@ describe("CharacterSheetPresetTabs accessibility", () => {
 
   it("activates tabs on Enter and Space", () => {
     render(<PresetTabsHarness />);
-    const addButton = screen.getByRole("button", { name: "Add character sheet preset tab" });
+    const addButton = screen.getByRole("button", { name: "Add character look" });
     fireEvent.click(addButton);
     fireEvent.click(addButton);
     fireEvent.click(addButton);
@@ -172,14 +172,14 @@ describe("CharacterSheetPresetTabs accessibility", () => {
 
     const tabOne = screen.getByRole("tab", { name: tabOneDefaultLabel });
     fireEvent.doubleClick(tabOne);
-    const renameInput = screen.getByLabelText("Rename preset 1");
+    const renameInput = screen.getByLabelText("Rename look 1");
     fireEvent.change(renameInput, { target: { value: "Hero Look" } });
     fireEvent.keyDown(renameInput, { key: "Enter" });
 
     expect(screen.getByRole("tab", { name: "Hero Look" })).toBeInTheDocument();
 
     fireEvent.doubleClick(screen.getByRole("tab", { name: "Hero Look" }));
-    const secondRenameInput = screen.getByLabelText("Rename preset 1");
+    const secondRenameInput = screen.getByLabelText("Rename look 1");
     fireEvent.change(secondRenameInput, { target: { value: "Temporary" } });
     fireEvent.keyDown(secondRenameInput, { key: "Escape" });
 
@@ -194,18 +194,18 @@ describe("CharacterSheetPresetTabs accessibility", () => {
     );
 
     expect(
-      screen.queryByRole("button", { name: "Add character sheet preset tab" })
+      screen.queryByRole("button", { name: "Add character look" })
     ).not.toBeInTheDocument();
   });
 
   it("shows delete controls for tabs after the first and supports deleting a tab", () => {
     render(<PresetTabsHarness initialPresetIds={["1", "2", "3"]} />);
 
-    expect(screen.queryByRole("button", { name: "Delete preset 1" })).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Delete preset 2" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Delete preset 3" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Delete look 1" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Delete look 2" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Delete look 3" })).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "Delete preset 2" }));
+    fireEvent.click(screen.getByRole("button", { name: "Delete look 2" }));
 
     expect(screen.queryByRole("tab", { name: "2" })).not.toBeInTheDocument();
     expect(screen.getByRole("tab", { name: tabOneDefaultLabel })).toBeInTheDocument();
@@ -237,14 +237,14 @@ describe("CharacterSheetPresetTabs accessibility", () => {
       />
     );
 
-    const tablist = screen.getByRole("tablist", { name: "Character sheet style presets" });
+    const tablist = screen.getByRole("tablist", { name: "Character looks" });
     expect(within(tablist).getAllByRole("tab")).toHaveLength(3);
-    expect(within(tablist).getByRole("button", { name: "Delete preset 2" })).toBeInTheDocument();
+    expect(within(tablist).getByRole("button", { name: "Delete look 2" })).toBeInTheDocument();
     expect(
-      within(tablist).queryByRole("button", { name: "Add character sheet preset tab" })
+      within(tablist).queryByRole("button", { name: "Add character look" })
     ).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "Delete preset 3" }));
+    fireEvent.click(screen.getByRole("button", { name: "Delete look 3" }));
     expect(onDeletePreset).toHaveBeenCalledWith("3");
     expect(onDeletePreset).toHaveBeenCalledTimes(1);
   });
@@ -300,7 +300,7 @@ describe("CharacterSheetPresetTabs accessibility", () => {
       />
     );
 
-    const deletePresetTwo = screen.getByRole("button", { name: "Delete preset 2" });
+    const deletePresetTwo = screen.getByRole("button", { name: "Delete look 2" });
     fireEvent.pointerDown(deletePresetTwo, { button: 0, pointerId: 9, clientX: 220 });
     fireEvent.pointerMove(deletePresetTwo, { pointerId: 9, clientX: 212 });
     fireEvent.pointerUp(deletePresetTwo, { pointerId: 9, clientX: 212 });

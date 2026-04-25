@@ -317,6 +317,69 @@ describe("useAiStudioAgentBridge", () => {
     expect(result.current.directOpenAiBypassEnabled).toBe(true);
   });
 
+  it("disables direct OpenAI bypass while Pulse mode is active", async () => {
+    vi.stubEnv("NEXT_PUBLIC_STUDIO_AGENT_DIRECT_OPENAI_BYPASS_ENABLED", "true");
+
+    useAiAgentMock.mockReturnValue({
+      messages: [],
+      isSending: false,
+      error: null,
+      send: vi.fn(),
+      appendUserMessage: vi.fn(),
+      updateMessageById: vi.fn(() => false),
+      replaceMessages: vi.fn(),
+      reset: vi.fn(),
+    });
+    useAiStudioAgentComposerMock.mockReturnValue({
+      agentInput: "",
+      setAgentInput: vi.fn(),
+      handleAgentInputChange: vi.fn(),
+      agentAttachmentError: null,
+      setAgentAttachmentError: vi.fn(),
+      agentAttachments: [],
+      setAgentAttachments: vi.fn(),
+      linkedPromptReferenceIds: [],
+      isAgentDropActive: false,
+      markAttachmentDelivery: vi.fn(),
+      handleAgentAttachmentDragOver: vi.fn(),
+      handleAgentAttachmentDragEnter: vi.fn(),
+      handleAgentAttachmentDragLeave: vi.fn(),
+      handleAgentAttachmentDrop: vi.fn(),
+      handleRemoveAgentAttachment: vi.fn(),
+      handleClearAgentAttachments: vi.fn(),
+      resetAgentComposer: vi.fn(),
+    });
+    useAiStudioAgentOrchestrationMock.mockReturnValue({
+      isPromptRefining: false,
+      isReferencePromptEnhancing: false,
+      describeInFlightCount: 0,
+      handleAgentSend: vi.fn(),
+      handleAgentEnhanceSend: vi.fn(),
+      handleReferencePromptEnhance: vi.fn(),
+    });
+    useAiStudioAgentInteractionsMock.mockReturnValue({
+      handleAgentApplyPrompt: vi.fn(),
+      handleExpandChat: vi.fn(),
+      handleAgentAddToGrid: vi.fn(),
+      handleClearAgentChat: vi.fn(),
+      handleCloseAgentChat: vi.fn(),
+    });
+
+    const { result } = renderHook(() =>
+      useAiStudioAgentBridge(
+        createBridgeParams({
+          expertCreateMode: "pulse",
+          activePulsePresetId: "story_builder",
+        })
+      )
+    );
+
+    expect(useAiAgentMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({ directOpenAiBypassEnabled: false })
+    );
+    expect(result.current.directOpenAiBypassEnabled).toBe(false);
+  });
+
   it("restores Standard-owned bridge state after returning from Pulse mode", async () => {
     let setLatestAgentPromptFromInteractions: Dispatch<SetStateAction<string | null>> | undefined;
     let setPromptOriginFromInteractions:

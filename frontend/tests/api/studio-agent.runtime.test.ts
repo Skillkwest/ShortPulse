@@ -625,6 +625,94 @@ describe("POST /api/ai/studio-agent runtime hardening", () => {
     infoSpy.mockRestore();
   });
 
+  it("appends the latest user answer server-side when the incoming workflow session is stale", async () => {
+    const infoSpy = vi.spyOn(console, "info").mockImplementation(() => {});
+    (fetch as ReturnType<typeof vi.fn>).mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          choices: [
+            {
+              message: {
+                content: JSON.stringify({
+                  status: "needs_input",
+                  message:
+                    "Step 3 - How long should it be? Choose 1 min, 5 min, 10 min, or 20 min (or custom).",
+                }),
+              },
+            },
+          ],
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } }
+      )
+    );
+
+    const req = {
+      method: "POST",
+      body: {
+        clientSessionKey: "session-story-builder-stale-client-session",
+        messages: [
+          {
+            role: "user",
+            content: "A knight enters a cursed forest to recover a relic.",
+          },
+        ],
+        context: {
+          pulse: {
+            presetId: "story_builder",
+            label: "Story Builder",
+            description: "Guided story-circle workflow for scene plans and final image prompts.",
+            instructions:
+              "Run the Story Circle scene-prompt workflow one step at a time and end Step 4 by asking for scene edits or approval.",
+            runtimeMode: "workflow_gpt",
+            activationMode: "activate_and_start",
+            starterAssistantMessage:
+              "Step 1 - Upload your characters. Please upload 1-3+ character images. Optional: add quick notes (roles, relationships, must-have traits, do-not-include).",
+            workflowStageHints: [
+              "Upload Characters",
+              "Plot Seed",
+              "Runtime",
+              "Scene Review",
+              "Image Prompts",
+              "Dialogue Story",
+            ],
+            outputMode: "chat_reply",
+            memoryPolicy: "session",
+            source: "builtin",
+            workflowSession: {
+              presetId: "story_builder",
+              status: "running",
+              currentStepIndex: 2,
+              currentStepLabel: "Plot Seed",
+              currentStepPrompt:
+                "Step 2 - Basic plot. Share a 1-2 sentence plot idea, or pick one of these suggestions.",
+              collectedInputs: ["grimdark tone"],
+              lastArtifact: null,
+            },
+          },
+        },
+      },
+    };
+    const res = createMockResponse();
+
+    await studioAgentHandler(req as never, res as never);
+
+    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        workflowSession: expect.objectContaining({
+          presetId: "story_builder",
+          status: "awaiting_input",
+          currentStepIndex: 3,
+          currentStepLabel: "Runtime",
+          collectedInputs: ["grimdark tone", "A knight enters a cursed forest to recover a relic."],
+        }),
+      })
+    );
+    expect(extractTelemetryPaths(infoSpy)).not.toContain("direct_openai_bypass");
+    infoSpy.mockRestore();
+  });
+
   it("marks chat-reply workflow pulses completed when the route returns a ready final artifact", async () => {
     const infoSpy = vi.spyOn(console, "info").mockImplementation(() => {});
     (fetch as ReturnType<typeof vi.fn>).mockResolvedValue(
@@ -868,7 +956,12 @@ describe("POST /api/ai/studio-agent runtime hardening", () => {
         workflowSession: expect.objectContaining({
           presetId: "multi_sequence_video",
           status: "completed",
-          collectedInputs: ["forest still", "The knight flees through the ruins", "n/a"],
+          collectedInputs: [
+            "forest still",
+            "The knight flees through the ruins",
+            "n/a",
+            "Looks good, give me the final prompt.",
+          ],
           lastArtifact:
             "TITLE: Moonlit Forest Escape\nSTYLE: grimdark fantasy, cold moonlight, wet stone, drifting mist",
           finalArtifactSource: "chat_reply",

@@ -819,7 +819,7 @@ export const cleanupOrphanedMedia = async ({
     .neq("status", "archived");
   if (characterRowsError) {
     throw new Error(
-      asErrorMessage(characterRowsError, "Failed to validate character preset references.")
+      asErrorMessage(characterRowsError, "Failed to validate character look references.")
     );
   }
   const presetReferenced = (characterRows ?? []).some((row) =>

@@ -353,7 +353,7 @@ export const useCharacterManagerPresetController = ({
         activeCharacterSheetPresetIdRef.current = previousPresetId;
         setCharacterSheetPresetAssignments(previousAssignments);
         setCharacterDescriptionState(previousDescription);
-        setError(toErrorMessage(nextError, "Failed to switch character sheet preset."));
+        setError(toErrorMessage(nextError, "Failed to switch character look."));
         return false;
       } finally {
         if (activeCharacterSheetPresetRequestRef.current === requestId) {
@@ -422,7 +422,7 @@ export const useCharacterManagerPresetController = ({
         setCharacterSheetPresets(revertedPresets);
         characterSheetPresetsRef.current = revertedPresets;
         setCharacterSheetPresetAssignments(previousAssignments);
-        setError(toErrorMessage(nextError, "Failed to save character sheet preset."));
+        setError(toErrorMessage(nextError, "Failed to save character look."));
         return false;
       } finally {
         if (characterSheetPresetAssignmentsRequestRef.current === requestId) {
@@ -456,7 +456,7 @@ export const useCharacterManagerPresetController = ({
       createEmptyCharacterSheetPresetAssignments();
     const nextPresetId = getNextCharacterSheetPresetId(previousVisiblePresetIds);
     if (!nextPresetId) {
-      setError("You can create up to 10 preset tabs.");
+      setError("You can create up to 10 looks.");
       return false;
     }
 
@@ -513,7 +513,7 @@ export const useCharacterManagerPresetController = ({
       activeCharacterSheetPresetIdRef.current = previousPresetId;
       setCharacterSheetPresetAssignments(previousAssignments);
       setCharacterDescriptionState(previousPresetDescriptions[previousPresetId] ?? "");
-      setError(toErrorMessage(nextError, "Failed to add character sheet preset tab."));
+      setError(toErrorMessage(nextError, "Failed to add character look."));
       return false;
     } finally {
       if (characterSheetPresetTabOrderRequestRef.current === requestId) {
@@ -583,7 +583,7 @@ export const useCharacterManagerPresetController = ({
         }
         setCharacterSheetPresetLabels(previousPresetLabels);
         characterSheetPresetLabelsRef.current = previousPresetLabels;
-        setError(toErrorMessage(nextError, "Failed to rename character sheet preset tab."));
+        setError(toErrorMessage(nextError, "Failed to rename look."));
         return false;
       } finally {
         if (characterSheetPresetTabLabelRequestRef.current === requestId) {
@@ -609,7 +609,7 @@ export const useCharacterManagerPresetController = ({
     async (presetId: CharacterSheetPresetId) => {
       clearMessages();
       if (presetId === "1") {
-        setError("Preset tab 1 cannot be deleted.");
+        setError("Look 1 cannot be deleted.");
         return false;
       }
 
@@ -626,7 +626,7 @@ export const useCharacterManagerPresetController = ({
         (visiblePresetId) => visiblePresetId !== presetId
       );
       if (!optimisticVisiblePresetIds.length) {
-        setError("At least one preset tab must remain visible.");
+        setError("At least one look must remain visible.");
         return false;
       }
 
@@ -703,7 +703,7 @@ export const useCharacterManagerPresetController = ({
         activeCharacterSheetPresetIdRef.current = previousPresetId;
         setCharacterSheetPresetAssignments(previousActiveAssignments);
         setCharacterDescriptionState(previousPresetDescriptions[previousPresetId] ?? "");
-        setError(toErrorMessage(nextError, "Failed to delete character sheet preset tab."));
+        setError(toErrorMessage(nextError, "Failed to delete look."));
         return false;
       } finally {
         if (characterSheetPresetTabOrderRequestRef.current === requestId) {

@@ -178,7 +178,8 @@ export const useAiStudioAgentBridge = ({
     process.env.NEXT_PUBLIC_STUDIO_AGENT_DIRECT_OPENAI_BYPASS_ENABLED === "true";
   const [agentSessionEnabled, setAgentSessionEnabled] = useState<boolean>(agentFlag);
   const agentEnabled = agentFlag && agentSessionEnabled;
-  const directOpenAiBypassEnabled = directOpenAiBypassEnabledByConfig;
+  const directOpenAiBypassEnabled =
+    directOpenAiBypassEnabledByConfig && expertCreateMode !== "pulse";
   const [chatModeEnabled, setChatModeEnabledState] = useState(() => {
     if (typeof window === "undefined") return true;
     if (projectRouteRequested || projectId) return true;
@@ -214,7 +215,7 @@ export const useAiStudioAgentBridge = ({
     sessionNamespace: `ai-studio:${agentBridgeSessionKey}`,
     directOpenAiBypassEnabled:
       chatModeEnabled &&
-      directOpenAiBypassEnabledByConfig &&
+      directOpenAiBypassEnabled &&
       (selectedTool === "create" || selectedTool === "text"),
   });
 

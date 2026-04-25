@@ -238,7 +238,7 @@ export function CharacterSheetPresetTabs({
           <div
             className="character-sheet-preset-tablist"
             role="tablist"
-            aria-label="Character sheet style presets"
+            aria-label="Character looks"
             aria-orientation="horizontal"
           >
             {presetIds.map((presetId, index) => {
@@ -314,7 +314,7 @@ export function CharacterSheetPresetTabs({
                         className="character-sheet-preset-tab-input"
                         value={editingLabel}
                         maxLength={24}
-                        aria-label={`Rename preset ${presetId}`}
+                        aria-label={`Rename look ${presetId}`}
                         onChange={(event) => {
                           setEditingLabel(event.target.value);
                         }}
@@ -347,7 +347,7 @@ export function CharacterSheetPresetTabs({
                     <button
                       type="button"
                       className="character-sheet-preset-delete-btn"
-                      aria-label={`Delete preset ${presetId}`}
+                      aria-label={`Delete look ${presetId}`}
                       onClick={(event) => {
                         event.stopPropagation();
                         if (consumeSuppressedPointerActivation()) return;
@@ -366,7 +366,7 @@ export function CharacterSheetPresetTabs({
             <button
               type="button"
               className="character-sheet-preset-add-btn"
-              aria-label="Add character sheet preset tab"
+              aria-label="Add character look"
               onClick={() => {
                 if (consumeSuppressedPointerActivation()) return;
                 void onAddPreset?.();

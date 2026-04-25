@@ -233,6 +233,16 @@ export const useAiStudioAgentOrchestration = ({
           existingSession: mediaPatchedContext.pulse?.workflowSession ?? null,
           userInput: userMessageText,
         });
+        const requestContext =
+          pendingWorkflowSession && mediaPatchedContext.pulse
+            ? {
+                ...mediaPatchedContext,
+                pulse: {
+                  ...mediaPatchedContext.pulse,
+                  workflowSession: pendingWorkflowSession,
+                },
+              }
+            : mediaPatchedContext;
         if (pendingWorkflowSession) {
           setPulseWorkflowSession(pendingWorkflowSession);
         }
@@ -241,7 +251,7 @@ export const useAiStudioAgentOrchestration = ({
           text: outboundText,
           payloadText: outboundText,
           previousPrompt: latestAgentPrompt ?? null,
-          context: mediaPatchedContext,
+          context: requestContext,
           skipUserEcho: true,
           optimisticUserMessageId,
         });
@@ -260,7 +270,7 @@ export const useAiStudioAgentOrchestration = ({
           has_apply_prompt: Boolean(appliedPrompt),
         });
 
-        const hasActivePulse = Boolean(mediaPatchedContext.pulse);
+        const hasActivePulse = Boolean(requestContext.pulse);
         if (appliedPrompt) {
           setLatestAgentPrompt(appliedPrompt);
           if (shouldApplyAgentPromptToSharedPrompt(selectedTool, { hasActivePulse })) {

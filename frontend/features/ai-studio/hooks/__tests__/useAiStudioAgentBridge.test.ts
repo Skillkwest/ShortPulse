@@ -261,6 +261,72 @@ describe("useAiStudioAgentBridge", () => {
     });
   });
 
+  it("reports bootstrap readiness from session identity availability", () => {
+    useAiAgentMock.mockReturnValue({
+      messages: [],
+      isSending: false,
+      error: null,
+      send: vi.fn(),
+      appendUserMessage: vi.fn(),
+      updateMessageById: vi.fn(() => false),
+      replaceMessages: vi.fn(),
+      reset: vi.fn(),
+    });
+    useAiStudioAgentComposerMock.mockReturnValue({
+      agentInput: "",
+      setAgentInput: vi.fn(),
+      handleAgentInputChange: vi.fn(),
+      agentAttachmentError: null,
+      setAgentAttachmentError: vi.fn(),
+      agentAttachments: [],
+      setAgentAttachments: vi.fn(),
+      linkedPromptReferenceIds: [],
+      isAgentDropActive: false,
+      markAttachmentDelivery: vi.fn(),
+      handleAgentAttachmentDragOver: vi.fn(),
+      handleAgentAttachmentDragEnter: vi.fn(),
+      handleAgentAttachmentDragLeave: vi.fn(),
+      handleAgentAttachmentDrop: vi.fn(),
+      handleRemoveAgentAttachment: vi.fn(),
+      handleClearAgentAttachments: vi.fn(),
+      resetAgentComposer: vi.fn(),
+    });
+    useAiStudioAgentOrchestrationMock.mockReturnValue({
+      isPromptRefining: false,
+      isReferencePromptEnhancing: false,
+      describeInFlightCount: 0,
+      handleAgentSend: vi.fn(),
+      handleAgentEnhanceSend: vi.fn(),
+      handleReferencePromptEnhance: vi.fn(),
+      handlePulsePresetStart: vi.fn(),
+    });
+    useAiStudioAgentInteractionsMock.mockReturnValue({
+      handleAgentApplyPrompt: vi.fn(),
+      handleExpandChat: vi.fn(),
+      handleAgentAddToGrid: vi.fn(),
+      handleClearAgentChat: vi.fn(),
+      handleCloseAgentChat: vi.fn(),
+    });
+
+    const base = createBridgeParams({ sessionId: null });
+    const { result, rerender } = renderHook(
+      ({ sessionId }: { sessionId: string | null }) =>
+        useAiStudioAgentBridge({
+          ...base,
+          sessionId,
+        }),
+      {
+        initialProps: { sessionId: null },
+      }
+    );
+
+    expect(result.current.agentBootstrapReady).toBe(false);
+
+    rerender({ sessionId: "f7f45245-f204-4ece-8f9e-c9a66a9d8d2a" });
+
+    expect(result.current.agentBootstrapReady).toBe(true);
+  });
+
   it("enables direct OpenAI bypass automatically when the backend gate is enabled", async () => {
     vi.stubEnv("NEXT_PUBLIC_STUDIO_AGENT_DIRECT_OPENAI_BYPASS_ENABLED", "true");
 
@@ -526,6 +592,96 @@ describe("useAiStudioAgentBridge", () => {
     expect(result.current.promptOrigin).toBe("agent");
     expect(result.current.agentActions).toEqual({ applyPrompt: "Standard prompt" });
     expect(result.current.isAgentChatOpen).toBe(true);
+  });
+
+  it("does not rehydrate stale Standard history over a newly arrived assistant response", async () => {
+    const replaceMessages = vi.fn();
+    let setAgentActionsFromInteractions:
+      | Dispatch<SetStateAction<AgentActions | undefined>>
+      | undefined;
+    let currentMessages: Array<{ id: string; role: "user" | "assistant"; content: string }> = [];
+
+    useAiAgentMock.mockImplementation(() => ({
+      messages: currentMessages,
+      isSending: false,
+      error: null,
+      send: vi.fn(),
+      appendUserMessage: vi.fn(),
+      updateMessageById: vi.fn(() => false),
+      replaceMessages,
+      reset: vi.fn(),
+    }));
+    useAiStudioAgentComposerMock.mockReturnValue({
+      agentInput: "",
+      setAgentInput: vi.fn(),
+      handleAgentInputChange: vi.fn(),
+      agentAttachmentError: null,
+      setAgentAttachmentError: vi.fn(),
+      agentAttachments: [],
+      setAgentAttachments: vi.fn(),
+      linkedPromptReferenceIds: [],
+      isAgentDropActive: false,
+      markAttachmentDelivery: vi.fn(),
+      handleAgentAttachmentDragOver: vi.fn(),
+      handleAgentAttachmentDragEnter: vi.fn(),
+      handleAgentAttachmentDragLeave: vi.fn(),
+      handleAgentAttachmentDrop: vi.fn(),
+      handleRemoveAgentAttachment: vi.fn(),
+      handleClearAgentAttachments: vi.fn(),
+      resetAgentComposer: vi.fn(),
+    });
+    useAiStudioAgentOrchestrationMock.mockReturnValue({
+      isPromptRefining: false,
+      isReferencePromptEnhancing: false,
+      describeInFlightCount: 0,
+      handleAgentSend: vi.fn(),
+      handlePulsePresetStart: vi.fn(),
+      handleAgentEnhanceSend: vi.fn(),
+      handleReferencePromptEnhance: vi.fn(),
+    });
+    useAiStudioAgentInteractionsMock.mockImplementation((params) => {
+      setAgentActionsFromInteractions = params.setAgentActions;
+      return {
+        handleAgentApplyPrompt: vi.fn(),
+        handleExpandChat: vi.fn(),
+        handleAgentAddToGrid: vi.fn(),
+        handleClearAgentChat: vi.fn(),
+        handleCloseAgentChat: vi.fn(),
+      };
+    });
+
+    const { rerender } = renderHook(() => useAiStudioAgentBridge(createBridgeParams()));
+
+    await waitFor(() => {
+      expect(replaceMessages).toHaveBeenCalledWith([]);
+      expect(setAgentActionsFromInteractions).toBeDefined();
+    });
+
+    replaceMessages.mockClear();
+    currentMessages = [{ id: "user-1", role: "user", content: "Make it cinematic." }];
+    rerender();
+
+    await waitFor(() => {
+      expect(replaceMessages).toHaveBeenLastCalledWith(currentMessages);
+    });
+
+    replaceMessages.mockClear();
+    currentMessages = [
+      { id: "user-1", role: "user", content: "Make it cinematic." },
+      { id: "assistant-1", role: "assistant", content: "Cinematic golden-hour portrait." },
+    ];
+    rerender();
+
+    act(() => {
+      setAgentActionsFromInteractions?.({
+        applyPrompt: "Cinematic golden-hour portrait.",
+      } as AgentActions);
+    });
+
+    await waitFor(() => {
+      expect(replaceMessages).toHaveBeenCalled();
+      expect(replaceMessages).toHaveBeenLastCalledWith(currentMessages);
+    });
   });
 
   it("restarts an active Pulse without clearing Pulse ownership", async () => {

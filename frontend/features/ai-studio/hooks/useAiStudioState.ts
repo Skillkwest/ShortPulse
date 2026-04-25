@@ -51,6 +51,10 @@ import {
   createEmptyReferenceProjectionState,
   type ReferenceProjectionState,
 } from "../reference-projections";
+
+const isPlainSessionGeneratedOutputHydrationEnabled = (): boolean =>
+  process.env.NEXT_PUBLIC_AI_STUDIO_PLAIN_SESSION_GENERATED_OUTPUT_HYDRATION_ENABLED === "true";
+
 /**
  * Provides AI Studio state and handlers for create/regenerate flows.
  */
@@ -87,8 +91,10 @@ export const useAiStudioState = ({
     setAspect,
     model,
     setModelState,
-    prompt,
-    setPrompt,
+    standardPrompt,
+    setStandardPrompt,
+    pulsePrompt,
+    setPulsePrompt,
     editReferenceText,
     setEditReferenceTextState,
     videoReferenceText,
@@ -153,6 +159,15 @@ export const useAiStudioState = ({
     projectRouteRequested,
   });
 
+  const runtimeAuthorityKey =
+    projectRouteRequested && !projectId
+      ? "project:pending"
+      : projectId
+        ? `project:${projectId}`
+        : sessionId
+          ? `session:${sessionId}`
+          : "session:pending";
+
   const {
     activeOutputState,
     setActiveOutputState,
@@ -164,7 +179,9 @@ export const useAiStudioState = ({
     activeOutputById,
     setOutputsState,
     setArchivedOutputs,
-  } = useAiStudioOutputCollectionState();
+  } = useAiStudioOutputCollectionState({
+    authorityKey: runtimeAuthorityKey,
+  });
   const [activeOutputId, setActiveOutputId] = useState<string | null>(null);
   const [referenceProjectionState, setReferenceProjectionState] =
     useState<ReferenceProjectionState>(createEmptyReferenceProjectionState);
@@ -176,6 +193,20 @@ export const useAiStudioState = ({
   const pendingFinalizeRemovalIdsRef = useRef<Set<string>>(new Set());
   const sessionHydrationSigningRevisionRef = useRef(0);
   const canonicalGeneratedHydrationStartedRef = useRef(false);
+  const activeRuntimeAuthorityKeyRef = useRef(runtimeAuthorityKey);
+
+  useEffect(() => {
+    if (activeRuntimeAuthorityKeyRef.current === runtimeAuthorityKey) return;
+    activeRuntimeAuthorityKeyRef.current = runtimeAuthorityKey;
+    setActiveOutputId(null);
+    setReferenceProjectionState(createEmptyReferenceProjectionState());
+    pendingAutoSavesRef.current = {};
+    pendingFinalizeRemovalIdsRef.current = new Set();
+    sessionHydrationSigningRevisionRef.current += 1;
+    canonicalGeneratedHydrationStartedRef.current = false;
+    setSaved(false);
+  }, [runtimeAuthorityKey]);
+
   const {
     activeOutput,
     activeOutputPreviewUrl,
@@ -278,12 +309,20 @@ export const useAiStudioState = ({
     setKlingMultiPrompts,
     setKlingElements,
   });
-  const { setSharedPrompt, setEditReferenceText, setVideoReferenceText } =
-    useAiStudioStableTextSetters({
-      setPrompt,
-      setEditReferenceTextState,
-      setVideoReferenceTextState,
-    });
+  const {
+    setSharedPrompt,
+    setStandardCreatePrompt,
+    setPulseCreatePrompt,
+    setEditReferenceText,
+    setVideoReferenceText,
+  } = useAiStudioStableTextSetters({
+    expertCreateMode,
+    setStandardPromptState: setStandardPrompt,
+    setPulsePromptState: setPulsePrompt,
+    setEditReferenceTextState,
+    setVideoReferenceTextState,
+  });
+  const prompt = expertCreateMode === "pulse" ? pulsePrompt : standardPrompt;
   const {
     archiveOlderOutputs,
     restoreArchivedOutput,
@@ -370,7 +409,14 @@ export const useAiStudioState = ({
   });
 
   useEffect(() => {
-    if (projectRouteRequested || projectId || canonicalGeneratedHydrationStartedRef.current) return;
+    if (
+      projectRouteRequested ||
+      projectId ||
+      canonicalGeneratedHydrationStartedRef.current ||
+      !isPlainSessionGeneratedOutputHydrationEnabled()
+    ) {
+      return;
+    }
     canonicalGeneratedHydrationStartedRef.current = true;
     let cancelled = false;
 
@@ -521,6 +567,8 @@ export const useAiStudioState = ({
       mode,
       selectedTool,
       prompt,
+      standardCreatePrompt: standardPrompt,
+      pulseCreatePrompt: pulsePrompt,
       model,
       aspect,
       expertCreateMode,
@@ -559,7 +607,8 @@ export const useAiStudioState = ({
       sessionHydrationSigningRevisionRef,
       setMode,
       setSelectedTool,
-      setSharedPrompt,
+      setStandardCreatePrompt,
+      setPulseCreatePrompt,
       setModel: setModelState,
       setAspect,
       setExpertCreateMode: setExpertCreateMode ?? (() => undefined),
@@ -640,7 +689,9 @@ export const useAiStudioState = ({
     setModel: setModelState,
     currentModelLabel,
     prompt,
-    setPrompt,
+    setPrompt: setSharedPrompt,
+    standardPrompt,
+    pulsePrompt,
     outputs,
     outputOrder: activeOutputState.order,
     outputById: activeOutputState.byId,

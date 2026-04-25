@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   buildAiStudioSessionSnapshot,
+  createAiStudioProjectWorkspaceSnapshot,
+  patchAiStudioSessionSnapshotCanvas,
   patchAiStudioSessionSnapshotWorkspace,
 } from "../sessionSnapshot";
 import type { StudioOutput } from "../../types";
@@ -149,6 +151,8 @@ describe("sessionSnapshot", () => {
     expect(snapshot.schemaVersion).toBe(2);
     expect(snapshot.sessionId).toBe("f7f45245-f204-4ece-8f9e-c9a66a9d8d2a");
     expect(snapshot.workspace.prompt).toBe("A cinematic portrait");
+    expect(snapshot.workspace.standardPrompt).toBe("");
+    expect(snapshot.workspace.pulsePrompt).toBe("A cinematic portrait");
     expect(snapshot.workspace.klingWorkflowMode).toBe("multi");
     expect(snapshot.workspace.expertCreateMode).toBe("pulse");
     expect(snapshot.workspace.activePulsePresetId).toBe("single_shot");
@@ -199,6 +203,127 @@ describe("sessionSnapshot", () => {
     expect(snapshot.meta.checksum.startsWith("fnv1a32:")).toBe(true);
   });
 
+  it("serializes Standard and Pulse create prompts separately when both are provided", () => {
+    const snapshot = buildAiStudioSessionSnapshot({
+      sessionId: "f7f45245-f204-4ece-8f9e-c9a66a9d8d2a",
+      mode: "image",
+      selectedTool: "create",
+      prompt: "Pulse artifact prompt",
+      standardCreatePrompt: "Standard draft prompt",
+      pulseCreatePrompt: "Pulse artifact prompt",
+      model: "fal-ai/bytedance/seedream/v4.5/text-to-image",
+      aspect: "9:16",
+      expertCreateMode: "pulse",
+      activePulsePresetId: "single_shot",
+      referenceImageUrl: null,
+      extraImageUrls: [null, null, null],
+      editReferenceText: "",
+      videoReferenceText: "",
+      videoReferenceMode: "standard",
+      videoDurationSeconds: 6,
+      videoResolution: "1080p",
+      imageResolution: "model_default",
+      videoGenerateAudio: false,
+      videoCameraFixed: false,
+      videoAutoFix: false,
+      klingNegativePrompt: "",
+      klingCfgScale: 0.5,
+      klingWorkflowMode: "single",
+      klingShotType: "customize",
+      klingVoiceIds: ["", ""],
+      klingMultiPrompts: [],
+      klingElements: [],
+      motionReferenceVideoUrl: null,
+      outputs: [],
+      archivedOutputs: [],
+      activeOutputId: null,
+      curatedReferenceIds: [],
+      removedFromAllRefsIds: [],
+      agentMessages: [],
+      agentInput: "",
+      latestAgentPrompt: null,
+      promptOrigin: "manual",
+      chatModeEnabled: true,
+      pulseWorkflowSession: null,
+    });
+
+    expect(snapshot.workspace.prompt).toBe("Pulse artifact prompt");
+    expect(snapshot.workspace.standardPrompt).toBe("Standard draft prompt");
+    expect(snapshot.workspace.pulsePrompt).toBe("Pulse artifact prompt");
+  });
+
+  it("strips conversational runtime state from project workspace snapshots while keeping Pulse selection", () => {
+    const snapshot = buildAiStudioSessionSnapshot({
+      sessionId: "f7f45245-f204-4ece-8f9e-c9a66a9d8d2a",
+      updatedAt: "2026-03-02T12:00:00.000Z",
+      mode: "image",
+      selectedTool: "create",
+      prompt: "A cinematic portrait",
+      model: "fal-ai/bytedance/seedream/v4.5/text-to-image",
+      aspect: "9:16",
+      expertCreateMode: "pulse",
+      activePulsePresetId: "single_shot",
+      referenceImageUrl: null,
+      extraImageUrls: [null, null, null],
+      editReferenceText: "",
+      videoReferenceText: "",
+      videoReferenceMode: "standard",
+      videoDurationSeconds: 6,
+      videoResolution: "1080p",
+      imageResolution: "model_default",
+      videoGenerateAudio: false,
+      videoCameraFixed: false,
+      videoAutoFix: false,
+      klingNegativePrompt: "",
+      klingCfgScale: 0.5,
+      klingWorkflowMode: "multi",
+      klingShotType: "customize",
+      klingVoiceIds: ["", ""],
+      klingMultiPrompts: [],
+      klingElements: [],
+      motionReferenceVideoUrl: null,
+      outputs: [createOutput()],
+      archivedOutputs: [],
+      activeOutputId: "out-1",
+      curatedReferenceIds: ["out-1"],
+      removedFromAllRefsIds: [],
+      agentMessages: [{ id: "a-1", role: "assistant", content: "Here is your prompt." }],
+      agentInput: "next shot",
+      latestAgentPrompt: "Here is your prompt.",
+      promptOrigin: "agent",
+      chatModeEnabled: false,
+      pulseWorkflowSession: {
+        presetId: "single_shot",
+        status: "awaiting_input",
+        currentStepIndex: 2,
+        currentStepLabel: "Action",
+        currentStepPrompt: "Step 2 — Action: What should happen next?",
+        collectedInputs: ["Upload your image"],
+        lastArtifact: null,
+      },
+      canvasState: createCanvasState(),
+      expertEditSessionState: createExpertEditSessionState(),
+    });
+
+    const projectSnapshot = createAiStudioProjectWorkspaceSnapshot(snapshot);
+
+    expect(projectSnapshot.workspace.expertCreateMode).toBe("pulse");
+    expect(projectSnapshot.workspace.activePulsePresetId).toBe("single_shot");
+    expect(projectSnapshot.agent).toEqual({
+      messages: [],
+      input: "",
+      latestAgentPrompt: null,
+      promptOrigin: "manual",
+      chatModeEnabled: true,
+      pulseWorkflowSession: null,
+    });
+    expect("agentRuntimes" in projectSnapshot).toBe(false);
+    expect(projectSnapshot.schemaVersion).toBe(2);
+    if (projectSnapshot.schemaVersion === 2) {
+      expect(projectSnapshot.meta.checksum.startsWith("fnv1a32:")).toBe(true);
+    }
+  });
+
   it("patches workspace-selected character state and recomputes snapshot metadata", () => {
     const snapshot = buildAiStudioSessionSnapshot({
       sessionId: "f7f45245-f204-4ece-8f9e-c9a66a9d8d2a",
@@ -243,6 +368,52 @@ describe("sessionSnapshot", () => {
     });
 
     expect(patched.workspace.selectedCharacterId).toBe("char-1");
+    expect(patched.meta.checksum).not.toBe(snapshot.meta.checksum);
+  });
+
+  it("patches page-owned canvas state onto an existing snapshot and recomputes metadata", () => {
+    const snapshot = buildAiStudioSessionSnapshot({
+      sessionId: "f7f45245-f204-4ece-8f9e-c9a66a9d8d2a",
+      mode: "image",
+      selectedTool: "create",
+      prompt: "A cinematic portrait",
+      model: "fal-ai/bytedance/seedream/v4.5/text-to-image",
+      aspect: "9:16",
+      referenceImageUrl: null,
+      extraImageUrls: [null, null, null],
+      editReferenceText: "",
+      videoReferenceText: "",
+      videoReferenceMode: "standard",
+      videoDurationSeconds: 6,
+      videoResolution: "1080p",
+      imageResolution: "model_default",
+      videoGenerateAudio: false,
+      videoCameraFixed: false,
+      videoAutoFix: false,
+      klingNegativePrompt: "",
+      klingCfgScale: 0.5,
+      klingWorkflowMode: "single",
+      klingShotType: "customize",
+      klingVoiceIds: ["", ""],
+      klingMultiPrompts: [],
+      klingElements: [],
+      motionReferenceVideoUrl: null,
+      outputs: [createOutput()],
+      archivedOutputs: [],
+      activeOutputId: "out-1",
+      curatedReferenceIds: ["out-1"],
+      removedFromAllRefsIds: [],
+      agentMessages: [],
+      agentInput: "",
+      latestAgentPrompt: null,
+      promptOrigin: "manual",
+      chatModeEnabled: true,
+    });
+
+    const patched = patchAiStudioSessionSnapshotCanvas(snapshot, createCanvasState());
+
+    expect(patched.canvas?.scene.items).toEqual([]);
+    expect(patched.canvas?.viewports.main.zoom).toBe(1);
     expect(patched.meta.checksum).not.toBe(snapshot.meta.checksum);
   });
 

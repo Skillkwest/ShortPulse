@@ -403,6 +403,125 @@ describe("CreatePropertiesPanel", () => {
     expect(screen.queryByText("What do you want to make?")).not.toBeInTheDocument();
   });
 
+  it("hides the expert empty-state shell once a standard-mode thread has started with a user message", () => {
+    const { container } = renderPanel({
+      beginnerMode: false,
+      expertCreateUiEligible: true,
+      agentEnabled: true,
+      expertCreateMode: "standard",
+      agentMessages: [
+        {
+          id: "user-1",
+          role: "user",
+          content: "Make this a polished ad concept.",
+        },
+      ],
+      onAgentInputChange: vi.fn(),
+      onAgentSend: vi.fn(),
+    });
+
+    expect(screen.queryByText("What do you want to make?")).not.toBeInTheDocument();
+    expect(container.querySelector(".create-expert-empty-state-shell")).toBeFalsy();
+    expect(container.querySelector(".create-expert-empty-preview-frame")).toBeFalsy();
+    expect(container.querySelector(".create-expert-lower-preview-frame")).toBeFalsy();
+  });
+
+  it("keeps a newly arrived standard-mode assistant reply visible across rerenders", () => {
+    const { rerender } = renderPanel({
+      beginnerMode: false,
+      expertCreateUiEligible: true,
+      agentEnabled: true,
+      expertCreateMode: "standard",
+      agentMessages: [
+        {
+          id: "user-1",
+          role: "user",
+          content: "Make this a polished ad concept.",
+        },
+      ],
+      onAgentInputChange: vi.fn(),
+      onAgentSend: vi.fn(),
+    });
+
+    expect(screen.queryByText("What do you want to make?")).not.toBeInTheDocument();
+    expect(screen.getByText("Make this a polished ad concept.")).toBeInTheDocument();
+
+    rerender(
+      <CreatePropertiesPanel
+        {...baseProps}
+        beginnerMode={false}
+        expertCreateUiEligible
+        agentEnabled
+        expertCreateMode="standard"
+        agentMessages={[
+          {
+            id: "user-1",
+            role: "user",
+            content: "Make this a polished ad concept.",
+          },
+          {
+            id: "assistant-1",
+            role: "assistant",
+            content: "Polished luxury fragrance ad with cinematic reflections.",
+          },
+        ]}
+        onAgentInputChange={vi.fn()}
+        onAgentSend={vi.fn()}
+      />
+    );
+
+    expect(
+      screen.getByText("Polished luxury fragrance ad with cinematic reflections.")
+    ).toBeInTheDocument();
+    expect(screen.queryByText("What do you want to make?")).not.toBeInTheDocument();
+  });
+
+  it("hides the expert empty-state shell once a pulse workflow session exists even before thread messages render", () => {
+    const { container } = renderPanel({
+      beginnerMode: false,
+      expertCreateUiEligible: true,
+      agentEnabled: true,
+      expertCreateMode: "pulse",
+      activePulsePresetId: "story_builder",
+      pulseWorkflowSession: {
+        presetId: "story_builder",
+        status: "running",
+        currentStepIndex: 1,
+        currentStepLabel: "Story Setup",
+        currentStepPrompt: "Tell me the story genre and tone.",
+        collectedInputs: [],
+        lastArtifact: null,
+      },
+      agentMessages: [],
+      onAgentInputChange: vi.fn(),
+      onAgentSend: vi.fn(),
+    });
+
+    expect(screen.queryByText("What do you want to make?")).not.toBeInTheDocument();
+    expect(container.querySelector(".create-expert-empty-state-shell")).toBeFalsy();
+    expect(container.querySelector(".create-expert-empty-preview-frame")).toBeFalsy();
+    expect(container.querySelector(".create-expert-lower-preview-frame")).toBeFalsy();
+  });
+
+  it("keeps the expert empty-state shell hidden while a pulse activation is in progress", () => {
+    const { container } = renderPanel({
+      beginnerMode: false,
+      expertCreateUiEligible: true,
+      agentEnabled: true,
+      expertCreateMode: "pulse",
+      activePulsePresetId: "story_builder",
+      agentIsSending: true,
+      agentMessages: [],
+      onAgentInputChange: vi.fn(),
+      onAgentSend: vi.fn(),
+    });
+
+    expect(screen.queryByText("What do you want to make?")).not.toBeInTheDocument();
+    expect(container.querySelector(".create-expert-empty-state-shell")).toBeFalsy();
+    expect(container.querySelector(".create-expert-empty-preview-frame")).toBeFalsy();
+    expect(container.querySelector(".create-expert-lower-preview-frame")).toBeFalsy();
+  });
+
   it("fades the expert title out at eight visual rows and fades it back in below that threshold", async () => {
     let scrollHeightPx = 180;
     const scrollHeightDescriptor = Object.getOwnPropertyDescriptor(

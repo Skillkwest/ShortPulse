@@ -22,8 +22,10 @@ export type UseAiStudioCreationStateResult = {
   setAspect: Dispatch<SetStateAction<string>>;
   model: string | null;
   setModelState: Dispatch<SetStateAction<string | null>>;
-  prompt: string;
-  setPrompt: Dispatch<SetStateAction<string>>;
+  standardPrompt: string;
+  setStandardPrompt: Dispatch<SetStateAction<string>>;
+  pulsePrompt: string;
+  setPulsePrompt: Dispatch<SetStateAction<string>>;
   editReferenceText: string;
   setEditReferenceTextState: Dispatch<SetStateAction<string>>;
   videoReferenceText: string;
@@ -104,7 +106,8 @@ export const useAiStudioCreationState = ({
   const [mode, setMode] = useState<StudioMode>("text");
   const [aspect, setAspect] = useState<string>("9:16");
   const [model, setModelState] = useState<string | null>(null);
-  const [prompt, setPrompt] = useState<string>("");
+  const [standardPrompt, setStandardPrompt] = useState<string>("");
+  const [pulsePrompt, setPulsePrompt] = useState<string>("");
   const [editReferenceText, setEditReferenceTextState] = useState<string>("");
   const [videoReferenceText, setVideoReferenceTextState] = useState<string>("");
   const [expertEditSessionState, setExpertEditSessionState] =
@@ -187,8 +190,10 @@ export const useAiStudioCreationState = ({
     setAspect,
     model,
     setModelState,
-    prompt,
-    setPrompt,
+    standardPrompt,
+    setStandardPrompt,
+    pulsePrompt,
+    setPulsePrompt,
     editReferenceText,
     setEditReferenceTextState,
     videoReferenceText,

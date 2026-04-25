@@ -119,6 +119,28 @@ describe("sessionSnapshotHydrator", () => {
 
     expect(payload.workspace.expertCreateMode).toBe("pulse");
     expect(payload.workspace.activePulsePresetId).toBe("single_shot");
+    expect(payload.workspace.standardPrompt).toBe("");
+    expect(payload.workspace.pulsePrompt).toBe("prompt");
+    expect(payload.workspace.prompt).toBe("prompt");
+  });
+
+  it("hydrates separate Standard and Pulse prompt ownership when both are persisted", () => {
+    const payload = buildAiStudioSessionHydrationPayload(
+      createSnapshot({
+        workspace: {
+          ...createSnapshot().workspace,
+          prompt: "Pulse artifact prompt",
+          standardPrompt: "Standard draft prompt",
+          pulsePrompt: "Pulse artifact prompt",
+          expertCreateMode: "pulse",
+          activePulsePresetId: "single_shot",
+        },
+      })
+    );
+
+    expect(payload.workspace.prompt).toBe("Pulse artifact prompt");
+    expect(payload.workspace.standardPrompt).toBe("Standard draft prompt");
+    expect(payload.workspace.pulsePrompt).toBe("Pulse artifact prompt");
   });
 
   it("restores the active Pulse id from persisted Pulse runtime ownership when the workspace field is missing", () => {

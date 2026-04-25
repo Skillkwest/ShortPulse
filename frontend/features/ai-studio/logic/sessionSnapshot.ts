@@ -94,6 +94,8 @@ export type AiStudioSessionWorkspaceV1 = {
   mode: StudioMode;
   selectedTool: ToolId | null;
   prompt: string;
+  standardPrompt?: string;
+  pulsePrompt?: string;
   model: string | null;
   aspect: string;
   selectedCharacterId?: string | null;
@@ -185,6 +187,8 @@ export type BuildAiStudioSessionSnapshotInput = {
   mode: StudioMode;
   selectedTool: ToolId | null;
   prompt: string;
+  standardCreatePrompt?: string;
+  pulseCreatePrompt?: string;
   model: string | null;
   aspect: string;
   selectedCharacterId?: string | null;
@@ -455,6 +459,20 @@ const sanitizeAgentRuntime = (runtime: {
   pulseWorkflowSession: sanitizePulseWorkflowSession(runtime.pulseWorkflowSession),
 });
 
+/**
+ * Returns the canonical empty agent runtime payload.
+ * Project workspace persistence uses this to strip conversation state while
+ * keeping the shared snapshot envelope compatible with restore logic.
+ */
+export const createEmptyAiStudioSessionAgentState = (): AiStudioSessionAgentV1 => ({
+  messages: [],
+  input: "",
+  latestAgentPrompt: null,
+  promptOrigin: "manual",
+  chatModeEnabled: true,
+  pulseWorkflowSession: null,
+});
+
 const computeChecksum = (value: unknown): string => {
   const serialized = JSON.stringify(value);
   let hash = 2166136261;
@@ -473,6 +491,10 @@ export const buildAiStudioSessionSnapshot = (
   input: BuildAiStudioSessionSnapshotInput
 ): AiStudioSessionSnapshotV2 => {
   const updatedAt = input.updatedAt ?? new Date().toISOString();
+  const resolvedStandardCreatePrompt =
+    input.standardCreatePrompt ?? (input.expertCreateMode === "pulse" ? "" : input.prompt);
+  const resolvedPulseCreatePrompt =
+    input.pulseCreatePrompt ?? (input.expertCreateMode === "pulse" ? input.prompt : "");
   const canvas = input.canvasState
     ? serializeAiStudioSessionCanvasState(input.canvasState)
     : undefined;
@@ -487,14 +509,7 @@ export const buildAiStudioSessionSnapshot = (
     chatModeEnabled: input.chatModeEnabled,
     pulseWorkflowSession: input.pulseWorkflowSession,
   });
-  const emptyAgentRuntime = sanitizeAgentRuntime({
-    messages: [],
-    input: "",
-    latestAgentPrompt: null,
-    promptOrigin: "manual",
-    chatModeEnabled: true,
-    pulseWorkflowSession: null,
-  });
+  const emptyAgentRuntime = createEmptyAiStudioSessionAgentState();
   const agentRuntimes = input.agentRuntimes
     ? {
         standard: sanitizeAgentRuntime(input.agentRuntimes.standard),
@@ -516,6 +531,8 @@ export const buildAiStudioSessionSnapshot = (
       mode: input.mode,
       selectedTool: input.selectedTool,
       prompt: input.prompt,
+      standardPrompt: resolvedStandardCreatePrompt,
+      pulsePrompt: resolvedPulseCreatePrompt,
       model: input.model,
       aspect: input.aspect,
       selectedCharacterId: sanitizeSelectedCharacterId(input.selectedCharacterId),
@@ -587,6 +604,8 @@ export const createEmptyAiStudioSessionSnapshot = ({
     mode: "text",
     selectedTool: "create",
     prompt: "",
+    standardCreatePrompt: "",
+    pulseCreatePrompt: "",
     model: null,
     aspect: "9:16",
     selectedCharacterId: null,
@@ -652,6 +671,41 @@ export const createEmptyAiStudioSessionSnapshot = ({
   });
 
 /**
+ * Strips conversational runtime state from a session snapshot so project-owned
+ * workspace rows persist only authored workspace content, not chat history.
+ */
+export const createAiStudioProjectWorkspaceSnapshot = (
+  snapshot: AiStudioSessionSnapshot
+): AiStudioSessionSnapshot => {
+  const emptyAgentRuntime = createEmptyAiStudioSessionAgentState();
+  if (snapshot.schemaVersion >= 2) {
+    const {
+      meta: _meta,
+      agentRuntimes: _agentRuntimes,
+      ...baseSnapshot
+    } = snapshot as AiStudioSessionSnapshotV2 & {
+      agentRuntimes?: AiStudioSessionAgentRuntimesV2;
+    };
+    const normalizedSnapshot = {
+      ...baseSnapshot,
+      agent: emptyAgentRuntime,
+    };
+    return {
+      ...normalizedSnapshot,
+      meta: {
+        generatedAt: snapshot.updatedAt,
+        checksum: computeChecksum(normalizedSnapshot),
+      },
+    } satisfies AiStudioSessionSnapshotV2;
+  }
+
+  return {
+    ...snapshot,
+    agent: emptyAgentRuntime,
+  };
+};
+
+/**
  * Applies workspace-field patches to a v2 snapshot and recomputes metadata checksum.
  */
 export const patchAiStudioSessionSnapshotWorkspace = (
@@ -667,6 +721,36 @@ export const patchAiStudioSessionSnapshotWorkspace = (
       ...workspacePatch,
     },
   };
+
+  return {
+    ...patchedSnapshot,
+    meta: {
+      generatedAt: snapshot.updatedAt,
+      checksum: computeChecksum(patchedSnapshot),
+    },
+  };
+};
+
+/**
+ * Applies or removes page-owned canvas state on a v2 snapshot and recomputes metadata checksum.
+ * This keeps page-level canvas ownership decoupled from the shared state hook while preserving
+ * the canonical snapshot envelope used by project/session persistence.
+ */
+export const patchAiStudioSessionSnapshotCanvas = (
+  snapshot: AiStudioSessionSnapshotV2,
+  canvasState: AiStudioSessionCanvasState | null | undefined
+): AiStudioSessionSnapshotV2 => {
+  const { meta, ...baseSnapshot } = snapshot;
+  void meta;
+
+  const patchedSnapshot = {
+    ...baseSnapshot,
+    ...(canvasState ? { canvas: serializeAiStudioSessionCanvasState(canvasState) } : {}),
+  };
+
+  if (!canvasState && "canvas" in patchedSnapshot) {
+    delete (patchedSnapshot as Partial<AiStudioSessionSnapshotV2>).canvas;
+  }
 
   return {
     ...patchedSnapshot,

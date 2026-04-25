@@ -8,6 +8,7 @@ import type { AiStudioSessionSnapshot } from "../logic/sessionSnapshot";
 import type { AiStudioSessionHydrationPayload } from "../logic/sessionSnapshotHydrator";
 import type { AiStudioSessionRestoreCandidateState } from "./useAiStudioSessionRestoreCandidate";
 import { readAiStudioSessionPersistencePolicy } from "../logic/sessionPersistencePolicy";
+import type { AiStudioSessionCanvasState } from "../logic/sessionSnapshotCanvas";
 
 type UseAiStudioSessionRestoreHydrationParams = {
   sessionId: string | null;
@@ -18,6 +19,7 @@ type UseAiStudioSessionRestoreHydrationParams = {
   hydrateFromSessionAgentSnapshot: (
     payload: Pick<AiStudioSessionHydrationPayload, "workspace" | "agent" | "agentRuntimes">
   ) => void;
+  hydrateFromSessionCanvasSnapshot?: (canvas: AiStudioSessionCanvasState | null) => void;
   hydrateFromSessionExpertEditSnapshot?: (
     expertEdit: AiStudioSessionHydrationPayload["expertEdit"]
   ) => void;
@@ -34,6 +36,7 @@ export const useAiStudioSessionRestoreHydration = ({
   sessionRestoreCandidate,
   hydrateFromSessionSnapshot,
   hydrateFromSessionAgentSnapshot,
+  hydrateFromSessionCanvasSnapshot,
   hydrateFromSessionExpertEditSnapshot,
   applyEnabled: applyEnabledProp,
   agentApplyEnabled: agentApplyEnabledProp,
@@ -92,6 +95,7 @@ export const useAiStudioSessionRestoreHydration = ({
     if (agentApplyEnabled) {
       hydrateFromSessionAgentSnapshot(payload);
     }
+    hydrateFromSessionCanvasSnapshot?.(payload.canvas);
     hydrateFromSessionExpertEditSnapshot?.(payload.expertEdit);
     sessionHydrationAppliedRef.current = sessionId;
 
@@ -104,6 +108,7 @@ export const useAiStudioSessionRestoreHydration = ({
         source: sessionRestoreCandidate.source,
         snapshot_updated_at: snapshot.updatedAt,
         agent_hydration_applied: agentApplyEnabled,
+        canvas_hydration_applied: Boolean(hydrateFromSessionCanvasSnapshot),
         expert_edit_hydration_applied: Boolean(hydrateFromSessionExpertEditSnapshot),
       },
     });
@@ -113,6 +118,7 @@ export const useAiStudioSessionRestoreHydration = ({
     applyEnabled,
     hydrateFromSessionSnapshot,
     hydrateFromSessionAgentSnapshot,
+    hydrateFromSessionCanvasSnapshot,
     sessionId,
     skipApplyForSessionId,
     sessionRestoreCandidate.snapshot,

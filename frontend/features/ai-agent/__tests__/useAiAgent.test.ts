@@ -607,6 +607,34 @@ describe("useAiAgent", () => {
     expect(assistantMessage?.id).toMatch(/^agent-assistant-/);
   });
 
+  it("appends assistant history from applyPrompt when the response omits message text", async () => {
+    fetchWithAuthMock.mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        actions: { applyPrompt: "cinematic fragrance bottle with glossy reflections" },
+      }),
+    } as Response);
+    const { result } = renderHook(() => useAiAgent({ enabled: true }));
+
+    await act(async () => {
+      await result.current.send({
+        text: "refine this product shot",
+        payloadText: "refine this product shot",
+      });
+    });
+
+    expect(result.current.messages).toEqual([
+      expect.objectContaining({
+        role: "user",
+        content: "refine this product shot",
+      }),
+      expect.objectContaining({
+        role: "assistant",
+        content: "cinematic fragrance bottle with glossy reflections",
+      }),
+    ]);
+  });
+
   it("updates only the targeted message when updateMessageById is used", async () => {
     fetchWithAuthMock.mockResolvedValue({
       ok: true,

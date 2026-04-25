@@ -7,6 +7,7 @@ import { addBreadcrumb } from "../../../lib/clientBreadcrumbs";
 import type { AiStudioSessionSnapshot } from "../logic/sessionSnapshot";
 import type { AiStudioSessionHydrationPayload } from "../logic/sessionSnapshotHydrator";
 import type { AiStudioProjectWorkspaceRestoreCandidateState } from "./useAiStudioProjectWorkspaceRestoreCandidate";
+import type { AiStudioSessionCanvasState } from "../logic/sessionSnapshotCanvas";
 
 type UseAiStudioProjectWorkspaceRestoreHydrationParams = {
   projectId: string | null;
@@ -14,13 +15,12 @@ type UseAiStudioProjectWorkspaceRestoreHydrationParams = {
   hydrateFromSessionSnapshot: (
     snapshot: AiStudioSessionSnapshot
   ) => AiStudioSessionHydrationPayload;
-  hydrateFromSessionAgentSnapshot: (
-    payload: Pick<AiStudioSessionHydrationPayload, "workspace" | "agent" | "agentRuntimes">
-  ) => void;
+  hydrateFromSessionCanvasSnapshot?: (canvas: AiStudioSessionCanvasState | null) => void;
   hydrateFromSessionExpertEditSnapshot?: (
     expertEdit: AiStudioSessionHydrationPayload["expertEdit"]
   ) => void;
   applyEmptyProjectState?: () => void;
+  resetProjectAgentConversation?: () => void;
   onProjectBootstrapSettled?: (projectId: string) => void;
 };
 
@@ -31,9 +31,10 @@ export const useAiStudioProjectWorkspaceRestoreHydration = ({
   projectId,
   projectWorkspaceRestoreCandidate,
   hydrateFromSessionSnapshot,
-  hydrateFromSessionAgentSnapshot,
+  hydrateFromSessionCanvasSnapshot,
   hydrateFromSessionExpertEditSnapshot,
   applyEmptyProjectState,
+  resetProjectAgentConversation,
   onProjectBootstrapSettled,
 }: UseAiStudioProjectWorkspaceRestoreHydrationParams) => {
   const candidateLogKeyRef = useRef<string | null>(null);
@@ -88,8 +89,9 @@ export const useAiStudioProjectWorkspaceRestoreHydration = ({
     if (hydrationAppliedProjectIdRef.current === projectId) return;
     const snapshot = projectWorkspaceRestoreCandidate.snapshot;
     if (snapshot) {
+      resetProjectAgentConversation?.();
       const payload = hydrateFromSessionSnapshot(snapshot);
-      hydrateFromSessionAgentSnapshot(payload);
+      hydrateFromSessionCanvasSnapshot?.(payload.canvas);
       hydrateFromSessionExpertEditSnapshot?.(payload.expertEdit);
     } else {
       applyEmptyProjectState?.();
@@ -108,12 +110,14 @@ export const useAiStudioProjectWorkspaceRestoreHydration = ({
         source: projectWorkspaceRestoreCandidate.source,
         snapshot_updated_at: snapshot?.updatedAt ?? null,
         empty_project_applied: !snapshot,
+        agent_conversation_reset: Boolean(resetProjectAgentConversation && snapshot),
+        canvas_hydration_applied: Boolean(hydrateFromSessionCanvasSnapshot),
         expert_edit_hydration_applied: Boolean(hydrateFromSessionExpertEditSnapshot),
       },
     });
   }, [
     applyEmptyProjectState,
-    hydrateFromSessionAgentSnapshot,
+    hydrateFromSessionCanvasSnapshot,
     hydrateFromSessionExpertEditSnapshot,
     hydrateFromSessionSnapshot,
     onProjectBootstrapSettled,
@@ -121,5 +125,6 @@ export const useAiStudioProjectWorkspaceRestoreHydration = ({
     projectWorkspaceRestoreCandidate.snapshot,
     projectWorkspaceRestoreCandidate.source,
     projectWorkspaceRestoreCandidate.status,
+    resetProjectAgentConversation,
   ]);
 };

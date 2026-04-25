@@ -455,6 +455,8 @@ export type AiStudioSessionHydrationPayload = {
     mode: StudioMode;
     selectedTool: ToolId | null;
     prompt: string;
+    standardPrompt: string;
+    pulsePrompt: string;
     model: string | null;
     aspect: string;
     selectedCharacterId: string | null;
@@ -619,6 +621,15 @@ export const buildAiStudioSessionHydrationPayload = (
   const workspaceExpertCreateMode = asExpertCreateMode(
     (workspace as { expertCreateMode?: unknown }).expertCreateMode
   );
+  const legacyWorkspacePrompt = asString(workspace.prompt, "");
+  const workspaceStandardPrompt = asString(
+    (workspace as { standardPrompt?: unknown }).standardPrompt,
+    workspaceExpertCreateMode === "pulse" ? "" : legacyWorkspacePrompt
+  );
+  const workspacePulsePrompt = asString(
+    (workspace as { pulsePrompt?: unknown }).pulsePrompt,
+    workspaceExpertCreateMode === "pulse" ? legacyWorkspacePrompt : ""
+  );
   const workspaceActivePulsePresetId =
     asNullableString(
       (workspace as { activePulsePresetId?: unknown }).activePulsePresetId
@@ -656,7 +667,10 @@ export const buildAiStudioSessionHydrationPayload = (
     workspace: {
       mode: asMode(workspace.mode),
       selectedTool: asToolId(workspace.selectedTool),
-      prompt: asString(workspace.prompt, ""),
+      prompt:
+        workspaceExpertCreateMode === "pulse" ? workspacePulsePrompt : workspaceStandardPrompt,
+      standardPrompt: workspaceStandardPrompt,
+      pulsePrompt: workspacePulsePrompt,
       model: normalizeSeedance2UiModelId(asNullableString(workspace.model)) ?? null,
       aspect: asString(workspace.aspect, FALLBACK_ASPECT),
       selectedCharacterId: asNullableString(workspace.selectedCharacterId)?.trim() || null,

@@ -29,6 +29,8 @@ type UseAiStudioSessionSnapshotControllerParams = {
   mode: StudioMode;
   selectedTool: ToolId | null;
   prompt: string;
+  standardCreatePrompt: string;
+  pulseCreatePrompt: string;
   model: string | null;
   aspect: string;
   expertCreateMode: "standard" | "pulse";
@@ -67,7 +69,8 @@ type UseAiStudioSessionSnapshotControllerParams = {
   sessionHydrationSigningRevisionRef: MutableRefObject<number>;
   setMode: Dispatch<SetStateAction<StudioMode>>;
   setSelectedTool: Dispatch<SetStateAction<ToolId | null>>;
-  setSharedPrompt: (value: string) => void;
+  setStandardCreatePrompt: (value: string) => void;
+  setPulseCreatePrompt: (value: string) => void;
   setModel: (value: string | null) => void;
   setAspect: Dispatch<SetStateAction<string>>;
   setExpertCreateMode: Dispatch<SetStateAction<"standard" | "pulse">>;
@@ -117,6 +120,8 @@ export const useAiStudioSessionSnapshotController = ({
   mode,
   selectedTool,
   prompt,
+  standardCreatePrompt,
+  pulseCreatePrompt,
   model,
   aspect,
   expertCreateMode,
@@ -155,7 +160,8 @@ export const useAiStudioSessionSnapshotController = ({
   sessionHydrationSigningRevisionRef,
   setMode,
   setSelectedTool,
-  setSharedPrompt,
+  setStandardCreatePrompt,
+  setPulseCreatePrompt,
   setModel,
   setAspect,
   setExpertCreateMode,
@@ -199,7 +205,8 @@ export const useAiStudioSessionSnapshotController = ({
 
       setMode(workspace.mode);
       setSelectedTool(workspace.selectedTool);
-      setSharedPrompt(workspace.prompt);
+      setStandardCreatePrompt(workspace.standardPrompt);
+      setPulseCreatePrompt(workspace.pulsePrompt);
       setModel(workspace.model);
       setAspect(workspace.aspect);
       setExpertCreateMode(workspace.expertCreateMode);
@@ -308,7 +315,8 @@ export const useAiStudioSessionSnapshotController = ({
       setReferenceProjectionState,
       setSaved,
       setSelectedTool,
-      setSharedPrompt,
+      setPulseCreatePrompt,
+      setStandardCreatePrompt,
       setVideoAutoFix,
       setVideoCameraFixed,
       setVideoDurationSeconds,
@@ -349,6 +357,8 @@ export const useAiStudioSessionSnapshotController = ({
         mode,
         selectedTool,
         prompt,
+        standardCreatePrompt,
+        pulseCreatePrompt,
         model,
         aspect,
         expertCreateMode,
@@ -419,11 +429,13 @@ export const useAiStudioSessionSnapshotController = ({
       model,
       motionReferenceVideoUrl,
       outputs,
+      pulseCreatePrompt,
       pulseWorkflowSession,
       prompt,
       referenceImageUrl,
       removedFromAllRefsIds,
       selectedTool,
+      standardCreatePrompt,
       videoAutoFix,
       videoCameraFixed,
       videoDurationSeconds,

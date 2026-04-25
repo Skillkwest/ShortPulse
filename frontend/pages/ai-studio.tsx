@@ -67,13 +67,11 @@ import {
   CANVAS_AUDIO_ITEM_HEIGHT,
   CANVAS_AUDIO_ITEM_WIDTH,
 } from "../features/ai-studio/components/canvas/canvasGeometry";
-import { getAiStudioSessionSnapshotViaApi } from "../features/ai-studio/logic/sessionApiClient";
-import { readAiStudioSessionPersistencePolicy } from "../features/ai-studio/logic/sessionPersistencePolicy";
 import {
   createEmptyAiStudioSessionSnapshot,
+  patchAiStudioSessionSnapshotCanvas,
   patchAiStudioSessionSnapshotWorkspace,
 } from "../features/ai-studio/logic/sessionSnapshot";
-import { resolveAiStudioSessionSnapshotTitle } from "../features/ai-studio/logic/sessionSnapshotTitle";
 import {
   arePulseWorkflowSessionsEqual,
   derivePulseWorkflowSession,
@@ -101,9 +99,6 @@ const FLAG_SELECTOR_CALLBACKS = PERF_FLAG_SELECTOR_CALLBACKS;
 const FLAG_PAGE_OUTPUT_DECOUPLE = PERF_FLAG_PAGE_OUTPUT_DECOUPLE;
 const FLAG_REFERENCE_GRID_PRECONNECT_HINTS = PERF_FLAG_REFERENCE_GRID_PRECONNECT_HINTS;
 const FLAG_PERF_AUDIT_RUNTIME = PERF_FLAG_AUDIT_RUNTIME;
-const { restoreRemoteEnabled: AI_STUDIO_REMOTE_SESSION_FETCH_ENABLED } =
-  readAiStudioSessionPersistencePolicy();
-
 type OptimisticDebitEntry = { credits: number; outputId: string | null; createdAtMs?: number };
 
 type VoicesGenerateSuccessResponse = {
@@ -749,12 +744,15 @@ export default function AiStudioPage() {
     },
     [addLibraryMediaReferenceToQuickSlot, addLibraryPromptReferenceToQuickSlot]
   );
-  const { railCanvasProps, hydrateSessionState: hydrateCanvasSessionState } =
-    useAiStudioDualCanvasWorkspaceState({
-      resolveCanvasDropReference,
-      prepareCanvasMediaLibraryDrop,
-      onPinTextReference: addPastedPromptReference,
-    });
+  const {
+    railCanvasProps,
+    sessionState: canvasSessionState,
+    hydrateSessionState: hydrateCanvasSessionState,
+  } = useAiStudioDualCanvasWorkspaceState({
+    resolveCanvasDropReference,
+    prepareCanvasMediaLibraryDrop,
+    onPinTextReference: addPastedPromptReference,
+  });
   useAiStudioMediaAutosaveOrchestrator({
     outputs,
     mediaAutosaveEnabled,
@@ -876,6 +874,7 @@ export default function AiStudioPage() {
   });
   const {
     agentEnabled,
+    agentBootstrapReady,
     agentMessages,
     agentError,
     agentBusy,
@@ -914,6 +913,7 @@ export default function AiStudioPage() {
     handleAgentAddToGrid,
     handleClearAgentChat,
     handleCloseAgentChat,
+    resetProjectAgentConversation,
     hydrateFromSessionAgentSnapshot,
   } = useAiStudioAgentBridge({
     projectId,
@@ -992,10 +992,13 @@ export default function AiStudioPage() {
 
   const buildProjectAwareSessionSnapshot = useCallback(
     (args: Parameters<typeof buildSessionSnapshot>[0]) =>
-      patchAiStudioSessionSnapshotWorkspace(buildSessionSnapshot(args), {
-        selectedCharacterId: createSelectedCharacterId || null,
-      }),
-    [buildSessionSnapshot, createSelectedCharacterId]
+      patchAiStudioSessionSnapshotCanvas(
+        patchAiStudioSessionSnapshotWorkspace(buildSessionSnapshot(args), {
+          selectedCharacterId: createSelectedCharacterId || null,
+        }),
+        canvasSessionState
+      ),
+    [buildSessionSnapshot, canvasSessionState, createSelectedCharacterId]
   );
 
   const hydrateProjectAwareSessionSnapshot = useCallback(
@@ -1009,17 +1012,17 @@ export default function AiStudioPage() {
 
   const applyEmptyProjectState = useCallback(() => {
     const payload = hydrateProjectAwareSessionSnapshot(createEmptyAiStudioSessionSnapshot());
-    hydrateFromSessionAgentSnapshot(payload);
+    resetProjectAgentConversation();
     setExpertEditSessionState(payload.expertEdit);
     hydrateCanvasSessionState(payload.canvas);
   }, [
     hydrateCanvasSessionState,
-    hydrateFromSessionAgentSnapshot,
     hydrateProjectAwareSessionSnapshot,
+    resetProjectAgentConversation,
     setExpertEditSessionState,
   ]);
 
-  const { sessionSnapshot, projectBootstrapApplied, projectBootstrapError, retryProjectBootstrap } =
+  const { projectBootstrapApplied, projectBootstrapError, retryProjectBootstrap } =
     useAiStudioPageSessionPersistence({
       projectId,
       projectRouteRequested,
@@ -1043,53 +1046,16 @@ export default function AiStudioPage() {
       expertEditSessionState,
       hydrateFromSessionSnapshot: hydrateProjectAwareSessionSnapshot,
       hydrateFromSessionAgentSnapshot,
+      hydrateFromSessionCanvasSnapshot: hydrateCanvasSessionState,
       hydrateFromSessionExpertEditSnapshot: setExpertEditSessionState,
       applyEmptyProjectState,
+      resetProjectAgentConversation,
       setUiNotice,
     });
 
-  useEffect(() => {
-    let cancelled = false;
-    if (
-      !activeSessionPersistenceSessionId ||
-      projectId ||
-      !AI_STUDIO_REMOTE_SESSION_FETCH_ENABLED
-    ) {
-      return () => void 0;
-    }
-
-    void getAiStudioSessionSnapshotViaApi({ sessionId: activeSessionPersistenceSessionId })
-      .then((payload) => {
-        if (cancelled) return;
-        setSessionTitleOverrideState((current) => {
-          if (current?.sessionId === activeSessionPersistenceSessionId && current.title !== null) {
-            return current;
-          }
-          return {
-            sessionId: activeSessionPersistenceSessionId,
-            title: normalizeAiStudioProjectName(payload?.title ?? null),
-          };
-        });
-      })
-      .catch(() => {
-        if (cancelled) return;
-        setSessionTitleOverrideState({
-          sessionId: activeSessionPersistenceSessionId,
-          title: null,
-        });
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [activeSessionPersistenceSessionId, projectId]);
-
   const effectiveProjectName = useMemo(
-    () =>
-      project?.title ??
-      localSessionTitleOverride ??
-      (sessionSnapshot ? resolveAiStudioSessionSnapshotTitle(sessionSnapshot) : null),
-    [localSessionTitleOverride, project?.title, sessionSnapshot]
+    () => project?.title ?? localSessionTitleOverride ?? null,
+    [localSessionTitleOverride, project?.title]
   );
   const handleProjectNameCommit = useCallback(
     async (value: string) => {
@@ -1358,6 +1324,7 @@ export default function AiStudioPage() {
     prompt,
     promptRef,
     agentEnabled,
+    agentBootstrapReady,
     agentMessages,
     agentActions,
     pulseWorkflowSession,

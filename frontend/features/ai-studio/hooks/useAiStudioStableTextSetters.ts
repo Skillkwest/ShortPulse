@@ -5,7 +5,9 @@
 import { useCallback, type Dispatch, type SetStateAction } from "react";
 
 type UseAiStudioStableTextSettersParams = {
-  setPrompt: Dispatch<SetStateAction<string>>;
+  expertCreateMode: "standard" | "pulse";
+  setStandardPromptState: Dispatch<SetStateAction<string>>;
+  setPulsePromptState: Dispatch<SetStateAction<string>>;
   setEditReferenceTextState: Dispatch<SetStateAction<string>>;
   setVideoReferenceTextState: Dispatch<SetStateAction<string>>;
 };
@@ -14,15 +16,33 @@ type UseAiStudioStableTextSettersParams = {
  * Returns stable equality-guarded text setters for prompt and reference fields.
  */
 export const useAiStudioStableTextSetters = ({
-  setPrompt,
+  expertCreateMode,
+  setStandardPromptState,
+  setPulsePromptState,
   setEditReferenceTextState,
   setVideoReferenceTextState,
 }: UseAiStudioStableTextSettersParams) => {
+  const setStandardCreatePrompt = useCallback(
+    (value: string) => {
+      setStandardPromptState((prev) => (prev === value ? prev : value));
+    },
+    [setStandardPromptState]
+  );
+  const setPulseCreatePrompt = useCallback(
+    (value: string) => {
+      setPulsePromptState((prev) => (prev === value ? prev : value));
+    },
+    [setPulsePromptState]
+  );
   const setSharedPrompt = useCallback(
     (value: string) => {
-      setPrompt((prev) => (prev === value ? prev : value));
+      if (expertCreateMode === "pulse") {
+        setPulseCreatePrompt(value);
+        return;
+      }
+      setStandardCreatePrompt(value);
     },
-    [setPrompt]
+    [expertCreateMode, setPulseCreatePrompt, setStandardCreatePrompt]
   );
   const setEditReferenceText = useCallback(
     (value: string) => {
@@ -39,6 +59,8 @@ export const useAiStudioStableTextSetters = ({
 
   return {
     setSharedPrompt,
+    setStandardCreatePrompt,
+    setPulseCreatePrompt,
     setEditReferenceText,
     setVideoReferenceText,
   };

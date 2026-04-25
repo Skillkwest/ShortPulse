@@ -83,6 +83,11 @@ type AgentBridgeRuntimeState = {
   isAgentChatOpen: boolean;
 };
 
+type PendingRuntimeHydration = {
+  key: string;
+  state: AgentBridgeRuntimeState;
+};
+
 type AgentBridgeHydrationRuntime = AiStudioSessionHydrationPayload["agent"];
 
 const createDefaultAgentBridgeRuntimeState = (
@@ -180,6 +185,7 @@ export const useAiStudioAgentBridge = ({
   const agentEnabled = agentFlag && agentSessionEnabled;
   const directOpenAiBypassEnabled =
     directOpenAiBypassEnabledByConfig && expertCreateMode !== "pulse";
+  const agentBootstrapReady = Boolean(sessionId);
   const [chatModeEnabled, setChatModeEnabledState] = useState(() => {
     if (typeof window === "undefined") return true;
     if (projectRouteRequested || projectId) return true;
@@ -281,7 +287,7 @@ export const useAiStudioAgentBridge = ({
   );
   const { agentActions, isAgentChatOpen, latestAgentPrompt, promptOrigin } =
     activeAgentBridgeSessionUiState;
-  const pendingRuntimeHydrationKeyRef = useRef<string | null>(null);
+  const pendingRuntimeHydrationRef = useRef<PendingRuntimeHydration | null>(null);
   const persistedAgentRuntimes = useMemo(
     () => ({
       standard: createPersistedAgentRuntimeSnapshot(
@@ -353,7 +359,10 @@ export const useAiStudioAgentBridge = ({
   useEffect(() => {
     const activeRuntimeState =
       agentBridgeRuntimeStateBySessionKey[agentBridgeSessionKey] ?? createDefaultRuntimeState();
-    pendingRuntimeHydrationKeyRef.current = agentBridgeSessionKey;
+    pendingRuntimeHydrationRef.current = {
+      key: agentBridgeSessionKey,
+      state: activeRuntimeState,
+    };
     replaceMessages(activeRuntimeState.messages);
     setAgentInput(activeRuntimeState.input);
     setAgentAttachmentError(null);
@@ -380,9 +389,21 @@ export const useAiStudioAgentBridge = ({
   ]);
 
   useEffect(() => {
-    if (pendingRuntimeHydrationKeyRef.current === agentBridgeSessionKey) {
-      pendingRuntimeHydrationKeyRef.current = null;
-      return;
+    const pendingHydration = pendingRuntimeHydrationRef.current;
+    if (pendingHydration?.key === agentBridgeSessionKey) {
+      const isHydratedEcho =
+        pendingHydration.state.messages === agentMessages &&
+        pendingHydration.state.input === agentInput &&
+        pendingHydration.state.attachments === agentAttachments &&
+        pendingHydration.state.latestAgentPrompt === latestAgentPrompt &&
+        pendingHydration.state.promptOrigin === promptOrigin &&
+        pendingHydration.state.chatModeEnabled === chatModeEnabled &&
+        pendingHydration.state.agentActions === agentActions &&
+        pendingHydration.state.isAgentChatOpen === isAgentChatOpen;
+      pendingRuntimeHydrationRef.current = null;
+      if (isHydratedEcho) {
+        return;
+      }
     }
     // eslint-disable-next-line react-hooks/set-state-in-effect -- The active runtime snapshot must track live bridge state as the user edits within the current scope.
     updateAgentBridgeSessionUiState((current) => {
@@ -440,6 +461,7 @@ export const useAiStudioAgentBridge = ({
     handleReferencePromptEnhance,
   } = useAiStudioAgentOrchestration({
     agentIsSending,
+    agentBootstrapReady,
     agentUiBusyRef,
     setAgentUiBusy,
     agentSessionEnabled,
@@ -528,6 +550,30 @@ export const useAiStudioAgentBridge = ({
     ]
   );
 
+  const resetProjectAgentConversation = useCallback(() => {
+    const sessionKeyPrefix = `${sessionId ?? "none"}::`;
+    resetAgentChat();
+    resetAgentComposer({ preserveInput: false, preserveAttachments: false });
+    setAgentBridgeRuntimeStateBySessionKey((current) => {
+      const nextEntries = Object.entries(current).filter(
+        ([key]) => !key.startsWith(sessionKeyPrefix)
+      );
+      if (nextEntries.length === Object.keys(current).length) return current;
+      return Object.fromEntries(nextEntries);
+    });
+    setChatModeEnabledState(true);
+    setPulseWorkflowSession(null);
+    setAgentAttachmentError(null);
+    setAgentAttachments([]);
+  }, [
+    resetAgentChat,
+    resetAgentComposer,
+    sessionId,
+    setAgentAttachmentError,
+    setAgentAttachments,
+    setPulseWorkflowSession,
+  ]);
+
   useEffect(() => {
     resetAgentComposer({ preserveInput: true, preserveAttachments: false });
   }, [mode, resetAgentComposer, selectedTool, sessionId]);
@@ -602,6 +648,7 @@ export const useAiStudioAgentBridge = ({
 
   return {
     agentEnabled,
+    agentBootstrapReady,
     directOpenAiBypassEnabled,
     agentMessages,
     agentError,
@@ -630,6 +677,7 @@ export const useAiStudioAgentBridge = ({
     handlePulsePresetRestart,
     handleAgentEnhanceSend,
     handleReferencePromptEnhance,
+    resetProjectAgentConversation,
     hydrateFromSessionAgentSnapshot,
     handleAgentAttachmentDragOver,
     handleAgentAttachmentDragEnter,

@@ -157,6 +157,7 @@ const makeOutput = (id: string, overrides: Partial<StudioOutput> = {}): StudioOu
 
 describe("useAiStudioState output store bridge", () => {
   beforeEach(() => {
+    vi.unstubAllEnvs();
     resetAiStudioOutputStore();
     listVisibleGeneratedOutputsMock.mockClear();
     mockUpdateOutputById.mockClear();
@@ -220,7 +221,91 @@ describe("useAiStudioState output store bridge", () => {
     expect(listVisibleGeneratedOutputsMock).not.toHaveBeenCalled();
   });
 
-  it("keeps legacy generated-output hydration for plain session routes", async () => {
+  it("keeps plain-session startup empty by default", async () => {
+    renderHook(() => useAiStudioState(), { wrapper: strictWrapper });
+
+    await act(async () => {});
+
+    expect(listVisibleGeneratedOutputsMock).not.toHaveBeenCalled();
+  });
+
+  it("keeps Standard and Pulse create prompts isolated across mode toggles", () => {
+    const { result, rerender } = renderHook(
+      ({ expertCreateMode }: { expertCreateMode: "standard" | "pulse" }) =>
+        useAiStudioState({ expertCreateMode }),
+      {
+        initialProps: { expertCreateMode: "standard" as const },
+        wrapper: strictWrapper,
+      }
+    );
+
+    act(() => {
+      result.current.setPrompt("Standard prompt draft");
+    });
+
+    expect(result.current.prompt).toBe("Standard prompt draft");
+    expect(result.current.standardPrompt).toBe("Standard prompt draft");
+    expect(result.current.pulsePrompt).toBe("");
+
+    rerender({ expertCreateMode: "pulse" });
+
+    expect(result.current.prompt).toBe("");
+
+    act(() => {
+      result.current.setPrompt("Pulse final artifact");
+    });
+
+    expect(result.current.prompt).toBe("Pulse final artifact");
+    expect(result.current.standardPrompt).toBe("Standard prompt draft");
+    expect(result.current.pulsePrompt).toBe("Pulse final artifact");
+
+    rerender({ expertCreateMode: "standard" });
+
+    expect(result.current.prompt).toBe("Standard prompt draft");
+    expect(result.current.standardPrompt).toBe("Standard prompt draft");
+    expect(result.current.pulsePrompt).toBe("Pulse final artifact");
+  });
+
+  it("clears outputs, active selection, and quick slots when runtime authority changes to a pending project route", async () => {
+    const { result, rerender } = renderHook(
+      ({ projectRouteRequested, sessionId }) =>
+        useAiStudioState({ projectRouteRequested, sessionId }),
+      {
+        wrapper: strictWrapper,
+        initialProps: {
+          projectRouteRequested: false,
+          sessionId: "session-1" as string | null,
+        },
+      }
+    );
+
+    act(() => {
+      result.current.setOutputs([makeOutput("out-1")]);
+      result.current.addCuratedReference("out-1");
+      result.current.setActiveOutputId("out-1");
+    });
+
+    await waitFor(() => {
+      expect(getAiStudioOutputSnapshot().outputOrder).toEqual(["out-1"]);
+    });
+
+    rerender({
+      projectRouteRequested: true,
+      sessionId: "session-1",
+    });
+
+    await waitFor(() => {
+      expect(result.current.outputs).toEqual([]);
+      expect(result.current.curatedReferenceIds).toEqual([]);
+      expect(result.current.removedFromAllRefsIds).toEqual([]);
+      expect(result.current.activeOutputId).toBeNull();
+      expect(getAiStudioOutputSnapshot().outputOrder).toEqual([]);
+      expect(getAiStudioOutputSnapshot().archivedOutputOrder).toEqual([]);
+    });
+  });
+
+  it("allows plain-session generated-output hydration when explicitly enabled", async () => {
+    vi.stubEnv("NEXT_PUBLIC_AI_STUDIO_PLAIN_SESSION_GENERATED_OUTPUT_HYDRATION_ENABLED", "true");
     renderHook(() => useAiStudioState(), { wrapper: strictWrapper });
 
     await waitFor(() => {

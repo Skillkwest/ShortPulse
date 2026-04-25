@@ -12,6 +12,7 @@ import {
   buildStudioOutputsFromReferenceInputSync,
 } from "../reference-ingestion";
 import { prepareLibraryMediaIngestionPayload } from "../reference-ingestion/prepareLibraryMediaIngestionPayload";
+import type { LibraryMediaFileType } from "../reference-ingestion/types";
 import { buildAiStudioAgentContext } from "./stateAdapters/agentContextAdapter";
 
 type UseAiStudioReferenceIngestionActionsArgs = {
@@ -27,7 +28,7 @@ type UseAiStudioReferenceIngestionActionsArgs = {
 type LibraryMediaReferencePayload = {
   id: string;
   url: string;
-  fileType: "image" | "video";
+  fileType: LibraryMediaFileType;
   originFolderId?: string | null;
   filename?: string | null;
   promptText?: string | null;

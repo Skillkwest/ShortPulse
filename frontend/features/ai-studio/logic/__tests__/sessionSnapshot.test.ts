@@ -454,6 +454,78 @@ describe("sessionSnapshot", () => {
     });
   });
 
+  it("preserves non-empty legacy element aliases in persisted session workspace", () => {
+    const snapshot = buildAiStudioSessionSnapshot({
+      sessionId: "f7f45245-f204-4ece-8f9e-c9a66a9d8d2a",
+      mode: "video",
+      selectedTool: "video",
+      prompt: "legacy token restore",
+      model: "kie-ai/kling-3.0",
+      aspect: "16:9",
+      referenceImageUrl: null,
+      extraImageUrls: [null, null, null],
+      editReferenceText: "",
+      videoReferenceText: "",
+      videoReferenceMode: "kling3",
+      videoDurationSeconds: 8,
+      videoResolution: "1080p",
+      imageResolution: "model_default",
+      videoGenerateAudio: false,
+      videoCameraFixed: false,
+      videoAutoFix: false,
+      klingNegativePrompt: "",
+      klingCfgScale: 0.5,
+      klingShotType: "customize",
+      klingVoiceIds: ["", ""],
+      klingMultiPrompts: [],
+      klingElements: [
+        {
+          id: "element-1",
+          sourceKind: "element",
+          sourceElementId: "element-red-lantern",
+          sourceCharacterId: null,
+          slotIndex: 0,
+          name: "Red Lantern",
+          alias: "legacylamp",
+          description: "Warm lacquered lantern",
+          profileImageUrl: "https://cdn.shortpulse.dev/red-lantern-profile.png",
+          profileImageTransform: { zoom: 1.1, offsetX: 2, offsetY: -1 },
+          frontalImageUrl: "https://cdn.shortpulse.dev/red-lantern-front.png",
+          referenceImageUrls: "https://cdn.shortpulse.dev/red-lantern-side.png",
+          videoUrl: "",
+        },
+      ],
+      motionReferenceVideoUrl: null,
+      outputs: [],
+      archivedOutputs: [],
+      activeOutputId: null,
+      curatedReferenceIds: [],
+      removedFromAllRefsIds: [],
+      agentMessages: [],
+      agentInput: "",
+      latestAgentPrompt: null,
+      promptOrigin: "manual",
+      chatModeEnabled: false,
+      canvasState: createCanvasState(),
+    });
+
+    expect(snapshot.workspace.klingElements[0]).toEqual({
+      id: "element-1",
+      sourceKind: "element",
+      sourceElementId: "element-red-lantern",
+      sourceCharacterId: null,
+      slotIndex: 0,
+      name: "Red Lantern",
+      alias: "legacylamp",
+      description: "Warm lacquered lantern",
+      profileImageUrl: "https://cdn.shortpulse.dev/red-lantern-profile.png",
+      profileImageTransform: { zoom: 1.1, offsetX: 2, offsetY: -1 },
+      frontalImageUrl: "https://cdn.shortpulse.dev/red-lantern-front.png",
+      referenceImageUrls: "https://cdn.shortpulse.dev/red-lantern-side.png",
+      videoUrl: "",
+    });
+  });
+
   it("persists queue lifecycle metadata for restore-safe polling semantics", () => {
     const snapshot = buildAiStudioSessionSnapshot({
       sessionId: "f7f45245-f204-4ece-8f9e-c9a66a9d8d2a",

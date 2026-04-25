@@ -21,9 +21,9 @@ import { needsVideoUpload, prepareVideoUrlForSubmission } from "../../utils/vide
 import type { VideoSubmissionArgs } from "./types";
 import {
   getAiStudioKlingElementReferenceUrls,
-  resolveAiStudioKlingElementToken,
+  resolveAiStudioKlingElementDisplayLabel,
+  resolveAiStudioKlingElementLegacyTokens,
   resolveKieKlingElementToken,
-  resolveLegacyKieKlingElementToken,
   type AiStudioKlingElement,
 } from "../../logic/klingElements";
 import { prepareImageUrlForSubmission } from "../../utils/imageUpload";
@@ -246,14 +246,10 @@ const rewritePromptWithKieElementTokens = (
   >((accumulator, element, index) => {
     if (!hasKlingElementMedia(element)) return accumulator;
     const canonicalToken = resolveKieKlingElementToken(element, index, klingElements).trim();
-    const legacyTokens = Array.from(
-      new Set(
-        [
-          resolveAiStudioKlingElementToken(element, index, klingElements).trim(),
-          resolveLegacyKieKlingElementToken(element, index, klingElements).trim(),
-          element.alias?.trim() ?? "",
-        ].filter(Boolean)
-      )
+    const legacyTokens = resolveAiStudioKlingElementLegacyTokens(
+      element,
+      index,
+      klingElements
     ).filter((token) => token.toLowerCase() !== canonicalToken.toLowerCase());
     if (!canonicalToken) return accumulator;
     if (accumulator.some((pair) => pair.canonicalToken === canonicalToken)) return accumulator;
@@ -295,16 +291,13 @@ const rewritePromptWithSeedanceEntityContext = (
     Array<{ label: string; description: string; tokenAliases: string[] }>
   >((accumulator, element, index) => {
     if (!hasKlingElementMedia(element)) return accumulator;
-    const label =
-      element.name?.trim() || element.alias?.trim() || `Linked subject ${String(index + 1)}`;
+    const label = resolveAiStudioKlingElementDisplayLabel(element, index, klingElements);
     const description = element.description?.trim() ?? "";
     const tokenAliases = Array.from(
       new Set(
         [
           resolveKieKlingElementToken(element, index, klingElements).trim(),
-          resolveAiStudioKlingElementToken(element, index, klingElements).trim(),
-          resolveLegacyKieKlingElementToken(element, index, klingElements).trim(),
-          element.alias?.trim() ?? "",
+          ...resolveAiStudioKlingElementLegacyTokens(element, index, klingElements),
         ].filter(Boolean)
       )
     );

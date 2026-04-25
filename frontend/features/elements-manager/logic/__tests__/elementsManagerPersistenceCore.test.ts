@@ -139,6 +139,8 @@ describe("elementsManagerPersistenceCore", () => {
                 eq: () => ({
                   maybeSingle: async () => ({
                     data: {
+                      name: "Taylor",
+                      alias: "taylor",
                       metadata: {
                         profile_image_storage_path: "user-1/elements/element-1/profile/profile.png",
                       },
@@ -232,6 +234,8 @@ describe("elementsManagerPersistenceCore", () => {
                 eq: () => ({
                   maybeSingle: async () => ({
                     data: {
+                      name: "Taylor",
+                      alias: "taylor",
                       metadata: {
                         active_reference_set_id: "1",
                         active_reference_set_asset_type: "image",
@@ -350,5 +354,82 @@ describe("elementsManagerPersistenceCore", () => {
       "reference_sets.upsert",
       "reference_sets.delete:2,3,4,5,6,7,8,9,10",
     ]);
+  });
+
+  it("preserves the previous name-derived alias as a legacy compatibility token when renaming", async () => {
+    const updates: Array<Record<string, unknown>> = [];
+    const supabaseMock = {
+      from: (table: string) => {
+        if (table === "elements") {
+          return {
+            select: () => ({
+              eq: () => ({
+                eq: () => ({
+                  maybeSingle: async () => ({
+                    data: {
+                      name: "Taylor",
+                      alias: "taylor",
+                      metadata: {
+                        profile_image_storage_path: "user-1/elements/element-1/profile/profile.png",
+                      },
+                    },
+                    error: null,
+                  }),
+                }),
+              }),
+            }),
+            update: (payload: Record<string, unknown>) => {
+              updates.push(payload);
+              return {
+                eq: () => ({
+                  eq: () => ({
+                    select: () => ({
+                      single: async () => ({
+                        data: { updated_at: "2026-04-07T03:00:00.000Z" },
+                        error: null,
+                      }),
+                    }),
+                  }),
+                }),
+              };
+            },
+          };
+        }
+
+        if (table === "element_reference_sets") {
+          return {
+            upsert: async () => ({ error: null }),
+            delete: () => ({
+              eq: () => ({
+                eq: () => ({
+                  in: async () => ({ error: null }),
+                }),
+              }),
+            }),
+          };
+        }
+
+        throw new Error(`Unexpected table: ${table}`);
+      },
+    };
+
+    ensureSupabaseQueryClientMock.mockReturnValue(supabaseMock);
+
+    await saveElementManagerDraftSnapshot({
+      elementId: "element-1",
+      name: "Beach",
+      profileImageTransform: { zoom: 1.2, offsetX: 4, offsetY: -2 },
+      description: "front",
+      assetType: "image",
+      imageReferenceUrls: ["https://example.com/front.png"],
+      videoReferenceUrl: null,
+    });
+
+    expect(updates).toHaveLength(1);
+    expect(updates[0]).toMatchObject({
+      name: "Beach",
+      alias: "taylor",
+      status: "ready",
+    });
   });
 });

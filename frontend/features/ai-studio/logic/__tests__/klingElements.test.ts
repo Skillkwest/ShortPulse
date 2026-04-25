@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
+  resolveAiStudioKlingElementDisplayLabel,
+  resolveAiStudioKlingElementLegacyTokens,
   resolveAiStudioKlingElementToken,
   resolveAiStudioKlingElementTokens,
   resolveKieKlingElementToken,
@@ -55,5 +57,27 @@ describe("klingElements token resolution", () => {
     expect(resolveLegacyKieKlingElementToken(elements[1], 1, elements)).toBe(
       "element_taylor_element"
     );
+  });
+
+  it("collects deduped legacy compatibility tokens for restored prompt matching", () => {
+    const elements = [
+      { slotIndex: 0, sourceKind: "element" as const, name: "Red Lantern", alias: "legacylamp" },
+    ];
+
+    expect(resolveAiStudioKlingElementLegacyTokens(elements[0], 0, elements)).toEqual([
+      "redlantern",
+      "element_redlantern",
+      "legacylamp",
+    ]);
+  });
+
+  it("uses the current name as the display label before falling back to compatibility tokens", () => {
+    const elements = [
+      { slotIndex: 0, sourceKind: "element" as const, name: "Red Lantern", alias: "legacylamp" },
+      { slotIndex: 1, sourceKind: "element" as const, name: "", alias: "legacylamp" },
+    ];
+
+    expect(resolveAiStudioKlingElementDisplayLabel(elements[0], 0, elements)).toBe("Red Lantern");
+    expect(resolveAiStudioKlingElementDisplayLabel(elements[1], 1, elements)).toBe("legacylamp");
   });
 });

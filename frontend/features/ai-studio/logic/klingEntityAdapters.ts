@@ -13,7 +13,7 @@ export type AiStudioKlingPickerOption = {
   sourceKind: AiStudioKlingEntitySourceKind;
   sourceId: string;
   name: string;
-  alias: string;
+  token: string;
   profileImageUrl: string | null;
   profileImageTransform: AiStudioKlingElement["profileImageTransform"];
   status: string;
@@ -26,7 +26,7 @@ export const toKlingPickerCharacterOption = (
   sourceKind: "character",
   sourceId: character.characterId,
   name: character.characterName,
-  alias: "",
+  token: "",
   profileImageUrl: character.profileImageUrl,
   profileImageTransform: character.profileImageTransform ?? null,
   status: character.characterStatus,
@@ -39,7 +39,7 @@ export const toKlingPickerElementOption = (
   sourceKind: "element",
   sourceId: element.elementId,
   name: element.elementName,
-  alias: resolveElementWorkflowAlias({
+  token: resolveElementWorkflowAlias({
     name: element.elementName,
     legacyAlias: element.elementAlias,
   }),

@@ -8,7 +8,7 @@ last_updated: 2026-04-10
 
 # AI Studio Elements Library UI Build Plan
 
-> Historical note: superseded by the Elements decoupling packet dated 2026-04-09. Keep this document only as an early design/build reference for how the first Elements surface was originally framed before the feature was decoupled from Character.
+> Historical note: superseded by the Elements decoupling packet dated 2026-04-09. Keep this document only as an early design/build reference for how the first Elements surface was originally framed before the feature was decoupled from Character. Any alias-field guidance below is historical; shipped Elements now derive workflow tokens from element name and do not expose alias authoring in the live UI.
 
 Purpose: define the concrete UI/UX build contract for adding an `Elements` library to the AI Studio left rail, using the Character Library as the primary shell reference while staying compatible with future Kling 3.0 element wiring.
 

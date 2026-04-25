@@ -4,7 +4,7 @@ Status: Superseded historical reference
 Owner: Product + Frontend Engineering  
 Depends on: `docs/planning/ai-studio-elements-library-ui-build-plan-2026-04-06.md`
 
-> Historical note: superseded by the Elements decoupling packet dated 2026-04-09. Keep this document as an early UI contract reference only; it is no longer the active source of truth for the live Elements implementation.
+> Historical note: superseded by the Elements decoupling packet dated 2026-04-09. Keep this document as an early UI contract reference only; it is no longer the active source of truth for the live Elements implementation. Any alias-field references below are historical; shipped Elements now derive workflow tokens from element name and do not expose alias authoring in the UI.
 
 ## Purpose
 

@@ -655,6 +655,91 @@ describe("sessionSnapshotHydrator", () => {
     });
   });
 
+  it("preserves legacy element aliases during hydration for compatibility matching", () => {
+    const payload = buildAiStudioSessionHydrationPayload(
+      createSnapshot({
+        workspace: {
+          ...createSnapshot().workspace,
+          klingElements: [
+            {
+              id: "element-1",
+              slotIndex: 0,
+              sourceKind: "element",
+              sourceElementId: "element-red-lantern",
+              sourceCharacterId: null,
+              name: "Red Lantern",
+              alias: "legacylamp",
+              description: "Warm lacquered lantern",
+              profileImageUrl: "https://example.com/red-lantern-profile.png",
+              profileImageTransform: { zoom: 1.1, offsetX: 2, offsetY: -1 },
+              frontalImageUrl: "https://example.com/red-lantern-front.png",
+              referenceImageUrls: "https://example.com/red-lantern-side.png",
+              videoUrl: "",
+            },
+          ],
+        },
+      })
+    );
+
+    expect(payload.workspace.klingElements[0]).toEqual({
+      id: "element-1",
+      slotIndex: 0,
+      sourceKind: "element",
+      sourceElementId: "element-red-lantern",
+      sourceCharacterId: null,
+      name: "Red Lantern",
+      alias: "legacylamp",
+      description: "Warm lacquered lantern",
+      profileImageUrl: "https://example.com/red-lantern-profile.png",
+      profileImageTransform: { zoom: 1.1, offsetX: 2, offsetY: -1 },
+      frontalImageUrl: "https://example.com/red-lantern-front.png",
+      referenceImageUrls: "https://example.com/red-lantern-side.png",
+      videoUrl: "",
+    });
+  });
+
+  it("keeps blank-name legacy alias payloads available for restore fallback", () => {
+    const payload = buildAiStudioSessionHydrationPayload(
+      createSnapshot({
+        workspace: {
+          ...createSnapshot().workspace,
+          klingElements: [
+            {
+              id: "legacy-element-1",
+              sourceKind: "element",
+              sourceElementId: "element-legacy",
+              sourceCharacterId: null,
+              name: "",
+              alias: "legacylamp",
+              description: "",
+              profileImageUrl: null,
+              profileImageTransform: null,
+              frontalImageUrl: "",
+              referenceImageUrls: "",
+              videoUrl: "",
+            },
+          ],
+        },
+      })
+    );
+
+    expect(payload.workspace.klingElements[0]).toEqual({
+      id: "legacy-element-1",
+      sourceKind: "element",
+      sourceElementId: "element-legacy",
+      sourceCharacterId: null,
+      slotIndex: undefined,
+      name: "",
+      alias: "legacylamp",
+      description: "",
+      profileImageUrl: null,
+      profileImageTransform: null,
+      frontalImageUrl: "",
+      referenceImageUrls: "",
+      videoUrl: "",
+    });
+  });
+
   it("dedupes outputs and nulls invalid activeOutputId", () => {
     const snapshot = createSnapshot({
       outputs: {

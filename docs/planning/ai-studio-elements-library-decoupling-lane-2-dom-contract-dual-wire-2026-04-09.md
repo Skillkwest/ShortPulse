@@ -9,6 +9,8 @@ Tracker anchor: `docs/planning/ai-studio-elements-library-decoupling-tracker-202
 ## Goal
 Introduce Elements-owned root selectors, cluster selectors, and required data-attribute contracts in parallel with the current Character-derived ones so Lane 3 can move style ownership safely.
 
+> Historical note: this lane predates the later alias-to-name cutover. Any references below to a photo/name/alias row describe an obsolete profile shape, not the current shipped Elements UI.
+
 ## Why This Lane Exists
 The live Elements panel is still styled through Character root scope and descendant selectors. Lane 3 cannot remove that safely unless Lane 2 first gives Elements its own DOM contract surface.
 

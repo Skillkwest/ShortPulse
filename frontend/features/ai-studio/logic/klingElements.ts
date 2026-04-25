@@ -19,6 +19,7 @@ export type AiStudioKlingElement = {
   sourceElementId?: string | null;
   sourceCharacterId?: string | null;
   name?: string;
+  // Legacy compatibility token retained for older prompts and restored sessions.
   alias?: string;
   description?: string;
   profileImageUrl?: string | null;
@@ -186,5 +187,32 @@ export const resolveLegacyKieKlingElementToken = (
   return (
     resolveLegacyKieKlingElementTokens(allElements)[index] ??
     `element_${String((element.slotIndex ?? index) + 1).padStart(2, "0")}`
+  );
+};
+
+export const resolveAiStudioKlingElementLegacyTokens = (
+  element: Pick<AiStudioKlingElement, "alias" | "name" | "sourceKind" | "slotIndex">,
+  index: number,
+  allElements?: Array<Pick<AiStudioKlingElement, "alias" | "name" | "sourceKind" | "slotIndex">>
+): string[] => {
+  const candidates = [
+    resolveAiStudioKlingElementToken(element, index, allElements).trim(),
+    resolveLegacyKieKlingElementToken(element, index, allElements).trim(),
+    element.alias?.trim() ?? "",
+  ].filter(Boolean);
+
+  return Array.from(new Set(candidates));
+};
+
+export const resolveAiStudioKlingElementDisplayLabel = (
+  element: Pick<AiStudioKlingElement, "alias" | "name" | "sourceKind" | "slotIndex">,
+  index: number,
+  allElements?: Array<Pick<AiStudioKlingElement, "alias" | "name" | "sourceKind" | "slotIndex">>
+): string => {
+  const name = element.name?.trim();
+  if (name) return name;
+  return (
+    resolveAiStudioKlingElementToken(element, index, allElements).trim() ||
+    `Linked subject ${String((element.slotIndex ?? index) + 1)}`
   );
 };

@@ -199,7 +199,7 @@ export const ElementPickerModal = ({
                               const token =
                                 option.sourceKind === "character"
                                   ? normalizeAiStudioKlingCharacterToken(option.name)
-                                  : option.alias;
+                                  : option.token;
                               return (
                                 <article
                                   key={`${option.sourceKind}-${option.sourceId}`}

@@ -646,7 +646,7 @@ export const saveElementManagerDraftSnapshot = async ({
   const { supabase, userId } = await resolveSupabaseContext();
   const { data: existingRow, error: existingError } = await supabase
     .from("elements")
-    .select("metadata")
+    .select("name, alias, metadata")
     .eq("user_id", userId)
     .eq("id", elementId)
     .maybeSingle();
@@ -664,7 +664,8 @@ export const saveElementManagerDraftSnapshot = async ({
     imageReferenceUrls,
     videoReferenceUrl,
   });
-  const nextMetadata = toObjectRecord((existingRow as { metadata: unknown }).metadata);
+  const existingElementRow = existingRow as { name?: unknown; alias?: unknown; metadata: unknown };
+  const nextMetadata = toObjectRecord(existingElementRow.metadata);
   nextMetadata[ELEMENT_ACTIVE_REFERENCE_SET_ID_KEY] = legacyReferenceSetState.activeSetId;
   nextMetadata[ELEMENT_ACTIVE_REFERENCE_SET_ASSET_TYPE_KEY] =
     legacyReferenceSetState.sets[legacyReferenceSetState.activeSetId]?.assetType ?? "image";
@@ -675,12 +676,23 @@ export const saveElementManagerDraftSnapshot = async ({
 
   const resolvedName = name.trim() || DEFAULT_ELEMENT_NAME;
   const resolvedAlias = deriveElementAliasFromName(resolvedName);
+  const existingName = typeof existingElementRow.name === "string" ? existingElementRow.name : "";
+  const existingAlias =
+    typeof existingElementRow.alias === "string" ? existingElementRow.alias.trim() : "";
+  const previousCanonicalAlias = deriveElementAliasFromName(existingName);
+  // Keep one legacy token available so renamed elements can still rewrite older prompts/snapshots.
+  const compatibilityAlias =
+    resolvedAlias === previousCanonicalAlias
+      ? existingAlias || resolvedAlias
+      : existingAlias && existingAlias.toLowerCase() !== previousCanonicalAlias.toLowerCase()
+        ? existingAlias
+        : previousCanonicalAlias || existingAlias || resolvedAlias;
   const nextStatus: ElementStatus = name.trim().length >= 2 ? "ready" : "draft";
   const { data: updatedRow, error: updateError } = await supabase
     .from("elements")
     .update({
       name: resolvedName,
-      alias: resolvedAlias,
+      alias: compatibilityAlias,
       status: nextStatus,
       metadata: nextMetadata,
     })

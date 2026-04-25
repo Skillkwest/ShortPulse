@@ -27,11 +27,12 @@ import { resolveVideoGenerationLaneFromFrameInputs } from "../logic/referenceInp
 import { isSeedance2UiEnabled } from "../logic/seedance2Availability";
 import {
   getAiStudioKlingElementReferenceUrls,
+  resolveAiStudioKlingElementDisplayLabel,
+  resolveAiStudioKlingElementLegacyTokens,
   type AiStudioKlingEntitySourceKind,
   type AiStudioKlingElement,
   resolveAiStudioKlingElementTokens,
   resolveKieKlingElementTokens,
-  resolveLegacyKieKlingElementTokens,
 } from "../logic/klingElements";
 import { loadSavedKlingEntityBySource } from "../logic/klingEntityAdapters";
 import {
@@ -713,10 +714,6 @@ export function VideoPropertiesPanel({
     () => resolveKieKlingElementTokens(selectedKlingElements).map((token) => token.trim()),
     [selectedKlingElements]
   );
-  const klingElementLegacyProviderTokens = React.useMemo(
-    () => resolveLegacyKieKlingElementTokens(selectedKlingElements).map((token) => token.trim()),
-    [selectedKlingElements]
-  );
   const populatedKlingPromptTokenSlotIndexes = React.useMemo(
     () =>
       selectedKlingElements.flatMap((element, index) => {
@@ -730,20 +727,16 @@ export function VideoPropertiesPanel({
     () =>
       populatedKlingPromptTokenSlotIndexes.map((slotIndex) => ({
         token: klingElementCanonicalPromptTokens[slotIndex] ?? "",
-        legacyAliases: [
-          klingElementDisplayTokens[slotIndex] ?? "",
-          klingElementLegacyProviderTokens[slotIndex] ?? "",
-          selectedKlingElements[slotIndex]?.alias ?? "",
-        ].filter(Boolean),
+        legacyAliases: selectedKlingElements[slotIndex]
+          ? resolveAiStudioKlingElementLegacyTokens(
+              selectedKlingElements[slotIndex],
+              slotIndex,
+              selectedKlingElements
+            )
+          : [],
         sourceKind: selectedKlingElements[slotIndex]?.sourceKind ?? null,
       })),
-    [
-      klingElementCanonicalPromptTokens,
-      klingElementDisplayTokens,
-      klingElementLegacyProviderTokens,
-      populatedKlingPromptTokenSlotIndexes,
-      selectedKlingElements,
-    ]
+    [klingElementCanonicalPromptTokens, populatedKlingPromptTokenSlotIndexes, selectedKlingElements]
   );
   const primaryPromptPlaceholder =
     "Describe the shot you want to create: subject, action, camera movement, framing, lighting, and mood.";
@@ -1486,7 +1479,11 @@ export function VideoPropertiesPanel({
                                         type="button"
                                         className="video-elements-placeholder-select"
                                         onClick={() => openElementPicker(index)}
-                                        aria-label={`Replace attached element ${selectedElement.name || selectedElement.alias || index + 1}`}
+                                        aria-label={`Replace attached element ${resolveAiStudioKlingElementDisplayLabel(
+                                          selectedElement,
+                                          index,
+                                          selectedKlingElements
+                                        )}`}
                                       >
                                         {previewUrl ? (
                                           <span

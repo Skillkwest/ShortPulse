@@ -3,6 +3,7 @@ import handler from "../../pages/api/billing/stripe/checkout";
 
 const requireApiUserMock = vi.fn();
 const logApiRouteExceptionMock = vi.fn();
+const writeAppErrorLogMock = vi.fn();
 const getSupabaseAdminMock = vi.fn();
 const stripePostFormMock = vi.fn();
 const getCanonicalAppBaseUrlMock = vi.fn();
@@ -14,6 +15,7 @@ vi.mock("../../lib/server/api/auth", () => ({
 
 vi.mock("../../lib/server/api/appErrorLogs", () => ({
   logApiRouteException: (...args: unknown[]) => logApiRouteExceptionMock(...args),
+  writeAppErrorLog: (...args: unknown[]) => writeAppErrorLogMock(...args),
 }));
 
 vi.mock("../../lib/server/api/supabaseAdmin", () => ({
@@ -41,6 +43,7 @@ describe("POST /api/billing/stripe/checkout", () => {
     requireApiUserMock.mockResolvedValue({ id: "user-1", email: "user@example.com" });
     getCanonicalAppBaseUrlMock.mockReturnValue("https://app.shortpulse.test");
     ensureStripeCustomerForUserMock.mockResolvedValue("cus_existing");
+    writeAppErrorLogMock.mockResolvedValue({ ok: true, skipped: false, id: null });
   });
 
   it("rejects non-POST methods", async () => {
@@ -102,6 +105,16 @@ describe("POST /api/billing/stripe/checkout", () => {
       userId: "user-1",
       email: "user@example.com",
     });
+    expect(writeAppErrorLogMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        source: "telemetry.billing.checkout_started",
+        userId: "user-1",
+        metadata: expect.objectContaining({
+          event_name: "checkout_started",
+          package_id: "pkg_studio_10000",
+        }),
+      })
+    );
     expect(res.status).toHaveBeenCalledWith(200);
   });
 

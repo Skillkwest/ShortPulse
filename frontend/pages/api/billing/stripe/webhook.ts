@@ -3,7 +3,7 @@
  * Applies credit grants and subscription state updates to Supabase.
  */
 import type { NextApiRequest, NextApiResponse } from "next";
-import { logApiRouteException } from "../../../../lib/server/api/appErrorLogs";
+import { logApiRouteException, writeAppErrorLog } from "../../../../lib/server/api/appErrorLogs";
 import { getSupabaseAdmin } from "../../../../lib/server/api/supabaseAdmin";
 import { verifyStripeWebhookSignature } from "../../../../lib/server/api/stripe";
 import { insertCreditLedgerEntry } from "../../../../lib/server/api/creditLedger";
@@ -281,6 +281,31 @@ const buildCheckoutGrantSourceRef = (session: JsonObject, fallbackEventId: strin
 const buildSubscriptionGrantSourceRef = (invoice: JsonObject, fallbackEventId: string): string => {
   const invoiceId = normalizeString(invoice.id);
   return invoiceId ? `invoice:${invoiceId}:monthly_allocation` : `invoice_event:${fallbackEventId}`;
+};
+
+const recordBillingTelemetrySafely = async (params: {
+  source: "telemetry.billing.checkout_completed";
+  message: string;
+  userId?: string | null;
+  metadata?: Record<string, unknown>;
+}) => {
+  try {
+    await writeAppErrorLog({
+      source: params.source,
+      scope: "app",
+      severity: "low",
+      message: params.message,
+      userId: params.userId ?? null,
+      metadata: {
+        telemetry_family: "billing_funnel",
+        telemetry_version: 1,
+        event_name: params.message,
+        ...(params.metadata ?? {}),
+      },
+    });
+  } catch {
+    // Webhook success must not depend on telemetry persistence.
+  }
 };
 
 const resolveBillingProfileByCustomer = async (
@@ -649,6 +674,18 @@ const processCheckoutCompleted = async (session: JsonObject, eventId: string) =>
       checkout_session_id: session.id ?? null,
       stripe_customer_id: session.customer ?? null,
       credit_package_id: packageId,
+    },
+  });
+
+  await recordBillingTelemetrySafely({
+    source: "telemetry.billing.checkout_completed",
+    message: "checkout_completed",
+    userId,
+    metadata: {
+      checkout_session_id: session.id ?? null,
+      stripe_customer_id: session.customer ?? null,
+      credit_package_id: packageId,
+      stripe_event_id: eventId,
     },
   });
 };

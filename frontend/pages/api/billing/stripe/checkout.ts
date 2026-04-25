@@ -3,7 +3,7 @@
  */
 import type { NextApiRequest, NextApiResponse } from "next";
 import { requireApiUser } from "../../../../lib/server/api/auth";
-import { logApiRouteException } from "../../../../lib/server/api/appErrorLogs";
+import { logApiRouteException, writeAppErrorLog } from "../../../../lib/server/api/appErrorLogs";
 import { getSupabaseAdmin } from "../../../../lib/server/api/supabaseAdmin";
 import { getCanonicalAppBaseUrl, stripePostForm } from "../../../../lib/server/api/stripe";
 import { ensureStripeCustomerForUser } from "../../../../lib/server/api/stripeCustomer";
@@ -68,6 +68,25 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       "metadata[credit_package_id]": pkg.id,
       "metadata[credit_amount_cents]": pkg.credit_amount_cents,
     });
+
+    void writeAppErrorLog({
+      source: "telemetry.billing.checkout_started",
+      scope: "app",
+      severity: "low",
+      message: "checkout_started",
+      userId: user.id,
+      userEmail: user.email ?? null,
+      metadata: {
+        telemetry_family: "billing_funnel",
+        telemetry_version: 1,
+        event_name: "checkout_started",
+        package_id: pkg.id,
+        stripe_price_id: pkg.stripe_price_id,
+        credit_amount_cents: pkg.credit_amount_cents,
+        stripe_customer_id: stripeCustomerId,
+        checkout_session_id: session.id,
+      },
+    }).catch(() => {});
 
     return res.status(200).json({
       sessionId: session.id,

@@ -19,6 +19,7 @@ import {
   Target,
   VideoCamera,
 } from "phosphor-react";
+import { trackMarketingCtaClicked, trackMarketingPageView } from "../lib/growthTelemetry";
 import { isSupabaseAbortError, readSupabaseSession } from "../lib/supabaseClient";
 
 const testimonials = [
@@ -72,6 +73,9 @@ export default function LandingPage() {
 
   useEffect(() => {
     let mounted = true;
+    trackMarketingPageView("landing", {
+      page_surface: "landing",
+    });
     void readSupabaseSession()
       .then((session) => {
         if (!mounted || !session) return;
@@ -166,10 +170,27 @@ export default function LandingPage() {
             <a href="#features">Features</a>
             <a href="#how">How it works</a>
             <a href="#pricing">Pricing</a>
-            <Link href="/auth">Sign in</Link>
+            <Link
+              href="/auth"
+              onClick={() =>
+                trackMarketingCtaClicked("landing_nav_sign_in", {
+                  cta_surface: "landing_nav",
+                })
+              }
+            >
+              Sign in
+            </Link>
           </nav>
           <div className="lp-actions">
-            <Link href="/auth" className="primary-btn">
+            <Link
+              href="/auth"
+              className="primary-btn"
+              onClick={() =>
+                trackMarketingCtaClicked("landing_nav_start_free", {
+                  cta_surface: "landing_nav",
+                })
+              }
+            >
               Start free
             </Link>
           </div>
@@ -192,7 +213,15 @@ export default function LandingPage() {
                   stop guessing and start creating content that hits.
                 </p>
                 <div className="lp-cta-row">
-                  <Link href="/auth" className="primary-btn lg">
+                  <Link
+                    href="/auth"
+                    className="primary-btn lg"
+                    onClick={() =>
+                      trackMarketingCtaClicked("landing_hero_start_free", {
+                        cta_surface: "landing_hero",
+                      })
+                    }
+                  >
                     Start free with email
                     <ArrowRight size={18} weight="bold" />
                   </Link>
@@ -310,7 +339,16 @@ export default function LandingPage() {
                     Email support
                   </li>
                 </ul>
-                <Link href="/auth" className="pricing-btn neutral">
+                <Link
+                  href="/auth"
+                  className="pricing-btn neutral"
+                  onClick={() =>
+                    trackMarketingCtaClicked("landing_pricing_starter", {
+                      cta_surface: "landing_pricing",
+                      pricing_plan: "starter",
+                    })
+                  }
+                >
                   Start Free
                 </Link>
               </article>
@@ -351,7 +389,16 @@ export default function LandingPage() {
                     Priority support
                   </li>
                 </ul>
-                <Link href="/auth" className="pricing-btn primary">
+                <Link
+                  href="/auth"
+                  className="pricing-btn primary"
+                  onClick={() =>
+                    trackMarketingCtaClicked("landing_pricing_pro", {
+                      cta_surface: "landing_pricing",
+                      pricing_plan: "pro",
+                    })
+                  }
+                >
                   Start Pro Trial
                 </Link>
               </article>
@@ -391,7 +438,16 @@ export default function LandingPage() {
                     Dedicated success manager
                   </li>
                 </ul>
-                <Link href="/auth" className="pricing-btn neutral">
+                <Link
+                  href="/auth"
+                  className="pricing-btn neutral"
+                  onClick={() =>
+                    trackMarketingCtaClicked("landing_pricing_agency", {
+                      cta_surface: "landing_pricing",
+                      pricing_plan: "agency",
+                    })
+                  }
+                >
                   Contact Sales
                 </Link>
               </article>

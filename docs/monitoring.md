@@ -9,6 +9,15 @@ Purpose: define how runtime incidents are captured, triaged, and resolved.
 - Operator review surface: `/admin` incident panels backed by `app_error_logs` (grouped) plus raw event stream from `app_error_events` (per occurrence) via `/api/admin/error-events`.
 - Fal transient status fallback telemetry is emitted as `telemetry.fal.status.transient.*` when status transient mode is enabled.
 - AI Studio generate-click telemetry is emitted as `telemetry.ai_studio.generate_clicked` whenever a signed-in user explicitly starts a generate/regenerate action in AI Studio.
+- Growth funnel telemetry is emitted through `/api/telemetry/growth` for:
+  - `telemetry.marketing.page_view`
+  - `telemetry.marketing.cta_clicked`
+  - `telemetry.auth.signup_submitted`
+  - `telemetry.auth.signup_completed`
+  - `telemetry.billing.pricing_viewed`
+  - `telemetry.billing.upgrade_clicked`
+  - `telemetry.billing.checkout_started`
+  - `telemetry.billing.checkout_completed`
 - Legacy media upload adapter usage is emitted as:
   - `telemetry.media.upload_adapter.upload_image_used`
   - `telemetry.media.upload_adapter.upload_video_used`
@@ -16,6 +25,7 @@ Purpose: define how runtime incidents are captured, triaged, and resolved.
 ## Telemetry pipeline topology
 1. Ingestion entrypoints:
    - Browser/runtime: `POST /api/log/client-error`
+   - Browser/public growth telemetry: `POST /api/telemetry/growth`
    - Server/API handlers: `logApiRouteException` / `logGenerationFailure` in `frontend/lib/server/api/appErrorLogs.ts`
 2. Normalization + storage:
    - Shared sanitizer/fingerprint flow in `writeAppErrorLog`
@@ -27,7 +37,7 @@ Purpose: define how runtime incidents are captured, triaged, and resolved.
 4. Operator retrieval:
    - `/api/admin/error-events` = raw stream + enrichment + alert summaries
    - `/api/admin/errors` = grouped incidents for triage lifecycle
-   - `/api/admin/stats/global` = admin stats workspace payload for overview/models/workflows/assets/projects
+   - `/api/admin/stats/global` = admin stats workspace payload for product + growth lenses
 
 ## AI Studio usage analytics
 - Primary generate-click source: `telemetry.ai_studio.generate_clicked`
@@ -53,6 +63,18 @@ Purpose: define how runtime incidents are captured, triaged, and resolved.
   - `has_style`
   - `style_id`
   - `reference_count`
+
+## Growth analytics
+- Attribution identity storage: `growth_attribution_identities`
+- Signup authority: `billing_profiles.created_at`
+- Activation authority: derived from first `media_events.event_type='generation_saved'` or first `project_generation_items.created_at` within 7 days of signup
+- Paid conversion authority: first non-free Stripe-backed `billing_subscription_contracts` row (`contract_source='stripe'`)
+- `/admin/stats` now has:
+  - `Product` for usage/value analytics
+  - `Marketing` for signups, activation, time-to-value, retention, and source/campaign attribution
+  - `Sales` for pricing intent, checkout, paid conversion, and PQL/high-intent users
+- `growth_attribution_identities` stores first-touch and last-touch source/campaign/landing data plus anonymous-to-user stitching state.
+- Growth telemetry remains telemetry-only in `app_error_events`; it does not create grouped incidents in `app_error_logs`.
 
 ## AI Studio Pulse runtime monitoring
 - Pulse does not emit a separate `telemetry.pulse.*` event family. Pulse runtime quality is monitored through the existing studio-agent route telemetry plus authoritative `pulseWorkflowSession` state.

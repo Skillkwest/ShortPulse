@@ -725,6 +725,27 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
 - `created_at` / `updated_at` (timestamptz)
 - RLS: users can read only their own rows; writes are server-only/service-role-only. At most one open contract row per user and per Stripe subscription.
 
+### growth_attribution_identities
+- `anonymous_id` (text, pk): Browser-stable anonymous attribution key (`sp_growth_anonymous_id`).
+- `user_id` (uuid, nullable unique fk -> `auth.users.id`): Stitched authenticated owner once a trusted growth event arrives with bearer auth.
+- First-touch fields:
+  - `first_utm_source`
+  - `first_utm_medium`
+  - `first_utm_campaign`
+  - `first_landing_path`
+  - `first_referrer_host`
+- Last-touch fields:
+  - `last_utm_source`
+  - `last_utm_medium`
+  - `last_utm_campaign`
+  - `last_landing_path`
+  - `last_referrer_host`
+- `first_seen_at` / `last_seen_at` (timestamptz): First/latest observed growth telemetry timestamp for the anonymous identity.
+- `signup_submitted_at` / `signup_completed_at` (timestamptz, nullable): Top-of-funnel auth milestones captured through `/api/telemetry/growth`.
+- `stitched_at` (timestamptz, nullable): When the anonymous identity was first linked to an authenticated user.
+- `created_at` / `updated_at` (timestamptz)
+- RLS: service-role-only read/write surface used by trusted API routes and admin aggregate RPCs.
+
 ### billing_subscription_storage_addons
 - `id` (uuid, pk): Historical/current subscriber recurring storage add-on row.
 - `user_id` (uuid, fk -> `auth.users(id)`): Add-on owner.
@@ -866,6 +887,15 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
 - RLS: enabled with no client policies by default (service-role/server-only writes and reads).
 - Telemetry contract notes:
   - `telemetry.ai_studio.generate_clicked` is the intent authority for admin stats v1.
+  - Growth funnel sources now include:
+    - `telemetry.marketing.page_view`
+    - `telemetry.marketing.cta_clicked`
+    - `telemetry.auth.signup_submitted`
+    - `telemetry.auth.signup_completed`
+    - `telemetry.billing.pricing_viewed`
+    - `telemetry.billing.upgrade_clicked`
+    - `telemetry.billing.checkout_started`
+    - `telemetry.billing.checkout_completed`
   - Current generate-click metadata keys used by `/admin/stats`:
     - `selected_tool`
     - `mode`
@@ -877,6 +907,14 @@ Purpose: define the Supabase tables and analytics fields used by ShortPulse’s 
     - `has_style`
     - `style_id`
     - `reference_count`
+  - Current growth-telemetry metadata keys used by `/admin/stats`:
+    - `anonymous_id`
+    - `utm_source`
+    - `utm_medium`
+    - `utm_campaign`
+    - `landing_path`
+    - `referrer_host`
+    - event-specific metadata such as `page_name`, `cta_id`, `pricing_surface`, `upgrade_target`, `package_id`
 
 ### storage.objects (Supabase bucket)
 - Bucket: `media_library` (private).

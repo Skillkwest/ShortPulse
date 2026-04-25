@@ -13,6 +13,7 @@ import {
   primeSupabaseSession,
   readSupabaseSession,
 } from "../lib/supabaseClient";
+import { trackSignupCompleted, trackSignupSubmitted } from "../lib/growthTelemetry";
 
 type Mode = "signin" | "signup";
 
@@ -84,6 +85,10 @@ export default function AuthPage() {
     try {
       const supabase = ensureSupabaseClient();
       if (mode === "signup") {
+        trackSignupSubmitted({
+          auth_surface: "auth_page",
+          signup_method: "email_password",
+        });
         const { error: signUpError, data } = await supabase.auth.signUp({
           email: normalizedEmail,
           password,
@@ -94,6 +99,11 @@ export default function AuthPage() {
           },
         });
         if (signUpError) throw signUpError;
+        trackSignupCompleted({
+          auth_surface: "auth_page",
+          signup_method: "email_password",
+          email_confirmation_required: !data.session,
+        });
         if (!data.session) {
           setInfo("Check your email to confirm your account, then sign in to continue.");
           setMode("signin");

@@ -129,6 +129,7 @@ Start here for all repository documentation.
 - `docs/product/README.md`
 - `docs/product/ai-studio-pricing.md`
 - `docs/product/billing-pricing-catalog.md`
+- `docs/product/growth-analytics-admin-stats.md`
 - `docs/product/shortpulse_ai_studio.md`
 - `docs/product/shortflow_outlier_source_of_truth.md`
 - `docs/product/shortpulse_top_performing_videos_source_of_truth.md`
@@ -416,6 +417,7 @@ Start here for all repository documentation.
 - `docs/planning/ai-studio-reference-grid-modularization-program.md`
 - `docs/planning/ai-studio-reference-grid-modularization-tracker.md`
 - `docs/planning/ai-studio-reference-grid-runtime-simplification-plan-2026-03-31.md` (paused checkpoint; search handles: `AI Studio Reference Grid runtime`, `reference grid freeze lane`, `ref-grid runtime plan`)
+- `docs/planning/ai-studio-project-workspace-isolation-bootstrap-and-restore-plan-2026-04-24.md`
 - `docs/planning/naming-canonicalization-program.md`
 - `docs/planning/naming-canonical-map.md`
 - `docs/planning/naming-decision-log.md`

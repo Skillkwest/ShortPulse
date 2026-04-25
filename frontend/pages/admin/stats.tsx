@@ -1,10 +1,9 @@
 /**
  * Admin global stats route.
- * Shows the admin stats v1 workspace for overview, models, workflows,
- * assets, and project activity.
+ * Shows the admin stats workspace for Product, Marketing, and Sales lenses.
  */
-import { AdminGlobalStatsPanel } from "../../features/admin/components/AdminGlobalStatsPanel";
 import { AdminRouteShell } from "../../features/admin/components/AdminRouteShell";
+import { AdminStatsWorkspace } from "../../features/admin/components/AdminStatsWorkspace";
 import { useAdminAccess } from "../../features/admin/logic/useAdminAccess";
 import { useAdminGlobalStatsController } from "../../features/admin/logic/useAdminGlobalStatsController";
 import { useProtectedRoute } from "../../lib/authGuard";
@@ -27,6 +26,7 @@ export default function AdminStatsPage() {
     assets,
     projects,
     health,
+    growth,
     generatedAt,
     loading: statsLoading,
     error,
@@ -44,19 +44,20 @@ export default function AdminStatsPage() {
       adminAccessError={adminAccessError}
       onRetryAccessCheck={refreshAdminAccess}
       documentTitle="ShortPulse · Admin Stats"
-      metaDescription="Admin stats for global generation usage, workflow adoption, saved assets, and project activity."
+      metaDescription="Admin stats for product usage, marketing activation, attribution, and sales-intent analytics."
       pageTitle="Global stats"
-      pageDescription="Track the highest-signal admin metrics first: model demand, workflow usage, saved assets, and project-attached work."
+      pageDescription="Track product value, marketing activation, and sales-intent analytics from one admin workspace."
       userEmail={user?.email}
       currentPath="/admin/stats"
     >
-      <AdminGlobalStatsPanel
+      <AdminStatsWorkspace
         overview={overview}
         models={models}
         workflows={workflows}
         assets={assets}
         projects={projects}
         health={health}
+        growth={growth}
         generatedAt={generatedAt}
         loading={statsLoading}
         error={error}

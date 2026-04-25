@@ -213,7 +213,8 @@ If enabling AI Studio Fal reliability rollout (modular submit/retrieval + reconc
 99. `sql/migrations/099_add_admin_global_stats_rpcs.sql`
 100. `sql/migrations/100_add_admin_global_stats_v1_rpc.sql`
 101. `sql/migrations/101_fix_admin_stats_and_pricing_rpc_lint.sql`
-102. Rollback files:
+102. `sql/migrations/102_add_admin_growth_stats_v1.sql`
+103. Rollback files:
     - `sql/migrations/rollback/019_add_generation_recovery_fields_rollback.sql`
     - `sql/migrations/rollback/020_generation_runtime_convergence_rollback.sql`
     - `sql/migrations/rollback/021_generation_state_machine_constraints_rollback.sql`
@@ -258,6 +259,7 @@ If enabling AI Studio Fal reliability rollout (modular submit/retrieval + reconc
     - `sql/migrations/rollback/077_add_generation_projection_source_ref_rollback.sql`
     - `sql/migrations/rollback/078_add_generation_fields_to_queue_claim_rollback.sql`
     - `sql/migrations/rollback/079_add_queued_dispatch_success_commit_rpc_rollback.sql`
+    - `sql/migrations/rollback/102_add_admin_growth_stats_v1_rollback.sql`
     - `sql/migrations/rollback/081_add_generation_observation_inbox_claim_rpc_rollback.sql`
     - `sql/migrations/rollback/083_add_user_preferences_ai_studio_saved_pulses_rollback.sql`
     - `sql/migrations/rollback/100_add_admin_global_stats_v1_rpc_rollback.sql`
@@ -276,6 +278,7 @@ If enabling AI Studio Fal reliability rollout (modular submit/retrieval + reconc
 
 Hosted SQL lint note:
 - Apply `sql/migrations/101_fix_admin_stats_and_pricing_rpc_lint.sql` when linked-hosted lint surfaces the legacy admin stats `model_id` ambiguity or the `rollback_model_pricing_policy()` `%rowtype` warning.
+- Apply `sql/migrations/102_add_admin_growth_stats_v1.sql` to provision `growth_attribution_identities` and `get_admin_growth_stats_v1()` before expecting `/admin/stats` Marketing/Sales lenses to load beyond safe fallback values.
 
 Billing safety note:
 - Migration `013_fix_generation_reservation_rpc_ambiguity.sql` is required to avoid

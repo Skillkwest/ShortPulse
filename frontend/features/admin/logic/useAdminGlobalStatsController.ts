@@ -5,6 +5,7 @@
 import React from "react";
 import { fetchWithAuth } from "../../../lib/authenticatedFetch";
 import {
+  DEFAULT_ADMIN_GROWTH_STATS_RESPONSE,
   DEFAULT_ADMIN_GLOBAL_STATS_ASSETS,
   DEFAULT_ADMIN_GLOBAL_STATS_HEALTH,
   DEFAULT_ADMIN_GLOBAL_STATS_OVERVIEW,
@@ -19,6 +20,7 @@ import type {
   AdminGlobalStatsOverview,
   AdminGlobalStatsProjects,
   AdminGlobalStatsWorkflows,
+  AdminGrowthStatsResponse,
 } from "../types";
 
 const GLOBAL_STATS_REFRESH_INTERVAL_MS = 60000;
@@ -34,6 +36,7 @@ type UseAdminGlobalStatsControllerResult = {
   assets: AdminGlobalStatsAssets;
   projects: AdminGlobalStatsProjects;
   health: AdminGlobalStatsHealth;
+  growth: AdminGrowthStatsResponse;
   generatedAt: string | null;
   loading: boolean;
   error: string | null;
@@ -52,6 +55,7 @@ export const useAdminGlobalStatsController = ({
   const [assets, setAssets] = React.useState(DEFAULT_ADMIN_GLOBAL_STATS_ASSETS);
   const [projects, setProjects] = React.useState(DEFAULT_ADMIN_GLOBAL_STATS_PROJECTS);
   const [health, setHealth] = React.useState(DEFAULT_ADMIN_GLOBAL_STATS_HEALTH);
+  const [growth, setGrowth] = React.useState(DEFAULT_ADMIN_GROWTH_STATS_RESPONSE);
   const [generatedAt, setGeneratedAt] = React.useState<string | null>(null);
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
@@ -74,6 +78,7 @@ export const useAdminGlobalStatsController = ({
       setAssets(normalized.assets);
       setProjects(normalized.projects);
       setHealth(normalized.health);
+      setGrowth(normalized.growth);
       setGeneratedAt(normalized.generatedAt);
     } catch (nextError) {
       setError(
@@ -85,6 +90,7 @@ export const useAdminGlobalStatsController = ({
       setAssets(DEFAULT_ADMIN_GLOBAL_STATS_ASSETS);
       setProjects(DEFAULT_ADMIN_GLOBAL_STATS_PROJECTS);
       setHealth(DEFAULT_ADMIN_GLOBAL_STATS_HEALTH);
+      setGrowth(DEFAULT_ADMIN_GROWTH_STATS_RESPONSE);
       setGeneratedAt(null);
     } finally {
       setLoading(false);
@@ -114,6 +120,7 @@ export const useAdminGlobalStatsController = ({
     assets,
     projects,
     health,
+    growth,
     generatedAt,
     loading,
     error,

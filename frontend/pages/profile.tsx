@@ -33,6 +33,7 @@ import { useCredits } from "../features/ai-studio/hooks/useCredits";
 import { useMediaAutosavePreference } from "../features/ai-studio/hooks/useMediaAutosavePreference";
 import { fetchWithAuth } from "../lib/authenticatedFetch";
 import { useProtectedRoute } from "../lib/authGuard";
+import { trackBillingPricingViewed, trackBillingUpgradeClicked } from "../lib/growthTelemetry";
 import { ensureSupabaseClient, primeSupabaseSession } from "../lib/supabaseClient";
 
 type ProfileSection = "account" | "subscription" | "billing";
@@ -327,7 +328,7 @@ export default function ProfilePage() {
     billingContract !== null &&
     (currentSubscriptionPriceCents !== activePlan.monthlyPriceCents ||
       currentSubscriptionCreditsCents !== activePlan.monthlyCreditsCents);
-  const activePlanRank = getPlanTierRank(activePlan.id);
+  const activePlanRank = getPlanTierRank(activePlan.id, billingPlans);
   const contractDescriptor = isLegacyContract
     ? "Legacy contract locked for your active subscription"
     : currentSubscriptionOfferId
@@ -431,8 +432,20 @@ export default function ProfilePage() {
     }
   };
 
+  useEffect(() => {
+    if (!user || section !== "billing") return;
+    trackBillingPricingViewed({
+      pricing_surface: "profile_billing",
+    });
+  }, [section, user]);
+
   const handleCheckout = async (packageId: string) => {
     setCheckoutLoadingId(packageId);
+    trackBillingUpgradeClicked({
+      upgrade_surface: "profile_billing",
+      upgrade_target: "credit_package",
+      package_id: packageId,
+    });
     try {
       const response = await fetchWithAuth("/api/billing/stripe/checkout", {
         method: "POST",
@@ -754,20 +767,12 @@ export default function ProfilePage() {
                       billingPlans.map((plan) => {
                         const planView = buildPlanView({ planId: plan.id, plans: billingPlans });
                         const isCurrentPlan = activePlan.id === plan.id;
-                        const candidatePlanRank = getPlanTierRank(plan.id);
+                        const candidatePlanRank = getPlanTierRank(plan.id, billingPlans);
                         const isHigherTier = candidatePlanRank > activePlanRank;
                         const isLowerTier = candidatePlanRank < activePlanRank;
                         const isFree = plan.monthly_price_cents === 0;
 
-                        // Badge logic
-                        let badge = null;
-                        if (isCurrentPlan) {
-                          badge = "Current Plan";
-                        } else if (plan.id === "media") {
-                          badge = "Popular";
-                        } else if (plan.id === "business") {
-                          badge = "Best Value";
-                        }
+                        const badge = isCurrentPlan ? "Current Plan" : null;
 
                         return (
                           <div

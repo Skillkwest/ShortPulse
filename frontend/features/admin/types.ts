@@ -386,6 +386,115 @@ export type AdminGlobalStatsHealth = {
   projectsSource: "rpc" | "unavailable";
 };
 
+export type AdminStatsRateWindow = {
+  total: number;
+  last24h: number;
+  last7d: number;
+};
+
+export type AdminGrowthDurationSummary = {
+  signupToGenerate: number | null;
+  signupToSuccess: number | null;
+  signupToActivation: number | null;
+  generateToActivation: number | null;
+};
+
+export type AdminGrowthRetentionSummary = {
+  cohortSize: number;
+  eligibleD1: number;
+  retainedD1: number;
+  d1RatePct: number;
+  eligibleD7: number;
+  retainedD7: number;
+  d7RatePct: number;
+  eligibleD30: number;
+  retainedD30: number;
+  d30RatePct: number;
+};
+
+export type AdminGrowthAttributionSourceRow = {
+  sourceKey: string;
+  signups: number;
+  activatedUsers: number;
+  activationRatePct: number;
+  pqlUsers: number;
+  paidUsers: number;
+};
+
+export type AdminGrowthAttributionCampaignRow = {
+  campaignKey: string;
+  signups: number;
+  activatedUsers: number;
+  activationRatePct: number;
+  pqlUsers: number;
+  paidUsers: number;
+};
+
+export type AdminMarketingStats = {
+  summary: {
+    signups: AdminStatsCountWindow;
+    activatedUsers: AdminStatsCountWindow;
+    activationRatePct: AdminStatsRateWindow;
+    medianHours: AdminGrowthDurationSummary;
+  };
+  retention: {
+    activated: AdminGrowthRetentionSummary;
+    nonActivated: AdminGrowthRetentionSummary;
+  };
+  attribution: {
+    sources: AdminGrowthAttributionSourceRow[];
+    campaigns: AdminGrowthAttributionCampaignRow[];
+  };
+};
+
+export type AdminSalesHighIntentUserRow = {
+  userId: string;
+  email: string;
+  sourceKey: string;
+  campaignKey: string;
+  activatedAt: string | null;
+  pqlScore: number;
+  isPql: boolean;
+  savedOutputs: number;
+  successfulGenerations: number;
+  activeDays: number;
+  projectsCreated: number;
+  projectAttachedGenerations: number;
+  creditSpendCents: number;
+  pricingViewedAt: string | null;
+  upgradeClickedAt: string | null;
+  checkoutStartedAt: string | null;
+  checkoutCompletedAt: string | null;
+  paidConvertedAt: string | null;
+};
+
+export type AdminSalesStats = {
+  summary: {
+    pricingViewedUsers: AdminStatsCountWindow;
+    upgradeClickedUsers: AdminStatsCountWindow;
+    checkoutStartedUsers: AdminStatsCountWindow;
+    checkoutCompletedUsers: AdminStatsCountWindow;
+    paidConvertedUsers: AdminStatsCountWindow;
+    pqlUsers: AdminStatsCountWindow;
+    activatedToPqlRatePct: number;
+    pqlToPaidRatePct: number;
+  };
+  highIntentUsers: AdminSalesHighIntentUserRow[];
+};
+
+export type AdminGrowthStatsHealth = {
+  degraded: boolean;
+  reason: string | null;
+  marketingSource: "rpc" | "unavailable";
+  salesSource: "rpc" | "unavailable";
+};
+
+export type AdminGrowthStatsResponse = {
+  marketing: AdminMarketingStats;
+  sales: AdminSalesStats;
+  health: AdminGrowthStatsHealth;
+};
+
 export type AdminGlobalStatsResponse = {
   overview: AdminGlobalStatsOverview;
   models: AdminGlobalModelUsageRow[];
@@ -393,6 +502,7 @@ export type AdminGlobalStatsResponse = {
   assets: AdminGlobalStatsAssets;
   projects: AdminGlobalStatsProjects;
   health: AdminGlobalStatsHealth;
+  growth: AdminGrowthStatsResponse;
   generatedAt: string | null;
 };
 
@@ -442,6 +552,7 @@ export type AdminPricingPlanRow = {
   offerId: string;
   sortOrder: number;
   accountCount: number;
+  status: "active" | "legacy" | "inactive";
   recurringPriceCents: number;
   monthlyCreditsCents: number;
   storageLimitBytes: number;

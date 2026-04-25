@@ -20,14 +20,56 @@ type UseAdminAccessResult = {
   refresh: () => void;
 };
 
+type CachedAdminAccessState = {
+  status: Exclude<AdminAccessStatus, "idle" | "checking">;
+  isAdmin: boolean;
+  accessVia: AdminAccessVia | null;
+};
+
+let cachedAdminAccessState: CachedAdminAccessState | null = null;
+
+export const resetCachedAdminAccessStateForTests = (): void => {
+  cachedAdminAccessState = null;
+};
+
+const getInitialAdminAccessState = (
+  enabled: boolean
+): Pick<UseAdminAccessResult, "status" | "isAdmin" | "accessVia" | "error"> => {
+  if (!enabled) {
+    return {
+      status: "idle",
+      isAdmin: false,
+      accessVia: null,
+      error: null,
+    };
+  }
+
+  if (cachedAdminAccessState) {
+    return {
+      status: cachedAdminAccessState.status,
+      isAdmin: cachedAdminAccessState.isAdmin,
+      accessVia: cachedAdminAccessState.accessVia,
+      error: null,
+    };
+  }
+
+  return {
+    status: "checking",
+    isAdmin: false,
+    accessVia: null,
+    error: null,
+  };
+};
+
 /**
  * Resolves admin access via a dedicated endpoint so pages do not gate on /api/admin/users.
  */
 export const useAdminAccess = ({ enabled }: UseAdminAccessOptions): UseAdminAccessResult => {
-  const [status, setStatus] = useState<AdminAccessStatus>(enabled ? "checking" : "idle");
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [accessVia, setAccessVia] = useState<AdminAccessVia | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const initialState = getInitialAdminAccessState(enabled);
+  const [status, setStatus] = useState<AdminAccessStatus>(initialState.status);
+  const [isAdmin, setIsAdmin] = useState(initialState.isAdmin);
+  const [accessVia, setAccessVia] = useState<AdminAccessVia | null>(initialState.accessVia);
+  const [error, setError] = useState<string | null>(initialState.error);
   const [refreshTick, setRefreshTick] = useState(0);
 
   const refresh = useCallback(() => {
@@ -40,9 +82,12 @@ export const useAdminAccess = ({ enabled }: UseAdminAccessOptions): UseAdminAcce
     }
 
     let cancelled = false;
+    const hadGrantedCache = cachedAdminAccessState?.status === "granted";
 
     const run = async () => {
-      setStatus("checking");
+      if (!cachedAdminAccessState) {
+        setStatus("checking");
+      }
       setError(null);
 
       try {
@@ -57,6 +102,11 @@ export const useAdminAccess = ({ enabled }: UseAdminAccessOptions): UseAdminAcce
         if (cancelled) return;
 
         if (response.status === 403) {
+          cachedAdminAccessState = {
+            status: "denied",
+            isAdmin: false,
+            accessVia: "none",
+          };
           setStatus("denied");
           setIsAdmin(false);
           setAccessVia("none");
@@ -65,6 +115,17 @@ export const useAdminAccess = ({ enabled }: UseAdminAccessOptions): UseAdminAcce
         }
 
         if (!response.ok) {
+          if (hadGrantedCache) {
+            setStatus("granted");
+            setIsAdmin(true);
+            setAccessVia(cachedAdminAccessState?.accessVia ?? "allowlist");
+            setError(
+              payload && "error" in payload
+                ? (payload.error ?? "Failed to verify access.")
+                : "Failed to verify access."
+            );
+            return;
+          }
           setStatus("error");
           setIsAdmin(false);
           setAccessVia(null);
@@ -77,12 +138,24 @@ export const useAdminAccess = ({ enabled }: UseAdminAccessOptions): UseAdminAcce
         }
 
         const adminAccess = payload as AdminAccessResponse;
+        cachedAdminAccessState = {
+          status: adminAccess.isAdmin ? "granted" : "denied",
+          isAdmin: adminAccess.isAdmin,
+          accessVia: adminAccess.accessVia,
+        };
         setStatus(adminAccess.isAdmin ? "granted" : "denied");
         setIsAdmin(adminAccess.isAdmin);
         setAccessVia(adminAccess.accessVia);
         setError(null);
       } catch (accessError) {
         if (cancelled) return;
+        if (hadGrantedCache) {
+          setStatus("granted");
+          setIsAdmin(true);
+          setAccessVia(cachedAdminAccessState?.accessVia ?? "allowlist");
+          setError(accessError instanceof Error ? accessError.message : "Failed to verify access.");
+          return;
+        }
         setStatus("error");
         setIsAdmin(false);
         setAccessVia(null);

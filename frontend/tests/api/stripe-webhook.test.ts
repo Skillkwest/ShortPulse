@@ -3,12 +3,14 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import handler from "../../pages/api/billing/stripe/webhook";
 
 const logApiRouteExceptionMock = vi.fn();
+const writeAppErrorLogMock = vi.fn();
 const getSupabaseAdminMock = vi.fn();
 const verifyStripeWebhookSignatureMock = vi.fn();
 const insertCreditLedgerEntryMock = vi.fn();
 
 vi.mock("../../lib/server/api/appErrorLogs", () => ({
   logApiRouteException: (...args: unknown[]) => logApiRouteExceptionMock(...args),
+  writeAppErrorLog: (...args: unknown[]) => writeAppErrorLogMock(...args),
 }));
 
 vi.mock("../../lib/server/api/supabaseAdmin", () => ({
@@ -216,6 +218,7 @@ describe("POST /api/billing/stripe/webhook", () => {
     process.env.STRIPE_SECRET_KEY = "sk_test_key";
     process.env.STRIPE_WEBHOOK_SECRET = "whsec_test";
     insertCreditLedgerEntryMock.mockResolvedValue({ error: null });
+    writeAppErrorLogMock.mockResolvedValue({ ok: true, skipped: false, id: null });
   });
 
   it("rejects invalid signatures", async () => {
@@ -320,6 +323,16 @@ describe("POST /api/billing/stripe/webhook", () => {
         changeCents: 1500,
         source: "stripe_checkout",
         sourceRef: "checkout_session:cs_test_1",
+      })
+    );
+    expect(writeAppErrorLogMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        source: "telemetry.billing.checkout_completed",
+        userId: "user_123",
+        metadata: expect.objectContaining({
+          event_name: "checkout_completed",
+          credit_package_id: "pkg_starter",
+        }),
       })
     );
   });
@@ -592,6 +605,84 @@ describe("POST /api/billing/stripe/webhook", () => {
         recurring_price_cents: 3900,
         monthly_credits_cents: 3000,
         storage_limit_bytes: 107374182400,
+        status: "active",
+      })
+    );
+  });
+
+  it("syncs a newly created non-canonical plan from billing_plan_offers", async () => {
+    verifyStripeWebhookSignatureMock.mockReturnValue(true);
+    const billingProfileUpdateSpy = vi.fn();
+    const contractInsertSpy = vi.fn();
+    getSupabaseAdminMock.mockReturnValue(
+      createSupabaseAdminForWebhook({
+        billingProfile: {
+          user_id: "user_123",
+          plan_id: "studio",
+        },
+        billingOffer: {
+          id: "creator_plus__current",
+          plan_id: "creator_plus",
+          stripe_price_id: "price_creator_plus",
+          recurring_price_cents: 5900,
+          monthly_credits_cents: 4500,
+          storage_limit_bytes: 214748364800,
+        },
+        billingContract: null,
+        onBillingProfileUpdate: billingProfileUpdateSpy,
+        onContractInsert: contractInsertSpy,
+      })
+    );
+
+    const { res, promise } = createWebhookRequest(
+      JSON.stringify({
+        id: "evt_sub_updated_creator_plus",
+        type: "customer.subscription.updated",
+        data: {
+          object: {
+            id: "sub_creator_plus",
+            customer: "cus_123",
+            status: "active",
+            current_period_start: 1704067200,
+            current_period_end: 1706745600,
+            cancel_at_period_end: false,
+            items: {
+              data: [
+                {
+                  price: {
+                    id: "price_creator_plus",
+                    unit_amount: 5900,
+                    metadata: {
+                      monthly_credits_cents: "4500",
+                    },
+                  },
+                },
+              ],
+            },
+          },
+        },
+      })
+    );
+    await promise;
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(billingProfileUpdateSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        plan_id: "creator_plus",
+        subscription_status: "active",
+        stripe_subscription_id: "sub_creator_plus",
+      })
+    );
+    expect(contractInsertSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        user_id: "user_123",
+        plan_id: "creator_plus",
+        offer_id: "creator_plus__current",
+        stripe_subscription_id: "sub_creator_plus",
+        stripe_price_id: "price_creator_plus",
+        recurring_price_cents: 5900,
+        monthly_credits_cents: 4500,
+        storage_limit_bytes: 214748364800,
         status: "active",
       })
     );

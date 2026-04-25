@@ -10,6 +10,7 @@ import type { ExpertCreateMode } from "../CreatePropertiesPanel";
 import type { AspectOption } from "../../types";
 import type {
   CreatePulsePresetId,
+  CreatePulsePresetStartResult,
   CreatePulseResolvedPreset,
   CreatePulseSavedPreset,
 } from "./createPulsePresets";
@@ -49,7 +50,10 @@ type ExpertCreatePanelViewProps = {
   onExpertCreateModeChange?: (value: ExpertCreateMode) => void;
   activePulsePresetId?: CreatePulsePresetId | null;
   onActivePulsePresetIdChange?: (presetId: CreatePulsePresetId | null) => void;
-  onPulsePresetStart?: (preset: CreatePulseResolvedPreset) => Promise<void> | void;
+  onPulsePresetStart?: (
+    preset: CreatePulseResolvedPreset
+  ) => Promise<CreatePulsePresetStartResult> | CreatePulsePresetStartResult;
+  isPulseActivationBusy?: boolean;
   selectedPulsePresetIds?: readonly CreatePulsePresetId[];
   onSelectedPulsePresetIdsChange?: (presetIds: CreatePulsePresetId[]) => void;
   savedPulsePresets?: readonly CreatePulseSavedPreset[];
@@ -93,6 +97,7 @@ export function ExpertCreatePanelView({
   activePulsePresetId,
   onActivePulsePresetIdChange,
   onPulsePresetStart,
+  isPulseActivationBusy = false,
   selectedPulsePresetIds,
   onSelectedPulsePresetIdsChange,
   savedPulsePresets,
@@ -353,6 +358,7 @@ export function ExpertCreatePanelView({
                 activePresetId={activePulsePresetId}
                 onActivePresetIdChange={onActivePulsePresetIdChange}
                 onPresetStart={onPulsePresetStart}
+                isActivationBusy={isPulseActivationBusy}
                 savedPresets={savedPulsePresets}
                 onSavedPresetsChange={onSavedPulsePresetsChange}
                 onOpenPresetsLibrary={onOpenPresetsLibrary}

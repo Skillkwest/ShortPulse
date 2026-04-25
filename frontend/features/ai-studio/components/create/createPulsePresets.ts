@@ -11,6 +11,7 @@ export type CreatePulseRuntimeMode = "prompt_editor" | "workflow_gpt";
 export type CreatePulseActivationMode = "activate_only" | "activate_and_start";
 export type CreatePulseOutputMode = "apply_prompt" | "chat_reply";
 export type CreatePulseMemoryPolicy = "session";
+export type CreatePulsePresetStartResult = "started" | "blocked_busy" | "failed";
 export type CreatePulseAuthoringTemplateId =
   | "blank_workflow_gpt"
   | "single_shot_video_workflow"

@@ -26,6 +26,7 @@ import { BeginnerCreatePanelView } from "./create/BeginnerCreatePanelView";
 import { ExpertCreatePanelView } from "./create/ExpertCreatePanelView";
 import type {
   CreatePulsePresetId,
+  CreatePulsePresetStartResult,
   CreatePulseResolvedPreset,
   CreatePulseSavedPreset,
 } from "./create/createPulsePresets";
@@ -125,7 +126,9 @@ export type CreatePropertiesPanelProps = {
   activePulsePresetId?: CreatePulsePresetId | null;
   pulseWorkflowSession?: AgentPulseWorkflowSession | null;
   onActivePulsePresetIdChange?: (presetId: CreatePulsePresetId | null) => void;
-  onPulsePresetStart?: (preset: CreatePulseResolvedPreset) => Promise<void> | void;
+  onPulsePresetStart?: (
+    preset: CreatePulseResolvedPreset
+  ) => Promise<CreatePulsePresetStartResult> | CreatePulsePresetStartResult;
   onPulsePresetRestart?: (preset: CreatePulseResolvedPreset) => Promise<void> | void;
   selectedPulsePresetIds?: readonly CreatePulsePresetId[];
   onSelectedPulsePresetIdsChange?: (presetIds: CreatePulsePresetId[]) => void;
@@ -692,6 +695,7 @@ export function CreatePropertiesPanel({
           activePulsePresetId={activePulsePresetId}
           onActivePulsePresetIdChange={onActivePulsePresetIdChange}
           onPulsePresetStart={onPulsePresetStart}
+          isPulseActivationBusy={agentIsSending}
           selectedPulsePresetIds={selectedPulsePresetIds}
           onSelectedPulsePresetIdsChange={onSelectedPulsePresetIdsChange}
           savedPulsePresets={savedPulsePresets}

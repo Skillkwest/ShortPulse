@@ -3,7 +3,10 @@ import { prepareImageUrl } from "../logic/imageDescription";
 import { normalizePromptText } from "../logic/agentPromptOwnership";
 import { shouldApplyAgentPromptToSharedPrompt } from "../logic/promptTargeting";
 import { randomId } from "../logic/ids";
-import type { CreatePulseResolvedPreset } from "../components/create/createPulsePresets";
+import type {
+  CreatePulsePresetStartResult,
+  CreatePulseResolvedPreset,
+} from "../components/create/createPulsePresets";
 import { mergeAttachmentContext } from "./agentOrchestration/attachmentContext";
 import { prepareAgentImageAttachments } from "./agentOrchestration/attachmentPreparation";
 import type {
@@ -247,7 +250,7 @@ export const useAiStudioAgentOrchestration = ({
           setPulseWorkflowSession(pendingWorkflowSession);
         }
 
-        const { response, actions, workflowSession } = await sendToAgent({
+        const { response, actions, workflowSession, discarded } = await sendToAgent({
           text: outboundText,
           payloadText: outboundText,
           previousPrompt: latestAgentPrompt ?? null,
@@ -255,6 +258,9 @@ export const useAiStudioAgentOrchestration = ({
           skipUserEcho: true,
           optimisticUserMessageId,
         });
+        if (discarded) {
+          return;
+        }
 
         if (!response) {
           trackAgentUiEvent("studio_agent_response_empty", {
@@ -328,7 +334,7 @@ export const useAiStudioAgentOrchestration = ({
         lastAssistantMessage,
         modeHint: "text",
       });
-      const { response, actions, workflowSession } = await sendToAgent({
+      const { response, actions, workflowSession, discarded } = await sendToAgent({
         text: prompt,
         payloadText: prompt,
         previousPrompt: latestAgentPrompt ?? null,
@@ -336,6 +342,9 @@ export const useAiStudioAgentOrchestration = ({
         isolateHistory: true,
         skipUserEcho: true,
       });
+      if (discarded) {
+        return;
+      }
       const refinedPrompt = normalizePromptText(
         actions?.applyPrompt ?? extractAgentResponseMessage(response)
       );
@@ -365,8 +374,8 @@ export const useAiStudioAgentOrchestration = ({
   ]);
 
   const handlePulsePresetStart = useCallback(
-    async (preset: CreatePulseResolvedPreset) => {
-      if (agentIsSending || agentUiBusyRef.current) return;
+    async (preset: CreatePulseResolvedPreset): Promise<CreatePulsePresetStartResult> => {
+      if (agentIsSending || agentUiBusyRef.current) return "blocked_busy";
       const pulseContext = {
         ...getAgentContext({
           lastAssistantMessage,
@@ -387,7 +396,7 @@ export const useAiStudioAgentOrchestration = ({
         },
       };
       const activationSeed = buildStudioAgentPulseActivationSeed(pulseContext.pulse);
-      if (!activationSeed) return;
+      if (!activationSeed) return "failed";
 
       trackAgentUiEvent("studio_agent_pulse_start_requested", {
         preset_id: preset.presetId,
@@ -407,15 +416,18 @@ export const useAiStudioAgentOrchestration = ({
       }
 
       try {
-        const { response, actions, workflowSession } = await sendToAgent({
+        const { response, actions, workflowSession, discarded } = await sendToAgent({
           text: "",
           payloadText: activationSeed,
           previousPrompt: latestAgentPrompt ?? null,
           context: pulseContext,
           skipUserEcho: true,
         });
+        if (discarded) {
+          return "failed";
+        }
 
-        if (!response) return;
+        if (!response) return "failed";
 
         const appliedPrompt = normalizePromptText(actions?.applyPrompt);
         if (appliedPrompt) {
@@ -430,6 +442,7 @@ export const useAiStudioAgentOrchestration = ({
         if (workflowSession) {
           setPulseWorkflowSession(workflowSession);
         }
+        return "started";
       } finally {
         agentUiBusyRef.current = false;
         setAgentUiBusy(false);
@@ -467,7 +480,7 @@ export const useAiStudioAgentOrchestration = ({
         lastAssistantMessage,
         modeHint: "text",
       });
-      const { response, actions, workflowSession } = await sendToAgent({
+      const { response, actions, workflowSession, discarded } = await sendToAgent({
         text: currentPrompt,
         payloadText: currentPrompt,
         previousPrompt: latestAgentPrompt ?? null,
@@ -475,6 +488,9 @@ export const useAiStudioAgentOrchestration = ({
         isolateHistory: true,
         skipUserEcho: true,
       });
+      if (discarded) {
+        return;
+      }
       const nextPrompt = normalizePromptText(
         actions?.applyPrompt ?? extractAgentResponseMessage(response)
       );
@@ -599,7 +615,7 @@ export const useAiStudioAgentOrchestration = ({
           attachments: [imageAttachment],
           preparedImageUrls: new Map([[imageAttachment.id, safeUrl]]),
         });
-        const { response, actions } = await sendToAgent({
+        const { response, actions, discarded } = await sendToAgent({
           text: "",
           payloadText: "",
           previousPrompt: latestAgentPrompt ?? null,
@@ -607,6 +623,9 @@ export const useAiStudioAgentOrchestration = ({
           isolateHistory: true,
           skipUserEcho: true,
         });
+        if (discarded) {
+          return;
+        }
         const describedPrompt = normalizePromptText(
           actions?.applyPrompt ?? extractAgentResponseMessage(response)
         );

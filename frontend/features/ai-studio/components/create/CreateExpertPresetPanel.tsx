@@ -10,6 +10,7 @@ import { CreatePulsePresetsSurface } from "./CreatePulsePresetsSurface";
 import {
   CREATE_PULSE_MORE_LABEL,
   type CreatePulsePresetId,
+  type CreatePulsePresetStartResult,
   type CreatePulseResolvedPreset,
   type CreatePulseSavedPreset,
 } from "./createPulsePresets";
@@ -22,12 +23,15 @@ const STATUS_TOAST_FADE_MS = 220;
 type CreateExpertPresetPanelProps = {
   activePresetId?: CreatePulsePresetId | null;
   onActivePresetIdChange?: (presetId: CreatePulsePresetId | null) => void;
-  onPresetStart?: (preset: CreatePulseResolvedPreset) => Promise<void> | void;
+  onPresetStart?: (
+    preset: CreatePulseResolvedPreset
+  ) => Promise<CreatePulsePresetStartResult> | CreatePulsePresetStartResult;
   selectedPresetIds?: readonly CreatePulsePresetId[];
   onSelectedPresetIdsChange?: (presetIds: CreatePulsePresetId[]) => void;
   savedPresets?: readonly CreatePulseSavedPreset[];
   onSavedPresetsChange?: (presets: CreatePulseSavedPreset[]) => void;
   onOpenPresetsLibrary?: () => void;
+  isActivationBusy?: boolean;
 };
 
 /**
@@ -42,6 +46,7 @@ export function CreateExpertPresetPanel({
   savedPresets,
   onSavedPresetsChange,
   onOpenPresetsLibrary,
+  isActivationBusy = false,
 }: CreateExpertPresetPanelProps) {
   const morePresetsSurfaceId = React.useId();
   const toastVisibleTimerRef = React.useRef<number | null>(null);
@@ -147,6 +152,7 @@ export function CreateExpertPresetPanel({
     setActivePresetId: onActivePresetIdChange ?? (() => {}),
     onPresetStart,
     showStatusToast,
+    isActivationBusy,
   });
 
   const closeMorePresetsSurface = React.useCallback(() => {
@@ -206,7 +212,7 @@ export function CreateExpertPresetPanel({
                     activePresetId === preset.presetId ? "create-expert-presets-btn--active" : ""
                   }`.trim()}
                   aria-label={`${preset.label} preset`}
-                  disabled={!isPulseActivationEnabled}
+                  aria-disabled={!isPulseActivationEnabled || isActivationBusy}
                   onClick={() => handlePanelPresetApply(preset.presetId)}
                   onDragStart={(event) => handlePanelPresetDragStart(event, preset.presetId)}
                   onDragEnd={handlePresetDragEnd}
@@ -256,6 +262,7 @@ export function CreateExpertPresetPanel({
           onSurfaceDrop={handlePresetsSurfaceDrop}
           onCustomPresetSave={handleCustomPresetSave}
           isDropActive={isPresetsSurfaceDropActive}
+          isActivationBusy={isActivationBusy}
         />
         {isPulseLibraryOpen ? (
           <AiStudioModalLayer>

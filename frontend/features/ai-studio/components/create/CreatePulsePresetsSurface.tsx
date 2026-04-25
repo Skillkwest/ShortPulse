@@ -48,6 +48,7 @@ export type CreatePulsePresetsSurfaceProps = {
     }
   ) => void;
   isDropActive?: boolean;
+  isActivationBusy?: boolean;
 };
 
 type EditorDraft = {
@@ -91,6 +92,7 @@ export const CreatePulsePresetsSurface = ({
   onSurfaceDragLeave,
   onCustomPresetSave,
   isDropActive = false,
+  isActivationBusy = false,
 }: CreatePulsePresetsSurfaceProps) => {
   const surfaceRef = React.useRef<HTMLElement | null>(null);
   const editorDialogRef = React.useRef<HTMLDivElement | null>(null);
@@ -301,7 +303,11 @@ export const CreatePulsePresetsSurface = ({
                   shouldUseMutedCustomLabel(preset) ? "is-custom-label" : ""
                 }`.trim()}
                 aria-pressed={activePresetId === preset.presetId}
-                onClick={() => onPresetSelect?.(preset.presetId)}
+                aria-disabled={isActivationBusy}
+                onClick={() => {
+                  if (isActivationBusy) return;
+                  onPresetSelect?.(preset.presetId);
+                }}
                 onDragStart={(event) => onPresetDragStart?.(event, preset.presetId)}
                 onDragEnd={onPresetDragEnd}
               >

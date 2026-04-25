@@ -378,6 +378,54 @@ describe("useAiAgent", () => {
     expect(secondBody.canonicalPrompt ?? null).toBeNull();
   });
 
+  it("discards a late response after the session namespace changes", async () => {
+    let resolveFirstResponse: ((value: Response) => void) | null = null;
+    fetchWithAuthMock.mockImplementationOnce(
+      () =>
+        new Promise<Response>((resolve) => {
+          resolveFirstResponse = resolve;
+        })
+    );
+
+    const hook = renderHook(
+      ({ namespace }) => useAiAgent({ enabled: true, sessionNamespace: namespace }),
+      { initialProps: { namespace: "ai-studio:session-a:create:pulse-a" } }
+    );
+
+    let firstSendPromise: ReturnType<typeof hook.result.current.send>;
+    await act(async () => {
+      firstSendPromise = hook.result.current.send({
+        text: "pulse a question",
+        payloadText: "pulse a question",
+      });
+    });
+
+    await act(async () => {
+      hook.rerender({ namespace: "ai-studio:session-a:create:pulse-b" });
+    });
+    await waitFor(() => {
+      expect(hook.result.current.messages).toEqual([]);
+    });
+
+    await act(async () => {
+      resolveFirstResponse?.({
+        ok: true,
+        json: async () => ({ message: "late pulse a reply" }),
+      } as Response);
+    });
+
+    const firstSendResult = await firstSendPromise!;
+
+    expect(firstSendResult).toEqual(
+      expect.objectContaining({
+        response: null,
+        discarded: true,
+      })
+    );
+    expect(hook.result.current.messages).toEqual([]);
+    expect(hook.result.current.error).toBeNull();
+  });
+
   it("treats refusal payloads as assistant responses without setting error", async () => {
     fetchWithAuthMock.mockResolvedValue(
       new Response(JSON.stringify({ message: "I cannot describe this." }), {

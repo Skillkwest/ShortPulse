@@ -14,6 +14,7 @@ import {
   upsertCreatePulseSavedPreset,
   type CreatePulsePresetDragPayload,
   type CreatePulsePresetId,
+  type CreatePulsePresetStartResult,
   type CreatePulseResolvedPreset,
   type CreatePulseSavedPreset,
 } from "./createPulsePresets";
@@ -35,8 +36,11 @@ type UseCreatePulsePresetRuntimeParams = {
     updater: (previous: CreatePulseSavedPreset[]) => CreatePulseSavedPreset[]
   ) => void;
   setActivePresetId: (presetId: CreatePulsePresetId | null) => void;
-  onPresetStart?: (preset: CreatePulseResolvedPreset) => Promise<void> | void;
+  onPresetStart?: (
+    preset: CreatePulseResolvedPreset
+  ) => Promise<CreatePulsePresetStartResult> | CreatePulsePresetStartResult;
   showStatusToast: (message: string, tone?: "info" | "warning") => void;
+  isActivationBusy?: boolean;
 };
 
 /**
@@ -50,6 +54,7 @@ export const useCreatePulsePresetRuntime = ({
   setActivePresetId,
   onPresetStart,
   showStatusToast,
+  isActivationBusy = false,
 }: UseCreatePulsePresetRuntimeParams) => {
   const activePresetDragPayloadRef = React.useRef<CreatePulsePresetDragPayload | null>(null);
   const presetDragPreviewCleanupRef = React.useRef<(() => void) | null>(null);
@@ -97,19 +102,39 @@ export const useCreatePulsePresetRuntime = ({
 
   const handlePanelPresetApply = React.useCallback(
     async (presetId: CreatePulsePresetId) => {
-      setActivePresetId(presetId);
       const resolvedPreset = resolveCreatePulsePresetById(presetId, savedPresets);
       const presetLabel = resolveCreatePulsePresetLabelById(presetId, savedPresets);
+      if (isActivationBusy) {
+        showStatusToast("Wait for the current Pulse step to finish before switching.", "warning");
+        return;
+      }
+      let startResult: CreatePulsePresetStartResult = "started";
+      if (resolvedPreset) {
+        startResult = (await onPresetStart?.(resolvedPreset)) ?? "started";
+      }
+      if (startResult === "blocked_busy") {
+        showStatusToast("Wait for the current Pulse step to finish before switching.", "warning");
+        return;
+      }
+      if (startResult === "failed") {
+        showStatusToast(`Unable to start ${presetLabel}. Please try again.`, "warning");
+        return;
+      }
+      setActivePresetId(presetId);
       showStatusToast(
         activePresetId && activePresetId !== presetId
           ? `Switched to ${presetLabel}. Previous Pulse session cleared.`
           : `Started ${presetLabel}.`
       );
-      if (resolvedPreset) {
-        await onPresetStart?.(resolvedPreset);
-      }
     },
-    [activePresetId, onPresetStart, savedPresets, setActivePresetId, showStatusToast]
+    [
+      activePresetId,
+      isActivationBusy,
+      onPresetStart,
+      savedPresets,
+      setActivePresetId,
+      showStatusToast,
+    ]
   );
 
   const handleSurfacePresetSelect = React.useCallback(

@@ -507,6 +507,44 @@ describe("useAiStudioAgentOrchestration", () => {
     );
   });
 
+  it("returns blocked_busy and does not start a pulse when the agent is already busy", async () => {
+    const sendToAgent = vi.fn();
+    const setPulseWorkflowSession = vi.fn();
+    const params = createParams({
+      agentIsSending: true,
+      sendToAgent,
+      setPulseWorkflowSession: asDispatch(setPulseWorkflowSession),
+      getAgentContext: vi.fn(() => ({})),
+    });
+    const { result } = renderHook(() => useAiStudioAgentOrchestration(params));
+
+    const preset: CreatePulseResolvedPreset = {
+      presetId: "story_builder",
+      label: "Story Builder",
+      description: "Story workflow",
+      systemInstructions: "workflow instructions",
+      runtimeMode: "workflow_gpt",
+      activationMode: "activate_and_start",
+      starterAssistantMessage: "Step 1 - Upload your characters.",
+      workflowStageHints: ["Upload Characters", "Plot Seed", "Runtime"],
+      outputMode: "chat_reply",
+      memoryPolicy: "session",
+      isCustom: false,
+      isBuiltIn: true,
+      isEditable: true,
+      hasUserOverride: false,
+    };
+
+    let startResult: Awaited<ReturnType<typeof result.current.handlePulsePresetStart>> | undefined;
+    await act(async () => {
+      startResult = await result.current.handlePulsePresetStart(preset);
+    });
+
+    expect(startResult).toBe("blocked_busy");
+    expect(sendToAgent).not.toHaveBeenCalled();
+    expect(setPulseWorkflowSession).not.toHaveBeenCalled();
+  });
+
   it("primes workflow session state on user reply before the next workflow response returns", async () => {
     const setPulseWorkflowSession = vi.fn();
     const sendToAgent = vi.fn(async () => ({

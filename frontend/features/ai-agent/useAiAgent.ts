@@ -109,6 +109,17 @@ export const useAiAgent = ({
       skipUserEcho = false,
       optimisticUserMessageId = null,
     }: SendParams): Promise<SendResult> => {
+      const requestSessionIdentity = `${sessionNamespace}::${conversationId?.trim() ?? ""}`;
+      if (!sessionIdentityRef.current) {
+        sessionIdentityRef.current = requestSessionIdentity;
+      }
+      const isStaleRequest = () => sessionIdentityRef.current !== requestSessionIdentity;
+      const discardedResult: SendResult = {
+        response: null,
+        actions: undefined,
+        workflowSession: null,
+        discarded: true,
+      };
       if (!enabled) {
         setError("Agent is disabled");
         return { response: null, actions: undefined };
@@ -206,6 +217,9 @@ export const useAiAgent = ({
           directOpenAiBypass: directOpenAiBypassEnabled,
         };
         const transportResult = await sendStudioAgentTurn(body);
+        if (isStaleRequest()) {
+          return discardedResult;
+        }
         if (!transportResult.ok) {
           const machineDecision = transportResult.parsedError?.decision;
           const machineOutcomeClass = transportResult.parsedError?.outcome_class;
@@ -362,6 +376,9 @@ export const useAiAgent = ({
         }
         return { response: data ?? null, actions, workflowSession };
       } catch (err) {
+        if (isStaleRequest()) {
+          return discardedResult;
+        }
         setError(
           normalizeErrorText(err instanceof Error ? err.message : err, {
             fallback: "Agent request failed",

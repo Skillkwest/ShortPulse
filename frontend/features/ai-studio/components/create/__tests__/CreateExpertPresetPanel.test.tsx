@@ -42,13 +42,15 @@ class MockDataTransfer implements DataTransfer {
 }
 
 describe("CreateExpertPresetPanel", () => {
-  it("activates the selected pulse preset without mutating the visible composer", () => {
+  it("activates the selected pulse preset without mutating the visible composer", async () => {
     const onActivePresetIdChange = vi.fn();
     render(<CreateExpertPresetPanel onActivePresetIdChange={onActivePresetIdChange} />);
 
     fireEvent.click(screen.getByRole("button", { name: "Single-shot preset" }));
 
-    expect(onActivePresetIdChange).toHaveBeenCalledWith("single_shot");
+    await waitFor(() => {
+      expect(onActivePresetIdChange).toHaveBeenCalledWith("single_shot");
+    });
   });
 
   it("starts workflow pulses immediately when activation mode is activate and start", async () => {
@@ -153,6 +155,28 @@ describe("CreateExpertPresetPanel", () => {
         })
       );
     });
+  });
+
+  it("does not switch active ownership while pulse activation is busy", async () => {
+    const onActivePresetIdChange = vi.fn();
+    const onPresetStart = vi.fn();
+
+    render(
+      <CreateExpertPresetPanel
+        activePresetId="single_shot"
+        onActivePresetIdChange={onActivePresetIdChange}
+        onPresetStart={onPresetStart}
+        isActivationBusy
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Story Builder preset" }));
+
+    expect(onActivePresetIdChange).not.toHaveBeenCalled();
+    expect(onPresetStart).not.toHaveBeenCalled();
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "Wait for the current Pulse step to finish before switching."
+    );
   });
 
   it("opens the Pulses surface and saves a custom preset override", async () => {

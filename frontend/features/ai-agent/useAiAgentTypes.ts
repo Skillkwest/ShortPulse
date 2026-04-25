@@ -31,6 +31,7 @@ export type SendResult = {
   response: AgentResponse | null;
   actions: AgentActions | undefined;
   workflowSession?: AgentPulseWorkflowSession | null;
+  discarded?: boolean;
 };
 
 // Stable default to prevent Fast Refresh issues.

@@ -31,6 +31,7 @@ import type {
 } from "../components/edit/expertEditPresets";
 import type {
   CreatePulsePresetId,
+  CreatePulsePresetStartResult,
   CreatePulseResolvedPreset,
   CreatePulseSavedPreset,
 } from "../components/create/createPulsePresets";
@@ -136,7 +137,9 @@ export type UseAiStudioPanelPropsParams = {
   onExpertCreateModeChange?: (value: "standard" | "pulse") => void;
   activeCreatePulsePresetId?: CreatePulsePresetId | null;
   onActiveCreatePulsePresetIdChange?: (presetId: CreatePulsePresetId | null) => void;
-  onCreatePulsePresetStart?: (preset: CreatePulseResolvedPreset) => Promise<void> | void;
+  onCreatePulsePresetStart?: (
+    preset: CreatePulseResolvedPreset
+  ) => Promise<CreatePulsePresetStartResult> | CreatePulsePresetStartResult;
   onCreatePulsePresetRestart?: (preset: CreatePulseResolvedPreset) => Promise<void> | void;
   expertEditSessionState?: ExpertEditSessionState | null;
   onExpertEditSessionStateChange?: (state: ExpertEditSessionState) => void;

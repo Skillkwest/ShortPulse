@@ -290,7 +290,7 @@ describe("useCharacterManagerDraft", () => {
       name: "Fresh Save",
       activeCharacterSheetPresetId: "1",
       visibleCharacterSheetPresetIds: ["1"],
-      characterSheetPresetLabels: expect.objectContaining({ "1": "Double click me" }),
+      characterSheetPresetLabels: expect.objectContaining({ "1": "1" }),
       characterSheetPresetDescriptions: expect.objectContaining({ "1": "Saved description" }),
     });
     await waitFor(() => {

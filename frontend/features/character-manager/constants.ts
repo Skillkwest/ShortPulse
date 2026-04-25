@@ -122,7 +122,7 @@ export const DEFAULT_CHARACTER_SHEET_PRESET_ID: CharacterSheetPresetId = "1";
 export const DEFAULT_CHARACTER_SHEET_PRESET_TAB_ORDER = [
   DEFAULT_CHARACTER_SHEET_PRESET_ID,
 ] as const satisfies ReadonlyArray<CharacterSheetPresetId>;
-export const DEFAULT_CHARACTER_SHEET_PRIMARY_TAB_LABEL = "Double click me";
+export const DEFAULT_CHARACTER_SHEET_PRIMARY_TAB_LABEL = DEFAULT_CHARACTER_SHEET_PRESET_ID;
 
 export const getDefaultCharacterSheetPresetTabLabel = (presetId: CharacterSheetPresetId): string =>
   presetId === DEFAULT_CHARACTER_SHEET_PRESET_ID

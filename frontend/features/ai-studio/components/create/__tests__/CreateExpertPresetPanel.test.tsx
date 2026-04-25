@@ -71,6 +71,38 @@ describe("CreateExpertPresetPanel", () => {
     expect(within(inactivePresetButton).queryByText("Active")).toBeNull();
   });
 
+  it("shows built-in and custom ownership badges in the pinned Pulse rail", () => {
+    render(
+      <CreateExpertPresetPanel
+        selectedPresetIds={["ad_hook", "custom_storyboard"]}
+        activePresetId="ad_hook"
+        savedPresets={[
+          {
+            presetId: "custom_storyboard",
+            label: "Storyboard",
+            description: null,
+            systemInstructions: "Build a storyboard-ready pulse sequence.",
+            runtimeMode: "workflow_gpt",
+            activationMode: "activate_and_start",
+            starterAssistantMessage: null,
+            outputMode: "chat_reply",
+            memoryPolicy: "session",
+            createdAt: null,
+          },
+        ]}
+        onSelectedPresetIdsChange={vi.fn()}
+        onSavedPresetsChange={vi.fn()}
+        onActivePresetIdChange={vi.fn()}
+      />
+    );
+
+    const builtInPresetButton = screen.getByRole("button", { name: "Ad Hook preset" });
+    expect(within(builtInPresetButton).getByText("Built-in")).toBeInTheDocument();
+
+    const customPresetButton = screen.getByRole("button", { name: "Storyboard preset" });
+    expect(within(customPresetButton).getByText("Custom")).toBeInTheDocument();
+  });
+
   it("starts workflow pulses immediately when activation mode is activate and start", async () => {
     const onActivePresetIdChange = vi.fn();
     const onPresetStart = vi.fn().mockResolvedValue(undefined);
@@ -301,9 +333,10 @@ describe("CreateExpertPresetPanel", () => {
     );
 
     fireEvent.click(screen.getByRole("button", { name: "More Pulses" }));
+    const pulsesSurface = screen.getByRole("region", { name: "Pulses" });
 
-    expect(screen.getAllByText("Built-in").length).toBeGreaterThan(0);
-    expect(screen.getByText("Custom")).toBeInTheDocument();
+    expect(within(pulsesSurface).getAllByText("Built-in").length).toBeGreaterThan(0);
+    expect(within(pulsesSurface).getByText("Custom")).toBeInTheDocument();
   });
 
   it("composes workflow instructions from structured fields in the Pulses editor", () => {

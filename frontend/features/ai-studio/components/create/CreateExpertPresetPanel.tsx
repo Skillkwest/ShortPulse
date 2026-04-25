@@ -207,11 +207,18 @@ export function CreateExpertPresetPanel({
                   onDragEnd={handlePresetDragEnd}
                 >
                   <span className="create-expert-presets-btn-label">{preset.label}</span>
-                  {activePresetId === preset.presetId ? (
-                    <span className="create-expert-presets-btn-meta" aria-hidden="true">
-                      <span className="create-expert-presets-btn-badge is-active">Active</span>
+                  <span className="create-expert-presets-btn-meta" aria-hidden="true">
+                    <span
+                      className={`create-expert-presets-btn-badge create-expert-presets-btn-badge--ownership ${
+                        preset.isBuiltIn ? "is-built-in" : "is-custom"
+                      }`.trim()}
+                    >
+                      {preset.isBuiltIn ? "Built-in" : "Custom"}
                     </span>
-                  ) : null}
+                    {activePresetId === preset.presetId ? (
+                      <span className="create-expert-presets-btn-badge is-active">Active</span>
+                    ) : null}
+                  </span>
                 </button>
               ))
             ) : (

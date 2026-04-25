@@ -7,8 +7,9 @@ import {
   CREATE_PULSE_DEFAULT_PANEL_PRESET_IDS,
   normalizeCreatePulsePanelPresetIds,
   resolveCreatePulsePresetCatalog,
-  resolveCreatePulsePresetLabelById,
+  resolveCreatePulsePresetById,
   type CreatePulsePresetId,
+  type CreatePulseResolvedPreset,
   normalizeCreatePulseSavedPresets,
   type CreatePulseSavedPreset,
 } from "./createPulsePresets";
@@ -106,10 +107,13 @@ export const useCreatePulseGenerationPresetRuntime = ({
 
   const selectedPanelPresets = React.useMemo(
     () =>
-      selectedPresetIds.map((presetId) => ({
-        presetId,
-        label: resolveCreatePulsePresetLabelById(presetId, savedPresets),
-      })),
+      selectedPresetIds.reduce<CreatePulseResolvedPreset[]>((accumulator, presetId) => {
+        const preset = resolveCreatePulsePresetById(presetId, savedPresets);
+        if (preset) {
+          accumulator.push(preset);
+        }
+        return accumulator;
+      }, []),
     [savedPresets, selectedPresetIds]
   );
 

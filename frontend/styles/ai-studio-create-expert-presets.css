@@ -167,6 +167,18 @@
   color: rgba(203, 244, 250, 0.96);
 }
 
+.create-expert-presets-btn-badge--ownership.is-built-in {
+  border-color: rgba(105, 198, 255, 0.28);
+  background: rgba(68, 138, 181, 0.14);
+  color: rgba(182, 225, 248, 0.92);
+}
+
+.create-expert-presets-btn-badge--ownership.is-custom {
+  border-color: rgba(201, 205, 214, 0.22);
+  background: rgba(201, 205, 214, 0.08);
+  color: rgba(215, 222, 235, 0.86);
+}
+
 .create-expert-presets-btn--selected {
   color: var(--create-expert-preset-selected-text, rgba(230, 236, 245, 0.9));
   cursor: grab;

@@ -332,11 +332,11 @@
   display: flex;
   flex: 1 1 auto;
   flex-direction: column;
-  justify-content: center;
+  justify-content: flex-start;
   width: 100%;
   min-height: 0;
-  padding-top: clamp(56px, 10vh, 108px);
-  padding-bottom: clamp(18px, 4vh, 42px);
+  padding-top: clamp(28px, 6vh, 64px);
+  padding-bottom: clamp(16px, 3vh, 32px);
 }
 
 .create-expert-ready-text {
@@ -351,8 +351,8 @@
 }
 
 .create-expert-panel--no-history .create-expert-ready-text {
-  transform: translateY(-48px);
-  margin: 0 0 16px;
+  transform: translateY(-18px);
+  margin: 0 0 10px;
 }
 
 .create-expert-panel--no-history .create-expert-right-panel-inner {

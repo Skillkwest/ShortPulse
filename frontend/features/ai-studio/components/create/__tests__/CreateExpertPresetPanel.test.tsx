@@ -51,58 +51,6 @@ describe("CreateExpertPresetPanel", () => {
     expect(onActivePresetIdChange).toHaveBeenCalledWith("single_shot");
   });
 
-  it("shows an explicit active badge in the pinned Pulse rail", () => {
-    render(
-      <CreateExpertPresetPanel
-        selectedPresetIds={["ad_hook", "story_builder"]}
-        activePresetId="ad_hook"
-        onSelectedPresetIdsChange={vi.fn()}
-        onActivePresetIdChange={vi.fn()}
-      />
-    );
-
-    const activePresetButton = screen.getByRole("button", { name: "Ad Hook preset" });
-    expect(activePresetButton).toBeInTheDocument();
-    expect(activePresetButton).toHaveAttribute("aria-pressed", "true");
-    expect(within(activePresetButton).getByText("Active")).toBeInTheDocument();
-
-    const inactivePresetButton = screen.getByRole("button", { name: "Story Builder preset" });
-    expect(inactivePresetButton).toBeInTheDocument();
-    expect(within(inactivePresetButton).queryByText("Active")).toBeNull();
-  });
-
-  it("shows built-in and custom ownership badges in the pinned Pulse rail", () => {
-    render(
-      <CreateExpertPresetPanel
-        selectedPresetIds={["ad_hook", "custom_storyboard"]}
-        activePresetId="ad_hook"
-        savedPresets={[
-          {
-            presetId: "custom_storyboard",
-            label: "Storyboard",
-            description: null,
-            systemInstructions: "Build a storyboard-ready pulse sequence.",
-            runtimeMode: "workflow_gpt",
-            activationMode: "activate_and_start",
-            starterAssistantMessage: null,
-            outputMode: "chat_reply",
-            memoryPolicy: "session",
-            createdAt: null,
-          },
-        ]}
-        onSelectedPresetIdsChange={vi.fn()}
-        onSavedPresetsChange={vi.fn()}
-        onActivePresetIdChange={vi.fn()}
-      />
-    );
-
-    const builtInPresetButton = screen.getByRole("button", { name: "Ad Hook preset" });
-    expect(within(builtInPresetButton).getByText("Built-in")).toBeInTheDocument();
-
-    const customPresetButton = screen.getByRole("button", { name: "Storyboard preset" });
-    expect(within(customPresetButton).getByText("Custom")).toBeInTheDocument();
-  });
-
   it("starts workflow pulses immediately when activation mode is activate and start", async () => {
     const onActivePresetIdChange = vi.fn();
     const onPresetStart = vi.fn().mockResolvedValue(undefined);

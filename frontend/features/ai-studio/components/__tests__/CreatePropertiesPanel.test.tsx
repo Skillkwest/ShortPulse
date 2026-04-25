@@ -918,58 +918,6 @@ describe("CreatePropertiesPanel", () => {
     expect(onClearAgentChat).toHaveBeenCalledTimes(1);
   });
 
-  it("shows an idle Pulse-mode status card before any pulse is activated", () => {
-    renderPanel({
-      beginnerMode: false,
-      expertCreateUiEligible: true,
-      agentEnabled: true,
-      expertCreateMode: "pulse",
-      onAgentInputChange: vi.fn(),
-      onAgentSend: vi.fn(),
-    });
-
-    const pulseStatus = screen.getByLabelText("Pulse mode status");
-    expect(pulseStatus).toBeInTheDocument();
-    expect(within(pulseStatus).getByText("Pulse mode")).toBeInTheDocument();
-    expect(within(pulseStatus).getByText("No active Pulse yet")).toBeInTheDocument();
-    expect(within(pulseStatus).getByText("Waiting for selection")).toBeInTheDocument();
-    expect(within(pulseStatus).getByText("Choose from the rail")).toBeInTheDocument();
-    expect(
-      within(pulseStatus).getByText(
-        "Pick a Pulse from the left rail or More Pulses to start a guided session."
-      )
-    ).toBeInTheDocument();
-    expect(
-      within(pulseStatus).getByText("Activating a Pulse will pin it into the rail and start fresh.")
-    ).toBeInTheDocument();
-  });
-
-  it("shows the active Pulse shell status before guided chat history exists", () => {
-    renderPanel({
-      beginnerMode: false,
-      expertCreateUiEligible: true,
-      agentEnabled: true,
-      expertCreateMode: "pulse",
-      activePulsePresetId: "story_builder",
-      onAgentInputChange: vi.fn(),
-      onAgentSend: vi.fn(),
-    });
-
-    const pulseStatus = screen.getByLabelText("Pulse mode status");
-    expect(pulseStatus).toBeInTheDocument();
-    expect(within(pulseStatus).getByText("Story Builder active")).toBeInTheDocument();
-    expect(within(pulseStatus).getByText("Guided session")).toBeInTheDocument();
-    expect(within(pulseStatus).getByText("Switching starts fresh")).toBeInTheDocument();
-    expect(
-      within(pulseStatus).getByText(
-        "Guided story-circle workflow for scene plans and final image prompts."
-      )
-    ).toBeInTheDocument();
-    expect(
-      within(pulseStatus).getByText("Switching or deactivating starts a fresh guided session.")
-    ).toBeInTheDocument();
-  });
-
   it("shows a workflow session banner for an active workflow pulse in pulse mode", () => {
     renderPanel({
       beginnerMode: false,

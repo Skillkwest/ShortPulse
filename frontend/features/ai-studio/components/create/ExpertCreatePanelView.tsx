@@ -13,7 +13,6 @@ import type {
   CreatePulseResolvedPreset,
   CreatePulseSavedPreset,
 } from "./createPulsePresets";
-import { resolveCreatePulsePresetById } from "./createPulsePresets";
 
 type ExpertCreatePanelViewProps = {
   promptStepProps: React.ComponentProps<typeof PromptStep>;
@@ -113,10 +112,6 @@ export function ExpertCreatePanelView({
   const modelLogoHeight = useUnoptimizedModelLogo ? 12 : 18;
   const inlineGuardrailReason = guardrailReason;
   const hasChatHistory = (promptStepProps.agentMessages?.length ?? 0) > 0;
-  const activePulsePreset = React.useMemo(() => {
-    if (createMode !== "pulse" || !activePulsePresetId) return null;
-    return resolveCreatePulsePresetById(activePulsePresetId, savedPulsePresets);
-  }, [activePulsePresetId, createMode, savedPulsePresets]);
   const createModeTabsStyle = React.useMemo(
     () =>
       ({
@@ -195,43 +190,6 @@ export function ExpertCreatePanelView({
     composerLeadingContent: promptStepProps.composerLeadingContent,
   };
   const shouldHideReadyTitle = agentInputVisualRowCount >= 8;
-  const pulseModeStatusCard =
-    createMode === "pulse" && !hasChatHistory ? (
-      <div
-        className={`create-expert-active-pulse-card ${activePulsePreset ? "" : "is-idle"}`.trim()}
-        role="status"
-        aria-live="polite"
-        aria-label="Pulse mode status"
-      >
-        <div className="create-expert-active-pulse-header">
-          <div className="create-expert-active-pulse-copy">
-            <p className="create-expert-active-pulse-eyebrow">Pulse mode</p>
-            <h3 className="create-expert-active-pulse-title">
-              {activePulsePreset ? `${activePulsePreset.label} active` : "No active Pulse yet"}
-            </h3>
-          </div>
-        </div>
-        <div className="create-expert-active-pulse-badges">
-          <span className="create-expert-active-pulse-badge">
-            {activePulsePreset ? "Guided session" : "Waiting for selection"}
-          </span>
-          <span className="create-expert-active-pulse-badge">
-            {activePulsePreset ? "Switching starts fresh" : "Choose from the rail"}
-          </span>
-        </div>
-        <p className="create-expert-active-pulse-summary">
-          {activePulsePreset?.description?.trim() ||
-            (activePulsePreset
-              ? "This Pulse guides the chat one step at a time."
-              : "Pick a Pulse from the left rail or More Pulses to start a guided session.")}
-        </p>
-        <p className="create-expert-active-pulse-note">
-          {activePulsePreset
-            ? "Switching or deactivating starts a fresh guided session."
-            : "Activating a Pulse will pin it into the rail and start fresh."}
-        </p>
-      </div>
-    ) : null;
   const promptAndControls = (
     <>
       {!hasChatHistory ? (
@@ -418,10 +376,7 @@ export function ExpertCreatePanelView({
               ) : null}
             </div>
             {!hasChatHistory ? (
-              <div className="create-expert-empty-state-shell">
-                {pulseModeStatusCard}
-                {promptAndControls}
-              </div>
+              <div className="create-expert-empty-state-shell">{promptAndControls}</div>
             ) : (
               <div className="create-expert-flow-shell">{promptAndControls}</div>
             )}

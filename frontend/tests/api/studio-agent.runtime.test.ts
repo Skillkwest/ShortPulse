@@ -335,6 +335,10 @@ describe("POST /api/ai/studio-agent runtime hardening", () => {
       expect.arrayContaining([
         expect.objectContaining({
           role: "system",
+          content: expect.stringContaining("Return only JSON with this exact shape"),
+        }),
+        expect.objectContaining({
+          role: "system",
           content: expect.stringContaining("ACTIVE PULSE PROFILE"),
         }),
         expect.objectContaining({
@@ -879,6 +883,85 @@ describe("POST /api/ai/studio-agent runtime hardening", () => {
       expect.objectContaining({
         outcome_class: "success_message",
         reason_code: "SUCCESS_MESSAGE",
+      })
+    );
+    infoSpy.mockRestore();
+  });
+
+  it("fails closed when a direct-bypass workflow pulse returns plain text instead of workflow JSON", async () => {
+    process.env.STUDIO_AGENT_DIRECT_OPENAI_BYPASS_ENABLED = "true";
+    const infoSpy = vi.spyOn(console, "info").mockImplementation(() => {});
+    (fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        choices: [
+          {
+            message: {
+              content:
+                "TITLE: Moonlit Forest Escape\nSTYLE: grimdark fantasy, cold moonlight, wet stone, drifting mist",
+            },
+          },
+        ],
+      }),
+    });
+
+    const req = {
+      method: "POST",
+      body: {
+        clientSessionKey: "session-direct-bypass-workflow-invalid-contract",
+        messages: [{ role: "user", content: "Looks good, give me the final prompt." }],
+        context: {
+          pulse: {
+            presetId: "multi_sequence_video",
+            label: "Multi Sequence Video Prompt",
+            instructions: "Run the multi-shot storyboard workflow.",
+            runtimeMode: "workflow_gpt",
+            activationMode: "activate_and_start",
+            starterAssistantMessage:
+              "Step 1 - Upload: Please upload the image you want to base the scene on.",
+            workflowStageHints: ["Image Intake", "Action", "Dialog", "Storyboard", "Final Prompt"],
+            outputMode: "chat_reply",
+            memoryPolicy: "session",
+            source: "builtin",
+            workflowSession: {
+              presetId: "multi_sequence_video",
+              status: "running",
+              currentStepIndex: 4,
+              currentStepLabel: "Storyboard",
+              currentStepPrompt:
+                "Great. I'll craft a 4-12 cut scene sequence and deliver a single, copy-paste prompt for your video model.",
+              collectedInputs: ["forest still", "The knight flees through the ruins", "n/a"],
+              lastArtifact: null,
+            },
+          },
+        },
+        directOpenAiBypass: true,
+      },
+    };
+    const res = createMockResponse();
+
+    await studioAgentHandler(req as never, res as never);
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    const responseBody = res.json.mock.calls[0]?.[0] as Record<string, unknown> | undefined;
+    expect(responseBody).toEqual(
+      expect.objectContaining({
+        message: "I can't process that request right now. Please try again.",
+        actions: undefined,
+        outcome_class: "fallback_infra",
+        reason_code: "INFRA_FALLBACK_OUTPUT_CONTRACT",
+        fallback_reason: "stage_prompt_missing",
+      })
+    );
+    expect(responseBody?.workflowSession).toBeUndefined();
+    const directBypassTelemetry = extractTelemetryPayloads(infoSpy).find(
+      (payload) => payload.path === "direct_openai_bypass"
+    );
+    expect(directBypassTelemetry).toEqual(
+      expect.objectContaining({
+        outcome_class: "fallback_infra",
+        reason_code: "INFRA_FALLBACK_OUTPUT_CONTRACT",
+        fallback_reason: "stage_prompt_missing",
       })
     );
     infoSpy.mockRestore();

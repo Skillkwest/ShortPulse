@@ -66,6 +66,7 @@ import type { AgentContext, AgentMessage } from "../../../prefabs/agent";
 import type { OpenAiChatMessage } from "../../../lib/server/api/openAiCompat";
 import {
   extractStudioAgentCompletionText,
+  hasStructuredJsonCandidates,
   parseStudioAgentJsonWithStatus,
 } from "../../../features/agent-runtime/studioAgentResponseNormalization";
 
@@ -88,7 +89,10 @@ Behave like a guided custom GPT workflow.
 Follow the ACTIVE PULSE PROFILE system message exactly.
 You may ask the next required question or return a final artifact when the workflow is complete.
 Do not force every answer into a rewritten prompt.
-Return plain assistant text unless the active Pulse explicitly requires a stricter output shape.`;
+Return only JSON with this exact shape and no markdown:
+{"status":"needs_input"|"ready","message":"string","actions":{"applyPrompt":"string|null"}}
+Use status="needs_input" when you are asking the next question or collecting workflow input.
+Use status="ready" only when the workflow is complete and you are returning the final artifact.`;
 const DIRECT_OPENAI_IMAGE_FALLBACK_TEXT =
   "Describe this image as a detailed production-ready prompt for image generation.";
 
@@ -162,6 +166,9 @@ const extractDirectOpenAiResponse = ({
   const choices = (payload as { choices?: Array<{ message?: { content?: unknown } }> }).choices;
   const raw = choices?.[0]?.message?.content;
   if (isStudioAgentWorkflowPulse(pulse)) {
+    if (!hasStructuredJsonCandidates(raw)) {
+      return null;
+    }
     const parsed = parseStudioAgentJsonWithStatus(raw);
     if (parsed?.response.message?.trim()) {
       return {
@@ -170,9 +177,7 @@ const extractDirectOpenAiResponse = ({
         semanticStatus: parsed.status ?? null,
       };
     }
-    const plainText = extractStudioAgentCompletionText(raw).trim();
-    if (!plainText.length) return null;
-    return { message: plainText, semanticStatus: null };
+    return null;
   }
   const directMessage = sanitizeGenerationPromptText(
     typeof raw === "string" ? raw : extractStudioAgentCompletionText(raw)

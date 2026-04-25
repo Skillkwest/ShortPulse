@@ -1105,7 +1105,7 @@ describe("CreatePropertiesPanel", () => {
 
   it("restarts the completed workflow pulse from the banner using the canonical pulse start path", async () => {
     const onClearAgentChat = vi.fn();
-    const onPulsePresetStart = vi.fn();
+    const onPulsePresetRestart = vi.fn();
     renderPanel({
       beginnerMode: false,
       expertCreateUiEligible: true,
@@ -1125,14 +1125,14 @@ describe("CreatePropertiesPanel", () => {
       onAgentInputChange: vi.fn(),
       onAgentSend: vi.fn(),
       onClearAgentChat,
-      onPulsePresetStart,
+      onPulsePresetRestart,
     });
 
     fireEvent.click(screen.getByRole("button", { name: "Restart workflow" }));
 
     await waitFor(() => {
-      expect(onClearAgentChat).toHaveBeenCalledTimes(1);
-      expect(onPulsePresetStart).toHaveBeenCalledWith(
+      expect(onClearAgentChat).not.toHaveBeenCalled();
+      expect(onPulsePresetRestart).toHaveBeenCalledWith(
         expect.objectContaining({
           presetId: "story_builder",
           runtimeMode: "workflow_gpt",

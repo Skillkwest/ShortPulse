@@ -94,6 +94,11 @@ const pickPulseRuntime = (
             pulse.workflowSession.lastArtifact.trim().length > 0
               ? pulse.workflowSession.lastArtifact.trim()
               : null,
+          finalArtifactSource:
+            pulse.workflowSession.finalArtifactSource === "apply_prompt" ||
+            pulse.workflowSession.finalArtifactSource === "chat_reply"
+              ? pulse.workflowSession.finalArtifactSource
+              : null,
         } satisfies AgentPulseWorkflowSession)
       : null;
   if (!presetId || !label || !instructions) return undefined;

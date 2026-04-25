@@ -193,6 +193,45 @@ describe("useAiAgent", () => {
     expect(body.directOpenAiBypass).toBe(true);
   });
 
+  it("preserves finalArtifactSource from workflow-session responses", async () => {
+    fetchWithAuthMock.mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        message: "final artifact",
+        workflowSession: {
+          presetId: "story_builder",
+          status: "completed",
+          currentStepIndex: 6,
+          currentStepLabel: "Image Prompts",
+          currentStepPrompt: null,
+          collectedInputs: ["grimdark"],
+          lastArtifact: "final artifact",
+          finalArtifactSource: "chat_reply",
+        },
+      }),
+    } as Response);
+    const { result } = renderHook(() => useAiAgent({ enabled: true }));
+
+    let sendResult: Awaited<ReturnType<typeof result.current.send>> | undefined;
+    await act(async () => {
+      sendResult = await result.current.send({
+        text: "finalize",
+        payloadText: "finalize",
+      });
+    });
+
+    expect(sendResult?.workflowSession).toEqual({
+      presetId: "story_builder",
+      status: "completed",
+      currentStepIndex: 6,
+      currentStepLabel: "Image Prompts",
+      currentStepPrompt: null,
+      collectedInputs: ["grimdark"],
+      lastArtifact: "final artifact",
+      finalArtifactSource: "chat_reply",
+    });
+  });
+
   it("reuses stored clientSessionKey across hook remounts and rotates on reset", async () => {
     fetchWithAuthMock.mockResolvedValue({
       ok: true,

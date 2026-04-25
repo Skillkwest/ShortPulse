@@ -465,6 +465,122 @@ describe("useAiStudioAgentBridge", () => {
     expect(result.current.isAgentChatOpen).toBe(true);
   });
 
+  it("restarts an active Pulse without clearing Pulse ownership", async () => {
+    const resetAgentChat = vi.fn();
+    const resetAgentComposer = vi.fn();
+    const setPulseWorkflowSession = vi.fn();
+    const handlePulsePresetStart = vi.fn().mockResolvedValue(undefined);
+    let setLatestAgentPromptFromInteractions: Dispatch<SetStateAction<string | null>> | undefined;
+    let setPromptOriginFromInteractions:
+      | Dispatch<SetStateAction<"manual" | "agent" | "reference">>
+      | undefined;
+    let setAgentActionsFromInteractions:
+      | Dispatch<SetStateAction<AgentActions | undefined>>
+      | undefined;
+
+    useAiAgentMock.mockReturnValue({
+      messages: [],
+      isSending: false,
+      error: null,
+      send: vi.fn(),
+      appendUserMessage: vi.fn(),
+      updateMessageById: vi.fn(() => false),
+      replaceMessages: vi.fn(),
+      reset: resetAgentChat,
+    });
+    useAiStudioAgentComposerMock.mockReturnValue({
+      agentInput: "",
+      setAgentInput: vi.fn(),
+      handleAgentInputChange: vi.fn(),
+      agentAttachmentError: null,
+      setAgentAttachmentError: vi.fn(),
+      agentAttachments: [],
+      setAgentAttachments: vi.fn(),
+      linkedPromptReferenceIds: [],
+      isAgentDropActive: false,
+      markAttachmentDelivery: vi.fn(),
+      handleAgentAttachmentDragOver: vi.fn(),
+      handleAgentAttachmentDragEnter: vi.fn(),
+      handleAgentAttachmentDragLeave: vi.fn(),
+      handleAgentAttachmentDrop: vi.fn(),
+      handleRemoveAgentAttachment: vi.fn(),
+      handleClearAgentAttachments: vi.fn(),
+      resetAgentComposer,
+    });
+    useAiStudioAgentOrchestrationMock.mockReturnValue({
+      isPromptRefining: false,
+      isReferencePromptEnhancing: false,
+      describeInFlightCount: 0,
+      handleAgentSend: vi.fn(),
+      handlePulsePresetStart,
+      handleAgentEnhanceSend: vi.fn(),
+      handleReferencePromptEnhance: vi.fn(),
+    });
+    useAiStudioAgentInteractionsMock.mockImplementation((params) => {
+      setLatestAgentPromptFromInteractions = params.setLatestAgentPrompt;
+      setPromptOriginFromInteractions = params.setPromptOrigin;
+      setAgentActionsFromInteractions = params.setAgentActions;
+      return {
+        handleAgentApplyPrompt: vi.fn(),
+        handleExpandChat: vi.fn(),
+        handleAgentAddToGrid: vi.fn(),
+        handleClearAgentChat: vi.fn(),
+        handleCloseAgentChat: vi.fn(),
+      };
+    });
+
+    const { result } = renderHook(() =>
+      useAiStudioAgentBridge(
+        createBridgeParams({
+          expertCreateMode: "pulse",
+          activePulsePresetId: "story_builder",
+          setPulseWorkflowSession: asDispatch(setPulseWorkflowSession),
+        })
+      )
+    );
+
+    await waitFor(() => {
+      expect(setLatestAgentPromptFromInteractions).toBeDefined();
+      expect(setPromptOriginFromInteractions).toBeDefined();
+      expect(setAgentActionsFromInteractions).toBeDefined();
+    });
+
+    act(() => {
+      setLatestAgentPromptFromInteractions?.("Completed artifact");
+      setPromptOriginFromInteractions?.("agent");
+      setAgentActionsFromInteractions?.({ applyPrompt: "Completed artifact" } as AgentActions);
+    });
+    expect(result.current.latestAgentPrompt).toBe("Completed artifact");
+    expect(result.current.promptOrigin).toBe("agent");
+
+    await act(async () => {
+      await result.current.handlePulsePresetRestart?.({
+        presetId: "story_builder",
+        label: "Story Builder",
+        description: "Guided story workflow.",
+        systemInstructions: "Guide the user through story setup.",
+        runtimeMode: "workflow_gpt",
+        activationMode: "activate_and_start",
+        starterAssistantMessage: "Upload your characters first.",
+        workflowStageHints: ["Upload Characters"],
+        outputMode: "chat_reply",
+        memoryPolicy: "session",
+        isBuiltIn: true,
+        isEditable: true,
+        isCustom: false,
+      });
+    });
+
+    expect(resetAgentChat).toHaveBeenCalledTimes(1);
+    expect(resetAgentComposer).toHaveBeenCalledWith({ preserveAttachments: false });
+    expect(setPulseWorkflowSession).toHaveBeenCalledWith(null);
+    expect(handlePulsePresetStart).toHaveBeenCalledWith(
+      expect.objectContaining({ presetId: "story_builder" })
+    );
+    expect(result.current.latestAgentPrompt).toBeNull();
+    expect(result.current.promptOrigin).toBe("manual");
+  });
+
   it("drops stale Pulse bridge state when the active Pulse changes", async () => {
     let setLatestAgentPromptFromInteractions: Dispatch<SetStateAction<string | null>> | undefined;
 
@@ -632,6 +748,7 @@ describe("useAiStudioAgentBridge", () => {
             currentStepPrompt: null,
             collectedInputs: ["grimdark tone", "10 min runtime"],
             lastArtifact: "Scene 1: cinematic wide shot of the knight entering the ruined hall.",
+            finalArtifactSource: "chat_reply",
           },
         },
         agentRuntimes: {
@@ -665,6 +782,7 @@ describe("useAiStudioAgentBridge", () => {
               currentStepPrompt: null,
               collectedInputs: ["grimdark tone", "10 min runtime"],
               lastArtifact: "Scene 1: cinematic wide shot of the knight entering the ruined hall.",
+              finalArtifactSource: "chat_reply",
             },
           },
         },
@@ -679,6 +797,7 @@ describe("useAiStudioAgentBridge", () => {
       currentStepPrompt: null,
       collectedInputs: ["grimdark tone", "10 min runtime"],
       lastArtifact: "Scene 1: cinematic wide shot of the knight entering the ruined hall.",
+      finalArtifactSource: "chat_reply",
     });
   });
 

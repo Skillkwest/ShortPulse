@@ -52,6 +52,7 @@ describe("buildAgentContext media filtering", () => {
           currentStepPrompt: "Step 3 — How long should it be?",
           collectedInputs: ["grimdark", "A knight enters a cursed forest"],
           lastArtifact: null,
+          finalArtifactSource: "chat_reply",
         },
       },
     });
@@ -76,6 +77,7 @@ describe("buildAgentContext media filtering", () => {
         currentStepPrompt: "Step 3 — How long should it be?",
         collectedInputs: ["grimdark", "A knight enters a cursed forest"],
         lastArtifact: null,
+        finalArtifactSource: "chat_reply",
       },
     });
   });

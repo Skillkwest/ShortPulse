@@ -127,6 +127,7 @@ export type CreatePropertiesPanelProps = {
   pulseWorkflowSession?: AgentPulseWorkflowSession | null;
   onActivePulsePresetIdChange?: (presetId: CreatePulsePresetId | null) => void;
   onPulsePresetStart?: (preset: CreatePulseResolvedPreset) => Promise<void> | void;
+  onPulsePresetRestart?: (preset: CreatePulseResolvedPreset) => Promise<void> | void;
   selectedPulsePresetIds?: readonly CreatePulsePresetId[];
   onSelectedPulsePresetIdsChange?: (presetIds: CreatePulsePresetId[]) => void;
   savedPulsePresets?: readonly CreatePulseSavedPreset[];
@@ -402,6 +403,7 @@ export function CreatePropertiesPanel({
   pulseWorkflowSession = null,
   onActivePulsePresetIdChange,
   onPulsePresetStart,
+  onPulsePresetRestart,
   selectedPulsePresetIds,
   onSelectedPulsePresetIdsChange,
   savedPulsePresets,
@@ -613,10 +615,15 @@ export function CreatePropertiesPanel({
     onAgentApplyPrompt?.(artifact);
   }, [activeWorkflowPulseSession, onAgentApplyPrompt]);
   const handleRestartWorkflowPulse = React.useCallback(async () => {
-    if (!activeWorkflowPulsePreset || !onPulsePresetStart || !onClearAgentChat) return;
+    if (!activeWorkflowPulsePreset) return;
+    if (onPulsePresetRestart) {
+      await onPulsePresetRestart(activeWorkflowPulsePreset);
+      return;
+    }
+    if (!onPulsePresetStart || !onClearAgentChat) return;
     onClearAgentChat?.();
     await onPulsePresetStart(activeWorkflowPulsePreset);
-  }, [activeWorkflowPulsePreset, onClearAgentChat, onPulsePresetStart]);
+  }, [activeWorkflowPulsePreset, onClearAgentChat, onPulsePresetRestart, onPulsePresetStart]);
   const activeWorkflowPulseBanner = activeWorkflowPulsePreset ? (
     <div
       className="create-expert-workflow-session-banner"
@@ -659,6 +666,7 @@ export function CreatePropertiesPanel({
       ) : null}
       {activeWorkflowPulseSession?.status === "completed" &&
       (((activeWorkflowPulseSession.lastArtifact?.trim().length ?? 0) > 0 && onAgentApplyPrompt) ||
+        onPulsePresetRestart ||
         (onPulsePresetStart && onClearAgentChat)) ? (
         <div className="create-expert-workflow-session-banner-actions">
           {(activeWorkflowPulseSession.lastArtifact?.trim().length ?? 0) > 0 &&
@@ -671,7 +679,7 @@ export function CreatePropertiesPanel({
               Use artifact
             </button>
           ) : null}
-          {onPulsePresetStart && onClearAgentChat ? (
+          {onPulsePresetRestart || (onPulsePresetStart && onClearAgentChat) ? (
             <button
               type="button"
               className="create-expert-workflow-session-banner-action"

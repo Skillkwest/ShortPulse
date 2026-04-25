@@ -35,6 +35,7 @@ import { useAiStudioAgentInteractions } from "./useAiStudioAgentInteractions";
 import { useAiStudioAgentOrchestration } from "./useAiStudioAgentOrchestration";
 import type { AgentModeHint } from "./agentOrchestration/types";
 import type { StudioMode, StudioOutput, ToolId } from "../types";
+import type { CreatePulseResolvedPreset } from "../components/create/createPulsePresets";
 import { resolveAssistantMessageEditCommit } from "../../ai-agent/client/messageEditing";
 import { readChatModeFromStorage, writeChatModeToStorage } from "../logic/chatModePreference";
 import type { AiStudioSessionHydrationPayload } from "../logic/sessionSnapshotHydrator";
@@ -499,6 +500,33 @@ export const useAiStudioAgentBridge = ({
     setPulseWorkflowSession,
   });
 
+  const handlePulsePresetRestart = useCallback(
+    async (preset: CreatePulseResolvedPreset) => {
+      trackAgentUiEvent("studio_agent_pulse_restart_requested", {
+        preset_id: preset.presetId,
+        runtime_mode: preset.runtimeMode,
+        activation_mode: preset.activationMode,
+      });
+      resetAgentChat();
+      resetAgentComposer({ preserveAttachments: false });
+      setLatestAgentPrompt(null);
+      setPromptOrigin("manual");
+      setAgentActions(undefined);
+      setPulseWorkflowSession(null);
+      await handlePulsePresetStart(preset);
+    },
+    [
+      handlePulsePresetStart,
+      resetAgentChat,
+      resetAgentComposer,
+      setAgentActions,
+      setLatestAgentPrompt,
+      setPromptOrigin,
+      setPulseWorkflowSession,
+      trackAgentUiEvent,
+    ]
+  );
+
   useEffect(() => {
     resetAgentComposer({ preserveInput: true, preserveAttachments: false });
   }, [mode, resetAgentComposer, selectedTool, sessionId]);
@@ -598,6 +626,7 @@ export const useAiStudioAgentBridge = ({
     handleAgentInputChange,
     handleAgentSend,
     handlePulsePresetStart,
+    handlePulsePresetRestart,
     handleAgentEnhanceSend,
     handleReferencePromptEnhance,
     hydrateFromSessionAgentSnapshot,

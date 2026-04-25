@@ -333,6 +333,11 @@ export const useAiAgent = ({
                   data.workflowSession.lastArtifact.trim().length > 0
                     ? data.workflowSession.lastArtifact.trim()
                     : null,
+                finalArtifactSource:
+                  data.workflowSession.finalArtifactSource === "apply_prompt" ||
+                  data.workflowSession.finalArtifactSource === "chat_reply"
+                    ? data.workflowSession.finalArtifactSource
+                    : null,
               } satisfies AgentPulseWorkflowSession)
             : null;
 

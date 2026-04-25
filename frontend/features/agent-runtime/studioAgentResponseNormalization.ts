@@ -142,7 +142,7 @@ const collectJsonCandidates = (raw: unknown): string[] => {
   return candidates;
 };
 
-const hasStructuredJsonCandidates = (raw: unknown): boolean => {
+export const hasStructuredJsonCandidates = (raw: unknown): boolean => {
   const trimmed = extractStudioAgentCompletionText(raw).trim();
   if (!trimmed.length) return false;
   if (extractBalancedJsonObjectCandidates(trimmed).length > 0) {

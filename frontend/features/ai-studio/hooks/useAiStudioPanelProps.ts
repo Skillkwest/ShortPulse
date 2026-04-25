@@ -137,6 +137,7 @@ export type UseAiStudioPanelPropsParams = {
   activeCreatePulsePresetId?: CreatePulsePresetId | null;
   onActiveCreatePulsePresetIdChange?: (presetId: CreatePulsePresetId | null) => void;
   onCreatePulsePresetStart?: (preset: CreatePulseResolvedPreset) => Promise<void> | void;
+  onCreatePulsePresetRestart?: (preset: CreatePulseResolvedPreset) => Promise<void> | void;
   expertEditSessionState?: ExpertEditSessionState | null;
   onExpertEditSessionStateChange?: (state: ExpertEditSessionState) => void;
   videoDurationSeconds: number;
@@ -313,6 +314,7 @@ export const useAiStudioPanelProps = ({
   activeCreatePulsePresetId,
   onActiveCreatePulsePresetIdChange,
   onCreatePulsePresetStart,
+  onCreatePulsePresetRestart,
   expertEditSessionState,
   onExpertEditSessionStateChange,
   videoDurationSeconds,
@@ -493,6 +495,7 @@ export const useAiStudioPanelProps = ({
       activePulsePresetId: activeCreatePulsePresetId,
       onActivePulsePresetIdChange: onActiveCreatePulsePresetIdChange,
       onPulsePresetStart: onCreatePulsePresetStart,
+      onPulsePresetRestart: onCreatePulsePresetRestart,
       beginnerMode: beginnerPolicy.create.beginnerMode,
       expertCreateUiEligible: beginnerPolicy.create.expertCreateEligible,
     }),
@@ -562,6 +565,7 @@ export const useAiStudioPanelProps = ({
       onSelectedCreatePulsePresetIdsChange,
       onExpertCreateModeChange,
       onActiveCreatePulsePresetIdChange,
+      onCreatePulsePresetRestart,
       onCreatePulsePresetStart,
       savedCreatePulsePresets,
       onSavedCreatePulsePresetsChange,

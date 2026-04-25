@@ -6,6 +6,7 @@ import type {
   InternalReferenceDragPayload,
   ReferenceDragSourceSurface,
 } from "../../utils/dragDrop";
+import type { MediaLibraryDragPayload } from "../../logic/mediaLibraryDragPayload";
 
 export type CanvasCamera = {
   x: number;
@@ -74,6 +75,13 @@ export type ResolveCanvasDropReference = (
 export type PrepareResolvedInternalCanvasDrop = (
   payload: InternalReferenceDragPayload,
   resolved: CanvasDropResolution
+) => Promise<CanvasDropResolution | null> | CanvasDropResolution | null;
+
+/**
+ * Allows surfaces to preprocess or reroute Media Library drops before insertion.
+ */
+export type PrepareCanvasMediaLibraryDrop = (
+  payload: MediaLibraryDragPayload
 ) => Promise<CanvasDropResolution | null> | CanvasDropResolution | null;
 
 /**

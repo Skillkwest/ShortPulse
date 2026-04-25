@@ -20,6 +20,8 @@ import {
 } from "./generatedMediaAuthority";
 import type { StudioMode } from "../types";
 
+type MediaLibraryFileType = "image" | "video" | "audio";
+
 const BUCKET = "media_library";
 const FETCH_TIMEOUT_MS = 60000;
 const FETCH_RETRY_ATTEMPTS = 2;
@@ -41,6 +43,14 @@ const CONTENT_TYPE_EXTENSION: Record<string, string> = {
   "video/mp4": "mp4",
   "video/webm": "webm",
   "video/quicktime": "mov",
+  "audio/aac": "aac",
+  "audio/flac": "flac",
+  "audio/mp4": "m4a",
+  "audio/mpeg": "mp3",
+  "audio/ogg": "ogg",
+  "audio/wav": "wav",
+  "audio/webm": "webm",
+  "audio/x-wav": "wav",
 };
 
 const sanitizeFilename = (value: string) => value.replace(/[^\w.-]+/g, "_");
@@ -55,11 +65,13 @@ const clampPrompt = (value?: string | null) => {
 const resolveFileType = (
   contentType: string | null,
   fallbackMode: StudioMode,
-  fileTypeHint?: "image" | "video"
+  fileTypeHint?: MediaLibraryFileType
 ) => {
   if (contentType?.startsWith("video/")) return "video";
+  if (contentType?.startsWith("audio/")) return "audio";
   if (contentType?.startsWith("image/")) return "image";
   if (fileTypeHint) return fileTypeHint;
+  if (fallbackMode === "audio") return "audio";
   return fallbackMode === "video" ? "video" : "image";
 };
 
@@ -222,7 +234,7 @@ export type SaveMediaUrlInput = {
   promptText?: string | null;
   mode: StudioMode;
   source: "upload" | "ai_studio";
-  fileTypeHint?: "image" | "video";
+  fileTypeHint?: MediaLibraryFileType;
   provider?: string | null;
   modelId?: string | null;
   generationId?: string | null;
@@ -240,7 +252,7 @@ export type SaveMediaUrlInput = {
 export type SaveMediaUrlResult = {
   mediaFileId: string | null;
   storagePath: string;
-  fileType: "image" | "video";
+  fileType: MediaLibraryFileType;
   fileSize: number;
   delivery: {
     previewStoragePath: string | null;
@@ -363,11 +375,11 @@ const parseServerCopyResult = (value: unknown): SaveMediaUrlResult | null => {
   const storagePath = asOptionalString(row.storagePath);
   if (!storagePath) return null;
   const fileTypeRaw = asOptionalString(row.fileType)?.toLowerCase();
-  if (fileTypeRaw !== "image" && fileTypeRaw !== "video") return null;
+  if (fileTypeRaw !== "image" && fileTypeRaw !== "video" && fileTypeRaw !== "audio") return null;
   return {
     mediaFileId: asOptionalString(row.mediaFileId),
     storagePath,
-    fileType: fileTypeRaw as "image" | "video",
+    fileType: fileTypeRaw as MediaLibraryFileType,
     fileSize: Number.isFinite(Number(row.fileSize)) ? Number(row.fileSize) : 0,
     delivery: {
       previewStoragePath: asOptionalString(deliveryRecord.previewStoragePath),
@@ -428,7 +440,7 @@ const readExistingAiStudioMediaRowByOutputIndex = async ({
 }): Promise<{
   id: string;
   storagePath: string | null;
-  fileType: "image" | "video";
+  fileType: MediaLibraryFileType;
   posterVariantPath: string | null;
 } | null> => {
   const publicationMediaRow = await resolvePublishedGenerationMediaByIndex({
@@ -467,10 +479,13 @@ const readExistingAiStudioMediaRowByOutputIndex = async ({
         const id = asOptionalString(canonicalMediaRow.id);
         if (id) {
           const storagePath = asOptionalString(canonicalMediaRow.storage_path);
+          const fileTypeRaw = String(canonicalMediaRow.file_type ?? "").toLowerCase();
           const fileType =
-            String(canonicalMediaRow.file_type ?? "").toLowerCase() === "video"
+            fileTypeRaw === "video"
               ? ("video" as const)
-              : ("image" as const);
+              : fileTypeRaw === "audio"
+                ? ("audio" as const)
+                : ("image" as const);
           return {
             id,
             storagePath,
@@ -495,10 +510,13 @@ const readExistingAiStudioMediaRowByOutputIndex = async ({
   const id = typeof data.id === "string" ? data.id : null;
   if (!id) return null;
   const storagePath = typeof data.storage_path === "string" ? data.storage_path : null;
+  const fileTypeRaw = String(data.file_type ?? "").toLowerCase();
   const fileType =
-    String(data.file_type ?? "").toLowerCase() === "video"
+    fileTypeRaw === "video"
       ? ("video" as const)
-      : ("image" as const);
+      : fileTypeRaw === "audio"
+        ? ("audio" as const)
+        : ("image" as const);
   return {
     id,
     storagePath,
@@ -508,7 +526,7 @@ const readExistingAiStudioMediaRowByOutputIndex = async ({
 };
 
 const normalizePosterSourceUrl = (
-  fileType: "image" | "video",
+  fileType: MediaLibraryFileType,
   value: string | null | undefined
 ): string | null => {
   if (fileType !== "video" || typeof value !== "string") return null;
@@ -614,7 +632,7 @@ const readExistingAiStudioMediaRowByOutputIndexWithRetry = async ({
 }): Promise<{
   id: string;
   storagePath: string | null;
-  fileType: "image" | "video";
+  fileType: MediaLibraryFileType;
   posterVariantPath: string | null;
 } | null> => {
   for (let attempt = 0; attempt < AI_STUDIO_EXISTING_ROW_RETRY_ATTEMPTS; attempt += 1) {
@@ -849,7 +867,7 @@ export const saveMediaUrlToLibrary = async (input: SaveMediaUrlInput) => {
     decodedDimensions ?? metadataDimensions
   );
   const extension = resolveExtension(contentType, input.url);
-  const typeFolder = fileType === "video" ? "videos" : "images";
+  const typeFolder = fileType === "video" ? "videos" : fileType === "audio" ? "audio" : "images";
   const rootFolder = input.source === "ai_studio" ? "generations" : "uploads";
   const storageName = `${crypto.randomUUID()}-${input.index}.${extension}`;
   const storagePath = assertUserScopedMediaStoragePath({

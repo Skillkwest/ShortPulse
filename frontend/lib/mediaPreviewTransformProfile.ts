@@ -7,7 +7,8 @@ export type MediaPreviewTransformProfile =
   | "none"
   | "media-library-route-image-card"
   | "media-library-modal-image-card"
-  | "media-library-panel-image-card";
+  | "media-library-panel-image-card"
+  | "project-card-preview";
 
 export type MediaPreviewImageTransform = {
   width: number;
@@ -34,6 +35,11 @@ const PROFILE_TRANSFORM_PRESETS: Record<
   "media-library-panel-image-card": {
     width: 512,
     quality: 50,
+    resize: "contain",
+  },
+  "project-card-preview": {
+    width: 160,
+    quality: 36,
     resize: "contain",
   },
 };

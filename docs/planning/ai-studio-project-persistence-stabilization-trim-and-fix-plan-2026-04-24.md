@@ -4,6 +4,8 @@ Last updated: 2026-04-24
 Status: Historical / Superseded  
 Owner: Engineering
 
+> Active execution note: this first stabilization contract has been superseded again for current execution by `docs/planning/ai-studio-project-workspace-isolation-bootstrap-and-restore-plan-2026-04-24.md`. It remains for traceability after the active scope narrowed from general Projects stabilization to the current workspace-isolation/bootstrap lane.
+
 ## Purpose
 This document records the first stabilization posture that replaced the original forward-expansion sequence for Projects.
 

@@ -67,8 +67,7 @@ describe("AiStudioToolbar", () => {
     { button: "Sound", expected: "voices" as const },
     { button: "Characters", expected: "character" as const },
     { button: "Elements", expected: "elements" as const },
-    { button: "Pulse Presets", expected: "pulse-presets" as const },
-    { button: "Prompt Presets", expected: "presets" as const },
+    { button: "Presets", expected: "presets" as const },
     { button: "Styles", expected: "styles" as const },
   ])("routes $button clicks to $expected", ({ button, expected }) => {
     const onSelectTool = vi.fn();
@@ -153,13 +152,77 @@ describe("AiStudioToolbar", () => {
       "Media",
       "Characters",
       "Elements",
-      "Pulse Presets",
-      "Prompt Presets",
+      "Presets",
       "Styles",
     ]);
     expect(
       within(librariesSection as HTMLElement).getByRole("button", { name: "Media" })
     ).toHaveClass("toolbar-item-secondary");
+  });
+
+  it.each(["media-library", "character", "elements", "presets", "styles"] as const)(
+    "marks primary stack as outlined when %s is the active library tool",
+    (selectedTool) => {
+      const { container } = render(
+        <AiStudioToolbar
+          selectedTool={selectedTool}
+          showCreateTools={false}
+          beginnerMode={false}
+          onSelectTool={vi.fn()}
+          onToggleCreateTools={vi.fn()}
+          onToggleBeginnerMode={vi.fn()}
+        />
+      );
+
+      expect(container.querySelector(".ai-toolbar")).toHaveAttribute(
+        "data-primary-active",
+        "library"
+      );
+      expect(screen.getByRole("button", { name: "Create" })).not.toHaveClass("is-active");
+      expect(screen.getByRole("button", { name: "Edit" })).not.toHaveClass("is-active");
+      expect(screen.getByRole("button", { name: "Video" })).not.toHaveClass("is-active");
+      expect(screen.getByRole("button", { name: "Sound" })).not.toHaveClass("is-active");
+    }
+  );
+
+  it("renders a dashboard-style Projects button above the toolbar divider", () => {
+    render(
+      <AiStudioToolbar
+        selectedTool={null}
+        showCreateTools={false}
+        beginnerMode={false}
+        onSelectTool={vi.fn()}
+        onToggleCreateTools={vi.fn()}
+        onToggleBeginnerMode={vi.fn()}
+      />
+    );
+
+    expect(screen.getByTestId("dashboard-nav-prefab")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Projects" })).toHaveClass(
+      "dashboard-nav-prefab",
+      "toolbar-back-link",
+      "toolbar-back-link-secondary"
+    );
+  });
+
+  it("routes Projects clicks through the dedicated open-projects callback", () => {
+    const onOpenProjects = vi.fn();
+
+    render(
+      <AiStudioToolbar
+        selectedTool={null}
+        showCreateTools={false}
+        beginnerMode={false}
+        onOpenProjects={onOpenProjects}
+        onSelectTool={vi.fn()}
+        onToggleCreateTools={vi.fn()}
+        onToggleBeginnerMode={vi.fn()}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Projects" }));
+
+    expect(onOpenProjects).toHaveBeenCalledTimes(1);
   });
 
   it("renders Templates in the Shortcuts section", () => {

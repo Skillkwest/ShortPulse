@@ -92,7 +92,8 @@ const toPreviewProfile = (value: unknown): MediaPreviewTransformProfile | null =
     normalized === "none" ||
     normalized === "media-library-route-image-card" ||
     normalized === "media-library-modal-image-card" ||
-    normalized === "media-library-panel-image-card"
+    normalized === "media-library-panel-image-card" ||
+    normalized === "project-card-preview"
   ) {
     return normalized;
   }

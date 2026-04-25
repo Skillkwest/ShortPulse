@@ -27,7 +27,8 @@ const createTestKlingElement = (
 const useHarness = (
   initialTool: ToolId | null,
   sessionId = "session-1",
-  projectId: string | null = null
+  projectId: string | null = null,
+  projectRouteRequested = false
 ) => {
   const [selectedTool, setSelectedTool] = useState<ToolId | null>(initialTool);
   const [mode, setMode] = useState<StudioMode>("text");
@@ -66,6 +67,7 @@ const useHarness = (
 
   const workflow = useAiStudioWorkflowSettings({
     projectId,
+    projectRouteRequested,
     sessionId,
     selectedTool,
     mode,
@@ -118,6 +120,7 @@ const useHarness = (
 
   return {
     sessionId,
+    projectRouteRequested,
     selectedTool,
     setSelectedTool,
     mode,
@@ -189,6 +192,40 @@ describe("useAiStudioWorkflowSettings", () => {
     expect(result.current.aspect).toBe("16:9");
     expect(result.current.videoResolution).toBe("4k");
     expect(result.current.klingElements).toEqual([]);
+  });
+
+  it("does not restore workflow settings from session storage while a project route is pending", async () => {
+    window.sessionStorage.clear();
+    window.sessionStorage.setItem(
+      WORKFLOW_SETTINGS_SESSION_KEY,
+      JSON.stringify({
+        create: {
+          mode: "video",
+          model: KIE_VEO_31_FAST_I2V_MODEL_ID,
+          aspect: "16:9",
+          imageResolution: "2048x2048",
+          videoReferenceMode: "standard",
+          videoDurationSeconds: 8,
+          videoResolution: "4k",
+          videoGenerateAudio: true,
+          videoCameraFixed: true,
+          videoAutoFix: true,
+          klingNegativePrompt: "noise",
+          klingCfgScale: 0.8,
+          klingWorkflowMode: "single",
+          klingShotType: "customize",
+          klingVoiceIds: ["", ""],
+          klingMultiPrompts: [],
+          klingElements: [],
+        },
+      })
+    );
+
+    const { result } = renderHook(() => useHarness("create", "session-1", null, true));
+
+    await waitFor(() => expect(result.current.mode).toBe("text"));
+    expect(result.current.aspect).toBe("9:16");
+    expect(result.current.videoResolution).toBe("1080p");
   });
 
   it("falls back to Seedream when saved create model is invalid for create image mode", async () => {

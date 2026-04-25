@@ -12,6 +12,9 @@ const SUPABASE_RENDER_IMAGE_PATH = "/storage/v1/render/image/";
 const isVideoFile = (fileType?: string | null): boolean =>
   (fileType ?? "").toLowerCase().startsWith("video");
 
+const isAudioFile = (fileType?: string | null): boolean =>
+  (fileType ?? "").toLowerCase().startsWith("audio");
+
 const applyRenderImageParams = (sourceUrl: string): string => {
   try {
     const parsed = new URL(sourceUrl);
@@ -63,6 +66,7 @@ export const resolveMediaLibraryPanelCardPreviewUrl = ({
   if (!constantCompressionEnabled) return baselineUrl;
   if (!adaptivePreviewQualityEnabled) return baselineUrl;
   if (shouldBypassAdaptivePreview) return baselineUrl;
+  if (isAudioFile(fileType)) return baselineUrl;
   if (isVideoFile(fileType)) return baselineUrl;
 
   const sourceUrl = (baselineUrl ?? signedUrl ?? "").trim();

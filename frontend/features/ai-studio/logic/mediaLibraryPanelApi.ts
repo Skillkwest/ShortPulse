@@ -12,6 +12,7 @@ export type MediaFolder = {
   parentFolderId: string | null;
   createdAt: string;
   updatedAt: string;
+  itemCount?: number;
 };
 
 export type FolderMembershipBatchAction = "assign" | "unassign" | "move";
@@ -100,6 +101,12 @@ const asRecord = (value: unknown): Record<string, unknown> => {
 
 const asString = (value: unknown): string => {
   return typeof value === "string" ? value.trim() : "";
+};
+
+const toNonNegativeInteger = (value: unknown): number => {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return 0;
+  return Math.max(0, Math.trunc(parsed));
 };
 
 const toCursor = (value: unknown): MediaListCursor | null => {
@@ -242,6 +249,7 @@ export const listMediaFolders = async (projectId?: string | null): Promise<Media
         parentFolderId,
         createdAt,
         updatedAt,
+        itemCount: toNonNegativeInteger(row.itemCount),
       } as MediaFolder;
     })
     .filter((row): row is MediaFolder => Boolean(row));
@@ -280,6 +288,7 @@ export const createMediaFolder = async (
     parentFolderId: folder.parentFolderId == null ? null : asString(folder.parentFolderId) || null,
     createdAt: asString(folder.createdAt),
     updatedAt: asString(folder.updatedAt),
+    itemCount: toNonNegativeInteger(folder.itemCount),
   };
 };
 
@@ -320,6 +329,7 @@ export const renameMediaFolder = async ({
     parentFolderId: folder.parentFolderId == null ? null : asString(folder.parentFolderId) || null,
     createdAt: asString(folder.createdAt),
     updatedAt: asString(folder.updatedAt),
+    itemCount: toNonNegativeInteger(folder.itemCount),
   };
 };
 
@@ -360,6 +370,7 @@ export const moveMediaFolder = async ({
     parentFolderId: folder.parentFolderId == null ? null : asString(folder.parentFolderId) || null,
     createdAt: asString(folder.createdAt),
     updatedAt: asString(folder.updatedAt),
+    itemCount: toNonNegativeInteger(folder.itemCount),
   };
 };
 

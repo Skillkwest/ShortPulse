@@ -16,6 +16,7 @@ import { getSupabaseAdmin } from "./api/supabaseAdmin";
 import { extractImageDimensionsFromBuffer } from "./imageDimensions";
 import {
   areCompatibleMimeTypes,
+  detectAudioMimeType,
   detectImageMimeType,
   detectVideoMimeType,
 } from "./uploadSignature";
@@ -24,6 +25,7 @@ const MEDIA_BUCKET = "media_library";
 const PRIVATE_MEDIA_SOURCE = "private_upload";
 const MAX_IMAGE_UPLOAD_BYTES = 25 * 1024 * 1024;
 const MAX_VIDEO_UPLOAD_BYTES = 100 * 1024 * 1024;
+const MAX_AUDIO_UPLOAD_BYTES = 100 * 1024 * 1024;
 const MAX_UPLOAD_BYTES = MAX_VIDEO_UPLOAD_BYTES;
 const MAX_VOICE_CHANGER_VIDEO_STAGE_BYTES = 40 * 1024 * 1024;
 const MAX_VOICE_CHANGER_AUDIO_STAGE_BYTES = 100 * 1024 * 1024;
@@ -47,14 +49,29 @@ const ALLOWED_VIDEO_MIME_TYPES = new Set([
   "video/x-m4v",
 ]);
 
-const ALLOWED_VOICE_CHANGER_AUDIO_MIME_TYPES = new Set([
+const ALLOWED_AUDIO_MIME_TYPES = new Set([
   "audio/aac",
   "audio/flac",
+  "audio/m4a",
   "audio/mp4",
   "audio/mpeg",
   "audio/ogg",
   "audio/wav",
   "audio/webm",
+  "audio/x-m4a",
+  "audio/x-wav",
+]);
+
+const ALLOWED_VOICE_CHANGER_AUDIO_MIME_TYPES = new Set([
+  "audio/aac",
+  "audio/flac",
+  "audio/m4a",
+  "audio/mp4",
+  "audio/mpeg",
+  "audio/ogg",
+  "audio/wav",
+  "audio/webm",
+  "audio/x-m4a",
   "audio/x-wav",
 ]);
 
@@ -70,16 +87,28 @@ const EXTENSION_BY_MIME: Record<string, string> = {
   "video/webm": "webm",
   "video/quicktime": "mov",
   "video/x-m4v": "m4v",
-};
-
-const VOICE_CHANGER_AUDIO_EXTENSION_BY_MIME: Record<string, string> = {
   "audio/aac": "aac",
   "audio/flac": "flac",
+  "audio/m4a": "m4a",
   "audio/mp4": "m4a",
   "audio/mpeg": "mp3",
   "audio/ogg": "ogg",
   "audio/wav": "wav",
   "audio/webm": "webm",
+  "audio/x-m4a": "m4a",
+  "audio/x-wav": "wav",
+};
+
+const VOICE_CHANGER_AUDIO_EXTENSION_BY_MIME: Record<string, string> = {
+  "audio/aac": "aac",
+  "audio/flac": "flac",
+  "audio/m4a": "m4a",
+  "audio/mp4": "m4a",
+  "audio/mpeg": "mp3",
+  "audio/ogg": "ogg",
+  "audio/wav": "wav",
+  "audio/webm": "webm",
+  "audio/x-m4a": "m4a",
   "audio/x-wav": "wav",
 };
 
@@ -102,6 +131,7 @@ const VIDEO_MIME_BY_EXTENSION: Record<string, string> = {
 };
 
 type VoiceChangerSourceKind = "audio" | "video";
+type MediaLibraryFileType = "image" | "video" | "audio";
 
 export type MediaUploadDestinationTab = "uploaded_images" | "uploaded_videos" | "private";
 
@@ -340,30 +370,52 @@ const parseUpload = async (
   return await parseRaw(req, options);
 };
 
-const destinationExpectsVideo = (destinationTab: MediaUploadDestinationTab): boolean =>
+const destinationPrefersVideo = (destinationTab: MediaUploadDestinationTab): boolean =>
   VIDEO_DESTINATIONS.has(destinationTab);
 
-const destinationMaxBytes = (destinationTab: MediaUploadDestinationTab): number =>
-  destinationExpectsVideo(destinationTab) ? MAX_VIDEO_UPLOAD_BYTES : MAX_IMAGE_UPLOAD_BYTES;
+const destinationAllowsAudio = (destinationTab: MediaUploadDestinationTab): boolean =>
+  destinationTab !== "private";
+
+const maxBytesForFileType = (fileType: MediaLibraryFileType): number => {
+  if (fileType === "video") return MAX_VIDEO_UPLOAD_BYTES;
+  if (fileType === "audio") return MAX_AUDIO_UPLOAD_BYTES;
+  return MAX_IMAGE_UPLOAD_BYTES;
+};
 
 const resolveDetectedMimeType = (
   destinationTab: MediaUploadDestinationTab,
   buffer: Buffer
 ): string | null => {
-  if (destinationExpectsVideo(destinationTab)) {
-    return detectVideoMimeType(buffer);
+  if (destinationPrefersVideo(destinationTab)) {
+    return (
+      detectVideoMimeType(buffer) ??
+      (destinationAllowsAudio(destinationTab) ? detectAudioMimeType(buffer) : null)
+    );
   }
-  return detectImageMimeType(buffer);
+  return (
+    detectImageMimeType(buffer) ??
+    (destinationAllowsAudio(destinationTab) ? detectAudioMimeType(buffer) : null)
+  );
+};
+
+const resolveFileTypeFromMimeType = (mimeType: string): MediaLibraryFileType | null => {
+  if (ALLOWED_VIDEO_MIME_TYPES.has(mimeType)) return "video";
+  if (ALLOWED_AUDIO_MIME_TYPES.has(mimeType)) return "audio";
+  if (ALLOWED_IMAGE_MIME_TYPES.has(mimeType)) return "image";
+  return null;
 };
 
 const isAllowedMimeType = (
   destinationTab: MediaUploadDestinationTab,
   mimeType: string
 ): boolean => {
-  if (destinationExpectsVideo(destinationTab)) {
-    return ALLOWED_VIDEO_MIME_TYPES.has(mimeType);
+  if (destinationPrefersVideo(destinationTab)) {
+    return ALLOWED_VIDEO_MIME_TYPES.has(mimeType) || ALLOWED_AUDIO_MIME_TYPES.has(mimeType);
   }
-  return ALLOWED_IMAGE_MIME_TYPES.has(mimeType);
+  if (destinationTab === "private") {
+    return ALLOWED_IMAGE_MIME_TYPES.has(mimeType);
+  }
+  return ALLOWED_IMAGE_MIME_TYPES.has(mimeType) || ALLOWED_AUDIO_MIME_TYPES.has(mimeType);
 };
 
 const isGenericDeclaredMimeType = (mimeType: string): boolean => {
@@ -381,7 +433,7 @@ const isCompatibleDeclaredMimeType = ({
 }): boolean => {
   if (areCompatibleMimeTypes(declaredMimeType, detectedMimeType)) return true;
   if (
-    destinationExpectsVideo(destinationTab) &&
+    destinationPrefersVideo(destinationTab) &&
     declaredMimeType.startsWith("video/") &&
     detectedMimeType.startsWith("video/")
   ) {
@@ -389,12 +441,23 @@ const isCompatibleDeclaredMimeType = ({
     const mp4AliasFamily = new Set(["video/mp4", "video/quicktime", "video/x-m4v"]);
     if (mp4AliasFamily.has(declaredMimeType) && mp4AliasFamily.has(detectedMimeType)) return true;
   }
+  if (
+    destinationPrefersVideo(destinationTab) &&
+    declaredMimeType === "video/webm" &&
+    detectedMimeType === "audio/webm"
+  ) {
+    return true;
+  }
   return false;
 };
 
-const resolveUploadFolder = (destinationTab: MediaUploadDestinationTab): string => {
+const resolveUploadFolder = (
+  destinationTab: MediaUploadDestinationTab,
+  fileType: MediaLibraryFileType
+): string => {
   if (destinationTab === "private") return "private/images";
-  if (destinationTab === "uploaded_videos") return "videos";
+  if (fileType === "video") return "videos";
+  if (fileType === "audio") return "audio";
   return "images";
 };
 
@@ -411,9 +474,13 @@ const validateUpload = ({
   declaredMimeType: string;
   detectedMimeType: string | null;
   fileSize: number;
-}): string => {
+}): { mimeType: string; fileType: MediaLibraryFileType } => {
   if (!detectedMimeType || !isAllowedMimeType(destinationTab, detectedMimeType)) {
-    const expected = destinationExpectsVideo(destinationTab) ? "video" : "image";
+    const expected = destinationPrefersVideo(destinationTab)
+      ? "video"
+      : destinationTab === "private"
+        ? "image"
+        : "image or audio";
     throw new MediaUploadServiceError(
       400,
       "Invalid file type",
@@ -444,11 +511,19 @@ const validateUpload = ({
     }
   }
 
-  if (fileSize > destinationMaxBytes(destinationTab)) {
+  const fileType = resolveFileTypeFromMimeType(detectedMimeType);
+  if (!fileType) {
+    throw new MediaUploadServiceError(400, "Invalid file type", "Unsupported uploaded file type.");
+  }
+
+  if (fileSize > maxBytesForFileType(fileType)) {
     throw new MediaUploadServiceError(413, "Upload failed: file too large");
   }
 
-  return detectedMimeType;
+  return {
+    mimeType: detectedMimeType,
+    fileType,
+  };
 };
 
 /**
@@ -470,6 +545,7 @@ type UploadedStorageAsset = {
   signedUrl: string;
   size: number;
   parsedUpload: ParsedUpload;
+  fileType: MediaLibraryFileType;
 };
 
 type StorageUploadOptions = {
@@ -608,19 +684,21 @@ const uploadStorageAssetForUser = async ({
     parsedUpload.destinationTab,
     parsedUpload.buffer
   );
-  const mimeType = validateUpload({
+  const validatedUpload = validateUpload({
     destinationTab: parsedUpload.destinationTab,
     declaredMimeType: parsedUpload.declaredMimeType,
     detectedMimeType,
     fileSize: parsedUpload.size,
   });
 
-  const storageFolder = storageFolderOverride ?? resolveUploadFolder(parsedUpload.destinationTab);
+  const storageFolder =
+    storageFolderOverride ??
+    resolveUploadFolder(parsedUpload.destinationTab, validatedUpload.fileType);
   const uploaded = await uploadScopedStorageBuffer({
     userId,
     storageFolder,
     filename: parsedUpload.filename,
-    mimeType,
+    mimeType: validatedUpload.mimeType,
     buffer: parsedUpload.buffer,
   });
 
@@ -629,6 +707,7 @@ const uploadStorageAssetForUser = async ({
     signedUrl: uploaded.signedUrl,
     size: parsedUpload.size,
     parsedUpload,
+    fileType: validatedUpload.fileType,
   };
 };
 
@@ -758,9 +837,8 @@ export const uploadMediaForUser = async ({
     parsedUpload = uploaded.parsedUpload;
     const storagePath = uploaded.storagePath;
     storagePathForCleanup = storagePath;
-    const imageDimensions = destinationExpectsVideo(parsedUpload.destinationTab)
-      ? null
-      : extractImageDimensionsFromBuffer(parsedUpload.buffer);
+    const imageDimensions =
+      uploaded.fileType === "image" ? extractImageDimensionsFromBuffer(parsedUpload.buffer) : null;
     const metadata = withCanonicalImageDimensions(null, imageDimensions);
 
     const supabaseAdmin = getSupabaseAdmin();
@@ -771,7 +849,7 @@ export const uploadMediaForUser = async ({
         user_id: userId,
         filename: parsedUpload.filename,
         storage_path: storagePath,
-        file_type: destinationExpectsVideo(parsedUpload.destinationTab) ? "video" : "image",
+        file_type: uploaded.fileType,
         file_size: parsedUpload.size,
         source: resolveUploadSource(parsedUpload.destinationTab),
         metadata,

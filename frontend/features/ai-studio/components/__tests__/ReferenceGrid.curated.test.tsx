@@ -1737,6 +1737,37 @@ describe("ReferenceGrid curated split", () => {
     expect(getByLabelText("Save to media library")).toBeInTheDocument();
   });
 
+  it("shows save action for generated audio references and routes the click through the shared save handler", () => {
+    const onSaveToLibrary = vi.fn();
+    const generatedAudio: StudioOutput = {
+      id: "generated-audio-1",
+      prompt: "Generated audio",
+      mode: "audio",
+      aspect: "1:1",
+      model: "Model",
+      status: "ready",
+      timestamp: "Now",
+      previewUrl: "https://example.com/generated-audio.mp3",
+      mediaSource: "generated",
+      generationId: "gen-audio-1",
+    };
+
+    const { getByLabelText } = render(
+      <ReferenceGrid
+        {...createProps({
+          outputs: [generatedAudio],
+          activeOutputId: generatedAudio.id,
+          onSaveToLibrary,
+        })}
+      />
+    );
+
+    fireEvent.click(getByLabelText("Save to media library"));
+    expect(onSaveToLibrary).toHaveBeenCalledWith(
+      expect.objectContaining({ id: generatedAudio.id })
+    );
+  });
+
   it("renders image cards for image mode outputs even when preview URL contains /videos/", () => {
     const uploadedImageWithVideoLikePath: StudioOutput = {
       id: "upload-image-video-like-path-1",

@@ -9,6 +9,7 @@ import {
   useAiStudioDualCanvasWorkspaceState,
 } from "../useAiStudioCanvasWorkspaceState";
 import type {
+  PrepareCanvasMediaLibraryDrop,
   PrepareResolvedInternalCanvasDrop,
   ResolveCanvasDropFiles,
   ResolveCanvasDropReference,
@@ -50,6 +51,7 @@ export type CanvasHarnessProps = {
   onPinTextReference?: (text: string) => void;
   resolveCanvasDropReference?: ResolveCanvasDropReference;
   prepareResolvedInternalCanvasDrop?: PrepareResolvedInternalCanvasDrop;
+  prepareCanvasMediaLibraryDrop?: PrepareCanvasMediaLibraryDrop;
   resolveCanvasDropFiles?: ResolveCanvasDropFiles;
   isItemDraggable?: boolean;
   onItemDragStart?: (id: string, event: React.DragEvent<HTMLElement>) => void;
@@ -64,6 +66,7 @@ export function CanvasHarness({
   onPinTextReference,
   resolveCanvasDropReference,
   prepareResolvedInternalCanvasDrop,
+  prepareCanvasMediaLibraryDrop,
   resolveCanvasDropFiles,
   isItemDraggable = false,
   onItemDragStart,
@@ -73,6 +76,7 @@ export function CanvasHarness({
   const canvasProps = useAiStudioCanvasWorkspaceState({
     resolveCanvasDropReference: resolveCanvasDropReference ?? defaultResolveCanvasDropReference,
     prepareResolvedInternalCanvasDrop,
+    prepareCanvasMediaLibraryDrop,
     resolveCanvasDropFiles,
     onPinTextReference,
   });
@@ -98,11 +102,13 @@ export function DualCanvasHarness({
   onPinTextReference,
   resolveCanvasDropReference,
   prepareResolvedInternalCanvasDrop,
+  prepareCanvasMediaLibraryDrop,
   resolveCanvasDropFiles,
 }: CanvasHarnessProps) {
   const { mainCanvasProps, railCanvasProps } = useAiStudioDualCanvasWorkspaceState({
     resolveCanvasDropReference: resolveCanvasDropReference ?? defaultResolveCanvasDropReference,
     prepareResolvedInternalCanvasDrop,
+    prepareCanvasMediaLibraryDrop,
     resolveCanvasDropFiles,
     onPinTextReference,
   });
@@ -120,6 +126,7 @@ export function SeededCanvasHarness({
   onPinTextReference,
   resolveCanvasDropReference,
   prepareResolvedInternalCanvasDrop,
+  prepareCanvasMediaLibraryDrop,
   resolveCanvasDropFiles,
   isItemDraggable = false,
   onItemDragStart,
@@ -129,6 +136,7 @@ export function SeededCanvasHarness({
   const { mainCanvasProps, hydrateSessionState } = useAiStudioDualCanvasWorkspaceState({
     resolveCanvasDropReference: resolveCanvasDropReference ?? defaultResolveCanvasDropReference,
     prepareResolvedInternalCanvasDrop,
+    prepareCanvasMediaLibraryDrop,
     resolveCanvasDropFiles,
     onPinTextReference,
   });

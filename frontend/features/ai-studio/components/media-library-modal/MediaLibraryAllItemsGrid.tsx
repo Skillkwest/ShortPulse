@@ -11,6 +11,7 @@ import { MediaLibraryPromptReferenceCard } from "./MediaLibraryPromptReferenceCa
 import {
   BUCKET,
   createdAtTime,
+  isAudioFile,
   isVideoFile,
   type MediaCardRefCallback,
   type MediaFileRow,
@@ -113,6 +114,73 @@ type MediaCardShellProps = {
   onRemoveMediaFromFolder?: (file: MediaFileRow) => void;
   onDeleteMediaFromLibrary?: (file: MediaFileRow) => void;
 };
+
+type MediaCardActionsProps = {
+  file: MediaFileRow;
+  canShowDownloadAction: boolean;
+  canShowRemoveAction: boolean;
+  canShowDeleteAction: boolean;
+  onDownloadMediaFile?: (file: MediaFileRow) => void;
+  onRemoveMediaFromFolder?: (file: MediaFileRow) => void;
+  onDeleteMediaFromLibrary?: (file: MediaFileRow) => void;
+};
+
+function MediaLibraryAllItemsCardActions({
+  file,
+  canShowDownloadAction,
+  canShowRemoveAction,
+  canShowDeleteAction,
+  onDownloadMediaFile,
+  onRemoveMediaFromFolder,
+  onDeleteMediaFromLibrary,
+}: MediaCardActionsProps) {
+  return (
+    <div className="media-library-panel-card-actions" aria-label="Media actions">
+      {canShowDownloadAction ? (
+        <button
+          type="button"
+          className="reference-card-action-btn media-library-panel-card-download-btn"
+          aria-label={`Download media ${file.filename}`}
+          onClick={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            onDownloadMediaFile?.(file);
+          }}
+        >
+          <DownloadSimple size={16} weight="bold" aria-hidden />
+        </button>
+      ) : null}
+      {canShowRemoveAction ? (
+        <button
+          type="button"
+          className="reference-card-action-btn reference-card-action-btn--danger media-library-panel-card-remove-btn"
+          aria-label={`Remove media ${file.filename}`}
+          onClick={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            onRemoveMediaFromFolder?.(file);
+          }}
+        >
+          <X size={16} weight="bold" aria-hidden />
+        </button>
+      ) : null}
+      {canShowDeleteAction ? (
+        <button
+          type="button"
+          className="reference-card-action-btn reference-card-action-btn--danger media-library-panel-card-remove-btn"
+          aria-label={`Delete media ${file.filename}`}
+          onClick={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            onDeleteMediaFromLibrary?.(file);
+          }}
+        >
+          <X size={16} weight="bold" aria-hidden />
+        </button>
+      ) : null}
+    </div>
+  );
+}
 
 function MediaLibraryAllItemsMediaCard({
   file,
@@ -355,50 +423,129 @@ function MediaLibraryAllItemsMediaCard({
         </div>
       </button>
       {showCardActions ? (
-        <div className="media-library-panel-card-actions" aria-label="Media actions">
-          {canShowDownloadAction ? (
-            <button
-              type="button"
-              className="reference-card-action-btn media-library-panel-card-download-btn"
-              aria-label={`Download media ${file.filename}`}
-              onClick={(event) => {
-                event.preventDefault();
-                event.stopPropagation();
-                onDownloadMediaFile?.(file);
-              }}
-            >
-              <DownloadSimple size={16} weight="bold" aria-hidden />
-            </button>
-          ) : null}
-          {canShowRemoveAction ? (
-            <button
-              type="button"
-              className="reference-card-action-btn reference-card-action-btn--danger media-library-panel-card-remove-btn"
-              aria-label={`Remove media ${file.filename}`}
-              onClick={(event) => {
-                event.preventDefault();
-                event.stopPropagation();
-                onRemoveMediaFromFolder?.(file);
-              }}
-            >
-              <X size={16} weight="bold" aria-hidden />
-            </button>
-          ) : null}
-          {canShowDeleteAction ? (
-            <button
-              type="button"
-              className="reference-card-action-btn reference-card-action-btn--danger media-library-panel-card-remove-btn"
-              aria-label={`Delete media ${file.filename}`}
-              onClick={(event) => {
-                event.preventDefault();
-                event.stopPropagation();
-                onDeleteMediaFromLibrary?.(file);
-              }}
-            >
-              <X size={16} weight="bold" aria-hidden />
-            </button>
-          ) : null}
+        <MediaLibraryAllItemsCardActions
+          file={file}
+          canShowDownloadAction={canShowDownloadAction}
+          canShowRemoveAction={canShowRemoveAction}
+          canShowDeleteAction={canShowDeleteAction}
+          onDownloadMediaFile={onDownloadMediaFile}
+          onRemoveMediaFromFolder={onRemoveMediaFromFolder}
+          onDeleteMediaFromLibrary={onDeleteMediaFromLibrary}
+        />
+      ) : null}
+    </div>
+  );
+}
+
+function MediaLibraryAllItemsAudioCard({
+  file,
+  isSelected,
+  previewAspectRatio,
+  cardPreviewUrl,
+  getMediaCardRef,
+  onSelectMediaFile,
+  onMediaDoubleClick,
+  onMediaDragStart,
+  onMediaDragEnd,
+  onToggleMediaSelection,
+  onMediaContextMenu,
+  onMediaPreviewError,
+  onSignedUrlLoaded,
+  showCardActions,
+  canShowDownloadAction,
+  canShowRemoveAction,
+  canShowDeleteAction,
+  onDownloadMediaFile,
+  onRemoveMediaFromFolder,
+  onDeleteMediaFromLibrary,
+}: MediaCardShellProps) {
+  const audioUrl = cardPreviewUrl ?? file.signedUrl ?? null;
+  const signedUrlLoadedRef = React.useRef(false);
+
+  const markSignedUrlLoaded = React.useCallback(() => {
+    if (signedUrlLoadedRef.current) return;
+    signedUrlLoadedRef.current = true;
+    onSignedUrlLoaded(file.id);
+  }, [file.id, onSignedUrlLoaded]);
+
+  return (
+    <div
+      className={`media-library-modal-card media-library-panel-media-card-shell media-library-panel-audio-card-shell${
+        isSelected ? " is-active" : ""
+      }`}
+    >
+      {onToggleMediaSelection && isSelected ? (
+        <button
+          type="button"
+          className={`media-library-panel-selection-toggle${isSelected ? " is-selected" : ""}`}
+          aria-label={
+            isSelected
+              ? `Deselect ${file.filename || "audio"}`
+              : `Select ${file.filename || "audio"}`
+          }
+          aria-pressed={isSelected}
+          onClick={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            onToggleMediaSelection(file);
+          }}
+        >
+          {isSelected ? <CheckCircle size={16} weight="fill" aria-hidden /> : null}
+        </button>
+      ) : null}
+      <button
+        type="button"
+        className="media-card media-library-panel-media-card-button media-library-panel-audio-card-button"
+        ref={getMediaCardRef(file.id)}
+        aria-pressed={isSelected}
+        draggable={Boolean(onMediaDragStart)}
+        onClick={() =>
+          onToggleMediaSelection ? onToggleMediaSelection(file) : onSelectMediaFile(file)
+        }
+        onDoubleClick={() => onMediaDoubleClick?.(file)}
+        onDragStart={(event) => onMediaDragStart?.(event, file)}
+        onDragEnd={(event) => onMediaDragEnd?.(event, file)}
+        onContextMenu={(event) => onMediaContextMenu?.(event, file)}
+      >
+        <div
+          className="media-library-panel-media-frame media-library-panel-audio-frame"
+          style={{ aspectRatio: previewAspectRatio }}
+        >
+          <div
+            className="media-thumb placeholder media-library-panel-audio-placeholder"
+            aria-hidden
+          />
+          <div className="media-library-panel-audio-meta">
+            <span className="media-library-panel-audio-label">Audio</span>
+            <span className="media-library-panel-audio-filename">{file.filename}</span>
+          </div>
         </div>
+      </button>
+      <div className="media-library-panel-audio-controls">
+        <audio
+          controls
+          preload="metadata"
+          src={audioUrl ?? undefined}
+          aria-label={`Play audio ${file.filename}`}
+          onLoadedMetadata={() => {
+            markSignedUrlLoaded();
+          }}
+          onCanPlay={() => {
+            markSignedUrlLoaded();
+          }}
+          onError={() => onMediaPreviewError(file, audioUrl)}
+        />
+      </div>
+      {showCardActions ? (
+        <MediaLibraryAllItemsCardActions
+          file={file}
+          canShowDownloadAction={canShowDownloadAction}
+          canShowRemoveAction={canShowRemoveAction}
+          canShowDeleteAction={canShowDeleteAction}
+          onDownloadMediaFile={onDownloadMediaFile}
+          onRemoveMediaFromFolder={onRemoveMediaFromFolder}
+          onDeleteMediaFromLibrary={onDeleteMediaFromLibrary}
+        />
       ) : null}
     </div>
   );
@@ -623,6 +770,7 @@ export function MediaLibraryAllItemsGrid({
     getItemId: (item) => item.key,
     getAspectRatio: (item) => {
       if (item.kind === "prompt") return PROMPT_CARD_ASPECT_RATIO;
+      if (isAudioFile(item.row.file_type)) return PROMPT_CARD_ASPECT_RATIO;
       const cachedRatio = aspectRatioById[item.id];
       if (Number.isFinite(cachedRatio) && cachedRatio > 0) return cachedRatio;
       return resolveMediaCardAspectRatio({
@@ -742,36 +890,67 @@ export function MediaLibraryAllItemsGrid({
                 devicePixelRatio: typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1,
               })
           : null;
+        const isAudio = isAudioFile(file.file_type);
 
         return (
           <div key={item.key} style={renderItem.style}>
-            <MediaLibraryAllItemsMediaCard
-              file={file}
-              isSelected={selectedIds.has(file.id)}
-              previewAspectRatio={previewAspectRatio}
-              cardPreviewUrl={cardPreviewUrl}
-              hoverVideoUrl={hoverVideoUrl ?? null}
-              posterPreviewUrl={posterPreviewUrl}
-              fetchPriorityAttr={fetchPriorityAttr}
-              getMediaCardRef={getMediaCardRef}
-              onSelectMediaFile={onSelectMediaFile}
-              onMediaDoubleClick={onMediaDoubleClick}
-              onMediaDragStart={onMediaDragStart}
-              onMediaDragEnd={onMediaDragEnd}
-              onToggleMediaSelection={onToggleMediaSelection}
-              onMediaContextMenu={onMediaContextMenu}
-              onMediaPreviewError={onMediaPreviewError}
-              onMediaPaint={onMediaPaint}
-              onSignedUrlLoaded={onSignedUrlLoaded}
-              cacheAspectRatio={cacheAspectRatio}
-              showCardActions={shouldShowCardActions}
-              canShowDownloadAction={canShowDownloadAction}
-              canShowRemoveAction={canShowRemoveAction}
-              canShowDeleteAction={canShowDeleteAction}
-              onDownloadMediaFile={onDownloadMediaFile}
-              onRemoveMediaFromFolder={onRemoveMediaFromFolder}
-              onDeleteMediaFromLibrary={onDeleteMediaFromLibrary}
-            />
+            {isAudio ? (
+              <MediaLibraryAllItemsAudioCard
+                file={file}
+                isSelected={selectedIds.has(file.id)}
+                previewAspectRatio={previewAspectRatio}
+                cardPreviewUrl={cardPreviewUrl}
+                hoverVideoUrl={null}
+                posterPreviewUrl={null}
+                fetchPriorityAttr={fetchPriorityAttr}
+                getMediaCardRef={getMediaCardRef}
+                onSelectMediaFile={onSelectMediaFile}
+                onMediaDoubleClick={onMediaDoubleClick}
+                onMediaDragStart={onMediaDragStart}
+                onMediaDragEnd={onMediaDragEnd}
+                onToggleMediaSelection={onToggleMediaSelection}
+                onMediaContextMenu={onMediaContextMenu}
+                onMediaPreviewError={onMediaPreviewError}
+                onMediaPaint={onMediaPaint}
+                onSignedUrlLoaded={onSignedUrlLoaded}
+                cacheAspectRatio={cacheAspectRatio}
+                showCardActions={shouldShowCardActions}
+                canShowDownloadAction={canShowDownloadAction}
+                canShowRemoveAction={canShowRemoveAction}
+                canShowDeleteAction={canShowDeleteAction}
+                onDownloadMediaFile={onDownloadMediaFile}
+                onRemoveMediaFromFolder={onRemoveMediaFromFolder}
+                onDeleteMediaFromLibrary={onDeleteMediaFromLibrary}
+              />
+            ) : (
+              <MediaLibraryAllItemsMediaCard
+                file={file}
+                isSelected={selectedIds.has(file.id)}
+                previewAspectRatio={previewAspectRatio}
+                cardPreviewUrl={cardPreviewUrl}
+                hoverVideoUrl={hoverVideoUrl ?? null}
+                posterPreviewUrl={posterPreviewUrl}
+                fetchPriorityAttr={fetchPriorityAttr}
+                getMediaCardRef={getMediaCardRef}
+                onSelectMediaFile={onSelectMediaFile}
+                onMediaDoubleClick={onMediaDoubleClick}
+                onMediaDragStart={onMediaDragStart}
+                onMediaDragEnd={onMediaDragEnd}
+                onToggleMediaSelection={onToggleMediaSelection}
+                onMediaContextMenu={onMediaContextMenu}
+                onMediaPreviewError={onMediaPreviewError}
+                onMediaPaint={onMediaPaint}
+                onSignedUrlLoaded={onSignedUrlLoaded}
+                cacheAspectRatio={cacheAspectRatio}
+                showCardActions={shouldShowCardActions}
+                canShowDownloadAction={canShowDownloadAction}
+                canShowRemoveAction={canShowRemoveAction}
+                canShowDeleteAction={canShowDeleteAction}
+                onDownloadMediaFile={onDownloadMediaFile}
+                onRemoveMediaFromFolder={onRemoveMediaFromFolder}
+                onDeleteMediaFromLibrary={onDeleteMediaFromLibrary}
+              />
+            )}
           </div>
         );
       })}

@@ -316,6 +316,46 @@ describe("useAiStudioInternalDropResolvers", () => {
     expect(resolveInternalReferenceSourceMock).not.toHaveBeenCalled();
   });
 
+  it("uses the persisted prompt id returned by save when output state has not re-rendered yet", async () => {
+    const output = makeOutput({
+      mode: "text",
+      previewUrl: undefined,
+      resultUrls: [],
+      savedMediaIds: [],
+      previewText: "Prompt only",
+      promptId: undefined,
+    });
+    const ensureOutputPersisted = vi.fn(async () => ({
+      ok: true,
+      mediaFileIds: [],
+      promptId: "prompt-77",
+      delivery: null,
+      error: null,
+    }));
+
+    const { result } = renderHook(() =>
+      useAiStudioInternalDropResolvers({
+        getOutputById: () => output,
+        getOutputSnapshot: () => ({
+          outputOrder: ["out-1"],
+          archivedOutputOrder: [],
+          outputById: { "out-1": output },
+          archivedOutputById: {},
+        }),
+        ensureOutputPersisted,
+      })
+    );
+
+    await expect(
+      result.current.resolveMediaLibraryInternalDropItem(makePayload())
+    ).resolves.toEqual({
+      kind: "prompt",
+      id: "prompt-77",
+    });
+    expect(ensureOutputPersisted).toHaveBeenCalledWith("out-1");
+    expect(resolveInternalReferenceSourceMock).not.toHaveBeenCalled();
+  });
+
   it("falls back to page output preview authority for element profile drops when shared resolution fails closed", async () => {
     const output = makeOutput({
       savedMediaIds: [],

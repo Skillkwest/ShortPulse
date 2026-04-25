@@ -75,30 +75,31 @@ Define the authoritative AI Studio Media Library panel UX contract (`toolId: med
 4. Folder moves/assignments must not create duplicate underlying media/prompt rows.
 
 ### 4) `all_media` display contract
-1. `All Media` renders one root-level tab strip with five tabs:
+1. `All Media` renders one root-level tab strip with four tabs:
    - `All Media` tab: aggregate root view showing saved media cards plus saved prompt cards in the same folder surface.
    - `Images` tab: masonry grid preserving each image’s true aspect ratio.
    - `Videos` tab: masonry grid preserving each video’s true aspect ratio.
    - `Prompts` tab: prompt cards use text reference-card presentation.
-   - `Audio` may remain visible as a reserved tab before saved-audio browsing is implemented; unsupported saved-audio rows must not fall through and render as broken image cards in the other browse tabs.
-2. Search and pagination apply consistently to the active tab through shared list APIs.
-3. `All Media` media tabs auto-load the next page when scrolling near the bottom, with one global footer control retained as manual fallback.
-4. Panel card previews may use balanced-fast image compaction for browse speed when adaptive media + panel compression flags are enabled; detail modal stays full-quality.
-5. In the aggregate `All Media` tab, video cards should remain poster-first and only attach/play hover previews on pointer hover; they should not begin live autoplay just from entering the mixed masonry viewport.
+2. Audio is a first-class saved media type and renders inside the mixed `All Media` tab plus custom-folder mixed views instead of using a dedicated root tab.
+3. Search and pagination apply consistently to the active tab through shared list APIs.
+4. `All Media` media tabs auto-load the next page when scrolling near the bottom, with one global footer control retained as manual fallback.
+5. Panel card previews may use balanced-fast image compaction for browse speed when adaptive media + panel compression flags are enabled; detail modal stays full-quality.
+6. In the aggregate `All Media` tab, video cards should remain poster-first and only attach/play hover previews on pointer hover; they should not begin live autoplay just from entering the mixed masonry viewport.
 
 ### 5) Drag/drop and ingest contract
-1. Users can drag images, videos, and prompts from any folder into any folder (subject to membership semantics above).
+1. Users can drag images, videos, audio, and prompts from any folder into any folder (subject to membership semantics above).
 2. Users can drag images, videos, and prompts from any Media Library folder into:
    - Reference Grid,
    - Quick Slot Inventory,
    - Canvas surfaces.
 3. Drag interactions must show a visible drag ghost image for tactile feedback.
 4. Internal Reference Grid -> Media Library drops remain supported through `text/reference-*` payload resolution.
+5. Dropping an internal Reference Grid asset onto root `All Media` must save/import it into the Media Library without creating a folder membership mutation.
 
 ### 6) Right-click behaviors
-1. Right-clicking media (image/video) in `All Media` sends that media to the Reference Grid.
+1. Right-clicking media (image/video/audio) in `All Media` sends that media to the Reference Grid.
 2. For folder-canvas spaces, right-clicking media sends a copy to Reference Grid (source item remains in the folder canvas).
-3. Double-clicking media (image/video) in `All Media` opens a preview-only detail modal (no ingest side effects).
+3. Double-clicking media (image/video/audio) in `All Media` opens a preview-only detail modal (no ingest side effects).
 
 ### 7) Bulk selection and action semantics
 1. Bulk media actions are panel-first and media-only in v1; prompt bulk actions remain out of scope.
@@ -163,7 +164,7 @@ Define the authoritative AI Studio Media Library panel UX contract (`toolId: med
 ## Current Runtime Delta (as of 2026-03-24)
 1. `All Media` inline-tab layout:
    - Status: Aligned.
-   - Current: `All Media`, `Images`, `Videos`, `Audio` (reserved), and `Prompts` render as root-level tabs in the same `All Media` folder. The aggregate `All Media` view shows saved media cards plus saved prompt cards, while `Prompts` remains the prompt-only view.
+   - Current: `All Media`, `Images`, `Videos`, and `Prompts` render as root-level tabs in the same `All Media` folder. The aggregate `All Media` view shows saved images, videos, audio, and prompts in one mixed feed, while `Prompts` remains the prompt-only view.
 2. `All Media` media pagination behavior:
    - Status: Aligned.
    - Current: Root media tabs auto-load additional pages near the bottom, and one global footer control remains visible as a manual fallback.
@@ -229,9 +230,9 @@ Define the authoritative AI Studio Media Library panel UX contract (`toolId: med
 22. Legacy saved-video poster backfill:
    - Status: Operator-supported.
    - Current: forward saves persist durable `poster_720` variants when a poster hint exists, and legacy video rows missing `poster_variant_path` can be backfilled in controlled batches with `cd frontend && npm run media:backfill-video-posters -- --dry-run|--apply`.
-23. Saved-audio containment before dedicated browse support:
+23. Saved-audio browse and upload support:
    - Status: Aligned.
-   - Current: ElevenLabs audio generations honor the per-user media autosave preference. When autosave is OFF, audio outputs remain playable in-session but skip background `media_files` inserts. When autosave is ON, audio rows may be persisted durably for future dedicated audio support, but current Media Library browse queries exclude `audio/*` rows so unsupported audio does not render as broken image cards in `All Media` or `AI Studio Generations`.
+   - Current: Audio is a first-class Media Library asset in AI Studio. Audio can be saved from eligible Reference Grid references, uploaded from desktop or `Add files`, dropped from the Reference Grid into `All Media` or custom folders, and browsed from the mixed `All Media` plus custom-folder feeds without falling through image-only render paths.
 
 ## Error and feedback behavior
 - Unresolved drop item: `Unable to resolve dropped reference.`
@@ -247,8 +248,8 @@ Define the authoritative AI Studio Media Library panel UX contract (`toolId: med
    - Create, rename, delete custom folders.
    - Reparent a folder via `Move to...` and confirm invalid destinations are absent.
 2. `All Media` display:
-   - `All Media` root tabs render as `All Media`, `Images`, `Videos`, `Audio`, and `Prompts`.
-   - The aggregate `All Media` tab renders saved media plus saved prompts in one mixed masonry feed.
+   - `All Media` root tabs render as `All Media`, `Images`, `Videos`, and `Prompts`.
+   - The aggregate `All Media` tab renders saved images, videos, audio, and prompts in one mixed masonry feed.
    - `Prompts` tab renders text reference cards.
    - `Images` and `Videos` tabs render masonry with true aspect ratio.
 3. Membership semantics:

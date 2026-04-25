@@ -130,6 +130,12 @@ export const resolveModalSignBudget = (): MediaSignBudget => {
 export const isVideoFile = (fileType?: string | null) =>
   (fileType ?? "").toLowerCase().startsWith("video");
 
+export const isAudioFile = (fileType?: string | null) =>
+  (fileType ?? "").toLowerCase().startsWith("audio");
+
+export const isImageFile = (fileType?: string | null) =>
+  (fileType ?? "").toLowerCase().startsWith("image");
+
 export const isPrivateStoragePath = (storagePath?: string | null) =>
   (storagePath ?? "").split("/").filter(Boolean).includes(PRIVATE_MEDIA_FOLDER);
 

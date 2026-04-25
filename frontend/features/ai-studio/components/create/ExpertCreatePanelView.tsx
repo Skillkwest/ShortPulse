@@ -54,6 +54,7 @@ type ExpertCreatePanelViewProps = {
   onSelectedPulsePresetIdsChange?: (presetIds: CreatePulsePresetId[]) => void;
   savedPulsePresets?: readonly CreatePulseSavedPreset[];
   onSavedPulsePresetsChange?: (presets: CreatePulseSavedPreset[]) => void;
+  onOpenPresetsLibrary?: () => void;
 };
 
 export function ExpertCreatePanelView({
@@ -96,6 +97,7 @@ export function ExpertCreatePanelView({
   onSelectedPulsePresetIdsChange,
   savedPulsePresets,
   onSavedPulsePresetsChange,
+  onOpenPresetsLibrary,
 }: ExpertCreatePanelViewProps) {
   const PULSE_RAIL_TRANSITION_MS = 220;
   const [agentInputVisualRowCount, setAgentInputVisualRowCount] = React.useState(1);
@@ -348,6 +350,7 @@ export function ExpertCreatePanelView({
                 onPresetStart={onPulsePresetStart}
                 savedPresets={savedPulsePresets}
                 onSavedPresetsChange={onSavedPulsePresetsChange}
+                onOpenPresetsLibrary={onOpenPresetsLibrary}
               />
             </div>
           </div>

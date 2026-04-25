@@ -192,7 +192,7 @@ const withMediaKindFilter = <
 ): T => {
   if (mediaKind === "images") return query.ilike("file_type", "image%");
   if (mediaKind === "videos") return query.ilike("file_type", "video%");
-  return query.not("file_type", "ilike", "audio%");
+  return query;
 };
 
 const clampLimit = (surface: MediaListSurface, value: unknown): number => {

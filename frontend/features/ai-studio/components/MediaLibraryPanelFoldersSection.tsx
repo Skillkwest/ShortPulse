@@ -9,6 +9,7 @@ const PENDING_FOLDER_ID_PREFIX = "__pending_new_folder__";
 type FolderRow = {
   id: string;
   name: string;
+  itemCount?: number;
 };
 
 type FolderContextMenuState = {
@@ -165,6 +166,9 @@ export function MediaLibraryPanelFoldersSection({
     </span>
   );
 
+  const toFolderItemCountLabel = (itemCount: number) =>
+    `${itemCount} ${itemCount === 1 ? "item" : "items"}`;
+
   return (
     <>
       <div className="media-library-panel-folders">
@@ -262,6 +266,14 @@ export function MediaLibraryPanelFoldersSection({
                         alt=""
                         aria-hidden="true"
                       />
+                      {typeof folder.itemCount === "number" ? (
+                        <span
+                          className="media-library-panel-folder-chip-count-badge"
+                          aria-label={toFolderItemCountLabel(folder.itemCount)}
+                        >
+                          {folder.itemCount}
+                        </span>
+                      ) : null}
                     </button>
                     <div className="media-library-panel-folder-chip-edit">
                       <input
@@ -316,6 +328,14 @@ export function MediaLibraryPanelFoldersSection({
                         alt=""
                         aria-hidden="true"
                       />
+                      {typeof folder.itemCount === "number" ? (
+                        <span
+                          className="media-library-panel-folder-chip-count-badge"
+                          aria-label={toFolderItemCountLabel(folder.itemCount)}
+                        >
+                          {folder.itemCount}
+                        </span>
+                      ) : null}
                     </button>
                     <button
                       type="button"

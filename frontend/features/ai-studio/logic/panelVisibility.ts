@@ -4,6 +4,10 @@
  */
 
 export type HeaderShortcutId = "quick-slot-inventory" | "reference-grid" | "styles";
+export type ExpandableRightRailHeaderButtonId =
+  | "canvas"
+  | "quick-slot-inventory"
+  | "reference-grid";
 export type PanelVisibilityState = {
   quickSlot: boolean;
   referenceGrid: boolean;
@@ -113,3 +117,24 @@ export const togglePanelVisibilityByShortcut = ({
         : panelVisibility.referenceGrid,
   };
 };
+
+/**
+ * Resolves the exclusive right-rail state used by header-button expand mode.
+ */
+export const resolveExpandedRightRailVisibility = ({
+  target,
+  availability,
+}: {
+  target: ExpandableRightRailHeaderButtonId;
+  availability: PanelToggleAvailability;
+}): {
+  isCanvasVisible: boolean;
+  panelVisibility: PanelVisibilityState;
+} => ({
+  isCanvasVisible: target === "canvas",
+  panelVisibility: {
+    quickSlot: target === "quick-slot-inventory" && availability.quickSlot,
+    referenceGrid: target === "reference-grid",
+    styles: false,
+  },
+});

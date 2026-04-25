@@ -98,4 +98,13 @@ describe("AiStudioShellFrame", () => {
     expect(screen.getByTestId("reference-rail")).toBeInTheDocument();
     expect(screen.getByTestId("preview-rail")).toBeInTheDocument();
   });
+
+  it("hides the preview rail when the shell is in expanded right-rail mode", () => {
+    render(
+      <AiStudioShellFrame {...createProps()} rightColumnHidden={false} showPreviewRail={false} />
+    );
+
+    expect(screen.getByTestId("reference-rail")).toBeInTheDocument();
+    expect(screen.queryByTestId("preview-rail")).not.toBeInTheDocument();
+  });
 });

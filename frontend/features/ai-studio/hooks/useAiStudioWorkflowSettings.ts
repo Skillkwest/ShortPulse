@@ -221,6 +221,7 @@ const cloneWorkflowSettingsSnapshot = (
 
 type UseAiStudioWorkflowSettingsParams = {
   projectId?: string | null;
+  projectRouteRequested?: boolean;
   sessionId?: string | null;
   selectedTool: ToolId | null;
   mode: StudioMode;
@@ -276,6 +277,7 @@ type UseAiStudioWorkflowSettingsParams = {
  */
 export const useAiStudioWorkflowSettings = ({
   projectId = null,
+  projectRouteRequested = false,
   sessionId = null,
   selectedTool,
   mode,
@@ -325,7 +327,8 @@ export const useAiStudioWorkflowSettings = ({
   setKlingMultiPrompts,
   setKlingElements,
 }: UseAiStudioWorkflowSettingsParams) => {
-  const workflowSettingsPersistenceEnabled = WORKFLOW_SETTINGS_PERSIST_ENABLED && !projectId;
+  const workflowSettingsPersistenceEnabled =
+    WORKFLOW_SETTINGS_PERSIST_ENABLED && !projectRouteRequested && !projectId;
   const [workflowSettingsHydrated, setWorkflowSettingsHydrated] = useState(
     !workflowSettingsPersistenceEnabled
   );

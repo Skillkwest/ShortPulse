@@ -29,6 +29,7 @@ const createRouter = (overrides: Partial<MockRouter> = {}): MockRouter => ({
 describe("useAiStudioProjectIdentity", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    window.history.replaceState({}, "", "/ai-studio");
   });
 
   it("stays idle without a projectId query", () => {
@@ -37,8 +38,26 @@ describe("useAiStudioProjectIdentity", () => {
     const { result } = renderHook(() => useAiStudioProjectIdentity());
 
     expect(result.current.projectId).toBeNull();
+    expect(result.current.projectRouteRequested).toBe(false);
     expect(result.current.project).toBeNull();
     expect(result.current.status).toBe("idle");
+    expect(mockedFetchWithAuth).not.toHaveBeenCalled();
+  });
+
+  it("treats a project route in the URL as pending before router query resolution finishes", () => {
+    window.history.replaceState({}, "", "/ai-studio?projectId=project-1");
+    mockedUseRouter.mockReturnValue(
+      createRouter({
+        isReady: false,
+        query: {},
+      }) as never
+    );
+
+    const { result } = renderHook(() => useAiStudioProjectIdentity());
+
+    expect(result.current.projectId).toBeNull();
+    expect(result.current.projectRouteRequested).toBe(true);
+    expect(result.current.status).toBe("loading");
     expect(mockedFetchWithAuth).not.toHaveBeenCalled();
   });
 

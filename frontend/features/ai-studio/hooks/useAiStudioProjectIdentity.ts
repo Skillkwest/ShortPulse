@@ -30,6 +30,7 @@ export type AiStudioProjectIdentityStatus = "idle" | "loading" | "ready" | "erro
 
 type UseAiStudioProjectIdentityResult = {
   projectId: string | null;
+  projectRouteRequested: boolean;
   project: AiStudioProjectIdentityRecord | null;
   status: AiStudioProjectIdentityStatus;
   error: string | null;
@@ -37,11 +38,16 @@ type UseAiStudioProjectIdentityResult = {
   updateProjectTitle: (title: string) => Promise<AiStudioProjectIdentityRecord | null>;
 };
 
-const parseProjectIdQuery = (value: string | string[] | undefined): string | null => {
+const parseProjectIdQuery = (value: string | string[] | null | undefined): string | null => {
   const raw = Array.isArray(value) ? value[0] : value;
   if (typeof raw !== "string") return null;
   const normalized = raw.trim();
   return normalized.length > 0 ? normalized : null;
+};
+
+const readRequestedProjectIdFromWindowSearch = (): string | null => {
+  if (typeof window === "undefined") return null;
+  return parseProjectIdQuery(new URLSearchParams(window.location.search).get("projectId"));
 };
 
 const toProjectIdentityRecord = (
@@ -87,12 +93,14 @@ const resolveProjectUpdateErrorMessage = (
  */
 export const useAiStudioProjectIdentity = (): UseAiStudioProjectIdentityResult => {
   const router = useRouter();
-  const projectId = useMemo(
+  const routeProjectId = useMemo(
     () => parseProjectIdQuery(router.query?.projectId),
     [router.query?.projectId]
   );
+  const requestedProjectId = routeProjectId ?? readRequestedProjectIdFromWindowSearch();
+  const projectRouteRequested = Boolean(requestedProjectId);
   const [refreshNonce, setRefreshNonce] = useState(0);
-  const requestKey = projectId ? `${projectId}:${refreshNonce}` : null;
+  const requestKey = routeProjectId ? `${routeProjectId}:${refreshNonce}` : null;
   const [requestState, setRequestState] = useState<{
     key: string | null;
     project: AiStudioProjectIdentityRecord | null;
@@ -107,7 +115,9 @@ export const useAiStudioProjectIdentity = (): UseAiStudioProjectIdentityResult =
   const effectiveProject =
     requestKey && requestState.key === requestKey ? requestState.project : null;
   const effectiveStatus: AiStudioProjectIdentityStatus = !requestKey
-    ? "idle"
+    ? projectRouteRequested
+      ? "loading"
+      : "idle"
     : requestState.key === requestKey
       ? requestState.status
       : "loading";
@@ -119,11 +129,11 @@ export const useAiStudioProjectIdentity = (): UseAiStudioProjectIdentityResult =
 
   useEffect(() => {
     if (!router.isReady) return;
-    if (!projectId || !requestKey) return;
+    if (!routeProjectId || !requestKey) return;
 
     let cancelled = false;
 
-    void fetchWithAuth(`/api/projects/${encodeURIComponent(projectId)}`, {
+    void fetchWithAuth(`/api/projects/${encodeURIComponent(routeProjectId)}`, {
       method: "GET",
       shortpulseAuthTimeoutMs: 5000,
     })
@@ -157,12 +167,12 @@ export const useAiStudioProjectIdentity = (): UseAiStudioProjectIdentityResult =
     return () => {
       cancelled = true;
     };
-  }, [projectId, requestKey, router.isReady]);
+  }, [routeProjectId, requestKey, router.isReady]);
 
   const updateProjectTitle = useCallback(
     async (title: string): Promise<AiStudioProjectIdentityRecord | null> => {
-      if (!projectId) return null;
-      const response = await fetchWithAuth(`/api/projects/${encodeURIComponent(projectId)}`, {
+      if (!routeProjectId) return null;
+      const response = await fetchWithAuth(`/api/projects/${encodeURIComponent(routeProjectId)}`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
@@ -186,11 +196,12 @@ export const useAiStudioProjectIdentity = (): UseAiStudioProjectIdentityResult =
       });
       return nextProject;
     },
-    [projectId, requestKey]
+    [routeProjectId, requestKey]
   );
 
   return {
-    projectId,
+    projectId: routeProjectId,
+    projectRouteRequested,
     project: effectiveProject,
     status: effectiveStatus,
     error: effectiveError,

@@ -66,6 +66,7 @@ type ExpertEditStageSidebarProps = {
     override: ExpertEditCustomPresetOverride
   ) => void;
   isPresetsSurfaceDropActive: boolean;
+  onOpenPresetsLibrary?: () => void;
 };
 
 export function ExpertEditStageSidebar({
@@ -109,6 +110,7 @@ export function ExpertEditStageSidebar({
   handlePresetsSurfaceDrop,
   handleCustomPresetSave,
   isPresetsSurfaceDropActive,
+  onOpenPresetsLibrary,
 }: ExpertEditStageSidebarProps) {
   const shouldShowSidebarModePanel =
     isGenerationModeToggleEnabled && !shouldHideSelectedModeRailPanel;
@@ -205,6 +207,7 @@ export function ExpertEditStageSidebar({
         onSurfaceDrop={handlePresetsSurfaceDrop}
         onCustomPresetSave={handleCustomPresetSave}
         isDropActive={isPresetsSurfaceDropActive}
+        onOpenPresetsLibrary={onOpenPresetsLibrary}
       />
     </div>
   );

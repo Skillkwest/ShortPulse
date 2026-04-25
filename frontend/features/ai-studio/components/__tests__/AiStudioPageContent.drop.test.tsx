@@ -45,6 +45,7 @@ vi.mock("../CreatePropertiesPanel", () => ({
     chatModeEnabled?: boolean;
     expertCreateMode?: "standard" | "pulse";
     onExpertCreateModeChange?: (value: "standard" | "pulse") => void;
+    onOpenPresetsLibrary?: () => void;
   }) => {
     createPropertiesPanelRenderSpy();
     return (
@@ -57,6 +58,9 @@ vi.mock("../CreatePropertiesPanel", () => ({
         </button>
         <button type="button" onClick={() => props.onExpertCreateModeChange?.("pulse")}>
           Pulse
+        </button>
+        <button type="button" onClick={() => props.onOpenPresetsLibrary?.()}>
+          Open create presets library
         </button>
         <div data-testid="create-styles-open">{props.isStylesPanelOpen ? "open" : "closed"}</div>
         <div data-testid="create-selected-style">{props.selectedStyleId ?? ""}</div>
@@ -126,10 +130,14 @@ vi.mock("../edit/ExpertEditPanelView", () => ({
     isStylesPanelOpen?: boolean;
     selectedStyleId?: string | null;
     onStylesPanelToggle?: () => void;
+    onOpenPresetsLibrary?: () => void;
   }) => (
     <div data-testid="expert-edit-properties">
       <button type="button" aria-label="Styles" onClick={() => props.onStylesPanelToggle?.()}>
         Styles
+      </button>
+      <button type="button" onClick={() => props.onOpenPresetsLibrary?.()}>
+        Open presets library
       </button>
       <div data-testid="expert-edit-styles-open">{props.isStylesPanelOpen ? "open" : "closed"}</div>
       <div data-testid="expert-edit-selected-style">{props.selectedStyleId ?? ""}</div>
@@ -153,6 +161,7 @@ vi.mock("../AiStudioShellFrame", async () => {
       propertiesPanelContent?: ReactNode;
       rightColumnRef?: Ref<HTMLDivElement>;
       rightColumnHidden?: boolean;
+      showPreviewRail?: boolean;
       rightColumnDropMode?: string;
       onRightColumnDropCapture?: DragEventHandler<HTMLDivElement>;
       onRightColumnDragOverCapture?: DragEventHandler<HTMLDivElement>;
@@ -187,15 +196,17 @@ vi.mock("../AiStudioShellFrame", async () => {
               ...(props.referenceGridProps ?? {}),
             } as ReferenceGridProps)}
           />
-          <StudioPreview
-            activeOutput={null}
-            referenceImageUrl={null}
-            referenceText={null}
-            onReferenceImageChange={() => undefined}
-            onReferenceTextChange={() => undefined}
-            onRegenerate={() => undefined}
-            {...(props.studioPreviewProps ?? {})}
-          />
+          {props.showPreviewRail !== false ? (
+            <StudioPreview
+              activeOutput={null}
+              referenceImageUrl={null}
+              referenceText={null}
+              onReferenceImageChange={() => undefined}
+              onReferenceTextChange={() => undefined}
+              onRegenerate={() => undefined}
+              {...(props.studioPreviewProps ?? {})}
+            />
+          ) : null}
         </div>
       </section>
     ),
@@ -220,30 +231,28 @@ vi.mock("../StylesLibraryPanel", () => ({
   ),
 }));
 
-vi.mock("../PresetsLibraryPanel", () => ({
-  PresetsLibraryPanel: (props: {
-    presets: Array<{ presetId: string; label: string }>;
-    selectedPresetId: string | null;
-    onSelectPreset?: (presetId: string | null) => void;
+vi.mock("../UnifiedPresetsLibraryPanel", () => ({
+  UnifiedPresetsLibraryPanel: (props: {
+    promptPresets: Array<{ presetId: string; label: string }>;
+    selectedPromptPresetId: string | null;
+    onSelectPromptPreset?: (presetId: string | null) => void;
+    savedPulsePresets?: Array<{ presetId: string }>;
   }) => (
     <div data-testid="presets-library-panel">
-      <div data-testid="presets-library-count">{props.presets.length}</div>
-      <div data-testid="presets-library-selected-preset">{props.selectedPresetId ?? ""}</div>
-      {props.presets.map((preset) => (
+      <div data-testid="presets-library-count">{props.promptPresets.length}</div>
+      <div data-testid="presets-library-pulse-count">{props.savedPulsePresets?.length ?? 0}</div>
+      <div data-testid="presets-library-selected-preset">{props.selectedPromptPresetId ?? ""}</div>
+      {props.promptPresets.map((preset) => (
         <button
           key={preset.presetId}
           type="button"
-          onClick={() => props.onSelectPreset?.(preset.presetId)}
+          onClick={() => props.onSelectPromptPreset?.(preset.presetId)}
         >
           Select {preset.label} preset
         </button>
       ))}
     </div>
   ),
-}));
-
-vi.mock("../PulsePresetsLibraryPanel", () => ({
-  PulsePresetsLibraryPanel: () => <div data-testid="pulse-presets-library-panel" />,
 }));
 
 vi.mock("../MediaLibraryPanel", () => ({
@@ -276,11 +285,13 @@ vi.mock("../hooks/useAiStudioShellResize", () => ({
   useAiStudioShellResize: () => ({
     shellRef: { current: null },
     leftColumnRef: { current: null },
+    leftWidthPx: 420,
     showDivider: false,
     isResizing: false,
     shellStyle: {},
     collapseToMin: collapseToMinMock,
     resetToDefaultWidth: resetToDefaultWidthMock,
+    restoreWidth: vi.fn(),
     expandToMax: expandToMaxMock,
     dividerProps: {},
     rightColumnHidden: false,
@@ -519,6 +530,150 @@ describe("AiStudioPageContent right column drop router", () => {
     expect(referenceGrid).toHaveAttribute("data-panel-canvas", "hidden");
   });
 
+  it("restores the previous workflow and rail layout from the eye button after expanding a right-rail panel", () => {
+    const referenceGridProps = {
+      ...createProps().referenceGridProps,
+      railCanvasProps: {} as never,
+      onAddCuratedReference: vi.fn(),
+      onRemoveCuratedReference: vi.fn(),
+      onReorderCuratedReference: vi.fn(),
+    };
+
+    const Harness = () => {
+      const [selectedTool, setSelectedTool] =
+        React.useState<AiStudioPageContentProps["selectedTool"]>("create");
+
+      return (
+        <AiStudioPageContent
+          {...createProps({
+            selectedTool,
+            onSelectTool: setSelectedTool,
+            referenceGridProps,
+          })}
+        />
+      );
+    };
+
+    render(<Harness />);
+
+    const canvasToggle = screen.getByRole("button", { name: "Canvas" });
+    const referenceGrid = screen.getByTestId("reference-grid");
+
+    expect(screen.getByTestId("studio-preview")).toBeInTheDocument();
+    expect(screen.getByTestId("text-properties")).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Restore previous panel layout" })
+    ).not.toBeInTheDocument();
+
+    fireEvent.doubleClick(canvasToggle);
+
+    expect(referenceGrid).toHaveAttribute("data-panel-canvas", "visible");
+    expect(referenceGrid).toHaveAttribute("data-panel-quick-slot", "hidden");
+    expect(referenceGrid).toHaveAttribute("data-panel-reference-grid", "hidden");
+    expect(screen.queryByRole("button", { name: "Quick Slot Inventory" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Reference Grid" })).not.toBeInTheDocument();
+    expect(screen.queryByTestId("studio-preview")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("text-properties")).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Restore previous panel layout" })
+    ).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Restore previous panel layout" }));
+
+    expect(screen.getByTestId("studio-preview")).toBeInTheDocument();
+    expect(screen.getByTestId("text-properties")).toBeInTheDocument();
+    expect(referenceGrid).toHaveAttribute("data-panel-canvas", "hidden");
+    expect(referenceGrid).toHaveAttribute("data-panel-quick-slot", "visible");
+    expect(referenceGrid).toHaveAttribute("data-panel-reference-grid", "visible");
+    expect(
+      screen.queryByRole("button", { name: "Restore previous panel layout" })
+    ).not.toBeInTheDocument();
+  });
+
+  it("restores the previous workflow and rail layout when the expanded canvas toggle is clicked", () => {
+    const referenceGridProps = {
+      ...createProps().referenceGridProps,
+      railCanvasProps: {} as never,
+      onAddCuratedReference: vi.fn(),
+      onRemoveCuratedReference: vi.fn(),
+      onReorderCuratedReference: vi.fn(),
+    };
+
+    const Harness = () => {
+      const [selectedTool, setSelectedTool] =
+        React.useState<AiStudioPageContentProps["selectedTool"]>("create");
+
+      return (
+        <AiStudioPageContent
+          {...createProps({
+            selectedTool,
+            onSelectTool: setSelectedTool,
+            referenceGridProps,
+          })}
+        />
+      );
+    };
+
+    render(<Harness />);
+
+    const canvasToggle = screen.getByRole("button", { name: "Canvas" });
+    const referenceGrid = screen.getByTestId("reference-grid");
+
+    fireEvent.doubleClick(canvasToggle);
+
+    expect(screen.queryByTestId("text-properties")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("studio-preview")).not.toBeInTheDocument();
+    expect(referenceGrid).toHaveAttribute("data-panel-canvas", "visible");
+    expect(referenceGrid).toHaveAttribute("data-panel-quick-slot", "hidden");
+    expect(referenceGrid).toHaveAttribute("data-panel-reference-grid", "hidden");
+    expect(screen.queryByRole("button", { name: "Quick Slot Inventory" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Reference Grid" })).not.toBeInTheDocument();
+
+    fireEvent.click(canvasToggle);
+
+    expect(screen.getByTestId("text-properties")).toBeInTheDocument();
+    expect(screen.getByTestId("studio-preview")).toBeInTheDocument();
+    expect(referenceGrid).toHaveAttribute("data-panel-canvas", "hidden");
+    expect(referenceGrid).toHaveAttribute("data-panel-quick-slot", "visible");
+    expect(referenceGrid).toHaveAttribute("data-panel-reference-grid", "visible");
+  });
+
+  it("restores the previous rail layout when the expanded quick slot toggle is clicked", () => {
+    const referenceGridProps = {
+      ...createProps().referenceGridProps,
+      railCanvasProps: {} as never,
+      onAddCuratedReference: vi.fn(),
+      onRemoveCuratedReference: vi.fn(),
+      onReorderCuratedReference: vi.fn(),
+    };
+
+    render(
+      <AiStudioPageContent
+        {...createProps({
+          selectedTool: "create",
+          referenceGridProps,
+        })}
+      />
+    );
+
+    const quickSlotToggle = screen.getByRole("button", { name: "Quick Slot Inventory" });
+    const referenceGrid = screen.getByTestId("reference-grid");
+
+    fireEvent.doubleClick(quickSlotToggle);
+
+    expect(screen.queryByRole("button", { name: "Canvas" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Reference Grid" })).not.toBeInTheDocument();
+    expect(referenceGrid).toHaveAttribute("data-panel-canvas", "hidden");
+    expect(referenceGrid).toHaveAttribute("data-panel-quick-slot", "visible");
+    expect(referenceGrid).toHaveAttribute("data-panel-reference-grid", "hidden");
+
+    fireEvent.click(quickSlotToggle);
+
+    expect(referenceGrid).toHaveAttribute("data-panel-canvas", "hidden");
+    expect(referenceGrid).toHaveAttribute("data-panel-quick-slot", "visible");
+    expect(referenceGrid).toHaveAttribute("data-panel-reference-grid", "visible");
+  });
+
   it("persists panel visibility toggles globally across workflows", () => {
     const baseProps = createProps({
       selectedTool: "create",
@@ -551,7 +706,7 @@ describe("AiStudioPageContent right column drop router", () => {
     );
   });
 
-  it("keeps the canvas, quick slot, and reference grid toggles available in character workflow", () => {
+  it("keeps the standard header toggles available in character workflow", () => {
     render(
       <AiStudioPageContent
         {...createProps({
@@ -567,28 +722,46 @@ describe("AiStudioPageContent right column drop router", () => {
     );
 
     const shortcutButtons = within(screen.getByLabelText("AI Studio header shortcuts"));
-    const canvasButton = shortcutButtons.getByRole("button", { name: "Canvas" });
-    const quickSlotButton = shortcutButtons.getByRole("button", { name: "Quick Slot Inventory" });
-    const referenceGridButton = shortcutButtons.getByRole("button", { name: "Reference Grid" });
+    expect(shortcutButtons.getByRole("button", { name: "Canvas" })).toBeInTheDocument();
+    expect(
+      shortcutButtons.getByRole("button", { name: "Quick Slot Inventory" })
+    ).toBeInTheDocument();
+    expect(shortcutButtons.getByRole("button", { name: "Reference Grid" })).toBeInTheDocument();
+  });
 
-    expect(canvasButton).toBeInTheDocument();
-    expect(canvasButton).toHaveAttribute("aria-pressed", "false");
-    expect(quickSlotButton).not.toBeDisabled();
-    expect(referenceGridButton).not.toBeDisabled();
-    expect(quickSlotButton).toHaveAttribute("aria-pressed", "true");
-    expect(referenceGridButton).toHaveAttribute("aria-pressed", "true");
-    expect(screen.getByTestId("reference-grid")).toHaveAttribute(
-      "data-panel-quick-slot",
-      "visible"
-    );
+  it("uses the shared right-rail visibility state in character workflow", () => {
+    const baseProps = createProps({
+      selectedTool: "create",
+      referenceGridProps: {
+        ...createProps().referenceGridProps,
+        onAddCuratedReference: vi.fn(),
+        onRemoveCuratedReference: vi.fn(),
+        onReorderCuratedReference: vi.fn(),
+      },
+    });
+    const { rerender } = render(<AiStudioPageContent {...baseProps} />);
+    const getShortcutButtons = () => within(screen.getByLabelText("AI Studio header shortcuts"));
+
+    fireEvent.click(getShortcutButtons().getByRole("button", { name: "Quick Slot Inventory" }));
+    fireEvent.click(getShortcutButtons().getByRole("button", { name: "Reference Grid" }));
+
+    expect(screen.getByTestId("reference-grid")).toHaveAttribute("data-panel-quick-slot", "hidden");
     expect(screen.getByTestId("reference-grid")).toHaveAttribute(
       "data-panel-reference-grid",
-      "visible"
+      "hidden"
+    );
+
+    rerender(<AiStudioPageContent {...createProps({ ...baseProps, selectedTool: "character" })} />);
+
+    expect(screen.getByTestId("reference-grid")).toHaveAttribute("data-panel-quick-slot", "hidden");
+    expect(screen.getByTestId("reference-grid")).toHaveAttribute(
+      "data-panel-reference-grid",
+      "hidden"
     );
     expect(screen.getByTestId("reference-grid")).toHaveAttribute("data-panel-styles", "hidden");
   });
 
-  it("forces chat mode on in pulse create mode and restores standard mode behavior", () => {
+  it("relies on parent-owned Pulse chat mode transitions instead of forcing them in the shell", () => {
     const referenceGridProps = {
       ...createProps().referenceGridProps,
       onAddCuratedReference: vi.fn(),
@@ -625,7 +798,7 @@ describe("AiStudioPageContent right column drop router", () => {
     expect(screen.getByTestId("reference-grid")).toHaveAttribute("data-panel-styles", "visible");
 
     fireEvent.click(screen.getByRole("button", { name: "Pulse" }));
-    expect(screen.getByTestId("create-chat-mode")).toHaveTextContent("on");
+    expect(screen.getByTestId("create-chat-mode")).toHaveTextContent("off");
     expect(screen.getByTestId("create-expert-mode")).toHaveTextContent("pulse");
     expect(screen.getByTestId("reference-grid")).toHaveAttribute("data-panel-styles", "hidden");
 
@@ -837,9 +1010,6 @@ describe("AiStudioPageContent right column drop router", () => {
     rerender(<AiStudioPageContent {...createProps({ selectedTool: "styles" })} />);
     expect(screen.getByTestId("styles-library-panel")).toBeInTheDocument();
 
-    rerender(<AiStudioPageContent {...createProps({ selectedTool: "pulse-presets" })} />);
-    expect(screen.getByTestId("pulse-presets-library-panel")).toBeInTheDocument();
-
     rerender(<AiStudioPageContent {...createProps({ selectedTool: "presets" })} />);
     expect(screen.getByTestId("presets-library-panel")).toBeInTheDocument();
 
@@ -875,13 +1045,39 @@ describe("AiStudioPageContent right column drop router", () => {
     expect(screen.getByTestId("studio-preview")).toBeInTheDocument();
   });
 
-  it("renders the primary pulse presets panel without coming-soon card and keeps right rail visible", () => {
-    render(<AiStudioPageContent {...createProps({ selectedTool: "pulse-presets" })} />);
+  it("opens the presets library from the expert edit properties panel callback", () => {
+    const onSelectTool = vi.fn();
+    render(
+      <AiStudioPageContent
+        {...createProps({
+          selectedTool: "edit",
+          onSelectTool,
+          propertiesEditExpert: {
+            expertEditEligible: true,
+          } as AiStudioPageContentProps["propertiesEditExpert"],
+        })}
+      />
+    );
 
-    expect(screen.getByTestId("pulse-presets-library-panel")).toBeInTheDocument();
-    expect(screen.queryByText("Coming soon")).not.toBeInTheDocument();
-    expect(screen.getByTestId("reference-grid")).toBeInTheDocument();
-    expect(screen.getByTestId("studio-preview")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /open presets library/i }));
+
+    expect(onSelectTool).toHaveBeenCalledWith("presets");
+  });
+
+  it("opens the presets library from the create properties panel callback", () => {
+    const onSelectTool = vi.fn();
+    render(
+      <AiStudioPageContent
+        {...createProps({
+          selectedTool: "create",
+          onSelectTool,
+        })}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /open create presets library/i }));
+
+    expect(onSelectTool).toHaveBeenCalledWith("presets");
   });
 
   it("hydrates the presets library from expert edit custom overrides without mutating prompt on card click", () => {

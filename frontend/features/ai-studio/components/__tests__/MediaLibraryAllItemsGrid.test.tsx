@@ -309,4 +309,52 @@ describe("MediaLibraryAllItemsGrid", () => {
     fireEvent.pointerLeave(cardButton);
     expect(HTMLMediaElement.prototype.pause).toHaveBeenCalled();
   });
+
+  it("renders audio cards with playable controls in the mixed all-media feed", () => {
+    const props = baseProps();
+    props.mediaRows = [
+      {
+        id: "audio-1",
+        filename: "voice-note-1.mp3",
+        storage_path: "user-1/uploads/voice-note-1.mp3",
+        preview_storage_path: "user-1/uploads/voice-note-1.mp3",
+        file_type: "audio/mpeg",
+        created_at: "2026-04-08T18:00:00.000Z",
+        signedUrl: "https://cdn.example.com/voice-note-1.mp3",
+        metadata: null,
+      },
+    ];
+
+    const { container } = render(<MediaLibraryAllItemsGrid {...props} />);
+
+    expect(screen.getByText("voice-note-1.mp3")).toBeInTheDocument();
+    expect(screen.getByLabelText("Play audio voice-note-1.mp3")).toHaveAttribute(
+      "src",
+      "https://cdn.example.com/voice-note-1.mp3"
+    );
+    expect(container.querySelector("video")).toBeNull();
+    expect(screen.queryByAltText("voice-note-1.mp3")).toBeNull();
+  });
+
+  it("marks signed audio URLs as loaded when the player becomes ready", () => {
+    const props = baseProps();
+    props.mediaRows = [
+      {
+        id: "audio-1",
+        filename: "voice-note-1.mp3",
+        storage_path: "user-1/uploads/voice-note-1.mp3",
+        preview_storage_path: "user-1/uploads/voice-note-1.mp3",
+        file_type: "audio/mpeg",
+        created_at: "2026-04-08T18:00:00.000Z",
+        signedUrl: "https://cdn.example.com/voice-note-1.mp3",
+        metadata: null,
+      },
+    ];
+
+    render(<MediaLibraryAllItemsGrid {...props} />);
+
+    fireEvent.loadedMetadata(screen.getByLabelText("Play audio voice-note-1.mp3"));
+    expect(props.onSignedUrlLoaded).toHaveBeenCalledWith("audio-1");
+    expect(props.onMediaPaint).not.toHaveBeenCalled();
+  });
 });

@@ -2,6 +2,37 @@ import fs from "fs";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import handler from "../../pages/api/media/upload";
 
+const buildWebmTrackSignature = (trackType: number): Buffer =>
+  Buffer.from([
+    0x1a,
+    0x45,
+    0xdf,
+    0xa3,
+    0x87,
+    0x42,
+    0x82,
+    0x84,
+    0x77,
+    0x65,
+    0x62,
+    0x6d,
+    0x18,
+    0x53,
+    0x80,
+    0x67,
+    0x8a,
+    0x16,
+    0x54,
+    0xae,
+    0x6b,
+    0x85,
+    0xae,
+    0x83,
+    0x83,
+    0x81,
+    trackType,
+  ]);
+
 const requireApiUserMock = vi.fn();
 const logApiRouteExceptionMock = vi.fn();
 const getSupabaseAdminMock = vi.fn();
@@ -166,6 +197,58 @@ describe("POST /api/media/upload", () => {
         storage_path: expect.stringMatching(/^user-1\/private\/images\//),
         preview_storage_path: expect.stringMatching(/^user-1\//),
         signedUrl: "https://signed.example/media-upload",
+      }),
+    });
+  });
+
+  it("accepts audio-only WebM uploads even when the browser declares video/webm", async () => {
+    mockFields = { destinationTab: "uploaded_videos" };
+    mockFile = {
+      filepath: "/tmp/mock-media-upload-audio-webm",
+      mimetype: "video/webm",
+      size: 27,
+      originalFilename: "audio-track.webm",
+    };
+    vi.spyOn(fs, "readFileSync").mockReturnValue(buildWebmTrackSignature(0x02));
+    const { uploadMock, insertMock } = setupSupabaseUpload({
+      insertedRow: {
+        filename: "audio-track.webm",
+        storage_path: "user-1/audio/media-upload-1-audio-track.webm",
+        file_type: "audio",
+        source: "upload",
+      },
+    });
+
+    const req = {
+      method: "POST",
+      headers: {
+        "content-type": "multipart/form-data; boundary=x",
+      },
+    };
+    const res = createMockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(uploadMock).toHaveBeenCalledWith(
+      expect.stringMatching(/^user-1\/audio\//),
+      expect.any(Buffer),
+      expect.objectContaining({
+        contentType: "audio/webm",
+      })
+    );
+    expect(insertMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        filename: "audio-track.webm",
+        file_type: "audio",
+        source: "upload",
+      })
+    );
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith({
+      file: expect.objectContaining({
+        filename: "audio-track.webm",
+        file_type: "audio",
+        storage_path: expect.stringMatching(/^user-1\/audio\//),
       }),
     });
   });

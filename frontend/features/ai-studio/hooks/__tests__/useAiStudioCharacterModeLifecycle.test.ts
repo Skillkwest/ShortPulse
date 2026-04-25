@@ -183,6 +183,39 @@ describe("useAiStudioCharacterModeLifecycle", () => {
     });
   });
 
+  it("does not hydrate persisted selected character while a project route is pending", async () => {
+    window.localStorage.setItem(
+      "shortpulse.character_manager.selected_character_id.v2:user-1",
+      "char-2"
+    );
+    listCharacterManagerCharactersMock.mockResolvedValue([
+      {
+        characterId: "char-1",
+        characterName: "Hero",
+        profileImageUrl: null,
+      },
+      {
+        characterId: "char-2",
+        characterName: "Ayla",
+        profileImageUrl: null,
+      },
+    ] as Awaited<ReturnType<typeof listCharacterManagerCharacters>>);
+
+    const { result } = renderHook(() =>
+      useAiStudioCharacterModeLifecycle(
+        createParams({
+          projectRouteRequested: true,
+        })
+      )
+    );
+
+    await waitFor(() => {
+      expect(result.current.isCharacterOptionsLoading).toBe(false);
+    });
+
+    expect(result.current.selectedCharacterId).toBe("");
+  });
+
   it("loads character options and clears loading state", async () => {
     listCharacterManagerCharactersMock.mockResolvedValue([
       {

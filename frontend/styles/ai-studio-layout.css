@@ -342,8 +342,13 @@ body:has(.ai-studio-page[data-selected-tool="canvas"]) {
 }
 
 .ai-studio-page[data-selected-tool="canvas"] {
+  --ai-page-pad-bottom: 0px;
   height: var(--app-fixed-height);
   overflow: hidden;
+}
+
+.ai-studio-page[data-selected-tool="create"] {
+  --ai-page-pad-bottom: 0px;
 }
 
 .ai-studio-page[data-selected-tool="create"],
@@ -534,6 +539,7 @@ body:has(.ai-studio-page[data-selected-tool="canvas"]) {
 .ai-studio-page[data-selected-tool="create"] .ai-hero-shortcut-button[aria-pressed="true"],
 .ai-studio-page[data-selected-tool="text"] .ai-hero-shortcut-button[aria-pressed="true"],
 .ai-studio-page[data-selected-tool="kling"] .ai-hero-shortcut-button[aria-pressed="true"],
+.ai-studio-page[data-selected-tool="media-library"] .ai-hero-shortcut-button[aria-pressed="true"],
 .ai-studio-page:not([data-selected-tool]) .ai-hero-shortcut-button[aria-pressed="true"] {
   color: rgba(37, 204, 255, 0.96);
 }
@@ -552,6 +558,10 @@ body:has(.ai-studio-page[data-selected-tool="canvas"]) {
 }
 
 .ai-studio-page[data-selected-tool="elements"] .ai-hero-shortcut-button:focus-visible {
+  outline-color: rgba(255, 123, 167, 0.72);
+}
+
+.ai-studio-page[data-selected-tool="presets"] .ai-hero-shortcut-button:focus-visible {
   outline-color: rgba(255, 123, 167, 0.72);
 }
 
@@ -577,7 +587,7 @@ body:has(.ai-studio-page[data-selected-tool="canvas"]) {
 }
 
 .ai-studio-page[data-selected-tool="presets"] .ai-hero-shortcut-button[aria-pressed="true"] {
-  color: rgba(214, 220, 228, 0.94);
+  color: rgba(255, 77, 151, 0.96);
 }
 
 .ai-studio-page[data-selected-tool="pulse-presets"] .ai-hero-shortcut-button[aria-pressed="true"] {
@@ -1248,12 +1258,12 @@ body:has(.ai-studio-page[data-selected-tool="canvas"]) {
 }
 
 .ai-studio-page[data-selected-tool="presets"] .ai-shell-divider {
-  --ai-shell-divider-active-color: rgba(214, 220, 228, 0.74);
-  --ai-shell-divider-active-ring: rgba(214, 220, 228, 0.24);
-  --ai-shell-divider-active-handle-start: rgba(232, 237, 244, 0.98);
-  --ai-shell-divider-active-handle-end: rgba(196, 203, 214, 0.84);
-  --ai-shell-divider-active-handle-ring: rgba(214, 220, 228, 0.18);
-  --ai-shell-divider-active-handle-glow: rgba(214, 220, 228, 0.18);
+  --ai-shell-divider-active-color: rgba(255, 77, 151, 0.96);
+  --ai-shell-divider-active-ring: rgba(255, 123, 167, 0.28);
+  --ai-shell-divider-active-handle-start: rgba(255, 214, 229, 0.98);
+  --ai-shell-divider-active-handle-end: rgba(255, 108, 167, 0.9);
+  --ai-shell-divider-active-handle-ring: rgba(255, 123, 167, 0.24);
+  --ai-shell-divider-active-handle-glow: rgba(255, 77, 151, 0.24);
 }
 
 .ai-studio-page[data-selected-tool="pulse-presets"] .ai-shell-divider {
@@ -1275,12 +1285,12 @@ body:has(.ai-studio-page[data-selected-tool="canvas"]) {
 }
 
 .ai-studio-page[data-selected-tool="media-library"] .ai-shell-divider {
-  --ai-shell-divider-active-color: rgba(255, 186, 114, 0.92);
-  --ai-shell-divider-active-ring: rgba(255, 186, 114, 0.28);
-  --ai-shell-divider-active-handle-start: rgba(255, 227, 188, 0.98);
-  --ai-shell-divider-active-handle-end: rgba(255, 186, 114, 0.9);
-  --ai-shell-divider-active-handle-ring: rgba(255, 186, 114, 0.22);
-  --ai-shell-divider-active-handle-glow: rgba(255, 186, 114, 0.22);
+  --ai-shell-divider-active-color: rgba(37, 204, 255, 0.88);
+  --ai-shell-divider-active-ring: rgba(37, 204, 255, 0.28);
+  --ai-shell-divider-active-handle-start: rgba(138, 231, 255, 0.98);
+  --ai-shell-divider-active-handle-end: rgba(37, 204, 255, 0.84);
+  --ai-shell-divider-active-handle-ring: rgba(37, 204, 255, 0.24);
+  --ai-shell-divider-active-handle-glow: rgba(37, 204, 255, 0.24);
 }
 
 .ai-shell-divider:focus-visible {
@@ -1317,7 +1327,7 @@ body:has(.ai-studio-page[data-selected-tool="canvas"]) {
 }
 
 .ai-studio-page[data-selected-tool="presets"] .ai-shell-divider:focus-visible {
-  outline-color: rgba(214, 220, 228, 0.82);
+  outline-color: rgba(255, 77, 151, 0.82);
 }
 
 .ai-studio-page[data-selected-tool="pulse-presets"] .ai-shell-divider:focus-visible {
@@ -1329,7 +1339,7 @@ body:has(.ai-studio-page[data-selected-tool="canvas"]) {
 }
 
 .ai-studio-page[data-selected-tool="media-library"] .ai-shell-divider:focus-visible {
-  outline-color: rgba(255, 186, 114, 0.9);
+  outline-color: rgba(37, 204, 255, 0.82);
 }
 
 body.ai-shell-resizing,

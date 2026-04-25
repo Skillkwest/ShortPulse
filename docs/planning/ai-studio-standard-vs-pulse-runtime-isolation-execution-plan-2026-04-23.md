@@ -200,15 +200,31 @@ Completed or substantially complete:
 3. Switching Pulses clears the active Pulse workflow session and starts the newly selected Pulse.
 4. Leaving Pulse mode deactivates Pulse runtime, and Pulse mode now has an explicit `Deactivate Pulse` affordance.
 5. One controller owns Create mode, active Pulse id, and Pulse workflow session state.
+6. Mode-switch-adjacent Create chat restoration is page/runtime-owned now; `AiStudioPageContent` no longer forces Pulse chat transitions itself.
 7. Custom Pulse authoring now follows the custom-GPT mental model (`Name + System Instructions`, advanced settings secondary).
 8. Active submission/runtime boundaries now normalize onto the same guided Pulse contract, including legacy metadata compatibility input.
 9. Built-in workflow Pulses have deterministic activation/progression/completion handling with persistence coverage.
 10. Backward compatibility posture is resolved at the runtime boundary for saved Pulses and snapshots.
 
 Still open before closeout:
-1. Transitional duplicate ownership paths are not fully removed yet. `frontend/features/ai-studio/components/AiStudioPageContent.tsx` still owns mode-switch-adjacent shell/chat restoration logic on top of the Create mode runtime controller, so authority is cleaner but not fully consolidated.
-2. Final contract docs are not fully closed out in public-facing dirty files. `README.md` and `docs/routes.md` still need Pulse contract sync once their unrelated in-flight edits are disentangled.
-3. A final explicit done-state audit still needs to be run after the public-doc sync lands so the closeout decision is based on the exact shipped repo state, not intermediate implementation slices.
+1. Run the final explicit done-state audit after the public-facing route note is aligned so the closeout decision is based on the exact shipped repo state, not intermediate implementation slices.
+
+## Final Done-State Audit (2026-04-23)
+Audit result: done-state achieved for this scope.
+
+Evidence:
+1. Standard and Pulse runtime/session isolation is implemented in the Create mode runtime controller, agent bridge runtime scoping, snapshot persistence/hydration, and the page-owned Pulse chat transition shim.
+2. Clicking a Pulse now starts it immediately, including blank-session activation-seed turns.
+3. Switching Pulses starts a fresh Pulse runtime session, and Pulse deactivation is explicit in the Create surface.
+4. Custom Pulse authoring is centered on `Preset Name` plus `System Instructions`, with advanced settings secondary.
+5. Legacy Pulse metadata remains compatibility input only and is normalized to the guided GPT-style contract at runtime boundaries.
+6. Public-facing docs now describe the shipped Pulse contract: `README.md` already reflected the guided Pulse model, and `docs/routes.md` no longer describes `prompt_editor` / conditional-start behavior as the active product path.
+7. Validation for the closing slices passed: `npm run docs:check`, `npm run type-check`, and targeted Pulse runtime/shell suites.
+
+Closeout:
+1. This plan is complete.
+2. The done state has been met, so implementation on this scope must stop.
+3. Any further Pulse work should be opened as a new scope, not treated as a continuation of this plan.
 
 ## Stop Rule
 When every done-state item above is true:

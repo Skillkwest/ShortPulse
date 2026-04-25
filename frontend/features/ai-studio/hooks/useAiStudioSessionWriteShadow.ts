@@ -45,6 +45,8 @@ type PendingSnapshotState = {
   snapshotBytes: number;
 };
 
+type SnapshotPersistIdentity = Pick<PendingSnapshotState, "sessionId" | "hash" | "title">;
+
 const DEFAULT_DEBOUNCE_MS = 2500;
 const DEFAULT_MAX_DIRTY_MS = 15000;
 
@@ -53,6 +55,27 @@ const utf8ByteLength = (value: string): number => {
     return new TextEncoder().encode(value).byteLength;
   }
   return value.length;
+};
+
+const stripVolatileSnapshotFields = (
+  snapshot: AiStudioSessionSnapshot
+): Record<string, unknown> => {
+  const normalizedSnapshot = { ...snapshot } as Record<string, unknown>;
+  delete normalizedSnapshot.updatedAt;
+
+  const metaValue = normalizedSnapshot.meta;
+  if (metaValue && typeof metaValue === "object" && !Array.isArray(metaValue)) {
+    const normalizedMeta = { ...(metaValue as Record<string, unknown>) };
+    delete normalizedMeta.generatedAt;
+    delete normalizedMeta.checksum;
+    if (Object.keys(normalizedMeta).length > 0) {
+      normalizedSnapshot.meta = normalizedMeta;
+    } else {
+      delete normalizedSnapshot.meta;
+    }
+  }
+
+  return normalizedSnapshot;
 };
 
 /**
@@ -72,6 +95,7 @@ export const useAiStudioSessionWriteShadow = ({
   const { writeShadowEnabled } = readAiStudioSessionPersistencePolicy();
   const enabled = enabledProp ?? writeShadowEnabled;
   const pendingRef = useRef<PendingSnapshotState | null>(null);
+  const inFlightRef = useRef<SnapshotPersistIdentity | null>(null);
   const lastSavedHashRef = useRef<string | null>(null);
   const lastSavedTitleRef = useRef<string | null>(null);
   const lastSizeErrorHashRef = useRef<string | null>(null);
@@ -103,6 +127,11 @@ export const useAiStudioSessionWriteShadow = ({
         if (!pending) return;
         pendingRef.current = null;
         clearTimers();
+        inFlightRef.current = {
+          sessionId: pending.sessionId,
+          hash: pending.hash,
+          title: pending.title,
+        };
         try {
           await Promise.resolve(
             persistSnapshot(pending.sessionId, pending.snapshot, {
@@ -127,6 +156,14 @@ export const useAiStudioSessionWriteShadow = ({
           debounceTimerRef.current = globalThis.setTimeout(() => {
             void flush();
           }, debounceMs);
+        } finally {
+          if (
+            inFlightRef.current?.sessionId === pending.sessionId &&
+            inFlightRef.current?.hash === pending.hash &&
+            inFlightRef.current?.title === pending.title
+          ) {
+            inFlightRef.current = null;
+          }
         }
       };
       return flush();
@@ -138,8 +175,9 @@ export const useAiStudioSessionWriteShadow = ({
     if (!snapshot) return null;
     try {
       const json = JSON.stringify(snapshot);
+      const semanticJson = JSON.stringify(stripVolatileSnapshotFields(snapshot));
       return {
-        hash: json,
+        hash: semanticJson,
         bytes: utf8ByteLength(json),
         title: resolveSnapshotTitle(snapshot),
       };
@@ -185,8 +223,25 @@ export const useAiStudioSessionWriteShadow = ({
     }
 
     const pending = pendingRef.current;
+    if (
+      pending &&
+      pending.sessionId === sessionId &&
+      pending.hash === serializedSnapshot.hash &&
+      pending.title === serializedSnapshot.title
+    ) {
+      return;
+    }
     if (pending && pending.sessionId !== sessionId) {
       void flushPending();
+    }
+    const inFlight = inFlightRef.current;
+    if (
+      inFlight &&
+      inFlight.sessionId === sessionId &&
+      inFlight.hash === serializedSnapshot.hash &&
+      inFlight.title === serializedSnapshot.title
+    ) {
+      return;
     }
 
     pendingRef.current = {

@@ -41,6 +41,7 @@ import type { AiStudioSessionHydrationPayload } from "../logic/sessionSnapshotHy
 
 type UseAiStudioAgentBridgeParams = {
   projectId?: string | null;
+  projectRouteRequested?: boolean;
   sessionId: string | null;
   mode: StudioMode;
   selectedTool: ToolId | null;
@@ -144,6 +145,7 @@ const resolveStateActionValue = <T>(value: SetStateAction<T>, current: T): T =>
  */
 export const useAiStudioAgentBridge = ({
   projectId = null,
+  projectRouteRequested = false,
   sessionId,
   mode,
   selectedTool,
@@ -178,7 +180,7 @@ export const useAiStudioAgentBridge = ({
   const directOpenAiBypassEnabled = directOpenAiBypassEnabledByConfig;
   const [chatModeEnabled, setChatModeEnabledState] = useState(() => {
     if (typeof window === "undefined") return true;
-    if (projectId) return true;
+    if (projectRouteRequested || projectId) return true;
     return readChatModeFromStorage(window.localStorage);
   });
   const [defaultChatModeEnabled] = useState(chatModeEnabled);
@@ -186,11 +188,11 @@ export const useAiStudioAgentBridge = ({
   const setChatModeEnabled = useCallback(
     (value: boolean) => {
       setChatModeEnabledState(value);
-      if (typeof window !== "undefined" && !projectId) {
+      if (typeof window !== "undefined" && !projectRouteRequested && !projectId) {
         writeChatModeToStorage(value, window.localStorage);
       }
     },
-    [projectId]
+    [projectId, projectRouteRequested]
   );
 
   const agentRuntimeScopeKey =

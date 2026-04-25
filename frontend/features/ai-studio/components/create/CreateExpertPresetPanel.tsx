@@ -3,7 +3,9 @@
  * Renders the inline selected presets plus the Create-specific More Presets surface.
  */
 import React from "react";
-import { GearSix, Sliders } from "phosphor-react";
+import { GearSix, Sliders, X } from "phosphor-react";
+import { PulsePresetsLibraryPanel } from "../PulsePresetsLibraryPanel";
+import { AiStudioModalLayer, useAiStudioModalActivity } from "../modal-layer/AiStudioModalLayer";
 import { CreatePulsePresetsSurface } from "./CreatePulsePresetsSurface";
 import {
   CREATE_PULSE_MORE_LABEL,
@@ -25,6 +27,7 @@ type CreateExpertPresetPanelProps = {
   onSelectedPresetIdsChange?: (presetIds: CreatePulsePresetId[]) => void;
   savedPresets?: readonly CreatePulseSavedPreset[];
   onSavedPresetsChange?: (presets: CreatePulseSavedPreset[]) => void;
+  onOpenPresetsLibrary?: () => void;
 };
 
 /**
@@ -45,6 +48,7 @@ export function CreateExpertPresetPanel({
   const [statusToastMessage, setStatusToastMessage] = React.useState<string | null>(null);
   const [statusToastTone, setStatusToastTone] = React.useState<"info" | "warning">("info");
   const [isStatusToastFading, setIsStatusToastFading] = React.useState(false);
+  const [isPulseLibraryOpen, setIsPulseLibraryOpen] = React.useState(false);
   const {
     availablePresets,
     hasSelectedPresetIds,
@@ -62,6 +66,13 @@ export function CreateExpertPresetPanel({
     onSavedPresetsChange,
   });
 
+  const handlePulseLibrarySavedPresetsChange = React.useCallback(
+    (nextSavedPresets: CreatePulseSavedPreset[]) => {
+      updateSavedPresets(() => nextSavedPresets);
+    },
+    [updateSavedPresets]
+  );
+
   React.useEffect(() => {
     return () => {
       if (toastVisibleTimerRef.current != null) {
@@ -72,6 +83,21 @@ export function CreateExpertPresetPanel({
       }
     };
   }, []);
+
+  React.useEffect(() => {
+    if (!isPulseLibraryOpen) return;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      event.preventDefault();
+      setIsPulseLibraryOpen(false);
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isPulseLibraryOpen]);
+
+  useAiStudioModalActivity("create-pulse-library-modal", isPulseLibraryOpen);
 
   const showStatusToast = React.useCallback(
     (message: string, tone: "info" | "warning" = "info") => {
@@ -125,13 +151,22 @@ export function CreateExpertPresetPanel({
     setIsMorePresetsSurfaceOpen(false);
   }, [setIsMorePresetsSurfaceOpen]);
 
+  const openPulseLibrary = React.useCallback(() => {
+    setIsMorePresetsSurfaceOpen(false);
+    setIsPulseLibraryOpen(true);
+  }, [setIsMorePresetsSurfaceOpen]);
+
+  const closePulseLibrary = React.useCallback(() => {
+    setIsPulseLibraryOpen(false);
+  }, []);
+
   const isPulseActivationEnabled = Boolean(onActivePresetIdChange);
 
   return (
     <section className="create-expert-presets-panel" aria-label="Create pulse presets">
       <div className="create-expert-presets-card">
         <div className="create-expert-presets-title-card">
-          <p className="create-expert-presets-title">Pulse Presets</p>
+          <p className="create-expert-presets-title">Pulses</p>
           <span className="create-expert-presets-title-icon" aria-hidden="true">
             <Sliders size={14} weight="regular" />
           </span>
@@ -196,6 +231,7 @@ export function CreateExpertPresetPanel({
           isOpen={isMorePresetsSurfaceOpen}
           presets={availablePresets}
           onClose={closeMorePresetsSurface}
+          onOpenPresetsLibrary={openPulseLibrary}
           onPresetDragStart={handleSurfacePresetDragStart}
           onPresetDragEnd={handlePresetDragEnd}
           onSurfaceDragOver={handlePresetsSurfaceDragOver}
@@ -204,6 +240,34 @@ export function CreateExpertPresetPanel({
           onCustomPresetSave={handleCustomPresetSave}
           isDropActive={isPresetsSurfaceDropActive}
         />
+        {isPulseLibraryOpen ? (
+          <AiStudioModalLayer>
+            <div className="create-pulse-library-modal-backdrop" onClick={closePulseLibrary}>
+              <div
+                className="create-pulse-library-modal"
+                role="dialog"
+                aria-modal="true"
+                aria-label="Pulses"
+                onClick={(event) => event.stopPropagation()}
+              >
+                <button
+                  type="button"
+                  className="ghost-btn mini create-pulse-library-modal-close"
+                  aria-label="Close Pulses"
+                  onClick={closePulseLibrary}
+                >
+                  <X size={16} weight="bold" />
+                </button>
+                <div className="create-pulse-library-modal-body">
+                  <PulsePresetsLibraryPanel
+                    savedPresets={resolvedSavedPresets}
+                    onSavedPresetsChange={handlePulseLibrarySavedPresetsChange}
+                  />
+                </div>
+              </div>
+            </div>
+          </AiStudioModalLayer>
+        ) : null}
         {statusToastMessage ? (
           <div
             className={`create-expert-presets-status-toast is-${statusToastTone} ${

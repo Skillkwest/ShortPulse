@@ -6,6 +6,7 @@ const resolveGenerationIdForRequestIdMock = vi.hoisted(() => vi.fn());
 const associateGenerationWithProjectMock = vi.hoisted(() => vi.fn());
 const associateMediaFilesWithProjectMock = vi.hoisted(() => vi.fn());
 const associatePromptWithProjectMock = vi.hoisted(() => vi.fn());
+const saveMediaUrlToLibraryMock = vi.hoisted(() => vi.fn());
 
 vi.mock("../../logic/mediaLibraryPersistence", async () => {
   const actual = await vi.importActual("../../logic/mediaLibraryPersistence");
@@ -15,6 +16,7 @@ vi.mock("../../logic/mediaLibraryPersistence", async () => {
     associateMediaFilesWithProject: associateMediaFilesWithProjectMock,
     associatePromptWithProject: associatePromptWithProjectMock,
     resolveGenerationIdForRequestId: resolveGenerationIdForRequestIdMock,
+    saveMediaUrlToLibrary: saveMediaUrlToLibraryMock,
   };
 });
 
@@ -37,6 +39,11 @@ const makeOutput = (overrides: Partial<StudioOutput> = {}): StudioOutput =>
 describe("useAiStudioPersistenceActions ensureGenerationRecord", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    saveMediaUrlToLibraryMock.mockResolvedValue({
+      mediaFileId: "media-new",
+      storagePath: "user-1/generations/images/out-1.png",
+      delivery: null,
+    });
   });
 
   it("recovers generation id from request-backed lookup when output lacks one", async () => {
@@ -197,6 +204,52 @@ describe("useAiStudioPersistenceActions ensureGenerationRecord", () => {
       mediaFileIds: ["media-1", "media-2"],
     });
     expect(outputs.get("out-1")?.saveState).toBe("saved");
+  });
+
+  it("associates only the requested saved image id for indexed image saves", async () => {
+    const outputs = new Map<string, StudioOutput>([
+      [
+        "out-1",
+        makeOutput({
+          resultUrls: [
+            "https://cdn.example.com/result-0.png",
+            "https://cdn.example.com/result-1.png",
+          ],
+          savedMediaIds: ["media-1", "media-2"],
+        }),
+      ],
+    ]);
+    const updateOutputById = vi.fn((id: string, updater: (item: StudioOutput) => StudioOutput) => {
+      const current = outputs.get(id);
+      if (!current) return;
+      outputs.set(id, updater(current));
+    });
+
+    const { result } = renderHook(() =>
+      useAiStudioPersistenceActions({
+        projectId: "project-1",
+        findOutputById: (id) => outputs.get(id) ?? null,
+        updateOutputById,
+        setUiError: vi.fn(),
+        setOutputs: vi.fn(),
+        setSaved: vi.fn(),
+        activeOutputId: "out-1",
+        model: "model-id",
+        aspect: "1:1",
+        prompt: "prompt",
+      })
+    );
+
+    await act(async () => {
+      await result.current.persistOutputSave("out-1", { imageIndex: 1 });
+    });
+
+    expect(associateMediaFilesWithProjectMock).toHaveBeenCalledWith({
+      projectId: "project-1",
+      mediaFileIds: ["media-2"],
+    });
+    expect(saveMediaUrlToLibraryMock).not.toHaveBeenCalled();
+    expect(outputs.get("out-1")?.savedMediaIds).toEqual(["media-1", "media-2"]);
   });
 
   it("associates already-saved prompt references with the active project", async () => {

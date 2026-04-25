@@ -142,6 +142,7 @@ export function ExpertEditPanelView({
   stylesCatalog,
   sessionState,
   onSessionStateChange,
+  onOpenPresetsLibrary,
 }: ExpertEditPanelViewProps) {
   const [initialSessionState] = React.useState(() =>
     resolveInitialExpertEditSessionState({
@@ -1242,6 +1243,7 @@ export function ExpertEditPanelView({
             handlePresetsSurfaceDrop={handlePresetsSurfaceDrop}
             handleCustomPresetSave={handleCustomPresetSave}
             isPresetsSurfaceDropActive={isPresetsSurfaceDropActive}
+            onOpenPresetsLibrary={onOpenPresetsLibrary}
           />
         }
         hasPrimaryCompositePreview={hasPrimaryCompositePreview}

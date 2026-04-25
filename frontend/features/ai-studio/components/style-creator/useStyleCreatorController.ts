@@ -30,7 +30,6 @@ import {
   isImageFileCandidate,
   getStyleDropPreviewResolutionReason,
   getStyleDropPreviewResolutionStage,
-  getStyleDropPreviewServerCopyAttempted,
   normalizeStyleDropPreviewError,
   normalizeStyleDetailsDraft,
   type StyleDropSnapshot,
@@ -189,7 +188,6 @@ const trackStyleSourceDiagnosticFromSnapshot = ({
   resolutionStage,
   resolutionReason,
   candidateCount,
-  serverCopyAttempted,
   internalPayloadPresent,
   errorMessage,
 }: {
@@ -197,10 +195,9 @@ const trackStyleSourceDiagnosticFromSnapshot = ({
   flow: "create_modal" | "library_drop";
   outcome: "resolved" | "blocked_source";
   resolvedSourceKind?: "file" | "internal" | "external" | null;
-  resolutionStage?: "primary" | "server_copy_fallback" | null;
+  resolutionStage?: "primary" | null;
   resolutionReason?: string | null;
   candidateCount?: number | null;
-  serverCopyAttempted?: boolean | null;
   internalPayloadPresent?: boolean | null;
   errorMessage?: string;
 }) => {
@@ -268,7 +265,6 @@ const trackStyleSourceDiagnosticFromSnapshot = ({
     resolutionStage: resolutionStage ?? null,
     resolutionReason: resolutionReason ?? null,
     candidateCount: candidateCount ?? null,
-    serverCopyAttempted: serverCopyAttempted ?? null,
     errorMessage,
   });
 };
@@ -439,6 +435,70 @@ export const useStyleCreatorController = ({
     [runTrackedStyleExtraction]
   );
 
+  const handleBlockedStyleDropError = React.useCallback(
+    ({
+      error,
+      dropSnapshot,
+      flow,
+      onMissingDroppedImage,
+      onExpiredSource,
+      onBlockedSource,
+    }: {
+      error: unknown;
+      dropSnapshot: StyleDropSnapshot;
+      flow: "create_modal" | "library_drop";
+      onMissingDroppedImage: () => void;
+      onExpiredSource: () => void;
+      onBlockedSource: () => void;
+    }) => {
+      const normalizedError = normalizeStyleDropPreviewError(error);
+      const resolutionStage = getStyleDropPreviewResolutionStage(error);
+      const resolutionReason = getStyleDropPreviewResolutionReason(error);
+      const candidateCount = getStyleDropPreviewCandidateCount(error);
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : normalizedError.code === "missing-dropped-style-image"
+            ? "missing-dropped-style-image"
+            : normalizedError.code === EXPIRED_STYLE_IMAGE_SOURCE_ERROR
+              ? EXPIRED_STYLE_IMAGE_SOURCE_ERROR
+              : "blocked-style-image-source";
+
+      trackStyleSourceDiagnosticFromSnapshot({
+        dropSnapshot,
+        flow,
+        outcome: "blocked_source",
+        resolutionStage,
+        resolutionReason,
+        candidateCount,
+        errorMessage,
+      });
+
+      if (normalizedError.code === "missing-dropped-style-image") {
+        onMissingDroppedImage();
+        return;
+      }
+
+      trackStyleExtractionOutcome("blocked_source", flow, {
+        stage: "preview_source",
+        failureClass: "blocked_source",
+        classifierReason: normalizedError.classifierReason,
+        resolutionStage,
+        resolutionReason,
+        candidateCount,
+        errorMessage: error instanceof Error ? error.message : "unknown_error",
+      });
+
+      if (normalizedError.code === EXPIRED_STYLE_IMAGE_SOURCE_ERROR) {
+        onExpiredSource();
+        return;
+      }
+
+      onBlockedSource();
+    },
+    []
+  );
+
   const applyResolvedSourceToCreateDraft = React.useCallback(
     async (resolvedSource: ProcessedResolvedStyleSource) => {
       const requestId = ++stylePromptExtractionRequestIdRef.current;
@@ -489,73 +549,20 @@ export const useStyleCreatorController = ({
           resolutionStage: resolvedSource.resolutionStage,
           resolutionReason: resolvedSource.resolutionReason,
           candidateCount: resolvedSource.candidateCount,
-          serverCopyAttempted: resolvedSource.serverCopyAttempted,
         });
         void applyResolvedSourceToCreateDraft(resolvedSource);
       } catch (error) {
-        const normalizedError = normalizeStyleDropPreviewError(error);
-        if (normalizedError.code === "missing-dropped-style-image") {
-          trackStyleSourceDiagnosticFromSnapshot({
-            dropSnapshot,
-            flow: "create_modal",
-            outcome: "blocked_source",
-            resolutionStage: getStyleDropPreviewResolutionStage(error),
-            resolutionReason: getStyleDropPreviewResolutionReason(error),
-            candidateCount: getStyleDropPreviewCandidateCount(error),
-            serverCopyAttempted: getStyleDropPreviewServerCopyAttempted(error),
-            errorMessage: error instanceof Error ? error.message : "missing-dropped-style-image",
-          });
-          setLocalSaveError("Please drop an image reference.");
-          return;
-        }
-        if (normalizedError.code === EXPIRED_STYLE_IMAGE_SOURCE_ERROR) {
-          trackStyleSourceDiagnosticFromSnapshot({
-            dropSnapshot,
-            flow: "create_modal",
-            outcome: "blocked_source",
-            resolutionStage: getStyleDropPreviewResolutionStage(error),
-            resolutionReason: getStyleDropPreviewResolutionReason(error),
-            candidateCount: getStyleDropPreviewCandidateCount(error),
-            serverCopyAttempted: getStyleDropPreviewServerCopyAttempted(error),
-            errorMessage: error instanceof Error ? error.message : EXPIRED_STYLE_IMAGE_SOURCE_ERROR,
-          });
-          trackStyleExtractionOutcome("blocked_source", "create_modal", {
-            stage: "preview_source",
-            failureClass: "blocked_source",
-            classifierReason: normalizedError.classifierReason,
-            resolutionStage: getStyleDropPreviewResolutionStage(error),
-            resolutionReason: getStyleDropPreviewResolutionReason(error),
-            candidateCount: getStyleDropPreviewCandidateCount(error),
-            serverCopyAttempted: getStyleDropPreviewServerCopyAttempted(error),
-            errorMessage: error instanceof Error ? error.message : "unknown_error",
-          });
-          setLocalSaveError(EXPIRED_STYLE_IMAGE_SOURCE_MESSAGE);
-          return;
-        }
-        trackStyleSourceDiagnosticFromSnapshot({
+        handleBlockedStyleDropError({
+          error,
           dropSnapshot,
           flow: "create_modal",
-          outcome: "blocked_source",
-          resolutionStage: getStyleDropPreviewResolutionStage(error),
-          resolutionReason: getStyleDropPreviewResolutionReason(error),
-          candidateCount: getStyleDropPreviewCandidateCount(error),
-          serverCopyAttempted: getStyleDropPreviewServerCopyAttempted(error),
-          errorMessage: error instanceof Error ? error.message : "blocked-style-image-source",
+          onMissingDroppedImage: () => setLocalSaveError("Please drop an image reference."),
+          onExpiredSource: () => setLocalSaveError(EXPIRED_STYLE_IMAGE_SOURCE_MESSAGE),
+          onBlockedSource: () => setLocalSaveError(BLOCKED_STYLE_IMAGE_SOURCE_MESSAGE),
         });
-        trackStyleExtractionOutcome("blocked_source", "create_modal", {
-          stage: "preview_source",
-          failureClass: "blocked_source",
-          classifierReason: normalizedError.classifierReason,
-          resolutionStage: getStyleDropPreviewResolutionStage(error),
-          resolutionReason: getStyleDropPreviewResolutionReason(error),
-          candidateCount: getStyleDropPreviewCandidateCount(error),
-          serverCopyAttempted: getStyleDropPreviewServerCopyAttempted(error),
-          errorMessage: error instanceof Error ? error.message : "unknown_error",
-        });
-        setLocalSaveError(BLOCKED_STYLE_IMAGE_SOURCE_MESSAGE);
       }
     },
-    [applyResolvedSourceToCreateDraft, resolveInternalStyleDrop]
+    [applyResolvedSourceToCreateDraft, handleBlockedStyleDropError, resolveInternalStyleDrop]
   );
 
   const applyStylePreviewFile = React.useCallback(
@@ -595,7 +602,6 @@ export const useStyleCreatorController = ({
           resolutionStage: resolvedSource.resolutionStage,
           resolutionReason: resolvedSource.resolutionReason,
           candidateCount: resolvedSource.candidateCount,
-          serverCopyAttempted: resolvedSource.serverCopyAttempted,
         });
         const preparedSource = await processResolvedStyleSource({
           flow: "library_drop",
@@ -631,74 +637,24 @@ export const useStyleCreatorController = ({
           return;
         }
       } catch (error) {
-        const normalizedError = normalizeStyleDropPreviewError(error);
-        if (normalizedError.code === "missing-dropped-style-image") {
-          trackStyleSourceDiagnosticFromSnapshot({
-            dropSnapshot,
-            flow: "library_drop",
-            outcome: "blocked_source",
-            resolutionStage: getStyleDropPreviewResolutionStage(error),
-            resolutionReason: getStyleDropPreviewResolutionReason(error),
-            candidateCount: getStyleDropPreviewCandidateCount(error),
-            serverCopyAttempted: getStyleDropPreviewServerCopyAttempted(error),
-            errorMessage: error instanceof Error ? error.message : "missing-dropped-style-image",
-          });
-          setStylesLibraryDropError(
-            "Drop an image from your computer, Reference Grid, or Quick Slot Inventory."
-          );
-          return;
-        }
-        if (normalizedError.code === EXPIRED_STYLE_IMAGE_SOURCE_ERROR) {
-          trackStyleSourceDiagnosticFromSnapshot({
-            dropSnapshot,
-            flow: "library_drop",
-            outcome: "blocked_source",
-            resolutionStage: getStyleDropPreviewResolutionStage(error),
-            resolutionReason: getStyleDropPreviewResolutionReason(error),
-            candidateCount: getStyleDropPreviewCandidateCount(error),
-            serverCopyAttempted: getStyleDropPreviewServerCopyAttempted(error),
-            errorMessage: error instanceof Error ? error.message : EXPIRED_STYLE_IMAGE_SOURCE_ERROR,
-          });
-          trackStyleExtractionOutcome("blocked_source", "library_drop", {
-            stage: "preview_source",
-            failureClass: "blocked_source",
-            classifierReason: normalizedError.classifierReason,
-            resolutionStage: getStyleDropPreviewResolutionStage(error),
-            resolutionReason: getStyleDropPreviewResolutionReason(error),
-            candidateCount: getStyleDropPreviewCandidateCount(error),
-            serverCopyAttempted: getStyleDropPreviewServerCopyAttempted(error),
-            errorMessage: error instanceof Error ? error.message : "unknown_error",
-          });
-          setStylesLibraryDropError(EXPIRED_STYLE_IMAGE_SOURCE_MESSAGE);
-          return;
-        }
-        trackStyleSourceDiagnosticFromSnapshot({
+        handleBlockedStyleDropError({
+          error,
           dropSnapshot,
           flow: "library_drop",
-          outcome: "blocked_source",
-          resolutionStage: getStyleDropPreviewResolutionStage(error),
-          resolutionReason: getStyleDropPreviewResolutionReason(error),
-          candidateCount: getStyleDropPreviewCandidateCount(error),
-          serverCopyAttempted: getStyleDropPreviewServerCopyAttempted(error),
-          errorMessage: error instanceof Error ? error.message : "blocked-style-image-source",
+          onMissingDroppedImage: () =>
+            setStylesLibraryDropError(
+              "Drop an image from your computer, Reference Grid, or Quick Slot Inventory."
+            ),
+          onExpiredSource: () => setStylesLibraryDropError(EXPIRED_STYLE_IMAGE_SOURCE_MESSAGE),
+          onBlockedSource: () => setStylesLibraryDropError(BLOCKED_STYLE_IMAGE_SOURCE_MESSAGE),
         });
-        trackStyleExtractionOutcome("blocked_source", "library_drop", {
-          stage: "preview_source",
-          failureClass: "blocked_source",
-          classifierReason: normalizedError.classifierReason,
-          resolutionStage: getStyleDropPreviewResolutionStage(error),
-          resolutionReason: getStyleDropPreviewResolutionReason(error),
-          candidateCount: getStyleDropPreviewCandidateCount(error),
-          serverCopyAttempted: getStyleDropPreviewServerCopyAttempted(error),
-          errorMessage: error instanceof Error ? error.message : "unknown_error",
-        });
-        setStylesLibraryDropError(BLOCKED_STYLE_IMAGE_SOURCE_MESSAGE);
       } finally {
         setCreateStyleFromDropSubmitting(false);
       }
     },
     [
       createStyleFromDropSubmitting,
+      handleBlockedStyleDropError,
       onSaveStyleDetails,
       processResolvedStyleSource,
       resolveInternalStyleDrop,

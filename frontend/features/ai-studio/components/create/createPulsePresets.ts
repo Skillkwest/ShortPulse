@@ -2,7 +2,7 @@
  * Shared Pulse preset catalog and helpers for AI Studio.
  * Merges seeded built-in pulses with persisted Pulse definitions used by the library and Create rail.
  */
-export const CREATE_PULSE_MORE_LABEL = "More presets" as const;
+export const CREATE_PULSE_MORE_LABEL = "More Pulses" as const;
 export const CREATE_PULSE_PANEL_MAX = 10;
 export const CREATE_PULSE_PRESET_DRAG_MIME =
   "application/x-shortpulse-create-pulse-preset" as const;

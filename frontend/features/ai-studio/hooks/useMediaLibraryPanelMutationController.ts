@@ -18,7 +18,7 @@ const ROOT_FOLDER_LABEL = "All Media";
 const resolveUploadDestinationTabForFile = (file: File): MediaUploadDestinationTab | null => {
   const mimeType = file.type.toLowerCase();
   if (mimeType.startsWith("video/")) return "uploaded_videos";
-  if (mimeType.startsWith("image/")) return "uploaded_images";
+  if (mimeType.startsWith("image/") || mimeType.startsWith("audio/")) return "uploaded_images";
   return null;
 };
 
@@ -301,7 +301,7 @@ export const useMediaLibraryPanelMutationController = ({
             candidate.destinationTab !== null
         );
       if (!uploadCandidates.length) {
-        throw new Error("Only image and video files can be dropped here.");
+        throw new Error("Only image, video, and audio files can be dropped here.");
       }
 
       const uploadedRows: MediaFileRow[] = [];

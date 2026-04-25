@@ -88,7 +88,7 @@ describe("useAiStudioWorkspaceActions", () => {
     expect(setShowCreateTools).toHaveBeenCalledWith(false);
   });
 
-  it("preserves non-workflow tool selections like templates and pulse presets", () => {
+  it("preserves non-workflow tool selections like templates and presets", () => {
     const setSelectedTool = vi.fn();
     const setMode = vi.fn();
     const { result } = renderHook(() =>
@@ -102,11 +102,11 @@ describe("useAiStudioWorkspaceActions", () => {
 
     act(() => {
       result.current.handleToolSelect("templates");
-      result.current.handleToolSelect("pulse-presets");
+      result.current.handleToolSelect("presets");
     });
 
     expect(setSelectedTool).toHaveBeenCalledWith("templates");
-    expect(setSelectedTool).toHaveBeenCalledWith("pulse-presets");
+    expect(setSelectedTool).toHaveBeenCalledWith("presets");
     expect(setMode).not.toHaveBeenCalled();
   });
 

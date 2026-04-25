@@ -3,7 +3,10 @@
  * Centralizes page-scoped drop resolution for character, media-library, styles, and element-profile surfaces.
  */
 import { useCallback } from "react";
-import type { PersistOutputSaveResult } from "./useAiStudioPersistenceActions";
+import type {
+  PersistOutputSaveOptions,
+  PersistOutputSaveResult,
+} from "./useAiStudioPersistenceActions";
 import {
   resolveInternalReferenceSource,
   type ResolveInternalReferenceDrop,
@@ -23,7 +26,10 @@ type OutputSnapshot = {
 type UseAiStudioInternalDropResolversParams = {
   getOutputById: (outputId: string) => StudioOutput | null;
   getOutputSnapshot: () => OutputSnapshot;
-  ensureOutputPersisted: (outputId: string) => Promise<PersistOutputSaveResult>;
+  ensureOutputPersisted: (
+    outputId: string,
+    options?: PersistOutputSaveOptions
+  ) => Promise<PersistOutputSaveResult>;
 };
 
 /**
@@ -124,14 +130,18 @@ export const useAiStudioInternalDropResolvers = ({
           return { kind: "prompt" as const, id: initialPromptId };
         }
         if (!resolvedOutputId) return null;
+        let persistedPromptId = "";
         try {
-          await ensureOutputPersisted(resolvedOutputId);
+          const persistedResult = await ensureOutputPersisted(resolvedOutputId);
+          persistedPromptId = persistedResult.promptId?.trim() ?? "";
         } catch {
           return null;
         }
-        const persistedOutput = getOutputById(resolvedOutputId);
-        const persistedPromptId =
-          persistedOutput?.mode === "text" ? (persistedOutput.promptId?.trim() ?? "") : "";
+        if (!persistedPromptId) {
+          const persistedOutput = getOutputById(resolvedOutputId);
+          persistedPromptId =
+            persistedOutput?.mode === "text" ? (persistedOutput.promptId?.trim() ?? "") : "";
+        }
         if (!persistedPromptId) return null;
         return { kind: "prompt" as const, id: persistedPromptId };
       }

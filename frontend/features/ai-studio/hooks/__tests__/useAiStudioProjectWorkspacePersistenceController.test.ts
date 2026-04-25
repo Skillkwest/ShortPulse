@@ -165,6 +165,84 @@ describe("useAiStudioProjectWorkspacePersistenceController", () => {
     expect(buildSessionSnapshot).toHaveBeenCalledWith("session-1");
   });
 
+  it("invalidates project-owned workspace state immediately when a project route is entered", () => {
+    const buildSessionSnapshot = vi.fn(() => createSnapshot());
+    const hydrateFromSessionSnapshot = vi.fn(() => createHydrationPayload());
+    const hydrateFromSessionAgentSnapshot = vi.fn();
+    const applyEmptyProjectState = vi.fn();
+
+    renderHook(() =>
+      useAiStudioProjectWorkspacePersistenceController({
+        projectId: "project-1",
+        sessionId: "session-1",
+        buildSessionSnapshot,
+        hydrateFromSessionSnapshot,
+        hydrateFromSessionAgentSnapshot,
+        applyEmptyProjectState,
+      })
+    );
+
+    expect(applyEmptyProjectState).toHaveBeenCalledTimes(1);
+    expect(buildSessionSnapshot).not.toHaveBeenCalled();
+    expect(mockedUseAiStudioSessionWriteShadow.mock.calls[0]?.[0]).toEqual(
+      expect.objectContaining({
+        sessionId: "project-1",
+        snapshot: null,
+        enabled: false,
+      })
+    );
+  });
+
+  it("re-invalidates workspace state and disables autosave when switching projects", () => {
+    const buildSessionSnapshot = vi.fn(() => createSnapshot());
+    const hydrateFromSessionSnapshot = vi.fn(() => createHydrationPayload());
+    const hydrateFromSessionAgentSnapshot = vi.fn();
+    const applyEmptyProjectState = vi.fn();
+
+    const { rerender, result } = renderHook(
+      ({ projectId }) =>
+        useAiStudioProjectWorkspacePersistenceController({
+          projectId,
+          sessionId: "session-1",
+          buildSessionSnapshot,
+          hydrateFromSessionSnapshot,
+          hydrateFromSessionAgentSnapshot,
+          applyEmptyProjectState,
+        }),
+      {
+        initialProps: {
+          projectId: "project-1" as string | null,
+        },
+      }
+    );
+
+    const restoreHydrationArgs =
+      mockedUseAiStudioProjectWorkspaceRestoreHydration.mock.calls[0]?.[0];
+
+    act(() => {
+      restoreHydrationArgs?.onProjectBootstrapSettled?.("project-1");
+    });
+
+    rerender({ projectId: "project-1" });
+    expect(result.current.projectBootstrapApplied).toBe(true);
+
+    rerender({ projectId: "project-2" });
+
+    expect(applyEmptyProjectState).toHaveBeenCalledTimes(2);
+    expect(result.current.projectBootstrapApplied).toBe(false);
+    const lastWriteShadowArgs =
+      mockedUseAiStudioSessionWriteShadow.mock.calls[
+        mockedUseAiStudioSessionWriteShadow.mock.calls.length - 1
+      ]?.[0];
+    expect(lastWriteShadowArgs).toEqual(
+      expect.objectContaining({
+        sessionId: "project-2",
+        snapshot: null,
+        enabled: false,
+      })
+    );
+  });
+
   it("surfaces restore errors and keeps write shadow disabled", () => {
     mockedUseAiStudioProjectWorkspaceRestoreCandidate.mockReturnValueOnce({
       status: "error",

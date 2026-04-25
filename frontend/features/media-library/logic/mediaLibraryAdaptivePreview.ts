@@ -29,6 +29,9 @@ const DEFAULT_CARD_LONG_EDGE_PX = 320;
 const isVideoFile = (fileType?: string | null): boolean =>
   (fileType ?? "").toLowerCase().startsWith("video");
 
+const isAudioFile = (fileType?: string | null): boolean =>
+  (fileType ?? "").toLowerCase().startsWith("audio");
+
 const SUPABASE_SIGNED_STORAGE_PATH_PATTERN = /\/storage\/v1\/(?:object|render\/image)\/sign\//i;
 
 const isSupabaseSignedStorageUrl = (value: string): boolean => {
@@ -53,6 +56,7 @@ export const resolveMediaLibraryAdaptiveCardPreviewUrl = ({
   if (!signedUrl) return null;
   if (shouldBypassAdaptivePreview) return signedUrl;
   if (isSupabaseSignedStorageUrl(signedUrl)) return signedUrl;
+  if (isAudioFile(fileType)) return signedUrl;
 
   const adaptiveResult = resolveAdaptiveMedia({
     surface,

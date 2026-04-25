@@ -101,17 +101,14 @@ describe("mergeOutputWithPersistedDelivery", () => {
 });
 
 describe("resolvePersistableOutputUrls", () => {
-  it("prefers upload local object urls ahead of mutable preview urls", () => {
+  it("prefers the upload local object url as the canonical image persistence source", () => {
     const output = makeOutput({
       mediaSource: "upload",
       localObjectUrl: "blob:local-upload-original",
       previewUrl: "https://signed.example.com/upload-preview.png",
     });
 
-    expect(resolvePersistableOutputUrls(output)).toEqual([
-      "blob:local-upload-original",
-      "https://signed.example.com/upload-preview.png",
-    ]);
+    expect(resolvePersistableOutputUrls(output)).toEqual(["blob:local-upload-original"]);
   });
 
   it("keeps result urls as the primary persistence source when available", () => {
@@ -120,6 +117,21 @@ describe("resolvePersistableOutputUrls", () => {
       localObjectUrl: "blob:local-upload-original",
       previewUrl: "https://signed.example.com/upload-preview.png",
       resultUrls: ["https://provider.example.com/result-1.png"],
+    });
+
+    expect(resolvePersistableOutputUrls(output)).toEqual([
+      "https://provider.example.com/result-1.png",
+    ]);
+  });
+
+  it("keeps image-output persistence scoped to the visible primary asset", () => {
+    const output = makeOutput({
+      mediaSource: "upload",
+      previewUrl: "https://signed.example.com/upload-preview.png",
+      resultUrls: [
+        "https://provider.example.com/result-1.png",
+        "https://provider.example.com/result-1.webp",
+      ],
     });
 
     expect(resolvePersistableOutputUrls(output)).toEqual([
@@ -174,6 +186,47 @@ describe("resolvePersistableOutputUrlsForSave", () => {
 
     await expect(resolvePersistableOutputUrlsForSave(output)).resolves.toEqual([
       "https://provider.example.com/temp.mp4",
+    ]);
+  });
+
+  it("uses the requested image index when resolving generated image saves", async () => {
+    resolvePublishedGenerationOutputStoragePathByIndexMock.mockResolvedValueOnce(
+      "user-1/generations/images/full-1.png"
+    );
+    getSignedMediaUrlMock.mockResolvedValueOnce("https://signed.example.com/generated-full-1.png");
+    const output = makeOutput({
+      mode: "image",
+      mediaSource: "generated",
+      generationId: "gen-1",
+      resultUrls: [
+        "https://provider.example.com/result-0.png",
+        "https://provider.example.com/result-1.png",
+      ],
+    });
+
+    await expect(resolvePersistableOutputUrlsForSave(output, { imageIndex: 1 })).resolves.toEqual([
+      "https://signed.example.com/generated-full-1.png",
+    ]);
+    expect(resolvePublishedGenerationOutputStoragePathByIndexMock).toHaveBeenCalledWith({
+      supabase: expect.any(Object),
+      generationId: "gen-1",
+      imageIndex: 1,
+    });
+  });
+
+  it("uses only the requested indexed image url for non-generated image saves", async () => {
+    const output = makeOutput({
+      mode: "image",
+      mediaSource: "upload",
+      previewUrl: "https://provider.example.com/result-preview.png",
+      resultUrls: [
+        "https://provider.example.com/result-0.png",
+        "https://provider.example.com/result-1.png",
+      ],
+    });
+
+    await expect(resolvePersistableOutputUrlsForSave(output, { imageIndex: 1 })).resolves.toEqual([
+      "https://provider.example.com/result-1.png",
     ]);
   });
 });

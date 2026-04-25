@@ -8,7 +8,10 @@ import { getSignedMediaUrl } from "../../../../lib/mediaSignedUrlCache";
 import { ensureSupabaseQueryClient } from "../../../../lib/supabaseClient";
 import { refreshSupabaseSignedUrlIfNeeded } from "../../utils/imageUpload";
 import { resolvePublishedGenerationOutputStoragePathByIndex } from "../generatedMediaAuthority";
-import type { PersistOutputSaveResult } from "../../hooks/useAiStudioPersistenceActions";
+import type {
+  PersistOutputSaveOptions,
+  PersistOutputSaveResult,
+} from "../../hooks/useAiStudioPersistenceActions";
 import type { StudioOutput } from "../../types";
 import type { InternalReferenceDragPayload } from "../../utils/dragDrop";
 
@@ -116,7 +119,10 @@ type ResolveInternalReferenceSourceArgs = {
   payload: InternalReferenceDragPayload;
   getOutputById: (outputId: string) => StudioOutput | null;
   getOutputSnapshot: () => OutputSnapshot;
-  ensureOutputPersisted: (outputId: string) => Promise<PersistOutputSaveResult>;
+  ensureOutputPersisted: (
+    outputId: string,
+    options?: PersistOutputSaveOptions
+  ) => Promise<PersistOutputSaveResult>;
   resolveSavedMediaIdFromOutput: (output: StudioOutput | null, imageIndex: number) => string | null;
   resolveStoragePathFromMediaId?: (mediaId: string) => Promise<string | null>;
   resolveStoragePathFromGenerationOutput?: (args: {
@@ -432,7 +438,7 @@ export const resolveInternalReferenceSource = async ({
   ) {
     debugEntry.persistedAttempted = true;
     try {
-      persistedResult = await ensureOutputPersisted(resolvedOutputId);
+      persistedResult = await ensureOutputPersisted(resolvedOutputId, { imageIndex });
       debugEntry.persistedResolved = true;
       debugEntry.persistedDeliveryPresent = Boolean(persistedResult.delivery);
       debugEntry.persistedMediaIdCount = Array.isArray(persistedResult.mediaFileIds)

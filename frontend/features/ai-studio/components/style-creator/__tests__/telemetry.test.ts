@@ -16,7 +16,6 @@ import { trackStyleExtractionOutcome, trackStyleSourceResolutionDiagnostic } fro
 describe("style-creator telemetry", () => {
   beforeEach(() => {
     reportAppErrorMock.mockClear();
-    window.__shortpulseStyleSourceResolution?.clear();
   });
 
   it("emits normalized resolution metadata for preview-source failures", () => {
@@ -24,10 +23,9 @@ describe("style-creator telemetry", () => {
       stage: "preview_source",
       failureClass: "blocked_source",
       classifierReason: "Network request failed",
-      resolutionStage: "server_copy_fallback",
-      resolutionReason: "server copy delivery",
+      resolutionStage: "primary",
+      resolutionReason: "network request failed",
       candidateCount: 4,
-      serverCopyAttempted: true,
       errorMessage: "blocked-style-image-source",
     });
 
@@ -38,10 +36,9 @@ describe("style-creator telemetry", () => {
         stage: "preview_source",
         failure_class: "blocked_source",
         classifier_reason: "network_request_failed",
-        resolution_stage: "server_copy_fallback",
-        resolution_reason: "server_copy_delivery",
+        resolution_stage: "primary",
+        resolution_reason: "network_request_failed",
         candidate_count: 4,
-        server_copy_attempted: true,
       })
     );
   });
@@ -64,10 +61,9 @@ describe("style-creator telemetry", () => {
       referenceRenderUrlKind: "same_origin_url",
       imageUrlKind: "missing",
       plainTextKind: "text",
-      resolutionStage: "server_copy_fallback",
-      resolutionReason: "server copy delivery",
+      resolutionStage: "primary",
+      resolutionReason: "network request failed",
       candidateCount: 3,
-      serverCopyAttempted: true,
       errorMessage: "blocked-style-image-source",
     });
 
@@ -94,59 +90,11 @@ describe("style-creator telemetry", () => {
         reference_render_url_kind: "same_origin_url",
         image_url_kind: "missing",
         plain_text_kind: "text",
-        resolution_stage: "server_copy_fallback",
-        resolution_reason: "server_copy_delivery",
+        resolution_stage: "primary",
+        resolution_reason: "network_request_failed",
         candidate_count: 3,
-        server_copy_attempted: true,
       })
     );
-  });
-
-  it("captures source-resolution packets on the window debug handle", () => {
-    trackStyleSourceResolutionDiagnostic({
-      flow: "library_drop",
-      outcome: "resolved",
-      resolvedSourceKind: "internal",
-      internalPayloadPresent: true,
-      internalDragTokenPresent: true,
-      rawSnapshotSeedCount: 2,
-      transferTypes: ["text/reference-drag-token", "text/reference-output-id"],
-      referenceOrigin: "ai-studio-reference-grid",
-      referenceOutputId: "out-capture",
-      referenceMediaId: "media-capture",
-      referenceImageIndex: 1,
-      referenceSourceSurface: "all-refs",
-      referenceUrlKind: "missing",
-      referenceRenderUrlKind: "data_image",
-      imageUrlKind: "missing",
-      plainTextKind: "text",
-      resolutionStage: "primary",
-      resolutionReason: "payload reference url",
-      candidateCount: 1,
-      serverCopyAttempted: false,
-      errorMessage: "",
-    });
-
-    const snapshot = window.__shortpulseStyleSourceResolution?.snapshot() ?? [];
-    expect(snapshot).toHaveLength(1);
-    expect(snapshot[0]).toEqual(
-      expect.objectContaining({
-        outcome: "resolved",
-        capture_version: "style-source-resolution-v2",
-        internal_payload_present: true,
-        internal_drag_token_present: true,
-        raw_snapshot_seed_count: 2,
-        transfer_types: ["text/reference-drag-token", "text/reference-output-id"],
-        reference_output_id: "out-capture",
-        resolution_reason: "payload_reference_url",
-        candidate_count: 1,
-        server_copy_attempted: false,
-      })
-    );
-    expect(window.__shortpulseStyleSourceResolution?.latest()).toEqual(snapshot[0]);
-    expect(window.__shortpulseStyleSourceResolution?.version).toBe("style-source-resolution-v2");
-    window.__shortpulseStyleSourceResolution?.clear();
-    expect(window.__shortpulseStyleSourceResolution?.snapshot()).toEqual([]);
   });
 
   it("preserves deterministic metadata for unresolved internal-source failures", () => {
@@ -157,7 +105,6 @@ describe("style-creator telemetry", () => {
       resolutionStage: "primary",
       resolutionReason: "internal source unresolved",
       candidateCount: 0,
-      serverCopyAttempted: false,
       errorMessage: "blocked-style-image-source",
     });
 
@@ -171,7 +118,6 @@ describe("style-creator telemetry", () => {
         resolution_stage: "primary",
         resolution_reason: "internal_source_unresolved",
         candidate_count: 0,
-        server_copy_attempted: false,
       })
     );
   });

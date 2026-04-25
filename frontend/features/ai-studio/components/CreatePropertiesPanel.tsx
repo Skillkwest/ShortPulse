@@ -131,6 +131,7 @@ export type CreatePropertiesPanelProps = {
   onSelectedPulsePresetIdsChange?: (presetIds: CreatePulsePresetId[]) => void;
   savedPulsePresets?: readonly CreatePulseSavedPreset[];
   onSavedPulsePresetsChange?: (presets: CreatePulseSavedPreset[]) => void;
+  onOpenPresetsLibrary?: () => void;
 };
 
 /**
@@ -405,6 +406,7 @@ export function CreatePropertiesPanel({
   onSelectedPulsePresetIdsChange,
   savedPulsePresets,
   onSavedPulsePresetsChange,
+  onOpenPresetsLibrary,
   onGenerate,
   onChatOffInlineGenerate,
   guardrailReason,
@@ -842,6 +844,7 @@ export function CreatePropertiesPanel({
           onSelectedPulsePresetIdsChange={onSelectedPulsePresetIdsChange}
           savedPulsePresets={savedPulsePresets}
           onSavedPulsePresetsChange={onSavedPulsePresetsChange}
+          onOpenPresetsLibrary={onOpenPresetsLibrary}
         />
       ) : (
         <BeginnerCreatePanelView

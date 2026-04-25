@@ -15,6 +15,7 @@ Purpose: define the modular Style Creator workflow used by AI Studio Styles Libr
 | `frontend/features/ai-studio/components/style-creator/extraction.ts` | Deterministic extraction outcome classification (`success`, `fallback`, `blocked_source`). |
 | `frontend/features/ai-studio/components/style-creator/telemetry.ts` | Normalized extraction telemetry emitter (`telemetry.ai_studio.style_extraction`). |
 | `frontend/features/ai-studio/logic/styleDetailsNormalization.ts` | Backward-compatible style-details normalization/equality helpers used by persistence hooks. |
+| `frontend/features/ai-studio/hooks/useStylesLibraryPanelIdsPreference.ts` | Per-user shared style-order persistence (`user_preferences.ai_studio_style_panel_ids`) with local fallback. |
 | `frontend/features/ai-studio/hooks/useStylesLibraryStyleDetailsPreference.ts` | Per-user style-details persistence (`user_preferences.ai_studio_style_details_overrides`) with local fallback. |
 | `frontend/pages/api/ai/extract-style.ts` | Authenticated style extraction endpoint (`imageDataUrl` -> `stylePrompt`, `styleTitle`, optional `usage`). |
 
@@ -30,6 +31,8 @@ Rules:
 1. Reads must normalize legacy rows down to the core fields only.
 2. Writes persist only the core style fields listed above.
 3. JSONB storage remains in `user_preferences.ai_studio_style_details_overrides` for MVP.
+4. Shared style order persists separately in `user_preferences.ai_studio_style_panel_ids`.
+5. Custom-style delete must remove the source row from the details override map; delete denylist persistence remains only for hide semantics on seeded catalog styles.
 
 ## Workflow
 1. User creates style via Add Style modal or library drop.
@@ -37,7 +40,8 @@ Rules:
    - Preview image: center-cropped square `512x512` JPEG for style-card rendering.
    - Extraction source: aspect-preserving bounded JPEG (`max(width,height)=1024`, no upscaling) used for `/api/ai/extract-style`.
    - Style Prompt editor enforces a `1000` character max (live counter + input clamp, near-limit warning at `900`) to keep style add-ons within the runtime prompt budget used by extraction and submit-path append behavior.
-3. Extraction calls `/api/ai/extract-style` through client helper with the derived extraction image as `imageDataUrl`, a bounded per-attempt timeout, an overall deadline cap, and transient-only retries.
+3. Extraction calls `/api/ai/extract-style` through the client helper with the derived extraction image as `imageDataUrl`, one bounded request timeout, and an overall deadline cap.
+   - The route owns upstream retry/fallback behavior; the client does not retry extraction requests.
    - Extraction normalization enforces a deterministic leading hard style class descriptor as the first `stylePrompt` token.
    - Current hard style class set: `Photographic`, `Vintage`, `Hyper-realistic`, `Anime Style`, `Cartoon Style`, `Photorealistic`, `Candid Cell Phone Snapshot`, `Digital Illustration`, `3D Render`, `Concept Art`, `Hand-Drawn`, `Painting`.
 4. Outcome is classified as `success`, `fallback`, or `blocked_source`.
@@ -46,6 +50,7 @@ Rules:
 7. The first tile in Styles Library is a fixed `None` slot (system tile); it is never persisted, edited, deleted, or reordered.
 8. Styles Library tile clicks are edit-only (open/create/update/delete workflows) and do not mutate active Create/Edit style selection.
 9. Right-rail Styles tile clicks own Create/Edit style selection state and auto-close the right-rail Styles panel after selection; submit-path style append behavior remains unchanged.
+10. Drag reorder in the primary Styles Library updates the shared page-level catalog order so the right-rail Styles chooser reflects the same sequence.
 
 ## Submission-time style behavior and prompting guidance
 1. Submission behavior:
@@ -112,9 +117,9 @@ Required metadata keys:
 Failure class mapping:
 - `timeout`: deadline exceeded.
 - `canceled`: local abort/navigation interruption.
-- `network_transient`: retryable network transport failure.
-- `upstream_http`: non-retryable HTTP failure from extraction route.
-- `blocked_source`: trusted-host/CORS blocked source.
+- `network_transient`: client-classified network transport failure before the extraction route completes.
+- `upstream_http`: non-2xx failure returned by the extraction route after server-side retry/fallback handling.
+- `blocked_source`: local source-resolution failure (for example blocked browser access or expired drag payload), not the retired server URL-probe lane.
 - `fallback`/`unknown`: normalized residual classes for deterministic reporting.
 
 ## Verification checklist

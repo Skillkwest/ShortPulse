@@ -5,6 +5,7 @@ import { useAiStudioAgentBridge } from "../useAiStudioAgentBridge";
 import type { AgentActions } from "../../../../prefabs/agent";
 import type { AiStudioSessionHydrationPayload } from "../../logic/sessionSnapshotHydrator";
 import type { StudioMode, ToolId, StudioOutput } from "../../types";
+import { readChatModeFromStorage } from "../../logic/chatModePreference";
 
 const useAiAgentMock = vi.fn();
 const useAiStudioAgentComposerMock = vi.fn();
@@ -31,6 +32,8 @@ vi.mock("../../logic/chatModePreference", () => ({
   readChatModeFromStorage: vi.fn(() => true),
   writeChatModeToStorage: vi.fn(),
 }));
+
+const readChatModeFromStorageMock = vi.mocked(readChatModeFromStorage);
 
 const asDispatch = <T>(fn: (...args: unknown[]) => unknown): Dispatch<SetStateAction<T>> =>
   fn as unknown as Dispatch<SetStateAction<T>>;
@@ -677,5 +680,69 @@ describe("useAiStudioAgentBridge", () => {
       collectedInputs: ["grimdark tone", "10 min runtime"],
       lastArtifact: "Scene 1: cinematic wide shot of the knight entering the ruined hall.",
     });
+  });
+
+  it("skips local chat-mode preference hydration while a project route is pending", async () => {
+    readChatModeFromStorageMock.mockReturnValue(false);
+
+    useAiAgentMock.mockReturnValue({
+      messages: [],
+      isSending: false,
+      error: null,
+      send: vi.fn(),
+      appendUserMessage: vi.fn(),
+      updateMessageById: vi.fn(() => false),
+      replaceMessages: vi.fn(),
+      reset: vi.fn(),
+    });
+    useAiStudioAgentComposerMock.mockReturnValue({
+      agentInput: "",
+      setAgentInput: vi.fn(),
+      handleAgentInputChange: vi.fn(),
+      agentAttachmentError: null,
+      setAgentAttachmentError: vi.fn(),
+      agentAttachments: [],
+      setAgentAttachments: vi.fn(),
+      linkedPromptReferenceIds: [],
+      isAgentDropActive: false,
+      markAttachmentDelivery: vi.fn(),
+      handleAgentAttachmentDragOver: vi.fn(),
+      handleAgentAttachmentDragEnter: vi.fn(),
+      handleAgentAttachmentDragLeave: vi.fn(),
+      handleAgentAttachmentDrop: vi.fn(),
+      handleRemoveAgentAttachment: vi.fn(),
+      handleClearAgentAttachments: vi.fn(),
+      resetAgentComposer: vi.fn(),
+    });
+    useAiStudioAgentOrchestrationMock.mockReturnValue({
+      isPromptRefining: false,
+      isReferencePromptEnhancing: false,
+      describeInFlightCount: 0,
+      handleAgentSend: vi.fn(),
+      handlePulsePresetStart: vi.fn(),
+      handleAgentEnhanceSend: vi.fn(),
+      handleReferencePromptEnhance: vi.fn(),
+    });
+    useAiStudioAgentInteractionsMock.mockReturnValue({
+      handleAgentApplyPrompt: vi.fn(),
+      handleExpandChat: vi.fn(),
+      handleAgentAddToGrid: vi.fn(),
+      handleClearAgentChat: vi.fn(),
+      handleCloseAgentChat: vi.fn(),
+    });
+
+    const { result } = renderHook(() =>
+      useAiStudioAgentBridge(
+        createBridgeParams({
+          projectRouteRequested: true,
+        })
+      )
+    );
+
+    await waitFor(() => {
+      expect(result.current.chatModeEnabled).toBe(true);
+    });
+
+    expect(readChatModeFromStorageMock).not.toHaveBeenCalled();
   });
 });

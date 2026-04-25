@@ -1,9 +1,41 @@
 import { describe, expect, it } from "vitest";
 import {
   areCompatibleMimeTypes,
+  detectAudioMimeType,
   detectImageMimeType,
   detectVideoMimeType,
 } from "../../lib/server/uploadSignature";
+
+const buildWebmTrackSignature = (trackType: number): Buffer =>
+  Buffer.from([
+    0x1a,
+    0x45,
+    0xdf,
+    0xa3,
+    0x87,
+    0x42,
+    0x82,
+    0x84,
+    0x77,
+    0x65,
+    0x62,
+    0x6d,
+    0x18,
+    0x53,
+    0x80,
+    0x67,
+    0x8a,
+    0x16,
+    0x54,
+    0xae,
+    0x6b,
+    0x85,
+    0xae,
+    0x83,
+    0x83,
+    0x81,
+    trackType,
+  ]);
 
 describe("upload signature helpers", () => {
   it("detects common image signatures", () => {
@@ -35,9 +67,20 @@ describe("upload signature helpers", () => {
     expect(detectVideoMimeType(mov)).toBe("video/quicktime");
   });
 
+  it("distinguishes audio-only WebM from video WebM", () => {
+    const audioWebm = buildWebmTrackSignature(0x02);
+    expect(detectAudioMimeType(audioWebm)).toBe("audio/webm");
+    expect(detectVideoMimeType(audioWebm)).toBeNull();
+
+    const videoWebm = buildWebmTrackSignature(0x01);
+    expect(detectVideoMimeType(videoWebm)).toBe("video/webm");
+    expect(detectAudioMimeType(videoWebm)).toBeNull();
+  });
+
   it("treats compatible aliases as equivalent", () => {
     expect(areCompatibleMimeTypes("image/heif", "image/heic")).toBe(true);
     expect(areCompatibleMimeTypes("video/mp4", "video/x-m4v")).toBe(true);
+    expect(areCompatibleMimeTypes("audio/x-m4a", "audio/mp4")).toBe(true);
     expect(areCompatibleMimeTypes("image/png", "image/jpeg")).toBe(false);
   });
 });

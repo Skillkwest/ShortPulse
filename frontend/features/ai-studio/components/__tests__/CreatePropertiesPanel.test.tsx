@@ -786,7 +786,7 @@ describe("CreatePropertiesPanel", () => {
     expect(pulseTab).toHaveAttribute("aria-selected", "true");
     await waitFor(() => {
       expect(container.querySelector(".create-expert-left-panel")).toBeTruthy();
-      expect(screen.getByText("Pulse Presets")).toBeInTheDocument();
+      expect(screen.getByText("Pulses")).toBeInTheDocument();
       expect(screen.getByRole("button", { name: "Video Prompt Magic preset" })).toBeInTheDocument();
       expect(screen.getByRole("button", { name: "Single-shot preset" })).toBeInTheDocument();
       expect(

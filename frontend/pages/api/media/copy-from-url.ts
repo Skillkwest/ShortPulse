@@ -20,7 +20,13 @@ import { requireApiUser } from "../../../lib/server/api/auth";
 import { attachMediaFileToGenerationOutput } from "../../../lib/server/api/generationOutputs";
 import { getSupabaseAdmin } from "../../../lib/server/api/supabaseAdmin";
 import { extractImageDimensionsFromBuffer } from "../../../lib/server/imageDimensions";
-import { detectImageMimeType, detectVideoMimeType } from "../../../lib/server/uploadSignature";
+import {
+  detectAudioMimeType,
+  detectImageMimeType,
+  detectVideoMimeType,
+} from "../../../lib/server/uploadSignature";
+
+type MediaLibraryFileType = "image" | "video" | "audio";
 
 const MEDIA_BUCKET = "media_library";
 const FETCH_TIMEOUT_MS = 60000;
@@ -28,6 +34,7 @@ const DNS_TIMEOUT_MS = 2500;
 const MAX_REDIRECTS = 4;
 const MAX_IMAGE_BYTES = 25 * 1024 * 1024;
 const MAX_VIDEO_BYTES = 100 * 1024 * 1024;
+const MAX_AUDIO_BYTES = 100 * 1024 * 1024;
 const REDIRECT_STATUS_CODES = new Set([301, 302, 303, 307, 308]);
 
 const ALLOWED_IMAGE_MIME_TYPES = new Set([
@@ -47,6 +54,19 @@ const ALLOWED_VIDEO_MIME_TYPES = new Set([
   "video/x-m4v",
 ]);
 
+const ALLOWED_AUDIO_MIME_TYPES = new Set([
+  "audio/aac",
+  "audio/flac",
+  "audio/m4a",
+  "audio/mp4",
+  "audio/mpeg",
+  "audio/ogg",
+  "audio/wav",
+  "audio/webm",
+  "audio/x-m4a",
+  "audio/x-wav",
+]);
+
 const CONTENT_TYPE_EXTENSION: Record<string, string> = {
   "image/png": "png",
   "image/jpeg": "jpg",
@@ -60,6 +80,16 @@ const CONTENT_TYPE_EXTENSION: Record<string, string> = {
   "video/webm": "webm",
   "video/quicktime": "mov",
   "video/x-m4v": "m4v",
+  "audio/aac": "aac",
+  "audio/flac": "flac",
+  "audio/m4a": "m4a",
+  "audio/mp4": "m4a",
+  "audio/mpeg": "mp3",
+  "audio/ogg": "ogg",
+  "audio/wav": "wav",
+  "audio/webm": "webm",
+  "audio/x-m4a": "m4a",
+  "audio/x-wav": "wav",
 };
 const GENERATED_MEDIA_REQUIRES_GENERATION_ID_ERROR =
   "Generated media is missing durable generation tracking.";
@@ -87,7 +117,7 @@ type CopyFromUrlResponse =
   | {
       mediaFileId: string | null;
       storagePath: string;
-      fileType: "image" | "video";
+      fileType: MediaLibraryFileType;
       fileSize: number;
       delivery: {
         previewStoragePath: string | null;
@@ -104,7 +134,7 @@ type CopyFromUrlResponse =
 type ExistingMediaRow = {
   id: string;
   storagePath: string | null;
-  fileType: "image" | "video";
+  fileType: MediaLibraryFileType;
   metadata: Record<string, unknown> | null;
   thumbVariantPath: string | null;
   posterVariantPath: string | null;
@@ -130,16 +160,23 @@ const asObjectMetadata = (value: unknown): Record<string, unknown> => {
 const parseSource = (value: unknown): "upload" | "ai_studio" =>
   asOptionalString(value) === "ai_studio" ? "ai_studio" : "upload";
 
-const parseMode = (value: unknown): "image" | "video" =>
-  asOptionalString(value) === "video" ? "video" : "image";
-
-const parseFileTypeHint = (value: unknown): "image" | "video" | undefined => {
+const parseMode = (value: unknown): MediaLibraryFileType => {
   const parsed = asOptionalString(value);
-  if (parsed === "image" || parsed === "video") return parsed;
+  if (parsed === "video") return "video";
+  if (parsed === "audio") return "audio";
+  return "image";
+};
+
+const parseFileTypeHint = (value: unknown): MediaLibraryFileType | undefined => {
+  const parsed = asOptionalString(value);
+  if (parsed === "image" || parsed === "video" || parsed === "audio") return parsed;
   return undefined;
 };
 
-const normalizePosterSourceUrl = (fileType: "image" | "video", value: unknown): string | null => {
+const normalizePosterSourceUrl = (
+  fileType: MediaLibraryFileType,
+  value: unknown
+): string | null => {
   if (fileType !== "video") return null;
   const parsed = asOptionalString(value);
   if (!parsed) return null;
@@ -524,10 +561,11 @@ const buildFilename = (promptText: string | null | undefined, extension: string,
 
 const resolveFileType = (
   contentType: string | null,
-  fallbackMode: "image" | "video",
-  fileTypeHint?: "image" | "video"
-): "image" | "video" => {
+  fallbackMode: MediaLibraryFileType,
+  fileTypeHint?: MediaLibraryFileType
+): MediaLibraryFileType => {
   if (contentType?.startsWith("video/")) return "video";
+  if (contentType?.startsWith("audio/")) return "audio";
   if (contentType?.startsWith("image/")) return "image";
   if (fileTypeHint) return fileTypeHint;
   return fallbackMode;
@@ -543,13 +581,19 @@ const resolveMediaMimeType = ({
 }: {
   contentType: string | null;
   buffer: Buffer;
-  fileType: "image" | "video";
+  fileType: MediaLibraryFileType;
 }): string => {
   if (fileType === "image") {
     const detected = detectImageMimeType(buffer);
     if (detected && ALLOWED_IMAGE_MIME_TYPES.has(detected)) return detected;
     if (contentType && ALLOWED_IMAGE_MIME_TYPES.has(contentType)) return contentType;
     throw new Error("Fetched URL did not return a supported image.");
+  }
+  if (fileType === "audio") {
+    const detected = detectAudioMimeType(buffer);
+    if (detected && ALLOWED_AUDIO_MIME_TYPES.has(detected)) return detected;
+    if (contentType && ALLOWED_AUDIO_MIME_TYPES.has(contentType)) return contentType;
+    throw new Error("Fetched URL did not return a supported audio file.");
   }
   const detected = detectVideoMimeType(buffer);
   if (detected && ALLOWED_VIDEO_MIME_TYPES.has(detected)) return detected;
@@ -592,10 +636,12 @@ const readExistingAiStudioMediaRowByOutputIndex = async ({
           return {
             id,
             storagePath: asCanonicalStoragePath(asOptionalString(canonicalMedia.storage_path)),
-            fileType:
-              asOptionalString(canonicalMedia.file_type)?.toLowerCase() === "video"
-                ? ("video" as const)
-                : ("image" as const),
+            fileType: (() => {
+              const fileTypeRaw = asOptionalString(canonicalMedia.file_type)?.toLowerCase();
+              if (fileTypeRaw === "video") return "video" as const;
+              if (fileTypeRaw === "audio") return "audio" as const;
+              return "image" as const;
+            })(),
             metadata: asObjectMetadata(canonicalMedia.metadata),
             thumbVariantPath: asCanonicalStoragePath(
               asOptionalString(canonicalMedia.thumb_variant_path)
@@ -629,10 +675,12 @@ const readExistingAiStudioMediaRowByOutputIndex = async ({
   return {
     id,
     storagePath: asCanonicalStoragePath(asOptionalString(data.storage_path)),
-    fileType:
-      asOptionalString(data.file_type)?.toLowerCase() === "video"
-        ? ("video" as const)
-        : ("image" as const),
+    fileType: (() => {
+      const fileTypeRaw = asOptionalString(data.file_type)?.toLowerCase();
+      if (fileTypeRaw === "video") return "video" as const;
+      if (fileTypeRaw === "audio") return "audio" as const;
+      return "image" as const;
+    })(),
     metadata: asObjectMetadata(data.metadata),
     thumbVariantPath: asCanonicalStoragePath(asOptionalString(data.thumb_variant_path)),
     posterVariantPath: asCanonicalStoragePath(asOptionalString(data.poster_variant_path)),
@@ -818,7 +866,12 @@ export default async function handler(
     }
 
     const effectiveFileType = resolveFileType(null, mode, fileTypeHint);
-    const maxBytes = effectiveFileType === "video" ? MAX_VIDEO_BYTES : MAX_IMAGE_BYTES;
+    const maxBytes =
+      effectiveFileType === "video"
+        ? MAX_VIDEO_BYTES
+        : effectiveFileType === "audio"
+          ? MAX_AUDIO_BYTES
+          : MAX_IMAGE_BYTES;
     const fetched = await fetchUrlWithRedirectValidation({
       startUrl: parsedUrl,
       maxBytes,
@@ -831,7 +884,7 @@ export default async function handler(
     });
     const extension = resolveExtension(mimeType, fetched.finalUrl.toString());
     const rootFolder = source === "ai_studio" ? "generations" : "uploads";
-    const typeFolder = fileType === "video" ? "videos" : "images";
+    const typeFolder = fileType === "video" ? "videos" : fileType === "audio" ? "audio" : "images";
     const storageName = `${randomUUID()}-${index}.${extension}`;
     const storagePath = assertUserScopedMediaStoragePath({
       path: `${user.id}/${rootFolder}/${typeFolder}/${storageName}`,

@@ -155,7 +155,7 @@ describe("CreateExpertPresetPanel", () => {
     });
   });
 
-  it("opens the More Presets surface and saves a custom preset override", async () => {
+  it("opens the Pulses surface and saves a custom preset override", async () => {
     const onSavedPresetsChange = vi.fn();
 
     render(
@@ -179,7 +179,7 @@ describe("CreateExpertPresetPanel", () => {
       />
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "More presets" }));
+    fireEvent.click(screen.getByRole("button", { name: "More Pulses" }));
     fireEvent.click(screen.getByRole("button", { name: "Edit Storyboard preset" }));
     fireEvent.change(screen.getByLabelText("Preset name"), {
       target: { value: "Hook Builder" },
@@ -208,14 +208,14 @@ describe("CreateExpertPresetPanel", () => {
     });
   });
 
-  it("edits a built-in preset from the More Presets surface as a saved override", async () => {
+  it("edits a built-in preset from the Pulses surface as a saved override", async () => {
     const onSavedPresetsChange = vi.fn();
 
     render(
       <CreateExpertPresetPanel savedPresets={[]} onSavedPresetsChange={onSavedPresetsChange} />
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "More presets" }));
+    fireEvent.click(screen.getByRole("button", { name: "More Pulses" }));
     fireEvent.click(screen.getByRole("button", { name: "Edit Ad Hook preset" }));
     fireEvent.change(screen.getByLabelText("Preset name"), {
       target: { value: "Ad Director" },
@@ -245,10 +245,24 @@ describe("CreateExpertPresetPanel", () => {
     });
   });
 
-  it("composes workflow instructions from structured fields in the More Presets editor", () => {
+  it("opens the Pulse Library modal from the More Pulses surface", () => {
+    const onOpenPresetsLibrary = vi.fn();
+
+    render(<CreateExpertPresetPanel onOpenPresetsLibrary={onOpenPresetsLibrary} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "More Pulses" }));
+    fireEvent.click(screen.getByRole("button", { name: /pulse library/i }));
+
+    expect(onOpenPresetsLibrary).not.toHaveBeenCalled();
+    expect(screen.queryByRole("region", { name: "Pulses" })).not.toBeInTheDocument();
+    expect(screen.getByRole("dialog", { name: "Pulses" })).toBeInTheDocument();
+    expect(screen.getAllByText("Pulses").length).toBeGreaterThan(0);
+  });
+
+  it("composes workflow instructions from structured fields in the Pulses editor", () => {
     render(<CreateExpertPresetPanel savedPresets={[]} onSavedPresetsChange={vi.fn()} />);
 
-    fireEvent.click(screen.getByRole("button", { name: "More presets" }));
+    fireEvent.click(screen.getByRole("button", { name: "More Pulses" }));
     fireEvent.click(screen.getByRole("button", { name: "Edit Ad Hook preset" }));
     fireEvent.click(screen.getByRole("button", { name: "Show advanced settings" }));
     fireEvent.change(screen.getByLabelText("Role & Goal"), {
@@ -267,7 +281,7 @@ describe("CreateExpertPresetPanel", () => {
     expect(instructionsField.value).toContain("ADDITIONAL RULES");
   });
 
-  it("pins a preset from the More Presets surface into the panel via drag and drop", async () => {
+  it("pins a preset from the Pulses surface into the panel via drag and drop", async () => {
     const onSelectedPresetIdsChange = vi.fn();
     const transfer = new MockDataTransfer();
 
@@ -278,7 +292,7 @@ describe("CreateExpertPresetPanel", () => {
       />
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "More presets" }));
+    fireEvent.click(screen.getByRole("button", { name: "More Pulses" }));
     const surfaceChip = screen.getByRole("button", { name: "Ad Hook" });
     const panelDropzone = screen.getByLabelText("Pulse preset panel list");
 

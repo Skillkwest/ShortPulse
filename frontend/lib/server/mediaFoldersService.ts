@@ -5,6 +5,7 @@
 import { getSupabaseAdmin } from "./api/supabaseAdmin";
 
 export const MEDIA_LIBRARY_ROOT_FOLDER_ID = "all_items" as const;
+export const DEFAULT_MEDIA_LIBRARY_FOLDER_NAME = "New Folder" as const;
 
 const FOLDER_NAME_MAX_LENGTH = 64;
 const FOLDER_ID_REGEX =
@@ -22,6 +23,7 @@ export type MediaFolderRow = {
   parent_folder_id: string | null;
   created_at: string;
   updated_at: string;
+  item_count: number;
 };
 
 export type FolderMembershipBatchAction = "assign" | "unassign" | "move";
@@ -125,8 +127,68 @@ const toMediaFolderRow = (
         : parentFolderId,
     created_at: createdAt,
     updated_at: updatedAt,
+    item_count: 0,
   };
 };
+
+const toFolderItemCountMap = async ({
+  supabaseAdmin,
+  userId,
+  folderIds,
+}: {
+  supabaseAdmin: ReturnType<typeof getSupabaseAdmin>;
+  userId: string;
+  folderIds: string[];
+}): Promise<Map<string, number>> => {
+  const counts = new Map<string, number>();
+  for (const folderId of folderIds) {
+    counts.set(folderId, 0);
+  }
+  if (!folderIds.length) return counts;
+
+  const [mediaMembershipsResult, promptMembershipsResult] = await Promise.all([
+    supabaseAdmin
+      .from("media_folder_media_items")
+      .select("folder_id")
+      .eq("user_id", userId)
+      .in("folder_id", folderIds),
+    supabaseAdmin
+      .from("media_folder_prompt_items")
+      .select("folder_id")
+      .eq("user_id", userId)
+      .in("folder_id", folderIds),
+  ]);
+
+  const { data: mediaMemberships, error: mediaMembershipsError } = mediaMembershipsResult;
+  if (mediaMembershipsError) {
+    throw new Error(mediaMembershipsError.message || "Failed to load media folder item counts");
+  }
+  const { data: promptMemberships, error: promptMembershipsError } = promptMembershipsResult;
+  if (promptMembershipsError) {
+    throw new Error(promptMembershipsError.message || "Failed to load media folder item counts");
+  }
+
+  for (const row of mediaMemberships ?? []) {
+    const folderId = typeof row.folder_id === "string" ? row.folder_id.trim() : "";
+    if (!folderId || !counts.has(folderId)) continue;
+    counts.set(folderId, (counts.get(folderId) ?? 0) + 1);
+  }
+  for (const row of promptMemberships ?? []) {
+    const folderId = typeof row.folder_id === "string" ? row.folder_id.trim() : "";
+    if (!folderId || !counts.has(folderId)) continue;
+    counts.set(folderId, (counts.get(folderId) ?? 0) + 1);
+  }
+
+  return counts;
+};
+
+const withFolderItemCount = (
+  folder: Omit<MediaFolderRow, "item_count">,
+  itemCount: number
+): MediaFolderRow => ({
+  ...folder,
+  item_count: Math.max(0, Math.trunc(itemCount)),
+});
 
 const assertOwnedFolderExists = async ({
   supabaseAdmin,
@@ -231,7 +293,13 @@ export const listMediaFoldersForUser = async (userId: string): Promise<MediaFold
     throw new Error(error.message || "Failed to list media folders");
   }
   if (!error) {
-    return (data ?? []) as MediaFolderRow[];
+    const rows = (data ?? []) as Array<Omit<MediaFolderRow, "item_count">>;
+    const counts = await toFolderItemCountMap({
+      supabaseAdmin,
+      userId,
+      folderIds: rows.map((row) => row.id),
+    });
+    return rows.map((row) => withFolderItemCount(row, counts.get(row.id) ?? 0));
   }
 
   const { data: legacyData, error: legacyError } = await supabaseAdmin
@@ -293,7 +361,7 @@ export const createMediaFolderForUser = async ({
     throw new Error(error.message || "Failed to create folder");
   }
   if (!error && data) {
-    return data as MediaFolderRow;
+    return withFolderItemCount(data as Omit<MediaFolderRow, "item_count">, 0);
   }
   if (parentFolderId) {
     throw new Error("Nested folders require the latest database migration");
@@ -320,6 +388,30 @@ export const createMediaFolderForUser = async ({
     throw new Error("Failed to create folder");
   }
   return folder;
+};
+
+/**
+ * Ensures a first-time user has one default root-level custom folder.
+ * Media folders are user-scoped today, so this seed should run only while
+ * the user has no existing custom folders.
+ */
+export const ensureDefaultMediaFolderForUserExists = async (
+  userId: string
+): Promise<MediaFolderRow | null> => {
+  const existingFolders = await listMediaFoldersForUser(userId);
+  if (existingFolders.length > 0) return null;
+  try {
+    return await createMediaFolderForUser({
+      userId,
+      name: DEFAULT_MEDIA_LIBRARY_FOLDER_NAME,
+      parentFolderId: null,
+    });
+  } catch (error) {
+    if (error instanceof Error && error.message === "Folder name already exists") {
+      return null;
+    }
+    throw error;
+  }
 };
 
 /**
@@ -353,7 +445,16 @@ export const renameMediaFolderForUser = async ({
     throw new Error(error.message || "Failed to rename folder");
   }
   if (!error) {
-    return (data as MediaFolderRow | null) ?? null;
+    if (!data) return null;
+    const counts = await toFolderItemCountMap({
+      supabaseAdmin,
+      userId,
+      folderIds: [folderId],
+    });
+    return withFolderItemCount(
+      data as Omit<MediaFolderRow, "item_count">,
+      counts.get(folderId) ?? 0
+    );
   }
   const { data: legacyData, error: legacyError } = await supabaseAdmin
     .from("media_folders")
@@ -426,7 +527,16 @@ export const moveMediaFolderForUser = async ({
     if (existingError) {
       throw new Error(existingError.message || "Failed to load folder");
     }
-    return (existingRow as MediaFolderRow | null) ?? null;
+    if (!existingRow) return null;
+    const counts = await toFolderItemCountMap({
+      supabaseAdmin,
+      userId,
+      folderIds: [folderId],
+    });
+    return withFolderItemCount(
+      existingRow as Omit<MediaFolderRow, "item_count">,
+      counts.get(folderId) ?? 0
+    );
   }
 
   if (parentFolderId) {
@@ -459,7 +569,13 @@ export const moveMediaFolderForUser = async ({
     throw new Error(error.message || "Failed to move folder");
   }
 
-  return (data as MediaFolderRow | null) ?? null;
+  if (!data) return null;
+  const counts = await toFolderItemCountMap({
+    supabaseAdmin,
+    userId,
+    folderIds: [folderId],
+  });
+  return withFolderItemCount(data as Omit<MediaFolderRow, "item_count">, counts.get(folderId) ?? 0);
 };
 
 /**

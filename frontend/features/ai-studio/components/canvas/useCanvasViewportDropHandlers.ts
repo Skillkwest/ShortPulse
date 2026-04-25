@@ -22,6 +22,7 @@ import {
 import type {
   CanvasCamera,
   CanvasDropResolution,
+  PrepareCanvasMediaLibraryDrop,
   PrepareResolvedInternalCanvasDrop,
   ResolveCanvasDropFiles,
   ResolveCanvasDropReference,
@@ -32,6 +33,7 @@ type UseCanvasViewportDropHandlersParams = {
   camera: CanvasCamera;
   resolveCanvasDropReference?: ResolveCanvasDropReference;
   prepareResolvedInternalCanvasDrop?: PrepareResolvedInternalCanvasDrop;
+  prepareCanvasMediaLibraryDrop?: PrepareCanvasMediaLibraryDrop;
   resolveCanvasDropFiles?: ResolveCanvasDropFiles;
   addResolvedItem: (
     resolved: CanvasDropResolution,
@@ -57,6 +59,7 @@ export const useCanvasViewportDropHandlers = ({
   camera,
   resolveCanvasDropReference,
   prepareResolvedInternalCanvasDrop,
+  prepareCanvasMediaLibraryDrop,
   resolveCanvasDropFiles,
   addResolvedItem,
 }: UseCanvasViewportDropHandlersParams): CanvasDropHandlers => {
@@ -212,6 +215,16 @@ export const useCanvasViewportDropHandlers = ({
       if (mediaLibraryPayload) {
         event.preventDefault();
         event.stopPropagation();
+        if (prepareCanvasMediaLibraryDrop) {
+          void (async () => {
+            const resolvedItem = await prepareCanvasMediaLibraryDrop(mediaLibraryPayload);
+            if (!resolvedItem) return;
+            await addResolvedItem(resolvedItem, point.x, point.y, {
+              showLoadingPlaceholder: true,
+            });
+          })();
+          return;
+        }
         if (mediaLibraryPayload.kind === "libraryMedia") {
           const previewSrc =
             (mediaLibraryPayload.payload.fullUrl ?? "").trim() ||
@@ -311,6 +324,7 @@ export const useCanvasViewportDropHandlers = ({
       camera,
       handleResolvedInternalDrop,
       logUnresolvedInternalDrop,
+      prepareCanvasMediaLibraryDrop,
       resolveCanvasDropFiles,
       viewportRef,
     ]

@@ -2,7 +2,7 @@
  * AI Studio project-workspace persistence controller.
  * Orchestrates project-owned restore/apply and debounced write shadow against project workspace authority.
  */
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { AiStudioSessionSnapshot } from "../logic/sessionSnapshot";
 import type { AiStudioSessionHydrationPayload } from "../logic/sessionSnapshotHydrator";
 import { saveAiStudioProjectWorkspaceSnapshotViaApi } from "../logic/projectWorkspaceApiClient";
@@ -70,6 +70,7 @@ export const useAiStudioProjectWorkspacePersistenceController = ({
   onPersistenceWarning,
 }: UseAiStudioProjectWorkspacePersistenceControllerParams): AiStudioSessionPersistenceController => {
   const [bootstrappedProjectId, setBootstrappedProjectId] = useState<string | null>(null);
+  const invalidatedProjectIdRef = useRef<string | null>(null);
   const sessionRestoreCandidate = useAiStudioProjectWorkspaceRestoreCandidate({
     projectId,
     enabled: Boolean(projectId),
@@ -82,6 +83,18 @@ export const useAiStudioProjectWorkspacePersistenceController = ({
     () => (sessionId && projectBootstrapReady ? buildSessionSnapshot(sessionId) : null),
     [buildSessionSnapshot, projectBootstrapReady, sessionId]
   );
+
+  useEffect(() => {
+    if (!projectId) {
+      invalidatedProjectIdRef.current = null;
+      setBootstrappedProjectId(null);
+      return;
+    }
+    if (invalidatedProjectIdRef.current === projectId) return;
+    invalidatedProjectIdRef.current = projectId;
+    setBootstrappedProjectId(null);
+    applyEmptyProjectState?.();
+  }, [applyEmptyProjectState, projectId]);
 
   useAiStudioProjectWorkspaceRestoreHydration({
     projectId,

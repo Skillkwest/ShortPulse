@@ -22,8 +22,8 @@ Purpose: explain how CSS is split to keep files focused and under the line limit
 - `styles/ai-studio-layout.css`: AI Studio chrome (page shell, hero strip, toolbar/column layout).
 - `styles/ai-studio-coming-soon.css`: Temporary placeholders for templates, workflows, and gallery views.
 - `styles/ai-studio-styles-library.css`: Primary Styles library panel in the AI Studio properties column.
-- `styles/ai-studio-presets-library.css`: Primary Presets library panel in the AI Studio properties column.
-- `styles/ai-studio-pulse-presets-library.css`: Primary Pulse Presets library panel in the AI Studio properties column.
+- `styles/ai-studio-presets-library.css`: Unified Presets library shell plus Prompt Presets library styling in the AI Studio properties column.
+- `styles/ai-studio-pulse-presets-library.css`: Pulse card and editor styling used inside the unified Presets library.
 - `styles/ai-studio-canvas.css`: Reference grid and preview surfaces for AI Studio.
 - `styles/ai-studio-controls.css`: Step cards, toggles, and aspect/model selectors.
 - `styles/ai-studio-reference-properties.css`: Reference panel dropzones, frame/model controls, and upload layouts.

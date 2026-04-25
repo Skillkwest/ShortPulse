@@ -5,6 +5,7 @@
 import { useCallback, useMemo, useState } from "react";
 import { useCanvasSharedSceneState } from "./canvasSceneState";
 import type {
+  PrepareCanvasMediaLibraryDrop,
   PrepareResolvedInternalCanvasDrop,
   ResolveCanvasDropFiles,
   ResolveCanvasDropReference,
@@ -31,12 +32,14 @@ export type {
 export const useAiStudioCanvasWorkspaceState = ({
   resolveCanvasDropReference,
   prepareResolvedInternalCanvasDrop,
+  prepareCanvasMediaLibraryDrop,
   resolveCanvasDropFiles,
   onPinTextReference,
   onItemLimitReached,
 }: {
   resolveCanvasDropReference?: ResolveCanvasDropReference;
   prepareResolvedInternalCanvasDrop?: PrepareResolvedInternalCanvasDrop;
+  prepareCanvasMediaLibraryDrop?: PrepareCanvasMediaLibraryDrop;
   resolveCanvasDropFiles?: ResolveCanvasDropFiles;
   onPinTextReference?: (text: string) => void;
   onItemLimitReached?: () => void;
@@ -54,6 +57,7 @@ export const useAiStudioCanvasWorkspaceState = ({
     sharedScene,
     resolveCanvasDropReference,
     prepareResolvedInternalCanvasDrop,
+    prepareCanvasMediaLibraryDrop,
     resolveCanvasDropFiles,
     onPinTextReference,
     isSpacePanActiveRef,
@@ -74,12 +78,14 @@ export const useAiStudioCanvasWorkspaceState = ({
 export const useAiStudioDualCanvasWorkspaceState = ({
   resolveCanvasDropReference,
   prepareResolvedInternalCanvasDrop,
+  prepareCanvasMediaLibraryDrop,
   resolveCanvasDropFiles,
   onPinTextReference,
   onItemLimitReached,
 }: {
   resolveCanvasDropReference?: ResolveCanvasDropReference;
   prepareResolvedInternalCanvasDrop?: PrepareResolvedInternalCanvasDrop;
+  prepareCanvasMediaLibraryDrop?: PrepareCanvasMediaLibraryDrop;
   resolveCanvasDropFiles?: ResolveCanvasDropFiles;
   onPinTextReference?: (text: string) => void;
   onItemLimitReached?: () => void;
@@ -100,6 +106,7 @@ export const useAiStudioDualCanvasWorkspaceState = ({
     sharedScene,
     resolveCanvasDropReference,
     prepareResolvedInternalCanvasDrop,
+    prepareCanvasMediaLibraryDrop,
     resolveCanvasDropFiles,
     onPinTextReference,
     isSpacePanActiveRef,
@@ -118,6 +125,7 @@ export const useAiStudioDualCanvasWorkspaceState = ({
     sharedScene,
     resolveCanvasDropReference,
     prepareResolvedInternalCanvasDrop,
+    prepareCanvasMediaLibraryDrop,
     resolveCanvasDropFiles,
     onPinTextReference,
     isSpacePanActiveRef,

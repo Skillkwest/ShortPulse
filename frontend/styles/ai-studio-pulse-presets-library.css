@@ -232,6 +232,55 @@
   background: rgba(4, 7, 12, 0.58);
 }
 
+.create-pulse-library-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: var(--ai-studio-z-modal-backdrop);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(4, 7, 12, 0.58);
+}
+
+.create-pulse-library-modal {
+  position: relative;
+  width: min(1180px, calc(100vw - 32px));
+  height: min(840px, calc(100vh - 32px));
+  transform: translateX(88px);
+  border-radius: 18px;
+  border: 1px solid rgba(201, 205, 214, 0.2);
+  background: #131518;
+  box-shadow: 0 22px 48px rgba(0, 0, 0, 0.46);
+  padding: 22px 22px 20px;
+  z-index: var(--ai-studio-z-modal-content);
+}
+
+.create-pulse-library-modal-close {
+  position: absolute;
+  top: 18px;
+  right: 18px;
+  z-index: 2;
+}
+
+.create-pulse-library-modal-body {
+  height: 100%;
+  min-height: 0;
+  padding-right: 18px;
+}
+
+@media (max-width: 1180px) {
+  .create-pulse-library-modal {
+    transform: translateX(44px);
+  }
+}
+
+@media (max-width: 900px) {
+  .create-pulse-library-modal {
+    transform: none;
+  }
+}
+
 .pulse-presets-library-edit-modal {
   width: min(720px, calc(100vw - 24px));
   border-radius: 12px;

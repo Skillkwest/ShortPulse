@@ -27,13 +27,10 @@ export type StyleExtractionResult = {
 
 /**
  * Keep client timeout budget aligned with server-side extraction runtime.
- * The active path sends image data directly, but the route still owns upstream retries.
+ * The active path sends image data directly, and the route owns upstream retries.
  */
 const STYLE_EXTRACTION_TOTAL_DEADLINE_MS = 95000;
-const STYLE_EXTRACTION_ATTEMPT_TIMEOUT_MS = 58000;
-const STYLE_EXTRACTION_TIMEOUT_MAX_ATTEMPTS = 2;
-const STYLE_EXTRACTION_RETRY_BASE_DELAY_MS = 250;
-const STYLE_EXTRACTION_RETRY_JITTER_MS = 120;
+const STYLE_EXTRACTION_REQUEST_TIMEOUT_MS = 58000;
 const STYLE_EXTRACTION_TIMEOUT_MESSAGE = "Style extraction timed out. Please retry.";
 const STYLE_EXTRACTION_CANCELED_MESSAGE = "Style extraction was interrupted. Please retry.";
 const STYLE_EXTRACTION_TRANSIENT_MESSAGE = "Style extraction hit a network issue. Please retry.";
@@ -44,7 +41,6 @@ type StyleExtractionErrorDetails = {
   userMessage: string;
   attemptCount: number;
   totalMs: number;
-  retryable: boolean;
   statusCode?: number | null;
   probeMs?: number | null;
   openAiMs?: number | null;
@@ -91,7 +87,6 @@ const createStyleExtractionError = ({
   userMessage,
   attemptCount,
   totalMs,
-  retryable,
   statusCode,
   probeMs,
   openAiMs,
@@ -103,7 +98,6 @@ const createStyleExtractionError = ({
   error.userMessage = userMessage;
   error.attemptCount = attemptCount;
   error.totalMs = totalMs;
-  error.retryable = retryable;
   error.statusCode = statusCode ?? null;
   error.probeMs = probeMs ?? null;
   error.openAiMs = openAiMs ?? null;
@@ -116,36 +110,23 @@ export const isStyleExtractionError = (error: unknown): error is StyleExtraction
   return (error as { code?: unknown }).code === STYLE_EXTRACTION_ERROR_CODE;
 };
 
-const resolveRetryDelayMs = (attempt: number): number => {
-  const jitter = Math.floor(Math.random() * STYLE_EXTRACTION_RETRY_JITTER_MS);
-  return STYLE_EXTRACTION_RETRY_BASE_DELAY_MS * attempt + jitter;
-};
-
-const sleep = async (ms: number): Promise<void> =>
-  await new Promise((resolve) => {
-    window.setTimeout(resolve, Math.max(0, Math.trunc(ms)));
-  });
-
 const classifyUnknownExtractionError = (
   error: unknown,
   timeoutTriggered: boolean
 ): {
   failureClass: StyleExtractionFailureClass;
   userMessage: string;
-  retryable: boolean;
 } => {
   if (error instanceof DOMException && error.name === "AbortError") {
     if (timeoutTriggered) {
       return {
         failureClass: "timeout",
         userMessage: STYLE_EXTRACTION_TIMEOUT_MESSAGE,
-        retryable: true,
       };
     }
     return {
       failureClass: "canceled",
       userMessage: STYLE_EXTRACTION_CANCELED_MESSAGE,
-      retryable: false,
     };
   }
 
@@ -154,20 +135,17 @@ const classifyUnknownExtractionError = (
     return {
       failureClass: "canceled",
       userMessage: STYLE_EXTRACTION_CANCELED_MESSAGE,
-      retryable: false,
     };
   }
   if (TRANSIENT_ERROR_PATTERN.test(rawMessage)) {
     return {
       failureClass: "network_transient",
       userMessage: STYLE_EXTRACTION_TRANSIENT_MESSAGE,
-      retryable: true,
     };
   }
   return {
     failureClass: "unknown",
     userMessage: STYLE_EXTRACTION_GENERIC_MESSAGE,
-    retryable: false,
   };
 };
 
@@ -177,132 +155,100 @@ export const postExtractStyle = async (imageDataUrl: string): Promise<StyleExtra
   }
 
   const startedAt = Date.now();
-  for (let attempt = 1; attempt <= STYLE_EXTRACTION_TIMEOUT_MAX_ATTEMPTS; attempt += 1) {
-    const elapsedBeforeAttempt = Date.now() - startedAt;
-    const remainingBudget = STYLE_EXTRACTION_TOTAL_DEADLINE_MS - elapsedBeforeAttempt;
-    if (remainingBudget <= 0) {
+  const timeoutMs = Math.min(
+    STYLE_EXTRACTION_REQUEST_TIMEOUT_MS,
+    STYLE_EXTRACTION_TOTAL_DEADLINE_MS
+  );
+  const controller = new AbortController();
+  let timeoutTriggered = false;
+  const timeoutId = window.setTimeout(() => {
+    timeoutTriggered = true;
+    controller.abort();
+  }, timeoutMs);
+  try {
+    const response = await fetchWithAuth("/api/ai/extract-style", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ imageDataUrl }),
+      signal: controller.signal,
+      shortpulseLogScope: "generation",
+    });
+    const responseMetrics = readResponseMetrics(response);
+    const totalMs = Date.now() - startedAt;
+
+    if (!response.ok) {
+      const payload = await response.json().catch(() => null);
+      const rawDetail =
+        (typeof payload?.detail === "string" && payload.detail.trim()) ||
+        (typeof payload?.error === "string" && payload.error.trim()) ||
+        null;
+      const detail = rawDetail?.replace(/\bAbortError\b.*$/i, "").trim();
       throw createStyleExtractionError({
-        failureClass: "timeout",
-        userMessage: STYLE_EXTRACTION_TIMEOUT_MESSAGE,
-        attemptCount: Math.max(1, attempt - 1),
-        totalMs: Date.now() - startedAt,
-        retryable: false,
-      });
-    }
-
-    const timeoutMs = Math.min(STYLE_EXTRACTION_ATTEMPT_TIMEOUT_MS, remainingBudget);
-    const controller = new AbortController();
-    let timeoutTriggered = false;
-    const timeoutId = window.setTimeout(() => {
-      timeoutTriggered = true;
-      controller.abort();
-    }, timeoutMs);
-    try {
-      const response = await fetchWithAuth("/api/ai/extract-style", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ imageDataUrl }),
-        signal: controller.signal,
-        shortpulseLogScope: "generation",
-      });
-      const responseMetrics = readResponseMetrics(response);
-      const totalMs = Date.now() - startedAt;
-
-      if (!response.ok) {
-        const payload = await response.json().catch(() => null);
-        const rawDetail =
-          (typeof payload?.detail === "string" && payload.detail.trim()) ||
-          (typeof payload?.error === "string" && payload.error.trim()) ||
-          null;
-        const detail = rawDetail?.replace(/\bAbortError\b.*$/i, "").trim();
-        throw createStyleExtractionError({
-          failureClass: "upstream_http",
-          userMessage: detail?.length
-            ? detail
-            : `Style extraction request failed (${response.status}).`,
-          attemptCount:
-            responseMetrics.attemptCount && responseMetrics.attemptCount > 0
-              ? responseMetrics.attemptCount
-              : attempt,
-          totalMs,
-          retryable: false,
-          statusCode: response.status,
-          probeMs: responseMetrics.probeMs,
-          openAiMs: responseMetrics.openAiMs,
-          modelUsed: responseMetrics.modelUsed,
-        });
-      }
-
-      const data = await response.json();
-      const stylePrompt = typeof data?.stylePrompt === "string" ? data.stylePrompt.trim() : null;
-      const styleTitle = typeof data?.styleTitle === "string" ? data.styleTitle.trim() : null;
-      if (!stylePrompt?.length) {
-        throw createStyleExtractionError({
-          failureClass: "unknown",
-          userMessage: STYLE_EXTRACTION_GENERIC_MESSAGE,
-          attemptCount: attempt,
-          totalMs,
-          retryable: false,
-          probeMs: responseMetrics.probeMs,
-          openAiMs: responseMetrics.openAiMs,
-          modelUsed: responseMetrics.modelUsed,
-        });
-      }
-      if (!styleTitle?.length) {
-        throw createStyleExtractionError({
-          failureClass: "unknown",
-          userMessage: STYLE_EXTRACTION_GENERIC_MESSAGE,
-          attemptCount: attempt,
-          totalMs,
-          retryable: false,
-          probeMs: responseMetrics.probeMs,
-          openAiMs: responseMetrics.openAiMs,
-          modelUsed: responseMetrics.modelUsed,
-        });
-      }
-
-      return {
-        stylePrompt,
-        styleTitle,
+        failureClass: "upstream_http",
+        userMessage: detail?.length
+          ? detail
+          : `Style extraction request failed (${response.status}).`,
         attemptCount:
           responseMetrics.attemptCount && responseMetrics.attemptCount > 0
             ? responseMetrics.attemptCount
-            : attempt,
+            : 1,
+        totalMs,
+        statusCode: response.status,
+        probeMs: responseMetrics.probeMs,
+        openAiMs: responseMetrics.openAiMs,
+        modelUsed: responseMetrics.modelUsed,
+      });
+    }
+
+    const data = await response.json();
+    const stylePrompt = typeof data?.stylePrompt === "string" ? data.stylePrompt.trim() : null;
+    const styleTitle = typeof data?.styleTitle === "string" ? data.styleTitle.trim() : null;
+    if (!stylePrompt?.length) {
+      throw createStyleExtractionError({
+        failureClass: "unknown",
+        userMessage: STYLE_EXTRACTION_GENERIC_MESSAGE,
+        attemptCount: 1,
         totalMs,
         probeMs: responseMetrics.probeMs,
         openAiMs: responseMetrics.openAiMs,
         modelUsed: responseMetrics.modelUsed,
-        usage: data?.usage,
-      };
-    } catch (error) {
-      const totalMs = Date.now() - startedAt;
-      const normalized = isStyleExtractionError(error)
-        ? error
-        : createStyleExtractionError({
-            ...classifyUnknownExtractionError(error, timeoutTriggered),
-            attemptCount: attempt,
-            totalMs,
-          });
-      if (
-        normalized.retryable &&
-        attempt < STYLE_EXTRACTION_TIMEOUT_MAX_ATTEMPTS &&
-        totalMs < STYLE_EXTRACTION_TOTAL_DEADLINE_MS
-      ) {
-        const delayMs = resolveRetryDelayMs(attempt);
-        await sleep(delayMs);
-        continue;
-      }
-      throw normalized;
-    } finally {
-      window.clearTimeout(timeoutId);
+      });
     }
-  }
+    if (!styleTitle?.length) {
+      throw createStyleExtractionError({
+        failureClass: "unknown",
+        userMessage: STYLE_EXTRACTION_GENERIC_MESSAGE,
+        attemptCount: 1,
+        totalMs,
+        probeMs: responseMetrics.probeMs,
+        openAiMs: responseMetrics.openAiMs,
+        modelUsed: responseMetrics.modelUsed,
+      });
+    }
 
-  throw createStyleExtractionError({
-    failureClass: "timeout",
-    userMessage: STYLE_EXTRACTION_TIMEOUT_MESSAGE,
-    attemptCount: STYLE_EXTRACTION_TIMEOUT_MAX_ATTEMPTS,
-    totalMs: Date.now() - startedAt,
-    retryable: false,
-  });
+    return {
+      stylePrompt,
+      styleTitle,
+      attemptCount:
+        responseMetrics.attemptCount && responseMetrics.attemptCount > 0
+          ? responseMetrics.attemptCount
+          : 1,
+      totalMs,
+      probeMs: responseMetrics.probeMs,
+      openAiMs: responseMetrics.openAiMs,
+      modelUsed: responseMetrics.modelUsed,
+      usage: data?.usage,
+    };
+  } catch (error) {
+    const totalMs = Date.now() - startedAt;
+    throw isStyleExtractionError(error)
+      ? error
+      : createStyleExtractionError({
+          ...classifyUnknownExtractionError(error, timeoutTriggered),
+          attemptCount: 1,
+          totalMs,
+        });
+  } finally {
+    window.clearTimeout(timeoutId);
+  }
 };

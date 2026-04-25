@@ -214,7 +214,7 @@ export function PulsePresetsLibraryPanel({
   return (
     <section className="pulse-presets-library-panel" aria-label="Pulse presets library">
       <header className="pulse-presets-library-header">
-        <p className="eyebrow">Pulse Presets Library</p>
+        <p className="eyebrow">Pulses</p>
         <p className="tiny subdued helper-text">
           Click any Pulse to edit it. The core contract is simple: name the Pulse and write its
           hidden system instructions. Advanced runtime settings stay optional.

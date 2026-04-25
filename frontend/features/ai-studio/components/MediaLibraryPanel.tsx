@@ -24,6 +24,7 @@ import {
 import {
   BUCKET,
   getMediaDataTabForRow,
+  isImageFile,
   isNextImageOptimizerUrl,
   isVideoFile,
   resolveMediaMetadataPromptText,
@@ -59,8 +60,8 @@ import { MediaLibraryPanelPreviewModal } from "./media-library-modal/MediaLibrar
 import { MediaLibraryPromptGrid } from "./media-library-modal/MediaLibraryPromptGrid";
 import { AiStudioModalLayer, useAiStudioModalActivity } from "./modal-layer/AiStudioModalLayer";
 
-type MediaLibraryPanelItemType = "all" | "images" | "videos" | "audio" | "prompts";
-type RootMediaLibraryTab = "all" | "images" | "videos" | "audio" | "prompts";
+type MediaLibraryPanelItemType = "all" | "images" | "videos" | "prompts";
+type RootMediaLibraryTab = "all" | "images" | "videos" | "prompts";
 
 type FolderContextMenuState = {
   folderId: string;
@@ -202,7 +203,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
   });
 
   const normalizedSearch = "";
-  const shouldShowMedia = itemType !== "prompts" && itemType !== "audio";
+  const shouldShowMedia = itemType !== "prompts";
   const shouldShowPrompts = itemType === "prompts" || itemType === "all";
   // Folder canvas remains a secondary domain and is no longer the default folder browse surface.
   const showFolderCanvas = false;
@@ -279,7 +280,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
     [foldersById]
   );
   const visibleImageRows = useMemo(
-    () => mediaRows.filter((row) => !isVideoFile(row.file_type)),
+    () => mediaRows.filter((row) => isImageFile(row.file_type)),
     [mediaRows]
   );
   const visibleVideoRows = useMemo(
@@ -1122,16 +1123,17 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
       const selectedFiles = files ? Array.from(files) : [];
       event.currentTarget.value = "";
       if (selectedFiles.length === 0) return;
+      const uploadTargetFolderId = (activeFolderId ?? "").trim() || MEDIA_LIBRARY_ROOT_FOLDER_ID;
       try {
         await uploadDroppedFilesToFolder({
-          targetFolderId: MEDIA_LIBRARY_ROOT_FOLDER_ID,
+          targetFolderId: uploadTargetFolderId,
           files: selectedFiles,
         });
       } catch (error) {
         setFolderError(error instanceof Error ? error.message : "Unable to upload media.");
       }
     },
-    [setFolderError, uploadDroppedFilesToFolder]
+    [activeFolderId, setFolderError, uploadDroppedFilesToFolder]
   );
 
   const showCustomFolderEmptyState =
@@ -1323,7 +1325,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
       <input
         ref={rootUploadInputRef}
         type="file"
-        accept="image/*,video/*"
+        accept="image/*,video/*,audio/*"
         multiple
         className="media-library-panel-file-input"
         onChange={(event) => {
@@ -1439,16 +1441,6 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
                         onClick={() => setRootTab("videos")}
                       >
                         Videos
-                      </button>
-                      <button
-                        type="button"
-                        role="tab"
-                        className={`media-library-panel-root-tab${rootTab === "audio" ? " is-active" : ""}`}
-                        aria-selected={rootTab === "audio"}
-                        aria-controls="media-library-panel-audio-section"
-                        onClick={() => setRootTab("audio")}
-                      >
-                        Audio
                       </button>
                       <button
                         type="button"
@@ -1590,118 +1582,123 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
               ? renderPromptsSection({ showHeading: false })
               : null}
 
-            {!showFolderCanvas && isRootFolderSelected && itemType === "audio" ? (
-              <section className="media-library-panel-section">
-                <div id="media-library-panel-audio-section">
-                  <p className="tiny subdued">Audio browsing is not available yet.</p>
-                </div>
-              </section>
-            ) : null}
-
             {!showFolderCanvas && !isRootFolderSelected ? (
-              <div
-                key={activeFolderId}
-                className={`media-library-panel-active-folder-dropzone${
-                  isActiveFolderDropHover ? " is-drop-hover" : ""
-                }`}
-                data-testid="media-library-panel-active-folder-dropzone"
-                {...(activeFolderDropZoneProps ?? {})}
-              >
-                {showCustomFolderEmptyState ? (
-                  <section className="media-library-panel-empty-folder-state">
-                    <p className="media-library-panel-empty-folder-title">
-                      No media to display in "{activeFolderName}."
-                    </p>
-                  </section>
-                ) : null}
+              <>
+                <div className="media-library-panel-folder-actions-row">
+                  <button
+                    type="button"
+                    className="media-library-panel-root-upload-button"
+                    onClick={handleOpenRootUploadPicker}
+                  >
+                    <UploadSimple size={14} weight="bold" aria-hidden />
+                    <span>Add files</span>
+                  </button>
+                </div>
+                <div
+                  key={activeFolderId}
+                  className={`media-library-panel-active-folder-dropzone${
+                    isActiveFolderDropHover ? " is-drop-hover" : ""
+                  }`}
+                  data-testid="media-library-panel-active-folder-dropzone"
+                  {...(activeFolderDropZoneProps ?? {})}
+                >
+                  {showCustomFolderEmptyState ? (
+                    <section className="media-library-panel-empty-folder-state">
+                      <p className="media-library-panel-empty-folder-title">
+                        No media to display in "{activeFolderName}."
+                      </p>
+                    </section>
+                  ) : null}
 
-                {!showCustomFolderEmptyState && !showActiveFolderUnifiedGrid ? (
-                  <section className="media-library-panel-section">
-                    {promptLoading || mediaLoading ? (
-                      <p className="tiny subdued">Loading folder items…</p>
-                    ) : null}
-                    {!promptLoading && !mediaLoading ? (
-                      <p className="tiny subdued">No items found for this folder.</p>
-                    ) : null}
-                  </section>
-                ) : null}
+                  {!showCustomFolderEmptyState && !showActiveFolderUnifiedGrid ? (
+                    <section className="media-library-panel-section">
+                      {promptLoading || mediaLoading ? (
+                        <p className="tiny subdued">Loading folder items…</p>
+                      ) : null}
+                      {!promptLoading && !mediaLoading ? (
+                        <p className="tiny subdued">No items found for this folder.</p>
+                      ) : null}
+                    </section>
+                  ) : null}
 
-                {showActiveFolderUnifiedGrid ? (
-                  <section className="media-library-panel-section">
-                    <div id="media-library-panel-folder-items-section">
-                      {renderAllItemsGrid({
-                        gridMediaRows: activeFolderGridMediaRows,
-                        gridPromptRows: activeFolderGridPromptRows,
-                      })}
-                    </div>
-                    {promptHasMore || mediaHasMore ? (
-                      <div className="media-load-more media-load-more-inline">
-                        <p className="tiny subdued">
-                          Loaded{" "}
-                          {activeFolderGridPromptRows.length + activeFolderGridMediaRows.length}{" "}
-                          {activeFolderGridPromptRows.length + activeFolderGridMediaRows.length ===
-                          1
-                            ? "item"
-                            : "items"}
-                          {promptHasMore || mediaHasMore ? "." : " (all loaded)."}
-                        </p>
-                        {promptHasMore ? (
-                          <button
-                            type="button"
-                            className="btn-secondary"
-                            onClick={() => {
-                              void loadPromptPage({ reset: false });
-                            }}
-                            disabled={promptLoading}
-                          >
-                            {promptLoading ? "Loading prompts..." : "Load more prompts"}
-                          </button>
-                        ) : null}
-                        {mediaHasMore ? (
-                          <button
-                            type="button"
-                            className="btn-secondary"
-                            onClick={() => {
-                              void loadMediaPage({ reset: false });
-                            }}
-                            disabled={mediaLoading}
-                          >
-                            {mediaLoading ? "Loading media..." : "Load more media"}
-                          </button>
-                        ) : null}
+                  {showActiveFolderUnifiedGrid ? (
+                    <section className="media-library-panel-section">
+                      <div id="media-library-panel-folder-items-section">
+                        {renderAllItemsGrid({
+                          gridMediaRows: activeFolderGridMediaRows,
+                          gridPromptRows: activeFolderGridPromptRows,
+                        })}
                       </div>
-                    ) : null}
-                  </section>
-                ) : null}
+                      {promptHasMore || mediaHasMore ? (
+                        <div className="media-load-more media-load-more-inline">
+                          <p className="tiny subdued">
+                            Loaded{" "}
+                            {activeFolderGridPromptRows.length + activeFolderGridMediaRows.length}{" "}
+                            {activeFolderGridPromptRows.length +
+                              activeFolderGridMediaRows.length ===
+                            1
+                              ? "item"
+                              : "items"}
+                            {promptHasMore || mediaHasMore ? "." : " (all loaded)."}
+                          </p>
+                          {promptHasMore ? (
+                            <button
+                              type="button"
+                              className="btn-secondary"
+                              onClick={() => {
+                                void loadPromptPage({ reset: false });
+                              }}
+                              disabled={promptLoading}
+                            >
+                              {promptLoading ? "Loading prompts..." : "Load more prompts"}
+                            </button>
+                          ) : null}
+                          {mediaHasMore ? (
+                            <button
+                              type="button"
+                              className="btn-secondary"
+                              onClick={() => {
+                                void loadMediaPage({ reset: false });
+                              }}
+                              disabled={mediaLoading}
+                            >
+                              {mediaLoading ? "Loading media..." : "Load more media"}
+                            </button>
+                          ) : null}
+                        </div>
+                      ) : null}
+                    </section>
+                  ) : null}
 
-                {!showCustomFolderEmptyState &&
-                !showActiveFolderUnifiedGrid &&
-                shouldShowPrompts &&
-                !shouldShowMedia ? (
-                  <section className="media-library-panel-section">
-                    {promptLoading && visiblePromptRows.length === 0 ? (
-                      <p className="tiny subdued">Loading prompts…</p>
-                    ) : null}
-                    {!promptLoading && visiblePromptRows.length === 0 ? (
-                      <p className="tiny subdued">No prompts found for this folder.</p>
-                    ) : null}
-                  </section>
-                ) : null}
+                  {!showCustomFolderEmptyState &&
+                  !showActiveFolderUnifiedGrid &&
+                  shouldShowPrompts &&
+                  !shouldShowMedia ? (
+                    <section className="media-library-panel-section">
+                      {promptLoading && visiblePromptRows.length === 0 ? (
+                        <p className="tiny subdued">Loading prompts…</p>
+                      ) : null}
+                      {!promptLoading && visiblePromptRows.length === 0 ? (
+                        <p className="tiny subdued">No prompts found for this folder.</p>
+                      ) : null}
+                    </section>
+                  ) : null}
 
-                {!showCustomFolderEmptyState &&
-                !showActiveFolderUnifiedGrid &&
-                shouldShowMedia &&
-                !shouldShowPrompts ? (
-                  <section className="media-library-panel-section">
-                    {mediaLoading && mediaRows.length === 0 ? (
-                      <p className="tiny subdued">Loading media…</p>
-                    ) : null}
-                    {!mediaLoading && mediaRows.length === 0 ? (
-                      <p className="tiny subdued">No media found for this folder.</p>
-                    ) : null}
-                  </section>
-                ) : null}
-              </div>
+                  {!showCustomFolderEmptyState &&
+                  !showActiveFolderUnifiedGrid &&
+                  shouldShowMedia &&
+                  !shouldShowPrompts ? (
+                    <section className="media-library-panel-section">
+                      {mediaLoading && mediaRows.length === 0 ? (
+                        <p className="tiny subdued">Loading media…</p>
+                      ) : null}
+                      {!mediaLoading && mediaRows.length === 0 ? (
+                        <p className="tiny subdued">No media found for this folder.</p>
+                      ) : null}
+                    </section>
+                  ) : null}
+                </div>
+              </>
             ) : null}
 
             {!showFolderCanvas && shouldShowMedia && isRootFolderSelected ? (

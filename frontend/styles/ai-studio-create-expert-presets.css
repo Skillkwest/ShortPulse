@@ -109,21 +109,22 @@
 
 .create-expert-presets-btn {
   width: 100%;
-  min-height: 28px;
+  min-height: 38px;
   border-radius: 8px;
   border: 1px solid transparent;
   background: transparent;
   color: var(--create-expert-preset-muted-text, #c9cdd685);
   display: inline-flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 6px;
   font-size: 13px;
   font-weight: 500;
   line-height: 1.15;
   letter-spacing: 0.03em;
   text-align: left;
-  white-space: nowrap;
-  padding: 0 6px;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  padding: 6px 8px;
   box-sizing: border-box;
   cursor: pointer;
   transition:
@@ -197,7 +198,7 @@
 .create-expert-presets-surface {
   position: absolute;
   top: 0;
-  left: calc(100% + 10px);
+  left: calc(100% + 26px);
   width: clamp(320px, 38vw, 540px);
   max-width: min(540px, calc(100vw - 44px));
   max-height: min(72vh, 560px);
@@ -235,6 +236,13 @@
   gap: 4px;
 }
 
+.create-expert-presets-surface-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  flex: 0 0 auto;
+}
+
 .create-expert-presets-surface-title {
   margin: 0;
   color: #f5f9ff;
@@ -247,6 +255,29 @@
   margin: 0;
   color: var(--ai-card-text-muted);
   font-size: 12px;
+}
+
+.ghost-btn.create-expert-presets-surface-library-btn {
+  min-height: 28px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(201, 205, 214, 0.24);
+  background: rgba(201, 205, 214, 0.08);
+  color: rgba(238, 242, 248, 0.92);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.create-expert-presets-surface-library-btn:hover {
+  border-color: rgba(205, 210, 220, 0.42);
+  background: rgba(201, 205, 214, 0.14);
+}
+
+.create-expert-presets-surface-library-btn:focus-visible {
+  outline: none;
+  border-color: rgba(205, 210, 220, 0.52);
+  background: rgba(201, 205, 214, 0.16);
 }
 
 .ghost-btn.mini.create-expert-presets-surface-close {

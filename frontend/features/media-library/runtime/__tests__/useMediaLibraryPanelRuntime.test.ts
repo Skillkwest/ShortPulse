@@ -31,7 +31,7 @@ const makePromptRow = (id: string) => ({
 
 describe("useMediaLibraryPanelRuntime", () => {
   it("normalizes panel media rows while preserving item-type filtering", () => {
-    type PanelItemType = "all" | "images" | "videos" | "audio" | "prompts";
+    type PanelItemType = "all" | "images" | "videos" | "prompts";
     const { result, rerender } = renderHook(
       ({ itemType }: { itemType: PanelItemType }) => useMediaLibraryPanelRuntime({ itemType }),
       {
@@ -57,6 +57,12 @@ describe("useMediaLibraryPanelRuntime", () => {
           file_type: "image/png",
           created_at: "2026-03-27T00:00:00.000Z",
         }),
+        makeMediaRow("audio-1", {
+          filename: "audio-1.mp3",
+          storage_path: "user-1/uploads/audio-1.mp3",
+          file_type: "audio/mpeg",
+          created_at: "2026-03-26T00:00:00.000Z",
+        }),
       ]);
     });
 
@@ -64,6 +70,7 @@ describe("useMediaLibraryPanelRuntime", () => {
       "image-1",
       "private-video",
       "ai-image",
+      "audio-1",
     ]);
 
     rerender({ itemType: "images" });

@@ -52,6 +52,7 @@ describe("media folder CRUD routes", () => {
       parent_folder_id: null,
       created_at: "2026-03-01T00:00:00.000Z",
       updated_at: "2026-03-01T00:00:00.000Z",
+      item_count: 3,
     });
     const req = { method: "POST", body: { name: "Campaign" } };
     const res = createMockResponse();
@@ -66,6 +67,7 @@ describe("media folder CRUD routes", () => {
         parentFolderId: null,
         createdAt: "2026-03-01T00:00:00.000Z",
         updatedAt: "2026-03-01T00:00:00.000Z",
+        itemCount: 3,
       },
     });
   });
@@ -116,6 +118,7 @@ describe("media folder CRUD routes", () => {
         parent_folder_id: null,
         created_at: "2026-03-01T00:00:00.000Z",
         updated_at: "2026-03-01T00:00:00.000Z",
+        item_count: 5,
       },
     ]);
     const req = { method: "GET" };
@@ -132,6 +135,7 @@ describe("media folder CRUD routes", () => {
           parentFolderId: null,
           createdAt: "2026-03-01T00:00:00.000Z",
           updatedAt: "2026-03-01T00:00:00.000Z",
+          itemCount: 5,
         },
       ],
     });
@@ -145,6 +149,7 @@ describe("media folder CRUD routes", () => {
       parent_folder_id: "2d6fc803-2289-47a9-9a07-063ebf2eec4f",
       created_at: "2026-03-01T00:00:00.000Z",
       updated_at: "2026-03-01T00:00:00.000Z",
+      item_count: 0,
     });
     const req = {
       method: "POST",
@@ -249,6 +254,7 @@ describe("media folder CRUD routes", () => {
       parent_folder_id: "fc4896c0-5c40-41ba-a5bb-efdebac771d4",
       created_at: "2026-03-01T00:00:00.000Z",
       updated_at: "2026-03-02T00:00:00.000Z",
+      item_count: 7,
     });
     const req = {
       method: "POST",
@@ -273,6 +279,7 @@ describe("media folder CRUD routes", () => {
         parentFolderId: "fc4896c0-5c40-41ba-a5bb-efdebac771d4",
         createdAt: "2026-03-01T00:00:00.000Z",
         updatedAt: "2026-03-02T00:00:00.000Z",
+        itemCount: 7,
       },
     });
   });
@@ -301,6 +308,7 @@ describe("media folder CRUD routes", () => {
       parent_folder_id: "fc4896c0-5c40-41ba-a5bb-efdebac771d4",
       created_at: "2026-03-01T00:00:00.000Z",
       updated_at: "2026-03-02T00:00:00.000Z",
+      item_count: 2,
     });
     const req = {
       method: "POST",
@@ -320,6 +328,7 @@ describe("media folder CRUD routes", () => {
         parentFolderId: "fc4896c0-5c40-41ba-a5bb-efdebac771d4",
         createdAt: "2026-03-01T00:00:00.000Z",
         updatedAt: "2026-03-02T00:00:00.000Z",
+        itemCount: 2,
       },
     });
   });

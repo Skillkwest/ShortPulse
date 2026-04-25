@@ -37,6 +37,91 @@ const readIsoBaseMediaBrands = (buffer: Buffer): string[] => {
   return Array.from(new Set(brands));
 };
 
+const readEbmlVint = (
+  buffer: Buffer,
+  offset: number,
+  { preserveMarker }: { preserveMarker: boolean }
+): { length: number; value: number } | null => {
+  if (offset < 0 || offset >= buffer.length) return null;
+  const firstByte = buffer[offset];
+  if (!firstByte) return null;
+
+  let length = 1;
+  let marker = 0x80;
+  while (length <= 8 && (firstByte & marker) === 0) {
+    marker >>= 1;
+    length += 1;
+  }
+  if (length > 8 || offset + length > buffer.length) return null;
+
+  let value = preserveMarker ? firstByte : firstByte & (marker - 1);
+  for (let index = 1; index < length; index += 1) {
+    value = value * 256 + (buffer[offset + index] ?? 0);
+  }
+  return { length, value };
+};
+
+const WEBM_SEGMENT_ID = 0x18538067;
+const WEBM_TRACKS_ID = 0x1654ae6b;
+const WEBM_TRACK_ENTRY_ID = 0xae;
+const WEBM_TRACK_TYPE_ID = 0x83;
+const WEBM_TRACK_TYPE_VIDEO = 0x01;
+const WEBM_TRACK_TYPE_AUDIO = 0x02;
+const WEBM_PROBE_LIMIT_BYTES = 64 * 1024;
+
+const collectWebmTrackTypes = (
+  buffer: Buffer,
+  startOffset: number,
+  endOffset: number,
+  trackTypes: Set<number>,
+  depth = 0
+): void => {
+  if (depth > 6) return;
+  let offset = startOffset;
+  while (offset < endOffset) {
+    const elementId = readEbmlVint(buffer, offset, { preserveMarker: true });
+    if (!elementId) return;
+    const sizeInfo = readEbmlVint(buffer, offset + elementId.length, { preserveMarker: false });
+    if (!sizeInfo) return;
+
+    const dataOffset = offset + elementId.length + sizeInfo.length;
+    const dataEnd = Math.min(endOffset, dataOffset + sizeInfo.value);
+    if (dataOffset > endOffset || dataEnd < dataOffset) return;
+
+    if (
+      elementId.value === WEBM_TRACK_TYPE_ID &&
+      sizeInfo.value >= 1 &&
+      dataOffset < buffer.length
+    ) {
+      trackTypes.add(buffer[dataOffset] ?? 0);
+    }
+
+    if (
+      elementId.value === WEBM_SEGMENT_ID ||
+      elementId.value === WEBM_TRACKS_ID ||
+      elementId.value === WEBM_TRACK_ENTRY_ID
+    ) {
+      collectWebmTrackTypes(buffer, dataOffset, dataEnd, trackTypes, depth + 1);
+    }
+
+    if (dataEnd <= offset) return;
+    offset = dataEnd;
+  }
+};
+
+const resolveWebmTrackKind = (buffer: Buffer): "audio" | "video" | null => {
+  if (!hasBytes(buffer, [0x1a, 0x45, 0xdf, 0xa3])) return null;
+  const probe = buffer.subarray(0, Math.min(buffer.length, 128)).toString("ascii").toLowerCase();
+  if (!probe.includes("webm")) return null;
+
+  const trackTypes = new Set<number>();
+  collectWebmTrackTypes(buffer, 0, Math.min(buffer.length, WEBM_PROBE_LIMIT_BYTES), trackTypes);
+
+  if (trackTypes.has(WEBM_TRACK_TYPE_VIDEO)) return "video";
+  if (trackTypes.has(WEBM_TRACK_TYPE_AUDIO)) return "audio";
+  return null;
+};
+
 export const detectImageMimeType = (buffer: Buffer): string | null => {
   if (hasBytes(buffer, [0xff, 0xd8, 0xff])) return "image/jpeg";
   if (hasBytes(buffer, [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])) return "image/png";
@@ -64,9 +149,9 @@ export const detectImageMimeType = (buffer: Buffer): string | null => {
 export const detectVideoMimeType = (buffer: Buffer): string | null => {
   if (buffer.length < 12) return null;
 
-  if (hasBytes(buffer, [0x1a, 0x45, 0xdf, 0xa3])) {
-    const probe = buffer.subarray(0, Math.min(buffer.length, 128)).toString("ascii").toLowerCase();
-    if (probe.includes("webm")) return "video/webm";
+  const webmTrackKind = resolveWebmTrackKind(buffer);
+  if (webmTrackKind) {
+    return webmTrackKind === "video" ? "video/webm" : null;
   }
 
   const brands = readIsoBaseMediaBrands(buffer);
@@ -103,6 +188,48 @@ export const detectVideoMimeType = (buffer: Buffer): string | null => {
   return null;
 };
 
+export const detectAudioMimeType = (buffer: Buffer): string | null => {
+  if (buffer.length < 4) return null;
+
+  if (hasAsciiAt(buffer, 0, "fLaC")) return "audio/flac";
+
+  if (hasAsciiAt(buffer, 0, "RIFF") && hasAsciiAt(buffer, 8, "WAVE")) {
+    return "audio/wav";
+  }
+
+  if (hasAsciiAt(buffer, 0, "OggS")) return "audio/ogg";
+
+  const webmTrackKind = resolveWebmTrackKind(buffer);
+  if (webmTrackKind) {
+    return webmTrackKind === "audio" ? "audio/webm" : null;
+  }
+
+  const brands = readIsoBaseMediaBrands(buffer).map((brand) => brand.trim().toLowerCase());
+  if (brands.length) {
+    const audioMp4Brands = new Set(["m4a", "m4b", "mp4a", "isom", "mp41", "mp42"]);
+    if (brands.some((brand) => audioMp4Brands.has(brand))) {
+      return "audio/mp4";
+    }
+  }
+
+  if (hasAsciiAt(buffer, 0, "ID3")) return "audio/mpeg";
+  if (buffer.length >= 2) {
+    const first = buffer[0] ?? 0;
+    const second = buffer[1] ?? 0;
+    if (first === 0xff && (second & 0xe0) === 0xe0) {
+      const layerBits = (second >> 1) & 0x03;
+      if (layerBits !== 0) {
+        return "audio/mpeg";
+      }
+    }
+    if (first === 0xff && (second & 0xf6) === 0xf0) {
+      return "audio/aac";
+    }
+  }
+
+  return null;
+};
+
 export const areCompatibleMimeTypes = (
   declaredMimeType: string,
   detectedMimeType: string
@@ -113,6 +240,8 @@ export const areCompatibleMimeTypes = (
   const equivalentSets: string[][] = [
     ["image/heic", "image/heif"],
     ["video/mp4", "video/x-m4v"],
+    ["audio/wav", "audio/x-wav"],
+    ["audio/mp4", "audio/x-m4a", "audio/m4a"],
   ];
 
   return equivalentSets.some(

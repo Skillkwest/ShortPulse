@@ -475,6 +475,40 @@ export const useReferenceGridHorizontalSplit = ({
     [applyDeltaPx, enabled, resolveContainerHeight]
   );
 
+  const restoreTopRatio = useCallback(
+    (ratio: number | null | undefined) => {
+      if (!enabled) return;
+      if (typeof ratio !== "number" || !Number.isFinite(ratio)) return;
+      setAllRefsExpandedThresholdRatio((prev) => (prev == null ? prev : null));
+      const height = resolveContainerHeight();
+      if (!height) {
+        commitTopRatio(clamp(ratio, normalizedMinTopRatioFloor, FALLBACK_MAX_RATIO));
+        return;
+      }
+      commitTopRatio(clampTopRatio(ratio, height));
+    },
+    [clampTopRatio, commitTopRatio, enabled, normalizedMinTopRatioFloor, resolveContainerHeight]
+  );
+
+  const restoreTopSectionHeightPx = useCallback(
+    (topHeightPx: number | null | undefined) => {
+      if (!enabled) return;
+      if (typeof topHeightPx !== "number" || !Number.isFinite(topHeightPx)) return;
+      const height = resolveContainerHeight();
+      if (!height) {
+        const fallbackRatio = clamp(
+          topHeightPx / 600,
+          normalizedMinTopRatioFloor,
+          FALLBACK_MAX_RATIO
+        );
+        commitTopRatio(fallbackRatio);
+        return;
+      }
+      commitTopRatio(clampTopRatio(topHeightPx / Math.max(1, height), height));
+    },
+    [clampTopRatio, commitTopRatio, enabled, normalizedMinTopRatioFloor, resolveContainerHeight]
+  );
+
   const clampToContainerBounds = useCallback(() => {
     if (!enabled) return;
     const height = resolveContainerHeight();
@@ -514,6 +548,8 @@ export const useReferenceGridHorizontalSplit = ({
     snapToInventoryExpanded,
     snapToAllRefsExpanded,
     nudgeTopSectionHeightByPx,
+    restoreTopRatio,
+    restoreTopSectionHeightPx,
     clampToContainerBounds,
     dividerProps: {
       role: "separator" as const,

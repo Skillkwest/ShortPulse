@@ -29,6 +29,7 @@ type BuildPageSessionSnapshotArgs = {
 
 type UseAiStudioPageSessionPersistenceParams = {
   projectId?: string | null;
+  projectRouteRequested?: boolean;
   sessionId: string | null;
   sessionTitleOverride?: string | null;
   buildSessionSnapshot: (args: BuildPageSessionSnapshotArgs) => AiStudioSessionSnapshot;
@@ -49,6 +50,7 @@ type UseAiStudioPageSessionPersistenceParams = {
   hydrateFromSessionExpertEditSnapshot?: (
     expertEdit: AiStudioSessionHydrationPayload["expertEdit"]
   ) => void;
+  applyEmptyProjectState?: () => void;
   setUiNotice: (message: string | null) => void;
 };
 
@@ -57,6 +59,7 @@ type UseAiStudioPageSessionPersistenceParams = {
  */
 export const useAiStudioPageSessionPersistence = ({
   projectId = null,
+  projectRouteRequested = false,
   sessionId,
   sessionTitleOverride,
   buildSessionSnapshot,
@@ -71,6 +74,7 @@ export const useAiStudioPageSessionPersistence = ({
   hydrateFromSessionSnapshot,
   hydrateFromSessionAgentSnapshot,
   hydrateFromSessionExpertEditSnapshot,
+  applyEmptyProjectState,
   setUiNotice,
 }: UseAiStudioPageSessionPersistenceParams) => {
   const buildSessionSnapshotForSessionId = useCallback(
@@ -113,11 +117,12 @@ export const useAiStudioPageSessionPersistence = ({
     hydrateFromSessionSnapshot,
     hydrateFromSessionAgentSnapshot,
     hydrateFromSessionExpertEditSnapshot,
+    applyEmptyProjectState,
     onPersistenceWarning: handleSessionPersistenceWarning,
   });
 
   const sessionPersistence = useAiStudioSessionPersistenceController({
-    sessionId: projectId ? null : sessionId,
+    sessionId: projectId || projectRouteRequested ? null : sessionId,
     buildSessionSnapshot: buildSessionSnapshotForSessionId,
     sessionTitleOverride,
     hydrateFromSessionSnapshot,
@@ -126,5 +131,5 @@ export const useAiStudioPageSessionPersistence = ({
     onPersistenceWarning: handleSessionPersistenceWarning,
   });
 
-  return projectId ? projectWorkspacePersistence : sessionPersistence;
+  return projectId || projectRouteRequested ? projectWorkspacePersistence : sessionPersistence;
 };

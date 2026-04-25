@@ -2,12 +2,18 @@
  * Projects persistence helpers.
  * Owns server-authoritative create/read access for user-owned project rows.
  */
+import { resolvePolicySignedImageTransform } from "../mediaSignedTransformPolicy";
 import { getSupabaseAdmin } from "./api/supabaseAdmin";
 
 const DEFAULT_PROJECT_TITLE = "Untitled project";
 const PROJECT_TITLE_MAX_LENGTH = 120;
 const DEFAULT_PROJECT_LIST_LIMIT = 6;
 const MAX_PROJECT_LIST_LIMIT = 24;
+const PROJECT_LIST_ALL = "all";
+const MEDIA_BUCKET = "media_library";
+const PROJECT_PREVIEW_SIGNED_URL_TTL_SECONDS = 3600;
+const PROJECT_CARD_PREVIEW_PROFILE = "project-card-preview";
+const PROJECT_PREVIEW_IMAGE_LIMIT = 4;
 const PROJECT_ID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const PROJECT_SELECT_COLUMNS = "id, user_id, title, created_at, updated_at" as const;
@@ -20,13 +26,36 @@ type ProjectRow = {
   updated_at: string;
 };
 
+type ProjectWorkspacePreviewRow = {
+  project_id: string;
+  snapshot: Record<string, unknown> | null;
+};
+
+type SnapshotOutputPreviewRecord = {
+  id: string;
+  mode?: string;
+  previewUrl?: string;
+  resultUrls?: string[];
+  previewStoragePath?: string;
+  fullStoragePath?: string;
+  hiddenInReferenceGrid?: boolean;
+};
+
+type ProjectPreviewCandidate = {
+  storagePaths: string[];
+  fallbackUrl: string | null;
+};
+
 export type ProjectRecord = {
   id: string;
   userId: string;
   title: string;
   createdAt: string;
   updatedAt: string;
+  previewImageUrls?: string[];
 };
+
+export type ProjectListLimit = number | typeof PROJECT_LIST_ALL;
 
 const toProjectRecord = (row: ProjectRow): ProjectRecord => ({
   id: row.id,
@@ -35,6 +64,142 @@ const toProjectRecord = (row: ProjectRow): ProjectRecord => ({
   createdAt: row.created_at,
   updatedAt: row.updated_at,
 });
+
+const asRecord = (value: unknown): Record<string, unknown> =>
+  value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
+
+const asStringArray = (value: unknown): string[] =>
+  Array.isArray(value)
+    ? value
+        .map((entry) => (typeof entry === "string" ? entry.trim() : ""))
+        .filter((entry) => entry.length > 0)
+    : [];
+
+const toSnapshotOutputPreviewRecord = (value: unknown): SnapshotOutputPreviewRecord | null => {
+  const record = asRecord(value);
+  const id = typeof record.id === "string" ? record.id.trim() : "";
+  if (!id) return null;
+
+  return {
+    id,
+    mode: typeof record.mode === "string" ? record.mode.trim() : undefined,
+    previewUrl: typeof record.previewUrl === "string" ? record.previewUrl.trim() : undefined,
+    resultUrls: asStringArray(record.resultUrls),
+    previewStoragePath:
+      typeof record.previewStoragePath === "string" ? record.previewStoragePath.trim() : undefined,
+    fullStoragePath:
+      typeof record.fullStoragePath === "string" ? record.fullStoragePath.trim() : undefined,
+    hiddenInReferenceGrid: record.hiddenInReferenceGrid === true,
+  };
+};
+
+const resolveSnapshotOutputImageCandidate = (
+  output: SnapshotOutputPreviewRecord
+): ProjectPreviewCandidate | null => {
+  if (output.mode !== "image") return null;
+  const storagePath =
+    output.previewStoragePath && output.previewStoragePath.length > 0
+      ? output.previewStoragePath
+      : output.fullStoragePath && output.fullStoragePath.length > 0
+        ? output.fullStoragePath
+        : null;
+  const fallbackUrl =
+    output.previewUrl && output.previewUrl.length > 0
+      ? output.previewUrl
+      : output.resultUrls?.[0] && output.resultUrls[0].length > 0
+        ? output.resultUrls[0]
+        : null;
+  if (!storagePath && !fallbackUrl) return null;
+  return {
+    storagePaths: resolveProjectCardPreviewSigningStoragePaths(storagePath),
+    fallbackUrl,
+  };
+};
+
+export const resolveProjectCardPreviewSigningStoragePaths = (
+  storagePath: string | null | undefined
+): string[] => {
+  const normalized =
+    typeof storagePath === "string" && storagePath.trim().length > 0 ? storagePath.trim() : null;
+  if (!normalized) return [];
+  const candidates = normalized.endsWith("/thumb_480")
+    ? [normalized.replace(/\/thumb_480$/, "/thumb_240"), normalized]
+    : [normalized];
+  return Array.from(new Set(candidates.filter((value) => value.length > 0)));
+};
+
+const collectUniqueImageCandidates = (
+  outputs: SnapshotOutputPreviewRecord[],
+  options?: { excludeHiddenInReferenceGrid?: boolean; limit?: number }
+): ProjectPreviewCandidate[] => {
+  const results: ProjectPreviewCandidate[] = [];
+  const seen = new Set<string>();
+  const limit = options?.limit ?? PROJECT_PREVIEW_IMAGE_LIMIT;
+
+  for (const output of outputs) {
+    if (options?.excludeHiddenInReferenceGrid && output.hiddenInReferenceGrid === true) {
+      continue;
+    }
+    const candidate = resolveSnapshotOutputImageCandidate(output);
+    const uniqueKey =
+      candidate?.storagePaths[candidate.storagePaths.length - 1] ?? candidate?.fallbackUrl;
+    if (!candidate || !uniqueKey || seen.has(uniqueKey)) continue;
+    seen.add(uniqueKey);
+    results.push(candidate);
+    if (results.length >= limit) break;
+  }
+
+  return results;
+};
+
+const resolveProjectPreviewImageCandidatesFromSnapshot = (
+  snapshot: Record<string, unknown> | null | undefined
+): ProjectPreviewCandidate[] => {
+  const outputsRecord = asRecord(asRecord(snapshot).outputs);
+  const activeOutputs = Array.isArray(outputsRecord.active)
+    ? outputsRecord.active
+        .map((value) => toSnapshotOutputPreviewRecord(value))
+        .filter((value): value is SnapshotOutputPreviewRecord => Boolean(value))
+    : [];
+  const archivedOutputs = Array.isArray(outputsRecord.archived)
+    ? outputsRecord.archived
+        .map((value) => toSnapshotOutputPreviewRecord(value))
+        .filter((value): value is SnapshotOutputPreviewRecord => Boolean(value))
+    : [];
+  const allOutputs = [...activeOutputs, ...archivedOutputs];
+  const outputsById = allOutputs.reduce<Record<string, SnapshotOutputPreviewRecord>>(
+    (acc, output) => {
+      acc[output.id] = output;
+      return acc;
+    },
+    {}
+  );
+  const curatedReferenceIds = asStringArray(outputsRecord.curatedReferenceIds);
+
+  const quickSlotPreviews = collectUniqueImageCandidates(
+    curatedReferenceIds
+      .map((id) => outputsById[id])
+      .filter((output): output is SnapshotOutputPreviewRecord => Boolean(output)),
+    { limit: PROJECT_PREVIEW_IMAGE_LIMIT }
+  );
+  if (quickSlotPreviews.length > 0) {
+    return quickSlotPreviews;
+  }
+
+  return collectUniqueImageCandidates(activeOutputs, {
+    excludeHiddenInReferenceGrid: true,
+    limit: PROJECT_PREVIEW_IMAGE_LIMIT,
+  });
+};
+
+export const resolveProjectPreviewImageUrlsFromSnapshot = (
+  snapshot: Record<string, unknown> | null | undefined
+): string[] =>
+  resolveProjectPreviewImageCandidatesFromSnapshot(snapshot)
+    .map((candidate) => candidate.fallbackUrl)
+    .filter((value): value is string => typeof value === "string" && value.length > 0);
 
 export const sanitizeProjectTitle = (value: unknown): string => {
   if (typeof value !== "string") return DEFAULT_PROJECT_TITLE;
@@ -50,10 +215,11 @@ export const parseProjectId = (value: unknown): string | null => {
   return normalized;
 };
 
-export const parseProjectListLimit = (value: unknown): number | null => {
+export const parseProjectListLimit = (value: unknown): ProjectListLimit | null => {
   if (value == null || value === "") return DEFAULT_PROJECT_LIST_LIMIT;
   const raw = Array.isArray(value) ? value[0] : value;
   if (typeof raw !== "string") return null;
+  if (raw.trim().toLowerCase() === PROJECT_LIST_ALL) return PROJECT_LIST_ALL;
   const parsed = Number(raw);
   if (!Number.isInteger(parsed)) return null;
   if (parsed < 1 || parsed > MAX_PROJECT_LIST_LIMIT) return null;
@@ -113,23 +279,107 @@ export const listProjectsForUser = async ({
   limit = DEFAULT_PROJECT_LIST_LIMIT,
 }: {
   userId: string;
-  limit?: number;
+  limit?: ProjectListLimit;
 }): Promise<ProjectRecord[]> => {
-  const safeLimit = Math.max(1, Math.min(Math.trunc(limit), MAX_PROJECT_LIST_LIMIT));
   const supabaseAdmin = getSupabaseAdmin();
-  const { data, error } = await supabaseAdmin
+  let query = supabaseAdmin
     .from("projects")
     .select(PROJECT_SELECT_COLUMNS)
     .eq("user_id", userId)
     .order("updated_at", { ascending: false })
-    .order("id", { ascending: false })
-    .limit(safeLimit);
+    .order("id", { ascending: false });
+
+  if (limit !== PROJECT_LIST_ALL) {
+    const safeLimit = Math.max(1, Math.min(Math.trunc(limit), MAX_PROJECT_LIST_LIMIT));
+    query = query.limit(safeLimit);
+  }
+
+  const { data, error } = await query;
 
   if (error) {
     throw new Error(error.message || "Failed to list projects");
   }
 
-  return (data ?? []).map((row) => toProjectRecord(row as ProjectRow));
+  const projects = (data ?? []).map((row) => toProjectRecord(row as ProjectRow));
+  if (projects.length === 0) {
+    return projects;
+  }
+
+  const { data: workspaceRows, error: workspaceError } = await supabaseAdmin
+    .from("project_workspace_states")
+    .select("project_id, snapshot")
+    .eq("user_id", userId)
+    .in(
+      "project_id",
+      projects.map((project) => project.id)
+    );
+
+  if (workspaceError) {
+    throw new Error(workspaceError.message || "Failed to list project previews");
+  }
+
+  const previewUrlsByProjectId = new Map<string, string[]>();
+  const previewCandidatesByProjectId = new Map<string, ProjectPreviewCandidate[]>();
+  const storagePathsToSign = new Set<string>();
+
+  (workspaceRows ?? []).forEach((row) => {
+    const workspaceRow = row as ProjectWorkspacePreviewRow;
+    const previewCandidates = resolveProjectPreviewImageCandidatesFromSnapshot(
+      workspaceRow.snapshot
+    );
+    previewCandidatesByProjectId.set(workspaceRow.project_id, previewCandidates);
+    previewCandidates.forEach((candidate) => {
+      candidate.storagePaths.forEach((path) => storagePathsToSign.add(path));
+    });
+  });
+
+  const signedUrlByPath = new Map<string, string | null>();
+  const pathsToSign = [...storagePathsToSign];
+  if (pathsToSign.length > 0) {
+    const storage = supabaseAdmin.storage.from(MEDIA_BUCKET);
+    pathsToSign.forEach((path) => {
+      signedUrlByPath.set(path, null);
+    });
+    await Promise.all(
+      pathsToSign.map(async (path) => {
+        const transform = resolvePolicySignedImageTransform(PROJECT_CARD_PREVIEW_PROFILE, path);
+        const { data, error } = await storage.createSignedUrl(
+          path,
+          PROJECT_PREVIEW_SIGNED_URL_TTL_SECONDS,
+          transform ? { transform } : undefined
+        );
+        if (error) return;
+        signedUrlByPath.set(
+          path,
+          typeof data?.signedUrl === "string" && data.signedUrl.trim().length > 0
+            ? data.signedUrl
+            : null
+        );
+      })
+    );
+  }
+
+  previewCandidatesByProjectId.forEach((candidates, projectId) => {
+    previewUrlsByProjectId.set(
+      projectId,
+      candidates
+        .map((candidate) => {
+          for (const path of candidate.storagePaths) {
+            const signedUrl = signedUrlByPath.get(path);
+            if (typeof signedUrl === "string" && signedUrl.length > 0) {
+              return signedUrl;
+            }
+          }
+          return candidate.fallbackUrl;
+        })
+        .filter((value): value is string => typeof value === "string" && value.length > 0)
+    );
+  });
+
+  return projects.map((project) => ({
+    ...project,
+    previewImageUrls: previewUrlsByProjectId.get(project.id) ?? [],
+  }));
 };
 
 export const updateProjectTitleForUser = async ({
@@ -155,6 +405,29 @@ export const updateProjectTitleForUser = async ({
 
   if (error) {
     throw new Error(error.message || "Failed to update project");
+  }
+  if (!data) return null;
+  return toProjectRecord(data as ProjectRow);
+};
+
+export const deleteProjectForUser = async ({
+  userId,
+  projectId,
+}: {
+  userId: string;
+  projectId: string;
+}): Promise<ProjectRecord | null> => {
+  const supabaseAdmin = getSupabaseAdmin();
+  const { data, error } = await supabaseAdmin
+    .from("projects")
+    .delete()
+    .eq("id", projectId)
+    .eq("user_id", userId)
+    .select(PROJECT_SELECT_COLUMNS)
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(error.message || "Failed to delete project");
   }
   if (!data) return null;
   return toProjectRecord(data as ProjectRow);

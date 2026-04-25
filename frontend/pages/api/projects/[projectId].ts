@@ -5,6 +5,7 @@ import type { NextApiRequest, NextApiResponse } from "next";
 import { requireApiUser } from "../../../lib/server/api/auth";
 import { logApiRouteException } from "../../../lib/server/api/appErrorLogs";
 import {
+  deleteProjectForUser,
   getProjectForUser,
   parseProjectId,
   updateProjectTitleForUser,
@@ -17,6 +18,10 @@ type ProjectResponse = {
     createdAt: string;
     updatedAt: string;
   };
+};
+
+type ProjectDeleteResponse = {
+  deletedProjectId: string;
 };
 
 type ProjectErrorResponse = {
@@ -44,10 +49,10 @@ const toRequestBody = (value: unknown): Record<string, unknown> => {
 
 export default async function handler(
   req: NextApiRequest,
-  res: NextApiResponse<ProjectResponse | ProjectErrorResponse>
+  res: NextApiResponse<ProjectResponse | ProjectDeleteResponse | ProjectErrorResponse>
 ) {
-  if (req.method !== "GET" && req.method !== "PATCH") {
-    res.setHeader("Allow", "GET, PATCH");
+  if (req.method !== "GET" && req.method !== "PATCH" && req.method !== "DELETE") {
+    res.setHeader("Allow", "GET, PATCH, DELETE");
     return res.status(405).json({ error: "Method not allowed" });
   }
 
@@ -61,18 +66,29 @@ export default async function handler(
 
   try {
     const project =
-      req.method === "PATCH"
-        ? await updateProjectTitleForUser({
+      req.method === "DELETE"
+        ? await deleteProjectForUser({
             userId: user.id,
             projectId,
-            title: toRequestBody(req.body).title,
           })
-        : await getProjectForUser({
-            userId: user.id,
-            projectId,
-          });
+        : req.method === "PATCH"
+          ? await updateProjectTitleForUser({
+              userId: user.id,
+              projectId,
+              title: toRequestBody(req.body).title,
+            })
+          : await getProjectForUser({
+              userId: user.id,
+              projectId,
+            });
     if (!project) {
       return res.status(404).json({ error: "Project not found" });
+    }
+
+    if (req.method === "DELETE") {
+      return res.status(200).json({
+        deletedProjectId: project.id,
+      });
     }
 
     return res.status(200).json({
@@ -87,14 +103,29 @@ export default async function handler(
     await logApiRouteException({
       req,
       error,
-      routeLabel: req.method === "PATCH" ? "projects-update" : "projects-read",
+      routeLabel:
+        req.method === "DELETE"
+          ? "projects-delete"
+          : req.method === "PATCH"
+            ? "projects-update"
+            : "projects-read",
       user,
       metadata: {
-        source: req.method === "PATCH" ? "api.projects.update" : "api.projects.read",
+        source:
+          req.method === "DELETE"
+            ? "api.projects.delete"
+            : req.method === "PATCH"
+              ? "api.projects.update"
+              : "api.projects.read",
       },
     });
     return res.status(500).json({
-      error: req.method === "PATCH" ? "Failed to update project" : "Failed to load project",
+      error:
+        req.method === "DELETE"
+          ? "Failed to delete project"
+          : req.method === "PATCH"
+            ? "Failed to update project"
+            : "Failed to load project",
       details: error instanceof Error ? error.message : "Unknown error",
     });
   }

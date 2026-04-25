@@ -5,6 +5,7 @@
 import { describe, expect, it } from "vitest";
 import {
   createInitialPanelVisibility,
+  resolveExpandedRightRailVisibility,
   resolveEffectivePanelVisibility,
   resolveHeaderShortcutStateMap,
   togglePanelVisibilityByShortcut,
@@ -72,5 +73,36 @@ describe("panelVisibility", () => {
       availability,
     });
     expect(toggledStyles.styles).toBe(true);
+  });
+
+  it.each([
+    [
+      "canvas",
+      {
+        isCanvasVisible: true,
+        panelVisibility: { quickSlot: false, referenceGrid: false, styles: false },
+      },
+    ],
+    [
+      "quick-slot-inventory",
+      {
+        isCanvasVisible: false,
+        panelVisibility: { quickSlot: true, referenceGrid: false, styles: false },
+      },
+    ],
+    [
+      "reference-grid",
+      {
+        isCanvasVisible: false,
+        panelVisibility: { quickSlot: false, referenceGrid: true, styles: false },
+      },
+    ],
+  ] as const)("resolves exclusive expand visibility for %s", (target, expected) => {
+    expect(
+      resolveExpandedRightRailVisibility({
+        target,
+        availability: { quickSlot: true, styles: true },
+      })
+    ).toEqual(expected);
   });
 });

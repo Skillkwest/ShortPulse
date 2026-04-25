@@ -4,6 +4,8 @@ import { getSupabaseAdmin } from "../api/supabaseAdmin";
 import {
   applyFolderMembershipBatch,
   createMediaFolderForUser,
+  DEFAULT_MEDIA_LIBRARY_FOLDER_NAME,
+  ensureDefaultMediaFolderForUserExists,
   isCustomMediaFolderId,
   listMediaFoldersForUser,
   MEDIA_LIBRARY_ROOT_FOLDER_ID,
@@ -267,24 +269,41 @@ const createSupabaseMoveMock = ({
   });
 
   const supabaseMock = {
-    from: vi.fn(() => ({
-      select: vi.fn(() => ({
-        eq: vi.fn(() => ({
-          eq: vi.fn(() => ({
-            maybeSingle: selectMaybeSingleMock,
-          })),
-        })),
-      })),
-      update: vi.fn(() => ({
-        eq: vi.fn(() => ({
-          eq: vi.fn(() => ({
-            select: vi.fn(() => ({
-              maybeSingle: updateMaybeSingleMock,
+    from: vi.fn((table: string) => {
+      if (table === "media_folders") {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              eq: vi.fn(() => ({
+                maybeSingle: selectMaybeSingleMock,
+              })),
             })),
           })),
-        })),
-      })),
-    })),
+          update: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              eq: vi.fn(() => ({
+                select: vi.fn(() => ({
+                  maybeSingle: updateMaybeSingleMock,
+                })),
+              })),
+            })),
+          })),
+        };
+      }
+      if (table === "media_folder_media_items" || table === "media_folder_prompt_items") {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              in: vi.fn(async () => ({
+                data: [],
+                error: null,
+              })),
+            })),
+          })),
+        };
+      }
+      throw new Error(`Unexpected table: ${table}`);
+    }),
   };
 
   getSupabaseAdminMock.mockReturnValue(
@@ -373,6 +392,7 @@ describe("mediaFoldersService helpers", () => {
         parent_folder_id: null,
         created_at: "2026-03-01T00:00:00.000Z",
         updated_at: "2026-03-02T00:00:00.000Z",
+        item_count: 0,
       },
     ]);
   });
@@ -426,7 +446,106 @@ describe("mediaFoldersService helpers", () => {
       parent_folder_id: null,
       created_at: "2026-03-01T00:00:00.000Z",
       updated_at: "2026-03-02T00:00:00.000Z",
+      item_count: 0,
     });
+  });
+
+  it("seeds a default root folder when the user has no custom folders", async () => {
+    const listSelectMock = vi.fn().mockResolvedValue({
+      data: [],
+      error: null,
+    });
+    const insertMaybeSingleMock = vi.fn().mockResolvedValue({
+      data: {
+        id: SOURCE_FOLDER_ID,
+        user_id: "user-1",
+        name: DEFAULT_MEDIA_LIBRARY_FOLDER_NAME,
+        parent_folder_id: null,
+        created_at: "2026-03-01T00:00:00.000Z",
+        updated_at: "2026-03-01T00:00:00.000Z",
+      },
+      error: null,
+    });
+    const listQuery = {
+      select: vi.fn(() => ({
+        eq: vi.fn(() => ({
+          order: vi.fn(() => ({
+            order: listSelectMock,
+          })),
+        })),
+      })),
+    };
+    const insertQuery = {
+      insert: vi.fn(() => ({
+        select: vi.fn(() => ({
+          maybeSingle: insertMaybeSingleMock,
+        })),
+      })),
+    };
+    const supabaseMock = {
+      from: vi.fn().mockReturnValueOnce(listQuery).mockReturnValueOnce(insertQuery),
+    };
+    getSupabaseAdminMock.mockReturnValue(
+      supabaseMock as unknown as ReturnType<typeof getSupabaseAdmin>
+    );
+
+    await expect(ensureDefaultMediaFolderForUserExists("user-1")).resolves.toEqual({
+      id: SOURCE_FOLDER_ID,
+      user_id: "user-1",
+      name: DEFAULT_MEDIA_LIBRARY_FOLDER_NAME,
+      parent_folder_id: null,
+      created_at: "2026-03-01T00:00:00.000Z",
+      updated_at: "2026-03-01T00:00:00.000Z",
+      item_count: 0,
+    });
+  });
+
+  it("does not seed the default folder when the user already has folders", async () => {
+    const listSelectMock = vi.fn().mockResolvedValue({
+      data: [
+        {
+          id: SOURCE_FOLDER_ID,
+          user_id: "user-1",
+          name: "Existing Folder",
+          parent_folder_id: null,
+          created_at: "2026-03-01T00:00:00.000Z",
+          updated_at: "2026-03-01T00:00:00.000Z",
+        },
+      ],
+      error: null,
+    });
+    const listQuery = {
+      select: vi.fn(() => ({
+        eq: vi.fn(() => ({
+          order: vi.fn(() => ({
+            order: listSelectMock,
+          })),
+        })),
+      })),
+    };
+    const countQuery = {
+      select: vi.fn(() => ({
+        eq: vi.fn(() => ({
+          in: vi.fn(async () => ({
+            data: [],
+            error: null,
+          })),
+        })),
+      })),
+    };
+    const supabaseMock = {
+      from: vi
+        .fn()
+        .mockReturnValueOnce(listQuery)
+        .mockReturnValueOnce(countQuery)
+        .mockReturnValueOnce(countQuery),
+    };
+    getSupabaseAdminMock.mockReturnValue(
+      supabaseMock as unknown as ReturnType<typeof getSupabaseAdmin>
+    );
+
+    await expect(ensureDefaultMediaFolderForUserExists("user-1")).resolves.toBeNull();
+    expect(supabaseMock.from).toHaveBeenCalledTimes(3);
   });
 
   it("returns null when moving a missing folder", async () => {

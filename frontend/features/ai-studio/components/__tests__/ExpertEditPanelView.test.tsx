@@ -388,6 +388,7 @@ describe("ExpertEditPanelView", () => {
     onCharacterModeEnabledChange: vi.fn(),
     isStylesPanelOpen: false,
     onStylesPanelToggle: vi.fn(),
+    onOpenPresetsLibrary: vi.fn(),
     selectedStyleId: null,
   };
 
@@ -1966,6 +1967,17 @@ describe("ExpertEditPanelView", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /apply more presets preset/i }));
     fireEvent.click(screen.getByRole("button", { name: /close presets/i }));
+    expect(screen.queryByRole("region", { name: /more presets/i })).not.toBeInTheDocument();
+  });
+
+  it("opens the presets library from the inline More Presets surface", () => {
+    const onOpenPresetsLibrary = vi.fn();
+    render(<ExpertEditPanelView {...baseProps} onOpenPresetsLibrary={onOpenPresetsLibrary} />);
+
+    fireEvent.click(screen.getByRole("button", { name: /apply more presets preset/i }));
+    fireEvent.click(screen.getByRole("button", { name: /presets library/i }));
+
+    expect(onOpenPresetsLibrary).toHaveBeenCalledTimes(1);
     expect(screen.queryByRole("region", { name: /more presets/i })).not.toBeInTheDocument();
   });
 

@@ -1,16 +1,12 @@
 /**
  * Built-in AI Studio style catalog used by the shipped Styles panel defaults.
  */
-import type { StylesLibraryStyleExtractionMeta, StylesLibraryStyleProfile } from "../../types";
-
 export type ExpertEditStyleTile = {
   id: string;
   style?: string;
   title: string;
   referenceImageName?: string;
   stylePrompt?: string;
-  styleProfile?: StylesLibraryStyleProfile;
-  extractionMeta?: StylesLibraryStyleExtractionMeta;
   previewUrl: string | null;
   placeholder: boolean;
 };

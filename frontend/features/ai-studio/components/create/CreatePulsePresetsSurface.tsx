@@ -24,6 +24,7 @@ export type CreatePulsePresetsSurfaceProps = {
   isOpen: boolean;
   presets: readonly CreatePulseResolvedPreset[];
   onClose: () => void;
+  onOpenPresetsLibrary?: () => void;
   onPresetSelect?: (presetId: CreatePulsePresetId) => void;
   onPresetDragStart?: (
     event: React.DragEvent<HTMLButtonElement>,
@@ -77,6 +78,7 @@ export const CreatePulsePresetsSurface = ({
   isOpen,
   presets,
   onClose,
+  onOpenPresetsLibrary,
   onPresetSelect,
   onPresetDragStart,
   onPresetDragEnd,
@@ -186,6 +188,12 @@ export const CreatePulsePresetsSurface = ({
     return /^custom\s+\d+$/i.test(preset.label.trim());
   }, []);
 
+  const handleOpenPresetsLibrary = React.useCallback(() => {
+    closeEditor();
+    onClose();
+    onOpenPresetsLibrary?.();
+  }, [closeEditor, onClose, onOpenPresetsLibrary]);
+
   React.useEffect(() => {
     if (!isOpen) return;
     const handlePointerDown = (event: PointerEvent) => {
@@ -216,7 +224,7 @@ export const CreatePulsePresetsSurface = ({
       ref={surfaceRef}
       className={`create-expert-presets-surface ${isDropActive ? "is-drop-active" : ""}`.trim()}
       role="region"
-      aria-label="More presets"
+      aria-label="Pulses"
       tabIndex={-1}
       onClick={(event) => event.stopPropagation()}
       onPointerDownCapture={(event) => {
@@ -242,19 +250,28 @@ export const CreatePulsePresetsSurface = ({
     >
       <div className="create-expert-presets-surface-header">
         <div className="create-expert-presets-surface-title-group">
-          <h3 className="create-expert-presets-surface-title">More Presets</h3>
+          <h3 className="create-expert-presets-surface-title">Pulses</h3>
           <p className="create-expert-presets-surface-subtitle">
             {"\u2190 Drag & drop pulses into the left rail for quick access in Pulse mode."}
           </p>
         </div>
-        <button
-          type="button"
-          className="ghost-btn mini create-expert-presets-surface-close"
-          aria-label="Close presets"
-          onClick={onClose}
-        >
-          x
-        </button>
+        <div className="create-expert-presets-surface-actions">
+          <button
+            type="button"
+            className="ghost-btn create-expert-presets-surface-library-btn"
+            onClick={handleOpenPresetsLibrary}
+          >
+            Pulse Library
+          </button>
+          <button
+            type="button"
+            className="ghost-btn mini create-expert-presets-surface-close"
+            aria-label="Close presets"
+            onClick={onClose}
+          >
+            x
+          </button>
+        </div>
       </div>
       <div className="create-expert-presets-surface-scroll">
         <div

@@ -152,7 +152,6 @@ describe("style-creator source normalization", () => {
       resolutionReason: null,
       resolutionStage: "primary",
       candidateCount: 0,
-      serverCopyAttempted: false,
     });
   });
 
@@ -179,7 +178,6 @@ describe("style-creator source normalization", () => {
       resolutionReason: null,
       resolutionStage: "primary",
       candidateCount: 1,
-      serverCopyAttempted: false,
     });
   });
 
@@ -235,7 +233,6 @@ describe("style-creator source normalization", () => {
       resolutionReason: "saved_media_lookup",
       resolutionStage: "primary",
       candidateCount: 1,
-      serverCopyAttempted: false,
     });
   });
 
@@ -291,8 +288,18 @@ describe("style-creator source normalization", () => {
     expect(resolved.promptText).toBe("golden hour portrait");
   });
 
-  it("fails deterministically when an internal drag is present but the shared resolver cannot resolve authority", async () => {
-    const fetchSpy = vi.spyOn(globalThis, "fetch");
+  it("falls back to dropped snapshot URLs when an internal drag is present but the shared resolver cannot resolve authority", async () => {
+    installFileReaderMock("data:image/png;base64,from-fallback-url");
+    installImageAndCanvasMocks({
+      width: 1600,
+      height: 1200,
+      toDataUrl: (canvas) => `data:image/jpeg;base64,${canvas.width}x${canvas.height}`,
+    });
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue({
+      ok: true,
+      status: 200,
+      blob: async () => new Blob(["fallback-url-bytes"], { type: "image/png" }),
+    } as Response);
     const transfer = {
       files: [],
       types: ["text/reference-output-id", "text/reference-origin", "text/reference-url"],
@@ -305,18 +312,31 @@ describe("style-creator source normalization", () => {
     } as unknown as DataTransfer;
     const resolver: ResolveInternalStyleDrop = vi.fn(async () => null);
 
-    await expect(
-      resolveDroppedStylePreview(transfer, {
-        resolveInternalStyleDrop: resolver,
-      })
-    ).rejects.toThrow("blocked-style-image-source");
+    const resolved = await resolveDroppedStylePreview(transfer, {
+      resolveInternalStyleDrop: resolver,
+    });
 
     expect(resolver).toHaveBeenCalledTimes(1);
-    expect(fetchSpy).not.toHaveBeenCalled();
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+    expect(resolved).toEqual({
+      previewImageUrl: "data:image/jpeg;base64,512x512",
+      extractionSourceImageUrl: "data:image/jpeg;base64,1024x768",
+      promptText: "",
+    });
   });
 
-  it("fails deterministically when an internal drag is present but no shared resolver was provided", async () => {
-    const fetchSpy = vi.spyOn(globalThis, "fetch");
+  it("falls back to dropped snapshot URLs when an internal drag is present but no shared resolver was provided", async () => {
+    installFileReaderMock("data:image/png;base64,from-fallback-url");
+    installImageAndCanvasMocks({
+      width: 1600,
+      height: 1200,
+      toDataUrl: (canvas) => `data:image/jpeg;base64,${canvas.width}x${canvas.height}`,
+    });
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue({
+      ok: true,
+      status: 200,
+      blob: async () => new Blob(["fallback-url-bytes"], { type: "image/png" }),
+    } as Response);
     const transfer = {
       files: [],
       types: ["text/reference-output-id", "text/reference-origin", "text/reference-url"],
@@ -328,11 +348,14 @@ describe("style-creator source normalization", () => {
       },
     } as unknown as DataTransfer;
 
-    await expect(resolveDroppedStylePreview(transfer)).rejects.toThrow(
-      "blocked-style-image-source"
-    );
+    const resolved = await resolveDroppedStylePreview(transfer);
 
-    expect(fetchSpy).not.toHaveBeenCalled();
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+    expect(resolved).toEqual({
+      previewImageUrl: "data:image/jpeg;base64,512x512",
+      extractionSourceImageUrl: "data:image/jpeg;base64,1024x768",
+      promptText: "",
+    });
   });
 
   it("fails deterministically for unsupported sources", async () => {

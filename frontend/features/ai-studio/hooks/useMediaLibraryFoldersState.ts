@@ -285,6 +285,7 @@ export const useMediaLibraryFoldersState = (
           parentFolderId: nextParentFolderId,
           createdAt: "",
           updatedAt: "",
+          itemCount: 0,
         },
       ]);
 
@@ -372,7 +373,13 @@ export const useMediaLibraryFoldersState = (
       }
       setFolders((previous) =>
         previous.map((folder) =>
-          folder.id === folderId ? { ...folder, name: renamed.name } : folder
+          folder.id === folderId
+            ? {
+                ...folder,
+                name: renamed.name,
+                itemCount: renamed.itemCount ?? folder.itemCount ?? 0,
+              }
+            : folder
         )
       );
       setEditingFolderId(null);
@@ -435,7 +442,15 @@ export const useMediaLibraryFoldersState = (
           return;
         }
         setFolders((previous) =>
-          previous.map((folder) => (folder.id === normalizedFolderId ? moved : folder))
+          previous.map((folder) =>
+            folder.id === normalizedFolderId
+              ? {
+                  ...folder,
+                  ...moved,
+                  itemCount: moved.itemCount ?? folder.itemCount ?? 0,
+                }
+              : folder
+          )
         );
       } catch (moveError) {
         if (scopeTokenRef.current !== scopeToken) {

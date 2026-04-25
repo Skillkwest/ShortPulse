@@ -6,6 +6,7 @@
 import { useCallback, useMemo, useState, type Dispatch, type SetStateAction } from "react";
 import {
   getMediaDataTabForRow,
+  isImageFile,
   type MediaFileRow,
   type PromptRow,
 } from "../../ai-studio/logic/mediaLibraryModalModel";
@@ -22,7 +23,7 @@ import {
 } from "./store";
 import type { MediaLibraryAggregateScopeCacheState, MediaLibraryRuntimeState } from "./types";
 
-type MediaLibraryPanelItemType = "all" | "images" | "videos" | "audio" | "prompts";
+type MediaLibraryPanelItemType = "all" | "images" | "videos" | "prompts";
 
 type UseMediaLibraryPanelRuntimeArgs = {
   itemType: MediaLibraryPanelItemType;
@@ -71,16 +72,14 @@ export const useMediaLibraryPanelRuntime = ({
     const panelRows = selectPanelMediaRows(runtimeState);
     const deduped = Array.from(new Map(panelRows.map((row) => [row.id, row])).values());
     if (itemType === "images") {
-      return sortByCreatedAtDesc(
-        deduped.filter((row) => !row.file_type.toLowerCase().startsWith("video"))
-      );
+      return sortByCreatedAtDesc(deduped.filter((row) => isImageFile(row.file_type)));
     }
     if (itemType === "videos") {
       return sortByCreatedAtDesc(
         deduped.filter((row) => row.file_type.toLowerCase().startsWith("video"))
       );
     }
-    if (itemType === "audio" || itemType === "prompts") {
+    if (itemType === "prompts") {
       return [];
     }
     return sortByCreatedAtDesc(deduped);

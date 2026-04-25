@@ -1453,6 +1453,66 @@ describe("MediaLibraryPanel", () => {
     });
   });
 
+  it("uploads desktop audio files dropped on a folder tile and assigns them to that folder", async () => {
+    uploadMediaFileMock.mockResolvedValueOnce({
+      id: "uploaded-audio-1",
+      filename: "desktop-drop.mp3",
+      storage_path: "user-1/audio/desktop-drop.mp3",
+      preview_storage_path: "user-1/audio/desktop-drop.mp3",
+      file_type: "audio/mpeg",
+      file_size: 256,
+      source: "upload",
+      created_at: "2026-03-05T00:00:00.000Z",
+      signedUrl: "https://cdn.example.com/desktop-drop.mp3",
+    });
+
+    render(<MediaLibraryPanel onSelectMedia={vi.fn()} onSelectPrompt={vi.fn()} />);
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Campaign folder" })).toBeInTheDocument();
+    });
+
+    const file = new File(["desktop-audio"], "desktop-drop.mp3", { type: "audio/mpeg" });
+    const files = {
+      0: file,
+      length: 1,
+      item: (index: number) => (index === 0 ? file : null),
+    } as unknown as FileList;
+    const transfer = {
+      files,
+      types: ["Files"],
+      getData: () => "",
+      dropEffect: "none",
+      effectAllowed: "copy",
+    } as unknown as DataTransfer;
+
+    const folderButton = screen.getByRole("button", { name: "Campaign folder" });
+    const folderTile = folderButton.closest(
+      ".media-library-panel-folder-strip-item"
+    ) as HTMLElement;
+    expect(folderTile).toBeTruthy();
+
+    fireEvent.drop(folderTile, { dataTransfer: transfer });
+
+    await waitFor(() => {
+      expect(uploadMediaFileMock).toHaveBeenCalledWith({
+        file,
+        destinationTab: "uploaded_images",
+      });
+    });
+    await waitFor(() => {
+      expect(applyMediaFolderMembershipBatchMock).toHaveBeenCalledWith(
+        {
+          action: "assign",
+          folderId: "folder-1",
+          mediaIds: ["uploaded-audio-1"],
+          promptIds: [],
+        },
+        null
+      );
+    });
+  });
+
   it("uploads desktop files dropped on the All Media grid into the library", async () => {
     render(<MediaLibraryPanel onSelectMedia={vi.fn()} onSelectPrompt={vi.fn()} />);
 
@@ -1492,6 +1552,51 @@ describe("MediaLibraryPanel", () => {
     );
   });
 
+  it("uploads desktop audio files dropped on the All Media grid into the library", async () => {
+    uploadMediaFileMock.mockResolvedValueOnce({
+      id: "uploaded-audio-1",
+      filename: "root-drop.mp3",
+      storage_path: "user-1/audio/root-drop.mp3",
+      preview_storage_path: "user-1/audio/root-drop.mp3",
+      file_type: "audio/mpeg",
+      file_size: 256,
+      source: "upload",
+      created_at: "2026-03-05T00:00:00.000Z",
+      signedUrl: "https://cdn.example.com/root-drop.mp3",
+    });
+
+    render(<MediaLibraryPanel onSelectMedia={vi.fn()} onSelectPrompt={vi.fn()} />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("media-library-panel-root-dropzone")).toBeInTheDocument();
+    });
+
+    const file = new File(["desktop-audio"], "root-drop.mp3", { type: "audio/mpeg" });
+    const files = {
+      0: file,
+      length: 1,
+      item: (index: number) => (index === 0 ? file : null),
+    } as unknown as FileList;
+    const transfer = {
+      files,
+      types: ["Files"],
+      getData: () => "",
+      dropEffect: "none",
+      effectAllowed: "copy",
+    } as unknown as DataTransfer;
+
+    fireEvent.drop(screen.getByTestId("media-library-panel-root-dropzone"), {
+      dataTransfer: transfer,
+    });
+
+    await waitFor(() => {
+      expect(uploadMediaFileMock).toHaveBeenCalledWith({
+        file,
+        destinationTab: "uploaded_images",
+      });
+    });
+  });
+
   it("uploads selected files from the Add files button into All Media", async () => {
     const { container } = render(
       <MediaLibraryPanel onSelectMedia={vi.fn()} onSelectPrompt={vi.fn()} />
@@ -1518,6 +1623,106 @@ describe("MediaLibraryPanel", () => {
         file,
         destinationTab: "uploaded_images",
       });
+    });
+  });
+
+  it("uploads selected audio files from the Add files button into All Media", async () => {
+    uploadMediaFileMock.mockResolvedValueOnce({
+      id: "uploaded-audio-1",
+      filename: "picker-upload.mp3",
+      storage_path: "user-1/audio/picker-upload.mp3",
+      preview_storage_path: "user-1/audio/picker-upload.mp3",
+      file_type: "audio/mpeg",
+      file_size: 256,
+      source: "upload",
+      created_at: "2026-03-05T00:00:00.000Z",
+      signedUrl: "https://cdn.example.com/picker-upload.mp3",
+    });
+
+    const { container } = render(
+      <MediaLibraryPanel onSelectMedia={vi.fn()} onSelectPrompt={vi.fn()} />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Add files" })).toBeInTheDocument();
+    });
+
+    const input = container.querySelector(
+      '.media-library-panel-file-input[type="file"]'
+    ) as HTMLInputElement;
+    expect(input).toBeTruthy();
+
+    const file = new File(["desktop-audio"], "picker-upload.mp3", { type: "audio/mpeg" });
+    fireEvent.change(input, {
+      target: {
+        files: [file],
+      },
+    });
+
+    await waitFor(() => {
+      expect(uploadMediaFileMock).toHaveBeenCalledWith({
+        file,
+        destinationTab: "uploaded_images",
+      });
+    });
+  });
+
+  it("uploads selected audio files into the active project folder from the Add files button", async () => {
+    uploadMediaFileMock.mockResolvedValueOnce({
+      id: "uploaded-audio-1",
+      filename: "folder-picker-upload.mp3",
+      storage_path: "user-1/audio/folder-picker-upload.mp3",
+      preview_storage_path: "user-1/audio/folder-picker-upload.mp3",
+      file_type: "audio/mpeg",
+      file_size: 256,
+      source: "upload",
+      created_at: "2026-03-05T00:00:00.000Z",
+      signedUrl: "https://cdn.example.com/folder-picker-upload.mp3",
+    });
+
+    const { container } = render(
+      <MediaLibraryPanel onSelectMedia={vi.fn()} onSelectPrompt={vi.fn()} />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Campaign folder" })).toBeInTheDocument();
+    });
+
+    fireEvent.doubleClick(screen.getByRole("button", { name: "Campaign folder" }));
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Remove media ref-1.png" })).toBeInTheDocument();
+    });
+    expect(screen.getByRole("button", { name: "Add files" })).toBeInTheDocument();
+
+    const input = container.querySelector(
+      '.media-library-panel-file-input[type="file"]'
+    ) as HTMLInputElement;
+    expect(input).toBeTruthy();
+
+    const file = new File(["desktop-audio"], "folder-picker-upload.mp3", { type: "audio/mpeg" });
+    fireEvent.change(input, {
+      target: {
+        files: [file],
+      },
+    });
+
+    await waitFor(() => {
+      expect(uploadMediaFileMock).toHaveBeenCalledWith({
+        file,
+        destinationTab: "uploaded_images",
+      });
+    });
+    await waitFor(() => {
+      expect(applyMediaFolderMembershipBatchMock).toHaveBeenCalledWith(
+        {
+          action: "assign",
+          folderId: "folder-1",
+          mediaIds: ["uploaded-audio-1"],
+          promptIds: [],
+        },
+        null
+      );
     });
   });
 
@@ -1689,7 +1894,49 @@ describe("MediaLibraryPanel", () => {
     });
   });
 
-  it("switches All Media root tabs between all media, images, videos, audio, and prompts", async () => {
+  it("switches All Media root tabs between mixed media, image-only, video-only, and prompts", async () => {
+    fetchMediaListPageMock.mockResolvedValue({
+      rows: [
+        {
+          id: "media-1",
+          filename: "ref-1.png",
+          storage_path: "user-1/uploads/ref-1.png",
+          preview_storage_path: "user-1/uploads/ref-1.png",
+          file_type: "image/png",
+          source: "upload",
+          created_at: "2026-03-02T00:00:00.000Z",
+          metadata: null,
+          signedUrl: "https://cdn.example.com/ref-1.png",
+        },
+        {
+          id: "media-2",
+          filename: "clip-1.mp4",
+          storage_path: "user-1/uploads/clip-1.mp4",
+          preview_storage_path: "user-1/uploads/clip-1.mp4",
+          file_type: "video/mp4",
+          source: "upload",
+          created_at: "2026-03-01T00:00:00.000Z",
+          metadata: null,
+          signedUrl: "https://cdn.example.com/clip-1.mp4",
+        },
+        {
+          id: "media-3",
+          filename: "voice-1.mp3",
+          storage_path: "user-1/uploads/voice-1.mp3",
+          preview_storage_path: "user-1/uploads/voice-1.mp3",
+          file_type: "audio/mpeg",
+          source: "upload",
+          created_at: "2026-03-03T00:00:00.000Z",
+          metadata: null,
+          signedUrl: "https://cdn.example.com/voice-1.mp3",
+        },
+      ],
+      nextCursor: null,
+      hasMore: false,
+      signedById: new Map<string, string>(),
+      libraryTotalCount: 3,
+    });
+
     render(<MediaLibraryPanel onSelectMedia={vi.fn()} onSelectPrompt={vi.fn()} />);
 
     await waitFor(() => {
@@ -1698,9 +1945,9 @@ describe("MediaLibraryPanel", () => {
       expect(screen.getByRole("tab", { name: "Prompts" })).toBeInTheDocument();
       expect(screen.getByRole("tab", { name: "Images" })).toBeInTheDocument();
       expect(screen.getByRole("tab", { name: "Videos" })).toBeInTheDocument();
-      expect(screen.getByRole("tab", { name: "Audio" })).toBeInTheDocument();
       expect(screen.getByRole("button", { name: "Select media ref-1.png" })).toBeInTheDocument();
       expect(screen.getByRole("button", { name: "Select media clip-1.mp4" })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Select media voice-1.mp3" })).toBeInTheDocument();
       expect(screen.getByRole("button", { name: "Select prompt Prompt One" })).toBeInTheDocument();
     });
 
@@ -1712,6 +1959,7 @@ describe("MediaLibraryPanel", () => {
     );
     const latestAllMediaProps = allItemsGridPropsSpy.mock.calls.at(-1)?.[0];
     expect(latestAllMediaProps?.mediaRows.map((row: { id: string }) => row.id)).toEqual([
+      "media-3",
       "media-1",
       "media-2",
     ]);
@@ -1722,6 +1970,9 @@ describe("MediaLibraryPanel", () => {
     });
     expect(
       screen.queryByRole("button", { name: "Select media clip-1.mp4" })
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Select media voice-1.mp3" })
     ).not.toBeInTheDocument();
 
     expect(fetchMediaListPageMock).toHaveBeenCalledWith(
@@ -1738,6 +1989,9 @@ describe("MediaLibraryPanel", () => {
     expect(
       screen.queryByRole("button", { name: "Select media ref-1.png" })
     ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Select media voice-1.mp3" })
+    ).not.toBeInTheDocument();
 
     expect(fetchMediaListPageMock).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -1745,20 +1999,6 @@ describe("MediaLibraryPanel", () => {
         folderId: "all_items",
       })
     );
-
-    fireEvent.click(screen.getByRole("tab", { name: "Audio" }));
-    await waitFor(() => {
-      expect(screen.getByText("Audio browsing is not available yet.")).toBeInTheDocument();
-    });
-    expect(
-      screen.queryByRole("button", { name: "Select media ref-1.png" })
-    ).not.toBeInTheDocument();
-    expect(
-      screen.queryByRole("button", { name: "Select media clip-1.mp4" })
-    ).not.toBeInTheDocument();
-    expect(
-      screen.queryByRole("button", { name: "Select prompt Prompt One" })
-    ).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("tab", { name: "Prompts" }));
     await waitFor(() => {
@@ -1769,6 +2009,9 @@ describe("MediaLibraryPanel", () => {
     ).not.toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: "Select media clip-1.mp4" })
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Select media voice-1.mp3" })
     ).not.toBeInTheDocument();
 
     expect(fetchMediaPromptListPageMock).toHaveBeenCalledWith(
@@ -2527,6 +2770,67 @@ describe("MediaLibraryPanel", () => {
         null
       );
     });
+  });
+
+  it("saves dropped internal media references from the reference grid into root All Media", async () => {
+    const resolveInternalDropItem = vi.fn().mockResolvedValue({
+      kind: "media",
+      id: "media-88",
+    });
+
+    render(
+      <MediaLibraryPanel
+        onSelectMedia={vi.fn()}
+        onSelectPrompt={vi.fn()}
+        resolveInternalDropItem={resolveInternalDropItem}
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("media-library-panel-root-dropzone")).toBeInTheDocument();
+    });
+
+    const callsBeforeDrop = fetchMediaListPageMock.mock.calls.length;
+    const transfer = {
+      types: ["text/reference-origin", "text/reference-output-id", "text/reference-source-surface"],
+      getData: (type: string) => {
+        switch (type) {
+          case "text/reference-origin":
+            return "ai-studio-reference-grid";
+          case "text/reference-output-id":
+            return "output-audio-1";
+          case "text/reference-source-surface":
+            return "all-refs";
+          default:
+            return "";
+        }
+      },
+      dropEffect: "none",
+      effectAllowed: "copy",
+    } as unknown as DataTransfer;
+
+    fireEvent.drop(screen.getByTestId("media-library-panel-root-dropzone"), {
+      dataTransfer: transfer,
+    });
+
+    await waitFor(() => {
+      expect(resolveInternalDropItem).toHaveBeenCalledWith(
+        expect.objectContaining({
+          origin: "ai-studio-reference-grid",
+          outputId: "output-audio-1",
+          sourceSurface: "all-refs",
+        })
+      );
+    });
+    await waitFor(() => {
+      expect(fetchMediaListPageMock.mock.calls.length).toBeGreaterThan(callsBeforeDrop);
+    });
+    expect(applyMediaFolderMembershipBatchMock).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: "assign",
+      }),
+      null
+    );
   });
 
   it("assigns dropped internal prompt references from the reference grid to a folder tile", async () => {

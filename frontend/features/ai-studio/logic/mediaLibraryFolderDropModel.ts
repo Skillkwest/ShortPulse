@@ -9,6 +9,10 @@ export type FolderDropItemKind = "media" | "prompt";
 export type FolderDropIntent =
   | { kind: "noop" }
   | {
+      kind: "save";
+      targetFolderId: string;
+    }
+  | {
       kind: "assign";
       targetFolderId: string;
     }
@@ -51,9 +55,11 @@ const normalizeFolderId = (folderId: string | null | undefined): string | null =
 export const resolveFolderDropIntent = ({
   sourceFolderId,
   targetFolderId,
+  allowRootSave = false,
 }: {
   sourceFolderId?: string | null;
   targetFolderId: string;
+  allowRootSave?: boolean;
 }): FolderDropIntent => {
   const source = normalizeFolderId(sourceFolderId);
   const target = normalizeFolderId(targetFolderId);
@@ -61,6 +67,12 @@ export const resolveFolderDropIntent = ({
   if (source && source === target) return { kind: "noop" };
 
   if (isRootFolder(target)) {
+    if (allowRootSave && (!source || isRootFolder(source))) {
+      return {
+        kind: "save",
+        targetFolderId: target,
+      };
+    }
     if (!source || isRootFolder(source)) return { kind: "noop" };
     return {
       kind: "unassign",
@@ -99,6 +111,10 @@ export const resolveFolderDropFeedbackMessage = ({
     itemKind === "media" ? (result?.mediaAssigned ?? 0) : (result?.promptsAssigned ?? 0);
   const unassignedCount =
     itemKind === "media" ? (result?.mediaUnassigned ?? 0) : (result?.promptsUnassigned ?? 0);
+
+  if (intent.kind === "save") {
+    return targetFolderName ? `Saved to ${targetFolderName}.` : "Saved to media library.";
+  }
 
   if (intent.kind === "assign") {
     if (duplicateCount > 0 && assignedCount === 0) {

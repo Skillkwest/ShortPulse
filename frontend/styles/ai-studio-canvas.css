@@ -841,8 +841,11 @@
 }
 
 .reference-save-chip.is-saving {
-  border-color: rgba(80, 186, 255, 0.5);
-  background: linear-gradient(135deg, rgba(76, 140, 255, 0.18), rgba(76, 225, 255, 0.1));
+  border-color: rgba(80, 186, 255, 0.78);
+  background: linear-gradient(135deg, rgba(76, 140, 255, 0.68), rgba(76, 225, 255, 0.5));
+  box-shadow:
+    0 8px 18px rgba(0, 0, 0, 0.42),
+    0 0 0 1px rgba(117, 211, 255, 0.18) inset;
 }
 
 .reference-save-chip.is-saved {

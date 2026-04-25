@@ -191,6 +191,11 @@ export function ReferenceGridSections({
       : false;
   const showNestedReferenceStylesStack =
     showQuickSlotSection && showReferenceGridSection && showStylesSection;
+  const canvasInventoryDividerTitle = showQuickSlotSection
+    ? "Quick Slot Inventory"
+    : showReferenceGridSection
+      ? "Reference Grid"
+      : "Styles";
   const showQuickSlotTitleInHeader = !showCanvasInventoryDivider;
   const showReferenceGridTitleInHeader =
     !showQuickSlotReferenceDivider && !showCanvasInventoryDivider;
@@ -244,7 +249,7 @@ export function ReferenceGridSections({
                   ? " is-divider-near-collapsed"
                   : ""
               }`}
-              style={railCanvasSplit.topSectionStyle}
+              style={showCanvasInventoryDivider ? railCanvasSplit.topSectionStyle : undefined}
             >
               <div
                 ref={railCanvasHeaderRef}
@@ -267,7 +272,7 @@ export function ReferenceGridSections({
                 {...railCanvasSplit.dividerProps}
               >
                 <span className="reference-grid-horizontal-divider-title" aria-hidden="true">
-                  Quick Slot Inventory
+                  {canvasInventoryDividerTitle}
                 </span>
                 <button
                   type="button"

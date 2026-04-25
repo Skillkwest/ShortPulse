@@ -52,7 +52,6 @@ type StyleDropPreviewError = Error & {
   styleDropResolutionReason?: string | null;
   styleDropResolutionStage?: "primary";
   styleDropCandidateCount?: number;
-  styleDropServerCopyAttempted?: boolean;
 };
 
 export type ResolvedStyleSource = {
@@ -63,7 +62,6 @@ export type ResolvedStyleSource = {
   resolutionReason: string | null;
   resolutionStage: "primary";
   candidateCount: number;
-  serverCopyAttempted: boolean;
 };
 
 const createStyleDropPreviewError = (
@@ -80,7 +78,6 @@ const createStyleDropPreviewError = (
   error.styleDropResolutionReason = context?.resolutionReason ?? null;
   error.styleDropResolutionStage = "primary";
   error.styleDropCandidateCount = context?.candidateCount ?? 0;
-  error.styleDropServerCopyAttempted = false;
   return error;
 };
 
@@ -98,9 +95,7 @@ export const getStyleDropPreviewResolutionReason = (error: unknown): string | nu
   return typeof reason === "string" && reason.trim() ? reason.trim() : null;
 };
 
-export const getStyleDropPreviewResolutionStage = (
-  error: unknown
-): "primary" | "server_copy_fallback" | null => {
+export const getStyleDropPreviewResolutionStage = (error: unknown): "primary" | null => {
   if (!error || typeof error !== "object") return null;
   const stage = (error as StyleDropPreviewError).styleDropResolutionStage;
   return stage === "primary" ? stage : null;
@@ -111,12 +106,6 @@ export const getStyleDropPreviewCandidateCount = (error: unknown): number | null
   const count = (error as StyleDropPreviewError).styleDropCandidateCount;
   if (typeof count !== "number" || !Number.isFinite(count)) return null;
   return Math.max(0, Math.trunc(count));
-};
-
-export const getStyleDropPreviewServerCopyAttempted = (error: unknown): boolean | null => {
-  if (!error || typeof error !== "object") return null;
-  const attempted = (error as StyleDropPreviewError).styleDropServerCopyAttempted;
-  return typeof attempted === "boolean" ? attempted : null;
 };
 
 export const normalizeStyleDropPreviewError = (
@@ -293,7 +282,6 @@ export const resolveStyleSource = async ({
       resolutionReason: null,
       resolutionStage: "primary",
       candidateCount: 0,
-      serverCopyAttempted: false,
     };
   }
 
@@ -313,7 +301,6 @@ export const resolveStyleSource = async ({
       resolutionReason: null,
       resolutionStage: "primary",
       candidateCount: 0,
-      serverCopyAttempted: false,
     };
   }
 
@@ -327,6 +314,7 @@ export const resolveStyleSource = async ({
   const promptText = normalizeStylePromptFallbackText(
     dragPayload.promptText || internalSource?.promptText || ""
   );
+  let internalResolutionError: StyleDropPreviewError | null = null;
 
   if (internalSource) {
     try {
@@ -338,30 +326,20 @@ export const resolveStyleSource = async ({
         resolutionReason: internalSource.provenance.resolutionReason,
         resolutionStage: "primary",
         candidateCount: 1,
-        serverCopyAttempted: false,
       };
     } catch (error) {
       const normalized = normalizeStyleDropPreviewError(error);
-      throw createStyleDropPreviewError(normalized.code, normalized.classifierReason, {
-        resolutionReason: internalSource.provenance.resolutionReason,
-        candidateCount: 1,
-      });
+      internalResolutionError = createStyleDropPreviewError(
+        normalized.code,
+        normalized.classifierReason,
+        {
+          resolutionReason: internalSource.provenance.resolutionReason,
+          candidateCount: 1,
+        }
+      );
     }
-  }
-
-  if (internalDropPayload && !resolveInternalStyleDrop) {
-    throw createStyleDropPreviewError(
-      BLOCKED_STYLE_IMAGE_SOURCE_ERROR,
-      "internal_source_unresolved",
-      {
-        resolutionReason: "internal_source_unresolved",
-        candidateCount: 0,
-      }
-    );
-  }
-
-  if (internalDropPayload && resolveInternalStyleDrop) {
-    throw createStyleDropPreviewError(
+  } else if (internalDropPayload) {
+    internalResolutionError = createStyleDropPreviewError(
       BLOCKED_STYLE_IMAGE_SOURCE_ERROR,
       "internal_source_unresolved",
       {
@@ -376,6 +354,9 @@ export const resolveStyleSource = async ({
     dragPayloadImageUrl: dragPayload.imageUrl,
   });
   if (!sourceUrls.length) {
+    if (internalResolutionError) {
+      throw internalResolutionError;
+    }
     throw createStyleDropPreviewError("missing-dropped-style-image", "missing_drop_payload");
   }
 
@@ -386,19 +367,25 @@ export const resolveStyleSource = async ({
         kind: "external",
         sourceImageDataUrl: await readImageDataUrlFromUrl(sourceUrl),
         promptText,
-        internalPayloadPresent: false,
+        internalPayloadPresent: Boolean(internalDropPayload),
         resolutionReason: null,
         resolutionStage: "primary",
         candidateCount: sourceUrls.length,
-        serverCopyAttempted: false,
       };
     } catch (error) {
       lastError = error;
     }
   }
 
-  const normalized = normalizeStyleDropPreviewError(lastError);
-  throw createStyleDropPreviewError(normalized.code, normalized.classifierReason, {
-    candidateCount: sourceUrls.length,
-  });
+  if (lastError) {
+    const normalized = normalizeStyleDropPreviewError(lastError);
+    throw createStyleDropPreviewError(normalized.code, normalized.classifierReason, {
+      candidateCount: sourceUrls.length,
+    });
+  }
+
+  if (internalResolutionError) {
+    throw internalResolutionError;
+  }
+  throw createStyleDropPreviewError("missing-dropped-style-image", "missing_drop_payload");
 };

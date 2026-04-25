@@ -3,7 +3,7 @@
 Purpose: define the currently shipped Projects contract so dashboard handoff, API behavior, AI Studio route identity, project-scoped Media Library folder behavior, project-scoped Media Library folder canvas behavior, and the current project-owned workspace snapshot boundary are documented in one authoritative operational reference instead of being spread across planning docs.
 
 ## Scope
-- In scope: `projects` table foundation, authenticated project create/list/read/update-title/workspace routes, authenticated project Media Library folder routes, authenticated project Media Library folder canvas routes, dashboard `New Project` handoff, dashboard saved-project cards, project-aware AI Studio entry, AI Studio project-title edits backed by `projects.title`, project-owned workspace snapshot read/write for project routes, project-owned media/prompt/generated-output association for save and reopen flows, project-scoped Media Library custom folders, folder membership, and folder canvas persistence for saved media/prompts, and current `projectId` + `sid` coexistence behavior.
+- In scope: `projects` table foundation, authenticated project create/list/read/update-title/workspace routes, authenticated project Media Library folder routes, authenticated project Media Library folder canvas routes, dashboard `New Project` handoff, dashboard recent-project preview card + saved-project modal handoff, project-aware AI Studio entry, AI Studio left-rail project switcher modal, AI Studio project-title edits backed by `projects.title`, project-owned workspace snapshot read/write for project routes, project-owned media/prompt/generated-output association for save and reopen flows, project-scoped Media Library custom folders, folder membership, and folder canvas persistence for saved media/prompts, and current `projectId` + `sid` coexistence behavior.
 - Out of scope: project-scoped `All Media`, full live generated-output authority cutover outside the shipped project route seams, and full legacy session cleanup.
 
 ## Current shipped contract
@@ -23,6 +23,11 @@ Purpose: define the currently shipped Projects contract so dashboard handoff, AP
 14. Project folder membership currently supports saved media and saved prompts.
 15. Project folder canvas persistence now uses project-scoped authority on project routes.
 16. Broader live generated-output authority cleanup is still follow-up work.
+17. The AI Studio left-rail `Projects` action opens a saved-project modal, lists the full caller-owned project catalog through `GET /api/projects?limit=all`, and routes selection to `/ai-studio?projectId=<uuid>` from inside AI Studio.
+18. The dashboard recent-projects surface is preview-only; the full card opens that same saved-project modal, and the individual preview tiles inside the card are not directly selectable.
+19. The shared Projects modal now supports permanent delete for non-current projects through `DELETE /api/projects/:projectId`; deleting a project also removes its project-owned workspace, folder canvas state, and project-only organization rows through database cascade.
+20. Project cards in the shared Projects modal now render up to four snapshot-derived thumbnails. Thumbnail priority is: first four Quick Slot Inventory images, otherwise the first four visible Reference Grid images, otherwise no preview strip.
+21. Storage-backed project-card thumbnails are signed as tiny dedicated project-card preview variants so the modal can render the stacked thumbnails without fetching larger preview assets than the surface needs.
 
 ## Primary repo surfaces
 | Surface | Role |
@@ -31,12 +36,13 @@ Purpose: define the currently shipped Projects contract so dashboard handoff, AP
 | `frontend/lib/server/projectsService.ts` | Canonical server helper for project create/list/read/update access and input normalization. |
 | `frontend/pages/api/projects/index.ts` | Authenticated collection route used by the dashboard saved-project surface. |
 | `frontend/pages/api/projects/create.ts` | Authenticated create route used by the dashboard handoff. |
-| `frontend/pages/api/projects/[projectId].ts` | Authenticated single-project item route for ownership checks and title updates. |
+| `frontend/pages/api/projects/[projectId].ts` | Authenticated single-project item route for ownership checks, title updates, and permanent delete. |
 | `frontend/pages/api/projects/[projectId]/workspace.ts` | Authenticated workspace route used by project-aware AI Studio restore/write. |
 | `frontend/pages/api/projects/[projectId]/media/folders/*.ts` | Authenticated project Media Library folder CRUD and membership routes. |
 | `frontend/pages/api/projects/[projectId]/media/folders/[folderId]/canvas.ts` | Authenticated project Media Library folder canvas route. |
-| `frontend/pages/dashboard.tsx` | `New Project` UI entry plus recent-project cards that route into AI Studio with `projectId`. |
+| `frontend/pages/dashboard.tsx` | `New Project` UI entry plus a preview-only recent-projects card that opens the shared saved-project modal and routes selection into AI Studio with `projectId`. |
 | `frontend/pages/ai-studio.tsx` | Current AI Studio page entry where `projectId` coexists with legacy `sid`, gates restore on project resolution, routes visible title edits through project authority, and switches project routes onto project-owned workspace persistence. |
+| `frontend/features/ai-studio/components/ProjectsModal.tsx` | Saved-project picker modal used by the AI Studio left rail to reopen owned projects without leaving AI Studio. |
 | `frontend/features/ai-studio/hooks/useAiStudioProjectIdentity.ts` | Canonical client hook for `projectId` query resolution, owned-project fetch, and AI Studio title updates. |
 | `frontend/features/ai-studio/hooks/useAiStudioProjectWorkspacePersistenceController.ts` | Canonical client controller for project-owned workspace restore/apply and debounced save shadow. |
 | `frontend/lib/server/projectMediaFoldersService.ts` | Canonical server helper for project-owned Media Library custom folders and saved media/prompt membership operations. |
@@ -89,16 +95,20 @@ Operational notes:
 ### `GET /api/projects`
 Behavior:
 1. Requires authenticated API user.
-2. Accepts optional `limit` query input within server-enforced bounds.
+2. Accepts optional bounded numeric `limit` query input and also accepts `limit=all` for the in-studio project switcher modal.
 3. Returns recent caller-owned projects ordered by `updated_at desc`.
+4. Each project row now also includes `previewImageUrls`, with up to four image URLs derived from the saved workspace snapshot.
+5. Preview derivation prefers Quick Slot Inventory image outputs and falls back to visible Reference Grid image outputs only when the quick slot has no image previews.
+6. Storage-backed preview rows are signed as tiny project-card thumbnail variants before `previewImageUrls` are returned.
 
-### `GET|PATCH /api/projects/:projectId`
+### `GET|PATCH|DELETE /api/projects/:projectId`
 Behavior:
 1. Requires authenticated API user.
 2. Validates `projectId` format before querying.
 3. `GET` returns one caller-owned project row when found.
 4. `PATCH` updates the caller-owned project title with server-side normalization.
-5. Returns:
+5. `DELETE` permanently removes one caller-owned project and relies on project-owned table foreign keys to cascade workspace/folder/association cleanup.
+6. Returns:
    - `400` for invalid project id
    - `404` for missing or non-owned project
    - `500` for unexpected server failure
@@ -147,10 +157,12 @@ Behavior:
 
 ## Dashboard handoff workflow
 1. `/dashboard` loads recent caller-owned projects through `GET /api/projects?limit=3`.
-2. User clicks `New Project` or an existing project card on `/dashboard`.
+2. User clicks `New Project` or the preview-only Projects card on `/dashboard`.
 3. `New Project` calls `POST /api/projects/create`.
-4. On success, the dashboard routes to `/ai-studio?projectId=<uuid>`.
-5. On create failure, the dashboard keeps the user on `/dashboard` and surfaces a create-project error message.
+4. On Projects-card click, the dashboard opens the shared saved-project modal, which loads the full caller-owned catalog through `GET /api/projects?limit=all`.
+5. On project selection from that modal, the dashboard routes to `/ai-studio?projectId=<uuid>`.
+6. On create failure, the dashboard keeps the user on `/dashboard` and surfaces a create-project error message.
+7. Once already inside AI Studio, the left-rail `Projects` action reuses the same `projectId` handoff boundary by opening that shared saved-project modal, allowing permanent delete for non-current projects, and routing the selected project back to `/ai-studio?projectId=<uuid>`.
 
 ## AI Studio identity boundary
 1. `projectId` is now the top-level durable handoff identity for the Projects migration.

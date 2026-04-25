@@ -60,7 +60,7 @@ export const withMediaTabFilter = <
   const privateMediaSource = options?.privateMediaSource ?? DEFAULT_PRIVATE_MEDIA_SOURCE;
   if (tab === "private") return query.eq("source", privateMediaSource);
   if (tab === "ai_generations") {
-    return query.eq("source", "ai_studio").not("file_type", "ilike", "audio%");
+    return query.eq("source", "ai_studio");
   }
   if (tab === "uploaded_videos") return query.eq("source", "upload").ilike("file_type", "video%");
   return query.eq("source", "upload").ilike("file_type", "image%");

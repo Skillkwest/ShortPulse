@@ -9,6 +9,7 @@ const logApiRouteExceptionMock = vi.fn();
 const createProjectForUserMock = vi.fn();
 const listProjectsForUserMock = vi.fn();
 const getProjectForUserMock = vi.fn();
+const deleteProjectForUserMock = vi.fn();
 const updateProjectTitleForUserMock = vi.fn();
 const getProjectWorkspaceStateForUserMock = vi.fn();
 const upsertProjectWorkspaceStateForUserMock = vi.fn();
@@ -27,6 +28,7 @@ vi.mock("../../lib/server/projectsService", () => ({
   createProjectForUser: (...args: unknown[]) => createProjectForUserMock(...args),
   listProjectsForUser: (...args: unknown[]) => listProjectsForUserMock(...args),
   getProjectForUser: (...args: unknown[]) => getProjectForUserMock(...args),
+  deleteProjectForUser: (...args: unknown[]) => deleteProjectForUserMock(...args),
   updateProjectTitleForUser: (...args: unknown[]) => updateProjectTitleForUserMock(...args),
   parseProjectId: (...args: unknown[]) => parseProjectIdMock(...args),
   parseProjectListLimit: (...args: unknown[]) => parseProjectListLimitMock(...args),
@@ -61,6 +63,12 @@ describe("projects routes", () => {
     });
     listProjectsForUserMock.mockResolvedValue([]);
     getProjectForUserMock.mockResolvedValue({
+      id: "project-1",
+      title: "Untitled project",
+      createdAt: "2026-04-23T00:00:00.000Z",
+      updatedAt: "2026-04-23T00:00:00.000Z",
+    });
+    deleteProjectForUserMock.mockResolvedValue({
       id: "project-1",
       title: "Untitled project",
       createdAt: "2026-04-23T00:00:00.000Z",
@@ -113,6 +121,7 @@ describe("projects routes", () => {
         title: "Project One",
         createdAt: "2026-04-23T00:00:00.000Z",
         updatedAt: "2026-04-23T01:00:00.000Z",
+        previewImageUrls: ["https://cdn.example.com/project-one-1.png"],
       },
     ]);
     const req = { method: "GET", query: { limit: "3" } };
@@ -129,9 +138,21 @@ describe("projects routes", () => {
           title: "Project One",
           createdAt: "2026-04-23T00:00:00.000Z",
           updatedAt: "2026-04-23T01:00:00.000Z",
+          previewImageUrls: ["https://cdn.example.com/project-one-1.png"],
         },
       ],
     });
+  });
+
+  it("accepts the all-projects limit for in-studio project switching", async () => {
+    parseProjectListLimitMock.mockReturnValueOnce("all");
+    const req = { method: "GET", query: { limit: "all" } };
+    const res = createMockResponse();
+
+    await collectionHandler(req as never, res as never);
+
+    expect(listProjectsForUserMock).toHaveBeenCalledWith({ userId: "user-1", limit: "all" });
+    expect(res.status).toHaveBeenCalledWith(200);
   });
 
   it("returns 400 for invalid project list limit", async () => {
@@ -177,6 +198,22 @@ describe("projects routes", () => {
         createdAt: "2026-04-23T00:00:00.000Z",
         updatedAt: "2026-04-23T01:00:00.000Z",
       },
+    });
+  });
+
+  it("deletes a caller-owned project", async () => {
+    const req = { method: "DELETE", query: { projectId: "project-1" } };
+    const res = createMockResponse();
+
+    await itemHandler(req as never, res as never);
+
+    expect(deleteProjectForUserMock).toHaveBeenCalledWith({
+      userId: "user-1",
+      projectId: "project-1",
+    });
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith({
+      deletedProjectId: "project-1",
     });
   });
 

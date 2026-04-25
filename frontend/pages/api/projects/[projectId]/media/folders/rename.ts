@@ -18,6 +18,7 @@ type RenameFolderSuccessResponse = {
     parentFolderId: string | null;
     createdAt: string;
     updatedAt: string;
+    itemCount: number;
   };
 };
 
@@ -97,6 +98,7 @@ export default async function handler(
         parentFolderId: folder.parent_folder_id,
         createdAt: folder.created_at,
         updatedAt: folder.updated_at,
+        itemCount: folder.item_count,
       },
     });
   } catch (error) {

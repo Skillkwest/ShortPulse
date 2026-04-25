@@ -413,6 +413,41 @@ export const useAiStudioShellResize = ({
     resolveContainerWidth,
   ]);
 
+  const restoreWidth = useCallback(
+    (widthPx: number | null | undefined) => {
+      if (!enabled || !isResizableViewport) return;
+      const containerWidth = resolveContainerWidth();
+      if (!containerWidth) return;
+      if (typeof widthPx !== "number" || !Number.isFinite(widthPx)) {
+        const defaultWidth = getDefaultAiShellLeftWidth(containerWidth, {
+          minLeftWidthPx,
+          maxLeftWidthPx,
+          minRightWidthPx,
+          preferredRatio: defaultLeftRatio,
+        });
+        setLeftWidthPx((prev) => (prev === defaultWidth ? prev : defaultWidth));
+        setContainerWidthPx(Math.round(containerWidth));
+        return;
+      }
+      const nextWidth = clampAiShellLeftWidth(widthPx, containerWidth, {
+        minLeftWidthPx,
+        maxLeftWidthPx,
+        minRightWidthPx,
+      });
+      setLeftWidthPx((prev) => (prev === nextWidth ? prev : nextWidth));
+      setContainerWidthPx(Math.round(containerWidth));
+    },
+    [
+      defaultLeftRatio,
+      enabled,
+      isResizableViewport,
+      maxLeftWidthPx,
+      minLeftWidthPx,
+      minRightWidthPx,
+      resolveContainerWidth,
+    ]
+  );
+
   const expandToMax = useCallback(() => {
     if (!enabled || !isResizableViewport) return;
     const containerWidth = resolveContainerWidth();
@@ -492,11 +527,13 @@ export const useAiStudioShellResize = ({
   return {
     shellRef,
     leftColumnRef,
+    leftWidthPx,
     showDivider,
     isResizing,
     shellStyle,
     collapseToMin,
     resetToDefaultWidth,
+    restoreWidth,
     expandToMax,
     rightColumnHidden,
     dividerProps: {

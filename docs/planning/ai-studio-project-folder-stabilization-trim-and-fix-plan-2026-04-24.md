@@ -1,13 +1,15 @@
 # AI Studio Project Folder Stabilization, Trim, And Fix Plan (2026-04-24)
 
 Last updated: 2026-04-24  
-Status: Active  
+Status: Historical / Deferred behind active workspace-isolation lane  
 Owner: Engineering
 
-## Purpose
-This plan narrows the active Projects stabilization lane to the current repo-backed bottleneck: project folder reliability.
+> Active execution note: this folder stabilization plan is no longer the primary Projects contract. Use `docs/planning/ai-studio-project-workspace-isolation-bootstrap-and-restore-plan-2026-04-24.md` for the active lane. This document remains the narrower folder-specific subplan and historical record for the folder reliability work already performed.
 
-Projects now create, load, save, and reopen well enough that the dominant remaining user-facing failure is inside the Media Library custom-folder lane. The objective is therefore no longer broad project-persistence expansion or project-open hardening. The objective is:
+## Purpose
+This document records the folder-specific stabilization lane that temporarily became the active Projects bottleneck.
+
+At the time of this rewrite, Projects created, loaded, saved, and reopened well enough that the dominant visible user-facing failure sat inside the Media Library custom-folder lane. The objective of that narrower lane was:
 1. make project folders work correctly for saved and unsaved assets,
 2. keep folder persistence aligned with the project model already landed in the repo,
 3. trim duplicate or dormant folder-specific code that is increasing complexity without product value,

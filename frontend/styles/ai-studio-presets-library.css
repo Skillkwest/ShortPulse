@@ -2,6 +2,335 @@
  * AI Studio primary Presets library panel styles.
  * Keeps the left-panel presets grid isolated from expert edit surface preset controls.
  */
+.merged-presets-library-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  gap: 14px;
+}
+
+.merged-presets-library-header {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.merged-presets-library-header .eyebrow,
+.merged-presets-library-header .helper-text {
+  margin: 0;
+}
+
+.merged-presets-library-filter-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.merged-presets-library-filter-chip {
+  border: 1px solid rgba(201, 205, 214, 0.16);
+  border-radius: 999px;
+  background: rgba(201, 205, 214, 0.05);
+  color: rgba(228, 233, 242, 0.88);
+  padding: 7px 12px;
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+  transition:
+    border-color 0.16s ease,
+    background 0.16s ease,
+    color 0.16s ease,
+    transform 0.16s ease;
+}
+
+.merged-presets-library-filter-chip:hover {
+  border-color: rgba(105, 198, 255, 0.36);
+  background: rgba(105, 198, 255, 0.1);
+  transform: translateY(-1px);
+}
+
+.merged-presets-library-filter-chip.is-active {
+  border-color: rgba(105, 198, 255, 0.68);
+  background: rgba(68, 138, 181, 0.16);
+  color: rgba(238, 246, 255, 0.96);
+}
+
+.merged-presets-library-body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding-right: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.merged-presets-library-body::-webkit-scrollbar {
+  width: 6px;
+}
+
+.merged-presets-library-body::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.merged-presets-library-body::-webkit-scrollbar-thumb {
+  background: rgba(201, 205, 214, 0.2);
+  border-radius: 999px;
+}
+
+.merged-presets-library-body::-webkit-scrollbar-thumb:hover {
+  background: rgba(201, 205, 214, 0.32);
+}
+
+.merged-presets-library-section {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 16px 16px 18px;
+  border: 1px solid rgba(201, 205, 214, 0.1);
+  border-radius: 18px;
+  background: #131518;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.02),
+    0 12px 24px rgba(0, 0, 0, 0.12);
+}
+
+.merged-presets-library-section + .merged-presets-library-section {
+  margin-top: 4px;
+}
+
+.merged-presets-library-section--pulses {
+  border-color: rgba(71, 194, 255, 0.12);
+}
+
+.merged-presets-library-section--prompt-presets {
+  border-color: rgba(255, 181, 88, 0.12);
+}
+
+.merged-presets-library-section-header {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 38px;
+  padding-bottom: 12px;
+}
+
+.merged-presets-library-section-header::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 1px;
+  border-radius: 999px;
+  background: linear-gradient(
+    90deg,
+    rgba(201, 205, 214, 0),
+    rgba(201, 205, 214, 0.04) 20%,
+    rgba(201, 205, 214, 0.16) 50%,
+    rgba(201, 205, 214, 0.04) 80%,
+    rgba(201, 205, 214, 0)
+  );
+}
+
+.merged-presets-library-section-header > div:first-child {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  position: relative;
+}
+
+.merged-presets-library-section-action.toolbar-item[data-tool-id="create"],
+.merged-presets-library-section-action.toolbar-item[data-tool-id="edit"] {
+  position: absolute;
+  top: 0;
+  left: 0;
+  min-width: 164px;
+  margin: 0;
+  margin-bottom: 0;
+  justify-content: flex-start;
+  text-align: center;
+  z-index: 1;
+}
+
+.merged-presets-library-section-action .toolbar-copy {
+  display: inline-flex;
+  align-items: center;
+}
+
+.merged-presets-library-section-action .toolbar-label {
+  white-space: nowrap;
+}
+
+.merged-presets-library-section-action:focus-visible {
+  outline-offset: 3px;
+}
+
+.merged-presets-library-section--pulses .merged-presets-library-section-header::after {
+  background: linear-gradient(
+    90deg,
+    rgba(93, 211, 255, 0),
+    rgba(93, 211, 255, 0.06) 22%,
+    rgba(93, 211, 255, 0.58) 50%,
+    rgba(93, 211, 255, 0.06) 78%,
+    rgba(93, 211, 255, 0)
+  );
+}
+
+.merged-presets-library-section--prompt-presets .merged-presets-library-section-header::after {
+  background: linear-gradient(
+    90deg,
+    rgba(255, 188, 103, 0),
+    rgba(255, 188, 103, 0.06) 22%,
+    rgba(255, 188, 103, 0.52) 50%,
+    rgba(255, 188, 103, 0.06) 78%,
+    rgba(255, 188, 103, 0)
+  );
+}
+
+.merged-presets-library-section-title {
+  margin: 0;
+  color: rgba(238, 242, 248, 0.96);
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1.2;
+}
+
+.merged-presets-library-section-copy {
+  margin: 8px 0 0;
+  max-width: 640px;
+}
+
+.merged-presets-library-section--pulses .merged-presets-library-section-title {
+  color: rgba(235, 245, 251, 0.96);
+}
+
+.merged-presets-library-section--prompt-presets .merged-presets-library-section-title {
+  color: rgba(224, 229, 236, 0.94);
+  font-size: 24px;
+}
+
+.merged-presets-library-section--pulses .merged-presets-library-section-copy {
+  color: rgba(181, 199, 210, 0.86);
+}
+
+.merged-presets-library-section--prompt-presets .merged-presets-library-section-copy {
+  color: rgba(206, 190, 169, 0.86);
+}
+
+.merged-presets-library-section-body > .presets-library-panel,
+.merged-presets-library-section-body > .pulse-presets-library-panel {
+  height: auto;
+  min-height: 0;
+  gap: 0;
+}
+
+.merged-presets-library-section-body .presets-library-header,
+.merged-presets-library-section-body .pulse-presets-library-header {
+  display: none;
+}
+
+.merged-presets-library-section-body .presets-library-scroll,
+.merged-presets-library-section-body .pulse-presets-library-scroll {
+  overflow: visible;
+  padding-right: 0;
+}
+
+.merged-presets-library-section-body .presets-library-grid,
+.merged-presets-library-section-body .pulse-presets-library-grid {
+  padding-top: 0;
+}
+
+.merged-presets-library-section--pulses .pulse-presets-library-tile {
+  border-color: rgba(34, 211, 238, 0.42);
+  background: rgba(28, 32, 37, 0.94);
+}
+
+.merged-presets-library-section--pulses .pulse-presets-library-tile:hover {
+  border-color: rgba(34, 211, 238, 0.62);
+  background: rgba(28, 32, 37, 0.98);
+  box-shadow: 0 8px 18px rgba(6, 18, 28, 0.18);
+}
+
+.merged-presets-library-section--pulses .pulse-presets-library-tile.is-selected {
+  border-color: rgba(34, 211, 238, 0.9);
+  box-shadow:
+    inset 0 0 0 1px rgba(34, 211, 238, 0.12),
+    0 8px 18px rgba(6, 18, 28, 0.16);
+  background: rgba(36, 40, 47, 0.94);
+}
+
+.merged-presets-library-section--pulses .pulse-presets-library-custom-pill {
+  border-color: rgba(71, 194, 255, 0.2);
+  background: rgba(47, 139, 194, 0.08);
+  color: rgba(170, 228, 255, 0.88);
+}
+
+.merged-presets-library-section--pulses .pulse-presets-library-create-tile {
+  border-color: rgba(34, 211, 238, 0.72);
+  background: rgba(28, 32, 37, 0.94);
+  box-shadow: 0 8px 18px rgba(6, 18, 28, 0.16);
+}
+
+.merged-presets-library-section--pulses .pulse-presets-library-create-tile:hover {
+  border-color: rgba(34, 211, 238, 0.92);
+  background: rgba(28, 32, 37, 0.98);
+}
+
+.merged-presets-library-section--prompt-presets .presets-library-tile {
+  border-color: rgba(255, 191, 36, 0.42);
+  background: rgba(28, 32, 37, 0.94);
+}
+
+.merged-presets-library-section--prompt-presets .presets-library-tile:hover {
+  border-color: rgba(255, 191, 36, 0.64);
+  background: rgba(28, 32, 37, 0.98);
+  box-shadow: 0 8px 18px rgba(34, 20, 11, 0.16);
+}
+
+.merged-presets-library-section--prompt-presets .presets-library-tile.is-selected {
+  border-color: rgba(255, 191, 36, 0.92);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 191, 36, 0.12),
+    0 8px 18px rgba(34, 20, 11, 0.14);
+  background: rgba(36, 40, 47, 0.94);
+}
+
+.merged-presets-library-section--prompt-presets .presets-library-custom-pill {
+  border-color: rgba(255, 181, 88, 0.2);
+  background: rgba(196, 123, 40, 0.08);
+  color: rgba(255, 221, 179, 0.88);
+}
+
+.merged-presets-library-section--prompt-presets .presets-library-create-tile {
+  border-color: rgba(255, 191, 36, 0.72);
+  background: rgba(28, 32, 37, 0.94);
+  box-shadow: 0 8px 18px rgba(34, 20, 11, 0.14);
+}
+
+.merged-presets-library-section--prompt-presets .presets-library-create-tile:hover {
+  border-color: rgba(255, 191, 36, 0.92);
+  background: rgba(28, 32, 37, 0.98);
+}
+
+.merged-presets-library-section--prompt-presets .presets-library-create-plus,
+.merged-presets-library-section--prompt-presets
+  .presets-library-create-tile
+  .presets-library-tile-title {
+  color: rgba(246, 202, 145, 0.92);
+}
+
+.merged-presets-library-section--prompt-presets
+  .presets-library-create-tile
+  .presets-library-tile-prompt {
+  color: rgba(219, 196, 164, 0.8);
+}
+
 .presets-library-panel {
   display: flex;
   flex-direction: column;

@@ -3,7 +3,7 @@
  * Keeps the presets UI decoupled from global modal primitives.
  */
 import React from "react";
-import { PencilSimpleLine } from "phosphor-react";
+import { PencilSimpleLine, Sliders } from "phosphor-react";
 import type {
   ExpertEditCustomPresetId,
   ExpertEditCustomPresetOverride,
@@ -16,6 +16,7 @@ export type ExpertEditPresetsSurfaceProps = {
   isOpen: boolean;
   presets: readonly ExpertEditResolvedPreset[];
   onClose: () => void;
+  onOpenPresetsLibrary?: () => void;
   onPresetSelect?: (presetId: ExpertEditPresetId) => void;
   onPresetDragStart?: (
     event: React.DragEvent<HTMLButtonElement>,
@@ -50,6 +51,7 @@ export const ExpertEditPresetsSurface = ({
   isOpen,
   presets,
   onClose,
+  onOpenPresetsLibrary,
   onPresetSelect,
   onPresetDragStart,
   onPresetDragEnd,
@@ -119,6 +121,12 @@ export const ExpertEditPresetsSurface = ({
     return /^custom\s+\d+$/i.test(preset.label.trim());
   }, []);
 
+  const handleOpenPresetsLibrary = React.useCallback(() => {
+    closeEditor();
+    onClose();
+    onOpenPresetsLibrary?.();
+  }, [closeEditor, onClose, onOpenPresetsLibrary]);
+
   React.useEffect(() => {
     if (!isOpen) return;
     const handlePointerDown = (event: PointerEvent) => {
@@ -180,14 +188,26 @@ export const ExpertEditPresetsSurface = ({
             {"\u2190 Drag & drop presets into the preset panel to customize your workflow."}
           </p>
         </div>
-        <button
-          type="button"
-          className="ghost-btn mini edit-expert-presets-surface-close"
-          aria-label="Close presets"
-          onClick={onClose}
-        >
-          x
-        </button>
+        <div className="edit-expert-presets-surface-actions">
+          <button
+            type="button"
+            className="ghost-btn edit-expert-presets-surface-library-btn"
+            onClick={handleOpenPresetsLibrary}
+          >
+            <span className="edit-expert-preset-btn-icon" aria-hidden="true">
+              <Sliders size={12} weight="regular" />
+            </span>
+            Presets library
+          </button>
+          <button
+            type="button"
+            className="ghost-btn mini edit-expert-presets-surface-close"
+            aria-label="Close presets"
+            onClick={onClose}
+          >
+            x
+          </button>
+        </div>
       </div>
       <div className="edit-expert-presets-surface-scroll">
         <div className="edit-expert-presets-chip-grid" role="list" aria-label="Available presets">

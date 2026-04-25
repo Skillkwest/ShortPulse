@@ -6,6 +6,7 @@ import Image from "next/image";
 import React from "react";
 import {
   At,
+  Folders,
   Globe,
   FlowArrow,
   ImageSquare,
@@ -48,6 +49,7 @@ type AiStudioToolbarProps = {
   showCreateTools: boolean;
   beginnerMode: boolean;
   showBeginnerModeToggle?: boolean;
+  onOpenProjects?: () => void;
   onSelectTool: (tool: ToolId | null) => void;
   onToggleCreateTools: (show: boolean) => void;
   onToggleBeginnerMode: (enabled: boolean) => void;
@@ -57,9 +59,10 @@ type IconComponent = ForwardRefExoticComponent<IconProps & RefAttributes<SVGSVGE
 
 const SoundEffectsWaveformIcon = React.forwardRef<SVGSVGElement, IconProps>(
   function SoundEffectsWaveformIcon(
-    { color = "currentColor", size = "1em", mirrored = false, weight: _weight, ...restProps },
+    { color = "currentColor", size = "1em", mirrored = false, weight, ...restProps },
     ref
   ) {
+    void weight;
     return (
       <svg
         ref={ref}
@@ -85,7 +88,6 @@ const toolIcons: Record<ToolId, IconComponent> = {
   create: Sparkle,
   "media-library": ImageSquare,
   elements: At,
-  "pulse-presets": Sliders,
   workflows: FlowArrow,
   presets: Sliders,
   styles: Palette,
@@ -113,6 +115,7 @@ function AiStudioToolbarComponent({
   selectedTool,
   beginnerMode,
   showBeginnerModeToggle = true,
+  onOpenProjects,
   onSelectTool,
   onToggleCreateTools,
   onToggleBeginnerMode,
@@ -122,7 +125,8 @@ function AiStudioToolbarComponent({
   const isVideoSelected = isVideoWorkflow(selectedTool);
   const isSoundSelected = isSoundWorkflow(selectedTool);
   const isCharacterSelected = isCharacterWorkflow(selectedTool);
-  const activePrimary: "create" | "video" | "sound" | "edit" | null = isCreateSelected
+  const isLibrarySelected = librariesToolList.some((tool) => tool.id === selectedTool);
+  const activePrimary: "create" | "video" | "sound" | "edit" | "library" | null = isCreateSelected
     ? "create"
     : isVideoSelected
       ? "video"
@@ -130,7 +134,9 @@ function AiStudioToolbarComponent({
         ? "sound"
         : isEditSelected
           ? "edit"
-          : null;
+          : isLibrarySelected
+            ? "library"
+            : null;
 
   return (
     <aside
@@ -147,6 +153,15 @@ function AiStudioToolbarComponent({
         />
       </div>
       <DashboardNavPrefab className="toolbar-back-link" />
+      <button
+        type="button"
+        className="ghost-btn small dashboard-nav-prefab dashboard-nav-prefab--rail toolbar-back-link toolbar-back-link-secondary"
+        aria-label="Projects"
+        onClick={onOpenProjects}
+      >
+        <Folders size={16} weight="regular" />
+        Projects
+      </button>
       <div className="toolbar-list">
         <div className="toolbar-divider" aria-hidden="true" />
         {primaryToolList.map((tool) => {

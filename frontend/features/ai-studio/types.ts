@@ -133,32 +133,6 @@ export type StylesLibraryStyleDetails = {
   referenceImageName: string;
   stylePrompt: string;
   previewImageUrl: string;
-  styleProfile?: StylesLibraryStyleProfile;
-  extractionMeta?: StylesLibraryStyleExtractionMeta;
 };
 
 export type StylesLibraryStyleDetailsMap = Record<string, StylesLibraryStyleDetails>;
-
-export type StylesLibraryStyleExtractionOutcome = "success" | "fallback" | "blocked_source";
-
-export type StylesLibraryStyleExtractionFlow = "create_modal" | "library_drop";
-
-export type StylesLibraryStyleProfile = {
-  version: 1;
-  medium: string | null;
-  lightingDescriptors: string[];
-  lensDepthDescriptors: string[];
-  colorDescriptors: string[];
-  renderingDescriptors: string[];
-  textureDescriptors: string[];
-  generalDescriptors: string[];
-};
-
-export type StylesLibraryStyleExtractionMeta = {
-  version: 1;
-  outcome: StylesLibraryStyleExtractionOutcome;
-  flow: StylesLibraryStyleExtractionFlow;
-  extractedAtIso: string;
-  sourceUrlKind: "data" | "url" | "unknown";
-  extractor: "openai_prompt_style_extract";
-};

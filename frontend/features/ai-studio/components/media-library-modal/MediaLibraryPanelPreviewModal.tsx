@@ -4,7 +4,7 @@
  */
 import React from "react";
 import { X } from "phosphor-react";
-import { isVideoFile, type MediaFileRow } from "../../logic/mediaLibraryModalModel";
+import { isAudioFile, isVideoFile, type MediaFileRow } from "../../logic/mediaLibraryModalModel";
 import { AiStudioModalLayer, useAiStudioModalActivity } from "../modal-layer/AiStudioModalLayer";
 
 type MediaLibraryPanelPreviewModalProps = {
@@ -44,6 +44,7 @@ export function MediaLibraryPanelPreviewModal({
   if (!file) return null;
 
   const isVideo = isVideoFile(file.file_type);
+  const isAudio = isAudioFile(file.file_type);
   const title = (file.filename ?? "").trim() || "Media preview";
 
   return (
@@ -87,7 +88,15 @@ export function MediaLibraryPanelPreviewModal({
                 playsInline
               />
             ) : null}
-            {!isLoading && previewUrl && !isVideo ? (
+            {!isLoading && previewUrl && isAudio ? (
+              <audio
+                className="media-library-panel-preview-media"
+                src={previewUrl}
+                controls
+                autoPlay
+              />
+            ) : null}
+            {!isLoading && previewUrl && !isVideo && !isAudio ? (
               <>
                 {/* Signed URLs are generated dynamically at runtime. */}
                 {/* eslint-disable-next-line @next/next/no-img-element */}

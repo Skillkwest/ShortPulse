@@ -1,8 +1,10 @@
 # AI Studio Project Persistence Master Plan (2026-04-23)
 
-Last updated: 2026-04-23  
-Status: Proposed  
+Last updated: 2026-04-24  
+Status: Historical buildout contract; superseded for active execution by `docs/planning/ai-studio-project-workspace-isolation-bootstrap-and-restore-plan-2026-04-24.md`  
 Owner: Engineering
+
+> Active execution note: use `docs/planning/ai-studio-project-workspace-isolation-bootstrap-and-restore-plan-2026-04-24.md` as the current stabilization contract. This original master plan remains the historical buildout record for the broader Projects program.
 
 ## Summary
 This program replaces the remaining AI Studio session-persistence skeleton with a real `Project` model.

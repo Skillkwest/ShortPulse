@@ -1,7 +1,10 @@
 import { act, renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useAiStudioSessionWriteShadow } from "../useAiStudioSessionWriteShadow";
-import type { AiStudioSessionSnapshotV1 } from "../../logic/sessionSnapshot";
+import type {
+  AiStudioSessionSnapshotV1,
+  AiStudioSessionSnapshotV2,
+} from "../../logic/sessionSnapshot";
 
 const createSnapshot = (
   overrides: Partial<AiStudioSessionSnapshotV1> = {}
@@ -48,6 +51,22 @@ const createSnapshot = (
     promptOrigin: "manual",
     chatModeEnabled: true,
   },
+  ...overrides,
+});
+
+const createSnapshotV2 = (
+  overrides: Partial<AiStudioSessionSnapshotV2> = {}
+): AiStudioSessionSnapshotV2 => ({
+  schemaVersion: 2,
+  sessionId: "f7f45245-f204-4ece-8f9e-c9a66a9d8d2a",
+  updatedAt: "2026-03-02T00:00:00.000Z",
+  meta: {
+    generatedAt: "2026-03-02T00:00:00.000Z",
+    checksum: "fnv1a32:aaaaaaaa",
+  },
+  workspace: createSnapshot().workspace,
+  outputs: createSnapshot().outputs,
+  agent: createSnapshot().agent,
   ...overrides,
 });
 
@@ -167,6 +186,100 @@ describe("useAiStudioSessionWriteShadow", () => {
       await vi.advanceTimersByTimeAsync(13000);
     });
 
+    expect(persistSnapshot).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps the original debounce when only snapshot timestamps change", async () => {
+    const persistSnapshot = vi.fn().mockResolvedValue(undefined);
+    const sid = "f7f45245-f204-4ece-8f9e-c9a66a9d8d2a";
+    const { rerender } = renderHook(
+      ({ snapshot }: { snapshot: AiStudioSessionSnapshotV2 }) =>
+        useAiStudioSessionWriteShadow({
+          sessionId: sid,
+          snapshot,
+          enabled: true,
+          persistSnapshot,
+        }),
+      {
+        initialProps: {
+          snapshot: createSnapshotV2(),
+        },
+      }
+    );
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1000);
+    });
+
+    rerender({
+      snapshot: createSnapshotV2({
+        updatedAt: "2026-03-02T00:00:01.000Z",
+        meta: {
+          generatedAt: "2026-03-02T00:00:01.000Z",
+          checksum: "fnv1a32:bbbbbbbb",
+        },
+      }),
+    });
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1499);
+    });
+    expect(persistSnapshot).not.toHaveBeenCalled();
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1);
+    });
+    expect(persistSnapshot).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not queue a duplicate save while the same semantic snapshot is in flight", async () => {
+    let resolvePersist: (() => void) | null = null;
+    const persistSnapshot = vi.fn(
+      () =>
+        new Promise<void>((resolve) => {
+          resolvePersist = resolve;
+        })
+    );
+    const sid = "f7f45245-f204-4ece-8f9e-c9a66a9d8d2a";
+    const { rerender } = renderHook(
+      ({ snapshot }: { snapshot: AiStudioSessionSnapshotV2 }) =>
+        useAiStudioSessionWriteShadow({
+          sessionId: sid,
+          snapshot,
+          enabled: true,
+          persistSnapshot,
+        }),
+      {
+        initialProps: {
+          snapshot: createSnapshotV2(),
+        },
+      }
+    );
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(2500);
+    });
+    expect(persistSnapshot).toHaveBeenCalledTimes(1);
+
+    rerender({
+      snapshot: createSnapshotV2({
+        updatedAt: "2026-03-02T00:00:02.000Z",
+        meta: {
+          generatedAt: "2026-03-02T00:00:02.000Z",
+          checksum: "fnv1a32:cccccccc",
+        },
+      }),
+    });
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(5000);
+    });
+    expect(persistSnapshot).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      resolvePersist?.();
+      await Promise.resolve();
+    });
     expect(persistSnapshot).toHaveBeenCalledTimes(1);
   });
 

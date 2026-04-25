@@ -86,46 +86,8 @@ describe("styleExtraction helpers", () => {
     expect(result.styleTitle).toBe("Warm Anime Diffusion");
   });
 
-  it("retries on timeout abort and succeeds on the next attempt", async () => {
+  it("returns timeout guidance after request timeout abort", async () => {
     vi.useFakeTimers();
-    vi.spyOn(Math, "random").mockReturnValue(0);
-    let requestCount = 0;
-    vi.mocked(fetchWithAuth).mockImplementation(async (_input, init) => {
-      requestCount += 1;
-      if (requestCount === 1) {
-        const signal = init?.signal;
-        return await new Promise<Response>((_, reject) => {
-          signal?.addEventListener(
-            "abort",
-            () => reject(new DOMException("Aborted", "AbortError")),
-            { once: true }
-          );
-        });
-      }
-      return new Response(
-        JSON.stringify({
-          stylePrompt: "editorial portrait, cool highlights, soft diffusion",
-          styleTitle: "Cool Diffusion Editorial",
-        }),
-        {
-          status: 200,
-          headers: { "Content-Type": "application/json" },
-        }
-      );
-    });
-
-    const resultPromise = postExtractStyle("data:image/jpeg;base64,abc123");
-    await vi.advanceTimersByTimeAsync(59000);
-    const result = await resultPromise;
-
-    expect(fetchWithAuth).toHaveBeenCalledTimes(2);
-    expect(result.stylePrompt).toBe("editorial portrait, cool highlights, soft diffusion");
-    expect(result.styleTitle).toBe("Cool Diffusion Editorial");
-  });
-
-  it("returns timeout guidance after deadline exhaustion", async () => {
-    vi.useFakeTimers();
-    vi.spyOn(Math, "random").mockReturnValue(0);
     vi.mocked(fetchWithAuth).mockImplementation(async (_input, init) => {
       const signal = init?.signal;
       return await new Promise<Response>((_, reject) => {
@@ -139,9 +101,9 @@ describe("styleExtraction helpers", () => {
     const rejection = expect(resultPromise).rejects.toThrow(
       "Style extraction timed out. Please retry."
     );
-    await vi.advanceTimersByTimeAsync(100000);
+    await vi.advanceTimersByTimeAsync(60000);
     await rejection;
-    expect(fetchWithAuth).toHaveBeenCalledTimes(2);
+    expect(fetchWithAuth).toHaveBeenCalledTimes(1);
   });
 
   it("classifies immediate aborts as canceled and does not retry", async () => {
@@ -160,24 +122,20 @@ describe("styleExtraction helpers", () => {
     expect(fetchWithAuth).toHaveBeenCalledTimes(1);
   });
 
-  it("retries transient network errors and then succeeds", async () => {
-    vi.spyOn(Math, "random").mockReturnValue(0);
-    vi.mocked(fetchWithAuth)
-      .mockRejectedValueOnce(new TypeError("Failed to fetch"))
-      .mockResolvedValueOnce(
-        new Response(
-          JSON.stringify({
-            stylePrompt: "painterly texture, muted palette, smooth tonal gradients",
-            styleTitle: "Muted Painterly",
-          }),
-          { status: 200, headers: { "Content-Type": "application/json" } }
-        )
-      );
+  it("does not retry transient network errors on the client", async () => {
+    vi.mocked(fetchWithAuth).mockRejectedValue(new TypeError("Failed to fetch"));
 
-    const result = await postExtractStyle("data:image/jpeg;base64,abc123");
-
-    expect(fetchWithAuth).toHaveBeenCalledTimes(2);
-    expect(result.styleTitle).toBe("Muted Painterly");
+    try {
+      await postExtractStyle("data:image/jpeg;base64,abc123");
+      throw new Error("Expected postExtractStyle to reject.");
+    } catch (error) {
+      expect(isStyleExtractionError(error)).toBe(true);
+      if (!isStyleExtractionError(error)) return;
+      expect(error.failureClass).toBe("network_transient");
+      expect(error.message).toBe("Style extraction hit a network issue. Please retry.");
+      expect(error.attemptCount).toBe(1);
+    }
+    expect(fetchWithAuth).toHaveBeenCalledTimes(1);
   });
 
   it("does not retry upstream HTTP failures", async () => {

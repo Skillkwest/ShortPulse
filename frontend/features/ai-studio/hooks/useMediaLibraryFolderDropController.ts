@@ -23,8 +23,8 @@ import {
 import { getMediaLibraryDragTypes } from "../logic/mediaLibraryDragPayload";
 
 type ResolvedFolderDropItem =
-  | { kind: "media"; id: string; sourceFolderId?: string | null }
-  | { kind: "prompt"; id: string; sourceFolderId?: string | null }
+  | { kind: "media"; id: string; sourceFolderId?: string | null; origin: "library" | "internal" }
+  | { kind: "prompt"; id: string; sourceFolderId?: string | null; origin: "library" | "internal" }
   | null;
 
 type ResolveInternalDropItem = (payload: InternalReferenceDragPayload) => Promise<{
@@ -33,6 +33,7 @@ type ResolveInternalDropItem = (payload: InternalReferenceDragPayload) => Promis
 } | null>;
 
 type UseMediaLibraryFolderDropControllerArgs = {
+  projectId?: string | null;
   folders: MediaFolder[];
   setFolderError: (value: string | null) => void;
   setMembershipMessage: (value: string | null) => void;
@@ -117,6 +118,15 @@ const buildFeedbackArgs = ({
       targetFolderName,
     };
   }
+  if (intentKind === "save") {
+    return {
+      intent: { kind: "save", targetFolderId: result?.targetFolderId ?? result?.folderId ?? "" },
+      result,
+      itemKind,
+      sourceFolderName,
+      targetFolderName,
+    };
+  }
   if (intentKind === "unassign") {
     return {
       intent: { kind: "unassign", sourceFolderId: result.sourceFolderId ?? result.folderId ?? "" },
@@ -147,6 +157,7 @@ const buildFeedbackArgs = ({
  * assign/unassign/move membership operations.
  */
 export const useMediaLibraryFolderDropController = ({
+  projectId = null,
   folders,
   setFolderError,
   setMembershipMessage,
@@ -166,6 +177,7 @@ export const useMediaLibraryFolderDropController = ({
           kind: "media",
           id: mediaLibraryPayload.payload.id,
           sourceFolderId: mediaLibraryPayload.payload.originFolderId ?? null,
+          origin: "library",
         };
       }
       if (mediaLibraryPayload?.kind === "libraryPrompt") {
@@ -173,6 +185,7 @@ export const useMediaLibraryFolderDropController = ({
           kind: "prompt",
           id: mediaLibraryPayload.payload.id,
           sourceFolderId: mediaLibraryPayload.payload.originFolderId ?? null,
+          origin: "library",
         };
       }
       const internalPayload = extractInternalReferenceDragPayload(transfer);
@@ -183,6 +196,7 @@ export const useMediaLibraryFolderDropController = ({
         kind: resolved.kind,
         id: resolved.id,
         sourceFolderId: null,
+        origin: "internal",
       };
     },
     [resolveInternalDropItem]
@@ -269,6 +283,7 @@ export const useMediaLibraryFolderDropController = ({
         const intent = resolveFolderDropIntent({
           sourceFolderId: resolvedItem.sourceFolderId ?? null,
           targetFolderId: folderId,
+          allowRootSave: resolvedItem.origin === "internal",
         });
         if (intent.kind === "noop") {
           setMembershipPendingMessage(null);
@@ -280,34 +295,66 @@ export const useMediaLibraryFolderDropController = ({
             ? (folders.find((folder) => folder.id === intent.sourceFolderId)?.name ?? null)
             : null;
         const resolvedTargetFolderName =
-          intent.kind === "assign" || intent.kind === "move"
-            ? (folders.find((folder) => folder.id === intent.targetFolderId)?.name ?? null)
+          intent.kind === "assign" || intent.kind === "move" || intent.kind === "save"
+            ? intent.targetFolderId === MEDIA_LIBRARY_ROOT_FOLDER_ID
+              ? "All Media"
+              : (folders.find((folder) => folder.id === intent.targetFolderId)?.name ?? null)
             : null;
+
+        if (intent.kind === "save") {
+          try {
+            await refreshActiveRows();
+            const message = resolveFolderDropFeedbackMessage({
+              intent,
+              result: null,
+              itemKind: resolvedItem.kind,
+              sourceFolderName,
+              targetFolderName: resolvedTargetFolderName,
+            });
+            setMembershipPendingMessage(null);
+            if (message) {
+              setMembershipMessage(message);
+            }
+          } catch (error) {
+            setMembershipPendingMessage(null);
+            setFolderError(toMediaLibraryErrorText(error, "Unable to refresh saved media."));
+          }
+          return;
+        }
 
         try {
           let result: MediaFolderMembershipBatchResult;
           if (intent.kind === "assign") {
-            result = await applyMediaFolderMembershipBatch({
-              action: "assign",
-              folderId: intent.targetFolderId,
-              mediaIds: resolvedItem.kind === "media" ? [resolvedItem.id] : [],
-              promptIds: resolvedItem.kind === "prompt" ? [resolvedItem.id] : [],
-            });
+            result = await applyMediaFolderMembershipBatch(
+              {
+                action: "assign",
+                folderId: intent.targetFolderId,
+                mediaIds: resolvedItem.kind === "media" ? [resolvedItem.id] : [],
+                promptIds: resolvedItem.kind === "prompt" ? [resolvedItem.id] : [],
+              },
+              projectId
+            );
           } else if (intent.kind === "unassign") {
-            result = await applyMediaFolderMembershipBatch({
-              action: "unassign",
-              folderId: intent.sourceFolderId,
-              mediaIds: resolvedItem.kind === "media" ? [resolvedItem.id] : [],
-              promptIds: resolvedItem.kind === "prompt" ? [resolvedItem.id] : [],
-            });
+            result = await applyMediaFolderMembershipBatch(
+              {
+                action: "unassign",
+                folderId: intent.sourceFolderId,
+                mediaIds: resolvedItem.kind === "media" ? [resolvedItem.id] : [],
+                promptIds: resolvedItem.kind === "prompt" ? [resolvedItem.id] : [],
+              },
+              projectId
+            );
           } else {
-            result = await applyMediaFolderMembershipBatch({
-              action: "move",
-              sourceFolderId: intent.sourceFolderId,
-              targetFolderId: intent.targetFolderId,
-              mediaIds: resolvedItem.kind === "media" ? [resolvedItem.id] : [],
-              promptIds: resolvedItem.kind === "prompt" ? [resolvedItem.id] : [],
-            });
+            result = await applyMediaFolderMembershipBatch(
+              {
+                action: "move",
+                sourceFolderId: intent.sourceFolderId,
+                targetFolderId: intent.targetFolderId,
+                mediaIds: resolvedItem.kind === "media" ? [resolvedItem.id] : [],
+                promptIds: resolvedItem.kind === "prompt" ? [resolvedItem.id] : [],
+              },
+              projectId
+            );
           }
           const message = resolveFolderDropFeedbackMessage(
             buildFeedbackArgs({
@@ -361,6 +408,7 @@ export const useMediaLibraryFolderDropController = ({
     [
       folders,
       onDropFilesToFolder,
+      projectId,
       refreshActiveRows,
       resolveDropItem,
       setFolderError,

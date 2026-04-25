@@ -12,6 +12,7 @@ type ProjectListResponse = {
     title: string;
     createdAt: string;
     updatedAt: string;
+    previewImageUrls: string[];
   }>;
 };
 
@@ -48,6 +49,7 @@ export default async function handler(
         title: project.title,
         createdAt: project.createdAt,
         updatedAt: project.updatedAt,
+        previewImageUrls: project.previewImageUrls ?? [],
       })),
     });
   } catch (error) {

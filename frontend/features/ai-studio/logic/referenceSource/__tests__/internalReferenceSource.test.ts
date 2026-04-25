@@ -137,6 +137,44 @@ describe("resolveInternalReferenceSource", () => {
     expect(resolved?.fullStoragePath).toBe("user-1/generations/images/out-1-full.png");
   });
 
+  it("passes the dragged image index through to persistence resolution", async () => {
+    const output = makeImageOutput({
+      savedMediaIds: [],
+      previewStoragePath: null,
+      fullStoragePath: null,
+      resultUrls: [
+        "https://cdn.example.com/out-1-result.png",
+        "https://cdn.example.com/out-1-result-2.png",
+      ],
+    });
+    const ensureOutputPersisted = vi.fn(async () => ({
+      ok: true,
+      mediaFileIds: ["media-1b"],
+      delivery: {
+        previewStoragePath: "user-1/generations/images/out-1-preview-2.png",
+        fullStoragePath: "user-1/generations/images/out-1-full-2.png",
+        previewUrl: "https://cdn.example.com/signed/out-1-preview-2.png",
+        fullUrl: "https://cdn.example.com/signed/out-1-full-2.png",
+      },
+      error: null,
+    }));
+
+    await resolveInternalReferenceSource({
+      payload: makePayload({ imageIndex: 1 }),
+      getOutputById: () => output,
+      getOutputSnapshot: () => ({
+        outputOrder: ["out-1"],
+        archivedOutputOrder: [],
+        outputById: { "out-1": output },
+        archivedOutputById: {},
+      }),
+      ensureOutputPersisted,
+      resolveSavedMediaIdFromOutput: (row) => row?.savedMediaIds?.[0] ?? null,
+    });
+
+    expect(ensureOutputPersisted).toHaveBeenCalledWith("out-1", { imageIndex: 1 });
+  });
+
   it("preserves local upload authority through lazy blob fallback instead of preview-url ranking", async () => {
     const output = makeImageOutput({
       mediaSource: "upload",

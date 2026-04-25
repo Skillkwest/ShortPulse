@@ -114,6 +114,7 @@ describe("mediaLibraryPanelApi transient retry hardening", () => {
               name: "Campaign",
               createdAt: "2026-03-01T00:00:00.000Z",
               updatedAt: "2026-03-01T00:00:00.000Z",
+              itemCount: 4,
             },
           ],
         }),
@@ -122,6 +123,7 @@ describe("mediaLibraryPanelApi transient retry hardening", () => {
     const folders = await listMediaFolders();
     expect(fetchWithAuthMock).toHaveBeenCalledTimes(2);
     expect(folders.map((folder) => folder.id)).toEqual(["folder-1"]);
+    expect(folders[0]?.itemCount).toBe(4);
   });
 
   it("uses project folder routes when a projectId is provided", async () => {
@@ -134,12 +136,13 @@ describe("mediaLibraryPanelApi transient retry hardening", () => {
             name: "Campaign",
             createdAt: "2026-03-01T00:00:00.000Z",
             updatedAt: "2026-03-01T00:00:00.000Z",
+            itemCount: 6,
           },
         ],
       }),
     });
 
-    await listMediaFolders("project-1");
+    const folders = await listMediaFolders("project-1");
 
     expect(fetchWithAuthMock).toHaveBeenCalledWith(
       "/api/projects/project-1/media/folders/list",
@@ -147,6 +150,7 @@ describe("mediaLibraryPanelApi transient retry hardening", () => {
         method: "GET",
       })
     );
+    expect(folders[0]?.itemCount).toBe(6);
   });
 
   it("uses project membership routes when a projectId is provided", async () => {

@@ -210,6 +210,16 @@ describe("useAiStudioState output store bridge", () => {
     expect(listVisibleGeneratedOutputsMock).not.toHaveBeenCalled();
   });
 
+  it("skips user-global generated-output hydration while a project route is still pending", async () => {
+    renderHook(() => useAiStudioState({ projectRouteRequested: true }), {
+      wrapper: strictWrapper,
+    });
+
+    await act(async () => {});
+
+    expect(listVisibleGeneratedOutputsMock).not.toHaveBeenCalled();
+  });
+
   it("keeps legacy generated-output hydration for plain session routes", async () => {
     renderHook(() => useAiStudioState(), { wrapper: strictWrapper });
 

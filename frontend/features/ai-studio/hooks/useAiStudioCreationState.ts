@@ -94,7 +94,11 @@ export type UseAiStudioCreationStateResult = {
   lastNonMotionVideoModelRef: MutableRefObject<string | null>;
 };
 
-export const useAiStudioCreationState = (): UseAiStudioCreationStateResult => {
+export const useAiStudioCreationState = ({
+  projectRouteRequested = false,
+}: {
+  projectRouteRequested?: boolean;
+} = {}): UseAiStudioCreationStateResult => {
   const promptRef = useRef<HTMLTextAreaElement | null>(null);
 
   const [mode, setMode] = useState<StudioMode>("text");
@@ -109,15 +113,21 @@ export const useAiStudioCreationState = (): UseAiStudioCreationStateResult => {
     "standard" | "modify" | "keyframes" | "kling3" | "motion"
   >("standard");
   const [videoDurationSeconds, setVideoDurationSeconds] = useState<number>(() =>
-    readSessionStorageNumberPreference(VIDEO_DURATION_STORAGE_KEY, 6)
+    projectRouteRequested ? 6 : readSessionStorageNumberPreference(VIDEO_DURATION_STORAGE_KEY, 6)
   );
   const [videoResolution, setVideoResolution] = useState<string>(() =>
-    readSessionStorageStringPreference(VIDEO_RESOLUTION_STORAGE_KEY, "1080p")
+    projectRouteRequested
+      ? "1080p"
+      : readSessionStorageStringPreference(VIDEO_RESOLUTION_STORAGE_KEY, "1080p")
   );
   const [imageResolution, setImageResolution] = useState<string>(() =>
-    readSessionStorageStringPreference(IMAGE_RESOLUTION_STORAGE_KEY, "model_default")
+    projectRouteRequested
+      ? "model_default"
+      : readSessionStorageStringPreference(IMAGE_RESOLUTION_STORAGE_KEY, "model_default")
   );
-  const [hasUserVideoPrefs, setHasUserVideoPrefs] = useState<boolean>(hasStoredVideoPreferences);
+  const [hasUserVideoPrefs, setHasUserVideoPrefs] = useState<boolean>(
+    projectRouteRequested ? false : hasStoredVideoPreferences
+  );
   const [videoGenerateAudio, setVideoGenerateAudio] = useState<boolean>(false);
   const [videoCameraFixed, setVideoCameraFixed] = useState<boolean>(false);
   const [videoAutoFix, setVideoAutoFix] = useState<boolean>(false);

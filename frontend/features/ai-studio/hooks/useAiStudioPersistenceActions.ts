@@ -42,8 +42,13 @@ export type PersistedMediaDelivery = {
 export type PersistOutputSaveResult = {
   ok: boolean;
   mediaFileIds: string[];
+  promptId?: string | null;
   delivery: PersistedMediaDelivery | null;
   error: string | null;
+};
+
+export type PersistOutputSaveOptions = {
+  imageIndex?: number | null;
 };
 
 const normalizeOptionalUrl = (value: string | null | undefined): string | null => {
@@ -61,6 +66,14 @@ const resolvePersistablePosterUrl = (output: StudioOutput): string | null => {
   return null;
 };
 
+const resolveFileTypeHintForPersistedUrl = (
+  output: StudioOutput,
+  url: string
+): "image" | "video" | "audio" => {
+  if (output.mode === "audio") return "audio";
+  return isVideoUrl(url) ? "video" : "image";
+};
+
 const uniqueUrls = (values: Array<string | null | undefined>): string[] => {
   const next: string[] = [];
   values.forEach((value) => {
@@ -71,7 +84,99 @@ const uniqueUrls = (values: Array<string | null | undefined>): string[] => {
   return next;
 };
 
+const resolveRequestedImageIndex = (value: number | null | undefined): number =>
+  Math.max(0, Math.floor(value ?? 0));
+
+const resolvePersistOutputSaveKey = (
+  outputId: string,
+  options?: PersistOutputSaveOptions
+): string => {
+  if (typeof options?.imageIndex !== "number" || !Number.isFinite(options.imageIndex)) {
+    return outputId;
+  }
+  return `${outputId}::image:${resolveRequestedImageIndex(options.imageIndex)}`;
+};
+
+const resolveSavedMediaIdsForRequest = (
+  output: StudioOutput,
+  options?: PersistOutputSaveOptions
+): string[] => {
+  const savedMediaIds = output.savedMediaIds ?? [];
+  if (!savedMediaIds.length) return [];
+  if (output.mode !== "image") return savedMediaIds;
+  if (typeof options?.imageIndex !== "number" || !Number.isFinite(options.imageIndex)) {
+    return savedMediaIds;
+  }
+
+  const requestedIndex = resolveRequestedImageIndex(options?.imageIndex);
+  const requestedMediaId = normalizeOptionalUrl(savedMediaIds[requestedIndex]);
+  if (requestedMediaId) return [requestedMediaId];
+
+  const hasMultipleIndexedResults = (output.resultUrls?.length ?? 0) > 1;
+  if (!hasMultipleIndexedResults) {
+    const fallbackMediaId = normalizeOptionalUrl(savedMediaIds[0]);
+    return fallbackMediaId ? [fallbackMediaId] : [];
+  }
+
+  return [];
+};
+
+const mergeSavedMediaIdsForRequest = ({
+  output,
+  savedMediaIds,
+  options,
+}: {
+  output: StudioOutput;
+  savedMediaIds: string[];
+  options?: PersistOutputSaveOptions;
+}): string[] => {
+  if (!savedMediaIds.length) return output.savedMediaIds ?? [];
+  if (output.mode !== "image") return savedMediaIds;
+  if (typeof options?.imageIndex !== "number" || !Number.isFinite(options.imageIndex)) {
+    return savedMediaIds;
+  }
+
+  const requestedIndex = resolveRequestedImageIndex(options?.imageIndex);
+  const nextSavedMediaIds = [...(output.savedMediaIds ?? [])];
+  nextSavedMediaIds[requestedIndex] = savedMediaIds[0] ?? nextSavedMediaIds[requestedIndex];
+  return nextSavedMediaIds;
+};
+
+const shouldMergePersistedDeliveryForRequest = (
+  output: StudioOutput,
+  options?: PersistOutputSaveOptions
+): boolean => {
+  if (output.mode !== "image") return true;
+  if (typeof options?.imageIndex !== "number" || !Number.isFinite(options.imageIndex)) {
+    return true;
+  }
+  const requestedIndex = resolveRequestedImageIndex(options?.imageIndex);
+  const hasMultipleIndexedResults = (output.resultUrls?.length ?? 0) > 1;
+  return !hasMultipleIndexedResults || requestedIndex === 0;
+};
+
+const resolvePersistableImageUrl = (
+  output: StudioOutput,
+  imageIndex: number | null | undefined
+): string[] => {
+  const safeImageIndex = resolveRequestedImageIndex(imageIndex);
+  const uploadLocalSource = normalizeOptionalUrl(output.localObjectUrl);
+  const indexedResultUrl = normalizeOptionalUrl(
+    output.resultUrls?.[safeImageIndex] ?? output.resultUrls?.[0]
+  );
+  if (indexedResultUrl) {
+    return uniqueUrls([indexedResultUrl]);
+  }
+  if (output.mediaSource === "upload" && uploadLocalSource) {
+    return uniqueUrls([uploadLocalSource]);
+  }
+  return uniqueUrls([output.previewUrl, uploadLocalSource]);
+};
+
 export const resolvePersistableOutputUrls = (output: StudioOutput): string[] => {
+  if (output.mode === "image") {
+    return resolvePersistableImageUrl(output, 0);
+  }
   const uploadLocalSource = normalizeOptionalUrl(output.localObjectUrl);
   const baseUrls = output.resultUrls?.length
     ? uniqueUrls(output.resultUrls)
@@ -93,8 +198,10 @@ const isLikelyStoragePath = (value: string | null | undefined): boolean => {
 };
 
 export const resolvePersistableOutputUrlsForSave = async (
-  output: StudioOutput
+  output: StudioOutput,
+  options?: PersistOutputSaveOptions
 ): Promise<string[]> => {
+  const safeImageIndex = resolveRequestedImageIndex(options?.imageIndex);
   if (output.mediaSource === "generated" || Boolean(output.generationId)) {
     if (output.generationId) {
       try {
@@ -102,7 +209,7 @@ export const resolvePersistableOutputUrlsForSave = async (
         const generationStoragePath = await resolvePublishedGenerationOutputStoragePathByIndex({
           supabase,
           generationId: output.generationId,
-          imageIndex: 0,
+          imageIndex: safeImageIndex,
         });
         if (generationStoragePath) {
           const signedUrl = await getSignedMediaUrl({
@@ -133,6 +240,10 @@ export const resolvePersistableOutputUrlsForSave = async (
         return uniqueUrls([signedUrl]);
       }
     }
+  }
+
+  if (output.mode === "image") {
+    return resolvePersistableImageUrl(output, safeImageIndex);
   }
 
   return resolvePersistableOutputUrls(output);
@@ -350,7 +461,7 @@ export const useAiStudioPersistenceActions = ({
             promptText: output.prompt,
             mode: output.mode,
             source,
-            fileTypeHint: isVideoUrl(urls[index]) ? "video" : "image",
+            fileTypeHint: resolveFileTypeHintForPersistedUrl(output, urls[index] ?? ""),
             provider,
             modelId: output.modelId ?? null,
             generationId: generationId ?? null,
@@ -417,17 +528,22 @@ export const useAiStudioPersistenceActions = ({
   );
 
   const persistOutputSave = useCallback(
-    async (outputId: string): Promise<PersistOutputSaveResult> => {
+    async (
+      outputId: string,
+      options?: PersistOutputSaveOptions
+    ): Promise<PersistOutputSaveResult> => {
       const output = findOutputById(outputId);
       if (!output) {
         return {
           ok: false,
           mediaFileIds: [],
+          promptId: null,
           delivery: null,
           error: "Output not found.",
         };
       }
-      const inFlight = saveInFlightRef.current.get(outputId);
+      const saveKey = resolvePersistOutputSaveKey(outputId, options);
+      const inFlight = saveInFlightRef.current.get(saveKey);
       if (inFlight) {
         return await inFlight;
       }
@@ -438,23 +554,36 @@ export const useAiStudioPersistenceActions = ({
           saveError: null,
         }));
         try {
-          if (output.savedMediaIds?.length) {
+          const savedMediaIdsForRequest = resolveSavedMediaIdsForRequest(output, options);
+          if (savedMediaIdsForRequest.length) {
             if (projectId) {
               await associateMediaFilesWithProject({
                 projectId,
-                mediaFileIds: output.savedMediaIds,
+                mediaFileIds: savedMediaIdsForRequest,
               });
             }
             await new Promise((resolve) => window.setTimeout(resolve, 260));
-            markOutputSaved(outputId, output.savedMediaIds);
+            markOutputSaved(
+              outputId,
+              mergeSavedMediaIdsForRequest({
+                output,
+                savedMediaIds: savedMediaIdsForRequest,
+                options,
+              })
+            );
             return {
               ok: true,
-              mediaFileIds: output.savedMediaIds,
+              mediaFileIds: savedMediaIdsForRequest,
+              promptId: output.promptId ?? null,
               delivery: {
                 previewStoragePath: output.previewStoragePath ?? null,
                 fullStoragePath: output.fullStoragePath ?? null,
                 previewUrl: output.previewUrl ?? null,
-                fullUrl: output.resultUrls?.[0] ?? output.previewUrl ?? null,
+                fullUrl:
+                  output.resultUrls?.[resolveRequestedImageIndex(options?.imageIndex)] ??
+                  output.resultUrls?.[0] ??
+                  output.previewUrl ??
+                  null,
               },
               error: null,
             };
@@ -475,6 +604,7 @@ export const useAiStudioPersistenceActions = ({
               return {
                 ok: true,
                 mediaFileIds: [],
+                promptId: output.promptId,
                 delivery: null,
                 error: null,
               };
@@ -489,6 +619,7 @@ export const useAiStudioPersistenceActions = ({
               return {
                 ok: true,
                 mediaFileIds: [],
+                promptId,
                 delivery: null,
                 error: null,
               };
@@ -497,18 +628,20 @@ export const useAiStudioPersistenceActions = ({
             return {
               ok: false,
               mediaFileIds: [],
+              promptId: null,
               delivery: null,
               error: "Unable to save prompt.",
             };
           }
 
-          const urls = await resolvePersistableOutputUrlsForSave(output);
+          const urls = await resolvePersistableOutputUrlsForSave(output, options);
           if (!urls.length) {
             markOutputSaveFailed(outputId, "No media available to save.");
             setUiError("No media available to save.");
             return {
               ok: false,
               mediaFileIds: [],
+              promptId: output.promptId ?? null,
               delivery: null,
               error: "No media available to save.",
             };
@@ -530,6 +663,7 @@ export const useAiStudioPersistenceActions = ({
             return {
               ok: false,
               mediaFileIds: [],
+              promptId: output.promptId ?? null,
               delivery: null,
               error: GENERATED_MEDIA_REQUIRES_GENERATION_ID_ERROR,
             };
@@ -541,14 +675,22 @@ export const useAiStudioPersistenceActions = ({
             source,
             generationId: generationId ?? null,
           });
-          if (delivery) {
+          if (delivery && shouldMergePersistedDeliveryForRequest(output, options)) {
             updateOutputById(outputId, (item) => mergeOutputWithPersistedDelivery(item, delivery));
           }
           if (mediaFileIds.length) {
-            markOutputSaved(outputId, mediaFileIds);
+            markOutputSaved(
+              outputId,
+              mergeSavedMediaIdsForRequest({
+                output,
+                savedMediaIds: mediaFileIds,
+                options,
+              })
+            );
             return {
               ok: true,
               mediaFileIds,
+              promptId: output.promptId ?? null,
               delivery,
               error: null,
             };
@@ -560,14 +702,15 @@ export const useAiStudioPersistenceActions = ({
           return {
             ok: false,
             mediaFileIds,
+            promptId: output.promptId ?? null,
             delivery,
             error: errors[0] ?? "Unable to save media to the library.",
           };
         } finally {
-          saveInFlightRef.current.delete(outputId);
+          saveInFlightRef.current.delete(saveKey);
         }
       })();
-      saveInFlightRef.current.set(outputId, task);
+      saveInFlightRef.current.set(saveKey, task);
       return await task;
     },
     [
@@ -596,14 +739,15 @@ export const useAiStudioPersistenceActions = ({
   );
 
   const saveReferenceToLibrary = useCallback(
-    (outputId: string) => {
-      void persistOutputSave(outputId);
+    (outputId: string, options?: PersistOutputSaveOptions) => {
+      void persistOutputSave(outputId, options);
     },
     [persistOutputSave]
   );
 
   const ensureOutputPersisted = useCallback(
-    async (outputId: string) => await persistOutputSave(outputId),
+    async (outputId: string, options?: PersistOutputSaveOptions) =>
+      await persistOutputSave(outputId, options),
     [persistOutputSave]
   );
 

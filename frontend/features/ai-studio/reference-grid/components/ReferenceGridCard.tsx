@@ -184,7 +184,7 @@ export const ReferenceGridCard = React.memo(function ReferenceGridCard({
     onSaveToLibrary &&
     canSaveReference &&
     item.saveState !== "saved" &&
-    (isPromptOnly || isImagePreview || isVideoPreview)
+    (isPromptOnly || isImagePreview || isVideoPreview || isAudioPreview)
   );
   const shouldShowRerollAction = Boolean(onRerollOutput && isImagePreview && canRerollOutput(item));
   const shouldShowReferenceActionRow = Boolean(

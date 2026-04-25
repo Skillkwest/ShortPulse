@@ -10,7 +10,7 @@ describe("PulsePresetsLibraryPanel", () => {
   it("renders the pulse presets library header", () => {
     render(<PulsePresetsLibraryPanel savedPresets={[]} onSavedPresetsChange={() => undefined} />);
 
-    expect(screen.getByText("Pulse Presets Library")).toBeInTheDocument();
+    expect(screen.getByText("Pulses")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Create new pulse preset" })).toBeInTheDocument();
   });
 

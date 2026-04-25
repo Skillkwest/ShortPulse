@@ -110,15 +110,66 @@ describe("style drop characterization", () => {
     });
   });
 
-  it("fails deterministically for generated output -> Reference Grid -> Styles when internal authority is unresolved", async () => {
-    const fetchSpy = vi.spyOn(globalThis, "fetch");
+  it("falls back to snapshot URLs for generated output -> Reference Grid -> Styles when internal authority is unresolved", async () => {
+    installImageAndCanvasMocks({ width: 1600, height: 1200 });
+    installFileReaderMock("data:image/png;base64,from-generated-fallback");
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue({
+      ok: true,
+      status: 200,
+      blob: async () => new Blob(["generated-fallback-bytes"], { type: "image/png" }),
+    } as Response);
+    const resolver: ResolveInternalStyleDrop = vi.fn(async () => null);
+
+    const resolved = await resolveDroppedStylePreview(failingGeneratedInternalStyleDropTransfer(), {
+      resolveInternalStyleDrop: resolver,
+    });
+
+    expect(resolved).toEqual({
+      previewImageUrl: "data:image/jpeg;base64,512x512",
+      extractionSourceImageUrl: "data:image/jpeg;base64,1024x768",
+      promptText: "generated prompt",
+    });
+    expect(resolver).toHaveBeenCalledTimes(1);
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it("falls back to snapshot URLs for Media Library -> Reference Grid -> Styles when internal authority is unresolved", async () => {
+    installImageAndCanvasMocks({ width: 1600, height: 1200 });
+    installFileReaderMock("data:image/png;base64,from-library-fallback");
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue({
+      ok: true,
+      status: 200,
+      blob: async () => new Blob(["library-fallback-bytes"], { type: "image/png" }),
+    } as Response);
+    const resolver: ResolveInternalStyleDrop = vi.fn(async () => null);
+
+    const resolved = await resolveDroppedStylePreview(
+      failingMediaLibraryInternalStyleDropTransfer(),
+      {
+        resolveInternalStyleDrop: resolver,
+      }
+    );
+
+    expect(resolved).toEqual({
+      previewImageUrl: "data:image/jpeg;base64,512x512",
+      extractionSourceImageUrl: "data:image/jpeg;base64,1024x768",
+      promptText: "library prompt",
+    });
+    expect(resolver).toHaveBeenCalledTimes(1);
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it("still reports blocked-source only after fallback URLs fail too", async () => {
+    const fetchSpy = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValue(new Response(null, { status: 403 }));
     const resolver: ResolveInternalStyleDrop = vi.fn(async () => null);
 
     await expect(
       resolveDroppedStylePreview(failingGeneratedInternalStyleDropTransfer(), {
         resolveInternalStyleDrop: resolver,
       })
-    ).rejects.toThrow("blocked-style-image-source");
+    ).rejects.toThrow("expired-style-image-source");
 
     try {
       await resolveDroppedStylePreview(failingGeneratedInternalStyleDropTransfer(), {
@@ -126,35 +177,11 @@ describe("style drop characterization", () => {
       });
     } catch (error) {
       expect(normalizeStyleDropPreviewError(error)).toEqual({
-        code: "blocked-style-image-source",
-        classifierReason: "internal_source_unresolved",
+        code: "expired-style-image-source",
+        classifierReason: "reference_url_expired",
       });
     }
     expect(resolver).toHaveBeenCalledTimes(2);
-    expect(fetchSpy).not.toHaveBeenCalled();
-  });
-
-  it("fails deterministically for Media Library -> Reference Grid -> Styles when internal authority is unresolved", async () => {
-    const fetchSpy = vi.spyOn(globalThis, "fetch");
-    const resolver: ResolveInternalStyleDrop = vi.fn(async () => null);
-
-    await expect(
-      resolveDroppedStylePreview(failingMediaLibraryInternalStyleDropTransfer(), {
-        resolveInternalStyleDrop: resolver,
-      })
-    ).rejects.toThrow("blocked-style-image-source");
-
-    try {
-      await resolveDroppedStylePreview(failingMediaLibraryInternalStyleDropTransfer(), {
-        resolveInternalStyleDrop: resolver,
-      });
-    } catch (error) {
-      expect(normalizeStyleDropPreviewError(error)).toEqual({
-        code: "blocked-style-image-source",
-        classifierReason: "internal_source_unresolved",
-      });
-    }
-    expect(resolver).toHaveBeenCalledTimes(2);
-    expect(fetchSpy).not.toHaveBeenCalled();
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
   });
 });

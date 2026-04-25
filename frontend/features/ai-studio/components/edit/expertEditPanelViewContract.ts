@@ -91,6 +91,7 @@ export type ExpertEditPanelViewProps = {
   stylesCatalog?: readonly ExpertEditStyleTile[];
   sessionState?: ExpertEditSessionState | null;
   onSessionStateChange?: (state: ExpertEditSessionState) => void;
+  onOpenPresetsLibrary?: () => void;
 };
 
 export const secondaries = [0, 1, 2] as const;

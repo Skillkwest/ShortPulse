@@ -2,7 +2,7 @@ import { act, fireEvent, render, screen, waitFor } from "@testing-library/react"
 import { describe, expect, it, vi } from "vitest";
 import { clearBreadcrumbs, getBreadcrumbsSnapshot } from "../../../../../lib/clientBreadcrumbs";
 import { AI_STUDIO_CANVAS_ITEM_HARD_CAP } from "../../../logic/sessionSnapshotCanvas";
-import type { ResolveCanvasDropReference } from "../canvasTypes";
+import type { PrepareCanvasMediaLibraryDrop, ResolveCanvasDropReference } from "../canvasTypes";
 import {
   CanvasHarness,
   createTransfer,
@@ -109,6 +109,76 @@ describe("Canvas drop behavior", () => {
       expect(resolveCanvasDropFiles).toHaveBeenCalledWith(files);
     });
     expect(await screen.findByAltText("Desktop file image")).toBeInTheDocument();
+  });
+
+  it("routes media-library image drops through the async library-drop preparer when provided", async () => {
+    const prepareCanvasMediaLibraryDrop = vi.fn(async (payload) => {
+      if (payload.kind !== "libraryMedia") return null;
+      return {
+        kind: "image" as const,
+        outputId: "library-out-1",
+        mediaId: payload.payload.id,
+        src: payload.payload.url,
+        alt: "Prepared library image",
+        width: payload.payload.width,
+        height: payload.payload.height,
+      };
+    }) satisfies PrepareCanvasMediaLibraryDrop;
+
+    render(<CanvasHarness prepareCanvasMediaLibraryDrop={prepareCanvasMediaLibraryDrop} />);
+    const viewport = screen.getByTestId("canvas-viewport");
+    mockViewportRect(viewport);
+
+    fireEvent.drop(viewport, {
+      dataTransfer: createTransfer({
+        "text/shortpulse-media-library-marker": "shortpulse-media-library-v1",
+        "text/shortpulse-media-library-kind": "libraryMedia",
+        "text/shortpulse-media-library-id": "media-lib-1",
+        "text/shortpulse-media-library-url": "https://example.com/library-image.png",
+        "text/shortpulse-media-library-file-type": "image",
+        "text/shortpulse-media-library-filename": "Library Image",
+        "text/shortpulse-media-library-width": "1600",
+        "text/shortpulse-media-library-height": "900",
+      }),
+      clientX: 300,
+      clientY: 200,
+    });
+
+    await waitFor(() => {
+      expect(prepareCanvasMediaLibraryDrop).toHaveBeenCalledTimes(1);
+    });
+    expect(await screen.findByAltText("Prepared library image")).toBeInTheDocument();
+  });
+
+  it("routes media-library prompt drops through the async library-drop preparer when provided", async () => {
+    const prepareCanvasMediaLibraryDrop = vi.fn(async (payload) => {
+      if (payload.kind !== "libraryPrompt") return null;
+      return {
+        kind: "text" as const,
+        outputId: "prompt-library-1",
+        text: payload.payload.promptText,
+      };
+    }) satisfies PrepareCanvasMediaLibraryDrop;
+
+    render(<CanvasHarness prepareCanvasMediaLibraryDrop={prepareCanvasMediaLibraryDrop} />);
+    const viewport = screen.getByTestId("canvas-viewport");
+    mockViewportRect(viewport);
+
+    fireEvent.drop(viewport, {
+      dataTransfer: createTransfer({
+        "text/shortpulse-media-library-marker": "shortpulse-media-library-v1",
+        "text/shortpulse-media-library-kind": "libraryPrompt",
+        "text/shortpulse-media-library-id": "prompt-lib-1",
+        "text/shortpulse-media-library-prompt": "Prompt from media library",
+      }),
+      clientX: 300,
+      clientY: 200,
+    });
+
+    await waitFor(() => {
+      expect(prepareCanvasMediaLibraryDrop).toHaveBeenCalledTimes(1);
+    });
+    expect(await screen.findByText("Prompt from media library")).toBeInTheDocument();
   });
 
   it("prioritizes internal reference payloads over file fallback when both are present", async () => {

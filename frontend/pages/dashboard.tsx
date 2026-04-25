@@ -18,12 +18,9 @@ import {
   Sparkle,
   type IconProps,
 } from "phosphor-react";
+import { ProjectsModal } from "../features/ai-studio/components/ProjectsModal";
 import { useCredits } from "../features/ai-studio/hooks/useCredits";
-import {
-  buildPlanView,
-  normalizePlanId,
-  type BillingPlanRecord,
-} from "../features/billing/catalog";
+import { buildPlanView, type BillingPlanRecord } from "../features/billing/catalog";
 import { formatStorageUsageValue } from "../features/billing/storage";
 import { useMediaStorageQuotaSummary } from "../features/billing/useMediaStorageQuotaSummary";
 import {
@@ -40,13 +37,6 @@ const DASHBOARD_HIDE_LEGACY_SECTIONS =
 const DASHBOARD_FALLBACK_HELPER_COPY =
   "Your dashboard is the launch surface for analytics, creator ops, and storage - built for fast decisions and secure tooling.";
 
-const PLAN_MAP: Record<string, { id: string; label: string; className: string }> = {
-  free: { id: "free", label: "Free", className: "plan-free" },
-  media: { id: "media", label: "Media", className: "plan-media" },
-  studio: { id: "studio", label: "Studio", className: "plan-studio" },
-  business: { id: "business", label: "Business", className: "plan-business" },
-};
-
 type DashboardAnnouncement = {
   id: string;
   title: string;
@@ -60,6 +50,7 @@ type DashboardProject = {
   title: string;
   createdAt: string;
   updatedAt: string;
+  previewImageUrls?: string[];
 };
 
 type CurrentSubscriptionContractRow = {
@@ -112,6 +103,7 @@ export default function DashboardPage() {
     className: string;
   } | null>(null);
   const [isCreatingProject, setIsCreatingProject] = useState(false);
+  const [isProjectsModalOpen, setIsProjectsModalOpen] = useState(false);
   const [projectCreateError, setProjectCreateError] = useState<string | null>(null);
   const [recentProjects, setRecentProjects] = useState<DashboardProject[]>([]);
   const [projectsLoading, setProjectsLoading] = useState(true);
@@ -139,11 +131,24 @@ export default function DashboardPage() {
     "Guest";
   const firstName = (displayName || "creator").split(" ")[0];
   const fallbackPlanTier = DEFAULT_PLAN_TIER;
-  const fallbackPlanMeta = PLAN_MAP[fallbackPlanTier] ?? PLAN_MAP.business;
+  const fallbackPlanView = buildPlanView({
+    planId: fallbackPlanTier,
+    plans: [],
+  });
+  const fallbackPlanMeta = {
+    id: fallbackPlanView.id,
+    label: fallbackPlanView.displayName,
+    className: fallbackPlanView.className,
+  };
   const planMeta = resolvedPlan ?? fallbackPlanMeta;
   const { quotaSummary, loading: quotaLoading } = useMediaStorageQuotaSummary({
     fallbackPlanId: planMeta.id,
   });
+  const recentProjectsNote = projectsError
+    ? projectsError
+    : recentProjects.length > 0
+      ? null
+      : "No saved projects yet.";
   const initials =
     displayName
       .split(" ")
@@ -161,16 +166,8 @@ export default function DashboardPage() {
       },
     });
   };
-
-  const formatProjectTimestamp = (value: string | null): string => {
-    if (!value) return "Updated recently";
-    const parsed = new Date(value);
-    if (Number.isNaN(parsed.getTime())) return "Updated recently";
-    return `Updated ${new Intl.DateTimeFormat("en-US", {
-      month: "short",
-      day: "numeric",
-    }).format(parsed)}`;
-  };
+  const openProjectsModal = () => setIsProjectsModalOpen(true);
+  const closeProjectsModal = () => setIsProjectsModalOpen(false);
 
   useEffect(() => {
     let active = true;
@@ -222,27 +219,20 @@ export default function DashboardPage() {
           !billingProfileResponse.error && billingProfileResponse.data
             ? ((billingProfileResponse.data as BillingProfilePlanRow).plan_id ?? null)
             : null;
-        const normalizedBillingProfilePlanId = normalizePlanId(billingPlanId);
-        const effectivePlanId =
-          contractPlanId ??
-          (normalizedBillingProfilePlanId === "free" ? "free" : null) ??
-          DEFAULT_PLAN_TIER;
-        const normalizedPlanId = normalizePlanId(effectivePlanId);
+        const effectivePlanId = contractPlanId ?? billingPlanId ?? DEFAULT_PLAN_TIER;
         const plans =
           !billingPlansResponse.error && Array.isArray(billingPlansResponse.data)
             ? (billingPlansResponse.data as BillingPlanRecord[])
             : [];
         const planView = buildPlanView({
-          planId: normalizedPlanId,
+          planId: effectivePlanId,
           plans,
         });
-        const planFallback = PLAN_MAP[normalizedPlanId] ?? PLAN_MAP.business;
-        const nextPlanLabel = plans.length > 0 ? planView.displayName : planFallback.label;
 
         if (!active) return;
         setResolvedPlan({
-          id: normalizedPlanId,
-          label: nextPlanLabel,
+          id: planView.id,
+          label: planView.displayName,
           className: planView.className,
         });
       } catch {
@@ -609,49 +599,67 @@ export default function DashboardPage() {
                             ? "Creating your project..."
                             : projectCreateError
                               ? projectCreateError
-                              : "Create a real project in AI Studio."}
+                              : "Open the AI Studio"}
                         </p>
                       </span>
                     </span>
                   </button>
-                  <section className="hero-sessions-group" aria-label="Saved projects">
-                    <p className="hero-sessions-title">Projects</p>
-                    <div className="hero-sessions-wrapper">
-                      {recentProjects.length > 0 ? (
-                        recentProjects.map((project) => (
-                          <button
-                            key={project.id}
-                            type="button"
-                            className="hero-session-card"
-                            onClick={() => {
-                              void openProject(project.id);
-                            }}
-                            aria-label={`Open project ${project.title}`}
-                          >
-                            <span className="hero-session-card-title">{project.title}</span>
-                            <span className="hero-session-card-meta">
-                              {formatProjectTimestamp(project.updatedAt)}
-                            </span>
-                          </button>
-                        ))
-                      ) : (
-                        <>
-                          <div className="hero-session-square" aria-hidden="true" />
-                          <div className="hero-session-square" aria-hidden="true" />
-                          <div className="hero-session-square" aria-hidden="true" />
-                        </>
-                      )}
-                    </div>
-                    <p className="hero-sessions-note">
-                      {projectsLoading
-                        ? "Loading projects..."
-                        : projectsError
-                          ? projectsError
-                          : recentProjects.length > 0
-                            ? "Open a saved project to continue where you left off."
-                            : "No saved projects yet."}
-                    </p>
-                  </section>
+                  <button
+                    type="button"
+                    className="hero-sessions-group hero-sessions-group-button"
+                    aria-label="Recent Projects: Open saved projects"
+                    aria-busy={projectsLoading}
+                    onClick={openProjectsModal}
+                  >
+                    <span className="hero-sessions-title">Recent Projects</span>
+                    {projectsLoading ? (
+                      <>
+                        <span className="hero-sessions-loading" aria-hidden="true">
+                          <span className="hero-sessions-spinner" />
+                        </span>
+                        <span className="sr-only" role="status" aria-live="polite">
+                          Loading recent projects
+                        </span>
+                      </>
+                    ) : (
+                      <>
+                        <span className="hero-sessions-wrapper">
+                          {recentProjects.length > 0 ? (
+                            recentProjects.map((project) => {
+                              const previewImageUrl = project.previewImageUrls?.[0] ?? null;
+                              return (
+                                <span
+                                  key={project.id}
+                                  className={`hero-session-card${
+                                    previewImageUrl ? " has-preview" : ""
+                                  }`}
+                                  aria-hidden="true"
+                                >
+                                  {previewImageUrl ? (
+                                    <span
+                                      className="hero-session-card-art"
+                                      data-testid={`hero-session-card-art-${project.id}`}
+                                      style={{ backgroundImage: `url("${previewImageUrl}")` }}
+                                    />
+                                  ) : null}
+                                  <span className="hero-session-card-title">{project.title}</span>
+                                </span>
+                              );
+                            })
+                          ) : (
+                            <>
+                              <span className="hero-session-square" aria-hidden="true" />
+                              <span className="hero-session-square" aria-hidden="true" />
+                              <span className="hero-session-square" aria-hidden="true" />
+                            </>
+                          )}
+                        </span>
+                        {recentProjectsNote ? (
+                          <span className="hero-sessions-note">{recentProjectsNote}</span>
+                        ) : null}
+                      </>
+                    )}
+                  </button>
                 </>
               ) : (
                 <>
@@ -766,6 +774,11 @@ export default function DashboardPage() {
           </div>
         </div>
       )}
+      <ProjectsModal
+        isOpen={isProjectsModalOpen}
+        onClose={closeProjectsModal}
+        onSelectProject={openProject}
+      />
     </>
   );
 }

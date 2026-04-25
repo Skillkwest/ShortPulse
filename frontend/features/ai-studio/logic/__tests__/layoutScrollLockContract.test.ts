@@ -53,4 +53,21 @@ describe("ai-studio layout scroll behavior contract", () => {
     expect(css).toContain("backdrop-filter: none;");
     expect(css).toContain("transition: none;");
   });
+
+  it("lets canvas mode consume the full bottom edge of the fixed-height page", () => {
+    const css = fs.readFileSync(layoutCssPath, "utf8");
+
+    expect(css).toContain('.ai-studio-page[data-selected-tool="canvas"]');
+    expect(css).toContain("--ai-page-pad-bottom: 0px;");
+    expect(css).toContain("height: var(--app-fixed-height);");
+    expect(css).toContain("overflow: hidden;");
+  });
+
+  it("lets create mode grow the full shell lower in the viewport", () => {
+    const css = fs.readFileSync(layoutCssPath, "utf8");
+
+    expect(css).toContain(
+      '.ai-studio-page[data-selected-tool="create"] {\n  --ai-page-pad-bottom: 0px;\n}'
+    );
+  });
 });

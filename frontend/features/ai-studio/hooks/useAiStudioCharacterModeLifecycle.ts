@@ -41,6 +41,7 @@ const CHARACTER_OPTIONS_REFRESH_INTERVAL_MS = 20 * 60 * 1000;
 
 type UseAiStudioCharacterModeLifecycleParams = {
   projectId?: string | null;
+  projectRouteRequested?: boolean;
   selectedTool: ToolId | null;
   setUiError: Dispatch<SetStateAction<string | null>>;
   setCharacterModeInjectionBundle: Dispatch<SetStateAction<CharacterModeInjectionBundle | null>>;
@@ -52,6 +53,7 @@ type UseAiStudioCharacterModeLifecycleParams = {
  */
 export const useAiStudioCharacterModeLifecycle = ({
   projectId = null,
+  projectRouteRequested = false,
   selectedTool,
   setUiError,
   setCharacterModeInjectionBundle,
@@ -144,7 +146,7 @@ export const useAiStudioCharacterModeLifecycle = ({
       if (!active) return;
       const resolvedScope = userId?.trim() ?? null;
       setSelectedCharacterStorageScope(resolvedScope);
-      if (projectId || !resolvedScope) return;
+      if (projectRouteRequested || projectId || !resolvedScope) return;
       const persistedId = readPersistedSelectedCharacterId({ userId: resolvedScope });
       if (!persistedId) return;
       setSelectedCharacterId((current) => (current.trim().length > 0 ? current : persistedId));
@@ -152,7 +154,7 @@ export const useAiStudioCharacterModeLifecycle = ({
     return () => {
       active = false;
     };
-  }, [projectId]);
+  }, [projectId, projectRouteRequested]);
 
   useEffect(() => {
     let active = true;
@@ -241,15 +243,15 @@ export const useAiStudioCharacterModeLifecycle = ({
   }, [refreshCharacterOptions, selectedTool]);
 
   useEffect(() => {
-    if (projectId) return;
+    if (projectRouteRequested || projectId) return;
     if (selectedCharacterStorageScope === undefined) return;
     persistSelectedCharacterId(selectedCharacterId || null, {
       userId: selectedCharacterStorageScope,
     });
-  }, [projectId, selectedCharacterId, selectedCharacterStorageScope]);
+  }, [projectId, projectRouteRequested, selectedCharacterId, selectedCharacterStorageScope]);
 
   useEffect(() => {
-    if (projectId) {
+    if (projectRouteRequested || projectId) {
       return () => {};
     }
     if (selectedCharacterStorageScope === undefined) {
@@ -267,7 +269,7 @@ export const useAiStudioCharacterModeLifecycle = ({
       }
     );
     return unsubscribe;
-  }, [projectId, selectedCharacterStorageScope]);
+  }, [projectId, projectRouteRequested, selectedCharacterStorageScope]);
 
   useEffect(() => {
     let active = true;

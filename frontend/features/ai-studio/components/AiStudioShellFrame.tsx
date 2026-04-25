@@ -76,6 +76,7 @@ type AiStudioShellFrameProps = {
   onOpenMediaLibrary?: () => void;
   beginnerMode: boolean;
   rightColumnHidden?: boolean;
+  showPreviewRail?: boolean;
 };
 
 type AiStudioShellRightColumnProps = {
@@ -94,6 +95,7 @@ type AiStudioShellRightColumnProps = {
   onOpenMediaLibrary?: () => void;
   beginnerMode: boolean;
   selectedTool: ToolId | null;
+  showPreviewRail: boolean;
 };
 
 const areAiStudioShellRightColumnPropsEqual = (
@@ -116,6 +118,7 @@ const areAiStudioShellRightColumnPropsEqual = (
   if (previous.onOpenMediaLibrary !== next.onOpenMediaLibrary) return false;
   if (previous.beginnerMode !== next.beginnerMode) return false;
   if (previous.selectedTool !== next.selectedTool) return false;
+  if (previous.showPreviewRail !== next.showPreviewRail) return false;
   return true;
 };
 
@@ -135,6 +138,7 @@ const AiStudioShellRightColumn = React.memo(function AiStudioShellRightColumn({
   onOpenMediaLibrary,
   beginnerMode,
   selectedTool,
+  showPreviewRail,
 }: AiStudioShellRightColumnProps) {
   const shouldRenderRightColumnContent = !rightColumnHidden;
   return (
@@ -222,12 +226,14 @@ const AiStudioShellRightColumn = React.memo(function AiStudioShellRightColumn({
             selectedTool={selectedTool}
             onOpenMediaLibrary={onOpenMediaLibrary}
           />
-          <AiStudioPreviewRail
-            studioPreviewProps={studioPreviewProps}
-            onDropFiles={handleReferenceGridFiles}
-            onTriggerFilePicker={triggerFilePicker}
-            onOpenMediaLibrary={onOpenMediaLibrary}
-          />
+          {showPreviewRail ? (
+            <AiStudioPreviewRail
+              studioPreviewProps={studioPreviewProps}
+              onDropFiles={handleReferenceGridFiles}
+              onTriggerFilePicker={triggerFilePicker}
+              onOpenMediaLibrary={onOpenMediaLibrary}
+            />
+          ) : null}
         </>
       ) : null}
       {rightColumnDropMode !== "none" ? (
@@ -270,6 +276,7 @@ export const AiStudioShellFrame = React.memo(function AiStudioShellFrame({
   onOpenMediaLibrary,
   beginnerMode,
   rightColumnHidden,
+  showPreviewRail = true,
 }: AiStudioShellFrameProps) {
   const { activeCount } = useOutputCounts();
   const isDenseSession = activeCount >= 40;
@@ -304,6 +311,7 @@ export const AiStudioShellFrame = React.memo(function AiStudioShellFrame({
         onOpenMediaLibrary={onOpenMediaLibrary}
         beginnerMode={beginnerMode}
         selectedTool={selectedTool}
+        showPreviewRail={showPreviewRail}
       />
     </section>
   );

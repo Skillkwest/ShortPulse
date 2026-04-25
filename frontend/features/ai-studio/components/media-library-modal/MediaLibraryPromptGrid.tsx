@@ -1,6 +1,7 @@
 import React from "react";
 import { CheckCircle, X } from "phosphor-react";
 import { formatDate, type PromptRow } from "../../logic/mediaLibraryModalModel";
+import { MediaLibraryPromptReferenceCard } from "./MediaLibraryPromptReferenceCard";
 
 type MediaLibraryPromptGridProps = {
   prompts: PromptRow[];
@@ -38,56 +39,18 @@ export function MediaLibraryPromptGrid({
           sortedPrompts.map((prompt) => {
             const isSelected = selectedIds.has(prompt.id);
             return (
-              <div
+              <MediaLibraryPromptReferenceCard
                 key={prompt.id}
-                className={`media-library-panel-prompt-reference-shell${isSelected ? " is-active" : ""}`}
-              >
-                <button
-                  type="button"
-                  className={`reference-card has-text media-library-panel-prompt-reference-card${isSelected ? " is-active" : ""}`}
-                  aria-pressed={isSelected}
-                  draggable={Boolean(onPromptDragStart)}
-                  onClick={() => onSelectPromptCard(prompt)}
-                  onDragStart={(event) => onPromptDragStart?.(event, prompt)}
-                  onDragEnd={(event) => onPromptDragEnd?.(event, prompt)}
-                >
-                  <div className="reference-card-text media-library-panel-prompt-reference-text">
-                    {prompt.prompt_text}
-                  </div>
-                </button>
-                {showRemoveAction && onRemovePromptFromFolder ? (
-                  <div className="media-library-panel-card-actions" aria-label="Folder actions">
-                    <button
-                      type="button"
-                      className="reference-card-action-btn reference-card-action-btn--danger media-library-panel-card-remove-btn"
-                      aria-label={`Remove ${prompt.title || "prompt"} from this folder`}
-                      onClick={(event) => {
-                        event.preventDefault();
-                        event.stopPropagation();
-                        onRemovePromptFromFolder(prompt);
-                      }}
-                    >
-                      <X size={16} weight="bold" aria-hidden />
-                    </button>
-                  </div>
-                ) : null}
-                {showDeleteAction && onDeletePromptFromLibrary ? (
-                  <div className="media-library-panel-card-actions" aria-label="Library actions">
-                    <button
-                      type="button"
-                      className="reference-card-action-btn reference-card-action-btn--danger media-library-panel-card-remove-btn"
-                      aria-label={`Delete ${prompt.title || "prompt"} from library`}
-                      onClick={(event) => {
-                        event.preventDefault();
-                        event.stopPropagation();
-                        onDeletePromptFromLibrary(prompt);
-                      }}
-                    >
-                      <X size={16} weight="bold" aria-hidden />
-                    </button>
-                  </div>
-                ) : null}
-              </div>
+                prompt={prompt}
+                isSelected={isSelected}
+                onSelectPromptCard={onSelectPromptCard}
+                onPromptDragStart={onPromptDragStart}
+                onPromptDragEnd={onPromptDragEnd}
+                showRemoveAction={showRemoveAction}
+                onRemovePromptFromFolder={onRemovePromptFromFolder}
+                showDeleteAction={showDeleteAction}
+                onDeletePromptFromLibrary={onDeletePromptFromLibrary}
+              />
             );
           })
         )}

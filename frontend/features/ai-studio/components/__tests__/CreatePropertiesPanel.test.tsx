@@ -918,7 +918,7 @@ describe("CreatePropertiesPanel", () => {
     expect(onClearAgentChat).toHaveBeenCalledTimes(1);
   });
 
-  it("shows a workflow session banner for an active workflow pulse in pulse mode", () => {
+  it("does not render the large workflow session banner for an active workflow pulse", () => {
     renderPanel({
       beginnerMode: false,
       expertCreateUiEligible: true,
@@ -938,22 +938,8 @@ describe("CreatePropertiesPanel", () => {
       onAgentSend: vi.fn(),
     });
 
-    const workflowBanner = screen.getByLabelText("Active pulse session");
-    expect(workflowBanner).toBeInTheDocument();
-    expect(within(workflowBanner).getByText("Active Pulse")).toBeInTheDocument();
-    expect(within(workflowBanner).getByText("Guided Pulse")).toBeInTheDocument();
-    expect(within(workflowBanner).getByText("Video Prompt Magic")).toBeInTheDocument();
-    expect(within(workflowBanner).getByText("Ready to guide")).toBeInTheDocument();
-    expect(within(workflowBanner).getByText("Image Gate")).toBeInTheDocument();
-    expect(within(workflowBanner).getByText("First step")).toBeInTheDocument();
-    expect(
-      within(workflowBanner).getByText(
-        "Switching or deactivating this Pulse starts a fresh guided session."
-      )
-    ).toBeInTheDocument();
-    expect(
-      within(workflowBanner).getByText("Upload your image to get the process started :)")
-    ).toBeInTheDocument();
+    expect(screen.queryByLabelText("Active pulse session")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Completed pulse session")).not.toBeInTheDocument();
   });
 
   it("hides chat-history inline generate controls in pulse mode", () => {
@@ -997,7 +983,7 @@ describe("CreatePropertiesPanel", () => {
     expect(items[2]).toHaveTextContent("Dolly In - Moves camera closer");
   });
 
-  it("updates workflow session status when a workflow pulse is waiting on the user", () => {
+  it("does not render the large workflow session banner while a workflow pulse is awaiting input", () => {
     renderPanel({
       beginnerMode: false,
       expertCreateUiEligible: true,
@@ -1018,14 +1004,11 @@ describe("CreatePropertiesPanel", () => {
       onAgentSend: vi.fn(),
     });
 
-    const workflowBanner = screen.getByLabelText("Active pulse session");
-    expect(within(workflowBanner).getByText("Camera Motion")).toBeInTheDocument();
-    expect(within(workflowBanner).getByText("Awaiting your reply")).toBeInTheDocument();
-    expect(within(workflowBanner).getByText("Current step")).toBeInTheDocument();
-    expect(within(workflowBanner).queryByText("First step")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Active pulse session")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Completed pulse session")).not.toBeInTheDocument();
   });
 
-  it("falls back to persisted workflow stage labels when replies omit explicit step numbers", () => {
+  it("keeps the active workflow guidance in the thread instead of a separate banner", () => {
     renderPanel({
       beginnerMode: false,
       expertCreateUiEligible: true,
@@ -1057,18 +1040,24 @@ describe("CreatePropertiesPanel", () => {
         collectedInputs: ["uploaded image"],
         lastArtifact: null,
       },
+      agentMessages: [
+        {
+          id: "assistant-1",
+          role: "assistant",
+          content:
+            "CURRENT STEP\n\nWhich camera motion should I use? Pick one from the list below or type your own.",
+        },
+      ],
       onAgentInputChange: vi.fn(),
       onAgentSend: vi.fn(),
     });
 
-    const workflowBanner = screen.getByLabelText("Active pulse session");
-    expect(within(workflowBanner).getByText("Camera Motion")).toBeInTheDocument();
-    expect(within(workflowBanner).getByText("Awaiting your reply")).toBeInTheDocument();
     expect(
-      within(workflowBanner).getByText(
+      screen.getByText(
         "Which camera motion should I use? Pick one from the list below or type your own."
       )
     ).toBeInTheDocument();
+    expect(screen.queryByLabelText("Active pulse session")).not.toBeInTheDocument();
   });
 
   it("shows the persisted final artifact for completed workflow pulse sessions", () => {
@@ -1092,11 +1081,17 @@ describe("CreatePropertiesPanel", () => {
       onAgentSend: vi.fn(),
     });
 
-    const workflowBanner = screen.getByLabelText("Active pulse session");
+    const workflowBanner = screen.getByLabelText("Completed pulse session");
     expect(within(workflowBanner).getByText("Story Builder")).toBeInTheDocument();
+    expect(within(workflowBanner).getByText("Completed Pulse")).toBeInTheDocument();
     expect(within(workflowBanner).getByText("Completed")).toBeInTheDocument();
     expect(within(workflowBanner).getByText("Image Prompts")).toBeInTheDocument();
     expect(within(workflowBanner).getByText("Final artifact")).toBeInTheDocument();
+    expect(
+      within(workflowBanner).getByText(
+        "This guided Pulse has finished. Review the final artifact below or restart the session."
+      )
+    ).toBeInTheDocument();
     expect(
       within(workflowBanner).getByText(
         "Scene 1: cinematic wide shot of the knight entering the ruined hall under torchlight."

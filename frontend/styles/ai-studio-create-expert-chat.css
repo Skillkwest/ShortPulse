@@ -277,8 +277,8 @@
 }
 
 .create-expert-panel .create-expert-prompt-step .create-expert-workflow-session-banner {
-  margin: 0 0 10px;
-  padding: 12px 14px;
+  margin: 0 0 8px;
+  padding: 10px 12px;
   border: 1px solid rgba(100, 209, 230, 0.18);
   border-radius: 12px;
   background:
@@ -297,7 +297,7 @@
   display: flex;
   min-width: 0;
   flex-direction: column;
-  gap: 4px;
+  gap: 3px;
 }
 
 .create-expert-panel .create-expert-prompt-step .create-expert-workflow-session-banner-eyebrow {
@@ -312,7 +312,7 @@
 .create-expert-panel .create-expert-prompt-step .create-expert-workflow-session-banner-title {
   margin: 0;
   color: #f5f9ff;
-  font-size: 17px;
+  font-size: 16px;
   font-weight: 700;
   line-height: 1.12;
   letter-spacing: -0.02em;
@@ -322,7 +322,7 @@
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
-  margin: 10px 0 8px;
+  margin: 8px 0 6px;
 }
 
 .create-expert-panel .create-expert-prompt-step .create-expert-workflow-session-banner-badge {
@@ -341,16 +341,7 @@
 .create-expert-panel .create-expert-prompt-step .create-expert-workflow-session-banner-summary {
   margin: 0;
   color: rgba(214, 227, 239, 0.82);
-  font-size: 13px;
-  line-height: 1.45;
-}
-
-.create-expert-panel .create-expert-prompt-step .create-expert-workflow-session-banner-note {
-  margin: 8px 0 0;
-  color: rgba(156, 210, 225, 0.88);
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.01em;
+  font-size: 12px;
   line-height: 1.45;
 }
 
@@ -358,7 +349,7 @@
   display: flex;
   flex-direction: column;
   gap: 4px;
-  margin: 10px 0 0;
+  margin: 8px 0 0;
   color: rgba(227, 236, 246, 0.88);
   font-size: 12px;
   line-height: 1.45;
@@ -377,7 +368,8 @@
 .create-expert-panel .create-expert-prompt-step .create-expert-workflow-session-banner-actions {
   display: flex;
   justify-content: flex-start;
-  margin-top: 10px;
+  margin-top: 8px;
+  gap: 8px;
 }
 
 .create-expert-panel .create-expert-prompt-step .create-expert-workflow-session-banner-action {

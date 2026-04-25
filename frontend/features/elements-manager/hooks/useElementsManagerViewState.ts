@@ -13,7 +13,6 @@ import type {
   ElementLibraryItem,
   ElementsWorkflowTab,
 } from "../types";
-import { useElementsManagerDraft } from "./useElementsManagerDraft";
 import {
   clearElementProfileImage,
   deleteElementManagerDraft,
@@ -297,6 +296,17 @@ const buildLibraryItemFromListRow = (
   };
 };
 
+const buildDraftFromItem = (item: ElementLibraryItem): ElementDraft => ({
+  name: item.name,
+  alias: item.alias,
+  description: item.description,
+  assetType: item.assetType,
+  profileImageUrl: item.profileImageUrl,
+  profileImageTransform: item.profileImageTransform,
+  imageReferenceUrls: item.imageReferenceUrls,
+  videoReferenceUrl: item.videoReferenceUrl ?? "",
+});
+
 const serializeDraftState = (draft: ElementDraft): string =>
   JSON.stringify({
     name: draft.name,
@@ -327,7 +337,15 @@ export const useElementsManagerViewState = ({
   const [isSwitchingElement, setIsSwitchingElement] = React.useState(false);
   const [isSavingElement, setIsSavingElement] = React.useState(false);
   const [isSavingProfileImage, setIsSavingProfileImage] = React.useState(false);
-  const { draft, hydrateDraft, setDraft, resetDraft } = useElementsManagerDraft();
+  const [draft, setDraft] = React.useState<ElementDraft>(createEmptyElementDraft);
+
+  const hydrateDraft = React.useCallback((item: ElementLibraryItem | null) => {
+    setDraft(item ? buildDraftFromItem(item) : createEmptyElementDraft());
+  }, []);
+
+  const resetDraft = React.useCallback(() => {
+    setDraft(createEmptyElementDraft());
+  }, []);
 
   const selectedElementIdRef = React.useRef<string | null>(null);
   const suppressNextPersistRef = React.useRef(false);
@@ -446,16 +464,7 @@ export const useElementsManagerViewState = ({
         videoReferenceUrl: draft.videoReferenceUrl || null,
       });
       const nextItem = buildElementItemFromSnapshot(snapshot);
-      const nextDraft: ElementDraft = {
-        name: snapshot.name,
-        alias: snapshot.alias,
-        description: snapshot.description,
-        assetType: snapshot.assetType,
-        profileImageUrl: snapshot.profileImageUrl,
-        profileImageTransform: snapshot.profileImageTransform,
-        imageReferenceUrls: snapshot.imageReferenceUrls,
-        videoReferenceUrl: snapshot.videoReferenceUrl ?? "",
-      };
+      const nextDraft = buildDraftFromItem(nextItem);
       suppressNextPersistRef.current = true;
       lastPersistedDraftRef.current = serializeDraftState(nextDraft);
       updateElementListEntry(nextItem);
@@ -480,16 +489,7 @@ export const useElementsManagerViewState = ({
       try {
         const snapshot = await loadElementManagerDraftByElementId(elementId);
         const nextItem = buildElementItemFromSnapshot(snapshot);
-        const nextDraft: ElementDraft = {
-          name: snapshot.name,
-          alias: snapshot.alias,
-          description: snapshot.description,
-          assetType: snapshot.assetType,
-          profileImageUrl: snapshot.profileImageUrl,
-          profileImageTransform: snapshot.profileImageTransform,
-          imageReferenceUrls: snapshot.imageReferenceUrls,
-          videoReferenceUrl: snapshot.videoReferenceUrl ?? "",
-        };
+        const nextDraft = buildDraftFromItem(nextItem);
         suppressNextPersistRef.current = true;
         lastPersistedDraftRef.current = serializeDraftState(nextDraft);
         updateElementListEntry(nextItem);

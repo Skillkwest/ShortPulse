@@ -12,7 +12,7 @@ import {
 import { uploadImageToStorage } from "../../ai-studio/utils/imageUpload";
 import { buildElementProfileImageTransformStyle } from "../logic/elementProfileImageTransform";
 import { useElementsManagerViewState } from "../hooks/useElementsManagerViewState";
-import { ElementsCreateWorkspaceSurface } from "./ElementsCreateWorkspaceSurface";
+import { ElementsCreateWorkspaceLayout } from "./ElementsCreateWorkspaceLayout";
 import { ElementsDescriptionEditorCard } from "./ElementsDescriptionEditorCard";
 import { ElementsManagerWorkflowTabs } from "./ElementsManagerWorkflowTabs";
 import { DEFAULT_ELEMENT_PROFILE_IMAGE_TRANSFORM } from "../constants";
@@ -453,8 +453,7 @@ export function ElementsManagerShell({
         </>
       ) : (
         <section className="elements-profile-panel">
-          <ElementsCreateWorkspaceSurface
-            surface="panel"
+          <ElementsCreateWorkspaceLayout
             elementSheet={
               <section className="elements-profile-section">
                 <div className="elements-profile-top-row">

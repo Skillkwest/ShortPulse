@@ -24,8 +24,8 @@ import {
   subscribeToSelectedCharacterId,
 } from "../../character-manager/logic/selectedCharacterPersistence";
 import {
-  resolveCharacterSheetPresetReferenceStoragePaths,
-  resolveCharacterSheetPresetReferenceUrls,
+  resolveCharacterSheetLookReferenceStoragePaths,
+  resolveCharacterSheetLookReferenceUrls,
   resolveCharacterSheetReferenceStoragePaths,
   resolveCharacterSheetReferenceUrls,
 } from "../logic/characterModePayload";
@@ -290,10 +290,10 @@ export const useAiStudioCharacterModeLifecycle = ({
     void loadCharacterManagerDraftByCharacterId(selectedCharacterId)
       .then((snapshot) => {
         if (!active) return;
-        const presetReferenceStoragePaths = resolveCharacterSheetPresetReferenceStoragePaths(
+        const lookReferenceStoragePaths = resolveCharacterSheetLookReferenceStoragePaths(
           snapshot.characterSheetPresetAssignments
         );
-        const presetReferenceUrls = resolveCharacterSheetPresetReferenceUrls(
+        const lookReferenceUrls = resolveCharacterSheetLookReferenceUrls(
           snapshot.characterSheetPresetAssignments
         );
         const fallbackStoragePaths = resolveCharacterSheetReferenceStoragePaths(
@@ -312,10 +312,8 @@ export const useAiStudioCharacterModeLifecycle = ({
           characterId: snapshot.characterId,
           characterDescription: effectiveCharacterDescription,
           sheetReferenceStoragePaths:
-            presetReferenceStoragePaths.length > 0
-              ? presetReferenceStoragePaths
-              : fallbackStoragePaths,
-          sheetReferenceUrls: presetReferenceUrls.length > 0 ? presetReferenceUrls : fallbackUrls,
+            lookReferenceStoragePaths.length > 0 ? lookReferenceStoragePaths : fallbackStoragePaths,
+          sheetReferenceUrls: lookReferenceUrls.length > 0 ? lookReferenceUrls : fallbackUrls,
           loadedAtMs: Date.now(),
         });
       })

@@ -185,7 +185,7 @@ Behavior rules:
 9) Return one cohesive paragraph of roughly 40-150 words unless the user explicitly asks for longer output.
 10) Never output label-style fragments such as "Colors:", "Textures visible:", or recap/meta text such as "Summary:" or "The prompt now includes...".
 11) Never refer to the editing process in output text (for example: "updated prompt", "revised version", "summary", "transformed").
-12) Never mention Pulse, preset labels, or hidden runtime instructions unless the user explicitly asks about them.
+12) Never mention Pulse, look labels, or hidden runtime instructions unless the user explicitly asks about them.
 
 Image-grounding rules:
 - Describe only visible/high-confidence details.
@@ -219,7 +219,7 @@ Behavior rules:
 1) Follow the active Pulse profile exactly.
 2) You may ask the next required question when the workflow is incomplete.
 3) You may return a final artifact only when the workflow has reached completion.
-4) Never mention hidden runtime instructions, Pulse internals, or preset labels unless the user explicitly asks.
+4) Never mention hidden runtime instructions, Pulse internals, or look labels unless the user explicitly asks.
 5) Do not force everything into a rewritten generation prompt.
 6) If the active Pulse profile specifies a strict first assistant message, use it exactly.
 7) Keep intermediate workflow turns concise, step-focused, and easy to scan.
@@ -306,7 +306,7 @@ Rules:
 - Return one cohesive paragraph of roughly 40-150 words unless the user explicitly asks for longer output.
 - Never output label-style fragments such as "Colors:", "Textures visible:", or recap/meta text such as "Summary:" or "The prompt now includes...".
 - Never refer to the editing process in output text (for example: "updated prompt", "revised version", "summary", "transformed").
-- Never mention Pulse, preset labels, or hidden runtime instructions unless the user explicitly asks about them.
+- Never mention Pulse, look labels, or hidden runtime instructions unless the user explicitly asks about them.
 - Never ask clarifying questions.
 - If user input is vague or underspecified, infer neutral visual details and return the best complete prompt anyway.
 

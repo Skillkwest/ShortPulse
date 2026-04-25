@@ -52,7 +52,7 @@ const createParams = (
   ...overrides,
 });
 
-const createSnapshotWithPresetReferences = (
+const createSnapshotWithLookReferences = (
   input: { description?: string; legacyDescription?: string } = {}
 ) =>
   (() => {
@@ -160,7 +160,7 @@ describe("useAiStudioCharacterModeLifecycle", () => {
       "char-2"
     );
     loadCharacterManagerDraftByCharacterIdMock.mockResolvedValue(
-      createSnapshotWithPresetReferences()
+      createSnapshotWithLookReferences()
     );
     listCharacterManagerCharactersMock.mockResolvedValue([
       {
@@ -293,7 +293,7 @@ describe("useAiStudioCharacterModeLifecycle", () => {
       },
     ] as Awaited<ReturnType<typeof listCharacterManagerCharacters>>);
     loadCharacterManagerDraftByCharacterIdMock.mockResolvedValue(
-      createSnapshotWithPresetReferences()
+      createSnapshotWithLookReferences()
     );
     const params = createParams({
       setCharacterModeInjectionBundle: asDispatch(setCharacterModeInjectionBundle),
@@ -385,7 +385,7 @@ describe("useAiStudioCharacterModeLifecycle", () => {
     });
   });
 
-  it("falls back to legacy description when active preset description is empty", async () => {
+  it("falls back to legacy description when the active look description is empty", async () => {
     const setCharacterModeInjectionBundle = vi.fn();
     listCharacterManagerCharactersMock.mockResolvedValue([
       {
@@ -395,7 +395,7 @@ describe("useAiStudioCharacterModeLifecycle", () => {
       },
     ] as Awaited<ReturnType<typeof listCharacterManagerCharacters>>);
     loadCharacterManagerDraftByCharacterIdMock.mockResolvedValue(
-      createSnapshotWithPresetReferences({
+      createSnapshotWithLookReferences({
         description: "",
         legacyDescription: "Legacy fallback description",
       })

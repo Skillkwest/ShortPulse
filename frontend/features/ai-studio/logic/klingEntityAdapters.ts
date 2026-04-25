@@ -1,5 +1,5 @@
 import {
-  resolveCharacterSheetPresetReferenceUrls,
+  resolveCharacterSheetLookReferenceUrls,
   resolveCharacterSheetReferenceUrls,
 } from "./characterModePayload";
 import { type AiStudioKlingElement, type AiStudioKlingEntitySourceKind } from "./klingElements";
@@ -58,12 +58,12 @@ export const loadSavedKlingEntityBySource = async ({
 }): Promise<AiStudioKlingElement> => {
   if (sourceKind === "character") {
     const snapshot = await loadCharacterManagerDraftByCharacterId(sourceId);
-    const presetImageUrls = resolveCharacterSheetPresetReferenceUrls(
+    const lookImageUrls = resolveCharacterSheetLookReferenceUrls(
       snapshot.characterSheetPresetAssignments
     );
     const imageUrls =
-      presetImageUrls.length > 0
-        ? presetImageUrls
+      lookImageUrls.length > 0
+        ? lookImageUrls
         : resolveCharacterSheetReferenceUrls(snapshot.characterSheetAssignments, snapshot.slots);
     return {
       id: snapshot.characterId,

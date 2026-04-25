@@ -44,7 +44,7 @@ const createParams = (
   ...overrides,
 });
 
-const createSnapshotWithPresetReference = (
+const createSnapshotWithLookReference = (
   input: {
     description?: string;
     legacyDescription?: string;
@@ -183,9 +183,9 @@ describe("useAiStudioCharacterModeController", () => {
     expect(setIsCharacterBundleLoading).not.toHaveBeenCalled();
   });
 
-  it("uses legacy description fallback when active preset description is empty", async () => {
+  it("uses legacy description fallback when the active look description is empty", async () => {
     loadCharacterManagerDraftByCharacterIdMock.mockResolvedValue(
-      createSnapshotWithPresetReference({
+      createSnapshotWithLookReference({
         description: "",
         legacyDescription: "Legacy fallback description",
         storagePath: "user/chars/ref.png",
@@ -206,7 +206,7 @@ describe("useAiStudioCharacterModeController", () => {
     const setCharacterModeInjectionBundle = vi.fn();
     const setIsCharacterBundleLoading = vi.fn();
     loadCharacterManagerDraftByCharacterIdMock.mockResolvedValue(
-      createSnapshotWithPresetReference({
+      createSnapshotWithLookReference({
         description: "Hero description",
         storagePath: "user/chars/portrait.png",
         previewUrl: "https://example.com/portrait.png",
@@ -264,7 +264,7 @@ describe("useAiStudioCharacterModeController", () => {
     const setCharacterModeInjectionBundle = vi.fn();
     getSignedMediaUrlsBatchMock.mockResolvedValue(new Map());
     loadCharacterManagerDraftByCharacterIdMock.mockResolvedValue(
-      createSnapshotWithPresetReference({
+      createSnapshotWithLookReference({
         description: "Base description",
         storagePath: "user/chars/ref.png",
         previewUrl: "https://example.com/ref-stale-db.png",
@@ -403,7 +403,7 @@ describe("useAiStudioCharacterModeController", () => {
       loadedAtMs: Date.now() - 1000 * 60 * 60,
     };
     loadCharacterManagerDraftByCharacterIdMock.mockResolvedValueOnce({
-      ...createSnapshotWithPresetReference(),
+      ...createSnapshotWithLookReference(),
       characterId: "char-2",
     });
     const params = createParams({
@@ -572,7 +572,7 @@ describe("useAiStudioCharacterModeController", () => {
     const setEditBundle = vi.fn();
     const setEditLoading = vi.fn();
     loadCharacterManagerDraftByCharacterIdMock.mockResolvedValue({
-      ...createSnapshotWithPresetReference({
+      ...createSnapshotWithLookReference({
         description: "Edit scoped description",
         storagePath: "user/chars/edit-scoped.png",
       }),
@@ -625,5 +625,29 @@ describe("useAiStudioCharacterModeController", () => {
     );
 
     expect(overrides).toBeNull();
+  });
+
+  it("uses look-reference notice copy for reference-only fallback messaging", () => {
+    const params = createParams({
+      selectedCharacterId: "char-1",
+      characterModeInjectionBundle: {
+        characterId: "char-1",
+        characterDescription: "",
+        sheetReferenceStoragePaths: ["user/chars/char.png"],
+        sheetReferenceUrls: ["https://example.com/char.png"],
+        loadedAtMs: Date.now(),
+      },
+    });
+    const { result } = renderHook(() => useAiStudioCharacterModeController(params));
+
+    const overrides = result.current.resolveCharacterModeSubmissionOverrides(
+      "Add a dramatic rim light",
+      "create"
+    );
+
+    expect(overrides?.fallbackCode).toBe("no_description");
+    expect(overrides?.notice).toBe(
+      "Selected character has no description. Generated using look references only."
+    );
   });
 });

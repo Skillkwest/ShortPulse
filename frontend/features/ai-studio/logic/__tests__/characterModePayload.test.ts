@@ -8,8 +8,8 @@ import type {
 import {
   composeCharacterModePrompt,
   mergeCharacterAndUserReferences,
-  resolveCharacterSheetPresetReferenceStoragePaths,
-  resolveCharacterSheetPresetReferenceUrls,
+  resolveCharacterSheetLookReferenceStoragePaths,
+  resolveCharacterSheetLookReferenceUrls,
   resolveCharacterSheetReferenceStoragePaths,
   resolveCharacterSheetReferenceUrls,
 } from "../characterModePayload";
@@ -84,8 +84,8 @@ describe("characterModePayload", () => {
     ]);
   });
 
-  it("resolves preset references in canonical zone order and deduplicates", () => {
-    const presetAssignments: CharacterSheetPresetAssignments = {
+  it("resolves look references in canonical zone order and deduplicates", () => {
+    const lookAssignments: CharacterSheetPresetAssignments = {
       portrait: {
         mediaFileId: "media-portrait",
         storagePath: "user/characters/presets/portrait.png",
@@ -103,11 +103,11 @@ describe("characterModePayload", () => {
       },
     };
 
-    expect(resolveCharacterSheetPresetReferenceUrls(presetAssignments)).toEqual([
+    expect(resolveCharacterSheetLookReferenceUrls(lookAssignments)).toEqual([
       "https://cdn.test/portrait.png",
       "https://cdn.test/front.png",
     ]);
-    expect(resolveCharacterSheetPresetReferenceStoragePaths(presetAssignments)).toEqual([
+    expect(resolveCharacterSheetLookReferenceStoragePaths(lookAssignments)).toEqual([
       "user/characters/presets/portrait.png",
       "user/characters/presets/front.png",
     ]);

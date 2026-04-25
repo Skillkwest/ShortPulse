@@ -9,8 +9,8 @@ import { reportAppError } from "../../../lib/appErrorReporter";
 import {
   composeCharacterModePrompt,
   mergeCharacterAndUserReferences,
-  resolveCharacterSheetPresetReferenceStoragePaths,
-  resolveCharacterSheetPresetReferenceUrls,
+  resolveCharacterSheetLookReferenceStoragePaths,
+  resolveCharacterSheetLookReferenceUrls,
   resolveCharacterSheetReferenceStoragePaths,
   resolveCharacterSheetReferenceUrls,
 } from "../logic/characterModePayload";
@@ -212,10 +212,10 @@ export const useAiStudioCharacterModeController = ({
     (
       snapshot: Awaited<ReturnType<typeof loadCharacterManagerDraftByCharacterId>>
     ): CharacterModeInjectionBundle => {
-      const presetReferenceStoragePaths = resolveCharacterSheetPresetReferenceStoragePaths(
+      const lookReferenceStoragePaths = resolveCharacterSheetLookReferenceStoragePaths(
         snapshot.characterSheetPresetAssignments
       );
-      const presetReferenceUrls = resolveCharacterSheetPresetReferenceUrls(
+      const lookReferenceUrls = resolveCharacterSheetLookReferenceUrls(
         snapshot.characterSheetPresetAssignments
       );
       const fallbackStoragePaths = resolveCharacterSheetReferenceStoragePaths(
@@ -234,10 +234,8 @@ export const useAiStudioCharacterModeController = ({
         characterId: snapshot.characterId,
         characterDescription: effectiveCharacterDescription,
         sheetReferenceStoragePaths:
-          presetReferenceStoragePaths.length > 0
-            ? presetReferenceStoragePaths
-            : fallbackStoragePaths,
-        sheetReferenceUrls: presetReferenceUrls.length > 0 ? presetReferenceUrls : fallbackUrls,
+          lookReferenceStoragePaths.length > 0 ? lookReferenceStoragePaths : fallbackStoragePaths,
+        sheetReferenceUrls: lookReferenceUrls.length > 0 ? lookReferenceUrls : fallbackUrls,
         loadedAtMs: Date.now(),
       };
     },
@@ -425,15 +423,13 @@ export const useAiStudioCharacterModeController = ({
         fallbackCode = "bundle_unavailable";
       } else if (!hasCharacterDescription && referenceInputs.length === 0) {
         notice =
-          "Selected character has no description or Character Sheet references. Generated without character injection.";
+          "Selected character has no description or look references. Generated without character injection.";
         fallbackCode = "no_description_or_references";
       } else if (!hasCharacterDescription) {
-        notice =
-          "Selected character has no description. Generated using Character Sheet references only.";
+        notice = "Selected character has no description. Generated using look references only.";
         fallbackCode = "no_description";
       } else if (referenceInputs.length === 0) {
-        notice =
-          "Selected character has no Character Sheet references. Generated using description only.";
+        notice = "Selected character has no look references. Generated using description only.";
         fallbackCode = "no_references";
       }
 

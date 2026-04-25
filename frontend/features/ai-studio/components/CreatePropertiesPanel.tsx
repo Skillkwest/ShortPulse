@@ -656,6 +656,9 @@ export function CreatePropertiesPanel({
         {activeWorkflowPulsePreset.description?.trim() ||
           "This Pulse stays in guided mode and drives the chat one step at a time."}
       </p>
+      <p className="create-expert-workflow-session-banner-note">
+        Switching or deactivating this Pulse starts a fresh guided session.
+      </p>
       {activeWorkflowPulsePreview ? (
         <p className="create-expert-workflow-session-banner-preview">
           <span className="create-expert-workflow-session-banner-preview-label">

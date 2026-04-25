@@ -23,6 +23,8 @@ export type CreatePulsePresetsSurfaceProps = {
   id: string;
   isOpen: boolean;
   presets: readonly CreatePulseResolvedPreset[];
+  activePresetId?: CreatePulsePresetId | null;
+  selectedPresetIds?: readonly CreatePulsePresetId[];
   onClose: () => void;
   onOpenPresetsLibrary?: () => void;
   onPresetSelect?: (presetId: CreatePulsePresetId) => void;
@@ -77,6 +79,8 @@ export const CreatePulsePresetsSurface = ({
   id,
   isOpen,
   presets,
+  activePresetId = null,
+  selectedPresetIds = [],
   onClose,
   onOpenPresetsLibrary,
   onPresetSelect,
@@ -252,7 +256,8 @@ export const CreatePulsePresetsSurface = ({
         <div className="create-expert-presets-surface-title-group">
           <h3 className="create-expert-presets-surface-title">Pulses</h3>
           <p className="create-expert-presets-surface-subtitle">
-            {"\u2190 Drag & drop pulses into the left rail for quick access in Pulse mode."}
+            Click to activate and pin a Pulse. Drag to pin without switching. Switching or
+            deactivating starts a fresh guided session.
           </p>
         </div>
         <div className="create-expert-presets-surface-actions">
@@ -285,6 +290,8 @@ export const CreatePulsePresetsSurface = ({
               role="listitem"
               className={`create-expert-presets-chip-item ${
                 preset.isCustom ? "is-custom" : ""
+              } ${activePresetId === preset.presetId ? "is-active" : ""} ${
+                selectedPresetIds.includes(preset.presetId) ? "is-pinned" : ""
               }`.trim()}
             >
               <button
@@ -293,11 +300,23 @@ export const CreatePulsePresetsSurface = ({
                 className={`create-expert-presets-chip ${
                   shouldUseMutedCustomLabel(preset) ? "is-custom-label" : ""
                 }`.trim()}
+                aria-pressed={activePresetId === preset.presetId}
                 onClick={() => onPresetSelect?.(preset.presetId)}
                 onDragStart={(event) => onPresetDragStart?.(event, preset.presetId)}
                 onDragEnd={onPresetDragEnd}
               >
-                {preset.label}
+                <span className="create-expert-presets-chip-label">{preset.label}</span>
+                {activePresetId === preset.presetId ||
+                selectedPresetIds.includes(preset.presetId) ? (
+                  <span className="create-expert-presets-chip-meta" aria-hidden="true">
+                    {activePresetId === preset.presetId ? (
+                      <span className="create-expert-presets-chip-badge is-active">Active</span>
+                    ) : null}
+                    {selectedPresetIds.includes(preset.presetId) ? (
+                      <span className="create-expert-presets-chip-badge">Pinned</span>
+                    ) : null}
+                  </span>
+                ) : null}
               </button>
               {preset.isEditable ? (
                 <button

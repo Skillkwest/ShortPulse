@@ -304,4 +304,36 @@ describe("CreateExpertPresetPanel", () => {
       expect(onSelectedPresetIdsChange).toHaveBeenCalledWith(["ad_hook"]);
     });
   });
+
+  it("activates and pins a pulse directly from the More Pulses surface", async () => {
+    const onActivePresetIdChange = vi.fn();
+    const onSelectedPresetIdsChange = vi.fn();
+    const onPresetStart = vi.fn().mockResolvedValue(undefined);
+
+    render(
+      <CreateExpertPresetPanel
+        selectedPresetIds={[]}
+        onSelectedPresetIdsChange={onSelectedPresetIdsChange}
+        onActivePresetIdChange={onActivePresetIdChange}
+        onPresetStart={onPresetStart}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "More Pulses" }));
+    fireEvent.click(screen.getByRole("button", { name: "Ad Hook" }));
+
+    await waitFor(() => {
+      expect(onSelectedPresetIdsChange).toHaveBeenCalledWith(["ad_hook"]);
+      expect(onActivePresetIdChange).toHaveBeenCalledWith("ad_hook");
+      expect(onPresetStart).toHaveBeenCalledWith(
+        expect.objectContaining({
+          presetId: "ad_hook",
+          runtimeMode: "workflow_gpt",
+          activationMode: "activate_and_start",
+        })
+      );
+    });
+
+    expect(screen.queryByRole("region", { name: "Pulses" })).not.toBeInTheDocument();
+  });
 });

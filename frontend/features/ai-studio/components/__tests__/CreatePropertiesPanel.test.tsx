@@ -947,6 +947,11 @@ describe("CreatePropertiesPanel", () => {
     expect(within(workflowBanner).getByText("Image Gate")).toBeInTheDocument();
     expect(within(workflowBanner).getByText("First step")).toBeInTheDocument();
     expect(
+      within(workflowBanner).getByText(
+        "Switching or deactivating this Pulse starts a fresh guided session."
+      )
+    ).toBeInTheDocument();
+    expect(
       within(workflowBanner).getByText("Upload your image to get the process started :)")
     ).toBeInTheDocument();
   });

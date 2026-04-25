@@ -127,6 +127,7 @@ export function CreateExpertPresetPanel({
     handleCustomPresetSave,
     handlePanelPresetApply,
     handlePanelPresetDragStart,
+    handleSurfacePresetSelect,
     handlePresetDragEnd,
     handlePresetPanelDragLeave,
     handlePresetPanelDragOver,
@@ -150,6 +151,14 @@ export function CreateExpertPresetPanel({
   const closeMorePresetsSurface = React.useCallback(() => {
     setIsMorePresetsSurfaceOpen(false);
   }, [setIsMorePresetsSurfaceOpen]);
+
+  const handleSurfacePresetSelectAndClose = React.useCallback(
+    async (presetId: CreatePulsePresetId) => {
+      await handleSurfacePresetSelect(presetId);
+      closeMorePresetsSurface();
+    },
+    [closeMorePresetsSurface, handleSurfacePresetSelect]
+  );
 
   const openPulseLibrary = React.useCallback(() => {
     setIsMorePresetsSurfaceOpen(false);
@@ -230,8 +239,11 @@ export function CreateExpertPresetPanel({
           id={morePresetsSurfaceId}
           isOpen={isMorePresetsSurfaceOpen}
           presets={availablePresets}
+          activePresetId={activePresetId ?? null}
+          selectedPresetIds={selectedPresetIds ?? []}
           onClose={closeMorePresetsSurface}
           onOpenPresetsLibrary={openPulseLibrary}
+          onPresetSelect={handleSurfacePresetSelectAndClose}
           onPresetDragStart={handleSurfacePresetDragStart}
           onPresetDragEnd={handlePresetDragEnd}
           onSurfaceDragOver={handlePresetsSurfaceDragOver}

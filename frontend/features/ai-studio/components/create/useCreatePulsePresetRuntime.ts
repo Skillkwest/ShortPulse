@@ -100,12 +100,24 @@ export const useCreatePulsePresetRuntime = ({
       setActivePresetId(presetId);
       const resolvedPreset = resolveCreatePulsePresetById(presetId, savedPresets);
       const presetLabel = resolveCreatePulsePresetLabelById(presetId, savedPresets);
-      showStatusToast(`Started ${presetLabel}.`);
+      showStatusToast(
+        activePresetId && activePresetId !== presetId
+          ? `Switched to ${presetLabel}. Previous Pulse session cleared.`
+          : `Started ${presetLabel}.`
+      );
       if (resolvedPreset) {
         await onPresetStart?.(resolvedPreset);
       }
     },
-    [onPresetStart, savedPresets, setActivePresetId, showStatusToast]
+    [activePresetId, onPresetStart, savedPresets, setActivePresetId, showStatusToast]
+  );
+
+  const handleSurfacePresetSelect = React.useCallback(
+    async (presetId: CreatePulsePresetId) => {
+      addPresetToPanel(presetId);
+      await handlePanelPresetApply(presetId);
+    },
+    [addPresetToPanel, handlePanelPresetApply]
   );
 
   const handleCustomPresetSave = React.useCallback(
@@ -271,6 +283,7 @@ export const useCreatePulsePresetRuntime = ({
     handleCustomPresetSave,
     handlePanelPresetApply,
     handlePanelPresetDragStart,
+    handleSurfacePresetSelect,
     handlePresetDragEnd,
     handlePresetPanelDragLeave,
     handlePresetPanelDragOver,

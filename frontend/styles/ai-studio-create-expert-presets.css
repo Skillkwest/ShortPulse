@@ -349,6 +349,11 @@
   text-transform: none;
   padding: 6px 10px;
   cursor: grab;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 6px;
   transition:
     border-color 0.16s ease,
     background 0.16s ease,
@@ -373,6 +378,15 @@
   transform: translateY(-1px);
 }
 
+.create-expert-presets-chip-item.is-active .create-expert-presets-chip {
+  border-color: rgba(100, 209, 230, 0.42);
+  background: rgba(33, 56, 64, 0.42);
+}
+
+.create-expert-presets-chip-item.is-pinned .create-expert-presets-chip {
+  border-color: rgba(205, 210, 220, 0.3);
+}
+
 .create-expert-presets-chip.is-custom-label:hover {
   color: rgba(184, 194, 206, 0.84);
 }
@@ -385,6 +399,39 @@
 
 .create-expert-presets-chip.is-custom-label:focus-visible {
   color: rgba(186, 196, 208, 0.86);
+}
+
+.create-expert-presets-chip-label {
+  width: 100%;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.create-expert-presets-chip-meta {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.create-expert-presets-chip-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 18px;
+  padding: 0 7px;
+  border-radius: 999px;
+  border: 1px solid rgba(201, 205, 214, 0.22);
+  background: rgba(201, 205, 214, 0.08);
+  color: rgba(223, 230, 240, 0.82);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.create-expert-presets-chip-badge.is-active {
+  border-color: rgba(100, 209, 230, 0.38);
+  background: rgba(100, 209, 230, 0.14);
+  color: rgba(203, 244, 250, 0.96);
 }
 
 .create-expert-presets-chip-edit {

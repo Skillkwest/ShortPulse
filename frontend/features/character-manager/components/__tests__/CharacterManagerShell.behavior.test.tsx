@@ -1912,6 +1912,16 @@ describe("CharacterManagerShell behavior", () => {
     expect(screen.queryByRole("button", { name: "Saved" })).not.toBeInTheDocument();
   });
 
+  it("hides the save control in embedded profile mode when the character is already saved", async () => {
+    characterManagerMockState.selectedCharacterId = "character-1";
+    characterManagerMockState.hasUnsavedCharacterDraft = false;
+
+    render(<CharacterManagerShell surface="panel" initialWorkflowTab="create" />);
+
+    expect(screen.queryByRole("button", { name: "Save Character" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Saved" })).not.toBeInTheDocument();
+  });
+
   it("shows a loading spinner in Manage Characters while the character list is loading", async () => {
     characterManagerMockState.loading = true;
     characterManagerMockState.characters = [];

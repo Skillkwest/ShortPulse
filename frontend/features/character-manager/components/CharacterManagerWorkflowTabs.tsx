@@ -124,19 +124,20 @@ export function CharacterManagerWorkflowTabs({
     </button>
   );
 
-  const saveButton =
-    activeTab === "create" ? (
-      <button
-        type="button"
-        className={`character-mode-create-btn character-mode-save-btn${
-          isEmbeddedSurface ? " character-mode-create-btn--inline" : ""
-        }`}
-        onClick={onSaveCharacter}
-        disabled={!hasUnsavedCharacterDraft || isSavingCharacter || loading}
-      >
-        {isSavingCharacter ? "Saving..." : hasUnsavedCharacterDraft ? "Save Character" : "Saved"}
-      </button>
-    ) : null;
+  const shouldShowSaveButton =
+    activeTab === "create" && (hasUnsavedCharacterDraft || isSavingCharacter);
+  const saveButton = shouldShowSaveButton ? (
+    <button
+      type="button"
+      className={`character-mode-create-btn character-mode-save-btn${
+        isEmbeddedSurface ? " character-mode-create-btn--inline" : ""
+      }`}
+      onClick={onSaveCharacter}
+      disabled={!hasUnsavedCharacterDraft || isSavingCharacter || loading}
+    >
+      {isSavingCharacter ? "Saving..." : "Save Character"}
+    </button>
+  ) : null;
 
   if (isEmbeddedSurface) {
     if (!shouldRenderEmbeddedHeader) return null;

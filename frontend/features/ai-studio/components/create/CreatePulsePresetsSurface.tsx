@@ -307,13 +307,11 @@ export const CreatePulsePresetsSurface = ({
               >
                 <span className="create-expert-presets-chip-label">{preset.label}</span>
                 <span className="create-expert-presets-chip-meta" aria-hidden="true">
-                  <span
-                    className={`create-expert-presets-chip-badge create-expert-presets-chip-badge--ownership ${
-                      preset.isBuiltIn ? "is-built-in" : "is-custom"
-                    }`.trim()}
-                  >
-                    {preset.isBuiltIn ? "Built-in" : "Custom"}
-                  </span>
+                  {!preset.isBuiltIn ? (
+                    <span className="create-expert-presets-chip-badge create-expert-presets-chip-badge--ownership is-custom">
+                      Custom
+                    </span>
+                  ) : null}
                   {activePresetId === preset.presetId ? (
                     <span className="create-expert-presets-chip-badge is-active">Active</span>
                   ) : null}

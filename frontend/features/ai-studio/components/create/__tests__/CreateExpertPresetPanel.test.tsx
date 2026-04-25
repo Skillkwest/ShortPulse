@@ -258,7 +258,7 @@ describe("CreateExpertPresetPanel", () => {
     expect(screen.queryByRole("dialog", { name: "Pulses" })).not.toBeInTheDocument();
   });
 
-  it("shows built-in and custom ownership badges in the More Pulses activation surface", () => {
+  it("hides built-in ownership badges in the More Pulses activation surface", () => {
     render(
       <CreateExpertPresetPanel
         savedPresets={[
@@ -282,7 +282,7 @@ describe("CreateExpertPresetPanel", () => {
     fireEvent.click(screen.getByRole("button", { name: "More Pulses" }));
     const pulsesSurface = screen.getByRole("region", { name: "Pulses" });
 
-    expect(within(pulsesSurface).getAllByText("Built-in").length).toBeGreaterThan(0);
+    expect(within(pulsesSurface).queryByText("Built-in")).not.toBeInTheDocument();
     expect(within(pulsesSurface).getByText("Custom")).toBeInTheDocument();
   });
 

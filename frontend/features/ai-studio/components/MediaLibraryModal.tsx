@@ -117,7 +117,7 @@ export function MediaLibraryModal({
     isOpenRef.current = isOpen;
   }, [isOpen]);
 
-  const previewRuntime = useMediaSurfacePreviewRuntime<MediaFileRow, MediaTab, HTMLButtonElement>({
+  const previewRuntime = useMediaSurfacePreviewRuntime<MediaFileRow, MediaTab, HTMLElement>({
     activeMediaQuery,
     activeTab,
     firstMediaPaintEventName: "media.modal.first_media_paint",

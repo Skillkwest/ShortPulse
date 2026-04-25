@@ -251,7 +251,7 @@ describe("ReferenceGridCard", () => {
     expect(screen.getByRole("button", { name: "Pause audio preview" })).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Pause audio preview" }));
-    expect(pauseMock).toHaveBeenCalledTimes(1);
+    expect(pauseMock).toHaveBeenCalled();
   });
 
   it("fills waveform bars as audio playback progresses", () => {

@@ -65,7 +65,7 @@ export type MediaTabCache = {
 
 export type MediaTabRequestState = Record<MediaDataTab, number>;
 export type MediaTabBooleanState = Record<MediaDataTab, boolean>;
-export type MediaCardRefCallback = (node: HTMLButtonElement | null) => void;
+export type MediaCardRefCallback = (node: HTMLElement | null) => void;
 export type NavigatorWithConnection = Navigator & {
   connection?: {
     addEventListener?: (type: string, listener: EventListenerOrEventListenerObject) => void;

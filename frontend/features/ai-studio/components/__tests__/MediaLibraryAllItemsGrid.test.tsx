@@ -326,12 +326,13 @@ describe("MediaLibraryAllItemsGrid", () => {
     ];
 
     const { container } = render(<MediaLibraryAllItemsGrid {...props} />);
+    const audioNode = container.querySelector(".reference-card-audio");
+    const waveformBars = container.querySelectorAll(".reference-card-audio-wavebar");
 
-    expect(screen.getByText("voice-note-1.mp3")).toBeInTheDocument();
-    expect(screen.getByLabelText("Play audio voice-note-1.mp3")).toHaveAttribute(
-      "src",
-      "https://cdn.example.com/voice-note-1.mp3"
-    );
+    expect(screen.getByRole("button", { name: "Play audio voice-note-1.mp3" })).toBeInTheDocument();
+    expect(audioNode).toHaveAttribute("src", "https://cdn.example.com/voice-note-1.mp3");
+    expect(container.querySelector("audio[controls]")).toBeNull();
+    expect(waveformBars.length).toBeGreaterThan(10);
     expect(container.querySelector("video")).toBeNull();
     expect(screen.queryByAltText("voice-note-1.mp3")).toBeNull();
   });
@@ -352,8 +353,10 @@ describe("MediaLibraryAllItemsGrid", () => {
     ];
 
     render(<MediaLibraryAllItemsGrid {...props} />);
+    const audioNode = document.querySelector(".reference-card-audio") as HTMLAudioElement | null;
 
-    fireEvent.loadedMetadata(screen.getByLabelText("Play audio voice-note-1.mp3"));
+    expect(audioNode).not.toBeNull();
+    fireEvent.loadedMetadata(audioNode as HTMLAudioElement);
     expect(props.onSignedUrlLoaded).toHaveBeenCalledWith("audio-1");
     expect(props.onMediaPaint).not.toHaveBeenCalled();
   });

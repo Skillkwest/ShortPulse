@@ -41,10 +41,7 @@ type UseMediaLibraryPanelSelectionControllerResult = {
   handleSelectPromptCard: (prompt: PromptRow) => void;
   handleSelectMediaFile: (file: MediaFileRow) => void;
   handleMediaCardDoubleClick: (file: MediaFileRow) => void;
-  handleMediaCardContextMenu: (
-    event: React.MouseEvent<HTMLButtonElement>,
-    file: MediaFileRow
-  ) => void;
+  handleMediaCardContextMenu: (event: React.MouseEvent<HTMLElement>, file: MediaFileRow) => void;
   closePreviewModal: () => void;
 };
 
@@ -165,7 +162,7 @@ export const useMediaLibraryPanelSelectionController = ({
   );
 
   const handleMediaCardContextMenu = React.useCallback(
-    (event: React.MouseEvent<HTMLButtonElement>, file: MediaFileRow) => {
+    (event: React.MouseEvent<HTMLElement>, file: MediaFileRow) => {
       if (!AI_STUDIO_MEDIA_LIBRARY_GESTURE_V2_ENABLED) return;
       if (activeFolderId !== MEDIA_LIBRARY_ROOT_FOLDER_ID) return;
       event.preventDefault();

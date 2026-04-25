@@ -968,68 +968,13 @@
     linear-gradient(180deg, rgba(34, 39, 46, 0.88), rgba(19, 22, 27, 0.94)), rgba(17, 20, 24, 0.96);
 }
 
-.media-library-panel .media-library-panel-audio-card-button {
-  display: block;
+.media-library-panel .media-library-panel-audio-card-shell {
+  height: 100%;
 }
 
-.media-library-panel .media-library-panel-audio-frame {
-  display: flex;
-  align-items: flex-end;
-  justify-content: flex-start;
+.media-library-panel .media-library-panel-audio-reference-card.reference-card {
+  width: 100%;
   min-height: 168px;
-  background:
-    radial-gradient(circle at top left, rgba(240, 184, 109, 0.18), transparent 52%),
-    linear-gradient(160deg, rgba(21, 25, 31, 0.98), rgba(13, 17, 23, 0.98));
-}
-
-.media-library-panel .media-library-panel-audio-placeholder {
-  position: absolute;
-  inset: 0;
-  background:
-    linear-gradient(90deg, transparent 0%, rgba(240, 184, 109, 0.08) 50%, transparent 100%),
-    repeating-linear-gradient(
-      90deg,
-      rgba(255, 255, 255, 0.02) 0 8px,
-      rgba(255, 255, 255, 0.08) 8px 10px,
-      rgba(255, 255, 255, 0.02) 10px 18px
-    );
-  opacity: 0.88;
-}
-
-.media-library-panel .media-library-panel-audio-meta {
-  position: relative;
-  z-index: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  width: 100%;
-  padding: 18px 14px 16px;
-  text-align: left;
-}
-
-.media-library-panel .media-library-panel-audio-label {
-  font-size: 0.68rem;
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: rgba(240, 184, 109, 0.82);
-}
-
-.media-library-panel .media-library-panel-audio-filename {
-  font-size: 0.84rem;
-  font-weight: 600;
-  line-height: 1.35;
-  color: rgba(243, 246, 251, 0.96);
-  word-break: break-word;
-}
-
-.media-library-panel .media-library-panel-audio-controls {
-  padding: 10px 10px 0;
-}
-
-.media-library-panel .media-library-panel-audio-controls audio {
-  width: 100%;
-  min-width: 0;
 }
 
 .media-library-panel-card-actions {

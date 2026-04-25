@@ -304,7 +304,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
     },
     [setMediaRows]
   );
-  const previewRuntime = useMediaSurfacePreviewRuntime<MediaFileRow, MediaTab, HTMLButtonElement>({
+  const previewRuntime = useMediaSurfacePreviewRuntime<MediaFileRow, MediaTab, HTMLElement>({
     activeMediaQuery: normalizedSearch,
     activeTab: activeMediaTab ?? "saved_prompts",
     firstMediaPaintEventName: "media.modal.first_media_paint",
@@ -553,7 +553,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
   });
 
   const handleMediaCardDragStart = useCallback(
-    (event: React.DragEvent<HTMLButtonElement>, file: MediaFileRow) => {
+    (event: React.DragEvent<HTMLElement>, file: MediaFileRow) => {
       const signedUrl = (file.signedUrl ?? "").trim();
       if (!signedUrl) {
         event.preventDefault();
@@ -635,7 +635,7 @@ export const MediaLibraryPanel = React.memo(function MediaLibraryPanel({
     [activeFolderId]
   );
 
-  const handleCardDragEnd = useCallback((event: React.DragEvent<HTMLButtonElement>) => {
+  const handleCardDragEnd = useCallback((event: React.DragEvent<HTMLElement>) => {
     event.currentTarget.classList.remove("is-dragging");
     clearMediaLibraryDragGhost(event);
   }, []);

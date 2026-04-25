@@ -3,8 +3,10 @@
  * Provides streamlined email/password sign-in, account creation, and recovery actions.
  */
 import Head from "next/head";
+import Image from "next/image";
+import Link from "next/link";
 import { useRouter } from "next/router";
-import { Eye, EyeSlash, LockSimple, PaperPlaneTilt, SignIn } from "phosphor-react";
+import { Eye, EyeSlash, EnvelopeSimple, LockSimple, SignIn } from "phosphor-react";
 import { useEffect, useMemo, useState } from "react";
 import type { FormEvent } from "react";
 import {
@@ -161,128 +163,158 @@ export default function AuthPage() {
         <div className="auth-overlay" />
         <div className="auth-glow auth-glow-left" />
         <div className="auth-glow auth-glow-right" />
-        <form className="auth-card" onSubmit={onSubmit}>
-          <p className="auth-kicker">ShortPulse workspace access</p>
-          <h1 className="auth-title">
-            {mode === "signin" ? "Welcome back" : "Create your account"}
-          </h1>
-          <p className="auth-subtitle">
-            {mode === "signin"
-              ? "Sign in to continue to your workspace."
-              : "Every new account starts on the Free plan automatically."}
-          </p>
-
-          <div className="auth-mode-toggle" role="tablist" aria-label="Authentication mode">
-            <button
-              type="button"
-              role="tab"
-              aria-selected={mode === "signin"}
-              className={mode === "signin" ? "active" : ""}
-              onClick={() => {
-                setMode("signin");
-                setError(null);
-                setInfo(null);
-              }}
-            >
-              Sign in
-            </button>
-            <button
-              type="button"
-              role="tab"
-              aria-selected={mode === "signup"}
-              className={mode === "signup" ? "active" : ""}
-              onClick={() => {
-                setMode("signup");
-                setError(null);
-                setInfo(null);
-              }}
-            >
-              Sign up
-            </button>
-          </div>
-
-          {mode === "signup" ? (
-            <div className="auth-plan-note" aria-live="polite">
-              <span className="auth-plan-pill">Free</span>
-              <span>Plan is set to Free at signup. You can upgrade later in Billing.</span>
+        <div className="auth-layout">
+          <form className="auth-card" onSubmit={onSubmit}>
+            <div className="auth-card-header">
+              <Link
+                href="/landing"
+                className="auth-brand"
+                aria-label="Go to ShortPulse landing page"
+              >
+                <Image
+                  src="/small good d.png"
+                  alt="ShortPulse logo"
+                  className="auth-brand-logo"
+                  width={203}
+                  height={64}
+                  style={{ height: "auto" }}
+                />
+              </Link>
+              <span className="auth-card-pill">ShortPulse workspace access</span>
+              <h1 className="auth-title">
+                {mode === "signin" ? "Welcome back" : "Create your account"}
+              </h1>
+              <p className="auth-subtitle">
+                {mode === "signin"
+                  ? "Use your email and password to continue."
+                  : "Create an account to start using ShortPulse."}
+              </p>
             </div>
-          ) : null}
 
-          <label className="auth-label" htmlFor="email">
-            Email
-          </label>
-          <div className="auth-input">
-            <PaperPlaneTilt size={18} weight="bold" />
-            <input
-              id="email"
-              type="email"
-              placeholder="you@example.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              autoComplete="email"
-              required
-            />
-          </div>
+            <div className="auth-mode-toggle" role="tablist" aria-label="Authentication mode">
+              <button
+                type="button"
+                role="tab"
+                aria-selected={mode === "signin"}
+                className={mode === "signin" ? "active" : ""}
+                onClick={() => {
+                  setMode("signin");
+                  setError(null);
+                  setInfo(null);
+                }}
+              >
+                Sign in
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={mode === "signup"}
+                className={mode === "signup" ? "active" : ""}
+                onClick={() => {
+                  setMode("signup");
+                  setError(null);
+                  setInfo(null);
+                }}
+              >
+                Sign up
+              </button>
+            </div>
 
-          <label className="auth-label" htmlFor="password">
-            Password
-          </label>
-          <div className="auth-input">
-            <LockSimple size={18} weight="bold" />
-            <input
-              id="password"
-              type={showPassword ? "text" : "password"}
-              placeholder="••••••••"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              minLength={mode === "signup" ? MIN_PASSWORD_LENGTH : 1}
-              autoComplete={mode === "signin" ? "current-password" : "new-password"}
-              required
-            />
-            <button
-              type="button"
-              className="auth-eye"
-              onClick={() => setShowPassword((v) => !v)}
-              aria-label={showPassword ? "Hide password" : "Show password"}
-            >
-              {showPassword ? (
-                <EyeSlash size={18} weight="bold" />
-              ) : (
-                <Eye size={18} weight="bold" />
-              )}
+            {mode === "signup" ? (
+              <div className="auth-plan-note" aria-live="polite">
+                <span className="auth-plan-pill">Free</span>
+                <span>Every new account starts on the Free plan.</span>
+              </div>
+            ) : null}
+
+            <div className="auth-field-stack">
+              <label className="auth-label" htmlFor="email">
+                Email
+              </label>
+              <div className="auth-input">
+                <EnvelopeSimple size={18} weight="bold" />
+                <input
+                  id="email"
+                  type="email"
+                  placeholder="you@example.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  autoComplete="email"
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="auth-field-stack">
+              <div className="auth-label-row">
+                <label className="auth-label" htmlFor="password">
+                  Password
+                </label>
+                {mode === "signin" ? (
+                  <button
+                    type="button"
+                    className="auth-forgot"
+                    onClick={onResetPassword}
+                    disabled={resettingPassword || loading}
+                  >
+                    {resettingPassword ? "Sending reset link..." : "Forgot password?"}
+                  </button>
+                ) : null}
+              </div>
+              <div className="auth-input">
+                <LockSimple size={18} weight="bold" />
+                <input
+                  id="password"
+                  type={showPassword ? "text" : "password"}
+                  placeholder="••••••••"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  minLength={mode === "signup" ? MIN_PASSWORD_LENGTH : 1}
+                  autoComplete={mode === "signin" ? "current-password" : "new-password"}
+                  required
+                />
+                <button
+                  type="button"
+                  className="auth-eye"
+                  onClick={() => setShowPassword((v) => !v)}
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                >
+                  {showPassword ? (
+                    <EyeSlash size={18} weight="bold" />
+                  ) : (
+                    <Eye size={18} weight="bold" />
+                  )}
+                </button>
+              </div>
+            </div>
+
+            {error ? <div className="auth-error">{error}</div> : null}
+            {info ? <div className="auth-info">{info}</div> : null}
+
+            <button className="auth-submit primary-btn" type="submit" disabled={isSubmitDisabled}>
+              <SignIn size={18} weight="bold" />
+              {loading ? "Please wait..." : mode === "signin" ? "Sign in" : "Create free account"}
             </button>
-          </div>
 
-          {mode === "signin" ? (
-            <button
-              type="button"
-              className="auth-forgot"
-              onClick={onResetPassword}
-              disabled={resettingPassword || loading}
-            >
-              {resettingPassword ? "Sending reset link..." : "Forgot password?"}
-            </button>
-          ) : null}
-
-          {error ? <div className="auth-error">{error}</div> : null}
-          {info ? <div className="auth-info">{info}</div> : null}
-
-          <button className="auth-submit" type="submit" disabled={isSubmitDisabled}>
-            <SignIn size={18} weight="bold" />
-            {loading ? "Please wait..." : mode === "signin" ? "Sign in" : "Create free account"}
-          </button>
-
-          <div className="auth-divider" />
-          <p className="auth-switch">
-            {mode === "signin" ? "Don't have an account?" : "Already have an account?"}{" "}
-            <button type="button" onClick={() => setMode(mode === "signin" ? "signup" : "signin")}>
-              {mode === "signin" ? "Sign up" : "Sign in"}
-            </button>
-          </p>
-          <p className="auth-footnote">
-            By continuing, you agree to use ShortPulse under your workspace account.
-          </p>
-        </form>
+            <div className="auth-divider" />
+            <p className="auth-switch">
+              {mode === "signin" ? "Don't have an account?" : "Already have an account?"}{" "}
+              <button
+                type="button"
+                onClick={() => {
+                  setMode(mode === "signin" ? "signup" : "signin");
+                  setError(null);
+                  setInfo(null);
+                }}
+              >
+                {mode === "signin" ? "Sign up" : "Sign in"}
+              </button>
+            </p>
+            <p className="auth-footnote">
+              By continuing, you agree to use ShortPulse under your workspace account.
+            </p>
+          </form>
+        </div>
       </main>
     </>
   );

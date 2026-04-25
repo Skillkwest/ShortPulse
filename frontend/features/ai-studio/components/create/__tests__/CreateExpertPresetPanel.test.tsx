@@ -259,6 +259,33 @@ describe("CreateExpertPresetPanel", () => {
     expect(screen.getAllByText("Pulses").length).toBeGreaterThan(0);
   });
 
+  it("shows built-in and custom ownership badges in the More Pulses activation surface", () => {
+    render(
+      <CreateExpertPresetPanel
+        savedPresets={[
+          {
+            presetId: "custom_storyboard",
+            label: "Storyboard",
+            description: null,
+            systemInstructions: "Build a storyboard-ready pulse sequence.",
+            runtimeMode: "workflow_gpt",
+            activationMode: "activate_and_start",
+            starterAssistantMessage: null,
+            outputMode: "chat_reply",
+            memoryPolicy: "session",
+            createdAt: null,
+          },
+        ]}
+        onSavedPresetsChange={vi.fn()}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "More Pulses" }));
+
+    expect(screen.getAllByText("Built-in").length).toBeGreaterThan(0);
+    expect(screen.getByText("Custom")).toBeInTheDocument();
+  });
+
   it("composes workflow instructions from structured fields in the Pulses editor", () => {
     render(<CreateExpertPresetPanel savedPresets={[]} onSavedPresetsChange={vi.fn()} />);
 

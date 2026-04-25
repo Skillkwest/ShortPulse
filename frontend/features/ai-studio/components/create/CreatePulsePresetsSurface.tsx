@@ -306,17 +306,21 @@ export const CreatePulsePresetsSurface = ({
                 onDragEnd={onPresetDragEnd}
               >
                 <span className="create-expert-presets-chip-label">{preset.label}</span>
-                {activePresetId === preset.presetId ||
-                selectedPresetIds.includes(preset.presetId) ? (
-                  <span className="create-expert-presets-chip-meta" aria-hidden="true">
-                    {activePresetId === preset.presetId ? (
-                      <span className="create-expert-presets-chip-badge is-active">Active</span>
-                    ) : null}
-                    {selectedPresetIds.includes(preset.presetId) ? (
-                      <span className="create-expert-presets-chip-badge">Pinned</span>
-                    ) : null}
+                <span className="create-expert-presets-chip-meta" aria-hidden="true">
+                  <span
+                    className={`create-expert-presets-chip-badge create-expert-presets-chip-badge--ownership ${
+                      preset.isBuiltIn ? "is-built-in" : "is-custom"
+                    }`.trim()}
+                  >
+                    {preset.isBuiltIn ? "Built-in" : "Custom"}
                   </span>
-                ) : null}
+                  {activePresetId === preset.presetId ? (
+                    <span className="create-expert-presets-chip-badge is-active">Active</span>
+                  ) : null}
+                  {selectedPresetIds.includes(preset.presetId) ? (
+                    <span className="create-expert-presets-chip-badge">Pinned</span>
+                  ) : null}
+                </span>
               </button>
               {preset.isEditable ? (
                 <button

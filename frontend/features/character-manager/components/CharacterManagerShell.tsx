@@ -1466,10 +1466,10 @@ export function CharacterManagerShell({
         >
           <div className="modal-card character-delete-confirm-card">
             <h3 id="delete-character-sheet-preset-title">
-              Delete preset &ldquo;{deleteTargetCharacterSheetPresetLabel}&rdquo;?
+              Delete look &ldquo;{deleteTargetCharacterSheetPresetLabel}&rdquo;?
             </h3>
             <p className="subdued tiny character-delete-confirm-copy">
-              This will permanently remove saved references from preset{" "}
+              This will permanently remove the saved references from look{" "}
               <strong>{deleteTargetCharacterSheetPresetLabel}</strong>. This action cannot be
               undone.
             </p>

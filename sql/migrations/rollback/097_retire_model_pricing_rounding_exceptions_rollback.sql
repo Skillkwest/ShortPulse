@@ -1,0 +1,4 @@
+-- No automated rollback.
+-- This data migration removes the deprecated exceptionRoundingModelIds field from
+-- stored model-pricing policy documents and converts those legacy exception ids into
+-- standard per-model roundingIncrement=1 overrides.

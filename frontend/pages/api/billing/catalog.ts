@@ -10,6 +10,7 @@ import { getSupabaseAdmin } from "../../../lib/server/api/supabaseAdmin";
 type BillingPlanResponse = {
   id: string;
   display_name: string;
+  sort_order: number;
   monthly_price_cents: number;
   monthly_credits_cents: number;
   storage_limit_bytes: number;
@@ -36,6 +37,7 @@ type BillingPlanMetadataRow = {
   id: string;
   display_name: string;
   is_active: boolean;
+  sort_order: number;
 };
 
 type BillingPlanOfferRow = {
@@ -68,6 +70,54 @@ type BillingStorageAddonOfferRow = {
   created_at: string;
 };
 
+const isSchemaDriftError = (error: { message?: string; code?: string } | null | undefined) => {
+  if (!error) return false;
+  const code = String(error.code ?? "").toUpperCase();
+  const message = String(error.message ?? "");
+  return (
+    code === "42703" ||
+    code === "42P01" ||
+    code === "PGRST204" ||
+    message.includes("does not exist") ||
+    message.includes("schema cache")
+  );
+};
+
+const loadBillingPlanMetadataRows = async (supabaseAdmin: ReturnType<typeof getSupabaseAdmin>) => {
+  const withSortOrder = await supabaseAdmin
+    .from("billing_plans")
+    .select("id, display_name, is_active, sort_order")
+    .eq("is_active", true);
+
+  if (!withSortOrder.error) {
+    return withSortOrder.data as BillingPlanMetadataRow[];
+  }
+
+  if (!isSchemaDriftError(withSortOrder.error)) {
+    throw new Error(withSortOrder.error.message || "Unable to load billing plan metadata.");
+  }
+
+  const fallback = await supabaseAdmin
+    .from("billing_plans")
+    .select("id, display_name, is_active")
+    .eq("is_active", true);
+
+  if (fallback.error) {
+    throw new Error(fallback.error.message || "Unable to load billing plan metadata.");
+  }
+
+  return (
+    (fallback.data ?? []) as Array<{
+      id: string;
+      display_name: string;
+      is_active: boolean;
+    }>
+  ).map((row, index) => ({
+    ...row,
+    sort_order: index * 10,
+  }));
+};
+
 const compareOfferRecency = <T extends { effective_start_at: string | null; created_at: string }>(
   a: T,
   b: T
@@ -90,16 +140,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   try {
     const supabaseAdmin = getSupabaseAdmin();
     const [
-      planMetadataResult,
+      planMetadataRows,
       planOffersResult,
       packagesResult,
       storageAddonMetadataResult,
       storageAddonOffersResult,
     ] = await Promise.all([
-      supabaseAdmin
-        .from("billing_plans")
-        .select("id, display_name, is_active")
-        .eq("is_active", true),
+      loadBillingPlanMetadataRows(supabaseAdmin),
       supabaseAdmin
         .from("billing_plan_offers")
         .select(
@@ -132,14 +179,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     ]);
 
     if (
-      planMetadataResult.error ||
       planOffersResult.error ||
       packagesResult.error ||
       storageAddonMetadataResult.error ||
       storageAddonOffersResult.error
     ) {
       const detail = [
-        planMetadataResult.error?.message,
         planOffersResult.error?.message,
         packagesResult.error?.message,
         storageAddonMetadataResult.error?.message,
@@ -151,7 +196,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     const planMetadata = new Map<string, BillingPlanMetadataRow>(
-      ((planMetadataResult.data ?? []) as BillingPlanMetadataRow[]).map((row) => [row.id, row])
+      (planMetadataRows ?? []).map((row) => [row.id, row])
     );
     const latestPlanOfferByPlanId = new Map<string, BillingPlanOfferRow>();
     for (const offer of ((planOffersResult.data ?? []) as BillingPlanOfferRow[]).sort(
@@ -168,6 +213,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         return {
           id: offer.plan_id,
           display_name: metadata.display_name,
+          sort_order: Number(metadata.sort_order ?? 0),
           monthly_price_cents: offer.recurring_price_cents,
           monthly_credits_cents: offer.monthly_credits_cents,
           storage_limit_bytes: offer.storage_limit_bytes,
@@ -175,7 +221,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         } satisfies BillingPlanResponse;
       })
       .filter((row): row is BillingPlanResponse => row !== null)
-      .sort((a, b) => a.monthly_price_cents - b.monthly_price_cents);
+      .sort((a, b) => {
+        if (a.sort_order === b.sort_order) {
+          return a.monthly_price_cents - b.monthly_price_cents;
+        }
+        return a.sort_order - b.sort_order;
+      });
 
     const storageAddonMetadata = new Map<string, BillingStorageAddonMetadataRow>(
       ((storageAddonMetadataResult.data ?? []) as BillingStorageAddonMetadataRow[]).map((row) => [

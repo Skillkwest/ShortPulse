@@ -40,27 +40,6 @@ const WINDOW_OPTIONS: Array<{ key: CountWindowKey; label: string }> = [
   { key: "last7d", label: "7d" },
 ];
 
-const TOOLBAR_STYLE: React.CSSProperties = {
-  display: "flex",
-  alignItems: "center",
-  gap: 10,
-  flexWrap: "wrap",
-};
-
-const SEGMENTED_CONTROL_STYLE: React.CSSProperties = {
-  display: "inline-flex",
-  alignItems: "center",
-  gap: 4,
-  padding: 4,
-  borderRadius: 999,
-  border: "1px solid var(--admin-border-soft)",
-  background: "var(--admin-surface-2)",
-};
-
-const TABLE_SCROLL_STYLE: React.CSSProperties = {
-  overflowX: "auto",
-};
-
 const TABLE_WIDE_STYLE: React.CSSProperties = {
   minWidth: 900,
 };
@@ -85,6 +64,10 @@ const formatCountWindowValue = (
 
 const formatCountWindowMeta = (window: AdminStatsCountWindow): string =>
   `All ${formatCount(window.total)} • 24h ${formatCount(window.last24h)} • 7d ${formatCount(window.last7d)}`;
+const segmentedButtonClassName = (active: boolean) =>
+  active
+    ? `${styles.adminSegmentedButton} ${styles.adminSegmentedButtonActive}`
+    : styles.adminSegmentedButton;
 
 const formatSuccessRate = (successful: number, total: number): string => {
   if (total <= 0) return "—";
@@ -101,6 +84,15 @@ const humanizeKey = (value: string): string =>
 const formatHealthSource = (value: string): string =>
   value === "rpc" ? "RPC" : value === "legacy_fallback" ? "Legacy fallback" : "Unavailable";
 
+const formatStatsErrorSummary = (value: string | null): string => {
+  if (!value) return "Stats data is temporarily unavailable.";
+  const normalized = value.trim();
+  if (normalized.toLowerCase().includes("failed to load")) {
+    return "Stats data is temporarily unavailable.";
+  }
+  return "Some stats sources failed to load.";
+};
+
 const MetricCard = ({ label, value, meta }: { label: string; value: string; meta: string }) => (
   <article className={styles.adminCard}>
     <div className={styles.adminCardTop}>
@@ -111,6 +103,21 @@ const MetricCard = ({ label, value, meta }: { label: string; value: string; meta
   </article>
 );
 
+const TableShell = ({ children }: { children: React.ReactNode }) => (
+  <div className={styles.adminTableShell}>
+    <div className={styles.adminTableScroller}>{children}</div>
+  </div>
+);
+
+const EmptyTableRow = ({ message }: { message: string }) => (
+  <div
+    className={`${styles.adminTableRow} ${styles.adminTableEmptyRow}`}
+    style={{ gridTemplateColumns: "minmax(0, 1fr)" }}
+  >
+    <span>{message}</span>
+  </div>
+);
+
 const ModelsTable = ({
   rows,
   selectedWindow,
@@ -118,7 +125,7 @@ const ModelsTable = ({
   rows: AdminGlobalModelUsageRow[];
   selectedWindow: CountWindowKey;
 }) => (
-  <div style={TABLE_SCROLL_STYLE}>
+  <TableShell>
     <div className={styles.adminTable} style={TABLE_WIDE_STYLE}>
       <div
         className={styles.adminTableHead}
@@ -189,12 +196,10 @@ const ModelsTable = ({
           );
         })
       ) : (
-        <div className={styles.adminTableRow}>
-          <span>No model usage stats are available yet.</span>
-        </div>
+        <EmptyTableRow message="No model usage stats are available yet." />
       )}
     </div>
-  </div>
+  </TableShell>
 );
 
 const WorkflowToolTable = ({
@@ -204,7 +209,7 @@ const WorkflowToolTable = ({
   rows: AdminWorkflowToolUsageRow[];
   selectedWindow: CountWindowKey;
 }) => (
-  <div style={TABLE_SCROLL_STYLE}>
+  <TableShell>
     <div className={styles.adminTable} style={TABLE_WIDE_STYLE}>
       <div
         className={styles.adminTableHead}
@@ -244,12 +249,10 @@ const WorkflowToolTable = ({
           </div>
         ))
       ) : (
-        <div className={styles.adminTableRow}>
-          <span>No workflow click stats are available yet.</span>
-        </div>
+        <EmptyTableRow message="No workflow click stats are available yet." />
       )}
     </div>
-  </div>
+  </TableShell>
 );
 
 const WorkflowModeTable = ({
@@ -259,7 +262,7 @@ const WorkflowModeTable = ({
   rows: AdminWorkflowModeUsageRow[];
   selectedWindow: CountWindowKey;
 }) => (
-  <div style={TABLE_SCROLL_STYLE}>
+  <TableShell>
     <div className={styles.adminTable} style={TABLE_WIDE_STYLE}>
       <div
         className={styles.adminTableHead}
@@ -308,12 +311,10 @@ const WorkflowModeTable = ({
           );
         })
       ) : (
-        <div className={styles.adminTableRow}>
-          <span>No workflow mode stats are available yet.</span>
-        </div>
+        <EmptyTableRow message="No workflow mode stats are available yet." />
       )}
     </div>
-  </div>
+  </TableShell>
 );
 
 const AssetEventsTable = ({
@@ -323,7 +324,7 @@ const AssetEventsTable = ({
   rows: AdminAssetEventUsageRow[];
   selectedWindow: CountWindowKey;
 }) => (
-  <div style={TABLE_SCROLL_STYLE}>
+  <TableShell>
     <div className={styles.adminTable} style={TABLE_MEDIUM_STYLE}>
       <div
         className={styles.adminTableHead}
@@ -355,12 +356,10 @@ const AssetEventsTable = ({
           </div>
         ))
       ) : (
-        <div className={styles.adminTableRow}>
-          <span>No media asset event stats are available yet.</span>
-        </div>
+        <EmptyTableRow message="No media asset event stats are available yet." />
       )}
     </div>
-  </div>
+  </TableShell>
 );
 
 const ProjectLeaderboardTable = ({
@@ -370,7 +369,7 @@ const ProjectLeaderboardTable = ({
   rows: AdminProjectLeaderboardRow[];
   selectedWindow: CountWindowKey;
 }) => (
-  <div style={TABLE_SCROLL_STYLE}>
+  <TableShell>
     <div className={styles.adminTable} style={TABLE_WIDE_STYLE}>
       <div
         className={styles.adminTableHead}
@@ -424,12 +423,10 @@ const ProjectLeaderboardTable = ({
           </div>
         ))
       ) : (
-        <div className={styles.adminTableRow}>
-          <span>No project leaderboard stats are available yet.</span>
-        </div>
+        <EmptyTableRow message="No project leaderboard stats are available yet." />
       )}
     </div>
-  </div>
+  </TableShell>
 );
 
 /**
@@ -456,31 +453,22 @@ export function AdminGlobalStatsPanel({
       <section className={styles.adminSection}>
         <div className={styles.adminSectionHead}>
           <div>
-            <h2 className={styles.adminSectionTitle}>Stats workspace</h2>
+            <p className={styles.adminSectionEyebrow}>Product health</p>
+            <h2 className={styles.adminSectionTitle}>Product signal health</h2>
             <p className={styles.adminSubtext}>
-              This v1 pass tracks explicit generate intent, accepted runs, workflow context, saved
-              assets, and project-attached work without inventing a parallel analytics stack.
+              Monitor the live contract powering model, workflow, asset, and project analytics for
+              this workspace.
             </p>
           </div>
-          <div style={TOOLBAR_STYLE}>
-            <div style={SEGMENTED_CONTROL_STYLE} aria-label="Time window">
+          <div className={styles.adminToolbar}>
+            <div className={styles.adminSegmentedControl} aria-label="Time window">
               {WINDOW_OPTIONS.map((option) => {
                 const isActive = selectedWindow === option.key;
                 return (
                   <button
                     key={option.key}
                     type="button"
-                    style={{
-                      border: 0,
-                      borderRadius: 999,
-                      padding: "6px 12px",
-                      background: isActive ? "var(--admin-surface-3)" : "transparent",
-                      color: isActive ? "var(--admin-text-strong)" : "var(--admin-text-muted)",
-                      font: "inherit",
-                      fontSize: 12,
-                      fontWeight: 700,
-                      cursor: "pointer",
-                    }}
+                    className={segmentedButtonClassName(isActive)}
                     onClick={() => setSelectedWindow(option.key)}
                     aria-pressed={isActive}
                   >
@@ -498,7 +486,16 @@ export function AdminGlobalStatsPanel({
         {generatedAt ? (
           <p className={styles.adminSubtext}>Snapshot generated {formatDateTime(generatedAt)}</p>
         ) : null}
-        {error ? <p className={styles.adminSubtext}>{error}</p> : null}
+        {error ? (
+          <div className={styles.adminWarningPanel} role="status" aria-live="polite">
+            <p className={styles.adminWarningTitle}>{formatStatsErrorSummary(error)}</p>
+            <p className={styles.adminWarningDescription}>
+              The stats workspace has fallen back to safe empty values until the next refresh
+              succeeds.
+            </p>
+            <p className={styles.adminWarningMeta}>{error}</p>
+          </div>
+        ) : null}
 
         <section className={styles.adminGrid} aria-label="Stats data health">
           <MetricCard
@@ -528,6 +525,7 @@ export function AdminGlobalStatsPanel({
       <section className={styles.adminSection}>
         <div className={styles.adminSectionHead}>
           <div>
+            <p className={styles.adminSectionEyebrow}>Core metrics</p>
             <h2 className={styles.adminSectionTitle}>Overview</h2>
             <p className={styles.adminSubtext}>
               Global usage totals show demand, conversion, and retained value for the current
@@ -595,6 +593,7 @@ export function AdminGlobalStatsPanel({
       <section className={styles.adminSection}>
         <div className={styles.adminSectionHead}>
           <div>
+            <p className={styles.adminSectionEyebrow}>Model mix</p>
             <h2 className={styles.adminSectionTitle}>Models</h2>
             <p className={styles.adminSubtext}>
               Per-model demand and value retention combine explicit generate clicks with
@@ -608,6 +607,7 @@ export function AdminGlobalStatsPanel({
       <section className={styles.adminSection}>
         <div className={styles.adminSectionHead}>
           <div>
+            <p className={styles.adminSectionEyebrow}>Workflow depth</p>
             <h2 className={styles.adminSectionTitle}>Workflows</h2>
             <p className={styles.adminSubtext}>
               Workflow analytics use generate-click telemetry for intent and `generation_projection`
@@ -689,6 +689,7 @@ export function AdminGlobalStatsPanel({
       <section className={styles.adminSection}>
         <div className={styles.adminSectionHead}>
           <div>
+            <p className={styles.adminSectionEyebrow}>Retained outputs</p>
             <h2 className={styles.adminSectionTitle}>Assets</h2>
             <p className={styles.adminSubtext}>
               Media event metrics are best for behavioral insight, not audit-grade truth, because
@@ -716,6 +717,7 @@ export function AdminGlobalStatsPanel({
       <section className={styles.adminSection}>
         <div className={styles.adminSectionHead}>
           <div>
+            <p className={styles.adminSectionEyebrow}>Serious work</p>
             <h2 className={styles.adminSectionTitle}>Projects</h2>
             <p className={styles.adminSubtext}>
               Project association tables show whether generated work is making it into durable,

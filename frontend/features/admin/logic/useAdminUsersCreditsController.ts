@@ -51,8 +51,6 @@ type UseAdminUsersCreditsControllerResult = {
   adjustment: string;
   adjustSubmitting: boolean;
   adjustResult: string | null;
-  internalCompPlan: string;
-  internalCompReason: string;
   allowStripeTakeover: boolean;
   billingOverrideSubmitting: boolean;
   billingOverrideResult: string | null;
@@ -78,13 +76,11 @@ type UseAdminUsersCreditsControllerResult = {
   handlePreviousUsersPage: () => void;
   handleNextUsersPage: () => void;
   handleAdjustmentChange: (value: string) => void;
-  handleInternalCompPlanChange: (value: string) => void;
-  handleInternalCompReasonChange: (value: string) => void;
   handleAllowStripeTakeoverChange: (value: boolean) => void;
   applyAdjustmentPreset: (delta: number) => void;
   handleCreditAdjust: () => Promise<void>;
-  handleGrantInternalComp: () => Promise<void>;
-  handleRevokeInternalComp: () => Promise<void>;
+  handleGrantInternalComp: () => Promise<boolean>;
+  handleRevokeInternalComp: () => Promise<boolean>;
   handleOpenSelectedUserBilling: () => Promise<void>;
   handleDeleteUser: (params: { userId: string; confirmationText: string }) => Promise<boolean>;
   clearDeleteResult: () => void;
@@ -117,7 +113,6 @@ export const useAdminUsersCreditsController = ({
   const [adjustSubmitting, setAdjustSubmitting] = React.useState(false);
   const [adjustResult, setAdjustResult] = React.useState<string | null>(null);
   const [internalCompPlan, setInternalCompPlan] = React.useState<string>("business");
-  const [internalCompReason, setInternalCompReason] = React.useState<string>("");
   const [allowStripeTakeover, setAllowStripeTakeover] = React.useState(false);
   const [billingOverrideSubmitting, setBillingOverrideSubmitting] = React.useState(false);
   const [billingOverrideResult, setBillingOverrideResult] = React.useState<string | null>(null);
@@ -333,7 +328,6 @@ export const useAdminUsersCreditsController = ({
   React.useEffect(() => {
     if (!selectedUserId) {
       setInternalCompPlan("business");
-      setInternalCompReason("");
       return;
     }
     const selectedUser = users.find((row) => row.id === selectedUserId) ?? null;
@@ -344,7 +338,6 @@ export const useAdminUsersCreditsController = ({
         ? selectedUser.planId
         : "business";
     setInternalCompPlan(nextPlanId);
-    setInternalCompReason("");
   }, [selectedUserId, users]);
 
   React.useEffect(() => {
@@ -388,7 +381,7 @@ export const useAdminUsersCreditsController = ({
   const handleGrantInternalComp = React.useCallback(async () => {
     if (!selectedUserId) {
       setBillingOverrideResult("Select an account before saving payment-exempt access.");
-      return;
+      return false;
     }
     if (
       internalCompPlan !== "media" &&
@@ -396,7 +389,7 @@ export const useAdminUsersCreditsController = ({
       internalCompPlan !== "business"
     ) {
       setBillingOverrideResult("Choose Media, Studio, or Business before saving access.");
-      return;
+      return false;
     }
 
     setBillingOverrideSubmitting(true);
@@ -409,7 +402,6 @@ export const useAdminUsersCreditsController = ({
           userId: selectedUserId,
           action: "grant_internal_comp",
           planId: internalCompPlan,
-          grantReason: internalCompReason,
           allowStripeTakeover,
         }),
       });
@@ -427,17 +419,18 @@ export const useAdminUsersCreditsController = ({
           : "Payment-exempt access saved."
       );
       await Promise.all([loadUsers(), loadBillingDiagnostics(), loadCreditLedger()]);
+      return true;
     } catch (error) {
       setBillingOverrideResult(
         error instanceof Error ? error.message : "Payment-exempt access update failed."
       );
+      return false;
     } finally {
       setBillingOverrideSubmitting(false);
     }
   }, [
     allowStripeTakeover,
     internalCompPlan,
-    internalCompReason,
     loadBillingDiagnostics,
     loadCreditLedger,
     loadUsers,
@@ -447,7 +440,7 @@ export const useAdminUsersCreditsController = ({
   const handleRevokeInternalComp = React.useCallback(async () => {
     if (!selectedUserId) {
       setBillingOverrideResult("Select an account before removing payment-exempt access.");
-      return;
+      return false;
     }
 
     setBillingOverrideSubmitting(true);
@@ -467,10 +460,12 @@ export const useAdminUsersCreditsController = ({
       }
       setBillingOverrideResult("Payment-exempt access removed and the account was set to Free.");
       await Promise.all([loadUsers(), loadBillingDiagnostics(), loadCreditLedger()]);
+      return true;
     } catch (error) {
       setBillingOverrideResult(
         error instanceof Error ? error.message : "Payment-exempt access removal failed."
       );
+      return false;
     } finally {
       setBillingOverrideSubmitting(false);
     }
@@ -605,14 +600,6 @@ export const useAdminUsersCreditsController = ({
     setAdjustment(sanitizeSignedIntegerInput(value));
   }, []);
 
-  const handleInternalCompPlanChange = React.useCallback((value: string) => {
-    setInternalCompPlan(value);
-  }, []);
-
-  const handleInternalCompReasonChange = React.useCallback((value: string) => {
-    setInternalCompReason(value);
-  }, []);
-
   const handleAllowStripeTakeoverChange = React.useCallback((value: boolean) => {
     setAllowStripeTakeover(value);
   }, []);
@@ -635,8 +622,6 @@ export const useAdminUsersCreditsController = ({
     adjustment,
     adjustSubmitting,
     adjustResult,
-    internalCompPlan,
-    internalCompReason,
     allowStripeTakeover,
     billingOverrideSubmitting,
     billingOverrideResult,
@@ -662,8 +647,6 @@ export const useAdminUsersCreditsController = ({
     handlePreviousUsersPage,
     handleNextUsersPage,
     handleAdjustmentChange,
-    handleInternalCompPlanChange,
-    handleInternalCompReasonChange,
     handleAllowStripeTakeoverChange,
     applyAdjustmentPreset,
     handleCreditAdjust,

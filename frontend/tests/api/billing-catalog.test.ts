@@ -50,11 +50,13 @@ describe("GET /api/billing/catalog", () => {
                     id: "free",
                     display_name: "Free",
                     is_active: true,
+                    sort_order: 0,
                   },
                   {
                     id: "studio",
                     display_name: "Studio",
                     is_active: true,
+                    sort_order: 20,
                   },
                 ],
                 error: null,
@@ -189,6 +191,7 @@ describe("GET /api/billing/catalog", () => {
         {
           id: "free",
           display_name: "Free",
+          sort_order: 0,
           monthly_price_cents: 0,
           monthly_credits_cents: 100,
           storage_limit_bytes: 1073741824,
@@ -197,6 +200,7 @@ describe("GET /api/billing/catalog", () => {
         {
           id: "studio",
           display_name: "Studio",
+          sort_order: 20,
           monthly_price_cents: 3900,
           monthly_credits_cents: 3000,
           storage_limit_bytes: 107374182400,

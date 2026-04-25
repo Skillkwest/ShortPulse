@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import updateCreditPackageHandler from "../../pages/api/admin/pricing/credit-packages/update";
+import createPlanHandler from "../../pages/api/admin/pricing/plans/create";
 import createPlanOfferHandler from "../../pages/api/admin/pricing/plan-offers/create";
 import createStorageOfferHandler from "../../pages/api/admin/pricing/storage-offers/create";
 
@@ -24,6 +25,12 @@ vi.mock("../../lib/server/api/billingContracts", () => ({
   isUniqueViolationError: (...args: unknown[]) => isUniqueViolationErrorMock(...args),
 }));
 
+const stripePostFormMock = vi.fn();
+
+vi.mock("../../lib/server/api/stripe", () => ({
+  stripePostForm: (...args: unknown[]) => stripePostFormMock(...args),
+}));
+
 const createMockResponse = () => ({
   setHeader: vi.fn(),
   status: vi.fn().mockReturnThis(),
@@ -35,6 +42,7 @@ describe("admin pricing mutation routes", () => {
     vi.clearAllMocks();
     requireAdminUserMock.mockResolvedValue({ id: "admin-1", email: "admin@example.com" });
     isUniqueViolationErrorMock.mockReturnValue(false);
+    stripePostFormMock.mockReset();
   });
 
   it("updates a credit package", async () => {
@@ -171,6 +179,103 @@ describe("admin pricing mutation routes", () => {
         ok: true,
         message: "Plan offer created and activated.",
         id: expect.any(String),
+      })
+    );
+  });
+
+  it("creates a new plan with initial offer and Stripe linkage", async () => {
+    const insertPlan = vi.fn().mockResolvedValue({ error: null });
+    const insertOffer = vi.fn().mockResolvedValue({ error: null });
+
+    stripePostFormMock
+      .mockResolvedValueOnce({ id: "prod_plan_creator" })
+      .mockResolvedValueOnce({ id: "price_plan_creator" });
+
+    getSupabaseAdminMock.mockReturnValue({
+      from: (table: string) => {
+        if (table === "billing_plans") {
+          return {
+            select: () => ({
+              or: () => ({
+                limit: () => ({
+                  maybeSingle: async () => ({
+                    data: null,
+                    error: null,
+                  }),
+                }),
+              }),
+            }),
+            insert: insertPlan,
+          };
+        }
+
+        if (table === "billing_plan_offers") {
+          return {
+            insert: insertOffer,
+          };
+        }
+
+        throw new Error(`Unexpected table ${table}`);
+      },
+    });
+
+    const req = {
+      method: "POST",
+      body: {
+        planId: "creator",
+        displayName: "Creator",
+        recurringPriceCents: 5900,
+        monthlyCreditsCents: 4500,
+        storageLimitBytes: 214748364800,
+        sortOrder: 40,
+      },
+    };
+    const res = createMockResponse();
+
+    await createPlanHandler(req as never, res as never);
+
+    expect(stripePostFormMock).toHaveBeenNthCalledWith(
+      1,
+      "/products",
+      expect.objectContaining({
+        name: "Plan - Creator",
+        "metadata[shortpulse_plan_id]": "creator",
+      })
+    );
+    expect(stripePostFormMock).toHaveBeenNthCalledWith(
+      2,
+      "/prices",
+      expect.objectContaining({
+        product: "prod_plan_creator",
+        unit_amount: 5900,
+        "recurring[interval]": "month",
+      })
+    );
+    expect(insertPlan).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: "creator",
+        display_name: "Creator",
+        sort_order: 40,
+        stripe_product_id: "prod_plan_creator",
+        stripe_price_id: "price_plan_creator",
+      })
+    );
+    expect(insertOffer).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: "creator__current",
+        plan_id: "creator",
+        offer_name: "Creator Current Offer",
+        stripe_price_id: "price_plan_creator",
+      })
+    );
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        ok: true,
+        planId: "creator",
+        offerId: "creator__current",
+        stripeProductId: "prod_plan_creator",
+        stripePriceId: "price_plan_creator",
       })
     );
   });

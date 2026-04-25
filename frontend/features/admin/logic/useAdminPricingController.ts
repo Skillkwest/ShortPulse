@@ -54,7 +54,6 @@ export const useAdminPricingController = ({
 
         setPricingState(payload as AdminPricingStateResponse);
       } catch (error) {
-        setPricingState(null);
         setPricingError(error instanceof Error ? error.message : "Failed to load pricing state.");
       } finally {
         setPricingLoading(false);

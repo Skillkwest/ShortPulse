@@ -17,8 +17,12 @@ import {
   computeCostForModel,
   listModelConfigs,
 } from "../../../../lib/model-runtime/pricing";
-import { getModelPricingPolicySnapshot } from "../../../../lib/model-runtime/pricingPolicy";
-import { resolveModelCreditRoundingMode } from "../../../../lib/model-runtime/pricingCredits";
+import { getAdminModelWorkflowType } from "../../../../lib/model-runtime/modelWorkflowType";
+import { getAdminPricingStrategyLabel } from "../../../../lib/model-runtime/modelPricingStrategyLabel";
+import {
+  getModelPricingPolicySnapshot,
+  resolveModelPricingForModel,
+} from "../../../../lib/model-runtime/pricingPolicy";
 import { logApiRouteException } from "../../../../lib/server/api/appErrorLogs";
 import { requireAdminUser } from "../../../../lib/server/api/auth";
 import { resolveRuntimeModelPricingPolicy } from "../../../../lib/server/api/modelPricingControlPlane";
@@ -28,6 +32,12 @@ type BillingPlanMetadataRow = {
   id: string;
   display_name: string;
   is_active: boolean;
+  monthly_price_cents: number;
+  monthly_credits_cents: number;
+  storage_limit_bytes: number;
+  stripe_price_id: string | null;
+  sort_order: number;
+  stripe_product_id: string | null;
 };
 
 type BillingPlanOfferRow = {
@@ -41,6 +51,17 @@ type BillingPlanOfferRow = {
   is_active: boolean;
   effective_start_at: string | null;
   created_at: string;
+};
+
+type BillingSubscriptionContractCountRow = {
+  user_id: string;
+  plan_id: string;
+  recurring_price_cents: number;
+};
+
+type BillingProfileCountRow = {
+  user_id: string;
+  plan_id: string | null;
 };
 
 type BillingCreditPackageRow = {
@@ -70,6 +91,61 @@ type BillingStorageAddonOfferRow = {
   is_active: boolean;
   effective_start_at: string | null;
   created_at: string;
+};
+
+const isSchemaDriftError = (error: { message?: string; code?: string } | null | undefined) => {
+  if (!error) return false;
+  const code = String(error.code ?? "").toUpperCase();
+  const message = String(error.message ?? "");
+  return (
+    code === "42703" ||
+    code === "42P01" ||
+    code === "PGRST204" ||
+    message.includes("does not exist") ||
+    message.includes("schema cache")
+  );
+};
+
+const loadBillingPlanMetadataRows = async (supabaseAdmin: ReturnType<typeof getSupabaseAdmin>) => {
+  const withNewFields = await supabaseAdmin
+    .from("billing_plans")
+    .select(
+      "id, display_name, is_active, monthly_price_cents, monthly_credits_cents, storage_limit_bytes, stripe_price_id, sort_order, stripe_product_id"
+    );
+
+  if (!withNewFields.error) {
+    return withNewFields.data as BillingPlanMetadataRow[];
+  }
+
+  if (!isSchemaDriftError(withNewFields.error)) {
+    throw new Error(withNewFields.error.message || "Unable to load billing plan metadata.");
+  }
+
+  const fallback = await supabaseAdmin
+    .from("billing_plans")
+    .select(
+      "id, display_name, is_active, monthly_price_cents, monthly_credits_cents, storage_limit_bytes, stripe_price_id"
+    );
+
+  if (fallback.error) {
+    throw new Error(fallback.error.message || "Unable to load billing plan metadata.");
+  }
+
+  return (
+    (fallback.data ?? []) as Array<{
+      id: string;
+      display_name: string;
+      is_active: boolean;
+      monthly_price_cents: number;
+      monthly_credits_cents: number;
+      storage_limit_bytes: number;
+      stripe_price_id: string | null;
+    }>
+  ).map((row, index) => ({
+    ...row,
+    sort_order: index * 10,
+    stripe_product_id: null,
+  }));
 };
 
 const compareOfferRecency = <T extends { effective_start_at: string | null; created_at: string }>(
@@ -104,7 +180,9 @@ const buildHealthSummary = ({
   creditPackages: AdminPricingCreditPackageRow[];
   storageAddons: AdminPricingStorageAddonRow[];
 }): AdminPricingHealthSummary => {
-  const planOffersMissingStripePriceIds = plans.filter((row) => !row.stripePriceId).length;
+  const activePlanOffersMissingStripePriceIds = plans.filter(
+    (row) => row.status === "active" && !row.stripePriceId
+  ).length;
   const creditPackagesMissingStripePriceIds = creditPackages.filter(
     (row) => !row.stripePriceId
   ).length;
@@ -113,9 +191,9 @@ const buildHealthSummary = ({
   ).length;
 
   const warnings: string[] = [];
-  if (planOffersMissingStripePriceIds > 0) {
+  if (activePlanOffersMissingStripePriceIds > 0) {
     warnings.push(
-      `${planOffersMissingStripePriceIds} active public plan offer${planOffersMissingStripePriceIds === 1 ? "" : "s"} missing Stripe price ids.`
+      `${activePlanOffersMissingStripePriceIds} active public plan offer${activePlanOffersMissingStripePriceIds === 1 ? "" : "s"} missing Stripe price ids.`
     );
   }
   if (creditPackagesMissingStripePriceIds > 0) {
@@ -130,7 +208,7 @@ const buildHealthSummary = ({
   }
 
   return {
-    planOffersMissingStripePriceIds,
+    planOffersMissingStripePriceIds: activePlanOffersMissingStripePriceIds,
     creditPackagesMissingStripePriceIds,
     storageOffersMissingStripePriceIds,
     totalWarnings: warnings.length,
@@ -154,24 +232,20 @@ export default async function handler(
     const supabaseAdmin = getSupabaseAdmin();
     const runtimePricingPolicy = await resolveRuntimeModelPricingPolicy();
     const [
-      planMetadataResult,
+      planMetadataRows,
       planOffersResult,
       creditPackagesResult,
       storageMetadataResult,
       storageOffersResult,
+      currentContractsResult,
+      billingProfilesResult,
     ] = await Promise.all([
-      supabaseAdmin
-        .from("billing_plans")
-        .select("id, display_name, is_active")
-        .eq("is_active", true),
+      loadBillingPlanMetadataRows(supabaseAdmin),
       supabaseAdmin
         .from("billing_plan_offers")
         .select(
           "id, plan_id, recurring_price_cents, monthly_credits_cents, storage_limit_bytes, stripe_price_id, acquisition_enabled, is_active, effective_start_at, created_at"
         )
-        .eq("acquisition_enabled", true)
-        .eq("is_active", true)
-        .is("effective_end_at", null)
         .order("effective_start_at", { ascending: false, nullsFirst: false })
         .order("created_at", { ascending: false }),
       supabaseAdmin
@@ -195,21 +269,28 @@ export default async function handler(
         .is("effective_end_at", null)
         .order("effective_start_at", { ascending: false, nullsFirst: false })
         .order("created_at", { ascending: false }),
+      supabaseAdmin
+        .from("billing_subscription_contracts")
+        .select("user_id, plan_id, recurring_price_cents")
+        .is("ended_at", null),
+      supabaseAdmin.from("billing_profiles").select("user_id, plan_id"),
     ]);
 
     if (
-      planMetadataResult.error ||
       planOffersResult.error ||
       creditPackagesResult.error ||
       storageMetadataResult.error ||
-      storageOffersResult.error
+      storageOffersResult.error ||
+      currentContractsResult.error ||
+      billingProfilesResult.error
     ) {
       const detail = [
-        planMetadataResult.error?.message,
         planOffersResult.error?.message,
         creditPackagesResult.error?.message,
         storageMetadataResult.error?.message,
         storageOffersResult.error?.message,
+        currentContractsResult.error?.message,
+        billingProfilesResult.error?.message,
       ]
         .filter(Boolean)
         .join(" | ");
@@ -217,36 +298,93 @@ export default async function handler(
     }
 
     const planMetadata = new Map<string, BillingPlanMetadataRow>(
-      ((planMetadataResult.data ?? []) as BillingPlanMetadataRow[]).map((row) => [row.id, row])
+      (planMetadataRows ?? []).map((row) => [row.id, row])
     );
+    const activeAcquisitionOfferByPlanId = new Map<string, BillingPlanOfferRow>();
+    const currentOfferByPlanId = new Map<string, BillingPlanOfferRow>();
     const latestPlanOfferByPlanId = new Map<string, BillingPlanOfferRow>();
     for (const offer of ((planOffersResult.data ?? []) as BillingPlanOfferRow[]).sort(
       compareOfferRecency
     )) {
+      if (
+        offer.acquisition_enabled &&
+        offer.is_active &&
+        !activeAcquisitionOfferByPlanId.has(offer.plan_id)
+      ) {
+        activeAcquisitionOfferByPlanId.set(offer.plan_id, offer);
+      }
+      if (offer.is_active && !currentOfferByPlanId.has(offer.plan_id)) {
+        currentOfferByPlanId.set(offer.plan_id, offer);
+      }
       if (!latestPlanOfferByPlanId.has(offer.plan_id)) {
         latestPlanOfferByPlanId.set(offer.plan_id, offer);
       }
     }
 
-    const plans: AdminPricingPlanRow[] = [...latestPlanOfferByPlanId.values()]
-      .map((offer) => {
-        const metadata = planMetadata.get(offer.plan_id);
-        if (!metadata) return null;
+    const accountCountByPlanId = new Map<string, number>();
+    const usersWithCurrentContracts = new Set<string>();
+    for (const contract of (currentContractsResult.data ??
+      []) as BillingSubscriptionContractCountRow[]) {
+      usersWithCurrentContracts.add(contract.user_id);
+      accountCountByPlanId.set(
+        contract.plan_id,
+        (accountCountByPlanId.get(contract.plan_id) ?? 0) + 1
+      );
+    }
+
+    for (const profile of (billingProfilesResult.data ?? []) as BillingProfileCountRow[]) {
+      if (!profile.plan_id || usersWithCurrentContracts.has(profile.user_id)) continue;
+      accountCountByPlanId.set(
+        profile.plan_id,
+        (accountCountByPlanId.get(profile.plan_id) ?? 0) + 1
+      );
+    }
+
+    const plans: AdminPricingPlanRow[] = [...planMetadata.values()]
+      .map((metadata) => {
+        const activeAcquisitionOffer = activeAcquisitionOfferByPlanId.get(metadata.id) ?? null;
+        const currentOffer = currentOfferByPlanId.get(metadata.id) ?? null;
+        const latestOffer = latestPlanOfferByPlanId.get(metadata.id) ?? null;
+        const offer = activeAcquisitionOffer ?? currentOffer ?? latestOffer;
+        const accountCount = accountCountByPlanId.get(metadata.id) ?? 0;
+        const isActive =
+          Boolean(metadata.is_active) &&
+          Boolean(activeAcquisitionOffer?.acquisition_enabled) &&
+          Boolean(activeAcquisitionOffer?.is_active);
+        const status: AdminPricingPlanRow["status"] = isActive
+          ? "active"
+          : accountCount > 0
+            ? "legacy"
+            : "inactive";
         return {
-          planId: offer.plan_id,
+          planId: metadata.id,
           displayName: metadata.display_name,
-          offerId: offer.id,
-          recurringPriceCents: Number(offer.recurring_price_cents ?? 0),
-          monthlyCreditsCents: Number(offer.monthly_credits_cents ?? 0),
-          storageLimitBytes: Number(offer.storage_limit_bytes ?? 0),
-          stripePriceId: offer.stripe_price_id,
-          acquisitionEnabled: Boolean(offer.acquisition_enabled),
-          isActive: Boolean(metadata.is_active && offer.is_active),
-          effectiveStartAt: offer.effective_start_at,
+          offerId: offer?.id ?? `${metadata.id}__none`,
+          sortOrder: Number(metadata.sort_order ?? 0),
+          accountCount,
+          status,
+          recurringPriceCents: Number(
+            offer?.recurring_price_cents ?? metadata.monthly_price_cents ?? 0
+          ),
+          monthlyCreditsCents: Number(
+            offer?.monthly_credits_cents ?? metadata.monthly_credits_cents ?? 0
+          ),
+          storageLimitBytes: Number(
+            offer?.storage_limit_bytes ?? metadata.storage_limit_bytes ?? 0
+          ),
+          stripeProductId: metadata.stripe_product_id,
+          stripePriceId: offer?.stripe_price_id ?? metadata.stripe_price_id,
+          acquisitionEnabled: Boolean(activeAcquisitionOffer?.acquisition_enabled),
+          isActive,
+          effectiveStartAt: offer?.effective_start_at ?? null,
         } satisfies AdminPricingPlanRow;
       })
-      .filter((row): row is AdminPricingPlanRow => row !== null)
-      .sort((a, b) => a.recurringPriceCents - b.recurringPriceCents);
+      .sort((a, b) => {
+        if (a.sortOrder === b.sortOrder) {
+          return a.recurringPriceCents - b.recurringPriceCents;
+        }
+        return a.sortOrder - b.sortOrder;
+      });
 
     const creditPackages: AdminPricingCreditPackageRow[] = (
       (creditPackagesResult.data ?? []) as BillingCreditPackageRow[]
@@ -302,12 +440,14 @@ export default async function handler(
         id: model.id,
         label: model.label,
         provider: model.provider,
-        mediaType: model.mediaType,
+        workflowType: getAdminModelWorkflowType(model),
         pricingStrategy: model.pricingStrategy,
+        pricingStrategyLabel: getAdminPricingStrategyLabel(model.id, model.pricingStrategy),
         defaultAspect: model.defaultAspect,
         defaultResolution: model.defaultResolution ?? null,
         defaultDurationSeconds: model.defaultDurationSeconds ?? null,
-        roundingMode: resolveModelCreditRoundingMode(model.id, runtimePricingPolicy.policy),
+        roundingIncrement: resolveModelPricingForModel(runtimePricingPolicy.policy, model.id)
+          .roundingIncrement,
         pricingPreview: mapPricingPreview(model.id, runtimePricingPolicy.policy),
       }));
 

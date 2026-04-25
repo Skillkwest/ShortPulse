@@ -549,16 +549,16 @@ describe("Admin users and credits overview", () => {
 
     const selectButtons = screen.getAllByRole("button", { name: /Select / });
     expect(selectButtons[0]).toHaveAttribute("aria-label", "Select admin@example.com");
-    expect(screen.getByText("Admin emails")).toBeInTheDocument();
-    expect(
-      screen.getByText("This account is pinned to the top of the loaded user list.")
-    ).toBeInTheDocument();
     await waitFor(() => expect(screen.getByTestId("snapshot-card-storage")).toBeInTheDocument());
     expect(screen.getByTestId("snapshot-card-plan")).toHaveTextContent("Business");
     expect(screen.getByTestId("snapshot-card-price")).toHaveTextContent("10,000 credits / month");
     expect(screen.getByTestId("snapshot-status-badge")).toHaveTextContent("Active");
     expect(screen.getByTestId("snapshot-card-storage")).toHaveTextContent("500.0 GB");
     expect(screen.getByTestId("snapshot-card-storage")).toHaveTextContent("2.0 GB used");
+    expect(screen.getByTestId("snapshot-card-billing-state")).toHaveTextContent("Active");
+    expect(screen.getByTestId("snapshot-card-renewal")).toHaveTextContent("Apr 30, 2026");
+    expect(screen.getByTestId("snapshot-card-joined")).toHaveTextContent("Mar 2, 2026");
+    expect(screen.getByText("Support findings")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "+100" })).toBeEnabled();
     expect(screen.getByRole("button", { name: "+500" })).toBeEnabled();
     expect(fetchWithAuthMock).not.toHaveBeenCalledWith(
@@ -575,7 +575,7 @@ describe("Admin users and credits overview", () => {
     );
 
     fireEvent.click(screen.getByRole("button", { name: "Select beta@example.com" }));
-    fireEvent.click(screen.getByRole("button", { name: "Show credit log" }));
+    fireEvent.click(screen.getByRole("button", { name: "Open full credit log" }));
 
     await waitFor(() =>
       expect(fetchWithAuthMock).toHaveBeenCalledWith(
@@ -593,6 +593,8 @@ describe("Admin users and credits overview", () => {
     expect(screen.getByTestId("snapshot-card-credits")).toHaveTextContent("0");
     expect(screen.getByTestId("snapshot-card-credits")).toHaveTextContent("Spendable");
     expect(screen.getByTestId("snapshot-card-credits")).toHaveTextContent("available 0");
+    expect(screen.getByTestId("snapshot-card-billing-state")).toHaveTextContent("Inactive");
+    expect(screen.getByTestId("snapshot-card-renewal")).toHaveTextContent("Apr 30, 2026");
   });
 
   it("shows billing diagnostics findings for a grandfathered subscriber", async () => {
@@ -612,8 +614,10 @@ describe("Admin users and credits overview", () => {
     );
 
     expect(
-      screen.getByText("Current contract is on a different recurring price than the public offer.")
-    ).toBeInTheDocument();
+      screen.getAllByText(
+        "Current contract is on a different recurring price than the public offer."
+      ).length
+    ).toBeGreaterThan(0);
     expect(screen.getByTestId("snapshot-card-plan")).toHaveTextContent("Studio");
     expect(screen.getByTestId("snapshot-card-price")).toHaveTextContent("$10.00/mo");
     expect(screen.getByTestId("snapshot-card-price")).toHaveTextContent("4,000 credits / month");
@@ -627,6 +631,8 @@ describe("Admin users and credits overview", () => {
     expect(screen.getByTestId("snapshot-card-credits")).toHaveTextContent("Spendable");
     expect(screen.getByTestId("snapshot-card-credits")).toHaveTextContent("available 150");
     expect(screen.getByTestId("snapshot-card-credits")).toHaveTextContent("held 30");
+    expect(screen.getByTestId("snapshot-card-billing-state")).toHaveTextContent("Active");
+    expect(screen.getByTestId("snapshot-card-renewal")).toHaveTextContent("Apr 30, 2026");
   });
 
   it("applies a manual credit adjustment for the selected user", async () => {
@@ -668,17 +674,7 @@ describe("Admin users and credits overview", () => {
     );
 
     fireEvent.click(screen.getByRole("button", { name: "Select beta@example.com" }));
-    fireEvent.change(screen.getByDisplayValue("Business"), {
-      target: { value: "business" },
-    });
     fireEvent.click(screen.getByLabelText("Payment exempt"));
-    fireEvent.change(
-      screen.getByPlaceholderText("Why are you overriding billing for this account?"),
-      {
-        target: { value: "Internal QA" },
-      }
-    );
-    fireEvent.click(screen.getByRole("button", { name: "Save access" }));
 
     await waitFor(() =>
       expect(
@@ -694,7 +690,6 @@ describe("Admin users and credits overview", () => {
           userId: USER_2_ID,
           action: "grant_internal_comp",
           planId: "business",
-          grantReason: "Internal QA",
           allowStripeTakeover: false,
         }),
       })

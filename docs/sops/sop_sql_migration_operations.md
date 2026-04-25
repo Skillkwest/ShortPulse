@@ -143,6 +143,7 @@ Current set:
 - `094_add_project_media_folders.sql`
 - `095_add_project_media_folder_canvas_states.sql`
 - `096_add_model_pricing_control_plane.sql`
+- `097_retire_model_pricing_rounding_exceptions.sql`
 
 ### 3) Rollbacks (`sql/migrations/rollback/`)
 Use only when explicitly reverting a migration in a controlled window. Prefer targeted corrective forward SQL when possible.

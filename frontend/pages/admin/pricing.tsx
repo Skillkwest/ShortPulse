@@ -8,19 +8,15 @@ import { useAdminAccess } from "../../features/admin/logic/useAdminAccess";
 import { useAdminPricingController } from "../../features/admin/logic/useAdminPricingController";
 import type {
   AdminPricingCreditPackageRow,
-  AdminPricingModelRow,
-  AdminPricingPlanRow,
   AdminPricingPolicySnapshot,
   AdminPricingStorageAddonRow,
 } from "../../features/admin/types";
 import { fetchWithAuth } from "../../lib/authenticatedFetch";
 import { useProtectedRoute } from "../../lib/authGuard";
 import { formatStorageBytes } from "../../features/billing/storage";
-import { buildDefaultPricingParams, computeCostForModel } from "../../lib/model-runtime/pricing";
 import {
   compactModelPricingPolicyDocument,
   getDefaultModelPricingPolicyDocument,
-  type CreditRoundingMode,
   type ModelPricingPolicyDocument,
 } from "../../lib/model-runtime/pricingPolicy";
 import styles from "../../styles/admin.module.css";
@@ -30,9 +26,18 @@ const formatCurrencyFromCents = (value: number): string => formatUsd(value / 100
 const formatCredits = (value: number): string => new Intl.NumberFormat("en-US").format(value);
 const formatDateTime = (value: string | null): string =>
   value ? new Date(value).toLocaleString() : "—";
-const formatPercent = (value: number): string => `${value.toFixed(2).replace(/\.00$/, "")}%`;
+const getProviderLabelClassName = (provider: string): string => {
+  const normalized = provider.trim().toLowerCase();
+  if (normalized === "fal") return styles.pricingProviderFal;
+  if (normalized === "kie") return styles.pricingProviderKie;
+  return "";
+};
 
-type ModelOverrideRoundingDraft = CreditRoundingMode | "default";
+const getPlanStatusClassName = (status: "active" | "legacy" | "inactive"): string => {
+  if (status === "active") return styles.pillOk;
+  if (status === "legacy") return styles.pillWarn;
+  return styles.pillCritical;
+};
 
 type CreditPackageDraft = {
   id: string;
@@ -44,13 +49,13 @@ type CreditPackageDraft = {
   isActive: boolean;
 };
 
-type PlanOfferDraft = {
+type PlanCreateDraft = {
   planId: string;
-  offerName: string;
+  displayName: string;
   recurringPriceCents: string;
   monthlyCreditsCents: string;
   storageLimitBytes: string;
-  stripePriceId: string;
+  sortOrder: string;
 };
 
 type StorageOfferDraft = {
@@ -68,6 +73,17 @@ type ModelPolicyApplyResponse = {
   status?: string;
 };
 
+type PricingView = "all" | "models" | "plans" | "credits" | "media-addons";
+type GlobalPricingEditor = "credit-conversion" | "markup" | "roundup" | null;
+
+const PRICING_VIEW_TABS: Array<{ id: PricingView; label: string }> = [
+  { id: "all", label: "All" },
+  { id: "models", label: "Models" },
+  { id: "plans", label: "Plans" },
+  { id: "credits", label: "Credits" },
+  { id: "media-addons", label: "Media add-ons" },
+];
+
 const buildCreditPackageDraft = (row: AdminPricingCreditPackageRow): CreditPackageDraft => ({
   id: row.id,
   displayName: row.displayName,
@@ -78,13 +94,13 @@ const buildCreditPackageDraft = (row: AdminPricingCreditPackageRow): CreditPacka
   isActive: row.isActive,
 });
 
-const buildPlanOfferDraft = (row: AdminPricingPlanRow): PlanOfferDraft => ({
-  planId: row.planId,
-  offerName: `${row.displayName} Admin Offer`,
-  recurringPriceCents: String(row.recurringPriceCents),
-  monthlyCreditsCents: String(row.monthlyCreditsCents),
-  storageLimitBytes: String(row.storageLimitBytes),
-  stripePriceId: row.stripePriceId ?? "",
+const buildEmptyPlanCreateDraft = (sortOrder: number): PlanCreateDraft => ({
+  planId: "",
+  displayName: "",
+  recurringPriceCents: "",
+  monthlyCreditsCents: "",
+  storageLimitBytes: "",
+  sortOrder: String(sortOrder),
 });
 
 const buildStorageOfferDraft = (row: AdminPricingStorageAddonRow): StorageOfferDraft => ({
@@ -111,37 +127,52 @@ const normalizeModelOverrideDraft = (
   policy: ModelPricingPolicyDocument,
   modelId: string,
   nextOverride: {
-    multiplierBps?: number | null;
-    roundingMode?: ModelOverrideRoundingDraft;
+    creditUsdScale?: number | null;
+    markupBps?: number | null;
+    roundingIncrement?: number | null;
   }
 ): ModelPricingPolicyDocument => {
   const currentOverride = policy.perModel[modelId] ?? {};
   const mergedOverride = {
-    multiplierBps:
-      nextOverride.multiplierBps !== undefined
-        ? nextOverride.multiplierBps
-        : currentOverride.multiplierBps,
-    roundingMode:
-      nextOverride.roundingMode !== undefined
-        ? nextOverride.roundingMode === "default"
-          ? null
-          : nextOverride.roundingMode
-        : (currentOverride.roundingMode ?? null),
+    creditUsdScale:
+      nextOverride.creditUsdScale !== undefined
+        ? nextOverride.creditUsdScale
+        : currentOverride.creditUsdScale,
+    markupBps:
+      nextOverride.markupBps !== undefined ? nextOverride.markupBps : currentOverride.markupBps,
+    roundingIncrement:
+      nextOverride.roundingIncrement !== undefined
+        ? nextOverride.roundingIncrement
+        : currentOverride.roundingIncrement,
   };
 
   const nextPerModel = { ...policy.perModel };
-  const hasCustomMultiplier =
-    typeof mergedOverride.multiplierBps === "number" && mergedOverride.multiplierBps !== 10_000;
-  const hasCustomRounding =
-    mergedOverride.roundingMode === "nearest-5" || mergedOverride.roundingMode === "ceil";
+  const hasCustomCreditUsdScale =
+    typeof mergedOverride.creditUsdScale === "number" &&
+    mergedOverride.creditUsdScale > 0 &&
+    mergedOverride.creditUsdScale !== policy.global.creditUsdScale;
+  const hasCustomMarkup =
+    typeof mergedOverride.markupBps === "number" &&
+    mergedOverride.markupBps !== policy.global.markupBps;
+  const hasCustomRoundingIncrement =
+    typeof mergedOverride.roundingIncrement === "number" &&
+    mergedOverride.roundingIncrement > 0 &&
+    mergedOverride.roundingIncrement !== policy.global.defaultRoundingIncrement;
 
-  if (!hasCustomMultiplier && !hasCustomRounding) {
+  if (!hasCustomCreditUsdScale && !hasCustomMarkup && !hasCustomRoundingIncrement) {
     delete nextPerModel[modelId];
   } else {
-    nextPerModel[modelId] = {
-      ...(hasCustomMultiplier ? { multiplierBps: mergedOverride.multiplierBps ?? 10_000 } : {}),
-      ...(hasCustomRounding ? { roundingMode: mergedOverride.roundingMode } : {}),
-    };
+    const nextOverride = {} as NonNullable<(typeof nextPerModel)[string]>;
+    if (hasCustomCreditUsdScale && typeof mergedOverride.creditUsdScale === "number") {
+      nextOverride.creditUsdScale = mergedOverride.creditUsdScale;
+    }
+    if (hasCustomMarkup && typeof mergedOverride.markupBps === "number") {
+      nextOverride.markupBps = mergedOverride.markupBps;
+    }
+    if (hasCustomRoundingIncrement && typeof mergedOverride.roundingIncrement === "number") {
+      nextOverride.roundingIncrement = mergedOverride.roundingIncrement;
+    }
+    nextPerModel[modelId] = nextOverride;
   }
 
   return compactModelPricingPolicyDocument({
@@ -149,11 +180,6 @@ const normalizeModelOverrideDraft = (
     perModel: nextPerModel,
   });
 };
-
-const buildModelPolicyPreview = (
-  model: AdminPricingModelRow,
-  policy: ModelPricingPolicyDocument | null
-) => computeCostForModel(model.id, buildDefaultPricingParams(model.id), policy);
 
 export default function AdminPricingPage() {
   const { loading, user } = useProtectedRoute(true);
@@ -176,7 +202,7 @@ export default function AdminPricingPage() {
   const [creditMessage, setCreditMessage] = React.useState<string | null>(null);
   const [creditError, setCreditError] = React.useState<string | null>(null);
 
-  const [planDraft, setPlanDraft] = React.useState<PlanOfferDraft | null>(null);
+  const [planDraft, setPlanDraft] = React.useState<PlanCreateDraft | null>(null);
   const [planSaving, setPlanSaving] = React.useState(false);
   const [planMessage, setPlanMessage] = React.useState<string | null>(null);
   const [planError, setPlanError] = React.useState<string | null>(null);
@@ -195,8 +221,16 @@ export default function AdminPricingPage() {
   const [modelPolicyMessage, setModelPolicyMessage] = React.useState<string | null>(null);
   const [modelPolicyError, setModelPolicyError] = React.useState<string | null>(null);
   const [modelPolicyNote, setModelPolicyNote] = React.useState("");
-  const [modelPolicyReason, setModelPolicyReason] = React.useState("");
   const [selectedModelOverrideId, setSelectedModelOverrideId] = React.useState<string | null>(null);
+  const [globalCreditConversionInput, setGlobalCreditConversionInput] = React.useState("");
+  const [globalMarkupInput, setGlobalMarkupInput] = React.useState("");
+  const [globalRoundupInput, setGlobalRoundupInput] = React.useState("");
+  const [selectedPricingView, setSelectedPricingView] = React.useState<PricingView>("all");
+  const [modelSearchQuery, setModelSearchQuery] = React.useState("");
+  const [activeGlobalEditor, setActiveGlobalEditor] = React.useState<GlobalPricingEditor>(null);
+  const globalCreditConversionInputRef = React.useRef<HTMLInputElement | null>(null);
+  const globalMarkupInputRef = React.useRef<HTMLInputElement | null>(null);
+  const globalRoundupInputRef = React.useRef<HTMLInputElement | null>(null);
 
   const health = pricingState?.health;
   const modelPolicySnapshot: AdminPricingPolicySnapshot | null = pricingState?.modelPolicy ?? null;
@@ -213,22 +247,92 @@ export default function AdminPricingPage() {
     setModelPolicyDraft(activeModelPolicyDocument);
   }, [activeModelPolicyDocument, modelPolicyDirty, pricingState]);
 
-  React.useEffect(() => {
-    if (selectedModelOverrideId || !pricingState?.models.length) return;
-    setSelectedModelOverrideId(pricingState.models[0]?.id ?? null);
-  }, [pricingState?.models, selectedModelOverrideId]);
-
   const effectiveModelPolicyDraft = modelPolicyDraft ?? activeModelPolicyDocument;
+
+  React.useEffect(() => {
+    setGlobalCreditConversionInput(String(effectiveModelPolicyDraft.global.creditUsdScale));
+    setGlobalMarkupInput(String(effectiveModelPolicyDraft.global.markupBps / 100));
+    setGlobalRoundupInput(String(effectiveModelPolicyDraft.global.defaultRoundingIncrement));
+  }, [
+    effectiveModelPolicyDraft.global.creditUsdScale,
+    effectiveModelPolicyDraft.global.defaultRoundingIncrement,
+    effectiveModelPolicyDraft.global.markupBps,
+  ]);
+
+  React.useEffect(() => {
+    const target =
+      activeGlobalEditor === "credit-conversion"
+        ? globalCreditConversionInputRef.current
+        : activeGlobalEditor === "markup"
+          ? globalMarkupInputRef.current
+          : activeGlobalEditor === "roundup"
+            ? globalRoundupInputRef.current
+            : null;
+
+    if (!target) return;
+    target.focus();
+    const cursorPosition = target.value.length;
+    target.setSelectionRange(cursorPosition, cursorPosition);
+  }, [activeGlobalEditor]);
+
   const selectedModelRow = React.useMemo(
-    () =>
-      pricingState?.models.find((model) => model.id === selectedModelOverrideId) ??
-      pricingState?.models[0] ??
-      null,
+    () => pricingState?.models.find((model) => model.id === selectedModelOverrideId) ?? null,
     [pricingState?.models, selectedModelOverrideId]
   );
-  const selectedModelOverride = selectedModelRow
-    ? (effectiveModelPolicyDraft.perModel[selectedModelRow.id] ?? null)
+  const filteredModels = React.useMemo(() => {
+    const models = pricingState?.models ?? [];
+    const query = modelSearchQuery.trim().toLowerCase();
+    if (!query) return models;
+    return models.filter((model) =>
+      [
+        model.label,
+        model.id,
+        model.provider,
+        model.workflowType,
+        model.pricingStrategy,
+        model.pricingStrategyLabel,
+      ].some((value) => value.toLowerCase().includes(query))
+    );
+  }, [modelSearchQuery, pricingState?.models]);
+
+  const showModelsSection = selectedPricingView === "all" || selectedPricingView === "models";
+  const showPlansSection = selectedPricingView === "all" || selectedPricingView === "plans";
+  const showCreditsSection = selectedPricingView === "all" || selectedPricingView === "credits";
+  const showMediaAddonsSection =
+    selectedPricingView === "all" || selectedPricingView === "media-addons";
+  const pricingWorkspaceState = !pricingState
+    ? pricingLoading
+      ? {
+          eyebrow: "Loading pricing state",
+          title: "Loading pricing workspace",
+          description:
+            "Fetching the current model policy, public catalog rows, and Stripe linkage health.",
+          helper:
+            "The pricing workspace will open once the latest control-plane snapshot and active catalog rows arrive.",
+          actionLabel: "Refreshing…",
+        }
+      : pricingError
+        ? {
+            eyebrow: "Pricing sync failed",
+            title: "Pricing state is unavailable",
+            description: pricingError,
+            helper:
+              "Retry the pricing sync before making policy or catalog edits. We only show this route once there is a trustworthy snapshot to work from.",
+            actionLabel: "Retry sync",
+          }
+        : {
+            eyebrow: "No pricing snapshot",
+            title: "Pricing state has not loaded yet",
+            description: "There is no pricing snapshot available for this admin route right now.",
+            helper:
+              "Retry the pricing sync to load the current model policy, plan offers, and credit packages.",
+            actionLabel: "Load pricing",
+          }
     : null;
+  const pricingRefreshWarning =
+    pricingState && pricingError
+      ? `${pricingError} Showing the last loaded pricing snapshot while refresh recovers.`
+      : null;
 
   const updateModelPolicyDraft = React.useCallback(
     (updater: (current: ModelPricingPolicyDocument) => ModelPricingPolicyDocument) => {
@@ -249,8 +353,66 @@ export default function AdminPricingPage() {
     setModelPolicyMessage(null);
     setModelPolicyError(null);
     setModelPolicyNote("");
-    setModelPolicyReason("");
   }, [activeModelPolicyDocument]);
+
+  const commitGlobalCreditConversionInput = React.useCallback(() => {
+    const nextValue = parseIntegerInput(globalCreditConversionInput);
+    if (nextValue == null || nextValue <= 0) {
+      setGlobalCreditConversionInput(String(effectiveModelPolicyDraft.global.creditUsdScale));
+      return false;
+    }
+    updateModelPolicyDraft((current) => ({
+      ...current,
+      global: {
+        ...current.global,
+        creditUsdScale: nextValue,
+      },
+    }));
+    setGlobalCreditConversionInput(String(nextValue));
+    return true;
+  }, [
+    effectiveModelPolicyDraft.global.creditUsdScale,
+    globalCreditConversionInput,
+    updateModelPolicyDraft,
+  ]);
+
+  const commitGlobalMarkupInput = React.useCallback(() => {
+    const nextValue = parsePercentToBps(globalMarkupInput);
+    if (nextValue == null || nextValue < 0) {
+      setGlobalMarkupInput(String(effectiveModelPolicyDraft.global.markupBps / 100));
+      return false;
+    }
+    updateModelPolicyDraft((current) => ({
+      ...current,
+      global: {
+        ...current.global,
+        markupBps: nextValue,
+      },
+    }));
+    setGlobalMarkupInput(String(nextValue / 100));
+    return true;
+  }, [effectiveModelPolicyDraft.global.markupBps, globalMarkupInput, updateModelPolicyDraft]);
+
+  const commitGlobalRoundupInput = React.useCallback(() => {
+    const nextValue = parseIntegerInput(globalRoundupInput);
+    if (nextValue == null || nextValue <= 0) {
+      setGlobalRoundupInput(String(effectiveModelPolicyDraft.global.defaultRoundingIncrement));
+      return false;
+    }
+    updateModelPolicyDraft((current) => ({
+      ...current,
+      global: {
+        ...current.global,
+        defaultRoundingIncrement: nextValue,
+      },
+    }));
+    setGlobalRoundupInput(String(nextValue));
+    return true;
+  }, [
+    effectiveModelPolicyDraft.global.defaultRoundingIncrement,
+    globalRoundupInput,
+    updateModelPolicyDraft,
+  ]);
 
   const saveCreditPackage = React.useCallback(async () => {
     if (!creditDraft) return;
@@ -282,13 +444,13 @@ export default function AdminPricingPage() {
     }
   }, [creditDraft, refreshPricingState]);
 
-  const createPlanOffer = React.useCallback(async () => {
+  const createPlan = React.useCallback(async () => {
     if (!planDraft) return;
     setPlanSaving(true);
     setPlanError(null);
     setPlanMessage(null);
     try {
-      const response = await fetchWithAuth("/api/admin/pricing/plan-offers/create", {
+      const response = await fetchWithAuth("/api/admin/pricing/plans/create", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(planDraft),
@@ -298,15 +460,13 @@ export default function AdminPricingPage() {
         message?: string;
       };
       if (!response.ok) {
-        throw new Error(payload.error || "Failed to create the next plan offer.");
+        throw new Error(payload.error || "Failed to create the plan.");
       }
       await refreshPricingState();
-      setPlanMessage(payload.message ?? "Plan offer created and activated.");
+      setPlanMessage(payload.message ?? "Plan created and activated.");
       setPlanDraft(null);
     } catch (error) {
-      setPlanError(
-        error instanceof Error ? error.message : "Failed to create the next plan offer."
-      );
+      setPlanError(error instanceof Error ? error.message : "Failed to create the plan.");
     } finally {
       setPlanSaving(false);
     }
@@ -355,7 +515,7 @@ export default function AdminPricingPage() {
         body: JSON.stringify({
           policy,
           note: modelPolicyNote,
-          reason: modelPolicyReason,
+          reason: "",
         }),
       });
       const payload = (await response.json().catch(() => ({}))) as ModelPolicyApplyResponse;
@@ -366,7 +526,6 @@ export default function AdminPricingPage() {
       await refreshPricingState();
       setModelPolicyDirty(false);
       setModelPolicyNote("");
-      setModelPolicyReason("");
       setModelPolicyMessage(payload.message ?? "Model pricing policy applied.");
     } catch (error) {
       setModelPolicyError(
@@ -375,7 +534,7 @@ export default function AdminPricingPage() {
     } finally {
       setModelPolicySaving(false);
     }
-  }, [effectiveModelPolicyDraft, modelPolicyNote, modelPolicyReason, refreshPricingState]);
+  }, [effectiveModelPolicyDraft, modelPolicyNote, refreshPricingState]);
 
   const rollbackModelPolicy = React.useCallback(async () => {
     setModelPolicyRollbackLoading(true);
@@ -387,7 +546,7 @@ export default function AdminPricingPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          reason: modelPolicyReason,
+          reason: "",
         }),
       });
       const payload = (await response.json().catch(() => ({}))) as ModelPolicyApplyResponse;
@@ -398,7 +557,6 @@ export default function AdminPricingPage() {
       await refreshPricingState();
       setModelPolicyDirty(false);
       setModelPolicyNote("");
-      setModelPolicyReason("");
       setModelPolicyMessage(payload.message ?? "Model pricing policy rolled back.");
     } catch (error) {
       setModelPolicyError(
@@ -407,7 +565,7 @@ export default function AdminPricingPage() {
     } finally {
       setModelPolicyRollbackLoading(false);
     }
-  }, [modelPolicyReason, refreshPricingState]);
+  }, [refreshPricingState]);
 
   return (
     <AdminRouteShell
@@ -424,867 +582,962 @@ export default function AdminPricingPage() {
       userEmail={user?.email}
       currentPath="/admin/pricing"
     >
-      <section className={styles.adminGrid}>
-        <article className={styles.adminCard}>
-          <div className={styles.adminCardTop}>
-            <span className={styles.adminLabel}>Credit conversion</span>
+      {pricingWorkspaceState ? (
+        <section className={styles.adminSection}>
+          <div className={styles.adminSectionHead}>
+            <div>
+              <p className="eyebrow">Pricing workspace</p>
+              <h2 className={styles.adminSectionTitle}>{pricingWorkspaceState.title}</h2>
+              <p className="tiny subdued">{pricingWorkspaceState.description}</p>
+            </div>
+            <button
+              type="button"
+              className="ghost-btn mini"
+              onClick={() => void refreshPricingState()}
+              disabled={pricingLoading || pricingRefreshing}
+            >
+              {pricingLoading || pricingRefreshing
+                ? "Refreshing…"
+                : pricingWorkspaceState.actionLabel}
+            </button>
           </div>
-          <p className={styles.adminMetric}>
-            {pricingState ? `${pricingState.modelPolicy.creditUsdScale} / USD` : "—"}
-          </p>
-          <p className={styles.adminSubtext}>
-            {pricingState
-              ? `1 credit = ${formatUsd(pricingState.modelPolicy.creditValueUsd)}`
-              : "Runtime model pricing policy"}
-          </p>
-        </article>
-        <article className={styles.adminCard}>
-          <div className={styles.adminCardTop}>
-            <span className={styles.adminLabel}>Markup</span>
+          <div className={styles.adminStatePanel}>
+            <p className={styles.adminStateEyebrow}>{pricingWorkspaceState.eyebrow}</p>
+            <h3 className={styles.adminStateTitle}>{pricingWorkspaceState.title}</h3>
+            <p className={styles.adminStateDescription}>{pricingWorkspaceState.description}</p>
+            <p className={styles.adminStateDescriptionMuted}>{pricingWorkspaceState.helper}</p>
           </div>
-          <p className={styles.adminMetric}>
-            {pricingState ? `+${pricingState.modelPolicy.markupPercent.toFixed(0)}%` : "—"}
-          </p>
-          <p className={styles.adminSubtext}>
-            {pricingState
-              ? `${pricingState.modelPolicy.markupBps} bps shared runtime markup`
-              : "Markup not loaded"}
-          </p>
-        </article>
-        <article className={styles.adminCard}>
-          <div className={styles.adminCardTop}>
-            <span className={styles.adminLabel}>Active model rows</span>
-          </div>
-          <p className={styles.adminMetric}>{pricingState?.models.length ?? "—"}</p>
-          <p className={styles.adminSubtext}>Runtime registry-backed model coverage</p>
-        </article>
-        <article className={`${styles.adminCard} ${health?.totalWarnings ? styles.warning : ""}`}>
-          <div className={styles.adminCardTop}>
-            <span className={styles.adminLabel}>Stripe health</span>
-          </div>
-          <p className={styles.adminMetric}>{health ? health.totalWarnings : "—"}</p>
-          <p className={styles.adminSubtext}>
-            {health
-              ? health.totalWarnings > 0
-                ? "Active catalog warnings need operator follow-up"
-                : "No missing Stripe price mappings in active catalog rows"
-              : "Catalog linkage checks pending"}
-          </p>
-        </article>
-      </section>
+        </section>
+      ) : (
+        <>
+          {pricingRefreshWarning ? (
+            <p className={styles.announcementError}>{pricingRefreshWarning}</p>
+          ) : null}
 
-      <section className={styles.adminSection}>
-        <div className={styles.adminSectionHead}>
-          <div>
-            <p className="eyebrow">Overview</p>
-            <h2 className={styles.adminSectionTitle}>Pricing state</h2>
-            <p className="tiny subdued">
-              Billing catalog writes and runtime model pricing edits now share this one operator
-              surface.
-            </p>
-          </div>
-          <button
-            type="button"
-            className="ghost-btn mini"
-            onClick={() => void refreshPricingState()}
-            disabled={pricingLoading || pricingRefreshing}
-          >
-            {pricingRefreshing ? "Refreshing…" : "Refresh"}
-          </button>
-        </div>
-
-        {pricingError ? <p className={styles.announcementError}>{pricingError}</p> : null}
-        {pricingLoading && !pricingState ? (
-          <p className="tiny subdued">Loading pricing state…</p>
-        ) : null}
-
-        {pricingState ? (
-          <div className={styles.pricingOverviewGrid}>
-            <article className={styles.adminCard}>
-              <p className="eyebrow">Model policy</p>
-              <div className={styles.pricingMetaList}>
-                <span>Version: {pricingState.modelPolicy.version}</span>
-                <span>Source: {pricingState.modelPolicy.policySource}</span>
-                <span>
-                  Default rounding: {pricingState.modelPolicy.defaultRoundingMode} (
-                  {pricingState.modelPolicy.defaultRoundingIncrement})
-                </span>
-                <span>Overrides: {pricingState.modelPolicy.overrideCount}</span>
-                <span>Updated: {formatDateTime(pricingState.modelPolicy.updatedAt)}</span>
-              </div>
-            </article>
-            <article className={styles.adminCard}>
-              <p className="eyebrow">Billing catalog</p>
-              <div className={styles.pricingMetaList}>
-                <span>Plans: {pricingState.plans.length}</span>
-                <span>Credit packages: {pricingState.creditPackages.length}</span>
-                <span>Storage add-ons: {pricingState.storageAddons.length}</span>
-              </div>
-            </article>
+          <section className={styles.adminGrid}>
+            {activeGlobalEditor === "credit-conversion" ? (
+              <article className={styles.adminCard}>
+                <div className={styles.adminCardTop}>
+                  <span className={styles.adminLabel}>Credit conversion</span>
+                </div>
+                <div className={styles.adminCardInputRow}>
+                  <input
+                    ref={globalCreditConversionInputRef}
+                    aria-label="Global credit conversion rate"
+                    className={`${styles.searchInput} ${styles.adminCardMetricInput}`}
+                    value={pricingState ? globalCreditConversionInput : ""}
+                    onChange={(event) => setGlobalCreditConversionInput(event.target.value)}
+                    onBlur={() => {
+                      void commitGlobalCreditConversionInput();
+                      setActiveGlobalEditor(null);
+                    }}
+                    onKeyDown={(event) => {
+                      if (event.key !== "Enter") return;
+                      event.preventDefault();
+                      if (commitGlobalCreditConversionInput()) {
+                        event.currentTarget.blur();
+                      }
+                    }}
+                    placeholder="100"
+                    disabled={!pricingState}
+                  />
+                  <span className={styles.adminCardMetricSuffix}>/ USD</span>
+                </div>
+                <p className={styles.adminSubtext}>
+                  {pricingState
+                    ? `1 credit = ${formatUsd(1 / effectiveModelPolicyDraft.global.creditUsdScale)}`
+                    : "Runtime model pricing policy"}
+                </p>
+              </article>
+            ) : (
+              <button
+                type="button"
+                className={`${styles.adminCard} ${styles.adminCardButton}`}
+                onClick={() => pricingState && setActiveGlobalEditor("credit-conversion")}
+                disabled={!pricingState}
+                aria-label="Edit global credit conversion rate"
+              >
+                <div className={styles.adminCardTop}>
+                  <span className={styles.adminLabel}>Credit conversion</span>
+                </div>
+                <div className={styles.adminCardInputRow}>
+                  <span className={styles.adminCardMetricButton}>
+                    {pricingState ? effectiveModelPolicyDraft.global.creditUsdScale : "—"}
+                  </span>
+                  <span className={styles.adminCardMetricSuffix}>/ USD</span>
+                </div>
+                <p className={styles.adminSubtext}>
+                  {pricingState
+                    ? `1 credit = ${formatUsd(1 / effectiveModelPolicyDraft.global.creditUsdScale)}`
+                    : "Runtime model pricing policy"}
+                </p>
+              </button>
+            )}
+            {activeGlobalEditor === "markup" ? (
+              <article className={styles.adminCard}>
+                <div className={styles.adminCardTop}>
+                  <span className={styles.adminLabel}>Markup</span>
+                </div>
+                <div className={styles.adminCardInputRow}>
+                  <span className={styles.adminCardMetricPrefix}>+</span>
+                  <input
+                    ref={globalMarkupInputRef}
+                    aria-label="Global markup percent"
+                    className={`${styles.searchInput} ${styles.adminCardMetricInput}`}
+                    value={pricingState ? globalMarkupInput : ""}
+                    onChange={(event) => setGlobalMarkupInput(event.target.value)}
+                    onBlur={() => {
+                      void commitGlobalMarkupInput();
+                      setActiveGlobalEditor(null);
+                    }}
+                    onKeyDown={(event) => {
+                      if (event.key !== "Enter") return;
+                      event.preventDefault();
+                      if (commitGlobalMarkupInput()) {
+                        event.currentTarget.blur();
+                      }
+                    }}
+                    placeholder="3"
+                    disabled={!pricingState}
+                  />
+                  <span className={styles.adminCardMetricSuffix}>%</span>
+                </div>
+                <p className={styles.adminSubtext}>
+                  {pricingState
+                    ? `${effectiveModelPolicyDraft.global.markupBps} bps global runtime markup`
+                    : "Markup not loaded"}
+                </p>
+              </article>
+            ) : (
+              <button
+                type="button"
+                className={`${styles.adminCard} ${styles.adminCardButton}`}
+                onClick={() => pricingState && setActiveGlobalEditor("markup")}
+                disabled={!pricingState}
+                aria-label="Edit global markup percent"
+              >
+                <div className={styles.adminCardTop}>
+                  <span className={styles.adminLabel}>Markup</span>
+                </div>
+                <div className={styles.adminCardInputRow}>
+                  <span className={styles.adminCardMetricPrefix}>+</span>
+                  <span className={styles.adminCardMetricButton}>
+                    {pricingState ? effectiveModelPolicyDraft.global.markupBps / 100 : "—"}
+                  </span>
+                  <span className={styles.adminCardMetricSuffix}>%</span>
+                </div>
+                <p className={styles.adminSubtext}>
+                  {pricingState
+                    ? `${effectiveModelPolicyDraft.global.markupBps} bps global runtime markup`
+                    : "Markup not loaded"}
+                </p>
+              </button>
+            )}
+            {activeGlobalEditor === "roundup" ? (
+              <article className={styles.adminCard}>
+                <div className={styles.adminCardTop}>
+                  <span className={styles.adminLabel}>Global roundup</span>
+                </div>
+                <div className={styles.adminCardInputRow}>
+                  <input
+                    ref={globalRoundupInputRef}
+                    aria-label="Global roundup increment"
+                    className={`${styles.searchInput} ${styles.adminCardMetricInput}`}
+                    value={pricingState ? globalRoundupInput : ""}
+                    onChange={(event) => setGlobalRoundupInput(event.target.value)}
+                    onBlur={() => {
+                      void commitGlobalRoundupInput();
+                      setActiveGlobalEditor(null);
+                    }}
+                    onKeyDown={(event) => {
+                      if (event.key !== "Enter") return;
+                      event.preventDefault();
+                      if (commitGlobalRoundupInput()) {
+                        event.currentTarget.blur();
+                      }
+                    }}
+                    placeholder="5"
+                    disabled={!pricingState}
+                  />
+                </div>
+                <p className={styles.adminSubtext}>
+                  {pricingState
+                    ? `Round to the nearest ${effectiveModelPolicyDraft.global.defaultRoundingIncrement} credits`
+                    : "Roundup not loaded"}
+                </p>
+              </article>
+            ) : (
+              <button
+                type="button"
+                className={`${styles.adminCard} ${styles.adminCardButton}`}
+                onClick={() => pricingState && setActiveGlobalEditor("roundup")}
+                disabled={!pricingState}
+                aria-label="Edit global roundup increment"
+              >
+                <div className={styles.adminCardTop}>
+                  <span className={styles.adminLabel}>Global roundup</span>
+                </div>
+                <div className={styles.adminCardInputRow}>
+                  <span className={styles.adminCardMetricButton}>
+                    {pricingState ? effectiveModelPolicyDraft.global.defaultRoundingIncrement : "—"}
+                  </span>
+                </div>
+                <p className={styles.adminSubtext}>
+                  {pricingState
+                    ? `Round to the nearest ${effectiveModelPolicyDraft.global.defaultRoundingIncrement} credits`
+                    : "Roundup not loaded"}
+                </p>
+              </button>
+            )}
             <article
               className={`${styles.adminCard} ${health?.totalWarnings ? styles.warning : ""}`}
             >
-              <p className="eyebrow">Health warnings</p>
-              {health && health.warnings.length > 0 ? (
-                <ul className={styles.pricingWarningList}>
-                  {health.warnings.map((warning) => (
-                    <li key={warning}>{warning}</li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="tiny subdued">No active Stripe-mapping warnings.</p>
-              )}
+              <div className={styles.adminCardTop}>
+                <span className={styles.adminLabel}>Stripe health</span>
+              </div>
+              <p className={styles.adminMetric}>{health ? health.totalWarnings : "—"}</p>
+              <p className={styles.adminSubtext}>
+                {health
+                  ? health.totalWarnings > 0
+                    ? "Active catalog warnings need operator follow-up"
+                    : "No missing Stripe price mappings in active catalog rows"
+                  : "Catalog linkage checks pending"}
+              </p>
             </article>
-          </div>
-        ) : null}
-      </section>
+          </section>
 
-      <section className={styles.adminSection}>
-        <div className={styles.adminSectionHead}>
-          <div>
-            <p className="eyebrow">Model pricing</p>
-            <h2 className={styles.adminSectionTitle}>Runtime model policy</h2>
-            <p className="tiny subdued">
-              Adjust the shared conversion contract and per-model overrides that drive both AI
-              Studio estimates and server-side debits.
-            </p>
-          </div>
-        </div>
+          <nav className={styles.adminNavRow} aria-label="Pricing views">
+            {PRICING_VIEW_TABS.map((tab) => {
+              const active = tab.id === selectedPricingView;
+              return (
+                <button
+                  key={tab.id}
+                  type="button"
+                  aria-pressed={active}
+                  className={`${styles.adminNavLink} ${styles.adminNavButton} ${
+                    active ? styles.adminNavLinkActive : ""
+                  }`}
+                  onClick={() => setSelectedPricingView(tab.id)}
+                >
+                  {tab.label}
+                </button>
+              );
+            })}
+          </nav>
 
-        {modelPolicyMessage ? (
-          <p className={styles.announcementResult}>{modelPolicyMessage}</p>
-        ) : null}
-        {modelPolicyError ? <p className={styles.announcementError}>{modelPolicyError}</p> : null}
-
-        {pricingState ? (
-          <>
-            <div className={styles.pricingOverviewGrid}>
-              <article className={styles.adminCard}>
-                <p className="eyebrow">Active policy</p>
-                <div className={styles.pricingMetaList}>
-                  <span>Version: {pricingState.modelPolicy.version}</span>
-                  <span>Updated by: {pricingState.modelPolicy.updatedByEmail ?? "Unknown"}</span>
-                  <span>
-                    Default exception ids:{" "}
-                    {pricingState.modelPolicy.exceptionRoundingModelIds.length}
-                  </span>
-                  <span>
-                    Draft status: {modelPolicyDirty ? "unsaved changes" : "synced to active"}
-                  </span>
+          {showModelsSection ? (
+            <section className={styles.adminSection}>
+              <div className={styles.adminSectionHead}>
+                <div>
+                  <p className="eyebrow">Model pricing</p>
+                  <h2 className={styles.adminSectionTitle}>Runtime model policy</h2>
+                  <p className="tiny subdued">
+                    Adjust the shared conversion contract and per-model overrides that drive both AI
+                    Studio estimates and server-side debits.
+                  </p>
                 </div>
-              </article>
-              <article className={styles.adminCard}>
-                <p className="eyebrow">Selected model override</p>
-                {selectedModelRow ? (
-                  <div className={styles.pricingMetaList}>
-                    <span>{selectedModelRow.label}</span>
-                    <span>{selectedModelRow.id}</span>
-                    <span>
-                      Multiplier:{" "}
-                      {selectedModelOverride?.multiplierBps
-                        ? formatPercent(selectedModelOverride.multiplierBps / 100)
-                        : "default 100%"}
-                    </span>
-                    <span>Rounding: {selectedModelOverride?.roundingMode ?? "default policy"}</span>
-                  </div>
-                ) : (
-                  <p className="tiny subdued">Select a model row to edit per-model overrides.</p>
-                )}
-              </article>
-            </div>
+              </div>
 
-            <div className={styles.pricingEditorCard}>
-              <p className="eyebrow">Edit model pricing policy</p>
-              <div className={styles.pricingFormGrid}>
-                <label className={styles.manualAdjustField}>
-                  <span className="tiny subdued">Credits per USD</span>
-                  <input
-                    className={styles.searchInput}
-                    value={String(effectiveModelPolicyDraft.global.creditUsdScale)}
-                    onChange={(event) => {
-                      const nextValue = parseIntegerInput(event.target.value);
-                      if (nextValue == null || nextValue <= 0) return;
-                      updateModelPolicyDraft((current) => ({
-                        ...current,
-                        global: {
-                          ...current.global,
-                          creditUsdScale: nextValue,
-                        },
-                      }));
-                    }}
-                  />
-                </label>
-                <label className={styles.manualAdjustField}>
-                  <span className="tiny subdued">Markup percent</span>
-                  <input
-                    className={styles.searchInput}
-                    value={String(effectiveModelPolicyDraft.global.markupBps / 100)}
-                    onChange={(event) => {
-                      const nextValue = parsePercentToBps(event.target.value);
-                      if (nextValue == null || nextValue < 0) return;
-                      updateModelPolicyDraft((current) => ({
-                        ...current,
-                        global: {
-                          ...current.global,
-                          markupBps: nextValue,
-                        },
-                      }));
-                    }}
-                  />
-                </label>
-                <label className={styles.manualAdjustField}>
-                  <span className="tiny subdued">Default rounding mode</span>
-                  <select
-                    className={styles.searchInput}
-                    value={effectiveModelPolicyDraft.global.defaultRoundingMode}
-                    onChange={(event) =>
-                      updateModelPolicyDraft((current) => ({
-                        ...current,
-                        global: {
-                          ...current.global,
-                          defaultRoundingMode: event.target.value as CreditRoundingMode,
-                        },
-                      }))
-                    }
-                  >
-                    <option value="nearest-5">nearest-5</option>
-                    <option value="ceil">ceil</option>
-                  </select>
-                </label>
-                <label className={styles.manualAdjustField}>
-                  <span className="tiny subdued">Default rounding increment</span>
-                  <input
-                    className={styles.searchInput}
-                    value={String(effectiveModelPolicyDraft.global.defaultRoundingIncrement)}
-                    onChange={(event) => {
-                      const nextValue = parseIntegerInput(event.target.value);
-                      if (nextValue == null || nextValue <= 0) return;
-                      updateModelPolicyDraft((current) => ({
-                        ...current,
-                        global: {
-                          ...current.global,
-                          defaultRoundingIncrement: nextValue,
-                        },
-                      }));
-                    }}
-                  />
-                </label>
-                <label className={styles.manualAdjustField}>
-                  <span className="tiny subdued">Exception rounding model ids</span>
-                  <textarea
-                    className={styles.searchInput}
-                    rows={4}
-                    value={effectiveModelPolicyDraft.global.exceptionRoundingModelIds.join("\n")}
-                    onChange={(event) =>
-                      updateModelPolicyDraft((current) => ({
-                        ...current,
-                        global: {
-                          ...current.global,
-                          exceptionRoundingModelIds: event.target.value
-                            .split(/[\n,]+/)
-                            .map((value) => value.trim())
-                            .filter(Boolean),
-                        },
-                      }))
-                    }
-                  />
-                </label>
-                {selectedModelRow ? (
-                  <>
-                    <label className={styles.manualAdjustField}>
-                      <span className="tiny subdued">
-                        {selectedModelRow.label} multiplier percent
+              {modelPolicyMessage ? (
+                <p className={styles.announcementResult}>{modelPolicyMessage}</p>
+              ) : null}
+              {modelPolicyError ? (
+                <p className={styles.announcementError}>{modelPolicyError}</p>
+              ) : null}
+
+              {pricingState ? (
+                <>
+                  <div className={styles.searchRow}>
+                    <input
+                      type="search"
+                      className={styles.searchInput}
+                      value={modelSearchQuery}
+                      onChange={(event) => setModelSearchQuery(event.target.value)}
+                      placeholder="Search models, providers, ids, or strategies"
+                      aria-label="Search pricing models"
+                    />
+                  </div>
+                  <div className={styles.adminTable}>
+                    <div className={`${styles.pricingModelsHead} ${styles.adminTableHead}`}>
+                      <span>Model</span>
+                      <span>Provider</span>
+                      <span>Type</span>
+                      <span>Strategy</span>
+                      <span>Current</span>
+                      <span>Conversion override</span>
+                      <span>Markup override</span>
+                      <span>Roundup override</span>
+                    </div>
+                    {filteredModels.length === 0 ? (
+                      <div className={styles.adminTableRow}>
+                        <span className={styles.pricingPrimaryCell}>
+                          <strong>No models found</strong>
+                          <small>Try a different search.</small>
+                        </span>
+                      </div>
+                    ) : null}
+                    {filteredModels.map((model) => {
+                      const activePreview = model.pricingPreview;
+                      const isSelected = selectedModelRow?.id === model.id;
+                      const draftOverride = effectiveModelPolicyDraft.perModel[model.id] ?? null;
+                      return (
+                        <React.Fragment key={model.id}>
+                          <button
+                            type="button"
+                            className={`${styles.pricingModelsRow} ${styles.adminTableRowButton} ${
+                              isSelected ? styles.adminTableRowActive : ""
+                            }`}
+                            onClick={() =>
+                              setSelectedModelOverrideId((current) =>
+                                current === model.id ? null : model.id
+                              )
+                            }
+                            aria-expanded={isSelected}
+                            aria-label={`Configure pricing override for ${model.label}`}
+                          >
+                            <span className={styles.pricingPrimaryCell}>
+                              <strong>{model.label}</strong>
+                            </span>
+                            <span
+                              className={`${styles.pricingProviderLabel} ${getProviderLabelClassName(
+                                model.provider
+                              )}`.trim()}
+                            >
+                              {model.provider}
+                            </span>
+                            <span>{model.workflowType}</span>
+                            <span>{model.pricingStrategyLabel}</span>
+                            <span className={styles.pricingPrimaryCell}>
+                              {activePreview ? (
+                                <strong>{formatCredits(activePreview.billedCredits ?? 0)}</strong>
+                              ) : (
+                                <small>Unavailable</small>
+                              )}
+                            </span>
+                            <span className={styles.pricingMonoCell}>
+                              {draftOverride?.creditUsdScale != null
+                                ? String(draftOverride.creditUsdScale)
+                                : ""}
+                            </span>
+                            <span className={styles.pricingMonoCell}>
+                              {draftOverride?.markupBps != null
+                                ? `${draftOverride.markupBps / 100}%`
+                                : ""}
+                            </span>
+                            <span className={styles.pricingMonoCell}>
+                              {draftOverride?.roundingIncrement != null
+                                ? String(draftOverride.roundingIncrement)
+                                : ""}
+                            </span>
+                          </button>
+                          {isSelected ? (
+                            <div className={styles.pricingInlineEditorCard}>
+                              <p className="eyebrow">Edit model pricing policy</p>
+                              <div className={styles.pricingInlineEditorTopRow}>
+                                <div className={styles.pricingInlineOverridesGrid}>
+                                  <label className={styles.manualAdjustField}>
+                                    <span className="tiny subdued">Credit conversion override</span>
+                                    <input
+                                      className={`${styles.searchInput} ${styles.pricingOverrideInput}`}
+                                      value={
+                                        draftOverride?.creditUsdScale != null
+                                          ? String(draftOverride.creditUsdScale)
+                                          : ""
+                                      }
+                                      placeholder="none"
+                                      onChange={(event) =>
+                                        updateModelPolicyDraft((current) =>
+                                          normalizeModelOverrideDraft(current, model.id, {
+                                            creditUsdScale: parseIntegerInput(event.target.value),
+                                          })
+                                        )
+                                      }
+                                    />
+                                  </label>
+                                  <label className={styles.manualAdjustField}>
+                                    <span className="tiny subdued">Markup override</span>
+                                    <input
+                                      className={`${styles.searchInput} ${styles.pricingOverrideInput}`}
+                                      value={
+                                        draftOverride?.markupBps != null
+                                          ? String(draftOverride.markupBps / 100)
+                                          : ""
+                                      }
+                                      placeholder="none"
+                                      onChange={(event) =>
+                                        updateModelPolicyDraft((current) =>
+                                          normalizeModelOverrideDraft(current, model.id, {
+                                            markupBps: parsePercentToBps(event.target.value),
+                                          })
+                                        )
+                                      }
+                                    />
+                                  </label>
+                                  <label className={styles.manualAdjustField}>
+                                    <span className="tiny subdued">Roundup increment override</span>
+                                    <input
+                                      className={`${styles.searchInput} ${styles.pricingOverrideInput}`}
+                                      value={
+                                        draftOverride?.roundingIncrement != null
+                                          ? String(draftOverride.roundingIncrement)
+                                          : ""
+                                      }
+                                      placeholder="none"
+                                      onChange={(event) =>
+                                        updateModelPolicyDraft((current) =>
+                                          normalizeModelOverrideDraft(current, model.id, {
+                                            roundingIncrement: parseIntegerInput(
+                                              event.target.value
+                                            ),
+                                          })
+                                        )
+                                      }
+                                    />
+                                  </label>
+                                </div>
+                              </div>
+                              <div className={styles.pricingInlineEditorBottomRow}>
+                                <div className={styles.pricingEditorActionsColumn}>
+                                  <div className={styles.pricingEditorActions}>
+                                    <button
+                                      type="button"
+                                      className="ghost-btn mini"
+                                      onClick={() => void applyModelPolicy()}
+                                      disabled={
+                                        modelPolicySaving ||
+                                        modelPolicyRollbackLoading ||
+                                        !modelPolicyDirty
+                                      }
+                                    >
+                                      {modelPolicySaving ? "Applying…" : "Apply policy"}
+                                    </button>
+                                    <button
+                                      type="button"
+                                      className="ghost-btn mini"
+                                      onClick={resetModelPolicyDraft}
+                                      disabled={
+                                        modelPolicySaving ||
+                                        modelPolicyRollbackLoading ||
+                                        !modelPolicyDirty
+                                      }
+                                    >
+                                      Reset draft
+                                    </button>
+                                    <button
+                                      type="button"
+                                      className="ghost-btn mini"
+                                      onClick={() => void rollbackModelPolicy()}
+                                      disabled={modelPolicySaving || modelPolicyRollbackLoading}
+                                    >
+                                      {modelPolicyRollbackLoading
+                                        ? "Rolling back…"
+                                        : "Rollback active policy"}
+                                    </button>
+                                  </div>
+                                </div>
+                                <label
+                                  className={`${styles.manualAdjustField} ${styles.pricingEditorNoteField}`}
+                                >
+                                  <span className="tiny subdued">Change note</span>
+                                  <textarea
+                                    className={`${styles.searchInput} ${styles.pricingNoteInput}`}
+                                    value={modelPolicyNote}
+                                    onChange={(event) => setModelPolicyNote(event.target.value)}
+                                    placeholder="Short operator note for this version"
+                                    rows={3}
+                                  />
+                                </label>
+                              </div>
+                            </div>
+                          ) : null}
+                        </React.Fragment>
+                      );
+                    })}
+                  </div>
+                </>
+              ) : null}
+            </section>
+          ) : null}
+
+          {showPlansSection ? (
+            <section className={styles.adminSection}>
+              <div className={styles.adminSectionHead}>
+                <div>
+                  <p className="eyebrow">Subscriptions</p>
+                  <h2 className={styles.adminSectionTitle}>Public plans</h2>
+                </div>
+                <button
+                  type="button"
+                  className="ghost-btn mini"
+                  onClick={() => {
+                    const nextSortOrder =
+                      (pricingState?.plans.reduce(
+                        (maxOrder, row) => Math.max(maxOrder, row.sortOrder),
+                        0
+                      ) ?? 0) + 10;
+                    setPlanDraft(buildEmptyPlanCreateDraft(nextSortOrder));
+                    setPlanError(null);
+                    setPlanMessage(null);
+                  }}
+                >
+                  Create new plan
+                </button>
+              </div>
+
+              {pricingState ? (
+                <div className={styles.adminTable}>
+                  <div className={`${styles.pricingPlanCatalogHead} ${styles.adminTableHead}`}>
+                    <span>Plan</span>
+                    <span>Accounts</span>
+                    <span>Status</span>
+                    <span>Monthly price</span>
+                    <span>Credits</span>
+                    <span>Storage</span>
+                    <span>Stripe price</span>
+                    <span>Effective</span>
+                  </div>
+                  {pricingState.plans.map((plan) => (
+                    <div key={plan.offerId} className={styles.pricingPlanCatalogRow}>
+                      <span className={styles.pricingPrimaryCell}>
+                        <strong>{plan.displayName}</strong>
                       </span>
+                      <span>{formatCredits(plan.accountCount)}</span>
+                      <span className={getPlanStatusClassName(plan.status)}>{plan.status}</span>
+                      <span>{formatCurrencyFromCents(plan.recurringPriceCents)}</span>
+                      <span>{formatCredits(plan.monthlyCreditsCents)}</span>
+                      <span>{formatStorageBytes(plan.storageLimitBytes)}</span>
+                      <span className={styles.pricingMonoCell}>
+                        {plan.stripePriceId ?? "Missing"}
+                      </span>
+                      <span>{formatDateTime(plan.effectiveStartAt)}</span>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
+
+              {planMessage ? <p className={styles.announcementResult}>{planMessage}</p> : null}
+              {planError ? <p className={styles.announcementError}>{planError}</p> : null}
+
+              {planDraft ? (
+                <div className={styles.pricingEditorCard}>
+                  <p className="eyebrow">Create new plan</p>
+                  <div className={styles.pricingFormGrid}>
+                    <label className={styles.manualAdjustField}>
+                      <span className="tiny subdued">Plan id</span>
                       <input
                         className={styles.searchInput}
-                        value={
-                          selectedModelOverride?.multiplierBps != null
-                            ? String(selectedModelOverride.multiplierBps / 100)
-                            : ""
-                        }
-                        placeholder="100"
+                        value={planDraft.planId}
                         onChange={(event) =>
-                          updateModelPolicyDraft((current) =>
-                            normalizeModelOverrideDraft(current, selectedModelRow.id, {
-                              multiplierBps: parsePercentToBps(event.target.value),
-                            })
+                          setPlanDraft((current) =>
+                            current ? { ...current, planId: event.target.value } : current
                           )
                         }
                       />
                     </label>
                     <label className={styles.manualAdjustField}>
-                      <span className="tiny subdued">
-                        {selectedModelRow.label} rounding override
-                      </span>
-                      <select
+                      <span className="tiny subdued">Display name</span>
+                      <input
                         className={styles.searchInput}
-                        value={
-                          (selectedModelOverride?.roundingMode ??
-                            "default") as ModelOverrideRoundingDraft
-                        }
+                        value={planDraft.displayName}
                         onChange={(event) =>
-                          updateModelPolicyDraft((current) =>
-                            normalizeModelOverrideDraft(current, selectedModelRow.id, {
-                              roundingMode: event.target.value as ModelOverrideRoundingDraft,
-                            })
+                          setPlanDraft((current) =>
+                            current ? { ...current, displayName: event.target.value } : current
                           )
                         }
-                      >
-                        <option value="default">default</option>
-                        <option value="nearest-5">nearest-5</option>
-                        <option value="ceil">ceil</option>
-                      </select>
+                      />
                     </label>
-                  </>
-                ) : null}
-                <label className={styles.manualAdjustField}>
-                  <span className="tiny subdued">Change note</span>
-                  <input
-                    className={styles.searchInput}
-                    value={modelPolicyNote}
-                    onChange={(event) => setModelPolicyNote(event.target.value)}
-                    placeholder="Short operator note for this version"
-                  />
-                </label>
-                <label className={styles.manualAdjustField}>
-                  <span className="tiny subdued">Reason / rollback note</span>
-                  <input
-                    className={styles.searchInput}
-                    value={modelPolicyReason}
-                    onChange={(event) => setModelPolicyReason(event.target.value)}
-                    placeholder="Why this change is being applied"
-                  />
-                </label>
-              </div>
-              <p className="tiny subdued">
-                Changes here affect future model estimates and future server-side generation debits.
-                Existing ledger rows remain historical.
-              </p>
-              <div className={styles.pricingEditorActions}>
-                <button
-                  type="button"
-                  className="ghost-btn mini"
-                  onClick={() => void applyModelPolicy()}
-                  disabled={modelPolicySaving || modelPolicyRollbackLoading || !modelPolicyDirty}
-                >
-                  {modelPolicySaving ? "Applying…" : "Apply policy"}
-                </button>
-                <button
-                  type="button"
-                  className="ghost-btn mini"
-                  onClick={resetModelPolicyDraft}
-                  disabled={modelPolicySaving || modelPolicyRollbackLoading || !modelPolicyDirty}
-                >
-                  Reset draft
-                </button>
-                <button
-                  type="button"
-                  className="ghost-btn mini"
-                  onClick={() => void rollbackModelPolicy()}
-                  disabled={modelPolicySaving || modelPolicyRollbackLoading}
-                >
-                  {modelPolicyRollbackLoading ? "Rolling back…" : "Rollback active policy"}
-                </button>
-              </div>
-            </div>
-
-            <div className={styles.adminTable}>
-              <div className={`${styles.pricingModelsHead} ${styles.adminTableHead}`}>
-                <span>Model</span>
-                <span>Provider</span>
-                <span>Type</span>
-                <span>Strategy</span>
-                <span>Current</span>
-                <span>Draft</span>
-                <span>Action</span>
-              </div>
-              {pricingState.models.map((model) => {
-                const draftPreview = buildModelPolicyPreview(model, effectiveModelPolicyDraft);
-                const activePreview = model.pricingPreview;
-                const isSelected = selectedModelRow?.id === model.id;
-                const draftOverride = effectiveModelPolicyDraft.perModel[model.id] ?? null;
-                return (
-                  <div key={model.id} className={styles.pricingModelsRow}>
-                    <span className={styles.pricingPrimaryCell}>
-                      <strong>{model.label}</strong>
-                      <small>{model.id}</small>
-                    </span>
-                    <span>{model.provider}</span>
-                    <span>{model.mediaType}</span>
-                    <span className={styles.pricingMonoCell}>{model.pricingStrategy}</span>
-                    <span className={styles.pricingPrimaryCell}>
-                      {activePreview ? (
-                        <>
-                          <strong>{formatCredits(activePreview.billedCredits ?? 0)}</strong>
-                          <small>{model.roundingMode}</small>
-                        </>
-                      ) : (
-                        <small>Unavailable</small>
-                      )}
-                    </span>
-                    <span className={styles.pricingPrimaryCell}>
-                      {draftPreview ? (
-                        <>
-                          <strong>{formatCredits(draftPreview.credits ?? 0)}</strong>
-                          <small>
-                            {draftOverride?.multiplierBps != null
-                              ? formatPercent(draftOverride.multiplierBps / 100)
-                              : "default"}
-                            {" · "}
-                            {draftOverride?.roundingMode ?? "default"}
-                          </small>
-                        </>
-                      ) : (
-                        <small>Unavailable</small>
-                      )}
-                    </span>
-                    <span>
-                      <button
-                        type="button"
-                        className="ghost-btn mini"
-                        onClick={() => setSelectedModelOverrideId(model.id)}
-                      >
-                        {isSelected ? "Editing" : "Configure"}
-                      </button>
-                    </span>
+                    <label className={styles.manualAdjustField}>
+                      <span className="tiny subdued">Recurring price (cents)</span>
+                      <input
+                        className={styles.searchInput}
+                        value={planDraft.recurringPriceCents}
+                        onChange={(event) =>
+                          setPlanDraft((current) =>
+                            current
+                              ? { ...current, recurringPriceCents: event.target.value }
+                              : current
+                          )
+                        }
+                      />
+                    </label>
+                    <label className={styles.manualAdjustField}>
+                      <span className="tiny subdued">Monthly credits</span>
+                      <input
+                        className={styles.searchInput}
+                        value={planDraft.monthlyCreditsCents}
+                        onChange={(event) =>
+                          setPlanDraft((current) =>
+                            current
+                              ? { ...current, monthlyCreditsCents: event.target.value }
+                              : current
+                          )
+                        }
+                      />
+                    </label>
+                    <label className={styles.manualAdjustField}>
+                      <span className="tiny subdued">Storage bytes</span>
+                      <input
+                        className={styles.searchInput}
+                        value={planDraft.storageLimitBytes}
+                        onChange={(event) =>
+                          setPlanDraft((current) =>
+                            current
+                              ? { ...current, storageLimitBytes: event.target.value }
+                              : current
+                          )
+                        }
+                      />
+                    </label>
+                    <label className={styles.manualAdjustField}>
+                      <span className="tiny subdued">Sort order</span>
+                      <input
+                        className={styles.searchInput}
+                        value={planDraft.sortOrder}
+                        onChange={(event) =>
+                          setPlanDraft((current) =>
+                            current ? { ...current, sortOrder: event.target.value } : current
+                          )
+                        }
+                      />
+                    </label>
                   </div>
-                );
-              })}
-            </div>
-          </>
-        ) : null}
-      </section>
+                  <p className="tiny subdued">
+                    This creates the ShortPulse plan row, its first public offer, and the Stripe
+                    product plus recurring price.
+                  </p>
+                  <p className="tiny subdued">
+                    Stripe product preview:{" "}
+                    <strong>
+                      {planDraft.displayName.trim()
+                        ? `Plan - ${planDraft.displayName.trim()}`
+                        : "Plan - <DisplayName>"}
+                    </strong>
+                  </p>
+                  <div className={styles.pricingEditorActions}>
+                    <button
+                      type="button"
+                      className="ghost-btn mini"
+                      onClick={() => void createPlan()}
+                      disabled={planSaving}
+                    >
+                      {planSaving ? "Creating…" : "Create plan"}
+                    </button>
+                    <button
+                      type="button"
+                      className="ghost-btn mini"
+                      onClick={() => setPlanDraft(null)}
+                      disabled={planSaving}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              ) : null}
+            </section>
+          ) : null}
 
-      <section className={styles.adminSection}>
-        <div className={styles.adminSectionHead}>
-          <div>
-            <p className="eyebrow">Subscriptions</p>
-            <h2 className={styles.adminSectionTitle}>Active public plan offers</h2>
-            <p className="tiny subdued">
-              Current acquisition-facing offer rows. Existing subscriber contracts are not shown
-              here.
-            </p>
-          </div>
-        </div>
-
-        {pricingState ? (
-          <div className={styles.adminTable}>
-            <div className={`${styles.pricingCatalogHead} ${styles.adminTableHead}`}>
-              <span>Plan</span>
-              <span>Monthly price</span>
-              <span>Credits</span>
-              <span>Storage</span>
-              <span>Stripe price</span>
-              <span>Effective</span>
-              <span>Action</span>
-            </div>
-            {pricingState.plans.map((plan) => (
-              <div key={plan.offerId} className={styles.pricingCatalogRow}>
-                <span className={styles.pricingPrimaryCell}>
-                  <strong>{plan.displayName}</strong>
-                  <small>{plan.planId}</small>
-                </span>
-                <span>{formatCurrencyFromCents(plan.recurringPriceCents)}</span>
-                <span>{formatCredits(plan.monthlyCreditsCents)}</span>
-                <span>{formatStorageBytes(plan.storageLimitBytes)}</span>
-                <span className={styles.pricingMonoCell}>{plan.stripePriceId ?? "Missing"}</span>
-                <span>{formatDateTime(plan.effectiveStartAt)}</span>
-                <span>
-                  <button
-                    type="button"
-                    className="ghost-btn mini"
-                    onClick={() => {
-                      setPlanDraft(buildPlanOfferDraft(plan));
-                      setPlanError(null);
-                      setPlanMessage(null);
-                    }}
-                  >
-                    Create next
-                  </button>
-                </span>
+          {showCreditsSection ? (
+            <section className={styles.adminSection}>
+              <div className={styles.adminSectionHead}>
+                <div>
+                  <p className="eyebrow">Credit top-ups</p>
+                  <h2 className={styles.adminSectionTitle}>Active credit packages</h2>
+                  <p className="tiny subdued">Direct package rows currently exposed to checkout.</p>
+                </div>
               </div>
-            ))}
-          </div>
-        ) : null}
 
-        {planMessage ? <p className={styles.announcementResult}>{planMessage}</p> : null}
-        {planError ? <p className={styles.announcementError}>{planError}</p> : null}
+              {pricingState ? (
+                <div className={styles.adminTable}>
+                  <div className={`${styles.pricingCatalogHead} ${styles.adminTableHead}`}>
+                    <span>Package</span>
+                    <span>Price</span>
+                    <span>Credits</span>
+                    <span>Unit economics</span>
+                    <span>Stripe price</span>
+                    <span>Status</span>
+                    <span>Action</span>
+                  </div>
+                  {pricingState.creditPackages.map((pkg) => (
+                    <div key={pkg.id} className={styles.pricingCatalogRow}>
+                      <span className={styles.pricingPrimaryCell}>
+                        <strong>{pkg.displayName}</strong>
+                      </span>
+                      <span>{formatCurrencyFromCents(pkg.priceCents)}</span>
+                      <span>{formatCredits(pkg.creditAmountCents)}</span>
+                      <span>
+                        {formatUsd((pkg.priceCents / 100 / pkg.creditAmountCents) * 1000)}
+                      </span>
+                      <span className={styles.pricingMonoCell}>
+                        {pkg.stripePriceId ?? "Missing"}
+                      </span>
+                      <span className={pkg.isActive ? styles.pillOk : styles.pillWarn}>
+                        {pkg.isActive ? "active" : "inactive"}
+                      </span>
+                      <span>
+                        <button
+                          type="button"
+                          className="ghost-btn mini"
+                          onClick={() => {
+                            setCreditDraft(buildCreditPackageDraft(pkg));
+                            setCreditError(null);
+                            setCreditMessage(null);
+                          }}
+                        >
+                          Edit
+                        </button>
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
 
-        {planDraft ? (
-          <div className={styles.pricingEditorCard}>
-            <p className="eyebrow">Create next plan offer</p>
-            <div className={styles.pricingFormGrid}>
-              <label className={styles.manualAdjustField}>
-                <span className="tiny subdued">Offer name</span>
-                <input
-                  className={styles.searchInput}
-                  value={planDraft.offerName}
-                  onChange={(event) =>
-                    setPlanDraft((current) =>
-                      current ? { ...current, offerName: event.target.value } : current
-                    )
-                  }
-                />
-              </label>
-              <label className={styles.manualAdjustField}>
-                <span className="tiny subdued">Recurring price (cents)</span>
-                <input
-                  className={styles.searchInput}
-                  value={planDraft.recurringPriceCents}
-                  onChange={(event) =>
-                    setPlanDraft((current) =>
-                      current ? { ...current, recurringPriceCents: event.target.value } : current
-                    )
-                  }
-                />
-              </label>
-              <label className={styles.manualAdjustField}>
-                <span className="tiny subdued">Monthly credits</span>
-                <input
-                  className={styles.searchInput}
-                  value={planDraft.monthlyCreditsCents}
-                  onChange={(event) =>
-                    setPlanDraft((current) =>
-                      current ? { ...current, monthlyCreditsCents: event.target.value } : current
-                    )
-                  }
-                />
-              </label>
-              <label className={styles.manualAdjustField}>
-                <span className="tiny subdued">Storage bytes</span>
-                <input
-                  className={styles.searchInput}
-                  value={planDraft.storageLimitBytes}
-                  onChange={(event) =>
-                    setPlanDraft((current) =>
-                      current ? { ...current, storageLimitBytes: event.target.value } : current
-                    )
-                  }
-                />
-              </label>
-              <label className={styles.manualAdjustField}>
-                <span className="tiny subdued">Stripe price id</span>
-                <input
-                  className={styles.searchInput}
-                  value={planDraft.stripePriceId}
-                  onChange={(event) =>
-                    setPlanDraft((current) =>
-                      current ? { ...current, stripePriceId: event.target.value } : current
-                    )
-                  }
-                />
-              </label>
-            </div>
-            <p className="tiny subdued">
-              This creates a new current public offer for new buyers. Existing subscriber contracts
-              remain unchanged.
-            </p>
-            <div className={styles.pricingEditorActions}>
-              <button
-                type="button"
-                className="ghost-btn mini"
-                onClick={() => void createPlanOffer()}
-                disabled={planSaving}
-              >
-                {planSaving ? "Creating…" : "Create and activate"}
-              </button>
-              <button
-                type="button"
-                className="ghost-btn mini"
-                onClick={() => setPlanDraft(null)}
-                disabled={planSaving}
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
-        ) : null}
-      </section>
+              {creditMessage ? <p className={styles.announcementResult}>{creditMessage}</p> : null}
+              {creditError ? <p className={styles.announcementError}>{creditError}</p> : null}
 
-      <section className={styles.adminSection}>
-        <div className={styles.adminSectionHead}>
-          <div>
-            <p className="eyebrow">Credit top-ups</p>
-            <h2 className={styles.adminSectionTitle}>Active credit packages</h2>
-            <p className="tiny subdued">Direct package rows currently exposed to checkout.</p>
-          </div>
-        </div>
+              {creditDraft ? (
+                <div className={styles.pricingEditorCard}>
+                  <p className="eyebrow">Edit credit package</p>
+                  <div className={styles.pricingFormGrid}>
+                    <label className={styles.manualAdjustField}>
+                      <span className="tiny subdued">Display name</span>
+                      <input
+                        className={styles.searchInput}
+                        value={creditDraft.displayName}
+                        onChange={(event) =>
+                          setCreditDraft((current) =>
+                            current ? { ...current, displayName: event.target.value } : current
+                          )
+                        }
+                      />
+                    </label>
+                    <label className={styles.manualAdjustField}>
+                      <span className="tiny subdued">Credits</span>
+                      <input
+                        className={styles.searchInput}
+                        value={creditDraft.creditAmountCents}
+                        onChange={(event) =>
+                          setCreditDraft((current) =>
+                            current
+                              ? { ...current, creditAmountCents: event.target.value }
+                              : current
+                          )
+                        }
+                      />
+                    </label>
+                    <label className={styles.manualAdjustField}>
+                      <span className="tiny subdued">Price (cents)</span>
+                      <input
+                        className={styles.searchInput}
+                        value={creditDraft.priceCents}
+                        onChange={(event) =>
+                          setCreditDraft((current) =>
+                            current ? { ...current, priceCents: event.target.value } : current
+                          )
+                        }
+                      />
+                    </label>
+                    <label className={styles.manualAdjustField}>
+                      <span className="tiny subdued">Stripe price id</span>
+                      <input
+                        className={styles.searchInput}
+                        value={creditDraft.stripePriceId}
+                        onChange={(event) =>
+                          setCreditDraft((current) =>
+                            current ? { ...current, stripePriceId: event.target.value } : current
+                          )
+                        }
+                      />
+                    </label>
+                    <label className={styles.manualAdjustField}>
+                      <span className="tiny subdued">Sort order</span>
+                      <input
+                        className={styles.searchInput}
+                        value={creditDraft.sortOrder}
+                        onChange={(event) =>
+                          setCreditDraft((current) =>
+                            current ? { ...current, sortOrder: event.target.value } : current
+                          )
+                        }
+                      />
+                    </label>
+                    <label className={styles.pricingCheckboxField}>
+                      <input
+                        type="checkbox"
+                        checked={creditDraft.isActive}
+                        onChange={(event) =>
+                          setCreditDraft((current) =>
+                            current ? { ...current, isActive: event.target.checked } : current
+                          )
+                        }
+                      />
+                      <span>Active package</span>
+                    </label>
+                  </div>
+                  <div className={styles.pricingEditorActions}>
+                    <button
+                      type="button"
+                      className="ghost-btn mini"
+                      onClick={() => void saveCreditPackage()}
+                      disabled={creditSaving}
+                    >
+                      {creditSaving ? "Saving…" : "Save package"}
+                    </button>
+                    <button
+                      type="button"
+                      className="ghost-btn mini"
+                      onClick={() => setCreditDraft(null)}
+                      disabled={creditSaving}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              ) : null}
+            </section>
+          ) : null}
 
-        {pricingState ? (
-          <div className={styles.adminTable}>
-            <div className={`${styles.pricingCatalogHead} ${styles.adminTableHead}`}>
-              <span>Package</span>
-              <span>Price</span>
-              <span>Credits</span>
-              <span>Unit economics</span>
-              <span>Stripe price</span>
-              <span>Status</span>
-              <span>Action</span>
-            </div>
-            {pricingState.creditPackages.map((pkg) => (
-              <div key={pkg.id} className={styles.pricingCatalogRow}>
-                <span className={styles.pricingPrimaryCell}>
-                  <strong>{pkg.displayName}</strong>
-                  <small>{pkg.id}</small>
-                </span>
-                <span>{formatCurrencyFromCents(pkg.priceCents)}</span>
-                <span>{formatCredits(pkg.creditAmountCents)}</span>
-                <span>{formatUsd((pkg.priceCents / 100 / pkg.creditAmountCents) * 1000)}</span>
-                <span className={styles.pricingMonoCell}>{pkg.stripePriceId ?? "Missing"}</span>
-                <span className={pkg.isActive ? styles.pillOk : styles.pillWarn}>
-                  {pkg.isActive ? "active" : "inactive"}
-                </span>
-                <span>
-                  <button
-                    type="button"
-                    className="ghost-btn mini"
-                    onClick={() => {
-                      setCreditDraft(buildCreditPackageDraft(pkg));
-                      setCreditError(null);
-                      setCreditMessage(null);
-                    }}
-                  >
-                    Edit
-                  </button>
-                </span>
+          {showMediaAddonsSection ? (
+            <section className={styles.adminSection}>
+              <div className={styles.adminSectionHead}>
+                <div>
+                  <p className="eyebrow">Storage add-ons</p>
+                  <h2 className={styles.adminSectionTitle}>Active public storage offers</h2>
+                  <p className="tiny subdued">
+                    Current recurring storage acquisition rows and linked Stripe identifiers.
+                  </p>
+                </div>
               </div>
-            ))}
-          </div>
-        ) : null}
 
-        {creditMessage ? <p className={styles.announcementResult}>{creditMessage}</p> : null}
-        {creditError ? <p className={styles.announcementError}>{creditError}</p> : null}
+              {pricingState ? (
+                <div className={styles.adminTable}>
+                  <div className={`${styles.pricingCatalogHead} ${styles.adminTableHead}`}>
+                    <span>Add-on</span>
+                    <span>Monthly price</span>
+                    <span>Storage</span>
+                    <span>Offer id</span>
+                    <span>Stripe price</span>
+                    <span>Effective</span>
+                    <span>Action</span>
+                  </div>
+                  {pricingState.storageAddons.map((addon) => (
+                    <div key={addon.offerId} className={styles.pricingCatalogRow}>
+                      <span className={styles.pricingPrimaryCell}>
+                        <strong>{addon.displayName}</strong>
+                      </span>
+                      <span>{formatCurrencyFromCents(addon.recurringPriceCents)}</span>
+                      <span>{formatStorageBytes(addon.storageLimitBytes)}</span>
+                      <span className={styles.pricingMonoCell}>{addon.offerId}</span>
+                      <span className={styles.pricingMonoCell}>
+                        {addon.stripePriceId ?? "Missing"}
+                      </span>
+                      <span>{formatDateTime(addon.effectiveStartAt)}</span>
+                      <span>
+                        <button
+                          type="button"
+                          className="ghost-btn mini"
+                          onClick={() => {
+                            setStorageDraft(buildStorageOfferDraft(addon));
+                            setStorageError(null);
+                            setStorageMessage(null);
+                          }}
+                        >
+                          Create next
+                        </button>
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
 
-        {creditDraft ? (
-          <div className={styles.pricingEditorCard}>
-            <p className="eyebrow">Edit credit package</p>
-            <div className={styles.pricingFormGrid}>
-              <label className={styles.manualAdjustField}>
-                <span className="tiny subdued">Display name</span>
-                <input
-                  className={styles.searchInput}
-                  value={creditDraft.displayName}
-                  onChange={(event) =>
-                    setCreditDraft((current) =>
-                      current ? { ...current, displayName: event.target.value } : current
-                    )
-                  }
-                />
-              </label>
-              <label className={styles.manualAdjustField}>
-                <span className="tiny subdued">Credits</span>
-                <input
-                  className={styles.searchInput}
-                  value={creditDraft.creditAmountCents}
-                  onChange={(event) =>
-                    setCreditDraft((current) =>
-                      current ? { ...current, creditAmountCents: event.target.value } : current
-                    )
-                  }
-                />
-              </label>
-              <label className={styles.manualAdjustField}>
-                <span className="tiny subdued">Price (cents)</span>
-                <input
-                  className={styles.searchInput}
-                  value={creditDraft.priceCents}
-                  onChange={(event) =>
-                    setCreditDraft((current) =>
-                      current ? { ...current, priceCents: event.target.value } : current
-                    )
-                  }
-                />
-              </label>
-              <label className={styles.manualAdjustField}>
-                <span className="tiny subdued">Stripe price id</span>
-                <input
-                  className={styles.searchInput}
-                  value={creditDraft.stripePriceId}
-                  onChange={(event) =>
-                    setCreditDraft((current) =>
-                      current ? { ...current, stripePriceId: event.target.value } : current
-                    )
-                  }
-                />
-              </label>
-              <label className={styles.manualAdjustField}>
-                <span className="tiny subdued">Sort order</span>
-                <input
-                  className={styles.searchInput}
-                  value={creditDraft.sortOrder}
-                  onChange={(event) =>
-                    setCreditDraft((current) =>
-                      current ? { ...current, sortOrder: event.target.value } : current
-                    )
-                  }
-                />
-              </label>
-              <label className={styles.pricingCheckboxField}>
-                <input
-                  type="checkbox"
-                  checked={creditDraft.isActive}
-                  onChange={(event) =>
-                    setCreditDraft((current) =>
-                      current ? { ...current, isActive: event.target.checked } : current
-                    )
-                  }
-                />
-                <span>Active package</span>
-              </label>
-            </div>
-            <div className={styles.pricingEditorActions}>
-              <button
-                type="button"
-                className="ghost-btn mini"
-                onClick={() => void saveCreditPackage()}
-                disabled={creditSaving}
-              >
-                {creditSaving ? "Saving…" : "Save package"}
-              </button>
-              <button
-                type="button"
-                className="ghost-btn mini"
-                onClick={() => setCreditDraft(null)}
-                disabled={creditSaving}
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
-        ) : null}
-      </section>
+              {storageMessage ? (
+                <p className={styles.announcementResult}>{storageMessage}</p>
+              ) : null}
+              {storageError ? <p className={styles.announcementError}>{storageError}</p> : null}
 
-      <section className={styles.adminSection}>
-        <div className={styles.adminSectionHead}>
-          <div>
-            <p className="eyebrow">Storage add-ons</p>
-            <h2 className={styles.adminSectionTitle}>Active public storage offers</h2>
-            <p className="tiny subdued">
-              Current recurring storage acquisition rows and linked Stripe identifiers.
-            </p>
-          </div>
-        </div>
-
-        {pricingState ? (
-          <div className={styles.adminTable}>
-            <div className={`${styles.pricingCatalogHead} ${styles.adminTableHead}`}>
-              <span>Add-on</span>
-              <span>Monthly price</span>
-              <span>Storage</span>
-              <span>Offer id</span>
-              <span>Stripe price</span>
-              <span>Effective</span>
-              <span>Action</span>
-            </div>
-            {pricingState.storageAddons.map((addon) => (
-              <div key={addon.offerId} className={styles.pricingCatalogRow}>
-                <span className={styles.pricingPrimaryCell}>
-                  <strong>{addon.displayName}</strong>
-                  <small>{addon.storageAddonId}</small>
-                </span>
-                <span>{formatCurrencyFromCents(addon.recurringPriceCents)}</span>
-                <span>{formatStorageBytes(addon.storageLimitBytes)}</span>
-                <span className={styles.pricingMonoCell}>{addon.offerId}</span>
-                <span className={styles.pricingMonoCell}>{addon.stripePriceId ?? "Missing"}</span>
-                <span>{formatDateTime(addon.effectiveStartAt)}</span>
-                <span>
-                  <button
-                    type="button"
-                    className="ghost-btn mini"
-                    onClick={() => {
-                      setStorageDraft(buildStorageOfferDraft(addon));
-                      setStorageError(null);
-                      setStorageMessage(null);
-                    }}
-                  >
-                    Create next
-                  </button>
-                </span>
-              </div>
-            ))}
-          </div>
-        ) : null}
-
-        {storageMessage ? <p className={styles.announcementResult}>{storageMessage}</p> : null}
-        {storageError ? <p className={styles.announcementError}>{storageError}</p> : null}
-
-        {storageDraft ? (
-          <div className={styles.pricingEditorCard}>
-            <p className="eyebrow">Create next storage offer</p>
-            <div className={styles.pricingFormGrid}>
-              <label className={styles.manualAdjustField}>
-                <span className="tiny subdued">Offer name</span>
-                <input
-                  className={styles.searchInput}
-                  value={storageDraft.offerName}
-                  onChange={(event) =>
-                    setStorageDraft((current) =>
-                      current ? { ...current, offerName: event.target.value } : current
-                    )
-                  }
-                />
-              </label>
-              <label className={styles.manualAdjustField}>
-                <span className="tiny subdued">Storage bytes</span>
-                <input
-                  className={styles.searchInput}
-                  value={storageDraft.storageLimitBytes}
-                  onChange={(event) =>
-                    setStorageDraft((current) =>
-                      current ? { ...current, storageLimitBytes: event.target.value } : current
-                    )
-                  }
-                />
-              </label>
-              <label className={styles.manualAdjustField}>
-                <span className="tiny subdued">Recurring price (cents)</span>
-                <input
-                  className={styles.searchInput}
-                  value={storageDraft.recurringPriceCents}
-                  onChange={(event) =>
-                    setStorageDraft((current) =>
-                      current ? { ...current, recurringPriceCents: event.target.value } : current
-                    )
-                  }
-                />
-              </label>
-              <label className={styles.manualAdjustField}>
-                <span className="tiny subdued">Stripe price id</span>
-                <input
-                  className={styles.searchInput}
-                  value={storageDraft.stripePriceId}
-                  onChange={(event) =>
-                    setStorageDraft((current) =>
-                      current ? { ...current, stripePriceId: event.target.value } : current
-                    )
-                  }
-                />
-              </label>
-            </div>
-            <p className="tiny subdued">
-              This creates a new current public recurring storage offer for new buyers only.
-            </p>
-            <div className={styles.pricingEditorActions}>
-              <button
-                type="button"
-                className="ghost-btn mini"
-                onClick={() => void createStorageOffer()}
-                disabled={storageSaving}
-              >
-                {storageSaving ? "Creating…" : "Create and activate"}
-              </button>
-              <button
-                type="button"
-                className="ghost-btn mini"
-                onClick={() => setStorageDraft(null)}
-                disabled={storageSaving}
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
-        ) : null}
-      </section>
+              {storageDraft ? (
+                <div className={styles.pricingEditorCard}>
+                  <p className="eyebrow">Create next storage offer</p>
+                  <div className={styles.pricingFormGrid}>
+                    <label className={styles.manualAdjustField}>
+                      <span className="tiny subdued">Offer name</span>
+                      <input
+                        className={styles.searchInput}
+                        value={storageDraft.offerName}
+                        onChange={(event) =>
+                          setStorageDraft((current) =>
+                            current ? { ...current, offerName: event.target.value } : current
+                          )
+                        }
+                      />
+                    </label>
+                    <label className={styles.manualAdjustField}>
+                      <span className="tiny subdued">Storage bytes</span>
+                      <input
+                        className={styles.searchInput}
+                        value={storageDraft.storageLimitBytes}
+                        onChange={(event) =>
+                          setStorageDraft((current) =>
+                            current
+                              ? { ...current, storageLimitBytes: event.target.value }
+                              : current
+                          )
+                        }
+                      />
+                    </label>
+                    <label className={styles.manualAdjustField}>
+                      <span className="tiny subdued">Recurring price (cents)</span>
+                      <input
+                        className={styles.searchInput}
+                        value={storageDraft.recurringPriceCents}
+                        onChange={(event) =>
+                          setStorageDraft((current) =>
+                            current
+                              ? { ...current, recurringPriceCents: event.target.value }
+                              : current
+                          )
+                        }
+                      />
+                    </label>
+                    <label className={styles.manualAdjustField}>
+                      <span className="tiny subdued">Stripe price id</span>
+                      <input
+                        className={styles.searchInput}
+                        value={storageDraft.stripePriceId}
+                        onChange={(event) =>
+                          setStorageDraft((current) =>
+                            current ? { ...current, stripePriceId: event.target.value } : current
+                          )
+                        }
+                      />
+                    </label>
+                  </div>
+                  <p className="tiny subdued">
+                    This creates a new current public recurring storage offer for new buyers only.
+                  </p>
+                  <div className={styles.pricingEditorActions}>
+                    <button
+                      type="button"
+                      className="ghost-btn mini"
+                      onClick={() => void createStorageOffer()}
+                      disabled={storageSaving}
+                    >
+                      {storageSaving ? "Creating…" : "Create and activate"}
+                    </button>
+                    <button
+                      type="button"
+                      className="ghost-btn mini"
+                      onClick={() => setStorageDraft(null)}
+                      disabled={storageSaving}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              ) : null}
+            </section>
+          ) : null}
+        </>
+      )}
     </AdminRouteShell>
   );
 }

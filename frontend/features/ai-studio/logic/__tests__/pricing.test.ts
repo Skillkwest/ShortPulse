@@ -29,7 +29,7 @@ describe("computeCostForModel (economy image lane)", () => {
     expect(cost?.megapixels).toBeCloseTo(1.048576, 6);
     expect(cost?.usdRaw).toBeCloseTo(0.006291456, 9);
     expect(cost?.rawCredits).toBe(1);
-    expect(cost?.credits).toBe(1);
+    expect(cost?.credits).toBe(5);
   });
 
   it("uses explicit image dimensions when provided", () => {
@@ -38,17 +38,17 @@ describe("computeCostForModel (economy image lane)", () => {
     expect(cost?.width).toBe(4096);
     expect(cost?.height).toBe(4096);
     expect(cost?.rawCredits).toBe(11);
-    expect(cost?.credits).toBe(11);
+    expect(cost?.credits).toBe(15);
   });
 });
 
-describe("computeCostForModel (FLUX.2 Lite + Bria exceptions)", () => {
-  it("uses ceil quantization for fal-ai/flux-2/klein/9b", () => {
+describe("computeCostForModel (FLUX.2 Lite + Bria rounding)", () => {
+  it("uses shared nearest-5 quantization for fal-ai/flux-2/klein/9b by default", () => {
     const cost = computeCostForModel("fal-ai/flux-2/klein/9b", { aspect: "4:3" });
     expect(cost).not.toBeNull();
     expect(cost?.usdRaw).toBeCloseTo(0.00648, 6);
     expect(cost?.rawCredits).toBe(1);
-    expect(cost?.credits).toBe(1);
+    expect(cost?.credits).toBe(5);
   });
 
   it("keeps FLUX.2 Lite dynamic for large explicit dimensions", () => {
@@ -58,10 +58,10 @@ describe("computeCostForModel (FLUX.2 Lite + Bria exceptions)", () => {
     });
     expect(cost).not.toBeNull();
     expect(cost?.rawCredits).toBe(11);
-    expect(cost?.credits).toBe(11);
+    expect(cost?.credits).toBe(15);
   });
 
-  it("uses ceil quantization for fal-ai/bria/background/remove", () => {
+  it("uses shared nearest-5 quantization for fal-ai/bria/background/remove by default", () => {
     const cost = computeCostForModel("fal-ai/bria/background/remove", {
       imageWidth: 1024,
       imageHeight: 1024,
@@ -69,7 +69,7 @@ describe("computeCostForModel (FLUX.2 Lite + Bria exceptions)", () => {
     expect(cost).not.toBeNull();
     expect(cost?.usdRaw).toBeCloseTo(0.018, 6);
     expect(cost?.rawCredits).toBe(2);
-    expect(cost?.credits).toBe(2);
+    expect(cost?.credits).toBe(5);
   });
 });
 

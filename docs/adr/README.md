@@ -80,3 +80,4 @@ ADRs capture **important, durable decisions** so the repo stays coherent as it g
 - `docs/adr/0066-project-media-library-folder-authority.md`
 - `docs/adr/0067-project-media-library-folder-canvas-authority.md`
 - `docs/adr/0068-model-pricing-control-plane.md`
+- `docs/adr/0069-admin-created-billing-plans.md`

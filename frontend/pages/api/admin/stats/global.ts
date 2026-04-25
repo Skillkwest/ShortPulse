@@ -1,6 +1,6 @@
 /**
  * Admin API: fetch the admin stats workspace payload for overview, model, workflow,
- * asset, and project analytics.
+ * asset, project, marketing, and sales analytics.
  */
 import type { NextApiRequest, NextApiResponse } from "next";
 import { requireAdminUser } from "../../../../lib/server/api/auth";
@@ -251,6 +251,71 @@ const buildLegacyFallbackPayload = async () => {
       assetsSource: "unavailable",
       projectsSource: "unavailable",
     },
+    growth: {
+      marketing: {
+        summary: {
+          signups: { total: 0, last24h: 0, last7d: 0 },
+          activatedUsers: { total: 0, last24h: 0, last7d: 0 },
+          activationRatePct: { total: 0, last24h: 0, last7d: 0 },
+          medianHours: {
+            signupToGenerate: null,
+            signupToSuccess: null,
+            signupToActivation: null,
+            generateToActivation: null,
+          },
+        },
+        retention: {
+          activated: {
+            cohortSize: 0,
+            eligibleD1: 0,
+            retainedD1: 0,
+            d1RatePct: 0,
+            eligibleD7: 0,
+            retainedD7: 0,
+            d7RatePct: 0,
+            eligibleD30: 0,
+            retainedD30: 0,
+            d30RatePct: 0,
+          },
+          nonActivated: {
+            cohortSize: 0,
+            eligibleD1: 0,
+            retainedD1: 0,
+            d1RatePct: 0,
+            eligibleD7: 0,
+            retainedD7: 0,
+            d7RatePct: 0,
+            eligibleD30: 0,
+            retainedD30: 0,
+            d30RatePct: 0,
+          },
+        },
+        attribution: {
+          sources: [],
+          campaigns: [],
+        },
+      },
+      sales: {
+        summary: {
+          pricingViewedUsers: { total: 0, last24h: 0, last7d: 0 },
+          upgradeClickedUsers: { total: 0, last24h: 0, last7d: 0 },
+          checkoutStartedUsers: { total: 0, last24h: 0, last7d: 0 },
+          checkoutCompletedUsers: { total: 0, last24h: 0, last7d: 0 },
+          paidConvertedUsers: { total: 0, last24h: 0, last7d: 0 },
+          pqlUsers: { total: 0, last24h: 0, last7d: 0 },
+          activatedToPqlRatePct: 0,
+          pqlToPaidRatePct: 0,
+        },
+        highIntentUsers: [],
+      },
+      health: {
+        degraded: true,
+        reason:
+          "Admin growth stats RPC is unavailable. Apply SQL migration 102_add_admin_growth_stats_v1.sql to enable marketing and sales analytics.",
+        marketingSource: "unavailable",
+        salesSource: "unavailable",
+      },
+    },
     generatedAt: new Date().toISOString(),
   };
 };
@@ -265,13 +330,22 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   try {
     const supabaseAdmin = getSupabaseAdmin();
-    const statsResult = await supabaseAdmin.rpc("get_admin_global_stats_v1");
+    const [statsResult, growthResult] = await Promise.all([
+      supabaseAdmin.rpc("get_admin_global_stats_v1"),
+      supabaseAdmin.rpc("get_admin_growth_stats_v1"),
+    ]);
     const hasRpcGap = isMissingRpcError(statsResult.error, ["get_admin_global_stats_v1"]);
+    const hasGrowthRpcGap = isMissingRpcError(growthResult.error, ["get_admin_growth_stats_v1"]);
 
     if (statsResult.error && !hasRpcGap) {
       return res
         .status(500)
         .json({ error: statsResult.error.message || "Unable to load admin stats." });
+    }
+    if (growthResult.error && !hasGrowthRpcGap) {
+      return res
+        .status(500)
+        .json({ error: growthResult.error.message || "Unable to load admin growth stats." });
     }
 
     if (hasRpcGap) {
@@ -290,6 +364,83 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         assetsSource: "rpc",
         projectsSource: "rpc",
       },
+      growth: hasGrowthRpcGap
+        ? {
+            marketing: {
+              summary: {
+                signups: { total: 0, last24h: 0, last7d: 0 },
+                activatedUsers: { total: 0, last24h: 0, last7d: 0 },
+                activationRatePct: { total: 0, last24h: 0, last7d: 0 },
+                medianHours: {
+                  signupToGenerate: null,
+                  signupToSuccess: null,
+                  signupToActivation: null,
+                  generateToActivation: null,
+                },
+              },
+              retention: {
+                activated: {
+                  cohortSize: 0,
+                  eligibleD1: 0,
+                  retainedD1: 0,
+                  d1RatePct: 0,
+                  eligibleD7: 0,
+                  retainedD7: 0,
+                  d7RatePct: 0,
+                  eligibleD30: 0,
+                  retainedD30: 0,
+                  d30RatePct: 0,
+                },
+                nonActivated: {
+                  cohortSize: 0,
+                  eligibleD1: 0,
+                  retainedD1: 0,
+                  d1RatePct: 0,
+                  eligibleD7: 0,
+                  retainedD7: 0,
+                  d7RatePct: 0,
+                  eligibleD30: 0,
+                  retainedD30: 0,
+                  d30RatePct: 0,
+                },
+              },
+              attribution: {
+                sources: [],
+                campaigns: [],
+              },
+            },
+            sales: {
+              summary: {
+                pricingViewedUsers: { total: 0, last24h: 0, last7d: 0 },
+                upgradeClickedUsers: { total: 0, last24h: 0, last7d: 0 },
+                checkoutStartedUsers: { total: 0, last24h: 0, last7d: 0 },
+                checkoutCompletedUsers: { total: 0, last24h: 0, last7d: 0 },
+                paidConvertedUsers: { total: 0, last24h: 0, last7d: 0 },
+                pqlUsers: { total: 0, last24h: 0, last7d: 0 },
+                activatedToPqlRatePct: 0,
+                pqlToPaidRatePct: 0,
+              },
+              highIntentUsers: [],
+            },
+            health: {
+              degraded: true,
+              reason:
+                "Admin growth stats RPC is unavailable. Apply SQL migration 102_add_admin_growth_stats_v1.sql to enable marketing and sales analytics.",
+              marketingSource: "unavailable",
+              salesSource: "unavailable",
+            },
+          }
+        : {
+            ...(growthResult.data && typeof growthResult.data === "object"
+              ? growthResult.data
+              : {}),
+            health: {
+              degraded: false,
+              reason: null,
+              marketingSource: "rpc",
+              salesSource: "rpc",
+            },
+          },
       generatedAt: new Date().toISOString(),
     });
   } catch (error) {

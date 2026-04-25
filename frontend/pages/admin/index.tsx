@@ -45,8 +45,6 @@ export default function AdminDashboardPage() {
     adjustment,
     adjustSubmitting,
     adjustResult,
-    internalCompPlan,
-    internalCompReason,
     allowStripeTakeover,
     billingOverrideSubmitting,
     billingOverrideResult,
@@ -71,8 +69,6 @@ export default function AdminDashboardPage() {
     handlePreviousUsersPage,
     handleNextUsersPage,
     handleAdjustmentChange,
-    handleInternalCompPlanChange,
-    handleInternalCompReasonChange,
     handleAllowStripeTakeoverChange,
     applyAdjustmentPreset,
     handleCreditAdjust,
@@ -120,8 +116,6 @@ export default function AdminDashboardPage() {
         adjustment={adjustment}
         adjustSubmitting={adjustSubmitting}
         adjustResult={adjustResult}
-        internalCompPlan={internalCompPlan}
-        internalCompReason={internalCompReason}
         allowStripeTakeover={allowStripeTakeover}
         billingOverrideSubmitting={billingOverrideSubmitting}
         billingOverrideResult={billingOverrideResult}
@@ -146,8 +140,6 @@ export default function AdminDashboardPage() {
         handlePreviousUsersPage={handlePreviousUsersPage}
         handleNextUsersPage={handleNextUsersPage}
         handleAdjustmentChange={handleAdjustmentChange}
-        handleInternalCompPlanChange={handleInternalCompPlanChange}
-        handleInternalCompReasonChange={handleInternalCompReasonChange}
         handleAllowStripeTakeoverChange={handleAllowStripeTakeoverChange}
         applyAdjustmentPreset={applyAdjustmentPreset}
         handleCreditAdjust={handleCreditAdjust}

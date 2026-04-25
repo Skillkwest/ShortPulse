@@ -71,21 +71,42 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+  margin-bottom: 14px;
+}
+
+.adminNavShell {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 6px;
   margin-bottom: 18px;
+}
+
+.adminNavLabel {
+  margin: 0;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--admin-text-faint);
 }
 
 .adminNavRow {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 8px;
-  margin-bottom: 18px;
+  overflow-x: auto;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  scrollbar-width: thin;
 }
 
 .adminNavLink {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 8px 12px;
+  flex: 0 0 auto;
+  white-space: nowrap;
+  padding: 7px 12px;
   border-radius: 10px;
   border: 1px solid var(--admin-border);
   background: var(--admin-surface-1);
@@ -94,6 +115,12 @@
   transition:
     border-color 0.12s ease,
     transform 0.12s ease;
+}
+
+.adminNavButton {
+  cursor: pointer;
+  appearance: none;
+  font: inherit;
 }
 
 .adminNavLink:hover {
@@ -170,10 +197,103 @@
   color: var(--admin-text-strong);
 }
 
+.adminCardInputRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 10px 0 6px;
+}
+
+.adminCardMetricInput {
+  min-width: 0;
+  font-size: 28px;
+  font-weight: 800;
+  line-height: 1;
+  padding: 10px 12px;
+}
+
+.adminPage .adminCardMetricInput:focus,
+.adminPage .adminCardMetricInput:focus-visible {
+  outline: none;
+  border-color: var(--admin-border);
+  box-shadow: none;
+}
+
+.adminCardMetricButton {
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--admin-text-strong);
+  font: inherit;
+  font-size: 28px;
+  font-weight: 800;
+  line-height: 1;
+  cursor: text;
+  text-align: left;
+}
+
+.adminCardButton {
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+}
+
+.adminCardButton:hover {
+  border-color: var(--admin-border);
+}
+
+.adminCardMetricSuffix {
+  flex: 0 0 auto;
+  font-size: 28px;
+  font-weight: 800;
+  color: var(--admin-text-strong);
+}
+
+.adminCardMetricPrefix {
+  flex: 0 0 auto;
+  font-size: 28px;
+  font-weight: 800;
+  color: var(--admin-text-strong);
+}
+
 .adminSubtext {
   margin: 0;
   font-size: 12px;
   color: var(--admin-text-muted);
+}
+
+.adminWarningPanel {
+  display: grid;
+  gap: 4px;
+  margin-top: 10px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--admin-warning-border-strong);
+  background: var(--admin-warning-soft);
+}
+
+.adminWarningTitle {
+  margin: 0;
+  color: var(--admin-warning-text);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.adminWarningDescription {
+  margin: 0;
+  color: var(--admin-text);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.adminWarningMeta {
+  margin: 0;
+  color: var(--admin-text-faint);
+  font-size: 11px;
+  line-height: 1.4;
+  word-break: break-word;
 }
 
 .adminSection {
@@ -245,10 +365,66 @@
   margin-bottom: 10px;
 }
 
+.adminSectionEyebrow {
+  margin: 0 0 4px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--admin-text-faint);
+}
+
 .adminSectionTitle {
   margin: 0;
   font-size: 18px;
   color: var(--admin-text-strong);
+}
+
+.adminToolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.adminSegmentedControl {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 999px;
+  border: 1px solid var(--admin-border-soft);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0)),
+    var(--admin-surface-2);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.02);
+}
+
+.adminSegmentedButton {
+  border: 0;
+  border-radius: 999px;
+  padding: 6px 12px;
+  background: transparent;
+  color: var(--admin-text-muted);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition:
+    background 0.14s ease,
+    color 0.14s ease,
+    transform 0.14s ease;
+}
+
+.adminSegmentedButton:hover {
+  color: var(--admin-text-strong);
+  transform: translateY(-1px);
+}
+
+.adminSegmentedButtonActive {
+  background: var(--admin-surface-3);
+  color: var(--admin-text-strong);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.03);
 }
 
 .accountControlsHeader {
@@ -260,6 +436,21 @@
 .adminTable {
   display: grid;
   gap: 6px;
+}
+
+.adminTableShell {
+  margin-top: 4px;
+  padding: 10px;
+  border-radius: 14px;
+  border: 1px solid var(--admin-border-soft);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0)),
+    var(--admin-surface-2);
+}
+
+.adminTableScroller {
+  overflow-x: auto;
+  padding-bottom: 2px;
 }
 
 .adminTableHead,
@@ -284,7 +475,19 @@
 
 .adminSupportQueueHead,
 .adminSupportQueueRow {
-  grid-template-columns: minmax(0, 1.6fr) minmax(0, 0.8fr) minmax(0, 1.1fr) minmax(0, 1fr) auto;
+  --admin-support-user-col: minmax(0, 1.9fr);
+  --admin-support-flags-col: minmax(72px, 0.7fr);
+  --admin-support-spendable-col: minmax(96px, 0.78fr);
+  --admin-support-billing-col: minmax(140px, 0.9fr);
+  --admin-support-actions-col: max-content;
+  --admin-support-col-gap: 10px;
+  grid-template-columns:
+    var(--admin-support-user-col)
+    var(--admin-support-flags-col)
+    var(--admin-support-spendable-col)
+    var(--admin-support-billing-col)
+    var(--admin-support-actions-col);
+  gap: var(--admin-support-col-gap);
 }
 
 .adminTableRow {
@@ -292,10 +495,14 @@
   border-radius: 10px;
   background: var(--admin-surface-3);
   border: 1px solid var(--admin-border-soft);
+  transition:
+    border-color 0.14s ease,
+    background 0.14s ease;
 }
 
-.adminSupportQueueRow {
-  gap: 10px;
+.adminTableRow:hover {
+  border-color: var(--admin-border);
+  background: #222931;
 }
 
 .severityHigh {
@@ -314,9 +521,22 @@
   font-size: 13px;
 }
 
-.adminCreditCell {
-  display: grid;
-  gap: 2px;
+.adminStatsModelsHead,
+.adminStatsModelsRow {
+  grid-template-columns: minmax(0, 1.8fr) 0.75fr 0.8fr 1fr 0.95fr 0.9fr 1.15fr;
+}
+
+.adminMonoCell {
+  font-family:
+    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New",
+    monospace;
+  overflow-wrap: anywhere;
+}
+
+.adminTableEmptyRow {
+  justify-items: start;
+  padding: 14px 12px;
+  color: var(--admin-text-muted);
 }
 
 .adminCreditMeta {
@@ -326,10 +546,14 @@
 
 .adminSupportQueueRowButton {
   display: grid;
-  grid-template-columns: minmax(0, 1.6fr) minmax(0, 0.8fr) minmax(0, 1.1fr) minmax(0, 1fr);
+  grid-template-columns:
+    var(--admin-support-user-col)
+    var(--admin-support-flags-col)
+    var(--admin-support-spendable-col)
+    var(--admin-support-billing-col);
   grid-column: 1 / 5;
   align-items: center;
-  gap: 10px;
+  gap: var(--admin-support-col-gap);
   width: 100%;
   padding: 0;
   border: 0;
@@ -357,6 +581,21 @@
   display: flex;
   justify-content: flex-end;
   align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  min-width: max-content;
+}
+
+.adminSupportQueueSignalList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.adminSupportQueueSignalPill {
+  min-width: 0;
+  padding: 4px 8px;
+  font-size: 11px;
 }
 
 .adminDangerButton {
@@ -546,6 +785,154 @@
   color: var(--admin-text-strong);
 }
 
+.statsWorkspaceHero {
+  display: grid;
+  gap: 18px;
+  margin-bottom: 16px;
+  padding: 18px;
+  border-radius: 18px;
+  border: 1px solid var(--admin-border-soft);
+  background:
+    radial-gradient(circle at top right, rgba(37, 169, 191, 0.16), transparent 34%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0)),
+    var(--admin-surface-1);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.03),
+    0 10px 24px rgba(0, 0, 0, 0.22);
+}
+
+.statsWorkspaceHeroMain {
+  display: grid;
+  gap: 8px;
+}
+
+.statsWorkspaceEyebrow {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--admin-accent-text);
+}
+
+.statsWorkspaceTitleRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.statsWorkspaceTitle {
+  margin: 0;
+  font-size: 28px;
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+  color: var(--admin-text-strong);
+}
+
+.statsWorkspaceDescription {
+  margin: 0;
+  max-width: 72ch;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--admin-text);
+}
+
+.statsWorkspaceSupport {
+  margin: 0;
+  max-width: 72ch;
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--admin-text-muted);
+}
+
+.statsWorkspaceMetaRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.statsWorkspaceMetaPill,
+.statsWorkspaceStatusPill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  padding: 6px 11px;
+  border-radius: 999px;
+  border: 1px solid var(--admin-border-soft);
+  background: rgba(255, 255, 255, 0.03);
+  font-size: 12px;
+  color: var(--admin-text);
+}
+
+.statsWorkspaceStatusPill {
+  font-weight: 700;
+}
+
+.statsWorkspaceStatusPillOk {
+  border-color: var(--admin-accent-border);
+  background: var(--admin-accent-soft);
+  color: var(--admin-accent-text);
+}
+
+.statsWorkspaceStatusPillWarn {
+  border-color: var(--admin-warning-border-strong);
+  background: var(--admin-warning-soft);
+  color: var(--admin-warning-text);
+}
+
+.statsLensGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.statsLensButton {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  padding: 14px;
+  border-radius: 14px;
+  border: 1px solid var(--admin-border-soft);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.01), rgba(255, 255, 255, 0)),
+    var(--admin-surface-2);
+  text-align: left;
+  color: inherit;
+  cursor: pointer;
+  transition:
+    transform 0.14s ease,
+    border-color 0.14s ease,
+    background 0.14s ease;
+}
+
+.statsLensButton:hover {
+  transform: translateY(-1px);
+  border-color: var(--admin-border-strong);
+}
+
+.statsLensButtonActive {
+  border-color: var(--admin-accent-border-strong);
+  background:
+    linear-gradient(180deg, rgba(37, 169, 191, 0.12), rgba(37, 169, 191, 0.02)),
+    var(--admin-surface-2);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+}
+
+.statsLensButtonLabel {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--admin-text-strong);
+}
+
+.statsLensButtonDescription {
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--admin-text-muted);
+}
+
 .searchRow {
   display: flex;
   align-items: center;
@@ -599,7 +986,15 @@
 .pricingModelsHead,
 .pricingModelsRow {
   display: grid;
-  grid-template-columns: minmax(0, 1.7fr) 0.8fr 0.9fr minmax(0, 1.3fr) 0.8fr minmax(0, 1.1fr);
+  grid-template-columns:
+    minmax(0, 1.85fr)
+    0.72fr
+    0.9fr
+    minmax(0, 1.3fr)
+    0.82fr
+    0.92fr
+    0.88fr
+    0.92fr;
   gap: 10px;
   align-items: center;
 }
@@ -612,8 +1007,17 @@
   align-items: center;
 }
 
+.pricingPlanCatalogHead,
+.pricingPlanCatalogRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) 0.6fr 0.8fr 0.9fr 0.9fr 0.9fr minmax(0, 1.2fr) 0.9fr;
+  gap: 10px;
+  align-items: center;
+}
+
 .pricingModelsRow,
-.pricingCatalogRow {
+.pricingCatalogRow,
+.pricingPlanCatalogRow {
   padding: 10px 8px;
   border-radius: 10px;
   background: var(--admin-surface-3);
@@ -621,7 +1025,8 @@
 }
 
 .pricingModelsRow span,
-.pricingCatalogRow span {
+.pricingCatalogRow span,
+.pricingPlanCatalogRow span {
   min-width: 0;
   font-size: 13px;
 }
@@ -650,8 +1055,30 @@
   overflow-wrap: anywhere;
 }
 
+.pricingProviderLabel {
+  font-weight: 700;
+}
+
+.pricingProviderFal {
+  color: #db3053;
+}
+
+.pricingProviderKie {
+  color: #8fb8ff;
+}
+
 .pricingEditorCard {
   margin-top: 12px;
+  padding: 14px;
+  border-radius: 12px;
+  border: 1px solid var(--admin-border);
+  background: var(--admin-surface-2);
+  display: grid;
+  gap: 12px;
+}
+
+.pricingInlineEditorCard {
+  margin: 8px 0 4px;
   padding: 14px;
   border-radius: 12px;
   border: 1px solid var(--admin-border);
@@ -666,10 +1093,55 @@
   gap: 12px;
 }
 
+.pricingWideField {
+  grid-column: span 3;
+}
+
+.pricingInlineEditorTopRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: start;
+}
+
+.pricingInlineOverridesGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 220px));
+  gap: 12px;
+  justify-content: start;
+}
+
+.pricingOverrideInput::placeholder {
+  color: var(--admin-text-faint);
+}
+
+.pricingInlineEditorBottomRow {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+}
+
 .pricingEditorActions {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+}
+
+.pricingEditorActionsColumn {
+  display: flex;
+  align-items: stretch;
+  justify-content: flex-end;
+}
+
+.pricingEditorNoteField {
+  min-width: 0;
+}
+
+.pricingNoteInput {
+  min-height: 92px;
+  resize: vertical;
+  line-height: 1.45;
 }
 
 .pricingCheckboxField {
@@ -740,6 +1212,14 @@
   flex-wrap: wrap;
 }
 
+.accountSnapshotHeadAside {
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
 .accountSnapshotIdentity {
   display: grid;
   gap: 6px;
@@ -754,8 +1234,16 @@
 }
 
 .accountSnapshotTitle {
+  display: inline-flex;
+  align-items: center;
+  min-height: 56px;
+  padding: 12px 18px;
+  border-radius: 16px;
+  border: 1px solid var(--admin-border-soft);
+  background: var(--admin-surface-2);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.02);
   color: var(--admin-text-strong);
-  font-size: 24px;
+  font-size: 20px;
   font-weight: 700;
   line-height: 1.05;
   word-break: break-word;
@@ -794,7 +1282,7 @@
 .accountSnapshotNote {
   display: inline-flex;
   align-items: center;
-  max-width: min(100%, 360px);
+  max-width: min(100%, 320px);
   padding: 9px 12px;
   border-radius: 12px;
   border: 1px solid rgba(37, 169, 191, 0.18);
@@ -807,15 +1295,15 @@
 .accountSnapshotCards {
   display: grid;
   grid-template-columns: repeat(var(--snapshot-card-columns, 5), minmax(0, 1fr));
-  gap: 12px;
+  gap: 10px;
 }
 
 .accountSnapshotCard {
   display: grid;
-  gap: 6px;
-  min-height: 92px;
-  padding: 16px 18px;
-  border-radius: 14px;
+  gap: 5px;
+  min-height: 78px;
+  padding: 13px 14px;
+  border-radius: 12px;
   border: 1px solid var(--admin-border-strong);
   background: var(--admin-surface-2);
   box-shadow: none;
@@ -831,16 +1319,16 @@
 
 .accountSnapshotCardValue {
   color: var(--admin-text-strong);
-  font-size: 26px;
+  font-size: 18px;
   font-weight: 800;
-  line-height: 1;
-  letter-spacing: -0.02em;
+  line-height: 1.1;
+  letter-spacing: -0.015em;
 }
 
 .accountSnapshotCardHelper {
   color: var(--admin-text-faint);
-  font-size: 11px;
-  line-height: 1.35;
+  font-size: 10px;
+  line-height: 1.3;
 }
 
 .manualAdjustPanel {
@@ -875,23 +1363,43 @@
   line-height: 1.4;
 }
 
-.controlPanelGrid {
+.compactControlStack {
   display: grid;
-  grid-template-columns: minmax(0, 1.7fr) minmax(260px, 0.95fr);
-  gap: 16px;
+  grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.25fr);
+  gap: 18px;
   align-items: start;
 }
 
-.controlPanelBlock {
+.compactControlSection {
   display: grid;
-  gap: 14px;
+  gap: 12px;
   min-width: 0;
+  align-content: start;
 }
 
-.controlPanelActions {
-  align-self: stretch;
-  justify-content: flex-end;
-  align-content: start;
+.compactControlSection + .compactControlSection {
+  padding-left: 18px;
+  border-left: 1px solid var(--admin-border-soft);
+}
+
+.compactControlTitle {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--admin-text-faint);
+}
+
+.compactControlActions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.compactControlSection .controlFieldCompact {
+  max-width: none;
 }
 
 .controlFieldCompact {
@@ -910,11 +1418,11 @@
   letter-spacing: 0.05em;
 }
 
-.compactFormRow {
+.compactToggleRow {
   display: grid;
-  grid-template-columns: minmax(220px, 360px) minmax(180px, 220px);
+  grid-template-columns: minmax(220px, 260px);
   gap: 12px;
-  align-items: end;
+  align-items: start;
 }
 
 .controlToggleCard {
@@ -1371,11 +1879,25 @@
 }
 
 @media (max-width: 980px) {
-  .adminNavLink {
-    width: 100%;
+  .adminHeader {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .adminUserPill {
+    max-width: 100%;
   }
 
   .adminSplitGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .statsWorkspaceTitleRow,
+  .adminSectionHead {
+    align-items: flex-start;
+  }
+
+  .statsLensGrid {
     grid-template-columns: 1fr;
   }
 
@@ -1391,9 +1913,26 @@
     justify-content: flex-start;
   }
 
-  .controlPanelGrid,
-  .compactFormRow {
+  .pricingInlineEditorTopRow,
+  .pricingInlineOverridesGrid,
+  .pricingInlineEditorBottomRow {
     grid-template-columns: 1fr;
+  }
+
+  .pricingEditorActionsColumn {
+    justify-content: flex-start;
+  }
+
+  .compactControlStack,
+  .compactToggleRow {
+    grid-template-columns: 1fr;
+  }
+
+  .compactControlSection + .compactControlSection {
+    padding-left: 0;
+    padding-top: 16px;
+    border-left: 0;
+    border-top: 1px solid var(--admin-border-soft);
   }
 
   .controlFieldCompact {
@@ -1462,6 +2001,10 @@
     gap: 6px;
   }
 
+  .pricingWideField {
+    grid-column: auto;
+  }
+
   .adminSupportQueueCell::before {
     content: attr(data-label);
     display: block;
@@ -1489,5 +2032,27 @@
   .adminLedgerRow {
     grid-template-columns: 1fr;
     gap: 6px;
+  }
+}
+
+@media (max-width: 720px) {
+  .adminToolbar,
+  .statsWorkspaceMetaRow {
+    align-items: stretch;
+  }
+
+  .adminSegmentedControl {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .adminSegmentedButton {
+    flex: 1 1 0;
+    text-align: center;
+  }
+
+  .statsWorkspaceHero,
+  .adminSection {
+    padding: 14px;
   }
 }

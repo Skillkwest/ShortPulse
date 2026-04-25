@@ -6,8 +6,9 @@ export type CreditRoundingMode = "nearest-5" | "ceil";
 export type ModelPricingPolicySource = "control_plane" | "fallback";
 
 export type ModelPricingPerModelOverride = {
-  multiplierBps?: number;
-  roundingMode?: CreditRoundingMode | null;
+  creditUsdScale?: number;
+  markupBps?: number;
+  roundingIncrement?: number;
 };
 
 export type ModelPricingPolicyDocument = {
@@ -17,7 +18,6 @@ export type ModelPricingPolicyDocument = {
     markupBps: number;
     defaultRoundingMode: CreditRoundingMode;
     defaultRoundingIncrement: number;
-    exceptionRoundingModelIds: string[];
   };
   perModel: Record<string, ModelPricingPerModelOverride>;
 };
@@ -27,7 +27,6 @@ export type ResolvedModelPricingForModel = {
   markupBps: number;
   roundingMode: CreditRoundingMode;
   roundingIncrement: number;
-  multiplierBps: number;
 };
 
 export type ModelPricingPolicySnapshot = {
@@ -42,7 +41,6 @@ export type ModelPricingPolicySnapshot = {
   markupPercent: number;
   defaultRoundingMode: CreditRoundingMode;
   defaultRoundingIncrement: number;
-  exceptionRoundingModelIds: string[];
   overrideCount: number;
   document: ModelPricingPolicyDocument;
 };
@@ -54,20 +52,12 @@ export const MARKUP_NUMERATOR = 103;
 export const MARKUP_DENOMINATOR = 100;
 export const DEFAULT_CREDIT_ROUNDING_MODE: CreditRoundingMode = "nearest-5";
 export const DEFAULT_CREDIT_ROUNDING_INCREMENT = 5;
-export const DEFAULT_MODEL_MULTIPLIER_BPS = 10_000;
 export const MODEL_PRICING_POLICY_SCHEMA_VERSION = 1;
 export const MODEL_PRICING_POLICY_VERSION = "runtime-default-v1";
-
-export const EXCEPTION_ROUNDING_MODEL_IDS = [
-  "fal-ai/flux-2/klein/9b",
-  "fal-ai/bria/background/remove",
-] as const;
 
 const VALID_ROUNDING_MODES = new Set<CreditRoundingMode>(["nearest-5", "ceil"]);
 const MIN_MARKUP_BPS = 0;
 const MAX_MARKUP_BPS = 100_000;
-const MIN_MODEL_MULTIPLIER_BPS = 1;
-const MAX_MODEL_MULTIPLIER_BPS = 100_000;
 
 const clampInteger = (value: number, min: number, max: number): number =>
   Math.max(min, Math.min(max, Math.trunc(value)));
@@ -100,23 +90,38 @@ const normalizeModelIdList = (value: unknown, fallback: string[]): string[] => {
   return normalized.length ? Array.from(new Set(normalized)) : [...fallback];
 };
 
-const normalizePerModelOverride = (value: unknown): ModelPricingPerModelOverride | null => {
+const convertLegacyMultiplierToMarkupOverride = (
+  globalMarkupBps: number,
+  multiplierBps: number
+): number => Math.round(((10_000 + globalMarkupBps) * multiplierBps) / 10_000 - 10_000);
+
+const normalizePerModelOverride = (
+  value: unknown,
+  globalMarkupBps: number
+): ModelPricingPerModelOverride | null => {
   const record = asObjectRecord(value);
   if (!record) return null;
 
-  const multiplierBps = asInteger(record.multiplierBps);
-  const roundingMode = asCreditRoundingMode(record.roundingMode);
+  const markupBps = asInteger(record.markupBps);
+  const legacyMultiplierBps = asInteger(record.multiplierBps);
+  const creditUsdScale = asInteger(record.creditUsdScale);
+  const roundingIncrement = asInteger(record.roundingIncrement);
 
   const normalized: ModelPricingPerModelOverride = {};
-  if (multiplierBps != null && multiplierBps > 0) {
-    normalized.multiplierBps = clampInteger(
-      multiplierBps,
-      MIN_MODEL_MULTIPLIER_BPS,
-      MAX_MODEL_MULTIPLIER_BPS
+  if (creditUsdScale != null && creditUsdScale > 0) {
+    normalized.creditUsdScale = creditUsdScale;
+  }
+  if (markupBps != null) {
+    normalized.markupBps = clampInteger(markupBps, MIN_MARKUP_BPS, MAX_MARKUP_BPS);
+  } else if (legacyMultiplierBps != null && legacyMultiplierBps > 0) {
+    normalized.markupBps = clampInteger(
+      convertLegacyMultiplierToMarkupOverride(globalMarkupBps, legacyMultiplierBps),
+      MIN_MARKUP_BPS,
+      MAX_MARKUP_BPS
     );
   }
-  if (roundingMode) {
-    normalized.roundingMode = roundingMode;
+  if (roundingIncrement != null && roundingIncrement > 0) {
+    normalized.roundingIncrement = roundingIncrement;
   }
 
   return Object.keys(normalized).length ? normalized : null;
@@ -129,7 +134,6 @@ export const getDefaultModelPricingPolicyDocument = (): ModelPricingPolicyDocume
     markupBps: DEFAULT_MARKUP_BPS,
     defaultRoundingMode: DEFAULT_CREDIT_ROUNDING_MODE,
     defaultRoundingIncrement: DEFAULT_CREDIT_ROUNDING_INCREMENT,
-    exceptionRoundingModelIds: Array.from(EXCEPTION_ROUNDING_MODEL_IDS),
   },
   perModel: {},
 });
@@ -146,16 +150,38 @@ export const normalizeModelPricingPolicyDocument = (value: unknown): ModelPricin
   const markupBps = asInteger(globalRecord?.markupBps);
   const defaultRoundingMode = asCreditRoundingMode(globalRecord?.defaultRoundingMode);
   const defaultRoundingIncrement = asInteger(globalRecord?.defaultRoundingIncrement);
+  const resolvedGlobalMarkupBps =
+    markupBps != null
+      ? clampInteger(markupBps, MIN_MARKUP_BPS, MAX_MARKUP_BPS)
+      : defaults.global.markupBps;
+  const legacyExceptionRoundingModelIds = normalizeModelIdList(
+    globalRecord?.exceptionRoundingModelIds,
+    []
+  );
 
   const normalizedPerModel = Object.entries(perModelRecord ?? {}).reduce<
     Record<string, ModelPricingPerModelOverride>
   >((accumulator, [modelId, override]) => {
-    const normalized = normalizePerModelOverride(override);
+    const normalized = normalizePerModelOverride(override, resolvedGlobalMarkupBps);
     if (normalized) {
       accumulator[modelId] = normalized;
     }
     return accumulator;
   }, {});
+
+  legacyExceptionRoundingModelIds.forEach((modelId) => {
+    const currentOverride = normalizedPerModel[modelId] ?? {};
+    if (
+      typeof currentOverride.roundingIncrement === "number" &&
+      currentOverride.roundingIncrement > 0
+    ) {
+      return;
+    }
+    normalizedPerModel[modelId] = {
+      ...currentOverride,
+      roundingIncrement: 1,
+    };
+  });
 
   return {
     schemaVersion: MODEL_PRICING_POLICY_SCHEMA_VERSION,
@@ -164,19 +190,12 @@ export const normalizeModelPricingPolicyDocument = (value: unknown): ModelPricin
         creditUsdScale != null && creditUsdScale > 0
           ? creditUsdScale
           : defaults.global.creditUsdScale,
-      markupBps:
-        markupBps != null
-          ? clampInteger(markupBps, MIN_MARKUP_BPS, MAX_MARKUP_BPS)
-          : defaults.global.markupBps,
+      markupBps: resolvedGlobalMarkupBps,
       defaultRoundingMode: defaultRoundingMode ?? defaults.global.defaultRoundingMode,
       defaultRoundingIncrement:
         defaultRoundingIncrement != null && defaultRoundingIncrement > 0
           ? defaultRoundingIncrement
           : defaults.global.defaultRoundingIncrement,
-      exceptionRoundingModelIds: normalizeModelIdList(
-        globalRecord?.exceptionRoundingModelIds,
-        defaults.global.exceptionRoundingModelIds
-      ),
     },
     perModel: normalizedPerModel,
   };
@@ -190,14 +209,26 @@ export const compactModelPricingPolicyDocument = (value: unknown): ModelPricingP
     const nextOverride: ModelPricingPerModelOverride = {};
 
     if (
-      typeof override.multiplierBps === "number" &&
-      override.multiplierBps !== DEFAULT_MODEL_MULTIPLIER_BPS
+      typeof override.creditUsdScale === "number" &&
+      override.creditUsdScale > 0 &&
+      override.creditUsdScale !== normalized.global.creditUsdScale
     ) {
-      nextOverride.multiplierBps = override.multiplierBps;
+      nextOverride.creditUsdScale = override.creditUsdScale;
     }
 
-    if (override.roundingMode) {
-      nextOverride.roundingMode = override.roundingMode;
+    if (
+      typeof override.markupBps === "number" &&
+      override.markupBps !== normalized.global.markupBps
+    ) {
+      nextOverride.markupBps = override.markupBps;
+    }
+
+    if (
+      typeof override.roundingIncrement === "number" &&
+      override.roundingIncrement > 0 &&
+      override.roundingIncrement !== normalized.global.defaultRoundingIncrement
+    ) {
+      nextOverride.roundingIncrement = override.roundingIncrement;
     }
 
     if (Object.keys(nextOverride).length > 0) {
@@ -218,16 +249,12 @@ export const resolveModelPricingForModel = (
 ): ResolvedModelPricingForModel => {
   const normalized = compactModelPricingPolicyDocument(policy);
   const override = normalized.perModel[modelId] ?? null;
-  const exceptionRoundingModelIdSet = new Set(normalized.global.exceptionRoundingModelIds);
 
   return {
-    creditUsdScale: normalized.global.creditUsdScale,
-    markupBps: normalized.global.markupBps,
-    roundingMode:
-      override?.roundingMode ??
-      (exceptionRoundingModelIdSet.has(modelId) ? "ceil" : normalized.global.defaultRoundingMode),
-    roundingIncrement: normalized.global.defaultRoundingIncrement,
-    multiplierBps: override?.multiplierBps ?? DEFAULT_MODEL_MULTIPLIER_BPS,
+    creditUsdScale: override?.creditUsdScale ?? normalized.global.creditUsdScale,
+    markupBps: override?.markupBps ?? normalized.global.markupBps,
+    roundingMode: normalized.global.defaultRoundingMode,
+    roundingIncrement: override?.roundingIncrement ?? normalized.global.defaultRoundingIncrement,
   };
 };
 
@@ -258,7 +285,6 @@ export const getModelPricingPolicySnapshot = (
     markupPercent,
     defaultRoundingMode: normalized.global.defaultRoundingMode,
     defaultRoundingIncrement: normalized.global.defaultRoundingIncrement,
-    exceptionRoundingModelIds: [...normalized.global.exceptionRoundingModelIds],
     overrideCount: Object.keys(normalized.perModel).length,
     document: normalized,
   };

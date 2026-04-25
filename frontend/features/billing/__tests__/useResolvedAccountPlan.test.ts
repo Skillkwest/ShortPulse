@@ -115,7 +115,7 @@ describe("useResolvedAccountPlan", () => {
     });
   });
 
-  it("does not trust a paid billing profile when the current contract is missing", async () => {
+  it("uses the billing profile plan when the current contract is missing", async () => {
     contractMaybeSingleMock.mockResolvedValue({
       data: null,
       error: null,
@@ -129,9 +129,9 @@ describe("useResolvedAccountPlan", () => {
 
     await waitFor(() => {
       expect(result.current.resolvedPlan).toEqual({
-        id: "free",
-        label: "Free",
-        className: "plan-free",
+        id: "business",
+        label: "Business",
+        className: "plan-business",
       });
     });
   });

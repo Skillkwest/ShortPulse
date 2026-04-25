@@ -40,30 +40,46 @@ const WINDOW_OPTIONS: Array<{ key: CountWindowKey; label: string }> = [
   { key: "last7d", label: "7d" },
 ];
 
-const TOOLBAR_STYLE: React.CSSProperties = {
-  display: "flex",
-  alignItems: "center",
-  gap: 10,
-  flexWrap: "wrap",
-};
-
-const SEGMENTED_CONTROL_STYLE: React.CSSProperties = {
-  display: "inline-flex",
-  alignItems: "center",
-  gap: 4,
-  padding: 4,
-  borderRadius: 999,
-  border: "1px solid var(--admin-border-soft)",
-  background: "var(--admin-surface-2)",
-};
-
-const TABLE_SCROLL_STYLE: React.CSSProperties = {
-  overflowX: "auto",
-};
-
 const TABLE_WIDE_STYLE: React.CSSProperties = {
   minWidth: 900,
 };
+
+const HIGH_INTENT_TABLE_STYLE: React.CSSProperties = {
+  minWidth: 1250,
+};
+
+const LENS_OPTIONS: Array<{
+  key: StatsLens;
+  label: string;
+  eyebrow: string;
+  description: string;
+  supportingNote: string;
+}> = [
+  {
+    key: "product",
+    label: "Product",
+    eyebrow: "Core product signals",
+    description:
+      "Keep demand, workflow quality, saved outputs, and project depth in one operator surface.",
+    supportingNote: "Use this lens to decide what to improve, promote, or expand next.",
+  },
+  {
+    key: "marketing",
+    label: "Marketing",
+    eyebrow: "Activation and acquisition",
+    description:
+      "Read signup quality, time-to-value, retention after activation, and source-level signal.",
+    supportingNote: "Use this lens to understand what messaging and channels produce real value.",
+  },
+  {
+    key: "sales",
+    label: "Sales",
+    eyebrow: "Intent and monetization",
+    description:
+      "Track pricing interest, PQL depth, checkout starts, and paid conversion from one view.",
+    supportingNote: "Use this lens to spot high-intent users and monetization friction quickly.",
+  },
+];
 
 const formatCount = (value: number): string => value.toLocaleString();
 const formatPct = (value: number): string => `${Number(value || 0).toFixed(1)}%`;
@@ -82,8 +98,10 @@ const formatCountWindowValue = (window: AdminStatsCountWindow, selectedWindow: C
   formatCount(window[selectedWindow]);
 const formatCountWindowMeta = (window: AdminStatsCountWindow) =>
   `All ${formatCount(window.total)} • 24h ${formatCount(window.last24h)} • 7d ${formatCount(window.last7d)}`;
-const tabClassName = (active: boolean) =>
-  active ? `${styles.tabButton} ${styles.tabActive}` : styles.tabButton;
+const segmentedButtonClassName = (active: boolean) =>
+  active
+    ? `${styles.adminSegmentedButton} ${styles.adminSegmentedButtonActive}`
+    : styles.adminSegmentedButton;
 
 const MetricCard = ({ label, value, meta }: { label: string; value: string; meta: string }) => (
   <article className={styles.adminCard}>
@@ -107,6 +125,53 @@ const GrowthHealthWarning = ({ reason }: { reason: string | null }) =>
     </div>
   ) : null;
 
+const TableShell = ({ children }: { children: React.ReactNode }) => (
+  <div className={styles.adminTableShell}>
+    <div className={styles.adminTableScroller}>{children}</div>
+  </div>
+);
+
+const EmptyTableRow = ({ message }: { message: string }) => (
+  <div
+    className={`${styles.adminTableRow} ${styles.adminTableEmptyRow}`}
+    style={{ gridTemplateColumns: "minmax(0, 1fr)" }}
+  >
+    <span>{message}</span>
+  </div>
+);
+
+const WindowToolbar = ({
+  selectedWindow,
+  onSelectWindow,
+  ariaLabel,
+  loading,
+  onRefresh,
+}: {
+  selectedWindow: CountWindowKey;
+  onSelectWindow: (window: CountWindowKey) => void;
+  ariaLabel: string;
+  loading: boolean;
+  onRefresh: () => void;
+}) => (
+  <div className={styles.adminToolbar}>
+    <div className={styles.adminSegmentedControl} role="tablist" aria-label={ariaLabel}>
+      {WINDOW_OPTIONS.map((option) => (
+        <button
+          key={option.key}
+          type="button"
+          className={segmentedButtonClassName(option.key === selectedWindow)}
+          onClick={() => onSelectWindow(option.key)}
+        >
+          {option.label}
+        </button>
+      ))}
+    </div>
+    <button type="button" className="ghost-btn mini" onClick={onRefresh} disabled={loading}>
+      {loading ? "Refreshing…" : "Refresh"}
+    </button>
+  </div>
+);
+
 const MarketingPanel = ({
   growth,
   loading,
@@ -120,28 +185,19 @@ const MarketingPanel = ({
       <section className={styles.adminSection}>
         <div className={styles.adminSectionHead}>
           <div>
-            <h2 className={styles.adminSectionTitle}>Marketing</h2>
+            <p className={styles.adminSectionEyebrow}>Growth</p>
+            <h2 className={styles.adminSectionTitle}>Marketing performance</h2>
             <p className="tiny subdued">
               Track signup velocity, activation speed, source quality, and retention after value.
             </p>
           </div>
-          <div style={TOOLBAR_STYLE}>
-            <div style={SEGMENTED_CONTROL_STYLE} role="tablist" aria-label="Marketing stats window">
-              {WINDOW_OPTIONS.map((option) => (
-                <button
-                  key={option.key}
-                  type="button"
-                  className={tabClassName(option.key === selectedWindow)}
-                  onClick={() => setSelectedWindow(option.key)}
-                >
-                  {option.label}
-                </button>
-              ))}
-            </div>
-            <button type="button" className="ghost-btn mini" onClick={onRefresh} disabled={loading}>
-              {loading ? "Refreshing…" : "Refresh"}
-            </button>
-          </div>
+          <WindowToolbar
+            selectedWindow={selectedWindow}
+            onSelectWindow={setSelectedWindow}
+            ariaLabel="Marketing stats window"
+            loading={loading}
+            onRefresh={onRefresh}
+          />
         </div>
         <GrowthHealthWarning reason={health.reason} />
         <div className={styles.adminGrid}>
@@ -171,10 +227,11 @@ const MarketingPanel = ({
       <section className={styles.adminSection}>
         <div className={styles.adminSectionHead}>
           <div>
-            <h2 className={styles.adminSectionTitle}>Retention By Activation</h2>
+            <p className={styles.adminSectionEyebrow}>Retention</p>
+            <h2 className={styles.adminSectionTitle}>Retention by activation</h2>
             <p className="tiny subdued">
-              Compare D1, D7, and D30 return behavior for users who reached value vs users who did
-              not.
+              Compare D1, D7, and D30 return behavior for users who reached value versus users who
+              did not.
             </p>
           </div>
         </div>
@@ -205,14 +262,15 @@ const MarketingPanel = ({
       <section className={styles.adminSection}>
         <div className={styles.adminSectionHead}>
           <div>
-            <h2 className={styles.adminSectionTitle}>Acquisition Sources</h2>
+            <p className={styles.adminSectionEyebrow}>Attribution</p>
+            <h2 className={styles.adminSectionTitle}>Acquisition sources</h2>
             <p className="tiny subdued">
               First-touch attribution shows which sources and campaigns produce activated,
               qualified, and paid users.
             </p>
           </div>
         </div>
-        <div style={TABLE_SCROLL_STYLE}>
+        <TableShell>
           <div className={styles.adminTable} style={TABLE_WIDE_STYLE}>
             <div
               className={styles.adminTableHead}
@@ -225,8 +283,8 @@ const MarketingPanel = ({
               <span>PQLs</span>
               <span>Paid</span>
             </div>
-            {growth.marketing.attribution.sources.length ? (
-              growth.marketing.attribution.sources.map((row) => (
+            {marketing.attribution.sources.length ? (
+              marketing.attribution.sources.map((row) => (
                 <div
                   key={row.sourceKey}
                   className={styles.adminTableRow}
@@ -241,24 +299,23 @@ const MarketingPanel = ({
                 </div>
               ))
             ) : (
-              <div className={styles.adminTableRow}>
-                <span>No attributed signup rows are available yet.</span>
-              </div>
+              <EmptyTableRow message="No attributed signup rows are available yet." />
             )}
           </div>
-        </div>
+        </TableShell>
       </section>
 
       <section className={styles.adminSection}>
         <div className={styles.adminSectionHead}>
           <div>
+            <p className={styles.adminSectionEyebrow}>Attribution</p>
             <h2 className={styles.adminSectionTitle}>Campaigns</h2>
             <p className="tiny subdued">
               Campaign rows use the same stitched attribution contract as source rows.
             </p>
           </div>
         </div>
-        <div style={TABLE_SCROLL_STYLE}>
+        <TableShell>
           <div className={styles.adminTable} style={TABLE_WIDE_STYLE}>
             <div
               className={styles.adminTableHead}
@@ -271,8 +328,8 @@ const MarketingPanel = ({
               <span>PQLs</span>
               <span>Paid</span>
             </div>
-            {growth.marketing.attribution.campaigns.length ? (
-              growth.marketing.attribution.campaigns.map((row) => (
+            {marketing.attribution.campaigns.length ? (
+              marketing.attribution.campaigns.map((row) => (
                 <div
                   key={row.campaignKey}
                   className={styles.adminTableRow}
@@ -287,12 +344,10 @@ const MarketingPanel = ({
                 </div>
               ))
             ) : (
-              <div className={styles.adminTableRow}>
-                <span>No attributed campaign rows are available yet.</span>
-              </div>
+              <EmptyTableRow message="No attributed campaign rows are available yet." />
             )}
           </div>
-        </div>
+        </TableShell>
       </section>
     </>
   );
@@ -311,29 +366,20 @@ const SalesPanel = ({
       <section className={styles.adminSection}>
         <div className={styles.adminSectionHead}>
           <div>
-            <h2 className={styles.adminSectionTitle}>Sales</h2>
+            <p className={styles.adminSectionEyebrow}>Revenue</p>
+            <h2 className={styles.adminSectionTitle}>Sales performance</h2>
             <p className="tiny subdued">
-              Watch pricing intent, checkout behavior, paid conversions, and qualified users from
-              one operator view.
+              Watch pricing intent, checkout behavior, paid conversion, and qualified users from one
+              operator view.
             </p>
           </div>
-          <div style={TOOLBAR_STYLE}>
-            <div style={SEGMENTED_CONTROL_STYLE} role="tablist" aria-label="Sales stats window">
-              {WINDOW_OPTIONS.map((option) => (
-                <button
-                  key={option.key}
-                  type="button"
-                  className={tabClassName(option.key === selectedWindow)}
-                  onClick={() => setSelectedWindow(option.key)}
-                >
-                  {option.label}
-                </button>
-              ))}
-            </div>
-            <button type="button" className="ghost-btn mini" onClick={onRefresh} disabled={loading}>
-              {loading ? "Refreshing…" : "Refresh"}
-            </button>
-          </div>
+          <WindowToolbar
+            selectedWindow={selectedWindow}
+            onSelectWindow={setSelectedWindow}
+            ariaLabel="Sales stats window"
+            loading={loading}
+            onRefresh={onRefresh}
+          />
         </div>
         <GrowthHealthWarning reason={health.reason} />
         <div className={styles.adminGrid}>
@@ -373,15 +419,16 @@ const SalesPanel = ({
       <section className={styles.adminSection}>
         <div className={styles.adminSectionHead}>
           <div>
-            <h2 className={styles.adminSectionTitle}>High-Intent Users</h2>
+            <p className={styles.adminSectionEyebrow}>Pipeline</p>
+            <h2 className={styles.adminSectionTitle}>High-intent users</h2>
             <p className="tiny subdued">
               Qualified and monetization-adjacent users are ranked by PQL score, checkout activity,
               and paid conversion state.
             </p>
           </div>
         </div>
-        <div style={TABLE_SCROLL_STYLE}>
-          <div className={styles.adminTable} style={{ minWidth: 1250 }}>
+        <TableShell>
+          <div className={styles.adminTable} style={HIGH_INTENT_TABLE_STYLE}>
             <div
               className={styles.adminTableHead}
               style={{
@@ -446,12 +493,10 @@ const SalesPanel = ({
                 </div>
               ))
             ) : (
-              <div className={styles.adminTableRow}>
-                <span>No high-intent users are available yet.</span>
-              </div>
+              <EmptyTableRow message="No high-intent users are available yet." />
             )}
           </div>
-        </div>
+        </TableShell>
       </section>
     </>
   );
@@ -474,22 +519,63 @@ export const AdminStatsWorkspace = ({
   onRefresh,
 }: AdminStatsWorkspaceProps) => {
   const [activeLens, setActiveLens] = React.useState<StatsLens>("product");
+  const activeLensConfig =
+    LENS_OPTIONS.find((option) => option.key === activeLens) ?? LENS_OPTIONS[0];
+  const activeLensDegraded = activeLens === "product" ? health.degraded : growth.health.degraded;
+  const activeLensReason =
+    activeLens === "product" ? (error ?? health.reason) : growth.health.reason;
+  const activeLensMetaReason = activeLens === "product" && error ? null : activeLensReason;
 
   return (
     <>
-      <div className={styles.tabRow} role="tablist" aria-label="Stats workspace lens">
-        {(["product", "marketing", "sales"] as StatsLens[]).map((lens) => (
-          <button
-            key={lens}
-            type="button"
-            className={tabClassName(activeLens === lens)}
-            onClick={() => setActiveLens(lens)}
-          >
-            {lens[0]?.toUpperCase()}
-            {lens.slice(1)}
-          </button>
-        ))}
-      </div>
+      <section className={styles.statsWorkspaceHero}>
+        <div className={styles.statsWorkspaceHeroMain}>
+          <p className={styles.statsWorkspaceEyebrow}>{activeLensConfig.eyebrow}</p>
+          <div className={styles.statsWorkspaceTitleRow}>
+            <h2 className={styles.statsWorkspaceTitle}>{activeLensConfig.label} analytics</h2>
+            <span
+              className={`${styles.statsWorkspaceStatusPill} ${
+                activeLensDegraded
+                  ? styles.statsWorkspaceStatusPillWarn
+                  : styles.statsWorkspaceStatusPillOk
+              }`}
+            >
+              {activeLensDegraded ? "Fallback mode" : "Live contract"}
+            </span>
+          </div>
+          <p className={styles.statsWorkspaceDescription}>{activeLensConfig.description}</p>
+          <p className={styles.statsWorkspaceSupport}>{activeLensConfig.supportingNote}</p>
+          <div className={styles.statsWorkspaceMetaRow}>
+            <span className={styles.statsWorkspaceMetaPill}>
+              Snapshot {generatedAt ? formatDateTime(generatedAt) : "pending first refresh"}
+            </span>
+            <span className={styles.statsWorkspaceMetaPill}>Windows All time • 24h • 7d</span>
+            {activeLensMetaReason ? (
+              <span className={styles.statsWorkspaceMetaPill}>{activeLensMetaReason}</span>
+            ) : null}
+          </div>
+        </div>
+
+        <div className={styles.statsLensGrid} role="tablist" aria-label="Stats workspace lens">
+          {LENS_OPTIONS.map((lens) => (
+            <button
+              key={lens.key}
+              type="button"
+              aria-label={lens.label}
+              aria-pressed={activeLens === lens.key}
+              className={
+                activeLens === lens.key
+                  ? `${styles.statsLensButton} ${styles.statsLensButtonActive}`
+                  : styles.statsLensButton
+              }
+              onClick={() => setActiveLens(lens.key)}
+            >
+              <span className={styles.statsLensButtonLabel}>{lens.label}</span>
+              <span className={styles.statsLensButtonDescription}>{lens.description}</span>
+            </button>
+          ))}
+        </div>
+      </section>
 
       {activeLens === "product" ? (
         <AdminGlobalStatsPanel

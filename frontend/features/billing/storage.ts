@@ -20,7 +20,7 @@ export type MediaStorageQuotaSummary = {
 };
 
 export const getDefaultPlanStorageLimitBytes = (planId: string | undefined | null): number =>
-  DEFAULT_PLAN_STORAGE_LIMITS[normalizePlanId(planId)] ?? DEFAULT_PLAN_STORAGE_LIMITS.free;
+  DEFAULT_PLAN_STORAGE_LIMITS[normalizePlanId(planId)] ?? 0;
 
 export const formatStorageBytes = (bytes: number): string => {
   const normalizedBytes = Math.max(0, Number.isFinite(bytes) ? bytes : 0);

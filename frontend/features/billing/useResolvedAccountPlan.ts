@@ -88,11 +88,7 @@ export const useResolvedAccountPlan = ({
           !billingProfileResponse.error && billingProfileResponse.data
             ? ((billingProfileResponse.data as BillingProfilePlanRow).plan_id ?? null)
             : null;
-        const normalizedBillingProfilePlanId = normalizePlanId(billingPlanId);
-        const effectivePlanId =
-          contractPlanId ??
-          (normalizedBillingProfilePlanId === "free" ? "free" : null) ??
-          defaultPlanTier;
+        const effectivePlanId = contractPlanId ?? billingPlanId ?? defaultPlanTier;
         const normalizedPlanId = normalizePlanId(effectivePlanId);
         const plans =
           !billingPlansResponse.error && Array.isArray(billingPlansResponse.data)

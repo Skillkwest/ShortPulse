@@ -5,11 +5,6 @@
 import { computeCostForModel } from "../pricing";
 import { listModelConfigs } from "../modelRegistry";
 
-const EXCEPTION_ROUNDING_MODEL_IDS = new Set([
-  "fal-ai/flux-2/klein/9b",
-  "fal-ai/bria/background/remove",
-]);
-
 const AUDIO_STRATEGIES = new Set([
   "kling-3-per-second",
   "veo-3-per-second",
@@ -85,13 +80,7 @@ describe("model pricing coverage", () => {
                       failures.push(`${config.id} => non-positive credits (${estimate.credits})`);
                     }
 
-                    if (EXCEPTION_ROUNDING_MODEL_IDS.has(config.id)) {
-                      if (estimate.credits !== estimate.rawCredits) {
-                        failures.push(
-                          `${config.id} => expected ceil-only rounding (${estimate.rawCredits} -> ${estimate.credits})`
-                        );
-                      }
-                    } else if (estimate.credits % 5 !== 0) {
+                    if (estimate.credits % 5 !== 0) {
                       failures.push(
                         `${config.id} => expected nearest-5 credits (${estimate.credits})`
                       );
@@ -125,11 +114,13 @@ describe("model pricing coverage", () => {
     }
   });
 
-  it("never applies nearest-5 quantization to exception models", () => {
-    EXCEPTION_ROUNDING_MODEL_IDS.forEach((modelId) => {
-      const estimate = computeCostForModel(modelId, { aspect: "4:3" });
-      expect(estimate).not.toBeNull();
-      expect(estimate?.credits).toBe(estimate?.rawCredits);
-    });
+  it("uses shared nearest-5 quantization by default for every model", () => {
+    listModelConfigs()
+      .filter((config) => Boolean(config.pricingStrategy))
+      .forEach((config) => {
+        const estimate = computeCostForModel(config.id, { aspect: "4:3" });
+        expect(estimate).not.toBeNull();
+        expect((estimate?.credits ?? 0) % 5).toBe(0);
+      });
   });
 });

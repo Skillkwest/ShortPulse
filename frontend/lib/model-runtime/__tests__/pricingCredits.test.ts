@@ -18,7 +18,7 @@ describe("pricingCredits", () => {
     });
   });
 
-  it("uses ceil quantization for exception models", () => {
+  it("uses global nearest-5 quantization for all models by default", () => {
     const fluxLite = convertUsdToCredits({
       modelId: "fal-ai/flux-2/klein/9b",
       usdRaw: 0.00648,
@@ -29,13 +29,13 @@ describe("pricingCredits", () => {
     });
     expect(fluxLite).toEqual({
       rawCredits: 1,
-      credits: 1,
-      billedUsd: 0.01,
+      credits: 5,
+      billedUsd: 0.05,
     });
     expect(bria).toEqual({
       rawCredits: 2,
-      credits: 2,
-      billedUsd: 0.02,
+      credits: 5,
+      billedUsd: 0.05,
     });
   });
 
@@ -75,8 +75,8 @@ describe("pricingCredits", () => {
   });
 
   it("resolves model rounding mode deterministically", () => {
-    expect(resolveModelCreditRoundingMode("fal-ai/flux-2/klein/9b")).toBe("ceil");
-    expect(resolveModelCreditRoundingMode("fal-ai/bria/background/remove")).toBe("ceil");
+    expect(resolveModelCreditRoundingMode("fal-ai/flux-2/klein/9b")).toBe("nearest-5");
+    expect(resolveModelCreditRoundingMode("fal-ai/bria/background/remove")).toBe("nearest-5");
     expect(resolveModelCreditRoundingMode("fal-ai/nano-banana")).toBe("nearest-5");
   });
 
@@ -91,7 +91,6 @@ describe("pricingCredits", () => {
           markupBps: 0,
           defaultRoundingMode: "nearest-5",
           defaultRoundingIncrement: 5,
-          exceptionRoundingModelIds: [],
         },
         perModel: {},
       },
@@ -104,7 +103,7 @@ describe("pricingCredits", () => {
     });
   });
 
-  it("applies per-model overrides for multiplier and rounding", () => {
+  it("applies per-model markup overrides instead of layering on the global markup", () => {
     const result = convertUsdToCredits({
       modelId: "fal-ai/nano-banana",
       usdRaw: 0.039,
@@ -112,15 +111,13 @@ describe("pricingCredits", () => {
         schemaVersion: 1,
         global: {
           creditUsdScale: 100,
-          markupBps: 0,
+          markupBps: 300,
           defaultRoundingMode: "nearest-5",
           defaultRoundingIncrement: 5,
-          exceptionRoundingModelIds: [],
         },
         perModel: {
           "fal-ai/nano-banana": {
-            multiplierBps: 20_000,
-            roundingMode: "ceil",
+            markupBps: 10_000,
           },
         },
       },
@@ -128,8 +125,117 @@ describe("pricingCredits", () => {
 
     expect(result).toEqual({
       rawCredits: 8,
-      credits: 8,
-      billedUsd: 0.08,
+      credits: 10,
+      billedUsd: 0.1,
+    });
+  });
+
+  it("applies per-model credit conversion overrides", () => {
+    const result = convertUsdToCredits({
+      modelId: "fal-ai/nano-banana",
+      usdRaw: 0.039,
+      policy: {
+        schemaVersion: 1,
+        global: {
+          creditUsdScale: 100,
+          markupBps: 300,
+          defaultRoundingMode: "nearest-5",
+          defaultRoundingIncrement: 5,
+        },
+        perModel: {
+          "fal-ai/nano-banana": {
+            creditUsdScale: 200,
+          },
+        },
+      },
+    });
+
+    expect(result).toEqual({
+      rawCredits: 9,
+      credits: 10,
+      billedUsd: 0.05,
+    });
+  });
+
+  it("applies per-model rounding increment overrides", () => {
+    const result = convertUsdToCredits({
+      modelId: "fal-ai/nano-banana",
+      usdRaw: 0.0486,
+      policy: {
+        schemaVersion: 1,
+        global: {
+          creditUsdScale: 100,
+          markupBps: 300,
+          defaultRoundingMode: "nearest-5",
+          defaultRoundingIncrement: 5,
+        },
+        perModel: {
+          "fal-ai/nano-banana": {
+            roundingIncrement: 1,
+          },
+        },
+      },
+    });
+
+    expect(result).toEqual({
+      rawCredits: 6,
+      credits: 6,
+      billedUsd: 0.06,
+    });
+  });
+
+  it("preserves legacy multiplier overrides by converting them to equivalent markup overrides", () => {
+    const result = convertUsdToCredits({
+      modelId: "fal-ai/nano-banana",
+      usdRaw: 0.039,
+      policy: {
+        schemaVersion: 1,
+        global: {
+          creditUsdScale: 100,
+          markupBps: 300,
+          defaultRoundingMode: "nearest-5",
+          defaultRoundingIncrement: 5,
+        },
+        perModel: {
+          "fal-ai/nano-banana": {
+            // Legacy format from the first control-plane implementation.
+            // Old behavior was global markup first, then 2x multiplier.
+            // New normalization should preserve the same billed result.
+            multiplierBps: 20_000,
+            roundingIncrement: 1,
+          } as never,
+        },
+      },
+    });
+
+    expect(result).toEqual({
+      rawCredits: 9,
+      credits: 9,
+      billedUsd: 0.09,
+    });
+  });
+
+  it("converts legacy exception ids into normal roundup increment overrides", () => {
+    const fluxLite = convertUsdToCredits({
+      modelId: "fal-ai/flux-2/klein/9b",
+      usdRaw: 0.00648,
+      policy: {
+        schemaVersion: 1,
+        global: {
+          creditUsdScale: 100,
+          markupBps: 300,
+          defaultRoundingMode: "nearest-5",
+          defaultRoundingIncrement: 5,
+          exceptionRoundingModelIds: ["fal-ai/flux-2/klein/9b"],
+        } as never,
+        perModel: {},
+      },
+    });
+
+    expect(fluxLite).toEqual({
+      rawCredits: 1,
+      credits: 1,
+      billedUsd: 0.01,
     });
   });
 });

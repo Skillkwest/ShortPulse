@@ -15,6 +15,12 @@ export const normalizeNullableText = (value: unknown): string | null => {
 
 export const normalizeRequiredText = (value: unknown): string => asSingleString(value).trim();
 
+export const normalizeIdentifier = (value: unknown): string =>
+  normalizeRequiredText(value)
+    .toLowerCase()
+    .replace(/[^a-z0-9_]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+
 export const parseInteger = (value: unknown): number | null => {
   if (typeof value === "number" && Number.isFinite(value)) {
     return Math.trunc(value);
@@ -63,3 +69,5 @@ const slugifyForOfferId = (value: string): string => {
 export const buildCatalogOfferId = (baseId: string, offerName: string): string => {
   return `${baseId}__${slugifyForOfferId(offerName)}__${Date.now().toString(36)}`;
 };
+
+export const buildCurrentCatalogOfferId = (baseId: string): string => `${baseId}__current`;

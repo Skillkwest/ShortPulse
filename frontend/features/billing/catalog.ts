@@ -6,6 +6,7 @@
 export type BillingPlanRecord = {
   id: string;
   display_name: string;
+  sort_order?: number;
   monthly_price_cents: number;
   monthly_credits_cents: number;
   storage_limit_bytes: number;
@@ -68,6 +69,11 @@ const PLAN_PRESENTATION: Record<string, PlanPresentation> = {
 };
 
 const DEFAULT_PLAN_ID = "free";
+const GENERIC_PLAN_PRESENTATION: PlanPresentation = {
+  className: "plan-generic",
+  seatsLabel: "Workspace access",
+  description: "Subscription plan.",
+};
 
 /**
  * Normalizes any plan identifier into a known plan key.
@@ -83,17 +89,31 @@ export const normalizePlanId = (value: string | undefined | null): string => {
   if (normalized === "studio") return "studio";
   if (normalized === "media") return "media";
   if (normalized === "free") return "free";
-  return DEFAULT_PLAN_ID;
+  return normalized || DEFAULT_PLAN_ID;
 };
 
 /**
  * Returns a stable ordinal for tier comparisons so price changes do not affect upgrade logic.
  */
-export const getPlanTierRank = (value: string | undefined | null): number => {
-  const normalized = normalizePlanId(value) as (typeof PLAN_TIER_ORDER)[number];
-  const rank = PLAN_TIER_ORDER.indexOf(normalized);
-  return rank >= 0 ? rank : 0;
+export const getPlanTierRank = (
+  value: string | undefined | null,
+  plans?: BillingPlanRecord[]
+): number => {
+  const normalized = normalizePlanId(value);
+  const fromCatalog = plans?.find((plan) => normalizePlanId(plan.id) === normalized);
+  if (fromCatalog && typeof fromCatalog.sort_order === "number") {
+    return fromCatalog.sort_order;
+  }
+  const rank = PLAN_TIER_ORDER.indexOf(normalized as (typeof PLAN_TIER_ORDER)[number]);
+  return rank >= 0 ? rank : Number.MAX_SAFE_INTEGER;
 };
+
+const humanizePlanId = (value: string): string =>
+  value
+    .split(/[_-]+/g)
+    .filter(Boolean)
+    .map((segment) => segment[0]?.toUpperCase() + segment.slice(1))
+    .join(" ") || "Plan";
 
 /**
  * Resolves plan display data from database rows plus stable presentation metadata.
@@ -105,14 +125,15 @@ export const buildPlanView = (params: {
   const normalizedId = normalizePlanId(params.planId);
   const fromCatalog = params.plans.find((plan) => plan.id === normalizedId);
   const fallbackCatalog = params.plans.find((plan) => plan.id === DEFAULT_PLAN_ID);
-  const resolvedCatalog = fromCatalog ?? fallbackCatalog ?? null;
-  const presentation = PLAN_PRESENTATION[normalizedId] ?? PLAN_PRESENTATION[DEFAULT_PLAN_ID];
+  const resolvedCatalog =
+    fromCatalog ?? (normalizedId === DEFAULT_PLAN_ID ? (fallbackCatalog ?? null) : null);
+  const presentation =
+    PLAN_PRESENTATION[normalizedId] ??
+    (fromCatalog ? GENERIC_PLAN_PRESENTATION : PLAN_PRESENTATION[DEFAULT_PLAN_ID]);
 
   return {
     id: normalizedId,
-    displayName:
-      resolvedCatalog?.display_name ??
-      (normalizedId === "business" ? "Business" : normalizedId === "studio" ? "Studio" : "Free"),
+    displayName: resolvedCatalog?.display_name ?? humanizePlanId(normalizedId),
     className: presentation.className,
     description: presentation.description,
     seatsLabel: presentation.seatsLabel,

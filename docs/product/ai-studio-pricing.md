@@ -24,21 +24,23 @@ Short version: models declare metadata in runtime catalog/registry, pricing stra
   - `global.markupBps`
   - `global.defaultRoundingMode`
   - `global.defaultRoundingIncrement`
-  - `global.exceptionRoundingModelIds`
-  - `perModel[modelId].multiplierBps`
-  - `perModel[modelId].roundingMode`
+  - `perModel[modelId].creditUsdScale`
+  - `perModel[modelId].markupBps`
+  - `perModel[modelId].roundingIncrement`
 - Default policy:
   - Base conversion: `1 credit = $0.01`
   - Markup: `+3%` before quantization
   - Default quantization: `rawCredits = ceil(markedCredits)`, `credits = ceil(rawCredits / 5) * 5`
-  - Exception quantization (no nearest-5): `fal-ai/flux-2/klein/9b`, `fal-ai/bria/background/remove` use `credits = rawCredits`
+- Per-model overrides:
+  - Blank override fields in the admin panel inherit the global setting.
+  - Filled override fields fully replace the corresponding global value for that model.
 - Blocked-pricing models remain legacy/no-markup until provider evidence is supplied.
 - Current blocked set: none.
 - `usdRaw` is provider USD before markup/quantization; `usd` is billed USD (`credits * 0.01`).
 - Runtime authority: admin edits create a new versioned policy document and update the control-plane singleton; AI Studio clients and server billing both resolve that same active document with a short cache TTL.
 
 ## Current strategies
-- `fal-economy-image-per-mp`: `fal-ai/flux-2/klein/9b` uses `$0.006/MP` with ceil-only exception rounding; `fal-ai/bria/background/remove` uses fixed `$0.018` per generation with ceil-only exception rounding.
+- `fal-economy-image-per-mp`: `fal-ai/flux-2/klein/9b` uses `$0.006/MP`; `fal-ai/bria/background/remove` uses fixed `$0.018` per generation. Any model-specific billed result now comes from the shared global policy plus explicit per-model overrides in the admin pricing panel.
 - `fal-fill-per-mp`: `fal-ai/flux-pro/v1/fill` uses `$0.05/MP` with provider MP-ceil behavior.
 - `google-nano-banana-per-image`: `$0.039` flat per image.
 - `nano-banana-2-per-image`: base `$0.08` with resolution multipliers (`0.5K x0.75`, `2K x1.5`, `4K x2`) plus optional web-search surcharge `+$0.015`.
@@ -53,7 +55,7 @@ Short version: models declare metadata in runtime catalog/registry, pricing stra
 - `gpt41nano-per-token`: `$0.10` per 1M input + `$0.025` per 1M output, then shared markup/quantization policy.
 
 ## Tests
-- `frontend/lib/model-runtime/__tests__/pricingCredits.test.ts` covers conversion policy (default rounding, exception rounding, boundary behavior, markup ordering).
+- `frontend/lib/model-runtime/__tests__/pricingCredits.test.ts` covers conversion policy (default rounding, legacy-policy normalization, boundary behavior, markup ordering).
 - `frontend/features/ai-studio/logic/__tests__/pricing.test.ts` covers strategy formulas including Kie Kling and Kie Veo calculations.
 - `frontend/features/ai-studio/logic/__tests__/modelPricingCoverage.test.ts` runs matrix coverage over supported runtime settings and rounding-policy assertions.
 - `frontend/tests/api/generation-billing.reservations.test.ts` + `frontend/tests/api/generation-billing.pricing-params.test.ts` cover server parity (`buildPricingParams` vs `computeCostForModel`) and reservation metadata consistency.

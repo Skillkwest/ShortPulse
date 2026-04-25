@@ -8,7 +8,7 @@ const listModelConfigsMock = vi.fn();
 const buildDefaultPricingParamsMock = vi.fn();
 const computeCostForModelMock = vi.fn();
 const getModelPricingPolicySnapshotMock = vi.fn();
-const resolveModelCreditRoundingModeMock = vi.fn();
+const resolveModelPricingForModelMock = vi.fn();
 const resolveRuntimeModelPricingPolicyMock = vi.fn();
 
 vi.mock("../../lib/server/api/auth", () => ({
@@ -36,11 +36,7 @@ vi.mock("../../lib/model-runtime/pricing", () => ({
 
 vi.mock("../../lib/model-runtime/pricingPolicy", () => ({
   getModelPricingPolicySnapshot: (...args: unknown[]) => getModelPricingPolicySnapshotMock(...args),
-}));
-
-vi.mock("../../lib/model-runtime/pricingCredits", () => ({
-  resolveModelCreditRoundingMode: (...args: unknown[]) =>
-    resolveModelCreditRoundingModeMock(...args),
+  resolveModelPricingForModel: (...args: unknown[]) => resolveModelPricingForModelMock(...args),
 }));
 
 const createMockResponse = () => ({
@@ -59,6 +55,7 @@ describe("GET /api/admin/pricing/state", () => {
         label: "FLUX.2 Lite",
         provider: "fal",
         mediaType: "image",
+        supportsTextToImage: true,
         pricingStrategy: "fal-economy-image-per-mp",
         defaultAspect: "4:3",
         defaultResolution: "model_default",
@@ -83,7 +80,6 @@ describe("GET /api/admin/pricing/state", () => {
           markupBps: 300,
           defaultRoundingMode: "nearest-5",
           defaultRoundingIncrement: 5,
-          exceptionRoundingModelIds: ["fal-ai/flux-2/klein/9b"],
         },
         perModel: {},
       },
@@ -105,7 +101,6 @@ describe("GET /api/admin/pricing/state", () => {
       markupPercent: 3,
       defaultRoundingMode: "nearest-5",
       defaultRoundingIncrement: 5,
-      exceptionRoundingModelIds: ["fal-ai/flux-2/klein/9b"],
       overrideCount: 0,
       document: {
         schemaVersion: 1,
@@ -114,12 +109,16 @@ describe("GET /api/admin/pricing/state", () => {
           markupBps: 300,
           defaultRoundingMode: "nearest-5",
           defaultRoundingIncrement: 5,
-          exceptionRoundingModelIds: ["fal-ai/flux-2/klein/9b"],
         },
         perModel: {},
       },
     });
-    resolveModelCreditRoundingModeMock.mockReturnValue("ceil");
+    resolveModelPricingForModelMock.mockReturnValue({
+      creditUsdScale: 100,
+      markupBps: 300,
+      roundingMode: "nearest-5",
+      roundingIncrement: 5,
+    });
   });
 
   it("rejects non-GET methods", async () => {
@@ -138,11 +137,21 @@ describe("GET /api/admin/pricing/state", () => {
       from: (table: string) => {
         if (table === "billing_plans") {
           return {
-            select: () => ({
-              eq: async () => ({
-                data: [{ id: "studio", display_name: "Studio", is_active: true }],
-                error: null,
-              }),
+            select: async () => ({
+              data: [
+                {
+                  id: "studio",
+                  display_name: "Studio",
+                  is_active: true,
+                  monthly_price_cents: 3900,
+                  monthly_credits_cents: 3000,
+                  storage_limit_bytes: 107374182400,
+                  stripe_price_id: "price_plan_studio",
+                  sort_order: 20,
+                  stripe_product_id: "prod_plan_studio",
+                },
+              ],
+              error: null,
             }),
           };
         }
@@ -150,29 +159,23 @@ describe("GET /api/admin/pricing/state", () => {
         if (table === "billing_plan_offers") {
           return {
             select: () => ({
-              eq: () => ({
-                eq: () => ({
-                  is: () => ({
-                    order: () => ({
-                      order: async () => ({
-                        data: [
-                          {
-                            id: "studio__current",
-                            plan_id: "studio",
-                            recurring_price_cents: 3900,
-                            monthly_credits_cents: 3000,
-                            storage_limit_bytes: 107374182400,
-                            stripe_price_id: "price_plan_studio",
-                            acquisition_enabled: true,
-                            is_active: true,
-                            effective_start_at: "2026-04-01T00:00:00.000Z",
-                            created_at: "2026-04-01T00:00:00.000Z",
-                          },
-                        ],
-                        error: null,
-                      }),
-                    }),
-                  }),
+              order: () => ({
+                order: async () => ({
+                  data: [
+                    {
+                      id: "studio__current",
+                      plan_id: "studio",
+                      recurring_price_cents: 3900,
+                      monthly_credits_cents: 3000,
+                      storage_limit_bytes: 107374182400,
+                      stripe_price_id: "price_plan_studio",
+                      acquisition_enabled: true,
+                      is_active: true,
+                      effective_start_at: "2026-04-01T00:00:00.000Z",
+                      created_at: "2026-04-01T00:00:00.000Z",
+                    },
+                  ],
+                  error: null,
                 }),
               }),
             }),
@@ -251,6 +254,42 @@ describe("GET /api/admin/pricing/state", () => {
           };
         }
 
+        if (table === "billing_subscription_contracts") {
+          return {
+            select: () => ({
+              is: async () => ({
+                data: [
+                  {
+                    user_id: "user-1",
+                    plan_id: "studio",
+                    recurring_price_cents: 3900,
+                  },
+                  {
+                    user_id: "user-2",
+                    plan_id: "studio",
+                    recurring_price_cents: 3900,
+                  },
+                ],
+                error: null,
+              }),
+            }),
+          };
+        }
+
+        if (table === "billing_profiles") {
+          return {
+            select: async () => ({
+              data: [
+                {
+                  user_id: "user-3",
+                  plan_id: "studio",
+                },
+              ],
+              error: null,
+            }),
+          };
+        }
+
         throw new Error(`Unexpected table ${table}`);
       },
     });
@@ -272,7 +311,9 @@ describe("GET /api/admin/pricing/state", () => {
         models: [
           expect.objectContaining({
             id: "fal-ai/flux-2/klein/9b",
-            roundingMode: "ceil",
+            workflowType: "Text to image",
+            pricingStrategyLabel: "Per megapixel",
+            roundingIncrement: 5,
             pricingPreview: expect.objectContaining({
               billedCredits: 10,
               usdRaw: 0.08,
@@ -282,6 +323,10 @@ describe("GET /api/admin/pricing/state", () => {
         plans: [
           expect.objectContaining({
             planId: "studio",
+            accountCount: 3,
+            status: "active",
+            sortOrder: 20,
+            stripeProductId: "prod_plan_studio",
             stripePriceId: "price_plan_studio",
           }),
         ],

@@ -6,7 +6,6 @@
 import {
   CREDIT_USD_SCALE,
   DEFAULT_MARKUP_BPS,
-  DEFAULT_MODEL_MULTIPLIER_BPS,
   DEFAULT_CREDIT_ROUNDING_INCREMENT,
   USD_MICRO_SCALE,
   resolveModelPricingForModel,
@@ -86,12 +85,6 @@ export const convertUsdToCredits = ({
   let denominator = USD_MICRO_SCALE_BIGINT;
   if (applyMarkup) {
     numerator *= BigInt(10_000 + (resolvedPolicy.markupBps ?? DEFAULT_MARKUP_BPS));
-    denominator *= BPS_DENOMINATOR;
-  }
-  if (
-    (resolvedPolicy.multiplierBps ?? DEFAULT_MODEL_MULTIPLIER_BPS) !== DEFAULT_MODEL_MULTIPLIER_BPS
-  ) {
-    numerator *= BigInt(resolvedPolicy.multiplierBps);
     denominator *= BPS_DENOMINATOR;
   }
 

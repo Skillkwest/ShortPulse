@@ -126,6 +126,7 @@ Safety checks:
 ## Admin pricing command center
 Primary path:
 - `/admin/pricing` UI -> `/api/admin/pricing/state`.
+- New plan creation -> `/api/admin/pricing/plans/create`.
 - Credit-package updates -> `/api/admin/pricing/credit-packages/update`.
 - Plan offer versioning -> `/api/admin/pricing/plan-offers/create`.
 - Storage add-on offer versioning -> `/api/admin/pricing/storage-offers/create`.
@@ -135,18 +136,21 @@ Primary path:
 
 Operational rules:
 - Treat catalog pricing and runtime model pricing as separate domains even though they share `/admin/pricing`.
+- `Create new plan` is a new tier-identity flow. It creates the `billing_plans` row, the first current public `billing_plan_offers` row, the Stripe product, and the Stripe recurring price together.
 - Plan and storage changes create new public offers for future acquisitions; they do not mutate historical subscriber contracts.
 - Credit-package updates change the active package row used for future top-up checkout.
 - Model-pricing policy changes affect future AI Studio estimates and server debits immediately after activation.
 - Model-pricing rollback returns the runtime to the last-known-safe versioned policy; use rollback instead of hand-editing pricing tables or invoking RPCs manually.
 - Stripe-linked public catalog rows must keep valid `stripe_price_id` values before activation for any paid acquisition offer or active paid top-up package.
+- Internal comp remains limited to the canonical hidden offers (`media`, `studio`, `business`) unless a future billing-contract change explicitly widens that support for admin-created plans.
 
 Recommended operator sequence:
 1. Open `/admin/pricing` and inspect state warnings first.
-2. For plan/storage/top-up changes, create or attach the correct Stripe Price before activating the catalog update.
-3. For model-pricing changes, review the effective conversion, markup, and rounding diff before activation and verify the active policy snapshot through `/api/pricing/model-policy`.
-4. After any pricing change, verify the customer-facing catalog on `/profile?section=billing`.
-5. After any model-pricing policy change, verify AI Studio estimate chips and one server-side debit path still agree on billed credits.
+2. For a brand-new plan, use `Create new plan` so ShortPulse and Stripe are created together.
+3. For existing plan/storage/top-up changes, create or attach the correct Stripe Price before activating the catalog update.
+4. For model-pricing changes, review the effective conversion, markup, and rounding diff before activation and verify the active policy snapshot through `/api/pricing/model-policy`.
+5. After any pricing change, verify the customer-facing catalog on `/profile?section=billing`.
+6. After any model-pricing policy change, verify AI Studio estimate chips and one server-side debit path still agree on billed credits.
 
 ## Charging model behavior
 - Fal generation submit endpoints reserve credits server-side before provider submission.

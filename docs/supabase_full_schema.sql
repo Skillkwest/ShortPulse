@@ -676,6 +676,8 @@ create table if not exists billing_plans (
     monthly_credits_cents integer not null check (monthly_credits_cents >= 0),
     storage_limit_bytes bigint not null check (storage_limit_bytes >= 0),
     stripe_price_id text unique,
+    stripe_product_id text unique,
+    sort_order integer not null default 0,
     is_active boolean not null default true,
     created_at timestamptz not null default now()
 );
@@ -687,18 +689,21 @@ insert into billing_plans (
     monthly_credits_cents,
     storage_limit_bytes,
     stripe_price_id,
+    stripe_product_id,
+    sort_order,
     is_active
 )
 values
-    ('free', 'Free', 0, 100, 1::bigint * 1024 * 1024 * 1024, null, true),
-    ('media', 'Media', 1200, 600, 25::bigint * 1024 * 1024 * 1024, null, true),
-    ('studio', 'Studio', 3900, 3000, 100::bigint * 1024 * 1024 * 1024, null, true),
-    ('business', 'Business', 12900, 12000, 500::bigint * 1024 * 1024 * 1024, null, true)
+    ('free', 'Free', 0, 100, 1::bigint * 1024 * 1024 * 1024, null, null, 0, true),
+    ('media', 'Media', 1200, 600, 25::bigint * 1024 * 1024 * 1024, null, null, 10, true),
+    ('studio', 'Studio', 3900, 3000, 100::bigint * 1024 * 1024 * 1024, null, null, 20, true),
+    ('business', 'Business', 12900, 12000, 500::bigint * 1024 * 1024 * 1024, null, null, 30, true)
 on conflict (id) do update
 set display_name = excluded.display_name,
     monthly_price_cents = excluded.monthly_price_cents,
     monthly_credits_cents = excluded.monthly_credits_cents,
     storage_limit_bytes = excluded.storage_limit_bytes,
+    sort_order = excluded.sort_order,
     is_active = excluded.is_active;
 
 alter table billing_plans enable row level security;

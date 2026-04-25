@@ -9,8 +9,9 @@ import styles from "../../../styles/admin.module.css";
 const ADMIN_NAV_ITEMS = [
   { href: "/admin", label: "Support" },
   { href: "/admin/pricing", label: "Pricing" },
-  { href: "/admin/errors", label: "Errors" },
   { href: "/admin/announcements", label: "Announcements" },
+  { href: "/admin/stats", label: "Analytics" },
+  { href: "/admin/errors", label: "Errors" },
   { href: "/admin/user-health", label: "User health" },
   { href: "/admin/user-health-fleet", label: "Fleet health" },
   { href: "/admin/generation-trace", label: "Generation trace" },
@@ -46,21 +47,24 @@ export function AdminPageHeader({
         </div>
       </header>
 
-      <nav className={styles.adminNavRow} aria-label="Admin pages">
-        {ADMIN_NAV_ITEMS.map((item) => {
-          const active = item.href === currentPath;
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              aria-current={active ? "page" : undefined}
-              className={`${styles.adminNavLink} ${active ? styles.adminNavLinkActive : ""}`}
-            >
-              {item.label}
-            </Link>
-          );
-        })}
-      </nav>
+      <div className={styles.adminNavShell}>
+        <p className={styles.adminNavLabel}>Jump to</p>
+        <nav className={styles.adminNavRow} aria-label="Admin pages">
+          {ADMIN_NAV_ITEMS.map((item) => {
+            const active = item.href === currentPath;
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                aria-current={active ? "page" : undefined}
+                className={`${styles.adminNavLink} ${active ? styles.adminNavLinkActive : ""}`}
+              >
+                {item.label}
+              </Link>
+            );
+          })}
+        </nav>
+      </div>
     </>
   );
 }

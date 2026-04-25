@@ -3,6 +3,7 @@
 This SOP is the operational runbook for credit ledger migrations, admin balance adjustments, and verification in ShortPulse.
 
 ## Scope
+
 - Credit schema alignment (`ai_credit_ledger`, `ai_credit_balance`).
 - Server-authoritative generation charging and refund behavior.
 - Admin/operator credit adjustments in `/admin`.
@@ -11,6 +12,7 @@ This SOP is the operational runbook for credit ledger migrations, admin balance 
 - Stripe credit grants and subscription renewals.
 
 ## Source of truth
+
 - Billing bootstrap schema: `sql/create_billing_credit_tables.sql`.
 - Pricing catalog updates: `sql/update_billing_pricing_catalog_20260210.sql`.
 - Versioned offer + subscriber contract migration: `sql/migrations/085_add_billing_plan_offers_and_subscription_contracts.sql`.
@@ -46,6 +48,7 @@ This SOP is the operational runbook for credit ledger migrations, admin balance 
 - Contract reconciliation script: `scripts/verify_billing_contracts_against_stripe.ts`.
 
 ## Billing model contract
+
 - `billing_plans` defines the shared plan tier (`free`, `media`, `studio`, `business`).
 - `billing_plan_offers` defines versioned recurring offers and current acquisition pricing.
 - `billing_subscription_contracts` defines the subscriber-specific recurring commercial terms and historical lineage.
@@ -56,15 +59,19 @@ This SOP is the operational runbook for credit ledger migrations, admin balance 
 - `billing_subscription_contracts.contract_source` distinguishes Stripe-paid recurring contracts from non-public internal comp contracts.
 
 ## Ledger schema contract
+
 Expected v2 columns on `ai_credit_ledger`:
+
 - `id`, `user_id`, `change_cents`, `reason`, `source`, `source_ref`, `metadata`, `created_by`, `created_at`.
 
 Legacy deployments may still expose:
+
 - `id`, `user_id`, `change_cents`, `reason`, `ref_id`, `created_at`.
 
 The API currently supports both shapes during rollout by falling back to `ref_id` writes (adjustments) and `ref_id` reads (admin ledger audit) if v2 columns are missing.
 
 ## Migration runbook (required)
+
 1. Run `sql/migrate_ai_credit_ledger_legacy_to_v2.sql` in Supabase SQL editor.
 2. Run `sql/migrations/013_fix_generation_reservation_rpc_ambiguity.sql` in Supabase SQL editor.
 3. Run `sql/migrations/014_harden_generation_reservation_rpc_security.sql` in Supabase SQL editor.
@@ -78,16 +85,20 @@ The API currently supports both shapes during rollout by falling back to `ref_id
    - View (`relkind = 'v'`): migration skips incompatible RLS/trigger steps by design.
 10. Verify admin credit adjustment in `/admin` succeeds.
 11. Run `sql/audit_billing_credit_rls.sql` and confirm no `MISSING` policy rows.
-15. Verify Fal reservation submit path no longer returns ambiguous SQL errors:
-   - `cd frontend && PLAYWRIGHT_AUDIT_EMAIL=<existing-test-user-email> PLAYWRIGHT_AUDIT_PASSWORD=<password> npm run test:e2e:character` (with local app server running)
-   - Audit safety guardrail: `test:e2e:character` refuses to run without `PLAYWRIGHT_AUDIT_EMAIL` and rejects `@example.com` emails.
-   - Confirm `/api/fal/seedream-edit-submit` is not HTTP 500.
+12. Verify Fal reservation submit path no longer returns ambiguous SQL errors:
+
+- `cd frontend && PLAYWRIGHT_AUDIT_EMAIL=<existing-test-user-email> PLAYWRIGHT_AUDIT_PASSWORD=<password> npm run test:e2e:character` (with local app server running)
+- Audit safety guardrail: `test:e2e:character` refuses to run without `PLAYWRIGHT_AUDIT_EMAIL` and rejects `@example.com` emails.
+- Confirm `/api/fal/seedream-edit-submit` is not HTTP 500.
+
 16. Verify reservation RPC hardening checks are present in staged function bodies and grants:
-   - auth binding clause: `auth.role() <> 'service_role' and auth.uid() is distinct from p_user_id`
-   - explicit `revoke ... from public, anon, authenticated`
-   - explicit `grant execute ... to service_role`
+
+- auth binding clause: `auth.role() <> 'service_role' and auth.uid() is distinct from p_user_id`
+- explicit `revoke ... from public, anon, authenticated`
+- explicit `grant execute ... to service_role`
 
 Verification SQL:
+
 ```sql
 select column_name
 from information_schema.columns
@@ -96,14 +107,18 @@ order by ordinal_position;
 ```
 
 ## Admin/operator access
+
 `/admin` requires one of:
+
 - `app_metadata.role` = `admin`/`operator`.
 - Email in `SHORTPULSE_ADMIN_EMAILS`.
 
 If role metadata is updated directly in Supabase, sign out/sign in to refresh JWT claims before retesting `/admin`.
 
 ## Manual credit adjustments
+
 Primary path:
+
 - `/admin` UI -> `/api/admin/credits/adjust`.
 - `/admin` transaction audit -> `/api/admin/credits/ledger?userId=<uuid>&limit=<n>&source=<source>`.
 - `/admin` billing diagnostics -> `/api/admin/billing-diagnostics?userId=<uuid>` for current profile/contract/offer drift checks, live Stripe subscription reconciliation, and grandfathered-price support context.
@@ -115,16 +130,20 @@ Primary path:
 - `/api/admin/users` reports spendable credits (`available - reserved`) and also returns `availableCredits` / `reservedCredits` for hold visibility.
 
 Request contract:
+
 - `userId` (uuid), `changeCents` (non-zero int), `reason` (non-empty string).
 - Positive values grant credits, negative values debit credits.
 
 Safety checks:
+
 - Non-zero required.
 - Per-request cap: absolute value <= `1_000_000`.
 - DB trigger blocks underflow (`Insufficient credits`).
 
 ## Admin pricing command center
+
 Primary path:
+
 - `/admin/pricing` UI -> `/api/admin/pricing/state`.
 - New plan creation -> `/api/admin/pricing/plans/create`.
 - Credit-package updates -> `/api/admin/pricing/credit-packages/update`.
@@ -135,6 +154,7 @@ Primary path:
 - Runtime model-pricing policy rollback -> `/api/admin/pricing/model-policy/rollback`.
 
 Operational rules:
+
 - Treat catalog pricing and runtime model pricing as separate domains even though they share `/admin/pricing`.
 - `Create new plan` is a new tier-identity flow. It creates the `billing_plans` row, the first current public `billing_plan_offers` row, the Stripe product, and the Stripe recurring price together.
 - Plan and storage changes create new public offers for future acquisitions; they do not mutate historical subscriber contracts.
@@ -145,14 +165,16 @@ Operational rules:
 - Internal comp remains limited to the canonical hidden offers (`media`, `studio`, `business`) unless a future billing-contract change explicitly widens that support for admin-created plans.
 
 Recommended operator sequence:
+
 1. Open `/admin/pricing` and inspect state warnings first.
 2. For a brand-new plan, use `Create new plan` so ShortPulse and Stripe are created together.
 3. For existing plan/storage/top-up changes, create or attach the correct Stripe Price before activating the catalog update.
 4. For model-pricing changes, review the effective conversion, markup, and rounding diff before activation and verify the active policy snapshot through `/api/pricing/model-policy`.
-5. After any pricing change, verify the customer-facing catalog on `/profile?section=billing`.
+5. After any pricing change, verify the customer-facing catalog on `/profile?section=credits` and `/profile?section=storage`.
 6. After any model-pricing policy change, verify AI Studio estimate chips and one server-side debit path still agree on billed credits.
 
 ## Charging model behavior
+
 - Fal generation submit endpoints reserve credits server-side before provider submission.
 - Bria remove-background submit (`/api/fal/bria-background-remove-submit`) uses the same reservation/debit flow as other Fal submit routes (no billing bypass).
 - Admission enforcement is authoritative only in reservation billing mode.
@@ -181,6 +203,7 @@ Recommended operator sequence:
 - Studio-agent prompt-refine and describe flows currently return usage but are not yet debited.
 
 ## Reservation cleanup operations
+
 - Stale reservation cleanup runs via `/api/internal/generation-recovery/run` when `SHORTPULSE_FAL_RESERVATION_CLEANUP_ENABLED=true`.
 - Phase-1 cleanup criteria are intentionally conservative:
   - `status='reserved'`
@@ -190,6 +213,7 @@ Recommended operator sequence:
 - Batch size is controlled by `SHORTPULSE_FAL_RESERVATION_CLEANUP_BATCH_SIZE` (default `200`).
 
 ## User-facing balance snapshot
+
 - `/api/credits/snapshot` returns authenticated, server-authoritative credit state for UI reassurance:
   - `availableCents`: current balance from `ai_credit_balance` (or ledger fallback).
   - `reservedCents`: sum of active `ai_credit_reservations` holds (`status='reserved'`).
@@ -197,6 +221,7 @@ Recommended operator sequence:
 - Use this endpoint for customer-facing credit displays when generation reservations are in flight.
 
 ## Failure-settlement lifecycle (Fal)
+
 1. Submit route reserves credits keyed by `source_ref` (`x-shortpulse-request-id`).
 2. Submit success stores `provider_request_id` on reservation context.
 3. Status route settles final outcome:
@@ -205,6 +230,7 @@ Recommended operator sequence:
 4. Reservation + ledger uniqueness keep settlement idempotent across retries/polling races.
 
 ## Stripe grants behavior
+
 - Checkout top-up credits are ledger grants (`change_cents > 0`) via server routes only after Stripe reports the Checkout Session as paid.
 - Delayed-payment Checkout methods must settle on `checkout.session.async_payment_succeeded`; do not grant credits from `checkout.session.completed` when `payment_status != 'paid'`.
 - Subscription monthly credits are granted only for invoice payment events that represent a new billing allocation window (`billing_reason in ('subscription_create', 'subscription_cycle')`).
@@ -225,6 +251,7 @@ Recommended operator sequence:
 - Immediate Stripe subscription deletion must drop local paid entitlements back to free runtime state. Only `cancel_at_period_end = true` should preserve access through the paid period.
 
 ## Media storage quota contract
+
 - Customer-facing storage quota counts canonical saved media only:
   - `media_files.file_size`
 - Derived poster/thumb/preview assets do not count against customer quota.
@@ -235,6 +262,7 @@ Recommended operator sequence:
 - App/server persistence lanes must still best-effort remove uploaded storage objects if the `media_files` insert fails because the DB quota guard rejects the write.
 
 ## Internal comp recurring behavior
+
 - Admin/non-public comp access is granted through `/api/admin/billing/contracts/update`.
 - Internal comp contracts use hidden `billing_plan_offers` rows such as `business__internal_comp` and store `contract_source = 'internal_comp'`.
 - Granting internal comp access seeds the current period allocation immediately.
@@ -243,6 +271,7 @@ Recommended operator sequence:
 - Revoking internal comp access returns the account to `free` runtime state unless a different trusted operator path is intentionally used.
 
 ## Internal comp renewal scheduler setup
+
 1. Set runtime env on the target deployment:
    - `SHORTPULSE_INTERNAL_BILLING_RENEWALS_ENABLED=true`
    - `SHORTPULSE_INTERNAL_BILLING_RENEWALS_CRON_SECRET=<strong-secret>`
@@ -251,12 +280,15 @@ Recommended operator sequence:
    - `shortpulse_internal_billing_renewals_run_url`
    - `shortpulse_internal_billing_renewals_cron_secret`
 4. Confirm the Supabase Cron job exists and is active:
+
 ```sql
 select jobid, jobname, schedule, active
 from cron.job
 where jobname = 'shortpulse_internal_billing_renewals_hourly';
 ```
+
 5. Confirm recent executions:
+
 ```sql
 select jobid, status, start_time, end_time, return_message
 from cron.job_run_details
@@ -266,14 +298,17 @@ where jobid = (
 order by start_time desc
 limit 20;
 ```
+
 6. Manual replay path for investigation or catch-up:
    - `curl -X POST "$APP_BASE_URL/api/internal/billing-contract-renewals/run" -H "Authorization: Bearer $SHORTPULSE_INTERNAL_BILLING_RENEWALS_CRON_SECRET" -H "Content-Type: application/json" -d '{}'`
 
 ## Stripe webhook replay runbook (failed-first recovery)
+
 Use this when a Stripe webhook was accepted into `stripe_event_log` but side effects (credit grant or subscription state update) may not have completed.
 
 1. Identify impacted event(s) from logs or Stripe Dashboard (`event.id`, `event.type`, `created`).
 2. Verify ingestion and current side effects in Supabase:
+
 ```sql
 -- Event claim existence
 select id, event_type, received_at
@@ -297,6 +332,7 @@ from billing_subscription_contracts
 where stripe_customer_id = '<stripe_customer_id>'
 order by created_at desc;
 ```
+
 3. Replay the event from Stripe:
    - Stripe Dashboard: open the event and click `Resend`.
    - Or Stripe CLI: `stripe events resend <stripe_event_id>`.
@@ -311,19 +347,24 @@ order by created_at desc;
    - Escalate with event IDs + DB snapshots above.
 
 ## Operations checklist
+
 Before release:
+
 1. Run migration if environment is legacy (must include reservation migration for Fal capture flow).
 2. Validate one positive and one negative admin adjustment.
 3. Validate one successful generation capture and one failed-status auto-release scenario.
 4. Confirm user can only read own balances/ledger rows.
 
 After release:
+
 1. Spot-check ledger rows for `source` + `source_ref` population.
 2. Confirm `/admin` shows updated `balance_cents` after adjustments.
 3. Monitor webhook logs for failed credit inserts.
 
 ## Post-deploy health check (signup bootstrap)
+
 Use this query to detect recent users missing the expected bootstrap rows:
+
 ```sql
 with recent_users as (
   select id, email, created_at

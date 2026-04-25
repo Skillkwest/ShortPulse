@@ -1,0 +1,236 @@
+/**
+ * Profile workspace shell styling.
+ * Defines the top-level settings workspace chrome shared across account, subscription, and billing.
+ */
+.profile-page.page {
+  max-width: none;
+  width: 100%;
+  margin: 0;
+  padding: 28px 28px 72px;
+  min-height: var(--app-fixed-height);
+  background:
+    radial-gradient(120% 120% at 0% 0%, rgba(37, 169, 191, 0.12), transparent 45%),
+    radial-gradient(90% 120% at 100% 0%, rgba(255, 203, 102, 0.08), transparent 30%), #0c1016;
+  background-image:
+    radial-gradient(120% 120% at 0% 0%, rgba(37, 169, 191, 0.12), transparent 45%),
+    radial-gradient(90% 120% at 100% 0%, rgba(255, 203, 102, 0.08), transparent 30%);
+}
+
+.profile-page-shell,
+.profile-page.profile-page-shell {
+  position: relative;
+  background: transparent !important;
+}
+
+.profile-workspace {
+  width: min(1360px, 100%);
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.profile-app-bar {
+  margin-bottom: 0;
+  padding: 24px;
+  align-items: flex-start;
+  background:
+    radial-gradient(120% 120% at 12% 0%, rgba(37, 169, 191, 0.14), transparent 50%),
+    rgba(201, 205, 214, 0.03);
+}
+
+.profile-app-bar-main {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.profile-app-bar-back {
+  width: fit-content;
+}
+
+.profile-identity {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.profile-avatar-chip {
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, rgba(37, 169, 191, 0.24), rgba(8, 12, 18, 0.9));
+  border: 1px solid rgba(37, 169, 191, 0.4);
+  display: grid;
+  place-items: center;
+  font-weight: 800;
+  color: #e8fbff;
+  letter-spacing: 0.03em;
+}
+
+.profile-avatar-chip-lg {
+  width: 64px;
+  height: 64px;
+  border-radius: 18px;
+  font-size: 18px;
+}
+
+.profile-identity-copy {
+  min-width: 0;
+}
+
+.profile-identity-copy h1 {
+  margin: 0;
+  font-size: 31px;
+}
+
+.profile-identity-copy .subdued {
+  max-width: 58ch;
+}
+
+.profile-app-bar-right {
+  justify-content: flex-end;
+  width: auto;
+}
+
+.profile-header-cards {
+  flex-wrap: wrap;
+}
+
+.profile-header-card {
+  min-width: 210px;
+  width: 220px;
+  cursor: default;
+}
+
+.profile-header-card:hover {
+  transform: none;
+}
+
+.profile-header-card-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.profile-header-card-value {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--color-ash);
+}
+
+.profile-shell-action {
+  flex-shrink: 0;
+}
+
+.profile-section-tabs-panel {
+  padding: 16px 18px;
+  gap: 12px;
+}
+
+.profile-section-tabs {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.profile-section-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 48px;
+  border-radius: 14px;
+  border: 1px solid rgba(201, 205, 214, 0.12);
+  background: rgba(9, 12, 18, 0.7);
+  color: var(--color-ash);
+  text-decoration: none;
+  padding: 11px 16px;
+  transition:
+    background 0.16s ease,
+    border-color 0.16s ease,
+    transform 0.16s ease,
+    box-shadow 0.16s ease;
+}
+
+.profile-section-tab:hover {
+  transform: translateY(-1px);
+  border-color: rgba(37, 169, 191, 0.34);
+  background: rgba(14, 19, 28, 0.9);
+}
+
+.profile-section-tab.is-active {
+  background: linear-gradient(135deg, rgba(16, 38, 46, 0.95), rgba(10, 14, 20, 0.96));
+  border-color: rgba(37, 169, 191, 0.48);
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.32);
+  color: #e8fbff;
+}
+
+.profile-section-tab-icon {
+  width: 30px;
+  height: 30px;
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+  background: rgba(37, 169, 191, 0.12);
+  border: 1px solid rgba(37, 169, 191, 0.2);
+}
+
+.profile-section-tab-label {
+  font-weight: 700;
+}
+
+.profile-workspace-body {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.profile-notice {
+  margin: 0;
+}
+
+.profile-notice-success {
+  color: #7df0cb;
+}
+
+.profile-notice-info {
+  color: #9dd8ff;
+}
+
+.profile-notice-error {
+  color: #ff9f9f;
+}
+
+.profile-detail-panel {
+  padding-bottom: 16px;
+}
+
+.profile-billing-how {
+  background: rgba(201, 205, 214, 0.025);
+}
+
+.profile-billing-how summary {
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.profile-billing-how p {
+  margin: 10px 0 0;
+  color: rgba(219, 224, 233, 0.82);
+  line-height: 1.55;
+  font-size: 14px;
+}
+
+.profile-modal-card {
+  width: min(460px, calc(100vw - 32px));
+}
+
+.profile-modal-list {
+  margin: 8px 0 0 20px;
+}
+
+.profile-modal-copy {
+  margin-top: 12px;
+}

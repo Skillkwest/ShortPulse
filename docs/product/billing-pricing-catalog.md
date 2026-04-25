@@ -3,12 +3,14 @@
 Purpose: keep subscription, storage add-on, and credit-pack pricing easy to change without mutating the separate AI model debit policy.
 
 ## Credit accounting policy
+
 - Catalog tables define how many credits a plan or top-up grants to a user account.
 - The current default AI model debit scale is `1 credit = $0.01`, but that runtime conversion is no longer fixed in code; it lives in the shared model-pricing control plane documented in `docs/product/ai-studio-pricing.md`.
 - Changes to model markup, rounding, or credit conversion affect future generation debits only.
 - Changes to this billing catalog affect product/package pricing and granted-credit quantities only.
 
 ## Source of truth
+
 - Public acquisition pricing shown in UI is loaded from current acquisition offer rows plus shared metadata:
   - `billing_plan_offers` for current recurring plan prices, credits, and storage
   - `billing_plans` for shared plan metadata such as stable ids, display names, Stripe product linkage, and UI ordering
@@ -34,6 +36,7 @@ Purpose: keep subscription, storage add-on, and credit-pack pricing easy to chan
   - `billing_subscription_contracts.contract_source = 'internal_comp'`
 
 ## Subscriber pricing policy
+
 - Public offers can change over time for new purchases.
 - Existing subscribers keep the recurring price and included monthly credits from the offer they originally bought while the subscription remains continuously active.
 - Plan changes move the subscriber onto the current public offer for the target plan unless an operator explicitly preserves a legacy contract.
@@ -44,24 +47,29 @@ Purpose: keep subscription, storage add-on, and credit-pack pricing easy to chan
   - monthly renewals for internal comp contracts come from the internal renewal runner, not Stripe invoices
 
 ## Current catalog (2026-02-10)
+
 ### Subscription plans
+
 - `free`: `$0`, `100` credits/month, `1 GB`
 - `media`: `$12`, `600` credits/month, `25 GB`
 - `studio`: `$39`, `3,000` credits/month, `100 GB`
 - `business`: `$129`, `12,000` credits/month, `500 GB`
 
 ### Recurring storage add-ons
+
 - `storage_25gb`: `$5/month`, `+25 GB`
 - `storage_100gb`: `$15/month`, `+100 GB`
 - `storage_500gb`: `$49/month`, `+500 GB`
 
 ### Credit packs
+
 - `starter_500`: `$7`, `500` credits
 - `growth_2000`: `$26`, `2,000` credits
 - `scale_6000`: `$78`, `6,000` credits
 - `studio_10000`: `$100`, `10,000` credits
 
 ## How to change pricing
+
 1. Decide which pricing domain is changing:
    - billing catalog (`plans`, `storage add-ons`, `credit top-ups`) via `/admin/pricing`
    - runtime AI model debit policy (`credit conversion`, `markup`, `rounding`, `per-model overrides`) via the same admin page's model-pricing section and `docs/product/ai-studio-pricing.md`
@@ -88,9 +96,9 @@ Purpose: keep subscription, storage add-on, and credit-pack pricing easy to chan
    - Do not mutate historical offers already tied to active subscriber contracts.
    - Do not attach Stripe price ids to hidden internal comp offers.
 8. Verify in app:
-   - `/profile?section=billing` reflects updated plan and package prices from `/api/billing/catalog`.
+   - `/profile?section=credits` reflects updated plan and package prices from `/api/billing/catalog`.
    - New plans render correctly even when the plan id is not one of the legacy fixed tiers.
-   - `/profile?section=billing` reflects recurring storage add-on catalog entries from `/api/billing/catalog`.
+   - `/profile?section=storage` reflects recurring storage add-on catalog entries from `/api/billing/catalog`.
    - `/dashboard` and `/media-library` reflect the correct storage entitlement from the active contract plus add-ons.
    - Checkout opens with the intended package amount.
    - Webhook grants expected credits after successful payment.
@@ -100,6 +108,7 @@ Purpose: keep subscription, storage add-on, and credit-pack pricing easy to chan
    - If the model-pricing policy changed, AI Studio estimate chips and server debits should both reflect the new active runtime policy from `/api/pricing/model-policy`.
 
 ## Quick verification SQL
+
 ```sql
 select id, display_name, sort_order, stripe_product_id, monthly_price_cents, monthly_credits_cents, storage_limit_bytes
 from billing_plans

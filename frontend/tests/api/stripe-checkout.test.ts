@@ -97,8 +97,8 @@ describe("POST /api/billing/stripe/checkout", () => {
     expect(stripePostFormMock).toHaveBeenCalledWith(
       "/checkout/sessions",
       expect.objectContaining({
-        success_url: "https://app.shortpulse.test/profile?section=billing&checkout=success",
-        cancel_url: "https://app.shortpulse.test/profile?section=billing&checkout=cancel",
+        success_url: "https://app.shortpulse.test/profile?section=credits&checkout=success",
+        cancel_url: "https://app.shortpulse.test/profile?section=credits&checkout=cancel",
       })
     );
     expect(ensureStripeCustomerForUserMock).toHaveBeenCalledWith({

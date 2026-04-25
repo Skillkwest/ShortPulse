@@ -12,6 +12,7 @@ import {
   buildPlanView,
   getPlanTierRank,
   type BillingPlanRecord,
+  type BillingStorageAddonRecord,
   type CreditPackageRecord,
 } from "../features/billing/catalog";
 import { useMediaStorageQuotaSummary } from "../features/billing/useMediaStorageQuotaSummary";
@@ -68,7 +69,7 @@ export default function ProfilePage() {
   const [notice, setNotice] = useState<NoticeState | null>(null);
 
   const [billingProfile, setBillingProfile] = useState<BillingProfile | null>(null);
-  const [billingProfileLoading, setBillingProfileLoading] = useState(false);
+  const [, setBillingProfileLoading] = useState(false);
   const [billingContract, setBillingContract] = useState<BillingSubscriptionContract | null>(null);
   const [billingContractLoading, setBillingContractLoading] = useState(false);
   const [billingPlans, setBillingPlans] = useState<BillingPlanRecord[]>([]);
@@ -112,6 +113,7 @@ export default function ProfilePage() {
   }, [user]);
 
   const loadBillingProfile = async (currentUser: User) => {
+    setBillingProfileLoading(true);
     try {
       const supabase = ensureSupabaseClient();
       const { data } = await supabase
@@ -122,10 +124,13 @@ export default function ProfilePage() {
       setBillingProfile((data as BillingProfile | null) ?? null);
     } catch {
       setBillingProfile(null);
+    } finally {
+      setBillingProfileLoading(false);
     }
   };
 
   const loadBillingContract = async (currentUser: User) => {
+    setBillingContractLoading(true);
     try {
       const supabase = ensureSupabaseClient();
       const { data, error } = await supabase
@@ -142,6 +147,8 @@ export default function ProfilePage() {
       setBillingContract((data as BillingSubscriptionContract | null) ?? null);
     } catch {
       setBillingContract(null);
+    } finally {
+      setBillingContractLoading(false);
     }
   };
 
@@ -158,9 +165,13 @@ export default function ProfilePage() {
       setCreditPackages(
         Array.isArray(data.packages) ? (data.packages as CreditPackageRecord[]) : []
       );
+      setStorageAddons(
+        Array.isArray(data.storageAddons) ? (data.storageAddons as BillingStorageAddonRecord[]) : []
+      );
     } catch (error) {
       setBillingPlans([]);
       setCreditPackages([]);
+      setStorageAddons([]);
       setNotice({
         tone: "error",
         message: error instanceof Error ? error.message : "Unable to load billing catalog.",

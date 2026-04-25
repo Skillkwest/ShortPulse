@@ -261,4 +261,82 @@ describe("useCredits isolation", () => {
     expect(result.current.balanceReservedCents).toBeNull();
     expect(fetchWithAuthMock).toHaveBeenCalledTimes(snapshotCallCountBeforePreferLedgerRefresh);
   });
+
+  it("retries the snapshot API after a transient backoff window instead of disabling it permanently", async () => {
+    let now = 1_000;
+    const nowSpy = vi.spyOn(Date, "now").mockImplementation(() => now);
+    fetchWithAuthMock
+      .mockResolvedValueOnce({
+        ok: false,
+        json: async () => ({ error: "temporary outage" }),
+      } as unknown as Response)
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          spendableCents: 820,
+          reservedCents: 45,
+          updatedAt: "2026-02-15T21:00:00.000Z",
+        }),
+      } as unknown as Response);
+
+    ensureSupabaseQueryClientMock.mockReturnValue({
+      from: (table: string) => {
+        if (table === "ai_credit_balance") {
+          return {
+            select: () => ({
+              eq: () => ({
+                limit: () => ({
+                  maybeSingle: async () => ({
+                    data: { balance_cents: 700, updated_at: "2026-02-15T20:30:00.000Z" },
+                    error: null,
+                  }),
+                }),
+              }),
+            }),
+          };
+        }
+
+        if (table === "ai_credit_ledger") {
+          return {
+            select: () => ({
+              eq: () => ({
+                order: async () => ({
+                  data: [{ change_cents: 700, created_at: "2026-02-15T20:30:00.000Z" }],
+                  error: null,
+                }),
+              }),
+            }),
+          };
+        }
+
+        throw new Error(`Unexpected table query: ${table}`);
+      },
+    } as never);
+
+    const { result } = renderHook(() => useCredits());
+
+    await waitFor(() => {
+      expect(result.current.balanceLoading).toBe(false);
+    });
+    expect(result.current.balanceCents).toBe(700);
+    expect(fetchWithAuthMock).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      await result.current.refreshBalance({ silent: true });
+    });
+
+    expect(fetchWithAuthMock).toHaveBeenCalledTimes(1);
+    expect(result.current.balanceCents).toBe(700);
+
+    now += 31_000;
+    await act(async () => {
+      await result.current.refreshBalance({ silent: true });
+    });
+
+    expect(fetchWithAuthMock).toHaveBeenCalledTimes(2);
+    expect(result.current.balanceCents).toBe(820);
+    expect(result.current.balanceReservedCents).toBe(45);
+
+    nowSpy.mockRestore();
+  });
 });

@@ -18,6 +18,32 @@ const routerState = vi.hoisted(() => ({
   pathname: "/profile",
 }));
 
+const billingProfileState = vi.hoisted(() => ({
+  plan_id: "media",
+  subscription_status: "active",
+  current_period_end: "2026-04-01T00:00:00.000Z",
+  stripe_customer_id: "cus_123" as string | null,
+}));
+
+const billingContractState = vi.hoisted(() => ({
+  value: {
+    id: "contract_1",
+    plan_id: "media",
+    offer_id: "media__legacy_10",
+    stripe_price_id: "price_media_legacy",
+    contract_source: "stripe",
+    recurring_price_cents: 1000,
+    monthly_credits_cents: 20000,
+    storage_limit_bytes: 26843545600,
+    status: "active",
+    current_period_start: "2026-03-01T00:00:00.000Z",
+    current_period_end: "2026-04-01T00:00:00.000Z",
+    cancel_at_period_end: false,
+    started_at: "2026-03-01T00:00:00.000Z",
+    ended_at: null,
+  } as Record<string, unknown> | null,
+}));
+
 const billingPlansFixture = [
   {
     id: "free",
@@ -101,12 +127,7 @@ vi.mock("../../lib/supabaseClient", () => ({
           select: () => ({
             eq: () => ({
               maybeSingle: async () => ({
-                data: {
-                  plan_id: "media",
-                  subscription_status: "active",
-                  current_period_end: "2026-04-01T00:00:00.000Z",
-                  stripe_customer_id: "cus_123",
-                },
+                data: billingProfileState,
                 error: null,
               }),
             }),
@@ -121,21 +142,7 @@ vi.mock("../../lib/supabaseClient", () => ({
                 order: () => ({
                   limit: () => ({
                     maybeSingle: async () => ({
-                      data: {
-                        id: "contract_1",
-                        plan_id: "media",
-                        offer_id: "media__legacy_10",
-                        stripe_price_id: "price_media_legacy",
-                        recurring_price_cents: 1000,
-                        monthly_credits_cents: 20000,
-                        storage_limit_bytes: 26843545600,
-                        status: "active",
-                        current_period_start: "2026-03-01T00:00:00.000Z",
-                        current_period_end: "2026-04-01T00:00:00.000Z",
-                        cancel_at_period_end: false,
-                        started_at: "2026-03-01T00:00:00.000Z",
-                        ended_at: null,
-                      },
+                      data: billingContractState.value,
                       error: null,
                     }),
                   }),
@@ -169,6 +176,26 @@ vi.mock("../../lib/supabaseClient", () => ({
 describe("Profile subscription actions", () => {
   beforeEach(() => {
     routerState.query = { section: "subscription" };
+    billingProfileState.plan_id = "media";
+    billingProfileState.subscription_status = "active";
+    billingProfileState.current_period_end = "2026-04-01T00:00:00.000Z";
+    billingProfileState.stripe_customer_id = "cus_123";
+    billingContractState.value = {
+      id: "contract_1",
+      plan_id: "media",
+      offer_id: "media__legacy_10",
+      stripe_price_id: "price_media_legacy",
+      contract_source: "stripe",
+      recurring_price_cents: 1000,
+      monthly_credits_cents: 20000,
+      storage_limit_bytes: 26843545600,
+      status: "active",
+      current_period_start: "2026-03-01T00:00:00.000Z",
+      current_period_end: "2026-04-01T00:00:00.000Z",
+      cancel_at_period_end: false,
+      started_at: "2026-03-01T00:00:00.000Z",
+      ended_at: null,
+    };
     fetchWithAuthMock.mockReset();
     fetchWithAuthMock.mockImplementation(async (url: unknown) => {
       if (url === "/api/billing/catalog") {
@@ -231,6 +258,19 @@ describe("Profile subscription actions", () => {
     ).toBeInTheDocument();
   });
 
+  it("falls back to the billing profile plan when the contract row is missing", async () => {
+    billingContractState.value = null;
+
+    render(<ProfilePage />);
+
+    expect(await screen.findByRole("heading", { name: "Subscription plans" })).toBeInTheDocument();
+    expect(screen.getAllByText("Media")[0]).toBeInTheDocument();
+    expect(
+      screen.getByText("Using billing profile while subscription contract sync completes")
+    ).toBeInTheDocument();
+    expect(screen.getByText("$19.00 / month")).toBeInTheDocument();
+  });
+
   it("opens and closes the cancel subscription modal", async () => {
     render(<ProfilePage />);
 
@@ -271,5 +311,35 @@ describe("Profile subscription actions", () => {
       });
     });
     expect(await screen.findByRole("status")).toHaveTextContent("Portal unavailable");
+  });
+
+  it("disables Stripe plan actions for internal comp contracts", async () => {
+    billingProfileState.plan_id = "business";
+    billingProfileState.subscription_status = "active";
+    billingProfileState.current_period_end = "2026-05-01T00:00:00.000Z";
+    billingProfileState.stripe_customer_id = null;
+    billingContractState.value = {
+      id: "contract_internal",
+      plan_id: "business",
+      offer_id: "business__internal_comp",
+      stripe_price_id: null,
+      contract_source: "internal_comp",
+      recurring_price_cents: 0,
+      monthly_credits_cents: 12000,
+      storage_limit_bytes: 536870912000,
+      status: "active",
+      current_period_start: "2026-04-01T00:00:00.000Z",
+      current_period_end: "2026-05-01T00:00:00.000Z",
+      cancel_at_period_end: false,
+      started_at: "2026-04-01T00:00:00.000Z",
+      ended_at: null,
+    } as Record<string, unknown>;
+
+    render(<ProfilePage />);
+
+    expect(await screen.findByRole("heading", { name: "Subscription plans" })).toBeInTheDocument();
+    expect(screen.getByText("Internal comp contract managed outside Stripe")).toBeInTheDocument();
+    expect(screen.getByText("Managed internally")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Cancel subscription" })).not.toBeInTheDocument();
   });
 });

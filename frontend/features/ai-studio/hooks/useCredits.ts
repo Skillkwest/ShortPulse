@@ -49,13 +49,14 @@ type CreditSnapshotApiResponse = {
 let preferredBalanceQueryAttempt: BalanceQueryAttempt | null = null;
 let skipBalanceTableProbe = false;
 let preferLegacyLedgerQuery = false;
-let skipCreditSnapshotApi = false;
+let creditSnapshotRetryAfterMs = 0;
+const CREDIT_SNAPSHOT_RETRY_BACKOFF_MS = 30_000;
 
 export const resetUseCreditsTestState = () => {
   preferredBalanceQueryAttempt = null;
   skipBalanceTableProbe = false;
   preferLegacyLedgerQuery = false;
-  skipCreditSnapshotApi = false;
+  creditSnapshotRetryAfterMs = 0;
 };
 
 const isSchemaCompatibilityError = (message: string) => {
@@ -225,7 +226,7 @@ const parseCreditSnapshot = (payload: unknown): CreditSnapshotApiResponse | null
 };
 
 const fetchCreditSnapshot = async (): Promise<CreditSnapshotApiResponse | null> => {
-  if (skipCreditSnapshotApi) {
+  if (creditSnapshotRetryAfterMs > Date.now()) {
     return null;
   }
   try {
@@ -240,13 +241,14 @@ const fetchCreditSnapshot = async (): Promise<CreditSnapshotApiResponse | null> 
       shortpulseSkipErrorLogging: true,
     });
     if (!response.ok) {
-      skipCreditSnapshotApi = true;
+      creditSnapshotRetryAfterMs = Date.now() + CREDIT_SNAPSHOT_RETRY_BACKOFF_MS;
       return null;
     }
     const payload = await response.json();
+    creditSnapshotRetryAfterMs = 0;
     return parseCreditSnapshot(payload);
   } catch {
-    skipCreditSnapshotApi = true;
+    creditSnapshotRetryAfterMs = Date.now() + CREDIT_SNAPSHOT_RETRY_BACKOFF_MS;
     return null;
   }
 };

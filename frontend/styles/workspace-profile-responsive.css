@@ -1,0 +1,95 @@
+/**
+ * Profile workspace responsive styling.
+ * Adapts the settings workspace shell and panels across tablet and mobile widths.
+ */
+@media (max-width: 1180px) {
+  .profile-page.page {
+    padding: 22px 20px 56px;
+  }
+
+  .profile-app-bar {
+    flex-direction: column;
+    gap: 18px;
+  }
+
+  .profile-app-bar-right {
+    width: 100%;
+    justify-content: space-between;
+    flex-wrap: wrap;
+  }
+
+  .profile-header-cards {
+    width: 100%;
+  }
+
+  .profile-header-card {
+    min-width: 0;
+    flex: 1 1 220px;
+  }
+}
+
+@media (max-width: 900px) {
+  .profile-identity {
+    flex-direction: column;
+  }
+
+  .profile-section-tab {
+    flex: 1 1 220px;
+    justify-content: center;
+  }
+
+  .profile-panel-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .profile-inline-action {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .profile-receipt-item {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+
+@media (max-width: 640px) {
+  .profile-page.page {
+    padding: 18px 14px 42px;
+  }
+
+  .profile-app-bar,
+  .profile-section-tabs-panel,
+  .profile-panel,
+  .profile-summary-card,
+  .profile-preference-card {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+
+  .profile-identity-copy h1 {
+    font-size: 26px;
+  }
+
+  .profile-section-tab {
+    width: 100%;
+    flex: 1 1 100%;
+  }
+
+  .profile-summary-grid,
+  .profile-section-grid,
+  .profile-plan-grid,
+  .profile-metric-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .profile-header-card {
+    width: 100%;
+    flex: 1 1 100%;
+  }
+
+  .profile-actions {
+    flex-direction: column;
+  }
+}

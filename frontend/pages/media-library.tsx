@@ -765,7 +765,7 @@ export default function MediaLibrary() {
             onFileChange: handleFileChange,
             onTriggerFilePicker: triggerFilePicker,
             onOpenBilling: () => {
-              void router.push("/profile?section=billing");
+              void router.push("/profile?section=storage");
             },
           }}
         />

@@ -108,6 +108,14 @@ describe("Profile route state", () => {
     expect(screen.queryByRole("heading", { name: "Billing & credits" })).not.toBeInTheDocument();
   });
 
+  it("maps the legacy billing section alias to credits", () => {
+    routerState.query = { section: "billing" };
+
+    render(<ProfilePage />);
+
+    expect(screen.getByRole("heading", { name: "Credits & billing" })).toBeInTheDocument();
+  });
+
   it("falls back to account settings for unknown sections", () => {
     routerState.query = { section: "unknown" };
 

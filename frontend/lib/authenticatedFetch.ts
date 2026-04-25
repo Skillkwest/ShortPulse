@@ -154,18 +154,19 @@ export const fetchWithAuth = async (
   const breadcrumbEndpoint = redactUrlForTelemetry(endpoint);
 
   try {
-    const executeRequest = async (): Promise<Response> =>
+    const executeRequest = async (requestHeaders: Headers): Promise<Response> =>
       await fetch(input, {
         ...requestInit,
-        headers,
+        headers: new Headers(requestHeaders),
       });
 
-    let response = await executeRequest();
+    let response = await executeRequest(headers);
     if (response.status === 401 && !callerProvidedAuthorization) {
       const refreshedToken = await readAccessToken({ timeoutMs, forceRefresh: true });
       if (refreshedToken) {
-        headers.set("Authorization", `Bearer ${refreshedToken}`);
-        response = await executeRequest();
+        const retryHeaders = new Headers(headers);
+        retryHeaders.set("Authorization", `Bearer ${refreshedToken}`);
+        response = await executeRequest(retryHeaders);
       }
     }
 

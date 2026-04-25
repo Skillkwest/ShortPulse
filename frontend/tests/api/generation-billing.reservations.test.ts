@@ -129,6 +129,8 @@ describe("generationBilling reservation RPC handling", () => {
           raw_credits: number;
           billed_credits: number;
           billed_usd: number;
+          pricing_policy_version: string | null;
+          pricing_policy_source: string | null;
         };
       };
     };
@@ -141,6 +143,8 @@ describe("generationBilling reservation RPC handling", () => {
       raw_credits: 5,
       billed_credits: 5,
       billed_usd: 0.05,
+      pricing_policy_version: null,
+      pricing_policy_source: "fallback",
     });
     expect(res.status).not.toHaveBeenCalled();
   });
@@ -459,6 +463,8 @@ describe("generationBilling reservation RPC handling", () => {
             raw_credits: number;
             billed_credits: number;
             billed_usd: number;
+            pricing_policy_version: string | null;
+            pricing_policy_source: string | null;
           };
         };
       };
@@ -476,6 +482,8 @@ describe("generationBilling reservation RPC handling", () => {
         raw_credits: estimated?.rawCredits,
         billed_credits: estimated?.credits,
         billed_usd: estimated?.usd,
+        pricing_policy_version: null,
+        pricing_policy_source: "fallback",
       });
     }
   });

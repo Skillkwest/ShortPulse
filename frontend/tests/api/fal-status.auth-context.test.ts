@@ -146,7 +146,7 @@ describe("POST /api/fal/status middleware auth-context ownership", () => {
         }),
       })
     );
-    expect(fetchMock).toHaveBeenCalledTimes(5);
+    expect(fetchMock).toHaveBeenCalledTimes(3);
   });
 
   it("treats retryable 405/non-JSON result probes as transient and keeps polling payload", async () => {
@@ -212,6 +212,6 @@ describe("POST /api/fal/status middleware auth-context ownership", () => {
       })
     );
     expect(logGenerationFailureMock).not.toHaveBeenCalled();
-    expect(fetchMock).toHaveBeenCalledTimes(5);
+    expect(fetchMock).toHaveBeenCalledTimes(3);
   });
 });

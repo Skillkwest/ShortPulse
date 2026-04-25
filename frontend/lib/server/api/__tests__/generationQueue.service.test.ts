@@ -541,7 +541,7 @@ describe("generationQueue/service.readGenerationQueueStatus", () => {
       requestId: "req-attempt-1",
       provider: "fal",
       modelId: "fal-ai/bytedance/seedream/v4.5/edit",
-      pollingProvider: "fal-seedream",
+      pollingProvider: "fal-seedream-edit",
       shortpulseLifecycle: {
         taskState: "running",
         queueState: "dispatched",
@@ -589,7 +589,7 @@ describe("generationQueue/service.readGenerationQueueStatus", () => {
       requestId: "req-from-projection",
       provider: "fal",
       modelId: "fal-ai/bytedance/seedream/v4.5/edit",
-      pollingProvider: "fal-seedream",
+      pollingProvider: "fal-seedream-edit",
       shortpulseLifecycle: {
         taskState: "running",
         queueState: "dispatched",
@@ -799,7 +799,7 @@ describe("generationQueue/service.readGenerationQueueStatus", () => {
       requestId: "req-from-projection",
       provider: "fal",
       modelId: "fal-ai/bytedance/seedream/v4.5/edit",
-      pollingProvider: "fal-seedream",
+      pollingProvider: "fal-seedream-edit",
       shortpulseLifecycle: {
         taskState: "running",
         queueState: "dispatched",
@@ -852,7 +852,7 @@ describe("generationQueue/service.readGenerationQueueStatus", () => {
       requestId: "req-from-projection-source-ref",
       provider: "fal",
       modelId: "fal-ai/bytedance/seedream/v4.5/edit",
-      pollingProvider: "fal-seedream",
+      pollingProvider: "fal-seedream-edit",
       shortpulseLifecycle: {
         taskState: "running",
         queueState: "dispatched",

@@ -416,7 +416,12 @@ describe("falStatusPersistedResults", () => {
       state: "completed",
       resultUrls: ["https://cdn.shortpulse.test/final.mp4"],
       result_urls: ["https://cdn.shortpulse.test/final.mp4"],
+      images: [{ url: "https://cdn.shortpulse.test/final.mp4" }],
       videos: [{ url: "https://cdn.shortpulse.test/final.mp4" }],
+      data: {
+        images: [{ url: "https://cdn.shortpulse.test/final.mp4" }],
+        videos: [{ url: "https://cdn.shortpulse.test/final.mp4" }],
+      },
       shortpulseLifecycle: {
         taskState: "success",
         isTerminal: true,

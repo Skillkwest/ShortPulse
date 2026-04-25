@@ -71,4 +71,72 @@ describe("fetchWithAuth auth-session timeout", () => {
       fetchSpy.mockRestore();
     }
   });
+
+  it("forces one auth refresh when the initial token lookup is empty", async () => {
+    readSupabaseAccessTokenMock.mockResolvedValueOnce(null).mockResolvedValueOnce("token-fresh");
+
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response("{}", {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      })
+    );
+
+    try {
+      const response = await fetchWithAuth("/api/test-auth-refresh", { method: "GET" });
+
+      expect(response.ok).toBe(true);
+      expect(readSupabaseAccessTokenMock).toHaveBeenCalledTimes(2);
+      expect(readSupabaseAccessTokenMock).toHaveBeenNthCalledWith(1, { forceRefresh: false });
+      expect(readSupabaseAccessTokenMock).toHaveBeenNthCalledWith(2, { forceRefresh: true });
+      expect(fetchSpy).toHaveBeenCalledTimes(1);
+
+      const [, init] = fetchSpy.mock.calls[0] ?? [];
+      const headers = new Headers((init as RequestInit | undefined)?.headers);
+      expect(headers.get("Authorization")).toBe("Bearer token-fresh");
+    } finally {
+      fetchSpy.mockRestore();
+    }
+  });
+
+  it("retries once with a refreshed token after a 401 response", async () => {
+    readSupabaseAccessTokenMock
+      .mockResolvedValueOnce("token-stale")
+      .mockResolvedValueOnce("token-refreshed");
+
+    const fetchSpy = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(
+        new Response("{}", {
+          status: 401,
+          headers: { "Content-Type": "application/json" },
+        })
+      )
+      .mockResolvedValueOnce(
+        new Response("{}", {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        })
+      );
+
+    try {
+      const response = await fetchWithAuth("/api/projects/project-1", { method: "GET" });
+
+      expect(response.ok).toBe(true);
+      expect(readSupabaseAccessTokenMock).toHaveBeenCalledTimes(2);
+      expect(readSupabaseAccessTokenMock).toHaveBeenNthCalledWith(1, { forceRefresh: false });
+      expect(readSupabaseAccessTokenMock).toHaveBeenNthCalledWith(2, { forceRefresh: true });
+      expect(fetchSpy).toHaveBeenCalledTimes(2);
+
+      const [, firstInit] = fetchSpy.mock.calls[0] ?? [];
+      const firstHeaders = new Headers((firstInit as RequestInit | undefined)?.headers);
+      expect(firstHeaders.get("Authorization")).toBe("Bearer token-stale");
+
+      const [, secondInit] = fetchSpy.mock.calls[1] ?? [];
+      const secondHeaders = new Headers((secondInit as RequestInit | undefined)?.headers);
+      expect(secondHeaders.get("Authorization")).toBe("Bearer token-refreshed");
+    } finally {
+      fetchSpy.mockRestore();
+    }
+  });
 });

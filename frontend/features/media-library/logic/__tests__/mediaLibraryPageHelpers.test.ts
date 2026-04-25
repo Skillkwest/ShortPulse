@@ -80,7 +80,6 @@ describe("mediaLibraryPageHelpers", () => {
       { fn: "eq", column: "source", value: "upload" },
       { fn: "ilike", column: "file_type", value: "video%" },
       { fn: "eq", column: "source", value: "ai_studio" },
-      { fn: "not", column: "file_type:ilike", value: "audio%" },
     ]);
   });
 

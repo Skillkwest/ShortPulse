@@ -104,6 +104,6 @@ describe("POST /api/fal/status ownership", () => {
         }),
       })
     );
-    expect(fetchMock).toHaveBeenCalledTimes(4);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 });

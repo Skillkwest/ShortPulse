@@ -22,6 +22,8 @@ frontend/.env.local
 vercel_staging_env_*.txt
 .vercel
 .tmp/
+.playwright-mcp/
+admin-support-state-pass.png
 # Frontend app/source modules are TypeScript-first; do not commit transpiled JS sidecars.
 frontend/features/**/*.js
 frontend/lib/**/*.js

@@ -84,6 +84,21 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       id: writeResult.id,
     });
   } catch (error) {
+    try {
+      await writeAppErrorLog({
+        source: "telemetry.growth.ingest_failed",
+        scope: "app",
+        severity: "medium",
+        message: "Growth telemetry ingest failed.",
+        metadata: {
+          route_label: "telemetry/growth",
+          request_method: req.method ?? null,
+          error_message: error instanceof Error ? error.message : String(error),
+        },
+      });
+    } catch {
+      // Avoid cascading failures from the telemetry sink itself.
+    }
     return res.status(500).json({
       error: error instanceof Error ? error.message : "Growth telemetry ingest failed.",
     });

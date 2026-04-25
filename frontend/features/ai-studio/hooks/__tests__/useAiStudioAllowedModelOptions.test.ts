@@ -3,6 +3,8 @@ import { describe, expect, it } from "vitest";
 import {
   KIE_KLING_30_MODEL_ID,
   KIE_SEEDANCE_15_PRO_MODEL_ID,
+  KIE_SEEDANCE_2_FAST_MODEL_ID,
+  KIE_SEEDANCE_2_MODEL_ID,
   KIE_VEO_31_FAST_I2V_MODEL_ID,
 } from "../../../../lib/model-runtime/providerModelIds";
 import { useAiStudioAllowedModelOptions } from "../useAiStudioAllowedModelOptions";
@@ -76,7 +78,13 @@ describe("useAiStudioAllowedModelOptions", () => {
 
     const values = new Set(result.current.map((option) => option.value));
     expect(values).toEqual(
-      new Set([KIE_VEO_31_FAST_I2V_MODEL_ID, KIE_KLING_30_MODEL_ID, KIE_SEEDANCE_15_PRO_MODEL_ID])
+      new Set([
+        KIE_VEO_31_FAST_I2V_MODEL_ID,
+        KIE_KLING_30_MODEL_ID,
+        KIE_SEEDANCE_15_PRO_MODEL_ID,
+        KIE_SEEDANCE_2_MODEL_ID,
+        KIE_SEEDANCE_2_FAST_MODEL_ID,
+      ])
     );
   });
 });

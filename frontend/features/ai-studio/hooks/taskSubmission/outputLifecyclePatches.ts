@@ -86,6 +86,6 @@ export const applyDispatchedSubmissionPatch = ({
   taskState: "running",
   timestamp: "Submitted",
   provider: item.provider ?? provider,
-  queueState: undefined,
-  queueEnqueuedAtMs: undefined,
+  queueState: patch.queueState ?? "dispatched",
+  queueEnqueuedAtMs: item.queueEnqueuedAtMs,
 });

@@ -56,7 +56,7 @@ describe("expert edit layout contract", () => {
     );
     const layersListTransition = extractRuleBlock(
       css,
-      ".edit-expert-layers-toolbar-list-shell .edit-expert-layers-toolbar-list"
+      ".edit-expert-layers-toolbar-list-shell .edit-expert-layers-toolbar-list-content"
     );
 
     expect(modeShell).toContain("grid-template-rows: 1fr;");

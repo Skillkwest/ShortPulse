@@ -11,7 +11,7 @@ vi.mock("../../../../lib/supabaseClient", () => ({
   readSupabaseUserId: readSupabaseUserIdMock,
 }));
 
-const buildExpectedPromptEditorPulse = ({
+const buildExpectedSavedPulse = ({
   presetId,
   label,
   systemInstructions,
@@ -26,10 +26,10 @@ const buildExpectedPromptEditorPulse = ({
   label,
   description: null,
   systemInstructions,
-  runtimeMode: "prompt_editor" as const,
-  activationMode: "activate_only" as const,
+  runtimeMode: "workflow_gpt" as const,
+  activationMode: "activate_and_start" as const,
   starterAssistantMessage: null,
-  outputMode: "apply_prompt" as const,
+  outputMode: "chat_reply" as const,
   memoryPolicy: "session" as const,
   workflowStageHints: null,
   createdAt,
@@ -68,7 +68,7 @@ describe("useCreatePulsePresetPanelPreference", () => {
 
     expect(result.current.presetPanelIds).toEqual(["single_shot", "custom_1"]);
     expect(result.current.savedPresets).toEqual([
-      buildExpectedPromptEditorPulse({
+      buildExpectedSavedPulse({
         presetId: "custom_1",
         label: "Storyboard",
         systemInstructions: "Build a storyboard-ready pulse sequence.",
@@ -126,13 +126,13 @@ describe("useCreatePulsePresetPanelPreference", () => {
 
     expect(result.current.presetPanelIds).toEqual(["image", "pulse_custom"]);
     expect(result.current.savedPresets).toEqual([
-      buildExpectedPromptEditorPulse({
+      buildExpectedSavedPulse({
         presetId: "pulse_custom",
         label: "UGC Director",
         systemInstructions: "Direct the concept like a native UGC performance ad.",
         createdAt: "2026-04-20T00:00:00.000Z",
       }),
-      buildExpectedPromptEditorPulse({
+      buildExpectedSavedPulse({
         presetId: "image",
         label: "Invalid Built-in Collision",
         systemInstructions: "Should be ignored.",
@@ -184,7 +184,7 @@ describe("useCreatePulsePresetPanelPreference", () => {
 
     expect(result.current.presetPanelIds).toEqual(["image", "custom_2"]);
     expect(result.current.savedPresets).toEqual([
-      buildExpectedPromptEditorPulse({
+      buildExpectedSavedPulse({
         presetId: "custom_2",
         label: "Product Director",
         systemInstructions:
@@ -223,7 +223,7 @@ describe("useCreatePulsePresetPanelPreference", () => {
 
     act(() => {
       result.current.setSavedPresets([
-        buildExpectedPromptEditorPulse({
+        buildExpectedSavedPulse({
           presetId: "pulse_custom",
           label: "Hook Builder",
           systemInstructions: "Lead with one fast product hook and a clean payoff.",
@@ -237,7 +237,7 @@ describe("useCreatePulsePresetPanelPreference", () => {
         expect.objectContaining({
           user_id: "user-1",
           ai_studio_saved_pulses: [
-            buildExpectedPromptEditorPulse({
+            buildExpectedSavedPulse({
               presetId: "pulse_custom",
               label: "Hook Builder",
               systemInstructions: "Lead with one fast product hook and a clean payoff.",

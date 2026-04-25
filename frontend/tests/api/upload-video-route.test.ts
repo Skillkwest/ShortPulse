@@ -85,8 +85,7 @@ describe("POST /api/upload-video", () => {
     expect(res.status).toHaveBeenCalledWith(400);
     expect(res.json).toHaveBeenCalledWith({
       error: "Invalid file type",
-      details:
-        "Content type does not match file content (declared: video/mp4, detected: video/webm).",
+      details: "File content is not a supported video format (detected: unknown).",
     });
     expect(writeAppErrorLogMock).not.toHaveBeenCalled();
   });

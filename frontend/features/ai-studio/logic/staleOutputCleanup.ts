@@ -36,9 +36,14 @@ const isGeneratedOutput = (output: StudioOutput): boolean => {
 const isLoadingWithoutPreview = (output: StudioOutput): boolean => {
   if (!isGeneratedOutput(output)) return false;
   if (output.previewUrl || output.previewText) return false;
-  // Once a provider task id exists, polling owns timeout/failure behavior.
-  // Cleanup is only for placeholders that never reached task-backed polling.
   if (output.taskId) return false;
+  return output.taskState === "pending" || output.taskState === "running";
+};
+
+const isTaskBackedLoadingWithoutPreview = (output: StudioOutput): boolean => {
+  if (!isGeneratedOutput(output)) return false;
+  if (output.previewUrl || output.previewText) return false;
+  if (!output.taskId) return false;
   return output.taskState === "pending" || output.taskState === "running";
 };
 
@@ -75,7 +80,10 @@ export const evaluateStaleOutputCleanup = (
     const previous = lifecycle[output.id];
     const nextState: OutputLifecycleState = previous ? { ...previous } : {};
 
-    if (isLoadingWithoutPreview(output)) {
+    const isPlaceholderLoading = isLoadingWithoutPreview(output);
+    const isTaskBackedLoading = isTaskBackedLoadingWithoutPreview(output);
+
+    if (isPlaceholderLoading || isTaskBackedLoading) {
       if (nextState.pendingSinceMs == null) {
         const queuedSinceMs =
           isQueuedOutput(output) && typeof output.queueEnqueuedAtMs === "number"
@@ -91,6 +99,14 @@ export const evaluateStaleOutputCleanup = (
         if (elapsedMs >= config.queueWaitTimeoutMs) {
           staleLoadingIds.push(output.id);
           queueWaitTimeoutIds.push(output.id);
+        }
+      } else if (isTaskBackedLoading) {
+        if (
+          config.taskBackedLoadingTimeoutMs > 0 &&
+          elapsedMs >= config.taskBackedLoadingTimeoutMs
+        ) {
+          staleLoadingIds.push(output.id);
+          taskBackedTimeoutIds.push(output.id);
         }
       } else if (elapsedMs >= config.submitStartTimeoutMs) {
         staleLoadingIds.push(output.id);

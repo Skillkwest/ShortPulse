@@ -18,7 +18,7 @@ export type CanvasResizeHandle = "nw" | "ne" | "se" | "sw";
 
 type CanvasSceneItemBase = {
   id: string;
-  kind: "image" | "text";
+  kind: "image" | "text" | "audio";
   x: number;
   y: number;
   z: number;
@@ -42,7 +42,18 @@ export type CanvasTextItem = CanvasSceneItemBase & {
   width: number;
 };
 
-export type CanvasSceneItem = CanvasImageItem | CanvasTextItem;
+export type CanvasAudioItem = CanvasSceneItemBase & {
+  kind: "audio";
+  mediaId: string | null;
+  audioUrl: string;
+  title: string | null;
+  durationMs?: number | null;
+  waveformPeaks?: number[] | null;
+  width: number;
+  height: number;
+};
+
+export type CanvasSceneItem = CanvasImageItem | CanvasTextItem | CanvasAudioItem;
 
 export type CanvasDropResolution =
   | {
@@ -59,6 +70,18 @@ export type CanvasDropResolution =
       kind: "text";
       outputId: string | null;
       text: string;
+      sourceSurface?: ReferenceDragSourceSurface | null;
+    }
+  | {
+      kind: "audio";
+      outputId: string | null;
+      mediaId: string | null;
+      audioUrl: string;
+      title?: string | null;
+      durationMs?: number | null;
+      waveformPeaks?: number[] | null;
+      width?: number;
+      height?: number;
       sourceSurface?: ReferenceDragSourceSurface | null;
     };
 

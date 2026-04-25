@@ -99,6 +99,22 @@
     0 18px 30px rgba(0, 0, 0, 0.3);
 }
 
+.canvas-scene-item--audio {
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  box-shadow: 0 18px 30px rgba(0, 0, 0, 0.28);
+}
+
+.canvas-scene-item--audio.is-selected {
+  border: none;
+  box-shadow:
+    0 0 0 2px var(--reference-selection-active-outline),
+    0 22px 34px rgba(0, 0, 0, 0.34);
+  transform: translateY(-1px);
+  z-index: 1;
+}
+
 .canvas-scene-item--pending {
   align-items: center;
   justify-content: center;
@@ -112,6 +128,14 @@
 .canvas-scene-item--pending.canvas-scene-item--image {
   border-radius: 4px;
   border: 1px solid rgba(244, 238, 226, 0.18);
+}
+
+.canvas-scene-item--pending.canvas-scene-item--audio {
+  border-radius: 8px;
+  border: none;
+  background:
+    radial-gradient(circle at top, rgba(108, 205, 255, 0.18), transparent 58%),
+    linear-gradient(180deg, rgba(18, 24, 31, 0.96), rgba(12, 17, 24, 0.98));
 }
 
 .canvas-scene-item--pending.canvas-scene-item--text {
@@ -147,6 +171,19 @@
   display: block;
   object-fit: cover;
   pointer-events: none;
+}
+
+.canvas-scene-item__audio-frame {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  border-radius: inherit;
+  isolation: isolate;
+}
+
+.canvas-scene-item__audio-frame .reference-card-audio-shell {
+  border-radius: inherit;
 }
 
 .canvas-scene-item--text {

@@ -128,4 +128,78 @@ describe("sessionSnapshotCanvas", () => {
     expect(parsed?.draftOwnerInstanceId).toBe("rail");
     expect(parsed?.textEditSession?.itemId).toBe("text-1");
   });
+
+  it("round-trips durable audio canvas items without coercing optional metadata", () => {
+    const state = createCanvasState(0);
+    state.items = [
+      {
+        id: "audio-1",
+        kind: "audio",
+        x: 12,
+        y: 24,
+        z: 3,
+        selected: true,
+        outputId: "output-audio-1",
+        sourceSurface: "all-refs",
+        mediaId: "media-audio-1",
+        audioUrl: "https://example.com/audio-reference.mp3",
+        title: "Canvas audio",
+        durationMs: null,
+        waveformPeaks: [10, 45, 80, 45, 10],
+        width: 220,
+        height: 275,
+      },
+    ];
+
+    const snapshot = serializeAiStudioSessionCanvasState(state);
+    expect(snapshot.scene.items).toEqual([
+      expect.objectContaining({
+        id: "audio-1",
+        kind: "audio",
+        title: "Canvas audio",
+        durationMs: null,
+        waveformPeaks: [10, 45, 80, 45, 10],
+      }),
+    ]);
+
+    const parsed = parseAiStudioSessionCanvasState(snapshot);
+    expect(parsed?.items).toEqual([
+      expect.objectContaining({
+        id: "audio-1",
+        kind: "audio",
+        title: "Canvas audio",
+        durationMs: null,
+        waveformPeaks: [10, 45, 80, 45, 10],
+        width: 220,
+        height: 275,
+      }),
+    ]);
+  });
+
+  it("drops non-durable audio URLs during serialization", () => {
+    const state = createCanvasState(0);
+    state.items = [
+      {
+        id: "audio-blob",
+        kind: "audio",
+        x: 0,
+        y: 0,
+        z: 1,
+        selected: false,
+        outputId: null,
+        sourceSurface: null,
+        mediaId: null,
+        audioUrl: "blob:http://localhost/transient-audio",
+        title: "Transient audio",
+        durationMs: 1500,
+        waveformPeaks: [20, 50, 20],
+        width: 220,
+        height: 275,
+      },
+    ];
+
+    const snapshot = serializeAiStudioSessionCanvasState(state);
+    expect(snapshot.scene.items).toHaveLength(0);
+    expect(snapshot.meta.skippedNonDurableImageCount).toBe(1);
+  });
 });

@@ -5,6 +5,7 @@
 import React from "react";
 import { PushPinSimple } from "phosphor-react";
 import type { CanvasPropertiesPanelProps } from "./useAiStudioCanvasWorkspaceState";
+import { CanvasAudioCard } from "./CanvasAudioCard";
 
 /**
  * Renders the Canvas workspace UI and delegates all state changes to the page-owned controller.
@@ -136,6 +137,7 @@ export function CanvasPropertiesPanel({
           ))}
           {items.map((item) => {
             const isEditingTextItem = item.kind === "text" && editingTextItemId === item.id;
+            const hasFixedHeight = item.kind !== "text";
             return (
               <article
                 key={item.id}
@@ -146,13 +148,13 @@ export function CanvasPropertiesPanel({
                 data-x={item.x}
                 data-y={item.y}
                 data-width={item.width}
-                data-height={item.kind === "image" ? item.height : undefined}
+                data-height={hasFixedHeight ? item.height : undefined}
                 style={{
                   left: `${item.x}px`,
                   top: `${item.y}px`,
                   zIndex: item.z,
                   width: `${item.width}px`,
-                  ...(item.kind === "image" ? { height: `${item.height}px` } : {}),
+                  ...(hasFixedHeight ? { height: `${item.height}px` } : {}),
                 }}
                 draggable={isItemDraggable}
                 onPointerDown={
@@ -217,6 +219,8 @@ export function CanvasPropertiesPanel({
                   ) : (
                     <p className="canvas-scene-item__text">{editingTextValue}</p>
                   )
+                ) : item.kind === "audio" ? (
+                  <CanvasAudioCard item={item} />
                 ) : (
                   <>
                     <p className="canvas-scene-item__text">{item.text}</p>

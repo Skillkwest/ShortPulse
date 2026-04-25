@@ -63,6 +63,10 @@ import type {
   PrepareCanvasMediaLibraryDrop,
   ResolveCanvasDropReference,
 } from "../features/ai-studio/components/canvas/canvasTypes";
+import {
+  CANVAS_IMAGE_ITEM_HEIGHT,
+  CANVAS_IMAGE_ITEM_WIDTH,
+} from "../features/ai-studio/components/canvas/canvasGeometry";
 import { getAiStudioSessionSnapshotViaApi } from "../features/ai-studio/logic/sessionApiClient";
 import { readAiStudioSessionPersistencePolicy } from "../features/ai-studio/logic/sessionPersistencePolicy";
 import {
@@ -655,6 +659,23 @@ export default function AiStudioPage() {
           sourceSurface: payload.sourceSurface ?? null,
         };
       }
+      if (output.mode === "audio") {
+        const audioUrl =
+          output.resultUrls?.[0] ?? output.previewUrl ?? payload.referenceUrl ?? null;
+        if (!audioUrl) return null;
+        return {
+          kind: "audio",
+          outputId: outputId || null,
+          mediaId: resolveSavedMediaIdFromOutput(output, imageIndex),
+          audioUrl,
+          title: (output.prompt || output.previewText || "Canvas audio").trim() || null,
+          durationMs: output.durationMs ?? null,
+          waveformPeaks: output.waveformPeaks ?? null,
+          width: CANVAS_IMAGE_ITEM_WIDTH,
+          height: CANVAS_IMAGE_ITEM_HEIGHT,
+          sourceSurface: payload.sourceSurface ?? null,
+        };
+      }
       if (output.mode !== "image") return null;
       const sourceUrl =
         output.resultUrls?.[imageIndex] ?? output.previewUrl ?? payload.referenceUrl ?? null;
@@ -680,6 +701,19 @@ export default function AiStudioPage() {
           (payload.payload.previewUrl ?? "").trim() ||
           (payload.payload.url ?? "").trim();
         if (!previewSrc) return null;
+        if (payload.payload.fileType === "audio") {
+          return {
+            kind: "audio",
+            outputId,
+            mediaId: payload.payload.id,
+            audioUrl: previewSrc,
+            title:
+              (payload.payload.filename || payload.payload.promptText || "Canvas audio").trim() ||
+              null,
+            width: CANVAS_IMAGE_ITEM_WIDTH,
+            height: CANVAS_IMAGE_ITEM_HEIGHT,
+          };
+        }
         const width =
           typeof payload.payload.width === "number" &&
           Number.isFinite(payload.payload.width) &&

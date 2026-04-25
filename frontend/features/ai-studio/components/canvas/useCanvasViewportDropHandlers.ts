@@ -231,6 +231,30 @@ export const useCanvasViewportDropHandlers = ({
             (mediaLibraryPayload.payload.previewUrl ?? "").trim() ||
             (mediaLibraryPayload.payload.url ?? "").trim();
           if (!previewSrc) return;
+          if (mediaLibraryPayload.payload.fileType === "audio") {
+            void addResolvedItem(
+              {
+                kind: "audio",
+                outputId: null,
+                mediaId: mediaLibraryPayload.payload.id,
+                audioUrl: previewSrc,
+                title:
+                  (
+                    mediaLibraryPayload.payload.filename ||
+                    mediaLibraryPayload.payload.promptText ||
+                    "Canvas audio"
+                  ).trim() || null,
+                width: CANVAS_IMAGE_ITEM_WIDTH,
+                height: CANVAS_IMAGE_ITEM_HEIGHT,
+              },
+              point.x,
+              point.y,
+              {
+                showLoadingPlaceholder: true,
+              }
+            );
+            return;
+          }
           const payloadWithDimensions =
             mediaLibraryPayload.payload as typeof mediaLibraryPayload.payload & {
               width?: number;

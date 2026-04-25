@@ -36,6 +36,20 @@ export const defaultResolveCanvasDropReference: ResolveCanvasDropReference = (pa
       sourceSurface: payload.sourceSurface ?? null,
     };
   }
+  if (payload.outputId === "aud-1") {
+    return {
+      kind: "audio",
+      outputId: "aud-1",
+      mediaId: "media-audio-1",
+      audioUrl: "https://example.com/reference-audio.mp3",
+      title: "Reference audio",
+      durationMs: 4_500,
+      waveformPeaks: [20, 40, 60, 45, 30],
+      width: 220,
+      height: 275,
+      sourceSurface: payload.sourceSurface ?? null,
+    };
+  }
   if (payload.outputId === "txt-1") {
     return {
       kind: "text",

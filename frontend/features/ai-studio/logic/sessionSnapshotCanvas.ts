@@ -37,6 +37,23 @@ type CanvasSceneItemSnapshotV1 =
     }
   | {
       id: string;
+      kind: "audio";
+      x: number;
+      y: number;
+      z: number;
+      selected: boolean;
+      outputId: string | null;
+      sourceSurface: ReferenceDragSourceSurface | null;
+      mediaId: string | null;
+      audioUrl: string;
+      title: string | null;
+      durationMs: number | null;
+      waveformPeaks: number[] | null;
+      width: number;
+      height: number;
+    }
+  | {
+      id: string;
       kind: "text";
       x: number;
       y: number;
@@ -101,6 +118,11 @@ const asNullableString = (value: unknown): string | null => {
   return trimmed ? trimmed : null;
 };
 
+const asNullableFiniteNumber = (value: unknown): number | null => {
+  if (typeof value !== "number" || !Number.isFinite(value)) return null;
+  return value;
+};
+
 const asString = (value: unknown, fallback = ""): string => {
   if (typeof value !== "string") return fallback;
   return value;
@@ -134,7 +156,15 @@ const sanitizeCanvasText = (value: unknown): string => {
   return value.slice(0, MAX_TEXT_VALUE_LENGTH);
 };
 
-const isDurableImageSource = (value: string): boolean => {
+const sanitizeWaveformPeaks = (value: unknown): number[] | null => {
+  if (!Array.isArray(value) || value.length === 0) return null;
+  const peaks = value.filter(
+    (entry): entry is number => typeof entry === "number" && Number.isFinite(entry)
+  );
+  return peaks.length > 0 ? peaks : null;
+};
+
+const isDurableCanvasMediaSource = (value: string): boolean => {
   const trimmed = value.trim();
   if (!trimmed) return false;
   if (trimmed.startsWith("blob:") || trimmed.startsWith("data:")) return false;
@@ -160,7 +190,7 @@ const sanitizeCanvasSceneItem = (
 ): { item: CanvasSceneItem | null; skippedNonDurableImage: boolean } => {
   if (value.kind === "image") {
     const src = asString(value.src, "").trim();
-    if (!isDurableImageSource(src)) {
+    if (!isDurableCanvasMediaSource(src)) {
       return {
         item: null,
         skippedNonDurableImage: true,
@@ -181,6 +211,41 @@ const sanitizeCanvasSceneItem = (
         mediaId: asNullableString(value.mediaId),
         src,
         alt: asString(value.alt, ""),
+        width,
+        height,
+      },
+      skippedNonDurableImage: false,
+    };
+  }
+
+  if (value.kind === "audio") {
+    const audioUrl = asString(value.audioUrl, "").trim();
+    if (!isDurableCanvasMediaSource(audioUrl)) {
+      return {
+        item: null,
+        skippedNonDurableImage: true,
+      };
+    }
+    const width = Math.max(1, Math.round(asFiniteNumber(value.width, 220) * 100) / 100);
+    const height = Math.max(1, Math.round(asFiniteNumber(value.height, 275) * 100) / 100);
+    return {
+      item: {
+        id: value.id,
+        kind: "audio",
+        x: Math.round(asFiniteNumber(value.x, 0) * 100) / 100,
+        y: Math.round(asFiniteNumber(value.y, 0) * 100) / 100,
+        z: Math.trunc(asFiniteNumber(value.z, 0)),
+        selected: Boolean(value.selected),
+        outputId: asNullableString(value.outputId),
+        sourceSurface: normalizeSourceSurface(value.sourceSurface),
+        mediaId: asNullableString(value.mediaId),
+        audioUrl,
+        title: asNullableString(value.title),
+        durationMs:
+          typeof value.durationMs === "number" && Number.isFinite(value.durationMs)
+            ? Math.max(0, Math.round(value.durationMs))
+            : null,
+        waveformPeaks: sanitizeWaveformPeaks(value.waveformPeaks),
         width,
         height,
       },
@@ -249,18 +314,36 @@ const toSnapshotSceneItems = (items: CanvasSceneItem[]): CanvasSceneItemSnapshot
           width: item.width,
           height: item.height,
         }
-      : {
-          id: item.id,
-          kind: "text",
-          x: item.x,
-          y: item.y,
-          z: item.z,
-          selected: item.selected,
-          outputId: item.outputId,
-          sourceSurface: item.sourceSurface ?? null,
-          text: item.text,
-          width: item.width,
-        }
+      : item.kind === "audio"
+        ? {
+            id: item.id,
+            kind: "audio",
+            x: item.x,
+            y: item.y,
+            z: item.z,
+            selected: item.selected,
+            outputId: item.outputId,
+            sourceSurface: item.sourceSurface ?? null,
+            mediaId: item.mediaId,
+            audioUrl: item.audioUrl,
+            title: item.title ?? null,
+            durationMs: item.durationMs ?? null,
+            waveformPeaks: item.waveformPeaks ?? null,
+            width: item.width,
+            height: item.height,
+          }
+        : {
+            id: item.id,
+            kind: "text",
+            x: item.x,
+            y: item.y,
+            z: item.z,
+            selected: item.selected,
+            outputId: item.outputId,
+            sourceSurface: item.sourceSurface ?? null,
+            text: item.text,
+            width: item.width,
+          }
   );
 
 /**
@@ -321,7 +404,7 @@ const parseCanvasSceneItems = (value: unknown): CanvasSceneItem[] => {
     const kind = record.kind;
     if (kind === "image") {
       const src = asString(record.src, "").trim();
-      if (!isDurableImageSource(src)) return;
+      if (!isDurableCanvasMediaSource(src)) return;
       parsed.push({
         id,
         kind: "image",
@@ -334,6 +417,29 @@ const parseCanvasSceneItems = (value: unknown): CanvasSceneItem[] => {
         mediaId: asNullableString(record.mediaId),
         src,
         alt: asString(record.alt, ""),
+        width: Math.max(1, Math.round(asFiniteNumber(record.width, 220) * 100) / 100),
+        height: Math.max(1, Math.round(asFiniteNumber(record.height, 275) * 100) / 100),
+      });
+      return;
+    }
+    if (kind === "audio") {
+      const audioUrl = asString(record.audioUrl, "").trim();
+      if (!isDurableCanvasMediaSource(audioUrl)) return;
+      const durationMs = asNullableFiniteNumber(record.durationMs);
+      parsed.push({
+        id,
+        kind: "audio",
+        x: Math.round(asFiniteNumber(record.x, 0) * 100) / 100,
+        y: Math.round(asFiniteNumber(record.y, 0) * 100) / 100,
+        z: Math.trunc(asFiniteNumber(record.z, 0)),
+        selected: asBoolean(record.selected),
+        outputId: asNullableString(record.outputId),
+        sourceSurface: normalizeSourceSurface(record.sourceSurface),
+        mediaId: asNullableString(record.mediaId),
+        audioUrl,
+        title: asNullableString(record.title),
+        durationMs: durationMs === null ? null : Math.max(0, Math.round(durationMs)),
+        waveformPeaks: sanitizeWaveformPeaks(record.waveformPeaks),
         width: Math.max(1, Math.round(asFiniteNumber(record.width, 220) * 100) / 100),
         height: Math.max(1, Math.round(asFiniteNumber(record.height, 275) * 100) / 100),
       });

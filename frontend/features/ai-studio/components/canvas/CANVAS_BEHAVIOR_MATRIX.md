@@ -19,9 +19,12 @@ Baseline matrix for canvas interaction hardening. This document is the contract 
 | Wheel zoom                         | Wheel on viewport                                           | Zooms around pointer location                                            |
 | Rail wheel isolation               | Wheel in rail viewport                                      | Prevents window scroll and applies viewport zoom only                    |
 | Drop internal reference            | Reference-grid payload drop                                 | Resolves via `resolveCanvasDropReference`, inserts canvas item           |
+| Drop internal audio reference      | Reference-grid audio payload drop                           | Inserts `audio` canvas item with Reference Grid player styling           |
 | Drop external text                 | Plain/prompt text drop                                      | Inserts text canvas item with loading placeholder flow                   |
+| Drop library audio                 | Media Library audio payload drop                            | Inserts `audio` canvas item with fixed `4 / 5` card sizing               |
 | Image placeholder sizing           | Drop image with known dimensions                            | Placeholder + final item use fitted aspect ratio immediately             |
 | Image placeholder sizing fallback  | Drop image with unknown dimensions                          | Placeholder delayed until dimensions resolve, then matches final ratio   |
+| Audio sizing                       | Drop audio reference or library audio                       | Placeholder + final item use fixed `4 / 5` card dimensions               |
 | Selection delete                   | `Delete`/`Backspace` with selection and no active text edit | Deletes selected scene items                                             |
 | Context delete                     | Right click on canvas item                                  | Deletes target item                                                      |
 

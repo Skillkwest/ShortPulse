@@ -150,6 +150,31 @@ describe("Canvas drop behavior", () => {
     expect(await screen.findByAltText("Prepared library image")).toBeInTheDocument();
   });
 
+  it("creates an audio card from a media-library audio drop", async () => {
+    render(<CanvasHarness />);
+    const viewport = screen.getByTestId("canvas-viewport");
+    mockViewportRect(viewport);
+
+    fireEvent.drop(viewport, {
+      dataTransfer: createTransfer({
+        "text/shortpulse-media-library-marker": "shortpulse-media-library-v1",
+        "text/shortpulse-media-library-kind": "libraryMedia",
+        "text/shortpulse-media-library-id": "media-audio-1",
+        "text/shortpulse-media-library-url": "https://example.com/library-audio.mp3",
+        "text/shortpulse-media-library-file-type": "audio",
+        "text/shortpulse-media-library-filename": "Library Audio",
+      }),
+      clientX: 300,
+      clientY: 200,
+    });
+
+    const item = await screen.findByTestId(/canvas-item-/);
+    expect(item).toHaveAttribute("data-kind", "audio");
+    expect(Number(item.getAttribute("data-width"))).toBe(220);
+    expect(Number(item.getAttribute("data-height"))).toBe(275);
+    expect(screen.getByRole("button", { name: "Play Library Audio" })).toBeInTheDocument();
+  });
+
   it("routes media-library prompt drops through the async library-drop preparer when provided", async () => {
     const prepareCanvasMediaLibraryDrop = vi.fn(async (payload) => {
       if (payload.kind !== "libraryPrompt") return null;
@@ -252,6 +277,30 @@ describe("Canvas drop behavior", () => {
     expect(item).toHaveAttribute("data-kind", "image");
     expect(Number(item.getAttribute("data-width"))).toBe(275);
     expect(Number(item.getAttribute("data-height"))).toBeCloseTo(154.69, 2);
+  });
+
+  it("creates an audio card from an internal reference-grid drop", async () => {
+    render(<CanvasHarness />);
+    const viewport = screen.getByTestId("canvas-viewport");
+    mockViewportRect(viewport);
+
+    fireEvent.drop(viewport, {
+      dataTransfer: createTransfer({
+        "text/reference-origin": "ai-studio-reference-grid",
+        "text/reference-version": "1",
+        "text/reference-id": "aud-1",
+        "text/reference-output-id": "aud-1",
+        "text/reference-source-surface": "all-refs",
+      }),
+      clientX: 300,
+      clientY: 200,
+    });
+
+    const item = await screen.findByTestId(/canvas-item-/);
+    expect(item).toHaveAttribute("data-kind", "audio");
+    expect(Number(item.getAttribute("data-width"))).toBe(220);
+    expect(Number(item.getAttribute("data-height"))).toBe(275);
+    expect(screen.getByRole("button", { name: "Play Reference audio" })).toBeInTheDocument();
   });
 
   it("measures viewport geometry only once for internal reference-grid drops", async () => {

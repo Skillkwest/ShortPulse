@@ -148,6 +148,51 @@ describe("Canvas interaction behavior", () => {
     expect(Number(item.getAttribute("data-y"))).toBeGreaterThan(startY);
   });
 
+  it("keeps audio cards selectable and draggable inside the canvas shell", async () => {
+    render(<CanvasHarness />);
+    const viewport = screen.getByTestId("canvas-viewport");
+    mockViewportRect(viewport);
+
+    fireEvent.drop(viewport, {
+      dataTransfer: createTransfer({
+        "text/reference-origin": "ai-studio-reference-grid",
+        "text/reference-version": "1",
+        "text/reference-id": "aud-1",
+        "text/reference-output-id": "aud-1",
+        "text/reference-source-surface": "all-refs",
+      }),
+      clientX: 300,
+      clientY: 200,
+    });
+
+    const item = await screen.findByTestId(/canvas-item-/);
+    const startX = Number(item.getAttribute("data-x"));
+    const startY = Number(item.getAttribute("data-y"));
+
+    expect(item).toHaveAttribute("data-kind", "audio");
+    expect(item).toHaveAttribute("data-selected", "true");
+
+    fireEvent.pointerDown(item, {
+      button: 0,
+      pointerId: 22,
+      clientX: 300,
+      clientY: 200,
+    });
+    fireEvent.pointerMove(item, {
+      pointerId: 22,
+      clientX: 340,
+      clientY: 235,
+    });
+    fireEvent.pointerUp(item, {
+      pointerId: 22,
+      clientX: 340,
+      clientY: 235,
+    });
+
+    expect(Number(item.getAttribute("data-x"))).toBeGreaterThan(startX);
+    expect(Number(item.getAttribute("data-y"))).toBeGreaterThan(startY);
+  });
+
   it("pans instead of dragging when Space is held while dragging over an item", async () => {
     render(<CanvasHarness />);
     const viewport = screen.getByTestId("canvas-viewport");

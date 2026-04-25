@@ -63,7 +63,7 @@ export const getCanvasSceneItemBounds = (
     textItemHeight?: number;
   }
 ): CanvasRectBounds => {
-  if (item.kind === "image") {
+  if (item.kind === "image" || item.kind === "audio") {
     return {
       left: item.x,
       top: item.y,

@@ -22,6 +22,8 @@ import {
 import type { CanvasDropResolution, CanvasSceneItem } from "./canvasTypes";
 
 const CANVAS_PENDING_BASE_Z_INDEX = 1_000_000;
+const CANVAS_AUDIO_ITEM_WIDTH = CANVAS_IMAGE_ITEM_WIDTH;
+const CANVAS_AUDIO_ITEM_HEIGHT = CANVAS_IMAGE_ITEM_HEIGHT;
 
 export type CanvasPendingSceneItem = {
   id: string;
@@ -236,6 +238,23 @@ const resolveCanvasImageDimensionsFromResolution = (
   return null;
 };
 
+const resolveCanvasAudioDimensions = (
+  resolved: Extract<CanvasDropResolution, { kind: "audio" }>
+): { width: number; height: number } => {
+  const width =
+    typeof resolved.width === "number" && Number.isFinite(resolved.width) && resolved.width > 0
+      ? resolved.width
+      : CANVAS_AUDIO_ITEM_WIDTH;
+  const height =
+    typeof resolved.height === "number" && Number.isFinite(resolved.height) && resolved.height > 0
+      ? resolved.height
+      : CANVAS_AUDIO_ITEM_HEIGHT;
+  return {
+    width: Math.round(width * 100) / 100,
+    height: Math.round(height * 100) / 100,
+  };
+};
+
 const waitForNextAnimationFrame = async (): Promise<void> => {
   if (typeof window === "undefined" || typeof window.requestAnimationFrame !== "function") return;
   await new Promise<void>((resolve) => {
@@ -274,18 +293,36 @@ const buildCanvasSceneItem = ({
         width: width ?? CANVAS_IMAGE_ITEM_WIDTH,
         height: height ?? CANVAS_IMAGE_ITEM_HEIGHT,
       }
-    : {
-        id: randomId(),
-        kind: "text",
-        x,
-        y,
-        z,
-        selected: true,
-        outputId: resolved.outputId,
-        sourceSurface: resolved.sourceSurface ?? null,
-        text: resolved.text,
-        width: CANVAS_TEXT_ITEM_WIDTH,
-      };
+    : resolved.kind === "audio"
+      ? {
+          id: randomId(),
+          kind: "audio",
+          x,
+          y,
+          z,
+          selected: true,
+          outputId: resolved.outputId,
+          sourceSurface: resolved.sourceSurface ?? null,
+          mediaId: resolved.mediaId,
+          audioUrl: resolved.audioUrl,
+          title: resolved.title?.trim() || null,
+          durationMs: resolved.durationMs ?? null,
+          waveformPeaks: Array.isArray(resolved.waveformPeaks) ? resolved.waveformPeaks : null,
+          width: width ?? CANVAS_AUDIO_ITEM_WIDTH,
+          height: height ?? CANVAS_AUDIO_ITEM_HEIGHT,
+        }
+      : {
+          id: randomId(),
+          kind: "text",
+          x,
+          y,
+          z,
+          selected: true,
+          outputId: resolved.outputId,
+          sourceSurface: resolved.sourceSurface ?? null,
+          text: resolved.text,
+          width: CANVAS_TEXT_ITEM_WIDTH,
+        };
 
 /**
  * Returns the shared scene store used by both canvas instances.
@@ -346,6 +383,8 @@ export const useCanvasSharedSceneState = ({
       const pendingId = showLoadingPlaceholder ? randomId() : null;
       const preResolvedImageDimensions =
         resolved.kind === "image" ? resolveCanvasImageDimensionsFromResolution(resolved) : null;
+      const audioDimensions =
+        resolved.kind === "audio" ? resolveCanvasAudioDimensions(resolved) : null;
       const imageDimensions =
         resolved.kind === "image"
           ? (preResolvedImageDimensions ?? (await resolveCanvasImageDimensions(resolved)))
@@ -353,14 +392,18 @@ export const useCanvasSharedSceneState = ({
       const pendingWidth =
         resolved.kind === "image"
           ? (imageDimensions?.width ?? CANVAS_IMAGE_ITEM_WIDTH)
-          : CANVAS_TEXT_ITEM_WIDTH;
+          : resolved.kind === "audio"
+            ? (audioDimensions?.width ?? CANVAS_AUDIO_ITEM_WIDTH)
+            : CANVAS_TEXT_ITEM_WIDTH;
       const pendingHeight =
         resolved.kind === "image"
           ? (imageDimensions?.height ?? CANVAS_IMAGE_ITEM_HEIGHT)
-          : CANVAS_TEXT_ITEM_MIN_HEIGHT;
+          : resolved.kind === "audio"
+            ? (audioDimensions?.height ?? CANVAS_AUDIO_ITEM_HEIGHT)
+            : CANVAS_TEXT_ITEM_MIN_HEIGHT;
       const pendingX = Math.round((worldX - pendingWidth / 2) * 100) / 100;
       const pendingY =
-        resolved.kind === "image"
+        resolved.kind === "image" || resolved.kind === "audio"
           ? Math.round((worldY - pendingHeight / 2) * 100) / 100
           : Math.round((worldY - 36) * 100) / 100;
 
@@ -380,7 +423,7 @@ export const useCanvasSharedSceneState = ({
       }
 
       try {
-        if (showLoadingPlaceholder && resolved.kind === "text") {
+        if (showLoadingPlaceholder && (resolved.kind === "text" || resolved.kind === "audio")) {
           await waitForNextAnimationFrame();
         }
         if (showLoadingPlaceholder && resolved.kind === "image" && !preResolvedImageDimensions) {
@@ -398,11 +441,15 @@ export const useCanvasSharedSceneState = ({
           const offsetX =
             resolved.kind === "image"
               ? (imageDimensions?.width ?? CANVAS_IMAGE_ITEM_WIDTH) / 2
-              : CANVAS_TEXT_ITEM_WIDTH / 2;
+              : resolved.kind === "audio"
+                ? (audioDimensions?.width ?? CANVAS_AUDIO_ITEM_WIDTH) / 2
+                : CANVAS_TEXT_ITEM_WIDTH / 2;
           const offsetY =
             resolved.kind === "image"
               ? (imageDimensions?.height ?? CANVAS_IMAGE_ITEM_HEIGHT) / 2
-              : 36;
+              : resolved.kind === "audio"
+                ? (audioDimensions?.height ?? CANVAS_AUDIO_ITEM_HEIGHT) / 2
+                : 36;
           return [
             ...nextItems,
             buildCanvasSceneItem({
@@ -410,8 +457,8 @@ export const useCanvasSharedSceneState = ({
               x: Math.round((worldX - offsetX) * 100) / 100,
               y: Math.round((worldY - offsetY) * 100) / 100,
               z: highestZ,
-              width: imageDimensions?.width,
-              height: imageDimensions?.height,
+              width: resolved.kind === "audio" ? audioDimensions?.width : imageDimensions?.width,
+              height: resolved.kind === "audio" ? audioDimensions?.height : imageDimensions?.height,
             }),
           ];
         });

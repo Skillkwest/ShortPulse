@@ -1007,8 +1007,8 @@
   height: 22px;
   border-radius: 7px;
   border: 0;
-  background: rgba(16, 19, 24, 0.9);
-  color: rgba(154, 228, 179, 0.96);
+  background: rgba(19, 27, 22, 0.92);
+  color: rgba(182, 247, 205, 0.98);
   z-index: 5;
   display: inline-flex;
   align-items: center;
@@ -1025,14 +1025,14 @@
 
 .media-library-panel-selection-toggle:hover,
 .media-library-panel-selection-toggle:focus-visible {
-  background: rgba(24, 29, 35, 0.96);
-  color: rgba(185, 241, 203, 0.98);
+  background: rgba(24, 35, 29, 0.96);
+  color: rgba(212, 255, 227, 0.98);
 }
 
 .media-library-panel-selection-toggle.is-selected,
 .media-library-select-indicator {
-  background: rgba(18, 22, 27, 0.94);
-  color: rgba(165, 232, 188, 0.98);
+  background: rgba(23, 33, 27, 0.96);
+  color: rgba(194, 255, 216, 0.98);
 }
 
 .media-library-select-indicator {

@@ -1,67 +1,13 @@
 /**
  * Elements library constants and draft defaults.
  */
-import type {
-  ElementDraft,
-  ElementProfileImageTransform,
-  ElementLibraryItem,
-  ElementReferenceSet,
-  ElementReferenceSetId,
-  ElementReferenceSetLabelMap,
-  ElementReferenceSetMap,
-  ElementReferenceSetState,
-} from "./types";
+import type { ElementDraft, ElementProfileImageTransform, ElementLibraryItem } from "./types";
 
 export const DEFAULT_ELEMENT_PROFILE_IMAGE_TRANSFORM: ElementProfileImageTransform = {
   zoom: 1,
   offsetX: 0,
   offsetY: 0,
 };
-
-export const ELEMENT_REFERENCE_SET_IDS: ElementReferenceSetId[] = [
-  "1",
-  "2",
-  "3",
-  "4",
-  "5",
-  "6",
-  "7",
-  "8",
-  "9",
-  "10",
-];
-
-export const MAX_ELEMENT_REFERENCE_SET_TAB_COUNT = ELEMENT_REFERENCE_SET_IDS.length;
-
-export const createEmptyElementReferenceSet = (): ElementReferenceSet => ({
-  assetType: "image",
-  description: "",
-  deckReferenceUrls: [],
-  imageReferenceUrls: [],
-  videoReferenceUrl: "",
-});
-
-export const createDefaultElementReferenceSetLabels = (): ElementReferenceSetLabelMap =>
-  Object.fromEntries(
-    ELEMENT_REFERENCE_SET_IDS.map((setId) => [
-      setId,
-      setId === "1" ? "Double click me" : `Reference Set ${setId}`,
-    ])
-  ) as ElementReferenceSetLabelMap;
-
-export const createEmptyElementReferenceSetMap = (): ElementReferenceSetMap =>
-  Object.fromEntries(
-    ELEMENT_REFERENCE_SET_IDS.map((setId) => [setId, createEmptyElementReferenceSet()])
-  ) as ElementReferenceSetMap;
-
-export const createDefaultElementReferenceSetState = (
-  overrides?: Partial<ElementReferenceSetState>
-): ElementReferenceSetState => ({
-  activeSetId: overrides?.activeSetId ?? "1",
-  tabOrder: overrides?.tabOrder ?? ["1"],
-  tabLabels: overrides?.tabLabels ?? createDefaultElementReferenceSetLabels(),
-  sets: overrides?.sets ?? createEmptyElementReferenceSetMap(),
-});
 
 export const createEmptyElementDraft = (): ElementDraft => {
   return {

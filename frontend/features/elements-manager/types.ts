@@ -5,31 +5,10 @@ export type ElementAssetType = "image" | "video";
 
 export type ElementStatus = "draft" | "ready";
 
-export type ElementReferenceSetId = "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" | "10";
-
 export type ElementProfileImageTransform = {
   zoom: number;
   offsetX: number;
   offsetY: number;
-};
-
-export type ElementReferenceSet = {
-  assetType: ElementAssetType;
-  description: string;
-  deckReferenceUrls: string[];
-  imageReferenceUrls: string[];
-  videoReferenceUrl: string;
-};
-
-export type ElementReferenceSetMap = Record<ElementReferenceSetId, ElementReferenceSet>;
-
-export type ElementReferenceSetLabelMap = Record<ElementReferenceSetId, string>;
-
-export type ElementReferenceSetState = {
-  activeSetId: ElementReferenceSetId;
-  tabOrder: ElementReferenceSetId[];
-  tabLabels: ElementReferenceSetLabelMap;
-  sets: ElementReferenceSetMap;
 };
 
 export type ElementLibraryItem = {

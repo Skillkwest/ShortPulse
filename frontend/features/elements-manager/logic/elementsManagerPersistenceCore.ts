@@ -6,20 +6,8 @@ import { getSignedMediaUrl, invalidateSignedMediaUrl } from "../../../lib/mediaS
 import { assertUserScopedMediaStoragePath } from "../../../lib/mediaStoragePath";
 import { ensureSupabaseQueryClient, readSupabaseUserId } from "../../../lib/supabaseClient";
 import { refreshSupabaseSignedUrlIfNeeded } from "../../ai-studio/utils/imageUpload";
-import {
-  createDefaultElementReferenceSetLabels,
-  createDefaultElementReferenceSetState,
-  createEmptyElementReferenceSetMap,
-  DEFAULT_ELEMENT_PROFILE_IMAGE_TRANSFORM,
-  ELEMENT_REFERENCE_SET_IDS,
-} from "../constants";
-import type {
-  ElementAssetType,
-  ElementProfileImageTransform,
-  ElementReferenceSetId,
-  ElementReferenceSetState,
-  ElementStatus,
-} from "../types";
+import { DEFAULT_ELEMENT_PROFILE_IMAGE_TRANSFORM } from "../constants";
+import type { ElementAssetType, ElementProfileImageTransform, ElementStatus } from "../types";
 
 const MEDIA_BUCKET = "media_library";
 export const DEFAULT_ELEMENT_NAME = "New Element";
@@ -59,6 +47,27 @@ type ElementReferenceSetRow = {
   updated_at: string;
 };
 
+type ElementReferenceSetId = "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" | "10";
+
+type ElementReferenceSet = {
+  assetType: ElementAssetType;
+  description: string;
+  deckReferenceUrls: string[];
+  imageReferenceUrls: string[];
+  videoReferenceUrl: string;
+};
+
+type ElementReferenceSetMap = Record<ElementReferenceSetId, ElementReferenceSet>;
+
+type ElementReferenceSetLabelMap = Record<ElementReferenceSetId, string>;
+
+type ElementReferenceSetState = {
+  activeSetId: ElementReferenceSetId;
+  tabOrder: ElementReferenceSetId[];
+  tabLabels: ElementReferenceSetLabelMap;
+  sets: ElementReferenceSetMap;
+};
+
 export type ElementsManagerListItem = {
   elementId: string;
   elementName: string;
@@ -94,6 +103,49 @@ export type SaveElementManagerDraftInput = {
   imageReferenceUrls: string[];
   videoReferenceUrl: string | null;
 };
+
+const ELEMENT_REFERENCE_SET_IDS: ElementReferenceSetId[] = [
+  "1",
+  "2",
+  "3",
+  "4",
+  "5",
+  "6",
+  "7",
+  "8",
+  "9",
+  "10",
+];
+
+const createEmptyElementReferenceSet = (): ElementReferenceSet => ({
+  assetType: "image",
+  description: "",
+  deckReferenceUrls: [],
+  imageReferenceUrls: [],
+  videoReferenceUrl: "",
+});
+
+const createDefaultElementReferenceSetLabels = (): ElementReferenceSetLabelMap =>
+  Object.fromEntries(
+    ELEMENT_REFERENCE_SET_IDS.map((setId) => [
+      setId,
+      setId === "1" ? "Double click me" : `Reference Set ${setId}`,
+    ])
+  ) as ElementReferenceSetLabelMap;
+
+const createEmptyElementReferenceSetMap = (): ElementReferenceSetMap =>
+  Object.fromEntries(
+    ELEMENT_REFERENCE_SET_IDS.map((setId) => [setId, createEmptyElementReferenceSet()])
+  ) as ElementReferenceSetMap;
+
+const createDefaultElementReferenceSetState = (
+  overrides?: Partial<ElementReferenceSetState>
+): ElementReferenceSetState => ({
+  activeSetId: overrides?.activeSetId ?? "1",
+  tabOrder: overrides?.tabOrder ?? ["1"],
+  tabLabels: overrides?.tabLabels ?? createDefaultElementReferenceSetLabels(),
+  sets: overrides?.sets ?? createEmptyElementReferenceSetMap(),
+});
 
 const asErrorMessage = (error: unknown, fallback: string): string =>
   error instanceof Error && error.message.trim().length ? error.message : fallback;

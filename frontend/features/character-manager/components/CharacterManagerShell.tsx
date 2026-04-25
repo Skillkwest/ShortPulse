@@ -1008,25 +1008,23 @@ export function CharacterManagerShell({
                         ) : null}
                       </div>
 
-                      <div className="character-profile-fields character-profile-fields--label-serif">
-                        <label
-                          className="control-row character-simple-field"
-                          htmlFor="character-manager-name"
-                        >
-                          <span className="input-label">Name:</span>
-                          <input
-                            ref={characterNameInputRef}
-                            id="character-manager-name"
-                            className="character-name-input"
-                            type="text"
-                            value={characterName}
-                            maxLength={80}
-                            onChange={(event) => setCharacterName(event.target.value)}
-                            placeholder="Enter character name"
-                            disabled={loading}
-                          />
-                        </label>
-                      </div>
+                      <label
+                        className="control-row character-simple-field character-simple-field--label-serif"
+                        htmlFor="character-manager-name"
+                      >
+                        <span className="input-label">Name:</span>
+                        <input
+                          ref={characterNameInputRef}
+                          id="character-manager-name"
+                          className="character-name-input"
+                          type="text"
+                          value={characterName}
+                          maxLength={80}
+                          onChange={(event) => setCharacterName(event.target.value)}
+                          placeholder="Enter character name"
+                          disabled={loading}
+                        />
+                      </label>
                     </div>
                   </div>
 

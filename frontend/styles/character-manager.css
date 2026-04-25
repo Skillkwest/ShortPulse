@@ -772,6 +772,15 @@ body.character-manager-body {
   gap: 6px;
 }
 
+.character-simple-field.character-simple-field--label-serif .input-label {
+  font-family: var(--character-title-font);
+  font-size: clamp(0.9rem, 0.86rem + 0.28vw, 1.02rem);
+  font-weight: 400;
+  letter-spacing: 0.08em;
+  color: var(--ai-accent);
+  margin-bottom: 3px;
+}
+
 .character-profile-card {
   display: grid;
   grid-template-columns: 188px minmax(0, 1fr);
